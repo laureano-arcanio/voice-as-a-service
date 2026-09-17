@@ -1,0 +1,70 @@
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      # Host-only, for connecting a local MySQL client/GUI during the demo.
+      # Not needed by the app itself (it talks to `db` over the compose network).
+      - "127.0.0.1:3306:3306"
+    healthcheck:
+      # --protocol=tcp is deliberate: without it, mysqladmin can connect via the
+      # local socket to MySQL's *temporary* init-phase server and report healthy
+      # before the real server is listening on 3306 for the app to reach.
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--protocol=tcp", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  app:
+    build:
+      context: .
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Overrides the DB_DSN in .env (that one targets 127.0.0.1, for the bare-metal
+      # systemd deployment described in README.md) so the container talks to the
+      # `db` service by its compose network hostname instead.
+      DB_DSN: mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}?charset=utf8mb4
+    ports:
+      - "8011:8011"
+    volumes:
+      - ./storage:/app/storage
+
+  agent:
+    build:
+      context: .
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DB_DSN: mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}?charset=utf8mb4
+    command: ["python", "-m", "app.livekit_agent", "start"]
+    # The image's HEALTHCHECK probes the FastAPI app's /health over HTTP, which
+    # this service doesn't serve (it's a worker process, no HTTP port) -- disable
+    # it here so `docker compose ps` doesn't show a misleading "unhealthy".
+    healthcheck:
+      disable: true
+
+volumes:
+  mysql_data:

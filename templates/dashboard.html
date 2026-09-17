@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% block nav_dash %}active{% endblock %}
+{% block content %}
+
+<section class="card call-launcher">
+  <h2>Nueva llamada de validaci&oacute;n</h2>
+  <div class="launcher-grid">
+    <label>Tel&eacute;fono
+      <input id="phone" type="tel" placeholder="+5491155551234" autocomplete="off">
+    </label>
+    <label>Nombre del cliente
+      <input id="client-name" type="text" placeholder="Juan P&eacute;rez" autocomplete="off">
+    </label>
+    <label>G&eacute;nero
+      <select id="client-gender">
+        <option value="">No especifica</option>
+        <option value="masculino">Masculino</option>
+        <option value="femenino">Femenino</option>
+      </select>
+    </label>
+  </div>
+  <label class="notes-label">Contexto adicional para el agente (opcional)
+    <textarea id="client-notes" rows="2" placeholder="Ej.: es una persona mayor con problemas de audici&oacute;n, hablarle claro y pausado. / Es fan&aacute;tico del f&uacute;tbol, hincha de Boca."></textarea>
+  </label>
+  <div class="launcher-row">
+    <button id="btn-call" class="btn primary">Llamar</button>
+    <span class="hint">Tel&eacute;fono en formato internacional E.164, ej. <code>+5491155551234</code>. El agente IA llama, hace el cuestionario configurado y asigna el score autom&aacute;ticamente. El contexto adicional se usa solo para adaptar el trato (empat&iacute;a, ritmo, claridad), nunca para influir en las respuestas.</span>
+  </div>
+  <p id="call-msg" class="msg"></p>
+</section>
+
+<section class="stats-grid" id="stats">
+  <div class="stat"><b id="st-total">&ndash;</b><span>Llamadas totales</span></div>
+  <div class="stat"><b id="st-completed">&ndash;</b><span>Finalizadas</span></div>
+  <div class="stat ok"><b id="st-apr">&ndash;</b><span>Aprobadas</span></div>
+  <div class="stat warn"><b id="st-adef">&ndash;</b><span>A definir</span></div>
+  <div class="stat bad"><b id="st-rech">&ndash;</b><span>Rechazadas</span></div>
+  <div class="stat"><b id="st-avg">&ndash;</b><span>Score promedio</span></div>
+  <div class="stat"><b id="st-min">&ndash;</b><span>Minutos de llamada</span></div>
+</section>
+
+<section class="card">
+  <div class="chart-head">
+    <h2>Evoluci&oacute;n de llamadas y resultados</h2>
+    <div class="chart-filters">
+      <select id="chart-preset" class="in">
+        <option value="7">&Uacute;ltima semana</option>
+        <option value="30" selected>&Uacute;ltimo mes</option>
+        <option value="rango">Rango de fechas</option>
+      </select>
+      <span id="chart-range" style="display:none">
+        <input id="chart-from" type="date" class="in">
+        <input id="chart-to" type="date" class="in">
+        <button id="chart-apply" class="btn small">Aplicar</button>
+      </span>
+    </div>
+  </div>
+  <canvas id="chart" height="90"></canvas>
+</section>
+
+<section class="card">
+  <h2>Llamadas</h2>
+  <table class="tbl" id="calls-tbl">
+    <thead><tr>
+      <th>#</th><th>Fecha</th><th>Cliente</th><th>Tel&eacute;fono</th><th>Estado</th><th>Duraci&oacute;n</th><th>Score</th><th>Resultado</th><th>Pr&oacute;ximo paso</th><th></th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
+  <p class="hint" id="empty-msg" style="display:none">Todav&iacute;a no hay llamadas. Ingres&aacute; un n&uacute;mero arriba y presion&aacute; Llamar.</p>
+</section>
+
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+const OUTCOME = {
+  aprobado:  ['Aprobado', 'badge ok'],
+  a_definir: ['A definir', 'badge warn'],
+  rechazado: ['Rechazado', 'badge bad'],
+};
+const NEXT_STEP = {
+  aprobado:  'Enviado a Terminal',
+  a_definir: 'Derivado a Ventas',
+  rechazado: 'Reintegro',
+};
+const STATUS = {
+  pendiente: ['Pendiente', 'badge'],
+  sonando: ['Sonando', 'badge info'],
+  en_curso: ['En curso', 'badge info'],
+  finalizada: ['Finalizada', 'badge ok'],
+  fallida: ['Fallida', 'badge bad'],
+};
+
+function fmtDur(s) {
+  if (!s) return '\u2013';
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('es-AR') + ' ' + d.toLocaleTimeString('es-AR', {hour: '2-digit', minute: '2-digit'});
+}
+function badge(map, key) {
+  const [label, cls] = map[key] || [key || '\u2013', 'badge'];
+  return `<span class="${cls}">${label}</span>`;
+}
+
+async function refresh() {
+  const [stats, calls] = await Promise.all([
+    fetch('/api/stats').then(r => r.json()),
+    fetch('/api/calls').then(r => r.json()),
+  ]);
+  const pct = n => stats.scored ? ' \u00b7 ' + Math.round(1000 * n / stats.scored) / 10 + '%' : '';
+  document.getElementById('st-total').textContent = stats.total_calls;
+  document.getElementById('st-completed').textContent = stats.completed;
+  document.getElementById('st-apr').textContent = stats.approved + pct(stats.approved);
+  document.getElementById('st-adef').textContent = stats.a_definir + pct(stats.a_definir);
+  document.getElementById('st-rech').textContent = stats.rejected + pct(stats.rejected);
+  document.getElementById('st-avg').textContent = stats.scored ? stats.avg_score : '\u2013';
+  document.getElementById('st-min').textContent = stats.total_minutes;
+
+  const tb = document.querySelector('#calls-tbl tbody');
+  tb.innerHTML = calls.map(c => `
+    <tr>
+      <td>${c.id}</td>
+      <td>${fmtDate(c.created_at)}</td>
+      <td>${c.client_name || '\u2013'}</td>
+      <td>${c.phone}</td>
+      <td>${badge(STATUS, c.status)}</td>
+      <td>${fmtDur(c.duration_seconds)}</td>
+      <td>${c.score ?? '\u2013'}</td>
+      <td>${c.outcome ? badge(OUTCOME, c.outcome) : '\u2013'}</td>
+      <td>${c.outcome ? (NEXT_STEP[c.outcome] || '\u2013') : '\u2013'}</td>
+      <td><a class="btn small" href="/calls/${c.id}">Ver detalle</a></td>
+    </tr>`).join('');
+  document.getElementById('empty-msg').style.display = calls.length ? 'none' : 'block';
+}
+
+document.getElementById('btn-call').addEventListener('click', async () => {
+  const msg = document.getElementById('call-msg');
+  const btn = document.getElementById('btn-call');
+  msg.textContent = ''; msg.className = 'msg';
+  btn.disabled = true; btn.textContent = 'Llamando\u2026';
+  try {
+    const r = await fetch('/api/calls', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        phone: document.getElementById('phone').value,
+        client_name: document.getElementById('client-name').value,
+        client_gender: document.getElementById('client-gender').value,
+        client_notes: document.getElementById('client-notes').value,
+      }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Error');
+    msg.textContent = 'Llamada iniciada (#' + data.id + '). El estado se actualiza autom\u00e1ticamente.';
+    msg.className = 'msg ok';
+    ['phone', 'client-name', 'client-notes'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('client-gender').value = '';
+  } catch (e) {
+    msg.textContent = e.message;
+    msg.className = 'msg bad';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Llamar';
+    refresh();
+  }
+});
+
+// ---------- grafico ----------
+let chartObj = null;
+
+function chartParams() {
+  const preset = document.getElementById('chart-preset').value;
+  const iso = d => d.toISOString().slice(0, 10);
+  if (preset === 'rango') {
+    const from = document.getElementById('chart-from').value;
+    const to = document.getElementById('chart-to').value;
+    if (!from || !to) return null;
+    const days = (new Date(to) - new Date(from)) / 86400000;
+    return {bucket: days > 62 ? 'month' : 'day', date_from: from, date_to: to};
+  }
+  const days = parseInt(preset);
+  const from = new Date(Date.now() - (days - 1) * 86400000);
+  return {bucket: 'day', date_from: iso(from), date_to: iso(new Date())};
+}
+
+async function refreshChart() {
+  const p = chartParams();
+  if (!p) return;
+  const qs = new URLSearchParams(p).toString();
+  const d = await fetch('/api/chart?' + qs).then(r => r.json());
+  const cfg = {
+    data: {
+      labels: d.labels,
+      datasets: [
+        {type: 'bar', label: 'Llamadas', data: d.totals, backgroundColor: '#c7d4ee',
+         borderRadius: 4, yAxisID: 'y', order: 3},
+        {type: 'line', label: '% aprobadas', data: d.apr_pct, borderColor: '#1d4ed8',
+         backgroundColor: '#1d4ed8', spanGaps: true, tension: .25, yAxisID: 'y1', order: 1},
+        {type: 'line', label: '% rechazadas', data: d.rech_pct, borderColor: '#b42318',
+         backgroundColor: '#b42318', spanGaps: true, tension: .25, yAxisID: 'y1', order: 2},
+      ],
+    },
+    options: {
+      responsive: true,
+      interaction: {mode: 'index', intersect: false},
+      scales: {
+        y: {beginAtZero: true, title: {display: true, text: 'Llamadas'}, ticks: {precision: 0}},
+        y1: {position: 'right', min: 0, max: 100, grid: {drawOnChartArea: false},
+             title: {display: true, text: '%'}, ticks: {callback: v => v + '%'}},
+      },
+      plugins: {legend: {position: 'bottom'}},
+    },
+  };
+  if (chartObj) {
+    chartObj.data = cfg.data;
+    chartObj.update();
+  } else {
+    chartObj = new Chart(document.getElementById('chart'), cfg);
+  }
+}
+
+document.getElementById('chart-preset').addEventListener('change', () => {
+  const rango = document.getElementById('chart-preset').value === 'rango';
+  document.getElementById('chart-range').style.display = rango ? 'inline' : 'none';
+  if (!rango) refreshChart();
+});
+document.getElementById('chart-apply').addEventListener('click', refreshChart);
+
+refresh();
+refreshChart();
+setInterval(refresh, 5000);
+setInterval(refreshChart, 30000);
+</script>
+{% endblock %}

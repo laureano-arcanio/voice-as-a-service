@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block nav_dash %}active{% endblock %}
+{% block content %}
+
+<p><a href="/" class="btn small">&larr; Volver al dashboard</a></p>
+
+<section class="card" id="head-card">
+  <h2>Llamada #{{ call_id }} <span id="h-outcome"></span></h2>
+  <div class="detail-grid">
+    <div><span>Cliente</span><b id="h-name">&ndash;</b></div>
+    <div><span>Tel&eacute;fono</span><b id="h-phone">&ndash;</b></div>
+    <div><span>Fecha</span><b id="h-date">&ndash;</b></div>
+    <div><span>Estado</span><b id="h-status">&ndash;</b></div>
+    <div><span>Duraci&oacute;n</span><b id="h-dur">&ndash;</b></div>
+    <div><span>Score</span><b id="h-score">&ndash;</b></div>
+    <div><span>Fin de llamada</span><b id="h-reason">&ndash;</b></div>
+    <div><span>Pr&oacute;ximo paso</span><b id="h-next">&ndash;</b></div>
+  </div>
+  <p class="hint" id="h-notes" style="display:none"></p>
+  <div id="audio-wrap" style="display:none; margin-top:14px">
+    <h3>Grabaci&oacute;n</h3>
+    <audio id="audio" controls preload="none" style="width:100%"></audio>
+  </div>
+</section>
+
+<section class="card" id="score-card" style="display:none">
+  <h2>Scoring</h2>
+  <p class="hint" id="score-notes"></p>
+  <p class="hint" id="score-bands"></p>
+  <table class="tbl" id="score-tbl">
+    <thead><tr>
+      <th>Pregunta</th><th>Respuesta del cliente</th><th>Justificaci&oacute;n</th>
+      <th style="width:70px">Puntos</th><th style="width:90px">Resultado</th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<section class="card" id="err-card" style="display:none">
+  <h2>Scoring pendiente</h2>
+  <p class="msg bad" id="score-error"></p>
+  <button id="btn-rescore" class="btn primary">Reintentar evaluaci&oacute;n</button>
+</section>
+
+<section class="card" id="tr-card" style="display:none">
+  <h2>Transcript</h2>
+  <div class="chat" id="chat"></div>
+</section>
+
+<section class="card" id="lat-card" style="display:none">
+  <h2>Latencia por turno</h2>
+  <p class="hint">Segundos desde que el cliente deja de hablar hasta que el agente empieza a sonar.
+    <b>Total</b> = EOU (STT + endpointing) + LLM TTFT + TTS TTFB.</p>
+  <p class="hint" id="lat-stats"></p>
+  <table class="tbl" id="lat-tbl">
+    <thead><tr>
+      <th style="width:50px">#</th><th>Total</th><th>EOU</th><th>&nbsp;&nbsp;STT</th><th>&nbsp;&nbsp;Endpointing</th>
+      <th>LLM TTFT</th><th>LLM total</th><th>TTS TTFB</th><th>Audio</th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+{% endblock %}
+{% block scripts %}
+<script>
+const CALL_ID = {{ call_id }};
+const OUTCOME = {
+  aprobado:  ['Aprobado', 'badge ok'],
+  a_definir: ['A definir', 'badge warn'],
+  rechazado: ['Rechazado', 'badge bad'],
+};
+const NEXT_STEP = {
+  aprobado:  ['Acci\u00f3n: Enviado a Terminal', 'badge ok'],
+  a_definir: ['Acci\u00f3n: Derivado a Ventas', 'badge warn'],
+  rechazado: ['Acci\u00f3n: Reintegro', 'badge bad'],
+};
+const STATUS = {
+  pendiente: 'Pendiente', sonando: 'Sonando', en_curso: 'En curso',
+  finalizada: 'Finalizada', fallida: 'Fallida',
+};
+
+function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+
+async function load() {
+  const c = await fetch('/api/calls/' + CALL_ID).then(r => r.json());
+  document.getElementById('h-name').textContent = (c.client_name || '\u2013') +
+    (c.client_gender ? ' (' + c.client_gender + ')' : '');
+  if (c.client_notes) {
+    const n = document.getElementById('h-notes');
+    n.style.display = 'block';
+    n.textContent = 'Contexto para el agente: ' + c.client_notes;
+  }
+  document.getElementById('h-phone').textContent = c.phone;
+  document.getElementById('h-date').textContent = c.created_at ? new Date(c.created_at).toLocaleString('es-AR') : '\u2013';
+  document.getElementById('h-status').textContent = STATUS[c.status] || c.status;
+  document.getElementById('h-dur').textContent = c.duration_seconds
+    ? Math.floor(c.duration_seconds / 60) + ':' + String(c.duration_seconds % 60).padStart(2, '0') : '\u2013';
+  document.getElementById('h-score').textContent = c.score ?? '\u2013';
+  document.getElementById('h-reason').textContent = c.ended_reason || '\u2013';
+  if (c.outcome) {
+    const [label, cls] = OUTCOME[c.outcome] || [c.outcome, 'badge'];
+    document.getElementById('h-outcome').innerHTML = `<span class="${cls}" style="font-size:.55em;vertical-align:middle">${label}</span>`;
+    const [nextLabel, nextCls] = NEXT_STEP[c.outcome] || ['\u2013', 'badge'];
+    document.getElementById('h-next').innerHTML = `<span class="${nextCls}">${nextLabel}</span>`;
+  }
+
+  if (c.has_recording && c.recording_file) {
+    document.getElementById('audio-wrap').style.display = 'block';
+    const a = document.getElementById('audio');
+    if (!a.src) a.src = '/recordings/' + c.recording_file;
+  }
+
+  // transcript
+  if (c.transcript_json) {
+    const msgs = JSON.parse(c.transcript_json);
+    document.getElementById('tr-card').style.display = 'block';
+    document.getElementById('chat').innerHTML = msgs.map(m => `
+      <div class="bubble ${m.role === 'agente' ? 'agent' : 'client'}">
+        <span class="who">${m.role === 'agente' ? 'Agente IA' : (m.role === 'cliente' ? 'Cliente' : m.role)}</span>
+        ${esc(m.text)}
+      </div>`).join('');
+  }
+
+  // latencia por turno
+  if (c.latency_json) {
+    const l = JSON.parse(c.latency_json);
+    if (l.n_turns) {
+      document.getElementById('lat-card').style.display = 'block';
+      const f = v => (v == null ? '\u2013' : v.toFixed(2) + 's');
+      const st = l.stats || {};
+      document.getElementById('lat-stats').innerHTML = l.n_turns + ' turnos &middot; promedio: ' +
+        ['total', 'eou', 'stt', 'endpointing', 'ttft', 'tts'].filter(k => st[k]).map(k =>
+          `${k} <b>${f(st[k].avg)}</b> (max ${f(st[k].max)})`).join(' &middot; ');
+      document.querySelector('#lat-tbl tbody').innerHTML = l.turns.map((t, i) => `
+        <tr${t.cancelled ? ' title="El cliente interrumpi\u00f3 la respuesta"' : ''}>
+          <td class="ctr">${i + 1}${t.cancelled ? ' \u26a1' : ''}</td>
+          <td><b>${f(t.total)}</b></td><td>${f(t.eou)}</td><td>${f(t.stt)}</td><td>${f(t.endpointing)}</td>
+          <td>${f(t.ttft)}</td><td>${f(t.llm_total)}${t.llm_tokens != null ? ' <span class="hint">(' + t.llm_tokens + ' tok)</span>' : ''}</td>
+          <td>${f(t.tts)}</td><td>${f(t.tts_audio)}</td>
+        </tr>`).join('');
+    }
+  }
+
+  // scoring
+  if (c.score_detail) {
+    const d = JSON.parse(c.score_detail);
+    document.getElementById('score-card').style.display = 'block';
+    document.getElementById('err-card').style.display = 'none';
+    document.getElementById('score-notes').textContent = d.notes ? 'Observaciones del evaluador: ' + d.notes : '';
+    const bands = JSON.parse(c.bands_snapshot || '[]');
+    document.getElementById('score-bands').innerHTML = 'Criterio aplicado: ' + bands.map(b =>
+      `${b.min_score}\u2013${b.max_score}: <b>${(OUTCOME[b.outcome] || [b.outcome])[0]}</b>`).join(' &middot; ') +
+      (d.required_failed ? ' &middot; <b>Una pregunta requerida fall\u00f3: el resultado baja a "A definir".</b>' : '');
+    document.querySelector('#score-tbl tbody').innerHTML = d.detail.map(r => `
+      <tr>
+        <td>${esc(r.question)}${r.required ? ' <span class="badge info" title="Requerida">R</span>' : ''}</td>
+        <td>${esc(r.customer_answer)}</td>
+        <td class="hint">${esc(r.rationale)}</td>
+        <td class="ctr">${r.points}/${r.weight}</td>
+        <td class="ctr">${r.correct ? '<span class="badge ok">Bien</span>' : '<span class="badge bad">Mal / NS</span>'}</td>
+      </tr>`).join('');
+  } else if (c.score_error) {
+    document.getElementById('err-card').style.display = 'block';
+    document.getElementById('score-error').textContent = c.score_error;
+  }
+
+  if (['pendiente', 'sonando', 'en_curso'].includes(c.status) || (c.status === 'finalizada' && !c.score_detail && !c.score_error)) {
+    setTimeout(load, 4000);
+  }
+}
+
+document.getElementById('btn-rescore').addEventListener('click', async () => {
+  await fetch('/api/calls/' + CALL_ID + '/rescore', {method: 'POST'});
+  document.getElementById('score-error').textContent = 'Reevaluando\u2026';
+  setTimeout(load, 4000);
+});
+
+load();
+</script>
+{% endblock %}

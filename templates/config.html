@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block nav_config %}active{% endblock %}
+{% block content %}
+
+<section class="card">
+  <h2>Cuestionario de validaci&oacute;n</h2>
+  <p class="hint">El agente hace las preguntas activas en orden. La <b>respuesta correcta</b> es la referencia que usa el evaluador para puntuar (nunca se le revela al cliente). Las preguntas <b>requeridas</b> sobreseen al score: si una requerida est&aacute; mal respondida, el resultado baja a &ldquo;A definir&rdquo; aunque el puntaje apruebe.</p>
+  <table class="tbl" id="q-tbl">
+    <thead><tr>
+      <th style="width:36px">#</th><th>Pregunta</th><th>Respuesta correcta (referencia)</th>
+      <th style="width:70px">Puntos</th><th style="width:80px">Requerida</th><th style="width:70px">Activa</th><th style="width:150px"></th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
+  <div class="row-actions">
+    <button id="btn-add" class="btn">+ Agregar pregunta</button>
+    <span class="hint">Total de puntos activos: <b id="total-weight">0</b></span>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Criterio de scoring</h2>
+  <p class="hint">Rangos de puntaje y resultado asignado. Se aplican sobre la suma de puntos de las preguntas correctas.</p>
+  <table class="tbl narrow" id="b-tbl">
+    <thead><tr><th>Desde</th><th>Hasta</th><th>Resultado</th><th></th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <div class="row-actions">
+    <button id="btn-add-band" class="btn">+ Agregar rango</button>
+    <button id="btn-save-bands" class="btn primary">Guardar criterio</button>
+    <span id="bands-msg" class="msg"></span>
+  </div>
+</section>
+
+{% endblock %}
+{% block scripts %}
+<script>
+// ---------- preguntas ----------
+let questions = [];
+
+function esc(s) {
+  return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+}
+
+function renderQuestions() {
+  const tb = document.querySelector('#q-tbl tbody');
+  tb.innerHTML = questions.map(q => `
+    <tr data-id="${q.id}">
+      <td><input class="in num" data-f="position" type="number" value="${q.position}"></td>
+      <td><textarea class="in" data-f="text" rows="2">${esc(q.text)}</textarea></td>
+      <td><textarea class="in" data-f="expected" rows="2">${esc(q.expected)}</textarea></td>
+      <td><input class="in num" data-f="weight" type="number" value="${q.weight}"></td>
+      <td class="ctr"><input data-f="required" type="checkbox" ${q.required ? 'checked' : ''}></td>
+      <td class="ctr"><input data-f="active" type="checkbox" ${q.active ? 'checked' : ''}></td>
+      <td class="ctr">
+        <button class="btn small save-q">Guardar</button>
+        <button class="btn small danger del-q">Borrar</button>
+      </td>
+    </tr>`).join('');
+  const total = questions.filter(q => q.active).reduce((a, q) => a + (q.weight || 0), 0);
+  document.getElementById('total-weight').textContent = total;
+}
+
+async function loadQuestions() {
+  questions = await fetch('/api/questions').then(r => r.json());
+  renderQuestions();
+}
+
+document.querySelector('#q-tbl tbody').addEventListener('click', async e => {
+  const tr = e.target.closest('tr');
+  if (!tr) return;
+  const id = tr.dataset.id;
+  if (e.target.classList.contains('save-q')) {
+    const payload = {};
+    tr.querySelectorAll('[data-f]').forEach(el => {
+      payload[el.dataset.f] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+    const r = await fetch('/api/questions/' + id, {
+      method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload),
+    });
+    if (r.ok) { e.target.textContent = 'Guardado \u2713'; setTimeout(() => e.target.textContent = 'Guardar', 1200); }
+    await loadQuestions();
+  }
+  if (e.target.classList.contains('del-q')) {
+    if (!confirm('\u00bfBorrar esta pregunta?')) return;
+    await fetch('/api/questions/' + id, {method: 'DELETE'});
+    await loadQuestions();
+  }
+});
+
+document.getElementById('btn-add').addEventListener('click', async () => {
+  const pos = questions.length ? Math.max(...questions.map(q => q.position)) + 1 : 1;
+  await fetch('/api/questions', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({position: pos, text: 'Nueva pregunta', expected: '', weight: 5, required: false, active: true}),
+  });
+  await loadQuestions();
+});
+
+// ---------- bandas ----------
+let bands = [];
+
+function renderBands() {
+  const tb = document.querySelector('#b-tbl tbody');
+  tb.innerHTML = bands.map((b, i) => `
+    <tr data-i="${i}">
+      <td><input class="in num" data-f="min_score" type="number" value="${b.min_score}"></td>
+      <td><input class="in num" data-f="max_score" type="number" value="${b.max_score}"></td>
+      <td>
+        <select class="in" data-f="outcome">
+          <option value="rechazado" ${b.outcome === 'rechazado' ? 'selected' : ''}>Rechazado</option>
+          <option value="a_definir" ${b.outcome === 'a_definir' ? 'selected' : ''}>A definir</option>
+          <option value="aprobado" ${b.outcome === 'aprobado' ? 'selected' : ''}>Aprobado</option>
+        </select>
+      </td>
+      <td class="ctr"><button class="btn small danger del-b">Quitar</button></td>
+    </tr>`).join('');
+}
+
+async function loadBands() {
+  bands = await fetch('/api/bands').then(r => r.json());
+  renderBands();
+}
+
+document.querySelector('#b-tbl tbody').addEventListener('click', e => {
+  if (e.target.classList.contains('del-b')) {
+    bands.splice(parseInt(e.target.closest('tr').dataset.i), 1);
+    renderBands();
+  }
+});
+
+document.getElementById('btn-add-band').addEventListener('click', () => {
+  bands.push({min_score: 0, max_score: 0, outcome: 'a_definir'});
+  renderBands();
+});
+
+document.getElementById('btn-save-bands').addEventListener('click', async () => {
+  const rows = [...document.querySelectorAll('#b-tbl tbody tr')].map(tr => {
+    const o = {};
+    tr.querySelectorAll('[data-f]').forEach(el => o[el.dataset.f] = el.value);
+    return o;
+  });
+  const msg = document.getElementById('bands-msg');
+  const r = await fetch('/api/bands', {
+    method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({bands: rows}),
+  });
+  if (r.ok) { msg.textContent = 'Criterio guardado \u2713'; msg.className = 'msg ok'; }
+  else { const d = await r.json(); msg.textContent = d.detail || 'Error'; msg.className = 'msg bad'; }
+  await loadBands();
+});
+
+loadQuestions();
+loadBands();
+</script>
+{% endblock %}
