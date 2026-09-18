@@ -18,32 +18,50 @@ LIVEKIT_SIP_TRUNK_ID = os.getenv("LIVEKIT_SIP_TRUNK_ID", "")
 LIVEKIT_AGENT_NAME = os.getenv("LIVEKIT_AGENT_NAME", "aiva-outbound-caller")
 CALL_MAX_DURATION_SECONDS = int(os.getenv("CALL_MAX_DURATION_SECONDS", "900"))
 
-# --- LLM conversacional en vivo + STT (OpenAI) ---
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-# Modelo mas chico/rapido de la familia GPT-5.4 (marzo 2026): pensado para
-# latencia minima. Se corre con reasoning_effort="none" (ver livekit_agent.py).
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.4-nano")
-# STT: gpt-live-transcribe (julio 2026) es el modelo de OpenAI para transcripcion
-# en vivo de baja latencia sobre la Realtime API (streaming por WebSocket, con
-# parciales). Reemplaza a gpt-4o-transcribe / gpt-4o-mini-transcribe, que solo
-# devuelven texto al cerrar el turno.
-OPENAI_STT_MODEL = os.getenv("OPENAI_STT_MODEL", "gpt-live-transcribe")
-# Ajuste de latencia de gpt-live-transcribe (minimal | low | medium | high | xhigh).
-# El plugin de LiveKit 1.8 no lo expone; se inyecta en livekit_agent.py.
-OPENAI_STT_DELAY = os.getenv("OPENAI_STT_DELAY", "minimal")
+# --- LLM / STT / TTS: inferencia local con vLLM (ver docker-compose.yml,
+# servicios vllm-llm/vllm-stt/vllm-tts) en vez de OpenAI/ElevenLabs/Anthropic.
+# Los 3 hablan API compatible con OpenAI -- se siguen usando los plugins
+# livekit.plugins.openai (STT/LLM/TTS), apuntando base_url a cada contenedor.
+# Ninguno de los 3 valida esta key de verdad; el openai SDK solo exige que no
+# venga vacia.
+VLLM_API_KEY = os.getenv("VLLM_API_KEY", "not-needed")
 
-# --- TTS (ElevenLabs) ---
-ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
-# ID de una voz de tu cuenta de ElevenLabs (Voice Library) que hable espanol.
-ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "")
-ELEVENLABS_MODEL = os.getenv("ELEVENLABS_MODEL", "eleven_flash_v2_5")
-# Velocidad de la voz (ElevenLabs acepta 0.8 a 1.2; 1.0 es la velocidad normal).
-ELEVENLABS_SPEED = float(os.getenv("ELEVENLABS_SPEED", "1.1"))
+# LLM conversacional en vivo. /v1/responses (Responses API, WebSocket
+# persistente) -- swap directo de lo que ya se usaba con OpenAI, mismo
+# reasoning_effort="none" (ver livekit_agent.py) para no perder latencia con
+# cadena de razonamiento previa a la respuesta.
+VLLM_LLM_BASE_URL = os.getenv("VLLM_LLM_BASE_URL", "http://vllm-llm:8000/v1")
+VLLM_LLM_MODEL = os.getenv("VLLM_LLM_MODEL", "Qwen/Qwen3.5-4B")
 
-# --- Scoring (evaluacion del transcript, OpenAI) ---
-# Corre al colgar (no es latencia percibida por el cliente), asi que por defecto
-# usa un escalon mas de calidad que el LLM en vivo. Comparte OPENAI_API_KEY.
-OPENAI_SCORING_MODEL = os.getenv("OPENAI_SCORING_MODEL", "gpt-5.4-mini")
+# STT. /v1/audio/transcriptions -- a diferencia de gpt-live-transcribe (Realtime
+# API por WebSocket con transcript parcial mientras el cliente habla), este es
+# un endpoint REST por-turno: el plugin hace commit del audio recien al
+# detectar silencio (VAD) y recien ahi llega el transcript, sin parciales.
+VLLM_STT_BASE_URL = os.getenv("VLLM_STT_BASE_URL", "http://vllm-stt:8000/v1")
+VLLM_STT_MODEL = os.getenv("VLLM_STT_MODEL", "Qwen/Qwen3-ASR-1.7B")
+
+# TTS. /v1/audio/speech con streaming -- swap directo de elevenlabs.TTS por
+# openai.TTS(voice=...). Checkpoint -Base (voice-cloning): VLLM_TTS_VOICE
+# tiene que ser el nombre de una voz clonada y subida a vllm-tts via
+# POST /v1/audio/voices (ver docker-compose.yml), no un preset de fabrica --
+# el checkpoint -CustomVoice (que si tenia presets) se descarto por un bug
+# real: su speaker encoder devuelve embeddings de 1024 dims contra los 2048
+# que espera el talker de 1.7B, y clonar con el rompia el engine (probado).
+VLLM_TTS_BASE_URL = os.getenv("VLLM_TTS_BASE_URL", "http://vllm-tts:8000/v1")
+VLLM_TTS_MODEL = os.getenv("VLLM_TTS_MODEL", "Qwen/Qwen3-TTS-12Hz-1.7B-Base")
+VLLM_TTS_VOICE = os.getenv("VLLM_TTS_VOICE", "sofia_ar")
+# Velocidad de la voz. OJO: probado en vivo que el server (vllm-omni) rechaza
+# con 400 cualquier valor de speed != 1.0 en modo streaming ("Streaming is not
+# supported with speed adjustment") -- solo funciona en requests no-streaming,
+# que no podemos usar aca (mata la latencia). Dejar en 1.0 salvo que se acepte
+# perder streaming.
+VLLM_TTS_SPEED = float(os.getenv("VLLM_TTS_SPEED", "1.0"))
+
+# --- Scoring (evaluacion del transcript) ---
+# Corre al colgar (no es latencia percibida por el cliente). Comparte el mismo
+# LLM local de arriba -- ya no hay un modelo "mini" aparte para esto, todo
+# corre contra vllm-llm.
+VLLM_SCORING_MODEL = os.getenv("VLLM_SCORING_MODEL", VLLM_LLM_MODEL)
 
 STORAGE_DIR = Path(os.getenv("STORAGE_DIR", str(BASE_DIR / "storage")))
 RECORDINGS_DIR = STORAGE_DIR / "recordings"

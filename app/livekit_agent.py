@@ -10,6 +10,7 @@ el transcript, corre el scoring (app/scoring.py, sin cambios) y guarda todo.
 """
 import asyncio
 import json
+import re
 import time
 
 from google.protobuf.duration_pb2 import Duration
@@ -26,30 +27,43 @@ from livekit.agents import (
     inference,
     metrics as lk_metrics,
 )
-from livekit.plugins import elevenlabs, openai, silero
-from livekit.plugins.openai import stt as _openai_stt
+from livekit.plugins import openai, silero
 from openai.types import Reasoning
 
 from . import config, prompts, scoring
-from .db import Call, SessionLocal, ensure_schema
+from .db import Call, SessionLocal, active_questionnaire, ensure_schema
 from .latency import TurnLatencyTracker
 
 
-# El plugin de OpenAI (1.8.0) arma la config de la sesion realtime de STT sin el
-# campo `delay`, que es el ajuste de latencia de gpt-live-transcribe. Se envuelve
-# la funcion del modulo para agregarlo (el SDK ya lo tiene tipado y el API lo
-# acepta). Sacar cuando el plugin lo exponga como parametro.
-_orig_transcription = _openai_stt._transcription
+# Bug del server qwenllm/qwen3-asr (probado en vivo): la respuesta de
+# /v1/audio/transcriptions viene con el template interno del modelo sin
+# despojar, antepuesto al transcript real -- ej. para "Hola, ..." devuelve
+# literal `"language Spanish<asr_text>Hola, ..."` (o "language None<asr_text>"
+# cuando no detecta habla). Se parchea aca porque es un problema del lado del
+# servidor, no del plugin ni de nuestro codigo -- sacar si una version nueva
+# de la imagen lo arregla.
+_ASR_TEMPLATE_PREFIX_RE = re.compile(r"^language\s+\S+<asr_text>")
+_orig_stt_recognize_impl = openai.STT._recognize_impl
 
 
-def _transcription_with_delay(opts):
-    transcription = _orig_transcription(opts)
-    if config.OPENAI_STT_DELAY:
-        transcription.delay = config.OPENAI_STT_DELAY
-    return transcription
+async def _recognize_impl_stripped(self, buffer, *, language=None, conn_options=None, **kwargs):
+    event = await _orig_stt_recognize_impl(
+        self, buffer, language=language, conn_options=conn_options, **kwargs
+    )
+    for alt in event.alternatives:
+        alt.text = _ASR_TEMPLATE_PREFIX_RE.sub("", alt.text)
+    return event
 
 
-_openai_stt._transcription = _transcription_with_delay
+openai.STT._recognize_impl = _recognize_impl_stripped
+
+# El plugin de TTS solo pide stream_format="audio" (streaming de bytes crudos)
+# para los nombres de modelo de OpenAI que ya conoce (tts-1, tts-1-hd); para
+# cualquier otro cae a stream_format="sse". Registramos nuestro modelo local
+# para que pida "audio" -- probado en vivo que hace falta (con "sse" el
+# servidor devuelve 400 al pedir cualquier `speed` != 1.0, ver VLLM_TTS_SPEED
+# en config.py).
+openai.tts.AUDIO_STREAM_MODELS.add(config.VLLM_TTS_MODEL)
 
 
 class ValidationAgent(Agent):
@@ -76,9 +90,32 @@ def _load_call(local_call_id: int):
             return None
         return {
             "phone": call.phone,
+            "test_mode": bool(call.test_mode),
             "client": {"name": call.client_name, "gender": call.client_gender, "notes": call.client_notes},
             "questions": json.loads(call.questions_snapshot or "[]"),
         }
+
+
+def _create_inbound_call(phone: str, room_name: str) -> int:
+    """Arma el registro de Call para una llamada ENTRANTE: no la disparo
+    nuestro dashboard (no hay local_call_id previo en la metadata del job --
+    la trajo la regla de dispatch de LiveKit, ver troncal/dispatch rule
+    entrante en el proyecto de LiveKit). PRUEBA por ahora: mismo cuestionario
+    que las salientes, sin nombre de cliente (no hay forma de identificarlo
+    todavia)."""
+    questions, bands = active_questionnaire()
+    with SessionLocal() as s:
+        call = Call(
+            phone=phone or "(entrante)",
+            status="pendiente",
+            provider="livekit",
+            provider_call_id=room_name,
+            questions_snapshot=json.dumps(questions, ensure_ascii=False),
+            bands_snapshot=json.dumps(bands, ensure_ascii=False),
+        )
+        s.add(call)
+        s.commit()
+        return call.id
 
 
 def _set_status(local_call_id: int, **fields):
@@ -123,8 +160,22 @@ async def entrypoint(ctx: JobContext):
 
     metadata = json.loads(ctx.job.metadata or "{}")
     local_call_id = metadata.get("local_call_id")
-    if local_call_id is None:
-        return
+    # Sin local_call_id: no la disparo nuestro dashboard (app/main.py siempre
+    # lo manda), asi que es una llamada ENTRANTE -- la trajo la regla de
+    # dispatch de LiveKit (troncal SIP entrante -> agent_name=voice-as-a-service).
+    # El que llama ya esta conectado a la room como participante SIP (LiveKit
+    # lo pone ahi antes de despachar el agente).
+    is_inbound = local_call_id is None
+    if is_inbound:
+        try:
+            participant = await asyncio.wait_for(
+                ctx.wait_for_participant(kind=[rtc.ParticipantKind.PARTICIPANT_KIND_SIP]),
+                timeout=15,
+            )
+            phone = participant.attributes.get("sip.phoneNumber", "")
+        except asyncio.TimeoutError:
+            phone = ""
+        local_call_id = _create_inbound_call(phone, ctx.room.name)
 
     data = _load_call(local_call_id)
     if not data:
@@ -158,7 +209,7 @@ async def entrypoint(ctx: JobContext):
             # La llamada nunca llego a conectar (dial fallido); ese path ya dejo
             # status="fallida" escrito, no lo pisamos con "finalizada".
             return
-        # _finalize_and_score hace una llamada HTTP bloqueante a OpenAI (scoring).
+        # _finalize_and_score hace una llamada HTTP bloqueante al LLM (scoring).
         # Corrida directa (sin hilo) trababa el event loop del worker el tiempo
         # suficiente para que el framework lo de por colgado y lo mate a los 10s
         # (shutdown_process_timeout) antes de que el commit del score llegue a
@@ -176,15 +227,26 @@ async def entrypoint(ctx: JobContext):
     greeting = prompts.first_message(config.AGENT_NAME, config.DEALERSHIP_NAME, data["client"])
 
     # Un solo VAD compartido: lo usa la sesion para detectar habla/interrupciones
-    # y tambien el STT de OpenAI para hacer commit del buffer de audio, porque
-    # gpt-live-transcribe no tiene endpointing del lado del servidor (sin esto el
-    # plugin cargaria una segunda instancia de Silero por su cuenta).
-    # min_silence_duration: default 0.55s. Como gpt-live-transcribe no tiene
-    # endpointing propio, el plugin recien hace commit del audio cuando este VAD
-    # detecta silencio, y ese tiempo se suma entero a la latencia STT (medido:
-    # ~1.2s por turno con el default). 0.3s la recorta a costa de cortar pausas
-    # cortas del cliente a mitad de frase.
-    vad = silero.VAD.load(min_silence_duration=0.3)
+    # y tambien el STT para hacer commit del buffer de audio -- vllm-stt
+    # (Qwen3-ASR via /v1/audio/transcriptions) es un endpoint REST por-turno,
+    # sin sesion realtime por WebSocket ni endpointing propio (a diferencia de
+    # gpt-live-transcribe, que se uso antes), asi que el plugin siempre depende
+    # de este VAD para saber cuando cortar y mandar el audio.
+    # min_silence_duration: default 0.55s. Ese tiempo se suma entero a la
+    # latencia de STT (medido con gpt-live-transcribe: ~1.2s por turno con el
+    # default). 0.3s la recorta a costa de cortar pausas cortas del cliente a
+    # mitad de frase.
+    # min_speech_duration: default 0.05s (!) -- de sobra para audio limpio de
+    # navegador, pero en una llamada real por telefono/Bluetooth un click o
+    # pop de linea de 50ms alcanza para que el VAD piense "el cliente empezo a
+    # hablar" e interrumpa al agente a mitad de frase. Probado en llamadas
+    # reales: eso deja un turno del agente cortado + un "turno de cliente"
+    # con texto basura (STT transcribiendo ruido como texto en otro idioma) --
+    # y ese contexto corrupto confunde al LLM en el turno siguiente (alucina
+    # repitiendo el saludo completo, con un turno de cliente inventado).
+    # 0.2s sigue siendo instantaneo para habla real (una palabra ya dura mas
+    # que eso) pero filtra la mayoria de esos ruidos cortos.
+    vad = silero.VAD.load(min_silence_duration=0.3, min_speech_duration=0.2)
     session = AgentSession(
         vad=vad,
         turn_detection=inference.TurnDetector(),
@@ -193,45 +255,60 @@ async def entrypoint(ctx: JobContext):
         # y cae al tope casi siempre. Bajarlo acota ese peor caso a costa de poder
         # cortar al cliente si hace una pausa mas larga que esto a mitad de frase.
         max_endpointing_delay=1.0,
-        # gpt-live-transcribe es realtime-only: el plugin abre una sesion de
-        # transcripcion por WebSocket y emite parciales (interim) mientras el
-        # cliente habla, asi el turn-detector y el LLM arrancan antes.
+        # vllm-stt (Qwen3-ASR-1.7B, ver docker-compose.yml): use_realtime=False
+        # fuerza el modo REST -- el plugin no reconoce este modelo como uno de
+        # los "realtime" de OpenAI, pero se lo dejamos explicito para no
+        # depender de esa deteccion automatica. Sin transcript parcial mientras
+        # el cliente habla (ver comentario del VAD arriba).
         stt=openai.STT(
-            model=config.OPENAI_STT_MODEL,
+            model=config.VLLM_STT_MODEL,
             language="es",
-            api_key=config.OPENAI_API_KEY,
+            base_url=config.VLLM_STT_BASE_URL,
+            api_key=config.VLLM_API_KEY,
+            use_realtime=False,
             vad=vad,
         ),
-        # Responses API por WebSocket persistente (use_websocket=True, default):
-        # evita el handshake HTTP por turno y, a diferencia del plugin de chat
-        # completions, informa prompt_cached_tokens en las metricas (el otro
-        # siempre reporta 0, no lo parsea). El prefijo del prompt (system +
-        # historial) es identico entre turnos, asi que OpenAI lo cachea solo.
-        # reasoning none: sin cadena de razonamiento antes del primer token (el
-        # plugin solo lo setea para los modelos que conoce, y gpt-5.4-nano no
-        # esta en esa lista). verbosity low acorta respuestas que se leen en voz alta.
+        # Responses API (vllm-llm, Qwen3.5-4B): probado que vLLM soporta
+        # /v1/responses con reasoning.effort="none" igual que OpenAI (0 tokens
+        # de razonamiento, responde directo). verbosity="low" queda igual --
+        # vLLM ignora los campos que no reconoce en vez de rechazarlos.
+        # use_websocket=False: el default del plugin (True) abre una sesion
+        # WS persistente contra /v1/responses -- eso es especifico de la
+        # implementacion de OpenAI. vLLM solo sirve ese endpoint por HTTP
+        # normal (probado: WS devuelve 403). Sin el WS se pierde el ahorro del
+        # handshake por turno, pero sigue siendo un solo POST corto (misma red
+        # que el contenedor).
+        # store=False: sin esto, el plugin manda solo los mensajes nuevos de
+        # cada turno con `previous_response_id` apuntando a la respuesta
+        # anterior (asumiendo que el server la guardo, como hace OpenAI de
+        # verdad). vLLM no la persiste -- probado en vivo: el turno 2 de
+        # cualquier llamada real tiraba 404 "Response with id ... not found"
+        # y mataba toda la sesion. store=False hace que reenvie el historial
+        # completo en cada turno (mas payload, pero funciona).
         llm=openai.responses.LLM(
-            model=config.OPENAI_MODEL,
+            model=config.VLLM_LLM_MODEL,
             temperature=0.4,
             reasoning=Reasoning(effort="none"),
             verbosity="low",
-            api_key=config.OPENAI_API_KEY,
+            base_url=config.VLLM_LLM_BASE_URL,
+            api_key=config.VLLM_API_KEY,
+            use_websocket=False,
+            store=False,
         ),
-        tts=elevenlabs.TTS(
-            voice_id=config.ELEVENLABS_VOICE_ID,
-            model=config.ELEVENLABS_MODEL,
-            api_key=config.ELEVENLABS_API_KEY,
-            # Sin esto flash_v2_5 autodetecta el idioma por frase y en frases
-            # cortas ("Perfecto.", "Genial.") puede caer en otro idioma y
-            # pronunciar mal tildes y entonacion. language_code fuerza espanol.
-            language="es",
-            # stability/similarity_boost son obligatorios en VoiceSettings; estos
-            # son los defaults de ElevenLabs. speed va de 0.8 a 1.2.
-            voice_settings=elevenlabs.VoiceSettings(
-                stability=0.5,
-                similarity_boost=0.75,
-                speed=config.ELEVENLABS_SPEED,
-            ),
+        # vllm-tts (Qwen3-TTS-12Hz-1.7B-Base): /v1/audio/speech con streaming,
+        # usando una voz clonada (VLLM_TTS_VOICE, ver config.py) subida una
+        # sola vez al server -- el server infiere task_type=Base solo con el
+        # nombre, asi que no hace falta mandar ref_audio en cada request.
+        # response_format="pcm": el default del plugin (mp3) no es streameable
+        # en este servidor (400: "Streaming requires response_format='pcm' or
+        # 'wav'"). pcm evita ademas decodificar mp3 del lado del cliente.
+        tts=openai.TTS(
+            model=config.VLLM_TTS_MODEL,
+            voice=config.VLLM_TTS_VOICE,
+            speed=config.VLLM_TTS_SPEED,
+            base_url=config.VLLM_TTS_BASE_URL,
+            api_key=config.VLLM_API_KEY,
+            response_format="pcm",
         ),
     )
     session.on("conversation_item_added", on_conversation_item_added)
@@ -246,34 +323,56 @@ async def entrypoint(ctx: JobContext):
     session.on("metrics_collected", on_metrics_collected)
 
     def on_participant_disconnected(participant: rtc.RemoteParticipant):
-        if participant.identity == "customer":
+        # En modo prueba y en llamadas entrantes no hay un identity fijo
+        # (en prueba te conectaste vos desde LiveKit Meet; en una entrante el
+        # identity lo pone LiveKit, no nosotros) -- cualquier desconexion
+        # corta, porque solo hay un participante humano esperado en la room.
+        if is_inbound or data["test_mode"] or participant.identity == "customer":
             ctx.shutdown(reason="customer_hangup")
 
     ctx.room.on("participant_disconnected", on_participant_disconnected)
 
     await session.start(agent=ValidationAgent(instructions=system_prompt), room=ctx.room)
 
-    _set_status(local_call_id, status="sonando")
-    try:
-        await ctx.api.sip.create_sip_participant(
-            api.CreateSIPParticipantRequest(
-                room_name=ctx.room.name,
-                sip_trunk_id=config.LIVEKIT_SIP_TRUNK_ID,
-                sip_call_to=data["phone"],
-                participant_identity="customer",
-                participant_name="Cliente",
-                wait_until_answered=True,
-                max_call_duration=Duration(seconds=config.CALL_MAX_DURATION_SECONDS),
+    if is_inbound:
+        # El que llama ya esta conectado (LiveKit lo puso en la room antes de
+        # despachar el agente) -- no hay nada que marcar ni esperar.
+        pass
+    elif data["test_mode"]:
+        # Sin telefono: no hay nada que marcar por SIP. Se espera a que
+        # alguien se conecte a esta room por LiveKit (link armado en
+        # app/livekit_dispatch.py::build_test_join_url, mostrado en el
+        # dashboard) y recien ahi arranca la conversacion, igual que con una
+        # llamada real.
+        _set_status(local_call_id, status="sonando")
+        try:
+            await asyncio.wait_for(ctx.wait_for_participant(), timeout=300)
+        except asyncio.TimeoutError:
+            _set_status(local_call_id, status="fallida", score_error="Nadie se conecto a la room de prueba (timeout 5min)")
+            ctx.shutdown(reason="test_mode_timeout")
+            return
+    else:
+        _set_status(local_call_id, status="sonando")
+        try:
+            await ctx.api.sip.create_sip_participant(
+                api.CreateSIPParticipantRequest(
+                    room_name=ctx.room.name,
+                    sip_trunk_id=config.LIVEKIT_SIP_TRUNK_ID,
+                    sip_call_to=data["phone"],
+                    participant_identity="customer",
+                    participant_name="Cliente",
+                    wait_until_answered=True,
+                    max_call_duration=Duration(seconds=config.CALL_MAX_DURATION_SECONDS),
+                )
             )
-        )
-    except api.SipCallError as e:
-        _set_status(local_call_id, status="fallida", score_error=str(e))
-        ctx.shutdown(reason="sip_call_failed")
-        return
-    except Exception as e:  # noqa: BLE001
-        _set_status(local_call_id, status="fallida", score_error=str(e))
-        ctx.shutdown(reason="dispatch_error")
-        return
+        except api.SipCallError as e:
+            _set_status(local_call_id, status="fallida", score_error=str(e))
+            ctx.shutdown(reason="sip_call_failed")
+            return
+        except Exception as e:  # noqa: BLE001
+            _set_status(local_call_id, status="fallida", score_error=str(e))
+            ctx.shutdown(reason="dispatch_error")
+            return
 
     dial_succeeded = True
     _set_status(local_call_id, status="en_curso")
@@ -293,7 +392,7 @@ if __name__ == "__main__":
         api_key=config.LIVEKIT_API_KEY,
         api_secret=config.LIVEKIT_API_SECRET,
         # Default es 10s -- muy poco para esperar el scoring (app/scoring.py usa
-        # timeout=90 en su llamada a OpenAI). Dar margen para que el hilo de
+        # timeout=90 en su llamada al LLM local). Dar margen para que el hilo de
         # _finalize_and_score termine antes de que el proceso sea matado.
         shutdown_process_timeout=100.0,
     ))

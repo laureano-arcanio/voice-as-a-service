@@ -58,6 +58,10 @@ class Call(Base):
     client_notes: Mapped[str] = mapped_column(Text, default="")
     status: Mapped[str] = mapped_column(String(24), default="pendiente")
     # pendiente | sonando | en_curso | finalizada | fallida
+    # Llamada de prueba (sin telefono real): el agente no marca por SIP, espera
+    # a que alguien se conecte a la room via LiveKit (Playground/meet.livekit.io).
+    # Ver app/livekit_agent.py y el checkbox "Modo prueba" del dashboard.
+    test_mode: Mapped[bool] = mapped_column(Boolean, default=False)
     provider: Mapped[str] = mapped_column(String(16), default="livekit")
     provider_call_id: Mapped[str] = mapped_column(String(64), default="", index=True)
     ended_reason: Mapped[str] = mapped_column(String(128), default="")
@@ -78,6 +82,7 @@ class Call(Base):
     def as_dict(self, full=False):
         d = {
             "id": self.id, "phone": self.phone, "status": self.status,
+            "test_mode": bool(self.test_mode),
             "client_name": self.client_name, "client_gender": self.client_gender,
             "client_notes": self.client_notes,
             "ended_reason": self.ended_reason,
@@ -137,7 +142,21 @@ SEED_BANDS = [
 # ya existen, asi que se agregan a mano si faltan. (nombre, DDL)
 _ADDED_COLUMNS = [
     ("calls", "latency_json", "LONGTEXT NULL"),
+    ("calls", "test_mode", "BOOLEAN NOT NULL DEFAULT 0"),
 ]
+
+
+def active_questionnaire():
+    """Preguntas activas + bandas de score actuales, en el mismo formato que se
+    graba en calls.questions_snapshot/bands_snapshot. Compartido por
+    POST /api/calls (app/main.py) y el entrypoint de llamadas entrantes
+    (app/livekit_agent.py) para no duplicar la query."""
+    with SessionLocal() as s:
+        questions = [q.as_dict() for q in s.query(Question)
+                     .filter(Question.active.is_(True))
+                     .order_by(Question.position, Question.id).all()]
+        bands = [b.as_dict() for b in s.query(Band).order_by(Band.min_score).all()]
+        return questions, bands
 
 
 def ensure_schema():

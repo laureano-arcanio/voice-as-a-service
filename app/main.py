@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from . import config, livekit_dispatch, scoring
-from .db import Band, Call, Question, SessionLocal, init_db
+from .db import Band, Call, Question, SessionLocal, active_questionnaire, init_db
 
 app = FastAPI(title="AIVA Validate Demo")
 
@@ -146,7 +146,10 @@ def _phone_normalize(raw: str) -> str:
 @app.post("/api/calls")
 async def start_call(request: Request):
     data = await request.json()
-    phone = _phone_normalize(data.get("phone", ""))
+    test_mode = bool(data.get("test_mode"))
+    # Llamada de prueba: no hay telefono real, el agente espera a que te
+    # conectes por LiveKit (ver app/livekit_agent.py). No valida formato E.164.
+    phone = "(prueba)" if test_mode else _phone_normalize(data.get("phone", ""))
     gender = data.get("client_gender", "")
     if gender not in ("", "masculino", "femenino"):
         raise HTTPException(422, "G\u00e9nero inv\u00e1lido")
@@ -155,15 +158,12 @@ async def start_call(request: Request):
         "gender": gender,
         "notes": (data.get("client_notes") or "").strip()[:2000],
     }
+    questions, bands = active_questionnaire()
+    if not questions:
+        raise HTTPException(422, "No hay preguntas activas configuradas")
     with SessionLocal() as s:
-        questions = [q.as_dict() for q in s.query(Question)
-                     .filter(Question.active.is_(True))
-                     .order_by(Question.position, Question.id).all()]
-        bands = [b.as_dict() for b in s.query(Band).order_by(Band.min_score).all()]
-        if not questions:
-            raise HTTPException(422, "No hay preguntas activas configuradas")
         call = Call(
-            phone=phone, status="pendiente", provider="livekit",
+            phone=phone, status="pendiente", provider="livekit", test_mode=test_mode,
             client_name=client["name"], client_gender=client["gender"],
             client_notes=client["notes"],
             questions_snapshot=json.dumps(questions, ensure_ascii=False),
@@ -181,7 +181,12 @@ async def start_call(request: Request):
         s.commit()
         if call.status == "fallida":
             raise HTTPException(502, f"No se pudo iniciar la llamada: {call.score_error}")
-        return call.as_dict()
+        result = call.as_dict()
+        if test_mode:
+            # Solo se devuelve una vez, al crear la llamada -- no se persiste en
+            # la base (el JWT expira y no hace falta guardarlo).
+            result["join_url"] = livekit_dispatch.build_test_join_url(room_name)
+        return result
 
 
 @app.get("/api/calls")

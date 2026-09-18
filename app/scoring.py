@@ -6,7 +6,7 @@ import httpx
 
 from . import config
 
-OPENAI_URL = "https://api.openai.com/v1/chat/completions"
+LLM_URL = f"{config.VLLM_LLM_BASE_URL}/chat/completions"
 
 
 def _extract_json(text: str):
@@ -23,8 +23,8 @@ def _extract_json(text: str):
 
 def score_call(transcript_messages: list, questions: list, bands: list) -> dict:
     """Devuelve {score, outcome, detail: [...], notes}"""
-    if not config.OPENAI_API_KEY:
-        raise RuntimeError("Falta OPENAI_API_KEY en el archivo .env para el scoring")
+    if not config.VLLM_LLM_BASE_URL:
+        raise RuntimeError("Falta VLLM_LLM_BASE_URL en el archivo .env para el scoring")
 
     convo = "\n".join(f"[{m['role']}] {m['text']}" for m in transcript_messages if m.get("text"))
     qblock = json.dumps(
@@ -48,18 +48,20 @@ def score_call(transcript_messages: list, questions: list, bands: list) -> dict:
     user = f"CUESTIONARIO:\n{qblock}\n\nTRANSCRIPT DE LA LLAMADA:\n{convo}"
 
     r = httpx.post(
-        OPENAI_URL,
+        LLM_URL,
         headers={
-            "authorization": f"Bearer {config.OPENAI_API_KEY}",
+            "authorization": f"Bearer {config.VLLM_API_KEY}",
             "content-type": "application/json",
         },
         json={
-            "model": config.OPENAI_SCORING_MODEL,
+            "model": config.VLLM_SCORING_MODEL,
             "max_completion_tokens": 3000,
             # Es un juicio sobre un transcript corto: sin razonamiento previo
             # responde mucho mas rapido y el JSON pedido sigue saliendo bien.
+            # Probado que vLLM respeta este campo igual que OpenAI.
             "reasoning_effort": "none",
-            # Fuerza salida JSON valida (el prompt ya lo pide; esto lo garantiza).
+            # Fuerza salida JSON valida (el prompt ya lo pide; esto lo garantiza;
+            # probado contra vllm-llm).
             "response_format": {"type": "json_object"},
             "messages": [
                 {"role": "system", "content": system},
@@ -69,7 +71,7 @@ def score_call(transcript_messages: list, questions: list, bands: list) -> dict:
         timeout=90,
     )
     if r.status_code >= 300:
-        raise RuntimeError(f"OpenAI respondi\u00f3 {r.status_code}: {r.text[:400]}")
+        raise RuntimeError(f"El LLM local respondi\u00f3 {r.status_code}: {r.text[:400]}")
     data = r.json()
     text = data["choices"][0]["message"].get("content") or ""
     parsed = _extract_json(text)

@@ -22,9 +22,13 @@
   <label class="notes-label">Contexto adicional para el agente (opcional)
     <textarea id="client-notes" rows="2" placeholder="Ej.: es una persona mayor con problemas de audici&oacute;n, hablarle claro y pausado. / Es fan&aacute;tico del f&uacute;tbol, hincha de Boca."></textarea>
   </label>
+  <label class="test-mode-toggle">
+    <input type="checkbox" id="test-mode">
+    Modo prueba (sin tel&eacute;fono real -- te conect&aacute;s vos por navegador via LiveKit)
+  </label>
   <div class="launcher-row">
     <button id="btn-call" class="btn primary">Llamar</button>
-    <span class="hint">Tel&eacute;fono en formato internacional E.164, ej. <code>+5491155551234</code>. El agente IA llama, hace el cuestionario configurado y asigna el score autom&aacute;ticamente. El contexto adicional se usa solo para adaptar el trato (empat&iacute;a, ritmo, claridad), nunca para influir en las respuestas.</span>
+    <span class="hint" id="call-hint">Tel&eacute;fono en formato internacional E.164, ej. <code>+5491155551234</code>. El agente IA llama, hace el cuestionario configurado y asigna el score autom&aacute;ticamente. El contexto adicional se usa solo para adaptar el trato (empat&iacute;a, ritmo, claridad), nunca para influir en las respuestas.</span>
   </div>
   <p id="call-msg" class="msg"></p>
 </section>
@@ -136,16 +140,30 @@ async function refresh() {
   document.getElementById('empty-msg').style.display = calls.length ? 'none' : 'block';
 }
 
+const testModeCk = document.getElementById('test-mode');
+const phoneInput = document.getElementById('phone');
+testModeCk.addEventListener('change', () => {
+  const on = testModeCk.checked;
+  phoneInput.disabled = on;
+  phoneInput.placeholder = on ? '(no hace falta en modo prueba)' : '+5491155551234';
+  document.getElementById('call-hint').textContent = on
+    ? 'Se crea la llamada sin marcar ningun telefono. Al confirmar te va a aparecer un link para conectarte por navegador (LiveKit Meet) y hablar con el agente en vivo.'
+    : 'Tel\u00e9fono en formato internacional E.164, ej. +5491155551234. El agente IA llama, hace el cuestionario configurado y asigna el score autom\u00e1ticamente. El contexto adicional se usa solo para adaptar el trato (empat\u00eda, ritmo, claridad), nunca para influir en las respuestas.';
+  document.getElementById('btn-call').textContent = on ? 'Crear llamada de prueba' : 'Llamar';
+});
+
 document.getElementById('btn-call').addEventListener('click', async () => {
   const msg = document.getElementById('call-msg');
   const btn = document.getElementById('btn-call');
+  const testMode = testModeCk.checked;
   msg.textContent = ''; msg.className = 'msg';
-  btn.disabled = true; btn.textContent = 'Llamando\u2026';
+  btn.disabled = true; btn.textContent = testMode ? 'Creando\u2026' : 'Llamando\u2026';
   try {
     const r = await fetch('/api/calls', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
-        phone: document.getElementById('phone').value,
+        test_mode: testMode,
+        phone: phoneInput.value,
         client_name: document.getElementById('client-name').value,
         client_gender: document.getElementById('client-gender').value,
         client_notes: document.getElementById('client-notes').value,
@@ -153,15 +171,22 @@ document.getElementById('btn-call').addEventListener('click', async () => {
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || 'Error');
-    msg.textContent = 'Llamada iniciada (#' + data.id + '). El estado se actualiza autom\u00e1ticamente.';
+    if (data.join_url) {
+      msg.innerHTML = 'Llamada de prueba creada (#' + data.id + '). '
+        + '<a href="' + data.join_url + '" target="_blank" rel="noopener">Conectate ac\u00e1 para hablar con el agente</a> '
+        + '(el link vale para esta llamada, no se vuelve a mostrar).';
+    } else {
+      msg.textContent = 'Llamada iniciada (#' + data.id + '). El estado se actualiza autom\u00e1ticamente.';
+    }
     msg.className = 'msg ok';
-    ['phone', 'client-name', 'client-notes'].forEach(id => document.getElementById(id).value = '');
+    ['client-name', 'client-notes'].forEach(id => document.getElementById(id).value = '');
+    phoneInput.value = '';
     document.getElementById('client-gender').value = '';
   } catch (e) {
     msg.textContent = e.message;
     msg.className = 'msg bad';
   } finally {
-    btn.disabled = false; btn.textContent = 'Llamar';
+    btn.disabled = false; btn.textContent = testMode ? 'Crear llamada de prueba' : 'Llamar';
     refresh();
   }
 });

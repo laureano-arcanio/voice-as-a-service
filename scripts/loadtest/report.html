@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Load test — usuario → agente → usuario</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #f5f7fb; --card: #fff; --line: #e3e8f0; --ink: #1a2233; --muted: #6b7688;
+    --brand: #1d4ed8; --brand-ink: #fff; --good: #16a34a; --bad: #dc2626; --warn: #d97706;
+    --s-short: #2563eb; --s-medium: #7c3aed; --s-long: #db2777;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  header { background: #0b1220; color: #fff; padding: 16px 28px; }
+  header h1 { margin: 0; font-size: 17px; font-weight: 700; }
+  header h1 span { color: #7ab8ff; }
+  header p { margin: 4px 0 0; color: #c9d4e8; font-size: 12.5px; }
+  main { max-width: 1180px; margin: 0 auto; padding: 20px 20px 60px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; margin-bottom: 18px; }
+  .card h2 { margin: 0 0 10px; font-size: 14.5px; }
+  .card > p.hint { color: var(--muted); font-size: 12.5px; margin: 0 0 12px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  input[type=file] { font-size: 13px; }
+  .btn {
+    display: inline-block; border: 1px solid var(--line); background: #fff; color: var(--ink);
+    border-radius: 8px; padding: 7px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  }
+  .btn:hover { border-color: #b9c3d4; }
+  #status { color: var(--muted); font-size: 12.5px; }
+  #status.err { color: var(--bad); font-weight: 600; }
+  .stats { display: flex; gap: 14px; flex-wrap: wrap; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px; min-width: 110px; }
+  .stat b { display: block; font-size: 20px; }
+  .stat span { color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .3px; }
+  table { border-collapse: collapse; width: 100%; font-size: 12.8px; }
+  th, td { text-align: right; padding: 5px 9px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .3px; }
+  tbody tr:hover { background: #f8fafc; }
+  .scroll { overflow-x: auto; }
+  .scroll-y { max-height: 420px; overflow-y: auto; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin: 10px 0 4px; font-size: 12px; }
+  .legend label { display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
+  .swatch { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+  select { font-size: 12.5px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--line); }
+  svg text { fill: var(--muted); font-size: 10.5px; }
+  .empty { color: var(--muted); font-style: italic; padding: 20px 0; text-align: center; }
+  code { background: #eef2f8; padding: 1px 5px; border-radius: 4px; }
+  .badge { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 8px; }
+  .badge.ok { background: #dcfce7; color: #166534; }
+  .badge.bad { background: #fee2e2; color: #991b1b; }
+  .cat-short { color: var(--s-short); font-weight: 600; }
+  .cat-medium { color: var(--s-medium); font-weight: 600; }
+  .cat-long { color: var(--s-long); font-weight: 600; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Load test — usuario → <span>agente</span> → usuario</h1>
+  <p>Lee el CSV que genera <code>make loadtest</code> (scripts/loadtest/results/*.csv) y arma estadisticas + graficos por nivel de concurrencia. 100% local, sin dependencias externas.</p>
+</header>
+<main>
+
+  <div class="card">
+    <h2>Datos</h2>
+    <p class="hint">Intenta cargar automaticamente <code>results/latest.csv</code> (funciona si abris este archivo servido por http, no con <code>file://</code>). Si no, elegi el CSV a mano.</p>
+    <div class="row">
+      <input type="file" id="fileInput" accept=".csv">
+      <button class="btn" id="reloadBtn">Reintentar results/latest.csv</button>
+      <span id="status">sin datos cargados</span>
+    </div>
+  </div>
+
+  <div id="content" style="display:none">
+
+    <div class="card">
+      <h2>Resumen</h2>
+      <div class="stats" id="summaryStats"></div>
+    </div>
+
+    <div class="card">
+      <h2>Breakdown por oleada</h2>
+      <p class="hint">Cada oleada (batch) es un nivel de concurrencia. La duración de llamada sale de <code>call_start_ts</code>/<code>call_end_ts</code>; la de turno va desde que el usuario abre la boca hasta que el agente termina de contestar (la pausa entre turnos va aparte).</p>
+      <div class="scroll" id="batchTableWrap"></div>
+    </div>
+
+    <div class="card">
+      <h2>¿En qué se va el tiempo de un turno?</h2>
+      <p class="hint">Composición promedio de un turno por oleada: lo que habla el usuario, lo que espera la respuesta, lo que habla el agente y la pausa antes del turno siguiente.</p>
+      <div class="legend" id="composicionLegend"></div>
+      <div id="composicionWrap"></div>
+    </div>
+
+    <div class="card">
+      <h2>Llamadas</h2>
+      <p class="hint">Una fila por llamada. "arranque" es relativo a la primera llamada de su oleada — muestra el escalonamiento real (<code>--stagger</code>).</p>
+      <div class="scroll scroll-y" id="callsTableWrap"></div>
+    </div>
+
+    <div class="card">
+      <h2>Latencia por nivel de concurrencia</h2>
+      <p class="hint">avg / p50 / p95 / max en segundos, por campo. n = cantidad de turnos con ese dato disponible.</p>
+      <div class="scroll" id="levelTableWrap"></div>
+    </div>
+
+    <div class="card">
+      <h2>Graficos: latencia vs. concurrencia</h2>
+      <div class="row">
+        <label for="pctSelect" class="hint" style="margin:0">Percentil:</label>
+        <select id="pctSelect">
+          <option value="p50">p50 (mediana)</option>
+          <option value="avg">promedio</option>
+          <option value="p95">p95</option>
+          <option value="max">max</option>
+        </select>
+      </div>
+      <div class="legend" id="chartLegend"></div>
+      <div id="chartWrap"></div>
+    </div>
+
+    <div class="card">
+      <h2>Latencia percibida por categoria de turno</h2>
+      <p class="hint">Cortas / medianas / largas (ver <code>gen_audio.py</code>) — muestra si los turnos largos degradan mas la latencia bajo carga.</p>
+      <div id="categoryChartWrap"></div>
+    </div>
+
+    <div class="card" id="anomaliesCard" style="display:none">
+      <h2>Fallos y anomalias</h2>
+      <p class="hint">Llamadas/turnos con error, timeout, o latencia negativa (posible barge-in / solapamiento con el turno anterior — ver comentario en <code>caller.py</code>).</p>
+      <div class="scroll scroll-y" id="anomaliesWrap"></div>
+    </div>
+
+    <div class="card">
+      <h2>Datos crudos</h2>
+      <p class="hint" id="rawCount"></p>
+      <div class="scroll scroll-y" id="rawTableWrap"></div>
+    </div>
+
+  </div>
+
+  <div id="emptyState" class="card empty">Cargá un CSV para ver el reporte.</div>
+
+</main>
+
+<script>
+'use strict';
+
+const NUMERIC_COLS = ["concurrency","turn_index","client_latency_s","think_time_s","eou_s","stt_s","endpointing_s",
+  "ttft_s","llm_total_s","llm_tokens","tts_s","tts_audio_s","total_s",
+  "turn_duration_s","user_speech_s","turn_start_ts","turn_end_ts","call_start_ts","call_end_ts"];
+const STATS_FIELDS = [
+  ["client_latency_s", "latencia percibida (cliente)"],
+  ["eou_s", "eou"],
+  ["stt_s", "stt"],
+  ["endpointing_s", "endpointing"],
+  ["ttft_s", "ttft (llm)"],
+  ["llm_total_s", "llm total"],
+  ["tts_s", "tts ttfb"],
+  ["total_s", "total (server)"],
+  ["think_time_s", "pausa entre turnos (input, no latencia)"],
+];
+const SERIES_COLORS = ["#1d4ed8","#dc2626","#16a34a","#d97706","#7c3aed","#0891b2","#db2777","#65a30d","#94a3b8"];
+const CATEGORY_COLORS = { short: "#2563eb", medium: "#7c3aed", long: "#db2777" };
+
+let ROWS = [];
+// think_time_s es un parametro que el load test elige al azar (ver
+// sample_think_time en caller.py), no una latencia medida -- se excluye del
+// grafico por default para no mezclarlo con las series de latencia real,
+// pero queda disponible para tildar y la tabla/datos crudos la muestran igual.
+let visibleSeries = new Set(STATS_FIELDS.map(f => f[0]).filter(k => k !== "think_time_s"));
+
+function parseCSV(text) {
+  const lines = text.replace(/\r\n/g, "\n").split("\n").filter(l => l.length > 0);
+  if (!lines.length) return [];
+  const headers = splitCSVLine(lines[0]);
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cells = splitCSVLine(lines[i]);
+    if (cells.length === 1 && cells[0] === "") continue;
+    const row = {};
+    headers.forEach((h, idx) => { row[h] = cells[idx] ?? ""; });
+    rows.push(row);
+  }
+  return rows;
+}
+
+function splitCSVLine(line) {
+  const out = []; let cur = ""; let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQuotes) {
+      if (c === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else { inQuotes = false; } }
+      else cur += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ',') { out.push(cur); cur = ""; }
+      else cur += c;
+    }
+  }
+  out.push(cur);
+  return out;
+}
+
+function num(row, key) {
+  const v = row[key];
+  if (v === undefined || v === "" || v === null) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function isTrue(v) { return v === "True" || v === "true" || v === "1"; }
+
+function statsOf(vals) {
+  const v = vals.filter(x => x !== null).sort((a, b) => a - b);
+  if (!v.length) return null;
+  const pct = p => v[Math.min(v.length - 1, Math.floor(v.length * p))];
+  const avg = v.reduce((a, b) => a + b, 0) / v.length;
+  return { n: v.length, avg, p50: pct(0.5), p95: pct(0.95), max: v[v.length - 1] };
+}
+
+function fmt(x) { return x === null || x === undefined ? "—" : x.toFixed(2); }
+
+function setStatus(msg, isErr) {
+  const el = document.getElementById("status");
+  el.textContent = msg;
+  el.className = isErr ? "err" : "";
+}
+
+async function tryAutoload() {
+  try {
+    // El ?t= no es decorativo: python -m http.server manda Last-Modified sin
+    // Cache-Control y contesta 304 a los requests condicionales, asi que sin
+    // cache-busting el navegador puede seguir mostrando el CSV del run
+    // anterior aunque en disco ya este el nuevo.
+    const r = await fetch("results/latest.csv?t=" + Date.now(), { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const text = await r.text();
+    const lm = r.headers.get("last-modified");
+    loadData(text, "results/latest.csv" + (lm ? ` · ${new Date(lm).toLocaleString()}` : ""));
+  } catch (e) {
+    setStatus("no se pudo auto-cargar results/latest.csv (" + e.message + ") — elegí el archivo manualmente.", true);
+  }
+}
+
+function loadData(text, label) {
+  const rows = parseCSV(text);
+  if (!rows.length) { setStatus("el CSV está vacío.", true); return; }
+  ROWS = rows;
+  // Mostrar el run_id hace visible de entrada si quedaron datos viejos.
+  const runs = [...new Set(rows.map(r => r.run_id).filter(Boolean))];
+  const levels = [...new Set(rows.map(r => r.concurrency))].sort((a, b) => Number(a) - Number(b));
+  setStatus(`cargado: ${label} — ${rows.length} filas — run ${runs.join(", ")} — niveles ${levels.join(", ")}`);
+  document.getElementById("content").style.display = "";
+  document.getElementById("emptyState").style.display = "none";
+  render();
+}
+
+document.getElementById("fileInput").addEventListener("change", ev => {
+  const file = ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => loadData(reader.result, file.name);
+  reader.readAsText(file);
+});
+document.getElementById("reloadBtn").addEventListener("click", tryAutoload);
+document.getElementById("pctSelect").addEventListener("change", renderChart);
+
+function render() {
+  renderSummary();
+  renderBatchTable();
+  renderComposicion();
+  renderCallsTable();
+  renderLevelTable();
+  renderChartLegend();
+  renderChart();
+  renderCategoryChart();
+  renderAnomalies();
+  renderRawTable();
+}
+
+// ---------- breakdown por oleada ----------
+
+// Agrupa las filas por llamada, quedandose con lo que describe a la llamada
+// entera (ventana de vida) y con sus turnos.
+function callsOf(rows) {
+  const byCall = new Map();
+  for (const r of rows) {
+    const key = r.run_id + "/" + r.call_id;
+    if (!byCall.has(key)) {
+      byCall.set(key, { key, run_id: r.run_id, call_id: r.call_id, concurrency: Number(r.concurrency),
+                        start: num(r, "call_start_ts"), end: num(r, "call_end_ts"), turns: [], errors: 0 });
+    }
+    const c = byCall.get(key);
+    if (c.start === null) c.start = num(r, "call_start_ts");
+    if (c.end === null) c.end = num(r, "call_end_ts");
+    if (r.row_kind !== "server_only" && r.turn_index !== "") c.turns.push(r);
+    if (r.call_error || r.turn_error) c.errors++;
+  }
+  return [...byCall.values()];
+}
+
+function fmtStats(vals, digits = 2) {
+  const s = statsOf(vals);
+  if (!s) return { avg: "—", p50: "—", max: "—", n: 0 };
+  return { avg: s.avg.toFixed(digits), p50: s.p50.toFixed(digits), max: s.max.toFixed(digits), n: s.n };
+}
+
+function renderBatchTable() {
+  const calls = callsOf(ROWS);
+  const levels = [...new Set(calls.map(c => c.concurrency))].sort((a, b) => a - b);
+  let html = "<table><thead><tr><th>oleada (concurrencia)</th><th>llamadas</th><th>turnos</th>" +
+    "<th colspan='3'>duración de llamada (s)</th><th colspan='3'>duración de turno (s)</th>" +
+    "<th colspan='2'>rampa</th></tr><tr><th></th><th></th><th></th>" +
+    "<th>avg</th><th>p50</th><th>max</th><th>avg</th><th>p50</th><th>max</th>" +
+    "<th>escalón</th><th>total</th></tr></thead><tbody>";
+  for (const lv of levels) {
+    const cs = calls.filter(c => c.concurrency === lv);
+    const durCall = cs.map(c => (c.start !== null && c.end !== null) ? c.end - c.start : null);
+    const turnRows = ROWS.filter(r => Number(r.concurrency) === lv);
+    const durTurn = turnRows.map(r => num(r, "turn_duration_s"));
+    const dc = fmtStats(durCall), dt = fmtStats(durTurn);
+    // escalonamiento real: mediana de la diferencia entre arranques sucesivos
+    const starts = cs.map(c => c.start).filter(x => x !== null).sort((a, b) => a - b);
+    const gaps = starts.slice(1).map((s, i) => s - starts[i]);
+    const gapMed = gaps.length ? statsOf(gaps).p50.toFixed(2) + "s" : "—";
+    const rampa = starts.length ? (starts[starts.length - 1] - starts[0]).toFixed(1) + "s" : "—";
+    const nTurns = turnRows.filter(r => r.turn_index !== "" && r.row_kind !== "server_only").length;
+    html += `<tr><td>${lv}</td><td>${cs.length}</td><td>${nTurns}</td>` +
+      `<td>${dc.avg}</td><td>${dc.p50}</td><td>${dc.max}</td>` +
+      `<td>${dt.avg}</td><td>${dt.p50}</td><td>${dt.max}</td>` +
+      `<td>${gapMed}</td><td>${rampa}</td></tr>`;
+  }
+  html += "</tbody></table>";
+  document.getElementById("batchTableWrap").innerHTML = html;
+}
+
+// Las 4 partes en las que se descompone un turno, en orden temporal.
+const COMPOSICION = [
+  ["user_speech_s", "habla el usuario", "#0891b2"],
+  ["client_latency_s", "espera la respuesta", "#dc2626"],
+  ["tts_audio_s", "habla el agente", "#16a34a"],
+  ["think_time_s", "pausa antes del próximo", "#94a3b8"],
+];
+
+function stackedBars(levels, segments) {
+  const W = 1080, H = 320, padL = 46, padR = 16, padT = 16, padB = 34;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const totals = levels.map((_, i) => segments.reduce((a, s) => a + (s.values[i] || 0), 0));
+  const maxY = Math.max(0.5, ...totals) * 1.1;
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", height: H, role: "img" });
+  const yPos = v => padT + plotH - (v / maxY) * plotH;
+
+  for (let g = 0; g <= 5; g++) {
+    const v = (maxY / 5) * g, y = yPos(v);
+    svg.appendChild(svgEl("line", { x1: padL, x2: W - padR, y1: y, y2: y, stroke: "#e3e8f0", "stroke-width": 1 }));
+    const t = svgEl("text", { x: padL - 8, y: y + 3, "text-anchor": "end" });
+    t.textContent = v.toFixed(1) + "s";
+    svg.appendChild(t);
+  }
+  const slot = plotW / Math.max(1, levels.length);
+  const barW = Math.min(90, slot * 0.55);
+  levels.forEach((lv, i) => {
+    const cx = padL + slot * (i + 0.5);
+    let acc = 0;
+    for (const s of segments) {
+      const v = s.values[i] || 0;
+      if (v <= 0) continue;
+      const y1 = yPos(acc + v), y2 = yPos(acc);
+      const rect = svgEl("rect", { x: cx - barW / 2, y: y1, width: barW, height: Math.max(0, y2 - y1), fill: s.color });
+      const title = svgEl("title", {});
+      title.textContent = `${s.label}: ${v.toFixed(2)}s`;
+      rect.appendChild(title);
+      svg.appendChild(rect);
+      acc += v;
+    }
+    const tot = svgEl("text", { x: cx, y: yPos(acc) - 5, "text-anchor": "middle", "font-weight": "600" });
+    tot.textContent = acc.toFixed(1) + "s";
+    svg.appendChild(tot);
+    const lab = svgEl("text", { x: cx, y: H - padB + 16, "text-anchor": "middle" });
+    lab.textContent = lv;
+    svg.appendChild(lab);
+  });
+  const xAxis = svgEl("text", { x: W / 2, y: H - 4, "text-anchor": "middle", "font-weight": "600" });
+  xAxis.textContent = "concurrencia (llamadas simultáneas)";
+  svg.appendChild(xAxis);
+  return svg;
+}
+
+function renderComposicion() {
+  const levels = [...levelGroups().keys()];
+  const segments = COMPOSICION.map(([key, label, color]) => ({
+    key, label, color,
+    values: levels.map(lv => {
+      const s = statsOf(levelGroups().get(lv).map(r => num(r, key)));
+      return s ? s.avg : 0;
+    }),
+  }));
+  document.getElementById("composicionLegend").innerHTML = COMPOSICION.map(([k, label, color]) =>
+    `<span><span class="swatch" style="background:${color}"></span> ${label}</span>`).join(" ");
+  const wrap = document.getElementById("composicionWrap");
+  wrap.innerHTML = "";
+  if (!levels.length) { wrap.innerHTML = "<div class='empty'>sin datos</div>"; return; }
+  wrap.appendChild(stackedBars(levels, segments));
+}
+
+function renderCallsTable() {
+  const calls = callsOf(ROWS).sort((a, b) =>
+    a.concurrency - b.concurrency || (a.start ?? 0) - (b.start ?? 0));
+  // arranque relativo a la primera llamada de SU oleada
+  const firstOf = new Map();
+  for (const c of calls) {
+    if (c.start === null) continue;
+    const cur = firstOf.get(c.concurrency);
+    if (cur === undefined || c.start < cur) firstOf.set(c.concurrency, c.start);
+  }
+  let html = "<table><thead><tr><th>oleada</th><th>call</th><th>arranque</th><th>duración</th>" +
+    "<th>turnos</th><th>latencia p50</th><th>turno p50</th><th>habla agente (total)</th><th>errores</th>" +
+    "</tr></thead><tbody>";
+  for (const c of calls) {
+    const rel = (c.start !== null && firstOf.has(c.concurrency)) ? "+" + (c.start - firstOf.get(c.concurrency)).toFixed(2) + "s" : "—";
+    const dur = (c.start !== null && c.end !== null) ? (c.end - c.start).toFixed(1) + "s" : "—";
+    const lat = statsOf(c.turns.map(r => num(r, "client_latency_s")));
+    const td = statsOf(c.turns.map(r => num(r, "turn_duration_s")));
+    const agente = c.turns.map(r => num(r, "tts_audio_s")).filter(x => x !== null).reduce((a, b) => a + b, 0);
+    html += `<tr><td>${c.concurrency}</td><td>${c.call_id}</td><td>${rel}</td><td>${dur}</td>` +
+      `<td>${c.turns.length}</td><td>${lat ? lat.p50.toFixed(2) + "s" : "—"}</td>` +
+      `<td>${td ? td.p50.toFixed(2) + "s" : "—"}</td><td>${agente ? agente.toFixed(1) + "s" : "—"}</td>` +
+      `<td>${c.errors ? `<span class="badge bad">${c.errors}</span>` : ""}</td></tr>`;
+  }
+  html += "</tbody></table>";
+  document.getElementById("callsTableWrap").innerHTML = html;
+}
+
+function renderSummary() {
+  const calls = new Set(ROWS.map(r => r.run_id + "/" + r.call_id));
+  const levels = [...new Set(ROWS.map(r => r.concurrency))].sort((a, b) => Number(a) - Number(b));
+  const failedCalls = new Set(ROWS.filter(r => r.call_error).map(r => r.run_id + "/" + r.call_id));
+  const turnsOk = ROWS.filter(r => num(r, "client_latency_s") !== null).length;
+  const anomalies = ROWS.filter(r => isAnomaly(r)).length;
+  // Filas donde el turno del cliente y el del server SI se pudieron aparear
+  // 1 a 1 -- son las unicas donde comparar client_latency_s contra total_s
+  // tiene sentido. Ver _rows_for_call en run.py.
+  const paired = ROWS.filter(r => r.row_kind === "paired").length;
+  const unpairedCalls = new Set(ROWS.filter(r => r.row_kind === "client_only" || r.row_kind === "server_only")
+    .map(r => r.run_id + "/" + r.call_id)).size;
+  const stats = [
+    ["turnos", ROWS.length],
+    ["llamadas", calls.size],
+    ["llamadas con error", failedCalls.size],
+    ["niveles de concurrencia", levels.join(", ")],
+    ["turnos con latencia medida", turnsOk],
+    ["turnos apareados", ROWS[0].row_kind === undefined ? "n/d" : paired],
+    ["llamadas sin aparear", ROWS[0].row_kind === undefined ? "n/d" : unpairedCalls],
+    ["anomalias", anomalies],
+  ];
+  document.getElementById("summaryStats").innerHTML = stats.map(([label, val]) =>
+    `<div class="stat"><b>${val}</b><span>${label}</span></div>`).join("");
+}
+
+function levelGroups() {
+  const map = new Map();
+  for (const r of ROWS) {
+    const c = Number(r.concurrency);
+    if (!map.has(c)) map.set(c, []);
+    map.get(c).push(r);
+  }
+  return new Map([...map.entries()].sort((a, b) => a[0] - b[0]));
+}
+
+function renderLevelTable() {
+  const groups = levelGroups();
+  let html = "<table><thead><tr><th>concurrencia</th>";
+  for (const [key, label] of STATS_FIELDS) html += `<th colspan="4">${label}</th>`;
+  html += "</tr><tr><th></th>";
+  for (let i = 0; i < STATS_FIELDS.length; i++) html += "<th>avg</th><th>p50</th><th>p95</th><th>max</th>";
+  html += "</tr></thead><tbody>";
+  for (const [level, rows] of groups) {
+    html += `<tr><td>${level}</td>`;
+    for (const [key] of STATS_FIELDS) {
+      const s = statsOf(rows.map(r => num(r, key)));
+      html += s
+        ? `<td>${fmt(s.avg)}</td><td>${fmt(s.p50)}</td><td>${fmt(s.p95)}</td><td>${fmt(s.max)}</td>`
+        : "<td>—</td><td>—</td><td>—</td><td>—</td>";
+    }
+    html += "</tr>";
+  }
+  html += "</tbody></table>";
+  document.getElementById("levelTableWrap").innerHTML = html;
+}
+
+function renderChartLegend() {
+  const legend = document.getElementById("chartLegend");
+  legend.innerHTML = STATS_FIELDS.map(([key, label], i) => {
+    const color = SERIES_COLORS[i % SERIES_COLORS.length];
+    const checked = visibleSeries.has(key) ? "checked" : "";
+    return `<label><input type="checkbox" data-key="${key}" ${checked}>
+      <span class="swatch" style="background:${color}"></span>${label}</label>`;
+  }).join("");
+  legend.querySelectorAll("input[type=checkbox]").forEach(cb => {
+    cb.addEventListener("change", () => {
+      const key = cb.dataset.key;
+      if (cb.checked) visibleSeries.add(key); else visibleSeries.delete(key);
+      renderChart();
+    });
+  });
+}
+
+function svgEl(tag, attrs) {
+  const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const k in attrs) el.setAttribute(k, attrs[k]);
+  return el;
+}
+
+function lineChart(levels, seriesList, opts) {
+  const W = 1080, H = 340, padL = 46, padR = 16, padT = 16, padB = 34;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const allVals = seriesList.flatMap(s => s.values.filter(v => v !== null));
+  const maxY = Math.max(0.2, ...allVals.length ? allVals : [1]);
+  const niceMax = Math.ceil(maxY * 10) / 10 * 1.1;
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", height: H, role: "img" });
+
+  const xPos = i => padL + (levels.length <= 1 ? plotW / 2 : (i / (levels.length - 1)) * plotW);
+  const yPos = v => padT + plotH - (v / niceMax) * plotH;
+
+  // gridlines + y labels
+  const gridN = 5;
+  for (let g = 0; g <= gridN; g++) {
+    const v = (niceMax / gridN) * g;
+    const y = yPos(v);
+    svg.appendChild(svgEl("line", { x1: padL, x2: W - padR, y1: y, y2: y, stroke: "#e3e8f0", "stroke-width": 1 }));
+    const t = svgEl("text", { x: padL - 8, y: y + 3, "text-anchor": "end" });
+    t.textContent = v.toFixed(v < 1 ? 2 : 1) + "s";
+    svg.appendChild(t);
+  }
+  // x labels
+  levels.forEach((lv, i) => {
+    const x = xPos(i);
+    svg.appendChild(svgEl("line", { x1: x, x2: x, y1: padT, y2: H - padB, stroke: "#f1f4f9", "stroke-width": 1 }));
+    const t = svgEl("text", { x, y: H - padB + 16, "text-anchor": "middle" });
+    t.textContent = lv;
+    svg.appendChild(t);
+  });
+  const xAxisLabel = svgEl("text", { x: W / 2, y: H - 4, "text-anchor": "middle", "font-weight": "600" });
+  xAxisLabel.textContent = "concurrencia (llamadas simultáneas)";
+  svg.appendChild(xAxisLabel);
+
+  for (const s of seriesList) {
+    const pts = s.values.map((v, i) => v === null ? null : [xPos(i), yPos(v)]);
+    const validPts = pts.filter(p => p !== null);
+    if (validPts.length) {
+      const d = validPts.map((p, i) => (i === 0 ? "M" : "L") + p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ");
+      svg.appendChild(svgEl("path", { d, fill: "none", stroke: s.color, "stroke-width": 2.2 }));
+    }
+    pts.forEach(p => {
+      if (!p) return;
+      const c = svgEl("circle", { cx: p[0], cy: p[1], r: 3.5, fill: s.color });
+      const title = svgEl("title", {});
+      c.appendChild(title);
+      svg.appendChild(c);
+    });
+  }
+  return svg;
+}
+
+function renderChart() {
+  const groups = levelGroups();
+  const levels = [...groups.keys()];
+  const pctKey = document.getElementById("pctSelect").value;
+  const series = STATS_FIELDS
+    .filter(([key]) => visibleSeries.has(key))
+    .map(([key, label], i) => {
+      const idx = STATS_FIELDS.findIndex(f => f[0] === key);
+      const values = levels.map(lv => {
+        const s = statsOf(groups.get(lv).map(r => num(r, key)));
+        return s ? s[pctKey] : null;
+      });
+      return { key, label, color: SERIES_COLORS[idx % SERIES_COLORS.length], values };
+    });
+  const wrap = document.getElementById("chartWrap");
+  wrap.innerHTML = "";
+  if (!levels.length || !series.length) { wrap.innerHTML = "<div class='empty'>nada para graficar</div>"; return; }
+  wrap.appendChild(lineChart(levels, series));
+}
+
+function renderCategoryChart() {
+  const groups = levelGroups();
+  const levels = [...groups.keys()];
+  const cats = ["short", "medium", "long"];
+  const series = cats.map(cat => ({
+    key: cat, color: CATEGORY_COLORS[cat],
+    values: levels.map(lv => {
+      const rows = groups.get(lv).filter(r => r.category === cat);
+      const s = statsOf(rows.map(r => num(r, "client_latency_s")));
+      return s ? s.avg : null;
+    }),
+  }));
+  const wrap = document.getElementById("categoryChartWrap");
+  wrap.innerHTML = "";
+  const legend = document.createElement("div");
+  legend.className = "legend";
+  legend.innerHTML = cats.map(c =>
+    `<span><span class="swatch" style="background:${CATEGORY_COLORS[c]}"></span> ${c} (avg latencia percibida, s)</span>`
+  ).join(" ");
+  wrap.appendChild(legend);
+  if (!levels.length) { wrap.innerHTML += "<div class='empty'>sin datos</div>"; return; }
+  wrap.appendChild(lineChart(levels, series));
+}
+
+function anomalyReason(r) {
+  if (r.call_error) return r.call_error;
+  if (r.turn_error) return r.turn_error;
+  const lat = num(r, "client_latency_s");
+  if (lat !== null && lat < 0) return "latencia negativa (el agente arrancó a responder antes de que el usuario terminara)";
+  // El cliente no puede oír la respuesta antes de que el server la genere:
+  // si pasa, esa fila mide otra cosa (típicamente el agente respondiendo a un
+  // fragmento de la frase anterior).
+  const total = num(r, "total_s");
+  if (r.row_kind === "paired" && lat !== null && total !== null && lat < total) {
+    return `imposible: client_latency (${lat.toFixed(2)}s) < total server (${total.toFixed(2)}s)`;
+  }
+  if (r.row_kind === "client_only") return "sin aparear: el server registró otra cantidad de turnos";
+  if (r.row_kind === "server_only") return "sin aparear: turno que registró el server y el cliente no";
+  return null;
+}
+
+function isAnomaly(r) { return anomalyReason(r) !== null; }
+
+function renderAnomalies() {
+  const rows = ROWS.filter(isAnomaly);
+  const card = document.getElementById("anomaliesCard");
+  if (!rows.length) { card.style.display = "none"; return; }
+  card.style.display = "";
+  let html = "<table><thead><tr><th>run</th><th>conc.</th><th>call</th><th>turno</th><th>tipo</th><th>categoria</th>" +
+    "<th>client_latency_s</th><th style='text-align:left'>motivo</th></tr></thead><tbody>";
+  for (const r of rows) {
+    html += `<tr><td>${r.run_id}</td><td>${r.concurrency}</td><td>${r.call_id}</td><td>${r.turn_index || "—"}</td>` +
+      `<td>${r.row_kind || "—"}</td><td class="cat-${r.category}">${r.category || "—"}</td>` +
+      `<td>${r.client_latency_s ? Number(r.client_latency_s).toFixed(2) : "—"}</td>` +
+      `<td style="text-align:left">${anomalyReason(r) || ""}</td></tr>`;
+  }
+  html += "</tbody></table>";
+  document.getElementById("anomaliesWrap").innerHTML = html;
+}
+
+function renderRawTable() {
+  document.getElementById("rawCount").textContent = `${ROWS.length} filas (todas las columnas del CSV)`;
+  const cols = Object.keys(ROWS[0]);
+  let html = "<table><thead><tr>" + cols.map(c => `<th>${c}</th>`).join("") + "</tr></thead><tbody>";
+  for (const r of ROWS) {
+    html += "<tr>" + cols.map(c => {
+      const cls = c === "category" && r[c] ? ` class="cat-${r[c]}"` : "";
+      const cellClass = c === "status" ? (r[c] === "finalizada" ? "badge ok" : "badge bad") : null;
+      const content = cellClass ? `<span class="${cellClass}">${r[c]}</span>` : (r[c] === "" ? "—" : r[c]);
+      return `<td${cls}>${content}</td>`;
+    }).join("") + "</tr>";
+  }
+  html += "</tbody></table>";
+  document.getElementById("rawTableWrap").innerHTML = html;
+}
+
+tryAutoload();
+</script>
+</body>
+</html>
