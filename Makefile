@@ -10,6 +10,9 @@
 #                   GPU) -- app y agent esperan a que los vllm-* esten
 #                   healthy antes de arrancar. Requiere NVIDIA Container
 #                   Toolkit instalado (ver scripts/install-nvidia-toolkit.sh).
+#   make up-remote -> PC sin GPU: levanta solo db+app+agent, apuntando la
+#                   inferencia a los vLLM de otro host (ej. via ngrok, ver
+#                   seccion "Inferencia remota" del README).
 #   make logs    -> sigue los logs de los 6 servicios
 #   make tunnel  -> opcional: expone los 3 vllm-* en internet via ngrok
 #                   (perfil `ngrok` de compose, ver .env.example)
@@ -32,7 +35,7 @@ export GID := $(shell id -g)
 .DEFAULT_GOAL := help
 
 .PHONY: help setup env storage \
-        build rebuild up start stop down re \
+        build rebuild up up-remote start stop down re \
         restart restart-app restart-agent restart-llm restart-stt restart-tts \
         ps logs logs-app logs-agent logs-db logs-llm logs-stt logs-tts \
         tunnel logs-tunnel \
@@ -63,6 +66,10 @@ rebuild: storage ## Build sin cache (usar si un cambio no se refleja)
 
 up: storage ## Build (si hace falta) + levanta los 6 servicios en background (1ra vez tarda, ver arriba)
 	$(COMPOSE) up -d --build
+
+up-remote: storage ## PC sin GPU: levanta db+app+agent (--no-deps; la inferencia va a VLLM_*_BASE_URL, ver README)
+	$(COMPOSE) up -d --build --wait --no-deps db
+	$(COMPOSE) up -d --build --no-deps app agent
 
 start: ## Arranca contenedores ya creados, sin rebuild
 	$(COMPOSE) start

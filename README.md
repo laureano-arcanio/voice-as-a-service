@@ -93,6 +93,64 @@ de LiveKit, sin puerto expuesto — conecta saliente a LiveKit Cloud) y `vllm-ll
 `agent` esperan a que los `vllm-*` esten healthy antes de arrancar — la primera vez
 tarda varios minutos (descarga de pesos + carga en GPU).
 
+### Exponer los vLLM por ngrok (opcional)
+
+Para consumir LLM/STT/TTS desde afuera del host. Usa el perfil `ngrok` de compose:
+`make up` no arranca estos contenedores, solo `make tunnel`.
+
+1. Completar en `.env`:
+   - `VLLM_API_KEY` con una clave real y larga (`openssl rand -hex 24`): los 3
+     servidores vLLM la exigen como `Authorization: Bearer` en `/v1/*` (ngrok no
+     agrega auth propia, esta es la unica).
+   - `NGROK_AUTHTOKEN`: Dashboard de ngrok → Getting Started → Your Authtoken.
+   - `NGROK_DOMAIN`: Dashboard de ngrok → Domains, sin `https://` ni path.
+2. `make tunnel` (arranca `ngrok-llm` / `ngrok-stt` / `ngrok-tts`, esperando a que
+   los `vllm-*` esten healthy).
+3. URLs publicas — el plan free da un solo dominio, por eso cada servicio va en su
+   propio path (`ngrok/strip-prefix.yml` lo reescribe a `/v1/...` antes de llegar
+   al vLLM):
+
+   | Servicio | Base URL OpenAI-compatible      |
+   | -------- | ------------------------------- |
+   | LLM      | `https://$NGROK_DOMAIN/llm/v1`  |
+   | STT      | `https://$NGROK_DOMAIN/stt/v1`  |
+   | TTS      | `https://$NGROK_DOMAIN/tts/v1`  |
+
+   ```bash
+   curl https://$NGROK_DOMAIN/llm/v1/models -H "Authorization: Bearer $VLLM_API_KEY"
+   ```
+
+Notas: en el plan free ngrok intercala una pagina de aviso solo en requests de
+navegador (los clientes API no la ven; tambien se evita mandando
+`ngrok-skip-browser-warning: 1`), y aplican los limites de 3 endpoints online,
+20k requests/mes y 1 GB/mes. Logs de los tuneles: `make logs-tunnel`. Para
+apagarlos alcanza con `make down` (o `docker compose stop ngrok-llm ngrok-stt
+ngrok-tts`).
+
+### Inferencia remota: app/agent en otra PC (via ngrok)
+
+El host GPU corre solo la inferencia (`make tunnel`); una PC sin GPU puede correr
+el resto del stack (`db` + `app` + `agent`) apuntando los vLLM a las URLs de
+ngrok. No hace falta tocar codigo: los plugins de LiveKit ya usan
+`base_url`/`api_key` de `.env`.
+
+1. Mismo `make setup` en la otra PC. En su `.env`:
+   - `LIVEKIT_*`: los mismos del host GPU (mismo proyecto/agente).
+   - `VLLM_LLM_BASE_URL=https://$NGROK_DOMAIN/llm/v1`
+   - `VLLM_STT_BASE_URL=https://$NGROK_DOMAIN/stt/v1`
+   - `VLLM_TTS_BASE_URL=https://$NGROK_DOMAIN/tts/v1`
+   - `VLLM_API_KEY`: la misma clave real configurada en el host GPU.
+   - `VLLM_LLM_MODEL` / `VLLM_STT_MODEL` / `VLLM_TTS_MODEL` / `VLLM_TTS_VOICE`:
+     iguales a lo que sirve el host GPU (la voz clonada, ej. `sofia_ar`, vive en
+     el volumen del `vllm-tts` del host GPU; la PC remota solo la referencia).
+   - `MYSQL_*`: propios de esa PC (su `db` local).
+2. `make up-remote` -> levanta `db`, espera a que este healthy, y recien ahi
+   `app` + `agent` con `--no-deps` (no intenta arrancar los `vllm-*`, que en esa
+   PC no existen). No correr `make up` en la PC remota.
+
+Ojo con la latencia: cada turno de la llamada cruza por ngrok (ida y vuelta), y
+el audio de STT/TTS consume el ancho de banda del plan (1 GB/mes en free).
+
 ## Deploy (servidor smartcron)
 
 - Codigo: `/var/www/html/aiva-validate/` (venv propio, `.env` con credenciales).
@@ -109,6 +167,8 @@ tarda varios minutos (descarga de pesos + carga en GPU).
 3. Nada mas: LLM/STT/TTS corren localmente (ver "Inferencia local (vLLM)" arriba), no
    hace falta ninguna API key de proveedor externo. `HF_TOKEN` es opcional, solo si
    algun modelo llegara a requerir aceptar licencia en HuggingFace.
+4. Solo si se exponen los vLLM por ngrok (ver "Exponer los vLLM por ngrok" arriba):
+   `VLLM_API_KEY` (clave real), `NGROK_AUTHTOKEN` y `NGROK_DOMAIN`.
 
 ### Runbook: Twilio + LiveKit (configuracion manual, una sola vez)
 
