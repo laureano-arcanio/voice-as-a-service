@@ -9,8 +9,9 @@ score + resultado (aprobado / a definir / rechazado) evaluando el transcript con
 - **Backend:** Python 3.12 + FastAPI + SQLAlchemy (MySQL) + Jinja2, servido con uvicorn.
 - **Frontend:** HTML + Vanilla JS (sin frameworks).
 - **Voz:** LiveKit Agents (STT + LLM + TTS, los 3 servidos localmente con vLLM/vLLM-Omni
-  sobre GPU propia — ver "Inferencia local" abajo) sobre una troncal SIP saliente de
-  Twilio, corriendo como un worker propio (`app/livekit_agent.py`, proceso/contenedor
+  sobre GPU propia — ver "Inferencia local" abajo) sobre una troncal SIP (Anura via un
+  Asterisk propio, ver "Telefonia" abajo; o Twilio), corriendo como un worker propio
+  (`app/livekit_agent.py`, proceso/contenedor
   separado). La app (`app/main.py`) solo despacha el agente a una room nueva
   (`app/livekit_dispatch.py`); el worker marca al cliente y escribe el resultado
   (transcript, status, score) directo en la base de datos — no hay webhook.
@@ -104,11 +105,12 @@ Para consumir LLM/STT/TTS desde afuera del host. Usa el perfil `ngrok` de compos
      agrega auth propia, esta es la unica).
    - `NGROK_AUTHTOKEN`: Dashboard de ngrok → Getting Started → Your Authtoken.
    - `NGROK_DOMAIN`: Dashboard de ngrok → Domains, sin `https://` ni path.
-2. `make tunnel` (arranca `ngrok-llm` / `ngrok-stt` / `ngrok-tts`, esperando a que
-   los `vllm-*` esten healthy).
-3. URLs publicas — el plan free da un solo dominio, por eso cada servicio va en su
-   propio path (`ngrok/strip-prefix.yml` lo reescribe a `/v1/...` antes de llegar
-   al vLLM):
+2. `make tunnel` (arranca un unico agente `ngrok` + el proxy `proxy`, esperando a
+   que los `vllm-*` esten healthy).
+3. URLs publicas — los agent endpoints de ngrok no aceptan paths (ERR_NGROK_9038)
+   y el plan free da un unico endpoint, asi que hay un solo tunel al root del
+   dominio y el proxy nginx (`ngrok/proxy.conf`) rutea por path a cada vLLM,
+   sacando el prefijo para que llegue `/v1/...`:
 
    | Servicio | Base URL OpenAI-compatible      |
    | -------- | ------------------------------- |
@@ -122,10 +124,9 @@ Para consumir LLM/STT/TTS desde afuera del host. Usa el perfil `ngrok` de compos
 
 Notas: en el plan free ngrok intercala una pagina de aviso solo en requests de
 navegador (los clientes API no la ven; tambien se evita mandando
-`ngrok-skip-browser-warning: 1`), y aplican los limites de 3 endpoints online,
-20k requests/mes y 1 GB/mes. Logs de los tuneles: `make logs-tunnel`. Para
-apagarlos alcanza con `make down` (o `docker compose stop ngrok-llm ngrok-stt
-ngrok-tts`).
+`ngrok-skip-browser-warning: 1`), y aplican los limites de 20k requests/mes y
+1 GB/mes. Logs del tunel y del proxy: `make logs-tunnel`. Para apagarlos alcanza
+con `make down` (o `docker compose stop ngrok proxy`).
 
 ### Inferencia remota: app/agent en otra PC (via ngrok)
 
@@ -163,12 +164,28 @@ el audio de STT/TTS consume el ancho de banda del plan (1 GB/mes en free).
 
 1. `LIVEKIT_URL` / `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` — proyecto de LiveKit Cloud
    (Project Settings → Keys).
-2. `LIVEKIT_SIP_TRUNK_ID` — troncal SIP saliente de LiveKit (ver runbook abajo).
+2. `LIVEKIT_SIP_TRUNK_ID` — troncal SIP saliente de LiveKit (Anura: `make livekit-sip`, ver
+   "Telefonia: Anura via Asterisk" abajo; Twilio: ver su runbook).
 3. Nada mas: LLM/STT/TTS corren localmente (ver "Inferencia local (vLLM)" arriba), no
    hace falta ninguna API key de proveedor externo. `HF_TOKEN` es opcional, solo si
    algun modelo llegara a requerir aceptar licencia en HuggingFace.
 4. Solo si se exponen los vLLM por ngrok (ver "Exponer los vLLM por ngrok" arriba):
    `VLLM_API_KEY` (clave real), `NGROK_AUTHTOKEN` y `NGROK_DOMAIN`.
+
+### Telefonia: Anura via Asterisk
+
+Troncal SIP argentina de [Anura](https://kb.anura.com.ar/es/) con un Asterisk en Docker
+(servicio `asterisk`, perfil `pbx`) de puente: registra la troncal, pasa las entrantes a
+LiveKit y las salientes del agente a Anura, traduciendo los formatos de numero. Runbook
+completo (port forwarding del router, troubleshooting): `docs/TELEFONIA_ANURA.md`.
+
+1. Completar el bloque "Telefonia" de `.env` (`ANURA_*`, `LIVEKIT_SIP_HOST`,
+   `LIVEKIT_SIP_PASSWORD`).
+2. Router: redirigir `5080/udp` y `10000-10199/udp` a este host y apagar el SIP ALG.
+3. `make pbx` y `make pbx-status` -> el registro con Anura tiene que decir `Registered`.
+4. `make livekit-sip` -> crea los trunks entrante/saliente y la dispatch rule en LiveKit;
+   poner el `ST_...` que imprime en `LIVEKIT_SIP_TRUNK_ID` y `make up` (recrea el agente con el
+   `.env` nuevo).
 
 ### Runbook: Twilio + LiveKit (configuracion manual, una sola vez)
 

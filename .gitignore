@@ -4,3 +4,8 @@ __pycache__/
 venv/
 .env
 storage/
+
+# loadtest artifacts
+scripts/loadtest/monitor/run_*/
+scripts/loadtest/monitor/current
+scripts/loadtest/results/

@@ -122,10 +122,14 @@ Distribución recomendada en cualquier B550:
 | VRAM | 24 GB | 16 GB |
 | FP8 nativo | No | Sí |
 
-- STT y TTS van a andar igual o mejor (hoy comparten una 3090).
-- La incógnita es el LLM a concurrencia 32. Mitigación: pesos en FP8, prefix
-  caching y ajustar `--max-num-batched-tokens`.
-- **Comprar primero una sola 5060 Ti y correr el benchmark del LLM antes de comprar las tres.**
+- **Medido (ver `LOADTEST_CAPACITY.md`): el cuello es TTS, no el LLM.** TTS sola
+  satura una 3090 a 32 sesiones; el LLM usa ~la mitad de la suya y nunca encola.
+  STT es liviano.
+- Mitigación para el LLM si hiciera falta: pesos en FP8, prefix caching y
+  ajustar `--max-num-batched-tokens`.
+- **Comprar primero una sola 5060 Ti y correr el benchmark de TTS (y después el
+  del LLM) antes de comprar las tres.** Si TTS no llega, va una GPU más (o más
+  fuerte) solo para TTS.
 
 **Otros:**
 
@@ -135,6 +139,11 @@ Distribución recomendada en cualquier B550:
 - Revisar en la BIOS que el slot principal no esté forzado a Gen3.
 
 ## 6. Prueba pendiente antes de comprar
+
+> **Hecha el 21-sep-2026**, resultados en `LOADTEST_CAPACITY.md`: a 32 sesiones
+> se usan ~4 de 16 hilos, ningún core pasa de 90% y el thread más cargado
+> (engine de TTS) llega a 70% (p95). Falta solo la simulación de CPU más débil
+> de abajo.
 
 Correr la carga a concurrencia 32 contra el server actual (puerto 8011) desde
 otra máquina, y registrar:
@@ -173,5 +182,6 @@ Por qué:
 - ATX en lugar de micro-ATX cuesta casi lo mismo y permite montar 2 GPUs directo con aire entre ellas.
 - El video integrado del 5700G simplifica el diagnóstico en un armado con risers.
 
-Orden de pasos: (1) prueba de carga en el server actual, (2) comprar una 5060 Ti
-y validar el LLM en FP8, (3) comprar el resto.
+Orden de pasos: (1) prueba de carga en el server actual (hecha, ver
+`LOADTEST_CAPACITY.md`), (2) comprar una 5060 Ti y validar TTS y el LLM en FP8,
+(3) comprar el resto. El server actual queda como nodo de redundancia.

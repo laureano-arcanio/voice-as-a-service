@@ -94,8 +94,10 @@ services:
   # --runtime=docker` + restart de Docker) para que
   # `deploy.resources.reservations.devices` les de acceso a la GPU.
   #
-  # Reparto en las 2x RTX 3090 (24GB c/u) de este host: LLM sola en la GPU 0,
-  # STT + TTS comparten la GPU 1. --gpu-memory-utilization es una reserva FIJA
+  # Reparto en las 2x RTX 3090 (24GB c/u) de este host: TTS sola en la GPU 0
+  # (medido bajo carga: TTS satura su GPU por si solo y es el cuello de
+  # latencia), LLM + STT comparten la GPU 1 (la que tambien dibuja el
+  # escritorio, ~1.4GB; a la LLM le sobra GPU y STT es liviano). --gpu-memory-utilization es una reserva FIJA
   # (fraccion de la memoria TOTAL de esa GPU, no de "lo que sobra"), asi que en
   # una GPU compartida las fracciones de los servicios que la comparten tienen
   # que sumar bien por debajo de 1.0 o el segundo servicio en arrancar falla
@@ -129,10 +131,10 @@ services:
       - "--api-key=${VLLM_API_KEY:-not-needed}"
       - "--max-model-len=32768"
       - "--reasoning-parser=qwen3"
-      # Sola en la GPU 0: le damos margen generoso (~17.7GB de 23.56GB
-      # usables) por encima de lo medido bajo carga (~16.6GB sin el limite de
-      # cudagraph de abajo).
-      - "--gpu-memory-utilization=0.75"
+      # Comparte la GPU 1 con vllm-stt (0.30) y el escritorio (~1.4GB). Pesos
+      # 8.6GiB + ~2.7GiB de overhead: 0.55 (~13.2GiB) deja ~1.9GiB de KV cache.
+      # Con 0.75 el KV cache (7GiB) nunca paso de 7% de uso bajo 32 sesiones.
+      - "--gpu-memory-utilization=0.55"
       # Qwen3.5 es arquitectura hibrida Mamba+Attention: con menos memoria hay
       # menos "bloques de cache Mamba" disponibles, y el max_num_seqs default
       # (256) no entra -- CUDA graph capture falla ("max_num_seqs exceeds
@@ -157,7 +159,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ["0"]
+              device_ids: ["1"]
               capabilities: ["gpu"]
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
@@ -177,14 +179,14 @@ services:
     image: qwenllm/qwen3-asr:latest
     restart: unless-stopped
     ipc: host
-    # Depende de vllm-tts (no al reves) para NO arrancar en paralelo con el:
+    # Depende de vllm-llm (no al reves) para NO arrancar en paralelo con el:
     # los dos comparten la GPU 1 y, probado en vivo, si arrancan a la vez
     # compiten por la memoria libre en ese instante y uno de los dos falla su
     # primer intento (aunque despues se recupera solo por `restart:
     # unless-stopped`, `docker compose up` ya considera fallido el dependiente
     # -- en este caso `agent` -- si ve pasar por "unhealthy" aunque sea una vez).
     depends_on:
-      vllm-tts:
+      vllm-llm:
         condition: service_healthy
     environment:
       HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
@@ -198,11 +200,11 @@ services:
       - "--port=8000"
       # Ver comentario del --api-key en vllm-llm.
       - "--api-key=${VLLM_API_KEY:-not-needed}"
-      # Comparte la GPU 1 con vllm-tts (ver comentario de reparto arriba).
+      # Comparte la GPU 1 con vllm-llm (ver comentario de reparto arriba).
       # 0.25 (~6GB) no alcanzo en la practica: el encoder de audio reserva
       # cache aparte del KV cache del decoder, y solo quedaban 0.58 de 0.88GiB
-      # necesarios. 0.35 (~8.4GB) deja margen real.
-      - "--gpu-memory-utilization=0.35"
+      # necesarios. 0.30 (~7.2GB) alcanza y deja lugar a vllm-llm en la misma GPU.
+      - "--gpu-memory-utilization=0.30"
       # El default (auto, 65536) pide 7GiB solo de KV cache. Transcribir un
       # turno de llamada no necesita tanto contexto; 8192 deja margen holgado.
       - "--max-model-len=8192"
@@ -269,7 +271,9 @@ services:
       - "--port=8000"
       # Ver comentario del --api-key en vllm-llm.
       - "--api-key=${VLLM_API_KEY:-not-needed}"
-      # Comparte la GPU 1 con vllm-stt (ver comentario de reparto arriba).
+      # Sola en la GPU 0 (ver comentario de reparto arriba). El uso maximo de
+      # KV cache medido con 32 sesiones fue 5%; sobra, pero no hay con quien
+      # compartir la GPU (ver vllm-tts-2 abajo).
       - "--gpu-memory-utilization=0.4"
       # Igual que vllm-stt: el default (auto) carga un segundo modelo interno
       # (el decoder Code2Wav) con max_model_len=65536, de sobra para sintetizar
@@ -288,7 +292,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ["1"]
+              device_ids: ["0"]
               capabilities: ["gpu"]
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
@@ -297,78 +301,123 @@ services:
       retries: 10
       start_period: 300s
 
+  # Segunda replica de TTS. Opt-in (perfil `tts2`) y pensada para una GPU
+  # PROPIA (cambiar device_ids): probado con las dos replicas en la misma GPU 0
+  # y balanceo least_conn, fue PEOR que una sola -- con 32 sesiones la latencia
+  # entre tokens paso de 32ms a 71ms (el tope para audio en tiempo real a 12Hz
+  # es 83ms) y el TTFT del stage 1 de 219ms a 460ms. El cuello es la GPU, no el
+  # thread del engine: dos procesos se turnan la GPU y cada uno batchea la
+  # mitad. Para usarla: darle otra GPU, bajar/ajustar gpu-memory-utilization si
+  # comparte, y agregarla al upstream `tts` de ngrok/proxy.conf.
+  # OJO: las voces subidas por POST /v1/audio/voices caen en UNA replica; el
+  # volumen de speakers es compartido, pero la otra puede necesitar restart
+  # para verla.
+  vllm-tts-2:
+    extends:
+      service: vllm-tts
+    profiles: ["tts2"]
+    # Arranca despues de vllm-tts: comparten GPU (ver comentario en vllm-stt).
+    depends_on:
+      vllm-tts:
+        condition: service_healthy
+    ports: !override
+      - "127.0.0.1:8104:8000"
+
   # --- Exposicion publica via ngrok (perfil `ngrok`, opt-in) -------------
   # `make up` NO arranca estos servicios: son opt-in con `make tunnel`, porque
   # requieren NGROK_AUTHTOKEN/NGROK_DOMAIN en .env y porque publican los
-  # endpoints de inferencia en internet. Cada contenedor es un agente ngrok con
-  # UN endpoint y tunela a la red de compose (vllm-*:8000), NO a los puertos
-  # 127.0.0.1:810x del host (esos siguen siendo solo-locales, solo debug).
+  # endpoints de inferencia en internet.
   #
-  # Plan free de ngrok: 1 dev domain, hasta 3 endpoints online y 3 agentes
-  # concurrentes -- exactamente lo que usa esto. Como el domain es uno solo,
-  # cada servicio cuelga de un path distinto (/llm, /stt, /tts). ngrok rutea
-  # por prefijo pero no lo saca del request, asi que ngrok/strip-prefix.yml lo
-  # reescribe a /v1/... antes de llegar al vLLM. La auth no la hace ngrok: la
-  # hace cada vLLM con --api-key (ver arriba), y por eso el caller tiene que
-  # mandar `Authorization: Bearer ${VLLM_API_KEY}`.
+  # Arquitectura: UN solo agente ngrok apuntando al proxy nginx de abajo. No se
+  # puede tunelar cada vLLM por separado con un path (ej. /llm) porque los
+  # agent endpoints de ngrok no aceptan paths en --url (mueren con ERR_NGROK_9038
+  # "Invalid URL, trailing '/' is not allowed"), y el plan free da un unico
+  # endpoint por dev domain. El proxy rutea por path a la red de compose y
+  # saca el prefijo antes de reenviar (ngrok/proxy.conf):
+  #   /llm/... -> vllm-llm:8000/v1/...
+  #   /stt/... -> vllm-stt:8000/v1/...
+  #   /tts/... -> vllm-tts:8000/v1/...
+  # Tampoco se usan los puertos 127.0.0.1:810x del host: esos siguen siendo
+  # solo para debug local. La auth no la hace ngrok: la hace cada vLLM con
+  # --api-key (ver arriba), y por eso el caller tiene que mandar
+  # `Authorization: Bearer ${VLLM_API_KEY}`.
   #
   # URLs publicas (NGROK_DOMAIN se completa en .env, sin https:// ni path):
   #   https://$NGROK_DOMAIN/llm/v1   (LLM)
   #   https://$NGROK_DOMAIN/stt/v1   (STT)
   #   https://$NGROK_DOMAIN/tts/v1   (TTS)
-  ngrok-llm:
-    image: ngrok/ngrok:latest
+  proxy:
+    image: nginx:alpine
     profiles: ["ngrok"]
     restart: unless-stopped
     depends_on:
       vllm-llm:
         condition: service_healthy
-    environment:
-      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
-    volumes:
-      - ./ngrok/strip-prefix.yml:/etc/ngrok/strip-prefix.yml:ro
-    command:
-      - "http"
-      - "vllm-llm:8000"
-      - "--url=https://${NGROK_DOMAIN:-}/llm"
-      - "--traffic-policy-file=/etc/ngrok/strip-prefix.yml"
-      - "--log=stdout"
-
-  ngrok-stt:
-    image: ngrok/ngrok:latest
-    profiles: ["ngrok"]
-    restart: unless-stopped
-    depends_on:
       vllm-stt:
         condition: service_healthy
-    environment:
-      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
+      vllm-tts:
+        condition: service_healthy
     volumes:
-      - ./ngrok/strip-prefix.yml:/etc/ngrok/strip-prefix.yml:ro
-    command:
-      - "http"
-      - "vllm-stt:8000"
-      - "--url=https://${NGROK_DOMAIN:-}/stt"
-      - "--traffic-policy-file=/etc/ngrok/strip-prefix.yml"
-      - "--log=stdout"
+      - ./ngrok/proxy.conf:/etc/nginx/conf.d/default.conf:ro
 
-  ngrok-tts:
+  ngrok:
     image: ngrok/ngrok:latest
     profiles: ["ngrok"]
     restart: unless-stopped
     depends_on:
-      vllm-tts:
-        condition: service_healthy
+      proxy:
+        condition: service_started
     environment:
       NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
-    volumes:
-      - ./ngrok/strip-prefix.yml:/etc/ngrok/strip-prefix.yml:ro
     command:
       - "http"
-      - "vllm-tts:8000"
-      - "--url=https://${NGROK_DOMAIN:-}/tts"
-      - "--traffic-policy-file=/etc/ngrok/strip-prefix.yml"
+      - "proxy:80"
+      - "--url=https://${NGROK_DOMAIN:-}"
       - "--log=stdout"
+
+  # --- Telefonia: Asterisk entre Anura y LiveKit (perfil `pbx`, opt-in) ----
+  # Puente SIP: registra la troncal de Anura (asi recibe las entrantes y las
+  # pasa a LiveKit) y recibe de LiveKit las salientes que marca el agente para
+  # mandarlas a Anura. Arquitectura, port forwarding y runbook completo en
+  # docs/TELEFONIA_ANURA.md. `make up` no lo arranca: requiere ANURA_*/
+  # LIVEKIT_SIP_* en .env y el port forwarding del router (`make pbx`).
+  #
+  # network_mode: host a proposito. SIP + RTP detras de NAT ya es delicado; con
+  # la red bridge de compose se suma el NAT de Docker (reescribe puertos de
+  # origen y rompe la asociacion SIP/RTP) y habria que publicar 200 puertos
+  # UDP uno por uno. En host, Asterisk escucha directo en la IP de la LAN y
+  # anuncia la IP publica (pjsip.conf). Por lo mismo no usa la red de compose:
+  # no le habla a ningun otro servicio del stack, solo a Anura y a LiveKit Cloud.
+  asterisk:
+    build: ./asterisk
+    profiles: ["pbx"]
+    restart: unless-stopped
+    network_mode: host
+    # Solo lo que usan los templates de asterisk/conf/ (no env_file: .env,
+    # para no meterle al contenedor las claves de MySQL/LiveKit/vLLM).
+    environment:
+      TZ: America/Argentina/Buenos_Aires
+      ANURA_DOMAIN: ${ANURA_DOMAIN:-}
+      ANURA_USER: ${ANURA_USER:-}
+      ANURA_PASSWORD: ${ANURA_PASSWORD:-}
+      ANURA_DID: ${ANURA_DID:-}
+      LIVEKIT_SIP_HOST: ${LIVEKIT_SIP_HOST:-}
+      LIVEKIT_SIP_PASSWORD: ${LIVEKIT_SIP_PASSWORD:-}
+      ASTERISK_PUBLIC_ADDRESS: ${ASTERISK_PUBLIC_ADDRESS:-}
+      ASTERISK_SIP_PORT: ${ASTERISK_SIP_PORT:-5080}
+      ASTERISK_ANURA_SIP_PORT: ${ASTERISK_ANURA_SIP_PORT:-5081}
+      ASTERISK_RTP_START: ${ASTERISK_RTP_START:-10000}
+      ASTERISK_RTP_END: ${ASTERISK_RTP_END:-10199}
+    volumes:
+      # Templates: entrypoint.sh los renderiza a /etc/asterisk al arrancar, asi
+      # que un cambio en asterisk/conf/ se aplica con `make restart-pbx`, sin rebuild.
+      - ./asterisk/conf:/etc/asterisk/templates:ro
+    healthcheck:
+      test: ["CMD", "asterisk", "-rx", "core show uptime"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 volumes:
   mysql_data:

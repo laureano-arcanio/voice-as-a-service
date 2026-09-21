@@ -16,6 +16,8 @@
 #   make logs    -> sigue los logs de los 6 servicios
 #   make tunnel  -> opcional: expone los 3 vllm-* en internet via ngrok
 #                   (perfil `ngrok` de compose, ver .env.example)
+#   make pbx     -> opcional: Asterisk con la troncal de Anura (perfil `pbx`);
+#                   despues `make livekit-sip` (ver docs/TELEFONIA_ANURA.md)
 #   make health  -> chequea que la app responda en :8011
 #   make gpu     -> uso actual de VRAM por GPU
 #   make down    -> para y elimina contenedores (conserva los datos de MySQL)
@@ -39,6 +41,7 @@ export GID := $(shell id -g)
         restart restart-app restart-agent restart-llm restart-stt restart-tts \
         ps logs logs-app logs-agent logs-db logs-llm logs-stt logs-tts \
         tunnel logs-tunnel \
+        pbx restart-pbx logs-pbx pbx-cli pbx-status livekit-sip \
         sh-app sh-agent mysql \
         health health-vllm open gpu \
         loadtest-audio loadtest loadtest-report \
@@ -127,15 +130,39 @@ logs-tts: ## Sigue los logs solo de vllm-tts
 tunnel: ## Expone los 3 vllm-* via ngrok (perfil opt-in; requiere NGROK_* en .env, ver .env.example)
 	@grep -qE '^NGROK_AUTHTOKEN=.+' .env || { echo "Falta NGROK_AUTHTOKEN en .env (ver .env.example)"; exit 1; }
 	@grep -qE '^NGROK_DOMAIN=.+' .env || { echo "Falta NGROK_DOMAIN en .env (ver .env.example)"; exit 1; }
-	$(COMPOSE) --profile ngrok up -d ngrok-llm ngrok-stt ngrok-tts
+	$(COMPOSE) --profile ngrok up -d ngrok
 	@dom=$$(sed -n 's/^NGROK_DOMAIN=//p' .env | tail -1); \
-		echo "Agentes ngrok arriba. URLs publicas (api_key: VLLM_API_KEY):"; \
+		echo "Tunel ngrok arriba. URLs publicas (api_key: VLLM_API_KEY):"; \
 		echo "  LLM: https://$$dom/llm/v1"; \
 		echo "  STT: https://$$dom/stt/v1"; \
 		echo "  TTS: https://$$dom/tts/v1"
 
-logs-tunnel: ## Sigue los logs de los 3 agentes ngrok
-	$(COMPOSE) logs -f --tail=200 ngrok-llm ngrok-stt ngrok-tts
+logs-tunnel: ## Sigue los logs del agente ngrok y del proxy
+	$(COMPOSE) logs -f --tail=200 ngrok proxy
+
+pbx: ## Levanta Asterisk con la troncal de Anura (perfil opt-in; requiere ANURA_*/LIVEKIT_SIP_* en .env, ver docs/TELEFONIA_ANURA.md)
+	@for v in ANURA_DOMAIN ANURA_USER ANURA_PASSWORD ANURA_DID LIVEKIT_SIP_HOST LIVEKIT_SIP_PASSWORD; do \
+		grep -qE "^$$v=.+" .env || { echo "Falta $$v en .env (ver docs/TELEFONIA_ANURA.md)"; exit 1; }; \
+	done
+	$(COMPOSE) --profile pbx up -d --build asterisk
+	@echo "Asterisk arriba. Estado de la troncal: make pbx-status (el registro con Anura tarda unos segundos)"
+
+restart-pbx: ## Reinicia Asterisk (rebuild si cambio la imagen, re-renderiza asterisk/conf/ y relee .env)
+	$(COMPOSE) --profile pbx up -d --build --force-recreate asterisk
+
+logs-pbx: ## Sigue los logs de Asterisk
+	$(COMPOSE) --profile pbx logs -f --tail=200 asterisk
+
+pbx-cli: ## Consola de Asterisk (ej. `pjsip set logger on` para ver el SIP crudo)
+	$(COMPOSE) --profile pbx exec asterisk asterisk -rvvv
+
+pbx-status: ## Registro con Anura, endpoints y llamadas activas en Asterisk
+	@$(COMPOSE) --profile pbx exec asterisk asterisk -rx "pjsip show registrations"
+	@$(COMPOSE) --profile pbx exec asterisk asterisk -rx "pjsip show contacts"
+	@$(COMPOSE) --profile pbx exec asterisk asterisk -rx "core show channels"
+
+livekit-sip: ## Crea/actualiza en LiveKit los trunks SIP + dispatch rule para Anura via Asterisk (idempotente)
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts app python -m scripts.livekit_sip_setup
 
 sh-app: ## Shell dentro del contenedor app
 	$(COMPOSE) exec app bash
@@ -187,7 +214,7 @@ db-reset: ## PELIGRO: borra el volumen de MySQL (todas las llamadas y config que
 	$(MAKE) up
 
 clean: down ## down + elimina las imagenes construidas por este proyecto
-	docker image rm -f voice-as-a-service-app voice-as-a-service-agent 2>/dev/null || true
+	docker image rm -f voice-as-a-service-app voice-as-a-service-agent voice-as-a-service-asterisk 2>/dev/null || true
 
 fclean: ## PELIGRO: down -v + elimina imagenes locales del proyecto (borra datos y contenedores)
 	$(COMPOSE) down -v --rmi local

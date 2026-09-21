@@ -1,0 +1,50 @@
+# SIMULACION (no es config de produccion): STT + TTS compartiendo UNA GPU de
+# 16GB (ej. RTX 5060 Ti 16GB), LLM sola en la otra. Se corre sobre las 3090 de
+# 24GB limitando la memoria de cada vLLM al presupuesto que tendria en 16GB.
+# OJO: simula la VRAM, NO la velocidad -- la 3090 tiene ~2x el ancho de banda
+# de memoria de una 5060 Ti, asi que las latencias medidas son optimistas.
+#
+# Uso:
+#   docker compose -f docker-compose.yml -f docker-compose.sim16gb.yml \
+#     --profile ngrok up -d vllm-llm vllm-tts vllm-stt proxy ngrok
+#
+# Presupuesto en la GPU 0 (objetivo: STT + TTS <= ~15.6GB reales):
+#   TTS: stage 0 necesita ~5.5GiB sin KV (pesos 3.9 + activaciones). Con 0.245
+#        no arranca (0.31GiB de KV < 0.44GiB que pide una secuencia de 4096).
+#        0.255 + max-model-len=2048 deja ~0.55GiB (~5k tokens; pico medido con
+#        32 sesiones: ~1.9k tokens, ~135 por sintesis).
+#        El stage 1 (Code2Wav) suma ~3.5GB fijos que NO dependen de este flag.
+#        => TTS no entra en 8GB: ~8.8GB reales es el piso.
+#   STT: 0.25 (~5.9GiB) con max-model-len=4096 -> ~6.9GB reales.
+services:
+  vllm-stt:
+    depends_on:
+      vllm-tts:
+        condition: service_healthy
+    command: !override
+      - "qwen-asr-serve"
+      - "${VLLM_STT_MODEL:-Qwen/Qwen3-ASR-1.7B}"
+      - "--host=0.0.0.0"
+      - "--port=8000"
+      - "--api-key=${VLLM_API_KEY:-not-needed}"
+      - "--gpu-memory-utilization=0.25"
+      - "--max-model-len=4096"
+    deploy:
+      resources:
+        reservations:
+          devices: !override
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: ["gpu"]
+
+  vllm-tts:
+    command: !override
+      - "vllm"
+      - "serve"
+      - "${VLLM_TTS_MODEL:-Qwen/Qwen3-TTS-12Hz-1.7B-Base}"
+      - "--omni"
+      - "--host=0.0.0.0"
+      - "--port=8000"
+      - "--api-key=${VLLM_API_KEY:-not-needed}"
+      - "--gpu-memory-utilization=0.255"
+      - "--max-model-len=2048"
