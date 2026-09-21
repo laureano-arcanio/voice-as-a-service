@@ -164,10 +164,10 @@ gpu: ## Uso actual de VRAM por GPU (requiere nvidia-smi en el host)
 	@nvidia-smi --query-gpu=index,name,memory.used,memory.total,utilization.gpu --format=csv
 
 loadtest-audio: ## Genera el corpus de audio del load test con el propio vllm-tts (una sola vez, cachea en scripts/loadtest/audio/)
-	$(COMPOSE) run --rm -v $(CURDIR)/scripts:/app/scripts agent python -m scripts.loadtest.gen_audio
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts agent python -m scripts.loadtest.gen_audio
 
 loadtest: ## Load test usuario->agent->usuario (sin telefonia). Ej: make loadtest ARGS="--levels 1,2,4,8 --turns 3"
-	$(COMPOSE) run --rm -v $(CURDIR)/scripts:/app/scripts agent python -m scripts.loadtest.run $(ARGS)
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts agent python -m scripts.loadtest.run $(ARGS)
 
 loadtest-report: ## Sirve scripts/loadtest/ en :8099 y abre report.html (asi el auto-load de results/latest.csv funciona; file:// directo tambien sirve, pero hay que elegir el CSV a mano)
 	@# El ?t= es necesario: con la URL pelada, xdg-open solo ENFOCA la pestana
