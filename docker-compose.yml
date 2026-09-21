@@ -123,6 +123,10 @@ services:
       - "--served-model-name=${VLLM_LLM_MODEL:-Qwen/Qwen3.5-4B}"
       - "--host=0.0.0.0"
       - "--port=8000"
+      # El server exige esta clave como `Authorization: Bearer` en /v1/*
+      # (health queda libre). app/agent ya mandan VLLM_API_KEY; si se expone
+      # via ngrok (`make tunnel`) usar una clave real en .env (ver .env.example).
+      - "--api-key=${VLLM_API_KEY:-not-needed}"
       - "--max-model-len=32768"
       - "--reasoning-parser=qwen3"
       # Sola en la GPU 0: le damos margen generoso (~17.7GB de 23.56GB
@@ -192,6 +196,8 @@ services:
       - "${VLLM_STT_MODEL:-Qwen/Qwen3-ASR-1.7B}"
       - "--host=0.0.0.0"
       - "--port=8000"
+      # Ver comentario del --api-key en vllm-llm.
+      - "--api-key=${VLLM_API_KEY:-not-needed}"
       # Comparte la GPU 1 con vllm-tts (ver comentario de reparto arriba).
       # 0.25 (~6GB) no alcanzo en la practica: el encoder de audio reserva
       # cache aparte del KV cache del decoder, y solo quedaban 0.58 de 0.88GiB
@@ -261,6 +267,8 @@ services:
       - "--omni"
       - "--host=0.0.0.0"
       - "--port=8000"
+      # Ver comentario del --api-key en vllm-llm.
+      - "--api-key=${VLLM_API_KEY:-not-needed}"
       # Comparte la GPU 1 con vllm-stt (ver comentario de reparto arriba).
       - "--gpu-memory-utilization=0.4"
       # Igual que vllm-stt: el default (auto) carga un segundo modelo interno
@@ -288,6 +296,79 @@ services:
       timeout: 5s
       retries: 10
       start_period: 300s
+
+  # --- Exposicion publica via ngrok (perfil `ngrok`, opt-in) -------------
+  # `make up` NO arranca estos servicios: son opt-in con `make tunnel`, porque
+  # requieren NGROK_AUTHTOKEN/NGROK_DOMAIN en .env y porque publican los
+  # endpoints de inferencia en internet. Cada contenedor es un agente ngrok con
+  # UN endpoint y tunela a la red de compose (vllm-*:8000), NO a los puertos
+  # 127.0.0.1:810x del host (esos siguen siendo solo-locales, solo debug).
+  #
+  # Plan free de ngrok: 1 dev domain, hasta 3 endpoints online y 3 agentes
+  # concurrentes -- exactamente lo que usa esto. Como el domain es uno solo,
+  # cada servicio cuelga de un path distinto (/llm, /stt, /tts). ngrok rutea
+  # por prefijo pero no lo saca del request, asi que ngrok/strip-prefix.yml lo
+  # reescribe a /v1/... antes de llegar al vLLM. La auth no la hace ngrok: la
+  # hace cada vLLM con --api-key (ver arriba), y por eso el caller tiene que
+  # mandar `Authorization: Bearer ${VLLM_API_KEY}`.
+  #
+  # URLs publicas (NGROK_DOMAIN se completa en .env, sin https:// ni path):
+  #   https://$NGROK_DOMAIN/llm/v1   (LLM)
+  #   https://$NGROK_DOMAIN/stt/v1   (STT)
+  #   https://$NGROK_DOMAIN/tts/v1   (TTS)
+  ngrok-llm:
+    image: ngrok/ngrok:latest
+    profiles: ["ngrok"]
+    restart: unless-stopped
+    depends_on:
+      vllm-llm:
+        condition: service_healthy
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
+    volumes:
+      - ./ngrok/strip-prefix.yml:/etc/ngrok/strip-prefix.yml:ro
+    command:
+      - "http"
+      - "vllm-llm:8000"
+      - "--url=https://${NGROK_DOMAIN:-}/llm"
+      - "--traffic-policy-file=/etc/ngrok/strip-prefix.yml"
+      - "--log=stdout"
+
+  ngrok-stt:
+    image: ngrok/ngrok:latest
+    profiles: ["ngrok"]
+    restart: unless-stopped
+    depends_on:
+      vllm-stt:
+        condition: service_healthy
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
+    volumes:
+      - ./ngrok/strip-prefix.yml:/etc/ngrok/strip-prefix.yml:ro
+    command:
+      - "http"
+      - "vllm-stt:8000"
+      - "--url=https://${NGROK_DOMAIN:-}/stt"
+      - "--traffic-policy-file=/etc/ngrok/strip-prefix.yml"
+      - "--log=stdout"
+
+  ngrok-tts:
+    image: ngrok/ngrok:latest
+    profiles: ["ngrok"]
+    restart: unless-stopped
+    depends_on:
+      vllm-tts:
+        condition: service_healthy
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
+    volumes:
+      - ./ngrok/strip-prefix.yml:/etc/ngrok/strip-prefix.yml:ro
+    command:
+      - "http"
+      - "vllm-tts:8000"
+      - "--url=https://${NGROK_DOMAIN:-}/tts"
+      - "--traffic-policy-file=/etc/ngrok/strip-prefix.yml"
+      - "--log=stdout"
 
 volumes:
   mysql_data:

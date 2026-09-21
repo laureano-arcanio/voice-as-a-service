@@ -11,6 +11,8 @@
 #                   healthy antes de arrancar. Requiere NVIDIA Container
 #                   Toolkit instalado (ver scripts/install-nvidia-toolkit.sh).
 #   make logs    -> sigue los logs de los 6 servicios
+#   make tunnel  -> opcional: expone los 3 vllm-* en internet via ngrok
+#                   (perfil `ngrok` de compose, ver .env.example)
 #   make health  -> chequea que la app responda en :8011
 #   make gpu     -> uso actual de VRAM por GPU
 #   make down    -> para y elimina contenedores (conserva los datos de MySQL)
@@ -33,6 +35,7 @@ export GID := $(shell id -g)
         build rebuild up start stop down re \
         restart restart-app restart-agent restart-llm restart-stt restart-tts \
         ps logs logs-app logs-agent logs-db logs-llm logs-stt logs-tts \
+        tunnel logs-tunnel \
         sh-app sh-agent mysql \
         health health-vllm open gpu \
         loadtest-audio loadtest loadtest-report \
@@ -113,6 +116,19 @@ logs-stt: ## Sigue los logs solo de vllm-stt
 
 logs-tts: ## Sigue los logs solo de vllm-tts
 	$(COMPOSE) logs -f --tail=200 vllm-tts
+
+tunnel: ## Expone los 3 vllm-* via ngrok (perfil opt-in; requiere NGROK_* en .env, ver .env.example)
+	@grep -qE '^NGROK_AUTHTOKEN=.+' .env || { echo "Falta NGROK_AUTHTOKEN en .env (ver .env.example)"; exit 1; }
+	@grep -qE '^NGROK_DOMAIN=.+' .env || { echo "Falta NGROK_DOMAIN en .env (ver .env.example)"; exit 1; }
+	$(COMPOSE) --profile ngrok up -d ngrok-llm ngrok-stt ngrok-tts
+	@dom=$$(sed -n 's/^NGROK_DOMAIN=//p' .env | tail -1); \
+		echo "Agentes ngrok arriba. URLs publicas (api_key: VLLM_API_KEY):"; \
+		echo "  LLM: https://$$dom/llm/v1"; \
+		echo "  STT: https://$$dom/stt/v1"; \
+		echo "  TTS: https://$$dom/tts/v1"
+
+logs-tunnel: ## Sigue los logs de los 3 agentes ngrok
+	$(COMPOSE) logs -f --tail=200 ngrok-llm ngrok-stt ngrok-tts
 
 sh-app: ## Shell dentro del contenedor app
 	$(COMPOSE) exec app bash
