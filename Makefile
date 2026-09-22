@@ -15,10 +15,12 @@
 #                   seccion "Inferencia remota" del README).
 #   make logs    -> sigue los logs de los 6 servicios
 #   make tunnel  -> opcional: expone los 3 vllm-* en internet via ngrok
-#   make stt-eval-up + make stt-eval -> opcional: levanta STT candidatos
-#                   (Parakeet y Whisper Turbo, perfil `stt-eval`) y
-#                   los compara contra vllm-stt (WER + latencia)
 #                   (perfil `ngrok` de compose, ver .env.example)
+#   make stt-eval-up STT=... + make stt-eval -> opcional: levanta UN STT
+#                   candidato (Parakeet o Whisper Turbo, perfil `stt-eval`) y
+#                   lo compara contra vllm-stt (WER + latencia)
+#   make servers-qwen | servers-whisper | servers-parakeet -> este host como
+#                   server de inferencia del loadtest remoto, con ese STT
 #   make pbx     -> opcional: Asterisk con la troncal de Anura (perfil `pbx`);
 #                   despues `make livekit-sip` (ver docs/TELEFONIA_ANURA.md)
 #   make health  -> chequea que la app responda en :8011
@@ -44,7 +46,9 @@ export GID := $(shell id -g)
         restart restart-app restart-agent restart-llm restart-stt restart-tts \
         ps logs logs-app logs-agent logs-db logs-llm logs-stt logs-tts \
         tunnel logs-tunnel \
-        stt-eval-up stt-eval-down stt-eval logs-stt-eval \
+        stt-eval-up stt-eval-down stt-eval stt-corpus stt-corpus-entities logs-stt-eval \
+        tts-cosyvoice-up tts-cosyvoice-down logs-tts-cosyvoice \
+        servers-qwen servers-whisper servers-parakeet \
         pbx restart-pbx logs-pbx pbx-cli pbx-status livekit-sip \
         sh-app sh-agent mysql \
         health health-vllm open gpu \
@@ -146,18 +150,81 @@ logs-tunnel: ## Sigue los logs del agente ngrok y del proxy
 
 STT_EVAL_SERVICES := stt-parakeet stt-whisper
 
-stt-eval-up: ## Levanta los STT candidatos (perfil opt-in `stt-eval`: Parakeet, Whisper Turbo) y espera a que esten healthy
-	$(COMPOSE) --profile stt-eval up -d --build --wait $(STT_EVAL_SERVICES)
-	@echo "Arriba (host: parakeet :8105, whisper :8106). Comparar: make stt-eval"
+stt-eval-up: ## Levanta UN STT candidato en la GPU 0 y baja el otro (de a uno). Ej: make stt-eval-up STT=stt-parakeet (o stt-whisper)
+	@case "$(STT)" in stt-parakeet|stt-whisper) ;; *) echo "Uso: make stt-eval-up STT=stt-parakeet|stt-whisper (de a uno)"; exit 1;; esac
+	$(COMPOSE) --profile stt-eval rm -sf $(filter-out $(STT),$(STT_EVAL_SERVICES))
+	$(COMPOSE) --profile stt-eval up -d --build --wait $(STT)
+	@echo "$(STT) arriba. Comparar contra vllm-stt: make stt-eval"
 
-stt-eval-down: ## Para y elimina los STT candidatos (libera la VRAM de la GPU 0)
+stt-eval-down: ## Para y elimina el STT candidato que este arriba (libera su VRAM)
 	$(COMPOSE) --profile stt-eval rm -sf $(STT_EVAL_SERVICES)
 
-stt-eval: ## WER + latencia de vllm-stt vs candidatos sobre el corpus del load test. Ej: make stt-eval ARGS="--telephone --runs 5"
+stt-eval: ## WER + latencia de vllm-stt vs el candidato levantado, sobre el corpus del load test. Ej: make stt-eval ARGS="--telephone --runs 5"
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts agent python -m scripts.stt_eval $(ARGS)
 
-logs-stt-eval: ## Sigue los logs de los STT candidatos
+stt-corpus: ## Arma el corpus de eval de STT con voces argentinas (OpenSLR 61, H/M): limpio, telefonico, +ruido, +micro cortes. Ej: make stt-corpus ARGS="--snr 5"
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts agent python -m scripts.stt_corpus.openslr61 $(ARGS)
+
+tts-cosyvoice-up: ## Levanta CosyVoice 3 (TTS candidato para generar el corpus; perfil tts-eval, GPU TTS_EVAL_GPU)
+	$(COMPOSE) --profile tts-eval up -d --wait tts-cosyvoice
+	@echo "tts-cosyvoice arriba en :8107. Generar con: make stt-corpus-entities ARGS=\"--tts-url http://tts-cosyvoice:8000/v1 --force\""
+
+tts-cosyvoice-down: ## Para y elimina CosyVoice 3 (libera su VRAM)
+	$(COMPOSE) --profile tts-eval rm -sf tts-cosyvoice
+
+logs-tts-cosyvoice: ## Sigue los logs de CosyVoice 3
+	$(COMPOSE) --profile tts-eval logs -f --tail=200 tts-cosyvoice
+
+stt-corpus-entities: ## Corpus de datos dictados (100 emails, direcciones, telefonos y DNI; voces de OpenSLR 61 clonadas con vllm-tts), en las mismas variantes. Requiere vllm-tts arriba
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts agent python -m scripts.stt_corpus.entities $(ARGS)
+
+logs-stt-eval: ## Sigue los logs del STT candidato levantado
 	$(COMPOSE) --profile stt-eval logs -f --tail=200 $(STT_EVAL_SERVICES)
+
+# --- Server de inferencia para el loadtest remoto, un STT por vez ----------
+# Dejan en este host LLM + TTS + el STT elegido + el tunel ngrok, y paran
+# app/agent: el loadtest corre en otra PC (`make up-remote`) y, si usa el
+# mismo proyecto de LiveKit y LIVEKIT_AGENT_NAME, LiveKit repartiria las
+# llamadas entre los dos agentes. Los candidatos van en la GPU 1 en lugar de
+# vllm-stt (docker-compose.stt-candidates.yml). Al final imprimen lo que va en
+# el .env de la PC del loadtest. Volver al uso normal (app/agent aca):
+# `make servers-qwen && make up`. Runbook: docs/experiments/README.md.
+
+define check_ngrok_env
+	@grep -qE '^NGROK_AUTHTOKEN=.+' .env || { echo "Falta NGROK_AUTHTOKEN en .env (ver .env.example)"; exit 1; }
+	@grep -qE '^NGROK_DOMAIN=.+' .env || { echo "Falta NGROK_DOMAIN en .env (ver .env.example)"; exit 1; }
+endef
+
+# $(1) = path del proxy (stt, stt-whisper...), $(2) = modelo
+define print_remote_stt_env
+	@dom=$$(sed -n 's/^NGROK_DOMAIN=//p' .env | tail -1); \
+		echo "Listo. En el .env de la PC del loadtest (y recrear su agent):"; \
+		echo "  VLLM_STT_BASE_URL=https://$$dom/$(1)/v1"; \
+		echo "  VLLM_STT_MODEL=$(2)"
+endef
+
+# $(1) = servicio candidato, $(2) = modelo
+define servers_stt_candidate
+	$(check_ngrok_env)
+	$(COMPOSE) --profile stt-eval rm -sf $(filter-out $(1),$(STT_EVAL_SERVICES))
+	$(COMPOSE) stop app agent vllm-stt
+	$(COMPOSE) -f docker-compose.yml -f docker-compose.stt-candidates.yml \
+		--profile stt-eval --profile ngrok up -d --build --wait vllm-llm vllm-tts $(1) proxy ngrok
+	$(call print_remote_stt_env,$(1),$(2))
+endef
+
+servers-qwen: ## Loadtest remoto: LLM + TTS + STT vigente (Qwen3-ASR) + ngrok; para app/agent aca
+	$(check_ngrok_env)
+	$(COMPOSE) --profile stt-eval rm -sf $(STT_EVAL_SERVICES)
+	$(COMPOSE) stop app agent
+	$(COMPOSE) --profile ngrok up -d --wait vllm-llm vllm-stt vllm-tts proxy ngrok
+	$(call print_remote_stt_env,stt,Qwen/Qwen3-ASR-1.7B)
+
+servers-whisper: ## Loadtest remoto: LLM + TTS + Whisper Large v3 Turbo (GPU 1, sin vllm-stt) + ngrok; para app/agent aca
+	$(call servers_stt_candidate,stt-whisper,openai/whisper-large-v3-turbo)
+
+servers-parakeet: ## Loadtest remoto: LLM + TTS + Parakeet TDT 0.6B v3 (GPU 1, sin vllm-stt) + ngrok; para app/agent aca
+	$(call servers_stt_candidate,stt-parakeet,nvidia/parakeet-tdt-0.6b-v3)
 
 pbx: ## Levanta Asterisk con la troncal de Anura (perfil opt-in; requiere ANURA_*/LIVEKIT_SIP_* en .env, ver docs/TELEFONIA_ANURA.md)
 	@for v in ANURA_DOMAIN ANURA_USER ANURA_PASSWORD ANURA_DID LIVEKIT_SIP_HOST LIVEKIT_SIP_PASSWORD; do \

@@ -13,3 +13,6 @@ storage/
 scripts/loadtest/monitor/run_*/
 scripts/loadtest/monitor/current
 scripts/loadtest/results/
+
+# corpus de eval de STT (lo genera `make stt-corpus`)
+scripts/stt_corpus/data/

@@ -324,24 +324,24 @@ services:
       - "127.0.0.1:8104:8000"
 
   # --- Candidatos de STT para comparar contra vllm-stt (perfil `stt-eval`) ---
-  # Opt-in: `make up` no los arranca. `make stt-eval-up` los levanta y
-  # `make stt-eval` corre scripts/stt_eval.py (WER + latencia de los 3 STT
-  # sobre el mismo corpus). Los 2 exponen /v1/audio/transcriptions compatible
-  # con OpenAI en :8000 y exigen el mismo VLLM_API_KEY, asi que para probar
-  # uno en llamadas reales alcanza con apuntar VLLM_STT_BASE_URL/VLLM_STT_MODEL
-  # del agente a el (ver .env.example) -- no hay que tocar codigo.
+  # Opt-in: `make up` no los arranca. Se levantan de a uno, nunca juntos:
+  # `make stt-eval-up STT=stt-parakeet|stt-whisper` levanta uno (y baja el
+  # otro) y `make stt-eval` corre scripts/stt_eval.py (WER + latencia contra
+  # vllm-stt sobre el mismo corpus). Exponen /v1/audio/transcriptions
+  # compatible con OpenAI en :8000 y exigen el mismo VLLM_API_KEY, asi que para
+  # probar uno en llamadas reales alcanza con apuntar VLLM_STT_BASE_URL/
+  # AGENT_STT_MODEL del agente a el (ver .env.example) -- sin tocar codigo.
   #
   # GPU: van a la GPU de vllm-tts (STT_EVAL_GPU, default 0), que es la que
   # tiene lugar -- la GPU 1 (vllm-llm + vllm-stt + escritorio) queda con ~3GB.
   # Medido en vivo (nvidia-smi) con vllm-tts ocupando ~12.7GB: parakeet ~1.6GB,
-  # whisper ~4GB (reserva fija de --gpu-memory-utilization) -- la GPU 0 queda
-  # en ~18.3GB de 24GB con los 2 arriba.
-  # Se probo tambien Moonshine Spanish y se descarto: solo corre en CPU (su
-  # runtime trae ONNX Runtime sin CUDA y modelos int8 para CPU), 33% de WER
-  # contra 5.6% de los demas, y licencia no comercial.
+  # whisper ~4GB (reserva fija de --gpu-memory-utilization).
   # Eso sirve para `make stt-eval`, NO para medir capacidad (TTS no comparte
   # GPU, ver AGENTS.md): para el loadtest, docker-compose.stt-candidates.yml
   # los pone en la GPU 1 en lugar de vllm-stt.
+  # Se probo tambien Moonshine Spanish y se descarto: solo corre en CPU (su
+  # runtime trae ONNX Runtime sin CUDA y modelos int8 para CPU), 33% de WER
+  # contra 5.6% de los demas, y licencia no comercial.
 
   stt-parakeet:
     # NVIDIA Parakeet TDT 0.6B v3 (FastConformer + TDT, 25 idiomas europeos
@@ -443,6 +443,62 @@ services:
   #   https://$NGROK_DOMAIN/llm/v1   (LLM)
   #   https://$NGROK_DOMAIN/stt/v1   (STT)
   #   https://$NGROK_DOMAIN/tts/v1   (TTS)
+  # --- TTS candidato para el corpus de eval de STT (perfil `tts-eval`) -------
+  # CosyVoice3 (FunAudioLLM/Fun-CosyVoice3-0.5B-2512, Apache 2.0) para generar
+  # el corpus de datos dictados (scripts/stt_corpus/entities.py): Qwen3-TTS
+  # tartamudea ("punto co com") y corta frases en dictados largos (emails, DNI
+  # de 8 digitos), y ese defecto queda en el audio, no en el STT que se mide.
+  # Lo sirve la MISMA imagen que vllm-tts: vllm-omni ya trae CosyVoice3
+  # (model_executor/models/cosyvoice3), con la misma API (/v1/audio/speech con
+  # ref_audio + ref_text), asi que el generador no cambia.
+  # GPU: TTS_EVAL_GPU (default 0, la de vllm-tts), con la reserva bajada en
+  # tts/cosyvoice3.yaml para entrar al lado de vllm-tts. Es generacion offline:
+  # apagarlo (make tts-cosyvoice-down) antes de medir capacidad.
+  tts-cosyvoice:
+    build:
+      context: ./tts
+      dockerfile_inline: |
+        FROM vllm/vllm-omni:v0.28.0
+        # CosyVoice3 tokeniza el audio de referencia con s3tokenizer, que no
+        # viene en la imagen (falla con ModuleNotFoundError al arrancar).
+        RUN pip install --no-cache-dir s3tokenizer
+    profiles: ["tts-eval"]
+    restart: unless-stopped
+    ipc: host
+    environment:
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
+    command:
+      - "vllm"
+      - "serve"
+      - "${COSYVOICE_MODEL:-FunAudioLLM/Fun-CosyVoice3-0.5B-2512}"
+      - "--host=0.0.0.0"
+      - "--port=8000"
+      - "--api-key=${VLLM_API_KEY:-not-needed}"
+      - "--trust-remote-code"
+      - "--omni"
+      # Generacion offline, sin streaming: el camino sincronico es mas simple
+      # (stage 1 arma su entrada con la secuencia completa de tokens).
+      - "--no-async-chunk"
+      - "--deploy-config=/config/cosyvoice3.yaml"
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+      - ./tts/cosyvoice3.yaml:/config/cosyvoice3.yaml:ro
+    ports:
+      - "127.0.0.1:8107:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${TTS_EVAL_GPU:-0}"]
+              capabilities: ["gpu"]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 60
+      start_period: 900s
+
   proxy:
     image: nginx:alpine
     profiles: ["ngrok"]

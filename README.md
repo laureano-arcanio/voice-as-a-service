@@ -96,21 +96,25 @@ Dos candidatos para comparar contra Qwen3-ASR, con el mismo
 | `stt-whisper` | `openai/whisper-large-v3-turbo` | vLLM nativo, GPU 0 (~4GB) | `:8106` |
 
 ```bash
-make stt-eval-up                     # build + levanta los 2 y espera healthy
-make stt-eval                        # WER + latencia de los 3 STT sobre el corpus del load test
+make stt-eval-up STT=stt-parakeet   # build + levanta UNO (baja el otro) y espera healthy
+make stt-eval                        # WER + latencia de vllm-stt vs ese candidato
 make stt-eval ARGS="--telephone"     # idem con el audio degradado a 8kHz mu-law (llamada real)
-make stt-eval-down                   # los baja y libera la VRAM
+make stt-eval-down                   # lo baja y libera la VRAM
 ```
+
+Se levantan de a uno, nunca los dos juntos.
 
 Para probar uno en llamadas reales: `VLLM_STT_BASE_URL` + `AGENT_STT_MODEL` en `.env`
 (ver `.env.example`) y `docker compose up -d agent`.
 
-**Loadtest de los candidatos** (loadtest en otra PC, como en `docs/experiments/`): el
-override `docker-compose.stt-candidates.yml` apaga `vllm-stt` y pone los candidatos en su
-lugar, la GPU 1 junto a la LLM, porque TTS no comparte GPU (ver `AGENTS.md`). Los 2 quedan
-arriba a la vez; la PC del loadtest elige uno con `VLLM_STT_BASE_URL=https://$NGROK_DOMAIN/stt-<nombre>/v1`
+**Loadtest de los candidatos** (loadtest en otra PC, como en `docs/experiments/`):
+`make servers-whisper`, `make servers-parakeet` o `make servers-qwen` (la vigente) dejan
+este host como server de inferencia con ese STT. Para los candidatos usan el override
+`docker-compose.stt-candidates.yml`, que apaga `vllm-stt` y pone el candidato en su
+lugar, la GPU 1 junto a la LLM, porque TTS no comparte GPU (ver `AGENTS.md`). Se mide uno
+por vez; la PC del loadtest le pega con `VLLM_STT_BASE_URL=https://$NGROK_DOMAIN/stt-<nombre>/v1`
 y `VLLM_STT_MODEL=<modelo>` en su `.env` (alla no corre `vllm-stt`, asi que ahi si se
-cambia `VLLM_STT_MODEL`). Comandos en el encabezado del override. Parakeet expone
+cambia `VLLM_STT_MODEL`). Runbook en `docs/experiments/README.md`, seccion "STT candidatos". Parakeet expone
 `/metrics` con los nombres de vLLM, asi que `sampler.py`/`analyze.py` lo miden
 igual que al resto.
 
@@ -124,7 +128,143 @@ limpio / telefonico):
 | Whisper Large v3 Turbo | 5.6% / 5.6% | 73 / 71 ms |
 
 Ojo con el corpus: es voz sintetica del propio `vllm-tts`, frases cortas, 9 audios -- sirve
-para descartar, no para decidir. Para decidir, grabar recortes de llamadas reales (`X.wav` +
+para descartar, no para decidir.
+
+**Corpus con voces argentinas reales:** `make stt-corpus` arma 300 frases leidas de OpenSLR 61
+(Google es-AR, CC BY-SA 4.0): 150 de mujeres (31 hablantes) y 150 de hombres (13 hablantes).
+Salen en `scripts/stt_corpus/data/openslr61/`, sin versionar, en 4 variantes:
+
+| Variante | Audio |
+| --- | --- |
+| `clean16k` | 16 kHz, sin degradar |
+| `tel8k` | banda telefonica 300-3400 Hz, 8 kHz, G.711 mu-law |
+| `tel8k_noise` | `tel8k` + ruido blanco a 10 dB SNR |
+| `tel8k_cuts` | `tel8k` + micro cortes: 5% de paquetes de 20 ms perdidos, en rafagas de ~2 |
+
+Los parametros se cambian con `ARGS` (`--snr`, `--loss`, `--burst`, `--per-gender`); detalle en
+`scripts/stt_corpus/openslr61.py`. Para evaluar una variante:
+`make stt-eval ARGS="--audio-dir scripts/stt_corpus/data/openslr61/tel8k --runs 1"`.
+Son frases leidas: no cubren habla espontanea, respuestas cortas, numeros dictados ni ruido real
+de linea.
+
+Resultado (2026-09-22, 300 frases / 2.512 palabras, requests de a uno, sin carga). WER con numeros
+normalizados (`stt_eval.py` pasa digitos y romanos a palabras), entre corchetes el intervalo de 95%
+por bootstrap:
+
+| STT | `clean16k` | `tel8k` | `tel8k_noise` | `tel8k_cuts` | Frases con error (`tel8k`) | Voseo (22 frases, `tel8k`) | Latencia p50 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Qwen3-ASR-1.7B | 1.6% | 2.0% [1.4-2.6] | 6.8% | 2.3% | 14.7% | 8.0% | 115 ms |
+| Whisper Large v3 Turbo | **0.9%** | 1.5% [0.9-2.3] | 7.4% | 2.3% | 9.3% | 3.7% | 78 ms |
+| Parakeet TDT 0.6B v3 | 1.6% | **1.1%** [0.6-1.5] | **6.0%** | **1.8%** | **7.7%** | **2.7%** | **59 ms** |
+
+- En `tel8k` (bootstrap pareado 95%), Parakeet es mejor que Qwen3-ASR: -0.9 puntos [-1.4, -0.4].
+  Parakeet contra Whisper da -0.4 [-1.3, +0.2] y Whisper contra Qwen -0.4 [-1.1, +0.4]: con este
+  corpus, ninguna de esas dos diferencias es significativa.
+- Qwen3-ASR pasa el voseo a tuteo ("podes" -> "Puedes", "queres" -> "Quieres"). El LLM lo entiende
+  igual, pero el transcript pierde fidelidad.
+- Ninguno alucino: no hubo salidas vacias ni con el doble de palabras.
+- Diferencias por genero dentro del ruido. Las referencias de OpenSLR tienen algun typo ("xilofon",
+  "las mas dura"), que pone un piso de ~0.5% a todos.
+- El corpus no tiene direcciones de email dictadas: 31 de las 5.739 frases de OpenSLR 61 nombran
+  "mail" o "correo", pero ninguna dicta una direccion.
+- Salidas crudas: `scripts/stt_corpus/data/results/<motor>_<variante>.txt`.
+
+**Corpus de datos dictados:** `make stt-corpus-entities` (requiere `vllm-tts` arriba, ~11 min) arma
+400 textos: 100 emails, 100 direcciones (~64% de Cordoba), 100 telefonos argentinos (sin +549) y
+100 DNI de 8 digitos. Cada texto se sintetiza con una voz de mujer y una de hombre: son 800 audios,
+1,2 h, en las mismas 4 variantes. Las voces son 20 hablantes de OpenSLR 61 clonadas por request
+(`ref_audio`), sin registrar nada en `vllm-tts`. Los textos varian el estilo de dictado:
+- email con punto, junto, con numeros, con guion o deletreado;
+- telefono digito a digito, de a pares o por grupos, con o sin 0 y 15;
+- DNI completo, por grupos, de a pares o digito a digito;
+- altura de la direccion como "mil doscientos treinta y cuatro" o "doce treinta y cuatro".
+
+`stt_eval.py` suma el acierto del dato completo (`scripts/stt_corpus/entity_match.py`), escriba
+como lo escriba el STT: "larcanio arroba gmail punto com" y "larcanio@gmail.com" cuentan igual. Cada
+texto se valida contra si mismo antes de sintetizarlo. Es voz sintetica: sirve para comparar motores
+y encontrar fallas sistematicas, no para estimar el acierto real en produccion.
+
+**El TTS del corpus es CosyVoice3 (`make tts-cosyvoice-up`), no `vllm-tts`:** Qwen3-TTS tartamudea
+("punto co com") y corta frases en los dictados largos, y ese defecto queda en el audio, no en el STT
+que se quiere medir. Peor todavia, es un defecto que sesga la comparacion: un STT con decoder LLM lo
+reescribe y uno literal lo transcribe, asi que castiga al segundo. Cada audio se controla despues con
+un STT literal (Parakeet, `--qa-url`): repeticiones, contenido faltante y duracion fuera de lo que
+predice la velocidad de esa voz; los defectuosos se rehacen con otra semilla, hasta `--qa-rounds`
+veces. Con CosyVoice3 quedaron 22 audios de 800 (2,8%) marcados, casi todos de telefono y DNI.
+
+Resultado (2026-09-22, 800 audios = 400 textos x 2 voces, sin los 22 marcados, requests de a uno).
+Acierto del dato completo; en direccion, completa / calle + altura:
+
+| STT | Variante | Email | Telefono | DNI | Direccion |
+| --- | --- | --- | --- | --- | --- |
+| Qwen3-ASR | `clean16k` | 29% | 75% | **81%** | 66% / 73% |
+| | `tel8k` | 30% | **76%** | **80%** | 58% / 65% |
+| | `tel8k_noise` | 21% | **63%** | **72%** | 34% / 49% |
+| | `tel8k_cuts` | 31% | **75%** | **79%** | 59% / 67% |
+| Parakeet | `clean16k` | 23% | 59% | 68% | 59% / 70% |
+| | `tel8k` | **40%** | 74% | 79% | 64% / **77%** |
+| | `tel8k_noise` | 23% | 59% | **72%** | 38% / 56% |
+| | `tel8k_cuts` | **34%** | 73% | 76% | **61% / 76%** |
+| Whisper Turbo | `clean16k` | **41%** | 74% | 76% | **66% / 80%** |
+| | `tel8k` | 20% | 70% | 70% | **65%** / **77%** |
+| | `tel8k_noise` | 10% | **63%** | 64% | **40% / 62%** |
+| | `tel8k_cuts` | 20% | 69% | 71% | **61%** / 75% |
+
+- **Los emails dictados son el punto debil de los tres** (20-40% en telefonico). Es el unico dato
+  personal que hoy pide el cuestionario del agente (`app/db.py`), asi que es lo que mas conviene
+  atacar: repetir el dato al cliente para confirmarlo, o pedirlo deletreado.
+- Con audio telefonico, Parakeet y Qwen3-ASR van parejos y arriba de Whisper en email y DNI.
+- Whisper es el mejor con audio limpio (email 41%) y el que mas cae al pasar a telefonico (20%).
+- El ruido blanco a 10 dB rompe todo: los emails caen al 10-23% y las direcciones completas al 34-40%.
+- Los micro cortes casi no afectan: quedan dentro de un par de puntos de `tel8k`.
+- **Dos numeros en direccion:** la primera cifra es la direccion completa (calle, altura, piso,
+  depto, barrio y localidad); la segunda es el nucleo, calle + altura. La brecha es lo que se pierde
+  en lo accesorio: Whisper en `tel8k` deja 65% completas contra 77% con calle y altura bien (dice
+  "cava" por "CABA", "Alverdi" por "Alberdi"). En email, telefono y DNI no hay nucleo: el dato no se
+  puede partir.
+
+WER del mismo corpus, para comparar con el de OpenSLR (aca mas bajo es mejor):
+
+| STT | `clean16k` | `tel8k` | `tel8k_noise` | `tel8k_cuts` |
+| --- | --- | --- | --- | --- |
+| Qwen3-ASR | 15.0% | 16.3% | 22.0% | 16.7% |
+| Parakeet | 21.9% | **11.8%** | **17.6%** | **12.1%** |
+| Whisper Turbo | 22.6% | 37.9% | 40.9% | 40.8% |
+
+- **Por que las dos metricas:** el WER no decide sobre un dato que se copia a un sistema. Si el STT
+  escribe "larcaño@gmail.com" por "larcanio@gmail.com", el WER da ~10% (parece muy bueno) pero el
+  mail no sirve. Al reves, Whisper tiene 37.9% de WER en `tel8k` y aun asi acierta el 70% de los
+  telefonos: su WER se infla porque escribe distinto (`@` por "arroba", digitos por palabras), y el
+  acierto por entidad normaliza eso antes de comparar.
+- **No comparar estos WER con los de OpenSLR** (1-2%): alla son frases leidas normales, aca es
+  dictado de letras, digitos y dominios, y el audio es sintetico.
+- Salidas crudas: `scripts/stt_corpus/data/results/ent2_<motor>_<variante>.txt`.
+
+**Reproducir estas tablas** (los audios marcados con defecto de TTS se saltean solos; con
+`--include-defects` se cuentan):
+
+```bash
+make stt-corpus                     # corpus de OpenSLR 61 (voces reales); no necesita GPU
+docker compose stop vllm-tts        # CosyVoice3 necesita la GPU 0 para el solo
+make tts-cosyvoice-up
+make stt-corpus-entities            # ~45 min: sintesis + control del audio + variantes
+make tts-cosyvoice-down && docker compose start vllm-tts
+
+# los 3 STT a la vez: Whisper en la GPU 0 (con TTS), Parakeet y Qwen3-ASR en la GPU 1
+STT_EVAL_GPU=1 docker compose --profile stt-eval up -d --no-deps --wait stt-parakeet
+STT_EVAL_GPU=0 docker compose --profile stt-eval up -d --no-deps --wait stt-whisper
+for e in qwen3-asr parakeet whisper-turbo; do
+  for v in clean16k tel8k tel8k_noise tel8k_cuts; do
+    make stt-eval ARGS="--engines $e --audio-dir scripts/stt_corpus/data/entities/$v --runs 1"
+  done
+done
+make stt-eval-down                  # libera la VRAM de los candidatos
+```
+
+Cada corrida imprime su WER y su tabla de acierto por dato; las tablas de arriba son esas 12
+corridas juntas. Para el corpus de OpenSLR es lo mismo cambiando `entities` por `openslr61`.
+
+Para decidir, grabar recortes de llamadas reales (`X.wav` +
 `X.txt` con el transcript correcto) y correr `make stt-eval ARGS="--audio-dir scripts/<dir>"`.
 Se probo tambien Moonshine Spanish y se descarto: solo corre en CPU (su runtime trae ONNX
 Runtime sin CUDA y los modelos en espanol son int8 para CPU), dio 33.3% de WER y su licencia

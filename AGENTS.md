@@ -5,6 +5,14 @@ vLLM sobre GPUs locales, sin proveedores externos. Este archivo describe la
 infraestructura. La app (flujo de la llamada, scoring, dashboard) está en
 [`README.md`](README.md).
 
+## Pedidos frecuentes
+
+| Pedido | Qué hacer |
+|---|---|
+| "Voy a correr el loadtest (con <config>), registralo" | Seguir [Registrar un loadtest](docs/experiments/README.md#registrar-un-loadtest). Arrancar el monitoreo antes del warm-up y avisar. Cuando el usuario diga que terminó: cortarlo, ubicar las tandas, analizar y crear `docs/experiments/EXP-NNN-<slug>/`. |
+| "Registrá el último run" | El mismo procedimiento desde el paso 3, con el `scripts/loadtest/monitor/run_*` más reciente. |
+| "Probá <modelo o reparto de GPU>" | Override `docker-compose.<nombre>.yml` y confirmar antes de reiniciar servicios; después, el mismo procedimiento. Para STT candidatos: `make servers-<stt>` (ver [STT candidatos](docs/experiments/README.md#stt-candidatos-parakeet-whisper)). |
+
 ## Servicios (`docker-compose.yml`)
 
 | Servicio | Qué es | Imagen | Puerto host | GPU | Perfil |
@@ -17,6 +25,7 @@ infraestructura. La app (flujo de la llamada, scoring, dashboard) está en
 | `vllm-tts` | `Qwen/Qwen3-TTS-12Hz-1.7B-Base`, voz clonada `sofia_ar` | vllm/vllm-omni:v0.28.0 (fijada) | 127.0.0.1:8103 | 0 | — |
 | `vllm-tts-2` | Segunda réplica de TTS; solo con GPU propia | ídem | 127.0.0.1:8104 | 0 (cambiar) | `tts2` |
 | `stt-parakeet`, `stt-whisper` | STT candidatos para evaluar | build | 127.0.0.1:8105–8106 | `STT_EVAL_GPU` (0); 1 con `docker-compose.stt-candidates.yml` | `stt-eval` |
+| `tts-cosyvoice` | CosyVoice 3 para generar el corpus de eval de STT (no producción) | vllm/vllm-omni:v0.28.0 + `s3tokenizer` | 127.0.0.1:8107 | `TTS_EVAL_GPU` (0) | `tts-eval` |
 | `proxy` + `ngrok` | Único túnel público; nginx rutea `/llm`, `/stt`, `/tts` y `/stt-<candidato>` | nginx:alpine, ngrok | — | — | `ngrok` |
 | `asterisk` | Puente SIP Anura ↔ LiveKit (`network_mode: host`) | build | — | — | `pbx` |
 
@@ -46,7 +55,14 @@ infraestructura. La app (flujo de la llamada, scoring, dashboard) está en
 - **TTS nunca comparte GPU**, ni con STT ni con otra réplica: satura la GPU sola (EXP-001 a 004). Escalar TTS es sumar GPUs.
 - **`--gpu-memory-utilization`** es una fracción de la memoria **total** de la GPU. Los que comparten GPU tienen que sumar menos de ~0.95, descontando el escritorio.
 - **Arranque de servicios que comparten GPU:** no pueden arrancar a la vez, porque compiten por la memoria libre. Por eso `depends_on` los encadena (`vllm-stt` espera a `vllm-llm`).
-- **Perfil `stt-eval`:** usa la GPU 0 por defecto y compite con TTS. Apagarlo (`make stt-eval-down`) antes de medir capacidad. Para medir los candidatos con el loadtest, usar `docker-compose.stt-candidates.yml`: los pone en la GPU 1 en lugar de `vllm-stt`.
+- **Perfil `tts-eval` (CosyVoice 3):** genera el corpus de datos dictados
+  (`make stt-corpus-entities`, ver README). Va a la GPU 0, así que **no convive con
+  `vllm-tts`**: hay que parar Qwen3-TTS mientras dura (`docker compose stop vllm-tts`) y
+  levantarlo después. Con la GPU para él solo aguanta 4 pedidos en paralelo: con 8 se cuelga
+  (deja de responder hasta `/health`) y con 12 el cliente corta por timeout. La reserva de
+  memoria está en `tts/cosyvoice3.yaml`, no en el compose. Apagarlo (`make tts-cosyvoice-down`)
+  antes de medir capacidad.
+- **Perfil `stt-eval`:** se levanta un candidato por vez, nunca los dos juntos (`make stt-eval-up STT=...` baja el otro). Usa la GPU 0 por defecto y compite con TTS. Apagarlo (`make stt-eval-down`) antes de medir capacidad. Para medir con el loadtest: `make servers-whisper` / `make servers-parakeet` (usan `docker-compose.stt-candidates.yml`, que pone el candidato en la GPU 1 en lugar de `vllm-stt`) y `make servers-qwen` para volver a la vigente.
 - **Servidor propio de STT (`stt/server.py`, Parakeet):** expone `/metrics` con nombres de vLLM para que lo lea el sampler. Procesa de a un request por instancia (`STT_WORKERS`), sin batching: bajo carga, la espera aparece como cola.
 - **Flags del LLM:** `--max-cudagraph-capture-size=32` evita que su VRAM crezca con el tráfico, y `--max-num-seqs=32` es por el cache Mamba de Qwen3.5. Ver los comentarios del compose.
 - **vLLM-Omni:** fijada en v0.28.0, porque `latest` no arranca. Deja `num_requests_running` en 1 sin tráfico, así que la actividad se detecta por los contadores de tokens.
