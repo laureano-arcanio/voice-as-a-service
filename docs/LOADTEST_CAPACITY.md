@@ -17,6 +17,8 @@ concluye de todas y se actualiza cuando un experimento lo cambia.
 | **003** | **TTS sola; LLM + STT juntos** | **Mejor y vigente:** ~55% más de throughput de TTS con la misma latencia; STT ~85 ms más rápido |
 | 004 | 2 réplicas de TTS en la misma GPU | Peor: 71 ms entre tokens (tope 83 ms), mismo throughput |
 | 005 | Simulación: STT + TTS limitados a 16 GB | Entran justo (16,1 GB), sin preemptions; TTS no baja de ~9 GB |
+| 006 | STT Whisper Large v3 Turbo en lugar de Qwen3-ASR | STT en 96 ms (antes 228), con 3,9 GB de VRAM (antes 8,2) y ~1/6 de CPU. No cambia el cuello; falta calidad en llamadas reales |
+| 007 | STT Parakeet TDT 0.6B v3; loadtest local, sin ngrok | STT en 101–130 ms con 1,6 GB, pero sin batching (cola p95 52 ms con 20 llamadas). Sin ngrok, el agente mide ~0,4 s menos por turno (1,11 s total con 32) |
 
 ## Qué limita y qué sobra (32 sesiones)
 

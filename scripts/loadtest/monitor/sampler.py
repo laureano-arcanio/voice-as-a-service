@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Sampler de capacidad: CPU por core, CPU/mem/threads por contenedor, GPU (y
 por proceso via nvidia-smi pmon) y metricas de vLLM, a 1 Hz. Sale solo tras
-IDLE_EXIT s sin trafico en vLLM (una vez que hubo actividad), o con SIGTERM.
+IDLE_EXIT s sin trafico en vLLM (una vez que hubo actividad), tras START_TIMEOUT s
+si nunca llega trafico, o con SIGTERM.
 
 Descubre solos los contenedores del proyecto compose (y se re-descubre cada
 30 s, por si se recrea alguno), y toma como "vLLM" a todo servicio cuyo puerto
@@ -14,6 +15,7 @@ import csv, json, os, re, signal, subprocess, sys, time, urllib.request
 
 OUT = sys.argv[1]
 IDLE_EXIT = int(os.environ.get("IDLE_EXIT", 600))
+START_TIMEOUT = int(os.environ.get("START_TIMEOUT", 3600))
 MAX_RUN = 4 * 3600
 PROJECT = os.environ.get("COMPOSE_PROJECT", "voice-as-a-service")
 HZ = os.sysconf("SC_CLK_TCK")
@@ -26,11 +28,16 @@ def sh(*a, timeout=10):
         return ""
 
 def containers():
-    """{svc: docker inspect} de los contenedores corriendo del proyecto."""
+    """{svc: docker inspect} de los contenedores corriendo del proyecto. Los de
+    `docker compose run` (ej. `make loadtest`, que corre con la imagen del agent)
+    van como `<svc>-run`: si no, pisan al servicio del mismo nombre."""
     ids = sh("docker", "ps", "-q", "--filter", f"label=com.docker.compose.project={PROJECT}").split()
     if not ids:
         return {}
-    return {c["Config"]["Labels"]["com.docker.compose.service"]: c for c in json.loads(sh("docker", "inspect", *ids))}
+    def name(c):
+        l = c["Config"]["Labels"]
+        return l["com.docker.compose.service"] + ("-run" if l.get("com.docker.compose.oneoff") == "True" else "")
+    return {name(c): c for c in json.loads(sh("docker", "inspect", *ids))}
 
 def discover():
     cg, ports = {}, {}
@@ -254,6 +261,9 @@ while not STOP:
     pt = now
     if (seen and now - last_active > IDLE_EXIT) or now - start > MAX_RUN:
         print(f"{time.strftime('%H:%M:%S')} sin actividad hace {IDLE_EXIT}s -> fin", flush=True)
+        break
+    if not seen and now - start > START_TIMEOUT:
+        print(f"{time.strftime('%H:%M:%S')} no llego trafico en {START_TIMEOUT}s -> fin", flush=True)
         break
 PMON.terminate(); PMON.wait(timeout=5)
 print(f"{time.strftime('%H:%M:%S')} sampler detenido", flush=True)
