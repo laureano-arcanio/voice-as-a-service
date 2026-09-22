@@ -87,24 +87,32 @@ en `app/config.py`.
 
 ### Probar otros STT (perfil `stt-eval`, opcional)
 
-Tres candidatos para comparar contra Qwen3-ASR, todos con el mismo
+Dos candidatos para comparar contra Qwen3-ASR, con el mismo
 `/v1/audio/transcriptions` y el mismo `VLLM_API_KEY` (el agente los usa sin tocar codigo):
 
 | Servicio | Modelo | Como corre | Puerto host |
 | --- | --- | --- | --- |
 | `stt-parakeet` | `nvidia/parakeet-tdt-0.6b-v3` | `stt/server.py` + transformers, GPU 0 (~1.6GB) | `:8105` |
 | `stt-whisper` | `openai/whisper-large-v3-turbo` | vLLM nativo, GPU 0 (~4GB) | `:8106` |
-| `stt-moonshine` | Moonshine Spanish (`small-streaming`) | `stt/server.py` + moonshine-voice, **solo CPU** | `:8107` |
 
 ```bash
-make stt-eval-up                     # build + levanta los 3 y espera healthy
-make stt-eval                        # WER + latencia de los 4 STT sobre el corpus del load test
+make stt-eval-up                     # build + levanta los 2 y espera healthy
+make stt-eval                        # WER + latencia de los 3 STT sobre el corpus del load test
 make stt-eval ARGS="--telephone"     # idem con el audio degradado a 8kHz mu-law (llamada real)
 make stt-eval-down                   # los baja y libera la VRAM
 ```
 
 Para probar uno en llamadas reales: `VLLM_STT_BASE_URL` + `AGENT_STT_MODEL` en `.env`
 (ver `.env.example`) y `docker compose up -d agent`.
+
+**Loadtest de los candidatos** (loadtest en otra PC, como en `docs/experiments/`): el
+override `docker-compose.stt-candidates.yml` apaga `vllm-stt` y pone los candidatos en su
+lugar, la GPU 1 junto a la LLM, porque TTS no comparte GPU (ver `AGENTS.md`). Los 2 quedan
+arriba a la vez; la PC del loadtest elige uno con `VLLM_STT_BASE_URL=https://$NGROK_DOMAIN/stt-<nombre>/v1`
+y `VLLM_STT_MODEL=<modelo>` en su `.env` (alla no corre `vllm-stt`, asi que ahi si se
+cambia `VLLM_STT_MODEL`). Comandos en el encabezado del override. Parakeet expone
+`/metrics` con los nombres de vLLM, asi que `sampler.py`/`analyze.py` lo miden
+igual que al resto.
 
 Primera medicion (sep-2026, 9 audios del corpus del load test, requests de a uno, audio
 limpio / telefonico):
@@ -114,14 +122,13 @@ limpio / telefonico):
 | Qwen3-ASR-1.7B (actual) | 5.6% / 7.4% | 71 / 83 ms |
 | Parakeet TDT 0.6B v3 | 5.6% / 5.6% | 53 / 50 ms |
 | Whisper Large v3 Turbo | 5.6% / 5.6% | 73 / 71 ms |
-| Moonshine Spanish | 33.3% / 33.3% | 125 / 142 ms |
 
 Ojo con el corpus: es voz sintetica del propio `vllm-tts`, frases cortas, 9 audios -- sirve
 para descartar, no para decidir. Para decidir, grabar recortes de llamadas reales (`X.wav` +
 `X.txt` con el transcript correcto) y correr `make stt-eval ARGS="--audio-dir scripts/<dir>"`.
-Moonshine: devuelve vacio en "Si"/"No" sueltos; `MOONSHINE_ARCH=base` los acierta pero
-tarda 1.2-1.7s por turno en CPU. Ademas su licencia (Moonshine Community License) es no
-comercial para empresas de mas de USD 1M/anio.
+Se probo tambien Moonshine Spanish y se descarto: solo corre en CPU (su runtime trae ONNX
+Runtime sin CUDA y los modelos en espanol son int8 para CPU), dio 33.3% de WER y su licencia
+es no comercial para empresas de mas de USD 1M/anio.
 
 ## Correr con Docker Compose
 
@@ -159,6 +166,7 @@ Para consumir LLM/STT/TTS desde afuera del host. Usa el perfil `ngrok` de compos
    | LLM      | `https://$NGROK_DOMAIN/llm/v1`  |
    | STT      | `https://$NGROK_DOMAIN/stt/v1`  |
    | TTS      | `https://$NGROK_DOMAIN/tts/v1`  |
+   | STT candidatos (perfil `stt-eval`) | `https://$NGROK_DOMAIN/stt-parakeet/v1`, `/stt-whisper/v1` |
 
    ```bash
    curl https://$NGROK_DOMAIN/llm/v1/models -H "Authorization: Bearer $VLLM_API_KEY"

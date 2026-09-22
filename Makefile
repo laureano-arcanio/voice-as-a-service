@@ -16,7 +16,7 @@
 #   make logs    -> sigue los logs de los 6 servicios
 #   make tunnel  -> opcional: expone los 3 vllm-* en internet via ngrok
 #   make stt-eval-up + make stt-eval -> opcional: levanta STT candidatos
-#                   (Parakeet, Whisper Turbo, Moonshine, perfil `stt-eval`) y
+#                   (Parakeet y Whisper Turbo, perfil `stt-eval`) y
 #                   los compara contra vllm-stt (WER + latencia)
 #                   (perfil `ngrok` de compose, ver .env.example)
 #   make pbx     -> opcional: Asterisk con la troncal de Anura (perfil `pbx`);
@@ -144,11 +144,11 @@ tunnel: ## Expone los 3 vllm-* via ngrok (perfil opt-in; requiere NGROK_* en .en
 logs-tunnel: ## Sigue los logs del agente ngrok y del proxy
 	$(COMPOSE) logs -f --tail=200 ngrok proxy
 
-STT_EVAL_SERVICES := stt-parakeet stt-whisper stt-moonshine
+STT_EVAL_SERVICES := stt-parakeet stt-whisper
 
-stt-eval-up: ## Levanta los STT candidatos (perfil opt-in `stt-eval`: Parakeet, Whisper Turbo, Moonshine) y espera a que esten healthy
+stt-eval-up: ## Levanta los STT candidatos (perfil opt-in `stt-eval`: Parakeet, Whisper Turbo) y espera a que esten healthy
 	$(COMPOSE) --profile stt-eval up -d --build --wait $(STT_EVAL_SERVICES)
-	@echo "Arriba (host: parakeet :8105, whisper :8106, moonshine :8107). Comparar: make stt-eval"
+	@echo "Arriba (host: parakeet :8105, whisper :8106). Comparar: make stt-eval"
 
 stt-eval-down: ## Para y elimina los STT candidatos (libera la VRAM de la GPU 0)
 	$(COMPOSE) --profile stt-eval rm -sf $(STT_EVAL_SERVICES)

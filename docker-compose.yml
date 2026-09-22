@@ -325,8 +325,8 @@ services:
 
   # --- Candidatos de STT para comparar contra vllm-stt (perfil `stt-eval`) ---
   # Opt-in: `make up` no los arranca. `make stt-eval-up` los levanta y
-  # `make stt-eval` corre scripts/stt_eval.py (WER + latencia de los 4 STT
-  # sobre el mismo corpus). Los 3 exponen /v1/audio/transcriptions compatible
+  # `make stt-eval` corre scripts/stt_eval.py (WER + latencia de los 3 STT
+  # sobre el mismo corpus). Los 2 exponen /v1/audio/transcriptions compatible
   # con OpenAI en :8000 y exigen el mismo VLLM_API_KEY, asi que para probar
   # uno en llamadas reales alcanza con apuntar VLLM_STT_BASE_URL/VLLM_STT_MODEL
   # del agente a el (ver .env.example) -- no hay que tocar codigo.
@@ -334,23 +334,24 @@ services:
   # GPU: van a la GPU de vllm-tts (STT_EVAL_GPU, default 0), que es la que
   # tiene lugar -- la GPU 1 (vllm-llm + vllm-stt + escritorio) queda con ~3GB.
   # Medido en vivo (nvidia-smi) con vllm-tts ocupando ~12.7GB: parakeet ~1.6GB,
-  # whisper ~4GB (reserva fija de --gpu-memory-utilization), moonshine 0 (CPU)
-  # -- la GPU 0 queda en ~18.3GB de 24GB con los 3 arriba.
+  # whisper ~4GB (reserva fija de --gpu-memory-utilization) -- la GPU 0 queda
+  # en ~18.3GB de 24GB con los 2 arriba.
+  # Se probo tambien Moonshine Spanish y se descarto: solo corre en CPU (su
+  # runtime trae ONNX Runtime sin CUDA y modelos int8 para CPU), 33% de WER
+  # contra 5.6% de los demas, y licencia no comercial.
+  # Eso sirve para `make stt-eval`, NO para medir capacidad (TTS no comparte
+  # GPU, ver AGENTS.md): para el loadtest, docker-compose.stt-candidates.yml
+  # los pone en la GPU 1 en lugar de vllm-stt.
 
   stt-parakeet:
     # NVIDIA Parakeet TDT 0.6B v3 (FastConformer + TDT, 25 idiomas europeos
     # con deteccion automatica -- no acepta pista de idioma). vLLM no lo sirve:
     # corre en stt/server.py via transformers (AutoModelForTDT), sin NeMo.
-    build:
-      context: ./stt
-      args:
-        BACKEND: parakeet
-        BASE: vllm/vllm-openai:latest
+    build: ./stt
     profiles: ["stt-eval"]
     restart: unless-stopped
     environment:
       HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
-      STT_BACKEND: parakeet
       STT_MODEL: nvidia/parakeet-tdt-0.6b-v3
       STT_API_KEY: ${VLLM_API_KEY:-not-needed}
     volumes:
@@ -418,42 +419,6 @@ services:
       timeout: 5s
       retries: 10
       start_period: 300s
-
-  stt-moonshine:
-    # Moonshine Spanish (moonshine-ai, arquitectura "small-streaming", la
-    # default para es). Solo CPU: el runtime de moonshine-voice trae su propio
-    # ONNX Runtime sin CUDA. Los modelos no-ingleses son "Moonshine Community
-    # License" -- NO comercial para empresas de mas de USD 1M/anio
-    # (https://moonshine.ai/license).
-    # MOONSHINE_ARCH: small-streaming (~100ms por turno) devuelve vacio en
-    # "Si"/"No" sueltos; base (el checkpoint de HF moonshine-ai/moonshine-es)
-    # los acierta pero tarda 1.2-1.7s por turno de ~3s en CPU (medido), no
-    # sirve para el agente en vivo. tiny-streaming es peor que small.
-    build:
-      context: ./stt
-      args:
-        BACKEND: moonshine
-    profiles: ["stt-eval"]
-    restart: unless-stopped
-    environment:
-      STT_BACKEND: moonshine
-      STT_MODEL: moonshine-es
-      STT_API_KEY: ${VLLM_API_KEY:-not-needed}
-      MOONSHINE_LANGUAGE: es
-      MOONSHINE_ARCH: small-streaming
-      # Instancias del modelo en paralelo (cada una usa varios hilos de CPU,
-      # que comparte con el VAD/turn-detector de `agent`).
-      STT_WORKERS: "2"
-    volumes:
-      - moonshine_cache:/root/.cache/moonshine_voice
-    ports:
-      - "127.0.0.1:8107:8000"
-    healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
-      interval: 15s
-      timeout: 5s
-      retries: 10
-      start_period: 120s
 
   # --- Exposicion publica via ngrok (perfil `ngrok`, opt-in) -------------
   # `make up` NO arranca estos servicios: son opt-in con `make tunnel`, porque
@@ -559,6 +524,3 @@ volumes:
   # Voces clonadas subidas a vllm-tts via POST /v1/audio/voices (ver comentario
   # del servicio). Separado de hf_cache porque vive en otro path del container.
   vllm_tts_speakers:
-  # Modelos de stt-moonshine (moonshine-voice no descarga de HuggingFace sino
-  # de su propio CDN, a otro path).
-  moonshine_cache:

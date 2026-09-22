@@ -1,7 +1,6 @@
-"""Servidor STT minimo con API compatible con OpenAI, para probar modelos que
-vLLM no sirve: Parakeet TDT (transformers, GPU) y Moonshine (moonshine-voice,
-CPU). Ver servicios stt-parakeet / stt-moonshine (perfil `stt-eval`) en
-docker-compose.yml.
+"""Servidor STT minimo con API compatible con OpenAI, para Parakeet TDT
+(transformers, GPU), que vLLM no sirve. Ver servicio stt-parakeet (perfil
+`stt-eval`) en docker-compose.yml.
 
 Implementa solo lo que usan livekit.plugins.openai.STT (app/livekit_agent.py)
 y scripts/stt_eval.py: POST /v1/audio/transcriptions multipart con `file` (+
@@ -16,7 +15,7 @@ STT_WORKERS (default 1) y las demas esperan en cola.
 
 /metrics imita los nombres de vLLM que leen scripts/loadtest/monitor/
 (sampler.py toma como "vLLM" a todo servicio con metricas `vllm:*`), asi
-analyze.py mide estos servers igual que a vllm-stt: inferencia y cola por
+analyze.py lo mide igual que a vllm-stt: inferencia y cola por
 request, en vuelo, req/s. generation_tokens_total cuenta palabras del
 transcript + 1 por request: no son tokens reales, solo sirve para que el
 sampler detecte actividad (la detecta por avance de contadores de tokens).
@@ -36,11 +35,10 @@ from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from starlette.concurrency import run_in_threadpool
 
-BACKEND = os.environ["STT_BACKEND"]
 MODEL = os.environ["STT_MODEL"]
 API_KEY = os.getenv("STT_API_KEY", "")
 WORKERS = int(os.getenv("STT_WORKERS", "1"))
-# Parakeet y Moonshine esperan audio mono a 16kHz.
+# Parakeet espera audio mono a 16kHz.
 SAMPLE_RATE = 16000
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -72,25 +70,6 @@ class ParakeetBackend:
         return self._processor.batch_decode(out.sequences, skip_special_tokens=True)[0].strip()
 
 
-class MoonshineBackend:
-    """Moonshine via moonshine-voice (runtime C++ + ONNX Runtime propio, solo
-    CPU). Los modelos no-ingleses son monolingues: el idioma lo fija
-    MOONSHINE_LANGUAGE al arrancar, no el request. OJO licencia: los modelos
-    no-ingleses son "Moonshine Community License" (no comercial / <USD 1M)."""
-
-    def __init__(self):
-        import moonshine_voice as mv
-
-        arch = mv.string_to_model_arch(os.getenv("MOONSHINE_ARCH", "small-streaming"))
-        path, arch = mv.get_model_for_language(os.getenv("MOONSHINE_LANGUAGE", "es"), arch)
-        self._transcriber = mv.Transcriber(model_path=path, model_arch=arch)
-
-    def transcribe(self, audio: np.ndarray, language: str | None) -> str:
-        transcript = self._transcriber.transcribe_without_streaming(audio.tolist(), sample_rate=SAMPLE_RATE)
-        return " ".join(line.text.strip() for line in transcript.lines if line.text.strip())
-
-
-BACKENDS = {"parakeet": ParakeetBackend, "moonshine": MoonshineBackend}
 _pool: queue.Queue = queue.Queue()
 
 _metrics_lock = threading.Lock()
@@ -136,11 +115,11 @@ async def lifespan(app: FastAPI):
     # hasta que el modelo esta listo (el healthcheck de compose cubre la espera).
     t0 = time.monotonic()
     for _ in range(WORKERS):
-        backend = BACKENDS[BACKEND]()
+        backend = ParakeetBackend()
         # Warmup: el primer request real no paga la inicializacion (CUDA, etc.).
         backend.transcribe(np.zeros(SAMPLE_RATE, dtype=np.float32), None)
         _pool.put(backend)
-    log.info("%s listo: %s x%d en %.1fs", BACKEND, MODEL, WORKERS, time.monotonic() - t0)
+    log.info("listo: %s x%d en %.1fs", MODEL, WORKERS, time.monotonic() - t0)
     yield
 
 
@@ -181,7 +160,7 @@ async def metrics():
 
 @app.get("/v1/models")
 async def models():
-    return {"object": "list", "data": [{"id": MODEL, "object": "model", "owned_by": BACKEND}]}
+    return {"object": "list", "data": [{"id": MODEL, "object": "model", "owned_by": "stt-server"}]}
 
 
 @app.post("/v1/audio/transcriptions")

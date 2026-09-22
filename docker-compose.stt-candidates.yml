@@ -1,18 +1,17 @@
-# EXPERIMENTO: STT candidatos (Parakeet TDT 0.6B v3, Whisper Large v3 Turbo,
-# Moonshine Spanish) en lugar de vllm-stt, en el lugar que ocupa hoy: GPU 1
-# con vllm-llm + escritorio (reparto de EXP-003). TTS sigue sola en la GPU 0
-# (ver AGENTS.md). Los 3 quedan arriba a la vez, y el loadtest (en otra PC)
+# EXPERIMENTO: STT candidatos (Parakeet TDT 0.6B v3, Whisper Large v3 Turbo)
+# en lugar de vllm-stt, en el lugar que ocupa hoy: GPU 1 con vllm-llm +
+# escritorio (reparto de EXP-003). TTS sigue sola en la GPU 0 (ver
+# AGENTS.md). Los 2 quedan arriba a la vez, y el loadtest (en otra PC)
 # elige a cual pegarle con VLLM_STT_BASE_URL/VLLM_STT_MODEL en SU .env:
 #   https://$NGROK_DOMAIN/stt-parakeet/v1   nvidia/parakeet-tdt-0.6b-v3
 #   https://$NGROK_DOMAIN/stt-whisper/v1    openai/whisper-large-v3-turbo
-#   https://$NGROK_DOMAIN/stt-moonshine/v1  moonshine-es
 # y `docker compose up -d --no-deps agent` alla para que relea el .env.
 #
 # Uso (se apaga vllm-stt: libera los ~7GB de la GPU 1 que ocupan los candidatos):
 #   docker compose stop vllm-stt
 #   docker compose -f docker-compose.yml -f docker-compose.stt-candidates.yml \
 #     --profile stt-eval --profile ngrok up -d --build \
-#     vllm-llm vllm-tts stt-whisper stt-parakeet stt-moonshine proxy ngrok
+#     vllm-llm vllm-tts stt-whisper stt-parakeet proxy ngrok
 # Volver a la config vigente:
 #   make stt-eval-down
 #   docker compose --profile ngrok up -d vllm-llm vllm-stt vllm-tts proxy ngrok
@@ -47,12 +46,6 @@ services:
             - driver: nvidia
               device_ids: ["1"]
               capabilities: ["gpu"]
-
-  stt-moonshine:
-    environment:
-      # Solo CPU. Sin app/agent en este host (corren en la PC del loadtest)
-      # sobra CPU: mas instancias en paralelo para no encolar con 32 sesiones.
-      STT_WORKERS: "4"
 
   proxy:
     # Sin vllm-stt, que queda apagado en este experimento.

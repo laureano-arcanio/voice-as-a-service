@@ -40,7 +40,6 @@ ENGINES = {
     "qwen3-asr": ("http://vllm-stt:8000/v1", os.getenv("VLLM_STT_MODEL", "Qwen/Qwen3-ASR-1.7B")),
     "parakeet": ("http://stt-parakeet:8000/v1", "nvidia/parakeet-tdt-0.6b-v3"),
     "whisper-turbo": ("http://stt-whisper:8000/v1", "openai/whisper-large-v3-turbo"),
-    "moonshine-es": ("http://stt-moonshine:8000/v1", "moonshine-es"),
 }
 
 # Mismo bug de qwenllm/qwen3-asr que parchea app/livekit_agent.py: el

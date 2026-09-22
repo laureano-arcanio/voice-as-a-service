@@ -16,8 +16,8 @@ infraestructura. La app (flujo de la llamada, scoring, dashboard) está en
 | `vllm-stt` | `Qwen/Qwen3-ASR-1.7B` | qwenllm/qwen3-asr:latest | 127.0.0.1:8102 | 1 | — |
 | `vllm-tts` | `Qwen/Qwen3-TTS-12Hz-1.7B-Base`, voz clonada `sofia_ar` | vllm/vllm-omni:v0.28.0 (fijada) | 127.0.0.1:8103 | 0 | — |
 | `vllm-tts-2` | Segunda réplica de TTS; solo con GPU propia | ídem | 127.0.0.1:8104 | 0 (cambiar) | `tts2` |
-| `stt-parakeet`, `stt-whisper`, `stt-moonshine` | STT candidatos para evaluar | build / vllm-openai | 127.0.0.1:8105–8107 | `STT_EVAL_GPU` (0) | `stt-eval` |
-| `proxy` + `ngrok` | Único túnel público; nginx rutea `/llm`, `/stt` y `/tts` a cada vLLM | nginx:alpine, ngrok | — | — | `ngrok` |
+| `stt-parakeet`, `stt-whisper` | STT candidatos para evaluar | build | 127.0.0.1:8105–8106 | `STT_EVAL_GPU` (0); 1 con `docker-compose.stt-candidates.yml` | `stt-eval` |
+| `proxy` + `ngrok` | Único túnel público; nginx rutea `/llm`, `/stt`, `/tts` y `/stt-<candidato>` | nginx:alpine, ngrok | — | — | `ngrok` |
 | `asterisk` | Puente SIP Anura ↔ LiveKit (`network_mode: host`) | build | — | — | `pbx` |
 
 - Los vLLM hablan API OpenAI y exigen `Authorization: Bearer $VLLM_API_KEY`. Los puertos 810x son solo para debug local.
@@ -46,7 +46,8 @@ infraestructura. La app (flujo de la llamada, scoring, dashboard) está en
 - **TTS nunca comparte GPU**, ni con STT ni con otra réplica: satura la GPU sola (EXP-001 a 004). Escalar TTS es sumar GPUs.
 - **`--gpu-memory-utilization`** es una fracción de la memoria **total** de la GPU. Los que comparten GPU tienen que sumar menos de ~0.95, descontando el escritorio.
 - **Arranque de servicios que comparten GPU:** no pueden arrancar a la vez, porque compiten por la memoria libre. Por eso `depends_on` los encadena (`vllm-stt` espera a `vllm-llm`).
-- **Perfil `stt-eval`:** usa la GPU 0 por defecto y compite con TTS. Apagarlo (`make stt-eval-down`) antes de medir capacidad.
+- **Perfil `stt-eval`:** usa la GPU 0 por defecto y compite con TTS. Apagarlo (`make stt-eval-down`) antes de medir capacidad. Para medir los candidatos con el loadtest, usar `docker-compose.stt-candidates.yml`: los pone en la GPU 1 en lugar de `vllm-stt`.
+- **Servidor propio de STT (`stt/server.py`, Parakeet):** expone `/metrics` con nombres de vLLM para que lo lea el sampler. Procesa de a un request por instancia (`STT_WORKERS`), sin batching: bajo carga, la espera aparece como cola.
 - **Flags del LLM:** `--max-cudagraph-capture-size=32` evita que su VRAM crezca con el tráfico, y `--max-num-seqs=32` es por el cache Mamba de Qwen3.5. Ver los comentarios del compose.
 - **vLLM-Omni:** fijada en v0.28.0, porque `latest` no arranca. Deja `num_requests_running` en 1 sin tráfico, así que la actividad se detecta por los contadores de tokens.
 - **Voz clonada:** vive en el volumen `vllm_tts_speakers`. Si se pierde el volumen, hay que volver a subirla (README, "Voz clonada").

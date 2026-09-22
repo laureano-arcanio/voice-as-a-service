@@ -1,7 +1,0 @@
-fastapi==0.115.*
-uvicorn==0.30.*
-python-multipart==0.0.*
-numpy==2.*
-soundfile==0.13.*
-soxr==1.*
-moonshine-voice==0.1.5
