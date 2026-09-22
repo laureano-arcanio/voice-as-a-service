@@ -1,4 +1,4 @@
-"""Motor de scoring: evalua el transcript contra el cuestionario con un LLM."""
+"""Motor de scoring: califica el lead evaluando el transcript contra el cuestionario con un LLM."""
 import json
 import re
 
@@ -28,22 +28,30 @@ def score_call(transcript_messages: list, questions: list, bands: list) -> dict:
 
     convo = "\n".join(f"[{m['role']}] {m['text']}" for m in transcript_messages if m.get("text"))
     qblock = json.dumps(
-        [{"id": q["id"], "pregunta": q["text"], "respuesta_correcta": q["expected"],
+        [{"id": q["id"], "pregunta": q["text"], "criterio": q["expected"],
           "puntos": q["weight"], "requerida": q["required"]} for q in questions],
         ensure_ascii=False, indent=1)
 
     system = (
-        "Sos el evaluador de llamadas de validaci\u00f3n de AIVA Validate. Recib\u00eds el transcript de una "
-        "llamada telef\u00f3nica entre una agente ejecutiva y un cliente que compr\u00f3 un plan de ahorro de un veh\u00edculo, "
-        "m\u00e1s un cuestionario con la respuesta correcta de referencia y el puntaje de cada pregunta. "
-        "Tu tarea: para CADA pregunta del cuestionario, determinar si la respuesta del cliente demuestra que "
-        "entiende el concepto (comparada con la respuesta correcta de referencia). Si la pregunta no se lleg\u00f3 a "
-        "hacer, o el cliente no supo responder o respondi\u00f3 mal, se considera NO respondida correctamente y otorga 0 puntos. "
-        "No inventes: bas\u00e1te \u00fanicamente en el transcript. "
+        f"Sos el evaluador de llamadas comerciales de {config.COMPANY_NAME}, una plataforma de gesti\u00f3n de "
+        "personal (control horario y presentismo, recibos de sueldo digitales, recursos humanos y operaciones "
+        "en terreno). Recib\u00eds el transcript de una llamada telef\u00f3nica entre una asesora comercial "
+        "virtual y una persona interesada, m\u00e1s un cuestionario de calificaci\u00f3n del lead con el criterio "
+        "de cada pregunta y su puntaje. "
+        "Tu tarea: para CADA pregunta del cuestionario, determinar si lo que dijo el interesado cumple el "
+        "criterio. Vale lo que el interesado haya dicho en cualquier momento de la llamada, aunque la pregunta "
+        "no se haya hecho literalmente. Si el dato no surge del transcript, el interesado no lo sabe o no "
+        "cumple el criterio, se considera NO cumplida y otorga 0 puntos. "
+        "No inventes ni deduzcas: bas\u00e1te \u00fanicamente en lo que dice el interesado en el transcript. "
+        "Lo que dice la asesora no cuenta como respuesta del interesado, salvo lo que el criterio "
+        "indique expl\u00edcitamente. Por ejemplo, si nunca dijo qui\u00e9n "
+        "decide, la pregunta del decisor NO se cumple aunque parezca el due\u00f1o. "
         "Respond\u00e9 SOLO con JSON v\u00e1lido, sin texto adicional, con esta forma exacta:\n"
-        "{\"resultados\": [{\"id\": <id pregunta>, \"correcta\": true|false, \"respuesta_cliente\": \"resumen breve "
-        "de lo que dijo el cliente o 'no respondida'\", \"justificacion\": \"por qu\u00e9 se considera correcta o no\"}], "
-        "\"observaciones\": \"nota general breve sobre la llamada\"}"
+        "{\"resultados\": [{\"id\": <id pregunta>, \"cumple\": true|false, \"respuesta_cliente\": \"resumen breve "
+        "de lo que dijo el interesado o 'no respondida'\", \"justificacion\": \"por qu\u00e9 cumple o no el "
+        "criterio\"}], "
+        "\"observaciones\": \"resumen breve del lead para el asesor: empresa, rubro, cantidad de empleados, "
+        "necesidad principal, consultas que quedaron pendientes y pr\u00f3ximo paso acordado\"}"
     )
     user = f"CUESTIONARIO:\n{qblock}\n\nTRANSCRIPT DE LA LLAMADA:\n{convo}"
 
@@ -83,7 +91,7 @@ def score_call(transcript_messages: list, questions: list, bands: list) -> dict:
         q = by_id.get(res.get("id"))
         if not q:
             continue
-        correct = bool(res.get("correcta"))
+        correct = bool(res.get("cumple"))
         points = q["weight"] if correct else 0
         score += points
         if q["required"] and not correct:
@@ -101,10 +109,11 @@ def score_call(transcript_messages: list, questions: list, bands: list) -> dict:
             outcome = b["outcome"]
             break
     if not outcome:
-        outcome = "a_definir"
-    # Regla de preguntas requeridas: sobresee al score si este aprueba
-    if required_failed and outcome == "aprobado":
-        outcome = "a_definir"
+        outcome = "tibio"
+    # Regla de preguntas requeridas: sobresee al score -- un lead no puede
+    # quedar caliente si falla una requerida (ej. no acepto la demo).
+    if required_failed and outcome == "caliente":
+        outcome = "tibio"
 
     return {
         "score": score,

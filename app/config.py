@@ -38,7 +38,12 @@ VLLM_LLM_MODEL = os.getenv("VLLM_LLM_MODEL", "Qwen/Qwen3.5-4B")
 # un endpoint REST por-turno: el plugin hace commit del audio recien al
 # detectar silencio (VAD) y recien ahi llega el transcript, sin parciales.
 VLLM_STT_BASE_URL = os.getenv("VLLM_STT_BASE_URL", "http://vllm-stt:8000/v1")
-VLLM_STT_MODEL = os.getenv("VLLM_STT_MODEL", "Qwen/Qwen3-ASR-1.7B")
+# AGENT_STT_MODEL: para apuntar el agente a un STT candidato (perfil `stt-eval`
+# de docker-compose.yml) junto con VLLM_STT_BASE_URL -- ver .env.example. NO
+# usar VLLM_STT_MODEL para eso: docker compose tambien lo interpola en el
+# comando de vllm-stt, y el proximo `make up` lo recrearia intentando servir
+# el modelo candidato con qwen-asr-serve.
+VLLM_STT_MODEL = os.getenv("AGENT_STT_MODEL") or os.getenv("VLLM_STT_MODEL", "Qwen/Qwen3-ASR-1.7B")
 
 # TTS. /v1/audio/speech con streaming -- swap directo de elevenlabs.TTS por
 # openai.TTS(voice=...). Checkpoint -Base (voice-cloning): VLLM_TTS_VOICE
@@ -67,6 +72,9 @@ STORAGE_DIR = Path(os.getenv("STORAGE_DIR", str(BASE_DIR / "storage")))
 RECORDINGS_DIR = STORAGE_DIR / "recordings"
 RECORDINGS_DIR.mkdir(parents=True, exist_ok=True)
 
-# Nombre de la agente y de la concesionaria para los prompts del demo
+# Nombre de la agente y de la empresa que representa, para los prompts
 AGENT_NAME = os.getenv("AGENT_NAME", "Sof\u00eda")
-DEALERSHIP_NAME = os.getenv("DEALERSHIP_NAME", "Forest Car")
+COMPANY_NAME = os.getenv("COMPANY_NAME", "Browix")
+# En las entrantes no hay forma de saber quien llama: se asume este nombre para
+# el saludo y el registro de la llamada (el agente no se lo vuelve a preguntar).
+INBOUND_CALLER_NAME = os.getenv("INBOUND_CALLER_NAME", "Francisco")

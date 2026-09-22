@@ -1,0 +1,7 @@
+# Sobre vllm/vllm-openai (ver Dockerfile): torch, transformers (>= 5.x, con
+# AutoModelForTDT), fastapi, uvicorn y python-multipart ya vienen en la base
+# -- NO listarlos aca, o pip los reinstala y duplica GBs de capa.
+# librosa: la pide el feature extractor de Parakeet (espectrograma mel).
+librosa==0.11.*
+soundfile==0.13.*
+soxr==1.*

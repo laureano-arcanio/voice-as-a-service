@@ -1,24 +1,91 @@
 #!/usr/bin/env python3
-"""Sampler de capacidad: CPU por core, CPU/mem/threads por contenedor, GPU y
-metricas de vLLM, a 1 Hz. Sale solo tras IDLE_EXIT s sin requests en vLLM
-(una vez que hubo actividad). Uso: sampler.py <outdir>"""
-import csv, json, os, re, subprocess, sys, time, urllib.request
+"""Sampler de capacidad: CPU por core, CPU/mem/threads por contenedor, GPU (y
+por proceso via nvidia-smi pmon) y metricas de vLLM, a 1 Hz. Sale solo tras
+IDLE_EXIT s sin trafico en vLLM (una vez que hubo actividad), o con SIGTERM.
+
+Descubre solos los contenedores del proyecto compose (y se re-descubre cada
+30 s, por si se recrea alguno), y toma como "vLLM" a todo servicio cuyo puerto
+127.0.0.1 -> 8000 responda /metrics con metricas vllm:*. Al arrancar deja en
+meta.json la config efectiva de cada servicio (imagen, args, GPU), para que el
+run quede registrado aunque despues cambie el compose.
+
+Uso: sampler.py <outdir>   (ver docs/experiments/README.md)"""
+import csv, json, os, re, signal, subprocess, sys, time, urllib.request
 
 OUT = sys.argv[1]
 IDLE_EXIT = int(os.environ.get("IDLE_EXIT", 600))
 MAX_RUN = 4 * 3600
-SVCS = ["vllm-llm", "vllm-stt", "vllm-tts", "vllm-tts-2", "app", "proxy", "ngrok", "db"]
-PORTS = {"vllm-llm": 8101, "vllm-stt": 8102, "vllm-tts": 8103, "vllm-tts-2": 8104}
+PROJECT = os.environ.get("COMPOSE_PROJECT", "voice-as-a-service")
 HZ = os.sysconf("SC_CLK_TCK")
 os.makedirs(OUT, exist_ok=True)
 
-def cg(svc):
-    cid = subprocess.run(["docker", "inspect", "-f", "{{.Id}}", f"voice-as-a-service-{svc}-1"],
-                         capture_output=True, text=True).stdout.strip()
-    p = f"/sys/fs/cgroup/system.slice/docker-{cid}.scope"
-    return p if cid and os.path.isdir(p) else None
+def sh(*a, timeout=10):
+    try:
+        return subprocess.run(a, capture_output=True, text=True, timeout=timeout).stdout.strip()
+    except (subprocess.TimeoutExpired, OSError):
+        return ""
 
-CG = {s: p for s in SVCS if (p := cg(s))}
+def containers():
+    """{svc: docker inspect} de los contenedores corriendo del proyecto."""
+    ids = sh("docker", "ps", "-q", "--filter", f"label=com.docker.compose.project={PROJECT}").split()
+    if not ids:
+        return {}
+    return {c["Config"]["Labels"]["com.docker.compose.service"]: c for c in json.loads(sh("docker", "inspect", *ids))}
+
+def discover():
+    cg, ports = {}, {}
+    for svc, c in containers().items():
+        p = f"/sys/fs/cgroup/system.slice/docker-{c['Id']}.scope"
+        if os.path.isdir(p):
+            cg[svc] = p
+        for b in (c["NetworkSettings"]["Ports"] or {}).get("8000/tcp") or []:
+            port = int(b["HostPort"])
+            try:
+                if b"vllm:" in urllib.request.urlopen(f"http://127.0.0.1:{port}/metrics", timeout=2).read():
+                    ports[svc] = port
+            except Exception:
+                pass
+    return cg, ports
+
+def redact(args):
+    out = []
+    for a in args or []:
+        out.append("<redacted>" if out and out[-1] == "--api-key" else re.sub(r"(--api-key=).*", r"\1<redacted>", a))
+    return out
+
+def meta():
+    """Config efectiva del run: host, GPUs y por servicio imagen/args/GPU/versiones."""
+    m = {"ts": time.time(), "kernel": os.uname().release,
+         "cpu": next((l.split(":", 1)[1].strip() for l in open("/proc/cpuinfo") if l.startswith("model name")), ""),
+         "ncpu": os.cpu_count(),
+         "mem_gb": round(int(open("/proc/meminfo").readline().split()[1]) / 2**20, 1),
+         "gpus": sh("nvidia-smi", "--query-gpu=index,name,memory.total,power.limit,driver_version", "--format=csv,noheader").splitlines(),
+         "services": {}}
+    for svc, c in containers().items():
+        devs = [d for r in (c["HostConfig"].get("DeviceRequests") or []) for d in (r.get("DeviceIDs") or [])]
+        e = {"image": c["Config"]["Image"], "image_id": c["Image"][:19],
+             "compose_files": c["Config"]["Labels"].get("com.docker.compose.project.config_files", ""),
+             "cmd": redact((c["Config"].get("Entrypoint") or []) + (c["Config"].get("Cmd") or [])),
+             "gpu_device_ids": devs, "started": c["State"]["StartedAt"]}
+        if devs:
+            v = sh("docker", "exec", c["Id"], "python3", "-c",
+                   "import importlib.metadata as m\nfor p in ('vllm','vllm-omni','torch','transformers'):\n"
+                   "  try: print(p, m.version(p))\n  except Exception: pass", timeout=30)
+            e["versions"] = dict(l.split(" ", 1) for l in v.splitlines() if " " in l)
+        m["services"][svc] = e
+    return m
+
+CG, PORTS = discover()
+json.dump(meta(), open(f"{OUT}/meta.json", "w"), indent=1)
+PMON = subprocess.Popen(["nvidia-smi", "pmon", "-s", "um", "-d", "1", "-o", "DT"],
+                        stdout=open(f"{OUT}/gpu_pmon.log", "a"), stderr=subprocess.STDOUT)
+STOP = False
+def _stop(*_):
+    global STOP
+    STOP = True
+signal.signal(signal.SIGTERM, _stop)
+signal.signal(signal.SIGINT, _stop)
+print(f"{time.strftime('%H:%M:%S')} {OUT}: {len(CG)} contenedores, vLLM: {PORTS}", flush=True)
 
 def rd(p):
     with open(p) as f:
@@ -57,6 +124,27 @@ def threads(path):
         d[t] = (comm, f[0], int(f[11]), int(f[12]), int(f[36]))
     return d
 
+def procs():
+    """{pid: (comm, utime+stime)} de todos los procesos del host."""
+    d = {}
+    for pid in os.listdir("/proc"):
+        if not pid.isdigit(): continue
+        try:
+            s = rd(f"/proc/{pid}/stat")
+        except OSError:
+            continue
+        r = s.rindex(")"); f = s[r + 2:].split()
+        d[pid] = (s[s.index("(") + 1:r], int(f[11]) + int(f[12]))
+    return d
+
+def cgroup_of(pid):
+    """Servicio del stack, o el cgroup (otro contenedor, sesion de usuario...)."""
+    try:
+        p = "/sys/fs/cgroup" + rd(f"/proc/{pid}/cgroup").strip().split("::")[-1]
+    except OSError:
+        return "?"
+    return next((s for s, c in CG.items() if c == p), "ajeno:" + p.rsplit("/", 1)[-1][:40])
+
 GQ = "index,utilization.gpu,utilization.memory,memory.used,power.draw,temperature.gpu,clocks.sm,pstate,clocks_throttle_reasons.active,pcie.link.gen.current"
 def gpus():
     o = subprocess.run(["nvidia-smi", f"--query-gpu={GQ}", "--format=csv,noheader,nounits"],
@@ -84,18 +172,31 @@ def vllm(port):
         d[k] = d.get(k, 0) + float(m.group(3))
     return d
 
-fs = {n: open(f"{OUT}/{n}", "a", buffering=1) for n in ("sys.csv", "cont.csv", "threads.csv", "gpu.csv", "vllm.jsonl")}
+fs = {n: open(f"{OUT}/{n}", "a", buffering=1) for n in ("sys.csv", "cont.csv", "threads.csv", "procs.csv", "gpu.csv", "vllm.jsonl")}
 w = {n: csv.writer(f) for n, f in fs.items() if n.endswith("csv")}
 ncpu = os.cpu_count()
 w["sys.csv"].writerow(["ts", "total_busy_pct", "iowait_pct", "cores_gt90", "cores_gt50", "load1", "mem_used_gb", "mem_avail_gb", "swap_used_gb"] + [f"cpu{i}" for i in range(ncpu)])
 w["cont.csv"].writerow(["ts", "svc", "cpu_cores", "user_cores", "sys_cores", "mem_gb", "anon_gb", "file_gb", "nthreads", "running_threads", "throttled_usec"])
 w["threads.csv"].writerow(["ts", "svc", "tid", "comm", "state", "cpu_pct", "user_pct", "sys_pct", "last_cpu"])
 w["gpu.csv"].writerow(["ts"] + GQ.split(","))
+# Todo proceso del host (del stack o no) con >=20% de un core: detecta interferencia
+# de otros proyectos/sesiones en el server compartido.
+w["procs.csv"].writerow(["ts", "pid", "comm", "cgroup", "cpu_pct"])
 
 pc, pcont, pthr, pt = cpus(), {s: kv(p + "/cpu.stat") for s, p in CG.items()}, {s: threads(p) for s, p in CG.items()}, time.time()
 start, last_active, seen = pt, pt, False
 ptok = {}
-while True:
+pprocs = procs()
+n = 0
+while not STOP:
+    n += 1
+    if n % 30 == 0:
+        cg, ports = discover()
+        for s, p in cg.items():
+            if CG.get(s) != p:
+                CG[s] = p; pcont[s], pthr[s] = kv(p + "/cpu.stat"), threads(p)
+                print(f"{time.strftime('%H:%M:%S')} contenedor nuevo/recreado: {s}", flush=True)
+        PORTS.update(ports)
     time.sleep(max(0, 1.0 - (time.time() - pt) % 1.0))
     now = time.time(); dt = now - pt; ts = f"{now:.2f}"
     c = cpus(); per = []
@@ -113,7 +214,7 @@ while True:
         try:
             cs, ms, th = kv(p + "/cpu.stat"), kv(p + "/memory.stat"), threads(p)
             mem = int(rd(p + "/memory.current"))
-        except OSError:
+        except OSError:  # contenedor parado o recreado: lo re-descubre discover()
             continue
         o = pcont[s]; run = 0
         for t, (comm, state, ut, st, cpu) in th.items():
@@ -128,6 +229,11 @@ while True:
                                 round(mem / 2**30, 3), round(ms.get("anon", 0) / 2**30, 3), round(ms.get("file", 0) / 2**30, 3),
                                 len(th), run, cs.get("throttled_usec", 0)])
         pcont[s], pthr[s] = cs, th
+    pr = procs()
+    for pid, (comm, t) in pr.items():
+        if pid in pprocs and (pct := 100 * (t - pprocs[pid][1]) / HZ / dt) >= 20:
+            w["procs.csv"].writerow([ts, pid, comm, cgroup_of(pid), round(pct, 1)])
+    pprocs = pr
     for g in gpus():
         w["gpu.csv"].writerow([ts] + g)
     active = 0
@@ -149,3 +255,5 @@ while True:
     if (seen and now - last_active > IDLE_EXIT) or now - start > MAX_RUN:
         print(f"{time.strftime('%H:%M:%S')} sin actividad hace {IDLE_EXIT}s -> fin", flush=True)
         break
+PMON.terminate(); PMON.wait(timeout=5)
+print(f"{time.strftime('%H:%M:%S')} sampler detenido", flush=True)

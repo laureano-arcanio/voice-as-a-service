@@ -3,12 +3,12 @@
 {% block content %}
 
 <section class="card call-launcher">
-  <h2>Nueva llamada de validaci&oacute;n</h2>
+  <h2>Nueva llamada</h2>
   <div class="launcher-grid">
     <label>Tel&eacute;fono
       <input id="phone" type="tel" placeholder="+5491155551234" autocomplete="off">
     </label>
-    <label>Nombre del cliente
+    <label>Nombre del interesado
       <input id="client-name" type="text" placeholder="Juan P&eacute;rez" autocomplete="off">
     </label>
     <label>G&eacute;nero
@@ -20,15 +20,15 @@
     </label>
   </div>
   <label class="notes-label">Contexto adicional para el agente (opcional)
-    <textarea id="client-notes" rows="2" placeholder="Ej.: es una persona mayor con problemas de audici&oacute;n, hablarle claro y pausado. / Es fan&aacute;tico del f&uacute;tbol, hincha de Boca."></textarea>
+    <textarea id="client-notes" rows="2" placeholder="Ej.: pidi&oacute; una demo desde la web; empresa de seguridad con 120 vigiladores en 15 objetivos. / Le interesan los recibos digitales."></textarea>
   </label>
   <label class="test-mode-toggle">
     <input type="checkbox" id="test-mode">
-    Modo prueba (sin tel&eacute;fono real -- te conect&aacute;s vos por navegador via LiveKit)
+    Modo prueba (sin tel&eacute;fono real -- te conect&aacute;s por navegador via LiveKit y hac&eacute;s de interesado que llama a Browix)
   </label>
   <div class="launcher-row">
     <button id="btn-call" class="btn primary">Llamar</button>
-    <span class="hint" id="call-hint">Tel&eacute;fono en formato internacional E.164, ej. <code>+5491155551234</code>. El agente IA llama, hace el cuestionario configurado y asigna el score autom&aacute;ticamente. El contexto adicional se usa solo para adaptar el trato (empat&iacute;a, ritmo, claridad), nunca para influir en las respuestas.</span>
+    <span class="hint" id="call-hint">Llamada saliente a un lead que dej&oacute; sus datos (tel&eacute;fono E.164, ej. <code>+5491155551234</code>). Las llamadas <b>entrantes</b> al n&uacute;mero de Browix las atiende el agente solo y aparecen en la tabla. En todas, el agente responde consultas, califica al lead y asigna el score autom&aacute;ticamente.</span>
   </div>
   <p id="call-msg" class="msg"></p>
 </section>
@@ -36,16 +36,16 @@
 <section class="stats-grid" id="stats">
   <div class="stat"><b id="st-total">&ndash;</b><span>Llamadas totales</span></div>
   <div class="stat"><b id="st-completed">&ndash;</b><span>Finalizadas</span></div>
-  <div class="stat ok"><b id="st-apr">&ndash;</b><span>Aprobadas</span></div>
-  <div class="stat warn"><b id="st-adef">&ndash;</b><span>A definir</span></div>
-  <div class="stat bad"><b id="st-rech">&ndash;</b><span>Rechazadas</span></div>
+  <div class="stat ok"><b id="st-hot">&ndash;</b><span>Leads calientes</span></div>
+  <div class="stat warn"><b id="st-warm">&ndash;</b><span>Leads tibios</span></div>
+  <div class="stat bad"><b id="st-cold">&ndash;</b><span>Leads fr&iacute;os</span></div>
   <div class="stat"><b id="st-avg">&ndash;</b><span>Score promedio</span></div>
   <div class="stat"><b id="st-min">&ndash;</b><span>Minutos de llamada</span></div>
 </section>
 
 <section class="card">
   <div class="chart-head">
-    <h2>Evoluci&oacute;n de llamadas y resultados</h2>
+    <h2>Evoluci&oacute;n de llamadas y calidad de leads</h2>
     <div class="chart-filters">
       <select id="chart-preset" class="in">
         <option value="7">&Uacute;ltima semana</option>
@@ -66,11 +66,11 @@
   <h2>Llamadas</h2>
   <table class="tbl" id="calls-tbl">
     <thead><tr>
-      <th>#</th><th>Fecha</th><th>Cliente</th><th>Tel&eacute;fono</th><th>Estado</th><th>Duraci&oacute;n</th><th>Score</th><th>Resultado</th><th>Pr&oacute;ximo paso</th><th></th>
+      <th>#</th><th>Fecha</th><th>Interesado</th><th>Tel&eacute;fono</th><th>Estado</th><th>Duraci&oacute;n</th><th>Score</th><th>Lead</th><th>Pr&oacute;ximo paso</th><th></th>
     </tr></thead>
     <tbody></tbody>
   </table>
-  <p class="hint" id="empty-msg" style="display:none">Todav&iacute;a no hay llamadas. Ingres&aacute; un n&uacute;mero arriba y presion&aacute; Llamar.</p>
+  <p class="hint" id="empty-msg" style="display:none">Todav&iacute;a no hay llamadas. Llam&aacute; al n&uacute;mero de Browix, ingres&aacute; un n&uacute;mero arriba o us&aacute; el modo prueba.</p>
 </section>
 
 {% endblock %}
@@ -78,14 +78,14 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script>
 const OUTCOME = {
-  aprobado:  ['Aprobado', 'badge ok'],
-  a_definir: ['A definir', 'badge warn'],
-  rechazado: ['Rechazado', 'badge bad'],
+  caliente: ['Caliente', 'badge ok'],
+  tibio:    ['Tibio', 'badge warn'],
+  frio:     ['Fr\u00edo', 'badge bad'],
 };
 const NEXT_STEP = {
-  aprobado:  'Enviado a Terminal',
-  a_definir: 'Derivado a Ventas',
-  rechazado: 'Reintegro',
+  caliente: 'Asesor coordina la demo',
+  tibio:    'Seguimiento comercial',
+  frio:     'Enviar informaci\u00f3n',
 };
 const STATUS = {
   pendiente: ['Pendiente', 'badge'],
@@ -117,9 +117,9 @@ async function refresh() {
   const pct = n => stats.scored ? ' \u00b7 ' + Math.round(1000 * n / stats.scored) / 10 + '%' : '';
   document.getElementById('st-total').textContent = stats.total_calls;
   document.getElementById('st-completed').textContent = stats.completed;
-  document.getElementById('st-apr').textContent = stats.approved + pct(stats.approved);
-  document.getElementById('st-adef').textContent = stats.a_definir + pct(stats.a_definir);
-  document.getElementById('st-rech').textContent = stats.rejected + pct(stats.rejected);
+  document.getElementById('st-hot').textContent = stats.hot + pct(stats.hot);
+  document.getElementById('st-warm').textContent = stats.warm + pct(stats.warm);
+  document.getElementById('st-cold').textContent = stats.cold + pct(stats.cold);
   document.getElementById('st-avg').textContent = stats.scored ? stats.avg_score : '\u2013';
   document.getElementById('st-min').textContent = stats.total_minutes;
 
@@ -148,7 +148,7 @@ testModeCk.addEventListener('change', () => {
   phoneInput.placeholder = on ? '(no hace falta en modo prueba)' : '+5491155551234';
   document.getElementById('call-hint').textContent = on
     ? 'Se crea la llamada sin marcar ningun telefono. Al confirmar te va a aparecer un link para conectarte por navegador (LiveKit Meet) y hablar con el agente en vivo.'
-    : 'Tel\u00e9fono en formato internacional E.164, ej. +5491155551234. El agente IA llama, hace el cuestionario configurado y asigna el score autom\u00e1ticamente. El contexto adicional se usa solo para adaptar el trato (empat\u00eda, ritmo, claridad), nunca para influir en las respuestas.';
+    : 'Llamada saliente a un lead que dej\u00f3 sus datos (tel\u00e9fono E.164, ej. +5491155551234). Las llamadas entrantes al n\u00famero de Browix las atiende el agente solo y aparecen en la tabla. En todas, el agente responde consultas, califica al lead y asigna el score autom\u00e1ticamente.';
   document.getElementById('btn-call').textContent = on ? 'Crear llamada de prueba' : 'Llamar';
 });
 
@@ -220,9 +220,9 @@ async function refreshChart() {
       datasets: [
         {type: 'bar', label: 'Llamadas', data: d.totals, backgroundColor: '#c7d4ee',
          borderRadius: 4, yAxisID: 'y', order: 3},
-        {type: 'line', label: '% aprobadas', data: d.apr_pct, borderColor: '#1d4ed8',
+        {type: 'line', label: '% calientes', data: d.hot_pct, borderColor: '#1d4ed8',
          backgroundColor: '#1d4ed8', spanGaps: true, tension: .25, yAxisID: 'y1', order: 1},
-        {type: 'line', label: '% rechazadas', data: d.rech_pct, borderColor: '#b42318',
+        {type: 'line', label: '% fr\u00edos', data: d.cold_pct, borderColor: '#b42318',
          backgroundColor: '#b42318', spanGaps: true, tension: .25, yAxisID: 'y1', order: 2},
       ],
     },

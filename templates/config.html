@@ -3,11 +3,11 @@
 {% block content %}
 
 <section class="card">
-  <h2>Cuestionario de validaci&oacute;n</h2>
-  <p class="hint">El agente hace las preguntas activas en orden. La <b>respuesta correcta</b> es la referencia que usa el evaluador para puntuar (nunca se le revela al cliente). Las preguntas <b>requeridas</b> sobreseen al score: si una requerida est&aacute; mal respondida, el resultado baja a &ldquo;A definir&rdquo; aunque el puntaje apruebe.</p>
+  <h2>Preguntas de calificaci&oacute;n del lead</h2>
+  <p class="hint">Despu&eacute;s de responder las consultas del interesado, el agente hace las preguntas activas en orden (salteando las que ya respondi&oacute; solo). El <b>criterio de calificaci&oacute;n</b> lo usa el evaluador al cortar para decidir si la respuesta suma puntos; el agente no lo ve. Las preguntas <b>requeridas</b> sobreseen al score: si una requerida no se cumple, el lead baja a &ldquo;Tibio&rdquo; aunque el puntaje d&eacute; &ldquo;Caliente&rdquo;.</p>
   <table class="tbl" id="q-tbl">
     <thead><tr>
-      <th style="width:36px">#</th><th>Pregunta</th><th>Respuesta correcta (referencia)</th>
+      <th style="width:36px">#</th><th>Pregunta</th><th>Criterio de calificaci&oacute;n</th>
       <th style="width:70px">Puntos</th><th style="width:80px">Requerida</th><th style="width:70px">Activa</th><th style="width:150px"></th>
     </tr></thead>
     <tbody></tbody>
@@ -19,10 +19,10 @@
 </section>
 
 <section class="card">
-  <h2>Criterio de scoring</h2>
-  <p class="hint">Rangos de puntaje y resultado asignado. Se aplican sobre la suma de puntos de las preguntas correctas.</p>
+  <h2>Temperatura del lead</h2>
+  <p class="hint">Rangos de puntaje y temperatura asignada al lead. Se aplican sobre la suma de puntos de las preguntas que cumplen el criterio.</p>
   <table class="tbl narrow" id="b-tbl">
-    <thead><tr><th>Desde</th><th>Hasta</th><th>Resultado</th><th></th></tr></thead>
+    <thead><tr><th>Desde</th><th>Hasta</th><th>Lead</th><th></th></tr></thead>
     <tbody></tbody>
   </table>
   <div class="row-actions">
@@ -108,9 +108,9 @@ function renderBands() {
       <td><input class="in num" data-f="max_score" type="number" value="${b.max_score}"></td>
       <td>
         <select class="in" data-f="outcome">
-          <option value="rechazado" ${b.outcome === 'rechazado' ? 'selected' : ''}>Rechazado</option>
-          <option value="a_definir" ${b.outcome === 'a_definir' ? 'selected' : ''}>A definir</option>
-          <option value="aprobado" ${b.outcome === 'aprobado' ? 'selected' : ''}>Aprobado</option>
+          <option value="frio" ${b.outcome === 'frio' ? 'selected' : ''}>Fr&iacute;o</option>
+          <option value="tibio" ${b.outcome === 'tibio' ? 'selected' : ''}>Tibio</option>
+          <option value="caliente" ${b.outcome === 'caliente' ? 'selected' : ''}>Caliente</option>
         </select>
       </td>
       <td class="ctr"><button class="btn small danger del-b">Quitar</button></td>
@@ -130,7 +130,7 @@ document.querySelector('#b-tbl tbody').addEventListener('click', e => {
 });
 
 document.getElementById('btn-add-band').addEventListener('click', () => {
-  bands.push({min_score: 0, max_score: 0, outcome: 'a_definir'});
+  bands.push({min_score: 0, max_score: 0, outcome: 'tibio'});
   renderBands();
 });
 

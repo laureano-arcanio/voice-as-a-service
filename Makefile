@@ -15,6 +15,9 @@
 #                   seccion "Inferencia remota" del README).
 #   make logs    -> sigue los logs de los 6 servicios
 #   make tunnel  -> opcional: expone los 3 vllm-* en internet via ngrok
+#   make stt-eval-up + make stt-eval -> opcional: levanta STT candidatos
+#                   (Parakeet, Whisper Turbo, Moonshine, perfil `stt-eval`) y
+#                   los compara contra vllm-stt (WER + latencia)
 #                   (perfil `ngrok` de compose, ver .env.example)
 #   make pbx     -> opcional: Asterisk con la troncal de Anura (perfil `pbx`);
 #                   despues `make livekit-sip` (ver docs/TELEFONIA_ANURA.md)
@@ -41,6 +44,7 @@ export GID := $(shell id -g)
         restart restart-app restart-agent restart-llm restart-stt restart-tts \
         ps logs logs-app logs-agent logs-db logs-llm logs-stt logs-tts \
         tunnel logs-tunnel \
+        stt-eval-up stt-eval-down stt-eval logs-stt-eval \
         pbx restart-pbx logs-pbx pbx-cli pbx-status livekit-sip \
         sh-app sh-agent mysql \
         health health-vllm open gpu \
@@ -139,6 +143,21 @@ tunnel: ## Expone los 3 vllm-* via ngrok (perfil opt-in; requiere NGROK_* en .en
 
 logs-tunnel: ## Sigue los logs del agente ngrok y del proxy
 	$(COMPOSE) logs -f --tail=200 ngrok proxy
+
+STT_EVAL_SERVICES := stt-parakeet stt-whisper stt-moonshine
+
+stt-eval-up: ## Levanta los STT candidatos (perfil opt-in `stt-eval`: Parakeet, Whisper Turbo, Moonshine) y espera a que esten healthy
+	$(COMPOSE) --profile stt-eval up -d --build --wait $(STT_EVAL_SERVICES)
+	@echo "Arriba (host: parakeet :8105, whisper :8106, moonshine :8107). Comparar: make stt-eval"
+
+stt-eval-down: ## Para y elimina los STT candidatos (libera la VRAM de la GPU 0)
+	$(COMPOSE) --profile stt-eval rm -sf $(STT_EVAL_SERVICES)
+
+stt-eval: ## WER + latencia de vllm-stt vs candidatos sobre el corpus del load test. Ej: make stt-eval ARGS="--telephone --runs 5"
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts agent python -m scripts.stt_eval $(ARGS)
+
+logs-stt-eval: ## Sigue los logs de los STT candidatos
+	$(COMPOSE) --profile stt-eval logs -f --tail=200 $(STT_EVAL_SERVICES)
 
 pbx: ## Levanta Asterisk con la troncal de Anura (perfil opt-in; requiere ANURA_*/LIVEKIT_SIP_* en .env, ver docs/TELEFONIA_ANURA.md)
 	@for v in ANURA_DOMAIN ANURA_USER ANURA_PASSWORD ANURA_DID LIVEKIT_SIP_HOST LIVEKIT_SIP_PASSWORD; do \

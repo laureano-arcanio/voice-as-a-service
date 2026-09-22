@@ -1,8 +1,11 @@
-# AIVA Validate — Demo MVP
+# AIVA Ventas (Browix) — Demo MVP
 
-Mini producto demo de AIVA Validate: un agente de IA llama por telefono a un cliente
-que compro un plan de ahorro, hace el cuestionario de validacion configurado, y asigna
-score + resultado (aprobado / a definir / rechazado) evaluando el transcript con un LLM.
+Mini producto demo: un agente de IA (asesora comercial virtual de [Browix](https://browix.com),
+plataforma de gestion de personal) **atiende las llamadas de personas interesadas**, responde
+sus consultas sobre el producto, califica el lead con el cuestionario configurado y cierra con
+una demo con un asesor. Al cortar, un LLM evalua el transcript y asigna score + temperatura del
+lead (caliente / tibio / frio). Tambien puede llamar (saliente) a un lead que dejo sus datos.
+Contexto del negocio, base de conocimiento y links relevados: `docs/Browix_Contexto_Agente.md`.
 
 ## Stack
 
@@ -15,8 +18,8 @@ score + resultado (aprobado / a definir / rechazado) evaluando el transcript con
   separado). La app (`app/main.py`) solo despacha el agente a una room nueva
   (`app/livekit_dispatch.py`); el worker marca al cliente y escribe el resultado
   (transcript, status, score) directo en la base de datos — no hay webhook.
-- **Scoring:** el mismo LLM local evalua el transcript contra el cuestionario (respuesta
-  correcta de referencia + ponderacion + flag de requerida) y aplica las bandas de score.
+- **Scoring:** el mismo LLM local evalua el transcript contra el cuestionario de calificacion
+  (criterio de cada pregunta + ponderacion + flag de requerida) y aplica las bandas de score.
 
 ## Inferencia local (vLLM)
 
@@ -41,7 +44,8 @@ reparto de GPU/memoria entre los 3 esta documentado con detalle en los comentari
 reservan memoria fuera del budget normal de KV-cache, y vLLM sigue capturando CUDA graphs
 nuevos con el trafico real, asi que el uso real de VRAM termina bien por encima de lo que
 estima `--gpu-memory-utilization` en frio). Probado en vivo contra 2x RTX 3090 (24GB c/u):
-LLM solo en una GPU (~17GB), STT+TTS compartiendo la otra (~23GB combinados, justo).
+TTS sola en una GPU, LLM+STT compartiendo la otra -- la mejor de las configuraciones
+medidas (ver `docs/experiments/` y `AGENTS.md`).
 
 ### Voz clonada (TTS)
 
@@ -80,6 +84,44 @@ revisar si hace falta bajar mas la latencia percibida.
 **Limitacion conocida:** el modo streaming (necesario para no matar la latencia de la
 llamada) no soporta ajuste de velocidad -- `VLLM_TTS_SPEED` != 1.0 tira 400. Ver comentario
 en `app/config.py`.
+
+### Probar otros STT (perfil `stt-eval`, opcional)
+
+Tres candidatos para comparar contra Qwen3-ASR, todos con el mismo
+`/v1/audio/transcriptions` y el mismo `VLLM_API_KEY` (el agente los usa sin tocar codigo):
+
+| Servicio | Modelo | Como corre | Puerto host |
+| --- | --- | --- | --- |
+| `stt-parakeet` | `nvidia/parakeet-tdt-0.6b-v3` | `stt/server.py` + transformers, GPU 0 (~1.6GB) | `:8105` |
+| `stt-whisper` | `openai/whisper-large-v3-turbo` | vLLM nativo, GPU 0 (~4GB) | `:8106` |
+| `stt-moonshine` | Moonshine Spanish (`small-streaming`) | `stt/server.py` + moonshine-voice, **solo CPU** | `:8107` |
+
+```bash
+make stt-eval-up                     # build + levanta los 3 y espera healthy
+make stt-eval                        # WER + latencia de los 4 STT sobre el corpus del load test
+make stt-eval ARGS="--telephone"     # idem con el audio degradado a 8kHz mu-law (llamada real)
+make stt-eval-down                   # los baja y libera la VRAM
+```
+
+Para probar uno en llamadas reales: `VLLM_STT_BASE_URL` + `AGENT_STT_MODEL` en `.env`
+(ver `.env.example`) y `docker compose up -d agent`.
+
+Primera medicion (sep-2026, 9 audios del corpus del load test, requests de a uno, audio
+limpio / telefonico):
+
+| STT | WER | Latencia p50 |
+| --- | --- | --- |
+| Qwen3-ASR-1.7B (actual) | 5.6% / 7.4% | 71 / 83 ms |
+| Parakeet TDT 0.6B v3 | 5.6% / 5.6% | 53 / 50 ms |
+| Whisper Large v3 Turbo | 5.6% / 5.6% | 73 / 71 ms |
+| Moonshine Spanish | 33.3% / 33.3% | 125 / 142 ms |
+
+Ojo con el corpus: es voz sintetica del propio `vllm-tts`, frases cortas, 9 audios -- sirve
+para descartar, no para decidir. Para decidir, grabar recortes de llamadas reales (`X.wav` +
+`X.txt` con el transcript correcto) y correr `make stt-eval ARGS="--audio-dir scripts/<dir>"`.
+Moonshine: devuelve vacio en "Si"/"No" sueltos; `MOONSHINE_ARCH=base` los acierta pero
+tarda 1.2-1.7s por turno en CPU. Ademas su licencia (Moonshine Community License) es no
+comercial para empresas de mas de USD 1M/anio.
 
 ## Correr con Docker Compose
 

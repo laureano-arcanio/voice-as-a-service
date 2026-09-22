@@ -1,0 +1,126 @@
+ventana: 115s muestreados, 115s activos
+
+== HOST CPU (solo segundos activos)
+  total_busy_pct   avg=  15.17 p50=  16.20 p95=  24.60 max=  28.80
+  cores_gt90       avg=   0.00 p50=   0.00 p95=   0.00 max=   0.00
+  cores_gt50       avg=   0.24 p50=   0.00 p95=   1.00 max=   3.00
+  load1            avg=   1.19 p50=   1.26 p95=   1.38 max=   1.42
+  iowait_pct       avg=   0.09 p50=   0.10 p95=   0.10 max=   0.50
+  mem_used_gb      avg=  36.38 p50=  36.35 p95=  36.50 max=  36.52
+  swap_used_gb     avg=   0.00 p50=   0.00 p95=   0.00 max=   0.00
+  por cpu logico (avg/p95): 0:28/50 1:8/14 2:25/46 3:18/35 4:14/27 5:25/46 6:13/26 7:7/13 8:24/53 9:7/14 10:13/29 11:12/29 12:9/21 13:25/61 14:8/15 15:5/11
+
+== CONTENEDORES (cores = CPUs logicas equivalentes)
+  vllm-llm      cpu   avg=   0.10 p50=   0.08 p95=   0.30 max=   0.64  sys%=7
+                runT  avg=   0.08 p50=   0.00 p95=   1.00 max=   2.00  nthreads=157
+                memGB avg=   4.29 p50=   4.29 p95=   4.29 max=   4.29  anon_max=4.11
+  vllm-stt      cpu   avg=   0.18 p50=   0.06 p95=   0.57 max=   0.97  sys%=2
+                runT  avg=   0.12 p50=   0.00 p95=   1.00 max=   2.00  nthreads=190
+                memGB avg=   4.16 p50=   4.17 p95=   4.17 max=   4.22  anon_max=3.89
+  vllm-tts      cpu   avg=   1.40 p50=   1.74 p95=   2.11 max=   2.24  sys%=2
+                runT  avg=   1.35 p50=   1.00 p95=   3.00 max=   4.00  nthreads=329
+                memGB avg=   6.03 p50=   6.04 p95=   6.04 max=   6.13  anon_max=5.51
+  proxy         cpu   avg=   0.00 p50=   0.00 p95=   0.01 max=   0.01  sys%=84
+                runT  avg=   0.00 p50=   0.00 p95=   0.00 max=   0.00  nthreads=17
+                memGB avg=   0.01 p50=   0.01 p95=   0.02 max=   0.02  anon_max=0.01
+  ngrok         cpu   avg=   0.01 p50=   0.01 p95=   0.03 max=   0.04  sys%=56
+                runT  avg=   0.02 p50=   0.00 p95=   0.00 max=   1.00  nthreads=21
+                memGB avg=   0.06 p50=   0.07 p95=   0.10 max=   0.10  anon_max=0.10
+
+== THREADS (por svc/comm: nro de threads distintos, suma de cores)
+  vllm-tts      VLLM::StageEngi  tids=  6 cores avg=   0.64 p50=   0.75 p95=   1.07 max=   1.35
+  vllm-stt      VLLM::EngineCor  tids=  2 cores avg=   0.15 p50=   0.00 p95=   0.54 max=   0.92
+  vllm-tts      vllm             tids=  3 cores avg=   0.08 p50=   0.07 p95=   0.10 max=   0.97
+  vllm-llm      VLLM::EngineCor  tids=  1 cores avg=   0.07 p50=   0.04 p95=   0.24 max=   0.44
+  vllm-llm      vllm             tids=  1 cores avg=   0.01 p50=   0.00 p95=   0.04 max=   0.11
+  vllm-stt      qwen-asr-serve   tids=  1 cores avg=   0.00 p50=   0.00 p95=   0.03 max=   0.05
+  -- threads individuales mas calientes (posible cuello single-thread):
+  vllm-tts      VLLM::StageEngi  tid=805799   avg= 32.6% p95= 50.0% secs>=90%=0
+  vllm-tts      VLLM::StageEngi  tid=809918   avg= 29.0% p95= 63.0% secs>=90%=0
+  vllm-stt      VLLM::EngineCor  tid=852898   avg=  8.9% p95= 30.0% secs>=90%=0
+  vllm-llm      VLLM::EngineCor  tid=799448   avg=  7.0% p95= 24.0% secs>=90%=0
+  vllm-stt      VLLM::EngineCor  tid=812131   avg=  6.5% p95= 26.0% secs>=90%=0
+  vllm-tts      vllm             tid=804773   avg=  5.2% p95=  6.0% secs>=90%=1
+  vllm-tts      vllm             tid=803617   avg=  2.3% p95=  4.0% secs>=90%=0
+  vllm-tts      VLLM::StageEngi  tid=810694   avg=  2.3% p95=  7.0% secs>=90%=0
+  vllm-llm      vllm             tid=797142   avg=  0.6% p95=  4.0% secs>=90%=0
+  vllm-stt      qwen-asr-serve   tid=811129   avg=  0.2% p95=  3.0% secs>=90%=0
+  vllm-tts      vllm             tid=852358   avg=  0.2% p95=  0.0% secs>=90%=0
+  vllm-tts      VLLM::StageEngi  tid=809907   avg=  0.1% p95=  0.0% secs>=90%=0
+
+== GPU
+  GPU0 util%  avg=  71.20 p50=  98.00 p95= 100.00 max= 100.00  secs>=95%: 81/115
+       membw% avg=  36.92 p50=  47.00 p95=  61.00 max=  65.00
+       memMiB avg=16139.28 p50=16145.00 p95=16147.00 max=16147.00
+       powerW avg= 242.54 p50= 268.41 p95= 302.68 max= 317.75  tempmax=75C throttle=['0x0000000000000000', '0x0000000000000004', '0x0000000000000020', '0x0000000000000024']
+  GPU1 util%  avg=  28.97 p50=   1.00 p95= 100.00 max= 100.00  secs>=95%: 28/115
+       membw% avg=  25.69 p50=   1.00 p95=  96.00 max=  97.00
+       memMiB avg=13406.53 p50=13439.00 p95=13467.00 max=13488.00
+       powerW avg= 182.84 p50= 169.76 p95= 297.30 max= 338.05  tempmax=77C throttle=['0x0000000000000000', '0x0000000000000001', '0x0000000000000004', '0x0000000000000024']
+  por proceso (segundos activos, sm%):
+    GPU0 pid=805799   VLLM::StageEngi  sm avg=  59.11 p50=  65.00 p95=  96.00 max=  98.00  fbMB_max=5666
+    GPU0 pid=809918   VLLM::StageEngi  sm avg=  15.31 p50=  13.00 p95=  36.00 max=  81.00  fbMB_max=3530
+    GPU0 pid=812131   VLLM::EngineCor  sm avg=  10.59 p50=   9.00 p95=  24.00 max=  33.00  fbMB_max=6906
+    GPU1 pid=13980    chrome --type=g  sm avg=   2.71 p50=   0.00 p95=  18.00 max=  18.00  fbMB_max=183
+    GPU1 pid=242857   missioncenter    sm avg=   0.00 p50=   0.00 p95=   0.00 max=   0.00  fbMB_max=33
+    GPU1 pid=275025   nautilus         sm avg=   3.33 p50=   2.00 p95=   8.00 max=   8.00  fbMB_max=15
+    GPU1 pid=799448   VLLM::EngineCor  sm avg=  37.66 p50=  38.00 p95=  74.00 max=  95.00  fbMB_max=11994
+    GPU1 pid=8847     Xorg             sm avg=   2.18 p50=   1.00 p95=  11.00 max=  11.00  fbMB_max=556
+    GPU1 pid=9114     gnome-shell      sm avg=   2.84 p50=   0.00 p95=  14.00 max=  31.00  fbMB_max=302
+    GPU1 pid=9875     code             sm avg=   2.39 p50=   0.00 p95=  19.00 max=  19.00  fbMB_max=213
+
+== vLLM
+  vllm-llm
+    kv_cache_usage_perc                avg=   0.01 p50=   0.00 p95=   0.05 max=   0.10
+    num_requests_running               avg=   0.26 p50=   0.00 p95=   1.00 max=   3.00
+    num_requests_waiting               avg=   0.00 p50=   0.00 p95=   0.00 max=   0.00
+    generation_tokens_total            +2775  (24.1/s activo)
+    prompt_tokens_total                +143322  (1246.3/s activo)
+    request_success_total@stop         +78  (0.7/s activo)
+    inter_token_latency                media=     13.4 ms  n=2697
+    request_decode_time                media=    461.6 ms  n=78
+    request_inference_time             media=    523.1 ms  n=78
+    request_prefill_time               media=     61.5 ms  n=78
+    request_queue_time                 media=      0.0 ms  n=78
+    request_time_per_output_token      media=     13.4 ms  n=78
+    time_to_first_token                media=     77.5 ms  n=78
+  vllm-stt
+    kv_cache_usage_perc                avg=   0.00 p50=   0.00 p95=   0.00 max=   0.03
+    num_requests_running               avg=   0.05 p50=   0.00 p95=   0.00 max=   2.00
+    num_requests_waiting               avg=   0.00 p50=   0.00 p95=   0.00 max=   0.00
+    generation_tokens_total            +1012  (8.8/s activo)
+    prompt_tokens_total                +3186  (27.7/s activo)
+    request_success_total@stop         +78  (0.7/s activo)
+    inter_token_latency                media=     12.2 ms  n=934
+    request_decode_time                media=    145.9 ms  n=78
+    request_inference_time             media=    227.5 ms  n=78
+    request_prefill_time               media=     81.6 ms  n=78
+    request_queue_time                 media=      0.0 ms  n=78
+    request_time_per_output_token      media=     11.4 ms  n=78
+    time_to_first_token                media=     88.9 ms  n=78
+  vllm-tts
+    kv_cache_usage_perc@s0             avg=   0.06 p50=   0.03 p95=   0.18 max=   0.22
+    kv_cache_usage_perc@s1             avg=   0.00 p50=   0.00 p95=   0.00 max=   0.00
+    num_requests_running@s0            avg=   2.37 p50=   1.00 p95=   7.00 max=  11.00
+    num_requests_running@s1            avg=   2.07 p50=   1.00 p95=   7.00 max=  11.00
+    num_requests_waiting@s0            avg=   0.00 p50=   0.00 p95=   0.00 max=   0.00
+    num_requests_waiting@s1            avg=   0.47 p50=   0.00 p95=   1.00 max=  10.00
+    generation_tokens_total@s0         +8832  (76.8/s activo)
+    prompt_tokens_total@s0             +16544  (143.9/s activo)
+    prompt_tokens_total@s1             +219584  (1909.4/s activo)
+    request_success_total@s0@stop      +188  (1.6/s activo)
+    request_success_total@s1@stop      +188  (1.6/s activo)
+    inter_token_latency@s0             media=     25.4 ms  n=8644
+    inter_token_latency@s1             media=    468.7 ms  n=427
+    request_decode_time@s0             media=   1169.5 ms  n=188
+    request_decode_time@s1             media=   1064.5 ms  n=188
+    request_inference_time@s0          media=   1234.4 ms  n=188
+    request_inference_time@s1          media=   1180.8 ms  n=188
+    request_prefill_time@s0            media=     64.9 ms  n=188
+    request_prefill_time@s1            media=    116.3 ms  n=188
+    request_queue_time@s0              media=      0.0 ms  n=188
+    request_queue_time@s1              media=    158.1 ms  n=188
+    request_time_per_output_token@s0   media=     26.7 ms  n=188
+    request_time_per_output_token@s1   media=      0.0 ms  n=188
+    time_to_first_token@s0             media=    162.2 ms  n=188
+    time_to_first_token@s1             media=    286.6 ms  n=188

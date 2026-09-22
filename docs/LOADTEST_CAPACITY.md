@@ -1,78 +1,61 @@
-# Pruebas de capacidad (21-sep-2026)
+# Capacidad: conclusiones vigentes
 
-Objetivo: definir el hardware de producción (menor costo inicial, buena
-latencia a 32 conversaciones, redundancia). Este server (Ryzen 7 5700X, 64 GB,
-2 × RTX 3090, con escritorio) es **solo de validación**.
+Objetivo: definir el hardware de producción con menor costo inicial, buena
+latencia con 32 conversaciones y redundancia. El server actual (Ryzen 7 5700X,
+64 GB, 2 × RTX 3090, con escritorio) es **solo de validación**.
 
-Método: load test remoto por ngrok a 16 y 32 sesiones, midiendo en el server a
-1 Hz con `scripts/loadtest/monitor/sampler.py` (CPU por core, CPU/RAM/threads
-por contenedor, GPU por proceso, `/metrics` de cada vLLM). Resumen con
-`analyze.py <run> [t0 t1]`. Datos crudos en `scripts/loadtest/monitor/run_*`.
-No se midió la latencia de punta a punta del cliente (queda en el CSV remoto).
+Detalle de cada prueba, método y cómo agregar nuevas:
+[`experiments/`](experiments/README.md). Este documento resume lo que se
+concluye de todas y se actualiza cuando un experimento lo cambia.
 
-## Experimentos (32 sesiones, media por request)
+## Resumen de experimentos
 
-| # | Reparto | TTS req/s | TTS entre tokens | TTS primer audio (TTFT + cola stage 1) | STT TTFT | LLM TTFT / entre tokens |
-|---|---|---|---|---|---|---|
-| 1 | LLM en GPU 0; STT + TTS en GPU 1 (con escritorio) | 1,6 | 28 ms | 202 + 96 ms | 108 ms | 68 / 13,2 ms |
-| 2 | LLM en GPU 1; STT + TTS en GPU 0 (sin escritorio) | 1,8 | 32 ms | 220 + 110 ms | 136 ms | 74 / 14,7 ms |
-| **3** | **TTS sola en GPU 0; LLM + STT en GPU 1** | **2,8** | **32 ms** | **219 + 105 ms** | **79 ms** | 83 / 16,4 ms |
-| 4 | Como 3, con 2 réplicas de TTS en la misma GPU 0 (nginx `least_conn`) | 2,7 | **71 ms** | 460 + 271 ms | 89 ms | 87 / 17,1 ms |
+| EXP | Qué se probó | Resultado |
+|---|---|---|
+| 001 | STT + TTS en una 3090 con escritorio | Línea base: la GPU de TTS es el único cuello |
+| 002 | STT + TTS en la 3090 sin escritorio | Sin mejora: el escritorio no era la causa |
+| **003** | **TTS sola; LLM + STT juntos** | **Mejor y vigente:** ~55% más de throughput de TTS con la misma latencia; STT ~85 ms más rápido |
+| 004 | 2 réplicas de TTS en la misma GPU | Peor: 71 ms entre tokens (tope 83 ms), mismo throughput |
+| 005 | Simulación: STT + TTS limitados a 16 GB | Entran justo (16,1 GB), sin preemptions; TTS no baja de ~9 GB |
 
-- **1 → 2:** sacar el escritorio de la GPU de TTS no cambió nada. No era la causa.
-- **3 es la mejor** y quedó configurada: +50% de throughput con la misma
-  latencia de TTS, y STT responde ~85 ms antes por turno. El LLM paga ~10 ms de TTFT.
-- **4 fue peor:** dos procesos se turnan la GPU y cada uno batchea la mitad.
-  71 ms entre tokens roza el tope de tiempo real del códec (12 Hz = 83 ms).
-  Más réplicas de TTS solo sirven con **una GPU física por réplica**.
-  `vllm-tts-2` quedó en el compose como perfil opt-in `tts2`.
+## Qué limita y qué sobra (32 sesiones)
 
-## Qué limita y qué sobra
-
-| Recurso | Medido a 32 sesiones | Conclusión |
+| Recurso | Medido | Conclusión |
 |---|---|---|
 | **GPU de TTS** | 98% de uso en mediana; una 3090 da ~2,8 síntesis/s | **Único cuello.** Una 3090 dedicada alcanza justo para 32 sesiones |
-| GPU de LLM + STT | 55% de uso; LLM sin cola nunca; máx. 8 requests simultáneos | Sobra |
-| CPU | Host 25–40%; ningún core > 90%. TTS 2,2 cores, STT 0,9, LLM 0,4 (p95) | 8 cores / 16 hilos sobran. Importa la velocidad por core: el thread del engine de TTS llega a 70% (p95) |
-| RAM | ~15 GB entre los 3 vLLM, constante | 32 GB alcanzan |
-| VRAM | KV cache máx.: LLM 12% de 73k tokens, TTS 5%, STT 2% | Necesidad real: LLM ~13 GB (BF16), TTS ~10 GB, STT ~8 GB |
-| Térmica | Ambas 3090 con thermal/HW slowdown (84 °C; GPU 0 throttlea a 73 °C de núcleo, probable memoria) | Refrigeración es requisito, hoy se pierde rendimiento |
+| GPU de LLM + STT | 55% de uso; LLM nunca encola; máx. 8 requests en vuelo | Sobra |
+| CPU | Host 25–40%; TTS 2,2 cores, STT 0,9, LLM 0,4 (p95) | ~4 de 16 threads. Importa la velocidad por core: el thread de Code2Wav llega a 70% (p95) |
+| RAM | ~15 GB entre los 3 vLLM, constante; pico de 12 GB al arrancar el LLM | 32 GB por nodo alcanzan |
+| VRAM mínima real | LLM ~12 GB (BF16), TTS ~9 GB, STT ~7 GB | 16 GB alcanzan para el LLM solo. STT + TTS juntos quedan al límite |
+| Térmica | Las dos 3090 con thermal/HW slowdown (84 °C) | Refrigeración y `nvidia-smi -pl 280` son requisito |
 
-Concurrencia real: 32 sesiones ≠ 32 requests. Picos de 8 en LLM, 5 en STT y
-~14 en TTS (2,4 síntesis por turno, ~1,5 s cada una).
+Concurrencia real: 32 sesiones no son 32 requests simultáneos. Los picos fueron de 8 en el LLM, 5 en STT y ~14 en TTS (2,4 síntesis por turno, ~1,5 s cada una).
 
-## Implicancias para el hardware (ver `SERVER_HARDWARE.md`)
+## Reglas de diseño
 
-1. **Un modelo por GPU es correcto**, y TTS nunca debe compartir GPU (ni con
-   STT, ni con otra réplica de TTS).
-2. **El riesgo de la RTX 5060 Ti es TTS, no el LLM.** TTS ya satura una 3090 a
-   32 sesiones; el LLM usa la mitad de la suya. Comprar una sola 5060 Ti y
-   medir **primero TTS** (criterio: < ~45 ms entre tokens a 32 sesiones; el
-   tope duro es 83 ms). Si no llega: 2 GPUs para TTS o una GPU más fuerte solo
-   para TTS.
-3. **CPU y RAM: ir a lo más barato.** La prueba pendiente de la sección 6 de
-   `SERVER_HARDWARE.md` queda cubierta en lo esencial: ~4 cores usados de 16.
-   El 5700G es razonable; no se hizo la prueba de bajar frecuencia.
-4. **16 GB por GPU alcanzan** para cada modelo por separado. LLM + STT juntos
-   (como en la config. 3) no entran en 16 GB en BF16.
-5. **Sin escritorio y con buen flujo de aire** (frame abierto ayuda).
+1. **TTS nunca comparte GPU:** ni con STT ni con otra réplica de TTS. Escalar TTS es sumar GPUs físicas.
+2. **El LLM y STT pueden compartir una GPU de 24 GB.** En 16 GB entra solo el LLM.
+3. **GPU con ancho de banda de memoria clase 3090 para TTS.** La 5060 Ti tiene la mitad; para TTS no está validada y probablemente no alcance con 32 sesiones.
+4. **CPU y RAM: lo más barato que cumpla.** 6–8 cores Zen 3 con buena frecuencia por core (Ryzen 5 5600GT o Ryzen 7 5700) y 32 GB.
+5. **Sin escritorio y con buen flujo de aire.**
 
-## Arquitectura propuesta (costo inicial mínimo)
+## Arquitectura candidata (en discusión)
 
-- **Fase 1:** un nodo nuevo de 3 GPUs (LLM / STT / TTS). Redundancia con **este
-  server 2 × 3090 como segundo nodo** (config. 3, ya validada para 32 sesiones):
-  costo adicional cero. nginx con upstreams por servicio hace el failover; el
-  upstream `tts` con `least_conn` ya está probado en `ngrok/proxy.conf`.
-- **Fase 2 (si crece la carga o TTS queda justo):** sumar una GPU solo para TTS.
-  Es el único componente que escala con las sesiones.
-- Para que un nodo absorba la caída del otro, TTS debe operar a ≤ 50% de su
-  capacidad en régimen normal.
+Dos nodos iguales detrás de un balanceador; cada uno soporta solo las 32 sesiones.
+
+| Por nodo | Variante A (recomendada) | Variante B (más barata) |
+|---|---|---|
+| GPU 1 | 3090: TTS | 3090: TTS + STT (como EXP-002) |
+| GPU 2 | 3090: LLM + STT (como EXP-003) | RTX 5060 Ti 16 GB: LLM solo (sin validar) |
+| Si cae un nodo | El otro lleva 32 sesiones al nivel de EXP-003 | El otro lleva 32 sesiones al nivel de EXP-002 (degradado, dentro de tiempo real) |
+
+- **Resto por nodo:** Ryzen 5 5600GT o Ryzen 7 5700, Gigabyte B550 Eagle WIFI6 (5 slots x16 físicos, deja aire entre dos GPUs de 3 slots), 32 GB DDR4 y fuente de 1000 W (A) u 850 W (B).
+- **Antes de comprar la variante B:** medir el LLM en una sola 5060 Ti (BF16 y FP8) con el mismo loadtest.
+- **Escalar:** sumar una GPU dedicada a TTS por nodo.
 
 ## Pendiente
 
-- Benchmark de TTS y LLM (FP8) en una 5060 Ti.
-- Cruzar con la latencia de punta a punta del cliente remoto.
-- Prueba a 64 sesiones para encontrar el techo real de LLM y STT.
-- Confirmar temperatura de memoria de las 3090 (`nvtop`).
-- vLLM-Omni deja `num_requests_running` pegado en 1 sin tráfico: no usar ese
-  gauge para detectar inactividad (el sampler usa los contadores de tokens).
+- Benchmark del LLM (y de TTS) en una 5060 Ti real.
+- Registrar la latencia de punta a punta del cliente en cada experimento.
+- Prueba con 64 sesiones para encontrar el techo real del LLM y STT.
+- Confirmar la temperatura de memoria de las 3090 (`nvtop`).

@@ -66,10 +66,10 @@ openai.STT._recognize_impl = _recognize_impl_stripped
 openai.tts.AUDIO_STREAM_MODELS.add(config.VLLM_TTS_MODEL)
 
 
-class ValidationAgent(Agent):
+class SalesAgent(Agent):
     @function_tool()
     async def end_call(self, ctx: RunContext):
-        """Llamar UNA vez terminaste de despedirte del cliente, para cortar la llamada."""
+        """Llamar UNA vez terminaste de despedirte del interesado, para cortar la llamada."""
         # Sin esto, shutdown() corta la room de inmediato y se pisa el audio de
         # despedida que el LLM genero en el mismo turno (se corta a mitad o ni
         # llega a sonar) -- hay que esperar a que termine de reproducirse.
@@ -100,13 +100,15 @@ def _create_inbound_call(phone: str, room_name: str) -> int:
     """Arma el registro de Call para una llamada ENTRANTE: no la disparo
     nuestro dashboard (no hay local_call_id previo en la metadata del job --
     la trajo la regla de dispatch de LiveKit, ver troncal/dispatch rule
-    entrante en el proyecto de LiveKit). PRUEBA por ahora: mismo cuestionario
-    que las salientes, sin nombre de cliente (no hay forma de identificarlo
-    todavia)."""
+    entrante en el proyecto de LiveKit). Es el caso principal del agente
+    comercial: un interesado llama a la empresa. Mismo cuestionario de
+    calificacion que las salientes; el nombre es siempre
+    config.INBOUND_CALLER_NAME (no hay forma de identificar al que llama)."""
     questions, bands = active_questionnaire()
     with SessionLocal() as s:
         call = Call(
             phone=phone or "(entrante)",
+            client_name=config.INBOUND_CALLER_NAME,
             status="pendiente",
             provider="livekit",
             provider_call_id=room_name,
@@ -221,10 +223,14 @@ async def entrypoint(ctx: JobContext):
 
     ctx.add_shutdown_callback(finalize)
 
+    # El modo prueba simula una llamada ENTRANTE (vos hacés de interesado que
+    # llama a la empresa); solo las salientes reales por SIP se presentan como
+    # devolucion de contacto a un lead. El saludo es el mismo en los dos casos.
+    answers_call = is_inbound or data["test_mode"]
     system_prompt = prompts.build_system_prompt(
-        data["questions"], config.AGENT_NAME, config.DEALERSHIP_NAME, data["client"]
+        data["questions"], config.AGENT_NAME, config.COMPANY_NAME, data["client"], inbound=answers_call
     )
-    greeting = prompts.first_message(config.AGENT_NAME, config.DEALERSHIP_NAME, data["client"])
+    greeting = prompts.first_message(config.AGENT_NAME, config.COMPANY_NAME, data["client"])
 
     # Un solo VAD compartido: lo usa la sesion para detectar habla/interrupciones
     # y tambien el STT para hacer commit del buffer de audio -- vllm-stt
@@ -332,7 +338,7 @@ async def entrypoint(ctx: JobContext):
 
     ctx.room.on("participant_disconnected", on_participant_disconnected)
 
-    await session.start(agent=ValidationAgent(instructions=system_prompt), room=ctx.room)
+    await session.start(agent=SalesAgent(instructions=system_prompt), room=ctx.room)
 
     if is_inbound:
         # El que llama ya esta conectado (LiveKit lo puso en la room antes de

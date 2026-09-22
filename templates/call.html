@@ -7,7 +7,7 @@
 <section class="card" id="head-card">
   <h2>Llamada #{{ call_id }} <span id="h-outcome"></span></h2>
   <div class="detail-grid">
-    <div><span>Cliente</span><b id="h-name">&ndash;</b></div>
+    <div><span>Interesado</span><b id="h-name">&ndash;</b></div>
     <div><span>Tel&eacute;fono</span><b id="h-phone">&ndash;</b></div>
     <div><span>Fecha</span><b id="h-date">&ndash;</b></div>
     <div><span>Estado</span><b id="h-status">&ndash;</b></div>
@@ -24,12 +24,12 @@
 </section>
 
 <section class="card" id="score-card" style="display:none">
-  <h2>Scoring</h2>
+  <h2>Calificaci&oacute;n del lead</h2>
   <p class="hint" id="score-notes"></p>
   <p class="hint" id="score-bands"></p>
   <table class="tbl" id="score-tbl">
     <thead><tr>
-      <th>Pregunta</th><th>Respuesta del cliente</th><th>Justificaci&oacute;n</th>
+      <th>Pregunta</th><th>Lo que dijo el interesado</th><th>Justificaci&oacute;n</th>
       <th style="width:70px">Puntos</th><th style="width:90px">Resultado</th>
     </tr></thead>
     <tbody></tbody>
@@ -66,14 +66,14 @@
 <script>
 const CALL_ID = {{ call_id }};
 const OUTCOME = {
-  aprobado:  ['Aprobado', 'badge ok'],
-  a_definir: ['A definir', 'badge warn'],
-  rechazado: ['Rechazado', 'badge bad'],
+  caliente: ['Lead caliente', 'badge ok'],
+  tibio:    ['Lead tibio', 'badge warn'],
+  frio:     ['Lead fr\u00edo', 'badge bad'],
 };
 const NEXT_STEP = {
-  aprobado:  ['Acci\u00f3n: Enviado a Terminal', 'badge ok'],
-  a_definir: ['Acci\u00f3n: Derivado a Ventas', 'badge warn'],
-  rechazado: ['Acci\u00f3n: Reintegro', 'badge bad'],
+  caliente: ['Acci\u00f3n: asesor coordina la demo', 'badge ok'],
+  tibio:    ['Acci\u00f3n: seguimiento comercial', 'badge warn'],
+  frio:     ['Acci\u00f3n: enviar informaci\u00f3n', 'badge bad'],
 };
 const STATUS = {
   pendiente: 'Pendiente', sonando: 'Sonando', en_curso: 'En curso',
@@ -89,7 +89,7 @@ async function load() {
   if (c.client_notes) {
     const n = document.getElementById('h-notes');
     n.style.display = 'block';
-    n.textContent = 'Contexto para el agente: ' + c.client_notes;
+    n.textContent = 'Contexto del equipo comercial: ' + c.client_notes;
   }
   document.getElementById('h-phone').textContent = c.phone;
   document.getElementById('h-date').textContent = c.created_at ? new Date(c.created_at).toLocaleString('es-AR') : '\u2013';
@@ -117,7 +117,7 @@ async function load() {
     document.getElementById('tr-card').style.display = 'block';
     document.getElementById('chat').innerHTML = msgs.map(m => `
       <div class="bubble ${m.role === 'agente' ? 'agent' : 'client'}">
-        <span class="who">${m.role === 'agente' ? 'Agente IA' : (m.role === 'cliente' ? 'Cliente' : m.role)}</span>
+        <span class="who">${m.role === 'agente' ? 'Agente IA' : (m.role === 'cliente' ? 'Interesado' : m.role)}</span>
         ${esc(m.text)}
       </div>`).join('');
   }
@@ -147,18 +147,18 @@ async function load() {
     const d = JSON.parse(c.score_detail);
     document.getElementById('score-card').style.display = 'block';
     document.getElementById('err-card').style.display = 'none';
-    document.getElementById('score-notes').textContent = d.notes ? 'Observaciones del evaluador: ' + d.notes : '';
+    document.getElementById('score-notes').textContent = d.notes ? 'Resumen del lead: ' + d.notes : '';
     const bands = JSON.parse(c.bands_snapshot || '[]');
     document.getElementById('score-bands').innerHTML = 'Criterio aplicado: ' + bands.map(b =>
       `${b.min_score}\u2013${b.max_score}: <b>${(OUTCOME[b.outcome] || [b.outcome])[0]}</b>`).join(' &middot; ') +
-      (d.required_failed ? ' &middot; <b>Una pregunta requerida fall\u00f3: el resultado baja a "A definir".</b>' : '');
+      (d.required_failed ? ' &middot; <b>Una pregunta requerida no se cumpli\u00f3: el lead no puede quedar "Caliente".</b>' : '');
     document.querySelector('#score-tbl tbody').innerHTML = d.detail.map(r => `
       <tr>
         <td>${esc(r.question)}${r.required ? ' <span class="badge info" title="Requerida">R</span>' : ''}</td>
         <td>${esc(r.customer_answer)}</td>
         <td class="hint">${esc(r.rationale)}</td>
         <td class="ctr">${r.points}/${r.weight}</td>
-        <td class="ctr">${r.correct ? '<span class="badge ok">Bien</span>' : '<span class="badge bad">Mal / NS</span>'}</td>
+        <td class="ctr">${r.correct ? '<span class="badge ok">Cumple</span>' : '<span class="badge bad">No cumple</span>'}</td>
       </tr>`).join('');
   } else if (c.score_error) {
     document.getElementById('err-card').style.display = 'block';

@@ -4,6 +4,10 @@ __pycache__/
 venv/
 .env
 storage/
+.mypy_cache/
+
+# Claude Code: permisos y ajustes locales de cada usuario (CLAUDE.md sí se versiona)
+.claude/settings.local.json
 
 # loadtest artifacts
 scripts/loadtest/monitor/run_*/

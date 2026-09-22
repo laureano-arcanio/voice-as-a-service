@@ -8,9 +8,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from . import config, livekit_dispatch, scoring
-from .db import Band, Call, Question, SessionLocal, active_questionnaire, init_db
+from .db import OUTCOMES, Band, Call, Question, SessionLocal, active_questionnaire, init_db
 
-app = FastAPI(title="AIVA Validate Demo")
+app = FastAPI(title="AIVA Ventas Demo")
 
 templates = Jinja2Templates(directory=str(config.BASE_DIR / "templates"))
 app.mount("/static", StaticFiles(directory=str(config.BASE_DIR / "static")), name="static")
@@ -118,7 +118,7 @@ async def replace_bands(request: Request):
     if not bands:
         raise HTTPException(422, "Debe haber al menos una banda")
     for b in bands:
-        if b.get("outcome") not in ("rechazado", "a_definir", "aprobado"):
+        if b.get("outcome") not in OUTCOMES:
             raise HTTPException(422, "Resultado inv\u00e1lido en una banda")
         if int(b.get("min_score", 0)) > int(b.get("max_score", 0)):
             raise HTTPException(422, "Una banda tiene m\u00ednimo mayor que m\u00e1ximo")
@@ -212,15 +212,15 @@ def stats():
     total = len(calls)
     done = [c for c in calls if c.status == "finalizada"]
     scored = [c for c in done if c.outcome]
-    apr = sum(1 for c in scored if c.outcome == "aprobado")
-    adef = sum(1 for c in scored if c.outcome == "a_definir")
-    rech = sum(1 for c in scored if c.outcome == "rechazado")
+    hot = sum(1 for c in scored if c.outcome == "caliente")
+    warm = sum(1 for c in scored if c.outcome == "tibio")
+    cold = sum(1 for c in scored if c.outcome == "frio")
     avg = round(sum(c.score or 0 for c in scored) / len(scored), 1) if scored else 0
     mins = round(sum(c.duration_seconds for c in done) / 60.0, 1)
     return {
         "total_calls": total, "completed": len(done), "scored": len(scored),
-        "approved": apr, "a_definir": adef, "rejected": rech,
-        "approval_pct": round(100.0 * apr / len(scored), 1) if scored else 0,
+        "hot": hot, "warm": warm, "cold": cold,
+        "hot_pct": round(100.0 * hot / len(scored), 1) if scored else 0,
         "avg_score": avg, "total_minutes": mins,
     }
 
@@ -228,7 +228,7 @@ def stats():
 @app.get("/api/chart")
 def chart(bucket: str = "day", date_from: str = "", date_to: str = ""):
     """Serie temporal para el grafico del dashboard: cantidad de llamadas por
-    periodo + % de aprobadas y rechazadas (sobre las que tienen resultado)."""
+    periodo + % de leads calientes y frios (sobre las que tienen resultado)."""
     fmt = {"day": "%Y-%m-%d", "week": "%x-S%v", "month": "%Y-%m"}.get(bucket, "%Y-%m-%d")
     where, params = ["1=1"], {"fmt": fmt}
     if re.fullmatch(r"\d{4}-\d{2}-\d{2}", date_from or ""):
@@ -239,20 +239,20 @@ def chart(bucket: str = "day", date_from: str = "", date_to: str = ""):
         params["dt"] = date_to
     q = sql_text(
         "SELECT DATE_FORMAT(created_at, :fmt) AS b, COUNT(*) AS total, "
-        "SUM(outcome='aprobado') AS apr, SUM(outcome='rechazado') AS rech, "
-        "SUM(outcome='a_definir') AS adef "
+        "SUM(outcome='caliente') AS hot, SUM(outcome='frio') AS cold, "
+        "SUM(outcome='tibio') AS warm "
         f"FROM calls WHERE {' AND '.join(where)} GROUP BY b ORDER BY b"
     )
     with SessionLocal() as s:
         rows = s.execute(q, params).all()
-    labels, totals, apr_pct, rech_pct = [], [], [], []
-    for b, total, apr, rech, adef in rows:
+    labels, totals, hot_pct, cold_pct = [], [], [], []
+    for b, total, hot, cold, warm in rows:
         labels.append(b)
         totals.append(int(total))
-        scored = int(apr or 0) + int(rech or 0) + int(adef or 0)
-        apr_pct.append(round(100.0 * int(apr or 0) / scored, 1) if scored else None)
-        rech_pct.append(round(100.0 * int(rech or 0) / scored, 1) if scored else None)
-    return {"labels": labels, "totals": totals, "apr_pct": apr_pct, "rech_pct": rech_pct}
+        scored = int(hot or 0) + int(cold or 0) + int(warm or 0)
+        hot_pct.append(round(100.0 * int(hot or 0) / scored, 1) if scored else None)
+        cold_pct.append(round(100.0 * int(cold or 0) / scored, 1) if scored else None)
+    return {"labels": labels, "totals": totals, "hot_pct": hot_pct, "cold_pct": cold_pct}
 
 
 @app.post("/api/calls/{call_id}/rescore")

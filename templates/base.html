@@ -3,21 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}AIVA Validate{% endblock %}</title>
+<title>{% block title %}AIVA Ventas &middot; Browix{% endblock %}</title>
 <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
 <header class="topbar">
-  <div class="brand">AIVA <span>Validate</span> <em class="tag">demo</em></div>
+  <div class="brand">AIVA <span>Ventas</span> <em class="tag">Browix</em></div>
   <nav>
     <a href="/" class="{% block nav_dash %}{% endblock %}">Dashboard</a>
-    <a href="/config" class="{% block nav_config %}{% endblock %}">Cuestionario y scoring</a>
+    <a href="/config" class="{% block nav_config %}{% endblock %}">Calificaci&oacute;n de leads</a>
   </nav>
 </header>
 <main>
 {% block content %}{% endblock %}
 </main>
-<footer class="foot">AIVA Validate &mdash; demo de producto &middot; agente de validaci&oacute;n telef&oacute;nica con IA</footer>
+<footer class="foot">AIVA Ventas &mdash; demo de producto &middot; asesora comercial telef&oacute;nica con IA para Browix</footer>
 {% block scripts %}{% endblock %}
 </body>
 </html>

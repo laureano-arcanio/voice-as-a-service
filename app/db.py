@@ -23,7 +23,7 @@ class Question(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     position: Mapped[int] = mapped_column(Integer, default=0)
     text: Mapped[str] = mapped_column(Text)
-    expected: Mapped[str] = mapped_column(Text)           # respuesta correcta de referencia
+    expected: Mapped[str] = mapped_column(Text)           # criterio de calificacion (lo usa el evaluador)
     weight: Mapped[int] = mapped_column(Integer, default=10)
     required: Mapped[bool] = mapped_column(Boolean, default=False)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -42,7 +42,7 @@ class Band(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     min_score: Mapped[int] = mapped_column(Integer)
     max_score: Mapped[int] = mapped_column(Integer)
-    outcome: Mapped[str] = mapped_column(String(20))  # rechazado | a_definir | aprobado
+    outcome: Mapped[str] = mapped_column(String(20))  # frio | tibio | caliente
 
     def as_dict(self):
         return {"id": self.id, "min_score": self.min_score,
@@ -72,7 +72,7 @@ class Call(Base):
     questions_snapshot: Mapped[str] = mapped_column(LONGTEXT, default="")
     bands_snapshot: Mapped[str] = mapped_column(LONGTEXT, default="")
     score: Mapped[int] = mapped_column(Integer, nullable=True)
-    outcome: Mapped[str] = mapped_column(String(20), default="")  # aprobado | a_definir | rechazado
+    outcome: Mapped[str] = mapped_column(String(20), default="")  # caliente | tibio | frio
     score_detail: Mapped[str] = mapped_column(LONGTEXT, default="")
     score_error: Mapped[str] = mapped_column(Text, default="")
     # Desglose de latencia por turno (ver app/latency.py): {turns: [...], stats: {...}}
@@ -106,36 +106,51 @@ class Call(Base):
 
 
 SEED_QUESTIONS = [
-    # (texto, respuesta esperada, peso, requerida)
-    ("¿Sabe usted que suscribió un plan de ahorro y no una compra directa del vehículo?",
-     "El cliente reconoce que contrató un plan de ahorro (sistema de capitalización grupal), no una compra al contado ni un crédito prendario tradicional.", 13, True),
-    ("¿Qué modelo de vehículo eligió en su plan?",
-     "El cliente menciona correctamente el modelo contratado (coincide con lo que dice el vendedor en el pedido).", 8, False),
-    ("¿En cuántas cuotas se compone su plan?",
-     "El cliente conoce la cantidad de cuotas del plan (por ejemplo 84 o 120 cuotas).", 10, False),
-    ("¿Conoce el valor aproximado de la cuota y sabe que es móvil?",
-     "El cliente sabe el valor aproximado de la cuota y entiende que ajusta según el precio del vehículo (cuota móvil), no es fija.", 12, True),
-    ("¿Sabe cómo se accede a la adjudicación del vehículo?",
-     "El cliente entiende que la adjudicación es por sorteo o licitación mensual, y que puede requerir integración mínima de cuotas.", 12, True),
-    ("¿Sabe que la entrega del vehículo no es inmediata?",
-     "El cliente entiende que el vehículo se entrega recién al resultar adjudicado, no al firmar.", 10, False),
-    ("¿Le informaron los gastos administrativos y otros cargos del plan?",
-     "El cliente sabe que la cuota incluye gastos administrativos y conoce la existencia de cargos adicionales (derecho de adjudicación, gastos de entrega, etc.).", 8, False),
-    ("¿Sabe que el plan incluye seguro de vida y que el vehículo deberá estar asegurado?",
-     "El cliente conoce que hay un seguro de vida sobre saldo deudor incluido y que el vehículo adjudicado debe contratar seguro.", 7, False),
-    ("¿Qué sucede si se atrasa en el pago de las cuotas?",
-     "El cliente entiende que la mora genera punitorios y puede afectar la adjudicación o derivar en la baja del plan.", 8, False),
-    ("¿Le explicaron cómo darse de baja del plan y en qué condiciones?",
-     "El cliente conoce que puede rescindir, y que la devolución de lo aportado tiene condiciones y plazos (al finalizar el grupo, con deducciones).", 7, False),
-    ("¿Recibió y leyó una copia del contrato y de las condiciones generales?",
-     "El cliente confirma que recibió copia del contrato / solicitud de adhesión y tuvo oportunidad de leerla.", 5, False),
+    # Calificacion del lead (llamada comercial de Browix). "expected" es el
+    # criterio que usa el evaluador (app/scoring.py) para decidir si la
+    # respuesta califica; el agente no lo ve.
+    # (texto, criterio de calificacion, peso, requerida)
+    # El nombre no se pregunta aca: en las entrantes es INBOUND_CALLER_NAME y en
+    # las salientes viene del dashboard (si falta, lo pide el prompt).
+    ("¿En qué empresa trabajás?",
+     "El interesado dice el nombre de su empresa.", 10, True),
+    ("¿A qué se dedica la empresa?",
+     "Menciona el rubro o la actividad de la empresa (por ejemplo limpieza, seguridad, logística, trade "
+     "marketing, retail o gastronomía con sucursales, construcción, u otra empresa con personal a cargo).", 8, False),
+    ("¿Cuántos empleados tienen, aproximadamente?",
+     "Da una cantidad o un rango concreto de empleados (por ejemplo 'unos ochenta'). No califica si no lo "
+     "sabe o no lo quiere decir.", 12, False),
+    ("¿Dónde trabaja tu personal: en una oficina, en varias sucursales o en la calle?",
+     "Describe dónde trabaja el personal. Califica si hay personal distribuido: varias sucursales, "
+     "servicios en clientes, obras, o personal itinerante o en la calle.", 10, False),
+    ("¿Cómo controlan hoy la asistencia y los horarios del personal?",
+     "Describe el método actual, y es manual o le genera problemas: planillas, papel, WhatsApp, un reloj "
+     "que no funciona bien, u otro sistema con el que no está conforme.", 10, False),
+    ("¿Qué es lo que más te gustaría resolver o mejorar hoy?",
+     "Plantea al menos una necesidad concreta que Browix resuelve: control horario o presentismo, "
+     "liquidación de horas, turnos, recibos de sueldo digitales, legajo y vencimientos, tareas u operaciones "
+     "en terreno, comunicación interna, uniformes y elementos de protección personal, capacitaciones o "
+     "selección de personal.", 15, True),
+    ("¿Para cuándo te gustaría tenerlo funcionando?",
+     "Indica un plazo concreto y cercano, de hasta unos tres meses (por ejemplo 'ya', 'este mes', 'el mes "
+     "que viene'). No califica 'más adelante', 'el año que viene' o 'no sé'.", 10, False),
+    ("¿Quién toma la decisión de sumar un sistema así en tu empresa?",
+     "El interesado decide o participa directamente de la decisión (dueño, gerente, recursos humanos, "
+     "operaciones), o nombra con claridad a quién decide.", 8, False),
+    ("¿Te gustaría coordinar una demo sin compromiso con un asesor, para verlo funcionando sobre tu operación?",
+     "Acepta coordinar una demo o una reunión con un asesor.", 12, True),
+    ("¿A qué correo te escribimos para coordinarla?",
+     "Da un correo electrónico de contacto.", 5, False),
 ]
 
 SEED_BANDS = [
-    (0, 30, "rechazado"),
-    (31, 55, "a_definir"),
-    (56, 100, "aprobado"),
+    (0, 39, "frio"),
+    (40, 69, "tibio"),
+    (70, 100, "caliente"),
 ]
+
+# Resultados posibles de una banda / del scoring de una llamada.
+OUTCOMES = ("frio", "tibio", "caliente")
 
 
 # Columnas agregadas despues del primer deploy: create_all() no altera tablas que
