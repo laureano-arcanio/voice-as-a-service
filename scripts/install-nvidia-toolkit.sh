@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Instala y configura el NVIDIA Container Toolkit para que Docker pueda pasar
-# las GPUs a los contenedores (necesario para vllm-llm/vllm-stt/vllm-tts en
+# las GPUs a los contenedores (necesario para vllm-llm/stt-parakeet/vllm-tts en
 # docker-compose.yml). Pensado para Ubuntu 24.04 (noble) x86_64.
 #
 # Uso: sudo bash scripts/install-nvidia-toolkit.sh

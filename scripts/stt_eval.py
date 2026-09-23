@@ -1,6 +1,6 @@
-"""Compara el STT candidato levantado (perfil `stt-eval` de docker-compose.yml,
-de a uno) contra el actual (vllm-stt) sobre el mismo corpus: WER y latencia
-por request. Los engines que no responden se saltean.
+"""Mide el STT (stt-parakeet, y cualquier otro de ENGINES que este levantado)
+sobre un corpus: WER y latencia por request. Los engines que no responden se
+saltean.
 
 Manda cada .wav como lo haria el agente (POST /v1/audio/transcriptions,
 language=es, VLLM_API_KEY), de a un request por vez: mide latencia de
@@ -29,7 +29,6 @@ import audioop
 import collections
 import csv
 import io
-import os
 import re
 import statistics
 import time
@@ -43,13 +42,10 @@ from app import config
 from scripts.loadtest.gen_audio import AUDIO_DIR, UTTERANCES
 from scripts.stt_corpus.entity_match import match
 
-# nombre -> (base_url, model). vllm-stt va con su URL/modelo de compose y no
-# con los de config: si .env apunta el agente a un candidato, igual se compara
-# contra Qwen3-ASR.
+# nombre -> (base_url, model). Para comparar otro STT, levantarlo en la red de
+# compose y agregarlo aca.
 ENGINES = {
-    "qwen3-asr": ("http://vllm-stt:8000/v1", os.getenv("VLLM_STT_MODEL", "Qwen/Qwen3-ASR-1.7B")),
     "parakeet": ("http://stt-parakeet:8000/v1", "nvidia/parakeet-tdt-0.6b-v3"),
-    "whisper-turbo": ("http://stt-whisper:8000/v1", "openai/whisper-large-v3-turbo"),
 }
 
 # Mismo bug de qwenllm/qwen3-asr que parchea app/livekit_agent.py: el

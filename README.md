@@ -11,7 +11,7 @@ Contexto del negocio, base de conocimiento y links relevados: `docs/Browix_Conte
 
 - **Backend:** Python 3.12 + FastAPI + SQLAlchemy (MySQL) + Jinja2, servido con uvicorn.
 - **Frontend:** HTML + Vanilla JS (sin frameworks).
-- **Voz:** LiveKit Agents (STT + LLM + TTS, los 3 servidos localmente con vLLM/vLLM-Omni
+- **Voz:** LiveKit Agents (STT + LLM + TTS, los 3 servidos localmente
   sobre GPU propia — ver "Inferencia local" abajo) sobre una troncal SIP (Anura via un
   Asterisk propio, ver "Telefonia" abajo; o Twilio), corriendo como un worker propio
   (`app/livekit_agent.py`, proceso/contenedor
@@ -21,10 +21,10 @@ Contexto del negocio, base de conocimiento y links relevados: `docs/Browix_Conte
 - **Scoring:** el mismo LLM local evalua el transcript contra el cuestionario de calificacion
   (criterio de cada pregunta + ponderacion + flag de requerida) y aplica las bandas de score.
 
-## Inferencia local (vLLM)
+## Inferencia local
 
 No se usan proveedores externos de inferencia (OpenAI, ElevenLabs, Anthropic): LLM, STT
-y TTS corren en 3 contenedores propios (`vllm-llm`, `vllm-stt`, `vllm-tts` en
+y TTS corren en 3 contenedores propios (`vllm-llm`, `stt-parakeet`, `vllm-tts` en
 `docker-compose.yml`) contra la GPU del host, cada uno con API compatible con OpenAI. El
 codigo le habla a los 3 con el mismo `openai` SDK (via los plugins `livekit.plugins.openai`),
 apuntando `base_url` a cada contenedor en vez de a `api.openai.com`.
@@ -32,90 +32,49 @@ apuntando `base_url` a cada contenedor en vez de a `api.openai.com`.
 | Rol | Modelo | Variable | Endpoint | Por que |
 | --- | --- | --- | --- | --- |
 | LLM en vivo + scoring | `Qwen/Qwen3.5-4B` | `VLLM_LLM_MODEL` | `/v1/responses`, `/v1/chat/completions` | Dense, 262K ctx, soporte dia-0 de vLLM. Se invoca con `reasoning_effort=none` para no perder latencia en cadena de razonamiento. |
-| STT | `Qwen/Qwen3-ASR-1.7B` | `VLLM_STT_MODEL` | `/v1/audio/transcriptions` | Soporte dia-0 de vLLM (imagen oficial `qwenllm/qwen3-asr`). Es REST por-turno, no una sesion realtime por WebSocket como `gpt-live-transcribe` (que se usaba antes) -- sin transcript parcial mientras el cliente habla. |
-| TTS | `Qwen/Qwen3-TTS-12Hz-1.7B-Base` | `VLLM_TTS_MODEL` | `/v1/audio/speech` (streaming) | Servido con vLLM-Omni, voz clonada (`VLLM_TTS_VOICE`, default `sofia_ar`) en vez de un preset de fabrica -- ver "Voz clonada" abajo. Se probo tambien `MOSS-TTS-Realtime` (mejor soporte online oficial de vLLM-Omni en su momento) pero es estrictamente voice-cloning sin voces con nombre. |
+| STT | `nvidia/parakeet-tdt-0.6b-v3` | `VLLM_STT_MODEL` | `/v1/audio/transcriptions` | Servidor propio (`stt/server.py`, transformers + batching dinamico): 1,6 GB y mejor que Qwen3-ASR y Whisper Turbo en audio telefonico (ver "Eval de STT"). Es REST por turno, sin transcript parcial mientras el cliente habla. |
+| TTS | Qwen3-TTS 1.7B-Base con fine-tuning (voz `arf_03034`) | `VLLM_TTS_MODEL`, `VLLM_TTS_VOICE` | `/v1/audio/speech` (streaming) | Servido con vLLM-Omni. La voz esta dentro del checkpoint (ver "Voz del TTS" abajo). |
 
 **Requisitos de host:** 1+ GPU NVIDIA con el [NVIDIA Container
 Toolkit](https://github.com/NVIDIA/nvidia-container-toolkit) instalado y configurado
 (`nvidia-ctk runtime configure --runtime=docker` + reiniciar Docker) — sin esto los 3
-contenedores `vllm-*` no arrancan (`docker compose up` falla al reservar el device). El
+contenedores de inferencia no arrancan (`docker compose up` falla al reservar el device). El
 reparto de GPU/memoria entre los 3 esta documentado con detalle en los comentarios de
 `docker-compose.yml` (fue bastante mas quisquilloso de lo esperado: los modelos de audio
 reservan memoria fuera del budget normal de KV-cache, y vLLM sigue capturando CUDA graphs
 nuevos con el trafico real, asi que el uso real de VRAM termina bien por encima de lo que
 estima `--gpu-memory-utilization` en frio). Probado en vivo contra 2x RTX 3090 (24GB c/u):
-TTS sola en una GPU, LLM+STT compartiendo la otra -- la mejor de las configuraciones
+TTS sola en la GPU 0, LLM + STT compartiendo la GPU 1 -- la mejor de las configuraciones
 medidas (ver `docs/experiments/` y `AGENTS.md`).
 
-### Voz clonada (TTS)
+### Voz del TTS
 
-El agente usa una voz clonada (espanol argentino) en vez de un preset de fabrica: mas
-natural para este caso de uso y controlable en tono/acento. El checkpoint es
-`Qwen/Qwen3-TTS-12Hz-1.7B-**Base**` (no `-CustomVoice`, que trae 9 presets pero tiene un bug
-real -- su speaker encoder devuelve embeddings de 1024 dims contra los 2048 que espera el
-talker de 1.7B, y cualquier intento de clonado con ese checkpoint tira 500 y mata el engine
-entero; probado en vivo, hay que reiniciar el contenedor cada vez).
+La voz (`arf_03034`, espanol argentino, de OpenSLR 61) esta entrenada dentro del checkpoint:
+Qwen3-TTS-12Hz-1.7B-Base con fine-tuning de una sola voz (tipo `custom_voice`). El agente la
+pide por nombre (`VLLM_TTS_VOICE`), sin audio de referencia. `vllm-tts` sirve el checkpoint de
+`TTS_FT_CKPT` (default `tts/finetune/work/runs/arf_03034/lr2e-6/checkpoint-epoch-5`, no
+versionado) con el nombre `VLLM_TTS_MODEL` (`arf_03034-ft`). Entrenar, evaluar y cambiar de
+checkpoint: `docs/TTS_FINETUNE.md`. Primer audio por oracion en llamada: 0,04-0,08 s.
 
-**La voz se sube UNA sola vez** (no en cada llamada -- eso seria mas lento, ver mas abajo) via:
-
-```bash
-curl -X POST http://localhost:8103/v1/audio/voices \
-  -F "audio_sample=@/ruta/a/tu/muestra.wav;type=audio/wav" \
-  -F "name=sofia_ar" \
-  -F "consent=<referencia a la fuente/consentimiento de este audio>" \
-  -F "ref_text=<transcripcion exacta de lo que dice el audio>" \
-  -F "speaker_description=Voz femenina adulta con acento argentino, calida y profesional"
-```
-
-Despues de subirla, `VLLM_TTS_VOICE=sofia_ar` en `.env` la usa exactamente igual que un
-preset (`openai.TTS(voice="sofia_ar", ...)`, sin cambios de codigo) -- el server infiere
-que es una voz clonada por el nombre, sin hacer falta mandar `ref_audio` en cada sintesis.
-
-La voz queda guardada en el volumen `vllm_tts_speakers` (sobrevive `docker compose down` /
-recreates del contenedor). Si se pierde el volumen o se hace un deploy nuevo desde cero,
-hay que volver a correr el `curl` de arriba antes de que el agente pueda hablar -- sin una
-voz llamada como dice `VLLM_TTS_VOICE`, la sintesis falla.
-
-**Latencia:** clonar agrega ~450ms de TTFB extra sobre un preset de fabrica (~500ms medido
-en vivo vs ~50-60ms con un preset). Sigue siendo streaming, y el total por turno (STT+LLM+TTS)
-quedo en ~1.5-1.6s en las pruebas -- aceptable para esta demo, pero es la primera palanca a
-revisar si hace falta bajar mas la latencia percibida.
+Antes se usaba una voz clonada (`sofia_ar`) sobre el checkpoint Base, subida por
+`POST /v1/audio/voices`; el volumen `vllm_tts_speakers` que la guardaba ya no se monta.
 
 **Limitacion conocida:** el modo streaming (necesario para no matar la latencia de la
 llamada) no soporta ajuste de velocidad -- `VLLM_TTS_SPEED` != 1.0 tira 400. Ver comentario
 en `app/config.py`.
 
-### Probar otros STT (perfil `stt-eval`, opcional)
+### Eval de STT
 
-Dos candidatos para comparar contra Qwen3-ASR, con el mismo
-`/v1/audio/transcriptions` y el mismo `VLLM_API_KEY` (el agente los usa sin tocar codigo):
-
-| Servicio | Modelo | Como corre | Puerto host |
-| --- | --- | --- | --- |
-| `stt-parakeet` | `nvidia/parakeet-tdt-0.6b-v3` | `stt/server.py` + transformers, GPU 0 (~1.6GB) | `:8105` |
-| `stt-whisper` | `openai/whisper-large-v3-turbo` | vLLM nativo, GPU 0 (~4GB) | `:8106` |
+Parakeet se eligio contra Qwen3-ASR-1.7B (el STT anterior) y Whisper Large v3 Turbo con las
+mediciones de abajo. Esos dos servicios ya no estan en el compose: para volver a compararlos
+hay que recuperarlos del historial de git (commit `9456dcc`) como override.
 
 ```bash
-make stt-eval-up STT=stt-parakeet   # build + levanta UNO (baja el otro) y espera healthy
-make stt-eval                        # WER + latencia de vllm-stt vs ese candidato
+make stt-eval                        # WER + latencia de stt-parakeet (corpus del load test)
 make stt-eval ARGS="--telephone"     # idem con el audio degradado a 8kHz mu-law (llamada real)
-make stt-eval-down                   # lo baja y libera la VRAM
 ```
 
-Se levantan de a uno, nunca los dos juntos.
-
-Para probar uno en llamadas reales: `VLLM_STT_BASE_URL` + `AGENT_STT_MODEL` en `.env`
-(ver `.env.example`) y `docker compose up -d agent`.
-
-**Loadtest de los candidatos** (loadtest en otra PC, como en `docs/experiments/`):
-`make servers-whisper`, `make servers-parakeet` o `make servers-qwen` (la vigente) dejan
-este host como server de inferencia con ese STT. Para los candidatos usan el override
-`docker-compose.stt-candidates.yml`, que apaga `vllm-stt` y pone el candidato en su
-lugar, la GPU 1 junto a la LLM, porque TTS no comparte GPU (ver `AGENTS.md`). Se mide uno
-por vez; la PC del loadtest le pega con `VLLM_STT_BASE_URL=http://$PUBLIC_HOST:$PROXY_PORT/stt-<nombre>/v1`
-y `VLLM_STT_MODEL=<modelo>` en su `.env` (alla no corre `vllm-stt`, asi que ahi si se
-cambia `VLLM_STT_MODEL`). Runbook en `docs/experiments/README.md`, seccion "STT candidatos". Parakeet expone
-`/metrics` con los nombres de vLLM, asi que `sampler.py`/`analyze.py` lo miden
+Parakeet expone `/metrics` con los nombres de vLLM, asi que `sampler.py`/`analyze.py` lo miden
 igual que al resto.
 
 Primera medicion (sep-2026, 9 audios del corpus del load test, requests de a uno, audio
@@ -123,7 +82,7 @@ limpio / telefonico):
 
 | STT | WER | Latencia p50 |
 | --- | --- | --- |
-| Qwen3-ASR-1.7B (actual) | 5.6% / 7.4% | 71 / 83 ms |
+| Qwen3-ASR-1.7B | 5.6% / 7.4% | 71 / 83 ms |
 | Parakeet TDT 0.6B v3 | 5.6% / 5.6% | 53 / 50 ms |
 | Whisper Large v3 Turbo | 5.6% / 5.6% | 73 / 71 ms |
 
@@ -169,7 +128,7 @@ por bootstrap:
   "mail" o "correo", pero ninguna dicta una direccion.
 - Salidas crudas: `scripts/stt_corpus/data/results/<motor>_<variante>.txt`.
 
-**Corpus de datos dictados:** `make stt-corpus-entities` (requiere `vllm-tts` arriba, ~11 min) arma
+**Corpus de datos dictados:** `scripts/stt_corpus/entities.py` (~11 min) arma
 400 textos: 100 emails, 100 direcciones (~64% de Cordoba), 100 telefonos argentinos (sin +549) y
 100 DNI de 8 digitos. Cada texto se sintetiza con una voz de mujer y una de hombre: son 800 audios,
 1,2 h, en las mismas 4 variantes. Las voces son 20 hablantes de OpenSLR 61 clonadas por request
@@ -184,7 +143,7 @@ como lo escriba el STT: "larcanio arroba gmail punto com" y "larcanio@gmail.com"
 texto se valida contra si mismo antes de sintetizarlo. Es voz sintetica: sirve para comparar motores
 y encontrar fallas sistematicas, no para estimar el acierto real en produccion.
 
-**El TTS del corpus es CosyVoice3 (`make tts-cosyvoice-up`), no `vllm-tts`:** Qwen3-TTS tartamudea
+**El TTS del corpus fue CosyVoice3, no `vllm-tts`:** Qwen3-TTS tartamudea
 ("punto co com") y corta frases en los dictados largos, y ese defecto queda en el audio, no en el STT
 que se quiere medir. Peor todavia, es un defecto que sesga la comparacion: un STT con decoder LLM lo
 reescribe y uno literal lo transcribe, asi que castiga al segundo. Cada audio se controla despues con
@@ -240,29 +199,11 @@ WER del mismo corpus, para comparar con el de OpenSLR (aca mas bajo es mejor):
   dictado de letras, digitos y dominios, y el audio es sintetico.
 - Salidas crudas: `scripts/stt_corpus/data/results/ent2_<motor>_<variante>.txt`.
 
-**Reproducir estas tablas** (los audios marcados con defecto de TTS se saltean solos; con
-`--include-defects` se cuentan):
-
-```bash
-make stt-corpus                     # corpus de OpenSLR 61 (voces reales); no necesita GPU
-docker compose stop vllm-tts        # CosyVoice3 necesita la GPU 0 para el solo
-make tts-cosyvoice-up
-make stt-corpus-entities            # ~45 min: sintesis + control del audio + variantes
-make tts-cosyvoice-down && docker compose start vllm-tts
-
-# los 3 STT a la vez: Whisper en la GPU 0 (con TTS), Parakeet y Qwen3-ASR en la GPU 1
-STT_EVAL_GPU=1 docker compose --profile stt-eval up -d --no-deps --wait stt-parakeet
-STT_EVAL_GPU=0 docker compose --profile stt-eval up -d --no-deps --wait stt-whisper
-for e in qwen3-asr parakeet whisper-turbo; do
-  for v in clean16k tel8k tel8k_noise tel8k_cuts; do
-    make stt-eval ARGS="--engines $e --audio-dir scripts/stt_corpus/data/entities/$v --runs 1"
-  done
-done
-make stt-eval-down                  # libera la VRAM de los candidatos
-```
-
-Cada corrida imprime su WER y su tabla de acierto por dato; las tablas de arriba son esas 12
-corridas juntas. Para el corpus de OpenSLR es lo mismo cambiando `entities` por `openslr61`.
+**Reproducir estas tablas:** `make stt-corpus` arma el corpus de OpenSLR (no necesita GPU) y
+`make stt-eval ARGS="--audio-dir scripts/stt_corpus/data/<openslr61|entities>/<variante> --runs 1"`
+mide Parakeet sobre cada variante (los audios marcados con defecto de TTS se saltean solos; con
+`--include-defects` se cuentan). Regenerar el corpus de datos dictados necesita un TTS que clone
+voces (CosyVoice 3, `--tts-url`), que ya no esta en el compose.
 
 Para decidir, grabar recortes de llamadas reales (`X.wav` +
 `X.txt` con el transcript correcto) y correr `make stt-eval ARGS="--audio-dir scripts/<dir>"`.
@@ -288,22 +229,27 @@ llamadas: 0,6-1 s de primer audio con una llamada y 1-1,8 s con 4 (Qwen3-TTS: 0,
 ## Correr con Docker Compose
 
 ```bash
-cp .env.example .env   # completar credenciales (ver "Claves necesarias" abajo)
-docker compose up -d
+make setup   # crea .env desde .env.example; completar credenciales (ver "Claves necesarias")
+make up      # todo: agente + inferencia + proxy + asterisk
 ```
 
-Levanta seis servicios: `db` (MySQL 8), `app` (FastAPI en `:8011`), `agent` (el worker
-de LiveKit, sin puerto expuesto — conecta saliente a LiveKit Cloud) y `vllm-llm` /
-`vllm-stt` / `vllm-tts` (inferencia local sobre GPU, ver seccion de abajo). `app` y
-`agent` esperan a que los `vllm-*` esten healthy antes de arrancar — la primera vez
-tarda varios minutos (descarga de pesos + carga en GPU).
+| Target | Servicios |
+| --- | --- |
+| `make up` | todos |
+| `make up-agent` | `db` + `app` (`:8011`) + `agent` (worker de LiveKit), sin la inferencia |
+| `make up-inference` | `vllm-llm` + `stt-parakeet` + `vllm-tts` (espera a que esten healthy) |
+| `make up-nginx` | `proxy` (entrada publica a la inferencia) |
+| `make up-pbx` | `asterisk` (lo recrea para releer `.env` y `asterisk/conf/`) |
 
-### Exponer los vLLM por la IP fija (opcional)
+`app` y `agent` esperan a que la inferencia este healthy antes de arrancar — la primera vez
+tarda varios minutos (descarga de pesos + carga en GPU). `make logs S=<servicio>`,
+`make restart S=<servicio>`, `make health` y `make help` para el resto.
 
-Para consumir LLM/STT/TTS desde afuera del host. Un proxy nginx (perfil `proxy` de
-compose, `proxy/nginx.conf`) escucha en `0.0.0.0:$PROXY_PORT` (8100) y rutea por path a
-cada vLLM, sacando el prefijo para que llegue `/v1/...`. `make up` no lo arranca, solo
-`make proxy`.
+### Inferencia por la IP fija
+
+Para consumir LLM/STT/TTS desde afuera del host. El proxy nginx (`proxy/nginx.conf`) escucha
+en `0.0.0.0:$PROXY_PORT` (8100) y rutea por path a cada servicio, sacando el prefijo para que
+llegue `/v1/...`. Lo levanta `make up` (o solo el, `make up-nginx`).
 
 1. Completar en `.env`:
    - `VLLM_API_KEY` con una clave real y larga (`openssl rand -hex 24`): los 3
@@ -312,25 +258,25 @@ cada vLLM, sacando el prefijo para que llegue `/v1/...`. `make up` no lo arranca
    - `PUBLIC_HOST`: la IP fija del host (hoy `181.104.113.28`), sin esquema ni puerto.
    - `PROXY_PORT`: 8100 por defecto.
 2. En el router: redirigir `PROXY_PORT` (TCP) a este host (`192.168.1.99`).
-3. `make proxy`. No depende de los `vllm-*`: el que este apagado da 502 en su path.
+3. `make up-nginx` imprime las URLs. No depende de la inferencia: el servicio que este
+   apagado da 502 en su path.
 
    | Servicio | Base URL OpenAI-compatible |
    | -------- | -------------------------- |
    | LLM      | `http://$PUBLIC_HOST:$PROXY_PORT/llm/v1` |
    | STT      | `http://$PUBLIC_HOST:$PROXY_PORT/stt/v1` |
    | TTS      | `http://$PUBLIC_HOST:$PROXY_PORT/tts/v1` |
-   | STT candidatos (perfil `stt-eval`) | `http://$PUBLIC_HOST:$PROXY_PORT/stt-parakeet/v1`, `/stt-whisper/v1` |
 
    ```bash
    curl http://$PUBLIC_HOST:$PROXY_PORT/llm/v1/models -H "Authorization: Bearer $VLLM_API_KEY"
    ```
 
-Es HTTP plano: la clave y el audio viajan sin cifrar. Logs: `make logs-proxy`. Para
+Es HTTP plano: la clave y el audio viajan sin cifrar. Logs: `make logs S=proxy`. Para
 apagarlo: `docker compose stop proxy`.
 
 ### Inferencia remota: app/agent en otra PC
 
-El host GPU corre solo la inferencia (`make proxy`); una PC sin GPU puede correr
+El host GPU corre la inferencia y el proxy (`make up-inference up-nginx`); una PC sin GPU puede correr
 el resto del stack (`db` + `app` + `agent`) apuntando los vLLM a las URLs del
 proxy. No hace falta tocar codigo: los plugins de LiveKit ya usan
 `base_url`/`api_key` de `.env`.
@@ -342,12 +288,12 @@ proxy. No hace falta tocar codigo: los plugins de LiveKit ya usan
    - `VLLM_TTS_BASE_URL=http://$PUBLIC_HOST:$PROXY_PORT/tts/v1`
    - `VLLM_API_KEY`: la misma clave real configurada en el host GPU.
    - `VLLM_LLM_MODEL` / `VLLM_STT_MODEL` / `VLLM_TTS_MODEL` / `VLLM_TTS_VOICE`:
-     iguales a lo que sirve el host GPU (la voz clonada, ej. `sofia_ar`, vive en
-     el volumen del `vllm-tts` del host GPU; la PC remota solo la referencia).
+     iguales a lo que sirve el host GPU (la voz vive en el checkpoint del host GPU;
+     la PC remota solo la referencia).
    - `MYSQL_*`: propios de esa PC (su `db` local).
-2. `make up-remote` -> levanta `db`, espera a que este healthy, y recien ahi
-   `app` + `agent` con `--no-deps` (no intenta arrancar los `vllm-*`, que en esa
-   PC no existen). No correr `make up` en la PC remota.
+2. `make up-agent` -> levanta `db`, espera a que este healthy, y recien ahi
+   `app` + `agent` con `--no-deps` (no intenta arrancar la inferencia, que en esa
+   PC no existe). No correr `make up` en la PC remota.
 
 Ojo con la latencia: cada turno de la llamada cruza internet (ida y vuelta) hasta
 el host GPU.
@@ -375,17 +321,17 @@ el host GPU.
 ### Telefonia: Anura via Asterisk
 
 Troncal SIP argentina de [Anura](https://kb.anura.com.ar/es/) con un Asterisk en Docker
-(servicio `asterisk`, perfil `pbx`) de puente: registra la troncal, pasa las entrantes a
+(servicio `asterisk`) de puente: registra la troncal, pasa las entrantes a
 LiveKit y las salientes del agente a Anura, traduciendo los formatos de numero. Runbook
 completo (port forwarding del router, troubleshooting): `docs/TELEFONIA_ANURA.md`.
 
 1. Completar el bloque "Telefonia" de `.env` (`ANURA_*`, `LIVEKIT_SIP_HOST`,
    `LIVEKIT_SIP_PASSWORD`).
 2. Router: redirigir `5080/udp` y `10000-10199/udp` a este host y apagar el SIP ALG.
-3. `make pbx` y `make pbx-status` -> el registro con Anura tiene que decir `Registered`.
+3. `make up-pbx` y `make pbx-status` -> el registro con Anura tiene que decir `Registered`.
 4. `make livekit-sip` -> crea los trunks entrante/saliente y la dispatch rule en LiveKit;
-   poner el `ST_...` que imprime en `LIVEKIT_SIP_TRUNK_ID` y `make up` (recrea el agente con el
-   `.env` nuevo).
+   poner el `ST_...` que imprime en `LIVEKIT_SIP_TRUNK_ID` y `make up-agent` (recrea el agente
+   con el `.env` nuevo).
 
 ### Runbook: Twilio + LiveKit (configuracion manual, una sola vez)
 

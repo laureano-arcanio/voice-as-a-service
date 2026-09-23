@@ -61,7 +61,7 @@ services:
         condition: service_healthy
       vllm-llm:
         condition: service_healthy
-      vllm-stt:
+      stt-parakeet:
         condition: service_healthy
       vllm-tts:
         condition: service_healthy
@@ -86,30 +86,19 @@ services:
         soft: 65536
         hard: 65536
 
-  # --- Inferencia local (vLLM), GPU-only --------------------------------
-  # Sirven LLM/STT/TTS via API compatible con OpenAI. `app` y `agent` (arriba)
-  # les hablan con los plugins livekit.plugins.openai, apuntando base_url a
-  # cada uno -- ya no se depende de OpenAI/ElevenLabs/Anthropic. Requieren
-  # NVIDIA Container Toolkit en el host (`nvidia-ctk runtime configure
-  # --runtime=docker` + restart de Docker) para que
-  # `deploy.resources.reservations.devices` les de acceso a la GPU.
+  # --- Inferencia local, GPU-only ----------------------------------------
+  # LLM, STT y TTS con API compatible con OpenAI. `app` y `agent` les hablan con
+  # los plugins livekit.plugins.openai, apuntando base_url a cada uno. Requieren
+  # NVIDIA Container Toolkit en el host (scripts/install-nvidia-toolkit.sh).
   #
-  # Reparto en las 2x RTX 3090 (24GB c/u) de este host: TTS sola en la GPU 0
-  # (medido bajo carga: TTS satura su GPU por si solo y es el cuello de
-  # latencia), LLM + STT comparten la GPU 1 (la que tambien dibuja el
-  # escritorio, ~1.4GB; a la LLM le sobra GPU y STT es liviano). --gpu-memory-utilization es una reserva FIJA
-  # (fraccion de la memoria TOTAL de esa GPU, no de "lo que sobra"), asi que en
-  # una GPU compartida las fracciones de los servicios que la comparten tienen
-  # que sumar bien por debajo de 1.0 o el segundo servicio en arrancar falla
-  # limpio con "Free memory ... is less than desired GPU memory utilization" --
-  # y ese numero no es solo pesos + KV cache: vLLM sigue capturando CUDA graphs
-  # nuevos a medida que llegan requests reales (ver --max-cudagraph-capture-size
-  # abajo), asi que la memoria real bajo trafico termina bien por encima de lo
-  # que estima en frio. Probado en vivo: Qwen3.5-4B solo ya usa ~17GB con
-  # margen para no OOMear bajo carga -- por eso va sola en su propia GPU en vez
-  # de compartir con STT como en un intento anterior. STT y TTS (~1.7B cada
-  # uno) combinan mejor entre si. Reventilar estos numeros con `nvidia-smi` si
-  # se agregan mas servicios o sube la concurrencia.
+  # Reparto en las 2x RTX 3090 (24GB c/u) de este host (EXP-003 y EXP-008):
+  #   GPU 0: vllm-tts sola. TTS satura su GPU por si solo y es el cuello de
+  #          latencia: no comparte, ni con otra replica (EXP-001 a 004).
+  #   GPU 1: vllm-llm (0.55) + stt-parakeet (~1.6GB) + escritorio (~1.4GB).
+  # --gpu-memory-utilization es una reserva FIJA (fraccion de la memoria TOTAL
+  # de esa GPU), y vLLM sigue capturando CUDA graphs bajo trafico (ver
+  # --max-cudagraph-capture-size abajo): los que comparten GPU tienen que sumar
+  # bien por debajo de 1.0. Revisar con `nvidia-smi` si se agrega algo.
 
   vllm-llm:
     # LLM conversacional: Qwen3.5-4B (dense, cabe en 16GB+). API OpenAI-compatible
@@ -127,11 +116,11 @@ services:
       - "--port=8000"
       # El server exige esta clave como `Authorization: Bearer` en /v1/*
       # (health queda libre). app/agent ya mandan VLLM_API_KEY; si se expone
-      # por el proxy (`make proxy`) usar una clave real en .env (ver .env.example).
+      # por el proxy usar una clave real en .env (ver .env.example).
       - "--api-key=${VLLM_API_KEY:-not-needed}"
       - "--max-model-len=32768"
       - "--reasoning-parser=qwen3"
-      # Comparte la GPU 1 con vllm-stt (0.30) y el escritorio (~1.4GB). Pesos
+      # Comparte la GPU 1 con stt-parakeet (~1.6GB) y el escritorio (~1.4GB). Pesos
       # 8.6GiB + ~2.7GiB de overhead: 0.55 (~13.2GiB) deja ~1.9GiB de KV cache.
       # Con 0.75 el KV cache (7GiB) nunca paso de 7% de uso bajo 32 sesiones.
       - "--gpu-memory-utilization=0.55"
@@ -169,45 +158,26 @@ services:
       # Descarga de pesos + carga en GPU puede tardar varios minutos la primera vez.
       start_period: 300s
 
-  vllm-stt:
-    # STT: Qwen3-ASR-1.7B. Imagen oficial del equipo Qwen (`qwen-asr-serve` es un
-    # wrapper de `vllm serve`). Expone /v1/audio/transcriptions (y tambien
-    # /v1/chat/completions con audio) compatible con OpenAI -- pero es un
-    # endpoint REST por-turno, no una sesion realtime por WebSocket como la que
-    # se usaba antes con gpt-live-transcribe (ver openai.STT(use_realtime=False)
-    # en app/livekit_agent.py: sin transcript parcial mientras el cliente habla).
-    image: qwenllm/qwen3-asr:latest
+  stt-parakeet:
+    # STT: NVIDIA Parakeet TDT 0.6B v3 (FastConformer + TDT, 25 idiomas europeos
+    # con deteccion automatica; no acepta pista de idioma). vLLM no lo sirve:
+    # corre en stt/server.py via transformers (AutoModelForTDT), sin NeMo, con
+    # batching dinamico (STT_MAX_BATCH) y /metrics con nombres de vLLM para el
+    # sampler. Reemplazo a Qwen3-ASR-1.7B (EXP-007/008): 101-130 ms con 1,6GB,
+    # contra 7GB de Qwen3-ASR. Endpoint REST por turno
+    # (/v1/audio/transcriptions), sin parciales.
+    build: ./stt
     restart: unless-stopped
-    ipc: host
-    # Depende de vllm-llm (no al reves) para NO arrancar en paralelo con el:
-    # los dos comparten la GPU 1 y, probado en vivo, si arrancan a la vez
-    # compiten por la memoria libre en ese instante y uno de los dos falla su
-    # primer intento (aunque despues se recupera solo por `restart:
-    # unless-stopped`, `docker compose up` ya considera fallido el dependiente
-    # -- en este caso `agent` -- si ve pasar por "unhealthy" aunque sea una vez).
+    # Comparte la GPU 1 con vllm-llm: arranca despues para no competir por la
+    # memoria libre al cargar (si arrancan a la vez, uno falla el primer intento
+    # y `compose up` da por fallido al dependiente).
     depends_on:
       vllm-llm:
         condition: service_healthy
     environment:
       HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
-    # A diferencia de vllm/vllm-openai (ENTRYPOINT ["vllm","serve"]), esta imagen
-    # usa el entrypoint generico de NVIDIA (/opt/nvidia/nvidia_entrypoint.sh) y
-    # ejecuta el CMD tal cual -- hay que llamar a qwen-asr-serve explicitamente.
-    command:
-      - "qwen-asr-serve"
-      - "${VLLM_STT_MODEL:-Qwen/Qwen3-ASR-1.7B}"
-      - "--host=0.0.0.0"
-      - "--port=8000"
-      # Ver comentario del --api-key en vllm-llm.
-      - "--api-key=${VLLM_API_KEY:-not-needed}"
-      # Comparte la GPU 1 con vllm-llm (ver comentario de reparto arriba).
-      # 0.25 (~6GB) no alcanzo en la practica: el encoder de audio reserva
-      # cache aparte del KV cache del decoder, y solo quedaban 0.58 de 0.88GiB
-      # necesarios. 0.30 (~7.2GB) alcanza y deja lugar a vllm-llm en la misma GPU.
-      - "--gpu-memory-utilization=0.30"
-      # El default (auto, 65536) pide 7GiB solo de KV cache. Transcribir un
-      # turno de llamada no necesita tanto contexto; 8192 deja margen holgado.
-      - "--max-model-len=8192"
+      STT_MODEL: nvidia/parakeet-tdt-0.6b-v3
+      STT_API_KEY: ${VLLM_API_KEY:-not-needed}
     volumes:
       - hf_cache:/root/.cache/huggingface
     ports:
@@ -227,28 +197,14 @@ services:
       start_period: 300s
 
   vllm-tts:
-    # TTS: Qwen3-TTS-12Hz-1.7B-Base, servido con vLLM-Omni (`--omni`). "Base"
-    # es el checkpoint de voice-cloning (a diferencia de -CustomVoice, que
-    # sirve las 9 voces preseteadas de fabrica: aiden, dylan, eric, ono_anna,
-    # ryan, serena, sohee, uncle_fu, vivian -- probado que ninguna suena a
-    # espanol argentino, y ademas -CustomVoice tiene un bug real: su speaker
-    # encoder devuelve embeddings de 1024 dims pero el talker de 1.7B espera
-    # 2048 -- CUALQUIER intento de clonado con ese checkpoint tira 500 y
-    # mata el engine entero (Stage-0 crash, hay que reiniciar el contenedor).
-    # -Base no tiene ese bug (probado en vivo, varios requests seguidos sin
-    # crashear) y por eso es el que se usa aca.
-    #
-    # Clonado: la voz se sube UNA sola vez via POST /v1/audio/voices (nombre,
-    # audio de referencia, transcript) y de ahi en mas se usa por nombre en
-    # VLLM_TTS_VOICE, igual de rapido que un preset -- no hay que resubir el
-    # audio en cada sintesis. El server infiere el task_type=Base solo con
-    # ver que el nombre de voice es una voz subida, asi que el plugin generico
-    # openai.TTS(voice=..., base_url=...) sigue sirviendo tal cual, sin wrapper
-    # custom. Ver README para el comando de registro.
-    #
-    # Se descarto MOSS-TTS-Realtime (elegido originalmente por su soporte
-    # oficial vLLM-Omni + streaming, ver historial): incompatible con este
-    # flujo de voces guardadas.
+    # TTS: Qwen3-TTS-12Hz-1.7B-Base con fine-tuning de una voz (arf_03034,
+    # docs/TTS_FINETUNE.md), servido con vLLM-Omni (`--omni`). El checkpoint es
+    # tipo custom_voice: la voz va por nombre (VLLM_TTS_VOICE), sin audio de
+    # referencia. Para servir otro checkpoint: TTS_FT_CKPT, VLLM_TTS_MODEL
+    # (<voz>-ft) y VLLM_TTS_VOICE en .env, y `make up-inference`.
+    # Descartados: 0.6B-Base (~1% de pedidos sin fin de audio, 47 s generando),
+    # CosyVoice 3 (0,6-1 s de primer audio con una llamada) y el -CustomVoice
+    # de fabrica (ninguna voz suena argentina y clonar con el rompe el engine).
     #
     # OJO: fijar version, NO usar :latest -- latest (v0.29.0rc1, sep-2026) trae
     # un vllm interno (0.28.0) desalineado con vllm_omni (0.29.0rc1) y no arranca
@@ -265,26 +221,27 @@ services:
     command:
       - "vllm"
       - "serve"
-      - "${VLLM_TTS_MODEL:-Qwen/Qwen3-TTS-12Hz-1.7B-Base}"
+      - "/models/ft"
+      - "--served-model-name=${VLLM_TTS_MODEL:-arf_03034-ft}"
       - "--omni"
       - "--host=0.0.0.0"
       - "--port=8000"
       # Ver comentario del --api-key en vllm-llm.
       - "--api-key=${VLLM_API_KEY:-not-needed}"
-      # Sola en la GPU 0 (ver comentario de reparto arriba). El uso maximo de
-      # KV cache medido con 32 sesiones fue 5%; sobra, pero no hay con quien
-      # compartir la GPU (ver vllm-tts-2 abajo).
+      # Sola en la GPU 0 (ver reparto arriba). El uso maximo de KV cache medido
+      # con 32 sesiones fue 5%; sobra, pero no hay con quien compartir la GPU.
       - "--gpu-memory-utilization=0.4"
-      # Igual que vllm-stt: el default (auto) carga un segundo modelo interno
-      # (el decoder Code2Wav) con max_model_len=65536, de sobra para sintetizar
-      # una frase. Acotarlo baja el uso real de memoria bajo carga.
+      # El default (auto) carga un segundo modelo interno (el decoder Code2Wav)
+      # con max_model_len=65536, de sobra para sintetizar una frase. Acotarlo
+      # baja el uso real de memoria bajo carga.
       - "--max-model-len=4096"
     volumes:
       - hf_cache:/root/.cache/huggingface
-      # Las voces subidas via POST /v1/audio/voices se guardan aca (NO en
-      # hf_cache) -- sin este volumen se pierden cada vez que se recrea el
-      # contenedor y hay que resubirlas.
-      - vllm_tts_speakers:/root/.cache/vllm-omni/speakers
+      - ${TTS_FT_CKPT:-./tts/finetune/work/runs/arf_03034/lr2e-6/checkpoint-epoch-5}:/models/ft:ro
+      # Voces subidas por POST /v1/audio/voices. Volumen propio: el de la voz
+      # clonada anterior (vllm_tts_speakers) restauraria sofia_ar (task Base)
+      # sobre un checkpoint custom_voice.
+      - vllm_tts_speakers_ft:/root/.cache/vllm-omni/speakers
     ports:
       - "127.0.0.1:8103:8000"
     deploy:
@@ -301,199 +258,20 @@ services:
       retries: 10
       start_period: 300s
 
-  # Segunda replica de TTS. Opt-in (perfil `tts2`) y pensada para una GPU
-  # PROPIA (cambiar device_ids): probado con las dos replicas en la misma GPU 0
-  # y balanceo least_conn, fue PEOR que una sola -- con 32 sesiones la latencia
-  # entre tokens paso de 32ms a 71ms (el tope para audio en tiempo real a 12Hz
-  # es 83ms) y el TTFT del stage 1 de 219ms a 460ms. El cuello es la GPU, no el
-  # thread del engine: dos procesos se turnan la GPU y cada uno batchea la
-  # mitad. Para usarla: darle otra GPU, bajar/ajustar gpu-memory-utilization si
-  # comparte, y agregarla al upstream `tts` de proxy/nginx.conf.
-  # OJO: las voces subidas por POST /v1/audio/voices caen en UNA replica; el
-  # volumen de speakers es compartido, pero la otra puede necesitar restart
-  # para verla.
-  vllm-tts-2:
-    extends:
-      service: vllm-tts
-    profiles: ["tts2"]
-    # Arranca despues de vllm-tts: comparten GPU (ver comentario en vllm-stt).
-    depends_on:
-      vllm-tts:
-        condition: service_healthy
-    ports: !override
-      - "127.0.0.1:8104:8000"
-
-  # --- Candidatos de STT para comparar contra vllm-stt (perfil `stt-eval`) ---
-  # Opt-in: `make up` no los arranca. Se levantan de a uno, nunca juntos:
-  # `make stt-eval-up STT=stt-parakeet|stt-whisper` levanta uno (y baja el
-  # otro) y `make stt-eval` corre scripts/stt_eval.py (WER + latencia contra
-  # vllm-stt sobre el mismo corpus). Exponen /v1/audio/transcriptions
-  # compatible con OpenAI en :8000 y exigen el mismo VLLM_API_KEY, asi que para
-  # probar uno en llamadas reales alcanza con apuntar VLLM_STT_BASE_URL/
-  # AGENT_STT_MODEL del agente a el (ver .env.example) -- sin tocar codigo.
-  #
-  # GPU: van a la GPU de vllm-tts (STT_EVAL_GPU, default 0), que es la que
-  # tiene lugar -- la GPU 1 (vllm-llm + vllm-stt + escritorio) queda con ~3GB.
-  # Medido en vivo (nvidia-smi) con vllm-tts ocupando ~12.7GB: parakeet ~1.6GB,
-  # whisper ~4GB (reserva fija de --gpu-memory-utilization).
-  # Eso sirve para `make stt-eval`, NO para medir capacidad (TTS no comparte
-  # GPU, ver AGENTS.md): para el loadtest, docker-compose.stt-candidates.yml
-  # los pone en la GPU 1 en lugar de vllm-stt.
-  # Se probo tambien Moonshine Spanish y se descarto: solo corre en CPU (su
-  # runtime trae ONNX Runtime sin CUDA y modelos int8 para CPU), 33% de WER
-  # contra 5.6% de los demas, y licencia no comercial.
-
-  stt-parakeet:
-    # NVIDIA Parakeet TDT 0.6B v3 (FastConformer + TDT, 25 idiomas europeos
-    # con deteccion automatica -- no acepta pista de idioma). vLLM no lo sirve:
-    # corre en stt/server.py via transformers (AutoModelForTDT), sin NeMo.
-    build: ./stt
-    profiles: ["stt-eval"]
-    restart: unless-stopped
-    environment:
-      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
-      STT_MODEL: nvidia/parakeet-tdt-0.6b-v3
-      STT_API_KEY: ${VLLM_API_KEY:-not-needed}
-    volumes:
-      - hf_cache:/root/.cache/huggingface
-    ports:
-      - "127.0.0.1:8105:8000"
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              device_ids: ["${STT_EVAL_GPU:-0}"]
-              capabilities: ["gpu"]
-    healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
-      interval: 15s
-      timeout: 5s
-      retries: 10
-      start_period: 300s
-
-  stt-whisper:
-    # Whisper Large v3 Turbo: vLLM lo sirve nativo (/v1/audio/transcriptions).
-    # Acepta `language` (el agente manda "es").
-    build:
-      context: ./stt
-      # La imagen oficial no trae el extra vllm[audio]: sin el, TODO POST a
-      # /v1/audio/transcriptions da 400 "Invalid or unsupported audio file"
-      # (probado). Se instalan solo esas dependencias -- `pip install
-      # vllm[audio]` reinstalaria vllm entero.
-      dockerfile_inline: |
-        FROM vllm/vllm-openai:latest
-        RUN pip install --no-cache-dir av scipy soundfile soxr "mistral_common[audio]"
-    profiles: ["stt-eval"]
-    restart: unless-stopped
-    ipc: host
-    environment:
-      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
-    command:
-      - "--model=openai/whisper-large-v3-turbo"
-      - "--served-model-name=openai/whisper-large-v3-turbo"
-      - "--host=0.0.0.0"
-      - "--port=8000"
-      - "--api-key=${VLLM_API_KEY:-not-needed}"
-      # Pesos ~1.6GB; el contexto de Whisper es fijo (448 tokens) asi que el
-      # KV cache que necesita es chico. Fraccion de la GPU TOTAL (ver
-      # comentario de reparto arriba): 0.16 (~3.9GB) en una de 24GB.
-      - "--gpu-memory-utilization=0.16"
-      # Igual que vllm-llm: acota los CUDA graphs que captura bajo trafico.
-      - "--max-num-seqs=32"
-      - "--max-cudagraph-capture-size=32"
-    volumes:
-      - hf_cache:/root/.cache/huggingface
-    ports:
-      - "127.0.0.1:8106:8000"
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              device_ids: ["${STT_EVAL_GPU:-0}"]
-              capabilities: ["gpu"]
-    healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
-      interval: 15s
-      timeout: 5s
-      retries: 10
-      start_period: 300s
-
-  # --- TTS candidato para el corpus de eval de STT (perfil `tts-eval`) -------
-  # CosyVoice3 (FunAudioLLM/Fun-CosyVoice3-0.5B-2512, Apache 2.0) para generar
-  # el corpus de datos dictados (scripts/stt_corpus/entities.py): Qwen3-TTS
-  # tartamudea ("punto co com") y corta frases en dictados largos (emails, DNI
-  # de 8 digitos), y ese defecto queda en el audio, no en el STT que se mide.
-  # Lo sirve la MISMA imagen que vllm-tts: vllm-omni ya trae CosyVoice3
-  # (model_executor/models/cosyvoice3), con la misma API (/v1/audio/speech con
-  # ref_audio + ref_text), asi que el generador no cambia.
-  # GPU: TTS_EVAL_GPU (default 0, la de vllm-tts), con la reserva bajada en
-  # tts/cosyvoice3.yaml para entrar al lado de vllm-tts. Es generacion offline:
-  # apagarlo (make tts-cosyvoice-down) antes de medir capacidad.
-  tts-cosyvoice:
-    build:
-      context: ./tts
-      dockerfile_inline: |
-        FROM vllm/vllm-omni:v0.28.0
-        # CosyVoice3 tokeniza el audio de referencia con s3tokenizer, que no
-        # viene en la imagen (falla con ModuleNotFoundError al arrancar).
-        RUN pip install --no-cache-dir s3tokenizer
-    profiles: ["tts-eval"]
-    restart: unless-stopped
-    ipc: host
-    environment:
-      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
-    command:
-      - "vllm"
-      - "serve"
-      - "${COSYVOICE_MODEL:-FunAudioLLM/Fun-CosyVoice3-0.5B-2512}"
-      - "--host=0.0.0.0"
-      - "--port=8000"
-      - "--api-key=${VLLM_API_KEY:-not-needed}"
-      - "--trust-remote-code"
-      - "--omni"
-      # Generacion offline, sin streaming: el camino sincronico es mas simple
-      # (stage 1 arma su entrada con la secuencia completa de tokens).
-      - "--no-async-chunk"
-      - "--deploy-config=/config/cosyvoice3.yaml"
-    volumes:
-      - hf_cache:/root/.cache/huggingface
-      - ./tts/cosyvoice3.yaml:/config/cosyvoice3.yaml:ro
-    ports:
-      - "127.0.0.1:8107:8000"
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              device_ids: ["${TTS_EVAL_GPU:-0}"]
-              capabilities: ["gpu"]
-    healthcheck:
-      test: ["CMD", "curl", "-sf", "http://127.0.0.1:8000/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 60
-      start_period: 900s
-
-  # --- Exposicion publica de la inferencia (perfil `proxy`, opt-in) -------
-  # `make up` NO lo arranca: publica los endpoints de inferencia en internet
-  # (`make proxy`). Un solo puerto en la IP fija del host (PUBLIC_HOST en .env;
-  # el router redirige PROXY_PORT a este host) y nginx rutea por path a la red
-  # de compose, sacando el prefijo antes de reenviar (proxy/nginx.conf):
+  # --- Exposicion publica de la inferencia --------------------------------
+  # Un solo puerto en la IP fija del host (PUBLIC_HOST en .env; el router
+  # redirige PROXY_PORT a este host) y nginx rutea por path a la red de compose,
+  # sacando el prefijo antes de reenviar (proxy/nginx.conf):
   #   http://$PUBLIC_HOST:$PROXY_PORT/llm/v1   (LLM)
   #   http://$PUBLIC_HOST:$PROXY_PORT/stt/v1   (STT)
   #   http://$PUBLIC_HOST:$PROXY_PORT/tts/v1   (TTS)
-  #   /stt-parakeet/v1, /stt-whisper/v1        (STT candidatos)
-  # Los puertos 127.0.0.1:810x siguen siendo solo para debug local. La auth la
-  # hace cada vLLM con --api-key: el caller manda
-  # `Authorization: Bearer ${VLLM_API_KEY}`. Es HTTP plano: la clave viaja sin
-  # cifrar. Sin depends_on: nginx resuelve cada servicio en cada request y da
-  # 502 solo en el path del que este apagado, asi que arranca con cualquier
-  # combinacion de STT sin levantar vllm-stt.
+  # Lo usa el loadtest desde otra PC. Los puertos 127.0.0.1:810x siguen siendo
+  # solo para debug local. La auth la hace cada servicio con --api-key: el
+  # caller manda `Authorization: Bearer ${VLLM_API_KEY}`. Es HTTP plano: la
+  # clave viaja sin cifrar. Sin depends_on: nginx resuelve cada servicio en cada
+  # request y da 502 solo en el path del que este apagado.
   proxy:
     image: nginx:alpine
-    profiles: ["proxy"]
     restart: unless-stopped
     ports:
       - "0.0.0.0:${PROXY_PORT:-8100}:80"
@@ -504,8 +282,8 @@ services:
   # Puente SIP: registra la troncal de Anura (asi recibe las entrantes y las
   # pasa a LiveKit) y recibe de LiveKit las salientes que marca el agente para
   # mandarlas a Anura. Arquitectura, port forwarding y runbook completo en
-  # docs/TELEFONIA_ANURA.md. `make up` no lo arranca: requiere ANURA_*/
-  # LIVEKIT_SIP_* en .env y el port forwarding del router (`make pbx`).
+  # docs/TELEFONIA_ANURA.md. Requiere ANURA_*/LIVEKIT_SIP_* en .env y el port
+  # forwarding del router.
   #
   # network_mode: host a proposito. SIP + RTP detras de NAT ya es delicado; con
   # la red bridge de compose se suma el NAT de Docker (reescribe puertos de
@@ -515,7 +293,6 @@ services:
   # no le habla a ningun otro servicio del stack, solo a Anura y a LiveKit Cloud.
   asterisk:
     build: ./asterisk
-    profiles: ["pbx"]
     restart: unless-stopped
     network_mode: host
     # Solo lo que usan los templates de asterisk/conf/ (no env_file: .env,
@@ -535,7 +312,7 @@ services:
       ASTERISK_RTP_END: ${ASTERISK_RTP_END:-10199}
     volumes:
       # Templates: entrypoint.sh los renderiza a /etc/asterisk al arrancar, asi
-      # que un cambio en asterisk/conf/ se aplica con `make restart-pbx`, sin rebuild.
+      # que un cambio en asterisk/conf/ se aplica con `make up-pbx`, sin rebuild.
       - ./asterisk/conf:/etc/asterisk/templates:ro
     healthcheck:
       test: ["CMD", "asterisk", "-rx", "core show uptime"]
@@ -546,9 +323,8 @@ services:
 
 volumes:
   mysql_data:
-  # Cache de pesos de HuggingFace compartido entre los 3 servicios vLLM, para
-  # no volver a descargar varios GB cada vez que se recrea un contenedor.
+  # Cache de pesos de HuggingFace compartido por la inferencia, para no volver
+  # a descargar varios GB cada vez que se recrea un contenedor.
   hf_cache:
-  # Voces clonadas subidas a vllm-tts via POST /v1/audio/voices (ver comentario
-  # del servicio). Separado de hf_cache porque vive en otro path del container.
-  vllm_tts_speakers:
+  # Voces de vllm-tts (ver comentario del servicio).
+  vllm_tts_speakers_ft:

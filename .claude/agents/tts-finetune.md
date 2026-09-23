@@ -47,7 +47,7 @@ Seguí `docs/TTS_FINETUNE.md`, pasos 1 a 7, sin saltear ninguno:
    los que fallen.
 7. Armá la página A/B con `pauses.py --a <servido hoy> --b <candidato>` para que el usuario escuche.
 8. Servir el candidato **solo si el usuario lo pide o lo aprueba**, con
-   `docker-compose.tts-ft.yml` (`TTS_FT_CKPT`, `TTS_FT_VOICE`). Verificá el log
+   `TTS_FT_CKPT`, `VLLM_TTS_MODEL` y `VLLM_TTS_VOICE` en `.env` y `make up-inference up-agent`. Verificá el log
    (`Loaded 1 supported speakers`) y corré `served_check.py`.
 9. Restaurá todo lo que paraste.
 

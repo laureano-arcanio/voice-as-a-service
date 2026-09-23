@@ -233,8 +233,8 @@ async def entrypoint(ctx: JobContext):
     greeting = prompts.first_message(config.AGENT_NAME, config.COMPANY_NAME, data["client"])
 
     # Un solo VAD compartido: lo usa la sesion para detectar habla/interrupciones
-    # y tambien el STT para hacer commit del buffer de audio -- vllm-stt
-    # (Qwen3-ASR via /v1/audio/transcriptions) es un endpoint REST por-turno,
+    # y tambien el STT para hacer commit del buffer de audio -- stt-parakeet
+    # (/v1/audio/transcriptions) es un endpoint REST por-turno,
     # sin sesion realtime por WebSocket ni endpointing propio (a diferencia de
     # gpt-live-transcribe, que se uso antes), asi que el plugin siempre depende
     # de este VAD para saber cuando cortar y mandar el audio.
@@ -261,7 +261,7 @@ async def entrypoint(ctx: JobContext):
         # y cae al tope casi siempre. Bajarlo acota ese peor caso a costa de poder
         # cortar al cliente si hace una pausa mas larga que esto a mitad de frase.
         max_endpointing_delay=1.0,
-        # vllm-stt (Qwen3-ASR-1.7B, ver docker-compose.yml): use_realtime=False
+        # stt-parakeet (Parakeet TDT 0.6B v3, ver docker-compose.yml): use_realtime=False
         # fuerza el modo REST -- el plugin no reconoce este modelo como uno de
         # los "realtime" de OpenAI, pero se lo dejamos explicito para no
         # depender de esa deteccion automatica. Sin transcript parcial mientras
@@ -301,10 +301,9 @@ async def entrypoint(ctx: JobContext):
             use_websocket=False,
             store=False,
         ),
-        # vllm-tts (Qwen3-TTS-12Hz-1.7B-Base): /v1/audio/speech con streaming,
-        # usando una voz clonada (VLLM_TTS_VOICE, ver config.py) subida una
-        # sola vez al server -- el server infiere task_type=Base solo con el
-        # nombre, asi que no hace falta mandar ref_audio en cada request.
+        # vllm-tts (Qwen3-TTS 1.7B fine-tuneado): /v1/audio/speech con
+        # streaming; la voz (VLLM_TTS_VOICE, ver config.py) esta dentro del
+        # checkpoint, asi que no hace falta mandar ref_audio en cada request.
         # response_format="pcm": el default del plugin (mp3) no es streameable
         # en este servidor (400: "Streaming requires response_format='pcm' or
         # 'wav'"). pcm evita ademas decodificar mp3 del lado del cliente.

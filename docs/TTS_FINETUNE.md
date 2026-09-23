@@ -31,7 +31,7 @@ favorece al fine-tuning. La mayoría de los errores del WER es voseo que el ASR 
 | Código (versionado) | `tts/finetune/` |
 | Datos, checkpoints, audios (no versionado) | `tts/finetune/work/` |
 | Entorno | `tts/finetune/Dockerfile`: imagen de [mozi1924/Qwen3-TTS-EasyFinetuning](https://github.com/mozi1924/Qwen3-TTS-EasyFinetuning) fijada por digest, más `num2words` |
-| Servir | `docker-compose.tts-ft.yml` (`TTS_FT_CKPT`, `TTS_FT_VOICE`) |
+| Servir | `vllm-tts` en `docker-compose.yml` (`TTS_FT_CKPT`, `VLLM_TTS_MODEL`, `VLLM_TTS_VOICE` en `.env`) |
 
 `tts/finetune/run.sh` corre cualquier comando en el entorno. La primera vez construye
 la imagen `voice-tts-ft` (base de 25 GB). Monta:
@@ -74,7 +74,7 @@ work/eval/<voz>/llamada/    <sistema>_s<semilla>/  (28 oraciones de una llamada 
    - Generar y evaluar necesita unos 5 GB y entra al lado de `vllm-tts`.
    - El 0.6B entrena con 7,2 GB.
 2. **Modelos en el HF cache.** Hacen falta `Qwen/Qwen3-TTS-12Hz-1.7B-Base` (o `-0.6B-Base`)
-   y `Qwen/Qwen3-ASR-1.7B`. Ya están si `vllm-tts` y `vllm-stt` corrieron alguna vez. Si falta
+   y `Qwen/Qwen3-ASR-1.7B`. Ya están en el HF cache de este server. Si falta
    alguno, bajarlo con `huggingface-cli download` en un contenedor con el volumen montado.
 3. **Datos.** OpenSLR 61 descomprimido en `~/Downloads/es_ar_female` y `es_ar_male`
    (`line_index.tsv` + wav a 48 kHz, licencia CC BY-SA 4.0).
@@ -184,16 +184,18 @@ grabación real. La elección final es del usuario, escuchando la página A/B y 
 
 ### 7. Servir y verificar
 
+En el `.env` de la raíz del repo:
+
 ```bash
-cd ../..   # raíz del repo
-TTS_FT_CKPT=./tts/finetune/work/runs/$VOZ/lr2e-6/checkpoint-epoch-5 TTS_FT_VOICE=$VOZ \
-docker compose -f docker-compose.yml -f docker-compose.parakeet.yml -f docker-compose.tts-ft.yml \
-  --profile stt-eval up -d --wait vllm-llm stt-parakeet vllm-tts agent
+TTS_FT_CKPT=./tts/finetune/work/runs/$VOZ/lr2e-6/checkpoint-epoch-5
+VLLM_TTS_MODEL=$VOZ-ft
+VLLM_TTS_VOICE=$VOZ
 ```
 
+Y desde la raíz: `make up-inference` (recrea `vllm-tts`) y `make up-agent` (el agente relee la voz).
+
 - El log de `vllm-tts` tiene que decir `Loaded 1 supported speakers: ['<voz>']`.
-- Si la voz es la misma que la servida, alcanza con recrear `vllm-tts`.
-- Para volver a `sofia_ar`: el mismo comando sin `-f docker-compose.tts-ft.yml`.
+- Si la voz es la misma que la servida, alcanza con `make up-inference`.
 
 Verificación sobre lo servido (sin GPU):
 
@@ -236,7 +238,7 @@ Todas medidas en arf_03034. No repetirlas.
    OpenSLR viene a 48 kHz y `prep.py` lo convierte.
 5. **Idioma.** El entrenamiento usa el prefijo sin idioma. Generar con `language="Auto"`
    (default en `gen.py` y lo que manda el agente).
-6. **Volumen de voces separado.** `docker-compose.tts-ft.yml` usa `vllm_tts_speakers_ft`.
+6. **Volumen de voces separado.** `vllm-tts` usa `vllm_tts_speakers_ft`.
    Con el volumen de siempre, vLLM-Omni restauraría `sofia_ar` (voz clonada, task Base)
    sobre un checkpoint `custom_voice`.
 7. **Un solo speaker por checkpoint.** El entrenamiento oficial es de una voz; el nombre se

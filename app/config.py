@@ -37,24 +37,16 @@ VLLM_LLM_MODEL = os.getenv("VLLM_LLM_MODEL", "Qwen/Qwen3.5-4B")
 # API por WebSocket con transcript parcial mientras el cliente habla), este es
 # un endpoint REST por-turno: el plugin hace commit del audio recien al
 # detectar silencio (VAD) y recien ahi llega el transcript, sin parciales.
-VLLM_STT_BASE_URL = os.getenv("VLLM_STT_BASE_URL", "http://vllm-stt:8000/v1")
-# AGENT_STT_MODEL: para apuntar el agente a un STT candidato (perfil `stt-eval`
-# de docker-compose.yml) junto con VLLM_STT_BASE_URL -- ver .env.example. NO
-# usar VLLM_STT_MODEL para eso: docker compose tambien lo interpola en el
-# comando de vllm-stt, y el proximo `make up` lo recrearia intentando servir
-# el modelo candidato con qwen-asr-serve.
-VLLM_STT_MODEL = os.getenv("AGENT_STT_MODEL") or os.getenv("VLLM_STT_MODEL", "Qwen/Qwen3-ASR-1.7B")
+VLLM_STT_BASE_URL = os.getenv("VLLM_STT_BASE_URL", "http://stt-parakeet:8000/v1")
+VLLM_STT_MODEL = os.getenv("VLLM_STT_MODEL", "nvidia/parakeet-tdt-0.6b-v3")
 
 # TTS. /v1/audio/speech con streaming -- swap directo de elevenlabs.TTS por
-# openai.TTS(voice=...). Checkpoint -Base (voice-cloning): VLLM_TTS_VOICE
-# tiene que ser el nombre de una voz clonada y subida a vllm-tts via
-# POST /v1/audio/voices (ver docker-compose.yml), no un preset de fabrica --
-# el checkpoint -CustomVoice (que si tenia presets) se descarto por un bug
-# real: su speaker encoder devuelve embeddings de 1024 dims contra los 2048
-# que espera el talker de 1.7B, y clonar con el rompia el engine (probado).
+# openai.TTS(voice=...). Checkpoint fine-tuneado de Qwen3-TTS (custom_voice,
+# docs/TTS_FINETUNE.md): VLLM_TTS_MODEL es el nombre con que lo sirve vllm-tts
+# y VLLM_TTS_VOICE el speaker del checkpoint.
 VLLM_TTS_BASE_URL = os.getenv("VLLM_TTS_BASE_URL", "http://vllm-tts:8000/v1")
-VLLM_TTS_MODEL = os.getenv("VLLM_TTS_MODEL", "Qwen/Qwen3-TTS-12Hz-1.7B-Base")
-VLLM_TTS_VOICE = os.getenv("VLLM_TTS_VOICE", "sofia_ar")
+VLLM_TTS_MODEL = os.getenv("VLLM_TTS_MODEL", "arf_03034-ft")
+VLLM_TTS_VOICE = os.getenv("VLLM_TTS_VOICE", "arf_03034")
 # Velocidad de la voz. OJO: probado en vivo que el server (vllm-omni) rechaza
 # con 400 cualquier valor de speed != 1.0 en modo streaming ("Streaming is not
 # supported with speed adjustment") -- solo funciona en requests no-streaming,
