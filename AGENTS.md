@@ -11,6 +11,7 @@ infraestructura. La app (flujo de la llamada, scoring, dashboard) está en
 |---|---|
 | "Voy a correr el loadtest (con <config>), registralo" | Seguir [Registrar un loadtest](docs/experiments/README.md#registrar-un-loadtest). Arrancar el monitoreo antes del warm-up y avisar. Cuando el usuario diga que terminó: cortarlo, ubicar las tandas, analizar y crear `docs/experiments/EXP-NNN-<slug>/`. |
 | "Registrá el último run" | El mismo procedimiento desde el paso 3, con el `scripts/loadtest/monitor/run_*` más reciente. |
+| "Entrená / reentrená la voz <voz> del TTS" | Delegar al agente [`tts-finetune`](.claude/agents/tts-finetune.md), que sigue [`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md). Entrenar el 1.7B necesita parar `vllm-tts`: confirmar antes. |
 | "Probá <modelo o reparto de GPU>" | Override `docker-compose.<nombre>.yml` y confirmar antes de reiniciar servicios; después, el mismo procedimiento. Para STT candidatos: `make servers-<stt>` (ver [STT candidatos](docs/experiments/README.md#stt-candidatos-parakeet-whisper)). |
 
 ## Servicios (`docker-compose.yml`)
@@ -49,6 +50,8 @@ infraestructura. La app (flujo de la llamada, scoring, dashboard) está en
 |---|---|---|
 | 0 | `vllm-tts` sola | 0.4 |
 | 1 | `vllm-llm` + `vllm-stt` + escritorio | 0.55 + 0.30 |
+
+**TTS con voz fine-tuneada (sep-2026):** `vllm-tts` puede servir un checkpoint propio (voz `arf_03034`) con `docker-compose.tts-ft.yml`. Ver [`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md).
 
 ## Reglas y trampas
 
@@ -96,3 +99,4 @@ donde está el procedimiento y el índice comparativo.
 - [`docs/experiments/`](docs/experiments/README.md): registro de experimentos.
 - [`docs/SERVER_HARDWARE.md`](docs/SERVER_HARDWARE.md): elección de placas, CPU y PCIe.
 - [`docs/TELEFONIA_ANURA.md`](docs/TELEFONIA_ANURA.md): telefonía (Anura + Asterisk + LiveKit).
+- [`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md): fine-tuning de una voz de Qwen3-TTS (procedimiento, criterios, trampas).
