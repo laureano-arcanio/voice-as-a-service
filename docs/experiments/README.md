@@ -29,11 +29,12 @@ TTS `Qwen/Qwen3-TTS-12Hz-1.7B-Base`.
 - **GPU 1:** además dibuja el escritorio (Xorg, gnome-shell, Chrome, VS Code), que ocupa ~1,3 GB y 5–15% de SM.
 - **Otros proyectos:** corren ~15 contenedores ajenos, con carga de CPU baja.
 - **Térmica:** las dos 3090 hacen thermal y power throttling bajo carga (hasta 85 °C).
-- **Loadtest:** `scripts/loadtest/run.py` corre en otra PC (`make up-remote`) contra los vLLM por ngrok, en tandas de 16 y 32 sesiones.
+- **Loadtest:** `scripts/loadtest/run.py` corre en otra PC (`make up-remote`) contra los vLLM por ngrok (EXP-001 a 006), en tandas de 16 y 32 sesiones.
 - **Loadtest local (desde EXP-007):** el plan free de ngrok se quedó sin ancho de banda (1 GB/mes; cada loadtest saca ~135 MB solo de audio de TTS). `app`, `agent` y los callers corren en este host (`make up-remote` + `make loadtest`) y le pegan a los vLLM por la red de compose.
   - La latencia que mide el agente baja ~0,4 s por turno, así que no se compara con EXP-001 a 006.
   - El scoring de cada llamada pasa a cargar el LLM.
   - El sampler registra al contenedor de los callers como `agent-run`.
+- **Loadtest remoto por IP fija (desde 2026-09-23):** sin ngrok. La PC del loadtest le pega al proxy nginx de este host (`make proxy`) en `http://181.104.113.28:8100/{llm,stt,tts}/v1`, sin límite de ancho de banda. Los runs anteriores cruzaban ngrok: comparar con cuidado.
 
 ## Registrar un loadtest
 
@@ -50,10 +51,10 @@ el agente monitorea, analiza y registra.
 
 1. **Configurar**, solo si el pedido incluye cambiar la config.
    - Usar un override `docker-compose.<nombre>.yml` (como `docker-compose.sim16gb.yml`), no el compose principal.
-   - Levantar solo inferencia y túnel:
+   - Levantar solo inferencia y proxy público:
      ```bash
-     docker compose [-f docker-compose.yml -f docker-compose.<nombre>.yml] --profile ngrok \
-       up -d vllm-llm vllm-stt vllm-tts proxy ngrok
+     docker compose [-f docker-compose.yml -f docker-compose.<nombre>.yml] --profile proxy \
+       up -d vllm-llm vllm-stt vllm-tts proxy
      ```
    - Si la config a probar no está arriba y no se pidió levantarla, avisar antes de tocar servicios.
 2. **Arrancar el monitoreo**, antes del warm-up:
@@ -107,7 +108,7 @@ Un experimento por candidato, con el procedimiento de arriba. Cambian el paso 1
 y el `.env` de la PC del loadtest. El override `docker-compose.stt-candidates.yml`
 pone el candidato en la GPU 1, en el lugar de `vllm-stt`.
 
-**Server**, un target por config (paso 1). Dejan LLM + TTS + ese STT + ngrok,
+**Server**, un target por config (paso 1). Dejan LLM + TTS + ese STT + el proxy,
 bajan el otro candidato y paran `app`/`agent` de este host: si la PC del loadtest
 usa el mismo proyecto de LiveKit y `LIVEKIT_AGENT_NAME`, LiveKit repartiría las
 llamadas entre los dos workers. Al final imprimen lo que va en el `.env` de la PC.
@@ -122,9 +123,9 @@ Monitoreo (paso 2) con `RUN=$M/run_$(date +%Y%m%d_%H%M%S)_<stt>`.
 
 | Config | `VLLM_STT_BASE_URL` | `VLLM_STT_MODEL` |
 |---|---|---|
-| Whisper | `https://$NGROK_DOMAIN/stt-whisper/v1` | `openai/whisper-large-v3-turbo` |
-| Parakeet | `https://$NGROK_DOMAIN/stt-parakeet/v1` | `nvidia/parakeet-tdt-0.6b-v3` |
-| Qwen3-ASR | `https://$NGROK_DOMAIN/stt/v1` | `Qwen/Qwen3-ASR-1.7B` |
+| Whisper | `http://$PUBLIC_HOST:$PROXY_PORT/stt-whisper/v1` | `openai/whisper-large-v3-turbo` |
+| Parakeet | `http://$PUBLIC_HOST:$PROXY_PORT/stt-parakeet/v1` | `nvidia/parakeet-tdt-0.6b-v3` |
+| Qwen3-ASR | `http://$PUBLIC_HOST:$PROXY_PORT/stt/v1` | `Qwen/Qwen3-ASR-1.7B` |
 
 ```bash
 docker compose up -d --no-deps --force-recreate agent   # relee el .env

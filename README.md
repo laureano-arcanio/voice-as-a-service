@@ -112,7 +112,7 @@ Para probar uno en llamadas reales: `VLLM_STT_BASE_URL` + `AGENT_STT_MODEL` en `
 este host como server de inferencia con ese STT. Para los candidatos usan el override
 `docker-compose.stt-candidates.yml`, que apaga `vllm-stt` y pone el candidato en su
 lugar, la GPU 1 junto a la LLM, porque TTS no comparte GPU (ver `AGENTS.md`). Se mide uno
-por vez; la PC del loadtest le pega con `VLLM_STT_BASE_URL=https://$NGROK_DOMAIN/stt-<nombre>/v1`
+por vez; la PC del loadtest le pega con `VLLM_STT_BASE_URL=http://$PUBLIC_HOST:$PROXY_PORT/stt-<nombre>/v1`
 y `VLLM_STT_MODEL=<modelo>` en su `.env` (alla no corre `vllm-stt`, asi que ahi si se
 cambia `VLLM_STT_MODEL`). Runbook en `docs/experiments/README.md`, seccion "STT candidatos". Parakeet expone
 `/metrics` con los nombres de vLLM, asi que `sampler.py`/`analyze.py` lo miden
@@ -283,53 +283,48 @@ de LiveKit, sin puerto expuesto — conecta saliente a LiveKit Cloud) y `vllm-ll
 `agent` esperan a que los `vllm-*` esten healthy antes de arrancar — la primera vez
 tarda varios minutos (descarga de pesos + carga en GPU).
 
-### Exponer los vLLM por ngrok (opcional)
+### Exponer los vLLM por la IP fija (opcional)
 
-Para consumir LLM/STT/TTS desde afuera del host. Usa el perfil `ngrok` de compose:
-`make up` no arranca estos contenedores, solo `make tunnel`.
+Para consumir LLM/STT/TTS desde afuera del host. Un proxy nginx (perfil `proxy` de
+compose, `proxy/nginx.conf`) escucha en `0.0.0.0:$PROXY_PORT` (8100) y rutea por path a
+cada vLLM, sacando el prefijo para que llegue `/v1/...`. `make up` no lo arranca, solo
+`make proxy`.
 
 1. Completar en `.env`:
    - `VLLM_API_KEY` con una clave real y larga (`openssl rand -hex 24`): los 3
-     servidores vLLM la exigen como `Authorization: Bearer` en `/v1/*` (ngrok no
+     servidores vLLM la exigen como `Authorization: Bearer` en `/v1/*` (el proxy no
      agrega auth propia, esta es la unica).
-   - `NGROK_AUTHTOKEN`: Dashboard de ngrok → Getting Started → Your Authtoken.
-   - `NGROK_DOMAIN`: Dashboard de ngrok → Domains, sin `https://` ni path.
-2. `make tunnel` (arranca un unico agente `ngrok` + el proxy `proxy`, esperando a
-   que los `vllm-*` esten healthy).
-3. URLs publicas — los agent endpoints de ngrok no aceptan paths (ERR_NGROK_9038)
-   y el plan free da un unico endpoint, asi que hay un solo tunel al root del
-   dominio y el proxy nginx (`ngrok/proxy.conf`) rutea por path a cada vLLM,
-   sacando el prefijo para que llegue `/v1/...`:
+   - `PUBLIC_HOST`: la IP fija del host (hoy `181.104.113.28`), sin esquema ni puerto.
+   - `PROXY_PORT`: 8100 por defecto.
+2. En el router: redirigir `PROXY_PORT` (TCP) a este host (`192.168.1.99`).
+3. `make proxy`. No depende de los `vllm-*`: el que este apagado da 502 en su path.
 
-   | Servicio | Base URL OpenAI-compatible      |
-   | -------- | ------------------------------- |
-   | LLM      | `https://$NGROK_DOMAIN/llm/v1`  |
-   | STT      | `https://$NGROK_DOMAIN/stt/v1`  |
-   | TTS      | `https://$NGROK_DOMAIN/tts/v1`  |
-   | STT candidatos (perfil `stt-eval`) | `https://$NGROK_DOMAIN/stt-parakeet/v1`, `/stt-whisper/v1` |
+   | Servicio | Base URL OpenAI-compatible |
+   | -------- | -------------------------- |
+   | LLM      | `http://$PUBLIC_HOST:$PROXY_PORT/llm/v1` |
+   | STT      | `http://$PUBLIC_HOST:$PROXY_PORT/stt/v1` |
+   | TTS      | `http://$PUBLIC_HOST:$PROXY_PORT/tts/v1` |
+   | STT candidatos (perfil `stt-eval`) | `http://$PUBLIC_HOST:$PROXY_PORT/stt-parakeet/v1`, `/stt-whisper/v1` |
 
    ```bash
-   curl https://$NGROK_DOMAIN/llm/v1/models -H "Authorization: Bearer $VLLM_API_KEY"
+   curl http://$PUBLIC_HOST:$PROXY_PORT/llm/v1/models -H "Authorization: Bearer $VLLM_API_KEY"
    ```
 
-Notas: en el plan free ngrok intercala una pagina de aviso solo en requests de
-navegador (los clientes API no la ven; tambien se evita mandando
-`ngrok-skip-browser-warning: 1`), y aplican los limites de 20k requests/mes y
-1 GB/mes. Logs del tunel y del proxy: `make logs-tunnel`. Para apagarlos alcanza
-con `make down` (o `docker compose stop ngrok proxy`).
+Es HTTP plano: la clave y el audio viajan sin cifrar. Logs: `make logs-proxy`. Para
+apagarlo: `docker compose stop proxy`.
 
-### Inferencia remota: app/agent en otra PC (via ngrok)
+### Inferencia remota: app/agent en otra PC
 
-El host GPU corre solo la inferencia (`make tunnel`); una PC sin GPU puede correr
-el resto del stack (`db` + `app` + `agent`) apuntando los vLLM a las URLs de
-ngrok. No hace falta tocar codigo: los plugins de LiveKit ya usan
+El host GPU corre solo la inferencia (`make proxy`); una PC sin GPU puede correr
+el resto del stack (`db` + `app` + `agent`) apuntando los vLLM a las URLs del
+proxy. No hace falta tocar codigo: los plugins de LiveKit ya usan
 `base_url`/`api_key` de `.env`.
 
 1. Mismo `make setup` en la otra PC. En su `.env`:
    - `LIVEKIT_*`: los mismos del host GPU (mismo proyecto/agente).
-   - `VLLM_LLM_BASE_URL=https://$NGROK_DOMAIN/llm/v1`
-   - `VLLM_STT_BASE_URL=https://$NGROK_DOMAIN/stt/v1`
-   - `VLLM_TTS_BASE_URL=https://$NGROK_DOMAIN/tts/v1`
+   - `VLLM_LLM_BASE_URL=http://$PUBLIC_HOST:$PROXY_PORT/llm/v1`
+   - `VLLM_STT_BASE_URL=http://$PUBLIC_HOST:$PROXY_PORT/stt/v1`
+   - `VLLM_TTS_BASE_URL=http://$PUBLIC_HOST:$PROXY_PORT/tts/v1`
    - `VLLM_API_KEY`: la misma clave real configurada en el host GPU.
    - `VLLM_LLM_MODEL` / `VLLM_STT_MODEL` / `VLLM_TTS_MODEL` / `VLLM_TTS_VOICE`:
      iguales a lo que sirve el host GPU (la voz clonada, ej. `sofia_ar`, vive en
@@ -339,8 +334,8 @@ ngrok. No hace falta tocar codigo: los plugins de LiveKit ya usan
    `app` + `agent` con `--no-deps` (no intenta arrancar los `vllm-*`, que en esa
    PC no existen). No correr `make up` en la PC remota.
 
-Ojo con la latencia: cada turno de la llamada cruza por ngrok (ida y vuelta), y
-el audio de STT/TTS consume el ancho de banda del plan (1 GB/mes en free).
+Ojo con la latencia: cada turno de la llamada cruza internet (ida y vuelta) hasta
+el host GPU.
 
 ## Deploy (servidor smartcron)
 
@@ -359,8 +354,8 @@ el audio de STT/TTS consume el ancho de banda del plan (1 GB/mes en free).
 3. Nada mas: LLM/STT/TTS corren localmente (ver "Inferencia local (vLLM)" arriba), no
    hace falta ninguna API key de proveedor externo. `HF_TOKEN` es opcional, solo si
    algun modelo llegara a requerir aceptar licencia en HuggingFace.
-4. Solo si se exponen los vLLM por ngrok (ver "Exponer los vLLM por ngrok" arriba):
-   `VLLM_API_KEY` (clave real), `NGROK_AUTHTOKEN` y `NGROK_DOMAIN`.
+4. Solo si se exponen los vLLM por la IP fija (ver "Exponer los vLLM por la IP fija"
+   arriba): `VLLM_API_KEY` (clave real) y `PUBLIC_HOST`.
 
 ### Telefonia: Anura via Asterisk
 

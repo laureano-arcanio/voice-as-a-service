@@ -6,7 +6,7 @@
 #
 # Uso:
 #   docker compose -f docker-compose.yml -f docker-compose.sim16gb.yml \
-#     --profile ngrok up -d vllm-llm vllm-tts vllm-stt proxy ngrok
+#     --profile proxy up -d vllm-llm vllm-tts vllm-stt proxy
 #
 # Presupuesto en la GPU 0 (objetivo: STT + TTS <= ~15.6GB reales):
 #   TTS: stage 0 necesita ~5.5GiB sin KV (pesos 3.9 + activaciones). Con 0.245

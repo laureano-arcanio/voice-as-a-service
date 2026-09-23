@@ -27,12 +27,12 @@ infraestructura. La app (flujo de la llamada, scoring, dashboard) está en
 | `vllm-tts-2` | Segunda réplica de TTS; solo con GPU propia | ídem | 127.0.0.1:8104 | 0 (cambiar) | `tts2` |
 | `stt-parakeet`, `stt-whisper` | STT candidatos para evaluar | build | 127.0.0.1:8105–8106 | `STT_EVAL_GPU` (0); 1 con `docker-compose.stt-candidates.yml` | `stt-eval` |
 | `tts-cosyvoice` | CosyVoice 3 para generar el corpus de eval de STT (no producción) | vllm/vllm-omni:v0.28.0 + `s3tokenizer` | 127.0.0.1:8107 | `TTS_EVAL_GPU` (0) | `tts-eval` |
-| `proxy` + `ngrok` | Único túnel público; nginx rutea `/llm`, `/stt`, `/tts` y `/stt-<candidato>` | nginx:alpine, ngrok | — | — | `ngrok` |
+| `proxy` | Entrada pública por IP fija; nginx rutea `/llm`, `/stt`, `/tts` y `/stt-<candidato>` | nginx:alpine | 0.0.0.0:8100 (`PROXY_PORT`) | — | `proxy` |
 | `asterisk` | Puente SIP Anura ↔ LiveKit (`network_mode: host`) | build | — | — | `pbx` |
 
 - Los vLLM hablan API OpenAI y exigen `Authorization: Bearer $VLLM_API_KEY`. Los puertos 810x son solo para debug local.
 - `make up` no levanta los servicios con perfil.
-- Modo remoto: `app` + `agent` pueden correr en otra PC (`make up-remote`) contra los vLLM por ngrok. Así se corre el loadtest.
+- Modo remoto: `app` + `agent` pueden correr en otra PC (`make up-remote`) contra los vLLM por el proxy: `http://181.104.113.28:8100/{llm,stt,tts}/v1` (IP fija `PUBLIC_HOST`; el router redirige 8100 a 192.168.1.99). Así se corre el loadtest. Es HTTP plano: la auth es solo `VLLM_API_KEY`.
 
 ## Hosts
 
@@ -83,7 +83,7 @@ donde está el procedimiento y el índice comparativo.
   - `timeline.py`: ubica las fases del loadtest.
   - `analyze.py`: reporte completo, o tablas markdown con `--md`.
 - **Overrides:** cada experimento usa un override `docker-compose.<nombre>.yml` (ej. `docker-compose.sim16gb.yml`), no el compose principal.
-- **Volver a la config vigente:** `docker compose --profile ngrok up -d vllm-llm vllm-stt vllm-tts proxy ngrok`, sin el `-f` extra.
+- **Volver a la config vigente:** `docker compose --profile proxy up -d vllm-llm vllm-stt vllm-tts proxy`, sin el `-f` extra.
 - **Runs crudos:** `run_*` no se versionan.
 
 ## Cómo trabajar en este server

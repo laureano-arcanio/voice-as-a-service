@@ -4,8 +4,8 @@
 # AGENTS.md). Se mide UNO por vez, como quedaria en produccion: asi la VRAM
 # y el meta.json del sampler reflejan solo el STT probado. El loadtest (en
 # otra PC) le pega con VLLM_STT_BASE_URL/VLLM_STT_MODEL en SU .env:
-#   https://$NGROK_DOMAIN/stt-parakeet/v1   nvidia/parakeet-tdt-0.6b-v3
-#   https://$NGROK_DOMAIN/stt-whisper/v1    openai/whisper-large-v3-turbo
+#   http://$PUBLIC_HOST:$PROXY_PORT/stt-parakeet/v1   nvidia/parakeet-tdt-0.6b-v3
+#   http://$PUBLIC_HOST:$PROXY_PORT/stt-whisper/v1    openai/whisper-large-v3-turbo
 #
 # Uso: `make servers-whisper` / `make servers-parakeet` (y `make servers-qwen`
 # para la config vigente); ver el Makefile. Volver al uso normal:
@@ -41,11 +41,3 @@ services:
             - driver: nvidia
               device_ids: ["1"]
               capabilities: ["gpu"]
-
-  proxy:
-    # Sin vllm-stt, que queda apagado en este experimento.
-    depends_on: !override
-      vllm-llm:
-        condition: service_healthy
-      vllm-tts:
-        condition: service_healthy

@@ -11,11 +11,11 @@
 #                   healthy antes de arrancar. Requiere NVIDIA Container
 #                   Toolkit instalado (ver scripts/install-nvidia-toolkit.sh).
 #   make up-remote -> PC sin GPU: levanta solo db+app+agent, apuntando la
-#                   inferencia a los vLLM de otro host (ej. via ngrok, ver
+#                   inferencia a los vLLM de otro host (ej. via `make proxy`, ver
 #                   seccion "Inferencia remota" del README).
 #   make logs    -> sigue los logs de los 6 servicios
-#   make tunnel  -> opcional: expone los 3 vllm-* en internet via ngrok
-#                   (perfil `ngrok` de compose, ver .env.example)
+#   make proxy   -> opcional: expone los vllm-* en internet por la IP fija
+#                   (nginx en :PROXY_PORT, perfil `proxy`, ver .env.example)
 #   make stt-eval-up STT=... + make stt-eval -> opcional: levanta UN STT
 #                   candidato (Parakeet o Whisper Turbo, perfil `stt-eval`) y
 #                   lo compara contra vllm-stt (WER + latencia)
@@ -45,7 +45,7 @@ export GID := $(shell id -g)
         build rebuild up up-remote start stop down re \
         restart restart-app restart-agent restart-llm restart-stt restart-tts \
         ps logs logs-app logs-agent logs-db logs-llm logs-stt logs-tts \
-        tunnel logs-tunnel \
+        proxy logs-proxy \
         stt-eval-up stt-eval-down stt-eval stt-corpus stt-corpus-entities logs-stt-eval \
         tts-cosyvoice-up tts-cosyvoice-down logs-tts-cosyvoice \
         servers-qwen servers-whisper servers-parakeet \
@@ -135,18 +135,24 @@ logs-stt: ## Sigue los logs solo de vllm-stt
 logs-tts: ## Sigue los logs solo de vllm-tts
 	$(COMPOSE) logs -f --tail=200 vllm-tts
 
-tunnel: ## Expone los 3 vllm-* via ngrok (perfil opt-in; requiere NGROK_* en .env, ver .env.example)
-	@grep -qE '^NGROK_AUTHTOKEN=.+' .env || { echo "Falta NGROK_AUTHTOKEN en .env (ver .env.example)"; exit 1; }
-	@grep -qE '^NGROK_DOMAIN=.+' .env || { echo "Falta NGROK_DOMAIN en .env (ver .env.example)"; exit 1; }
-	$(COMPOSE) --profile ngrok up -d ngrok
-	@dom=$$(sed -n 's/^NGROK_DOMAIN=//p' .env | tail -1); \
-		echo "Tunel ngrok arriba. URLs publicas (api_key: VLLM_API_KEY):"; \
-		echo "  LLM: https://$$dom/llm/v1"; \
-		echo "  STT: https://$$dom/stt/v1"; \
-		echo "  TTS: https://$$dom/tts/v1"
+# URL publica del proxy, desde PUBLIC_HOST y PROXY_PORT del .env.
+define check_public_env
+	@grep -qE '^PUBLIC_HOST=.+' .env || { echo "Falta PUBLIC_HOST en .env (ver .env.example)"; exit 1; }
+endef
+PUBLIC_URL_SH = host=$$(sed -n 's/^PUBLIC_HOST=//p' .env | tail -1); \
+	port=$$(sed -n 's/^PROXY_PORT=//p' .env | tail -1); url="http://$$host:$${port:-8100}"
 
-logs-tunnel: ## Sigue los logs del agente ngrok y del proxy
-	$(COMPOSE) logs -f --tail=200 ngrok proxy
+proxy: ## Expone los vllm-* en internet por la IP fija (nginx en :PROXY_PORT, perfil opt-in; requiere PUBLIC_HOST en .env)
+	$(check_public_env)
+	$(COMPOSE) --profile proxy up -d proxy
+	@$(PUBLIC_URL_SH); \
+		echo "Proxy arriba. URLs publicas (api_key: VLLM_API_KEY):"; \
+		echo "  LLM: $$url/llm/v1"; \
+		echo "  STT: $$url/stt/v1"; \
+		echo "  TTS: $$url/tts/v1"
+
+logs-proxy: ## Sigue los logs del proxy
+	$(COMPOSE) --profile proxy logs -f --tail=200 proxy
 
 STT_EVAL_SERVICES := stt-parakeet stt-whisper
 
@@ -182,7 +188,7 @@ logs-stt-eval: ## Sigue los logs del STT candidato levantado
 	$(COMPOSE) --profile stt-eval logs -f --tail=200 $(STT_EVAL_SERVICES)
 
 # --- Server de inferencia para el loadtest remoto, un STT por vez ----------
-# Dejan en este host LLM + TTS + el STT elegido + el tunel ngrok, y paran
+# Dejan en este host LLM + TTS + el STT elegido + el proxy publico, y paran
 # app/agent: el loadtest corre en otra PC (`make up-remote`) y, si usa el
 # mismo proyecto de LiveKit y LIVEKIT_AGENT_NAME, LiveKit repartiria las
 # llamadas entre los dos agentes. Los candidatos van en la GPU 1 en lugar de
@@ -190,40 +196,35 @@ logs-stt-eval: ## Sigue los logs del STT candidato levantado
 # el .env de la PC del loadtest. Volver al uso normal (app/agent aca):
 # `make servers-qwen && make up`. Runbook: docs/experiments/README.md.
 
-define check_ngrok_env
-	@grep -qE '^NGROK_AUTHTOKEN=.+' .env || { echo "Falta NGROK_AUTHTOKEN en .env (ver .env.example)"; exit 1; }
-	@grep -qE '^NGROK_DOMAIN=.+' .env || { echo "Falta NGROK_DOMAIN en .env (ver .env.example)"; exit 1; }
-endef
-
 # $(1) = path del proxy (stt, stt-whisper...), $(2) = modelo
 define print_remote_stt_env
-	@dom=$$(sed -n 's/^NGROK_DOMAIN=//p' .env | tail -1); \
+	@$(PUBLIC_URL_SH); \
 		echo "Listo. En el .env de la PC del loadtest (y recrear su agent):"; \
-		echo "  VLLM_STT_BASE_URL=https://$$dom/$(1)/v1"; \
+		echo "  VLLM_STT_BASE_URL=$$url/$(1)/v1"; \
 		echo "  VLLM_STT_MODEL=$(2)"
 endef
 
 # $(1) = servicio candidato, $(2) = modelo
 define servers_stt_candidate
-	$(check_ngrok_env)
+	$(check_public_env)
 	$(COMPOSE) --profile stt-eval rm -sf $(filter-out $(1),$(STT_EVAL_SERVICES))
 	$(COMPOSE) stop app agent vllm-stt
 	$(COMPOSE) -f docker-compose.yml -f docker-compose.stt-candidates.yml \
-		--profile stt-eval --profile ngrok up -d --build --wait vllm-llm vllm-tts $(1) proxy ngrok
+		--profile stt-eval --profile proxy up -d --build --wait vllm-llm vllm-tts $(1) proxy
 	$(call print_remote_stt_env,$(1),$(2))
 endef
 
-servers-qwen: ## Loadtest remoto: LLM + TTS + STT vigente (Qwen3-ASR) + ngrok; para app/agent aca
-	$(check_ngrok_env)
+servers-qwen: ## Loadtest remoto: LLM + TTS + STT vigente (Qwen3-ASR) + proxy; para app/agent aca
+	$(check_public_env)
 	$(COMPOSE) --profile stt-eval rm -sf $(STT_EVAL_SERVICES)
 	$(COMPOSE) stop app agent
-	$(COMPOSE) --profile ngrok up -d --wait vllm-llm vllm-stt vllm-tts proxy ngrok
+	$(COMPOSE) --profile proxy up -d --wait vllm-llm vllm-stt vllm-tts proxy
 	$(call print_remote_stt_env,stt,Qwen/Qwen3-ASR-1.7B)
 
-servers-whisper: ## Loadtest remoto: LLM + TTS + Whisper Large v3 Turbo (GPU 1, sin vllm-stt) + ngrok; para app/agent aca
+servers-whisper: ## Loadtest remoto: LLM + TTS + Whisper Large v3 Turbo (GPU 1, sin vllm-stt) + proxy; para app/agent aca
 	$(call servers_stt_candidate,stt-whisper,openai/whisper-large-v3-turbo)
 
-servers-parakeet: ## Loadtest remoto: LLM + TTS + Parakeet TDT 0.6B v3 (GPU 1, sin vllm-stt) + ngrok; para app/agent aca
+servers-parakeet: ## Loadtest remoto: LLM + TTS + Parakeet TDT 0.6B v3 (GPU 1, sin vllm-stt) + proxy; para app/agent aca
 	$(call servers_stt_candidate,stt-parakeet,nvidia/parakeet-tdt-0.6b-v3)
 
 pbx: ## Levanta Asterisk con la troncal de Anura (perfil opt-in; requiere ANURA_*/LIVEKIT_SIP_* en .env, ver docs/TELEFONIA_ANURA.md)
