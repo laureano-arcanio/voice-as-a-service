@@ -17,5 +17,8 @@ scripts/loadtest/results/
 # corpus de eval de STT (lo genera `make stt-corpus`)
 scripts/stt_corpus/data/
 
+# archivos temporales de trabajo (muestras, scripts sueltos, descargas)
+scratch/
+
 # fine-tuning de TTS: datos, checkpoints y audios generados (docs/TTS_FINETUNE.md)
 tts/finetune/work/

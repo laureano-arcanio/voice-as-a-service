@@ -19,6 +19,7 @@ TTS `Qwen/Qwen3-TTS-12Hz-1.7B-Base`.
 | [005](EXP-005-sim-stt-tts-16gb/) | 2026-09-21 | Simulación: STT + TTS limitados a 16 GB; LLM sola | 2,1 | 28,6 ms | 301 ms | 244 ms | 68 / 13,7 ms | Entra justo (16,1 GB); no simula velocidad |
 | [006](EXP-006-stt-whisper/) | 2026-09-22 | STT Whisper Large v3 Turbo en lugar de Qwen3-ASR (GPU 1, con la LLM) | 1,9 | 28,6 ms | 282 ms | **96 ms** | 96 / 15,3 ms | STT 2,4 × más rápido, con la mitad de VRAM; falta calidad en llamadas reales. Con 32: 21/32 llamadas ok, el agente no tomó 11 |
 | [007](EXP-007-stt-parakeet-local/) | 2026-09-22 | STT Parakeet TDT 0.6B v3 (GPU 1, con la LLM); loadtest **local, sin ngrok**, con scoring | 1,9 | 28,7 ms | 295 ms | 130 ms | 114 / 15,4 ms | STT con 1,6 GB, sin batching. Sin ngrok el agente gana ~0,4 s por turno; no comparable con 001–006. 20/32 llamadas ok |
+| [008](EXP-008-parakeet-batching-qwen-tts/) | 2026-09-23 | Como 007, con batching dinámico en Parakeet (`STT_MAX_BATCH=8`); loadtest local | 1,6 | 26,0 ms | 266 ms | 132 ms | 103 / 14,4 ms | Igual que 007: con 0,6 req/s de STT el batching casi no se usa (233 requests en 232 batches). 19/32 llamadas ok |
 
 - **TTS primer audio:** en vLLM-Omni es el TTFT más la cola del stage 1 (Code2Wav). En un TTS de un solo stage es el TTFT.
 - **Comparar con cuidado:** la carga que llega no es idéntica entre runs, así que la latencia hay que leerla junto con req/s.

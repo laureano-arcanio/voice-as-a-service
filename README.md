@@ -270,6 +270,21 @@ Se probo tambien Moonshine Spanish y se descarto: solo corre en CPU (su runtime 
 Runtime sin CUDA y los modelos en espanol son int8 para CPU), dio 33.3% de WER y su licencia
 es no comercial para empresas de mas de USD 1M/anio.
 
+Se descartaron tambien (2026-09-23, mismo eval, en `tel8k`: WER de OpenSLR / email / direccion completa):
+- `marianbasti/whisper-large-v3-turbo-latam` (Turbo con fine-tune en Common Voice sin acentos de
+  Espana): 2.7% / 17% / 51%, contra 1.5% / 20% / 64% de Turbo base. Pierde voseo ("Queres" ->
+  "Crees", "Conseguime" -> "Conseguidme"), y con ruido cae mas que la base.
+- `Qwen/Qwen3-ASR-0.6B`: 3.7% / 23% / 48%, contra 2.0% / 30% / 58% del 1.7B, en la mitad de tiempo
+  (63 contra 119 ms). Con ruido, 11.8% contra 6.8%. Parakeet, del mismo tamanio, es mejor en todo
+  lo telefonico.
+
+TTS descartados (2026-09-23): `Qwen/Qwen3-TTS-12Hz-0.6B-Base`, medido contra el 1.7B-Base con la GPU 0
+para cada uno, voz `sofia_ar`. Primer audio 94 contra 103 ms, pero ~1% de los pedidos no emite fin
+de audio y genera ~47 s hasta el limite de tokens (siempre en frases cortas como "Dale, ya lo
+registre."). Esas fallas ocupan la GPU y bajan el throughput a menos de la mitad con 8-16 pedidos en
+paralelo. El 1.7B no tuvo ninguna en ~370 pedidos. CosyVoice 3 tambien se descarto como TTS de
+llamadas: 0,6-1 s de primer audio con una llamada y 1-1,8 s con 4 (Qwen3-TTS: 0,11-0,2 s con 20).
+
 ## Correr con Docker Compose
 
 ```bash

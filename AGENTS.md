@@ -51,7 +51,9 @@ infraestructura. La app (flujo de la llamada, scoring, dashboard) está en
 | 0 | `vllm-tts` sola | 0.4 |
 | 1 | `vllm-llm` + `vllm-stt` + escritorio | 0.55 + 0.30 |
 
-**TTS con voz fine-tuneada (sep-2026):** `vllm-tts` puede servir un checkpoint propio (voz `arf_03034`) con `docker-compose.tts-ft.yml`. Ver [`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md).
+**En uso en este server (EXP-008):** STT Parakeet con batching en lugar de `vllm-stt`, misma GPU 1 (~1,6 GB). Se levanta con `docker-compose.parakeet.yml`, y el `.env` apunta el agente a `stt-parakeet`. TTS y LLM, como en EXP-003.
+
+**TTS con voz fine-tuneada (sep-2026):** `vllm-tts` puede servir un checkpoint propio (voz `arf_03034`) con `docker-compose.tts-ft.yml`, encima del de Parakeet. Ver [`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md).
 
 ## Reglas y trampas
 
@@ -66,7 +68,7 @@ infraestructura. La app (flujo de la llamada, scoring, dashboard) está en
   memoria está en `tts/cosyvoice3.yaml`, no en el compose. Apagarlo (`make tts-cosyvoice-down`)
   antes de medir capacidad.
 - **Perfil `stt-eval`:** se levanta un candidato por vez, nunca los dos juntos (`make stt-eval-up STT=...` baja el otro). Usa la GPU 0 por defecto y compite con TTS. Apagarlo (`make stt-eval-down`) antes de medir capacidad. Para medir con el loadtest: `make servers-whisper` / `make servers-parakeet` (usan `docker-compose.stt-candidates.yml`, que pone el candidato en la GPU 1 en lugar de `vllm-stt`) y `make servers-qwen` para volver a la vigente.
-- **Servidor propio de STT (`stt/server.py`, Parakeet):** expone `/metrics` con nombres de vLLM para que lo lea el sampler. Procesa de a un request por instancia (`STT_WORKERS`), sin batching: bajo carga, la espera aparece como cola.
+- **Servidor propio de STT (`stt/server.py`, Parakeet):** expone `/metrics` con nombres de vLLM para que lo lea el sampler. Batching dinámico: junta lo que llega mientras la GPU trabaja, hasta `STT_MAX_BATCH` (8). Un pedido solo tarda lo mismo que sin batching (~60 ms). Con 16 clientes en paralelo rinde ×4,7 (76 contra 16 req/s) y la p50 baja de 996 a 204 ms. Batch 16 da ×5,4 a costa de ~150 ms por batch.
 - **Flags del LLM:** `--max-cudagraph-capture-size=32` evita que su VRAM crezca con el tráfico, y `--max-num-seqs=32` es por el cache Mamba de Qwen3.5. Ver los comentarios del compose.
 - **vLLM-Omni:** fijada en v0.28.0, porque `latest` no arranca. Deja `num_requests_running` en 1 sin tráfico, así que la actividad se detecta por los contadores de tokens.
 - **Voz clonada:** vive en el volumen `vllm_tts_speakers`. Si se pierde el volumen, hay que volver a subirla (README, "Voz clonada").
@@ -90,6 +92,7 @@ donde está el procedimiento y el índice comparativo.
 
 - Puede haber otras sesiones de agente trabajando en paralelo en el repo y en los contenedores. Mirar `git status` y `docker ps` antes de cambiar algo, y no revertir cambios ajenos.
 - No reiniciar servicios ni lanzar pruebas que nadie pidió: el stack se usa en vivo.
+- Archivos temporales (muestras de audio, scripts de prueba, descargas, clones de repos): siempre en `scratch/` dentro del repo (está en `.gitignore`), nunca en `/tmp` ni fuera del repo, para que el usuario pueda abrirlos.
 - Docs y comentarios en español, breves y con datos medidos.
 
 ## Documentación

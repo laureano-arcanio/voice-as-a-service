@@ -1,0 +1,40 @@
+# STT Parakeet TDT 0.6B v3 (stt/server.py, con batching) en lugar de vllm-stt
+# (Qwen3-ASR); LLM y TTS (Qwen3-TTS 1.7B-Base, voz sofia_ar) como en la config
+# vigente.
+#
+#   GPU 0: vllm-tts sola.
+#   GPU 1: vllm-llm (0.55) + stt-parakeet (~1.6 GB) + escritorio. vllm-stt apagado.
+#
+# Uso:
+#   docker compose -f docker-compose.yml -f docker-compose.parakeet.yml \
+#     --profile stt-eval up -d --wait db vllm-llm vllm-tts stt-parakeet app agent
+#
+# El .env apunta el agente a Parakeet: VLLM_STT_BASE_URL=http://stt-parakeet:8000/v1
+# y AGENT_STT_MODEL=nvidia/parakeet-tdt-0.6b-v3 (ver .env.example). Volver a la
+# config vigente: restaurar esas lineas del .env y `make up`.
+services:
+  # Misma ubicacion que en docker-compose.stt-candidates.yml: GPU 1, en el lugar
+  # de vllm-stt, arrancando despues de vllm-llm (comparten GPU).
+  stt-parakeet:
+    depends_on:
+      vllm-llm:
+        condition: service_healthy
+    deploy:
+      resources:
+        reservations:
+          devices: !override
+            - driver: nvidia
+              device_ids: ["1"]
+              capabilities: ["gpu"]
+
+  agent:
+    # vllm-stt queda apagado en esta config.
+    depends_on: !override
+      db:
+        condition: service_healthy
+      vllm-llm:
+        condition: service_healthy
+      stt-parakeet:
+        condition: service_healthy
+      vllm-tts:
+        condition: service_healthy
