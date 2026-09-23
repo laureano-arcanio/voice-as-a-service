@@ -138,3 +138,16 @@ textarea.in { resize: vertical; }
   .launcher-grid { grid-template-columns: 1fr; }
   .bubble { max-width: 95%; }
 }
+
+.field-empty { color: var(--muted); font-style: italic; }
+.rules { margin: 6px 0 0; padding-left: 20px; font-size: 14px; }
+.rules li { margin: 2px 0; }
+
+.live-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 22px; align-items: start; }
+.live-grid .tbl td { padding: 6px 10px; }
+.live-chat { max-height: 70vh; overflow-y: auto; padding-right: 4px; }
+.live-chat .bubble { max-width: 85%; }
+tr.just-set td { background: var(--ok-bg); transition: background .6s; }
+@media (max-width: 860px) {
+  .live-grid { grid-template-columns: 1fr; }
+}

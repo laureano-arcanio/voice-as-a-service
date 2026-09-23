@@ -5,7 +5,7 @@ via Asterisk (ver docs/TELEFONIA_ANURA.md):
     autenticadas con usuario "livekit" y LIVEKIT_SIP_PASSWORD.
   - dispatch rule: una room nueva por llamada entrante (prefijo "anura-") con
     el agente LIVEKIT_AGENT_NAME despachado. Sin metadata a proposito: el
-    agente reconoce una entrante porque no trae local_call_id
+    agente reconoce una entrante porque no trae conversation_id
     (app/livekit_agent.py).
   - outbound trunk (LiveKit -> Asterisk): a donde manda LiveKit las llamadas
     que marca el agente (create_sip_participant). Su ID va en

@@ -4,58 +4,46 @@
 
 <p><a href="/" class="btn small">&larr; Volver al dashboard</a></p>
 
-<section class="card" id="head-card">
-  <h2>Llamada #{{ call_id }} <span id="h-outcome"></span></h2>
+<section class="card">
+  <h2><span id="h-title">Conversaci&oacute;n</span> <span id="h-workflow"></span></h2>
   <div class="detail-grid">
-    <div><span>Interesado</span><b id="h-name">&ndash;</b></div>
-    <div><span>Tel&eacute;fono</span><b id="h-phone">&ndash;</b></div>
+    <div><span>Contacto</span><b id="h-name">&ndash;</b></div>
+    <div><span>Empresa</span><b id="h-company">&ndash;</b></div>
+    <div><span>Origen</span><b id="h-mode">&ndash;</b></div>
     <div><span>Fecha</span><b id="h-date">&ndash;</b></div>
     <div><span>Estado</span><b id="h-status">&ndash;</b></div>
     <div><span>Duraci&oacute;n</span><b id="h-dur">&ndash;</b></div>
-    <div><span>Score</span><b id="h-score">&ndash;</b></div>
     <div><span>Fin de llamada</span><b id="h-reason">&ndash;</b></div>
-    <div><span>Pr&oacute;ximo paso</span><b id="h-next">&ndash;</b></div>
+    <div><span>Datos obtenidos</span><b id="h-captured">&ndash;</b></div>
+    <div><span>Pide demo</span><b id="h-demo">&ndash;</b></div>
   </div>
-  <p class="hint" id="h-notes" style="display:none"></p>
-  <div id="audio-wrap" style="display:none; margin-top:14px">
-    <h3>Grabaci&oacute;n</h3>
-    <audio id="audio" controls preload="none" style="width:100%"></audio>
-  </div>
+  <p class="msg bad" id="h-error"></p>
 </section>
 
-<section class="card" id="score-card" style="display:none">
-  <h2>Calificaci&oacute;n del lead</h2>
-  <p class="hint" id="score-notes"></p>
-  <p class="hint" id="score-bands"></p>
-  <table class="tbl" id="score-tbl">
-    <thead><tr>
-      <th>Pregunta</th><th>Lo que dijo el interesado</th><th>Justificaci&oacute;n</th>
-      <th style="width:70px">Puntos</th><th style="width:90px">Resultado</th>
-    </tr></thead>
-    <tbody></tbody>
-  </table>
-</section>
+<div class="live-grid">
+  <section class="card">
+    <h2>Estado <span class="hint" id="wf-id"></span></h2>
+    <table class="tbl" id="fields-tbl">
+      <thead><tr><th>Dato</th><th>Valor</th><th style="width:100px"></th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
 
-<section class="card" id="err-card" style="display:none">
-  <h2>Scoring pendiente</h2>
-  <p class="msg bad" id="score-error"></p>
-  <button id="btn-rescore" class="btn primary">Reintentar evaluaci&oacute;n</button>
-</section>
-
-<section class="card" id="tr-card" style="display:none">
-  <h2>Transcript</h2>
-  <div class="chat" id="chat"></div>
-</section>
+  <section class="card">
+    <h2>Conversaci&oacute;n <span id="live" class="badge info" style="display:none">&#9679; En vivo</span></h2>
+    <div class="chat live-chat" id="chat"></div>
+  </section>
+</div>
 
 <section class="card" id="lat-card" style="display:none">
   <h2>Latencia por turno</h2>
   <p class="hint">Segundos desde que el cliente deja de hablar hasta que el agente empieza a sonar.
-    <b>Total</b> = EOU (STT + endpointing) + LLM TTFT + TTS TTFB.</p>
+    <b>Total</b> = EOU (STT + endpointing) + LLM (motor del workflow, JSON completo) + TTS TTFB.</p>
   <p class="hint" id="lat-stats"></p>
   <table class="tbl" id="lat-tbl">
     <thead><tr>
       <th style="width:50px">#</th><th>Total</th><th>EOU</th><th>&nbsp;&nbsp;STT</th><th>&nbsp;&nbsp;Endpointing</th>
-      <th>LLM TTFT</th><th>LLM total</th><th>TTS TTFB</th><th>Audio</th>
+      <th>LLM</th><th>TTS TTFB</th><th>Audio</th>
     </tr></thead>
     <tbody></tbody>
   </table>
@@ -63,118 +51,92 @@
 
 {% endblock %}
 {% block scripts %}
+<script src="/static/common.js"></script>
 <script>
-const CALL_ID = {{ call_id }};
-const OUTCOME = {
-  caliente: ['Lead caliente', 'badge ok'],
-  tibio:    ['Lead tibio', 'badge warn'],
-  frio:     ['Lead fr\u00edo', 'badge bad'],
-};
-const NEXT_STEP = {
-  caliente: ['Acci\u00f3n: asesor coordina la demo', 'badge ok'],
-  tibio:    ['Acci\u00f3n: seguimiento comercial', 'badge warn'],
-  frio:     ['Acci\u00f3n: enviar informaci\u00f3n', 'badge bad'],
-};
-const STATUS = {
-  pendiente: 'Pendiente', sonando: 'Sonando', en_curso: 'En curso',
-  finalizada: 'Finalizada', fallida: 'Fallida',
-};
+const CONVERSATION_ID = {{ conversation_id | tojson }};
+const LIVE = ['pendiente', 'sonando', 'en_curso'];
+let lastMessages = -1;
+const setAt = {};  // dato -> cuando se obtuvo, para resaltarlo unos segundos
+let prevFields = null;
 
-function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
-
-async function load() {
-  const c = await fetch('/api/calls/' + CALL_ID).then(r => r.json());
-  document.getElementById('h-name').textContent = (c.client_name || '\u2013') +
-    (c.client_gender ? ' (' + c.client_gender + ')' : '');
-  if (c.client_notes) {
-    const n = document.getElementById('h-notes');
-    n.style.display = 'block';
-    n.textContent = 'Contexto del equipo comercial: ' + c.client_notes;
-  }
-  document.getElementById('h-phone').textContent = c.phone;
-  document.getElementById('h-date').textContent = c.created_at ? new Date(c.created_at).toLocaleString('es-AR') : '\u2013';
-  document.getElementById('h-status').textContent = STATUS[c.status] || c.status;
-  document.getElementById('h-dur').textContent = c.duration_seconds
-    ? Math.floor(c.duration_seconds / 60) + ':' + String(c.duration_seconds % 60).padStart(2, '0') : '\u2013';
-  document.getElementById('h-score').textContent = c.score ?? '\u2013';
-  document.getElementById('h-reason').textContent = c.ended_reason || '\u2013';
-  if (c.outcome) {
-    const [label, cls] = OUTCOME[c.outcome] || [c.outcome, 'badge'];
-    document.getElementById('h-outcome').innerHTML = `<span class="${cls}" style="font-size:.55em;vertical-align:middle">${label}</span>`;
-    const [nextLabel, nextCls] = NEXT_STEP[c.outcome] || ['\u2013', 'badge'];
-    document.getElementById('h-next').innerHTML = `<span class="${nextCls}">${nextLabel}</span>`;
-  }
-
-  if (c.has_recording && c.recording_file) {
-    document.getElementById('audio-wrap').style.display = 'block';
-    const a = document.getElementById('audio');
-    if (!a.src) a.src = '/recordings/' + c.recording_file;
-  }
-
-  // transcript
-  if (c.transcript_json) {
-    const msgs = JSON.parse(c.transcript_json);
-    document.getElementById('tr-card').style.display = 'block';
-    document.getElementById('chat').innerHTML = msgs.map(m => `
-      <div class="bubble ${m.role === 'agente' ? 'agent' : 'client'}">
-        <span class="who">${m.role === 'agente' ? 'Agente IA' : (m.role === 'cliente' ? 'Interesado' : m.role)}</span>
-        ${esc(m.text)}
-      </div>`).join('');
-  }
-
-  // latencia por turno
-  if (c.latency_json) {
-    const l = JSON.parse(c.latency_json);
-    if (l.n_turns) {
-      document.getElementById('lat-card').style.display = 'block';
-      const f = v => (v == null ? '\u2013' : v.toFixed(2) + 's');
-      const st = l.stats || {};
-      document.getElementById('lat-stats').innerHTML = l.n_turns + ' turnos &middot; promedio: ' +
-        ['total', 'eou', 'stt', 'endpointing', 'ttft', 'tts'].filter(k => st[k]).map(k =>
-          `${k} <b>${f(st[k].avg)}</b> (max ${f(st[k].max)})`).join(' &middot; ');
-      document.querySelector('#lat-tbl tbody').innerHTML = l.turns.map((t, i) => `
-        <tr${t.cancelled ? ' title="El cliente interrumpi\u00f3 la respuesta"' : ''}>
-          <td class="ctr">${i + 1}${t.cancelled ? ' \u26a1' : ''}</td>
-          <td><b>${f(t.total)}</b></td><td>${f(t.eou)}</td><td>${f(t.stt)}</td><td>${f(t.endpointing)}</td>
-          <td>${f(t.ttft)}</td><td>${f(t.llm_total)}${t.llm_tokens != null ? ' <span class="hint">(' + t.llm_tokens + ' tok)</span>' : ''}</td>
-          <td>${f(t.tts)}</td><td>${f(t.tts_audio)}</td>
-        </tr>`).join('');
-    }
-  }
-
-  // scoring
-  if (c.score_detail) {
-    const d = JSON.parse(c.score_detail);
-    document.getElementById('score-card').style.display = 'block';
-    document.getElementById('err-card').style.display = 'none';
-    document.getElementById('score-notes').textContent = d.notes ? 'Resumen del lead: ' + d.notes : '';
-    const bands = JSON.parse(c.bands_snapshot || '[]');
-    document.getElementById('score-bands').innerHTML = 'Criterio aplicado: ' + bands.map(b =>
-      `${b.min_score}\u2013${b.max_score}: <b>${(OUTCOME[b.outcome] || [b.outcome])[0]}</b>`).join(' &middot; ') +
-      (d.required_failed ? ' &middot; <b>Una pregunta requerida no se cumpli\u00f3: el lead no puede quedar "Caliente".</b>' : '');
-    document.querySelector('#score-tbl tbody').innerHTML = d.detail.map(r => `
-      <tr>
-        <td>${esc(r.question)}${r.required ? ' <span class="badge info" title="Requerida">R</span>' : ''}</td>
-        <td>${esc(r.customer_answer)}</td>
-        <td class="hint">${esc(r.rationale)}</td>
-        <td class="ctr">${r.points}/${r.weight}</td>
-        <td class="ctr">${r.correct ? '<span class="badge ok">Cumple</span>' : '<span class="badge bad">No cumple</span>'}</td>
-      </tr>`).join('');
-  } else if (c.score_error) {
-    document.getElementById('err-card').style.display = 'block';
-    document.getElementById('score-error').textContent = c.score_error;
-  }
-
-  if (['pendiente', 'sonando', 'en_curso'].includes(c.status) || (c.status === 'finalizada' && !c.score_detail && !c.score_error)) {
-    setTimeout(load, 4000);
-  }
+function fmtValue(v) {
+  if (v == null) return '<span class="field-empty">sin dato</span>';
+  if (v === true) return 'Sí';
+  if (v === false) return 'No';
+  return esc(v);
 }
 
-document.getElementById('btn-rescore').addEventListener('click', async () => {
-  await fetch('/api/calls/' + CALL_ID + '/rescore', {method: 'POST'});
-  document.getElementById('score-error').textContent = 'Reevaluando\u2026';
-  setTimeout(load, 4000);
-});
+async function load() {
+  const r = await fetch('/api/calls/' + CONVERSATION_ID);
+  if (!r.ok) {
+    document.getElementById('h-error').textContent = 'Conversación inexistente.';
+    return;
+  }
+  const c = await r.json();
+  const call = c.call || {};
+  const value = name => (c.fields.find(f => f.name === name) || {}).value;
+  const required = c.fields.filter(f => f.required);
+
+  document.getElementById('h-workflow').innerHTML =
+    `<span style="font-size:.7em;vertical-align:middle">${badge(WORKFLOW, c.workflow_status)}</span>`;
+  document.getElementById('h-name').textContent = value('contact_name') || '–';
+  document.getElementById('h-company').textContent = value('company_name') || '–';
+  document.getElementById('h-mode').innerHTML = badge(MODE, c.call ? call.mode : 'api') +
+    (call.phone ? ' ' + esc(call.phone) : '');
+  document.getElementById('h-date').textContent = c.created_at ? new Date(c.created_at).toLocaleString('es-AR') : '–';
+  document.getElementById('h-status').innerHTML = call.status ? badge(STATUS, call.status) : '–';
+  document.getElementById('h-dur').textContent = fmtDur(call.duration_seconds);
+  document.getElementById('h-reason').textContent = call.ended_reason || '–';
+  document.getElementById('h-captured').textContent =
+    required.filter(f => f.value != null).length + ' de ' + required.length;
+  document.getElementById('h-demo').innerHTML = demoBadge(value('wants_demo'));
+  document.getElementById('h-error').textContent = call.error || '';
+
+  document.getElementById('wf-id').textContent = c.workflow_id;
+  if (prevFields) {
+    c.fields.forEach(f => { if (f.value != null && prevFields[f.name] == null) setAt[f.name] = Date.now(); });
+  }
+  const fresh = name => Date.now() - (setAt[name] || 0) < 4000;
+  prevFields = Object.fromEntries(c.fields.map(f => [f.name, f.value]));
+  document.querySelector('#fields-tbl tbody').innerHTML = c.fields.map(f => `
+    <tr class="${fresh(f.name) ? 'just-set' : ''}">
+      <td><b>${esc(f.name)}</b><br><span class="hint">${esc(f.description)}</span></td>
+      <td>${fmtValue(f.value)}</td>
+      <td class="ctr">${f.required ? (f.value != null ? '<span class="badge ok">Obtenido</span>' : '<span class="badge warn">Pendiente</span>') : '<span class="hint">No</span>'}</td>
+    </tr>`).join('');
+
+  if (c.messages.length !== lastMessages) {
+    lastMessages = c.messages.length;
+    const chat = document.getElementById('chat');
+    chat.innerHTML = c.messages.map(m => `
+      <div class="bubble ${m.role === 'assistant' ? 'agent' : 'client'}">
+        <span class="who">${m.role === 'assistant' ? 'Agente IA' : 'Interesado'}</span>
+        ${esc(m.text)}
+      </div>`).join('');
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  const l = call.latency;
+  if (l && l.n_turns) {
+    document.getElementById('lat-card').style.display = 'block';
+    const f = v => (v == null ? '–' : v.toFixed(2) + 's');
+    const st = l.stats || {};
+    document.getElementById('lat-stats').innerHTML = l.n_turns + ' turnos &middot; promedio: ' +
+      ['total', 'eou', 'stt', 'endpointing', 'llm', 'tts'].filter(k => st[k]).map(k =>
+        `${k} <b>${f(st[k].avg)}</b> (max ${f(st[k].max)})`).join(' &middot; ');
+    document.querySelector('#lat-tbl tbody').innerHTML = l.turns.map((t, i) => `
+      <tr>
+        <td class="ctr">${i + 1}</td>
+        <td><b>${f(t.total)}</b></td><td>${f(t.eou)}</td><td>${f(t.stt)}</td><td>${f(t.endpointing)}</td>
+        <td>${f(t.llm)}</td><td>${f(t.tts)}</td><td>${f(t.tts_audio)}</td>
+      </tr>`).join('');
+  }
+
+  // En vivo: la llamada esta en curso, o es una conversacion por API sin terminar.
+  const live = c.call ? LIVE.includes(call.status) : c.workflow_status === 'active';
+  document.getElementById('live').style.display = live ? 'inline-block' : 'none';
+  if (live) setTimeout(load, 1000);
+}
 
 load();
 </script>

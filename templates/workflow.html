@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block nav_workflow %}active{% endblock %}
+{% block content %}
+
+<section class="card">
+  <h2 id="wf-title">Workflow</h2>
+  <p class="hint">Definici&oacute;n en <code id="wf-file"></code> (solo lectura: se edita el YAML y se reinician app y agent).
+    Las preguntas son sugeridas: el agente las reformula y completa los datos en el orden que surjan.</p>
+  <div class="detail-grid">
+    <div><span>Agente</span><b id="wf-agent">&ndash;</b></div>
+    <div><span>Idioma</span><b id="wf-lang">&ndash;</b></div>
+    <div><span>Versi&oacute;n</span><b id="wf-version">&ndash;</b></div>
+  </div>
+  <h3 style="margin-top:14px">Objetivo</h3>
+  <p id="wf-objective"></p>
+  <h3>Apertura</h3>
+  <p id="wf-opening"></p>
+  <h3>Reglas</h3>
+  <ul class="rules" id="wf-rules"></ul>
+</section>
+
+<section class="card">
+  <h2>Datos a obtener</h2>
+  <table class="tbl" id="fields-tbl">
+    <thead><tr>
+      <th style="width:60px">Orden</th><th>Dato</th><th>Tipo</th><th>Obligatorio</th><th>Pregunta sugerida</th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<section class="card">
+  <h2>Cierre</h2>
+  <p><b>Si pide demo:</b> <span id="wf-demo"></span></p>
+  <p><b>Si no pide demo:</b> <span id="wf-nodemo"></span></p>
+</section>
+
+{% endblock %}
+{% block scripts %}
+<script src="/static/common.js"></script>
+<script>
+async function load() {
+  const w = await fetch('/api/workflow').then(r => r.json());
+  document.getElementById('wf-title').textContent = 'Workflow: ' + w.id;
+  document.getElementById('wf-file').textContent = 'app/workflows/' + w.id + '.yml';
+  document.getElementById('wf-agent').textContent = w.agent.name + ' (' + w.agent.role + ')';
+  document.getElementById('wf-lang').textContent = w.agent.language;
+  document.getElementById('wf-version').textContent = w.version;
+  document.getElementById('wf-objective').textContent = w.objective.description;
+  document.getElementById('wf-opening').textContent = w.conversation.opening;
+  document.getElementById('wf-rules').innerHTML = w.conversation.rules.map(r => `<li>${esc(r)}</li>`).join('');
+  const required = f => f.required_if
+    ? 'Si ' + Object.entries(f.required_if).map(([k, v]) => `${k} = ${v}`).join(' y ')
+    : (f.required ? 'Sí' : 'No');
+  document.querySelector('#fields-tbl tbody').innerHTML = Object.entries(w.fields)
+    .sort((a, b) => a[1].priority - b[1].priority)
+    .map(([name, f]) => `
+      <tr>
+        <td class="ctr">${f.priority}</td>
+        <td><b>${esc(name)}</b><br><span class="hint">${esc(f.description)}</span></td>
+        <td>${esc(f.type)}</td>
+        <td>${esc(required(f))}</td>
+        <td>${esc(f.question)}</td>
+      </tr>`).join('');
+  document.getElementById('wf-demo').textContent = w.completion.message_if_demo;
+  document.getElementById('wf-nodemo').textContent = w.completion.message_if_no_demo;
+}
+load();
+</script>
+{% endblock %}

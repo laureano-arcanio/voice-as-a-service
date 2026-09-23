@@ -1,7 +1,7 @@
 # Makefile — AIVA Validate (voice-as-a-service)
 #
 # Atajos sobre `docker compose`. Stack por defecto (docker-compose.yml):
-#   agente:     db + app (dashboard :8011) + agent (worker de LiveKit)
+#   agente:     db + app (dashboard y API :8011) + agent (worker de LiveKit)
 #   inferencia: vllm-llm (Qwen3.5-4B) + stt-parakeet (Parakeet TDT 0.6B v3)
 #               + vllm-tts (Qwen3-TTS 1.7B, voz fine-tuneada arf_03034)
 #   proxy:      nginx en :PROXY_PORT, entrada publica a la inferencia (loadtest)
@@ -35,7 +35,7 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
         up up-agent up-inference up-nginx up-pbx down restart ps logs \
         sh mysql health gpu \
         pbx-cli pbx-status livekit-sip \
-        loadtest-audio loadtest loadtest-report stt-eval stt-corpus \
+        test loadtest-audio loadtest loadtest-report stt-eval stt-corpus \
         db-reset clean
 
 help: ## Muestra esta ayuda
@@ -133,6 +133,11 @@ pbx-status: ## Registro con Anura, endpoints y llamadas activas en Asterisk
 livekit-sip: ## Crea/actualiza en LiveKit los trunks SIP + dispatch rule para Anura via Asterisk (idempotente)
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts app python -m scripts.livekit_sip_setup
 
+# --- Tests ---------------------------------------------------------------
+
+test: ## Tests del motor conversacional (los que usan el LLM se saltean si vllm-llm no responde)
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/tests:/app/tests -v $(CURDIR)/pytest.ini:/app/pytest.ini app pytest -q $(ARGS)
+
 # --- Loadtest y eval (docs/experiments/) ---------------------------------
 
 loadtest-audio: ## Genera el corpus de audio del loadtest con vllm-tts (una vez; cachea en scripts/loadtest/audio/)
@@ -162,7 +167,7 @@ stt-corpus: ## Arma el corpus de eval de STT con voces argentinas (OpenSLR 61): 
 
 # --- Limpieza ------------------------------------------------------------
 
-db-reset: ## PELIGRO: borra la base MySQL (llamadas y config) y la vuelve a crear. Conserva pesos y voces
+db-reset: ## PELIGRO: borra la base MySQL (conversaciones) y la vuelve a crear. Conserva pesos y voces
 	$(COMPOSE) rm -sf $(AGENT_SERVICES)
 	docker volume rm $(notdir $(CURDIR))_mysql_data
 	$(MAKE) up-agent

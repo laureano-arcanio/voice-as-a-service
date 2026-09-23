@@ -1,25 +1,23 @@
 # AIVA Ventas (Browix) — Demo MVP
 
-Mini producto demo: un agente de IA (asesora comercial virtual de [Browix](https://browix.com),
-plataforma de gestion de personal) **atiende las llamadas de personas interesadas**, responde
-sus consultas sobre el producto, califica el lead con el cuestionario configurado y cierra con
-una demo con un asesor. Al cortar, un LLM evalua el transcript y asigna score + temperatura del
-lead (caliente / tibio / frio). Tambien puede llamar (saliente) a un lead que dejo sus datos.
-Contexto del negocio, base de conocimiento y links relevados: `docs/Browix_Contexto_Agente.md`.
+POC: un agente de IA (asesora comercial virtual de [Browix](https://browix.com), plataforma de
+gestion de personal) **atiende las llamadas de personas interesadas**, responde sus consultas y
+junta los datos del lead hasta ofrecer una demo con un asesor. Tambien puede llamar (saliente).
+Contexto del negocio: `docs/Browix_Contexto_Agente.md`.
+
+La conversacion no es un guion: un **workflow YAML** define los datos a obtener (objetivos), el
+estado guarda lo que ya se sabe, y en cada turno el LLM extrae datos, elige el siguiente objetivo
+y redacta la respuesta. La app valida los datos y decide cuando termina. Detalle en "Motor
+conversacional" abajo; el diseño original esta en `docs/REFACTOR.md`.
 
 ## Stack
 
-- **Backend:** Python 3.12 + FastAPI + SQLAlchemy (MySQL) + Jinja2, servido con uvicorn.
-- **Frontend:** HTML + Vanilla JS (sin frameworks).
-- **Voz:** LiveKit Agents (STT + LLM + TTS, los 3 servidos localmente
-  sobre GPU propia — ver "Inferencia local" abajo) sobre una troncal SIP (Anura via un
-  Asterisk propio, ver "Telefonia" abajo; o Twilio), corriendo como un worker propio
-  (`app/livekit_agent.py`, proceso/contenedor
-  separado). La app (`app/main.py`) solo despacha el agente a una room nueva
-  (`app/livekit_dispatch.py`); el worker marca al cliente y escribe el resultado
-  (transcript, status, score) directo en la base de datos — no hay webhook.
-- **Scoring:** el mismo LLM local evalua el transcript contra el cuestionario de calificacion
-  (criterio de cada pregunta + ponderacion + flag de requerida) y aplica las bandas de score.
+- **Backend:** Python 3.12 + FastAPI + SQLAlchemy (MySQL; SQLite en los tests), sin frontend.
+- **Voz:** LiveKit Agents (STT + LLM + TTS, los 3 servidos localmente sobre GPU propia, ver
+  "Inferencia local" abajo) sobre una troncal SIP (Anura via un Asterisk propio, ver "Telefonia"
+  abajo; o Twilio), en un worker propio (`app/livekit_agent.py`, contenedor `agent`). La app
+  (`app/main.py`) despacha el agente a una room nueva (`app/livekit_dispatch.py`). El worker
+  reemplaza el `llm_node` de LiveKit por el motor conversacional, que guarda el estado en la base.
 
 ## Inferencia local
 
@@ -31,7 +29,7 @@ apuntando `base_url` a cada contenedor en vez de a `api.openai.com`.
 
 | Rol | Modelo | Variable | Endpoint | Por que |
 | --- | --- | --- | --- | --- |
-| LLM en vivo + scoring | `Qwen/Qwen3.5-4B` | `VLLM_LLM_MODEL` | `/v1/responses`, `/v1/chat/completions` | Dense, 262K ctx, soporte dia-0 de vLLM. Se invoca con `reasoning_effort=none` para no perder latencia en cadena de razonamiento. |
+| LLM del motor conversacional | `Qwen/Qwen3.5-4B` | `VLLM_LLM_MODEL` | `/v1/chat/completions` | Dense, 262K ctx, soporte dia-0 de vLLM. Structured output (JSON schema) y `enable_thinking=false`, sin cadena de razonamiento. |
 | STT | `nvidia/parakeet-tdt-0.6b-v3` | `VLLM_STT_MODEL` | `/v1/audio/transcriptions` | Servidor propio (`stt/server.py`, transformers + batching dinamico): 1,6 GB y mejor que Qwen3-ASR y Whisper Turbo en audio telefonico (ver "Eval de STT"). Es REST por turno, sin transcript parcial mientras el cliente habla. |
 | TTS | Qwen3-TTS 1.7B-Base con fine-tuning (voz `arf_03034`) | `VLLM_TTS_MODEL`, `VLLM_TTS_VOICE` | `/v1/audio/speech` (streaming) | Servido con vLLM-Omni. La voz esta dentro del checkpoint (ver "Voz del TTS" abajo). |
 
@@ -170,7 +168,7 @@ Acierto del dato completo; en direccion, completa / calle + altura:
 | | `tel8k_cuts` | 20% | 69% | 71% | **61%** / 75% |
 
 - **Los emails dictados son el punto debil de los tres** (20-40% en telefonico). Es el unico dato
-  personal que hoy pide el cuestionario del agente (`app/db.py`), asi que es lo que mas conviene
+  personal que hoy pide el workflow del agente (`app/workflows/sales_discovery.yml`), asi que es lo que mas conviene
   atacar: repetir el dato al cliente para confirmarlo, o pedirlo deletreado.
 - Con audio telefonico, Parakeet y Qwen3-ASR van parejos y arriba de Whisper en email y DNI.
 - Whisper es el mejor con audio limpio (email 41%) y el que mas cae al pasar a telefonico (20%).
@@ -362,17 +360,64 @@ completo (port forwarding del router, troubleshooting): `docs/TELEFONIA_ANURA.md
 
 Despues de editar `.env`: `docker compose up -d` (o `systemctl restart aiva-validate aiva-validate-agent` en el deploy bare-metal).
 
-## Flujo
+## Motor conversacional
 
-1. Dashboard → ingresar numero E.164 → **Llamar** → se crea el registro y la app
-   despacha el worker de LiveKit a una room nueva (`call-<id>`).
-2. El worker (`app/livekit_agent.py`) marca al cliente por la troncal SIP, corre la
-   conversacion (STT/LLM/TTS), y al terminar escribe directo en la base: status,
-   ended_reason, duration, transcript y dispara el scoring — todo en el mismo proceso,
-   sin webhook.
-3. El scoring evalua cada pregunta contra su respuesta de referencia: suma puntos de las
-   correctas, aplica las bandas, y si una pregunta *requerida* fallo y el score aprobaba,
-   el resultado baja a "a definir".
-4. Detalle de llamada: transcript estilo chat, tabla de scoring con justificacion por
-   pregunta y criterio aplicado. (La grabacion de audio no esta implementada en esta
-   version — LiveKit Egress requeriria un bucket S3-compatible propio.)
+```text
+app/
+  main.py                    API: /conversations, /conversations/{id}/turn, /calls; dashboard y /api/*
+  livekit_agent.py           worker de voz: STT -> motor -> TTS
+  calls.py                   CallLog: tabla `call_logs` (telefono, estado, duracion, latencia)
+  latency.py                 latencia por turno: EOU + LLM + TTS
+  workflows/sales_discovery.yml
+  conversation/
+    models.py                Workflow, ConversationState, AgentTurn (Pydantic)
+    workflow.py              carga del YAML, validacion, required_if, is_workflow_complete
+    engine.py                ConversationEngine: start_conversation, process_turn
+    store.py                 ConversationStore: tabla `conversations` (get, save)
+  llm/
+    client.py                LLMClient: chat completions con JSON schema del workflow
+    prompt.py                system prompt unico + WORKFLOW / CURRENT STATE / NEW USER MESSAGE
+tests/                       motor con LLM falso + escenarios contra el LLM real
+```
+
+**Un turno:** llega el mensaje (por la API o transcripto por el STT en una llamada) →
+`ConversationEngine.process_turn` carga el estado → `LLMClient` manda workflow, estado (datos
+conocidos y objetivos pendientes), el ultimo mensaje del agente y el mensaje nuevo → el LLM
+devuelve `field_updates`, `next_objective`, `assistant_message` y `status` → la app descarta
+campos inexistentes o con tipo invalido, aplica `required_if` y recalcula si termino con
+`is_workflow_complete` → guarda el estado y devuelve la respuesta. Si termino, la respuesta es el
+mensaje de cierre del workflow y el worker corta la llamada al terminar de decirlo.
+
+**Nuevo workflow:** copiar `app/workflows/sales_discovery.yml` como `<id>.yml` (mismo `id`
+adentro), y usarlo con `{"workflow_id": "<id>"}` o `WORKFLOW_ID=<id>` para el worker. Tipos de
+campo: `string`, `integer`, `boolean`, `email`. `required_if` acepta solo igualdades. Los
+mensajes de cierre eligen segun `wants_demo`.
+
+**Probar por texto** (sin voz):
+
+```bash
+curl -s -X POST localhost:8011/conversations -H 'Content-Type: application/json' -d '{}'
+curl -s -X POST localhost:8011/conversations/<id>/turn -H 'Content-Type: application/json' \
+  -d '{"message": "Soy Juan de Acme, hacemos logística y somos unas 80 personas."}'
+curl -s localhost:8011/conversations/<id>     # estado y transcript
+```
+
+**Probar por voz:** `POST /calls` con `{}` devuelve un `join_url` de LiveKit Meet (modo prueba);
+con `{"phone": "+549..."}` marca por la troncal saliente. Las entrantes crean su conversacion solas.
+
+**Dashboard** (`http://<host>:8011/`):
+- `/`: lanza llamadas (telefono o modo prueba), metricas (workflow completo, piden demo, fallidas,
+  minutos, latencia por turno), grafico por dia, tarjeta "En vivo" y la tabla de conversaciones.
+- `/calls/<id>`: el estado del workflow (datos obtenidos y pendientes) al lado de la conversacion,
+  actualizados cada 1 s mientras la llamada sigue; al final, la latencia por turno.
+- `/workflow`: el YAML vigente, de solo lectura.
+
+Cada conversacion vive en `conversations` (datos y mensajes, los escribe el motor en cada turno);
+`call_logs` agrega lo telefonico. Las conversaciones creadas por `/conversations` (texto) aparecen
+como origen "API". El mensaje del cliente se ve cuando el motor responde (se guardan juntos).
+
+**Tests:** `make test` (los escenarios contra el LLM se saltean si `vllm-llm` no responde).
+
+Medido (2026-09-23, Qwen3.5-4B sin carga): los 5 escenarios de extraccion pasan 25/25; una
+conversacion completa de 7 turnos tarda 1,1-1,7 s por turno de LLM. La respuesta no se streamea
+(sale entera del JSON), asi que esa latencia se suma entera antes del TTS.

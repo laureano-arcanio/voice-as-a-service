@@ -2,7 +2,7 @@
 
 Agente de voz telefónico con **inferencia propia**: LLM, STT y TTS corren
 sobre GPUs locales, sin proveedores externos. Este archivo describe la
-infraestructura. La app (flujo de la llamada, scoring, dashboard) está en
+infraestructura. La app (motor conversacional por workflow YAML, API y worker de voz) está en
 [`README.md`](README.md).
 
 ## Pedidos frecuentes
@@ -22,7 +22,7 @@ infraestructura. La app (flujo de la llamada, scoring, dashboard) está en
 | Servicio | Qué es | Imagen | Puerto host | GPU |
 |---|---|---|---|---|
 | `db` | MySQL 8 | mysql:8.0 | 127.0.0.1:3306 | — |
-| `app` | FastAPI: dashboard y API; despacha el agente a una room de LiveKit | build | 8011 | — |
+| `app` | FastAPI: API del motor conversacional; despacha el agente a una room de LiveKit | build | 8011 | — |
 | `agent` | Worker de LiveKit Agents (STT → LLM → TTS); sale a LiveKit Cloud | build | — | — |
 | `vllm-llm` | LLM `Qwen/Qwen3.5-4B` | vllm/vllm-openai:latest | 127.0.0.1:8101 | 1 |
 | `stt-parakeet` | STT `nvidia/parakeet-tdt-0.6b-v3`, servidor propio (`stt/server.py`) | build | 127.0.0.1:8102 | 1 |
@@ -63,6 +63,7 @@ El TTS sirve el checkpoint fine-tuneado de `TTS_FT_CKPT` (default `arf_03034`, l
 - **Flags del LLM:** `--max-cudagraph-capture-size=32` evita que su VRAM crezca con el tráfico, y `--max-num-seqs=32` es por el cache Mamba de Qwen3.5. Ver los comentarios del compose.
 - **vLLM-Omni:** fijada en v0.28.0, porque `latest` no arranca. Deja `num_requests_running` en 1 sin tráfico, así que la actividad se detecta por los contadores de tokens.
 - **Voz del TTS:** está dentro del checkpoint fine-tuneado (`tts/finetune/work/`, no versionado), no en un volumen. Si se pierde `tts/finetune/work/`, hay que reentrenar. El volumen `vllm_tts_speakers` tiene la voz clonada anterior (`sofia_ar`, para el checkpoint Base) y ya no se monta.
+- **Loadtest desactualizado:** `scripts/loadtest/run.py` usa la API del agente anterior (`/api/calls`, `latency_json`). No anda con el agente actual hasta adaptarlo.
 - **Comentarios del compose:** explican el porqué medido de cada flag. Mantenerlos al día al cambiar valores.
 
 ## Experimentos de capacidad

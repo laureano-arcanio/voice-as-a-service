@@ -8,44 +8,36 @@
     <label>Tel&eacute;fono
       <input id="phone" type="tel" placeholder="+5491155551234" autocomplete="off">
     </label>
-    <label>Nombre del interesado
-      <input id="client-name" type="text" placeholder="Juan P&eacute;rez" autocomplete="off">
-    </label>
-    <label>G&eacute;nero
-      <select id="client-gender">
-        <option value="">No especifica</option>
-        <option value="masculino">Masculino</option>
-        <option value="femenino">Femenino</option>
-      </select>
-    </label>
   </div>
-  <label class="notes-label">Contexto adicional para el agente (opcional)
-    <textarea id="client-notes" rows="2" placeholder="Ej.: pidi&oacute; una demo desde la web; empresa de seguridad con 120 vigiladores en 15 objetivos. / Le interesan los recibos digitales."></textarea>
-  </label>
   <label class="test-mode-toggle">
     <input type="checkbox" id="test-mode">
-    Modo prueba (sin tel&eacute;fono real -- te conect&aacute;s por navegador via LiveKit y hac&eacute;s de interesado que llama a Browix)
+    Modo prueba (sin tel&eacute;fono real: te conect&aacute;s por navegador via LiveKit y hac&eacute;s de interesado)
   </label>
   <div class="launcher-row">
     <button id="btn-call" class="btn primary">Llamar</button>
-    <span class="hint" id="call-hint">Llamada saliente a un lead que dej&oacute; sus datos (tel&eacute;fono E.164, ej. <code>+5491155551234</code>). Las llamadas <b>entrantes</b> al n&uacute;mero de Browix las atiende el agente solo y aparecen en la tabla. En todas, el agente responde consultas, califica al lead y asigna el score autom&aacute;ticamente.</span>
+    <span class="hint" id="call-hint"></span>
   </div>
   <p id="call-msg" class="msg"></p>
 </section>
 
+<section class="card" id="live-card" style="display:none">
+  <h2>En vivo <span class="badge info">&#9679;</span></h2>
+  <table class="tbl" id="live-tbl"><tbody></tbody></table>
+</section>
+
 <section class="stats-grid" id="stats">
-  <div class="stat"><b id="st-total">&ndash;</b><span>Llamadas totales</span></div>
-  <div class="stat"><b id="st-completed">&ndash;</b><span>Finalizadas</span></div>
-  <div class="stat ok"><b id="st-hot">&ndash;</b><span>Leads calientes</span></div>
-  <div class="stat warn"><b id="st-warm">&ndash;</b><span>Leads tibios</span></div>
-  <div class="stat bad"><b id="st-cold">&ndash;</b><span>Leads fr&iacute;os</span></div>
-  <div class="stat"><b id="st-avg">&ndash;</b><span>Score promedio</span></div>
-  <div class="stat"><b id="st-min">&ndash;</b><span>Minutos de llamada</span></div>
+  <div class="stat"><b id="st-total">&ndash;</b><span>Conversaciones</span></div>
+  <div class="stat"><b id="st-finished">&ndash;</b><span>Llamadas finalizadas</span></div>
+  <div class="stat ok"><b id="st-completed">&ndash;</b><span>Workflow completo</span></div>
+  <div class="stat ok"><b id="st-demo">&ndash;</b><span>Piden demo</span></div>
+  <div class="stat bad"><b id="st-failed">&ndash;</b><span>Llamadas fallidas</span></div>
+  <div class="stat"><b id="st-min">&ndash;</b><span>Minutos (prom. por llamada)</span></div>
+  <div class="stat"><b id="st-lat">&ndash;</b><span>Latencia por turno</span></div>
 </section>
 
 <section class="card">
   <div class="chart-head">
-    <h2>Evoluci&oacute;n de llamadas y calidad de leads</h2>
+    <h2>Evoluci&oacute;n de conversaciones</h2>
     <div class="chart-filters">
       <select id="chart-preset" class="in">
         <option value="7">&Uacute;ltima semana</option>
@@ -66,127 +58,108 @@
   <h2>Llamadas</h2>
   <table class="tbl" id="calls-tbl">
     <thead><tr>
-      <th>#</th><th>Fecha</th><th>Interesado</th><th>Tel&eacute;fono</th><th>Estado</th><th>Duraci&oacute;n</th><th>Score</th><th>Lead</th><th>Pr&oacute;ximo paso</th><th></th>
+      <th>Fecha</th><th>Contacto</th><th>Empresa</th><th>Origen</th><th>Estado</th><th>Duraci&oacute;n</th>
+      <th>Datos</th><th>Workflow</th><th>Demo</th><th></th>
     </tr></thead>
     <tbody></tbody>
   </table>
-  <p class="hint" id="empty-msg" style="display:none">Todav&iacute;a no hay llamadas. Llam&aacute; al n&uacute;mero de Browix, ingres&aacute; un n&uacute;mero arriba o us&aacute; el modo prueba.</p>
+  <p class="hint" id="empty-msg" style="display:none">Todav&iacute;a no hay conversaciones. Llam&aacute; al n&uacute;mero del agente, ingres&aacute; un n&uacute;mero arriba o us&aacute; el modo prueba.</p>
 </section>
 
 {% endblock %}
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="/static/common.js"></script>
 <script>
-const OUTCOME = {
-  caliente: ['Caliente', 'badge ok'],
-  tibio:    ['Tibio', 'badge warn'],
-  frio:     ['Fr\u00edo', 'badge bad'],
-};
-const NEXT_STEP = {
-  caliente: 'Asesor coordina la demo',
-  tibio:    'Seguimiento comercial',
-  frio:     'Enviar informaci\u00f3n',
-};
-const STATUS = {
-  pendiente: ['Pendiente', 'badge'],
-  sonando: ['Sonando', 'badge info'],
-  en_curso: ['En curso', 'badge info'],
-  finalizada: ['Finalizada', 'badge ok'],
-  fallida: ['Fallida', 'badge bad'],
-};
-
-function fmtDur(s) {
-  if (!s) return '\u2013';
-  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
-}
-function fmtDate(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return d.toLocaleDateString('es-AR') + ' ' + d.toLocaleTimeString('es-AR', {hour: '2-digit', minute: '2-digit'});
-}
-function badge(map, key) {
-  const [label, cls] = map[key] || [key || '\u2013', 'badge'];
-  return `<span class="${cls}">${label}</span>`;
-}
+const HINT_PHONE = 'Llamada saliente: el agente marca el número (formato E.164, ej. +5491155551234). Las entrantes las atiende solo y también aparecen en la tabla.';
+const HINT_TEST = 'Se crea la llamada sin marcar ningún teléfono. Te aparece un link para conectarte por navegador (LiveKit Meet) y hablar con el agente.';
 
 async function refresh() {
   const [stats, calls] = await Promise.all([
     fetch('/api/stats').then(r => r.json()),
     fetch('/api/calls').then(r => r.json()),
   ]);
-  const pct = n => stats.scored ? ' \u00b7 ' + Math.round(1000 * n / stats.scored) / 10 + '%' : '';
-  document.getElementById('st-total').textContent = stats.total_calls;
-  document.getElementById('st-completed').textContent = stats.completed;
-  document.getElementById('st-hot').textContent = stats.hot + pct(stats.hot);
-  document.getElementById('st-warm').textContent = stats.warm + pct(stats.warm);
-  document.getElementById('st-cold').textContent = stats.cold + pct(stats.cold);
-  document.getElementById('st-avg').textContent = stats.scored ? stats.avg_score : '\u2013';
-  document.getElementById('st-min').textContent = stats.total_minutes;
+  const withPct = (n, p) => stats.total ? n + ' · ' + p + '%' : n;
+  document.getElementById('st-total').textContent = stats.total;
+  document.getElementById('st-finished').textContent = stats.finished;
+  document.getElementById('st-completed').textContent = withPct(stats.completed, stats.completed_pct);
+  document.getElementById('st-demo').textContent = withPct(stats.demo, stats.demo_pct);
+  document.getElementById('st-failed').textContent = stats.failed;
+  document.getElementById('st-min').textContent = stats.total_minutes + (stats.finished ? ' (' + fmtDur(stats.avg_duration) + ')' : '');
+  document.getElementById('st-lat').textContent = stats.latency_avg == null ? '–' : stats.latency_avg.toFixed(2) + 's';
 
-  const tb = document.querySelector('#calls-tbl tbody');
-  tb.innerHTML = calls.map(c => `
+  document.querySelector('#calls-tbl tbody').innerHTML = calls.map(c => `
     <tr>
-      <td>${c.id}</td>
       <td>${fmtDate(c.created_at)}</td>
-      <td>${c.client_name || '\u2013'}</td>
-      <td>${c.phone}</td>
-      <td>${badge(STATUS, c.status)}</td>
+      <td>${esc(c.contact_name) || '–'}</td>
+      <td>${esc(c.company_name) || '–'}</td>
+      <td>${badge(MODE, c.mode)}${c.phone ? ' <span class="hint">' + esc(c.phone) + '</span>' : ''}</td>
+      <td>${c.status ? badge(STATUS, c.status) : '–'}</td>
       <td>${fmtDur(c.duration_seconds)}</td>
-      <td>${c.score ?? '\u2013'}</td>
-      <td>${c.outcome ? badge(OUTCOME, c.outcome) : '\u2013'}</td>
-      <td>${c.outcome ? (NEXT_STEP[c.outcome] || '\u2013') : '\u2013'}</td>
+      <td>${c.captured}/${c.required}</td>
+      <td>${badge(WORKFLOW, c.workflow_status)}</td>
+      <td>${demoBadge(c.wants_demo)}</td>
       <td><a class="btn small" href="/calls/${c.id}">Ver detalle</a></td>
     </tr>`).join('');
   document.getElementById('empty-msg').style.display = calls.length ? 'none' : 'block';
+
+  const live = calls.filter(c => ['pendiente', 'sonando', 'en_curso'].includes(c.status));
+  document.getElementById('live-card').style.display = live.length ? 'block' : 'none';
+  document.querySelector('#live-tbl tbody').innerHTML = live.map(c => `
+    <tr>
+      <td>${fmtDate(c.created_at)}</td>
+      <td>${badge(MODE, c.mode)}${c.phone ? ' <span class="hint">' + esc(c.phone) + '</span>' : ''}</td>
+      <td>${badge(STATUS, c.status)}</td>
+      <td>${esc(c.contact_name) || '\u2013'} ${c.company_name ? '\u00b7 ' + esc(c.company_name) : ''}</td>
+      <td>${c.captured}/${c.required} datos</td>
+      <td><a class="btn small primary" href="/calls/${c.id}">Ver en vivo</a></td>
+    </tr>`).join('');
 }
 
 const testModeCk = document.getElementById('test-mode');
 const phoneInput = document.getElementById('phone');
-testModeCk.addEventListener('change', () => {
+const callBtn = document.getElementById('btn-call');
+function syncMode() {
   const on = testModeCk.checked;
   phoneInput.disabled = on;
   phoneInput.placeholder = on ? '(no hace falta en modo prueba)' : '+5491155551234';
-  document.getElementById('call-hint').textContent = on
-    ? 'Se crea la llamada sin marcar ningun telefono. Al confirmar te va a aparecer un link para conectarte por navegador (LiveKit Meet) y hablar con el agente en vivo.'
-    : 'Llamada saliente a un lead que dej\u00f3 sus datos (tel\u00e9fono E.164, ej. +5491155551234). Las llamadas entrantes al n\u00famero de Browix las atiende el agente solo y aparecen en la tabla. En todas, el agente responde consultas, califica al lead y asigna el score autom\u00e1ticamente.';
-  document.getElementById('btn-call').textContent = on ? 'Crear llamada de prueba' : 'Llamar';
-});
+  document.getElementById('call-hint').textContent = on ? HINT_TEST : HINT_PHONE;
+  callBtn.textContent = on ? 'Crear llamada de prueba' : 'Llamar';
+}
+testModeCk.addEventListener('change', syncMode);
+syncMode();
 
-document.getElementById('btn-call').addEventListener('click', async () => {
+callBtn.addEventListener('click', async () => {
   const msg = document.getElementById('call-msg');
-  const btn = document.getElementById('btn-call');
   const testMode = testModeCk.checked;
   msg.textContent = ''; msg.className = 'msg';
-  btn.disabled = true; btn.textContent = testMode ? 'Creando\u2026' : 'Llamando\u2026';
+  if (!testMode && !phoneInput.value.trim()) {
+    msg.textContent = 'Ingresá un número de teléfono o activá el modo prueba.';
+    msg.className = 'msg bad';
+    return;
+  }
+  callBtn.disabled = true; callBtn.textContent = testMode ? 'Creando…' : 'Llamando…';
   try {
-    const r = await fetch('/api/calls', {
+    const r = await fetch('/calls', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        test_mode: testMode,
-        phone: phoneInput.value,
-        client_name: document.getElementById('client-name').value,
-        client_gender: document.getElementById('client-gender').value,
-        client_notes: document.getElementById('client-notes').value,
-      }),
+      body: JSON.stringify(testMode ? {} : {phone: phoneInput.value}),
     });
     const data = await r.json();
-    if (!r.ok) throw new Error(data.detail || 'Error');
+    if (!r.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Error');
+    const link = `<a href="/calls/${data.conversation_id}">ver en vivo</a>`;
     if (data.join_url) {
-      msg.innerHTML = 'Llamada de prueba creada (#' + data.id + '). '
-        + '<a href="' + data.join_url + '" target="_blank" rel="noopener">Conectate ac\u00e1 para hablar con el agente</a> '
-        + '(el link vale para esta llamada, no se vuelve a mostrar).';
+      msg.innerHTML = `Llamada de prueba creada (${link}). <a href="${data.join_url}" target="_blank" rel="noopener">Conectate acá para hablar con el agente</a> (el link no se vuelve a mostrar).`;
     } else {
-      msg.textContent = 'Llamada iniciada (#' + data.id + '). El estado se actualiza autom\u00e1ticamente.';
+      msg.innerHTML = `Llamada iniciada (${link}). El estado se actualiza solo.`;
     }
     msg.className = 'msg ok';
-    ['client-name', 'client-notes'].forEach(id => document.getElementById(id).value = '');
     phoneInput.value = '';
-    document.getElementById('client-gender').value = '';
   } catch (e) {
     msg.textContent = e.message;
     msg.className = 'msg bad';
   } finally {
-    btn.disabled = false; btn.textContent = testMode ? 'Crear llamada de prueba' : 'Llamar';
+    callBtn.disabled = false;
+    syncMode();
     refresh();
   }
 });
@@ -200,49 +173,45 @@ function chartParams() {
   if (preset === 'rango') {
     const from = document.getElementById('chart-from').value;
     const to = document.getElementById('chart-to').value;
-    if (!from || !to) return null;
-    const days = (new Date(to) - new Date(from)) / 86400000;
-    return {bucket: days > 62 ? 'month' : 'day', date_from: from, date_to: to};
+    return from && to ? {date_from: from, date_to: to} : null;
   }
   const days = parseInt(preset);
-  const from = new Date(Date.now() - (days - 1) * 86400000);
-  return {bucket: 'day', date_from: iso(from), date_to: iso(new Date())};
+  return {date_from: iso(new Date(Date.now() - (days - 1) * 86400000)), date_to: iso(new Date())};
 }
 
 async function refreshChart() {
   const p = chartParams();
   if (!p) return;
-  const qs = new URLSearchParams(p).toString();
-  const d = await fetch('/api/chart?' + qs).then(r => r.json());
-  const cfg = {
-    data: {
-      labels: d.labels,
-      datasets: [
-        {type: 'bar', label: 'Llamadas', data: d.totals, backgroundColor: '#c7d4ee',
-         borderRadius: 4, yAxisID: 'y', order: 3},
-        {type: 'line', label: '% calientes', data: d.hot_pct, borderColor: '#1d4ed8',
-         backgroundColor: '#1d4ed8', spanGaps: true, tension: .25, yAxisID: 'y1', order: 1},
-        {type: 'line', label: '% fr\u00edos', data: d.cold_pct, borderColor: '#b42318',
-         backgroundColor: '#b42318', spanGaps: true, tension: .25, yAxisID: 'y1', order: 2},
-      ],
-    },
+  const d = await fetch('/api/chart?' + new URLSearchParams(p)).then(r => r.json());
+  const data = {
+    labels: d.labels,
+    datasets: [
+      {type: 'bar', label: 'Conversaciones', data: d.totals, backgroundColor: '#c7d4ee',
+       borderRadius: 4, yAxisID: 'y', order: 3},
+      {type: 'line', label: '% workflow completo', data: d.completed_pct, borderColor: '#067647',
+       backgroundColor: '#067647', spanGaps: true, tension: .25, yAxisID: 'y1', order: 1},
+      {type: 'line', label: '% piden demo', data: d.demo_pct, borderColor: '#1d4ed8',
+       backgroundColor: '#1d4ed8', spanGaps: true, tension: .25, yAxisID: 'y1', order: 2},
+    ],
+  };
+  if (chartObj) {
+    chartObj.data = data;
+    chartObj.update();
+    return;
+  }
+  chartObj = new Chart(document.getElementById('chart'), {
+    data,
     options: {
       responsive: true,
       interaction: {mode: 'index', intersect: false},
       scales: {
-        y: {beginAtZero: true, title: {display: true, text: 'Llamadas'}, ticks: {precision: 0}},
+        y: {beginAtZero: true, title: {display: true, text: 'Conversaciones'}, ticks: {precision: 0}},
         y1: {position: 'right', min: 0, max: 100, grid: {drawOnChartArea: false},
              title: {display: true, text: '%'}, ticks: {callback: v => v + '%'}},
       },
       plugins: {legend: {position: 'bottom'}},
     },
-  };
-  if (chartObj) {
-    chartObj.data = cfg.data;
-    chartObj.update();
-  } else {
-    chartObj = new Chart(document.getElementById('chart'), cfg);
-  }
+  });
 }
 
 document.getElementById('chart-preset').addEventListener('change', () => {
@@ -254,7 +223,7 @@ document.getElementById('chart-apply').addEventListener('click', refreshChart);
 
 refresh();
 refreshChart();
-setInterval(refresh, 5000);
+setInterval(refresh, 2000);
 setInterval(refreshChart, 30000);
 </script>
 {% endblock %}

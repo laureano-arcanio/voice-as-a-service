@@ -183,8 +183,8 @@ make logs-pbx     # "Entrante de Anura: ... -> +54..."
 make logs-agent
 ```
 
-**5. Probar una saliente.** En el dashboard, cargá un número en E.164 (por
-ejemplo `+5491155551234`) y tocá **Llamar**. En `make logs-pbx` tiene que
+**5. Probar una saliente.** `curl -X POST localhost:8011/calls -H 'Content-Type: application/json'
+-d '{"phone": "+5491155551234"}'`. En `make logs-pbx` tiene que
 aparecer `Saliente a Anura: 1155551234`.
 
 ## 4. Si algo falla
