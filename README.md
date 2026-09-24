@@ -29,7 +29,7 @@ apuntando `base_url` a cada contenedor en vez de a `api.openai.com`.
 
 | Rol | Modelo | Variable | Endpoint | Por que |
 | --- | --- | --- | --- | --- |
-| LLM del motor conversacional | `Qwen/Qwen3.5-4B` | `VLLM_LLM_MODEL` | `/v1/chat/completions` | Dense, 262K ctx, soporte dia-0 de vLLM. Structured output (JSON schema) y `enable_thinking=false`, sin cadena de razonamiento. |
+| LLM del motor conversacional | `RedHatAI/Qwen3.5-9B-quantized.w4a16` (Qwen3.5-9B en 4 bits) | `VLLM_LLM_MODEL` | `/v1/chat/completions` | Structured output (JSON schema), sin pensamiento por latencia (`LLM_THINKING`) y muestreo recomendado por Qwen. Reemplazó al 4B en EXP-009: 8 de 8 demos con datos contra 4 de 8, y p50 0,90 s por turno contra 1,00 s. |
 | STT | `nvidia/parakeet-tdt-0.6b-v3` | `VLLM_STT_MODEL` | `/v1/audio/transcriptions` | Servidor propio (`stt/server.py`, transformers + batching dinamico): 1,6 GB y mejor que Qwen3-ASR y Whisper Turbo en audio telefonico (ver "Eval de STT"). Es REST por turno, sin transcript parcial mientras el cliente habla. |
 | TTS | Qwen3-TTS 1.7B-Base con fine-tuning (4 voces en un checkpoint) | `VLLM_TTS_MODEL`, `VLLM_TTS_VOICE` | `/v1/audio/speech` (streaming) | Servido con vLLM-Omni. Las voces estan dentro del checkpoint (ver "Voces del TTS" abajo). |
 
@@ -412,10 +412,34 @@ campos inexistentes o con tipo invalido, aplica `required_if` y recalcula si ter
 `is_workflow_complete` → guarda el estado y devuelve la respuesta. Si termino, la respuesta es el
 mensaje de cierre del workflow y el worker corta la llamada al terminar de decirlo.
 
-**Nuevo workflow:** copiar `app/workflows/sales_discovery.yml` como `<id>.yml` (mismo `id`
-adentro), y usarlo con `{"workflow_id": "<id>"}` o `WORKFLOW_ID=<id>` para el worker. Tipos de
-campo: `string`, `integer`, `boolean`, `email`. `required_if` acepta solo igualdades. Los
-mensajes de cierre eligen segun `wants_demo`.
+**Qué decide cada uno:** el LLM decide la respuesta, el objetivo siguiente y cuándo termina la
+conversación; lo que dice se pasa al TTS tal cual. La app solo valida los datos que propone
+(campos inexistentes o con tipo inválido no se guardan, y se le informan en el turno siguiente
+como `rejected_values`), normaliza el email dictado ("juan punto perez arroba gmail punto com" →
+`juan.perez@gmail.com`, y solo si el cliente lo dijo) y guarda el estado. Al terminar clasifica la
+llamada con `completion.outcomes` para el dashboard. En el agente de voz: si el cliente sigue
+hablando y la respuesta no llegó a sonar, se deshace el turno (`retract_last_turn`); mientras el
+LLM pide un dato dictado (email o teléfono), el endpointing espera hasta 2,5 s en lugar de 1 s.
+
+**Medir:** `make eval-motor [N=3] [S=escenario]` corre `scripts/replay_calls.py`: escenarios
+armados con llamadas reales (preguntas en medio del flujo, "sí, pero…", email cortado, rechazo,
+buzón de voz) con un cliente que contesta lo que le preguntan. Imprime cada conversación, el
+resultado y señales de loop (respuestas repetidas, mismo objetivo seguido).
+
+**Workflows:** `demo_booking` (default, `WORKFLOW_ID`) presenta Browix en ~15 s si el interesado
+acepta, pregunta a qué se dedica la empresa, conecta su necesidad con una función de Browix y
+busca agendar una demo (todo como guía en el YAML; el LLM decide el orden) (nombre + mail o teléfono); si duda, ofrece llamarlo otro día.
+`sales_discovery` es el anterior, de calificación con 11 datos (lo usan los tests del motor).
+
+**Nuevo workflow:** copiar uno de `app/workflows/` como `<id>.yml` (mismo `id` adentro) y usarlo
+con `{"workflow_id": "<id>"}` o `WORKFLOW_ID=<id>`. Por campo:
+- `type`: `string`, `integer`, `boolean`, `email`, `email_or_phone` o `choice` (con `options`).
+  En YAML, los valores como `no` o `si` van entre comillas (`no` sin comillas es false).
+- `required` o `required_if` (solo igualdades); los no obligatorios se guardan si el usuario los dice.
+- `question` es una pregunta sugerida; las reglas y la base de conocimiento guían al LLM.
+
+`completion.outcomes` clasifica la llamada al terminar (gana el primero cuyo `when` se cumple;
+`goal: true` marca el objetivo, que cuenta el dashboard). Su `message` es un cierre sugerido al LLM.
 
 **Probar por texto** (sin voz):
 
@@ -433,7 +457,9 @@ con `{"phone": "+549..."}` marca por la troncal saliente. Las entrantes crean su
 - `/`: lanza llamadas (telefono o modo prueba), metricas (workflow completo, piden demo, fallidas,
   minutos, latencia por turno), grafico por dia, tarjeta "En vivo" y la tabla de conversaciones.
 - `/calls/<id>`: el estado del workflow (datos obtenidos y pendientes) al lado de la conversacion,
-  actualizados cada 1 s mientras la llamada sigue; al final, la latencia por turno.
+  actualizados cada 1 s mientras la llamada sigue; al final, la latencia por turno. Cada respuesta
+  del agente despliega la salida exacta del LLM en ese turno, con su entrada y duracion; "Salida
+  del LLM" las abre todas.
 - `/workflow`: el YAML vigente, de solo lectura.
 
 Cada conversacion vive en `conversations` (datos y mensajes, los escribe el motor en cada turno);

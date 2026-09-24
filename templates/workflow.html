@@ -30,9 +30,12 @@
 </section>
 
 <section class="card">
-  <h2>Cierre</h2>
-  <p><b>Si pide demo:</b> <span id="wf-demo"></span></p>
-  <p><b>Si no pide demo:</b> <span id="wf-nodemo"></span></p>
+  <h2>Resultados</h2>
+  <p class="hint">Clasifican la llamada al terminar (el primero cuyas condiciones se cumplen). El mensaje es una guía para el LLM.</p>
+  <table class="tbl" id="outcomes-tbl">
+    <thead><tr><th>Resultado</th><th>Cuando</th><th>Mensaje de cierre</th></tr></thead>
+    <tbody></tbody>
+  </table>
 </section>
 
 {% endblock %}
@@ -58,12 +61,16 @@ async function load() {
       <tr>
         <td class="ctr">${f.priority}</td>
         <td><b>${esc(name)}</b><br><span class="hint">${esc(f.description)}</span></td>
-        <td>${esc(f.type)}</td>
+        <td>${esc(f.type)}${f.options ? '<br><span class="hint">' + f.options.map(esc).join(' / ') + '</span>' : ''}</td>
         <td>${esc(required(f))}</td>
         <td>${esc(f.question)}</td>
       </tr>`).join('');
-  document.getElementById('wf-demo').textContent = w.completion.message_if_demo;
-  document.getElementById('wf-nodemo').textContent = w.completion.message_if_no_demo;
+  document.querySelector('#outcomes-tbl tbody').innerHTML = w.completion.outcomes.map(o => `
+    <tr>
+      <td>${outcomeBadge(o.label, o.goal)}${o.goal ? ' <span class="hint">objetivo</span>' : ''}</td>
+      <td>${Object.keys(o.when).length ? Object.entries(o.when).map(([k, v]) => `${esc(k)} = ${esc(v)}`).join(' y ') : 'en otro caso'}</td>
+      <td>${esc(o.message)}</td>
+    </tr>`).join('');
 }
 load();
 </script>

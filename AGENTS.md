@@ -24,7 +24,7 @@ infraestructura. La app (motor conversacional por workflow YAML, API y worker de
 | `db` | MySQL 8 | mysql:8.0 | 127.0.0.1:3306 | — |
 | `app` | FastAPI: API del motor conversacional; despacha el agente a una room de LiveKit | build | 8011 | — |
 | `agent` | Worker de LiveKit Agents (STT → LLM → TTS); sale a LiveKit Cloud | build | — | — |
-| `vllm-llm` | LLM `Qwen/Qwen3.5-4B` | vllm/vllm-openai:latest | 127.0.0.1:8101 | 1 |
+| `vllm-llm` | LLM `RedHatAI/Qwen3.5-9B-quantized.w4a16` (Qwen3.5-9B en 4 bits) | vllm/vllm-openai:latest | 127.0.0.1:8101 | 1 |
 | `stt-parakeet` | STT `nvidia/parakeet-tdt-0.6b-v3`, servidor propio (`stt/server.py`) | build | 127.0.0.1:8102 | 1 |
 | `vllm-tts` | TTS Qwen3-TTS 1.7B-Base con fine-tuning, 4 voces en un checkpoint (`multi4`) | vllm/vllm-omni:v0.28.0 (fijada) | 127.0.0.1:8103 | 0 |
 | `proxy` | Entrada pública por IP fija; nginx rutea `/llm`, `/stt` y `/tts` | nginx:alpine | 0.0.0.0:8100 (`PROXY_PORT`) | — |
@@ -43,12 +43,12 @@ infraestructura. La app (motor conversacional por workflow YAML, API y worker de
 - **smartcron:** deploy de la app (ver README, "Deploy").
 - **Producción:** hardware en definición. Ver [`docs/LOADTEST_CAPACITY.md`](docs/LOADTEST_CAPACITY.md).
 
-## Reparto de GPU vigente (EXP-003 y EXP-008)
+## Reparto de GPU vigente (EXP-003, EXP-008 y EXP-009)
 
 | GPU | Servicios | Memoria |
 |---|---|---|
 | 0 | `vllm-tts` sola | `--gpu-memory-utilization` 0.4 |
-| 1 | `vllm-llm` + `stt-parakeet` + escritorio | 0.55 + ~1,6 GB + ~1,4 GB |
+| 1 | `vllm-llm` + `stt-parakeet` + escritorio | 0.70 + ~1,6 GB + ~1,4 GB (18,0 GB usados) |
 
 El TTS sirve el checkpoint fine-tuneado de `TTS_FT_CKPT` (default `multi4`, lr 2e-6, época 5)
 con el nombre `qwen3-tts-ft`. Tiene 4 voces: `arf_03034` y `arf_02121` (mujeres), `arm_08784` y
@@ -62,7 +62,8 @@ Ver [`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md).
 - **Arranque de servicios que comparten GPU:** no pueden arrancar a la vez, porque compiten por la memoria libre. Por eso `depends_on` los encadena (`stt-parakeet` espera a `vllm-llm`).
 - **Servicios descartados (sep-2026):** Qwen3-ASR (`vllm-stt`), Whisper Turbo, CosyVoice 3 y la segunda réplica de TTS salieron del compose; quedan en el historial de git y en `docs/experiments/`. Para probar uno de nuevo, override `docker-compose.<nombre>.yml`.
 - **Servidor propio de STT (`stt/server.py`, Parakeet):** expone `/metrics` con nombres de vLLM para que lo lea el sampler. Batching dinámico: junta lo que llega mientras la GPU trabaja, hasta `STT_MAX_BATCH` (8). Un pedido solo tarda lo mismo que sin batching (~60 ms). Con 16 clientes en paralelo rinde ×4,7 (76 contra 16 req/s) y la p50 baja de 996 a 204 ms. Batch 16 da ×5,4 a costa de ~150 ms por batch.
-- **Flags del LLM:** `--max-cudagraph-capture-size=32` evita que su VRAM crezca con el tráfico, y `--max-num-seqs=32` es por el cache Mamba de Qwen3.5. Ver los comentarios del compose.
+- **Flags del LLM:** `--max-cudagraph-capture-size=32` evita que su VRAM crezca con el tráfico, y `--max-num-seqs=32` es por el cache Mamba de Qwen3.5. `--limit-mm-per-prompt` en 0 porque el modelo trae un encoder de visión que no se usa. Ver los comentarios del compose.
+- **LLM 9B en 4 bits (EXP-009):** mejor que el 4B en los escenarios del motor y más rápido por turno, pero la capacidad (llamadas simultáneas) no está medida. El nombre del modelo en `VLLM_LLM_MODEL` tiene que coincidir entre `vllm-llm` y `app`/`agent`: al cambiarlo, recrear los tres.
 - **vLLM-Omni:** fijada en v0.28.0, porque `latest` no arranca. Deja `num_requests_running` en 1 sin tráfico, así que la actividad se detecta por los contadores de tokens.
 - **Voces del TTS:** están dentro del checkpoint fine-tuneado (`tts/finetune/work/`, no versionado), no en un volumen. Si se pierde `tts/finetune/work/`, hay que reentrenar. Agregar una voz es reentrenar el checkpoint con todas. El volumen `vllm_tts_speakers` tiene la voz clonada anterior (`sofia_ar`, para el checkpoint Base) y ya no se monta.
 - **Pedido al TTS sin `voice` o con `voice="default"`:** mata el engine de `vllm-tts` (busca `vivian`, que el checkpoint no tiene) y todo da 500 hasta reiniciarlo. Mandar siempre una voz del checkpoint.

@@ -35,7 +35,7 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
         up up-agent up-inference up-nginx up-pbx down restart ps logs \
         sh mysql health gpu \
         pbx-cli pbx-status livekit-sip \
-        test loadtest-audio loadtest loadtest-report stt-eval stt-corpus \
+        test eval-motor loadtest-audio loadtest loadtest-report stt-eval stt-corpus \
         db-reset clean
 
 help: ## Muestra esta ayuda
@@ -137,6 +137,9 @@ livekit-sip: ## Crea/actualiza en LiveKit los trunks SIP + dispatch rule para An
 
 test: ## Tests del motor conversacional (los que usan el LLM se saltean si vllm-llm no responde)
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/tests:/app/tests -v $(CURDIR)/pytest.ini:/app/pytest.ini app pytest -q $(ARGS)
+
+eval-motor: ## Escenarios de llamada contra el motor y el LLM real (scripts/replay_calls.py). Ej: make eval-motor N=3 S=si-pero
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts app python -m scripts.replay_calls $(or $(N),1) $(S)
 
 # --- Loadtest y eval (docs/experiments/) ---------------------------------
 

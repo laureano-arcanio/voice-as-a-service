@@ -29,7 +29,7 @@
   <div class="stat"><b id="st-total">&ndash;</b><span>Conversaciones</span></div>
   <div class="stat"><b id="st-finished">&ndash;</b><span>Llamadas finalizadas</span></div>
   <div class="stat ok"><b id="st-completed">&ndash;</b><span>Workflow completo</span></div>
-  <div class="stat ok"><b id="st-demo">&ndash;</b><span>Piden demo</span></div>
+  <div class="stat ok"><b id="st-goal">&ndash;</b><span>Objetivo cumplido</span></div>
   <div class="stat bad"><b id="st-failed">&ndash;</b><span>Llamadas fallidas</span></div>
   <div class="stat"><b id="st-min">&ndash;</b><span>Minutos (prom. por llamada)</span></div>
   <div class="stat"><b id="st-lat">&ndash;</b><span>Latencia por turno</span></div>
@@ -59,7 +59,7 @@
   <table class="tbl" id="calls-tbl">
     <thead><tr>
       <th>Fecha</th><th>Contacto</th><th>Empresa</th><th>Origen</th><th>Estado</th><th>Duraci&oacute;n</th>
-      <th>Datos</th><th>Workflow</th><th>Demo</th><th></th>
+      <th>Datos</th><th>Workflow</th><th>Resultado</th><th></th>
     </tr></thead>
     <tbody></tbody>
   </table>
@@ -83,7 +83,7 @@ async function refresh() {
   document.getElementById('st-total').textContent = stats.total;
   document.getElementById('st-finished').textContent = stats.finished;
   document.getElementById('st-completed').textContent = withPct(stats.completed, stats.completed_pct);
-  document.getElementById('st-demo').textContent = withPct(stats.demo, stats.demo_pct);
+  document.getElementById('st-goal').textContent = withPct(stats.goal, stats.goal_pct);
   document.getElementById('st-failed').textContent = stats.failed;
   document.getElementById('st-min').textContent = stats.total_minutes + (stats.finished ? ' (' + fmtDur(stats.avg_duration) + ')' : '');
   document.getElementById('st-lat').textContent = stats.latency_avg == null ? '–' : stats.latency_avg.toFixed(2) + 's';
@@ -92,13 +92,13 @@ async function refresh() {
     <tr>
       <td>${fmtDate(c.created_at)}</td>
       <td>${esc(c.contact_name) || '–'}</td>
-      <td>${esc(c.company_name) || '–'}</td>
+      <td>${esc(c.company) || '–'}</td>
       <td>${badge(MODE, c.mode)}${c.phone ? ' <span class="hint">' + esc(c.phone) + '</span>' : ''}</td>
       <td>${c.status ? badge(STATUS, c.status) : '–'}</td>
       <td>${fmtDur(c.duration_seconds)}</td>
       <td>${c.captured}/${c.required}</td>
       <td>${badge(WORKFLOW, c.workflow_status)}</td>
-      <td>${demoBadge(c.wants_demo)}</td>
+      <td>${outcomeBadge(c.outcome, c.goal)}</td>
       <td><a class="btn small" href="/calls/${c.id}">Ver detalle</a></td>
     </tr>`).join('');
   document.getElementById('empty-msg').style.display = calls.length ? 'none' : 'block';
@@ -110,7 +110,7 @@ async function refresh() {
       <td>${fmtDate(c.created_at)}</td>
       <td>${badge(MODE, c.mode)}${c.phone ? ' <span class="hint">' + esc(c.phone) + '</span>' : ''}</td>
       <td>${badge(STATUS, c.status)}</td>
-      <td>${esc(c.contact_name) || '\u2013'} ${c.company_name ? '\u00b7 ' + esc(c.company_name) : ''}</td>
+      <td>${esc(c.contact_name) || '\u2013'} ${c.company ? '\u00b7 ' + esc(c.company) : ''}</td>
       <td>${c.captured}/${c.required} datos</td>
       <td><a class="btn small primary" href="/calls/${c.id}">Ver en vivo</a></td>
     </tr>`).join('');
@@ -190,7 +190,7 @@ async function refreshChart() {
        borderRadius: 4, yAxisID: 'y', order: 3},
       {type: 'line', label: '% workflow completo', data: d.completed_pct, borderColor: '#067647',
        backgroundColor: '#067647', spanGaps: true, tension: .25, yAxisID: 'y1', order: 1},
-      {type: 'line', label: '% piden demo', data: d.demo_pct, borderColor: '#1d4ed8',
+      {type: 'line', label: '% objetivo cumplido', data: d.goal_pct, borderColor: '#1d4ed8',
        backgroundColor: '#1d4ed8', spanGaps: true, tension: .25, yAxisID: 'y1', order: 2},
     ],
   };

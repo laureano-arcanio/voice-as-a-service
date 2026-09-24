@@ -9,7 +9,8 @@ from pydantic import BaseModel
 from . import config, livekit_dispatch
 from .calls import CallLog
 from .conversation.engine import ConversationEngine
-from .conversation.workflow import is_required, load_workflow
+from .conversation.models import ConversationState, Progress
+from .conversation.workflow import is_required, load_workflow, outcome_for
 from .deps import get_calls, get_engine
 
 app = FastAPI(title="Voice agent")
@@ -107,20 +108,35 @@ def _iso(dt: datetime.datetime | None) -> str | None:
     return dt.isoformat() + "Z" if dt else None
 
 
+def _outcome(workflow, conv):
+    """Resultado de una conversacion completa (el guardado, o calculado si es anterior a outcomes)."""
+    if workflow is None or conv.status != "completed":
+        return None
+    progress = conv.progress if isinstance(conv.progress, Progress) else Progress.model_validate(conv.progress or {})
+    saved = progress.outcome
+    outcome = next((o for o in workflow.completion.outcomes if o.id == saved), None)
+    if outcome is None:
+        outcome = outcome_for(workflow, ConversationState(conversation_id=conv.id, workflow_id=conv.workflow_id,
+                                                          fields=conv.fields, progress=Progress()))
+    return outcome
+
+
 def _summary(conv, call) -> dict:
     """Fila del dashboard: conversacion + llamada (si la hubo)."""
     try:
         workflow = load_workflow(conv.workflow_id)
         required = [n for n, spec in workflow.fields.items() if is_required(spec, conv.fields)]
     except KeyError:
-        required = list(conv.fields)
+        workflow, required = None, list(conv.fields)
     f = conv.fields
+    outcome = _outcome(workflow, conv)
     lat = (call.latency or {}).get("stats", {}).get("total") if call else None
     return {
         "id": conv.id, "workflow_id": conv.workflow_id, "workflow_status": conv.status,
         "created_at": _iso(conv.created_at),
-        "contact_name": f.get("contact_name"), "company_name": f.get("company_name"),
-        "wants_demo": f.get("wants_demo"),
+        "contact_name": f.get("contact_name"),
+        "company": f.get("company_name") or f.get("company_context"),
+        "outcome": outcome.label if outcome else None, "goal": bool(outcome and outcome.goal),
         "captured": sum(f.get(n) is not None for n in required), "required": len(required),
         "mode": call.mode if call else "api", "phone": call.phone if call else None,
         "status": call.status if call else None,
@@ -148,11 +164,16 @@ def get_call(conversation_id: str, engine: ConversationEngine = Depends(get_engi
         fields = [{"name": n, "description": spec.description.strip(), "value": state.fields.get(n),
                    "required": is_required(spec, state.fields)} for n, spec in specs]
     except KeyError:
+        workflow = None
         fields = [{"name": n, "description": n, "value": v, "required": True} for n, v in state.fields.items()]
+    outcome = _outcome(workflow, state)
+    for f in fields:
+        f["rejected"] = state.progress.rejected.get(f["name"])
     return {
         "id": state.conversation_id, "workflow_id": state.workflow_id,
         "created_at": _iso(calls.created_at(conversation_id)),
         "workflow_status": state.status, "fields": fields,
+        "outcome": None if outcome is None else {"label": outcome.label, "goal": outcome.goal},
         "messages": [m.model_dump() for m in state.messages],
         "call": None if call is None else {
             "mode": call.mode, "phone": call.phone, "status": call.status,
@@ -169,14 +190,14 @@ def stats(calls: CallLog = Depends(get_calls)):
     phone_calls = [r for r in rows if r["mode"] != "api"]
     done = [r for r in phone_calls if r["status"] == "finalizada"]
     completed = [r for r in rows if r["workflow_status"] == "completed"]
-    demo = [r for r in rows if r["wants_demo"] is True]
+    goal = [r for r in rows if r["goal"]]
     latencies = [r["latency_avg"] for r in done if r["latency_avg"] is not None]
     pct = lambda n, d: round(100 * n / d, 1) if d else 0
     return {
         "total": len(rows), "calls": len(phone_calls), "finished": len(done),
         "failed": sum(r["status"] == "fallida" for r in phone_calls),
         "completed": len(completed), "completed_pct": pct(len(completed), len(rows)),
-        "demo": len(demo), "demo_pct": pct(len(demo), len(rows)),
+        "goal": len(goal), "goal_pct": pct(len(goal), len(rows)),
         "total_minutes": round(sum(r["duration_seconds"] for r in done) / 60, 1),
         "avg_duration": round(sum(r["duration_seconds"] for r in done) / len(done)) if done else 0,
         "latency_avg": round(sum(latencies) / len(latencies), 2) if latencies else None,
@@ -185,7 +206,7 @@ def stats(calls: CallLog = Depends(get_calls)):
 
 @app.get("/api/chart")
 def chart(date_from: datetime.date, date_to: datetime.date, calls: CallLog = Depends(get_calls)):
-    """Conversaciones por dia + % con workflow completo y % que piden demo."""
+    """Conversaciones por dia + % con workflow completo y % que cumplen el objetivo."""
     since = datetime.datetime.combine(date_from, datetime.time())
     days = [date_from + datetime.timedelta(d) for d in range((date_to - date_from).days + 1)]
     buckets = {d: [] for d in days}
@@ -198,7 +219,7 @@ def chart(date_from: datetime.date, date_to: datetime.date, calls: CallLog = Dep
         "labels": [d.isoformat() for d in days],
         "totals": [len(buckets[d]) for d in days],
         "completed_pct": [pct(buckets[d], lambda r: r["workflow_status"] == "completed") for d in days],
-        "demo_pct": [pct(buckets[d], lambda r: r["wants_demo"] is True) for d in days],
+        "goal_pct": [pct(buckets[d], lambda r: r["goal"]) for d in days],
     }
 
 

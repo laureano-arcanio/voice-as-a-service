@@ -151,3 +151,14 @@ tr.just-set td { background: var(--ok-bg); transition: background .6s; }
 @media (max-width: 860px) {
   .live-grid { grid-template-columns: 1fr; }
 }
+
+.llm-toggle { float: right; font-size: 12.5px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.llm-toggle input { vertical-align: middle; }
+details.llm { margin-top: 8px; font-size: 12.5px; }
+details.llm summary { cursor: pointer; color: var(--muted); font-weight: 600; }
+.llm-call { margin-top: 6px; }
+.llm-call pre {
+  margin: 4px 0 0; padding: 8px 10px; background: #0b1220; color: #d7e0f0; border-radius: 6px;
+  font-size: 12px; white-space: pre-wrap; word-break: break-word;
+}
+.llm-call pre.reasoning { background: #1d2433; color: #aab6cc; font-style: italic; }

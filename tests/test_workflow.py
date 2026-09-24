@@ -1,5 +1,5 @@
 from app.conversation.models import ConversationState
-from app.conversation.workflow import is_workflow_complete, pending_fields, validate_updates
+from app.conversation.workflow import check_updates, is_workflow_complete, pending_fields, validate_updates
 
 from .helpers import BASE
 
@@ -39,3 +39,27 @@ def test_types_are_validated(workflow):
 def test_types_are_coerced(workflow):
     updates = {"employee_count": "80", "wants_demo": "true", "email": " Juan@Acme.com "}
     assert validate_updates(workflow, updates) == {"employee_count": 80, "wants_demo": True, "email": "juan@acme.com"}
+
+
+def test_dictated_emails_are_normalized(workflow):
+    cases = {
+        "Laureano arroba gmail punto com": "laureano@gmail.com",
+        "Escribime a Laureano arroba gmail punto com": "laureano@gmail.com",
+        "juan punto pérez arroba acme punto com punto ar": "juan.perez@acme.com.ar",
+        "juan guion bajo p arroba mi guion empresa punto com": "juan_p@mi-empresa.com",
+    }
+    for spoken, email in cases.items():
+        assert validate_updates(workflow, {"email": spoken}) == {"email": email}
+
+
+def test_invalid_values_are_reported(workflow):
+    valid, rejected = check_updates(workflow, {"email": "Escribime a", "random_field": "x", "contact_name": "Juan"})
+    assert valid == {"contact_name": "Juan"}
+    assert rejected == {"email": "Escribime a"}
+
+
+def test_email_must_be_said_by_the_user(workflow):
+    valid, rejected = check_updates(workflow, {"email": "info@browix.com"}, "Escribime a")
+    assert valid == {} and rejected == {"email": "info@browix.com"}
+    assert check_updates(workflow, {"email": "laureano@gmail.com"}, "Laureano arroba gmail punto com")[0] == {"email": "laureano@gmail.com"}
+    assert check_updates(workflow, {"email": "laureano@gmail.com"}, "l a u r e a n o arroba gmail punto com")[0] == {"email": "laureano@gmail.com"}

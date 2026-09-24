@@ -1,3 +1,4 @@
+"""El motor: el LLM decide la respuesta, el objetivo y el fin; la app valida y guarda."""
 from fastapi.testclient import TestClient
 
 from app.conversation.engine import ConversationEngine
@@ -30,52 +31,79 @@ async def test_multiple_updates_in_one_turn(store):
     assert [m.role for m in state.messages] == ["assistant", "user", "assistant"]
 
 
-async def test_invented_and_invalid_fields_are_dropped(store):
-    llm = FakeLLM(AgentTurn(
-        field_updates={"random_field": "foo", "employee_count": "bastantes"},
-        next_objective="random_field", assistant_message="¿Tenés una cantidad aproximada?",
-    ))
+async def test_the_llm_message_is_said_as_is(store):
+    message = "Entendido, Juan. ¿Dónde trabaja el personal?"
+    engine = ConversationEngine(FakeLLM(AgentTurn(field_updates={}, next_objective="workforce_location", assistant_message=message)), store)
+    cid = start_with(engine)
+    _, turn = await engine.process_turn(cid, "Hola.")
+    assert turn.assistant_message == message
+
+
+async def test_invented_and_invalid_fields_are_dropped_and_reported(store):
+    llm = FakeLLM(
+        AgentTurn(field_updates={"random_field": "foo", "employee_count": "bastantes"},
+                  next_objective="employee_count", assistant_message="¿Tenés una cantidad aproximada?"),
+        AgentTurn(field_updates={}, next_objective="employee_count", assistant_message="¿Cuántos son?"),
+    )
     engine = ConversationEngine(llm, store)
     cid = start_with(engine, contact_name="Juan", company_name="Acme", company_activity="Logística")
     state, turn = await engine.process_turn(cid, "Somos bastantes.")
     assert turn.field_updates == {}
-    assert "random_field" not in state.fields
-    assert state.fields["employee_count"] is None
-    assert turn.next_objective == "employee_count"
+    assert "random_field" not in state.fields and state.fields["employee_count"] is None
+    assert state.progress.rejected == {"employee_count": "bastantes"}
+    await engine.process_turn(cid, "No sé.")
+    assert llm.calls[-1][1] == {"employee_count": "bastantes"}  # el LLM se entera
 
 
-async def test_llm_cannot_complete_arbitrarily(store, workflow):
+async def test_the_llm_decides_when_it_ends(store):
+    """Aunque falten datos: la app no pisa la decision (el dashboard muestra lo que falta)."""
     llm = FakeLLM(AgentTurn(field_updates={"contact_name": "Juan"}, next_objective=None, assistant_message="Chau.", status="completed"))
     engine = ConversationEngine(llm, store)
     cid = start_with(engine)
-    state, turn = await engine.process_turn(cid, "Juan, chau.")
-    assert turn.status == "active" and state.status == "active"
-    assert turn.next_objective == "company_name"
-    assert turn.assistant_message == workflow.fields["company_name"].question
-
-
-async def test_completed_is_decided_by_app(store, workflow):
-    llm = FakeLLM(AgentTurn(field_updates={"wants_demo": False}, next_objective="email", assistant_message="¿Tu correo?", status="active"))
-    engine = ConversationEngine(llm, store)
-    cid = start_with(engine, **BASE)
-    state, turn = await engine.process_turn(cid, "No, por ahora no.")
+    state, turn = await engine.process_turn(cid, "Juan, no me interesa, chau.")
     assert turn.status == "completed" and state.status == "completed"
-    assert turn.next_objective is None
-    assert turn.assistant_message == workflow.completion.message_if_no_demo.strip()
+    assert turn.assistant_message == "Chau."
+    assert state.progress.outcome == "no_demo"
 
 
-async def test_demo_requires_email_before_completing(store, workflow):
-    llm = FakeLLM(
-        AgentTurn(field_updates={"wants_demo": True}, next_objective="email", assistant_message="¿A qué correo te escribimos?", status="completed"),
-        AgentTurn(field_updates={"email": "juan@acme.com"}, next_objective=None, assistant_message="Listo.", status="completed"),
-    )
+async def test_outcome_is_recorded_on_completion(store):
+    llm = FakeLLM(AgentTurn(field_updates={"wants_demo": True, "email": "juan@acme.com"}, next_objective=None,
+                            assistant_message="Listo.", status="completed"))
     engine = ConversationEngine(llm, store)
     cid = start_with(engine, **BASE)
-    _, turn = await engine.process_turn(cid, "Sí, dale.")
-    assert turn.status == "active" and turn.next_objective == "email"
-    _, turn = await engine.process_turn(cid, "juan arroba acme punto com")
-    assert turn.status == "completed"
-    assert turn.assistant_message == workflow.completion.message_if_demo.strip()
+    state, _ = await engine.process_turn(cid, "Sí, a juan arroba acme punto com.")
+    assert state.fields["email"] == "juan@acme.com" and state.progress.outcome == "demo"
+
+
+async def test_email_the_user_did_not_say_is_rejected(store):
+    llm = FakeLLM(AgentTurn(field_updates={"email": "info@browix.com"}, next_objective="email", assistant_message="¿Tu correo?"))
+    engine = ConversationEngine(llm, store)
+    cid = start_with(engine, **BASE, wants_demo=True)
+    state, _ = await engine.process_turn(cid, "Escribime a")
+    assert state.fields["email"] is None and state.progress.rejected == {"email": "info@browix.com"}
+
+
+async def test_llm_output_is_stored_per_turn(store):
+    llm = FakeLLM(AgentTurn(field_updates={"contact_name": "Juan"}, next_objective="company_name", assistant_message="¿Empresa?"))
+    engine = ConversationEngine(llm, store)
+    cid = start_with(engine)
+    state, _ = await engine.process_turn(cid, "Juan.")
+    reply = store.get(cid).messages[-1]
+    assert [c["kind"] for c in reply.llm] == ["turno"]
+    assert '"contact_name": "Juan"' in reply.llm[0]["output"] and reply.llm[0]["input"] == "Juan."
+
+
+async def test_retract_last_turn(store):
+    llm = FakeLLM(AgentTurn(field_updates={"attendance_process": "sin control"}, next_objective="main_problem",
+                            assistant_message="¿Qué te gustaría mejorar?"))
+    engine = ConversationEngine(llm, store)
+    cid = start_with(engine, contact_name="Juan")
+    before = store.get(cid)
+    await engine.process_turn(cid, "no tenemos un control claro")
+    assert engine.retract_last_turn(cid)
+    after = store.get(cid)
+    assert after.fields == before.fields and after.messages == before.messages
+    assert not engine.retract_last_turn(cid)
 
 
 def test_api_flow(store):

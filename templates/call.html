@@ -15,7 +15,7 @@
     <div><span>Duraci&oacute;n</span><b id="h-dur">&ndash;</b></div>
     <div><span>Fin de llamada</span><b id="h-reason">&ndash;</b></div>
     <div><span>Datos obtenidos</span><b id="h-captured">&ndash;</b></div>
-    <div><span>Pide demo</span><b id="h-demo">&ndash;</b></div>
+    <div><span>Resultado</span><b id="h-outcome">&ndash;</b></div>
   </div>
   <p class="msg bad" id="h-error"></p>
 </section>
@@ -30,7 +30,8 @@
   </section>
 
   <section class="card">
-    <h2>Conversaci&oacute;n <span id="live" class="badge info" style="display:none">&#9679; En vivo</span></h2>
+    <h2>Conversaci&oacute;n <span id="live" class="badge info" style="display:none">&#9679; En vivo</span>
+      <label class="llm-toggle"><input type="checkbox" id="show-llm"> Salida del LLM</label></h2>
     <div class="chat live-chat" id="chat"></div>
   </section>
 </div>
@@ -59,6 +60,26 @@ let lastMessages = -1;
 const setAt = {};  // dato -> cuando se obtuvo, para resaltarlo unos segundos
 let prevFields = null;
 
+function fieldBadge(f) {
+  if (f.value != null) return '<span class="badge ok">Obtenido</span>';
+  return f.required ? '<span class="badge warn">Pendiente</span>' : '<span class="hint">No</span>';
+}
+
+// Salida del LLM tal cual; si es JSON, formateado para leerlo (mismo contenido).
+function pretty(raw) {
+  try { return JSON.stringify(JSON.parse(raw), null, 2); } catch (e) { return raw; }
+}
+function llmTrace(calls) {
+  const open = document.getElementById('show-llm').checked ? ' open' : '';
+  return `<details class="llm"${open}><summary>Salida del LLM (${calls.length} llamada${calls.length > 1 ? 's' : ''},
+      ${calls.reduce((a, c) => a + (c.ms || 0), 0)} ms)</summary>` +
+    calls.map(c => `<div class="llm-call"><b>${esc(c.kind)}</b> <span class="hint">${c.ms} ms</span>
+      <div class="hint">entrada: ${esc(c.input)}</div>
+      ${c.reasoning ? `<div class="hint">razonamiento:</div><pre class="reasoning">${esc(c.reasoning)}</pre>` : ''}
+      <pre>${esc(pretty(c.output))}</pre></div>`).join('') +
+    '</details>';
+}
+
 function fmtValue(v) {
   if (v == null) return '<span class="field-empty">sin dato</span>';
   if (v === true) return 'Sí';
@@ -80,7 +101,7 @@ async function load() {
   document.getElementById('h-workflow').innerHTML =
     `<span style="font-size:.7em;vertical-align:middle">${badge(WORKFLOW, c.workflow_status)}</span>`;
   document.getElementById('h-name').textContent = value('contact_name') || '–';
-  document.getElementById('h-company').textContent = value('company_name') || '–';
+  document.getElementById('h-company').textContent = value('company_name') || value('company_context') || '–';
   document.getElementById('h-mode').innerHTML = badge(MODE, c.call ? call.mode : 'api') +
     (call.phone ? ' ' + esc(call.phone) : '');
   document.getElementById('h-date').textContent = c.created_at ? new Date(c.created_at).toLocaleString('es-AR') : '–';
@@ -89,7 +110,7 @@ async function load() {
   document.getElementById('h-reason').textContent = call.ended_reason || '–';
   document.getElementById('h-captured').textContent =
     required.filter(f => f.value != null).length + ' de ' + required.length;
-  document.getElementById('h-demo').innerHTML = demoBadge(value('wants_demo'));
+  document.getElementById('h-outcome').innerHTML = c.outcome ? outcomeBadge(c.outcome.label, c.outcome.goal) : '–';
   document.getElementById('h-error').textContent = call.error || '';
 
   document.getElementById('wf-id').textContent = c.workflow_id;
@@ -101,8 +122,8 @@ async function load() {
   document.querySelector('#fields-tbl tbody').innerHTML = c.fields.map(f => `
     <tr class="${fresh(f.name) ? 'just-set' : ''}">
       <td><b>${esc(f.name)}</b><br><span class="hint">${esc(f.description)}</span></td>
-      <td>${fmtValue(f.value)}</td>
-      <td class="ctr">${f.required ? (f.value != null ? '<span class="badge ok">Obtenido</span>' : '<span class="badge warn">Pendiente</span>') : '<span class="hint">No</span>'}</td>
+      <td>${fmtValue(f.value)}${f.rejected != null ? `<br><span class="hint">rechazado: ${esc(f.rejected)}</span>` : ''}</td>
+      <td class="ctr">${fieldBadge(f)}</td>
     </tr>`).join('');
 
   if (c.messages.length !== lastMessages) {
@@ -112,6 +133,7 @@ async function load() {
       <div class="bubble ${m.role === 'assistant' ? 'agent' : 'client'}">
         <span class="who">${m.role === 'assistant' ? 'Agente IA' : 'Interesado'}</span>
         ${esc(m.text)}
+        ${m.llm && m.llm.length ? llmTrace(m.llm) : ''}
       </div>`).join('');
     chat.scrollTop = chat.scrollHeight;
   }
@@ -137,6 +159,10 @@ async function load() {
   document.getElementById('live').style.display = live ? 'inline-block' : 'none';
   if (live) setTimeout(load, 1000);
 }
+
+document.getElementById('show-llm').addEventListener('change', e => {
+  document.querySelectorAll('#chat details.llm').forEach(d => d.open = e.target.checked);
+});
 
 load();
 </script>

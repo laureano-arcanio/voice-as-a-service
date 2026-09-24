@@ -13,19 +13,37 @@ from livekit.plugins import openai, silero
 from . import config
 from .calls import CallLog
 from .conversation.engine import ConversationEngine
+from .conversation.workflow import load_workflow
 from .deps import get_calls, get_engine
 from .latency import TurnLatencyTracker
 
 logger = logging.getLogger("agent")
 
+# Un pedido sin voz mata el engine de vllm-tts (docs/TTS_FINETUNE.md, Trampas 8).
+if not (config.VLLM_TTS_MODEL and config.VLLM_TTS_VOICE):
+    raise RuntimeError("Faltan VLLM_TTS_MODEL y/o VLLM_TTS_VOICE en .env")
 openai.tts.AUDIO_STREAM_MODELS.add(config.VLLM_TTS_MODEL)
+
+# Espera maxima de silencio antes de dar el turno por terminado cuando el turn
+# detector no esta seguro. 1 s alcanza para respuestas cortas, pero corta los
+# dictados: en la llamada 2d0c771b "Escribime a" + pausa llego solo, dos veces.
+# Mientras se pide un dato dictado (email) se estira.
+MAX_ENDPOINTING_DELAY = 1.0
+DICTATION_ENDPOINTING_DELAY = 2.5
+DICTATED_TYPES = {"email", "email_or_phone"}
+
+
+def spoken(item) -> bool:
+    return getattr(item, "role", None) == "assistant" and bool(item.text_content)
 
 
 def pending_user_text(chat_ctx) -> str:
+    """Lo que dijo el usuario desde la ultima respuesta que llego a sonar (una
+    respuesta interrumpida antes de sonar queda vacia o no queda)."""
     texts = []
     for item in reversed(chat_ctx.items):
         role = getattr(item, "role", None)
-        if role == "assistant":
+        if spoken(item):
             break
         if role == "user" and item.text_content:
             texts.append(item.text_content)
@@ -39,18 +57,39 @@ class WorkflowAgent(Agent):
         self.conversation_id = conversation_id
         self.latency = latency
         self.completed = False
+        self.dictation = False
 
     async def llm_node(self, chat_ctx, tools, model_settings):
         started = time.perf_counter()
-        _, turn = await self.engine.process_turn(self.conversation_id, pending_user_text(chat_ctx))
-        # El id de la respuesta en curso, para juntar este tiempo con el EOU y el
-        # TTS del mismo turno. LiveKit no lo expone en llm_node: es la misma
-        # context var privada que usa Agent internamente.
+        state, turn = await self.engine.process_turn(self.conversation_id, pending_user_text(chat_ctx))
+        # La respuesta en curso: LiveKit no la expone en llm_node, es la misma
+        # context var privada que usa Agent internamente. Sirve para juntar este
+        # tiempo con el EOU y el TTS del turno, y para saber si llego a sonar.
         speech = _SpeechHandleContextVar.get(None)
         self.latency.on_llm(speech.id if speech else None, time.perf_counter() - started)
+        if speech is not None:
+            speech.add_done_callback(self.on_reply_done)
+        self.set_dictation(state.workflow_id, turn.next_objective)
         logger.info("turn %s fields=%s next=%s status=%s", self.conversation_id, turn.field_updates, turn.next_objective, turn.status)
         self.completed = turn.status == "completed"
         return turn.assistant_message
+
+    def on_reply_done(self, speech) -> None:
+        # El cliente siguio hablando y la respuesta no llego a sonar: se deshace
+        # el turno, y el siguiente llm_node manda el mensaje completo. Si no, el
+        # principio quedaba procesado dos veces y la pregunta, repetida.
+        if speech.interrupted and not any(spoken(item) for item in speech.chat_items):
+            if self.engine.retract_last_turn(self.conversation_id):
+                logger.info("turn retracted %s (reply interrupted before playing)", self.conversation_id)
+                self.completed = False
+
+    def set_dictation(self, workflow_id: str, objective: str | None) -> None:
+        spec = load_workflow(workflow_id).fields.get(objective) if objective else None
+        dictation = spec is not None and spec.type in DICTATED_TYPES
+        if dictation != self.dictation:
+            self.dictation = dictation
+            delay = DICTATION_ENDPOINTING_DELAY if dictation else MAX_ENDPOINTING_DELAY
+            self.session.update_options(endpointing_opts={"max_delay": delay})
 
 
 def build_session() -> AgentSession:
@@ -58,7 +97,7 @@ def build_session() -> AgentSession:
     return AgentSession(
         vad=vad,
         turn_detection=inference.TurnDetector(),
-        max_endpointing_delay=1.0,
+        max_endpointing_delay=MAX_ENDPOINTING_DELAY,
         stt=openai.STT(
             model=config.VLLM_STT_MODEL,
             language="es",

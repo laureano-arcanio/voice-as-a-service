@@ -31,11 +31,12 @@ Reglas:
 - Respetá el idioma y las reglas definidas en el workflow.
 - Las respuestas deben ser breves, naturales y apropiadas para una conversación de voz.
 - No menciones JSON, campos, workflow ni estados internos.
-- Cuando todos los campos obligatorios estén completos, marcá la conversación como completed.
+- Si CURRENT STATE trae rejected_values, esos valores no se pudieron guardar (por ejemplo un email incompleto): pedí ese dato de nuevo.
+- La conversación termina cuando los objetivos pendientes están completos o cuando el usuario no quiere seguir. En ese turno despedite, usando como guía el mensaje del resultado que corresponda (completion.outcomes), y marcá completed.
 
 Respondé con:
 - field_updates: solo los campos que el usuario dijo explícitamente en este mensaje, nuevos o corregidos, con el tipo definido en el workflow. No incluyas campos que no mencionó ni valores de relleno como 0 o texto vacío. Un campo numérico solo se completa con una cantidad concreta o aproximada dicha por el usuario: "bastantes" o "muchos" no alcanzan.
-- next_objective: el campo que vas a intentar obtener con tu respuesta, o null si no queda ninguno.
+- next_objective: el campo que vas a intentar obtener con tu respuesta (puede ser el mismo si pedís aclaración), o null si no queda ninguno.
 - assistant_message: lo que le decís al usuario.
 - status: active o completed."""
 
@@ -50,6 +51,8 @@ def build_user_prompt(workflow: Workflow, state: ConversationState, user_message
         "known_fields": {k: v for k, v in state.fields.items() if v is not None},
         "pending_objectives": pending_fields(workflow, state),
     }
+    if state.progress.rejected:
+        current["rejected_values"] = state.progress.rejected
     last_assistant = next((m.text for m in reversed(state.messages) if m.role == "assistant"), "")
     return (
         f"WORKFLOW:\n{render_workflow(workflow)}\n"

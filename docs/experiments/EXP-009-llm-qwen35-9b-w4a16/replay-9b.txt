@@ -1,0 +1,354 @@
+
+=== pregunta-y-duda #1: sin terminar, 12 turnos, repetidas 7, mismo objetivo seguido 8
+A: Hola, te habla Sofía de Browix. ¿Tenés unos minutos para que te cuente nuestra propuesta para tu empresa?
+U: sí, por favor.
+A: Genial. Contame un poco de tu empresa: ¿a qué se dedican y en qué te podríamos dar una mano?   {'wants_pitch': True} -> company_context
+U: Yo tengo una concesionaria de autos, tengo treinta empleados y desconozco si llegan a horario. ¿Me podrías comentar un poco más?
+A: Perfecto. En Browix tenemos la solución para controlar la llegada de tus treinta empleados con foto y ubicación, y gestionar sus recibos de sueldo. ¿Te gustaría que agendemos una demo de Browix, sin compromiso?   {'company_name': 'concesionaria de autos'} -> demo_answer
+U: No sé todavía. Quisiera saber un poco más de Browix.
+A: Sin problema. Contame un poco de tu empresa: ¿a qué se dedican y en qué te podríamos dar una mano?    -> company_context
+U: Yo tengo una concesionaria de autos, tengo treinta empleados y desconozco si llegan a horario. ¿Me podrías comentar un poco más?
+A: Entendé. En Browix controlamos el horario y la presencia de todo el equipo desde el celular, con foto y ubicación, para que no te preocupes más por eso. ¿Te gustaría que agendemos una demo para mostrarte cómo funciona?   {'company_context': 'concesionaria de autos con treinta empleados y problemas de control de horario'} -> demo_answer
+U: ¿Qué es Browix?
+A: Browix es una plataforma para gestionar a tu personal desde el celular: fichaje con foto y GPS, control de horarios y ausencias en tiempo real, recibos de sueldo digitales y tareas en la calle, todo en un solo lugar. ¿Te gustaría que agendemos una demo para mostrarte cómo funciona?    -> demo_answer
+U: ¿Qué es Browix?
+A: Browix es una plataforma para gestionar a tu personal desde el celular: fichaje con foto y GPS, control de horarios y ausencias en tiempo real, recibos de sueldo digitales y tareas en la calle, todo en un solo lugar. ¿Te gustaría que agendemos una demo para mostrarte cómo funciona?    -> demo_answer
+U: ¿Qué es Browix?
+A: Browix es una plataforma para gestionar a tu personal desde el celular: fichaje con foto y GPS, control de horarios y ausencias en tiempo real, recibos de sueldo digitales y tareas en la calle, todo en un solo lugar. ¿Te gustaría que agendemos una demo para mostrarte cómo funciona?    -> demo_answer
+U: ¿Qué es Browix?
+A: Browix es una plataforma para gestionar a tu personal desde el celular: fichaje con foto y GPS, control de horarios y ausencias en tiempo real, recibos de sueldo digitales y tareas en la calle, todo en un solo lugar. ¿Te gustaría que agendemos una demo para mostrarte cómo funciona?    -> demo_answer
+U: ¿Qué es Browix?
+A: Browix es una plataforma para gestionar a tu personal desde el celular: fichaje con foto y GPS, control de horarios y ausencias en tiempo real, recibos de sueldo digitales y tareas en la calle, todo en un solo lugar. ¿Te gustaría que agendemos una demo para mostrarte cómo funciona?    -> demo_answer
+U: ¿Qué es Browix?
+A: Browix es una plataforma para gestionar a tu personal desde el celular: fichaje con foto y GPS, control de horarios y ausencias en tiempo real, recibos de sueldo digitales y tareas en la calle, todo en un solo lugar. ¿Te gustaría que agendemos una demo para mostrarte cómo funciona?    -> demo_answer
+U: ¿Qué es Browix?
+A: Browix es una plataforma para gestionar a tu personal desde el celular: fichaje con foto y GPS, control de horarios y ausencias en tiempo real, recibos de sueldo digitales y tareas en la calle, todo en un solo lugar. ¿Te gustaría que agendemos una demo para mostrarte cómo funciona?    -> demo_answer
+U: ¿Qué es Browix?
+A: Browix es una plataforma para gestionar a tu personal desde el celular: fichaje con foto y GPS, control de horarios y ausencias en tiempo real, recibos de sueldo digitales y tareas en la calle, todo en un solo lugar. ¿Te gustaría que agendemos una demo para mostrarte cómo funciona?    -> demo_answer
+datos: {'wants_pitch': True, 'company_context': 'concesionaria de autos con treinta empleados y problemas de control de horario', 'company_name': 'concesionaria de autos'}
+
+=== pregunta-y-duda #2: sin terminar, 12 turnos, repetidas 5, mismo objetivo seguido 7
+A: Hola, te habla Sofía de Browix. ¿Tenés unos minutos para que te cuente nuestra propuesta para tu empresa?
+U: sí, por favor.
+A: Perfecto. Contame un poco de tu empresa: ¿a qué se dedican y en qué te podríamos dar una mano?    -> company_context
+U: Yo tengo una concesionaria de autos, tengo treinta empleados y desconozco si llegan a horario. ¿Me podrías comentar un poco más?
+A: Entendido. Como tenés treinta empleados y desconocés si llegan a horario, en Browix podés controlar sus fichajes con foto y GPS, así sabés cuándo llegan y cuándo se van. ¿Te gustaría que te cuente cómo funciona?   {'company_context': 'concesionaria de autos'} -> wants_pitch
+U: sí, por favor.
+A: De acuerdo. Contame un poco más sobre tu empresa, ¿a qué te dedicas exactamente y en qué te gustaría que te ayude?    -> wants_pitch
+U: sí, por favor.
+A: Browix es una plataforma para gestionar a tu personal desde el celular: fichaje con foto y GPS, control de horarios y ausencias en tiempo real, recibos de sueldo digitales y tareas en la calle, todo en un solo lugar. La usan empresas de limpieza, seguridad, logística y comercios con sucursales. Contame, ¿qué te gustaría resolver o mejorar en tu concesionaria?   {'wants_pitch': True} -> company_context
+U: Yo tengo una concesionaria de autos, tengo treinta empleados y desconozco si llegan a horario. ¿Me podrías comentar un poco más?
+A: Claro, para eso tenemos la solución. Contame, ¿te gustaría que agendemos una demo sin compromiso para que veas cómo funciona?    -> demo_answer
+U: No sé todavía. Quisiera saber un poco más de Browix.
+A: Entendé. Para que te quede más claro, Browix es una plataforma para gestionar a tu personal desde el celular: fichaje con foto y GPS, control de horarios y ausencias en tiempo real, recibos de sueldo digitales y tareas en la calle, todo en un solo lugar. ¿Te gustaría que te explique cómo se aplica eso en una concesionaria como la tuya?    -> demo_answer
+U: ¿Qué es Browix?
+A: Browix es una plataforma para gestionar a tu personal desde el celular: fichaje con foto y GPS, control de horarios y ausencias en tiempo real, recibos de sueldo digitales y tareas en la calle, todo en un solo lugar. ¿Te gustaría que agendemos una demo de Browix, sin compromiso?    -> demo_answer
+U: ¿Qué es Browix?
+A: Browix es una plataforma para gestionar a tu personal desde el celular: fichaje con foto y GPS, control de horarios y ausencias en tiempo real, recibos de sueldo digitales y tareas en la calle, todo en un solo lugar. ¿Te gustaría que agendemos una demo de Browix, sin compromiso?    -> demo_answer
+U: ¿Qué es Browix?
+A: Browix es una plataforma para gestionar a tu personal desde el celular: fichaje con foto y GPS, control de horarios y ausencias en tiempo real, recibos de sueldo digitales y tareas en la calle, todo en un solo lugar. ¿Te gustaría que agendemos una demo de Browix, sin compromiso?    -> demo_answer
+U: ¿Qué es Browix?
+A: Browix es una plataforma para gestionar a tu personal desde el celular: fichaje con foto y GPS, control de horarios y ausencias en tiempo real, recibos de sueldo digitales y tareas en la calle, todo en un solo lugar. ¿Te gustaría que agendemos una demo de Browix, sin compromiso?    -> demo_answer
+U: ¿Qué es Browix?
+A: Browix es una plataforma para gestionar a tu personal desde el celular: fichaje con foto y GPS, control de horarios y ausencias en tiempo real, recibos de sueldo digitales y tareas en la calle, todo en un solo lugar. ¿Te gustaría que agendemos una demo de Browix, sin compromiso?    -> demo_answer
+U: ¿Qué es Browix?
+A: Browix es una plataforma para gestionar a tu personal desde el celular: fichaje con foto y GPS, control de horarios y ausencias en tiempo real, recibos de sueldo digitales y tareas en la calle, todo en un solo lugar. ¿Te gustaría que agendemos una demo de Browix, sin compromiso?    -> demo_answer
+datos: {'wants_pitch': True, 'company_context': 'concesionaria de autos'}
+
+=== pregunta-y-duda #3: sin terminar, 12 turnos, repetidas 6, mismo objetivo seguido 8
+A: Hola, te habla Sofía de Browix. ¿Tenés unos minutos para que te cuente nuestra propuesta para tu empresa?
+U: sí, por favor.
+A: Perfecto. Contame un poco de tu empresa: ¿a qué se dedican y en qué te podríamos dar una mano?    -> company_context
+U: Yo tengo una concesionaria de autos, tengo treinta empleados y desconozco si llegan a horario. ¿Me podrías comentar un poco más?
+A: Entendí, tenés una concesionaria. ¿Querés que te cuente cómo Browix ayuda a controlar los horarios de tu equipo?    -> wants_pitch
+U: sí, por favor.
+A: Perfecto. Contame un poco de tu empresa: ¿a qué se dedican y en qué te podríamos dar una mano?   {'wants_pitch': True} -> company_context
+U: Yo tengo una concesionaria de autos, tengo treinta empleados y desconozco si llegan a horario. ¿Me podrías comentar un poco más?
+A: Entendido, para una concesionaria con treinta empleados, el control de horarios y ausencias es clave. ¿Te gustaría que te explique cómo Browix lo resuelve y agendemos una demo?   {'company_context': 'concesionaria de autos, control de horarios'} -> demo_answer
+U: No sé todavía. Quisiera saber un poco más de Browix.
+A: Claro, ¿podés contarme qué es lo que más te interesa saber de la plataforma?    -> demo_answer
+U: ¿Qué es Browix?
+A: Browix es una plataforma para gestionar a tu personal desde el celular: fichaje con foto y GPS, control de horarios y ausencias en tiempo real, recibos de sueldo digitales y tareas en la calle, todo en un solo lugar. ¿Te gustaría que agendemos una demo de Browix, sin compromiso?    -> demo_answer
+U: ¿Qué es Browix?
+A: Browix es una plataforma para gestionar a tu personal desde el celular: fichaje con foto y GPS, control de horarios y ausencias en tiempo real, recibos de sueldo digitales y tareas en la calle, todo en un solo lugar. ¿Te gustaría que agendemos una demo de Browix, sin compromiso?    -> demo_answer
+U: ¿Qué es Browix?
+A: Browix es una plataforma para gestionar a tu personal desde el celular: fichaje con foto y GPS, control de horarios y ausencias en tiempo real, recibos de sueldo digitales y tareas en la calle, todo en un solo lugar. ¿Te gustaría que agendemos una demo de Browix, sin compromiso?    -> demo_answer
+U: ¿Qué es Browix?
+A: Browix es una plataforma para gestionar a tu personal desde el celular: fichaje con foto y GPS, control de horarios y ausencias en tiempo real, recibos de sueldo digitales y tareas en la calle, todo en un solo lugar. ¿Te gustaría que agendemos una demo de Browix, sin compromiso?    -> demo_answer
+U: ¿Qué es Browix?
+A: Browix es una plataforma para gestionar a tu personal desde el celular: fichaje con foto y GPS, control de horarios y ausencias en tiempo real, recibos de sueldo digitales y tareas en la calle, todo en un solo lugar. ¿Te gustaría que agendemos una demo de Browix, sin compromiso?    -> demo_answer
+U: ¿Qué es Browix?
+A: Browix es una plataforma para gestionar a tu personal desde el celular: fichaje con foto y GPS, control de horarios y ausencias en tiempo real, recibos de sueldo digitales y tareas en la calle, todo en un solo lugar. ¿Te gustaría que agendemos una demo de Browix, sin compromiso?    -> demo_answer
+U: ¿Qué es Browix?
+A: Browix es una plataforma para gestionar a tu personal desde el celular: fichaje con foto y GPS, control de horarios y ausencias en tiempo real, recibos de sueldo digitales y tareas en la calle, todo en un solo lugar. ¿Te gustaría que agendemos una demo de Browix, sin compromiso?    -> demo_answer
+datos: {'wants_pitch': True, 'company_context': 'concesionaria de autos, control de horarios'}
+
+=== explicame-antes #1: demo, 5 turnos, repetidas 0, mismo objetivo seguido 1
+A: Hola, te habla Sofía de Browix. ¿Tenés unos minutos para que te cuente nuestra propuesta para tu empresa?
+U: sí
+A: Perfecto. Contame un poco de tu empresa: ¿a qué se dedican y en qué te podríamos dar una mano?   {'wants_pitch': True} -> company_context
+U: Somos una empresa que fabrica hornos de cocina. Tenemos cien empleados, algunos van a domicilio y otros a la oficina.
+A: Entendido, fabrican hornos de cocina. Como tienen personal en domicilio y oficina, les sirve el fichaje con foto y GPS para controlar a los de campo, y los recibos digitales para los de oficina. ¿Te gustaría que agendemos una demo de Browix, sin compromiso?   {'company_context': 'fabrica hornos de cocina'} -> demo_answer
+U: ¿Me podrías explicar de qué manera Browix podría solucionar mi problema?
+A: Browix te permite controlar el fichaje con foto y GPS para tu personal en domicilio, gestionar los recibos de sueldo digitales y organizar las tareas en la calle. ¿Te gustaría que agendemos una demo de Browix, sin compromiso?    -> demo_answer
+U: Ah, bueno, sí, agendemos.
+A: Perfecto. ¿Me podés pasar tu nombre y un mail o un teléfono para coordinar la demo?   {'demo_answer': 'si'} -> contact_name
+U: Soy Laureano, escribime a laureano arroba gmail punto com.
+A: Perfecto, Laureano. Un asesor te va a contactar para coordinar el día y el horario de la demo. ¡Muchas gracias, que tengas un lindo día!   {'contact_name': 'Laureano', 'contact': 'laureano@gmail.com'} -> None
+datos: {'wants_pitch': True, 'company_context': 'fabrica hornos de cocina', 'demo_answer': 'si', 'contact_name': 'Laureano', 'contact': 'laureano@gmail.com'}
+
+=== explicame-antes #2: demo, 7 turnos, repetidas 0, mismo objetivo seguido 0
+A: Hola, te habla Sofía de Browix. ¿Tenés unos minutos para que te cuente nuestra propuesta para tu empresa?
+U: sí
+A: Perfecto. Contame un poco de tu empresa: ¿a qué se dedican y en qué te podríamos dar una mano?    -> company_context
+U: Somos una empresa que fabrica hornos de cocina. Tenemos cien empleados, algunos van a domicilio y otros a la oficina.
+A: Perfecto. Fabricar hornos de cocina requiere mucho control, ¿no? En Browix gestionamos el fichaje con foto y GPS para el personal que va a domicilio, los horarios de oficina y los recibos de sueldo digital en un solo lugar. ¿Te gustaría que agendemos una demo sin compromiso para mostrarte cómo funciona?   {'company_context': 'fabrica hornos de cocina, tienen cien empleados, algunos van a domicilio y otros a la oficina'} -> demo_answer
+U: ¿Me podrías explicar de qué manera Browix podría solucionar mi problema?
+A: Claro, la plataforma permite fichar con foto y GPS tanto para el personal a domicilio como para el de oficina, además de gestionar los recibos de sueldo digital. ¿Te gustaría que te cuente un poco más de nuestra propuesta?    -> wants_pitch
+U: sí
+A: Perfecto. Contame un poco de tu empresa: ¿a qué se dedican y en qué te podríamos dar una mano?   {'wants_pitch': True} -> company_context
+U: Somos una empresa que fabrica hornos de cocina. Tenemos cien empleados, algunos van a domicilio y otros a la oficina.
+A: Excelente. En Browix ayudamos a empresas como la tuya a gestionar el fichaje con foto y GPS para el personal a domicilio, y el control de horarios en oficina. ¿Te gustaría que agendemos una demo sin compromiso para mostrarte cómo funciona?   {'company_name': 'fabrica hornos de cocina'} -> demo_answer
+U: Ah, bueno, sí, agendemos.
+A: Perfecto. ¿Me pasás tu nombre y un mail o un teléfono para coordinar la demo?   {'demo_answer': 'si'} -> contact_name
+U: Soy Laureano, escribime a laureano arroba gmail punto com.
+A: Perfecto, Laureano. Un asesor te va a contactar para coordinar el día y el horario de la demo. ¡Muchas gracias, que tengas un lindo día!   {'contact_name': 'Laureano', 'contact': 'laureano@gmail.com'} -> None
+datos: {'wants_pitch': True, 'company_context': 'fabrica hornos de cocina, tienen cien empleados, algunos van a domicilio y otros a la oficina', 'company_name': 'fabrica hornos de cocina', 'demo_answer': 'si', 'contact_name': 'Laureano', 'contact': 'laureano@gmail.com'}
+
+=== explicame-antes #3: demo, 5 turnos, repetidas 0, mismo objetivo seguido 1
+A: Hola, te habla Sofía de Browix. ¿Tenés unos minutos para que te cuente nuestra propuesta para tu empresa?
+U: sí
+A: Perfecto. Contame un poco de tu empresa: ¿a qué se dedican y en qué te podríamos dar una mano?   {'wants_pitch': True} -> company_context
+U: Somos una empresa que fabrica hornos de cocina. Tenemos cien empleados, algunos van a domicilio y otros a la oficina.
+A: Perfecto, fabricar hornos de cocina. Entendemos que tenés personal a domicilio y de oficina, por eso Browix te ayuda a controlar horarios, ausencias y tareas en la calle todo junto. ¿Te gustaría que agendemos una demo de Browix, sin compromiso?   {'company_context': 'fabrica hornos de cocina'} -> demo_answer
+U: ¿Me podrías explicar de qué manera Browix podría solucionar mi problema?
+A: Claro, con Browix podés controlar horarios y tareas en la calle desde el celular, algo clave para tu equipo de hornos. ¿Te gustaría que agendemos una demo de Browix, sin compromiso?    -> demo_answer
+U: Ah, bueno, sí, agendemos.
+A: Perfecto. ¿Me pasás tu nombre y un mail o un teléfono para coordinar la demo?   {'demo_answer': 'si'} -> contact_name
+U: Soy Laureano, escribime a laureano arroba gmail punto com.
+A: Listo, Laureano. Un asesor te va a contactar para coordinar el día y el horario de la demo. ¡Muchas gracias, que tengas un lindo día!   {'contact_name': 'Laureano', 'contact': 'laureano@gmail.com'} -> None
+datos: {'wants_pitch': True, 'company_context': 'fabrica hornos de cocina', 'demo_answer': 'si', 'contact_name': 'Laureano', 'contact': 'laureano@gmail.com'}
+
+=== si-pero #1: sin terminar, 12 turnos, repetidas 0, mismo objetivo seguido 8
+A: Hola, te habla Sofía de Browix. ¿Tenés unos minutos para que te cuente nuestra propuesta para tu empresa?
+U: sí, pero tengo muy poco tiempo.
+A: Perfecto. ¿A qué se dedican y en qué te podríamos dar una mano con tu equipo?   {'wants_pitch': True} -> company_context
+U: Somos una empresa que fabrica hornos de cocina y estamos buscando un software.
+A: A ver, fabrican hornos de cocina. ¿Buscan algo para controlar a los empleados en la planta o gestionar las tareas de instalación y mantenimiento?   {'company_context': 'fabrica hornos de cocina'} -> demo_answer
+U: Sí, pero antes me gustaría que me cuentes un poco más.
+A: Claro, te cuento. Browix es una plataforma para gestionar a tu personal desde el celular: fichaje con foto y GPS, control de horarios y ausencias en tiempo real, recibos de sueldo digitales y tareas en la calle, todo en un solo lugar. La usan empresas de limpieza, seguridad, logística y comercios con sucursales. ¿Te gustaría que agendemos una demo de Browix, sin compromiso?    -> wants_pitch
+U: sí, pero tengo muy poco tiempo.
+A: Entendí. ¿Querés que te llamemos otro día para coordinar la demo con más calma?   {'demo_answer': 'dudas'} -> callback_wanted
+U: ¿Cómo?
+A: Te preguntaba si querés que te llamemos otro día para contarte con más calma. ¿Te queda bien algún día en particular?    -> callback_wanted
+U: ¿Cómo?
+A: Perdón, ¿qué querés que te llame? ¿Querés que te llame otro día para contarte con más calma?    -> callback_wanted
+U: ¿Cómo?
+A: ¿Querés que te llame hoy o prefiero hacerlo mañana por la mañana?    -> callback_wanted
+U: ¿Cómo?
+A: Disculpa, ¿qué querés decir? ¿Te referís a si quiero que te llame hoy o mañana?    -> callback_wanted
+U: ¿Cómo?
+A: No te entendí bien. ¿Querés que te llame hoy para contarte con más calma o prefieres mañana?    -> callback_wanted
+U: ¿Cómo?
+A: Perdón, no te entendí bien. ¿Querés que te llame hoy para contarte con más calma o prefieres mañana?    -> callback_wanted
+U: ¿Cómo?
+A: Perdón, ¿no me escuchaste bien? Te preguntaba si querés que te llame hoy o prefieres mañana para contarte con más calma.    -> callback_wanted
+U: ¿Cómo?
+A: Perdón, te preguntaba si querés que te llame hoy o mañana para contarte con más calma. ¿Qué día te queda mejor?    -> callback_wanted
+datos: {'wants_pitch': True, 'company_context': 'fabrica hornos de cocina', 'demo_answer': 'dudas'}
+
+=== si-pero #2: demo, 9 turnos, repetidas 0, mismo objetivo seguido 1
+A: Hola, te habla Sofía de Browix. ¿Tenés unos minutos para que te cuente nuestra propuesta para tu empresa?
+U: sí, pero tengo muy poco tiempo.
+A: Perfecto. Contame un poco de tu empresa: ¿a qué se dedican y en qué te podríamos dar una mano?    -> company_context
+U: Somos una empresa que fabrica hornos de cocina y estamos buscando un software.
+A: Excelente. ¿Y cómo se llama la empresa?   {'company_context': 'fabrica hornos de cocina'} -> company_name
+U: ¿Cómo?
+A: Disculpa, ¿te referís a la empresa que mencionás, que fabrica hornos de cocina? ¿Te gustaría que te cuente cómo podemos ayudarte con eso?    -> wants_pitch
+U: sí, pero tengo muy poco tiempo.
+A: Perfecto. Contame brevemente: ¿en qué te gustaría que te ayude Browix con la producción de hornos?   {'wants_pitch': True} -> company_context
+U: Somos una empresa que fabrica hornos de cocina y estamos buscando un software.
+A: Perfecto. Contame: ¿te gustaría que te explique cómo Browix ayuda a las fábricas a organizar el personal y los horarios?    -> demo_answer
+U: Sí, pero antes me gustaría que me cuentes un poco más.
+A: Claro, te cuento. Browix es una plataforma para gestionar a tu personal desde el celular: fichaje con foto y GPS, control de horarios y ausencias en tiempo real, recibos de sueldo digitales y tareas en la calle, todo en un solo lugar. La usan empresas de limpieza, seguridad, logística y comercios con sucursales. ¿Te gustaría que agendemos una demo de Browix, sin compromiso?    -> demo_answer
+U: Dale, sí.
+A: Perfecto. ¿Me pasás tu nombre y un mail o un teléfono para coordinar la demo?   {'demo_answer': 'si'} -> contact_name
+U: Laureano.
+A: Perfecto, Laureano. ¿Podés pasarme un mail o un teléfono para coordinar la demo?   {'contact_name': 'Laureano'} -> contact
+U: Mi teléfono es tres cinco uno, cinco cinco cinco, uno dos tres cuatro.
+A: Perfecto, Laureano. Te voy a pasar esa información a nuestro equipo para coordinar la demo. ¡Muchas gracias y que tengas un lindo día!   {'contact': '35155551234'} -> None
+datos: {'wants_pitch': True, 'company_context': 'fabrica hornos de cocina', 'demo_answer': 'si', 'contact_name': 'Laureano', 'contact': '35155551234'}
+
+=== si-pero #3: demo, 7 turnos, repetidas 0, mismo objetivo seguido 0
+A: Hola, te habla Sofía de Browix. ¿Tenés unos minutos para que te cuente nuestra propuesta para tu empresa?
+U: sí, pero tengo muy poco tiempo.
+A: Perfecto. ¿Podés contarme brevemente a qué se dedican y en qué te podríamos ayudar con tu personal?   {'wants_pitch': True} -> company_context
+U: Somos una empresa que fabrica hornos de cocina y estamos buscando un software.
+A: Esa es una excelente actividad. ¿Te gustaría que agendemos una demo de Browix, sin compromiso?   {'company_context': 'fabrica hornos de cocina'} -> demo_answer
+U: Sí, pero antes me gustaría que me cuentes un poco más.
+A: Claro, te cuento. ¿Podés contarme un poco más de qué se dedica tu empresa y qué te gustaría mejorar con el personal?    -> company_context
+U: Somos una empresa que fabrica hornos de cocina y estamos buscando un software.
+A: Entendido. ¿Te gustaría que agendemos una demo de Browix, sin compromiso?    -> demo_answer
+U: Dale, sí.
+A: Perfecto. ¿Me pasás tu nombre y un mail o un teléfono para coordinar la demo?   {'demo_answer': 'si'} -> contact_name
+U: Laureano.
+A: Perfecto, Laureano. ¿Y me podés pasar un mail o un teléfono para coordinar la demo?   {'contact_name': 'Laureano'} -> contact
+U: Mi teléfono es tres cinco uno, cinco cinco cinco, uno dos tres cuatro.
+A: Perfecto, Laureano. Te vamos a llamar en ese número para coordinar el día y el horario de la demo. ¡Muchas gracias y que tengas un lindo día!   {'contact': '35155551234'} -> None
+datos: {'wants_pitch': True, 'company_context': 'fabrica hornos de cocina', 'demo_answer': 'si', 'contact_name': 'Laureano', 'contact': '35155551234'}
+
+=== email-cortado #1: demo, 6 turnos, repetidas 0, mismo objetivo seguido 1
+A: Hola, te habla Sofía de Browix. ¿Tenés unos minutos para que te cuente nuestra propuesta para tu empresa?
+U: Dale, contame.
+A: Bueno, contame un poco de tu empresa: ¿a qué se dedican y en qué te podríamos dar una mano?   {'wants_pitch': True} -> company_context
+U: Somos una empresa de seguridad y nos cuesta saber si los vigiladores llegan a horario.
+A: Entendé, eso lo resolvemos con el fichaje con foto y GPS para saber cuándo llegan y cuándo se van. ¿Te gustaría que agendemos una demo de Browix, sin compromiso?   {'company_context': 'seguridad y control de horarios de vigiladores'} -> demo_answer
+U: Sí, me interesa.
+A: Perfecto. ¿Me pasás tu nombre y un mail o un teléfono para coordinar la demo?   {'demo_answer': 'si'} -> contact_name
+U: Martín.
+A: Gracias, Martín. ¿Podés contarme un mail o un teléfono para coordinar la demo?   {'contact_name': 'Martín'} -> contact
+U: Escribime a
+A: Escribime a... ¿Me podés completar el correo o decirme un teléfono, por favor?    -> contact
+U: martin arroba segurisur punto com
+A: Perfecto, Martín. Te vamos a llamar en cuanto coordinemos con el equipo para agendar la demo. ¡Gracias por tu tiempo y que tengas un lindo día!   {'contact': 'martin@segurisur.com'} -> None
+datos: {'wants_pitch': True, 'company_context': 'seguridad y control de horarios de vigiladores', 'demo_answer': 'si', 'contact_name': 'Martín', 'contact': 'martin@segurisur.com'}
+
+=== email-cortado #2: demo, 7 turnos, repetidas 0, mismo objetivo seguido 0
+A: Hola, te habla Sofía de Browix. ¿Tenés unos minutos para que te cuente nuestra propuesta para tu empresa?
+U: Dale, contame.
+A: Perfecto. Contame un poco de tu empresa: ¿a qué se dedican y en qué te podríamos dar una mano?   {'wants_pitch': True} -> company_context
+U: Somos una empresa de seguridad y nos cuesta saber si los vigiladores llegan a horario.
+A: Entendido. En Browix controlamos la llegada y salida de los vigiladores con foto y ubicación, así que sabrás siempre quién está en cada punto. ¿Te gustaría que agendemos una demo para mostrarte cómo funciona?   {'company_context': 'seguridad y control de horarios de vigiladores'} -> demo_answer
+U: Sí, me interesa.
+A: Excelente. ¿Me pasás tu nombre y un mail o un teléfono para coordinar la demo?   {'demo_answer': 'si'} -> contact_name
+U: Martín.
+A: Perfecto, Martín. ¿Y me podés pasar un mail o un teléfono para coordinar el día?   {'contact_name': 'Martín'} -> contact
+U: Escribime a
+A: Perfecto, Martín. Te escribo a ti para coordinar la demo. ¿Me podés pasar tu mail o teléfono? Si no tenés a mano, te llamo en un momento para confirmar.    -> None
+U: ¿Cómo?
+A: Disculpa, ¿qué querés saber? ¿Te referís a cómo funciona la demo o necesitás aclarar algo sobre los datos?    -> contact
+U: martin arroba segurisur punto com
+A: Perfecto, Martín. Un asesor te va a contactar para coordinar el día y el horario de la demo. ¡Muchas gracias, que tengas un lindo día!   {'contact': 'martin@segurisur.com'} -> None
+datos: {'wants_pitch': True, 'company_context': 'seguridad y control de horarios de vigiladores', 'demo_answer': 'si', 'contact_name': 'Martín', 'contact': 'martin@segurisur.com'}
+
+=== email-cortado #3: demo, 7 turnos, repetidas 0, mismo objetivo seguido 0
+A: Hola, te habla Sofía de Browix. ¿Tenés unos minutos para que te cuente nuestra propuesta para tu empresa?
+U: Dale, contame.
+A: Perfecto. ¿Me podés contar un poco de tu empresa: a qué se dedican y en qué te podríamos dar una mano?    -> company_context
+U: Somos una empresa de seguridad y nos cuesta saber si los vigiladores llegan a horario.
+A: Entendé. En Browix tenemos la solución para eso: control de horarios con foto y GPS desde el celular, para que sepas en tiempo real dónde están tus vigiladores. ¿Te gustaría que agendemos una demo sin compromiso para mostrártelo?   {'company_context': 'Seguridad, control de horarios de vigiladores'} -> demo_answer
+U: Sí, me interesa.
+A: Perfecto. Para coordinar la demo, ¿me pasás tu nombre y un mail o un teléfono?   {'wants_pitch': True, 'demo_answer': 'si'} -> contact_name
+U: Martín.
+A: Grande, Martín. ¿Y me podés dejar un mail o un teléfono para que te llame?   {'contact_name': 'Martín'} -> contact
+U: Escribime a
+A: Entendí, pero para poder contactarte y agendar la demo necesito que me digas el correo o el número completo. ¿Me podés pasar eso?    -> None
+U: ¿Cómo?
+A: Perdón, Martín. Te preguntaba por tu correo electrónico o número de teléfono para coordinar la demo.    -> contact
+U: martin arroba segurisur punto com
+A: Perfecto, Martín. Te vamos a llamar para coordinar la demo. ¡Gracias por tu tiempo, que tengas un lindo día!   {'contact': 'martin@segurisur.com'} -> None
+datos: {'wants_pitch': True, 'company_context': 'Seguridad, control de horarios de vigiladores', 'demo_answer': 'si', 'contact_name': 'Martín', 'contact': 'martin@segurisur.com'}
+
+=== rechaza #1: no_interest, 1 turnos, repetidas 0, mismo objetivo seguido 0
+A: Hola, te habla Sofía de Browix. ¿Tenés unos minutos para que te cuente nuestra propuesta para tu empresa?
+U: No, gracias, ahora no puedo.
+A: Dale, no hay problema. Gracias por atenderme, ¡que tengas un lindo día!    -> None
+datos: {}
+
+=== rechaza #2: no_interest, 1 turnos, repetidas 0, mismo objetivo seguido 0
+A: Hola, te habla Sofía de Browix. ¿Tenés unos minutos para que te cuente nuestra propuesta para tu empresa?
+U: No, gracias, ahora no puedo.
+A: Dale, no hay problema. Gracias por atenderme, ¡que tengas un lindo día!    -> None
+datos: {}
+
+=== rechaza #3: no_interest, 1 turnos, repetidas 0, mismo objetivo seguido 0
+A: Hola, te habla Sofía de Browix. ¿Tenés unos minutos para que te cuente nuestra propuesta para tu empresa?
+U: No, gracias, ahora no puedo.
+A: Dale, no hay problema. Gracias por atenderme, ¡que tengas un lindo día!    -> None
+datos: {}
+
+=== buzon-de-voz #1: sin terminar, 12 turnos, repetidas 1, mismo objetivo seguido 5
+A: Hola, te habla Sofía de Browix. ¿Tenés unos minutos para que te cuente nuestra propuesta para tu empresa?
+U: Bienvenido al buzón de voz claro tres cinco dos cinco cinco cero tres seis uno dos
+A: Hola. Escuché tu mensaje. ¿Tenés unos minutos para que te cuente nuestra propuesta para tu empresa?    -> wants_pitch
+U: Después del tono, deja tu mensaje.
+A: Perfecto. ¿Te gustaría que te cuente brevemente qué es Browix y cómo te podría ayudar?    -> wants_pitch
+U: Para finalizar, corta o marca la tecla numeral para más opciones.
+A: Entendí. ¿Te gustaría que te cuente brevemente qué es Browix y cómo te podría ayudar?    -> wants_pitch
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: Perfecto. ¿Te gustaría que te cuente brevemente qué es Browix y cómo te podría ayudar?    -> wants_pitch
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.    -> wants_pitch
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: Hola, te habla Sofía de Browix. ¿Tenés unos minutos para que te cuente nuestra propuesta para tu empresa?    -> wants_pitch
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: Perfecto. Contame un poco de tu empresa: ¿a qué se dedican y en qué te podríamos dar una mano?   {'wants_pitch': True} -> company_context
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: Perfecto. Contame un poco de tu empresa: ¿a qué se dedican y en qué te podríamos dar una mano?    -> company_context
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: Entendido. ¿Te gustaría que te cuente un poco sobre cómo funciona Browix para ver si podemos ayudarte con algo?    -> company_context
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: Perfecto. ¿A qué se dedica tu empresa y en qué te podríamos dar una mano?    -> company_context
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: Entendido. ¿Podés contarme un poco de tu empresa? ¿A qué se dedican y en qué te podríamos ayudar?    -> company_context
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: Perfecto. ¿Podés contarme un poco de tu empresa? ¿A qué se dedican y en qué te podríamos ayudar?    -> company_context
+datos: {'wants_pitch': True}
+
+=== buzon-de-voz #2: sin terminar, 12 turnos, repetidas 1, mismo objetivo seguido 4
+A: Hola, te habla Sofía de Browix. ¿Tenés unos minutos para que te cuente nuestra propuesta para tu empresa?
+U: Bienvenido al buzón de voz claro tres cinco dos cinco cinco cero tres seis uno dos
+A: Entendí, gracias. ¿Tenés unos minutos para que te cuente nuestra propuesta?    -> wants_pitch
+U: Después del tono, deja tu mensaje.
+A: Perfecto. ¿Te cuento en qué te puede ayudar Browix con tu equipo?    -> wants_pitch
+U: Para finalizar, corta o marca la tecla numeral para más opciones.
+A: Entendí. ¿Tenés unos minutos para que te cuente nuestra propuesta para tu empresa?    -> wants_pitch
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: Perfecto. ¿Tenés unos minutos para que te cuente nuestra propuesta para tu empresa?    -> wants_pitch
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: Genial. ¿Me contás un poco de tu empresa: a qué se dedican y en qué te podríamos dar una mano?   {'wants_pitch': True, 'company_context': 'revisar el mensaje'} -> company_context
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: Perfecto. ¿Me contás un poco de tu empresa: a qué se dedican y en qué te podríamos dar una mano?    -> company_context
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: Entendí. ¿Me contás un poco de tu empresa: a qué se dedican y en qué te podríamos dar una mano?    -> company_context
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: Perfecto. ¿Me contás un poco de tu empresa: a qué se dedican y en qué te podríamos dar una mano?    -> company_context
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: Entendido. Para avanzar, ¿me podés decir cómo se llama tu empresa?   {'company_context': 'revisar el mensaje'} -> company_context
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: Entendido. Para avanzar, ¿me podés decir cómo se llama tu empresa?   {'company_name': 'revisar el mensaje'} -> demo_answer
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: Perfecto. ¿Podés contarme un poco de tu empresa: a qué se dedican y en qué te podríamos dar una mano?    -> company_context
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: Entendí. ¿Te gustaría que agendemos una demo de Browix, sin compromiso?    -> demo_answer
+datos: {'wants_pitch': True, 'company_context': 'revisar el mensaje', 'company_name': 'revisar el mensaje'}
+
+=== buzon-de-voz #3: sin terminar, 12 turnos, repetidas 3, mismo objetivo seguido 10
+A: Hola, te habla Sofía de Browix. ¿Tenés unos minutos para que te cuente nuestra propuesta para tu empresa?
+U: Bienvenido al buzón de voz claro tres cinco dos cinco cinco cero tres seis uno dos
+A: Entendí, gracias por atenderte. ¿Tenés unos minutos para que te cuente nuestra propuesta para tu empresa?    -> wants_pitch
+U: Después del tono, deja tu mensaje.
+A: Perfecto. Contame un poco de tu empresa: ¿a qué se dedican y en qué te podríamos dar una mano?   {'wants_pitch': True} -> company_context
+U: Para finalizar, corta o marca la tecla numeral para más opciones.
+A: Entendí. ¿Podés contarme un poco de tu empresa? ¿A qué se dedican y en qué te podríamos ayudar?    -> company_context
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: Perfecto. ¿Podés contarme un poco de tu empresa? ¿A qué se dedican y en qué te podríamos ayudar?    -> company_context
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: Perfecto. ¿Podés contarme un poco de tu empresa? ¿A qué se dedican y en qué te podríamos ayudar?    -> company_context
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: De acuerdo. ¿Podés contarme un poco de tu empresa? ¿A qué se dedican y en qué te podríamos ayudar?    -> company_context
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: Entendí. ¿Podés contarme un poco de tu empresa? ¿A qué se dedican y en qué te podríamos ayudar?    -> company_context
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: Entendí. ¿Podés contarme un poco de tu empresa? ¿A qué se dedican y en qué te podríamos ayudar?    -> company_context
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: Perfecto. ¿Podés contarme un poco de tu empresa? ¿A qué se dedican y en qué te podríamos ayudar?    -> company_context
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: Entendí. ¿Podés contarme un poco de tu empresa? ¿A qué se dedican y en qué te podríamos ayudar?    -> company_context
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: Perfecto. ¿Podés contarme un poco de tu empresa? ¿A qué se dedican y en qué te podríamos ayudar?    -> company_context
+U: Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos.
+A: Perfecto. ¿Podés contarme un poco de tu empresa? ¿A qué se dedican y en qué te podríamos ayudar?    -> company_context
+datos: {'wants_pitch': True}
+
+LLM por turno: p50 0.90s, p90 1.31s, max 2.52s (140 turnos)

@@ -1,3 +1,5 @@
+import json
+
 from app.conversation.engine import ConversationEngine
 from app.conversation.models import AgentTurn, Message
 
@@ -14,12 +16,14 @@ class FakeLLM:
         self.calls = []
 
     async def process_turn(self, workflow, state, user_message):
-        self.calls.append(user_message)
-        return self.turns.pop(0)
+        self.calls.append((user_message, dict(state.progress.rejected)))
+        turn = self.turns.pop(0)
+        turn.raw = json.dumps(turn.model_dump(), ensure_ascii=False)
+        return turn
 
 
-def start_with(engine: ConversationEngine, last_question: str | None = None, **fields):
-    state, _ = engine.start_conversation("sales_discovery")
+def start_with(engine: ConversationEngine, last_question: str | None = None, workflow_id="sales_discovery", **fields):
+    state, _ = engine.start_conversation(workflow_id)
     state.fields.update(fields)
     if last_question:
         state.messages += [Message(role="user", text="..."), Message(role="assistant", text=last_question)]

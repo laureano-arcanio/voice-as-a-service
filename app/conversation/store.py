@@ -1,9 +1,9 @@
 import datetime
 
-from sqlalchemy import JSON, DateTime, String, create_engine
+from sqlalchemy import JSON, DateTime, String, create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
-from .models import ConversationState
+from .models import ConversationState, Progress
 
 
 class Base(DeclarativeBase):
@@ -21,6 +21,7 @@ class ConversationRow(Base):
     status: Mapped[str] = mapped_column(String(16))
     fields: Mapped[dict] = mapped_column(JSON)
     messages: Mapped[list] = mapped_column(JSON)
+    progress: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
@@ -30,6 +31,10 @@ class ConversationStore:
         self.engine = create_engine(dsn, pool_pre_ping=True, pool_recycle=1800)
         self.sessions = sessionmaker(bind=self.engine, expire_on_commit=False)
         Base.metadata.create_all(self.engine)
+        # create_all no agrega columnas a una tabla existente.
+        if "progress" not in {c["name"] for c in inspect(self.engine).get_columns("conversations")}:
+            with self.engine.begin() as conn:
+                conn.execute(text("ALTER TABLE conversations ADD COLUMN progress JSON NULL"))
 
     def get(self, conversation_id: str) -> ConversationState | None:
         with self.sessions() as s:
@@ -39,6 +44,7 @@ class ConversationStore:
             return ConversationState(
                 conversation_id=row.id, workflow_id=row.workflow_id, status=row.status,
                 fields=row.fields, messages=row.messages,
+                progress=Progress.model_validate(row.progress or {}),
             )
 
     def save(self, state: ConversationState) -> None:
@@ -49,5 +55,6 @@ class ConversationStore:
             row.status = state.status
             row.fields = data["fields"]
             row.messages = data["messages"]
+            row.progress = data["progress"]
             s.add(row)
             s.commit()

@@ -33,8 +33,7 @@ function badge(map, key) {
   const [label, cls] = map[key] || [key || '–', 'badge'];
   return `<span class="${cls}">${label}</span>`;
 }
-function demoBadge(v) {
-  if (v === true) return '<span class="badge ok">Sí</span>';
-  if (v === false) return '<span class="badge">No</span>';
-  return '–';
+function outcomeBadge(label, goal) {
+  if (!label) return '–';
+  return `<span class="badge${goal ? ' ok' : ''}">${esc(label)}</span>`;
 }

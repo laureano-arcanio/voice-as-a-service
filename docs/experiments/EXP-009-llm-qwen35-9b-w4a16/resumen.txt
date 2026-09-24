@@ -1,0 +1,18 @@
+
+docs/experiments/EXP-009-llm-qwen35-9b-w4a16/replay-4b.txt
+escenario        resultados                          turnos  repet. obj.seg demo con datos
+pregunta-y-duda  sin terminar 3                        12.0     1.3      11 0/0
+explicame-antes  demo 2, sin terminar 1                11.0     1.0      11 2/2
+si-pero          demo 3                                 7.7     0.0       3 0/3
+email-cortado    demo 3                                 7.0     0.0       1 2/3
+rechaza          no_interest 3                          1.0     0.0       0 0/0
+buzon-de-voz     sin terminar 3                        12.0     1.7       8 0/0
+
+docs/experiments/EXP-009-llm-qwen35-9b-w4a16/replay-9b.txt
+escenario        resultados                          turnos  repet. obj.seg demo con datos
+pregunta-y-duda  sin terminar 3                        12.0     6.0       8 0/0
+explicame-antes  demo 3                                 5.7     0.0       1 3/3
+si-pero          sin terminar 1, demo 2                 9.3     0.0       8 2/2
+email-cortado    demo 3                                 6.7     0.0       1 3/3
+rechaza          no_interest 3                          1.0     0.0       0 0/0
+buzon-de-voz     sin terminar 3                        12.0     1.7      10 0/0
