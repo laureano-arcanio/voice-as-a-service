@@ -1,15 +1,25 @@
 # Fine-tuning de Qwen3-TTS (una voz)
 
-Cómo entrenar una voz propia sobre `Qwen3-TTS-12Hz-1.7B-Base` (o 0.6B), evaluarla y servirla
+Cómo entrenar voces propias sobre `Qwen3-TTS-12Hz-1.7B-Base` (o 0.6B), evaluarlas y servirlas
 en `vllm-tts`. Lo sigue el agente [`tts-finetune`](../.claude/agents/tts-finetune.md).
 
 Primera voz entrenada: `arf_03034` (OpenSLR 61, mujer, español argentino), sep-2026.
+Servido hoy: `multi4`, un checkpoint con 4 voces de OpenSLR 61 (ver
+[Varias voces en un checkpoint](#varias-voces-en-un-checkpoint)):
+
+| Voz | Género | Min con voz (train) |
+|---|---|---|
+| `arf_03034` | mujer | 6,2 |
+| `arf_02121` | mujer | 6,6 |
+| `arm_08784` | hombre | 7,2 |
+| `arm_06136` | hombre | 7,1 |
 
 ## Qué produce
 
-Un checkpoint tipo `custom_voice`: la voz queda dentro del modelo y se pide por nombre
-(`voice="arf_03034"`), sin audio de referencia. vLLM-Omni v0.28.0, la versión de `vllm-tts`,
-lo sirve tal cual.
+Un checkpoint tipo `custom_voice`: las voces quedan dentro del modelo y se piden por nombre
+(`voice="arf_03034"`), sin audio de referencia. Un checkpoint puede tener una voz o varias.
+vLLM-Omni v0.28.0, la versión de `vllm-tts`, lo sirve tal cual. Cómo pedir cada voz:
+[Usar las voces](#usar-las-voces-desde-la-api).
 
 Frente al clon zero-shot (checkpoint Base + audio de referencia, como `sofia_ar`), con
 32 frases y 2 semillas:
@@ -20,8 +30,8 @@ Frente al clon zero-shot (checkpoint Base + audio de referencia, como `sofia_ar`
 | WER, frases de dominio | ~1% | ~3% |
 | Caracteres/s (grabación real: 18,1) | 15–16 | 17–18 |
 
-La similitud la mide el mismo speaker encoder que da el embedding del checkpoint, así que
-favorece al fine-tuning. La mayoría de los errores del WER es voseo que el ASR pasa a tuteo
+Medido con el checkpoint de arf_03034 sola. La similitud la mide el mismo speaker encoder que
+da el embedding del checkpoint, así que favorece al fine-tuning. La mayoría de los errores del WER es voseo que el ASR pasa a tuteo
 ("podés" → "puedes") y aparece igual en todos los modelos.
 
 ## Archivos
@@ -49,6 +59,7 @@ Estructura de `work/`:
 ```
 work/data/<voz>/            wav24k/, train_raw.jsonl, eval.jsonl, ref.wav, ref.txt, train_with_codes.jsonl
 work/runs/<voz>/<corrida>/  checkpoint-epoch-N/, train_log.jsonl
+work/runs/multi4/lr2e-6/    el checkpoint de 4 voces (épocas 2, 3 y 5; se sirve la 5)
 work/eval/<voz>/eval/       <sistema>_s<semilla>/  (32 frases: 8 de eval + 24 de dominio)
 work/eval/<voz>/llamada/    <sistema>_s<semilla>/  (28 oraciones de una llamada real)
 ```
@@ -58,7 +69,7 @@ work/eval/<voz>/llamada/    <sistema>_s<semilla>/  (28 oraciones de una llamada 
 | `voice_minutes.py` | Minutos por voz de OpenSLR 61, brutos y con voz, para elegir la voz |
 | `prep.py` | Limpia y recorta el audio, lo pasa a 24 kHz y separa train/eval y `ref.wav` |
 | `prepare_data.py` | Pasa el audio a códigos del tokenizer de 12 Hz |
-| `train.py` | Entrenamiento (SFT) con las correcciones y el optimizador de abajo |
+| `train.py` | Entrenamiento (SFT) con las correcciones y el optimizador de abajo; una voz o varias |
 | `gen.py` | Genera los sets `eval` y `llamada` con un checkpoint, o con el clon zero-shot |
 | `score.py` | WER (Qwen3-ASR-1.7B), similitud de voz y caracteres/s |
 | `pauses.py` | Pausas en el set `llamada` y página A/B para escuchar |
@@ -184,18 +195,23 @@ grabación real. La elección final es del usuario, escuchando la página A/B y 
 
 ### 7. Servir y verificar
 
-En el `.env` de la raíz del repo:
+En el `.env` de la raíz del repo (el default del compose es el checkpoint `multi4`):
 
 ```bash
-TTS_FT_CKPT=./tts/finetune/work/runs/$VOZ/lr2e-6/checkpoint-epoch-5
-VLLM_TTS_MODEL=$VOZ-ft
-VLLM_TTS_VOICE=$VOZ
+TTS_FT_CKPT=./tts/finetune/work/runs/multi4/lr2e-6/checkpoint-epoch-5
+VLLM_TTS_MODEL=qwen3-tts-ft      # nombre del modelo en la API; el agente lo manda en cada pedido
+VLLM_TTS_VOICE=arf_03034         # voz que usa el agente; tiene que estar en el checkpoint
 ```
 
-Y desde la raíz: `make up-inference` (recrea `vllm-tts`) y `make up-agent` (el agente relee la voz).
+Y desde la raíz: `make up-inference` (recrea `vllm-tts`) y `make up-agent` (el agente relee
+`VLLM_TTS_MODEL` y `VLLM_TTS_VOICE`).
 
-- El log de `vllm-tts` tiene que decir `Loaded 1 supported speakers: ['<voz>']`.
-- Si la voz es la misma que la servida, alcanza con `make up-inference`.
+- El log de `vllm-tts` tiene que listar todas las voces:
+  `Loaded 4 supported speakers: ['arf_02121', 'arf_03034', 'arm_06136', 'arm_08784']`.
+- Si solo cambian los pesos y no el nombre del modelo ni la voz, alcanza con `make up-inference`.
+- `make up-agent` construye la imagen con el árbol de trabajo. Si hay cambios de otra sesión en
+  `app/` sin terminar, `docker compose up -d --no-build --no-deps agent` relee el `.env` con la
+  imagen actual.
 
 Verificación sobre lo servido (sin GPU):
 
@@ -206,11 +222,66 @@ VLLM_API_KEY=$(grep ^VLLM_API_KEY= ../../.env | cut -d= -f2-) NET=host GPU=none 
 ```
 
 Con arf_03034 da 0/84 pausas >0,7 s, máximo 0,42 s. En llamada, el primer audio llega en
-0,04–0,08 s por oración.
+0,04–0,08 s por oración. Con varias voces: `--voice <cada voz> --model qwen3-tts-ft`.
+
+## Varias voces en un checkpoint
+
+`train.py` acepta listas separadas por comas en `--speaker_name` y `--train_jsonl`, en el mismo
+orden. Cada voz queda en `config.json` con su id (`spk_id`: 3000, 3001, …) y el embedding de
+su `ref.wav` en esa fila de `codec_embedding`. Cada voz se prepara igual que una sola (pasos 1
+a 3). Después se entrenan todas juntas:
+
+```bash
+V=arf_03034,arf_02121,arm_08784,arm_06136
+J=$(echo $V | tr , '\n' | sed 's|.*|/work/data/&/train_with_codes.jsonl|' | paste -sd,)
+./run.sh python /code/train.py --sr --speaker_name $V --train_jsonl $J \
+  --lr 2e-6 --num_epochs 6 --save_epochs 2,3,5 --output_model_path /work/runs/multi4/lr2e-6
+```
+
+- Mismo setup que con una voz (`--sr`, lr 2e-6, época 5). Cada clip se ve las mismas veces;
+  el modelo recibe 4 veces más updates por época.
+- 4 voces (543 clips, 27 min con voz): 6 épocas en 375 s, 13,9 GB, un checkpoint de 4,3 GB.
+- Loss medio por época: 2,58 / 2,16 / 1,84 / 1,57 / 1,42 / **1,32**. Con una voz, la época 5
+  daba entre 1,20 y 1,34.
+- Cada batch tiene clips de una sola voz (`VoiceBatches`): `collate_fn` concatena los `ref.wav`
+  del batch y falla si miden distinto (`Sizes of tensors must match`).
+- Agregar una voz es reentrenar todas: el checkpoint no se puede extender por partes. Los datos
+  de cada voz (`work/data/<voz>/`) hay que conservarlos.
+
+Checkpoint de 1 voz contra `multi4` época 5, set eval, 1 semilla (frases de dominio; pausas
+del set `llamada`, 28 oraciones):
+
+| Voz | Similitud | WER dominio | Car./s | Pausas >0,7 s |
+|---|---|---|---|---|
+| arf_03034 | 0,991 → 0,992 | 2,8% → 2,5% | 17,4 → 18,2 | 0/28 |
+| arf_02121 | 0,991 → 0,992 | 3,5% → 1,4% | 18,3 → 18,0 | 0/28 |
+| arm_08784 | 0,993 → 0,993 | 1,4% → 4,2% | 15,4 → 15,1 | 0/28 |
+| arm_06136 | 0,992 → 0,992 | 1,1% → 1,1% | 14,6 → 15,0 | 0/28 |
+
+Las voces no se mezclan: cada una conserva su similitud. Las diferencias de WER son de 2 o 3
+palabras en 24 frases con una semilla; para aceptar un checkpoint nuevo, medir con 2 semillas
+como en el paso 5, por voz.
+
+## Usar las voces desde la API
+
+`vllm-tts` habla la API de OpenAI (`/v1/audio/speech`). La voz va en `voice` en cada pedido,
+así que un mismo servidor sirve las 4 voces sin reiniciar:
+
+```bash
+curl -H "Authorization: Bearer $VLLM_API_KEY" -H "Content-Type: application/json" \
+  -d '{"model":"qwen3-tts-ft","voice":"arm_08784","input":"Hola, buen día.","response_format":"wav"}' \
+  http://181.104.113.28:8100/tts/v1/audio/speech -o hola.wav     # o 127.0.0.1:8103/v1 en el host
+```
+
+- `GET /v1/audio/voices` lista las voces. También devuelve `default`, que **no hay que usar**
+  (ver Trampas 8).
+- Una voz que no existe da 400 (`Invalid voice ... Supported: ...`) y el servidor sigue andando.
+- El agente usa una sola voz, `VLLM_TTS_VOICE`, para todas las llamadas. Elegir la voz por
+  llamada o por workflow es un cambio en `app/`.
 
 ## Trampas
 
-Todas medidas en arf_03034. No repetirlas.
+Medidas en arf_03034 (1 a 7) y en `multi4` (8). No repetirlas.
 
 1. **El click de fin de grabación de OpenSLR.** Muchos clips terminan con un click 2–3 s
    después de la última palabra, por ejemplo "¿Qué es un atasco?": se habla de 0,1 a 1,2 s y
@@ -241,5 +312,11 @@ Todas medidas en arf_03034. No repetirlas.
 6. **Volumen de voces separado.** `vllm-tts` usa `vllm_tts_speakers_ft`.
    Con el volumen de siempre, vLLM-Omni restauraría `sofia_ar` (voz clonada, task Base)
    sobre un checkpoint `custom_voice`.
-7. **Un solo speaker por checkpoint.** El entrenamiento oficial es de una voz; el nombre se
-   guarda en minúsculas (`spk_id` 3000 en `config.json`).
+7. **Varias voces por checkpoint.** El entrenamiento oficial es de una voz; `train.py` acepta
+   varias (ver [Varias voces](#varias-voces-en-un-checkpoint)). Los nombres se guardan en
+   minúsculas (`spk_id` 3000, 3001, … en `config.json`).
+8. **Pedido sin `voice` o con `voice="default"` tira `vllm-tts`.** vLLM-Omni lo traduce a
+   `vivian`, la voz de fábrica del CustomVoice. El checkpoint no la tiene, y el engine muere con
+   `ValueError: Unsupported speaker: vivian`. Después todos los pedidos dan 500
+   (`EngineDead`, `Stage-0 has no live replica`) hasta `docker restart voice-as-a-service-vllm-tts-1`.
+   Pasa igual con una voz o con varias. Mandar siempre una voz del checkpoint.

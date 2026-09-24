@@ -26,7 +26,7 @@ infraestructura. La app (motor conversacional por workflow YAML, API y worker de
 | `agent` | Worker de LiveKit Agents (STT → LLM → TTS); sale a LiveKit Cloud | build | — | — |
 | `vllm-llm` | LLM `Qwen/Qwen3.5-4B` | vllm/vllm-openai:latest | 127.0.0.1:8101 | 1 |
 | `stt-parakeet` | STT `nvidia/parakeet-tdt-0.6b-v3`, servidor propio (`stt/server.py`) | build | 127.0.0.1:8102 | 1 |
-| `vllm-tts` | TTS Qwen3-TTS 1.7B-Base con fine-tuning, voz `arf_03034` | vllm/vllm-omni:v0.28.0 (fijada) | 127.0.0.1:8103 | 0 |
+| `vllm-tts` | TTS Qwen3-TTS 1.7B-Base con fine-tuning, 4 voces en un checkpoint (`multi4`) | vllm/vllm-omni:v0.28.0 (fijada) | 127.0.0.1:8103 | 0 |
 | `proxy` | Entrada pública por IP fija; nginx rutea `/llm`, `/stt` y `/tts` | nginx:alpine | 0.0.0.0:8100 (`PROXY_PORT`) | — |
 | `asterisk` | Puente SIP Anura ↔ LiveKit (`network_mode: host`) | build | — | — |
 
@@ -50,8 +50,10 @@ infraestructura. La app (motor conversacional por workflow YAML, API y worker de
 | 0 | `vllm-tts` sola | `--gpu-memory-utilization` 0.4 |
 | 1 | `vllm-llm` + `stt-parakeet` + escritorio | 0.55 + ~1,6 GB + ~1,4 GB |
 
-El TTS sirve el checkpoint fine-tuneado de `TTS_FT_CKPT` (default `arf_03034`, lr 2e-6,
-época 5). Ver [`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md).
+El TTS sirve el checkpoint fine-tuneado de `TTS_FT_CKPT` (default `multi4`, lr 2e-6, época 5)
+con el nombre `qwen3-tts-ft`. Tiene 4 voces: `arf_03034` y `arf_02121` (mujeres), `arm_08784` y
+`arm_06136` (hombres). La voz va en `voice` en cada pedido; el agente usa `VLLM_TTS_VOICE`.
+Ver [`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md).
 
 ## Reglas y trampas
 
@@ -62,7 +64,8 @@ El TTS sirve el checkpoint fine-tuneado de `TTS_FT_CKPT` (default `arf_03034`, l
 - **Servidor propio de STT (`stt/server.py`, Parakeet):** expone `/metrics` con nombres de vLLM para que lo lea el sampler. Batching dinámico: junta lo que llega mientras la GPU trabaja, hasta `STT_MAX_BATCH` (8). Un pedido solo tarda lo mismo que sin batching (~60 ms). Con 16 clientes en paralelo rinde ×4,7 (76 contra 16 req/s) y la p50 baja de 996 a 204 ms. Batch 16 da ×5,4 a costa de ~150 ms por batch.
 - **Flags del LLM:** `--max-cudagraph-capture-size=32` evita que su VRAM crezca con el tráfico, y `--max-num-seqs=32` es por el cache Mamba de Qwen3.5. Ver los comentarios del compose.
 - **vLLM-Omni:** fijada en v0.28.0, porque `latest` no arranca. Deja `num_requests_running` en 1 sin tráfico, así que la actividad se detecta por los contadores de tokens.
-- **Voz del TTS:** está dentro del checkpoint fine-tuneado (`tts/finetune/work/`, no versionado), no en un volumen. Si se pierde `tts/finetune/work/`, hay que reentrenar. El volumen `vllm_tts_speakers` tiene la voz clonada anterior (`sofia_ar`, para el checkpoint Base) y ya no se monta.
+- **Voces del TTS:** están dentro del checkpoint fine-tuneado (`tts/finetune/work/`, no versionado), no en un volumen. Si se pierde `tts/finetune/work/`, hay que reentrenar. Agregar una voz es reentrenar el checkpoint con todas. El volumen `vllm_tts_speakers` tiene la voz clonada anterior (`sofia_ar`, para el checkpoint Base) y ya no se monta.
+- **Pedido al TTS sin `voice` o con `voice="default"`:** mata el engine de `vllm-tts` (busca `vivian`, que el checkpoint no tiene) y todo da 500 hasta reiniciarlo. Mandar siempre una voz del checkpoint.
 - **Loadtest desactualizado:** `scripts/loadtest/run.py` usa la API del agente anterior (`/api/calls`, `latency_json`). No anda con el agente actual hasta adaptarlo.
 - **Comentarios del compose:** explican el porqué medido de cada flag. Mantenerlos al día al cambiar valores.
 

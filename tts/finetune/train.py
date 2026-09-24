@@ -14,6 +14,9 @@ zhyuan11/Qwen3-TTS-Finetuning, mas:
 - log de loss a JSONL y checkpoints solo en las epocas pedidas.
 
 Salida: <output>/checkpoint-epoch-N/ (tipo custom_voice, la voz va por nombre) y train_log.jsonl.
+
+Varias voces en un checkpoint: --speaker_name y --train_jsonl con listas separadas por comas,
+en el mismo orden. Cada voz queda con su id (3000, 3001, ...) y el embedding de su ref.wav.
 """
 import argparse
 import json
@@ -69,18 +72,36 @@ class AdamWSR(torch.optim.Optimizer):
                 p.copy_(self._sr_bf16(new) if p.dtype == torch.bfloat16 else new)
 
 
+class VoiceBatches:
+    """Batches de una sola voz, en orden aleatorio: collate_fn concatena los ref.wav del batch, que
+    tienen que medir lo mismo. Con una voz equivale a shuffle=True."""
+
+    def __init__(self, bounds, batch_size):
+        self.bounds, self.bs = bounds, batch_size
+
+    def __iter__(self):
+        batches = []
+        for a, b in self.bounds:
+            idx = (torch.randperm(b - a) + a).tolist()
+            batches += [idx[i:i + self.bs] for i in range(0, len(idx), self.bs)]
+        return iter([batches[i] for i in torch.randperm(len(batches)).tolist()])
+
+    def __len__(self):
+        return sum(math.ceil((b - a) / self.bs) for a, b in self.bounds)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--init_model_path", default="Qwen/Qwen3-TTS-12Hz-1.7B-Base", help="repo id o carpeta")
     ap.add_argument("--output_model_path", required=True)
-    ap.add_argument("--train_jsonl", required=True)
+    ap.add_argument("--train_jsonl", required=True, help="uno por voz, separados por comas")
     ap.add_argument("--batch_size", type=int, default=2)
     ap.add_argument("--grad_accum", type=int, default=4)
     ap.add_argument("--lr", type=float, default=2e-6)
     ap.add_argument("--warmup_steps", type=int, default=0, help="optimizer steps de warmup lineal")
     ap.add_argument("--num_epochs", type=int, default=10)
     ap.add_argument("--save_epochs", default="", help="lista separada por comas (default: todas)")
-    ap.add_argument("--speaker_name", required=True)
+    ap.add_argument("--speaker_name", required=True, help="uno por voz, separados por comas")
     ap.add_argument("--sr", action="store_true", help="AdamW con redondeo estocastico")
     ap.add_argument("--probe", type=int, default=0, help="cortar tras N optimizer steps y medir pesos cambiados")
     ap.add_argument("--seed", type=int, default=0)
@@ -98,9 +119,18 @@ def main():
     qwen3tts = Qwen3TTSModel.from_pretrained(args.init_model_path, torch_dtype=torch.bfloat16,
                                              attn_implementation="flash_attention_2")
     config = AutoConfig.from_pretrained(args.init_model_path)
-    data = [json.loads(l) for l in open(args.train_jsonl)]
+    names = [n.strip().lower() for n in args.speaker_name.split(",")]
+    jsonls = args.train_jsonl.split(",")
+    assert len(names) == len(jsonls), "--speaker_name y --train_jsonl tienen que tener el mismo largo"
+    data, first = [], []
+    for j in jsonls:
+        first.append(len(data))
+        data += [json.loads(l) for l in open(j)]
     ds = TTSDataset(data, qwen3tts.processor, config)
-    dl = DataLoader(ds, batch_size=args.batch_size, shuffle=True, collate_fn=ds.collate_fn, num_workers=2)
+    bounds = list(zip(first, first[1:] + [len(data)]))
+    acc.print(f"voces: {dict(zip(names, [b - a for a, b in bounds]))}")
+    dl = DataLoader(ds, batch_sampler=VoiceBatches(bounds, args.batch_size), collate_fn=ds.collate_fn,
+                    num_workers=2)
 
     frozen = ("speaker_encoder",) + (() if args.train_text_embedding else ("talker.model.text_embedding",))
     for n, p in qwen3tts.model.named_parameters():
@@ -120,7 +150,11 @@ def main():
         snap = {n: p.detach().clone() for n, p in model.named_parameters() if p.requires_grad}
 
     model.train()
-    target_spk = None
+    # Embedding de cada voz: el speaker encoder sobre su ref.wav, en modo train como en el loop
+    # (tiene BatchNorm). Todos los clips de una voz usan el mismo ref.wav.
+    with torch.no_grad():
+        target_spk = [model.speaker_encoder(ds[i]["ref_mel"].to(model.device).to(model.dtype))[0]
+                      for i in first]
     opt_steps, t0 = 0, time.time()
     for epoch in range(args.num_epochs):
         ep_loss, ep_n = 0.0, 0
@@ -130,8 +164,6 @@ def main():
                 codec_ids = batch["codec_ids"]
                 codec_mask = batch["codec_mask"]
                 spk = model.speaker_encoder(batch["ref_mels"].to(model.device).to(model.dtype)).detach()
-                if target_spk is None:
-                    target_spk = spk
                 txt = model.talker.text_projection(model.talker.model.text_embedding(input_ids[:, :, 0]))
                 emb = txt * batch["text_embedding_mask"]
                 cod = model.talker.model.codec_embedding(input_ids[:, :, 1]) * batch["codec_embedding_mask"]
@@ -190,15 +222,15 @@ def main():
                             ignore=lambda d, names: ["model.safetensors"] if os.path.realpath(d) == top else [])
             cfg = json.load(open(os.path.join(args.init_model_path, "config.json"), encoding="utf-8"))
             cfg["tts_model_type"] = "custom_voice"
-            name = args.speaker_name.lower()
-            cfg["talker_config"]["spk_id"] = {name: 3000}
-            cfg["talker_config"]["spk_is_dialect"] = {name: False}
+            cfg["talker_config"]["spk_id"] = {n: 3000 + i for i, n in enumerate(names)}
+            cfg["talker_config"]["spk_is_dialect"] = {n: False for n in names}
             json.dump(cfg, open(os.path.join(out_dir, "config.json"), "w", encoding="utf-8"),
                       indent=2, ensure_ascii=False)
             sd = {k: v.detach().to("cpu") for k, v in acc.unwrap_model(model).state_dict().items()
                   if not k.startswith("speaker_encoder")}
             w = sd["talker.model.codec_embedding.weight"]
-            w[3000] = target_spk[0].detach().to("cpu").to(w.dtype)
+            for i, e in enumerate(target_spk):
+                w[3000 + i] = e.to("cpu").to(w.dtype)
             save_file(sd, os.path.join(out_dir, "model.safetensors"))
             acc.print(f"guardado {out_dir}")
 

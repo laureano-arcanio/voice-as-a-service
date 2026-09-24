@@ -31,7 +31,7 @@ apuntando `base_url` a cada contenedor en vez de a `api.openai.com`.
 | --- | --- | --- | --- | --- |
 | LLM del motor conversacional | `Qwen/Qwen3.5-4B` | `VLLM_LLM_MODEL` | `/v1/chat/completions` | Dense, 262K ctx, soporte dia-0 de vLLM. Structured output (JSON schema) y `enable_thinking=false`, sin cadena de razonamiento. |
 | STT | `nvidia/parakeet-tdt-0.6b-v3` | `VLLM_STT_MODEL` | `/v1/audio/transcriptions` | Servidor propio (`stt/server.py`, transformers + batching dinamico): 1,6 GB y mejor que Qwen3-ASR y Whisper Turbo en audio telefonico (ver "Eval de STT"). Es REST por turno, sin transcript parcial mientras el cliente habla. |
-| TTS | Qwen3-TTS 1.7B-Base con fine-tuning (voz `arf_03034`) | `VLLM_TTS_MODEL`, `VLLM_TTS_VOICE` | `/v1/audio/speech` (streaming) | Servido con vLLM-Omni. La voz esta dentro del checkpoint (ver "Voz del TTS" abajo). |
+| TTS | Qwen3-TTS 1.7B-Base con fine-tuning (4 voces en un checkpoint) | `VLLM_TTS_MODEL`, `VLLM_TTS_VOICE` | `/v1/audio/speech` (streaming) | Servido con vLLM-Omni. Las voces estan dentro del checkpoint (ver "Voces del TTS" abajo). |
 
 **Requisitos de host:** 1+ GPU NVIDIA con el [NVIDIA Container
 Toolkit](https://github.com/NVIDIA/nvidia-container-toolkit) instalado y configurado
@@ -45,14 +45,38 @@ estima `--gpu-memory-utilization` en frio). Probado en vivo contra 2x RTX 3090 (
 TTS sola en la GPU 0, LLM + STT compartiendo la GPU 1 -- la mejor de las configuraciones
 medidas (ver `docs/experiments/` y `AGENTS.md`).
 
-### Voz del TTS
+### Voces del TTS
 
-La voz (`arf_03034`, espanol argentino, de OpenSLR 61) esta entrenada dentro del checkpoint:
-Qwen3-TTS-12Hz-1.7B-Base con fine-tuning de una sola voz (tipo `custom_voice`). El agente la
-pide por nombre (`VLLM_TTS_VOICE`), sin audio de referencia. `vllm-tts` sirve el checkpoint de
-`TTS_FT_CKPT` (default `tts/finetune/work/runs/arf_03034/lr2e-6/checkpoint-epoch-5`, no
-versionado) con el nombre `VLLM_TTS_MODEL` (`arf_03034-ft`). Entrenar, evaluar y cambiar de
-checkpoint: `docs/TTS_FINETUNE.md`. Primer audio por oracion en llamada: 0,04-0,08 s.
+Las voces (espanol argentino, de OpenSLR 61) estan entrenadas dentro de un solo checkpoint:
+Qwen3-TTS-12Hz-1.7B-Base con fine-tuning de 4 voces (tipo `custom_voice`, `multi4`).
+
+| Voz | Genero |
+| --- | --- |
+| `arf_03034` | mujer (la que usa el agente hoy) |
+| `arf_02121` | mujer |
+| `arm_08784` | hombre |
+| `arm_06136` | hombre |
+
+`vllm-tts` sirve el checkpoint de `TTS_FT_CKPT` (default
+`tts/finetune/work/runs/multi4/lr2e-6/checkpoint-epoch-5`, no versionado) con el nombre
+`VLLM_TTS_MODEL` (`qwen3-tts-ft`). La voz se elige en cada pedido, sin audio de referencia ni
+reinicio:
+
+```bash
+curl -H "Authorization: Bearer $VLLM_API_KEY" -H "Content-Type: application/json" \
+  -d '{"model":"qwen3-tts-ft","voice":"arm_08784","input":"Hola, buen dia.","response_format":"wav"}' \
+  http://$PUBLIC_HOST:$PROXY_PORT/tts/v1/audio/speech -o hola.wav
+```
+
+- `GET /v1/audio/voices` lista las voces.
+- Una voz inexistente da 400.
+- **Nunca mandar un pedido sin `voice` ni con `voice="default"`:** mata el engine de `vllm-tts`
+  y todo da 500 hasta reiniciarlo (ver Trampas 8 en `docs/TTS_FINETUNE.md`).
+- El agente usa una sola voz para todas las llamadas (`VLLM_TTS_VOICE`); cambiarla es editar
+  `.env` y recrear `agent`.
+
+Entrenar, evaluar, agregar voces y cambiar de checkpoint: `docs/TTS_FINETUNE.md`. Primer audio
+por oracion en llamada: 0,04-0,08 s.
 
 Antes se usaba una voz clonada (`sofia_ar`) sobre el checkpoint Base, subida por
 `POST /v1/audio/voices`; el volumen `vllm_tts_speakers` que la guardaba ya no se monta.

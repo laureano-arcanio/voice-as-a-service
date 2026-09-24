@@ -21,7 +21,7 @@ SENTS = json.load(open(Path(__file__).with_name("eval_llamada.json"), encoding="
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--url", default="http://127.0.0.1:8103/v1/audio/speech")
-    ap.add_argument("--model", default="arf_03034-ft", help="--served-model-name de vllm-tts")
+    ap.add_argument("--model", default="qwen3-tts-ft", help="--served-model-name de vllm-tts")
     ap.add_argument("--voice", required=True)
     ap.add_argument("--reps", type=int, default=3)
     ap.add_argument("--out", default="/work/served_check")
