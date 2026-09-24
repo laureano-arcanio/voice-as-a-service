@@ -5,10 +5,16 @@ cliente deja de hablar y el agente empieza a sonar.
                   hasta que la sesion da el turno por terminado. Incluye:
       stt       = transcription_delay: cierre del transcript final.
       endpointing = eou - stt: espera del VAD / turn detector.
-    llm         = ConversationEngine.process_turn completo (el LLM devuelve el
-                  JSON entero antes de hablar, asi que es su tiempo al primer audio).
-    tts         = TTS time-to-first-byte del primer segmento.
+    llm         = hasta el primer texto de assistant_message (va primero en el
+                  JSON y se manda al TTS en streaming). Incluye la espera del turno
+                  anterior si se corto.
+    llm_total   = ConversationEngine.process_turn completo (el JSON entero).
+    tts         = TTS time-to-first-byte del primer segmento. El TTS arranca con
+                  la primera oracion completa, asi que incluye escribirla.
     total       = eou + llm + tts.
+    e2e         = lo que mide LiveKit: desde que el cliente dejo de hablar hasta
+                  que sono el primer audio. Incluye escribir la primera oracion,
+                  que no entra en total (el TTS espera la oracion completa).
 
 Se agrupa por speech_id (una respuesta del agente = un turno). EOU y TTS llegan
 por el evento `metrics_collected` de LiveKit; el LLM ya no pasa por el plugin
@@ -19,7 +25,7 @@ import statistics
 
 from livekit.agents.metrics import EOUMetrics, TTSMetrics
 
-STAT_KEYS = ("total", "eou", "stt", "endpointing", "llm", "tts")
+STAT_KEYS = ("e2e", "total", "eou", "stt", "endpointing", "llm", "llm_total", "tts")
 
 
 class TurnLatencyTracker:
@@ -42,9 +48,15 @@ class TurnLatencyTracker:
             t.setdefault("tts", m.ttfb)
             t["tts_audio"] += m.audio_duration
 
-    def on_llm(self, speech_id: str | None, seconds: float) -> None:
+    def on_llm(self, speech_id: str | None, first_text: float | None, total: float) -> None:
         if speech_id:
-            self._turn(speech_id)["llm"] = seconds
+            t = self._turn(speech_id)
+            t["llm"] = first_text if first_text is not None else total
+            t["llm_total"] = total
+
+    def on_e2e(self, speech_id: str, seconds: float) -> None:
+        if speech_id in self.turns:
+            self.turns[speech_id]["e2e"] = seconds
 
     def summary(self) -> dict:
         turns = []

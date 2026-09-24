@@ -123,7 +123,15 @@ def validate_updates(workflow: Workflow, updates: dict[str, Any]) -> dict[str, A
     return check_updates(workflow, updates)[0]
 
 
+# Cuando el resultado seria el objetivo pero faltan datos obligatorios. En la
+# llamada 80ac0e22 pidio el link y corto sin actividad ni contacto, y contaba como exito.
+INCOMPLETE = Outcome(id="incompleta", label="Incompleta", message="")
+
+
 def outcome_for(workflow: Workflow, state: ConversationState) -> Outcome:
     """El primer resultado cuyas condiciones se cumplen; el ultimo, sin when, es el default."""
-    return next(o for o in workflow.completion.outcomes
-                if all(state.fields.get(k) == v for k, v in o.when.items()))
+    outcome = next(o for o in workflow.completion.outcomes
+                   if all(state.fields.get(k) == v for k, v in o.when.items()))
+    if outcome.goal and not is_workflow_complete(workflow, state):
+        return INCOMPLETE
+    return outcome

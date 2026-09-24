@@ -405,26 +405,41 @@ tests/                       motor con LLM falso + escenarios contra el LLM real
 ```
 
 **Un turno:** llega el mensaje (por la API o transcripto por el STT en una llamada) →
-`ConversationEngine.process_turn` carga el estado → `LLMClient` manda workflow, estado (datos
-conocidos y objetivos pendientes), el ultimo mensaje del agente y el mensaje nuevo → el LLM
-devuelve `field_updates`, `next_objective`, `assistant_message` y `status` → la app descarta
-campos inexistentes o con tipo invalido, aplica `required_if` y recalcula si termino con
-`is_workflow_complete` → guarda el estado y devuelve la respuesta. Si termino, la respuesta es el
-mensaje de cierre del workflow y el worker corta la llamada al terminar de decirlo.
+`ConversationEngine.process_turn` espera la extracción del turno anterior (hasta 1,5 s) → el LLM de
+conversación recibe workflow, conversación completa, estado (datos conocidos, objetivos pendientes,
+lo último que preguntó) y el mensaje nuevo, y devuelve `assistant_message`, `answered` (si el cliente
+respondió lo que le preguntó), `next_objective` y `status` → la app guarda la respuesta y lanza la
+**extracción** en segundo plano. Si terminó, la respuesta es el mensaje de cierre del workflow y el
+worker corta la llamada al terminar de decirlo.
+
+**Extracción:** otra llamada al LLM, con prompt y esquema armados desde los `fields` del workflow
+(tipo, opciones, descripción, pregunta) y la conversación completa. Corre mientras suena la
+respuesta y el cliente contesta, así que no suma latencia (p50 ~0,9 s; el turno de conversación
+bajó de 1,1 a 0,9 s al no generar los datos). Si `answered` es true y el dato no salió, reintenta
+solo ese campo; si tampoco sale, lo marca respondido sin dato (`answered_without_data`) y no se
+vuelve a preguntar. Al completar, el resultado se calcula con los datos extraídos; si el resultado
+sería el objetivo (`goal`) pero faltan datos obligatorios, es `incompleta`.
 
 **Qué decide cada uno:** el LLM decide la respuesta, el objetivo siguiente y cuándo termina la
-conversación; lo que dice se pasa al TTS tal cual. La app solo valida los datos que propone
+conversación; lo que dice se pasa al TTS tal cual. La app solo valida los datos que extrae
 (campos inexistentes o con tipo inválido no se guardan, y se le informan en el turno siguiente
 como `rejected_values`), normaliza el email dictado ("juan punto perez arroba gmail punto com" →
 `juan.perez@gmail.com`, y solo si el cliente lo dijo) y guarda el estado. Al terminar clasifica la
 llamada con `completion.outcomes` para el dashboard. En el agente de voz: si el cliente sigue
-hablando y la respuesta no llegó a sonar, se deshace el turno (`retract_last_turn`); mientras el
-LLM pide un dato dictado (email o teléfono), el endpointing espera hasta 2,5 s en lugar de 1 s.
+hablando y la respuesta no llegó a sonar o sonó menos de ~1 s (`CONTINUATION_WINDOW`), es la misma
+frase: se deshace el turno (`retract_last_turn`, que cancela su extracción) y el siguiente recibe todo junto. Los turnos se
+procesan de a uno, porque LiveKit genera la respuesta antes de confirmar el fin de turno
+(preemptive generation). El endpointing espera 0,4 s si el turn detector cree que la frase terminó
+y hasta 1 s si duda; mientras el LLM pide un dato dictado (email o teléfono), hasta 2,5 s.
 
 **Medir:** `make eval-motor [N=3] [S=escenario]` corre `scripts/replay_calls.py`: escenarios
 armados con llamadas reales (preguntas en medio del flujo, "sí, pero…", email cortado, rechazo,
 buzón de voz) con un cliente que contesta lo que le preguntan. Imprime cada conversación, el
 resultado y señales de loop (respuestas repetidas, mismo objetivo seguido).
+`make eval-llamadas [N=5]` (`scripts/replay_transcripts.py`) repite llamadas reales de
+`berlin_signup` con lo que dijo el cliente tal cual, y compara datos finales y resultado con lo
+esperado. Con N=5 (sep-2026), antes y después de separar la extracción: datos bien 85 → 91 de 95,
+inventados o equivocados 6 → 2, resultado correcto 10 → 15 de 15.
 
 **Workflows:** `demo_booking` (default, `WORKFLOW_ID`) presenta Browix en ~15 s si el interesado
 acepta, pregunta a qué se dedica la empresa, conecta su necesidad con una función de Browix y

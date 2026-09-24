@@ -10,7 +10,7 @@ from . import config, livekit_dispatch
 from .calls import CallLog
 from .conversation.engine import ConversationEngine
 from .conversation.models import ConversationState, Progress
-from .conversation.workflow import is_required, load_workflow, outcome_for
+from .conversation.workflow import INCOMPLETE, is_required, load_workflow, outcome_for
 from .deps import get_calls, get_engine
 
 app = FastAPI(title="Voice agent")
@@ -56,9 +56,12 @@ def get_conversation(conversation_id: str, engine: ConversationEngine = Depends(
 @app.post("/conversations/{conversation_id}/turn")
 async def turn(conversation_id: str, req: TurnRequest, engine: ConversationEngine = Depends(get_engine)):
     try:
-        state, result = await engine.process_turn(conversation_id, req.message)
+        _, result = await engine.process_turn(conversation_id, req.message)
     except KeyError:
         raise HTTPException(404)
+    # Por la API no hay audio que tape la extraccion: se espera y se devuelve el estado con los datos.
+    await engine.wait_extraction(conversation_id)
+    state = engine.store.get(conversation_id)
     return {"message": result.assistant_message, "state": state, "next_objective": result.next_objective, "status": result.status}
 
 
@@ -114,7 +117,7 @@ def _outcome(workflow, conv):
         return None
     progress = conv.progress if isinstance(conv.progress, Progress) else Progress.model_validate(conv.progress or {})
     saved = progress.outcome
-    outcome = next((o for o in workflow.completion.outcomes if o.id == saved), None)
+    outcome = next((o for o in [*workflow.completion.outcomes, INCOMPLETE] if o.id == saved), None)
     if outcome is None:
         outcome = outcome_for(workflow, ConversationState(conversation_id=conv.id, workflow_id=conv.workflow_id,
                                                           fields=conv.fields, progress=Progress()))

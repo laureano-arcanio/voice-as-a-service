@@ -5,7 +5,7 @@ from app.conversation.engine import ConversationEngine
 from app.conversation.models import AgentTurn
 from app.conversation.workflow import load_workflow, validate_updates
 
-from .helpers import FakeLLM, start_with
+from .helpers import FakeLLM, start_with, turn_and_extract
 
 
 @pytest.fixture
@@ -23,12 +23,13 @@ def test_types(wf):
 
 @pytest.mark.parametrize("fields, outcome", [
     ({"wants_pitch": False}, "no_pitch"),
-    ({"wants_pitch": True, "demo_answer": "si", "contact_name": "Ana", "contact": "ana@x.com"}, "demo"),
+    ({"wants_pitch": True, "company_context": "Logística", "demo_answer": "si", "contact_name": "Ana",
+      "contact": "ana@x.com"}, "demo"),
     ({"wants_pitch": True, "demo_answer": "dudas", "callback_wanted": True}, "callback"),
     ({"wants_pitch": True, "demo_answer": "no"}, "no_interest"),
 ])
 async def test_outcomes(store, fields, outcome):
-    engine = ConversationEngine(FakeLLM(AgentTurn(field_updates={}, assistant_message="Chau.", status="completed")), store)
+    engine = ConversationEngine(FakeLLM(AgentTurn(assistant_message="Chau.", status="completed")), store)
     cid = start_with(engine, workflow_id="demo_booking", **fields)
-    state, _ = await engine.process_turn(cid, "Chau.")
+    state, _ = await turn_and_extract(engine, cid, "Chau.")
     assert state.progress.outcome == outcome

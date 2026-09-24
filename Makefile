@@ -35,7 +35,7 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
         up up-agent up-inference up-nginx up-pbx down restart ps logs \
         sh mysql health gpu \
         pbx-cli pbx-status livekit-sip \
-        test eval-motor loadtest-audio loadtest loadtest-report stt-eval stt-corpus \
+        test eval-motor eval-llamadas loadtest-audio loadtest loadtest-report stt-eval stt-corpus \
         db-reset clean
 
 help: ## Muestra esta ayuda
@@ -140,6 +140,9 @@ test: ## Tests del motor conversacional (los que usan el LLM se saltean si vllm-
 
 eval-motor: ## Escenarios de llamada contra el motor y el LLM real (scripts/replay_calls.py). Ej: make eval-motor N=3 S=si-pero
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts app python -m scripts.replay_calls $(or $(N),1) $(S)
+
+eval-llamadas: ## Llamadas reales de berlin_signup repetidas tal cual: datos, resultado y repreguntas (scripts/replay_transcripts.py). Ej: make eval-llamadas N=5
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts app python -m scripts.replay_transcripts $(or $(N),1) $(S)
 
 # --- Loadtest y eval (docs/experiments/) ---------------------------------
 

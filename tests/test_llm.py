@@ -5,7 +5,7 @@ from app import config
 from app.conversation.engine import ConversationEngine
 from app.llm.client import LLMClient
 
-from .helpers import start_with
+from .helpers import start_with, turn_and_extract
 
 
 def llm_available() -> bool:
@@ -26,14 +26,14 @@ def engine(store):
 
 async def test_normal_answer(engine):
     cid = start_with(engine)
-    state, turn = await engine.process_turn(cid, "Juan.")
+    state, turn = await turn_and_extract(engine, cid, "Juan.")
     assert state.fields["contact_name"] == "Juan"
     assert turn.next_objective == "company_name"
 
 
 async def test_multiple_fields_together(engine):
     cid = start_with(engine)
-    state, turn = await engine.process_turn(cid, "Soy Juan de Acme, hacemos logística y somos unas 80 personas.")
+    state, turn = await turn_and_extract(engine, cid, "Soy Juan de Acme, hacemos logística y somos unas 80 personas.")
     assert state.fields["contact_name"] == "Juan"
     assert state.fields["company_name"] == "Acme"
     assert "log" in state.fields["company_activity"].lower()
@@ -44,15 +44,15 @@ async def test_multiple_fields_together(engine):
 async def test_ambiguous_answer(engine):
     cid = start_with(engine, "¿Cuántos empleados tienen, aproximadamente?",
                      contact_name="Juan", company_name="Acme", company_activity="Logística")
-    state, turn = await engine.process_turn(cid, "Somos bastantes.")
+    state, turn = await turn_and_extract(engine, cid, "Somos bastantes.")
     assert state.fields["employee_count"] is None
     assert turn.next_objective == "employee_count"
 
 
 async def test_user_gets_ahead(engine):
     cid = start_with(engine, "¿A qué se dedica la empresa?", contact_name="Juan", company_name="Acme")
-    state, turn = await engine.process_turn(
-        cid, "Hacemos limpieza. Hoy fichan en planillas de papel y lo que más quiero es controlar bien los horarios."
+    state, turn = await turn_and_extract(
+        engine, cid, "Hacemos limpieza. Hoy fichan en planillas de papel y lo que más quiero es controlar bien los horarios."
     )
     assert state.fields["company_activity"]
     assert state.fields["attendance_process"]
@@ -65,7 +65,7 @@ async def test_question_is_answered_and_data_extracted(engine):
     cid = start_with(engine, "¿Cómo controlan hoy la asistencia y los horarios del personal?",
                      contact_name="Juan", company_name="Acme", company_activity="Logística",
                      employee_count=80, workforce_location="En la calle")
-    state, turn = await engine.process_turn(cid, "Usamos planillas. ¿El sistema permite fichar desde el celular?")
+    state, turn = await turn_and_extract(engine, cid, "Usamos planillas. ¿El sistema permite fichar desde el celular?")
     assert state.fields["attendance_process"]
     assert turn.next_objective == "main_problem"
     assert "celular" in turn.assistant_message.lower()

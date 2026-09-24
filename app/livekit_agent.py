@@ -24,64 +24,138 @@ if not (config.VLLM_TTS_MODEL and config.VLLM_TTS_VOICE):
     raise RuntimeError("Faltan VLLM_TTS_MODEL y/o VLLM_TTS_VOICE en .env")
 openai.tts.AUDIO_STREAM_MODELS.add(config.VLLM_TTS_MODEL)
 
-# Espera maxima de silencio antes de dar el turno por terminado cuando el turn
-# detector no esta seguro. 1 s alcanza para respuestas cortas, pero corta los
-# dictados: en la llamada 2d0c771b "Escribime a" + pausa llego solo, dos veces.
-# Mientras se pide un dato dictado (email) se estira.
+# Espera de silencio antes de dar el turno por terminado. MIN_ENDPOINTING_DELAY
+# cuando el turn detector cree que la frase termino (0,3 por defecto dejaba
+# transcripts que llegan despues de cerrar el turno); MAX_ENDPOINTING_DELAY
+# cuando duda. Con 1 s, "me gustaria poder hacer un seguimiento" + pausa se
+# corto aunque el detector la vio incompleta (llamada c5fa81cd); con 2 s, en
+# 7 de 11 turnos de respuestas cortas ("Sí.", "Running") el detector dudo y se
+# espero el tope (llamadas b162596a y 7e78a3cc: ~2,3 s hasta que habla el
+# agente). Se vuelve a 1 s: si el cliente sigue hablando, CONTINUATION_WINDOW
+# une las dos partes. Mientras se pide un dato dictado (email) se estira mas
+# (llamada 2d0c771b).
+MIN_ENDPOINTING_DELAY = 0.4
 MAX_ENDPOINTING_DELAY = 1.0
 DICTATION_ENDPOINTING_DELAY = 2.5
 DICTATED_TYPES = {"email", "email_or_phone"}
 
-
-def spoken(item) -> bool:
-    return getattr(item, "role", None) == "assistant" and bool(item.text_content)
-
-
-def pending_user_text(chat_ctx) -> str:
-    """Lo que dijo el usuario desde la ultima respuesta que llego a sonar (una
-    respuesta interrumpida antes de sonar queda vacia o no queda)."""
-    texts = []
-    for item in reversed(chat_ctx.items):
-        role = getattr(item, "role", None)
-        if spoken(item):
-            break
-        if role == "user" and item.text_content:
-            texts.append(item.text_content)
-    return " ".join(reversed(texts))
+# Si el cliente vuelve a hablar cuando la respuesta sono menos que esto, sigue
+# con la misma frase: se deshace el turno aunque haya sonado un pedazo y el
+# siguiente lo recibe todo junto. Incluye los 0,5 s de voz que LiveKit exige
+# para cortar al agente (interruption min_duration): ~1 s de respuesta.
+CONTINUATION_WINDOW = 1.5
+# Cuanto se espera a que termine de cerrarse una respuesta cortada.
+SETTLE_TIMEOUT = 2.0
 
 
 class WorkflowAgent(Agent):
-    def __init__(self, engine: ConversationEngine, conversation_id: str, latency: TurnLatencyTracker):
+    def __init__(self, engine: ConversationEngine, conversation_id: str, latency: TurnLatencyTracker, on_completed):
         super().__init__(instructions="")
         self.engine = engine
         self.conversation_id = conversation_id
         self.latency = latency
-        self.completed = False
+        self.on_completed = on_completed
         self.dictation = False
+        # Un turno a la vez: con preemptive generation LiveKit puede llamar a
+        # llm_node antes de cerrar la respuesta anterior, y los dos turnos
+        # pisaban el estado (en c5fa81cd quedo guardada una respuesta que no sono).
+        self.turn_lock = asyncio.Lock()
+        self.last_reply = None                  # SpeechHandle del ultimo turno guardado
+        self.last_user_ids: set[str] = set()    # mensajes del cliente que proceso ese turno
+        self.consumed: set[str] = set()         # mensajes del cliente ya procesados
+        self.played: dict[str, float] = {}      # segundos que sono cada respuesta (speech_id)
+        self._speaking: tuple[str, float] | None = None
+
+    async def on_enter(self):
+        self.session.on("agent_state_changed", self.on_agent_state)
+
+    def on_agent_state(self, ev) -> None:
+        # Pausa o corte por voz del cliente = sale de "speaking".
+        speech = self.session.current_speech
+        if ev.old_state == "speaking" and self._speaking:
+            speech_id, since = self._speaking
+            self.played[speech_id] = self.played.get(speech_id, 0.0) + ev.created_at - since
+            self._speaking = None
+        if ev.new_state == "speaking" and speech is not None:
+            self._speaking = (speech.id, ev.created_at)
 
     async def llm_node(self, chat_ctx, tools, model_settings):
-        started = time.perf_counter()
-        state, turn = await self.engine.process_turn(self.conversation_id, pending_user_text(chat_ctx))
         # La respuesta en curso: LiveKit no la expone en llm_node, es la misma
-        # context var privada que usa Agent internamente. Sirve para juntar este
-        # tiempo con el EOU y el TTS del turno, y para saber si llego a sonar.
+        # context var privada que usa Agent internamente. Sirve para juntar el
+        # tiempo del LLM con el EOU y el TTS del turno, y para saber cuanto sono.
         speech = _SpeechHandleContextVar.get(None)
-        self.latency.on_llm(speech.id if speech else None, time.perf_counter() - started)
+        started = time.perf_counter()
+        first_text: float | None = None
+        chunks: asyncio.Queue[str | None] = asyncio.Queue()
+
+        async def run():
+            try:
+                return await self.run_turn(chat_ctx, speech, chunks.put_nowait)
+            finally:
+                chunks.put_nowait(None)
+
+        # El mensaje va al TTS a medida que el LLM lo escribe; el turno termina
+        # (validacion y guardado) cuando llega el resto del JSON. Si LiveKit
+        # descarta la respuesta a mitad de camino, se cancela sin guardar.
+        task = asyncio.create_task(run())
+        try:
+            while (text := await chunks.get()) is not None:
+                if first_text is None:
+                    first_text = time.perf_counter() - started
+                yield text
+            state, turn = await task
+        finally:
+            if not task.done():
+                task.cancel()
+        self.latency.on_llm(speech.id if speech else None, first_text, time.perf_counter() - started)
         if speech is not None:
             speech.add_done_callback(self.on_reply_done)
+            if turn.status == "completed":
+                speech.add_done_callback(self.on_final_reply_done)
         self.set_dictation(state.workflow_id, turn.next_objective)
-        logger.info("turn %s fields=%s next=%s status=%s", self.conversation_id, turn.field_updates, turn.next_objective, turn.status)
-        self.completed = turn.status == "completed"
-        return turn.assistant_message
+        logger.info("turn %s answered=%s next=%s status=%s", self.conversation_id, turn.answered, turn.next_objective, turn.status)
+
+    async def run_turn(self, chat_ctx, speech, on_message):
+        async with self.turn_lock:
+            await self.settle_last_reply()
+            user_items = [item for item in chat_ctx.items
+                          if getattr(item, "role", None) == "user" and item.text_content and item.id not in self.consumed]
+            result = await self.engine.process_turn(
+                self.conversation_id, " ".join(item.text_content for item in user_items), on_message=on_message)
+            self.last_reply = speech
+            self.last_user_ids = {item.id for item in user_items}
+            self.consumed |= self.last_user_ids
+            return result
+
+    async def settle_last_reply(self) -> None:
+        """Si la respuesta anterior se corto antes de sonar o apenas empezada, el
+        cliente seguia con la misma frase: se deshace ese turno y sus mensajes
+        vuelven a entrar en este. Si no, el principio quedaba procesado dos
+        veces y el agente contestaba cada pedazo."""
+        prev = self.last_reply
+        if prev is None or not prev.interrupted:
+            return
+        if not prev.done():
+            try:
+                await asyncio.wait_for(prev.wait_for_playout(), SETTLE_TIMEOUT)
+            except asyncio.TimeoutError:
+                logger.warning("reply %s not done after %ss", prev.id, SETTLE_TIMEOUT)
+        self.last_reply = None
+        played = self.played.get(prev.id, 0.0)
+        if played < CONTINUATION_WINDOW and self.engine.retract_last_turn(self.conversation_id):
+            self.consumed -= self.last_user_ids
+            logger.info("turn retracted %s (reply interrupted after %.2fs)", self.conversation_id, played)
 
     def on_reply_done(self, speech) -> None:
-        # El cliente siguio hablando y la respuesta no llego a sonar: se deshace
-        # el turno, y el siguiente llm_node manda el mensaje completo. Si no, el
-        # principio quedaba procesado dos veces y la pregunta, repetida.
-        if speech.interrupted and not any(spoken(item) for item in speech.chat_items):
-            if self.engine.retract_last_turn(self.conversation_id):
-                logger.info("turn retracted %s (reply interrupted before playing)", self.conversation_id)
-                self.completed = False
+        for item in speech.chat_items:
+            if (e2e := (getattr(item, "metrics", None) or {}).get("e2e_latency")) is not None:
+                self.latency.on_e2e(speech.id, e2e)
+
+    def on_final_reply_done(self, speech) -> None:
+        # Se corta cuando la despedida termina de sonar; si el cliente la
+        # interrumpio, sigue hablando y el turno siguiente decide.
+        if not speech.interrupted:
+            self.on_completed()
 
     def set_dictation(self, workflow_id: str, objective: str | None) -> None:
         spec = load_workflow(workflow_id).fields.get(objective) if objective else None
@@ -96,8 +170,10 @@ def build_session() -> AgentSession:
     vad = silero.VAD.load(min_silence_duration=0.3, min_speech_duration=0.2)
     return AgentSession(
         vad=vad,
-        turn_detection=inference.TurnDetector(),
-        max_endpointing_delay=MAX_ENDPOINTING_DELAY,
+        turn_handling={
+            "turn_detection": inference.TurnDetector(),
+            "endpointing": {"min_delay": MIN_ENDPOINTING_DELAY, "max_delay": MAX_ENDPOINTING_DELAY},
+        },
         stt=openai.STT(
             model=config.VLLM_STT_MODEL,
             language="es",
@@ -138,10 +214,11 @@ async def entrypoint(ctx: JobContext):
     session = build_session()
     latency = TurnLatencyTracker()
     session.on("metrics_collected", lambda ev: latency.on_metrics(ev.metrics))
-    agent = WorkflowAgent(engine, conversation_id, latency)
     started_at: float | None = None
 
     async def finalize(reason: str = ""):
+        # La extraccion del ultimo turno puede seguir corriendo: el resultado sale de ahi.
+        await engine.wait_extraction(conversation_id, timeout=10)
         call = calls.get(conversation_id)
         if call is None or call.status == "fallida":
             return
@@ -161,10 +238,7 @@ async def entrypoint(ctx: JobContext):
         await ctx.delete_room()
         ctx.shutdown(reason="completed")
 
-    @session.on("agent_state_changed")
-    def on_agent_state_changed(ev):
-        if agent.completed and ev.old_state == "speaking" and ev.new_state == "listening":
-            asyncio.create_task(hang_up())
+    agent = WorkflowAgent(engine, conversation_id, latency, on_completed=lambda: asyncio.create_task(hang_up()))
 
     ctx.room.on("participant_disconnected", lambda _: ctx.shutdown(reason="customer_hangup"))
 

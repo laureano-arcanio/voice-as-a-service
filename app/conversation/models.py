@@ -62,9 +62,13 @@ class Message(BaseModel):
 
 class Progress(BaseModel):
     """Registro de la app; no decide el flujo."""
-    rejected: dict[str, Any] = Field(default_factory=dict)   # valores invalidos del ultimo turno (se le informan al LLM)
+    rejected: dict[str, Any] = Field(default_factory=dict)   # valores invalidos de la ultima extraccion (se le informan al LLM)
     outcome: str | None = None                               # Outcome.id al completar (para el dashboard)
     undo: dict[str, Any] | None = None                       # estado previo al ultimo turno (retract_last_turn)
+    asked: str | None = None                                 # objetivo que pregunto el ultimo mensaje del agente
+    # Objetivos que el LLM dio por respondidos pero la extraccion no encontro:
+    # no se vuelven a preguntar, y sin el dato el workflow queda incompleto.
+    answered_empty: list[str] = Field(default_factory=list)
 
 
 class ConversationState(BaseModel):
@@ -77,10 +81,19 @@ class ConversationState(BaseModel):
 
 
 class AgentTurn(BaseModel):
-    field_updates: dict[str, Any] = Field(default_factory=dict)
+    """Salida del LLM de conversacion. Los datos no van aca: los saca la
+    extraccion, que corre aparte mientras suena la respuesta."""
+    answered: bool = False          # el usuario respondio lo que pregunto el mensaje anterior
     next_objective: str | None = None
     assistant_message: str
     status: Literal["active", "completed"] = "active"
     # Salida cruda del LLM y su razonamiento; no son parte del contrato.
     raw: str | None = Field(default=None, exclude=True)
     reasoning: str | None = Field(default=None, exclude=True)
+
+
+class Extraction(BaseModel):
+    """Salida del LLM de extraccion: valor por campo, null si no hay dato."""
+    fields: dict[str, Any]
+    raw: str | None = None
+    reasoning: str | None = None

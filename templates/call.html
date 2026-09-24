@@ -39,12 +39,14 @@
 <section class="card" id="lat-card" style="display:none">
   <h2>Latencia por turno</h2>
   <p class="hint">Segundos desde que el cliente deja de hablar hasta que el agente empieza a sonar.
-    <b>Total</b> = EOU (STT + endpointing) + LLM (motor del workflow, JSON completo) + TTS TTFB.</p>
+    <b>E2E</b> = medido por LiveKit hasta el primer audio. <b>Total</b> = EOU (STT + endpointing) + LLM
+    (hasta el primer texto del mensaje; el JSON completo en <i>LLM total</i>) + TTS TTFB; no incluye escribir
+    la primera oración.</p>
   <p class="hint" id="lat-stats"></p>
   <table class="tbl" id="lat-tbl">
     <thead><tr>
-      <th style="width:50px">#</th><th>Total</th><th>EOU</th><th>&nbsp;&nbsp;STT</th><th>&nbsp;&nbsp;Endpointing</th>
-      <th>LLM</th><th>TTS TTFB</th><th>Audio</th>
+      <th style="width:50px">#</th><th>E2E</th><th>Total</th><th>EOU</th><th>&nbsp;&nbsp;STT</th><th>&nbsp;&nbsp;Endpointing</th>
+      <th>LLM</th><th>LLM total</th><th>TTS TTFB</th><th>Audio</th>
     </tr></thead>
     <tbody></tbody>
   </table>
@@ -144,13 +146,13 @@ async function load() {
     const f = v => (v == null ? '–' : v.toFixed(2) + 's');
     const st = l.stats || {};
     document.getElementById('lat-stats').innerHTML = l.n_turns + ' turnos &middot; promedio: ' +
-      ['total', 'eou', 'stt', 'endpointing', 'llm', 'tts'].filter(k => st[k]).map(k =>
+      ['e2e', 'total', 'eou', 'stt', 'endpointing', 'llm', 'llm_total', 'tts'].filter(k => st[k]).map(k =>
         `${k} <b>${f(st[k].avg)}</b> (max ${f(st[k].max)})`).join(' &middot; ');
     document.querySelector('#lat-tbl tbody').innerHTML = l.turns.map((t, i) => `
       <tr>
         <td class="ctr">${i + 1}</td>
-        <td><b>${f(t.total)}</b></td><td>${f(t.eou)}</td><td>${f(t.stt)}</td><td>${f(t.endpointing)}</td>
-        <td>${f(t.llm)}</td><td>${f(t.tts)}</td><td>${f(t.tts_audio)}</td>
+        <td><b>${f(t.e2e)}</b></td><td>${f(t.total)}</td><td>${f(t.eou)}</td><td>${f(t.stt)}</td><td>${f(t.endpointing)}</td>
+        <td>${f(t.llm)}</td><td>${f(t.llm_total)}</td><td>${f(t.tts)}</td><td>${f(t.tts_audio)}</td>
       </tr>`).join('');
   }
 

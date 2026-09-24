@@ -84,9 +84,13 @@ async def run(engine, workflow_id, answers, max_turns=12):
         msg = options[min(used.get(key, 0), len(options) - 1)]
         used[key] = used.get(key, 0) + 1
         started = time.perf_counter()
+        before = dict(state.fields)
         state, turn = await engine.process_turn(state.conversation_id, msg)
         times.append(time.perf_counter() - started)
-        log += [f"U: {msg}", f"A: {turn.assistant_message}   {turn.field_updates or ''} -> {turn.next_objective}"]
+        await engine.wait_extraction(state.conversation_id)
+        state = engine.store.get(state.conversation_id)
+        updates = {k: v for k, v in state.fields.items() if v != before.get(k)}
+        log += [f"U: {msg}", f"A: {turn.assistant_message}   {updates or ''} -> {turn.next_objective}"]
         repeats += turn.assistant_message.strip() == last_message.strip()
         streak = streak + 1 if turn.next_objective and turn.next_objective == last_objective else 0
         max_streak = max(max_streak, streak)
