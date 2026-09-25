@@ -26,6 +26,9 @@ class FakeLLM:
         turn.raw = json.dumps(turn.model_dump(), ensure_ascii=False)
         return turn
 
+    async def converse(self, workflow, state, user_message, on_message=None):
+        return await self.process_turn(workflow, state, user_message, on_message)
+
     async def extract(self, workflow, state, only=None):
         self.extract_calls.append(only)
         fields = self.extractions.pop(0) if self.extractions else {}

@@ -258,8 +258,9 @@ async def entrypoint(ctx: JobContext):
     started_at: float | None = None
 
     async def finalize(reason: str = ""):
-        # La extraccion del ultimo turno puede seguir corriendo: el resultado sale de ahi.
-        await engine.wait_extraction(conversation_id, timeout=10)
+        # La extraccion del ultimo turno puede seguir corriendo (el resultado sale
+        # de ahi); en el motor clasico, si corto el cliente, es la unica.
+        await engine.finish(conversation_id)
         call = calls.get(conversation_id)
         if call is None or call.status == "fallida":
             return

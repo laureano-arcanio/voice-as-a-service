@@ -3,7 +3,8 @@ el motor y el LLM real. A diferencia de replay_calls.py, el cliente no contesta
 segun lo que le preguntan: repite la llamada. Por corrida compara los datos
 finales con los esperados y cuenta las repreguntas (veces que el agente vuelve a
 pedir un dato que ya pidio y el cliente contesto).
-Uso: make eval-llamadas [N=5] [S=escenario]
+Uso: make eval-llamadas [N=5] [S=escenario] [W=workflow] (W: berlin_signup o
+berlin_signup_classic, el mismo agente con el motor clasico)
 """
 import asyncio
 import collections
@@ -13,6 +14,7 @@ import unicodedata
 from app import config
 from app.conversation.engine import ConversationEngine
 from app.conversation.store import ConversationStore
+from app.conversation.workflow import load_workflow
 from app.llm.client import LLMClient
 
 # Esperado por campo: texto = el valor lo contiene (sin tildes ni mayusculas);
@@ -71,8 +73,8 @@ def check(expected, value) -> str:
     return "ok" if expected in plain(value) else "mal"
 
 
-async def run(engine, scenario):
-    state, _ = engine.start_conversation("berlin_signup")
+async def run(engine, scenario, workflow_id):
+    state, _ = engine.start_conversation(workflow_id)
     cid = state.conversation_id
     asks = collections.Counter({"wants_pitch": 1})   # la apertura pregunta el primero
     log = []
@@ -85,11 +87,14 @@ async def run(engine, scenario):
         log += [f"U: {msg}", f"A: {turn.assistant_message}  -> {turn.next_objective}"]
         if turn.status == "completed":
             break
+    await engine.finish(cid)     # como al cortar la llamada: en el clasico, la extraccion final
     state = engine.store.get(cid)
-    return state, log, sum(n - 1 for n in asks.values() if n > 1)
+    # El clasico no declara que pregunta: las repreguntas no se pueden contar.
+    classic = load_workflow(workflow_id).engine == "classic"
+    return state, log, None if classic else sum(n - 1 for n in asks.values() if n > 1)
 
 
-async def main(n: int, only: str | None, verbose: bool):
+async def main(n: int, only: str | None, verbose: bool, workflow_id: str):
     engine = ConversationEngine(LLMClient(config.VLLM_LLM_BASE_URL, config.VLLM_API_KEY, config.VLLM_LLM_MODEL),
                                 ConversationStore("sqlite://"))
     total = collections.Counter()
@@ -99,7 +104,7 @@ async def main(n: int, only: str | None, verbose: bool):
         per_field = collections.defaultdict(collections.Counter)
         outcomes, reasks = collections.Counter(), []
         for _ in range(n):
-            state, log, reask = await run(engine, scenario)
+            state, log, reask = await run(engine, scenario, workflow_id)
             for field, expected in scenario["expected"].items():
                 result = check(expected, state.fields.get(field))
                 per_field[field][result] += 1
@@ -108,7 +113,7 @@ async def main(n: int, only: str | None, verbose: bool):
             outcomes[outcome] += 1
             total["outcome_ok"] += outcome in scenario["outcome"]
             total["runs"] += 1
-            total["repreguntas"] += reask
+            total["repreguntas"] += reask or 0
             reasks.append(reask)
             if verbose:
                 print("\n".join(log), f"\ndatos: { {k: v for k, v in state.fields.items() if v is not None} }\n")
@@ -124,5 +129,6 @@ async def main(n: int, only: str | None, verbose: bool):
 if __name__ == "__main__":
     args = [a for a in sys.argv[1:] if a]
     verbose = "-v" in args
-    args = [a for a in args if a != "-v"]
-    asyncio.run(main(int(args[0]) if args else 1, args[1] if len(args) > 1 else None, verbose))
+    workflow = next((a.removeprefix("-w=") for a in args if a.startswith("-w=")), "berlin_signup")
+    args = [a for a in args if a != "-v" and not a.startswith("-w=")]
+    asyncio.run(main(int(args[0]) if args else 1, args[1] if len(args) > 1 else None, verbose, workflow))

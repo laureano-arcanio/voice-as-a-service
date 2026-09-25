@@ -57,6 +57,10 @@ class Completion(BaseModel):
 class Workflow(BaseModel):
     id: str
     version: int
+    # structured: por turno el LLM responde en JSON y otra llamada extrae los
+    # datos, con estado. classic: prompt armado del YAML, conversacion
+    # multiturno en texto y una sola extraccion al final.
+    engine: Literal["structured", "classic"] = "structured"
     agent: AgentInfo
     objective: Objective
     conversation: ConversationConfig

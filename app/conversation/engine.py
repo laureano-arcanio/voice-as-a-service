@@ -19,7 +19,11 @@ EXTRACTION_WAIT = 1.5
 class ConversationEngine:
     """El LLM de conversacion decide la respuesta, el objetivo siguiente y si
     la conversacion termino. Los datos los saca otra llamada al LLM, la
-    extraccion, en segundo plano. La app valida los datos y guarda el estado."""
+    extraccion, en segundo plano. La app valida los datos y guarda el estado.
+
+    Segun el engine del workflow: structured extrae en cada turno y le pasa el
+    estado al LLM (JSON con answered y next_objective); classic conversa en
+    texto con el prompt del YAML, sin estado, y extrae una sola vez al final."""
 
     def __init__(self, llm, store: ConversationStore):
         self.llm = llm
@@ -50,8 +54,10 @@ class ConversationEngine:
             raise KeyError(conversation_id)
         workflow = load_workflow(state.workflow_id)
 
+        classic = workflow.engine == "classic"
         started = time.perf_counter()
-        result = await self.llm.process_turn(workflow, state, user_message, on_message=on_message)
+        llm_turn = self.llm.converse if classic else self.llm.process_turn
+        result = await llm_turn(workflow, state, user_message, on_message=on_message)
         trace = [{"kind": "turno", "input": user_message, "ms": round((time.perf_counter() - started) * 1000),
                   "reasoning": result.reasoning, "output": result.raw or result.model_dump_json()}]
 
@@ -69,13 +75,27 @@ class ConversationEngine:
                            Message(role="assistant", text=result.assistant_message, llm=trace)]
         self.store.save(state)
 
-        answered = asked if result.answered else None
+        if not classic or result.status == "completed":
+            self._launch_extraction(conversation_id, len(state.messages) - 1, asked if result.answered else None)
+        return state, result
+
+    def _launch_extraction(self, conversation_id: str, reply: int, answered: str | None) -> asyncio.Task:
         tasks = self.extractions.setdefault(conversation_id, [])
         previous = tasks[-1] if tasks else None
-        task = asyncio.create_task(self._extract(conversation_id, len(state.messages) - 1, answered, previous))
+        task = asyncio.create_task(self._extract(conversation_id, reply, answered, previous))
         tasks.append(task)
         task.add_done_callback(lambda t: self._forget(conversation_id, t))
-        return state, result
+        return task
+
+    async def finish(self, conversation_id: str, timeout: float = 10) -> None:
+        """Al cortar la llamada: espera la extraccion en curso. En el clasico,
+        si corto el cliente antes de la despedida, hace ahora la extraccion final."""
+        await self.wait_extraction(conversation_id, timeout)
+        state = self.store.get(conversation_id)
+        if (state is None or state.status == "completed" or len(state.messages) < 2
+                or load_workflow(state.workflow_id).engine != "classic"):
+            return
+        await asyncio.wait([self._launch_extraction(conversation_id, len(state.messages) - 1, None)], timeout=timeout)
 
     def _forget(self, conversation_id: str, task: asyncio.Task) -> None:
         tasks = self.extractions.get(conversation_id, [])

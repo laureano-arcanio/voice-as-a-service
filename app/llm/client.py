@@ -8,7 +8,8 @@ from app import config
 
 from app.conversation.models import AgentTurn, ConversationState, Extraction, Workflow
 
-from .prompt import EXTRACTION_PROMPT, SYSTEM_PROMPT, build_extraction_prompt, build_user_prompt
+from .prompt import (END_MARKER, EXTRACTION_PROMPT, SYSTEM_PROMPT, build_classic_messages, build_extraction_prompt,
+                     build_user_prompt)
 
 TYPE_SCHEMAS = {
     "string": {"type": "string"},
@@ -104,6 +105,36 @@ class LLMClient:
         turn.reasoning = reasoning
         return turn
 
+    async def converse(self, workflow: Workflow, state: ConversationState, user_message: str,
+                       on_message: Callable[[str], None] | None = None) -> AgentTurn:
+        """Motor clasico: texto libre con la conversacion como mensajes. El fin
+        lo marca END_MARKER, que se saca antes de decirlo."""
+        request = dict(model=self.model, messages=build_classic_messages(workflow, state, user_message), **self.options)
+        marker = MarkerFilter(END_MARKER)
+        if on_message is None:
+            message = (await self.client.chat.completions.create(**request)).choices[0].message
+            content = message.content or ""
+            reasoning = getattr(message, "reasoning_content", None) or getattr(message, "reasoning", None)
+            marker.feed(content)
+            marker.flush()
+        else:
+            parts, reasoning_parts = [], []
+            async for chunk in await self.client.chat.completions.create(**request, stream=True):
+                if not chunk.choices:
+                    continue
+                delta = chunk.choices[0].delta
+                if text := getattr(delta, "reasoning_content", None) or getattr(delta, "reasoning", None):
+                    reasoning_parts.append(text)
+                if delta.content:
+                    parts.append(delta.content)
+                    if text := marker.feed(delta.content):
+                        on_message(text)
+            if text := marker.flush():
+                on_message(text)
+            content, reasoning = "".join(parts), "".join(reasoning_parts) or None
+        return AgentTurn(assistant_message=marker.text.strip(), status="completed" if marker.found else "active",
+                         raw=content, reasoning=reasoning)
+
     async def extract(self, workflow: Workflow, state: ConversationState, only: list[str] | None = None) -> Extraction:
         """Los datos del usuario segun toda la conversacion (only: solo esos campos)."""
         message = (await self.client.chat.completions.create(
@@ -174,3 +205,30 @@ class MessageExtractor:
             out.append(c)
             self.pos += 1
         return "".join(out)
+
+
+class MarkerFilter:
+    """Saca una marca de un texto que llega por partes. feed() devuelve lo que
+    ya se puede decir: retiene el final si puede ser el principio de la marca."""
+
+    def __init__(self, marker: str):
+        self.marker = marker
+        self.pending = ""
+        self.text = ""          # todo lo dicho, sin la marca
+        self.found = False
+
+    def feed(self, chunk: str) -> str:
+        self.pending += chunk
+        if self.marker in self.pending:
+            self.found = True
+            self.pending = self.pending.replace(self.marker, "")
+        keep = next((n for n in range(len(self.marker) - 1, 0, -1)
+                     if self.pending.endswith(self.marker[:n])), 0)
+        out, self.pending = self.pending[:len(self.pending) - keep], self.pending[len(self.pending) - keep:]
+        self.text += out
+        return out
+
+    def flush(self) -> str:
+        out, self.pending = self.pending, ""
+        self.text += out
+        return out

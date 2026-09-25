@@ -1,0 +1,5 @@
+# El mismo agente que berlin_signup con el motor clasico: prompt armado del
+# YAML, conversacion multiturno y una sola extraccion al final.
+id: berlin_signup_classic
+extends: berlin_signup
+engine: classic

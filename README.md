@@ -391,6 +391,18 @@ solo ese campo; si tampoco sale, lo marca respondido sin dato (`answered_without
 vuelve a preguntar. Al completar, el resultado se calcula con los datos extraídos; si el resultado
 sería el objetivo (`goal`) pero faltan datos obligatorios, es `incompleta`.
 
+**Motor clásico (`engine: classic`):** la alternativa sin estado por turno. El prompt de sistema se
+arma del YAML (agente, objetivo, reglas, datos a obtener con su pregunta y condición, base de
+conocimiento y mensajes de cierre); la conversación va como mensajes multiturno y el LLM responde
+texto, que va directo al TTS. Al despedirse agrega `[FIN]` (no se dice) y ahí se hace la única
+extracción, con el mismo extractor; si el cliente corta antes, se extrae al cortar
+(`ConversationEngine.finish`). No hay `next_objective`, así que no se estira el endpointing al
+dictar un email. `berlin_signup_classic.yml` es `berlin_signup` con `extends` y `engine: classic`;
+el dashboard elige el agente por llamada. Con las 3 llamadas reales x5 (sep-2026): datos bien 88
+contra 87 de 95 del estructurado, inventados 1 contra 6 (la extracción por turno inventaba la
+actividad en 704b5d42), resultado correcto 13 contra 12 de 15; turno de conversación p50 0,58
+contra 0,99 s y la mitad de llamadas al LLM (una sola extracción).
+
 **Qué decide cada uno:** el LLM decide la respuesta, el objetivo siguiente y cuándo termina la
 conversación; lo que dice se pasa al TTS tal cual. La app solo valida los datos que extrae
 (campos inexistentes o con tipo inválido no se guardan, y se le informan en el turno siguiente
@@ -407,7 +419,7 @@ y hasta 1 s si duda; mientras el LLM pide un dato dictado (email o teléfono), h
 armados con llamadas reales (preguntas en medio del flujo, "sí, pero…", email cortado, rechazo,
 buzón de voz) con un cliente que contesta lo que le preguntan. Imprime cada conversación, el
 resultado y señales de loop (respuestas repetidas, mismo objetivo seguido).
-`make eval-llamadas [N=5]` (`scripts/replay_transcripts.py`) repite llamadas reales de
+`make eval-llamadas [N=5] [W=berlin_signup_classic]` (`scripts/replay_transcripts.py`) repite llamadas reales de
 `berlin_signup` con lo que dijo el cliente tal cual, y compara datos finales y resultado con lo
 esperado. Con N=5 (sep-2026), antes y después de separar la extracción: datos bien 85 → 91 de 95,
 inventados o equivocados 6 → 2, resultado correcto 10 → 15 de 15.
@@ -418,7 +430,8 @@ busca agendar una demo (todo como guía en el YAML; el LLM decide el orden) (nom
 `sales_discovery` es el anterior, de calificación con 11 datos (lo usan los tests del motor).
 
 **Nuevo workflow:** copiar uno de `app/workflows/` como `<id>.yml` (mismo `id` adentro) y usarlo
-con `{"workflow_id": "<id>"}` o `WORKFLOW_ID=<id>`. Por campo:
+con `{"workflow_id": "<id>"}` o `WORKFLOW_ID=<id>`. `engine: structured` (default) o `classic` elige el
+motor; `extends: <id>` hereda otro workflow y pisa las claves de primer nivel que define. Por campo:
 - `type`: `string`, `integer`, `boolean`, `email`, `email_or_phone` o `choice` (con `options`).
   En YAML, los valores como `no` o `si` van entre comillas (`no` sin comillas es false).
 - `required` o `required_if` (solo igualdades); los no obligatorios se guardan si el usuario los dice.

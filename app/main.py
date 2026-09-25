@@ -10,7 +10,7 @@ from . import config, livekit_dispatch, voices
 from .calls import CallLog
 from .conversation.engine import ConversationEngine
 from .conversation.models import ConversationState, Progress
-from .conversation.workflow import INCOMPLETE, is_required, load_workflow, outcome_for
+from .conversation.workflow import INCOMPLETE, is_required, load_workflow, outcome_for, workflow_ids
 from .deps import get_calls, get_engine
 
 app = FastAPI(title="Voice agent")
@@ -229,6 +229,15 @@ def chart(date_from: datetime.date, date_to: datetime.date, calls: CallLog = Dep
         "completed_pct": [pct(buckets[d], lambda r: r["workflow_status"] == "completed") for d in days],
         "goal_pct": [pct(buckets[d], lambda r: r["goal"]) for d in days],
     }
+
+
+@app.get("/api/workflows")
+def list_workflows():
+    """Para elegir con que agente llamar: el default (WORKFLOW_ID) primero."""
+    workflows = [load_workflow(w) for w in workflow_ids()]
+    workflows.sort(key=lambda w: w.id != config.WORKFLOW_ID)
+    return [{"id": w.id, "engine": w.engine, "agent": f"{w.agent.name}, {w.agent.role}", "voice": w.agent.voice}
+            for w in workflows]
 
 
 @app.get("/api/voices")

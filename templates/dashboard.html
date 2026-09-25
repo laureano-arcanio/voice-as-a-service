@@ -8,6 +8,9 @@
     <label>Tel&eacute;fono
       <input id="phone" type="tel" placeholder="+5491155551234" autocomplete="off">
     </label>
+    <label>Agente
+      <select id="workflow" class="in"></select>
+    </label>
   </div>
   <div class="voice-picker">
     <label>Voz
@@ -73,7 +76,7 @@
   <table class="tbl" id="calls-tbl">
     <thead><tr>
       <th>Fecha</th><th>Contacto</th><th>Empresa</th><th>Origen</th><th>Estado</th><th>Duraci&oacute;n</th>
-      <th>Datos</th><th>Workflow</th><th>Resultado</th><th></th>
+      <th>Agente</th><th>Datos</th><th>Workflow</th><th>Resultado</th><th></th>
     </tr></thead>
     <tbody></tbody>
   </table>
@@ -110,6 +113,7 @@ async function refresh() {
       <td>${badge(MODE, c.mode)}${c.phone ? ' <span class="hint">' + esc(c.phone) + '</span>' : ''}</td>
       <td>${c.status ? badge(STATUS, c.status) : '–'}</td>
       <td>${fmtDur(c.duration_seconds)}</td>
+      <td><span class="hint">${esc(c.workflow_id)}</span></td>
       <td>${c.captured}/${c.required}</td>
       <td>${badge(WORKFLOW, c.workflow_status)}</td>
       <td>${outcomeBadge(c.outcome, c.goal)}</td>
@@ -130,6 +134,15 @@ async function refresh() {
     </tr>`).join('');
 }
 
+const workflowSel = document.getElementById('workflow');
+let workflowVoice = {};
+fetch('/api/workflows').then(r => r.json()).then(ws => {
+  workflowVoice = Object.fromEntries(ws.map(w => [w.id, w.voice]));
+  workflowSel.innerHTML = ws.map(w =>
+    `<option value="${esc(w.id)}">${esc(w.id)} (${w.engine === 'classic' ? 'clásico' : 'estructurado'})</option>`).join('');
+  loadVoices();
+});
+
 // Voz de la llamada: la del agente (agent.voice del workflow) o una del catalogo, filtrada por metricas.
 const voiceSel = document.getElementById('voice');
 const vf = {genero: 'vf-genero', wer_max: 'vf-wer', car_min: 'vf-car-min', car_max: 'vf-car-max'};
@@ -142,12 +155,13 @@ async function loadVoices() {
   }
   const vs = await fetch('/api/voices?' + p).then(r => r.json());
   const prev = voiceSel.value;
-  voiceSel.innerHTML = '<option value="">La del agente</option>' +
+  const def = workflowVoice[workflowSel.value];
+  voiceSel.innerHTML = `<option value="">La del agente${def ? ' (' + esc(def) + ')' : ''}</option>` +
     vs.map(v => `<option value="${esc(v.nombre)}">${esc(v.nombre)} · ${v.genero} · WER ${fmt1(v.wer)}% · ${fmt1(v.car_s)} car/s</option>`).join('');
   if (vs.some(v => v.nombre === prev)) voiceSel.value = prev;
 }
 Object.values(vf).forEach(id => document.getElementById(id).addEventListener('change', loadVoices));
-loadVoices();
+workflowSel.addEventListener('change', loadVoices);
 
 const testModeCk = document.getElementById('test-mode');
 const phoneInput = document.getElementById('phone');
@@ -175,7 +189,8 @@ callBtn.addEventListener('click', async () => {
   try {
     const r = await fetch('/calls', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({...(voiceSel.value ? {voice: voiceSel.value} : {}), ...(testMode ? {} : {phone: phoneInput.value})}),
+      body: JSON.stringify({workflow_id: workflowSel.value, ...(voiceSel.value ? {voice: voiceSel.value} : {}),
+                             ...(testMode ? {} : {phone: phoneInput.value})}),
     });
     const data = await r.json();
     if (!r.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Error');

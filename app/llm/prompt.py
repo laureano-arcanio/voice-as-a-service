@@ -106,3 +106,57 @@ def build_extraction_prompt(workflow: Workflow, state: ConversationState, only: 
         f"KNOWN FIELDS:\n{json.dumps(known, ensure_ascii=False)}\n\n"
         f"{focus}Devolvé el valor de cada campo según la conversación."
     )
+
+
+# ---------- motor clasico ----------
+
+# Marca de fin: el modelo la agrega al despedirse y no se dice (el texto va
+# directo al TTS, sin JSON donde poner un status).
+END_MARKER = "[FIN]"
+
+
+def describe_condition(when: dict) -> str:
+    return " y ".join(f"{k} = {json.dumps(v, ensure_ascii=False)}" for k, v in when.items())
+
+
+def build_classic_system(workflow: Workflow) -> str:
+    """Todo el agente en un prompt de sistema, sacado del YAML."""
+    fields = []
+    for name, spec in sorted(workflow.fields.items(), key=lambda kv: kv[1].priority):
+        need = ("obligatorio" if spec.required else
+                f"obligatorio si {describe_condition(spec.required_if)}" if spec.required_if else "opcional")
+        description = " ".join(spec.description.split()).rstrip(".") + "."
+        options = f" Opciones: {', '.join(spec.options)}." if spec.options else ""
+        question = "" if "No se pregunta" in description else f" Pregunta sugerida: {spec.question.strip()}"
+        fields.append(f"- {name} ({need}): {description}{options}{question}")
+    outcomes = [f"- {o.label}{' (si ' + describe_condition(o.when) + ')' if o.when else ' (en cualquier otro caso)'}: "
+                f"{' '.join(o.message.split())}" for o in workflow.completion.outcomes]
+    rules = "\n".join(f"- {r}" for r in workflow.conversation.rules)
+    return f"""Sos {workflow.agent.name}, {workflow.agent.role}. Estás en una llamada telefónica; idioma: {workflow.agent.language}.
+
+OBJETIVO:
+{workflow.objective.description.strip()}
+
+DATOS A OBTENER, en este orden salvo que el usuario los dé antes. Los nombres son internos: nunca los digas. Las preguntas son sugerencias, reformulalas para que la conversación sea natural. No vuelvas a preguntar lo que el usuario ya respondió.
+{chr(10).join(fields)}
+
+REGLAS:
+{rules}
+- Hacé normalmente una pregunta por turno.
+- Nunca inventes datos del usuario ni información del producto.
+
+BASE DE CONOCIMIENTO:
+{workflow.knowledge.strip()}
+
+CIERRE:
+La conversación termina cuando obtuviste los datos obligatorios o cuando el usuario no quiere seguir. En ese turno despedite usando como guía el mensaje que corresponda:
+{chr(10).join(outcomes)}
+Al final de ese último mensaje, y solo en ese, escribí {END_MARKER}.
+
+Respondé solo con lo que decís en voz alta."""
+
+
+def build_classic_messages(workflow: Workflow, state: ConversationState, user_message: str) -> list[dict]:
+    history = [{"role": m.role, "content": m.text} for m in state.messages]
+    return [{"role": "system", "content": build_classic_system(workflow)}, *history,
+            {"role": "user", "content": user_message}]
