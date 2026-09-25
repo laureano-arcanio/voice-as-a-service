@@ -1,0 +1,198 @@
+{
+ "ts": 1790360722.5298898,
+ "kernel": "7.0.0-31-generic",
+ "cpu": "AMD Ryzen 7 5700X 8-Core Processor",
+ "ncpu": 16,
+ "mem_gb": 62.7,
+ "gpus": [
+  "0, NVIDIA GeForce RTX 3090, 24576 MiB, 350.00 W, 580.173.02",
+  "1, NVIDIA GeForce RTX 3090, 24576 MiB, 350.00 W, 580.173.02"
+ ],
+ "services": {
+  "vllm-tts": {
+   "image": "vllm/vllm-omni:v0.28.0",
+   "image_id": "sha256:6f8be103eaf0",
+   "compose_files": "/home/laureano/voice-as-a-service/docker-compose.yml,/home/laureano/voice-as-a-service/docker-compose.livekit.yml,/home/laureano/voice-as-a-service/docker-compose.gpu-llm-solo.yml",
+   "cmd": [
+    "vllm",
+    "serve",
+    "/models/ft",
+    "--served-model-name=qwen3-tts-ft",
+    "--omni",
+    "--host=0.0.0.0",
+    "--port=8000",
+    "--api-key=<redacted>",
+    "--gpu-memory-utilization=0.4",
+    "--stage-overrides={\"0\": {\"max_num_seqs\": 128}, \"1\": {\"max_num_seqs\": 128}}",
+    "--max-model-len=4096"
+   ],
+   "gpu_device_ids": [
+    "1"
+   ],
+   "started": "2026-09-25T18:21:00.771653427Z",
+   "versions": {
+    "vllm": "0.28.0",
+    "vllm-omni": "0.28.0",
+    "torch": "2.13.0+cu130",
+    "transformers": "5.14.1"
+   }
+  },
+  "vllm-llm": {
+   "image": "vllm/vllm-openai:latest",
+   "image_id": "sha256:c29147676055",
+   "compose_files": "/home/laureano/voice-as-a-service/docker-compose.yml,/home/laureano/voice-as-a-service/docker-compose.livekit.yml,/home/laureano/voice-as-a-service/docker-compose.gpu-llm-solo.yml",
+   "cmd": [
+    "vllm",
+    "serve",
+    "--model=RedHatAI/Qwen3.5-9B-quantized.w4a16",
+    "--served-model-name=RedHatAI/Qwen3.5-9B-quantized.w4a16",
+    "--host=0.0.0.0",
+    "--port=8000",
+    "--api-key=<redacted>",
+    "--max-model-len=32768",
+    "--reasoning-parser=qwen3",
+    "--gpu-memory-utilization=0.90",
+    "--max-num-seqs=128",
+    "--max-cudagraph-capture-size=128",
+    "--limit-mm-per-prompt={\"image\":0,\"video\":0}"
+   ],
+   "gpu_device_ids": [
+    "0"
+   ],
+   "started": "2026-09-25T18:21:00.771034708Z",
+   "versions": {
+    "vllm": "0.29.0",
+    "torch": "2.13.0+cu130",
+    "transformers": "5.16.1"
+   }
+  },
+  "stt-parakeet": {
+   "image": "voice-as-a-service-stt-parakeet",
+   "image_id": "sha256:3ac32c2853cd",
+   "compose_files": "/home/laureano/voice-as-a-service/docker-compose.yml,/home/laureano/voice-as-a-service/docker-compose.livekit.yml",
+   "cmd": [
+    "python3",
+    "-m",
+    "uvicorn",
+    "server:app",
+    "--host",
+    "0.0.0.0",
+    "--port",
+    "8000"
+   ],
+   "gpu_device_ids": [
+    "1"
+   ],
+   "started": "2026-09-25T18:18:26.39397278Z",
+   "versions": {
+    "vllm": "0.29.0",
+    "torch": "2.13.0+cu130",
+    "transformers": "5.16.1"
+   }
+  },
+  "app": {
+   "image": "voice-as-a-service-app",
+   "image_id": "sha256:f539700b0d0e",
+   "compose_files": "/home/laureano/voice-as-a-service/docker-compose.yml,/home/laureano/voice-as-a-service/docker-compose.livekit.yml",
+   "cmd": [
+    "uvicorn",
+    "app.main:app",
+    "--host",
+    "0.0.0.0",
+    "--port",
+    "8011"
+   ],
+   "gpu_device_ids": [],
+   "started": "2026-09-25T17:48:30.967748673Z"
+  },
+  "agent": {
+   "image": "voice-as-a-service-agent",
+   "image_id": "sha256:b038c24403ce",
+   "compose_files": "/home/laureano/voice-as-a-service/docker-compose.yml,/home/laureano/voice-as-a-service/docker-compose.livekit.yml",
+   "cmd": [
+    "python",
+    "-m",
+    "app.livekit_agent",
+    "start"
+   ],
+   "gpu_device_ids": [],
+   "started": "2026-09-25T17:48:30.968372397Z"
+  },
+  "asterisk": {
+   "image": "voice-as-a-service-asterisk",
+   "image_id": "sha256:7a3c7212bd1f",
+   "compose_files": "/home/laureano/voice-as-a-service/docker-compose.yml,/home/laureano/voice-as-a-service/docker-compose.livekit.yml",
+   "cmd": [
+    "/usr/local/bin/entrypoint.sh"
+   ],
+   "gpu_device_ids": [],
+   "started": "2026-09-25T15:18:18.913737739Z"
+  },
+  "livekit-sip": {
+   "image": "livekit/sip:v1.17.0",
+   "image_id": "sha256:d3c6441eb091",
+   "compose_files": "/home/laureano/voice-as-a-service/docker-compose.yml,/home/laureano/voice-as-a-service/docker-compose.livekit.yml",
+   "cmd": [
+    "livekit-sip",
+    "--config=/sip/config.yaml"
+   ],
+   "gpu_device_ids": [],
+   "started": "2026-09-25T15:17:19.644176484Z"
+  },
+  "livekit": {
+   "image": "livekit/livekit-server:v1.13.7",
+   "image_id": "sha256:6fd3b7088874",
+   "compose_files": "/home/laureano/voice-as-a-service/docker-compose.yml,/home/laureano/voice-as-a-service/docker-compose.livekit.yml",
+   "cmd": [
+    "/livekit-server",
+    "--config",
+    "/etc/livekit.yaml"
+   ],
+   "gpu_device_ids": [],
+   "started": "2026-09-25T15:17:19.579719895Z"
+  },
+  "livekit-redis": {
+   "image": "redis:7-alpine",
+   "image_id": "sha256:858f009f9709",
+   "compose_files": "/home/laureano/voice-as-a-service/docker-compose.yml,/home/laureano/voice-as-a-service/docker-compose.livekit.yml",
+   "cmd": [
+    "docker-entrypoint.sh",
+    "redis-server",
+    "--bind",
+    "127.0.0.1",
+    "--port",
+    "6380",
+    "--save",
+    "",
+    "--appendonly",
+    "no"
+   ],
+   "gpu_device_ids": [],
+   "started": "2026-09-25T15:17:19.513365157Z"
+  },
+  "proxy": {
+   "image": "nginx:alpine",
+   "image_id": "sha256:62ff2089abf5",
+   "compose_files": "/home/laureano/voice-as-a-service/docker-compose.yml",
+   "cmd": [
+    "/docker-entrypoint.sh",
+    "nginx",
+    "-g",
+    "daemon off;"
+   ],
+   "gpu_device_ids": [],
+   "started": "2026-09-25T11:18:34.788788042Z"
+  },
+  "db": {
+   "image": "mysql:8.0",
+   "image_id": "sha256:7dcddc01f13b",
+   "compose_files": "/home/laureano/voice-as-a-service/docker-compose.yml",
+   "cmd": [
+    "docker-entrypoint.sh",
+    "mysqld"
+   ],
+   "gpu_device_ids": [],
+   "started": "2026-09-25T11:18:34.784463043Z"
+  }
+ }
+}

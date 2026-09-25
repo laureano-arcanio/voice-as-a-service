@@ -23,6 +23,7 @@ concluye de todas y se actualiza cuando un experimento lo cambia.
 | 010 | Config vigente (LLM 9B w4a16, TTS `multi41`, motor por workflow), tandas 4/8/16/32 | Con 16: GPUs al 50–60 %, sin cola, TTS 17 ms entre tokens. La tanda de 32 no midió la inferencia: se atendieron 20 de 32 |
 | 011 | Como 010, con el agente en el server de inferencia | El techo de ~20 (también en 006–010) es el despacho de LiveKit Cloud (plan gratuito): jobs en `JS_PENDING` sin asignar, con el worker holgado. Con 24 simultáneas: GPUs al 68/76 %, sin cola. Agente junto a la inferencia: −1,2 s de e2e por turno |
 | **012** | **Como 011, con LiveKit propio** | **32/32 atendidas. Sin cola en LLM ni TTS, las dos GPUs al 74 % (72 % de los segundos ≥95 %). TTS 24 ms entre tokens. e2e p50 2,0 s, p95 3,0 s por turno** |
+| **013** | **LLM solo en la GPU 0 (0.90), TTS + STT en la GPU 1, motor `classic`** | **Vigente. Espera del cliente p95 3,42 s con 32 llamadas y 4,14 s con 48. Con 64 satura la CPU del host (agente, ~0,15 cores por llamada), no las GPUs (74–81 %)** |
 
 ## Qué limita y qué sobra (32 sesiones)
 
@@ -63,7 +64,8 @@ Dos nodos iguales detrás de un balanceador; cada uno soporta solo las 32 sesion
 
 - Benchmark del LLM (y de TTS) en una 5060 Ti real.
 - Registrar la latencia de punta a punta del cliente en cada experimento.
-- Buscar el techo de la config vigente con LiveKit propio (40–48 sesiones): con 32 no encola (EXP-012).
+- Pasar de ~48 llamadas: el agente en otra máquina (o más CPU) y el VAD en `prewarm` (EXP-013).
+- Bajar la espera: TTS desde antes de la primera oración completa y STT con parciales (EXP-013).
 - Definir LiveKit en producción: Cloud pago (el tope y el comportamiento del despacho están sin verificar) o servidor propio.
 - Prueba con 64 sesiones para encontrar el techo real del LLM y STT.
 - Confirmar la temperatura de memoria de las 3090 (`nvtop`).
