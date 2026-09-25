@@ -89,10 +89,12 @@ services:
   # los plugins livekit.plugins.openai, apuntando base_url a cada uno. Requieren
   # NVIDIA Container Toolkit en el host (scripts/install-nvidia-toolkit.sh).
   #
-  # Reparto en las 2x RTX 3090 (24GB c/u) de este host (EXP-003 y EXP-008):
-  #   GPU 0: vllm-tts sola. TTS satura su GPU por si solo y es el cuello de
-  #          latencia: no comparte, ni con otra replica (EXP-001 a 004).
-  #   GPU 1: vllm-llm (0.55) + stt-parakeet (~1.6GB) + escritorio (~1.4GB).
+  # Reparto en las 2x RTX 3090 (24GB c/u) de este host (EXP-013):
+  #   GPU 0: vllm-llm solo (0.90, sin escritorio): el KV cache se duplica
+  #          (9,4 GiB) y con 64 llamadas no hay preemptions.
+  #   GPU 1: vllm-tts (0.4) + stt-parakeet (~1.6GB) + escritorio (~1.4GB).
+  #          Con Parakeet el STT no se resiente hasta ~48 llamadas; TTS no
+  #          comparte con el LLM ni con otra replica (EXP-001 a 004).
   # --gpu-memory-utilization es una reserva FIJA (fraccion de la memoria TOTAL
   # de esa GPU), y vLLM sigue capturando CUDA graphs bajo trafico (ver
   # --max-cudagraph-capture-size abajo): los que comparten GPU tienen que sumar
@@ -120,24 +122,29 @@ services:
       - "--api-key=${VLLM_API_KEY:-not-needed}"
       - "--max-model-len=32768"
       - "--reasoning-parser=qwen3"
-      # Comparte la GPU 1 con stt-parakeet (~1.6GB) y el escritorio (~1.4GB). Los
-      # pesos pesan 11.4GB aunque sean 4 bits (embeddings, lm_head y el encoder de
-      # vision quedan en bf16): 0.70 (~16.5GiB) deja 4.8GiB de KV cache (~141k
-      # tokens). Medido: la GPU 1 queda en 18.0GB usados.
-      - "--gpu-memory-utilization=0.70"
+      # Solo en la GPU 0. Los pesos pesan 11.4GB aunque sean 4 bits (embeddings,
+      # lm_head y el encoder de vision quedan en bf16): 0.90 deja 9.4GiB de KV
+      # cache (~276k tokens), el doble que con 0.70 compartiendo con el STT
+      # (EXP-013). Medido: la GPU 0 queda en 21.0GB usados.
+      # Configurable en .env (VLLM_LLM_GPU_MEMORY_UTILIZATION).
+      - "--gpu-memory-utilization=${VLLM_LLM_GPU_MEMORY_UTILIZATION:-0.90}"
       # Qwen3.5 es arquitectura hibrida Mamba+Attention: con menos memoria hay
       # menos "bloques de cache Mamba" disponibles, y el max_num_seqs default
       # (256) no entra -- CUDA graph capture falla ("max_num_seqs exceeds
-      # available Mamba cache blocks"). Esta demo nunca tiene tantas llamadas
-      # concurrentes; 32 alcanza de sobra.
-      - "--max-num-seqs=32"
+      # available Mamba cache blocks"). Con 0.90 arranca con 128.
+      # Tope de pedidos simultaneos: con 32, 64 llamadas (motor structured, 2
+      # pedidos por turno) encolaban 1,9 s; con 64 y 0.70 se llenaba el KV cache
+      # (EXP-013). Con 128 y 0.90 el maximo medido fue 56 en vuelo.
+      # Configurable en .env (VLLM_LLM_MAX_NUM_SEQS).
+      - "--max-num-seqs=${VLLM_LLM_MAX_NUM_SEQS:-128}"
       # Sin esto, vLLM sigue capturando CUDA graphs nuevos (para tamanos de
       # batch no vistos todavia) a medida que van llegando requests reales, y
       # la memoria real usada crece con el trafico bien por encima de lo que
       # calcula gpu-memory-utilization al arrancar en frio (medido: 10.7GB en
       # frio -> 16.6GB tras unos pocos requests, con 0.5 y sin este limite).
-      # Con max-num-seqs=32 no hace falta capturar mas alla de ese tamano.
-      - "--max-cudagraph-capture-size=32"
+      # Mismo valor que max-num-seqs: no hace falta capturar mas alla, y por
+      # debajo los batches mas grandes corren sin graph (mas lentos).
+      - "--max-cudagraph-capture-size=${VLLM_LLM_MAX_NUM_SEQS:-128}"
       # El modelo trae un encoder de vision que no se usa: sin imagenes ni video,
       # vLLM no le reserva memoria para el profiling.
       - "--limit-mm-per-prompt={\"image\":0,\"video\":0}"
@@ -152,7 +159,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ["1"]
+              device_ids: ["0"]
               capabilities: ["gpu"]
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
@@ -172,16 +179,20 @@ services:
     # (/v1/audio/transcriptions), sin parciales.
     build: ./stt
     restart: unless-stopped
-    # Comparte la GPU 1 con vllm-llm: arranca despues para no competir por la
+    # Comparte la GPU 1 con vllm-tts: arranca despues para no competir por la
     # memoria libre al cargar (si arrancan a la vez, uno falla el primer intento
     # y `compose up` da por fallido al dependiente).
     depends_on:
-      vllm-llm:
+      vllm-tts:
         condition: service_healthy
     environment:
       HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
       STT_MODEL: nvidia/parakeet-tdt-0.6b-v3
       STT_API_KEY: ${VLLM_API_KEY:-not-needed}
+      # Topes del batching dinamico (stt/server.py): pedidos por batch y
+      # segundos de audio por batch (items x el mas largo). Configurables en .env.
+      STT_MAX_BATCH: ${STT_MAX_BATCH:-8}
+      STT_MAX_BATCH_SECONDS: ${STT_MAX_BATCH_SECONDS:-120}
     volumes:
       - hf_cache:/root/.cache/huggingface
     ports:
@@ -234,9 +245,15 @@ services:
       - "--port=8000"
       # Ver comentario del --api-key en vllm-llm.
       - "--api-key=${VLLM_API_KEY:-not-needed}"
-      # Sola en la GPU 0 (ver reparto arriba). El uso maximo de KV cache medido
-      # con 32 sesiones fue 5%; sobra, pero no hay con quien compartir la GPU.
-      - "--gpu-memory-utilization=0.4"
+      # En la GPU 1 con stt-parakeet (ver reparto arriba); carga primero. El uso
+      # maximo de KV cache medido con 96 llamadas fue 10%.
+      # Configurable en .env (VLLM_TTS_GPU_MEMORY_UTILIZATION).
+      - "--gpu-memory-utilization=${VLLM_TTS_GPU_MEMORY_UTILIZATION:-0.4}"
+      # Sintesis simultaneas en las dos etapas (0 talker, 1 Code2Wav). El deploy
+      # YAML de la imagen (vllm_omni/deploy/qwen3_tts.yaml) trae 64 en las dos;
+      # vigente 128 (EXP-013). Medido: hasta 46 en vuelo con 96 llamadas.
+      # Configurable en .env (VLLM_TTS_MAX_NUM_SEQS).
+      - "--stage-overrides={\"0\": {\"max_num_seqs\": ${VLLM_TTS_MAX_NUM_SEQS:-128}}, \"1\": {\"max_num_seqs\": ${VLLM_TTS_MAX_NUM_SEQS:-128}}}"
       # El default (auto) carga un segundo modelo interno (el decoder Code2Wav)
       # con max_model_len=65536, de sobra para sintetizar una frase. Acotarlo
       # baja el uso real de memoria bajo carga.
@@ -255,7 +272,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ["0"]
+              device_ids: ["1"]
               capabilities: ["gpu"]
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]

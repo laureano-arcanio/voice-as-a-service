@@ -24,9 +24,9 @@ infraestructura. La app (motor conversacional por workflow YAML, API y worker de
 | `db` | MySQL 8 | mysql:8.0 | 127.0.0.1:3306 | — |
 | `app` | FastAPI: API del motor conversacional; despacha el agente a una room de LiveKit | build | 8011 | — |
 | `agent` | Worker de LiveKit Agents (STT → LLM → TTS); sale a LiveKit Cloud | build | — | — |
-| `vllm-llm` | LLM `RedHatAI/Qwen3.5-9B-quantized.w4a16` (Qwen3.5-9B en 4 bits) | vllm/vllm-openai:latest | 127.0.0.1:8101 | 1 |
+| `vllm-llm` | LLM `RedHatAI/Qwen3.5-9B-quantized.w4a16` (Qwen3.5-9B en 4 bits) | vllm/vllm-openai:latest | 127.0.0.1:8101 | 0 |
 | `stt-parakeet` | STT `nvidia/parakeet-tdt-0.6b-v3`, servidor propio (`stt/server.py`) | build | 127.0.0.1:8102 | 1 |
-| `vllm-tts` | TTS Qwen3-TTS 1.7B-Base con fine-tuning, 41 voces en un checkpoint (`multi41`) | vllm/vllm-omni:v0.28.0 (fijada) | 127.0.0.1:8103 | 0 |
+| `vllm-tts` | TTS Qwen3-TTS 1.7B-Base con fine-tuning, 41 voces en un checkpoint (`multi41`) | vllm/vllm-omni:v0.28.0 (fijada) | 127.0.0.1:8103 | 1 |
 | `proxy` | Entrada pública por IP fija; nginx rutea `/llm`, `/stt` y `/tts` | nginx:alpine | 0.0.0.0:8100 (`PROXY_PORT`) | — |
 | `asterisk` | Puente SIP Anura ↔ LiveKit (`network_mode: host`) | build | — | — |
 | `livekit`, `livekit-sip`, `livekit-redis` | LiveKit propio (desarrollo, `docker-compose.livekit.yml`), en lugar de Cloud | livekit-server v1.13.7, sip v1.17.0 | 7880, 7881, 7882/udp, 5060 | — |
@@ -43,12 +43,19 @@ infraestructura. La app (motor conversacional por workflow YAML, API y worker de
   - Sirve solo para validar; no es producción.
 - **Producción:** hardware en definición. Ver [`docs/LOADTEST_CAPACITY.md`](docs/LOADTEST_CAPACITY.md).
 
-## Reparto de GPU vigente (EXP-003, EXP-008 y EXP-009)
+## Reparto de GPU vigente (EXP-013)
 
 | GPU | Servicios | Memoria |
 |---|---|---|
-| 0 | `vllm-tts` sola | `--gpu-memory-utilization` 0.4 |
-| 1 | `vllm-llm` + `stt-parakeet` + escritorio | 0.70 + ~1,6 GB + ~1,4 GB (18,0 GB usados) |
+| 0 | `vllm-llm` solo | `--gpu-memory-utilization` 0.90: KV cache 9,4 GiB (21,0 GB usados) |
+| 1 | `vllm-tts` + `stt-parakeet` + escritorio | 0.4 + ~1,6 GB + ~1,4 GB (~16 GB usados) |
+
+- **Topes de concurrencia:** LLM 128 secuencias; TTS 128 por etapa.
+- **Motor por defecto:** `classic` (`WORKFLOW_ID=demo_booking_classic`).
+- **Capacidad medida:**
+  - ~32 llamadas con espera del cliente p95 ≤ 3,5 s;
+  - ~48 llamadas con p95 ≤ 4,2 s;
+  - con 64 satura la CPU del host (agente), no las GPUs.
 
 El TTS sirve el checkpoint fine-tuneado de `TTS_FT_CKPT` (default `multi41`, lr 2e-6, época 2)
 con el nombre `qwen3-tts-ft`. Tiene 41 voces de OpenSLR 61 (28 mujeres, 13 hombres) con nombres
@@ -64,13 +71,13 @@ Ver [`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md).
 
 ## Reglas y trampas
 
-- **TTS nunca comparte GPU**, ni con STT ni con otra réplica: satura la GPU sola (EXP-001 a 004). Escalar TTS es sumar GPUs.
+- **TTS no comparte GPU con el LLM ni con otra réplica** (EXP-001 a 004). Con el STT Parakeet sí: hasta ~48 llamadas el STT no se resiente, y con 64 sube a ~0,5–0,6 s (EXP-013). Escalar TTS es sumar GPUs.
 - **`--gpu-memory-utilization`** es una fracción de la memoria **total** de la GPU. Los que comparten GPU tienen que sumar menos de ~0.95, descontando el escritorio.
-- **Arranque de servicios que comparten GPU:** no pueden arrancar a la vez, porque compiten por la memoria libre. Por eso `depends_on` los encadena (`stt-parakeet` espera a `vllm-llm`).
+- **Arranque de servicios que comparten GPU:** no pueden arrancar a la vez, porque compiten por la memoria libre. Por eso `depends_on` los encadena (`stt-parakeet` espera a `vllm-tts`).
 - **Servicios descartados (sep-2026):** Qwen3-ASR (`vllm-stt`), Whisper Turbo, CosyVoice 3 y la segunda réplica de TTS salieron del compose; quedan en el historial de git y en `docs/experiments/`. Para probar uno de nuevo, override `docker-compose.<nombre>.yml`.
 - **Servidor propio de STT (`stt/server.py`, Parakeet):** expone `/metrics` con nombres de vLLM para que lo lea el sampler. Batching dinámico: junta lo que llega mientras la GPU trabaja, hasta `STT_MAX_BATCH` (8). Un pedido solo tarda lo mismo que sin batching (~60 ms). Con 16 clientes en paralelo rinde ×4,7 (76 contra 16 req/s) y la p50 baja de 996 a 204 ms. Batch 16 da ×5,4 a costa de ~150 ms por batch.
-- **Flags del LLM:** `--max-cudagraph-capture-size=32` evita que su VRAM crezca con el tráfico, y `--max-num-seqs=32` es por el cache Mamba de Qwen3.5. `--limit-mm-per-prompt` en 0 porque el modelo trae un encoder de visión que no se usa. Ver los comentarios del compose.
-- **LLM 9B en 4 bits (EXP-009):** mejor que el 4B en los escenarios del motor y más rápido por turno, pero la capacidad (llamadas simultáneas) no está medida. El nombre del modelo en `VLLM_LLM_MODEL` tiene que coincidir entre `vllm-llm` y `app`/`agent`: al cambiarlo, recrear los tres.
+- **Flags del LLM:** `--max-cudagraph-capture-size` (igual a `VLLM_LLM_MAX_NUM_SEQS`) evita que su VRAM crezca con el tráfico. `--max-num-seqs` tiene tope por el cache Mamba de Qwen3.5: con 0.70 arranca con 64, el default de 256 no entra. `--limit-mm-per-prompt` en 0 porque el modelo trae un encoder de visión que no se usa. Ver los comentarios del compose.
+- **LLM 9B en 4 bits (EXP-009):** mejor que el 4B en los escenarios del motor y más rápido por turno. Capacidad medida en EXP-012 y 013. El nombre del modelo en `VLLM_LLM_MODEL` tiene que coincidir entre `vllm-llm` y `app`/`agent`: al cambiarlo, recrear los tres.
 - **vLLM-Omni:** fijada en v0.28.0, porque `latest` no arranca. Deja `num_requests_running` en 1 sin tráfico, así que la actividad se detecta por los contadores de tokens.
 - **Voces del TTS:** están dentro del checkpoint fine-tuneado (`tts/finetune/work/`, no versionado), no en un volumen. Si se pierde `tts/finetune/work/`, hay que reentrenar. Agregar una voz es reentrenar el checkpoint con todas. El volumen `vllm_tts_speakers` tiene la voz clonada anterior (`sofia_ar`, para el checkpoint Base) y ya no se monta.
 - **Nombres de voz:** los `arf_*`/`arm_*` ya no existen, desde `multi41`.
@@ -80,6 +87,7 @@ Ver [`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md).
 - **Pedido al TTS sin `voice` o con `voice="default"`:** mata el engine de `vllm-tts` (busca `vivian`, que el checkpoint no tiene) y todo da 500 hasta reiniciarlo. Mandar siempre una voz del checkpoint.
 - **Loadtest y motor por workflow:** `run.py` crea las llamadas con `POST /calls {"loadtest": true}` (`--workflow`, `--voice`). Con ese flag el agente no corta al completar el workflow, así cada llamada dura los `--turns` pedidos, como en EXP-001 a 008. `ttft_s` del CSV es ahora el LLM hasta el primer texto de la respuesta, no el TTFT de vLLM: ver `SERVER_COLUMNS` en `run.py`.
 - **LiveKit propio (desarrollo):** con `COMPOSE_FILE` en `.env`, todos los targets usan `docker-compose.livekit.yml`. Las `LIVEKIT_*` de `.env` son las de este host; las de Cloud quedan en `LIVEKIT_CLOUD_*`. Ver `docs/TELEFONIA_ANURA.md`, sección 7.
+- **Capacidad por motor en `.env`:** `VLLM_LLM_MAX_NUM_SEQS` (también fija el tamaño de CUDA graph), `VLLM_LLM_GPU_MEMORY_UTILIZATION`, `STT_MAX_BATCH`, `STT_MAX_BATCH_SECONDS`, `VLLM_TTS_GPU_MEMORY_UTILIZATION` y `VLLM_TTS_MAX_NUM_SEQS` (las dos etapas, por `--stage-overrides`). Los defaults del compose son la config vigente (EXP-013). Se aplican con `make up-inference`.
 - **Comentarios del compose:** explican el porqué medido de cada flag. Mantenerlos al día al cambiar valores.
 
 ## Experimentos de capacidad

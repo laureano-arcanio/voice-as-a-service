@@ -424,10 +424,12 @@ resultado y señales de loop (respuestas repetidas, mismo objetivo seguido).
 esperado. Con N=5 (sep-2026), antes y después de separar la extracción: datos bien 85 → 91 de 95,
 inventados o equivocados 6 → 2, resultado correcto 10 → 15 de 15.
 
-**Workflows:** `demo_booking` (default, `WORKFLOW_ID`) presenta Browix en ~15 s si el interesado
+**Workflows:** `demo_booking` presenta Browix en ~15 s si el interesado
 acepta, pregunta a qué se dedica la empresa, conecta su necesidad con una función de Browix y
 busca agendar una demo (todo como guía en el YAML; el LLM decide el orden) (nombre + mail o teléfono); si duda, ofrece llamarlo otro día.
 `sales_discovery` es el anterior, de calificación con 11 datos (lo usan los tests del motor).
+`demo_booking_classic` es el mismo con `engine: classic` y es el default (`WORKFLOW_ID`): en el loadtest
+(EXP-013) baja la espera del cliente ~0,5 s con 32 llamadas y ~0,8 s con 48, con la mitad de pedidos al LLM.
 
 **Nuevo workflow:** copiar uno de `app/workflows/` como `<id>.yml` (mismo `id` adentro) y usarlo
 con `{"workflow_id": "<id>"}` o `WORKFLOW_ID=<id>`. `engine: structured` (default) o `classic` elige el

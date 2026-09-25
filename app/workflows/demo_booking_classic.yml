@@ -1,0 +1,6 @@
+# El mismo agente que demo_booking con el motor clasico: prompt armado del
+# YAML, conversacion multiturno y una sola extraccion al final (un pedido al
+# LLM por turno en lugar de dos). Para comparar latencia y carga en el loadtest.
+id: demo_booking_classic
+extends: demo_booking
+engine: classic
