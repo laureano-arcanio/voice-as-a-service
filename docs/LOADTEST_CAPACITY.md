@@ -22,6 +22,7 @@ concluye de todas y se actualiza cuando un experimento lo cambia.
 | 008 | Como 007, con batching dinámico en Parakeet | Sin cambios con 20 llamadas: 0,6 req/s de STT, 233 requests en 232 batches. El batching da ×4,7 de throughput en el bench sintético, para cargas ~100 veces mayores |
 | 010 | Config vigente (LLM 9B w4a16, TTS `multi41`, motor por workflow), tandas 4/8/16/32 | Con 16: GPUs al 50–60 %, sin cola, TTS 17 ms entre tokens. La tanda de 32 no midió la inferencia: se atendieron 20 de 32 |
 | 011 | Como 010, con el agente en el server de inferencia | El techo de ~20 (también en 006–010) es el despacho de LiveKit Cloud (plan gratuito): jobs en `JS_PENDING` sin asignar, con el worker holgado. Con 24 simultáneas: GPUs al 68/76 %, sin cola. Agente junto a la inferencia: −1,2 s de e2e por turno |
+| **012** | **Como 011, con LiveKit propio** | **32/32 atendidas. Sin cola en LLM ni TTS, las dos GPUs al 74 % (72 % de los segundos ≥95 %). TTS 24 ms entre tokens. e2e p50 2,0 s, p95 3,0 s por turno** |
 
 ## Qué limita y qué sobra (32 sesiones)
 
@@ -62,7 +63,7 @@ Dos nodos iguales detrás de un balanceador; cada uno soporta solo las 32 sesion
 
 - Benchmark del LLM (y de TTS) en una 5060 Ti real.
 - Registrar la latencia de punta a punta del cliente en cada experimento.
-- Medir 32 o más sesiones con un `livekit-server` propio: LiveKit Cloud gratuito no despacha más de ~20–24 (EXP-011).
+- Buscar el techo de la config vigente con LiveKit propio (40–48 sesiones): con 32 no encola (EXP-012).
 - Definir LiveKit en producción: Cloud pago (el tope y el comportamiento del despacho están sin verificar) o servidor propio.
 - Prueba con 64 sesiones para encontrar el techo real del LLM y STT.
 - Confirmar la temperatura de memoria de las 3090 (`nvtop`).

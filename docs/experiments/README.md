@@ -23,6 +23,7 @@ TTS `Qwen/Qwen3-TTS-12Hz-1.7B-Base`.
 | [009](EXP-009-llm-qwen35-9b-w4a16/) | 2026-09-24 | LLM Qwen3.5-9B w4a16 en lugar del 4B (GPU 1, 0.70). **Calidad, sin loadtest** | – | – | – | – | – | 8/8 demos con datos (4B: 4/8), LLM por turno p50 0,90 s (4B: 1,00 s). **LLM vigente.** Capacidad sin medir |
 | [010](EXP-010-loadtest-9b-motor-workflow/) | 2026-09-25 | Config vigente (9B + TTS `multi41`) con el motor por workflow; loadtest remoto por IP fija, tandas 4/8/16/32 | 1,4 | 17,4 ms | 115 ms | 140 ms | 150 / 15,7 ms | Con 16: GPU 50–60 %, sin cola. **32 inválida:** 20/32 atendidas por el despacho de LiveKit Cloud (ver 011) |
 | [011](EXP-011-agente-en-server-despacho-livekit/) | 2026-09-25 | Como 010, con `app` + `agent` en este server (callers en la laptop); 2 runs, con vigía de despachos | 2,0 | 21,0 ms | 154 ms | 163 ms | 143 / 20,3 ms | Worker holgado (≤4 cores). LiveKit Cloud deja jobs en `JS_PENDING`: 19 y 24/32 atendidas. Con 24 simultáneas, sin cola. e2e p50 ~1,2 s menor que con el agente remoto |
+| [012](EXP-012-livekit-propio-32/) | 2026-09-25 | Como 011, con LiveKit propio en este host (sin Cloud) | 2,6 | 24,0 ms | 181 ms | 181 ms | 179 / 25,2 ms | **32/32 atendidas**, despacho ≤0,7 s. Sin cola; GPUs al 74 %. e2e p50 2,02 s, p95 3,04 s |
 
 - **TTS primer audio:** en vLLM-Omni es el TTFT más la cola del stage 1 (Code2Wav). En un TTS de un solo stage es el TTFT.
 - **Comparar con cuidado:** la carga que llega no es idéntica entre runs, así que la latencia hay que leerla junto con req/s.
