@@ -40,7 +40,6 @@ infraestructura. La app (motor conversacional por workflow YAML, API y worker de
   - La GPU 1 también dibuja el escritorio.
   - Corren contenedores de otros proyectos: no tocarlos.
   - Sirve solo para validar; no es producción.
-- **smartcron:** deploy de la app (ver README, "Deploy").
 - **Producción:** hardware en definición. Ver [`docs/LOADTEST_CAPACITY.md`](docs/LOADTEST_CAPACITY.md).
 
 ## Reparto de GPU vigente (EXP-003, EXP-008 y EXP-009)

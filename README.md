@@ -15,7 +15,7 @@ conversacional" abajo; el diseño original esta en `docs/REFACTOR.md`.
 - **Backend:** Python 3.12 + FastAPI + SQLAlchemy (MySQL; SQLite en los tests), sin frontend.
 - **Voz:** LiveKit Agents (STT + LLM + TTS, los 3 servidos localmente sobre GPU propia, ver
   "Inferencia local" abajo) sobre una troncal SIP (Anura via un Asterisk propio, ver "Telefonia"
-  abajo; o Twilio), en un worker propio (`app/livekit_agent.py`, contenedor `agent`). La app
+  abajo), en un worker propio (`app/livekit_agent.py`, contenedor `agent`). La app
   (`app/main.py`) despacha el agente a una room nueva (`app/livekit_dispatch.py`). El worker
   reemplaza el `llm_node` de LiveKit por el motor conversacional, que guarda el estado en la base.
 
@@ -326,20 +326,12 @@ proxy. No hace falta tocar codigo: los plugins de LiveKit ya usan
 Ojo con la latencia: cada turno de la llamada cruza internet (ida y vuelta) hasta
 el host GPU.
 
-## Deploy (servidor smartcron)
-
-- Codigo: `/var/www/html/aiva-validate/` (venv propio, `.env` con credenciales).
-- Servicio: `systemd` `aiva-validate.service` → uvicorn en `127.0.0.1:8011`.
-- nginx: vhost `validate.smartcron.ai` (falta DNS) + acceso directo `http://IP:8090`.
-  Basic auth en todo excepto `/health`.
-- MySQL: base `aiva_validate`, usuario `aiva_validate` (password en `.env` del servidor).
-
 ## Claves necesarias (completar en `.env`)
 
 1. `LIVEKIT_URL` / `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` — proyecto de LiveKit Cloud
    (Project Settings → Keys).
 2. `LIVEKIT_SIP_TRUNK_ID` — troncal SIP saliente de LiveKit (Anura: `make livekit-sip`, ver
-   "Telefonia: Anura via Asterisk" abajo; Twilio: ver su runbook).
+   "Telefonia: Anura via Asterisk" abajo).
 3. Nada mas: LLM/STT/TTS corren localmente (ver "Inferencia local (vLLM)" arriba), no
    hace falta ninguna API key de proveedor externo. `HF_TOKEN` es opcional, solo si
    algun modelo llegara a requerir aceptar licencia en HuggingFace.
@@ -361,34 +353,7 @@ completo (port forwarding del router, troubleshooting): `docs/TELEFONIA_ANURA.md
    poner el `ST_...` que imprime en `LIVEKIT_SIP_TRUNK_ID` y `make up-agent` (recrea el agente
    con el `.env` nuevo).
 
-### Runbook: Twilio + LiveKit (configuracion manual, una sola vez)
-
-**Twilio:**
-1. Comprar/confirmar un numero de Twilio con capacidad de voz.
-2. `twilio api trunking v1 trunks create --friendly-name "aiva-validate-outbound" --domain-name "aiva-validate.pstn.twilio.com"` → guardar el trunk SID.
-3. Consola → Voice → Credential Lists → crear una (usuario + password SIP).
-4. Consola → Elastic SIP Trunking → tu trunk → Termination → Authentication → asociar esa Credential List.
-5. `twilio api trunking v1 trunks phone-numbers create --trunk-sid <TK...> --phone-number-sid <PN...>`.
-6. Consola → Voice → Settings → Geo Permissions → confirmar que el pais de destino este habilitado (falla silenciosa comun en cuentas nuevas).
-
-**LiveKit Cloud:**
-1. Project → Settings → Keys: copiar `LIVEKIT_URL` (`wss://...livekit.cloud`), `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`.
-2. Instalar/autenticar el CLI `lk` contra el proyecto.
-3. `outbound-trunk.json`:
-   ```json
-   {
-     "trunk": {
-       "name": "aiva-validate-outbound",
-       "address": "aiva-validate.pstn.twilio.com",
-       "numbers": ["+1XXXXXXXXXX"],
-       "authUsername": "<de Twilio paso 3>",
-       "authPassword": "<de Twilio paso 3>"
-     }
-   }
-   ```
-4. `lk sip outbound create outbound-trunk.json` → guardar el `ST_...` impreso como `LIVEKIT_SIP_TRUNK_ID`.
-
-Despues de editar `.env`: `docker compose up -d` (o `systemctl restart aiva-validate aiva-validate-agent` en el deploy bare-metal).
+Despues de editar `.env`: `docker compose up -d`.
 
 ## Motor conversacional
 

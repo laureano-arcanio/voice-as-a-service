@@ -40,9 +40,7 @@ services:
     env_file:
       - .env
     environment:
-      # Overrides the DB_DSN in .env (that one targets 127.0.0.1, for the bare-metal
-      # systemd deployment described in README.md) so the container talks to the
-      # `db` service by its compose network hostname instead.
+      # DB_DSN armado con las MYSQL_* del .env, contra el servicio `db`.
       DB_DSN: mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}?charset=utf8mb4
     ports:
       - "8011:8011"
