@@ -33,3 +33,13 @@ async def test_outcomes(store, fields, outcome):
     cid = start_with(engine, workflow_id="demo_booking", **fields)
     state, _ = await turn_and_extract(engine, cid, "Chau.")
     assert state.progress.outcome == outcome
+
+
+def test_outcome_without_saved_outcome(wf):
+    # GET /api/calls/{id} le pasa un ConversationState (conversation_id, no id): si termino antes de
+    # guardar el resultado, se calcula al vuelo. Antes daba AttributeError (500 en el loadtest de 64).
+    from app.conversation.models import ConversationState, Progress
+    from app.main import _outcome
+    state = ConversationState(conversation_id="c1", workflow_id="demo_booking", status="completed",
+                              fields={"wants_pitch": False}, progress=Progress())
+    assert _outcome(wf, state).id == "no_pitch"

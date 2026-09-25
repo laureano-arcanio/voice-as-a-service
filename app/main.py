@@ -130,7 +130,9 @@ def _outcome(workflow, conv):
     saved = progress.outcome
     outcome = next((o for o in [*workflow.completion.outcomes, INCOMPLETE] if o.id == saved), None)
     if outcome is None:
-        outcome = outcome_for(workflow, ConversationState(conversation_id=conv.id, workflow_id=conv.workflow_id,
+        # conv es la fila de la base (id) o un ConversationState (conversation_id), segun quien llama.
+        conv_id = conv.conversation_id if isinstance(conv, ConversationState) else conv.id
+        outcome = outcome_for(workflow, ConversationState(conversation_id=conv_id, workflow_id=conv.workflow_id,
                                                           fields=conv.fields, progress=Progress()))
     return outcome
 
