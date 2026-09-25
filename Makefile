@@ -149,7 +149,7 @@ eval-llamadas: ## Llamadas reales de berlin_signup repetidas tal cual: datos, re
 loadtest-audio: ## Genera el corpus de audio del loadtest con vllm-tts (una vez; cachea en scripts/loadtest/audio/)
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts agent python -m scripts.loadtest.gen_audio
 
-loadtest: ## Loadtest usuario->agent->usuario (sin telefonia). Ej: make loadtest ARGS="--levels 16,32 --turns 4"
+loadtest: ## Loadtest usuario->agent->usuario (sin telefonia). Ej: make loadtest ARGS="--levels 16,32 --turns 6 --workflow demo_booking"
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts agent python -m scripts.loadtest.run $(ARGS)
 
 loadtest-report: ## Sirve scripts/loadtest/ en :8099 y abre report.html (carga results/latest.csv)

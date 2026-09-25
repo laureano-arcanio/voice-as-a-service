@@ -3,7 +3,8 @@ duracion y latencia por turno. La conversacion en si (datos y mensajes) vive en
 ConversationStore; esta tabla la complementa para el dashboard.
 
 Estados: pendiente -> sonando -> en_curso -> finalizada | fallida.
-Modos: saliente (marca por SIP), entrante (llama el cliente), prueba (navegador).
+Modos: saliente (marca por SIP), entrante (llama el cliente), prueba (navegador),
+loadtest (scripts/loadtest/).
 """
 import datetime
 

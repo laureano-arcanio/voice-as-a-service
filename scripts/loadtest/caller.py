@@ -153,16 +153,21 @@ class Turn:
 
 @dataclass
 class CallerResult:
-    call_id: int
+    call_id: str
     room_name: str
     turns: list[Turn]
     error: str | None = None
+    greeted: bool = False  # sono el saludo: el agente tomo la llamada
+
+
+class AgentHangup(Exception):
+    """El agente cerro la room antes de que el caller terminara sus turnos."""
 
 
 class VirtualCaller:
     def __init__(
         self,
-        call_id: int,
+        call_id: str,
         room_name: str,
         livekit_url: str,
         token: str,
@@ -191,16 +196,21 @@ class VirtualCaller:
         self._pending_done = asyncio.Event()
         self._tasks: list[asyncio.Task] = []
         self._streams: list[rtc.AudioStream] = []
+        # Sin esto, si el agente cierra la room (workflow completo, job caido)
+        # el caller esperaria cada turno hasta el timeout.
+        self._disconnected = asyncio.Event()
 
     async def run(self) -> CallerResult:
         turns: list[Turn] = []
         error: str | None = None
+        greeted = False
         try:
             self._wire_events()
             await self.room.connect(
                 self.livekit_url, self.token, options=rtc.RoomOptions(auto_subscribe=True)
             )
             await self._wait_for_speech_start(self.greeting_timeout)  # arranca el saludo
+            greeted = True
             await self._wait_until_silent(self.reply_timeout)  # y lo dejamos terminar
             await self._publish_mic()
             for i in range(self.n_turns):
@@ -241,7 +251,8 @@ class VirtualCaller:
             error = f"{type(e).__name__}: {e}"
         finally:
             await self._cleanup()
-        return CallerResult(call_id=self.call_id, room_name=self.room_name, turns=turns, error=error)
+        return CallerResult(call_id=self.call_id, room_name=self.room_name, turns=turns, error=error,
+                            greeted=greeted)
 
     async def _cleanup(self) -> None:
         # El orden importa: primero frenamos nuestras tasks (dejan de usar el
@@ -281,6 +292,11 @@ class VirtualCaller:
                 self._tasks.append(asyncio.create_task(self._consume_audio(track)))
 
         self.room.on("track_subscribed", on_track_subscribed)
+        self.room.on("disconnected", lambda *_: self._disconnected.set())
+
+    def _check_connected(self) -> None:
+        if self._disconnected.is_set():
+            raise AgentHangup("el agente cerro la llamada antes de terminar los turnos")
 
     async def _consume_audio(self, track: rtc.Track) -> None:
         stream = rtc.AudioStream(
@@ -301,6 +317,7 @@ class VirtualCaller:
         # (ver comentario en _BurstDetector).
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
+            self._check_connected()
             now = time.monotonic()
             self._detector.tick(now)
             if self._detector.speaking and self._detector.speaking_since is not None:
@@ -313,6 +330,7 @@ class VirtualCaller:
         # (ej. quedo mal sincronizado), no bloqueamos la llamada para siempre.
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
+            self._check_connected()
             now = time.monotonic()
             self._detector.tick(now)
             if not self._detector.speaking:
@@ -357,13 +375,22 @@ class VirtualCaller:
             pass
 
     async def _speak(self, pcm: bytes) -> float:
+        self._check_connected()
         self._pending_done.clear()
         self._pending_pcm.extend(pcm)
         # El audio se manda en tiempo real (un frame de FRAME_MS por vez), asi
         # que esto deberia tardar lo que dura el audio; el margen extra cubre
         # jitter del scheduler sin permitir que se cuelgue para siempre.
         audio_s = len(pcm) / (self._mic_sample_rate * 2)
-        await asyncio.wait_for(
-            self._pending_done.wait(), timeout=audio_s + SPEAK_TIMEOUT_EXTRA_S
-        )
+        done = asyncio.ensure_future(self._pending_done.wait())
+        hangup = asyncio.ensure_future(self._disconnected.wait())
+        try:
+            await asyncio.wait({done, hangup}, timeout=audio_s + SPEAK_TIMEOUT_EXTRA_S,
+                               return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            done.cancel()
+            hangup.cancel()
+        self._check_connected()
+        if not self._pending_done.is_set():
+            raise TimeoutError("timeout mandando el audio del usuario")
         return time.monotonic()

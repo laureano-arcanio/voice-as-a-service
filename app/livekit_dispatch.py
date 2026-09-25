@@ -6,7 +6,8 @@ from livekit import api
 from . import config
 
 
-async def dispatch_call(room_name: str, conversation_id: str, phone: str | None, voice: str | None = None) -> None:
+async def dispatch_call(room_name: str, conversation_id: str, phone: str | None, voice: str | None = None,
+                        loadtest: bool = False) -> None:
     async with api.LiveKitAPI(
         url=config.LIVEKIT_URL,
         api_key=config.LIVEKIT_API_KEY,
@@ -16,7 +17,8 @@ async def dispatch_call(room_name: str, conversation_id: str, phone: str | None,
             api.CreateAgentDispatchRequest(
                 agent_name=config.LIVEKIT_AGENT_NAME,
                 room=room_name,
-                metadata=json.dumps({"conversation_id": conversation_id, "phone": phone, "voice": voice}),
+                metadata=json.dumps({"conversation_id": conversation_id, "phone": phone, "voice": voice,
+                                     "loadtest": loadtest}),
             )
         )
 

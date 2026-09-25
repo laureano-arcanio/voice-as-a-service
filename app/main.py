@@ -31,6 +31,9 @@ class CallRequest(BaseModel):
     phone: str | None = None
     # Voz del TTS para esta llamada; sin voz, la del workflow (agent.voice).
     voice: str | None = None
+    # Llamada del loadtest (scripts/loadtest/): como la de prueba, pero el agente
+    # no corta al completar el workflow, asi dura los turnos que pide el caller.
+    loadtest: bool = False
 
 
 @app.get("/health")
@@ -75,6 +78,8 @@ async def start_call(req: CallRequest, engine: ConversationEngine = Depends(get_
         phone = re.sub(r"[\s()\-.]", "", req.phone)
         if not re.fullmatch(r"\+\d{8,15}", phone):
             raise HTTPException(422, "Número inválido: usar formato internacional, ej. +5491155551234")
+        if req.loadtest:
+            raise HTTPException(422, "El loadtest no marca teléfonos")
     voice = req.voice.strip().lower() if req.voice else None
     if voice and voice not in voices.catalog():
         raise HTTPException(422, f"Voz inexistente: {voice}")
@@ -83,9 +88,10 @@ async def start_call(req: CallRequest, engine: ConversationEngine = Depends(get_
     except KeyError:
         raise HTTPException(404, "Workflow inexistente")
     room = f"call-{state.conversation_id}"
-    calls.create(state.conversation_id, "saliente" if phone else "prueba", phone)
+    mode = "saliente" if phone else "loadtest" if req.loadtest else "prueba"
+    calls.create(state.conversation_id, mode, phone)
     try:
-        await livekit_dispatch.dispatch_call(room, state.conversation_id, phone, voice)
+        await livekit_dispatch.dispatch_call(room, state.conversation_id, phone, voice, req.loadtest)
     except Exception as e:
         calls.update(state.conversation_id, status="fallida", error=str(e)[:2000], ended_reason="dispatch_failed")
         raise HTTPException(502, f"No se pudo iniciar la llamada: {e}")

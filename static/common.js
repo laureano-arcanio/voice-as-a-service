@@ -10,6 +10,7 @@ const MODE = {
   saliente: ['Saliente', 'badge'],
   entrante: ['Entrante', 'badge'],
   prueba: ['Prueba', 'badge warn'],
+  loadtest: ['Loadtest', 'badge warn'],
   api: ['API (texto)', 'badge'],
 };
 const WORKFLOW = {

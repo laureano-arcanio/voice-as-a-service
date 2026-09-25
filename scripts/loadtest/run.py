@@ -1,14 +1,17 @@
 """Load test de usuario -> livekit agent -> usuario (sin telefonia/SIP).
 
-Dispara N llamadas en test_mode via la API del dashboard (igual que el boton
-"modo prueba", pero en vez de un humano conectandose por navegador, cada
+Dispara N llamadas con POST /calls {"loadtest": true} (como el modo prueba
+del dashboard, pero en vez de un humano conectandose por navegador, cada
 llamada la atiende un VirtualCaller (caller.py) que publica audio pregenerado
-(gen_audio.py) y mide la latencia percibida del lado del cliente. Corre
-oleadas de concurrencia creciente y, para cada una, agrega:
+(gen_audio.py) y mide la latencia percibida del lado del cliente). Con
+loadtest el agente no corta al completar el workflow: cada llamada dura los
+--turns pedidos y la carga es la misma que en EXP-001 a 008. Corre oleadas de
+concurrencia creciente y, para cada una, agrega:
 
   - la latencia percibida por el "usuario" (medida acá, extremo a extremo)
-  - el desglose server-side por vertical que ya loguea app/latency.py
-    (eou/stt/endpointing/ttft/tts), leido de calls.latency_json via la API
+  - el desglose server-side por vertical que loguea app/latency.py
+    (eou/stt/endpointing/llm/tts/e2e), leido de call.latency via
+    GET /api/calls/{id}. Ver SERVER_COLUMNS por el cambio de ttft_s.
 
 Guarda UNA fila por turno (de cada llamada, de cada oleada) en un CSV bajo
 scripts/loadtest/results/ -- esa es la fuente de datos completa; report.html
@@ -50,9 +53,22 @@ from scripts.loadtest.caller import Turn, VirtualCaller
 AUDIO_DIR = Path(__file__).resolve().parent / "audio"
 RESULTS_DIR = Path(__file__).resolve().parent / "results"
 
-# Campos server-side que ya loguea app/latency.py por turno (ver Turn.as_dict
-# ahi) -- se leen de calls.latency_json via GET /api/calls/{id}.
-SERVER_FIELDS = ("eou", "stt", "endpointing", "ttft", "llm_total", "llm_tokens", "tts", "tts_audio", "cancelled", "total")
+# Columna del CSV -> clave por turno de app/latency.py (call.latency["turns"]).
+# Los nombres de columna son los de EXP-001 a 008, para comparar. Desde el
+# motor por workflow el LLM no pasa por el plugin de LiveKit:
+#   - ttft_s es "llm": hasta el primer texto de assistant_message, contado
+#     desde que el agente arranca el turno. Ademas del TTFT de vLLM incluye la
+#     espera de la extraccion del turno anterior (hasta 1,5 s), leer el estado
+#     y los tokens del JSON previos al mensaje. El TTFT puro de vLLM sale del
+#     sampler (analyze.py).
+#   - total_s = eou + llm + tts, igual que antes con ttft.
+#   - e2e_s es nuevo: lo que mide LiveKit hasta el primer audio.
+#   - llm_tokens y cancelled ya no se registran: quedan vacias.
+SERVER_COLUMNS = {
+    "eou_s": "eou", "stt_s": "stt", "endpointing_s": "endpointing",
+    "ttft_s": "llm", "llm_total_s": "llm_total", "tts_s": "tts",
+    "tts_audio_s": "tts_audio", "total_s": "total", "e2e_s": "e2e",
+}
 
 CSV_COLUMNS = [
     "run_id", "concurrency", "call_id", "turn_index", "row_kind", "category", "status",
@@ -61,9 +77,11 @@ CSV_COLUMNS = [
     "eou_s", "stt_s", "endpointing_s", "ttft_s", "llm_total_s", "llm_tokens",
     "tts_s", "tts_audio_s", "cancelled", "total_s",
     "call_start_ts", "call_end_ts",
+    # Agregadas despues de EXP-008, al final para no correr las anteriores.
+    "e2e_s", "workflow_id", "ended_reason",
 ]
 
-STATS_FIELDS = ("client_latency_s", "think_time_s", "eou_s", "stt_s", "endpointing_s", "ttft_s", "llm_total_s", "tts_s", "total_s")
+STATS_FIELDS = ("client_latency_s", "think_time_s", "eou_s", "stt_s", "endpointing_s", "ttft_s", "llm_total_s", "tts_s", "total_s", "e2e_s")
 
 
 def _mint_token(room_name: str, identity: str) -> str:
@@ -76,49 +94,45 @@ def _mint_token(room_name: str, identity: str) -> str:
     )
 
 
-async def _create_call(client: httpx.AsyncClient, base_url: str) -> dict:
-    r = await client.post(f"{base_url}/api/calls", json={"test_mode": True})
+async def _create_call(client: httpx.AsyncClient, base_url: str, workflow_id: str, voice: str | None) -> dict:
+    body = {"workflow_id": workflow_id, "loadtest": True}
+    if voice:
+        body["voice"] = voice
+    r = await client.post(f"{base_url}/calls", json=body)
     r.raise_for_status()
     return r.json()
 
 
-async def _wait_finalized(client: httpx.AsyncClient, base_url: str, call_id: int, timeout: float) -> dict:
+async def _wait_finalized(client: httpx.AsyncClient, base_url: str, call_id: str, timeout: float) -> dict:
+    """El registro de la llamada (call de GET /api/calls/{id}) cuando el agente
+    la cierra; la latencia por turno se guarda recien ahi."""
     deadline = time.monotonic() + timeout
+    status = "?"
     while time.monotonic() < deadline:
         r = await client.get(f"{base_url}/api/calls/{call_id}")
         r.raise_for_status()
-        d = r.json()
-        if d["status"] in ("finalizada", "fallida"):
-            return d
+        call = r.json().get("call") or {}
+        status = call.get("status", "?")
+        if status in ("finalizada", "fallida"):
+            return call
         await asyncio.sleep(0.5)
-    raise TimeoutError(f"call {call_id}: no finalizo la llamada a tiempo (status actual desconocido)")
+    raise TimeoutError(f"call {call_id}: no finalizo a tiempo (status {status})")
 
 
-_EMPTY_SERVER = {f"{f}_s" if f not in ("llm_tokens", "cancelled") else f: "" for f in SERVER_FIELDS}
+_EMPTY_SERVER = {col: "" for col in SERVER_COLUMNS}
 
 
 def _server_cols(st: dict) -> dict:
-    # st.get(key, "") solo aplica el default cuando falta la CLAVE -- pero
-    # app/latency.py puede guardar la clave con valor None explicito (turno al
-    # que no le llegaron todas las metricas a tiempo, mas frecuente con
-    # concurrencia alta). Sin este chequeo, ese None se cuela en el CSV y rompe
-    # _stats()/float() en _print_level.
-    def sval(key):
-        v = st.get(key)
-        return "" if v is None else v
-
-    return {
-        "eou_s": sval("eou"), "stt_s": sval("stt"), "endpointing_s": sval("endpointing"),
-        "ttft_s": sval("ttft"), "llm_total_s": sval("llm_total"), "llm_tokens": sval("llm_tokens"),
-        "tts_s": sval("tts"), "tts_audio_s": sval("tts_audio"), "cancelled": sval("cancelled"),
-        "total_s": sval("total"),
-    }
+    # app/latency.py puede guardar la clave con None explicito (turno al que no
+    # le llegaron todas las metricas); en el CSV va vacia, como si faltara.
+    return {col: ("" if st.get(key) is None else st[key]) for col, key in SERVER_COLUMNS.items()}
 
 
 def _rows_for_call(
-    run_id: str, concurrency: int, call_id: int, status: str, call_error: str | None,
+    run_id: str, concurrency: int, call_id: str, status: str, call_error: str | None,
     turns: list[Turn], server_summary: dict | None,
     call_start_ts: float = 0.0, call_end_ts: float = 0.0,
+    workflow_id: str = "", ended_reason: str = "",
 ) -> list[dict]:
     """Arma las filas del CSV de una llamada.
 
@@ -130,7 +144,7 @@ def _rows_for_call(
     pegaba las metricas del server al turno equivocado y ademas descartaba los
     turnos sobrantes.
 
-    Ahora: si las cantidades coinciden se aparean (row_kind="paired"); si no,
+    Si las cantidades coinciden se aparean (row_kind="paired"); si no,
     se emiten por separado -- las filas del cliente sin columnas de server
     ("client_only") y las del server sin columnas de cliente ("server_only").
     No se pierde ningun dato y no se inventa ningun apareamiento. Las
@@ -140,6 +154,7 @@ def _rows_for_call(
     server_turns = (server_summary or {}).get("turns", [])
     base = {"run_id": run_id, "concurrency": concurrency, "call_id": call_id,
             "status": status, "call_error": call_error or "",
+            "workflow_id": workflow_id, "ended_reason": ended_reason,
             # Ventana real en la que esta llamada estuvo viva -- con arranque
             # escalonado la concurrencia nominal del nivel no es la que hubo
             # en simultaneo; con esto se puede calcular el pico real.
@@ -180,7 +195,7 @@ def _rows_for_call(
 
 async def _run_one(
     client: httpx.AsyncClient, base_url: str, run_id: str, concurrency: int, n_turns: int,
-    utterances: dict[str, list[Path]], start_delay: float,
+    utterances: dict[str, list[Path]], start_delay: float, workflow_id: str, voice: str | None,
 ) -> list[dict]:
     # Arranque escalonado: en trafico real las llamadas no entran todas en el
     # mismo instante. El delay lo calcula el padre a partir del indice GLOBAL
@@ -190,10 +205,10 @@ async def _run_one(
         await asyncio.sleep(start_delay)
 
     call_start_ts = time.time()
-    created = await _create_call(client, base_url)
-    call_id = created["id"]
-    room_name = f"call-{call_id}"
-    token = _mint_token(room_name, identity=f"loadtest-{call_id}")
+    created = await _create_call(client, base_url, workflow_id, voice)
+    call_id = created["conversation_id"]
+    room_name = created["room"]
+    token = _mint_token(room_name, identity=f"loadtest-{call_id[:8]}")
 
     caller = VirtualCaller(
         call_id=call_id,
@@ -208,17 +223,18 @@ async def _run_one(
     # (esperar a que se finalice en la base) es contabilidad, no carga.
     call_end_ts = time.time()
 
+    # Al cortar, el agente espera la extraccion en curso (hasta 10 s) y guarda.
+    # Si nunca saludo, probablemente no tomo el job: la llamada queda en
+    # pendiente o sonando y no tiene sentido esperar el minuto entero.
     try:
-        finalized = await _wait_finalized(client, base_url, call_id, timeout=60.0)
+        call = await _wait_finalized(client, base_url, call_id, timeout=60.0 if result.greeted else 10.0)
     except TimeoutError as e:
-        finalized = {"status": "timeout", "latency_json": ""}
+        call = {"status": "timeout"}
         result.error = result.error or str(e)
 
-    latency_json = finalized.get("latency_json") or ""
-    server_summary = json.loads(latency_json) if latency_json else None
-
-    return _rows_for_call(run_id, concurrency, call_id, finalized.get("status", "?"), result.error,
-                          result.turns, server_summary, call_start_ts, call_end_ts)
+    return _rows_for_call(run_id, concurrency, call_id, call.get("status", "?"), result.error,
+                          result.turns, call.get("latency"), call_start_ts, call_end_ts,
+                          workflow_id, call.get("ended_reason") or "")
 
 
 def _stats(vals: list[float]) -> dict | None:
@@ -243,6 +259,7 @@ def _error_row(run_id: str, concurrency: int, call_id: str, error: str) -> dict:
         "call_error": error, "turn_index": "", "row_kind": "client_only", "category": "",
         "turn_error": "", "client_latency_s": "", "think_time_s": "",
         "turn_duration_s": "", "user_speech_s": "", "turn_start_ts": "", "turn_end_ts": "",
+        "workflow_id": "", "ended_reason": "",
         **_EMPTY_SERVER,
     }
 
@@ -261,12 +278,13 @@ def _error_row(run_id: str, concurrency: int, call_id: str, error: str) -> dict:
 async def _worker_async(
     base_url: str, run_id: str, concurrency: int, n_turns: int, n_callers: int,
     utterances_spec: dict[str, list[str]], start_index: int, stagger_s: float,
+    workflow_id: str, voice: str | None,
 ) -> list[dict]:
     utterances = {k: [Path(p) for p in v] for k, v in utterances_spec.items()}
     async with httpx.AsyncClient(timeout=30.0) as client:
         results = await asyncio.gather(
             *[_run_one(client, base_url, run_id, concurrency, n_turns, utterances,
-                       (start_index + j) * stagger_s)
+                       (start_index + j) * stagger_s, workflow_id, voice)
               for j in range(n_callers)],
             return_exceptions=True,
         )
@@ -308,7 +326,7 @@ def _split_callers(total: int, per_process: int) -> list[int]:
 def _run_level(
     base_url: str, run_id: str, concurrency: int, n_turns: int,
     utterances_spec: dict[str, list[str]], per_process: int, tmpdir: Path,
-    stagger_s: float,
+    stagger_s: float, workflow_id: str, voice: str | None,
 ) -> list[dict]:
     chunks = _split_callers(concurrency, per_process)
     rampa = (concurrency - 1) * stagger_s
@@ -324,6 +342,7 @@ def _run_level(
             "n_turns": n_turns, "n_callers": n_callers,
             "utterances_spec": utterances_spec, "out_path": str(out_path),
             "start_index": start_index, "stagger_s": stagger_s,
+            "workflow_id": workflow_id, "voice": voice,
         }
         p = ctx.Process(target=_worker_entry, args=(payload,))
         p.start()
@@ -392,6 +411,14 @@ def _print_level(rows: list[dict], concurrency: int, elapsed: float) -> None:
     unaligned = {r["call_id"] for r in rows if r["row_kind"] in ("client_only", "server_only")}
     if unaligned:
         print(f"  llamadas sin apareamiento cliente/server: {len(unaligned)}/{len(calls)}")
+    # Lo normal es customer_hangup (corta el caller). Otra cosa (completed,
+    # max duration, job caido) cambia la carga respecto de otros runs.
+    reasons: dict[str, int] = {}
+    for r in {r["call_id"]: r for r in rows}.values():
+        if r.get("ended_reason") and r["ended_reason"] != "customer_hangup":
+            reasons[r["ended_reason"]] = reasons.get(r["ended_reason"], 0) + 1
+    if reasons:
+        print(f"  llamadas cerradas por el agente: {reasons}")
     peak = _peak_concurrency(rows)
     if peak:
         aviso = "  <-- la rampa es larga para lo que dura una llamada" if peak < concurrency else ""
@@ -415,6 +442,23 @@ def _load_utterances() -> dict[str, list[Path]]:
     return utterances
 
 
+def _preflight(base_url: str, workflow_id: str, voice: str | None) -> None:
+    """Falla antes de lanzar la oleada si la app no responde o el workflow o la
+    voz no existen: si no, cada llamada fallaria por separado con un 404/422."""
+    if not (config.LIVEKIT_URL and config.LIVEKIT_API_KEY and config.LIVEKIT_API_SECRET):
+        raise SystemExit("faltan LIVEKIT_URL / LIVEKIT_API_KEY / LIVEKIT_API_SECRET en .env")
+    try:
+        workflows = {w["id"]: w for w in httpx.get(f"{base_url}/api/workflows", timeout=10).raise_for_status().json()}
+    except httpx.HTTPError as e:
+        raise SystemExit(f"la app no responde en {base_url} ({e}); levantala con make up-agent")
+    if workflow_id not in workflows:
+        raise SystemExit(f"workflow {workflow_id!r} inexistente; hay: {sorted(workflows)}")
+    if voice and voice not in {v["nombre"] for v in httpx.get(f"{base_url}/api/voices", timeout=10).json()}:
+        raise SystemExit(f"voz {voice!r} inexistente (ver tts/finetune/voces.tsv)")
+    w = workflows[workflow_id]
+    print(f"workflow {workflow_id} (engine {w['engine']}), voz {voice or w['voice'] or 'VLLM_TTS_VOICE'}")
+
+
 def _write_csv(path: Path, rows: list[dict]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="") as f:
@@ -427,6 +471,8 @@ def _write_csv(path: Path, rows: list[dict]) -> None:
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--base-url", default="http://app:8011", help="URL del servicio `app` (default: red interna de compose)")
+    p.add_argument("--workflow", default=config.WORKFLOW_ID, help=f"agente (workflow) a llamar (default WORKFLOW_ID: {config.WORKFLOW_ID})")
+    p.add_argument("--voice", default=None, help="voz del TTS (default: la del workflow, agent.voice)")
     p.add_argument("--levels", default="1,2,4,8,16", help="niveles de concurrencia, separados por coma")
     p.add_argument("--turns", type=int, default=4, help="turnos de conversacion por llamada")
     p.add_argument("--callers-per-process", type=int, default=4,
@@ -440,6 +486,7 @@ def main() -> None:
     if missing:
         raise SystemExit(f"faltan categorias de audio {missing} en {AUDIO_DIR} -- corre: make loadtest-audio")
     utterances_spec = {k: [str(p) for p in v] for k, v in utterances.items()}
+    _preflight(args.base_url, args.workflow, args.voice)
 
     run_id = str(int(time.time()))
     levels = [int(x) for x in args.levels.split(",")]
@@ -459,7 +506,8 @@ def main() -> None:
             t0 = time.monotonic()
             try:
                 rows = _run_level(args.base_url, run_id, c, args.turns, utterances_spec,
-                                  args.callers_per_process, Path(tmp), args.stagger)
+                                  args.callers_per_process, Path(tmp), args.stagger,
+                                  args.workflow, args.voice)
             except KeyboardInterrupt:
                 # Un sweep largo puede durar bastante; si se corta a mitad, lo
                 # ya medido tiene que quedar en disco igual.

@@ -280,7 +280,14 @@ async def entrypoint(ctx: JobContext):
         await ctx.delete_room()
         ctx.shutdown(reason="completed")
 
-    agent = WorkflowAgent(engine, conversation_id, latency, on_completed=lambda: asyncio.create_task(hang_up()))
+    # En el loadtest no se corta al completar: si no, cada llamada duraria
+    # distinto segun lo que conteste el caller y la carga no seria comparable
+    # entre runs. Corta el caller despues de sus turnos.
+    if metadata.get("loadtest"):
+        on_completed = lambda: logger.info("loadtest %s: workflow completo, sigue la llamada", conversation_id)
+    else:
+        on_completed = lambda: asyncio.create_task(hang_up())
+    agent = WorkflowAgent(engine, conversation_id, latency, on_completed=on_completed)
 
     ctx.room.on("participant_disconnected", lambda _: ctx.shutdown(reason="customer_hangup"))
 

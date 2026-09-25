@@ -131,3 +131,8 @@ Salen de `/metrics` de cada vLLM y cuentan solo los segundos activos (con avance
 - **Server compartido:** revisar el proceso ajeno más cargado. En EXP-003 un proceso fuera del stack ocupó un core al 100% durante ~45% de la tanda.
 - **Simulación de VRAM ≠ velocidad:** limitar la memoria de una 3090 simula otra GPU en VRAM, no en velocidad.
 - **Latencia de punta a punta:** sale del CSV del cliente, que no se registró hasta EXP-005.
+- **CSV del cliente desde el motor por workflow (runs posteriores a EXP-009):**
+  - `ttft_s` es el LLM hasta el primer texto de la respuesta. Suma al TTFT de vLLM la espera de la extracción anterior y los tokens del JSON previos al mensaje, así que no se compara con el `ttft_s` de EXP-001 a 008. El TTFT de vLLM sale de `analyze.py`.
+  - `client_latency_s`, `eou_s`, `stt_s` y `tts_s` miden lo mismo que antes. `total_s` sigue siendo eou + llm + tts, con el llm nuevo.
+  - Nuevas: `e2e_s` (LiveKit, hasta el primer audio), `workflow_id` y `ended_reason`. `llm_tokens` y `cancelled` quedan vacías.
+  - Cada llamada corre un workflow (`--workflow`, default `WORKFLOW_ID`) y con `engine: structured` el LLM hace dos pedidos por turno: la respuesta y la extracción de datos. Anotar el workflow en el registro.

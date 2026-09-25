@@ -147,20 +147,22 @@
 'use strict';
 
 const NUMERIC_COLS = ["concurrency","turn_index","client_latency_s","think_time_s","eou_s","stt_s","endpointing_s",
-  "ttft_s","llm_total_s","llm_tokens","tts_s","tts_audio_s","total_s",
+  "ttft_s","llm_total_s","llm_tokens","tts_s","tts_audio_s","total_s","e2e_s",
   "turn_duration_s","user_speech_s","turn_start_ts","turn_end_ts","call_start_ts","call_end_ts"];
 const STATS_FIELDS = [
   ["client_latency_s", "latencia percibida (cliente)"],
   ["eou_s", "eou"],
   ["stt_s", "stt"],
   ["endpointing_s", "endpointing"],
-  ["ttft_s", "ttft (llm)"],
+  // Desde el motor por workflow, hasta el primer texto de la respuesta (ver run.py, SERVER_COLUMNS).
+  ["ttft_s", "llm (1er texto)"],
   ["llm_total_s", "llm total"],
   ["tts_s", "tts ttfb"],
   ["total_s", "total (server)"],
+  ["e2e_s", "e2e (livekit)"],
   ["think_time_s", "pausa entre turnos (input, no latencia)"],
 ];
-const SERIES_COLORS = ["#1d4ed8","#dc2626","#16a34a","#d97706","#7c3aed","#0891b2","#db2777","#65a30d","#94a3b8"];
+const SERIES_COLORS = ["#1d4ed8","#dc2626","#16a34a","#d97706","#7c3aed","#0891b2","#db2777","#65a30d","#0f766e","#94a3b8"];
 const CATEGORY_COLORS = { short: "#2563eb", medium: "#7c3aed", long: "#db2777" };
 
 let ROWS = [];
