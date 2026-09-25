@@ -7,7 +7,7 @@ contadores de tokens en algun vLLM (tapa los huecos entre turnos).
 
 Uso: analyze.py <rundir> [t0 t1] [--md]
   sin --md: reporte completo (host, contenedores, threads, GPU, vLLM)
-  con --md: tablas markdown para el registro (docs/experiments/)"""
+  con --md: tablas markdown para el registro (docs/archive/experiments/)"""
 import csv, json, sys, collections, statistics as st
 from datetime import datetime
 

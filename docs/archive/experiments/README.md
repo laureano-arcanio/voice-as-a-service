@@ -1,9 +1,11 @@
 # Registro de experimentos de capacidad
 
+> **Archivado (25-sep-2026).** Mediciones con el loadtest, reemplazado por el test de capacidad. Resultados vigentes en [`docs/capacity/`](../../capacity/README.md).
+
 Cada experimento mide una configuración de inferencia (modelos, reparto de
 GPU, flags de vLLM) con el mismo loadtest, para definir el hardware de
 producción. Conclusiones vigentes: [`../LOADTEST_CAPACITY.md`](../LOADTEST_CAPACITY.md).
-Hardware: [`../SERVER_HARDWARE.md`](../SERVER_HARDWARE.md).
+Hardware: [`../SERVER_HARDWARE.md`](../../SERVER_HARDWARE.md).
 
 ## Índice (32 sesiones)
 

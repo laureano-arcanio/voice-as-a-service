@@ -1,9 +1,42 @@
-# Test de capacidad con calidad percibida
+# Capacidad: resultados vigentes y test
 
-Mide cuántas llamadas soporta el pipeline con una calidad dada, qué etapa se degrada primero
-y con qué recurso, y cómo escala la memoria de cada parte. Diseño en
-[`../CAPACITY_TEST_PLAN.md`](../CAPACITY_TEST_PLAN.md). Código en `scripts/capacity/`; los runs
-crudos quedan en `scripts/capacity/runs/` (no versionado).
+Cuántas llamadas soporta el pipeline con una calidad dada, qué etapa se degrada primero y con qué
+recurso, y cómo escala la memoria de cada parte. Se mide con el test de capacidad (diseño en
+[`../CAPACITY_TEST_PLAN.md`](../CAPACITY_TEST_PLAN.md), código en `scripts/capacity/`). Las
+mediciones anteriores con el loadtest (EXP-001 a 013) están en [`../archive/`](../archive/README.md).
+
+## Resultados vigentes ([CAP-001](CAP-001-2x3090-pl280-classic/), 2026-09-25)
+
+Server de validación: 2 × RTX 3090 a 280 W, núcleo ≤ 1800 MHz, memoria 9501 MHz; Ryzen 7 5700X.
+Reparto de `AGENTS.md`, motor `classic`, LiveKit propio, agente en el mismo host.
+
+| Llamadas simultáneas | Espera del cliente p50 / p95 | Qué pasa |
+|---|---|---|
+| 1 (piso) | 1,59 / 1,89 s | e2e del server 0,86 s; el cliente espera ~0,7 s más |
+| ~20 | 1,86 / 2,38 s | Holgado: GPUs al 71 / 84 %, CPU 44 % |
+| **~32 (codo)** | **2,27 / 3,03 s** | **Las dos GPUs saturadas** (> 90 % de los segundos al ≥ 95 %). Sin cola en LLM ni TTS |
+| ~70 | 5,83 / 8,25 s | CPU del host al 99,8 %: VAD del agente atrasado, STT con 364 ms de cola |
+| ~130 | colapso | 64 % de llamadas fallidas, saludo de 12,8 s |
+
+- **Capacidad:** ~20 llamadas con p95 ≤ 2,4 s y ~32 con p95 ≤ 3 s. El SLO del plan (90 % de turnos ≤ 1,5 s) no se cumple ni con 1 llamada: el piso es 1,6 s.
+- **Primer cuello: GPU.** Con ~32 llamadas las dos GPUs llegan al 93–97 % (el LLM en la 0; TTS + STT en la 1).
+- **Segundo cuello: CPU del host.** El agente usa ~0,11–0,14 cores por llamada, y con 64 llamadas el host de 16 hilos se satura.
+- **Memoria:** solo escala el agente, **~104 MB por llamada** (r² 0,99), más ~5 MB de LiveKit.
+  - Con 128 llamadas el agente usaría ~14 GB.
+  - LLM, TTS y STT reservan su RAM y VRAM al arrancar: 22,7 + 13,1 + 2,1 GB de VRAM, y 3,4 + 5,9 + 1,3 GB de RAM más el caché de sus pesos.
+- **Potencia:** sin tope, las 2 GPUs llegaron a 660 W sostenidos (con picos mayores) y el server se apagó con ~32 llamadas. Con 280 W y clocks limitados, el máximo fue 559 W.
+- **Calidad:**
+  - El saludo es lo primero que se degrada: p95 3,9 s con 32 llamadas. Incluso con 1 llamada, 3 de 10 tardan más de 3 s.
+  - WER 0,1–0,2: "Sí." se transcribe como "C".
+- **Para producción:** el cómputo de GPU y la CPU del agente se dimensionan por separado. Con este hardware, ~32 llamadas por par de 3090 con p95 ≤ 3 s. La CPU del agente, a ~0,12 cores y ~0,1 GB por llamada, conviene en otro host.
+
+## Índice
+
+| CAP | Fecha | hw_id | Config | Perfiles | p95 ≤ 3 s | Codo | Cuello | Piso p50 | Cores / MB por llamada |
+|---|---|---|---|---|---|---|---|---|---|
+| [001](CAP-001-2x3090-pl280-classic/) | 2026-09-25 | `8489259f` (2 × 3090 a 280 W) | `3c35f6bd`: classic, LLM solo en GPU 0 | base, rampa | ~32 | ~32 | GPUs; con 64, CPU | 1,59 s (1) | 0,12 / 104 |
+
+(1) El `base` se midió con `hw_id 351644b6`, sin límites de GPU; conviene repetirlo con los límites.
 
 ## Cómo correrlo
 
@@ -68,21 +101,14 @@ y como `BASE=` en el análisis (espera agregada por la carga).
 | 7. Varias PCs cliente coordinadas | Pendiente |
 
 Decisiones pendientes del plan (buckets y SLO): se usan los valores propuestos, configurables en
-`_comun.yml`. Con el piso actual (~1,7 s) el SLO de 1,5 s no se cumple en ningún escalón. Por eso
+`_comun.yml`. Con el piso actual (~1,6 s) el SLO de 1,5 s no se cumple en ningún escalón. Por eso
 el análisis también informa la carga máxima con p95 ≤ 2, 3, 4 y 5 s.
 
-## Prueba de humo (2026-09-25, este host como cliente)
+## Trampas
 
-5 llamadas (2 en serie + Poisson con objetivo 3):
-- espera p50 1,65–1,67 s, e2e del server ~1,0 s, saludo p50 1,0 s;
-- WER 0,31: el "Sí." se transcribió como "C";
-- 86 % de las respuestas con algún silencio de 0,3–0,56 s. Probablemente sean pausas entre oraciones; se compara contra `base`.
-
-Memoria: el agente sube **~94 MB por llamada simultánea** (PSS, r² 0,97). vLLM y STT no cambian
-(RAM y VRAM reservadas al arrancar). El resto no escala.
-
-## Índice por hardware
-
-| Run | hw_id | config_id | Perfil | Capacidad al SLO | p95 ≤ 3 s | Cuello | Piso p50 | Cores/llamada | MB/llamada (agente) |
-|---|---|---|---|---|---|---|---|---|---|
-| — | 351644b6 (2 × 3090, Ryzen 7 5700X) | — | — | — | — | — | — | — | — |
+- **Potencia:** sin tope, las 3090 pueden apagar el server por picos de consumo. Aplicar los límites de GPU antes de medir (ver `AGENTS.md`, Hosts): no sobreviven a un reinicio.
+- **Tras un reinicio,** la inferencia no vuelve sola (`Exited (128)`): `make up-inference`.
+- **Escalones de 2 min (`rampa`)** con llamadas de ~115 s: la concurrencia real no sigue a la objetivo. Para el número fino, `fina` (4 min).
+- **Turnos desfasados** (después de uno sin respuesta) **y solapados** (espera negativa): el análisis los excluye de los percentiles y los cuenta aparte (`turnos_desfasados`, `turnos_solapados`).
+- **Memoria:** `memory.current` del cgroup incluye el caché de archivos (pesos del modelo). El análisis usa la memoria usada (anon + shmem + kernel) y reporta el caché aparte.
+- **Empaquetar el run del cliente por nombre** (`tar czf ... -C scripts/capacity/runs <run>`): con `ls -t | head -1` se toma el run equivocado.

@@ -110,7 +110,7 @@ Reporte completo: [analyze-16.txt](analyze-16.txt), [analyze-32.txt](analyze-32.
 
 En capacidad, Whisper Large v3 Turbo es mejor que Qwen3-ASR en todo lo que se midió: menos de la mitad de latencia, la mitad de VRAM (~4 GB) y ~1/6 de CPU. No cambia la capacidad total del sistema, porque STT no era el cuello. Lo que sí hace es liberar ~4 GB en la GPU del LLM, lo que acerca la opción de LLM + STT en una placa de 16 GB (12 + 4 GB, sin validar).
 
-No se cambia la configuración vigente, porque falta calidad: en el corpus sintético empata con Qwen3-ASR en audio limpio y es mejor en audio telefónico (WER 5,6% contra 7,4%, ver [README](../../../README.md#probar-otros-stt-perfil-stt-eval-opcional)). Eso es con 9 audios. Siguientes pasos:
+No se cambia la configuración vigente, porque falta calidad: en el corpus sintético empata con Qwen3-ASR en audio limpio y es mejor en audio telefónico (WER 5,6% contra 7,4%, ver [README](../../../../README.md#probar-otros-stt-perfil-stt-eval-opcional)). Eso es con 9 audios. Siguientes pasos:
 
 - Repetir Qwen3-ASR (`make servers-qwen`) guardando el resumen del cliente, para comparar `stt_s` y `total_s` de punta a punta.
 - Medir Parakeet con el mismo procedimiento (`make servers-parakeet`).

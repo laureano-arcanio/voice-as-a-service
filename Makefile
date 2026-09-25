@@ -144,7 +144,7 @@ eval-motor: ## Escenarios de llamada contra el motor y el LLM real (scripts/repl
 eval-llamadas: ## Llamadas reales de berlin_signup repetidas tal cual: datos, resultado y repreguntas (scripts/replay_transcripts.py). Ej: make eval-llamadas N=5 W=berlin_signup_classic
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts app python -m scripts.replay_transcripts $(or $(N),1) $(S) $(if $(W),-w=$(W))
 
-# --- Loadtest y eval (docs/experiments/) ---------------------------------
+# --- Loadtest (anterior al test de capacidad, docs/archive/) y eval ------
 
 loadtest-audio: ## Genera el corpus de audio del loadtest con vllm-tts (una vez; cachea en scripts/loadtest/audio/)
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts agent python -m scripts.loadtest.gen_audio

@@ -1,0 +1,74 @@
+{
+ "perfil": {
+  "workflow": "demo_booking_classic",
+  "voz": "sofia",
+  "turnos": [
+   4,
+   8
+  ],
+  "duracion_base_s": 90,
+  "warmup_s": 0,
+  "warmup_concurrencia": 2,
+  "descartar_s": 0,
+  "buckets_s": [
+   0.5,
+   0.8,
+   1.0,
+   1.5,
+   2.0,
+   3.0
+  ],
+  "buckets_nombres": [
+   "optimo",
+   "excelente",
+   "bueno",
+   "aceptable",
+   "regular",
+   "malo",
+   "pesimo"
+  ],
+  "llamada_buena": {
+   "saludo_max_s": 3.0,
+   "max_malos": 1
+  },
+  "slo": {
+   "p_ok": 0.9,
+   "ok_s": 1.5,
+   "p_pesimo": 0.01,
+   "llamadas_buenas": 0.95,
+   "fallas": 0.01
+  },
+  "cliente": {
+   "mic_lag_p95_s": 0.1,
+   "cpu_p95_pct": 85
+  },
+  "nombre": "base",
+  "version": 1,
+  "escalones": [
+   {
+    "modo": "cerrado",
+    "concurrencia": 1,
+    "llamadas": 10
+   }
+  ]
+ },
+ "perfil_hash": "efb90500",
+ "duracion_llamada_s": 90,
+ "seed": 239073371,
+ "base_url": "http://192.168.1.99:8011",
+ "livekit_url": "ws://192.168.1.99:7880",
+ "notas": "",
+ "inicio": 1790369802.8157396,
+ "pasos": [
+  {
+   "paso": "e0_1",
+   "t0": 1790369802.8160346,
+   "t1": 1790370672.000808,
+   "modo": "cerrado",
+   "concurrencia": 1,
+   "llamadas": 10
+  }
+ ],
+ "fin_llegadas": 1790370672.000833,
+ "fin": 1790370672.0010426
+}

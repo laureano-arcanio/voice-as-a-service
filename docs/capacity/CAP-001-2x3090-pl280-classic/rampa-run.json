@@ -1,0 +1,148 @@
+{
+ "perfil": {
+  "workflow": "demo_booking_classic",
+  "voz": "sofia",
+  "turnos": [
+   4,
+   8
+  ],
+  "duracion_base_s": 90,
+  "warmup_s": 60,
+  "warmup_concurrencia": 2,
+  "descartar_s": 60,
+  "buckets_s": [
+   0.5,
+   0.8,
+   1.0,
+   1.5,
+   2.0,
+   3.0
+  ],
+  "buckets_nombres": [
+   "optimo",
+   "excelente",
+   "bueno",
+   "aceptable",
+   "regular",
+   "malo",
+   "pesimo"
+  ],
+  "llamada_buena": {
+   "saludo_max_s": 3.0,
+   "max_malos": 1
+  },
+  "slo": {
+   "p_ok": 0.9,
+   "ok_s": 1.5,
+   "p_pesimo": 0.01,
+   "llamadas_buenas": 0.95,
+   "fallas": 0.01
+  },
+  "cliente": {
+   "mic_lag_p95_s": 0.1,
+   "cpu_p95_pct": 85
+  },
+  "nombre": "rampa",
+  "version": 1,
+  "escalones": [
+   {
+    "concurrencia": 4,
+    "duracion_s": 120
+   },
+   {
+    "concurrencia": 8,
+    "duracion_s": 120
+   },
+   {
+    "concurrencia": 16,
+    "duracion_s": 120
+   },
+   {
+    "concurrencia": 32,
+    "duracion_s": 120
+   },
+   {
+    "concurrencia": 64,
+    "duracion_s": 120
+   },
+   {
+    "concurrencia": 96,
+    "duracion_s": 120
+   }
+  ]
+ },
+ "perfil_hash": "db94871b",
+ "duracion_llamada_s": 82.0,
+ "seed": 946434299,
+ "base_url": "http://192.168.1.99:8011",
+ "livekit_url": "ws://192.168.1.99:7880",
+ "notas": "",
+ "inicio": 1790377105.527188,
+ "pasos": [
+  {
+   "paso": "warmup",
+   "t0": 1790377105.5276644,
+   "t1": 1790377165.5276644,
+   "modo": "abierto",
+   "concurrencia": 2,
+   "llegadas": 0,
+   "procesos": 1
+  },
+  {
+   "paso": "e0_4",
+   "t0": 1790377166.00012,
+   "t1": 1790377286.00012,
+   "modo": "abierto",
+   "concurrencia": 4,
+   "llegadas": 11,
+   "procesos": 1
+  },
+  {
+   "paso": "e1_8",
+   "t0": 1790377287.000072,
+   "t1": 1790377407.000072,
+   "modo": "abierto",
+   "concurrencia": 8,
+   "llegadas": 11,
+   "procesos": 1
+  },
+  {
+   "paso": "e2_16",
+   "t0": 1790377408.000087,
+   "t1": 1790377528.000087,
+   "modo": "abierto",
+   "concurrencia": 16,
+   "llegadas": 24,
+   "procesos": 2
+  },
+  {
+   "paso": "e3_32",
+   "t0": 1790377529.0000694,
+   "t1": 1790377649.0000694,
+   "modo": "abierto",
+   "concurrencia": 32,
+   "llegadas": 49,
+   "procesos": 4
+  },
+  {
+   "paso": "e4_64",
+   "t0": 1790377650.0000684,
+   "t1": 1790377770.0000684,
+   "modo": "abierto",
+   "concurrencia": 64,
+   "llegadas": 86,
+   "procesos": 7
+  },
+  {
+   "paso": "e5_96",
+   "t0": 1790377771.0000694,
+   "t1": 1790377891.0000694,
+   "modo": "abierto",
+   "concurrencia": 96,
+   "llegadas": 153,
+   "procesos": 11
+  }
+ ],
+ "fin_llegadas": 1790377892.0000951,
+ "fin": 1790378052.0016162
+}

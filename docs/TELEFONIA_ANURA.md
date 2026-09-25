@@ -242,7 +242,7 @@ Los cambios en `asterisk/conf/` se aplican con `make restart-pbx`, sin rebuild.
 
 En lugar de LiveKit Cloud, `docker-compose.livekit.yml` levanta LiveKit en este
 host. Motivo: en el plan gratuito de Cloud, el despacho del agente deja jobs en
-`JS_PENDING` con ~20–24 llamadas simultáneas ([EXP-011](experiments/EXP-011-agente-en-server-despacho-livekit/)).
+`JS_PENDING` con ~20–24 llamadas simultáneas ([EXP-011](archive/experiments/EXP-011-agente-en-server-despacho-livekit/)).
 
 ```
   Teléfono ── Anura ──► Asterisk ──► livekit-sip ──► livekit ──► room anura-* + agente

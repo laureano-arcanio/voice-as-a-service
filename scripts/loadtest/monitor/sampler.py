@@ -10,7 +10,7 @@ Descubre solos los contenedores del proyecto compose (y se re-descubre cada
 meta.json la config efectiva de cada servicio (imagen, args, GPU), para que el
 run quede registrado aunque despues cambie el compose.
 
-Uso: sampler.py <outdir>   (ver docs/experiments/README.md)"""
+Uso: sampler.py <outdir>   (ver docs/archive/experiments/README.md)"""
 import csv, json, os, re, signal, subprocess, sys, time, urllib.request
 
 OUT = sys.argv[1]

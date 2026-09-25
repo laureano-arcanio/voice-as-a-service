@@ -122,7 +122,7 @@ Distribución recomendada en cualquier B550:
 | VRAM | 24 GB | 16 GB |
 | FP8 nativo | No | Sí |
 
-- **Medido (ver `LOADTEST_CAPACITY.md`): el cuello es TTS, no el LLM.** TTS sola
+- **Medido (ver `archive/LOADTEST_CAPACITY.md`): el cuello es TTS, no el LLM.** TTS sola
   satura una 3090 a 32 sesiones; el LLM usa ~la mitad de la suya y nunca encola.
   STT es liviano.
 - Mitigación para el LLM si hiciera falta: pesos en FP8, prefix caching y
@@ -140,7 +140,7 @@ Distribución recomendada en cualquier B550:
 
 ## 6. Prueba pendiente antes de comprar
 
-> **Hecha el 21-sep-2026**, resultados en `LOADTEST_CAPACITY.md`: a 32 sesiones
+> **Hecha el 21-sep-2026**, resultados en `archive/LOADTEST_CAPACITY.md`: a 32 sesiones
 > se usan ~4 de 16 hilos, ningún core pasa de 90% y el thread más cargado
 > (engine de TTS) llega a 70% (p95). Falta solo la simulación de CPU más débil
 > de abajo.
@@ -183,5 +183,5 @@ Por qué:
 - El video integrado del 5700G simplifica el diagnóstico en un armado con risers.
 
 Orden de pasos: (1) prueba de carga en el server actual (hecha, ver
-`LOADTEST_CAPACITY.md`), (2) comprar una 5060 Ti y validar TTS y el LLM en FP8,
+`archive/LOADTEST_CAPACITY.md`), (2) comprar una 5060 Ti y validar TTS y el LLM en FP8,
 (3) comprar el resto. El server actual queda como nodo de redundancia.

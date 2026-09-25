@@ -1,5 +1,7 @@
 # Capacidad: conclusiones vigentes
 
+> **Archivado (25-sep-2026).** Mediciones con el loadtest, reemplazado por el test de capacidad. Resultados vigentes en [`docs/capacity/`](../capacity/README.md).
+
 Objetivo: definir el hardware de producción con menor costo inicial, buena
 latencia con 32 conversaciones y redundancia. El server actual (Ryzen 7 5700X,
 64 GB, 2 × RTX 3090, con escritorio) es **solo de validación**.

@@ -42,8 +42,9 @@ reparto de GPU/memoria entre los 3 esta documentado con detalle en los comentari
 reservan memoria fuera del budget normal de KV-cache, y vLLM sigue capturando CUDA graphs
 nuevos con el trafico real, asi que el uso real de VRAM termina bien por encima de lo que
 estima `--gpu-memory-utilization` en frio). Probado en vivo contra 2x RTX 3090 (24GB c/u):
-TTS sola en la GPU 0, LLM + STT compartiendo la GPU 1 -- la mejor de las configuraciones
-medidas (ver `docs/experiments/` y `AGENTS.md`).
+LLM solo en la GPU 0, TTS + STT en la GPU 1 (EXP-013), con las GPUs a 280 W: ~32 llamadas
+simultaneas con p95 de 3 s (ver `docs/capacity/` y `AGENTS.md`; mediciones anteriores en
+`docs/archive/`).
 
 ### Voces del TTS
 
