@@ -79,7 +79,13 @@ CSV_COLUMNS = [
     "call_start_ts", "call_end_ts",
     # Agregadas despues de EXP-008, al final para no correr las anteriores.
     "e2e_s", "workflow_id", "ended_reason",
+    # Atraso maximo del microfono del caller (caller.py, _mic_loop).
+    "client_mic_lag_s",
 ]
+
+# Atraso del microfono (p95 entre llamadas) a partir del cual la oleada mide
+# al cliente y no al server.
+CLIENT_LAG_WARN_S = 0.1
 
 STATS_FIELDS = ("client_latency_s", "think_time_s", "eou_s", "stt_s", "endpointing_s", "ttft_s", "llm_total_s", "tts_s", "total_s", "e2e_s")
 
@@ -94,13 +100,34 @@ def _mint_token(room_name: str, identity: str) -> str:
     )
 
 
+# Con decenas de callers arrancando a la vez, un pico puntual de la app no
+# tiene que costar la llamada entera.
+HTTP_RETRIES = 3
+
+
+def _transient(e: Exception) -> bool:
+    return isinstance(e, httpx.TransportError) or (
+        isinstance(e, httpx.HTTPStatusError) and e.response.status_code >= 500)
+
+
 async def _create_call(client: httpx.AsyncClient, base_url: str, workflow_id: str, voice: str | None) -> dict:
     body = {"workflow_id": workflow_id, "loadtest": True}
     if voice:
         body["voice"] = voice
-    r = await client.post(f"{base_url}/calls", json=body)
-    r.raise_for_status()
-    return r.json()
+    # Solo se reintenta si el pedido no llego a la app. Tras un 5xx o un
+    # timeout de lectura la llamada pudo haberse creado y despachado:
+    # reintentar dejaria un job del agente esperando 5 min en una room vacia.
+    for attempt in range(HTTP_RETRIES):
+        try:
+            r = await client.post(f"{base_url}/calls", json=body)
+        except (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout):
+            if attempt == HTTP_RETRIES - 1:
+                raise
+            await asyncio.sleep(1 + attempt)
+            continue
+        r.raise_for_status()
+        return r.json()
+    raise AssertionError("inalcanzable")
 
 
 async def _wait_finalized(client: httpx.AsyncClient, base_url: str, call_id: str, timeout: float) -> dict:
@@ -109,13 +136,22 @@ async def _wait_finalized(client: httpx.AsyncClient, base_url: str, call_id: str
     deadline = time.monotonic() + timeout
     status = "?"
     while time.monotonic() < deadline:
-        r = await client.get(f"{base_url}/api/calls/{call_id}")
-        r.raise_for_status()
-        call = r.json().get("call") or {}
-        status = call.get("status", "?")
-        if status in ("finalizada", "fallida"):
-            return call
-        await asyncio.sleep(0.5)
+        # Un 5xx o un timeout puntual de la app no corta la espera: con muchas
+        # llamadas cerrando a la vez, la app puede tardar en contestar.
+        try:
+            r = await client.get(f"{base_url}/api/calls/{call_id}")
+            r.raise_for_status()
+        except httpx.HTTPError as e:
+            if not _transient(e):
+                raise
+            status = f"{type(e).__name__}"
+        else:
+            call = r.json().get("call") or {}
+            status = call.get("status", "?")
+            if status in ("finalizada", "fallida"):
+                return call
+        # 1 s en vez de 0,5: con 64+ llamadas el sondeo era 2 GET/s por llamada.
+        await asyncio.sleep(1.0)
     raise TimeoutError(f"call {call_id}: no finalizo a tiempo (status {status})")
 
 
@@ -226,15 +262,21 @@ async def _run_one(
     # Al cortar, el agente espera la extraccion en curso (hasta 10 s) y guarda.
     # Si nunca saludo, probablemente no tomo el job: la llamada queda en
     # pendiente o sonando y no tiene sentido esperar el minuto entero.
+    # Cualquier falla aca (no solo el timeout) conserva los turnos medidos del
+    # lado del cliente: antes un 500 de GET /api/calls/{id} descartaba la
+    # llamada entera y quedaba una sola fila "exception".
     try:
         call = await _wait_finalized(client, base_url, call_id, timeout=60.0 if result.greeted else 10.0)
-    except TimeoutError as e:
-        call = {"status": "timeout"}
-        result.error = result.error or str(e)
+    except (TimeoutError, httpx.HTTPError) as e:
+        call = {"status": "timeout" if isinstance(e, TimeoutError) else "error_api"}
+        result.error = result.error or f"{type(e).__name__}: {e}"
 
-    return _rows_for_call(run_id, concurrency, call_id, call.get("status", "?"), result.error,
+    rows = _rows_for_call(run_id, concurrency, call_id, call.get("status", "?"), result.error,
                           result.turns, call.get("latency"), call_start_ts, call_end_ts,
                           workflow_id, call.get("ended_reason") or "")
+    for row in rows:
+        row["client_mic_lag_s"] = round(result.mic_lag_max_s, 3)
+    return rows
 
 
 def _stats(vals: list[float]) -> dict | None:
@@ -419,6 +461,15 @@ def _print_level(rows: list[dict], concurrency: int, elapsed: float) -> None:
             reasons[r["ended_reason"]] = reasons.get(r["ended_reason"], 0) + 1
     if reasons:
         print(f"  llamadas cerradas por el agente: {reasons}")
+    # Si el cliente no llega a mandar el audio en tiempo real, el VAD del agente
+    # ve cortes y los timeouts son del cliente, no del server.
+    lags = {r["call_id"]: float(r["client_mic_lag_s"]) for r in rows if r.get("client_mic_lag_s", "") != ""}
+    if lags:
+        s = _stats(list(lags.values()))
+        aviso = ("  <-- CLIENTE SATURADO: bajar la concurrencia o repartir callers en mas PCs"
+                 if s["p95"] > CLIENT_LAG_WARN_S else "")
+        print(f"  cliente, atraso del microfono: p50 {s['p50']*1000:.0f} ms p95 {s['p95']*1000:.0f} ms "
+              f"max {s['max']*1000:.0f} ms{aviso}")
     peak = _peak_concurrency(rows)
     if peak:
         aviso = "  <-- la rampa es larga para lo que dura una llamada" if peak < concurrency else ""

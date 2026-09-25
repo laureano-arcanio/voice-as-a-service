@@ -43,6 +43,9 @@ LISTEN_FRAME_MS = 40
 # del saludo, sin generar una sola request mas al backend. Este timeout hace
 # que falle visible (y quede en el CSV) en vez de colgarse.
 SPEAK_TIMEOUT_EXTRA_S = 30.0
+# Atraso del microfono a partir del cual se deja de recuperar (ver _mic_loop).
+# Un atraso de este orden ya invalida la llamada: el cliente esta saturado.
+MIC_MAX_CATCHUP_S = 0.2
 # Silencio sostenido para dar por terminada una respuesta del agente. Probado
 # en vivo: las respuestas del LLM en este proyecto no son cortas -- vistas
 # hasta 12-15s de audio TTS por turno (varias oraciones). Un umbral chico
@@ -158,6 +161,9 @@ class CallerResult:
     turns: list[Turn]
     error: str | None = None
     greeted: bool = False  # sono el saludo: el agente tomo la llamada
+    # Maximo atraso del microfono respecto de tiempo real: mide si el cliente
+    # (la PC del loadtest) llega a mandar el audio a tiempo.
+    mic_lag_max_s: float = 0.0
 
 
 class AgentHangup(Exception):
@@ -199,6 +205,7 @@ class VirtualCaller:
         # Sin esto, si el agente cierra la room (workflow completo, job caido)
         # el caller esperaria cada turno hasta el timeout.
         self._disconnected = asyncio.Event()
+        self.mic_lag_max_s = 0.0
 
     async def run(self) -> CallerResult:
         turns: list[Turn] = []
@@ -252,7 +259,7 @@ class VirtualCaller:
         finally:
             await self._cleanup()
         return CallerResult(call_id=self.call_id, room_name=self.room_name, turns=turns, error=error,
-                            greeted=greeted)
+                            greeted=greeted, mic_lag_max_s=self.mic_lag_max_s)
 
     async def _cleanup(self) -> None:
         # El orden importa: primero frenamos nuestras tasks (dejan de usar el
@@ -357,6 +364,8 @@ class VirtualCaller:
         frame_samples = int(self._mic_sample_rate * FRAME_MS / 1000)
         frame_bytes = frame_samples * 2  # int16 mono
         silence = b"\x00" * frame_bytes
+        frame_s = FRAME_MS / 1000
+        next_at = time.monotonic()
         try:
             while True:
                 if self._pending_pcm:
@@ -370,7 +379,19 @@ class VirtualCaller:
                     chunk = silence
                 frame = rtc.AudioFrame(chunk, self._mic_sample_rate, 1, frame_samples)
                 await self._audio_source.capture_frame(frame)
-                await asyncio.sleep(FRAME_MS / 1000)
+                # Ritmo contra el reloj, no sleep(20ms) fijo: con este ultimo
+                # cada frame suma el overhead del loop y, con el cliente
+                # cargado, el audio sale mas lento que tiempo real. Si el loop
+                # se atrasa, los frames siguientes salen sin esperar hasta
+                # alcanzarlo. El atraso maximo queda en mic_lag_max_s.
+                next_at += frame_s
+                lag = time.monotonic() - next_at
+                if lag > 0:
+                    self.mic_lag_max_s = max(self.mic_lag_max_s, lag)
+                    if lag > MIC_MAX_CATCHUP_S:
+                        next_at = time.monotonic()  # no mandar una rafaga de audio
+                else:
+                    await asyncio.sleep(-lag)
         except asyncio.CancelledError:
             pass
 
