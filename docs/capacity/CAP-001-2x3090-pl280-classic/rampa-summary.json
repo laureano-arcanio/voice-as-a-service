@@ -7,8 +7,8 @@
  "hw_id": "8489259f",
  "config_id": "3c35f6bd",
  "hw_id_cliente": "7b408020",
- "piso_p50": 1.594,
- "piso_p95": 1.891,
+ "piso_p50": 1.607,
+ "piso_p95": 1.994,
  "duracion_llamada_s": 115.1,
  "slo": {
   "p_ok": 0.9,
