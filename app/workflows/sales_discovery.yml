@@ -5,6 +5,7 @@ agent:
   name: Sofía
   role: asesora comercial virtual de Browix, en Argentina
   language: es-AR
+  voice: sofia
 
 objective:
   description: >

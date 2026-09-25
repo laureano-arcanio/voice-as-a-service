@@ -1,12 +1,25 @@
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class AgentInfo(BaseModel):
     name: str
     role: str
     language: str
+    # Voz del TTS (nombre en tts/finetune/voces.tsv); sin voz, el agente usa VLLM_TTS_VOICE.
+    voice: str | None = None
+
+    @field_validator("voice")
+    @classmethod
+    def _voice(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        v = v.strip().lower()
+        # "default" o vacio mata el engine de vllm-tts (docs/TTS_FINETUNE.md, Trampas 8).
+        if v in ("", "default"):
+            raise ValueError("voice tiene que ser una voz del checkpoint, no vacia ni 'default'")
+        return v
 
 
 class Objective(BaseModel):

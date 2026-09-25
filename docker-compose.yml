@@ -203,11 +203,12 @@ services:
       start_period: 300s
 
   vllm-tts:
-    # TTS: Qwen3-TTS-12Hz-1.7B-Base con fine-tuning de 4 voces en un solo
-    # checkpoint (multi4: arf_03034, arf_02121, arm_08784, arm_06136;
-    # docs/TTS_FINETUNE.md), servido con vLLM-Omni (`--omni`). El checkpoint es
-    # tipo custom_voice: la voz va por nombre en cada pedido (`voice`), sin audio
-    # de referencia; el agente usa VLLM_TTS_VOICE. Para servir otro checkpoint:
+    # TTS: Qwen3-TTS-12Hz-1.7B-Base con fine-tuning de 41 voces de OpenSLR 61 en
+    # un solo checkpoint (multi41 ep. 2; nombres y metricas en
+    # tts/finetune/voces.tsv, docs/TTS_FINETUNE.md), servido con vLLM-Omni
+    # (`--omni`). El checkpoint es tipo custom_voice: la voz va por nombre en
+    # cada pedido (`voice`), sin audio de referencia; el agente usa la del
+    # workflow (agent.voice) o VLLM_TTS_VOICE. Para servir otro checkpoint:
     # TTS_FT_CKPT y VLLM_TTS_MODEL en .env, y `make up-inference`.
     # Descartados: 0.6B-Base (~1% de pedidos sin fin de audio, 47 s generando),
     # CosyVoice 3 (0,6-1 s de primer audio con una llamada) y el -CustomVoice
@@ -244,7 +245,7 @@ services:
       - "--max-model-len=4096"
     volumes:
       - hf_cache:/root/.cache/huggingface
-      - ${TTS_FT_CKPT:-./tts/finetune/work/runs/multi4/lr2e-6/checkpoint-epoch-5}:/models/ft:ro
+      - ${TTS_FT_CKPT:-./tts/finetune/work/runs/multi41/lr2e-6/checkpoint-epoch-2}:/models/ft:ro
       # Voces subidas por POST /v1/audio/voices. Volumen propio: el de la voz
       # clonada anterior (vllm_tts_speakers) restauraria sofia_ar (task Base)
       # sobre un checkpoint custom_voice.

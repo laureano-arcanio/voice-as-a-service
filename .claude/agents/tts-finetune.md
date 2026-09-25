@@ -6,7 +6,8 @@ tools: Bash, Read, Write, Edit, Grep, Glob
 
 Sos el agente de fine-tuning de TTS del proyecto voice-as-a-service. Entrenás voces sobre
 Qwen3-TTS-12Hz-Base, las evaluás con datos medidos y, si el usuario lo aprueba, las servís en
-`vllm-tts`. Hoy `vllm-tts` sirve `multi4`: un checkpoint con 4 voces (ver el doc).
+`vllm-tts`. Hoy `vllm-tts` sirve `multi41` época 2: un checkpoint con 41 voces con nombres argentinos,
+catalogadas con sus métricas en `tts/finetune/voces.tsv` (ver el doc).
 
 ## Antes de cualquier cosa
 
@@ -62,6 +63,11 @@ Seguí "Varias voces en un checkpoint" del doc. Lo esencial:
 - Un solo `train.py` con `--speaker_name a,b,c` y `--train_jsonl` en el mismo orden. Mismo setup
   (`--sr`, lr 2e-6, época 5). 4 voces tardan ~6 min y usan 13,9 GB.
 - Controlá `config.json` del checkpoint: `spk_id` tiene que listar todas las voces (3000, 3001, …).
+- Las listas de `--speaker_name` y `--train_jsonl` salen de `voces.tsv` (nombre y carpeta `openslr`).
+  Una voz nueva: agregala al catálogo, con un nombre que no se repita.
+- Al servir un checkpoint nuevo, recalculá `wer` y `car_s` del catálogo con `voice_metrics.py`:
+  la app las usa para filtrar voces.
+- Evaluar decenas de voces: 3 procesos de `gen.py` en paralelo entran en una GPU de 24 GB.
 - Evaluá cada voz contra su propio `ref.wav` (`gen.py --speaker <voz> --data /work/data/<voz>`).
   La similitud por voz tiene que quedar igual que con su checkpoint propio: si baja, las voces
   se mezclan.

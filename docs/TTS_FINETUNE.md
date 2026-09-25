@@ -1,18 +1,18 @@
-# Fine-tuning de Qwen3-TTS (una voz)
+# Fine-tuning de Qwen3-TTS (una voz o varias)
 
 Cómo entrenar voces propias sobre `Qwen3-TTS-12Hz-1.7B-Base` (o 0.6B), evaluarlas y servirlas
 en `vllm-tts`. Lo sigue el agente [`tts-finetune`](../.claude/agents/tts-finetune.md).
 
 Primera voz entrenada: `arf_03034` (OpenSLR 61, mujer, español argentino), sep-2026.
-Servido hoy: `multi4`, un checkpoint con 4 voces de OpenSLR 61 (ver
-[Varias voces en un checkpoint](#varias-voces-en-un-checkpoint)):
+Servido hoy: `multi41` época 2, un checkpoint con las 41 voces completas de OpenSLR 61
+(28 mujeres y 13 hombres), cada una con un nombre argentino (ver
+[Varias voces en un checkpoint](#varias-voces-en-un-checkpoint)).
 
-| Voz | Género | Min con voz (train) |
-|---|---|---|
-| `arf_03034` | mujer | 6,2 |
-| `arf_02121` | mujer | 6,6 |
-| `arm_08784` | hombre | 7,2 |
-| `arm_06136` | hombre | 7,1 |
+El catálogo es [`tts/finetune/voces.tsv`](../tts/finetune/voces.tsv): `nombre`, `openslr` (id y
+carpeta de datos), `genero`, `wer` y `car_s`. Las métricas son del checkpoint servido y la app
+las usa para filtrar voces (dashboard y `GET /api/voices`). `sofia` es `arf_03034`, la voz que
+usaba el agente antes de `multi41`. Las 3 voces de OpenSLR con ~1 min (`arf_02485`,
+`arf_03398`, `arf_04311`) quedaron afuera.
 
 ## Qué produce
 
@@ -59,7 +59,8 @@ Estructura de `work/`:
 ```
 work/data/<voz>/            wav24k/, train_raw.jsonl, eval.jsonl, ref.wav, ref.txt, train_with_codes.jsonl
 work/runs/<voz>/<corrida>/  checkpoint-epoch-N/, train_log.jsonl
-work/runs/multi4/lr2e-6/    el checkpoint de 4 voces (épocas 2, 3 y 5; se sirve la 5)
+work/runs/multi4/lr2e-6/    checkpoint de 4 voces (épocas 2, 3 y 5), el servido antes de multi41
+work/runs/multi41/lr2e-6/   checkpoint de 41 voces (épocas 2, 3 y 5; se sirve la 2)
 work/eval/<voz>/eval/       <sistema>_s<semilla>/  (32 frases: 8 de eval + 24 de dominio)
 work/eval/<voz>/llamada/    <sistema>_s<semilla>/  (28 oraciones de una llamada real)
 ```
@@ -74,6 +75,7 @@ work/eval/<voz>/llamada/    <sistema>_s<semilla>/  (28 oraciones de una llamada 
 | `score.py` | WER (Qwen3-ASR-1.7B), similitud de voz y caracteres/s |
 | `pauses.py` | Pausas en el set `llamada` y página A/B para escuchar |
 | `served_check.py` | Las mismas pausas contra `vllm-tts` levantado |
+| `voice_metrics.py` | WER y car/s por voz desde los `score_*.json`, sin volver a correr el ASR; escribe el catálogo con métricas |
 
 ## Antes de empezar
 
@@ -195,19 +197,21 @@ grabación real. La elección final es del usuario, escuchando la página A/B y 
 
 ### 7. Servir y verificar
 
-En el `.env` de la raíz del repo (el default del compose es el checkpoint `multi4`):
+En el `.env` de la raíz del repo (el default del compose es el checkpoint `multi41` época 2):
 
 ```bash
-TTS_FT_CKPT=./tts/finetune/work/runs/multi4/lr2e-6/checkpoint-epoch-5
+TTS_FT_CKPT=./tts/finetune/work/runs/multi41/lr2e-6/checkpoint-epoch-2
 VLLM_TTS_MODEL=qwen3-tts-ft      # nombre del modelo en la API; el agente lo manda en cada pedido
-VLLM_TTS_VOICE=arf_03034         # voz que usa el agente; tiene que estar en el checkpoint
+VLLM_TTS_VOICE=sofia             # voz de respaldo del agente; tiene que estar en el checkpoint
 ```
 
 Y desde la raíz: `make up-inference` (recrea `vllm-tts`) y `make up-agent` (el agente relee
 `VLLM_TTS_MODEL` y `VLLM_TTS_VOICE`).
 
-- El log de `vllm-tts` tiene que listar todas las voces:
-  `Loaded 4 supported speakers: ['arf_02121', 'arf_03034', 'arm_06136', 'arm_08784']`.
+- El log de `vllm-tts` tiene que listar todas las voces: `Loaded 41 supported speakers: [...]`.
+- Si cambian los nombres de las voces: actualizar `VLLM_TTS_VOICE` y `agent.voice` de los
+  workflows **al mismo tiempo**, también en los hosts que usan este TTS por el proxy
+  (modo remoto). Un nombre que no está da 400 en cada frase.
 - Si solo cambian los pesos y no el nombre del modelo ni la voz, alcanza con `make up-inference`.
 - `make up-agent` construye la imagen con el árbol de trabajo. Si hay cambios de otra sesión en
   `app/` sin terminar, `docker compose up -d --no-build --no-deps agent` relee el `.env` con la
@@ -247,6 +251,43 @@ J=$(echo $V | tr , '\n' | sed 's|.*|/work/data/&/train_with_codes.jsonl|' | past
   del batch y falla si miden distinto (`Sizes of tensors must match`).
 - Agregar una voz es reentrenar todas: el checkpoint no se puede extender por partes. Los datos
   de cada voz (`work/data/<voz>/`) hay que conservarlos.
+- Hasta 72 voces por checkpoint: `codec_embedding` tiene 3072 filas y los `spk_id` empiezan en 3000.
+
+### `multi41`: las 41 voces de OpenSLR 61 (sep-2026)
+
+Las listas salen del catálogo, en su orden (nombre → `--speaker_name`, id → datos):
+
+```bash
+N=$(cut -f1 voces.tsv | tail -n +2 | paste -sd,)
+J=$(cut -f2 voces.tsv | tail -n +2 | sed 's|.*|/work/data/&/train_with_codes.jsonl|' | paste -sd,)
+./run.sh python /code/train.py --sr --speaker_name $N --train_jsonl $J \
+  --lr 2e-6 --num_epochs 6 --save_epochs 2,3,5 --output_model_path /work/runs/multi41/lr2e-6
+```
+
+- Datos: 5321 clips de train, 264 min con voz (de 4,8 min en `santiago` a 7,7 min).
+  `prep.py` dio 0 clips con pausa >0,7 s en las 37 voces nuevas.
+- `prep.py` y `prepare_data.py` de 37 voces: 6 min. El tokenizer entra al lado de `vllm-tts` (~7,8 GB).
+- Entrenamiento: 3520 s (59 min), 14,3 GB, `vllm-tts` parado.
+- Loss medio por época: 2,59 / 2,26 / 1,94 / 1,66 / 1,50 / 1,42. Queda un poco más alto que con 4 voces
+  (1,32 en la época 5).
+- **Se sirve la época 2, no la 5.** Con 6 voces y 2+3 semillas, en la época 2 pasan los criterios 5 de 6
+  y el WER de dominio medio da 2,8%; en la época 5, 4 de 6 y 3,2%. La similitud es igual (0,991–0,992)
+  y en las 4 voces de `multi4` se mantiene (0,992 → 0,991): las voces no se mezclan con 41.
+  El usuario escuchó las 41 voces de la época 2: se entienden todas.
+- Evaluación de las 41 con la época 2 (`gen.py` y `score.py`, 3 procesos en paralelo en la GPU 0): 4 h 38 min.
+  - WER de dominio entre 1,1% y 5,8% (medio 3,1%).
+  - 14,8 a 19,5 car/s.
+  - 7 voces pasan el umbral de 4%: `santiago`, `emiliano`, `federico`, `joaquin`, `lorena`,
+    `antonella` y `gonzalo`.
+  - Se sirven igual: el WER queda en el catálogo para filtrar.
+  - Los valores por voz están en `voces.tsv`.
+- `served_check.py` contra lo servido, las 41 voces con 1 rep (28 oraciones cada una):
+  - 3 de 1148 pausas internas pasan de 0,7 s.
+  - La única voz que falla es `rocio`: 1,86 s dentro de "¡Genial, Francisco!" y 1,18 s entre
+    oraciones. En la evaluación con `gen.py` daba 0/84.
+  - Request completa: p50 de 0,54 a 0,75 s por voz.
+- Errores repetidos en casi todas las voces, sin escuchar todavía si son del TTS o del ASR:
+  "te agendo", "¿Seguís ahí?", "deletreás".
 
 Checkpoint de 1 voz contra `multi4` época 5, set eval, 1 semilla (frases de dominio; pausas
 del set `llamada`, 28 oraciones):
@@ -276,12 +317,19 @@ curl -H "Authorization: Bearer $VLLM_API_KEY" -H "Content-Type: application/json
 - `GET /v1/audio/voices` lista las voces. También devuelve `default`, que **no hay que usar**
   (ver Trampas 8).
 - Una voz que no existe da 400 (`Invalid voice ... Supported: ...`) y el servidor sigue andando.
-- El agente usa una sola voz, `VLLM_TTS_VOICE`, para todas las llamadas. Elegir la voz por
-  llamada o por workflow es un cambio en `app/`.
+- Qué voz usa el agente, en orden:
+  1. La elegida en el dashboard para esa llamada (`voice` en `POST /calls`).
+  2. `agent.voice` del workflow.
+  3. `VLLM_TTS_VOICE`.
+  Antes de cada llamada el agente mira `GET /v1/audio/voices` (cacheado 60 s). Si la voz pedida no
+  está servida, usa `VLLM_TTS_VOICE` y lo loguea como error.
+- Filtrar voces por métricas: `GET /api/voices?genero=mujer&wer_max=3&car_min=15&car_max=18` en la app.
+  Al servir otro checkpoint, recalcular las métricas:
+  `GET /api/voices` lee `voces.tsv`, y la app lo copia en la imagen.
 
 ## Trampas
 
-Medidas en arf_03034 (1 a 7) y en `multi4` (8). No repetirlas.
+Medidas en arf_03034 (1 a 7), en `multi4` (8) y en `multi41` (9). No repetirlas.
 
 1. **El click de fin de grabación de OpenSLR.** Muchos clips terminan con un click 2–3 s
    después de la última palabra, por ejemplo "¿Qué es un atasco?": se habla de 0,1 a 1,2 s y
@@ -320,3 +368,7 @@ Medidas en arf_03034 (1 a 7) y en `multi4` (8). No repetirlas.
    `ValueError: Unsupported speaker: vivian`. Después todos los pedidos dan 500
    (`EngineDead`, `Stage-0 has no live replica`) hasta `docker restart voice-as-a-service-vllm-tts-1`.
    Pasa igual con una voz o con varias. Mandar siempre una voz del checkpoint.
+9. **`score.py` y los números dictados.** El texto "cuatro, siete, dos, nueve, cinco" a veces sale
+   del ASR como "47295". Leído como número ("cuarenta y siete mil...") sumaba 6 errores y
+   +2,2 puntos de WER en 5 de las 41 voces. Por eso `wer()` también prueba leer las cifras de a
+   un dígito y se queda con la lectura con menos errores. `voice_metrics.py` recalcula sin ASR.

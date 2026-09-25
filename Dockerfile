@@ -21,6 +21,8 @@ RUN groupadd -g "${GID}" appuser \
 COPY app/ ./app/
 COPY static/ ./static/
 COPY templates/ ./templates/
+# Catalogo de voces del TTS con sus metricas (app/voices.py).
+COPY tts/finetune/voces.tsv ./tts/finetune/voces.tsv
 
 # Pre-create storage dirs and own them so the mkdir() app/config.py runs at import
 # time doesn't fail against a fresh bind mount.

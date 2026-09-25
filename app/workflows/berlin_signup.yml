@@ -5,6 +5,7 @@ agent:
   name: Sofía
   role: asesora virtual de Berlin Fit Club, en Córdoba, Argentina
   language: es-AR
+  voice: sofia
 
 objective:
   description: >

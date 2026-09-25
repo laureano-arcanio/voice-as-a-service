@@ -3,7 +3,7 @@
 # Atajos sobre `docker compose`. Stack por defecto (docker-compose.yml):
 #   agente:     db + app (dashboard y API :8011) + agent (worker de LiveKit)
 #   inferencia: vllm-llm (Qwen3.5-4B) + stt-parakeet (Parakeet TDT 0.6B v3)
-#               + vllm-tts (Qwen3-TTS 1.7B, voz fine-tuneada arf_03034)
+#               + vllm-tts (Qwen3-TTS 1.7B, 41 voces fine-tuneadas)
 #   proxy:      nginx en :PROXY_PORT, entrada publica a la inferencia (loadtest)
 #   asterisk:   puente SIP Anura <-> LiveKit (docs/TELEFONIA_ANURA.md)
 #

@@ -31,7 +31,7 @@ apuntando `base_url` a cada contenedor en vez de a `api.openai.com`.
 | --- | --- | --- | --- | --- |
 | LLM del motor conversacional | `RedHatAI/Qwen3.5-9B-quantized.w4a16` (Qwen3.5-9B en 4 bits) | `VLLM_LLM_MODEL` | `/v1/chat/completions` | Structured output (JSON schema), sin pensamiento por latencia (`LLM_THINKING`) y muestreo recomendado por Qwen. Reemplazó al 4B en EXP-009: 8 de 8 demos con datos contra 4 de 8, y p50 0,90 s por turno contra 1,00 s. |
 | STT | `nvidia/parakeet-tdt-0.6b-v3` | `VLLM_STT_MODEL` | `/v1/audio/transcriptions` | Servidor propio (`stt/server.py`, transformers + batching dinamico): 1,6 GB y mejor que Qwen3-ASR y Whisper Turbo en audio telefonico (ver "Eval de STT"). Es REST por turno, sin transcript parcial mientras el cliente habla. |
-| TTS | Qwen3-TTS 1.7B-Base con fine-tuning (4 voces en un checkpoint) | `VLLM_TTS_MODEL`, `VLLM_TTS_VOICE` | `/v1/audio/speech` (streaming) | Servido con vLLM-Omni. Las voces estan dentro del checkpoint (ver "Voces del TTS" abajo). |
+| TTS | Qwen3-TTS 1.7B-Base con fine-tuning (41 voces en un checkpoint) | `VLLM_TTS_MODEL`, `VLLM_TTS_VOICE` | `/v1/audio/speech` (streaming) | Servido con vLLM-Omni. Las voces estan dentro del checkpoint (ver "Voces del TTS" abajo). |
 
 **Requisitos de host:** 1+ GPU NVIDIA con el [NVIDIA Container
 Toolkit](https://github.com/NVIDIA/nvidia-container-toolkit) instalado y configurado
@@ -48,23 +48,23 @@ medidas (ver `docs/experiments/` y `AGENTS.md`).
 ### Voces del TTS
 
 Las voces (espanol argentino, de OpenSLR 61) estan entrenadas dentro de un solo checkpoint:
-Qwen3-TTS-12Hz-1.7B-Base con fine-tuning de 4 voces (tipo `custom_voice`, `multi4`).
+Qwen3-TTS-12Hz-1.7B-Base con fine-tuning de 41 voces (tipo `custom_voice`, `multi41`, epoca 2):
+28 mujeres y 13 hombres, cada una con un nombre argentino (`sofia`, `martin`, ...).
 
-| Voz | Genero |
-| --- | --- |
-| `arf_03034` | mujer (la que usa el agente hoy) |
-| `arf_02121` | mujer |
-| `arm_08784` | hombre |
-| `arm_06136` | hombre |
+El catalogo es [`tts/finetune/voces.tsv`](tts/finetune/voces.tsv): nombre, id de OpenSLR, genero
+y dos metricas medidas sobre el checkpoint servido, para elegir voz:
+
+- `wer`: WER de 24 frases de dominio, en % (Qwen3-ASR sobre el audio generado). Entre 1,1 y 5,8.
+- `car_s`: caracteres por segundo, la velocidad del habla. Entre 14,8 y 19,5.
 
 `vllm-tts` sirve el checkpoint de `TTS_FT_CKPT` (default
-`tts/finetune/work/runs/multi4/lr2e-6/checkpoint-epoch-5`, no versionado) con el nombre
+`tts/finetune/work/runs/multi41/lr2e-6/checkpoint-epoch-2`, no versionado) con el nombre
 `VLLM_TTS_MODEL` (`qwen3-tts-ft`). La voz se elige en cada pedido, sin audio de referencia ni
 reinicio:
 
 ```bash
 curl -H "Authorization: Bearer $VLLM_API_KEY" -H "Content-Type: application/json" \
-  -d '{"model":"qwen3-tts-ft","voice":"arm_08784","input":"Hola, buen dia.","response_format":"wav"}' \
+  -d '{"model":"qwen3-tts-ft","voice":"martin","input":"Hola, buen dia.","response_format":"wav"}' \
   http://$PUBLIC_HOST:$PROXY_PORT/tts/v1/audio/speech -o hola.wav
 ```
 
@@ -72,8 +72,14 @@ curl -H "Authorization: Bearer $VLLM_API_KEY" -H "Content-Type: application/json
 - Una voz inexistente da 400.
 - **Nunca mandar un pedido sin `voice` ni con `voice="default"`:** mata el engine de `vllm-tts`
   y todo da 500 hasta reiniciarlo (ver Trampas 8 en `docs/TTS_FINETUNE.md`).
-- El agente usa una sola voz para todas las llamadas (`VLLM_TTS_VOICE`); cambiarla es editar
-  `.env` y recrear `agent`.
+
+Que voz usa cada llamada, en orden:
+
+1. La elegida en el dashboard al lanzar la llamada (`voice` en `POST /calls`). El selector filtra
+   por genero, WER maximo y rango de car/s (`GET /api/voices?genero=&wer_max=&car_min=&car_max=`).
+2. La del workflow: `agent.voice` en el YAML (hoy `sofia` en los 3).
+3. `VLLM_TTS_VOICE` del `.env`, si el workflow no define voz o si `vllm-tts` no sirve la voz
+   pedida (el agente lo loguea como error, en vez de dar 400 en cada frase).
 
 Entrenar, evaluar, agregar voces y cambiar de checkpoint: `docs/TTS_FINETUNE.md`. Primer audio
 por oracion en llamada: 0,04-0,08 s.

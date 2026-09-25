@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
-from . import config, livekit_dispatch
+from . import config, livekit_dispatch, voices
 from .calls import CallLog
 from .conversation.engine import ConversationEngine
 from .conversation.models import ConversationState, Progress
@@ -29,6 +29,8 @@ class TurnRequest(BaseModel):
 class CallRequest(BaseModel):
     workflow_id: str = config.WORKFLOW_ID
     phone: str | None = None
+    # Voz del TTS para esta llamada; sin voz, la del workflow (agent.voice).
+    voice: str | None = None
 
 
 @app.get("/health")
@@ -73,6 +75,9 @@ async def start_call(req: CallRequest, engine: ConversationEngine = Depends(get_
         phone = re.sub(r"[\s()\-.]", "", req.phone)
         if not re.fullmatch(r"\+\d{8,15}", phone):
             raise HTTPException(422, "Número inválido: usar formato internacional, ej. +5491155551234")
+    voice = req.voice.strip().lower() if req.voice else None
+    if voice and voice not in voices.catalog():
+        raise HTTPException(422, f"Voz inexistente: {voice}")
     try:
         state, _ = engine.start_conversation(req.workflow_id)
     except KeyError:
@@ -80,7 +85,7 @@ async def start_call(req: CallRequest, engine: ConversationEngine = Depends(get_
     room = f"call-{state.conversation_id}"
     calls.create(state.conversation_id, "saliente" if phone else "prueba", phone)
     try:
-        await livekit_dispatch.dispatch_call(room, state.conversation_id, phone)
+        await livekit_dispatch.dispatch_call(room, state.conversation_id, phone, voice)
     except Exception as e:
         calls.update(state.conversation_id, status="fallida", error=str(e)[:2000], ended_reason="dispatch_failed")
         raise HTTPException(502, f"No se pudo iniciar la llamada: {e}")
@@ -224,6 +229,13 @@ def chart(date_from: datetime.date, date_to: datetime.date, calls: CallLog = Dep
         "completed_pct": [pct(buckets[d], lambda r: r["workflow_status"] == "completed") for d in days],
         "goal_pct": [pct(buckets[d], lambda r: r["goal"]) for d in days],
     }
+
+
+@app.get("/api/voices")
+def list_voices(genero: str | None = None, wer_max: float | None = None,
+                car_min: float | None = None, car_max: float | None = None):
+    """Voces del TTS con sus metricas (tts/finetune/voces.tsv), filtradas; de menor a mayor WER."""
+    return voices.search(genero or None, wer_max, car_min, car_max)
 
 
 @app.get("/api/workflow")

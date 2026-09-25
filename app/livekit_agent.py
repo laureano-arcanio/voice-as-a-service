@@ -4,6 +4,7 @@ import json
 import logging
 import time
 
+import httpx
 from google.protobuf.duration_pb2 import Duration
 from livekit import api
 from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, cli, inference
@@ -166,7 +167,44 @@ class WorkflowAgent(Agent):
             self.session.update_options(endpointing_opts={"max_delay": delay})
 
 
-def build_session() -> AgentSession:
+# Voces que sirve vllm-tts, cacheadas VOICES_TTL s: si cambia el checkpoint, el
+# worker se entera sin reiniciar.
+VOICES_TTL = 60
+_voices: tuple[float, set[str]] | None = None
+
+
+async def served_voices() -> set[str] | None:
+    """Voces del checkpoint de vllm-tts (GET /audio/voices), sin "default". None si no responde."""
+    global _voices
+    if _voices is None or time.monotonic() - _voices[0] > VOICES_TTL:
+        try:
+            async with httpx.AsyncClient(timeout=5) as client:
+                r = await client.get(f"{config.VLLM_TTS_BASE_URL}/audio/voices",
+                                     headers={"Authorization": f"Bearer {config.VLLM_API_KEY}"})
+                r.raise_for_status()
+            _voices = (time.monotonic(), set(r.json()["voices"]) - {"default"})
+        except Exception:
+            logger.exception("no se pudieron leer las voces de vllm-tts")
+            return None
+    return _voices[1]
+
+
+async def resolve_voice(workflow_id: str, override: str | None = None) -> str:
+    """La voz elegida para la llamada (override, desde el dashboard) o la del workflow
+    (agent.voice), si vllm-tts la sirve; si no, VLLM_TTS_VOICE. Una voz inexistente daria
+    400 en cada frase de la llamada."""
+    voice = override or load_workflow(workflow_id).agent.voice
+    if not voice or voice == config.VLLM_TTS_VOICE:
+        return config.VLLM_TTS_VOICE
+    served = await served_voices()
+    if served is not None and voice not in served:
+        logger.error("voz %r del workflow %s no esta en vllm-tts (%s); uso %r",
+                     voice, workflow_id, sorted(served), config.VLLM_TTS_VOICE)
+        return config.VLLM_TTS_VOICE
+    return voice
+
+
+def build_session(voice: str) -> AgentSession:
     vad = silero.VAD.load(min_silence_duration=0.3, min_speech_duration=0.2)
     return AgentSession(
         vad=vad,
@@ -185,7 +223,7 @@ def build_session() -> AgentSession:
         llm=openai.LLM(model=config.VLLM_LLM_MODEL, base_url=config.VLLM_LLM_BASE_URL, api_key=config.VLLM_API_KEY),
         tts=openai.TTS(
             model=config.VLLM_TTS_MODEL,
-            voice=config.VLLM_TTS_VOICE,
+            voice=voice,
             base_url=config.VLLM_TTS_BASE_URL,
             api_key=config.VLLM_API_KEY,
             response_format="pcm",
@@ -208,10 +246,13 @@ async def entrypoint(ctx: JobContext):
         caller = await ctx.wait_for_participant()
         calls.create(conversation_id, "entrante", caller.attributes.get("sip.phoneNumber"))
     else:
-        opening = engine.store.get(conversation_id).messages[0].text
+        state = engine.store.get(conversation_id)
+        opening = state.messages[0].text
     phone = metadata.get("phone")
 
-    session = build_session()
+    voice = await resolve_voice(state.workflow_id, metadata.get("voice"))
+    logger.info("llamada %s: workflow %s, voz %s", conversation_id, state.workflow_id, voice)
+    session = build_session(voice)
     latency = TurnLatencyTracker()
     session.on("metrics_collected", lambda ev: latency.on_metrics(ev.metrics))
     started_at: float | None = None

@@ -9,6 +9,20 @@
       <input id="phone" type="tel" placeholder="+5491155551234" autocomplete="off">
     </label>
   </div>
+  <div class="voice-picker">
+    <label>Voz
+      <select id="voice" class="in"></select>
+    </label>
+    <div class="voice-filters">
+      <select id="vf-genero" class="in" title="G&eacute;nero">
+        <option value="">Todas</option><option value="mujer">Mujeres</option><option value="hombre">Hombres</option>
+      </select>
+      <label>WER &le; <input id="vf-wer" class="in num" type="number" min="0" step="0.5" placeholder="%"></label>
+      <label>car/s <input id="vf-car-min" class="in num" type="number" min="0" step="0.5" placeholder="m&iacute;n">
+        &ndash; <input id="vf-car-max" class="in num" type="number" min="0" step="0.5" placeholder="m&aacute;x"></label>
+    </div>
+    <span class="hint">WER: errores del ASR sobre frases de dominio (menos es m&aacute;s claro). car/s: velocidad del habla.</span>
+  </div>
   <label class="test-mode-toggle">
     <input type="checkbox" id="test-mode">
     Modo prueba (sin tel&eacute;fono real: te conect&aacute;s por navegador via LiveKit y hac&eacute;s de interesado)
@@ -116,6 +130,25 @@ async function refresh() {
     </tr>`).join('');
 }
 
+// Voz de la llamada: la del agente (agent.voice del workflow) o una del catalogo, filtrada por metricas.
+const voiceSel = document.getElementById('voice');
+const vf = {genero: 'vf-genero', wer_max: 'vf-wer', car_min: 'vf-car-min', car_max: 'vf-car-max'};
+const fmt1 = x => x == null ? '–' : x.toFixed(1).replace('.', ',');
+async function loadVoices() {
+  const p = new URLSearchParams();
+  for (const [k, id] of Object.entries(vf)) {
+    const v = document.getElementById(id).value.trim();
+    if (v) p.set(k, v);
+  }
+  const vs = await fetch('/api/voices?' + p).then(r => r.json());
+  const prev = voiceSel.value;
+  voiceSel.innerHTML = '<option value="">La del agente</option>' +
+    vs.map(v => `<option value="${esc(v.nombre)}">${esc(v.nombre)} · ${v.genero} · WER ${fmt1(v.wer)}% · ${fmt1(v.car_s)} car/s</option>`).join('');
+  if (vs.some(v => v.nombre === prev)) voiceSel.value = prev;
+}
+Object.values(vf).forEach(id => document.getElementById(id).addEventListener('change', loadVoices));
+loadVoices();
+
 const testModeCk = document.getElementById('test-mode');
 const phoneInput = document.getElementById('phone');
 const callBtn = document.getElementById('btn-call');
@@ -142,7 +175,7 @@ callBtn.addEventListener('click', async () => {
   try {
     const r = await fetch('/calls', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(testMode ? {} : {phone: phoneInput.value}),
+      body: JSON.stringify({...(voiceSel.value ? {voice: voiceSel.value} : {}), ...(testMode ? {} : {phone: phoneInput.value})}),
     });
     const data = await r.json();
     if (!r.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Error');

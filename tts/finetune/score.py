@@ -28,16 +28,28 @@ def _num(m):
     return " " + num2words(int(m.group(0).replace(".", "")), lang="es") + " "
 
 
-def norm(s):
-    # el ASR escribe numeros con digitos ("42.500"); el texto pedido los tiene en palabras
-    s = re.sub(r"\d{1,3}(?:\.\d{3})+|\d+", _num, s)
+def _digits(m):
+    return " " + " ".join(num2words(int(c), lang="es") for c in m.group(0)) + " "
+
+
+def norm(s, digits=False):
+    # el ASR escribe numeros con digitos ("42.500"); el texto pedido los tiene en palabras.
+    # Con digits=True, una cifra sin puntos se lee de a un digito ("47295" -> "cuatro siete ...").
+    s = re.sub(r"\d{1,3}(?:\.\d{3})+", _num, s)
+    s = re.sub(r"\d+", _digits if digits else _num, s)
     s = unicodedata.normalize("NFKD", s.lower())
     s = "".join(c for c in s if not unicodedata.combining(c))
     return re.sub(r"[^a-z0-9ñ ]+", " ", s).split()
 
 
 def wer(ref, hyp):
-    r, h = norm(ref), norm(hyp)
+    """Errores de palabra y largo de ref. Si el ASR escribio cifras, se queda con la lectura
+    (numero o digito a digito) que mejor coincide: "cuatro, siete, dos, nueve, cinco" dictado
+    sale a veces "47295", y leido como numero sumaba 6 errores que no son de la voz."""
+    return min(_wer(norm(ref), norm(hyp, digits)) for digits in (False, True))
+
+
+def _wer(r, h):
     d = list(range(len(h) + 1))
     for i in range(1, len(r) + 1):
         prev, d[0] = d[0], i

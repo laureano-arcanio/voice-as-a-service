@@ -1,5 +1,10 @@
-from app.conversation.models import ConversationState
-from app.conversation.workflow import check_updates, is_workflow_complete, pending_fields, validate_updates
+import pytest
+from pydantic import ValidationError
+
+from app.conversation.models import AgentInfo, ConversationState
+from app.conversation.workflow import (
+    WORKFLOWS_DIR, check_updates, is_workflow_complete, load_workflow, pending_fields, validate_updates,
+)
 
 from .helpers import BASE
 
@@ -63,3 +68,20 @@ def test_email_must_be_said_by_the_user(workflow):
     assert valid == {} and rejected == {"email": "info@browix.com"}
     assert check_updates(workflow, {"email": "laureano@gmail.com"}, "Laureano arroba gmail punto com")[0] == {"email": "laureano@gmail.com"}
     assert check_updates(workflow, {"email": "laureano@gmail.com"}, "l a u r e a n o arroba gmail punto com")[0] == {"email": "laureano@gmail.com"}
+
+
+def test_every_workflow_has_a_voice():
+    for path in WORKFLOWS_DIR.glob("*.yml"):
+        assert load_workflow(path.stem).agent.voice, path.stem
+
+
+@pytest.mark.parametrize("voice", ["default", " ", "Default"])
+def test_voice_rejects_default_and_empty(voice):
+    # "default" mata el engine de vllm-tts (docs/TTS_FINETUNE.md, Trampas 8).
+    with pytest.raises(ValidationError):
+        AgentInfo(name="Sofía", role="asesora", language="es-AR", voice=voice)
+
+
+def test_voice_is_optional_and_lowercased():
+    assert AgentInfo(name="A", role="r", language="es-AR").voice is None
+    assert AgentInfo(name="A", role="r", language="es-AR", voice=" Martin ").voice == "martin"
