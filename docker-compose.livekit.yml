@@ -3,9 +3,9 @@
 # el despacho deja jobs en JS_PENDING con ~20-24 llamadas (EXP-011).
 #
 # Se activa con COMPOSE_FILE=docker-compose.yml:docker-compose.livekit.yml en
-# .env, asi `make up` y el resto de los targets lo incluyen. Para volver a
-# Cloud: sacar esa linea y `make up` (recrea app, agent y asterisk).
-# Ver docs/TELEFONIA_ANURA.md, "LiveKit propio".
+# .env, asi `make up` y el resto de los targets lo incluyen. Las LIVEKIT_* de
+# .env (URL, claves, SIP) son las de este LiveKit: app, agent y asterisk las
+# toman sin pisar nada aca. Ver docs/TELEFONIA_ANURA.md, seccion 7.
 #
 # livekit y livekit-sip van con network_mode: host, como asterisk: SIP y RTP
 # no pasan bien por el NAT de docker. Puertos (no chocan con asterisk, que usa
@@ -27,7 +27,7 @@ services:
     network_mode: host
     command: ["--config", "/etc/livekit.yaml"]
     environment:
-      LIVEKIT_KEYS: "${LIVEKIT_LOCAL_API_KEY:?falta LIVEKIT_LOCAL_API_KEY en .env}: ${LIVEKIT_LOCAL_API_SECRET:?falta LIVEKIT_LOCAL_API_SECRET en .env}"
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY:?falta LIVEKIT_API_KEY en .env}: ${LIVEKIT_API_SECRET:?falta LIVEKIT_API_SECRET en .env}"
       # IP que se anuncia en los candidatos ICE: la de la LAN, para que lleguen
       # los contenedores de este host y la PC del loadtest.
       NODE_IP: ${LIVEKIT_LOCAL_NODE_IP:?falta LIVEKIT_LOCAL_NODE_IP en .env}
@@ -44,8 +44,8 @@ services:
       # Asterisk esta en el mismo host: el tramo Asterisk <-> LiveKit es local,
       # sin NAT (use_external_ip: false).
       SIP_CONFIG_BODY: |
-        api_key: ${LIVEKIT_LOCAL_API_KEY}
-        api_secret: ${LIVEKIT_LOCAL_API_SECRET}
+        api_key: ${LIVEKIT_API_KEY}
+        api_secret: ${LIVEKIT_API_SECRET}
         ws_url: ws://127.0.0.1:7880
         redis:
           address: 127.0.0.1:6380
@@ -58,19 +58,7 @@ services:
       - livekit
 
   app:
-    environment: &livekit-local
-      LIVEKIT_URL: ws://${LIVEKIT_LOCAL_NODE_IP}:7880
-      LIVEKIT_API_KEY: ${LIVEKIT_LOCAL_API_KEY}
-      LIVEKIT_API_SECRET: ${LIVEKIT_LOCAL_API_SECRET}
-      LIVEKIT_SIP_TRUNK_ID: ${LIVEKIT_LOCAL_SIP_TRUNK_ID:-}
+    environment:
       # Para `make livekit-sip`: el trunk saliente apunta a Asterisk en este
       # host, no a la IP publica que ve Anura.
       LIVEKIT_SIP_OUTBOUND_ADDRESS: 127.0.0.1:${ASTERISK_SIP_PORT:-5080}
-      LIVEKIT_SIP_TRUNK_ID_VAR: LIVEKIT_LOCAL_SIP_TRUNK_ID
-
-  agent:
-    environment: *livekit-local
-
-  asterisk:
-    environment:
-      LIVEKIT_SIP_HOST: 127.0.0.1:5060

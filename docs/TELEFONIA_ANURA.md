@@ -255,19 +255,23 @@ host. Motivo: en el plan gratuito de Cloud, el despacho del agente deja jobs en
 | `livekit-sip` | `livekit/sip:v1.17.0` | 5060/udp+tcp SIP, RTP 20000–20199/udp |
 | `livekit-redis` | `redis:7-alpine` | 127.0.0.1:6380, canal entre `livekit` y `livekit-sip` |
 
-**Activar:**
-1. En `.env`: `COMPOSE_FILE=docker-compose.yml:docker-compose.livekit.yml`, `LIVEKIT_LOCAL_API_KEY`, `LIVEKIT_LOCAL_API_SECRET` y `LIVEKIT_LOCAL_NODE_IP` (ver `.env.example`). Con `COMPOSE_FILE`, todos los targets de `make` incluyen el override.
-2. `make up`. El override apunta `app` y `agent` a `ws://<NODE_IP>:7880` con las claves locales, y Asterisk a `127.0.0.1:5060`.
-3. `make livekit-sip`: crea los trunks y la dispatch rule en el LiveKit local. El trunk saliente apunta a `127.0.0.1:5080`. Poner el ID que imprime en `LIVEKIT_LOCAL_SIP_TRUNK_ID` y `make up`.
+**Activar** (el `.env` dice lo que se usa; el override no pisa variables):
+1. Guardar las de Cloud como `LIVEKIT_CLOUD_URL`, `_API_KEY`, `_API_SECRET`, `_SIP_TRUNK_ID` y `_SIP_HOST`, para volver.
+2. En `.env`:
+   - `COMPOSE_FILE=docker-compose.yml:docker-compose.livekit.yml`: todos los targets de `make` incluyen el override;
+   - `LIVEKIT_URL=ws://<IP de la LAN>:7880` y `LIVEKIT_LOCAL_NODE_IP=<IP de la LAN>`;
+   - `LIVEKIT_API_KEY` y `LIVEKIT_API_SECRET` nuevas (`API` + `openssl rand -hex 6`, `openssl rand -hex 32`): con ellas arranca el server;
+   - `LIVEKIT_SIP_HOST=127.0.0.1:5060`.
+3. `make up`, y `make livekit-sip`: crea los trunks y la dispatch rule en el LiveKit local. El trunk saliente apunta a `127.0.0.1:5080`. Poner el ID que imprime en `LIVEKIT_SIP_TRUNK_ID` y `make up`.
 
-**Volver a Cloud:** comentar `COMPOSE_FILE` y `make up`. Las claves de Cloud (`LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `LIVEKIT_SIP_TRUNK_ID`) no se tocan.
+**Volver a Cloud:** pasar los `LIVEKIT_CLOUD_*` a `LIVEKIT_URL`, `_API_KEY`, `_API_SECRET`, `_SIP_TRUNK_ID` y `_SIP_HOST`, comentar `COMPOSE_FILE` y `make up`.
 
 **Qué cambia:**
 - **El tramo Asterisk ↔ LiveKit queda dentro del host.** No pasa por el router, así que no tiene el problema de NAT de la sección 1. Solo el tramo de Anura cruza el router.
 - **Turn detector local:** `turn-detector-v1-mini` de `livekit-local-inference`, fijado en `app/livekit_agent.py`. Los pesos vienen en el wheel y predice en ~27 ms por CPU. No usa el gateway de Cloud.
 - **Sin dashboard de Cloud** (sesiones, observabilidad).
 - **El link de prueba en el navegador no anda:** `meet.livekit.io` necesita `wss://`. Hace falta TLS con un dominio delante de 7880.
-- **Loadtest desde otra PC:** en su `.env` tiene que tener `LIVEKIT_URL=ws://<NODE_IP>:7880` y las claves locales, porque firma los tokens de los callers. Todo va por la LAN, sin port forwarding.
+- **Loadtest desde otra PC:** copiar `LIVEKIT_URL`, `LIVEKIT_API_KEY` y `LIVEKIT_API_SECRET` de este `.env` al suyo (firma los tokens de los callers) y correr con `--base-url http://<NODE_IP>:8011`. No levantar su `agent`: se registraría en este LiveKit y recibiría llamadas. Todo va por la LAN, sin port forwarding.
 
 **Probado (2026-09-25):**
 - Llamada de loadtest de 2 turnos: e2e 1,1 s.

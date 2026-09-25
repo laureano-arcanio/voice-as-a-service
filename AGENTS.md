@@ -79,7 +79,7 @@ Ver [`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md).
   - Si una voz no está servida, el agente cae a `VLLM_TTS_VOICE`. Si tampoco está esa, cada frase da 400.
 - **Pedido al TTS sin `voice` o con `voice="default"`:** mata el engine de `vllm-tts` (busca `vivian`, que el checkpoint no tiene) y todo da 500 hasta reiniciarlo. Mandar siempre una voz del checkpoint.
 - **Loadtest y motor por workflow:** `run.py` crea las llamadas con `POST /calls {"loadtest": true}` (`--workflow`, `--voice`). Con ese flag el agente no corta al completar el workflow, así cada llamada dura los `--turns` pedidos, como en EXP-001 a 008. `ttft_s` del CSV es ahora el LLM hasta el primer texto de la respuesta, no el TTFT de vLLM: ver `SERVER_COLUMNS` en `run.py`.
-- **LiveKit propio (desarrollo):** con `COMPOSE_FILE` en `.env`, todos los targets usan `docker-compose.livekit.yml`: `app`, `agent` y Asterisk van al LiveKit de este host, no a Cloud. Sacar la línea y `make up` para volver a Cloud. Ver `docs/TELEFONIA_ANURA.md`, sección 7.
+- **LiveKit propio (desarrollo):** con `COMPOSE_FILE` en `.env`, todos los targets usan `docker-compose.livekit.yml`. Las `LIVEKIT_*` de `.env` son las de este host; las de Cloud quedan en `LIVEKIT_CLOUD_*`. Ver `docs/TELEFONIA_ANURA.md`, sección 7.
 - **Comentarios del compose:** explican el porqué medido de cada flag. Mantenerlos al día al cambiar valores.
 
 ## Experimentos de capacidad
