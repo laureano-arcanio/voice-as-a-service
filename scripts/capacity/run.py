@@ -450,7 +450,13 @@ def main() -> None:
                                      "concurrencia": p["concurrencia"], "llamadas": n})
                 continue
             t1 = t0 + p["duracion_s"]
-            lleg = llegadas_poisson(p["concurrencia"], dur, t0 + 1.0, t1, rng)
+            if p["paso"] == "warmup":
+                # A intervalos fijos: con Poisson a tasa baja puede no llegar
+                # ninguna llamada y el primer escalon arranca en frio.
+                n = perfil.get("warmup_llamadas") or max(2, p["concurrencia"])
+                lleg = [t0 + 1.0 + k * (p["duracion_s"] - 1.0) / n for k in range(n)]
+            else:
+                lleg = llegadas_poisson(p["concurrencia"], dur, t0 + 1.0, t1, rng)
             nproc = max(1, math.ceil(p["concurrencia"] * 1.3 / CALLERS_POR_PROCESO))
             print(f"\n--- {p['paso']}: concurrencia objetivo {p['concurrencia']}, {len(lleg)} llegadas en "
                   f"{p['duracion_s']} s, {nproc} procesos ---", flush=True)

@@ -98,6 +98,13 @@ class Run:
         for c in self.calls:
             for k in ("t_inicio", "t_fin", "saludo_s", "mic_lag_max_s", "wer", "t_conectado"):
                 c[k] = fnum(c.get(k))
+        # Tras un turno sin respuesta, la respuesta atrasada cae en el turno
+        # siguiente y la espera medida sale casi cero: esos turnos no cuentan.
+        vista = set()
+        for t in self.turns:
+            t["desfasado"] = t["call_id"] in vista
+            if not str(t.get("t_resp") or "").strip():
+                vista.add(t["call_id"])
         for t in self.turns:
             for k in ("t_fin_envio", "t_resp", "espera_s", "resp_s", "cortes_n", "cortes_s", "wer",
                       "eou", "stt", "endpointing", "llm", "llm_total", "tts", "total", "e2e"):
@@ -126,9 +133,31 @@ class Run:
         if (s / "vllm.jsonl").exists():
             vllm = [json.loads(l) for l in open(s / "vllm.jsonl")]
         return {"sys": leer_csv(s / "sys.csv"), "cont": leer_csv(s / "cont.csv"), "gpu": leer_csv(s / "gpu.csv"),
-                "vllm": vllm, "mem": leer_csv(m / "mem.csv"), "procmem": leer_csv(m / "procmem.csv"),
+                "vllm": vllm, "mem": self._mem_usada(leer_csv(m / "mem.csv")), "procmem": leer_csv(m / "procmem.csv"),
                 "gpumem": leer_csv(m / "gpumem.csv"), "cpu": leer_csv(m / "cpu.csv"),
                 "agentlog": leer_csv(m / "agentlog.csv")}
+
+    @staticmethod
+    def _mem_usada(rows):
+        """Agrega usada_gb: la memoria que el componente no puede soltar
+        (anon + shmem + kernel). memory.current del cgroup incluye el cache de
+        archivos (los pesos del modelo leidos del disco), que el host cuenta como
+        disponible. fuera_del_stack = usada del host - usada de los contenedores."""
+        por_ts = defaultdict(list)
+        for x in rows:
+            if x["componente"] == "host":
+                x["usada_gb"] = x["mem_gb"]
+            elif x["componente"] != "fuera_del_stack":
+                partes = [fnum(x.get(k)) for k in ("anon_gb", "shmem_gb", "kernel_gb")]
+                x["usada_gb"] = sum(v for v in partes if v is not None) if any(v is not None for v in partes) else None
+            por_ts[x["ts"]].append(x)
+        for grupo in por_ts.values():
+            host = next((fnum(x["usada_gb"]) for x in grupo if x["componente"] == "host"), None)
+            stack = sum(fnum(x["usada_gb"]) or 0 for x in grupo if x["componente"] not in ("host", "fuera_del_stack"))
+            for x in grupo:
+                if x["componente"] == "fuera_del_stack":
+                    x["usada_gb"] = round(host - stack, 3) if host is not None else None
+        return rows
 
     def conc_media(self, a, b):
         v = [self.conc.get(sec, 0) for sec in range(int(a), int(b))]
@@ -151,6 +180,10 @@ def bucket(espera, cortes, nombres):
 
 def metricas_turnos(turns, perfil, piso):
     cortes, nombres = perfil["buckets_s"], perfil["buckets_nombres"]
+    desfasados = sum(1 for t in turns if t["desfasado"])
+    # Espera negativa: el agente arranco antes de que el caller terminara (solapado).
+    solapados = sum(1 for t in turns if not t["desfasado"] and t["espera_s"] is not None and t["espera_s"] < 0)
+    turns = [t for t in turns if not t["desfasado"] and not (t["espera_s"] is not None and t["espera_s"] < 0)]
     esperas = [t["espera_s"] for t in turns]
     validas = [e for e in esperas if e is not None]
     n = len(turns)
@@ -164,7 +197,7 @@ def metricas_turnos(turns, perfil, piso):
     par = [t for t in turns if t["e2e"] is not None]
     resp = [t for t in turns if t["resp_s"]]
     out = {
-        "turnos": n, "sin_respuesta": sum(1 for e in esperas if e is None),
+        "turnos": n, "sin_respuesta": sum(1 for e in esperas if e is None), "turnos_desfasados": desfasados, "turnos_solapados": solapados,
         "espera_p50": r(pct(validas, .5)), "espera_p95": r(pct(validas, .95)), "espera_p99": r(pct(validas, .99)),
         "frac_ok": r(ok / n) if n else None, "frac_pesimo": r(pesimo / n) if n else None,
         "frac_malo_o_peor": r(malos / n) if n else None,
@@ -176,9 +209,10 @@ def metricas_turnos(turns, perfil, piso):
     for k in ("eou", "stt", "llm", "llm_total", "tts", "e2e"):
         out[f"{k}_p50"] = r(pct([t[k] for t in par], .5))
         out[f"{k}_p95"] = r(pct([t[k] for t in par], .95))
-    if piso is not None:
-        out["agregada_p50"] = r(out["espera_p50"] - piso) if out["espera_p50"] is not None else None
-        out["agregada_p95"] = r(out["espera_p95"] - piso) if out["espera_p95"] is not None else None
+    if piso:
+        p50, p95 = piso
+        out["agregada_p50"] = r(out["espera_p50"] - p50) if out["espera_p50"] is not None else None
+        out["agregada_p95"] = r(out["espera_p95"] - p95) if out["espera_p95"] is not None and p95 is not None else None
     return out
 
 
@@ -258,7 +292,7 @@ def recursos(R: Run, a, b, conc_media):
     out["agente_eventos"] = dict(ev)
     mem = defaultdict(list)
     for x in R.en(m["mem"], a, b):
-        mem[x["componente"]].append(fnum(x["mem_gb"]))
+        mem[x["componente"]].append(fnum(x["usada_gb"]))
     out["mem_gb_max"] = {k: r(max(v), 2) for k, v in mem.items() if v}
     return out
 
@@ -283,12 +317,14 @@ def analizar(R: Run) -> dict:
     for t in R.turns:
         turns_por_call[t["call_id"]].append(t)
     pasos = ventanas_de_pasos(R)
-    # Piso: p50 de la espera con 1 llamada (este run si es `base`, o el summary de --base).
+    # Piso: espera p50 y p95 con 1 llamada (este run si es `base`, o el summary
+    # de --base). La espera agregada se mide contra el piso del mismo percentil.
     piso = None
     if R.base:
-        piso = R.base.get("piso_p50")
+        piso = (R.base.get("piso_p50"), R.base.get("piso_p95"))
     elif perfil["nombre"] == "base":
-        piso = pct([t["espera_s"] for t in R.turns], .5)
+        v = [t["espera_s"] for t in R.turns if not t["desfasado"]]
+        piso = (pct(v, .5), pct(v, .95))
 
     filas = []
     for p, a, b in pasos:
@@ -313,13 +349,16 @@ def analizar(R: Run) -> dict:
         f["cumple_slo"] = bool(f["turnos"] and f["cliente_sano"]
                                and f["frac_ok"] >= slo["p_ok"] and f["frac_pesimo"] <= slo["p_pesimo"]
                                and (f["frac_buenas"] or 0) >= slo["llamadas_buenas"] and (f["frac_fallas"] or 0) <= slo["fallas"])
+        f["cuello"] = "; ".join(cuello(f))
         filas.append(f)
 
     sanos = [f for f in filas if f["cliente_sano"] and f["turnos"]]
     capacidad = max((f for f in sanos if f["cumple_slo"]), key=lambda f: f["concurrencia_real"], default=None)
     codo = None
     for f in sanos:
-        if (f.get("agregada_p95") is not None and f["agregada_p95"] > 0.5) or (f["frac_malo_o_peor"] or 0) > 0.05:
+        # Con linea base, el codo es la espera agregada p95 > +0,5 s. Sin base, se
+        # usa el % de turnos en malo o peor (con el piso actual pasa ya sin carga).
+        if (f["agregada_p95"] > 0.5) if f.get("agregada_p95") is not None else (f["frac_malo_o_peor"] or 0) > 0.05:
             codo = f
             break
     # Carga maxima con la espera p95 bajo cada umbral (el SLO completo puede no cumplirse con el piso actual).
@@ -327,7 +366,9 @@ def analizar(R: Run) -> dict:
     for u in (2.0, 3.0, 4.0, 5.0):
         ok = [f for f in sanos if f["espera_p95"] is not None and f["espera_p95"] <= u and f["sin_respuesta"] == 0]
         por_umbral[f"p95<={u:g}s"] = max((f["concurrencia_real"] for f in ok), default=None)
-    ref = codo or (sanos[-1] if sanos else None)
+    # Cuello: en el primer escalon con p95 > 3 s o con turnos sin respuesta (el codo
+    # marca donde empieza a subir la espera; aca se ve que recurso la sube).
+    ref = next((f for f in sanos if (f["espera_p95"] or 0) > 3.0 or f["sin_respuesta"]), None) or (sanos[-1] if sanos else None)
     duraciones = [c["t_fin"] - c["t_inicio"] for c in R.calls if c["t_fin"] and c["t_inicio"] and not c.get("error")]
     cpl = [f["cores_por_llamada"] for f in filas if f.get("cores_por_llamada")]
     wh = [f["wh_gpu_por_llamada_min"] for f in filas if f.get("wh_gpu_por_llamada_min")]
@@ -337,7 +378,7 @@ def analizar(R: Run) -> dict:
         "perfil_hash": R.run.get("perfil_hash"), "workflow": perfil["workflow"],
         "hw_id": (R.hw_server or {}).get("hw_id"), "config_id": (R.hw_server or {}).get("config_id"),
         "hw_id_cliente": (R.hw_cliente or {}).get("hw_id"),
-        "piso_p50": r(piso), "duracion_llamada_s": r(media(duraciones), 1),
+        "piso_p50": r(piso[0]) if piso else None, "piso_p95": r(piso[1]) if piso else None, "duracion_llamada_s": r(media(duraciones), 1),
         "slo": perfil["slo"],
         "capacidad_simultaneas": capacidad["concurrencia_real"] if capacidad else None,
         "capacidad_por_min": capacidad["completadas_min"] if capacidad else None,
@@ -345,7 +386,7 @@ def analizar(R: Run) -> dict:
         "capacidad_por_umbral_p95": por_umbral,
         "codo_paso": codo["paso"] if codo else None,
         "codo_concurrencia": codo["concurrencia_real"] if codo else None,
-        "cuello": cuello(ref) if ref else [],
+        "cuello_paso": ref["paso"] if ref else None, "cuello": cuello(ref) if ref else [],
         "cores_por_llamada": r(pct(cpl, .5), 3), "wh_gpu_por_llamada_min": r(pct(wh, .5), 4),
         "llamadas_por_gpu": r(capacidad["concurrencia_real"] / ngpu, 1) if capacidad and ngpu else None,
         "pasos_cliente_saturado": [f["paso"] for f in filas if not f["cliente_sano"]],
@@ -358,7 +399,7 @@ def cuello(f: dict) -> list[str]:
     out = []
     if (f.get("cpu_host_p95") or 0) >= 90 or (f.get("cpu_core_mas_cargado_p95") or 0) >= 95:
         out.append(f"CPU del host (p95 {f.get('cpu_host_p95')} %, core mas cargado {f.get('cpu_core_mas_cargado_p95')} %)")
-    for k, v in f.items():
+    for k, v in list(f.items()):
         if k.endswith("_seg95") and (v or 0) >= 0.9:
             out.append(f"{k.split('_')[0].upper()} con {v:.0%} de los segundos al >=95 %")
     for pre in ("llm", "stt", "tts"):
@@ -394,7 +435,7 @@ def memoria(R: Run) -> dict:
     for x in m["mem"]:
         por_comp[x["componente"]].append(x)
     for comp, rows in por_comp.items():
-        for col, nombre in (("mem_gb", "ram"), ("pss_gb", "pss")):
+        for col, nombre in (("usada_gb", "ram_usada"), ("file_gb", "cache"), ("pss_gb", "pss")):
             ys = []
             for a, b in vent:
                 v = [fnum(x[col]) for x in rows if a <= fnum(x["ts"]) < b and fnum(x[col]) is not None]
@@ -457,7 +498,7 @@ def ventanas(R: Run) -> list[dict]:
                 f[f"gpu{gi}"] = r(media([fnum(g["utilization.gpu"]) for g in R.en(m["gpu"], a, b) if g["index"] == gi]), 1)
             mem = defaultdict(list)
             for x in R.en(m["mem"], a, b):
-                mem[x["componente"]].append(fnum(x["mem_gb"]))
+                mem[x["componente"]].append(fnum(x["usada_gb"]))
             for k, v in mem.items():
                 f[f"mem_{k}"] = r(media(v), 2)
         out.append(f)

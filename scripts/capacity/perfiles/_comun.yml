@@ -11,6 +11,8 @@ turnos: [4, 8]
 duracion_base_s: 90
 warmup_s: 60
 warmup_concurrencia: 2
+# Llamadas del warm-up, a intervalos fijos (default: max(2, warmup_concurrencia)).
+warmup_llamadas: 3
 descartar_s: 60
 # Cortes de la espera percibida (s) y nombre de cada bucket (uno mas que cortes).
 buckets_s: [0.5, 0.8, 1.0, 1.5, 2.0, 3.0]
