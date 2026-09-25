@@ -1,0 +1,9 @@
+# El numero de capacidad: escalones de +8 alrededor del codo (ajustar a lo que
+# dio `rampa`), 4 min cada uno.
+nombre: fina
+version: 1
+escalones:
+  - {concurrencia: 32, duracion_s: 240}
+  - {concurrencia: 40, duracion_s: 240}
+  - {concurrencia: 48, duracion_s: 240}
+  - {concurrencia: 56, duracion_s: 240}

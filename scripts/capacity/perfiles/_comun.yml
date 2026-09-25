@@ -1,0 +1,25 @@
+# Valores comunes a todos los perfiles (run.py los mezcla con el perfil; el
+# perfil pisa lo que defina). Ver docs/CAPACITY_TEST_PLAN.md.
+workflow: demo_booking_classic
+voz: sofia
+# Turnos por llamada, sorteados uniforme entre min y max (hasta tener guiones,
+# fase 5). La duracion de llamada sale de la linea base.
+turnos: [4, 8]
+# Duracion media de llamada (s) para convertir concurrencia objetivo en tasa
+# de llegadas (ley de Little). La reemplaza --duracion-base o el summary.json
+# de un run `base` (--base).
+duracion_base_s: 90
+warmup_s: 60
+warmup_concurrencia: 2
+descartar_s: 60
+# Cortes de la espera percibida (s) y nombre de cada bucket (uno mas que cortes).
+buckets_s: [0.5, 0.8, 1.0, 1.5, 2.0, 3.0]
+buckets_nombres: [optimo, excelente, bueno, aceptable, regular, malo, pesimo]
+# Llamada buena: saludo en <= saludo_max_s, ningun turno pesimo, a lo sumo
+# max_malos en "malo", sin turnos sin respuesta.
+llamada_buena: {saludo_max_s: 3.0, max_malos: 1}
+# Capacidad = mayor escalon que cumple todo:
+slo: {p_ok: 0.90, ok_s: 1.5, p_pesimo: 0.01, llamadas_buenas: 0.95, fallas: 0.01}
+# Cliente sano: si el p95 del atraso del microfono o la CPU del cliente pasan
+# estos valores, el escalon no cuenta.
+cliente: {mic_lag_p95_s: 0.1, cpu_p95_pct: 85}

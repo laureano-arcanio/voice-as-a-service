@@ -1,0 +1,11 @@
+# Prueba de humo (~3 min): verifica que el test anda de punta a punta
+# (cliente, monitor y analisis) con poca carga. No mide capacidad.
+nombre: humo
+version: 1
+turnos: [2, 3]
+duracion_base_s: 45
+warmup_s: 0
+descartar_s: 0
+escalones:
+  - {modo: cerrado, concurrencia: 1, llamadas: 2}
+  - {concurrencia: 3, duracion_s: 60}

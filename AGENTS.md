@@ -10,6 +10,7 @@ infraestructura. La app (motor conversacional por workflow YAML, API y worker de
 | Pedido | Qué hacer |
 |---|---|
 | "Voy a correr el loadtest (con <config>), registralo" | Seguir [Registrar un loadtest](docs/experiments/README.md#registrar-un-loadtest). Arrancar el monitoreo antes del warm-up y avisar. Cuando el usuario diga que terminó: cortarlo, ubicar las tandas, analizar y crear `docs/experiments/EXP-NNN-<slug>/`. |
+| "Corré / registrá el test de capacidad" | Seguir [`docs/capacity/README.md`](docs/capacity/README.md): `make capacity-monitor` en el server antes de la carga, `make capacity` en el cliente, `make capacity-analyze` al final. |
 | "Registrá el último run" | El mismo procedimiento desde el paso 4, con el `scripts/loadtest/monitor/run_*` más reciente. |
 | "Entrená / reentrená la voz <voz> del TTS" | Delegar al agente [`tts-finetune`](.claude/agents/tts-finetune.md), que sigue [`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md). Entrenar el 1.7B necesita parar `vllm-tts`: confirmar antes. |
 | "Probá <modelo o reparto de GPU>" | Override `docker-compose.<nombre>.yml` y confirmar antes de reiniciar servicios; después, el mismo procedimiento. |

@@ -1,0 +1,10 @@
+# Ubicar el codo rapido: escalones de 2 min con llegadas Poisson.
+nombre: rampa
+version: 1
+escalones:
+  - {concurrencia: 4, duracion_s: 120}
+  - {concurrencia: 8, duracion_s: 120}
+  - {concurrencia: 16, duracion_s: 120}
+  - {concurrencia: 32, duracion_s: 120}
+  - {concurrencia: 64, duracion_s: 120}
+  - {concurrencia: 96, duracion_s: 120}

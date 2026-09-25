@@ -1,0 +1,6 @@
+# Estabilidad termica y de memoria: 80 % de la capacidad (ajustar) sostenido.
+nombre: sostenida
+version: 1
+descartar_s: 120
+escalones:
+  - {concurrencia: 38, duracion_s: 1200}

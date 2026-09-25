@@ -1,6 +1,7 @@
 # Plan: test de capacidad con calidad percibida
 
-Test nuevo, separado de `make loadtest` (que queda como está). Responde:
+Test nuevo, separado de `make loadtest` (que queda como está). **Implementado (fases 1–4):** uso y estado en
+[`capacity/README.md`](capacity/README.md). Responde:
 
 1. **¿Cuántas llamadas soporta el pipeline** (simultáneas y por minuto) **con una calidad dada?**
 2. **¿Qué etapa se degrada primero y qué recurso la limita?** (CPU, GPU, VRAM, red)
@@ -193,6 +194,7 @@ motivos de throttling, PCIe gen) y métricas de vLLM y de STT (cola, en vuelo, T
 | Tráfico PCIe por GPU (`nvidia-smi dmon -s t`) | Comparar placas/slots (ver `SERVER_HARDWARE.md`) |
 | Red: bytes y paquetes por interfaz, errores y descartes UDP | LiveKit con 100+ llamadas |
 | Por job del agente: CPU y memoria del proceso | Cores por llamada, el dato que dimensiona el host del agente |
+| RAM por componente (cgroup: anon, file, shmem, kernel, swap; PSS donde se puede leer), host y fuera del stack; VRAM por componente | Cómo escala la memoria: recta base + MB por llamada por componente (`memoria.csv`) |
 | Contadores de logs del agente por ventana: "VAD inference is slower than realtime", "event loop blocked", "no warmed process available", errores de TTS/STT/LLM | Síntomas de CPU saturada en el agente |
 | Métricas de LiveKit (Prometheus del server propio) | Rooms, participantes, pérdida de paquetes |
 | En cada host cliente: CPU total y por core, atraso del micrófono | Cliente sano: si el p95 del atraso pasa 100 ms o la CPU del cliente pasa el 85 %, el escalón no vale |

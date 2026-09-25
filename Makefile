@@ -35,7 +35,7 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
         up up-agent up-inference up-nginx up-pbx down restart ps logs \
         sh mysql health gpu \
         pbx-cli pbx-status livekit-sip \
-        test eval-motor eval-llamadas loadtest-audio loadtest loadtest-report stt-eval stt-corpus \
+        test eval-motor eval-llamadas loadtest-audio loadtest loadtest-report capacity capacity-monitor capacity-monitor-stop capacity-analyze stt-eval stt-corpus \
         db-reset clean
 
 help: ## Muestra esta ayuda
@@ -164,6 +164,30 @@ loadtest-report: ## Sirve scripts/loadtest/ en :8099 y abre report.html (carga r
 		( sleep 1 && xdg-open "$$url" >/dev/null 2>&1 || echo "Abri: $$url" ) & \
 		cd scripts/loadtest && python3 -m http.server 8099; \
 	fi
+
+# --- Test de capacidad (docs/CAPACITY_TEST_PLAN.md, scripts/capacity/) ---
+# En el server: `make capacity-monitor PERFIL=rampa` (ficha + monitor), despues
+# en la PC cliente `make capacity PERFIL=rampa ARGS="--base-url http://<server>:8011"`,
+# al final `make capacity-monitor-stop` y `make capacity-analyze RUN=... MON=...`.
+CAP := scripts/capacity
+PERFIL ?= rampa
+
+capacity: ## Test de capacidad (cliente). Ej: make capacity PERFIL=rampa ARGS="--base-url http://192.168.1.99:8011"
+	@mkdir -p $(CAP)/runs
+	@python3 $(CAP)/hwinfo.py --role cliente --out $(CAP)/runs/.hw_cliente.json $(if $(PING),--ping $(PING)) >/dev/null || echo "aviso: hwinfo del cliente fallo"
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts agent python -m scripts.capacity.run --perfil $(PERFIL) $(ARGS)
+
+capacity-monitor: ## Server: ficha de hardware/config y monitor (RAM por componente, GPU, CPU, logs del agente) hasta capacity-monitor-stop
+	@d=$(CAP)/runs/monitor_$$(date +%Y%m%d_%H%M%S)_$(PERFIL); mkdir -p $$d; \
+	python3 $(CAP)/hwinfo.py --role inferencia,agente,livekit --config --perfil $(CAP)/perfiles/$(PERFIL).yml --out $$d/hw_server.json; \
+	IDLE_EXIT=$${IDLE_EXIT:-900} START_TIMEOUT=$${START_TIMEOUT:-3600} setsid nohup python3 $(CAP)/monitor.py $$d > $$d/monitor.log 2>&1 & \
+	ln -sfn $$(basename $$d) $(CAP)/runs/monitor_actual; sleep 3; cat $$d/monitor.log; echo "monitor en $$d"
+
+capacity-monitor-stop: ## Server: corta el monitor en curso
+	@d=$(CAP)/runs/monitor_actual; test -f $$d/monitor.pid && kill $$(cat $$d/monitor.pid) && echo "monitor detenido: $$(readlink $$d)" || echo "no hay monitor corriendo"
+
+capacity-analyze: ## Analisis: make capacity-analyze RUN=<run cliente> [MON=<monitor>] [BASE=<summary.json de base>]
+	python3 $(CAP)/analyze.py $(RUN) $(if $(MON),--monitor $(MON)) $(if $(BASE),--base $(BASE)) --md
 
 stt-eval: ## WER + latencia de stt-parakeet sobre un corpus. Ej: make stt-eval ARGS="--telephone --audio-dir ..."
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts agent python -m scripts.stt_eval $(ARGS)

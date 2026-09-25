@@ -1,0 +1,8 @@
+# Piso de latencia y de calidad con 1 llamada a la vez, y duracion media de
+# llamada (la usan los otros perfiles para calcular la tasa de llegadas).
+nombre: base
+version: 1
+warmup_s: 0
+descartar_s: 0
+escalones:
+  - {modo: cerrado, concurrencia: 1, llamadas: 10}
