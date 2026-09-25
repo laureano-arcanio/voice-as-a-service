@@ -209,7 +209,10 @@ def build_session(voice: str) -> AgentSession:
     return AgentSession(
         vad=vad,
         turn_handling={
-            "turn_detection": inference.TurnDetector(),
+            # v1-mini corre en el proceso (livekit-local-inference, pesos en el
+            # wheel, ~27 ms por prediccion en CPU). Sin fijarlo, en modo dev o en
+            # LiveKit Cloud usa v1, que va al gateway de inferencia de Cloud.
+            "turn_detection": inference.TurnDetector(version="v1-mini"),
             "endpointing": {"min_delay": MIN_ENDPOINTING_DELAY, "max_delay": MAX_ENDPOINTING_DELAY},
         },
         stt=openai.STT(

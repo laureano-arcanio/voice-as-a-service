@@ -11,6 +11,9 @@ via Asterisk (ver docs/TELEFONIA_ANURA.md):
     que marca el agente (create_sip_participant). Su ID va en
     LIVEKIT_SIP_TRUNK_ID.
 
+Con LiveKit propio (docker-compose.livekit.yml) el trunk saliente apunta a
+LIVEKIT_SIP_OUTBOUND_ADDRESS (Asterisk en este host) y el ID va en
+LIVEKIT_LOCAL_SIP_TRUNK_ID; el override pone las dos variables.
 Idempotente: busca cada objeto por nombre y, si ya existe, lo pisa con la
 config actual. Volver a correrlo despues de cambiar la IP publica, el puerto o
 la clave.
@@ -68,7 +71,8 @@ async def main() -> None:
     number = f"+54{did}"
     password = required("LIVEKIT_SIP_PASSWORD")
     agent_name = required("LIVEKIT_AGENT_NAME")
-    address = f"{public_address()}:{os.getenv('ASTERISK_SIP_PORT') or '5080'}"
+    address = (os.getenv("LIVEKIT_SIP_OUTBOUND_ADDRESS", "").strip()
+               or f"{public_address()}:{os.getenv('ASTERISK_SIP_PORT') or '5080'}")
 
     async with api.LiveKitAPI(
         url=required("LIVEKIT_URL"),
@@ -124,8 +128,9 @@ async def main() -> None:
     print(f"Outbound trunk {outbound.sip_trunk_id} ({outbound_action}): LiveKit -> Asterisk en {address}/udp")
     configured = os.getenv("LIVEKIT_SIP_TRUNK_ID", "")
     if configured != outbound.sip_trunk_id:
+        var = os.getenv("LIVEKIT_SIP_TRUNK_ID_VAR", "LIVEKIT_SIP_TRUNK_ID")
         # `make up` y no `make restart-agent`: `docker compose restart` no relee .env.
-        print(f"\nFalta un paso: poner en .env\n  LIVEKIT_SIP_TRUNK_ID={outbound.sip_trunk_id}\ny correr `make up` (recrea el agente con el .env nuevo).")
+        print(f"\nFalta un paso: poner en .env\n  {var}={outbound.sip_trunk_id}\ny correr `make up` (recrea el agente con el .env nuevo).")
 
 
 if __name__ == "__main__":

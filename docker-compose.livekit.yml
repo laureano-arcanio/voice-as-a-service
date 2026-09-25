@@ -1,0 +1,76 @@
+# LiveKit propio en este host (desarrollo), en lugar de LiveKit Cloud: rooms,
+# despacho del agente y SIP para Asterisk. Motivo: en el plan gratuito de Cloud
+# el despacho deja jobs en JS_PENDING con ~20-24 llamadas (EXP-011).
+#
+# Se activa con COMPOSE_FILE=docker-compose.yml:docker-compose.livekit.yml en
+# .env, asi `make up` y el resto de los targets lo incluyen. Para volver a
+# Cloud: sacar esa linea y `make up` (recrea app, agent y asterisk).
+# Ver docs/TELEFONIA_ANURA.md, "LiveKit propio".
+#
+# livekit y livekit-sip van con network_mode: host, como asterisk: SIP y RTP
+# no pasan bien por el NAT de docker. Puertos (no chocan con asterisk, que usa
+# 5080/5081 y RTP 10000-10199):
+#   livekit      7880/tcp senalizacion, 7881/tcp y 7882/udp WebRTC
+#   livekit-sip  5060/udp SIP, RTP 20000-20199
+#   redis        127.0.0.1:6380 (6379 queda libre para otros proyectos)
+
+services:
+  livekit-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    network_mode: host
+    command: ["redis-server", "--bind", "127.0.0.1", "--port", "6380", "--save", "", "--appendonly", "no"]
+
+  livekit:
+    image: livekit/livekit-server:v1.13.7
+    restart: unless-stopped
+    network_mode: host
+    command: ["--config", "/etc/livekit.yaml"]
+    environment:
+      LIVEKIT_KEYS: "${LIVEKIT_LOCAL_API_KEY:?falta LIVEKIT_LOCAL_API_KEY en .env}: ${LIVEKIT_LOCAL_API_SECRET:?falta LIVEKIT_LOCAL_API_SECRET en .env}"
+      # IP que se anuncia en los candidatos ICE: la de la LAN, para que lleguen
+      # los contenedores de este host y la PC del loadtest.
+      NODE_IP: ${LIVEKIT_LOCAL_NODE_IP:?falta LIVEKIT_LOCAL_NODE_IP en .env}
+    volumes:
+      - ./livekit/livekit.yaml:/etc/livekit.yaml:ro
+    depends_on:
+      - livekit-redis
+
+  livekit-sip:
+    image: livekit/sip:v1.17.0
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      # Asterisk esta en el mismo host: el tramo Asterisk <-> LiveKit es local,
+      # sin NAT (use_external_ip: false).
+      SIP_CONFIG_BODY: |
+        api_key: ${LIVEKIT_LOCAL_API_KEY}
+        api_secret: ${LIVEKIT_LOCAL_API_SECRET}
+        ws_url: ws://127.0.0.1:7880
+        redis:
+          address: 127.0.0.1:6380
+        sip_port: 5060
+        rtp_port: 20000-20199
+        use_external_ip: false
+        logging:
+          level: info
+    depends_on:
+      - livekit
+
+  app:
+    environment: &livekit-local
+      LIVEKIT_URL: ws://${LIVEKIT_LOCAL_NODE_IP}:7880
+      LIVEKIT_API_KEY: ${LIVEKIT_LOCAL_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVEKIT_LOCAL_API_SECRET}
+      LIVEKIT_SIP_TRUNK_ID: ${LIVEKIT_LOCAL_SIP_TRUNK_ID:-}
+      # Para `make livekit-sip`: el trunk saliente apunta a Asterisk en este
+      # host, no a la IP publica que ve Anura.
+      LIVEKIT_SIP_OUTBOUND_ADDRESS: 127.0.0.1:${ASTERISK_SIP_PORT:-5080}
+      LIVEKIT_SIP_TRUNK_ID_VAR: LIVEKIT_LOCAL_SIP_TRUNK_ID
+
+  agent:
+    environment: *livekit-local
+
+  asterisk:
+    environment:
+      LIVEKIT_SIP_HOST: 127.0.0.1:5060

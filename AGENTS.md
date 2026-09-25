@@ -29,6 +29,7 @@ infraestructura. La app (motor conversacional por workflow YAML, API y worker de
 | `vllm-tts` | TTS Qwen3-TTS 1.7B-Base con fine-tuning, 41 voces en un checkpoint (`multi41`) | vllm/vllm-omni:v0.28.0 (fijada) | 127.0.0.1:8103 | 0 |
 | `proxy` | Entrada pública por IP fija; nginx rutea `/llm`, `/stt` y `/tts` | nginx:alpine | 0.0.0.0:8100 (`PROXY_PORT`) | — |
 | `asterisk` | Puente SIP Anura ↔ LiveKit (`network_mode: host`) | build | — | — |
+| `livekit`, `livekit-sip`, `livekit-redis` | LiveKit propio (desarrollo, `docker-compose.livekit.yml`), en lugar de Cloud | livekit-server v1.13.7, sip v1.17.0 | 7880, 7881, 7882/udp, 5060 | — |
 
 - La inferencia habla API OpenAI y exige `Authorization: Bearer $VLLM_API_KEY`. Los puertos 810x son solo para debug local.
 - Modo remoto: `app` + `agent` pueden correr en otra PC (`make up-agent`) contra la inferencia por el proxy: `http://181.104.113.28:8100/{llm,stt,tts}/v1` (IP fija `PUBLIC_HOST`; el router redirige 8100 a 192.168.1.99). Así se corre el loadtest. Es HTTP plano: la auth es solo `VLLM_API_KEY`.
@@ -78,6 +79,7 @@ Ver [`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md).
   - Si una voz no está servida, el agente cae a `VLLM_TTS_VOICE`. Si tampoco está esa, cada frase da 400.
 - **Pedido al TTS sin `voice` o con `voice="default"`:** mata el engine de `vllm-tts` (busca `vivian`, que el checkpoint no tiene) y todo da 500 hasta reiniciarlo. Mandar siempre una voz del checkpoint.
 - **Loadtest y motor por workflow:** `run.py` crea las llamadas con `POST /calls {"loadtest": true}` (`--workflow`, `--voice`). Con ese flag el agente no corta al completar el workflow, así cada llamada dura los `--turns` pedidos, como en EXP-001 a 008. `ttft_s` del CSV es ahora el LLM hasta el primer texto de la respuesta, no el TTFT de vLLM: ver `SERVER_COLUMNS` en `run.py`.
+- **LiveKit propio (desarrollo):** con `COMPOSE_FILE` en `.env`, todos los targets usan `docker-compose.livekit.yml`: `app`, `agent` y Asterisk van al LiveKit de este host, no a Cloud. Sacar la línea y `make up` para volver a Cloud. Ver `docs/TELEFONIA_ANURA.md`, sección 7.
 - **Comentarios del compose:** explican el porqué medido de cada flag. Mantenerlos al día al cambiar valores.
 
 ## Experimentos de capacidad

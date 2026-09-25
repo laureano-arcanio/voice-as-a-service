@@ -1,0 +1,15 @@
+# LiveKit propio (desarrollo), levantado por docker-compose.livekit.yml.
+# Las claves llegan por LIVEKIT_KEYS y la IP que se anuncia a los clientes por
+# NODE_IP (LIVEKIT_LOCAL_NODE_IP): ver el override.
+port: 7880
+rtc:
+  # Todo el audio WebRTC por un solo puerto UDP (mux), y TCP como respaldo.
+  # Con un rango hay que abrir un puerto por participante.
+  udp_port: 7882
+  tcp_port: 7881
+  use_external_ip: false
+# Redis es el canal entre livekit y livekit-sip (sin el, SIP no funciona).
+redis:
+  address: 127.0.0.1:6380
+logging:
+  level: info

@@ -237,3 +237,39 @@ Pasa lo mismo con los escaneos de internet, que no van más allá del 401.
 | `scripts/livekit_sip_setup.py` | Crea o actualiza trunks y dispatch rule en LiveKit (`make livekit-sip`) |
 
 Los cambios en `asterisk/conf/` se aplican con `make restart-pbx`, sin rebuild.
+
+## 7. LiveKit propio (desarrollo)
+
+En lugar de LiveKit Cloud, `docker-compose.livekit.yml` levanta LiveKit en este
+host. Motivo: en el plan gratuito de Cloud, el despacho del agente deja jobs en
+`JS_PENDING` con ~20–24 llamadas simultáneas ([EXP-011](experiments/EXP-011-agente-en-server-despacho-livekit/)).
+
+```
+  Teléfono ── Anura ──► Asterisk ──► livekit-sip ──► livekit ──► room anura-* + agente
+                        :5080/udp    127.0.0.1:5060   :7880
+```
+
+| Servicio | Imagen | Puertos (host) |
+|---|---|---|
+| `livekit` | `livekit/livekit-server:v1.13.7` | 7880/tcp señalización, 7881/tcp y 7882/udp WebRTC |
+| `livekit-sip` | `livekit/sip:v1.17.0` | 5060/udp+tcp SIP, RTP 20000–20199/udp |
+| `livekit-redis` | `redis:7-alpine` | 127.0.0.1:6380, canal entre `livekit` y `livekit-sip` |
+
+**Activar:**
+1. En `.env`: `COMPOSE_FILE=docker-compose.yml:docker-compose.livekit.yml`, `LIVEKIT_LOCAL_API_KEY`, `LIVEKIT_LOCAL_API_SECRET` y `LIVEKIT_LOCAL_NODE_IP` (ver `.env.example`). Con `COMPOSE_FILE`, todos los targets de `make` incluyen el override.
+2. `make up`. El override apunta `app` y `agent` a `ws://<NODE_IP>:7880` con las claves locales, y Asterisk a `127.0.0.1:5060`.
+3. `make livekit-sip`: crea los trunks y la dispatch rule en el LiveKit local. El trunk saliente apunta a `127.0.0.1:5080`. Poner el ID que imprime en `LIVEKIT_LOCAL_SIP_TRUNK_ID` y `make up`.
+
+**Volver a Cloud:** comentar `COMPOSE_FILE` y `make up`. Las claves de Cloud (`LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `LIVEKIT_SIP_TRUNK_ID`) no se tocan.
+
+**Qué cambia:**
+- **El tramo Asterisk ↔ LiveKit queda dentro del host.** No pasa por el router, así que no tiene el problema de NAT de la sección 1. Solo el tramo de Anura cruza el router.
+- **Turn detector local:** `turn-detector-v1-mini` de `livekit-local-inference`, fijado en `app/livekit_agent.py`. Los pesos vienen en el wheel y predice en ~27 ms por CPU. No usa el gateway de Cloud.
+- **Sin dashboard de Cloud** (sesiones, observabilidad).
+- **El link de prueba en el navegador no anda:** `meet.livekit.io` necesita `wss://`. Hace falta TLS con un dominio delante de 7880.
+- **Loadtest desde otra PC:** en su `.env` tiene que tener `LIVEKIT_URL=ws://<NODE_IP>:7880` y las claves locales, porque firma los tokens de los callers. Todo va por la LAN, sin port forwarding.
+
+**Probado (2026-09-25):**
+- Llamada de loadtest de 2 turnos: e2e 1,1 s.
+- Entrante simulada desde Asterisk (`channel originate`, con `res_clioriginate` cargado a mano): autenticación, dispatch rule, agente y audio de vuelta a Asterisk.
+- Pendiente: una entrante y una saliente reales por Anura.
