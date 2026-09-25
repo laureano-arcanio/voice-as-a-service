@@ -1,0 +1,34 @@
+# Experimento: Gemma 4 E4B (QAT w4a16 de Google, compressed-tensors) en lugar de
+# Qwen3.5-9B w4a16, en la misma GPU 1 y con los mismos limites de memoria.
+# Qwen3.5-35B-A3B int4 no entra en una 3090 junto a STT y escritorio (pesos de
+# 19,6 a 24,4 GB segun la variante).
+#
+# Levantar (los tres juntos: el nombre del modelo tiene que coincidir):
+#   docker compose -f docker-compose.yml -f docker-compose.gemma4-e4b.yml up -d vllm-llm app agent
+# Evaluar: el mismo -f en `docker compose run ... app`.
+# Volver a la config vigente: make up-inference && make up-agent
+services:
+  vllm-llm:
+    command:
+      - "--model=google/gemma-4-E4B-it-qat-w4a16-ct"
+      - "--served-model-name=google/gemma-4-E4B-it-qat-w4a16-ct"
+      - "--host=0.0.0.0"
+      - "--port=8000"
+      - "--api-key=${VLLM_API_KEY:-not-needed}"
+      - "--max-model-len=32768"
+      - "--reasoning-parser=gemma4"
+      # Pesos de 11,5 GB (los encoders de imagen y audio quedan en bf16): con
+      # 0.70, como el 9B, la GPU 1 queda en el mismo uso.
+      - "--gpu-memory-utilization=0.70"
+      - "--max-num-seqs=32"
+      - "--max-cudagraph-capture-size=32"
+      # Trae encoders de imagen, audio y video que no se usan.
+      - "--limit-mm-per-prompt={\"image\":0,\"audio\":0,\"video\":0}"
+
+  app:
+    environment:
+      VLLM_LLM_MODEL: google/gemma-4-E4B-it-qat-w4a16-ct
+
+  agent:
+    environment:
+      VLLM_LLM_MODEL: google/gemma-4-E4B-it-qat-w4a16-ct
