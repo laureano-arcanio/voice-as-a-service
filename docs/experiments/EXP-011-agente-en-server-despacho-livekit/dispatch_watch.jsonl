@@ -1,0 +1,84 @@
+{"ts": 1790348235.1, "event": "start"}
+{"ts": 1790348277.5, "event": "dispatch", "room": "call-f4a6fd34-e059-4f64-9283-9b559878b004", "age": 0.4, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348278.5, "event": "dispatch", "room": "call-c7586b77-3048-445c-b60f-7e993b72d1b6", "age": 0.4, "status": "pendiente", "api_error": "ServerError(code=not_found, message=requested room does not exist, status=404)"}
+{"ts": 1790348279.0, "event": "dispatch", "room": "call-c5061c4f-1ab7-4b6a-80ac-6ebc7361a59e", "age": 0.4, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_PENDING", "error": "", "worker": ""}]}
+{"ts": 1790348279.0, "event": "dispatch", "room": "call-351cca91-0d0f-443c-8710-99fb4f0b94da", "age": 0.4, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348279.1, "event": "dispatch", "room": "call-577e4d56-5a1f-4c25-bb64-a1888760c12c", "age": 1.4, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348279.1, "event": "dispatch", "room": "call-2f3cefb1-c56f-4a63-9db8-db1b7254ef07", "age": 1.4, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348279.2, "event": "dispatch", "room": "call-9ea0371a-cf5b-4a74-ae14-43a818798273", "age": 1.4, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348279.2, "event": "dispatch", "room": "call-955918b6-9716-4c86-9753-3d0099af4576", "age": 1.4, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348279.3, "event": "dispatch", "room": "call-67249205-3a5b-43e0-bffb-7baa8ca708f4", "age": 2.4, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348279.3, "event": "dispatch", "room": "call-71b4513e-e076-42cf-806d-b28eb372f648", "age": 2.4, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348282.4, "event": "dispatch", "room": "call-3c79b818-6a8b-4a60-ba81-6eaecd700a6c", "age": 3.3, "status": "en_curso", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348282.4, "event": "dispatch", "room": "call-60d4f524-052c-4c98-8ffa-a9fc0eecd7f5", "age": 3.3, "status": "en_curso", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348282.5, "event": "dispatch", "room": "call-588dcc34-1044-4707-baf2-8c28ff70014c", "age": 4.3, "status": "en_curso", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348282.5, "event": "dispatch", "room": "call-f42b090f-afee-4178-8a52-bbba407e978c", "age": 4.3, "status": "en_curso", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348282.6, "event": "dispatch", "room": "call-d2592e7c-2b1a-497d-8768-2819ae960313", "age": 4.3, "status": "en_curso", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348282.6, "event": "dispatch", "room": "call-95c23cac-eddc-47c0-a2df-4090a971e040", "age": 4.3, "status": "en_curso", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348282.7, "event": "dispatch", "room": "call-c7586b77-3048-445c-b60f-7e993b72d1b6", "age": 5.3, "status": "en_curso", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348282.7, "event": "dispatch", "room": "call-c5061c4f-1ab7-4b6a-80ac-6ebc7361a59e", "age": 5.3, "status": "en_curso", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348391.8, "event": "dispatch", "room": "call-60147150-b77f-432e-a4c3-9ab28fab72d3", "age": 0.6, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_PENDING", "error": "", "worker": ""}]}
+{"ts": 1790348391.9, "event": "dispatch", "room": "call-4e7dad11-5043-4955-8bef-b52dd61df744", "age": 0.6, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_PENDING", "error": "", "worker": ""}]}
+{"ts": 1790348392.7, "event": "dispatch", "room": "call-3691bea5-090c-45da-ad09-4e5b8e711d82", "age": 0.6, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_PENDING", "error": "", "worker": ""}]}
+{"ts": 1790348392.8, "event": "dispatch", "room": "call-32f513ec-9b01-416d-ba57-7637aaf8b175", "age": 0.6, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348392.8, "event": "dispatch", "room": "call-f9dccda5-b2cc-4a19-9cd1-9b8c7e3b951c", "age": 1.6, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348396.0, "event": "dispatch", "room": "call-67d73a60-86b8-4d92-b503-49a8fba543cb", "age": 0.8, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_PENDING", "error": "", "worker": ""}]}
+{"ts": 1790348396.3, "event": "dispatch", "room": "call-7278cf4f-049a-4385-a879-5295cdff32c6", "age": 0.8, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_PENDING", "error": "", "worker": ""}]}
+{"ts": 1790348396.7, "event": "dispatch", "room": "call-25a98238-d019-4ead-b935-2d2175efd25a", "age": 0.8, "status": "pendiente", "dispatches": 1, "jobs": []}
+{"ts": 1790348396.8, "event": "dispatch", "room": "call-197a35b5-6de5-40d3-8cce-ec5794dc4466", "age": 0.8, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348396.8, "event": "dispatch", "room": "call-9c102e11-5c89-4128-87dc-52ba31e382f3", "age": 1.8, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348396.9, "event": "dispatch", "room": "call-76433401-c157-460d-bb4f-32646b894c0e", "age": 1.8, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348396.9, "event": "dispatch", "room": "call-81f2caa2-9c5c-478b-9ba2-f1c7f08cdd28", "age": 2.8, "status": "sonando", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348397.0, "event": "dispatch", "room": "call-b85b610e-9075-4aa6-bde1-78873dfb5ceb", "age": 2.8, "status": "sonando", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348397.0, "event": "dispatch", "room": "call-eeb0c356-f2e9-4d3d-a673-5abd896b28c6", "age": 2.8, "status": "sonando", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348397.1, "event": "dispatch", "room": "call-ffb8da9c-b525-4d90-9f8a-967eb9094789", "age": 2.8, "status": "sonando", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348397.1, "event": "dispatch", "room": "call-ffe23883-fd41-42a8-88e3-99394a90c415", "age": 3.8, "status": "en_curso", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348397.2, "event": "dispatch", "room": "call-4d56fe54-3394-45c3-9a49-c864b1177f50", "age": 3.8, "status": "en_curso", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348397.2, "event": "dispatch", "room": "call-34312b69-b59e-4d12-9156-0b4422c5b27a", "age": 3.8, "status": "en_curso", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348397.3, "event": "dispatch", "room": "call-1143b76d-9a3c-4ca8-b6ca-385588edd22b", "age": 3.8, "status": "en_curso", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348397.3, "event": "dispatch", "room": "call-e0ac8807-f633-4537-b383-114c0f39cfb6", "age": 3.8, "status": "en_curso", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348397.4, "event": "dispatch", "room": "call-60147150-b77f-432e-a4c3-9ab28fab72d3", "age": 4.8, "status": "en_curso", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348397.4, "event": "dispatch", "room": "call-4e7dad11-5043-4955-8bef-b52dd61df744", "age": 4.8, "status": "en_curso", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348397.5, "event": "dispatch", "room": "call-3691bea5-090c-45da-ad09-4e5b8e711d82", "age": 4.8, "status": "en_curso", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348400.5, "event": "dispatch", "room": "call-c7d03c78-0416-44be-816b-0a2a52265c16", "age": 2.5, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_PENDING", "error": "", "worker": ""}]}
+{"ts": 1790348400.6, "event": "dispatch", "room": "call-c8b7ddab-ea37-4075-963c-8165cfb244aa", "age": 2.5, "status": "sonando", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348400.6, "event": "dispatch", "room": "call-5f75f026-9b28-49e6-a32f-fc83be22698b", "age": 2.5, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_PENDING", "error": "", "worker": ""}]}
+{"ts": 1790348400.7, "event": "dispatch", "room": "call-56f30e0b-033f-4bc1-8961-b4a3fc27c9e9", "age": 3.5, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_PENDING", "error": "", "worker": ""}]}
+{"ts": 1790348400.7, "event": "dispatch", "room": "call-39eb4371-a3c6-4591-950b-a2fdc62bd394", "age": 3.5, "status": "en_curso", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348400.8, "event": "dispatch", "room": "call-110d11f0-09ce-4457-8af7-27e37109cc82", "age": 3.5, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_PENDING", "error": "", "worker": ""}]}
+{"ts": 1790348400.8, "event": "dispatch", "room": "call-71970816-7a6a-4ba8-9294-ca36d81a9c25", "age": 3.5, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_PENDING", "error": "", "worker": ""}]}
+{"ts": 1790348400.9, "event": "dispatch", "room": "call-7fbdfd06-cca9-46c7-9678-4405f7d6f222", "age": 3.5, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_PENDING", "error": "", "worker": ""}]}
+{"ts": 1790348400.9, "event": "dispatch", "room": "call-7a7f4207-7b0e-4926-a113-374e9234d0d1", "age": 3.5, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_PENDING", "error": "", "worker": ""}]}
+{"ts": 1790348401.0, "event": "dispatch", "room": "call-75d74e54-bf58-4911-8d54-4eb4c724b1d6", "age": 4.5, "status": "en_curso", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348401.0, "event": "dispatch", "room": "call-5c189683-b2e0-463f-acde-aaf186415ba6", "age": 4.5, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_PENDING", "error": "", "worker": ""}]}
+{"ts": 1790348401.0, "event": "dispatch", "room": "call-57092726-208c-4b90-8fba-ad72614f1953", "age": 4.5, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_PENDING", "error": "", "worker": ""}]}
+{"ts": 1790348401.1, "event": "dispatch", "room": "call-25a98238-d019-4ead-b935-2d2175efd25a", "age": 5.5, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_PENDING", "error": "", "worker": ""}]}
+{"ts": 1790348401.1, "event": "dispatch", "room": "call-67d73a60-86b8-4d92-b503-49a8fba543cb", "age": 5.5, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348404.5, "event": "dispatch", "room": "call-71970816-7a6a-4ba8-9294-ca36d81a9c25", "age": 7.2, "status": "en_curso", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348404.7, "event": "participants", "room": "call-5c189683-b2e0-463f-acde-aaf186415ba6", "age": 8.2, "ids": ["loadtest-5c189683"]}
+{"ts": 1790348404.8, "event": "participants", "room": "call-57092726-208c-4b90-8fba-ad72614f1953", "age": 8.2, "ids": ["loadtest-57092726"]}
+{"ts": 1790348404.9, "event": "participants", "room": "call-25a98238-d019-4ead-b935-2d2175efd25a", "age": 9.2, "ids": ["loadtest-25a98238"]}
+{"ts": 1790348405.0, "event": "participants", "room": "call-7278cf4f-049a-4385-a879-5295cdff32c6", "age": 9.2, "ids": ["loadtest-7278cf4f"]}
+{"ts": 1790348408.1, "event": "participants", "room": "call-5f75f026-9b28-49e6-a32f-fc83be22698b", "age": 10.0, "ids": ["loadtest-5f75f026"]}
+{"ts": 1790348408.2, "event": "participants", "room": "call-c7d03c78-0416-44be-816b-0a2a52265c16", "age": 10.0, "ids": ["loadtest-c7d03c78"]}
+{"ts": 1790348408.3, "event": "participants", "room": "call-7fbdfd06-cca9-46c7-9678-4405f7d6f222", "age": 11.0, "ids": ["loadtest-7fbdfd06"]}
+{"ts": 1790348408.4, "event": "participants", "room": "call-7a7f4207-7b0e-4926-a113-374e9234d0d1", "age": 11.0, "ids": ["loadtest-7a7f4207"]}
+{"ts": 1790348408.5, "event": "participants", "room": "call-56f30e0b-033f-4bc1-8961-b4a3fc27c9e9", "age": 11.0, "ids": ["loadtest-56f30e0b"]}
+{"ts": 1790348408.6, "event": "participants", "room": "call-110d11f0-09ce-4457-8af7-27e37109cc82", "age": 11.0, "ids": ["loadtest-110d11f0"]}
+{"ts": 1790348412.2, "event": "dispatch", "room": "call-7278cf4f-049a-4385-a879-5295cdff32c6", "age": 16.8, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348415.3, "event": "dispatch", "room": "call-5f75f026-9b28-49e6-a32f-fc83be22698b", "age": 17.3, "status": "en_curso", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348432.8, "event": "dispatch", "room": "call-25a98238-d019-4ead-b935-2d2175efd25a", "age": 37.4, "status": "pendiente", "dispatches": 2, "jobs": [{"status": "JS_RUNNING", "error": "", "worker": "AW_aVGBJ36tJ3G3"}]}
+{"ts": 1790348443.5, "event": "dispatch", "room": "call-c7d03c78-0416-44be-816b-0a2a52265c16", "age": 44.5, "status": "pendiente", "api_error": "ServerError(code=not_found, message=requested room does not exist, status=404)"}
+{"ts": 1790348444.6, "event": "dispatch", "room": "call-56f30e0b-033f-4bc1-8961-b4a3fc27c9e9", "age": 45.5, "status": "pendiente", "api_error": "ServerError(code=not_found, message=requested room does not exist, status=404)"}
+{"ts": 1790348445.6, "event": "dispatch", "room": "call-7fbdfd06-cca9-46c7-9678-4405f7d6f222", "age": 45.5, "status": "pendiente", "api_error": "ServerError(code=not_found, message=requested room does not exist, status=404)"}
+{"ts": 1790348446.7, "event": "dispatch", "room": "call-7a7f4207-7b0e-4926-a113-374e9234d0d1", "age": 45.5, "status": "pendiente", "api_error": "ServerError(code=not_found, message=requested room does not exist, status=404)"}
+{"ts": 1790348447.7, "event": "dispatch", "room": "call-110d11f0-09ce-4457-8af7-27e37109cc82", "age": 45.5, "status": "pendiente", "api_error": "ServerError(code=not_found, message=requested room does not exist, status=404)"}
+{"ts": 1790348448.8, "event": "dispatch", "room": "call-57092726-208c-4b90-8fba-ad72614f1953", "age": 46.5, "status": "pendiente", "api_error": "ServerError(code=not_found, message=requested room does not exist, status=404)"}
+{"ts": 1790348449.8, "event": "dispatch", "room": "call-5c189683-b2e0-463f-acde-aaf186415ba6", "age": 46.5, "status": "pendiente", "api_error": "ServerError(code=not_found, message=requested room does not exist, status=404)"}
+{"ts": 1790348494.3, "event": "gave_up", "room": "call-c7d03c78-0416-44be-816b-0a2a52265c16", "age": 96.3, "status": "pendiente"}
+{"ts": 1790348494.3, "event": "gave_up", "room": "call-7a7f4207-7b0e-4926-a113-374e9234d0d1", "age": 97.3, "status": "pendiente"}
+{"ts": 1790348494.3, "event": "gave_up", "room": "call-56f30e0b-033f-4bc1-8961-b4a3fc27c9e9", "age": 97.3, "status": "pendiente"}
+{"ts": 1790348494.3, "event": "gave_up", "room": "call-7fbdfd06-cca9-46c7-9678-4405f7d6f222", "age": 97.3, "status": "pendiente"}
+{"ts": 1790348494.3, "event": "gave_up", "room": "call-110d11f0-09ce-4457-8af7-27e37109cc82", "age": 97.3, "status": "pendiente"}
+{"ts": 1790348494.3, "event": "gave_up", "room": "call-57092726-208c-4b90-8fba-ad72614f1953", "age": 98.3, "status": "pendiente"}
+{"ts": 1790348494.3, "event": "gave_up", "room": "call-5c189683-b2e0-463f-acde-aaf186415ba6", "age": 98.3, "status": "pendiente"}

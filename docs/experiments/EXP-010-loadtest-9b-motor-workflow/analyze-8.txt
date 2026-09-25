@@ -1,0 +1,126 @@
+ventana: 110s muestreados, 110s activos
+
+== HOST CPU (solo segundos activos)
+  total_busy_pct   avg=  12.06 p50=  11.90 p95=  23.10 max=  26.60
+  cores_gt90       avg=   0.01 p50=   0.00 p95=   0.00 max=   1.00
+  cores_gt50       avg=   0.45 p50=   0.00 p95=   1.00 max=   2.00
+  load1            avg=   2.66 p50=   2.64 p95=   3.28 max=   3.57
+  iowait_pct       avg=   0.12 p50=   0.00 p95=   0.80 max=   1.90
+  mem_used_gb      avg=  38.21 p50=  38.36 p95=  38.61 max=  38.69
+  swap_used_gb     avg=   2.88 p50=   2.89 p95=   2.90 max=   2.90
+  por cpu logico (avg/p95): 0:32/72 1:6/14 2:16/38 3:14/33 4:10/25 5:26/66 6:9/20 7:6/12 8:13/46 9:6/15 10:11/27 11:8/22 12:7/19 13:16/48 14:7/17 15:4/10
+
+== CONTENEDORES (cores = CPUs logicas equivalentes)
+  stt-parakeet  cpu   avg=   0.07 p50=   0.01 p95=   0.34 max=   0.49  sys%=3
+                runT  avg=   0.05 p50=   0.00 p95=   1.00 max=   1.00  nthreads=69
+                memGB avg=   3.56 p50=   3.56 p95=   3.56 max=   3.56  anon_max=1.27
+  vllm-llm      cpu   avg=   0.17 p50=   0.18 p95=   0.41 max=   0.52  sys%=7
+                runT  avg=   0.22 p50=   0.00 p95=   1.00 max=   1.00  nthreads=141
+                memGB avg=  13.28 p50=  13.28 p95=  13.28 max=  13.29  anon_max=3.34
+  vllm-tts      cpu   avg=   0.64 p50=   0.40 p95=   1.77 max=   1.89  sys%=3
+                runT  avg=   0.66 p50=   0.00 p95=   3.00 max=   4.00  nthreads=326
+                memGB avg=   8.15 p50=   8.15 p95=   8.15 max=   8.16  anon_max=5.15
+  proxy         cpu   avg=   0.00 p50=   0.00 p95=   0.01 max=   0.01  sys%=79
+                runT  avg=   0.00 p50=   0.00 p95=   0.00 max=   0.00  nthreads=17
+                memGB avg=   0.02 p50=   0.02 p95=   0.02 max=   0.02  anon_max=0.01
+  db            cpu   avg=   0.01 p50=   0.00 p95=   0.03 max=   0.03  sys%=25
+                runT  avg=   0.01 p50=   0.00 p95=   0.00 max=   1.00  nthreads=42
+                memGB avg=   0.38 p50=   0.38 p95=   0.38 max=   0.38  anon_max=0.35
+  asterisk      cpu   avg=   0.00 p50=   0.00 p95=   0.00 max=   0.02  sys%=35
+                runT  avg=   0.00 p50=   0.00 p95=   0.00 max=   0.00  nthreads=38
+                memGB avg=   0.02 p50=   0.02 p95=   0.02 max=   0.02  anon_max=0.00
+
+== THREADS (por svc/comm: nro de threads distintos, suma de cores)
+  vllm-tts      VLLM::StageEngi  tids=  3 cores avg=   0.25 p50=   0.14 p95=   0.76 max=   0.87
+  vllm-llm      VLLM::EngineCor  tids=  1 cores avg=   0.13 p50=   0.14 p95=   0.33 max=   0.45
+  stt-parakeet  python3          tids=  1 cores avg=   0.05 p50=   0.00 p95=   0.27 max=   0.38
+  vllm-tts      vllm             tids=  2 cores avg=   0.05 p50=   0.04 p95=   0.09 max=   0.10
+  vllm-llm      vllm             tids=  1 cores avg=   0.01 p50=   0.00 p95=   0.05 max=   0.06
+  -- threads individuales mas calientes (posible cuello single-thread):
+  vllm-tts      VLLM::StageEngi  tid=1578604  avg= 15.9% p95= 48.0% secs>=90%=0
+  vllm-llm      VLLM::EngineCor  tid=1578112  avg= 12.9% p95= 33.0% secs>=90%=0
+  vllm-tts      VLLM::StageEngi  tid=1582475  avg=  8.0% p95= 26.0% secs>=90%=0
+  stt-parakeet  python3          tid=1582358  avg=  5.0% p95= 27.0% secs>=90%=0
+  vllm-tts      vllm             tid=1577558  avg=  3.5% p95=  6.0% secs>=90%=0
+  vllm-tts      vllm             tid=1575730  avg=  1.4% p95=  4.0% secs>=90%=0
+  vllm-llm      vllm             tid=1575728  avg=  1.3% p95=  5.0% secs>=90%=0
+  vllm-tts      VLLM::StageEngi  tid=1583208  avg=  0.7% p95=  4.0% secs>=90%=0
+  -- procesos del host >=20% de un core (ajeno:* = fuera del stack):
+  VLLM::StageEngi  vllm-tts                                 avg= 51.7% p95=140.0% max=144.0%
+  pytest           ajeno:app-org.chromium.Chromium-5741.sco avg= 33.2% p95=101.0% max=102.0%
+  VLLM::EngineCor  vllm-llm                                 avg= 10.3% p95= 35.0% max= 46.0%
+  code             ajeno:app-gnome-code-5741.scope          avg=  7.8% p95= 53.0% max= 84.0%
+  python3          stt-parakeet                             avg=  4.0% p95= 34.0% max= 51.0%
+  python           ajeno:docker-61e16f8f7b0f5d4a8fd9e574247 avg=  2.0% p95=  0.0% max= 93.0%
+  chrome           ajeno:app-gnome-google\x2dchrome-14159.s avg=  1.7% p95= 23.0% max= 41.0%
+  python           ajeno:app-org.chromium.Chromium-5741.sco avg=  0.9% p95=  0.0% max=100.0%
+  uvicorn          ajeno:docker-0096e2180aaecc74f255d378ad3 avg=  0.7% p95=  0.0% max= 74.0%
+  python           ajeno:docker-b473c7ba89e6e0f94c8c2de57eb avg=  0.6% p95=  0.0% max= 66.0%
+
+== GPU
+  GPU0 util%  avg=  32.78 p50=   0.00 p95=  99.00 max=  99.00  secs>=95%: 32/110
+       membw% avg=  18.17 p50=   0.00 p95=  57.00 max=  58.00
+       memMiB avg=12583.00 p50=12583.00 p95=12583.00 max=12583.00
+       powerW avg= 185.43 p50= 168.78 p95= 301.31 max= 313.76  tempmax=73C throttle=['0x0000000000000000', '0x0000000000000004', '0x0000000000000020', '0x0000000000000024']
+  GPU1 util%  avg=  53.47 p50=  84.00 p95= 100.00 max= 100.00  secs>=95%: 52/110
+       membw% avg=  46.07 p50=  40.00 p95=  98.00 max=  99.00
+       memMiB avg=18823.82 p50=18823.00 p95=19004.00 max=19014.00
+       powerW avg= 228.49 p50= 262.89 p95= 347.47 max= 349.58  tempmax=74C throttle=['0x0000000000000000', '0x0000000000000001', '0x0000000000000004']
+  por proceso (segundos activos, sm%):
+    GPU0 pid=1578604  VLLM::StageEngi  sm avg=  47.94 p50=  43.00 p95=  95.00 max=  98.00  fbMB_max=9064
+    GPU0 pid=1582475  VLLM::StageEngi  sm avg=   6.07 p50=   2.00 p95=  23.00 max=  25.00  fbMB_max=3480
+    GPU1 pid=14205    chrome --type=g  sm avg=   0.75 p50=   1.00 p95=   2.00 max=   2.00  fbMB_max=336
+    GPU1 pid=1578112  VLLM::EngineCor  sm avg=  68.52 p50=  75.00 p95=  99.00 max=  99.00  fbMB_max=15864
+    GPU1 pid=1581541  python3          sm avg=   4.56 p50=   2.00 p95=  16.00 max=  16.00  fbMB_max=1678
+    GPU1 pid=4175     Xorg             sm avg=   3.71 p50=   4.00 p95=  10.00 max=  10.00  fbMB_max=502
+    GPU1 pid=4586     gnome-shell      sm avg=   2.07 p50=   0.00 p95=   8.00 max=  11.00  fbMB_max=281
+    GPU1 pid=5788     code             sm avg=   0.82 p50=   0.00 p95=   4.00 max=   4.00  fbMB_max=214
+
+== vLLM
+  stt-parakeet
+    num_requests_running               avg=   0.07 p50=   0.00 p95=   1.00 max=   1.00
+    num_requests_waiting               avg=   0.01 p50=   0.00 p95=   0.00 max=   1.00
+    generation_tokens_total            +300  (2.7/s activo)
+    request_success_total@stop         +45  (0.4/s activo)
+    request_inference_time             media=    121.9 ms  n=45
+    request_queue_time                 media=     11.9 ms  n=45
+  vllm-llm
+    kv_cache_usage_perc                avg=   0.02 p50=   0.00 p95=   0.05 max=   0.08
+    num_requests_running               avg=   0.72 p50=   0.00 p95=   3.00 max=   4.00
+    num_requests_waiting               avg=   0.00 p50=   0.00 p95=   0.00 max=   0.00
+    generation_tokens_total            +5785  (52.6/s activo)
+    prompt_tokens_total                +202357  (1839.6/s activo)
+    request_success_total@stop         +91  (0.8/s activo)
+    inter_token_latency                media=     13.5 ms  n=5693
+    request_decode_time                media=    838.5 ms  n=91
+    request_inference_time             media=    940.9 ms  n=91
+    request_prefill_time               media=    102.3 ms  n=91
+    request_queue_time                 media=      0.0 ms  n=91
+    request_time_per_output_token      media=     13.5 ms  n=91
+    time_to_first_token                media=    114.5 ms  n=92
+  vllm-tts
+    kv_cache_usage_perc@s0             avg=   0.00 p50=   0.00 p95=   0.00 max=   0.01
+    kv_cache_usage_perc@s1             avg=   0.00 p50=   0.00 p95=   0.00 max=   0.00
+    num_requests_running@s0            avg=   1.23 p50=   1.00 p95=   2.00 max=   3.00
+    num_requests_running@s1            avg=   0.70 p50=   0.00 p95=   2.00 max=   3.00
+    num_requests_waiting@s0            avg=   0.00 p50=   0.00 p95=   0.00 max=   0.00
+    num_requests_waiting@s1            avg=   0.58 p50=   1.00 p95=   1.00 max=   2.00
+    generation_tokens_total@s0         +3324  (30.2/s activo)
+    prompt_tokens_total@s0             +2052  (18.7/s activo)
+    prompt_tokens_total@s1             +1184  (10.8/s activo)
+    request_success_total@s0@stop      +75  (0.7/s activo)
+    request_success_total@s1@stop      +75  (0.7/s activo)
+    inter_token_latency@s0             media=     15.0 ms  n=3250
+    inter_token_latency@s1             media=    304.0 ms  n=163
+    request_decode_time@s0             media=    653.2 ms  n=75
+    request_decode_time@s1             media=    660.6 ms  n=75
+    request_inference_time@s0          media=    674.6 ms  n=75
+    request_inference_time@s1          media=    669.8 ms  n=75
+    request_prefill_time@s0            media=     21.4 ms  n=75
+    request_prefill_time@s1            media=      9.2 ms  n=75
+    request_queue_time@s0              media=      0.0 ms  n=75
+    request_queue_time@s1              media=     40.0 ms  n=75
+    request_time_per_output_token@s0   media=     15.1 ms  n=75
+    request_time_per_output_token@s1   media=      0.0 ms  n=75
+    time_to_first_token@s0             media=     26.5 ms  n=74
+    time_to_first_token@s1             media=     52.0 ms  n=74

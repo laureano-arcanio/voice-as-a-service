@@ -20,6 +20,8 @@ concluye de todas y se actualiza cuando un experimento lo cambia.
 | 006 | STT Whisper Large v3 Turbo en lugar de Qwen3-ASR | STT en 96 ms (antes 228), con 3,9 GB de VRAM (antes 8,2) y ~1/6 de CPU. No cambia el cuello; falta calidad en llamadas reales |
 | 007 | STT Parakeet TDT 0.6B v3; loadtest local, sin ngrok | STT en 101–130 ms con 1,6 GB, pero sin batching (cola p95 52 ms con 20 llamadas). Sin ngrok, el agente mide ~0,4 s menos por turno (1,11 s total con 32) |
 | 008 | Como 007, con batching dinámico en Parakeet | Sin cambios con 20 llamadas: 0,6 req/s de STT, 233 requests en 232 batches. El batching da ×4,7 de throughput en el bench sintético, para cargas ~100 veces mayores |
+| 010 | Config vigente (LLM 9B w4a16, TTS `multi41`, motor por workflow), tandas 4/8/16/32 | Con 16: GPUs al 50–60 %, sin cola, TTS 17 ms entre tokens. La tanda de 32 no midió la inferencia: se atendieron 20 de 32 |
+| 011 | Como 010, con el agente en el server de inferencia | El techo de ~20 (también en 006–010) es el despacho de LiveKit Cloud (plan gratuito): jobs en `JS_PENDING` sin asignar, con el worker holgado. Con 24 simultáneas: GPUs al 68/76 %, sin cola. Agente junto a la inferencia: −1,2 s de e2e por turno |
 
 ## Qué limita y qué sobra (32 sesiones)
 
@@ -30,7 +32,7 @@ concluye de todas y se actualiza cuando un experimento lo cambia.
 | CPU | Host 25–40%; TTS 2,2 cores, STT 0,9, LLM 0,4 (p95) | ~4 de 16 threads. Importa la velocidad por core: el thread de Code2Wav llega a 70% (p95) |
 | RAM | ~15 GB entre los 3 vLLM, constante; pico de 12 GB al arrancar el LLM | 32 GB por nodo alcanzan |
 | VRAM mínima real | LLM ~12 GB (BF16), TTS ~9 GB, STT ~7 GB | 16 GB alcanzan para el LLM solo. STT + TTS juntos quedan al límite |
-| Térmica | Las dos 3090 con thermal/HW slowdown (84 °C) | Refrigeración y `nvidia-smi -pl 280` son requisito |
+| Térmica | Las dos 3090 con thermal/HW slowdown (84 °C). Con las GPUs reubicadas (desde EXP-010): máx. 80 °C, −2 a −3 % de clock | Refrigeración y `nvidia-smi -pl 280` son requisito |
 
 Concurrencia real: 32 sesiones no son 32 requests simultáneos. Los picos fueron de 8 en el LLM, 5 en STT y ~14 en TTS (2,4 síntesis por turno, ~1,5 s cada una).
 
@@ -60,5 +62,7 @@ Dos nodos iguales detrás de un balanceador; cada uno soporta solo las 32 sesion
 
 - Benchmark del LLM (y de TTS) en una 5060 Ti real.
 - Registrar la latencia de punta a punta del cliente en cada experimento.
+- Medir 32 o más sesiones con un `livekit-server` propio: LiveKit Cloud gratuito no despacha más de ~20–24 (EXP-011).
+- Definir LiveKit en producción: Cloud pago (el tope y el comportamiento del despacho están sin verificar) o servidor propio.
 - Prueba con 64 sesiones para encontrar el techo real del LLM y STT.
 - Confirmar la temperatura de memoria de las 3090 (`nvtop`).

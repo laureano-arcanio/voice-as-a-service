@@ -21,6 +21,8 @@ TTS `Qwen/Qwen3-TTS-12Hz-1.7B-Base`.
 | [007](EXP-007-stt-parakeet-local/) | 2026-09-22 | STT Parakeet TDT 0.6B v3 (GPU 1, con la LLM); loadtest **local, sin ngrok**, con scoring | 1,9 | 28,7 ms | 295 ms | 130 ms | 114 / 15,4 ms | STT con 1,6 GB, sin batching. Sin ngrok el agente gana ~0,4 s por turno; no comparable con 001–006. 20/32 llamadas ok |
 | [008](EXP-008-parakeet-batching-qwen-tts/) | 2026-09-23 | Como 007, con batching dinámico en Parakeet (`STT_MAX_BATCH=8`); loadtest local | 1,6 | 26,0 ms | 266 ms | 132 ms | 103 / 14,4 ms | Igual que 007: con 0,6 req/s de STT el batching casi no se usa (233 requests en 232 batches). 19/32 llamadas ok |
 | [009](EXP-009-llm-qwen35-9b-w4a16/) | 2026-09-24 | LLM Qwen3.5-9B w4a16 en lugar del 4B (GPU 1, 0.70). **Calidad, sin loadtest** | – | – | – | – | – | 8/8 demos con datos (4B: 4/8), LLM por turno p50 0,90 s (4B: 1,00 s). **LLM vigente.** Capacidad sin medir |
+| [010](EXP-010-loadtest-9b-motor-workflow/) | 2026-09-25 | Config vigente (9B + TTS `multi41`) con el motor por workflow; loadtest remoto por IP fija, tandas 4/8/16/32 | 1,4 | 17,4 ms | 115 ms | 140 ms | 150 / 15,7 ms | Con 16: GPU 50–60 %, sin cola. **32 inválida:** 20/32 atendidas por el despacho de LiveKit Cloud (ver 011) |
+| [011](EXP-011-agente-en-server-despacho-livekit/) | 2026-09-25 | Como 010, con `app` + `agent` en este server (callers en la laptop); 2 runs, con vigía de despachos | 2,0 | 21,0 ms | 154 ms | 163 ms | 143 / 20,3 ms | Worker holgado (≤4 cores). LiveKit Cloud deja jobs en `JS_PENDING`: 19 y 24/32 atendidas. Con 24 simultáneas, sin cola. e2e p50 ~1,2 s menor que con el agente remoto |
 
 - **TTS primer audio:** en vLLM-Omni es el TTFT más la cola del stage 1 (Code2Wav). En un TTS de un solo stage es el TTFT.
 - **Comparar con cuidado:** la carga que llega no es idéntica entre runs, así que la latencia hay que leerla junto con req/s.
@@ -31,6 +33,8 @@ TTS `Qwen/Qwen3-TTS-12Hz-1.7B-Base`.
 - **GPU 1:** además dibuja el escritorio (Xorg, gnome-shell, Chrome, VS Code), que ocupa ~1,3 GB y 5–15% de SM.
 - **Otros proyectos:** corren ~15 contenedores ajenos, con carga de CPU baja.
 - **Térmica:** las dos 3090 hacen thermal y power throttling bajo carga (hasta 85 °C).
+  - Entre EXP-008 y EXP-010 se reubicaron las GPUs para ventilarlas mejor. Con carga igual o mayor, la GPU 1 bajó de 84–85 °C (EXP-003, 007, 008) a 78–80 °C (EXP-010, 011).
+  - La GPU 0 sigue en 72–77 °C, con thermal slowdown leve (−2 % de clock), probablemente por la temperatura de la memoria.
 - **Loadtest:** `scripts/loadtest/run.py` corre en otra PC (`make up-agent`) contra los vLLM por ngrok (EXP-001 a 006), en tandas de 16 y 32 sesiones.
 - **Loadtest local (desde EXP-007):** el plan free de ngrok se quedó sin ancho de banda (1 GB/mes; cada loadtest saca ~135 MB solo de audio de TTS). `app`, `agent` y los callers corren en este host (`make up-agent` + `make loadtest`) y le pegan a los vLLM por la red de compose.
   - La latencia que mide el agente baja ~0,4 s por turno, así que no se compara con EXP-001 a 006.
