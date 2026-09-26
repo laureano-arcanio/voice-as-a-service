@@ -1,9 +1,10 @@
-# El numero de capacidad: escalones de +8 alrededor del codo (ajustar a lo que
-# dio `rampa`), 4 min cada uno.
+# El numero de capacidad: escalones de +8 alrededor del codo que dio `rampa`,
+# 4 min cada uno (~3x la duracion de llamada: la carga se estabiliza).
+# Ajustado a CAP-002 (5060 Ti + 3090): p95 <= 2,4 s con ~15 y codo en ~34.
 nombre: fina
-version: 1
+version: 2
 escalones:
+  - {concurrencia: 16, duracion_s: 240}
+  - {concurrencia: 24, duracion_s: 240}
   - {concurrencia: 32, duracion_s: 240}
   - {concurrencia: 40, duracion_s: 240}
-  - {concurrencia: 48, duracion_s: 240}
-  - {concurrencia: 56, duracion_s: 240}
