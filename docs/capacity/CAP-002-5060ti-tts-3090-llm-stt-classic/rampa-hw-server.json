@@ -1,0 +1,384 @@
+{
+ "rol": [
+  "inferencia",
+  "agente",
+  "livekit"
+ ],
+ "ts": 1790384091.4728446,
+ "host": {
+  "hostname": "laureano-B550M-Pro-SE",
+  "kernel": "7.0.0-34-generic",
+  "distro": "Ubuntu 24.04.3 LTS",
+  "docker": "29.5.2",
+  "nvidia_ctk": "NVIDIA Container Toolkit CLI version 1.20.0"
+ },
+ "cpu": {
+  "modelo": "AMD Ryzen 7 5700X 8-Core Processor",
+  "nucleos": 8,
+  "hilos": 16,
+  "mhz_base": null,
+  "mhz_min": 562.149,
+  "mhz_max": 4665.835,
+  "governor": "performance",
+  "boost": true,
+  "smt": true
+ },
+ "ram": {
+  "total_gb": 62.7,
+  "velocidad_mts": null,
+  "modulos": []
+ },
+ "placa": {
+  "board_vendor": "ASRock",
+  "board_name": "B550M Pro SE",
+  "bios_version": "P3.40",
+  "bios_date": "01/18/2024"
+ },
+ "gpus": [
+  {
+   "index": 0,
+   "name": "NVIDIA GeForce RTX 5060 Ti",
+   "memory.total": 8151,
+   "driver_version": "580.178.04",
+   "vbios_version": "98.06.4E.40.64",
+   "power.limit": 180,
+   "power.default_limit": 180,
+   "clocks.max.sm": 3090,
+   "clocks.max.mem": 14001,
+   "pcie.link.gen.current": 1,
+   "pcie.link.gen.max": 3,
+   "pcie.link.width.current": 4,
+   "pcie.link.width.max": 8,
+   "pci.bus_id": "00000000:04:00.0"
+  },
+  {
+   "index": 1,
+   "name": "NVIDIA GeForce RTX 3090",
+   "memory.total": 24576,
+   "driver_version": "580.178.04",
+   "vbios_version": "94.02.42.00.A7",
+   "power.limit": 280,
+   "power.default_limit": 350,
+   "clocks.max.sm": 2100,
+   "clocks.max.mem": 9751,
+   "pcie.link.gen.current": 1,
+   "pcie.link.gen.max": 4,
+   "pcie.link.width.current": 16,
+   "pcie.link.width.max": 16,
+   "pci.bus_id": "00000000:07:00.0"
+  }
+ ],
+ "cuda": "13.0",
+ "disco": {
+  "volumen": "voice-as-a-service_hf_cache",
+  "mountpoint": "/var/lib/docker/volumes/voice-as-a-service_hf_cache/_data",
+  "fuente": "/dev/nvme0n1p2",
+  "disco": "/dev/nvme0n1",
+  "modelo": "WD Green SN350 500GB 2G0C",
+  "rotacional": false,
+  "transporte": "nvme"
+ },
+ "red": {
+  "interfaz": "enp6s0",
+  "velocidad_mbps": 1000,
+  "driver": "r8169",
+  "ping": []
+ },
+ "reloj": {
+  "ntp_sincronizado": true,
+  "offset": "+1.538ms",
+  "servidor": "185.125.190.57 (ntp.ubuntu.com)"
+ },
+ "ambiente": {
+  "notas": "",
+  "temp_c": null
+ },
+ "hw_estable": {
+  "cpu": "AMD Ryzen 7 5700X 8-Core Processor",
+  "nucleos": 8,
+  "hilos": 16,
+  "smt": true,
+  "ram_gb": 63,
+  "placa": {
+   "board_vendor": "ASRock",
+   "board_name": "B550M Pro SE",
+   "bios_version": "P3.40",
+   "bios_date": "01/18/2024"
+  },
+  "gpus": [
+   {
+    "name": "NVIDIA GeForce RTX 5060 Ti",
+    "memory.total": 8151,
+    "pci.bus_id": "00000000:04:00.0",
+    "power.limit": 180,
+    "pcie.link.gen.max": 3,
+    "pcie.link.width.max": 8
+   },
+   {
+    "name": "NVIDIA GeForce RTX 3090",
+    "memory.total": 24576,
+    "pci.bus_id": "00000000:07:00.0",
+    "power.limit": 280,
+    "pcie.link.gen.max": 4,
+    "pcie.link.width.max": 16
+   }
+  ]
+ },
+ "hw_id": "03dfeb24",
+ "config": {
+  "git": {
+   "commit": "85a5b41d1dd3c3125f7bcc370940e0e2518fef48",
+   "rama": "structured-conversation-loop",
+   "dirty": true,
+   "diff": "",
+   "sin_versionar": [
+    "docker-compose.gpu-5060.yml"
+   ]
+  },
+  "servicios": {
+   "agent": {
+    "imagen": "voice-as-a-service-agent",
+    "image_id": "sha256:d712f02f5e77",
+    "cmd": [
+     "python",
+     "-m",
+     "app.livekit_agent",
+     "start"
+    ],
+    "gpu_device_ids": [],
+    "compose_files": [
+     "docker-compose.yml",
+     "docker-compose.livekit.yml"
+    ],
+    "started": "2026-09-26T00:01:56.236542049Z"
+   },
+   "app": {
+    "imagen": "voice-as-a-service-app",
+    "image_id": "sha256:32362ea5b50e",
+    "cmd": [
+     "uvicorn",
+     "app.main:app",
+     "--host",
+     "0.0.0.0",
+     "--port",
+     "8011"
+    ],
+    "gpu_device_ids": [],
+    "compose_files": [
+     "docker-compose.yml",
+     "docker-compose.livekit.yml"
+    ],
+    "started": "2026-09-26T00:01:56.235653052Z"
+   },
+   "asterisk": {
+    "imagen": "voice-as-a-service-asterisk",
+    "image_id": "sha256:fd2895add99e",
+    "cmd": [
+     "/usr/local/bin/entrypoint.sh"
+    ],
+    "gpu_device_ids": [],
+    "compose_files": [
+     "docker-compose.yml",
+     "docker-compose.livekit.yml",
+     "docker-compose.gpu-llm-solo.yml"
+    ],
+    "started": "2026-09-26T00:01:56.231078644Z"
+   },
+   "db": {
+    "imagen": "mysql:8.0",
+    "image_id": "sha256:7dcddc01f13b",
+    "cmd": [
+     "docker-entrypoint.sh",
+     "mysqld"
+    ],
+    "gpu_device_ids": [],
+    "compose_files": [
+     "docker-compose.yml",
+     "docker-compose.livekit.yml",
+     "docker-compose.gpu-llm-solo.yml"
+    ],
+    "started": "2026-09-26T00:01:56.237229869Z"
+   },
+   "livekit": {
+    "imagen": "livekit/livekit-server:v1.13.7",
+    "image_id": "sha256:6fd3b7088874",
+    "cmd": [
+     "/livekit-server",
+     "--config",
+     "/etc/livekit.yaml"
+    ],
+    "gpu_device_ids": [],
+    "compose_files": [
+     "docker-compose.yml",
+     "docker-compose.livekit.yml",
+     "docker-compose.gpu-llm-solo.yml"
+    ],
+    "started": "2026-09-26T00:01:56.230108364Z"
+   },
+   "livekit-redis": {
+    "imagen": "redis:7-alpine",
+    "image_id": "sha256:858f009f9709",
+    "cmd": [
+     "docker-entrypoint.sh",
+     "redis-server",
+     "--bind",
+     "127.0.0.1",
+     "--port",
+     "6380",
+     "--save",
+     "",
+     "--appendonly",
+     "no"
+    ],
+    "gpu_device_ids": [],
+    "compose_files": [
+     "docker-compose.yml",
+     "docker-compose.livekit.yml",
+     "docker-compose.gpu-llm-solo.yml"
+    ],
+    "started": "2026-09-26T00:01:56.228912492Z"
+   },
+   "livekit-sip": {
+    "imagen": "livekit/sip:v1.17.0",
+    "image_id": "sha256:d3c6441eb091",
+    "cmd": [
+     "livekit-sip",
+     "--config=/sip/config.yaml"
+    ],
+    "gpu_device_ids": [],
+    "compose_files": [
+     "docker-compose.yml",
+     "docker-compose.livekit.yml",
+     "docker-compose.gpu-llm-solo.yml"
+    ],
+    "started": "2026-09-26T00:01:56.227201383Z"
+   },
+   "proxy": {
+    "imagen": "nginx:alpine",
+    "image_id": "sha256:62ff2089abf5",
+    "cmd": [
+     "/docker-entrypoint.sh",
+     "nginx",
+     "-g",
+     "daemon off;"
+    ],
+    "gpu_device_ids": [],
+    "compose_files": [
+     "docker-compose.yml",
+     "docker-compose.livekit.yml",
+     "docker-compose.gpu-llm-solo.yml"
+    ],
+    "started": "2026-09-26T00:01:56.23407873Z"
+   },
+   "stt-parakeet": {
+    "imagen": "voice-as-a-service-stt-parakeet",
+    "image_id": "sha256:3922d0d92116",
+    "cmd": [
+     "python3",
+     "-m",
+     "uvicorn",
+     "server:app",
+     "--host",
+     "0.0.0.0",
+     "--port",
+     "8000"
+    ],
+    "gpu_device_ids": [
+     "1"
+    ],
+    "compose_files": [
+     "docker-compose.yml",
+     "docker-compose.livekit.yml"
+    ],
+    "started": "2026-09-26T00:10:13.892893118Z"
+   },
+   "vllm-llm": {
+    "imagen": "vllm/vllm-openai:latest",
+    "image_id": "sha256:c29147676055",
+    "cmd": [
+     "vllm",
+     "serve",
+     "--model=RedHatAI/Qwen3.5-9B-quantized.w4a16",
+     "--served-model-name=RedHatAI/Qwen3.5-9B-quantized.w4a16",
+     "--host=0.0.0.0",
+     "--port=8000",
+     "--api-key=<redacted>",
+     "--max-model-len=32768",
+     "--reasoning-parser=qwen3",
+     "--gpu-memory-utilization=0.70",
+     "--max-num-seqs=64",
+     "--max-cudagraph-capture-size=64",
+     "--limit-mm-per-prompt={\"image\":0,\"video\":0}"
+    ],
+    "gpu_device_ids": [
+     "1"
+    ],
+    "compose_files": [
+     "docker-compose.yml",
+     "docker-compose.livekit.yml",
+     "docker-compose.gpu-5060.yml"
+    ],
+    "started": "2026-09-26T00:07:50.701293768Z"
+   },
+   "vllm-tts": {
+    "imagen": "vllm/vllm-omni:v0.28.0",
+    "image_id": "sha256:6f8be103eaf0",
+    "cmd": [
+     "vllm",
+     "serve",
+     "/models/ft",
+     "--served-model-name=qwen3-tts-ft",
+     "--omni",
+     "--host=0.0.0.0",
+     "--port=8000",
+     "--api-key=<redacted>",
+     "--gpu-memory-utilization=0.58",
+     "--stage-overrides={\"0\": {\"max_num_seqs\": 32, \"gpu_memory_utilization\": 0.58, \"max_num_batched_tokens\": 512, \"max_model_len\": 2048}, \"1\": {\"max_num_seqs\": 16, \"gpu_memory_utilization\": 0.36, \"enforce_eager\": true}}",
+     "--max-model-len=4096"
+    ],
+    "gpu_device_ids": [
+     "0"
+    ],
+    "compose_files": [
+     "docker-compose.yml",
+     "docker-compose.livekit.yml",
+     "docker-compose.gpu-5060.yml"
+    ],
+    "started": "2026-09-26T00:28:52.474396239Z"
+   }
+  },
+  "env": {
+   "VLLM_LLM_MODEL": "RedHatAI/Qwen3.5-9B-quantized.w4a16",
+   "VLLM_LLM_MAX_NUM_SEQS": "64",
+   "VLLM_LLM_GPU_MEMORY_UTILIZATION": "0.70",
+   "STT_MAX_BATCH": "8",
+   "STT_MAX_BATCH_SECONDS": "120",
+   "VLLM_TTS_GPU_MEMORY_UTILIZATION": "0.4",
+   "VLLM_TTS_MAX_NUM_SEQS": "64",
+   "VLLM_TTS_MODEL": "qwen3-tts-ft",
+   "VLLM_TTS_VOICE": "sofia",
+   "TTS_FT_CKPT": "./tts/finetune/work/runs/multi41/lr2e-6/checkpoint-epoch-2",
+   "WORKFLOW_ID": "demo_booking_classic",
+   "COMPOSE_FILE": "docker-compose.yml:docker-compose.livekit.yml:docker-compose.gpu-5060.yml",
+   "LIVEKIT_URL": "ws://192.168.1.99:7880",
+   "LIVEKIT_LOCAL_NODE_IP": "192.168.1.99"
+  },
+  "workflow": {
+   "id": "demo_booking_classic",
+   "sha1": "8a3c0348",
+   "extends": "demo_booking",
+   "extends_sha1": "8dc90a72"
+  },
+  "livekit": {
+   "server": "livekit/livekit-server:v1.13.7",
+   "sip": "livekit/sip:v1.17.0",
+   "agents": "1.8.3"
+  },
+  "perfil": {
+   "nombre": "rampa",
+   "sha1": "35bf07cc",
+   "version": 1
+  }
+ },
+ "config_id": "458ae12f"
+}

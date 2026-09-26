@@ -13,10 +13,10 @@
 | | `base` | `rampa` |
 |---|---|---|
 | `hw_id` | `8489259f` | `8489259f` (GPUs a **280 W**, núcleo ≤ 1800 MHz, memoria 9501 MHz, en los dos) |
-| `config_id` | `69ace351` | `3c35f6bd` (cambia solo el commit del repo entre los dos) |
+| `config_id` | `69ace351` | `3c35f6bd` (cambian el perfil, que es parte del `config_id`, y el commit del repo) |
 | Run | `20260925_233536_base` | `20260925_225825_rampa` |
 
-- **Hardware:** Ryzen 7 5700X, 64 GB, 2 × RTX 3090 (GPU 0 en PCIe gen3 x16, GPU 1 en gen4 **x4**). Fichas completas en [base-hw-server.json](base-hw-server.json), [rampa-hw-server.json](rampa-hw-server.json) y [hw-cliente.json](hw-cliente.json).
+- **Hardware:** Ryzen 7 5700X, 64 GB, 2 × RTX 3090. GPU 0 (`04:00.0`, LLM) en el slot del chipset, PCIe gen3 **x4**; GPU 1 (`07:00.0`, TTS + STT) en el slot de la CPU, gen4 x16. Fichas completas en [base-hw-server.json](base-hw-server.json), [rampa-hw-server.json](rampa-hw-server.json) y [hw-cliente.json](hw-cliente.json).
 - **Inferencia:** reparto vigente de `AGENTS.md`.
   - GPU 0: LLM Qwen3.5-9B w4a16, 0.90, 128 secuencias.
   - GPU 1: TTS `multi41` (128 por etapa) + STT Parakeet (batch 8).

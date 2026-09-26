@@ -1,0 +1,84 @@
+{
+ "rol": [
+  "cliente"
+ ],
+ "ts": 1790384151.0676825,
+ "host": {
+  "hostname": "laureano-proart-laptop",
+  "kernel": "7.0.0-31-generic",
+  "distro": "Ubuntu 24.04.4 LTS",
+  "docker": "29.6.1",
+  "nvidia_ctk": ""
+ },
+ "cpu": {
+  "modelo": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M",
+  "nucleos": 12,
+  "hilos": 24,
+  "mhz_base": null,
+  "mhz_min": 605.264,
+  "mhz_max": 5157.895,
+  "governor": "performance",
+  "boost": true,
+  "smt": true
+ },
+ "ram": {
+  "total_gb": 30.4,
+  "velocidad_mts": null,
+  "modulos": []
+ },
+ "placa": {
+  "board_vendor": "ASUSTeK COMPUTER INC.",
+  "board_name": "H7606WV",
+  "bios_version": "H7606WV.319",
+  "bios_date": "05/07/2025"
+ },
+ "gpus": [],
+ "cuda": "",
+ "disco": {
+  "volumen": "voice-as-a-service_hf_cache",
+  "mountpoint": "/var/lib/docker/volumes/voice-as-a-service_hf_cache/_data",
+  "fuente": "/dev/nvme0n1p2",
+  "disco": "/dev/nvme0n1",
+  "modelo": "MTFDKBA1T0QFM-1BD1AABGB",
+  "rotacional": false,
+  "transporte": "nvme"
+ },
+ "red": {
+  "interfaz": "wlp99s0",
+  "velocidad_mbps": null,
+  "driver": "mt7925e",
+  "ping": [
+   {
+    "host": "192.168.1.99",
+    "perdida_pct": 0,
+    "rtt_min_ms": 2.349,
+    "rtt_avg_ms": 5.488,
+    "rtt_max_ms": 13.579
+   }
+  ]
+ },
+ "reloj": {
+  "ntp_sincronizado": true,
+  "offset": "+1.675ms",
+  "servidor": "91.189.91.157 (ntp.ubuntu.com)"
+ },
+ "ambiente": {
+  "notas": "",
+  "temp_c": null
+ },
+ "hw_estable": {
+  "cpu": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M",
+  "nucleos": 12,
+  "hilos": 24,
+  "smt": true,
+  "ram_gb": 30,
+  "placa": {
+   "board_vendor": "ASUSTeK COMPUTER INC.",
+   "board_name": "H7606WV",
+   "bios_version": "H7606WV.319",
+   "bios_date": "05/07/2025"
+  },
+  "gpus": []
+ },
+ "hw_id": "7b408020"
+}

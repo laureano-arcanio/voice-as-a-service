@@ -41,10 +41,9 @@ reparto de GPU/memoria entre los 3 esta documentado con detalle en los comentari
 `docker-compose.yml` (fue bastante mas quisquilloso de lo esperado: los modelos de audio
 reservan memoria fuera del budget normal de KV-cache, y vLLM sigue capturando CUDA graphs
 nuevos con el trafico real, asi que el uso real de VRAM termina bien por encima de lo que
-estima `--gpu-memory-utilization` en frio). Probado en vivo contra 2x RTX 3090 (24GB c/u):
-LLM solo en la GPU 0, TTS + STT en la GPU 1 (EXP-013), con las GPUs a 280 W: ~32 llamadas
-simultaneas con p95 de 3 s (ver `docs/capacity/` y `AGENTS.md`; mediciones anteriores en
-`docs/archive/`).
+estima `--gpu-memory-utilization` en frio). Hoy el server tiene una RTX 5060 Ti 8 GB con el
+TTS solo y una 3090 con el LLM y el STT (`docker-compose.gpu-5060.yml`): ~34 llamadas
+simultaneas con p95 de 3,4 s. Con 2 x 3090 fueron ~32 con p95 de 3 s (ver `docs/capacity/` y `AGENTS.md`; mediciones anteriores en `docs/archive/`).
 
 ### Voces del TTS
 

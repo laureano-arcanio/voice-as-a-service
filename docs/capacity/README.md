@@ -5,37 +5,57 @@ recurso, y cómo escala la memoria de cada parte. Se mide con el test de capacid
 [`../CAPACITY_TEST_PLAN.md`](../CAPACITY_TEST_PLAN.md), código en `scripts/capacity/`). Las
 mediciones anteriores con el loadtest (EXP-001 a 013) están en [`../archive/`](../archive/README.md).
 
-## Resultados vigentes ([CAP-001](CAP-001-2x3090-pl280-classic/), 2026-09-25)
+## Resultados vigentes ([CAP-002](CAP-002-5060ti-tts-3090-llm-stt-classic/), 2026-09-25)
 
-Server de validación: 2 × RTX 3090 a 280 W, núcleo ≤ 1800 MHz, memoria 9501 MHz; Ryzen 7 5700X.
-Reparto de `AGENTS.md`, motor `classic`, LiveKit propio, agente en el mismo host.
+Server de validación actual (`hw_id 03dfeb24`): Ryzen 7 5700X, 64 GB, ASRock B550M Pro SE.
+- **TTS solo en una RTX 5060 Ti 8 GB** (slot del chipset, PCIe gen3 x4, 180 W).
+- **LLM + STT en una RTX 3090** (slot de la CPU, gen4 x16, a 280 W).
+- Motor `classic`, LiveKit propio, agente en el mismo host.
 
 | Llamadas simultáneas | Espera del cliente p50 / p95 | Qué pasa |
 |---|---|---|
-| 1 (piso) | 1,61 / 1,99 s | e2e del server 0,90 s; el cliente espera ~0,7 s más |
-| ~20 | 1,86 / 2,38 s | Holgado: GPUs al 71 / 84 %, CPU 44 % |
-| **~32 (codo)** | **2,27 / 3,03 s** | **Las dos GPUs saturadas** (> 90 % de los segundos al ≥ 95 %). Sin cola en LLM ni TTS |
-| ~70 | 5,83 / 8,25 s | CPU del host al 99,8 %: VAD del agente atrasado, STT con 364 ms de cola |
-| ~130 | colapso | 64 % de llamadas fallidas, saludo de 12,8 s |
+| 1 (piso) | 1,66 / 2,04 s | e2e del server 0,92 s; el cliente espera ~0,7 s más |
+| ~15 | 1,89 / 2,39 s | Holgado: 5060 Ti al 81 %, 3090 al 67 %, CPU 36 % |
+| **~34 (codo)** | **2,51 / 3,36 s** | **5060 Ti (TTS) saturada**: primer audio del TTS en 228 ms. LLM sin cola |
+| ~69 | 7,08 / 11,1 s | CPU del host al 99,7 %: VAD atrasado, STT con 326 ms de cola; TTS a 79 ms entre tokens (tope 83) |
+| ~110 | colapso | 65 turnos sin respuesta, saludo de 10,6 s |
 
-- **Capacidad:** ~20 llamadas con p95 ≤ 2,4 s y ~32 con p95 ≤ 3 s. El SLO del plan (90 % de turnos ≤ 1,5 s) no se cumple ni con 1 llamada: el piso es 1,6 s de p50.
-- **Primer cuello: GPU.** Con ~32 llamadas las dos GPUs llegan al 93–97 % (el LLM en la 0; TTS + STT en la 1).
-- **Segundo cuello: CPU del host.** El agente usa ~0,11–0,14 cores por llamada, y con 64 llamadas el host de 16 hilos se satura.
-- **Memoria:** solo escala el agente, **~104 MB por llamada** (r² 0,99), más ~5 MB de LiveKit.
-  - Con 128 llamadas el agente usaría ~14 GB.
-  - LLM, TTS y STT reservan su RAM y VRAM al arrancar: 22,7 + 13,1 + 2,1 GB de VRAM, y 3,4 + 5,9 + 1,3 GB de RAM más el caché de sus pesos.
-- **Potencia:** sin tope, las 2 GPUs llegaron a 660 W sostenidos (con picos mayores) y el server se apagó con ~32 llamadas. Con 280 W y clocks limitados, el máximo fue 559 W.
-- **Calidad:**
-  - El saludo es lo primero que se degrada: p95 1,4 s con 1 llamada y 3,9 s con 32 (arrancar el job compite por la CPU).
-  - WER 0,1–0,2: "Sí." se transcribe como "C".
-- **Para producción:** el cómputo de GPU y la CPU del agente se dimensionan por separado. Con este hardware, ~32 llamadas por par de 3090 con p95 ≤ 3 s. La CPU del agente, a ~0,12 cores y ~0,1 GB por llamada, conviene en otro host.
+- **Capacidad:** ~15 llamadas con p95 ≤ 2,4 s y ~34 con p95 ≤ 3,4 s. El SLO del plan (90 % de turnos ≤ 1,5 s) no se cumple ni con 1 llamada: el piso es 1,66 s de p50.
+- **Primer cuello: la 5060 Ti con el TTS,** en ~34 llamadas.
+- **Segundo cuello: la CPU del host,** con 64 llamadas. El agente usa ~0,11–0,13 cores por llamada.
+- **Memoria:** solo escala el agente, **~113 MB por llamada** (r² 0,99), más ~5 MB de LiveKit.
+  - LLM, STT y TTS reservan todo al arrancar.
+  - VRAM: 15,6 GB el LLM y 1,6 GB el STT en la 3090; 7,66 GB el TTS en la 5060 Ti.
+- **Potencia:** 419 W de pico entre las dos GPUs (la 5060 Ti, 141 W).
+- **Arranque:** el primer pedido al TTS después de arrancarlo tarda más de 20 s. Hay que calentarlo antes de atender llamadas.
+
+## Comparación por hardware
+
+Mismo perfil (`rampa`), mismo cliente y misma config de modelos y motor.
+
+| | [CAP-001](CAP-001-2x3090-pl280-classic/): 2 × 3090 | [CAP-002](CAP-002-5060ti-tts-3090-llm-stt-classic/): 5060 Ti + 3090 |
+|---|---|---|
+| Reparto | LLM en una 3090; TTS + STT en la otra | TTS en la 5060 Ti; LLM + STT en la 3090 |
+| Piso p50 / p95 | 1,61 / 1,99 s | 1,66 / 2,04 s |
+| Llamadas con p95 ≤ 2,4 s | ~20 | ~15 |
+| Espera con ~32 llamadas, p50 / p95 | 2,27 / 3,03 s | 2,51 / 3,36 s |
+| Codo | ~32 | ~34 |
+| Primer cuello | Las dos GPUs | La 5060 Ti (TTS) |
+| Con ~65 llamadas | CPU del host; p95 8,3 s | CPU del host; p95 11,1 s |
+| TTS primer audio con ~32 llamadas | 126 ms | 228 ms |
+| Potencia de GPUs, pico | 559 W | 419 W |
+| Wh de GPU por llamada-minuto (~32 llamadas) | 0,28 | 0,19 |
+| Agente, MB / cores por llamada | 104 / 0,12 | 113 / 0,12 |
+
+**Conclusión:** hasta ~30 llamadas, el TTS en una 5060 Ti 8 GB cuesta ~0,3 s de p95 contra una 3090,
+con ~140 W menos. Con este reparto, el límite de GPU es la 5060 Ti y el de CPU es el agente.
 
 ## Índice
 
-| CAP | Fecha | hw_id | Config | Perfiles | p95 ≤ 3 s | Codo | Cuello | Piso p50 | Cores / MB por llamada |
+| CAP | Fecha | Hardware (`hw_id`) | Config | Perfiles | p95 ≤ 3 s | Codo | Cuello | Piso p50 | Cores / MB por llamada |
 |---|---|---|---|---|---|---|---|---|---|
-| [001](CAP-001-2x3090-pl280-classic/) | 2026-09-25 | `8489259f` (2 × 3090 a 280 W) | `3c35f6bd`: classic, LLM solo en GPU 0 | base, rampa | ~32 | ~32 | GPUs; con 64, CPU | 1,61 s | 0,12 / 104 |
-
+| [001](CAP-001-2x3090-pl280-classic/) | 2026-09-25 | 2 × 3090 a 280 W (`8489259f`) | classic; LLM solo en una 3090, TTS + STT en la otra | base, rampa | ~32 | ~32 | GPUs; con 64, CPU | 1,61 s | 0,12 / 104 |
+| [002](CAP-002-5060ti-tts-3090-llm-stt-classic/) | 2026-09-25 | 5060 Ti 8 GB + 3090 a 280 W (`03dfeb24`) | classic; TTS solo en la 5060 Ti, LLM + STT en la 3090 | base, rampa | ~15 (~34 con ≤ 3,4 s) | ~34 | 5060 Ti (TTS); con 64, CPU | 1,66 s | 0,12 / 113 |
 
 ## Cómo correrlo
 
@@ -106,6 +126,7 @@ el análisis también informa la carga máxima con p95 ≤ 2, 3, 4 y 5 s.
 ## Trampas
 
 - **Potencia:** sin tope, las 3090 pueden apagar el server por picos de consumo. Aplicar los límites de GPU antes de medir (ver `AGENTS.md`, Hosts): no sobreviven a un reinicio.
+- **TTS en la 5060 Ti:** el primer pedido después de arrancarlo tarda más de 20 s (compilación de kernels): calentarlo antes de medir.
 - **Tras un reinicio,** la inferencia no vuelve sola (`Exited (128)`): `make up-inference`.
 - **Escalones de 2 min (`rampa`)** con llamadas de ~115 s: la concurrencia real no sigue a la objetivo. Para el número fino, `fina` (4 min).
 - **Turnos desfasados** (después de uno sin respuesta) **y solapados** (espera negativa): el análisis los excluye de los percentiles y los cuenta aparte (`turnos_desfasados`, `turnos_solapados`).

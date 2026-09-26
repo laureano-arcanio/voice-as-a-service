@@ -1,0 +1,54 @@
+# Reparto con una RTX 5060 Ti 8 GB (GPU 0, bus 04:00.0) en lugar de la primera
+# 3090 (desde el 25-sep-2026):
+#   GPU 0 (5060 Ti 8 GB): vllm-tts solo.
+#   GPU 1 (3090 24 GB):   vllm-llm (0.70, 64 secuencias) + stt-parakeet + escritorio,
+#                         como antes de EXP-013.
+# Se activa sumandolo a COMPOSE_FILE en .env. VLLM_LLM_GPU_MEMORY_UTILIZATION y
+# VLLM_LLM_MAX_NUM_SEQS de .env tienen que ir en 0.70 y 64: con 0.70 el cache
+# Mamba de Qwen3.5 no alcanza para 128.
+services:
+  vllm-tts:
+    command:
+      - "vllm"
+      - "serve"
+      - "/models/ft"
+      - "--served-model-name=${VLLM_TTS_MODEL:-qwen3-tts-ft}"
+      - "--omni"
+      - "--host=0.0.0.0"
+      - "--port=8000"
+      - "--api-key=${VLLM_API_KEY:-not-needed}"
+      # En 8 GB cada etapa lleva su fraccion: el 0.4 global de la 3090 le daria
+      # 3,2 GB al talker, menos que sus pesos (~3,4 GB). En la 3090 el talker
+      # usaba 9,6 GB (KV al <=10 %) y Code2Wav 3,5 GB.
+      # Memoria util de la placa: 7,53 GiB; las dos etapas necesitan ~7,5 GiB.
+      # Talker: pesos 3,91 GiB, largo maximo 2048 (una frase de 15 s son ~200-400
+      # tokens) y batches de 512 como recomienda el deploy de la imagen (baja la
+      # latencia del primer audio y la reserva de activaciones). Code2Wav: los
+      # 65536 tokens de batch son necesarios; sin CUDA graphs (enforce_eager) y
+      # 16 secuencias, porque con graphs no entraba.
+      - "--gpu-memory-utilization=0.58"
+      - "--stage-overrides={\"0\": {\"max_num_seqs\": 32, \"gpu_memory_utilization\": 0.58, \"max_num_batched_tokens\": 512, \"max_model_len\": 2048}, \"1\": {\"max_num_seqs\": 16, \"gpu_memory_utilization\": 0.36, \"enforce_eager\": true}}"
+      - "--max-model-len=4096"
+    deploy:
+      resources:
+        reservations:
+          # !override: sin esto compose suma la lista del compose principal.
+          devices: !override
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: [gpu]
+
+  vllm-llm:
+    deploy:
+      resources:
+        reservations:
+          devices: !override
+            - driver: nvidia
+              device_ids: ["1"]
+              capabilities: [gpu]
+
+  # En la 3090 con el LLM: arranca despues de el (compiten por la memoria libre).
+  stt-parakeet:
+    depends_on: !override
+      vllm-llm:
+        condition: service_healthy
