@@ -234,6 +234,22 @@ def build_session(voice: str) -> AgentSession:
     )
 
 
+async def outbound_trunk_id(lkapi: api.LiveKitAPI) -> str:
+    """ID del trunk SIP saliente: LIVEKIT_SIP_TRUNK_ID o, si esta vacio, el que se llama
+    LIVEKIT_SIP_OUTBOUND_TRUNK_NAME (el de `make livekit-sip`). Con LiveKit propio el ID
+    cambia en cada reinicio del host, por eso se busca por nombre y no se cachea."""
+    if config.LIVEKIT_SIP_TRUNK_ID:
+        return config.LIVEKIT_SIP_TRUNK_ID
+    trunks = await lkapi.sip.list_outbound_trunk(api.ListSIPOutboundTrunkRequest())
+    for trunk in trunks.items:
+        if trunk.name == config.LIVEKIT_SIP_OUTBOUND_TRUNK_NAME:
+            return trunk.sip_trunk_id
+    raise RuntimeError(
+        f"No hay trunk SIP saliente '{config.LIVEKIT_SIP_OUTBOUND_TRUNK_NAME}' en LiveKit: "
+        "correr `make livekit-sip` (o poner LIVEKIT_SIP_TRUNK_ID en .env)"
+    )
+
+
 async def entrypoint(ctx: JobContext):
     await ctx.connect()
     metadata = json.loads(ctx.job.metadata or "{}")
@@ -302,7 +318,7 @@ async def entrypoint(ctx: JobContext):
             await ctx.api.sip.create_sip_participant(
                 api.CreateSIPParticipantRequest(
                     room_name=ctx.room.name,
-                    sip_trunk_id=config.LIVEKIT_SIP_TRUNK_ID,
+                    sip_trunk_id=await outbound_trunk_id(ctx.api),
                     sip_call_to=phone,
                     participant_identity="customer",
                     participant_name="Cliente",

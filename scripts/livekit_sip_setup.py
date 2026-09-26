@@ -17,12 +17,20 @@ Idempotente: busca cada objeto por nombre y, si ya existe, lo pisa con la
 config actual. Volver a correrlo despues de cambiar la IP publica, el puerto o
 la clave.
 
+Con LiveKit propio, `make up` lo corre solo al final: su Redis no persiste
+(--save "" en el override), asi que cada reinicio del host borra los tres
+objetos y las entrantes vuelven con 486 hasta recrearlos. Como el ID del trunk
+saliente cambia cada vez, con LiveKit propio conviene dejar LIVEKIT_SIP_TRUNK_ID
+vacio: el agente lo busca por nombre (OUTBOUND_NAME) al marcar.
+
 Uso: make livekit-sip
 """
 import asyncio
 import os
 import re
 import sys
+import time
+import urllib.error
 import urllib.request
 
 from livekit import api
@@ -56,6 +64,26 @@ def public_address() -> str:
         return resp.read().decode().strip()
 
 
+def wait_for_livekit(url: str, timeout: float = 90.0) -> None:
+    """Espera a que el server responda en LIVEKIT_URL (GET / devuelve "OK").
+
+    `make up` vuelve antes de que livekit escuche; sin esto, la primera llamada
+    a la API falla con connection refused.
+    """
+    http = re.sub(r"^ws", "http", url)
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            with urllib.request.urlopen(http, timeout=3) as resp:
+                if resp.status == 200:
+                    return
+        except (urllib.error.URLError, OSError, TimeoutError):
+            pass
+        if time.monotonic() > deadline:
+            sys.exit(f"LiveKit no responde en {http} despues de {int(timeout)} s")
+        time.sleep(2)
+
+
 async def upsert(name, items, create, update):
     existing = [x for x in items if x.name == name]
     if existing:
@@ -73,6 +101,7 @@ async def main() -> None:
     address = (os.getenv("LIVEKIT_SIP_OUTBOUND_ADDRESS", "").strip()
                or f"{public_address()}:{os.getenv('ASTERISK_SIP_PORT') or '5080'}")
 
+    wait_for_livekit(required("LIVEKIT_URL"))
     async with api.LiveKitAPI(
         url=required("LIVEKIT_URL"),
         api_key=required("LIVEKIT_API_KEY"),
@@ -126,9 +155,13 @@ async def main() -> None:
     print(f"Dispatch rule  {dispatch.sip_dispatch_rule_id} ({dispatch_action}): room anura-* -> agente {agent_name}")
     print(f"Outbound trunk {outbound.sip_trunk_id} ({outbound_action}): LiveKit -> Asterisk en {address}/udp")
     configured = os.getenv("LIVEKIT_SIP_TRUNK_ID", "")
-    if configured != outbound.sip_trunk_id:
+    if not configured:
+        print(f"LIVEKIT_SIP_TRUNK_ID vacio: el agente usa el trunk saliente por nombre ({OUTBOUND_NAME}).")
+    elif configured != outbound.sip_trunk_id:
         # `make up` y no `make restart-agent`: `docker compose restart` no relee .env.
-        print(f"\nFalta un paso: poner en .env\n  LIVEKIT_SIP_TRUNK_ID={outbound.sip_trunk_id}\ny correr `make up` (recrea el agente con el .env nuevo).")
+        print(f"\nOJO: .env tiene LIVEKIT_SIP_TRUNK_ID={configured}, que ya no es el trunk saliente."
+              f"\nDejarlo vacio (el agente lo busca por nombre) o poner {outbound.sip_trunk_id},"
+              f"\ny correr `make up` (recrea el agente con el .env nuevo).")
 
 
 if __name__ == "__main__":

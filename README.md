@@ -331,7 +331,8 @@ el host GPU.
 1. `LIVEKIT_URL` / `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` — proyecto de LiveKit Cloud
    (Project Settings → Keys).
 2. `LIVEKIT_SIP_TRUNK_ID` — troncal SIP saliente de LiveKit (Anura: `make livekit-sip`, ver
-   "Telefonia: Anura via Asterisk" abajo).
+   "Telefonia: Anura via Asterisk" abajo). Opcional: vacio, el agente usa la que se llama
+   `anura-asterisk-outbound`.
 3. Nada mas: LLM/STT/TTS corren localmente (ver "Inferencia local (vLLM)" arriba), no
    hace falta ninguna API key de proveedor externo. `HF_TOKEN` es opcional, solo si
    algun modelo llegara a requerir aceptar licencia en HuggingFace.
@@ -349,9 +350,10 @@ completo (port forwarding del router, troubleshooting): `docs/TELEFONIA_ANURA.md
    `LIVEKIT_SIP_PASSWORD`).
 2. Router: redirigir `5080/udp` y `10000-10199/udp` a este host y apagar el SIP ALG.
 3. `make up-pbx` y `make pbx-status` -> el registro con Anura tiene que decir `Registered`.
-4. `make livekit-sip` -> crea los trunks entrante/saliente y la dispatch rule en LiveKit;
-   poner el `ST_...` que imprime en `LIVEKIT_SIP_TRUNK_ID` y `make up-agent` (recrea el agente
-   con el `.env` nuevo).
+4. `make livekit-sip` -> crea los trunks entrante/saliente y la dispatch rule en LiveKit.
+   Con `LIVEKIT_SIP_TRUNK_ID` vacio el agente usa el trunk saliente por nombre; si se prefiere
+   fijarlo, poner el `ST_...` que imprime y `make up-agent` (recrea el agente con el `.env`
+   nuevo). Con LiveKit propio, `make up` corre este paso solo (`docs/TELEFONIA_ANURA.md`, 7).
 
 Despues de editar `.env`: `docker compose up -d`.
 

@@ -37,7 +37,8 @@ controla quién puede usar la troncal.
 **Saliente:**
 
 1. Dashboard → **Llamar** → el agente llama a `create_sip_participant` con el
-   trunk `LIVEKIT_SIP_TRUNK_ID` y el número en E.164.
+   trunk `LIVEKIT_SIP_TRUNK_ID` (o, si está vacío, el que se llama
+   `anura-asterisk-outbound`) y el número en E.164.
 2. LiveKit manda el INVITE desde São Paulo a `<IP pública>:5080`.
 3. Asterisk responde 401, y LiveKit reintenta con usuario `livekit` y la clave.
 4. Asterisk pasa el número a formato Anura y marca con el caller ID `ANURA_DID`.
@@ -168,8 +169,11 @@ Crea (o actualiza, si ya existen) tres objetos en el proyecto de LiveKit de
 | Dispatch rule | `anura-asterisk-dispatch` | Crea una room `anura-*` por llamada y despacha el agente |
 | Outbound trunk | `anura-asterisk-outbound` | Manda las salientes a `<IP pública>:5080/udp`, originadas desde Brasil |
 
-Al final imprime el ID del outbound trunk. Ponelo en `.env` como
-`LIVEKIT_SIP_TRUNK_ID=ST_...` y corré `make up`, que recrea el agente con el `.env` nuevo (`make restart-agent` no alcanza: `docker compose restart` no vuelve a leer `.env`).
+Al final imprime el ID del outbound trunk. Con `LIVEKIT_SIP_TRUNK_ID` vacío en
+`.env` no hay nada más que hacer: el agente busca el trunk por nombre al marcar.
+Si preferís fijarlo, ponelo como `LIVEKIT_SIP_TRUNK_ID=ST_...` y corré `make up`,
+que recrea el agente con el `.env` nuevo (`make restart-agent` no alcanza:
+`docker compose restart` no vuelve a leer `.env`).
 
 No toca otros trunks o reglas del proyecto (por ejemplo, las de pruebas
 anteriores): busca solo por estos nombres.
@@ -199,6 +203,7 @@ Para ver los mensajes SIP completos: `make pbx-cli` y después
 | Registrado, pero al llamar suena y en `make logs-pbx` no aparece "Entrante de Anura" | Anura no le manda la llamada a la terminal registrada | En el panel, el plan de llamada de la cuenta dueña del número tiene que llamar a la terminal con la que se registra Asterisk (ver "Datos de Anura"). Registrarse con una cuenta de *Troncales* no sirve |
 | Registrado, pero las entrantes no llegan a Asterisk | Anura no puede entrar por el NAT | Port forwarding de 5080/udp, SIP ALG apagado, IP pública correcta |
 | Llega a Asterisk y LiveKit responde 404 | El número no coincide con el inbound trunk | `ANURA_DID` tiene que ser el mismo en Asterisk y en LiveKit. Correr de nuevo `make livekit-sip` |
+| Llega a Asterisk, suena y corta; `docker logs livekit-sip` dice `status: 486, reason: flood` | LiveKit no tiene ningún inbound trunk (con LiveKit propio: se reinició el host y su Redis no persiste). `lk sip inbound list` sale vacío | `make livekit-sip` (`make up` ya lo corre al final con LiveKit propio) |
 | Llega a Asterisk y LiveKit sigue respondiendo 401/407 | Clave distinta entre Asterisk y LiveKit | Correr de nuevo `make livekit-sip` y `make restart-pbx` con el mismo `LIVEKIT_SIP_PASSWORD` |
 | Saliente: el agente marca la llamada como fallida por timeout (408) | LiveKit no llega a `<IP pública>:5080` | Port forwarding, o cambió la IP pública: `make restart-pbx` y `make livekit-sip` |
 | Saliente: SIP 403 y en los logs "Saliente RECHAZADA" | El número no es argentino o tiene un formato desconocido | Cargarlo en E.164 (`+549...` o `+54...`) |
@@ -262,7 +267,8 @@ host. Motivo: en el plan gratuito de Cloud, el despacho del agente deja jobs en
    - `LIVEKIT_URL=ws://<IP de la LAN>:7880` y `LIVEKIT_LOCAL_NODE_IP=<IP de la LAN>`;
    - `LIVEKIT_API_KEY` y `LIVEKIT_API_SECRET` nuevas (`API` + `openssl rand -hex 6`, `openssl rand -hex 32`): con ellas arranca el server;
    - `LIVEKIT_SIP_HOST=127.0.0.1:5060`.
-3. `make up`, y `make livekit-sip`: crea los trunks y la dispatch rule en el LiveKit local. El trunk saliente apunta a `127.0.0.1:5080`. Poner el ID que imprime en `LIVEKIT_SIP_TRUNK_ID` y `make up`.
+3. `LIVEKIT_SIP_TRUNK_ID=` vacío: el agente busca el trunk saliente por nombre. El ID cambia en cada reinicio (punto siguiente), así que no sirve fijarlo.
+4. `make up`: al final corre `make livekit-sip`, que crea los trunks y la dispatch rule en el LiveKit local (el saliente apunta a `127.0.0.1:5080`). **Redis sin persistencia:** `livekit-redis` corre con `--save ""`, así que cada reinicio del host borra los tres objetos y las entrantes vuelven con 486 `flood` hasta recrearlos (26-sep-2026). Si se levantó sin `make up`, correr `make livekit-sip` a mano.
 
 **Volver a Cloud:** pasar los `LIVEKIT_CLOUD_*` a `LIVEKIT_URL`, `_API_KEY`, `_API_SECRET`, `_SIP_TRUNK_ID` y `_SIP_HOST`, comentar `COMPOSE_FILE` y `make up`.
 

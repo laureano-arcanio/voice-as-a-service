@@ -34,7 +34,7 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
 .PHONY: help setup env storage build \
         up up-agent up-inference up-nginx up-pbx down restart ps logs \
         sh mysql health gpu \
-        pbx-cli pbx-status livekit-sip \
+        pbx-cli pbx-status livekit-sip livekit-sip-si-local \
         test eval-motor eval-llamadas loadtest-audio loadtest loadtest-report capacity capacity-monitor capacity-monitor-stop capacity-analyze stt-eval stt-corpus \
         db-reset clean
 
@@ -62,8 +62,9 @@ build: storage ## Build de las imagenes propias (app/agent, stt-parakeet, asteri
 PUBLIC_URL_SH = host=$$(sed -n 's/^PUBLIC_HOST=//p' .env | tail -1); \
 	port=$$(sed -n 's/^PROXY_PORT=//p' .env | tail -1); url="http://$${host:-<PUBLIC_HOST>}:$${port:-8100}"
 
-up: storage ## Levanta todo: agente + inferencia + proxy + asterisk
+up: storage ## Levanta todo: agente + inferencia + proxy + asterisk (+ make livekit-sip si el LiveKit es propio)
 	$(COMPOSE) up -d --build
+	@$(MAKE) --no-print-directory livekit-sip-si-local
 
 up-agent: storage ## Solo db + app + agent, sin la inferencia (--no-deps; usa VLLM_*_BASE_URL del .env)
 	$(COMPOSE) up -d --build --wait --no-deps db
@@ -132,6 +133,15 @@ pbx-status: ## Registro con Anura, endpoints y llamadas activas en Asterisk
 
 livekit-sip: ## Crea/actualiza en LiveKit los trunks SIP + dispatch rule para Anura via Asterisk (idempotente)
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts app python -m scripts.livekit_sip_setup
+
+# Paso fijo de `make up` con LiveKit propio (docker-compose.livekit.yml en COMPOSE_FILE):
+# su Redis no persiste, asi que cada reinicio del host borra los trunks y la dispatch
+# rule y las entrantes vuelven con 486 "flood" (26-sep-2026). Con Cloud no hace falta.
+livekit-sip-si-local:
+	@if $(COMPOSE) config --services 2>/dev/null | grep -qx livekit; then \
+		echo "LiveKit propio: recreando trunks SIP y dispatch rule (make livekit-sip)"; \
+		$(MAKE) --no-print-directory livekit-sip; \
+	fi
 
 # --- Tests ---------------------------------------------------------------
 

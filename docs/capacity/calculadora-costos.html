@@ -57,109 +57,149 @@ button.primary { background: var(--accent); color: #fff; border-color: var(--acc
 <body>
 <main>
 <h1>Calculadora de costos y oferta</h1>
-<p class="sub">Dimensiona servers de voz a partir de la capacidad medida (CAP-001 y CAP-002) y calcula costo por canal, costo por minuto y precio de cada paquete. Todos los valores se pueden editar; se guardan en este navegador.</p>
+<p class="sub">El costo real es la capacidad de inferencia: las llamadas simultáneas reales que atienden los servers (medidas en CAP-001 y CAP-002) y los minutos que eso produce por mes. Cada plan paga su parte de esos minutos, más una base fija y los minutos salientes. Las llamadas simultáneas del plan son un límite que se le pone al cliente, no capacidad reservada. Todos los valores se pueden editar; se guardan en este navegador.</p>
 
 <div class="grid">
 
 <section class="panel">
-<h2>1. Tipo de server y calidad</h2>
+<h2>1. Servers</h2>
 <label class="f"><span>Tipo de server</span><select id="tipo"></select></label>
-<label class="f"><span>Calidad que se vende<small>Espera p95 entre turnos</small></span>
-  <select id="calidad"><option value="buena">Buena (p95 ≤ ~2,8 s)</option><option value="aceptable">Aceptable (p95 ≤ ~3,4 s)</option></select></label>
-<label class="f"><span>Servers de reserva (N + x)<small>Si cae uno, los otros absorben la carga</small></span><input id="reserva" type="number" min="0" step="1"></label>
+<label class="f"><span>Calidad para dimensionar<small>Espera p95 entre turnos. Los planes de otra calidad usan más o menos capacidad por minuto</small></span>
+  <select id="calidad"></select></label>
+<label class="f"><span>Servers activos<small>Los que atienden llamadas; la capacidad que dan está en la sección 4</small></span><input id="activos" type="number" min="1" step="1"></label>
+<label class="f"><span>Servers de reserva (N + x)<small>No suman capacidad: cubren la caída de uno</small></span><input id="reserva" type="number" min="0" step="1"></label>
 <label class="f"><span>Amortización del hardware (meses)</span><input id="meses" type="number" min="1" step="1"></label>
 <label class="f"><span>CPU armado con fuente, por server ($)<small>CPU, placa, RAM, disco, fuente, gabinete</small></span><input id="base" type="number" min="0" step="10000"></label>
 </section>
 
 <section class="panel">
-<h2>2. Costos fijos y energía</h2>
+<h2>2. Costos fijos</h2>
 <label class="f"><span>Internet ($ por mes)</span><input id="internet" type="number" min="0" step="1000"></label>
-<label class="f"><span>Anura ($ por mes)</span><input id="anura" type="number" min="0" step="1000"></label>
-<label class="f"><span>Anura, costo por minuto ($)<small>Si el plan cobra por minuto; si no, 0</small></span><input id="anuraMin" type="number" min="0" step="0.1"></label>
+<label class="f"><span>Anura, abono ($ por mes)</span><input id="anura" type="number" min="0" step="1000"></label>
 <label class="f"><span>Otros fijos ($ por mes)<small>Hosting, soporte, dominio, etc.</small></span><input id="otros" type="number" min="0" step="1000"></label>
 <label class="f"><span>Precio de la energía ($ por kWh)</span><input id="kwh" type="number" min="0" step="1"></label>
+<label class="f"><span>Paneles solares (cantidad)<small>Genera paneles × W × horas de sol × rendimiento, todos los días</small></span><input id="paneles" type="number" min="0" step="1"></label>
+<label class="f"><span>Potencia por panel (W)</span><input id="panelW" type="number" min="0" step="10"></label>
+<label class="f"><span>Horas de sol pico por día</span><input id="solHoras" type="number" min="0" max="12" step="0.5"></label>
+<label class="f"><span>Rendimiento de la instalación<small>Pérdidas de inversor, cables, suciedad</small></span><input id="solRend" type="number" min="0" max="1" step="0.05"></label>
 <label class="f"><span>Servers encendidos 24 h</span><select id="siempre"><option value="1">Sí (reposo fuera de horario)</option><option value="0">No (solo en horario)</option></select></label>
 </section>
 
 <section class="panel">
-<h2>3. Uso de los canales</h2>
+<h2>3. Uso y minutos</h2>
 <label class="f"><span>Horas de operación por día</span><input id="horas" type="number" min="1" max="24" step="1"></label>
 <label class="f"><span>Días de operación por mes</span><input id="dias" type="number" min="1" max="31" step="1"></label>
-<label class="f"><span>Ocupación de los canales (%)<small>Parte del horario con una llamada en curso</small></span><input id="ocupacion" type="number" min="1" max="100" step="1"></label>
+<label class="f"><span>Ocupación alcanzable (%)<small>Parte del horario en que la capacidad se puede llenar; la demanda se concentra en horas pico</small></span><input id="ocupacion" type="number" min="1" max="100" step="1"></label>
 <label class="f"><span>Duración media de llamada (min)</span><input id="duracion" type="number" min="0.1" step="0.1"></label>
-<label class="f"><span>Margen sobre el precio (%)<small>precio = costo / (1 − margen)</small></span><input id="margen" type="number" min="0" max="95" step="1"></label>
-<label class="f"><span>Canales a vender (total)</span><input id="canales" type="number" min="1" step="1"></label>
+<label class="f"><span>Margen sobre la inferencia (%)<small>precio del minuto = costo / (1 − margen)</small></span><input id="margen" type="number" min="0" max="95" step="1"></label>
+<h3>Telefonía por minuto</h3>
+<label class="f"><span>Costo del minuto entrante ($)<small>Lo que cobra Anura</small></span><input id="minEnt" type="number" min="0" step="0.5"></label>
+<label class="f"><span>Costo del minuto saliente ($)<small>Lo que cobra Anura</small></span><input id="minSal" type="number" min="0" step="0.5"></label>
+<label class="f"><span>Precio del minuto entrante al cliente ($)<small>Además de la inferencia</small></span><input id="precioEnt" type="number" min="0" step="0.5"></label>
+<label class="f"><span>Precio del minuto saliente al cliente ($)<small>Además de la inferencia</small></span><input id="precioSal" type="number" min="0" step="0.5"></label>
 </section>
 
 <section class="panel wide">
-<h2>4. Resultado para los canales a vender</h2>
+<h2>4. Capacidad y costo del minuto</h2>
 <div class="kpis" id="kpis"></div>
 <div class="scroll"><table id="desglose"></table></div>
-<p class="note" id="nota"></p>
+<h3>Minutos por mes</h3>
+<div class="scroll"><table id="minutos"></table></div>
 </section>
 
 <section class="panel wide">
-<h2>5. Paquetes</h2>
-<p class="note">Cada paquete es una cantidad de canales simultáneos. El precio sale del costo por canal del escenario de arriba (sección 4) más el margen. Los minutos incluidos usan las horas, días y ocupación de la sección 3.</p>
+<h2>5. Planes</h2>
+<p class="note">Precio del plan = base fija + minutos (entrantes + salientes) × precio del minuto de inferencia de su calidad (sección 4) + minutos × precio de telefonía (sección 3). Costo = minutos × costo del minuto de inferencia de su calidad + lo que cobra Anura. Un minuto de mejor calidad consume más capacidad, porque los servers atienden menos llamadas para mantener esa espera; para dársela a un cliente, el server tiene que limitar las llamadas mientras atiende las suyas. "Parte de la capacidad" es cuánto de los minutos que producen los servers se lleva el plan. "Uso del límite" es la parte del horario en que sus llamadas simultáneas estarían ocupadas; más de 100 % no entra.</p>
 <div class="scroll"><table id="paquetes"></table></div>
-<div class="row"><button id="agregarPaquete">Agregar paquete</button><button id="sumarPaquetes">Usar la suma de los paquetes como "canales a vender"</button></div>
+<div class="row"><button id="agregarPaquete">Agregar plan</button></div>
 </section>
 
 <section class="panel wide">
-<h2>6. Escala: costo según canales vendidos</h2>
-<p class="note">Con el tipo de server y la calidad elegidos. Los saltos de costo son cada vez que hace falta un server más.</p>
+<h2>6. Ganancia según los minutos vendidos</h2>
+<p class="note">Con los servers de la sección 4 instalados y vendiendo planes con la mezcla de la sección 5. Los costos fijos (amortización, luz, internet, abono de Anura, otros) se pagan igual, se venda o no; lo único variable es lo que cobra Anura por minuto. "Simultáneas contratadas" es la suma de los límites de los clientes: cuántas veces se vendió la capacidad real.</p>
+<label class="f" style="max-width:520px"><span>Venta promedio esperada<small>% de los minutos que producen los servers</small></span><input id="ventaProm" type="number" min="0" max="100" step="1"></label>
+<div class="kpis" id="gKpis" style="margin-top:8px"></div>
+<div class="scroll" style="margin-top:10px"><table id="ganancia"></table></div>
+<p class="note" id="gNota"></p>
+</section>
+
+<section class="panel wide">
+<h2>7. Escala: costo del minuto según los servers</h2>
+<p class="note">Con el tipo de server, la calidad, la reserva y la ocupación elegidos.</p>
 <div class="scroll"><table id="escala"></table></div>
 </section>
 
 <section class="panel">
-<h2>7. Del volumen a canales</h2>
+<h2>8. Del volumen a capacidad</h2>
 <label class="f"><span>Llamadas en la hora pico</span><input id="vLlamadas" type="number" min="0" step="10"></label>
 <label class="f"><span>Duración media (min)</span><input id="vDur" type="number" min="0.1" step="0.1"></label>
 <label class="f"><span>Tipo de tráfico</span><select id="vTipo"><option value="sal">Salientes (el marcador controla la concurrencia)</option><option value="ent">Entrantes (llegan al azar)</option></select></label>
 <label class="f"><span>Llamadas rechazadas admitidas (%)<small>Solo entrantes (Erlang B)</small></span><input id="vBloq" type="number" min="0.1" max="50" step="0.1"></label>
 <label class="f"><span>Ocupación máxima (%)<small>Solo salientes</small></span><input id="vOcup" type="number" min="10" max="100" step="1"></label>
 <div id="vRes" class="kpis" style="margin-top:8px"></div>
-<div class="row"><button class="primary" id="usarVolumen">Usar como "canales a vender"</button></div>
+<div class="row"><button class="primary" id="usarVolumen">Usar para calcular los servers activos</button></div>
 </section>
 
-<section class="panel">
-<h2>8. Tipos de server</h2>
-<p class="note">Capacidad medida en el server de validación (Ryzen 7 5700X, motor classic). La potencia es estimada: GPUs medidas en el test más ~150 W del resto; conviene medirla con un medidor en el enchufe.</p>
+<section class="panel wide">
+<h2>9. Tipos de server</h2>
+<p class="note">Capacidad medida en el server de validación (Ryzen 7 5700X, motor classic): A y B. El resto es estimado. Con la 3090 para LLM + STT, el LLM limita desde ~30 llamadas, así que una placa de TTS más rápida que una 3090 no suma capacidad. La CPU del host (5700X) limita desde ~55. La potencia es estimada: GPUs medidas en el test (o ~75 % de su TDP) más ~150 W del resto; conviene medirla con un medidor en el enchufe.</p>
 <div class="scroll"><table class="tipos" id="tipos"></table></div>
 <div class="row"><button id="restaurar">Restaurar valores iniciales</button></div>
 </section>
 
 </div>
-<p class="note">Fuera del cálculo: impuestos, sueldos, soporte, costo de venta y el precio de la telefonía por minuto si no está cargado en la sección 2. Capacidad: docs/capacity/README.md.</p>
+<p class="note">Fuera del cálculo: impuestos, sueldos, soporte y costo de venta. Capacidad: docs/capacity/README.md.</p>
 </main>
 
 <script>
 "use strict";
 const DEFAULTS = {
-  tipo: "A", calidad: "buena", reserva: 1, meses: 24, base: 1500000,
-  internet: 70000, anura: 140000, anuraMin: 0, otros: 0, kwh: 300, siempre: "1",
-  horas: 8, dias: 22, ocupacion: 70, duracion: 1.5, margen: 40, canales: 40,
+  tipo: "A", calidad: "buena", activos: 2, reserva: 1, meses: 24, base: 1500000,
+  internet: 70000, anura: 140000, otros: 0, kwh: 300, paneles: 3, panelW: 400, solHoras: 5, solRend: 0.8, siempre: "1",
+  horas: 8, dias: 22, ocupacion: 70, duracion: 1.5, margen: 40,
+  minEnt: 0, minSal: 25, precioEnt: 0, precioSal: 25, ventaProm: 30,
   vLlamadas: 600, vDur: 1.5, vTipo: "sal", vBloq: 1, vOcup: 90,
+  // Precios nuevos, contado, sep-2026: Venex (5060 Ti, 5070, 5070 Ti, 5080, 5090; la opción más barata de cada una).
+  // La 3090 ya no se fabrica: 2 M es stock remanente (tiendas, 2,0–2,5 M). 3080 y 3070 Ti: solo usadas.
   tipos: {
-    A: { nombre: "3090 + 5060 Ti 8 GB (CAP-002, medido)", gpu1: "3090 usada (LLM + STT)", p1: 1200000, gpu2: "5060 Ti 8 GB (TTS)", p2: 900000, buena: 22, aceptable: 32, wCarga: 570, wReposo: 120 },
-    B: { nombre: "3090 + 3090 (CAP-001, medido)", gpu1: "3090 usada (LLM)", p1: 1200000, gpu2: "3090 usada (TTS + STT)", p2: 1200000, buena: 30, aceptable: 34, wCarga: 710, wReposo: 150 },
-    C: { nombre: "3090 + 5060 Ti 16 GB (estimado)", gpu1: "3090 usada (LLM + STT)", p1: 1200000, gpu2: "5060 Ti 16 GB (TTS)", p2: 1500000, buena: 22, aceptable: 32, wCarga: 580, wReposo: 125 },
+    A: { nombre: "3090 + 5060 Ti 8 GB (CAP-002, medido)", gpu1: "3090 (LLM + STT)", p1: 2000000, gpu2: "5060 Ti 8 GB (TTS)", p2: 890000, premium: 8, superior: 14, buena: 22, aceptable: 32, wCarga: 570, wReposo: 120 },
+    B: { nombre: "3090 + 3090 (CAP-001, medido)", gpu1: "3090 (LLM)", p1: 2000000, gpu2: "3090 (TTS + STT)", p2: 2000000, premium: 10, superior: 22, buena: 27, aceptable: 34, wCarga: 710, wReposo: 150 },
+    C: { nombre: "3090 + 5060 Ti 16 GB (estimado)", gpu1: "3090 (LLM + STT)", p1: 2000000, gpu2: "5060 Ti 16 GB (TTS)", p2: 1410000, premium: 8, superior: 14, buena: 22, aceptable: 32, wCarga: 580, wReposo: 125 },
+    // premium: p95 ≤ ~2,2 s; superior: ≤ ~2,5 s; buena: ≤ ~2,8 s; aceptable: ≤ ~3,4 s.
+    // A y B, interpolados de los escalones de CAP-002 y CAP-001; el resto, escalados igual que buena.
+    // Estimados: el TTS escala ~con el cómputo (la 3090 rindió ×1,45 la 5060 Ti con ×1,5 de cómputo),
+    // pero desde ~30 llamadas limita el LLM en la 3090 (88 % de uso con 30 en la sostenida de CAP-002).
+    D: { nombre: "3090 + 5070 12 GB (estimado)", gpu1: "3090 (LLM + STT)", p1: 2000000, gpu2: "5070 12 GB (TTS)", p2: 1465000, premium: 10, superior: 18, buena: 28, aceptable: 33, wCarga: 620, wReposo: 125 },
+    E: { nombre: "3090 + 5070 Ti 16 GB (estimado)", gpu1: "3090 (LLM + STT)", p1: 2000000, gpu2: "5070 Ti 16 GB (TTS)", p2: 2150000, premium: 10, superior: 22, buena: 30, aceptable: 35, wCarga: 660, wReposo: 130 },
+    F: { nombre: "3090 + 5080 16 GB (estimado)", gpu1: "3090 (LLM + STT)", p1: 2000000, gpu2: "5080 16 GB (TTS)", p2: 2985000, premium: 10, superior: 22, buena: 30, aceptable: 35, wCarga: 700, wReposo: 130 },
+    G: { nombre: "3090 + 5090 32 GB (estimado)", gpu1: "3090 (LLM + STT)", p1: 2000000, gpu2: "5090 32 GB (TTS)", p2: 7300000, premium: 10, superior: 22, buena: 30, aceptable: 35, wCarga: 860, wReposo: 140 },
+    H: { nombre: "3090 + 3080 12 GB usada (estimado)", gpu1: "3090 (LLM + STT)", p1: 2000000, gpu2: "3080 12 GB usada (TTS)", p2: 1600000, premium: 10, superior: 18, buena: 28, aceptable: 33, wCarga: 690, wReposo: 130 },
+    I: { nombre: "3090 + 3070 Ti 8 GB usada (estimado)", gpu1: "3090 (LLM + STT)", p1: 2000000, gpu2: "3070 Ti 8 GB usada (TTS)", p2: 1200000, premium: 7, superior: 13, buena: 21, aceptable: 30, wCarga: 645, wReposo: 130 },
+    // Sin 3090: LLM + STT en 16 GB (sin medir; el LLM usa ~16,8 GB con 0.70 en la 3090, habría que achicar su KV).
+    J: { nombre: "5070 Ti 16 GB + 5070 12 GB (estimado, sin medir el LLM en 16 GB)", gpu1: "5070 Ti 16 GB (LLM + STT)", p1: 2150000, gpu2: "5070 12 GB (TTS)", p2: 1465000, premium: 10, superior: 18, buena: 28, aceptable: 33, wCarga: 630, wReposo: 125 },
   },
+  // Bases fijas de ejemplo: a definir.
   paquetes: [
-    { nombre: "Inicial", canales: 2 },
-    { nombre: "Pyme", canales: 5 },
-    { nombre: "Empresa", canales: 10 },
-    { nombre: "Corporativo", canales: 20 },
+    { nombre: "Inicial", calidad: "buena", canales: 2, ent: 500, sal: 100, base: 30000 },
+    { nombre: "Pyme", calidad: "buena", canales: 5, ent: 1500, sal: 300, base: 60000 },
+    { nombre: "Pyme Premium", calidad: "premium", canales: 5, ent: 1500, sal: 300, base: 90000 },
+    { nombre: "Empresa", calidad: "superior", canales: 10, ent: 4000, sal: 1000, base: 150000 },
+    { nombre: "Corporativo", calidad: "buena", canales: 20, ent: 10000, sal: 3000, base: 200000 },
   ],
 };
-const CAMPOS = ["tipo","calidad","reserva","meses","base","internet","anura","anuraMin","otros","kwh","siempre","horas","dias","ocupacion","duracion","margen","canales","vLlamadas","vDur","vTipo","vBloq","vOcup"];
-const CLAVE = "calculadora-costos-v1";
+const CAMPOS = ["tipo","calidad","activos","reserva","meses","base","internet","anura","otros","kwh","paneles","panelW","solHoras","solRend","siempre","horas","dias","ocupacion","duracion","margen","minEnt","minSal","precioEnt","precioSal","ventaProm","vLlamadas","vDur","vTipo","vBloq","vOcup"];
+const CLAVE = "calculadora-costos-v4";
 let S = cargar();
 
 function cargar() {
   try {
     const g = JSON.parse(localStorage.getItem(CLAVE));
-    if (g && g.tipos && g.paquetes) return Object.assign(structuredClone(DEFAULTS), g);
+    if (g && g.tipos && g.paquetes) {
+      const s = Object.assign(structuredClone(DEFAULTS), g);
+      // Tipos nuevos de DEFAULTS se suman sin pisar los editados.
+      for (const [k, t] of Object.entries(DEFAULTS.tipos)) s.tipos[k] = Object.assign(structuredClone(t), s.tipos[k] || {});
+      return s;
+    }
   } catch (e) {}
   return structuredClone(DEFAULTS);
 }
@@ -170,38 +210,73 @@ const pesos = (v) => isFinite(v) ? "$ " + Math.round(v).toLocaleString("es-AR") 
 const pesos2 = (v) => isFinite(v) ? "$ " + v.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—";
 const num = (v, d = 0) => isFinite(v) ? v.toLocaleString("es-AR", { maximumFractionDigits: d }) : "—";
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const chico = (t) => `<small style="display:block;color:var(--muted)">${t}</small>`;
+
+// Calidades que se venden: espera del cliente p95 entre turnos. Mejor calidad = menos llamadas por server.
+const CALIDADES = [
+  ["premium", "Premium", "p95 ≤ ~2,2 s"],
+  ["superior", "Superior", "p95 ≤ ~2,5 s"],
+  ["buena", "Buena", "p95 ≤ ~2,8 s"],
+  ["aceptable", "Aceptable", "p95 ≤ ~3,4 s"],
+];
+const nombreCalidad = (k) => (CALIDADES.find((c) => c[0] === k) || [k, k])[1];
 
 // ---- modelo ----
-function capacidad(t) { return Math.max(1, +S.tipos[t][S.calidad] || 1); }
+function capacidad(t, calidad = S.calidad) { return Math.max(1, +S.tipos[t][calidad] || 1); }
+// Capacidad que consume un minuto de esa calidad, en minutos de la calidad de la sección 1.
+const factorCalidad = (calidad) => capacidad(S.tipo) / capacidad(S.tipo, calidad || S.calidad);
+const horarioMin = () => (+S.horas) * (+S.dias) * 60;
 
-function escenario(canales) {
+// Servers instalados: costo fijo por mes y minutos que producen.
+// Costo fijo = amortización + luz + internet + abono de Anura + otros. La luz se estima con la ocupación, menos lo solar.
+function escenario(activos) {
   const t = S.tipos[S.tipo];
   const cap = capacidad(S.tipo);
-  const activos = Math.max(1, Math.ceil(canales / cap));
+  activos = Math.max(1, activos);
   const servers = activos + (+S.reserva || 0);
+  const capReal = activos * cap;
   const inversionServer = (+S.base || 0) + (+t.p1 || 0) + (+t.p2 || 0);
   const inversion = servers * inversionServer;
   const amort = inversion / Math.max(1, +S.meses);
-  const horasMes = (+S.horas) * (+S.dias);
   const ocup = Math.min(1, (+S.ocupacion) / 100);
-  // La carga se reparte entre todos los servers (activo-activo con reserva).
-  const cargaServer = Math.min(1, (canales * ocup) / (servers * cap));
-  const wOp = (+t.wReposo) + ((+t.wCarga) - (+t.wReposo)) * cargaServer;
-  const horasFuera = S.siempre === "1" ? Math.max(0, 24 * 30 - horasMes) : 0;
-  const kwhMes = servers * (horasMes * wOp + horasFuera * (+t.wReposo)) / 1000;
-  const energia = kwhMes * (+S.kwh);
-  const minutos = canales * horasMes * 60 * ocup;
-  const telefoniaVar = minutos * (+S.anuraMin || 0);
+  const minProd = capReal * horarioMin() * ocup;
+  const horasEncendido = S.siempre === "1" ? Math.max(horarioMin() / 60, 24 * 30) : horarioMin() / 60;
+  const whMin = Math.max(0, (+t.wCarga) - (+t.wReposo)) / cap / 60;
+  const kwhMes = servers * horasEncendido * (+t.wReposo) / 1000 + minProd * whMin / 1000;
+  const kwhSolar = Math.max(0, (+S.paneles) * (+S.panelW) * (+S.solHoras) * (+S.solRend)) * 30 / 1000;
+  const kwhSolarUsado = Math.min(kwhSolar, kwhMes);
+  const luz = (kwhMes - kwhSolarUsado) * (+S.kwh);
   const fijos = (+S.internet) + (+S.anura) + (+S.otros);
-  const total = amort + energia + fijos + telefoniaVar;
+  const total = amort + luz + fijos;
   const m = Math.min(0.95, (+S.margen) / 100);
-  return {
-    cap, activos, servers, inversionServer, inversion, amort, kwhMes, energia, fijos, telefoniaVar, total,
-    minutos, cargaServer, capTotal: activos * cap,
-    costoCanal: total / canales, costoMin: total / minutos,
-    precioCanal: (total / canales) / (1 - m), precioMin: (total / minutos) / (1 - m),
-    llamadasMes: minutos / Math.max(0.1, +S.duracion),
-  };
+  const costoMin = total / minProd;
+  return { cap, activos, servers, capReal, inversionServer, inversion, amort, minProd, whMin, kwhMes, kwhSolar, kwhSolarUsado,
+    ahorroSolar: kwhSolarUsado * (+S.kwh), luz, fijos, total, m, costoMin, precioMin: costoMin / (1 - m) };
+}
+
+// Un plan: base fija + su parte de la inferencia + la telefonía.
+function plan(p, e) {
+  const c = Math.max(0, +p.canales || 0), ent = Math.max(0, +p.ent || 0), sal = Math.max(0, +p.sal || 0), base = Math.max(0, +p.base || 0);
+  const min = ent + sal, calidad = p.calidad || S.calidad, factor = factorCalidad(calidad);
+  const minCap = min * factor;
+  const infCosto = minCap * e.costoMin, infPrecio = minCap * e.precioMin;
+  const telPrecio = ent * (+S.precioEnt || 0) + sal * (+S.precioSal || 0);
+  const anura = ent * (+S.minEnt || 0) + sal * (+S.minSal || 0);
+  const precio = base + infPrecio + telPrecio, costo = infCosto + anura;
+  return { c, ent, sal, base, min, calidad, factor, minCap, infCosto, infPrecio, telPrecio, anura, precio, costo };
+}
+
+// Mezcla de los planes, por minuto de capacidad que consumen (un minuto premium consume más de uno).
+function mezcla(e) {
+  let cap = 0, min = 0, precio = 0, anura = 0, canales = 0;
+  for (const p of S.paquetes) { const q = plan(p, e); cap += q.minCap; min += q.min; precio += q.precio; anura += q.anura; canales += q.c; }
+  if (!cap) return null;
+  return { ingresoMin: precio / cap, anuraMin: anura / cap, contribMin: (precio - anura) / cap, canalesMin: canales / cap,
+    realPorCap: min / cap, capPorPlan: cap / S.paquetes.length, minPorPlan: min / S.paquetes.length };
+}
+function ganancia(M, e, x) {
+  const ingresos = M * x.ingresoMin, costos = e.total + M * x.anuraMin;
+  return { ingresos, costos, ganancia: ingresos - costos, contratadas: M * x.canalesMin, minutos: M * x.realPorCap };
 }
 
 // Erlang B: probabilidad de bloqueo con E erlangs y N canales (recursiva, estable).
@@ -213,10 +288,12 @@ function pintarTipos() {
   const sel = $("tipo");
   sel.innerHTML = Object.entries(S.tipos).map(([k, t]) => `<option value="${k}">${k}: ${esc(t.nombre)}</option>`).join("");
   sel.value = S.tipo;
+  $("calidad").innerHTML = CALIDADES.map(([k, n, d]) => `<option value="${k}">${n} (${d})</option>`).join("");
+  $("calidad").value = S.calidad;
   const filas = [
     ["nombre", "Nombre", "text"], ["gpu1", "GPU 1", "text"], ["p1", "Precio GPU 1 ($)", "number"],
     ["gpu2", "GPU 2", "text"], ["p2", "Precio GPU 2 ($)", "number"],
-    ["buena", "Canales, calidad buena", "number"], ["aceptable", "Canales, calidad aceptable", "number"],
+    ...CALIDADES.map(([k, n, d]) => [k, `Llamadas simultáneas, ${n.toLowerCase()} (${d})`, "number"]),
     ["wCarga", "Potencia a plena carga (W)", "number"], ["wReposo", "Potencia en reposo (W)", "number"],
   ];
   const tipos = Object.keys(S.tipos);
@@ -225,31 +302,102 @@ function pintarTipos() {
       `<td><input class="${ty === "text" ? "nombre" : ""}" data-tipo="${k}" data-campo="${c}" type="${ty}" value="${esc(S.tipos[k][c])}"></td>`).join("")}</tr>`).join("");
 }
 
+function pintarCapacidad(e) {
+  const t = S.tipos[S.tipo];
+  $("kpis").innerHTML = [
+    [`${e.capReal}`, `Llamadas simultáneas reales (${e.activos} × ${e.cap}, calidad ${nombreCalidad(S.calidad).toLowerCase()})`],
+    [`${e.servers}`, `Servers (${e.activos} activos + ${e.servers - e.activos} de reserva)`],
+    [pesos(e.inversion), "Inversión en hardware"],
+    [pesos(e.total), "Costo fijo por mes"],
+    [num(e.minProd), `Minutos que producen por mes (${num(+S.ocupacion)} % de ocupación)`],
+    [pesos2(e.costoMin), `Costo del minuto de inferencia (${nombreCalidad(S.calidad).toLowerCase()})`],
+    [pesos2(e.precioMin), `Precio del minuto de inferencia (margen ${num(+S.margen)} %)`],
+  ].map(([v, l]) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");
+  const filas = [
+    ["Hardware por server", `${pesos(+S.base)} base + ${pesos(+t.p1)} (${esc(t.gpu1)}) + ${pesos(+t.p2)} (${esc(t.gpu2)}) = ${pesos(e.inversionServer)}`],
+    ["Amortización", `${pesos(e.amort)} (${pesos(e.inversion)} en ${num(+S.meses)} meses)`],
+    ["Luz", `${pesos(e.luz)}: consumo ${num(e.kwhMes)} kWh − solar ${num(e.kwhSolarUsado)} kWh, a ${pesos(+S.kwh)}. Estimada con los servers llenos al ${num(+S.ocupacion)} % del horario`],
+    ["Paneles solares", `${num(+S.paneles)} × ${num(+S.panelW)} W × ${num(+S.solHoras, 1)} h × ${num(+S.solRend, 2)} = ${num(e.kwhSolar)} kWh por mes; ahorro ${pesos(e.ahorroSolar)}${e.kwhSolar > e.kwhSolarUsado ? ` (sobran ${num(e.kwhSolar - e.kwhSolarUsado)} kWh)` : ""}`],
+    ["Internet, Anura y otros", `${pesos(e.fijos)} (internet ${pesos(+S.internet)}, abono de Anura ${pesos(+S.anura)}, otros ${pesos(+S.otros)})`],
+    ["<b>Costo fijo por mes</b>", `<b>${pesos(e.total)}</b> / ${num(e.minProd)} minutos = <b>${pesos2(e.costoMin)}</b> por minuto`],
+    ["Minuto por calidad", CALIDADES.map(([k, n, d]) => { const f = factorCalidad(k); return `${n} (${d}): ${capacidad(S.tipo, k)} llamadas por server, costo ${pesos2(e.costoMin * f)}, precio ${pesos2(e.precioMin * f)}`; }).join("<br>")],
+    ["Telefonía, por minuto", `Anura cobra ${pesos2(+S.minEnt)} el entrante y ${pesos2(+S.minSal)} el saliente; al cliente, ${pesos2(+S.precioEnt)} y ${pesos2(+S.precioSal)} además de la inferencia`],
+  ];
+  $("desglose").innerHTML = filas.map(([k, v]) => `<tr><td>${k}</td><td style="text-align:left;white-space:normal">${v}</td></tr>`).join("");
+
+  const h = horarioMin(), ocup = Math.min(1, (+S.ocupacion) / 100);
+  const vendidos = S.paquetes.reduce((a, p) => a + plan(p, e).minCap, 0);
+  const limites = S.paquetes.reduce((a, p) => a + Math.max(0, +p.canales || 0), 0);
+  const cols = [["Por llamada simultánea", 1], [`Capacidad instalada (${e.capReal})`, e.capReal]];
+  const filasMin = [["Todo el mes, 24 h", 24 * 30 * 60], [`Horario (${num(+S.horas)} h × ${num(+S.dias)} días)`, h], [`Horario con ${num(ocup * 100)} % de ocupación: <b>lo que se puede vender</b>`, h * ocup]];
+  $("minutos").innerHTML = `<tr><th></th>${cols.map(([l]) => `<th>${l}</th>`).join("")}<th>Llamadas por mes</th></tr>` +
+    filasMin.map(([l, m]) => `<tr><td>${l}</td>${cols.map(([, n]) => `<td>${num(m * n)}</td>`).join("")}<td>${num(m * e.capReal / Math.max(0.1, +S.duracion))}</td></tr>`).join("") +
+    `<tr><td>Consumidos por los planes de la sección 5 (uno de cada uno; en minutos ${nombreCalidad(S.calidad).toLowerCase()})</td><td>—</td><td>${num(vendidos)} (${num(vendidos / e.minProd * 100, 1)} %)</td><td>${num(vendidos / Math.max(0.1, +S.duracion))}</td></tr>
+     <tr><td>Libres para vender</td><td>—</td><td><b>${num(e.minProd - vendidos)}</b></td><td>—</td></tr>
+     <tr><td>Límites de simultáneas de esos planes</td><td>—</td><td>${num(limites)} (${num(limites / e.capReal, 2)} × la capacidad real)</td><td>—</td></tr>`;
+}
+
 function pintarPaquetes(e) {
-  const horasMes = (+S.horas) * (+S.dias), ocup = (+S.ocupacion) / 100;
+  const h = horarioMin(), ocup = Math.min(1, (+S.ocupacion) / 100);
   const filas = S.paquetes.map((p, i) => {
-    const c = Math.max(0, +p.canales || 0);
-    const precio = c * e.precioCanal, costo = c * e.costoCanal;
-    const min = c * horasMes * 60 * ocup;
+    const q = plan(p, e);
+    const uso = q.c > 0 ? q.min / (q.c * h) : Infinity;
+    const cls = uso > ocup ? "warn" : "";
+    const aviso = uso > 1 ? "No entra: más minutos que los del horario" : (uso > ocup ? `Más que la ocupación de la sección 3 (${num(ocup * 100)} %)` : "");
+    const inp = (campo, v, step) => `<td><input data-paq="${i}" data-campo="${campo}" type="number" min="0" step="${step}" value="${v}"></td>`;
+    const sel = `<select data-paq="${i}" data-campo="calidad">${CALIDADES.map(([k, n]) => `<option value="${k}"${k === q.calidad ? " selected" : ""}>${n}</option>`).join("")}</select>`;
     return `<tr><td><input class="nombre" data-paq="${i}" data-campo="nombre" value="${esc(p.nombre)}"></td>
-      <td><input data-paq="${i}" data-campo="canales" type="number" min="1" step="1" value="${c}"></td>
-      <td>${pesos(costo)}</td><td><b>${pesos(precio)}</b></td><td>${pesos(precio - costo)}</td>
-      <td>${num(min)}</td><td>${num(min / Math.max(0.1, +S.duracion))}</td><td>${pesos2(precio / min)}</td>
+      <td>${sel}${q.factor !== 1 ? chico(`×${num(q.factor, 2)} capacidad`) : ""}</td>
+      ${inp("canales", q.c, 1)}${inp("ent", q.ent, 100)}${inp("sal", q.sal, 100)}${inp("base", q.base, 5000)}
+      <td><b>${pesos(q.precio)}</b>${chico(`base ${pesos(q.base)} + inferencia ${pesos(q.infPrecio)} + telefonía ${pesos(q.telPrecio)}`)}</td>
+      <td>${pesos(q.costo)}${chico(`inferencia ${pesos(q.infCosto)} + Anura ${pesos(q.anura)}`)}</td>
+      <td>${pesos(q.precio - q.costo)}</td>
+      <td>${q.min ? pesos2(q.precio / q.min) : "—"}</td>
+      <td>${num(q.minCap / e.minProd * 100, 2)} %</td>
+      <td class="${cls}" title="${aviso}">${num(uso * 100)} %</td>
       <td><button data-borrar="${i}" title="Quitar">✕</button></td></tr>`;
   }).join("");
-  $("paquetes").innerHTML = `<tr><th>Paquete</th><th>Canales</th><th>Costo por mes</th><th>Precio por mes</th><th>Margen por mes</th><th>Minutos incluidos</th><th>Llamadas por mes</th><th>Precio por minuto</th><th></th></tr>` + filas;
+  $("paquetes").innerHTML = `<tr><th>Plan</th><th>Calidad</th><th>Límite de simultáneas</th><th>Minutos entrantes</th><th>Minutos salientes</th><th>Base fija</th><th>Precio por mes</th><th>Costo por mes</th><th>Margen por mes</th><th>Precio por minuto</th><th>Parte de la capacidad</th><th>Uso del límite</th><th></th></tr>` + filas;
+}
+
+function pintarGanancia(e) {
+  const x = mezcla(e);
+  if (!x) { $("gKpis").innerHTML = ""; $("ganancia").innerHTML = ""; $("gNota").textContent = "Cargá al menos un plan con minutos."; return; }
+  const cap = e.minProd;
+  const eq = x.contribMin > 0 ? e.total / x.contribMin : Infinity;
+  const pProm = Math.min(100, Math.max(0, +S.ventaProm)) / 100;
+  const gProm = ganancia(cap * pProm, e, x), gMax = ganancia(cap, e, x);
+  const signo = (v) => v >= 0 ? "ok" : "warn";
+  const planes = (M) => M / x.capPorPlan;
+  const kpi = (v, l, cls = "") => `<div class="kpi"><div class="v ${cls}">${v}</div><div class="l">${l}</div></div>`;
+  $("gKpis").innerHTML = [
+    kpi(isFinite(eq) ? `${num(eq / cap * 100, 1)} %` : "nunca", isFinite(eq) ? `Mínimo a vender para no perder: ${num(eq * x.realPorCap)} minutos, ~${num(planes(eq))} planes promedio` : "Los planes dejan menos que Anura: subí precios", isFinite(eq) && eq <= cap ? "" : "warn"),
+    kpi(pesos(gProm.ganancia), `Ganancia por mes con la venta promedio (${num(pProm * 100)} %, ~${num(planes(cap * pProm))} planes)`, signo(gProm.ganancia)),
+    kpi(pesos(gMax.ganancia), `Ganancia máxima por mes (capacidad llena, ~${num(planes(cap))} planes)`, signo(gMax.ganancia)),
+    kpi(pesos(gProm.ganancia * 12), "Ganancia por año con la venta promedio", signo(gProm.ganancia)),
+    kpi(pesos2(x.contribMin / x.realPorCap), `Deja cada minuto vendido, en promedio (${pesos2(x.ingresoMin / x.realPorCap)} de precio − ${pesos2(x.anuraMin / x.realPorCap)} de Anura)`),
+    kpi(pesos(e.total), `Costo fijo por mes (${e.servers} servers)`),
+  ].join("");
+  const puntos = new Set([0, pProm, 1, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]);
+  if (isFinite(eq) && eq <= cap) puntos.add(eq / cap);
+  const filas = [...puntos].sort((a, b) => a - b).map((f) => {
+    const M = cap * f, g = ganancia(M, e, x);
+    const marca = isFinite(eq) && Math.abs(M - eq) < 1e-6 ? " (equilibrio)" : f === pProm ? " (promedio)" : f === 1 ? " (llena)" : "";
+    const b = marca ? "b" : "span";
+    const sobre = g.contratadas / e.capReal;
+    return `<tr><td><${b}>${num(f * 100, 1)} %${marca}</${b}></td><td>${num(g.minutos)}</td><td>${num(planes(M))}</td><td>${pesos(g.ingresos)}</td><td>${pesos(g.costos)}</td><td class="${signo(g.ganancia)}"><b>${pesos(g.ganancia)}</b></td><td>${num(g.contratadas)} (×${num(sobre, 1)})</td><td>${num(g.ganancia * 12 / e.inversion * 100)} %</td></tr>`;
+  }).join("");
+  $("ganancia").innerHTML = `<tr><th>Capacidad vendida</th><th>Minutos por mes</th><th>Planes promedio</th><th>Ingresos por mes</th><th>Costos por mes</th><th>Ganancia por mes</th><th>Simultáneas contratadas</th><th>Ganancia anual / inversión</th></tr>` + filas;
+  $("gNota").innerHTML = `Capacidad real: ${e.capReal} llamadas simultáneas (${e.activos} servers activos + ${e.servers - e.activos} de reserva). Los costos fijos ya incluyen la amortización del hardware en ${num(+S.meses)} meses: la ganancia es lo que queda después de recuperarlo. Plan promedio: ${num(x.minPorPlan)} minutos. Con mucha sobreventa, conviene medir la concurrencia real de los clientes: si sus picos coinciden, se pasa la capacidad.`;
 }
 
 function pintarEscala() {
-  const cap = capacidad(S.tipo);
-  const puntos = [];
-  for (const c of [1, 2, 5, 10, 15, 20, 25, 30, 40, 50, 60, 80, 100, 150, 200]) puntos.push(c);
-  puntos.push(cap, cap * 2, cap * 3);
-  const unicos = [...new Set(puntos)].sort((a, b) => a - b);
-  $("escala").innerHTML = `<tr><th>Canales vendidos</th><th>Servers (con reserva)</th><th>Costo por mes</th><th>Costo por canal</th><th>Costo por minuto</th><th>Precio por canal</th><th>Precio por minuto</th></tr>` +
-    unicos.map((c) => { const e = escenario(c);
-      const lleno = c % cap === 0 ? ' class="ok"' : "";
-      return `<tr${lleno}><td>${c}</td><td>${e.servers} (${e.activos} + ${e.servers - e.activos})</td><td>${pesos(e.total)}</td><td>${pesos(e.costoCanal)}</td><td>${pesos2(e.costoMin)}</td><td>${pesos(e.precioCanal)}</td><td>${pesos2(e.precioMin)}</td></tr>`; }).join("");
+  const filas = [];
+  for (let a = 1; a <= 8; a++) {
+    const e = escenario(a);
+    filas.push(`<tr${a === Math.max(1, +S.activos || 1) ? ' class="ok"' : ""}><td>${a} + ${e.servers - a}</td><td>${e.capReal}</td><td>${pesos(e.inversion)}</td><td>${pesos(e.total)}</td><td>${num(e.minProd)}</td><td>${pesos2(e.costoMin)}</td><td>${pesos2(e.precioMin)}</td></tr>`);
+  }
+  $("escala").innerHTML = `<tr><th>Servers (activos + reserva)</th><th>Llamadas simultáneas reales</th><th>Inversión</th><th>Costo fijo por mes</th><th>Minutos por mes</th><th>Costo del minuto</th><th>Precio del minuto de inferencia</th></tr>` + filas.join("");
 }
 
 function pintarVolumen() {
@@ -263,40 +411,14 @@ function pintarVolumen() {
     detalle = `al ${num(+S.vOcup)} % de ocupación`;
   }
   S._vCanales = canales;
-  $("vRes").innerHTML = `<div class="kpi"><div class="v">${num(E, 1)}</div><div class="l">Canales ocupados en promedio (erlangs)</div></div>
-    <div class="kpi"><div class="v">${num(canales)}</div><div class="l">Canales necesarios (${detalle})</div></div>`;
+  $("vRes").innerHTML = `<div class="kpi"><div class="v">${num(E, 1)}</div><div class="l">Llamadas en curso en promedio (erlangs)</div></div>
+    <div class="kpi"><div class="v">${num(canales)}</div><div class="l">Llamadas simultáneas necesarias (${detalle})</div></div>
+    <div class="kpi"><div class="v">${Math.ceil(canales / capacidad(S.tipo))}</div><div class="l">Servers activos (${capacidad(S.tipo)} llamadas cada uno, calidad ${nombreCalidad(S.calidad).toLowerCase()})</div></div>`;
 }
 
 function pintar() {
-  const c = Math.max(1, +S.canales || 1);
-  const e = escenario(c);
-  const t = S.tipos[S.tipo];
-  $("kpis").innerHTML = [
-    [`${e.servers}`, `Servers (${e.activos} activos + ${e.servers - e.activos} de reserva)`],
-    [pesos(e.inversion), "Inversión en hardware"],
-    [pesos(e.total), "Costo total por mes"],
-    [pesos(e.costoCanal), "Costo por canal por mes"],
-    [pesos2(e.costoMin), "Costo por minuto"],
-    [pesos(e.precioCanal), `Precio por canal por mes (margen ${num(+S.margen)} %)`],
-    [pesos2(e.precioMin), "Precio por minuto"],
-    [num(e.minutos), "Minutos por mes"],
-  ].map(([v, l]) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");
-  const filas = [
-    ["Capacidad por server", `${e.cap} canales (${S.calidad})`],
-    ["Capacidad instalada activa", `${e.capTotal} canales; con ${c} vendidos, cada server a ${num(e.cargaServer * 100)} % de su capacidad`],
-    ["Hardware por server", `${pesos(+S.base)} base + ${pesos(+t.p1)} (${esc(t.gpu1)}) + ${pesos(+t.p2)} (${esc(t.gpu2)}) = ${pesos(e.inversionServer)}`],
-    ["Amortización por mes", `${pesos(e.amort)} (${pesos(e.inversion)} en ${num(+S.meses)} meses)`],
-    ["Energía por mes", `${pesos(e.energia)} (${num(e.kwhMes)} kWh a ${pesos(+S.kwh)})`],
-    ["Fijos por mes", `${pesos(e.fijos)} (internet ${pesos(+S.internet)}, Anura ${pesos(+S.anura)}, otros ${pesos(+S.otros)})`],
-    ["Telefonía por minuto", `${pesos(e.telefoniaVar)}`],
-    ["Llamadas por mes", `${num(e.llamadasMes)} de ${num(+S.duracion, 1)} min`],
-  ];
-  $("desglose").innerHTML = filas.map(([k, v]) => `<tr><td>${k}</td><td style="text-align:left;white-space:normal">${v}</td></tr>`).join("");
-  const libres = e.capTotal - c;
-  $("nota").innerHTML = libres > 0
-    ? `Quedan <b>${libres}</b> canales libres en los servers activos: venderlos no suma hardware.`
-    : `<span class="warn">Los servers activos están llenos: un canal más agrega un server.</span>`;
-  pintarPaquetes(e); pintarEscala(); pintarVolumen();
+  const e = escenario(Math.max(1, +S.activos || 1));
+  pintarCapacidad(e); pintarPaquetes(e); pintarGanancia(e); pintarEscala(); pintarVolumen();
 }
 
 function sincronizarCampos() { for (const k of CAMPOS) { const el = $(k); if (el && document.activeElement !== el) el.value = S[k]; } }
@@ -308,7 +430,14 @@ document.addEventListener("input", (ev) => {
   else if (CAMPOS.includes(el.id)) { S[el.id] = el.type === "number" ? +el.value : el.value; }
   else return;
   guardar();
-  if (el.dataset.paq !== undefined) { const e = escenario(Math.max(1, +S.canales || 1)); const foco = [el.dataset.paq, el.dataset.campo]; pintarPaquetes(e); const nuevo = document.querySelector(`[data-paq="${foco[0]}"][data-campo="${foco[1]}"]`); if (nuevo) { nuevo.focus(); const n = nuevo.value.length; try { nuevo.setSelectionRange(n, n); } catch (e) {} } return; }
+  if (el.dataset.paq !== undefined) {
+    // Repintar sin perder el foco del campo que se está editando.
+    const e = escenario(Math.max(1, +S.activos || 1)); const foco = [el.dataset.paq, el.dataset.campo];
+    pintarCapacidad(e); pintarPaquetes(e); pintarGanancia(e);
+    const nuevo = document.querySelector(`[data-paq="${foco[0]}"][data-campo="${foco[1]}"]`);
+    if (nuevo) { nuevo.focus(); const n = nuevo.value.length; try { nuevo.setSelectionRange(n, n); } catch (e) {} }
+    return;
+  }
   pintar();
 });
 document.addEventListener("change", (ev) => { if (ev.target.tagName === "SELECT" && CAMPOS.includes(ev.target.id)) { S[ev.target.id] = ev.target.value; guardar(); pintar(); } });
@@ -316,9 +445,8 @@ document.addEventListener("change", (ev) => { if (ev.target.tagName === "SELECT"
 document.addEventListener("click", (ev) => {
   const b = ev.target.closest("button"); if (!b) return;
   if (b.dataset.borrar !== undefined) { S.paquetes.splice(+b.dataset.borrar, 1); }
-  else if (b.id === "agregarPaquete") { S.paquetes.push({ nombre: "Nuevo", canales: 5 }); }
-  else if (b.id === "sumarPaquetes") { S.canales = S.paquetes.reduce((a, p) => a + Math.max(0, +p.canales || 0), 0) || 1; }
-  else if (b.id === "usarVolumen") { S.canales = Math.max(1, S._vCanales || 1); }
+  else if (b.id === "agregarPaquete") { S.paquetes.push({ nombre: "Nuevo", calidad: "buena", canales: 5, ent: 1500, sal: 300, base: 60000 }); }
+  else if (b.id === "usarVolumen") { S.activos = Math.max(1, Math.ceil((S._vCanales || 1) / capacidad(S.tipo))); }
   else if (b.id === "restaurar") { S = structuredClone(DEFAULTS); pintarTipos(); }
   else return;
   guardar(); sincronizarCampos(); pintar();

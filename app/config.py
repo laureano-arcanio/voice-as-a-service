@@ -12,7 +12,11 @@ WORKFLOW_ID = os.getenv("WORKFLOW_ID", "demo_booking")
 LIVEKIT_URL = os.getenv("LIVEKIT_URL", "")
 LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY", "")
 LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET", "")
+# Trunk SIP saliente. Vacio: el agente busca por nombre el que crea `make livekit-sip`
+# (LIVEKIT_SIP_OUTBOUND_TRUNK_NAME). Con LiveKit propio conviene dejarlo vacio: su Redis no
+# persiste y el ID cambia en cada reinicio del host (docker-compose.livekit.yml).
 LIVEKIT_SIP_TRUNK_ID = os.getenv("LIVEKIT_SIP_TRUNK_ID", "")
+LIVEKIT_SIP_OUTBOUND_TRUNK_NAME = os.getenv("LIVEKIT_SIP_OUTBOUND_TRUNK_NAME", "anura-asterisk-outbound")
 LIVEKIT_AGENT_NAME = os.getenv("LIVEKIT_AGENT_NAME", "aiva-outbound-caller")
 CALL_MAX_DURATION_SECONDS = int(os.getenv("CALL_MAX_DURATION_SECONDS", "900"))
 
