@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculadora de costos</title>
+<style>
+:root {
+  --bg: #f7f7f5; --panel: #ffffff; --fg: #1b1b1b; --muted: #666; --line: #e2e2dd;
+  --accent: #1f5fbf; --accent-bg: #eaf1fc; --ok: #1e7a3c; --warn: #a15c00; --input: #fff;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #151515; --panel: #1f1f1f; --fg: #eaeaea; --muted: #a0a0a0; --line: #333;
+    --accent: #7aa8ff; --accent-bg: #1d2a40; --ok: #5fcf85; --warn: #f0b04a; --input: #2a2a2a;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #151515; --panel: #1f1f1f; --fg: #eaeaea; --muted: #a0a0a0; --line: #333;
+  --accent: #7aa8ff; --accent-bg: #1d2a40; --ok: #5fcf85; --warn: #f0b04a; --input: #2a2a2a;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1180px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 22px; margin: 4px 0 2px; }
+h2 { font-size: 16px; margin: 0 0 10px; }
+h3 { font-size: 14px; margin: 14px 0 6px; color: var(--muted); font-weight: 600; }
+p.sub { color: var(--muted); margin: 0 0 16px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 14px; align-items: start; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+.panel.wide { grid-column: 1 / -1; }
+label.f { display: grid; grid-template-columns: 1fr 150px; gap: 8px; align-items: center; margin: 5px 0; }
+label.f span small { display: block; color: var(--muted); font-size: 12px; }
+input, select { width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--input); color: var(--fg); font: inherit; text-align: right; }
+select { text-align: left; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { border-bottom: 1px solid var(--line); padding: 6px 6px; text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--muted); font-weight: 600; }
+td input { width: 110px; }
+td input.nombre { width: 130px; text-align: left; }
+.scroll { overflow-x: auto; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.kpi { background: var(--accent-bg); border-radius: 8px; padding: 10px 12px; }
+.kpi .v { font-size: 20px; font-weight: 700; }
+.kpi .l { color: var(--muted); font-size: 12px; }
+.note { color: var(--muted); font-size: 12px; margin-top: 8px; }
+.warn { color: var(--warn); }
+.ok { color: var(--ok); }
+button { padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--fg); cursor: pointer; font: inherit; }
+button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+.tipos td:first-child { min-width: 170px; }
+@media (max-width: 560px) { label.f { grid-template-columns: 1fr 120px; } }
+</style>
+</head>
+<body>
+<main>
+<h1>Calculadora de costos y oferta</h1>
+<p class="sub">Dimensiona servers de voz a partir de la capacidad medida (CAP-001 y CAP-002) y calcula costo por canal, costo por minuto y precio de cada paquete. Todos los valores se pueden editar; se guardan en este navegador.</p>
+
+<div class="grid">
+
+<section class="panel">
+<h2>1. Tipo de server y calidad</h2>
+<label class="f"><span>Tipo de server</span><select id="tipo"></select></label>
+<label class="f"><span>Calidad que se vende<small>Espera p95 entre turnos</small></span>
+  <select id="calidad"><option value="buena">Buena (p95 ≤ ~2,8 s)</option><option value="aceptable">Aceptable (p95 ≤ ~3,4 s)</option></select></label>
+<label class="f"><span>Servers de reserva (N + x)<small>Si cae uno, los otros absorben la carga</small></span><input id="reserva" type="number" min="0" step="1"></label>
+<label class="f"><span>Amortización del hardware (meses)</span><input id="meses" type="number" min="1" step="1"></label>
+<label class="f"><span>CPU armado con fuente, por server ($)<small>CPU, placa, RAM, disco, fuente, gabinete</small></span><input id="base" type="number" min="0" step="10000"></label>
+</section>
+
+<section class="panel">
+<h2>2. Costos fijos y energía</h2>
+<label class="f"><span>Internet ($ por mes)</span><input id="internet" type="number" min="0" step="1000"></label>
+<label class="f"><span>Anura ($ por mes)</span><input id="anura" type="number" min="0" step="1000"></label>
+<label class="f"><span>Anura, costo por minuto ($)<small>Si el plan cobra por minuto; si no, 0</small></span><input id="anuraMin" type="number" min="0" step="0.1"></label>
+<label class="f"><span>Otros fijos ($ por mes)<small>Hosting, soporte, dominio, etc.</small></span><input id="otros" type="number" min="0" step="1000"></label>
+<label class="f"><span>Precio de la energía ($ por kWh)</span><input id="kwh" type="number" min="0" step="1"></label>
+<label class="f"><span>Servers encendidos 24 h</span><select id="siempre"><option value="1">Sí (reposo fuera de horario)</option><option value="0">No (solo en horario)</option></select></label>
+</section>
+
+<section class="panel">
+<h2>3. Uso de los canales</h2>
+<label class="f"><span>Horas de operación por día</span><input id="horas" type="number" min="1" max="24" step="1"></label>
+<label class="f"><span>Días de operación por mes</span><input id="dias" type="number" min="1" max="31" step="1"></label>
+<label class="f"><span>Ocupación de los canales (%)<small>Parte del horario con una llamada en curso</small></span><input id="ocupacion" type="number" min="1" max="100" step="1"></label>
+<label class="f"><span>Duración media de llamada (min)</span><input id="duracion" type="number" min="0.1" step="0.1"></label>
+<label class="f"><span>Margen sobre el precio (%)<small>precio = costo / (1 − margen)</small></span><input id="margen" type="number" min="0" max="95" step="1"></label>
+<label class="f"><span>Canales a vender (total)</span><input id="canales" type="number" min="1" step="1"></label>
+</section>
+
+<section class="panel wide">
+<h2>4. Resultado para los canales a vender</h2>
+<div class="kpis" id="kpis"></div>
+<div class="scroll"><table id="desglose"></table></div>
+<p class="note" id="nota"></p>
+</section>
+
+<section class="panel wide">
+<h2>5. Paquetes</h2>
+<p class="note">Cada paquete es una cantidad de canales simultáneos. El precio sale del costo por canal del escenario de arriba (sección 4) más el margen. Los minutos incluidos usan las horas, días y ocupación de la sección 3.</p>
+<div class="scroll"><table id="paquetes"></table></div>
+<div class="row"><button id="agregarPaquete">Agregar paquete</button><button id="sumarPaquetes">Usar la suma de los paquetes como "canales a vender"</button></div>
+</section>
+
+<section class="panel wide">
+<h2>6. Escala: costo según canales vendidos</h2>
+<p class="note">Con el tipo de server y la calidad elegidos. Los saltos de costo son cada vez que hace falta un server más.</p>
+<div class="scroll"><table id="escala"></table></div>
+</section>
+
+<section class="panel">
+<h2>7. Del volumen a canales</h2>
+<label class="f"><span>Llamadas en la hora pico</span><input id="vLlamadas" type="number" min="0" step="10"></label>
+<label class="f"><span>Duración media (min)</span><input id="vDur" type="number" min="0.1" step="0.1"></label>
+<label class="f"><span>Tipo de tráfico</span><select id="vTipo"><option value="sal">Salientes (el marcador controla la concurrencia)</option><option value="ent">Entrantes (llegan al azar)</option></select></label>
+<label class="f"><span>Llamadas rechazadas admitidas (%)<small>Solo entrantes (Erlang B)</small></span><input id="vBloq" type="number" min="0.1" max="50" step="0.1"></label>
+<label class="f"><span>Ocupación máxima (%)<small>Solo salientes</small></span><input id="vOcup" type="number" min="10" max="100" step="1"></label>
+<div id="vRes" class="kpis" style="margin-top:8px"></div>
+<div class="row"><button class="primary" id="usarVolumen">Usar como "canales a vender"</button></div>
+</section>
+
+<section class="panel">
+<h2>8. Tipos de server</h2>
+<p class="note">Capacidad medida en el server de validación (Ryzen 7 5700X, motor classic). La potencia es estimada: GPUs medidas en el test más ~150 W del resto; conviene medirla con un medidor en el enchufe.</p>
+<div class="scroll"><table class="tipos" id="tipos"></table></div>
+<div class="row"><button id="restaurar">Restaurar valores iniciales</button></div>
+</section>
+
+</div>
+<p class="note">Fuera del cálculo: impuestos, sueldos, soporte, costo de venta y el precio de la telefonía por minuto si no está cargado en la sección 2. Capacidad: docs/capacity/README.md.</p>
+</main>
+
+<script>
+"use strict";
+const DEFAULTS = {
+  tipo: "A", calidad: "buena", reserva: 1, meses: 24, base: 1500000,
+  internet: 70000, anura: 140000, anuraMin: 0, otros: 0, kwh: 300, siempre: "1",
+  horas: 8, dias: 22, ocupacion: 70, duracion: 1.5, margen: 40, canales: 40,
+  vLlamadas: 600, vDur: 1.5, vTipo: "sal", vBloq: 1, vOcup: 90,
+  tipos: {
+    A: { nombre: "3090 + 5060 Ti 8 GB (CAP-002, medido)", gpu1: "3090 usada (LLM + STT)", p1: 1200000, gpu2: "5060 Ti 8 GB (TTS)", p2: 900000, buena: 22, aceptable: 32, wCarga: 570, wReposo: 120 },
+    B: { nombre: "3090 + 3090 (CAP-001, medido)", gpu1: "3090 usada (LLM)", p1: 1200000, gpu2: "3090 usada (TTS + STT)", p2: 1200000, buena: 30, aceptable: 34, wCarga: 710, wReposo: 150 },
+    C: { nombre: "3090 + 5060 Ti 16 GB (estimado)", gpu1: "3090 usada (LLM + STT)", p1: 1200000, gpu2: "5060 Ti 16 GB (TTS)", p2: 1500000, buena: 22, aceptable: 32, wCarga: 580, wReposo: 125 },
+  },
+  paquetes: [
+    { nombre: "Inicial", canales: 2 },
+    { nombre: "Pyme", canales: 5 },
+    { nombre: "Empresa", canales: 10 },
+    { nombre: "Corporativo", canales: 20 },
+  ],
+};
+const CAMPOS = ["tipo","calidad","reserva","meses","base","internet","anura","anuraMin","otros","kwh","siempre","horas","dias","ocupacion","duracion","margen","canales","vLlamadas","vDur","vTipo","vBloq","vOcup"];
+const CLAVE = "calculadora-costos-v1";
+let S = cargar();
+
+function cargar() {
+  try {
+    const g = JSON.parse(localStorage.getItem(CLAVE));
+    if (g && g.tipos && g.paquetes) return Object.assign(structuredClone(DEFAULTS), g);
+  } catch (e) {}
+  return structuredClone(DEFAULTS);
+}
+function guardar() { try { localStorage.setItem(CLAVE, JSON.stringify(S)); } catch (e) {} }
+
+const $ = (id) => document.getElementById(id);
+const pesos = (v) => isFinite(v) ? "$ " + Math.round(v).toLocaleString("es-AR") : "—";
+const pesos2 = (v) => isFinite(v) ? "$ " + v.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—";
+const num = (v, d = 0) => isFinite(v) ? v.toLocaleString("es-AR", { maximumFractionDigits: d }) : "—";
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+// ---- modelo ----
+function capacidad(t) { return Math.max(1, +S.tipos[t][S.calidad] || 1); }
+
+function escenario(canales) {
+  const t = S.tipos[S.tipo];
+  const cap = capacidad(S.tipo);
+  const activos = Math.max(1, Math.ceil(canales / cap));
+  const servers = activos + (+S.reserva || 0);
+  const inversionServer = (+S.base || 0) + (+t.p1 || 0) + (+t.p2 || 0);
+  const inversion = servers * inversionServer;
+  const amort = inversion / Math.max(1, +S.meses);
+  const horasMes = (+S.horas) * (+S.dias);
+  const ocup = Math.min(1, (+S.ocupacion) / 100);
+  // La carga se reparte entre todos los servers (activo-activo con reserva).
+  const cargaServer = Math.min(1, (canales * ocup) / (servers * cap));
+  const wOp = (+t.wReposo) + ((+t.wCarga) - (+t.wReposo)) * cargaServer;
+  const horasFuera = S.siempre === "1" ? Math.max(0, 24 * 30 - horasMes) : 0;
+  const kwhMes = servers * (horasMes * wOp + horasFuera * (+t.wReposo)) / 1000;
+  const energia = kwhMes * (+S.kwh);
+  const minutos = canales * horasMes * 60 * ocup;
+  const telefoniaVar = minutos * (+S.anuraMin || 0);
+  const fijos = (+S.internet) + (+S.anura) + (+S.otros);
+  const total = amort + energia + fijos + telefoniaVar;
+  const m = Math.min(0.95, (+S.margen) / 100);
+  return {
+    cap, activos, servers, inversionServer, inversion, amort, kwhMes, energia, fijos, telefoniaVar, total,
+    minutos, cargaServer, capTotal: activos * cap,
+    costoCanal: total / canales, costoMin: total / minutos,
+    precioCanal: (total / canales) / (1 - m), precioMin: (total / minutos) / (1 - m),
+    llamadasMes: minutos / Math.max(0.1, +S.duracion),
+  };
+}
+
+// Erlang B: probabilidad de bloqueo con E erlangs y N canales (recursiva, estable).
+function erlangB(E, N) { let b = 1; for (let k = 1; k <= N; k++) b = (E * b) / (k + E * b); return b; }
+function canalesErlang(E, bloqueo) { let n = 0; while (n < 2000 && erlangB(E, n) > bloqueo) n++; return n; }
+
+// ---- vista ----
+function pintarTipos() {
+  const sel = $("tipo");
+  sel.innerHTML = Object.entries(S.tipos).map(([k, t]) => `<option value="${k}">${k}: ${esc(t.nombre)}</option>`).join("");
+  sel.value = S.tipo;
+  const filas = [
+    ["nombre", "Nombre", "text"], ["gpu1", "GPU 1", "text"], ["p1", "Precio GPU 1 ($)", "number"],
+    ["gpu2", "GPU 2", "text"], ["p2", "Precio GPU 2 ($)", "number"],
+    ["buena", "Canales, calidad buena", "number"], ["aceptable", "Canales, calidad aceptable", "number"],
+    ["wCarga", "Potencia a plena carga (W)", "number"], ["wReposo", "Potencia en reposo (W)", "number"],
+  ];
+  const tipos = Object.keys(S.tipos);
+  $("tipos").innerHTML = `<tr><th></th>${tipos.map((k) => `<th>${k}</th>`).join("")}</tr>` +
+    filas.map(([c, l, ty]) => `<tr><td>${l}</td>${tipos.map((k) =>
+      `<td><input class="${ty === "text" ? "nombre" : ""}" data-tipo="${k}" data-campo="${c}" type="${ty}" value="${esc(S.tipos[k][c])}"></td>`).join("")}</tr>`).join("");
+}
+
+function pintarPaquetes(e) {
+  const horasMes = (+S.horas) * (+S.dias), ocup = (+S.ocupacion) / 100;
+  const filas = S.paquetes.map((p, i) => {
+    const c = Math.max(0, +p.canales || 0);
+    const precio = c * e.precioCanal, costo = c * e.costoCanal;
+    const min = c * horasMes * 60 * ocup;
+    return `<tr><td><input class="nombre" data-paq="${i}" data-campo="nombre" value="${esc(p.nombre)}"></td>
+      <td><input data-paq="${i}" data-campo="canales" type="number" min="1" step="1" value="${c}"></td>
+      <td>${pesos(costo)}</td><td><b>${pesos(precio)}</b></td><td>${pesos(precio - costo)}</td>
+      <td>${num(min)}</td><td>${num(min / Math.max(0.1, +S.duracion))}</td><td>${pesos2(precio / min)}</td>
+      <td><button data-borrar="${i}" title="Quitar">✕</button></td></tr>`;
+  }).join("");
+  $("paquetes").innerHTML = `<tr><th>Paquete</th><th>Canales</th><th>Costo por mes</th><th>Precio por mes</th><th>Margen por mes</th><th>Minutos incluidos</th><th>Llamadas por mes</th><th>Precio por minuto</th><th></th></tr>` + filas;
+}
+
+function pintarEscala() {
+  const cap = capacidad(S.tipo);
+  const puntos = [];
+  for (const c of [1, 2, 5, 10, 15, 20, 25, 30, 40, 50, 60, 80, 100, 150, 200]) puntos.push(c);
+  puntos.push(cap, cap * 2, cap * 3);
+  const unicos = [...new Set(puntos)].sort((a, b) => a - b);
+  $("escala").innerHTML = `<tr><th>Canales vendidos</th><th>Servers (con reserva)</th><th>Costo por mes</th><th>Costo por canal</th><th>Costo por minuto</th><th>Precio por canal</th><th>Precio por minuto</th></tr>` +
+    unicos.map((c) => { const e = escenario(c);
+      const lleno = c % cap === 0 ? ' class="ok"' : "";
+      return `<tr${lleno}><td>${c}</td><td>${e.servers} (${e.activos} + ${e.servers - e.activos})</td><td>${pesos(e.total)}</td><td>${pesos(e.costoCanal)}</td><td>${pesos2(e.costoMin)}</td><td>${pesos(e.precioCanal)}</td><td>${pesos2(e.precioMin)}</td></tr>`; }).join("");
+}
+
+function pintarVolumen() {
+  const E = (+S.vLlamadas) * (+S.vDur) / 60;
+  let canales, detalle;
+  if (S.vTipo === "ent") {
+    canales = canalesErlang(E, (+S.vBloq) / 100);
+    detalle = `Erlang B con ${num(+S.vBloq, 1)} % de rechazo`;
+  } else {
+    canales = Math.ceil(E / Math.max(0.1, (+S.vOcup) / 100));
+    detalle = `al ${num(+S.vOcup)} % de ocupación`;
+  }
+  S._vCanales = canales;
+  $("vRes").innerHTML = `<div class="kpi"><div class="v">${num(E, 1)}</div><div class="l">Canales ocupados en promedio (erlangs)</div></div>
+    <div class="kpi"><div class="v">${num(canales)}</div><div class="l">Canales necesarios (${detalle})</div></div>`;
+}
+
+function pintar() {
+  const c = Math.max(1, +S.canales || 1);
+  const e = escenario(c);
+  const t = S.tipos[S.tipo];
+  $("kpis").innerHTML = [
+    [`${e.servers}`, `Servers (${e.activos} activos + ${e.servers - e.activos} de reserva)`],
+    [pesos(e.inversion), "Inversión en hardware"],
+    [pesos(e.total), "Costo total por mes"],
+    [pesos(e.costoCanal), "Costo por canal por mes"],
+    [pesos2(e.costoMin), "Costo por minuto"],
+    [pesos(e.precioCanal), `Precio por canal por mes (margen ${num(+S.margen)} %)`],
+    [pesos2(e.precioMin), "Precio por minuto"],
+    [num(e.minutos), "Minutos por mes"],
+  ].map(([v, l]) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");
+  const filas = [
+    ["Capacidad por server", `${e.cap} canales (${S.calidad})`],
+    ["Capacidad instalada activa", `${e.capTotal} canales; con ${c} vendidos, cada server a ${num(e.cargaServer * 100)} % de su capacidad`],
+    ["Hardware por server", `${pesos(+S.base)} base + ${pesos(+t.p1)} (${esc(t.gpu1)}) + ${pesos(+t.p2)} (${esc(t.gpu2)}) = ${pesos(e.inversionServer)}`],
+    ["Amortización por mes", `${pesos(e.amort)} (${pesos(e.inversion)} en ${num(+S.meses)} meses)`],
+    ["Energía por mes", `${pesos(e.energia)} (${num(e.kwhMes)} kWh a ${pesos(+S.kwh)})`],
+    ["Fijos por mes", `${pesos(e.fijos)} (internet ${pesos(+S.internet)}, Anura ${pesos(+S.anura)}, otros ${pesos(+S.otros)})`],
+    ["Telefonía por minuto", `${pesos(e.telefoniaVar)}`],
+    ["Llamadas por mes", `${num(e.llamadasMes)} de ${num(+S.duracion, 1)} min`],
+  ];
+  $("desglose").innerHTML = filas.map(([k, v]) => `<tr><td>${k}</td><td style="text-align:left;white-space:normal">${v}</td></tr>`).join("");
+  const libres = e.capTotal - c;
+  $("nota").innerHTML = libres > 0
+    ? `Quedan <b>${libres}</b> canales libres en los servers activos: venderlos no suma hardware.`
+    : `<span class="warn">Los servers activos están llenos: un canal más agrega un server.</span>`;
+  pintarPaquetes(e); pintarEscala(); pintarVolumen();
+}
+
+function sincronizarCampos() { for (const k of CAMPOS) { const el = $(k); if (el && document.activeElement !== el) el.value = S[k]; } }
+
+document.addEventListener("input", (ev) => {
+  const el = ev.target;
+  if (el.dataset.tipo) { const v = el.type === "number" ? +el.value : el.value; S.tipos[el.dataset.tipo][el.dataset.campo] = v; if (el.dataset.campo === "nombre") { const s = $("tipo"); const o = [...s.options].find((x) => x.value === el.dataset.tipo); if (o) o.textContent = `${el.dataset.tipo}: ${el.value}`; } }
+  else if (el.dataset.paq !== undefined) { const p = S.paquetes[+el.dataset.paq]; p[el.dataset.campo] = el.type === "number" ? +el.value : el.value; }
+  else if (CAMPOS.includes(el.id)) { S[el.id] = el.type === "number" ? +el.value : el.value; }
+  else return;
+  guardar();
+  if (el.dataset.paq !== undefined) { const e = escenario(Math.max(1, +S.canales || 1)); const foco = [el.dataset.paq, el.dataset.campo]; pintarPaquetes(e); const nuevo = document.querySelector(`[data-paq="${foco[0]}"][data-campo="${foco[1]}"]`); if (nuevo) { nuevo.focus(); const n = nuevo.value.length; try { nuevo.setSelectionRange(n, n); } catch (e) {} } return; }
+  pintar();
+});
+document.addEventListener("change", (ev) => { if (ev.target.tagName === "SELECT" && CAMPOS.includes(ev.target.id)) { S[ev.target.id] = ev.target.value; guardar(); pintar(); } });
+
+document.addEventListener("click", (ev) => {
+  const b = ev.target.closest("button"); if (!b) return;
+  if (b.dataset.borrar !== undefined) { S.paquetes.splice(+b.dataset.borrar, 1); }
+  else if (b.id === "agregarPaquete") { S.paquetes.push({ nombre: "Nuevo", canales: 5 }); }
+  else if (b.id === "sumarPaquetes") { S.canales = S.paquetes.reduce((a, p) => a + Math.max(0, +p.canales || 0), 0) || 1; }
+  else if (b.id === "usarVolumen") { S.canales = Math.max(1, S._vCanales || 1); }
+  else if (b.id === "restaurar") { S = structuredClone(DEFAULTS); pintarTipos(); }
+  else return;
+  guardar(); sincronizarCampos(); pintar();
+});
+
+pintarTipos(); sincronizarCampos(); pintar();
+</script>
+</body>
+</html>

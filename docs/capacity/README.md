@@ -31,7 +31,7 @@ Números de `fina` (escalones de 4 min), salvo el piso (`base`) y el colapso (`r
   - VRAM: 15,6 GB el LLM y 1,6 GB el STT en la 3090; 7,66 GB el TTS en la 5060 Ti.
 - **Potencia:** 419 W de pico entre las dos GPUs (la 5060 Ti, 141 W).
 - **Arranque:** el primer pedido al TTS después de arrancarlo tarda más de 20 s. Hay que calentarlo antes de atender llamadas.
-- **Estabilidad:** con ~110 llamadas (sobrecarga) el talker del TTS se cayó y no se recupera solo. Hasta 62 llamadas durante 20 min, no.
+- **Estabilidad:** 20 min con ~30 llamadas (`sostenida`, p95 3,5 s) sin degradarse ni perder memoria. Con ~110 llamadas (sobrecarga) el talker del TTS se cayó y no se recupera solo; hasta 62 llamadas, no.
 
 ## Comparación por hardware
 
@@ -59,7 +59,11 @@ con ~140 W menos. Con este reparto, el límite de GPU es la 5060 Ti y el de CPU 
 | CAP | Fecha | Hardware (`hw_id`) | Config | Perfiles | p95 ≤ 3 s | Codo | Cuello | Piso p50 | Cores / MB por llamada |
 |---|---|---|---|---|---|---|---|---|---|
 | [001](CAP-001-2x3090-pl280-classic/) | 2026-09-25 | 2 × 3090 a 280 W (`8489259f`) | classic; LLM solo en una 3090, TTS + STT en la otra | base, rampa | ~32 | ~32 | GPUs; con 64, CPU | 1,61 s | 0,12 / 104 |
-| [002](CAP-002-5060ti-tts-3090-llm-stt-classic/) | 2026-09-25 | 5060 Ti 8 GB + 3090 a 280 W (`03dfeb24`) | classic; TTS solo en la 5060 Ti, LLM + STT en la 3090 | base, rampa, fina | ~22 (p95 2,8 s) | ~22 | 5060 Ti (TTS); con ~55, CPU | 1,66 s | 0,12 / 105–113 |
+| [002](CAP-002-5060ti-tts-3090-llm-stt-classic/) | 2026-09-25 | 5060 Ti 8 GB + 3090 a 280 W (`03dfeb24`) | classic; TTS solo en la 5060 Ti, LLM + STT en la 3090 | base, rampa, fina, sostenida | ~22 (p95 2,8 s) | ~22 | 5060 Ti (TTS); con ~55, CPU | 1,66 s | 0,12 / 105–113 |
+
+## Calculadora de costos
+
+[`calculadora-costos.html`](calculadora-costos.html) (HTML autocontenido, se abre en el navegador): con la capacidad medida por tipo de server y los precios de cada componente, fijos y energía, calcula cuántos servers hacen falta (N+1), el costo por canal y por minuto, y el precio de cada paquete con margen. Todos los valores son editables.
 
 ## Cómo correrlo
 

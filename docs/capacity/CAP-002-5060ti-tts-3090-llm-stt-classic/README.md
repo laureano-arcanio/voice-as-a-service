@@ -1,13 +1,14 @@
 # CAP-002 — TTS en RTX 5060 Ti 8 GB, LLM + STT en RTX 3090: ~22 llamadas con p95 de 2,8 s
 
 - **Fecha:** 2026-09-25
-- **Perfiles:** `base` (10 llamadas de a una), `rampa` (escalones de 2 min: 4, 8, 16, 32, 64, 96) y `fina` (escalones de 4 min: 16, 24, 32, 40)
+- **Perfiles:** `base` (10 llamadas de a una), `rampa` (escalones de 2 min: 4, 8, 16, 32, 64, 96), `fina` (escalones de 4 min: 16, 24, 32, 40) y `sostenida` (28 llamadas de objetivo, 20 min)
 - **Cambio respecto de [CAP-001](../CAP-001-2x3090-pl280-classic/):** la primera 3090 se reemplazó por una RTX 5060 Ti 8 GB, que pasa a correr el TTS solo. El LLM y el STT comparten la 3090, como antes de EXP-013.
 - **Resultado:**
   - Piso con 1 llamada: espera p50 1,66 s / p95 2,04 s (+0,05 s contra CAP-001).
   - `fina`, con la carga estabilizada: ~13 llamadas con p95 2,4 s; **~22 con p95 2,8 s (codo)**; ~42 con p95 4,2 s; ~56 con p95 6,8 s.
   - Interpolando, ~32 llamadas dan p95 ~3,4 s, lo mismo que la `rampa` (34 llamadas, p95 3,36 s). En CAP-001 eran ~32 con 3,0 s.
   - Desde ~22 llamadas se satura la 5060 Ti (TTS); con ~55, la CPU del host, como en CAP-001.
+  - `sostenida`: 18 min con ~30 llamadas (p95 3,5 s), sin degradarse, sin pérdida de memoria y sin caídas del TTS.
   - Las GPUs consumen menos: 419 W de pico contra 559 W, y 0,19 contra 0,28 Wh por llamada-minuto con ~32 llamadas.
 
 ## Hardware (`hw_id 03dfeb24`)
@@ -38,7 +39,7 @@ Override [`docker-compose.gpu-5060.yml`](docker-compose.gpu-5060.yml) (copia del
 
 - **Resto:** igual que CAP-001. Motor `classic` (`demo_booking_classic`), voz `sofia`, LiveKit propio, `app` + `agent` en este host, callers en la laptop por la LAN.
 - `config_id`: `76d0bb12` (`base`) y `458ae12f` (`rampa`). Solo difieren en el perfil, que forma parte del `config_id`.
-- Runs: `20260926_003647_base`, `20260926_005553_rampa` y `20260926_014013_fina`; `config_id` de `fina`: el de su perfil.
+- Runs: `20260926_003647_base`, `20260926_005553_rampa`, `20260926_014013_fina` y `20260926_020323_sostenida`; `config_id` de `fina`: el de su perfil.
 
 ### Cómo se hizo entrar el TTS en 8 GB
 
@@ -85,6 +86,24 @@ objetivo en los escalones altos: se usa la real.
 - **Consumo:** GPUs a 419 W de pico (5060 Ti 140 W, 74 °C la 3090); 0,27 Wh de GPU por llamada-minuto con ~22 llamadas y 0,16 con ~42.
 - **Estabilidad:** el TTS aguantó los 20 minutos, con picos de 62 llamadas, sin caerse. Un vigía revisó cada 5 s sus dos etapas y el log.
 - Tablas en [fina-steps.csv](fina-steps.csv), gráficos en [fina-report.html](fina-report.html).
+
+### `sostenida`: 20 min con ~30 llamadas
+
+Estabilidad térmica y de memoria. Se miden 18 minutos después de descartar los 2 primeros.
+
+| | 1.ª mitad | 2.ª mitad | Total |
+|---|---|---|---|
+| Llamadas simultáneas, promedio | 28,2 | 31,5 | 30,2 (máx. 46) |
+| Espera p50 / p95 | 2,37 / 3,42 s | 2,50 / 3,67 s | 2,44 / 3,53 s (p99 4,14 s) |
+| Agente, memoria por llamada | 106 MB | 105 MB | — |
+| Temperatura media, 5060 Ti / 3090 / CPU | 54 / 70 / 68 °C | 55 / 71 / 70 °C | máx. 59 / 73 / 71 °C |
+| Clock medio, 5060 Ti / 3090 | 2756 / 1682 MHz | 2754 / 1675 MHz | — |
+
+- **Resto:** 1.985 turnos, ninguno sin respuesta, 0 % de fallas. Saludo p50 1,58 s / p95 3,57 s. TTS: primer audio 189 ms, 31 ms entre tokens, KV máx. 53 %. STT con 31 ms de cola. Agente, 3,9 cores de promedio. 0,21 Wh de GPU por llamada-minuto.
+- **Sin degradación:** la espera sube en la 2.ª mitad porque hubo más llamadas (31,5 contra 28,2), no por el tiempo. Temperaturas y clocks, estables.
+- **Sin pérdida de memoria:** el agente usa lo mismo por llamada en las dos mitades y al terminar vuelve a lo del inicio (0,638 → 0,637 GB). La RAM de LLM, TTS y STT no se mueve.
+- **TTS estable:** un vigía revisó cada 5 s sus dos etapas y el log durante 45 min, sin errores.
+- Datos en [sostenida-steps.csv](sostenida-steps.csv), [sostenida-windows.csv](sostenida-windows.csv) y [sostenida-report.html](sostenida-report.html).
 
 ### TTS en la 5060 Ti contra la 3090
 
@@ -168,4 +187,3 @@ Para 2 servers iguales con redundancia: ~15 llamadas por server en operación no
 Siguiente paso:
 1. Pedido de calentamiento al TTS en el arranque, y reinicio automático si queda `unhealthy`.
 2. Causa de la caída del talker en la `rampa` (índice fuera de rango con 96–110 llamadas): ¿los recortes de 8 GB o cancelaciones en sobrecarga?
-3. `sostenida` (28 llamadas, 20 min).
