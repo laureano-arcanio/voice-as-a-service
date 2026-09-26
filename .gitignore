@@ -14,6 +14,7 @@ scripts/loadtest/monitor/run_*/
 scripts/loadtest/monitor/current
 scripts/loadtest/results/
 scripts/capacity/runs/
+scripts/eval/runs/
 
 # corpus de eval de STT (lo genera `make stt-corpus`)
 scripts/stt_corpus/data/

@@ -12,6 +12,7 @@ infraestructura. La app (motor conversacional por workflow YAML, API y worker de
 | "Voy a correr el test de capacidad (con <config>), registralo" | Seguir [`docs/capacity/README.md`](docs/capacity/README.md): aplicar los límites de GPU, `make capacity-monitor PERFIL=<perfil>` en el server antes de la carga y avisar; el usuario corre `make capacity` en la laptop y pasa el run empaquetado; `make capacity-monitor-stop`, `make capacity-analyze` y registrar `docs/capacity/CAP-NNN-<slug>/`. |
 | "Entrená / reentrená la voz <voz> del TTS" | Delegar al agente [`tts-finetune`](.claude/agents/tts-finetune.md), que sigue [`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md). Entrenar el 1.7B necesita parar `vllm-tts`: confirmar antes. |
 | "Probá <modelo o reparto de GPU>" | Override `docker-compose.<nombre>.yml` y confirmar antes de reiniciar servicios; después, el mismo procedimiento. |
+| "Evaluá la calidad del LLM <modelo>" / "compará modelos" | Seguir [`docs/eval/README.md`](docs/eval/README.md): `make eval-llm` (cliente simulado con `EVAL_LLM_API_KEY`, o `--cliente guion`), `make eval-llm-juez`, y registrar `docs/eval/EVAL-NNN-<slug>/`. Otro modelo local va con su override, como arriba. |
 
 ## Servicios (`docker-compose.yml`)
 
@@ -20,7 +21,7 @@ infraestructura. La app (motor conversacional por workflow YAML, API y worker de
 
 | Servicio | Qué es | Imagen | Puerto host | GPU |
 |---|---|---|---|---|
-| `db` | MySQL 8 | mysql:8.0 | 127.0.0.1:3306 | — |
+| `db` | PostgreSQL 16 | postgres:16-alpine | 127.0.0.1:5432 | — |
 | `app` | FastAPI: API del motor conversacional; despacha el agente a una room de LiveKit | build | 8011 | — |
 | `agent` | Worker de LiveKit Agents (STT → LLM → TTS); sale a LiveKit Cloud | build | — | — |
 | `vllm-llm` | LLM `RedHatAI/Qwen3.5-9B-quantized.w4a16` (Qwen3.5-9B en 4 bits) | vllm/vllm-openai:latest | 127.0.0.1:8101 | 1 (3090) |
@@ -135,6 +136,7 @@ se mide con el test de capacidad y se registra en [`docs/capacity/`](docs/capaci
 - [`README.md`](README.md): la app, operación y deploy.
 - [`docs/capacity/`](docs/capacity/README.md): capacidad vigente, test de capacidad y registro `CAP-NNN`.
 - [`docs/CAPACITY_TEST_PLAN.md`](docs/CAPACITY_TEST_PLAN.md): diseño del test de capacidad.
+- [`docs/EVAL_LLM_PLAN.md`](docs/EVAL_LLM_PLAN.md) y [`docs/eval/`](docs/eval/README.md): eval de calidad del LLM por tipo de agente y de cliente, y registro `EVAL-NNN`.
 - [`docs/archive/`](docs/archive/README.md): mediciones anteriores con el loadtest (EXP-001 a 013).
 - [`docs/SERVER_HARDWARE.md`](docs/SERVER_HARDWARE.md): elección de placas, CPU y PCIe.
 - [`docs/TELEFONIA_ANURA.md`](docs/TELEFONIA_ANURA.md): telefonía (Anura + Asterisk + LiveKit).

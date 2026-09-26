@@ -1,0 +1,136 @@
+# Personas para demo_booking_classic (el agente de venta vigente). Salen de las
+# llamadas reales de scripts/replay_calls.py mas los arquetipos del plan.
+agente: demo_booking_classic
+agente_structured: demo_booking
+
+checks:
+  siglas: [GPS, PIN, PDF, API, Excel]
+  frases_max: 4          # la presentacion de Browix es mas larga que dos frases
+  prohibido:
+    - regex: "pesos|dólares|\\$|descuento|por mes cuesta|sale "
+      motivo: "habla de precios"
+
+personas:
+
+  cooperativo:
+    resumen: Interesado, cuenta su empresa, pide la demo y deja el mail.
+    estilo: >
+      Sos {nombre_completo}, encargado de operaciones de {rubro} de {empleados} empleados. Te
+      interesa: aceptás escuchar, contás que te cuesta saber si la gente llega a horario en los
+      distintos puestos, y cuando te ofrecen la demo decís que sí. Dejás tu nombre y el correo,
+      que dictás "{email_dicho}". Sos amable y concreto.
+    ficha:
+      empresa: "{rubro}, {empleados} empleados"
+      problema: "no sabemos si el personal llega a horario"
+      quiere_demo: true
+      correo: "{email} (lo dicto como {email_dicho})"
+    esperado:
+      fields:
+        wants_pitch: true
+        demo_answer: si
+        contact_name: "{nombre}"
+        contact: "{email}"
+      outcome: [demo]
+    guion:
+      - "Sí, contame."
+      - "Tenemos {rubro} con {empleados} empleados, y nos cuesta saber si llegan a horario a cada puesto."
+      - "Sí, dale, agendemos."
+      - "{nombre}, y el mail es {email_dicho}."
+      - "Sí, correcto."
+      - "Gracias, chau."
+
+  apurado:
+    resumen: Poco tiempo, respuestas mínimas, deja el teléfono.
+    estilo: >
+      Sos {nombre_completo}, dueño de {rubro}. Estás apurado: "sí, pero rápido", "{rubro_corto},
+      {empleados} personas, control horario", "dale". Cuando te piden contacto, das el nombre y el
+      celular {telefono} y cortás.
+    ficha:
+      empresa: "{rubro_corto}, {empleados} personas"
+      quiere_demo: true
+      telefono: "{telefono}"
+    esperado:
+      fields:
+        wants_pitch: true
+        demo_answer: si
+        contact_name: "{nombre}"
+        contact: "{telefono}"
+      outcome: [demo]
+    turnos_max: 10
+    guion:
+      - "Sí, pero rápido."
+      - "{rubro_corto}, {empleados} personas, control horario."
+      - "Dale."
+      - "{nombre}, {telefono}."
+      - "Chau."
+
+  confuso:
+    resumen: No entiende qué es Browix, pregunta dos veces, queda en volver a llamar.
+    estilo: >
+      Sos {nombre_completo}, tenés una concesionaria de autos con treinta empleados. No entendés
+      bien qué te ofrecen: preguntás "¿qué es Browix?", "¿es para los empleados o para mí?", "¿es
+      un reloj?". Después de que te expliquen dos veces, decís que no sabés, que lo tenés que
+      pensar, y que te llamen la semana que viene.
+    ficha:
+      empresa: "concesionaria de autos, 30 empleados"
+      quiere_demo: "dudas, que me llamen la semana que viene"
+    esperado:
+      fields:
+        wants_pitch: true
+        demo_answer: dudas
+        callback_wanted: true
+        contact: null
+      outcome: [callback]
+    turnos_max: 14
+
+  hostil:
+    resumen: Pregunta de dónde sacaron su número y no quiere escuchar.
+    estilo: >
+      Sos {nombre_completo}. Te molestan las llamadas de venta: "¿de dónde sacaron mi número?",
+      "no me interesa", "sáquenme de la lista". No aceptás escuchar la propuesta. Si el agente
+      insiste, cortás; si acepta el no, te despedís seco.
+    ficha:
+      quiere_escuchar: false
+    esperado:
+      fields:
+        wants_pitch: false
+        demo_answer: null
+        contact: null
+      outcome: [no_pitch]
+    turnos_max: 6
+
+  evasivo:
+    resumen: Solo quiere saber el precio; no agenda ni quiere que lo llamen.
+    estilo: >
+      Sos {nombre_completo}, gerente de {rubro} de {empleados} empleados. Escuchás, pero lo único
+      que te importa es el precio: "¿cuánto sale?", "dame un número aproximado", "¿es por empleado?",
+      "los otros me cobran tanto". Insistís tres veces. Si no te dan precio, decís que así no podés
+      decidir, que lo pensás, y que no hace falta que te llamen, que vos escribís si te interesa.
+    ficha:
+      empresa: "{rubro}, {empleados} empleados"
+      quiere_demo: "dudas; no quiere que lo llamen"
+    esperado:
+      fields:
+        wants_pitch: true
+        demo_answer: dudas
+        callback_wanted: false
+        contact: null
+      outcome: [no_interest]
+    turnos_max: 12
+
+  buzon_de_voz:
+    resumen: Atiende el buzón de voz (llamada real 7947fe59). Solo por guion.
+    solo_guion: true
+    estilo: contestador automático
+    ficha: {}
+    esperado:
+      fields:
+        contact: null
+        contact_name: null
+      outcome: [no_pitch, no_interest, sin_terminar, incompleta]
+    turnos_max: 5
+    guion:
+      - "Bienvenido al buzón de voz claro tres cinco dos cinco cinco cero tres seis uno dos"
+      - "Después del tono, deja tu mensaje."
+      - "Para finalizar, corta o marca la tecla numeral para más opciones."
+      - "Si estás conforme con el mensaje, marca uno. Para revisar el mensaje, marca dos."

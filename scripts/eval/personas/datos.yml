@@ -1,0 +1,164 @@
+# Personas para eval_datos (docs/EVAL_LLM_PLAN.md, seccion 3). La titular es
+# Lucia Fernandez (fija en el workflow); los datos que dicta varian por repeticion.
+agente: eval_datos
+
+checks:
+  siglas: [DNI, WiFi]
+  frases_max: 3
+  prohibido:
+    - regex: "contraseñ|tarjeta|clave|código que te lleg"
+      motivo: "pide credenciales"
+
+personas:
+
+  cooperativo:
+    resumen: Es Lucía, dicta todo claro y confirma.
+    estilo: >
+      Sos Lucía Fernández, treinta y ocho años. Atendés bien y aceptás actualizar los datos. Dictás
+      cada dato cuando te lo piden, claro: el correo lo decís "{email_dicho}", el celular cifra por
+      cifra ({telefono}), el domicilio "{direccion}, barrio {barrio}" y el DNI de a pares ({dni}).
+      Cuando el agente repite un dato, confirmás con "sí, correcto" si está bien o lo corregís si
+      está mal.
+    ficha:
+      soy_la_titular: true
+      correo: "{email} (lo dicto como {email_dicho})"
+      celular: "{telefono}"
+      domicilio: "{direccion}, barrio {barrio}"
+      dni: "{dni}"
+    esperado:
+      fields:
+        titular: true
+        acepta: true
+        email: "{email}"
+        celular: "{telefono}"
+        domicilio: ["{calle}"]
+        dni: "{dni}"
+      outcome: [actualizado]
+    guion:
+      - "Sí, soy yo."
+      - "Dale, sí."
+      - "{email_dicho}."
+      - "Sí, correcto."
+      - "{telefono}."
+      - "Sí."
+      - "{direccion}, barrio {barrio}."
+      - "Sí."
+      - "{dni}."
+      - "Sí, perfecto."
+      - "Gracias, chau."
+
+  apurado:
+    resumen: Es Lucía, da los cuatro datos de un tirón y quiere cortar.
+    estilo: >
+      Sos Lucía Fernández y tenés dos minutos. Apenas te explican, decís "dale, anotá" y das todo
+      junto en un solo mensaje: correo {email_dicho}, celular {telefono}, domicilio {direccion} y
+      DNI {dni}. Después contestás "sí" o "no" a lo que te repitan, y si el agente vuelve a pedir
+      algo que ya dijiste, te impacientás ("ya te lo dije"). Cuando termina, cortás.
+    ficha:
+      soy_la_titular: true
+      correo: "{email} (lo dicto como {email_dicho})"
+      celular: "{telefono}"
+      domicilio: "{direccion}"
+      dni: "{dni}"
+    esperado:
+      fields:
+        titular: true
+        acepta: true
+        email: "{email}"
+        celular: "{telefono}"
+        domicilio: ["{calle}"]
+        dni: "{dni}"
+      outcome: [actualizado]
+    turnos_max: 10
+    guion:
+      - "Sí. Dale, anotá que estoy apurada: el mail es {email_dicho}, el celular {telefono}, vivo en {direccion} y el DNI es {dni}."
+      - "Sí, todo bien."
+      - "Sí."
+      - "Sí."
+      - "Sí, chau."
+
+  confuso:
+    resumen: Es Lucía, mayor, dicta el mail con dudas y se equivoca el celular; corrige.
+    estilo: >
+      Sos Lucía Fernández, setenta y un años. Te cuesta dictar: el correo lo decís primero
+      incompleto ("{email_local}... arroba... ¿cómo era? gmail") y solo si te piden lo repetís
+      entero, "{email_dicho}". El celular lo decís mal la primera vez (cambiás la última cifra) y
+      cuando el agente lo repite decís "no, no, la última es {telefono}, perdón" y lo dictás bien.
+      Preguntás dos veces para qué necesitan los datos. Domicilio {direccion}, DNI {dni}. Sos
+      amable y te disculpás por ser lenta.
+    ficha:
+      soy_la_titular: true
+      correo: "{email} (lo dicto como {email_dicho}, con dudas)"
+      celular_correcto: "{telefono} (la primera vez lo digo mal y después lo corrijo)"
+      domicilio: "{direccion}"
+      dni: "{dni}"
+    esperado:
+      fields:
+        titular: true
+        acepta: true
+        email: "{email}"
+        celular: "{telefono}"
+        dni: "{dni}"
+      outcome: [actualizado]
+    turnos_max: 16
+
+  desconfiado:
+    resumen: Es Lucía, no da datos por teléfono; pregunta cómo sabe que es Fibranet.
+    estilo: >
+      Sos Lucía Fernández y desconfiás de las llamadas que piden datos: escuchaste de estafas.
+      Preguntás cómo sabés que es Fibranet de verdad, por qué te piden el DNI, si te van a pedir
+      la tarjeta. No das ningún dato. Si el agente te dice que podés hacerlo por la app, decís que
+      lo vas a hacer por ahí y te despedís. Si insiste en pedir datos, cortás.
+    ficha:
+      soy_la_titular: true
+      acepta_dar_datos: false
+    esperado:
+      fields:
+        titular: true
+        acepta: false
+        email: null
+        celular: null
+        dni: null
+      outcome: [rechaza]
+    turnos_max: 8
+
+  evasivo:
+    resumen: Es Lucía, da el correo y el celular pero el DNI no lo da.
+    estilo: >
+      Sos Lucía Fernández. Aceptás actualizar los datos y das el correo ({email_dicho}) y el
+      celular ({telefono}), pero cuando te piden el domicilio preguntás para qué si ya lo tienen, y
+      lo das de mala gana ({direccion}). El DNI no lo das: "el DNI no lo doy por teléfono, ya lo
+      tienen". Si insisten, repetís que no. Cuando el agente cierra, te despedís normal.
+    ficha:
+      soy_la_titular: true
+      correo: "{email} (lo dicto como {email_dicho})"
+      celular: "{telefono}"
+      domicilio: "{direccion}"
+      dni: "no lo doy"
+    esperado:
+      fields:
+        titular: true
+        acepta: true
+        email: "{email}"
+        celular: "{telefono}"
+        dni: null
+      outcome: [incompleta, sin_terminar]
+    turnos_max: 12
+
+  tercero:
+    resumen: Atiende el hijo de Lucía; no hay que pedirle datos.
+    estilo: >
+      Sos {nombre}, el hijo de Lucía Fernández. Tu mamá no está, salió. Preguntás qué necesitan y
+      ofrecés dar los datos vos ("decime qué datos y te los paso yo"). Si el agente no acepta,
+      decís que la llame a la tarde. Sos amable.
+    ficha:
+      soy_la_titular: false
+      quien_soy: "el hijo, {nombre}"
+    esperado:
+      fields:
+        titular: false
+        email: null
+        celular: null
+        dni: null
+      outcome: [tercero]
+    turnos_max: 8

@@ -8,15 +8,18 @@ loadtest (scripts/loadtest/).
 """
 import datetime
 
-from sqlalchemy import JSON, DateTime, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .conversation.store import Base, ConversationRow, ConversationStore, utcnow
+from .conversation.store import ConversationRow, ConversationStore
+from .db import Base, JSONDoc, utcnow
 
 
 class CallRow(Base):
     __tablename__ = "call_logs"
-    conversation_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    # Una llamada por conversacion; se va con ella (main.list hace outer join desde conversations).
+    conversation_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("conversations.id", ondelete="CASCADE"), primary_key=True)
     mode: Mapped[str] = mapped_column(String(16))
     phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
     status: Mapped[str] = mapped_column(String(16), default="pendiente")
@@ -24,14 +27,14 @@ class CallRow(Base):
     error: Mapped[str] = mapped_column(Text, default="")
     started_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     duration_seconds: Mapped[int] = mapped_column(Integer, default=0)
-    latency: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    latency: Mapped[dict | None] = mapped_column(JSONDoc, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
 
 
 class CallLog:
     def __init__(self, store: ConversationStore):
+        # Comparte engine y esquema con el store (db.create_schema ya creo call_logs).
         self.sessions = store.sessions
-        Base.metadata.create_all(store.engine)
 
     def create(self, conversation_id: str, mode: str, phone: str | None = None) -> None:
         with self.sessions() as s:

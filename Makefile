@@ -33,9 +33,9 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
 
 .PHONY: help setup env storage build \
         up up-agent up-inference up-nginx up-pbx down restart ps logs \
-        sh mysql health gpu \
+        sh psql health gpu \
         pbx-cli pbx-status livekit-sip livekit-sip-si-local \
-        test eval-motor eval-llamadas loadtest-audio loadtest loadtest-report capacity capacity-monitor capacity-monitor-stop capacity-analyze stt-eval stt-corpus \
+        test eval-motor eval-llamadas eval-llm eval-llm-juez eval-llm-report loadtest-audio loadtest loadtest-report capacity capacity-monitor capacity-monitor-stop capacity-analyze stt-eval stt-corpus \
         db-reset clean
 
 help: ## Muestra esta ayuda
@@ -88,7 +88,7 @@ up-pbx: ## Solo Asterisk; lo recrea para releer .env y asterisk/conf/ (corta lla
 	$(COMPOSE) up -d --build --force-recreate asterisk
 	@echo "Asterisk arriba. Estado de la troncal: make pbx-status (el registro con Anura tarda unos segundos)"
 
-down: ## Para y elimina los contenedores (conserva volumenes: MySQL, pesos, voces)
+down: ## Para y elimina los contenedores (conserva volumenes: PostgreSQL, pesos, voces)
 	$(COMPOSE) down
 
 restart: ## Reinicia servicios (no relee .env: para eso, make up). Ej: make restart S=agent
@@ -105,8 +105,8 @@ logs: ## Sigue los logs. Ej: make logs S=agent (o S="vllm-tts stt-parakeet")
 sh: ## Shell en un contenedor (default: agent). Ej: make sh S=app
 	$(COMPOSE) exec $(or $(S),agent) bash
 
-mysql: ## Cliente mysql dentro de db, con las credenciales de .env
-	$(COMPOSE) exec db sh -c 'mysql -uroot -p"$$MYSQL_ROOT_PASSWORD" "$$MYSQL_DATABASE"'
+psql: ## Cliente psql dentro de db, con las credenciales de .env
+	$(COMPOSE) exec db sh -c 'psql -U "$$POSTGRES_USER" "$$POSTGRES_DB"'
 
 health: ## Chequea /health de la app (:8011), la inferencia (:8101-8103) y el proxy (:PROXY_PORT)
 	@for p in 8011:app 8101:vllm-llm 8102:stt-parakeet 8103:vllm-tts; do \
@@ -146,13 +146,22 @@ livekit-sip-si-local:
 # --- Tests ---------------------------------------------------------------
 
 test: ## Tests del motor conversacional (los que usan el LLM se saltean si vllm-llm no responde)
-	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/tests:/app/tests -v $(CURDIR)/pytest.ini:/app/pytest.ini app pytest -q $(ARGS)
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/tests:/app/tests -v $(CURDIR)/pytest.ini:/app/pytest.ini -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app/workflows:/app/app/workflows app pytest -q $(ARGS)
 
 eval-motor: ## Escenarios de llamada contra el motor y el LLM real (scripts/replay_calls.py). Ej: make eval-motor N=3 S=si-pero
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts app python -m scripts.replay_calls $(or $(N),1) $(S)
 
 eval-llamadas: ## Llamadas reales de berlin_signup repetidas tal cual: datos, resultado y repreguntas (scripts/replay_transcripts.py). Ej: make eval-llamadas N=5 W=berlin_signup_classic
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts app python -m scripts.replay_transcripts $(or $(N),1) $(S) $(if $(W),-w=$(W))
+
+eval-llm: ## Eval de calidad del LLM por tipo de agente y de cliente (scripts/eval, docs/EVAL_LLM_PLAN.md). Ej: make eval-llm ARGS="--humo --cliente guion"
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app/workflows:/app/app/workflows -e GIT_REV=$$(git rev-parse --short HEAD) app python -m scripts.eval.run $(ARGS)
+
+eval-llm-juez: ## Califica un run con el juez (EVAL_LLM_*). Ej: make eval-llm-juez RUN=scripts/eval/runs/<run> [ARGS="--pareado <otro run>"]
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app/workflows:/app/app/workflows -e GIT_REV=$$(git rev-parse --short HEAD) app python -m scripts.eval.juez $(RUN) $(ARGS)
+
+eval-llm-report: ## Resumen y report.html de un run del eval. Ej: make eval-llm-report RUN=scripts/eval/runs/<run> [ARGS="--comparar <otro run>"]
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app/workflows:/app/app/workflows app python -m scripts.eval.analyze $(RUN) $(ARGS)
 
 # --- Loadtest (anterior al test de capacidad, docs/archive/) y eval ------
 
@@ -207,9 +216,9 @@ stt-corpus: ## Arma el corpus de eval de STT con voces argentinas (OpenSLR 61): 
 
 # --- Limpieza ------------------------------------------------------------
 
-db-reset: ## PELIGRO: borra la base MySQL (conversaciones) y la vuelve a crear. Conserva pesos y voces
+db-reset: ## PELIGRO: borra la base PostgreSQL (conversaciones) y la vuelve a crear. Conserva pesos y voces
 	$(COMPOSE) rm -sf $(AGENT_SERVICES)
-	docker volume rm $(notdir $(CURDIR))_mysql_data
+	docker volume rm $(notdir $(CURDIR))_postgres_data
 	$(MAKE) up-agent
 
 clean: down ## down + elimina las imagenes construidas por este proyecto

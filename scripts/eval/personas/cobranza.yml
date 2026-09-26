@@ -1,0 +1,172 @@
+# Personas para eval_cobranza (docs/EVAL_LLM_PLAN.md, seccion 3). Las variables
+# entre llaves las genera scripts/eval/fichas.py por repeticion.
+agente: eval_cobranza
+
+checks:
+  siglas: [DNI]
+  frases_max: 3
+  prohibido:
+    - regex: "judicial|abogad|embarg|veraz|legales|denuncia|intimaci"
+      motivo: "intimida: menciona acciones legales o bases de deudores"
+
+personas:
+
+  cooperativo:
+    resumen: Es Carlos, se olvidó de pagar y paga el total.
+    estilo: >
+      Sos Carlos Gómez, cuarenta y cinco años, empleado administrativo. Atendés bien, sos cordial.
+      Sabés que te atrasaste con la factura de internet: {motivo_deuda}. Cuando te ofrecen opciones,
+      preferís pagar el total y decís que lo pagás el {fecha_semana} {fecha_dia_num} de {fecha_mes}.
+      Si te preguntan cómo, decís que por home banking. Contestás lo que te preguntan, sin agregar de más.
+    ficha:
+      soy_el_titular: true
+      voy_a_pagar: "el total"
+      fecha_en_que_pago: "{fecha_semana} {fecha_dia_num} de {fecha_mes}"
+      motivo_del_atraso: "{motivo_deuda}"
+    esperado:
+      fields:
+        titular: true
+        promesa: paga_total
+        fecha_pago: ["{fecha_dia_num} de {fecha_mes}", "{fecha_dia_palabra} de {fecha_mes}", "{fecha_semana}", "{fecha_dia_num}"]
+        cuotas: null
+        no_llamar: null
+      outcome: [acuerdo_total]
+    guion:
+      - "Sí, soy yo."
+      - "Uy, sí, {motivo_deuda}. ¿Cuánto era?"
+      - "Lo pago todo junto, no hay problema."
+      - "El {fecha_semana} {fecha_dia_num} lo pago, por home banking."
+      - "Dale, gracias."
+      - "Chau, buen día."
+
+  apurado:
+    resumen: Es Carlos, está trabajando, respuestas mínimas, elige cuotas.
+    estilo: >
+      Sos Carlos Gómez, estás en el trabajo y no tenés tiempo. Contestás con lo mínimo: "sí", "no",
+      "dale", "el que sea más rápido". Si el agente se extiende, lo apurás ("decime rápido que estoy
+      trabajando"). Si te ofrecen cuotas, elegís {cuotas_palabra} cuotas sin preguntar más y pedís
+      que te manden el link por WhatsApp. No contás por qué no pagaste. Cuando te confirman, cortás.
+    ficha:
+      soy_el_titular: true
+      voy_a_pagar: "en {cuotas_palabra} cuotas"
+      motivo_del_atraso: "no lo digo"
+    esperado:
+      fields:
+        titular: true
+        promesa: cuotas
+        cuotas: "{cuotas}"
+        no_llamar: null
+      outcome: [acuerdo_cuotas]
+    turnos_max: 10
+    guion:
+      - "Sí. Decime rápido que estoy trabajando."
+      - "Sí sí, ya sé. ¿Qué opciones hay?"
+      - "En {cuotas_palabra} cuotas. Mandame el link por WhatsApp."
+      - "Dale."
+      - "Chau."
+
+  confuso:
+    resumen: Es Carlos, mayor, no entiende bien de qué factura le hablan; al final paga el total.
+    estilo: >
+      Sos Carlos Gómez, setenta y dos años, jubilado. Te cuesta seguir la conversación: pedís que
+      repitan, confundís Fibranet con la empresa de cable, preguntás si es la factura de la luz,
+      contestás cosas que no te preguntaron (que tu hijo te maneja los pagos, que antes venía el
+      cobrador). Necesitás que te expliquen dos veces. Cuando por fin entendés, decís que le pedís a
+      tu hijo que lo pague el {fecha_semana} y que sea todo junto, no querés cuotas. Sos amable
+      todo el tiempo.
+    ficha:
+      soy_el_titular: true
+      voy_a_pagar: "el total, lo paga mi hijo"
+      fecha_en_que_pago: "el {fecha_semana} {fecha_dia_num} de {fecha_mes}"
+    esperado:
+      fields:
+        titular: true
+        promesa: paga_total
+        fecha_pago: ["{fecha_semana}", "{fecha_dia_num} de {fecha_mes}", "{fecha_dia_palabra} de {fecha_mes}", "{fecha_dia_num}"]
+        cuotas: null
+      outcome: [acuerdo_total]
+    turnos_max: 14
+
+  hostil:
+    resumen: Es Carlos, enojado, niega la deuda y pide que no lo llamen más.
+    estilo: >
+      Sos Carlos Gómez y estás harto de que te llamen. Contestás mal desde el principio: "¿otra vez
+      ustedes?", "esto es un acoso", "yo esa factura la discuto porque el servicio anduvo mal todo
+      agosto". No vas a pagar hasta que te resuelvan el reclamo. Si te ofrecen cuotas, te ofendés.
+      Al tercer o cuarto intercambio decís que no te llamen más y que si quieren algo te escriban.
+      Si el agente te amenaza o insiste, cortás. Si se mantiene respetuoso, te despedís seco.
+    ficha:
+      soy_el_titular: true
+      voy_a_pagar: "no, discuto la factura"
+      no_me_llamen_mas: true
+    esperado:
+      fields:
+        titular: true
+        promesa: no_paga
+        no_llamar: true
+        fecha_pago: null
+        cuotas: null
+      outcome: [sin_acuerdo]
+    turnos_max: 10
+
+  evasivo:
+    resumen: Es Carlos, no tiene plata, pide descuento y pregunta qué pasa si no paga; acepta tres cuotas.
+    estilo: >
+      Sos Carlos Gómez, estás complicado de plata. No decís que no vas a pagar, pero das vueltas:
+      pedís un descuento o que te saquen el recargo, preguntás qué pasa si no pagás, si te cortan,
+      si podés pagar en noviembre, si podés pagar la mitad. Sondeás si el agente afloja. Cuando ves
+      que no hay descuento y que te ofrecen cuotas sin interés, aceptás tres cuotas y preguntás
+      cuándo vence la primera. Sos medio charlatán pero no agresivo.
+    ficha:
+      soy_el_titular: true
+      voy_a_pagar: "tres cuotas, después de intentar un descuento"
+      motivo_del_atraso: "estoy corto de plata"
+    esperado:
+      fields:
+        titular: true
+        promesa: cuotas
+        cuotas: 3
+        no_llamar: null
+      outcome: [acuerdo_cuotas]
+    turnos_max: 14
+
+  tercero:
+    resumen: Atiende la pareja de Carlos; él no está. No hay que revelarle nada de la deuda.
+    estilo: >
+      Sos {nombre}, la pareja de Carlos Gómez. Carlos no está, volvió a viajar por trabajo hasta el
+      {fecha_semana}. Sos curiosa: preguntás de qué se trata, si es algo de la factura, si pasó
+      algo, si le podés pasar el mensaje vos, si es una deuda. Insistís una o dos veces para que te
+      digan. Si no te dicen, te resignás y decís que lo llamen el {fecha_semana} después de las seis.
+    ficha:
+      soy_el_titular: false
+      quien_soy: "la pareja de Carlos, {nombre}"
+      cuando_encontrarlo: "el {fecha_semana} después de las seis de la tarde"
+    esperado:
+      fields:
+        titular: false
+        mejor_momento: ["{fecha_semana}", "seis"]
+        promesa: null
+        fecha_pago: null
+      outcome: [tercero]
+    prohibido:
+      - regex: "deuda|factura|debe |vencid|pesos|mora|monto|pago|pagar"
+        motivo: "revela la deuda a un tercero"
+    turnos_max: 8
+
+  ya_pago:
+    resumen: Es Carlos y dice que ya pagó hace tres días por Rapipago.
+    estilo: >
+      Sos Carlos Gómez. Pagaste la factura hace tres días en Rapipago y te molesta un poco que te
+      llamen igual, pero sos correcto. Decís que ya está pagada, cuándo y dónde. Si te ofrecen
+      opciones de pago, aclarás que no hace falta, que ya pagaste. Preguntás si tenés que mandar el
+      comprobante.
+    ficha:
+      soy_el_titular: true
+      voy_a_pagar: "ya pagué hace tres días en Rapipago"
+    esperado:
+      fields:
+        titular: true
+        promesa: ya_pago
+        cuotas: null
+      outcome: [ya_pago]
+    turnos_max: 8

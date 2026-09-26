@@ -1,23 +1,23 @@
 services:
   db:
-    image: mysql:8.0
+    # PostgreSQL 16 (antes MySQL 8; se migro sin conservar datos). El esquema lo
+    # crea la app al arrancar (app/db.py, create_all); no hay migraciones.
+    image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
     ports:
-      # Host-only, for connecting a local MySQL client/GUI during the demo.
-      # Not needed by the app itself (it talks to `db` over the compose network).
-      - "127.0.0.1:3306:3306"
+      # Solo host, para conectar un cliente local (make psql, DBeaver, etc.).
+      # La app no lo usa: le habla a `db` por la red de compose.
+      - "127.0.0.1:5432:5432"
     healthcheck:
-      # --protocol=tcp is deliberate: without it, mysqladmin can connect via the
-      # local socket to MySQL's *temporary* init-phase server and report healthy
-      # before the real server is listening on 3306 for the app to reach.
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--protocol=tcp", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      # -h 127.0.0.1 a proposito: por socket local pg_isready responde durante la
+      # init del primer arranque (el server temporal), antes de escuchar en 5432.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -40,8 +40,8 @@ services:
     env_file:
       - .env
     environment:
-      # DB_DSN armado con las MYSQL_* del .env, contra el servicio `db`.
-      DB_DSN: mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}?charset=utf8mb4
+      # DB_DSN armado con las POSTGRES_* del .env, contra el servicio `db`.
+      DB_DSN: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
     ports:
       - "8011:8011"
     volumes:
@@ -66,7 +66,7 @@ services:
     env_file:
       - .env
     environment:
-      DB_DSN: mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}?charset=utf8mb4
+      DB_DSN: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
     command: ["python", "-m", "app.livekit_agent", "start"]
     # The image's HEALTHCHECK probes the FastAPI app's /health over HTTP, which
     # this service doesn't serve (it's a worker process, no HTTP port) -- disable
@@ -319,7 +319,7 @@ services:
     restart: unless-stopped
     network_mode: host
     # Solo lo que usan los templates de asterisk/conf/ (no env_file: .env,
-    # para no meterle al contenedor las claves de MySQL/LiveKit/vLLM).
+    # para no meterle al contenedor las claves de PostgreSQL/LiveKit/vLLM).
     environment:
       TZ: America/Argentina/Buenos_Aires
       ANURA_DOMAIN: ${ANURA_DOMAIN:-}
@@ -345,7 +345,7 @@ services:
       start_period: 10s
 
 volumes:
-  mysql_data:
+  postgres_data:
   # Cache de pesos de HuggingFace compartido por la inferencia, para no volver
   # a descargar varios GB cada vez que se recrea un contenedor.
   hf_cache:

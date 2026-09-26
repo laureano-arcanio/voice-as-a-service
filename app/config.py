@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
-DB_DSN = os.getenv("DB_DSN", "mysql+pymysql://aiva_validate:changeme@127.0.0.1/aiva_validate?charset=utf8mb4")
+DB_DSN = os.getenv("DB_DSN", "postgresql+psycopg://aiva_validate:changeme@127.0.0.1:5432/aiva_validate")
 WORKFLOW_ID = os.getenv("WORKFLOW_ID", "demo_booking")
 
 LIVEKIT_URL = os.getenv("LIVEKIT_URL", "")

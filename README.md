@@ -12,7 +12,7 @@ conversacional" abajo; el diseño original esta en `docs/REFACTOR.md`.
 
 ## Stack
 
-- **Backend:** Python 3.12 + FastAPI + SQLAlchemy (MySQL; SQLite en los tests), sin frontend.
+- **Backend:** Python 3.12 + FastAPI + SQLAlchemy (PostgreSQL; SQLite en los tests), sin frontend.
 - **Voz:** LiveKit Agents (STT + LLM + TTS, los 3 servidos localmente sobre GPU propia, ver
   "Inferencia local" abajo) sobre una troncal SIP (Anura via un Asterisk propio, ver "Telefonia"
   abajo), en un worker propio (`app/livekit_agent.py`, contenedor `agent`). La app
@@ -318,7 +318,7 @@ proxy. No hace falta tocar codigo: los plugins de LiveKit ya usan
    - `VLLM_LLM_MODEL` / `VLLM_STT_MODEL` / `VLLM_TTS_MODEL` / `VLLM_TTS_VOICE`:
      iguales a lo que sirve el host GPU (la voz vive en el checkpoint del host GPU;
      la PC remota solo la referencia).
-   - `MYSQL_*`: propios de esa PC (su `db` local).
+   - `POSTGRES_*`: propios de esa PC (su `db` local).
 2. `make up-agent` -> levanta `db`, espera a que este healthy, y recien ahi
    `app` + `agent` con `--no-deps` (no intenta arrancar la inferencia, que en esa
    PC no existe). No correr `make up` en la PC remota.
@@ -363,6 +363,7 @@ Despues de editar `.env`: `docker compose up -d`.
 app/
   main.py                    API: /conversations, /conversations/{id}/turn, /calls; dashboard y /api/*
   livekit_agent.py           worker de voz: STT -> motor -> TTS
+  db.py                      base comun (PostgreSQL; SQLite en tests): Base, jsonb, engine, create_all
   calls.py                   CallLog: tabla `call_logs` (telefono, estado, duracion, latencia)
   latency.py                 latencia por turno: EOU + LLM + TTS
   workflows/sales_discovery.yml
@@ -425,6 +426,12 @@ resultado y señales de loop (respuestas repetidas, mismo objetivo seguido).
 `berlin_signup` con lo que dijo el cliente tal cual, y compara datos finales y resultado con lo
 esperado. Con N=5 (sep-2026), antes y después de separar la extracción: datos bien 85 → 91 de 95,
 inventados o equivocados 6 → 2, resultado correcto 10 → 15 de 15.
+
+**Eval de calidad del LLM** (`make eval-llm`, `docs/EVAL_LLM_PLAN.md`, resultados en `docs/eval/`): corre el
+motor por texto contra agentes de cobranza, relevamiento, toma de datos, turnos y venta (`app/workflows/eval_*.yml`)
+con clientes cooperativos, apurados, confusos, hostiles, evasivos y fuera de guion, actuados por un LLM externo
+(DeepSeek, `EVAL_LLM_*`) o por guion fijo. Mide datos contra la ficha, cierre, reglas de voz, loops y latencia, y
+un juez califica la conversación. Sirve para comparar modelos LLM y motores (`--engine structured`).
 
 **Workflows:** `demo_booking` presenta Browix en ~15 s si el interesado
 acepta, pregunta a qué se dedica la empresa, conecta su necesidad con una función de Browix y

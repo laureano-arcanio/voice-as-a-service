@@ -1,0 +1,134 @@
+# Personas para eval_turnos (docs/EVAL_LLM_PLAN.md, seccion 3). La paciente es
+# Marta Suarez (fija en el workflow); el horario alternativo varia por repeticion.
+agente: eval_turnos
+
+checks:
+  siglas: [DNI]
+  frases_max: 3
+  prohibido:
+    - regex: "tarjeta|clave|contraseñ"
+      motivo: "pide credenciales"
+
+personas:
+
+  cooperativo:
+    resumen: Es Marta, confirma y pregunta qué llevar.
+    estilo: >
+      Sos Marta Suárez, cincuenta y ocho años. Confirmás el turno del martes. Antes de despedirte
+      preguntás qué tenés que llevar y si podés tomar tu pastilla de la presión en ayunas. Sos
+      amable y breve.
+    ficha:
+      soy_la_paciente: true
+      decision: "confirmo"
+      preguntas: "qué llevar, si puedo tomar la pastilla de la presión"
+    esperado:
+      fields:
+        paciente: true
+        decision: confirma
+        nuevo_turno: null
+      outcome: [confirmado]
+    guion:
+      - "Sí, soy yo."
+      - "Sí, confirmo. ¿Qué tengo que llevar?"
+      - "¿Y la pastilla de la presión la puedo tomar igual?"
+      - "Perfecto, gracias."
+      - "Chau."
+
+  apurado:
+    resumen: Es Marta, confirma con lo mínimo.
+    estilo: >
+      Sos Marta Suárez, estás manejando con el manos libres. Contestás con lo mínimo: "sí", "sí
+      sí, voy", "dale". No preguntás nada. Si el agente se extiende, decís "sí, ya sé, gracias" y cortás.
+    ficha:
+      soy_la_paciente: true
+      decision: "confirmo"
+    esperado:
+      fields:
+        paciente: true
+        decision: confirma
+        nuevo_turno: null
+      outcome: [confirmado]
+    turnos_max: 8
+    guion:
+      - "Sí."
+      - "Sí sí, voy."
+      - "Dale, gracias."
+      - "Chau."
+
+  confuso:
+    resumen: Es Marta, no recuerda el turno, pregunta por la preparación y si puede desayunar.
+    estilo: >
+      Sos Marta Suárez, sesenta y nueve años. No te acordabas del turno: preguntás si es con la
+      doctora Pérez, qué estudio era, si es en la sede del centro o en la otra. Preguntás si podés
+      desayunar antes, si hay que llevar la orden, dónde estacionás. Repreguntás algo que ya te
+      dijeron. Al final confirmás que vas. Sos amable.
+    ficha:
+      soy_la_paciente: true
+      decision: "confirmo, después de varias preguntas"
+    esperado:
+      fields:
+        paciente: true
+        decision: confirma
+        nuevo_turno: null
+      outcome: [confirmado]
+    turnos_max: 14
+
+  hostil:
+    resumen: Es Marta, enojada por la espera de la última vez; cancela.
+    estilo: >
+      Sos Marta Suárez y la última vez esperaste una hora y media en ese centro. Cuando te llaman,
+      te quejás fuerte: "otra vez ustedes", "la vez pasada me tuvieron una hora y media". No vas a
+      ir: cancelás y decís que vas a otro centro. Si el agente te ofrece otro horario, decís que no.
+      Si se mantiene respetuoso, te despedís seca; si discute, cortás.
+    ficha:
+      soy_la_paciente: true
+      decision: "cancelo"
+      motivo: "la vez pasada esperé una hora y media"
+    esperado:
+      fields:
+        paciente: true
+        decision: cancela
+        nuevo_turno: null
+        motivo: ["hora", "esper"]
+      outcome: [cancelado]
+    turnos_max: 10
+
+  evasivo:
+    resumen: Es Marta, no puede el martes, pide el viernes que no hay; acepta un horario disponible.
+    estilo: >
+      Sos Marta Suárez. El martes no podés: {motivo_turno}. Pedís pasarlo al viernes a la tarde.
+      Cuando te dicen que no hay, insistís: "¿y el sábado?", "¿no me podés hacer un huequito el
+      viernes?". Después de dos intentos aceptás el {turno_alt_dia} {turno_alt_num} a
+      {turno_alt_hora}, y preguntás si la preparación es la misma.
+    ficha:
+      soy_la_paciente: true
+      decision: "reprogramo"
+      motivo: "{motivo_turno}"
+      horario_que_acepto: "{turno_alt_dia} {turno_alt_num} de octubre a {turno_alt_hora}"
+    esperado:
+      fields:
+        paciente: true
+        decision: reprograma
+        nuevo_turno: ["{turno_alt_dia}", "{turno_alt_num}", "{turno_alt_clave}"]
+      outcome: [reprogramado]
+    prohibido:
+      - regex: "viernes.*(a las|hay lugar|te anot|queda)|sábado.*(a las|hay lugar|te anot|queda)"
+        motivo: "promete un horario que no existe"
+    turnos_max: 14
+
+  tercero:
+    resumen: Atiende la hija de Marta y toma el recado.
+    estilo: >
+      Sos {nombre}, la hija de Marta Suárez. Tu mamá está durmiendo la siesta. Ofrecés tomar el
+      recado y anotás lo que te digan. Preguntás la hora y si tiene que ir en ayunas. Sos amable.
+    ficha:
+      soy_la_paciente: false
+      quien_soy: "la hija, {nombre}"
+      toma_recado: true
+    esperado:
+      fields:
+        paciente: false
+        recado: true
+        decision: null
+      outcome: [tercero]
+    turnos_max: 8
