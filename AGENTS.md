@@ -62,8 +62,9 @@ Override `docker-compose.gpu-5060.yml`, sumado a `COMPOSE_FILE` en `.env`. Sin e
 - **Topes de concurrencia:** LLM 64 secuencias (con 0.70 no arranca con 128); TTS 32 síntesis en el talker y 16 en Code2Wav.
 - **Motor por defecto:** `classic` (`WORKFLOW_ID=demo_booking_classic`).
 - **Capacidad medida** ([CAP-002](docs/capacity/CAP-002-5060ti-tts-3090-llm-stt-classic/)):
-  - ~15 llamadas con espera del cliente p95 ≤ 2,4 s; ~34 con p95 ≤ 3,4 s;
-  - con ~34 se satura la 5060 Ti (TTS), y con 64 la CPU del host (agente).
+  - ~22 llamadas con espera del cliente p95 ≤ 2,8 s (codo); ~32 con p95 ~3,4 s;
+  - desde ~22 se satura la 5060 Ti (TTS), y desde ~55 la CPU del host (agente).
+  - Con ~110 llamadas el talker del TTS se cayó y no se recupera solo: recrear `vllm-tts` y calentarlo.
   - Con 2 × 3090 (CAP-001): ~20 y ~32 con p95 ≤ 3 s.
 
 El TTS sirve el checkpoint fine-tuneado de `TTS_FT_CKPT` (default `multi41`, lr 2e-6, época 2)

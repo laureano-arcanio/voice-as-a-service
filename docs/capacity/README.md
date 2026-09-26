@@ -15,19 +15,23 @@ Server de validación actual (`hw_id 03dfeb24`): Ryzen 7 5700X, 64 GB, ASRock B5
 | Llamadas simultáneas | Espera del cliente p50 / p95 | Qué pasa |
 |---|---|---|
 | 1 (piso) | 1,66 / 2,04 s | e2e del server 0,92 s; el cliente espera ~0,7 s más |
-| ~15 | 1,89 / 2,39 s | Holgado: 5060 Ti al 81 %, 3090 al 67 %, CPU 36 % |
-| **~34 (codo)** | **2,51 / 3,36 s** | **5060 Ti (TTS) saturada**: primer audio del TTS en 228 ms. LLM sin cola |
-| ~69 | 7,08 / 11,1 s | CPU del host al 99,7 %: VAD atrasado, STT con 326 ms de cola; TTS a 79 ms entre tokens (tope 83) |
-| ~110 | colapso | 65 turnos sin respuesta, saludo de 10,6 s |
+| ~13 | 1,91 / 2,43 s | Holgado: 5060 Ti al 71 % de los segundos saturada, CPU 36 % |
+| **~22 (codo)** | **2,12 / 2,81 s** | **5060 Ti (TTS) saturada** (91 %). LLM y STT sin cola |
+| ~42 | 2,99 / 4,16 s | TTS con 311 ms hasta el primer audio; CPU 84 % |
+| ~56 | 4,85 / 6,84 s | CPU del host al 98,6 %: VAD atrasado, STT con 191 ms de cola |
+| ~110 (`rampa`) | colapso | 65 turnos sin respuesta; el talker del TTS se cayó en el drenaje |
 
-- **Capacidad:** ~15 llamadas con p95 ≤ 2,4 s y ~34 con p95 ≤ 3,4 s. El SLO del plan (90 % de turnos ≤ 1,5 s) no se cumple ni con 1 llamada: el piso es 1,66 s de p50.
-- **Primer cuello: la 5060 Ti con el TTS,** en ~34 llamadas.
-- **Segundo cuello: la CPU del host,** con 64 llamadas. El agente usa ~0,11–0,13 cores por llamada.
+Números de `fina` (escalones de 4 min), salvo el piso (`base`) y el colapso (`rampa`).
+
+- **Capacidad:** ~13 llamadas con p95 ≤ 2,4 s, ~22 con p95 ≤ 2,8 s y ~32 con p95 ~3,4 s. El SLO del plan (90 % de turnos ≤ 1,5 s) no se cumple ni con 1 llamada: el piso es 1,66 s de p50.
+- **Primer cuello: la 5060 Ti con el TTS,** desde ~22 llamadas.
+- **Segundo cuello: la CPU del host,** desde ~55 llamadas. El agente usa ~0,11–0,13 cores por llamada.
 - **Memoria:** solo escala el agente, **~113 MB por llamada** (r² 0,99), más ~5 MB de LiveKit.
   - LLM, STT y TTS reservan todo al arrancar.
   - VRAM: 15,6 GB el LLM y 1,6 GB el STT en la 3090; 7,66 GB el TTS en la 5060 Ti.
 - **Potencia:** 419 W de pico entre las dos GPUs (la 5060 Ti, 141 W).
 - **Arranque:** el primer pedido al TTS después de arrancarlo tarda más de 20 s. Hay que calentarlo antes de atender llamadas.
+- **Estabilidad:** con ~110 llamadas (sobrecarga) el talker del TTS se cayó y no se recupera solo. Hasta 62 llamadas durante 20 min, no.
 
 ## Comparación por hardware
 
@@ -37,9 +41,9 @@ Mismo perfil (`rampa`), mismo cliente y misma config de modelos y motor.
 |---|---|---|
 | Reparto | LLM en una 3090; TTS + STT en la otra | TTS en la 5060 Ti; LLM + STT en la 3090 |
 | Piso p50 / p95 | 1,61 / 1,99 s | 1,66 / 2,04 s |
-| Llamadas con p95 ≤ 2,4 s | ~20 | ~15 |
+| Llamadas con p95 ≤ 2,4 s | ~20 | ~13–15 |
 | Espera con ~32 llamadas, p50 / p95 | 2,27 / 3,03 s | 2,51 / 3,36 s |
-| Codo | ~32 | ~34 |
+| Codo | ~32 | ~22 (`fina`); ~34 en la `rampa` |
 | Primer cuello | Las dos GPUs | La 5060 Ti (TTS) |
 | Con ~65 llamadas | CPU del host; p95 8,3 s | CPU del host; p95 11,1 s |
 | TTS primer audio con ~32 llamadas | 126 ms | 228 ms |
@@ -55,7 +59,7 @@ con ~140 W menos. Con este reparto, el límite de GPU es la 5060 Ti y el de CPU 
 | CAP | Fecha | Hardware (`hw_id`) | Config | Perfiles | p95 ≤ 3 s | Codo | Cuello | Piso p50 | Cores / MB por llamada |
 |---|---|---|---|---|---|---|---|---|---|
 | [001](CAP-001-2x3090-pl280-classic/) | 2026-09-25 | 2 × 3090 a 280 W (`8489259f`) | classic; LLM solo en una 3090, TTS + STT en la otra | base, rampa | ~32 | ~32 | GPUs; con 64, CPU | 1,61 s | 0,12 / 104 |
-| [002](CAP-002-5060ti-tts-3090-llm-stt-classic/) | 2026-09-25 | 5060 Ti 8 GB + 3090 a 280 W (`03dfeb24`) | classic; TTS solo en la 5060 Ti, LLM + STT en la 3090 | base, rampa | ~15 (~34 con ≤ 3,4 s) | ~34 | 5060 Ti (TTS); con 64, CPU | 1,66 s | 0,12 / 113 |
+| [002](CAP-002-5060ti-tts-3090-llm-stt-classic/) | 2026-09-25 | 5060 Ti 8 GB + 3090 a 280 W (`03dfeb24`) | classic; TTS solo en la 5060 Ti, LLM + STT en la 3090 | base, rampa, fina | ~22 (p95 2,8 s) | ~22 | 5060 Ti (TTS); con ~55, CPU | 1,66 s | 0,12 / 105–113 |
 
 ## Cómo correrlo
 

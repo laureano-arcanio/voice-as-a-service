@@ -1,0 +1,123 @@
+{
+ "perfil": {
+  "workflow": "demo_booking_classic",
+  "voz": "sofia",
+  "turnos": [
+   4,
+   8
+  ],
+  "duracion_base_s": 90,
+  "warmup_s": 60,
+  "warmup_concurrencia": 2,
+  "warmup_llamadas": 3,
+  "descartar_s": 60,
+  "buckets_s": [
+   0.5,
+   0.8,
+   1.0,
+   1.5,
+   2.0,
+   3.0
+  ],
+  "buckets_nombres": [
+   "optimo",
+   "excelente",
+   "bueno",
+   "aceptable",
+   "regular",
+   "malo",
+   "pesimo"
+  ],
+  "llamada_buena": {
+   "saludo_max_s": 3.0,
+   "max_malos": 1
+  },
+  "slo": {
+   "p_ok": 0.9,
+   "ok_s": 1.5,
+   "p_pesimo": 0.01,
+   "llamadas_buenas": 0.95,
+   "fallas": 0.01
+  },
+  "cliente": {
+   "mic_lag_p95_s": 0.1,
+   "cpu_p95_pct": 85
+  },
+  "nombre": "fina",
+  "version": 2,
+  "escalones": [
+   {
+    "concurrencia": 16,
+    "duracion_s": 240
+   },
+   {
+    "concurrencia": 24,
+    "duracion_s": 240
+   },
+   {
+    "concurrencia": 32,
+    "duracion_s": 240
+   },
+   {
+    "concurrencia": 40,
+    "duracion_s": 240
+   }
+  ]
+ },
+ "perfil_hash": "acb348c9",
+ "duracion_llamada_s": 85.0,
+ "seed": 640965135,
+ "base_url": "http://192.168.1.99:8011",
+ "livekit_url": "ws://192.168.1.99:7880",
+ "notas": "",
+ "inicio": 1790386813.8987327,
+ "pasos": [
+  {
+   "paso": "warmup",
+   "t0": 1790386813.8991818,
+   "t1": 1790386873.8991818,
+   "modo": "abierto",
+   "concurrencia": 2,
+   "llegadas": 3,
+   "procesos": 1
+  },
+  {
+   "paso": "e0_16",
+   "t0": 1790386874.0000753,
+   "t1": 1790387114.0000753,
+   "modo": "abierto",
+   "concurrencia": 16,
+   "llegadas": 32,
+   "procesos": 2
+  },
+  {
+   "paso": "e1_24",
+   "t0": 1790387115.0000696,
+   "t1": 1790387355.0000696,
+   "modo": "abierto",
+   "concurrencia": 24,
+   "llegadas": 60,
+   "procesos": 3
+  },
+  {
+   "paso": "e2_32",
+   "t0": 1790387356.0000699,
+   "t1": 1790387596.0000699,
+   "modo": "abierto",
+   "concurrencia": 32,
+   "llegadas": 106,
+   "procesos": 4
+  },
+  {
+   "paso": "e3_40",
+   "t0": 1790387597.0000682,
+   "t1": 1790387837.0000682,
+   "modo": "abierto",
+   "concurrencia": 40,
+   "llegadas": 123,
+   "procesos": 5
+  }
+ ],
+ "fin_llegadas": 1790387838.0001023,
+ "fin": 1790387964.0008395
+}
