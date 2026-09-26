@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Demanda de agentes de voz</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f3f5f2; --surface: #ffffff; --surface-2: #eaeeea;
+  --ink: #171a1c; --ink-2: #4d575d; --muted: #849090; --line: #dde2dd; --line-2: #c9d0ca;
+  --accent: #1d4f7c; --accent-ink: #ffffff; --accent-soft: #e4edf6;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --neutral-mark: #9aa3a6;
+  --seq-1: #1c5cab; --seq-2: #2a78d6; --seq-3: #5598e7; --seq-4: #9ec5f4;
+  --good: #006300; --bad: #b32e2e; --warn: #9a6400;
+  --shadow: 0 1px 2px rgba(23,26,28,.06), 0 8px 24px -12px rgba(23,26,28,.18);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0f1213; --surface: #181c1e; --surface-2: #20262a;
+    --ink: #eef0ec; --ink-2: #b4bcb8; --muted: #8b948f; --line: #2a3134; --line-2: #3a4348;
+    --accent: #8fb8e6; --accent-ink: #0f1213; --accent-soft: #1b2836;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --neutral-mark: #6f7a7e;
+    --seq-1: #86b6ef; --seq-2: #3987e5; --seq-3: #256abf; --seq-4: #184f95;
+    --good: #2fbf2f; --bad: #e66767; --warn: #e0a626;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f1213; --surface: #181c1e; --surface-2: #20262a;
+  --ink: #eef0ec; --ink-2: #b4bcb8; --muted: #8b948f; --line: #2a3134; --line-2: #3a4348;
+  --accent: #8fb8e6; --accent-ink: #0f1213; --accent-soft: #1b2836;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --neutral-mark: #6f7a7e;
+  --seq-1: #86b6ef; --seq-2: #3987e5; --seq-3: #256abf; --seq-4: #184f95;
+  --good: #2fbf2f; --bad: #e66767; --warn: #e0a626;
+  --shadow: none;
+}
+* { box-sizing: border-box; }
+html { font-size: 16px; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased;
+}
+.serif { font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, "Times New Roman", serif; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- layout ---------- */
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: clamp(16px, 4vw, 40px); }
+header.top { padding-block: 40px 28px; border-bottom: 1px solid var(--line); }
+.eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+h1 { font-size: clamp(30px, 4.6vw, 46px); line-height: 1.08; margin: 10px 0 14px; font-weight: 500; text-wrap: balance; letter-spacing: -.01em; }
+h1 em { font-style: normal; color: var(--accent); }
+.lede { font-size: 17px; max-width: 68ch; color: var(--ink-2); margin: 0; }
+nav.toc { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+nav.toc ul { list-style: none; margin: 0; padding: 0; display: flex; gap: 4px 18px; flex-wrap: wrap; font-size: 13px; }
+nav.toc li a { display: inline-block; padding: 10px 0; color: var(--ink-2); font-weight: 500; border-bottom: 2px solid transparent; }
+nav.toc li a:hover { color: var(--ink); text-decoration: none; border-color: var(--accent); }
+section { padding-block: 44px; border-bottom: 1px solid var(--line); }
+section:last-of-type { border-bottom: 0; }
+h2 { font-size: clamp(24px, 3vw, 32px); line-height: 1.15; margin: 0 0 6px; font-weight: 500; text-wrap: balance; }
+.sub { color: var(--ink-2); margin: 0 0 24px; max-width: 72ch; }
+h3 { font-size: 15px; margin: 0 0 8px; font-weight: 650; letter-spacing: .01em; }
+p { margin: 0 0 12px; }
+.cols { display: grid; gap: 28px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); align-items: start; }
+.cols-2 { display: grid; gap: 28px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+@media (max-width: 760px) { .cols-2 { grid-template-columns: 1fr; } }
+.stack { display: grid; gap: 20px; }
+.prose { max-width: 66ch; }
+.prose li { margin-bottom: 8px; }
+.prose ul { padding-left: 18px; margin: 0 0 12px; }
+b { font-weight: 650; }
+.num { font-variant-numeric: tabular-nums; }
+.small { font-size: 13px; color: var(--ink-2); }
+.foot { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+.tag { display: inline-block; font-size: 11.5px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--ink-2); vertical-align: middle; font-weight: 600; letter-spacing: .02em; }
+.tag.a { border-color: var(--good); color: var(--good); }
+.tag.c { border-color: var(--warn); color: var(--warn); }
+
+/* ---------- KPIs ---------- */
+.kpis { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); margin-top: 28px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; box-shadow: var(--shadow); }
+.kpi .v { font-size: 30px; font-weight: 600; line-height: 1.1; letter-spacing: -.02em; }
+.kpi .v small { font-size: 15px; font-weight: 500; color: var(--ink-2); }
+.kpi .l { font-size: 13px; color: var(--ink-2); margin-top: 6px; line-height: 1.35; }
+.kpi.hi { border-color: var(--accent); background: var(--accent-soft); }
+
+/* ---------- cards & callouts ---------- */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; box-shadow: var(--shadow); }
+.callout { border-left: 3px solid var(--accent); padding: 10px 16px; background: var(--accent-soft); border-radius: 0 6px 6px 0; margin: 14px 0; }
+.callout p:last-child { margin: 0; }
+.grid-cards { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+.mini { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+.mini .v { font-size: 24px; font-weight: 600; letter-spacing: -.02em; line-height: 1.1; }
+.mini .l { font-size: 13px; color: var(--ink-2); margin-top: 4px; }
+.mini .src { font-size: 11.5px; color: var(--muted); margin-top: 6px; }
+
+/* ---------- tables ---------- */
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; background: var(--surface-2); white-space: nowrap; }
+tbody tr:last-child td { border-bottom: 0; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.total td { font-weight: 650; border-top: 2px solid var(--line-2); }
+tr.hi td { background: var(--accent-soft); font-weight: 600; }
+details { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+details summary { cursor: pointer; padding: 12px 16px; font-weight: 600; font-size: 14px; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+details summary::after { content: "+"; color: var(--muted); font-size: 18px; }
+details[open] summary::after { content: "–"; }
+details .tbl { border: 0; border-top: 1px solid var(--line); border-radius: 0; }
+.dots { letter-spacing: 2px; color: var(--accent); white-space: nowrap; }
+.dots span { color: var(--line-2); }
+
+/* ---------- charts ---------- */
+.chart { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px 12px; }
+.chart h3 { margin-bottom: 2px; }
+.chart .sub { font-size: 12.5px; margin-bottom: 10px; }
+.chart svg { width: 100%; height: auto; display: block; overflow: visible; max-width: 720px; margin: 0 auto; }
+.chart text { font-family: inherit; fill: var(--ink-2); font-size: 12px; }
+.chart .lbl { fill: var(--ink); font-weight: 600; }
+.chart .axis { fill: var(--muted); font-size: 11px; }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .base { stroke: var(--line-2); stroke-width: 1; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; color: var(--ink-2); margin: 4px 0 10px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.tip { position: fixed; pointer-events: none; z-index: 20; background: var(--ink); color: var(--bg); font-size: 12.5px; padding: 6px 9px; border-radius: 4px; max-width: 260px; opacity: 0; transition: opacity .12s; line-height: 1.35; }
+.tip b { color: inherit; }
+.hit { fill: transparent; cursor: default; }
+.hit:hover + rect, rect:hover { filter: brightness(1.08); }
+
+/* ---------- method diagram ---------- */
+.methods { display: grid; gap: 12px; grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 760px) { .methods { grid-template-columns: 1fr; } }
+.method { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; position: relative; }
+.method .k { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.method .t { font-weight: 650; margin: 4px 0 8px; font-size: 15px; }
+.method ol { margin: 0; padding-left: 18px; font-size: 13.5px; color: var(--ink-2); }
+.method ol li { margin-bottom: 4px; }
+.method .r { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line-2); font-size: 13.5px; }
+.method .r b { font-size: 15px; }
+.converge { margin-top: 14px; display: grid; grid-template-columns: 1fr; }
+.converge .arrow { text-align: center; color: var(--muted); font-size: 22px; line-height: 1; margin: 2px 0 6px; }
+.result { background: var(--accent); color: var(--accent-ink); border-radius: 8px; padding: 18px 22px; display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.result .v { font-size: 23px; font-weight: 650; letter-spacing: -.02em; line-height: 1.1; }
+.result .l { font-size: 13px; opacity: .85; margin-top: 4px; }
+
+/* ---------- conclusions ---------- */
+.concl { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.concl .card { border-top: 3px solid var(--accent); }
+.concl .card h3 { font-size: 16px; margin-bottom: 8px; }
+.concl .card p { margin: 0; color: var(--ink-2); font-size: 14px; }
+footer { padding-block: 28px 48px; color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--line); }
+@media (max-width: 640px) { .chart text { font-size: 15px; } .chart .axis { font-size: 13px; } .kpi .v { font-size: 26px; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+@media print { nav.toc { display: none; } .chart, .card, .kpi { box-shadow: none; } }
+</style>
+</head>
+<body>
+<div class="tip" id="tip" role="tooltip"></div>
+
+<header class="top">
+  <div class="wrap">
+    <div class="eyebrow">Informe de mercado · 26 de septiembre de 2026 · Argentina y mundo</div>
+    <h1 class="serif">Agentes de IA de voz y texto: <em>cuánta demanda hay</em> y qué parte es alcanzable</h1>
+    <p class="lede">La atención a clientes se está automatizando, pero en Argentina el dinero de la voz todavía es chico y está en tres nichos: cobranzas, Estado y PyMEs. El texto se fue a WhatsApp. La ventaja competitiva disponible es el precio por minuto: un agente propio cuesta USD 0,19 por minuto de conversación, un BPO cobra 0,31, y los agentes de voz que se venden hoy en el país cobran 0,28-0,35.</p>
+
+    <div class="kpis">
+      <div class="kpi"><div class="v num">1,5–2,2 <small>mil M USD</small></div><div class="l">Gasto anual en atención humana sustituible en Argentina (mercado interno)</div></div>
+      <div class="kpi"><div class="v num">30–50 <small>M USD</small></div><div class="l">Facturación 2026 de plataformas de agentes IA en Argentina (voz + texto)</div></div>
+      <div class="kpi"><div class="v num">70–200 <small>M USD</small></div><div class="l">Lo mismo en 2029 (valor central ~120)</div></div>
+      <div class="kpi"><div class="v num">5–15 <small>→ 30–60 M</small></div><div class="l">Solo voz telefónica con IA, 2026 → 2029</div></div>
+      <div class="kpi hi"><div class="v num">0,19–0,31 <small>vs 0,08–0,15</small></div><div class="l">USD por minuto: agente humano (propio a BPO) vs objetivo con inferencia propia</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc"><div class="wrap"><ul>
+  <li><a href="#mundo">Mundo</a></li>
+  <li><a href="#argentina">Argentina</a></li>
+  <li><a href="#calculo">Cálculo del mercado</a></li>
+  <li><a href="#demanda">Dónde está la demanda</a></li>
+  <li><a href="#competencia">Competencia</a></li>
+  <li><a href="#reglas">Canales y reglas</a></li>
+  <li><a href="#conclusiones">Conclusiones</a></li>
+  <li><a href="#fuentes">Fuentes</a></li>
+</ul></div></nav>
+
+<!-- ============================ MUNDO ============================ -->
+<section id="mundo"><div class="wrap">
+  <h2 class="serif">Mundo: mucho capital, adopción todavía baja</h2>
+  <p class="sub">El mercado directo de agentes de voz con IA vale USD 2,3–2,5 mil millones (2025) y crece ~40 % por año. Lo que sustituye es cien veces más grande: 17 millones de agentes humanos y USD 100–120 mil millones solo en outsourcing.</p>
+
+  <div class="cols-2">
+    <div class="chart">
+      <h3>Ingresos recurrentes de las plataformas de agentes IA</h3>
+      <p class="sub">ARR en millones de USD, último dato publicado (2026). Startups vs. la parte de IA de los incumbentes de contact center.</p>
+      <div class="legend"><span><i style="background:var(--s1)"></i>Startups de agentes IA</span><span><i style="background:var(--s2)"></i>IA de incumbentes (NICE, Genesys, Five9)</span></div>
+      <div id="c-arr"></div>
+      <div class="foot">Fuentes: ElevenLabs, TechCrunch, Bloomberg, Axios, Sacra, SEC (6-K NICE), CMSWire. Decagon y PolyAI son estimaciones de Sacra.</div>
+    </div>
+    <div class="stack">
+      <div class="chart">
+        <h3>Voicebots generativos en contact centers</h3>
+        <p class="sub">Encuesta Gartner a líderes de servicio al cliente, dic-2024, n=187.</p>
+        <div id="c-adop"></div>
+        <div class="foot">Solo 5 % los tenía en producción. Un año después (oct-2025, n=321) solo 20 % reportaba reducción de plantilla por IA y 55 % mantenía la plantilla con más volumen.</div>
+      </div>
+      <div class="card">
+        <h3>Demanda real medida, no proyectada</h3>
+        <ul class="prose" style="margin:0;padding-left:18px;font-size:14px">
+          <li><b>100–150 M de llamadas IA por mes</b> entre Vapi (62 M) y Retell (55 M); Gupshup declara 500 M con IVR incluido.</li>
+          <li><b>10 M de conversaciones IA por semana</b> entre empresas y personas en WhatsApp y Messenger (Meta, Q1-2026); más de 1 M de negocios usa Meta Business Agent.</li>
+          <li><b>USD 1.000 M por trimestre</b> factura Meta por mensajería paga de WhatsApp (+73 % anual).</li>
+          <li><b>~USD 1,3 mil M de ARR</b> suman las diez plataformas líderes. Sierra vale USD 15 mil M con 150 M de ARR.</li>
+          <li><b>Gartner:</b> 10 % de las interacciones automatizadas en 2026; predice 80 % de los casos comunes sin humano en 2029. 91 % de los líderes de servicio está presionado para implementar IA.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="tbl" style="margin-top:24px"><table>
+    <thead><tr><th>Mercado</th><th class="n">2025</th><th class="n">Proyección</th><th class="n">CAGR</th><th>Fuente</th><th>Calidad</th></tr></thead>
+    <tbody>
+      <tr><td>Agentes de voz con IA</td><td class="n">USD 2,3–2,5 mil M</td><td class="n">27–35 mil M (2032-33)</td><td class="n">39–42 %</td><td>Grand View, MarketsandMarkets</td><td><span class="tag c">C</span></td></tr>
+      <tr><td>IA conversacional (voz + texto)</td><td class="n">USD 14–17 mil M</td><td class="n">41–50 mil M (2030-31)</td><td class="n">20–24 %</td><td>Grand View, M&amp;M; IDC: &gt; 32 mil M en 2028</td><td><span class="tag c">C</span> / <span class="tag a">A</span></td></tr>
+      <tr><td>Outsourcing de contact centers</td><td class="n">USD 103–120 mil M</td><td class="n">—</td><td class="n">—</td><td>Grand View, Mordor; Gartner: 17 M de agentes</td><td><span class="tag c">C</span> / <span class="tag a">A</span></td></tr>
+      <tr><td>CPaaS (SMS &gt; 50 % del ingreso)</td><td class="n">USD 30 mil M</td><td class="n">34 mil M (2026)</td><td class="n">13 %</td><td>Juniper</td><td><span class="tag a">A</span></td></tr>
+      <tr><td>Mensajería OTT de negocios (WhatsApp y otros)</td><td class="n">USD 3,6 mil M</td><td class="n">9,8 mil M (2029)</td><td class="n">~29 %</td><td>Juniper</td><td><span class="tag a">A</span></td></tr>
+      <tr><td>Gasto enterprise en IA generativa</td><td class="n">USD 37 mil M</td><td class="n">×3 vs 2024</td><td class="n">—</td><td>Menlo Ventures; 76 % comprado, no construido</td><td><span class="tag a">A</span></td></tr>
+    </tbody>
+  </table></div>
+  <p class="foot"><span class="tag a">A</span> fuente primaria (Meta, SEC, Gartner, ENACOM, CACC). <span class="tag c">C</span> consultora de reportes en serie o blog de proveedor: solo orden de magnitud, difieren ×2–3 entre sí.</p>
+</div></section>
+
+<!-- ============================ ARGENTINA ============================ -->
+<section id="argentina"><div class="wrap">
+  <h2 class="serif">Argentina: la demanda se fue a WhatsApp y la voz cae 20 % por año</h2>
+  <p class="sub">Los argentinos hablan cada vez menos por teléfono y casi todos mensajean a empresas. La voz queda para lo que WhatsApp no resuelve: cobranzas, urgencias, mayores, salud y organismos públicos.</p>
+
+  <div class="cols-2">
+    <div class="chart">
+      <h3>Minutos de voz móvil salientes por año</h3>
+      <p class="sub">Miles de millones de minutos, ENACOM datos abiertos. 2026 es solo el primer semestre y no se grafica.</p>
+      <div id="c-min"></div>
+    </div>
+    <div class="chart">
+      <h3>SMS salientes por año</h3>
+      <p class="sub">Miles de millones de SMS, ENACOM. El rebote de 2025 (+18 %) es tráfico de empresas: códigos OTP y avisos.</p>
+      <div id="c-sms"></div>
+    </div>
+  </div>
+
+  <div class="grid-cards" style="margin-top:14px">
+    <div class="mini"><div class="v num">93–99 %</div><div class="l">de los argentinos conectados usa WhatsApp (~36 M de personas)</div><div class="src">Statista II-2025, Infobip 2026</div></div>
+    <div class="mini"><div class="v num">84 %</div><div class="l">habla con marcas por WhatsApp; 66 % contrató un servicio y 62 % compró por ahí</div><div class="src">Meta/Kantar, Infobip 2025-26</div></div>
+    <div class="mini"><div class="v num">8 de 10</div><div class="l">adultos mensajea a una empresa al menos una vez por semana y lo prefiere al teléfono</div><div class="src">Meta/Kantar 2026</div></div>
+    <div class="mini"><div class="v num">29,5 h</div><div class="l">por mes en WhatsApp por usuario: el mayor uso del mundo</div><div class="src">Comscore 2025</div></div>
+  </div>
+
+  <div class="cols-2" style="margin-top:28px">
+    <div>
+      <h3>Lo que se sustituye: atención humana</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Dato</th><th>Valor</th><th>Fuente</th></tr></thead>
+        <tbody>
+          <tr><td>Puestos en contact centers tercerizados</td><td><b>~50.000</b> (75.000 en 2008; −3.000 por año). Córdoba 38 %, CABA+PBA 27 %</td><td>CACC, El Economista</td></tr>
+          <tr><td>Agentes in-house (bancos, telcos, prepagas, retail)</td><td>No publicado. <b>35–55 k</b> estimados con el ratio mundial de Gartner (17 M agentes / 8.000 M hab.)</td><td>est.</td></tr>
+          <tr><td>Salario de un operador (CCT 781/20, Operación A, 36 h)</td><td><b>ARS 992.227</b> brutos (ago-2026) + presentismo 8,33 %. Salario mínimo sep-2026: ARS 383.800</td><td>FAECYS-CACC vía El Destape; Res. 4/2026</td></tr>
+          <tr><td>Costo empresa de ese operador</td><td>≈ ARS 1,5 M ≈ <b>USD 985 por mes</b> (cargas y ART ~30 % + SAC)</td><td>est. sobre la escala</td></tr>
+          <tr><td>Costo por minuto de conversación, agente propio</td><td><b>USD 0,19</b> (156 h pagadas, 77 % productivas, 70 % de ocupación); ~0,26 con puesto, supervisión y software</td><td>est.</td></tr>
+          <tr><td>Precio de venta de un BPO (CACC)</td><td>hora productiva ARS 28.217 = <b>USD 0,31 por minuto productivo</b> (sep-2026); incluye infraestructura, impuestos y rentabilidad. Posición full time ≈ USD 2.900 por mes</td><td>CACC Sistema de Costos</td></tr>
+          <tr><td>Mercado de outsourcing</td><td>USD 1.405 M (2024) → 2.418 M (2030)</td><td>Grand View <span class="tag c">C</span></td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div>
+      <h3>Base de empresas y adopción de IA</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Dato</th><th>Valor</th><th>Fuente</th></tr></thead>
+        <tbody>
+          <tr><td>Empresas empleadoras formales</td><td><b>525.538</b>: &lt; 10 empleados 84 % (441 k); 10–50: 68 k; 51–100: 10,5 k; &gt; 100: 9.939</td><td>UCEMA / OEDE, abr-2025</td></tr>
+          <tr><td>Sectores con atención masiva</td><td>78 bancos, 1.027 fintech, 189 aseguradoras, 41 prepagas (6,8 M afiliados), 1.543 clínicas, 4.720 licenciatarios telco, 2.400 socios CACE, 40.000 restaurantes</td><td>BCRA, CAF, SSN, ADECRA, ENACOM, CACE, FEHGRA</td></tr>
+          <tr><td>PyMEs que usan alguna IA</td><td><b>41,6 %</b>; 56 % en etapa experimental; <b>4 % con presupuesto asignado</b></td><td>CEPE-UTDT / Fundar, 2026, n=402</td></tr>
+          <tr><td>Empresas &gt; 50 empleados con IA generativa</td><td>63 %</td><td>CACE 2026</td></tr>
+          <tr><td>Consultas bancarias resueltas sin humano</td><td>hasta 60 % (por WhatsApp)</td><td>Infobip, Telecom, abr-2026</td></tr>
+          <tr><td>Empresas argentinas con WhatsApp Business API</td><td>No publicado. Meta cobra a empresas argentinas <b>USD 60–100 M por año</b> en mensajes (est.)</td><td>est. sobre Meta 10-Q</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:28px">Señales de demanda con dinero atrás (2025–2026)</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Caso</th><th>Canal</th><th>Dato</th><th>Fecha</th></tr></thead>
+    <tbody>
+      <tr><td><b>GCBA, línea 147</b> (Solar Insights + ElevenLabs)</td><td>voz telefónica</td><td>Licitación ARS 3.021 M ≈ <b>USD 2 M</b>: suscripción ElevenLabs 950 M, contingencia 1.198 M, soporte 873 M</td><td>ago-2026</td></tr>
+      <tr><td><b>Kleva</b> (AR), cobranzas por voz</td><td>voz saliente</td><td>Ronda USD 1,5 M; DirecTV, ON City, Vana, Banco de Guayaquil; −30 % de costo, +3 % de recupero</td><td>may-2026</td></tr>
+      <tr><td><b>Inceptia</b> (AR), cobranzas y ventas</td><td>voz</td><td>80 M llamadas por mes en LATAM, 150 empresas, "40–60 % del costo humano"</td><td>2026</td></tr>
+      <tr><td><b>Villa María</b> (Córdoba), con Anunzi</td><td>voz entrante</td><td>13.325 llamadas en 7 meses, 100 % atendidas, 85 % resueltas sin humano, 4 semanas de puesta en marcha</td><td>2026</td></tr>
+      <tr><td><b>Onbotgo</b> (CL, oficina en BA)</td><td>voz</td><td>500 k cuentas por día; Ualá, Telefónica, Mapfre</td><td>2026</td></tr>
+      <tr><td><b>Botmaker Callbots</b> (AR)</td><td>voz telefónica y WhatsApp</td><td>USD 0,07 por llamada ≤ 2 min, 0,30 hasta 60 min; Mercado Libre, Frávega, Swiss Medical, Toyota</td><td>ago-2025</td></tr>
+      <tr><td><b>Banco Macro</b> (MacroChat), <b>Galicia</b> (Gala)</td><td>WhatsApp, texto</td><td>1 M de clientes; 5 M+ de 44 M de interacciones anuales</td><td>2025-26</td></tr>
+      <tr><td><b>Telecom Argentina</b></td><td>texto</td><td>IA generativa resuelve ~60 % de las consultas sin humano</td><td>jun-2025</td></tr>
+      <tr><td><b>Zárate, ATM Mendoza</b></td><td>WhatsApp + voz</td><td>Licitaciones de ARS 75 M y ARS 20 M</td><td>2025</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout"><p><b>Lo que no existe:</b> ningún caso público 2025-26 de una empresa privada argentina con cifras de llamadas telefónicas automatizadas por IA. Los números con voz son de cobranzas (proveedores) y del Estado; los de banca y telcos son de WhatsApp.</p></div>
+</div></section>
+
+<!-- ============================ CÁLCULO ============================ -->
+<section id="calculo"><div class="wrap">
+  <h2 class="serif">Cálculo del mercado local</h2>
+  <p class="sub">Tres métodos independientes con supuestos explícitos. Los tres llegan al mismo orden de magnitud. Tipo de cambio: mayorista ARS 1.525 por USD.</p>
+
+  <div class="methods">
+    <div class="method">
+      <div class="k">Método A</div><div class="t">Gasto humano que puede migrar</div>
+      <ol>
+        <li>50.000 puestos tercerizados × (1 − exportación 25–45 %) = 27,5–37,5 k para el mercado interno</li>
+        <li>× USD 2.900 por posición y mes × 12 = USD 0,96–1,31 mil M</li>
+        <li>+ 35–55 k agentes in-house × USD 1.200–1.400 × 12 = USD 0,5–0,9 mil M</li>
+        <li>= <b>gasto sustituible USD 1,5–2,2 mil M</b></li>
+        <li>× cuota automatizada (5–8 % en 2026; 20–30 % en 2029) × precio IA relativo al humano (0,3–0,6: USD 0,08–0,15 contra 0,19–0,31)</li>
+      </ol>
+      <div class="r">2026: <b>USD 22–106 M</b> · 2029: <b>USD 90–396 M</b></div>
+    </div>
+    <div class="method">
+      <div class="k">Método B</div><div class="t">Minutos de voz</div>
+      <ol>
+        <li>60–90 k agentes para el mercado interno × 156 h × 60 × ocupación 60–70 % = 4,0–7,1 mil M de minutos por año</li>
+        <li>× parte que es voz (50–70 %) = <b>2,0–5,0 mil M de minutos de voz</b> (≈ 9 % de los minutos móviles de ENACOM: plausible)</li>
+        <li>× 25 % automatizable en 2029 = 0,5–1,25 mil M de minutos</li>
+        <li>× USD 0,08–0,12 por minuto</li>
+      </ol>
+      <div class="r">Voz 2029: <b>USD 40–150 M</b>. Las 100 cuentas grandes tienen ~60 % del volumen: ~2,9 M de minutos por mes cada una.</div>
+    </div>
+    <div class="method">
+      <div class="k">Método C</div><div class="t">Empresas × ticket</div>
+      <ol>
+        <li>Grandes con atención masiva: 9.939 × 15 % = 1.500 × USD 60 k por año = SAM 89 M</li>
+        <li>Medianas y pequeñas B2C: 78.500 × 40 % = 31.400 × USD 1.800 = SAM 57 M</li>
+        <li>Micro con teléfono intensivo: 441 k × 12 % = 53 k × USD 480 = SAM 25 M</li>
+        <li>Adopción 2026: 30 / 8 / 3 %. 2029: 60 / 25 / 12 %</li>
+      </ol>
+      <div class="r">2026: <b>USD 32 M</b> · 2029: <b>USD 71 M</b> (150 M si a las top-100 se les aplica el ticket por volumen del método B)</div>
+    </div>
+  </div>
+
+  <div class="converge">
+    <div class="arrow">⌄</div>
+    <div class="result">
+      <div><div class="v">USD 1,5–2,2 mil M</div><div class="l">Gasto anual en atención humana sustituible (mercado interno)</div></div>
+      <div><div class="v">USD 30–50 M</div><div class="l">Plataformas de agentes IA en Argentina, voz + texto, 2026</div></div>
+      <div><div class="v">USD 70–200 M</div><div class="l">Lo mismo en 2029, valor central ~120</div></div>
+      <div><div class="v">USD 5–15 → 30–60 M</div><div class="l">Solo voz telefónica, 2026 → 2029</div></div>
+    </div>
+  </div>
+
+  <div class="cols-2" style="margin-top:28px">
+    <div class="chart">
+      <h3>Rangos por método y estimación final</h3>
+      <p class="sub">Facturación anual de plataformas de agentes IA en Argentina, millones de USD.</p>
+      <div class="legend"><span><i style="background:var(--neutral-mark)"></i>Cada método</span><span><i style="background:var(--s1)"></i>Estimación adoptada</span></div>
+      <div id="c-rangos"></div>
+      <div class="foot">Verificación externa: las empresas argentinas le pagan a Meta USD 60–100 M por año solo por mensajes de WhatsApp (1,5–2,5 % de un run-rate de USD 4 mil M). Las plataformas facturan planes y consumo encima: coherente con USD 30–50 M.</div>
+    </div>
+    <div class="stack">
+      <div class="card">
+        <h3>Cuánto de eso es alcanzable (SOM)</h3>
+        <p class="small">Un servidor como el medido en CAP-002 (22 llamadas simultáneas con p95 ≤ 2,8 s) produce ~163.000 minutos por mes en horario comercial (8 h × 22 días, 70 % de ocupación): USD 16–24 k por mes vendiendo todo, USD 5–7 k vendiendo el 30 % que asume la calculadora de costos.</p>
+        <div class="tbl"><table>
+          <thead><tr><th style="min-width:180px;white-space:normal">Referencia</th><th class="n">Minutos / mes</th><th class="n">USD / año a 0,10–0,15</th><th class="n">Servers al 30 %</th></tr></thead>
+          <tbody>
+            <tr><td>Todo el mercado de voz IA de Argentina 2026</td><td class="n">3–12 M</td><td class="n">5–15 M</td><td class="n">60–250</td></tr>
+            <tr><td>Una prepaga o banco mediano, 25 % automatizado</td><td class="n">~700 k</td><td class="n">~0,85 M</td><td class="n">15</td></tr>
+            <tr class="hi"><td>Objetivo a 3 años: 1 % del mercado de voz 2029</td><td class="n">200–500 k</td><td class="n">0,3–0,6 M</td><td class="n">4–10</td></tr>
+            <tr><td>100 PyMEs con el pack "Pyme" (1.800 min)</td><td class="n">180 k</td><td class="n">0,2 M + bases fijas</td><td class="n">4</td></tr>
+          </tbody>
+        </table></div>
+        <p class="foot">El mercado de voz IA de 2026 entero cabe en un rack. El cuello es comercial, no de hardware. En PyMEs la base fija del plan pesa más que los minutos.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="stack" style="margin-top:20px">
+    <details><summary>Método A, paso por paso (bajo / central / alto)</summary>
+      <div class="tbl"><table>
+        <thead><tr><th>Paso</th><th>Cálculo</th><th class="n">Bajo</th><th class="n">Central</th><th class="n">Alto</th></tr></thead>
+        <tbody>
+          <tr><td>Posiciones tercerizadas para el mercado interno</td><td>50.000 × (1 − exportación 45 / 35 / 25 %)</td><td class="n">27.500</td><td class="n">32.500</td><td class="n">37.500</td></tr>
+          <tr><td>Venta anual del outsourcing interno</td><td>× USD 2.900 × 12</td><td class="n">957 M</td><td class="n">1.131 M</td><td class="n">1.305 M</td></tr>
+          <tr><td>Agentes in-house</td><td>ratio Gartner → 98 k totales − 50 k tercerizados</td><td class="n">35.000</td><td class="n">48.000</td><td class="n">55.000</td></tr>
+          <tr><td>Costo anual in-house</td><td>× USD 1.200 / 1.300 / 1.400 × 12</td><td class="n">504 M</td><td class="n">749 M</td><td class="n">924 M</td></tr>
+          <tr class="total"><td>Gasto sustituible</td><td>suma</td><td class="n">1,5 mil M</td><td class="n">1,9 mil M</td><td class="n">2,2 mil M</td></tr>
+          <tr><td>Cuota automatizada 2026</td><td>Gartner mundo 10 %; Argentina atrasada</td><td class="n">5 %</td><td class="n">6,5 %</td><td class="n">8 %</td></tr>
+          <tr><td>Precio IA / costo humano</td><td>USD 0,08–0,15 contra 0,19 (propio) a 0,31 (BPO) por minuto</td><td class="n">0,3</td><td class="n">0,45</td><td class="n">0,6</td></tr>
+          <tr class="total"><td>Mercado IA 2026</td><td>gasto × cuota × precio relativo</td><td class="n">22 M</td><td class="n">56 M</td><td class="n">106 M</td></tr>
+          <tr><td>Cuota automatizada 2029</td><td>Gartner predice 80 % de casos comunes; se usa 20–30 % del volumen</td><td class="n">20 %</td><td class="n">25 %</td><td class="n">30 %</td></tr>
+          <tr class="total"><td>Mercado IA 2029</td><td></td><td class="n">90 M</td><td class="n">214 M</td><td class="n">396 M</td></tr>
+        </tbody>
+      </table></div>
+    </details>
+    <details><summary>Método C, por segmento</summary>
+      <div class="tbl"><table>
+        <thead><tr><th>Segmento</th><th>Empresas objetivo</th><th>Ticket anual</th><th class="n">SAM</th><th class="n">2026</th><th class="n">2029</th></tr></thead>
+        <tbody>
+          <tr><td>Grandes (&gt; 100 empleados) con atención masiva</td><td>9.939 × 15 % = 1.500</td><td>USD 60.000 (USD 5.000 por mes; las top-100 mucho más)</td><td class="n">89 M</td><td class="n">30 % → 27 M</td><td class="n">60 % → 54 M</td></tr>
+          <tr><td>Medianas y pequeñas (10–100) de servicios B2C</td><td>78.500 × 40 % = 31.400</td><td>USD 1.800 (Botmaker 149, ContactShip 150, Cliengo 119 por mes)</td><td class="n">57 M</td><td class="n">8 % → 4,5 M</td><td class="n">25 % → 14 M</td></tr>
+          <tr><td>Micro con teléfono intensivo (consultorios, inmobiliarias, restaurantes, concesionarias, estudios)</td><td>441.000 × 12 % = 53.000</td><td>USD 480 (USD 40 por mes)</td><td class="n">25 M</td><td class="n">3 % → 0,8 M</td><td class="n">12 % → 3 M</td></tr>
+          <tr class="total"><td>Total</td><td></td><td></td><td class="n">171 M</td><td class="n">32 M</td><td class="n">71 M</td></tr>
+        </tbody>
+      </table></div>
+    </details>
+  </div>
+</div></section>
+
+<!-- ============================ DEMANDA ============================ -->
+<section id="demanda"><div class="wrap">
+  <h2 class="serif">Dónde está la demanda, por vertical y canal</h2>
+  <p class="sub">Intensidad según evidencia de clientes pagos en Argentina. Tres puntos: hay contratos y cifras públicas; dos: hay proveedores vendiendo y casos sin cifras; uno: solo oferta de agencias.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Vertical</th><th>Voz</th><th>Texto</th><th>Canal que pide</th><th>Caso de uso</th><th>Evidencia local</th><th>Precio que paga</th></tr></thead>
+    <tbody>
+      <tr><td><b>Bancos, fintech, cobranzas</b></td><td class="dots">●●●</td><td class="dots">●●●</td><td>voz saliente + WhatsApp</td><td>Mora temprana, promesas de pago, recordatorios. Contactabilidad 25–30 %; el callbot recupera 15–25 % de contactados contra 8–12 % del IVR</td><td>Kleva, Inceptia, Onbotgo, Vozy. Naranja X, Mercado Pago y Galicia concentran más de la mitad de los morosos</td><td>"40–60 % del humano" = USD 0,12–0,19/min</td></tr>
+      <tr><td><b>Estado</b> (ciudad, municipios, agencias)</td><td class="dots">●●●</td><td class="dots">●●<span>●</span></td><td>voz entrante</td><td>Atención al vecino, turnos, reclamos</td><td>CABA 147 USD 2 M; Villa María 85 % sin humano; Zárate; Mendoza</td><td>Licitaciones de ARS 20 M a 3.000 M</td></tr>
+      <tr><td><b>Salud privada</b> (prepagas, clínicas, consultorios)</td><td class="dots">●●<span>●</span></td><td class="dots">●●●</td><td>WhatsApp + voz entrante</td><td>Turnos y confirmación (ausentismo 30 % baja a 8–15 %), autorizaciones</td><td>Swiss Medical con Botmaker; agencias Botias, MednIA, Runia</td><td>PyME USD 30–150 por mes; grandes a cotizar</td></tr>
+      <tr><td><b>Telcos e ISPs</b> (4.720 licenciatarios)</td><td class="dots">●<span>●●</span></td><td class="dots">●●●</td><td>texto; voz entrante</td><td>Soporte de primer nivel, reclamos, bajas</td><td>Telecom 60 % resuelto por IA; Claro con S1 Gateway</td><td>Enterprise</td></tr>
+      <tr><td><b>Comercio electrónico y retail</b></td><td class="dots">●<span>●●</span></td><td class="dots">●●●</td><td>WhatsApp</td><td>Estado de pedido, cambios, ventas</td><td>Mercado Libre y Frávega con Botmaker; 63 % de empresas &gt; 50 usan IA generativa</td><td>USD 149–499 por mes + Meta</td></tr>
+      <tr><td><b>Seguros</b></td><td class="dots">●●<span>●</span></td><td class="dots">●●<span>●</span></td><td>voz + WhatsApp</td><td>Siniestros, cotización, cobranza de pólizas</td><td>Galicia Seguros (Laia), Assist Card (ContactShip), Mapfre (Onbotgo)</td><td>Enterprise</td></tr>
+      <tr><td><b>PyMEs de servicios</b> (inmobiliarias, concesionarias, gastronomía, educación, estudios)</td><td class="dots">●<span>●●</span></td><td class="dots">●●<span>●</span></td><td>WhatsApp, algo de voz</td><td>Recepción 24×7, calificación de leads, reservas</td><td>Agencias a USD 30–800 por mes; 36 % de inmobiliarias usaba IA en 2024</td><td>USD 30–300 por mes</td></tr>
+      <tr><td><b>SMS</b></td><td class="dots"><span>●●●</span></td><td class="dots">●<span>●●</span></td><td>notificación</td><td>OTP, avisos de turno, recordatorio de pago</td><td>2,7 mil M de SMS por año, rebote 2025 por A2P</td><td>USD 0,025–0,10 por SMS; no es canal de agente</td></tr>
+    </tbody>
+  </table></div>
+</div></section>
+
+<!-- ============================ COMPETENCIA ============================ -->
+<section id="competencia"><div class="wrap">
+  <h2 class="serif">Competencia: el ahorro es el hueco</h2>
+  <p class="sub">Los agentes de voz llave en mano que se venden en Argentina cobran lo mismo que un BPO y más que un empleado propio. Las plataformas globales son baratas en dólares, pero llamar a un celular argentino con Twilio cuesta USD 0,35 por minuto. La inferencia propia con terminación local puede cobrar USD 0,08–0,15 todo incluido.</p>
+
+  <div class="chart">
+    <h3>Precio por minuto de voz, USD</h3>
+    <p class="sub">Por minuto de conversación, salvo indicación. El humano va en tres escalones: costo laboral de un agente propio (escala CCT 781/20 de ago-2026 más cargas), el mismo agente con puesto y supervisión, y el precio de venta de un BPO (CACC, sep-2026).</p>
+    <div class="legend"><span><i style="background:var(--neutral-mark)"></i>Agente humano</span><span><i style="background:var(--s2)"></i>Voz IA llave en mano en Argentina</span><span><i style="background:var(--s1)"></i>Plataformas globales</span><span><i style="background:var(--s3)"></i>Objetivo con inferencia propia</span></div>
+    <div id="c-precio"></div>
+    <div class="foot">Plataforma sola = sin STT, LLM, TTS ni telefonía. Todo incluido = con los proveedores por defecto, sin telefonía a celular. Fuentes: FAECYS-CACC (escala CCT 781/20), CACC Sistema de Costos, ContactShip, Anunzi, Inceptia, Vapi, ElevenLabs, Bland, Retell, Gupshup, Twilio.</div>
+  </div>
+
+  <div class="cols-2" style="margin-top:24px">
+    <div class="chart">
+      <h3>Mapa de posicionamiento</h3>
+      <p class="sub">Cualitativo. Horizontal: a quién le venden. Vertical: cuánto de su producto es voz telefónica.</p>
+      <div id="c-mapa"></div>
+    </div>
+    <div class="card">
+      <h3>Qué ofrece cada uno y qué nos deja</h3>
+      <ul class="prose" style="margin:0;padding-left:18px;font-size:14px">
+        <li><b>Botmaker</b> (AR, BSP de Meta): 18 canales, callbots desde ago-2025 por teléfono y WhatsApp, USD 0,07 por llamada corta y 0,30 por larga, planes USD 149–499. Manda en texto para medianas y grandes; en voz no publica latencia ni calidad. Su cliente nos sirve de referencia de precio.</li>
+        <li><b>Vapi, Retell, ElevenLabs</b>: infraestructura para desarrolladores, sin soporte ni sitio en español, telefonía a Argentina cara. Son quienes usan las agencias locales.</li>
+        <li><b>Infobip, Genesys, NICE, Google, Microsoft</b>: las 100 cuentas grandes ya son suyas (Mercado Libre, Galicia, Naranja X). No es donde competir al principio.</li>
+        <li><b>Inceptia, Kleva, Onbotgo, Vozy</b>: voz para cobranzas en banca y telcos, con volumen real (80 M llamadas por mes, 500 k cuentas por día). Prueban que la voz saliente contractual paga.</li>
+        <li><b>ContactShip, Anunzi, Tec5, Darwin AI</b>: voz para PyMEs y municipios a USD 30–800 por mes, USD 0,28–0,35 por minuto. Mismo segmento que este proyecto, pero sin ventaja de costo.</li>
+        <li><b>Cliengo, Chattigo, Zenvia, Aivo</b>: texto y WhatsApp; la voz es marginal o inexistente.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="tbl" style="margin-top:24px"><table>
+    <thead><tr><th>Proveedor</th><th>Origen</th><th>Foco</th><th>Voz telefónica IA</th><th>Precio publicado</th><th>Clientes en Argentina</th><th>Escala</th></tr></thead>
+    <tbody>
+      <tr><td><b>Botmaker</b></td><td>Buenos Aires</td><td>Omnicanal, WhatsApp</td><td>Sí, callbots (ago-2025)</td><td>USD 149–499 por mes + 0,07/0,30 por llamada</td><td>Mercado Libre, Frávega, Swiss Medical, Toyota, GCBA</td><td>—</td></tr>
+      <tr><td><b>Vapi</b></td><td>San Francisco</td><td>Infra de voz para devs</td><td>Sí</td><td>USD 0,05/min plataforma; 0,08–0,13 todo incluido</td><td>—</td><td>62 M llamadas/mes; USD 500 M de valuación</td></tr>
+      <tr><td><b>Retell</b></td><td>EE. UU.</td><td>Infra de voz para devs</td><td>Sí</td><td>USD 0,07/min plataforma</td><td>—</td><td>55 M llamadas/mes; ARR USD 60 M</td></tr>
+      <tr><td><b>ElevenLabs Agents</b></td><td>Londres / NY</td><td>TTS y agentes</td><td>Sí</td><td>USD 0,08–0,24/min</td><td>GCBA 147 (vía Solar Insights)</td><td>ARR USD 600 M</td></tr>
+      <tr><td><b>Infobip</b></td><td>Croacia, oficina AR</td><td>CPaaS enterprise</td><td>Sí (AgentOS)</td><td>Enterprise</td><td>Mercado Libre</td><td>3.000+ clientes de voz</td></tr>
+      <tr><td><b>Gupshup</b></td><td>SF / Mumbai</td><td>Mensajería + voz</td><td>Sí, self-serve (sep-2026)</td><td>USD 0,035/min sin telefonía</td><td>—</td><td>500 M llamadas/mes</td></tr>
+      <tr><td><b>Inceptia</b></td><td>Argentina</td><td>Cobranzas y ventas por voz</td><td>Sí</td><td>"40–60 % del costo humano"</td><td>Banca, telcos, BPO</td><td>80 M llamadas/mes, 150 empresas</td></tr>
+      <tr><td><b>Kleva</b></td><td>Buenos Aires</td><td>Cobranzas por voz</td><td>Sí, acento local</td><td>—</td><td>DirecTV, ON City, Vana</td><td>Ronda USD 1,5 M</td></tr>
+      <tr><td><b>Onbotgo</b></td><td>Santiago, oficina BA</td><td>Cobranzas</td><td>Sí</td><td>—</td><td>Ualá, Telefónica, Mapfre</td><td>500 k cuentas/día</td></tr>
+      <tr><td><b>ContactShip</b></td><td>Buenos Aires</td><td>PyMEs, voz + WhatsApp</td><td>Sí</td><td>USD 30–799 por mes; 0,28–0,35/min</td><td>Assist Card</td><td>2 M llamadas/mes (declarado)</td></tr>
+      <tr><td><b>Anunzi</b></td><td>Miami, opera en AR</td><td>Municipios, clínicas</td><td>Sí (Twilio, n8n)</td><td>USD 87–2.700 por mes, ~0,30/min</td><td>Villa María</td><td>—</td></tr>
+      <tr><td><b>Darwin AI</b></td><td>Buenos Aires / São Paulo</td><td>"Empleados IA" para PyMEs</td><td>Sí</td><td>—</td><td>300 clientes en 20 países</td><td>ARR &gt; USD 2 M; seed 4,5 M</td></tr>
+      <tr><td><b>Aivo</b> (Engageware)</td><td>Córdoba → EE. UU.</td><td>Enterprise, texto</td><td>Sí (Aivo Voice)</td><td>desde USD 240 por usuario y mes</td><td>—</td><td>300 M interacciones/año</td></tr>
+      <tr><td><b>Cliengo</b></td><td>Buenos Aires</td><td>PyMEs, web y WhatsApp</td><td>No</td><td>USD 45–259 por mes</td><td>—</td><td>—</td></tr>
+      <tr><td><b>Chattigo, Zenvia, Blip</b></td><td>Chile, Brasil</td><td>WhatsApp, texto</td><td>Parcial (llamadas por WhatsApp)</td><td>Zenvia usuarios USD 29–39</td><td>—</td><td>Zenvia R$ 960 M; Blip 4.000 clientes</td></tr>
+    </tbody>
+  </table></div>
+</div></section>
+
+<!-- ============================ CANALES Y REGLAS ============================ -->
+<section id="reglas"><div class="wrap">
+  <h2 class="serif">Canales y reglas de juego en Argentina</h2>
+  <p class="sub">Argentina es menos restrictiva que Chile, Colombia, Brasil y España, y parecida a México. La presión regulatoria viene por cobranzas y por proyectos que exigen avisar que se habla con una IA.</p>
+
+  <div class="grid-cards">
+    <div class="card">
+      <h3>Teléfono</h3>
+      <p class="small">Llega a todos, incluidos mayores y sin datos. Minutos móviles cayendo 20 % por año.</p>
+      <ul class="prose" style="margin:0;padding-left:18px;font-size:13.5px">
+        <li>Entrante: gratis o casi (Anura); Twilio USD 0,011 + USD 8 por número.</li>
+        <li>Saliente a celular: <b>Twilio USD 0,35 por minuto</b>; terminación local ~ARS 25 = USD 0,016 (calculadora, sin tarifario público).</li>
+        <li>Ley 26.951 No Llame: prohíbe venta en frío; permite llamar con relación contractual (lu–vi 9–21, sáb 9–13). Multas por cada llamada denunciada y responsabilidad solidaria del contratante.</li>
+        <li>Sin prefijo ni identificación obligatoria de llamadas automáticas.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>WhatsApp</h3>
+      <p class="small">99 % de penetración; el canal preferido para hablar con empresas.</p>
+      <ul class="prose" style="margin:0;padding-left:18px;font-size:13.5px">
+        <li>Meta cobra por mensaje entregado: marketing USD 0,062; utility y autenticación 0,012–0,026; servicio gratis hasta el 1-oct-2026, después 1.000 por mes y luego ~0,026.</li>
+        <li><b>Calling API:</b> entrante gratis, saliente ~USD 0,011 por minuto (est.), con plantilla de permiso del usuario. Es la voz saliente más barata.</li>
+        <li>Opt-in obligatorio para marketing; límites por nivel de verificación (250 → 100.000 destinatarios por día).</li>
+        <li>Facturación de Meta en pesos desde abr-2026.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>SMS</h3>
+      <p class="small">De 10,9 a 2,7 mil millones por año en seis años. Solo avisos y OTP.</p>
+      <ul class="prose" style="margin:0;padding-left:18px;font-size:13.5px">
+        <li>USD 0,025–0,10 por SMS (Twilio, Plivo, Sinch, Infobip); operadores directos más barato, sin tarifario.</li>
+        <li>Short code obligatorio, alta de 6 a 15 semanas, opt-out en 24 h. Sin resolución ENACOM específica; rige el No Llame.</li>
+        <li>No es un canal conversacional: sirve para recordatorio de turno, aviso de pago y verificación.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="cols-2" style="margin-top:24px">
+    <div>
+      <h3>Lo que viene en regulación</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Tema</th><th>Estado</th><th>Impacto</th></tr></thead>
+        <tbody>
+          <tr><td>Cobranzas, nacional</td><td>Sin horarios nacionales; proyecto 4384-D-2026 en comisión (sep-2026). Denuncias por hostigamiento en PBA: 393 (2024) → 1.237 (ene–may 2026)</td><td>Frecuencia y horarios limitados en el workflow de cobranzas</td></tr>
+          <tr><td>Cobranzas, CABA</td><td>Ley 6171 (lu–vi 8–20, sáb 8–12). Proyecto sep-2026: 1 contacto por día, 2 por semana; <b>agentes de IA auditables, avisar y ofrecer humano</b></td><td>Diseñar la presentación como asistente virtual y la derivación a humano</td></tr>
+          <tr><td>Ley de IA</td><td>Más de 100 proyectos, ninguno sancionado. Proyecto Brügge (jul-2026): informar interacción con IA, etiquetar audio sintético</td><td>Mismo diseño; no cambia el negocio</td></tr>
+          <tr><td>Datos personales</td><td>Ley 25.326 vigente; reforma sin sanción. Grabar exige aviso previo</td><td>Aviso de grabación al inicio</td></tr>
+          <tr><td>Licencia TIC (Ley 27.078)</td><td>Operar agentes sobre líneas de un licenciatario no la exige; revender minutos o números sí</td><td>Vender minutos de agente, no telefonía. Ver términos de Anura</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div>
+      <h3>Comparación regional</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>País</th><th>Restricción</th><th>Rigor</th></tr></thead>
+        <tbody>
+          <tr><td><b>Argentina</b></td><td>Opt-out (No Llame), multas bajas pero acumulables, sin prefijo ni ley de IA, horarios de cobranza solo en CABA</td><td class="dots">●<span>●●●</span></td></tr>
+          <tr><td>México</td><td>REPEP ~377 k números; cobranza 7–22 h; CONDUSEF multa a bancos desde 2026</td><td class="dots">●<span>●●●</span></td></tr>
+          <tr><td>Brasil</td><td>Não Me Perturbe 14,2 M de números obligatorio; "Origem Verificada" (STIR/SHAKEN) para &gt; 500 k llamadas/mes</td><td class="dots">●●<span>●●</span></td></tr>
+          <tr><td>Chile</td><td>Prefijos obligatorios desde ago-2025 (600 esperadas, 809 no solicitadas); No Molestar cubre llamadas, SMS y WhatsApp</td><td class="dots">●●●<span>●</span></td></tr>
+          <tr><td>Colombia</td><td>Ley 2300/2023: un contacto por semana por canal, horarios estrictos, multas hasta 1.000 salarios mínimos</td><td class="dots">●●●<span>●</span></td></tr>
+          <tr><td>España</td><td>Opt-in desde 2023; prohibidas desde móviles (2025); prefijo 400 en 2026; multas hasta EUR 2 M</td><td class="dots">●●●●</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- ============================ CONCLUSIONES ============================ -->
+<section id="conclusiones"><div class="wrap">
+  <h2 class="serif">Conclusiones</h2>
+  <p class="sub">Qué dicen los datos y qué implican para un servicio de agentes de voz con inferencia propia en Argentina.</p>
+  <div class="concl">
+    <div class="card"><h3>1. La demanda existe, pero la voz es la parte chica</h3><p>El mercado de agentes IA en Argentina factura USD 30–50 M en 2026 y puede llegar a USD 70–200 M en 2029. La voz telefónica es USD 5–15 M hoy y USD 30–60 M en 2029. Crece más rápido que el texto por cobranzas, Estado y la voz dentro de WhatsApp.</p></div>
+    <div class="card"><h3>2. El ahorro es el único argumento y nadie lo ofrece</h3><p>Un agente propio cuesta USD 0,19 por minuto de conversación (0,26 con puesto y supervisión) y un BPO cobra 0,31. Los agentes de voz locales cobran USD 0,28–0,35: igual que el BPO y más que el empleado. Con inferencia propia y terminación local se puede cobrar USD 0,08–0,15, 1,5 a 3 veces menos que un agente propio y 2 a 4 menos que un BPO, y seguir con margen.</p></div>
+    <div class="card"><h3>3. Los nichos con demanda probada: cobranzas, Estado, salud</h3><p>Son llamadas entrantes o salientes con relación contractual, así que el No Llame no las bloquea. Cobranzas va a exigir presentarse como IA y derivar a un humano; conviene tenerlo en el workflow desde ahora.</p></div>
+    <div class="card"><h3>4. WhatsApp tiene que ser un canal del mismo agente</h3><p>Texto y voz (Calling API). Ahí está el 80 % de la demanda de texto y la voz saliente más barata (USD 0,011 por minuto contra 0,35 de Twilio a celulares). Botmaker ya lo hace. El SMS queda solo para avisos.</p></div>
+    <div class="card"><h3>5. El cuello es comercial, no de hardware</h3><p>Todo el mercado de voz IA de 2026 cabe en 60–250 servers como el de CAP-002. Un objetivo de USD 0,5–1,5 M anuales a tres años son 6–25 servers vendiendo el 30 % de la capacidad, o 2–8 vendiéndola toda.</p></div>
+    <div class="card"><h3>6. Las 100 cuentas grandes ya están tomadas</h3><p>Concentran el 60 % del volumen y las atienden Infobip, Botmaker, Google, Microsoft y NICE. El espacio propio está en medianas, PyMEs, municipios y clínicas: tickets de USD 40–300 por mes donde la base fija del plan pesa más que el minuto.</p></div>
+  </div>
+
+  <div class="callout" style="margin-top:22px">
+    <p><b>Lectura ejecutiva.</b> Hay un mercado real pero angosto para voz con IA en Argentina, y la única ventaja defendible es estructural: precio por minuto 1,5–3× menor que un agente propio y 2–4× menor que un BPO, gracias a inferencia propia y telefonía local. La entrada natural es cobranzas contractuales, municipios y salud, con WhatsApp integrado. La capacidad instalada para los primeros tres años es de un rack; el esfuerzo tiene que ir a la venta y a la operación.</p>
+  </div>
+</div></section>
+
+<!-- ============================ FUENTES ============================ -->
+<section id="fuentes"><div class="wrap">
+  <h2 class="serif">Fuentes y calidad de los datos</h2>
+  <div class="cols-2">
+    <div class="prose">
+      <h3>Lo que no tiene dato público</h3>
+      <ul>
+        <li>Agentes in-house en Argentina, exportación del sector de contact centers y volumen agregado de llamadas: estimados con rangos.</li>
+        <li>Empresas argentinas con WhatsApp Business API y tráfico A2P separado del P2P.</li>
+        <li>Tarifario SIP local en pesos (Anura, Personal, IPLAN) y tarifa oficial de Meta Calling para Argentina.</li>
+        <li>Inscriptos al No Llame después de 2022; conteo de inmobiliarias, concesionarias y estudios de cobranza.</li>
+        <li>Los porcentajes de ahorro y recupero de los proveedores (Inceptia, Kleva, ContactShip) no están auditados.</li>
+      </ul>
+      <p class="small">Los tamaños de mercado mundiales son de consultoras de reportes en serie, con diferencias ×2–3 entre firmas: se usan como orden de magnitud. La adopción y el dinero real salen de fuentes primarias. El detalle completo con todas las fuentes está en <code>docs/mercado/demanda-y-mercado-local.md</code>.</p>
+    </div>
+    <div class="prose small">
+      <h3>Principales fuentes</h3>
+      <ul>
+        <li>Gartner: <a href="https://www.gartner.com/en/newsroom/press-releases/2025-03-05-gartner-predicts-agentic-ai-will-autonomously-resolve-80-percent-of-common-customer-service-issues-without-human-intervention-by-20290">80 % agéntico en 2029</a>, <a href="https://www.gartner.com/en/newsroom/press-releases/2025-12-02-gartner-survey-finds-only-20-percent-of-customer-service-leaders-report-ai-driven-headcount-reduction">solo 20 % redujo plantilla</a>, <a href="https://www.gartner.com/en/newsroom/press-releases/2024-12-09-gartner-survey-reveals-85-percent-of-customer-service-leaders-will-explore-or-pilot-customer-facing-conversational-genai-in-2025">voicebots generativos 5 %</a>.</li>
+        <li>Meta: <a href="https://www.sec.gov/Archives/edgar/data/0001326801/000162828026050705/meta-20260630.htm">10-Q Q2-2026</a>, <a href="https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing">precios de WhatsApp</a>, <a href="https://developers.facebook.com/documentation/business-messaging/whatsapp/calling/pricing">Calling API</a>.</li>
+        <li>Juniper Research: <a href="https://www.globenewswire.com/news-release/2025/04/22/3065137/0/en/CPaaS-Revenue-to-Exceed-34bn-Next-Year-as-AdTech-Partnerships-Drive-Growth.html">CPaaS</a>, <a href="https://www.juniperresearch.com/press/ott-business-messaging-traffic-to-grow-45-percent-globally/">mensajería OTT</a>.</li>
+        <li>Plataformas: <a href="https://elevenlabs.io/blog/500m-arr-and-new-investors">ElevenLabs</a>, <a href="https://techcrunch.com/2026/05/04/sierra-raises-950m-as-the-race-to-own-enterprise-ai-gets-serious/">Sierra</a>, <a href="https://techcrunch.com/2026/05/12/vapi-hits-500m-valuation-as-amazon-ring-chose-its-ai-platform-over-40-rivals/">Vapi</a>, <a href="https://sacra.com/research/retell-ai-60m-yr-up-650-yoy/">Retell</a>, <a href="https://www.sec.gov/Archives/edgar/data/0001003935/000117891326002406/exhibit_99-1.htm">NICE 6-K</a>, <a href="https://www.prnewswire.com/news-releases/gupshup-launches-self-serve-voice-ai-platform-extending-conversational-engagement-into-phone-calls-302869131.html">Gupshup</a>.</li>
+        <li>Argentina: <a href="https://www.cacc.org.ar/sistema-estadistico-de-costos-de-centros-de-contacto-ene-25-sep-26/">CACC Sistema de Costos</a> (precio de venta), <a href="https://www.eldestapeweb.com/economia/cuanto-gana-trabajador-call-center-agosto-2026-salario-cobra-argentina-202681315305">escala CCT 781/20 ago-2026</a>, <a href="https://chequeado.com/el-explicador/el-salario-minimo-sera-de-383-800-en-septiembre-de-2026-y-acumula-una-caida-real-del-397-desde-noviembre-de-2023/">salario mínimo sep-2026</a>, <a href="https://eleconomista.com.ar/economia/call-centers-alerta-n6682">El Economista</a>, <a href="https://www.argentina.gob.ar/sites/default/files/ooa_sintesis_operadortelefonico.pdf">Min. Trabajo</a>, <a href="https://ucema.edu.ar/sites/default/files/2025-09/IndicadoresUCEMA_PyMEs092025_0.pdf">UCEMA PyMEs</a>, <a href="https://indicadores.enacom.gob.ar/DatosAbiertos/ComunicacionesMoviles/minutos">ENACOM minutos</a>, <a href="https://indicadores.enacom.gob.ar/DatosAbiertos/ComunicacionesMoviles/sms">ENACOM SMS</a>, <a href="https://nadia.ar/extras/nadia_encuesta_pymesARG2026.pdf">IA en PyMEs 2026</a>, <a href="https://insiderlatam.com/whatsapp-se-consolida-como-canal-comercial-84-de-los-argentinos-usan-la-app-para-comunicarse-con-las-marcas/">WhatsApp y marcas</a>, <a href="https://www.twilio.com/en-us/voice/pricing/ar">Twilio Argentina</a>.</li>
+        <li>Casos: <a href="https://seccionciudad.com.ar/2026/08/18/las-llamadas-de-vecinos-al-gobierno-de-la-ciudad-ahora-seran-atendidas-por-ia-que-imita-la-voz-humana/">CABA 147</a>, <a href="https://www.lanacion.com.ar/economia/IA/crearon-agentes-de-ia-para-cobranzas-y-levantaron-us15-millones-para-expandirse-en-america-latina-nid22052026/">Kleva</a>, <a href="https://www.lanacion.com.ar/economia/IA/un-cambio-cultural-banco-galicia-apuesta-por-la-ia-generativa-para-transformar-la-atencion-al-nid30062025/">Galicia</a>, <a href="https://www.iprofesional.com/tecnologia/430167-movistar-telecom-aplican-inteligencia-artificial-sin-que-te-des-cuenta-como-la-usan">Telecom</a>, <a href="https://inceptia.ai/">Inceptia</a>, <a href="https://contactship.ai/">ContactShip</a>, <a href="https://ai.anunzi.net/">Anunzi</a>.</li>
+        <li>Regulación: <a href="https://www.argentina.gob.ar/normativa/nacional/norma-233066/actualizacion">Ley 26.951</a>, <a href="https://servicios.infoleg.gob.ar/infolegInternet/anexos/395000-399999/399750/norma.htm">Res. AAIP 126/2024</a>, <a href="https://allende.com/privacidad-y-ciberseguridad/la-autoridad-de-proteccion-de-datos-sienta-precedente-sobre-responsabilidad-solidaria-respecto-al-registro-no-llame-10-29-2025/">responsabilidad solidaria</a>, <a href="https://www.cedom.gob.ar/legislacion/normas/leyes/RepoLeyes/ley6171.html">CABA Ley 6171</a>.</li>
+      </ul>
+    </div>
+  </div>
+</div></section>
+
+<footer><div class="wrap">Relevamiento del 26 de septiembre de 2026. Cifras en USD salvo indicación; tipo de cambio mayorista ARS 1.525. Documento base: <code>docs/mercado/demanda-y-mercado-local.md</code>. Complementa <code>docs/competencia/</code> y la calculadora de costos.</div></footer>
+
+<script>
+(function () {
+  "use strict";
+  const NS = "http://www.w3.org/2000/svg";
+  const tip = document.getElementById("tip");
+  const fmt = (v, d = 0) => v.toLocaleString("es-AR", { minimumFractionDigits: d, maximumFractionDigits: d });
+  function el(name, attrs, parent) {
+    const n = document.createElementNS(NS, name);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(n);
+    return n;
+  }
+  function svg(parent, w, h) {
+    const s = el("svg", { viewBox: `0 0 ${w} ${h}`, role: "img" });
+    parent.appendChild(s);
+    return s;
+  }
+  function hover(node, html) {
+    node.addEventListener("mousemove", (e) => {
+      tip.innerHTML = html; tip.style.opacity = 1;
+      const x = Math.min(e.clientX + 12, window.innerWidth - 280);
+      tip.style.left = x + "px"; tip.style.top = (e.clientY + 14) + "px";
+    });
+    node.addEventListener("mouseleave", () => { tip.style.opacity = 0; });
+  }
+
+  /* ---------- horizontal bars: ARR ---------- */
+  function hbars(id, data, opts) {
+    const W = 560, rowH = 26, padL = opts.padL || 110, padR = 60, padT = 6;
+    const H = padT + data.length * rowH + 22;
+    const s = svg(document.getElementById(id), W, H);
+    const max = opts.max || Math.max(...data.map(d => d.v));
+    const x = v => padL + (v / max) * (W - padL - padR);
+    // grid
+    const ticks = opts.ticks;
+    ticks.forEach(t => {
+      el("line", { x1: x(t), x2: x(t), y1: padT, y2: H - 20, class: "grid" }, s);
+      const tx = el("text", { x: x(t), y: H - 6, "text-anchor": "middle", class: "axis" }, s);
+      tx.textContent = fmt(t);
+    });
+    el("line", { x1: padL, x2: padL, y1: padT, y2: H - 20, class: "base" }, s);
+    data.forEach((d, i) => {
+      const y = padT + i * rowH;
+      const lab = el("text", { x: padL - 8, y: y + rowH / 2 + 4, "text-anchor": "end" }, s);
+      lab.textContent = d.n;
+      const bw = Math.max(2, x(d.v) - padL);
+      const r = el("rect", { x: padL, y: y + 5, width: bw, height: rowH - 10, rx: 0, fill: d.c }, s);
+      // rounded data end
+      el("rect", { x: padL + bw - 4, y: y + 5, width: 4, height: rowH - 10, rx: 2, fill: d.c }, s);
+      const vl = el("text", { x: padL + bw + 6, y: y + rowH / 2 + 4, class: "lbl" }, s);
+      vl.textContent = d.l || fmt(d.v);
+      const hit = el("rect", { x: 0, y, width: W, height: rowH, class: "hit" }, s);
+      hover(hit, `<b>${d.n}</b><br>${d.t}`);
+      hit.addEventListener("mouseenter", () => r.setAttribute("opacity", ".85"));
+      hit.addEventListener("mouseleave", () => r.removeAttribute("opacity"));
+    });
+  }
+  const S1 = "var(--s1)", S2 = "var(--s2)", S3 = "var(--s3)", NM = "var(--neutral-mark)";
+  hbars("c-arr", [
+    { n: "ElevenLabs", v: 600, c: S1, t: "ARR USD 600 M (jun-2026). Valuación USD 11 mil M. 51 % enterprise." },
+    { n: "Genesys (IA)", v: 400, c: S2, t: "AI ARR > USD 400 M (jul-2026); cloud ARR USD 2,9 mil M. Conversaciones con IA +120 % anual." },
+    { n: "NICE (IA)", v: 362, c: S2, t: "AI ARR USD 362 M (Q2-2026), +66 %. IA en el 100 % de los deals de CXone." },
+    { n: "Sierra", v: 150, c: S1, t: "ARR USD 150 M (feb-2026). Valuación USD 15 mil M tras Serie E de 950 M (may-2026)." },
+    { n: "Five9 (IA)", v: 150, c: S2, t: "AI run-rate > USD 150 M (Q2-2026), +78 %." },
+    { n: "Cresta", v: 100, c: S1, t: "ARR > USD 100 M (abr-2026)." },
+    { n: "Decagon", v: 100, c: S1, l: "~100", t: "ARR ~USD 100 M (jul-2026, est. Sacra). Valuación USD 4,5 mil M. Contratos USD 105–923 k por año." },
+    { n: "Retell", v: 60, c: S1, t: "ARR USD 60 M (jun-2026), ×6 en un año con 30 empleados. 55 M llamadas por mes." },
+    { n: "Parloa", v: 52, c: S1, t: "ARR USD 52 M (2025 est.). Valuación USD 3 mil M (ene-2026)." },
+    { n: "PolyAI", v: 40, c: S1, t: "ARR USD 40 M (2025 est.). Valuación USD 750 M." },
+    { n: "Cognigy", v: 38, c: S1, t: "~USD 38 M implícitos en la compra por NICE a USD 955 M (sep-2025, 25× ingresos)." },
+  ], { max: 650, ticks: [0, 200, 400, 600] });
+
+  /* ---------- stacked 100 %: adoption ---------- */
+  (function () {
+    const W = 560, H = 96, padL = 0;
+    const s = svg(document.getElementById("c-adop"), W, H);
+    const parts = [
+      { n: "En producción", v: 5, c: "var(--seq-1)" },
+      { n: "En piloto", v: 11, c: "var(--seq-2)" },
+      { n: "Explorando", v: 44, c: "var(--seq-3)" },
+      { n: "Sin planes", v: 40, c: "var(--seq-4)" },
+    ];
+    let acc = 0;
+    parts.forEach((p, i) => {
+      const x0 = padL + (acc / 100) * W, w = (p.v / 100) * W - (i < parts.length - 1 ? 2 : 0);
+      const r = el("rect", { x: x0, y: 18, width: w, height: 34, fill: p.c, rx: 2 }, s);
+      const small = p.v < 15;
+      if (small) {
+        const l = el("text", { x: x0, y: 12, "text-anchor": "start", class: "lbl", "font-size": "12" }, s);
+        l.textContent = p.n + " " + p.v + " %";
+        if (i === 1) l.setAttribute("x", x0 + w / 2);
+        if (i === 1) l.setAttribute("y", 72);
+        if (i === 1) l.setAttribute("text-anchor", "middle");
+      } else {
+        const t = el("text", { x: x0 + w / 2, y: 40, "text-anchor": "middle", fill: "#fff", "font-weight": "700", "font-size": "13" }, s);
+        t.textContent = p.v + " %";
+        const l = el("text", { x: x0 + w / 2, y: 72, "text-anchor": "middle", class: "axis" }, s);
+        l.textContent = p.n;
+      }
+      hover(r, `<b>${p.n}</b>: ${p.v} % de los líderes de servicio (Gartner, dic-2024)`);
+      acc += p.v;
+    });
+    el("line", { x1: 0, x2: W, y1: 90, y2: 90, class: "base" }, s);
+  })();
+
+  /* ---------- line chart: ENACOM ---------- */
+  function line(id, years, vals, unit, color, maxY, ticksY) {
+    const W = 560, H = 230, padL = 40, padR = 46, padT = 14, padB = 28;
+    const s = svg(document.getElementById(id), W, H);
+    const x = i => padL + (i / (years.length - 1)) * (W - padL - padR);
+    const y = v => padT + (1 - v / maxY) * (H - padT - padB);
+    ticksY.forEach(t => {
+      el("line", { x1: padL, x2: W - padR, y1: y(t), y2: y(t), class: "grid" }, s);
+      const tx = el("text", { x: padL - 6, y: y(t) + 4, "text-anchor": "end", class: "axis" }, s);
+      tx.textContent = fmt(t);
+    });
+    el("line", { x1: padL, x2: W - padR, y1: y(0), y2: y(0), class: "base" }, s);
+    years.forEach((yr, i) => {
+      const tx = el("text", { x: x(i), y: H - 8, "text-anchor": "middle", class: "axis" }, s);
+      tx.textContent = yr;
+    });
+    const pts = vals.map((v, i) => `${x(i)},${y(v)}`).join(" ");
+    const area = el("polygon", { points: `${x(0)},${y(0)} ${pts} ${x(vals.length - 1)},${y(0)}`, fill: color, opacity: ".10" }, s);
+    el("polyline", { points: pts, fill: "none", stroke: color, "stroke-width": 2, "stroke-linejoin": "round" }, s);
+    vals.forEach((v, i) => {
+      const last = i === vals.length - 1, first = i === 0;
+      const c = el("circle", { cx: x(i), cy: y(v), r: last ? 5 : 3.5, fill: color, stroke: "var(--surface)", "stroke-width": 2 }, s);
+      if (first || last || i === 3) {
+        const t = el("text", { x: x(i) + (last || first ? 9 : 0), y: y(v) - (last ? -4 : (first ? 4 : 10)), "text-anchor": last || first ? "start" : "middle", class: "lbl" }, s);
+        t.textContent = fmt(v, 1);
+      }
+      const hit = el("rect", { x: x(i) - 20, y: padT, width: 40, height: H - padT - padB, class: "hit" }, s);
+      hover(hit, `<b>${years[i]}</b>: ${fmt(v, 1)} ${unit}`);
+    });
+  }
+  const yrs = [2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025];
+  line("c-min", yrs, [83.4, 81.8, 78.7, 80.9, 74.7, 64.2, 56.3, 49.5, 39.4], "mil millones de minutos", S1, 100, [0, 25, 50, 75, 100]);
+  line("c-sms", yrs, [24.0, 16.5, 10.9, 6.9, 3.8, 3.3, 2.6, 2.3, 2.7], "mil millones de SMS", S2, 25, [0, 5, 10, 15, 20, 25]);
+
+  /* ---------- range bars ---------- */
+  function ranges(id, groups, opts) {
+    const W = 560, rowH = 26, padL = opts.padL, padR = 70, gapG = 18;
+    const rows = groups.reduce((a, g) => a + g.rows.length, 0);
+    const H = 8 + rows * rowH + groups.length * gapG + 22;
+    const s = svg(document.getElementById(id), W, H);
+    const x = v => padL + (v / opts.max) * (W - padL - padR);
+    opts.ticks.forEach(t => {
+      el("line", { x1: x(t), x2: x(t), y1: 6, y2: H - 20, class: "grid" }, s);
+      const tx = el("text", { x: x(t), y: H - 6, "text-anchor": "middle", class: "axis" }, s);
+      tx.textContent = opts.tickFmt ? opts.tickFmt(t) : fmt(t);
+    });
+    el("line", { x1: padL, x2: padL, y1: 6, y2: H - 20, class: "base" }, s);
+    let y = 8;
+    groups.forEach(g => {
+      if (g.title) {
+        const gt = el("text", { x: 0, y: y + 12, class: "lbl", "font-size": "12" }, s);
+        gt.textContent = g.title; y += gapG;
+      }
+      g.rows.forEach(r => {
+        const lab = el("text", { x: padL - 8, y: y + rowH / 2 + 4, "text-anchor": "end" }, s);
+        lab.textContent = r.n;
+        if (r.hi) lab.setAttribute("class", "lbl");
+        const lo = x(r.lo), hi = Math.max(x(r.hi), lo + 6);
+        const rect = el("rect", { x: lo, y: y + 7, width: hi - lo, height: rowH - 14, rx: 3, fill: r.c }, s);
+        if (r.pt) el("circle", { cx: x(r.pt), cy: y + rowH / 2, r: 5, fill: r.c, stroke: "var(--surface)", "stroke-width": 2 }, s);
+        const vl = el("text", { x: hi + 6, y: y + rowH / 2 + 4, class: r.hi ? "lbl" : "" }, s);
+        vl.textContent = r.l;
+        const hit = el("rect", { x: 0, y, width: W, height: rowH, class: "hit" }, s);
+        hover(hit, `<b>${r.n}</b><br>${r.t}`);
+        y += rowH;
+      });
+      if (!g.title) y += gapG / 2;
+    });
+  }
+  ranges("c-rangos", [
+    { title: "2026", rows: [
+      { n: "A · gasto humano", lo: 22, hi: 106, c: NM, l: "22–106", t: "Gasto sustituible USD 1,5–2,2 mil M × 5–8 % automatizado × precio IA 0,3–0,6 del humano." },
+      { n: "C · empresas × ticket", lo: 32, hi: 32, pt: 32, c: NM, l: "32", t: "1.500 grandes × 30 % + 31.400 medianas × 8 % + 53.000 micro × 3 %, a sus tickets." },
+      { n: "Estimación", lo: 30, hi: 50, c: S1, l: "30–50", hi_: true, hi: 50, t: "Voz + texto. Verificado con lo que Meta cobra en Argentina (USD 60–100 M por año en mensajes)." },
+    ]},
+    { title: "2029", rows: [
+      { n: "A · gasto humano", lo: 90, hi: 396, c: NM, l: "90–396", t: "20–30 % automatizado × precio IA 0,3–0,6 del humano. Límite superior: todo lo que podría migrar." },
+      { n: "B · minutos (solo voz)", lo: 40, hi: 150, c: NM, l: "40–150", t: "2,0–5,0 mil M de minutos de voz × 25 % × USD 0,08–0,12." },
+      { n: "C · empresas × ticket", lo: 71, hi: 150, c: NM, l: "71–150", t: "71 M con tickets planos; 150 M si las top-100 pagan por volumen (método B)." },
+      { n: "Estimación", lo: 70, hi: 200, pt: 120, c: S1, l: "70–200 (central 120)", t: "Voz + texto. La voz sería USD 30–60 M." },
+    ]},
+  ], { padL: 150, max: 420, ticks: [0, 100, 200, 300, 400], tickFmt: t => "USD " + t + " M" });
+
+  ranges("c-precio", [
+    { rows: [
+      { n: "Agente propio, salario y cargas", lo: 0.19, hi: 0.19, pt: 0.195, c: NM, l: "0,19", t: "Operación A 36 h: ARS 992.227 brutos + presentismo, cargas ~30 % y SAC = ARS 1,5 M por mes (USD 985). Sobre 156 h pagadas, 77 % productivas y 70 % de ocupación. Por minuto pagado: 0,105." },
+      { n: "Agente propio con puesto y supervisión", lo: 0.24, hi: 0.28, c: NM, l: "0,24–0,28", t: "Costo laboral × 1,25–1,45 por puesto, supervisión, software y telefonía. Estimación." },
+      { n: "Comprado a un BPO (CACC)", lo: 0.26, hi: 0.31, c: NM, l: "0,26–0,31 por min. productivo", t: "Precio de venta estándar CACC, sep-2026: hora login ARS 23.538 a hora productiva ARS 28.217, sin IVA, con infraestructura, impuestos y rentabilidad. Por minuto de conversación (70 % de ocupación): ~0,44." },
+      { n: "Telefonía a celular, Twilio", lo: 0.35, hi: 0.353, pt: 0.353, c: NM, l: "0,35 solo la llamada", t: "Solo el minuto de telefonía saliente a un celular argentino por Twilio. Terminación local ~USD 0,016." },
+    ]},
+    { rows: [
+      { n: "ContactShip (AR), todo incluido", lo: 0.28, hi: 0.35, c: S2, l: "0,28–0,35", t: "Planes USD 30 (~85 min), 150 (~470), 799 (~2.850) por mes." },
+      { n: "Anunzi (opera en AR)", lo: 0.29, hi: 0.31, pt: 0.30, c: S2, l: "~0,30", t: "Plan USD 87 = 8.700 créditos, 30 créditos por minuto entrante." },
+      { n: "Inceptia (AR), cobranzas", lo: 0.12, hi: 0.19, c: S2, l: "0,12–0,19", t: "Declara \"40–60 % del costo humano\"; aplicado al precio CACC." },
+    ]},
+    { rows: [
+      { n: "ElevenLabs Agents, todo incluido", lo: 0.08, hi: 0.24, c: S1, l: "0,08–0,24", t: "Según plan y voz. Sin telefonía a Argentina." },
+      { n: "Vapi, todo incluido", lo: 0.08, hi: 0.13, c: S1, l: "0,08–0,13", t: "USD 0,05 de plataforma + Deepgram + OpenAI + ElevenLabs. Telefonía aparte." },
+      { n: "Bland, todo incluido", lo: 0.11, hi: 0.14, c: S1, l: "0,11–0,14", t: "Precio publicado por terceros." },
+      { n: "Retell, solo plataforma", lo: 0.07, hi: 0.07, pt: 0.07, c: S1, l: "0,07 + modelos", t: "Sin STT, LLM, TTS ni telefonía." },
+      { n: "Gupshup, solo plataforma", lo: 0.035, hi: 0.035, pt: 0.035, c: S1, l: "0,035 + telefonía", t: "Voice AI self-serve (sep-2026), 100 minutos gratis." },
+    ]},
+    { rows: [
+      { n: "Objetivo con inferencia propia", lo: 0.08, hi: 0.15, c: S3, l: "0,08–0,15 todo incluido", hi_: true, t: "Inferencia en GPUs propias + terminación local. 1,3–2,4 veces menos que el costo laboral puro, 1,8–3,3 que un agente propio con puesto, 2–4 que un BPO." },
+    ]},
+  ], { padL: 215, max: 0.40, ticks: [0, 0.10, 0.20, 0.30, 0.40], tickFmt: t => t.toFixed(2).replace(".", ",") });
+
+  /* ---------- positioning map ---------- */
+  (function () {
+    const W = 560, H = 360, pad = { l: 40, r: 16, t: 16, b: 34 };
+    const s = svg(document.getElementById("c-mapa"), W, H);
+    const x = v => pad.l + v * (W - pad.l - pad.r), y = v => pad.t + (1 - v) * (H - pad.t - pad.b);
+    el("rect", { x: x(0), y: y(1), width: x(1) - x(0), height: y(0) - y(1), fill: "var(--surface-2)", rx: 6 }, s);
+    el("line", { x1: x(0.5), x2: x(0.5), y1: y(1), y2: y(0), class: "grid", "stroke-dasharray": "4 4" }, s);
+    el("line", { x1: x(0), x2: x(1), y1: y(0.5), y2: y(0.5), class: "grid", "stroke-dasharray": "4 4" }, s);
+    const ax = (t, xx, yy, a, cls) => { const n = el("text", { x: xx, y: yy, "text-anchor": a, class: cls || "axis" }, s); n.textContent = t; return n; };
+    ax("PyMEs y municipios", x(0.02), H - 10, "start"); ax("Grandes cuentas y enterprise", x(0.98), H - 10, "end");
+    const vy = ax("Voz telefónica", 0, 0, "middle"); vy.setAttribute("transform", `translate(14 ${y(0.9)}) rotate(-90)`); vy.setAttribute("text-anchor", "end");
+    const vt = ax("Texto y WhatsApp", 0, 0, "middle"); vt.setAttribute("transform", `translate(14 ${y(0.1)}) rotate(-90)`); vt.setAttribute("text-anchor", "start");
+    const pts = [
+      { n: "Cliengo", px: 0.12, py: 0.10, c: NM, t: "Web y WhatsApp para PyMEs, USD 45–259 por mes. Sin voz." },
+      { n: "Chattigo · Zenvia · Blip", px: 0.48, py: 0.16, c: NM, t: "WhatsApp y texto para medianas y grandes; voz solo dentro de WhatsApp." },
+      { n: "Botmaker", px: 0.60, py: 0.40, c: NM, t: "Omnicanal con callbots desde 2025. Mercado Libre, Frávega, Swiss Medical." },
+      { n: "Aivo", px: 0.78, py: 0.30, c: NM, t: "Enterprise, texto, con módulo de voz. Hoy parte de Engageware." },
+      { n: "Infobip · Genesys · NICE", px: 0.92, py: 0.55, c: NM, t: "Las 100 cuentas grandes. Voz y texto." },
+      { n: "Inceptia · Onbotgo · Kleva", px: 0.80, py: 0.92, c: S2, t: "Cobranzas por voz para banca y telcos. 80 M llamadas por mes, 500 k cuentas por día." },
+      { n: "Vapi · Retell · ElevenLabs", px: 0.55, py: 0.82, c: S1, t: "Infraestructura de voz para desarrolladores; la usan las agencias locales." },
+      { n: "ContactShip · Anunzi · Tec5", px: 0.15, py: 0.72, c: S2, t: "Voz para PyMEs y municipios a USD 0,28–0,35 por minuto." },
+      { n: "Darwin AI", px: 0.28, py: 0.50, c: NM, t: "WhatsApp, Instagram y llamadas para PyMEs, 300 clientes en 20 países." },
+      { n: "Este proyecto", px: 0.27, py: 0.88, c: S3, hi: true, t: "Voz con inferencia propia a USD 0,08–0,15 por minuto, con WhatsApp como segundo canal. PyMEs, municipios, clínicas, cobranzas medianas." },
+    ];
+    pts.forEach(p => {
+      const cx = x(p.px), cy = y(p.py);
+      el("circle", { cx, cy, r: p.hi ? 9 : 6, fill: p.c, stroke: "var(--surface)", "stroke-width": 2 }, s);
+      const t = el("text", { x: cx, y: cy - (p.hi ? 14 : 11), "text-anchor": "middle", class: p.hi ? "lbl" : "" }, s);
+      t.textContent = p.n;
+      const hit = el("circle", { cx, cy, r: 18, class: "hit" }, s);
+      hover(hit, `<b>${p.n}</b><br>${p.t}`);
+    });
+  })();
+})();
+</script>
+</body>
+</html>

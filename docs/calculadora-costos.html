@@ -51,6 +51,14 @@ button { padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; b
 button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
 .tipos td:first-child { min-width: 170px; }
+.paquetes { font-size: 12px; }
+.paquetes th { white-space: normal; padding: 4px; vertical-align: bottom; }
+.paquetes td { padding: 4px; }
+.paquetes input, .paquetes select { padding: 3px 5px; font-size: 12px; }
+.paquetes td input { width: 72px; }
+.paquetes td input.nombre { width: 100px; }
+.paquetes td input.cant { width: 48px; }
+.paquetes tr.total td { font-weight: 600; border-top: 2px solid var(--line); }
 @media (max-width: 560px) { label.f { grid-template-columns: 1fr 120px; } }
 </style>
 </head>
@@ -109,8 +117,8 @@ button.primary { background: var(--accent); color: #fff; border-color: var(--acc
 
 <section class="panel wide">
 <h2>5. Planes</h2>
-<p class="note">Precio del plan = base fija + minutos (entrantes + salientes) × precio del minuto de inferencia de su calidad (sección 4) + minutos × precio de telefonía (sección 3). Costo = minutos × costo del minuto de inferencia de su calidad + lo que cobra Anura. Un minuto de mejor calidad consume más capacidad, porque los servers atienden menos llamadas para mantener esa espera; para dársela a un cliente, el server tiene que limitar las llamadas mientras atiende las suyas. "Parte de la capacidad" es cuánto de los minutos que producen los servers se lleva el plan. "Uso del límite" es la parte del horario en que sus llamadas simultáneas estarían ocupadas; más de 100 % no entra.</p>
-<div class="scroll"><table id="paquetes"></table></div>
+<p class="note">Precio del plan = base fija + minutos (entrantes + salientes) × precio del minuto de inferencia de su calidad (sección 4) + minutos × precio de telefonía (sección 3). Costo = minutos × costo del minuto de inferencia de su calidad + lo que cobra Anura. Un minuto de mejor calidad consume más capacidad, porque los servers atienden menos llamadas para mantener esa espera; para dársela a un cliente, el server tiene que limitar las llamadas mientras atiende las suyas. "Cantidad" es cuántos clientes de ese plan entran en la capacidad instalada: la suma de "Parte de la capacidad" no puede pasar el 100 %, y al subir una cantidad se recorta a lo que entra. "Parte de la capacidad" es cuánto de los minutos que producen los servers se llevan esos clientes. "Uso del límite" es la parte del horario en que sus llamadas simultáneas estarían ocupadas; más de 100 % no entra.</p>
+<div class="scroll"><table class="paquetes" id="paquetes"></table></div>
 <div class="row"><button id="agregarPaquete">Agregar plan</button></div>
 </section>
 
@@ -180,11 +188,11 @@ const DEFAULTS = {
   },
   // Bases fijas de ejemplo: a definir.
   paquetes: [
-    { nombre: "Inicial", calidad: "buena", canales: 2, ent: 500, sal: 100, base: 30000 },
-    { nombre: "Pyme", calidad: "buena", canales: 5, ent: 1500, sal: 300, base: 60000 },
-    { nombre: "Pyme Premium", calidad: "premium", canales: 5, ent: 1500, sal: 300, base: 90000 },
-    { nombre: "Empresa", calidad: "superior", canales: 10, ent: 4000, sal: 1000, base: 150000 },
-    { nombre: "Corporativo", calidad: "buena", canales: 20, ent: 10000, sal: 3000, base: 200000 },
+    { nombre: "Inicial", calidad: "buena", cant: 1, canales: 2, ent: 500, sal: 100, base: 30000 },
+    { nombre: "Pyme", calidad: "buena", cant: 1, canales: 5, ent: 1500, sal: 300, base: 60000 },
+    { nombre: "Pyme Premium", calidad: "premium", cant: 1, canales: 5, ent: 1500, sal: 300, base: 90000 },
+    { nombre: "Empresa", calidad: "superior", cant: 1, canales: 10, ent: 4000, sal: 1000, base: 150000 },
+    { nombre: "Corporativo", calidad: "buena", cant: 1, canales: 20, ent: 10000, sal: 3000, base: 200000 },
   ],
 };
 const CAMPOS = ["tipo","calidad","activos","reserva","meses","base","internet","anura","otros","kwh","paneles","panelW","solHoras","solRend","siempre","horas","dias","ocupacion","duracion","margen","minEnt","minSal","precioEnt","precioSal","ventaProm","vLlamadas","vDur","vTipo","vBloq","vOcup"];
@@ -254,25 +262,29 @@ function escenario(activos) {
     ahorroSolar: kwhSolarUsado * (+S.kwh), luz, fijos, total, m, costoMin, precioMin: costoMin / (1 - m) };
 }
 
-// Un plan: base fija + su parte de la inferencia + la telefonía.
+// Un plan: base fija + su parte de la inferencia + la telefonía. `n` es cuántos clientes de ese plan se dimensionan.
+const cantidad = (p) => p.cant === undefined || p.cant === "" ? 1 : Math.max(0, Math.floor(+p.cant) || 0);
 function plan(p, e) {
   const c = Math.max(0, +p.canales || 0), ent = Math.max(0, +p.ent || 0), sal = Math.max(0, +p.sal || 0), base = Math.max(0, +p.base || 0);
+  const n = cantidad(p);
   const min = ent + sal, calidad = p.calidad || S.calidad, factor = factorCalidad(calidad);
   const minCap = min * factor;
   const infCosto = minCap * e.costoMin, infPrecio = minCap * e.precioMin;
   const telPrecio = ent * (+S.precioEnt || 0) + sal * (+S.precioSal || 0);
   const anura = ent * (+S.minEnt || 0) + sal * (+S.minSal || 0);
   const precio = base + infPrecio + telPrecio, costo = infCosto + anura;
-  return { c, ent, sal, base, min, calidad, factor, minCap, infCosto, infPrecio, telPrecio, anura, precio, costo };
+  return { n, c, ent, sal, base, min, calidad, factor, minCap, infCosto, infPrecio, telPrecio, anura, precio, costo };
 }
+// Capacidad que consumen todos los planes menos el `i`, con sus cantidades.
+const capOtros = (e, i) => S.paquetes.reduce((a, p, j) => { if (j === i) return a; const q = plan(p, e); return a + q.n * q.minCap; }, 0);
 
-// Mezcla de los planes, por minuto de capacidad que consumen (un minuto premium consume más de uno).
+// Mezcla de los planes, ponderada por cantidad, por minuto de capacidad que consumen (un minuto premium consume más de uno).
 function mezcla(e) {
-  let cap = 0, min = 0, precio = 0, anura = 0, canales = 0;
-  for (const p of S.paquetes) { const q = plan(p, e); cap += q.minCap; min += q.min; precio += q.precio; anura += q.anura; canales += q.c; }
+  let cap = 0, min = 0, precio = 0, anura = 0, canales = 0, planes = 0;
+  for (const p of S.paquetes) { const q = plan(p, e); cap += q.n * q.minCap; min += q.n * q.min; precio += q.n * q.precio; anura += q.n * q.anura; canales += q.n * q.c; planes += q.n; }
   if (!cap) return null;
   return { ingresoMin: precio / cap, anuraMin: anura / cap, contribMin: (precio - anura) / cap, canalesMin: canales / cap,
-    realPorCap: min / cap, capPorPlan: cap / S.paquetes.length, minPorPlan: min / S.paquetes.length };
+    realPorCap: min / cap, capPorPlan: cap / planes, minPorPlan: min / planes };
 }
 function ganancia(M, e, x) {
   const ingresos = M * x.ingresoMin, costos = e.total + M * x.anuraMin;
@@ -326,19 +338,20 @@ function pintarCapacidad(e) {
   $("desglose").innerHTML = filas.map(([k, v]) => `<tr><td>${k}</td><td style="text-align:left;white-space:normal">${v}</td></tr>`).join("");
 
   const h = horarioMin(), ocup = Math.min(1, (+S.ocupacion) / 100);
-  const vendidos = S.paquetes.reduce((a, p) => a + plan(p, e).minCap, 0);
-  const limites = S.paquetes.reduce((a, p) => a + Math.max(0, +p.canales || 0), 0);
+  const vendidos = S.paquetes.reduce((a, p) => { const q = plan(p, e); return a + q.n * q.minCap; }, 0);
+  const limites = S.paquetes.reduce((a, p) => { const q = plan(p, e); return a + q.n * q.c; }, 0);
   const cols = [["Por llamada simultánea", 1], [`Capacidad instalada (${e.capReal})`, e.capReal]];
   const filasMin = [["Todo el mes, 24 h", 24 * 30 * 60], [`Horario (${num(+S.horas)} h × ${num(+S.dias)} días)`, h], [`Horario con ${num(ocup * 100)} % de ocupación: <b>lo que se puede vender</b>`, h * ocup]];
   $("minutos").innerHTML = `<tr><th></th>${cols.map(([l]) => `<th>${l}</th>`).join("")}<th>Llamadas por mes</th></tr>` +
     filasMin.map(([l, m]) => `<tr><td>${l}</td>${cols.map(([, n]) => `<td>${num(m * n)}</td>`).join("")}<td>${num(m * e.capReal / Math.max(0.1, +S.duracion))}</td></tr>`).join("") +
-    `<tr><td>Consumidos por los planes de la sección 5 (uno de cada uno; en minutos ${nombreCalidad(S.calidad).toLowerCase()})</td><td>—</td><td>${num(vendidos)} (${num(vendidos / e.minProd * 100, 1)} %)</td><td>${num(vendidos / Math.max(0.1, +S.duracion))}</td></tr>
+    `<tr><td>Consumidos por los planes de la sección 5 (con sus cantidades; en minutos ${nombreCalidad(S.calidad).toLowerCase()})</td><td>—</td><td>${num(vendidos)} (${num(vendidos / e.minProd * 100, 1)} %)</td><td>${num(vendidos / Math.max(0.1, +S.duracion))}</td></tr>
      <tr><td>Libres para vender</td><td>—</td><td><b>${num(e.minProd - vendidos)}</b></td><td>—</td></tr>
      <tr><td>Límites de simultáneas de esos planes</td><td>—</td><td>${num(limites)} (${num(limites / e.capReal, 2)} × la capacidad real)</td><td>—</td></tr>`;
 }
 
 function pintarPaquetes(e) {
   const h = horarioMin(), ocup = Math.min(1, (+S.ocupacion) / 100);
+  const tot = { n: 0, precio: 0, costo: 0, parte: 0, canales: 0 };
   const filas = S.paquetes.map((p, i) => {
     const q = plan(p, e);
     const uso = q.c > 0 ? q.min / (q.c * h) : Infinity;
@@ -346,18 +359,25 @@ function pintarPaquetes(e) {
     const aviso = uso > 1 ? "No entra: más minutos que los del horario" : (uso > ocup ? `Más que la ocupación de la sección 3 (${num(ocup * 100)} %)` : "");
     const inp = (campo, v, step) => `<td><input data-paq="${i}" data-campo="${campo}" type="number" min="0" step="${step}" value="${v}"></td>`;
     const sel = `<select data-paq="${i}" data-campo="calidad">${CALIDADES.map(([k, n]) => `<option value="${k}"${k === q.calidad ? " selected" : ""}>${n}</option>`).join("")}</select>`;
-    return `<tr><td><input class="nombre" data-paq="${i}" data-campo="nombre" value="${esc(p.nombre)}"></td>
+    const parte = q.n * q.minCap / e.minProd * 100;
+    tot.n += q.n; tot.precio += q.n * q.precio; tot.costo += q.n * q.costo; tot.parte += parte; tot.canales += q.n * q.c;
+    return `<tr><td><input class="cant" data-paq="${i}" data-campo="cant" type="number" min="0" step="1" value="${q.n}"></td>
+      <td><input class="nombre" data-paq="${i}" data-campo="nombre" value="${esc(p.nombre)}"></td>
       <td>${sel}${q.factor !== 1 ? chico(`×${num(q.factor, 2)} capacidad`) : ""}</td>
       ${inp("canales", q.c, 1)}${inp("ent", q.ent, 100)}${inp("sal", q.sal, 100)}${inp("base", q.base, 5000)}
-      <td><b>${pesos(q.precio)}</b>${chico(`base ${pesos(q.base)} + inferencia ${pesos(q.infPrecio)} + telefonía ${pesos(q.telPrecio)}`)}</td>
-      <td>${pesos(q.costo)}${chico(`inferencia ${pesos(q.infCosto)} + Anura ${pesos(q.anura)}`)}</td>
+      <td><b>${pesos(q.precio)}</b>${chico(`base ${pesos(q.base)} + inf. ${pesos(q.infPrecio)} + tel. ${pesos(q.telPrecio)}`)}</td>
+      <td>${pesos(q.costo)}${chico(`inf. ${pesos(q.infCosto)} + Anura ${pesos(q.anura)}`)}</td>
       <td>${pesos(q.precio - q.costo)}</td>
       <td>${q.min ? pesos2(q.precio / q.min) : "—"}</td>
-      <td>${num(q.minCap / e.minProd * 100, 2)} %</td>
+      <td>${num(parte, 2)} %${q.n !== 1 ? chico(`${num(q.minCap / e.minProd * 100, 2)} % cada uno`) : ""}</td>
       <td class="${cls}" title="${aviso}">${num(uso * 100)} %</td>
       <td><button data-borrar="${i}" title="Quitar">✕</button></td></tr>`;
   }).join("");
-  $("paquetes").innerHTML = `<tr><th>Plan</th><th>Calidad</th><th>Límite de simultáneas</th><th>Minutos entrantes</th><th>Minutos salientes</th><th>Base fija</th><th>Precio por mes</th><th>Costo por mes</th><th>Margen por mes</th><th>Precio por minuto</th><th>Parte de la capacidad</th><th>Uso del límite</th><th></th></tr>` + filas;
+  const pasa = tot.parte > 100.001;
+  const total = `<tr class="total"><td>${num(tot.n)}</td><td colspan="2">Total</td><td>${num(tot.canales)}${chico(`×${num(tot.canales / e.capReal, 2)} la capacidad real`)}</td><td></td><td></td><td></td>
+    <td>${pesos(tot.precio)}</td><td>${pesos(tot.costo)}</td><td>${pesos(tot.precio - tot.costo)}</td><td></td>
+    <td class="${pasa ? "warn" : ""}" title="${pasa ? "No entra en la capacidad instalada: bajá cantidades o sumá servers" : ""}">${num(tot.parte, 2)} %${chico(pasa ? "no entra" : `libre ${num(100 - tot.parte, 2)} %`)}</td><td></td><td></td></tr>`;
+  $("paquetes").innerHTML = `<tr><th>Cantidad</th><th>Plan</th><th>Calidad</th><th>Límite de simultáneas</th><th>Minutos entrantes</th><th>Minutos salientes</th><th>Base fija</th><th>Precio por mes</th><th>Costo por mes</th><th>Margen por mes</th><th>Precio por minuto</th><th>Parte de la capacidad</th><th>Uso del límite</th><th></th></tr>` + filas + total;
 }
 
 function pintarGanancia(e) {
@@ -426,7 +446,14 @@ function sincronizarCampos() { for (const k of CAMPOS) { const el = $(k); if (el
 document.addEventListener("input", (ev) => {
   const el = ev.target;
   if (el.dataset.tipo) { const v = el.type === "number" ? +el.value : el.value; S.tipos[el.dataset.tipo][el.dataset.campo] = v; if (el.dataset.campo === "nombre") { const s = $("tipo"); const o = [...s.options].find((x) => x.value === el.dataset.tipo); if (o) o.textContent = `${el.dataset.tipo}: ${el.value}`; } }
-  else if (el.dataset.paq !== undefined) { const p = S.paquetes[+el.dataset.paq]; p[el.dataset.campo] = el.type === "number" ? +el.value : el.value; }
+  else if (el.dataset.paq !== undefined) {
+    const i = +el.dataset.paq, p = S.paquetes[i]; p[el.dataset.campo] = el.type === "number" ? +el.value : el.value;
+    if (el.dataset.campo === "cant" && el.value !== "") {
+      // La suma de las partes de la capacidad no pasa el 100 %: se recorta la cantidad a lo que entra.
+      const e = escenario(Math.max(1, +S.activos || 1)), q = plan(p, e);
+      if (q.minCap > 0) p.cant = Math.min(q.n, Math.max(0, Math.floor((e.minProd - capOtros(e, i)) / q.minCap + 1e-9)));
+    }
+  }
   else if (CAMPOS.includes(el.id)) { S[el.id] = el.type === "number" ? +el.value : el.value; }
   else return;
   guardar();
@@ -445,7 +472,7 @@ document.addEventListener("change", (ev) => { if (ev.target.tagName === "SELECT"
 document.addEventListener("click", (ev) => {
   const b = ev.target.closest("button"); if (!b) return;
   if (b.dataset.borrar !== undefined) { S.paquetes.splice(+b.dataset.borrar, 1); }
-  else if (b.id === "agregarPaquete") { S.paquetes.push({ nombre: "Nuevo", calidad: "buena", canales: 5, ent: 1500, sal: 300, base: 60000 }); }
+  else if (b.id === "agregarPaquete") { S.paquetes.push({ nombre: "Nuevo", calidad: "buena", cant: 1, canales: 5, ent: 1500, sal: 300, base: 60000 }); }
   else if (b.id === "usarVolumen") { S.activos = Math.max(1, Math.ceil((S._vCanales || 1) / capacidad(S.tipo))); }
   else if (b.id === "restaurar") { S = structuredClone(DEFAULTS); pintarTipos(); }
   else return;

@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Atenta</title>
+<meta name="description" content="Atenta atiende y hace las llamadas de tu empresa con inteligencia artificial, con voz argentina y precio en pesos. Prototipo de landing.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+:root {
+  --bg: #F4F6F9; --surface: #FFFFFF; --surface-2: #EAEEF5;
+  --ink: #14213D; --ink-2: #2E3A57; --muted: #5B6578; --line: #DCE1EA;
+  --accent: #F4A63A; --accent-ink: #1A1200; --accent-soft: #FDF1DC;
+  --navy: #14213D; --navy-2: #1C2D52; --on-navy: #F4F6F9; --on-navy-muted: #AAB4CC;
+  --ok: #1E9E6A; --ok-soft: #DDF3E8;
+  --shadow: 0 10px 30px rgba(20, 33, 61, .10);
+  --radius: 14px;
+  --display: "Bricolage Grotesque", "Trebuchet MS", "Segoe UI", sans-serif;
+  --body: "Figtree", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0F1626; --surface: #182238; --surface-2: #1F2B45;
+    --ink: #EEF1F7; --ink-2: #D2D9E8; --muted: #A3ADC2; --line: #2A3652;
+    --accent: #F6B45A; --accent-ink: #1A1200; --accent-soft: #3A2C14;
+    --navy: #0A101D; --navy-2: #141E34; --on-navy: #EEF1F7; --on-navy-muted: #9AA5BD;
+    --ok: #3DC48C; --ok-soft: #14382A;
+    --shadow: 0 10px 30px rgba(0, 0, 0, .35);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0F1626; --surface: #182238; --surface-2: #1F2B45;
+  --ink: #EEF1F7; --ink-2: #D2D9E8; --muted: #A3ADC2; --line: #2A3652;
+  --accent: #F6B45A; --accent-ink: #1A1200; --accent-soft: #3A2C14;
+  --navy: #0A101D; --navy-2: #141E34; --on-navy: #EEF1F7; --on-navy-muted: #9AA5BD;
+  --ok: #3DC48C; --ok-soft: #14382A;
+  --shadow: 0 10px 30px rgba(0, 0, 0, .35);
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 17px/1.55 var(--body); -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3 { font-family: var(--display); line-height: 1.08; margin: 0; text-wrap: balance; letter-spacing: -.01em; }
+h1 { font-size: clamp(2.3rem, 6vw, 4.2rem); font-weight: 800; }
+h2 { font-size: clamp(1.7rem, 3.6vw, 2.5rem); font-weight: 700; }
+h3 { font-size: 1.2rem; font-weight: 700; }
+p { margin: 0; }
+a { color: inherit; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 20px; }
+section { padding-block: 72px; }
+.eyebrow { font-family: var(--body); font-size: .8rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.lead { font-size: 1.15rem; color: var(--ink-2); max-width: 62ch; }
+.muted { color: var(--muted); }
+.num { font-variant-numeric: tabular-nums; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; padding: 13px 22px; border-radius: 999px;
+  font: 600 1rem var(--body); text-decoration: none; border: 1.5px solid transparent; cursor: pointer;
+  transition: transform .15s ease, background .15s ease;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:focus-visible, a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.btn-ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn-navy { background: var(--navy); color: var(--on-navy); }
+.btn-light { background: var(--on-navy); color: var(--navy); }
+
+/* Nav */
+.nav { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.nav .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 14px; }
+.logo { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-family: var(--display); font-weight: 800; font-size: 1.35rem; letter-spacing: -.02em; }
+.logo .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.nav-links { display: flex; gap: 22px; align-items: center; font-weight: 500; }
+.nav-links a { text-decoration: none; color: var(--ink-2); }
+.nav-links a:hover { color: var(--ink); }
+@media (max-width: 720px) { .nav-links a:not(.btn) { display: none; } }
+
+/* Hero */
+.hero { padding-block: 64px 40px; }
+.hero .wrap { display: grid; grid-template-columns: 1.05fr .95fr; gap: 48px; align-items: center; }
+.hero-copy { display: grid; gap: 22px; }
+.hero-ctas { display: flex; gap: 12px; flex-wrap: wrap; }
+.hero-proof { display: flex; gap: 22px; flex-wrap: wrap; font-size: .95rem; color: var(--muted); }
+.hero-proof b { color: var(--ink); font-weight: 600; }
+@media (max-width: 860px) { .hero .wrap { grid-template-columns: 1fr; } }
+
+/* Call card */
+.call {
+  background: var(--navy); color: var(--on-navy); border-radius: 22px; box-shadow: var(--shadow);
+  padding: 22px; display: grid; gap: 16px; max-width: 100%;
+}
+.call-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.call-who { display: flex; align-items: center; gap: 12px; }
+.avatar { width: 42px; height: 42px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-family: var(--display); font-weight: 800; }
+.call-who small { display: block; color: var(--on-navy-muted); font-size: .85rem; }
+.call-status { display: inline-flex; align-items: center; gap: 8px; font-size: .85rem; color: var(--on-navy-muted); }
+.pulse { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 0 rgba(30,158,106,.6); animation: pulse 1.6s infinite; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(30,158,106,.55);} 100% { box-shadow: 0 0 0 10px rgba(30,158,106,0);} }
+.wave { display: flex; gap: 3px; align-items: center; height: 26px; }
+.wave i { width: 3px; border-radius: 2px; background: var(--accent); height: 30%; animation: wave 1.1s ease-in-out infinite; }
+.wave i:nth-child(2n) { animation-delay: .15s; } .wave i:nth-child(3n) { animation-delay: .3s; } .wave i:nth-child(5n) { animation-delay: .45s; }
+@keyframes wave { 0%,100% { height: 25%; } 50% { height: 100%; } }
+.transcript { display: grid; gap: 10px; }
+.line { display: grid; gap: 3px; padding: 10px 14px; border-radius: 14px; max-width: 88%; font-size: .98rem; line-height: 1.4; transition: opacity .35s ease, transform .35s ease; }
+.line small { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--on-navy-muted); font-weight: 600; }
+.line.agent { background: var(--navy-2); justify-self: start; border-bottom-left-radius: 4px; }
+.line.caller { background: var(--accent); color: var(--accent-ink); justify-self: end; border-bottom-right-radius: 4px; }
+.line.caller small { color: rgba(26,18,0,.65); }
+.line.hidden { opacity: 0; transform: translateY(8px); }
+.call-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-size: .85rem; color: var(--on-navy-muted); }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: var(--navy-2); color: var(--on-navy); font-weight: 500; }
+.replay { background: transparent; border: 1px solid var(--on-navy-muted); color: var(--on-navy); padding: 6px 12px; border-radius: 999px; font: 500 .85rem var(--body); cursor: pointer; }
+.replay:hover { border-color: var(--on-navy); }
+@media (prefers-reduced-motion: reduce) { .pulse, .wave i { animation: none; } .line { transition: none; } html { scroll-behavior: auto; } }
+
+/* Use cases */
+.cases { display: grid; grid-template-columns: repeat(auto-fit, minmax(196px, 1fr)); gap: 14px; margin-top: 32px; }
+.case { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; display: grid; gap: 8px; align-content: start; }
+.case h3 { font-size: 1.05rem; }
+.case p { font-size: .95rem; color: var(--muted); }
+
+/* Compare */
+.compare { background: var(--navy); color: var(--on-navy); border-block: 1px solid var(--line); }
+.compare .eyebrow { color: var(--on-navy-muted); }
+.compare .lead { color: var(--on-navy-muted); }
+.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
+@media (max-width: 860px) { .compare-grid { grid-template-columns: 1fr; } }
+.bars { display: grid; gap: 18px; }
+.bar { display: grid; gap: 6px; }
+.bar-label { display: flex; justify-content: space-between; gap: 12px; font-size: .95rem; }
+.bar-label b { font-weight: 600; }
+.bar-track { height: 18px; background: var(--navy-2); border-radius: 999px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 999px; background: var(--on-navy-muted); width: 0; transition: width 1.2s cubic-bezier(.2,.8,.2,1); }
+.bar.us .bar-fill { background: var(--accent); }
+.bar.us .bar-label b { color: var(--accent); }
+.bar-note { font-size: .8rem; color: var(--on-navy-muted); }
+.compare-copy { display: grid; gap: 18px; }
+.compare-copy .big { font-family: var(--display); font-size: clamp(2.4rem, 5vw, 3.6rem); font-weight: 800; line-height: 1; color: var(--accent); }
+
+/* Pillars */
+.pillars { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; margin-top: 36px; }
+.pillar { display: grid; gap: 10px; padding: 24px; border-top: 3px solid var(--accent); background: var(--surface); border-radius: 0 0 var(--radius) var(--radius); }
+.pillar p { color: var(--muted); font-size: .98rem; }
+.pillar .ico { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; background: var(--accent-soft); color: var(--ink); }
+.pillar .ico svg { width: 20px; height: 20px; }
+
+/* Steps */
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 36px; counter-reset: paso; }
+@media (max-width: 720px) { .steps { grid-template-columns: 1fr; } }
+.step { display: grid; gap: 10px; padding: 24px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.step::before { counter-increment: paso; content: "Paso " counter(paso); font-size: .8rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent-ink); background: var(--accent); width: max-content; padding: 3px 10px; border-radius: 999px; }
+.step p { color: var(--muted); font-size: .98rem; }
+
+/* Pricing */
+.plans { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 36px; }
+@media (max-width: 1000px) { .plans { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .plans { grid-template-columns: 1fr; } }
+.plan { background: var(--surface); border: 1.5px solid var(--line); border-radius: 18px; padding: 26px 22px; display: grid; gap: 18px; align-content: start; position: relative; }
+.plan.featured { border-color: var(--accent); box-shadow: var(--shadow); }
+.plan .tag { position: absolute; top: -12px; left: 22px; background: var(--accent); color: var(--accent-ink); font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; }
+.plan h3 { font-size: 1.4rem; }
+.plan .for { color: var(--muted); font-size: .92rem; min-height: 2.8em; }
+.price { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.price .amt { white-space: nowrap; font-family: var(--display); font-size: 2rem; font-weight: 800; letter-spacing: -.02em; }
+.price .per { color: var(--muted); font-size: .9rem; }
+.price-usd { font-size: .85rem; color: var(--muted); margin-top: -12px; }
+.plan ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 9px; font-size: .95rem; }
+.plan li { display: flex; gap: 9px; align-items: flex-start; }
+.plan li::before { content: ""; flex: none; width: 18px; height: 18px; margin-top: 2px; border-radius: 50%; background: var(--ok-soft) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M5 10.5l3 3 7-7" fill="none" stroke="%231E9E6A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>') center/14px no-repeat; }
+.plan li b { font-weight: 600; }
+.plan .btn { justify-content: center; }
+.fineprint { margin-top: 22px; font-size: .9rem; color: var(--muted); display: grid; gap: 6px; max-width: 78ch; }
+
+/* Calculator */
+.calc { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 28px; display: grid; grid-template-columns: 1fr 1.2fr; gap: 32px; margin-top: 36px; }
+@media (max-width: 800px) { .calc { grid-template-columns: 1fr; } }
+.calc form { display: grid; gap: 18px; }
+.field { display: grid; gap: 6px; }
+.field label { font-weight: 600; font-size: .95rem; }
+.field small { color: var(--muted); font-size: .85rem; }
+.field input[type=range] { width: 100%; accent-color: var(--accent); }
+.field output { font-family: var(--display); font-weight: 700; font-size: 1.3rem; }
+.results { display: grid; gap: 14px; align-content: start; }
+.result { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: baseline; padding: 14px 16px; border-radius: 12px; background: var(--surface-2); }
+.result span { color: var(--muted); font-size: .95rem; }
+.result b { font-family: var(--display); font-size: 1.5rem; font-weight: 800; }
+.result.us { background: var(--accent-soft); }
+.result.save { background: var(--ok-soft); }
+.result.save b { color: var(--ok); }
+.results .note { font-size: .85rem; color: var(--muted); }
+
+/* FAQ */
+.faq { display: grid; gap: 10px; margin-top: 32px; max-width: 78ch; }
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 0 20px; }
+summary { cursor: pointer; padding: 16px 0; font-weight: 600; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: "+"; font-family: var(--display); font-size: 1.4rem; line-height: 1; color: var(--accent); }
+details[open] summary::after { content: "–"; }
+details p { padding-bottom: 18px; color: var(--ink-2); }
+
+/* CTA + footer */
+.cta { background: var(--navy); color: var(--on-navy); text-align: center; }
+.cta .wrap { display: grid; gap: 20px; justify-items: center; }
+.cta .lead { color: var(--on-navy-muted); }
+.contact { font-size: 1.05rem; user-select: all; }
+footer { padding-block: 28px; font-size: .88rem; color: var(--muted); border-top: 1px solid var(--line); }
+footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.poc { display: inline-block; padding: 2px 8px; border-radius: 6px; background: var(--surface-2); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap">
+    <a class="logo" href="#"><span class="dot"></span>Atenta</a>
+    <div class="nav-links">
+      <a href="#como">Cómo funciona</a>
+      <a href="#precios">Precios</a>
+      <a href="#preguntas">Preguntas</a>
+      <a class="btn btn-primary" href="#demo">Pedir una demo</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="hero-copy">
+      <span class="eyebrow">Agente telefónico con inteligencia artificial</span>
+      <h1>Tu teléfono, atendido siempre. Con voz argentina.</h1>
+      <p class="lead">Atenta contesta las llamadas de tu empresa, da turnos, toma pedidos, responde consultas y llama a tus clientes cuando hace falta. Habla como acá, cuesta menos que una persona y se paga en pesos.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="#demo">Quiero escucharla</a>
+        <a class="btn btn-ghost" href="#precios">Ver precios</a>
+      </div>
+      <div class="hero-proof">
+        <span><b>Responde en menos de 2,5 s</b></span>
+        <span><b>41 voces</b> argentinas</span>
+        <span><b>Desde $ 48.000</b> por mes</span>
+      </div>
+    </div>
+
+    <div class="call" id="llamada" aria-label="Llamada de ejemplo">
+      <div class="call-head">
+        <div class="call-who">
+          <div class="avatar">S</div>
+          <div><strong>Sofía</strong><small>Consultorio Dra. Peralta</small></div>
+        </div>
+        <span class="call-status"><span class="pulse"></span>Llamada entrante</span>
+      </div>
+      <div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="transcript" id="transcript">
+        <div class="line agent"><small>Sofía</small>Consultorio de la doctora Peralta, hola. Habla Sofía, la asistente virtual. ¿En qué te puedo ayudar?</div>
+        <div class="line caller"><small>Marcela</small>Hola, quería sacar un turno con la doctora.</div>
+        <div class="line agent"><small>Sofía</small>Claro. ¿Es para vos o para otra persona?</div>
+        <div class="line caller"><small>Marcela</small>Para mí. Marcela Díaz.</div>
+        <div class="line agent"><small>Sofía</small>Perfecto, Marcela. Tengo lugar el jueves a las 10 o el viernes a las 16. ¿Cuál te queda mejor?</div>
+        <div class="line caller"><small>Marcela</small>El jueves a las 10.</div>
+        <div class="line agent"><small>Sofía</small>Listo, quedó reservado para el jueves a las 10. Te mando la confirmación por mensaje. ¡Hasta el jueves!</div>
+      </div>
+      <div class="call-foot">
+        <span><span class="chip num">0:41</span> &nbsp; <span class="chip">Turno cargado</span></span>
+        <button class="replay" id="replay" type="button">Ver de nuevo</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section id="para">
+  <div class="wrap">
+    <span class="eyebrow">Para quién</span>
+    <h2>Para los que viven con el teléfono sonando</h2>
+    <div class="cases">
+      <div class="case"><h3>Consultorios y clínicas</h3><p>Da y confirma turnos, recuerda el del día siguiente y baja el ausentismo.</p></div>
+      <div class="case"><h3>Comercios y servicios</h3><p>Atiende fuera de horario, toma pedidos y avisa cuando algo está listo.</p></div>
+      <div class="case"><h3>Municipios y organismos</h3><p>Recibe reclamos y consultas de vecinos las 24 horas, sin cola de espera.</p></div>
+      <div class="case"><h3>Cobranzas y administración</h3><p>Recuerda vencimientos y toma promesas de pago, siempre con buenos modos.</p></div>
+      <div class="case"><h3>Inmobiliarias y concesionarias</h3><p>Atiende a cada interesado, junta sus datos y le coordina una visita.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="compare" id="costo">
+  <div class="wrap compare-grid">
+    <div class="compare-copy">
+      <span class="eyebrow">El diferencial</span>
+      <h2>Cuesta una fracción de lo que cuesta atender con una persona</h2>
+      <p class="lead">Los agentes de voz que se venden hoy en Argentina cobran en dólares y por uso, y terminan costando lo mismo que un operador. Atenta corre en equipos propios, en el país. Por eso el precio es en pesos, es fijo y no se dispara si tus clientes hablan más.</p>
+      <div><div class="big num">hasta 9×</div><div class="bar-note">menos por minuto de conversación que una persona</div></div>
+    </div>
+    <div class="bars" id="bars">
+      <div class="bar"><div class="bar-label"><span>Operador humano tercerizado</span><b class="num">$ 470 / min</b></div><div class="bar-track"><div class="bar-fill" data-w="100"></div></div><div class="bar-note">Precio de referencia del sector, septiembre 2026</div></div>
+      <div class="bar"><div class="bar-label"><span>Otros agentes de IA en Argentina</span><b class="num">$ 430 a 530 / min</b></div><div class="bar-track"><div class="bar-fill" data-w="102"></div></div><div class="bar-note">Cobran en dólares, todo incluido</div></div>
+      <div class="bar us"><div class="bar-label"><span>Atenta</span><b class="num">$ 51 a 160 / min</b></div><div class="bar-track"><div class="bar-fill" data-w="22"></div></div><div class="bar-note">Según el plan, con los minutos incluidos</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="porque">
+  <div class="wrap">
+    <span class="eyebrow">Por qué Atenta</span>
+    <h2>Lo que la hace distinta</h2>
+    <div class="pillars">
+      <div class="pillar">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 6.5c0-1.9-2.2-3-5-3s-5 1.1-5 3 2.2 3 5 3 5 1.1 5 3-2.2 3-5 3-5-1.1-5-3"/></svg></div>
+        <h3>Precio en pesos, sin sorpresas</h3>
+        <p>Pagás lo mismo todos los meses. No depende del dólar ni de cuánto hablen tus clientes.</p>
+      </div>
+      <div class="pillar">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a4 4 0 0 1 4 4v5a4 4 0 0 1-8 0V7a4 4 0 0 1 4-4z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div>
+        <h3>Habla como acá</h3>
+        <p>41 voces argentinas, de mujer y de hombre. Elegís la que va con tu negocio y la cambiás cuando quieras.</p>
+      </div>
+      <div class="pillar">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/></svg></div>
+        <h3>Tus conversaciones se quedan acá</h3>
+        <p>Nada pasa por empresas de afuera. Las llamadas se procesan en nuestros propios equipos, en Argentina.</p>
+      </div>
+      <div class="pillar">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+        <h3>Contesta rápido, y lo medimos</h3>
+        <p>Responde en menos de 2,5 segundos. Es un compromiso que publicamos, no una promesa.</p>
+      </div>
+      <div class="pillar">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 11a4 4 0 1 0-8 0 4 4 0 0 0 8 0z"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div>
+        <h3>Sabe cuándo pasar a una persona</h3>
+        <p>Si alguien pide hablar con tu equipo o la consulta la supera, toma el dato y avisa. Nadie queda colgado.</p>
+      </div>
+      <div class="pillar">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 9h10M7 13h6"/></svg></div>
+        <h3>Ves cada llamada</h3>
+        <p>Un panel con todas las llamadas, qué se dijo, qué datos tomó y qué quedó pendiente.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="como">
+  <div class="wrap">
+    <span class="eyebrow">Cómo funciona</span>
+    <h2>Lista en días, no en meses</h2>
+    <div class="steps">
+      <div class="step"><h3>Nos contás qué tiene que hacer</h3><p>Qué preguntar, qué responder, a quién avisar. Lo armamos con vos en una reunión y lo probás antes de salir.</p></div>
+      <div class="step"><h3>Conectamos tu número</h3><p>Desviás tu línea de siempre o te damos un número nuevo. No hay que instalar nada.</p></div>
+      <div class="step"><h3>Empieza a atender</h3><p>Desde el primer día ves cada llamada en el panel y ajustás lo que quieras: el saludo, las preguntas, la voz.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="precios">
+  <div class="wrap">
+    <span class="eyebrow">Precios</span>
+    <h2>Un precio por mes, en pesos</h2>
+    <p class="lead" style="margin-top:12px">Todos los planes atienden las llamadas que entran, sin tope de minutos, hasta la cantidad de llamadas a la vez que elijas. Los minutos que llama Atenta a tus clientes van incluidos según el plan.</p>
+
+    <div class="plans">
+      <div class="plan">
+        <h3>Mostrador</h3>
+        <p class="for">Consultorios, estudios y locales con una línea.</p>
+        <div class="price"><span class="amt num">$&nbsp;48.000</span><span class="per">por mes</span></div>
+        <p class="price-usd num">unos USD 31</p>
+        <ul>
+          <li><b>2 llamadas</b> a la vez</li>
+          <li>Entrantes sin tope de minutos</li>
+          <li><b>300 minutos</b> de llamadas salientes</li>
+          <li>1 voz a elección</li>
+          <li>Panel de llamadas</li>
+        </ul>
+        <a class="btn btn-ghost" href="#demo">Empezar</a>
+      </div>
+      <div class="plan featured">
+        <span class="tag">El más elegido</span>
+        <h3>Sucursal</h3>
+        <p class="for">Clínicas, comercios y servicios con varias líneas.</p>
+        <div class="price"><span class="amt num">$&nbsp;78.400</span><span class="per">por mes</span></div>
+        <p class="price-usd num">unos USD 51</p>
+        <ul>
+          <li><b>5 llamadas</b> a la vez</li>
+          <li>Entrantes sin tope de minutos</li>
+          <li><b>1.000 minutos</b> de llamadas salientes</li>
+          <li>Recordatorios de turnos y vencimientos</li>
+          <li>Panel de llamadas</li>
+        </ul>
+        <a class="btn btn-primary" href="#demo">Empezar</a>
+      </div>
+      <div class="plan">
+        <h3>Central</h3>
+        <p class="for">Empresas medianas y municipios.</p>
+        <div class="price"><span class="amt num">$&nbsp;136.800</span><span class="per">por mes</span></div>
+        <p class="price-usd num">unos USD 90</p>
+        <ul>
+          <li><b>15 llamadas</b> a la vez</li>
+          <li>Entrantes sin tope de minutos</li>
+          <li><b>2.000 minutos</b> de llamadas salientes</li>
+          <li>Varias voces y varios números</li>
+          <li>Conexión con tu sistema de turnos o gestión</li>
+        </ul>
+        <a class="btn btn-ghost" href="#demo">Empezar</a>
+      </div>
+      <div class="plan">
+        <h3>Red</h3>
+        <p class="for">Cobranzas, prepagas y organismos con mucho volumen.</p>
+        <div class="price"><span class="amt num">$&nbsp;514.100</span><span class="per">por mes</span></div>
+        <p class="price-usd num">unos USD 337</p>
+        <ul>
+          <li><b>30 llamadas</b> a la vez</li>
+          <li>Entrantes sin tope de minutos</li>
+          <li><b>10.000 minutos</b> de llamadas salientes</li>
+          <li>Campañas de llamadas programadas</li>
+          <li>Atención dedicada</li>
+        </ul>
+        <a class="btn btn-ghost" href="#demo">Hablemos</a>
+      </div>
+    </div>
+
+    <div class="fineprint">
+      <p>Precios en pesos, sin IVA, con un tiempo de respuesta de menos de 2,5 segundos en todos los planes. Sin permanencia: se cancela cuando quieras.</p>
+      <p class="num">Minuto saliente adicional: $ 45. Si el precio cambia, avisamos con 15 días de anticipación. Cada llamada se cuenta por minuto iniciado.</p>
+    </div>
+
+    <div class="calc" id="calculadora">
+      <form id="calcForm">
+        <div>
+          <span class="eyebrow">Calculá tu ahorro</span>
+          <h3 style="margin-top:6px">¿Cuánto hablás por mes?</h3>
+        </div>
+        <div class="field">
+          <label for="ent">Minutos de llamadas que recibís</label>
+          <input type="range" id="ent" min="0" max="12000" step="100" value="1500">
+          <output for="ent" id="entOut" class="num">1.500 min</output>
+          <small>Una llamada promedio dura 1 a 2 minutos.</small>
+        </div>
+        <div class="field">
+          <label for="sal">Minutos de llamadas que hacés</label>
+          <input type="range" id="sal" min="0" max="12000" step="100" value="500">
+          <output for="sal" id="salOut" class="num">500 min</output>
+          <small>Recordatorios, confirmaciones, avisos.</small>
+        </div>
+      </form>
+      <div class="results">
+        <div class="result"><span>Con un operador tercerizado</span><b class="num" id="rHum">$ 940.000</b></div>
+        <div class="result us"><span>Con Atenta, plan <span id="rPlan">Sucursal</span></span><b class="num" id="rUs">$ 78.400</b></div>
+        <div class="result save"><span>Ahorrás por mes</span><b class="num" id="rSave">$ 861.600</b></div>
+        <p class="note" id="rNote">Un operador cuesta $ 470 por minuto hablado (referencia del sector, septiembre 2026) y atiende una llamada a la vez.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="preguntas">
+  <div class="wrap">
+    <span class="eyebrow">Preguntas frecuentes</span>
+    <h2>Lo que nos preguntan siempre</h2>
+    <div class="faq">
+      <details><summary>¿Entiende cómo hablamos en Argentina?</summary><p>Sí. Está entrenada con voces y formas de hablar de acá, y habla de vos. Entiende nombres, direcciones y horarios como los decimos nosotros.</p></details>
+      <details><summary>¿Qué pasa si alguien le pregunta algo que no sabe?</summary><p>Lo dice con claridad, toma el dato de la persona y avisa a tu equipo para que la llamen. No inventa respuestas.</p></details>
+      <details><summary>¿Avisa que es una asistente virtual?</summary><p>Sí, siempre se presenta como asistente virtual al empezar la llamada. Es lo correcto y es lo que pide la normativa que viene.</p></details>
+      <details><summary>¿Puedo usar mi número de siempre?</summary><p>Sí. Desviás tu línea a Atenta y listo. Si preferís, te damos un número nuevo. Ese número es de Atenta: si un día te vas, no se puede llevar, por eso recomendamos desviar el tuyo.</p></details>
+      <details><summary>¿Guarda las llamadas?</summary><p>Guarda el resumen y la transcripción de cada llamada en tu panel. La grabación de audio es opcional y la decidís vos. Todo se procesa y se guarda en Argentina.</p></details>
+      <details><summary>¿Qué pasa si entran más llamadas de las que cubre mi plan?</summary><p>Las que superan el límite de llamadas a la vez escuchan un mensaje y pueden dejar su número para que Atenta los llame apenas se libere. Si te pasa seguido, te conviene el plan siguiente.</p></details>
+      <details><summary>¿Y por WhatsApp?</summary><p>Estamos trabajando en atender llamadas y mensajes de WhatsApp con la misma asistente. Por ahora, Atenta atiende por teléfono.</p></details>
+      <details><summary>¿Hay permanencia o costo de alta?</summary><p>No. Pagás mes a mes y cancelás cuando quieras. La puesta en marcha está incluida en el plan.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="cta" id="demo">
+  <div class="wrap">
+    <span class="eyebrow">Probala</span>
+    <h2>Escuchala atender una llamada de tu negocio</h2>
+    <p class="lead">Nos contás a qué se dedica tu empresa y en unos días te llama Atenta para que la escuches con tu propio caso. Sin costo y sin compromiso.</p>
+    <a class="btn btn-light" href="#demo">Pedir una demo</a>
+    <p class="contact num">hola@atenta.com.ar</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>Atenta · Hecho en Argentina</span>
+    <span><span class="poc">Prototipo</span> Los precios son de referencia.</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Llamada de ejemplo: las líneas se ven completas al cargar; "Ver de nuevo" las reproduce una por una.
+  var lines = Array.prototype.slice.call(document.querySelectorAll("#transcript .line"));
+  var timers = [];
+  function replay() {
+    timers.forEach(clearTimeout); timers = [];
+    if (reduced) return;
+    lines.forEach(function (l) { l.classList.add("hidden"); });
+    lines.forEach(function (l, i) {
+      timers.push(setTimeout(function () { l.classList.remove("hidden"); }, 250 + i * 1400));
+    });
+  }
+  $("replay").addEventListener("click", replay);
+
+  // Barras de la comparación: crecen al entrar en pantalla.
+  var fills = document.querySelectorAll(".bar-fill");
+  function fill() { fills.forEach(function (f) { f.style.width = Math.min(100, +f.getAttribute("data-w")) + "%"; }); }
+  if (reduced || !("IntersectionObserver" in window)) { fill(); }
+  else {
+    var io = new IntersectionObserver(function (es) { if (es.some(function (e) { return e.isIntersecting; })) { fill(); io.disconnect(); } }, { threshold: .3 });
+    io.observe($("bars"));
+  }
+
+  // Calculadora: planes de la sección de precios (salientes incluidos y llamadas a la vez), operador a $470/min.
+  var PLANES = [
+    { n: "Mostrador", precio: 48000, sal: 300, lineas: 2 },
+    { n: "Sucursal", precio: 78400, sal: 1000, lineas: 5 },
+    { n: "Central", precio: 136800, sal: 2000, lineas: 15 },
+    { n: "Red", precio: 514100, sal: 10000, lineas: 30 }
+  ];
+  var HUMANO = 470, EXTRA = 45;
+  var pesos = function (v) { return "$ " + Math.round(v).toLocaleString("es-AR"); };
+  var num = function (v) { return v.toLocaleString("es-AR"); };
+  function calc() {
+    var ent = +$("ent").value, sal = +$("sal").value;
+    $("entOut").textContent = num(ent) + " min";
+    $("salOut").textContent = num(sal) + " min";
+    // Plan: el más chico cuyos salientes alcanzan; si ninguno alcanza, Red con minutos adicionales.
+    // Con muchas entrantes conviene más líneas a la vez: ~1.500 min entrantes por mes por cada línea (referencia).
+    var lineasNec = Math.ceil(ent / 1500) || 1;
+    var plan = PLANES.filter(function (p) { return p.sal >= sal && p.lineas >= lineasNec; })[0];
+    var extra = 0;
+    if (!plan) { plan = PLANES[3]; extra = Math.max(0, sal - plan.sal) * EXTRA; }
+    var us = plan.precio + extra, hum = (ent + sal) * HUMANO;
+    $("rPlan").textContent = plan.n;
+    $("rUs").textContent = pesos(us);
+    $("rHum").textContent = pesos(hum);
+    $("rSave").textContent = hum > us ? pesos(hum - us) : "$ 0";
+    $("rNote").textContent = extra
+      ? "Incluye " + num(Math.round(extra / EXTRA)) + " minutos salientes adicionales a $ 45. Un operador cuesta $ 470 por minuto hablado (referencia del sector, septiembre 2026)."
+      : "Un operador cuesta $ 470 por minuto hablado (referencia del sector, septiembre 2026) y atiende una llamada a la vez.";
+  }
+  ["ent", "sal"].forEach(function (id) { $(id).addEventListener("input", calc); });
+  $("calcForm").addEventListener("submit", function (e) { e.preventDefault(); });
+  calc();
+})();
+</script>
+</body>
+</html>
