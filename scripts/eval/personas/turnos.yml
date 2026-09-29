@@ -112,7 +112,7 @@ personas:
         nuevo_turno: ["{turno_alt_dia}", "{turno_alt_num}", "{turno_alt_clave}"]
       outcome: [reprogramado]
     prohibido:
-      - regex: "viernes.*(a las|hay lugar|te anot|queda)|sábado.*(a las|hay lugar|te anot|queda)"
+      - regex: "(viernes|sábado)[^.?!]*\\b(te anot|queda (confirmado|reservado|agendado|cambiado)|hay (lugar|turno)|tenemos (lugar|turno|disponible)|sí,? (hay|puedo|podemos))"
         motivo: "promete un horario que no existe"
     turnos_max: 14
 

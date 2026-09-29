@@ -3,10 +3,14 @@ import logging
 import time
 import uuid
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
-from .models import AgentTurn, ConversationState, Extraction, Message
+from .models import AgentTurn, ConversationState, Extraction, Message, Workflow
 from .store import ConversationStore
-from .workflow import check_updates, is_required, load_workflow, outcome_for
+from .workflow import check_updates, is_required, outcome_for
+
+if TYPE_CHECKING:
+    from ..agents.definitions import DefinitionSource
 
 logger = logging.getLogger(__name__)
 
@@ -23,25 +27,44 @@ class ConversationEngine:
 
     Segun el engine del workflow: structured extrae en cada turno y le pasa el
     estado al LLM (JSON con answered y next_objective); classic conversa en
-    texto con el prompt del YAML, sin estado, y extrae una sola vez al final."""
+    texto con el prompt del workflow, sin estado, y extrae una sola vez al final.
 
-    def __init__(self, llm, store: ConversationStore):
+    definitions: de donde salen los workflows (agentes de la base o plantillas;
+    app/agents). Sin pasarla, las plantillas del repo (eval y tests)."""
+
+    def __init__(self, llm, store: ConversationStore, definitions: "DefinitionSource | None" = None):
+        from ..agents.templates import TemplateDefinitions
+
         self.llm = llm
         self.store = store
+        self.definitions = definitions or TemplateDefinitions()
         self.extractions: dict[str, list[asyncio.Task]] = {}   # extracciones en curso por conversacion, en orden
 
-    def start_conversation(self, workflow_id: str) -> tuple[ConversationState, str]:
-        workflow = load_workflow(workflow_id)
+    def workflow(self, state: ConversationState) -> Workflow:
+        return self.definitions.get(state.agent_id, state.agent_version)
+
+    def start_conversation(self, agent_id: str, client_id: str | None = None) -> tuple[ConversationState, str]:
+        """Crea y guarda la conversacion con la version vigente del agente. KeyError si
+        no existe o esta archivado."""
+        state, opening = self.new_conversation(agent_id, client_id)
+        self.store.save(state)
+        return state, opening
+
+    def new_conversation(self, agent_id: str, client_id: str | None = None,
+                         session=None) -> tuple[ConversationState, str]:
+        """Como start_conversation pero sin guardarla: para guardarla en la misma
+        transaccion que la llamada (services/calls.py, store.add). session: la del que
+        llama, para leer el agente sin pedir otra conexion."""
+        version, workflow = self.definitions.current(agent_id, session)
         opening = workflow.conversation.opening
         state = ConversationState(
             conversation_id=str(uuid.uuid4()),
-            workflow_id=workflow.id,
+            agent_id=agent_id, agent_version=version, client_id=client_id,
             fields={name: None for name in workflow.fields},
             messages=[Message(role="assistant", text=opening)],
         )
         # La apertura pregunta por el primer dato del workflow.
         state.progress.asked = min(workflow.fields, key=lambda name: workflow.fields[name].priority)
-        self.store.save(state)
         return state, opening
 
     async def process_turn(self, conversation_id: str, user_message: str,
@@ -52,7 +75,7 @@ class ConversationEngine:
         state = self.store.get(conversation_id)
         if state is None:
             raise KeyError(conversation_id)
-        workflow = load_workflow(state.workflow_id)
+        workflow = self.workflow(state)
 
         classic = workflow.engine == "classic"
         started = time.perf_counter()
@@ -93,7 +116,7 @@ class ConversationEngine:
         await self.wait_extraction(conversation_id, timeout)
         state = self.store.get(conversation_id)
         if (state is None or state.status == "completed" or len(state.messages) < 2
-                or load_workflow(state.workflow_id).engine != "classic"):
+                or self.workflow(state).engine != "classic"):
             return
         await asyncio.wait([self._launch_extraction(conversation_id, len(state.messages) - 1, None)], timeout=timeout)
 
@@ -120,7 +143,7 @@ class ConversationEngine:
             await asyncio.wait([previous])      # en orden; y cancelar esta no cancela la anterior
         try:
             state = self.store.get(conversation_id)
-            workflow = load_workflow(state.workflow_id)
+            workflow = self.workflow(state)
             await self._run_extraction(workflow, state, reply, "extraccion")
             state = self.store.get(conversation_id)
             if (answered and state.fields.get(answered) is None and is_required(workflow.fields[answered], state.fields)
@@ -137,7 +160,7 @@ class ConversationEngine:
         finally:
             state = self.store.get(conversation_id)
             if state is not None and state.status == "completed":
-                state.progress.outcome = outcome_for(load_workflow(state.workflow_id), state).id
+                state.progress.outcome = outcome_for(self.workflow(state), state).id
                 self.store.save(state)
 
     async def _run_extraction(self, workflow, state: ConversationState, reply: int, kind: str,

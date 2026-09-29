@@ -1,0 +1,122 @@
+/* Estilos globales chicos; el resto va por el tema de Mantine. */
+body {
+  background: var(--oime-page-bg);
+}
+
+.app-main {
+  background: var(--oime-page-bg);
+}
+
+.mono {
+  font-family: var(--mantine-font-family-monospace);
+  font-size: var(--mantine-font-size-xs);
+}
+
+pre.code {
+  margin: 0;
+  padding: 8px 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 12px;
+  line-height: 1.45;
+  border-radius: var(--mantine-radius-sm);
+  background: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-7));
+  border: 1px solid var(--mantine-color-default-border);
+  max-height: 420px;
+  overflow: auto;
+}
+
+/* Fila de dato recien obtenido en el detalle de una llamada. */
+@keyframes just-set {
+  from {
+    background: var(--oime-accent-soft);
+  }
+  to {
+    background: transparent;
+  }
+}
+
+.just-set {
+  animation: just-set 4s ease-out;
+}
+
+/* Chat */
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 560px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.bubble {
+  max-width: 85%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: var(--mantine-font-size-sm);
+  line-height: 1.45;
+}
+
+.bubble .who {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.7;
+  margin-bottom: 2px;
+}
+
+.bubble.agent {
+  align-self: flex-start;
+  background: light-dark(var(--mantine-color-navy-0), var(--mantine-color-dark-5));
+  border-bottom-left-radius: 4px;
+}
+
+.bubble.client {
+  align-self: flex-end;
+  background: var(--oime-accent-soft);
+  border-bottom-right-radius: 4px;
+}
+
+details.llm {
+  margin-top: 6px;
+  font-size: 12px;
+  white-space: normal;
+}
+
+details.llm summary {
+  cursor: pointer;
+  color: var(--mantine-color-dimmed);
+}
+
+.llm-call {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.diff-line {
+  display: block;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.diff-add {
+  background: light-dark(#e3f5ec, rgba(30, 158, 106, 0.2));
+}
+
+.diff-del {
+  background: light-dark(#fde8e8, rgba(224, 49, 49, 0.2));
+  text-decoration: line-through;
+  opacity: 0.8;
+}
+
+.cm-editor-wrap {
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: var(--mantine-radius-sm);
+  overflow: hidden;
+}

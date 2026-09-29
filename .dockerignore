@@ -10,3 +10,11 @@ __pycache__/
 *.pyo
 .venv/
 venv/
+# Fuera del contexto de build de app/agent: temporales, checkpoints del TTS (~40 GB)
+# y lo que genera npm (la SPA se compila dentro del build).
+scratch/
+tts/finetune/work/
+web/node_modules/
+web/dist/
+scripts/*/runs/
+scripts/loadtest/results/

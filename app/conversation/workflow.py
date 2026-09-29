@@ -1,14 +1,9 @@
 import re
 import unicodedata
-from functools import cache
-from pathlib import Path
 from typing import Any
-
-import yaml
 
 from .models import ConversationState, FieldSpec, Outcome, Workflow
 
-WORKFLOWS_DIR = Path(__file__).resolve().parent.parent / "workflows"
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[a-z]{2,}$")
 # Un email dictado llega como se dice ("juan punto perez arroba gmail punto com").
 SPOKEN_EMAIL = [
@@ -16,27 +11,6 @@ SPOKEN_EMAIL = [
     (r"\barroba\b", "@"), (r"\bpunto\b", "."),
 ]
 EMAIL_SEARCH = re.compile(r"[a-z0-9_+-]+(?:\.[a-z0-9_+-]+)*@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}")
-
-
-@cache
-def load_workflow(workflow_id: str) -> Workflow:
-    return Workflow.model_validate(workflow_data(workflow_id))
-
-
-def workflow_data(workflow_id: str) -> dict:
-    """El YAML como dict. Con extends toma el workflow base y pisa las claves
-    de primer nivel que define (ej. el mismo agente con otro engine)."""
-    path = WORKFLOWS_DIR / f"{workflow_id}.yml"
-    if not re.fullmatch(r"[a-z0-9_]+", workflow_id) or not path.exists():
-        raise KeyError(workflow_id)
-    data = yaml.safe_load(path.read_text())
-    if base := data.pop("extends", None):
-        data = {**workflow_data(base), **data}
-    return data
-
-
-def workflow_ids() -> list[str]:
-    return sorted(p.stem for p in WORKFLOWS_DIR.glob("*.yml"))
 
 
 def is_required(spec: FieldSpec, fields: dict[str, Any]) -> bool:

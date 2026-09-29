@@ -139,7 +139,7 @@ def agent_roles(pids):
     """{pid: rol} de los procesos del agente."""
     ppid = {p: (stat(p) or (0, 0))[0] for p in pids}
     cmd = {p: cmdline(p) for p in pids}
-    main = {p for p in pids if "app.livekit_agent" in cmd[p]}
+    main = {p for p in pids if "app.voice.worker" in cmd[p]}
     fsrv = {p for p in pids if "multiprocessing.forkserver" in cmd[p] and ppid[p] in main}
     roles = {}
     for p in pids:

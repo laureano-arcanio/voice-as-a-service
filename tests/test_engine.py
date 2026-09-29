@@ -2,12 +2,8 @@
 extraccion saca los datos en segundo plano; la app valida y guarda."""
 import asyncio
 
-from fastapi.testclient import TestClient
-
 from app.conversation.engine import ConversationEngine
 from app.conversation.models import AgentTurn
-from app.deps import get_engine
-from app.main import app
 
 from .helpers import BASE, FakeLLM, start_with, turn_and_extract
 
@@ -201,17 +197,3 @@ async def test_retract_cancels_the_pending_extraction(store):
     await asyncio.sleep(0)
     assert store.get(cid).fields["attendance_process"] is None
 
-
-def test_api_flow(store):
-    llm = FakeLLM(AgentTurn(next_objective="company_name", assistant_message="¿En qué empresa trabajás?"),
-                  extractions=[{"contact_name": "Juan"}])
-    app.dependency_overrides[get_engine] = lambda: ConversationEngine(llm, store)
-    client = TestClient(app)
-    started = client.post("/conversations", json={"workflow_id": "sales_discovery"}).json()
-    body = client.post(f"/conversations/{started['conversation_id']}/turn", json={"message": "Juan."}).json()
-    missing = client.post("/conversations", json={"workflow_id": "nope"})
-    app.dependency_overrides.clear()
-    assert body["state"]["fields"]["contact_name"] == "Juan"
-    assert body["next_objective"] == "company_name"
-    assert body["status"] == "active"
-    assert missing.status_code == 404

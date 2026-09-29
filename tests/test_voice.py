@@ -1,13 +1,15 @@
-from app import config, livekit_agent, voices
-from app.conversation.workflow import WORKFLOWS_DIR, load_workflow
+from app.agents.templates import load_template, template_ids
+from app.config import settings
+from app.services import voices
+from app.voice import worker as livekit_agent
 
 
 async def resolve(monkeypatch, served):
     async def fake():
         return served
     monkeypatch.setattr(livekit_agent, "served_voices", fake)
-    monkeypatch.setattr(config, "VLLM_TTS_VOICE", "arf_03034")
-    return await livekit_agent.resolve_voice("berlin_signup")
+    monkeypatch.setattr(settings, "vllm_tts_voice", "arf_03034")
+    return await livekit_agent.resolve_voice(load_template("berlin_signup"))
 
 
 async def test_uses_workflow_voice_when_served(monkeypatch):
@@ -27,7 +29,7 @@ async def test_call_voice_overrides_workflow(monkeypatch):
     async def fake():
         return {"sofia", "martin"}
     monkeypatch.setattr(livekit_agent, "served_voices", fake)
-    assert await livekit_agent.resolve_voice("berlin_signup", "martin") == "martin"
+    assert await livekit_agent.resolve_voice(load_template("berlin_signup"), "martin") == "martin"
 
 
 def test_catalog_has_41_voices_with_metrics():
@@ -35,7 +37,7 @@ def test_catalog_has_41_voices_with_metrics():
     assert len(cat) == 41
     assert all(v.genero in ("mujer", "hombre") and v.wer is not None and v.car_s is not None for v in cat.values())
     # Cada voz de un workflow tiene que estar en el catalogo (y en el checkpoint servido).
-    assert all(load_workflow(p.stem).agent.voice in cat for p in WORKFLOWS_DIR.glob("*.yml"))
+    assert all(load_template(t).agent.voice in cat for t in template_ids())
 
 
 def test_search_filters_and_sorts():

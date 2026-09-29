@@ -17,7 +17,7 @@ import time
 from app import config
 from app.conversation.engine import ConversationEngine
 from app.conversation.store import ConversationStore
-from app.conversation.workflow import load_workflow
+from app.agents.templates import load_template
 from app.llm.client import LLMClient
 
 SCENARIOS = {
@@ -68,7 +68,7 @@ SCENARIOS = {
 
 
 def engine_fields(workflow_id):
-    return sorted(load_workflow(workflow_id).fields, key=lambda f: load_workflow(workflow_id).fields[f].priority)
+    return sorted(load_template(workflow_id).fields, key=lambda f: load_template(workflow_id).fields[f].priority)
 
 
 async def run(engine, workflow_id, answers, max_turns=12):
@@ -102,7 +102,7 @@ async def run(engine, workflow_id, answers, max_turns=12):
 
 async def main(n: int, only: str | None):
     engine = ConversationEngine(LLMClient(config.VLLM_LLM_BASE_URL, config.VLLM_API_KEY, config.VLLM_LLM_MODEL),
-                                ConversationStore("sqlite://"))
+                                ConversationStore.for_dsn("sqlite://"))
     all_times = []
     for name, (workflow_id, answers) in SCENARIOS.items():
         if only and name != only:

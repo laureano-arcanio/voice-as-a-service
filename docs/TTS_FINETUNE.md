@@ -10,7 +10,7 @@ Servido hoy: `multi41` época 2, un checkpoint con las 41 voces completas de Ope
 
 El catálogo es [`tts/finetune/voces.tsv`](../tts/finetune/voces.tsv): `nombre`, `openslr` (id y
 carpeta de datos), `genero`, `wer` y `car_s`. Las métricas son del checkpoint servido y la app
-las usa para filtrar voces (dashboard y `GET /api/voices`). `sofia` es `arf_03034`, la voz que
+las usa para filtrar voces (UI y `GET /api/v1/voices`). `sofia` es `arf_03034`, la voz que
 usaba el agente antes de `multi41`. Las 3 voces de OpenSLR con ~1 min (`arf_02485`,
 `arf_03398`, `arf_04311`) quedaron afuera.
 
@@ -209,8 +209,9 @@ Y desde la raíz: `make up-inference` (recrea `vllm-tts`) y `make up-agent` (el 
 `VLLM_TTS_MODEL` y `VLLM_TTS_VOICE`).
 
 - El log de `vllm-tts` tiene que listar todas las voces: `Loaded 41 supported speakers: [...]`.
-- Si cambian los nombres de las voces: actualizar `VLLM_TTS_VOICE` y `agent.voice` de los
-  workflows **al mismo tiempo**, también en los hosts que usan este TTS por el proxy
+- Si cambian los nombres de las voces: actualizar `VLLM_TTS_VOICE`, `tts/finetune/voces.tsv`
+  (catálogo que valida la API) y `agent.voice` de los agentes (UI o `PUT /api/v1/agents/{id}/definition`)
+  y de las plantillas **al mismo tiempo**, también en los hosts que usan este TTS por el proxy
   (modo remoto). Un nombre que no está da 400 en cada frase.
 - Si solo cambian los pesos y no el nombre del modelo ni la voz, alcanza con `make up-inference`.
 - `make up-agent` construye la imagen con el árbol de trabajo. Si hay cambios de otra sesión en
@@ -318,14 +319,15 @@ curl -H "Authorization: Bearer $VLLM_API_KEY" -H "Content-Type: application/json
   (ver Trampas 8).
 - Una voz que no existe da 400 (`Invalid voice ... Supported: ...`) y el servidor sigue andando.
 - Qué voz usa el agente, en orden:
-  1. La elegida en el dashboard para esa llamada (`voice` en `POST /calls`).
-  2. `agent.voice` del workflow.
+  1. La elegida en la UI para esa llamada (`voice` en `POST /api/v1/calls`).
+  2. `agent.voice` de la definición del agente.
   3. `VLLM_TTS_VOICE`.
   Antes de cada llamada el agente mira `GET /v1/audio/voices` (cacheado 60 s). Si la voz pedida no
   está servida, usa `VLLM_TTS_VOICE` y lo loguea como error.
-- Filtrar voces por métricas: `GET /api/voices?genero=mujer&wer_max=3&car_min=15&car_max=18` en la app.
+- Filtrar voces por métricas: `GET /api/v1/voices?genero=mujer&wer_max=3&car_min=15&car_max=18` (o la página Voces de la UI).
   Al servir otro checkpoint, recalcular las métricas:
-  `GET /api/voices` lee `voces.tsv`, y la app lo copia en la imagen.
+  `GET /api/v1/voices` lee `voces.tsv`, y la app lo copia en la imagen. La API también lo usa para
+  validar `agent.voice` al guardar un agente.
 
 ## Trampas
 

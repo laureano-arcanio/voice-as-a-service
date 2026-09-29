@@ -250,17 +250,13 @@ def servicios():
 
 
 def workflow_info(wid):
-    out = {"id": wid, "sha1": "", "extends": "", "extends_sha1": ""}
-    p = os.path.join(REPO, "app", "workflows", f"{wid}.yml")
-    txt = rd(p)
-    if not txt:
-        return out
-    out["sha1"] = short_hash(txt)
-    m = re.search(r"^extends:\s*([\w.-]+)", txt, re.M)
-    if m:
-        out["extends"] = m.group(1)
-        base = rd(os.path.join(REPO, "app", "workflows", f"{m.group(1)}.yml"))
-        out["extends_sha1"] = short_hash(base) if base else ""
+    """Plantilla del agente (app/agents/templates/<id>.json; el seed crea el agente del
+    cliente interno desde ahi). Hasta sep-2026 era el YAML de app/workflows: el sha1
+    cambio de formato aunque el workflow sea el mismo."""
+    out = {"id": wid, "sha1": ""}
+    txt = rd(os.path.join(REPO, "app", "agents", "templates", f"{wid}.json"))
+    if txt:
+        out["sha1"] = short_hash(txt)
     return out
 
 

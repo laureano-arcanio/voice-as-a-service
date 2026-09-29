@@ -1,22 +1,59 @@
-# AIVA Ventas (Browix) — Demo MVP
+# Oíme — agentes de voz telefónicos
 
-POC: un agente de IA (asesora comercial virtual de [Browix](https://browix.com), plataforma de
-gestion de personal) **atiende las llamadas de personas interesadas**, responde sus consultas y
-junta los datos del lead hasta ofrecer una demo con un asesor. Tambien puede llamar (saliente).
-Contexto del negocio: `docs/Browix_Contexto_Agente.md`.
+Plataforma de agentes de IA que **atienden y hacen llamadas** para varios clientes, con inferencia
+propia (LLM, STT y TTS sobre GPUs locales). Cada cliente tiene sus números, sus agentes y un
+**tier** con límites mensuales; todo se administra por API y desde la UI. El primer agente fue la
+asesora comercial de [Browix](https://browix.com) (`docs/Browix_Contexto_Agente.md`).
 
-La conversacion no es un guion: un **workflow YAML** define los datos a obtener (objetivos), el
-estado guarda lo que ya se sabe, y en cada turno el LLM extrae datos, elige el siguiente objetivo
-y redacta la respuesta. La app valida los datos y decide cuando termina. Detalle en "Motor
-conversacional" abajo; el diseño original esta en `docs/REFACTOR.md`.
+La conversacion no es un guion: la **definición del agente (workflow JSON)** fija los datos a
+obtener (objetivos), el estado guarda lo que ya se sabe, y en cada turno el LLM extrae datos, elige
+el siguiente objetivo y redacta la respuesta. La app valida los datos y decide cuando termina.
+Detalle en "Motor conversacional" abajo; el diseño original esta en `docs/REFACTOR.md`.
+
+- Arquitectura y detalles técnicos: [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
+- Cómo usar la UI (alta de clientes, agentes, números, usuarios): [`docs/GUIA_UI.md`](docs/GUIA_UI.md).
+
+## Plataforma: clientes, tiers, agentes y números
+
+| Entidad | Qué es |
+| --- | --- |
+| Tier | Límites: llamadas simultáneas, minutos entrantes y salientes por mes calendario (`BILLING_TIMEZONE`, default Buenos Aires) y cantidad de números. Vacío = ilimitado. |
+| Cliente | Tenant: un tier, sus números, agentes, usuarios y API keys. Inactivo: no llama ni atiende. |
+| Agente | Definición JSON del workflow (esquema: `GET /api/v1/agents/schema`), **versionada**: cada cambio es una versión nueva e inmutable y cada conversación guarda con cuál corrió. Se crea desde una plantilla (`app/agents/templates/*.json`). |
+| Número | Inventario de los números que provee Anura (E.164, únicos). El admin los carga libres (UI > Números, o `POST /api/v1/phone-numbers/bulk`), los asigna a un cliente hasta el tope de su tier y se rutean a un agente del cliente (el admin o el propio cliente): las entrantes a ese número las atiende ese agente. Liberar lo devuelve al inventario. Bajar de tier o de tope con más números asignados da 409. Después de cargar o borrar: `make livekit-sip`. |
+| Usuario | `admin` (opera la plataforma) o `client` (ve lo de su cliente, llama y maneja sus API keys). |
+
+**Límites (corte duro):** `POST /api/v1/calls` responde 429 (`concurrency_limit`,
+`outbound_minutes`, `inbound_minutes`, `client_inactive`) si no hay lugar o minutos; una entrante
+sin lugar escucha `QUOTA_REJECT_MESSAGE` y se corta (queda como `rechazada`). En curso, el worker
+revisa el saldo cada `QUOTA_CHECK_SECONDS` (15 s) contando todas las llamadas del cliente y corta
+al agotarse; la saliente además sale con `max_call_duration` = minutos que quedan. Las de prueba y
+el loadtest ocupan lugar pero no consumen minutos. La admisión toma un lock de fila del cliente:
+con 20 pedidos simultáneos y tope 3 entran exactamente 3 (medido en PostgreSQL).
+
+**API** (`/api/v1`, OpenAPI en `/api/v1/docs`): la UI usa una cookie de sesión (httpOnly,
+SameSite=Strict); los sistemas del cliente, `Authorization: Bearer vaas_...` (API key del cliente).
+
+```bash
+curl -X POST http://<host>:8011/api/v1/calls -H "Authorization: Bearer $VAAS_API_KEY" \
+  -H 'Content-Type: application/json' -d '{"agent_id": "<id>", "phone": "+5491155551234"}'
+```
+
+**UI** (`web/`, React + Vite, compilada dentro de la imagen de `app`): dashboard con filtros por
+cliente/agente/fecha, lanzador de llamadas y prueba de voz, detalle en vivo de cada llamada,
+clientes (consumo del mes, números, usuarios, API keys), tiers, agentes (editor JSON con
+validación, versiones, prueba por texto) y usuarios. Desarrollo: `make web-dev` (Vite en :5173
+contra la API de :8011); ver `web/README.md`.
 
 ## Stack
 
-- **Backend:** Python 3.12 + FastAPI + SQLAlchemy (PostgreSQL; SQLite en los tests), sin frontend.
+- **Backend:** Python 3.12 + FastAPI + SQLAlchemy 2 + Alembic (PostgreSQL; SQLite en los tests),
+  configuración con pydantic-settings, claves con argon2 y sesiones JWT.
+- **Frontend:** React 19 + TypeScript + Vite, Mantine, TanStack Query y tipos generados del OpenAPI (`web/`).
 - **Voz:** LiveKit Agents (STT + LLM + TTS, los 3 servidos localmente sobre GPU propia, ver
   "Inferencia local" abajo) sobre una troncal SIP (Anura via un Asterisk propio, ver "Telefonia"
-  abajo), en un worker propio (`app/livekit_agent.py`, contenedor `agent`). La app
-  (`app/main.py`) despacha el agente a una room nueva (`app/livekit_dispatch.py`). El worker
+  abajo), en un worker propio (`app/voice/worker.py`, contenedor `agent`). La app
+  despacha el agente a una room nueva (`app/services/livekit.py`). El worker
   reemplaza el `llm_node` de LiveKit por el motor conversacional, que guarda el estado en la base.
 
 ## Inferencia local
@@ -75,9 +112,9 @@ curl -H "Authorization: Bearer $VLLM_API_KEY" -H "Content-Type: application/json
 
 Que voz usa cada llamada, en orden:
 
-1. La elegida en el dashboard al lanzar la llamada (`voice` en `POST /calls`). El selector filtra
-   por genero, WER maximo y rango de car/s (`GET /api/voices?genero=&wer_max=&car_min=&car_max=`).
-2. La del workflow: `agent.voice` en el YAML (hoy `sofia` en los 3).
+1. La elegida en la UI al lanzar la llamada (`voice` en `POST /api/v1/calls`). El selector filtra
+   por genero, WER maximo y rango de car/s (`GET /api/v1/voices?genero=&wer_max=&car_min=&car_max=`).
+2. La del agente: `agent.voice` en su definición (hoy `sofia` en los de Browix).
 3. `VLLM_TTS_VOICE` del `.env`, si el workflow no define voz o si `vllm-tts` no sirve la voz
    pedida (el agente lo loguea como error, en vez de dar 400 en cada frase).
 
@@ -198,7 +235,7 @@ Acierto del dato completo; en direccion, completa / calle + altura:
 | | `tel8k_cuts` | 20% | 69% | 71% | **61%** / 75% |
 
 - **Los emails dictados son el punto debil de los tres** (20-40% en telefonico). Es el unico dato
-  personal que hoy pide el workflow del agente (`app/workflows/sales_discovery.yml`), asi que es lo que mas conviene
+  personal que hoy pide el workflow del agente (`app/agents/templates/sales_discovery.json`), asi que es lo que mas conviene
   atacar: repetir el dato al cliente para confirmarlo, o pedirlo deletreado.
 - Con audio telefonico, Parakeet y Qwen3-ASR van parejos y arriba de Whisper en email y DNI.
 - Whisper es el mejor con audio limpio (email 41%) y el que mas cae al pasar a telefonico (20%).
@@ -261,10 +298,15 @@ make setup   # crea .env desde .env.example; completar credenciales (ver "Claves
 make up      # todo: agente + inferencia + proxy + asterisk
 ```
 
+`make up` y `make up-agent` corren antes `make migrate`: migraciones de Alembic y un seed
+idempotente (tier y cliente `interno` sin límites, un agente por plantilla, `ANURA_DID` atendido
+por `WORKFLOW_ID`, y el admin `ADMIN_EMAIL`). Otro admin o cambio de clave:
+`make create-admin EMAIL=...`; API key de un cliente: `make api-key CLIENT=<slug> NAME=<nombre>`.
+
 | Target | Servicios |
 | --- | --- |
 | `make up` | todos |
-| `make up-agent` | `db` + `app` (`:8011`) + `agent` (worker de LiveKit), sin la inferencia |
+| `make up-agent` | `db` + `migrate` + `app` (`:8011`, UI y API) + `agent` (worker de LiveKit), sin la inferencia |
 | `make up-inference` | `vllm-llm` + `stt-parakeet` + `vllm-tts` (espera a que esten healthy) |
 | `make up-nginx` | `proxy` (entrada publica a la inferencia) |
 | `make up-pbx` | `asterisk` (lo recrea para releer `.env` y `asterisk/conf/`) |
@@ -328,15 +370,18 @@ el host GPU.
 
 ## Claves necesarias (completar en `.env`)
 
-1. `LIVEKIT_URL` / `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` — proyecto de LiveKit Cloud
+1. `AUTH_SECRET` (`openssl rand -hex 32`) — firma de las sesiones; sin ella la app no arranca.
+   `ADMIN_EMAIL` / `ADMIN_PASSWORD` para el primer admin. `AUTH_COOKIE_SECURE=false` mientras la
+   UI se sirva por HTTP plano.
+2. `LIVEKIT_URL` / `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` — proyecto de LiveKit Cloud
    (Project Settings → Keys).
-2. `LIVEKIT_SIP_TRUNK_ID` — troncal SIP saliente de LiveKit (Anura: `make livekit-sip`, ver
+3. `LIVEKIT_SIP_TRUNK_ID` — troncal SIP saliente de LiveKit (Anura: `make livekit-sip`, ver
    "Telefonia: Anura via Asterisk" abajo). Opcional: vacio, el agente usa la que se llama
    `anura-asterisk-outbound`.
-3. Nada mas: LLM/STT/TTS corren localmente (ver "Inferencia local (vLLM)" arriba), no
+4. Nada mas: LLM/STT/TTS corren localmente (ver "Inferencia local (vLLM)" arriba), no
    hace falta ninguna API key de proveedor externo. `HF_TOKEN` es opcional, solo si
    algun modelo llegara a requerir aceptar licencia en HuggingFace.
-4. Solo si se exponen los vLLM por la IP fija (ver "Exponer los vLLM por la IP fija"
+5. Solo si se exponen los vLLM por la IP fija (ver "Exponer los vLLM por la IP fija"
    arriba): `VLLM_API_KEY` (clave real) y `PUBLIC_HOST`.
 
 ### Telefonia: Anura via Asterisk
@@ -350,32 +395,50 @@ completo (port forwarding del router, troubleshooting): `docs/TELEFONIA_ANURA.md
    `LIVEKIT_SIP_PASSWORD`).
 2. Router: redirigir `5080/udp` y `10000-10199/udp` a este host y apagar el SIP ALG.
 3. `make up-pbx` y `make pbx-status` -> el registro con Anura tiene que decir `Registered`.
-4. `make livekit-sip` -> crea los trunks entrante/saliente y la dispatch rule en LiveKit.
+4. `make livekit-sip` -> crea los trunks entrante/saliente y la dispatch rule en LiveKit, con
+   los números de la tabla `phone_numbers` (volver a correrlo al agregar o quitar números).
    Con `LIVEKIT_SIP_TRUNK_ID` vacio el agente usa el trunk saliente por nombre; si se prefiere
    fijarlo, poner el `ST_...` que imprime y `make up-agent` (recrea el agente con el `.env`
    nuevo). Con LiveKit propio, `make up` corre este paso solo (`docs/TELEFONIA_ANURA.md`, 7).
 
 Despues de editar `.env`: `docker compose up -d`.
 
+Entrantes: el worker lee el número marcado (`sip.trunkPhoneNumber`), busca el número en la base y
+atiende con su agente y los límites de su cliente; un número sin agente se corta. Salientes: salen
+con el primer número del cliente (o el elegido) como `sip_number`, pero hoy Asterisk fija el caller
+ID en `ANURA_DID` (`docs/TELEFONIA_ANURA.md`).
+
 ## Motor conversacional
 
 ```text
 app/
-  main.py                    API: /conversations, /conversations/{id}/turn, /calls; dashboard y /api/*
-  livekit_agent.py           worker de voz: STT -> motor -> TTS
-  db.py                      base comun (PostgreSQL; SQLite en tests): Base, jsonb, engine, create_all
-  calls.py                   CallLog: tabla `call_logs` (telefono, estado, duracion, latencia)
-  latency.py                 latencia por turno: EOU + LLM + TTS
-  workflows/sales_discovery.yml
+  main.py                    create_app: API en /api/v1 y la SPA (web/dist) en el resto
+  config.py                  Settings (pydantic-settings, .env)
+  db.py                      Base, jsonb, engine y sesiones
+  cli.py                     seed, create-admin, create-api-key
+  runtime.py                 motor conversacional compartido por API y worker
+  models/                    ORM: tiers, clients, phone_numbers, users, api_keys, agents,
+                             agent_versions, conversations, call_logs
+  api/                       FastAPI: deps (auth y permisos), schemas, routers por recurso
+  services/                  negocio sin HTTP: quota (limites), calls, agents, reports, security, tts, voices
+  agents/
+    templates/*.json         plantillas de agentes (antes app/workflows/*.yml)
+    definitions.py           DbDefinitions: versiones de la base, cacheadas (inmutables)
+    templates.py             TemplateDefinitions: plantillas (eval y tests)
+  voice/
+    worker.py                worker de LiveKit: STT -> motor -> TTS, entrantes por numero, corte por minutos
+    latency.py               latencia por turno: EOU + LLM + TTS
   conversation/
-    models.py                Workflow, ConversationState, AgentTurn (Pydantic)
-    workflow.py              carga del YAML, validacion, required_if, is_workflow_complete
+    models.py                Workflow (definicion del agente), ConversationState, AgentTurn
+    workflow.py              validacion, required_if, is_workflow_complete, outcomes
     engine.py                ConversationEngine: start_conversation, process_turn
-    store.py                 ConversationStore: tabla `conversations` (get, save)
+    store.py                 ConversationStore: tabla `conversations`
   llm/
     client.py                LLMClient: chat completions con JSON schema del workflow
     prompt.py                system prompt unico + WORKFLOW / CURRENT STATE / NEW USER MESSAGE
-tests/                       motor con LLM falso + escenarios contra el LLM real
+migrations/                  Alembic (make migrate)
+web/                         UI (React + Vite)
+tests/                       API, limites, motor con LLM falso + escenarios contra el LLM real
 ```
 
 **Un turno:** llega el mensaje (por la API o transcripto por el STT en una llamada) →
@@ -395,12 +458,12 @@ vuelve a preguntar. Al completar, el resultado se calcula con los datos extraíd
 sería el objetivo (`goal`) pero faltan datos obligatorios, es `incompleta`.
 
 **Motor clásico (`engine: classic`):** la alternativa sin estado por turno. El prompt de sistema se
-arma del YAML (agente, objetivo, reglas, datos a obtener con su pregunta y condición, base de
+arma de la definición (agente, objetivo, reglas, datos a obtener con su pregunta y condición, base de
 conocimiento y mensajes de cierre); la conversación va como mensajes multiturno y el LLM responde
 texto, que va directo al TTS. Al despedirse agrega `[FIN]` (no se dice) y ahí se hace la única
 extracción, con el mismo extractor; si el cliente corta antes, se extrae al cortar
 (`ConversationEngine.finish`). No hay `next_objective`, así que no se estira el endpointing al
-dictar un email. `berlin_signup_classic.yml` es `berlin_signup` con `extends` y `engine: classic`;
+dictar un email. `berlin_signup_classic` es `berlin_signup` con `engine: classic`;
 el dashboard elige el agente por llamada. Con las 3 llamadas reales x5 (sep-2026): datos bien 88
 contra 87 de 95 del estructurado, inventados 1 contra 6 (la extracción por turno inventaba la
 actividad en 704b5d42), resultado correcto 13 contra 12 de 15; turno de conversación p50 0,58
@@ -428,53 +491,46 @@ esperado. Con N=5 (sep-2026), antes y después de separar la extracción: datos 
 inventados o equivocados 6 → 2, resultado correcto 10 → 15 de 15.
 
 **Eval de calidad del LLM** (`make eval-llm`, `docs/EVAL_LLM_PLAN.md`, resultados en `docs/eval/`): corre el
-motor por texto contra agentes de cobranza, relevamiento, toma de datos, turnos y venta (`app/workflows/eval_*.yml`)
+motor por texto contra agentes de cobranza, relevamiento, toma de datos, turnos y venta (`app/agents/templates/eval_*.json`)
 con clientes cooperativos, apurados, confusos, hostiles, evasivos y fuera de guion, actuados por un LLM externo
 (DeepSeek, `EVAL_LLM_*`) o por guion fijo. Mide datos contra la ficha, cierre, reglas de voz, loops y latencia, y
 un juez califica la conversación. Sirve para comparar modelos LLM y motores (`--engine structured`).
 
 **Workflows:** `demo_booking` presenta Browix en ~15 s si el interesado
 acepta, pregunta a qué se dedica la empresa, conecta su necesidad con una función de Browix y
-busca agendar una demo (todo como guía en el YAML; el LLM decide el orden) (nombre + mail o teléfono); si duda, ofrece llamarlo otro día.
+busca agendar una demo (todo como guía en la definición; el LLM decide el orden) (nombre + mail o teléfono); si duda, ofrece llamarlo otro día.
 `sales_discovery` es el anterior, de calificación con 11 datos (lo usan los tests del motor).
-`demo_booking_classic` es el mismo con `engine: classic` y es el default (`WORKFLOW_ID`): en el loadtest
+`demo_booking_classic` es el mismo con `engine: classic` y es el de `ANURA_DID` en el seed (`WORKFLOW_ID`): en el loadtest
 (EXP-013) baja la espera del cliente ~0,5 s con 32 llamadas y ~0,8 s con 48, con la mitad de pedidos al LLM.
 
-**Nuevo workflow:** copiar uno de `app/workflows/` como `<id>.yml` (mismo `id` adentro) y usarlo
-con `{"workflow_id": "<id>"}` o `WORKFLOW_ID=<id>`. `engine: structured` (default) o `classic` elige el
-motor; `extends: <id>` hereda otro workflow y pisa las claves de primer nivel que define. Por campo:
+**Nuevo agente:** en la UI (Agentes > Nuevo agente) o `POST /api/v1/agents` con `template_id`
+(una de `app/agents/templates/`) o `definition` (JSON). `id` y `version` de la definición los fija
+la app (slug y versión). `engine: structured` (default) o `classic` elige el motor. Por campo:
 - `type`: `string`, `integer`, `boolean`, `email`, `email_or_phone` o `choice` (con `options`).
-  En YAML, los valores como `no` o `si` van entre comillas (`no` sin comillas es false).
 - `required` o `required_if` (solo igualdades); los no obligatorios se guardan si el usuario los dice.
 - `question` es una pregunta sugerida; las reglas y la base de conocimiento guían al LLM.
 
+Al guardar se valida: nombres de campo en minúsculas, `choice` con opciones, `required_if` y
+`when` sobre campos existentes, el último resultado sin `when` (default) y la voz en el catálogo.
 `completion.outcomes` clasifica la llamada al terminar (gana el primero cuyo `when` se cumple;
 `goal: true` marca el objetivo, que cuenta el dashboard). Su `message` es un cierre sugerido al LLM.
 
-**Probar por texto** (sin voz):
+**Probar por texto** (sin voz; en la UI, pestaña "Probar" del agente):
 
 ```bash
-curl -s -X POST localhost:8011/conversations -H 'Content-Type: application/json' -d '{}'
-curl -s -X POST localhost:8011/conversations/<id>/turn -H 'Content-Type: application/json' \
+H="Authorization: Bearer $VAAS_API_KEY"
+curl -s -X POST localhost:8011/api/v1/conversations -H "$H" -H 'Content-Type: application/json' -d '{"agent_id": "<id>"}'
+curl -s -X POST localhost:8011/api/v1/conversations/<id>/turns -H "$H" -H 'Content-Type: application/json' \
   -d '{"message": "Soy Juan de Acme, hacemos logística y somos unas 80 personas."}'
-curl -s localhost:8011/conversations/<id>     # estado y transcript
 ```
 
-**Probar por voz:** `POST /calls` con `{}` devuelve un `join_url` de LiveKit Meet (modo prueba);
-con `{"phone": "+549..."}` marca por la troncal saliente. Las entrantes crean su conversacion solas.
+**Probar por voz:** `POST /api/v1/calls` con `{"agent_id"}` devuelve un `join_url` de LiveKit Meet
+(modo prueba); con `"phone": "+549..."` marca por la troncal saliente. Las entrantes crean su
+conversacion solas, con el agente del número marcado.
 
-**Dashboard** (`http://<host>:8011/`):
-- `/`: lanza llamadas (telefono o modo prueba), metricas (workflow completo, piden demo, fallidas,
-  minutos, latencia por turno), grafico por dia, tarjeta "En vivo" y la tabla de conversaciones.
-- `/calls/<id>`: el estado del workflow (datos obtenidos y pendientes) al lado de la conversacion,
-  actualizados cada 1 s mientras la llamada sigue; al final, la latencia por turno. Cada respuesta
-  del agente despliega la salida exacta del LLM en ese turno, con su entrada y duracion; "Salida
-  del LLM" las abre todas.
-- `/workflow`: el YAML vigente, de solo lectura.
-
-Cada conversacion vive en `conversations` (datos y mensajes, los escribe el motor en cada turno);
-`call_logs` agrega lo telefonico. Las conversaciones creadas por `/conversations` (texto) aparecen
-como origen "API". El mensaje del cliente se ve cuando el motor responde (se guardan juntos).
+Cada conversacion vive en `conversations` (datos y mensajes, los escribe el motor en cada turno) con
+su cliente, agente y versión; `call_logs` agrega lo telefonico y es la base del consumo. Las
+conversaciones por texto aparecen como origen "API".
 
 **Tests:** `make test` (los escenarios contra el LLM se saltean si `vllm-llm` no responde).
 

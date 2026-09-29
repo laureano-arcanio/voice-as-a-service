@@ -19,7 +19,7 @@ REGLAS = {
     "digitos": re.compile(r"\d"),
     # Usted o tuteo en vez de voseo: vistos en el humo ("Disculpe la molestia",
     # "Le comento", "que puedes verificar").
-    "usted": re.compile(r"\busted\b|\bdesea\b|\bdisculpe\b|\ble (comento|llamo|llamaba|paso|pido)\b|"
+    "usted": re.compile(r"\busted\b|\bdesea\b|\bdisculpe\b|\ble (comento|llamo|llamaba|paso|pido|recordamos|recuerdo)\b|"
                         r"\b(puedes|tienes|quieres|prefieres|necesitas)\b", re.I),
 }
 SIGLA = re.compile(r"\b[A-ZÁÉÍÓÚÑ]{2,}\b")

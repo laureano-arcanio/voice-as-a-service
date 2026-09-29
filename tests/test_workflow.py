@@ -1,19 +1,22 @@
 import pytest
 from pydantic import ValidationError
 
+from app.agents.templates import load_template, template_ids
 from app.conversation.models import AgentInfo, ConversationState
 from app.conversation.workflow import (
-    WORKFLOWS_DIR, check_updates, is_workflow_complete, load_workflow, pending_fields, validate_updates,
+    check_updates,
+    is_workflow_complete,
+    pending_fields,
+    validate_updates,
 )
 
 from .helpers import BASE
 
 
-
 def state_with(workflow, **fields):
     values = {name: None for name in workflow.fields}
     values.update(fields)
-    return ConversationState(conversation_id="c", workflow_id=workflow.id, fields=values)
+    return ConversationState(conversation_id="c", agent_id=workflow.id, fields=values)
 
 
 def test_pending_follows_priority(workflow):
@@ -71,8 +74,8 @@ def test_email_must_be_said_by_the_user(workflow):
 
 
 def test_every_workflow_has_a_voice():
-    for path in WORKFLOWS_DIR.glob("*.yml"):
-        assert load_workflow(path.stem).agent.voice, path.stem
+    for tid in template_ids():
+        assert load_template(tid).agent.voice, tid
 
 
 @pytest.mark.parametrize("voice", ["default", " ", "Default"])

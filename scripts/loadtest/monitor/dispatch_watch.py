@@ -5,10 +5,11 @@ Corre dentro del contenedor agent (tiene livekit-api y las credenciales):
 Cortar: matar el docker exec y el proceso "python -" del contenedor (no tiene kill:
 usar os.kill desde python).
 
-Cada 3 s toma las llamadas de loadtest de los ultimos 90 s (app /api/calls) y,
+Cada 3 s toma las llamadas de loadtest de los ultimos 90 s (app /api/v1/calls) y,
 para las que todavia no tienen un job corriendo, lista el dispatch de su room:
 estado de cada job (JS_PENDING/RUNNING/...), error y worker. A los ~8 s sin job
 lista una vez los participantes de la room. Escribe una linea JSON por cambio.
+La API pide VAAS_API_KEY (scripts/loadtest/api.py): pasarla con `docker exec -e`.
 """
 import asyncio
 import datetime
@@ -19,6 +20,8 @@ import time
 import httpx
 from livekit import api
 from livekit.protocol import agent as lkagent
+
+AUTH = {"Authorization": f"Bearer {os.environ.get('VAAS_API_KEY', '')}"}
 
 APP = "http://app:8011"
 POLL_S, TRACK_S, PARTS_AT_S = 3.0, 90.0, 8.0
@@ -31,11 +34,11 @@ def emit(**kw):
 async def main():
     last, done, parts_done = {}, set(), set()
     async with api.LiveKitAPI(os.environ["LIVEKIT_URL"], os.environ["LIVEKIT_API_KEY"],
-                              os.environ["LIVEKIT_API_SECRET"]) as lk, httpx.AsyncClient(timeout=5) as http:
+                              os.environ["LIVEKIT_API_SECRET"]) as lk, httpx.AsyncClient(timeout=5, headers=AUTH) as http:
         emit(event="start")
         while True:
             try:
-                calls = (await http.get(f"{APP}/api/calls", params={"limit": 100})).json()
+                calls = (await http.get(f"{APP}/api/v1/calls", params={"limit": 100, "mode": "loadtest"})).json()["items"]
             except Exception as e:  # noqa: BLE001
                 emit(event="app_error", error=str(e)[:200])
                 await asyncio.sleep(POLL_S)

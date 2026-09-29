@@ -1,12 +1,13 @@
 """Crea (o actualiza) en LiveKit Cloud los 3 objetos SIP de la troncal de Anura
 via Asterisk (ver docs/TELEFONIA_ANURA.md):
 
-  - inbound trunk (Asterisk -> LiveKit): acepta llamadas a +54<ANURA_DID>
-    autenticadas con usuario "livekit" y LIVEKIT_SIP_PASSWORD.
+  - inbound trunk (Asterisk -> LiveKit): acepta llamadas a los numeros de los
+    clientes (tabla phone_numbers; +54<ANURA_DID> si la base no responde o no
+    tiene ninguno) autenticadas con usuario "livekit" y LIVEKIT_SIP_PASSWORD.
   - dispatch rule: una room nueva por llamada entrante (prefijo "anura-") con
     el agente LIVEKIT_AGENT_NAME despachado. Sin metadata a proposito: el
-    agente reconoce una entrante porque no trae conversation_id
-    (app/livekit_agent.py).
+    agente reconoce una entrante porque no trae conversation_id y la rutea por
+    el numero marcado al agente de ese numero (app/voice/worker.py).
   - outbound trunk (LiveKit -> Asterisk): a donde manda LiveKit las llamadas
     que marca el agente (create_sip_participant). Su ID va en
     LIVEKIT_SIP_TRUNK_ID.
@@ -22,6 +23,9 @@ Con LiveKit propio, `make up` lo corre solo al final: su Redis no persiste
 objetos y las entrantes vuelven con 486 hasta recrearlos. Como el ID del trunk
 saliente cambia cada vez, con LiveKit propio conviene dejar LIVEKIT_SIP_TRUNK_ID
 vacio: el agente lo busca por nombre (OUTBOUND_NAME) al marcar.
+
+Al agregar o quitar numeros en la UI, volver a correrlo. Anura y Asterisk tienen
+que entregar esos numeros (docs/TELEFONIA_ANURA.md).
 
 Uso: make livekit-sip
 """
@@ -91,11 +95,26 @@ async def upsert(name, items, create, update):
     return await create(), "creado"
 
 
+def client_numbers() -> list[str]:
+    """Numeros E.164 de la tabla phone_numbers ([] si la base no responde)."""
+    try:
+        from sqlalchemy import select
+
+        from app.db import get_sessionmaker
+        from app.models import PhoneNumber
+
+        with get_sessionmaker()() as s:
+            return sorted(s.scalars(select(PhoneNumber.e164)))
+    except Exception as e:  # noqa: BLE001
+        print(f"aviso: no se pudieron leer los numeros de la base ({e}); uso ANURA_DID", file=sys.stderr)
+        return []
+
+
 async def main() -> None:
     did = required("ANURA_DID")
     if not re.fullmatch(r"\d{10}", did):
         sys.exit("ANURA_DID tiene que ser el numero nacional de 10 digitos, sin 0 ni 15 ni +54 (ej. 1152630861)")
-    number = f"+54{did}"
+    numbers = sorted({f"+54{did}", *client_numbers()})
     password = required("LIVEKIT_SIP_PASSWORD")
     agent_name = required("LIVEKIT_AGENT_NAME")
     address = (os.getenv("LIVEKIT_SIP_OUTBOUND_ADDRESS", "").strip()
@@ -109,7 +128,7 @@ async def main() -> None:
     ) as lk:
         inbound_info = api.SIPInboundTrunkInfo(
             name=INBOUND_NAME,
-            numbers=[number],
+            numbers=numbers,
             auth_username=SIP_USERNAME,
             auth_password=password,
         )
@@ -139,7 +158,8 @@ async def main() -> None:
             name=OUTBOUND_NAME,
             address=address,
             transport=api.SIPTransport.SIP_TRANSPORT_UDP,
-            numbers=[number],
+            # Caller IDs posibles: el numero del cliente que llama (sip_number).
+            numbers=numbers,
             auth_username=SIP_USERNAME,
             auth_password=password,
             destination_country=DESTINATION_COUNTRY,
@@ -151,7 +171,7 @@ async def main() -> None:
             lambda t: lk.sip.update_outbound_trunk(t.sip_trunk_id, outbound_info),
         )
 
-    print(f"Inbound trunk  {inbound.sip_trunk_id} ({inbound_action}): acepta llamadas a {number}")
+    print(f"Inbound trunk  {inbound.sip_trunk_id} ({inbound_action}): acepta llamadas a {', '.join(numbers)}")
     print(f"Dispatch rule  {dispatch.sip_dispatch_rule_id} ({dispatch_action}): room anura-* -> agente {agent_name}")
     print(f"Outbound trunk {outbound.sip_trunk_id} ({outbound_action}): LiveKit -> Asterisk en {address}/udp")
     configured = os.getenv("LIVEKIT_SIP_TRUNK_ID", "")

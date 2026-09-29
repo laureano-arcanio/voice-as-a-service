@@ -1,3 +1,7 @@
+> **Histórico (sep-2026):** este es el pedido original del motor conversacional. Los workflows ya no
+> son YAML: son agentes con definición JSON versionada en la base (plantillas en
+> `app/agents/templates/`). Arquitectura vigente: [`ARQUITECTURA.md`](ARQUITECTURA.md).
+
 Quiero que implementes un MVP de un motor conversacional basado en objetivos definidos en YAML.
 
 La idea principal es NO implementar un chatbot basado en un guion rígido ni una FSM tradicional.

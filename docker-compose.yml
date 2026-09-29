@@ -1,7 +1,7 @@
 services:
   db:
     # PostgreSQL 16 (antes MySQL 8; se migro sin conservar datos). El esquema lo
-    # crea la app al arrancar (app/db.py, create_all); no hay migraciones.
+    # manejan las migraciones de Alembic (servicio migrate, migrations/).
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
@@ -23,6 +23,26 @@ services:
       retries: 20
       start_period: 30s
 
+  # Migraciones (alembic upgrade head) y seed idempotente (cliente interno, agentes de
+  # las plantillas, admin de ADMIN_EMAIL): corre una vez antes de app y agent.
+  migrate:
+    build:
+      context: .
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DB_DSN: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    command: ["sh", "-c", "alembic upgrade head && python -m app.cli seed"]
+    healthcheck:
+      disable: true
+    restart: "no"
+
   app:
     build:
       context: .
@@ -33,8 +53,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      # Solo vllm-llm: /rescore (app/main.py) llama a scoring.py, que le pega
-      # al LLM. No usa STT/TTS directo (eso lo hace el worker `agent`).
+      migrate:
+        condition: service_completed_successfully
+      # vllm-llm: la conversacion por texto (/api/v1/conversations) usa el LLM. No
+      # usa STT directo (eso lo hace el worker `agent`); al TTS solo le pide la
+      # prueba de voz de la UI (/api/v1/tts/preview), sin depender de el.
       vllm-llm:
         condition: service_healthy
     env_file:
@@ -57,6 +80,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       vllm-llm:
         condition: service_healthy
       stt-parakeet:
@@ -67,7 +92,7 @@ services:
       - .env
     environment:
       DB_DSN: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-    command: ["python", "-m", "app.livekit_agent", "start"]
+    command: ["python", "-m", "app.voice.worker", "start"]
     # The image's HEALTHCHECK probes the FastAPI app's /health over HTTP, which
     # this service doesn't serve (it's a worker process, no HTTP port) -- disable
     # it here so `docker compose ps` doesn't show a misleading "unhealthy".

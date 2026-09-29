@@ -1,6 +1,7 @@
+import re
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class AgentInfo(BaseModel):
@@ -55,6 +56,9 @@ class Completion(BaseModel):
 
 
 class Workflow(BaseModel):
+    """Definicion de un agente. Se guarda como JSON (agents.definition en la base,
+    app/agents/templates/*.json las plantillas). id y version los fija la app: el
+    slug del agente y su version."""
     id: str
     version: int
     # structured: por turno el LLM responde en JSON y otra llamada extrae los
@@ -67,6 +71,31 @@ class Workflow(BaseModel):
     knowledge: str = ""
     fields: dict[str, FieldSpec]
     completion: Completion
+
+    @model_validator(mode="after")
+    def _consistent(self) -> "Workflow":
+        """Lo que el motor da por sentado: las definiciones ahora se editan desde la UI."""
+        if not self.fields:
+            raise ValueError("fields: el agente necesita al menos un dato a obtener")
+        for name, spec in self.fields.items():
+            if not re.fullmatch(r"[a-z][a-z0-9_]*", name):
+                raise ValueError(f"fields.{name}: usar minusculas, numeros y _ (ej. contact_name)")
+            if spec.type == "choice" and not spec.options:
+                raise ValueError(f"fields.{name}: un campo choice necesita options")
+            for dep in spec.required_if or {}:
+                if dep not in self.fields:
+                    raise ValueError(f"fields.{name}.required_if: {dep} no es un campo")
+        outcomes = self.completion.outcomes
+        if not outcomes or outcomes[-1].when:
+            raise ValueError("completion.outcomes: el ultimo resultado tiene que ser el default, sin when")
+        ids = [o.id for o in outcomes]
+        if len(set(ids)) != len(ids):
+            raise ValueError("completion.outcomes: ids repetidos")
+        for o in outcomes:
+            for dep in o.when:
+                if dep not in self.fields:
+                    raise ValueError(f"completion.outcomes.{o.id}.when: {dep} no es un campo")
+        return self
 
 
 class Message(BaseModel):
@@ -90,7 +119,11 @@ class Progress(BaseModel):
 
 class ConversationState(BaseModel):
     conversation_id: str
-    workflow_id: str
+    # Agente (su definicion es el workflow) y version con que corre la conversacion.
+    # Con plantillas (eval, tests) agent_id es el id de la plantilla.
+    agent_id: str
+    agent_version: int = 1
+    client_id: str | None = None
     status: Literal["active", "completed"] = "active"
     fields: dict[str, Any]
     messages: list[Message] = Field(default_factory=list)

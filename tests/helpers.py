@@ -35,8 +35,8 @@ class FakeLLM:
         return Extraction(fields=fields, raw=json.dumps(fields, ensure_ascii=False))
 
 
-def start_with(engine: ConversationEngine, last_question: str | None = None, workflow_id="sales_discovery", **fields):
-    state, _ = engine.start_conversation(workflow_id)
+def start_with(engine: ConversationEngine, last_question: str | None = None, agent_id="sales_discovery", **fields):
+    state, _ = engine.start_conversation(agent_id)
     state.fields.update(fields)
     if last_question:
         state.messages += [Message(role="user", text="..."), Message(role="assistant", text=last_question)]

@@ -60,6 +60,7 @@ con ~140 W menos. Con este reparto, el límite de GPU es la 5060 Ti y el de CPU 
 |---|---|---|---|---|---|---|---|---|---|
 | [001](CAP-001-2x3090-pl280-classic/) | 2026-09-25 | 2 × 3090 a 280 W (`8489259f`) | classic; LLM solo en una 3090, TTS + STT en la otra | base, rampa | ~32 | ~32 | GPUs; con 64, CPU | 1,61 s | 0,12 / 104 |
 | [002](CAP-002-5060ti-tts-3090-llm-stt-classic/) | 2026-09-25 | 5060 Ti 8 GB + 3090 a 280 W (`03dfeb24`) | classic; TTS solo en la 5060 Ti, LLM + STT en la 3090 | base, rampa, fina, sostenida | ~22 (p95 2,8 s) | ~22 | 5060 Ti (TTS); con ~55, CPU | 1,66 s | 0,12 / 105–113 |
+| [004](CAP-004-5060ti-riser-x1-recableado-classic/) | 2026-09-28 | 5060 Ti en riser PCIe x1 recableado + 3090 a 280 W (`4af4cd18`) | classic; igual que CAP-002, 5060 Ti por x1 | rampa | ~21 (interpolado; p95 2,4 s con 13,9 y 4,6 s con 41,6) | ~21 | 5060 Ti (TTS); con 59, CPU | - | 0,11 / 103 |
 
 ## Calculadora de costos
 
@@ -76,6 +77,9 @@ con ~140 W menos. Con este reparto, el límite de GPU es la 5060 Ti y el de CPU 
 2. **Cliente** (la PC del loadtest, con LiveKit propio en su `.env`):
    ```bash
    make capacity PERFIL=rampa ARGS="--base-url http://192.168.1.99:8011" PING=192.168.1.99
+   # VAAS_API_KEY en el .env de la laptop: API key del cliente interno (sin límites),
+   # `make api-key CLIENT=interno NAME=capacidad` en el server. El agente del perfil
+   # (`workflow:`) es el slug de la plantilla, que el seed crea en ese cliente.
    ```
    Escribe su ficha (`hw_cliente.json`) y el run en `scripts/capacity/runs/<fecha>_<perfil>/`: `calls.csv`, `turns.csv`, `client.csv` y `run.json`.
 3. **Server**, al terminar:

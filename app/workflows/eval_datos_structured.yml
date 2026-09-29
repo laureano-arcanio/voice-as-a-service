@@ -1,5 +1,0 @@
-# El mismo agente que eval_datos con el motor estructurado (JSON por turno y
-# extraccion en cada turno), para comparar los dos motores en el eval del LLM.
-id: eval_datos_structured
-extends: eval_datos
-engine: structured

@@ -1,7 +1,7 @@
 # Makefile — AIVA Validate (voice-as-a-service)
 #
 # Atajos sobre `docker compose`. Stack por defecto (docker-compose.yml):
-#   agente:     db + app (dashboard y API :8011) + agent (worker de LiveKit)
+#   agente:     db + migrate + app (UI y API :8011) + agent (worker de LiveKit)
 #   inferencia: vllm-llm (Qwen3.5-4B) + stt-parakeet (Parakeet TDT 0.6B v3)
 #               + vllm-tts (Qwen3-TTS 1.7B, 41 voces fine-tuneadas)
 #   proxy:      nginx en :PROXY_PORT, entrada publica a la inferencia (loadtest)
@@ -26,7 +26,7 @@ COMPOSE := docker compose
 export UID := $(shell id -u)
 export GID := $(shell id -g)
 
-AGENT_SERVICES := db app agent
+AGENT_SERVICES := db migrate app agent
 INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
 
 .DEFAULT_GOAL := help
@@ -35,7 +35,8 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
         up up-agent up-inference up-nginx up-pbx down restart ps logs \
         sh psql health gpu \
         pbx-cli pbx-status livekit-sip livekit-sip-si-local \
-        test eval-motor eval-llamadas eval-llm eval-llm-juez eval-llm-report loadtest-audio loadtest loadtest-report capacity capacity-monitor capacity-monitor-stop capacity-analyze stt-eval stt-corpus \
+        migrate create-admin api-key web-dev web-build web-check openapi \
+        test eval-motor eval-llamadas eval-llm eval-llm-juez eval-llm-report loadtest-audio loadtest loadtest-report capacity capacity-monitor capacity-monitor-stop capacity-analyze gpubench stt-eval stt-corpus \
         db-reset clean
 
 help: ## Muestra esta ayuda
@@ -68,6 +69,7 @@ up: storage ## Levanta todo: agente + inferencia + proxy + asterisk (+ make live
 
 up-agent: storage ## Solo db + app + agent, sin la inferencia (--no-deps; usa VLLM_*_BASE_URL del .env)
 	$(COMPOSE) up -d --build --wait --no-deps db
+	@$(MAKE) --no-print-directory migrate
 	$(COMPOSE) up -d --build --no-deps app agent
 
 up-inference: ## Solo la inferencia: vllm-llm + stt-parakeet + vllm-tts (espera a que esten healthy)
@@ -143,10 +145,34 @@ livekit-sip-si-local:
 		$(MAKE) --no-print-directory livekit-sip; \
 	fi
 
+# --- Base, usuarios y UI -------------------------------------------------
+
+migrate: ## Migraciones de la base (alembic upgrade head) + seed idempotente (cliente interno, agentes, admin)
+	$(COMPOSE) run --rm --build --no-deps migrate
+
+create-admin: ## Crea un admin o le cambia la clave (la pide). Ej: make create-admin EMAIL=vos@empresa.com
+	$(COMPOSE) run --rm --no-deps app python -m app.cli create-admin $(EMAIL)
+
+api-key: ## API key de un cliente (se muestra una vez). Ej: make api-key CLIENT=interno NAME=loadtest
+	$(COMPOSE) run --rm --no-deps app python -m app.cli create-api-key $(CLIENT) $(NAME)
+
+web-dev: ## UI en modo desarrollo (Vite, :5173) contra la API de :8011. Requiere Node 22+
+	cd web && npm install && VITE_API_PROXY=$${VITE_API_PROXY:-http://127.0.0.1:8011} npm run dev
+
+web-build: ## Build de la UI en web/dist (la imagen de app la compila sola en el build)
+	cd web && npm ci && npm run build
+
+web-check: ## Lint, tipos y tests de la UI
+	cd web && npm ci && npm run lint && npm run typecheck && npm test
+
+openapi: ## Regenera web/openapi.json y los tipos de la UI (web/src/api/schema.d.ts) desde la API
+	$(COMPOSE) run --rm --no-deps -T -e AUTH_SECRET=openapi app python -c "import json; from app.main import app; print(json.dumps(app.openapi(), ensure_ascii=False, indent=1))" > web/openapi.json
+	cd web && npm run gen:api
+
 # --- Tests ---------------------------------------------------------------
 
 test: ## Tests del motor conversacional (los que usan el LLM se saltean si vllm-llm no responde)
-	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/tests:/app/tests -v $(CURDIR)/pytest.ini:/app/pytest.ini -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app/workflows:/app/app/workflows app pytest -q $(ARGS)
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/tests:/app/tests -v $(CURDIR)/pytest.ini:/app/pytest.ini -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app:/app/app app pytest -q $(ARGS)
 
 eval-motor: ## Escenarios de llamada contra el motor y el LLM real (scripts/replay_calls.py). Ej: make eval-motor N=3 S=si-pero
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts app python -m scripts.replay_calls $(or $(N),1) $(S)
@@ -155,13 +181,13 @@ eval-llamadas: ## Llamadas reales de berlin_signup repetidas tal cual: datos, re
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts app python -m scripts.replay_transcripts $(or $(N),1) $(S) $(if $(W),-w=$(W))
 
 eval-llm: ## Eval de calidad del LLM por tipo de agente y de cliente (scripts/eval, docs/EVAL_LLM_PLAN.md). Ej: make eval-llm ARGS="--humo --cliente guion"
-	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app/workflows:/app/app/workflows -e GIT_REV=$$(git rev-parse --short HEAD) app python -m scripts.eval.run $(ARGS)
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app/agents/templates:/app/app/agents/templates -e GIT_REV=$$(git rev-parse --short HEAD) app python -m scripts.eval.run $(ARGS)
 
 eval-llm-juez: ## Califica un run con el juez (EVAL_LLM_*). Ej: make eval-llm-juez RUN=scripts/eval/runs/<run> [ARGS="--pareado <otro run>"]
-	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app/workflows:/app/app/workflows -e GIT_REV=$$(git rev-parse --short HEAD) app python -m scripts.eval.juez $(RUN) $(ARGS)
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app/agents/templates:/app/app/agents/templates -e GIT_REV=$$(git rev-parse --short HEAD) app python -m scripts.eval.juez $(RUN) $(ARGS)
 
 eval-llm-report: ## Resumen y report.html de un run del eval. Ej: make eval-llm-report RUN=scripts/eval/runs/<run> [ARGS="--comparar <otro run>"]
-	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app/workflows:/app/app/workflows app python -m scripts.eval.analyze $(RUN) $(ARGS)
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app/agents/templates:/app/app/agents/templates app python -m scripts.eval.analyze $(RUN) $(ARGS)
 
 # --- Loadtest (anterior al test de capacidad, docs/archive/) y eval ------
 
@@ -204,6 +230,9 @@ capacity-monitor: ## Server: ficha de hardware/config y monitor (RAM por compone
 
 capacity-monitor-stop: ## Server: corta el monitor en curso
 	@d=$(CAP)/runs/monitor_actual; test -f $$d/monitor.pid && kill $$(cat $$d/monitor.pid) && echo "monitor detenido: $$(readlink $$d)" || echo "no hay monitor corriendo"
+
+gpubench: ## Benchmark de GPU (memoria y PCIe, % de la especificacion). Ej: make gpubench ARGS="--gpu 1 --out scratch/gpubench/3090.json"
+	python3 scripts/gpubench/gpubench.py $(ARGS)
 
 capacity-analyze: ## Analisis: make capacity-analyze RUN=<run cliente> [MON=<monitor>] [BASE=<summary.json de base>]
 	python3 $(CAP)/analyze.py $(RUN) $(if $(MON),--monitor $(MON)) $(if $(BASE),--base $(BASE)) --md

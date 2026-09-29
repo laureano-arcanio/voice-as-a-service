@@ -1,34 +1,21 @@
-import datetime
+from sqlalchemy.orm import Session, sessionmaker
 
-from sqlalchemy import DateTime, Index, String
-from sqlalchemy.orm import Mapped, mapped_column
-
-from ..db import Base, JSONDoc, create_schema, make_engine, make_sessions, utcnow
+from ..db import create_schema, make_engine, make_sessions
+from ..models import ConversationRow
 from .models import ConversationState, Progress
 
 
-class ConversationRow(Base):
-    """Estado del motor conversacional: datos extraidos, mensajes y progreso."""
-    __tablename__ = "conversations"
-    __table_args__ = (
-        # El dashboard lista de la mas nueva a la mas vieja y filtra por fecha (main.chart).
-        Index("ix_conversations_created_at", "created_at"),
-    )
-    id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    workflow_id: Mapped[str] = mapped_column(String(64))
-    status: Mapped[str] = mapped_column(String(16))
-    fields: Mapped[dict] = mapped_column(JSONDoc)
-    messages: Mapped[list] = mapped_column(JSONDoc)
-    progress: Mapped[dict | None] = mapped_column(JSONDoc, nullable=True)
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
-    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
-
-
 class ConversationStore:
-    def __init__(self, dsn: str):
-        self.engine = make_engine(dsn)
-        self.sessions = make_sessions(self.engine)
-        create_schema(self.engine)
+    def __init__(self, sessions: sessionmaker[Session]):
+        self.sessions = sessions
+
+    @classmethod
+    def for_dsn(cls, dsn: str) -> "ConversationStore":
+        """Store con su propio engine y el esquema creado con create_all: para SQLite en
+        tests y scripts (eval). El stack usa las migraciones (make migrate)."""
+        engine = make_engine(dsn)
+        create_schema(engine)
+        return cls(make_sessions(engine))
 
     def get(self, conversation_id: str) -> ConversationState | None:
         with self.sessions() as s:
@@ -36,19 +23,29 @@ class ConversationStore:
             if row is None:
                 return None
             return ConversationState(
-                conversation_id=row.id, workflow_id=row.workflow_id, status=row.status,
+                conversation_id=row.id, agent_id=row.agent_id or row.legacy_workflow_id or "",
+                agent_version=row.agent_version or 1, client_id=row.client_id, status=row.status,
                 fields=row.fields, messages=row.messages,
                 progress=Progress.model_validate(row.progress or {}),
             )
 
     def save(self, state: ConversationState) -> None:
-        data = state.model_dump(mode="json")
         with self.sessions() as s:
-            row = s.get(ConversationRow, state.conversation_id) or ConversationRow(id=state.conversation_id)
-            row.workflow_id = state.workflow_id
-            row.status = state.status
-            row.fields = data["fields"]
-            row.messages = data["messages"]
-            row.progress = data["progress"]
-            s.add(row)
+            self.add(s, state)
             s.commit()
+
+    @staticmethod
+    def add(s: Session, state: ConversationState) -> None:
+        """Agrega o actualiza la conversacion en la sesion `s`, sin commit (quien llama
+        la guarda junto con lo suyo, ej. la llamada)."""
+        data = state.model_dump(mode="json")
+        row = s.get(ConversationRow, state.conversation_id)
+        if row is None:
+            # Agente, version y cliente se fijan al crearla y no cambian.
+            row = ConversationRow(id=state.conversation_id, agent_id=state.agent_id,
+                                  agent_version=state.agent_version, client_id=state.client_id)
+        row.status = state.status
+        row.fields = data["fields"]
+        row.messages = data["messages"]
+        row.progress = data["progress"]
+        s.add(row)

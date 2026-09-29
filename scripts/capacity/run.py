@@ -39,6 +39,7 @@ import yaml
 from app import config
 from scripts.loadtest.caller import (AgentHangup, VirtualCaller, load_pcm16_mono,
                                      sample_think_time)
+from scripts.loadtest import api as vaas_api
 from scripts.loadtest.run import _create_call, _load_utterances, _mint_token, _preflight, _transient
 
 HERE = Path(__file__).resolve().parent
@@ -213,15 +214,15 @@ def wer(ref: str, hyp: str) -> float | None:
 
 
 async def _detalle_final(client: httpx.AsyncClient, base_url: str, cid: str, timeout: float) -> dict:
-    """GET /api/calls/{id} completo cuando el agente cierra la llamada."""
+    """GET /api/v1/calls/{id} completo cuando el agente cierra la llamada."""
     deadline = time.monotonic() + timeout
     ultimo: dict = {}
     while time.monotonic() < deadline:
         try:
-            r = await client.get(f"{base_url}/api/calls/{cid}")
+            r = await client.get(f"{base_url}{vaas_api.API}/calls/{cid}")
             r.raise_for_status()
             ultimo = r.json()
-            if (ultimo.get("call") or {}).get("status") in ("finalizada", "fallida"):
+            if (ultimo.get("call") or {}).get("status") in ("finalizada", "fallida", "rechazada"):
                 return ultimo
         except httpx.HTTPError as e:
             if not _transient(e):
@@ -300,7 +301,7 @@ async def _worker_async(p: dict) -> None:
         res = await una_llamada(client, p["base_url"], p["workflow"], p["voz"], utter, textos, lleg)
         out.write(json.dumps(res) + "\n")
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with vaas_api.client(timeout=30.0) as client:
         if p["modo"] == "cerrado":
             # `concurrencia` cadenas, cada una hace sus llamadas una tras otra.
             async def cadena(k):

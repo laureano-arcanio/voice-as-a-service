@@ -25,7 +25,7 @@ ARS 1.525.
 
 Un solo workflow, con variantes: llamar, identificar a la persona, informar (deuda, cuota,
 turno), capturar un resultado (promesa de pago, confirmación, reprogramación) y derivar a un
-humano cuando hace falta. Ya hay workflows de cobranza y turnos en `app/workflows/`.
+humano cuando hace falta. Ya hay plantillas de agentes de cobranza y turnos en `app/agents/templates/`.
 
 | Variante | Quién la compra | Resultado que mide |
 |---|---|---|
@@ -83,8 +83,8 @@ Solo lo que necesita el caso de uso; el resto se posterga.
 
 | Bloque | Qué hace falta | Estado |
 |---|---|---|
-| Campañas salientes | Carga por CSV o API, ventana horaria por provincia, reintentos, detección de contestador, prioridad | A construir sobre `POST /calls` |
-| Workflow | Identificación, guion por variante, captura de promesa o confirmación, derivación a humano, cierre | Base en `app/workflows/` |
+| Campañas salientes | Carga por CSV o API, ventana horaria por provincia, reintentos, detección de contestador, prioridad | A construir sobre `POST /api/v1/calls` (ya con API keys por cliente y límites por tier) |
+| Workflow | Identificación, guion por variante, captura de promesa o confirmación, derivación a humano, cierre | Base en `app/agents/templates/` |
 | Cumplimiento | Presentación como asistente virtual, aviso de grabación, horarios, registro de contactos por deudor (1 por día, 2 por semana en CABA) | A construir |
 | Reportes | Por campaña: contactados, resultado, promesas, minutos, costo por gestión; export CSV | A construir |
 | Integración | Webhook de resultado y API para que el software del cliente cargue y lea | Parcial |

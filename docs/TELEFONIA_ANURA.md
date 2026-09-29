@@ -31,17 +31,34 @@ controla quién puede usar la troncal.
    autentica con usuario `livekit` y `LIVEKIT_SIP_PASSWORD`.
 4. El inbound trunk de LiveKit acepta la llamada. La dispatch rule crea una room
    `anura-...` y despacha el agente (`LIVEKIT_AGENT_NAME`).
-5. El agente la trata como entrante porque no trae `local_call_id`, y crea el
-   registro de la llamada en la base (`app/livekit_agent.py`).
+5. El agente la trata como entrante porque no trae `conversation_id`. Busca el
+   número marcado (`sip.trunkPhoneNumber`) en `phone_numbers`, atiende con el
+   agente de ese número si el tier del cliente lo deja, y crea el registro de la
+   llamada (`app/voice/worker.py`). Número libre (sin cliente) o sin agente:
+   corta; sin lugar o sin minutos: avisa y corta (queda `rechazada`).
+
+**Números nuevos de Anura:** cargarlos en la UI (Números > Cargar números),
+asignarlos a un cliente y elegir el agente; después `make livekit-sip` para que
+el trunk entrante los acepte.
+
+**Pendiente para rutear varios números:** hoy `asterisk/conf/extensions.conf`
+(contexto `from-anura`) manda toda entrante a `+54${ANURA_DID}`, sin mirar qué
+número se marcó, así que todas llegan al agente de ese número. Para que cada
+DID vaya a su agente, Asterisk tiene que pasar a LiveKit el número marcado (el
+To de Anura, o el `EXTEN` si Anura lo manda en la Request-URI). Hay que verlo con
+una llamada real a un segundo DID (`pjsip set logger on`) antes de cambiarlo.
 
 **Saliente:**
 
-1. Dashboard → **Llamar** → el agente llama a `create_sip_participant` con el
+1. UI → **Llamar** (o `POST /api/v1/calls`) → el agente llama a `create_sip_participant` con el
    trunk `LIVEKIT_SIP_TRUNK_ID` (o, si está vacío, el que se llama
    `anura-asterisk-outbound`) y el número en E.164.
 2. LiveKit manda el INVITE desde São Paulo a `<IP pública>:5080`.
 3. Asterisk responde 401, y LiveKit reintenta con usuario `livekit` y la clave.
 4. Asterisk pasa el número a formato Anura y marca con el caller ID `ANURA_DID`.
+   El agente manda como `sip_number` el número del cliente (el primero, o el
+   elegido), pero Asterisk hoy lo ignora: para usar el caller ID de cada cliente
+   hay que tomar el From en `from-livekit` y que Anura lo acepte.
 
 **Formatos de número.** Anura marca en formato nacional de 10 dígitos
 (característica + abonado), sin 0, sin 15 y sin 54. Los celulares también van
@@ -187,8 +204,8 @@ make logs-pbx     # "Entrante de Anura: ... -> +54..."
 make logs-agent
 ```
 
-**5. Probar una saliente.** `curl -X POST localhost:8011/calls -H 'Content-Type: application/json'
--d '{"phone": "+5491155551234"}'`. En `make logs-pbx` tiene que
+**5. Probar una saliente.** Desde la UI, o `curl -X POST localhost:8011/api/v1/calls -H "Authorization: Bearer $VAAS_API_KEY"
+-H 'Content-Type: application/json' -d '{"agent_id": "<id>", "phone": "+5491155551234"}'`. En `make logs-pbx` tiene que
 aparecer `Saliente a Anura: 1155551234`.
 
 ## 4. Si algo falla
@@ -274,7 +291,7 @@ host. Motivo: en el plan gratuito de Cloud, el despacho del agente deja jobs en
 
 **Qué cambia:**
 - **El tramo Asterisk ↔ LiveKit queda dentro del host.** No pasa por el router, así que no tiene el problema de NAT de la sección 1. Solo el tramo de Anura cruza el router.
-- **Turn detector local:** `turn-detector-v1-mini` de `livekit-local-inference`, fijado en `app/livekit_agent.py`. Los pesos vienen en el wheel y predice en ~27 ms por CPU. No usa el gateway de Cloud.
+- **Turn detector local:** `turn-detector-v1-mini` de `livekit-local-inference`, fijado en `app/voice/worker.py`. Los pesos vienen en el wheel y predice en ~27 ms por CPU. No usa el gateway de Cloud.
 - **Sin dashboard de Cloud** (sesiones, observabilidad).
 - **El link de prueba en el navegador no anda:** `meet.livekit.io` necesita `wss://`. Hace falta TLS con un dominio delante de 7880.
 - **Loadtest desde otra PC:** copiar `LIVEKIT_URL`, `LIVEKIT_API_KEY` y `LIVEKIT_API_SECRET` de este `.env` al suyo (firma los tokens de los callers) y correr con `--base-url http://<NODE_IP>:8011`. No levantar su `agent`: se registraría en este LiveKit y recibiría llamadas. Todo va por la LAN, sin port forwarding.

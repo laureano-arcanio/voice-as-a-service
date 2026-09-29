@@ -14,8 +14,10 @@ import random
 import re
 import zlib
 
-NOMBRES_M = ["Carlos", "Martín", "Diego", "Javier", "Sergio", "Pablo", "Gustavo", "Fernando", "Matías", "Rodrigo"]
-NOMBRES_F = ["Lucía", "Marta", "Paula", "Andrea", "Claudia", "Silvia", "Romina", "Valeria", "Noelia", "Gabriela"]
+NOMBRES_M = ["Martín", "Diego", "Javier", "Sergio", "Pablo", "Gustavo", "Fernando", "Matías", "Rodrigo"]
+NOMBRES_F = ["Paula", "Andrea", "Claudia", "Silvia", "Romina", "Valeria", "Noelia", "Gabriela"]
+# Sin Carlos, Lucia ni Marta: son los titulares fijos de los casos, y un tercero con el
+# mismo nombre confundio al agente (turnos/tercero/1 del run estructurado).
 APELLIDOS = ["Gómez", "Fernández", "Suárez", "Pereyra", "Ledesma", "Quiroga", "Molina", "Bustos", "Villalba",
              "Cabrera", "Acosta", "Ferreyra", "Romero", "Núñez", "Ríos"]
 DOMINIOS = ["gmail.com", "hotmail.com", "yahoo.com.ar", "outlook.com"]

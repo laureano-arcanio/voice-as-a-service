@@ -1,16 +1,17 @@
 """Workflow demo_booking: tipos y clasificacion del resultado (el flujo lo decide el LLM)."""
 import pytest
 
+from app.agents.templates import load_template
 from app.conversation.engine import ConversationEngine
 from app.conversation.models import AgentTurn
-from app.conversation.workflow import load_workflow, validate_updates
+from app.conversation.workflow import validate_updates
 
 from .helpers import FakeLLM, start_with, turn_and_extract
 
 
 @pytest.fixture
 def wf():
-    return load_workflow("demo_booking")
+    return load_template("demo_booking")
 
 
 def test_types(wf):
@@ -30,16 +31,15 @@ def test_types(wf):
 ])
 async def test_outcomes(store, fields, outcome):
     engine = ConversationEngine(FakeLLM(AgentTurn(assistant_message="Chau.", status="completed")), store)
-    cid = start_with(engine, workflow_id="demo_booking", **fields)
+    cid = start_with(engine, agent_id="demo_booking", **fields)
     state, _ = await turn_and_extract(engine, cid, "Chau.")
     assert state.progress.outcome == outcome
 
 
 def test_outcome_without_saved_outcome(wf):
-    # GET /api/calls/{id} le pasa un ConversationState (conversation_id, no id): si termino antes de
-    # guardar el resultado, se calcula al vuelo. Antes daba AttributeError (500 en el loadtest de 64).
-    from app.conversation.models import ConversationState, Progress
-    from app.main import _outcome
-    state = ConversationState(conversation_id="c1", workflow_id="demo_booking", status="completed",
-                              fields={"wants_pitch": False}, progress=Progress())
-    assert _outcome(wf, state).id == "no_pitch"
+    # Si termino antes de guardar el resultado, se calcula al vuelo. Antes daba
+    # AttributeError (500 en GET /api/calls/{id} en el loadtest de 64).
+    from app.models import ConversationRow
+    from app.services.reports import Reports
+    conv = ConversationRow(id="c1", agent_id="demo_booking", status="completed", fields={"wants_pitch": False})
+    assert Reports(None, None).outcome(wf, conv).id == "no_pitch"

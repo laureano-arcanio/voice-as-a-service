@@ -10,6 +10,7 @@ Los dos devuelven (lo que dice, si corta la llamada despues de decirlo).
 """
 import json
 import re
+from urllib.parse import urlparse
 
 from openai import AsyncOpenAI
 
@@ -36,11 +37,18 @@ CÓMO HABLÁS:
 Respondé siempre en JSON, así: {{"dice": "lo que decís en voz alta", "corta": false}}"""
 
 
+def es_local(base_url: str) -> bool:
+    """Un vLLM propio (vllm-llm, localhost, IP de la LAN) contra una API externa
+    (DeepSeek, OpenRouter, ...)."""
+    host = urlparse(base_url).hostname or ""
+    return host in ("localhost", "vllm-llm") or "." not in host or host.startswith(("127.", "192.168.", "10."))
+
+
 def opciones_llm(base_url: str) -> dict:
     """Con un vLLM propio (Qwen) hay que apagar el pensamiento: si no, se lleva los
-    max_tokens y el content vuelve vacio. Las API externas (host api.*) no reciben
-    el parametro, que es de vLLM."""
-    if re.search(r"://api\.", base_url):
+    max_tokens y el content vuelve vacio. Las API externas no reciben el
+    parametro, que es de vLLM."""
+    if not es_local(base_url):
         return {}
     return {"extra_body": {"chat_template_kwargs": {"enable_thinking": False}}}
 
@@ -58,27 +66,49 @@ class Simulador:
         return SYSTEM.format(estilo=escenario.estilo, ficha=ficha)
 
     async def responder(self, escenario, historial: list[tuple[str, str]]) -> tuple[str, bool]:
-        """historial: [("agente", texto), ("usuario", texto), ...], termina en el agente."""
+        """historial: [("agente", texto), ("usuario", texto), ...], termina en el agente.
+        Una respuesta vacia (paso con deepseek-v4.1-flash por OpenRouter: content
+        vacio de forma esporadica) se reintenta; si persiste, la conversacion
+        queda con error en vez de "sin terminar"."""
         messages = [{"role": "system", "content": self.system(escenario)}]
         for quien, texto in historial:
             messages.append({"role": "user" if quien == "agente" else "assistant", "content": texto})
-        r = await self.client.chat.completions.create(
-            model=self.model, messages=messages, temperature=self.temperature,
-            response_format={"type": "json_object"}, max_tokens=400, **self.extra)
-        return parsear(r.choices[0].message.content or "")
+        crudo = []
+        for intento in range(3):
+            r = await self.client.chat.completions.create(
+                model=self.model, messages=messages, temperature=self.temperature,
+                response_format={"type": "json_object"}, max_tokens=1000 * 2 ** intento, **self.extra)
+            m = r.choices[0].message
+            dice, corta = parsear(m.content or "")
+            if dice:
+                return dice, corta
+            crudo.append({"intento": intento + 1, "finish": r.choices[0].finish_reason, "content": (m.content or "")[:200],
+                          "reasoning": str(getattr(m, "reasoning", None) or getattr(m, "reasoning_content", None) or "")[:200]})
+        raise RuntimeError(f"simulador sin respuesta tras 3 intentos: {json.dumps(crudo, ensure_ascii=False)}")
 
 
 def parsear(content: str) -> tuple[str, bool]:
-    """El JSON del simulador; si no es JSON, todo el texto es lo que dice."""
+    """El JSON del simulador. Vistos por OpenRouter: una lista ("[]", "[true]",
+    "[{...}]") en vez del objeto, o el objeto dentro de texto. Vacio = reintentar."""
+    content = content.strip()
     try:
         data = json.loads(content)
+        if isinstance(data, list):
+            data = next((x for x in data if isinstance(x, dict)), None)
         if isinstance(data, dict):
             return str(data.get("dice") or "").strip(), bool(data.get("corta"))
+        return "", False
     except ValueError:
-        m = re.search(r'"dice"\s*:\s*"((?:[^"\\]|\\.)*)"', content)
-        if m:
-            return json.loads(f'"{m.group(1)}"'), '"corta": true' in content
-    return content.strip().strip('"'), False
+        pass
+    m = re.search(r'"dice"\s*:\s*"((?:[^"\\]|\\.)*)"', content)
+    if m:
+        try:
+            return json.loads(f'"{m.group(1)}"'), bool(re.search(r'"corta"\s*:\s*true', content))
+        except ValueError:
+            return m.group(1), False
+    if content.startswith(("{", "[")):
+        return "", False
+    return content.strip('"'), False
 
 
 class Guion:

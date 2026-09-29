@@ -4,13 +4,14 @@ import random
 
 import pytest
 
-from app.conversation.workflow import load_workflow, outcome_for
+from app.agents.templates import load_template
 from app.conversation.models import ConversationState
+from app.conversation.workflow import outcome_for
 from scripts.eval import checks
 from scripts.eval.canal import CanalSttSim
 from scripts.eval.escenarios import escenarios, grupos_disponibles
 from scripts.eval.fichas import generar, rellenar
-from scripts.eval.simulador import Guion, parsear
+from scripts.eval.simulador import Guion, es_local, opciones_llm, parsear
 
 EVAL_WORKFLOWS = ["eval_cobranza", "eval_relevamiento", "eval_datos", "eval_turnos"]
 
@@ -27,16 +28,16 @@ def _strings(obj):
 
 @pytest.mark.parametrize("wid", EVAL_WORKFLOWS)
 def test_eval_workflows_load_in_both_engines(wid):
-    assert load_workflow(wid).engine == "classic"
-    s = load_workflow(f"{wid}_structured")
-    assert s.engine == "structured" and s.fields == load_workflow(wid).fields
+    assert load_template(wid).engine == "classic"
+    s = load_template(f"{wid}_structured")
+    assert s.engine == "structured" and s.fields == load_template(wid).fields
 
 
 def test_cobranza_outcomes():
-    wf = load_workflow("eval_cobranza")
+    wf = load_template("eval_cobranza")
 
     def outcome(**fields):
-        st = ConversationState(conversation_id="x", workflow_id=wf.id, fields={**{f: None for f in wf.fields}, **fields})
+        st = ConversationState(conversation_id="x", agent_id=wf.id, fields={**{f: None for f in wf.fields}, **fields})
         return outcome_for(wf, st).id
 
     assert outcome(titular=False) == "tercero"
@@ -52,10 +53,10 @@ def test_all_groups_have_filled_scenarios():
     escs = escenarios(grupos, reps=2, seed=1)
     assert len(escs) >= 2 * 6 * 5
     for e in escs:
-        load_workflow(e.agente)
+        load_template(e.agente)
         for texto in _strings([e.estilo, e.ficha, e.esperado, e.guion or []]):
             assert "{" not in texto, f"{e.id}: variable sin rellenar en {texto[:80]}"
-        assert set(e.esperado["fields"]) <= set(load_workflow(e.agente).fields), e.id
+        assert set(e.esperado["fields"]) <= set(load_template(e.agente).fields), e.id
         assert e.esperado["outcome"]
     # Misma semilla, misma ficha; otra repeticion, otra ficha.
     assert generar(1, "datos", "cooperativo", 0) == generar(1, "datos", "cooperativo", 0)
@@ -141,3 +142,10 @@ async def test_canal_stt_sim_is_deterministic_and_splits_email():
     partes = await canal.aplicar("Es luciafernandez arroba gmail punto com, señor Gómez.", random.Random(1))
     assert len(partes) == 2 and partes[1].startswith("arroba ") and "gomes" in partes[1]
     assert partes == await canal.aplicar("Es luciafernandez arroba gmail punto com, señor Gómez.", random.Random(1))
+
+
+def test_local_vs_external_endpoints():
+    assert es_local("http://vllm-llm:8000/v1") and es_local("http://192.168.1.99:8101/v1") and es_local("http://localhost:8101/v1")
+    for url in ("https://api.deepseek.com/v1", "https://openrouter.ai/api/v1", "https://api.openai.com/v1"):
+        assert not es_local(url) and opciones_llm(url) == {}
+    assert "extra_body" in opciones_llm("http://vllm-llm:8000/v1")

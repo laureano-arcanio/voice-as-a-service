@@ -28,7 +28,7 @@ para comparar modelos. Responde:
 
 ## 2. Tipos de agente
 
-Un workflow YAML nuevo por tipo, en `app/workflows/` con prefijo `eval_` (mismo motor, sin código
+Una plantilla de agente nueva por tipo, en `app/agents/templates/` (JSON; antes YAML en `app/workflows/`) con prefijo `eval_` (mismo motor, sin código
 nuevo). Cada uno con `engine: classic` y una variante `_structured` por `extends`.
 
 | Agente | Qué hace | Datos a obtener | Qué pone a prueba |
@@ -89,7 +89,7 @@ degrada el audio:
 
 ### Juez (LLM externo, rúbrica 1–5 con justificación, salida JSON)
 
-Ve el YAML del workflow (reglas y base de conocimiento), la ficha de la persona y el transcript.
+Ve la definición del agente (reglas y base de conocimiento), la ficha de la persona y el transcript.
 
 | Dimensión | Pregunta |
 |---|---|
@@ -151,7 +151,7 @@ scripts/eval/
   personas/*.yml   estilo, ficha (con campos al azar) y esperado, por agente
   guiones/*.yml    guiones fijos por objetivo (como replay_calls.py), regresión gratis y determinista
   runs/            no versionado
-app/workflows/eval_*.yml
+app/agents/templates/eval_*.json
 docs/eval/README.md, EVAL-NNN-<slug>/
 ```
 

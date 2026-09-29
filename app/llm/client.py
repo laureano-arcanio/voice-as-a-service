@@ -4,12 +4,17 @@ from collections.abc import Callable
 
 from openai import AsyncOpenAI
 
-from app import config
-
+from app.config import settings
 from app.conversation.models import AgentTurn, ConversationState, Extraction, Workflow
 
-from .prompt import (END_MARKER, EXTRACTION_PROMPT, SYSTEM_PROMPT, build_classic_messages, build_extraction_prompt,
-                     build_user_prompt)
+from .prompt import (
+    END_MARKER,
+    EXTRACTION_PROMPT,
+    SYSTEM_PROMPT,
+    build_classic_messages,
+    build_extraction_prompt,
+    build_user_prompt,
+)
 
 TYPE_SCHEMAS = {
     "string": {"type": "string"},
@@ -71,8 +76,8 @@ def request_options(thinking: bool, budget: int, temperature: float | None = Non
 
 
 class LLMClient:
-    def __init__(self, base_url: str, api_key: str, model: str, thinking: bool = config.LLM_THINKING,
-                 thinking_budget: int = config.LLM_THINKING_BUDGET, temperature: float | None = config.LLM_TEMPERATURE):
+    def __init__(self, base_url: str, api_key: str, model: str, thinking: bool = settings.llm_thinking,
+                 thinking_budget: int = settings.llm_thinking_budget, temperature: float | None = settings.llm_temperature):
         self.client = AsyncOpenAI(base_url=base_url, api_key=api_key, timeout=30)
         self.model = model
         self.options = request_options(thinking, thinking_budget, temperature)

@@ -5,8 +5,8 @@ checks:
   siglas: [WiFi]
   frases_max: 3
   prohibido:
-    - regex: "qué bien|qué pena|te entiendo|lamento|qué bueno|me alegro|disculp"
-      motivo: "opina sobre la respuesta o se disculpa (induce)"
+    - regex: "qué bien|qué pena|te entiendo|lamento|qué bueno|me alegro"
+      motivo: "opina sobre la respuesta (induce)"
 
 personas:
 

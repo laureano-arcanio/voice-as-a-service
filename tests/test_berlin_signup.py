@@ -1,9 +1,10 @@
 """Workflow berlin_signup: tipos y clasificacion del resultado (el flujo lo decide el LLM)."""
 import pytest
 
+from app.agents.templates import load_template
 from app.conversation.engine import ConversationEngine
 from app.conversation.models import AgentTurn
-from app.conversation.workflow import load_workflow, pending_fields, validate_updates
+from app.conversation.workflow import pending_fields, validate_updates
 
 from .helpers import FakeLLM, start_with, turn_and_extract
 from .test_workflow import state_with
@@ -11,7 +12,7 @@ from .test_workflow import state_with
 
 @pytest.fixture
 def wf():
-    return load_workflow("berlin_signup")
+    return load_template("berlin_signup")
 
 
 def test_types(wf):
@@ -35,6 +36,6 @@ def test_contact_only_if_other_number(wf):
 ])
 async def test_outcomes(store, fields, outcome):
     engine = ConversationEngine(FakeLLM(AgentTurn(assistant_message="Chau.", status="completed")), store)
-    cid = start_with(engine, workflow_id="berlin_signup", **fields)
+    cid = start_with(engine, agent_id="berlin_signup", **fields)
     state, _ = await turn_and_extract(engine, cid, "Chau.")
     assert state.progress.outcome == outcome

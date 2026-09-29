@@ -1,5 +1,5 @@
 """Un "usuario" sintetico que se conecta a una room de LiveKit igual que un
-navegador via app/livekit_dispatch.py::build_test_join_url, pero en vez de un
+navegador via app/services/livekit.py::build_test_join_url, pero en vez de un
 humano hablando por microfono, publica audio pregenerado (gen_audio.py) y
 mide, del lado del cliente, cuanto tarda en empezar a sonar la respuesta del
 agente despues de que el usuario termina de hablar.

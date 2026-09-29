@@ -114,7 +114,7 @@ Hoy el caller dice frases al azar. El nuevo responde lo que el agente pide, **si
 (usaría la misma GPU que se mide):
 
 - Cada guion tiene, por campo del workflow, varias respuestas pregrabadas con TTS (con el texto guardado) y de distinto largo, más respuestas de relleno ("¿cómo?", "dale", una pregunta fuera de tema).
-- Antes de cada turno el caller lee `GET /api/calls/{id}` (campos pendientes) y elige la respuesta al primer campo requerido sin valor. Con una probabilidad configurable mete un relleno.
+- Antes de cada turno el caller lee `GET /api/v1/calls/{id}` (campos pendientes) y elige la respuesta al primer campo requerido sin valor. Con una probabilidad configurable mete un relleno.
 - La llamada termina sola cuando el workflow se completa: la duración y la carga por llamada salen realistas.
 - Cada guion define la **persona** (valores de los campos) y, con eso, el **resultado esperado**.
 - Mix de largos del usuario (STT) y pausa de pensar: los de hoy (50 % cortas / 25 % medianas / 25 % largas; lognormal con mediana 2,5 s), configurables.
@@ -136,10 +136,10 @@ Los guiones reales dan la capacidad de producción; el sintético, una unidad de
 | Métrica | Dónde | Cómo |
 |---|---|---|
 | Espera percibida y bucket | cliente | Fin del audio enviado → primer audio del agente (como hoy) |
-| Desglose eou / stt / llm / tts / e2e | agente | `call.latency` (`app/latency.py`), apareado al turno |
+| Desglose eou / stt / llm / tts / e2e | agente | `call.latency` (`app/voice/latency.py`), apareado al turno |
 | Cortes dentro de la respuesta | agente + cliente | Agente: por frase, audio generado contra tiempo de síntesis (factor de tiempo real < 1 = corte). Cliente: silencios de 0,3–1,5 s dentro de una respuesta, en exceso sobre la línea base |
 | Sin respuesta / respuesta cortada | cliente | Timeout esperando el inicio; respuesta que se corta sin que el caller hable |
-| Error de transcripción (WER) | cliente + API | Texto conocido de la respuesta pregrabada contra lo que transcribió el agente (mensajes de `/api/calls/{id}`) |
+| Error de transcripción (WER) | cliente + API | Texto conocido de la respuesta pregrabada contra lo que transcribió el agente (mensajes de `/api/v1/calls/{id}`) |
 | Frase partida o perdida | API | Turnos del server ≠ turnos del cliente (ya lo detecta `_rows_for_call`) |
 | Concurrencia en ese instante | cliente | Llamadas vivas al terminar el turno |
 
@@ -178,7 +178,7 @@ Con los campos estables (CPU, RAM, placa, GPUs y su slot PCIe, power limit) se c
 - Commit de git y si hay cambios sin commitear (el diff queda guardado en el run).
 - Lo que ya guarda `sampler.py` en `meta.json`: imagen, args y GPU de cada servicio, versiones de vLLM/torch, archivos de compose.
 - Variables de capacidad de `.env` (`VLLM_LLM_MAX_NUM_SEQS`, `STT_MAX_BATCH`, ...), con los secretos enmascarados.
-- Workflow (id y hash del YAML), checkpoint y voz del TTS, modelo del LLM, versión de LiveKit (server y agents).
+- Agente (slug y hash de su plantilla JSON; antes del YAML), checkpoint y voz del TTS, modelo del LLM, versión de LiveKit (server y agents).
 - Perfil de carga y guiones (nombre, versión y hash).
 - Un **`config_id`** (hash) análogo a `hw_id`.
 
@@ -274,7 +274,7 @@ conviene tenerla antes de comparar contra el hardware nuevo, para que las dos me
 - **Cliente saturado:** un proceso de asyncio no sostiene más de ~16 callers (ver `run.py`). Con 64+ llamadas hace falta verificar la CPU del cliente o usar varias PCs (fase 7).
 - **LiveKit Cloud** despacha como máximo ~20–24 llamadas (EXP-011): usar LiveKit propio.
 - **TTS sin `voice` o con `voice="default"`** mata el engine de `vllm-tts`: el perfil siempre fija una voz del checkpoint.
-- **POST /calls que da timeout:** no reintentar, porque puede dejar un job del agente esperando 5 min en una room vacía.
+- **POST /api/v1/calls que da timeout:** no reintentar, porque puede dejar un job del agente esperando 5 min en una room vacía.
 - **Warm-up:** sin él, el primer escalón infla el TTFT por la captura de CUDA graphs.
 - **Stack en vivo:** el test no reinicia servicios; cambiar la config es un paso manual previo y queda en la ficha de config.
 

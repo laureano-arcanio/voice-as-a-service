@@ -26,8 +26,10 @@ Todo corre en el contenedor `app` contra el `vllm-llm` del stack (o contra otro 
    make eval-llm ARGS="--humo --cliente guion"          # 1 cooperativo por agente, ~1 min
    make eval-llm ARGS="--cliente guion --reps 3"        # todas las personas con guion
    ```
-2. **Con cliente simulado** (la medición): `EVAL_LLM_API_KEY` en `.env` (DeepSeek por defecto,
-   `EVAL_LLM_BASE_URL` y `EVAL_LLM_MODEL` para otro proveedor OpenAI-compatible).
+2. **Con cliente simulado** (la medición): `EVAL_LLM_API_KEY` en `.env` (DeepSeek directo por
+   defecto). Con OpenRouter: `EVAL_LLM_BASE_URL=https://openrouter.ai/api/v1` y el modelo con
+   prefijo de proveedor, por ejemplo `EVAL_LLM_MODEL=deepseek/deepseek-v3.2`. Cualquier endpoint
+   OpenAI-compatible sirve; el pensamiento de Qwen se apaga solo en los endpoints locales.
    ```bash
    make eval-llm ARGS="--reps 3 --juez"                 # ~90 conversaciones + juez, 10-15 min
    make eval-llm ARGS="--agentes cobranza,datos --personas hostil,evasivo --reps 5"

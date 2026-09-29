@@ -1,3 +1,12 @@
+# --- UI: build de la SPA (web/) ---
+FROM node:22-alpine AS web
+WORKDIR /web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY web/ ./
+RUN npm run build
+
+# --- App (API + UI) y worker de voz: la misma imagen ---
 FROM python:3.12-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -18,14 +27,13 @@ ARG GID=1000
 RUN groupadd -g "${GID}" appuser \
     && useradd -u "${UID}" -g "${GID}" -m -s /usr/sbin/nologin appuser
 
+COPY alembic.ini ./
+COPY migrations/ ./migrations/
 COPY app/ ./app/
-COPY static/ ./static/
-COPY templates/ ./templates/
-# Catalogo de voces del TTS con sus metricas (app/voices.py).
+# Catalogo de voces del TTS con sus metricas (app/services/voices.py).
 COPY tts/finetune/voces.tsv ./tts/finetune/voces.tsv
+COPY --from=web /web/dist ./web/dist
 
-# Pre-create storage dirs and own them so the mkdir() app/config.py runs at import
-# time doesn't fail against a fresh bind mount.
 RUN mkdir -p /app/storage/recordings && chown -R appuser:appuser /app
 
 USER appuser
@@ -35,4 +43,4 @@ EXPOSE 8011
 HEALTHCHECK --interval=10s --timeout=3s --start-period=15s --retries=5 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8011/health', timeout=2)" || exit 1
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8011"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8011", "--proxy-headers"]

@@ -1,6 +1,6 @@
 """Load test de usuario -> livekit agent -> usuario (sin telefonia/SIP).
 
-Dispara N llamadas con POST /calls {"loadtest": true} (como el modo prueba
+Dispara N llamadas con POST /api/v1/calls {"loadtest": true} (como el modo prueba
 del dashboard, pero en vez de un humano conectandose por navegador, cada
 llamada la atiende un VirtualCaller (caller.py) que publica audio pregenerado
 (gen_audio.py) y mide la latencia percibida del lado del cliente). Con
@@ -9,9 +9,11 @@ loadtest el agente no corta al completar el workflow: cada llamada dura los
 concurrencia creciente y, para cada una, agrega:
 
   - la latencia percibida por el "usuario" (medida acá, extremo a extremo)
-  - el desglose server-side por vertical que loguea app/latency.py
+  - el desglose server-side por vertical que loguea app/voice/latency.py
     (eou/stt/endpointing/llm/tts/e2e), leido de call.latency via
-    GET /api/calls/{id}. Ver SERVER_COLUMNS por el cambio de ttft_s.
+    GET /api/v1/calls/{id}. Ver SERVER_COLUMNS por el cambio de ttft_s.
+
+Autenticacion y agentes: scripts/loadtest/api.py (VAAS_API_KEY).
 
 Guarda UNA fila por turno (de cada llamada, de cada oleada) en un CSV bajo
 scripts/loadtest/results/ -- esa es la fuente de datos completa; report.html
@@ -48,6 +50,7 @@ import httpx
 from livekit import api
 
 from app import config
+from scripts.loadtest import api as vaas_api
 from scripts.loadtest.caller import Turn, VirtualCaller
 
 AUDIO_DIR = Path(__file__).resolve().parent / "audio"
@@ -111,7 +114,8 @@ def _transient(e: Exception) -> bool:
 
 
 async def _create_call(client: httpx.AsyncClient, base_url: str, workflow_id: str, voice: str | None) -> dict:
-    body = {"workflow_id": workflow_id, "loadtest": True}
+    """workflow_id: slug del agente (del cliente de VAAS_API_KEY)."""
+    body = {"agent_id": await vaas_api.agent_id(client, base_url, workflow_id), "loadtest": True}
     if voice:
         body["voice"] = voice
     # Solo se reintenta si el pedido no llego a la app. Tras un 5xx o un
@@ -119,7 +123,7 @@ async def _create_call(client: httpx.AsyncClient, base_url: str, workflow_id: st
     # reintentar dejaria un job del agente esperando 5 min en una room vacia.
     for attempt in range(HTTP_RETRIES):
         try:
-            r = await client.post(f"{base_url}/calls", json=body)
+            r = await client.post(f"{base_url}{vaas_api.API}/calls", json=body)
         except (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout):
             if attempt == HTTP_RETRIES - 1:
                 raise
@@ -131,7 +135,7 @@ async def _create_call(client: httpx.AsyncClient, base_url: str, workflow_id: st
 
 
 async def _wait_finalized(client: httpx.AsyncClient, base_url: str, call_id: str, timeout: float) -> dict:
-    """El registro de la llamada (call de GET /api/calls/{id}) cuando el agente
+    """El registro de la llamada (call de GET /api/v1/calls/{id}) cuando el agente
     la cierra; la latencia por turno se guarda recien ahi."""
     deadline = time.monotonic() + timeout
     status = "?"
@@ -139,7 +143,7 @@ async def _wait_finalized(client: httpx.AsyncClient, base_url: str, call_id: str
         # Un 5xx o un timeout puntual de la app no corta la espera: con muchas
         # llamadas cerrando a la vez, la app puede tardar en contestar.
         try:
-            r = await client.get(f"{base_url}/api/calls/{call_id}")
+            r = await client.get(f"{base_url}{vaas_api.API}/calls/{call_id}")
             r.raise_for_status()
         except httpx.HTTPError as e:
             if not _transient(e):
@@ -148,7 +152,7 @@ async def _wait_finalized(client: httpx.AsyncClient, base_url: str, call_id: str
         else:
             call = r.json().get("call") or {}
             status = call.get("status", "?")
-            if status in ("finalizada", "fallida"):
+            if status in ("finalizada", "fallida", "rechazada"):
                 return call
         # 1 s en vez de 0,5: con 64+ llamadas el sondeo era 2 GET/s por llamada.
         await asyncio.sleep(1.0)
@@ -323,7 +327,7 @@ async def _worker_async(
     workflow_id: str, voice: str | None,
 ) -> list[dict]:
     utterances = {k: [Path(p) for p in v] for k, v in utterances_spec.items()}
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with vaas_api.client(timeout=30.0) as client:
         results = await asyncio.gather(
             *[_run_one(client, base_url, run_id, concurrency, n_turns, utterances,
                        (start_index + j) * stagger_s, workflow_id, voice)
@@ -494,17 +498,18 @@ def _load_utterances() -> dict[str, list[Path]]:
 
 
 def _preflight(base_url: str, workflow_id: str, voice: str | None) -> None:
-    """Falla antes de lanzar la oleada si la app no responde o el workflow o la
+    """Falla antes de lanzar la oleada si la app no responde o el agente o la
     voz no existen: si no, cada llamada fallaria por separado con un 404/422."""
     if not (config.LIVEKIT_URL and config.LIVEKIT_API_KEY and config.LIVEKIT_API_SECRET):
         raise SystemExit("faltan LIVEKIT_URL / LIVEKIT_API_KEY / LIVEKIT_API_SECRET en .env")
     try:
-        workflows = {w["id"]: w for w in httpx.get(f"{base_url}/api/workflows", timeout=10).raise_for_status().json()}
+        workflows = vaas_api.agents(base_url)
     except httpx.HTTPError as e:
         raise SystemExit(f"la app no responde en {base_url} ({e}); levantala con make up-agent")
     if workflow_id not in workflows:
-        raise SystemExit(f"workflow {workflow_id!r} inexistente; hay: {sorted(workflows)}")
-    if voice and voice not in {v["nombre"] for v in httpx.get(f"{base_url}/api/voices", timeout=10).json()}:
+        raise SystemExit(f"agente {workflow_id!r} inexistente; hay: {sorted(workflows)}")
+    if voice and voice not in {v["nombre"] for v in httpx.get(f"{base_url}{vaas_api.API}/voices", headers=vaas_api.headers(),
+                                                              timeout=10).json()}:
         raise SystemExit(f"voz {voice!r} inexistente (ver tts/finetune/voces.tsv)")
     w = workflows[workflow_id]
     print(f"workflow {workflow_id} (engine {w['engine']}), voz {voice or w['voice'] or 'VLLM_TTS_VOICE'}")
@@ -522,7 +527,9 @@ def _write_csv(path: Path, rows: list[dict]) -> None:
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--base-url", default="http://app:8011", help="URL del servicio `app` (default: red interna de compose)")
-    p.add_argument("--workflow", default=config.WORKFLOW_ID, help=f"agente (workflow) a llamar (default WORKFLOW_ID: {config.WORKFLOW_ID})")
+    default_agent = os.getenv("WORKFLOW_ID") or "demo_booking_classic"
+    p.add_argument("--workflow", default=default_agent,
+                   help=f"slug del agente a llamar, del cliente de VAAS_API_KEY (default WORKFLOW_ID: {default_agent})")
     p.add_argument("--voice", default=None, help="voz del TTS (default: la del workflow, agent.voice)")
     p.add_argument("--levels", default="1,2,4,8,16", help="niveles de concurrencia, separados por coma")
     p.add_argument("--turns", type=int, default=4, help="turnos de conversacion por llamada")

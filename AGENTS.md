@@ -2,8 +2,8 @@
 
 Agente de voz telefónico con **inferencia propia**: LLM, STT y TTS corren
 sobre GPUs locales, sin proveedores externos. Este archivo describe la
-infraestructura. La app (motor conversacional por workflow YAML, API y worker de voz) está en
-[`README.md`](README.md).
+infraestructura. La app (plataforma multi-cliente: clientes, tiers, agentes versionados en JSON,
+números; API `/api/v1`, UI React en `web/` y worker de voz) está en [`README.md`](README.md).
 
 ## Pedidos frecuentes
 
@@ -12,17 +12,19 @@ infraestructura. La app (motor conversacional por workflow YAML, API y worker de
 | "Voy a correr el test de capacidad (con <config>), registralo" | Seguir [`docs/capacity/README.md`](docs/capacity/README.md): aplicar los límites de GPU, `make capacity-monitor PERFIL=<perfil>` en el server antes de la carga y avisar; el usuario corre `make capacity` en la laptop y pasa el run empaquetado; `make capacity-monitor-stop`, `make capacity-analyze` y registrar `docs/capacity/CAP-NNN-<slug>/`. |
 | "Entrená / reentrená la voz <voz> del TTS" | Delegar al agente [`tts-finetune`](.claude/agents/tts-finetune.md), que sigue [`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md). Entrenar el 1.7B necesita parar `vllm-tts`: confirmar antes. |
 | "Probá <modelo o reparto de GPU>" | Override `docker-compose.<nombre>.yml` y confirmar antes de reiniciar servicios; después, el mismo procedimiento. |
+| "Creá un cliente / tier / agente / número" | Por la UI o la API (`/api/v1`, OpenAPI en `/api/v1/docs`), no a mano en la base. Números: se cargan al inventario, se asignan a un cliente (tope `max_phone_numbers` del tier) y se rutean a un agente; después de cargar o borrar, `make livekit-sip`. |
 | "Evaluá la calidad del LLM <modelo>" / "compará modelos" | Seguir [`docs/eval/README.md`](docs/eval/README.md): `make eval-llm` (cliente simulado con `EVAL_LLM_API_KEY`, o `--cliente guion`), `make eval-llm-juez`, y registrar `docs/eval/EVAL-NNN-<slug>/`. Otro modelo local va con su override, como arriba. |
 
 ## Servicios (`docker-compose.yml`)
 
-`make up` levanta todo. Por partes: `make up-agent` (db + app + agent), `make up-inference`
+`make up` levanta todo. Por partes: `make up-agent` (db + migrate + app + agent), `make up-inference`
 (los 3 de inferencia), `make up-nginx` (proxy) y `make up-pbx` (Asterisk). `make help` lista el resto.
 
 | Servicio | Qué es | Imagen | Puerto host | GPU |
 |---|---|---|---|---|
 | `db` | PostgreSQL 16 | postgres:16-alpine | 127.0.0.1:5432 | — |
-| `app` | FastAPI: API del motor conversacional; despacha el agente a una room de LiveKit | build | 8011 | — |
+| `migrate` | Una vez antes de `app`/`agent`: `alembic upgrade head` + seed idempotente (`app/cli.py`) | build | — | — |
+| `app` | FastAPI: API `/api/v1` y la UI (`web/dist`); despacha el agente a una room de LiveKit | build | 8011 | — |
 | `agent` | Worker de LiveKit Agents (STT → LLM → TTS); sale a LiveKit Cloud | build | — | — |
 | `vllm-llm` | LLM `RedHatAI/Qwen3.5-9B-quantized.w4a16` (Qwen3.5-9B en 4 bits) | vllm/vllm-openai:latest | 127.0.0.1:8101 | 1 (3090) |
 | `stt-parakeet` | STT `nvidia/parakeet-tdt-0.6b-v3`, servidor propio (`stt/server.py`) | build | 127.0.0.1:8102 | 1 (3090) |
@@ -61,7 +63,7 @@ Override `docker-compose.gpu-5060.yml`, sumado a `COMPOSE_FILE` en `.env`. Sin e
 | 1: 3090 24 GB | `vllm-llm` + `stt-parakeet` + escritorio | 0.70 (KV 4,8 GiB) + ~1,6 GB + ~0,5 GB (~18 GB usados) |
 
 - **Topes de concurrencia:** LLM 64 secuencias (con 0.70 no arranca con 128); TTS 32 síntesis en el talker y 16 en Code2Wav.
-- **Motor por defecto:** `classic` (`WORKFLOW_ID=demo_booking_classic`).
+- **Motor por defecto:** `classic` (`WORKFLOW_ID=demo_booking_classic`: agente del cliente `interno` que atiende `ANURA_DID` y usa el loadtest).
 - **Capacidad medida** ([CAP-002](docs/capacity/CAP-002-5060ti-tts-3090-llm-stt-classic/)):
   - ~22 llamadas con espera del cliente p95 ≤ 2,8 s (codo); ~32 con p95 ~3,4 s;
   - desde ~22 se satura la 5060 Ti (TTS), y desde ~55 la CPU del host (agente).
@@ -74,8 +76,8 @@ argentinos (`sofia`, `martin`, ...). El catálogo, con género, WER y car/s por 
 [`tts/finetune/voces.tsv`](tts/finetune/voces.tsv).
 
 La voz va en `voice` en cada pedido. El agente usa, en orden:
-1. la elegida en el dashboard para la llamada;
-2. `agent.voice` del workflow;
+1. la elegida en la UI para la llamada;
+2. `agent.voice` de la definición del agente;
 3. `VLLM_TTS_VOICE`.
 
 Ver [`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md).
@@ -99,11 +101,14 @@ Ver [`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md).
   - También en cualquier host que use este TTS por el proxy (modo remoto).
   - Si una voz no está servida, el agente cae a `VLLM_TTS_VOICE`. Si tampoco está esa, cada frase da 400.
 - **Pedido al TTS sin `voice` o con `voice="default"`:** mata el engine de `vllm-tts` (busca `vivian`, que el checkpoint no tiene) y todo da 500 hasta reiniciarlo. Mandar siempre una voz del checkpoint.
-- **Loadtest y motor por workflow:** `run.py` crea las llamadas con `POST /calls {"loadtest": true}` (`--workflow`, `--voice`). Con ese flag el agente no corta al completar el workflow, así cada llamada dura los `--turns` pedidos, como en EXP-001 a 008. `ttft_s` del CSV es ahora el LLM hasta el primer texto de la respuesta, no el TTFT de vLLM: ver `SERVER_COLUMNS` en `run.py`.
+- **Loadtest y motor por workflow:** `run.py` crea las llamadas con `POST /api/v1/calls {"loadtest": true}` (`--workflow` = slug del agente, `--voice`), autenticado con `VAAS_API_KEY` (API key del cliente `interno`, sin límites: `make api-key CLIENT=interno NAME=loadtest`). Con ese flag el agente no corta al completar el workflow, así cada llamada dura los `--turns` pedidos, como en EXP-001 a 008. `ttft_s` del CSV es ahora el LLM hasta el primer texto de la respuesta, no el TTFT de vLLM: ver `SERVER_COLUMNS` en `run.py`.
 - **LiveKit propio (desarrollo):** con `COMPOSE_FILE` en `.env`, todos los targets usan `docker-compose.livekit.yml`. Las `LIVEKIT_*` de `.env` son las de este host; las de Cloud quedan en `LIVEKIT_CLOUD_*`. Ver `docs/TELEFONIA_ANURA.md`, sección 7.
   - Su Redis no persiste: cada reinicio del host borra los trunks SIP y la dispatch rule, y las entrantes vuelven con 486 `flood` en `livekit-sip` (26-sep-2026). Por eso `make up` termina con `make livekit-sip` cuando el LiveKit es propio. Si se levantó de otra forma, correrlo a mano.
   - `LIVEKIT_SIP_TRUNK_ID` va vacío con LiveKit propio: el ID del trunk saliente cambia cada vez y el agente lo busca por nombre (`anura-asterisk-outbound`).
 - **Capacidad por motor en `.env`:** `VLLM_LLM_MAX_NUM_SEQS` (también fija el tamaño de CUDA graph), `VLLM_LLM_GPU_MEMORY_UTILIZATION`, `STT_MAX_BATCH`, `STT_MAX_BATCH_SECONDS`, `VLLM_TTS_GPU_MEMORY_UTILIZATION` y `VLLM_TTS_MAX_NUM_SEQS` (las dos etapas, por `--stage-overrides`). Los defaults del compose son el reparto de 2 × 3090 (EXP-013, CAP-001); con la 5060 Ti, `.env` tiene LLM 0.70 y 64 secuencias. Se aplican con `make up-inference`.
+- **Base y agentes:** el esquema lo manejan las migraciones (`migrations/`, `make migrate`), no `create_all`. Los agentes viven en la base, versionados (cada cambio es una versión nueva; la conversación guarda la suya); `app/agents/templates/*.json` son las plantillas (seed, eval, tests). Editar una plantilla no cambia los agentes ya creados.
+- **Límites por tier:** admisión con lock de fila del cliente (`services/quota.py`); una llamada activa de hace más de `CALL_MAX_DURATION_SECONDS` + 10 min se considera colgada y no ocupa lugar. El loadtest y la de prueba ocupan lugar pero no consumen minutos: el cliente `interno` no tiene límites.
+- **Auth:** `AUTH_SECRET` es obligatoria (sin ella `app` no arranca). La UI usa cookie de sesión; scripts y sistemas, API keys (`Authorization: Bearer vaas_...`).
 - **Comentarios del compose:** explican el porqué medido de cada flag. Mantenerlos al día al cambiar valores.
 
 ## Capacidad
@@ -118,6 +123,7 @@ se mide con el test de capacidad y se registra en [`docs/capacity/`](docs/capaci
   - `monitor.py`: server a 1 Hz, con RAM por componente.
   - `analyze.py`: análisis, `summary.json` y `report.html`.
   - `perfiles/`: los perfiles de carga.
+- **Benchmark de GPU:** `make gpubench` (`scripts/gpubench/`) mide memoria y PCIe host↔GPU como % de la especificación, para comparar GPUs y enlaces. Con la GPU sin carga; procedimiento y mediciones en [`docs/gpubench/`](docs/gpubench/README.md).
 - **Orden:** `base` (piso) → `rampa` (codo) → `fina` (número de capacidad) → `sostenida`.
 - **Overrides:** cada prueba de config usa un override `docker-compose.<nombre>.yml` (o las variables de capacidad de `.env`), no el compose principal.
 - **Volver a la config vigente:** `make up-inference`, sin el `-f` extra.
@@ -134,9 +140,12 @@ se mide con el test de capacidad y se registra en [`docs/capacity/`](docs/capaci
 ## Documentación
 
 - [`README.md`](README.md): la app, operación y deploy.
+- [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md): arquitectura y detalles técnicos (componentes, modelo de datos, flujos de llamada, límites, auth, API, frontend).
+- [`docs/GUIA_UI.md`](docs/GUIA_UI.md): cómo hacer cada acción en la UI (tiers, clientes, agentes, números, usuarios, API keys, llamadas).
 - [`docs/capacity/`](docs/capacity/README.md): capacidad vigente, test de capacidad y registro `CAP-NNN`.
 - [`docs/CAPACITY_TEST_PLAN.md`](docs/CAPACITY_TEST_PLAN.md): diseño del test de capacidad.
 - [`docs/EVAL_LLM_PLAN.md`](docs/EVAL_LLM_PLAN.md) y [`docs/eval/`](docs/eval/README.md): eval de calidad del LLM por tipo de agente y de cliente, y registro `EVAL-NNN`.
+- [`docs/WHATSAPP_PLAN.md`](docs/WHATSAPP_PLAN.md): plan para WhatsApp en el mismo agente (Cloud API directo, registro del número de Anura por voz, Embedded Signup, costos de Meta). Sin implementar.
 - [`docs/archive/`](docs/archive/README.md): mediciones anteriores con el loadtest (EXP-001 a 013).
 - [`docs/SERVER_HARDWARE.md`](docs/SERVER_HARDWARE.md): elección de placas, CPU y PCIe.
 - [`docs/TELEFONIA_ANURA.md`](docs/TELEFONIA_ANURA.md): telefonía (Anura + Asterisk + LiveKit).

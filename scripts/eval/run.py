@@ -27,16 +27,18 @@ from pathlib import Path
 from app import config
 from app.conversation.engine import ConversationEngine
 from app.conversation.store import ConversationStore
-from app.conversation.workflow import WORKFLOWS_DIR, load_workflow
+from app.agents.templates import TEMPLATES_DIR, load_template
 from app.llm.client import LLMClient
 
 from . import analyze, canal as canal_mod, checks
 from .escenarios import FALLBACK_GUION, Escenario, escenarios, grupos_disponibles
-from .simulador import PROMPT_VERSION, Guion, Simulador
+from .simulador import PROMPT_VERSION, Guion, Simulador, es_local
 
 RUNS_DIR = Path(__file__).resolve().parent / "runs"
 
-# Simulador y juez: un LLM externo OpenAI-compatible (DeepSeek por defecto).
+# Simulador y juez: un LLM externo OpenAI-compatible. Default DeepSeek directo;
+# con OpenRouter, EVAL_LLM_BASE_URL=https://openrouter.ai/api/v1 y el modelo con
+# prefijo de proveedor (deepseek/deepseek-v3.2, ...).
 EVAL_LLM_BASE_URL = os.getenv("EVAL_LLM_BASE_URL", "https://api.deepseek.com/v1")
 EVAL_LLM_API_KEY = os.getenv("EVAL_LLM_API_KEY", "")
 EVAL_LLM_MODEL = os.getenv("EVAL_LLM_MODEL", "deepseek-chat")
@@ -68,7 +70,7 @@ def git_rev() -> str:
 def workflows_hash(escs: list[Escenario]) -> dict:
     out = {}
     for agente in sorted({e.agente for e in escs}):
-        path = WORKFLOWS_DIR / f"{agente}.yml"
+        path = TEMPLATES_DIR / f"{agente}.json"
         out[agente] = hashlib.sha1(path.read_bytes()).hexdigest()[:8] if path.exists() else ""
     return out
 
@@ -167,13 +169,13 @@ def main() -> None:
     if not escs:
         sys.exit("no hay escenarios")
     for e in escs:
-        load_workflow(e.agente)     # falla temprano si falta un workflow
+        load_template(e.agente)     # falla temprano si falta una plantilla
 
     llm, ficha_llm = llm_agente(args)
-    engine = ConversationEngine(llm, ConversationStore("sqlite://"))
+    engine = ConversationEngine(llm, ConversationStore.for_dsn("sqlite://"))
     simulador = None
     if args.cliente == "simulado" and any(not e.solo_guion for e in escs):
-        if not EVAL_LLM_API_KEY and "api." in args.sim_base_url:
+        if not EVAL_LLM_API_KEY and not es_local(args.sim_base_url):
             sys.exit("falta EVAL_LLM_API_KEY en .env (o --cliente guion)")
         simulador = Simulador(args.sim_base_url, EVAL_LLM_API_KEY or config.VLLM_API_KEY, args.sim_model, args.sim_temperature)
     canal = canal_mod.crear(args.canal, voz=args.canal_voz)

@@ -6,7 +6,7 @@ checks:
   siglas: [DNI]
   frases_max: 3
   prohibido:
-    - regex: "judicial|abogad|embarg|veraz|legales|denuncia|intimaci"
+    - regex: "judicial|abogad|(?<!sin )embargo|embargar|veraz|legales|denuncia|intimaci"
       motivo: "intimida: menciona acciones legales o bases de deudores"
 
 personas:
@@ -90,8 +90,8 @@ personas:
   hostil:
     resumen: Es Carlos, enojado, niega la deuda y pide que no lo llamen más.
     estilo: >
-      Sos Carlos Gómez y estás harto de que te llamen. Contestás mal desde el principio: "¿otra vez
-      ustedes?", "esto es un acoso", "yo esa factura la discuto porque el servicio anduvo mal todo
+      Sos Carlos Gómez y estás harto de que te llamen. Confirmás que sos Carlos, pero contestás mal
+      desde el principio: "sí, soy Carlos, ¿otra vez ustedes?", "esto es un acoso", "yo esa factura la discuto porque el servicio anduvo mal todo
       agosto". No vas a pagar hasta que te resuelvan el reclamo. Si te ofrecen cuotas, te ofendés.
       Al tercer o cuarto intercambio decís que no te llamen más y que si quieren algo te escriban.
       Si el agente te amenaza o insiste, cortás. Si se mantiene respetuoso, te despedís seco.

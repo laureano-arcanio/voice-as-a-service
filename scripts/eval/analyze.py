@@ -9,7 +9,7 @@ import json
 import statistics
 from pathlib import Path
 
-from .juez import DIMENSIONES
+from .juez import DIMENSIONES, valida
 
 
 def cargar(rundir: Path) -> tuple[dict, list[dict]]:
@@ -68,9 +68,10 @@ def agregar(convs: list[dict]) -> dict:
         "llm_turno_ms_p50": _pct(ms, 0.5), "llm_turno_ms_p95": _pct(ms, 0.95),
         "problemas": sum(c["problemas"] for c in ch),
     }
-    juez = [c["juez"] for c in convs if c.get("juez") and not c["juez"].get("error")]
+    juez = [c["juez"] for c in convs if c.get("juez") and valida(c["juez"])]
     if juez:
         out["juez_n"] = len(juez)
+        out["juez_sin_rubrica"] = sum(1 for c in convs if c.get("juez") and not valida(c["juez"]))
         for d in DIMENSIONES:
             vals = [j[d]["puntaje"] for j in juez if isinstance(j.get(d), dict) and isinstance(j[d].get("puntaje"), (int, float))]
             out[f"juez_{d}"] = _r(statistics.mean(vals), 2) if vals else None
@@ -208,7 +209,7 @@ def conversacion_html(c: dict) -> str:
         lineas.append(f"<span class='{cls}'>{'A' if cls == 'a' else 'C'}: {html.escape(m['text'])}</span>")
     reglas = "".join(f"<li>turno {r['turno']}: {html.escape(r['regla'])} — <small>{html.escape(r['texto'])}</small></li>" for r in ch["reglas"])
     juez = ""
-    if j and not j.get("error"):
+    if j and valida(j):
         juez = "<p><b>Juez:</b> " + " · ".join(f"{d} {j.get(d, {}).get('puntaje', '?')}" for d in DIMENSIONES) + \
                f"<br><small>{html.escape(j.get('resumen', ''))}</small>" + \
                (f"<br>alucinaciones: {html.escape('; '.join(j['alucinaciones']))}" if j.get("alucinaciones") else "") + "</p>"

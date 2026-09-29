@@ -10,15 +10,16 @@ import argparse
 import asyncio
 import json
 import random
+import re
 import sys
 from pathlib import Path
 
 from openai import AsyncOpenAI
 
-from app.conversation.workflow import load_workflow
+from app.agents.templates import load_template
 from app.llm.prompt import render_workflow
 
-from .simulador import opciones_llm
+from .simulador import es_local, opciones_llm
 
 PROMPT_VERSION = "1"
 DIMENSIONES = ["coherencia", "adherencia", "manejo", "naturalidad", "cierre"]
@@ -48,7 +49,7 @@ def transcript(rec: dict) -> str:
 
 
 def contexto(rec: dict) -> str:
-    wf = load_workflow(rec["agente"])
+    wf = load_template(rec["agente"])
     esperado = rec.get("esperado") or {}
     return (f"WORKFLOW DEL AGENTE (YAML):\n{render_workflow(wf)}\n"
             f"PERSONA DEL CLIENTE: {rec.get('resumen', '')}\n"
@@ -65,11 +66,31 @@ def cierre(rec: dict) -> str:
 
 
 def parsear(content: str) -> dict:
-    try:
-        return json.loads(content)
-    except ValueError:
-        i, j = content.find("{"), content.rfind("}")
-        return json.loads(content[i:j + 1]) if 0 <= i < j else {"error": content[:200]}
+    """JSON del juez. Con deepseek-v4.1-flash por OpenRouter llegaron razonamiento
+    en texto plano y JSON con comillas sin escapar: se busca el ultimo objeto y, si
+    no parsea, se rescatan los puntajes con regex."""
+    content = (content or "").strip()
+    for cand in (content, content[content.find("{"):content.rfind("}") + 1] if "{" in content else ""):
+        try:
+            data = json.loads(cand)
+            if isinstance(data, dict) and data:
+                return data
+        except ValueError:
+            continue
+    rescatado = {}
+    for d in DIMENSIONES:
+        m = re.search(rf'"{d}"\s*:\s*\{{\s*"puntaje"\s*:\s*([1-5])\s*,\s*"motivo"\s*:\s*"(.*?)"\s*\}}', content, re.S)
+        if m:
+            rescatado[d] = {"puntaje": int(m.group(1)), "motivo": m.group(2)[:300]}
+    if len(rescatado) == len(DIMENSIONES):
+        m = re.search(r'"repreguntas"\s*:\s*(\d+)', content)
+        return {**rescatado, "alucinaciones": [], "repreguntas": int(m.group(1)) if m else 0,
+                "resumen": "", "rescatado_por_regex": True}
+    raise ValueError(f"sin JSON: {content[:200]!r}")
+
+
+def valida(j: dict) -> bool:
+    return not j.get("error") and all(isinstance(j.get(d), dict) and isinstance(j[d].get("puntaje"), (int, float)) for d in DIMENSIONES)
 
 
 class Juez:
@@ -78,11 +99,22 @@ class Juez:
         self.model = model
         self.extra = opciones_llm(base_url)
 
-    async def _pedir(self, system: str, user: str) -> dict:
-        r = await self.client.chat.completions.create(
-            model=self.model, temperature=0.0, response_format={"type": "json_object"}, max_tokens=1000,
-            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}], **self.extra)
-        return parsear(r.choices[0].message.content or "")
+    async def _pedir(self, system: str, user: str, intentos: int = 3) -> dict:
+        """Reintenta ante JSON invalido o vacio, duplicando max_tokens: en los
+        modelos que razonan (deepseek-v4.1-flash por OpenRouter) el razonamiento
+        cuenta contra el tope y el JSON llega truncado o no llega."""
+        ultimo = None
+        for i in range(intentos):
+            r = await self.client.chat.completions.create(
+                model=self.model, temperature=0.0 if i == 0 else 0.3, response_format={"type": "json_object"},
+                max_tokens=1500 * 2 ** i, messages=[{"role": "system", "content": system},
+                                           {"role": "user", "content": user + ("\n\nRespondé únicamente el objeto JSON pedido, sin texto antes ni después." if i else "")}],
+                **self.extra)
+            try:
+                return parsear(r.choices[0].message.content or "")
+            except ValueError as e:
+                ultimo = e
+        raise ValueError(f"juez sin JSON tras {intentos} intentos: {ultimo}")
 
     async def absoluto(self, rec: dict) -> dict:
         if not rec.get("mensajes"):
@@ -112,7 +144,8 @@ async def juzgar_run(rundir: Path, base_url: str, api_key: str, model: str, para
     hechas = set()
     path = rundir / "juez.jsonl"
     if path.exists():
-        hechas = {json.loads(l)["id"] for l in path.read_text().splitlines() if l.strip()}
+        # Se reanuda: las que fallaron (sin rubrica) se vuelven a calificar; analyze toma la ultima por id.
+        hechas = {j["id"] for j in (json.loads(l) for l in path.read_text().splitlines() if l.strip()) if valida(j)}
     pendientes = [r for r in leer(rundir) if r["id"] not in hechas]
     print(f"juez {model}: {len(pendientes)} conversaciones ({len(hechas)} ya calificadas)")
     sem = asyncio.Semaphore(paralelo)
@@ -174,7 +207,7 @@ def main() -> None:
     ap.add_argument("--model", default=EVAL_LLM_MODEL)
     ap.add_argument("--paralelo", type=int, default=8)
     args = ap.parse_args()
-    if not EVAL_LLM_API_KEY and "api." in args.base_url:
+    if not EVAL_LLM_API_KEY and not es_local(args.base_url):
         sys.exit("falta EVAL_LLM_API_KEY en .env")
     from app import config
     key = EVAL_LLM_API_KEY or config.VLLM_API_KEY
