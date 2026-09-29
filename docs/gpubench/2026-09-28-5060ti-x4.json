@@ -1,0 +1,103 @@
+{
+ "fecha": "2026-09-28 20:43:44",
+ "host": "laureano-B550M-Pro-SE",
+ "gpus": [
+  {
+   "device": 0,
+   "name": "NVIDIA GeForce RTX 5060 Ti",
+   "cc": "12.0",
+   "sms": 36,
+   "mem_total_mib": 7705,
+   "mem_free_mib": 7555,
+   "mem_clock_khz": 14001000,
+   "bus_bits": 128,
+   "l2_kib": 32768,
+   "mem_buf_mib": 1024,
+   "xfer_mib": 256,
+   "iters": 20,
+   "mem": {
+    "read": {
+     "med": 425.63,
+     "best": 425.93
+    },
+    "write": {
+     "med": 423.1,
+     "best": 424.02
+    },
+    "copy": {
+     "med": 381.92,
+     "best": 382.78
+    },
+    "memcpy_d2d": {
+     "med": 385.33,
+     "best": 386.34
+    }
+   },
+   "pcie": {
+    "h2d_pinned": {
+     "med": 3.31,
+     "best": 3.31
+    },
+    "d2h_pinned": {
+     "med": 3.57,
+     "best": 3.57
+    },
+    "h2d_pageable": {
+     "med": 3.29,
+     "best": 3.29
+    },
+    "d2h_pageable": {
+     "med": 3.56,
+     "best": 3.56
+    },
+    "bidir_pinned": {
+     "med": 4.89,
+     "best": 4.9
+    },
+    "sweep_h2d_pinned": [
+     {
+      "kib": 4,
+      "gbs": 0.54
+     },
+     {
+      "kib": 64,
+      "gbs": 2.41
+     },
+     {
+      "kib": 1024,
+      "gbs": 3.23
+     },
+     {
+      "kib": 16384,
+      "gbs": 3.3
+     },
+     {
+      "kib": 262144,
+      "gbs": 3.31
+     }
+    ],
+    "lat_us": {
+     "h2d_4b": 6.2,
+     "d2h_4b": 6.2,
+     "kernel_launch": 7.2
+    }
+   },
+   "pci_bus_id": "00000000:04:00.0",
+   "observed": {
+    "gen": 3,
+    "width": 4,
+    "sm_mhz": 2805.0,
+    "mem_mhz": 13801.0,
+    "power_w": 69.0,
+    "temp_c": 36.0
+   },
+   "power_limit_w": 180.0,
+   "link_max": {
+    "gen": 3,
+    "width": 8
+   },
+   "spec_mem_gbs": 448.032,
+   "spec_pcie_gbs": 3.9384
+  }
+ ]
+}

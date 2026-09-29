@@ -1,0 +1,200 @@
+{
+ "fecha": "2026-09-28 20:41:28",
+ "host": "laureano-B550M-Pro-SE",
+ "gpus": [
+  {
+   "device": 0,
+   "name": "NVIDIA GeForce RTX 5060 Ti",
+   "cc": "12.0",
+   "sms": 36,
+   "mem_total_mib": 7705,
+   "mem_free_mib": 7555,
+   "mem_clock_khz": 14001000,
+   "bus_bits": 128,
+   "l2_kib": 32768,
+   "mem_buf_mib": 1024,
+   "xfer_mib": 256,
+   "iters": 20,
+   "mem": {
+    "read": {
+     "med": 214.02,
+     "best": 214.25
+    },
+    "write": {
+     "med": 212.94,
+     "best": 213.45
+    },
+    "copy": {
+     "med": 199.09,
+     "best": 199.55
+    },
+    "memcpy_d2d": {
+     "med": 197.67,
+     "best": 198.09
+    }
+   },
+   "pcie": {
+    "h2d_pinned": {
+     "med": 3.3,
+     "best": 3.31
+    },
+    "d2h_pinned": {
+     "med": 3.57,
+     "best": 3.57
+    },
+    "h2d_pageable": {
+     "med": 3.28,
+     "best": 3.28
+    },
+    "d2h_pageable": {
+     "med": 3.56,
+     "best": 3.56
+    },
+    "bidir_pinned": {
+     "med": 4.89,
+     "best": 4.9
+    },
+    "sweep_h2d_pinned": [
+     {
+      "kib": 4,
+      "gbs": 0.46
+     },
+     {
+      "kib": 64,
+      "gbs": 2.29
+     },
+     {
+      "kib": 1024,
+      "gbs": 3.21
+     },
+     {
+      "kib": 16384,
+      "gbs": 3.3
+     },
+     {
+      "kib": 262144,
+      "gbs": 3.3
+     }
+    ],
+    "lat_us": {
+     "h2d_4b": 8.4,
+     "d2h_4b": 7.8,
+     "kernel_launch": 9.5
+    }
+   },
+   "pci_bus_id": "00000000:04:00.0",
+   "observed": {
+    "gen": 3,
+    "width": 4,
+    "sm_mhz": 2797.0,
+    "mem_mhz": 7001.0,
+    "power_w": 48.07,
+    "temp_c": 36.0
+   },
+   "power_limit_w": 180.0,
+   "link_max": {
+    "gen": 3,
+    "width": 8
+   },
+   "spec_mem_gbs": 448.032,
+   "spec_pcie_gbs": 3.9384
+  },
+  {
+   "device": 1,
+   "name": "NVIDIA GeForce RTX 3090",
+   "cc": "8.6",
+   "sms": 82,
+   "mem_total_mib": 24122,
+   "mem_free_mib": 23044,
+   "mem_clock_khz": 9751000,
+   "bus_bits": 384,
+   "l2_kib": 6144,
+   "mem_buf_mib": 1024,
+   "xfer_mib": 256,
+   "iters": 20,
+   "mem": {
+    "read": {
+     "med": 755.12,
+     "best": 888.42
+    },
+    "write": {
+     "med": 697.62,
+     "best": 846.71
+    },
+    "copy": {
+     "med": 669.1,
+     "best": 769.49
+    },
+    "memcpy_d2d": {
+     "med": 687.4,
+     "best": 783.44
+    }
+   },
+   "pcie": {
+    "h2d_pinned": {
+     "med": 26.68,
+     "best": 26.7
+    },
+    "d2h_pinned": {
+     "med": 26.34,
+     "best": 26.34
+    },
+    "h2d_pageable": {
+     "med": 13.33,
+     "best": 13.64
+    },
+    "d2h_pageable": {
+     "med": 12.77,
+     "best": 12.87
+    },
+    "bidir_pinned": {
+     "med": 44.89,
+     "best": 45.27
+    },
+    "sweep_h2d_pinned": [
+     {
+      "kib": 4,
+      "gbs": 0.91
+     },
+     {
+      "kib": 64,
+      "gbs": 9.24
+     },
+     {
+      "kib": 1024,
+      "gbs": 23.75
+     },
+     {
+      "kib": 16384,
+      "gbs": 26.5
+     },
+     {
+      "kib": 262144,
+      "gbs": 26.7
+     }
+    ],
+    "lat_us": {
+     "h2d_4b": 4.4,
+     "d2h_4b": 4.1,
+     "kernel_launch": 4.3
+    }
+   },
+   "pci_bus_id": "00000000:07:00.0",
+   "observed": {
+    "gen": 4,
+    "width": 16,
+    "sm_mhz": 1935.0,
+    "mem_mhz": 9501.0,
+    "power_w": 280.63,
+    "temp_c": 68.0
+   },
+   "power_limit_w": 280.0,
+   "link_max": {
+    "gen": 4,
+    "width": 16
+   },
+   "spec_mem_gbs": 936.096,
+   "spec_pcie_gbs": 31.5072
+  }
+ ]
+}

@@ -1,0 +1,103 @@
+{
+ "fecha": "2026-09-28 20:47:00",
+ "host": "laureano-B550M-Pro-SE",
+ "gpus": [
+  {
+   "device": 1,
+   "name": "NVIDIA GeForce RTX 3090",
+   "cc": "8.6",
+   "sms": 82,
+   "mem_total_mib": 24122,
+   "mem_free_mib": 23248,
+   "mem_clock_khz": 9751000,
+   "bus_bits": 384,
+   "l2_kib": 6144,
+   "mem_buf_mib": 1024,
+   "xfer_mib": 256,
+   "iters": 20,
+   "mem": {
+    "read": {
+     "med": 881.82,
+     "best": 887.78
+    },
+    "write": {
+     "med": 787.16,
+     "best": 849.29
+    },
+    "copy": {
+     "med": 739.54,
+     "best": 818.09
+    },
+    "memcpy_d2d": {
+     "med": 768.05,
+     "best": 833.99
+    }
+   },
+   "pcie": {
+    "h2d_pinned": {
+     "med": 26.68,
+     "best": 26.7
+    },
+    "d2h_pinned": {
+     "med": 26.3,
+     "best": 26.33
+    },
+    "h2d_pageable": {
+     "med": 13.93,
+     "best": 14.35
+    },
+    "d2h_pageable": {
+     "med": 12.62,
+     "best": 12.68
+    },
+    "bidir_pinned": {
+     "med": 44.73,
+     "best": 45.15
+    },
+    "sweep_h2d_pinned": [
+     {
+      "kib": 4,
+      "gbs": 0.88
+     },
+     {
+      "kib": 64,
+      "gbs": 9.28
+     },
+     {
+      "kib": 1024,
+      "gbs": 23.78
+     },
+     {
+      "kib": 16384,
+      "gbs": 26.46
+     },
+     {
+      "kib": 262144,
+      "gbs": 26.66
+     }
+    ],
+    "lat_us": {
+     "h2d_4b": 4.3,
+     "d2h_4b": 4.1,
+     "kernel_launch": 4.6
+    }
+   },
+   "pci_bus_id": "00000000:07:00.0",
+   "observed": {
+    "gen": 4,
+    "width": 16,
+    "sm_mhz": 1950.0,
+    "mem_mhz": 9501.0,
+    "power_w": 279.91,
+    "temp_c": 66.0
+   },
+   "power_limit_w": 280.0,
+   "link_max": {
+    "gen": 4,
+    "width": 16
+   },
+   "spec_mem_gbs": 936.096,
+   "spec_pcie_gbs": 31.5072
+  }
+ ]
+}

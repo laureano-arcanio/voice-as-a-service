@@ -111,6 +111,9 @@ button.primary { background: var(--accent); color: #fff; border-color: var(--acc
 <h2>4. Capacidad y costo del minuto</h2>
 <div class="kpis" id="kpis"></div>
 <div class="scroll"><table id="desglose"></table></div>
+<h3>Llamadas simultáneas máximas por calidad</h3>
+<p class="note">Con el tipo de server y los servers activos de la sección 1. Un mismo server atiende menos llamadas cuanto mejor es la calidad; la fila resaltada es la calidad elegida para dimensionar. La espera es la del cliente entre turnos, interpolada de los escalones medidos (A: CAP-002, B: CAP-001; los estimados usan los de A). El piso con 1 llamada es p50 1,66 s (A) y 1,61 s (B).</p>
+<div class="scroll"><table id="calidades"></table></div>
 <h3>Minutos por mes</h3>
 <div class="scroll"><table id="minutos"></table></div>
 </section>
@@ -228,6 +231,13 @@ const CALIDADES = [
   ["aceptable", "Aceptable", "p95 ≤ ~3,4 s"],
 ];
 const nombreCalidad = (k) => (CALIDADES.find((c) => c[0] === k) || [k, k])[1];
+// Espera del cliente p25 / p50 / p75 (s) en la concurrencia de cada calidad, interpolada de los escalones
+// medidos (turnos de `fina`, `sostenida` y `rampa`): A de CAP-002, B de CAP-001. Los tipos estimados usan los de A.
+const PERCENTILES = {
+  A: { premium: [1.68, 1.82, 1.93], superior: [1.74, 1.90, 2.06], buena: [1.93, 2.12, 2.36], aceptable: [2.15, 2.47, 2.87] },
+  B: { premium: [1.57, 1.68, 1.87], superior: [1.77, 1.93, 2.19], buena: [1.88, 2.11, 2.37], aceptable: [2.10, 2.40, 2.70] },
+};
+const percentiles = (t, k) => (PERCENTILES[t] || PERCENTILES.A)[k];
 
 // ---- modelo ----
 function capacidad(t, calidad = S.calidad) { return Math.max(1, +S.tipos[t][calidad] || 1); }
@@ -332,12 +342,19 @@ function pintarCapacidad(e) {
     ["Paneles solares", `${num(+S.paneles)} × ${num(+S.panelW)} W × ${num(+S.solHoras, 1)} h × ${num(+S.solRend, 2)} = ${num(e.kwhSolar)} kWh por mes; ahorro ${pesos(e.ahorroSolar)}${e.kwhSolar > e.kwhSolarUsado ? ` (sobran ${num(e.kwhSolar - e.kwhSolarUsado)} kWh)` : ""}`],
     ["Internet, Anura y otros", `${pesos(e.fijos)} (internet ${pesos(+S.internet)}, abono de Anura ${pesos(+S.anura)}, otros ${pesos(+S.otros)})`],
     ["<b>Costo fijo por mes</b>", `<b>${pesos(e.total)}</b> / ${num(e.minProd)} minutos = <b>${pesos2(e.costoMin)}</b> por minuto`],
-    ["Minuto por calidad", CALIDADES.map(([k, n, d]) => { const f = factorCalidad(k); return `${n} (${d}): ${capacidad(S.tipo, k)} llamadas por server, costo ${pesos2(e.costoMin * f)}, precio ${pesos2(e.precioMin * f)}`; }).join("<br>")],
     ["Telefonía, por minuto", `Anura cobra ${pesos2(+S.minEnt)} el entrante y ${pesos2(+S.minSal)} el saliente; al cliente, ${pesos2(+S.precioEnt)} y ${pesos2(+S.precioSal)} además de la inferencia`],
   ];
   $("desglose").innerHTML = filas.map(([k, v]) => `<tr><td>${k}</td><td style="text-align:left;white-space:normal">${v}</td></tr>`).join("");
 
   const h = horarioMin(), ocup = Math.min(1, (+S.ocupacion) / 100);
+  // Concurrencia máxima por calidad con los servers activos: la capacidad del tipo en ese tier × activos.
+  const medido = S.tipo in PERCENTILES ? "" : " (estimados, de A)";
+  $("calidades").innerHTML = `<tr><th>Calidad</th><th>Espera p25${medido}</th><th>p50</th><th>p75</th><th>p95</th><th>Llamadas por server</th><th>Llamadas simultáneas máximas (${e.activos} activos)</th><th>Minutos por mes (${num(ocup * 100)} % de ocupación)</th><th>Costo del minuto</th><th>Precio del minuto</th></tr>` +
+    CALIDADES.map(([k, n, d]) => {
+      const cap = capacidad(S.tipo, k), total = e.activos * cap, f = factorCalidad(k);
+      const pc = percentiles(S.tipo, k).map((v) => `${num(v, 2)} s`);
+      return `<tr${k === S.calidad ? ' class="ok"' : ""}><td>${n}</td><td>${pc[0]}</td><td>${pc[1]}</td><td>${pc[2]}</td><td>${d.replace("p95 ", "")}</td><td>${cap}</td><td><b>${total}</b></td><td>${num(total * h * ocup)}</td><td>${pesos2(e.costoMin * f)}</td><td>${pesos2(e.precioMin * f)}</td></tr>`;
+    }).join("");
   const vendidos = S.paquetes.reduce((a, p) => { const q = plan(p, e); return a + q.n * q.minCap; }, 0);
   const limites = S.paquetes.reduce((a, p) => { const q = plan(p, e); return a + q.n * q.c; }, 0);
   const cols = [["Por llamada simultánea", 1], [`Capacidad instalada (${e.capReal})`, e.capReal]];

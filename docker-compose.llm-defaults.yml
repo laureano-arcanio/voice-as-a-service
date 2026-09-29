@@ -1,0 +1,22 @@
+# Prueba: defaults de muestreo y thinking en el servidor vllm-llm, los mismos que usa el
+# agente de LiveKit (app/llm/client.py, SAMPLING[False]): sin pensamiento, temperature 0.7,
+# top_p 0.8, top_k 20, min_p 0. Sirven de default para clientes que no mandan nada (Sim);
+# cualquier pedido con sus propios valores (el agente de LiveKit) los pisa.
+# `command` se reemplaza entero al mergear: es el del compose principal mas los dos flags finales.
+# Uso: COMPOSE_FILE en .env + este archivo, y `make up-inference`. Volver: quitarlo y repetir.
+services:
+  vllm-llm:
+    command:
+      - "--model=${VLLM_LLM_MODEL:-RedHatAI/Qwen3.5-9B-quantized.w4a16}"
+      - "--served-model-name=${VLLM_LLM_MODEL:-RedHatAI/Qwen3.5-9B-quantized.w4a16}"
+      - "--host=0.0.0.0"
+      - "--port=8000"
+      - "--api-key=${VLLM_API_KEY:-not-needed}"
+      - "--max-model-len=32768"
+      - "--reasoning-parser=qwen3"
+      - "--gpu-memory-utilization=${VLLM_LLM_GPU_MEMORY_UTILIZATION:-0.90}"
+      - "--max-num-seqs=${VLLM_LLM_MAX_NUM_SEQS:-128}"
+      - "--max-cudagraph-capture-size=${VLLM_LLM_MAX_NUM_SEQS:-128}"
+      - "--limit-mm-per-prompt={\"image\":0,\"video\":0}"
+      - "--default-chat-template-kwargs={\"enable_thinking\":false}"
+      - "--override-generation-config={\"temperature\":0.7,\"top_p\":0.8,\"top_k\":20,\"min_p\":0.0}"
