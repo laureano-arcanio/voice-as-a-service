@@ -1,0 +1,28 @@
+# Render Blueprint: landing estática de Atentina (docs/LANDING.md).
+# La app no se despliega acá: sigue en el server de validación.
+services:
+  - type: web
+    name: atentina-landing
+    runtime: static
+    rootDir: landing            # solo los cambios en landing/ disparan un deploy
+    staticPublishPath: .
+    # Dominio canónico. Render agrega www.atentina.com.ar y lo redirige al apex.
+    # atentina.com redirige desde Cloudflare y no llega a Render.
+    domains:
+      - atentina.com.ar
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - path: /og.png
+        name: Cache-Control
+        value: public, max-age=604800
+      - path: /favicon.svg
+        name: Cache-Control
+        value: public, max-age=604800
