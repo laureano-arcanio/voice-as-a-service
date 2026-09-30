@@ -41,12 +41,12 @@ controla quién puede usar la troncal.
 asignarlos a un cliente y elegir el agente; después `make livekit-sip` para que
 el trunk entrante los acepte.
 
-**Pendiente para rutear varios números:** hoy `asterisk/conf/extensions.conf`
-(contexto `from-anura`) manda toda entrante a `+54${ANURA_DID}`, sin mirar qué
-número se marcó, así que todas llegan al agente de ese número. Para que cada
-DID vaya a su agente, Asterisk tiene que pasar a LiveKit el número marcado (el
-To de Anura, o el `EXTEN` si Anura lo manda en la Request-URI). Hay que verlo con
-una llamada real a un segundo DID (`pjsip set logger on`) antes de cambiarlo.
+**Número marcado (verificado 29-sep-2026):** con varios DIDs en la misma cuenta,
+Anura manda el número marcado en la Request-URI y en `P-Asserted-Identity`, en
+formato nacional con 0 (`sip:03517003976@…`). `from-anura` lo pasa a LiveKit como
+`+54` + 10 dígitos; sin un número válido usa `ANURA_DID`. Un número que no está en
+el trunk entrante de LiveKit (`make livekit-sip`) da 404; uno sin cliente o sin
+agente lo corta el worker.
 
 **Saliente:**
 
@@ -55,10 +55,12 @@ una llamada real a un segundo DID (`pjsip set logger on`) antes de cambiarlo.
    `anura-asterisk-outbound`) y el número en E.164.
 2. LiveKit manda el INVITE desde São Paulo a `<IP pública>:5080`.
 3. Asterisk responde 401, y LiveKit reintenta con usuario `livekit` y la clave.
-4. Asterisk pasa el número a formato Anura y marca con el caller ID `ANURA_DID`.
-   El agente manda como `sip_number` el número del cliente (el primero, o el
-   elegido), pero Asterisk hoy lo ignora: para usar el caller ID de cada cliente
-   hay que tomar el From en `from-livekit` y que Anura lo acepte.
+4. Asterisk pasa el número a formato Anura y marca con el número del cliente
+   como caller ID: el agente lo manda como `sip_number` (el primero del cliente,
+   o el elegido) y Asterisk lo pone en `P-Asserted-Identity` como `0` + 10
+   dígitos, el formato de las entrantes (Anura confirmó que lo toma de ahí,
+   29-sep-2026). Tiene que ser un número de la cuenta de Anura; sin número
+   válido sale con `ANURA_DID`.
 
 **Formatos de número.** Anura marca en formato nacional de 10 dígitos
 (característica + abonado), sin 0, sin 15 y sin 54. Los celulares también van
