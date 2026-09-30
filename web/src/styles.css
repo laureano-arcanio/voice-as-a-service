@@ -1,10 +1,10 @@
 /* Estilos globales chicos; el resto va por el tema de Mantine. */
 body {
-  background: var(--oime-page-bg);
+  background: var(--atentina-page-bg);
 }
 
 .app-main {
-  background: var(--oime-page-bg);
+  background: var(--atentina-page-bg);
 }
 
 .mono {
@@ -30,7 +30,7 @@ pre.code {
 /* Fila de dato recien obtenido en el detalle de una llamada. */
 @keyframes just-set {
   from {
-    background: var(--oime-accent-soft);
+    background: var(--atentina-accent-soft);
   }
   to {
     background: transparent;
@@ -77,7 +77,7 @@ pre.code {
 
 .bubble.client {
   align-self: flex-end;
-  background: var(--oime-accent-soft);
+  background: var(--atentina-accent-soft);
   border-bottom-right-radius: 4px;
 }
 

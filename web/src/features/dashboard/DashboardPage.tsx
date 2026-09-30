@@ -29,7 +29,7 @@ export function DashboardPage() {
   const showClient = isAdmin && !filters.client;
   // Abierto o cerrado, se recuerda por navegador.
   const [newCallOpen, setNewCallOpen] = useLocalStorage<string | null>({
-    key: 'oime:new-call-open',
+    key: 'atentina:new-call-open',
     defaultValue: 'new-call',
   });
 

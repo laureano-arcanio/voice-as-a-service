@@ -55,7 +55,7 @@ describe('números', () => {
 
 describe('slugify', () => {
   it('saca acentos y deja minúsculas, números y _', () => {
-    expect(slugify('Clínica Oíme — Córdoba 2')).toBe('clinica_oime_cordoba_2');
+    expect(slugify('Clínica Atentina — Córdoba 2')).toBe('clinica_atentina_cordoba_2');
     expect(slugify('  __Hola__ ')).toBe('hola');
     expect(slugify('x'.repeat(80))).toHaveLength(64);
   });

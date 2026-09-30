@@ -240,7 +240,7 @@ Carreras medidas en PostgreSQL:
 ## Frontend (`web/`)
 
 - **Stack:** React 19 + TypeScript strict + Vite, React Router 7 (rutas con carga diferida por
-  página), TanStack Query 5, Mantine 8 (tema Oíme, claro y oscuro), CodeMirror para el JSON y
+  página), TanStack Query 5, Mantine 8 (tema Atentina, claro y oscuro), CodeMirror para el JSON y
   Recharts.
 - **Cliente de la API:** `openapi-fetch` tipado con `src/api/schema.d.ts`, generado del OpenAPI
   (`make openapi`: exporta `web/openapi.json` y corre `npm run gen:api`). Un cambio de contrato en

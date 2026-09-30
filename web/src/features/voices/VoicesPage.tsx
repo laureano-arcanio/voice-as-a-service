@@ -46,7 +46,7 @@ export function VoicesPage() {
                           {list.map((v) => (
                             <Table.Tr
                               key={v.nombre}
-                              bg={v.nombre === current ? 'var(--oime-accent-soft)' : undefined}
+                              bg={v.nombre === current ? 'var(--atentina-accent-soft)' : undefined}
                               style={{ cursor: 'pointer' }}
                               onClick={() => setSelected(v.nombre)}
                             >

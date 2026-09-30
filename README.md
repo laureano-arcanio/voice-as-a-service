@@ -1,4 +1,4 @@
-# Oíme — agentes de voz telefónicos
+# Atentina — agentes de voz telefónicos
 
 Plataforma de agentes de IA que **atienden y hacen llamadas** para varios clientes, con inferencia
 propia (LLM, STT y TTS sobre GPUs locales). Cada cliente tiene sus números, sus agentes y un

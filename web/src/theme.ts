@@ -7,7 +7,7 @@ import {
   type MantineColorsTuple,
 } from '@mantine/core';
 
-// Marca Oíme: navy #14213D, acento ambar #F4A63A (soft #FDF1DC), ok #1E9E6A.
+// Marca Atentina: navy #14213D, acento ambar #F4A63A (soft #FDF1DC), ok #1E9E6A.
 const navy: MantineColorsTuple = [
   '#edf0f6',
   '#d5dbe8',
@@ -66,7 +66,7 @@ const dark: MantineColorsTuple = [
 const variantColorResolver: VariantColorsResolver = (input) => {
   const r = defaultVariantColorsResolver(input);
   if (input.variant === 'filled' && (input.color ?? input.theme.primaryColor) === 'primary') {
-    return { ...r, color: 'var(--oime-on-primary)' };
+    return { ...r, color: 'var(--atentina-on-primary)' };
   }
   return r;
 };
@@ -103,16 +103,16 @@ export const cssVariablesResolver: CSSVariablesResolver = () => ({
     '--mantine-color-default-border': '#DCE1EA',
     '--mantine-color-dimmed': '#5B6578',
     '--mantine-color-text': '#14213D',
-    '--oime-page-bg': '#F4F6F9',
-    '--oime-on-primary': '#FFFFFF',
-    '--oime-accent': '#F4A63A',
-    '--oime-accent-soft': '#FDF1DC',
+    '--atentina-page-bg': '#F4F6F9',
+    '--atentina-on-primary': '#FFFFFF',
+    '--atentina-accent': '#F4A63A',
+    '--atentina-accent-soft': '#FDF1DC',
   },
   dark: {
     '--mantine-color-default-border': '#2A3650',
-    '--oime-page-bg': '#0F1626',
-    '--oime-on-primary': '#14213D',
-    '--oime-accent': '#F6B45A',
-    '--oime-accent-soft': 'rgba(246, 180, 90, 0.14)',
+    '--atentina-page-bg': '#0F1626',
+    '--atentina-on-primary': '#14213D',
+    '--atentina-accent': '#F6B45A',
+    '--atentina-accent-soft': 'rgba(246, 180, 90, 0.14)',
   },
 });

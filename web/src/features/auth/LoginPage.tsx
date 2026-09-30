@@ -32,7 +32,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const scheme = useComputedColorScheme('light');
-  useDocumentTitle('Ingresar · Oíme');
+  useDocumentTitle('Ingresar · Atentina');
   const from = (location.state as { from?: Location } | null)?.from;
   const target = from && from.pathname !== '/login' ? `${from.pathname}${from.search}` : '/';
 
@@ -47,12 +47,12 @@ export function LoginPage() {
   if (me.data) return <Navigate to={target} replace />;
 
   return (
-    <Center mih="100vh" p="md" style={{ background: 'var(--oime-page-bg)' }}>
+    <Center mih="100vh" p="md" style={{ background: 'var(--atentina-page-bg)' }}>
       <Box w="100%" maw={400}>
         <Stack align="center" mb="lg">
           <Image
-            src={scheme === 'dark' ? '/oime-logo-blanco.svg' : '/oime-logo.svg'}
-            alt="Oíme"
+            src={scheme === 'dark' ? '/atentina-logo-blanco.svg' : '/atentina-logo.svg'}
+            alt="Atentina"
             h={48}
             w="auto"
           />

@@ -10,7 +10,7 @@ import { theme } from '@/theme';
 
 export const ADMIN: Me = {
   id: 'u-admin',
-  email: 'admin@oime.com.ar',
+  email: 'admin@atentina.com.ar',
   name: 'Admin',
   role: 'admin',
   client_id: null,

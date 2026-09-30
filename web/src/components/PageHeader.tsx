@@ -17,7 +17,7 @@ export function PageHeader({
   above?: ReactNode;
 }) {
   const tabTitle = typeof title === 'string' ? title : docTitle;
-  useDocumentTitle(tabTitle ? `${tabTitle} · Oíme` : 'Oíme');
+  useDocumentTitle(tabTitle ? `${tabTitle} · Atentina` : 'Atentina');
   return (
     <Stack gap={4} mb="lg">
       {above}

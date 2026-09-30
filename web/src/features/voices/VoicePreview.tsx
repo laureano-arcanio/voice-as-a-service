@@ -105,7 +105,7 @@ export function VoicePreview({
           title="Escuchar la voz elegida"
         >
           {tts.isPending ? (
-            <Loader size={14} color="var(--oime-on-primary)" />
+            <Loader size={14} color="var(--atentina-on-primary)" />
           ) : playing ? (
             <IconPlayerPauseFilled size={16} />
           ) : (

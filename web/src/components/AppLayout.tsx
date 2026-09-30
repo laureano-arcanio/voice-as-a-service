@@ -65,8 +65,8 @@ export function AppLayout() {
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" aria-label="Menú" />
             <Link to="/" aria-label="Inicio" style={{ display: 'flex' }}>
               <Image
-                src={scheme === 'dark' ? '/oime-logo-blanco.svg' : '/oime-logo.svg'}
-                alt="Oíme"
+                src={scheme === 'dark' ? '/atentina-logo-blanco.svg' : '/atentina-logo.svg'}
+                alt="Atentina"
                 h={30}
                 w="auto"
               />

@@ -1,4 +1,4 @@
-# web — UI de Oíme
+# web — UI de Atentina
 
 SPA en React 19 + Vite + TypeScript (strict). Reemplazó al dashboard Jinja (`templates/`, `static/`, borrados en sep-2026).
 FastAPI sirve el build: `web/dist/assets/*` estático y cualquier otra ruta → `index.html`.
