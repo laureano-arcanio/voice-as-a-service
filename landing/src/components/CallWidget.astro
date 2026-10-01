@@ -40,7 +40,6 @@ const panel = "hidden flex-col gap-3 p-3.5";
               name="agente"
               value={agent.slug}
               data-title={agent.title}
-              data-scenario={agent.scenario}
               checked={i === 0}
             />
             <span class="grid size-8 place-items-center rounded-[9px] bg-surface-2 text-ink group-has-checked/agent:bg-accent group-has-checked/agent:text-accent-ink">
@@ -54,9 +53,6 @@ const panel = "hidden flex-col gap-3 p-3.5";
         ))
       }
     </div>
-    <p class="rounded-[10px] bg-surface-2 px-3 py-2 text-[.85rem] text-ink-2">
-      <span class="font-semibold">Tu papel:</span> <span data-scenario>{list[0]?.scenario}</span>
-    </p>
     <div class="mt-1 grid gap-2.5">
       <Button type="submit" data-start>
         <Icon name="phone" class="size-5" />Iniciar llamada sin costo

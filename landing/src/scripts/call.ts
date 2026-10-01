@@ -40,7 +40,6 @@ export function initCallWidget(root: HTMLElement) {
   const $ = <T extends Element = HTMLElement>(selector: string) => root.querySelector<T>(selector)!;
   const form = $<HTMLFormElement>("[data-idle]");
   const statusText = $("[data-status-text]");
-  const scenario = $("[data-scenario]");
   const note = $("[data-note]");
   const noteHtml = note.innerHTML;
   const startButton = $<HTMLButtonElement>("[data-start]");
@@ -198,7 +197,6 @@ export function initCallWidget(root: HTMLElement) {
   }
 
   form.addEventListener("change", () => {
-    scenario.textContent = selected().dataset.scenario ?? "";
     resetNote();
   });
 

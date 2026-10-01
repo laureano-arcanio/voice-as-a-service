@@ -9,10 +9,10 @@ interface Props {
 const { home = false } = Astro.props;
 const hub = home ? "" : "/";
 const links = [
-  { href: `${hub}#como`, label: "Nuestro producto" },
-  { href: `${hub}#soluciones`, label: "Agentes de voz" },
-  { href: "#voces", label: "Voces" },
-  { href: "#precios", label: "Precios" },
+  { href: `${hub}#como`, label: "Nuestro producto", short: "Producto" },
+  { href: `${hub}#soluciones`, label: "Agentes de voz", short: "Agentes" },
+  { href: "#voces", label: "Voces", short: "Voces" },
+  { href: "#precios", label: "Precios", short: "Precios" },
 ];
 ---
 
@@ -23,5 +23,18 @@ const links = [
       {links.map((l) => <a class="text-ink-2 no-underline hover:text-ink max-[720px]:hidden" href={l.href}>{l.label}</a>)}
       <Button href="#demo" size="sm">Pedir una demo</Button>
     </div>
+  </div>
+  <!-- Mobile: los links en una segunda fila, siempre visibles, con rótulos cortos para que entren los 4. -->
+  <div class="flex gap-2 overflow-x-auto px-5 pb-3 max-[380px]:gap-1.5 max-[380px]:px-4 [scrollbar-width:none] min-[721px]:hidden [&::-webkit-scrollbar]:hidden">
+    {
+      links.map((l) => (
+        <a
+          class="flex-auto rounded-full border border-line-2 bg-white px-3 py-1.5 text-center text-[.92rem] max-[380px]:px-2 max-[380px]:text-[.85rem] font-semibold whitespace-nowrap text-ink no-underline active:border-accent active:text-accent"
+          href={l.href}
+        >
+          {l.short}
+        </a>
+      ))
+    }
   </div>
 </nav>

@@ -54,6 +54,12 @@
 @layer base {
   html {
     color-scheme: light;
+    /* Que el nav fijo (más alto en mobile, con la fila de links) no tape el título al ir a un #ancla. */
+    scroll-padding-top: 76px;
+
+    @media (width <= 720px) {
+      scroll-padding-top: 116px;
+    }
   }
 
   body {

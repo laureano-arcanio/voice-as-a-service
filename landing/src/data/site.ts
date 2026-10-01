@@ -4,7 +4,6 @@ export interface DemoAgent {
   slug: string;
   title: string;
   summary: string;
-  scenario: string;
   icon: IconName;
 }
 
@@ -13,21 +12,18 @@ export const agents: DemoAgent[] = [
     slug: "turnos",
     title: "Recepción y turnos",
     summary: "Da un turno, lo confirma y toma tus datos",
-    scenario: "Llamás a la Clínica del Sol para pedir un turno.",
     icon: "calendar",
   },
   {
     slug: "cobranzas",
     title: "Cobranzas",
     summary: "Te llama por una cuota vencida y acuerda un pago",
-    scenario: "Sos Carlos Gómez y tenés una factura de internet vencida.",
     icon: "money",
   },
   {
     slug: "reclamos",
     title: "Consultas y reclamos",
     summary: "Responde preguntas frecuentes y registra un reclamo",
-    scenario: "Sos vecino de San Andrés: consultá por una tasa o reclamá por una luz apagada.",
     icon: "chat",
   },
 ];
@@ -68,23 +64,28 @@ export const plans: Plan[] = [
   {
     name: "Mostrador",
     for: "Consultorios, estudios y locales con una línea.",
-    price: "$ 29.000",
+    price: "$ 29.000",
     per: "por mes",
     usd: "unos USD 19",
-    items: ["<b>300 minutos</b> por mes", "<b>1 llamada</b> a la vez", "1 número", "Minuto adicional <b class=\"tabular-nums\">$ 99</b>"],
+    items: [
+      "<b>300 minutos</b> por mes",
+      "<b>1 llamada</b> a la vez",
+      "1 número",
+      "Minuto adicional <b class=\"tabular-nums\">$ 99</b>",
+    ],
     cta: "Empezar",
   },
   {
     name: "Sucursal",
     for: "Clínicas, comercios y servicios con varias líneas.",
-    price: "$ 99.000",
+    price: "$ 99.000",
     per: "por mes",
     usd: "unos USD 64",
     items: [
       "<b>1.200 minutos</b> por mes",
       "<b>5 llamadas</b> a la vez",
-      "Recordatorios de turnos y vencimientos",
-      "Panel de llamadas",
+      "1 número",
+      "Llamadas programadas",
       "Minuto adicional <b class=\"tabular-nums\">$ 79</b>",
     ],
     cta: "Empezar",
@@ -93,14 +94,14 @@ export const plans: Plan[] = [
   {
     name: "Central",
     for: "Empresas medianas y municipios.",
-    price: "$ 399.000",
+    price: "$ 399.000",
     per: "por mes",
     usd: "unos USD 258",
     items: [
       "<b>5.000 minutos</b> por mes",
       "<b>10 llamadas</b> a la vez",
-      "Varias voces y varios números",
-      "API, webhooks e integración con tu sistema",
+      "1 número",
+      "Llamadas programadas",
       "Minuto adicional <b class=\"tabular-nums\">$ 69</b>",
     ],
     cta: "Empezar",
@@ -111,11 +112,10 @@ export const plans: Plan[] = [
     price: "A medida",
     usd: "Lo cotizamos según tu volumen",
     items: [
-      "Más de 5.000 minutos por mes",
-      "Las llamadas a la vez que necesites",
-      "Campañas de llamadas programadas",
-      "Precio por resultado para cobranzas",
-      "Atención dedicada",
+      "<b>Más de 5.000 minutos</b> por mes",
+      "<b>Las llamadas</b> a la vez que necesites",
+      "Los números que necesites",
+      "Llamadas programadas",
     ],
     cta: "Hablemos",
   },
