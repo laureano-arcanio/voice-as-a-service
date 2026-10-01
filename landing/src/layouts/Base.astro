@@ -1,0 +1,57 @@
+---
+import "../styles/global.css";
+
+interface Props {
+  title: string;
+  description: string;
+  path: string;
+  theme?: string;
+}
+
+const { title, description, path, theme } = Astro.props;
+const canonical = new URL(path, Astro.site).href;
+const og = new URL("/og.png", Astro.site).href;
+const organization = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "Atentina",
+  url: "https://atentina.com.ar/",
+  logo: og,
+  email: "hola@atentina.com.ar",
+  areaServed: "AR",
+};
+---
+
+<!doctype html>
+<html lang="es-AR" class="scroll-smooth motion-reduce:scroll-auto" data-theme={theme}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Atentina" />
+    <meta property="og:locale" content="es_AR" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={og} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#FFFFFF" />
+    <script type="application/ld+json" set:html={JSON.stringify(organization)} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    />
+  </head>
+  <body>
+    <slot />
+    <div id="turnstile" class="fixed right-4 bottom-4 z-50"></div>
+  </body>
+</html>

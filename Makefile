@@ -83,6 +83,9 @@ up-nginx: ## Solo el proxy publico (nginx en :PROXY_PORT) e imprime las URLs
 		echo "  VLLM_STT_BASE_URL=$$url/stt/v1"; \
 		echo "  VLLM_TTS_BASE_URL=$$url/tts/v1"
 
+up-tunnel: ## Solo el tunel de Cloudflare de la demo de la landing (docs/LANDING.md; requiere CLOUDFLARE_TUNNEL_TOKEN)
+	$(COMPOSE) -f docker-compose.tunnel.yml up -d tunnel
+
 up-pbx: ## Solo Asterisk; lo recrea para releer .env y asterisk/conf/ (corta llamadas en curso)
 	@for v in ANURA_DOMAIN ANURA_USER ANURA_PASSWORD ANURA_DID LIVEKIT_SIP_HOST LIVEKIT_SIP_PASSWORD; do \
 		grep -qE "^$$v=.+" .env || { echo "Falta $$v en .env (ver docs/TELEFONIA_ANURA.md)"; exit 1; }; \

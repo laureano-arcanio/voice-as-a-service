@@ -35,6 +35,8 @@ class CallRequest:
     # Llamada del loadtest (scripts/loadtest, scripts/capacity): como la de prueba, pero
     # el agente no corta al completar el workflow, asi dura los turnos que pide el caller.
     loadtest: bool = False
+    max_duration_seconds: int | None = None
+    join_timeout_seconds: int | None = None
 
 
 @dataclass
@@ -87,10 +89,11 @@ def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
     s.commit()
 
     room = f"call-{state.conversation_id}"
-    max_duration = settings.call_max_duration_seconds if remaining is None else min(
-        settings.call_max_duration_seconds, remaining)
+    max_duration = min(v for v in (settings.call_max_duration_seconds, remaining, req.max_duration_seconds)
+                       if v is not None)
     metadata = {"conversation_id": state.conversation_id, "phone": phone, "voice": voice, "loadtest": req.loadtest,
-                "max_duration_seconds": max_duration, "from_number": caller_id.e164 if caller_id else None}
+                "max_duration_seconds": max_duration, "from_number": caller_id.e164 if caller_id else None,
+                "join_timeout_seconds": req.join_timeout_seconds}
     return CallStarted(conversation_id=state.conversation_id, room=room, mode=mode), metadata
 
 

@@ -1,0 +1,32 @@
+---
+import type { Vertical } from "../data/site";
+
+interface Props {
+  sample: Vertical["sample"];
+}
+
+const { sample } = Astro.props;
+---
+
+<div class="overflow-hidden rounded-[18px] border border-line bg-surface shadow-card">
+  <div class="flex items-center justify-between gap-3 border-b border-line bg-surface-2 px-4 py-3">
+    <strong class="font-display text-[1.05rem]">{sample.agent}</strong>
+    <span class="font-mono text-[.78rem] text-muted">terminada</span>
+  </div>
+  <div class="grid gap-3 p-3.5">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <span class="inline-flex items-center gap-1.5 rounded-full bg-ok-soft px-3 py-1 text-[.85rem] font-semibold text-ok">{sample.outcome}</span>
+      <span class="font-mono text-[.8rem] text-muted tabular-nums">Duración {sample.duration}</span>
+    </div>
+    <dl class="grid divide-y divide-line rounded-xl border border-line">
+      {
+        sample.fields.map((f) => (
+          <div class="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-baseline gap-3 px-3 py-2">
+            <dt class="text-[.85rem] text-muted">{f.label}</dt>
+            <dd class="font-semibold break-words text-ink">{f.value}</dd>
+          </div>
+        ))
+      }
+    </dl>
+  </div>
+</div>

@@ -1,0 +1,71 @@
+---
+import CallWidget from "../components/CallWidget.astro";
+import CheckList from "../components/CheckList.astro";
+import Cta from "../components/Cta.astro";
+import Footer from "../components/Footer.astro";
+import Nav from "../components/Nav.astro";
+import Pricing from "../components/Pricing.astro";
+import Section from "../components/Section.astro";
+import Solutions from "../components/Solutions.astro";
+import TelDialog from "../components/TelDialog.astro";
+import Voices from "../components/Voices.astro";
+import { agents } from "../data/site";
+import Base from "../layouts/Base.astro";
+
+const features = [
+  { title: "Número argentino", text: "Uno nuevo o tu línea de siempre. Entrantes y salientes." },
+  { title: "Voces argentinas", text: "Más de 30, masculinas y femeninas. Se cambian cuando quieras." },
+  { title: "Panel de llamadas", text: "Transcripción, datos tomados y resultado de cada llamada." },
+  { title: "API y webhooks", text: "Creás llamadas y campañas, y recibís cada resultado en tu sistema." },
+  { title: "Integración con tu gestión", text: "El agente consulta y escribe en tu sistema durante la llamada." },
+  { title: "Derivación a una persona", text: "Si lo supera, toma el dato y avisa a tu equipo." },
+];
+---
+
+<Base
+  title="Atentina: agentes de voz con IA para el teléfono de tu empresa"
+  description="Agentes de voz con inteligencia artificial que atienden y hacen llamadas. Voces argentinas, producto hecho en Argentina y precio fijo en pesos."
+  path="/"
+>
+  <Nav home />
+
+  <header class="border-b border-line bg-linear-to-b from-bg-2 to-bg pt-[72px] pb-14">
+    <div class="mx-auto grid max-w-[1120px] items-center gap-9 px-5 min-[901px]:grid-cols-[1.2fr_.8fr] min-[901px]:gap-12">
+      <div class="grid gap-[22px]">
+        <h1>
+          Los agentes de voz para tu empresa, más <span class="text-accent">inteligentes</span> y <span class="text-fast">rápidos</span> del mercado
+        </h1>
+        <p class="my-[18px] font-display text-[clamp(1.2rem,2vw,1.5rem)] leading-[1.2] font-bold tracking-[-0.015em]">
+          A un <a class="text-accent decoration-2 underline-offset-4 hover:text-accent-2" href="#precios">precio argentino</a>.
+        </p>
+        <p class="max-w-[62ch] text-[1.12rem] text-ink-2">
+          Atienden consultas, dan turnos, confirman, recuerdan vencimientos y cobran. Con voces argentinas, hecho en Argentina y con un precio fijo en pesos.
+        </p>
+        <p class="max-w-[62ch] text-[1.12rem] text-ink-2">
+          Un solo servicio que integra todo lo que necesitas; Telefonia, voces e inteligencia artificial incluida. Lo contratás y empieza a atender.
+        </p>
+      </div>
+      <CallWidget agents={agents} />
+    </div>
+  </header>
+
+  <TelDialog />
+
+  <Section id="como">
+    <div class="grid items-start gap-7 min-[901px]:grid-cols-2 min-[901px]:gap-12">
+      <div class="grid gap-4">
+        <h2>Nuestro producto</h2>
+        <p class="max-w-[62ch] text-[1.12rem] text-ink-2">
+          Todo lo necesario para automatizar la atención telefónica de tu empresa, en un solo servicio: número argentino, varias llamadas a la vez e inteligencia artificial incluida. No necesitás contratar telefonía ni combinar proveedores: lo contratás y empieza a atender.
+        </p>
+      </div>
+      <CheckList items={features} />
+    </div>
+  </Section>
+
+  <Solutions />
+  <Voices />
+  <Pricing />
+  <Cta />
+  <Footer />
+</Base>

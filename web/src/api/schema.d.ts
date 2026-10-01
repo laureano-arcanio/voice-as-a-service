@@ -677,6 +677,83 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/demo/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Session
+         * @description Canjea un token de Turnstile por una sesion corta para llamar y sintetizar.
+         */
+        post: operations["create_session_api_v1_demo_sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/demo/calls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Call
+         * @description Llamada por navegador con un agente de la demo: devuelve el token de LiveKit y el del resultado.
+         */
+        post: operations["start_call_api_v1_demo_calls_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/demo/calls/{conversation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Call Result
+         * @description Estado y datos extraidos de la llamada, con el result_token de POST /demo/calls.
+         */
+        get: operations["call_result_api_v1_demo_calls__conversation_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/demo/tts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Synthesize */
+        post: operations["synthesize_api_v1_demo_tts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1089,6 +1166,95 @@ export interface components {
             definition: {
                 [key: string]: unknown;
             };
+        };
+        /** DemoCallIn */
+        DemoCallIn: {
+            /** Agent */
+            agent: string;
+            /** Voice */
+            voice?: string | null;
+        };
+        /** DemoCallOut */
+        DemoCallOut: {
+            /** Conversation Id */
+            conversation_id: string;
+            /** Room */
+            room: string;
+            /** Livekit Url */
+            livekit_url: string;
+            /** Token */
+            token: string;
+            /** Max Duration Seconds */
+            max_duration_seconds: number;
+            /** Result Token */
+            result_token: string;
+        };
+        /** DemoCallResult */
+        DemoCallResult: {
+            /** Final */
+            final: boolean;
+            /** Status */
+            status: string;
+            /** Ended Reason */
+            ended_reason: string;
+            /** Duration Seconds */
+            duration_seconds: number;
+            /** Agent Name */
+            agent_name: string;
+            /** Completed */
+            completed: boolean;
+            outcome: components["schemas"]["DemoOutcome"] | null;
+            /** Fields */
+            fields: components["schemas"]["DemoField"][];
+            /** Messages */
+            messages: components["schemas"]["DemoMessage"][];
+        };
+        /** DemoField */
+        DemoField: {
+            /** Name */
+            name: string;
+            /** Label */
+            label: string;
+            /** Type */
+            type: string;
+            /** Value */
+            value: unknown;
+        };
+        /** DemoMessage */
+        DemoMessage: {
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "assistant" | "user";
+            /** Text */
+            text: string;
+        };
+        /** DemoOutcome */
+        DemoOutcome: {
+            /** Label */
+            label: string;
+            /** Goal */
+            goal: boolean;
+        };
+        /** DemoSessionIn */
+        DemoSessionIn: {
+            /** Turnstile Token */
+            turnstile_token: string;
+        };
+        /** DemoSessionOut */
+        DemoSessionOut: {
+            /** Token */
+            token: string;
+            /** Expires In */
+            expires_in: number;
+        };
+        /** DemoTtsIn */
+        DemoTtsIn: {
+            /** Voice */
+            voice: string;
+            /** Text */
+            text: string;
         };
         /** FieldValue */
         FieldValue: {
@@ -3088,6 +3254,143 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["TtsPreviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "audio/wav": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_session_api_v1_demo_sessions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemoSessionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoSessionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_call_api_v1_demo_calls_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemoCallIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoCallOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Limite por IP, agentes ocupados o cupo diario agotado */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    call_result_api_v1_demo_calls__conversation_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoCallResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    synthesize_api_v1_demo_tts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemoTtsIn"];
             };
         };
         responses: {

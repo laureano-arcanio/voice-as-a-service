@@ -34,6 +34,7 @@ class ConversationConfig(BaseModel):
 
 class FieldSpec(BaseModel):
     priority: int
+    label: str | None = None
     description: str
     type: Literal["string", "integer", "boolean", "email", "email_or_phone", "choice"] = "string"
     options: list[str] | None = None  # valores posibles de un campo choice

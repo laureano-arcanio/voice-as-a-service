@@ -28,9 +28,11 @@ services:
     command: ["--config", "/etc/livekit.yaml"]
     environment:
       LIVEKIT_KEYS: "${LIVEKIT_API_KEY:?falta LIVEKIT_API_KEY en .env}: ${LIVEKIT_API_SECRET:?falta LIVEKIT_API_SECRET en .env}"
-      # IP que se anuncia en los candidatos ICE: la de la LAN, para que lleguen
-      # los contenedores de este host y la PC del loadtest.
-      NODE_IP: ${LIVEKIT_LOCAL_NODE_IP:?falta LIVEKIT_LOCAL_NODE_IP en .env}
+      # IP que se anuncia en los candidatos ICE. Sin LIVEKIT_NODE_IP, la de la LAN
+      # (contenedores de este host y la PC del loadtest). Con la IP publica, entran
+      # tambien los navegadores de la landing; advertise_internal_ip (livekit.yaml)
+      # sigue anunciando la de la LAN para los clientes locales.
+      NODE_IP: ${LIVEKIT_NODE_IP:-${LIVEKIT_LOCAL_NODE_IP:?falta LIVEKIT_LOCAL_NODE_IP en .env}}
     volumes:
       - ./livekit/livekit.yaml:/etc/livekit.yaml:ro
     depends_on:

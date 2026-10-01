@@ -1,0 +1,24 @@
+---
+import type { Feature } from "../data/site";
+import Icon from "./Icon.astro";
+
+interface Props {
+  items: Feature[];
+}
+
+const { items } = Astro.props;
+---
+
+<ul class="m-0 grid list-none gap-[18px] p-0">
+  {
+    items.map((item) => (
+      <li class="grid grid-cols-[auto_1fr] items-start gap-x-3.5">
+        <span class="row-span-2 mt-px grid size-6 place-items-center rounded-full bg-accent-soft text-accent">
+          <Icon name="check" class="size-4 stroke-[2.4]" />
+        </span>
+        <b class="text-[1.02rem] font-semibold">{item.title}</b>
+        <span class="text-[.95rem] text-muted">{item.text}</span>
+      </li>
+    ))
+  }
+</ul>

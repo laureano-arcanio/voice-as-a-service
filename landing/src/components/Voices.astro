@@ -1,0 +1,100 @@
+---
+import { defaultVoiceLine, voices } from "../data/site";
+import Button from "./Button.astro";
+
+interface Props {
+  line?: { f: string; m: string };
+  selected?: string;
+}
+
+const { line = defaultVoiceLine, selected = "sofia" } = Astro.props;
+const ordered = [...voices].sort((a, b) => Number(b.id === selected) - Number(a.id === selected));
+const visible = ordered.map((v, i) => ({ ...v, more: i >= 5 }));
+const first = visible[0]!;
+const MAX_CHARS = 300;
+---
+
+<section class="border-b border-line py-[76px]" id="voces">
+  <div class="mx-auto max-w-[1120px] px-5">
+    <h2>Voces con nuestro acento.</h2>
+    <p class="mt-3 max-w-[62ch] text-[1.12rem] text-ink-2">
+      Más de 30 voces con acento argentino, masculinas y femeninas. Estas son algunas: elegí una, escribí lo que quieras y escuchala.
+    </p>
+    <div class="mt-9 grid items-start gap-7 min-[901px]:grid-cols-[1.1fr_.9fr]" data-voices data-line-f={line.f} data-line-m={line.m}>
+      <div class="grid gap-3">
+        <form class="group/list grid gap-2.5" role="radiogroup" aria-label="Voz" data-voice-form>
+          {
+            visible.map((v) => (
+              <label
+                class:list={[
+                  "group/voice relative cursor-pointer grid-cols-[auto_1fr] items-center gap-3 rounded-xl border-[1.5px] border-line bg-surface px-3.5 py-3 transition-colors duration-150 hover:border-line-2 has-checked:border-accent has-checked:bg-accent-soft",
+                  v.more ? "hidden group-data-[all]/list:grid" : "grid",
+                ]}
+              >
+                <input
+                  class="absolute size-0 opacity-0"
+                  type="radio"
+                  name="voz"
+                  value={v.id}
+                  data-name={v.name}
+                  data-gender={v.gender}
+                  data-tags={v.tags}
+                  checked={v.id === first.id}
+                />
+                <span class="grid size-[38px] place-items-center rounded-full bg-surface-2 font-display text-[1.05rem] font-extrabold text-ink group-has-checked/voice:bg-accent group-has-checked/voice:text-accent-ink">
+                  {v.name.charAt(0)}
+                </span>
+                <span>
+                  <b class="block text-[.98rem] font-semibold">{v.name}</b>
+                  <small class="text-[.85rem] text-muted">{v.tags}</small>
+                </span>
+              </label>
+            ))
+          }
+        </form>
+        <Button variant="ghost" type="button" class="justify-self-start" data-more aria-expanded="false">Ver más voces</Button>
+      </div>
+      <div class="group/player grid gap-[18px] rounded-[18px] border border-line bg-surface p-[22px] shadow-card" data-player aria-live="polite">
+        <div class="flex flex-wrap items-baseline justify-between gap-3">
+          <span class="font-display text-[1.5rem] font-extrabold tracking-[-0.02em]" data-player-name>{first.name}</span>
+          <span class="text-[.9rem] text-muted" data-player-tags>{first.tags}</span>
+        </div>
+        <label class="grid gap-1.5">
+          <span class="sr-only">Texto a sintetizar</span>
+          <textarea
+            class="field-sizing-content min-h-[4.5lh] w-full resize-none rounded-xl border border-line bg-bg-2 px-3 py-2.5 text-base text-ink-2 italic transition-colors duration-150 hover:border-line-2 focus:border-accent focus:bg-surface focus:outline-none"
+            maxlength={MAX_CHARS}
+            rows="3"
+            data-text>{line[first.gender].replace("{nombre}", first.name)}</textarea
+          >
+          <span class="flex justify-between gap-3 text-[.8rem] text-muted">
+            <span>Escribí lo que quieras que diga.</span>
+            <span class="font-mono tabular-nums" data-count></span>
+          </span>
+        </label>
+        <div class="flex h-[72px] items-center justify-center gap-1 px-1" data-bars aria-hidden="true"></div>
+        <div class="flex items-center gap-3.5">
+          <button
+            class="grid size-[52px] flex-none cursor-pointer place-items-center rounded-full bg-accent text-accent-ink transition-colors duration-150 hover:bg-accent-2 disabled:cursor-wait disabled:opacity-70"
+            type="button"
+            aria-label="Reproducir"
+            data-play
+          >
+            <svg class="size-[22px] group-data-[state=playing]/player:hidden group-data-[state=loading]/player:hidden" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>
+            <svg class="hidden size-[22px] group-data-[state=playing]/player:block" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"></path></svg>
+            <span class="hidden size-[22px] animate-spin rounded-full border-[2.5px] border-white/40 border-t-white group-data-[state=loading]/player:block motion-reduce:animate-none" aria-hidden="true"></span>
+          </button>
+          <div class="h-1 flex-1 overflow-hidden rounded-xs bg-line"><i class="block h-full w-0 bg-ink" data-progress></i></div>
+          <span class="font-mono text-[.8rem] whitespace-nowrap text-muted tabular-nums" data-time>0:00 / 0:00</span>
+        </div>
+        <p class="min-h-[1.3em] text-[.82rem] font-medium text-warn" data-voice-error></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  import { initVoices } from "../scripts/voices";
+
+  document.querySelectorAll<HTMLElement>("[data-voices]").forEach(initVoices);
+</script>

@@ -2,6 +2,7 @@
 import logging
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -13,12 +14,14 @@ from .api.routers import (
     calls,
     clients,
     conversations,
+    demo,
     phone_numbers,
     tiers,
     users,
     voices,
 )
 from .config import settings
+from .services.demo import allowed_origins
 
 logger = logging.getLogger(__name__)
 API_PREFIX = "/api/v1"
@@ -30,6 +33,8 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Voice as a Service", version="1.0.0", docs_url=f"{API_PREFIX}/docs",
                   openapi_url=f"{API_PREFIX}/openapi.json", redoc_url=None)
     errors.install(app)
+    app.add_middleware(CORSMiddleware, allow_origins=allowed_origins(), allow_methods=["GET", "POST"],
+                       allow_headers=["Authorization", "Content-Type"], expose_headers=["Retry-After"], max_age=600)
 
     @app.middleware("http")
     async def security_headers(request: Request, call_next):
@@ -40,7 +45,7 @@ def create_app() -> FastAPI:
         return response
 
     api = APIRouter(prefix=API_PREFIX)
-    for module in (auth, tiers, clients, phone_numbers, agents, users, api_keys, calls, conversations, voices):
+    for module in (auth, tiers, clients, phone_numbers, agents, users, api_keys, calls, conversations, voices, demo):
         api.include_router(module.router)
     app.include_router(api)
 

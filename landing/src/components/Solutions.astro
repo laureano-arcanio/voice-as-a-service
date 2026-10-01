@@ -1,0 +1,32 @@
+---
+import { verticals } from "../data/site";
+import Section from "./Section.astro";
+
+interface Props {
+  exclude?: string;
+  title?: string;
+}
+
+const { exclude, title = "Un agente por necesidad, listo para usar." } = Astro.props;
+const list = verticals.filter((v) => v.slug !== exclude);
+---
+
+<Section id="soluciones" class="border-y border-line bg-bg-2">
+  <h2>{title}</h2>
+  <div class:list={["mt-9 grid gap-4", list.length === 3 ? "min-[801px]:grid-cols-3" : "min-[801px]:grid-cols-2"]}>
+    {
+      list.map((v) => (
+        <a
+          class="grid content-start gap-3 rounded-2xl border border-line bg-surface p-6 no-underline transition-[border-color,translate,box-shadow] duration-150 hover:-translate-y-0.5 hover:border-accent hover:shadow-card"
+          href={`/${v.slug}`}
+          data-theme={v.slug}
+        >
+          <span class="font-mono text-[.76rem] tracking-[.04em] text-muted uppercase">{v.who}</span>
+          <h3 class="text-[1.25rem]">{v.title}</h3>
+          <p class="text-[.96rem] text-ink-2">{v.summary}</p>
+          <span class="mt-auto text-[.95rem] font-semibold text-accent">Ver cómo funciona →</span>
+        </a>
+      ))
+    }
+  </div>
+</Section>

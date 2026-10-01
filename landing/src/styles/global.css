@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #ffffff;
+  --color-bg-2: #f6f8fb;
+  --color-surface: #ffffff;
+  --color-surface-2: #f1f4f9;
+  --color-ink: #0b1220;
+  --color-ink-2: #33415c;
+  --color-muted: #64748b;
+  --color-line: #e3e8ef;
+  --color-line-2: #cbd5e1;
+  --color-accent: #2456e6;
+  --color-accent-ink: #ffffff;
+  --color-accent-soft: #eaf0ff;
+  --color-accent-2: #1740b8;
+  --color-accent-on-dark: #9db6ff;
+  --color-ok: #1b9c5b;
+  --color-ok-soft: #e3f6ec;
+  --color-warn: #b42318;
+  --color-warn-soft: #fef3f2;
+  --color-fast: #e8590c;
+  --color-cta-ink: #f4f6fa;
+  --color-cta-muted: #b8c2d6;
+
+  --font-display: "Bricolage Grotesque", "Trebuchet MS", "Segoe UI", sans-serif;
+  --font-body: "Figtree", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --shadow-card: 0 12px 34px rgba(11, 18, 32, 0.08);
+  --shadow-dialog: 0 24px 60px rgba(11, 18, 32, 0.25);
+
+  --animate-bar: bar var(--d, 0.7s) ease-in-out var(--o, 0s) infinite alternate;
+  --animate-live: live 1.6s ease-out infinite;
+
+  @keyframes bar {
+    from {
+      scale: 1 0.06;
+    }
+    to {
+      scale: 1 var(--h, 1);
+    }
+  }
+
+  @keyframes live {
+    0% {
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-ok) 45%, transparent);
+    }
+    100% {
+      box-shadow: 0 0 0 8px transparent;
+    }
+  }
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    @apply bg-bg font-body text-[17px]/[1.55] text-ink antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display leading-[1.08] tracking-[-0.015em] text-balance;
+  }
+
+  h1 {
+    @apply text-[clamp(2rem,4.4vw,3.1rem)] font-extrabold;
+  }
+
+  h2 {
+    @apply text-[clamp(1.7rem,3.4vw,2.4rem)] font-bold;
+  }
+
+  h3 {
+    @apply text-[1.15rem] font-bold;
+  }
+
+  :focus-visible {
+    @apply outline-3 outline-offset-3 outline-accent;
+  }
+}
+
+[data-theme="turnos"] {
+  --color-accent: #0f766e;
+  --color-accent-2: #115e59;
+  --color-accent-soft: #e6f4f1;
+  --color-accent-on-dark: #7dd3c7;
+}
+
+[data-theme="cobranzas"] {
+  --color-accent: #6d28d9;
+  --color-accent-2: #5b21b6;
+  --color-accent-soft: #f1ebfd;
+  --color-accent-on-dark: #c4b5fd;
+}
+
+[data-theme="municipios"] {
+  --color-accent: #b45309;
+  --color-accent-2: #92400e;
+  --color-accent-soft: #fdf3e7;
+  --color-accent-on-dark: #fcd34d;
+}

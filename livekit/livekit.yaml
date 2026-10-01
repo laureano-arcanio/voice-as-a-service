@@ -8,6 +8,9 @@ rtc:
   udp_port: 7882
   tcp_port: 7881
   use_external_ip: false
+  # Con NODE_IP publica (LIVEKIT_NODE_IP), anuncia tambien las IPs locales: el
+  # agente y livekit-sip, en este host, no dependen del NAT loopback del router.
+  advertise_internal_ip: true
 # Redis es el canal entre livekit y livekit-sip (sin el, SIP no funciona).
 redis:
   address: 127.0.0.1:6380

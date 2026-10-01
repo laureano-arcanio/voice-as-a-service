@@ -454,3 +454,62 @@ class VoiceOut(BaseModel):
 class TtsPreviewIn(BaseModel):
     voice: str
     text: str = Field(max_length=600)
+
+
+# ---------- demo de la landing ----------
+
+class DemoSessionIn(BaseModel):
+    turnstile_token: str = Field(min_length=1, max_length=2048)
+
+
+class DemoSessionOut(BaseModel):
+    token: str
+    expires_in: int
+
+
+class DemoCallIn(BaseModel):
+    agent: str = Field(pattern=r"^[a-z0-9][a-z0-9_-]*$", max_length=64)
+    voice: str | None = Field(default=None, max_length=32)
+
+
+class DemoCallOut(BaseModel):
+    conversation_id: str
+    room: str
+    livekit_url: str
+    token: str
+    max_duration_seconds: int
+    result_token: str
+
+
+class DemoField(BaseModel):
+    name: str
+    label: str
+    type: str
+    value: Any
+
+
+class DemoOutcome(BaseModel):
+    label: str
+    goal: bool
+
+
+class DemoMessage(BaseModel):
+    role: Literal["assistant", "user"]
+    text: str
+
+
+class DemoCallResult(BaseModel):
+    final: bool
+    status: str
+    ended_reason: str
+    duration_seconds: int
+    agent_name: str
+    completed: bool
+    outcome: DemoOutcome | None
+    fields: list[DemoField]
+    messages: list[DemoMessage]
+
+
+class DemoTtsIn(BaseModel):
+    voice: str = Field(max_length=32)
+    text: str = Field(min_length=1, max_length=600)

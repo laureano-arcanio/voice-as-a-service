@@ -343,6 +343,15 @@ async def entrypoint(ctx: JobContext):
         await ctx.delete_room()
         ctx.shutdown(reason=reason)
 
+    async def say_end_and_hang_up(reason: str):
+        session.interrupt()
+        try:
+            await asyncio.wait_for(
+                session.say(settings.quota_end_message, allow_interruptions=False).wait_for_playout(), 15)
+        except Exception:
+            logger.exception("no se pudo avisar el corte (%s)", reason)
+        await hang_up(reason)
+
     async def quota_watchdog():
         """Corte duro: cuando al cliente se le acaban los minutos del mes (contando
         esta y sus otras llamadas en curso), avisa y corta."""
@@ -352,14 +361,13 @@ async def entrypoint(ctx: JobContext):
                 remaining = call_service.call_remaining_seconds(s, conversation_id)
             if remaining is not None and remaining <= 0:
                 logger.warning("llamada %s: sin minutos del tier, se corta", conversation_id)
-                session.interrupt()
-                try:
-                    await asyncio.wait_for(
-                        session.say(settings.quota_end_message, allow_interruptions=False).wait_for_playout(), 15)
-                except Exception:
-                    logger.exception("no se pudo avisar el corte por minutos")
-                await hang_up("quota_exhausted")
+                await say_end_and_hang_up("quota_exhausted")
                 return
+
+    async def duration_limit(seconds: int):
+        await asyncio.sleep(seconds)
+        logger.info("llamada %s: duracion maxima (%ss), se corta", conversation_id, seconds)
+        await say_end_and_hang_up("max_duration")
 
     # En el loadtest no se corta al completar: si no, cada llamada duraria
     # distinto segun lo que conteste el caller y la carga no seria comparable
@@ -397,16 +405,19 @@ async def entrypoint(ctx: JobContext):
             fail(str(e), "sip_call_failed")
             return
     elif mode in (CallMode.prueba, CallMode.loadtest):
+        join_timeout = metadata.get("join_timeout_seconds") or 300
         try:
-            await asyncio.wait_for(ctx.wait_for_participant(), timeout=300)
+            await asyncio.wait_for(ctx.wait_for_participant(), timeout=join_timeout)
         except asyncio.TimeoutError:
-            fail("Nadie se conecto a la room de prueba (5 min)", "test_mode_timeout")
+            fail(f"Nadie se conecto a la room de prueba ({join_timeout} s)", "test_mode_timeout")
             return
 
     started_at = time.time()
     update_call(status=CallStatus.en_curso, started_at=utcnow())
     if mode in quota.MINUTE_MODES:
         watchdog = asyncio.create_task(quota_watchdog())
+    elif not phone and metadata.get("max_duration_seconds"):
+        watchdog = asyncio.create_task(duration_limit(metadata["max_duration_seconds"]))
     await session.say(opening)
 
 if __name__ == "__main__":

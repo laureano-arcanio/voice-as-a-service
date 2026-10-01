@@ -1,0 +1,27 @@
+---
+import Button from "./Button.astro";
+import Logo from "./Logo.astro";
+
+interface Props {
+  home?: boolean;
+}
+
+const { home = false } = Astro.props;
+const hub = home ? "" : "/";
+const links = [
+  { href: `${hub}#como`, label: "Nuestro producto" },
+  { href: `${hub}#soluciones`, label: "Agentes de voz" },
+  { href: "#voces", label: "Voces" },
+  { href: "#precios", label: "Precios" },
+];
+---
+
+<nav class="sticky top-[env(safe-area-inset-top,0px)] z-10 border-b border-line bg-white/86 backdrop-blur-[10px]">
+  <div class="mx-auto flex max-w-[1120px] items-center justify-between gap-4 px-5 py-3.5">
+    <Logo href={home ? "#" : "/"} />
+    <div class="flex items-center gap-6 text-[.98rem] font-medium">
+      {links.map((l) => <a class="text-ink-2 no-underline hover:text-ink max-[720px]:hidden" href={l.href}>{l.label}</a>)}
+      <Button href="#demo" size="sm">Pedir una demo</Button>
+    </div>
+  </div>
+</nav>

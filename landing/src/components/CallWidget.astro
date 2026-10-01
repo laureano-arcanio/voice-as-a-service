@@ -1,0 +1,154 @@
+---
+import type { DemoAgent } from "../data/site";
+import Button from "./Button.astro";
+import Icon from "./Icon.astro";
+
+interface Props {
+  agents: DemoAgent[];
+  title?: string;
+}
+
+const { agents: list, title = "Hacé una demo ahora" } = Astro.props;
+const panel = "hidden flex-col gap-3 p-3.5";
+---
+
+<div
+  class="group/call overflow-hidden rounded-[18px] border border-line bg-surface shadow-card"
+  id="llamada"
+  data-call
+  data-state="idle"
+  aria-labelledby="llamadaTitulo"
+>
+  <div class="flex items-center justify-between gap-3 border-b border-line bg-surface-2 px-4 py-3">
+    <strong class="font-display text-[1.05rem]" id="llamadaTitulo">{title}</strong>
+    <span class="inline-flex items-center gap-2 font-mono text-[.78rem] text-muted" data-status>
+      <span
+        class="size-2 rounded-full bg-ok shadow-[0_0_0_4px_var(--color-ok-soft)] group-data-[state=connecting]/call:bg-line-2 group-data-[state=connecting]/call:shadow-none group-data-[state=live]/call:animate-live group-data-[state=live]/call:shadow-none group-data-[state=processing]/call:bg-line-2 group-data-[state=processing]/call:shadow-none"
+      ></span>
+      <span data-status-text>listo</span>
+    </span>
+  </div>
+
+  <form class:list={[panel, "group-data-[state=idle]/call:flex"]} data-idle>
+    <div class="grid gap-2" role="radiogroup" aria-label="Agente">
+      {
+        list.map((agent, i) => (
+          <label class="group/agent grid cursor-pointer grid-cols-[auto_1fr] items-center gap-2.5 rounded-xl border-[1.5px] border-line bg-surface px-3 py-2.5 transition-colors duration-150 hover:border-line-2 has-checked:border-accent has-checked:bg-accent-soft">
+            <input
+              class="absolute size-0 opacity-0"
+              type="radio"
+              name="agente"
+              value={agent.slug}
+              data-title={agent.title}
+              data-scenario={agent.scenario}
+              checked={i === 0}
+            />
+            <span class="grid size-8 place-items-center rounded-[9px] bg-surface-2 text-ink group-has-checked/agent:bg-accent group-has-checked/agent:text-accent-ink">
+              <Icon name={agent.icon} class="size-[19px]" />
+            </span>
+            <span>
+              <b class="block text-[.98rem] font-semibold">{agent.title}</b>
+              <small class="text-[.85rem] text-muted">{agent.summary}</small>
+            </span>
+          </label>
+        ))
+      }
+    </div>
+    <p class="rounded-[10px] bg-surface-2 px-3 py-2 text-[.85rem] text-ink-2">
+      <span class="font-semibold">Tu papel:</span> <span data-scenario>{list[0]?.scenario}</span>
+    </p>
+    <div class="mt-1 grid gap-2.5">
+      <Button type="submit" data-start>
+        <Icon name="phone" class="size-5" />Iniciar llamada sin costo
+      </Button>
+      <p class="min-h-[1.3em] text-center text-[.82rem] text-muted data-[warn]:font-medium data-[warn]:text-warn" data-note>
+        Hablás desde el navegador, con el micrófono. O <a href="#" data-open-tel><strong>llamá gratis</strong></a>.
+      </p>
+    </div>
+  </form>
+
+  <div class:list={[panel, "group-data-[state=connecting]/call:flex group-data-[state=live]/call:flex"]} data-live>
+    <div class="flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <span class="grid size-9 place-items-center rounded-full bg-accent text-accent-ink">
+          <Icon name="phone" class="size-[18px]" />
+        </span>
+        <span>
+          <b class="block text-[.98rem] font-semibold" data-live-title></b>
+          <small class="text-[.85rem] text-muted" data-live-hint>Conectando con el agente…</small>
+        </span>
+      </div>
+      <span class="font-mono text-[.85rem] text-muted tabular-nums" data-timer>0:00</span>
+    </div>
+    <div
+      class="grid max-h-56 min-h-28 content-start gap-2 overflow-y-auto rounded-xl border border-line bg-bg-2 p-3 text-[.92rem]"
+      data-transcript
+      aria-live="polite"
+      aria-label="Transcripción de la llamada"
+    >
+      <p class="text-[.85rem] text-muted" data-transcript-empty>La conversación aparece acá mientras hablan.</p>
+    </div>
+    <div class="grid grid-cols-[auto_1fr] gap-2.5">
+      <Button type="button" variant="ghost" data-mute aria-pressed="false" disabled>
+        <Icon name="mic" class="size-5 [[aria-pressed=true]_&]:hidden" />
+        <Icon name="mic-off" class="hidden size-5 [[aria-pressed=true]_&]:block" />
+        <span data-mute-label>Silenciar</span>
+      </Button>
+      <button
+        type="button"
+        class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-[10px] bg-warn px-[22px] py-3 font-semibold text-white transition-[translate,background-color] duration-150 hover:-translate-y-px hover:bg-[#912018]"
+        data-hangup
+      >
+        <Icon name="hangup" class="size-5" />Cortar
+      </button>
+    </div>
+    <button type="button" class="hidden text-[.85rem] font-semibold text-accent underline" data-unmute-audio>
+      Tocá para escuchar al agente
+    </button>
+  </div>
+
+  <div class:list={[panel, "items-center py-10 text-center group-data-[state=processing]/call:flex"]} data-processing>
+    <span class="size-8 animate-spin rounded-full border-3 border-line border-t-accent motion-reduce:animate-none" aria-hidden="true"></span>
+    <p class="font-semibold">Procesando la llamada</p>
+    <p class="text-[.85rem] text-muted">Estamos ordenando los datos que tomó el agente.</p>
+  </div>
+
+  <div class:list={[panel, "group-data-[state=result]/call:flex"]} data-result>
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <span
+        class="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1 text-[.85rem] font-semibold text-ink-2 data-[goal]:bg-ok-soft data-[goal]:text-ok"
+        data-outcome
+      ></span>
+      <span class="font-mono text-[.8rem] text-muted tabular-nums" data-duration></span>
+    </div>
+    <p class="text-[.85rem] text-muted" data-fields-title><span data-result-agent></span> tomó estos datos:</p>
+    <dl class="grid divide-y divide-line rounded-xl border border-line" data-fields></dl>
+    <p class="rounded-xl border border-line px-3 py-2.5 text-[.9rem] text-muted" data-fields-empty hidden>
+      La llamada terminó antes de que el agente tomara datos.
+    </p>
+    <details class="rounded-xl border border-line px-3 py-2 text-[.9rem]">
+      <summary class="cursor-pointer font-semibold text-ink-2">Ver la conversación</summary>
+      <div class="mt-2 grid max-h-56 gap-2 overflow-y-auto" data-result-transcript></div>
+    </details>
+    <Button type="button" variant="ghost" data-again>Hacer otra llamada</Button>
+  </div>
+
+  <template data-field-row>
+    <div class="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-baseline gap-3 px-3 py-2">
+      <dt class="text-[.85rem] text-muted"></dt>
+      <dd class="font-semibold break-words text-ink"></dd>
+    </div>
+  </template>
+  <template data-line>
+    <p
+      class="max-w-[85%] rounded-xl bg-surface px-3 py-1.5 text-ink shadow-[0_1px_0_var(--color-line)] data-[role=user]:justify-self-end data-[role=user]:bg-accent data-[role=user]:text-accent-ink"
+    >
+    </p>
+  </template>
+</div>
+
+<script>
+  import { initCallWidget } from "../scripts/call";
+
+  document.querySelectorAll<HTMLElement>("[data-call]").forEach(initCallWidget);
+</script>

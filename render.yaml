@@ -1,15 +1,34 @@
 # Render Blueprint: landing estática de Atentina (docs/LANDING.md).
-# La app no se despliega acá: sigue en el server de validación.
+# Astro + Tailwind compilados en el build de Render; la demo llama a la API de
+# este server por api.atentina.com.ar (Cloudflare Tunnel).
 services:
   - type: web
     name: atentina-landing
     runtime: static
     rootDir: landing            # solo los cambios en landing/ disparan un deploy
-    staticPublishPath: .
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: PUBLIC_API_URL
+        value: https://api.atentina.com.ar
+      - key: PUBLIC_TURNSTILE_SITE_KEY
+        sync: false             # site key de Turnstile (Cloudflare), se carga en el dashboard
     # Dominio canónico. Render agrega www.atentina.com.ar y lo redirige al apex.
     # atentina.com redirige desde Cloudflare y no llega a Render.
     domains:
       - atentina.com.ar
+    routes:
+      - type: rewrite
+        source: /turnos
+        destination: /turnos.html
+      - type: rewrite
+        source: /cobranzas
+        destination: /cobranzas.html
+      - type: rewrite
+        source: /municipios
+        destination: /municipios.html
     headers:
       - path: /*
         name: X-Content-Type-Options
@@ -20,6 +39,12 @@ services:
       - path: /*
         name: Referrer-Policy
         value: strict-origin-when-cross-origin
+      - path: /*
+        name: Permissions-Policy
+        value: microphone=(self), camera=(), geolocation=()
+      - path: /_astro/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
       - path: /og.png
         name: Cache-Control
         value: public, max-age=604800

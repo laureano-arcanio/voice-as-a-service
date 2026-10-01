@@ -131,6 +131,8 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
 ```
 
 - `id` y `version` los fija la app: el slug del agente y el número de versión. Van al prompt.
+- `fields.<campo>.label` (opcional): nombre del dato para mostrarlo (resultado de la demo de la
+  landing). No va al prompt.
 - **Validación al guardar:**
   - nombres de campo en minúsculas;
   - `choice` con `options`;
@@ -143,7 +145,8 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
   (`DbDefinitions`, cacheada por `(agent_id, version)`). Editar un agente no afecta las llamadas en
   curso ni el historial.
 - **Plantillas:** `app/agents/templates/<id>.json` se usan para crear agentes, en el seed (el
-  cliente `interno` recibe una copia de cada una) y en el eval y los tests, sin base.
+  cliente `interno` recibe una copia de cada una, y el cliente `landing` las `landing_*`) y en el
+  eval y los tests, sin base.
 
 ## Flujos
 
@@ -165,6 +168,20 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
 6. El worker marca por SIP (`create_sip_participant` con `max_call_duration` y `sip_number`) o, en
    prueba, espera al participante del navegador.
 7. Estados de la llamada: `sonando` → `en_curso` → `finalizada` (con duración y latencia) o `fallida`.
+
+### Demo de la landing (`/api/v1/demo`)
+
+Llamada de prueba sin usuario, para la landing (ver [`LANDING.md`](LANDING.md)):
+
+1. `POST /demo/sessions` valida el token de Cloudflare Turnstile y devuelve una sesión JWT
+   (`aud=atentina-demo`, firmada con `AUTH_SECRET`; no sirve como sesión de la UI).
+2. `POST /demo/calls` aplica los límites por IP (en memoria) y el cupo diario de minutos, y llama a
+   `calls.start_call` con un `Principal` del cliente `DEMO_CLIENT`: misma admisión por tier y misma
+   metadata, más `max_duration_seconds` (`DEMO_CALL_MAX_SECONDS`) y `join_timeout_seconds`.
+3. Devuelve el token de LiveKit del visitante (con vencimiento) y un `result_token` (JWT con el id de
+   la conversación) para `GET /demo/calls/{id}`.
+4. En llamadas sin teléfono, el worker corta al llegar a `max_duration_seconds` con
+   `QUOTA_END_MESSAGE` (`ended_reason=max_duration`).
 
 ### Llamada entrante
 
@@ -223,6 +240,8 @@ Carreras medidas en PostgreSQL:
 
 - Un recurso de otro cliente responde 404, no 403, para no revelar que existe.
 - **Headers:** `X-Content-Type-Options`, `X-Frame-Options: DENY` y `Referrer-Policy`.
+- **Demo de la landing:** `/api/v1/demo/*` es lo único público. Sesión por Turnstile, límites por
+  IP y por día, y CORS solo para `DEMO_ALLOWED_ORIGINS` (ver [`LANDING.md`](LANDING.md)).
 
 ## API
 

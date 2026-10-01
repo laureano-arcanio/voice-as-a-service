@@ -1,4 +1,5 @@
 """Despacho del worker de voz a una room de LiveKit y link de la llamada de prueba."""
+import datetime
 import json
 import urllib.parse
 
@@ -15,13 +16,19 @@ async def dispatch_call(room_name: str, metadata: dict) -> None:
             agent_name=settings.livekit_agent_name, room=room_name, metadata=json.dumps(metadata)))
 
 
-def build_test_join_url(room_name: str) -> str:
+def participant_token(room_name: str, identity: str, name: str, ttl: datetime.timedelta | None = None) -> str:
     token = (
         api.AccessToken(settings.livekit_api_key, settings.livekit_api_secret)
-        .with_identity(f"tester-{room_name}")
-        .with_name("Tester")
+        .with_identity(identity)
+        .with_name(name)
         .with_grants(api.VideoGrants(room_join=True, room=room_name))
-        .to_jwt()
     )
+    if ttl is not None:
+        token = token.with_ttl(ttl)
+    return token.to_jwt()
+
+
+def build_test_join_url(room_name: str) -> str:
+    token = participant_token(room_name, f"tester-{room_name}", "Tester")
     query = urllib.parse.urlencode({"liveKitUrl": settings.livekit_url, "token": token})
     return f"https://meet.livekit.io/custom?{query}"

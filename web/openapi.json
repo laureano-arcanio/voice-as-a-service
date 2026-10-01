@@ -2694,6 +2694,188 @@
      }
     ]
    }
+  },
+  "/api/v1/demo/sessions": {
+   "post": {
+    "tags": [
+     "demo"
+    ],
+    "summary": "Create Session",
+    "description": "Canjea un token de Turnstile por una sesion corta para llamar y sintetizar.",
+    "operationId": "create_session_api_v1_demo_sessions_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DemoSessionIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DemoSessionOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/demo/calls": {
+   "post": {
+    "tags": [
+     "demo"
+    ],
+    "summary": "Start Call",
+    "description": "Llamada por navegador con un agente de la demo: devuelve el token de LiveKit y el del resultado.",
+    "operationId": "start_call_api_v1_demo_calls_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DemoCallIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DemoCallOut"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Limite por IP, agentes ocupados o cupo diario agotado"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/demo/calls/{conversation_id}": {
+   "get": {
+    "tags": [
+     "demo"
+    ],
+    "summary": "Call Result",
+    "description": "Estado y datos extraidos de la llamada, con el result_token de POST /demo/calls.",
+    "operationId": "call_result_api_v1_demo_calls__conversation_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "conversation_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Conversation Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DemoCallResult"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/demo/tts": {
+   "post": {
+    "tags": [
+     "demo"
+    ],
+    "summary": "Synthesize",
+    "operationId": "synthesize_api_v1_demo_tts_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DemoTtsIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "audio/wav": {}
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
   }
  },
  "components": {
@@ -3954,6 +4136,257 @@
      "definition"
     ],
     "title": "DefinitionIn"
+   },
+   "DemoCallIn": {
+    "properties": {
+     "agent": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[a-z0-9][a-z0-9_-]*$",
+      "title": "Agent"
+     },
+     "voice": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 32
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Voice"
+     }
+    },
+    "type": "object",
+    "required": [
+     "agent"
+    ],
+    "title": "DemoCallIn"
+   },
+   "DemoCallOut": {
+    "properties": {
+     "conversation_id": {
+      "type": "string",
+      "title": "Conversation Id"
+     },
+     "room": {
+      "type": "string",
+      "title": "Room"
+     },
+     "livekit_url": {
+      "type": "string",
+      "title": "Livekit Url"
+     },
+     "token": {
+      "type": "string",
+      "title": "Token"
+     },
+     "max_duration_seconds": {
+      "type": "integer",
+      "title": "Max Duration Seconds"
+     },
+     "result_token": {
+      "type": "string",
+      "title": "Result Token"
+     }
+    },
+    "type": "object",
+    "required": [
+     "conversation_id",
+     "room",
+     "livekit_url",
+     "token",
+     "max_duration_seconds",
+     "result_token"
+    ],
+    "title": "DemoCallOut"
+   },
+   "DemoCallResult": {
+    "properties": {
+     "final": {
+      "type": "boolean",
+      "title": "Final"
+     },
+     "status": {
+      "type": "string",
+      "title": "Status"
+     },
+     "ended_reason": {
+      "type": "string",
+      "title": "Ended Reason"
+     },
+     "duration_seconds": {
+      "type": "integer",
+      "title": "Duration Seconds"
+     },
+     "agent_name": {
+      "type": "string",
+      "title": "Agent Name"
+     },
+     "completed": {
+      "type": "boolean",
+      "title": "Completed"
+     },
+     "outcome": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/DemoOutcome"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "fields": {
+      "items": {
+       "$ref": "#/components/schemas/DemoField"
+      },
+      "type": "array",
+      "title": "Fields"
+     },
+     "messages": {
+      "items": {
+       "$ref": "#/components/schemas/DemoMessage"
+      },
+      "type": "array",
+      "title": "Messages"
+     }
+    },
+    "type": "object",
+    "required": [
+     "final",
+     "status",
+     "ended_reason",
+     "duration_seconds",
+     "agent_name",
+     "completed",
+     "outcome",
+     "fields",
+     "messages"
+    ],
+    "title": "DemoCallResult"
+   },
+   "DemoField": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "type": {
+      "type": "string",
+      "title": "Type"
+     },
+     "value": {
+      "title": "Value"
+     }
+    },
+    "type": "object",
+    "required": [
+     "name",
+     "label",
+     "type",
+     "value"
+    ],
+    "title": "DemoField"
+   },
+   "DemoMessage": {
+    "properties": {
+     "role": {
+      "type": "string",
+      "enum": [
+       "assistant",
+       "user"
+      ],
+      "title": "Role"
+     },
+     "text": {
+      "type": "string",
+      "title": "Text"
+     }
+    },
+    "type": "object",
+    "required": [
+     "role",
+     "text"
+    ],
+    "title": "DemoMessage"
+   },
+   "DemoOutcome": {
+    "properties": {
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "goal": {
+      "type": "boolean",
+      "title": "Goal"
+     }
+    },
+    "type": "object",
+    "required": [
+     "label",
+     "goal"
+    ],
+    "title": "DemoOutcome"
+   },
+   "DemoSessionIn": {
+    "properties": {
+     "turnstile_token": {
+      "type": "string",
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Turnstile Token"
+     }
+    },
+    "type": "object",
+    "required": [
+     "turnstile_token"
+    ],
+    "title": "DemoSessionIn"
+   },
+   "DemoSessionOut": {
+    "properties": {
+     "token": {
+      "type": "string",
+      "title": "Token"
+     },
+     "expires_in": {
+      "type": "integer",
+      "title": "Expires In"
+     }
+    },
+    "type": "object",
+    "required": [
+     "token",
+     "expires_in"
+    ],
+    "title": "DemoSessionOut"
+   },
+   "DemoTtsIn": {
+    "properties": {
+     "voice": {
+      "type": "string",
+      "maxLength": 32,
+      "title": "Voice"
+     },
+     "text": {
+      "type": "string",
+      "maxLength": 600,
+      "minLength": 1,
+      "title": "Text"
+     }
+    },
+    "type": "object",
+    "required": [
+     "voice",
+     "text"
+    ],
+    "title": "DemoTtsIn"
    },
    "FieldValue": {
     "properties": {
@@ -5251,7 +5684,7 @@
   "securitySchemes": {
    "HTTPBearer": {
     "type": "http",
-    "description": "API key del cliente (vaas_...) o token de sesion",
+    "description": "Token de la sesion de demo o de la llamada",
     "scheme": "bearer"
    }
   }

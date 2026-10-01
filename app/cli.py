@@ -10,6 +10,8 @@ seed deja lo minimo para operar despues de migrar:
 - las conversaciones anteriores a los agentes, asociadas al agente de igual slug;
 - el numero de Anura (ANURA_DID) del cliente interno, atendido por el agente
   WORKFLOW_ID (demo_booking_classic si no esta);
+- tier "Landing" y cliente DEMO_CLIENT con un agente por plantilla landing_* (slug sin el
+  prefijo), los que atiende la demo de la landing (/api/v1/demo);
 - el admin ADMIN_EMAIL / ADMIN_PASSWORD si no existe.
 """
 import argparse
@@ -39,6 +41,9 @@ from .services.security import generate_api_key, hash_password
 
 INTERNAL_TIER = "Interno"
 INTERNAL_CLIENT = "interno"
+DEMO_TIER = "Landing"
+DEMO_TEMPLATE_PREFIX = "landing_"
+DEMO_MAX_CONCURRENT_CALLS = 3
 
 
 def _log(msg: str) -> None:
@@ -92,6 +97,8 @@ def seed(s: Session) -> None:
                               agent_id=inbound.id if inbound else None))
             _log(f"numero {e164} asignado a {INTERNAL_CLIENT} ({inbound.slug if inbound else 'sin agente'})")
 
+    seed_demo(s)
+
     if settings.admin_email and settings.admin_password:
         email = settings.admin_email.lower()
         if s.scalar(select(User).where(User.email == email)) is None:
@@ -99,6 +106,34 @@ def seed(s: Session) -> None:
                        role=Role.admin))
             _log(f"admin {email} creado")
     s.commit()
+
+
+def seed_demo(s: Session) -> None:
+    tier = s.scalar(select(Tier).where(Tier.name == DEMO_TIER))
+    if tier is None:
+        tier = Tier(name=DEMO_TIER, description="Demo de la landing: llamadas por navegador",
+                    max_concurrent_calls=DEMO_MAX_CONCURRENT_CALLS, inbound_minutes=0, outbound_minutes=0,
+                    max_phone_numbers=0)
+        s.add(tier)
+        s.flush()
+        _log(f"tier {DEMO_TIER} creado")
+    client = s.scalar(select(Client).where(Client.slug == settings.demo_client))
+    if client is None:
+        client = Client(name="Landing", slug=settings.demo_client, tier_id=tier.id)
+        s.add(client)
+        s.flush()
+        _log(f"cliente {settings.demo_client} creado")
+    existing = set(s.scalars(select(Agent.slug).where(Agent.client_id == client.id)))
+    for tid in template_ids():
+        slug = tid.removeprefix(DEMO_TEMPLATE_PREFIX)
+        if not tid.startswith(DEMO_TEMPLATE_PREFIX) or slug in existing:
+            continue
+        w = load_template(tid)
+        agent_service.create_agent(s, client, name=slug.capitalize(), slug=slug,
+                                   description=f"{w.agent.name}, {w.agent.role}", definition=None,
+                                   template_id=tid, user_id=None)
+        _log(f"agente {slug} de {settings.demo_client} creado")
+    s.flush()
 
 
 def create_admin(s: Session, email: str, password: str) -> None:

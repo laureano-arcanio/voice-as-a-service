@@ -1,0 +1,59 @@
+---
+import { plans } from "../data/site";
+import Button from "./Button.astro";
+import Icon from "./Icon.astro";
+import Section from "./Section.astro";
+---
+
+<Section id="precios">
+  <h2>Un precio por mes, en pesos</h2>
+  <p class="mt-3 max-w-[62ch] text-[1.12rem] text-ink-2">
+    Cada plan incluye un número, una cantidad de minutos por mes (entre las llamadas que entran y las que hace el agente) y cuántas llamadas atiende a la vez. Si te pasás de los minutos, pagás solo los que usaste.
+  </p>
+
+  <div class="mt-9 grid gap-4 min-[561px]:grid-cols-2 min-[1001px]:grid-cols-4">
+    {
+      plans.map((plan) => (
+        <div
+          class:list={[
+            "relative grid grid-rows-[auto_auto_auto_auto_1fr_auto] gap-[18px] rounded-[18px] border-[1.5px] bg-surface px-[22px] py-[26px]",
+            plan.featured ? "border-accent shadow-card" : "border-line",
+          ]}
+        >
+          {plan.featured && (
+            <span class="absolute -top-3 left-[22px] rounded-full bg-accent px-2.5 py-1 font-mono text-[.72rem] tracking-[.06em] text-accent-ink uppercase">
+              El más elegido
+            </span>
+          )}
+          <h3 class="text-[1.4rem]">{plan.name}</h3>
+          <p class="min-h-[2.8em] text-[.92rem] text-muted">{plan.for}</p>
+          <div class="flex flex-wrap items-baseline gap-1.5">
+            <span class="font-display text-[2rem] font-extrabold tracking-[-0.02em] whitespace-nowrap tabular-nums">{plan.price}</span>
+            {plan.per && <span class="text-[.9rem] text-muted">{plan.per}</span>}
+          </div>
+          <p class="-mt-3 text-[.85rem] text-muted tabular-nums">{plan.usd}</p>
+          <ul class="m-0 grid list-none content-start gap-[9px] p-0 text-[.95rem] [&_b]:font-semibold">
+            {plan.items.map((item) => (
+              <li class="flex items-start gap-[9px]">
+                <span class="mt-0.5 grid size-[18px] flex-none place-items-center rounded-full bg-ok-soft text-ok">
+                  <Icon name="check" class="size-3.5 stroke-[2.2]" />
+                </span>
+                <span set:html={item} />
+              </li>
+            ))}
+          </ul>
+          <Button href="#demo" variant={plan.featured ? "primary" : "ghost"} class="mt-auto self-end">
+            {plan.cta}
+          </Button>
+        </div>
+      ))
+    }
+  </div>
+
+  <div class="mt-[22px] grid max-w-[78ch] gap-1.5 text-[.9rem] text-muted">
+    <p>Precios en pesos, sin IVA. Sin permanencia: se cancela cuando quieras.</p>
+    <p class="tabular-nums">
+      Los minutos del plan son por mes y no se acumulan. Si el precio cambia, avisamos con 15 días de anticipación. Cada llamada se cuenta por minuto iniciado.
+    </p>
+  </div>
+</Section>

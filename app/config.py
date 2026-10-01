@@ -68,6 +68,21 @@ class Settings(BaseSettings):
     vllm_tts_model: str = ""
     vllm_tts_voice: str = ""
 
+    # --- Demo de la landing (/api/v1/demo, docs/LANDING.md) ---
+    turnstile_secret_key: str = ""
+    demo_allowed_origins: str = "https://atentina.com.ar,https://www.atentina.com.ar"
+    demo_client: str = "landing"
+    demo_livekit_url: str = ""
+    demo_session_minutes: int = 30
+    demo_call_max_seconds: int = 180
+    demo_join_timeout_seconds: int = 60
+    demo_daily_minutes: int = 120
+    demo_ip_calls_per_hour: int = 4
+    demo_ip_calls_per_day: int = 10
+    demo_ip_tts_per_hour: int = 30
+    demo_ip_sessions_per_hour: int = 20
+    demo_tts_max_chars: int = 300
+
     # --- Frontend ---
     # Build de la SPA (web/, `npm run build`). Si no existe, la API funciona sin UI.
     web_dist_dir: Path = Field(default=BASE_DIR / "web" / "dist")

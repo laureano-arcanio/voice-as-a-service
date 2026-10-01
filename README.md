@@ -39,6 +39,10 @@ curl -X POST http://<host>:8011/api/v1/calls -H "Authorization: Bearer $VAAS_API
   -H 'Content-Type: application/json' -d '{"agent_id": "<id>", "phone": "+5491155551234"}'
 ```
 
+**Demo de la landing** (`/api/v1/demo`, sin usuario): la landing llama a los agentes del cliente
+`landing` desde el navegador y sintetiza texto, con Turnstile y límites por IP y por día. Ver
+[`docs/LANDING.md`](docs/LANDING.md).
+
 **UI** (`web/`, React + Vite, compilada dentro de la imagen de `app`): dashboard con filtros por
 cliente/agente/fecha, lanzador de llamadas y prueba de voz, detalle en vivo de cada llamada,
 clientes (consumo del mes, números, usuarios, API keys), tiers, agentes (editor JSON con
