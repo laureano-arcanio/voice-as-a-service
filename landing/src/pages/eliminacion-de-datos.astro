@@ -1,0 +1,47 @@
+---
+import Legal from "../components/Legal.astro";
+import { contactEmail } from "../data/site";
+---
+
+<Legal
+  title="Eliminación de datos"
+  description="Cómo pedir que Atentina elimine tus datos personales: conversaciones, mensajes y número de teléfono."
+  path="/eliminacion-de-datos"
+  updated="1 de octubre de 2026"
+>
+  <p>
+    Podés pedir que eliminemos los datos personales que tenemos sobre vos: tu número de teléfono, las transcripciones
+    de llamadas, los mensajes de WhatsApp y los datos que surgieron de esas conversaciones.
+  </p>
+
+  <h2>Cómo pedirlo</h2>
+  <ul>
+    <li>
+      Escribí a <a href={`mailto:${contactEmail}?subject=Eliminaci%C3%B3n%20de%20datos`}>{contactEmail}</a> con el
+      asunto <strong>“Eliminación de datos”</strong>.
+    </li>
+    <li>
+      Indicá el número de teléfono o el email con el que hablaste o escribiste y, si lo sabés, la empresa a la que
+      contactaste.
+    </li>
+    <li>Para proteger tus datos, podemos pedirte que confirmes que el número es tuyo.</li>
+  </ul>
+
+  <h2>Qué pasa después</h2>
+  <ul>
+    <li>
+      Eliminamos los datos dentro de los cinco días hábiles de recibido el pedido, como fija la Ley 25.326, y te
+      confirmamos por email.
+    </li>
+    <li>
+      Si los datos los tratamos por cuenta de una empresa cliente, le avisamos del pedido. Puede que deba conservar
+      algunos por obligación legal (por ejemplo, registros de pagos).
+    </li>
+    <li>
+      Los mensajes que ya están en tu WhatsApp siguen en tu teléfono: los podés borrar desde la aplicación. También podés
+      bloquear el número de la empresa para no recibir más mensajes.
+    </li>
+  </ul>
+
+  <p>Más información en la <a href="/privacidad">política de privacidad</a>.</p>
+</Legal>

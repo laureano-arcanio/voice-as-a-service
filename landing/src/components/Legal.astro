@@ -1,0 +1,50 @@
+---
+// Páginas legales (privacidad, términos, eliminación de datos). Meta las pide para publicar la app
+// de WhatsApp (docs/WHATSAPP_PLAN.md).
+import Base from "../layouts/Base.astro";
+import Footer from "./Footer.astro";
+import Nav from "./Nav.astro";
+
+interface Props {
+  title: string;
+  description: string;
+  path: string;
+  updated: string;
+}
+
+const { title, description, path, updated } = Astro.props;
+---
+
+<Base title={`${title} · Atentina`} description={description} path={path}>
+  <Nav />
+  <main class="mx-auto max-w-[760px] px-5 pt-[104px] pb-20 max-[720px]:pt-[136px]">
+    <h1>{title}</h1>
+    <p class="mt-3 font-mono text-[.78rem] tracking-[.04em] text-muted uppercase">Última actualización: {updated}</p>
+    <article class="legal mt-8 grid gap-4 text-ink-2">
+      <slot />
+    </article>
+  </main>
+  <Footer />
+</Base>
+
+<style>
+  .legal :global(h2) {
+    margin-top: 1.25rem;
+    font-size: 1.35rem;
+    color: var(--color-ink);
+  }
+  .legal :global(ul) {
+    display: grid;
+    gap: 0.4rem;
+    padding-left: 1.2rem;
+    list-style: disc;
+  }
+  .legal :global(a) {
+    color: var(--color-accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .legal :global(strong) {
+    color: var(--color-ink);
+  }
+</style>

@@ -1,0 +1,60 @@
+---
+import Legal from "../components/Legal.astro";
+import { contactEmail } from "../data/site";
+---
+
+<Legal
+  title="Condiciones del servicio"
+  description="Condiciones de uso de Atentina, su sitio, la demo y los agentes de voz y WhatsApp."
+  path="/terminos"
+  updated="1 de octubre de 2026"
+>
+  <p>
+    Estas condiciones rigen el uso de Atentina, una marca de Laureano Martín Arcanio (CUIT 20-30745718-1), Córdoba,
+    Argentina: el sitio atentina.com.ar, la demo y la plataforma de agentes de voz y WhatsApp. Al usarlos, las aceptás.
+  </p>
+
+  <h2>El servicio</h2>
+  <p>
+    Atentina provee agentes de inteligencia artificial que atienden llamadas y mensajes en nombre de empresas y
+    organismos. Las condiciones comerciales de cada cliente (plan, precio, límites) se acuerdan aparte; los precios del
+    sitio son de referencia.
+  </p>
+
+  <h2>Uso permitido</h2>
+  <ul>
+    <li>
+      El cliente es responsable del contenido de sus agentes y de contar con el consentimiento de las personas a las que
+      llama o escribe, según la ley aplicable.
+    </li>
+    <li>
+      Los mensajes de WhatsApp deben cumplir la Política de WhatsApp Business y las de Meta. No se permite enviar spam ni
+      mensajes a quien pidió no recibirlos.
+    </li>
+    <li>No se permite usar el servicio para engañar, acosar, cometer fraude o violar derechos de terceros.</li>
+    <li>La demo es para probar el producto: tiene límites de uso y puede interrumpirse.</li>
+  </ul>
+  <p>Podemos suspender el acceso a quien incumpla estas reglas.</p>
+
+  <h2>Inteligencia artificial</h2>
+  <p>
+    Las respuestas las genera un sistema automático y pueden contener errores. El cliente define qué decisiones toma el
+    agente y cuándo deriva a una persona.
+  </p>
+
+  <h2>Disponibilidad y responsabilidad</h2>
+  <p>
+    Trabajamos para que el servicio esté disponible y funcione bien, pero no garantizamos que esté libre de
+    interrupciones o errores. En la medida que lo permita la ley, Atentina no responde por daños indirectos ni por el
+    uso que el cliente haga de los resultados del agente.
+  </p>
+
+  <h2>Datos personales</h2>
+  <p>El tratamiento de datos se rige por la <a href="/privacidad">política de privacidad</a>.</p>
+
+  <h2>Ley aplicable</h2>
+  <p>
+    Estas condiciones se rigen por la ley argentina. Ante cualquier conflicto, son competentes los tribunales ordinarios
+    de la ciudad de Córdoba. Consultas: <a href={`mailto:${contactEmail}`}>{contactEmail}</a>.
+  </p>
+</Legal>
