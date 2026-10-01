@@ -677,6 +677,67 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/whatsapp/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Accounts */
+        get: operations["list_accounts_api_v1_whatsapp_accounts_get"];
+        put?: never;
+        /**
+         * Create Account
+         * @description Conecta un numero: 409 si el phone_number_id ya esta, 404 si el agente no es del cliente.
+         */
+        post: operations["create_account_api_v1_whatsapp_accounts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/whatsapp/accounts/{account_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Account
+         * @description access_token "" o null lo borra (vuelve a WA_ACCESS_TOKEN).
+         */
+        patch: operations["update_account_api_v1_whatsapp_accounts__account_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/whatsapp/accounts/{account_id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Deactivate Account
+         * @description Deja de responder los mensajes que lleguen a ese numero (quedan ignored).
+         */
+        post: operations["deactivate_account_api_v1_whatsapp_accounts__account_id__deactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/demo/sessions": {
         parameters: {
             query?: never;
@@ -953,6 +1014,7 @@ export interface components {
             /** Messages */
             messages: components["schemas"]["MessageOut"][];
             call: components["schemas"]["CallInfo"] | null;
+            whatsapp?: components["schemas"]["WhatsAppInfo"] | null;
         };
         /** CallIn */
         CallIn: {
@@ -1468,6 +1530,11 @@ export interface components {
             avg_duration: number;
             /** Latency Avg */
             latency_avg: number | null;
+            /**
+             * Whatsapp
+             * @default 0
+             */
+            whatsapp?: number;
         };
         /** TemplateOut */
         TemplateOut: {
@@ -1691,6 +1758,114 @@ export interface components {
             wer: number | null;
             /** Car S */
             car_s: number | null;
+        };
+        /** WaAccountIn */
+        WaAccountIn: {
+            /** Client Id */
+            client_id: string;
+            /**
+             * Agent Id
+             * @description Agente del cliente que atiende los mensajes
+             */
+            agent_id: string;
+            /**
+             * Phone Number Id
+             * @description ID del numero en Meta
+             */
+            phone_number_id: string;
+            /** Waba Id */
+            waba_id: string;
+            /**
+             * Display Phone Number
+             * @example +1 555 145 6632
+             */
+            display_phone_number: string;
+            /**
+             * Name
+             * @default
+             */
+            name?: string;
+            /**
+             * Access Token
+             * @description Sin token: el del system user (WA_ACCESS_TOKEN)
+             */
+            access_token?: string | null;
+        };
+        /**
+         * WaAccountOut
+         * @description El token nunca sale: solo si la cuenta tiene uno propio.
+         */
+        WaAccountOut: {
+            /** Id */
+            id: string;
+            /** Client Id */
+            client_id: string;
+            /** Client Name */
+            client_name?: string | null;
+            /** Agent Id */
+            agent_id: string;
+            /** Agent Name */
+            agent_name?: string | null;
+            /** Phone Number Id */
+            phone_number_id: string;
+            /** Waba Id */
+            waba_id: string;
+            /** Display Phone Number */
+            display_phone_number: string;
+            /** Name */
+            name: string;
+            /** Has Token */
+            has_token: boolean;
+            /** Active */
+            active: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** WaAccountPatch */
+        WaAccountPatch: {
+            /** Agent Id */
+            agent_id?: string | null;
+            /** Display Phone Number */
+            display_phone_number?: string | null;
+            /** Name */
+            name?: string | null;
+            /**
+             * Access Token
+             * @description "" lo borra: vuelve al token global
+             */
+            access_token?: string | null;
+            /** Active */
+            active?: boolean | null;
+        };
+        /**
+         * WhatsAppInfo
+         * @description La conversacion por WhatsApp: contacto, numero del negocio y envios fallidos.
+         */
+        WhatsAppInfo: {
+            /** Wa Id */
+            wa_id: string;
+            /** Contact Name */
+            contact_name: string | null;
+            /** Business Number */
+            business_number: string | null;
+            /** Account Id */
+            account_id: string;
+            /** Last User At */
+            last_user_at: string | null;
+            /** Failed Messages */
+            failed_messages: number;
+            /** Last Error */
+            last_error: {
+                [key: string]: unknown;
+            } | null;
         };
     };
     responses: never;
@@ -3264,6 +3439,136 @@ export interface operations {
                 };
                 content: {
                     "audio/wav": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_accounts_api_v1_whatsapp_accounts_get: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaAccountOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_account_api_v1_whatsapp_accounts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaAccountIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaAccountOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_account_api_v1_whatsapp_accounts__account_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaAccountPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaAccountOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deactivate_account_api_v1_whatsapp_accounts__account_id__deactivate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaAccountOut"];
                 };
             };
             /** @description Validation Error */

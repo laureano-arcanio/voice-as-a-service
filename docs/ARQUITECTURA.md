@@ -26,7 +26,7 @@ capacidad) está en [`AGENTS.md`](../AGENTS.md) y el uso de la UI en [`GUIA_UI.m
 | Proceso | Código | Qué hace |
 |---|---|---|
 | `migrate` | `migrations/`, `app/cli.py` | Una vez antes de `app` y `agent`: `alembic upgrade head` y el seed idempotente. |
-| `app` | `app/main.py`, `app/api/` | API REST `/api/v1` y la SPA. Crea conversaciones y llamadas, admite por tier y despacha el worker a una room de LiveKit. |
+| `app` | `app/main.py`, `app/api/` | API REST `/api/v1` y la SPA. Crea conversaciones y llamadas, admite por tier y despacha el worker a una room de LiveKit. Recibe el webhook de WhatsApp (`/wa/webhook`) y responde los mensajes en segundo plano. |
 | `agent` | `app/voice/worker.py` | Worker de LiveKit Agents: STT → motor conversacional → TTS. Atiende salientes (con metadata del despacho) y entrantes (por dispatch rule, sin metadata). |
 | `db` | `app/models/` | PostgreSQL 16. Estado de todo: tenencia, agentes, conversaciones y llamadas. |
 
@@ -48,7 +48,7 @@ app/
     schemas.py       contratos pydantic (fuente del OpenAPI y de los tipos de la UI)
     errors.py        ServiceError -> JSON {detail, code, errors}; 500 JSON sin detalles internos
     routers/         auth, tiers, clients, phone_numbers, agents, users, api_keys, calls,
-                     conversations, voices
+                     conversations, voices, whatsapp (cuentas), demo
   services/          negocio sin HTTP (lo usan la API y el worker)
     quota.py         límites del tier: admisión con lock, consumo del mes, saldo en curso
     calls.py         iniciar salientes/pruebas (prepare_call + dispatch) y entrantes (start_inbound)
@@ -66,7 +66,9 @@ app/
   conversation/      motor: engine, models (Workflow = definición), workflow (validación), store
   llm/               cliente y prompts del LLM
   voice/             worker de LiveKit y latencia por turno
-migrations/          Alembic: 0001 esquema anterior (idempotente), 0002 tenencia, 0003 inventario de números
+  whatsapp/          webhook (firma), graph.py (Cloud API), store.py (tablas wa_*), service.py (turnos)
+migrations/          Alembic: 0001 esquema anterior (idempotente), 0002 tenencia, 0003 inventario de números,
+                     0004 WhatsApp
 web/                 SPA React (ver "Frontend")
 tests/               pytest: API, límites, motor
 ```
@@ -84,7 +86,10 @@ tiers 1───* clients 1───* agents 1───* agent_versions
                 ├───* phone_numbers (client_id, SET NULL: vuelve al inventario)
                 ├───* users (rol client)            users (rol admin: sin cliente)
                 ├───* api_keys
-                └───* conversations 1───1 call_logs
+                ├───* wa_accounts (agent_id, RESTRICT) 1───* wa_threads
+                └───* conversations 1───1 call_logs        (voz)
+                         │          1───1 wa_threads       (whatsapp)
+                         │          1───* wa_messages
                          └── agent_id + agent_version (la versión con que corrió)
 ```
 
@@ -99,6 +104,10 @@ tiers 1───* clients 1───* agents 1───* agent_versions
 | `api_keys` | SHA-256 de la clave (`key_hash` único), `prefix` visible, `revoked_at`. |
 | `conversations` | Estado del motor (datos, mensajes, progreso), `client_id`, `agent_id` + `agent_version` (RESTRICT: un cliente o agente con historial no se borra). `legacy_workflow_id` para las anteriores a los agentes. |
 | `call_logs` | Una por conversación: modo, estado, teléfono del otro lado, `phone_number_id` del cliente, inicio, fin, duración, latencia. Base del consumo. |
+| `conversations.channel` | `voice` o `whatsapp`; se fija al crearla. Cambia el prompt (reglas por canal), no el agente. |
+| `wa_accounts` | Un número de WhatsApp: `phone_number_id` único (ID de Meta), `waba_id`, número visible, `client_id`, `agent_id`, `access_token` (NULL = `WA_ACCESS_TOKEN`; cifrado: fase 2), `active`. Sin borrado: se desactiva. |
+| `wa_threads` | Una por conversación de WhatsApp (como `call_logs`): cuenta, `wa_id` tal cual llega (`549…`), nombre del perfil, `last_user_at` (ventana de sesión), `paused` (fase 3). |
+| `wa_messages` | Uno por `wamid` (unique: dedupe de reenvíos de Meta), entrante o saliente, tipo, estado y error de Meta. Sin texto: está en `conversations.messages`. |
 
 Las fechas se guardan en UTC sin zona; la API las devuelve con zona (`+00:00`/`Z`).
 
@@ -195,6 +204,22 @@ Llamada de prueba sin usuario, para la landing (ver [`LANDING.md`](LANDING.md)):
 3. Hoy Anura entrega todos los números de una cuenta con el mismo destino, y Asterisk los manda como
    `+54<ANURA_DID>` (ver [`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md)).
 
+### Mensaje de WhatsApp
+
+1. Meta → túnel (`wa.atentina.com.ar/wa/webhook`) → `app`. Se valida la firma
+   (`X-Hub-Signature-256`, 403 si no) y se responde 200 sin esperar a la base ni al LLM.
+2. `WhatsAppService` registra el `wamid` (si ya estaba, es un reenvío y termina), busca la cuenta por
+   `phone_number_id` (inactiva, cliente inactivo o desconocida: `ignored`) y junta los textos del
+   contacto durante `WA_DEBOUNCE_SECONDS`.
+3. Con el lock del contacto: conversación activa (no completada y con actividad en las últimas
+   `WA_SESSION_HOURS`) o una nueva sin apertura, `process_turn`, `send_text` y `mark_read`.
+   En el clásico la extracción corre en cada turno (no hay corte que la dispare).
+4. Los statuses actualizan `wa_messages`. No se crea `call_logs` ni se pasa por `quota.admit`.
+
+**Un solo worker de uvicorn:** el debounce y el lock por contacto están en memoria; con más de un
+worker se rompen. Si se reinicia `app` con mensajes en la ventana, esos entrantes quedan `received`
+sin respuesta.
+
 ### Durante la llamada
 
 - **Turnos:** el motor conversacional (ver README, "Motor conversacional").
@@ -235,6 +260,7 @@ Carreras medidas en PostgreSQL:
 | Agentes: crear, editar, versionar, archivar | Sí | Solo ver | Solo ver |
 | Números: cargar, asignar, liberar, borrar | Sí | No | No |
 | Números: elegir agente y etiqueta | Sí | Los suyos | Los suyos |
+| Números de WhatsApp (`/whatsapp/accounts`) | Sí | No | No |
 | Llamadas, conversaciones, consumo, voces | Todo | Lo suyo | Lo suyo |
 | API keys | Sí | Las suyas | No |
 
@@ -253,6 +279,9 @@ Carreras medidas en PostgreSQL:
   - Los 422 de validación de pydantic mantienen el formato de FastAPI.
 - **Listas:** `GET /calls` pagina con `limit`/`offset` y devuelve `{items, total}`; el resto devuelve
   listas simples.
+- **WhatsApp en `/calls`:** `mode=whatsapp` (sin `call_logs`: `status` null, duración 0, `phone` = `wa_id`);
+  `mode=api` son solo las de texto por la API. El detalle trae `whatsapp` en lugar de `call`, y
+  `/stats` no las cuenta como llamadas (`whatsapp` aparte).
 - **Filtros de fecha** (`/calls`, `/stats`, `/stats/daily`): toman días locales de `tz` (zona IANA,
   default `BILLING_TIMEZONE`). `status` se puede repetir.
 
@@ -278,7 +307,7 @@ Carreras medidas en PostgreSQL:
 
 | Qué | Comando | Cubre |
 |---|---|---|
-| Backend | `make test` (o `.venv/bin/pytest`) | API (auth, permisos, tiers, clientes, agentes y versiones, inventario de números, llamadas y límites, fechas por zona), cuotas, motor con LLM falso y escenarios contra el LLM real (se saltean si no responde). |
+| Backend | `make test` (o `.venv/bin/pytest`) | API (auth, permisos, tiers, clientes, agentes y versiones, inventario de números, llamadas y límites, fechas por zona, cuentas y conversaciones de WhatsApp), cuotas, motor con LLM falso, WhatsApp (webhook, service con payloads de Meta y Graph simulado) y escenarios contra el LLM real (se saltean si no responde). |
 | Frontend | `make web-check` | ESLint, tipos y Vitest (formatos, parseo de números, errores de API, guardas por rol, consumo). |
 | Migraciones | `alembic upgrade head` / `downgrade` / `check` | Ida y vuelta en PostgreSQL y SQLite. |
 
@@ -290,3 +319,6 @@ Todo por `.env`, leído con `app/config.py` (ver `.env.example`):
 - **Límites:** `BILLING_TIMEZONE`, `QUOTA_CHECK_SECONDS`, `QUOTA_REJECT_MESSAGE` y
   `QUOTA_END_MESSAGE`.
 - **Scripts de carga:** `VAAS_API_KEY` (API key del cliente `interno`).
+- **WhatsApp:** `WA_APP_SECRET`, `WA_VERIFY_TOKEN`, `WA_ACCESS_TOKEN` (system user), `WA_SESSION_HOURS`,
+  `WA_DEBOUNCE_SECONDS`, `WA_UNSUPPORTED_REPLY` y `WA_MAX_REPLY_CHARS` (ver
+  [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md)).

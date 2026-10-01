@@ -4,8 +4,9 @@ from .agents import Agent, AgentVersion
 from .calls import ACTIVE_CALL_STATUSES, CallMode, CallRow, CallStatus
 from .conversations import ConversationRow
 from .tenancy import ApiKey, Client, PhoneNumber, Role, Tier, User
+from .whatsapp import WaAccount, WaMessage, WaThread
 
 __all__ = [
     "ACTIVE_CALL_STATUSES", "Agent", "AgentVersion", "ApiKey", "CallMode", "CallRow", "CallStatus", "Client",
-    "ConversationRow", "PhoneNumber", "Role", "Tier", "User",
+    "ConversationRow", "PhoneNumber", "Role", "Tier", "User", "WaAccount", "WaMessage", "WaThread",
 ]

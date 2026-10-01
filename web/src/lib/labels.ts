@@ -20,6 +20,7 @@ export const CALL_MODE: Record<string, Label> = {
   prueba: { label: 'Prueba', color: 'amber' },
   loadtest: { label: 'Loadtest', color: 'amber' },
   api: { label: 'API (texto)', color: 'gray' },
+  whatsapp: { label: 'WhatsApp', color: 'green' },
 };
 
 export const WORKFLOW_STATUS: Record<string, Label> = {

@@ -19,10 +19,11 @@ from .api.routers import (
     tiers,
     users,
     voices,
+    whatsapp,
 )
 from .config import settings
-from .whatsapp import webhook as wa_webhook
 from .services.demo import allowed_origins
+from .whatsapp import webhook as wa_webhook
 
 logger = logging.getLogger(__name__)
 API_PREFIX = "/api/v1"
@@ -47,7 +48,8 @@ def create_app() -> FastAPI:
         return response
 
     api = APIRouter(prefix=API_PREFIX)
-    for module in (auth, tiers, clients, phone_numbers, agents, users, api_keys, calls, conversations, voices, demo):
+    for module in (auth, tiers, clients, phone_numbers, agents, users, api_keys, calls, conversations, voices,
+                   whatsapp, demo):
         api.include_router(module.router)
     app.include_router(api)
     # Fuera de /api/v1 y antes de _mount_spa (su catch-all es GET y tragaria /wa/webhook).

@@ -106,6 +106,22 @@ misma línea, sin decir qué número se marcó. Para que cada número vaya a su 
 tiene que estar en una cuenta de Anura distinta (o en una troncal con DID). Ver
 [`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md).
 
+### 4b. WhatsApp (admin)
+
+Conecta un número de WhatsApp Business a un agente del cliente (fase 1: solo texto, ver
+[`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md)).
+
+1. **WhatsApp > Conectar número:** cliente, agente que responde, **Phone number ID** y **WABA ID**
+   (de Meta: WhatsApp → Configuración de la API; el ID, no el teléfono), número visible y nombre.
+2. **Token:** vacío usa el del system user (`WA_ACCESS_TOKEN`). Uno propio solo para números de otro
+   portafolio; no se vuelve a mostrar (la tabla dice "Propio" o "Global").
+3. **Editar:** agente, número visible, nombre y token. El agente nuevo vale para las conversaciones
+   nuevas; las en curso siguen con el suyo.
+4. **Desactivar:** los mensajes a ese número dejan de responderse. No hay borrado: las conversaciones
+   lo referencian. **Activar** lo vuelve a habilitar.
+
+Si el cliente está desactivado, sus números de WhatsApp tampoco responden.
+
 ### 5. Usuarios y API keys del cliente
 
 - **Usuarios** (en el menú, o en la pestaña Usuarios de la ficha del cliente) > **Nuevo usuario**:
@@ -136,10 +152,11 @@ tiene que estar en una cuenta de Anura distinta (o en una troncal con DID). Ver
   - **Prueba de voz:** escuchás el texto con la voz elegida, directo contra el TTS, sin llamar.
   - Si el tier no deja (sin lugar o sin minutos), el error dice cuál límite.
 - **En vivo:** llamadas pendientes, sonando o en curso, con "Ver en vivo".
-- **Indicadores:** conversaciones, llamadas finalizadas, workflow completo, objetivo cumplido,
-  fallidas, rechazadas (por límite), minutos y latencia por turno.
+- **Indicadores:** conversaciones (con cuántas por WhatsApp), llamadas finalizadas, workflow
+  completo, objetivo cumplido, fallidas, rechazadas (por límite), minutos y latencia por turno.
 - **Evolución de conversaciones:** barras por día y % con workflow completo y con objetivo cumplido.
-- **Llamadas:** tabla paginada, filtrable por estado y origen. Cada fila lleva al detalle.
+- **Conversaciones:** tabla paginada, filtrable por estado y origen (llamadas, API o WhatsApp). Las de
+  WhatsApp no tienen estado ni duración y muestran el teléfono del contacto. Cada fila lleva al detalle.
 
 ### Detalle de una llamada (`/calls/<id>`)
 
@@ -151,6 +168,10 @@ tiene que estar en una cuenta de Anura distinta (o en una troncal con DID). Ver
   (conversación y extracción, con su tiempo y razonamiento).
 - **Latencia por turno:** E2E, EOU, STT, endpointing, LLM, TTS y audio, con promedios y máximos.
 - Mientras la llamada sigue, todo se actualiza cada segundo.
+- **WhatsApp:** en lugar de estado, duración y fin de llamada muestra el último mensaje del contacto y
+  los envíos fallidos, con el último error de Meta (131047: pasaron más de 24 h desde el último
+  mensaje del contacto, no se puede mandar texto libre). No hay latencia por turno. Mientras la
+  conversación está activa se actualiza cada 3 s.
 
 Motivos de fin frecuentes (`ended_reason`):
 

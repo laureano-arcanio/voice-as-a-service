@@ -5,7 +5,7 @@ import uuid
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from .models import AgentTurn, ConversationState, Extraction, Message, Workflow
+from .models import AgentTurn, Channel, ConversationState, Extraction, Message, Workflow
 from .store import ConversationStore
 from .workflow import check_updates, is_required, outcome_for
 
@@ -43,29 +43,37 @@ class ConversationEngine:
     def workflow(self, state: ConversationState) -> Workflow:
         return self.definitions.get(state.agent_id, state.agent_version)
 
-    def start_conversation(self, agent_id: str, client_id: str | None = None) -> tuple[ConversationState, str]:
+    def start_conversation(self, agent_id: str, client_id: str | None = None, *,
+                           channel: Channel = "voice", opening: bool | str = True) -> tuple[ConversationState, str]:
         """Crea y guarda la conversacion con la version vigente del agente. KeyError si
         no existe o esta archivado."""
-        state, opening = self.new_conversation(agent_id, client_id)
+        state, text = self.new_conversation(agent_id, client_id, channel=channel, opening=opening)
         self.store.save(state)
-        return state, opening
+        return state, text
 
-    def new_conversation(self, agent_id: str, client_id: str | None = None,
-                         session=None) -> tuple[ConversationState, str]:
+    def new_conversation(self, agent_id: str, client_id: str | None = None, session=None, *,
+                         channel: Channel = "voice", opening: bool | str = True) -> tuple[ConversationState, str]:
         """Como start_conversation pero sin guardarla: para guardarla en la misma
         transaccion que la llamada (services/calls.py, store.add). session: la del que
-        llama, para leer el agente sin pedir otra conexion."""
+        llama, para leer el agente sin pedir otra conexion.
+
+        opening: True, la apertura del workflow (el agente habla primero, como en una
+        llamada); False, sin apertura (WhatsApp entrante: el cliente escribe primero y su
+        mensaje es el turno 1); un texto, esa apertura (plantilla saliente)."""
         version, workflow = self.definitions.current(agent_id, session)
-        opening = workflow.conversation.opening
         state = ConversationState(
             conversation_id=str(uuid.uuid4()),
-            agent_id=agent_id, agent_version=version, client_id=client_id,
+            agent_id=agent_id, agent_version=version, client_id=client_id, channel=channel,
             fields={name: None for name in workflow.fields},
-            messages=[Message(role="assistant", text=opening)],
         )
+        if opening is False:
+            # Sin apertura nadie pregunto nada: asked=None, o el LLM cree que ya pidio el primer dato.
+            return state, ""
+        text = workflow.conversation.opening if opening is True else opening
+        state.messages = [Message(role="assistant", text=text)]
         # La apertura pregunta por el primer dato del workflow.
         state.progress.asked = min(workflow.fields, key=lambda name: workflow.fields[name].priority)
-        return state, opening
+        return state, text
 
     async def process_turn(self, conversation_id: str, user_message: str,
                            on_message: Callable[[str], None] | None = None) -> tuple[ConversationState, AgentTurn]:
@@ -98,7 +106,8 @@ class ConversationEngine:
                            Message(role="assistant", text=result.assistant_message, llm=trace)]
         self.store.save(state)
 
-        if not classic or result.status == "completed":
+        # Por WhatsApp no hay corte de llamada que dispare finish(): el clasico extrae en cada turno.
+        if not classic or result.status == "completed" or state.channel == "whatsapp":
             self._launch_extraction(conversation_id, len(state.messages) - 1, asked if result.answered else None)
         return state, result
 

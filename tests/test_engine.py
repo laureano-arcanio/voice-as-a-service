@@ -18,6 +18,26 @@ async def test_start_conversation(store, workflow):
     assert state.progress.asked == "contact_name"   # la apertura pregunta el primer dato
 
 
+async def test_start_without_opening(store):
+    """WhatsApp entrante: el cliente escribe primero, sin apertura ni dato preguntado."""
+    engine = ConversationEngine(FakeLLM(AgentTurn(next_objective="company_name", assistant_message="¡Hola! ¿Empresa?")),
+                                store)
+    state, opening = engine.start_conversation("sales_discovery", channel="whatsapp", opening=False)
+    assert opening == "" and state.messages == [] and state.progress.asked is None
+    saved = store.get(state.conversation_id)
+    assert saved.channel == "whatsapp" and saved.messages == []
+    state, _ = await engine.process_turn(state.conversation_id, "Hola, soy Juan")
+    assert [m.role for m in state.messages] == ["user", "assistant"]
+    assert store.get(state.conversation_id).channel == "whatsapp"
+
+
+async def test_start_with_given_opening(store):
+    engine = ConversationEngine(FakeLLM(), store)
+    state, opening = engine.start_conversation("sales_discovery", opening="Hola Juan, te escribo por tu cuota.")
+    assert opening == state.messages[0].text == "Hola Juan, te escribo por tu cuota."
+    assert state.channel == "voice" and state.progress.asked == "contact_name"
+
+
 async def test_data_comes_from_the_extraction(store):
     llm = FakeLLM(AgentTurn(next_objective="workforce_location", assistant_message="¿Dónde trabaja el personal?"),
                   extractions=[{"contact_name": "Juan", "company_name": "Acme", "company_activity": "Logística",

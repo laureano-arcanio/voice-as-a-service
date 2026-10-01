@@ -13,8 +13,28 @@ SECRET = "app-secret-de-prueba"
 TOKEN = "verify-de-prueba"
 
 
+class RecordingService:
+    """El webhook solo agenda: los turnos se prueban en test_whatsapp_service.py."""
+
+    def __init__(self):
+        self.payloads = []
+
+    def handle_payload(self, payload):
+        self.payloads.append(payload)
+
+
 @pytest.fixture
-def client(monkeypatch):
+def service():
+    from app.whatsapp.service import get_service
+
+    rec = RecordingService()
+    app.dependency_overrides[get_service] = lambda: rec
+    yield rec
+    app.dependency_overrides.pop(get_service, None)
+
+
+@pytest.fixture
+def client(monkeypatch, service):
     monkeypatch.setattr(settings, "wa_app_secret", SECRET)
     monkeypatch.setattr(settings, "wa_verify_token", TOKEN)
     return TestClient(app)
@@ -52,13 +72,23 @@ def test_challenge_con_token_vacio_configurado(client, monkeypatch):
     assert r.status_code == 403
 
 
-def test_firma_valida(client):
+def test_firma_valida(client, service):
     assert post(client, change()).status_code == 200
+    assert service.payloads == [change()]
 
 
-def test_firma_invalida(client):
+def test_firma_invalida(client, service):
     raw = b"{}"
     assert post(client, raw, sign(raw, "otro-secreto")).status_code == 403
+    assert service.payloads == []
+
+
+def test_falla_del_service_igual_da_200(client, service, monkeypatch):
+    def boom(payload):
+        raise RuntimeError("x")
+
+    monkeypatch.setattr(service, "handle_payload", boom)
+    assert post(client, change()).status_code == 200
 
 
 def test_sin_firma(client):

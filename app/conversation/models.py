@@ -118,6 +118,10 @@ class Progress(BaseModel):
     answered_empty: list[str] = Field(default_factory=list)
 
 
+# Por donde se conversa: cambia las reglas del prompt (app/llm/prompt.py), no el agente.
+Channel = Literal["voice", "whatsapp"]
+
+
 class ConversationState(BaseModel):
     conversation_id: str
     # Agente (su definicion es el workflow) y version con que corre la conversacion.
@@ -125,6 +129,7 @@ class ConversationState(BaseModel):
     agent_id: str
     agent_version: int = 1
     client_id: str | None = None
+    channel: Channel = "voice"
     status: Literal["active", "completed"] = "active"
     fields: dict[str, Any]
     messages: list[Message] = Field(default_factory=list)

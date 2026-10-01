@@ -90,6 +90,16 @@ class Settings(BaseSettings):
     wa_access_token: str = ""
     wa_public_url: str = ""
     wa_graph_version: str = "v25.0"
+    # Fase 1: tras estas horas sin mensajes del cliente, un mensaje nuevo abre otra conversacion.
+    wa_session_hours: int = 24
+    # Junta en un turno los mensajes que llegan seguidos (el equivalente de CONTINUATION_WINDOW).
+    wa_debounce_seconds: float = 2.0
+    wa_unsupported_reply: str = "Por ahora solo puedo leer mensajes de texto. ¿Me lo escribís?"
+    wa_max_reply_chars: int = 4096  # tope de Meta para un texto; se trunca
+    # Topes contra abuso y contra el largo de contexto del LLM (--max-model-len 32768):
+    # caracteres por turno (lo que pase se descarta) y turnos por conversacion (despues, otra).
+    wa_max_turn_chars: int = 2000
+    wa_max_turns: int = 40
 
     # --- Frontend ---
     # Build de la SPA (web/, `npm run build`). Si no existe, la API funciona sin UI.

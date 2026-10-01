@@ -1,5 +1,8 @@
 """Lo que muestra el dashboard: llamadas (conversacion + llamada), detalle,
-indicadores y la serie diaria. Filtrable por cliente, agente y fechas."""
+indicadores y la serie diaria. Filtrable por cliente, agente y fechas.
+
+Las conversaciones de WhatsApp (channel="whatsapp") no tienen CallRow: su origen es
+"whatsapp", el telefono es el wa_id del hilo y no cuentan como llamadas."""
 import datetime
 from dataclasses import dataclass, field
 from zoneinfo import ZoneInfo
@@ -11,7 +14,16 @@ from ..agents.definitions import DefinitionSource
 from ..agents.templates import load_template
 from ..conversation.models import ConversationState, Progress, Workflow
 from ..conversation.workflow import INCOMPLETE, is_required, outcome_for
-from ..models import Agent, CallRow, Client, ConversationRow, PhoneNumber
+from ..models import (
+    Agent,
+    CallRow,
+    Client,
+    ConversationRow,
+    PhoneNumber,
+    WaAccount,
+    WaMessage,
+    WaThread,
+)
 
 
 def iso(dt: datetime.datetime | None) -> str | None:
@@ -49,17 +61,23 @@ class CallFilter:
             conds.append(ConversationRow.created_at < _utc(self.date_to + datetime.timedelta(days=1), self.tz))
         if self.status:
             conds.append(CallRow.status.in_(self.status))
-        if self.mode:
-            # "api": conversacion por texto, sin llamada.
-            conds.append(CallRow.mode.is_(None) if self.mode == "api" else CallRow.mode == self.mode)
+        if self.mode == "whatsapp":
+            conds.append(ConversationRow.channel == "whatsapp")
+        elif self.mode == "api":
+            # Conversacion por texto desde la API o la UI: sin llamada y no de WhatsApp.
+            conds.append(CallRow.mode.is_(None) & (ConversationRow.channel == "voice"))
+        elif self.mode:
+            conds.append(CallRow.mode == self.mode)
         return conds
 
 
 def _base_query():
-    return (select(ConversationRow, CallRow, Agent.name, Client.name)
+    return (select(ConversationRow, CallRow, Agent.name, Client.name, WaThread, WaAccount.display_phone_number)
             .outerjoin(CallRow, CallRow.conversation_id == ConversationRow.id)
             .outerjoin(Agent, Agent.id == ConversationRow.agent_id)
-            .outerjoin(Client, Client.id == ConversationRow.client_id))
+            .outerjoin(Client, Client.id == ConversationRow.client_id)
+            .outerjoin(WaThread, WaThread.conversation_id == ConversationRow.id)
+            .outerjoin(WaAccount, WaAccount.id == WaThread.account_id))
 
 
 class Reports:
@@ -90,12 +108,16 @@ class Reports:
         return outcome
 
     def summary(self, conv: ConversationRow, call: CallRow | None, agent_name: str | None,
-                client_name: str | None) -> dict:
+                client_name: str | None, thread: WaThread | None = None, business_number: str | None = None) -> dict:
         workflow = self.workflow(conv)
         f = conv.fields
         required = [n for n, spec in workflow.fields.items() if is_required(spec, f)] if workflow else list(f)
         outcome = self.outcome(workflow, conv)
         lat = (call.latency or {}).get("stats", {}).get("total") if call else None
+        if conv.channel == "whatsapp":
+            mode, phone = "whatsapp", thread.wa_id if thread else None
+        else:
+            mode, phone = (call.mode, call.phone) if call else ("api", None)
         return {
             "id": conv.id, "client_id": conv.client_id, "client_name": client_name,
             "agent_id": conv.agent_id, "agent_name": agent_name or conv.legacy_workflow_id,
@@ -105,7 +127,7 @@ class Reports:
             "company": f.get("company_name") or f.get("company_context"),
             "outcome": outcome.label if outcome else None, "goal": bool(outcome and outcome.goal),
             "captured": sum(f.get(n) is not None for n in required), "required": len(required),
-            "mode": call.mode if call else "api", "phone": call.phone if call else None,
+            "mode": mode, "phone": phone,
             "status": call.status if call else None,
             "duration_seconds": call.duration_seconds if call else 0,
             "ended_reason": call.ended_reason if call else "",
@@ -127,7 +149,7 @@ class Reports:
         row = self.s.execute(_base_query().where(ConversationRow.id == conversation_id)).first()
         if row is None:
             return None
-        conv, call, agent_name, client_name = row
+        conv, call, agent_name, client_name, thread, business_number = row
         workflow = self.workflow(conv)
         progress = Progress.model_validate(conv.progress or {})
         if workflow:
@@ -155,11 +177,23 @@ class Reports:
                 "created_at": iso(call.created_at), "started_at": iso(call.started_at),
                 "ended_at": iso(call.ended_at),
             },
+            "whatsapp": self._whatsapp(conv, thread, business_number),
+        }
+
+    def _whatsapp(self, conv: ConversationRow, thread: WaThread | None, business_number: str | None) -> dict | None:
+        if conv.channel != "whatsapp" or thread is None:
+            return None
+        failed = list(self.s.scalars(select(WaMessage).where(
+            WaMessage.conversation_id == conv.id, WaMessage.status == "failed").order_by(WaMessage.updated_at)))
+        return {
+            "wa_id": thread.wa_id, "contact_name": thread.contact_name, "business_number": business_number,
+            "account_id": thread.account_id, "last_user_at": iso(thread.last_user_at),
+            "failed_messages": len(failed), "last_error": failed[-1].error if failed else None,
         }
 
     def stats(self, flt: CallFilter) -> dict:
         rows = self._all(flt)
-        phone_calls = [r for r in rows if r["mode"] != "api"]
+        phone_calls = [r for r in rows if r["mode"] not in ("api", "whatsapp")]
         done = [r for r in phone_calls if r["status"] == "finalizada"]
         completed = [r for r in rows if r["workflow_status"] == "completed"]
         goal = [r for r in rows if r["goal"]]
@@ -174,6 +208,7 @@ class Reports:
             "total_minutes": round(sum(r["duration_seconds"] for r in done) / 60, 1),
             "avg_duration": round(sum(r["duration_seconds"] for r in done) / len(done)) if done else 0,
             "latency_avg": round(sum(latencies) / len(latencies), 2) if latencies else None,
+            "whatsapp": sum(r["mode"] == "whatsapp" for r in rows),
         }
 
     def daily(self, flt: CallFilter) -> dict:

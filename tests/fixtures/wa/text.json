@@ -1,0 +1,27 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "100000000000001",
+      "changes": [
+        {
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {"display_phone_number": "15550000000", "phone_number_id": "100000000000002"},
+            "contacts": [{"profile": {"name": "Contacto Prueba"}, "wa_id": "5493510000000"}],
+            "messages": [
+              {
+                "from": "5493510000000",
+                "id": "wamid.HBgNNTQ5MzUxMDAwMDAwMBUCABIYFjNFQjBBMDAwMDAwMDAwMDAwMDAwMDAA",
+                "timestamp": "1790000000",
+                "text": {"body": "hola"},
+                "type": "text"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

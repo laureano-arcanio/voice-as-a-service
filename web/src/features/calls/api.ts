@@ -86,13 +86,20 @@ export function isCallLive(c: CallDetail | undefined): boolean {
   return c.call ? isLiveStatus(c.call.status) : c.workflow_status === 'active';
 }
 
+/** Refresco del detalle: 1 s en una llamada en curso; 3 s en un chat de WhatsApp activo
+ * (los mensajes llegan de a uno y el cliente puede volver a escribir horas despues). */
+export function detailRefetchMs(c: CallDetail | undefined): number | false {
+  if (!isCallLive(c)) return false;
+  return c?.whatsapp ? 3000 : 1000;
+}
+
 export function useCallDetail(id: string | undefined) {
   return useQuery({
     queryKey: callKeys.detail(id ?? ''),
     queryFn: () =>
       unwrap(api.GET('/api/v1/calls/{conversation_id}', { params: { path: { conversation_id: id! } } })),
     enabled: !!id,
-    refetchInterval: (q) => (isCallLive(q.state.data) ? 1000 : false),
+    refetchInterval: (q) => detailRefetchMs(q.state.data),
   });
 }
 

@@ -24,7 +24,8 @@ class ConversationStore:
                 return None
             return ConversationState(
                 conversation_id=row.id, agent_id=row.agent_id or row.legacy_workflow_id or "",
-                agent_version=row.agent_version or 1, client_id=row.client_id, status=row.status,
+                agent_version=row.agent_version or 1, client_id=row.client_id,
+                channel=row.channel or "voice", status=row.status,
                 fields=row.fields, messages=row.messages,
                 progress=Progress.model_validate(row.progress or {}),
             )
@@ -41,9 +42,10 @@ class ConversationStore:
         data = state.model_dump(mode="json")
         row = s.get(ConversationRow, state.conversation_id)
         if row is None:
-            # Agente, version y cliente se fijan al crearla y no cambian.
+            # Agente, version, cliente y canal se fijan al crearla y no cambian.
             row = ConversationRow(id=state.conversation_id, agent_id=state.agent_id,
-                                  agent_version=state.agent_version, client_id=state.client_id)
+                                  agent_version=state.agent_version, client_id=state.client_id,
+                                  channel=state.channel)
         row.status = state.status
         row.fields = data["fields"]
         row.messages = data["messages"]

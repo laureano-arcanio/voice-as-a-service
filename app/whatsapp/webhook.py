@@ -4,11 +4,13 @@ import hmac
 import json
 import logging
 import re
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import PlainTextResponse, Response
 
 from ..config import settings
+from .service import WhatsAppService, get_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/wa", tags=["whatsapp"])
@@ -92,7 +94,9 @@ def _summarize(payload) -> list[str]:
 
 
 @router.post("/webhook", include_in_schema=False)
-async def receive(request: Request):
+async def receive(request: Request, service: Annotated[WhatsAppService, Depends(get_service)]):
+    """200 siempre (salvo firma invalida): Meta reintenta ante un 5xx. El turno corre en
+    segundo plano (service.handle_payload), sin esperar a la base ni al LLM."""
     raw = await _read_body(request)
     if not _valid_signature(raw, request.headers.get("X-Hub-Signature-256")):
         raise HTTPException(403)
@@ -100,7 +104,11 @@ async def receive(request: Request):
         payload = json.loads(raw)
         for line in _summarize(payload):
             logger.info("wa webhook: %s", line)
-    except Exception:  # payload raro: Meta reintenta ante un 5xx, no queremos eso
+    except Exception:  # payload raro
         logger.warning("wa webhook: payload no interpretable (%d bytes)", len(raw))
-    # TODO fase 1: encolar el mensaje y responder con process_turn (docs/WHATSAPP_PLAN.md).
+        return Response(status_code=200)
+    try:
+        service.handle_payload(payload)
+    except Exception:
+        logger.exception("wa webhook: no se pudo agendar el payload")
     return Response(status_code=200)

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Query
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
-from ...models import Agent, Client, ConversationRow, PhoneNumber, Tier
+from ...models import Agent, Client, ConversationRow, PhoneNumber, Tier, WaAccount
 from ...services import phone_numbers, quota
 from ...services.errors import Conflict, Invalid, NotFound
 from ..deps import DB, AdminPrincipal, CurrentPrincipal
@@ -86,6 +86,10 @@ def delete_client(client_id: str, p: AdminPrincipal, db: DB):
     client = get_client(db, p, client_id)
     if db.scalar(select(func.count()).select_from(ConversationRow).where(ConversationRow.client_id == client.id)):
         raise Conflict("El cliente tiene conversaciones: desactivalo en vez de borrarlo", "client_in_use")
+    # wa_accounts.client_id es RESTRICT: sin esto, IntegrityError (500) en PostgreSQL.
+    if db.scalar(select(func.count()).select_from(WaAccount).where(WaAccount.client_id == client.id)):
+        raise Conflict("El cliente tiene números de WhatsApp conectados: desactivalo en vez de borrarlo",
+                       "client_in_use")
     db.delete(client)
     db.commit()
 

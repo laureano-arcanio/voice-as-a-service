@@ -178,6 +178,43 @@ class PhoneNumberBulkOut(BaseModel):
     skipped: list[SkippedNumber]
 
 
+# ---------- whatsapp ----------
+
+class WaAccountIn(BaseModel):
+    client_id: str
+    agent_id: str = Field(description="Agente del cliente que atiende los mensajes")
+    phone_number_id: str = Field(pattern=r"^\d{1,32}$", description="ID del numero en Meta")
+    waba_id: str = Field(min_length=1, max_length=32)
+    display_phone_number: str = Field(min_length=1, max_length=32, examples=["+1 555 145 6632"])
+    name: str = Field(default="", max_length=128)
+    access_token: str | None = Field(default=None, description="Sin token: el del system user (WA_ACCESS_TOKEN)")
+
+
+class WaAccountPatch(BaseModel):
+    agent_id: str | None = None
+    display_phone_number: str | None = Field(default=None, min_length=1, max_length=32)
+    name: str | None = Field(default=None, max_length=128)
+    access_token: str | None = Field(default=None, description="\"\" lo borra: vuelve al token global")
+    active: bool | None = None
+
+
+class WaAccountOut(BaseModel):
+    """El token nunca sale: solo si la cuenta tiene uno propio."""
+    id: str
+    client_id: str
+    client_name: str | None = None
+    agent_id: str
+    agent_name: str | None = None
+    phone_number_id: str
+    waba_id: str
+    display_phone_number: str
+    name: str
+    has_token: bool
+    active: bool
+    created_at: UTCDateTime
+    updated_at: UTCDateTime
+
+
 # ---------- agentes ----------
 
 class AgentCreate(BaseModel):
@@ -372,6 +409,17 @@ class MessageOut(BaseModel):
     llm: list[LlmCall] | None = None
 
 
+class WhatsAppInfo(BaseModel):
+    """La conversacion por WhatsApp: contacto, numero del negocio y envios fallidos."""
+    wa_id: str
+    contact_name: str | None
+    business_number: str | None
+    account_id: str
+    last_user_at: str | None
+    failed_messages: int
+    last_error: dict | None
+
+
 class CallDetail(BaseModel):
     id: str
     client_id: str | None
@@ -385,6 +433,7 @@ class CallDetail(BaseModel):
     outcome: OutcomeOut | None
     messages: list[MessageOut]
     call: CallInfo | None
+    whatsapp: WhatsAppInfo | None = None
 
 
 class StatsOut(BaseModel):
@@ -400,6 +449,7 @@ class StatsOut(BaseModel):
     total_minutes: float
     avg_duration: int
     latency_avg: float | None
+    whatsapp: int = 0
 
 
 class DailyOut(BaseModel):

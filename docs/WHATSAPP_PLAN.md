@@ -1,10 +1,13 @@
 # Plan: WhatsApp en el mismo agente (mensajería)
 
-Diseño (2026-09-28). **Estado: Fase 0 en curso (1-oct-2026): webhook con firma implementado en `app/whatsapp/`; cliente Graph en `graph.py`.** El plan de salida al mercado
+Diseño (2026-09-28). **Estado: Fase 0 completa (1-oct-2026): ida y vuelta real con el número de prueba (plantilla saliente por la Graph API y mensaje entrante por el webhook firmado, vía el túnel). El agente todavía no responde: fase 1.** El plan de salida al mercado
 ([`mercado/plan-salida-al-mercado.md`](mercado/plan-salida-al-mercado.md), secciones 4 y 7) pone
 WhatsApp texto en el mes 5 y Calling en el 6: es donde el cliente de cobranzas sigue la conversación
 y el canal que Vapi no tiene y Botmaker sí
 ([`competencia/`](competencia/botmaker/botmaker-canales-integracion.md)).
+
+**Fase 1 implementada (1-oct-2026), pendiente de deploy:** el agente responde texto por WhatsApp con
+el mismo motor. Detalle y pasos de deploy en [5.1](#51-fase-1-lo-implementado).
 
 Responde:
 
@@ -41,15 +44,15 @@ segundo plano (Meta reintenta si no recibe 200, y con el LLM tardando ~0,6–0,9
 puede responder en línea) → se descarta si el `wamid` ya se procesó (Meta reenvía) → se busca la
 conversación activa de `(phone_number_id, wa_id)` o se crea una → `process_turn` → se manda la
 respuesta por la Graph API → se guarda el `wamid` de salida para seguir `sent/delivered/read` por el
-webhook `statuses`. Igual que la voz, un turno a la vez por conversación (lock por conversación);
+webhook `statuses`. Igual que la voz, un turno a la vez (lock por contacto, `(phone_number_id, wa_id)`);
 si el cliente manda tres mensajes seguidos en 2 s, se juntan en un turno (el equivalente de
-`CONTINUATION_WINDOW` del agente de voz).
+`CONTINUATION_WINDOW` del agente de voz), ordenados por el timestamp de Meta.
 
 **Entrante vs. saliente.**
 - *Entrante* (el cliente final escribe): hoy `start_conversation` guarda la apertura del workflow como
   primer mensaje del agente, pensado para una llamada donde el agente habla primero. Por WhatsApp
   escribe primero el cliente: se crea la conversación sin apertura y el primer mensaje es el turno 1,
-  así el LLM saluda y contesta lo que preguntó. Cambio chico en `start_conversation(opening=None)`.
+  así el LLM saluda y contesta lo que preguntó: `new_conversation(..., opening=False)`.
 - *Saliente* (el negocio inicia): `POST /wa/messages {to, template, workflow_id, params}` manda la
   plantilla y crea la conversación con el texto de la plantilla como apertura. La respuesta del
   cliente es el turno 1 y abre la ventana de 24 h. Sirve para cobranza, turnos y recordatorios; es
@@ -62,12 +65,12 @@ derivación a humano queda como resultado del workflow (`outcome` con `handoff: 
 responder en esa conversación y avisa (webhook del cliente o email).
 
 **Reglas por canal.** Las reglas de voz están en los YAML ("números en palabras", "correos como se
-dicen", "dos frases por turno") y en `SYSTEM_PROMPT` ("agente conversacional telefónico"). Se agrega
-`channel: voice | whatsapp` al workflow (default `voice`) y `prompt.py` suma el bloque base del canal:
+dicen", "dos frases por turno") y en `SYSTEM_PROMPT` ("agente conversacional telefónico"). El canal
+se guarda en la conversación (`conversations.channel`, `voice | whatsapp`, default `voice`), no en el
+workflow, y `prompt.py` suma el bloque base del canal:
 por WhatsApp, números en cifras, emails como dirección, hasta ~300 caracteres, sin markdown pesado
 (WhatsApp solo renderiza `*negrita*` y `_cursiva_`), y el extractor sabe que lee texto escrito, no una
-transcripción. Cada agente tendría su variante `<id>_wa.yml` con `extends` y `channel: whatsapp`; los
-datos, la base de conocimiento y los resultados son los mismos.
+transcripción. El mismo agente atiende voz y WhatsApp: no hay variantes por canal.
 
 **Tablas nuevas** (modelos en `app/models/whatsapp.py`, migración de Alembic nueva en `migrations/versions/`):
 
@@ -98,8 +101,10 @@ tests/test_whatsapp.py      webhook con payloads reales grabados + FakeLLM; firm
 ```
 
 **Variables de `.env`:** `WA_APP_ID`, `WA_APP_SECRET`, `WA_VERIFY_TOKEN`, `WA_ACCESS_TOKEN` (system user
-de nuestro portafolio, fases 0 y 1), `WA_PUBLIC_URL` (`https://wa.atentina.com.ar`, el webhook por el túnel), `WA_PHONE_NUMBER_ID` (solo `scripts/wa.py`) y `WA_TOKEN_KEY`
-(cifrado de los tokens de clientes en `wa_accounts`). Como `VLLM_API_KEY`, el chequeo de
+de nuestro portafolio, fases 0 y 1), `WA_PUBLIC_URL` (`https://wa.atentina.com.ar`, el webhook por el túnel), `WA_PHONE_NUMBER_ID` (solo `scripts/wa.py`),
+los de la fase 1 (`WA_SESSION_HOURS`, `WA_DEBOUNCE_SECONDS`, `WA_UNSUPPORTED_REPLY`, `WA_MAX_REPLY_CHARS`,
+`WA_MAX_TURN_CHARS`, `WA_MAX_TURNS`; ver `.env.example`) y `WA_TOKEN_KEY` (fase 2: cifrado de los
+tokens de clientes en `wa_accounts`). Como `VLLM_API_KEY`, el chequeo de
 [`.env`](../AGENTS.md) antes de reiniciar.
 
 **HTTPS.** Meta exige webhook por HTTPS con certificado válido. Sale por el Cloudflare Tunnel que ya
@@ -219,7 +224,7 @@ límite de envío de al menos **2.000 destinatarios por día**, o sea negocio ve
 | Fase | Qué queda | Entregable medible | Esfuerzo |
 |---|---|---|---|
 | **0. Cuenta y número** | Meta Business + verificación del negocio (empieza acá, tarda), app con WhatsApp, medio de pago, webhook por el túnel (`wa.atentina.com.ar`), webhook GET/POST con firma, número de Anura registrado por voz (3.1, prueba de humo), primer "hola" enviado y recibido | Un mensaje ida y vuelta con el número de Anura; resultado de la llamada de Meta anotado en `TELEFONIA_ANURA.md` | 1 semana de trabajo; la verificación de Meta corre en paralelo |
-| **1. El motor por WhatsApp** | `app/whatsapp/` (2), tablas, reglas por canal, `demo_booking_wa`, dashboard con origen WhatsApp, saliente por plantilla, tests con payloads grabados, modo verificación (3.1, etapa 2), `make wa-send` para probar | El agente de demo conversa por WhatsApp de punta a punta; eval de calidad corrido con `channel: whatsapp` (`make eval-llm`) y comparado con voz | 2 semanas |
+| **1. El motor por WhatsApp** | `app/whatsapp/` (2), tablas, reglas por canal (sin variante `_wa` del agente, ver 5.1), dashboard con origen WhatsApp, saliente por plantilla, tests con payloads grabados, modo verificación (3.1, etapa 2), `make wa-send` para probar | El agente de demo conversa por WhatsApp de punta a punta; eval de calidad corrido con `channel: whatsapp` (`make eval-llm`) y comparado con voz | 2 semanas |
 | **2. Clientes con su número** | Tech Provider, App Review, Embedded Signup v4, `wa_accounts` multi-cliente con tokens cifrados, coexistencia, alta desde el dashboard | Un cliente conecta su número sin tocar Meta a mano; un piloto con número del cliente | 2 semanas de trabajo + tiempos de Meta (semanas) |
 | **3. Operación** | Notas de voz por STT, derivación a humano con aviso, plantillas gestionadas desde la app, `wa_messages` con costo por cliente en el dashboard, perfil `whatsapp` del test de capacidad y `CAP-NNN`, webhook de resultado para el software del cliente | Reporte por campaña con costo de Meta por gestión; capacidad medida | 2 semanas |
 | **4. Campañas** | Carga por CSV o API, ventana horaria, reintentos, opt-out ("no me escriban más" → no volver a mandar plantillas), lo mismo que pide la sección 4 del plan de mercado para voz | Campaña de cobranza por WhatsApp con un piloto | Se comparte con la campaña de voz |
@@ -227,6 +232,44 @@ límite de envío de al menos **2.000 destinatarios por día**, o sea negocio ve
 
 Orden: 0 y 1 dan valor con el número propio; 2 destraba la venta; 3 y 4 son lo que pide el piloto de
 cobranzas; 5 cuando la cuenta lo permita.
+
+### 5.1 Fase 1: lo implementado
+
+Estado al 1-oct-2026: código y tests listos (`tests/test_whatsapp_*.py`, con FakeLLM y payloads con
+la forma de Meta en `tests/fixtures/wa/`). **No está desplegado.**
+
+- **Entrante de texto:** el webhook responde 200 sin esperar y `app/whatsapp/service.py` sigue en segundo
+  plano: dedupe por `wamid` (unique en `wa_messages`), cuenta por `phone_number_id`, conversación activa
+  del contacto o una nueva **sin apertura** (el primer mensaje del cliente es el turno 1), junta lo que
+  llega en `WA_DEBOUNCE_SECONDS` (2 s) en un turno, un turno a la vez por contacto, `send_text` y
+  `mark_read`. Si llega texto mientras responde el LLM, deshace el turno y responde todo junto.
+- **Topes:** `WA_MAX_TURN_CHARS` (2000) por turno, lo que pase se descarta; `WA_MAX_TURNS` (40) por
+  conversación, después sigue en otra. Así un contacto o un bot no pasa el contexto del LLM (32768).
+  Los turnos por la API (`/conversations/{id}/turns`) a una conversación de WhatsApp dan 409.
+- **Statuses:** `sent < delivered < read` no retrocede; `failed` gana y guarda el error de Meta. Un
+  envío fallido (ej. 131047, fuera de las 24 h) se guarda y no se reintenta.
+- **No texto** (audio, imagen, documento...): `WA_UNSUPPORTED_REPLY`, una vez por ventana, sin LLM.
+- **Fin:** `completed` del motor cierra la conversación; el mensaje siguiente, o uno después de
+  `WA_SESSION_HOURS` (24) sin actividad, abre otra con el mismo agente. La vencida queda `active`
+  ("Incompleto"), igual que una llamada que se corta antes de terminar.
+- **Reglas por canal:** el canal sale de la conversación (`conversations.channel`); con `whatsapp` el
+  prompt pide texto escrito (cifras, emails como dirección, ~300 caracteres, solo `*negrita*`) y pisa
+  las reglas de voz de la definición. No hace falta un `demo_booking_wa`.
+- **Cuentas:** `wa_accounts` (número → cliente y agente; token NULL = `WA_ACCESS_TOKEN`). API admin
+  `/api/v1/whatsapp/accounts`, página **WhatsApp** de la UI y `make wa-account`.
+- **Dashboard:** las conversaciones de WhatsApp salen en la lista con origen "WhatsApp" y el `wa_id`;
+  el detalle muestra el chat, el número del negocio, el último mensaje y los envíos fallidos.
+- **Tier:** solo se exige el cliente activo. Consumo por mensajes y costo de Meta: pendiente (fase 3).
+
+**Para desplegar** (con la app y el número de prueba ya suscriptos):
+1. `make migrate` (0004: `wa_accounts`, `wa_threads`, `wa_messages` y `conversations.channel`).
+2. Recrear `app` con la imagen nueva (compila la UI).
+3. `make wa-account PNID=1376760278849754 WABA=1763082738667089 NUMBER="+1 555 145 6632" AGENT=<slug>`
+   (cliente `interno` por defecto), o desde la página WhatsApp.
+4. Escribirle al número de prueba y ver la conversación en el dashboard.
+
+**Queda de la fila de la fase 1:** saliente por plantilla desde la app (fase 3), modo verificación
+(3.1, etapa 2) y el eval con canal `whatsapp` comparado con voz.
 
 ## 6. Riesgos y trampas
 
@@ -265,12 +308,24 @@ cobranzas; 5 cuando la cuenta lo permita.
   6 dígitos (`scripts/wa.py register`). El PIN queda en `.env` (`WA_REGISTRATION_PIN`): Meta lo pide al
   re-registrar. Registrado, pasa a `CONNECTED` / `CLOUD_API`; primer `hello_world` aceptado el 1-oct-2026.
 - **Celulares de Argentina:** se envía a `54351...` y Meta devuelve `wa_id` `549351...` (con el 9). El
-  webhook trae el `wa_id` con 9: usarlo tal cual para responder y como clave de `wa_threads`.
+  webhook trae el `wa_id` con 9: es la clave de `wa_threads`, pero responder a `549…` da `131030` (no está
+  en la lista de destinatarios de prueba). `service.recipient()` manda sin el 9, que Meta entrega igual.
 - **Webhook verificado y `messages` suscripto (1-oct-2026):** Meta valida el GET por el túnel y el POST
   de prueba del panel llega con firma válida (200, una línea `wa webhook:` en el log de `app`). El access
   log de uvicorn tapa `hub.verify_token` (`RedactVerifyToken`).
 - **App sin publicar = solo webhooks de prueba:** Meta no entrega mensajes reales (ni de admins) hasta
   publicar la app, y para publicar pide URLs reales de privacidad, condiciones y eliminación de datos.
+- **Publicar no alcanza: la WABA tiene que tener la app suscripta.** Configurar el webhook en el panel
+  no la suscribe (`GET /{waba_id}/subscribed_apps` daba `[]`); sin eso no llega ningún mensaje real.
+  `POST /{waba_id}/subscribed_apps` con el token del system user. Con Embedded Signup (fase 2) va en el
+  alta de cada cuenta. App publicada el 1-oct-2026, con las páginas legales de la landing.
+- **Dónde se verifica:** con la app publicada, developers.facebook.com → app → Revisar → Verificación
+  (`/apps/<app_id>/verification/`): primero "Verificación del negocio" y después "Verificación de acceso"
+  (Tech Provider, Meta responde en ~5 días). Antes de publicar no aparece en ningún lado.
+- **Verificación del negocio enviada (1-oct-2026):** como *Sole Proprietorship* registrada, nombre legal
+  ARCANIO LAUREANO MARTIN y nombre alternativo "Atentina". **Verificado** el mismo día.
+- **Verificación de acceso (Tech Provider) enviada (1-oct-2026):** Plataforma SaaS, un solo portafolio,
+  sitio atentina.com.ar. En revisión (~5 días). Plazo de Meta para completarla: 30-nov-2026, si no restringe la app.
 - **Titular persona física (monotributo), no sociedad:** en la fase 2 puede chocar el nombre legal
   (la persona) con el nombre visible "Atentina" en la verificación y en el perfil del número.
 

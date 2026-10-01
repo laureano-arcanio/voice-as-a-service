@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from ..agents.templates import load_template
 from ..conversation.models import Workflow
 from ..db import utcnow
-from ..models import Agent, AgentVersion, Client, ConversationRow
+from ..models import Agent, AgentVersion, Client, ConversationRow, WaAccount
 from . import voices
 from .errors import Conflict, Invalid, NotFound
 
@@ -85,4 +85,7 @@ def delete_agent(s: Session, agent: Agent) -> None:
     """Solo sin conversaciones; si tiene historial, se archiva."""
     if s.scalar(select(func.count()).select_from(ConversationRow).where(ConversationRow.agent_id == agent.id)):
         raise Conflict("El agente tiene conversaciones: archivalo en vez de borrarlo", "agent_in_use")
+    # wa_accounts.agent_id es RESTRICT: sin esto, IntegrityError (500) en PostgreSQL.
+    if s.scalar(select(func.count()).select_from(WaAccount).where(WaAccount.agent_id == agent.id)):
+        raise Conflict("El agente atiende un número de WhatsApp: conectá el número a otro agente", "agent_in_use")
     s.delete(agent)

@@ -4,7 +4,7 @@ import logging
 from fastapi import APIRouter
 
 from ...models import Agent
-from ...services.errors import NotFound, Upstream
+from ...services.errors import Conflict, NotFound, Upstream
 from ..deps import DB, CurrentPrincipal, Engine
 from ..schemas import (
     ConversationIn,
@@ -45,7 +45,9 @@ def get_conversation(conversation_id: str, p: CurrentPrincipal, engine: Engine):
 @router.post("/{conversation_id}/turns", response_model=TurnOut,
              responses={502: {"description": "El LLM no respondio"}})
 async def turn(conversation_id: str, body: TurnIn, p: CurrentPrincipal, engine: Engine):
-    _state(engine, p, conversation_id)
+    if _state(engine, p, conversation_id).channel == "whatsapp":
+        # La respuesta no le llegaria al contacto, y el turno se cruzaria con el de WhatsApp (su lock).
+        raise Conflict("La conversación es de WhatsApp: los turnos llegan por WhatsApp", "whatsapp_conversation")
     try:
         _, result = await engine.process_turn(conversation_id, body.message)
     except Exception as e:

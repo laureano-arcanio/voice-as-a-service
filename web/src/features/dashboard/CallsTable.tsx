@@ -58,7 +58,7 @@ export function CallsTable({
     <Card>
       <Group justify="space-between" mb="sm" wrap="wrap">
         <Group gap="xs">
-          <Title order={4}>Llamadas</Title>
+          <Title order={4}>Conversaciones</Title>
           <Badge variant="default">{total}</Badge>
         </Group>
         <Group gap="xs">
@@ -86,8 +86,8 @@ export function CallsTable({
         <ErrorAlert error={error} />
       ) : !loading && items.length === 0 ? (
         <EmptyState>
-          Todavía no hay conversaciones con estos filtros. Llamá al número del agente, lanzá una llamada
-          arriba o usá el modo prueba.
+          Todavía no hay conversaciones con estos filtros. Llamá o escribí por WhatsApp al número del agente,
+          lanzá una llamada arriba o usá el modo prueba.
         </EmptyState>
       ) : (
         <Table.ScrollContainer minWidth={1100}>

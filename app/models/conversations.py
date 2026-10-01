@@ -25,6 +25,8 @@ class ConversationRow(Base):
     # Workflow YAML con que corrio una conversacion anterior a los agentes en la base;
     # `python -m app.cli seed` la asocia al agente de igual slug del cliente interno.
     legacy_workflow_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # voice | whatsapp. Se fija al crearla y no cambia (cambia las reglas del prompt).
+    channel: Mapped[str] = mapped_column(String(16), default="voice", server_default="voice")
     status: Mapped[str] = mapped_column(String(16))
     fields: Mapped[dict] = mapped_column(JSONDoc)
     messages: Mapped[list] = mapped_column(JSONDoc)

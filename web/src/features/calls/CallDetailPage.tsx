@@ -109,27 +109,57 @@ function FieldsCard({ c }: { c: CallDetail }) {
   );
 }
 
+/** Error de Meta de un envio fallido ({code, subcode, message}). */
+function waErrorText(err: Record<string, unknown> | null | undefined): string {
+  if (!err) return '';
+  const code = err.code != null ? String(err.code) : '';
+  const hint = code === '131047' ? ' (pasaron más de 24 h desde el último mensaje del contacto)' : '';
+  return `${code ? `${code}: ` : ''}${typeof err.message === 'string' ? err.message : ''}${hint}`;
+}
+
 function CallHeader({ c }: { c: CallDetail }) {
   const call = c.call;
+  const wa = c.whatsapp;
   const required = c.fields.filter((f) => f.required);
   const captured = required.filter((f) => f.value != null).length;
   return (
     <Card>
       <SimpleGrid cols={{ base: 2, sm: 3, lg: 6 }} spacing="md" verticalSpacing="md">
-        <Item label="Contacto">{fieldValue(c, 'contact_name') || '–'}</Item>
+        <Item label="Contacto">{fieldValue(c, 'contact_name') || wa?.contact_name || '–'}</Item>
         <Item label="Empresa">
           {fieldValue(c, 'company_name') || fieldValue(c, 'company_context') || '–'}
         </Item>
         <Item label="Origen">
-          <OriginBadge mode={call ? call.mode : 'api'} phone={call?.phone} />
+          {wa ? (
+            <OriginBadge mode="whatsapp" phone={wa.wa_id} />
+          ) : (
+            <OriginBadge mode={call ? call.mode : 'api'} phone={call?.phone} />
+          )}
         </Item>
-        <Item label="Número del cliente">{call?.client_number || '–'}</Item>
+        <Item label="Número del cliente">{(wa ? wa.business_number : call?.client_number) || '–'}</Item>
         <Item label="Fecha">{formatDateTimeLong(c.created_at)}</Item>
-        <Item label="Estado">
-          <CallStatusBadge status={call?.status} />
-        </Item>
-        <Item label="Duración">{formatDuration(call?.duration_seconds)}</Item>
-        <Item label="Fin de llamada">{call?.ended_reason || '–'}</Item>
+        {wa ? (
+          <>
+            <Item label="Último mensaje">{formatDateTimeLong(wa.last_user_at)}</Item>
+            <Item label="Envíos fallidos">
+              {wa.failed_messages ? (
+                <Text span inherit c="red">
+                  {wa.failed_messages}
+                </Text>
+              ) : (
+                0
+              )}
+            </Item>
+          </>
+        ) : (
+          <>
+            <Item label="Estado">
+              <CallStatusBadge status={call?.status} />
+            </Item>
+            <Item label="Duración">{formatDuration(call?.duration_seconds)}</Item>
+            <Item label="Fin de llamada">{call?.ended_reason || '–'}</Item>
+          </>
+        )}
         <Item label="Datos obtenidos">
           {captured} de {required.length}
         </Item>
@@ -158,6 +188,11 @@ function CallHeader({ c }: { c: CallDetail }) {
           {call.error}
         </Alert>
       )}
+      {wa?.last_error && (
+        <Alert color="red" mt="md" title="Último envío fallido">
+          {waErrorText(wa.last_error)}
+        </Alert>
+      )}
     </Card>
   );
 }
@@ -171,7 +206,7 @@ function ChatCard({ c, live }: { c: CallDetail; live: boolean }) {
           <Title order={4}>Conversación</Title>
           {live && (
             <Badge color="blue" variant="dot">
-              En vivo
+              {c.whatsapp ? 'Activa' : 'En vivo'}
             </Badge>
           )}
         </Group>

@@ -10,7 +10,10 @@ export interface Tile {
 export function statTiles(s: Stats): Tile[] {
   const withPct = (n: number, pct: number) => (s.total ? `${n} · ${formatNumber(pct)}%` : String(n));
   return [
-    { label: 'Conversaciones', value: String(s.total) },
+    {
+      label: s.whatsapp ? `Conversaciones (${s.whatsapp} por WhatsApp)` : 'Conversaciones',
+      value: String(s.total),
+    },
     { label: 'Llamadas finalizadas', value: String(s.finished) },
     { label: 'Workflow completo', value: withPct(s.completed, s.completed_pct), tone: 'ok' },
     { label: 'Objetivo cumplido', value: withPct(s.goal, s.goal_pct), tone: 'ok' },

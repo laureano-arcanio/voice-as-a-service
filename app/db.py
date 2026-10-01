@@ -31,7 +31,9 @@ def make_engine(dsn: str) -> Engine:
     # en vez de fallar el primer pedido despues.
     # En SQLite las foreign keys no se aplican (no se pide PRAGMA foreign_keys): el
     # eval y los tests corren conversaciones de plantillas que no estan en `agents`.
-    return create_engine(dsn, pool_pre_ping=True)
+    # hide_parameters: los errores de SQL no llevan los valores (textos, telefonos, DNI)
+    # a los logs; logger.exception los escribiria enteros.
+    return create_engine(dsn, pool_pre_ping=True, hide_parameters=True)
 
 
 def make_sessions(engine: Engine) -> sessionmaker[Session]:

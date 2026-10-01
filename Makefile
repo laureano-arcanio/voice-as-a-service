@@ -162,6 +162,9 @@ api-key: ## API key de un cliente (se muestra una vez). Ej: make api-key CLIENT=
 wa-send: ## Texto por WhatsApp con la Graph API. Ej: make wa-send TO=54351... TEXT="hola" [PHONE_NUMBER_ID=...]
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts app python -m scripts.wa $(if $(PHONE_NUMBER_ID),--phone-number-id $(PHONE_NUMBER_ID)) send-text --to "$(TO)" --text "$(TEXT)"
 
+wa-account: ## Conecta un numero de WhatsApp a un agente (idempotente). Ej: make wa-account PNID=1376760278849754 WABA=1763082738667089 NUMBER="+1 555 145 6632" AGENT=demo_booking_classic [CLIENT=interno]
+	$(COMPOSE) run --rm --no-deps app python -m app.cli wa-account $(PNID) --waba $(WABA) --display "$(NUMBER)" --client $(or $(CLIENT),interno) --agent $(AGENT) $(if $(NAME),--name "$(NAME)")
+
 web-dev: ## UI en modo desarrollo (Vite, :5173) contra la API de :8011. Requiere Node 22+
 	cd web && npm install && VITE_API_PROXY=$${VITE_API_PROXY:-http://127.0.0.1:8011} npm run dev
 

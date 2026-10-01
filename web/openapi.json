@@ -2695,6 +2695,215 @@
     ]
    }
   },
+  "/api/v1/whatsapp/accounts": {
+   "get": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "List Accounts",
+    "operationId": "list_accounts_api_v1_whatsapp_accounts_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/WaAccountOut"
+         },
+         "title": "Response List Accounts Api V1 Whatsapp Accounts Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "Create Account",
+    "description": "Conecta un numero: 409 si el phone_number_id ya esta, 404 si el agente no es del cliente.",
+    "operationId": "create_account_api_v1_whatsapp_accounts_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/WaAccountIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WaAccountOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/whatsapp/accounts/{account_id}": {
+   "patch": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "Update Account",
+    "description": "access_token \"\" o null lo borra (vuelve a WA_ACCESS_TOKEN).",
+    "operationId": "update_account_api_v1_whatsapp_accounts__account_id__patch",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "account_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Account Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/WaAccountPatch"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WaAccountOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/whatsapp/accounts/{account_id}/deactivate": {
+   "post": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "Deactivate Account",
+    "description": "Deja de responder los mensajes que lleguen a ese numero (quedan ignored).",
+    "operationId": "deactivate_account_api_v1_whatsapp_accounts__account_id__deactivate_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "account_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Account Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WaAccountOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/demo/sessions": {
    "post": {
     "tags": [
@@ -3444,6 +3653,16 @@
       "anyOf": [
        {
         "$ref": "#/components/schemas/CallInfo"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "whatsapp": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/WhatsAppInfo"
        },
        {
         "type": "null"
@@ -4985,6 +5204,11 @@
        }
       ],
       "title": "Latency Avg"
+     },
+     "whatsapp": {
+      "type": "integer",
+      "title": "Whatsapp",
+      "default": 0
      }
     },
     "type": "object",
@@ -5679,6 +5903,293 @@
      "car_s"
     ],
     "title": "VoiceOut"
+   },
+   "WaAccountIn": {
+    "properties": {
+     "client_id": {
+      "type": "string",
+      "title": "Client Id"
+     },
+     "agent_id": {
+      "type": "string",
+      "title": "Agent Id",
+      "description": "Agente del cliente que atiende los mensajes"
+     },
+     "phone_number_id": {
+      "type": "string",
+      "pattern": "^\\d{1,32}$",
+      "title": "Phone Number Id",
+      "description": "ID del numero en Meta"
+     },
+     "waba_id": {
+      "type": "string",
+      "maxLength": 32,
+      "minLength": 1,
+      "title": "Waba Id"
+     },
+     "display_phone_number": {
+      "type": "string",
+      "maxLength": 32,
+      "minLength": 1,
+      "title": "Display Phone Number",
+      "examples": [
+       "+1 555 145 6632"
+      ]
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 128,
+      "title": "Name",
+      "default": ""
+     },
+     "access_token": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Access Token",
+      "description": "Sin token: el del system user (WA_ACCESS_TOKEN)"
+     }
+    },
+    "type": "object",
+    "required": [
+     "client_id",
+     "agent_id",
+     "phone_number_id",
+     "waba_id",
+     "display_phone_number"
+    ],
+    "title": "WaAccountIn"
+   },
+   "WaAccountOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "client_id": {
+      "type": "string",
+      "title": "Client Id"
+     },
+     "client_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Name"
+     },
+     "agent_id": {
+      "type": "string",
+      "title": "Agent Id"
+     },
+     "agent_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agent Name"
+     },
+     "phone_number_id": {
+      "type": "string",
+      "title": "Phone Number Id"
+     },
+     "waba_id": {
+      "type": "string",
+      "title": "Waba Id"
+     },
+     "display_phone_number": {
+      "type": "string",
+      "title": "Display Phone Number"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "has_token": {
+      "type": "boolean",
+      "title": "Has Token"
+     },
+     "active": {
+      "type": "boolean",
+      "title": "Active"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Updated At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "client_id",
+     "agent_id",
+     "phone_number_id",
+     "waba_id",
+     "display_phone_number",
+     "name",
+     "has_token",
+     "active",
+     "created_at",
+     "updated_at"
+    ],
+    "title": "WaAccountOut",
+    "description": "El token nunca sale: solo si la cuenta tiene uno propio."
+   },
+   "WaAccountPatch": {
+    "properties": {
+     "agent_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agent Id"
+     },
+     "display_phone_number": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 32,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Display Phone Number"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 128
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "access_token": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Access Token",
+      "description": "\"\" lo borra: vuelve al token global"
+     },
+     "active": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Active"
+     }
+    },
+    "type": "object",
+    "title": "WaAccountPatch"
+   },
+   "WhatsAppInfo": {
+    "properties": {
+     "wa_id": {
+      "type": "string",
+      "title": "Wa Id"
+     },
+     "contact_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Contact Name"
+     },
+     "business_number": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Business Number"
+     },
+     "account_id": {
+      "type": "string",
+      "title": "Account Id"
+     },
+     "last_user_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last User At"
+     },
+     "failed_messages": {
+      "type": "integer",
+      "title": "Failed Messages"
+     },
+     "last_error": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Error"
+     }
+    },
+    "type": "object",
+    "required": [
+     "wa_id",
+     "contact_name",
+     "business_number",
+     "account_id",
+     "last_user_at",
+     "failed_messages",
+     "last_error"
+    ],
+    "title": "WhatsAppInfo",
+    "description": "La conversacion por WhatsApp: contacto, numero del negocio y envios fallidos."
    }
   },
   "securitySchemes": {

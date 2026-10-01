@@ -66,6 +66,10 @@ export const routes: RouteObject[] = [
         path: 'numbers',
         ...page(async () => (await import('@/features/numbers/NumbersPage')).NumbersPage, 'admin'),
       },
+      {
+        path: 'whatsapp',
+        ...page(async () => (await import('@/features/whatsapp/WhatsAppPage')).WhatsAppPage, 'admin'),
+      },
       { path: 'tiers', ...page(async () => (await import('@/features/tiers/TiersPage')).TiersPage, 'admin') },
       { path: 'users', ...page(async () => (await import('@/features/users/UsersPage')).UsersPage, 'admin') },
       { path: '*', element: <NotFound /> },

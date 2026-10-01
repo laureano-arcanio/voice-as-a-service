@@ -54,14 +54,75 @@ Reglas:
 - known_fields son los datos ya guardados: repetilos si siguen valiendo, o corregilos si el usuario los cambió."""
 
 
+# ---------- canal ----------
+# El canal sale de la conversacion (state.channel), no del agente: la misma
+# definicion atiende llamadas y WhatsApp. Voz es el prompt de siempre; los
+# otros canales cambian frases puntuales y suman su bloque de reglas.
+
+CHANNEL_RULES: dict[str, str] = {
+    "voice": "",
+    "whatsapp": """CANAL: conversación escrita por WhatsApp. Estas reglas pisan las del workflow y la forma de la base de conocimiento pensadas para una llamada hablada (números o correos en palabras, escribir solo lo que se dice, cantidad de frases):
+- Números, montos, fechas, horarios y teléfonos en cifras (por ejemplo 23.500, 10/10 o 9:30), aunque la base de conocimiento los tenga en palabras.
+- Emails como dirección (hola@empresa.com) y links como se escriben.
+- Mensajes breves, de hasta unos 300 caracteres, con normalmente una sola pregunta.
+- Sin markdown salvo *negrita* con un asterisco; sin encabezados ni listas largas.
+- No podés ver imágenes ni escuchar audios: si el usuario manda uno, pedile que lo escriba.
+- Si en la conversación todavía no hay mensajes tuyos, saludá y presentate usando como guía la apertura del workflow (opening) y respondé lo que escribió el usuario.""",
+}
+
+
+def _swap(text: str, *pairs: tuple[str, str]) -> str:
+    """Reemplazos del texto de voz; falla si una frase ya no esta (para que un
+    cambio en el prompt de voz no deje al canal con la frase vieja)."""
+    for old, new in pairs:
+        if old not in text:
+            raise ValueError(f"frase no encontrada en el prompt: {old!r}")
+        text = text.replace(old, new)
+    return text
+
+
+_WHATSAPP_SYSTEM = _swap(
+    SYSTEM_PROMPT,
+    ("Sos un agente conversacional telefónico", "Sos un agente conversacional por WhatsApp"),
+    ("apropiadas para una conversación de voz.", "apropiadas para un chat de WhatsApp."),
+    ("\n\nRespondé con:", f"\n\n{CHANNEL_RULES['whatsapp']}\n\nRespondé con:"),
+    ("- assistant_message: lo que le decís al usuario.", "- assistant_message: el texto del mensaje que le mandás al usuario."),
+)
+
+_WHATSAPP_EXTRACTION = _swap(
+    EXTRACTION_PROMPT,
+    ("de una llamada telefónica.", "de una conversación escrita por WhatsApp."),
+    ("- El texto viene de un reconocimiento de voz y puede tener errores. Si una palabra mal transcripta",
+     "- El texto lo escribió el usuario: puede tener errores de tipeo o abreviaturas, no de transcripción. Si una palabra mal escrita"),
+)
+
+
+def system_prompt(channel: str = "voice") -> str:
+    return _WHATSAPP_SYSTEM if channel == "whatsapp" else SYSTEM_PROMPT
+
+
+def extraction_prompt(channel: str = "voice") -> str:
+    return _WHATSAPP_EXTRACTION if channel == "whatsapp" else EXTRACTION_PROMPT
+
+
 def render_workflow(workflow: Workflow) -> str:
     return yaml.safe_dump(workflow.model_dump(exclude_none=True), allow_unicode=True, sort_keys=False, width=1000)
 
 
 def render_conversation(state: ConversationState) -> str:
     """Toda la conversacion: con solo el ultimo intercambio, el LLM no veia un
-    dato que no habia guardado y lo volvia a preguntar ("ya te dije antes")."""
-    return "\n".join(f"{'agente' if m.role == 'assistant' else 'usuario'}: {m.text}" for m in state.messages)
+    dato que no habia guardado y lo volvia a preguntar ("ya te dije antes").
+
+    Un mensaje por linea: los saltos de linea de un texto escrito (WhatsApp) se
+    aplanan con " / ", si no "\nagente: ..." inventaria turnos del agente."""
+    return "\n".join(f"{'agente' if m.role == 'assistant' else 'usuario'}: {_one_line(m.text)}"
+                     for m in state.messages)
+
+
+def _one_line(text: str) -> str:
+    if "\n" not in text and "\r" not in text:
+        return text
+    return " / ".join(line.strip() for line in text.splitlines() if line.strip())
 
 
 def build_user_prompt(workflow: Workflow, state: ConversationState, user_message: str) -> str:
@@ -98,9 +159,10 @@ def render_fields(workflow: Workflow, only: list[str] | None = None) -> str:
 def build_extraction_prompt(workflow: Workflow, state: ConversationState, only: list[str] | None = None) -> str:
     focus = f"Devolvé solo el campo {', '.join(only)}: el agente lo preguntó y el usuario lo respondió.\n\n" if only else ""
     known = {k: v for k, v in state.fields.items() if v is not None and (only is None or k in only)}
+    objective = "OBJETIVO" if state.channel == "whatsapp" else "OBJETIVO DE LA LLAMADA"
     return (
         f"AGENTE: {workflow.agent.name}, {workflow.agent.role}.\n"
-        f"OBJETIVO DE LA LLAMADA: {workflow.objective.description.strip()}\n\n"
+        f"{objective}: {workflow.objective.description.strip()}\n\n"
         f"CAMPOS:\n{render_fields(workflow, only)}\n"
         f"CONVERSATION:\n{render_conversation(state)}\n\n"
         f"KNOWN FIELDS:\n{json.dumps(known, ensure_ascii=False)}\n\n"
@@ -119,8 +181,17 @@ def describe_condition(when: dict) -> str:
     return " y ".join(f"{k} = {json.dumps(v, ensure_ascii=False)}" for k, v in when.items())
 
 
-def build_classic_system(workflow: Workflow) -> str:
-    """Todo el agente en un prompt de sistema, sacado del YAML."""
+def build_classic_system(workflow: Workflow, channel: str = "voice") -> str:
+    """Todo el agente en un prompt de sistema, sacado del YAML. Con whatsapp
+    cambia el medio, suma las reglas del canal y el saludo: el usuario escribe
+    primero y no hay apertura en la conversacion."""
+    whatsapp = channel == "whatsapp"
+    where = "Estás conversando por WhatsApp (texto)" if whatsapp else "Estás en una llamada telefónica"
+    reply = "Respondé solo con el texto del mensaje." if whatsapp else "Respondé solo con lo que decís en voz alta."
+    extra = ""
+    if whatsapp:
+        extra = (f"\n\nSALUDO (apertura del workflow: guía para tu primer mensaje):\n"
+                 f"{workflow.conversation.opening.strip()}\n\n{CHANNEL_RULES['whatsapp']}")
     fields = []
     for name, spec in sorted(workflow.fields.items(), key=lambda kv: kv[1].priority):
         need = ("obligatorio" if spec.required else
@@ -132,7 +203,7 @@ def build_classic_system(workflow: Workflow) -> str:
     outcomes = [f"- {o.label}{' (si ' + describe_condition(o.when) + ')' if o.when else ' (en cualquier otro caso)'}: "
                 f"{' '.join(o.message.split())}" for o in workflow.completion.outcomes]
     rules = "\n".join(f"- {r}" for r in workflow.conversation.rules)
-    return f"""Sos {workflow.agent.name}, {workflow.agent.role}. Estás en una llamada telefónica; idioma: {workflow.agent.language}.
+    return f"""Sos {workflow.agent.name}, {workflow.agent.role}. {where}; idioma: {workflow.agent.language}.
 
 OBJETIVO:
 {workflow.objective.description.strip()}
@@ -151,12 +222,12 @@ BASE DE CONOCIMIENTO:
 CIERRE:
 La conversación termina cuando obtuviste los datos obligatorios o cuando el usuario no quiere seguir. En ese turno despedite usando como guía el mensaje que corresponda:
 {chr(10).join(outcomes)}
-Al final de ese último mensaje, y solo en ese, escribí {END_MARKER}.
+Al final de ese último mensaje, y solo en ese, escribí {END_MARKER}.{extra}
 
-Respondé solo con lo que decís en voz alta."""
+{reply}"""
 
 
 def build_classic_messages(workflow: Workflow, state: ConversationState, user_message: str) -> list[dict]:
     history = [{"role": m.role, "content": m.text} for m in state.messages]
-    return [{"role": "system", "content": build_classic_system(workflow)}, *history,
+    return [{"role": "system", "content": build_classic_system(workflow, state.channel)}, *history,
             {"role": "user", "content": user_message}]

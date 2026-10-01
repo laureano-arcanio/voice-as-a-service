@@ -9,11 +9,11 @@ from app.conversation.models import AgentTurn, ConversationState, Extraction, Wo
 
 from .prompt import (
     END_MARKER,
-    EXTRACTION_PROMPT,
-    SYSTEM_PROMPT,
     build_classic_messages,
     build_extraction_prompt,
     build_user_prompt,
+    extraction_prompt,
+    system_prompt,
 )
 
 TYPE_SCHEMAS = {
@@ -89,7 +89,7 @@ class LLMClient:
         request = dict(
             model=self.model,
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt(state.channel)},
                 {"role": "user", "content": build_user_prompt(workflow, state, user_message)},
             ],
             response_format={
@@ -145,7 +145,7 @@ class LLMClient:
         message = (await self.client.chat.completions.create(
             model=self.model,
             messages=[
-                {"role": "system", "content": EXTRACTION_PROMPT},
+                {"role": "system", "content": extraction_prompt(state.channel)},
                 {"role": "user", "content": build_extraction_prompt(workflow, state, only)},
             ],
             response_format={

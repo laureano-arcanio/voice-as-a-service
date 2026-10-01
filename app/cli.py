@@ -3,6 +3,8 @@
     python -m app.cli seed                       # idempotente; lo corre `make migrate`
     python -m app.cli create-admin EMAIL         # pide la clave
     python -m app.cli create-api-key CLIENTE_SLUG NOMBRE
+    python -m app.cli wa-account PHONE_NUMBER_ID --waba WABA --display "+1 555 145 6632" \
+        --client interno --agent SLUG [--name ...]   # conecta un numero de WhatsApp (idempotente)
 
 seed deja lo minimo para operar despues de migrar:
 - tier "Interno" (sin limites) y cliente "interno", para pruebas, loadtest y eval;
@@ -160,6 +162,38 @@ def create_api_key(s: Session, client_slug: str, name: str) -> None:
     print(key)
 
 
+def wa_account(s: Session, phone_number_id: str, waba_id: str, display: str, client_slug: str,
+               agent_slug: str, name: str | None) -> None:
+    """Crea la cuenta o le actualiza agente, numero visible y nombre. El token queda en
+    NULL: se usa WA_ACCESS_TOKEN (system user de nuestro portafolio)."""
+    from .services.errors import ServiceError
+    from .whatsapp import store as wa_store
+
+    client = s.scalar(select(Client).where(Client.slug == client_slug))
+    if client is None:
+        sys.exit(f"cliente inexistente: {client_slug}")
+    agent = s.scalar(select(Agent).where(Agent.client_id == client.id, Agent.slug == agent_slug))
+    if agent is None:
+        sys.exit(f"el cliente {client_slug} no tiene el agente {agent_slug}")
+    try:
+        account = wa_store.account_by_pnid(s, phone_number_id.strip())
+        if account is None:
+            wa_store.create_account(s, client_id=client.id, agent_id=agent.id, phone_number_id=phone_number_id,
+                                    waba_id=waba_id, display_phone_number=display, name=name or "")
+            _log(f"cuenta de WhatsApp {phone_number_id} creada ({client_slug}/{agent_slug})")
+        else:
+            if account.client_id != client.id:
+                sys.exit(f"el numero {phone_number_id} ya esta conectado a otro cliente")
+            changes = {"agent_id": agent.id, "display_phone_number": display, "waba_id": waba_id}
+            if name is not None:
+                changes["name"] = name
+            wa_store.update_account(s, account, **changes)
+            _log(f"cuenta de WhatsApp {phone_number_id} actualizada ({client_slug}/{agent_slug})")
+    except ServiceError as e:
+        sys.exit(e.message)
+    s.commit()
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="python -m app.cli")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -169,6 +203,13 @@ def main(argv: list[str] | None = None) -> None:
     p = sub.add_parser("create-api-key", help="API key de un cliente (se imprime una sola vez)")
     p.add_argument("client_slug")
     p.add_argument("name")
+    p = sub.add_parser("wa-account", help="conecta un numero de WhatsApp a un agente (idempotente)")
+    p.add_argument("phone_number_id")
+    p.add_argument("--waba", required=True)
+    p.add_argument("--display", required=True, help="numero visible, ej. '+1 555 145 6632'")
+    p.add_argument("--client", default=INTERNAL_CLIENT, help="slug del cliente")
+    p.add_argument("--agent", required=True, help="slug del agente que atiende")
+    p.add_argument("--name", default=None)
     args = parser.parse_args(argv)
     with get_sessionmaker()() as s:
         if args.cmd == "seed":
@@ -178,6 +219,8 @@ def main(argv: list[str] | None = None) -> None:
             create_admin(s, args.email, password)
         elif args.cmd == "create-api-key":
             create_api_key(s, args.client_slug, args.name)
+        elif args.cmd == "wa-account":
+            wa_account(s, args.phone_number_id, args.waba, args.display, args.client, args.agent, args.name)
 
 
 if __name__ == "__main__":
