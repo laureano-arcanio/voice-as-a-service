@@ -108,8 +108,9 @@ tiene que estar en una cuenta de Anura distinta (o en una troncal con DID). Ver
 
 ### 4b. WhatsApp (admin)
 
-Conecta un número de WhatsApp Business a un agente del cliente (fase 1: solo texto, ver
-[`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md)).
+Conecta un número de WhatsApp Business a un agente del cliente. Responde texto y notas de voz: si el
+contacto manda un audio, el agente lo transcribe y contesta con una nota de voz con la voz del agente
+(ver [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md)).
 
 1. **WhatsApp > Conectar número:** cliente, agente que responde, **Phone number ID** y **WABA ID**
    (de Meta: WhatsApp → Configuración de la API; el ID, no el teléfono), número visible y nombre.
@@ -172,6 +173,11 @@ Si el cliente está desactivado, sus números de WhatsApp tampoco responden.
   los envíos fallidos, con el último error de Meta (131047: pasaron más de 24 h desde el último
   mensaje del contacto, no se puede mandar texto libre). No hay latencia por turno. Mientras la
   conversación está activa se actualiza cada 3 s.
+- **Notas de voz:** en el chat, el mensaje del contacto que llegó como audio lleva el rótulo
+  "Transcripción de nota de voz" (se ve el texto que entendió el STT, no el audio), y la respuesta que
+  salió como audio, "Enviada como nota de voz". Si la nota de voz falló y salió en texto, no lleva rótulo.
+  Si en el mismo turno el contacto escribió y mandó un audio, el mensaje no lleva rótulo y la parte
+  transcripta empieza con `[nota de voz transcripta]`.
 
 Motivos de fin frecuentes (`ended_reason`):
 

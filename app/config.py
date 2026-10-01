@@ -5,6 +5,7 @@ con los scripts, `config.VLLM_API_KEY` (el nombre de la variable) tambien funcio
 """
 from functools import cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -94,12 +95,23 @@ class Settings(BaseSettings):
     wa_session_hours: int = 24
     # Junta en un turno los mensajes que llegan seguidos (el equivalente de CONTINUATION_WINDOW).
     wa_debounce_seconds: float = 2.0
-    wa_unsupported_reply: str = "Por ahora solo puedo leer mensajes de texto. ¿Me lo escribís?"
+    wa_unsupported_reply: str = "Por ahora no puedo ver imágenes ni archivos. ¿Me lo escribís?"
     wa_max_reply_chars: int = 4096  # tope de Meta para un texto; se trunca
     # Topes contra abuso y contra el largo de contexto del LLM (--max-model-len 32768):
     # caracteres por turno (lo que pase se descarta) y turnos por conversacion (despues, otra).
     wa_max_turn_chars: int = 2000
     wa_max_turns: int = 40
+    # Audios (fase 3 parcial): entrada por el STT, salida como nota de voz por el TTS.
+    # mirror: nota de voz si el turno tuvo algun audio del cliente; never: siempre texto; always: siempre audio.
+    wa_audio_reply: Literal["mirror", "never", "always"] = "mirror"
+    wa_audio_max_bytes: int = 4 * 1024 * 1024  # Meta acepta hasta 16 MB; 4 MB = mp3 de 128 kbps y 120 s, holgado
+    wa_audio_max_seconds: float = 120.0
+    wa_audio_max_reply_chars: int = 600  # respuesta mas larga: sale en texto (MAX_PREVIEW_CHARS de la prueba de voz)
+    wa_audio_concurrency: int = 4  # pedidos simultaneos desde WhatsApp a cada uno (STT, TTS); guarda, sin medir
+    wa_audio_voice_flag: bool = True  # "voice": true al enviar: se ve como nota de voz
+    wa_audio_too_long_reply: str = "Ese audio es muy largo para mí. ¿Me mandás uno más corto o me lo escribís?"
+    wa_audio_empty_reply: str = "No te escuché bien, ¿me lo repetís?"
+    wa_audio_error_reply: str = "No pude escuchar el audio. ¿Me lo escribís?"
 
     # --- Frontend ---
     # Build de la SPA (web/, `npm run build`). Si no existe, la API funciona sin UI.

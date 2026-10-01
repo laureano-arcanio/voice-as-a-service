@@ -9,6 +9,10 @@ mensajes seguidos juntados en un turno (debounce), un turno a la vez por contact
 Topes: WA_MAX_TURN_CHARS por turno (lo que pase se descarta) y WA_MAX_TURNS por
 conversacion (despues abre otra), para no pasar el largo de contexto del LLM.
 
+Audios (audio.py): el entrante se baja, se transcribe y entra al turno como texto
+marcado como nota de voz; la respuesta sale como nota de voz segun WA_AUDIO_REPLY,
+y si falla el TTS, la conversion o el envio, sale en texto.
+
 Todo en memoria del proceso (inbox, lock, debounce): supone un solo worker de
 uvicorn. Si se reinicia `app`, lo pendiente se pierde y esos entrantes quedan
 `received` sin respuesta.
@@ -29,11 +33,15 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from ..config import settings
 from ..conversation.engine import ConversationEngine
+from ..conversation.models import ConversationState, TurnMedia
 from ..conversation.store import ConversationStore
 from ..db import utcnow
+from ..llm.prompt import VOICE_NOTE_TAG
 from ..models import Client, ConversationRow, WaAccount
+from . import audio as audio_module
 from . import store
-from .graph import GraphClient, GraphError
+from .audio import AudioError, AudioTooLong
+from .graph import GraphClient, GraphError, MediaTooLarge
 
 logger = logging.getLogger(__name__)
 
@@ -43,25 +51,37 @@ SILENT_TYPES = {"reaction", "system", "unsupported", "ephemeral", "request_welco
 
 
 @dataclass
+class Item:
+    """Un mensaje que espera su turno. voice_note: el texto es la transcripcion de un audio."""
+    ts: int             # timestamp de Meta
+    text: str
+    wamid: str
+    voice_note: bool = False
+
+
+@dataclass
 class Inbox:
-    """Mensajes de texto de un contacto que esperan su turno: (timestamp de Meta, texto, wamid)."""
-    items: list[tuple[int, str, str]] = field(default_factory=list)
+    """Mensajes de un contacto que esperan su turno."""
+    items: list[Item] = field(default_factory=list)
     contact_name: str | None = None
     timer_task: asyncio.Task | None = None
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
-    unsupported_sent_at: float | None = None   # loop.time() de la ultima respuesta fija
+    # loop.time() de la ultima respuesta fija, por texto: cinco fotos dan una respuesta,
+    # pero una foto no tapa el aviso de un audio que no se escucho.
+    fixed_sent_at: dict[str, float] = field(default_factory=dict)
+    pending_audio: int = 0      # audios bajandose o transcribiendose: el turno los espera
 
     def chars(self) -> int:
-        return sum(len(text) for _, text, _ in self.items)
+        return sum(len(item.text) for item in self.items)
 
-    def take(self) -> list[tuple[int, str, str]]:
+    def take(self) -> list[Item]:
         items, self.items = self.items, []
         return items
 
     def idle(self, now: float, window: float) -> bool:
-        return (not self.items and not self.lock.locked()
+        return (not self.items and not self.lock.locked() and self.pending_audio == 0
                 and (self.timer_task is None or self.timer_task.done())
-                and (self.unsupported_sent_at is None or now - self.unsupported_sent_at >= window))
+                and all(now - at >= window for at in self.fixed_sent_at.values()))
 
 
 @dataclass(frozen=True)
@@ -97,10 +117,17 @@ def _stamp(msg: dict) -> int:
         return int(time.time())
 
 
-def _ordered(items: list[tuple[int, str, str]]) -> list[tuple[int, str, str]]:
+def _ordered(items: list[Item]) -> list[Item]:
     """En el orden de Meta: cada mensaje llega en su POST y pueden llegar desordenados.
     El timestamp es en segundos; con el mismo, queda el orden de llegada (sort estable)."""
-    return sorted(items, key=lambda item: item[0])
+    return sorted(items, key=lambda item: item.ts)
+
+
+def _size(value) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _text_of(msg: dict) -> str | None:
@@ -132,8 +159,12 @@ class WhatsAppService:
                  graph_factory: Callable[[str], GraphClient] | None = None,
                  debounce_seconds: float = settings.wa_debounce_seconds,
                  session_hours: int = settings.wa_session_hours,
-                 max_turn_chars: int = settings.wa_max_turn_chars, max_turns: int = settings.wa_max_turns):
+                 max_turn_chars: int = settings.wa_max_turn_chars, max_turns: int = settings.wa_max_turns,
+                 audio=None):
+        """audio: lo que transcribe y sintetiza (transcribe, synthesize_ogg); por defecto
+        app/whatsapp/audio.py, un fake en los tests."""
         self.engine = engine
+        self.audio = audio or audio_module
         self.sessions = sessions
         self.debounce_seconds = debounce_seconds
         self.session_hours = session_hours
@@ -218,22 +249,82 @@ class WhatsAppService:
 
         key = (pnid, wa_id)
         inbox = self._inbox.setdefault(key, Inbox())
+        if kind == "audio":
+            await self._on_audio(info, wa_id, wamid, msg, contact_name, inbox)
+            return
         if text is None:
-            await self._unsupported(info, wa_id, wamid, kind, inbox)
+            body = None if kind in SILENT_TYPES else settings.wa_unsupported_reply
+            await self._fixed_reply(info, wa_id, wamid, body, inbox)
             return
-        if inbox.chars() >= self.max_turn_chars:
-            # Tope por turno: lo que pasa se descarta y el timer no se re-arma (el turno sale).
-            with self.sessions() as s:
-                store.set_inbound(s, [wamid], status="ignored")
-                s.commit()
-            logger.info("wa: entrante ignorado (tope de caracteres) pnid=%s wamid=%s", pnid, wamid)
+        if self._over_cap(info, wamid, inbox):
             return
-        inbox.items.append((_stamp(msg), text, wamid))
+        inbox.items.append(Item(_stamp(msg), text, wamid))
         inbox.contact_name = contact_name or inbox.contact_name
+        self._arm(info, wa_id, inbox)
+
+    def _over_cap(self, info: AccountInfo, wamid: str, inbox: Inbox) -> bool:
+        """Tope por turno: lo que pasa se descarta y el timer no se re-arma (el turno sale)."""
+        if inbox.chars() < self.max_turn_chars:
+            return False
+        with self.sessions() as s:
+            store.set_inbound(s, [wamid], status="ignored")
+            s.commit()
+        logger.info("wa: entrante ignorado (tope de caracteres) pnid=%s wamid=%s", info.phone_number_id, wamid)
+        return True
+
+    def _arm(self, info: AccountInfo, wa_id: str, inbox: Inbox) -> None:
         if inbox.timer_task is not None and not inbox.timer_task.done():
             inbox.timer_task.cancel()
         delay = 0 if inbox.chars() >= self.max_turn_chars else self.debounce_seconds
         inbox.timer_task = self._spawn(self._timer(info, wa_id, inbox, delay))
+
+    async def _on_audio(self, info: AccountInfo, wa_id: str, wamid: str, msg: dict,
+                        contact_name: str | None, inbox: Inbox) -> None:
+        """Baja el audio, lo transcribe y lo suma al turno como nota de voz. Si es muy
+        largo, no se entiende o falla el STT o Meta: respuesta fija, sin LLM."""
+        if self._over_cap(info, wamid, inbox):
+            return
+        graph = self._graph(info.token)
+        media = msg.get("audio") if isinstance(msg.get("audio"), dict) else {}
+        max_bytes = settings.wa_audio_max_bytes
+        text, body = "", None
+        inbox.pending_audio += 1
+        started = time.perf_counter()
+        try:
+            if not media.get("id"):
+                raise GraphError("audio sin media id")
+            # Sin phone_number_id: Meta lo usa para exigir que coincida con el numero que
+            # *subio* el media, y este lo subio el cliente.
+            meta = await graph.get_media(str(media["id"]))
+            size = _size(meta.get("file_size"))
+            if size is not None and size > max_bytes:
+                raise MediaTooLarge(f"media de {size} bytes, tope {max_bytes}")
+            if not meta.get("url"):
+                raise GraphError("media sin url")
+            data = await graph.download_media(str(meta["url"]), max_bytes)
+            mime = str(meta.get("mime_type") or media.get("mime_type") or "")
+            text = await self.audio.transcribe(data, mime)
+            logger.info("wa: audio transcripto pnid=%s wamid=%s bytes=%d chars=%d ms=%d", info.phone_number_id,
+                        wamid, len(data), len(text), round((time.perf_counter() - started) * 1000))
+        except (AudioTooLong, MediaTooLarge) as e:
+            body = settings.wa_audio_too_long_reply
+            logger.info("wa: audio demasiado largo pnid=%s wamid=%s (%s)", info.phone_number_id, wamid, e)
+        except (AudioError, GraphError) as e:
+            body = settings.wa_audio_error_reply
+            logger.warning("wa: audio sin transcribir pnid=%s wamid=%s error=%s code=%s", info.phone_number_id,
+                           wamid, type(e).__name__, getattr(e, "code", None))
+        finally:
+            inbox.pending_audio -= 1
+        if body is None and not text:
+            body = settings.wa_audio_empty_reply
+        if body is not None:
+            await self._fixed_reply(info, wa_id, wamid, body, inbox)
+            if inbox.items:
+                self._arm(info, wa_id, inbox)    # un texto que esperaba a este audio
+            return
+        inbox.items.append(Item(_stamp(msg), text, wamid, voice_note=True))
+        inbox.contact_name = contact_name or inbox.contact_name
+        self._arm(info, wa_id, inbox)
 
     def _why_ignore(self, s: Session, account: WaAccount | None, wa_id: str) -> str | None:
         if account is None:
@@ -249,16 +340,18 @@ class WhatsAppService:
             return "conversacion pausada"
         return None
 
-    async def _unsupported(self, info: AccountInfo, wa_id: str, wamid: str, kind: str, inbox: Inbox) -> None:
-        """Audio, imagen, etc.: respuesta fija sin LLM, una por ventana de debounce. No entra
-        en conversations.messages (escribir fuera del motor romperia el undo del turno)."""
+    async def _fixed_reply(self, info: AccountInfo, wa_id: str, wamid: str, body: str | None,
+                           inbox: Inbox) -> None:
+        """Imagen, audio que no se pudo transcribir, etc.: respuesta fija en texto, sin LLM,
+        una por texto y ventana de debounce (body None: ninguna, ej. una reaccion). No entra en
+        conversations.messages (escribir fuera del motor romperia el undo del turno)."""
         graph = self._graph(info.token)
         now = asyncio.get_running_loop().time()
         # Se decide antes de cualquier await: cinco fotos juntas dan una sola respuesta.
-        reply = kind not in SILENT_TYPES and (inbox.unsupported_sent_at is None
-                                              or now - inbox.unsupported_sent_at >= self.debounce_seconds)
+        last = inbox.fixed_sent_at.get(body) if body is not None else None
+        reply = body is not None and (last is None or now - last >= self.debounce_seconds)
         if reply:
-            inbox.unsupported_sent_at = now
+            inbox.fixed_sent_at[body] = now
         await self._mark_read(graph, info, wamid)
         if not reply:
             with self.sessions() as s:
@@ -269,7 +362,7 @@ class WhatsAppService:
         with self.sessions() as s:
             thread = store.active_thread(s, info.id, wa_id, utcnow(), self.session_hours)
             conversation_id = thread.conversation_id if thread else None
-        sent = await self._send(graph, info, wa_id, conversation_id, settings.wa_unsupported_reply)
+        sent = await self._send(graph, info, wa_id, conversation_id, body)
         with self.sessions() as s:
             store.set_inbound(s, [wamid], status="answered" if sent else "error", conversation_id=conversation_id)
             s.commit()
@@ -282,6 +375,8 @@ class WhatsAppService:
 
     async def _timer(self, info: AccountInfo, wa_id: str, inbox: Inbox, delay: float) -> None:
         await asyncio.sleep(delay)
+        if inbox.pending_audio:
+            return      # el audio que termine re-arma el timer: el turno sale con el audio
         # El turno va en otra tarea: re-armar el timer cancela solo la espera, nunca un turno en curso.
         self._spawn(self._flush(info, wa_id, inbox))
 
@@ -293,15 +388,29 @@ class WhatsAppService:
         if self._inbox.get(key) is inbox and inbox.idle(asyncio.get_running_loop().time(), self.debounce_seconds):
             del self._inbox[key]
 
-    def _text(self, items: list[tuple[int, str, str]]) -> str:
-        return "\n".join(text for _, text, _ in items)[:self.max_turn_chars]
+    def _text(self, items: list[Item]) -> str:
+        """Si el turno mezcla texto escrito y audios, cada transcripcion lleva VOICE_NOTE_TAG
+        en su linea: lo escrito no se trata como posible error de reconocimiento."""
+        mixed = len({item.voice_note for item in items}) > 1
+        return "\n".join(f"{VOICE_NOTE_TAG} {item.text}" if mixed and item.voice_note else item.text
+                         for item in items)[:self.max_turn_chars]
+
+    @staticmethod
+    def _media(items: list[Item]) -> TurnMedia:
+        """Modalidad del turno. user_voice_note: todo el mensaje es transcripcion (si se
+        mezcla con texto, la marca va por linea en _text). La respuesta sale como nota de
+        voz en mirror si hubo algun audio."""
+        heard = any(item.voice_note for item in items)
+        mode = settings.wa_audio_reply
+        return TurnMedia(user_voice_note=bool(items) and all(item.voice_note for item in items),
+                         reply_voice_note=mode == "always" or (mode == "mirror" and heard))
 
     def _full(self, s: Session, conversation_id: str) -> bool:
         row = s.get(ConversationRow, conversation_id)
         return row is not None and len(row.messages or []) >= 2 * self.max_turns
 
-    async def _turn(self, info: AccountInfo, wa_id: str, inbox: Inbox, items: list[tuple[int, str, str]]) -> None:
-        wamids = [wamid for _, _, wamid in items]
+    async def _turn(self, info: AccountInfo, wa_id: str, inbox: Inbox, items: list[Item]) -> None:
+        wamids = [item.wamid for item in items]
         now = utcnow()
         with self.sessions() as s:
             account = s.get(WaAccount, info.id)
@@ -337,18 +446,20 @@ class WhatsAppService:
         graph = self._graph(info.token)
         await self._mark_read(graph, info, wamids[-1])
         try:
-            _, turn = await self.engine.process_turn(conversation_id, self._text(items))
+            media = self._media(items)
+            state, turn = await self.engine.process_turn(conversation_id, self._text(items), media=media)
             if inbox.items:
                 # Llegaron mas mientras respondia el LLM: la respuesta no salio, se rehace
                 # el turno con todo (una sola vez; lo que llegue despues va en el siguiente).
                 self.engine.retract_last_turn(conversation_id)
                 items = _ordered(items + inbox.take())
-                wamids = [wamid for _, _, wamid in items]
+                wamids = [item.wamid for item in items]
                 with self.sessions() as s:
                     store.set_inbound(s, wamids, status="received", conversation_id=conversation_id)
                     s.commit()
                 await self._mark_read(graph, info, wamids[-1])
-                _, turn = await self.engine.process_turn(conversation_id, self._text(items))
+                media = self._media(items)
+                state, turn = await self.engine.process_turn(conversation_id, self._text(items), media=media)
         except Exception:
             logger.exception("wa: fallo el turno pnid=%s wamid=%s", info.phone_number_id, wamids[-1])
             with self.sessions() as s:
@@ -357,7 +468,16 @@ class WhatsAppService:
             return
 
         reply = turn.assistant_message.strip()[:settings.wa_max_reply_chars]
-        sent = await self._send(graph, info, wa_id, conversation_id, reply) if reply else True
+        sent = True
+        if reply and media.reply_voice_note and len(reply) <= settings.wa_audio_max_reply_chars:
+            sent = await self._send_audio(graph, info, wa_id, state, reply)
+            if sent:
+                self.engine.mark_voice_note(conversation_id)
+            else:
+                # Fallback: la misma respuesta en texto (puede quedar con numeros en palabras).
+                sent = await self._send(graph, info, wa_id, conversation_id, reply)
+        elif reply:
+            sent = await self._send(graph, info, wa_id, conversation_id, reply)
         with self.sessions() as s:
             store.set_inbound(s, wamids, status="answered" if sent else "error")
             s.commit()
@@ -388,6 +508,43 @@ class WhatsAppService:
             store.record_outbound(s, wamid=out_wamid, account_id=info.id, conversation_id=conversation_id,
                                   wa_id=wa_id, type="text", status="sent")
             s.commit()
+        return True
+
+    async def _send_audio(self, graph: GraphClient, info: AccountInfo, wa_id: str,
+                          state: ConversationState, body: str) -> bool:
+        """Sintetiza la respuesta, la sube y la manda como nota de voz. False si algo falla
+        (el que llama la manda en texto). Un fallo del TTS no llego a Meta: solo se loguea;
+        uno de la subida o el envio queda como fila audio failed."""
+        pnid, conversation_id = info.phone_number_id, state.conversation_id
+        started = time.perf_counter()
+        try:
+            voice = audio_module.pick_voice(self.engine.workflow(state).agent.voice)
+            ogg = await self.audio.synthesize_ogg(body, voice)
+        except (AudioError, KeyError) as e:
+            logger.warning("wa: nota de voz sin sintetizar, va en texto pnid=%s conversation=%s error=%s",
+                           pnid, conversation_id, type(e).__name__)
+            return False
+        tts_ms = round((time.perf_counter() - started) * 1000)
+        try:
+            media_id = await graph.upload_media(pnid, ogg)
+            data = await graph.send_audio(pnid, recipient(wa_id), media_id, voice=settings.wa_audio_voice_flag)
+        except GraphError as e:
+            logger.warning("wa: nota de voz no enviada, va en texto pnid=%s code=%s subcode=%s",
+                           pnid, e.code, e.subcode)
+            with self.sessions() as s:
+                store.record_outbound(s, wamid=None, account_id=info.id, conversation_id=conversation_id,
+                                      wa_id=wa_id, type="audio", status="failed",
+                                      error={"code": e.code, "subcode": e.subcode, "message": e.message})
+                s.commit()
+            return False
+        messages = data.get("messages")
+        out_wamid = messages[0].get("id") if isinstance(messages, list) and messages else None
+        with self.sessions() as s:
+            store.record_outbound(s, wamid=out_wamid, account_id=info.id, conversation_id=conversation_id,
+                                  wa_id=wa_id, type="audio", status="sent")
+            s.commit()
+        logger.info("wa: nota de voz enviada pnid=%s bytes=%d tts_ms=%d total_ms=%d", pnid, len(ogg), tts_ms,
+                    round((time.perf_counter() - started) * 1000))
         return True
 
     # --- Statuses ---

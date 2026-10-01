@@ -1,13 +1,16 @@
 # Plan: WhatsApp en el mismo agente (mensajería)
 
-Diseño (2026-09-28). **Estado: Fase 0 completa (1-oct-2026): ida y vuelta real con el número de prueba (plantilla saliente por la Graph API y mensaje entrante por el webhook firmado, vía el túnel). El agente todavía no responde: fase 1.** El plan de salida al mercado
+Diseño (2026-09-28). **Estado (1-oct-2026): fases 0 y 1 en producción con el número de prueba (el agente responde por texto) y notas de voz de entrada y salida (fase 3 parcial). Fase 2 (Tech Provider): verificación del negocio aprobada y de acceso en revisión.** El plan de salida al mercado
 ([`mercado/plan-salida-al-mercado.md`](mercado/plan-salida-al-mercado.md), secciones 4 y 7) pone
 WhatsApp texto en el mes 5 y Calling en el 6: es donde el cliente de cobranzas sigue la conversación
 y el canal que Vapi no tiene y Botmaker sí
 ([`competencia/`](competencia/botmaker/botmaker-canales-integracion.md)).
 
-**Fase 1 implementada (1-oct-2026), pendiente de deploy:** el agente responde texto por WhatsApp con
-el mismo motor. Detalle y pasos de deploy en [5.1](#51-fase-1-lo-implementado).
+**Fase 1 en vivo (1-oct-2026):** el agente responde texto por WhatsApp con el mismo motor. Detalle en
+[5.1](#51-fase-1-lo-implementado).
+
+**Audios (parte de la fase 3) implementados (1-oct-2026), pendientes de deploy:** las notas de voz entran
+por el STT y la respuesta puede salir como nota de voz por el TTS. Ver [5.2](#52-fase-3-parcial-audios).
 
 Responde:
 
@@ -25,7 +28,7 @@ Responde:
 | Vía de acceso | **Cloud API de Meta, directo**, con nuestra app como *Tech Provider* | Sin intermediario por mensaje (un BSP como 360dialog, Twilio o Infobip cobra un margen sobre Meta y agrega otra dependencia). Meta es inevitable: WhatsApp es de Meta. Es la única dependencia externa nueva del stack |
 | Librerías no oficiales (Baileys, whatsapp-web.js) | **Descartadas** | Violan los términos; Meta banea el número. Inaceptable con el número de un cliente |
 | Motor | **El mismo `ConversationEngine` y los mismos YAML**, con reglas por canal | `POST /conversations/{id}/turn` ya conversa por texto; el eval de calidad (`docs/eval/`) corre así. Cambia el prompt de canal, no el motor |
-| Dónde corre | En `app` (FastAPI), no en `agent` | El webhook es HTTP; no hay room, STT ni TTS. `agent` sigue siendo solo voz |
+| Dónde corre | En `app` (FastAPI), no en `agent` | El webhook es HTTP y no hay room; los audios van al STT y al TTS por HTTP, como la prueba de voz. `agent` sigue siendo solo voz |
 | Datos | Mensajes y estado en PostgreSQL, como las llamadas | El dashboard muestra la conversación igual que una llamada, con origen "WhatsApp" |
 | Salientes | Solo con plantillas aprobadas por Meta (categoría *utility* para recordatorios y confirmaciones) | Fuera de la ventana de 24 h Meta no entrega texto libre. Es la regla de la plataforma, no una limitación nuestra |
 
@@ -69,8 +72,9 @@ dicen", "dos frases por turno") y en `SYSTEM_PROMPT` ("agente conversacional tel
 se guarda en la conversación (`conversations.channel`, `voice | whatsapp`, default `voice`), no en el
 workflow, y `prompt.py` suma el bloque base del canal:
 por WhatsApp, números en cifras, emails como dirección, hasta ~300 caracteres, sin markdown pesado
-(WhatsApp solo renderiza `*negrita*` y `_cursiva_`), y el extractor sabe que lee texto escrito, no una
-transcripción. El mismo agente atiende voz y WhatsApp: no hay variantes por canal.
+(WhatsApp solo renderiza `*negrita*` y `_cursiva_`), y el extractor sabe que lee texto escrito, salvo
+los mensajes marcados como nota de voz (5.2). El mismo agente atiende voz y WhatsApp: no hay variantes
+por canal.
 
 **Tablas nuevas** (modelos en `app/models/whatsapp.py`, migración de Alembic nueva en `migrations/versions/`):
 
@@ -92,6 +96,7 @@ app/whatsapp/
   graph.py        cliente de la Graph API: enviar texto/plantilla, marcar leído, bajar media, request_code/verify_code/register
   webhook.py      GET /wa/webhook (challenge) y POST /wa/webhook (firma X-Hub-Signature-256 con el app secret)
   service.py      del webhook al motor y de vuelta: dedupe, lock, juntar mensajes, ventana de 24 h, audios
+  audio.py        notas de voz: OGG/Opus -> WAV 16 kHz -> STT; TTS -> WAV -> OGG/Opus (PyAV)
   store.py        acceso a wa_accounts, wa_threads, wa_messages (modelos en app/models/whatsapp.py)
   verify.py       registro del número: pedir código por voz, capturarlo de la llamada, verificar, registrar con PIN
 app/api/routers/whatsapp.py  API de cuentas, registro y prueba de envío (/api/v1/whatsapp/...)
@@ -103,7 +108,8 @@ tests/test_whatsapp.py      webhook con payloads reales grabados + FakeLLM; firm
 **Variables de `.env`:** `WA_APP_ID`, `WA_APP_SECRET`, `WA_VERIFY_TOKEN`, `WA_ACCESS_TOKEN` (system user
 de nuestro portafolio, fases 0 y 1), `WA_PUBLIC_URL` (`https://wa.atentina.com.ar`, el webhook por el túnel), `WA_PHONE_NUMBER_ID` (solo `scripts/wa.py`),
 los de la fase 1 (`WA_SESSION_HOURS`, `WA_DEBOUNCE_SECONDS`, `WA_UNSUPPORTED_REPLY`, `WA_MAX_REPLY_CHARS`,
-`WA_MAX_TURN_CHARS`, `WA_MAX_TURNS`; ver `.env.example`) y `WA_TOKEN_KEY` (fase 2: cifrado de los
+`WA_MAX_TURN_CHARS`, `WA_MAX_TURNS`; ver `.env.example`), los de audios (`WA_AUDIO_*`, 5.2) y
+`WA_TOKEN_KEY` (fase 2: cifrado de los
 tokens de clientes en `wa_accounts`). Como `VLLM_API_KEY`, el chequeo de
 [`.env`](../AGENTS.md) antes de reiniciar.
 
@@ -114,16 +120,28 @@ Cloudflare. No se abre el 443 en el router ni hay certbot. Lo que no coincide co
 en el túnel. El proxy `:8100` (`/llm`, `/stt`, `/tts`) sigue HTTP plano, aparte (la clave del modo
 remoto viaja en claro: es otro tema).
 
-**Audios.** El cliente final manda notas de voz (`type: audio`, ogg/opus): se baja por la API de
-media, se pasa a 16 kHz mono (ffmpeg) y va a `stt-parakeet`; el texto entra como turno normal. Es el
-mismo STT de las llamadas, y el audio de WhatsApp es mejor que el telefónico (ver WER `clean16k` en
-el README). Responder con audio de `vllm-tts` (wav → ogg/opus) queda opcional, fase 3: el usuario de
-WhatsApp espera texto. Imágenes y documentos: el agente dice que no los puede ver (regla del canal).
+**Audios.** El cliente final manda notas de voz (`type: audio`, ogg/opus) o archivos de audio
+(mp3, m4a, amr; `voice: false`): se baja por la API de media, se pasa a WAV mono de 16 kHz con PyAV
+(sin ffmpeg del sistema) y va a `stt-parakeet`; el texto entra al mismo turno, marcado como nota de
+voz. Es el mismo STT de las llamadas, y el audio de WhatsApp es mejor que el telefónico (ver WER
+`clean16k` en el README). La respuesta sale como nota de voz si el cliente mandó audio
+(`WA_AUDIO_REPLY=mirror`): `vllm-tts` con la voz del agente, WAV → OGG/Opus mono con PyAV. Imágenes,
+videos y documentos: respuesta fija (`WA_UNSUPPORTED_REPLY`). Detalle en 5.2.
 
-**Capacidad.** Un turno de WhatsApp es un pedido al LLM, sin STT ni TTS: carga solo la 3090. En
-CAP-002 el cuello es el TTS en la 5060 Ti, no el LLM, así que el texto convive con las llamadas hasta
-que se mida. Un perfil `whatsapp` del test de capacidad (`scripts/capacity/perfiles/`) que pegue al
-webhook con payloads sintéticos y mida la respuesta p95 por turno, registrado como `CAP-NNN`.
+**Capacidad.** Un turno de texto es un pedido al LLM, sin STT ni TTS: carga solo la 3090. En CAP-002
+el cuello es el TTS en la 5060 Ti, no el LLM, así que el texto convive con las llamadas hasta que se
+mida. **Un turno con audio usa además STT y TTS:**
+- la síntesis de la respuesta entera corre en la 5060 Ti, que en CAP-002 se satura desde ~22 llamadas;
+- una nota de 120 s llena sola un batch del STT (`STT_MAX_BATCH_SECONDS=120`) y retrasa el STT de las
+  llamadas en curso;
+- la conversión de 20 s de audio tarda 30–80 ms de CPU (prototipo con un seno, no con voz).
+
+`WA_AUDIO_CONCURRENCY` (4) limita los pedidos simultáneos desde WhatsApp, por separado al STT y al TTS
+(un TTS lento no frena la transcripción); cada pedido tiene un tope total con la espera incluida (STT
+45 s, TTS 90 s; si se pasa, respuesta fija o texto). Son guardas, sin medir. **TODO:** perfiles `whatsapp` y `whatsapp-audio` del test de capacidad
+(`scripts/capacity/perfiles/`) que peguen al webhook con payloads sintéticos (texto, y audio con Graph
+simulado) junto con llamadas, y midan la respuesta p95 por turno y el efecto en la espera de las
+llamadas, registrados como `CAP-NNN`.
 
 ## 3. Números
 
@@ -226,7 +244,7 @@ límite de envío de al menos **2.000 destinatarios por día**, o sea negocio ve
 | **0. Cuenta y número** | Meta Business + verificación del negocio (empieza acá, tarda), app con WhatsApp, medio de pago, webhook por el túnel (`wa.atentina.com.ar`), webhook GET/POST con firma, número de Anura registrado por voz (3.1, prueba de humo), primer "hola" enviado y recibido | Un mensaje ida y vuelta con el número de Anura; resultado de la llamada de Meta anotado en `TELEFONIA_ANURA.md` | 1 semana de trabajo; la verificación de Meta corre en paralelo |
 | **1. El motor por WhatsApp** | `app/whatsapp/` (2), tablas, reglas por canal (sin variante `_wa` del agente, ver 5.1), dashboard con origen WhatsApp, saliente por plantilla, tests con payloads grabados, modo verificación (3.1, etapa 2), `make wa-send` para probar | El agente de demo conversa por WhatsApp de punta a punta; eval de calidad corrido con `channel: whatsapp` (`make eval-llm`) y comparado con voz | 2 semanas |
 | **2. Clientes con su número** | Tech Provider, App Review, Embedded Signup v4, `wa_accounts` multi-cliente con tokens cifrados, coexistencia, alta desde el dashboard | Un cliente conecta su número sin tocar Meta a mano; un piloto con número del cliente | 2 semanas de trabajo + tiempos de Meta (semanas) |
-| **3. Operación** | Notas de voz por STT, derivación a humano con aviso, plantillas gestionadas desde la app, `wa_messages` con costo por cliente en el dashboard, perfil `whatsapp` del test de capacidad y `CAP-NNN`, webhook de resultado para el software del cliente | Reporte por campaña con costo de Meta por gestión; capacidad medida | 2 semanas |
+| **3. Operación** | Notas de voz por STT y respuesta en audio (hechas, 5.2), derivación a humano con aviso, plantillas gestionadas desde la app, `wa_messages` con costo por cliente en el dashboard, perfil `whatsapp` del test de capacidad y `CAP-NNN`, webhook de resultado para el software del cliente | Reporte por campaña con costo de Meta por gestión; capacidad medida | 2 semanas |
 | **4. Campañas** | Carga por CSV o API, ventana horaria, reintentos, opt-out ("no me escriban más" → no volver a mandar plantillas), lo mismo que pide la sección 4 del plan de mercado para voz | Campaña de cobranza por WhatsApp con un piloto | Se comparte con la campaña de voz |
 | **5. Calling API** | Llamadas de WhatsApp por SIP (Meta ofrece SIP con TLS además de WebRTC) → Asterisk → LiveKit: el mismo agente de voz, sin telefonía. Requiere el límite de 2.000 destinatarios por día | Una llamada entrante de WhatsApp atendida por el agente de voz | 1–2 semanas, después de tener el límite |
 
@@ -235,8 +253,8 @@ cobranzas; 5 cuando la cuenta lo permita.
 
 ### 5.1 Fase 1: lo implementado
 
-Estado al 1-oct-2026: código y tests listos (`tests/test_whatsapp_*.py`, con FakeLLM y payloads con
-la forma de Meta en `tests/fixtures/wa/`). **No está desplegado.**
+Estado al 1-oct-2026: en vivo con el número de prueba. Tests en `tests/test_whatsapp_*.py`, con
+FakeLLM y payloads con la forma de Meta en `tests/fixtures/wa/`.
 
 - **Entrante de texto:** el webhook responde 200 sin esperar y `app/whatsapp/service.py` sigue en segundo
   plano: dedupe por `wamid` (unique en `wa_messages`), cuenta por `phone_number_id`, conversación activa
@@ -248,7 +266,8 @@ la forma de Meta en `tests/fixtures/wa/`). **No está desplegado.**
   Los turnos por la API (`/conversations/{id}/turns`) a una conversación de WhatsApp dan 409.
 - **Statuses:** `sent < delivered < read` no retrocede; `failed` gana y guarda el error de Meta. Un
   envío fallido (ej. 131047, fuera de las 24 h) se guarda y no se reintenta.
-- **No texto** (audio, imagen, documento...): `WA_UNSUPPORTED_REPLY`, una vez por ventana, sin LLM.
+- **No texto** (imagen, video, documento...): `WA_UNSUPPORTED_REPLY`, una vez por ventana, sin LLM. Los
+  audios se transcriben desde 5.2.
 - **Fin:** `completed` del motor cierra la conversación; el mensaje siguiente, o uno después de
   `WA_SESSION_HOURS` (24) sin actividad, abre otra con el mismo agente. La vencida queda `active`
   ("Incompleto"), igual que una llamada que se corta antes de terminar.
@@ -270,6 +289,67 @@ la forma de Meta en `tests/fixtures/wa/`). **No está desplegado.**
 
 **Queda de la fila de la fase 1:** saliente por plantilla desde la app (fase 3), modo verificación
 (3.1, etapa 2) y el eval con canal `whatsapp` comparado con voz.
+
+### 5.2 Fase 3 parcial: audios
+
+Estado al 1-oct-2026: código y tests listos (`tests/test_whatsapp_audio.py` y los de service y graph,
+con Graph, STT y TTS simulados). **No está desplegado.** Sin migración: `wa_messages.type` ya admite
+`audio` y `conversations.messages` es JSON.
+
+- **Entrada** (`service._on_audio`, `audio.transcribe`): `GET /{media_id}` sin `phone_number_id` (Meta
+  lo compara con el número que *subió* el media; url que vence a los 5 min, `file_size`) → si pasa
+  `WA_AUDIO_MAX_BYTES` (4 MB), respuesta de audio largo sin bajarlo → descarga con el mismo Bearer,
+  solo por https a un dominio de Meta (`graph.MEDIA_HOSTS`; si no, error y se loguea el host), cortada
+  en el tope → PyAV a WAV mono de 16 kHz (si la cabecera dice más de
+  `WA_AUDIO_MAX_SECONDS`, 120, se corta antes de decodificar) → `POST {VLLM_STT_BASE_URL}/audio/transcriptions`.
+  El texto entra al debounce como un mensaje más, marcado `voice_note`; el turno no sale mientras haya
+  un audio transcribiéndose, así un texto que llega junto con un audio va en el mismo turno. En un turno
+  mezclado, solo las líneas transcriptas llevan `[nota de voz transcripta]` y el mensaje no se marca
+  `voice_note`: lo escrito no se trata como error de reconocimiento.
+- **Respuestas fijas, sin LLM:** audio largo (`WA_AUDIO_TOO_LONG_REPLY`), transcripción vacía
+  (`WA_AUDIO_EMPTY_REPLY`) y STT o descarga caídos (`WA_AUDIO_ERROR_REPLY`, con warning en el log).
+  Una por texto y ventana de debounce: varias fotos dan una respuesta, pero una foto no tapa el aviso
+  de un audio.
+- **Salida:** `WA_AUDIO_REPLY` = `mirror` (default: nota de voz si el turno tuvo algún audio),
+  `always` o `never`. Voz: `agent.voice` si está en el catálogo, si no `VLLM_TTS_VOICE`; nunca vacía ni
+  `default` (mata `vllm-tts`). TTS → WAV → OGG/Opus mono 32 kbps (PyAV) → `POST /{pnid}/media` →
+  mensaje `audio` con `"voice": true` (`WA_AUDIO_VOICE_FLAG`). Respuestas de más de
+  `WA_AUDIO_MAX_REPLY_CHARS` (600) salen en texto.
+- **Fallback:** si falla el TTS, la conversión, la subida o el envío, la misma respuesta va en texto.
+  Un rechazo de Meta queda en `wa_messages` como `audio` `failed`.
+- **Prompt:** con el canal `whatsapp`, el sistema trae siempre el bloque `NOTA DE VOZ` (estático, por
+  el prefix caching). El turno marca el mensaje transcripto (`[nota de voz transcripta]` en classic,
+  `NEW USER MESSAGE (nota de voz transcripta)` en structured) y, si la respuesta sale en audio, pide
+  formato para escuchar (números en palabras, sin emojis ni asteriscos, frases cortas). La voz
+  telefónica no cambia: verificado byte a byte.
+- **Registro:** `Message.voice_note` en `conversations.messages`, para el mensaje transcripto y para
+  la respuesta enviada como nota de voz; el detalle de la UI lo muestra con un rótulo. `wa_messages`
+  guarda el tipo `audio`, sin el audio ni el texto. Logs con `stt_ms`, `tts_ms`, bytes y segundos, sin
+  texto ni teléfonos.
+
+**Para desplegar:**
+1. Recrear `app` con la imagen nueva: trae `av` (PyAV) y la UI con el rótulo. Verificar en el build que
+   el `av` de la imagen tenga `libopus` (`python -c "import av; av.codec.Codec('libopus','w')"`).
+2. Si el `.env` tiene `WA_UNSUPPORTED_REPLY` con el texto viejo ("solo puedo leer mensajes de texto"),
+   cambiarlo (diff enmascarado antes de reiniciar): ahora los audios se escuchan.
+3. Mandar una nota de voz al número de prueba y verificar:
+   - si Meta acepta la subida con `audio/ogg` o hace falta `audio/ogg; codecs=opus` (anotarlo acá);
+   - el tamaño del OGG con voz del TTS: una respuesta de 600 caracteres tiene que quedar bajo 512 KB
+     (con más, WhatsApp la muestra para descargar en lugar de con play);
+   - que llegue como nota de voz (con `"voice": true`);
+   - el host de la url de `GET /{media_id}` (se espera `lookaside.fbsbx.com`): si es otro, el log dice
+     "url de media fuera de Meta" y hay que sumarlo a `graph.MEDIA_HOSTS`.
+
+**Probado en vivo (1-oct-2026), número de prueba con `landing/turnos` y voz `sofia`:** Meta aceptó la
+subida con `audio/ogg`, la respuesta llegó como nota de voz y el host del media pasó el filtro. Dos turnos:
+
+| Nota entrante | STT | Respuesta | TTS | OGG | Total del turno |
+|---|---|---|---|---|---|
+| 3,8 s (8,6 KB) | 417 ms (primera, en frío) | 107 car. | 1132 ms | 24 KB | 2,9 s |
+| 2,8 s (5,1 KB) | 80 ms | 198 car. | 2119 ms | 47 KB | 4,2 s |
+
+Conversión WAV → OGG/Opus: 58–105 ms. ~240 bytes de OGG por carácter: 600 caracteres ≈ 140 KB, bajo
+los 512 KB. El TTS domina el turno; la capacidad con carga sigue sin medir.
 
 ## 6. Riesgos y trampas
 
@@ -326,6 +406,15 @@ la forma de Meta en `tests/fixtures/wa/`). **No está desplegado.**
   ARCANIO LAUREANO MARTIN y nombre alternativo "Atentina". **Verificado** el mismo día.
 - **Verificación de acceso (Tech Provider) enviada (1-oct-2026):** Plataforma SaaS, un solo portafolio,
   sitio atentina.com.ar. En revisión (~5 días). Plazo de Meta para completarla: 30-nov-2026, si no restringe la app.
+- **Notas de voz de Meta:** para que se vea como nota de voz, OGG con Opus y mono, y `"voice": true` en
+  el mensaje; hasta 16 MB, sin duración máxima documentada. Hasta 512 KB se muestra con play; con más,
+  para descargar. El webhook trae `audio.voice` (nota grabada en WhatsApp) y, desde nov-2025 y no en
+  todas las cuentas, `audio.url`: no se usa, `GET /{media_id}` da `file_size` para rechazar antes de bajar.
+- **Fallback a texto duplicado:** si el envío del audio llega a Meta pero la respuesta se corta, el
+  texto de respaldo sale igual y el cliente recibe las dos. Fuera de la ventana de 24 h (131047)
+  fallan los dos y quedan dos filas `failed`.
+- **La respuesta en audio puede salir en texto con números en palabras:** si el prompt pidió formato
+  para escuchar y después el TTS falla, el fallback manda ese mismo texto. Es aceptable.
 - **Titular persona física (monotributo), no sociedad:** en la fase 2 puede chocar el nombre legal
   (la persona) con el nombre visible "Atentina" en la verificación y en el perfil del número.
 
@@ -342,3 +431,5 @@ la forma de Meta en `tests/fixtures/wa/`). **No está desplegado.**
 - Tarifas de Argentina por categoría (agregador, a confirmar con el rate card): https://ominiflow.com/whatsapp-api-pricing/argentina
 - Infobip y Twilio, guías del programa Tech Provider y Embedded Signup v4: https://www.infobip.com/docs/whatsapp/tech-provider-program y https://www.twilio.com/docs/whatsapp/isv/tech-provider-program/integration-guide
 - Restricción de IVR en la llamada de verificación: https://sanuker.com/landline-whatsapp-business-platform-en/
+- Meta, mensajes de audio (`voice: true`, OGG/Opus mono, 16 MB, play hasta 512 KB) y API de media
+  (`GET /{media_id}`, url de 5 min, subida multipart): referencia de la Cloud API, consultada el 1-oct-2026.

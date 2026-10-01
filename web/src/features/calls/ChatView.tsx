@@ -1,4 +1,5 @@
 import { Text } from '@mantine/core';
+import { IconMicrophone } from '@tabler/icons-react';
 import { useEffect, useRef } from 'react';
 import { prettyJson } from '@/lib/format';
 import type { ChatMessage, LlmCall } from '@/api/types';
@@ -72,6 +73,12 @@ export function ChatView({
       {messages.map((m, i) => (
         <div key={i} className={`bubble ${m.role === 'assistant' ? 'agent' : 'client'}`}>
           <span className="who">{m.role === 'assistant' ? agentLabel : userLabel}</span>
+          {m.voice_note && (
+            <span className="voice-note">
+              <IconMicrophone size={12} aria-hidden />
+              {m.role === 'assistant' ? 'Enviada como nota de voz' : 'Transcripción de nota de voz'}
+            </span>
+          )}
           {m.text}
           {m.llm && m.llm.length > 0 && <LlmTraces calls={m.llm} open={showLlm} />}
         </div>

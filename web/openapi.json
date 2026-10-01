@@ -4807,6 +4807,11 @@
        }
       ],
       "title": "Llm"
+     },
+     "voice_note": {
+      "type": "boolean",
+      "title": "Voice Note",
+      "default": false
      }
     },
     "type": "object",

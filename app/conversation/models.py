@@ -105,6 +105,16 @@ class Message(BaseModel):
     # En las respuestas del agente: la llamada al LLM del turno, con su salida
     # tal cual (para el dashboard).
     llm: list[dict[str, Any]] | None = None
+    # WhatsApp. Usuario: el texto es la transcripcion de una nota de voz;
+    # agente: la respuesta salio como nota de voz.
+    voice_note: bool = False
+
+
+class TurnMedia(BaseModel):
+    """Modalidad del turno en curso (WhatsApp); no se guarda. Cambia el prompt
+    del turno solo en el canal whatsapp (app/llm/prompt.py)."""
+    user_voice_note: bool = False    # el mensaje nuevo entero es transcripcion (mezclado con texto: VOICE_NOTE_TAG por linea)
+    reply_voice_note: bool = False   # la respuesta sale como nota de voz: formato para escuchar
 
 
 class Progress(BaseModel):
@@ -134,6 +144,8 @@ class ConversationState(BaseModel):
     fields: dict[str, Any]
     messages: list[Message] = Field(default_factory=list)
     progress: Progress = Field(default_factory=Progress)
+    # Solo el turno en curso: lo fija process_turn y no se guarda (exclude).
+    media: TurnMedia = Field(default_factory=TurnMedia, exclude=True)
 
 
 class AgentTurn(BaseModel):

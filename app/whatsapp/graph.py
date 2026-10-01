@@ -1,7 +1,8 @@
 """Cliente chico de la Graph API de Meta para WhatsApp Cloud API.
 
-Solo lo que usa el plan (docs/WHATSAPP_PLAN.md): enviar texto/plantillas,
-marcar leido y registrar un numero (request_code, verify_code, register).
+Solo lo que usa el plan (docs/WHATSAPP_PLAN.md): enviar texto/plantillas/audio,
+marcar leido, bajar y subir media y registrar un numero (request_code,
+verify_code, register).
 El token va solo en el header Authorization: no se loguea ni entra en
 str(GraphError).
 """
@@ -15,6 +16,12 @@ import httpx
 DEFAULT_BASE_URL = "https://graph.facebook.com"
 # Conexion corta; lectura holgada (Meta suele responder en < 2 s).
 TIMEOUT = httpx.Timeout(15.0, connect=5.0)
+# Bajar o subir un audio (hasta WA_AUDIO_MAX_BYTES): mas holgado.
+MEDIA_TIMEOUT = httpx.Timeout(30.0, connect=5.0)
+# Dominios de Meta a los que se manda el token para bajar un media (ademas del host de
+# base_url). La url de get_media es de lookaside.fbsbx.com segun los ejemplos de Meta;
+# los demas, por las dudas. Una url de otro host da GraphError (se loguea el host).
+MEDIA_HOSTS = ("fbsbx.com", "facebook.com", "fbcdn.net", "whatsapp.net", "whatsapp.com")
 
 
 class GraphError(Exception):
@@ -31,6 +38,24 @@ class GraphError(Exception):
     def __str__(self) -> str:
         return (f"Graph API error (http={self.status}, code={self.code}, "
                 f"subcode={self.subcode}): {self.message}")
+
+
+class MediaTooLarge(GraphError):
+    """El media pesa mas que el tope (WA_AUDIO_MAX_BYTES): no se baja entero."""
+
+
+def _json_or_error(resp: httpx.Response) -> dict:
+    try:
+        data = resp.json()
+    except ValueError:
+        data = None
+    if isinstance(data, dict) and isinstance(data.get("error"), dict):
+        err = data["error"]
+        raise GraphError(str(err.get("message", "")), err.get("code"),
+                         err.get("error_subcode"), resp.status_code)
+    if resp.status_code >= 400 or not isinstance(data, dict):
+        raise GraphError("respuesta inesperada de Meta", status=resp.status_code)
+    return data
 
 
 class GraphClient:
@@ -51,30 +76,31 @@ class GraphClient:
             await self._http.aclose()
             self._http = None
 
-    async def _post(self, phone_number_id: str, path: str, payload: dict) -> dict:
+    def _client(self) -> httpx.AsyncClient:
         if self._http is None:
             self._http = httpx.AsyncClient(timeout=TIMEOUT)
             self._owns_http = True
-        url = f"{self.base_url}/{self.version}/{phone_number_id}/{path}"
+        return self._http
+
+    def _auth(self) -> dict:
+        return {"Authorization": f"Bearer {self._token}"}
+
+    async def _request(self, method: str, url: str, *, json: dict | None = None, data: dict | None = None,
+                       files: dict | None = None, params: dict | None = None,
+                       timeout: httpx.Timeout = TIMEOUT) -> dict:
+        """Pedido a la Graph API que devuelve JSON. El error no lleva el token."""
+        what = url.rsplit("/", 1)[-1]
         try:
-            resp = await self._http.post(
-                url, json=payload, timeout=TIMEOUT,
-                headers={"Authorization": f"Bearer {self._token}"},
-            )
+            resp = await self._client().request(method, url, json=json, data=data, files=files,
+                                                params=params, timeout=timeout, headers=self._auth())
         except httpx.HTTPError as e:
             # No se re-lanza el original: su repr podria incluir headers.
-            raise GraphError(f"fallo de red en /{path}: {type(e).__name__}") from None
-        try:
-            data = resp.json()
-        except ValueError:
-            data = None
-        if isinstance(data, dict) and isinstance(data.get("error"), dict):
-            err = data["error"]
-            raise GraphError(str(err.get("message", "")), err.get("code"),
-                             err.get("error_subcode"), resp.status_code)
-        if resp.status_code >= 400 or not isinstance(data, dict):
-            raise GraphError("respuesta inesperada de Meta", status=resp.status_code)
-        return data
+            raise GraphError(f"fallo de red en /{what}: {type(e).__name__}") from None
+        return _json_or_error(resp)
+
+    async def _post(self, phone_number_id: str, path: str, payload: dict) -> dict:
+        return await self._request("POST", f"{self.base_url}/{self.version}/{phone_number_id}/{path}",
+                                   json=payload)
 
     async def send_text(self, phone_number_id: str, to: str, body: str) -> dict:
         return await self._post(phone_number_id, "messages", {
@@ -116,3 +142,67 @@ class GraphClient:
             raise ValueError("el pin debe tener 6 digitos")
         return await self._post(phone_number_id, "register",
                                 {"messaging_product": "whatsapp", "pin": str(pin)})
+
+    # --- Media (audios). La url de get_media vence a los 5 min y se baja con el mismo
+    # Bearer (developers.facebook.com/docs/whatsapp/cloud-api/reference/media). ---
+
+    async def get_media(self, media_id: str, phone_number_id: str | None = None) -> dict:
+        """{url, mime_type, sha256, file_size, id} de un media entrante."""
+        params = {"phone_number_id": phone_number_id} if phone_number_id else None
+        return await self._request("GET", f"{self.base_url}/{self.version}/{media_id}", params=params)
+
+    async def download_media(self, url: str, max_bytes: int) -> bytes:
+        """Bytes del media (url de get_media). MediaTooLarge si pasa max_bytes: corta la
+        descarga ahi, sin bajarlo entero. Solo https y a un host de Meta (MEDIA_HOSTS): la
+        descarga lleva el Bearer."""
+        self._check_media_url(url)
+        try:
+            async with self._client().stream("GET", url, headers=self._auth(), timeout=MEDIA_TIMEOUT,
+                                             follow_redirects=True) as resp:
+                if resp.status_code >= 400:
+                    await resp.aread()
+                    _json_or_error(resp)
+                size = resp.headers.get("content-length")
+                if size and size.isdigit() and int(size) > max_bytes:
+                    raise MediaTooLarge(f"media de {size} bytes, tope {max_bytes}", status=resp.status_code)
+                buf = bytearray()
+                async for chunk in resp.aiter_bytes():
+                    buf += chunk
+                    if len(buf) > max_bytes:
+                        raise MediaTooLarge(f"media de mas de {max_bytes} bytes", status=resp.status_code)
+                return bytes(buf)
+        except httpx.HTTPError as e:
+            raise GraphError(f"fallo de red en /media: {type(e).__name__}") from None
+
+    def _check_media_url(self, url: str) -> None:
+        try:
+            parsed = httpx.URL(url)
+        except (httpx.InvalidURL, TypeError):
+            raise GraphError("url de media invalida") from None
+        host = (parsed.host or "").lower()
+        meta = host == httpx.URL(self.base_url).host or any(
+            host == d or host.endswith("." + d) for d in MEDIA_HOSTS)
+        if parsed.scheme != "https" or not meta:
+            raise GraphError(f"url de media fuera de Meta: {parsed.scheme}://{host}")
+
+    async def upload_media(self, phone_number_id: str, data: bytes, mime_type: str = "audio/ogg",
+                           filename: str = "respuesta.ogg") -> str:
+        """Sube un archivo y devuelve su media id (para send_audio)."""
+        resp = await self._request(
+            "POST", f"{self.base_url}/{self.version}/{phone_number_id}/media",
+            data={"messaging_product": "whatsapp", "type": mime_type},
+            files={"file": (filename, data, mime_type)}, timeout=MEDIA_TIMEOUT)
+        media_id = resp.get("id")
+        if not media_id:
+            raise GraphError("subida de media sin id")
+        return str(media_id)
+
+    async def send_audio(self, phone_number_id: str, to: str, media_id: str, voice: bool = True) -> dict:
+        """voice=True: nota de voz (Meta: "Voice messages must be Ogg files encoded with
+        the OPUS codec"); con menos de 512 KB se muestra con play, si no con descarga."""
+        audio: dict = {"id": media_id}
+        if voice:
+            audio["voice"] = True
+        return await self._post(phone_number_id, "messages", {
+            "messaging_product": "whatsapp", "to": to, "type": "audio", "audio": audio,
+        })

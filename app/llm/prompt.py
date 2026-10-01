@@ -2,7 +2,7 @@ import json
 
 import yaml
 
-from app.conversation.models import ConversationState, Workflow
+from app.conversation.models import ConversationState, Message, Workflow
 from app.conversation.workflow import pending_fields
 
 SYSTEM_PROMPT = """Sos un agente conversacional telefónico que ejecuta un workflow.
@@ -66,9 +66,24 @@ CHANNEL_RULES: dict[str, str] = {
 - Emails como dirección (hola@empresa.com) y links como se escriben.
 - Mensajes breves, de hasta unos 300 caracteres, con normalmente una sola pregunta.
 - Sin markdown salvo *negrita* con un asterisco; sin encabezados ni listas largas.
-- No podés ver imágenes ni escuchar audios: si el usuario manda uno, pedile que lo escriba.
+- No podés ver imágenes. Los audios del usuario te llegan transcriptos automáticamente, marcados como nota de voz, y pueden tener errores de reconocimiento: si un dato clave no se entiende, pedí que lo repita.
 - Si en la conversación todavía no hay mensajes tuyos, saludá y presentate usando como guía la apertura del workflow (opening) y respondé lo que escribió el usuario.""",
 }
+
+# Respuesta en nota de voz (WhatsApp, app/whatsapp/audio.py): el texto va al
+# TTS, asi que valen las reglas de una llamada. Va en el prompt de sistema
+# (estatico, para el prefix caching) y el turno avisa cuando aplica; when dice
+# como lo avisa cada motor.
+VOICE_NOTE_RULES = """NOTA DE VOZ: {when}, tu respuesta se envía como nota de voz: una voz sintética lee tu texto. En ese turno no valen las reglas de texto de WhatsApp de arriba sino las de una llamada:
+- Números, montos, fechas, horarios y teléfonos en palabras (por ejemplo veintitrés mil quinientos pesos, el diez de octubre, a las nueve y media).
+- Emails y links como se dicen (hola arroba empresa punto com).
+- Sin emojis, asteriscos, listas ni símbolos: solo lo que se dice.
+- Frases cortas, de unas tres oraciones, con normalmente una sola pregunta.
+- No menciones que es un audio ni que lo estás grabando."""
+
+# Marca de los mensajes del usuario que llegaron como audio (motor clasico).
+VOICE_NOTE_TAG = "[nota de voz transcripta]"
+VOICE_NOTE_REPLY = "\n\n[Tu respuesta se envía como nota de voz: seguí las reglas de NOTA DE VOZ.]"
 
 
 def _swap(text: str, *pairs: tuple[str, str]) -> str:
@@ -85,7 +100,9 @@ _WHATSAPP_SYSTEM = _swap(
     SYSTEM_PROMPT,
     ("Sos un agente conversacional telefónico", "Sos un agente conversacional por WhatsApp"),
     ("apropiadas para una conversación de voz.", "apropiadas para un chat de WhatsApp."),
-    ("\n\nRespondé con:", f"\n\n{CHANNEL_RULES['whatsapp']}\n\nRespondé con:"),
+    ("\n\nRespondé con:", f"\n\n{CHANNEL_RULES['whatsapp']}\n\n"
+                         f"{VOICE_NOTE_RULES.format(when='Si CURRENT STATE trae \"reply_format\": \"nota de voz\"')}"
+                         "\n\nRespondé con:"),
     ("- assistant_message: lo que le decís al usuario.", "- assistant_message: el texto del mensaje que le mandás al usuario."),
 )
 
@@ -93,7 +110,9 @@ _WHATSAPP_EXTRACTION = _swap(
     EXTRACTION_PROMPT,
     ("de una llamada telefónica.", "de una conversación escrita por WhatsApp."),
     ("- El texto viene de un reconocimiento de voz y puede tener errores. Si una palabra mal transcripta",
-     "- El texto lo escribió el usuario: puede tener errores de tipeo o abreviaturas, no de transcripción. Si una palabra mal escrita"),
+     "- El texto lo escribió el usuario: puede tener errores de tipeo o abreviaturas. Los mensajes marcados "
+     "(nota de voz) no: vienen de un reconocimiento de voz y pueden tener errores de transcripción. "
+     "Si una palabra mal escrita o mal transcripta"),
 )
 
 
@@ -114,9 +133,18 @@ def render_conversation(state: ConversationState) -> str:
     dato que no habia guardado y lo volvia a preguntar ("ya te dije antes").
 
     Un mensaje por linea: los saltos de linea de un texto escrito (WhatsApp) se
-    aplanan con " / ", si no "\nagente: ..." inventaria turnos del agente."""
-    return "\n".join(f"{'agente' if m.role == 'assistant' else 'usuario'}: {_one_line(m.text)}"
-                     for m in state.messages)
+    aplanan con " / ", si no "\nagente: ..." inventaria turnos del agente.
+
+    Por WhatsApp, los mensajes del usuario que llegaron como audio van marcados
+    (es una transcripcion); los del agente no, para que el modelo no imite la marca."""
+    whatsapp = state.channel == "whatsapp"
+    return "\n".join(f"{_speaker(m, whatsapp)}: {_one_line(m.text)}" for m in state.messages)
+
+
+def _speaker(message: Message, whatsapp: bool) -> str:
+    if message.role == "assistant":
+        return "agente"
+    return "usuario (nota de voz)" if whatsapp and message.voice_note else "usuario"
 
 
 def _one_line(text: str) -> str:
@@ -137,13 +165,19 @@ def build_user_prompt(workflow: Workflow, state: ConversationState, user_message
         current["answered_without_data"] = answered_empty
     if state.progress.rejected:
         current["rejected_values"] = state.progress.rejected
+    # Marcas del turno (solo WhatsApp): el mensaje es una transcripcion y/o la
+    # respuesta sale como nota de voz (reglas NOTA DE VOZ del prompt de sistema).
+    media = state.media if state.channel == "whatsapp" else None
+    if media and media.reply_voice_note:
+        current["reply_format"] = "nota de voz"
+    header = "NEW USER MESSAGE (nota de voz transcripta):" if media and media.user_voice_note else "NEW USER MESSAGE:"
     # La conversacion va antes del estado: crece al final y el resto no cambia,
     # asi vLLM reusa el prefijo (prefix caching) del turno anterior.
     return (
         f"WORKFLOW:\n{render_workflow(workflow)}\n"
         f"CONVERSATION:\n{render_conversation(state)}\n\n"
         f"CURRENT STATE:\n{json.dumps(current, ensure_ascii=False, indent=2)}\n\n"
-        f"NEW USER MESSAGE:\n{user_message}"
+        f"{header}\n{user_message}"
     )
 
 
@@ -190,8 +224,10 @@ def build_classic_system(workflow: Workflow, channel: str = "voice") -> str:
     reply = "Respondé solo con el texto del mensaje." if whatsapp else "Respondé solo con lo que decís en voz alta."
     extra = ""
     if whatsapp:
+        when = f"Si el mensaje del usuario termina con el aviso \"{VOICE_NOTE_REPLY.strip()}\""
         extra = (f"\n\nSALUDO (apertura del workflow: guía para tu primer mensaje):\n"
-                 f"{workflow.conversation.opening.strip()}\n\n{CHANNEL_RULES['whatsapp']}")
+                 f"{workflow.conversation.opening.strip()}\n\n{CHANNEL_RULES['whatsapp']}"
+                 f"\n\n{VOICE_NOTE_RULES.format(when=when)}")
     fields = []
     for name, spec in sorted(workflow.fields.items(), key=lambda kv: kv[1].priority):
         need = ("obligatorio" if spec.required else
@@ -228,6 +264,19 @@ Al final de ese último mensaje, y solo en ese, escribí {END_MARKER}.{extra}
 
 
 def build_classic_messages(workflow: Workflow, state: ConversationState, user_message: str) -> list[dict]:
-    history = [{"role": m.role, "content": m.text} for m in state.messages]
+    """Por WhatsApp, los mensajes del usuario que llegaron como audio llevan
+    VOICE_NOTE_TAG (los del agente no) y, si la respuesta sale como nota de voz,
+    el mensaje nuevo termina con VOICE_NOTE_REPLY."""
+    whatsapp = state.channel == "whatsapp"
+    history = [{"role": m.role, "content": _classic_text(m.text, whatsapp and m.role == "user" and m.voice_note)}
+               for m in state.messages]
+    media = state.media if whatsapp else None
+    content = _classic_text(user_message, bool(media and media.user_voice_note))
+    if media and media.reply_voice_note:
+        content += VOICE_NOTE_REPLY
     return [{"role": "system", "content": build_classic_system(workflow, state.channel)}, *history,
-            {"role": "user", "content": user_message}]
+            {"role": "user", "content": content}]
+
+
+def _classic_text(text: str, voice_note: bool) -> str:
+    return f"{VOICE_NOTE_TAG} {text}" if voice_note else text

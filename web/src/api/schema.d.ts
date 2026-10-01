@@ -1388,6 +1388,11 @@ export interface components {
             text: string;
             /** Llm */
             llm?: components["schemas"]["LlmCall"][] | null;
+            /**
+             * Voice Note
+             * @default false
+             */
+            voice_note?: boolean;
         };
         /** MinutesUsageOut */
         MinutesUsageOut: {

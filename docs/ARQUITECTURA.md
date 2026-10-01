@@ -66,7 +66,8 @@ app/
   conversation/      motor: engine, models (Workflow = definición), workflow (validación), store
   llm/               cliente y prompts del LLM
   voice/             worker de LiveKit y latencia por turno
-  whatsapp/          webhook (firma), graph.py (Cloud API), store.py (tablas wa_*), service.py (turnos)
+  whatsapp/          webhook (firma), graph.py (Cloud API y media), store.py (tablas wa_*), service.py (turnos),
+                     audio.py (notas de voz: STT, TTS y OGG/Opus con PyAV)
 migrations/          Alembic: 0001 esquema anterior (idempotente), 0002 tenencia, 0003 inventario de números,
                      0004 WhatsApp
 web/                 SPA React (ver "Frontend")
@@ -107,7 +108,7 @@ tiers 1───* clients 1───* agents 1───* agent_versions
 | `conversations.channel` | `voice` o `whatsapp`; se fija al crearla. Cambia el prompt (reglas por canal), no el agente. |
 | `wa_accounts` | Un número de WhatsApp: `phone_number_id` único (ID de Meta), `waba_id`, número visible, `client_id`, `agent_id`, `access_token` (NULL = `WA_ACCESS_TOKEN`; cifrado: fase 2), `active`. Sin borrado: se desactiva. |
 | `wa_threads` | Una por conversación de WhatsApp (como `call_logs`): cuenta, `wa_id` tal cual llega (`549…`), nombre del perfil, `last_user_at` (ventana de sesión), `paused` (fase 3). |
-| `wa_messages` | Uno por `wamid` (unique: dedupe de reenvíos de Meta), entrante o saliente, tipo, estado y error de Meta. Sin texto: está en `conversations.messages`. |
+| `wa_messages` | Uno por `wamid` (unique: dedupe de reenvíos de Meta), entrante o saliente, tipo (`text`, `audio`, ...), estado y error de Meta. Sin texto ni audio: el texto está en `conversations.messages`, donde `voice_note` marca la transcripción de una nota de voz o la respuesta enviada como nota de voz. |
 
 Las fechas se guardan en UTC sin zona; la API las devuelve con zona (`+00:00`/`Z`).
 
@@ -210,11 +211,21 @@ Llamada de prueba sin usuario, para la landing (ver [`LANDING.md`](LANDING.md)):
    (`X-Hub-Signature-256`, 403 si no) y se responde 200 sin esperar a la base ni al LLM.
 2. `WhatsAppService` registra el `wamid` (si ya estaba, es un reenvío y termina), busca la cuenta por
    `phone_number_id` (inactiva, cliente inactivo o desconocida: `ignored`) y junta los textos del
-   contacto durante `WA_DEBOUNCE_SECONDS`.
+   contacto durante `WA_DEBOUNCE_SECONDS`. Un audio se baja por la API de media, se pasa a WAV de
+   16 kHz con PyAV y se transcribe con `stt-parakeet`; el texto entra al mismo debounce, marcado como
+   nota de voz, y el turno espera a que termine.
 3. Con el lock del contacto: conversación activa (no completada y con actividad en las últimas
    `WA_SESSION_HOURS`) o una nueva sin apertura, `process_turn`, `send_text` y `mark_read`.
    En el clásico la extracción corre en cada turno (no hay corte que la dispare).
+   Si el turno tuvo audio (`WA_AUDIO_REPLY=mirror`), `process_turn` recibe `TurnMedia` (el prompt pide
+   formato para escuchar) y la respuesta sale como nota de voz: `vllm-tts` → OGG/Opus → subida →
+   mensaje `audio`. Si algo falla, va en texto.
 4. Los statuses actualizan `wa_messages`. No se crea `call_logs` ni se pasa por `quota.admit`.
+
+**Capacidad:** un turno de texto carga solo el LLM (3090); uno con audio usa además el STT y el TTS,
+y la síntesis va a la 5060 Ti, el cuello de CAP-002. `WA_AUDIO_CONCURRENCY` (4, sin medir) limita los
+pedidos simultáneos, por separado al STT y al TTS, y cada pedido tiene un tope total (45 y 90 s). Pendiente de medir con un perfil del test de capacidad (ver
+[`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md), sección 2).
 
 **Un solo worker de uvicorn:** el debounce y el lock por contacto están en memoria; con más de un
 worker se rompen. Si se reinicia `app` con mensajes en la ventana, esos entrantes quedan `received`
@@ -320,5 +331,6 @@ Todo por `.env`, leído con `app/config.py` (ver `.env.example`):
   `QUOTA_END_MESSAGE`.
 - **Scripts de carga:** `VAAS_API_KEY` (API key del cliente `interno`).
 - **WhatsApp:** `WA_APP_SECRET`, `WA_VERIFY_TOKEN`, `WA_ACCESS_TOKEN` (system user), `WA_SESSION_HOURS`,
-  `WA_DEBOUNCE_SECONDS`, `WA_UNSUPPORTED_REPLY` y `WA_MAX_REPLY_CHARS` (ver
-  [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md)).
+  `WA_DEBOUNCE_SECONDS`, `WA_UNSUPPORTED_REPLY`, `WA_MAX_REPLY_CHARS` y los de audios (`WA_AUDIO_REPLY`,
+  `WA_AUDIO_MAX_BYTES`, `WA_AUDIO_MAX_SECONDS`, `WA_AUDIO_MAX_REPLY_CHARS`, `WA_AUDIO_CONCURRENCY`, ...;
+  ver [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md), 5.2).

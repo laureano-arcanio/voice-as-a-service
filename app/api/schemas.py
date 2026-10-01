@@ -407,6 +407,8 @@ class MessageOut(BaseModel):
     role: Literal["assistant", "user"]
     text: str
     llm: list[LlmCall] | None = None
+    # WhatsApp: del usuario, transcripcion de una nota de voz; del agente, enviada como nota de voz.
+    voice_note: bool = False
 
 
 class WhatsAppInfo(BaseModel):

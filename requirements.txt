@@ -15,3 +15,8 @@ openai>=1.40
 pytest==8.*
 pytest-asyncio==0.24.*
 livekit-agents[openai,silero]==1.8.*
+# PyAV (ya lo trae livekit-agents): WAV <-> OGG/Opus de los audios de WhatsApp, con FFmpeg y libopus en el wheel.
+# Fijada en 18 (probado con 18.1.0): audio.py usa APIs que cambian entre mayores.
+av==18.*
+# Solo tests: lee de vuelta el OGG/Opus con otro decodificador (libsndfile).
+soundfile==0.13.*

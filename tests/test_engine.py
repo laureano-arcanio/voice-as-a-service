@@ -3,7 +3,7 @@ extraccion saca los datos en segundo plano; la app valida y guarda."""
 import asyncio
 
 from app.conversation.engine import ConversationEngine
-from app.conversation.models import AgentTurn
+from app.conversation.models import AgentTurn, TurnMedia
 
 from .helpers import BASE, FakeLLM, start_with, turn_and_extract
 
@@ -217,3 +217,39 @@ async def test_retract_cancels_the_pending_extraction(store):
     await asyncio.sleep(0)
     assert store.get(cid).fields["attendance_process"] is None
 
+
+
+async def test_voice_note_turn_reaches_the_llm_and_is_not_saved(store):
+    """media (WhatsApp) llega al LLM en el estado del turno; se guarda que el mensaje
+    del usuario fue audio, no la modalidad del turno."""
+    seen = []
+
+    class Spy(FakeLLM):
+        async def process_turn(self, workflow, state, user_message, on_message=None):
+            seen.append(state.media)
+            return await super().process_turn(workflow, state, user_message, on_message)
+
+    llm = Spy(AgentTurn(next_objective="company_name", assistant_message="¿Empresa?"),
+              AgentTurn(next_objective="company_activity", assistant_message="¿Rubro?"))
+    engine = ConversationEngine(llm, store)
+    state, _ = engine.start_conversation("sales_discovery", channel="whatsapp", opening=False)
+    cid = state.conversation_id
+    media = TurnMedia(user_voice_note=True, reply_voice_note=True)
+    state, _ = await engine.process_turn(cid, "Soy Juan.", media=media)
+    await engine.process_turn(cid, "Acme.")
+    assert seen == [media, TurnMedia()]
+    saved = store.get(cid)
+    assert [(m.role, m.voice_note) for m in saved.messages] == [
+        ("user", True), ("assistant", False), ("user", False), ("assistant", False)]
+    assert saved.media == TurnMedia() and "media" not in saved.model_dump()
+
+
+async def test_mark_voice_note_marks_the_last_reply(store):
+    llm = FakeLLM(AgentTurn(next_objective="company_name", assistant_message="¿Empresa?"))
+    engine = ConversationEngine(llm, store)
+    cid = start_with(engine)
+    await engine.process_turn(cid, "Juan.")
+    assert engine.mark_voice_note(cid)
+    messages = store.get(cid).messages
+    assert [m.voice_note for m in messages] == [False, False, True]
+    assert not engine.mark_voice_note("no-existe")

@@ -50,12 +50,49 @@ def status_payload(name: str, wamid: str) -> dict:
 
 
 class FakeGraph:
-    """send_text devuelve wamid.out1, wamid.out2...; fail: GraphError a levantar."""
+    """send_text devuelve wamid.out1, wamid.out2...; fail: GraphError a levantar en send_text.
+    Media: get_media da file_size (media_size) y la url; download_media, los bytes de media_data;
+    fail_media / fail_upload / fail_audio: GraphError a levantar en cada paso."""
 
     def __init__(self):
         self.sent: list[tuple[str, str, str]] = []
         self.read: list[str] = []
         self.fail: GraphError | None = None
+        self.media_size = 1234
+        self.media_mime = "audio/ogg; codecs=opus"
+        self.media_data = b"OggS-entrante"
+        self.media_asked: list[tuple[str, str]] = []
+        self.downloaded: list[str] = []
+        self.uploaded: list[tuple[str, bytes]] = []
+        self.audios: list[tuple[str, str, str, bool]] = []
+        self.fail_media: GraphError | None = None
+        self.fail_upload: GraphError | None = None
+        self.fail_audio: GraphError | None = None
+
+    async def get_media(self, media_id, phone_number_id=None):
+        if self.fail_media:
+            raise self.fail_media
+        self.media_asked.append((media_id, phone_number_id))
+        return {"url": f"https://lookaside.fbsbx.com/whatsapp_business/attachments/?mid={media_id}",
+                "mime_type": self.media_mime, "sha256": "AAAA", "file_size": self.media_size, "id": media_id,
+                "messaging_product": "whatsapp"}
+
+    async def download_media(self, url, max_bytes):
+        self.downloaded.append(url)
+        return self.media_data
+
+    async def upload_media(self, pnid, data, mime_type="audio/ogg", filename="respuesta.ogg"):
+        if self.fail_upload:
+            raise self.fail_upload
+        self.uploaded.append((pnid, data))
+        return f"media.up{len(self.uploaded)}"
+
+    async def send_audio(self, pnid, to, media_id, voice=True):
+        if self.fail_audio:
+            raise self.fail_audio
+        self.audios.append((pnid, to, media_id, voice))
+        return {"messaging_product": "whatsapp", "contacts": [{"input": to, "wa_id": to}],
+                "messages": [{"id": f"wamid.audio{len(self.audios)}"}]}
 
     async def send_text(self, pnid, to, body):
         if self.fail:
@@ -76,7 +113,7 @@ class Wa:
     pass
 
 
-def make_wa(sessions, template="demo_booking_classic", llm=None, graph=None) -> Wa:
+def make_wa(sessions, template="demo_booking_classic", llm=None, graph=None, audio=None) -> Wa:
     w = Wa()
     with sessions() as s:
         tier = Tier(name="T")
@@ -96,8 +133,9 @@ def make_wa(sessions, template="demo_booking_classic", llm=None, graph=None) -> 
     w.llm = llm or FakeLLM()
     w.engine = ConversationEngine(w.llm, ConversationStore(sessions), DbDefinitions(sessions))
     w.graph = graph or FakeGraph()
+    w.audio = audio
     w.service = WhatsAppService(w.engine, sessions, graph_factory=lambda token: w.graph,
-                                debounce_seconds=0.05, session_hours=24)
+                                debounce_seconds=0.05, session_hours=24, audio=audio)
     return w
 
 
@@ -186,20 +224,28 @@ async def test_text_arriving_while_the_llm_answers_redoes_the_turn(sessions):
     assert [m["text"] for m in conv.messages] == ["hola\nquiero un turno", "combinada"]
 
 
-async def test_audio_gets_fixed_reply_without_llm(sessions, monkeypatch):
+def image_payload(wamid: str) -> dict:
+    p = fixture("audio.json")
+    msg = p["entry"][0]["changes"][0]["value"]["messages"][0]
+    del msg["audio"]
+    msg.update(id=wamid, type="image", image={"mime_type": "image/jpeg", "sha256": "CCCC", "id": "300000000000001"})
+    return p
+
+
+async def test_image_gets_fixed_reply_without_llm(sessions):
+    """Los audios se transcriben (tests/test_whatsapp_audio.py); imagenes y archivos no."""
     from app.config import settings
 
     w = make_wa(sessions)
-    audio = fixture("audio.json")
-    second = copy.deepcopy(audio)
-    second["entry"][0]["changes"][0]["value"]["messages"][0]["id"] = "wamid.audio2"
-    await send(w, audio, second)       # dos audios juntos: una sola respuesta fija
+    await send(w, image_payload("wamid.img1"), image_payload("wamid.img2"))   # dos juntas: una respuesta
     assert w.llm.calls == []
     assert [b for _, _, b in w.graph.sent] == [settings.wa_unsupported_reply]
+    assert "imágenes" in settings.wa_unsupported_reply
     assert conversations(sessions) == []
     assert sorted(m.status for m in messages(sessions, direction="in")) == ["answered", "ignored"]
-    assert {m.type for m in messages(sessions, direction="in")} == {"audio"}
+    assert {m.type for m in messages(sessions, direction="in")} == {"image"}
     assert len(messages(sessions, direction="out")) == 1
+    assert w.graph.media_asked == []
 
 
 async def test_status_before_send_and_failed(sessions):

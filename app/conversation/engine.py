@@ -5,7 +5,7 @@ import uuid
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from .models import AgentTurn, Channel, ConversationState, Extraction, Message, Workflow
+from .models import AgentTurn, Channel, ConversationState, Extraction, Message, TurnMedia, Workflow
 from .store import ConversationStore
 from .workflow import check_updates, is_required, outcome_for
 
@@ -76,13 +76,18 @@ class ConversationEngine:
         return state, text
 
     async def process_turn(self, conversation_id: str, user_message: str,
-                           on_message: Callable[[str], None] | None = None) -> tuple[ConversationState, AgentTurn]:
+                           on_message: Callable[[str], None] | None = None, *,
+                           media: TurnMedia | None = None) -> tuple[ConversationState, AgentTurn]:
         """on_message recibe assistant_message a medida que lo genera el LLM
-        (agente de voz). Devuelve sin esperar la extraccion de este turno."""
+        (agente de voz). Devuelve sin esperar la extraccion de este turno.
+        media: si el mensaje vino por audio y si la respuesta sale como nota de
+        voz (WhatsApp); cambia el prompt del turno y no se guarda."""
+        media = media or TurnMedia()
         await self.wait_extraction(conversation_id, EXTRACTION_WAIT)
         state = self.store.get(conversation_id)
         if state is None:
             raise KeyError(conversation_id)
+        state.media = media
         workflow = self.workflow(state)
 
         classic = workflow.engine == "classic"
@@ -102,7 +107,7 @@ class ConversationEngine:
         state.progress.asked = result.next_objective
         state.progress.outcome = None
         state.progress.undo = undo
-        state.messages += [Message(role="user", text=user_message),
+        state.messages += [Message(role="user", text=user_message, voice_note=media.user_voice_note),
                            Message(role="assistant", text=result.assistant_message, llm=trace)]
         self.store.save(state)
 
@@ -110,6 +115,20 @@ class ConversationEngine:
         if not classic or result.status == "completed" or state.channel == "whatsapp":
             self._launch_extraction(conversation_id, len(state.messages) - 1, asked if result.answered else None)
         return state, result
+
+    def mark_voice_note(self, conversation_id: str) -> bool:
+        """Marca la ultima respuesta del agente como enviada en nota de voz
+        (WhatsApp, despues de un envio exitoso). Sin await: no se intercala con
+        la extraccion, que relee y guarda el estado."""
+        state = self.store.get(conversation_id)
+        if state is None:
+            return False
+        for message in reversed(state.messages):
+            if message.role == "assistant":
+                message.voice_note = True
+                self.store.save(state)
+                return True
+        return False
 
     def _launch_extraction(self, conversation_id: str, reply: int, answered: str | None) -> asyncio.Task:
         tasks = self.extractions.setdefault(conversation_id, [])

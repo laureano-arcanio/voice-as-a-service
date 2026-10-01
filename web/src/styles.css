@@ -69,6 +69,15 @@ pre.code {
   margin-bottom: 2px;
 }
 
+.bubble .voice-note {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  opacity: 0.7;
+  margin-bottom: 2px;
+}
+
 .bubble.agent {
   align-self: flex-start;
   background: light-dark(var(--mantine-color-navy-0), var(--mantine-color-dark-5));
