@@ -134,6 +134,10 @@ El túnel no lleva UDP: el audio va directo a la IP fija. LiveKit anuncia la IP 
    |---|---|---|
    | `api.atentina.com.ar` | `^/api/v1/demo/` | `http://localhost:8011` |
    | `rtc.atentina.com.ar` | (vacío) | `http://localhost:7880` |
+   | `wa.atentina.com.ar` | `^/wa/webhook` | `http://localhost:8011` |
+
+   El mismo túnel sirve el webhook de WhatsApp en `wa.atentina.com.ar` (ver
+   [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md)).
 
    Lo que no coincide con esas rutas lo responde el túnel con 404: la UI y el resto de la API no
    quedan expuestos.

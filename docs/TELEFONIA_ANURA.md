@@ -302,3 +302,24 @@ host. Motivo: en el plan gratuito de Cloud, el despacho del agente deja jobs en
 - Llamada de loadtest de 2 turnos: e2e 1,1 s.
 - Entrante simulada desde Asterisk (`channel originate`, con `res_clioriginate` cargado a mano): autenticación, dispatch rule, agente y audio de vuelta a Asterisk.
 - Pendiente: una entrante y una saliente reales por Anura.
+
+## 8. Verificación de WhatsApp por llamada de voz
+
+**Pendiente de medir.** Anura no tiene SMS: el código de verificación del número en WhatsApp
+llega por una llamada de voz de Meta que entra como cualquier entrante (Anura → Asterisk →
+LiveKit → `agent`). Contexto en [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md), sección 3.1.
+
+Prueba de humo (etapa 1, sin código nuevo):
+
+1. Con el stack de voz corriendo, pedir el código por voz desde WhatsApp Manager o con
+   `POST /{phone_number_id}/request_code {"code_method": "VOICE", "language": "es"}`.
+2. La llamada de Meta entra y el agente la atiende; la locución repite el código varias veces,
+   no importa que el agente le conteste.
+3. Leer los 6 dígitos en el transcript de `/calls/<id>` (se actualiza cada segundo).
+4. Cargarlos con `verify_code` y registrar con `register` (PIN de verificación en dos pasos).
+
+| Qué se mide | Resultado |
+|---|---|
+| Anura acepta la llamada de Meta | ? |
+| Idioma de la locución | ? |
+| Demora desde el pedido hasta la llamada | ? |

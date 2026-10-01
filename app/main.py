@@ -21,6 +21,7 @@ from .api.routers import (
     voices,
 )
 from .config import settings
+from .whatsapp import webhook as wa_webhook
 from .services.demo import allowed_origins
 
 logger = logging.getLogger(__name__)
@@ -33,6 +34,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Voice as a Service", version="1.0.0", docs_url=f"{API_PREFIX}/docs",
                   openapi_url=f"{API_PREFIX}/openapi.json", redoc_url=None)
     errors.install(app)
+    wa_webhook.install_logging()
     app.add_middleware(CORSMiddleware, allow_origins=allowed_origins(), allow_methods=["GET", "POST"],
                        allow_headers=["Authorization", "Content-Type"], expose_headers=["Retry-After"], max_age=600)
 
@@ -48,6 +50,8 @@ def create_app() -> FastAPI:
     for module in (auth, tiers, clients, phone_numbers, agents, users, api_keys, calls, conversations, voices, demo):
         api.include_router(module.router)
     app.include_router(api)
+    # Fuera de /api/v1 y antes de _mount_spa (su catch-all es GET y tragaria /wa/webhook).
+    app.include_router(wa_webhook.router)
 
     @app.get("/health", include_in_schema=False)
     def health():

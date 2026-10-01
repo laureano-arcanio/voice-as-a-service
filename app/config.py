@@ -83,6 +83,14 @@ class Settings(BaseSettings):
     demo_ip_sessions_per_hour: int = 20
     demo_tts_max_chars: int = 300
 
+    # --- WhatsApp (Cloud API de Meta, docs/WHATSAPP_PLAN.md) ---
+    wa_app_id: str = ""
+    wa_app_secret: str = ""  # firma X-Hub-Signature-256; vacio = el webhook rechaza todo
+    wa_verify_token: str = ""  # challenge GET del webhook; vacio = lo rechaza
+    wa_access_token: str = ""
+    wa_public_url: str = ""
+    wa_graph_version: str = "v25.0"
+
     # --- Frontend ---
     # Build de la SPA (web/, `npm run build`). Si no existe, la API funciona sin UI.
     web_dist_dir: Path = Field(default=BASE_DIR / "web" / "dist")

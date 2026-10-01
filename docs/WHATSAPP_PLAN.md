@@ -1,6 +1,6 @@
 # Plan: WhatsApp en el mismo agente (mensajería)
 
-Diseño (2026-09-28). **Estado: propuesta, sin implementar.** El plan de salida al mercado
+Diseño (2026-09-28). **Estado: Fase 0 en curso (1-oct-2026): webhook con firma implementado en `app/whatsapp/`; cliente Graph en `graph.py`.** El plan de salida al mercado
 ([`mercado/plan-salida-al-mercado.md`](mercado/plan-salida-al-mercado.md), secciones 4 y 7) pone
 WhatsApp texto en el mes 5 y Calling en el 6: es donde el cliente de cobranzas sigue la conversación
 y el canal que Vapi no tiene y Botmaker sí
@@ -29,7 +29,7 @@ Responde:
 ## 2. Cómo encaja en la app
 
 ```text
-cliente final (WhatsApp)  <->  Meta Cloud API  <->  proxy nginx (HTTPS)  <->  app: /wa/webhook
+cliente final (WhatsApp)  <->  Meta Cloud API  <->  Cloudflare Tunnel  <->  app: /wa/webhook
                                                                                |
                                                      app/whatsapp/service.py: turno = ConversationEngine.process_turn
                                                                                |
@@ -98,15 +98,16 @@ tests/test_whatsapp.py      webhook con payloads reales grabados + FakeLLM; firm
 ```
 
 **Variables de `.env`:** `WA_APP_ID`, `WA_APP_SECRET`, `WA_VERIFY_TOKEN`, `WA_ACCESS_TOKEN` (system user
-de nuestro portafolio, fases 0 y 1), `WA_PUBLIC_URL` (dominio HTTPS del webhook) y `WA_TOKEN_KEY`
+de nuestro portafolio, fases 0 y 1), `WA_PUBLIC_URL` (`https://wa.atentina.com.ar`, el webhook por el túnel), `WA_PHONE_NUMBER_ID` (solo `scripts/wa.py`) y `WA_TOKEN_KEY`
 (cifrado de los tokens de clientes en `wa_accounts`). Como `VLLM_API_KEY`, el chequeo de
 [`.env`](../AGENTS.md) antes de reiniciar.
 
-**HTTPS.** Meta exige webhook por HTTPS con certificado válido; el proxy de hoy es HTTP plano en
-`:8100`. Hace falta un dominio (o subdominio de DDNS) apuntando a `PUBLIC_HOST`, el 443 redirigido
-en el router y certificado de Let's Encrypt en `proxy` (certbot en el contenedor o un sidecar).
-Solo se publica `/wa/webhook` → `app:8011`; `/llm`, `/stt` y `/tts` siguen como están (o pasan a
-HTTPS también, que hace falta de todos modos para el modo remoto: hoy la clave viaja en claro).
+**HTTPS.** Meta exige webhook por HTTPS con certificado válido. Sale por el Cloudflare Tunnel que ya
+usa la landing (`docker-compose.tunnel.yml`, [`LANDING.md`](LANDING.md)): hostname
+`wa.atentina.com.ar`, regla de path `^/wa/webhook` hacia `http://localhost:8011` y certificado de
+Cloudflare. No se abre el 443 en el router ni hay certbot. Lo que no coincide con la regla da 404
+en el túnel. El proxy `:8100` (`/llm`, `/stt`, `/tts`) sigue HTTP plano, aparte (la clave del modo
+remoto viaja en claro: es otro tema).
 
 **Audios.** El cliente final manda notas de voz (`type: audio`, ogg/opus): se baja por la API de
 media, se pasa a 16 kHz mono (ffmpeg) y va a `stt-parakeet`; el texto entra como turno normal. Es el
@@ -217,7 +218,7 @@ límite de envío de al menos **2.000 destinatarios por día**, o sea negocio ve
 
 | Fase | Qué queda | Entregable medible | Esfuerzo |
 |---|---|---|---|
-| **0. Cuenta y número** | Meta Business + verificación del negocio (empieza acá, tarda), app con WhatsApp, medio de pago, dominio + HTTPS en `proxy`, webhook GET/POST con firma, número de Anura registrado por voz (3.1, prueba de humo), primer "hola" enviado y recibido | Un mensaje ida y vuelta con el número de Anura; resultado de la llamada de Meta anotado en `TELEFONIA_ANURA.md` | 1 semana de trabajo; la verificación de Meta corre en paralelo |
+| **0. Cuenta y número** | Meta Business + verificación del negocio (empieza acá, tarda), app con WhatsApp, medio de pago, webhook por el túnel (`wa.atentina.com.ar`), webhook GET/POST con firma, número de Anura registrado por voz (3.1, prueba de humo), primer "hola" enviado y recibido | Un mensaje ida y vuelta con el número de Anura; resultado de la llamada de Meta anotado en `TELEFONIA_ANURA.md` | 1 semana de trabajo; la verificación de Meta corre en paralelo |
 | **1. El motor por WhatsApp** | `app/whatsapp/` (2), tablas, reglas por canal, `demo_booking_wa`, dashboard con origen WhatsApp, saliente por plantilla, tests con payloads grabados, modo verificación (3.1, etapa 2), `make wa-send` para probar | El agente de demo conversa por WhatsApp de punta a punta; eval de calidad corrido con `channel: whatsapp` (`make eval-llm`) y comparado con voz | 2 semanas |
 | **2. Clientes con su número** | Tech Provider, App Review, Embedded Signup v4, `wa_accounts` multi-cliente con tokens cifrados, coexistencia, alta desde el dashboard | Un cliente conecta su número sin tocar Meta a mano; un piloto con número del cliente | 2 semanas de trabajo + tiempos de Meta (semanas) |
 | **3. Operación** | Notas de voz por STT, derivación a humano con aviso, plantillas gestionadas desde la app, `wa_messages` con costo por cliente en el dashboard, perfil `whatsapp` del test de capacidad y `CAP-NNN`, webhook de resultado para el software del cliente | Reporte por campaña con costo de Meta por gestión; capacidad medida | 2 semanas |
@@ -249,8 +250,29 @@ cobranzas; 5 cuando la cuenta lo permita.
   con texto libre.
 - **Coexistencia** no soporta llamadas: un cliente que quiera el mismo número para Calling API tiene
   que salir de la app.
-- **HTTPS y dominio** son un cambio de infraestructura del server de validación: puerto 443 en el
-  router y renovación del certificado; anotar en `AGENTS.md` cuando esté.
+- **El webhook depende del túnel:** si `tunnel` está caído, Meta no entrega (reintenta un tiempo y
+  después desactiva el webhook). Sin 443 ni certificados propios que renovar.
+- **Verificación del negocio:** no aparece en el Centro de seguridad hasta que un producto la pida;
+  se inicia desde la app de developers al pedir acceso avanzado (fase 2). Portafolio de Meta:
+  `Atentina` (ID 897731003277295). Sin verificar: 2 números por WABA.
+- **Cuentas de Meta creadas (1-oct-2026):** app `Atentina` (ID 2192489028351511, caso de uso
+  WhatsApp, Graph API v25.0), WABA 1763082738667089 y número de prueba +1 555 145 6632
+  (`phone_number_id` 1376760278849754; gratis 90 días, hasta 5 destinatarios verificados). El
+  portafolio lo creó la identidad de Instagram; la cuenta de Facebook entró como admin invitada,
+  porque developers.facebook.com no acepta sesiones solo de Instagram.
+- **El número de prueba nace sin registrar** (`status: PENDING`, `platform_type: NOT_APPLICABLE`):
+  todo envío da `133010 Account not registered` hasta `POST /{phone_number_id}/register` con un PIN de
+  6 dígitos (`scripts/wa.py register`). El PIN queda en `.env` (`WA_REGISTRATION_PIN`): Meta lo pide al
+  re-registrar. Registrado, pasa a `CONNECTED` / `CLOUD_API`; primer `hello_world` aceptado el 1-oct-2026.
+- **Celulares de Argentina:** se envía a `54351...` y Meta devuelve `wa_id` `549351...` (con el 9). El
+  webhook trae el `wa_id` con 9: usarlo tal cual para responder y como clave de `wa_threads`.
+- **Webhook verificado y `messages` suscripto (1-oct-2026):** Meta valida el GET por el túnel y el POST
+  de prueba del panel llega con firma válida (200, una línea `wa webhook:` en el log de `app`). El access
+  log de uvicorn tapa `hub.verify_token` (`RedactVerifyToken`).
+- **App sin publicar = solo webhooks de prueba:** Meta no entrega mensajes reales (ni de admins) hasta
+  publicar la app, y para publicar pide URLs reales de privacidad, condiciones y eliminación de datos.
+- **Titular persona física (monotributo), no sociedad:** en la fase 2 puede chocar el nombre legal
+  (la persona) con el nombre visible "Atentina" en la verificación y en el perfil del número.
 
 ## 7. Fuentes (consultadas el 28-sep-2026)
 

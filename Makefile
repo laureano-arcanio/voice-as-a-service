@@ -159,6 +159,9 @@ create-admin: ## Crea un admin o le cambia la clave (la pide). Ej: make create-a
 api-key: ## API key de un cliente (se muestra una vez). Ej: make api-key CLIENT=interno NAME=loadtest
 	$(COMPOSE) run --rm --no-deps app python -m app.cli create-api-key $(CLIENT) $(NAME)
 
+wa-send: ## Texto por WhatsApp con la Graph API. Ej: make wa-send TO=54351... TEXT="hola" [PHONE_NUMBER_ID=...]
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts app python -m scripts.wa $(if $(PHONE_NUMBER_ID),--phone-number-id $(PHONE_NUMBER_ID)) send-text --to "$(TO)" --text "$(TEXT)"
+
 web-dev: ## UI en modo desarrollo (Vite, :5173) contra la API de :8011. Requiere Node 22+
 	cd web && npm install && VITE_API_PROXY=$${VITE_API_PROXY:-http://127.0.0.1:8011} npm run dev
 
