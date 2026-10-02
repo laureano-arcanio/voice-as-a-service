@@ -194,6 +194,7 @@ Patrones que se repiten; copiar estas clases al armar algo nuevo:
 ## 10. Voz y texto
 
 - **Español rioplatense con voseo:** "Hacé una demo", "Escribinos", "lo contratás y empieza a atender".
+- **Categoría: agentes con IA que atienden a tus clientes**, no "agentes de voz". Los canales (teléfono, WhatsApp) son la prueba y la voz argentina es el diferencial, no la categoría. "Agente de voz" queda en los `metaTitle` de las verticales, porque es lo que se busca.
 - **Directo y concreto:** qué hace y cuánto cuesta, con frases cortas. Sin superlativos vacíos, sin signos de exclamación y sin anglicismos que tengan palabra en español.
 - **Botones:** verbo + objeto ("Iniciar llamada sin costo", "Ver más voces"). Los links de tarjeta terminan en "→".
 - **Números:** pesos como `$ 29.000` (espacio y punto de miles), dólares como `USD 19`, duración como `1:42`. Siempre con `tabular-nums`.
