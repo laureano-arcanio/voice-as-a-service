@@ -19,9 +19,9 @@ Detalle en "Motor conversacional" abajo; el diseño original esta en `docs/REFAC
 | --- | --- |
 | Tier | Límites: llamadas simultáneas, minutos entrantes y salientes por mes calendario (`BILLING_TIMEZONE`, default Buenos Aires) y cantidad de números. Vacío = ilimitado. |
 | Cliente | Tenant: un tier, sus números, agentes, usuarios y API keys. Inactivo: no llama ni atiende. |
-| Agente | Definición JSON del workflow (esquema: `GET /api/v1/agents/schema`), **versionada**: cada cambio es una versión nueva e inmutable y cada conversación guarda con cuál corrió. Se crea en blanco o desde el asistente básico (`app/agents/templates/asistente.json`), con el motor que se elija, y se edita por formulario. |
+| Agente | Definición JSON del workflow (esquema: `GET /api/v1/agents/schema`), **versionada**: cada cambio es una versión nueva e inmutable y cada conversación guarda con cuál corrió. Se crea en blanco o desde el asistente básico (`app/agents/templates/asistente.json`), con el motor que se elija, y se edita por formulario. Los crea y edita un admin o el propio cliente (usuario o API key), cada uno solo en su cliente. |
 | Número | Inventario de los números que provee Anura (E.164, únicos). El admin los carga libres (UI > Números, o `POST /api/v1/phone-numbers/bulk`), los asigna a un cliente hasta el tope de su tier y se rutean a un agente del cliente (el admin o el propio cliente): las entrantes a ese número las atiende ese agente. Liberar lo devuelve al inventario. Bajar de tier o de tope con más números asignados da 409. Después de cargar o borrar: `make livekit-sip`. |
-| Usuario | `admin` (opera la plataforma) o `client` (ve lo de su cliente, llama y maneja sus API keys). |
+| Usuario | `admin` (opera la plataforma) o `client` (ve lo de su cliente, crea y edita sus agentes, llama y maneja sus API keys). |
 
 **Límites (corte duro):** `POST /api/v1/calls` responde 429 (`concurrency_limit`,
 `outbound_minutes`, `inbound_minutes`, `client_inactive`) si no hay lugar o minutos; una entrante

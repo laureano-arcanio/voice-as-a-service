@@ -1236,6 +1236,7 @@
      "agents"
     ],
     "summary": "Create Agent",
+    "description": "Admin: en el cliente de client_id. Usuario o API key de un cliente: en el suyo\n(client_id se puede omitir; el de otro cliente da 404).",
     "operationId": "create_agent_api_v1_agents_post",
     "security": [
      {
@@ -3252,7 +3253,7 @@
      "whatsapp"
     ],
     "summary": "Close Thread",
-    "description": "Cierra una conversacion de WhatsApp: el proximo mensaje del contacto empieza otra, con la\nversion vigente del agente. Esta queda en el historial. Cerrar una ya cerrada no hace nada.",
+    "description": "Cierra una conversacion de WhatsApp: el proximo mensaje del contacto empieza otra, con la\nversion vigente del agente. Esta queda en el historial. Es su fin, como el corte de una\nllamada (extraccion final del clasico). Cerrar una ya cerrada no hace nada.",
     "operationId": "close_thread_api_v1_whatsapp_threads__conversation_id__close_post",
     "security": [
      {
@@ -3518,8 +3519,16 @@
    "AgentCreate": {
     "properties": {
      "client_id": {
-      "type": "string",
-      "title": "Client Id"
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Id",
+      "description": "Obligatorio para un admin; un usuario o API key de cliente crea en el suyo"
      },
      "name": {
       "type": "string",
@@ -3587,7 +3596,6 @@
     },
     "type": "object",
     "required": [
-     "client_id",
      "name"
     ],
     "title": "AgentCreate"

@@ -13,12 +13,13 @@ import {
 import { useForm } from '@mantine/form';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router';
+import { useIsAdmin } from '@/features/auth/api';
 import { useClients } from '@/features/clients/api';
 import { SLUG_RE, slugify } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useAgentTemplates, useCreateAgent } from './api';
 import type { Engine } from './draft';
-import { EngineCards } from './EngineCards';
+import { EngineCards, EngineLabel } from './EngineCards';
 
 const BLANK = '';
 
@@ -48,12 +49,14 @@ export function NewAgentModal({
 }: {
   opened: boolean;
   onClose: () => void;
-  /** Cliente elegido de entrada. */
+  /** Cliente elegido de entrada (admin). Un usuario de cliente crea siempre en el suyo. */
   clientId?: string;
   /** Sin poder cambiar el cliente (alta desde la ficha del cliente). */
   lockClient?: boolean;
 }) {
-  const clients = useClients(opened);
+  // Cliente, slug y motor son internos: el cliente crea en su cuenta, con el motor por defecto.
+  const isAdmin = useIsAdmin();
+  const clients = useClients(opened && isAdmin);
   const templates = useAgentTemplates(opened);
   const create = useCreateAgent();
   const navigate = useNavigate();
@@ -67,7 +70,7 @@ export function NewAgentModal({
       template_id: 'asistente',
     },
     validate: {
-      client_id: (v) => (v ? null : 'Elegí un cliente'),
+      client_id: (v) => (!isAdmin || v ? null : 'Elegí un cliente'),
       name: (v) => (v.trim() ? null : 'Poné un nombre'),
       slug: (v) => (!v || SLUG_RE.test(v) ? null : 'Minúsculas, números y _ (hasta 64)'),
     },
@@ -80,11 +83,11 @@ export function NewAgentModal({
         onSubmit={form.onSubmit((v) =>
           create.mutate(
             {
-              client_id: v.client_id,
+              client_id: isAdmin ? v.client_id : null,
               name: v.name.trim(),
-              slug: v.slug || null,
+              slug: (isAdmin && v.slug) || null,
               description: v.description.trim(),
-              engine: v.engine,
+              engine: isAdmin ? v.engine : null,
               template_id: v.template_id === BLANK ? null : v.template_id,
             },
             {
@@ -101,30 +104,48 @@ export function NewAgentModal({
       >
         <Stack>
           <SimpleGrid cols={{ base: 1, sm: 2 }}>
-            <Select
-              label="Cliente"
-              data={(clients.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
-              searchable
-              disabled={lockClient}
-              {...form.getInputProps('client_id')}
-            />
-            <TextInput label="Nombre" maxLength={128} data-autofocus {...form.getInputProps('name')} />
+            {isAdmin && (
+              <Select
+                label="Cliente"
+                data={(clients.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
+                searchable
+                disabled={lockClient}
+                {...form.getInputProps('client_id')}
+              />
+            )}
             <TextInput
-              label="Slug"
-              description={`Identificador del agente en el cliente. Queda: ${slugPreview}`}
-              placeholder={slugify(form.values.name) || 'se arma del nombre'}
-              {...form.getInputProps('slug')}
-              onChange={(e) => form.setFieldValue('slug', e.currentTarget.value.toLowerCase())}
+              label="Nombre"
+              description={isAdmin ? undefined : 'Para reconocerlo en tus listas e informes.'}
+              maxLength={128}
+              data-autofocus
+              {...form.getInputProps('name')}
             />
-            <Textarea label="Descripción" autosize minRows={1} {...form.getInputProps('description')} />
+            {isAdmin && (
+              <TextInput
+                label="Slug"
+                description={`Identificador del agente en el cliente. Queda: ${slugPreview}`}
+                placeholder={slugify(form.values.name) || 'se arma del nombre'}
+                {...form.getInputProps('slug')}
+                onChange={(e) => form.setFieldValue('slug', e.currentTarget.value.toLowerCase())}
+              />
+            )}
+            <Textarea
+              label="Descripción"
+              description={isAdmin ? undefined : 'Opcional: para qué lo usás.'}
+              autosize
+              minRows={1}
+              {...form.getInputProps('description')}
+            />
           </SimpleGrid>
-          <Radio.Group
-            label="Motor"
-            description="La definición es la misma con los dos: se puede cambiar después."
-            {...form.getInputProps('engine')}
-          >
-            <EngineCards />
-          </Radio.Group>
+          {isAdmin && (
+            <Radio.Group
+              label={<EngineLabel />}
+              description="La definición es la misma con los dos: se puede cambiar después."
+              {...form.getInputProps('engine')}
+            >
+              <EngineCards />
+            </Radio.Group>
+          )}
           <Radio.Group
             label="Punto de partida"
             description="Después completás cada parte en el formulario de la definición."

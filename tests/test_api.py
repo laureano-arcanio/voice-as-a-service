@@ -104,9 +104,76 @@ def test_client_user_cannot_administer(api, admin):
     acme = make_client(admin)
     user = client_user(api, admin, acme)
     assert user.get(f"{V1}/tiers").status_code == 403
-    assert user.post(f"{V1}/agents", json={"client_id": acme["id"], "name": "x", "template_id": "asistente"}
-                     ).status_code == 403
     assert user.patch(f"{V1}/clients/{acme['id']}", json={"active": False}).status_code == 403
+    # El prompt que arma el motor es interno.
+    agent = make_agent(admin, acme)
+    assert user.post(f"{V1}/agents/prompt", json={"definition": agent["definition"]}).status_code == 403
+
+
+def test_client_user_manages_its_own_agents(api, admin):
+    acme = make_client(admin)
+    user = client_user(api, admin, acme)
+    # Sin client_id: en su cliente. Con el suyo, tambien.
+    r = user.post(f"{V1}/agents", json={"name": "Recepción", "template_id": "asistente"})
+    assert r.status_code == 201, r.text
+    agent = r.json()
+    assert agent["client_id"] == acme["id"] and agent["slug"] == "recepcion" and agent["engine"] == "classic"
+    blank = user.post(f"{V1}/agents", json={"client_id": acme["id"], "name": "En blanco"})
+    assert blank.status_code == 201 and blank.json()["client_id"] == acme["id"]
+    assert user.post(f"{V1}/agents", json={"name": "Recepción"}).status_code == 409
+
+    renamed = user.patch(f"{V1}/agents/{agent['id']}", json={"name": "Recepción 2", "description": "Atiende"})
+    assert renamed.status_code == 200 and renamed.json()["name"] == "Recepción 2"
+    definition = {**agent["definition"], "knowledge": "Atendemos de 9 a 18."}
+    v2 = user.put(f"{V1}/agents/{agent['id']}/definition", json={"definition": definition})
+    assert v2.status_code == 200 and v2.json()["version"] == 2
+    versions = user.get(f"{V1}/agents/{agent['id']}/versions").json()
+    assert [v["version"] for v in versions] == [2, 1] and versions[0]["created_by_email"] == "ana@acme.com"
+    bad = user.put(f"{V1}/agents/{agent['id']}/definition", json={"definition": {**definition, "fields": {}}})
+    assert bad.status_code == 422
+
+    assert user.patch(f"{V1}/agents/{agent['id']}", json={"archived": True}).json()["archived"] is True
+    assert user.patch(f"{V1}/agents/{agent['id']}", json={"archived": False}).json()["archived"] is False
+    assert user.delete(f"{V1}/agents/{agent['id']}").status_code == 204
+    assert [a["name"] for a in user.get(f"{V1}/agents").json()] == ["En blanco"]
+    # Un admin sigue eligiendo el cliente: sin client_id no hay donde crearlo.
+    assert admin.post(f"{V1}/agents", json={"name": "x"}).status_code == 422
+
+
+@pytest.mark.parametrize("auth", ["user", "api_key"])
+def test_client_cannot_touch_agents_of_another_client(api, admin, auth):
+    """Crear, editar, versionar, archivar y borrar: solo en el cliente propio. Lo ajeno da 404 y queda igual."""
+    acme, other = make_client(admin, "acme"), make_client(admin, "otro")
+    theirs = make_agent(admin, other)
+    if auth == "user":
+        mine = client_user(api, admin, acme)
+        headers = {}
+    else:
+        key = admin.post(f"{V1}/clients/{acme['id']}/api-keys", json={"name": "erp"}).json()["key"]
+        mine, headers = api.client, {"Authorization": f"Bearer {key}"}
+
+    r = mine.post(f"{V1}/agents", json={"client_id": other["id"], "name": "Intruso"}, headers=headers)
+    assert r.status_code == 404
+    assert mine.post(f"{V1}/agents", json={"client_id": "no-existe", "name": "Intruso"}, headers=headers
+                     ).status_code == 404
+    url = f"{V1}/agents/{theirs['id']}"
+    assert mine.patch(url, json={"name": "Tomado", "archived": True}, headers=headers).status_code == 404
+    changed = {**theirs["definition"], "knowledge": "cambiado"}
+    assert mine.put(f"{url}/definition", json={"definition": changed}, headers=headers).status_code == 404
+    assert mine.get(f"{url}/versions", headers=headers).status_code == 404
+    assert mine.get(f"{url}/versions/1", headers=headers).status_code == 404
+    assert mine.delete(url, headers=headers).status_code == 404
+
+    after = admin.get(url).json()
+    assert (after["name"], after["version"], after["archived"]) == ("Ventas", 1, False)
+    assert after["definition"] == theirs["definition"]
+    assert [a["id"] for a in admin.get(f"{V1}/agents", params={"client_id": other["id"]}).json()] == [theirs["id"]]
+    assert admin.get(f"{V1}/agents", params={"client_id": acme["id"]}).json() == []
+
+    # En el suyo si: con la API key el autor de la version queda vacio.
+    own = mine.post(f"{V1}/agents", json={"name": "Propio"}, headers=headers)
+    assert own.status_code == 201 and own.json()["client_id"] == acme["id"]
+    assert [a["id"] for a in mine.get(f"{V1}/agents", headers=headers).json()] == [own.json()["id"]]
 
 
 # ---------- tiers y clientes ----------

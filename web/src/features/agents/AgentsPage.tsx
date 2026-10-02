@@ -1,4 +1,4 @@
-import { Anchor, Badge, Button, Card, Group, Select, Switch, Table, Text } from '@mantine/core';
+import { Anchor, Badge, Button, Card, Group, Select, Stack, Switch, Table, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
 import { Link, useSearchParams } from 'react-router';
@@ -42,11 +42,9 @@ export function AgentsPage() {
             : 'Cada agente define qué datos pide, cómo habla y cómo cierra la conversación.'
         }
         actions={
-          isAdmin && (
-            <Button leftSection={<IconPlus size={18} />} onClick={create.open}>
-              Nuevo agente
-            </Button>
-          )
+          <Button leftSection={<IconPlus size={18} />} onClick={create.open}>
+            Nuevo agente
+          </Button>
         }
       />
       <Card>
@@ -75,9 +73,19 @@ export function AgentsPage() {
         <QueryState query={agents}>
           {(list) =>
             list.length === 0 ? (
-              <EmptyState>
-                {isAdmin ? 'No hay agentes. Creá uno desde una plantilla.' : 'No hay agentes.'}
-              </EmptyState>
+              isAdmin ? (
+                <EmptyState>No hay agentes. Creá uno desde una plantilla.</EmptyState>
+              ) : (
+                <Stack align="center" gap={0} pb="lg">
+                  <EmptyState>
+                    {includeArchived ? 'Todavía no tenés agentes.' : 'No tenés agentes activos.'} Creá uno y
+                    después elegí qué número atiende.
+                  </EmptyState>
+                  <Button variant="light" leftSection={<IconPlus size={18} />} onClick={create.open}>
+                    Crear agente
+                  </Button>
+                </Stack>
+              )
             ) : (
               <Table.ScrollContainer minWidth={isAdmin ? 820 : 560}>
                 <Table>
@@ -128,9 +136,7 @@ export function AgentsPage() {
           }
         </QueryState>
       </Card>
-      {isAdmin && (
-        <NewAgentModal key={String(creating)} opened={creating} onClose={create.close} clientId={clientId} />
-      )}
+      <NewAgentModal key={String(creating)} opened={creating} onClose={create.close} clientId={clientId} />
     </>
   );
 }

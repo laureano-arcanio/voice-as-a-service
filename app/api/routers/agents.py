@@ -97,8 +97,13 @@ def list_agents(p: CurrentPrincipal, db: DB, client_id: str | None = None, inclu
 
 
 @router.post("/agents", response_model=AgentDetail, status_code=201)
-def create_agent(body: AgentCreate, p: AdminPrincipal, db: DB):
-    client = get_client(db, p, body.client_id)
+def create_agent(body: AgentCreate, p: CurrentPrincipal, db: DB):
+    """Admin: en el cliente de client_id. Usuario o API key de un cliente: en el suyo
+    (client_id se puede omitir; el de otro cliente da 404)."""
+    client_id = body.client_id or p.client_id
+    if not client_id:
+        raise Invalid("Falta client_id")
+    client = get_client(db, p, client_id)
     agent = service.create_agent(db, client, body.name, body.slug, body.description, body.definition,
                                  body.template_id, p.id if p.kind == "user" else None, body.engine)
     db.commit()
@@ -111,7 +116,7 @@ def read_agent(agent_id: str, p: CurrentPrincipal, db: DB):
 
 
 @router.patch("/agents/{agent_id}", response_model=AgentDetail)
-def update_agent(agent_id: str, body: AgentUpdate, p: AdminPrincipal, db: DB):
+def update_agent(agent_id: str, body: AgentUpdate, p: CurrentPrincipal, db: DB):
     agent = get_agent(db, p, agent_id)
     data = body.model_dump(exclude_unset=True, exclude_none=True)
     if "archived" in data:
@@ -123,7 +128,7 @@ def update_agent(agent_id: str, body: AgentUpdate, p: AdminPrincipal, db: DB):
 
 
 @router.put("/agents/{agent_id}/definition", response_model=AgentDetail)
-def update_definition(agent_id: str, body: DefinitionIn, p: AdminPrincipal, db: DB):
+def update_definition(agent_id: str, body: DefinitionIn, p: CurrentPrincipal, db: DB):
     """Guarda la definicion como version nueva (si cambio). Las llamadas en curso
     siguen con la version con que empezaron."""
     agent = service.update_definition(db, get_agent(db, p, agent_id), body.definition,
@@ -133,7 +138,7 @@ def update_definition(agent_id: str, body: DefinitionIn, p: AdminPrincipal, db: 
 
 
 @router.delete("/agents/{agent_id}", status_code=204)
-def delete_agent(agent_id: str, p: AdminPrincipal, db: DB):
+def delete_agent(agent_id: str, p: CurrentPrincipal, db: DB):
     service.delete_agent(db, get_agent(db, p, agent_id))
     db.commit()
 

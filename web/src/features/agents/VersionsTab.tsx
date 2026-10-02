@@ -87,7 +87,7 @@ function VersionModal({
   );
 }
 
-export function VersionsTab({ agent, canEdit }: { agent: AgentDetail; canEdit: boolean }) {
+export function VersionsTab({ agent }: { agent: AgentDetail }) {
   const versions = useAgentVersions(agent.id);
   const save = useSaveDefinition(agent.id);
   const [viewing, setViewing] = useState<number | null>(null);
@@ -150,7 +150,7 @@ export function VersionsTab({ agent, canEdit }: { agent: AgentDetail; canEdit: b
                         <Button size="compact-sm" variant="subtle" onClick={() => setViewing(v.version)}>
                           Ver
                         </Button>
-                        {canEdit && v.version !== agent.version && (
+                        {v.version !== agent.version && (
                           <Button
                             size="compact-sm"
                             variant="subtle"

@@ -42,7 +42,7 @@ import {
   type Requirement,
   sectionId,
 } from './draft';
-import { EngineCards } from './EngineCards';
+import { EngineCards, EngineLabel } from './EngineCards';
 
 const LANGUAGES = ['es-AR', 'es-UY', 'es-CL', 'es-MX', 'es-ES', 'en-US', 'pt-BR'];
 const TYPE_LABEL: Record<string, string> = Object.fromEntries(FIELD_TYPES.map((t) => [t.value, t.label]));
@@ -549,6 +549,7 @@ export function DefinitionForm({
   opened,
   toggle,
   voiceSeed,
+  showEngine,
 }: {
   draft: Draft;
   update: (fn: (d: Draft) => Draft) => void;
@@ -557,6 +558,8 @@ export function DefinitionForm({
   toggle: (key: string, open?: boolean) => void;
   /** Para reiniciar el texto de la prueba de voz al cambiar de agente. */
   voiceSeed: string;
+  /** El motor es interno: solo lo elige un admin. El cliente conserva el que tiene el agente. */
+  showEngine: boolean;
 }) {
   const set = (patch: Partial<Draft>) => update((d) => ({ ...d, ...patch }));
 
@@ -591,14 +594,16 @@ export function DefinitionForm({
               onChange={(language) => set({ language })}
             />
           </SimpleGrid>
-          <Radio.Group
-            label="Motor"
-            description="La definición es la misma con los dos: cambiarlo no toca nada más."
-            value={draft.engine}
-            onChange={(v) => set({ engine: v as Engine })}
-          >
-            <EngineCards />
-          </Radio.Group>
+          {showEngine && (
+            <Radio.Group
+              label={<EngineLabel />}
+              description="La definición es la misma con los dos: cambiarlo no toca nada más."
+              value={draft.engine}
+              onChange={(v) => set({ engine: v as Engine })}
+            >
+              <EngineCards />
+            </Radio.Group>
+          )}
         </Stack>
       </Section>
 
@@ -641,7 +646,7 @@ export function DefinitionForm({
       <Section
         name="reglas"
         title="Reglas"
-        description="Tono, límites y formato de las respuestas, una por regla. Las de cada canal (voz o WhatsApp) las suma el motor."
+        description="Tono, límites y formato de las respuestas, una por regla. Las de cada canal (voz o WhatsApp) se suman solas."
       >
         <Stack gap="xs">
           {draft.rules.map((r, i) => (

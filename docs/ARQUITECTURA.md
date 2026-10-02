@@ -165,6 +165,12 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
   devuelve sin guardar (classic: el prompt entero; structured: el fijo y la definición en YAML que va
   en cada turno). La UI la edita por formulario (`web/src/features/agents/DefinitionForm.tsx`,
   `draft.ts`), con el JSON como alternativa.
+- **Quién los crea:** un admin, en el cliente de `client_id`; un usuario o API key de un cliente, en
+  el suyo (`client_id` se omite; el de otro cliente da 404). Todo pedido sobre un agente pasa por
+  `get_agent` (`app/api/routers/agents.py`): el de otro cliente responde 404 y no cambia. En la UI el
+  cliente usa el mismo formulario, sin cliente, slug, motor, JSON ni prompt, que son internos: sus
+  agentes nacen con el motor de la plantilla (`classic`). La API no restringe `engine` al cliente: no
+  es un permiso, solo no se muestra. `POST /agents/prompt` sigue solo para admin.
 - **Agentes de referencia:** `app/agents/reference/<id>.json`, para el seed, el eval y los tests (sin
   base); no se ofrecen en la UI. El sufijo `_classic` o `_structured` elige el motor sobre el mismo
   archivo (`demo_booking_classic` es `demo_booking.json` con `engine: classic`). El seed solo crea, en
@@ -316,7 +322,8 @@ lo de esta sección es lo que lo protege.
 | Acción | Admin | Usuario cliente | API key |
 |---|---|---|---|
 | Tiers, clientes (alta, edición, baja), usuarios | Sí | No | No |
-| Agentes: crear, editar, versionar, archivar | Sí | Solo ver | Solo ver |
+| Agentes: crear, editar, versionar, archivar, borrar | Sí | Los suyos | Los suyos |
+| Agentes: ver el prompt que arma el motor (`POST /agents/prompt`) | Sí | No | No |
 | Números: cargar, asignar, liberar, borrar | Sí | No | No |
 | Números: elegir agente y etiqueta | Sí | Los suyos | Los suyos |
 | WhatsApp: alta manual, token, número visible | Sí | No | No |

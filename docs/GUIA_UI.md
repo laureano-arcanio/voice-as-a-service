@@ -53,7 +53,7 @@ Te lleva a la ficha del cliente, que tiene cinco pestañas:
 ### 3. Crear el agente (Agentes)
 
 **Agentes > Nuevo agente**: cliente, nombre, slug (opcional), descripción, **motor** (Clásico, el de
-por defecto, o Estructurado) y **punto de partida**: el **asistente básico** (atiende, responde con la
+por defecto, o Estructurado; lleva la píldora "interno") y **punto de partida**: el **asistente básico** (atiende, responde con la
 base de conocimiento y, si no puede, toma nombre y contacto) o **en blanco** (un dato y el resultado
 por defecto). Te lleva a la pestaña **Definición** para completarlo.
 
@@ -61,7 +61,8 @@ El detalle del agente tiene cuatro pestañas:
 
 - **Resumen:** la definición en limpio: agente, idioma, versión, objetivo, apertura, reglas, base de
   conocimiento, datos a obtener (orden, tipo, obligatorio, pregunta sugerida) y resultados.
-- **Definición** (solo admin): un formulario por partes:
+- **Definición:** un formulario por partes. El cliente ve el mismo, sin motor, **Ver prompt** ni JSON
+  (ver [Agentes (cliente)](#agentes-cliente)):
   - **Agente:** nombre, rol, idioma y **motor** (Clásico o Estructurado, en tarjetas). La definición es la misma con los dos motores: cambiarlo no toca nada más.
   - **Voz:** tarjetas con las voces (filtro por mujeres u hombres); al lado, la prueba con la voz elegida, con la apertura como texto (editable).
   - **Objetivo y apertura**, **Reglas** (una por regla) y **Base de conocimiento**.
@@ -154,8 +155,8 @@ Si el cliente está desactivado, sus números de WhatsApp tampoco responden.
   corta su sesión en el acto. Nadie puede desactivarse ni borrarse a sí mismo.
 - **API keys** (pestaña de la ficha del cliente, o Mi cuenta para el cliente) > **Nueva API key**:
   - La clave se muestra **una sola vez**, con botón para copiarla y un ejemplo `curl`.
-  - Va en `Authorization: Bearer vaas_...` y da acceso a los agentes, números y llamadas de ese
-    cliente (sus sistemas disparan llamadas con `POST /api/v1/calls`).
+  - Va en `Authorization: Bearer vaas_...` y da acceso a los agentes (también crearlos y editarlos),
+    números y llamadas de ese cliente (sus sistemas disparan llamadas con `POST /api/v1/calls`).
   - **Revocar** la anula en el acto.
 
 ## Operación diaria (ambos roles)
@@ -225,6 +226,25 @@ Motivos de fin frecuentes (`ended_reason`):
 | `sip_call_failed` | La saliente no se pudo marcar (número, troncal o Anura). |
 | `dispatch_failed` | La app no pudo despachar el agente a LiveKit. |
 | `test_mode_timeout` | Nadie entró a la llamada de prueba en 5 minutos. |
+
+### Agentes (cliente)
+
+El usuario de un cliente crea y edita sus propios agentes; no ve ni puede tocar los de otro cliente.
+
+1. **Agentes > Nuevo agente:** nombre, descripción (opcional) y punto de partida (asistente básico o
+   en blanco). Te lleva a la pestaña **Definición**.
+2. **Definición:** agente (nombre, rol, idioma), voz, objetivo y apertura, reglas, base de
+   conocimiento, datos a obtener y resultados. Se valida mientras editás y **Guardar** crea una
+   versión nueva.
+3. **Versiones:** historial con autor; **Restaurar** guarda una anterior como versión nueva.
+4. **Probar:** conversación por texto o llamada de prueba, antes de ponerlo a atender.
+5. Arriba, **Editar** (nombre y descripción), **Archivar/Desarchivar** y **Borrar** (solo si nunca
+   tuvo conversaciones ni atiende un número de WhatsApp).
+6. Para que atienda: elegilo en **Mi cuenta > Números** o en **WhatsApp**.
+
+No se muestran el cliente, el slug, el motor, el JSON ni el prompt: son internos. El agente nace con
+el motor Clásico; desde la UI lo cambia un admin. Por API el cliente hace lo mismo con su API key
+(`POST /api/v1/agents` sin `client_id`); ahí `engine` es un campo más de la definición.
 
 ### Voces
 

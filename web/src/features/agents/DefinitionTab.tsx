@@ -23,6 +23,7 @@ import type { AgentDetail, Definition } from '@/api/types';
 import { confirmAction } from '@/components/confirm';
 import { JsonEditor } from '@/components/JsonEditor';
 import { QueryState } from '@/components/QueryState';
+import { useIsAdmin } from '@/features/auth/api';
 import { focusOffset } from '@/lib/editor';
 import { ENGINE } from '@/lib/labels';
 import { notifyError, notifySuccess } from '@/lib/notify';
@@ -154,6 +155,8 @@ function PromptModal({
 }
 
 export function DefinitionTab({ agent }: { agent: AgentDetail }) {
+  // El cliente edita por formulario; motor, JSON y prompt son internos (solo admin).
+  const isAdmin = useIsAdmin();
   const baseline = canonical(agent.definition);
   const [base, setBase] = useState(baseline);
   const [draft, setDraft] = useState<Draft>(() => toDraft(agent.definition));
@@ -275,16 +278,18 @@ export function DefinitionTab({ agent }: { agent: AgentDetail }) {
   return (
     <Stack gap="md">
       <UnsavedGuard dirty={dirty} />
-      <PromptModal definition={current} opened={promptOpen} onClose={prompt.close} />
+      {isAdmin && <PromptModal definition={current} opened={promptOpen} onClose={prompt.close} />}
       <Card py="sm" className="def-toolbar">
         <Group justify="space-between" wrap="wrap" gap="sm">
           <Group gap="xs">
             <Text span c="dimmed" className="mono">
-              {agent.slug} · v{agent.version}
+              {isAdmin ? `${agent.slug} · v${agent.version}` : `v${agent.version}`}
             </Text>
-            <Badge color="gray">
-              {ENGINE[mode === 'form' ? draft.engine : String(current?.engine)] ?? '–'}
-            </Badge>
+            {isAdmin && (
+              <Badge color="gray">
+                {ENGINE[mode === 'form' ? draft.engine : String(current?.engine)] ?? '–'}
+              </Badge>
+            )}
             {dirty && <Badge color="yellow">Cambios sin guardar</Badge>}
             {current === null ? (
               <Badge color="red">JSON inválido</Badge>
@@ -297,23 +302,27 @@ export function DefinitionTab({ agent }: { agent: AgentDetail }) {
             ) : null}
           </Group>
           <Group gap="xs">
-            <SegmentedControl
-              size="xs"
-              data={[
-                { value: 'form', label: 'Formulario' },
-                { value: 'json', label: 'JSON' },
-              ]}
-              value={mode}
-              onChange={(v) => switchMode(v as Mode)}
-            />
-            <Button
-              variant="default"
-              size="xs"
-              leftSection={<IconFileText size={16} />}
-              onClick={prompt.open}
-            >
-              Ver prompt
-            </Button>
+            {isAdmin && (
+              <>
+                <SegmentedControl
+                  size="xs"
+                  data={[
+                    { value: 'form', label: 'Formulario' },
+                    { value: 'json', label: 'JSON' },
+                  ]}
+                  value={mode}
+                  onChange={(v) => switchMode(v as Mode)}
+                />
+                <Button
+                  variant="default"
+                  size="xs"
+                  leftSection={<IconFileText size={16} />}
+                  onClick={prompt.open}
+                >
+                  Ver prompt
+                </Button>
+              </>
+            )}
             <Button variant="default" size="xs" onClick={() => void discard()} disabled={!dirty}>
               Descartar
             </Button>
@@ -352,7 +361,14 @@ export function DefinitionTab({ agent }: { agent: AgentDetail }) {
       )}
 
       {mode === 'form' ? (
-        <DefinitionForm draft={draft} update={update} opened={opened} toggle={toggle} voiceSeed={agent.id} />
+        <DefinitionForm
+          draft={draft}
+          update={update}
+          opened={opened}
+          toggle={toggle}
+          voiceSeed={agent.id}
+          showEngine={isAdmin}
+        />
       ) : (
         <Card>
           <Title order={4} mb={4}>

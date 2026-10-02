@@ -377,7 +377,11 @@ export interface paths {
         /** List Agents */
         get: operations["list_agents_api_v1_agents_get"];
         put?: never;
-        /** Create Agent */
+        /**
+         * Create Agent
+         * @description Admin: en el cliente de client_id. Usuario o API key de un cliente: en el suyo
+         *     (client_id se puede omitir; el de otro cliente da 404).
+         */
         post: operations["create_agent_api_v1_agents_post"];
         delete?: never;
         options?: never;
@@ -886,7 +890,8 @@ export interface paths {
         /**
          * Close Thread
          * @description Cierra una conversacion de WhatsApp: el proximo mensaje del contacto empieza otra, con la
-         *     version vigente del agente. Esta queda en el historial. Cerrar una ya cerrada no hace nada.
+         *     version vigente del agente. Esta queda en el historial. Es su fin, como el corte de una
+         *     llamada (extraccion final del clasico). Cerrar una ya cerrada no hace nada.
          */
         post: operations["close_thread_api_v1_whatsapp_threads__conversation_id__close_post"];
         delete?: never;
@@ -998,8 +1003,11 @@ export interface components {
     schemas: {
         /** AgentCreate */
         AgentCreate: {
-            /** Client Id */
-            client_id: string;
+            /**
+             * Client Id
+             * @description Obligatorio para un admin; un usuario o API key de cliente crea en el suyo
+             */
+            client_id?: string | null;
             /** Name */
             name: string;
             /**

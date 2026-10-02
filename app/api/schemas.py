@@ -295,7 +295,8 @@ class WaTemplateCreated(BaseModel):
 # ---------- agentes ----------
 
 class AgentCreate(BaseModel):
-    client_id: str
+    client_id: str | None = Field(
+        default=None, description="Obligatorio para un admin; un usuario o API key de cliente crea en el suyo")
     name: str = Field(min_length=1, max_length=128)
     slug: str | None = Field(default=None, pattern=SLUG, description="Sin slug, se arma del nombre")
     description: str = ""
