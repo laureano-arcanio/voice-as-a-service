@@ -2,7 +2,8 @@
 
 Cómo se ve y cómo habla la marca. La base es la landing (`landing/`): hub `/`, verticales
 `/turnos`, `/cobranzas`, `/municipios` y páginas legales. Leerla antes de agregar o cambiar
-cualquier pantalla de la landing. No cubre el dashboard (`web/`), que tiene su propio tema.
+cualquier pantalla de la landing. El dashboard (`web/`) sigue
+[`DESIGN_GUIDELINE_APP.md`](DESIGN_GUIDELINE_APP.md), que adapta esta guía a la app.
 
 - **Fuente de verdad:** los tokens de [`landing/src/styles/global.css`](../landing/src/styles/global.css)
   y los componentes de `landing/src/components/`. Si esta guía y el código difieren, se corrige la guía

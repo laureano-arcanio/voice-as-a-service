@@ -15,6 +15,7 @@ números; API `/api/v1`, UI React en `web/` y worker de voz) está en [`README.m
 | "Creá un cliente / tier / agente / número" | Por la UI o la API (`/api/v1`, OpenAPI en `/api/v1/docs`), no a mano en la base. Números: se cargan al inventario, se asignan a un cliente (tope `max_phone_numbers` del tier) y se rutean a un agente; después de cargar o borrar, `make livekit-sip`. |
 | "Seguí con WhatsApp" / "probá el webhook de WhatsApp" | Seguir [`docs/WHATSAPP_PLAN.md`](docs/WHATSAPP_PLAN.md): fases 0 y 1, y la 2 (Embedded Signup, 5.3, con sus pasos de deploy pendientes). Código en `app/whatsapp/`, variables `WA_*` en `.env` (diff enmascarado antes de reiniciar). |
 | "Cambiá la landing" / "probá la demo de la landing" | Seguir [`docs/LANDING.md`](docs/LANDING.md): Astro + Tailwind en `landing/` (`npm run dev`), demo por `/api/v1/demo`. Todo cambio visual o de texto sigue [`docs/DESIGN_GUIDELINE.md`](docs/DESIGN_GUIDELINE.md) (tokens, componentes, voz). Los agentes de la demo son los del cliente `landing`: editarlos por la UI o la API. |
+| "Cambiá el dashboard" / "agregá una pantalla a la UI" | React + Mantine en `web/` (`make web-check`). Todo cambio visual o de texto sigue [`docs/DESIGN_GUIDELINE_APP.md`](docs/DESIGN_GUIDELINE_APP.md) (colores, componentes, diferencias entre vistas internas y de cliente). Ver "Diseño" más abajo. |
 | "Evaluá la calidad del LLM <modelo>" / "compará modelos" | Seguir [`docs/eval/README.md`](docs/eval/README.md): `make eval-llm` (cliente simulado con `EVAL_LLM_API_KEY`, o `--cliente guion`), `make eval-llm-juez`, y registrar `docs/eval/EVAL-NNN-<slug>/`. Otro modelo local va con su override, como arriba. |
 
 ## Servicios (`docker-compose.yml`)
@@ -46,7 +47,7 @@ números; API `/api/v1`, UI React en `web/` y worker de voz) está en [`README.m
     - GPU 0: `04:00.0`, slot del chipset, PCIe gen3 x4.
     - GPU 1: `07:00.0`, slot de la CPU, gen4 x16. También dibuja el escritorio.
     - La 5060 Ti (CAP-002, CAP-004) fue una prueba: no se usa.
-  - Corren contenedores de otros proyectos (Dify, sim-poc): no tocarlos; sacarlos del host es un pendiente de producción.
+  - Corren contenedores de otros proyectos (Dify, sim-poc): no tocarlos. Se quedan en el host (decisión del 2-oct-2026).
   - **Límites de las 3090:** sin tope, dos 3090 apagaron el server por un pico de consumo (25-sep-2026).
     - 280 W, núcleo ≤ 1800 MHz y memoria 9501 MHz, en cada arranque, por `atentina-gpu-limits.service` (`deploy/gpu-limits.sh`, instalado el 2-oct-2026). El chequeo de `scripts/ops/healthcheck.sh` avisa si faltan.
     - El tope de potencia cambia el `hw_id` del test de capacidad.
@@ -136,6 +137,20 @@ se mide con el test de capacidad y se registra en [`docs/capacity/`](docs/capaci
 - **Runs crudos:** `scripts/capacity/runs/` no se versiona.
 - **Archivo:** las mediciones con el loadtest (EXP-001 a 013, `LOADTEST_CAPACITY.md`) están en [`docs/archive/`](docs/archive/README.md). `scripts/loadtest/` sigue: el test reutiliza su caller y su sampler.
 
+## Diseño
+
+Hay dos guías, con la misma marca (paleta, tipografías y voz). Cuál leer depende de qué se toca:
+
+| Qué se toca | Guía |
+|---|---|
+| `landing/`: sitio público, verticales y páginas legales | [`docs/DESIGN_GUIDELINE.md`](docs/DESIGN_GUIDELINE.md) |
+| `web/`: dashboard interno (`admin`), dashboard del cliente (`client`) y login | [`docs/DESIGN_GUIDELINE_APP.md`](docs/DESIGN_GUIDELINE_APP.md) |
+| Marca en cualquier lado: nombre, logo (`docs/brand/`, favicon, `og.png`) y voz | [`docs/DESIGN_GUIDELINE.md`](docs/DESIGN_GUIDELINE.md), secciones 2 y 10; la de la app las hereda |
+
+- No mezclar: la landing usa Tailwind con sus tokens; la app, el tema de Mantine. Las clases y componentes de una no van en la otra.
+- Un cambio que toca las dos (un color de la marca, el logo) se hace en las dos guías y en los dos temas (`landing/src/styles/global.css` y `web/src/theme.ts`).
+- El tema de `web/` todavía es el anterior (navy y ámbar): migrarlo a la guía de la app está pendiente.
+
 ## Cómo trabajar en este server
 
 - Puede haber otras sesiones de agente trabajando en paralelo en el repo y en los contenedores. Mirar `git status` y `docker ps` antes de cambiar algo, y no revertir cambios ajenos.
@@ -153,6 +168,7 @@ se mide con el test de capacidad y se registra en [`docs/capacity/`](docs/capaci
 - [`docs/EVAL_LLM_PLAN.md`](docs/EVAL_LLM_PLAN.md) y [`docs/eval/`](docs/eval/README.md): eval de calidad del LLM por tipo de agente y de cliente, y registro `EVAL-NNN`.
 - [`docs/LANDING.md`](docs/LANDING.md): landing (Astro + Tailwind en `landing/`, `render.yaml`), demo por `/api/v1/demo` con su control de abuso, túnel, dominios y DNS (Render + Cloudflare).
 - [`docs/DESIGN_GUIDELINE.md`](docs/DESIGN_GUIDELINE.md): guía de diseño de la marca, con base en la landing (color y acento por vertical, tipografía, layout, componentes y patrones, estados, voz). Leerla antes de agregar o cambiar una pantalla de la landing.
+- [`docs/DESIGN_GUIDELINE_APP.md`](docs/DESIGN_GUIDELINE_APP.md): guía de diseño del dashboard (`web/`), interno y de clientes: adapta la de la marca a Mantine (colores de estado, tablas, formularios, gráficos, tema; solo claro). Leerla antes de agregar o cambiar una pantalla de `web/`.
 - [`docs/WHATSAPP_PLAN.md`](docs/WHATSAPP_PLAN.md): plan para WhatsApp en el mismo agente (Cloud API directo, registro del número de Anura por voz, Embedded Signup, costos de Meta). Fases 0, 1 y audios en producción; fase 2 (Embedded Signup) implementada, sin desplegar.
 - [`docs/archive/`](docs/archive/README.md): mediciones anteriores con el loadtest (EXP-001 a 013).
 - [`docs/PRODUCCION.md`](docs/PRODUCCION.md): plan de producción en este server, hallazgos, checklist y redundancia.
