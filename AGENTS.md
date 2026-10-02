@@ -170,6 +170,7 @@ Hay dos guías, con la misma marca (paleta, tipografías y voz). Cuál leer depe
 - [`docs/DESIGN_GUIDELINE.md`](docs/DESIGN_GUIDELINE.md): guía de diseño de la marca, con base en la landing (color y acento por vertical, tipografía, layout, componentes y patrones, estados, voz). Leerla antes de agregar o cambiar una pantalla de la landing.
 - [`docs/DESIGN_GUIDELINE_APP.md`](docs/DESIGN_GUIDELINE_APP.md): guía de diseño del dashboard (`web/`), interno y de clientes: adapta la de la marca a Mantine (colores de estado, tablas, formularios, gráficos, tema; solo claro). Leerla antes de agregar o cambiar una pantalla de `web/`.
 - [`docs/WHATSAPP_PLAN.md`](docs/WHATSAPP_PLAN.md): plan para WhatsApp en el mismo agente (Cloud API directo, registro del número de Anura por voz, Embedded Signup, costos de Meta). Fases 0, 1 y audios en producción; fase 2 (Embedded Signup) implementada, sin desplegar.
+- [`docs/EMAIL_PLAN.md`](docs/EMAIL_PLAN.md): plan para email en el mismo agente (entrada por Resend Inbound, dominio del cliente para responder, hilos, bucles y modo borrador). Análisis, sin código.
 - [`docs/archive/`](docs/archive/README.md): mediciones anteriores con el loadtest (EXP-001 a 013).
 - [`docs/PRODUCCION.md`](docs/PRODUCCION.md): plan de producción en este server, hallazgos, checklist y redundancia.
 - [`docs/SERVER_HARDWARE.md`](docs/SERVER_HARDWARE.md): elección de placas, CPU y PCIe.
