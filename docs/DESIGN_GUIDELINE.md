@@ -31,7 +31,7 @@ cualquier pantalla de la landing. El dashboard (`web/`) sigue
   `landing/src/assets/og.png` (va con hash en la URL: al cambiarla, las vistas previas toman la nueva). Se generan en `scratch/logo/` (`build_atentina.py`, `og.html`).
   - Sobre claro: anillo y palabra en `ink`, barras en `accent` (azul del hub).
   - Sobre fondo `ink` (archivos `-blanco`): anillo y palabra en `cta-ink`, barras en `accent-on-dark`.
-  - `og.png` (1200 × 630): fondo del hero, logo, título en Bricolage 800 y rótulo en mono con el acento.
+  - `og.png` (1200 × 630): fondo del hero, logo, título en Bricolage 800 y rótulo en mono con el acento. Todo centrado y dentro del cuadrado central (630 × 630): las miniaturas cuadradas recortan por el centro.
 
 ## 3. Color
 
@@ -199,7 +199,7 @@ Patrones que se repiten; copiar estas clases al armar algo nuevo:
 - **Números:** pesos como `$ 29.000` (espacio y punto de miles), dólares como `USD 19`, duración como `1:42`. Siempre con `tabular-nums`.
 - **Estados en mono y minúscula:** "listo", "terminada".
 - **Errores:** dicen qué pasó y qué hacer, en una línea.
-- `lang="es-AR"`. Cada página tiene su `title` y `description` (props de `Base.astro`).
+- `lang="es-AR"`. Cada página tiene su `title` y `description` (props de `Base.astro`). `ogDescription` es el texto de la tarjeta del link, de hasta ~70 caracteres: WhatsApp corta la descripción a las dos líneas. Hoy la tiene la home; sin ella va `description`.
 
 ## 11. Antes de entregar
 

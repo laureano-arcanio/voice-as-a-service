@@ -5,11 +5,13 @@ import "../styles/global.css";
 interface Props {
   title: string;
   description: string;
+  /** Para la tarjeta del link (WhatsApp la corta a las dos líneas): hasta ~70 caracteres. Sin ella va `description`. */
+  ogDescription?: string;
   path: string;
   theme?: string;
 }
 
-const { title, description, path, theme } = Astro.props;
+const { title, description, ogDescription = description, path, theme } = Astro.props;
 const canonical = new URL(path, Astro.site).href;
 // Con hash en el nombre (/_astro/og.<hash>.png): al cambiar la imagen cambia la URL, y Cloudflare y
 // WhatsApp no siguen mostrando la vieja de su caché.
@@ -38,7 +40,7 @@ const organization = {
     <meta property="og:locale" content="es_AR" />
     <meta property="og:url" content={canonical} />
     <meta property="og:title" content={title} />
-    <meta property="og:description" content={description} />
+    <meta property="og:description" content={ogDescription} />
     <meta property="og:image" content={og} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />

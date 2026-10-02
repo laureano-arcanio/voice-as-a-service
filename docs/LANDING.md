@@ -15,7 +15,8 @@ Cloudflare Tunnel. No hay backend aparte ni base nueva: costo adicional cero.
 - **Publicar:** push a la rama que sigue Render; solo los cambios en `landing/` despliegan.
 - **Diseño:** tokens, componentes, patrones y voz en [`DESIGN_GUIDELINE.md`](DESIGN_GUIDELINE.md).
 - **`og.png`, favicon y logos (`docs/brand/`):** se generan en `scratch/logo/` (`build_atentina.py`, y
-  `og.html` con Chrome headless a 1200 × 630), con los colores de la guía.
+  `og.html` con Chrome headless a 1200 × 630), con los colores de la guía. El contenido de `og.png` va
+  centrado, dentro del cuadrado central, para que no lo corten las miniaturas cuadradas.
 
 ## Desarrollo
 
