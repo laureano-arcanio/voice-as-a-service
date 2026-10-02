@@ -14,7 +14,7 @@ números; API `/api/v1`, UI React en `web/` y worker de voz) está en [`README.m
 | "Probá <modelo o reparto de GPU>" | Override `docker-compose.<nombre>.yml` y confirmar antes de reiniciar servicios; después, el mismo procedimiento. |
 | "Creá un cliente / tier / agente / número" | Por la UI o la API (`/api/v1`, OpenAPI en `/api/v1/docs`), no a mano en la base. Números: se cargan al inventario, se asignan a un cliente (tope `max_phone_numbers` del tier) y se rutean a un agente; después de cargar o borrar, `make livekit-sip`. |
 | "Seguí con WhatsApp" / "probá el webhook de WhatsApp" | Seguir [`docs/WHATSAPP_PLAN.md`](docs/WHATSAPP_PLAN.md): fases 0 y 1, y la 2 (Embedded Signup, 5.3, con sus pasos de deploy pendientes). Código en `app/whatsapp/`, variables `WA_*` en `.env` (diff enmascarado antes de reiniciar). |
-| "Cambiá la landing" / "probá la demo de la landing" | Seguir [`docs/LANDING.md`](docs/LANDING.md): Astro + Tailwind en `landing/` (`npm run dev`), demo por `/api/v1/demo`. Los agentes de la demo son los del cliente `landing`: editarlos por la UI o la API. |
+| "Cambiá la landing" / "probá la demo de la landing" | Seguir [`docs/LANDING.md`](docs/LANDING.md): Astro + Tailwind en `landing/` (`npm run dev`), demo por `/api/v1/demo`. Todo cambio visual o de texto sigue [`docs/DESIGN_GUIDELINE.md`](docs/DESIGN_GUIDELINE.md) (tokens, componentes, voz). Los agentes de la demo son los del cliente `landing`: editarlos por la UI o la API. |
 | "Evaluá la calidad del LLM <modelo>" / "compará modelos" | Seguir [`docs/eval/README.md`](docs/eval/README.md): `make eval-llm` (cliente simulado con `EVAL_LLM_API_KEY`, o `--cliente guion`), `make eval-llm-juez`, y registrar `docs/eval/EVAL-NNN-<slug>/`. Otro modelo local va con su override, como arriba. |
 
 ## Servicios (`docker-compose.yml`)
@@ -156,6 +156,7 @@ se mide con el test de capacidad y se registra en [`docs/capacity/`](docs/capaci
 - [`docs/CAPACITY_TEST_PLAN.md`](docs/CAPACITY_TEST_PLAN.md): diseño del test de capacidad.
 - [`docs/EVAL_LLM_PLAN.md`](docs/EVAL_LLM_PLAN.md) y [`docs/eval/`](docs/eval/README.md): eval de calidad del LLM por tipo de agente y de cliente, y registro `EVAL-NNN`.
 - [`docs/LANDING.md`](docs/LANDING.md): landing (Astro + Tailwind en `landing/`, `render.yaml`), demo por `/api/v1/demo` con su control de abuso, túnel, dominios y DNS (Render + Cloudflare).
+- [`docs/DESIGN_GUIDELINE.md`](docs/DESIGN_GUIDELINE.md): guía de diseño de la marca, con base en la landing (color y acento por vertical, tipografía, layout, componentes y patrones, estados, voz). Leerla antes de agregar o cambiar una pantalla de la landing.
 - [`docs/WHATSAPP_PLAN.md`](docs/WHATSAPP_PLAN.md): plan para WhatsApp en el mismo agente (Cloud API directo, registro del número de Anura por voz, Embedded Signup, costos de Meta). Fases 0, 1 y audios en producción; fase 2 (Embedded Signup) implementada, sin desplegar.
 - [`docs/archive/`](docs/archive/README.md): mediciones anteriores con el loadtest (EXP-001 a 013).
 - [`docs/PRODUCCION.md`](docs/PRODUCCION.md): plan de producción en este server, hallazgos, checklist y redundancia.

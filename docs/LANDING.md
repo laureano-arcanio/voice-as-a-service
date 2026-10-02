@@ -10,9 +10,12 @@ Cloudflare Tunnel. No hay backend aparte ni base nueva: costo adicional cero.
 - **Páginas:** `/` (hub: agentes de voz, producto, soluciones, voces, precios, demo) y tres
   verticales con su tema de acento: `/turnos` (verde azulado), `/cobranzas` (violeta) y
   `/municipios` (ámbar). Las verticales salen de `src/pages/[vertical].astro` con los datos de
-  `src/data/site.ts`.
+  `src/data/site.ts`. Legales (las pide Meta para WhatsApp): `/privacidad`, `/terminos` y
+  `/eliminacion-de-datos`, con el layout `Legal.astro`.
 - **Publicar:** push a la rama que sigue Render; solo los cambios en `landing/` despliegan.
-- **`og.png` y logos:** se generan en `scratch/logo/` (`build_atentina.py`, `og.html`).
+- **Diseño:** tokens, componentes, patrones y voz en [`DESIGN_GUIDELINE.md`](DESIGN_GUIDELINE.md).
+- **`og.png`, favicon y logos (`docs/brand/`):** se generan en `scratch/logo/` (`build_atentina.py`, y
+  `og.html` con Chrome headless a 1200 × 630), con los colores de la guía.
 
 ## Desarrollo
 
