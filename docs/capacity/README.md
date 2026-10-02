@@ -5,7 +5,14 @@ recurso, y cómo escala la memoria de cada parte. Se mide con el test de capacid
 [`../CAPACITY_TEST_PLAN.md`](../CAPACITY_TEST_PLAN.md), código en `scripts/capacity/`). Las
 mediciones anteriores con el loadtest (EXP-001 a 013) están en [`../archive/`](../archive/README.md).
 
-## Resultados vigentes ([CAP-002](CAP-002-5060ti-tts-3090-llm-stt-classic/), 2026-09-25)
+## Hardware vigente: 2 × 3090 ([CAP-001](CAP-001-2x3090-pl280-classic/))
+
+Desde el 2-oct-2026 el server (en camino a producción, [`../PRODUCCION.md`](../PRODUCCION.md)) corre con
+**2 × RTX 3090 a 280 W** y el reparto del compose principal: LLM solo en una, TTS + STT en la otra. Capacidad:
+~20 llamadas con p95 ≤ 2,4 s y **~32 con p95 ≤ 3 s**. La 5060 Ti (CAP-002 y CAP-004, abajo) fue una prueba.
+Pendiente: `fina` y `sostenida` con 2 × 3090 (CAP-001 solo tiene `base` y `rampa`).
+
+## Resultados de la prueba con la 5060 Ti ([CAP-002](CAP-002-5060ti-tts-3090-llm-stt-classic/), 2026-09-25)
 
 Server de validación actual (`hw_id 03dfeb24`): Ryzen 7 5700X, 64 GB, ASRock B550M Pro SE.
 - **TTS solo en una RTX 5060 Ti 8 GB** (slot del chipset, PCIe gen3 x4, 180 W).

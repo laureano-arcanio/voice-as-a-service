@@ -52,9 +52,10 @@ sumaría varias idas y vueltas por turno de llamada. La nube sirve para los back
 
 | Qué | Dónde | Estado |
 |---|---|---|
-| Topes de las 3090 en cada arranque (280 W, núcleo ≤ 1800 MHz, memoria 9501 MHz, *persistence mode*) | `deploy/gpu-limits.sh`, `deploy/systemd/atentina-gpu-limits.service` | Listo; falta `sudo deploy/install.sh` |
-| Stack en el arranque: compose sin build, túnel, trunks SIP y calentamiento del TTS | `deploy/boot.sh`, `deploy/systemd/atentina-stack.service` | Listo; se instala con lo anterior |
+| Topes de las 3090 en cada arranque (280 W, núcleo ≤ 1800 MHz, memoria 9501 MHz, *persistence mode*) | `deploy/gpu-limits.sh`, `deploy/systemd/atentina-gpu-limits.service` | **Activo** (instalado con `sudo deploy/install.sh`) |
+| Stack en el arranque: compose sin build, túnel, trunks SIP y calentamiento del TTS | `deploy/boot.sh`, `deploy/systemd/atentina-stack.service` | **Habilitado**; se prueba en el próximo reinicio |
 | Backup diario a las 03:30 de la base (`pg_dump`), `.env` y checkpoint del TTS, 30 días, a `~/atentina-backups` (otro disco que Docker) | `scripts/ops/backup.sh`, cron del usuario | **Activo.** Restauración probada en un Postgres limpio (961 conversaciones, migración 0005). Copia externa cifrada con `RCLONE_REMOTE` y `BACKUP_GPG_RECIPIENT` en `.env`: pendiente |
+| Reparto de GPU de CAP-001 (LLM solo en la GPU 0; TTS + STT en la GPU 1), sin el override de la 5060 Ti | `.env` (`COMPOSE_FILE`), `make up-inference` | **Activo.** ~4 min sin servicio al cambiarlo; TTS 0,8 s el primer pedido |
 | Chequeo cada 2 min: contenedores, app local, dashboard y webhook por el túnel, tope de las GPUs | `scripts/ops/healthcheck.sh`, cron del usuario; log en `~/atentina-ops/health.log` | **Activo.** Alertas: `ALERT_NTFY_TOPIC` (app ntfy) y vigilante externo `HEALTHCHECKS_PING_URL`: pendientes |
 
 ## 4. Qué falta para declarar producción con un server

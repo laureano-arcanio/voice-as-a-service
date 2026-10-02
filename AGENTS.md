@@ -28,9 +28,9 @@ números; API `/api/v1`, UI React en `web/` y worker de voz) está en [`README.m
 | `migrate` | Una vez antes de `app`/`agent`: `alembic upgrade head` + seed idempotente (`app/cli.py`) | build | — | — |
 | `app` | FastAPI: API `/api/v1` y la UI (`web/dist`); despacha el agente a una room de LiveKit | build | 8011 | — |
 | `agent` | Worker de LiveKit Agents (STT → LLM → TTS); sale a LiveKit Cloud | build | — | — |
-| `vllm-llm` | LLM `RedHatAI/Qwen3.5-9B-quantized.w4a16` (Qwen3.5-9B en 4 bits) | vllm/vllm-openai:latest | 127.0.0.1:8101 | 1 (3090) |
-| `stt-parakeet` | STT `nvidia/parakeet-tdt-0.6b-v3`, servidor propio (`stt/server.py`) | build | 127.0.0.1:8102 | 1 (3090) |
-| `vllm-tts` | TTS Qwen3-TTS 1.7B-Base con fine-tuning, 41 voces en un checkpoint (`multi41`) | vllm/vllm-omni:v0.28.0 (fijada) | 127.0.0.1:8103 | 0 (5060 Ti) |
+| `vllm-llm` | LLM `RedHatAI/Qwen3.5-9B-quantized.w4a16` (Qwen3.5-9B en 4 bits) | vllm/vllm-openai:latest | 127.0.0.1:8101 | 0 |
+| `stt-parakeet` | STT `nvidia/parakeet-tdt-0.6b-v3`, servidor propio (`stt/server.py`) | build | 127.0.0.1:8102 | 1 |
+| `vllm-tts` | TTS Qwen3-TTS 1.7B-Base con fine-tuning, 41 voces en un checkpoint (`multi41`) | vllm/vllm-omni:v0.28.0 (fijada) | 127.0.0.1:8103 | 1 |
 | `proxy` | Entrada pública por IP fija; nginx rutea `/llm`, `/stt` y `/tts` | nginx:alpine | 0.0.0.0:8100 (`PROXY_PORT`) | — |
 | `asterisk` | Puente SIP Anura ↔ LiveKit (`network_mode: host`) | build | — | — |
 | `tunnel` | Cloudflare Tunnel de la demo de la landing (`docker-compose.tunnel.yml`, `make up-tunnel`): `api.` → `/api/v1/demo/*`, `rtc.` → LiveKit, `wa.` → `/wa/webhook`, `app.` → todo `app` (dashboard; pendiente de crear) | cloudflare/cloudflared | — | — |
@@ -41,37 +41,35 @@ números; API `/api/v1`, UI React en `web/` y worker de voz) está en [`README.m
 
 ## Hosts
 
-- **Server de validación (este):**
-  - Hardware (desde el 25-sep-2026): Ryzen 7 5700X, 64 GB, ASRock B550M Pro SE.
-    - GPU 0: RTX 5060 Ti 8 GB, en el slot del chipset (`04:00.0`, PCIe gen3 x4).
-    - GPU 1: RTX 3090 24 GB, en el slot de la CPU (`07:00.0`, gen4 x16).
-    - Antes eran 2 × 3090 (CAP-001).
-  - La 3090 (GPU 1) también dibuja el escritorio.
-  - Corren contenedores de otros proyectos: no tocarlos.
-  - Sirve solo para validar; no es producción.
-  - **Límites de la 3090** (desde el 25-sep-2026): sin tope, dos 3090 apagaron el server por un pico de consumo durante el test de capacidad.
-    - Se aplican a mano con sudo, solo a la 3090: `nvidia-smi -i 00000000:07:00.0 -pl 280`, techo del núcleo a 1800 MHz (`-lgc 210,1800`) y memoria a 9501 MHz (`-lmc 405,9501`).
-    - La 5060 Ti va sin límite: consume como máximo 141 W.
-    - No sobreviven a un reinicio. El tope de potencia cambia el `hw_id` del test.
-    - Tras un reinicio, la inferencia queda en `Exited (128)`: `make up-inference`.
-- **Producción:** propuesta (2-oct-2026): este mismo server, con la IP fija, inferencia y base locales, y un segundo server igual con UPS con el primer cliente. Plan, hallazgos y checklist en [`docs/PRODUCCION.md`](docs/PRODUCCION.md).
+- **Este server, en camino a producción** (2-oct-2026, [`docs/PRODUCCION.md`](docs/PRODUCCION.md)): IP fija, inferencia y base locales.
+  - Hardware: Ryzen 7 5700X, 64 GB, ASRock B550M Pro SE, **2 × RTX 3090 24 GB**.
+    - GPU 0: `04:00.0`, slot del chipset, PCIe gen3 x4.
+    - GPU 1: `07:00.0`, slot de la CPU, gen4 x16. También dibuja el escritorio.
+    - La 5060 Ti (CAP-002, CAP-004) fue una prueba: no se usa.
+  - Corren contenedores de otros proyectos (Dify, sim-poc): no tocarlos; sacarlos del host es un pendiente de producción.
+  - **Límites de las 3090:** sin tope, dos 3090 apagaron el server por un pico de consumo (25-sep-2026).
+    - 280 W, núcleo ≤ 1800 MHz y memoria 9501 MHz, en cada arranque, por `atentina-gpu-limits.service` (`deploy/gpu-limits.sh`, instalado el 2-oct-2026). El chequeo de `scripts/ops/healthcheck.sh` avisa si faltan.
+    - El tope de potencia cambia el `hw_id` del test de capacidad.
+  - **Arranque:** `atentina-stack.service` (`deploy/boot.sh`) levanta el compose sin build, el túnel y los trunks SIP, y calienta el TTS.
+  - **Backup** diario (03:30) y **chequeo** cada 2 min, por cron del usuario (`scripts/ops/`). Logs en `~/atentina-ops/`, backups en `~/atentina-backups/`.
 
-## Reparto de GPU vigente (CAP-002)
+## Reparto de GPU vigente (CAP-001, desde el 2-oct-2026)
 
-Override `docker-compose.gpu-5060.yml`, sumado a `COMPOSE_FILE` en `.env`. Sin el override, el compose principal tiene el reparto de 2 × 3090 (EXP-013, CAP-001).
+Compose principal, sin override (`COMPOSE_FILE=docker-compose.yml:docker-compose.livekit.yml`). Los valores de capacidad de la 5060 Ti quedaron comentados en `.env`.
 
 | GPU | Servicios | Memoria |
 |---|---|---|
-| 0: 5060 Ti 8 GB | `vllm-tts` solo | Etapa 0 (talker) 0.58, largo máx. 2048, batches de 512; etapa 1 (Code2Wav) 0.36 sin CUDA graphs. Usa 7,66 de 8,15 GB |
-| 1: 3090 24 GB | `vllm-llm` + `stt-parakeet` + escritorio | 0.70 (KV 4,8 GiB) + ~1,6 GB + ~0,5 GB (~18 GB usados) |
+| 0: 3090 | `vllm-llm` solo | 0.90, 128 secuencias (~21 GB usados) |
+| 1: 3090 | `vllm-tts` + `stt-parakeet` + escritorio | TTS 0.4 (talker ~9,6 GB + Code2Wav ~3,5 GB), 128 por etapa; STT ~1,6 GB (~15,7 GB usados) |
 
-- **Topes de concurrencia:** LLM 64 secuencias (con 0.70 no arranca con 128); TTS 32 síntesis en el talker y 16 en Code2Wav.
-- **Motor por defecto:** `classic` (`WORKFLOW_ID=demo_booking_classic`: agente del cliente `interno` que atiende `ANURA_DID` y usa el loadtest).
-- **Capacidad medida** ([CAP-002](docs/capacity/CAP-002-5060ti-tts-3090-llm-stt-classic/)):
-  - ~22 llamadas con espera del cliente p95 ≤ 2,8 s (codo); ~32 con p95 ~3,4 s;
-  - desde ~22 se satura la 5060 Ti (TTS), y desde ~55 la CPU del host (agente).
-  - Con ~110 llamadas el talker del TTS se cayó y no se recupera solo: recrear `vllm-tts` y calentarlo.
-  - Con 2 × 3090 (CAP-001): ~20 y ~32 con p95 ≤ 3 s.
+- **Motor por defecto:** `classic` (`WORKFLOW_ID=demo_booking_classic`).
+- **Capacidad medida** ([CAP-001](docs/capacity/CAP-001-2x3090-pl280-classic/), con los topes):
+  - ~20 llamadas con p95 ≤ 2,4 s y **~32 con p95 ≤ 3 s** (codo); con ~32 se saturan las dos GPUs.
+  - Con 64, además la CPU del host (agente, ~0,12 cores por llamada), y el servicio colapsa.
+  - Potencia de las dos GPUs: 559 W de pico.
+- **TTS en la 3090:** el primer pedido después de arrancar tardó 0,8 s (en la 5060 Ti, más de 20 s).
+- Con sobrecarga (~110 llamadas, CAP-002) el talker del TTS se cayó y no se recupera solo: recrear `vllm-tts` y calentarlo.
+- **Override de la 5060 Ti** (`docker-compose.gpu-5060.yml`): para repetir la prueba; ver CAP-002 y CAP-004.
 
 El TTS sirve el checkpoint fine-tuneado de `TTS_FT_CKPT` (default `multi41`, lr 2e-6, época 2)
 con el nombre `qwen3-tts-ft`. Tiene 41 voces de OpenSLR 61 (28 mujeres, 13 hombres) con nombres
@@ -88,9 +86,7 @@ Ver [`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md).
 ## Reglas y trampas
 
 - **TTS no comparte GPU con el LLM ni con otra réplica** (EXP-001 a 004). Con el STT Parakeet sí se probó: hasta ~48 llamadas el STT no se resiente, y con 64 sube a ~0,5–0,6 s (EXP-013). Escalar TTS es sumar GPUs.
-- **TTS en la 5060 Ti:**
-  - El primer pedido después de arrancarlo tarda más de 20 s, probablemente por la compilación de kernels para Blackwell. Sin calentarlo, la primera llamada no recibe el saludo.
-  - En 8 GB entra justo; cambiar sus fracciones de memoria rompe el arranque. Ver `docker-compose.gpu-5060.yml` y CAP-002.
+- **TTS en la 5060 Ti (prueba, no vigente):** el primer pedido tarda más de 20 s (kernels de Blackwell) y en 8 GB entra justo; cambiar sus fracciones rompe el arranque. Ver `docker-compose.gpu-5060.yml` y CAP-002.
 - **`--gpu-memory-utilization`** es una fracción de la memoria **total** de la GPU. Los que comparten GPU tienen que sumar menos de ~0.95, descontando el escritorio.
 - **Arranque de servicios que comparten GPU:** no pueden arrancar a la vez, porque compiten por la memoria libre. Por eso `depends_on` los encadena: `stt-parakeet` espera a `vllm-llm` con el override de la 5060 Ti, y a `vllm-tts` en el compose principal.
 - **Servicios descartados (sep-2026):** Qwen3-ASR (`vllm-stt`), Whisper Turbo, CosyVoice 3 y la segunda réplica de TTS salieron del compose; quedan en el historial de git y en `docs/archive/experiments/`. Para probar uno de nuevo, override `docker-compose.<nombre>.yml`.
@@ -108,7 +104,7 @@ Ver [`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md).
 - **LiveKit propio (desarrollo):** con `COMPOSE_FILE` en `.env`, todos los targets usan `docker-compose.livekit.yml`. Las `LIVEKIT_*` de `.env` son las de este host; las de Cloud quedan en `LIVEKIT_CLOUD_*`. Ver `docs/TELEFONIA_ANURA.md`, sección 7.
   - Su Redis no persiste: cada reinicio del host borra los trunks SIP y la dispatch rule, y las entrantes vuelven con 486 `flood` en `livekit-sip` (26-sep-2026). Por eso `make up` termina con `make livekit-sip` cuando el LiveKit es propio. Si se levantó de otra forma, correrlo a mano.
   - `LIVEKIT_SIP_TRUNK_ID` va vacío con LiveKit propio: el ID del trunk saliente cambia cada vez y el agente lo busca por nombre (`anura-asterisk-outbound`).
-- **Capacidad por motor en `.env`:** `VLLM_LLM_MAX_NUM_SEQS` (también fija el tamaño de CUDA graph), `VLLM_LLM_GPU_MEMORY_UTILIZATION`, `STT_MAX_BATCH`, `STT_MAX_BATCH_SECONDS`, `VLLM_TTS_GPU_MEMORY_UTILIZATION` y `VLLM_TTS_MAX_NUM_SEQS` (las dos etapas, por `--stage-overrides`). Los defaults del compose son el reparto de 2 × 3090 (EXP-013, CAP-001); con la 5060 Ti, `.env` tiene LLM 0.70 y 64 secuencias. Se aplican con `make up-inference`.
+- **Capacidad por motor en `.env`:** `VLLM_LLM_MAX_NUM_SEQS` (también fija el tamaño de CUDA graph), `VLLM_LLM_GPU_MEMORY_UTILIZATION`, `STT_MAX_BATCH`, `STT_MAX_BATCH_SECONDS`, `VLLM_TTS_GPU_MEMORY_UTILIZATION` y `VLLM_TTS_MAX_NUM_SEQS` (las dos etapas, por `--stage-overrides`). Los defaults del compose son el reparto de 2 × 3090 (CAP-001), el vigente; los valores de la 5060 Ti quedaron comentados en `.env`. Se aplican con `make up-inference` (parando antes los tres: el LLM nuevo no entra en la GPU 0 si el TTS viejo sigue ahí).
 - **Base y agentes:** el esquema lo manejan las migraciones (`migrations/`, `make migrate`), no `create_all`. Los agentes viven en la base, versionados (cada cambio es una versión nueva; la conversación guarda la suya); `app/agents/templates/*.json` son las plantillas (seed, eval, tests). Editar una plantilla no cambia los agentes ya creados.
 - **Límites por tier:** admisión con lock de fila del cliente (`services/quota.py`); una llamada activa de hace más de `CALL_MAX_DURATION_SECONDS` + 10 min se considera colgada y no ocupa lugar. El loadtest y la de prueba ocupan lugar pero no consumen minutos: el cliente `interno` no tiene límites.
 - **Auth:** `AUTH_SECRET` es obligatoria (sin ella `app` no arranca). La UI usa cookie de sesión; scripts y sistemas, API keys (`Authorization: Bearer vaas_...`).
