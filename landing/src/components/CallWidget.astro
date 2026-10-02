@@ -6,9 +6,13 @@ import Icon from "./Icon.astro";
 interface Props {
   agents: DemoAgent[];
   title?: string;
+  /** Link a WhatsApp debajo de la llamada (la home: el mismo agente atiende por los dos). */
+  whatsapp?: string;
+  /** Link a los otros agentes de la página. */
+  others?: string;
 }
 
-const { agents: list, title = "Hacé una demo ahora" } = Astro.props;
+const { agents: list, title = "Hacé una demo ahora", whatsapp, others } = Astro.props;
 const panel = "hidden flex-col gap-3 p-3.5";
 ---
 
@@ -41,6 +45,8 @@ const panel = "hidden flex-col gap-3 p-3.5";
               name="agente"
               value={agent.slug}
               data-title={agent.title}
+              data-tel={agent.phone?.e164}
+              data-tel-display={agent.phone?.display}
               checked={i === 0}
             />
             <span class="grid size-8 place-items-center rounded-[9px] bg-surface-2 text-ink group-has-checked/agent:bg-accent group-has-checked/agent:text-accent-ink">
@@ -61,6 +67,21 @@ const panel = "hidden flex-col gap-3 p-3.5";
       <p class="min-h-[1.3em] text-center text-[.82rem] text-muted data-[warn]:font-medium data-[warn]:text-warn" data-note>
         Hablás desde el navegador, con el micrófono. O <a href="#" data-open-tel><strong>llamá gratis</strong></a>.
       </p>
+      {
+        whatsapp && (
+          <Button href={whatsapp} variant="whatsapp" target="_blank" rel="noopener">
+            <Icon name="whatsapp" class="size-5" />
+            Escribile por WhatsApp
+          </Button>
+        )
+      }
+      {
+        others && (
+          <a class="justify-self-center text-[.9rem] font-semibold text-accent no-underline hover:text-accent-2" href={others}>
+            Hablá con otros agentes →
+          </a>
+        )
+      }
     </div>
   </form>
 

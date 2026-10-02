@@ -101,7 +101,7 @@ class Settings(BaseSettings):
     demo_client: str = "atentina"
     # Unicos agentes (slugs) que se pueden llamar desde la landing, y su tope de llamadas activas
     # entre todos (el tier de Atentina no tiene limites). El cupo diario cuenta solo sus llamadas.
-    demo_agents: str = "turnos,cobranzas,reclamos"
+    demo_agents: str = "atentina_comercial,turnos,cobranzas,reclamos"
     demo_max_concurrent_calls: int = 3
     demo_livekit_url: str = ""
     demo_session_minutes: int = 30

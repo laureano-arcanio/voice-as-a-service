@@ -9,7 +9,7 @@ import Section from "../components/Section.astro";
 import Solutions from "../components/Solutions.astro";
 import TelDialog from "../components/TelDialog.astro";
 import Voices from "../components/Voices.astro";
-import { agents } from "../data/site";
+import { atentinaAgent, whatsappUrl } from "../data/site";
 import Base from "../layouts/Base.astro";
 
 const features = [
@@ -45,7 +45,7 @@ const features = [
           <b class="font-bold text-accent">Un solo servicio que integra todo lo que necesitas</b>; Telefonia, voces e inteligencia artificial incluida. Lo contratás y empieza a atender.
         </p>
       </div>
-      <CallWidget agents={agents} />
+      <CallWidget agents={[atentinaAgent]} whatsapp={whatsappUrl} others="#soluciones" />
     </div>
   </header>
 

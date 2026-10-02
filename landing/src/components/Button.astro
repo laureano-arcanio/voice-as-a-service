@@ -7,7 +7,7 @@ type Props = Omit<HTMLAttributes<"button">, "type"> & {
   target?: "_blank" | "_self";
   rel?: string;
   type?: "button" | "submit";
-  variant?: "primary" | "ghost" | "light";
+  variant?: "primary" | "ghost" | "light" | "whatsapp";
   size?: "md" | "sm";
 };
 
@@ -16,6 +16,7 @@ const variants = {
   primary: "border-transparent bg-accent text-accent-ink hover:bg-accent-2",
   ghost: "border-line-2 bg-transparent text-ink hover:border-ink",
   light: "border-transparent bg-white text-[#111] hover:bg-[#e9eefa]",
+  whatsapp: "border-transparent bg-wa text-white hover:bg-wa-2",
 };
 const sizes = { md: "px-[22px] py-3", sm: "px-[18px] py-2.5" };
 const classes = [

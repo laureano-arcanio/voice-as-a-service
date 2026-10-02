@@ -56,6 +56,7 @@ No escribir hex en componentes ni usar la paleta por defecto de Tailwind (`blue-
 | `accent-on-dark` | `#9db6ff` | Acento sobre fondo `ink` |
 | `ok` / `ok-soft` | `#1b9c5b` / `#e3f6ec` | Resultado logrado, disponible, checks de los planes |
 | `warn` / `warn-soft` | `#b42318` / `#fef3f2` | Errores y acción destructiva (cortar) |
+| `wa` / `wa-2` | `#13843f` / `#0f6b33` | Botón de WhatsApp y su hover (verde más oscuro que el de la marca de WhatsApp: blanco encima da 4,8:1) |
 | `cta-ink` / `cta-muted` | `#f4f6fa` / `#b8c2d6` | Texto principal y secundario sobre fondo `ink` |
 
 **Acento por vertical.** Cada vertical cambia solo las cuatro variables del acento con `data-theme`
@@ -142,7 +143,7 @@ Usar el componente; no copiar sus clases a mano.
 
 | Componente | Para qué |
 |---|---|
-| `Button` | Toda acción. `primary` (una por bloque), `ghost` (secundaria), `light` (sobre fondo `ink`). Tamaños `md` y `sm` (nav). Con `href` es un link. |
+| `Button` | Toda acción. `primary` (una por bloque), `ghost` (secundaria), `light` (sobre fondo `ink`), `whatsapp` (verde `wa` con el logo, solo para abrir el chat). Tamaños `md` y `sm` (nav). Con `href` es un link. |
 | `Section` | Toda sección de página. |
 | `Icon` | Íconos (sección 9). |
 | `CheckList` | Lista de características: check en círculo `accent-soft`, título en semibold y texto en `muted`. |

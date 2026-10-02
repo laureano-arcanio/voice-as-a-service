@@ -37,24 +37,29 @@ export function initTelDialog() {
   const agent = dialog.querySelector<HTMLElement>("[data-tel-agent]")!;
   const qrBox = dialog.querySelector<HTMLElement>("[data-tel-qr]")!;
   const qr = dialog.querySelector<HTMLElement>("[data-qr]")!;
-  number.textContent = TEL;
-  number.href = `tel:${TEL_E164}`;
+  let drawn = "";
 
-  async function drawQr() {
+  function setNumber(e164: string, display: string) {
+    number.textContent = display;
+    number.href = `tel:${e164}`;
+  }
+
+  async function drawQr(e164: string) {
     try {
       await loadQr();
     } catch {
       return;
     }
-    if (!window.qrcode || qr.childElementCount) {
-      qrBox.hidden = !qr.childElementCount;
+    if (!window.qrcode || drawn === e164) {
+      qrBox.hidden = drawn !== e164;
       return;
     }
     const code = window.qrcode(0, "M");
-    code.addData(`tel:${TEL_E164}`);
+    code.addData(`tel:${e164}`);
     code.make();
     qr.innerHTML = code.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
     qr.firstElementChild?.classList.add("block", "size-full");
+    drawn = e164;
     qrBox.hidden = false;
   }
 
@@ -65,9 +70,11 @@ export function initTelDialog() {
     const widget = link.closest("[data-call]");
     const checked = widget?.querySelector<HTMLInputElement>("input[name=agente]:checked");
     agent.textContent = checked?.dataset.title ?? "Recepción y turnos";
+    const e164 = checked?.dataset.tel ?? TEL_E164;
+    setNumber(e164, checked?.dataset.telDisplay ?? TEL);
     const phone = window.matchMedia("(pointer: coarse)").matches && window.innerWidth < 900;
     if (phone) qrBox.hidden = true;
-    else void drawQr();
+    else void drawQr(e164);
     dialog.showModal();
   });
 }

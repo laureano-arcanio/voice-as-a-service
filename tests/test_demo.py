@@ -24,6 +24,8 @@ from app.services import demo, tts
 
 V1 = "/api/v1/demo"
 ORIGIN = "https://atentina.com.ar"
+# Agente de Atentina que no está en DEMO_AGENTS (atentina_comercial sí: es el de la home).
+OTHER_AGENT = "demo_booking_classic"
 
 
 @pytest.fixture
@@ -175,10 +177,10 @@ def other_agent_call(api, mode=CallMode.prueba, status=CallStatus.en_curso, dura
     """Llamada de un agente de Atentina que no es de la demo (mismo cliente)."""
     with api.sessions() as s:
         client = s.query(Client).filter_by(slug=settings.demo_client).one()
-        agent = s.query(Agent).filter_by(client_id=client.id, slug="atentina_comercial").one_or_none()
+        agent = s.query(Agent).filter_by(client_id=client.id, slug=OTHER_AGENT).one_or_none()
         if agent is None:
-            agent = agent_service.create_agent(s, client, name="atentina_comercial", slug="atentina_comercial",
-                                               description="", definition=reference_data("atentina_comercial"), template_id=None,
+            agent = agent_service.create_agent(s, client, name=OTHER_AGENT, slug=OTHER_AGENT,
+                                               description="", definition=reference_data(OTHER_AGENT), template_id=None,
                                                user_id=None)
         conv = ConversationRow(id=str(uuid.uuid4()), client_id=client.id, agent_id=agent.id, agent_version=1,
                                status="active", fields={}, messages=[])
@@ -200,7 +202,7 @@ def test_concurrency_of_demo_agents(landing):
 
 def test_only_demo_agents_can_be_called(landing):
     other_agent_call(landing, status=CallStatus.finalizada)
-    r = call(landing, session(landing), agent="atentina_comercial")
+    r = call(landing, session(landing), agent=OTHER_AGENT)
     assert r.status_code == 404
 
 

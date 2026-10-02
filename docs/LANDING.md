@@ -63,10 +63,13 @@ canjea el token por una sesión corta.
 4. Al cortar (el visitante, el agente al terminar o el tope de duración), la página consulta el
    resultado cada 1 s hasta que la llamada queda finalizada, y muestra el resultado y los datos.
 
-Los agentes son `turnos`, `cobranzas` y `reclamos` del cliente `atentina` (nosotros, el mismo del
+La home ofrece solo `atentina_comercial`, el agente que atiende la línea y el WhatsApp de Atentina, con un
+botón a WhatsApp y un link a las verticales ("Hablá con otros agentes"); el "llamá gratis" de la home
+muestra esa línea (`phone` del agente en `site.ts`). Las verticales usan `turnos`, `cobranzas` y `reclamos`.
+Todos son del cliente `atentina` (nosotros, el mismo del
 WhatsApp y el número propios; hasta el 2-oct-2026 había un cliente `landing` aparte). Solo esos se
 pueden llamar desde la landing (`DEMO_AGENTS`): el resto de los agentes de Atentina da 404. El seed
-los crea desde los agentes de referencia `app/agents/reference/landing_*.json`; después se editan como
+crea los de las verticales desde `app/agents/reference/landing_*.json` y `atentina_comercial` desde el suyo; después se editan como
 cualquier agente (UI o API), con versión nueva en cada cambio.
 
 ## Formulario de contacto

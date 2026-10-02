@@ -1,11 +1,26 @@
-export type IconName = "calendar" | "money" | "chat";
+export type IconName = "calendar" | "money" | "chat" | "headset";
 
 export interface DemoAgent {
   slug: string;
   title: string;
   summary: string;
   icon: IconName;
+  /** Línea real que atiende este agente ("llamá gratis"); sin ella, la genérica del diálogo. */
+  phone?: { e164: string; display: string };
 }
+
+// Línea de Atentina (Anura): la atiende el agente comercial por llamada y por WhatsApp.
+export const contactPhone = { e164: "+543517002592", display: "351 700-2592" };
+export const whatsappUrl = `https://wa.me/5493517002592?text=${encodeURIComponent("Hola Atentina, quiero saber más")}`;
+
+// El de la home: el mismo agente que atiende la línea y el WhatsApp de Atentina.
+export const atentinaAgent: DemoAgent = {
+  slug: "atentina_comercial",
+  title: "Asesora de Atentina",
+  summary: "Te cuenta cómo funciona y qué plan te conviene",
+  icon: "headset",
+  phone: contactPhone,
+};
 
 export const agents: DemoAgent[] = [
   {
@@ -290,6 +305,3 @@ export const defaultVoiceLine = {
 
 export const contactEmail = "hola@atentina.com.ar";
 
-// Línea de Atentina (Anura): la atiende el agente comercial por llamada y por WhatsApp.
-export const contactPhone = { e164: "+543517002592", display: "351 700-2592" };
-export const whatsappUrl = `https://wa.me/5493517002592?text=${encodeURIComponent("Hola Atentina, quiero saber más")}`;
