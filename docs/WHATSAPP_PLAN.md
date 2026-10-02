@@ -62,8 +62,8 @@ si el cliente manda tres mensajes seguidos en 2 s, se juntan en un turno (el equ
   la campaña mínima de la sección 4 del plan de mercado, por texto.
 
 **Fin de conversación.** El `[FIN]` del motor clásico corta la llamada; por WhatsApp solo marca
-`completed` y dispara la extracción, como ahora. Un mensaje nuevo después de completada, o tras N
-horas sin actividad (configurable, sugerido 24 h), abre otra conversación con el mismo workflow. La
+`completed` y dispara la extracción, como ahora. El chat sigue en la misma conversación (con el
+historial) mientras haya mensajes dentro de las 24 h; tras 24 h sin actividad, el siguiente abre otra. La
 derivación a humano queda como resultado del workflow (`outcome` con `handoff: true`): la app deja de
 responder en esa conversación y avisa (webhook del cliente o email).
 
@@ -340,9 +340,10 @@ FakeLLM y payloads con la forma de Meta en `tests/fixtures/wa/`.
   envío fallido (ej. 131047, fuera de las 24 h) se guarda y no se reintenta.
 - **No texto** (imagen, video, documento...): `WA_UNSUPPORTED_REPLY`, una vez por ventana, sin LLM. Los
   audios se transcriben desde 5.2.
-- **Fin:** `completed` del motor cierra la conversación; el mensaje siguiente, o uno después de
-  `WA_SESSION_HOURS` (24) sin actividad, abre otra con el mismo agente. La vencida queda `active`
-  ("Incompleto"), igual que una llamada que se corta antes de terminar.
+- **Fin:** `completed` del motor marca la conversación y calcula el resultado, pero un mensaje dentro de
+  `WA_SESSION_HOURS` (24) la retoma con el historial (2-oct-2026: un "sí" después del cierre abría otra y
+  el agente saludaba de cero). Después de 24 h sin actividad, o con el tope de turnos, abre otra con el
+  mismo agente. La vencida queda como estaba: `completed`, o `active` ("Incompleto") si no terminó.
 - **Reglas por canal:** el canal sale de la conversación (`conversations.channel`); con `whatsapp` el
   prompt pide texto escrito (cifras, emails como dirección, ~300 caracteres, solo `*negrita*`) y pisa
   las reglas de voz de la definición. No hace falta un `demo_booking_wa`.
@@ -480,6 +481,23 @@ días"**: la creación manual solo ofrece la variante General, sin "Registro ins
 hasta que aprueben la verificación de acceso). Con ese token, cada cliente queda desconectado a los 60 días
 (190 → "Desconectado", se reconecta con el botón). Pendiente: recrear la configuración sin vencimiento cuando
 aparezca la variante, o renovar el token. Sin App Review, solo personas con rol en la app pueden completar el alta.
+
+**Prueba del 2-oct-2026 por `https://app.atentina.com.ar`:** el popup de Meta abre (SDK, `config_id`, dominio y
+CSP bien) y responde "Atentina no puede registrar clientes en este momento": sin la verificación de acceso
+(Tech Provider) aprobada, Embedded Signup no deja completar el alta, ni a personas con rol en la app. Se
+retoma cuando Meta la apruebe.
+
+**Número propio de Atentina (2-oct-2026):** el DID de Anura +54 351 700-2592 quedó en WhatsApp como
+"Atentina" (`phone_number_id` 1320624701139500, WABA 1106296902266123, sin revisión de nombre, TIER_250).
+- Agregarlo por API a la WABA de prueba dio `2388386 Phone Numbers Count Exceeded Limit Per Business`; el
+  asistente "Agregar número de teléfono" de developers.facebook.com lo creó en una WABA nueva.
+- **Verificación por llamada de voz probada (3.1):** la llamada de Meta entró por Anura → Asterisk → LiveKit y
+  la atendió el agente; el STT transcribió "uno, dos, uno … dos, ocho, nueve" en dos fragmentos (con un "tres"
+  espurio) y el código 121289 fue correcto. Meta lo muestra como +54 **9** 351…, aunque es un fijo.
+- Después: asignar la WABA nueva al system user (lo hace el usuario: dar permisos está bloqueado para el
+  agente), `subscribed_apps`, `register` con `WA_REGISTRATION_PIN` y `make wa-account` → `interno/atentina_comercial`.
+- Lo atiende el agente `atentina_comercial` (plantilla en `app/agents/templates/`), por WhatsApp y por llamada.
+- Pendiente: medio de pago en la WABA nueva (Meta avisa "Payment method missing").
 
 **Para desplegar (todo pendiente):**
 

@@ -264,9 +264,24 @@ async def test_status_before_send_and_failed(sessions):
     assert row.status == "failed" and row.error["code"] == 131047 and row.error["message"]
 
 
-async def test_completed_conversation_then_new_one(sessions):
+async def test_completed_conversation_continues_in_the_session(sessions):
+    # Por WhatsApp el chat sigue despues del cierre: el siguiente mensaje retoma la misma
+    # conversacion con el historial (2-oct-2026: un "si" despues de un cierre abria otra y el
+    # agente saludaba de cero).
+    w = make_wa(sessions, llm=FakeLLM(reply("Listo, ¿te mando el link?", status="completed"), reply("Ahí va.")))
+    await send(w, text_payload("no quiero reunion", "wamid.1"))
+    await send(w, text_payload("si", "wamid.2"))
+    (conv,) = conversations(sessions)
+    assert [m["text"] for m in conv.messages] == ["no quiero reunion", "Listo, ¿te mando el link?", "si", "Ahí va."]
+
+
+async def test_completed_conversation_then_new_one_after_the_session(sessions):
     w = make_wa(sessions, llm=FakeLLM(reply("Listo, te esperamos. ¡Chau!", status="completed"), reply("¡Hola de nuevo!")))
     await send(w, text_payload("confirmo", "wamid.1"))
+    with sessions() as s:
+        thread = s.scalar(select(WaThread))
+        thread.last_user_at -= datetime.timedelta(hours=25)
+        s.commit()
     await send(w, text_payload("otra cosa", "wamid.2"))
     first, second = conversations(sessions)
     assert first.status == "completed" and second.status == "active"

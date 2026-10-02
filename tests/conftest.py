@@ -8,6 +8,8 @@ os.environ["AUTH_COOKIE_SECURE"] = "false"
 os.environ["TURNSTILE_SECRET_KEY"] = ""
 # El default `gateway` depende de donde corren (contenedor o host): fijo el de compose.
 os.environ["TRUSTED_PROXY_CIDRS"] = "127.0.0.1/32,::1/128,172.24.0.1/32"
+# La CSP del .env local puede estar en Report-Only (primer deploy): los tests prueban la que bloquea.
+os.environ["CSP_REPORT_ONLY"] = "false"
 
 import pytest
 

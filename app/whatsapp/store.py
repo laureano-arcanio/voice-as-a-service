@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..db import utcnow
-from ..models import Agent, Client, ConversationRow, WaAccount, WaMessage, WaThread
+from ..models import Agent, Client, WaAccount, WaMessage, WaThread
 from ..services.errors import Conflict, Invalid, NotFound
 from . import crypto
 
@@ -120,13 +120,15 @@ def pin_for(account: WaAccount) -> str | None:
 
 def active_thread(s: Session, account_id: str, wa_id: str, now: datetime.datetime,
                   session_hours: float) -> WaThread | None:
-    """La conversacion en curso con este contacto: la ultima, activa, no pausada y con
-    un mensaje del cliente dentro de las ultimas session_hours."""
+    """La conversacion en curso con este contacto: la ultima, no pausada y con un mensaje
+    del cliente dentro de las ultimas session_hours. Aunque el agente la haya dado por
+    completada: por WhatsApp el chat sigue (un "si" despues del cierre no es otra
+    conversacion), asi que se retoma con el historial. Corta por inactividad o por tope."""
     since = now - datetime.timedelta(hours=session_hours)
     return s.scalar(
-        select(WaThread).join(ConversationRow, ConversationRow.id == WaThread.conversation_id)
+        select(WaThread)
         .where(WaThread.account_id == account_id, WaThread.wa_id == wa_id,
-               ConversationRow.status == "active", WaThread.paused.is_(False), WaThread.last_user_at >= since)
+               WaThread.paused.is_(False), WaThread.last_user_at >= since)
         .order_by(WaThread.created_at.desc()).limit(1))
 
 
