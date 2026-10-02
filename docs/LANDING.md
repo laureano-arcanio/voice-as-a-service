@@ -54,6 +54,7 @@ canjea el token por una sesión corta.
 | `POST /api/v1/demo/calls` | sesión | `{agent, voice?}`: llamada `prueba` con un agente del cliente `DEMO_CLIENT`. Devuelve `livekit_url`, el token del participante y un `result_token`. |
 | `GET /api/v1/demo/calls/{id}` | `result_token` | Estado, resultado (`outcome`), datos extraídos con su `label` y transcripción. |
 | `POST /api/v1/demo/tts` | sesión | `{voice, text}`: WAV del TTS, hasta `DEMO_TTS_MAX_CHARS` (300). |
+| `POST /api/v1/demo/contact` | sesión | Formulario de contacto (ver abajo). 204. |
 
 1. Al tocar "Iniciar llamada", la página pide el micrófono, abre la sesión y crea la llamada.
 2. Se conecta a LiveKit (`wss://rtc.atentina.com.ar`) y publica el micrófono. El worker atiende
@@ -66,6 +67,22 @@ Los agentes son los del cliente `landing` (slugs `turnos`, `cobranzas`, `reclamo
 crea desde las plantillas `app/agents/templates/landing_*.json`; después se editan como cualquier
 agente (UI o API), con versión nueva en cada cambio.
 
+## Formulario de contacto
+
+El `Cta` de cada página lleva un formulario (nombre, empresa, email o teléfono, mensaje) que manda
+`POST /api/v1/demo/contact` con la misma sesión de Turnstile que la demo. Código:
+`app/services/contact.py`, `landing/src/scripts/contact.ts`.
+
+1. Guarda el pedido en `contact_requests` (migración 0006), con la página y la IP.
+2. Avisa por mail con Resend a `CONTACT_TO` (`larcanio@gmail.com`), desde `CONTACT_FROM`, con
+   `Reply-To` del interesado: se responde directo desde Gmail.
+3. Si Resend falla, el pedido queda igual (`email_status=failed` y `email_error`); sin
+   `RESEND_API_KEY`, `disabled`. Pedidos que no llegaron por mail:
+   `SELECT * FROM contact_requests WHERE email_status <> 'sent' ORDER BY created_at DESC;`
+
+- Límite por IP: `CONTACT_IP_PER_HOUR` (3) y `CONTACT_IP_PER_DAY` (10).
+- Trampa para bots: el campo oculto `website`. Con valor, responde 204 sin guardar.
+
 ## Control de abuso
 
 | Capa | Límite | Dónde |
@@ -73,6 +90,7 @@ agente (UI o API), con versión nueva en cada cambio.
 | Captcha | Turnstile invisible (`interaction-only`), una vez por sesión | `POST /demo/sessions` |
 | Sesiones por IP | `DEMO_IP_SESSIONS_PER_HOUR` (20) | memoria del proceso |
 | Llamadas por IP | `DEMO_IP_CALLS_PER_HOUR` (4) y `DEMO_IP_CALLS_PER_DAY` (10) | memoria del proceso |
+| Contactos por IP | `CONTACT_IP_PER_HOUR` (3) y `CONTACT_IP_PER_DAY` (10) | memoria del proceso |
 | Síntesis por IP | `DEMO_IP_TTS_PER_HOUR` (30); caché de las últimas 32 frases | memoria del proceso |
 | Simultáneas | `max_concurrent_calls` del tier `Landing` (3) | `quota.admit`, con lock |
 | Minutos por día | `DEMO_DAILY_MINUTES` (120) entre todas las llamadas | base (`call_logs`) |
@@ -169,9 +187,21 @@ El túnel no lleva UDP: el audio va directo a la IP fija. LiveKit anuncia la IP 
    y `TURNSTILE_SECRET_KEY`. Aplicar sin tocar la inferencia: `make up-agent` (build de `app` y
    `agent`, migración y seed), `docker compose up -d livekit` y `make livekit-sip` (LiveKit pierde
    los trunks SIP al recrearse). Corta las llamadas en curso.
-8. **Correo:** la landing publica `hola@atentina.com.ar`. Cloudflare Email Routing (gratis) en
-   `atentina.com.ar` lo reenvía a una casilla existente.
-9. **Google Search Console:** propiedad de dominio `atentina.com.ar` (TXT en Cloudflare) y enviar
+8. **Correo entrante:** la landing publica `hola@atentina.com.ar`. Cloudflare → `atentina.com.ar`
+   → Email → Email Routing → Enable (crea los MX y el SPF; el dominio no tenía, 2-oct-2026).
+   Destination addresses: `larcanio@gmail.com`. Routing rules: `hola@` → ese destino (destino y
+   regla creados por API el 2-oct-2026), y el catch-all si se quiere todo el dominio. No pasa por
+   el server. Activarlo por API pide un token con Zone Settings → Edit, además de Email Routing.
+9. **Correo saliente (Resend):** dominio `atentina.com.ar` en Resend, región São Paulo
+   (`sa-east-1`), verificado el 2-oct-2026. Se dio de alta por la API de Resend y sus 4 registros se
+   cargaron por la API de Cloudflare, en "solo DNS": TXT `resend._domainkey` (DKIM), MX y TXT de
+   `send` (rebotes y SPF; no chocan con los MX de Email Routing) y CNAME `rsend`. En `.env`, una key
+   de solo envío (`RESEND_API_KEY`) y `CONTACT_TO=larcanio@gmail.com`. Aplicar con `make up-agent`
+   (migra la base).
+   - **Responder como `hola@` desde Gmail:** Configuración → Cuentas → Enviar como → agregar
+     `hola@atentina.com.ar`, SMTP `smtp.resend.com`, puerto 465 (SSL), usuario `resend`, clave:
+     una API key de Resend. Gmail manda el código de confirmación a `hola@`, que llega por el paso 8.
+10. **Google Search Console:** propiedad de dominio `atentina.com.ar` (TXT en Cloudflare) y enviar
    `https://atentina.com.ar/sitemap.xml`.
 
 ## Pendiente

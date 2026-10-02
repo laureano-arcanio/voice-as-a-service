@@ -1,15 +1,17 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from ...services import contact
 from ...services import demo as service
 from ..deps import DB, Definitions, Engine, client_ip
 from ..schemas import (
     DemoCallIn,
     DemoCallOut,
     DemoCallResult,
+    DemoContactIn,
     DemoSessionIn,
     DemoSessionOut,
     DemoTtsIn,
@@ -52,3 +54,14 @@ def call_result(conversation_id: str, creds: Bearer, db: DB, definitions: Defini
 async def synthesize(body: DemoTtsIn, request: Request, _: DemoSession):
     stream = await service.synthesize(body.voice, body.text, client_ip(request))
     return StreamingResponse(stream, media_type="audio/wav", headers={"Cache-Control": "no-store"})
+
+
+@router.post("/contact", status_code=204, response_class=Response,
+             responses={429: {"description": "Limite por IP"}})
+async def send_contact(body: DemoContactIn, request: Request, _: DemoSession, db: DB):
+    """Formulario de contacto de la landing: guarda el pedido y avisa por mail (Resend)."""
+    if not body.website:
+        await contact.submit(db, contact.ContactData(
+            name=body.name, company=body.company, email=body.email or "", phone=body.phone,
+            message=body.message, page=body.page), client_ip(request))
+    return Response(status_code=204)

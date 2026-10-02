@@ -109,6 +109,15 @@ class Settings(BaseSettings):
     demo_ip_sessions_per_hour: int = 20
     demo_tts_max_chars: int = 300
 
+    # --- Formulario de contacto de la landing (POST /api/v1/demo/contact) ---
+    # Aviso por mail con Resend (dominio atentina.com.ar verificado). Sin clave o sin destino,
+    # el pedido igual se guarda en contact_requests.
+    resend_api_key: str = ""
+    contact_to: str = ""   # destinos separados por coma
+    contact_from: str = "Atentina <web@atentina.com.ar>"
+    contact_ip_per_hour: int = 3
+    contact_ip_per_day: int = 10
+
     # --- WhatsApp (Cloud API de Meta, docs/WHATSAPP_PLAN.md) ---
     wa_app_id: str = ""
     wa_app_secret: str = ""  # firma X-Hub-Signature-256; vacio = el webhook rechaza todo

@@ -3,7 +3,14 @@ que salen de aca (web/, `npm run gen:api`)."""
 import datetime
 from typing import Annotated, Any, Literal
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    model_validator,
+)
 
 # La base guarda UTC sin zona; la API la explicita (2026-09-29T13:57:52+00:00) para
 # que el navegador no la tome como hora local.
@@ -635,3 +642,22 @@ class DemoCallResult(BaseModel):
 class DemoTtsIn(BaseModel):
     voice: str = Field(max_length=32)
     text: str = Field(min_length=1, max_length=600)
+
+
+class DemoContactIn(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    name: str = Field(min_length=1, max_length=120)
+    company: str = Field(default="", max_length=120)
+    email: EmailStr | None = None
+    phone: str = Field(default="", max_length=40, pattern=r"^$|^[0-9+()\- ]{6,40}$")
+    message: str = Field(default="", max_length=2000)
+    page: str = Field(default="", max_length=64, pattern=r"^$|^/[a-z0-9/_-]*$")
+    # Trampa para bots: el campo esta oculto en el formulario. Con valor, se responde 204 sin guardar.
+    website: str = Field(default="", max_length=200)
+
+    @model_validator(mode="after")
+    def email_or_phone(self):
+        if not self.email and not self.phone:
+            raise ValueError("Dejanos un email o un teléfono para contactarte")
+        return self

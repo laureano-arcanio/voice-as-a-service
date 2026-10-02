@@ -196,6 +196,9 @@ Llamada de prueba sin usuario, para la landing (ver [`LANDING.md`](LANDING.md)):
 4. En llamadas sin teléfono, el worker corta al llegar a `max_duration_seconds` con
    `QUOTA_END_MESSAGE` (`ended_reason=max_duration`).
 
+El formulario de contacto de la landing (`POST /demo/contact`, misma sesión) guarda el pedido en
+`contact_requests` y avisa por mail con Resend (`app/services/contact.py`).
+
 ### Llamada entrante
 
 1. Anura → Asterisk → trunk entrante de LiveKit → la dispatch rule crea una room `anura-*` y

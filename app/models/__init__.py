@@ -2,11 +2,12 @@
 (Alembic y create_schema lo necesitan)."""
 from .agents import Agent, AgentVersion
 from .calls import ACTIVE_CALL_STATUSES, CallMode, CallRow, CallStatus
+from .contact import ContactRequest
 from .conversations import ConversationRow
 from .tenancy import ApiKey, Client, PhoneNumber, Role, Tier, User
 from .whatsapp import WaAccount, WaMessage, WaThread
 
 __all__ = [
     "ACTIVE_CALL_STATUSES", "Agent", "AgentVersion", "ApiKey", "CallMode", "CallRow", "CallStatus", "Client",
-    "ConversationRow", "PhoneNumber", "Role", "Tier", "User", "WaAccount", "WaMessage", "WaThread",
+    "ContactRequest", "ConversationRow", "PhoneNumber", "Role", "Tier", "User", "WaAccount", "WaMessage", "WaThread",
 ]

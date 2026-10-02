@@ -1,6 +1,7 @@
 ---
 import { contactEmail, contactPhone, whatsappUrl } from "../data/site";
 import Button from "./Button.astro";
+import Icon from "./Icon.astro";
 
 interface Props {
   subject?: string;
@@ -8,6 +9,9 @@ interface Props {
 
 const { subject = "Quiero una demo de Atentina" } = Astro.props;
 const mailto = `mailto:${contactEmail}?subject=${encodeURIComponent(subject)}`;
+const label = "grid gap-1.5 text-[.85rem] font-medium text-ink-2";
+const field =
+  "w-full rounded-xl border border-line bg-bg-2 px-3 py-2.5 font-body text-base text-ink hover:border-line-2 focus:border-accent focus:bg-surface focus:outline-none";
 ---
 
 <section class="bg-ink py-[76px] text-center text-cta-ink" id="demo">
@@ -17,13 +21,83 @@ const mailto = `mailto:${contactEmail}?subject=${encodeURIComponent(subject)}`;
     <p class="max-w-[62ch] text-[1.12rem] text-cta-muted">
       Nos contás a qué se dedica tu empresa y armamos un agente para que lo escuches con tus datos. Sin costo y sin compromiso.
     </p>
+
+    <div
+      class="group/contact mt-2 w-full max-w-[640px] overflow-hidden rounded-[18px] border border-line bg-surface text-left text-ink shadow-card"
+      data-contact
+      data-state="idle"
+    >
+      <form class="grid gap-3 p-5 group-data-[state=sent]/contact:hidden" data-contact-form>
+        <div class="grid gap-3 sm:grid-cols-2">
+          <label class={label}>
+            Nombre
+            <input class={field} name="name" autocomplete="name" required maxlength="120" />
+          </label>
+          <label class={label}>
+            Empresa
+            <input class={field} name="company" autocomplete="organization" maxlength="120" />
+          </label>
+          <label class={label}>
+            Email
+            <input class={field} name="email" type="email" autocomplete="email" maxlength="254" />
+          </label>
+          <label class={label}>
+            Teléfono o WhatsApp
+            <input
+              class={field}
+              name="phone"
+              type="tel"
+              autocomplete="tel"
+              maxlength="40"
+              pattern="[0-9+\(\)\- ]{6,40}"
+              title="Solo números, espacios, +, guiones y paréntesis"
+            />
+          </label>
+        </div>
+        <label class={label}>
+          ¿Qué tendría que atender el agente?
+          <textarea
+            class:list={[field, "min-h-24 resize-y"]}
+            name="message"
+            maxlength="2000"
+            rows="3"
+            placeholder="Por ejemplo: turnos de una clínica, unas 200 llamadas por día"></textarea>
+        </label>
+        <div class="hidden" aria-hidden="true">
+          <label>Sitio web <input name="website" tabindex="-1" autocomplete="off" /></label>
+        </div>
+        <div class="grid gap-2 sm:grid-cols-[auto_1fr] sm:items-center">
+          <Button type="submit" data-contact-submit>
+            <span class="group-data-[state=sending]/contact:hidden">Pedir una demo</span>
+            <span class="hidden group-data-[state=sending]/contact:inline">Enviando…</span>
+          </Button>
+          <p class="text-[.85rem] text-muted">Dejanos un email o un teléfono y te contactamos.</p>
+        </div>
+        <p class="min-h-[1.3em] text-[.82rem] font-medium text-warn" data-contact-error aria-live="polite"></p>
+      </form>
+
+      <div class="hidden justify-items-center gap-2 p-8 text-center group-data-[state=sent]/contact:grid" role="status" tabindex="-1" data-contact-sent>
+        <span class="grid size-10 place-items-center rounded-full bg-ok-soft text-ok" aria-hidden="true">
+          <Icon name="check" class="size-5" />
+        </span>
+        <h3>Recibimos tu pedido</h3>
+        <p class="text-[.96rem] text-ink-2">Te vamos a contactar para armar el agente con tu caso.</p>
+      </div>
+    </div>
+
+    <p class="mt-2 text-[1.05rem] text-cta-muted">¿Preferís otro medio?</p>
     <div class="flex flex-wrap justify-center gap-3">
       <Button href={whatsappUrl} variant="light" target="_blank" rel="noopener">Escribinos por WhatsApp</Button>
-      <Button href={mailto} variant="light">Pedir una demo por correo</Button>
     </div>
     <p class="text-[1.05rem] text-cta-muted">
       O llamanos al <a class="text-cta-ink tabular-nums" href={`tel:${contactPhone.e164}`}>{contactPhone.display}</a>: te atiende nuestro agente.
     </p>
-    <p class="text-[1.05rem] text-cta-ink tabular-nums select-all"><a href={`mailto:${contactEmail}`}>{contactEmail}</a></p>
+    <p class="text-[1.05rem] text-cta-ink tabular-nums select-all"><a href={mailto}>{contactEmail}</a></p>
   </div>
 </section>
+
+<script>
+  import { initContactForm } from "../scripts/contact";
+
+  document.querySelectorAll<HTMLElement>("[data-contact]").forEach(initContactForm);
+</script>

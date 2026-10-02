@@ -61,7 +61,9 @@ async function send(path: string, init: RequestInit, token?: string): Promise<Re
   }
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw new ApiError(body.detail ?? "Algo salió mal. Probá de nuevo.", response.status, body.code ?? "error");
+    // El 422 de validación trae una lista en detail: un mensaje genérico en lugar de "[object Object]".
+    const message = typeof body.detail === "string" ? body.detail : response.status === 422 ? "Revisá los datos y probá de nuevo." : null;
+    throw new ApiError(message ?? "Algo salió mal. Probá de nuevo.", response.status, body.code ?? "error");
   }
   return response;
 }
@@ -90,6 +92,20 @@ async function withSession(path: string, init: RequestInit): Promise<Response> {
     session = null;
     return send(path, init, await sessionToken());
   }
+}
+
+export interface ContactRequest {
+  name: string;
+  company: string;
+  email: string | null;
+  phone: string;
+  message: string;
+  page: string;
+  website: string;
+}
+
+export async function sendContact(request: ContactRequest): Promise<void> {
+  await withSession("/contact", { method: "POST", body: JSON.stringify(request) });
 }
 
 export async function startCall(agent: string, voice?: string): Promise<DemoCall> {

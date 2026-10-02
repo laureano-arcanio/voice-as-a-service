@@ -1,5 +1,6 @@
 """Demo publica de la landing: sesion con Turnstile, llamadas, resultado, voz y limites."""
 import datetime
+import json
 
 import jwt
 import pytest
@@ -7,7 +8,14 @@ import pytest
 from app.cli import seed_demo
 from app.config import settings
 from app.db import utcnow
-from app.models import Agent, CallRow, CallStatus, Client, ConversationRow
+from app.models import (
+    Agent,
+    CallRow,
+    CallStatus,
+    Client,
+    ContactRequest,
+    ConversationRow,
+)
 from app.services import demo, tts
 
 V1 = "/api/v1/demo"
@@ -199,3 +207,87 @@ def test_cors_only_for_landing_origins(landing):
     other = landing.client.options(f"{V1}/calls", headers={"Origin": "https://evil.example",
                                                            "Access-Control-Request-Method": "POST"})
     assert "access-control-allow-origin" not in other.headers
+
+
+# ---------- formulario de contacto ----------
+
+CONTACT = {"name": "Ana", "company": "Clínica Sur", "email": "ana@example.com", "phone": "",
+           "message": "Turnos, 200 llamadas por día", "page": "/turnos"}
+
+
+@pytest.fixture
+def resend(landing, monkeypatch):
+    import httpx
+
+    from app.services import contact
+
+    monkeypatch.setattr(settings, "resend_api_key", "re_test")
+    monkeypatch.setattr(settings, "contact_to", "yo@example.com")
+    landing.resend_sent = []
+    landing.resend_status = 200
+    real_client = httpx.AsyncClient
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        landing.resend_sent.append((request.headers, json.loads(request.content)))
+        if landing.resend_status >= 400:
+            return httpx.Response(landing.resend_status, json={"message": "fallo"})
+        return httpx.Response(200, json={"id": "email-1"})
+
+    monkeypatch.setattr(contact.httpx, "AsyncClient",
+                        lambda **kw: real_client(transport=httpx.MockTransport(handler), **kw))
+    return landing
+
+
+def contact_rows(api):
+    with api.sessions() as s:
+        return s.query(ContactRequest).all()
+
+
+def test_contact_requires_demo_session(landing):
+    assert landing.client.post(f"{V1}/contact", json=CONTACT).status_code == 401
+
+
+def test_contact_saves_and_sends_email(resend):
+    r = resend.client.post(f"{V1}/contact", json=CONTACT, headers=session(resend))
+    assert r.status_code == 204, r.text
+    [(headers, body)] = resend.resend_sent
+    assert headers["authorization"] == "Bearer re_test"
+    assert body["to"] == ["yo@example.com"] and body["reply_to"] == "ana@example.com"
+    assert body["subject"] == "Pedido de demo: Clínica Sur" and "Turnos, 200 llamadas" in body["text"]
+    [row] = contact_rows(resend)
+    assert (row.name, row.page, row.email_status, row.email_id) == ("Ana", "/turnos", "sent", "email-1")
+    assert headers["idempotency-key"] == row.id
+
+
+def test_contact_kept_when_resend_fails(resend):
+    resend.resend_status = 500
+    assert resend.client.post(f"{V1}/contact", json=CONTACT, headers=session(resend)).status_code == 204
+    [row] = contact_rows(resend)
+    assert row.email_status == "failed" and row.email_error.startswith("500")
+
+
+def test_contact_without_resend_key_only_saves(landing):
+    assert landing.client.post(f"{V1}/contact", json=CONTACT, headers=session(landing)).status_code == 204
+    [row] = contact_rows(landing)
+    assert row.email_status == "disabled"
+
+
+def test_contact_validation_and_honeypot(resend):
+    headers = session(resend)
+    r = resend.client.post(f"{V1}/contact", json={**CONTACT, "email": None}, headers=headers)
+    assert r.status_code == 422
+    r = resend.client.post(f"{V1}/contact", json={**CONTACT, "website": "spam.example"}, headers=headers)
+    assert r.status_code == 204
+    assert contact_rows(resend) == [] and resend.resend_sent == []
+    r = resend.client.post(f"{V1}/contact", json={**CONTACT, "email": None, "phone": "+54 351 555-1234"},
+                           headers=headers)
+    assert r.status_code == 204
+
+
+def test_contact_limit_per_ip(resend, monkeypatch):
+    monkeypatch.setattr(settings, "contact_ip_per_hour", 2)
+    headers = session(resend)
+    for _ in range(2):
+        assert resend.client.post(f"{V1}/contact", json=CONTACT, headers=headers).status_code == 204
+    r = resend.client.post(f"{V1}/contact", json=CONTACT, headers=headers)
+    assert r.status_code == 429 and len(contact_rows(resend)) == 2
