@@ -106,12 +106,14 @@ la tabla hay que sumarlo ahí.
 ## 5. Layout y espaciado
 
 - **Contenedor:** `mx-auto max-w-[1120px] px-5`. Texto largo (legales): `max-w-[760px]`.
-- **Sección:** componente [`Section.astro`](../landing/src/components/Section.astro) (`py-[76px]` + contenedor).
+- **Sección:** componente [`Section.astro`](../landing/src/components/Section.astro) (`py-12 min-[901px]:py-[76px]` + contenedor: 48 px en mobile, 76 px desde 901 px; igual en `Voices` y `Cta`, que no lo usan).
   Adentro: `h2`, bajada con `mt-3` y contenido con `mt-9`.
 - **Alternancia:** las secciones se separan con `border-line` (`border-t`, `border-b` o `border-y`) y, para
   cortar el ritmo, fondo `bg-bg-2`. La única sección oscura es la CTA final (`bg-ink`).
-- **Hero:** `border-b border-line bg-linear-to-b from-bg-2 to-bg pt-[72px] pb-14`; en una vertical,
+- **Hero:** `border-b border-line bg-linear-to-b from-bg-2 to-bg pt-10 pb-14 min-[901px]:pt-[72px]`; en una vertical,
   `from-accent-soft`. Dos columnas `1.2fr / .8fr`: texto a la izquierda, widget a la derecha.
+  - En mobile el botón de la demo tiene que entrar en el primer pantallazo: título, una línea de apoyo
+    y un solo párrafo antes del widget. El segundo párrafo de la home se muestra desde `min-[901px]`.
 - **Grillas:** `gap-4` entre tarjetas, `gap-7` a `gap-12` entre columnas. Todo es una columna en mobile.
 
 | Corte | Qué cambia |

@@ -7,7 +7,7 @@ interface Props {
 const { id, class: className } = Astro.props;
 ---
 
-<section id={id} class:list={["py-[76px]", className]}>
+<section id={id} class:list={["py-12 min-[901px]:py-[76px]", className]}>
   <div class="mx-auto max-w-[1120px] px-5">
     <slot />
   </div>

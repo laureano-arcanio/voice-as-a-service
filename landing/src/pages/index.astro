@@ -32,19 +32,20 @@ const features = [
 >
   <Nav home />
 
-  <header class="border-b border-line bg-linear-to-b from-bg-2 to-bg pt-[72px] pb-14">
+  <header class="border-b border-line bg-linear-to-b from-bg-2 to-bg pt-10 pb-14 min-[901px]:pt-[72px]">
     <div class="mx-auto grid max-w-[1120px] items-center gap-9 px-5 min-[901px]:grid-cols-[1.2fr_.8fr] min-[901px]:gap-12">
       <div class="grid gap-[22px]">
         <h1>
           Los agentes de atención para tu empresa, más <span class="text-accent">inteligentes</span> y <span class="text-accent">rápidos</span> del mercado
         </h1>
-        <p class="my-[18px] font-display text-[clamp(1.2rem,2vw,1.5rem)] leading-[1.2] font-bold tracking-[-0.015em]">
+        <p class="font-display text-[clamp(1.2rem,2vw,1.5rem)] leading-[1.2] font-bold tracking-[-0.015em] min-[901px]:my-[18px]">
           A un <a class="text-accent decoration-2 underline-offset-4 hover:text-accent-2" href="#precios">precio argentino</a>.
         </p>
         <p class="max-w-[62ch] text-[1.12rem] text-ink-2">
           Atienden consultas, dan turnos, confirman, recuerdan vencimientos y cobran. Con voces argentinas y con un precio fijo en pesos.
         </p>
-        <p class="max-w-[62ch] text-[1.12rem] text-ink-2">
+        {/* En mobile no va: lo repite "Nuestro producto", justo debajo, y empuja la demo fuera del primer pantallazo. */}
+        <p class="hidden max-w-[62ch] text-[1.12rem] text-ink-2 min-[901px]:block">
           <b class="font-bold text-accent">Un solo servicio que integra todo lo que necesitás</b>: telefonía, voces e inteligencia artificial incluidas. Lo contratás y empieza a atender.
         </p>
       </div>
