@@ -1,5 +1,5 @@
 ---
-import { contactEmail } from "../data/site";
+import { contactEmail, contactPhone, whatsappUrl } from "../data/site";
 import Button from "./Button.astro";
 
 interface Props {
@@ -17,7 +17,13 @@ const mailto = `mailto:${contactEmail}?subject=${encodeURIComponent(subject)}`;
     <p class="max-w-[62ch] text-[1.12rem] text-cta-muted">
       Nos contás a qué se dedica tu empresa y armamos un agente para que lo escuches con tus datos. Sin costo y sin compromiso.
     </p>
-    <Button href={mailto} variant="light">Pedir una demo</Button>
+    <div class="flex flex-wrap justify-center gap-3">
+      <Button href={whatsappUrl} variant="light" target="_blank" rel="noopener">Escribinos por WhatsApp</Button>
+      <Button href={mailto} variant="light">Pedir una demo por correo</Button>
+    </div>
+    <p class="text-[1.05rem] text-cta-muted">
+      O llamanos al <a class="text-cta-ink tabular-nums" href={`tel:${contactPhone.e164}`}>{contactPhone.display}</a>: te atiende nuestro agente.
+    </p>
     <p class="text-[1.05rem] text-cta-ink tabular-nums select-all"><a href={`mailto:${contactEmail}`}>{contactEmail}</a></p>
   </div>
 </section>

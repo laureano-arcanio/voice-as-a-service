@@ -3,12 +3,15 @@ import type { HTMLAttributes } from "astro/types";
 
 type Props = Omit<HTMLAttributes<"button">, "type"> & {
   href?: string;
+  /** Solo para links (href): por ejemplo WhatsApp en una pestaña nueva. */
+  target?: "_blank" | "_self";
+  rel?: string;
   type?: "button" | "submit";
   variant?: "primary" | "ghost" | "light";
   size?: "md" | "sm";
 };
 
-const { variant = "primary", size = "md", class: className, href, type = "button", ...rest } = Astro.props;
+const { variant = "primary", size = "md", class: className, href, target, rel, type = "button", ...rest } = Astro.props;
 const variants = {
   primary: "border-transparent bg-accent text-accent-ink hover:bg-accent-2",
   ghost: "border-line-2 bg-transparent text-ink hover:border-ink",
@@ -25,7 +28,7 @@ const classes = [
 
 {
   href ? (
-    <a class:list={classes} href={href} {...(rest as HTMLAttributes<"a">)}>
+    <a class:list={classes} href={href} target={target} rel={rel} {...(rest as HTMLAttributes<"a">)}>
       <slot />
     </a>
   ) : (

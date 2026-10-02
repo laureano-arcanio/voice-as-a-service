@@ -289,3 +289,7 @@ export const defaultVoiceLine = {
 };
 
 export const contactEmail = "hola@atentina.com.ar";
+
+// Línea de Atentina (Anura): la atiende el agente comercial por llamada y por WhatsApp.
+export const contactPhone = { e164: "+543517002592", display: "351 700-2592" };
+export const whatsappUrl = `https://wa.me/5493517002592?text=${encodeURIComponent("Hola Atentina, quiero saber más")}`;
