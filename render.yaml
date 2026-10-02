@@ -45,9 +45,6 @@ services:
       - path: /_astro/*
         name: Cache-Control
         value: public, max-age=31536000, immutable
-      - path: /og.png
-        name: Cache-Control
-        value: public, max-age=604800
       - path: /favicon.svg
         name: Cache-Control
         value: public, max-age=604800
