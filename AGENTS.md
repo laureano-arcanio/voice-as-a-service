@@ -54,7 +54,7 @@ números; API `/api/v1`, UI React en `web/` y worker de voz) está en [`README.m
     - La 5060 Ti va sin límite: consume como máximo 141 W.
     - No sobreviven a un reinicio. El tope de potencia cambia el `hw_id` del test.
     - Tras un reinicio, la inferencia queda en `Exited (128)`: `make up-inference`.
-- **Producción:** hardware en definición. Ver [`docs/capacity/README.md`](docs/capacity/README.md).
+- **Producción:** propuesta (2-oct-2026): este mismo server, con la IP fija, inferencia y base locales, y un segundo server igual con UPS con el primer cliente. Plan, hallazgos y checklist en [`docs/PRODUCCION.md`](docs/PRODUCCION.md).
 
 ## Reparto de GPU vigente (CAP-002)
 
@@ -158,6 +158,7 @@ se mide con el test de capacidad y se registra en [`docs/capacity/`](docs/capaci
 - [`docs/LANDING.md`](docs/LANDING.md): landing (Astro + Tailwind en `landing/`, `render.yaml`), demo por `/api/v1/demo` con su control de abuso, túnel, dominios y DNS (Render + Cloudflare).
 - [`docs/WHATSAPP_PLAN.md`](docs/WHATSAPP_PLAN.md): plan para WhatsApp en el mismo agente (Cloud API directo, registro del número de Anura por voz, Embedded Signup, costos de Meta). Fases 0, 1 y audios en producción; fase 2 (Embedded Signup) implementada, sin desplegar.
 - [`docs/archive/`](docs/archive/README.md): mediciones anteriores con el loadtest (EXP-001 a 013).
+- [`docs/PRODUCCION.md`](docs/PRODUCCION.md): plan de producción en este server, hallazgos, checklist y redundancia.
 - [`docs/SERVER_HARDWARE.md`](docs/SERVER_HARDWARE.md): elección de placas, CPU y PCIe.
 - [`docs/TELEFONIA_ANURA.md`](docs/TELEFONIA_ANURA.md): telefonía (Anura + Asterisk + LiveKit).
 - [`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md): fine-tuning de una voz de Qwen3-TTS (procedimiento, criterios, trampas).

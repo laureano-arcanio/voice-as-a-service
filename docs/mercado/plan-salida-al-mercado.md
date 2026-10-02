@@ -214,5 +214,5 @@ CAP-002 vendiendo el 30 % de su capacidad. El cuello es comercial, no de hardwar
 
 - Precio por resultado: definir el valor por llamada atendida y por promesa para cada variante.
 - Marca y posicionamiento público (nombre, sitio, caso de uso en la portada).
-- Hardware de producción y ubicación (ver `docs/capacity/`), y quién opera el servicio 24×7.
+- Hardware de producción y ubicación: propuesta en [`../PRODUCCION.md`](../PRODUCCION.md) (este server, con redundancia al primer cliente); falta quién opera el servicio 24×7.
 - Términos de canal (comisión, exclusividad por vertical, marca blanca).

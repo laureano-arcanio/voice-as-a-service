@@ -1,0 +1,13 @@
+# Topes de potencia y relojes de las 3090 en cada arranque, antes de Docker (docs/PRODUCCION.md).
+[Unit]
+Description=Atentina: topes de las RTX 3090
+After=nvidia-persistenced.service
+Before=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=@REPO@/deploy/gpu-limits.sh
+
+[Install]
+WantedBy=multi-user.target

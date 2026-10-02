@@ -1,0 +1,17 @@
+# Stack de Atentina en el arranque: compose, túnel, trunks SIP y calentamiento del TTS (deploy/boot.sh).
+[Unit]
+Description=Atentina: stack (compose, túnel, SIP, TTS)
+Requires=docker.service atentina-gpu-limits.service
+After=docker.service atentina-gpu-limits.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=@USER@
+WorkingDirectory=@REPO@
+ExecStart=@REPO@/deploy/boot.sh
+TimeoutStartSec=1200
+
+[Install]
+WantedBy=multi-user.target
