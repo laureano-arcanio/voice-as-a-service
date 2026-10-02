@@ -471,6 +471,16 @@ Estado al 1-oct-2026: código y tests listos, **sin desplegar**. Falta la aproba
     implementado leer `history`, `smb_app_state_sync` ni `smb_message_echoes`: mientras no se suscriban
     esos campos, Meta no ofrece la pantalla de coexistencia.
 
+**Hecho el 2-oct-2026:** migración 0005, `app` recreada, `WA_TOKEN_KEY` y `CSP_REPORT_ONLY=true` en `.env`.
+En Meta: Facebook Login for Business con OAuth de navegador integrado y SDK de JS, `https://app.atentina.com.ar/`
+en URIs de redirección y dominios del SDK, `atentina.com.ar` en dominios de la app, webhooks `account_update`,
+`phone_number_quality_update` y `message_template_status_update` suscriptos, y configuración de Embedded Signup
+`WA_CONFIG_ID=2936386673383943`. **La única forma de crearla fue la plantilla "con un token que caduca en 60
+días"**: la creación manual solo ofrece la variante General, sin "Registro insertado de WhatsApp" (probablemente
+hasta que aprueben la verificación de acceso). Con ese token, cada cliente queda desconectado a los 60 días
+(190 → "Desconectado", se reconecta con el botón). Pendiente: recrear la configuración sin vencimiento cuando
+aparezca la variante, o renovar el token. Sin App Review, solo personas con rol en la app pueden completar el alta.
+
 **Para desplegar (todo pendiente):**
 
 1. **Meta, configuración de Embedded Signup** (developers.facebook.com → app `Atentina`):

@@ -152,6 +152,10 @@ export function SignupModal({ config, onClose }: { config: WaConfig; onClose: ()
           {isAdmin && (
             <Select
               label="Cliente"
+              placeholder="Elegí el cliente"
+              description="A qué cliente de Atentina pertenece el número. La cuenta de Facebook se pide después, en la ventana de Meta."
+              // Sin esto Chrome toma el modal (tiene el PIN) por un login y escribe el email del usuario acá.
+              autoComplete="off"
               data={(clients.data ?? []).filter((c) => c.active).map((c) => ({ value: c.id, label: c.name }))}
               value={clientId}
               onChange={(v) => {
@@ -168,6 +172,7 @@ export function SignupModal({ config, onClose }: { config: WaConfig; onClose: ()
             data={(agents.data ?? []).map((a) => ({ value: a.id, label: a.name }))}
             value={agentId}
             onChange={setAgentId}
+            autoComplete="off"
             disabled={!clientId || busy}
             searchable
             nothingFoundMessage="Sin agentes"
@@ -184,7 +189,7 @@ export function SignupModal({ config, onClose }: { config: WaConfig; onClose: ()
               error={pinError}
               maxLength={6}
               inputMode="numeric"
-              autoComplete="off"
+              autoComplete="one-time-code"
               disabled={busy}
             />
           </Collapse>

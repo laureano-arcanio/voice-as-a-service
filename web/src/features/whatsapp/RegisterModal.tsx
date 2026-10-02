@@ -50,7 +50,7 @@ export function RegisterModal({ account, onClose }: { account: WaAccount; onClos
             error={pinError}
             maxLength={6}
             inputMode="numeric"
-            autoComplete="off"
+            autoComplete="one-time-code"
             data-autofocus
           />
           <Group justify="flex-end">
