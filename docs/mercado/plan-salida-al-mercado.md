@@ -1,10 +1,26 @@
 # Plan de puesta en marcha y adquisición de clientes
 
-Versión del 26-sep-2026. Se apoya en [`demanda-y-mercado-local.md`](demanda-y-mercado-local.md)
+Versión del 2-oct-2026 (la primera, del 26-sep, cerraba el foco en salientes). Se apoya en [`demanda-y-mercado-local.md`](demanda-y-mercado-local.md)
 (mercado y competencia), [`../competencia/`](../competencia/) (Botmaker, Vapi),
 [`../proveedores/anura-terminos-2026.md`](../proveedores/anura-terminos-2026.md) (telefonía) y la
 capacidad medida en [`../capacity/`](../capacity/README.md). Cifras en USD al mayorista de
 ARS 1.525.
+
+## 0. Etapa actual: exploración (desde el 2-oct-2026)
+
+El MVP está terminado (voz entrante y saliente, agentes por cliente, demo en la landing; WhatsApp
+espera la aprobación de Meta). Esta etapa es un **piloto comercial para descubrir quién paga y por
+qué**, no para ejecutar un foco ya elegido.
+
+- Los casos de uso de las secciones 2 y 3 son **hipótesis de partida**, no un límite. Se habla con
+  cualquiera que tenga volumen de llamadas o de WhatsApp: entrante, saliente, interno, el rubro
+  que sea.
+- Cada conversación busca aprender: qué problema tiene, cuánto volumen, cuánto le cuesta hoy, quién
+  decide y si pagaría un piloto. Se registra con esos campos, aunque no termine en venta.
+- No se construye para un caso hasta que aparece en **3 conversaciones** o hay **un piloto pago**
+  que lo pide.
+- **Salida de la etapa:** con ~30 conversaciones y 2 o 3 pilotos andando, elegir los 1 o 2
+  segmentos con más señal (pagan, repiten, deciden rápido) y recién ahí cerrar el foco.
 
 ## 1. Tesis
 
@@ -14,12 +30,15 @@ ARS 1.525.
 - La única ventaja defendible es estructural: con inferencia propia y terminación local se puede
   cobrar USD 0,08-0,15 por minuto, contra 0,19-0,26 que cuesta un agente propio y 0,31 que cobra
   un BPO. Los agentes de voz que se venden hoy en Argentina cobran 0,28-0,35: no ahorran.
-- Por eso el foco no es "Vapi barato" ni "bot para PyMEs": es **llamadas salientes con relación
-  contractual y resultado medible** (cobranza de mora temprana, recordatorios y confirmaciones),
+- Por eso la hipótesis principal no es "Vapi barato" ni "bot para PyMEs": son **llamadas salientes con
+  relación contractual y resultado medible** (cobranza de mora temprana, recordatorios y confirmaciones),
   vendidas al mercado medio y a municipios, a través de quienes ya les venden software.
 - Los desarrolladores y las agencias son un canal, no el mercado.
 
-## 2. Foco de mercado
+## 2. Hipótesis de foco
+
+Lo que la investigación de mercado señala como más probable. Se valida o se descarta en la etapa
+de exploración (sección 0).
 
 ### 2.1 Caso de uso inicial
 
@@ -44,7 +63,11 @@ humano cuando hace falta. Ya hay agentes de referencia de cobranza y turnos en `
   piso medido es 1,66 s de p50; los globales están en 0,5-0,7 s.
 - Los tres proveedores locales apuntan a bancos y telcos. El mercado medio está libre.
 
-### 2.3 Qué no hacer al principio
+### 2.3 Dónde no invertir todavía
+
+No es una lista de conversaciones prohibidas: si alguien de estos grupos tiene un problema concreto
+y paga un piloto, se explora. Es dónde no poner tiempo de producto ni de prospección activa hasta
+que haya señal.
 
 - **Plataforma para desarrolladores como producto principal:** se compite en latencia, features
   y docs contra Vapi y Retell; ARPU bajo y rotación alta. Se ofrece como API mayorista a agencias
@@ -97,8 +120,9 @@ cobranzas sigue la conversación y la voz saliente más barata (~USD 0,011 por m
 
 ## 5. Clientes de diseño (pilotos)
 
-Objetivo: **3 pilotos pagos** en 90 días, uno por segmento: un estudio de cobranza o cooperativa
-de crédito, una cooperativa de servicios o colegio, y un municipio o clínica.
+Objetivo: **3 pilotos pagos** en 90 días, idealmente de segmentos distintos para comparar. Los de
+la sección 2.1 son los candidatos naturales, pero vale cualquier caso con un problema medible y
+alguien que lo pague; el piloto es también la forma de probar un caso nuevo.
 
 | Condición | Detalle |
 |---|---|
@@ -117,10 +141,11 @@ argumento del sector.
 
 ### 6.1 Red propia (semanas 1 a 4)
 
-- Listar contactos en estudios contables, cooperativas, clínicas, municipios y empresas de
-  software. Un contador atiende diez PyMEs con problemas de cobranza; un proveedor de sistemas,
+- Listar contactos en estudios contables, cooperativas, clínicas, municipios, empresas de
+  software y cualquier empresa con mucha atención por teléfono o WhatsApp. Un contador atiende diez PyMEs con problemas de cobranza; un proveedor de sistemas,
   cien.
-- Pedir presentaciones, no ventas: "¿me presentás a alguien que cobre cuotas o mora por teléfono?".
+- Pedir presentaciones, no ventas: "¿me presentás a alguien que haga muchas llamadas o atienda
+  mucho por teléfono o WhatsApp?".
 - Embudo esperado para 3 pilotos: ~150 contactos, ~30 conversaciones calificadas, ~8 propuestas.
 
 ### 6.2 Listas por segmento
@@ -146,6 +171,10 @@ argumento del sector.
 | Cámaras y federaciones (ADPRA, FACE, ADECRA, jornadas de modernización municipal) | Una charla vale más que cien mails; el tema convoca solo | Charla con datos del informe y una demo en vivo |
 
 ### 6.4 Cómo se los contacta
+
+- En esta etapa el mensaje abre una conversación, no vende un caso: "¿qué llamadas o mensajes
+  hacen hoy a mano?" rinde más que ofrecer cobranza a quien no cobra por teléfono. El caso de
+  uso sale de la charla.
 
 - LinkedIn y correo. No llamadas en frío a personas: el No Llame alcanza a las líneas de
   particulares y la primera impresión de un producto de voz no debe ser una llamada no pedida.
@@ -174,8 +203,8 @@ argumento del sector.
 
 | Mes | Producto | Comercial | Hito |
 |---|---|---|---|
-| 1 | Campañas salientes, cumplimiento, reportes mínimos; demo por llamada en la web | Lista de 150 contactos; primeras 20 conversaciones; charla pedida en una cámara | Demo pública funcionando |
-| 2 | Integración por webhook y CSV; guiones por variante | 30 conversaciones; 8 propuestas; primer piloto firmado | Primer piloto en marcha |
+| 1 | Demo por llamada en la web (hecha); lo que pida el primer piloto | Lista de 150 contactos; primeras 20 conversaciones registradas; charla pedida en una cámara | Primeras hipótesis validadas o descartadas |
+| 2 | Campañas salientes, cumplimiento y reportes si la saliente tiene señal; integración por webhook y CSV | 30 conversaciones; 8 propuestas; primer piloto firmado | Primer piloto en marcha |
 | 3 | Ajustes del piloto; reportes por campaña | 3 pilotos firmados; acuerdo con un proveedor de software o un BPO | 3 pilotos en marcha |
 | 4 | Resultados medidos; correcciones | Primer piloto a contrato anual; caso escrito | Primer caso con números publicado |
 | 5 | WhatsApp texto en el mismo agente | Vendedor a comisión; 2 canales activos | 5 clientes pagos |
@@ -185,6 +214,8 @@ argumento del sector.
 
 | Métrica | Objetivo a 6 meses |
 |---|---|
+| Conversaciones registradas (etapa de exploración) | 30 en 60 días, de al menos 5 rubros |
+| Casos de uso que aparecen en 3 o más conversaciones | Los que haya: definen el foco |
 | Conversaciones calificadas por mes | 30 |
 | Propuestas por mes | 8 |
 | Pilotos firmados | 3 en 90 días |
