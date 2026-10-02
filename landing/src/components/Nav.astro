@@ -21,7 +21,7 @@ const links = [
     <Logo href={home ? "#" : "/"} />
     <div class="flex items-center gap-6 text-[.98rem] font-medium">
       {links.map((l) => <a class="text-ink-2 no-underline hover:text-ink max-[720px]:hidden" href={l.href}>{l.label}</a>)}
-      <Button href="#demo" size="sm">Pedir una demo</Button>
+      <Button href="#llamada" size="sm" data-demo-link>Hacé una demo</Button>
     </div>
   </div>
   <!-- Mobile: los links en una segunda fila, siempre visibles, con rótulos cortos para que entren los 4. -->
@@ -38,3 +38,9 @@ const links = [
     }
   </div>
 </nav>
+
+<script>
+  import { goToDemo } from "../scripts/demo-link";
+
+  document.querySelectorAll<HTMLAnchorElement>("[data-demo-link]").forEach((a) => a.addEventListener("click", goToDemo));
+</script>

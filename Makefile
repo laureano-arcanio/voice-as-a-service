@@ -35,7 +35,7 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
         up up-agent up-inference up-nginx up-pbx down restart ps logs \
         sh psql health gpu \
         pbx-cli pbx-status livekit-sip livekit-sip-si-local \
-        migrate create-admin api-key web-dev web-build web-check openapi \
+        migrate create-admin api-key web-dev web-build web-check openapi landing-dev \
         test eval-motor eval-llamadas eval-llm eval-llm-juez eval-llm-report loadtest-audio loadtest loadtest-report capacity capacity-monitor capacity-monitor-stop capacity-analyze gpubench stt-eval stt-corpus \
         db-reset clean
 
@@ -173,6 +173,9 @@ web-build: ## Build de la UI en web/dist (la imagen de app la compila sola en el
 
 web-check: ## Lint, tipos y tests de la UI
 	cd web && npm ci && npm run lint && npm run typecheck && npm test
+
+landing-dev: ## Landing en modo desarrollo (Astro, :4321; docs/LANDING.md). HOST=1 la abre en la red (para verla en el celular)
+	cd landing && npm install && npm run dev $(if $(HOST),-- --host)
 
 openapi: ## Regenera web/openapi.json y los tipos de la UI (web/src/api/schema.d.ts) desde la API
 	$(COMPOSE) run --rm --no-deps -T -e AUTH_SECRET=openapi app python -c "import json; from app.main import app; print(json.dumps(app.openapi(), ensure_ascii=False, indent=1))" > web/openapi.json

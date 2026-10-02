@@ -24,6 +24,8 @@ npm run dev                   # http://localhost:4321
 npm run build                 # dist/
 ```
 
+Desde la raíz, `make landing-dev` hace `npm install` y `npm run dev`. Con `HOST=1` la sirve en la red, para abrirla desde el celular.
+
 | Archivo | Qué es |
 |---|---|
 | `src/styles/global.css` | Tokens del diseño (`@theme`) y el acento de cada vertical (`[data-theme]`). |
