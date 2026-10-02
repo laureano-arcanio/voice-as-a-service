@@ -1,6 +1,6 @@
 # Plan: WhatsApp en el mismo agente (mensajería)
 
-Diseño (2026-09-28). **Estado (1-oct-2026): fases 0 y 1 en producción con el número de prueba (el agente responde por texto) y notas de voz de entrada y salida (fase 3 parcial). Fase 2 (Tech Provider): verificación del negocio aprobada y de acceso en revisión.** El plan de salida al mercado
+Diseño (2026-09-28). **Estado (1-oct-2026): fases 0 y 1 en producción con el número de prueba (el agente responde por texto) y notas de voz de entrada y salida (fase 3 parcial). Fase 2 (Tech Provider): verificación del negocio aprobada y de acceso en revisión; el código de Embedded Signup está implementado y sin desplegar ([5.3](#53-fase-2-implementada)).** El plan de salida al mercado
 ([`mercado/plan-salida-al-mercado.md`](mercado/plan-salida-al-mercado.md), secciones 4 y 7) pone
 WhatsApp texto en el mes 5 y Calling en el 6: es donde el cliente de cobranzas sigue la conversación
 y el canal que Vapi no tiene y Botmaker sí
@@ -98,6 +98,8 @@ app/whatsapp/
   service.py      del webhook al motor y de vuelta: dedupe, lock, juntar mensajes, ventana de 24 h, audios
   audio.py        notas de voz: OGG/Opus -> WAV 16 kHz -> STT; TTS -> WAV -> OGG/Opus (PyAV)
   store.py        acceso a wa_accounts, wa_threads, wa_messages (modelos en app/models/whatsapp.py)
+  signup.py       fase 2: Embedded Signup (código → token, suscripción, registro), refresco y plantillas
+  crypto.py       fase 2: tokens y PIN cifrados con WA_TOKEN_KEY (Fernet)
   verify.py       registro del número: pedir código por voz, capturarlo de la llamada, verificar, registrar con PIN
 app/api/routers/whatsapp.py  API de cuentas, registro y prueba de envío (/api/v1/whatsapp/...)
 web/src/features/whatsapp/   UI: cuentas conectadas, estado del número, registro, prueba de envío
@@ -109,8 +111,8 @@ tests/test_whatsapp.py      webhook con payloads reales grabados + FakeLLM; firm
 de nuestro portafolio, fases 0 y 1), `WA_PUBLIC_URL` (`https://wa.atentina.com.ar`, el webhook por el túnel), `WA_PHONE_NUMBER_ID` (solo `scripts/wa.py`),
 los de la fase 1 (`WA_SESSION_HOURS`, `WA_DEBOUNCE_SECONDS`, `WA_UNSUPPORTED_REPLY`, `WA_MAX_REPLY_CHARS`,
 `WA_MAX_TURN_CHARS`, `WA_MAX_TURNS`; ver `.env.example`), los de audios (`WA_AUDIO_*`, 5.2) y
-`WA_TOKEN_KEY` (fase 2: cifrado de los
-tokens de clientes en `wa_accounts`). Como `VLLM_API_KEY`, el chequeo de
+`WA_TOKEN_KEY` y `WA_CONFIG_ID` (fase 2: cifrado de los
+tokens y PIN de clientes en `wa_accounts`, y la configuración de Embedded Signup; ver 5.3). Como `VLLM_API_KEY`, el chequeo de
 [`.env`](../AGENTS.md) antes de reiniciar.
 
 **HTTPS.** Meta exige webhook por HTTPS con certificado válido. Sale por el Cloudflare Tunnel que ya
@@ -208,9 +210,79 @@ Para que el cliente conecte su número **desde nuestro dashboard** sin pasar por
 4. Cada cliente pone **su medio de pago** en su WABA: los mensajes se los cobra Meta a él, no a
    nosotros (ver sección 4). Nosotros cobramos el agente.
 
+**Lo verificado en la documentación de Meta (1-oct-2026)** está en
+[3.4](#34-embedded-signup-v4-lo-confirmado-y-lo-no-confirmado).
+
 Sin esto (fases 0 y 1) solo podemos operar números de **nuestro** portafolio: el de Anura y, para un
 piloto, el de un cliente cargado en una WABA nuestra a su nombre (él recibe el código y nos lo pasa),
 con el nombre visible de su negocio. Es aceptable para 1 o 2 pilotos; no para vender.
+
+### 3.4 Embedded Signup v4: lo confirmado y lo no confirmado
+
+Consultado en developers.facebook.com el 1-oct-2026 (fuentes en la sección 7).
+
+**Confirmado:**
+- **Versión:** "Embedded signup v2 will be deprecated on October 15, 2026. Migrate your integration to v4".
+- **SDK:** `https://connect.facebook.net/<locale>/sdk.js` y `FB.init({appId, autoLogAppEvents: true,
+  xfbml: true, version: 'v25.0'})`.
+- **Lanzamiento:** `FB.login(cb, {config_id, response_type: 'code', override_default_response_type: true,
+  extras: {setup: {}}})`. El código llega en `response.authResponse.code` y vence a los **30 s**.
+- **Mensaje del popup** (`window.postMessage`): JSON con `type: 'WA_EMBEDDED_SIGNUP'` y `event`:
+  - `FINISH`: `data` trae `{phone_number_id, waba_id, business_id}`;
+  - `FINISH_ONLY_WABA` (sin número), `FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING` (coexistencia),
+    `FINISH_OBO_MIGRATION`, `FINISH_GRANT_ONLY_API_ACCESS`;
+  - `CANCEL` con `current_step`, o con `{error_message, error_code, session_id, timestamp}` si hubo error.
+- **Dominios:** "Only domains that have enabled HTTPS are supported". Van en *Allowed domains* y en
+  *Valid OAuth redirect URIs* de Facebook Login for Business. Desde `http://localhost` no se puede probar.
+- **Intercambio:** `GET /<ver>/oauth/access_token?client_id=<APP_ID>&client_secret=<APP_SECRET>&code=<CODE>`.
+- **Suscripción:** `POST /<WABA_ID>/subscribed_apps` con el business token → `{"success": true}`.
+- **Registro:** `POST /<PHONE_NUMBER_ID>/register {"messaging_product": "whatsapp", "pin": "<6 dígitos>"}`.
+  El PIN es el de verificación en dos pasos.
+- **Medio de pago:** como Tech Provider, "onboarded business customers must add a payment method to their
+  WhatsApp Business account", en `https://business.facebook.com/wa/manage/home/`. Recién ahí quedan
+  "fully onboarded". La línea de crédito compartida es de Solution Partners, no nuestra.
+- **Coexistencia:** `FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING` trae en `data` solo `waba_id`, **sin
+  `phone_number_id`**. "skip the phone number registration step"; hay 24 h para pedir la sincronización
+  ("otherwise they must be offboarded"): `POST /<PHONE_NUMBER_ID>/smb_app_data {"messaging_product":
+  "whatsapp", "sync_type": "smb_app_state_sync"}` (contactos) y lo mismo con `"history"`. La pantalla de
+  coexistencia aparece sola cuando la app está suscrita a los campos `history`, `smb_app_state_sync` y
+  `smb_message_echoes` (no por un parámetro de `FB.login`).
+- **Webhooks de cuenta:**
+  - `account_update` con `value.event` (`PARTNER_REMOVED`, `PARTNER_APP_UNINSTALLED`, `ACCOUNT_OFFBOARDED`,
+    `ACCOUNT_DELETED`, `DISABLED_UPDATE`, `ACCOUNT_RESTRICTION`, `ACCOUNT_RECONNECTED`, ...). La tabla de
+    parámetros dice que `entry[].id` es la WABA, pero en los ejemplos con `value.waba_info.waba_id`
+    (`PARTNER_REMOVED`, `PARTNER_APP_UNINSTALLED`) `entry[].id` es otro ID: el código usa primero
+    `waba_info.waba_id` y cae a `entry[].id` solo sin él (como en `DISABLED_UPDATE`).
+  - `DISABLED_UPDATE` trae `ban_info.waba_ban_state`: `DISABLE` (WABA dada de baja), `SCHEDULE_FOR_DISABLE`
+    (aviso: sigue andando) o `REINSTATE` (rehabilitada). En el ejemplo es un texto; se acepta también lista.
+  - `phone_number_quality_update` con `{display_phone_number, event, current_limit}`, **sin `phone_number_id`**:
+    se busca por WABA y dígitos del número.
+  - `message_template_status_update` con `{event, message_template_id, message_template_name, reason}`.
+  - Se suscriben en App Dashboard → WhatsApp → Configuración.
+- **Errores:** `190` token vencido o inválido; `10` permiso no otorgado o quitado; `133005` PIN incorrecto;
+  `133010` número sin registrar; `133016` límite de intentos de registro.
+- **Plantillas:** `POST /{WABA_ID}/message_templates {name, category, language, components}` → `{id, status,
+  category}`. Categorías MARKETING, UTILITY y AUTHENTICATION; nombre en minúsculas, números y `_`; hasta 100
+  altas por hora por WABA.
+- **Configuración de Facebook Login for Business:** *Create from template* con la plantilla "WhatsApp
+  Embedded Signup Configuration With 60 Expiration Token", o *Create configuration* con la variante
+  "WhatsApp Embedded Signup". En *Client OAuth settings* van activados "Client OAuth login", "Web OAuth
+  login", "Enforce HTTPS", "Embedded Browser OAuth Login", "use Strict Mode for redirect URIs" y "Login
+  with the JavaScript SDK".
+
+**No confirmado:**
+- La forma de la respuesta de `oauth/access_token` (se espera `{access_token, token_type}`).
+- **Si el business token vence.** La doc no lo dice, y la plantilla se llama "With 60 Expiration Token":
+  puede ser un token de 60 días. Si vence, Meta da 190, la cuenta queda `disconnected` y el cliente la
+  reconecta con el mismo botón. Confirmarlo en el primer alta (`GET /debug_token`, campo `expires_at`).
+- El status HTTP del 190 (la app desconecta por `code == 190` o por 401).
+- Si v4 usa `extras.featureType` o `sessionInfoVersion`: el ejemplo vigente solo trae `setup: {}`.
+- Si el intercambio necesita `redirect_uri`: el ejemplo no lo usa.
+- El formato de `example` del cuerpo de una plantilla: usamos el posicional `{"body_text": [[...]]}`.
+- Si Meta mira el Referer (la app manda `strict-origin-when-cross-origin`).
+- Si cloudflared llega a `app` desde `172.24.0.1` (ver el access log al publicar).
+- Qué es `entry[].id` en `account_update` cuando falta `waba_info` (la tabla y los ejemplos no coinciden).
+- Si `smb_app_data` se puede repetir (el reintento de una cuenta de coexistencia lo vuelve a pedir).
 
 ## 4. Lo que cobra Meta
 
@@ -351,6 +423,82 @@ subida con `audio/ogg`, la respuesta llegó como nota de voz y el host del media
 Conversión WAV → OGG/Opus: 58–105 ms. ~240 bytes de OGG por carácter: 600 caracteres ≈ 140 KB, bajo
 los 512 KB. El TTS domina el turno; la capacidad con carga sigue sin medir.
 
+### 5.3 Fase 2 implementada
+
+Estado al 1-oct-2026: código y tests listos, **sin desplegar**. Falta la aprobación de acceso de Meta
+(Tech Provider) y el App Review de `whatsapp_business_management` y `whatsapp_business_messaging`.
+
+- **Alta por el cliente** (`POST /api/v1/whatsapp/signup`, `app/whatsapp/signup.py`): cualquier usuario
+  con sesión (no API keys), límite `WA_SIGNUP_PER_HOUR` por cliente. Pasos: código → business token,
+  el número tiene que ser de esa WABA, `subscribed_apps`, `register` con el PIN pedido o uno nuevo (no en
+  coexistencia), y alta o actualización de `wa_accounts` con token y PIN cifrados. Si falla la suscripción
+  o el registro, la cuenta queda `pending` con el motivo y se reintenta con
+  `POST /accounts/{id}/register` sin repetir el popup.
+- **Errores:** número de otro cliente 409; `FINISH_ONLY_WABA` 400 `signup_no_phone`; número de otra WABA
+  400 `signup_mismatch`; código vencido 400 `signup_code_expired`; rechazo de Meta 502 `meta_error` con
+  `meta_code`; sin `WA_APP_ID`, `WA_APP_SECRET` o `WA_CONFIG_ID` 503 `wa_signup_disabled`; sin
+  `WA_TOKEN_KEY` 503 `wa_token_key_missing`.
+- **Estados** (`wa_accounts.status`): `connected`, `pending` y `disconnected`. Un 190 o 401 con el token del
+  cliente la desconecta y deja de responder; `account_update` con `PARTNER_REMOVED`,
+  `PARTNER_APP_UNINSTALLED`, `ACCOUNT_OFFBOARDED`, `ACCOUNT_DELETED` o `DISABLED_UPDATE` con `DISABLE`
+  también; `DISABLED_UPDATE` con `REINSTATE` reconecta lo que desconectó un `DISABLE`, y con
+  `SCHEDULE_FOR_DISABLE` solo se loguea.
+- **PIN:** al reconectar un número se registra con el PIN guardado (ya tiene la verificación en dos pasos
+  con ese); un PIN que falla no pisa el guardado. En cuentas de alta manual (sin token propio, número de
+  nuestro portafolio) el reintento usa el PIN pedido o `WA_REGISTRATION_PIN`, nunca uno al azar.
+- **Cuentas de alta manual:** usan `WA_ACCESS_TOKEN` contra nuestra WABA, compartida entre pilotos.
+  Registro, `/refresh` y plantillas en esas cuentas son solo de admin (403 al cliente; la UI no los
+  ofrece). El reintento de registro tiene tope de `WA_SIGNUP_PER_HOUR` por cliente.
+  `phone_number_quality_update` guarda `messaging_limit`; `quality_rating` se relee con `/refresh`.
+- **Cifrado:** `WA_TOKEN_KEY` (Fernet, varias separadas por coma para rotar). Los tokens viejos en claro
+  se siguen leyendo. Cuentas sin token propio siguen con `WA_ACCESS_TOKEN`.
+- **Plantillas:** se listan y crean en vivo contra Meta (no hay tabla), límite `WA_TEMPLATES_PER_HOUR` por
+  cliente. Texto con variables `{{1}}`… y un ejemplo por variable; encabezado y pie sin variables. La UI
+  ofrece Utilidad y Marketing: Autenticación tiene texto fijo de Meta (código y botón) y no entra en el
+  formulario. `message_template_status_update` solo se loguea: la lista se lee en vivo.
+- **UI** (`web/src/features/whatsapp/`): página WhatsApp para admin y cliente. "Conectar WhatsApp" carga el
+  SDK a demanda con `app_id` y `config_id` de `GET /whatsapp/config` (deshabilitado con el motivo si falta
+  algo), junta el código de `FB.login` y el `FINISH` (hasta 10 s entre uno y otro) y llama a `/signup`
+  enseguida. El origen del mensaje se compara exacto (`facebook.com` o `*.facebook.com`, por https), no con
+  el `endsWith` del ejemplo de Meta. Tabla con estado, calidad y límite, agente editable, reintentar
+  registro (PIN opcional), releer de Meta y desactivar; sección de plantillas. El admin además ve el
+  cliente, el token y el alta manual. Después del alta, aviso para cargar el medio de pago.
+- **Decisiones pendientes:**
+  - **Tope del tier:** no se aplica. `max_phone_numbers` cuenta DID de Anura, que nos cuestan; los números
+    de WhatsApp del cliente no. Hoy rige el límite de Meta (2 por WABA sin verificar).
+  - **Coexistencia:** el número sale de `GET /{waba_id}/phone_numbers` (el único de la WABA; con varios,
+    400 `signup_no_phone`) y el alta pide las dos sincronizaciones (si fallan, queda `pending`). No está
+    implementado leer `history`, `smb_app_state_sync` ni `smb_message_echoes`: mientras no se suscriban
+    esos campos, Meta no ofrece la pantalla de coexistencia.
+
+**Para desplegar (todo pendiente):**
+
+1. **Meta, configuración de Embedded Signup** (developers.facebook.com → app `Atentina`):
+   1. *Facebook Login for Business* → *Settings* → *Client OAuth settings*: activar "Client OAuth login",
+      "Web OAuth login", "Enforce HTTPS", "Embedded Browser OAuth Login", "use Strict Mode for redirect
+      URIs" y "Login with the JavaScript SDK".
+   2. En la misma pantalla, `app.atentina.com.ar` en *Allowed domains* y
+      `https://app.atentina.com.ar/` en *Valid OAuth redirect URIs*.
+   3. *Facebook Login for Business* → *Configurations* → *Create from template* → "WhatsApp Embedded Signup
+      Configuration With 60 Expiration Token" (o *Create configuration* con la variante "WhatsApp Embedded
+      Signup", pidiendo solo `whatsapp_business_management` y `whatsapp_business_messaging`). Copiar el
+      **configuration ID**: es `WA_CONFIG_ID`.
+   4. *Settings* → *Basic*: `atentina.com.ar` en *App domains* si no está.
+   5. *WhatsApp* → *Configuration* → Webhook fields: suscribir `account_update`,
+      `phone_number_quality_update` y `message_template_status_update` (además de `messages`).
+2. **`.env`:** `WA_CONFIG_ID` y `WA_TOKEN_KEY` (generarla con
+   `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`), con diff
+   enmascarado contra el backup antes de reiniciar. Guardar la clave aparte: sin ella los tokens de los
+   clientes no se pueden leer. Para el primer despliegue, `CSP_REPORT_ONLY=true` y revisar la consola en el
+   alta real; después volver a `false`.
+3. **Migración 0005** y recrear `app`: el servicio `migrate` la corre solo (`make up-agent`). Las sesiones
+   viejas siguen valiendo hasta que vencen.
+4. **Cloudflare:** crear el hostname `app.atentina.com.ar` → `http://localhost:8011` (sin path) en el túnel,
+   ver [`LANDING.md`](LANDING.md), paso 5. Sin Cloudflare Access: la app se defiende sola.
+5. **Prueba:** entrar a `https://app.atentina.com.ar` con un usuario de cliente, "Conectar WhatsApp" con
+   un número de prueba, y anotar acá lo no confirmado de 3.4 (forma del token, vencimiento, IP de
+   cloudflared en el access log).
+
 ## 6. Riesgos y trampas
 
 - **Meta manda los tiempos:** verificación del negocio y App Review no tienen plazo garantizado.
@@ -361,9 +509,15 @@ los 512 KB. El TTS domina el turno; la capacidad con carga sigue sin medir.
   sobrias, opt-out respetado y no mandar marketing desde el número de cobranzas.
 - **Un número, un negocio:** el nombre visible de la WABA tiene que ser el del negocio que escribe.
   Números de clientes dentro de nuestro portafolio solo para pilotos.
-- **Tokens de clientes** en la base: cifrados, nunca en logs, y renovables (el business token de
-  Embedded Signup no vence, pero el cliente puede revocarlo: manejar el 401 como "cuenta
-  desconectada" en el dashboard).
+- **Tokens de clientes** en la base: cifrados, nunca en logs. No está confirmado que el business
+  token no venza (la plantilla de configuración dice "60 Expiration Token", ver 3.4); el cliente además
+  puede revocarlo. Un 190 o 401 deja la cuenta "Desconectado" en el dashboard y se reconecta con el
+  mismo botón.
+- **El ejemplo de Meta valida el origen con `endsWith('facebook.com')`:** acepta `evilfacebook.com`, que
+  podría inyectar un `waba_id` y `phone_number_id` falsos. La UI compara el hostname exacto. El backend
+  igual comprueba que el número sea de esa WABA con el token del cliente.
+- **Embedded Signup solo anda por HTTPS** desde un dominio declarado en la app de Meta: en
+  `http://localhost:8011` el popup falla (la UI lo avisa).
 - **Webhooks duplicados y fuera de orden:** dedupe por `wamid`; `statuses` pueden llegar antes que
   el `sent` propio.
 - **El motor en texto no es el de voz:** sin turn detector ni endpointing, pero con mensajes
@@ -419,6 +573,18 @@ los 512 KB. El TTS domina el turno; la capacidad con carga sigue sin medir.
   (la persona) con el nombre visible "Atentina" en la verificación y en el perfil del número.
 
 ## 7. Fuentes (consultadas el 28-sep-2026)
+
+Fase 2, consultadas el 1-oct-2026: [implementación de Embedded Signup](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/implementation),
+[onboarding como Tech Provider](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-customers-as-a-tech-provider),
+[resumen de Embedded Signup](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/overview/),
+[webhooks](https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/overview/)
+([account_update](https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/reference/account_update),
+[phone_number_quality_update](https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/reference/phone_number_quality_update),
+[message_template_status_update](https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/reference/message_template_status_update)),
+[plantillas](https://developers.facebook.com/documentation/business-messaging/whatsapp/templates/overview),
+[códigos de error](https://developers.facebook.com/documentation/business-messaging/whatsapp/support/error-codes) y
+[changelog](https://developers.facebook.com/documentation/business-messaging/whatsapp/changelog).
+
 
 - Meta, números de negocio (tipos, verificación por SMS o voz, límites por WABA, llamadas comunes
   después del registro): https://developers.facebook.com/documentation/business-messaging/whatsapp/business-phone-numbers/phone-numbers

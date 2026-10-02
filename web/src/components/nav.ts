@@ -26,7 +26,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/account', label: 'Mi cuenta', icon: IconFileInvoice, roles: ['client'] },
   { to: '/clients', label: 'Clientes', icon: IconBuilding, roles: ['admin'] },
   { to: '/numbers', label: 'Números', icon: IconPhone, roles: ['admin'] },
-  { to: '/whatsapp', label: 'WhatsApp', icon: IconBrandWhatsapp, roles: ['admin'] },
+  { to: '/whatsapp', label: 'WhatsApp', icon: IconBrandWhatsapp, roles: ['admin', 'client'] },
   { to: '/tiers', label: 'Tiers', icon: IconStack2, roles: ['admin'] },
   { to: '/users', label: 'Usuarios', icon: IconUsers, roles: ['admin'] },
 ];

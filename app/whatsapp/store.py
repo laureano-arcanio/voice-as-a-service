@@ -14,10 +14,12 @@ from ..config import settings
 from ..db import utcnow
 from ..models import Agent, Client, ConversationRow, WaAccount, WaMessage, WaThread
 from ..services.errors import Conflict, Invalid, NotFound
+from . import crypto
 
 # Estados de un saliente: nunca retrocede (los statuses llegan fuera de orden); failed gana.
 OUT_RANK = {"sent": 1, "delivered": 2, "read": 3}
 ACCOUNT_FIELDS = ("agent_id", "display_phone_number", "name", "access_token", "active", "waba_id")
+ACCOUNT_STATUSES = ("connected", "pending", "disconnected")
 
 
 # --- Cuentas ---
@@ -37,7 +39,15 @@ def account_by_pnid(s: Session, phone_number_id: str) -> WaAccount | None:
     return s.scalar(select(WaAccount).where(WaAccount.phone_number_id == phone_number_id))
 
 
-def _check_agent(s: Session, client_id: str, agent_id: str) -> None:
+def accounts_by_waba(s: Session, waba_id: str) -> list[WaAccount]:
+    return list(s.scalars(select(WaAccount).where(WaAccount.waba_id == waba_id)))
+
+
+def digits(value: str | None) -> str:
+    return re.sub(r"\D", "", value or "")
+
+
+def check_agent(s: Session, client_id: str, agent_id: str) -> None:
     agent = s.get(Agent, agent_id)
     if agent is None or agent.client_id != client_id:
         raise NotFound("Agente inexistente para este cliente")
@@ -46,10 +56,13 @@ def _check_agent(s: Session, client_id: str, agent_id: str) -> None:
 
 
 def create_account(s: Session, *, client_id: str, agent_id: str, phone_number_id: str, waba_id: str,
-                   display_phone_number: str, name: str = "", access_token: str | None = None) -> WaAccount:
+                   display_phone_number: str, name: str = "", access_token: str | None = None,
+                   **extra) -> WaAccount:
+    """Alta. access_token en claro: se guarda cifrado (TokenKeyMissing sin WA_TOKEN_KEY).
+    extra: columnas de la fase 2 (status, source, business_id, connected_by, ...)."""
     if s.get(Client, client_id) is None:
         raise NotFound("Cliente inexistente")
-    _check_agent(s, client_id, agent_id)
+    check_agent(s, client_id, agent_id)
     phone_number_id = phone_number_id.strip()
     if not re.fullmatch(r"\d{1,32}", phone_number_id):
         raise Invalid("phone_number_id: solo digitos (el ID del numero en Meta)")
@@ -57,7 +70,8 @@ def create_account(s: Session, *, client_id: str, agent_id: str, phone_number_id
         raise Conflict(f"El numero {phone_number_id} ya esta conectado")
     account = WaAccount(client_id=client_id, agent_id=agent_id, phone_number_id=phone_number_id,
                         waba_id=waba_id.strip(), display_phone_number=display_phone_number.strip(),
-                        name=name, access_token=access_token or None, active=True)
+                        name=name, access_token=crypto.encrypt(access_token) if access_token else None,
+                        active=True, **extra)
     s.add(account)
     s.flush()
     return account
@@ -68,17 +82,38 @@ def update_account(s: Session, account: WaAccount, **changes) -> WaAccount:
     if unknown:
         raise Invalid(f"Campos no editables: {', '.join(sorted(unknown))}")
     if "agent_id" in changes and changes["agent_id"] != account.agent_id:
-        _check_agent(s, account.client_id, changes["agent_id"])
+        check_agent(s, account.client_id, changes["agent_id"])
     if "access_token" in changes:
-        changes["access_token"] = changes["access_token"] or None   # "" lo borra: vuelve al token global
+        # "" lo borra: vuelve al token global. Si no, se cifra.
+        changes["access_token"] = crypto.encrypt(changes["access_token"]) if changes["access_token"] else None
     for key, value in changes.items():
         setattr(account, key, value)
     s.flush()
     return account
 
 
+def mark_status(s: Session, account: WaAccount, status: str, reason: str | None = None) -> None:
+    """Cambia el estado de la conexion (visible en la UI). Sin cambio, no toca la fecha."""
+    if status not in ACCOUNT_STATUSES:
+        raise ValueError(f"estado invalido: {status}")
+    reason = reason[:255] if reason else None
+    if account.status != status or account.status_reason != reason or account.status_changed_at is None:
+        account.status, account.status_reason, account.status_changed_at = status, reason, utcnow()
+    s.flush()
+
+
+def has_own_token(account: WaAccount) -> bool:
+    return bool(account.access_token)
+
+
 def token_for(account: WaAccount) -> str:
-    return account.access_token or settings.wa_access_token
+    """El token de la cuenta (descifrado) o el del system user. TokenKeyMissing si hay
+    uno cifrado y WA_TOKEN_KEY no esta o no lo descifra."""
+    return crypto.decrypt(account.access_token) or settings.wa_access_token
+
+
+def pin_for(account: WaAccount) -> str | None:
+    return crypto.decrypt(account.pin_enc)
 
 
 # --- Hilos ---

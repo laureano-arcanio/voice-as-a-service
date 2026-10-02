@@ -22,9 +22,34 @@ class Settings(BaseSettings):
     # Firma de los JWT de sesion. Sin valor la app no arranca (ver main.create_app).
     auth_secret: str = ""
     auth_token_hours: int = 12
-    # Cookie de sesion con Secure: solo viaja por HTTPS. En el server de validacion
-    # (HTTP plano) va en false.
+    # Cookie de sesion con Secure. True: siempre. False: solo si el pedido llega por HTTPS
+    # (por el tunel); asi sigue andando en http://localhost:8011.
     auth_cookie_secure: bool = True
+    # Pares TCP de los que se cree CF-Connecting-IP y X-Forwarded-Proto. cloudflared (host)
+    # llega al contenedor por el gateway de la red de compose (hoy 172.24.0.1): `gateway` lo
+    # resuelve al arrancar (la subred puede cambiar si se recrea la red). No todo 172.16/12:
+    # ahi estan las redes de los contenedores de otros proyectos de este host.
+    trusted_proxy_cidrs: str = "127.0.0.1/32,::1/128,gateway"
+    # Origenes validos para un POST/PATCH/DELETE con la cookie, ademas del mismo Host (CSRF).
+    app_origins: str = "https://app.atentina.com.ar"
+    # /api/v1/docs y openapi.json: admin (solo admin con sesion), public u off.
+    api_docs: Literal["admin", "public", "off"] = "admin"
+    # CSP solo informativa (Content-Security-Policy-Report-Only), para probar sin romper.
+    csp_report_only: bool = False
+    # Logins fallidos (en memoria, por proceso), en ventanas de 15 min y de un dia. El tope
+    # por email solo frena a las IP que ya fallaron en la ventana (no deja afuera al dueno).
+    login_fail_ip_email_15m: int = 5
+    login_fail_ip_15m: int = 20
+    login_fail_ip_day: int = 100
+    login_fail_email_15m: int = 10
+    # Tope del cuerpo de los pedidos a /api (413).
+    api_max_body_bytes: int = 1_048_576
+    # Uso de GPU por usuario o API key, por hora.
+    rate_tts_preview_per_hour: int = 60
+    rate_conversations_per_hour: int = 60
+    rate_turns_per_hour: int = 600
+    # Unico cliente (slug) que puede pedir llamadas de loadtest, ademas de los admins.
+    loadtest_client: str = "interno"
     # Admin inicial que crea `python -m app.cli seed` (solo si no existe).
     admin_email: str = ""
     admin_password: str = ""
@@ -91,6 +116,15 @@ class Settings(BaseSettings):
     wa_access_token: str = ""
     wa_public_url: str = ""
     wa_graph_version: str = "v25.0"
+    # PIN de dos pasos de nuestros numeros (alta manual, sin token propio): retry_register.
+    wa_registration_pin: str = ""
+    # Fase 2 (Embedded Signup): config de Facebook Login for Business.
+    wa_config_id: str = ""
+    # Claves Fernet separadas por coma (la primera cifra; las otras solo descifran, para rotar).
+    wa_token_key: str = ""
+    wa_signup_per_hour: int = 10      # por cliente
+    wa_templates_per_hour: int = 20   # plantillas creadas, por cliente
+    wa_sdk_locale: str = "es_LA"
     # Fase 1: tras estas horas sin mensajes del cliente, un mensaje nuevo abre otra conversacion.
     wa_session_hours: int = 24
     # Junta en un turno los mensajes que llegan seguidos (el equivalente de CONTINUATION_WINDOW).

@@ -13,6 +13,12 @@ Audios (audio.py): el entrante se baja, se transcribe y entra al turno como text
 marcado como nota de voz; la respuesta sale como nota de voz segun WA_AUDIO_REPLY,
 y si falla el TTS, la conversion o el envio, sale en texto.
 
+Eventos de la cuenta (fase 2): account_update (el cliente nos quito el acceso o Meta
+dio de baja la WABA: la cuenta queda desconectada; DISABLED_UPDATE segun waba_ban_state),
+phone_number_quality_update (limite de envio) y
+message_template_status_update (solo log: la UI lista las plantillas en vivo). Un
+token de cliente rechazado por Meta (190 o 401) tambien la desconecta y no se reintenta.
+
 Todo en memoria del proceso (inbox, lock, debounce): supone un solo worker de
 uvicorn. Si se reinicia `app`, lo pendiente se pierde y esos entrantes quedan
 `received` sin respuesta.
@@ -41,6 +47,7 @@ from ..models import Client, ConversationRow, WaAccount
 from . import audio as audio_module
 from . import store
 from .audio import AudioError, AudioTooLong
+from .crypto import TokenKeyMissing
 from .graph import GraphClient, GraphError, MediaTooLarge
 
 logger = logging.getLogger(__name__)
@@ -48,6 +55,20 @@ logger = logging.getLogger(__name__)
 MESSAGE_TYPES = {"text", "audio", "image", "document", "sticker", "video", "location"}
 # Sin respuesta: una reaccion no es un mensaje, y system/unsupported los genera Meta.
 SILENT_TYPES = {"reaction", "system", "unsupported", "ephemeral", "request_welcome"}
+# Campos de webhook de la cuenta (no traen metadata.phone_number_id): se rutean por WABA.
+ACCOUNT_EVENT_FIELDS = {"account_update", "phone_number_quality_update", "message_template_status_update"}
+# account_update que dejan la cuenta desconectada: el cliente nos quito el acceso o Meta la dio de baja.
+DISCONNECT_EVENTS = {"PARTNER_REMOVED", "PARTNER_APP_UNINSTALLED", "ACCOUNT_OFFBOARDED", "ACCOUNT_DELETED"}
+# DISABLED_UPDATE depende de ban_info.waba_ban_state: DISABLE desconecta, REINSTATE reconecta
+# lo que desconecto un DISABLE y SCHEDULE_FOR_DISABLE solo avisa (la WABA sigue andando).
+DISABLED_REASON = "account_update DISABLED_UPDATE"
+
+
+def _ban_states(value: dict) -> set[str]:
+    """waba_ban_state: en los ejemplos de Meta es un texto; se acepta tambien una lista."""
+    state = (value.get("ban_info") or {}).get("waba_ban_state") if isinstance(value.get("ban_info"), dict) else None
+    states = state if isinstance(state, list) else [state]
+    return {str(x).upper() for x in states if x}
 
 
 @dataclass
@@ -92,6 +113,7 @@ class AccountInfo:
     agent_id: str
     phone_number_id: str
     token: str
+    own_token: bool = False     # token del cliente (Embedded Signup): si Meta lo rechaza, se desconecta
 
 
 def recipient(wa_id: str) -> str:
@@ -187,6 +209,10 @@ class WhatsAppService:
                 value = change.get("value") if isinstance(change, dict) else None
                 if not isinstance(value, dict):
                     continue
+                if change.get("field") in ACCOUNT_EVENT_FIELDS:
+                    waba_id = str(entry.get("id") or "")
+                    self._spawn(self._on_account_event(str(change["field"]), waba_id, value))
+                    continue
                 pnid = str((value.get("metadata") or {}).get("phone_number_id") or "")
                 if not pnid:
                     continue
@@ -245,7 +271,15 @@ class WhatsAppService:
                 s.commit()
                 logger.info("wa: entrante ignorado (%s) pnid=%s wamid=%s", reason, pnid, wamid)
                 return
-            info = AccountInfo(account.id, account.client_id, account.agent_id, pnid, store.token_for(account))
+            try:
+                token = store.token_for(account)
+            except TokenKeyMissing:
+                store.set_inbound(s, [wamid], status="error")
+                s.commit()
+                logger.error("wa: no se puede descifrar el token de la cuenta (WA_TOKEN_KEY) pnid=%s", pnid)
+                return
+            info = AccountInfo(account.id, account.client_id, account.agent_id, pnid, token,
+                               store.has_own_token(account))
 
         key = (pnid, wa_id)
         inbox = self._inbox.setdefault(key, Inbox())
@@ -310,6 +344,8 @@ class WhatsAppService:
             body = settings.wa_audio_too_long_reply
             logger.info("wa: audio demasiado largo pnid=%s wamid=%s (%s)", info.phone_number_id, wamid, e)
         except (AudioError, GraphError) as e:
+            if isinstance(e, GraphError):
+                self._auth_failed(info, e)     # la respuesta fija igual falla y queda registrada
             body = settings.wa_audio_error_reply
             logger.warning("wa: audio sin transcribir pnid=%s wamid=%s error=%s code=%s", info.phone_number_id,
                            wamid, type(e).__name__, getattr(e, "code", None))
@@ -331,6 +367,8 @@ class WhatsAppService:
             return "phone_number_id sin cuenta"
         if not account.active:
             return "cuenta inactiva"
+        if account.status == "disconnected":
+            return "cuenta desconectada"
         client = s.get(Client, account.client_id)
         if client is None or not client.active:
             # TODO: consumo por mensajes del tier (a definir en el plan); hoy solo se exige cliente activo.
@@ -482,6 +520,25 @@ class WhatsAppService:
             store.set_inbound(s, wamids, status="answered" if sent else "error")
             s.commit()
 
+    def _auth_failed(self, info: AccountInfo, e: GraphError) -> bool:
+        """Meta rechazo el token (190 o 401). Si es del cliente, la cuenta queda desconectada
+        (los mensajes siguientes se ignoran); si es el global, solo se loguea. True si es
+        un error de autenticacion."""
+        if not e.is_auth_error:
+            return False
+        if not info.own_token:
+            logger.error("wa: el token global (WA_ACCESS_TOKEN) fue rechazado pnid=%s code=%s",
+                         info.phone_number_id, e.code)
+            return True
+        with self.sessions() as s:
+            account = s.get(WaAccount, info.id)
+            if account is not None and account.status != "disconnected":
+                store.mark_status(s, account, "disconnected", f"token_invalid code={e.code}")
+                s.commit()
+                logger.warning("wa: cuenta desconectada (token rechazado) pnid=%s code=%s",
+                               info.phone_number_id, e.code)
+        return True
+
     async def _mark_read(self, graph: GraphClient, info: AccountInfo, wamid: str) -> None:
         try:
             await graph.mark_read(info.phone_number_id, wamid)
@@ -496,6 +553,7 @@ class WhatsAppService:
             data = await graph.send_text(info.phone_number_id, recipient(wa_id), body)
         except GraphError as e:
             logger.warning("wa: envio fallido pnid=%s code=%s subcode=%s", info.phone_number_id, e.code, e.subcode)
+            self._auth_failed(info, e)
             with self.sessions() as s:
                 store.record_outbound(s, wamid=None, account_id=info.id, conversation_id=conversation_id,
                                       wa_id=wa_id, type="text", status="failed",
@@ -531,6 +589,7 @@ class WhatsAppService:
         except GraphError as e:
             logger.warning("wa: nota de voz no enviada, va en texto pnid=%s code=%s subcode=%s",
                            pnid, e.code, e.subcode)
+            self._auth_failed(info, e)
             with self.sessions() as s:
                 store.record_outbound(s, wamid=None, account_id=info.id, conversation_id=conversation_id,
                                       wa_id=wa_id, type="audio", status="failed",
@@ -546,6 +605,46 @@ class WhatsAppService:
         logger.info("wa: nota de voz enviada pnid=%s bytes=%d tts_ms=%d total_ms=%d", pnid, len(ogg), tts_ms,
                     round((time.perf_counter() - started) * 1000))
         return True
+
+    # --- Eventos de la cuenta ---
+
+    async def _on_account_event(self, field: str, waba_id: str, value: dict) -> None:
+        event = str(value.get("event") or "")
+        if field == "account_update":
+            waba_id = str((value.get("waba_info") or {}).get("waba_id") or waba_id)
+            with self.sessions() as s:
+                accounts = store.accounts_by_waba(s, waba_id) if waba_id else []
+                if event in DISCONNECT_EVENTS:
+                    for account in accounts:
+                        store.mark_status(s, account, "disconnected", f"account_update {event}")
+                elif event == "DISABLED_UPDATE":
+                    states = _ban_states(value)
+                    for account in accounts:
+                        if "DISABLE" in states:
+                            store.mark_status(s, account, "disconnected", DISABLED_REASON)
+                        elif "REINSTATE" in states and account.status == "disconnected" \
+                                and account.status_reason == DISABLED_REASON:
+                            store.mark_status(s, account, "connected")
+                    logger.warning("wa: DISABLED_UPDATE waba=%s waba_ban_state=%s", waba_id, sorted(states))
+                s.commit()
+            logger.info("wa: account_update event=%s waba=%s cuentas=%d", event, waba_id, len(accounts))
+        elif field == "phone_number_quality_update":
+            number = store.digits(value.get("display_phone_number"))
+            limit = value.get("current_limit")
+            matched = 0
+            with self.sessions() as s:
+                for account in store.accounts_by_waba(s, waba_id) if waba_id and number else []:
+                    if store.digits(account.display_phone_number) == number:
+                        matched += 1
+                        if limit:
+                            account.messaging_limit = str(limit)[:32]
+                s.commit()
+            logger.info("wa: phone_number_quality_update event=%s waba=%s limit=%s cuentas=%d", event, waba_id,
+                        limit, matched)
+        else:   # message_template_status_update: la UI lista las plantillas en vivo
+            logger.info("wa: message_template_status_update event=%s waba=%s template=%s name=%s reason=%s",
+                        event, waba_id, value.get("message_template_id"), value.get("message_template_name"),
+                        value.get("reason"))
 
     # --- Statuses ---
 

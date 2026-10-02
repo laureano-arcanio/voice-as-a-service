@@ -1,7 +1,9 @@
 # Entrada publica de la demo de la landing por Cloudflare Tunnel (docs/LANDING.md):
 # api.atentina.com.ar -> app (:8011, solo /api/v1/demo/*) y rtc.atentina.com.ar ->
 # senalizacion de LiveKit (:7880), y wa.atentina.com.ar -> app (:8011, solo ^/wa/webhook:
-# webhook de WhatsApp; si se quita, Meta deja de entregar eventos). Las rutas del tunel se configuran en Cloudflare
+# webhook de WhatsApp; si se quita, Meta deja de entregar eventos) y app.atentina.com.ar -> app
+# (:8011, todo el host: UI, API y docs de admin, sin Cloudflare Access; ruta pendiente, la crea
+# el usuario). Las rutas del tunel se configuran en Cloudflare
 # (tunel administrado por token). El audio WebRTC no pasa por el tunel: va por UDP
 # 7882 / TCP 7881 reenviados en el router, con LIVEKIT_NODE_IP = IP publica.
 #

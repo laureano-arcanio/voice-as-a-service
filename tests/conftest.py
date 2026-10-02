@@ -4,6 +4,10 @@ import os
 # TestClient (http://testserver) no las devolveria.
 os.environ.setdefault("AUTH_SECRET", "test-secret-" + "x" * 32)
 os.environ["AUTH_COOKIE_SECURE"] = "false"
+# Los tests no dependen del .env del host: la demo arranca apagada (la prende el fixture).
+os.environ["TURNSTILE_SECRET_KEY"] = ""
+# El default `gateway` depende de donde corren (contenedor o host): fijo el de compose.
+os.environ["TRUSTED_PROXY_CIDRS"] = "127.0.0.1/32,::1/128,172.24.0.1/32"
 
 import pytest
 
@@ -61,6 +65,8 @@ def api(sessions, monkeypatch):
     from app.services import livekit
 
     from .helpers import FakeLLM
+
+    deps.api_limiter.reset()
 
     class Api:
         pass

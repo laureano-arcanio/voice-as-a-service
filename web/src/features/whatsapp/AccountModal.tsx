@@ -18,7 +18,7 @@ function agentOptions(agents: { id: string; name: string }[] | undefined, curren
   return data;
 }
 
-/** Conectar un numero: los IDs salen de Meta (WhatsApp → Configuración de la API). */
+/** Alta manual (admin): numeros de nuestro portafolio. Los IDs salen de Meta (WhatsApp → Configuración de la API). */
 export function NewWaAccountModal({ onClose }: { onClose: () => void }) {
   const clients = useClients();
   const create = useCreateWaAccount();
@@ -44,7 +44,7 @@ export function NewWaAccountModal({ onClose }: { onClose: () => void }) {
   const agents = useAgents(clientId || undefined, false, !!clientId);
 
   return (
-    <Modal opened onClose={onClose} title="Conectar número de WhatsApp" size="lg">
+    <Modal opened onClose={onClose} title="Alta manual de un número de WhatsApp" size="lg">
       <form
         onSubmit={form.onSubmit((v) =>
           create.mutate(

@@ -374,10 +374,13 @@ async def test_with_real_graph_client(sessions):
 
 
 def test_store_accounts(sessions, monkeypatch):
+    from cryptography.fernet import Fernet
+
     from app.config import settings
 
     w = make_wa(sessions)
     monkeypatch.setattr(settings, "wa_access_token", "global")
+    monkeypatch.setattr(settings, "wa_token_key", Fernet.generate_key().decode())
     with sessions() as s:
         with pytest.raises(Conflict):
             store.create_account(s, client_id=w.client_id, agent_id=w.agent_id, phone_number_id=PNID,
@@ -390,6 +393,7 @@ def test_store_accounts(sessions, monkeypatch):
         assert store.token_for(account) == "global"
         store.update_account(s, account, access_token="propio")
         assert store.token_for(account) == "propio"
+        assert account.access_token.startswith("fernet:") and "propio" not in account.access_token
         store.update_account(s, account, access_token="", active=False)
         assert account.access_token is None and not account.active
         assert [a.id for a in store.list_accounts(s, w.client_id)] == [w.account_id]

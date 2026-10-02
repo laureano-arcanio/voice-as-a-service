@@ -1,14 +1,16 @@
 """Cliente chico de la Graph API de Meta para WhatsApp Cloud API.
 
 Solo lo que usa el plan (docs/WHATSAPP_PLAN.md): enviar texto/plantillas/audio,
-marcar leido, bajar y subir media y registrar un numero (request_code,
-verify_code, register).
+marcar leido, bajar y subir media, registrar un numero (request_code,
+verify_code, register) y, para Embedded Signup (fase 2), cambiar el codigo por el
+token del cliente, suscribir la app a su WABA, leer sus numeros y sus plantillas.
 El token va solo en el header Authorization: no se loguea ni entra en
-str(GraphError).
+str(GraphError). Tampoco el app secret ni el codigo del intercambio.
 """
 
 from __future__ import annotations
 
+import logging
 import re
 
 import httpx
@@ -22,6 +24,23 @@ MEDIA_TIMEOUT = httpx.Timeout(30.0, connect=5.0)
 # base_url). La url de get_media es de lookaside.fbsbx.com segun los ejemplos de Meta;
 # los demas, por las dudas. Una url de otro host da GraphError (se loguea el host).
 MEDIA_HOSTS = ("fbsbx.com", "facebook.com", "fbcdn.net", "whatsapp.net", "whatsapp.com")
+
+
+_SECRET_QUERY_RE = re.compile(r"((?:client_secret|code|access_token)=)[^&\s\"']*")
+
+
+class RedactSecrets(logging.Filter):
+    """httpx loguea la URL completa en INFO: tapa client_secret y code del intercambio."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.args, tuple):
+            record.args = tuple(_SECRET_QUERY_RE.sub(r"\1***", str(a)) if isinstance(a, (str, httpx.URL)) else a
+                                for a in record.args)
+        return True
+
+
+if not any(isinstance(f, RedactSecrets) for f in logging.getLogger("httpx").filters):
+    logging.getLogger("httpx").addFilter(RedactSecrets())
 
 
 class GraphError(Exception):
@@ -38,6 +57,13 @@ class GraphError(Exception):
     def __str__(self) -> str:
         return (f"Graph API error (http={self.status}, code={self.code}, "
                 f"subcode={self.subcode}): {self.message}")
+
+    @property
+    def is_auth_error(self) -> bool:
+        """Token vencido, invalido o revocado: la cuenta queda desconectada. El 10
+        (permiso no otorgado) no cuenta: mientras el App Review no este aprobado daria
+        falsos positivos."""
+        return self.code == 190 or self.status == 401
 
 
 class MediaTooLarge(GraphError):
@@ -83,7 +109,10 @@ class GraphClient:
         return self._http
 
     def _auth(self) -> dict:
-        return {"Authorization": f"Bearer {self._token}"}
+        return {"Authorization": f"Bearer {self._token}"} if self._token else {}
+
+    def _url(self, *parts: str) -> str:
+        return "/".join([self.base_url, self.version, *parts])
 
     async def _request(self, method: str, url: str, *, json: dict | None = None, data: dict | None = None,
                        files: dict | None = None, params: dict | None = None,
@@ -206,3 +235,46 @@ class GraphClient:
         return await self._post(phone_number_id, "messages", {
             "messaging_product": "whatsapp", "to": to, "type": "audio", "audio": audio,
         })
+
+    # --- Embedded Signup y administracion de la WABA del cliente (fase 2). Ver
+    # docs/WHATSAPP_PLAN.md 3.3: lo confirmado y lo no confirmado de cada respuesta. ---
+
+    async def exchange_code(self, app_id: str, app_secret: str, code: str) -> str:
+        """Codigo del popup (vence a los 30 s) -> business token del cliente. Sin token
+        propio: el cliente se crea con GraphClient(""). El secret no va al log (RedactSecrets)
+        ni al error."""
+        data = await self._request("GET", self._url("oauth", "access_token"),
+                                   params={"client_id": app_id, "client_secret": app_secret, "code": code})
+        token = data.get("access_token")
+        if not isinstance(token, str) or not token:
+            raise GraphError("intercambio sin access_token")
+        return token
+
+    async def subscribe_app(self, waba_id: str) -> dict:
+        """Suscribe nuestra app a los webhooks de la WABA: sin esto no llega ningun mensaje."""
+        return await self._request("POST", self._url(waba_id, "subscribed_apps"))
+
+    async def smb_app_data(self, phone_number_id: str, sync_type: str) -> dict:
+        """Coexistencia: pide la sincronizacion de contactos (smb_app_state_sync) o del
+        historial (history) de la app de WhatsApp Business. Meta da 24 h desde el alta."""
+        return await self._post(phone_number_id, "smb_app_data",
+                                {"messaging_product": "whatsapp", "sync_type": sync_type})
+
+    async def list_phone_numbers(self, waba_id: str) -> list[dict]:
+        data = await self._request("GET", self._url(waba_id, "phone_numbers"),
+                                   params={"fields": "id,display_phone_number,verified_name,quality_rating"})
+        return [n for n in data.get("data") or [] if isinstance(n, dict)]
+
+    async def get_phone_number(self, phone_number_id: str,
+                               fields: str = "id,display_phone_number,verified_name,quality_rating") -> dict:
+        return await self._request("GET", self._url(phone_number_id), params={"fields": fields})
+
+    async def list_templates(self, waba_id: str, limit: int = 100) -> list[dict]:
+        data = await self._request("GET", self._url(waba_id, "message_templates"), params={
+            "fields": "id,name,language,category,status,rejected_reason,components", "limit": limit})
+        return [t for t in data.get("data") or [] if isinstance(t, dict)]
+
+    async def create_template(self, waba_id: str, payload: dict) -> dict:
+        """{id, status, category}. Meta la revisa: queda PENDING y avisa por
+        message_template_status_update."""
+        return await self._request("POST", self._url(waba_id, "message_templates"), json=payload)

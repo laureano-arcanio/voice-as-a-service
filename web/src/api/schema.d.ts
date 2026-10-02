@@ -30,7 +30,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Logout */
+        /**
+         * Logout
+         * @description Cierra todas las sesiones del usuario (sube session_version) y borra la cookie.
+         *     Sin sesion valida, 204 igual.
+         */
         post: operations["logout_api_v1_auth_logout_post"];
         delete?: never;
         options?: never;
@@ -677,6 +681,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/whatsapp/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Config
+         * @description Datos publicos para lanzar Embedded Signup (app_id y config_id no son secretos).
+         */
+        get: operations["get_config_api_v1_whatsapp_config_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/whatsapp/accounts": {
         parameters: {
             query?: never;
@@ -689,7 +713,8 @@ export interface paths {
         put?: never;
         /**
          * Create Account
-         * @description Conecta un numero: 409 si el phone_number_id ya esta, 404 si el agente no es del cliente.
+         * @description Alta manual: 409 si el phone_number_id ya esta, 404 si el agente no es del cliente.
+         *     El token se guarda cifrado (503 sin WA_TOKEN_KEY).
          */
         post: operations["create_account_api_v1_whatsapp_accounts_post"];
         delete?: never;
@@ -713,7 +738,8 @@ export interface paths {
         head?: never;
         /**
          * Update Account
-         * @description access_token "" o null lo borra (vuelve a WA_ACCESS_TOKEN).
+         * @description access_token "" o null lo borra (vuelve a WA_ACCESS_TOKEN). Usuario del cliente:
+         *     solo agent_id, name y active.
          */
         patch: operations["update_account_api_v1_whatsapp_accounts__account_id__patch"];
         trace?: never;
@@ -732,6 +758,94 @@ export interface paths {
          * @description Deja de responder los mensajes que lleguen a ese numero (quedan ignored).
          */
         post: operations["deactivate_account_api_v1_whatsapp_accounts__account_id__deactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/whatsapp/signup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Signup Account
+         * @description Embedded Signup: cambia el codigo por el token del cliente, suscribe la app a su
+         *     WABA, registra el numero y guarda la cuenta. 201 tambien si quedo `pending` (fallo
+         *     la suscripcion o el registro: ver status_reason y reintentar con /register).
+         *     409 si el numero es de otro cliente; 400 signup_code_expired si el codigo vencio.
+         */
+        post: operations["signup_account_api_v1_whatsapp_signup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/whatsapp/accounts/{account_id}/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register Account
+         * @description Reintenta la suscripcion y el registro (cuenta pending). PIN: el pedido, el
+         *     guardado o uno nuevo.
+         */
+        post: operations["register_account_api_v1_whatsapp_accounts__account_id__register_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/whatsapp/accounts/{account_id}/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh Account
+         * @description Relee el numero visible y la calidad en Meta. Un token rechazado la desconecta.
+         */
+        post: operations["refresh_account_api_v1_whatsapp_accounts__account_id__refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/whatsapp/accounts/{account_id}/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Templates
+         * @description Plantillas de la WABA de la cuenta, en vivo desde Meta (con estado de aprobacion).
+         */
+        get: operations["list_templates_api_v1_whatsapp_accounts__account_id__templates_get"];
+        put?: never;
+        /**
+         * Create Template
+         * @description Crea una plantilla en la WABA de la cuenta. Meta la revisa: queda PENDING.
+         */
+        post: operations["create_template_api_v1_whatsapp_accounts__account_id__templates_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1798,7 +1912,7 @@ export interface components {
         };
         /**
          * WaAccountOut
-         * @description El token nunca sale: solo si la cuenta tiene uno propio.
+         * @description El token y el PIN nunca salen: solo si la cuenta tiene uno propio.
          */
         WaAccountOut: {
             /** Id */
@@ -1815,14 +1929,47 @@ export interface components {
             phone_number_id: string;
             /** Waba Id */
             waba_id: string;
+            /** Business Id */
+            business_id?: string | null;
             /** Display Phone Number */
             display_phone_number: string;
             /** Name */
             name: string;
             /** Has Token */
             has_token: boolean;
+            /**
+             * Has Pin
+             * @default false
+             */
+            has_pin?: boolean;
             /** Active */
             active: boolean;
+            /**
+             * Status
+             * @description connected: atiende. pending: falta suscribir o registrar (reintentar). disconnected: Meta rechazo el token o el cliente quito el acceso
+             * @enum {string}
+             */
+            status: "connected" | "pending" | "disconnected";
+            /** Status Reason */
+            status_reason?: string | null;
+            /** Status Changed At */
+            status_changed_at?: string | null;
+            /**
+             * Quality Rating
+             * @description GREEN, YELLOW, RED, NA o UNKNOWN (Meta)
+             */
+            quality_rating?: string | null;
+            /**
+             * Messaging Limit
+             * @description current_limit de phone_number_quality_update
+             */
+            messaging_limit?: string | null;
+            /**
+             * Source
+             * @default manual
+             * @enum {string}
+             */
+            source?: "manual" | "embedded_signup" | "coexistence";
             /**
              * Created At
              * Format: date-time
@@ -1834,7 +1981,10 @@ export interface components {
              */
             updated_at: string;
         };
-        /** WaAccountPatch */
+        /**
+         * WaAccountPatch
+         * @description Usuario del cliente: solo agent_id, name y active. El resto, admin.
+         */
         WaAccountPatch: {
             /** Agent Id */
             agent_id?: string | null;
@@ -1849,6 +1999,134 @@ export interface components {
             access_token?: string | null;
             /** Active */
             active?: boolean | null;
+        };
+        /**
+         * WaConfigOut
+         * @description Lo que necesita la UI para lanzar Embedded Signup. enabled=false: el boton va
+         *     deshabilitado y se muestra reason.
+         */
+        WaConfigOut: {
+            /** Enabled */
+            enabled: boolean;
+            /** Reason */
+            reason?: string | null;
+            /** App Id */
+            app_id?: string | null;
+            /** Config Id */
+            config_id?: string | null;
+            /** Graph Version */
+            graph_version: string;
+            /** Sdk Locale */
+            sdk_locale: string;
+        };
+        /** WaRegisterIn */
+        WaRegisterIn: {
+            /** Pin */
+            pin?: string | null;
+        };
+        /**
+         * WaSignupIn
+         * @description Lo que devuelve el popup de Embedded Signup: el codigo de FB.login (vence a los
+         *     30 s) y los IDs del mensaje WA_EMBEDDED_SIGNUP.
+         */
+        WaSignupIn: {
+            /** Code */
+            code: string;
+            /** Waba Id */
+            waba_id: string;
+            /**
+             * Phone Number Id
+             * @description Vacio con FINISH_ONLY_WABA (se rechaza) o en coexistencia (se toma el unico numero de la WABA)
+             * @default
+             */
+            phone_number_id?: string;
+            /** Business Id */
+            business_id?: string | null;
+            /**
+             * Event
+             * @default FINISH
+             * @enum {string}
+             */
+            event?: "FINISH" | "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING" | "FINISH_ONLY_WABA";
+            /**
+             * Agent Id
+             * @description Agente del cliente que atiende los mensajes
+             */
+            agent_id: string;
+            /**
+             * Client Id
+             * @description Solo admin; a un usuario de cliente se le fuerza el suyo
+             */
+            client_id?: string | null;
+            /**
+             * Pin
+             * @description PIN de dos pasos del numero; sin el, se genera uno y se guarda cifrado
+             */
+            pin?: string | null;
+        };
+        /** WaTemplateCreated */
+        WaTemplateCreated: {
+            /** Id */
+            id: string;
+            /** Status */
+            status?: string | null;
+            /** Category */
+            category?: string | null;
+        };
+        /**
+         * WaTemplateIn
+         * @description Plantilla de texto. Variables posicionales {{1}}, {{2}}... en el cuerpo, con un
+         *     ejemplo por variable (Meta los usa para revisarla).
+         */
+        WaTemplateIn: {
+            /**
+             * Name
+             * @description Minusculas, numeros y _
+             */
+            name: string;
+            /**
+             * Language
+             * @default es_AR
+             */
+            language?: string;
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "UTILITY" | "MARKETING" | "AUTHENTICATION";
+            /** Body */
+            body: string;
+            /**
+             * Examples
+             * @default []
+             */
+            examples?: string[];
+            /** Header Text */
+            header_text?: string | null;
+            /** Footer Text */
+            footer_text?: string | null;
+        };
+        /** WaTemplateOut */
+        WaTemplateOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Language */
+            language: string;
+            /** Category */
+            category: string;
+            /** Status */
+            status: string;
+            /** Rejected Reason */
+            rejected_reason?: string | null;
+            /**
+             * Components
+             * @default []
+             */
+            components?: {
+                [key: string]: unknown;
+            }[];
         };
         /**
          * WhatsAppInfo
@@ -1911,6 +2189,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Demasiados intentos fallidos */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -3455,6 +3740,33 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            /** @description Limite de uso por hora */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_config_api_v1_whatsapp_config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaConfigOut"];
+                };
+            };
         };
     };
     list_accounts_api_v1_whatsapp_accounts_get: {
@@ -3574,6 +3886,171 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WaAccountOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    signup_account_api_v1_whatsapp_signup_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaSignupIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaAccountOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    register_account_api_v1_whatsapp_accounts__account_id__register_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaRegisterIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaAccountOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refresh_account_api_v1_whatsapp_accounts__account_id__refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaAccountOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_templates_api_v1_whatsapp_accounts__account_id__templates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaTemplateOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_template_api_v1_whatsapp_accounts__account_id__templates_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaTemplateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaTemplateCreated"];
                 };
             };
             /** @description Validation Error */

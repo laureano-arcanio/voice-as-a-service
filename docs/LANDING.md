@@ -89,6 +89,8 @@ navegador ──HTTPS──► atentina.com.ar (Render, estático)
     ├──HTTPS──► api.atentina.com.ar ─┐
     ├──WSS────► rtc.atentina.com.ar ─┴─ Cloudflare Tunnel ─► app :8011 (/api/v1/demo/*), LiveKit :7880
     └──UDP 7882 / TCP 7881 ─────────── router (181.104.113.28) ─► LiveKit (audio WebRTC)
+
+app.atentina.com.ar (dashboard, pendiente) ──HTTPS── Cloudflare Tunnel ─► app :8011 (todo el host)
 ```
 
 El túnel no lleva UDP: el audio va directo a la IP fija. LiveKit anuncia la IP pública
@@ -110,6 +112,7 @@ El túnel no lleva UDP: el audio va directo a la IP fija. LiveKit anuncia la IP 
    | CNAME | `www` | `atentina-landing.onrender.com` | con proxy |
    | CNAME | `api` | `<id del túnel>.cfargotunnel.com` | con proxy |
    | CNAME | `rtc` | `<id del túnel>.cfargotunnel.com` | con proxy |
+   | CNAME | `app` | `<id del túnel>.cfargotunnel.com` | con proxy (pendiente) |
 
    `@` y `www` funcionan con proxy (1-oct-2026); si Render no verifica el dominio, pasarlos a
    "solo DNS" hasta que emita el certificado. `api` y `rtc` apuntan al túnel (paso 5).
@@ -135,12 +138,27 @@ El túnel no lleva UDP: el audio va directo a la IP fija. LiveKit anuncia la IP 
    | `api.atentina.com.ar` | `^/api/v1/demo/` | `http://localhost:8011` |
    | `rtc.atentina.com.ar` | (vacío) | `http://localhost:7880` |
    | `wa.atentina.com.ar` | `^/wa/webhook` | `http://localhost:8011` |
+   | `app.atentina.com.ar` (pendiente) | (vacío) | `http://localhost:8011` |
 
    El mismo túnel sirve el webhook de WhatsApp en `wa.atentina.com.ar` (ver
    [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md)).
 
-   Lo que no coincide con esas rutas lo responde el túnel con 404: la UI y el resto de la API no
-   quedan expuestos.
+   En `api.` y `wa.`, lo que no coincide con la ruta lo responde el túnel con 404.
+   **`app.atentina.com.ar` publica el dashboard entero** (UI, API con sesión o API key y docs solo para
+   admin), **sin Cloudflare Access**: la app se defiende sola (límites de login por IP real, sesión
+   revocable, CSRF, CSP y HSTS; ver [`ARQUITECTURA.md`](ARQUITECTURA.md), "Autenticación y permisos").
+   Para crearlo (pendiente, después de desplegar la app con ese endurecimiento):
+   1. Zero Trust → Networks → Tunnels → `atentina-demo` → Public hostnames → Add: subdominio `app`,
+      dominio `atentina.com.ar`, path vacío, servicio HTTP `localhost:8011`. Cloudflare crea el CNAME
+      `app` solo; si no, cargarlo a mano (tabla del paso 2).
+   2. En la zona `atentina.com.ar`: SSL/TLS → Edge Certificates → **Always Use HTTPS** activado (la app
+      igual redirige a `https://` lo que llega por `http://` del túnel, con 308).
+   3. Probar: `curl -sI https://app.atentina.com.ar/` trae `strict-transport-security` y
+      `content-security-policy`; `curl -sI http://app.atentina.com.ar/` redirige a `https://`; el access
+      log de `app` muestra el par `172.24.0.1` (el `gateway` de `TRUSTED_PROXY_CIDRS`) y el login limita
+      por la IP de `CF-Connecting-IP`.
+   4. En la app de Meta, `app.atentina.com.ar` como dominio de Embedded Signup (ver
+      [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md), 5.3).
 6. **Router:** reenviar UDP 7882 y TCP 7881 a 192.168.1.99.
 7. **`.env` del server:** `LIVEKIT_NODE_IP=181.104.113.28`, `DEMO_LIVEKIT_URL=wss://rtc.atentina.com.ar`
    y `TURNSTILE_SECRET_KEY`. Aplicar sin tocar la inferencia: `make up-agent` (build de `app` y
@@ -154,7 +172,8 @@ El túnel no lleva UDP: el audio va directo a la IP fija. LiveKit anuncia la IP 
 ## Pendiente
 
 - **App:** `app.atentina.com.ar` servirá la UI de la plataforma (`app.atentina.com` redirige ahí con
-  la misma Redirect Rule). Falta publicarla y sumar el link "Ingresar" en la landing.
+  la misma Redirect Rule). La app ya está endurecida para internet; falta desplegarla, crear el
+  hostname en el túnel (paso 5) y sumar el link "Ingresar" en la landing.
 - **Número 0800 de la demo:** el popup "llamá gratis" muestra `0800-000-0000` hasta definirlo
   (`src/scripts/tel.ts`).
 - **Redes con UDP bloqueado:** sin TURN sobre TLS (443), el audio usa TCP 7881; si también está

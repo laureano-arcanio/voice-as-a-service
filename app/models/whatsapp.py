@@ -4,7 +4,17 @@ de cada conversacion (lo que call_logs es a la telefonia) y los mensajes por wam
 """
 import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, false, true
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    false,
+    true,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..db import Base, JSONDoc, utcnow
@@ -12,8 +22,15 @@ from ._common import IdMixin, TimestampMixin
 
 
 class WaAccount(IdMixin, TimestampMixin, Base):
-    """Un numero de WhatsApp conectado: lo atiende `agent`, un agente del cliente."""
+    """Un numero de WhatsApp conectado: lo atiende `agent`, un agente del cliente.
+
+    Alta manual (admin, numeros de nuestro portafolio) o por Embedded Signup (el cliente
+    conecta el suyo, app/whatsapp/signup.py). Secretos cifrados (app/whatsapp/crypto.py)."""
     __tablename__ = "wa_accounts"
+    __table_args__ = (
+        CheckConstraint("status IN ('connected', 'pending', 'disconnected')", name="ck_wa_accounts_status"),
+        Index("ix_wa_accounts_waba_id", "waba_id"),
+    )
     client_id: Mapped[str] = mapped_column(String(36), ForeignKey("clients.id", ondelete="RESTRICT"), index=True)
     agent_id: Mapped[str] = mapped_column(String(36), ForeignKey("agents.id", ondelete="RESTRICT"), index=True)
     phone_number_id: Mapped[str] = mapped_column(String(32), unique=True)   # ID de Meta
@@ -21,9 +38,22 @@ class WaAccount(IdMixin, TimestampMixin, Base):
     display_phone_number: Mapped[str] = mapped_column(String(32))
     name: Mapped[str] = mapped_column(String(128), default="", server_default="")
     # NULL: se usa settings.wa_access_token (system user de nuestro portafolio).
-    # TODO fase 2: cifrar con WA_TOKEN_KEY (tokens de Embedded Signup de los clientes).
+    # Si no, "fernet:<token>" (business token del cliente); sin prefijo, legado en claro.
     access_token: Mapped[str | None] = mapped_column(Text, nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    # connected: atiende. pending: falta suscribir o registrar (reintento desde la UI).
+    # disconnected: Meta rechazo el token (190) o el cliente nos quito el acceso; no se usa mas.
+    status: Mapped[str] = mapped_column(String(16), default="connected", server_default="connected")
+    status_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    status_changed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    quality_rating: Mapped[str | None] = mapped_column(String(16), nullable=True)   # GREEN, YELLOW, RED...
+    messaging_limit: Mapped[str | None] = mapped_column(String(32), nullable=True)  # current_limit de Meta
+    business_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    source: Mapped[str] = mapped_column(String(16), default="manual", server_default="manual")  # manual, embedded_signup, coexistence
+    pin_enc: Mapped[str | None] = mapped_column(Text, nullable=True)   # PIN de dos pasos, cifrado
+    connected_by: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL", name="fk_wa_accounts_connected_by_users"),
+        nullable=True)
 
 
 class WaThread(Base):

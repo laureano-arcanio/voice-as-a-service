@@ -33,6 +33,9 @@
        }
       }
      },
+     "429": {
+      "description": "Demasiados intentos fallidos"
+     },
      "422": {
       "description": "Validation Error",
       "content": {
@@ -52,6 +55,7 @@
      "auth"
     ],
     "summary": "Logout",
+    "description": "Cierra todas las sesiones del usuario (sube session_version) y borra la cookie.\nSin sesion valida, 204 igual.",
     "operationId": "logout_api_v1_auth_logout_post",
     "responses": {
      "204": {
@@ -2677,12 +2681,42 @@
        "audio/wav": {}
       }
      },
+     "429": {
+      "description": "Limite de uso por hora"
+     },
      "422": {
       "description": "Validation Error",
       "content": {
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/whatsapp/config": {
+   "get": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "Get Config",
+    "description": "Datos publicos para lanzar Embedded Signup (app_id y config_id no son secretos).",
+    "operationId": "get_config_api_v1_whatsapp_config_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WaConfigOut"
         }
        }
       }
@@ -2757,7 +2791,7 @@
      "whatsapp"
     ],
     "summary": "Create Account",
-    "description": "Conecta un numero: 409 si el phone_number_id ya esta, 404 si el agente no es del cliente.",
+    "description": "Alta manual: 409 si el phone_number_id ya esta, 404 si el agente no es del cliente.\nEl token se guarda cifrado (503 sin WA_TOKEN_KEY).",
     "operationId": "create_account_api_v1_whatsapp_accounts_post",
     "security": [
      {
@@ -2804,7 +2838,7 @@
      "whatsapp"
     ],
     "summary": "Update Account",
-    "description": "access_token \"\" o null lo borra (vuelve a WA_ACCESS_TOKEN).",
+    "description": "access_token \"\" o null lo borra (vuelve a WA_ACCESS_TOKEN). Usuario del cliente:\nsolo agent_id, name y active.",
     "operationId": "update_account_api_v1_whatsapp_accounts__account_id__patch",
     "security": [
      {
@@ -2887,6 +2921,267 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/WaAccountOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/whatsapp/signup": {
+   "post": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "Signup Account",
+    "description": "Embedded Signup: cambia el codigo por el token del cliente, suscribe la app a su\nWABA, registra el numero y guarda la cuenta. 201 tambien si quedo `pending` (fallo\nla suscripcion o el registro: ver status_reason y reintentar con /register).\n409 si el numero es de otro cliente; 400 signup_code_expired si el codigo vencio.",
+    "operationId": "signup_account_api_v1_whatsapp_signup_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/WaSignupIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WaAccountOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/whatsapp/accounts/{account_id}/register": {
+   "post": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "Register Account",
+    "description": "Reintenta la suscripcion y el registro (cuenta pending). PIN: el pedido, el\nguardado o uno nuevo.",
+    "operationId": "register_account_api_v1_whatsapp_accounts__account_id__register_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "account_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Account Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/WaRegisterIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WaAccountOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/whatsapp/accounts/{account_id}/refresh": {
+   "post": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "Refresh Account",
+    "description": "Relee el numero visible y la calidad en Meta. Un token rechazado la desconecta.",
+    "operationId": "refresh_account_api_v1_whatsapp_accounts__account_id__refresh_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "account_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Account Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WaAccountOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/whatsapp/accounts/{account_id}/templates": {
+   "get": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "List Templates",
+    "description": "Plantillas de la WABA de la cuenta, en vivo desde Meta (con estado de aprobacion).",
+    "operationId": "list_templates_api_v1_whatsapp_accounts__account_id__templates_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "account_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Account Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/WaTemplateOut"
+         },
+         "title": "Response List Templates Api V1 Whatsapp Accounts  Account Id  Templates Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "Create Template",
+    "description": "Crea una plantilla en la WABA de la cuenta. Meta la revisa: queda PENDING.",
+    "operationId": "create_template_api_v1_whatsapp_accounts__account_id__templates_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "account_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Account Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/WaTemplateIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WaTemplateCreated"
         }
        }
       }
@@ -6014,6 +6309,17 @@
       "type": "string",
       "title": "Waba Id"
      },
+     "business_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Business Id"
+     },
      "display_phone_number": {
       "type": "string",
       "title": "Display Phone Number"
@@ -6026,9 +6332,81 @@
       "type": "boolean",
       "title": "Has Token"
      },
+     "has_pin": {
+      "type": "boolean",
+      "title": "Has Pin",
+      "default": false
+     },
      "active": {
       "type": "boolean",
       "title": "Active"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "connected",
+       "pending",
+       "disconnected"
+      ],
+      "title": "Status",
+      "description": "connected: atiende. pending: falta suscribir o registrar (reintentar). disconnected: Meta rechazo el token o el cliente quito el acceso"
+     },
+     "status_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status Reason"
+     },
+     "status_changed_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status Changed At"
+     },
+     "quality_rating": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Quality Rating",
+      "description": "GREEN, YELLOW, RED, NA o UNKNOWN (Meta)"
+     },
+     "messaging_limit": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Messaging Limit",
+      "description": "current_limit de phone_number_quality_update"
+     },
+     "source": {
+      "type": "string",
+      "enum": [
+       "manual",
+       "embedded_signup",
+       "coexistence"
+      ],
+      "title": "Source",
+      "default": "manual"
      },
      "created_at": {
       "type": "string",
@@ -6052,11 +6430,12 @@
      "name",
      "has_token",
      "active",
+     "status",
      "created_at",
      "updated_at"
     ],
     "title": "WaAccountOut",
-    "description": "El token nunca sale: solo si la cuenta tiene uno propio."
+    "description": "El token y el PIN nunca salen: solo si la cuenta tiene uno propio."
    },
    "WaAccountPatch": {
     "properties": {
@@ -6121,7 +6500,326 @@
      }
     },
     "type": "object",
-    "title": "WaAccountPatch"
+    "title": "WaAccountPatch",
+    "description": "Usuario del cliente: solo agent_id, name y active. El resto, admin."
+   },
+   "WaConfigOut": {
+    "properties": {
+     "enabled": {
+      "type": "boolean",
+      "title": "Enabled"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "app_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "App Id"
+     },
+     "config_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Config Id"
+     },
+     "graph_version": {
+      "type": "string",
+      "title": "Graph Version"
+     },
+     "sdk_locale": {
+      "type": "string",
+      "title": "Sdk Locale"
+     }
+    },
+    "type": "object",
+    "required": [
+     "enabled",
+     "graph_version",
+     "sdk_locale"
+    ],
+    "title": "WaConfigOut",
+    "description": "Lo que necesita la UI para lanzar Embedded Signup. enabled=false: el boton va\ndeshabilitado y se muestra reason."
+   },
+   "WaRegisterIn": {
+    "properties": {
+     "pin": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^\\d{6}$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Pin"
+     }
+    },
+    "type": "object",
+    "title": "WaRegisterIn"
+   },
+   "WaSignupIn": {
+    "properties": {
+     "code": {
+      "type": "string",
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Code"
+     },
+     "waba_id": {
+      "type": "string",
+      "pattern": "^\\d{1,32}$",
+      "title": "Waba Id"
+     },
+     "phone_number_id": {
+      "type": "string",
+      "pattern": "^\\d{0,32}$",
+      "title": "Phone Number Id",
+      "description": "Vacio con FINISH_ONLY_WABA (se rechaza) o en coexistencia (se toma el unico numero de la WABA)",
+      "default": ""
+     },
+     "business_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^\\d{1,32}$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Business Id"
+     },
+     "event": {
+      "type": "string",
+      "enum": [
+       "FINISH",
+       "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING",
+       "FINISH_ONLY_WABA"
+      ],
+      "title": "Event",
+      "default": "FINISH"
+     },
+     "agent_id": {
+      "type": "string",
+      "title": "Agent Id",
+      "description": "Agente del cliente que atiende los mensajes"
+     },
+     "client_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Id",
+      "description": "Solo admin; a un usuario de cliente se le fuerza el suyo"
+     },
+     "pin": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^\\d{6}$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Pin",
+      "description": "PIN de dos pasos del numero; sin el, se genera uno y se guarda cifrado"
+     }
+    },
+    "type": "object",
+    "required": [
+     "code",
+     "waba_id",
+     "agent_id"
+    ],
+    "title": "WaSignupIn",
+    "description": "Lo que devuelve el popup de Embedded Signup: el codigo de FB.login (vence a los\n30 s) y los IDs del mensaje WA_EMBEDDED_SIGNUP."
+   },
+   "WaTemplateCreated": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "status": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status"
+     },
+     "category": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Category"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id"
+    ],
+    "title": "WaTemplateCreated"
+   },
+   "WaTemplateIn": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]{1,512}$",
+      "title": "Name",
+      "description": "Minusculas, numeros y _"
+     },
+     "language": {
+      "type": "string",
+      "pattern": "^[a-z]{2,3}(_[A-Z]{2})?$",
+      "title": "Language",
+      "default": "es_AR"
+     },
+     "category": {
+      "type": "string",
+      "enum": [
+       "UTILITY",
+       "MARKETING",
+       "AUTHENTICATION"
+      ],
+      "title": "Category"
+     },
+     "body": {
+      "type": "string",
+      "maxLength": 1024,
+      "minLength": 1,
+      "title": "Body"
+     },
+     "examples": {
+      "items": {
+       "type": "string",
+       "maxLength": 200
+      },
+      "type": "array",
+      "maxItems": 20,
+      "title": "Examples",
+      "default": []
+     },
+     "header_text": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 60
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Header Text"
+     },
+     "footer_text": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 60
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Footer Text"
+     }
+    },
+    "type": "object",
+    "required": [
+     "name",
+     "category",
+     "body"
+    ],
+    "title": "WaTemplateIn",
+    "description": "Plantilla de texto. Variables posicionales {{1}}, {{2}}... en el cuerpo, con un\nejemplo por variable (Meta los usa para revisarla)."
+   },
+   "WaTemplateOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "language": {
+      "type": "string",
+      "title": "Language"
+     },
+     "category": {
+      "type": "string",
+      "title": "Category"
+     },
+     "status": {
+      "type": "string",
+      "title": "Status"
+     },
+     "rejected_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rejected Reason"
+     },
+     "components": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Components",
+      "default": []
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "name",
+     "language",
+     "category",
+     "status"
+    ],
+    "title": "WaTemplateOut"
    },
    "WhatsAppInfo": {
     "properties": {

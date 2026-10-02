@@ -122,12 +122,28 @@ def test_ip_rate_limit(landing, monkeypatch):
 
 
 def test_ip_from_cloudflare_header(landing, monkeypatch):
+    from fastapi.testclient import TestClient
+
     monkeypatch.setattr(settings, "demo_ip_calls_per_hour", 1)
+    # cloudflared llega por el gateway de la red de compose: par de confianza.
+    landing.client = TestClient(landing.app, client=("172.24.0.1", 40000))
     headers = session(landing)
     assert call(landing, {**headers, "CF-Connecting-IP": "203.0.113.1"}).status_code == 201
     finish_all(landing)
     assert call(landing, {**headers, "CF-Connecting-IP": "203.0.113.2"}).status_code == 201
     assert call(landing, {**headers, "CF-Connecting-IP": "203.0.113.1"}).status_code == 429
+
+
+def test_cloudflare_header_ignored_from_untrusted_peer(landing, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setattr(settings, "demo_ip_calls_per_hour", 1)
+    landing.client = TestClient(landing.app, client=("192.168.1.50", 40000))   # LAN, por el DNAT del router
+    headers = session(landing)
+    assert call(landing, {**headers, "CF-Connecting-IP": "203.0.113.1"}).status_code == 201
+    finish_all(landing)
+    # Cambiar el header no da otra IP: cuenta el par.
+    assert call(landing, {**headers, "CF-Connecting-IP": "203.0.113.2"}).status_code == 429
 
 
 def test_concurrency_from_demo_tier(landing):

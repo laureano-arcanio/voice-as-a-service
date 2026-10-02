@@ -1,12 +1,26 @@
-"""App HTTP: API en /api/v1 y la UI (SPA de web/, ya compilada) en el resto."""
-import logging
+"""App HTTP: API en /api/v1 y la UI (SPA de web/, ya compilada) en el resto.
 
-from fastapi import APIRouter, FastAPI, HTTPException, Request
+Publicada a internet por el tunel (app.atentina.com.ar, sin Cloudflare Access): tope de
+cuerpo, chequeo de Origin (CSRF) y headers de seguridad con CSP en api/http.py.
+"""
+import logging
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 
 from .api import errors
+from .api.deps import _bearer, get_db, get_principal, require_admin
+from .api.http import (
+    BodyLimitMiddleware,
+    CsrfMiddleware,
+    HttpsRedirectMiddleware,
+    SecurityHeadersMiddleware,
+)
 from .api.routers import (
     agents,
     api_keys,
@@ -32,26 +46,26 @@ API_PREFIX = "/api/v1"
 def create_app() -> FastAPI:
     if not settings.auth_secret:
         raise RuntimeError("Falta AUTH_SECRET en .env (firma de las sesiones): `openssl rand -hex 32`")
-    app = FastAPI(title="Voice as a Service", version="1.0.0", docs_url=f"{API_PREFIX}/docs",
-                  openapi_url=f"{API_PREFIX}/openapi.json", redoc_url=None)
+    # Docs y OpenAPI propios (abajo), no los publicos de FastAPI. `make openapi` usa app.openapi().
+    app = FastAPI(title="Voice as a Service", version="1.0.0", docs_url=None, openapi_url=None, redoc_url=None)
     errors.install(app)
     wa_webhook.install_logging()
+    # Middlewares: el ultimo agregado es el de afuera. Orden de afuera hacia adentro:
+    # http -> https por el tunel, headers (tambien en los 403/413), CORS (la demo de la
+    # landing, sin credenciales), tope de cuerpo y CSRF.
+    app.add_middleware(CsrfMiddleware)
+    app.add_middleware(BodyLimitMiddleware)
     app.add_middleware(CORSMiddleware, allow_origins=allowed_origins(), allow_methods=["GET", "POST"],
                        allow_headers=["Authorization", "Content-Type"], expose_headers=["Retry-After"], max_age=600)
-
-    @app.middleware("http")
-    async def security_headers(request: Request, call_next):
-        response = await call_next(request)
-        response.headers.setdefault("X-Content-Type-Options", "nosniff")
-        response.headers.setdefault("X-Frame-Options", "DENY")
-        response.headers.setdefault("Referrer-Policy", "same-origin")
-        return response
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(HttpsRedirectMiddleware)
 
     api = APIRouter(prefix=API_PREFIX)
     for module in (auth, tiers, clients, phone_numbers, agents, users, api_keys, calls, conversations, voices,
                    whatsapp, demo):
         api.include_router(module.router)
     app.include_router(api)
+    _mount_docs(app)
     # Fuera de /api/v1 y antes de _mount_spa (su catch-all es GET y tragaria /wa/webhook).
     app.include_router(wa_webhook.router)
 
@@ -61,6 +75,33 @@ def create_app() -> FastAPI:
 
     _mount_spa(app)
     return app
+
+
+SWAGGER_CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+               "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+               "img-src 'self' data: https://fastapi.tiangolo.com; frame-ancestors 'none'")
+
+
+def _docs_access(request: Request, db: Annotated[object, Depends(get_db)],
+                 creds: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)]) -> None:
+    """API_DOCS: off -> 404; admin -> sesion o token de admin; public -> sin auth."""
+    if settings.api_docs == "off":
+        raise HTTPException(404)
+    if settings.api_docs == "admin":
+        require_admin(get_principal(request, db, creds))
+
+
+def _mount_docs(app: FastAPI) -> None:
+    """Swagger y OpenAPI en /api/v1, solo para admins por defecto (settings.api_docs)."""
+    @app.get(f"{API_PREFIX}/openapi.json", include_in_schema=False, dependencies=[Depends(_docs_access)])
+    def openapi_json():
+        return JSONResponse(app.openapi())
+
+    @app.get(f"{API_PREFIX}/docs", include_in_schema=False, dependencies=[Depends(_docs_access)])
+    def swagger():
+        html = get_swagger_ui_html(openapi_url=f"{API_PREFIX}/openapi.json", title=f"{app.title} - API")
+        html.headers["Content-Security-Policy"] = SWAGGER_CSP
+        return html
 
 
 def _mount_spa(app: FastAPI) -> None:

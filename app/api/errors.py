@@ -1,6 +1,8 @@
 import logging
 
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from ..services.errors import ServiceError
@@ -17,6 +19,12 @@ def install(app: FastAPI) -> None:
         return JSONResponse(status_code=exc.status_code,
                             content={"detail": exc.message, "code": exc.code, "errors": exc.details},
                             headers={"Retry-After": str(retry_after)} if retry_after else None)
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
+        # El 422 de FastAPI sin `input` (en el login seria la clave mandada), `ctx` ni `url`.
+        detail = [{k: v for k, v in e.items() if k not in ("input", "ctx", "url")} for e in exc.errors()]
+        return JSONResponse(status_code=422, content={"detail": jsonable_encoder(detail)})
 
     @app.exception_handler(Exception)
     async def unhandled(request: Request, exc: Exception) -> JSONResponse:

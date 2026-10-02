@@ -1,11 +1,13 @@
 """Conversacion por texto con un agente (sin llamada): para probar el motor por API."""
 import logging
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from ...config import settings
 from ...models import Agent
 from ...services.errors import Conflict, NotFound, Upstream
-from ..deps import DB, CurrentPrincipal, Engine
+from ...services.ratelimit import Limit
+from ..deps import DB, CurrentPrincipal, Engine, rate_limit
 from ..schemas import (
     ConversationIn,
     ConversationStartOut,
@@ -25,7 +27,12 @@ def _state(engine, p, conversation_id: str):
     return state
 
 
-@router.post("", status_code=201, response_model=ConversationStartOut)
+# Cada turno es un pedido al LLM: tope por usuario o API key.
+_new_limit = rate_limit("conversations", lambda: Limit(settings.rate_conversations_per_hour, 3600))
+_turn_limit = rate_limit("turns", lambda: Limit(settings.rate_turns_per_hour, 3600))
+
+
+@router.post("", status_code=201, response_model=ConversationStartOut, dependencies=[Depends(_new_limit)])
 def start_conversation(body: ConversationIn, p: CurrentPrincipal, db: DB, engine: Engine):
     agent = db.get(Agent, body.agent_id)
     if agent is None or not p.can_access(agent.client_id):
@@ -42,7 +49,7 @@ def get_conversation(conversation_id: str, p: CurrentPrincipal, engine: Engine):
     return _state(engine, p, conversation_id)
 
 
-@router.post("/{conversation_id}/turns", response_model=TurnOut,
+@router.post("/{conversation_id}/turns", response_model=TurnOut, dependencies=[Depends(_turn_limit)],
              responses={502: {"description": "El LLM no respondio"}})
 async def turn(conversation_id: str, body: TurnIn, p: CurrentPrincipal, engine: Engine):
     if _state(engine, p, conversation_id).channel == "whatsapp":

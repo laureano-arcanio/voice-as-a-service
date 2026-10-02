@@ -181,7 +181,7 @@ openapi: ## Regenera web/openapi.json y los tipos de la UI (web/src/api/schema.d
 # --- Tests ---------------------------------------------------------------
 
 test: ## Tests del motor conversacional (los que usan el LLM se saltean si vllm-llm no responde)
-	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/tests:/app/tests -v $(CURDIR)/pytest.ini:/app/pytest.ini -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app:/app/app app pytest -q $(ARGS)
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/tests:/app/tests -v $(CURDIR)/pytest.ini:/app/pytest.ini -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app:/app/app -v $(CURDIR)/migrations:/app/migrations -v $(CURDIR)/alembic.ini:/app/alembic.ini app pytest -q $(ARGS)
 
 eval-motor: ## Escenarios de llamada contra el motor y el LLM real (scripts/replay_calls.py). Ej: make eval-motor N=3 S=si-pero
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts app python -m scripts.replay_calls $(or $(N),1) $(S)

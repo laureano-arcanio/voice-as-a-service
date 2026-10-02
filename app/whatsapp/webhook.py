@@ -73,7 +73,8 @@ async def _read_body(request: Request) -> bytes:
 
 
 def _summarize(payload) -> list[str]:
-    """Una linea por cambio: object, phone_number_id, tipo y wamid. Sin texto ni telefonos."""
+    """Una linea por mensaje o status (object, phone_number_id, tipo y wamid) y por evento
+    de la cuenta (field, event y WABA). Sin texto ni telefonos."""
     lines = []
     obj = payload.get("object") if isinstance(payload, dict) else None
     entries = payload.get("entry") if isinstance(payload, dict) else None
@@ -82,6 +83,10 @@ def _summarize(payload) -> list[str]:
         for change in changes if isinstance(changes, list) else []:
             value = change.get("value") if isinstance(change, dict) else None
             if not isinstance(value, dict):
+                continue
+            field = change.get("field")
+            if field and field != "messages":
+                lines.append(f"object={obj} field={field} event={value.get('event')} waba={entry.get('id')}")
                 continue
             meta = value.get("metadata")
             pnid = meta.get("phone_number_id") if isinstance(meta, dict) else None

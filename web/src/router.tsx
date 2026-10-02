@@ -68,7 +68,7 @@ export const routes: RouteObject[] = [
       },
       {
         path: 'whatsapp',
-        ...page(async () => (await import('@/features/whatsapp/WhatsAppPage')).WhatsAppPage, 'admin'),
+        ...page(async () => (await import('@/features/whatsapp/WhatsAppPage')).WhatsAppPage),
       },
       { path: 'tiers', ...page(async () => (await import('@/features/tiers/TiersPage')).TiersPage, 'admin') },
       { path: 'users', ...page(async () => (await import('@/features/users/UsersPage')).UsersPage, 'admin') },

@@ -1,5 +1,6 @@
 """Inicio de llamadas (salientes, de prueba, de loadtest y entrantes) con los limites del tier."""
 import asyncio
+import logging
 import re
 from dataclasses import dataclass
 
@@ -11,9 +12,10 @@ from ..conversation.engine import ConversationEngine
 from ..db import utcnow
 from ..models import Agent, CallMode, CallRow, CallStatus, Client, PhoneNumber
 from . import livekit, quota, voices
-from .errors import Conflict, Invalid, NotFound, QuotaExceeded, Upstream
+from .errors import Conflict, Forbidden, Invalid, NotFound, QuotaExceeded, Upstream
 from .security import Principal
 
+logger = logging.getLogger(__name__)
 E164_RE = re.compile(r"\+\d{8,15}")
 
 
@@ -69,6 +71,11 @@ def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
     phone = normalize_e164(req.phone) if req.phone else None
     if phone and req.loadtest:
         raise Invalid("El loadtest no marca teléfonos")
+    if req.loadtest and not principal.is_admin:
+        # El loadtest no corta al completar el workflow: solo admins y el cliente del loadtest.
+        client = s.get(Client, agent.client_id)
+        if client is None or client.slug != settings.loadtest_client:
+            raise Forbidden("Llamadas de loadtest solo para el cliente interno", "loadtest_forbidden")
     voice = req.voice.strip().lower() if req.voice else None
     if voice and voice not in voices.catalog():
         raise Invalid(f"Voz inexistente: {voice}", "invalid_voice")
@@ -108,8 +115,9 @@ async def start_call(s: Session, engine: ConversationEngine, principal: Principa
     try:
         await livekit.dispatch_call(started.room, metadata)
     except Exception as e:
+        logger.exception("despacho de la llamada %s", started.conversation_id)
         await asyncio.to_thread(_mark_failed, s, started.conversation_id, str(e), "dispatch_failed")
-        raise Upstream(f"No se pudo iniciar la llamada: {e}") from e
+        raise Upstream("No se pudo iniciar la llamada") from e
     if started.mode != CallMode.saliente:
         started.join_url = livekit.build_test_join_url(started.room)
     return started

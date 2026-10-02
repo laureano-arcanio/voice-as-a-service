@@ -15,6 +15,15 @@ WA_ID = "5493510000000"
 SECRET = "EAAG-token-secreto-del-cliente"
 
 
+@pytest.fixture(autouse=True)
+def token_key(monkeypatch):
+    """Los tokens de las cuentas se guardan cifrados: sin clave, el alta con token da 503."""
+    from cryptography.fernet import Fernet
+
+    from app.config import settings
+    monkeypatch.setattr(settings, "wa_token_key", Fernet.generate_key().decode())
+
+
 def account_body(client, agent, **extra):
     return {"client_id": client["id"], "agent_id": agent["id"], "phone_number_id": PNID,
             "waba_id": "200000000000003", "display_phone_number": "+1 555 145 6632", "name": "Prueba", **extra}
@@ -102,16 +111,30 @@ def test_account_validation(api, admin, setup):
     assert r.status_code == 422
 
 
-def test_accounts_are_admin_only(api, admin, setup):
-    c, _, acc = setup
+def test_client_user_manages_only_own_accounts(api, admin, setup):
+    """Fase 2: el usuario del cliente ve y edita sus cuentas (agente, nombre, activa); el
+    token, el numero visible y el alta manual quedan para admin."""
+    c, agent, acc = setup
     user = client_user(api, admin, c)
-    assert user.get(f"{V1}/whatsapp/accounts").status_code == 403
-    assert user.patch(f"{V1}/whatsapp/accounts/{acc['id']}", json={"name": "x"}).status_code == 403
-    assert user.post(f"{V1}/whatsapp/accounts/{acc['id']}/deactivate").status_code == 403
+    listed = user.get(f"{V1}/whatsapp/accounts").json()
+    assert [a["id"] for a in listed] == [acc["id"]] and SECRET not in str(listed)
+    assert user.get(f"{V1}/whatsapp/accounts", params={"client_id": "otro"}).status_code == 403
+    assert user.patch(f"{V1}/whatsapp/accounts/{acc['id']}", json={"name": "x"}).json()["name"] == "x"
+    assert user.patch(f"{V1}/whatsapp/accounts/{acc['id']}", json={"access_token": "t"}).status_code == 403
+    assert user.patch(f"{V1}/whatsapp/accounts/{acc['id']}",
+                      json={"display_phone_number": "+54"}).status_code == 403
+    assert user.post(f"{V1}/whatsapp/accounts", json=account_body(c, agent, phone_number_id="9")).status_code == 403
+    assert user.post(f"{V1}/whatsapp/accounts/{acc['id']}/deactivate").json()["active"] is False
     assert api.client.get(f"{V1}/whatsapp/accounts").status_code == 401
     key = admin.post(f"{V1}/clients/{c['id']}/api-keys", json={"name": "crm"}).json()["key"]
-    assert api.client.get(f"{V1}/whatsapp/accounts",
-                          headers={"Authorization": f"Bearer {key}"}).status_code == 403
+    assert [a["id"] for a in api.client.get(f"{V1}/whatsapp/accounts",
+                                            headers={"Authorization": f"Bearer {key}"}).json()] == [acc["id"]]
+
+    # Otro cliente no la ve ni la toca (404, no 403: no se revela que existe).
+    other = client_user(api, admin, make_client(admin, slug="otro"), email="b@otro.com")
+    assert other.get(f"{V1}/whatsapp/accounts").json() == []
+    assert other.patch(f"{V1}/whatsapp/accounts/{acc['id']}", json={"name": "y"}).status_code == 404
+    assert other.post(f"{V1}/whatsapp/accounts/{acc['id']}/deactivate").status_code == 404
 
 
 def test_whatsapp_conversation_in_list_detail_and_stats(api, admin, setup):

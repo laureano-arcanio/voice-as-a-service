@@ -44,7 +44,9 @@ app/
   cli.py             seed, create-admin, create-api-key
   models/            ORM (SQLAlchemy 2): tenancy, agents, conversations, calls
   api/
-    deps.py          sesión de base, Principal (usuario o API key), require_admin, scoped_client_id
+    deps.py          sesión de base, Principal (usuario o API key), require_admin, scoped_client_id,
+                     client_ip, request_is_https, rate_limit
+    http.py          middlewares: tope de cuerpo, CSRF y headers (CSP, HSTS)
     schemas.py       contratos pydantic (fuente del OpenAPI y de los tipos de la UI)
     errors.py        ServiceError -> JSON {detail, code, errors}; 500 JSON sin detalles internos
     routers/         auth, tiers, clients, phone_numbers, agents, users, api_keys, calls,
@@ -67,9 +69,10 @@ app/
   llm/               cliente y prompts del LLM
   voice/             worker de LiveKit y latencia por turno
   whatsapp/          webhook (firma), graph.py (Cloud API y media), store.py (tablas wa_*), service.py (turnos),
-                     audio.py (notas de voz: STT, TTS y OGG/Opus con PyAV)
+                     audio.py (notas de voz: STT, TTS y OGG/Opus con PyAV), signup.py (Embedded Signup,
+                     registro, plantillas), crypto.py (tokens y PIN cifrados)
 migrations/          Alembic: 0001 esquema anterior (idempotente), 0002 tenencia, 0003 inventario de números,
-                     0004 WhatsApp
+                     0004 WhatsApp, 0005 Embedded Signup y session_version
 web/                 SPA React (ver "Frontend")
 tests/               pytest: API, límites, motor
 ```
@@ -106,7 +109,7 @@ tiers 1───* clients 1───* agents 1───* agent_versions
 | `conversations` | Estado del motor (datos, mensajes, progreso), `client_id`, `agent_id` + `agent_version` (RESTRICT: un cliente o agente con historial no se borra). `legacy_workflow_id` para las anteriores a los agentes. |
 | `call_logs` | Una por conversación: modo, estado, teléfono del otro lado, `phone_number_id` del cliente, inicio, fin, duración, latencia. Base del consumo. |
 | `conversations.channel` | `voice` o `whatsapp`; se fija al crearla. Cambia el prompt (reglas por canal), no el agente. |
-| `wa_accounts` | Un número de WhatsApp: `phone_number_id` único (ID de Meta), `waba_id`, número visible, `client_id`, `agent_id`, `access_token` (NULL = `WA_ACCESS_TOKEN`; cifrado: fase 2), `active`. Sin borrado: se desactiva. |
+| `wa_accounts` | Un número de WhatsApp: `phone_number_id` único (ID de Meta), `waba_id`, número visible, `client_id`, `agent_id`, `access_token` (NULL = `WA_ACCESS_TOKEN`; cifrado con `WA_TOKEN_KEY`, prefijo `fernet:`), `pin_enc`, `active`, `status` (`connected`, `pending`, `disconnected`) con motivo, `quality_rating`, `messaging_limit`, `source` (`manual`, `embedded_signup`, `coexistence`), `connected_by`. Sin borrado: se desactiva. |
 | `wa_threads` | Una por conversación de WhatsApp (como `call_logs`): cuenta, `wa_id` tal cual llega (`549…`), nombre del perfil, `last_user_at` (ventana de sesión), `paused` (fase 3). |
 | `wa_messages` | Uno por `wamid` (unique: dedupe de reenvíos de Meta), entrante o saliente, tipo (`text`, `audio`, ...), estado y error de Meta. Sin texto ni audio: el texto está en `conversations.messages`, donde `voice_note` marca la transcripción de una nota de voz o la respuesta enviada como nota de voz. |
 
@@ -255,10 +258,38 @@ Carreras medidas en PostgreSQL:
 
 ## Autenticación y permisos
 
+El dashboard se publica en `https://app.atentina.com.ar` por el túnel, **sin Cloudflare Access**: todo
+lo de esta sección es lo que lo protege.
+
 - **UI:** `POST /auth/login` valida contra argon2 (con tiempo constante si el email no existe) y
   setea la cookie `vaas_session`: un JWT HS256 firmado con `AUTH_SECRET`, httpOnly,
-  SameSite=Strict, path `/api` y `Secure` según `AUTH_COOKIE_SECURE`. Hay un límite de 10 intentos
-  fallidos por IP y email en 5 min, en memoria del proceso.
+  SameSite=Strict, path `/api`, `Max-Age` de `AUTH_TOKEN_HOURS` y `Secure` si `AUTH_COOKIE_SECURE=true`
+  o si el pedido llega por HTTPS (así anda en `http://localhost:8011` y sale Secure por el túnel).
+- **Límites de login fallido** (en memoria del proceso, `services/ratelimit.py`): 5 por IP y email y 10
+  por email en 15 min; 20 por IP en 15 min y 100 por día (`LOGIN_FAIL_*`). Se cuentan antes de verificar
+  la clave, de forma atómica (pedidos en paralelo no pasan todos), y un login correcto se descuenta y
+  limpia el de IP y email. El tope por email solo frena a las IP que ya fallaron en la ventana: así un
+  tercero que conoce el email no deja afuera al dueño. Responde 429 `too_many_attempts`.
+- **Sesión revocable:** el JWT lleva `sv` = `users.session_version`. El logout, el cambio de clave y
+  la desactivación lo incrementan: cierran **todas** las sesiones del usuario, aunque alguien haya
+  copiado el token. Los tokens viejos sin `sv` valen como 0 hasta que vencen.
+- **IP real:** `deps.client_ip` toma `CF-Connecting-IP` solo si el par TCP está en
+  `TRUSTED_PROXY_CIDRS` (por defecto localhost y `gateway`, el gateway por defecto del contenedor, que es
+  el de la red de compose por donde llega cloudflared: hoy `172.24.0.1`); si no, el par. Igual con
+  `X-Forwarded-Proto` para saber si fue HTTPS. La usan el login y la demo. Por el túnel, un pedido con
+  `X-Forwarded-Proto: http` recibe 308 a `https://` (`HttpsRedirectMiddleware`). Límite conocido: un
+  contenedor de otro proyecto de este host que entre por el puerto publicado puede llegar enmascarado
+  como ese mismo gateway y falsificar `CF-Connecting-IP`.
+- **CSRF** (`app/api/http.py`): SameSite=Strict no alcanza, porque la landing, `api.`, `wa.` y `rtc.`
+  son *same-site* con `app.`. Un POST, PATCH, PUT o DELETE con la cookie y sin `Authorization` tiene
+  que traer `Origin` del mismo host o de `APP_ORIGINS`; sin `Origin`, se rechaza `Sec-Fetch-Site`
+  `same-site` o `cross-site`. Si no, 403 `csrf`. Las API keys no pasan por este control.
+- **Límites de uso** por usuario o API key y por hora: prueba de voz (`RATE_TTS_PREVIEW_PER_HOUR`),
+  conversaciones de texto nuevas y sus turnos (`RATE_CONVERSATIONS_PER_HOUR`, `RATE_TURNS_PER_HOUR`);
+  por cliente, altas de WhatsApp y plantillas (`WA_SIGNUP_PER_HOUR`, `WA_TEMPLATES_PER_HOUR`). Cuerpo de
+  `/api` hasta `API_MAX_BODY_BYTES` (1 MiB, 413).
+- **Loadtest:** `POST /calls {"loadtest": true}` solo para admin o el cliente `LOADTEST_CLIENT`
+  (`interno`); si no, 403 `loadtest_forbidden`.
 - **Sistemas del cliente:** `Authorization: Bearer vaas_…`. Se guarda solo el SHA-256 y
   `last_used_at` se actualiza con resolución de un minuto.
 - **Cada pedido relee el usuario de la base:** desactivarlo o cambiarle el rol corta el acceso sin
@@ -271,18 +302,35 @@ Carreras medidas en PostgreSQL:
 | Agentes: crear, editar, versionar, archivar | Sí | Solo ver | Solo ver |
 | Números: cargar, asignar, liberar, borrar | Sí | No | No |
 | Números: elegir agente y etiqueta | Sí | Los suyos | Los suyos |
-| Números de WhatsApp (`/whatsapp/accounts`) | Sí | No | No |
+| WhatsApp: alta manual, token, número visible | Sí | No | No |
+| WhatsApp: conectar por Embedded Signup (`/whatsapp/signup`) | Sí | Los suyos | No |
+| WhatsApp: ver, agente, nombre, activar, registro, refresco, plantillas | Todo | Lo suyo | Lo suyo |
 | Llamadas, conversaciones, consumo, voces | Todo | Lo suyo | Lo suyo |
 | API keys | Sí | Las suyas | No |
 
 - Un recurso de otro cliente responde 404, no 403, para no revelar que existe.
-- **Headers:** `X-Content-Type-Options`, `X-Frame-Options: DENY` y `Referrer-Policy`.
+- **Headers** (`app/api/http.py`):
+  - HSTS (`max-age=31536000; includeSubDomains`), solo si el pedido llegó por HTTPS;
+  - CSP con el hash sha256 de cada `<script>` inline de `web/dist/index.html` (se recalcula si cambia el
+    build) y el SDK de Facebook para Embedded Signup (`connect.facebook.net`, frames y conexiones a
+    `*.facebook.com`), `frame-ancestors 'none'`. `CSP_REPORT_ONLY=true` la manda como Report-Only;
+  - `Cross-Origin-Opener-Policy: same-origin-allow-popups` (con `same-origin` se rompe el `postMessage`
+    del popup de Meta), `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`,
+    `X-Content-Type-Options` y `X-Frame-Options: DENY`. Sin header `server` (`--no-server-header`).
+- **Errores sin detalle interno:** los 500 y 502 no traen el error de abajo (queda en el log) y los 422 de
+  validación salen sin `input` (en el login sería la clave).
 - **Demo de la landing:** `/api/v1/demo/*` es lo único público. Sesión por Turnstile, límites por
   IP y por día, y CORS solo para `DEMO_ALLOWED_ORIGINS` (ver [`LANDING.md`](LANDING.md)).
 
 ## API
 
-- Versionada en `/api/v1`; OpenAPI en `/api/v1/openapi.json` y documentación en `/api/v1/docs`.
+- Versionada en `/api/v1`; OpenAPI en `/api/v1/openapi.json` y documentación en `/api/v1/docs`, solo
+  para un admin con sesión (`API_DOCS=admin`; `public` u `off`). `make openapi` usa `app.openapi()` y
+  no depende de eso.
+- **WhatsApp** (`/whatsapp`): `GET /config` (datos para lanzar Embedded Signup: `app_id`, `config_id`,
+  `enabled` y el motivo si falta algo), `GET|POST /accounts`, `PATCH /accounts/{id}`,
+  `POST /accounts/{id}/deactivate|register|refresh`, `GET|POST /accounts/{id}/templates` y
+  `POST /signup`. Detalle en [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md), 5.3.
 - **Errores:** `{"detail": "texto", "code": "snake_case", "errors": [{"path", "message"}]}`.
   - 404 `not_found`, 403 `forbidden`, 409 `conflict`/`agent_in_use`/`phone_numbers_limit`/…,
     422 `invalid`/`invalid_definition`, 429 límites del tier, 502 `upstream_error` (LiveKit, TTS
@@ -318,8 +366,8 @@ Carreras medidas en PostgreSQL:
 
 | Qué | Comando | Cubre |
 |---|---|---|
-| Backend | `make test` (o `.venv/bin/pytest`) | API (auth, permisos, tiers, clientes, agentes y versiones, inventario de números, llamadas y límites, fechas por zona, cuentas y conversaciones de WhatsApp), cuotas, motor con LLM falso, WhatsApp (webhook, service con payloads de Meta y Graph simulado) y escenarios contra el LLM real (se saltean si no responde). |
-| Frontend | `make web-check` | ESLint, tipos y Vitest (formatos, parseo de números, errores de API, guardas por rol, consumo). |
+| Backend | `make test` (o `.venv/bin/pytest`) | API (auth, permisos, tiers, clientes, agentes y versiones, inventario de números, llamadas y límites, fechas por zona, cuentas, conversaciones y alta de WhatsApp, plantillas), seguridad del dashboard público (`test_security_public.py`), migración 0005 de ida y vuelta, cuotas, motor con LLM falso, WhatsApp (webhook, service con payloads de Meta y Graph simulado) y escenarios contra el LLM real (se saltean si no responde). |
+| Frontend | `make web-check` | ESLint, tipos y Vitest (formatos, parseo de números, errores de API, guardas por rol, consumo, WhatsApp: origen y mensajes de Embedded Signup, alta con el SDK simulado, plantillas). |
 | Migraciones | `alembic upgrade head` / `downgrade` / `check` | Ida y vuelta en PostgreSQL y SQLite. |
 
 ## Configuración
@@ -333,4 +381,7 @@ Todo por `.env`, leído con `app/config.py` (ver `.env.example`):
 - **WhatsApp:** `WA_APP_SECRET`, `WA_VERIFY_TOKEN`, `WA_ACCESS_TOKEN` (system user), `WA_SESSION_HOURS`,
   `WA_DEBOUNCE_SECONDS`, `WA_UNSUPPORTED_REPLY`, `WA_MAX_REPLY_CHARS` y los de audios (`WA_AUDIO_REPLY`,
   `WA_AUDIO_MAX_BYTES`, `WA_AUDIO_MAX_SECONDS`, `WA_AUDIO_MAX_REPLY_CHARS`, `WA_AUDIO_CONCURRENCY`, ...;
-  ver [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md), 5.2).
+  ver [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md), 5.2) y los de la fase 2 (`WA_CONFIG_ID`, `WA_TOKEN_KEY`,
+  `WA_SIGNUP_PER_HOUR`, `WA_TEMPLATES_PER_HOUR`, `WA_SDK_LOCALE`).
+- **Seguridad del dashboard público:** `AUTH_COOKIE_SECURE`, `TRUSTED_PROXY_CIDRS`, `APP_ORIGINS`,
+  `API_DOCS`, `CSP_REPORT_ONLY`, `LOGIN_FAIL_*`, `API_MAX_BODY_BYTES`, `RATE_*` y `LOADTEST_CLIENT`.

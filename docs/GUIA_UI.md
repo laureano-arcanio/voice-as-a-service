@@ -1,20 +1,23 @@
 # Guía de la UI
 
-Cómo hacer cada cosa desde la UI (`http://<host>:8011/`; en este server `http://192.168.1.99:8011/`).
-Todo lo que hace la UI también se puede hacer por la API (`/api/v1/docs`). La arquitectura está en
+Cómo hacer cada cosa desde la UI (`http://<host>:8011/`; en este server `http://192.168.1.99:8011/`;
+desde internet, `https://app.atentina.com.ar/` cuando se publique). Todo lo que hace la UI también se
+puede hacer por la API (`/api/v1/docs`, solo con sesión de admin). La arquitectura está en
 [`ARQUITECTURA.md`](ARQUITECTURA.md).
 
 Hay dos roles:
-- **Admin:** opera la plataforma y ve todo. Menú: Inicio, Agentes, Voces, Clientes, Números, Tiers y Usuarios.
-- **Cliente:** usuario de un cliente, que solo ve lo suyo. Menú: Inicio, Agentes, Voces y Mi cuenta.
+- **Admin:** opera la plataforma y ve todo. Menú: Inicio, Agentes, Voces, Clientes, Números, WhatsApp, Tiers y Usuarios.
+- **Cliente:** usuario de un cliente, que solo ve lo suyo. Menú: Inicio, Agentes, Voces, Mi cuenta y WhatsApp.
 
 ## Primer ingreso
 
 1. El primer admin lo crea `make migrate` con `ADMIN_EMAIL` y `ADMIN_PASSWORD` de `.env`. Otro admin
    o cambio de clave: `make create-admin EMAIL=...`.
-2. Entrar en `/login` con ese email y clave. La sesión dura `AUTH_TOKEN_HOURS` (12 h). Después de 10
-   intentos fallidos en 5 min desde la misma IP para el mismo email, el login se bloquea un rato.
-3. Arriba a la derecha: cambiar tema claro/oscuro y Salir.
+2. Entrar en `/login` con ese email y clave. La sesión dura `AUTH_TOKEN_HOURS` (12 h). Con 5 intentos
+   fallidos en 15 min desde la misma IP para el mismo email (o 10 para el email desde cualquier IP, o 20
+   desde la IP con cualquier email), el login se bloquea un rato.
+3. Arriba a la derecha: cambiar tema claro/oscuro y Salir. **Salir cierra todas tus sesiones**, también
+   las de otros navegadores; cambiar la clave también.
 
 ## Puesta en marcha de un cliente nuevo (admin)
 
@@ -108,11 +111,15 @@ tiene que estar en una cuenta de Anura distinta (o en una troncal con DID). Ver
 
 ### 4b. WhatsApp (admin)
 
+El cliente conecta sus números solo (ver [WhatsApp (cliente)](#whatsapp-cliente)); el admin ve todos,
+filtra por cliente y también puede usar **Conectar WhatsApp** eligiendo el cliente. El **alta manual**
+es para números de nuestro portafolio.
+
 Conecta un número de WhatsApp Business a un agente del cliente. Responde texto y notas de voz: si el
 contacto manda un audio, el agente lo transcribe y contesta con una nota de voz con la voz del agente
 (ver [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md)).
 
-1. **WhatsApp > Conectar número:** cliente, agente que responde, **Phone number ID** y **WABA ID**
+1. **WhatsApp > Alta manual:** cliente, agente que responde, **Phone number ID** y **WABA ID**
    (de Meta: WhatsApp → Configuración de la API; el ID, no el teléfono), número visible y nombre.
 2. **Token:** vacío usa el del system user (`WA_ACCESS_TOKEN`). Uno propio solo para números de otro
    portafolio; no se vuelve a mostrar (la tabla dice "Propio" o "Global").
@@ -198,6 +205,32 @@ Motivos de fin frecuentes (`ended_reason`):
 Catálogo de las 41 voces del TTS, con género, WER y velocidad (car/s), filtrable, y la prueba de voz.
 La voz por defecto de un agente es `agent.voice` en su definición.
 
+### WhatsApp (cliente)
+
+Conectá tu número de WhatsApp Business para que lo atienda uno de tus agentes, por texto y notas de voz.
+Solo funciona desde `https://app.atentina.com.ar` (Meta exige HTTPS).
+
+1. **Conectar WhatsApp:** elegí el agente y seguí la ventana de Meta: entrás con tu Facebook, elegís o
+   creás tu portafolio y tu cuenta de WhatsApp Business, y cargás y verificás el número (SMS o llamada).
+   Si el número ya tenía verificación en dos pasos, cargá ese PIN en "El número ya tiene verificación
+   en dos pasos". Si el botón está gris, el motivo aparece al lado (falta configurar algo en el server).
+2. **Medio de pago:** Meta cobra los mensajes a tu cuenta, no a nosotros. Cargalo en
+   [WhatsApp Manager](https://business.facebook.com/wa/manage/home/); sin eso el alta no termina.
+3. **Estado** de cada número:
+   - **Conectado:** responde.
+   - **Pendiente:** falta suscribir o registrar en Meta. Menú > **Reintentar registro** (con el PIN si
+     Meta dice que es incorrecto).
+   - **Desconectado:** Meta rechazó el acceso (lo quitaste o venció). Volvé a **Conectar WhatsApp** con el
+     mismo número.
+   - **Calidad** (Alta, Media, Baja) y límite de envío, según Meta. **Releer datos de Meta** los actualiza.
+4. **Agente:** se cambia en la fila; vale para las conversaciones nuevas.
+5. **Plantillas:** abajo, por número. Lista las de tu cuenta con su estado (En revisión, Aprobada,
+   Rechazada con el motivo) y **Nueva plantilla** crea una (nombre en minúsculas y `_`, categoría
+   Utilidad o Marketing, cuerpo con `{{1}}`, `{{2}}`… y un ejemplo por variable). Meta la revisa.
+6. **Desactivar** deja de responder ese número; **Activar** lo vuelve a habilitar.
+7. Un número que cargó un admin con la cuenta de la plataforma (alta manual) no muestra registro, datos de
+   Meta ni plantillas al cliente: los maneja el admin.
+
 ### Mi cuenta (cliente)
 
 - **Consumo del mes:** llamadas activas, minutos entrantes y salientes, y números, cada uno contra
@@ -215,4 +248,6 @@ La voz por defecto de un agente es `agent.voice` en su definición.
 | Todas las entrantes van al mismo agente | Anura manda todos los números de una cuenta por la misma línea (ver Números). |
 | "Llegaste al límite…" al llamar | Tope del tier. Esperá que terminen llamadas, subí el tier o el tope. |
 | Un número nuevo no recibe llamadas | Faltó `make livekit-sip` después de cargarlo, o Anura no lo entrega a esta troncal. |
+| "Conectar WhatsApp" abre y se cierra, o da error de dominio | Se entró por `http://` o por un dominio que no está en la app de Meta: usar `https://app.atentina.com.ar`. |
+| Un número de WhatsApp queda "Pendiente" | Falló el registro en Meta (ej. PIN de dos pasos incorrecto, 133005): Reintentar registro con el PIN correcto. |
 | La prueba de voz o el chat por texto dan error | El TTS o el LLM no responden (`make health`). |

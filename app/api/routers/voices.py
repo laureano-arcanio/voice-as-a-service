@@ -1,8 +1,10 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
+from ...config import settings
 from ...services import tts, voices
-from ..deps import CurrentPrincipal
+from ...services.ratelimit import Limit
+from ..deps import CurrentPrincipal, rate_limit
 from ..schemas import TtsPreviewIn, VoiceOut
 
 router = APIRouter(tags=["voices"])
@@ -16,7 +18,8 @@ def list_voices(_: CurrentPrincipal, genero: str | None = None, wer_max: float |
 
 
 @router.post("/tts/preview", response_class=StreamingResponse,
-             responses={200: {"content": {"audio/wav": {}}}})
+             responses={200: {"content": {"audio/wav": {}}}, 429: {"description": "Limite de uso por hora"}},
+             dependencies=[Depends(rate_limit("tts_preview", lambda: Limit(settings.rate_tts_preview_per_hour, 3600)))])
 async def tts_preview(body: TtsPreviewIn, _: CurrentPrincipal):
     """Sintetiza el texto con la voz pedida y devuelve el WAV, directo contra el TTS."""
     stream = await tts.preview(body.voice, body.text)

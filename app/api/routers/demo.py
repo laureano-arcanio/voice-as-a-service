@@ -5,7 +5,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from ...services import demo as service
-from ..deps import DB, Definitions, Engine
+from ..deps import DB, Definitions, Engine, client_ip
 from ..schemas import (
     DemoCallIn,
     DemoCallOut,
@@ -18,10 +18,6 @@ from ..schemas import (
 router = APIRouter(prefix="/demo", tags=["demo"])
 _bearer = HTTPBearer(auto_error=False, description="Token de la sesion de demo o de la llamada")
 Bearer = Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)]
-
-
-def client_ip(request: Request) -> str:
-    return request.headers.get("cf-connecting-ip") or (request.client.host if request.client else "")
 
 
 def demo_session(creds: Bearer) -> str:

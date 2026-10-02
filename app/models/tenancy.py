@@ -87,6 +87,9 @@ class User(IdMixin, TimestampMixin, Base):
         String(36), ForeignKey("clients.id", ondelete="CASCADE"), nullable=True, index=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     last_login_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    # Va en el token (claim sv). Logout, cambio de clave o desactivacion lo suben: invalida
+    # todas las sesiones abiertas del usuario.
+    session_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
 
 class ApiKey(IdMixin, Base):

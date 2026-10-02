@@ -13,7 +13,7 @@ números; API `/api/v1`, UI React en `web/` y worker de voz) está en [`README.m
 | "Entrená / reentrená la voz <voz> del TTS" | Delegar al agente [`tts-finetune`](.claude/agents/tts-finetune.md), que sigue [`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md). Entrenar el 1.7B necesita parar `vllm-tts`: confirmar antes. |
 | "Probá <modelo o reparto de GPU>" | Override `docker-compose.<nombre>.yml` y confirmar antes de reiniciar servicios; después, el mismo procedimiento. |
 | "Creá un cliente / tier / agente / número" | Por la UI o la API (`/api/v1`, OpenAPI en `/api/v1/docs`), no a mano en la base. Números: se cargan al inventario, se asignan a un cliente (tope `max_phone_numbers` del tier) y se rutean a un agente; después de cargar o borrar, `make livekit-sip`. |
-| "Seguí con WhatsApp" / "probá el webhook de WhatsApp" | Seguir [`docs/WHATSAPP_PLAN.md`](docs/WHATSAPP_PLAN.md), fase 0 y 1. Código en `app/whatsapp/`, variables `WA_*` en `.env` (diff enmascarado antes de reiniciar). |
+| "Seguí con WhatsApp" / "probá el webhook de WhatsApp" | Seguir [`docs/WHATSAPP_PLAN.md`](docs/WHATSAPP_PLAN.md): fases 0 y 1, y la 2 (Embedded Signup, 5.3, con sus pasos de deploy pendientes). Código en `app/whatsapp/`, variables `WA_*` en `.env` (diff enmascarado antes de reiniciar). |
 | "Cambiá la landing" / "probá la demo de la landing" | Seguir [`docs/LANDING.md`](docs/LANDING.md): Astro + Tailwind en `landing/` (`npm run dev`), demo por `/api/v1/demo`. Los agentes de la demo son los del cliente `landing`: editarlos por la UI o la API. |
 | "Evaluá la calidad del LLM <modelo>" / "compará modelos" | Seguir [`docs/eval/README.md`](docs/eval/README.md): `make eval-llm` (cliente simulado con `EVAL_LLM_API_KEY`, o `--cliente guion`), `make eval-llm-juez`, y registrar `docs/eval/EVAL-NNN-<slug>/`. Otro modelo local va con su override, como arriba. |
 
@@ -33,7 +33,7 @@ números; API `/api/v1`, UI React en `web/` y worker de voz) está en [`README.m
 | `vllm-tts` | TTS Qwen3-TTS 1.7B-Base con fine-tuning, 41 voces en un checkpoint (`multi41`) | vllm/vllm-omni:v0.28.0 (fijada) | 127.0.0.1:8103 | 0 (5060 Ti) |
 | `proxy` | Entrada pública por IP fija; nginx rutea `/llm`, `/stt` y `/tts` | nginx:alpine | 0.0.0.0:8100 (`PROXY_PORT`) | — |
 | `asterisk` | Puente SIP Anura ↔ LiveKit (`network_mode: host`) | build | — | — |
-| `tunnel` | Cloudflare Tunnel de la demo de la landing (`docker-compose.tunnel.yml`, `make up-tunnel`): `api.` → `/api/v1/demo/*`, `rtc.` → LiveKit | cloudflare/cloudflared | — | — |
+| `tunnel` | Cloudflare Tunnel de la demo de la landing (`docker-compose.tunnel.yml`, `make up-tunnel`): `api.` → `/api/v1/demo/*`, `rtc.` → LiveKit, `wa.` → `/wa/webhook`, `app.` → todo `app` (dashboard; pendiente de crear) | cloudflare/cloudflared | — | — |
 | `livekit`, `livekit-sip`, `livekit-redis` | LiveKit propio (desarrollo, `docker-compose.livekit.yml`), en lugar de Cloud | livekit-server v1.13.7, sip v1.17.0 | 7880, 7881, 7882/udp, 5060 | — |
 
 - La inferencia habla API OpenAI y exige `Authorization: Bearer $VLLM_API_KEY`. Los puertos 810x son solo para debug local.
@@ -114,6 +114,11 @@ Ver [`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md).
 - **Auth:** `AUTH_SECRET` es obligatoria (sin ella `app` no arranca). La UI usa cookie de sesión; scripts y sistemas, API keys (`Authorization: Bearer vaas_...`).
 - **Demo de la landing:** `/api/v1/demo` es la única parte pública de la API (por el túnel; el 8011 no se publica en el router). Sin `TURNSTILE_SECRET_KEY` responde 503. Ocupa lugar del tier `Landing` (3 simultáneas) y tiene cupo de `DEMO_DAILY_MINUTES` por día. Para que entren navegadores de internet, LiveKit anuncia la IP pública (`LIVEKIT_NODE_IP`) y el router reenvía UDP 7882 y TCP 7881. Ver [`docs/LANDING.md`](docs/LANDING.md).
 - **Webhook de WhatsApp:** `/wa/webhook` (GET de verificación y POST con firma `X-Hub-Signature-256`) sale por el mismo túnel que la demo: `wa.atentina.com.ar`, path `^/wa/webhook` → `localhost:8011`, sin 443 en el router. Ver [`docs/WHATSAPP_PLAN.md`](docs/WHATSAPP_PLAN.md).
+- **Dashboard público: `app.atentina.com.ar`** (túnel, todo el host → `localhost:8011`, sin Cloudflare Access; la ruta la crea el usuario). La app se defiende sola:
+  - sesión revocable (`users.session_version`), límites de login por IP real (`CF-Connecting-IP` solo desde `TRUSTED_PROXY_CIDRS`), CSRF por `Origin`, CSP con hash y SDK de Facebook, HSTS, docs solo admin;
+  - código en `app/api/http.py` y `app/api/deps.py`; detalle en `docs/ARQUITECTURA.md`, "Autenticación y permisos".
+  - No relajar la CSP, `APP_ORIGINS` ni `TRUSTED_PROXY_CIDRS` sin medir: con `CSP_REPORT_ONLY=true` se prueba sin romper.
+  - Embedded Signup de WhatsApp (fase 2) solo anda por ese dominio: ver [`docs/WHATSAPP_PLAN.md`](docs/WHATSAPP_PLAN.md), 5.3.
 - **Comentarios del compose:** explican el porqué medido de cada flag. Mantenerlos al día al cambiar valores.
 
 ## Capacidad
@@ -151,7 +156,7 @@ se mide con el test de capacidad y se registra en [`docs/capacity/`](docs/capaci
 - [`docs/CAPACITY_TEST_PLAN.md`](docs/CAPACITY_TEST_PLAN.md): diseño del test de capacidad.
 - [`docs/EVAL_LLM_PLAN.md`](docs/EVAL_LLM_PLAN.md) y [`docs/eval/`](docs/eval/README.md): eval de calidad del LLM por tipo de agente y de cliente, y registro `EVAL-NNN`.
 - [`docs/LANDING.md`](docs/LANDING.md): landing (Astro + Tailwind en `landing/`, `render.yaml`), demo por `/api/v1/demo` con su control de abuso, túnel, dominios y DNS (Render + Cloudflare).
-- [`docs/WHATSAPP_PLAN.md`](docs/WHATSAPP_PLAN.md): plan para WhatsApp en el mismo agente (Cloud API directo, registro del número de Anura por voz, Embedded Signup, costos de Meta). Sin implementar.
+- [`docs/WHATSAPP_PLAN.md`](docs/WHATSAPP_PLAN.md): plan para WhatsApp en el mismo agente (Cloud API directo, registro del número de Anura por voz, Embedded Signup, costos de Meta). Fases 0, 1 y audios en producción; fase 2 (Embedded Signup) implementada, sin desplegar.
 - [`docs/archive/`](docs/archive/README.md): mediciones anteriores con el loadtest (EXP-001 a 013).
 - [`docs/SERVER_HARDWARE.md`](docs/SERVER_HARDWARE.md): elección de placas, CPU y PCIe.
 - [`docs/TELEFONIA_ANURA.md`](docs/TELEFONIA_ANURA.md): telefonía (Anura + Asterisk + LiveKit).

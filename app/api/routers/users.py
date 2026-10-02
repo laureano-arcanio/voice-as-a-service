@@ -60,8 +60,12 @@ def update_user(user_id: str, body: UserUpdate, p: AdminPrincipal, db: DB):
     data = body.model_dump(exclude_unset=True, exclude_none=True)
     if user.id == p.id and data.get("active") is False:
         raise Invalid("No podés desactivar tu propio usuario")
+    # Cambio de clave o desactivacion: cierra las sesiones abiertas (token con sv viejo).
     if password := data.pop("password", None):
         user.password_hash = hash_password(password)
+        user.session_version += 1
+    if data.get("active") is False and user.active:
+        user.session_version += 1
     for k, v in data.items():
         setattr(user, k, v)
     db.commit()

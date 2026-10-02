@@ -191,6 +191,7 @@ class WaAccountIn(BaseModel):
 
 
 class WaAccountPatch(BaseModel):
+    """Usuario del cliente: solo agent_id, name y active. El resto, admin."""
     agent_id: str | None = None
     display_phone_number: str | None = Field(default=None, min_length=1, max_length=32)
     name: str | None = Field(default=None, max_length=128)
@@ -199,7 +200,7 @@ class WaAccountPatch(BaseModel):
 
 
 class WaAccountOut(BaseModel):
-    """El token nunca sale: solo si la cuenta tiene uno propio."""
+    """El token y el PIN nunca salen: solo si la cuenta tiene uno propio."""
     id: str
     client_id: str
     client_name: str | None = None
@@ -207,12 +208,81 @@ class WaAccountOut(BaseModel):
     agent_name: str | None = None
     phone_number_id: str
     waba_id: str
+    business_id: str | None = None
     display_phone_number: str
     name: str
     has_token: bool
+    has_pin: bool = False
     active: bool
+    status: Literal["connected", "pending", "disconnected"] = Field(
+        description="connected: atiende. pending: falta suscribir o registrar (reintentar). "
+                    "disconnected: Meta rechazo el token o el cliente quito el acceso")
+    status_reason: str | None = None
+    status_changed_at: UTCDateTime | None = None
+    quality_rating: str | None = Field(default=None, description="GREEN, YELLOW, RED, NA o UNKNOWN (Meta)")
+    messaging_limit: str | None = Field(default=None, description="current_limit de phone_number_quality_update")
+    source: Literal["manual", "embedded_signup", "coexistence"] = "manual"
     created_at: UTCDateTime
     updated_at: UTCDateTime
+
+
+class WaConfigOut(BaseModel):
+    """Lo que necesita la UI para lanzar Embedded Signup. enabled=false: el boton va
+    deshabilitado y se muestra reason."""
+    enabled: bool
+    reason: str | None = None
+    app_id: str | None = None
+    config_id: str | None = None
+    graph_version: str
+    sdk_locale: str
+
+
+class WaSignupIn(BaseModel):
+    """Lo que devuelve el popup de Embedded Signup: el codigo de FB.login (vence a los
+    30 s) y los IDs del mensaje WA_EMBEDDED_SIGNUP."""
+    code: str = Field(min_length=1, max_length=2048)
+    waba_id: str = Field(pattern=r"^\d{1,32}$")
+    phone_number_id: str = Field(default="", pattern=r"^\d{0,32}$",
+                                 description="Vacio con FINISH_ONLY_WABA (se rechaza) o en coexistencia "
+                                             "(se toma el unico numero de la WABA)")
+    business_id: str | None = Field(default=None, pattern=r"^\d{1,32}$")
+    event: Literal["FINISH", "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING", "FINISH_ONLY_WABA"] = "FINISH"
+    agent_id: str = Field(description="Agente del cliente que atiende los mensajes")
+    client_id: str | None = Field(default=None, description="Solo admin; a un usuario de cliente se le fuerza el suyo")
+    pin: str | None = Field(default=None, pattern=r"^\d{6}$",
+                            description="PIN de dos pasos del numero; sin el, se genera uno y se guarda cifrado")
+
+
+class WaRegisterIn(BaseModel):
+    pin: str | None = Field(default=None, pattern=r"^\d{6}$")
+
+
+class WaTemplateOut(BaseModel):
+    id: str
+    name: str
+    language: str
+    category: str
+    status: str
+    rejected_reason: str | None = None
+    components: list[dict[str, Any]] = []
+
+
+class WaTemplateIn(BaseModel):
+    """Plantilla de texto. Variables posicionales {{1}}, {{2}}... en el cuerpo, con un
+    ejemplo por variable (Meta los usa para revisarla)."""
+    name: str = Field(pattern=r"^[a-z0-9_]{1,512}$", description="Minusculas, numeros y _")
+    language: str = Field(default="es_AR", pattern=r"^[a-z]{2,3}(_[A-Z]{2})?$")
+    category: Literal["UTILITY", "MARKETING", "AUTHENTICATION"]
+    body: str = Field(min_length=1, max_length=1024)
+    examples: list[Annotated[str, Field(max_length=200)]] = Field(default=[], max_length=20)
+    header_text: str | None = Field(default=None, max_length=60)
+    footer_text: str | None = Field(default=None, max_length=60)
+
+
+class WaTemplateCreated(BaseModel):
+    id: str
+    status: str | None = None
+    category: str | None = None
 
 
 # ---------- agentes ----------

@@ -31,8 +31,13 @@ al agotarse; la saliente además sale con `max_call_duration` = minutos que qued
 el loadtest ocupan lugar pero no consumen minutos. La admisión toma un lock de fila del cliente:
 con 20 pedidos simultáneos y tope 3 entran exactamente 3 (medido en PostgreSQL).
 
-**API** (`/api/v1`, OpenAPI en `/api/v1/docs`): la UI usa una cookie de sesión (httpOnly,
-SameSite=Strict); los sistemas del cliente, `Authorization: Bearer vaas_...` (API key del cliente).
+**API** (`/api/v1`; OpenAPI en `/api/v1/docs` y `/api/v1/openapi.json`, solo para un admin con sesión
+salvo `API_DOCS=public`; el esquema también está versionado en `web/openapi.json`): la UI usa una
+cookie de sesión (httpOnly, SameSite=Strict); los sistemas del cliente, `Authorization: Bearer
+vaas_...` (API key del cliente). El dashboard se publica en `https://app.atentina.com.ar` por el
+túnel, sin Cloudflare Access: settings de seguridad (`AUTH_COOKIE_SECURE`, `TRUSTED_PROXY_CIDRS`,
+`APP_ORIGINS`, `API_DOCS`, `CSP_REPORT_ONLY`, `LOGIN_FAIL_*`) en `.env.example` y en
+[`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md), "Autenticación y permisos".
 
 ```bash
 curl -X POST http://<host>:8011/api/v1/calls -H "Authorization: Bearer $VAAS_API_KEY" \

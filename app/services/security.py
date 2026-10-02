@@ -45,9 +45,12 @@ class Principal:
         return self.is_admin or (client_id is not None and client_id == self.client_id)
 
 
-def create_session_token(user_id: str, role: str, client_id: str | None) -> tuple[str, datetime.datetime]:
+def create_session_token(user_id: str, role: str, client_id: str | None,
+                         session_version: int = 0) -> tuple[str, datetime.datetime]:
+    """sv: User.session_version al emitirlo; si despues sube (logout, clave), el token deja de valer."""
     expires = datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=settings.auth_token_hours)
-    payload = {"sub": user_id, "role": role, "cid": client_id, "exp": expires, "iat": datetime.datetime.now(datetime.UTC)}
+    payload = {"sub": user_id, "role": role, "cid": client_id, "sv": session_version, "exp": expires,
+               "iat": datetime.datetime.now(datetime.UTC)}
     return jwt.encode(payload, settings.auth_secret, algorithm="HS256"), expires
 
 
