@@ -92,7 +92,7 @@ desde la que recibe (RTP simétrico) solo si el SDP trae una IP privada. Por eso
 
 | Transporte | Puerto | Audio anunciado | ¿Se redirige en el router? |
 |---|---|---|---|
-| `transport-livekit` | `ASTERISK_SIP_PORT` (5080) | IP de la LAN, para que LiveKit aprenda la dirección real | Sí, junto con el rango RTP |
+| `transport-livekit` | `ASTERISK_SIP_PORT` (5080) | IP de la LAN, para que LiveKit aprenda la dirección real | Solo con **LiveKit Cloud**. Con LiveKit propio, LiveKit llega por `127.0.0.1`: no se reenvía (se borró el 2-oct-2026) y el endpoint `livekit` solo acepta loopback y la LAN (ACL en `pjsip.conf`) |
 | `transport-anura` | `ASTERISK_ANURA_SIP_PORT` (5081) | IP pública | No: Anura entra por el agujero que abre el registro |
 
 ## 2. Qué hace falta antes de empezar
@@ -131,8 +131,10 @@ LiveKit y Anura tienen que poder mandarle tráfico, así que en el router:
 1. **Reservar una IP fija de LAN** para este host (reserva DHCP), por ejemplo
    `192.168.1.99`.
 2. **Redirigir a esa IP, en UDP:**
-   - `5080` (SIP, `ASTERISK_SIP_PORT`)
-   - `10000-10199` (RTP, `ASTERISK_RTP_START`-`ASTERISK_RTP_END`)
+   - `10000-10199` (RTP, `ASTERISK_RTP_START`-`ASTERISK_RTP_END`): el audio de Anura.
+   - `5080` (SIP, `ASTERISK_SIP_PORT`) **solo con LiveKit Cloud**. Con LiveKit propio no se reenvía:
+     abierto a internet, alguien podría probar claves del endpoint `livekit` y hacer salientes por
+     Anura a nuestro cargo. Si se vuelve a Cloud, sacar también el ACL del endpoint en `pjsip.conf`.
 3. **Desactivar el SIP ALG** del router (a veces aparece como "SIP Helper" o
    "SIP Passthrough"). Reescribe los paquetes SIP y es la causa más común de
    llamadas sin audio o que se cortan a los 30 segundos.

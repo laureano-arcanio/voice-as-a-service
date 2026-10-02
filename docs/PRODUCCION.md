@@ -40,7 +40,7 @@ sumaría varias idas y vueltas por turno de llamada. La nube sirve para los back
 |---|---|---|
 | `nvidia-smi` muestra **2 × RTX 3090 a 350 W**. `AGENTS.md` y CAP-002 dicen 5060 Ti + 3090 a 280 W. | **Bloqueante.** Sin tope, dos 3090 ya apagaron el server por un pico. Además, la capacidad vigente se midió con otro hardware. | Confirmar el hardware real. Aplicar el tope y que sobreviva al reinicio (sección 3, D). Si quedan 2 × 3090, rige CAP-001 (~32 llamadas con p95 ≤ 3 s) y hay que actualizar `AGENTS.md`. |
 | El tope de GPU no sobrevive al reinicio. La inferencia queda en `Exited (128)`. El Redis de LiveKit no persiste y se borran los trunks SIP. | Después de un corte de luz el servicio no vuelve solo. | Arranque automático (4, D). |
-| Corren **Dify** (14 contenedores) y **sim-poc** (Postgres y Redis) en el mismo host. | Compiten por la CPU (cuello desde ~55 llamadas) y la RAM (34 de 62 GB usados). | Moverlos a otra máquina. |
+| Corren **Dify** (14 contenedores) y **sim-poc** (Postgres y Redis) en el mismo host. | Compiten por la CPU (cuello desde ~55 llamadas) y la RAM (34 de 62 GB usados). | **Se quedan** (decisión del 2-oct-2026). Vigilar la CPU en el test de capacidad. |
 | La 3090 también dibuja el escritorio. | VRAM y riesgo de que la sesión gráfica afecte la inferencia. | Host sin sesión gráfica (o video integrado). |
 | El proxy de inferencia está publicado en el router, en el **8100**: HTTP plano, protegido solo por `VLLM_API_KEY`. | Inferencia expuesta a internet. | En producción no se usa el modo remoto: cerrar el 8100 en el router. |
 | `app` (8011) escucha en `0.0.0.0`. | Expuesta a la LAN, sin pasar por el túnel. | Firewall del host: solo localhost, el túnel y la LAN de administración. |
@@ -55,6 +55,7 @@ sumaría varias idas y vueltas por turno de llamada. La nube sirve para los back
 | Topes de las 3090 en cada arranque (280 W, núcleo ≤ 1800 MHz, memoria 9501 MHz, *persistence mode*) | `deploy/gpu-limits.sh`, `deploy/systemd/atentina-gpu-limits.service` | **Activo** (instalado con `sudo deploy/install.sh`) |
 | Stack en el arranque: compose sin build, túnel, trunks SIP y calentamiento del TTS | `deploy/boot.sh`, `deploy/systemd/atentina-stack.service` | **Habilitado**; se prueba en el próximo reinicio |
 | Backup diario a las 03:30 de la base (`pg_dump`), `.env` y checkpoint del TTS, 30 días, a `~/atentina-backups` (otro disco que Docker) | `scripts/ops/backup.sh`, cron del usuario | **Activo.** Restauración probada en un Postgres limpio (961 conversaciones, migración 0005). Copia externa cifrada con `RCLONE_REMOTE` y `BACKUP_GPG_RECIPIENT` en `.env`: pendiente |
+| Fraude telefónico: reenvío del 5080 (SIP de LiveKit Cloud) borrado del router y ACL en el endpoint `livekit` (loopback y LAN) | router; `asterisk/conf/pjsip.conf` | **Activo.** Quedan reenviados el RTP de Anura (10000–10199) y la demo web (7881, 7882). El 8100 ya no estaba |
 | Reparto de GPU de CAP-001 (LLM solo en la GPU 0; TTS + STT en la GPU 1), sin el override de la 5060 Ti | `.env` (`COMPOSE_FILE`), `make up-inference` | **Activo.** ~4 min sin servicio al cambiarlo; TTS 0,8 s el primer pedido |
 | Chequeo cada 2 min: contenedores, app local, dashboard y webhook por el túnel, tope de las GPUs | `scripts/ops/healthcheck.sh`, cron del usuario; log en `~/atentina-ops/health.log` | **Activo.** Alertas: `ALERT_NTFY_TOPIC` (app ntfy) y vigilante externo `HEALTHCHECKS_PING_URL`: pendientes |
 
@@ -70,7 +71,6 @@ Va en orden de prioridad. Las letras se usan en la sección 7.
   - Confirmar si la IP fija es de un plan residencial o de empresa (términos y SLA).
   - Sumar una segunda conexión (otra fibra o 4G). Con ella, el túnel de Cloudflare (dashboard, demo, WhatsApp) sigue andando con cualquier IP. La **telefonía** (SIP de Anura y medios de LiveKit con `LIVEKIT_NODE_IP`) depende de la IP fija: confirmar con Anura si admite un segundo destino.
 - **C. Host dedicado:**
-  - Sacar Dify, sim-poc y el escritorio.
   - Dejar de usarlo para desarrollo, loadtests y sesiones de agentes: hace falta un **equipo de desarrollo aparte**.
   - Tope de concurrencia global por server, porque con ~110 llamadas el TTS se cae.
 - **D. Arranque automático** (unidades de systemd, versionadas en el repo):
@@ -88,7 +88,6 @@ Va en orden de prioridad. Las letras se usan en la sección 7.
   - Alertas al celular.
   - El sampler de `scripts/capacity/` como métricas, con retención.
 - **G. Seguridad:**
-  - Cerrar el 8100.
   - Firewall que acepte SIP solo desde las IP de Anura.
   - SSH solo con llave.
   - Actualizaciones.
@@ -128,7 +127,7 @@ No hay datos de cortes de luz ni de internet de este sitio. Ofrecer un SLA en po
 
 | Cuándo | Qué | Costo aproximado |
 |---|---|---|
-| Antes del primer piloto | Hardware real y topes persistentes (2, D); host dedicado (C); backups (E); monitoreo (F); cerrar puertos (G); equipo de desarrollo aparte | Horas de trabajo, más ~USD 5 por mes de backups |
+| Antes del primer piloto | Hardware real y topes persistentes (2, D); backups (E); monitoreo (F); equipo de desarrollo aparte | Horas de trabajo, más ~USD 5 por mes de backups |
 | Antes del primer piloto | UPS (A) | Una UPS de 2 kVA (a cotizar) |
 | Con el primer cliente pago | Segunda conexión de internet (B); segundo server igual con UPS; réplica de la base | GPUs ARS 2,9–4 M, más el resto del equipo |
 | Con un contrato que exija SLA | Segundo sitio; failover automático de la base | A evaluar |
