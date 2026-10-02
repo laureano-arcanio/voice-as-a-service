@@ -2,6 +2,7 @@
 import CallWidget from "../components/CallWidget.astro";
 import CheckList from "../components/CheckList.astro";
 import Cta from "../components/Cta.astro";
+import Developers from "../components/Developers.astro";
 import Footer from "../components/Footer.astro";
 import Nav from "../components/Nav.astro";
 import Pricing from "../components/Pricing.astro";
@@ -15,7 +16,8 @@ import Base from "../layouts/Base.astro";
 const features = [
   { title: "Número argentino", text: "Uno nuevo o tu línea de siempre. Entrantes y salientes." },
   { title: "Voces argentinas", text: "Más de 30, masculinas y femeninas. Se cambian cuando quieras." },
-  { title: "Panel de llamadas", text: "Transcripción, datos tomados y resultado de cada llamada." },
+  { title: "Integración con WhatsApp", text: "El mismo agente responde por WhatsApp, con texto y notas de voz." },
+  { title: "Panel de conversaciones", text: "Transcripción, datos tomados y resultado de cada llamada y chat." },
   { title: "API y webhooks", text: "Creás llamadas y campañas, y recibís cada resultado en tu sistema." },
   { title: "Integración con tu gestión", text: "El agente consulta y escribe en tu sistema durante la llamada." },
   { title: "Derivación a una persona", text: "Si lo supera, toma el dato y avisa a tu equipo." },
@@ -42,7 +44,7 @@ const features = [
           Atienden consultas, dan turnos, confirman, recuerdan vencimientos y cobran. Con voces argentinas y con un precio fijo en pesos.
         </p>
         <p class="max-w-[62ch] text-[1.12rem] text-ink-2">
-          <b class="font-bold text-accent">Un solo servicio que integra todo lo que necesitas</b>; Telefonia, voces e inteligencia artificial incluida. Lo contratás y empieza a atender.
+          <b class="font-bold text-accent">Un solo servicio que integra todo lo que necesitás</b>: telefonía, voces e inteligencia artificial incluidas. Lo contratás y empieza a atender.
         </p>
       </div>
       <CallWidget agents={[atentinaAgent]} whatsapp={whatsappUrl} others="#soluciones" />
@@ -56,7 +58,7 @@ const features = [
       <div class="grid gap-4">
         <h2>Nuestro producto</h2>
         <p class="max-w-[62ch] text-[1.12rem] text-ink-2">
-          Todo lo necesario para automatizar la atención telefónica de tu empresa, en un solo servicio: número argentino, varias llamadas a la vez e inteligencia artificial incluida. <b class="font-bold text-accent">No necesitás contratar telefonía ni combinar proveedores</b>: lo contratás y empieza a atender.
+          Todo lo necesario para automatizar la atención por teléfono y por WhatsApp de tu empresa, en un solo servicio: número argentino, varias llamadas a la vez, WhatsApp e inteligencia artificial incluida. <b class="font-bold text-accent">No necesitás contratar telefonía ni combinar proveedores</b>: lo contratás y empieza a atender.
         </p>
       </div>
       <CheckList items={features} />
@@ -66,6 +68,7 @@ const features = [
   <Solutions />
   <Voices />
   <Pricing />
+  <Developers />
   <Cta />
   <Footer />
 </Base>

@@ -1,0 +1,61 @@
+---
+import Button from "./Button.astro";
+import Section from "./Section.astro";
+
+// Lo que viene para desarrolladores: todavía no está disponible.
+const items = [
+  {
+    title: "API de voz e inteligencia artificial",
+    text: "Reconocimiento de voz, modelo de lenguaje y síntesis con voces argentinas, por API compatible con OpenAI. Todo corre en servidores propios en Argentina.",
+    wide: true,
+  },
+  {
+    title: "Skills y documentación para agentes",
+    text: "Para que tu agente de programación cree, configure y pruebe agentes de voz por vos.",
+  },
+  {
+    title: "Precios con y sin telefonía",
+    text: "Contratá todo con nosotros, o usá tu propia telefonía y pagá solo la inteligencia artificial.",
+  },
+  {
+    title: "WhatsApp para tus clientes",
+    text: "Como proveedor tecnológico de Meta, conectamos el WhatsApp de cada uno de tus clientes.",
+  },
+  {
+    title: "Agentes en nuestra infraestructura",
+    text: "Definís el agente y nosotros lo ponemos en marcha, lo operamos y lo escalamos.",
+  },
+  {
+    title: "Llamado de herramientas",
+    text: "Durante la conversación, el agente llama a tus APIs: consulta, reserva o registra en tu sistema.",
+  },
+  {
+    title: "Ruteo SIP a webhooks",
+    text: "Cada llamada que entra por SIP llega a tu webhook, que decide qué agente atiende y con qué datos.",
+  },
+];
+---
+
+<Section id="desarrolladores" class="border-t border-line bg-bg-2">
+  <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">Desarrolladores</span>
+  <h2 class="mt-3">Construí sobre nuestra voz y nuestra IA</h2>
+  <p class="mt-3 max-w-[62ch] text-[1.12rem] text-ink-2">
+    Estamos abriendo la plataforma a desarrolladores, integradores y agencias. Esto es lo que viene:
+  </p>
+
+  <div class="mt-9 grid gap-4 min-[701px]:grid-cols-2 min-[1001px]:grid-cols-4">
+    {
+      items.map((item) => (
+        <div class:list={["grid content-start gap-3 rounded-2xl border border-line bg-surface p-6", item.wide && "min-[701px]:col-span-2"]}>
+          <h3 class="text-[1.2rem]">{item.title}</h3>
+          <p class="text-[.96rem] text-ink-2">{item.text}</p>
+        </div>
+      ))
+    }
+  </div>
+
+  <div class="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2">
+    <Button href="#demo" variant="ghost">Pedir acceso anticipado</Button>
+    <p class="text-[.95rem] text-muted">Contanos qué querés construir y te avisamos cuando esté.</p>
+  </div>
+</Section>

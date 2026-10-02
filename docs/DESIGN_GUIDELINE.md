@@ -150,6 +150,7 @@ Usar el componente; no copiar sus clases a mano.
 | `Logo`, `Nav`, `Footer` | Marco de toda página. `Nav home` solo en el hub. |
 | `Cta` | Cierre de toda página comercial: sección oscura con los botones de contacto. |
 | `Solutions`, `Voices`, `Pricing` | Secciones compartidas entre el hub y las verticales. |
+| `Developers` | Solo en el hub, debajo de precios: lo que viene para desarrolladores. Al sumar algo que ya existe, sacarlo de ahí. |
 | `CallWidget`, `SampleResult`, `TelDialog` | Demo de llamada, ejemplo de resultado y diálogo del teléfono. |
 | `Legal` | Layout de las páginas legales. |
 

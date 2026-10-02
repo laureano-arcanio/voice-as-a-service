@@ -99,7 +99,7 @@ export const plans: Plan[] = [
     items: [
       "<b>1.200 minutos</b> por mes",
       "<b>5 llamadas</b> a la vez",
-      "1 número",
+      "2 números y una línea 0800",
       "Llamadas programadas",
       "Minuto adicional <b class=\"tabular-nums\">$ 79</b>",
     ],
@@ -115,7 +115,7 @@ export const plans: Plan[] = [
     items: [
       "<b>5.000 minutos</b> por mes",
       "<b>10 llamadas</b> a la vez",
-      "1 número",
+      "5 números y una línea 0800",
       "Llamadas programadas",
       "Minuto adicional <b class=\"tabular-nums\">$ 69</b>",
     ],

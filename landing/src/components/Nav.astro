@@ -13,6 +13,7 @@ const links = [
   { href: `${hub}#soluciones`, label: "Agentes de voz", short: "Agentes" },
   { href: "#voces", label: "Voces", short: "Voces" },
   { href: "#precios", label: "Precios", short: "Precios" },
+  { href: `${hub}#desarrolladores`, label: "Desarrolladores", short: "API" },
   { href: "#demo", label: "Contactanos", short: "Contacto" },
 ];
 ---
@@ -20,7 +21,7 @@ const links = [
 <nav class="sticky top-[env(safe-area-inset-top,0px)] z-10 border-b border-line bg-white/86 backdrop-blur-[10px]">
   <div class="mx-auto flex max-w-[1120px] items-center justify-between gap-4 px-5 py-3.5">
     <Logo href={home ? "#" : "/"} />
-    <div class="flex items-center gap-6 text-[.98rem] font-medium">
+    <div class="flex items-center gap-6 text-[.98rem] font-medium max-[900px]:gap-4">
       {
         links.map((l) => (
           <a class="whitespace-nowrap text-ink-2 no-underline hover:text-ink max-[720px]:hidden" href={l.href}>
@@ -29,7 +30,7 @@ const links = [
           </a>
         ))
       }
-      <Button href="#llamada" size="sm" data-demo-link>Hacé una demo</Button>
+      <Button href="#llamada" size="sm" class="whitespace-nowrap" data-demo-link>Hacé una demo</Button>
     </div>
   </div>
   <!-- Mobile: los links en una segunda fila con rótulos cortos. Los 5 entran desde ~420 px; más angosto,

@@ -7,7 +7,7 @@ Cloudflare Tunnel. No hay backend aparte ni base nueva: costo adicional cero.
 
 - **Canónico:** `https://atentina.com.ar/`. `www.atentina.com.ar`, `atentina.com` y
   `www.atentina.com` redirigen ahí con 301.
-- **Páginas:** `/` (hub: agentes de voz, producto, soluciones, voces, precios, demo) y tres
+- **Páginas:** `/` (hub: agentes de voz, producto, soluciones, voces, precios, desarrolladores, demo) y tres
   verticales con su tema de acento: `/turnos` (verde azulado), `/cobranzas` (violeta) y
   `/municipios` (ámbar). Las verticales salen de `src/pages/[vertical].astro` con los datos de
   `src/data/site.ts`. Legales (las pide Meta para WhatsApp): `/privacidad`, `/terminos` y
