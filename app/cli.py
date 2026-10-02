@@ -4,16 +4,15 @@
     python -m app.cli create-admin EMAIL         # pide la clave
     python -m app.cli create-api-key CLIENTE_SLUG NOMBRE
     python -m app.cli wa-account PHONE_NUMBER_ID --waba WABA --display "+1 555 145 6632" \
-        --client interno --agent SLUG [--name ...]   # conecta un numero de WhatsApp (idempotente)
+        --client atentina --agent SLUG [--name ...]   # conecta un numero de WhatsApp (idempotente)
 
-seed deja lo minimo para operar despues de migrar:
-- tier "Interno" (sin limites) y cliente "interno", para pruebas, loadtest y eval;
-- un agente del cliente interno por cada plantilla (app/agents/templates);
-- las conversaciones anteriores a los agentes, asociadas al agente de igual slug;
-- el numero de Anura (ANURA_DID) del cliente interno, atendido por el agente
-  WORKFLOW_ID (demo_booking_classic si no esta);
-- tier "Landing" y cliente DEMO_CLIENT con un agente por plantilla landing_* (slug sin el
-  prefijo), los que atiende la demo de la landing (/api/v1/demo);
+seed deja lo minimo para operar despues de migrar (todo idempotente: solo crea lo que falta):
+- tier "Interno" (sin limites) y cliente "atentina" (nosotros): loadtest, pruebas, la demo de la
+  landing y el numero y el WhatsApp propios;
+- sus agentes de SEED_TEMPLATES (el comercial y el del test de capacidad) y uno por plantilla
+  landing_* (slug sin el prefijo), los que atiende la demo (/api/v1/demo, DEMO_AGENTS). Las demas
+  plantillas (eval, pruebas) no se siembran: se crean a pedido desde la UI o la API;
+- el numero de Anura (ANURA_DID), atendido por el agente WORKFLOW_ID (demo_booking_classic si no esta);
 - el admin ADMIN_EMAIL / ADMIN_PASSWORD si no existe.
 """
 import argparse
@@ -21,7 +20,7 @@ import getpass
 import os
 import sys
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .agents.templates import load_template, template_ids
@@ -30,9 +29,7 @@ from .db import get_sessionmaker, utcnow
 from .models import (
     Agent,
     ApiKey,
-    CallRow,
     Client,
-    ConversationRow,
     PhoneNumber,
     Role,
     Tier,
@@ -42,59 +39,59 @@ from .services import agents as agent_service
 from .services.security import generate_api_key, hash_password
 
 INTERNAL_TIER = "Interno"
-INTERNAL_CLIENT = "interno"
-DEMO_TIER = "Landing"
+INTERNAL_CLIENT = "atentina"
+# Agentes de Atentina que el seed crea si faltan: el comercial (numero y WhatsApp propios) y el
+# del test de capacidad (scripts/capacity/perfiles/_comun.yml, comparable con CAP-001).
+SEED_TEMPLATES = ("atentina_comercial", "demo_booking_classic")
 DEMO_TEMPLATE_PREFIX = "landing_"
-DEMO_MAX_CONCURRENT_CALLS = 3
 
 
 def _log(msg: str) -> None:
     print(msg, flush=True)
 
 
-def seed(s: Session) -> None:
+def _client(s: Session, slug: str) -> Client:
+    """El cliente `slug` en el tier Interno; los crea si faltan."""
+    client = s.scalar(select(Client).where(Client.slug == slug))
+    if client is not None:
+        return client
     tier = s.scalar(select(Tier).where(Tier.name == INTERNAL_TIER))
     if tier is None:
-        tier = Tier(name=INTERNAL_TIER, description="Sin limites: pruebas, loadtest y capacidad")
+        tier = Tier(name=INTERNAL_TIER, description="Sin limites: Atentina (nosotros)")
         s.add(tier)
         s.flush()
         _log(f"tier {INTERNAL_TIER} creado")
-    client = s.scalar(select(Client).where(Client.slug == INTERNAL_CLIENT))
-    if client is None:
-        client = Client(name="Interno", slug=INTERNAL_CLIENT, tier_id=tier.id)
-        s.add(client)
-        s.flush()
-        _log(f"cliente {INTERNAL_CLIENT} creado")
+    client = Client(name="Atentina" if slug == INTERNAL_CLIENT else slug.capitalize(), slug=slug, tier_id=tier.id)
+    s.add(client)
+    s.flush()
+    _log(f"cliente {slug} creado")
+    return client
 
+
+def _ensure_agents(s: Session, client: Client, templates: dict[str, str]) -> None:
+    """templates: slug -> plantilla. Crea los agentes que faltan."""
     existing = set(s.scalars(select(Agent.slug).where(Agent.client_id == client.id)))
-    for tid in template_ids():
-        if tid in existing:
+    for slug, tid in templates.items():
+        if slug in existing:
             continue
         w = load_template(tid)
-        agent_service.create_agent(s, client, name=tid, slug=tid, description=f"{w.agent.name}, {w.agent.role}",
-                                   definition=None, template_id=tid, user_id=None)
-        _log(f"agente {tid} creado")
+        agent_service.create_agent(s, client, name=slug.capitalize() if tid != slug else slug, slug=slug,
+                                   description=f"{w.agent.name}, {w.agent.role}", definition=None,
+                                   template_id=tid, user_id=None)
+        _log(f"agente {slug} de {client.slug} creado")
     s.flush()
 
-    agents = {a.slug: a for a in s.scalars(select(Agent).where(Agent.client_id == client.id))}
-    moved = 0
-    for slug, agent in agents.items():
-        ids = list(s.scalars(select(ConversationRow.id).where(
-            ConversationRow.agent_id.is_(None), ConversationRow.legacy_workflow_id == slug)))
-        if not ids:
-            continue
-        s.execute(update(ConversationRow).where(ConversationRow.id.in_(ids))
-                  .values(agent_id=agent.id, agent_version=1, client_id=client.id))
-        s.execute(update(CallRow).where(CallRow.conversation_id.in_(ids)).values(client_id=client.id))
-        moved += len(ids)
-    if moved:
-        _log(f"{moved} conversaciones anteriores asociadas a agentes de {INTERNAL_CLIENT}")
+
+def seed(s: Session) -> None:
+    client = _client(s, INTERNAL_CLIENT)
+    _ensure_agents(s, client, {tid: tid for tid in SEED_TEMPLATES})
 
     did = os.getenv("ANURA_DID", "").strip()
     if did:
         e164 = f"+54{did}"
         if s.scalar(select(PhoneNumber).where(PhoneNumber.e164 == e164)) is None:
-            inbound = agents.get(os.getenv("WORKFLOW_ID") or "demo_booking_classic")
+            inbound = s.scalar(select(Agent).where(Agent.client_id == client.id,
+                                                   Agent.slug == (os.getenv("WORKFLOW_ID") or "demo_booking_classic")))
             s.add(PhoneNumber(client_id=client.id, e164=e164, label="Anura", assigned_at=utcnow(),
                               agent_id=inbound.id if inbound else None))
             _log(f"numero {e164} asignado a {INTERNAL_CLIENT} ({inbound.slug if inbound else 'sin agente'})")
@@ -111,31 +108,10 @@ def seed(s: Session) -> None:
 
 
 def seed_demo(s: Session) -> None:
-    tier = s.scalar(select(Tier).where(Tier.name == DEMO_TIER))
-    if tier is None:
-        tier = Tier(name=DEMO_TIER, description="Demo de la landing: llamadas por navegador",
-                    max_concurrent_calls=DEMO_MAX_CONCURRENT_CALLS, inbound_minutes=0, outbound_minutes=0,
-                    max_phone_numbers=0)
-        s.add(tier)
-        s.flush()
-        _log(f"tier {DEMO_TIER} creado")
-    client = s.scalar(select(Client).where(Client.slug == settings.demo_client))
-    if client is None:
-        client = Client(name="Landing", slug=settings.demo_client, tier_id=tier.id)
-        s.add(client)
-        s.flush()
-        _log(f"cliente {settings.demo_client} creado")
-    existing = set(s.scalars(select(Agent.slug).where(Agent.client_id == client.id)))
-    for tid in template_ids():
-        slug = tid.removeprefix(DEMO_TEMPLATE_PREFIX)
-        if not tid.startswith(DEMO_TEMPLATE_PREFIX) or slug in existing:
-            continue
-        w = load_template(tid)
-        agent_service.create_agent(s, client, name=slug.capitalize(), slug=slug,
-                                   description=f"{w.agent.name}, {w.agent.role}", definition=None,
-                                   template_id=tid, user_id=None)
-        _log(f"agente {slug} de {settings.demo_client} creado")
-    s.flush()
+    """Los agentes de la demo de la landing, en DEMO_CLIENT (Atentina)."""
+    client = _client(s, settings.demo_client)
+    _ensure_agents(s, client, {tid.removeprefix(DEMO_TEMPLATE_PREFIX): tid for tid in template_ids()
+                               if tid.startswith(DEMO_TEMPLATE_PREFIX)})
 
 
 def create_admin(s: Session, email: str, password: str) -> None:

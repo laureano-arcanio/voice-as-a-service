@@ -357,7 +357,7 @@ FakeLLM y payloads con la forma de Meta en `tests/fixtures/wa/`.
 1. `make migrate` (0004: `wa_accounts`, `wa_threads`, `wa_messages` y `conversations.channel`).
 2. Recrear `app` con la imagen nueva (compila la UI).
 3. `make wa-account PNID=1376760278849754 WABA=1763082738667089 NUMBER="+1 555 145 6632" AGENT=<slug>`
-   (cliente `interno` por defecto), o desde la página WhatsApp.
+   (cliente `atentina` por defecto), o desde la página WhatsApp.
 4. Escribirle al número de prueba y ver la conversación en el dashboard.
 
 **Queda de la fila de la fase 1:** saliente por plantilla desde la app (fase 3), modo verificación
@@ -495,7 +495,7 @@ retoma cuando Meta la apruebe.
   la atendió el agente; el STT transcribió "uno, dos, uno … dos, ocho, nueve" en dos fragmentos (con un "tres"
   espurio) y el código 121289 fue correcto. Meta lo muestra como +54 **9** 351…, aunque es un fijo.
 - Después: asignar la WABA nueva al system user (lo hace el usuario: dar permisos está bloqueado para el
-  agente), `subscribed_apps`, `register` con `WA_REGISTRATION_PIN` y `make wa-account` → `interno/atentina_comercial`.
+  agente), `subscribed_apps`, `register` con `WA_REGISTRATION_PIN` y `make wa-account` → `interno/atentina_comercial` (desde el 2-oct-2026, cliente `atentina`).
 - Lo atiende el agente `atentina_comercial` (plantilla en `app/agents/templates/`), por WhatsApp y por llamada.
 - Pendiente: medio de pago en la WABA nueva (Meta avisa "Payment method missing").
 

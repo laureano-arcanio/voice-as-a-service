@@ -11,6 +11,7 @@ cuantos segundos le quedan (tope de duracion). Durante la llamada el worker vuel
 mirar remaining_seconds() y corta al agotarse (app/voice/worker.py).
 """
 import datetime
+from collections.abc import Collection
 from dataclasses import dataclass
 from zoneinfo import ZoneInfo
 
@@ -19,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..db import utcnow
-from ..models import ACTIVE_CALL_STATUSES, CallMode, CallRow, Client
+from ..models import ACTIVE_CALL_STATUSES, CallMode, CallRow, Client, ConversationRow
 from .errors import QuotaExceeded
 
 MINUTE_MODES = {CallMode.entrante: "inbound", CallMode.saliente: "outbound"}
@@ -47,16 +48,25 @@ def _active_filter(client_id: str, now: datetime.datetime):
     return (CallRow.client_id == client_id, CallRow.status.in_(ACTIVE_CALL_STATUSES), CallRow.created_at >= stale)
 
 
-def active_calls(s: Session, client_id: str, now: datetime.datetime | None = None) -> int:
-    return s.scalar(select(func.count()).select_from(CallRow).where(*_active_filter(client_id, now or utcnow()))) or 0
+def _agents_filter(agent_ids: Collection[str] | None):
+    """Solo las llamadas de esos agentes (la demo de la landing, que comparte cliente)."""
+    if agent_ids is None:
+        return ()
+    return (CallRow.conversation_id.in_(select(ConversationRow.id).where(ConversationRow.agent_id.in_(agent_ids))),)
+
+
+def active_calls(s: Session, client_id: str, now: datetime.datetime | None = None,
+                 agent_ids: Collection[str] | None = None) -> int:
+    return s.scalar(select(func.count()).select_from(CallRow)
+                    .where(*_active_filter(client_id, now or utcnow()), *_agents_filter(agent_ids))) or 0
 
 
 def used_seconds(s: Session, client_id: str, mode: str, start: datetime.datetime, end: datetime.datetime,
-                 now: datetime.datetime | None = None) -> int:
+                 now: datetime.datetime | None = None, agent_ids: Collection[str] | None = None) -> int:
     """Segundos de `mode` que empezaron en [start, end): terminadas + lo que llevan las en curso."""
     now = now or utcnow()
     in_period = (CallRow.client_id == client_id, CallRow.mode == mode,
-                 CallRow.started_at >= start, CallRow.started_at < end)
+                 CallRow.started_at >= start, CallRow.started_at < end, *_agents_filter(agent_ids))
     done = s.scalar(select(func.coalesce(func.sum(CallRow.duration_seconds), 0))
                     .where(*in_period, CallRow.status.notin_(ACTIVE_CALL_STATUSES))) or 0
     running = s.scalars(select(CallRow.started_at).where(*in_period, *_active_filter(client_id, now))).all()

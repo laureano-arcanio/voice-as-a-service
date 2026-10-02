@@ -1,6 +1,7 @@
 """Demo publica de la landing: sesion con Turnstile, llamadas, resultado, voz y limites."""
 import datetime
 import json
+import uuid
 
 import jwt
 import pytest
@@ -10,12 +11,14 @@ from app.config import settings
 from app.db import utcnow
 from app.models import (
     Agent,
+    CallMode,
     CallRow,
     CallStatus,
     Client,
     ContactRequest,
     ConversationRow,
 )
+from app.services import agents as agent_service
 from app.services import demo, tts
 
 V1 = "/api/v1/demo"
@@ -68,6 +71,19 @@ def test_seed_creates_demo_agents_once(landing):
         client = s.query(Client).filter_by(slug=settings.demo_client).one()
         slugs = sorted(a.slug for a in s.query(Agent).filter_by(client_id=client.id))
     assert slugs == ["cobranzas", "reclamos", "turnos"]
+
+
+def test_seed_only_creates_kept_agents(api, monkeypatch):
+    from app.cli import seed
+
+    monkeypatch.delenv("ANURA_DID", raising=False)
+    with api.sessions() as s:
+        seed(s)
+        seed(s)
+        clients = [c.slug for c in s.query(Client)]
+        slugs = sorted(a.slug for a in s.query(Agent))
+    assert clients == ["atentina"]
+    assert slugs == ["atentina_comercial", "cobranzas", "demo_booking_classic", "reclamos", "turnos"]
 
 
 def test_session_requires_turnstile(landing):
@@ -154,7 +170,26 @@ def test_cloudflare_header_ignored_from_untrusted_peer(landing, monkeypatch):
     assert call(landing, {**headers, "CF-Connecting-IP": "203.0.113.2"}).status_code == 429
 
 
-def test_concurrency_from_demo_tier(landing):
+def other_agent_call(api, mode=CallMode.prueba, status=CallStatus.en_curso, duration=0) -> None:
+    """Llamada de un agente de Atentina que no es de la demo (mismo cliente)."""
+    with api.sessions() as s:
+        client = s.query(Client).filter_by(slug=settings.demo_client).one()
+        agent = s.query(Agent).filter_by(client_id=client.id, slug="atentina_comercial").one_or_none()
+        if agent is None:
+            agent = agent_service.create_agent(s, client, name="atentina_comercial", slug="atentina_comercial",
+                                               description="", definition=None, template_id="atentina_comercial",
+                                               user_id=None)
+        conv = ConversationRow(id=str(uuid.uuid4()), client_id=client.id, agent_id=agent.id, agent_version=1,
+                               status="active", fields={}, messages=[])
+        s.add(conv)
+        s.flush()
+        s.add(CallRow(conversation_id=conv.id, client_id=client.id, mode=mode, status=status,
+                      started_at=utcnow(), duration_seconds=duration))
+        s.commit()
+
+
+def test_concurrency_of_demo_agents(landing):
+    other_agent_call(landing)   # no cuenta: el cliente (Atentina) no tiene tope
     headers = session(landing)
     for _ in range(3):
         assert call(landing, headers).status_code == 201
@@ -162,9 +197,18 @@ def test_concurrency_from_demo_tier(landing):
     assert r.status_code == 429 and r.json()["code"] == "concurrency_limit"
 
 
+def test_only_demo_agents_can_be_called(landing):
+    other_agent_call(landing, status=CallStatus.finalizada)
+    r = call(landing, session(landing), agent="atentina_comercial")
+    assert r.status_code == 404
+
+
 def test_daily_budget(landing, monkeypatch):
     monkeypatch.setattr(settings, "demo_daily_minutes", 1)
+    other_agent_call(landing, status=CallStatus.finalizada, duration=600)   # no es de la demo: no cuenta
     headers = session(landing)
+    assert call(landing, headers).status_code == 201
+    finish_all(landing)
     started = call(landing, headers).json()
     with landing.sessions() as s:
         row = s.get(CallRow, started["conversation_id"])

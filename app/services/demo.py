@@ -127,20 +127,28 @@ def _day_start(now: datetime.datetime) -> datetime.datetime:
     return start.astimezone(datetime.UTC).replace(tzinfo=None)
 
 
-def _demo_agent(s: Session, slug: str) -> tuple[str, str]:
+def demo_agent_slugs() -> list[str]:
+    return [a.strip() for a in settings.demo_agents.split(",") if a.strip()]
+
+
+def _demo_agent(s: Session, slug: str) -> tuple[str, str, tuple[str, ...]]:
+    """(agente, cliente, todos los agentes de la demo). Solo los de DEMO_AGENTS: el cliente es
+    el de Atentina y tiene otros agentes que no se pueden llamar desde internet."""
     client = s.scalar(select(Client).where(Client.slug == settings.demo_client))
     if client is None or not client.active:
         raise DemoUnavailable("La demo no está disponible en este momento")
-    agent = s.scalar(select(Agent).where(Agent.client_id == client.id, Agent.slug == slug,
-                                         Agent.archived_at.is_(None)))
-    if agent is None:
+    demo_agents = {a.slug: a.id for a in s.scalars(select(Agent).where(
+        Agent.client_id == client.id, Agent.slug.in_(demo_agent_slugs()), Agent.archived_at.is_(None)))}
+    if slug not in demo_agents:
         raise NotFound("Agente inexistente")
+    group = tuple(demo_agents.values())
     now = utcnow()
     start = _day_start(now)
-    used = quota.used_seconds(s, client.id, CallMode.prueba, start, start + datetime.timedelta(days=1), now)
+    used = quota.used_seconds(s, client.id, CallMode.prueba, start, start + datetime.timedelta(days=1), now,
+                              agent_ids=group)
     if used >= settings.demo_daily_minutes * 60:
         raise QuotaExceeded("Por hoy se terminaron las llamadas de prueba. Volvé mañana.", "daily_budget")
-    return agent.id, client.id
+    return demo_agents[slug], client.id, group
 
 
 async def start_call(s: Session, engine: ConversationEngine, agent_slug: str, voice: str | None,
@@ -148,11 +156,12 @@ async def start_call(s: Session, engine: ConversationEngine, agent_slug: str, vo
     key = f"call:{client_key(ip)}"
     limiter.check(key, [Limit(settings.demo_ip_calls_per_hour, HOUR), Limit(settings.demo_ip_calls_per_day, DAY)],
                   "Llegaste al límite de llamadas de prueba. Probá más tarde.")
-    agent_id, client_id = await asyncio.to_thread(_demo_agent, s, agent_slug)
+    agent_id, client_id, group = await asyncio.to_thread(_demo_agent, s, agent_slug)
     principal = Principal("demo", settings.demo_client, Role.client, client_id)
     started = await calls.start_call(s, engine, principal, calls.CallRequest(
         agent_id=agent_id, voice=voice, max_duration_seconds=settings.demo_call_max_seconds,
-        join_timeout_seconds=settings.demo_join_timeout_seconds))
+        join_timeout_seconds=settings.demo_join_timeout_seconds, group_agent_ids=group,
+        group_max_concurrent=settings.demo_max_concurrent_calls))
     limiter.hit(key)
     ttl = datetime.timedelta(seconds=settings.demo_join_timeout_seconds + settings.demo_call_max_seconds
                              + TOKEN_MARGIN_SECONDS)

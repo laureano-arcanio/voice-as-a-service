@@ -2,8 +2,8 @@
 monitor: autenticacion con API key y agentes por slug.
 
 Autenticacion: VAAS_API_KEY (en .env o el entorno), una API key del cliente con
-los agentes a probar. Para el cliente interno (sin limites, creado por `make migrate`):
-    make api-key CLIENT=interno NAME=loadtest   -> copiar la clave a VAAS_API_KEY
+los agentes a probar. Para el cliente atentina (sin limites, creado por `make migrate`):
+    make api-key CLIENT=atentina NAME=loadtest   -> copiar la clave a VAAS_API_KEY
 Los perfiles y --workflow nombran al agente por su slug (el de la plantilla).
 """
 import os
@@ -16,7 +16,7 @@ API = "/api/v1"
 def headers() -> dict[str, str]:
     key = os.getenv("VAAS_API_KEY", "").strip()
     if not key:
-        raise SystemExit("falta VAAS_API_KEY (API key del cliente de prueba): make api-key CLIENT=interno NAME=loadtest")
+        raise SystemExit("falta VAAS_API_KEY (API key del cliente de prueba): make api-key CLIENT=atentina NAME=loadtest")
     return {"Authorization": f"Bearer {key}"}
 
 

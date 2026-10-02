@@ -6,6 +6,9 @@ os.environ.setdefault("AUTH_SECRET", "test-secret-" + "x" * 32)
 os.environ["AUTH_COOKIE_SECURE"] = "false"
 # Los tests no dependen del .env del host: la demo arranca apagada (la prende el fixture).
 os.environ["TURNSTILE_SECRET_KEY"] = ""
+# Ni mails reales: sin clave de Resend el formulario de contacto solo guarda (la prende el fixture).
+os.environ["RESEND_API_KEY"] = ""
+os.environ["CONTACT_TO"] = ""
 # El default `gateway` depende de donde corren (contenedor o host): fijo el de compose.
 os.environ["TRUSTED_PROXY_CIDRS"] = "127.0.0.1/32,::1/128,172.24.0.1/32"
 # La CSP del .env local puede estar en Report-Only (primer deploy): los tests prueban la que bloquea.

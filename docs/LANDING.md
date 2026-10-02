@@ -51,7 +51,7 @@ canjea el token por una sesión corta.
 | Endpoint | Auth | Qué hace |
 |---|---|---|
 | `POST /api/v1/demo/sessions` | token de Turnstile | Lo valida con Cloudflare (`siteverify`) y devuelve una sesión JWT de `DEMO_SESSION_MINUTES` (30). |
-| `POST /api/v1/demo/calls` | sesión | `{agent, voice?}`: llamada `prueba` con un agente del cliente `DEMO_CLIENT`. Devuelve `livekit_url`, el token del participante y un `result_token`. |
+| `POST /api/v1/demo/calls` | sesión | `{agent, voice?}`: llamada `prueba` con un agente de `DEMO_AGENTS` del cliente `DEMO_CLIENT` (`atentina`). Devuelve `livekit_url`, el token del participante y un `result_token`. |
 | `GET /api/v1/demo/calls/{id}` | `result_token` | Estado, resultado (`outcome`), datos extraídos con su `label` y transcripción. |
 | `POST /api/v1/demo/tts` | sesión | `{voice, text}`: WAV del TTS, hasta `DEMO_TTS_MAX_CHARS` (300). |
 | `POST /api/v1/demo/contact` | sesión | Formulario de contacto (ver abajo). 204. |
@@ -63,9 +63,11 @@ canjea el token por una sesión corta.
 4. Al cortar (el visitante, el agente al terminar o el tope de duración), la página consulta el
    resultado cada 1 s hasta que la llamada queda finalizada, y muestra el resultado y los datos.
 
-Los agentes son los del cliente `landing` (slugs `turnos`, `cobranzas`, `reclamos`). El seed los
-crea desde las plantillas `app/agents/templates/landing_*.json`; después se editan como cualquier
-agente (UI o API), con versión nueva en cada cambio.
+Los agentes son `turnos`, `cobranzas` y `reclamos` del cliente `atentina` (nosotros, el mismo del
+WhatsApp y el número propios; hasta el 2-oct-2026 había un cliente `landing` aparte). Solo esos se
+pueden llamar desde la landing (`DEMO_AGENTS`): el resto de los agentes de Atentina da 404. El seed
+los crea desde las plantillas `app/agents/templates/landing_*.json`; después se editan como
+cualquier agente (UI o API), con versión nueva en cada cambio.
 
 ## Formulario de contacto
 
@@ -92,8 +94,8 @@ El `Cta` de cada página lleva un formulario (nombre, empresa, email o teléfono
 | Llamadas por IP | `DEMO_IP_CALLS_PER_HOUR` (4) y `DEMO_IP_CALLS_PER_DAY` (10) | memoria del proceso |
 | Contactos por IP | `CONTACT_IP_PER_HOUR` (3) y `CONTACT_IP_PER_DAY` (10) | memoria del proceso |
 | Síntesis por IP | `DEMO_IP_TTS_PER_HOUR` (30); caché de las últimas 32 frases | memoria del proceso |
-| Simultáneas | `max_concurrent_calls` del tier `Landing` (3) | `quota.admit`, con lock |
-| Minutos por día | `DEMO_DAILY_MINUTES` (120) entre todas las llamadas | base (`call_logs`) |
+| Simultáneas | `DEMO_MAX_CONCURRENT_CALLS` (3) entre los agentes de la demo (el tier de Atentina no tiene tope) | `calls.prepare_call`, con el lock del cliente |
+| Minutos por día | `DEMO_DAILY_MINUTES` (120) entre las llamadas de los agentes de la demo | base (`call_logs`) |
 | Duración | `DEMO_CALL_MAX_SECONDS` (180): el agente avisa y corta | worker |
 | Conexión | `DEMO_JOIN_TIMEOUT_SECONDS` (60) para entrar a la room; token de LiveKit con vencimiento | worker, token |
 
@@ -198,6 +200,8 @@ El túnel no lleva UDP: el audio va directo a la IP fija. LiveKit anuncia la IP 
    `send` (rebotes y SPF; no chocan con los MX de Email Routing) y CNAME `rsend`. En `.env`, una key
    de solo envío (`RESEND_API_KEY`) y `CONTACT_TO=larcanio@gmail.com`. Aplicar con `make up-agent`
    (migra la base).
+   - **DMARC:** TXT `_dmarc` con `v=DMARC1; p=none; rua=mailto:hola@atentina.com.ar` (solo
+     reportes, 2-oct-2026). Endurecer a `p=quarantine` cuando los reportes muestren todo alineado.
    - **Responder como `hola@` desde Gmail:** Configuración → Cuentas → Enviar como → agregar
      `hola@atentina.com.ar`, SMTP `smtp.resend.com`, puerto 465 (SSL), usuario `resend`, clave:
      una API key de Resend. Gmail manda el código de confirmación a `hola@`, que llega por el paso 8.

@@ -84,9 +84,9 @@ con ~140 W menos. Con este reparto, el límite de GPU es la 5060 Ti y el de CPU 
 2. **Cliente** (la PC del loadtest, con LiveKit propio en su `.env`):
    ```bash
    make capacity PERFIL=rampa ARGS="--base-url http://192.168.1.99:8011" PING=192.168.1.99
-   # VAAS_API_KEY en el .env de la laptop: API key del cliente interno (sin límites),
-   # `make api-key CLIENT=interno NAME=capacidad` en el server. El agente del perfil
-   # (`workflow:`) es el slug de la plantilla, que el seed crea en ese cliente.
+   # VAAS_API_KEY en el .env de la laptop: API key del cliente atentina (sin límites),
+   # `make api-key CLIENT=atentina NAME=capacidad` en el server. El agente del perfil
+   # (`workflow:`, demo_booking_classic) lo crea el seed en ese cliente.
    ```
    Escribe su ficha (`hw_cliente.json`) y el run en `scripts/capacity/runs/<fecha>_<perfil>/`: `calls.csv`, `turns.csv`, `client.csv` y `run.json`.
 3. **Server**, al terminar:

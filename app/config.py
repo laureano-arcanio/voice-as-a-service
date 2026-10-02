@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     rate_conversations_per_hour: int = 60
     rate_turns_per_hour: int = 600
     # Unico cliente (slug) que puede pedir llamadas de loadtest, ademas de los admins.
-    loadtest_client: str = "interno"
+    loadtest_client: str = "atentina"
     # Admin inicial que crea `python -m app.cli seed` (solo si no existe).
     admin_email: str = ""
     admin_password: str = ""
@@ -97,7 +97,12 @@ class Settings(BaseSettings):
     # --- Demo de la landing (/api/v1/demo, docs/LANDING.md) ---
     turnstile_secret_key: str = ""
     demo_allowed_origins: str = "https://atentina.com.ar,https://www.atentina.com.ar"
-    demo_client: str = "landing"
+    # Cliente de los agentes de la demo (Atentina, el mismo del loadtest y del WhatsApp propio).
+    demo_client: str = "atentina"
+    # Unicos agentes (slugs) que se pueden llamar desde la landing, y su tope de llamadas activas
+    # entre todos (el tier de Atentina no tiene limites). El cupo diario cuenta solo sus llamadas.
+    demo_agents: str = "turnos,cobranzas,reclamos"
+    demo_max_concurrent_calls: int = 3
     demo_livekit_url: str = ""
     demo_session_minutes: int = 30
     demo_call_max_seconds: int = 180

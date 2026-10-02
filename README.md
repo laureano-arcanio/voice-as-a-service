@@ -308,7 +308,8 @@ make up      # todo: agente + inferencia + proxy + asterisk
 ```
 
 `make up` y `make up-agent` corren antes `make migrate`: migraciones de Alembic y un seed
-idempotente (tier y cliente `interno` sin límites, un agente por plantilla, `ANURA_DID` atendido
+idempotente (tier Interno sin límites y cliente `atentina`, nosotros; sus agentes `atentina_comercial`,
+`demo_booking_classic` y los de la demo de la landing; `ANURA_DID` atendido
 por `WORKFLOW_ID`, y el admin `ADMIN_EMAIL`). Otro admin o cambio de clave:
 `make create-admin EMAIL=...`; API key de un cliente: `make api-key CLIENT=<slug> NAME=<nombre>`.
 

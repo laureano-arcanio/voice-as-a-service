@@ -157,9 +157,9 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
   agente). La conversación guarda `agent_version` y el motor carga siempre esa versión
   (`DbDefinitions`, cacheada por `(agent_id, version)`). Editar un agente no afecta las llamadas en
   curso ni el historial.
-- **Plantillas:** `app/agents/templates/<id>.json` se usan para crear agentes, en el seed (el
-  cliente `interno` recibe una copia de cada una, y el cliente `landing` las `landing_*`) y en el
-  eval y los tests, sin base.
+- **Plantillas:** `app/agents/templates/<id>.json` se usan para crear agentes y en el eval y los
+  tests, sin base. El seed solo crea, en el cliente `atentina`, `atentina_comercial`,
+  `demo_booking_classic` (test de capacidad) y las `landing_*` (demo); las demás se crean a pedido.
 
 ## Flujos
 
@@ -189,7 +189,8 @@ Llamada de prueba sin usuario, para la landing (ver [`LANDING.md`](LANDING.md)):
 1. `POST /demo/sessions` valida el token de Cloudflare Turnstile y devuelve una sesión JWT
    (`aud=atentina-demo`, firmada con `AUTH_SECRET`; no sirve como sesión de la UI).
 2. `POST /demo/calls` aplica los límites por IP (en memoria) y el cupo diario de minutos, y llama a
-   `calls.start_call` con un `Principal` del cliente `DEMO_CLIENT`: misma admisión por tier y misma
+   `calls.start_call` con un `Principal` del cliente `DEMO_CLIENT` (`atentina`), solo para los agentes
+   de `DEMO_AGENTS`, con tope de `DEMO_MAX_CONCURRENT_CALLS` entre ellos: misma admisión por tier y misma
    metadata, más `max_duration_seconds` (`DEMO_CALL_MAX_SECONDS`) y `join_timeout_seconds`.
 3. Devuelve el token de LiveKit del visitante (con vencimiento) y un `result_token` (JWT con el id de
    la conversación) para `GET /demo/calls/{id}`.
@@ -292,7 +293,7 @@ lo de esta sección es lo que lo protege.
   por cliente, altas de WhatsApp y plantillas (`WA_SIGNUP_PER_HOUR`, `WA_TEMPLATES_PER_HOUR`). Cuerpo de
   `/api` hasta `API_MAX_BODY_BYTES` (1 MiB, 413).
 - **Loadtest:** `POST /calls {"loadtest": true}` solo para admin o el cliente `LOADTEST_CLIENT`
-  (`interno`); si no, 403 `loadtest_forbidden`.
+  (`atentina`); si no, 403 `loadtest_forbidden`.
 - **Sistemas del cliente:** `Authorization: Bearer vaas_…`. Se guarda solo el SHA-256 y
   `last_used_at` se actualiza con resolución de un minuto.
 - **Cada pedido relee el usuario de la base:** desactivarlo o cambiarle el rol corta el acceso sin
@@ -380,7 +381,7 @@ Todo por `.env`, leído con `app/config.py` (ver `.env.example`):
 - **Primer admin:** `ADMIN_EMAIL` y `ADMIN_PASSWORD`, que usa el seed.
 - **Límites:** `BILLING_TIMEZONE`, `QUOTA_CHECK_SECONDS`, `QUOTA_REJECT_MESSAGE` y
   `QUOTA_END_MESSAGE`.
-- **Scripts de carga:** `VAAS_API_KEY` (API key del cliente `interno`).
+- **Scripts de carga:** `VAAS_API_KEY` (API key del cliente `atentina`).
 - **WhatsApp:** `WA_APP_SECRET`, `WA_VERIFY_TOKEN`, `WA_ACCESS_TOKEN` (system user), `WA_SESSION_HOURS`,
   `WA_DEBOUNCE_SECONDS`, `WA_UNSUPPORTED_REPLY`, `WA_MAX_REPLY_CHARS` y los de audios (`WA_AUDIO_REPLY`,
   `WA_AUDIO_MAX_BYTES`, `WA_AUDIO_MAX_SECONDS`, `WA_AUDIO_MAX_REPLY_CHARS`, `WA_AUDIO_CONCURRENCY`, ...;

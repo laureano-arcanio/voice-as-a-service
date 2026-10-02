@@ -39,6 +39,10 @@ class CallRequest:
     loadtest: bool = False
     max_duration_seconds: int | None = None
     join_timeout_seconds: int | None = None
+    # Tope de llamadas activas entre estos agentes, ademas del tier (la demo de la landing:
+    # sus agentes comparten cliente con el resto de Atentina, que no tiene limites).
+    group_agent_ids: tuple[str, ...] = ()
+    group_max_concurrent: int | None = None
 
 
 @dataclass
@@ -89,6 +93,9 @@ def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
     # Con el lock del cliente tomado (quota.admit) no se pide otra conexion: todo va
     # en `s`. Asi, con muchas llamadas a la vez, no se agota el pool.
     remaining = quota.admit(s, agent.client_id, mode)
+    if req.group_max_concurrent is not None and quota.active_calls(
+            s, agent.client_id, agent_ids=req.group_agent_ids) >= req.group_max_concurrent:
+        raise QuotaExceeded("Los agentes de la demo están ocupados. Probá en unos minutos.", "concurrency_limit")
     engine.store.add(s, state)
     s.flush()   # la conversacion antes que la llamada (foreign key)
     s.add(CallRow(conversation_id=state.conversation_id, client_id=agent.client_id, mode=mode, phone=phone,
