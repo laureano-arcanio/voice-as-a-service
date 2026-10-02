@@ -1,5 +1,6 @@
 import type { LocalAudioTrack, Room, TextStreamReader } from "livekit-client";
 import { ApiError, callResult, type DemoCall, type DemoField, type DemoResult, startCall } from "./api";
+import { track } from "./analytics";
 import { UserFacingError } from "./errors";
 
 type State = "idle" | "connecting" | "live" | "processing" | "result";
@@ -253,6 +254,7 @@ export function initCallWidget(root: HTMLElement) {
     muteButton.disabled = false;
     liveHint.textContent = `En llamada · máximo ${Math.round(limit / 60)} min`;
     setState("live");
+    track("demo_call_start", { agent: agent.value, page: location.pathname });
     ticker = window.setInterval(() => {
       timer.textContent = clock((Date.now() - started) / 1000);
     }, 500);

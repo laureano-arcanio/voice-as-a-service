@@ -1,4 +1,5 @@
 import { sendContact } from "./api";
+import { track } from "./analytics";
 import { UserFacingError } from "./errors";
 
 const NEED_CONTACT = "Dejanos un email o un teléfono para contactarte.";
@@ -35,6 +36,7 @@ export function initContactForm(root: HTMLElement) {
         website: value("website"),
       });
       root.dataset.state = "sent";
+      track("generate_lead", { method: "formulario", page: location.pathname });
       sent.focus();
     } catch (e) {
       root.dataset.state = "idle";

@@ -15,6 +15,8 @@ services:
         value: https://api.atentina.com.ar
       - key: PUBLIC_TURNSTILE_SITE_KEY
         sync: false             # site key de Turnstile (Cloudflare), se carga en el dashboard
+      - key: PUBLIC_GA_ID
+        value: G-VB4V3RVVD3     # Google Analytics 4 (es público: va en el HTML)
     # Dominio canónico. Render agrega www.atentina.com.ar y lo redirige al apex.
     # atentina.com redirige desde Cloudflare y no llega a Render.
     domains:

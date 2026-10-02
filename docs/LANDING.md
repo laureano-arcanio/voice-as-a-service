@@ -38,11 +38,26 @@ Desde la raíz, `make landing-dev` hace `npm install` y `npm run dev`. Con `HOST
 | `src/scripts/api.ts` | Cliente de `/api/v1/demo`: sesión con Turnstile, llamadas, resultado y voz. |
 | `src/scripts/call.ts` | Llamada con `livekit-client` (se descarga recién al llamar, ~550 KB). |
 | `src/scripts/voices.ts` | Síntesis y reproducción con Web Audio API. |
+| `src/scripts/analytics.ts` | Eventos de Google Analytics (ver abajo). |
 
 Para probar la demo en local contra una app con el código nuevo: la app con
 `TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA` y
 `DEMO_ALLOWED_ORIGINS=http://localhost:4321`, y la landing con `PUBLIC_API_URL` apuntando a ella.
 El micrófono exige contexto seguro: `localhost` o HTTPS.
+
+**Google Analytics (GA4, `G-VB4V3RVVD3`):** el tag se carga desde `Base.astro` solo si hay
+`PUBLIC_GA_ID`, que fija `render.yaml`. En local no se define, así que no se mide. Eventos propios
+(GA → Informes → Interacción → Eventos; marcar `generate_lead` y `demo_call_start` como eventos clave):
+
+| Evento | Cuándo | Parámetros |
+|---|---|---|
+| `demo_call_start` | La llamada de la demo conecta | `agent`, `page` |
+| `generate_lead` | Se envía el formulario de contacto | `method`, `page` |
+| `contact_click` | Clic en WhatsApp, mail o teléfono | `method` (`whatsapp`, `email`, `telefono`), `page` |
+| `voice_sample_play` | Se reproduce una voz de muestra | `voice` |
+
+Para saber qué prospecto entró, los links de los mails llevan UTM
+(`?utm_source=email&utm_campaign=<tanda>&utm_content=<empresa>`). En GA se ven en Adquisición.
 
 ## Demo: API y flujo
 

@@ -1,4 +1,5 @@
 import { synthesize } from "./api";
+import { track } from "./analytics";
 import { UserFacingError } from "./errors";
 
 const BARS = 40;
@@ -125,6 +126,7 @@ export function initVoices(root: HTMLElement) {
     startedAt = ac.currentTime;
     source.start();
     setState("playing");
+    track("voice_sample_play", { voice: selected().value });
     play.setAttribute("aria-label", "Pausar");
     updateProgress();
   }

@@ -12,6 +12,8 @@ interface Props {
 }
 
 const { title, description, ogDescription = description, path, theme } = Astro.props;
+// Google Analytics: solo con PUBLIC_GA_ID (lo fija render.yaml). En local queda vacío y no mide.
+const gaId = import.meta.env.PUBLIC_GA_ID;
 const canonical = new URL(path, Astro.site).href;
 // Con hash en el nombre (/_astro/og.<hash>.png): al cambiar la imagen cambia la URL, y Cloudflare y
 // WhatsApp no siguen mostrando la vieja de su caché.
@@ -54,9 +56,29 @@ const organization = {
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
     />
+    {
+      gaId && (
+        <>
+          <script is:inline async src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} />
+          <script is:inline define:vars={{ gaId }}>
+            window.dataLayer = window.dataLayer || [];
+            window.gtag = function () {
+              window.dataLayer.push(arguments);
+            };
+            window.gtag("js", new Date());
+            window.gtag("config", gaId);
+          </script>
+        </>
+      )
+    }
   </head>
   <body>
     <slot />
     <div id="turnstile" class="fixed right-4 bottom-4 z-50"></div>
+    <script>
+      import { initContactClicks } from "../scripts/analytics";
+
+      initContactClicks();
+    </script>
   </body>
 </html>
