@@ -16,8 +16,8 @@ Hay dos roles:
 2. Entrar en `/login` con ese email y clave. La sesión dura `AUTH_TOKEN_HOURS` (12 h). Con 5 intentos
    fallidos en 15 min desde la misma IP para el mismo email (o 10 para el email desde cualquier IP, o 20
    desde la IP con cualquier email), el login se bloquea un rato.
-3. Arriba a la derecha: cambiar tema claro/oscuro y Salir. **Salir cierra todas tus sesiones**, también
-   las de otros navegadores; cambiar la clave también.
+3. Arriba a la derecha: Salir. **Salir cierra todas tus sesiones**, también las de otros navegadores;
+   cambiar la clave también.
 
 ## Puesta en marcha de un cliente nuevo (admin)
 
@@ -161,8 +161,10 @@ Si el cliente está desactivado, sus números de WhatsApp tampoco responden.
   - Si el tier no deja (sin lugar o sin minutos), el error dice cuál límite.
 - **En vivo:** llamadas pendientes, sonando o en curso, con "Ver en vivo".
 - **Indicadores:** conversaciones (con cuántas por WhatsApp), llamadas finalizadas, workflow
-  completo, objetivo cumplido, fallidas, rechazadas (por límite), minutos y latencia por turno.
-- **Evolución de conversaciones:** barras por día y % con workflow completo y con objetivo cumplido.
+  completo, objetivo cumplido, fallidas, rechazadas (por límite), minutos y latencia por turno. El
+  cliente los ve como "Completas" y "Tiempo de respuesta".
+- **Conversaciones por día** (barras) y **Resultado por día** (líneas: % con workflow completo y %
+  con objetivo cumplido).
 - **Conversaciones:** tabla paginada, filtrable por estado y origen (llamadas, API o WhatsApp). Las de
   WhatsApp no tienen estado ni duración y muestran el teléfono del contacto. Cada fila lleva al detalle.
 
@@ -175,6 +177,8 @@ Si el cliente está desactivado, sus números de WhatsApp tampoco responden.
 - **Conversación:** el chat. Con **Salida del LLM** se despliega lo que devolvió el LLM en cada turno
   (conversación y extracción, con su tiempo y razonamiento).
 - **Latencia por turno:** E2E, EOU, STT, endpointing, LLM, TTS y audio, con promedios y máximos.
+- El cliente ve las dos cosas como **Detalle técnico**: el interruptor del chat y, al final, una
+  tarjeta plegada con la latencia.
 - Mientras la llamada sigue, todo se actualiza cada segundo.
 - **WhatsApp:** en lugar de estado, duración y fin de llamada muestra el último mensaje del contacto y
   los envíos fallidos, con el último error de Meta (131047: pasaron más de 24 h desde el último

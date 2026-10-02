@@ -156,7 +156,7 @@ export function TiersPage() {
               <EmptyState>No hay tiers.</EmptyState>
             ) : (
               <Table.ScrollContainer minWidth={720}>
-                <Table striped>
+                <Table>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>Nombre</Table.Th>
@@ -191,6 +191,7 @@ export function TiersPage() {
                             <Tooltip label="Editar">
                               <ActionIcon
                                 variant="subtle"
+                                color="gray"
                                 onClick={() => setEditing(t)}
                                 aria-label="Editar tier"
                               >

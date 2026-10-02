@@ -1,22 +1,23 @@
 import { Text } from '@mantine/core';
 import { IconMicrophone } from '@tabler/icons-react';
 import { useEffect, useRef } from 'react';
+import { EmptyState } from '@/components/QueryState';
 import { prettyJson } from '@/lib/format';
 import type { ChatMessage, LlmCall } from '@/api/types';
 
-function LlmTraces({ calls, open }: { calls: LlmCall[]; open: boolean }) {
+function LlmTraces({ calls, open, title }: { calls: LlmCall[]; open: boolean; title: string }) {
   const totalMs = calls.reduce((a, c) => a + (c.ms ?? 0), 0);
   return (
     // key: el switch general abre o cierra todas; cada una se puede abrir sola.
     <details className="llm" open={open} key={String(open)}>
       <summary>
-        Salida del LLM ({calls.length} llamada{calls.length > 1 ? 's' : ''}, {totalMs} ms)
+        {title} ({calls.length} llamada{calls.length > 1 ? 's' : ''} al modelo, {totalMs} ms)
       </summary>
       {calls.map((c, i) => (
         <div className="llm-call" key={i}>
           <div>
             <b>{c.kind ?? 'llm'}</b>{' '}
-            <Text span size="xs" c="dimmed">
+            <Text span size="xs" c="dimmed" className="mono">
               {c.ms ?? '–'} ms
             </Text>
           </div>
@@ -44,12 +45,15 @@ function LlmTraces({ calls, open }: { calls: LlmCall[]; open: boolean }) {
 export function ChatView({
   messages,
   showLlm = false,
+  llmTitle = 'Salida del LLM',
   agentLabel = 'Agente IA',
   userLabel = 'Interesado',
   maxHeight,
 }: {
   messages: ChatMessage[];
   showLlm?: boolean;
+  /** Titulo del detalle plegado de cada mensaje. */
+  llmTitle?: string;
   agentLabel?: string;
   userLabel?: string;
   maxHeight?: number;
@@ -62,17 +66,13 @@ export function ChatView({
   }, [count]);
 
   if (!count) {
-    return (
-      <Text size="sm" c="dimmed" ta="center" py="md">
-        Todavía no hay mensajes.
-      </Text>
-    );
+    return <EmptyState>Todavía no hay mensajes.</EmptyState>;
   }
   return (
     <div className="chat" ref={ref} style={maxHeight ? { maxHeight } : undefined}>
       {messages.map((m, i) => (
         <div key={i} className={`bubble ${m.role === 'assistant' ? 'agent' : 'client'}`}>
-          <span className="who">{m.role === 'assistant' ? agentLabel : userLabel}</span>
+          <span className="who label">{m.role === 'assistant' ? agentLabel : userLabel}</span>
           {m.voice_note && (
             <span className="voice-note">
               <IconMicrophone size={12} aria-hidden />
@@ -80,7 +80,7 @@ export function ChatView({
             </span>
           )}
           {m.text}
-          {m.llm && m.llm.length > 0 && <LlmTraces calls={m.llm} open={showLlm} />}
+          {m.llm && m.llm.length > 0 && <LlmTraces calls={m.llm} open={showLlm} title={llmTitle} />}
         </div>
       ))}
     </div>

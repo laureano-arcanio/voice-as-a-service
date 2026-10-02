@@ -149,7 +149,7 @@ Hay dos guías, con la misma marca (paleta, tipografías y voz). Cuál leer depe
 
 - No mezclar: la landing usa Tailwind con sus tokens; la app, el tema de Mantine. Las clases y componentes de una no van en la otra.
 - Un cambio que toca las dos (un color de la marca, el logo) se hace en las dos guías y en los dos temas (`landing/src/styles/global.css` y `web/src/theme.ts`).
-- El tema de `web/` todavía es el anterior (navy y ámbar): migrarlo a la guía de la app está pendiente.
+- El tema de `web/` ya es el de la guía de la app (azul, solo claro; migrado el 2-oct-2026): lo nuevo se resuelve en `web/src/theme.ts` y en `web/src/components/`, no pantalla por pantalla.
 
 ## Cómo trabajar en este server
 

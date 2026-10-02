@@ -82,11 +82,7 @@ function QualityCell({ account }: { account: WaAccount }) {
   if (!q && !account.messaging_limit) return dash();
   return (
     <Stack gap={2}>
-      {q && (
-        <Badge color={q.color} variant="light">
-          {q.label}
-        </Badge>
-      )}
+      {q && <Badge color={q.color}>{q.label}</Badge>}
       {account.messaging_limit && (
         <Text size="xs" c="dimmed" className="mono">
           {account.messaging_limit}
@@ -210,7 +206,6 @@ export function WhatsAppPage() {
   const connectButton = (
     <Tooltip label={signupReason} multiline w={260} withArrow disabled={signupEnabled}>
       <Button
-        color="green"
         leftSection={<IconBrandWhatsapp size={18} />}
         // Deshabilitado con data-disabled: un boton disabled no dispara el tooltip con el motivo.
         data-disabled={!signupEnabled || undefined}
@@ -272,7 +267,7 @@ export function WhatsAppPage() {
               </EmptyState>
             ) : (
               <Table.ScrollContainer minWidth={isAdmin ? 1180 : 960}>
-                <Table striped>
+                <Table>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>Número</Table.Th>
@@ -293,9 +288,11 @@ export function WhatsAppPage() {
                             {a.display_phone_number}
                           </Text>
                           {a.name && <Text size="xs">{a.name}</Text>}
-                          <Text size="xs" c="dimmed" className="mono">
-                            ID {a.phone_number_id}
-                          </Text>
+                          {isAdmin && (
+                            <Text size="xs" c="dimmed" className="mono">
+                              ID {a.phone_number_id}
+                            </Text>
+                          )}
                         </Table.Td>
                         {isAdmin && (
                           <Table.Td>
@@ -318,11 +315,7 @@ export function WhatsAppPage() {
                         </Table.Td>
                         {isAdmin && (
                           <Table.Td>
-                            {a.has_token ? (
-                              <Badge color="navy">Propio</Badge>
-                            ) : (
-                              <Badge color="gray">Global</Badge>
-                            )}
+                            <Badge color="gray">{a.has_token ? 'Propio' : 'Global'}</Badge>
                           </Table.Td>
                         )}
                         <Table.Td style={{ whiteSpace: 'nowrap' }}>{formatDate(a.created_at)}</Table.Td>
@@ -332,6 +325,7 @@ export function WhatsAppPage() {
                               <Menu.Target>
                                 <ActionIcon
                                   variant="subtle"
+                                  color="gray"
                                   aria-label={`Acciones de ${a.display_phone_number}`}
                                 >
                                   <IconDots size={16} />

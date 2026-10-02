@@ -1,4 +1,4 @@
-import { Alert, Anchor, Badge, Button, Card, Group, List, Modal, Stack, Text } from '@mantine/core';
+import { Alert, Anchor, Badge, Button, Card, Group, List, Modal, Stack, Text, Title } from '@mantine/core';
 import { useDebouncedValue, useWindowEvent } from '@mantine/hooks';
 import { IconAlertCircle, IconCircleCheck, IconDeviceFloppy } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
@@ -138,11 +138,10 @@ export function DefinitionTab({ agent, canEdit }: { agent: AgentDetail; canEdit:
       <Card>
         <Group justify="space-between" mb="sm" wrap="wrap">
           <Group gap="xs">
-            <Badge variant="default" className="mono" tt="none">
-              id: {agent.slug}
-            </Badge>
-            <Badge variant="default">v{agent.version}</Badge>
-            {dirty && <Badge color="amber">Cambios sin guardar</Badge>}
+            <Text span c="dimmed" className="mono">
+              {agent.slug} · v{agent.version}
+            </Text>
+            {dirty && <Badge color="yellow">Cambios sin guardar</Badge>}
           </Group>
           {canEdit ? (
             <Group gap="xs">
@@ -182,9 +181,9 @@ export function DefinitionTab({ agent, canEdit }: { agent: AgentDetail; canEdit:
 
       {canEdit && (
         <Card>
-          <Text fw={600} size="sm" mb="xs">
+          <Title order={4} mb="sm">
             Validación {stale || validation.isFetching ? '…' : ''}
-          </Text>
+          </Title>
           {!parsed.ok ? (
             <Alert color="red" icon={<IconAlertCircle size={18} />}>
               {parsed.error}

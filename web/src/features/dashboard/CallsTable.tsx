@@ -1,7 +1,7 @@
 import { Anchor, Badge, Button, Card, Group, Pagination, Select, Table, Text, Title } from '@mantine/core';
 import { Link } from 'react-router';
 import type { CallSummary } from '@/api/types';
-import { CallStatusBadge, OriginBadge, OutcomeBadge, WorkflowBadge } from '@/components/Badges';
+import { CallStatusBadge, Dash, OriginBadge, OutcomeBadge, WorkflowBadge } from '@/components/Badges';
 import { EmptyState, ErrorAlert } from '@/components/QueryState';
 import { formatDateTime, formatDuration, formatValue } from '@/lib/format';
 import { CALL_MODE, CALL_STATUS } from '@/lib/labels';
@@ -17,23 +17,13 @@ const MODE_OPTIONS = [
   ...Object.entries(CALL_MODE).map(([value, l]) => ({ value, label: l.label })),
 ];
 
-function text(v: unknown) {
-  const s = formatValue(v);
-  return (
-    s || (
-      <Text span inherit c="dimmed">
-        –
-      </Text>
-    )
-  );
-}
-
 export function CallsTable({
   items,
   total,
   error,
   loading,
   showClient,
+  showWorkflow,
   page,
   status,
   mode,
@@ -46,6 +36,8 @@ export function CallsTable({
   error: unknown;
   loading: boolean;
   showClient: boolean;
+  /** El estado del workflow es vocabulario interno: solo admin. */
+  showWorkflow: boolean;
   page: number;
   status: string | null;
   mode: string | null;
@@ -59,7 +51,7 @@ export function CallsTable({
       <Group justify="space-between" mb="sm" wrap="wrap">
         <Group gap="xs">
           <Title order={4}>Conversaciones</Title>
-          <Badge variant="default">{total}</Badge>
+          <Badge color="gray">{total}</Badge>
         </Group>
         <Group gap="xs">
           <Select
@@ -90,20 +82,19 @@ export function CallsTable({
           lanzá una llamada arriba o usá el modo prueba.
         </EmptyState>
       ) : (
-        <Table.ScrollContainer minWidth={1100}>
-          <Table striped>
+        <Table.ScrollContainer minWidth={1000}>
+          <Table style={{ whiteSpace: 'nowrap' }}>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Fecha</Table.Th>
                 {showClient && <Table.Th>Cliente</Table.Th>}
                 <Table.Th>Agente</Table.Th>
                 <Table.Th>Contacto</Table.Th>
-                <Table.Th>Empresa</Table.Th>
                 <Table.Th>Origen</Table.Th>
                 <Table.Th>Estado</Table.Th>
-                <Table.Th>Duración</Table.Th>
-                <Table.Th>Datos</Table.Th>
-                <Table.Th>Workflow</Table.Th>
+                <Table.Th ta="right">Duración</Table.Th>
+                <Table.Th ta="right">Datos</Table.Th>
+                {showWorkflow && <Table.Th>Workflow</Table.Th>}
                 <Table.Th>Resultado</Table.Th>
                 <Table.Th />
               </Table.Tr>
@@ -111,7 +102,7 @@ export function CallsTable({
             <Table.Tbody>
               {items.map((c) => (
                 <Table.Tr key={c.id}>
-                  <Table.Td style={{ whiteSpace: 'nowrap' }}>{formatDateTime(c.created_at)}</Table.Td>
+                  <Table.Td>{formatDateTime(c.created_at)}</Table.Td>
                   {showClient && <Table.Td>{c.client_name ?? '–'}</Table.Td>}
                   <Table.Td>
                     {c.agent_id ? (
@@ -122,32 +113,42 @@ export function CallsTable({
                       (c.agent_name ?? '–')
                     )}
                     {c.agent_version != null && (
-                      <Text span size="xs" c="dimmed">
+                      <Text span c="dimmed" className="mono">
                         {' '}
                         v{c.agent_version}
                       </Text>
                     )}
                   </Table.Td>
-                  <Table.Td>{text(c.contact_name)}</Table.Td>
-                  <Table.Td>{text(c.company)}</Table.Td>
+                  <Table.Td>
+                    {formatValue(c.contact_name) || <Dash />}
+                    {formatValue(c.company) && (
+                      <Text size="xs" c="dimmed">
+                        {formatValue(c.company)}
+                      </Text>
+                    )}
+                  </Table.Td>
                   <Table.Td>
                     <OriginBadge mode={c.mode} phone={c.phone} />
                   </Table.Td>
                   <Table.Td>
                     <CallStatusBadge status={c.status} />
                   </Table.Td>
-                  <Table.Td>{formatDuration(c.duration_seconds)}</Table.Td>
-                  <Table.Td>
+                  <Table.Td ta="right" className="mono">
+                    {formatDuration(c.duration_seconds)}
+                  </Table.Td>
+                  <Table.Td ta="right" className="mono">
                     {c.captured}/{c.required}
                   </Table.Td>
-                  <Table.Td>
-                    <WorkflowBadge status={c.workflow_status} />
-                  </Table.Td>
+                  {showWorkflow && (
+                    <Table.Td>
+                      <WorkflowBadge status={c.workflow_status} />
+                    </Table.Td>
+                  )}
                   <Table.Td>
                     <OutcomeBadge label={c.outcome} goal={c.goal} />
                   </Table.Td>
-                  <Table.Td>
-                    <Button component={Link} to={`/calls/${c.id}`} size="compact-xs" variant="light">
+                  <Table.Td ta="right">
+                    <Button component={Link} to={`/calls/${c.id}`} variant="subtle" size="compact-sm">
                       Ver detalle
                     </Button>
                   </Table.Td>

@@ -19,10 +19,10 @@ export function PageHeader({
   const tabTitle = typeof title === 'string' ? title : docTitle;
   useDocumentTitle(tabTitle ? `${tabTitle} · Atentina` : 'Atentina');
   return (
-    <Stack gap={4} mb="lg">
+    <Stack gap={4} mb="md">
       {above}
       <Group justify="space-between" align="flex-end" gap="sm">
-        <Stack gap={2}>
+        <Stack gap={4} style={{ flex: 1, minWidth: 240 }}>
           <Title order={2}>{title}</Title>
           {description && (
             <Text c="dimmed" size="sm">

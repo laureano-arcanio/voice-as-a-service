@@ -1,5 +1,5 @@
 import { ActionIcon, Group, Loader, Progress, Stack, Text, Textarea } from '@mantine/core';
-import { IconPlayerPauseFilled, IconPlayerPlayFilled } from '@tabler/icons-react';
+import { IconPlayerPause, IconPlayerPlay } from '@tabler/icons-react';
 import { useEffect, useRef, useState } from 'react';
 import { errorMessage } from '@/api/errors';
 import { formatClock, formatNumber } from '@/lib/format';
@@ -97,7 +97,7 @@ export function VoicePreview({
       <Group gap="sm" wrap="nowrap">
         <ActionIcon
           size="lg"
-          radius="xl"
+          radius={999}
           variant="filled"
           onClick={() => void toggle()}
           disabled={tts.isPending}
@@ -105,11 +105,11 @@ export function VoicePreview({
           title="Escuchar la voz elegida"
         >
           {tts.isPending ? (
-            <Loader size={14} color="var(--atentina-on-primary)" />
+            <Loader size={14} color="white" />
           ) : playing ? (
-            <IconPlayerPauseFilled size={16} />
+            <IconPlayerPause size={18} />
           ) : (
-            <IconPlayerPlayFilled size={16} />
+            <IconPlayerPlay size={18} />
           )}
         </ActionIcon>
         <Progress value={pct} style={{ flex: 1 }} size="sm" aria-label="Progreso" transitionDuration={100} />

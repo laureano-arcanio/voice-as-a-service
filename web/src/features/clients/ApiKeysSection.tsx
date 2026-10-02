@@ -59,7 +59,7 @@ function NewKeyModal({
     >
       {created ? (
         <Stack>
-          <Alert color="amber" icon={<IconAlertTriangle size={18} />} title="Copiala ahora">
+          <Alert color="yellow" icon={<IconAlertTriangle size={18} />} title="Copiala ahora">
             Es la única vez que se muestra. Guardala en un lugar seguro.
           </Alert>
           <Group gap="xs" wrap="nowrap">
@@ -177,8 +177,10 @@ export function ApiKeysSection({ clientId }: { clientId: string }) {
                         </Group>
                       </Table.Td>
                       <Table.Td className="mono">{k.prefix}…</Table.Td>
-                      <Table.Td>{formatDateTime(k.created_at)}</Table.Td>
-                      <Table.Td>{k.last_used_at ? formatDateTime(k.last_used_at) : 'Nunca'}</Table.Td>
+                      <Table.Td style={{ whiteSpace: 'nowrap' }}>{formatDateTime(k.created_at)}</Table.Td>
+                      <Table.Td style={{ whiteSpace: 'nowrap' }}>
+                        {k.last_used_at ? formatDateTime(k.last_used_at) : 'Nunca'}
+                      </Table.Td>
                       <Table.Td>
                         {k.revoked_at ? (
                           <Badge color="gray">Revocada {formatDateTime(k.revoked_at)}</Badge>
@@ -189,7 +191,7 @@ export function ApiKeysSection({ clientId }: { clientId: string }) {
                       <Table.Td ta="right">
                         {!k.revoked_at && (
                           <Button
-                            size="compact-xs"
+                            size="compact-sm"
                             variant="subtle"
                             color="red"
                             onClick={() => void doRevoke(k)}

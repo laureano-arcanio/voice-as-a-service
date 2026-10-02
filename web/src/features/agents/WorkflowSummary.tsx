@@ -1,4 +1,4 @@
-import { Badge, Card, List, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
+import { Card, List, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
 import type { Definition } from '@/api/types';
 import { OutcomeBadge } from '@/components/Badges';
 import { ENGINE } from '@/lib/labels';
@@ -82,7 +82,9 @@ export function WorkflowSummary({ definition }: { definition: Definition }) {
           <Table>
             <Table.Thead>
               <Table.Tr>
-                <Table.Th w={60}>Orden</Table.Th>
+                <Table.Th w={60} ta="right">
+                  Orden
+                </Table.Th>
                 <Table.Th>Dato</Table.Th>
                 <Table.Th>Tipo</Table.Th>
                 <Table.Th>Obligatorio</Table.Th>
@@ -92,7 +94,9 @@ export function WorkflowSummary({ definition }: { definition: Definition }) {
             <Table.Tbody>
               {w.fields.map(([name, f]) => (
                 <Table.Tr key={name}>
-                  <Table.Td ta="center">{f.priority}</Table.Td>
+                  <Table.Td ta="right" className="mono">
+                    {f.priority}
+                  </Table.Td>
                   <Table.Td>
                     <Text size="sm" fw={600}>
                       {name}
@@ -143,9 +147,9 @@ export function WorkflowSummary({ definition }: { definition: Definition }) {
                   <Table.Td>
                     <OutcomeBadge label={o.label} goal={o.goal} />
                     {o.goal && (
-                      <Badge variant="outline" color="green" size="xs" ml={6}>
-                        objetivo
-                      </Badge>
+                      <Text size="xs" c="dimmed" mt={2}>
+                        Cumple el objetivo
+                      </Text>
                     )}
                   </Table.Td>
                   <Table.Td>

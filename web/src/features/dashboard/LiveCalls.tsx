@@ -1,7 +1,7 @@
-import { Badge, Button, Card, Group, Table, Text, Title } from '@mantine/core';
+import { Button, Card, Group, Table, Text, Title } from '@mantine/core';
 import { Link } from 'react-router';
 import type { CallSummary } from '@/api/types';
-import { CallStatusBadge, OriginBadge } from '@/components/Badges';
+import { CallStatusBadge, LiveBadge, OriginBadge } from '@/components/Badges';
 import { formatDateTime, formatValue } from '@/lib/format';
 
 export function LiveCalls({ calls, showClient }: { calls: CallSummary[]; showClient: boolean }) {
@@ -10,9 +10,7 @@ export function LiveCalls({ calls, showClient }: { calls: CallSummary[]; showCli
     <Card>
       <Group gap="xs" mb="sm">
         <Title order={4}>En vivo</Title>
-        <Badge color="blue" variant="dot">
-          {calls.length}
-        </Badge>
+        <LiveBadge>{calls.length}</LiveBadge>
       </Group>
       <Table.ScrollContainer minWidth={700}>
         <Table>
@@ -37,11 +35,11 @@ export function LiveCalls({ calls, showClient }: { calls: CallSummary[]; showCli
                     </Text>
                   )}
                 </Table.Td>
-                <Table.Td>
+                <Table.Td className="mono">
                   {c.captured}/{c.required} datos
                 </Table.Td>
                 <Table.Td ta="right">
-                  <Button component={Link} to={`/calls/${c.id}`} size="compact-xs">
+                  <Button component={Link} to={`/calls/${c.id}`} variant="subtle" size="compact-sm">
                     Ver en vivo
                   </Button>
                 </Table.Td>

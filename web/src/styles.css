@@ -1,36 +1,76 @@
-/* Estilos globales chicos; el resto va por el tema de Mantine. */
-body {
-  background: var(--atentina-page-bg);
-}
-
+/* Solo lo que el tema de Mantine no cubre (docs/DESIGN_GUIDELINE_APP.md, seccion 11). */
+body,
 .app-main {
-  background: var(--atentina-page-bg);
+  background: var(--app-canvas);
 }
 
+body {
+  font-variant-numeric: tabular-nums;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  letter-spacing: -0.015em;
+}
+
+/* Rotulo: encabezado de tabla, etiqueta de metrica, grupo del menu. */
+.label,
+.mantine-Table-th {
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 0.71875rem;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--mantine-color-dimmed);
+}
+
+.mantine-Table-th {
+  white-space: nowrap;
+}
+
+/* Dato: telefono, ID, duracion, version. */
 .mono {
   font-family: var(--mantine-font-family-monospace);
-  font-size: var(--mantine-font-size-xs);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
 }
 
-pre.code {
-  margin: 0;
-  padding: 8px 10px;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family: var(--mantine-font-family-monospace);
-  font-size: 12px;
-  line-height: 1.45;
-  border-radius: var(--mantine-radius-sm);
-  background: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-7));
-  border: 1px solid var(--mantine-color-default-border);
-  max-height: 420px;
-  overflow: auto;
+/* Numero destacado de una metrica. */
+.metric {
+  font-family: var(--mantine-font-family-headings);
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  font-variant-numeric: tabular-nums;
 }
 
-/* Fila de dato recien obtenido en el detalle de una llamada. */
+/* En vivo: punto que pulsa. */
+@keyframes live-dot {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.live-dot {
+  display: inline-block;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--mantine-color-blue-6);
+  animation: live-dot 1.4s ease-in-out infinite;
+}
+
+/* Fila de un dato recien obtenido en el detalle de una conversacion. */
 @keyframes just-set {
   from {
-    background: var(--atentina-accent-soft);
+    background: var(--mantine-color-blue-light);
   }
   to {
     background: transparent;
@@ -41,7 +81,78 @@ pre.code {
   animation: just-set 4s ease-out;
 }
 
-/* Chat */
+@media (prefers-reduced-motion: reduce) {
+  .live-dot,
+  .just-set {
+    animation: none;
+  }
+}
+
+/* Codigo y JSON */
+pre.code {
+  margin: 0;
+  padding: 10px 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 12px;
+  line-height: 1.5;
+  border-radius: var(--mantine-radius-lg);
+  background: var(--app-surface-2);
+  border: 1px solid var(--app-line);
+  max-height: 420px;
+  overflow: auto;
+}
+
+.mantine-Code-root {
+  background: var(--app-surface-2);
+}
+
+.mantine-Code-root[data-block] {
+  font-size: 12px;
+  line-height: 1.5;
+  border: 1px solid var(--app-line);
+  border-radius: var(--mantine-radius-lg);
+}
+
+.cm-editor-wrap {
+  border: 1px solid var(--app-line);
+  border-radius: var(--mantine-radius-lg);
+  overflow: hidden;
+}
+
+.cm-editor-wrap .cm-scroller {
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.cm-editor-wrap .cm-gutters {
+  background: var(--app-surface-2);
+  border-right: 1px solid var(--app-line);
+  color: var(--mantine-color-dimmed);
+}
+
+.diff-line {
+  display: block;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.diff-add {
+  background: var(--mantine-color-green-0);
+}
+
+.diff-del {
+  background: var(--mantine-color-red-0);
+  text-decoration: line-through;
+}
+
+.diff-gap {
+  color: var(--mantine-color-dimmed);
+}
+
+/* Conversacion: agente a la izquierda sobre superficie 2, persona a la derecha sobre acento suave. */
 .chat {
   display: flex;
   flex-direction: column;
@@ -54,7 +165,7 @@ pre.code {
 .bubble {
   max-width: 85%;
   padding: 8px 12px;
-  border-radius: 12px;
+  border-radius: var(--mantine-radius-lg);
   white-space: pre-wrap;
   word-break: break-word;
   font-size: var(--mantine-font-size-sm);
@@ -63,9 +174,6 @@ pre.code {
 
 .bubble .who {
   display: block;
-  font-size: 11px;
-  font-weight: 600;
-  opacity: 0.7;
   margin-bottom: 2px;
 }
 
@@ -73,21 +181,19 @@ pre.code {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
-  opacity: 0.7;
+  font-size: var(--mantine-font-size-xs);
+  color: var(--mantine-color-dimmed);
   margin-bottom: 2px;
 }
 
 .bubble.agent {
   align-self: flex-start;
-  background: light-dark(var(--mantine-color-navy-0), var(--mantine-color-dark-5));
-  border-bottom-left-radius: 4px;
+  background: var(--app-surface-2);
 }
 
 .bubble.client {
   align-self: flex-end;
-  background: var(--atentina-accent-soft);
-  border-bottom-right-radius: 4px;
+  background: var(--mantine-color-blue-light);
 }
 
 details.llm {
@@ -108,24 +214,88 @@ details.llm summary {
   gap: 4px;
 }
 
-.diff-line {
-  display: block;
-  white-space: pre-wrap;
-  word-break: break-word;
+.bubble pre.code {
+  background: var(--mantine-color-body);
 }
 
-.diff-add {
-  background: light-dark(#e3f5ec, rgba(30, 158, 106, 0.2));
+/* Encabezado de una tarjeta plegable (CollapsibleCard). */
+.card-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--mantine-spacing-sm);
+  width: 100%;
+  border-radius: var(--mantine-radius-md);
 }
 
-.diff-del {
-  background: light-dark(#fde8e8, rgba(224, 49, 49, 0.2));
-  text-decoration: line-through;
-  opacity: 0.8;
+.card-toggle .chevron {
+  flex: none;
+  color: var(--mantine-color-dimmed);
+  transition: transform 150ms ease;
 }
 
-.cm-editor-wrap {
-  border: 1px solid var(--mantine-color-default-border);
-  border-radius: var(--mantine-radius-sm);
-  overflow: hidden;
+.card-toggle[aria-expanded='true'] .chevron {
+  transform: rotate(180deg);
+}
+
+/* Menu lateral: seleccionado en acento suave, texto azul en 600. */
+.mantine-NavLink-root {
+  border-radius: var(--mantine-radius-md);
+  font-weight: 500;
+  color: var(--mantine-color-gray-7);
+  transition: background-color 150ms ease;
+}
+
+.mantine-NavLink-root[data-active] {
+  font-weight: 600;
+  color: var(--mantine-color-blue-light-color);
+}
+
+.mantine-NavLink-label {
+  font-weight: inherit;
+}
+
+/* Pestañas (pills): el hover se tiene que ver sobre el lienzo. */
+:root .mantine-Tabs-root[data-variant='pills'] {
+  --tab-hover-color: var(--mantine-color-gray-2);
+}
+
+.mantine-Tabs-tab {
+  font-weight: 500;
+  transition: background-color 150ms ease;
+}
+
+.mantine-Tabs-tab:not([data-active]) {
+  color: var(--mantine-color-gray-7);
+}
+
+.mantine-Tabs-tab[data-active] {
+  font-weight: 600;
+}
+
+/* Lo que flota (menu, notificacion) lleva la sombra de tarjeta, no la de dialogo. */
+.mantine-Notification-root {
+  box-shadow: var(--mantine-shadow-md);
+}
+
+/* Opcion seleccionable (Radio.Card): elegida, borde azul y acento suave. */
+.mantine-RadioCard-card[data-checked] {
+  border-color: var(--mantine-color-blue-6);
+  background: var(--mantine-color-blue-light);
+}
+
+/* Graficos: grilla y ejes en el color del borde, textos de eje en dimmed. */
+.mantine-BarChart-root,
+.mantine-LineChart-root {
+  --chart-grid-color: var(--app-line);
+  --chart-text-color: var(--mantine-color-dimmed);
+}
+
+/* Una pildora no se trunca: la columna o la fila toma su ancho. */
+.mantine-Badge-root {
+  flex: none;
+}
+
+.mantine-Badge-label {
+  overflow: visible;
 }

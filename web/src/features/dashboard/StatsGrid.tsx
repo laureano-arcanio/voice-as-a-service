@@ -1,35 +1,33 @@
-import { Paper, SimpleGrid, Skeleton, Text } from '@mantine/core';
+import { Card, SimpleGrid, Skeleton, Stack, Text } from '@mantine/core';
 import type { Stats } from '@/api/types';
+import { useIsAdmin } from '@/features/auth/api';
 import { statTiles } from './stats';
 
-const TONE: Record<string, string> = { ok: 'green.7', bad: 'red.7', warn: 'orange.7' };
-
 export function StatsGrid({ stats }: { stats: Stats | undefined }) {
+  const isAdmin = useIsAdmin();
   return (
-    <SimpleGrid cols={{ base: 2, sm: 4, xl: 8 }} spacing="sm">
-      {(stats ? statTiles(stats) : Array.from({ length: 8 }, () => null)).map((t, i) => (
-        <Paper key={t?.label ?? i} p="md" radius="md">
+    <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
+      {(stats ? statTiles(stats, isAdmin) : Array.from({ length: 8 }, () => null)).map((t, i) => (
+        <Card key={t?.label ?? i} padding="md">
           {t ? (
-            <>
-              <Text
-                fz={22}
-                fw={700}
-                c={t.tone && (stats?.total || t.tone === 'ok') ? TONE[t.tone] : undefined}
-                lh={1.2}
-              >
+            <Stack gap={6} justify="space-between" h="100%">
+              <Text className="label">{t.label}</Text>
+              <Text className="metric" c={t.tone}>
                 {t.value}
+                {t.sub && (
+                  <Text span size="sm" fw={500} c="dimmed" ff="text" ml={8} style={{ letterSpacing: 0 }}>
+                    {t.sub}
+                  </Text>
+                )}
               </Text>
-              <Text size="xs" c="dimmed" mt={4}>
-                {t.label}
-              </Text>
-            </>
+            </Stack>
           ) : (
             <>
-              <Skeleton h={24} w="60%" />
-              <Skeleton h={10} mt={8} w="80%" />
+              <Skeleton h={12} w="70%" />
+              <Skeleton h={28} mt={10} w="45%" />
             </>
           )}
-        </Paper>
+        </Card>
       ))}
     </SimpleGrid>
   );

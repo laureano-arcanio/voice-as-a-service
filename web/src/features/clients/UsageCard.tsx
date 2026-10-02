@@ -19,29 +19,30 @@ export interface MeterProps {
   hint?: string;
 }
 
+/** Como se nombran los limites: "tier" para el equipo, "plan" para el cliente. */
+type LimitsName = 'tier' | 'plan';
+
 /** Consumo contra un limite: barra coloreada por % usado; sin limite, "Ilimitado". */
 export function UsageMeter({ label, used, limit, unit = '', hint }: MeterProps) {
   const pct = usagePercent(used, limit);
   const color = usageColor(pct);
   return (
     <Stack gap={6}>
-      <Group justify="space-between" gap="xs" align="baseline">
-        <Text size="sm" fw={600}>
-          {label}
+      <Text className="label">{label}</Text>
+      <Group justify="space-between" gap="xs" align="baseline" wrap="nowrap">
+        <Text className="metric">
+          {formatNumber(used)}
+          <Text span size="sm" c="dimmed" fw={500} ff="text" style={{ letterSpacing: 0 }}>
+            {' / '}
+            {limit == null ? 'Ilimitado' : `${formatNumber(limit)}${unit}`}
+          </Text>
         </Text>
         {pct != null && (
-          <Text size="xs" c={color === 'green' ? 'dimmed' : `${color}.7`} fw={600}>
+          <Text size="xs" c={color === 'green' ? 'dimmed' : color} fw={600}>
             {formatNumber(pct, 0)}%
           </Text>
         )}
       </Group>
-      <Text fz={22} fw={700} lh={1.1}>
-        {formatNumber(used)}
-        <Text span size="sm" c="dimmed" fw={500}>
-          {' / '}
-          {limit == null ? 'Ilimitado' : `${formatNumber(limit)}${unit}`}
-        </Text>
-      </Text>
       <Progress
         value={pct == null ? 0 : Math.min(pct, 100)}
         color={color}
@@ -57,14 +58,15 @@ export function UsageMeter({ label, used, limit, unit = '', hint }: MeterProps) 
   );
 }
 
-export function UsageMeters({ usage }: { usage: Usage }) {
+export function UsageMeters({ usage, limitsName = 'tier' }: { usage: Usage; limitsName?: LimitsName }) {
+  const noLimit = `Sin límite en el ${limitsName}.`;
   return (
-    <SimpleGrid cols={{ base: 1, sm: 2, xl: 4 }} spacing="lg">
+    <SimpleGrid type="container" cols={{ base: 1, '420px': 2, '900px': 4 }} spacing="lg">
       <UsageMeter
         label="Llamadas simultáneas"
         used={usage.active_calls}
         limit={usage.max_concurrent_calls}
-        hint="Activas ahora contra el tope del tier."
+        hint={`Activas ahora contra el tope del ${limitsName}.`}
       />
       <UsageMeter
         label="Números"
@@ -73,7 +75,7 @@ export function UsageMeters({ usage }: { usage: Usage }) {
         hint={
           usage.phone_numbers.limit != null
             ? `Quedan ${Math.max(usage.phone_numbers.limit - usage.phone_numbers.used, 0)} por asignar.`
-            : 'Sin límite en el tier.'
+            : noLimit
         }
       />
       <UsageMeter
@@ -84,7 +86,7 @@ export function UsageMeters({ usage }: { usage: Usage }) {
         hint={
           usage.inbound.remaining_minutes != null
             ? `Quedan ${formatNumber(usage.inbound.remaining_minutes)} min.`
-            : 'Sin límite en el tier.'
+            : noLimit
         }
       />
       <UsageMeter
@@ -95,7 +97,7 @@ export function UsageMeters({ usage }: { usage: Usage }) {
         hint={
           usage.outbound.remaining_minutes != null
             ? `Quedan ${formatNumber(usage.outbound.remaining_minutes)} min.`
-            : 'Sin límite en el tier.'
+            : noLimit
         }
       />
     </SimpleGrid>
@@ -107,10 +109,12 @@ export function UsageCard({
   clientId,
   month,
   onMonth,
+  limitsName,
 }: {
   clientId: string;
   month: string;
   onMonth: (m: string) => void;
+  limitsName?: LimitsName;
 }) {
   const months = recentMonths(12);
   const current = months[0];
@@ -139,7 +143,7 @@ export function UsageCard({
       {usage.isError ? (
         <ErrorAlert error={usage.error} onRetry={usage.refetch} />
       ) : usage.data ? (
-        <UsageMeters usage={usage.data} />
+        <UsageMeters usage={usage.data} limitsName={limitsName} />
       ) : (
         <Text size="sm" c="dimmed">
           Cargando…

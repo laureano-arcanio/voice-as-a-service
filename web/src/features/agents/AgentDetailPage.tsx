@@ -134,13 +134,15 @@ function AgentView({ agent }: { agent: AgentDetail }) {
         title={
           <Group gap="sm" component="span">
             {agent.name}
-            <Badge variant="default">v{agent.version}</Badge>
+            <Text span c="dimmed" className="mono">
+              v{agent.version}
+            </Text>
             {agent.archived && <Badge color="gray">Archivado</Badge>}
           </Group>
         }
         description={
           <>
-            <Text span className="mono" size="sm">
+            <Text span className="mono">
               {agent.slug}
             </Text>
             {' · '}

@@ -16,7 +16,7 @@ export function AccountPage() {
     <>
       <PageHeader title="Mi cuenta" description={me.client_name ?? undefined} />
       <Stack gap="md">
-        <UsageCard clientId={me.client_id} month={month} onMonth={setMonth} />
+        <UsageCard clientId={me.client_id} month={month} onMonth={setMonth} limitsName="plan" />
         <NumbersSection clientId={me.client_id} canAssign={false} />
         <ApiKeysSection clientId={me.client_id} />
       </Stack>

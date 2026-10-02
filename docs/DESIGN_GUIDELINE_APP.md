@@ -9,9 +9,8 @@ y más estados. Leerla antes de agregar o cambiar una pantalla de `web/`.
   otra librería de componentes.
 - **Fuente de verdad:** [`web/src/theme.ts`](../web/src/theme.ts) y [`web/src/styles.css`](../web/src/styles.css).
   Si esta guía y el código difieren, se corrige la guía en el mismo cambio.
-- **Estado (2-oct-2026):** `web/` todavía tiene el tema anterior (navy y ámbar, Inter). El primer paso
-  es llevar el tema a la sección 11; hasta entonces, lo nuevo se escribe igual con las reglas de esta
-  guía (colores por nombre, sin hex), así cambia solo cuando cambie el tema.
+- **Estado (2-oct-2026):** `web/` ya usa el tema de la sección 11 (antes, navy y ámbar con Inter y modo
+  oscuro). Lo nuevo se escribe con colores por nombre, sin hex, así cambia solo si cambia el tema.
 - **Regla general:** el diseño se resuelve en el tema y en los componentes compartidos
   (`web/src/components/`), no pantalla por pantalla. Antes de dar estilo a mano, buscar el componente
   de Mantine o el compartido que ya lo hace.
@@ -96,7 +95,7 @@ CSP del dashboard solo permite fuentes de `'self'`: no se pueden cargar de Googl
 | Apoyo y ayudas | `size="xs" c="dimmed"` (12 px) |
 | Rótulo (encabezado de tabla, etiqueta de métrica, grupo del menú) | `.label`: mono 11,5 px, mayúsculas, `letter-spacing: .04em`, `dimmed` |
 | Dato en mono (teléfono, ID, duración, versión) | `.mono`: mono 13 px, `tabular-nums` |
-| Número destacado (métrica) | Bricolage 800, 28 px, `tabular-nums`, interlineado 1.1 |
+| Número destacado (métrica) | `.metric`: Bricolage 800, 28 px, `tabular-nums`, interlineado 1.1 |
 
 - Los títulos llevan interlineado 1.15 y `letter-spacing: -0.015em` desde el tema: no repetirlo.
 - Un solo título de página por pantalla. Títulos y labels en minúscula tipo oración ("Nueva llamada"), sin punto final.
@@ -140,12 +139,14 @@ CSP del dashboard solo permite fuentes de `'self'`: no se pueden cargar de Googl
 | Acción en una fila o terciaria | `Button variant="subtle" size="compact-sm"` o `Anchor` | Sin borde. |
 | Acción destructiva | `Button variant="subtle" color="red"` + `confirmAction({ danger: true })` | El relleno rojo solo aparece en el modal de confirmación. |
 | Acción con solo ícono | `ActionIcon variant="default"` + `Tooltip` + `aria-label` | |
-| Estado | `Badge` (`components/Badges.tsx`) | Siempre `light`, sin mayúsculas, con el color de la sección 3. Las etiquetas salen de `lib/labels.ts`. |
-| En curso | `Badge color="blue"` con el punto `.live-dot` | El punto pulsa (sección 8). |
+| Estado | `Badge` (`components/Badges.tsx`) | Siempre `light`, sin mayúsculas, con el color de la sección 3. Las etiquetas salen de `lib/labels.ts`. Sin `size`: el tema la deja en 12 px. |
+| En curso | `LiveBadge` (`components/Badges.tsx`) | Píldora azul con el punto `.live-dot`, que pulsa (sección 8). |
 | Contenedor | `Card` | Título con `Title order={4}`; acciones del bloque a la derecha del título. |
+| Contenedor plegable | `CollapsibleCard` | Se pliega desde el título ("Nueva llamada", "Detalle técnico"). No usar `Accordion`. |
+| Pestañas | `Tabs` | Sin `variant`: el tema las hace píldoras con acento suave. |
 | Tabla | `Table` | Encabezados en `.label`; filas separadas por borde, sin rayado; hover en superficie 2; números a la derecha; la acción de la fila, en la última columna. |
 | Lista de datos | Pares label y valor | Label en `xs dimmed`, valor en `sm` 600. |
-| Métrica | Tarjeta con rótulo `.label` arriba y número destacado abajo | El número va en color de texto; toma color de estado solo si indica un problema. |
+| Métrica | Tarjeta con rótulo `.label` arriba y número `.metric` abajo | El número va en color de texto; toma color de estado solo si indica un problema. El dato de apoyo (%, promedio) va al lado, en `sm dimmed`. |
 | Consumo contra un tope | `Progress` | Verde hasta 70 %, amarillo desde 70 % y rojo desde 90 % (`usageColor`). |
 | Formulario | Inputs de Mantine + `useForm` | Una columna; label arriba; ayuda en `description`; el error, debajo del campo. |
 | Modal | `Modal`, `confirmAction` | Botones abajo a la derecha: "Cancelar" (`default`) y la acción principal al final. |
@@ -153,9 +154,9 @@ CSP del dashboard solo permite fuentes de `'self'`: no se pueden cargar de Googl
 | Error que bloquea un bloque | `ErrorAlert` (`components/QueryState.tsx`) | Con "Reintentar" si se puede. |
 | Carga | `QueryState`; `Skeleton` si se conoce la forma; `loading` en el botón | Sin spinners de página entera, salvo al iniciar la app. |
 | Vacío | `EmptyState` | Dice por qué está vacío y cómo se llena. |
-| Valor faltante | `–` en `dimmed` | Nunca "null", "N/A" ni la celda en blanco. |
+| Valor faltante | `Dash` (`components/Badges.tsx`): `–` en `dimmed` | Nunca "null", "N/A", "sin dato" ni la celda en blanco. |
 | Conversación | Burbujas (`ChatView`) | Agente: superficie 2, a la izquierda. Persona: acento suave, a la derecha. Nombre de quien habla en `.label`. |
-| Código y JSON | `pre.code`, `JsonEditor` | Mono 12 px sobre superficie 2, borde, radio de 12 px. |
+| Código y JSON | `pre.code`, `Code`, `JsonEditor` | Mono 12 px sobre superficie 2, borde, radio de 12 px. En el editor, claves en azul y valores en neutro: el rojo queda para los errores. |
 
 Gráficos (`@mantine/charts`):
 
@@ -164,8 +165,8 @@ Gráficos (`@mantine/charts`):
   daltonismo.
 - Un solo eje Y. Dos medidas de distinta escala (cantidad y porcentaje) van en dos gráficos.
 - Con dos o más series, leyenda siempre visible. Líneas de 2 px; barras de hasta 28 px de ancho.
-- Grilla y ejes en el color del borde, textos de eje en `dimmed` de 12 px. Si una serie es un estado
-  (fallidas), usa el color de ese estado.
+- Grilla y ejes en el color del borde, textos de eje en `dimmed` de 12 px (variables en `styles.css`, no
+  props: `LineChart` no acepta `textColor`). Si una serie es un estado (fallidas), usa el color de ese estado.
 
 ## 8. Estados y movimiento
 
@@ -221,10 +222,15 @@ así `color="green"` o `c="dimmed"` ya dan el color de la marca.
 | `shadows` | `xs` a `md`: `0 12px 34px rgba(11,18,32,.08)`; `lg` y `xl`: `0 24px 60px rgba(11,18,32,.25)` |
 | `Card`, `Paper` | `withBorder`, `radius: 'xl'`; `Card` con `padding: 'lg'` |
 | `Modal` | `centered`, `radius: 18`, fondo `#0b1220` al 45 % |
-| `Badge` | `variant: 'light'`, sin mayúsculas, peso 600 |
-| `Table` | `verticalSpacing: 'xs'`, `highlightOnHover` |
-| `Menu`, `Popover` | `shadow: 'md'` |
+| `Badge` | `variant: 'light'`, sin mayúsculas, peso 600; 12 px y 22 px de alto en `xs` a `md` (Mantine baja a 9 a 11 px) |
+| `light` con `gray` | Fondo `gray.2` y texto `gray.7` (`variantColorResolver`): el gris al 10 % de Mantine no se ve sobre una fila en hover y da 4,3:1 |
+| `Table` | `verticalSpacing: 'xs'`, `highlightOnHover`; sin `striped` |
+| `Tabs` | `variant: 'pills'`; seleccionada con `blue-light` de fondo y texto azul |
+| `Menu`, `Popover`, `Combobox` | `shadow: 'md'` |
+| `Notification` | `withBorder`, sombra de tarjeta |
 | `Button` | peso 600 |
+| Label de campo (`InputWrapper`) | peso 600 |
+| `BarChart`, `LineChart` | `maxBarWidth: 28`, `strokeWidth: 2` |
 
 Variables propias (`cssVariablesResolver`):
 
@@ -239,12 +245,13 @@ Variables propias (`cssVariablesResolver`):
   al 10 % del color; borde de tarjeta y de tabla en `gray.3`; borde de campo en `gray.4`; `dimmed` en `gray.6`.
   El lienzo se pinta con `--app-canvas`.
 - **Fuentes:** `@fontsource-variable/figtree`, `@fontsource-variable/bricolage-grotesque` y
-  `@fontsource/ibm-plex-mono` (400 y 500), importadas en `main.tsx`.
-- **`styles.css`:** solo lo que el tema no cubre: `.label`, `.mono`, `.live-dot`, `.just-set`, `pre.code`,
-  las burbujas y el `letter-spacing` de los títulos.
-- **Sin modo oscuro:** al migrar se quitan el botón de tema del header, el script de tema de `index.html`,
-  los `light-dark()` de `styles.css` y el uso de los logos `-blanco`.
-- **Logos:** `web/public/atentina-logo.svg` y `atentina-mark.svg` se copian de `docs/brand/` (los que hay ahora son los de la paleta anterior).
+  `@fontsource/ibm-plex-mono` (400 y 500, subconjunto latino), importadas en `main.tsx`.
+- **`styles.css`:** solo lo que el tema no cubre: `.label` (también los encabezados de tabla), `.mono`,
+  `.metric`, `.live-dot`, `.just-set`, `pre.code`, las burbujas, el `letter-spacing` de los títulos, el
+  ítem seleccionado del menú y de las pestañas, y las variables de los gráficos.
+- **Sin modo oscuro:** `forceColorScheme="light"` y `data-mantine-color-scheme="light"` en `index.html`.
+  No hay botón de tema, script de tema, `light-dark()` ni logos `-blanco` en `web/`.
+- **Logos:** `web/public/atentina-logo.svg` y `atentina-mark.svg` son copia de `docs/brand/`.
 - No relajar la CSP por diseño (fuentes, imágenes o estilos externos): ver `AGENTS.md`, "Dashboard público".
 
 ## 12. Antes de entregar

@@ -32,7 +32,7 @@ export const TEMPLATE_STATUS: Record<string, Label> = {
   PENDING: { label: 'En revisión', color: 'yellow' },
   IN_APPEAL: { label: 'En apelación', color: 'yellow' },
   REJECTED: { label: 'Rechazada', color: 'red' },
-  PAUSED: { label: 'Pausada', color: 'orange' },
+  PAUSED: { label: 'Pausada', color: 'yellow' },
   DISABLED: { label: 'Deshabilitada', color: 'gray' },
 };
 

@@ -4,34 +4,44 @@ import { formatDayLabel, formatDuration, formatNumber, formatSeconds } from '@/l
 export interface Tile {
   label: string;
   value: string;
-  tone?: 'ok' | 'bad' | 'warn';
+  /** Dato de apoyo al lado del numero (porcentaje, promedio). */
+  sub?: string;
+  /** Color de estado, solo si el numero indica un problema. */
+  tone?: 'red' | 'yellow';
 }
 
-export function statTiles(s: Stats): Tile[] {
-  const withPct = (n: number, pct: number) => (s.total ? `${n} · ${formatNumber(pct)}%` : String(n));
+/** Metricas del periodo. El cliente no ve vocabulario interno (workflow, latencia). */
+export function statTiles(s: Stats, isAdmin: boolean): Tile[] {
+  const pct = (p: number) => (s.total ? `${formatNumber(p)}%` : undefined);
   return [
     {
-      label: s.whatsapp ? `Conversaciones (${s.whatsapp} por WhatsApp)` : 'Conversaciones',
+      label: 'Conversaciones',
       value: String(s.total),
+      sub: s.whatsapp ? `${s.whatsapp} por WhatsApp` : undefined,
     },
     { label: 'Llamadas finalizadas', value: String(s.finished) },
-    { label: 'Workflow completo', value: withPct(s.completed, s.completed_pct), tone: 'ok' },
-    { label: 'Objetivo cumplido', value: withPct(s.goal, s.goal_pct), tone: 'ok' },
-    { label: 'Fallidas', value: String(s.failed), tone: 'bad' },
-    { label: 'Rechazadas', value: String(s.rejected), tone: 'warn' },
     {
-      label: 'Minutos (prom. por llamada)',
-      value: `${formatNumber(s.total_minutes)}${s.finished ? ` (${formatDuration(s.avg_duration)})` : ''}`,
+      label: isAdmin ? 'Workflow completo' : 'Completas',
+      value: String(s.completed),
+      sub: pct(s.completed_pct),
     },
-    { label: 'Latencia por turno', value: formatSeconds(s.latency_avg) },
+    { label: 'Objetivo cumplido', value: String(s.goal), sub: pct(s.goal_pct) },
+    { label: 'Fallidas', value: String(s.failed), tone: s.failed ? 'red' : undefined },
+    { label: 'Rechazadas', value: String(s.rejected), tone: s.rejected ? 'yellow' : undefined },
+    {
+      label: 'Minutos',
+      value: formatNumber(s.total_minutes),
+      sub: s.finished ? `${formatDuration(s.avg_duration)} por llamada` : undefined,
+    },
+    { label: isAdmin ? 'Latencia por turno' : 'Tiempo de respuesta', value: formatSeconds(s.latency_avg) },
   ];
 }
 
 export function dailyRows(d: Daily) {
   return d.labels.map((label, i) => ({
     day: formatDayLabel(label),
-    Conversaciones: d.totals[i] ?? 0,
-    '% workflow completo': d.completed_pct[i] ?? null,
-    '% objetivo cumplido': d.goal_pct[i] ?? null,
+    total: d.totals[i] ?? 0,
+    completed: d.completed_pct[i] ?? null,
+    goal: d.goal_pct[i] ?? null,
   }));
 }

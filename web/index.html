@@ -1,24 +1,11 @@
 <!doctype html>
-<html lang="es-AR">
+<html lang="es-AR" data-mantine-color-scheme="light">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/atentina-mark.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="light dark" />
+    <meta name="color-scheme" content="light" />
     <title>Atentina</title>
-    <script>
-      // Tema antes de pintar (lo mismo que ColorSchemeScript de Mantine).
-      try {
-        var v = localStorage.getItem('mantine-color-scheme-value');
-        var s =
-          v === 'light' || v === 'dark'
-            ? v
-            : matchMedia('(prefers-color-scheme: dark)').matches
-              ? 'dark'
-              : 'light';
-        document.documentElement.setAttribute('data-mantine-color-scheme', s);
-      } catch (e) {}
-    </script>
   </head>
   <body>
     <div id="root"></div>

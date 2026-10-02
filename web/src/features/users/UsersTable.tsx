@@ -90,7 +90,7 @@ export function UsersTable({
                         <Table.Td>
                           {u.email}
                           {self && (
-                            <Badge size="xs" ml={6} variant="outline">
+                            <Badge color="gray" ml={6}>
                               vos
                             </Badge>
                           )}
@@ -103,9 +103,7 @@ export function UsersTable({
                           )}
                         </Table.Td>
                         <Table.Td>
-                          <Badge color={u.role === 'admin' ? 'amber' : 'navy'}>
-                            {u.role === 'admin' ? 'Admin' : 'Cliente'}
-                          </Badge>
+                          <Badge color="gray">{u.role === 'admin' ? 'Admin' : 'Cliente'}</Badge>
                         </Table.Td>
                         {!clientId && <Table.Td>{u.client_name ?? '–'}</Table.Td>}
                         <Table.Td>
@@ -118,12 +116,15 @@ export function UsersTable({
                             />
                           </Tooltip>
                         </Table.Td>
-                        <Table.Td>{u.last_login_at ? formatDateTime(u.last_login_at) : 'Nunca'}</Table.Td>
+                        <Table.Td style={{ whiteSpace: 'nowrap' }}>
+                          {u.last_login_at ? formatDateTime(u.last_login_at) : 'Nunca'}
+                        </Table.Td>
                         <Table.Td>
                           <Group gap={4} justify="flex-end" wrap="nowrap">
                             <Tooltip label="Editar">
                               <ActionIcon
                                 variant="subtle"
+                                color="gray"
                                 onClick={() => setEditing(u)}
                                 aria-label="Editar usuario"
                               >

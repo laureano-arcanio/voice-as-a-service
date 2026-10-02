@@ -156,6 +156,7 @@ export function NumbersSection({ clientId, canAssign }: { clientId: string; canA
                           <Tooltip label="Editar etiqueta">
                             <ActionIcon
                               variant="subtle"
+                              color="gray"
                               onClick={() => setEditing(n)}
                               aria-label={`Editar ${n.e164}`}
                             >

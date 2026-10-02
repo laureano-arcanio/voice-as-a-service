@@ -30,7 +30,7 @@ function DiffView({ from, to }: { from: string; to: string }) {
     <pre className="code" style={{ maxHeight: 520 }}>
       {lines.map((l, i) =>
         l === null ? (
-          <span key={i} className="diff-line" style={{ opacity: 0.5 }}>
+          <span key={i} className="diff-line diff-gap">
             ⋯
           </span>
         ) : (
@@ -137,21 +137,23 @@ export function VersionsTab({ agent, canEdit }: { agent: AgentDetail; canEdit: b
                   <Table.Tr key={v.version}>
                     <Table.Td>
                       <Group gap={6}>
-                        <Text fw={600}>v{v.version}</Text>
+                        <Text fw={600} className="mono">
+                          v{v.version}
+                        </Text>
                         {v.version === agent.version && <Badge color="green">vigente</Badge>}
                       </Group>
                     </Table.Td>
-                    <Table.Td>{formatDateTime(v.created_at)}</Table.Td>
+                    <Table.Td style={{ whiteSpace: 'nowrap' }}>{formatDateTime(v.created_at)}</Table.Td>
                     <Table.Td>{v.created_by_email ?? (v.created_by ? 'Usuario borrado' : '–')}</Table.Td>
                     <Table.Td>
                       <Group gap="xs" justify="flex-end">
-                        <Button size="compact-xs" variant="light" onClick={() => setViewing(v.version)}>
+                        <Button size="compact-sm" variant="subtle" onClick={() => setViewing(v.version)}>
                           Ver
                         </Button>
                         {canEdit && v.version !== agent.version && (
                           <Button
-                            size="compact-xs"
-                            variant="default"
+                            size="compact-sm"
+                            variant="subtle"
                             onClick={() => void restore(v.version)}
                             loading={restoring === v.version}
                             disabled={restoring != null && restoring !== v.version}

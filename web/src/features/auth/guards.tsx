@@ -37,7 +37,7 @@ export function Forbidden() {
     <Stack align="center" py="xl" gap="xs">
       <Title order={3}>Sin acceso</Title>
       <Text c="dimmed">Tu usuario no tiene acceso a esta sección.</Text>
-      <Button component={Link} to="/" variant="light">
+      <Button component={Link} to="/" variant="default">
         Ir al inicio
       </Button>
     </Stack>

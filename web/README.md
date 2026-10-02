@@ -37,4 +37,6 @@ Al cambiar la API: exportar el OpenAPI a `web/openapi.json`, `npm run gen:api` y
 - `src/router.tsx`: rutas con carga diferida por página y guardas por rol (`admin` / `client`).
 
 Filtros del dashboard, pestañas y mes de consumo van en la URL (se pueden compartir).
-Tema Mantine con la marca (navy `#14213D`, ámbar `#F4A63A`) y modo oscuro; logos en `public/`.
+Tema Mantine con la marca (azul `#2456e6`, solo claro; `src/theme.ts` y `src/styles.css`), según
+[`docs/DESIGN_GUIDELINE_APP.md`](../docs/DESIGN_GUIDELINE_APP.md). Tipografías servidas por la app (`@fontsource`);
+logos en `public/`, copiados de `docs/brand/`.

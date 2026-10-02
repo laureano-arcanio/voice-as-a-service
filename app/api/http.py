@@ -129,7 +129,7 @@ def inline_script_hashes(index: Path) -> list[str]:
 
 
 def content_security_policy() -> str:
-    """CSP de la UI: sus assets, el script del tema (por hash) y el SDK de Facebook
+    """CSP de la UI: sus assets, los scripts inline de index.html (por hash; hoy no tiene) y el SDK de Facebook
     (Embedded Signup de WhatsApp: script en connect.facebook.net, popup e iframes en facebook.com)."""
     scripts = " ".join(["'self'", *inline_script_hashes(settings.web_dist_dir / "index.html"),
                         "https://connect.facebook.net"])

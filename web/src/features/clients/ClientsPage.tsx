@@ -30,7 +30,7 @@ export function ClientsPage() {
               <EmptyState>No hay clientes.</EmptyState>
             ) : (
               <Table.ScrollContainer minWidth={720}>
-                <Table striped>
+                <Table>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>Nombre</Table.Th>

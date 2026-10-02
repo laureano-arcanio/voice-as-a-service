@@ -36,7 +36,11 @@ export function AgentsPage() {
     <>
       <PageHeader
         title="Agentes"
-        description="Cada agente es un workflow versionado: qué datos pide, cómo habla y cómo cierra."
+        description={
+          isAdmin
+            ? 'Cada agente es un workflow versionado: qué datos pide, cómo habla y cómo cierra.'
+            : 'Cada agente define qué datos pide, cómo habla y cómo cierra la conversación.'
+        }
         actions={
           isAdmin && (
             <Button leftSection={<IconPlus size={18} />} onClick={create.open}>
@@ -75,14 +79,14 @@ export function AgentsPage() {
                 {isAdmin ? 'No hay agentes. Creá uno desde una plantilla.' : 'No hay agentes.'}
               </EmptyState>
             ) : (
-              <Table.ScrollContainer minWidth={820}>
-                <Table striped>
+              <Table.ScrollContainer minWidth={isAdmin ? 820 : 560}>
+                <Table>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>Nombre</Table.Th>
-                      <Table.Th>Slug</Table.Th>
+                      {isAdmin && <Table.Th>Slug</Table.Th>}
                       {isAdmin && <Table.Th>Cliente</Table.Th>}
-                      <Table.Th>Motor</Table.Th>
+                      {isAdmin && <Table.Th>Motor</Table.Th>}
                       <Table.Th>Voz</Table.Th>
                       <Table.Th>Versión</Table.Th>
                       <Table.Th>Estado</Table.Th>
@@ -102,11 +106,11 @@ export function AgentsPage() {
                             </Text>
                           )}
                         </Table.Td>
-                        <Table.Td className="mono">{a.slug}</Table.Td>
+                        {isAdmin && <Table.Td className="mono">{a.slug}</Table.Td>}
                         {isAdmin && <Table.Td>{clientName.get(a.client_id) ?? '–'}</Table.Td>}
-                        <Table.Td>{ENGINE[a.engine] ?? a.engine}</Table.Td>
+                        {isAdmin && <Table.Td>{ENGINE[a.engine] ?? a.engine}</Table.Td>}
                         <Table.Td>{a.voice ?? '–'}</Table.Td>
-                        <Table.Td>v{a.version}</Table.Td>
+                        <Table.Td className="mono">v{a.version}</Table.Td>
                         <Table.Td>
                           {a.archived ? (
                             <Badge color="gray">Archivado</Badge>

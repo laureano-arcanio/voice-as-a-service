@@ -18,9 +18,17 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { ApiError } from '@/api/errors';
 import type { CallDetail, FieldValue } from '@/api/types';
-import { CallStatusBadge, OriginBadge, OutcomeBadge, WorkflowBadge } from '@/components/Badges';
+import {
+  CallStatusBadge,
+  Dash,
+  LiveBadge,
+  OriginBadge,
+  OutcomeBadge,
+  WorkflowBadge,
+} from '@/components/Badges';
 import { PageHeader } from '@/components/PageHeader';
 import { ErrorAlert, QueryState } from '@/components/QueryState';
+import { useIsAdmin } from '@/features/auth/api';
 import { formatDateTimeLong, formatDuration, formatValue } from '@/lib/format';
 import { isCallLive, useCallDetail } from './api';
 import { ChatView } from './ChatView';
@@ -47,13 +55,7 @@ function fieldValue(c: CallDetail, name: string): string {
 
 function FieldBadge({ f }: { f: FieldValue }) {
   if (f.value != null) return <Badge color="green">Obtenido</Badge>;
-  return f.required ? (
-    <Badge color="yellow">Pendiente</Badge>
-  ) : (
-    <Text span size="xs" c="dimmed">
-      No
-    </Text>
-  );
+  return <Badge color={f.required ? 'yellow' : 'gray'}>{f.required ? 'Pendiente' : 'Opcional'}</Badge>;
 }
 
 function FieldsCard({ c }: { c: CallDetail }) {
@@ -84,20 +86,14 @@ function FieldsCard({ c }: { c: CallDetail }) {
                   </Text>
                 </Table.Td>
                 <Table.Td>
-                  {f.value != null ? (
-                    <Text size="sm">{formatValue(f.value)}</Text>
-                  ) : (
-                    <Text size="sm" c="dimmed" fs="italic" style={{ whiteSpace: 'nowrap' }}>
-                      sin dato
-                    </Text>
-                  )}
+                  {f.value != null ? <Text size="sm">{formatValue(f.value)}</Text> : <Dash />}
                   {f.rejected != null && (
                     <Text size="xs" c="red">
                       rechazado: {formatValue(f.rejected)}
                     </Text>
                   )}
                 </Table.Td>
-                <Table.Td ta="center" style={{ whiteSpace: 'nowrap' }}>
+                <Table.Td ta="right" style={{ whiteSpace: 'nowrap' }}>
                   <FieldBadge f={f} />
                 </Table.Td>
               </Table.Tr>
@@ -118,6 +114,7 @@ function waErrorText(err: Record<string, unknown> | null | undefined): string {
 }
 
 function CallHeader({ c }: { c: CallDetail }) {
+  const isAdmin = useIsAdmin();
   const call = c.call;
   const wa = c.whatsapp;
   const required = c.fields.filter((f) => f.required);
@@ -131,12 +128,18 @@ function CallHeader({ c }: { c: CallDetail }) {
         </Item>
         <Item label="Origen">
           {wa ? (
-            <OriginBadge mode="whatsapp" phone={wa.wa_id} />
+            <OriginBadge mode="whatsapp" phone={wa.wa_id} wrap />
           ) : (
-            <OriginBadge mode={call ? call.mode : 'api'} phone={call?.phone} />
+            <OriginBadge mode={call ? call.mode : 'api'} phone={call?.phone} wrap />
           )}
         </Item>
-        <Item label="Número del cliente">{(wa ? wa.business_number : call?.client_number) || '–'}</Item>
+        <Item label="Número del cliente">
+          {(wa ? wa.business_number : call?.client_number) ? (
+            <span className="mono">{wa ? wa.business_number : call?.client_number}</span>
+          ) : (
+            '–'
+          )}
+        </Item>
         <Item label="Fecha">{formatDateTimeLong(c.created_at)}</Item>
         {wa ? (
           <>
@@ -156,7 +159,9 @@ function CallHeader({ c }: { c: CallDetail }) {
             <Item label="Estado">
               <CallStatusBadge status={call?.status} />
             </Item>
-            <Item label="Duración">{formatDuration(call?.duration_seconds)}</Item>
+            <Item label="Duración">
+              <span className="mono">{formatDuration(call?.duration_seconds)}</span>
+            </Item>
             <Item label="Fin de llamada">{call?.ended_reason || '–'}</Item>
           </>
         )}
@@ -175,13 +180,13 @@ function CallHeader({ c }: { c: CallDetail }) {
             (c.agent_name ?? '–')
           )}
           {c.agent_version != null && (
-            <Text span size="xs" c="dimmed">
+            <Text span c="dimmed" className="mono">
               {' '}
               v{c.agent_version}
             </Text>
           )}
         </Item>
-        {c.client_name && <Item label="Cliente">{c.client_name}</Item>}
+        {isAdmin && c.client_name && <Item label="Cliente">{c.client_name}</Item>}
       </SimpleGrid>
       {call?.error && (
         <Alert color="red" mt="md" title="Error">
@@ -199,25 +204,23 @@ function CallHeader({ c }: { c: CallDetail }) {
 
 function ChatCard({ c, live }: { c: CallDetail; live: boolean }) {
   const [showLlm, setShowLlm] = useState(false);
+  // "Salida del LLM" es vocabulario interno: el cliente lo ve como detalle tecnico.
+  const llmTitle = useIsAdmin() ? 'Salida del LLM' : 'Detalle técnico';
   return (
     <Card>
       <Group justify="space-between" mb="sm">
         <Group gap="xs">
           <Title order={4}>Conversación</Title>
-          {live && (
-            <Badge color="blue" variant="dot">
-              {c.whatsapp ? 'Activa' : 'En vivo'}
-            </Badge>
-          )}
+          {live && <LiveBadge>{c.whatsapp ? 'Activa' : 'En vivo'}</LiveBadge>}
         </Group>
         <Switch
           size="sm"
-          label="Salida del LLM"
+          label={llmTitle}
           checked={showLlm}
           onChange={(e) => setShowLlm(e.currentTarget.checked)}
         />
       </Group>
-      <ChatView messages={c.messages} showLlm={showLlm} />
+      <ChatView messages={c.messages} showLlm={showLlm} llmTitle={llmTitle} />
     </Card>
   );
 }
@@ -226,6 +229,7 @@ export function CallDetailPage() {
   const { id } = useParams();
   const query = useCallDetail(id);
   const live = isCallLive(query.data);
+  const isAdmin = useIsAdmin();
 
   const back = (
     <Button
@@ -273,7 +277,7 @@ export function CallDetailPage() {
                 <ChatCard c={c} live={live} />
               </Grid.Col>
             </Grid>
-            <LatencyCard latency={asLatency(c.call?.latency)} />
+            <LatencyCard latency={asLatency(c.call?.latency)} folded={!isAdmin} />
           </Stack>
         )}
       </QueryState>

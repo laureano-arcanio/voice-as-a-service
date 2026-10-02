@@ -1,6 +1,7 @@
-import { Accordion, Card, Stack, Text } from '@mantine/core';
+import { Card, Stack } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { IconPhonePlus } from '@tabler/icons-react';
+import { CollapsibleCard } from '@/components/CollapsibleCard';
 import { PageHeader } from '@/components/PageHeader';
 import { useIsAdmin } from '@/features/auth/api';
 import { useCalls, useDailyStats, useLiveCalls, useStats } from '@/features/calls/api';
@@ -39,20 +40,18 @@ export function DashboardPage() {
         title="Inicio"
         description={`Conversaciones del ${formatDate(`${dates.from}T00:00:00`)} al ${formatDate(`${dates.to}T00:00:00`)}`}
       />
-      <Card p="md">
+      <Card>
         <DashboardFiltersBar filters={filters} update={update} />
       </Card>
 
-      <Accordion variant="separated" radius="md" value={newCallOpen} onChange={setNewCallOpen}>
-        <Accordion.Item value="new-call">
-          <Accordion.Control icon={<IconPhonePlus size={20} />}>
-            <Text fw={600}>Nueva llamada</Text>
-          </Accordion.Control>
-          <Accordion.Panel>
-            <NewCallForm />
-          </Accordion.Panel>
-        </Accordion.Item>
-      </Accordion>
+      <CollapsibleCard
+        title="Nueva llamada"
+        icon={<IconPhonePlus size={20} />}
+        opened={newCallOpen === 'new-call'}
+        onToggle={() => setNewCallOpen(newCallOpen === 'new-call' ? null : 'new-call')}
+      >
+        <NewCallForm />
+      </CollapsibleCard>
 
       <LiveCalls calls={live.data ?? []} showClient={showClient} />
       <StatsGrid stats={stats.data} />
@@ -63,6 +62,7 @@ export function DashboardPage() {
         error={calls.error}
         loading={calls.isPending}
         showClient={showClient}
+        showWorkflow={isAdmin}
         page={filters.page}
         status={filters.status}
         mode={filters.mode}

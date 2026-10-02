@@ -46,20 +46,24 @@ export function VoicesPage() {
                           {list.map((v) => (
                             <Table.Tr
                               key={v.nombre}
-                              bg={v.nombre === current ? 'var(--atentina-accent-soft)' : undefined}
+                              bg={v.nombre === current ? 'var(--mantine-color-blue-light)' : undefined}
                               style={{ cursor: 'pointer' }}
                               onClick={() => setSelected(v.nombre)}
                             >
                               <Table.Td fw={600}>{v.nombre}</Table.Td>
                               <Table.Td>
-                                <Badge color={v.genero === 'mujer' ? 'grape' : 'blue'}>{v.genero}</Badge>
+                                <Badge color="gray">{v.genero}</Badge>
                               </Table.Td>
-                              <Table.Td ta="right">{formatNumber(v.wer)}%</Table.Td>
-                              <Table.Td ta="right">{formatNumber(v.car_s)}</Table.Td>
+                              <Table.Td ta="right" className="mono">
+                                {formatNumber(v.wer)}%
+                              </Table.Td>
+                              <Table.Td ta="right" className="mono">
+                                {formatNumber(v.car_s)}
+                              </Table.Td>
                               <Table.Td ta="right">
                                 <Button
-                                  size="compact-xs"
-                                  variant={v.nombre === current ? 'filled' : 'subtle'}
+                                  size="compact-sm"
+                                  variant={v.nombre === current ? 'light' : 'subtle'}
                                   onClick={() => setSelected(v.nombre)}
                                 >
                                   {v.nombre === current ? 'Elegida' : 'Elegir'}
@@ -81,7 +85,7 @@ export function VoicesPage() {
             <Stack gap="sm">
               <Group justify="space-between">
                 <Title order={4}>Probar</Title>
-                {current && <Badge size="lg">{current}</Badge>}
+                {current && <Badge color="blue">{current}</Badge>}
               </Group>
               <VoicePreview voice={current} />
             </Stack>

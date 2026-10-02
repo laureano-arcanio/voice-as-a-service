@@ -51,7 +51,7 @@ export function ErrorAlert({
           {errorMessage(error)}
         </Text>
         {onRetry && (
-          <Button size="xs" variant="light" color="red" onClick={() => void onRetry()}>
+          <Button size="compact-sm" variant="subtle" color="red" onClick={() => void onRetry()}>
             Reintentar
           </Button>
         )}

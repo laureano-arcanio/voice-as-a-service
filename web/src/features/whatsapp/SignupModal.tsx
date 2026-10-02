@@ -215,7 +215,6 @@ export function SignupModal({ config, onClose }: { config: WaConfig; onClose: ()
               Cancelar
             </Button>
             <Button
-              color="green"
               leftSection={<IconBrandWhatsapp size={18} />}
               onClick={start}
               loading={busy || (!fb.ready && !fb.loadError)}

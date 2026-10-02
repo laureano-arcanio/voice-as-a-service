@@ -26,7 +26,7 @@ export function App() {
   }, [queryClient]);
 
   return (
-    <MantineProvider theme={theme} cssVariablesResolver={cssVariablesResolver} defaultColorScheme="auto">
+    <MantineProvider theme={theme} cssVariablesResolver={cssVariablesResolver} forceColorScheme="light">
       <DatesProvider settings={{ locale: 'es', firstDayOfWeek: 1 }}>
         <QueryClientProvider client={queryClient}>
           <ModalsProvider labels={{ confirm: 'Confirmar', cancel: 'Cancelar' }}>

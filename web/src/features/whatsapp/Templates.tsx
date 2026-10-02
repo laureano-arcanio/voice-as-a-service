@@ -172,7 +172,7 @@ export function TemplatesCard({
   const [creating, setCreating] = useState(false);
 
   return (
-    <Card id="wa-templates" mt="lg">
+    <Card id="wa-templates" mt="md">
       <Group justify="space-between" mb="md" gap="sm">
         <Title order={4}>Plantillas</Title>
         <Group gap="xs">
@@ -200,6 +200,7 @@ export function TemplatesCard({
             </ActionIcon>
           </Tooltip>
           <Button
+            variant="default"
             leftSection={<IconPlus size={16} />}
             disabled={!account || account.status === 'disconnected'}
             onClick={() => setCreating(true)}
@@ -224,7 +225,7 @@ export function TemplatesCard({
               <EmptyState>Esta cuenta no tiene plantillas.</EmptyState>
             ) : (
               <Table.ScrollContainer minWidth={760}>
-                <Table striped>
+                <Table>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>Nombre</Table.Th>

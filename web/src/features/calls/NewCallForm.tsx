@@ -28,7 +28,7 @@ function CallError({ error }: { error: unknown }) {
       ? 'No se pudo iniciar la llamada'
       : 'Error';
   return (
-    <Alert color={quota ? 'orange' : 'red'} icon={<IconAlertTriangle size={18} />} title={title}>
+    <Alert color={quota ? 'yellow' : 'red'} icon={<IconAlertTriangle size={18} />} title={title}>
       <Text size="sm" style={{ whiteSpace: 'pre-line' }}>
         {errorMessage(error)}
       </Text>

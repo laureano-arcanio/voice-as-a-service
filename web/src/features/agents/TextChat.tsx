@@ -18,6 +18,7 @@ import { Link } from 'react-router';
 import { errorMessage } from '@/api/errors';
 import type { AgentDetail, ChatMessage, ConversationState } from '@/api/types';
 import { useSendTurn, useStartConversation } from '@/features/calls/api';
+import { Dash } from '@/components/Badges';
 import { ChatView } from '@/features/calls/ChatView';
 import { formatValue } from '@/lib/format';
 import { WORKFLOW_STATUS } from '@/lib/labels';
@@ -72,12 +73,7 @@ export function TextChat({ agent }: { agent: AgentDetail }) {
             Probá el agente escribiendo, sin llamada ni voz. Queda registrada como conversación de origen API.
           </Text>
         </Stack>
-        <Button
-          variant={session ? 'default' : 'filled'}
-          onClick={begin}
-          loading={start.isPending}
-          disabled={agent.archived}
-        >
+        <Button variant="default" onClick={begin} loading={start.isPending} disabled={agent.archived}>
           {session ? 'Empezar de nuevo' : 'Empezar conversación'}
         </Button>
       </Group>
@@ -146,7 +142,7 @@ export function TextChat({ agent }: { agent: AgentDetail }) {
                 <Text size="sm" fw={600}>
                   Estado
                 </Text>
-                <Badge color={WORKFLOW_STATUS[session.state.status]?.color}>
+                <Badge color={WORKFLOW_STATUS[session.state.status]?.color ?? 'gray'}>
                   {WORKFLOW_STATUS[session.state.status]?.label ?? session.state.status}
                 </Badge>
               </Group>
@@ -156,7 +152,7 @@ export function TextChat({ agent }: { agent: AgentDetail }) {
                 </Text>
                 <b className="mono">{session.nextObjective ?? '–'}</b>
               </Text>
-              <Table withTableBorder>
+              <Table>
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th>Dato</Table.Th>
@@ -167,15 +163,7 @@ export function TextChat({ agent }: { agent: AgentDetail }) {
                   {Object.entries(session.state.fields).map(([name, value]) => (
                     <Table.Tr key={name}>
                       <Table.Td className="mono">{name}</Table.Td>
-                      <Table.Td>
-                        {value != null ? (
-                          formatValue(value)
-                        ) : (
-                          <Text span size="sm" c="dimmed" fs="italic">
-                            sin dato
-                          </Text>
-                        )}
-                      </Table.Td>
+                      <Table.Td>{value != null ? formatValue(value) : <Dash />}</Table.Td>
                     </Table.Tr>
                   ))}
                 </Table.Tbody>

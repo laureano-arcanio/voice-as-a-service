@@ -154,7 +154,7 @@ export function NumbersPage() {
                   {plural(list.filter((n) => !n.client_id).length, 'libre', 'libres')}
                 </Text>
                 <Table.ScrollContainer minWidth={980}>
-                  <Table striped>
+                  <Table>
                     <Table.Thead>
                       <Table.Tr>
                         <Table.Th>Número</Table.Th>
@@ -203,9 +203,9 @@ export function NumbersPage() {
                             <Group gap={4} justify="flex-end" wrap="nowrap">
                               {!n.client_id && (
                                 <Button
-                                  size="compact-xs"
-                                  variant="light"
-                                  leftSection={<IconUserPlus size={14} />}
+                                  size="compact-sm"
+                                  variant="subtle"
+                                  leftSection={<IconUserPlus size={16} />}
                                   onClick={() => setDialog({ kind: 'assign', number: n })}
                                 >
                                   Asignar
@@ -213,7 +213,11 @@ export function NumbersPage() {
                               )}
                               <Menu position="bottom-end" withinPortal>
                                 <Menu.Target>
-                                  <ActionIcon variant="subtle" aria-label={`Acciones de ${n.e164}`}>
+                                  <ActionIcon
+                                    variant="subtle"
+                                    color="gray"
+                                    aria-label={`Acciones de ${n.e164}`}
+                                  >
                                     <IconDots size={16} />
                                   </ActionIcon>
                                 </Menu.Target>

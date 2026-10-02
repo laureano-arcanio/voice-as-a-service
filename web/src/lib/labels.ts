@@ -1,4 +1,5 @@
-// Etiquetas y colores de estados (como static/common.js del dashboard viejo).
+// Etiquetas y colores de estados. Colores: solo blue, green, yellow, red y gray
+// (docs/DESIGN_GUIDELINE_APP.md, seccion 3); una categoria sin estado va en gray.
 
 export interface Label {
   label: string;
@@ -11,16 +12,16 @@ export const CALL_STATUS: Record<string, Label> = {
   en_curso: { label: 'En curso', color: 'blue' },
   finalizada: { label: 'Finalizada', color: 'green' },
   fallida: { label: 'Fallida', color: 'red' },
-  rechazada: { label: 'Rechazada', color: 'orange' },
+  rechazada: { label: 'Rechazada', color: 'yellow' },
 };
 
 export const CALL_MODE: Record<string, Label> = {
-  saliente: { label: 'Saliente', color: 'navy' },
-  entrante: { label: 'Entrante', color: 'navy' },
-  prueba: { label: 'Prueba', color: 'amber' },
-  loadtest: { label: 'Loadtest', color: 'amber' },
+  saliente: { label: 'Saliente', color: 'gray' },
+  entrante: { label: 'Entrante', color: 'gray' },
+  prueba: { label: 'Prueba', color: 'gray' },
+  loadtest: { label: 'Loadtest', color: 'gray' },
   api: { label: 'API (texto)', color: 'gray' },
-  whatsapp: { label: 'WhatsApp', color: 'green' },
+  whatsapp: { label: 'WhatsApp', color: 'gray' },
 };
 
 export const WORKFLOW_STATUS: Record<string, Label> = {

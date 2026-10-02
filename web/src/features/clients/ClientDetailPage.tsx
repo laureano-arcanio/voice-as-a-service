@@ -188,15 +188,15 @@ function ClientAgentsCard({ clientId }: { clientId: string }) {
                           {a.name}
                         </Anchor>
                         {a.archived && (
-                          <Badge size="xs" color="gray" ml={6}>
-                            archivado
+                          <Badge color="gray" ml={6}>
+                            Archivado
                           </Badge>
                         )}
                       </Table.Td>
                       <Table.Td>{ENGINE[a.engine] ?? a.engine}</Table.Td>
                       <Table.Td>{a.voice ?? '–'}</Table.Td>
-                      <Table.Td>v{a.version}</Table.Td>
-                      <Table.Td>{formatDateTime(a.updated_at)}</Table.Td>
+                      <Table.Td className="mono">v{a.version}</Table.Td>
+                      <Table.Td style={{ whiteSpace: 'nowrap' }}>{formatDateTime(a.updated_at)}</Table.Td>
                     </Table.Tr>
                   ))}
                 </Table.Tbody>
@@ -258,7 +258,7 @@ function ClientView({ client }: { client: Client }) {
         }
         description={
           <>
-            <Text span className="mono" size="sm">
+            <Text span className="mono">
               {client.slug}
             </Text>
             {` · tier ${client.tier.name} · ${client.agents_count ?? 0} agentes · ${client.numbers_count ?? 0} números`}

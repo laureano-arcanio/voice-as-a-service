@@ -99,7 +99,7 @@ export function NewAgentModal({
             <ScrollArea.Autosize mah={340} mt="xs" type="auto">
               <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
                 {(templates.data ?? []).map((t) => (
-                  <Radio.Card key={t.id} value={t.id} radius="md" p="sm">
+                  <Radio.Card key={t.id} value={t.id} p="sm">
                     <Group wrap="nowrap" align="flex-start" gap="sm">
                       <Radio.Indicator />
                       <Stack gap={2} style={{ minWidth: 0 }}>
@@ -108,12 +108,8 @@ export function NewAgentModal({
                         </Text>
                         <Text size="xs">{t.agent}</Text>
                         <Group gap={4}>
-                          <Badge size="xs" variant="default">
-                            {ENGINE[t.engine] ?? t.engine}
-                          </Badge>
-                          <Badge size="xs" variant="default">
-                            voz {t.voice ?? 'predeterminada'}
-                          </Badge>
+                          <Badge color="gray">{ENGINE[t.engine] ?? t.engine}</Badge>
+                          <Badge color="gray">voz {t.voice ?? 'predeterminada'}</Badge>
                         </Group>
                         <Text size="xs" c="dimmed" lineClamp={3}>
                           {t.objective}
