@@ -1,6 +1,6 @@
 """Motor clasico: prompt armado del YAML, conversacion multiturno en texto, sin
 estado por turno y una sola extraccion al final."""
-from app.agents.templates import load_template
+from app.agents.templates import load_reference
 from app.conversation.engine import ConversationEngine
 from app.conversation.models import AgentTurn, ConversationState, Message
 from app.llm.client import MarkerFilter
@@ -10,13 +10,13 @@ from .helpers import FakeLLM, turn_and_extract
 
 
 def test_extends_keeps_the_agent_and_changes_the_engine():
-    base, classic = load_template("berlin_signup"), load_template("berlin_signup_classic")
+    base, classic = load_reference("berlin_signup"), load_reference("berlin_signup_classic")
     assert (base.engine, classic.engine) == ("structured", "classic")
     assert classic.knowledge == base.knowledge and classic.fields == base.fields
 
 
 def test_the_system_prompt_comes_from_the_yaml():
-    wf = load_template("berlin_signup_classic")
+    wf = load_reference("berlin_signup_classic")
     system = build_classic_system(wf)
     assert wf.conversation.rules[0] in system
     assert "Live Running Team" in system                                  # base de conocimiento
@@ -26,7 +26,7 @@ def test_the_system_prompt_comes_from_the_yaml():
 
 
 def test_the_conversation_goes_as_messages():
-    wf = load_template("berlin_signup_classic")
+    wf = load_reference("berlin_signup_classic")
     state = ConversationState(conversation_id="c", agent_id=wf.id, fields={},
                               messages=[Message(role="assistant", text="Hola."), Message(role="user", text="Hola."),
                                         Message(role="assistant", text="¿Qué actividad?")])

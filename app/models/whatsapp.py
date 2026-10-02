@@ -72,6 +72,8 @@ class WaThread(Base):
     last_user_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
     # Fase 3: derivada a humano. En la fase 1 solo se respeta (no se responde).
     paused: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # Cerrada desde el dashboard: el proximo mensaje del contacto empieza otra conversacion.
+    closed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
 
 

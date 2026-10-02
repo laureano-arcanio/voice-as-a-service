@@ -19,7 +19,7 @@ import { notifyError } from '@/lib/notify';
 import { isAdminOnly, navItemsFor, type NavItem } from './nav';
 
 function isActive(pathname: string, to: string): boolean {
-  if (to === '/') return pathname === '/' || pathname.startsWith('/calls');
+  if (to === '/') return pathname === '/';
   return pathname === to || pathname.startsWith(`${to}/`);
 }
 

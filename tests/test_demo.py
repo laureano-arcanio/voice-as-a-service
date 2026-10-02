@@ -6,6 +6,7 @@ import uuid
 import jwt
 import pytest
 
+from app.agents.templates import reference_data
 from app.cli import seed_demo
 from app.config import settings
 from app.db import utcnow
@@ -177,7 +178,7 @@ def other_agent_call(api, mode=CallMode.prueba, status=CallStatus.en_curso, dura
         agent = s.query(Agent).filter_by(client_id=client.id, slug="atentina_comercial").one_or_none()
         if agent is None:
             agent = agent_service.create_agent(s, client, name="atentina_comercial", slug="atentina_comercial",
-                                               description="", definition=None, template_id="atentina_comercial",
+                                               description="", definition=reference_data("atentina_comercial"), template_id=None,
                                                user_id=None)
         conv = ConversationRow(id=str(uuid.uuid4()), client_id=client.id, agent_id=agent.id, agent_version=1,
                                status="active", fields={}, messages=[])

@@ -17,7 +17,7 @@ import time
 from app import config
 from app.conversation.engine import ConversationEngine
 from app.conversation.store import ConversationStore
-from app.agents.templates import load_template
+from app.agents.templates import load_reference
 from app.llm.client import LLMClient
 
 SCENARIOS = {
@@ -68,7 +68,7 @@ SCENARIOS = {
 
 
 def engine_fields(workflow_id):
-    return sorted(load_template(workflow_id).fields, key=lambda f: load_template(workflow_id).fields[f].priority)
+    return sorted(load_reference(workflow_id).fields, key=lambda f: load_reference(workflow_id).fields[f].priority)
 
 
 async def run(engine, workflow_id, answers, max_turns=12):

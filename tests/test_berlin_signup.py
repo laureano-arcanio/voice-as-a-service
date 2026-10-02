@@ -1,7 +1,7 @@
 """Workflow berlin_signup: tipos y clasificacion del resultado (el flujo lo decide el LLM)."""
 import pytest
 
-from app.agents.templates import load_template
+from app.agents.templates import load_reference
 from app.conversation.engine import ConversationEngine
 from app.conversation.models import AgentTurn
 from app.conversation.workflow import pending_fields, validate_updates
@@ -12,7 +12,7 @@ from .test_workflow import state_with
 
 @pytest.fixture
 def wf():
-    return load_template("berlin_signup")
+    return load_reference("berlin_signup")
 
 
 def test_types(wf):

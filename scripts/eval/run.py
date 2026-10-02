@@ -27,7 +27,7 @@ from pathlib import Path
 from app import config
 from app.conversation.engine import ConversationEngine
 from app.conversation.store import ConversationStore
-from app.agents.templates import TEMPLATES_DIR, load_template
+from app.agents.templates import load_reference, reference_data
 from app.llm.client import LLMClient
 
 from . import analyze, canal as canal_mod, checks
@@ -70,8 +70,11 @@ def git_rev() -> str:
 def workflows_hash(escs: list[Escenario]) -> dict:
     out = {}
     for agente in sorted({e.agente for e in escs}):
-        path = TEMPLATES_DIR / f"{agente}.json"
-        out[agente] = hashlib.sha1(path.read_bytes()).hexdigest()[:8] if path.exists() else ""
+        try:
+            data = json.dumps(reference_data(agente), ensure_ascii=False, sort_keys=True)
+        except KeyError:
+            data = ""
+        out[agente] = hashlib.sha1(data.encode()).hexdigest()[:8] if data else ""
     return out
 
 
@@ -169,7 +172,7 @@ def main() -> None:
     if not escs:
         sys.exit("no hay escenarios")
     for e in escs:
-        load_template(e.agente)     # falla temprano si falta una plantilla
+        load_reference(e.agente)     # falla temprano si falta una plantilla
 
     llm, ficha_llm = llm_agente(args)
     engine = ConversationEngine(llm, ConversationStore.for_dsn("sqlite://"))

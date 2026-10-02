@@ -11,7 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..agents.definitions import DefinitionSource
-from ..agents.templates import load_template
+from ..agents.templates import load_reference
 from ..conversation.models import ConversationState, Progress, Workflow
 from ..conversation.workflow import INCOMPLETE, is_required, outcome_for
 from ..models import (
@@ -86,12 +86,12 @@ class Reports:
         self.definitions = definitions
 
     def workflow(self, conv: ConversationRow) -> Workflow | None:
-        """La version del agente con que corrio; si es anterior a los agentes, la plantilla."""
+        """La version del agente con que corrio; si es anterior a los agentes, la de referencia."""
         try:
             if conv.agent_id:
                 return self.definitions.get(conv.agent_id, conv.agent_version or 1, self.s)
             if conv.legacy_workflow_id:
-                return load_template(conv.legacy_workflow_id)
+                return load_reference(conv.legacy_workflow_id)
         except KeyError:
             pass
         return None
@@ -188,6 +188,7 @@ class Reports:
         return {
             "wa_id": thread.wa_id, "contact_name": thread.contact_name, "business_number": business_number,
             "account_id": thread.account_id, "last_user_at": iso(thread.last_user_at),
+            "closed_at": iso(thread.closed_at),
             "failed_messages": len(failed), "last_error": failed[-1].error if failed else None,
         }
 

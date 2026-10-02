@@ -238,6 +238,22 @@ details.llm summary {
   transform: rotate(180deg);
 }
 
+/* Barra de la definicion de un agente: queda a la vista al bajar (en mobile no, ocupa mucho). */
+@media (min-width: 48em) {
+  .def-toolbar {
+    position: sticky;
+    top: calc(var(--app-shell-header-height, 60px) + 8px);
+    z-index: 5;
+  }
+}
+
+/* Dato o resultado del formulario de un agente: bloque dentro de la tarjeta. */
+.def-item {
+  padding: 10px 12px;
+  border: 1px solid var(--app-line);
+  border-radius: var(--mantine-radius-lg);
+}
+
 /* Menu lateral: seleccionado en acento suave, texto azul en 600. */
 .mantine-NavLink-root {
   border-radius: var(--mantine-radius-md);

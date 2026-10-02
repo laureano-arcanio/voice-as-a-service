@@ -16,7 +16,7 @@ from pathlib import Path
 
 from openai import AsyncOpenAI
 
-from app.agents.templates import load_template
+from app.agents.templates import load_reference
 from app.llm.prompt import render_workflow
 
 from .simulador import es_local, opciones_llm
@@ -49,7 +49,7 @@ def transcript(rec: dict) -> str:
 
 
 def contexto(rec: dict) -> str:
-    wf = load_template(rec["agente"])
+    wf = load_reference(rec["agente"])
     esperado = rec.get("esperado") or {}
     return (f"WORKFLOW DEL AGENTE (YAML):\n{render_workflow(wf)}\n"
             f"PERSONA DEL CLIENTE: {rec.get('resumen', '')}\n"

@@ -16,7 +16,7 @@ import { QUOTA_TITLES } from '@/lib/labels';
 import { useStartCall } from './api';
 
 const HINT_PHONE =
-  'Llamada saliente: el agente marca el número (formato E.164, ej. +5491155551234). Las entrantes las atiende solo y también aparecen en la tabla.';
+  'Llamada saliente: el agente marca el número (formato E.164, ej. +5491155551234). Las entrantes las atiende solo; todas quedan en Conversaciones.';
 const HINT_TEST =
   'Se crea la llamada sin marcar ningún teléfono. Te aparece un link para conectarte por navegador (LiveKit Meet) y hablar con el agente.';
 

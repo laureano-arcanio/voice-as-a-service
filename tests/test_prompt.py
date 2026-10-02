@@ -1,4 +1,4 @@
-from app.agents.templates import load_template
+from app.agents.templates import load_reference
 from app.conversation.models import Message
 from app.llm.prompt import build_user_prompt
 
@@ -6,7 +6,7 @@ from .test_workflow import state_with
 
 
 def test_prompt_has_whole_conversation_before_state():
-    wf = load_template("berlin_signup")
+    wf = load_reference("berlin_signup")
     state = state_with(wf, wants_pitch=True)
     state.messages = [Message(role="assistant", text="¿Qué actividad te gustaría hacer?"),
                       Message(role="user", text="Calistenia."),

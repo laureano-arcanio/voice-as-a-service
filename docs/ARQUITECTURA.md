@@ -62,9 +62,10 @@ app/
     tts.py, voices.py prueba de voz y catálogo (tts/finetune/voces.tsv)
     errors.py        NotFound, Forbidden, Conflict, Invalid, QuotaExceeded, Upstream
   agents/
-    templates/*.json plantillas de agentes (seed, eval, tests)
+    templates/       asistente.json: la plantilla de la UI (asistente básico)
+    reference/*.json agentes de referencia (seed, eval, tests)
     definitions.py   DbDefinitions: versiones de la base, cacheadas (son inmutables)
-    templates.py     TemplateDefinitions: plantillas del repo
+    templates.py     plantilla, agente en blanco y ReferenceDefinitions (agentes de referencia)
   conversation/      motor: engine, models (Workflow = definición), workflow (validación), store
   llm/               cliente y prompts del LLM
   voice/             worker de LiveKit y latencia por turno
@@ -157,9 +158,18 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
   agente). La conversación guarda `agent_version` y el motor carga siempre esa versión
   (`DbDefinitions`, cacheada por `(agent_id, version)`). Editar un agente no afecta las llamadas en
   curso ni el historial.
-- **Plantillas:** `app/agents/templates/<id>.json` se usan para crear agentes y en el eval y los
-  tests, sin base. El seed solo crea, en el cliente `atentina`, `atentina_comercial`,
-  `demo_booking_classic` (test de capacidad) y las `landing_*` (demo); las demás se crean a pedido.
+- **Alta:** en blanco (`blank_definition`: un dato y el resultado por defecto) o desde la única
+  plantilla, `app/agents/templates/asistente.json`, con el motor elegido (`engine` pisa el de la
+  definición). La definición es la misma con los dos motores: solo cambia cómo se le pide la
+  respuesta al LLM. El prompt de sistema sale siempre de la definición; `POST /agents/prompt` lo
+  devuelve sin guardar (classic: el prompt entero; structured: el fijo y la definición en YAML que va
+  en cada turno). La UI la edita por formulario (`web/src/features/agents/DefinitionForm.tsx`,
+  `draft.ts`), con el JSON como alternativa.
+- **Agentes de referencia:** `app/agents/reference/<id>.json`, para el seed, el eval y los tests (sin
+  base); no se ofrecen en la UI. El sufijo `_classic` o `_structured` elige el motor sobre el mismo
+  archivo (`demo_booking_classic` es `demo_booking.json` con `engine: classic`). El seed solo crea, en
+  el cliente `atentina`, `atentina_comercial`, `demo_booking_classic` (test de capacidad) y las
+  `landing_*` (demo).
 
 ## Flujos
 
@@ -223,7 +233,10 @@ El formulario de contacto de la landing (`POST /demo/contact`, misma sesión) gu
    nota de voz, y el turno espera a que termine.
 3. Con el lock del contacto: conversación activa (no completada y con actividad en las últimas
    `WA_SESSION_HOURS`) o una nueva sin apertura, `process_turn`, `send_text` y `mark_read`.
-   En el clásico la extracción corre en cada turno (no hay corte que la dispare).
+   El motor trabaja igual que en una llamada (el clásico no extrae en cada turno). El equivalente del
+   corte es el fin del chat: cerrarlo desde el dashboard, llegar a `WA_MAX_TURNS` o vencer
+   (`WA_SESSION_HOURS` sin mensajes del contacto, barrido cada 5 min en el lifespan de `app`). Los
+   tres cierran el hilo (`wa_threads.closed_at`) y llaman a `engine.finish`, la extracción final.
    Si el turno tuvo audio (`WA_AUDIO_REPLY=mirror`), `process_turn` recibe `TurnMedia` (el prompt pide
    formato para escuchar) y la respuesta sale como nota de voz: `vllm-tts` → OGG/Opus → subida →
    mensaje `audio`. Si algo falla, va en texto.

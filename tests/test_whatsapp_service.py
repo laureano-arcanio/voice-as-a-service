@@ -13,10 +13,19 @@ import pytest
 from sqlalchemy import select
 
 from app.agents.definitions import DbDefinitions
+from app.agents.templates import reference_data
 from app.conversation.engine import ConversationEngine
 from app.conversation.models import AgentTurn
 from app.conversation.store import ConversationStore
-from app.models import Client, ConversationRow, Tier, WaAccount, WaMessage, WaThread
+from app.models import (
+    Agent,
+    Client,
+    ConversationRow,
+    Tier,
+    WaAccount,
+    WaMessage,
+    WaThread,
+)
 from app.services import agents as agent_service
 from app.services.errors import Conflict, NotFound
 from app.whatsapp import store
@@ -123,7 +132,7 @@ def make_wa(sessions, template="demo_booking_classic", llm=None, graph=None, aud
         s.add(client)
         s.flush()
         agent = agent_service.create_agent(s, client, name="Turnos", slug="turnos", description="",
-                                           definition=None, template_id=template, user_id=None)
+                                           definition=reference_data(template), template_id=None, user_id=None)
         s.flush()
         account = store.create_account(s, client_id=client.id, agent_id=agent.id, phone_number_id=PNID,
                                        waba_id="100000000000001", display_phone_number="+1 555 000 0000")
@@ -289,6 +298,23 @@ async def test_completed_conversation_then_new_one_after_the_session(sessions):
     assert second.messages[0]["text"] == "otra cosa"
 
 
+async def test_closed_conversation_starts_a_new_one_with_the_current_version(sessions):
+    # La conversacion corre con la version con que empezo: cerrarla desde el dashboard hace que el
+    # proximo mensaje empiece otra, con la vigente (2-oct-2026: el agente paso a classic y el chat
+    # seguia structured).
+    w = make_wa(sessions, llm=FakeLLM(reply(), reply()))
+    await send(w, text_payload("hola", "wamid.1"))
+    with sessions() as s:
+        agent = s.get(Agent, w.agent_id)
+        agent_service.update_definition(s, agent, {**agent.definition, "engine": "structured"}, None)
+        store.close_thread(s, s.scalar(select(WaThread)))
+        s.commit()
+    await send(w, text_payload("hola de nuevo", "wamid.2"))
+    first, second = conversations(sessions)
+    assert (first.agent_version, second.agent_version) == (1, 2)
+    assert second.messages[0]["text"] == "hola de nuevo"
+
+
 async def test_session_expires_after_hours(sessions):
     w = make_wa(sessions, llm=FakeLLM(reply(), reply(), reply()))
     await send(w, text_payload("hola", "wamid.1"))
@@ -344,13 +370,46 @@ async def test_llm_failure_marks_error_and_sends_nothing(sessions):
     assert inb.status == "error"
 
 
-async def test_classic_extracts_every_turn_on_whatsapp(sessions):
-    w = make_wa(sessions, llm=FakeLLM(reply(), reply(), extractions=[{}, {}]))
+async def test_classic_on_whatsapp_works_like_a_call(sessions):
+    # El canal no cambia el trabajo del motor: el clasico extrae al despedirse o al terminar la
+    # conversacion, no en cada turno (2-oct-2026: por WhatsApp extraia en cada turno).
+    w = make_wa(sessions, llm=FakeLLM(reply(), reply("Listo, ¡chau!", status="completed"), extractions=[{}]))
     await send(w, text_payload("hola, soy Ana", "wamid.1"))
-    await w.engine.wait_extraction(conversations(sessions)[0].id)
+    assert w.llm.extract_calls == []
     await send(w, text_payload("para el lunes", "wamid.2"))
     await w.engine.wait_extraction(conversations(sessions)[0].id)
-    assert len(w.llm.extract_calls) == 2
+    assert len(w.llm.extract_calls) == 1
+
+
+async def test_expired_conversation_ends_like_a_hangup(sessions):
+    # Vencida (24 h sin mensajes del contacto): el barrido la cierra y hace la extraccion final,
+    # como el corte de una llamada; el proximo mensaje abre otra.
+    w = make_wa(sessions, llm=FakeLLM(reply(), reply()))
+    await send(w, text_payload("hola, soy Ana", "wamid.1"))
+    assert await w.service.sweep() == 0
+    with sessions() as s:
+        s.scalar(select(WaThread)).last_user_at -= datetime.timedelta(hours=25)
+        s.commit()
+    assert await w.service.sweep() == 1
+    await w.service.drain()
+    assert len(w.llm.extract_calls) == 1
+    assert await w.service.sweep() == 0          # ya cerrada: no se vuelve a terminar
+    await send(w, text_payload("otra cosa", "wamid.2"))
+    assert len(conversations(sessions)) == 2 and len(w.llm.extract_calls) == 1
+
+
+async def test_expired_without_sweep_ends_when_the_contact_writes_again(sessions):
+    w = make_wa(sessions, llm=FakeLLM(reply(), reply()))
+    await send(w, text_payload("hola", "wamid.1"))
+    with sessions() as s:
+        s.scalar(select(WaThread)).last_user_at -= datetime.timedelta(hours=25)
+        s.commit()
+    await send(w, text_payload("otra cosa", "wamid.2"))
+    first, second = conversations(sessions)
+    with sessions() as s:
+        closed = {t.conversation_id: t.closed_at for t in s.scalars(select(WaThread))}
+    assert closed[first.id] is not None and closed[second.id] is None
+    assert len(w.llm.extract_calls) == 1         # la extraccion final de la primera
 
 
 async def test_paused_thread_is_not_answered(sessions):

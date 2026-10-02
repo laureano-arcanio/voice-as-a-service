@@ -16,14 +16,14 @@ os.environ["CSP_REPORT_ONLY"] = "false"
 
 import pytest
 
-from app.agents.templates import load_template
+from app.agents.templates import load_reference
 from app.conversation.store import ConversationStore
 from app.db import Base
 
 
 @pytest.fixture
 def workflow():
-    return load_template("sales_discovery")
+    return load_reference("sales_discovery")
 
 
 @pytest.fixture
@@ -94,6 +94,10 @@ def api(sessions, monkeypatch):
 
     app.dependency_overrides[deps.get_db] = get_db
     app.dependency_overrides[deps.get_conversation_engine] = lambda: a.engine
+    # El de WhatsApp sobre la misma base y el mismo motor (el real usa la base del .env).
+    from app.whatsapp.service import WhatsAppService, get_service
+    a.wa_service = WhatsAppService(a.engine, sessions, graph_factory=lambda token: None)
+    app.dependency_overrides[get_service] = lambda: a.wa_service
     a.app = app
     a.client = TestClient(app)
 

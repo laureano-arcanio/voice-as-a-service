@@ -82,7 +82,7 @@ export function useDailyStats(p: CallFilters & { date_from: string; date_to: str
 }
 
 export function isCallLive(c: CallDetail | undefined): boolean {
-  if (!c) return false;
+  if (!c || c.whatsapp?.closed_at) return false;
   return c.call ? isLiveStatus(c.call.status) : c.workflow_status === 'active';
 }
 
@@ -112,6 +112,20 @@ export function useStartCall() {
       void qc.invalidateQueries({ queryKey: ['stats'] });
       void qc.invalidateQueries({ queryKey: ['clients'] });
     },
+  });
+}
+
+/** Cierra un chat de WhatsApp: el proximo mensaje del contacto empieza otra conversacion. */
+export function useCloseWhatsApp(conversationId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      unwrap(
+        api.POST('/api/v1/whatsapp/threads/{conversation_id}/close', {
+          params: { path: { conversation_id: conversationId } },
+        }),
+      ),
+    onSettled: () => void qc.invalidateQueries({ queryKey: callKeys.all }),
   });
 }
 

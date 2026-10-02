@@ -66,7 +66,7 @@ canjea el token por una sesión corta.
 Los agentes son `turnos`, `cobranzas` y `reclamos` del cliente `atentina` (nosotros, el mismo del
 WhatsApp y el número propios; hasta el 2-oct-2026 había un cliente `landing` aparte). Solo esos se
 pueden llamar desde la landing (`DEMO_AGENTS`): el resto de los agentes de Atentina da 404. El seed
-los crea desde las plantillas `app/agents/templates/landing_*.json`; después se editan como
+los crea desde los agentes de referencia `app/agents/reference/landing_*.json`; después se editan como
 cualquier agente (UI o API), con versión nueva en cada cambio.
 
 ## Formulario de contacto

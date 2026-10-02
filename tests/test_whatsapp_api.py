@@ -195,3 +195,20 @@ def test_delete_agent_or_client_with_whatsapp_account_is_409(api, admin, setup):
     c, agent, _ = setup
     assert admin.delete(f"{V1}/agents/{agent['id']}").status_code == 409
     assert admin.delete(f"{V1}/clients/{c['id']}").status_code == 409
+
+
+def test_close_whatsapp_conversation(api, admin, setup):
+    c, _, acc = setup
+    cid = wa_conversation(api, acc["id"])
+    assert admin.get(f"{V1}/calls/{cid}").json()["whatsapp"]["closed_at"] is None
+    other = make_client(admin, "otro")
+    outsider = client_user(api, admin, other, email="otro@otro.com")
+    assert outsider.post(f"{V1}/whatsapp/threads/{cid}/close").status_code == 404
+    # El usuario del cliente la puede cerrar; cerrar dos veces no cambia la fecha.
+    user = client_user(api, admin, c)
+    assert user.post(f"{V1}/whatsapp/threads/{cid}/close").status_code == 204
+    closed = admin.get(f"{V1}/calls/{cid}").json()["whatsapp"]["closed_at"]
+    assert closed is not None
+    assert admin.post(f"{V1}/whatsapp/threads/{cid}/close").status_code == 204
+    assert admin.get(f"{V1}/calls/{cid}").json()["whatsapp"]["closed_at"] == closed
+    assert admin.post(f"{V1}/whatsapp/threads/no-existe/close").status_code == 404

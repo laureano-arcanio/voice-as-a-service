@@ -123,12 +123,13 @@ def active_thread(s: Session, account_id: str, wa_id: str, now: datetime.datetim
     """La conversacion en curso con este contacto: la ultima, no pausada y con un mensaje
     del cliente dentro de las ultimas session_hours. Aunque el agente la haya dado por
     completada: por WhatsApp el chat sigue (un "si" despues del cierre no es otra
-    conversacion), asi que se retoma con el historial. Corta por inactividad o por tope."""
+    conversacion), asi que se retoma con el historial. Corta por inactividad, por tope o
+    porque la cerraron desde el dashboard (close_thread)."""
     since = now - datetime.timedelta(hours=session_hours)
     return s.scalar(
         select(WaThread)
         .where(WaThread.account_id == account_id, WaThread.wa_id == wa_id,
-               WaThread.paused.is_(False), WaThread.last_user_at >= since)
+               WaThread.paused.is_(False), WaThread.closed_at.is_(None), WaThread.last_user_at >= since)
         .order_by(WaThread.created_at.desc()).limit(1))
 
 
@@ -147,6 +148,21 @@ def add_thread(s: Session, *, conversation_id: str, account: WaAccount, wa_id: s
     s.add(thread)
     s.flush()
     return thread
+
+
+def close_thread(s: Session, thread: WaThread) -> None:
+    """La conversacion termino (cerrada desde el dashboard, tope de turnos o vencida): no se
+    retoma, y el proximo mensaje del contacto empieza otra, con la version vigente del agente.
+    Quien la cierra llama a engine.finish, como el corte de una llamada."""
+    thread.closed_at = thread.closed_at or utcnow()
+
+
+def expired_threads(s: Session, now: datetime.datetime, session_hours: float) -> list[WaThread]:
+    """Las que vencieron (session_hours sin mensajes del contacto) y siguen sin cerrar. Las
+    pausadas no: las atiende una persona."""
+    since = now - datetime.timedelta(hours=session_hours)
+    return list(s.scalars(select(WaThread).where(
+        WaThread.closed_at.is_(None), WaThread.paused.is_(False), WaThread.last_user_at < since)))
 
 
 def touch_thread(s: Session, conversation_id: str, at: datetime.datetime) -> None:

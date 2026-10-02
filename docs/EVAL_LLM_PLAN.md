@@ -28,7 +28,7 @@ para comparar modelos. Responde:
 
 ## 2. Tipos de agente
 
-Una plantilla de agente nueva por tipo, en `app/agents/templates/` (JSON; antes YAML en `app/workflows/`) con prefijo `eval_` (mismo motor, sin código
+Un agente de referencia nuevo por tipo, en `app/agents/reference/` (JSON; antes YAML en `app/workflows/`; el motor structured es el mismo archivo con sufijo `_structured`) con prefijo `eval_` (mismo motor, sin código
 nuevo). Cada uno con `engine: classic` y una variante `_structured` por `extends`.
 
 | Agente | Qué hace | Datos a obtener | Qué pone a prueba |
@@ -151,7 +151,7 @@ scripts/eval/
   personas/*.yml   estilo, ficha (con campos al azar) y esperado, por agente
   guiones/*.yml    guiones fijos por objetivo (como replay_calls.py), regresión gratis y determinista
   runs/            no versionado
-app/agents/templates/eval_*.json
+app/agents/reference/eval_*.json
 docs/eval/README.md, EVAL-NNN-<slug>/
 ```
 

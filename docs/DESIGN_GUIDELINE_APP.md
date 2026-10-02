@@ -149,6 +149,7 @@ CSP del dashboard solo permite fuentes de `'self'`: no se pueden cargar de Googl
 | Métrica | Tarjeta con rótulo `.label` arriba y número `.metric` abajo | El número va en color de texto; toma color de estado solo si indica un problema. El dato de apoyo (%, promedio) va al lado, en `sm dimmed`. |
 | Consumo contra un tope | `Progress` | Verde hasta 70 %, amarillo desde 70 % y rojo desde 90 % (`usageColor`). |
 | Formulario | Inputs de Mantine + `useForm` | Una columna; label arriba; ayuda en `description`; el error, debajo del campo. |
+| Formulario largo (definición de un agente) | Una tarjeta por sección + barra `.def-toolbar` | La barra (estado, guardar, descartar) queda fija arriba desde `sm`; los errores van arriba y al hacerles click llevan al campo. Las listas editables (datos, resultados) son bloques `.def-item` plegables, con subir, bajar y quitar como `ActionIcon` con `Tooltip`. |
 | Modal | `Modal`, `confirmAction` | Botones abajo a la derecha: "Cancelar" (`default`) y la acción principal al final. |
 | Aviso al terminar una acción | `notifySuccess` / `notifyError` (`lib/notify.ts`) | Arriba a la derecha. |
 | Error que bloquea un bloque | `ErrorAlert` (`components/QueryState.tsx`) | Con "Reintentar" si se puede. |
@@ -247,7 +248,7 @@ Variables propias (`cssVariablesResolver`):
 - **Fuentes:** `@fontsource-variable/figtree`, `@fontsource-variable/bricolage-grotesque` y
   `@fontsource/ibm-plex-mono` (400 y 500, subconjunto latino), importadas en `main.tsx`.
 - **`styles.css`:** solo lo que el tema no cubre: `.label` (también los encabezados de tabla), `.mono`,
-  `.metric`, `.live-dot`, `.just-set`, `pre.code`, las burbujas, el `letter-spacing` de los títulos, el
+  `.metric`, `.live-dot`, `.just-set`, `pre.code`, las burbujas, `.def-toolbar` y `.def-item`, el `letter-spacing` de los títulos, el
   ítem seleccionado del menú y de las pestañas, y las variables de los gráficos.
 - **Sin modo oscuro:** `forceColorScheme="light"` y `data-mantine-color-scheme="light"` en `index.html`.
   No hay botón de tema, script de tema, `light-dark()` ni logos `-blanco` en `web/`.

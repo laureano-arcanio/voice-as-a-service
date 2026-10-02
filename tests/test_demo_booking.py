@@ -1,7 +1,7 @@
 """Workflow demo_booking: tipos y clasificacion del resultado (el flujo lo decide el LLM)."""
 import pytest
 
-from app.agents.templates import load_template
+from app.agents.templates import load_reference
 from app.conversation.engine import ConversationEngine
 from app.conversation.models import AgentTurn
 from app.conversation.workflow import validate_updates
@@ -11,7 +11,7 @@ from .helpers import FakeLLM, start_with, turn_and_extract
 
 @pytest.fixture
 def wf():
-    return load_template("demo_booking")
+    return load_reference("demo_booking")
 
 
 def test_types(wf):

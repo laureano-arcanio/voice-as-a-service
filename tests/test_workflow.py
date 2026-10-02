@@ -1,7 +1,12 @@
 import pytest
 from pydantic import ValidationError
 
-from app.agents.templates import load_template, template_ids
+from app.agents.templates import (
+    load_reference,
+    reference_ids,
+    template_data,
+    template_ids,
+)
 from app.conversation.models import AgentInfo, ConversationState
 from app.conversation.workflow import (
     check_updates,
@@ -74,8 +79,10 @@ def test_email_must_be_said_by_the_user(workflow):
 
 
 def test_every_workflow_has_a_voice():
+    for rid in reference_ids():
+        assert load_reference(rid).agent.voice, rid
     for tid in template_ids():
-        assert load_template(tid).agent.voice, tid
+        assert template_data(tid)["agent"]["voice"], tid
 
 
 @pytest.mark.parametrize("voice", ["default", " ", "Default"])

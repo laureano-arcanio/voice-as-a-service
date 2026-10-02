@@ -211,7 +211,7 @@ Y desde la raíz: `make up-inference` (recrea `vllm-tts`) y `make up-agent` (el 
 - El log de `vllm-tts` tiene que listar todas las voces: `Loaded 41 supported speakers: [...]`.
 - Si cambian los nombres de las voces: actualizar `VLLM_TTS_VOICE`, `tts/finetune/voces.tsv`
   (catálogo que valida la API) y `agent.voice` de los agentes (UI o `PUT /api/v1/agents/{id}/definition`)
-  y de las plantillas **al mismo tiempo**, también en los hosts que usan este TTS por el proxy
+  y de la plantilla y los agentes de referencia (`app/agents/`) **al mismo tiempo**, también en los hosts que usan este TTS por el proxy
   (modo remoto). Un nombre que no está da 400 en cada frase.
 - Si solo cambian los pesos y no el nombre del modelo ni la voz, alcanza con `make up-inference`.
 - `make up-agent` construye la imagen con el árbol de trabajo. Si hay cambios de otra sesión en

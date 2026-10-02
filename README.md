@@ -19,7 +19,7 @@ Detalle en "Motor conversacional" abajo; el diseño original esta en `docs/REFAC
 | --- | --- |
 | Tier | Límites: llamadas simultáneas, minutos entrantes y salientes por mes calendario (`BILLING_TIMEZONE`, default Buenos Aires) y cantidad de números. Vacío = ilimitado. |
 | Cliente | Tenant: un tier, sus números, agentes, usuarios y API keys. Inactivo: no llama ni atiende. |
-| Agente | Definición JSON del workflow (esquema: `GET /api/v1/agents/schema`), **versionada**: cada cambio es una versión nueva e inmutable y cada conversación guarda con cuál corrió. Se crea desde una plantilla (`app/agents/templates/*.json`). |
+| Agente | Definición JSON del workflow (esquema: `GET /api/v1/agents/schema`), **versionada**: cada cambio es una versión nueva e inmutable y cada conversación guarda con cuál corrió. Se crea en blanco o desde el asistente básico (`app/agents/templates/asistente.json`), con el motor que se elija, y se edita por formulario. |
 | Número | Inventario de los números que provee Anura (E.164, únicos). El admin los carga libres (UI > Números, o `POST /api/v1/phone-numbers/bulk`), los asigna a un cliente hasta el tope de su tier y se rutean a un agente del cliente (el admin o el propio cliente): las entrantes a ese número las atiende ese agente. Liberar lo devuelve al inventario. Bajar de tier o de tope con más números asignados da 409. Después de cargar o borrar: `make livekit-sip`. |
 | Usuario | `admin` (opera la plataforma) o `client` (ve lo de su cliente, llama y maneja sus API keys). |
 
@@ -244,7 +244,7 @@ Acierto del dato completo; en direccion, completa / calle + altura:
 | | `tel8k_cuts` | 20% | 69% | 71% | **61%** / 75% |
 
 - **Los emails dictados son el punto debil de los tres** (20-40% en telefonico). Es el unico dato
-  personal que hoy pide el workflow del agente (`app/agents/templates/sales_discovery.json`), asi que es lo que mas conviene
+  personal que hoy pide el workflow del agente (`app/agents/reference/sales_discovery.json`), asi que es lo que mas conviene
   atacar: repetir el dato al cliente para confirmarlo, o pedirlo deletreado.
 - Con audio telefonico, Parakeet y Qwen3-ASR van parejos y arriba de Whisper en email y DNI.
 - Whisper es el mejor con audio limpio (email 41%) y el que mas cae al pasar a telefonico (20%).
@@ -432,9 +432,10 @@ app/
   api/                       FastAPI: deps (auth y permisos), schemas, routers por recurso
   services/                  negocio sin HTTP: quota (limites), calls, agents, reports, security, tts, voices
   agents/
-    templates/*.json         plantillas de agentes (antes app/workflows/*.yml)
+    templates/asistente.json plantilla de la UI: el asistente basico
+    reference/*.json         agentes de referencia: seed, eval y tests (antes app/workflows/*.yml)
     definitions.py           DbDefinitions: versiones de la base, cacheadas (inmutables)
-    templates.py             TemplateDefinitions: plantillas (eval y tests)
+    templates.py             plantilla, agente en blanco y ReferenceDefinitions (eval y tests)
   voice/
     worker.py                worker de LiveKit: STT -> motor -> TTS, entrantes por numero, corte por minutos
     latency.py               latencia por turno: EOU + LLM + TTS
@@ -501,7 +502,7 @@ esperado. Con N=5 (sep-2026), antes y después de separar la extracción: datos 
 inventados o equivocados 6 → 2, resultado correcto 10 → 15 de 15.
 
 **Eval de calidad del LLM** (`make eval-llm`, `docs/EVAL_LLM_PLAN.md`, resultados en `docs/eval/`): corre el
-motor por texto contra agentes de cobranza, relevamiento, toma de datos, turnos y venta (`app/agents/templates/eval_*.json`)
+motor por texto contra agentes de cobranza, relevamiento, toma de datos, turnos y venta (`app/agents/reference/eval_*.json`)
 con clientes cooperativos, apurados, confusos, hostiles, evasivos y fuera de guion, actuados por un LLM externo
 (DeepSeek, `EVAL_LLM_*`) o por guion fijo. Mide datos contra la ficha, cierre, reglas de voz, loops y latencia, y
 un juez califica la conversación. Sirve para comparar modelos LLM y motores (`--engine structured`).
@@ -513,9 +514,12 @@ busca agendar una demo (todo como guía en la definición; el LLM decide el orde
 `demo_booking_classic` es el mismo con `engine: classic` y es el de `ANURA_DID` en el seed (`WORKFLOW_ID`): en el loadtest
 (EXP-013) baja la espera del cliente ~0,5 s con 32 llamadas y ~0,8 s con 48, con la mitad de pedidos al LLM.
 
-**Nuevo agente:** en la UI (Agentes > Nuevo agente) o `POST /api/v1/agents` con `template_id`
-(una de `app/agents/templates/`) o `definition` (JSON). `id` y `version` de la definición los fija
-la app (slug y versión). `engine: structured` (default) o `classic` elige el motor. Por campo:
+**Nuevo agente:** en la UI (Agentes > Nuevo agente) o `POST /api/v1/agents` con `definition` (JSON),
+`template_id: "asistente"` (el asistente básico) o ninguno de los dos (en blanco: un dato y el resultado
+por defecto), y `engine` (`classic` o `structured`), que pisa el de la definición. La definición es la
+misma con los dos motores: solo cambia cómo se le pide la respuesta al LLM. `id` y `version` de la
+definición los fija la app (slug y versión). El prompt de sistema sale siempre de la definición
+(`POST /api/v1/agents/prompt` lo muestra sin guardar). Por campo:
 - `type`: `string`, `integer`, `boolean`, `email`, `email_or_phone` o `choice` (con `options`).
 - `required` o `required_if` (solo igualdades); los no obligatorios se guardan si el usuario los dice.
 - `question` es una pregunta sugerida; las reglas y la base de conocimiento guían al LLM.

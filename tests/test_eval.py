@@ -4,7 +4,7 @@ import random
 
 import pytest
 
-from app.agents.templates import load_template
+from app.agents.templates import load_reference
 from app.conversation.models import ConversationState
 from app.conversation.workflow import outcome_for
 from scripts.eval import checks
@@ -28,13 +28,13 @@ def _strings(obj):
 
 @pytest.mark.parametrize("wid", EVAL_WORKFLOWS)
 def test_eval_workflows_load_in_both_engines(wid):
-    assert load_template(wid).engine == "classic"
-    s = load_template(f"{wid}_structured")
-    assert s.engine == "structured" and s.fields == load_template(wid).fields
+    assert load_reference(wid).engine == "classic"
+    s = load_reference(f"{wid}_structured")
+    assert s.engine == "structured" and s.fields == load_reference(wid).fields
 
 
 def test_cobranza_outcomes():
-    wf = load_template("eval_cobranza")
+    wf = load_reference("eval_cobranza")
 
     def outcome(**fields):
         st = ConversationState(conversation_id="x", agent_id=wf.id, fields={**{f: None for f in wf.fields}, **fields})
@@ -53,10 +53,10 @@ def test_all_groups_have_filled_scenarios():
     escs = escenarios(grupos, reps=2, seed=1)
     assert len(escs) >= 2 * 6 * 5
     for e in escs:
-        load_template(e.agente)
+        load_reference(e.agente)
         for texto in _strings([e.estilo, e.ficha, e.esperado, e.guion or []]):
             assert "{" not in texto, f"{e.id}: variable sin rellenar en {texto[:80]}"
-        assert set(e.esperado["fields"]) <= set(load_template(e.agente).fields), e.id
+        assert set(e.esperado["fields"]) <= set(load_reference(e.agente).fields), e.id
         assert e.esperado["outcome"]
     # Misma semilla, misma ficha; otra repeticion, otra ficha.
     assert generar(1, "datos", "cooperativo", 0) == generar(1, "datos", "cooperativo", 0)

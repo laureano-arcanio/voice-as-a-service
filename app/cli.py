@@ -9,9 +9,9 @@
 seed deja lo minimo para operar despues de migrar (todo idempotente: solo crea lo que falta):
 - tier "Interno" (sin limites) y cliente "atentina" (nosotros): loadtest, pruebas, la demo de la
   landing y el numero y el WhatsApp propios;
-- sus agentes de SEED_TEMPLATES (el comercial y el del test de capacidad) y uno por plantilla
-  landing_* (slug sin el prefijo), los que atiende la demo (/api/v1/demo, DEMO_AGENTS). Las demas
-  plantillas (eval, pruebas) no se siembran: se crean a pedido desde la UI o la API;
+- sus agentes de SEED_AGENTS (el comercial y el del test de capacidad) y uno por agente de
+  referencia landing_* (slug sin el prefijo), los que atiende la demo (/api/v1/demo, DEMO_AGENTS).
+  Salen de app/agents/reference/; los demas de ahi (eval, tests) no se siembran;
 - el numero de Anura (ANURA_DID), atendido por el agente WORKFLOW_ID (demo_booking_classic si no esta);
 - el admin ADMIN_EMAIL / ADMIN_PASSWORD si no existe.
 """
@@ -23,7 +23,7 @@ import sys
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .agents.templates import load_template, template_ids
+from .agents.templates import load_reference, reference_data, reference_ids
 from .config import settings
 from .db import get_sessionmaker, utcnow
 from .models import (
@@ -42,8 +42,8 @@ INTERNAL_TIER = "Interno"
 INTERNAL_CLIENT = "atentina"
 # Agentes de Atentina que el seed crea si faltan: el comercial (numero y WhatsApp propios) y el
 # del test de capacidad (scripts/capacity/perfiles/_comun.yml, comparable con CAP-001).
-SEED_TEMPLATES = ("atentina_comercial", "demo_booking_classic")
-DEMO_TEMPLATE_PREFIX = "landing_"
+SEED_AGENTS = ("atentina_comercial", "demo_booking_classic")
+DEMO_PREFIX = "landing_"
 
 
 def _log(msg: str) -> None:
@@ -68,23 +68,23 @@ def _client(s: Session, slug: str) -> Client:
     return client
 
 
-def _ensure_agents(s: Session, client: Client, templates: dict[str, str]) -> None:
-    """templates: slug -> plantilla. Crea los agentes que faltan."""
+def _ensure_agents(s: Session, client: Client, agents: dict[str, str]) -> None:
+    """agents: slug -> agente de referencia. Crea los que faltan."""
     existing = set(s.scalars(select(Agent.slug).where(Agent.client_id == client.id)))
-    for slug, tid in templates.items():
+    for slug, rid in agents.items():
         if slug in existing:
             continue
-        w = load_template(tid)
-        agent_service.create_agent(s, client, name=slug.capitalize() if tid != slug else slug, slug=slug,
-                                   description=f"{w.agent.name}, {w.agent.role}", definition=None,
-                                   template_id=tid, user_id=None)
+        w = load_reference(rid)
+        agent_service.create_agent(s, client, name=slug.capitalize() if rid != slug else slug, slug=slug,
+                                   description=f"{w.agent.name}, {w.agent.role}", definition=reference_data(rid),
+                                   template_id=None, user_id=None)
         _log(f"agente {slug} de {client.slug} creado")
     s.flush()
 
 
 def seed(s: Session) -> None:
     client = _client(s, INTERNAL_CLIENT)
-    _ensure_agents(s, client, {tid: tid for tid in SEED_TEMPLATES})
+    _ensure_agents(s, client, {rid: rid for rid in SEED_AGENTS})
 
     did = os.getenv("ANURA_DID", "").strip()
     if did:
@@ -110,8 +110,8 @@ def seed(s: Session) -> None:
 def seed_demo(s: Session) -> None:
     """Los agentes de la demo de la landing, en DEMO_CLIENT (Atentina)."""
     client = _client(s, settings.demo_client)
-    _ensure_agents(s, client, {tid.removeprefix(DEMO_TEMPLATE_PREFIX): tid for tid in template_ids()
-                               if tid.startswith(DEMO_TEMPLATE_PREFIX)})
+    _ensure_agents(s, client, {rid.removeprefix(DEMO_PREFIX): rid for rid in reference_ids()
+                               if rid.startswith(DEMO_PREFIX)})
 
 
 def create_admin(s: Session, email: str, password: str) -> None:

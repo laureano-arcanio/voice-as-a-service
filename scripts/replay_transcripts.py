@@ -14,7 +14,7 @@ import unicodedata
 from app import config
 from app.conversation.engine import ConversationEngine
 from app.conversation.store import ConversationStore
-from app.agents.templates import load_template
+from app.agents.templates import load_reference
 from app.llm.client import LLMClient
 
 # Esperado por campo: texto = el valor lo contiene (sin tildes ni mayusculas);
@@ -90,7 +90,7 @@ async def run(engine, scenario, workflow_id):
     await engine.finish(cid)     # como al cortar la llamada: en el clasico, la extraccion final
     state = engine.store.get(cid)
     # El clasico no declara que pregunta: las repreguntas no se pueden contar.
-    classic = load_template(workflow_id).engine == "classic"
+    classic = load_reference(workflow_id).engine == "classic"
     return state, log, None if classic else sum(n - 1 for n in asks.values() if n > 1)
 
 

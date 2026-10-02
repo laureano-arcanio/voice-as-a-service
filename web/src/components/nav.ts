@@ -2,6 +2,7 @@ import {
   IconBuilding,
   IconFileInvoice,
   IconHome,
+  IconMessages,
   IconMicrophone,
   IconPhone,
   IconRobot,
@@ -22,6 +23,7 @@ export interface NavItem {
 // Las pantallas solo de admin van juntas al final, bajo el rotulo "Administración".
 export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Inicio', icon: IconHome, roles: ['admin', 'client'] },
+  { to: '/calls', label: 'Conversaciones', icon: IconMessages, roles: ['admin', 'client'] },
   { to: '/agents', label: 'Agentes', icon: IconRobot, roles: ['admin', 'client'] },
   { to: '/voices', label: 'Voces', icon: IconMicrophone, roles: ['admin', 'client'] },
   { to: '/whatsapp', label: 'WhatsApp', icon: IconBrandWhatsapp, roles: ['admin', 'client'] },

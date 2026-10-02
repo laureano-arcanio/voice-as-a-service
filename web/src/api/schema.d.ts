@@ -311,6 +311,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/agents/prompt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Prompt
+         * @description El prompt que arma el motor con esta definicion (sin guardarla): el system prompt sale
+         *     siempre de la definicion. classic: todo el agente en el prompt de sistema; structured: un
+         *     prompt de sistema fijo y la definicion en cada turno.
+         */
+        post: operations["preview_prompt_api_v1_agents_prompt_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/agent-templates": {
         parameters: {
             query?: never;
@@ -852,6 +874,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/whatsapp/threads/{conversation_id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Close Thread
+         * @description Cierra una conversacion de WhatsApp: el proximo mensaje del contacto empieza otra, con la
+         *     version vigente del agente. Esta queda en el historial. Cerrar una ya cerrada no hace nada.
+         */
+        post: operations["close_thread_api_v1_whatsapp_threads__conversation_id__close_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/demo/sessions": {
         parameters: {
             query?: never;
@@ -929,6 +972,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/demo/contact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send Contact
+         * @description Formulario de contacto de la landing: guarda el pedido y avisa por mail (Resend).
+         */
+        post: operations["send_contact_api_v1_demo_contact_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -955,6 +1018,11 @@ export interface components {
             } | null;
             /** Template Id */
             template_id?: string | null;
+            /**
+             * Engine
+             * @description Motor; pisa el de la definicion o la plantilla (la definicion es la misma)
+             */
+            engine?: ("classic" | "structured") | null;
         };
         /** AgentDetail */
         AgentDetail: {
@@ -1385,6 +1453,38 @@ export interface components {
             /** Messages */
             messages: components["schemas"]["DemoMessage"][];
         };
+        /** DemoContactIn */
+        DemoContactIn: {
+            /** Name */
+            name: string;
+            /**
+             * Company
+             * @default
+             */
+            company?: string;
+            /** Email */
+            email?: string | null;
+            /**
+             * Phone
+             * @default
+             */
+            phone?: string;
+            /**
+             * Message
+             * @default
+             */
+            message?: string;
+            /**
+             * Page
+             * @default
+             */
+            page?: string;
+            /**
+             * Website
+             * @default
+             */
+            website?: string;
+        };
         /** DemoField */
         DemoField: {
             /** Name */
@@ -1615,6 +1715,34 @@ export interface components {
             label?: string | null;
             /** Agent Id */
             agent_id?: string | null;
+        };
+        /** PromptIn */
+        PromptIn: {
+            /** Definition */
+            definition: {
+                [key: string]: unknown;
+            };
+            /**
+             * Channel
+             * @default voice
+             * @enum {string}
+             */
+            channel?: "voice" | "whatsapp";
+        };
+        /** PromptOut */
+        PromptOut: {
+            /** Engine */
+            engine: string;
+            /**
+             * System
+             * @description Prompt de sistema
+             */
+            system: string;
+            /**
+             * Workflow
+             * @description structured: la definicion que va en cada turno
+             */
+            workflow?: string | null;
         };
         /** SkippedNumber */
         SkippedNumber: {
@@ -2143,6 +2271,11 @@ export interface components {
             account_id: string;
             /** Last User At */
             last_user_at: string | null;
+            /**
+             * Closed At
+             * @description Cerrada: el proximo mensaje empieza otra conversacion
+             */
+            closed_at?: string | null;
             /** Failed Messages */
             failed_messages: number;
             /** Last Error */
@@ -2837,6 +2970,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ValidationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_prompt_api_v1_agents_prompt_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromptIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptOut"];
                 };
             };
             /** @description Validation Error */
@@ -4064,6 +4230,35 @@ export interface operations {
             };
         };
     };
+    close_thread_api_v1_whatsapp_threads__conversation_id__close_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_session_api_v1_demo_sessions_post: {
         parameters: {
             query?: never;
@@ -4198,6 +4393,44 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    send_contact_api_v1_demo_contact_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemoContactIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Limite por IP */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

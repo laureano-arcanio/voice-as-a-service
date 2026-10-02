@@ -13,7 +13,7 @@ import {
   Text,
   Title,
 } from '@mantine/core';
-import { IconArrowLeft } from '@tabler/icons-react';
+import { IconArrowLeft, IconMessageOff } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { ApiError } from '@/api/errors';
@@ -26,11 +26,13 @@ import {
   OutcomeBadge,
   WorkflowBadge,
 } from '@/components/Badges';
+import { confirmAction } from '@/components/confirm';
 import { PageHeader } from '@/components/PageHeader';
 import { ErrorAlert, QueryState } from '@/components/QueryState';
 import { useIsAdmin } from '@/features/auth/api';
 import { formatDateTimeLong, formatDuration, formatValue } from '@/lib/format';
-import { isCallLive, useCallDetail } from './api';
+import { notifyError, notifySuccess } from '@/lib/notify';
+import { isCallLive, useCallDetail, useCloseWhatsApp } from './api';
 import { ChatView } from './ChatView';
 import { LatencyCard } from './LatencyCard';
 import { useFreshFields } from './useFreshFields';
@@ -225,6 +227,35 @@ function ChatCard({ c, live }: { c: CallDetail; live: boolean }) {
   );
 }
 
+/** Cierra el chat: el proximo mensaje del contacto empieza otra conversacion, con la version
+ * vigente del agente (esta corre siempre con la version con que empezo). */
+function CloseWhatsAppButton({ c }: { c: CallDetail }) {
+  const close = useCloseWhatsApp(c.id);
+  const who = c.whatsapp?.contact_name || c.whatsapp?.wa_id;
+  const run = async () => {
+    const ok = await confirmAction({
+      title: 'Cerrar conversación',
+      message: `¿Cerrar la conversación con ${who}? El próximo mensaje de este contacto empieza una conversación nueva, con la versión vigente del agente. Esta queda en el historial.`,
+      confirmLabel: 'Cerrar',
+    });
+    if (!ok) return;
+    close.mutate(undefined, {
+      onSuccess: () => notifySuccess('Conversación cerrada.'),
+      onError: (e) => notifyError(e, 'No se pudo cerrar. Probá de nuevo.'),
+    });
+  };
+  return (
+    <Button
+      variant="default"
+      leftSection={<IconMessageOff size={18} />}
+      onClick={() => void run()}
+      loading={close.isPending}
+    >
+      Cerrar conversación
+    </Button>
+  );
+}
+
 export function CallDetailPage() {
   const { id } = useParams();
   const query = useCallDetail(id);
@@ -234,13 +265,13 @@ export function CallDetailPage() {
   const back = (
     <Button
       component={Link}
-      to="/"
+      to="/calls"
       variant="subtle"
       size="compact-sm"
       leftSection={<IconArrowLeft size={16} />}
       w="fit-content"
     >
-      Volver al inicio
+      Conversaciones
     </Button>
   );
 
@@ -262,7 +293,13 @@ export function CallDetailPage() {
           <Group gap="sm" component="span">
             Conversación
             {query.data && <WorkflowBadge status={query.data.workflow_status} />}
+            {query.data?.whatsapp?.closed_at && <Badge color="gray">Cerrada</Badge>}
           </Group>
+        }
+        actions={
+          query.data?.whatsapp && !query.data.whatsapp.closed_at ? (
+            <CloseWhatsAppButton c={query.data} />
+          ) : undefined
         }
       />
       <QueryState query={query}>

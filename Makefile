@@ -193,13 +193,13 @@ eval-llamadas: ## Llamadas reales de berlin_signup repetidas tal cual: datos, re
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts app python -m scripts.replay_transcripts $(or $(N),1) $(S) $(if $(W),-w=$(W))
 
 eval-llm: ## Eval de calidad del LLM por tipo de agente y de cliente (scripts/eval, docs/EVAL_LLM_PLAN.md). Ej: make eval-llm ARGS="--humo --cliente guion"
-	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app/agents/templates:/app/app/agents/templates -e GIT_REV=$$(git rev-parse --short HEAD) app python -m scripts.eval.run $(ARGS)
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app/agents:/app/app/agents -e GIT_REV=$$(git rev-parse --short HEAD) app python -m scripts.eval.run $(ARGS)
 
 eval-llm-juez: ## Califica un run con el juez (EVAL_LLM_*). Ej: make eval-llm-juez RUN=scripts/eval/runs/<run> [ARGS="--pareado <otro run>"]
-	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app/agents/templates:/app/app/agents/templates -e GIT_REV=$$(git rev-parse --short HEAD) app python -m scripts.eval.juez $(RUN) $(ARGS)
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app/agents:/app/app/agents -e GIT_REV=$$(git rev-parse --short HEAD) app python -m scripts.eval.juez $(RUN) $(ARGS)
 
 eval-llm-report: ## Resumen y report.html de un run del eval. Ej: make eval-llm-report RUN=scripts/eval/runs/<run> [ARGS="--comparar <otro run>"]
-	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app/agents/templates:/app/app/agents/templates app python -m scripts.eval.analyze $(RUN) $(ARGS)
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app/agents:/app/app/agents app python -m scripts.eval.analyze $(RUN) $(ARGS)
 
 # --- Loadtest (anterior al test de capacidad, docs/archive/) y eval ------
 

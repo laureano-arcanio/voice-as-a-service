@@ -178,7 +178,7 @@ Con los campos estables (CPU, RAM, placa, GPUs y su slot PCIe, power limit) se c
 - Commit de git y si hay cambios sin commitear (el diff queda guardado en el run).
 - Lo que ya guarda `sampler.py` en `meta.json`: imagen, args y GPU de cada servicio, versiones de vLLM/torch, archivos de compose.
 - Variables de capacidad de `.env` (`VLLM_LLM_MAX_NUM_SEQS`, `STT_MAX_BATCH`, ...), con los secretos enmascarados.
-- Agente (slug y hash de su plantilla JSON; antes del YAML), checkpoint y voz del TTS, modelo del LLM, versión de LiveKit (server y agents).
+- Agente (slug y hash de su definición de referencia, `app/agents/reference/`, con su motor; antes del texto del JSON y del YAML), checkpoint y voz del TTS, modelo del LLM, versión de LiveKit (server y agents).
 - Perfil de carga y guiones (nombre, versión y hash).
 - Un **`config_id`** (hash) análogo a `hw_id`.
 

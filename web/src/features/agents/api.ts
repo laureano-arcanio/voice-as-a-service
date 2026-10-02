@@ -130,3 +130,16 @@ export function useDeleteAgent() {
 export function validateDefinition(definition: Definition, signal?: AbortSignal) {
   return unwrap(api.POST('/api/v1/agents/validate', { body: { definition }, signal }));
 }
+
+/** El prompt que arma el motor con esta definicion, sin guardarla. */
+export function usePromptPreview(definition: Definition, channel: 'voice' | 'whatsapp', enabled: boolean) {
+  return useQuery({
+    queryKey: ['agents', 'prompt', channel, definition],
+    queryFn: ({ signal }) =>
+      unwrap(api.POST('/api/v1/agents/prompt', { body: { definition, channel }, signal })),
+    enabled,
+    staleTime: Infinity,
+    gcTime: 30_000,
+    retry: false,
+  });
+}

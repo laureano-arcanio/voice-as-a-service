@@ -28,16 +28,18 @@ class ConversationEngine:
     Segun el engine del workflow: structured extrae en cada turno y le pasa el
     estado al LLM (JSON con answered y next_objective); classic conversa en
     texto con el prompt del workflow, sin estado, y extrae una sola vez al final.
+    El canal no cambia el trabajo del motor (los pedidos al LLM son los mismos por
+    llamada, WhatsApp o API): solo el formato que se pide en el prompt (app/llm/prompt.py).
 
-    definitions: de donde salen los workflows (agentes de la base o plantillas;
-    app/agents). Sin pasarla, las plantillas del repo (eval y tests)."""
+    definitions: de donde salen los workflows (agentes de la base o de referencia;
+    app/agents). Sin pasarla, los agentes de referencia del repo (eval y tests)."""
 
     def __init__(self, llm, store: ConversationStore, definitions: "DefinitionSource | None" = None):
-        from ..agents.templates import TemplateDefinitions
+        from ..agents.templates import ReferenceDefinitions
 
         self.llm = llm
         self.store = store
-        self.definitions = definitions or TemplateDefinitions()
+        self.definitions = definitions or ReferenceDefinitions()
         self.extractions: dict[str, list[asyncio.Task]] = {}   # extracciones en curso por conversacion, en orden
 
     def workflow(self, state: ConversationState) -> Workflow:
@@ -111,8 +113,9 @@ class ConversationEngine:
                            Message(role="assistant", text=result.assistant_message, llm=trace)]
         self.store.save(state)
 
-        # Por WhatsApp no hay corte de llamada que dispare finish(): el clasico extrae en cada turno.
-        if not classic or result.status == "completed" or state.channel == "whatsapp":
+        # Igual en todos los canales: el clasico extrae al despedirse o al terminar la
+        # conversacion (finish: el corte de la llamada, o el cierre o vencimiento del chat).
+        if not classic or result.status == "completed":
             self._launch_extraction(conversation_id, len(state.messages) - 1, asked if result.answered else None)
         return state, result
 
@@ -139,8 +142,9 @@ class ConversationEngine:
         return task
 
     async def finish(self, conversation_id: str, timeout: float = 10) -> None:
-        """Al cortar la llamada: espera la extraccion en curso. En el clasico,
-        si corto el cliente antes de la despedida, hace ahora la extraccion final."""
+        """Al terminar la conversacion (corte de la llamada; cierre, tope o vencimiento de un
+        chat de WhatsApp): espera la extraccion en curso. En el clasico, si termino antes de
+        la despedida, hace ahora la extraccion final."""
         await self.wait_extraction(conversation_id, timeout)
         state = self.store.get(conversation_id)
         if (state is None or state.status == "completed" or len(state.messages) < 2

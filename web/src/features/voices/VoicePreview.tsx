@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { errorMessage } from '@/api/errors';
 import { formatClock, formatNumber } from '@/lib/format';
 import { useTtsPreview } from './api';
+import { voiceName } from './names';
 
 export const DEFAULT_PREVIEW_TEXT =
   'Hola, ¿qué tal? Te hablo de Voz Directa. Te llamo porque dejaste tus datos en nuestra web pidiendo una demo del asistente telefónico. Si te parece, coordinamos una videollamada de veinte minutos esta semana para mostrarte cómo funciona con tus clientes. Atiende las llamadas las veinticuatro horas, agenda turnos y responde las consultas más frecuentes, con una voz natural como esta. ¿Qué día y horario te queda cómodo?';
@@ -17,11 +18,14 @@ const MAX_CHARS = 600;
 export function VoicePreview({
   voice,
   compact = false,
+  initialText,
 }: {
   voice: string | null | undefined;
   compact?: boolean;
+  /** Texto de partida (ej. la apertura del agente); sin el, uno de ejemplo. */
+  initialText?: string;
 }) {
-  const [text, setText] = useState(DEFAULT_PREVIEW_TEXT);
+  const [text, setText] = useState(() => (initialText?.trim() || DEFAULT_PREVIEW_TEXT).slice(0, MAX_CHARS));
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState({ current: 0, duration: 0 });
   const [msg, setMsg] = useState<{ text: string; bad: boolean } | null>(null);
@@ -54,7 +58,7 @@ export function VoicePreview({
     if (!t) return setMsg({ text: 'Escribí un texto.', bad: true });
     const key = `${voice}\n${t}`;
     if (cache.current?.key !== key) {
-      setMsg({ text: `Generando con ${voice}…`, bad: false });
+      setMsg({ text: `Generando con ${voiceName(voice)}…`, bad: false });
       const t0 = performance.now();
       try {
         const blob = await tts.mutateAsync({ voice, text: t });
@@ -62,7 +66,7 @@ export function VoicePreview({
         cache.current = { key, url: URL.createObjectURL(blob) };
         audio.src = cache.current.url;
         setMsg({
-          text: `${voice} · ${t.length} caracteres · generado en ${formatNumber((performance.now() - t0) / 1000)} s`,
+          text: `${voiceName(voice)} · ${t.length} caracteres · generado en ${formatNumber((performance.now() - t0) / 1000)} s`,
           bad: false,
         });
       } catch (e) {
@@ -119,7 +123,7 @@ export function VoicePreview({
       </Group>
       <Text size="xs" c={msg?.bad ? 'red' : 'dimmed'}>
         {msg?.text ??
-          `Escuchá ${voice ? `la voz ${voice}` : 'la voz elegida'} con este texto (editalo si querés). Va directo al TTS, sin llamada.`}
+          `Escuchá ${voice ? voiceName(voice) : 'la voz elegida'} con este texto (editalo si querés). Va directo al TTS, sin llamada.`}
       </Text>
       <audio
         ref={audioRef}

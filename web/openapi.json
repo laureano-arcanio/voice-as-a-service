@@ -1038,6 +1038,53 @@
     ]
    }
   },
+  "/api/v1/agents/prompt": {
+   "post": {
+    "tags": [
+     "agents"
+    ],
+    "summary": "Preview Prompt",
+    "description": "El prompt que arma el motor con esta definicion (sin guardarla): el system prompt sale\nsiempre de la definicion. classic: todo el agente en el prompt de sistema; structured: un\nprompt de sistema fijo y la definicion en cada turno.",
+    "operationId": "preview_prompt_api_v1_agents_prompt_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PromptIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PromptOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
   "/api/v1/agent-templates": {
    "get": {
     "tags": [
@@ -3199,6 +3246,47 @@
     }
    }
   },
+  "/api/v1/whatsapp/threads/{conversation_id}/close": {
+   "post": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "Close Thread",
+    "description": "Cierra una conversacion de WhatsApp: el proximo mensaje del contacto empieza otra, con la\nversion vigente del agente. Esta queda en el historial. Cerrar una ya cerrada no hace nada.",
+    "operationId": "close_thread_api_v1_whatsapp_threads__conversation_id__close_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "conversation_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Conversation Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/demo/sessions": {
    "post": {
     "tags": [
@@ -3380,6 +3468,49 @@
      }
     ]
    }
+  },
+  "/api/v1/demo/contact": {
+   "post": {
+    "tags": [
+     "demo"
+    ],
+    "summary": "Send Contact",
+    "description": "Formulario de contacto de la landing: guarda el pedido y avisa por mail (Resend).",
+    "operationId": "send_contact_api_v1_demo_contact_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DemoContactIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "429": {
+      "description": "Limite por IP"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
   }
  },
  "components": {
@@ -3436,6 +3567,22 @@
        }
       ],
       "title": "Template Id"
+     },
+     "engine": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "classic",
+         "structured"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Engine",
+      "description": "Motor; pisa el de la definicion o la plantilla (la definicion es la misma)"
      }
     },
     "type": "object",
@@ -4781,6 +4928,65 @@
     ],
     "title": "DemoCallResult"
    },
+   "DemoContactIn": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "company": {
+      "type": "string",
+      "maxLength": 120,
+      "title": "Company",
+      "default": ""
+     },
+     "email": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "email"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Email"
+     },
+     "phone": {
+      "type": "string",
+      "maxLength": 40,
+      "pattern": "^$|^[0-9+()\\- ]{6,40}$",
+      "title": "Phone",
+      "default": ""
+     },
+     "message": {
+      "type": "string",
+      "maxLength": 2000,
+      "title": "Message",
+      "default": ""
+     },
+     "page": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^$|^/[a-z0-9/_-]*$",
+      "title": "Page",
+      "default": ""
+     },
+     "website": {
+      "type": "string",
+      "maxLength": 200,
+      "title": "Website",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "name"
+    ],
+    "title": "DemoContactIn"
+   },
    "DemoField": {
     "properties": {
      "name": {
@@ -5429,6 +5635,60 @@
     },
     "type": "object",
     "title": "PhoneNumberUpdate"
+   },
+   "PromptIn": {
+    "properties": {
+     "definition": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Definition"
+     },
+     "channel": {
+      "type": "string",
+      "enum": [
+       "voice",
+       "whatsapp"
+      ],
+      "title": "Channel",
+      "default": "voice"
+     }
+    },
+    "type": "object",
+    "required": [
+     "definition"
+    ],
+    "title": "PromptIn"
+   },
+   "PromptOut": {
+    "properties": {
+     "engine": {
+      "type": "string",
+      "title": "Engine"
+     },
+     "system": {
+      "type": "string",
+      "title": "System",
+      "description": "Prompt de sistema"
+     },
+     "workflow": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Workflow",
+      "description": "structured: la definicion que va en cada turno"
+     }
+    },
+    "type": "object",
+    "required": [
+     "engine",
+     "system"
+    ],
+    "title": "PromptOut"
    },
    "SkippedNumber": {
     "properties": {
@@ -6863,6 +7123,18 @@
        }
       ],
       "title": "Last User At"
+     },
+     "closed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Closed At",
+      "description": "Cerrada: el proximo mensaje empieza otra conversacion"
      },
      "failed_messages": {
       "type": "integer",

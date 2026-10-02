@@ -10,14 +10,17 @@ El token y el PIN nunca salen en una respuesta (solo has_token y has_pin).
 Flujo de mensajes: app/whatsapp/service.py; alta: app/whatsapp/signup.py; plan en
 docs/WHATSAPP_PLAN.md.
 """
+from typing import Annotated
+
 from fastapi import APIRouter, Depends
 
 from ...config import settings
-from ...models import Agent, Client, WaAccount
+from ...models import Agent, Client, WaAccount, WaThread
 from ...services.errors import Forbidden, NotFound
 from ...services.ratelimit import Limit
 from ...services.security import Principal
 from ...whatsapp import signup, store
+from ...whatsapp.service import WhatsAppService, get_service
 from ..deps import (
     DB,
     AdminPrincipal,
@@ -186,3 +189,19 @@ async def create_template(account_id: str, body: WaTemplateIn, p: CurrentPrincip
     result = await signup.create_template(db, a, payload)
     return WaTemplateCreated(id=str(result.get("id") or ""), status=result.get("status"),
                              category=result.get("category"))
+
+
+@router.post("/threads/{conversation_id}/close", status_code=204)
+async def close_thread(conversation_id: str, p: CurrentPrincipal, db: DB,
+                       service: Annotated[WhatsAppService, Depends(get_service)]):
+    """Cierra una conversacion de WhatsApp: el proximo mensaje del contacto empieza otra, con la
+    version vigente del agente. Esta queda en el historial. Es su fin, como el corte de una
+    llamada (extraccion final del clasico). Cerrar una ya cerrada no hace nada."""
+    thread = db.get(WaThread, conversation_id)
+    if thread is None or not p.can_access(thread.client_id):
+        raise NotFound("Conversación de WhatsApp inexistente")
+    if thread.closed_at is not None:
+        return
+    store.close_thread(db, thread)
+    db.commit()
+    service.end(conversation_id)

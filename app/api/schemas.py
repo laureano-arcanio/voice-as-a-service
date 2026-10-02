@@ -299,9 +299,11 @@ class AgentCreate(BaseModel):
     name: str = Field(min_length=1, max_length=128)
     slug: str | None = Field(default=None, pattern=SLUG, description="Sin slug, se arma del nombre")
     description: str = ""
-    # Uno de los dos: la definicion (workflow JSON) o una plantilla de partida.
+    # La definicion (workflow JSON), la plantilla de partida (GET /agent-templates) o ninguna: en blanco.
     definition: dict[str, Any] | None = None
     template_id: str | None = None
+    engine: Literal["classic", "structured"] | None = Field(
+        default=None, description="Motor; pisa el de la definicion o la plantilla (la definicion es la misma)")
 
 
 class AgentUpdate(BaseModel):
@@ -317,6 +319,17 @@ class DefinitionIn(BaseModel):
 class ValidationOut(BaseModel):
     valid: bool
     errors: list[dict] = []
+
+
+class PromptIn(BaseModel):
+    definition: dict[str, Any]
+    channel: Literal["voice", "whatsapp"] = "voice"
+
+
+class PromptOut(BaseModel):
+    engine: str
+    system: str = Field(description="Prompt de sistema")
+    workflow: str | None = Field(default=None, description="structured: la definicion que va en cada turno")
 
 
 class AgentOut(ORM):
@@ -495,6 +508,7 @@ class WhatsAppInfo(BaseModel):
     business_number: str | None
     account_id: str
     last_user_at: str | None
+    closed_at: str | None = Field(default=None, description="Cerrada: el proximo mensaje empieza otra conversacion")
     failed_messages: int
     last_error: dict | None
 

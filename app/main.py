@@ -3,6 +3,8 @@
 Publicada a internet por el tunel (app.atentina.com.ar, sin Cloudflare Access): tope de
 cuerpo, chequeo de Origin (CSRF) y headers de seguridad con CSP en api/http.py.
 """
+import asyncio
+import contextlib
 import logging
 from typing import Annotated
 
@@ -38,16 +40,26 @@ from .api.routers import (
 from .config import settings
 from .services.demo import allowed_origins
 from .whatsapp import webhook as wa_webhook
+from .whatsapp.service import sweep_loop
 
 logger = logging.getLogger(__name__)
 API_PREFIX = "/api/v1"
+
+
+@contextlib.asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Fin de los chats de WhatsApp vencidos, como el corte de una llamada (app/whatsapp/service.py).
+    sweep = asyncio.create_task(sweep_loop())
+    yield
+    sweep.cancel()
 
 
 def create_app() -> FastAPI:
     if not settings.auth_secret:
         raise RuntimeError("Falta AUTH_SECRET en .env (firma de las sesiones): `openssl rand -hex 32`")
     # Docs y OpenAPI propios (abajo), no los publicos de FastAPI. `make openapi` usa app.openapi().
-    app = FastAPI(title="Voice as a Service", version="1.0.0", docs_url=None, openapi_url=None, redoc_url=None)
+    app = FastAPI(title="Voice as a Service", version="1.0.0", docs_url=None, openapi_url=None, redoc_url=None,
+                  lifespan=lifespan)
     errors.install(app)
     wa_webhook.install_logging()
     # Middlewares: el ultimo agregado es el de afuera. Orden de afuera hacia adentro:

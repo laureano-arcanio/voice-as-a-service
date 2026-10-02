@@ -1,6 +1,7 @@
 """API: auth, permisos por cliente, tiers, clientes, agentes versionados, numeros y llamadas."""
 import pytest
 
+from app.agents.templates import reference_data
 from app.conversation.models import AgentTurn
 from app.models import CallMode, CallRow, CallStatus, Role, User
 from app.services.security import hash_password
@@ -31,7 +32,9 @@ def make_client(admin, slug="acme", tier=None, **tier_limits):
 
 
 def make_agent(admin, client, template="sales_discovery", **extra):
-    r = admin.post(f"{V1}/agents", json={"client_id": client["id"], "name": "Ventas", "template_id": template, **extra})
+    """template: un agente de referencia (app/agents/reference/), como definicion."""
+    r = admin.post(f"{V1}/agents", json={"client_id": client["id"], "name": "Ventas",
+                                         "definition": reference_data(template), **extra})
     assert r.status_code == 201, r.text
     return r.json()
 
@@ -101,7 +104,7 @@ def test_client_user_cannot_administer(api, admin):
     acme = make_client(admin)
     user = client_user(api, admin, acme)
     assert user.get(f"{V1}/tiers").status_code == 403
-    assert user.post(f"{V1}/agents", json={"client_id": acme["id"], "name": "x", "template_id": "demo_booking"}
+    assert user.post(f"{V1}/agents", json={"client_id": acme["id"], "name": "x", "template_id": "asistente"}
                      ).status_code == 403
     assert user.patch(f"{V1}/clients/{acme['id']}", json={"active": False}).status_code == 403
 
@@ -165,11 +168,12 @@ def test_invalid_definition_reports_paths(api, admin):
     bad = {**agent["definition"], "fields": {"Mal Nombre": {"priority": 1, "description": "x", "question": "?"}}}
     r = admin.put(f"{V1}/agents/{agent['id']}/definition", json={"definition": bad})
     assert r.status_code == 422 and r.json()["code"] == "invalid_definition"
-    assert any("fields" in e["path"] or "fields" in e["message"] for e in r.json()["errors"])
+    assert r.json()["errors"] == [{"path": "fields.Mal Nombre", "message": "usar minusculas, numeros y _ (ej. contact_name)"}]
     no_default = {**agent["definition"]}
     no_default["completion"] = {"outcomes": [{"id": "a", "label": "A", "when": {"contact_name": "x"}, "message": "m"}]}
     check = admin.post(f"{V1}/agents/validate", json={"definition": no_default}).json()
     assert check["valid"] is False and "default" in check["errors"][0]["message"]
+    assert check["errors"][0]["path"] == "completion.outcomes"
     wrong_voice = {**agent["definition"], "agent": {**agent["definition"]["agent"], "voice": "no_existe"}}
     r = admin.post(f"{V1}/agents/validate", json={"definition": wrong_voice}).json()
     assert r["errors"][0]["path"] == "agent.voice"
@@ -178,7 +182,7 @@ def test_invalid_definition_reports_paths(api, admin):
 def test_agent_slug_unique_per_client(api, admin):
     acme, other = make_client(admin, "acme"), make_client(admin, "otro")
     make_agent(admin, acme)
-    assert admin.post(f"{V1}/agents", json={"client_id": acme["id"], "name": "Ventas", "template_id": "demo_booking"}
+    assert admin.post(f"{V1}/agents", json={"client_id": acme["id"], "name": "Ventas", "template_id": "asistente"}
                       ).status_code == 409
     make_agent(admin, other)
 
@@ -195,10 +199,40 @@ def test_archived_agent_cannot_call_and_used_agent_cannot_be_deleted(api, admin)
 
 
 def test_templates_and_schema(api, admin):
-    templates = {t["id"]: t for t in admin.get(f"{V1}/agent-templates").json()}
-    assert templates["demo_booking_classic"]["engine"] == "classic"
-    assert admin.get(f"{V1}/agent-templates/demo_booking").json()["id"] == "demo_booking"
+    # La UI ofrece una sola plantilla; los agentes de referencia (seed, eval, tests) no.
+    assert [t["id"] for t in admin.get(f"{V1}/agent-templates").json()] == ["asistente"]
+    assert admin.get(f"{V1}/agent-templates/asistente").json()["id"] == "asistente"
+    assert admin.get(f"{V1}/agent-templates/demo_booking").status_code == 404
     assert "fields" in admin.get(f"{V1}/agents/schema").json()["properties"]
+
+
+def test_create_agent_blank_or_template_with_engine(api, admin):
+    c = make_client(admin)
+    # Sin definicion ni plantilla: en blanco, valido, con el motor elegido.
+    blank = admin.post(f"{V1}/agents", json={"client_id": c["id"], "name": "Nuevo", "engine": "structured"})
+    assert blank.status_code == 201, blank.text
+    assert blank.json()["engine"] == "structured" and list(blank.json()["definition"]["fields"]) == ["consulta"]
+    # La misma plantilla con los dos motores: la definicion solo cambia en engine.
+    a, b = (admin.post(f"{V1}/agents", json={"client_id": c["id"], "name": f"Asistente {e}", "template_id": "asistente",
+                                              "engine": e}).json() for e in ("classic", "structured"))
+    assert (a["engine"], b["engine"]) == ("classic", "structured")
+    strip = lambda d: {k: v for k, v in d.items() if k not in ("id", "engine")}
+    assert strip(a["definition"]) == strip(b["definition"])
+    assert admin.post(f"{V1}/agents", json={"client_id": c["id"], "name": "x", "template_id": "asistente",
+                                            "definition": a["definition"]}).status_code == 422
+
+
+def test_prompt_preview_comes_from_definition(api, admin):
+    c = make_client(admin)
+    agent = make_agent(admin, c, template="demo_booking_classic")
+    d = {**agent["definition"], "objective": {"description": "Objetivo de prueba."}}
+    classic = admin.post(f"{V1}/agents/prompt", json={"definition": d}).json()
+    assert classic["engine"] == "classic" and "Objetivo de prueba." in classic["system"] and classic["workflow"] is None
+    structured = admin.post(f"{V1}/agents/prompt", json={"definition": {**d, "engine": "structured"},
+                                                          "channel": "whatsapp"}).json()
+    assert "Objetivo de prueba." in structured["workflow"] and "WhatsApp" in structured["system"]
+    bad = admin.post(f"{V1}/agents/prompt", json={"definition": {**d, "fields": {}}})
+    assert bad.status_code == 422 and bad.json()["code"] == "invalid_definition"
 
 
 # ---------- numeros ----------
@@ -363,7 +397,7 @@ def test_date_filters_use_local_days_and_multiple_status(api, admin):
     cid = admin.post(f"{V1}/calls", json={"agent_id": agent["id"]}).json()["conversation_id"]
     # 30-sep 23:30 en Buenos Aires = 1-oct 02:30 UTC: cuenta el 30-sep.
     with api.sessions() as s:
-        s.get(ConversationRow, cid).created_at = datetime.datetime(2026, 10, 1, 2, 30)  # noqa: DTZ001
+        s.get(ConversationRow, cid).created_at = datetime.datetime(2026, 10, 1, 2, 30)
         s.commit()
     q = {"client_id": c["id"], "date_from": "2026-09-30", "date_to": "2026-09-30"}
     assert admin.get(f"{V1}/calls", params=q).json()["total"] == 1

@@ -9,6 +9,11 @@ mensajes seguidos juntados en un turno (debounce), un turno a la vez por contact
 Topes: WA_MAX_TURN_CHARS por turno (lo que pase se descarta) y WA_MAX_TURNS por
 conversacion (despues abre otra), para no pasar el largo de contexto del LLM.
 
+Fin de una conversacion: el motor trabaja igual que en una llamada, y el equivalente del
+corte es cerrar el hilo y llamar a engine.finish (la extraccion final del clasico). Pasa al
+cerrarla desde el dashboard, al llegar al tope de turnos y al vencer (WA_SESSION_HOURS sin
+mensajes del contacto: sweep, cada SWEEP_SECONDS).
+
 Audios (audio.py): el entrante se baja, se transcribe y entra al turno como texto
 marcado como nota de voz; la respuesta sale como nota de voz segun WA_AUDIO_REPLY,
 y si falla el TTS, la conversion o el envio, sale en texto.
@@ -225,10 +230,28 @@ class WhatsAppService:
                     if isinstance(st, dict) and st.get("id") and st.get("status"):
                         self._spawn(self._on_status(pnid, st))
 
+    def end(self, conversation_id: str) -> None:
+        """Fin de una conversacion ya cerrada en la base: lo mismo que el corte de una llamada."""
+        self._spawn(self.engine.finish(conversation_id))
+
+    async def sweep(self) -> int:
+        """Cierra las conversaciones vencidas y les hace el fin (extraccion final del clasico)."""
+        with self.sessions() as s:
+            threads = store.expired_threads(s, utcnow(), self.session_hours)
+            ended = [t.conversation_id for t in threads]
+            for t in threads:
+                store.close_thread(s, t)
+            s.commit()
+        for conversation_id in ended:
+            self.end(conversation_id)
+        return len(ended)
+
     async def drain(self) -> None:
         """Espera todas las tareas en curso, incluidas las que agenden otras (tests)."""
         while self._tasks:
-            await asyncio.gather(*list(self._tasks), return_exceptions=True)
+            await asyncio.wait(list(self._tasks))
+            # Los done callbacks (_done, que las saca de _tasks) corren en una vuelta del loop.
+            await asyncio.sleep(0)
 
     async def aclose(self) -> None:
         for graph in self._graphs.values():
@@ -459,6 +482,11 @@ class WhatsAppService:
             thread = store.active_thread(s, info.id, wa_id, now, self.session_hours)
             if thread is not None and self._full(s, thread.conversation_id):
                 thread = None       # tope de turnos: sigue en otra, como si hubiera vencido
+            ended = None
+            if thread is None and (last := store.last_thread(s, info.id, wa_id)) and last.closed_at is None:
+                # Vencida o en el tope y sin cerrar todavia: termina ahora, como un corte.
+                store.close_thread(s, last)
+                ended = last.conversation_id
             if thread is not None:
                 conversation_id = thread.conversation_id
                 store.touch_thread(s, conversation_id, now)
@@ -472,6 +500,8 @@ class WhatsAppService:
                     s.commit()
                     logger.warning("wa: el agente de la cuenta no existe o esta archivado pnid=%s",
                                    info.phone_number_id)
+                    if ended:
+                        self.end(ended)
                     return
                 conversation_id = state.conversation_id
                 # Conversacion e hilo en la misma transaccion.
@@ -480,6 +510,8 @@ class WhatsAppService:
                                  contact_name=inbox.contact_name)
             store.set_inbound(s, wamids, status="received", conversation_id=conversation_id)
             s.commit()
+        if ended:
+            self.end(ended)
 
         graph = self._graph(info.token)
         await self._mark_read(graph, info, wamids[-1])
@@ -676,3 +708,17 @@ async def get_service() -> WhatsAppService:
 
         _service = WhatsAppService(get_conversation_engine(), get_sessionmaker())
     return _service
+
+
+SWEEP_SECONDS = 300
+
+
+async def sweep_loop(interval: float = SWEEP_SECONDS) -> None:
+    """Corre en la app (lifespan): termina las conversaciones de WhatsApp vencidas."""
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            if n := await (await get_service()).sweep():
+                logger.info("wa: %d conversaciones vencidas terminadas", n)
+        except Exception:
+            logger.exception("wa: fallo el barrido de conversaciones vencidas")

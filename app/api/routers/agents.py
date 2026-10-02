@@ -1,8 +1,9 @@
 from fastapi import APIRouter
 from sqlalchemy import select
 
-from ...agents.templates import load_template, template_data, template_ids
+from ...agents.templates import template_data, template_ids
 from ...conversation.models import Workflow
+from ...llm.prompt import build_classic_system, render_workflow, system_prompt
 from ...models import Agent, AgentVersion, User
 from ...services import agents as service
 from ...services.errors import Invalid, NotFound
@@ -14,6 +15,8 @@ from ..schemas import (
     AgentUpdate,
     AgentVersionOut,
     DefinitionIn,
+    PromptIn,
+    PromptOut,
     TemplateOut,
     ValidationOut,
 )
@@ -54,11 +57,22 @@ def validate_definition(body: DefinitionIn, _: CurrentPrincipal):
     return ValidationOut(valid=True)
 
 
+@router.post("/agents/prompt", response_model=PromptOut)
+def preview_prompt(body: PromptIn, _: AdminPrincipal):
+    """El prompt que arma el motor con esta definicion (sin guardarla): el system prompt sale
+    siempre de la definicion. classic: todo el agente en el prompt de sistema; structured: un
+    prompt de sistema fijo y la definicion en cada turno."""
+    w = Workflow.model_validate(service.normalize_definition(body.definition, body.definition.get("id") or "borrador", 1))
+    if w.engine == "classic":
+        return PromptOut(engine=w.engine, system=build_classic_system(w, body.channel))
+    return PromptOut(engine=w.engine, system=system_prompt(body.channel), workflow=render_workflow(w))
+
+
 @router.get("/agent-templates", response_model=list[TemplateOut])
 def list_templates(_: CurrentPrincipal):
     out = []
     for tid in template_ids():
-        w = load_template(tid)
+        w = Workflow.model_validate(template_data(tid))
         out.append(TemplateOut(id=tid, engine=w.engine, agent=f"{w.agent.name}, {w.agent.role}", voice=w.agent.voice,
                                objective=w.objective.description.strip()))
     return out
@@ -86,7 +100,7 @@ def list_agents(p: CurrentPrincipal, db: DB, client_id: str | None = None, inclu
 def create_agent(body: AgentCreate, p: AdminPrincipal, db: DB):
     client = get_client(db, p, body.client_id)
     agent = service.create_agent(db, client, body.name, body.slug, body.description, body.definition,
-                                 body.template_id, p.id if p.kind == "user" else None)
+                                 body.template_id, p.id if p.kind == "user" else None, body.engine)
     db.commit()
     return _out(agent, detail=True)
 

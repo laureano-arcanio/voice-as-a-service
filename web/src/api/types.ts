@@ -21,6 +21,7 @@ export type AgentUpdate = S['AgentUpdate'];
 export type AgentVersion = S['AgentVersionOut'];
 export type AgentTemplate = S['TemplateOut'];
 export type Validation = S['ValidationOut'];
+export type PromptPreview = S['PromptOut'];
 export type User = S['UserOut'];
 export type UserIn = S['UserIn'];
 export type UserUpdate = S['UserUpdate'];

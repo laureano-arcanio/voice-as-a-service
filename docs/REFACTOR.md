@@ -1,6 +1,6 @@
 > **Histórico (sep-2026):** este es el pedido original del motor conversacional. Los workflows ya no
-> son YAML: son agentes con definición JSON versionada en la base (plantillas en
-> `app/agents/templates/`). Arquitectura vigente: [`ARQUITECTURA.md`](ARQUITECTURA.md).
+> son YAML: son agentes con definición JSON versionada en la base (agentes de referencia en
+> `app/agents/reference/`). Arquitectura vigente: [`ARQUITECTURA.md`](ARQUITECTURA.md).
 
 Quiero que implementes un MVP de un motor conversacional basado en objetivos definidos en YAML.
 

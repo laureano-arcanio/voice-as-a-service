@@ -61,9 +61,14 @@ si el cliente manda tres mensajes seguidos en 2 s, se juntan en un turno (el equ
   cliente es el turno 1 y abre la ventana de 24 h. Sirve para cobranza, turnos y recordatorios; es
   la campaña mínima de la sección 4 del plan de mercado, por texto.
 
-**Fin de conversación.** El `[FIN]` del motor clásico corta la llamada; por WhatsApp solo marca
-`completed` y dispara la extracción, como ahora. El chat sigue en la misma conversación (con el
-historial) mientras haya mensajes dentro de las 24 h; tras 24 h sin actividad, el siguiente abre otra. La
+**Fin de conversación.** El motor trabaja igual que en una llamada: el clásico extrae al despedirse
+(`[FIN]`) o al terminar la conversación, nunca en cada turno. El fin de un chat (cerrado desde el
+dashboard, tope de turnos o 24 h sin mensajes, que detecta un barrido cada 5 min) cierra el hilo y
+llama a `engine.finish`, como el corte de una llamada. Por WhatsApp el `[FIN]` solo marca `completed`. El chat sigue en la misma conversación (con el
+historial) mientras haya mensajes dentro de las 24 h; tras 24 h sin actividad, el siguiente abre otra.
+La conversación corre con la versión del agente con que empezó: para que un contacto pase a la versión
+vigente sin esperar 24 h, **Cerrar conversación** en el detalle (`POST /api/v1/whatsapp/threads/{id}/close`,
+`wa_threads.closed_at`) hace que su próximo mensaje abra otra. La
 derivación a humano queda como resultado del workflow (`outcome` con `handoff: true`): la app deja de
 responder en esa conversación y avisa (webhook del cliente o email).
 
@@ -81,7 +86,7 @@ por canal.
 | Tabla | Qué guarda |
 |---|---|
 | `wa_accounts` | Una por número conectado: `waba_id`, `phone_number_id`, número visible, nombre, token de acceso (cifrado con una clave de `.env`), `agent_id` por defecto, `client_id` (tenant), estado |
-| `wa_threads` | `(phone_number_id, wa_id)` → `conversation_id` activa, último mensaje del cliente (para la ventana de 24 h), `paused` (derivado a humano) |
+| `wa_threads` | `(phone_number_id, wa_id)` → `conversation_id` activa, último mensaje del cliente (para la ventana de 24 h), `paused` (derivado a humano), `closed_at` (cerrada desde el dashboard: el próximo mensaje abre otra) |
 | `wa_messages` | `wamid`, dirección, `conversation_id`, tipo (texto, audio, imagen, plantilla), estado (`sent/delivered/read/failed`), error de Meta, timestamps. Idempotencia y costos |
 
 `conversations` sigue guardando el estado y los mensajes; `wa_threads` es a WhatsApp lo que

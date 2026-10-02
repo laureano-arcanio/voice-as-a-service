@@ -62,8 +62,9 @@ asunto `Re: ...` → se guarda el `message_id` de salida para seguir entregas, r
 - `Channel = Literal["voice", "whatsapp"]` (`app/conversation/models.py`) suma `email`.
 - `CHANNEL_RULES` (`app/llm/prompt.py`) suma el bloque de mail: respuesta completa en un solo
   mensaje, saludo y firma, cifras y direcciones como se escriben, texto plano sin markdown.
-- Las comparaciones `== "whatsapp"` de `prompt.py`, `engine.py` (extracción en cada turno) y
-  `routers/conversations.py` (409 a los turnos por API) pasan a ser "canal de texto".
+- Las comparaciones `== "whatsapp"` de `prompt.py` y `routers/conversations.py` (409 a los turnos
+  por API) pasan a ser "canal de texto". El motor no distingue canales: el fin de un hilo de mail
+  llama a `engine.finish`, como el de WhatsApp.
 
 **Tablas nuevas** (espejo de las de WhatsApp):
 

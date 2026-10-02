@@ -112,7 +112,9 @@ function AgentView({ agent }: { agent: AgentDetail }) {
   const isAdmin = useIsAdmin();
   const clients = useClients(isAdmin);
   const [params, setParams] = useSearchParams();
-  const tab: Tab = TABS.includes(params.get('tab') as Tab) ? (params.get('tab') as Tab) : 'resumen';
+  // La definicion la edita un admin; el cliente la ve en el resumen.
+  const tabs: readonly Tab[] = isAdmin ? TABS : TABS.filter((t) => t !== 'definicion');
+  const tab: Tab = tabs.includes(params.get('tab') as Tab) ? (params.get('tab') as Tab) : 'resumen';
   const client = clients.data?.find((c) => c.id === agent.client_id);
 
   return (
@@ -187,9 +189,11 @@ function AgentView({ agent }: { agent: AgentDetail }) {
           <Tabs.Tab value="resumen" leftSection={<IconInfoCircle size={16} />}>
             Resumen
           </Tabs.Tab>
-          <Tabs.Tab value="definicion" leftSection={<IconFileCode size={16} />}>
-            Definición
-          </Tabs.Tab>
+          {isAdmin && (
+            <Tabs.Tab value="definicion" leftSection={<IconFileCode size={16} />}>
+              Definición
+            </Tabs.Tab>
+          )}
           <Tabs.Tab value="versiones" leftSection={<IconHistory size={16} />}>
             Versiones
           </Tabs.Tab>
@@ -200,9 +204,11 @@ function AgentView({ agent }: { agent: AgentDetail }) {
         <Tabs.Panel value="resumen">
           <WorkflowSummary definition={agent.definition} />
         </Tabs.Panel>
-        <Tabs.Panel value="definicion">
-          <DefinitionTab agent={agent} canEdit={isAdmin} />
-        </Tabs.Panel>
+        {isAdmin && (
+          <Tabs.Panel value="definicion">
+            <DefinitionTab agent={agent} />
+          </Tabs.Panel>
+        )}
         <Tabs.Panel value="versiones">
           <VersionsTab agent={agent} canEdit={isAdmin} />
         </Tabs.Panel>

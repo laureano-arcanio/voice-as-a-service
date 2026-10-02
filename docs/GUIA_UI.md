@@ -6,8 +6,8 @@ puede hacer por la API (`/api/v1/docs`, solo con sesión de admin). La arquitect
 [`ARQUITECTURA.md`](ARQUITECTURA.md).
 
 Hay dos roles:
-- **Admin:** opera la plataforma y ve todo. Menú: Inicio, Agentes, Voces, Clientes, Números, WhatsApp, Tiers y Usuarios.
-- **Cliente:** usuario de un cliente, que solo ve lo suyo. Menú: Inicio, Agentes, Voces, Mi cuenta y WhatsApp.
+- **Admin:** opera la plataforma y ve todo. Menú: Inicio, Conversaciones, Agentes, Voces, WhatsApp, Clientes, Números, Tiers y Usuarios.
+- **Cliente:** usuario de un cliente, que solo ve lo suyo. Menú: Inicio, Conversaciones, Agentes, Voces, WhatsApp y Mi cuenta.
 
 ## Primer ingreso
 
@@ -52,16 +52,29 @@ Te lleva a la ficha del cliente, que tiene cinco pestañas:
 
 ### 3. Crear el agente (Agentes)
 
-**Agentes > Nuevo agente**: cliente, nombre, slug (opcional), descripción y una **plantilla de partida**
-(las de `app/agents/templates/`, con motor, voz y objetivo). Te lleva a la pestaña **Definición**.
+**Agentes > Nuevo agente**: cliente, nombre, slug (opcional), descripción, **motor** (Clásico, el de
+por defecto, o Estructurado) y **punto de partida**: el **asistente básico** (atiende, responde con la
+base de conocimiento y, si no puede, toma nombre y contacto) o **en blanco** (un dato y el resultado
+por defecto). Te lleva a la pestaña **Definición** para completarlo.
 
 El detalle del agente tiene cuatro pestañas:
 
 - **Resumen:** la definición en limpio: agente, idioma, versión, objetivo, apertura, reglas, base de
   conocimiento, datos a obtener (orden, tipo, obligatorio, pregunta sugerida) y resultados.
-- **Definición:** el JSON del agente (formato en [`ARQUITECTURA.md`](ARQUITECTURA.md#definición-de-un-agente)).
-  - **Validación:** se valida mientras escribís; los errores aparecen abajo y, al hacerles click, el
-    cursor va a esa parte del JSON.
+- **Definición** (solo admin): un formulario por partes:
+  - **Agente:** nombre, rol, idioma y **motor** (Clásico o Estructurado, en tarjetas). La definición es la misma con los dos motores: cambiarlo no toca nada más.
+  - **Voz:** tarjetas con las voces (filtro por mujeres u hombres); al lado, la prueba con la voz elegida, con la apertura como texto (editable).
+  - **Objetivo y apertura**, **Reglas** (una por regla) y **Base de conocimiento**.
+  - **Datos a obtener:** cada dato con etiqueta, nombre interno, tipo (texto, número, sí o no, opción
+    de una lista, email, email o teléfono), si es obligatorio (sí, no o según otro dato), descripción
+    y pregunta sugerida. Se ordenan con las flechas. Al renombrar uno, se actualizan las condiciones que lo usan.
+  - **Resultados:** etiqueta, ID, si cumple el objetivo, mensaje de cierre y condiciones. Vale el
+    primero que se cumple; el último es el de por defecto.
+  - **Ver prompt:** el prompt que arma el motor con lo que está en pantalla, por llamada o por
+    WhatsApp. No hay un prompt aparte para editar: sale de la definición.
+  - **Formulario / JSON:** la misma definición en JSON (formato en [`ARQUITECTURA.md`](ARQUITECTURA.md#definición-de-un-agente)), para pegar o editar a mano.
+  - **Validación:** se valida mientras editás; los errores aparecen arriba y, al hacerles click, te
+    llevan al campo (o a esa parte del JSON).
   - **Guardar:** crea una **versión nueva**, o avisa "Sin cambios" si no cambió nada. Las llamadas en
     curso siguen con la versión con que empezaron.
   - `id` y `version` los pone la app (el slug y el número de versión): no hace falta tocarlos.
@@ -150,7 +163,8 @@ Si el cliente está desactivado, sus números de WhatsApp tampoco responden.
 ### Inicio (dashboard)
 
 - **Filtros:** cliente (solo admin), agente y período (última semana, último mes o fechas). Aplican a
-  los indicadores, al gráfico y a la tabla. Los días son del huso horario del navegador.
+  los indicadores y al gráfico. Los días son del huso horario del navegador. **Ver conversaciones**
+  lleva al listado con los mismos filtros.
 - **Nueva llamada:**
   - **Agente:** los no archivados; el admin los ve agrupados por cliente.
   - **Teléfono** en E.164 para una saliente, o **Modo prueba**: sin teléfono, te conectás por el
@@ -165,8 +179,12 @@ Si el cliente está desactivado, sus números de WhatsApp tampoco responden.
   cliente los ve como "Completas" y "Tiempo de respuesta".
 - **Conversaciones por día** (barras) y **Resultado por día** (líneas: % con workflow completo y %
   con objetivo cumplido).
-- **Conversaciones:** tabla paginada, filtrable por estado y origen (llamadas, API o WhatsApp). Las de
-  WhatsApp no tienen estado ni duración y muestran el teléfono del contacto. Cada fila lleva al detalle.
+### Conversaciones (`/calls`)
+
+- Todas las conversaciones (llamadas, API y WhatsApp), con los mismos filtros que el inicio (cliente,
+  agente y período), en la URL.
+- Tabla paginada, filtrable además por estado y origen. Las de WhatsApp no tienen estado ni duración y
+  muestran el teléfono del contacto. Cada fila lleva al detalle.
 
 ### Detalle de una llamada (`/calls/<id>`)
 
@@ -184,6 +202,10 @@ Si el cliente está desactivado, sus números de WhatsApp tampoco responden.
   los envíos fallidos, con el último error de Meta (131047: pasaron más de 24 h desde el último
   mensaje del contacto, no se puede mandar texto libre). No hay latencia por turno. Mientras la
   conversación está activa se actualiza cada 3 s.
+  - **Cerrar conversación** (arriba a la derecha): el próximo mensaje de ese contacto empieza una
+    conversación nueva, con la versión vigente del agente. Sirve después de cambiar el agente: un chat
+    sigue con la versión con que empezó hasta 24 h sin mensajes. La cerrada queda en el historial,
+    con la píldora "Cerrada".
 - **Notas de voz:** en el chat, el mensaje del contacto que llegó como audio lleva el rótulo
   "Transcripción de nota de voz" (se ve el texto que entendió el STT, no el audio), y la respuesta que
   salió como audio, "Enviada como nota de voz". Si la nota de voz falló y salió en texto, no lleva rótulo.
