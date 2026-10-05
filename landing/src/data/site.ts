@@ -5,12 +5,13 @@ export interface DemoAgent {
   title: string;
   summary: string;
   icon: IconName;
-  /** Línea real que atiende este agente ("llamá gratis"); sin ella, la genérica del diálogo. */
-  phone?: { e164: string; display: string };
+  /** Línea real que atiende este agente ("llamá gratis"); sin ella, el widget no ofrece llamar por teléfono. */
+  phone?: { tel: string; display: string };
 }
 
-// Línea de Atentina (Anura): la atiende el agente comercial por llamada y por WhatsApp.
-export const contactPhone = { e164: "+543517002592", display: "351 700-2592" };
+// Línea de Atentina (Anura): el 0800 lo atiende el agente comercial; el WhatsApp va por el 351 700-2592.
+// El 0800 se marca en formato nacional: con +54 no lo enrutan todas las compañías.
+export const contactPhone = { tel: "08002201233", display: "0800-220-1233" };
 export const whatsappUrl = `https://wa.me/5493517002592?text=${encodeURIComponent("Hola Atentina, quiero saber más")}`;
 
 // El de la home: el mismo agente que atiende la línea y el WhatsApp de Atentina.

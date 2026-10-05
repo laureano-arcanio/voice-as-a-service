@@ -1,3 +1,7 @@
+---
+import { atentinaAgent, contactPhone } from "../data/site";
+---
+
 <dialog
   class="m-auto w-[min(92vw,460px)] rounded-[18px] border-0 p-0 text-ink shadow-dialog backdrop:bg-[rgba(11,18,32,.45)]"
   id="tel"
@@ -10,11 +14,11 @@
       aria-label="Cerrar">×</button
     >
     <h3 id="telTitulo">Llamanos gratis y hablás con el agente</h3>
-    <p class="text-[.95rem] text-muted">Te atiende <b data-tel-agent>Recepción y turnos</b>.</p>
+    <p class="text-[.95rem] text-muted">Te atiende <b data-tel-agent>{atentinaAgent.title}</b>.</p>
     <a
       class="mt-1.5 inline-block rounded-xl bg-accent px-[22px] py-3.5 font-display text-[1.7rem] font-extrabold tracking-[.01em] text-accent-ink no-underline tabular-nums hover:bg-accent-2"
       data-tel-number
-      href="tel:+540800000000">0800-000-0000</a
+      href={`tel:${contactPhone.tel}`}>{contactPhone.display}</a
     >
     <div class="mt-1.5 grid justify-items-center gap-2" data-tel-qr hidden>
       <div class="size-[168px] rounded-xl border border-line bg-white p-2.5" data-qr aria-label="Código QR para llamar"></div>

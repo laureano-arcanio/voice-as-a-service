@@ -1,5 +1,3 @@
-const TEL = "0800-000-0000";
-const TEL_E164 = "+540800000000";
 const QR_URL = "https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js";
 
 interface QrCode {
@@ -39,27 +37,27 @@ export function initTelDialog() {
   const qr = dialog.querySelector<HTMLElement>("[data-qr]")!;
   let drawn = "";
 
-  function setNumber(e164: string, display: string) {
+  function setNumber(tel: string, display: string) {
     number.textContent = display;
-    number.href = `tel:${e164}`;
+    number.href = `tel:${tel}`;
   }
 
-  async function drawQr(e164: string) {
+  async function drawQr(tel: string) {
     try {
       await loadQr();
     } catch {
       return;
     }
-    if (!window.qrcode || drawn === e164) {
-      qrBox.hidden = drawn !== e164;
+    if (!window.qrcode || drawn === tel) {
+      qrBox.hidden = drawn !== tel;
       return;
     }
     const code = window.qrcode(0, "M");
-    code.addData(`tel:${e164}`);
+    code.addData(`tel:${tel}`);
     code.make();
     qr.innerHTML = code.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
     qr.firstElementChild?.classList.add("block", "size-full");
-    drawn = e164;
+    drawn = tel;
     qrBox.hidden = false;
   }
 
@@ -69,12 +67,13 @@ export function initTelDialog() {
     event.preventDefault();
     const widget = link.closest("[data-call]");
     const checked = widget?.querySelector<HTMLInputElement>("input[name=agente]:checked");
-    agent.textContent = checked?.dataset.title ?? "Recepción y turnos";
-    const e164 = checked?.dataset.tel ?? TEL_E164;
-    setNumber(e164, checked?.dataset.telDisplay ?? TEL);
+    if (!checked?.dataset.tel) return;
+    agent.textContent = checked.dataset.title ?? "";
+    const tel = checked.dataset.tel;
+    setNumber(tel, checked.dataset.telDisplay ?? tel);
     const phone = window.matchMedia("(pointer: coarse)").matches && window.innerWidth < 900;
     if (phone) qrBox.hidden = true;
-    else void drawQr(e164);
+    else void drawQr(tel);
     dialog.showModal();
   });
 }

@@ -14,6 +14,8 @@ interface Props {
 
 const { agents: list, title = "Hacé una demo ahora", whatsapp, others } = Astro.props;
 const panel = "hidden flex-col gap-3 p-3.5";
+// Las verticales no tienen línea propia: solo se ofrece llamar si algún agente la tiene.
+const tel = list.some((agent) => agent.phone);
 ---
 
 <div
@@ -45,7 +47,7 @@ const panel = "hidden flex-col gap-3 p-3.5";
               name="agente"
               value={agent.slug}
               data-title={agent.title}
-              data-tel={agent.phone?.e164}
+              data-tel={agent.phone?.tel}
               data-tel-display={agent.phone?.display}
               checked={i === 0}
             />
@@ -65,7 +67,7 @@ const panel = "hidden flex-col gap-3 p-3.5";
         <Icon name="phone" class="size-5" />Iniciar llamada sin costo
       </Button>
       <p class="min-h-[1.3em] text-center text-[.82rem] text-muted data-[warn]:font-medium data-[warn]:text-warn" data-note>
-        Hablás desde el navegador, con el micrófono. O <a href="#" data-open-tel><strong>llamá gratis</strong></a>.
+        Hablás desde el navegador, con el micrófono.{tel && <> O <a href="#" data-open-tel><strong>llamá gratis</strong></a>.</>}
       </p>
       {
         whatsapp && (
