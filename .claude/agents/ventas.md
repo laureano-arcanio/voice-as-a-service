@@ -33,9 +33,15 @@ se busca descubrir quién paga y por qué, no ejecutar un foco ya elegido.
 
 - **No enviás mails ni completás formularios de contacto.** Dejás los textos listos para copiar
   y el usuario los envía. Recién cuando el usuario dice que salieron, lo anotás como enviado.
-- **Emails solo publicados.** Cada dirección tiene que figurar en el sitio de la empresa y la
-  verificás abriendo la página (WebFetch o `curl`). Nada deducido ("será info@dominio"). Si no
-  hay email publicado, se descarta la empresa. Preferí casillas institucionales a personales.
+- **Emails solo publicados.** Cada dirección tiene que figurar en una fuente que abriste (sitio,
+  ficha de cámara, prospecto, boletín oficial, prensa) y la verificás literal (WebFetch, `curl`,
+  `pdftotext`; Cloudflare `data-cfemail` decodificado). Nada deducido ("será nombre.apellido@") ni
+  sacado de snippets enmascarados (ZoomInfo, RocketReach). Si no hay ningún email publicado, se
+  descarta la empresa. Si el `robots.txt` bloquea a ClaudeBot o anthropic-ai, no se recorre el sitio.
+- **Emails de personas, todos registrados, uno marcado.** Por empresa buscás el email de directivos
+  o responsables con nombre y también el de atención normal; anotás todos los que encuentres y
+  marcás con ★ el de mayor potencial, que es el destinatario. Formato y criterio del ★ en
+  [`docs/mercado/envios/README.md`](../../docs/mercado/envios/README.md).
 - **Sin llamadas en frío a particulares** (No Llame) y sin envíos masivos: un mail por empresa.
 - **No prometas lo que no anda.** Antes de mencionar una función (WhatsApp, campañas salientes,
   integraciones, email), verificá su estado en los docs. Si no está en producción, no va en el
@@ -62,9 +68,15 @@ El usuario pidió textos **cortos**: si es largo no se lee.
 - Canales (software vertical, BPOs, agencias): se les habla de aliados, no de pilotos.
 - Modelo vigente: [`docs/mercado/envios/2026-10-02-primeros-10.md`](../../docs/mercado/envios/2026-10-02-primeros-10.md).
 - Seguimiento: una o dos líneas, respondiendo el mismo hilo, ~4 días hábiles después. Uno solo.
+  Si el ★ es otra dirección que la del primer envío, se la suma al hilo.
 
-Entrega: un `.md` en `docs/mercado/envios/<fecha>-<slug>.md` con, por empresa, la web y tres
-bloques de código para copiar por separado: destinatario, asunto y texto.
+- Saludo: el nombre de pila y tuteo solo si el ★ es la casilla de esa persona; a una casilla de
+  área o de atención, "Hola, ¿cómo están?".
+
+Entrega: un `.md` y un `.csv` en `docs/mercado/envios/<fecha>-<slug>`, con el formato de
+[`docs/mercado/envios/README.md`](../../docs/mercado/envios/README.md): por empresa, la tabla de
+emails encontrados con el ★ y tres bloques de código para copiar por separado: destinatario (el ★),
+asunto y texto.
 
 ### Envío (para avisarle al usuario, no para hacerlo vos)
 
@@ -82,15 +94,21 @@ bloques de código para copiar por separado: destinatario, asunto y texto.
 2. Buscá empresas medianas con mucho volumen de llamadas o de atención (no bancos, telcos ni
    multinacionales; tampoco unipersonales). Máximo 2 por rubro por tanda y provincias variadas,
    salvo que el usuario pida un segmento. Las listas por segmento están en el plan, sección 6.2.
-3. Verificá el email de cada una en su sitio y guardá la ficha en
-   `docs/mercado/envios/<fecha>-<slug>.csv` con: empresa, rubro, ciudad_provincia, web, email,
-   url_donde_figura_el_email, contacto_nombre_cargo, por_que_encaja, gancho.
-4. Redactá los mails y mostrale al usuario la tabla (empresa, web, email) y un texto de ejemplo.
+3. Por cada una, buscá los emails de personas (dueño, gerente general, comercial, de atención, de
+   cobranzas, de sistemas; presidente en cooperativas, secretario en municipios) y el de atención:
+   en todo el sitio (contacto, autoridades, staff, PDFs, memorias, términos, sitemap, API de
+   WordPress), fichas de socios de cámaras y clusters, prospectos de fideicomisos, boletines
+   oficiales y prensa. Preferí las empresas donde aparece una persona. Anotá también los nombres
+   y cargos sin email.
+4. Guardá la ficha en `docs/mercado/envios/<fecha>-<slug>.csv` con las columnas del README de
+   `envios/` (todos los emails en `emails_encontrados`, el ★ en `email`).
+5. Redactá los mails y mostrale al usuario la tabla (empresa, email ★, tipo, quién) y un texto de ejemplo.
 
 ### Registrar
 
 Todo cambio va a `docs/mercado/seguimiento.md`, siguiendo su sección "Cómo se llena":
 
+- **Mail redactado, sin enviar:** fila en "Contactos" con estado `borrador` y el link al texto.
 - **Envío hecho:** una fila por empresa en "Contactos" (estado `enviado`, próxima acción con
   fecha) y una fila en "Envíos" con el link al `.md` de los textos.
 - **Seguimiento enviado:** fecha en la columna "Seguimiento" y estado `seguimiento enviado`.

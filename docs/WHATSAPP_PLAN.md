@@ -192,8 +192,11 @@ Tres casos, según el número:
 
 Límites de Meta por cuenta del cliente (WABA): 2 números hasta verificar el negocio, 20 después;
 envíos iniciados por el negocio a ~250 destinatarios únicos por día sin verificación, y de ahí
-escalones de 1.000, 10.000 y 100.000 según verificación y calidad (confirmar los valores vigentes en
-el alta del primer cliente). Recibir mensajes no tiene tope.
+escalones de 2.000, 10.000 y 100.000 según verificación y calidad (Meta sacó el de 1.000; el límite es
+por portfolio de negocio, no por número). Recibir mensajes no tiene tope.
+- **Atentina, 6-oct-2026:** Meta avisó por mail que el portfolio subió a **2.000 conversaciones iniciadas
+  por el negocio cada 24 h**, más números (según calidad) y más WABAs. El número todavía muestra
+  `TIER_250` por la API (calidad `GREEN`): el campo por número va atrasado o ya no manda.
 
 ### 3.3 Tech Provider y Embedded Signup (Meta)
 
@@ -313,6 +316,7 @@ que inicia el negocio se cobran por minuto en pulsos de 6 s, por país y con esc
 (rate card de Argentina desde abril de 2026; el plan de mercado estimó ~USD 0,011 por minuto),
 más el mensaje de pedido de permiso, que se cobra como mensaje. Requisito que hoy no cumplimos:
 límite de envío de al menos **2.000 destinatarios por día**, o sea negocio verificado y calidad.
+Cumplido desde el 6-oct-2026 (mail de Meta, 3.2).
 
 ## 5. Fases
 
@@ -502,7 +506,7 @@ retoma cuando Meta la apruebe.
 - Después: asignar la WABA nueva al system user (lo hace el usuario: dar permisos está bloqueado para el
   agente), `subscribed_apps`, `register` con `WA_REGISTRATION_PIN` y `make wa-account` → `interno/atentina_comercial` (desde el 2-oct-2026, cliente `atentina`).
 - Lo atiende el agente `atentina_comercial` (plantilla en `app/agents/templates/`), por WhatsApp y por llamada.
-- Pendiente: medio de pago en la WABA nueva (Meta avisa "Payment method missing").
+- Medio de pago: Visa en la cuenta de pago "Atentina" (ARS), sin aviso de "Payment method missing" (visto el 6-oct-2026).
 
 **Para desplegar (todo pendiente):**
 

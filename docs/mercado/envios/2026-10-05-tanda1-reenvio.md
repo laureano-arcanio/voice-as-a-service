@@ -1,29 +1,31 @@
-# Envío 2-oct-2026: primeros 10 contactos
+# Envío 5-oct-2026: tanda 1, segundo envío (11 contactos)
 
-**Enviado** el 2-oct-2026 desde `laureano@atentina.com.ar`, uno por empresa; los textos de abajo son
-los que salieron. El estado de cada contacto está en [`../seguimiento.md`](../seguimiento.md). La ficha
-de cada empresa (por qué encaja, dónde figura cada email) está en
-[`2026-10-02-primeros-10.csv`](2026-10-02-primeros-10.csv), que incluye a Browix (11), cuyo texto
-está en [`2026-10-02-browix.md`](2026-10-02-browix.md).
+**Enviado** el 5-oct-2026 desde `laureano@atentina.com.ar`; los textos de abajo son los que salieron. Segundo envío a la tanda 1 ([`2026-10-02-primeros-10.md`](2026-10-02-primeros-10.md)
+y [`2026-10-02-browix.md`](2026-10-02-browix.md), enviados el 2-oct-2026), con el texto orientado a IA en general
+y dirigido al ★ de cada empresa. Reemplaza el seguimiento previsto para el 8-oct. Estado en [`../seguimiento.md`](../seguimiento.md). Formato: [`README.md`](README.md).
 
-- Los mails salieron a la casilla de atención ("Enviado a"). Los emails de cada empresa se buscaron
-  después, el 5-oct-2026: el ★ es a quién sumar en el seguimiento, en el mismo hilo.
-- Ningún email es deducido: cada uno figura literal en la fuente indicada. Los de fuente vieja o de
-  Wayback pueden rebotar.
+- 1, 2, 3, 4, 5, 7, 9 y 10: mail nuevo al ★, que es otra dirección que la del 2-oct.
+- 6, 8 y 11 (GestarCoop, Paktar, Browix): el ★ es la misma casilla del 2-oct, así que va como respuesta en ese
+  hilo ("Re:"), no como mail suelto.
+- Emails verificados el 5-oct-2026. Fuentes viejas del ★ (pueden rebotar): MIS `jsala@` (2022) y Alianza Cobros
+  `lboechi@` (Wayback, hasta mar-2025). Enviarlos al final.
+- "Automatización de tareas" abre a pedidos fuera de los agentes de voz y WhatsApp: serían trabajo a medida.
+- Dominio nuevo: enviar 3 o 4 por hora.
+- Link con UTM (`utm_campaign=tanda1b`); registro en [`../seguimiento.md`](../seguimiento.md), "Links con UTM".
 
-| # | Empresa | Web | Email ★ | Tipo | Quién | Enviado a |
-|---|---|---|---|---|---|---|
-| 1 | Instituto Oulton | https://institutoulton.com.ar | gustavofoa@oulton.com.ar | posible cliente | Gustavo Foa Torres, socio y Directorio | info@oulton.com.ar |
-| 2 | Cooperativa de Electricidad Bariloche (CEB) | https://www.ceb.coop | fchueri@ceb.coop | posible cliente | Contacto del Comité Ejecutivo (pres. Alejandro Pozas) | correspondencia@ceb.coop |
-| 3 | AMUR (Asociación Mutual Ruralista) | https://www.amur.com.ar | comunicaciones@amur.com.ar | posible cliente | Comunicaciones (Reclamos) | info@amur.com.ar |
-| 4 | MIS – Mutual Integral de Servicios | https://www.mis.org.ar | jsala@mis.org.ar | posible cliente | CPN Jorge Sala | contacto@mis.org.ar |
-| 5 | ISEP | https://isep.edu.ar | admisiones.nivelprimario@isep.edu.ar | posible cliente | Admisiones del primario | informes@isep.edu.ar |
-| 6 | GestarCoop | https://migestarcoop.com | info@migestarcoop.com | posible aliado (canal) | — | info@migestarcoop.com |
-| 7 | Alianza Cobros | https://alianzacobros.com.ar | lboechi@alianzacobros.com.ar | posible cliente | Lucas Boechi, presidente | propuestas@alianzacobros.com.ar |
-| 8 | Paktar Cobranzas & BPO | https://www.paktar.com.ar | info@paktar.com.ar | posible aliado (canal) | — | info@paktar.com.ar |
-| 9 | Yacoub | https://yacoub.com.ar | administracion@yacoub.com.ar | posible cliente | Administración | info@yacoub.com.ar |
-| 10 | Grupo Silva (Silva Mobility) | https://silvamobility.com.ar | marketing@gruposilva.com.ar | posible cliente | Marketing | contacto@gruposilva.com.ar |
-| 11 | Browix ([texto aparte](2026-10-02-browix.md)) | https://browix.com | info@browix.com | posible cliente y canal | — | info@browix.com |
+| # | Empresa | Para (★) | Tipo | Quién | Enviado el 2-oct a | Modo | utm_content |
+|---|---|---|---|---|---|---|---|
+| 1 | Instituto Oulton | gustavofoa@oulton.com.ar | persona | Prof. Dr. Gustavo Foa Torres, socio y miembro del Directorio (puntoapunto, 2021) | info@oulton.com.ar | mail nuevo | oulton |
+| 2 | Cooperativa de Electricidad Bariloche (CEB) | fchueri@ceb.coop | área | Email de contacto del Comité Ejecutivo (presidente Alejandro Pozas); no se sabe quién es "fchueri" | correspondencia@ceb.coop | mail nuevo | ceb |
+| 3 | AMUR (Asociación Mutual Ruralista) | comunicaciones@amur.com.ar | área | Comunicaciones, publicada como "Reclamos" | info@amur.com.ar | mail nuevo | amur |
+| 4 | MIS – Mutual Integral de Servicios | jsala@mis.org.ar | persona | CPN Jorge Sala, interlocutor de MIS ante el fiduciario (cargo no publicado) | contacto@mis.org.ar | mail nuevo | mis |
+| 5 | ISEP | admisiones.nivelprimario@isep.edu.ar | área | Admisiones del primario | informes@isep.edu.ar | mail nuevo | isep |
+| 6 | GestarCoop | info@migestarcoop.com | atención | — | info@migestarcoop.com | mismo hilo | gestarcoop |
+| 7 | Alianza Cobros | lboechi@alianzacobros.com.ar | persona | Lucas Boechi, presidente (cargo por snippet de LinkedIn; titular del dominio, BO 20-abr-2022) | propuestas@alianzacobros.com.ar | mail nuevo | alianza-cobros |
+| 8 | Paktar Cobranzas & BPO | info@paktar.com.ar | atención | — | info@paktar.com.ar | mismo hilo | paktar |
+| 9 | Yacoub | administracion@yacoub.com.ar | área | Administración (atención personalizada con turno) | info@yacoub.com.ar | mail nuevo | yacoub |
+| 10 | Grupo Silva (Silva Mobility) | marketing@gruposilva.com.ar | área | Marketing | contacto@gruposilva.com.ar | mail nuevo | grupo-silva |
+| 11 | Browix | info@browix.com | atención | — | info@browix.com | mismo hilo | browix |
 
 ## 1. Instituto Oulton
 
@@ -44,32 +46,32 @@ Emails encontrados (verificados el 5-oct-2026):
 
 ★ porque es socio y directivo, con CV de 2024 publicado en el sitio; no hay email del presidente ni del director médico. Sin email: Prof. Dr. Carlos Alberto Oulton, presidente; Dr. Carlos Parola, director médico; Dra. María Lucrecia Ballarino, directora médica de Imágenes; Víctor Acosta, director financiero.
 
-Enviado a info@oulton.com.ar el 2-oct-2026; ★ para el seguimiento.
+Mail nuevo al ★. El del 2-oct salió a info@oulton.com.ar; este reemplaza el seguimiento del 8-oct.
 
 Para:
 
 ```
-info@oulton.com.ar
+gustavofoa@oulton.com.ar
 ```
 
 Asunto:
 
 ```
-Un agente de IA para la atención de Instituto Oulton
+IA aplicada al Instituto Oulton
 ```
 
 Texto:
 
 ```
-Hola, ¿cómo están?
+Hola Gustavo, ¿cómo estás?
 
-Soy Laureano, de Atentina. Ponemos en marcha agentes de inteligencia artificial que atienden a sus clientes por teléfono y WhatsApp, con voces argentinas.
+Soy Laureano, de Atentina. Ayudamos a empresas a aplicar inteligencia artificial en su día a día: agentes que atienden por teléfono y WhatsApp, y automatización de tareas que hoy se hacen a mano.
 
-Con varias sedes y un teléfono en cada una, un agente puede dar y confirmar los turnos de todas, también fuera de horario.
+Con sedes en DASPU y en los hospitales Militar y Aeronáutico, cada una con su teléfono, vemos tareas que la IA puede tomar: dar y confirmar los turnos de todas las sedes, también fuera de horario.
 
-Pueden probarlo ahora en https://atentina.com.ar
+Podés ver un ejemplo en https://atentina.com.ar/?utm_source=email&utm_campaign=tanda1b&utm_content=oulton
 
-¿Hablamos 15 minutos la semana que viene?
+¿Qué tareas les llevan más horas hoy? En 15 minutos te cuento dónde vemos que la IA puede ayudarlos y dónde no.
 
 Saludos,
 Laureano
@@ -96,18 +98,18 @@ Emails encontrados (verificados el 5-oct-2026):
 
 ★ porque es la casilla publicada del Comité Ejecutivo que preside el número uno, en una página de jul-2026; mbono@ es de 2023 y la persona no es el gerente actual. Sin email: Alejandro Pozas, presidente; Horacio Fernández, gerente general.
 
-Enviado a correspondencia@ceb.coop el 2-oct-2026; ★ para el seguimiento.
+Mail nuevo al ★. El del 2-oct salió a correspondencia@ceb.coop; este reemplaza el seguimiento del 8-oct.
 
 Para:
 
 ```
-correspondencia@ceb.coop
+fchueri@ceb.coop
 ```
 
 Asunto:
 
 ```
-Un agente de IA para la atención de la CEB
+IA aplicada a la CEB
 ```
 
 Texto:
@@ -115,13 +117,13 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Ponemos en marcha agentes de inteligencia artificial que atienden a sus clientes por teléfono y WhatsApp, con voces argentinas.
+Soy Laureano, de Atentina. Ayudamos a empresas a aplicar inteligencia artificial en su día a día: agentes que atienden por teléfono y WhatsApp, y automatización de tareas que hoy se hacen a mano.
 
-Cuando hay un corte, un agente puede tomar los reclamos de todos los que llaman, sin saturar las líneas.
+Cuando hay un corte, la IA puede tomar los reclamos de todos los que llaman, sin saturar las líneas, y responder consultas a cualquier hora.
 
-Pueden probarlo ahora en https://atentina.com.ar
+Pueden ver un ejemplo en https://atentina.com.ar/?utm_source=email&utm_campaign=tanda1b&utm_content=ceb
 
-¿Hablamos 15 minutos la semana que viene?
+¿Qué tareas les llevan más horas hoy? En 15 minutos les contamos dónde vemos que la IA puede ayudarlos y dónde no.
 
 Saludos,
 Laureano
@@ -145,18 +147,18 @@ Emails encontrados (verificados el 5-oct-2026):
 
 ★ porque no hay emails personales publicados; es la casilla de área más cerca de la atención (recibe reclamos). computos@ es la alternativa por sistemas. Sin email: Carlos Noce, gerente general (El Litoral, 31-mar-2026); Ivana Céparo Russián, gerente comercial (PrensarioHub, 29-sep-2023, caso Yoizen: ya unificaron canales con esa plataforma).
 
-Enviado a info@amur.com.ar el 2-oct-2026; ★ para el seguimiento.
+Mail nuevo al ★. El del 2-oct salió a info@amur.com.ar; este reemplaza el seguimiento del 8-oct.
 
 Para:
 
 ```
-info@amur.com.ar
+comunicaciones@amur.com.ar
 ```
 
 Asunto:
 
 ```
-Un agente de IA para la atención de AMUR
+IA aplicada a AMUR
 ```
 
 Texto:
@@ -164,13 +166,13 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Ponemos en marcha agentes de inteligencia artificial que atienden a sus clientes por teléfono y WhatsApp, con voces argentinas.
+Soy Laureano, de Atentina. Ayudamos a empresas a aplicar inteligencia artificial en su día a día: agentes que atienden por teléfono y WhatsApp, y automatización de tareas que hoy se hacen a mano.
 
-Con más de 70 delegaciones, un agente puede dar turnos y responder a los afiliados a toda hora.
+Con más de 70 delegaciones, vemos tareas que la IA puede tomar con los afiliados: turnos, consultas y reclamos, a toda hora.
 
-Pueden probarlo ahora en https://atentina.com.ar
+Pueden ver un ejemplo en https://atentina.com.ar/?utm_source=email&utm_campaign=tanda1b&utm_content=amur
 
-¿Hablamos 15 minutos la semana que viene?
+¿Qué tareas les llevan más horas hoy? En 15 minutos les contamos dónde vemos que la IA puede ayudarlos y dónde no.
 
 Saludos,
 Laureano
@@ -194,32 +196,32 @@ Emails encontrados (verificados el 5-oct-2026):
 
 ★ porque es la única casilla de una persona con nombre; es de 2022 y puede rebotar. Sin email: José Carlos Tabares, presidente (prospecto, 2022; mandato hasta la asamblea de 2025); Maia Payes y María Belén Andino, asesoras de Ayudas económicas (web, con WhatsApp).
 
-Enviado a contacto@mis.org.ar el 2-oct-2026; ★ para el seguimiento.
+Mail nuevo al ★. El del 2-oct salió a contacto@mis.org.ar; este reemplaza el seguimiento del 8-oct.
 
 Para:
 
 ```
-contacto@mis.org.ar
+jsala@mis.org.ar
 ```
 
 Asunto:
 
 ```
-Un agente de IA para la atención de MIS
+IA aplicada a MIS
 ```
 
 Texto:
 
 ```
-Hola, ¿cómo están?
+Hola Jorge, ¿cómo estás?
 
-Soy Laureano, de Atentina. Ponemos en marcha agentes de inteligencia artificial que atienden a sus clientes por teléfono y WhatsApp, con voces argentinas.
+Soy Laureano, de Atentina. Ayudamos a empresas a aplicar inteligencia artificial en su día a día: agentes que atienden por teléfono y WhatsApp, y automatización de tareas que hoy se hacen a mano.
 
-Un agente puede atender fuera del horario del 0810 y recordar las cuotas a los asociados.
+Fuera del horario del 0810, la IA puede atender a los asociados y recordarles las cuotas antes del vencimiento.
 
-Pueden probarlo ahora en https://atentina.com.ar
+Podés ver un ejemplo en https://atentina.com.ar/?utm_source=email&utm_campaign=tanda1b&utm_content=mis
 
-¿Hablamos 15 minutos la semana que viene?
+¿Qué tareas les llevan más horas hoy? En 15 minutos te cuento dónde vemos que la IA puede ayudarlos y dónde no.
 
 Saludos,
 Laureano
@@ -247,18 +249,18 @@ Emails encontrados (verificados el 5-oct-2026):
 
 ★ porque no hay emails personales; admisiones es el área de lo que ofrece el mail (inscripciones 2027), y el primario tiene la inscripción abierta. nivelprimario@ es la alternativa para llegar a la vicepresidenta del consejo. Sin email: Cdor. Julio Jacinto Amat, representante legal; Prof. María del Carmen Amat de Clementi, presidenta del Consejo Administrativo Financiero; Ing. Rodolfo Giro, asesor tecnológico.
 
-Enviado a informes@isep.edu.ar el 2-oct-2026; ★ para el seguimiento.
+Mail nuevo al ★. El del 2-oct salió a informes@isep.edu.ar; este reemplaza el seguimiento del 8-oct.
 
 Para:
 
 ```
-informes@isep.edu.ar
+admisiones.nivelprimario@isep.edu.ar
 ```
 
 Asunto:
 
 ```
-Un agente de IA para la atención de ISEP
+IA aplicada a ISEP
 ```
 
 Texto:
@@ -266,13 +268,13 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Ponemos en marcha agentes de inteligencia artificial que atienden a sus clientes por teléfono y WhatsApp, con voces argentinas.
+Soy Laureano, de Atentina. Ayudamos a empresas a aplicar inteligencia artificial en su día a día: agentes que atienden por teléfono y WhatsApp, y automatización de tareas que hoy se hacen a mano.
 
-Con las inscripciones 2027 abiertas, un agente puede responder sobre vacantes y aranceles y agendar entrevistas.
+Con las inscripciones 2027 abiertas, la IA puede responder a las familias sobre vacantes y aranceles y agendar las entrevistas.
 
-Pueden probarlo ahora en https://atentina.com.ar
+Pueden ver un ejemplo en https://atentina.com.ar/?utm_source=email&utm_campaign=tanda1b&utm_content=isep
 
-¿Hablamos 15 minutos la semana que viene?
+¿Qué tareas les llevan más horas hoy? En 15 minutos les contamos dónde vemos que la IA puede ayudarlos y dónde no.
 
 Saludos,
 Laureano
@@ -294,7 +296,7 @@ Emails encontrados (verificados el 5-oct-2026):
 
 ★ porque es la única casilla publicada en el dominio actual; julia@gestarcoop.com (Innovab) está en el dominio viejo, vencido, y rebotaría. Sin email: (Marcelo) Javier Bergero, CEO y cofundador; Alejandra Gómez, cofundadora (gerente de ventas según LinkedIn). WhatsApp publicado: +54 351 243-6302.
 
-Enviado a info@migestarcoop.com el 2-oct-2026; ★ para el seguimiento.
+Respuesta en el mismo hilo del mail del 2-oct (el ★ es la casilla a la que ya se escribió).
 
 Para:
 
@@ -305,7 +307,7 @@ info@migestarcoop.com
 Asunto:
 
 ```
-Un agente de IA para la atención de GestarCoop
+Re: Un agente de IA para la atención de GestarCoop
 ```
 
 Texto:
@@ -313,13 +315,13 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Ponemos en marcha agentes de inteligencia artificial que atienden a sus clientes por teléfono y WhatsApp, con voces argentinas.
+Les escribo de nuevo con una idea más amplia: además de los agentes que atienden y llaman por teléfono y WhatsApp, desarrollamos soluciones de inteligencia artificial y automatización de tareas.
 
-Nos gustaría ver si puede sumarse como un módulo más para las cooperativas que usan su sistema.
+Sus clientes son cooperativas con muchos socios que atender: la IA podría ser un módulo más de GestarCoop, con su marca.
 
-Pueden probarlo ahora en https://atentina.com.ar
+Pueden ver un ejemplo en https://atentina.com.ar/?utm_source=email&utm_campaign=tanda1b&utm_content=gestarcoop
 
-¿Hablamos 15 minutos la semana que viene?
+¿Les interesa que lo veamos como aliados?
 
 Saludos,
 Laureano
@@ -342,32 +344,32 @@ Emails encontrados (verificados el 5-oct-2026):
 
 ★ porque es el número uno, con email publicado hasta mar-2025 (sale de Wayback: puede rebotar). Sin email: Walter Vieites, socio gerente (snippet; en el sitio viejo su casilla figura con errata en el dominio, alianzacobos.com.ar, sin MX: no usar).
 
-Enviado a propuestas@alianzacobros.com.ar el 2-oct-2026; ★ para el seguimiento.
+Mail nuevo al ★. El del 2-oct salió a propuestas@alianzacobros.com.ar; este reemplaza el seguimiento del 8-oct.
 
 Para:
 
 ```
-propuestas@alianzacobros.com.ar
+lboechi@alianzacobros.com.ar
 ```
 
 Asunto:
 
 ```
-Un agente de IA para la atención de Alianza Cobros
+IA aplicada a Alianza Cobros
 ```
 
 Texto:
 
 ```
-Hola, ¿cómo están?
+Hola Lucas, ¿cómo estás?
 
-Soy Laureano, de Atentina. Ponemos en marcha agentes de inteligencia artificial que atienden a sus clientes por teléfono y WhatsApp, con voces argentinas.
+Soy Laureano, de Atentina. Ayudamos a empresas a aplicar inteligencia artificial en su día a día: agentes que atienden por teléfono y WhatsApp, y automatización de tareas que hoy se hacen a mano.
 
-Un agente puede hacer la mora temprana en volumen y pasarle al equipo solo los casos con intención de pago.
+En la mora temprana, la IA puede hacer los llamados en volumen y pasarle al equipo solo los casos con intención de pago.
 
-Pueden probarlo ahora en https://atentina.com.ar
+Podés ver un ejemplo en https://atentina.com.ar/?utm_source=email&utm_campaign=tanda1b&utm_content=alianza-cobros
 
-¿Hablamos 15 minutos la semana que viene?
+¿Qué tareas les llevan más horas hoy? En 15 minutos te cuento dónde vemos que la IA puede ayudarlos y dónde no.
 
 Saludos,
 Laureano
@@ -390,7 +392,7 @@ Emails encontrados (verificados el 5-oct-2026):
 
 ★ porque no hay nada mejor: grionda@ es de 2007 y sin nombre. Sin email: Alejandro Caruso, director ejecutivo y socio fundador; Marcelo Gonzalez, gerente de Tecnología; Martín Alapont, gerente comercial (snippet de ZoomInfo).
 
-Enviado a info@paktar.com.ar el 2-oct-2026; ★ para el seguimiento.
+Respuesta en el mismo hilo del mail del 2-oct (el ★ es la casilla a la que ya se escribió).
 
 Para:
 
@@ -401,7 +403,7 @@ info@paktar.com.ar
 Asunto:
 
 ```
-Un agente de IA para la atención de Paktar
+Re: Un agente de IA para la atención de Paktar
 ```
 
 Texto:
@@ -409,13 +411,13 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Ponemos en marcha agentes de inteligencia artificial que atienden a sus clientes por teléfono y WhatsApp, con voces argentinas.
+Les escribo de nuevo con una idea más amplia: además de los agentes que atienden y llaman por teléfono y WhatsApp, desarrollamos soluciones de inteligencia artificial y automatización de tareas.
 
-Nos gustaría ver si un agente que conversa les sirve para sumar a su operación y ofrecerlo a sus clientes.
+Para su operación de cobranzas y atención, la IA podría sumarse con su marca y ofrecerse a sus clientes.
 
-Pueden probarlo ahora en https://atentina.com.ar
+Pueden ver un ejemplo en https://atentina.com.ar/?utm_source=email&utm_campaign=tanda1b&utm_content=paktar
 
-¿Hablamos 15 minutos la semana que viene?
+¿Les interesa que lo veamos como aliados?
 
 Saludos,
 Laureano
@@ -438,18 +440,18 @@ Emails encontrados (verificados el 5-oct-2026):
 
 ★ porque no hay emails personales; es la casilla de área de atención (y de administración de alquileres). Sin email: Marcos M. Yacoub, director general de Gestión de Cartera (el más afín: alquileres, datos y automatización); Viviana Yacoub, fundadora y presidente; Juan Segundo M. Yacoub, CEO comercial.
 
-Enviado a info@yacoub.com.ar el 2-oct-2026; ★ para el seguimiento.
+Mail nuevo al ★. El del 2-oct salió a info@yacoub.com.ar; este reemplaza el seguimiento del 8-oct.
 
 Para:
 
 ```
-info@yacoub.com.ar
+administracion@yacoub.com.ar
 ```
 
 Asunto:
 
 ```
-Un agente de IA para la atención de Yacoub
+IA aplicada a Yacoub
 ```
 
 Texto:
@@ -457,13 +459,13 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Ponemos en marcha agentes de inteligencia artificial que atienden a sus clientes por teléfono y WhatsApp, con voces argentinas.
+Soy Laureano, de Atentina. Ayudamos a empresas a aplicar inteligencia artificial en su día a día: agentes que atienden por teléfono y WhatsApp, y automatización de tareas que hoy se hacen a mano.
 
-Un agente puede responder a compradores e inquilinos y agendar visitas, también fuera de horario.
+Vemos tareas que la IA puede tomar: responder a compradores e inquilinos y agendar visitas, también fuera de horario.
 
-Pueden probarlo ahora en https://atentina.com.ar
+Pueden ver un ejemplo en https://atentina.com.ar/?utm_source=email&utm_campaign=tanda1b&utm_content=yacoub
 
-¿Hablamos 15 minutos la semana que viene?
+¿Qué tareas les llevan más horas hoy? En 15 minutos les contamos dónde vemos que la IA puede ayudarlos y dónde no.
 
 Saludos,
 Laureano
@@ -487,18 +489,18 @@ Emails encontrados (verificados el 5-oct-2026):
 
 ★ porque no hay emails personales; marketing es el área que maneja los leads, cerca de lo comercial. Sin email: Marcos Vidal, gerente de Benelli Silva Mobility (La Gaceta, 13-sep-2024); Daniel Silva, responsable del Benelli Store (Motoblog, 18-oct-2022).
 
-Enviado a contacto@gruposilva.com.ar el 2-oct-2026; ★ para el seguimiento.
+Mail nuevo al ★. El del 2-oct salió a contacto@gruposilva.com.ar; este reemplaza el seguimiento del 8-oct.
 
 Para:
 
 ```
-contacto@gruposilva.com.ar
+marketing@gruposilva.com.ar
 ```
 
 Asunto:
 
 ```
-Un agente de IA para la atención de Grupo Silva
+IA aplicada a Grupo Silva
 ```
 
 Texto:
@@ -506,26 +508,69 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Ponemos en marcha agentes de inteligencia artificial que atienden a sus clientes por teléfono y WhatsApp, con voces argentinas.
+Soy Laureano, de Atentina. Ayudamos a empresas a aplicar inteligencia artificial en su día a día: agentes que atienden por teléfono y WhatsApp, y automatización de tareas que hoy se hacen a mano.
 
-Un agente puede responder consultas a cualquier hora y agendar pruebas de manejo y turnos de taller.
+Vemos tareas que la IA puede tomar: responder consultas a cualquier hora y agendar pruebas de manejo y turnos de taller.
 
-Pueden probarlo ahora en https://atentina.com.ar
+Pueden ver un ejemplo en https://atentina.com.ar/?utm_source=email&utm_campaign=tanda1b&utm_content=grupo-silva
 
-¿Hablamos 15 minutos la semana que viene?
+¿Qué tareas les llevan más horas hoy? En 15 minutos les contamos dónde vemos que la IA puede ayudarlos y dónde no.
 
 Saludos,
 Laureano
 laureano@atentina.com.ar
 ```
 
-## Seguimiento previsto (jueves 8-oct, respondiendo el mismo hilo)
+## 11. Browix
 
-**Reemplazado** por el segundo envío con el texto de IA: [`2026-10-05-tanda1-reenvio.md`](2026-10-05-tanda1-reenvio.md).
+- Rubro: Plataforma de gestión de personal (control horario, recibos de sueldo, tareas en terreno), Córdoba
+- Web: https://browix.com
+- Tipo: posible cliente (su equipo de ventas) y posible canal (sus clientes tienen personal
+  distribuido y mucha atención).
+- Por qué encaja: venden por demo con un asesor; cada pedido de demo hay que atenderlo,
+  calificarlo y agendarlo.
+- Gancho: ya tenemos el caso armado. Los agentes de referencia `sales_discovery` y `demo_booking`
+  (`app/agents/reference/`) son la asesora de Browix, con su contexto en
+  [`../../Browix_Contexto_Agente.md`](../../Browix_Contexto_Agente.md). Sirve para mostrarles
+  una llamada con su propio producto.
+
+Emails encontrados (verificados el 5-oct-2026):
+
+| | Email | Tipo | Quién | Fuente (fecha) |
+|---|---|---|---|---|
+| ★ | info@browix.com | atención | — | "Contacto directo" en https://browix.com/contacto (también llms.txt: "Email comercial y soporte") (visto el 2-oct-2026) |
+|  | soporte@browix.com | área | Soporte técnico (lun a vie, 9 a 17) | https://browix.com/TyC_Contratacion y https://browix.com/privacy (visto el 5-oct-2026) |
+
+★ porque es el único contacto comercial publicado; soporte@ es para clientes. El pedido de demo entra por el formulario de /contacto. Sin email: Nicolás Rives, cofundador (InfoNegocios, 9-sep-2020); Francisco Sánchez Clariá, cofundador y CTO (snippet).
+
+Respuesta en el mismo hilo del mail del 2-oct (el ★ es la casilla a la que ya se escribió).
+
+Para:
 
 ```
-Hola, ¿pudieron verlo? Si no son ustedes quienes ven estos temas, ¿me dicen a quién escribirle?
+info@browix.com
+```
+
+Asunto:
+
+```
+Re: Un agente de IA para el equipo de ventas de Browix
+```
+
+Texto:
+
+```
+Hola, ¿cómo están?
+
+Les escribo de nuevo con una idea más amplia: además de los agentes que atienden y llaman por teléfono y WhatsApp, desarrollamos soluciones de inteligencia artificial y automatización de tareas.
+
+Para su equipo de ventas, la IA puede atender cada pedido de demo en el momento y agendar la reunión; para sus clientes, podría ser un módulo más de Browix.
+
+Pueden ver un ejemplo en https://atentina.com.ar/?utm_source=email&utm_campaign=tanda1b&utm_content=browix
+
+¿Les interesa que lo veamos como aliados?
 
 Saludos,
 Laureano
+laureano@atentina.com.ar
 ```

@@ -81,7 +81,10 @@ canjea el token por una sesión corta.
 
 La home ofrece solo `atentina_comercial`, el agente que atiende la línea y el WhatsApp de Atentina, con un
 botón a WhatsApp y un link a las verticales ("Hablá con otros agentes"); el "llamá gratis" de la home
-muestra esa línea (`phone` del agente en `site.ts`). Las verticales usan `turnos`, `cobranzas` y `reclamos`.
+muestra esa línea (`phone` del agente en `site.ts`): el 0800-220-1233, con su QR, que Anura manda a
+Asterisk y la app rutea a `atentina_comercial` (el WhatsApp sigue en el 351 700-2592). Va en formato
+nacional (`tel:08002201233`): con +54 no lo enrutan todas las compañías. Las verticales usan `turnos`,
+`cobranzas` y `reclamos`, sin línea propia, así que no ofrecen "llamá gratis".
 Todos son del cliente `atentina` (nosotros, el mismo del
 WhatsApp y el número propios; hasta el 2-oct-2026 había un cliente `landing` aparte). Solo esos se
 pueden llamar desde la landing (`DEMO_AGENTS`): el resto de los agentes de Atentina da 404. El seed
@@ -232,7 +235,5 @@ El túnel no lleva UDP: el audio va directo a la IP fija. LiveKit anuncia la IP 
 - **App:** `app.atentina.com.ar` servirá la UI de la plataforma (`app.atentina.com` redirige ahí con
   la misma Redirect Rule). La app ya está endurecida para internet; falta desplegarla, crear el
   hostname en el túnel (paso 5) y sumar el link "Ingresar" en la landing.
-- **Número 0800 de la demo:** el popup "llamá gratis" muestra `0800-000-0000` hasta definirlo
-  (`src/scripts/tel.ts`).
 - **Redes con UDP bloqueado:** sin TURN sobre TLS (443), el audio usa TCP 7881; si también está
   bloqueado, la llamada no conecta.
