@@ -9,7 +9,8 @@ FROM alpine:3.24
 
 # gettext-envsubst: envsubst para renderizar los templates con los datos de
 # Anura/LiveKit de .env. tzdata: logs con hora local (TZ en docker-compose.yml).
-RUN apk add --no-cache asterisk gettext-envsubst tzdata
+# asterisk-srtp: audio cifrado (SDES) de las llamadas de WhatsApp (conf/whatsapp/).
+RUN apk add --no-cache asterisk asterisk-srtp gettext-envsubst tzdata
 
 # Configs del core que Asterisk lee siempre y que aca no se usan: sin estos
 # archivos cada arranque llena el log de "Unable to load config file". CDR y

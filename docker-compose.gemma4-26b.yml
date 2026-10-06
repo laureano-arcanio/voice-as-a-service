@@ -1,0 +1,45 @@
+# Experimento: Gemma 4 26B-A4B (MoE, ~4B activos por token) en 4 bits en lugar de
+# Qwen3.5-9B w4a16, en la GPU 0 sola. Google no publica w4a16 del 26B (solo GGUF y
+# bf16 "unquantized QAT"): se usa la AWQ-INT4 de cyankiwi, hecha sobre ese QAT
+# (compressed-tensors, 17,2 GB de pesos, Apache 2.0). Alternativas con el mismo
+# formato y tamano: cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit (sobre el bf16 comun) y
+# reinforce20001/gemma4-26b-a4b-it-qat-w4a16-ct.
+# Con 0.90 sobran ~4 GB para KV cache y CUDA graphs (el 9B dejaba 9,4 GiB), asi que
+# arranca con menos secuencias y contexto: si vLLM se queja de memoria, bajar
+# VLLM_LLM_MAX_NUM_SEQS o --max-model-len.
+#
+# Levantar (los tres juntos: el nombre del modelo tiene que coincidir):
+#   docker compose -f docker-compose.yml -f docker-compose.livekit.yml -f docker-compose.gemma4-26b.yml up -d vllm-llm app agent
+# Evaluar: el mismo -f en `docker compose run ... app` (docs/eval/README.md).
+# Es el LLM por defecto desde el 6-oct-2026: va en COMPOSE_FILE del .env (junto con
+# VLLM_LLM_MODEL=cyankiwi/gemma-4-26B-A4B-it-qat-AWQ-INT4, para los scripts que lo leen).
+# Capacidad: seguir docs/capacity/README.md.
+# Volver al Qwen3.5-9B: sacarlo de COMPOSE_FILE, restaurar VLLM_LLM_MODEL=RedHatAI/Qwen3.5-9B-quantized.w4a16
+# y recrear vllm-llm, app y agent (make up-inference && make up-agent).
+services:
+  vllm-llm:
+    command:
+      # Pesos ya bajados en /home/laureano/Models (montados abajo); el nombre servido
+      # sigue siendo el del repo, que es el que usan app y agent.
+      - "--model=/models/gemma-4-26B-A4B-it-qat-AWQ-INT4"
+      - "--served-model-name=cyankiwi/gemma-4-26B-A4B-it-qat-AWQ-INT4"
+      - "--host=0.0.0.0"
+      - "--port=8000"
+      - "--api-key=${VLLM_API_KEY:-not-needed}"
+      - "--max-model-len=16384"
+      - "--reasoning-parser=gemma4"
+      - "--gpu-memory-utilization=0.90"
+      - "--max-num-seqs=32"
+      - "--max-cudagraph-capture-size=32"
+      # Trae encoder de imagen (y video) que no se usan.
+      - "--limit-mm-per-prompt={\"image\":0,\"video\":0}"
+    volumes:
+      - /home/laureano/Models:/models:ro
+
+  app:
+    environment:
+      VLLM_LLM_MODEL: cyankiwi/gemma-4-26B-A4B-it-qat-AWQ-INT4
+
+  agent:
+    environment:
+      VLLM_LLM_MODEL: cyankiwi/gemma-4-26B-A4B-it-qat-AWQ-INT4

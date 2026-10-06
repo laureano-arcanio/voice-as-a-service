@@ -44,8 +44,8 @@ curl -X POST http://<host>:8011/api/v1/calls -H "Authorization: Bearer $VAAS_API
   -H 'Content-Type: application/json' -d '{"agent_id": "<id>", "phone": "+5491155551234"}'
 ```
 
-**Demo de la landing** (`/api/v1/demo`, sin usuario): la landing llama a los agentes del cliente
-`landing` desde el navegador y sintetiza texto, con Turnstile y límites por IP y por día. Ver
+**Demo de la landing** (`/api/v1/demo`, sin usuario): la landing llama a los agentes de `DEMO_AGENTS`
+(`atentina_comercial`, `turnos`, `cobranzas`, `reclamos`) del cliente `DEMO_CLIENT` (`atentina`) desde el navegador y sintetiza texto, con Turnstile y límites por IP y por día. Ver
 [`docs/LANDING.md`](docs/LANDING.md).
 
 **UI** (`web/`, React + Vite, compilada dentro de la imagen de `app`): dashboard con filtros por
@@ -87,9 +87,12 @@ reparto de GPU/memoria entre los 3 esta documentado con detalle en los comentari
 `docker-compose.yml` (fue bastante mas quisquilloso de lo esperado: los modelos de audio
 reservan memoria fuera del budget normal de KV-cache, y vLLM sigue capturando CUDA graphs
 nuevos con el trafico real, asi que el uso real de VRAM termina bien por encima de lo que
-estima `--gpu-memory-utilization` en frio). Hoy el server tiene una RTX 5060 Ti 8 GB con el
-TTS solo y una 3090 con el LLM y el STT (`docker-compose.gpu-5060.yml`): ~34 llamadas
-simultaneas con p95 de 3,4 s. Con 2 x 3090 fueron ~32 con p95 de 3 s (ver `docs/capacity/` y `AGENTS.md`; mediciones anteriores en `docs/archive/`).
+estima `--gpu-memory-utilization` en frio). Hoy el server tiene 2 x RTX 3090 24 GB a 280 W: el
+LLM solo en la GPU 0 y TTS + STT en la GPU 1 (compose principal, sin override): ~32 llamadas
+simultaneas con p95 <= 3 s (CAP-001). La 5060 Ti (`docker-compose.gpu-5060.yml`, ~34 con p95 de 3,4 s)
+fue una prueba (ver `docs/capacity/` y `AGENTS.md`; mediciones anteriores en `docs/archive/`).
+Driver probado: `nvidia-driver-580-open` (minimo rama 580, imagenes cu130); host desde cero:
+`docs/MIGRACION_SERVER.md`.
 
 ### Voces del TTS
 
@@ -307,6 +310,9 @@ make setup   # crea .env desde .env.example; completar credenciales (ver "Claves
 make up      # todo: agente + inferencia + proxy + asterisk
 ```
 
+Server nuevo (host desde cero, restaurar base y checkpoint del TTS, router, corte):
+[`docs/MIGRACION_SERVER.md`](docs/MIGRACION_SERVER.md). Ahi el `.env` sale del backup, no de `make setup`.
+
 `make up` y `make up-agent` corren antes `make migrate`: migraciones de Alembic y un seed
 idempotente (tier Interno sin límites y cliente `atentina`, nosotros; sus agentes `atentina_comercial`,
 `demo_booking_classic` y los de la demo de la landing; `ANURA_DID` atendido
@@ -337,7 +343,8 @@ llegue `/v1/...`. Lo levanta `make up` (o solo el, `make up-nginx`).
      agrega auth propia, esta es la unica).
    - `PUBLIC_HOST`: la IP fija del host (hoy `181.104.113.28`), sin esquema ni puerto.
    - `PROXY_PORT`: 8100 por defecto.
-2. En el router: redirigir `PROXY_PORT` (TCP) a este host (`192.168.1.99`).
+2. En el router: redirigir `PROXY_PORT` (TCP) a este host (`192.168.1.99`). Solo mientras se use:
+   en produccion el 8100 no se reenvia (`docs/PRODUCCION.md`).
 3. `make up-nginx` imprime las URLs. No depende de la inferencia: el servicio que este
    apagado da 502 en su path.
 
@@ -383,16 +390,18 @@ el host GPU.
 1. `AUTH_SECRET` (`openssl rand -hex 32`) — firma de las sesiones; sin ella la app no arranca.
    `ADMIN_EMAIL` / `ADMIN_PASSWORD` para el primer admin. `AUTH_COOKIE_SECURE=false` mientras la
    UI se sirva por HTTP plano.
-2. `LIVEKIT_URL` / `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` — proyecto de LiveKit Cloud
-   (Project Settings → Keys).
+2. `LIVEKIT_URL` / `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` — del LiveKit propio (vigente, claves
+   generadas: `docs/TELEFONIA_ANURA.md`, 7) o de un proyecto de LiveKit Cloud (Project Settings → Keys).
 3. `LIVEKIT_SIP_TRUNK_ID` — troncal SIP saliente de LiveKit (Anura: `make livekit-sip`, ver
    "Telefonia: Anura via Asterisk" abajo). Opcional: vacio, el agente usa la que se llama
    `anura-asterisk-outbound`.
-4. Nada mas: LLM/STT/TTS corren localmente (ver "Inferencia local (vLLM)" arriba), no
-   hace falta ninguna API key de proveedor externo. `HF_TOKEN` es opcional, solo si
+4. LLM/STT/TTS corren localmente (ver "Inferencia local" arriba), sin API key de proveedor
+   externo. Telefonia, demo, WhatsApp, tunel y correo si usan claves externas: tabla completa
+   (de donde sale cada una y cual no se puede regenerar, como `WA_TOKEN_KEY`) en
+   `docs/MIGRACION_SERVER.md`, 3.2. `HF_TOKEN` es opcional, solo si
    algun modelo llegara a requerir aceptar licencia en HuggingFace.
-5. Solo si se exponen los vLLM por la IP fija (ver "Exponer los vLLM por la IP fija"
-   arriba): `VLLM_API_KEY` (clave real) y `PUBLIC_HOST`.
+5. `VLLM_API_KEY` (clave real, siempre: el proxy escucha en la LAN) y `PUBLIC_HOST` (ver
+   "Inferencia por la IP fija" arriba).
 
 ### Telefonia: Anura via Asterisk
 
@@ -401,9 +410,10 @@ Troncal SIP argentina de [Anura](https://kb.anura.com.ar/es/) con un Asterisk en
 LiveKit y las salientes del agente a Anura, traduciendo los formatos de numero. Runbook
 completo (port forwarding del router, troubleshooting): `docs/TELEFONIA_ANURA.md`.
 
-1. Completar el bloque "Telefonia" de `.env` (`ANURA_*`, `LIVEKIT_SIP_HOST`,
-   `LIVEKIT_SIP_PASSWORD`).
-2. Router: redirigir `5080/udp` y `10000-10199/udp` a este host y apagar el SIP ALG.
+1. Completar el bloque "Telefonia" de `.env` (`ANURA_*`, `LIVEKIT_SIP_HOST` —`127.0.0.1:5060` con
+   LiveKit propio—, `LIVEKIT_SIP_PASSWORD`).
+2. Router: redirigir `10000-10199/udp` (RTP) y `5061/tcp` (WhatsApp) a este host y apagar el SIP ALG.
+   El `5080/udp` no se reenvia con LiveKit propio. Tabla completa: `docs/MIGRACION_SERVER.md`, 6.
 3. `make up-pbx` y `make pbx-status` -> el registro con Anura tiene que decir `Registered`.
 4. `make livekit-sip` -> crea los trunks entrante/saliente y la dispatch rule en LiveKit, con
    los números de la tabla `phone_numbers` (volver a correrlo al agregar o quitar números).
@@ -411,12 +421,12 @@ completo (port forwarding del router, troubleshooting): `docs/TELEFONIA_ANURA.md
    fijarlo, poner el `ST_...` que imprime y `make up-agent` (recrea el agente con el `.env`
    nuevo). Con LiveKit propio, `make up` corre este paso solo (`docs/TELEFONIA_ANURA.md`, 7).
 
-Despues de editar `.env`: `docker compose up -d`.
+Despues de editar `.env`: `make up-pbx` (Asterisk) o `make up` (el resto); `make restart` no relee `.env`.
 
 Entrantes: el worker lee el número marcado (`sip.trunkPhoneNumber`), busca el número en la base y
 atiende con su agente y los límites de su cliente; un número sin agente se corta. Salientes: salen
-con el primer número del cliente (o el elegido) como `sip_number`, pero hoy Asterisk fija el caller
-ID en `ANURA_DID` (`docs/TELEFONIA_ANURA.md`).
+con el primer número del cliente (o el elegido) como `sip_number`, y Asterisk lo pasa a Anura en
+P-Asserted-Identity (0 + 10 digitos); sin numero valido, `ANURA_DID` (`docs/TELEFONIA_ANURA.md`).
 
 ## Motor conversacional
 

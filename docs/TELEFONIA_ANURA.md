@@ -135,6 +135,8 @@ LiveKit y Anura tienen que poder mandarle tráfico, así que en el router:
    - `5080` (SIP, `ASTERISK_SIP_PORT`) **solo con LiveKit Cloud**. Con LiveKit propio no se reenvía:
      abierto a internet, alguien podría probar claves del endpoint `livekit` y hacer salientes por
      Anura a nuestro cargo. Si se vuelve a Cloud, sacar también el ACL del endpoint en `pjsip.conf`.
+   - `5061` en **TCP** (SIP sobre TLS de las llamadas de WhatsApp, `WA_SIP_PORT`, desde el 6-oct-2026):
+     ver [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md), 5.4. El audio usa el mismo rango RTP.
 3. **Desactivar el SIP ALG** del router (a veces aparece como "SIP Helper" o
    "SIP Passthrough"). Reescribe los paquetes SIP y es la causa más común de
    llamadas sin audio o que se cortan a los 30 segundos.
@@ -147,6 +149,7 @@ pero si la IP cambia hay que reiniciar Asterisk y volver a correr
 
 ### SIP URI de LiveKit
 
+Solo con LiveKit Cloud. Con LiveKit propio (vigente, sección 7) es `LIVEKIT_SIP_HOST=127.0.0.1:5060`.
 Está en el dashboard de LiveKit Cloud, en **Settings → Project → SIP URI**.
 Tiene la forma `sip:xxxxxxxx.sip.livekit.cloud`. Va en `LIVEKIT_SIP_HOST` sin el
 `sip:`. No es el mismo subdominio que `LIVEKIT_URL`.
@@ -160,7 +163,7 @@ ANURA_DOMAIN=miempresa.grancentral.com.ar
 ANURA_USER=99905
 ANURA_PASSWORD=...
 ANURA_DID=1152630861
-LIVEKIT_SIP_HOST=xxxxxxxx.sip.livekit.cloud
+LIVEKIT_SIP_HOST=127.0.0.1:5060                 # LiveKit propio; con Cloud: xxxxxxxx.sip.livekit.cloud
 LIVEKIT_SIP_PASSWORD=$(openssl rand -hex 24)   # pegar el valor, no el comando
 ASTERISK_PUBLIC_ADDRESS=                        # vacío = autodetectar
 ```
@@ -168,7 +171,7 @@ ASTERISK_PUBLIC_ADDRESS=                        # vacío = autodetectar
 **2. Levantar Asterisk y confirmar el registro con Anura:**
 
 ```bash
-make pbx
+make up-pbx
 make pbx-status
 ```
 
@@ -188,28 +191,28 @@ Crea (o actualiza, si ya existen) tres objetos en el proyecto de LiveKit de
 |---|---|---|
 | Inbound trunk | `anura-asterisk-inbound` | Acepta llamadas a `+54<ANURA_DID>` que llegan con usuario `livekit` y la clave |
 | Dispatch rule | `anura-asterisk-dispatch` | Crea una room `anura-*` por llamada y despacha el agente |
-| Outbound trunk | `anura-asterisk-outbound` | Manda las salientes a `<IP pública>:5080/udp`, originadas desde Brasil |
+| Outbound trunk | `anura-asterisk-outbound` | Manda las salientes a `127.0.0.1:5080/udp` con LiveKit propio; con Cloud, a `<IP pública>:5080/udp`, originadas desde Brasil |
 
 Al final imprime el ID del outbound trunk. Con `LIVEKIT_SIP_TRUNK_ID` vacío en
 `.env` no hay nada más que hacer: el agente busca el trunk por nombre al marcar.
 Si preferís fijarlo, ponelo como `LIVEKIT_SIP_TRUNK_ID=ST_...` y corré `make up`,
-que recrea el agente con el `.env` nuevo (`make restart-agent` no alcanza:
+que recrea el agente con el `.env` nuevo (`make restart S=agent` no alcanza:
 `docker compose restart` no vuelve a leer `.env`).
 
 No toca otros trunks o reglas del proyecto (por ejemplo, las de pruebas
 anteriores): busca solo por estos nombres.
 
 **4. Probar una entrante.** Con el agente corriendo (`make up` o
-`make up-remote`), llamá al número de la troncal desde un celular. Tiene que
+`make up-agent`), llamá al número de la troncal desde un celular. Tiene que
 atender el agente. Para seguir la llamada:
 
 ```bash
-make logs-pbx     # "Entrante de Anura: ... -> +54..."
-make logs-agent
+make logs S=asterisk     # "Entrante de Anura: ... -> +54..."
+make logs S=agent
 ```
 
 **5. Probar una saliente.** Desde la UI, o `curl -X POST localhost:8011/api/v1/calls -H "Authorization: Bearer $VAAS_API_KEY"
--H 'Content-Type: application/json' -d '{"agent_id": "<id>", "phone": "+5491155551234"}'`. En `make logs-pbx` tiene que
+-H 'Content-Type: application/json' -d '{"agent_id": "<id>", "phone": "+5491155551234"}'`. En `make logs S=asterisk` tiene que
 aparecer `Saliente a Anura: 1155551234`.
 
 ## 4. Si algo falla
@@ -219,29 +222,32 @@ Para ver los mensajes SIP completos: `make pbx-cli` y después
 
 | Síntoma | Causa probable | Qué hacer |
 |---|---|---|
-| Registro `Rejected` | Usuario, clave o dominio incorrectos | Revisar `ANURA_*` contra lo que dio Anura y correr `make restart-pbx` |
+| Registro `Rejected` | Usuario, clave o dominio incorrectos | Revisar `ANURA_*` contra lo que dio Anura y correr `make up-pbx` |
 | Registro `Unregistered` o "No response received" | No llega a `ANURA_DOMAIN:55090` | `getent hosts $ANURA_DOMAIN`. Revisar que la red deje salir UDP 55090 |
-| Registrado, pero al llamar suena y en `make logs-pbx` no aparece "Entrante de Anura" | Anura no le manda la llamada a la terminal registrada | En el panel, el plan de llamada de la cuenta dueña del número tiene que llamar a la terminal con la que se registra Asterisk (ver "Datos de Anura"). Registrarse con una cuenta de *Troncales* no sirve |
-| Registrado, pero las entrantes no llegan a Asterisk | Anura no puede entrar por el NAT | Port forwarding de 5080/udp, SIP ALG apagado, IP pública correcta |
+| Registrado, pero al llamar suena y en `make logs S=asterisk` no aparece "Entrante de Anura" | Anura no le manda la llamada a la terminal registrada | En el panel, el plan de llamada de la cuenta dueña del número tiene que llamar a la terminal con la que se registra Asterisk (ver "Datos de Anura"). Registrarse con una cuenta de *Troncales* no sirve |
+| Registrado, pero las entrantes no llegan a Asterisk | Anura no puede entrar por el NAT | Anura entra por el 5081 gracias al registro (no se reenvía): SIP ALG apagado, registro renovándose (`expiration=120`), IP pública correcta. El 5080 no tiene que ver |
 | Llega a Asterisk y LiveKit responde 404 | El número no coincide con el inbound trunk | `ANURA_DID` tiene que ser el mismo en Asterisk y en LiveKit. Correr de nuevo `make livekit-sip` |
-| Llega a Asterisk, suena y corta; `docker logs livekit-sip` dice `status: 486, reason: flood` | LiveKit no tiene ningún inbound trunk (con LiveKit propio: se reinició el host y su Redis no persiste). `lk sip inbound list` sale vacío | `make livekit-sip` (`make up` ya lo corre al final con LiveKit propio) |
-| Llega a Asterisk y LiveKit sigue respondiendo 401/407 | Clave distinta entre Asterisk y LiveKit | Correr de nuevo `make livekit-sip` y `make restart-pbx` con el mismo `LIVEKIT_SIP_PASSWORD` |
-| Saliente: el agente marca la llamada como fallida por timeout (408) | LiveKit no llega a `<IP pública>:5080` | Port forwarding, o cambió la IP pública: `make restart-pbx` y `make livekit-sip` |
+| Llega a Asterisk, suena y corta; `make logs S=livekit-sip` dice `status: 486, reason: flood` | LiveKit no tiene ningún inbound trunk (con LiveKit propio: se reinició el host y su Redis no persiste). `lk sip inbound list` sale vacío | `make livekit-sip` (`make up` ya lo corre al final con LiveKit propio) |
+| Llega a Asterisk y LiveKit sigue respondiendo 401/407 | Clave distinta entre Asterisk y LiveKit | Correr de nuevo `make livekit-sip` y `make up-pbx` con el mismo `LIVEKIT_SIP_PASSWORD` |
+| Saliente: el agente marca la llamada como fallida por timeout (408) | LiveKit no llega a Asterisk (`127.0.0.1:5080` con LiveKit propio; `<IP pública>:5080` con Cloud) | Con Cloud: port forwarding, o cambió la IP pública. `make up-pbx` y `make livekit-sip` |
 | Saliente: SIP 403 y en los logs "Saliente RECHAZADA" | El número no es argentino o tiene un formato desconocido | Cargarlo en E.164 (`+549...` o `+54...`) |
 | Saliente: Anura responde 403/404 | Formato de número o caller ID que Anura no acepta | Consultar a Anura. Si piden que el `From` sea el usuario de la cuenta, agregar `from_user=${ANURA_USER}` al endpoint `anura` en `pjsip.conf` |
 | La llamada conecta pero no hay audio, o se escucha en un solo sentido | El RTP no pasa por el NAT | Port forwarding de 10000-10199/udp, SIP ALG apagado, `ASTERISK_PUBLIC_ADDRESS` correcta. Si el agente escucha al cliente pero no al revés, revisar que el endpoint `livekit` siga en `transport-livekit` (sin `external_media_address`, ver "NAT" arriba). Diagnóstico: `pjsip show channelstats` durante la llamada (paquetes recibidos por canal) |
 | Se corta a los ~30 segundos | El ACK no llega (SIP ALG o NAT) | SIP ALG apagado |
 
 Es normal ver en los logs `No matching endpoint found` con un 401 antes de cada
-saliente: es el primer INVITE de LiveKit, que todavía no trae credenciales.
+saliente: es el primer INVITE de LiveKit, que todavía no trae credenciales. Lo
+mismo antes de cada llamada de WhatsApp (el primer INVITE de Meta, desde `wa.meta.vc`).
 Pasa lo mismo con los escaneos de internet, que no van más allá del 401.
 
 ## 5. Seguridad
 
-- Solo hay dos endpoints SIP. A **Anura** se lo reconoce por IP (sus cuatro redes
+- Hay tres endpoints SIP. A **Anura** se lo reconoce por IP (sus cuatro redes
   de AS52275, sacadas de su KB). A **LiveKit** se lo reconoce por usuario y clave
   (48 caracteres hex), porque desde Sudamérica LiveKit Cloud no sale con IPs
-  fijas. Cualquier otro request recibe 401 y no llega al dialplan.
+  fijas. A **Meta** (llamadas de WhatsApp), por usuario y la clave que genera
+  Meta, solo por TLS en el 5061; su contexto solo llega a LiveKit, no a Anura.
+  Cualquier otro request recibe 401 y no llega al dialplan.
 - Las salientes solo aceptan números argentinos. Aunque se filtre la clave de
   LiveKit, no se pueden hacer llamadas internacionales por la troncal.
 - AMI, ARI y HTTP de Asterisk están apagados, y solo se cargan los módulos que
@@ -257,14 +263,18 @@ Pasa lo mismo con los escaneos de internet, que no van más allá del 401.
 | `asterisk/Dockerfile` | Alpine 3.24 + Asterisk 22 (LTS) |
 | `asterisk/entrypoint.sh` | Valida `.env`, detecta la IP pública y renderiza `asterisk/conf/*.conf` en `/etc/asterisk` |
 | `asterisk/conf/pjsip.conf` | Transporte con NAT, registro y endpoint de Anura, endpoint de LiveKit |
+| `asterisk/conf/whatsapp/pjsip_whatsapp.conf` | Transporte TLS y endpoint de Meta (llamadas de WhatsApp, [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md) 5.4); `entrypoint.sh` lo incluye solo con `WA_SIP_PASSWORD` y certificado |
+| `asterisk/letsencrypt/` | Certificado de `sip.atentina.com.ar` (`make sip-cert`, no versionado) |
 | `asterisk/conf/extensions.conf` | Ruteo entrante/saliente y formatos de número |
 | `asterisk/conf/rtp.conf` | Rango RTP (tiene que coincidir con el port forwarding) |
 | `asterisk/conf/modules.conf` | Lista mínima de módulos |
 | `scripts/livekit_sip_setup.py` | Crea o actualiza trunks y dispatch rule en LiveKit (`make livekit-sip`) |
 
-Los cambios en `asterisk/conf/` se aplican con `make restart-pbx`, sin rebuild.
+Los cambios en `asterisk/conf/` se aplican con `make restart S=asterisk` (`entrypoint.sh` vuelve a
+renderizarlos, sin rebuild); si cambió `.env`, `make up-pbx`. Versión probada: Asterisk 22.9.0-r0 y
+asterisk-srtp 22.9.0-r0 (6-oct-2026; el `apk add` no fija versión).
 
-## 7. LiveKit propio (desarrollo)
+## 7. LiveKit propio (vigente)
 
 En lugar de LiveKit Cloud, `docker-compose.livekit.yml` levanta LiveKit en este
 host. Motivo: en el plan gratuito de Cloud, el despacho del agente deja jobs en
@@ -303,11 +313,12 @@ host. Motivo: en el plan gratuito de Cloud, el despacho del agente deja jobs en
 **Probado (2026-09-25):**
 - Llamada de loadtest de 2 turnos: e2e 1,1 s.
 - Entrante simulada desde Asterisk (`channel originate`, con `res_clioriginate` cargado a mano): autenticación, dispatch rule, agente y audio de vuelta a Asterisk.
-- Pendiente: una entrante y una saliente reales por Anura.
+- Entrantes reales por Anura con varios DIDs: verificadas el 29-sep-2026 (sección 1). Producción usa
+  este LiveKit desde el 2-oct-2026; migrar a otro server: [`MIGRACION_SERVER.md`](MIGRACION_SERVER.md).
 
 ## 8. Verificación de WhatsApp por llamada de voz
 
-**Pendiente de medir.** Anura no tiene SMS: el código de verificación del número en WhatsApp
+**Probado el 2-oct-2026** con +54 351 700-2592 ([`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md), 5.3). Anura no tiene SMS: el código de verificación del número en WhatsApp
 llega por una llamada de voz de Meta que entra como cualquier entrante (Anura → Asterisk →
 LiveKit → `agent`). Contexto en [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md), sección 3.1.
 
@@ -322,6 +333,7 @@ Prueba de humo (etapa 1, sin código nuevo):
 
 | Qué se mide | Resultado |
 |---|---|
-| Anura acepta la llamada de Meta | ? |
-| Idioma de la locución | ? |
-| Demora desde el pedido hasta la llamada | ? |
+| Anura acepta la llamada de Meta | Sí: entra por Anura → Asterisk → LiveKit y la atiende el agente |
+| Lectura del código | El STT transcribió los dígitos en dos fragmentos (con un "tres" espurio); el código, leído del transcript, fue correcto |
+| Idioma de la locución | no medido |
+| Demora desde el pedido hasta la llamada | no medido |

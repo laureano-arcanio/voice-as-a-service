@@ -358,10 +358,17 @@ services:
       ASTERISK_ANURA_SIP_PORT: ${ASTERISK_ANURA_SIP_PORT:-5081}
       ASTERISK_RTP_START: ${ASTERISK_RTP_START:-10000}
       ASTERISK_RTP_END: ${ASTERISK_RTP_END:-10199}
+      # Llamadas de WhatsApp por SIP/TLS (asterisk/conf/whatsapp/, docs/WHATSAPP_PLAN.md fase 5).
+      WA_SIP_HOST: ${WA_SIP_HOST:-sip.atentina.com.ar}
+      WA_SIP_PORT: ${WA_SIP_PORT:-5061}
+      WA_SIP_USER: ${WA_SIP_USER:-5493517002592}
+      WA_SIP_PASSWORD: ${WA_SIP_PASSWORD:-}
     volumes:
       # Templates: entrypoint.sh los renderiza a /etc/asterisk al arrancar, asi
       # que un cambio en asterisk/conf/ se aplica con `make up-pbx`, sin rebuild.
       - ./asterisk/conf:/etc/asterisk/templates:ro
+      # Certificado de WA_SIP_HOST (make sip-cert). entrypoint.sh lo copia al arrancar.
+      - ./asterisk/letsencrypt:/etc/letsencrypt:ro
     healthcheck:
       test: ["CMD", "asterisk", "-rx", "core show uptime"]
       interval: 30s

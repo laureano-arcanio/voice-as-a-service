@@ -4,14 +4,15 @@ Registro de cada contacto: qué se envió, cuándo, si hubo seguimiento y qué c
 de verdad de la etapa de exploración ([`plan-salida-al-mercado.md`](plan-salida-al-mercado.md),
 sección 0). Los textos exactos de cada envío están en [`envios/`](envios/).
 
-Actualizado: 5-oct-2026.
+Actualizado: 6-oct-2026.
 
 ## Resumen
 
 | Métrica | Valor | Objetivo (plan, sección 8) |
 |---|---|---|
-| Contactos enviados | 91 | ~150 |
-| Borradores sin enviar | 0 | — |
+| Contactos enviados | 103 | ~150 |
+| Borradores sin enviar | 8 | — |
+| Contactos por LinkedIn (aparte, ver abajo) | 0 enviados, 1 borrador | — |
 | Con seguimiento enviado | 11 | — |
 | Respuestas | 0 | — |
 | Conversaciones registradas | 0 | 30 en 60 días, de 5 rubros o más |
@@ -115,6 +116,26 @@ Una fila por empresa. Fechas en formato `d-mes` del 2026. `—` es "todavía no"
 | 89 | Asociación Mutual Empleados Municipales de Río Tercero y Zona | Mutual (ayuda económica sin confirmar), Río Tercero (Córdoba) | cliente | suoem_rio3@yahoo.com.ar | — | 5-oct | — | — | enviado | Seguimiento el 9-oct |
 | 90 | Asociación Mutual del Centro Comercial de Hernando | Mutual (ayuda económica sin confirmar), Hernando (Córdoba) | cliente | dgastaudo@coop-her.com.ar | — | 5-oct | — | — | enviado | Seguimiento el 9-oct |
 | 91 | Asociación Mutual del Centro Comercial e Industrial de Tancacha | Mutual (ayuda económica sin confirmar), Tancacha (Córdoba) | cliente | mutual@ccitancacha.com.ar | https://www.ccitancacha.com.ar | 5-oct | — | — | enviado | Seguimiento el 9-oct |
+| 92 | Neo Consultores S.A. | Software para mutuales y cooperativas, Rosario | canal | info@gruponeosistemas.com | https://neoconsultores.ar | — | — | — | borrador | Mensaje por LinkedIn el 6-oct (L2); el mail no salió |
+| 93 | Nexa Tech | Software para mutuales y cooperativas, Pergamino | canal | info@nexa.com.ar | https://nexa.com.ar | — | — | — | borrador | Mensaje por LinkedIn el 6-oct (L3); el mail no salió |
+| 94 | EVOL SRL | Software para mutuales y cooperativas, provincia de Buenos Aires | canal | ventas@evol.com.ar | https://evol.com.ar | — | — | — | borrador | Mensaje por LinkedIn el 6-oct (L4); el mail no salió |
+| 95 | Solsoft SRL | Software para mutuales y cooperativas, San Francisco | canal | solsoft@solsoft.com.ar | https://www.solsoft.com.ar | — | — | — | borrador | Mensaje por LinkedIn el 6-oct (L5); el mail no salió |
+| 96 | Kernel Informática | Software para mutuales y cooperativas, Rosario | canal | sistemas@kernelinformatica.com.ar | https://www.kernelinformatica.com.ar | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| 97 | RAS (Rent A Soft S.A.) | Software para salud, Godoy Cruz | canal | info@plataforma-ras.com | https://plataforma-ras.com | — | — | — | borrador | Mensaje por LinkedIn el 6-oct (L6); el mail no salió |
+| 98 | Grupo Cormos (DrApp) | Software para salud, CABA | canal | hola@cormos.com.ar | https://www.cormos.com.ar | — | — | — | borrador | Mensaje por LinkedIn el 6-oct (L7); el mail no salió |
+| 99 | Integrando Salud | Software para salud, Leandro N. Alem | canal | partners@integrandosalud.com | https://integrandosalud.com | — | — | — | borrador | Mensaje por LinkedIn el 6-oct (L8); el mail no salió |
+| 100 | Alephoo | Software para salud, Campana | canal | info@alephoo.com | https://www.alephoo.com | — | — | — | borrador | Mensaje por LinkedIn el 6-oct (L9); el mail no salió |
+| 101 | Tekhne S.A. | Software para salud, CABA y San Fernando del Valle de Catamarca | canal | contacto@tekhne.com.ar | https://www.tekhne.com.ar | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| 102 | Engage SC (Soluciones Tecnológicas S.A.) | Software de contact center, CRM y cobranzas, CABA | canal | agurmandi@soluciones-ar.com.ar | https://engage-sc.com.ar | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| 103 | Teleprom (Teleprom Argentina S.A.) | Software de contact center, CRM y cobranzas, Córdoba capital | canal | ventas@teleprom.com | https://teleprom.com | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| 104 | Freetech Solutions (Telecomunicaciones Unificadas SRL), OMniLeads | Software de contact center, CRM y cobranzas, Córdoba capital | canal | info@freetechsolutions.com.ar | https://www.freetechsolutions.com.ar | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| 105 | TecnoVoz (Tecno Voz Noroeste S.A.) | Software de contact center, CRM y cobranzas, CABA | canal | info@tecnovoz.com | https://tecnovoz.com.ar | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| 106 | Yoizen (Yoizen S.A.) | Software de contact center, CRM y cobranzas, CABA | canal | ventas@yoizen.com | https://yoizen.com | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| 107 | Chatsell | Integrador o agencia de automatización e IA, Córdoba capital | canal | comercial@chatsell.net | https://chatsell.net | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| 108 | Origami Software | Integrador o agencia de automatización e IA, Mendoza | canal | info@origami-soft.com | https://www.origami-soft.com | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| 109 | Raptiv | Integrador o agencia de automatización e IA, Nordelta | canal | hola@raptiv.io | https://raptiv.io | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| 110 | Etixen | Integrador o agencia de automatización e IA, Buenos Aires | canal | gparadelo@etixen.com | https://etixen.com | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| 111 | StorySelling | Integrador o agencia de automatización e IA, Buenos Aires | canal | contacto@storyselling.la | https://www.storyselling.la | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
 
 ### Cómo se llena
 
@@ -142,6 +163,7 @@ Una fila por empresa. Fechas en formato `d-mes` del 2026. `—` es "todavía no"
 | 5-oct | Tercera tanda, texto de IA | 20 | laureano@atentina.com.ar | [`envios/2026-10-05-tercera-tanda.md`](envios/2026-10-05-tercera-tanda.md) |
 | 5-oct | Cuarta tanda, mutuales de ayuda económica de Córdoba, partes A a D | 20 | laureano@atentina.com.ar | [`a`](envios/2026-10-05-cuarta-tanda-a.md), [`b`](envios/2026-10-05-cuarta-tanda-b.md), [`c`](envios/2026-10-05-cuarta-tanda-c.md), [`d`](envios/2026-10-05-cuarta-tanda-d.md) |
 | 5-oct | Quinta tanda, mutuales del interior este y sur de Córdoba (12 sin ayuda económica confirmada) | 30 | laureano@atentina.com.ar | [`g1`](envios/2026-10-05-quinta-tanda-g1.md), [`g2`](envios/2026-10-05-quinta-tanda-g2.md), [`g3`](envios/2026-10-05-quinta-tanda-g3.md), [`g4`](envios/2026-10-05-quinta-tanda-g4.md), [`g5`](envios/2026-10-05-quinta-tanda-g5.md), [`g6`](envios/2026-10-05-quinta-tanda-g6.md) |
+| 6-oct | Canales: 12 aliados sin LinkedIn enviado (parte C, parte D, Kernel y Tekhne) | 12 | laureano@atentina.com.ar | [`a`](envios/2026-10-06-canales-a.md), [`b`](envios/2026-10-06-canales-b.md), [`c`](envios/2026-10-06-canales-c.md), [`d`](envios/2026-10-06-canales-d.md) |
 
 Reservas con email publicado, sin enviar (emails verificados el 5-oct-2026):
 
@@ -149,6 +171,31 @@ Reservas con email publicado, sin enviar (emails verificados el 5-oct-2026):
 - Estratega Software (software para cooperativas, Rosario): ★ mcattaneo@estrategasoftware.com.ar
   (Mariano Cattaneo, socio y presidente; catálogo 2015 del Polo Tecnológico Rosario, puede rebotar),
   ventas@estrategasoftware.com.ar (Wayback, 2018) y contactanos@estrategasoftware.com.ar (atención).
+
+## LinkedIn
+
+Canal aparte del email, para gente que ya conocemos (dueños, CTOs). Una fila por empresa y persona;
+no cuenta en "Contactos enviados". Mismos estados que en "Cómo se llena" (sin `descartado` por rebote:
+acá es `no acepta` si no aceptan la conexión). Máximo un seguimiento, ~4 días hábiles después.
+Si la charla avanza, entra en "Conversaciones" como cualquier otra.
+
+| # | Empresa | Rubro, lugar | Tipo | Persona, cargo | Vínculo | Perfil | Texto | Enviado | Seguimiento | Respuesta | Estado | Próxima acción |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| L1 | Darwoft | Software a medida, Córdoba | canal (aliado/integración) | Christian Bullockes (verificar escritura), CTO | lo conoce el usuario | — | [`envios/2026-10-06-linkedin.md`](envios/2026-10-06-linkedin.md) | — | — | — | borrador | Enviar el mensaje (con el link con UTM `utm_source=linkedin`) y anotar la fecha |
+| L2 | Neo Consultores S.A. | Software para mutuales y cooperativas, Rosario | canal | — | — | https://www.linkedin.com/company/80429658 | [`envios/2026-10-06-canales-a.md`](envios/2026-10-06-canales-a.md) | 6-oct | — | — | enviado | Seguimiento por LinkedIn el 13-oct (contacto #92) |
+| L3 | Nexa Tech | Software para mutuales y cooperativas, Pergamino | canal | — | — | https://www.linkedin.com/company/nexatechok | [`envios/2026-10-06-canales-a.md`](envios/2026-10-06-canales-a.md) | 6-oct | — | — | enviado | Seguimiento por LinkedIn el 13-oct (contacto #93) |
+| L4 | EVOL SRL | Software para mutuales y cooperativas, provincia de Buenos Aires | canal | — | — | https://www.linkedin.com/in/evol-srl-7b31a3105 | [`envios/2026-10-06-canales-a.md`](envios/2026-10-06-canales-a.md) | 6-oct | — | — | enviado | Seguimiento por LinkedIn el 13-oct (contacto #94) |
+| L5 | Solsoft SRL | Software para mutuales y cooperativas, San Francisco | canal | — | — | https://www.linkedin.com/company/solsoftsrl | [`envios/2026-10-06-canales-a.md`](envios/2026-10-06-canales-a.md) | 6-oct | — | — | enviado | Seguimiento por LinkedIn el 13-oct (contacto #95) |
+| L6 | RAS (Rent A Soft S.A.) | Software para salud, Godoy Cruz | canal | — | — | https://www.linkedin.com/products/ras-rent-a-soft-sa-ras-salud/ | [`envios/2026-10-06-canales-b.md`](envios/2026-10-06-canales-b.md) | 6-oct | — | — | enviado | Seguimiento por LinkedIn el 13-oct (contacto #97) |
+| L7 | Grupo Cormos (DrApp) | Software para salud, CABA | canal | — | — | https://www.linkedin.com/company/grupocormos | [`envios/2026-10-06-canales-b.md`](envios/2026-10-06-canales-b.md) | 6-oct | — | — | enviado | Seguimiento por LinkedIn el 13-oct (contacto #98) |
+| L8 | Integrando Salud | Software para salud, Leandro N. Alem | canal | — | — | https://www.linkedin.com/company/integrandosalud/ | [`envios/2026-10-06-canales-b.md`](envios/2026-10-06-canales-b.md) | 6-oct | — | — | enviado | Seguimiento por LinkedIn el 13-oct (contacto #99) |
+| L9 | Alephoo | Software para salud, Campana | canal | — | — | https://www.linkedin.com/company/10177982 | [`envios/2026-10-06-canales-b.md`](envios/2026-10-06-canales-b.md) | 6-oct | — | — | enviado | Seguimiento por LinkedIn el 13-oct (contacto #100) |
+
+Los mensajes L2 a L9 (6-oct) salieron **sin UTM**: sus visitas aparecen en GA como fuente `linkedin.com` / `lnkd.in`
+(canal Organic Social), sin la empresa. Para atribuirlas, cruzar fecha, hora y ciudad (Explorar).
+
+Link con UTM: `https://atentina.com.ar?utm_source=linkedin&utm_campaign=linkedin&utm_content=<empresa>`
+(mismo reporte de Google Analytics que en "Links con UTM", se ve por fuente `linkedin`).
 
 ## Links con UTM
 
@@ -256,6 +303,26 @@ dimensión "Ubicación de la página" (`page_location`) que contenga `utm_conten
 | 89 | Asociación Mutual Empleados Municipales de Río Tercero y Zona | tanda5 | municipales-rio-tercero |
 | 90 | Asociación Mutual del Centro Comercial de Hernando | tanda5 | centro-comercial-hernando |
 | 91 | Asociación Mutual del Centro Comercial e Industrial de Tancacha | tanda5 | cci-tancacha |
+| 92 | Neo Consultores S.A. | canales1 | neo-consultores |
+| 93 | Nexa Tech | canales1 | nexa |
+| 94 | EVOL SRL | canales1 | evol |
+| 95 | Solsoft SRL | canales1 | solsoft |
+| 96 | Kernel Informática | canales1 | kernel |
+| 97 | RAS (Rent A Soft S.A.) | canales1 | ras |
+| 98 | Grupo Cormos (DrApp) | canales1 | cormos |
+| 99 | Integrando Salud | canales1 | integrando-salud |
+| 100 | Alephoo | canales1 | alephoo |
+| 101 | Tekhne S.A. | canales1 | tekhne |
+| 102 | Engage SC (Soluciones Tecnológicas S.A.) | canales1 | engage |
+| 103 | Teleprom (Teleprom Argentina S.A.) | canales1 | teleprom |
+| 104 | Freetech Solutions (Telecomunicaciones Unificadas SRL), OMniLeads | canales1 | freetech |
+| 105 | TecnoVoz (Tecno Voz Noroeste S.A.) | canales1 | tecnovoz |
+| 106 | Yoizen (Yoizen S.A.) | canales1 | yoizen |
+| 107 | Chatsell | canales1 | chatsell |
+| 108 | Origami Software | canales1 | origami |
+| 109 | Raptiv | canales1 | raptiv |
+| 110 | Etixen | canales1 | etixen |
+| 111 | StorySelling | canales1 | storyselling |
 
 ## Conversaciones
 

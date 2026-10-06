@@ -34,6 +34,13 @@ while IFS=, read -r idx name limit; do
     (( w <= ${GPU_POWER_W:-280} )) || problems+=("GPU$idx sin tope de potencia (${w} W)")
 done < <(nvidia-smi --query-gpu=index,name,power.limit --format=csv,noheader,nounits 2>/dev/null)
 
+# Certificado que sirve Asterisk a Meta (llamadas de WhatsApp): renovarlo es sip-cert-renew.sh.
+if [[ -n "$(env_get WA_SIP_PASSWORD)" ]]; then
+    echo | timeout 5 openssl s_client -tls1_2 -connect 127.0.0.1:"$(env_get WA_SIP_PORT | grep . || echo 5061)" 2>/dev/null \
+        | openssl x509 -noout -checkend $((14 * 86400)) >/dev/null 2>&1 \
+        || problems+=("certificado SIP de WhatsApp vencido, por vencer (<14 días) o sin TLS en el 5061")
+fi
+
 status="ok"; detail="todo bien"
 if ((${#problems[@]})); then status="falla"; detail="$(IFS='; '; echo "${problems[*]}")"; fi
 

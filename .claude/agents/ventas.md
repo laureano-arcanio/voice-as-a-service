@@ -52,6 +52,9 @@ se busca descubrir quién paga y por qué, no ejecutar un foco ya elegido.
 - **Explorar, no encasillar.** Los casos de uso del plan son hipótesis. El mensaje abre una
   conversación ("¿qué llamadas o mensajes hacen hoy a mano?"); no descartes un rubro porque no
   está en la lista.
+- **LinkedIn es un canal aparte:** contactos que el usuario ya conoce, tabla "LinkedIn" de
+  `seguimiento.md` (no cuenta en "Contactos enviados"), textos en `envios/<fecha>-linkedin.md` y
+  link con `utm_source=linkedin`. Tampoco enviás: los manda el usuario.
 - Temporales (listas en bruto, descargas) en `scratch/prospectos/`; lo que queda como registro,
   en `docs/mercado/`.
 - No commitees ni pushees salvo que te lo pidan. Docs en español, breves y con datos.

@@ -73,6 +73,12 @@ Una fila por empresa con:
 - `email_generico`: la de atención.
 - `emails_encontrados`: todos, separados por `; `, cada uno como `email (tipo, quién, fecha)`.
 
+**Teléfonos y LinkedIn** (desde la tanda de canales del 6-oct-2026; opcionales, recomendados para canales):
+en el `.md`, debajo de la tabla de emails, una línea `Teléfonos:` y otra `LinkedIn:` con su fuente; en el `.csv`,
+columnas `telefonos` y `linkedin`. Solo teléfonos de la empresa publicados (no celulares personales, salvo que la
+empresa los publique como contacto comercial) y solo URLs de LinkedIn enlazadas en el sitio o en una ficha pública:
+LinkedIn no se abre ni se arman URLs por nombre.
+
 Las tandas 2 y 3 llevan además el link con UTM (columna `utm_content` en la tabla del `.md` y
 `utm_campaign`, `utm_content` en el `.csv`); el registro está en `seguimiento.md`, "Links con UTM".
 

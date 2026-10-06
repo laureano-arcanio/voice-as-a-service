@@ -2,7 +2,7 @@
 #
 # Atajos sobre `docker compose`. Stack por defecto (docker-compose.yml):
 #   agente:     db + migrate + app (UI y API :8011) + agent (worker de LiveKit)
-#   inferencia: vllm-llm (Qwen3.5-4B) + stt-parakeet (Parakeet TDT 0.6B v3)
+#   inferencia: vllm-llm (Qwen3.5-9B w4a16) + stt-parakeet (Parakeet TDT 0.6B v3)
 #               + vllm-tts (Qwen3-TTS 1.7B, 41 voces fine-tuneadas)
 #   proxy:      nginx en :PROXY_PORT, entrada publica a la inferencia (loadtest)
 #   asterisk:   puente SIP Anura <-> LiveKit (docs/TELEFONIA_ANURA.md)
@@ -35,6 +35,7 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
         up up-agent up-inference up-nginx up-pbx down restart ps logs \
         sh psql health gpu \
         pbx-cli pbx-status livekit-sip livekit-sip-si-local \
+        wa-calling-status wa-calling-enable wa-calling-disable wa-sip-password sip-cert \
         migrate create-admin api-key web-dev web-build web-check openapi landing-dev \
         test eval-motor eval-llamadas eval-llm eval-llm-juez eval-llm-report loadtest-audio loadtest loadtest-report capacity capacity-monitor capacity-monitor-stop capacity-analyze gpubench stt-eval stt-corpus \
         db-reset clean
@@ -164,6 +165,39 @@ wa-send: ## Texto por WhatsApp con la Graph API. Ej: make wa-send TO=54351... TE
 
 wa-account: ## Conecta un numero de WhatsApp a un agente (idempotente). Ej: make wa-account PNID=1376760278849754 WABA=1763082738667089 NUMBER="+1 555 145 6632" AGENT=demo_booking_classic [CLIENT=atentina]
 	$(COMPOSE) run --rm --no-deps app python -m app.cli wa-account $(PNID) --waba $(WABA) --display "$(NUMBER)" --client $(or $(CLIENT),atentina) --agent $(AGENT) $(if $(NAME),--name "$(NAME)")
+
+# Llamadas de WhatsApp (Calling API por SIP -> Asterisk, docs/WHATSAPP_PLAN.md fase 5).
+# Numero de Atentina por defecto (+54 9 351 700-2592); otro con PNID=...
+WA_CALLING_PNID ?= 1320624701139500
+WA_RUN := $(COMPOSE) run --rm --no-deps -T -v $(CURDIR)/scripts:/app/scripts app python -m scripts.wa --phone-number-id $(or $(PNID),$(WA_CALLING_PNID))
+
+wa-calling-status: ## Config de llamadas del numero en Meta. Ej: make wa-calling-status [PNID=...]
+	$(WA_RUN) calling-status
+
+wa-calling-enable: ## Activa llamadas por SIP (SDES, PCMA) hacia WA_SIP_HOST:5061 [PNID=...]
+	@host=$$(grep -E '^WA_SIP_HOST=.+' .env | cut -d= -f2-); port=$$(grep -E '^WA_SIP_PORT=.+' .env | cut -d= -f2-); \
+	$(WA_RUN) calling-enable --sip-host $${host:-sip.atentina.com.ar} --sip-port $${port:-5061}
+
+wa-calling-disable: ## Apaga las llamadas del numero en Meta (y borra su config SIP) [PNID=...]
+	$(WA_RUN) calling-disable
+
+wa-sip-password: ## Trae la clave SIP de Meta a WA_SIP_PASSWORD en .env (backup en scratch/, no la muestra) [PNID=...]
+	@pw=$$($(WA_RUN) sip-password) && [ -n "$$pw" ] || { echo "No se pudo leer la clave SIP (¿make wa-calling-enable?)"; exit 1; }; \
+	mkdir -p scratch && bak=scratch/env.bak-$$(date +%Y%m%d-%H%M%S) && cp .env $$bak && \
+	PW="$$pw" python3 -c 'import os,re,pathlib; p=pathlib.Path(".env"); s=p.read_text(); pw=os.environ["PW"]; assert "\x27" not in pw, "la clave trae comillas simples"; l="WA_SIP_PASSWORD=\x27"+pw+"\x27"; s=re.sub(r"(?m)^WA_SIP_PASSWORD=.*$$", lambda m: l, s) if re.search(r"(?m)^WA_SIP_PASSWORD=", s) else s.rstrip("\n")+"\n"+l+"\n"; p.write_text(s)' && \
+	echo "Diff de .env contra $$bak (enmascarado):" && \
+	diff <(sed -E 's/=(.{4}).*/=\1…/' $$bak) <(sed -E 's/=(.{4}).*/=\1…/' .env) || true; \
+	echo "Aplicar con make up-pbx (corta llamadas en curso)"
+
+sip-cert: ## Certificado de Let's Encrypt para WA_SIP_HOST por DNS de Cloudflare (CLOUDFLARE_DNS_API_TOKEN). Renueva si vence en <30 dias
+	@tok=$$(grep -E '^CLOUDFLARE_DNS_API_TOKEN=.+' .env | cut -d= -f2-); [ -n "$$tok" ] || { echo "Falta CLOUDFLARE_DNS_API_TOKEN en .env"; exit 1; }; \
+	host=$$(grep -E '^WA_SIP_HOST=.+' .env | cut -d= -f2-); host=$${host:-sip.atentina.com.ar}; \
+	mkdir -p scratch asterisk/letsencrypt && ini=$$(mktemp -p scratch cf-XXXXXX.ini) && trap 'rm -f $$ini' EXIT && \
+	chmod 600 $$ini && printf 'dns_cloudflare_api_token = %s\n' "$$tok" >$$ini && \
+	docker run --rm -v $(CURDIR)/asterisk/letsencrypt:/etc/letsencrypt -v $(CURDIR)/$$ini:/cloudflare.ini:ro \
+		certbot/dns-cloudflare certonly --non-interactive --agree-tos --register-unsafely-without-email \
+		--dns-cloudflare --dns-cloudflare-credentials /cloudflare.ini --dns-cloudflare-propagation-seconds 30 \
+		--keep-until-expiring -d $$host
 
 web-dev: ## UI en modo desarrollo (Vite, :5173) contra la API de :8011. Requiere Node 22+
 	cd web && npm install && VITE_API_PROXY=$${VITE_API_PROXY:-http://127.0.0.1:8011} npm run dev

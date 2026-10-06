@@ -1,6 +1,6 @@
 # Plan: WhatsApp en el mismo agente (mensajería)
 
-Diseño (2026-09-28). **Estado (1-oct-2026): fases 0 y 1 en producción con el número de prueba (el agente responde por texto) y notas de voz de entrada y salida (fase 3 parcial). Fase 2 (Tech Provider): verificación del negocio aprobada y de acceso en revisión; el código de Embedded Signup está implementado y sin desplegar ([5.3](#53-fase-2-implementada)).** El plan de salida al mercado
+Diseño (2026-09-28). **Estado (1-oct-2026): fases 0 y 1 en producción con el número de prueba (el agente responde por texto) y notas de voz de entrada y salida (fase 3 parcial). Fase 2 (Tech Provider): verificación del negocio aprobada y de acceso en revisión; el código de Embedded Signup está implementado y sin desplegar ([5.3](#53-fase-2-implementada)). Fase 5 (6-oct-2026): llamadas de WhatsApp por SIP atendidas por el agente de voz con el número de Atentina ([5.4](#54-fase-5-llamadas-por-sip-6-oct-2026)).** El plan de salida al mercado
 ([`mercado/plan-salida-al-mercado.md`](mercado/plan-salida-al-mercado.md), secciones 4 y 7) pone
 WhatsApp texto en el mes 5 y Calling en el 6: es donde el cliente de cobranzas sigue la conversación
 y el canal que Vapi no tiene y Botmaker sí
@@ -314,9 +314,9 @@ de costos ([`calculadora-costos.html`](calculadora-costos.html)) como canal apar
 **Calling API** (llamadas de voz por WhatsApp, fase 5): las que inicia el usuario son gratis; las
 que inicia el negocio se cobran por minuto en pulsos de 6 s, por país y con escalones por volumen
 (rate card de Argentina desde abril de 2026; el plan de mercado estimó ~USD 0,011 por minuto),
-más el mensaje de pedido de permiso, que se cobra como mensaje. Requisito que hoy no cumplimos:
+más el mensaje de pedido de permiso, que se cobra como mensaje. Requisito:
 límite de envío de al menos **2.000 destinatarios por día**, o sea negocio verificado y calidad.
-Cumplido desde el 6-oct-2026 (mail de Meta, 3.2).
+Cumplido desde el 6-oct-2026 (mail de Meta, 3.2). Implementación en [5.4](#54-fase-5-llamadas-por-sip-6-oct-2026).
 
 ## 5. Fases
 
@@ -535,6 +535,92 @@ retoma cuando Meta la apruebe.
 5. **Prueba:** entrar a `https://app.atentina.com.ar` con un usuario de cliente, "Conectar WhatsApp" con
    un número de prueba, y anotar acá lo no confirmado de 3.4 (forma del token, vencimiento, IP de
    cloudflared en el access log).
+
+### 5.4 Fase 5: llamadas por SIP (6-oct-2026)
+
+Llamada entrante de WhatsApp atendida por el agente de voz, probada el 6-oct-2026 con el número de
+Atentina (+54 9 351 700-2592 → `atentina_comercial`).
+
+```
+WhatsApp del usuario → Meta ──SIP/TLS :5061, SRTP (SDES), PCMA──▶ Asterisk ──SIP/UDP, RTP, PCMA──▶ LiveKit → agente
+```
+
+- **Por qué así:** Meta ofrece PCMA además de Opus (`audio.additional_codecs`), el mismo códec de Anura
+  y LiveKit: Asterisk solo descifra y reenvía, sin transcodificar. SDES y no DTLS: Asterisk lo hace sin
+  ICE. El ruteo es el de una llamada de Anura: Asterisk pasa a LiveKit el DID (`+543517002592`) y la app
+  atiende con el agente de ese número.
+- **Código:**
+  - `asterisk/conf/whatsapp/pjsip_whatsapp.conf`: transporte TLS, auth y endpoint.
+  - Contexto `from-whatsapp` en `asterisk/conf/extensions.conf`.
+  - `asterisk/entrypoint.sh` lo activa solo con `WA_SIP_PASSWORD` y el certificado; si falta algo
+    arranca como antes y lo dice en el log ("WhatsApp apagado").
+  - `res_srtp` (paquete `asterisk-srtp`); `scripts/wa.py` (`calling-*`, `sip-password`).
+
+#### Procedimiento (para repetirlo o hacerlo con otro número u host)
+
+Requisito de Meta: límite de envío de 2.000 o más (3.2). Sin eso, el paso 5 da error.
+
+1. **DNS** en Cloudflare: registro `A` `sip` → la IP fija (`181.104.113.28`), **DNS only** (nube
+   gris): el proxy de Cloudflare no pasa SIP. Comprobar: `dig +short sip.atentina.com.ar @1.1.1.1`
+   tiene que dar la IP fija, no una de Cloudflare.
+2. **Router:** reenviar **TCP 5061** a `192.168.1.99`. El audio usa el rango RTP de Anura
+   (UDP 10000-10199), que ya está reenviado ([`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md), "Red").
+3. **Token de Cloudflare** (My Profile → API Tokens → plantilla *Edit zone DNS*, zona
+   `atentina.com.ar`) en `.env` como `CLOUDFLARE_DNS_API_TOKEN`.
+4. **Certificado:** `make sip-cert` (certbot con DNS-01, en `asterisk/letsencrypt/`, no versionado y
+   de root). Let's Encrypt, 90 días. Meta exige un certificado válido para el hostname; no hace mTLS.
+5. **Meta:** `make wa-calling-enable` (por defecto el número de Atentina, otro con `PNID=`). Configura
+   llamadas `ENABLED`, ícono visible, SIP a `WA_SIP_HOST:5061`, SDES y PCMA, y muestra la config que
+   quedó. `make wa-calling-status` la vuelve a mostrar.
+6. **Clave SIP:** `make wa-sip-password` la trae de Meta (`include_sip_credentials`) a `.env` como
+   `WA_SIP_PASSWORD` (entre comillas simples, por si trae `$`). No la muestra: deja el backup en
+   `scratch/` e imprime el diff enmascarado. Revisar que solo cambie esa línea.
+7. **Asterisk:** `make up-pbx` (rebuild y recrear: **corta las llamadas en curso de Anura**). En
+   `make logs S=asterisk` tiene que aparecer `tls/5061 (WhatsApp, sip.atentina.com.ar)` y
+   `libsrtp2 ... initialized`.
+8. **Prueba:** desde un WhatsApp personal, el ícono de llamada en el chat con el número. En
+   `make logs S=asterisk`: `Entrante de WhatsApp: <usuario> -> +543517002592`.
+
+Variables (`.env.example`): `WA_SIP_HOST` (`sip.atentina.com.ar`), `WA_SIP_PORT` (5061), `WA_SIP_USER`
+(`5493517002592`), `WA_SIP_PASSWORD`, `CLOUDFLARE_DNS_API_TOKEN`. Para apagar: `make wa-calling-disable`
+(Meta borra la config SIP; el ícono desaparece).
+
+#### Lo confirmado en la prueba del 6-oct-2026
+
+- Meta aceptó la activación con el número todavía en `TIER_250` por la API: vale el límite del portfolio.
+- El primer INVITE llega sin credenciales y Asterisk lo rechaza con 401 (`No matching endpoint found`
+  en el log, normal). Meta reintenta con digest y usuario `5493517002592`: el número con el 9 y sin `+`.
+- Request-URI `sip:+5493517002592@...` (con el 9 aunque sea un fijo); el dialplan lo pasa a
+  `+543517002592`. From: `"<nombre de perfil>" <sip:+549...@wa.meta.vc>`, ya en E.164; el agente lo
+  guarda como teléfono de la llamada. Header `x-wa-meta-wacid` (va al log).
+- Meta llegó desde `66.220.149.16` (AS32934).
+- La llamada quedó en el dashboard como entrante de voz (`call_logs`): 34 s, cortó el usuario. **La
+  conversación guardó solo el saludo del agente**: falta confirmar que el audio del usuario llegue
+  al STT (con `pjsip show channelstats` durante la llamada, como en `TELEFONIA_ANURA.md`, sección 4).
+
+#### Trampas y pendientes
+
+- **Renovación del certificado (automática desde el 6-oct-2026):** cron diario a las 04:15,
+  `scripts/ops/sip-cert-renew.sh`, log en `~/atentina-ops/sip-cert.log`.
+  - Corre `make sip-cert`, que no hace nada hasta que falten menos de 30 días (el actual vence el
+    4-ene-2027: la primera renovación es alrededor del 5-dic).
+  - Asterisk copia el certificado al arrancar: si el de `asterisk/letsencrypt/` cambió, el script
+    reinicia el contenedor (`docker compose restart asterisk`, unos segundos) solo sin llamadas en
+    curso. Espera hasta 60 min; si no, reintenta al otro día (hay ~30 intentos antes del vencimiento).
+  - `scripts/ops/healthcheck.sh` (cada 2 min) se conecta al 5061 y marca falla si el certificado que
+    sirve Asterisk vence en menos de 14 días o si no hay TLS 1.2.
+  - Si el cron no está (host nuevo), agregar la línea de
+    [`MIGRACION_SERVER.md`](MIGRACION_SERVER.md), 8.2. A mano: `scripts/ops/sip-cert-renew.sh`.
+- **TLS:** sin `method`, el pjproject de Asterisk servía **solo TLS 1.0** (medido el 6-oct-2026, la
+  primera llamada anduvo igual). `method=sslv23` da TLS 1.2 y 1.3; probado aislado.
+- Si cambia el usuario del digest (otro número): `make pbx-cli` → `pjsip set logger on`, leer el
+  `username` del `Authorization` y ponerlo en `WA_SIP_USER`.
+- Con SIP activo, Meta no manda el webhook `calls` ni deja usar los endpoints de llamadas de la Graph API.
+- La llamada aparece como una de teléfono: falta marcarla como WhatsApp (headers `x-wa-meta-*` →
+  atributos de LiveKit → `call_logs`).
+- Las salientes (el negocio llama) piden permiso del usuario y digest en la otra dirección: sin hacer.
+- **Modo automático de Claude Code:** bloquea crear el registro DNS y el `wa-calling-enable`. Los corre
+  el usuario, o los pide explícitamente.
 
 ## 6. Riesgos y trampas
 

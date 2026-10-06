@@ -83,7 +83,9 @@ work/eval/<voz>/llamada/    <sistema>_s<semilla>/  (28 oraciones de una llamada 
    `nvidia-smi` y `git status`.
    - Entrenar el 1.7B necesita **17 GB**, así que hay que parar el servicio de esa GPU y
      **confirmarlo con el usuario antes**.
-   - En este server: `docker stop voice-as-a-service-vllm-tts-1` libra la GPU 0.
+   - En este server (reparto de CAP-001): `vllm-tts` y `stt-parakeet` están en la GPU 1.
+     `docker stop voice-as-a-service-vllm-tts-1` libera ~13 GB de la GPU 1 (quedan el STT, ~1,6 GB,
+     y el escritorio): entrenar en la GPU 1.
    - Generar y evaluar necesita unos 5 GB y entra al lado de `vllm-tts`.
    - El 0.6B entrena con 7,2 GB.
 2. **Modelos en el HF cache.** Hacen falta `Qwen/Qwen3-TTS-12Hz-1.7B-Base` (o `-0.6B-Base`)

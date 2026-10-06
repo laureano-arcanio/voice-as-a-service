@@ -24,3 +24,6 @@ scratch/
 
 # fine-tuning de TTS: datos, checkpoints y audios generados (docs/TTS_FINETUNE.md)
 tts/finetune/work/
+
+# certificado TLS de las llamadas de WhatsApp (make sip-cert)
+asterisk/letsencrypt/

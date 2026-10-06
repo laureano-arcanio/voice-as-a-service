@@ -13,10 +13,11 @@ números; API `/api/v1`, UI React en `web/` y worker de voz) está en [`README.m
 | "Entrená / reentrená la voz <voz> del TTS" | Delegar al agente [`tts-finetune`](.claude/agents/tts-finetune.md), que sigue [`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md). Entrenar el 1.7B necesita parar `vllm-tts`: confirmar antes. |
 | "Probá <modelo o reparto de GPU>" | Override `docker-compose.<nombre>.yml` y confirmar antes de reiniciar servicios; después, el mismo procedimiento. |
 | "Creá un cliente / tier / agente / número" | Por la UI o la API (`/api/v1`, OpenAPI en `/api/v1/docs`), no a mano en la base. Números: se cargan al inventario, se asignan a un cliente (tope `max_phone_numbers` del tier) y se rutean a un agente; después de cargar o borrar, `make livekit-sip`. |
-| "Seguí con WhatsApp" / "probá el webhook de WhatsApp" | Seguir [`docs/WHATSAPP_PLAN.md`](docs/WHATSAPP_PLAN.md): fases 0 y 1, y la 2 (Embedded Signup, 5.3, con sus pasos de deploy pendientes). Código en `app/whatsapp/`, variables `WA_*` en `.env` (diff enmascarado antes de reiniciar). |
+| "Seguí con WhatsApp" / "probá el webhook de WhatsApp" | Seguir [`docs/WHATSAPP_PLAN.md`](docs/WHATSAPP_PLAN.md): fases 0 y 1, la 2 (Embedded Signup, 5.3, con sus pasos de deploy pendientes) y la 5 (llamadas por SIP → Asterisk, 5.4, con el procedimiento completo). Código en `app/whatsapp/`, variables `WA_*` en `.env` (diff enmascarado antes de reiniciar). |
 | "Cambiá la landing" / "probá la demo de la landing" | Seguir [`docs/LANDING.md`](docs/LANDING.md): Astro + Tailwind en `landing/` (`npm run dev`), demo por `/api/v1/demo`. Todo cambio visual o de texto sigue [`docs/DESIGN_GUIDELINE.md`](docs/DESIGN_GUIDELINE.md) (tokens, componentes, voz). Los agentes de la demo son `atentina_comercial` (el de la home, el mismo de la línea y el WhatsApp), `turnos`, `cobranzas` y `reclamos` (las verticales), del cliente `atentina` (`DEMO_AGENTS`): editarlos por la UI o la API. |
 | "Cambiá el dashboard" / "agregá una pantalla a la UI" | React + Mantine en `web/` (`make web-check`). Todo cambio visual o de texto sigue [`docs/DESIGN_GUIDELINE_APP.md`](docs/DESIGN_GUIDELINE_APP.md) (colores, componentes, diferencias entre vistas internas y de cliente). Ver "Diseño" más abajo. |
 | "Buscá empresas para contactar" / "anotá lo enviado, una respuesta o una charla" / "¿a quién toca hacerle seguimiento?" | Delegar al agente [`ventas`](.claude/agents/ventas.md). El registro es [`docs/mercado/seguimiento.md`](docs/mercado/seguimiento.md) y los textos de cada tanda quedan en `docs/mercado/envios/`, con todos los emails encontrados por empresa y el de mayor potencial marcado ([formato](docs/mercado/envios/README.md)). El agente no envía mails: los envía el usuario. |
+| "Montá el entorno en un server nuevo" / "migrá el server" | Seguir [`docs/MIGRACION_SERVER.md`](docs/MIGRACION_SERVER.md) en orden: inventario, host, `.env`, restaurar datos, levantar por partes, router y servicios externos (los hace el usuario), systemd y cron, corte con pruebas y vuelta atrás. Nunca dos Asterisk ni dos `cloudflared` a la vez. |
 | "Evaluá la calidad del LLM <modelo>" / "compará modelos" | Seguir [`docs/eval/README.md`](docs/eval/README.md): `make eval-llm` (cliente simulado con `EVAL_LLM_API_KEY`, o `--cliente guion`), `make eval-llm-juez`, y registrar `docs/eval/EVAL-NNN-<slug>/`. Otro modelo local va con su override, como arriba. |
 
 ## Servicios (`docker-compose.yml`)
@@ -30,12 +31,12 @@ números; API `/api/v1`, UI React en `web/` y worker de voz) está en [`README.m
 | `migrate` | Una vez antes de `app`/`agent`: `alembic upgrade head` + seed idempotente (`app/cli.py`) | build | — | — |
 | `app` | FastAPI: API `/api/v1` y la UI (`web/dist`); despacha el agente a una room de LiveKit | build | 8011 | — |
 | `agent` | Worker de LiveKit Agents (STT → LLM → TTS); sale a LiveKit Cloud | build | — | — |
-| `vllm-llm` | LLM `RedHatAI/Qwen3.5-9B-quantized.w4a16` (Qwen3.5-9B en 4 bits) | vllm/vllm-openai:latest | 127.0.0.1:8101 | 0 |
+| `vllm-llm` | LLM `cyankiwi/gemma-4-26B-A4B-it-qat-AWQ-INT4` (Gemma 4 26B-A4B en 4 bits, override `docker-compose.gemma4-26b.yml` en `COMPOSE_FILE`, desde el 6-oct-2026; antes `RedHatAI/Qwen3.5-9B-quantized.w4a16`) | vllm/vllm-openai:latest | 127.0.0.1:8101 | 0 |
 | `stt-parakeet` | STT `nvidia/parakeet-tdt-0.6b-v3`, servidor propio (`stt/server.py`) | build | 127.0.0.1:8102 | 1 |
 | `vllm-tts` | TTS Qwen3-TTS 1.7B-Base con fine-tuning, 41 voces en un checkpoint (`multi41`) | vllm/vllm-omni:v0.28.0 (fijada) | 127.0.0.1:8103 | 1 |
 | `proxy` | Entrada pública por IP fija; nginx rutea `/llm`, `/stt` y `/tts` | nginx:alpine | 0.0.0.0:8100 (`PROXY_PORT`) | — |
-| `asterisk` | Puente SIP Anura ↔ LiveKit (`network_mode: host`) | build | — | — |
-| `tunnel` | Cloudflare Tunnel de la demo de la landing (`docker-compose.tunnel.yml`, `make up-tunnel`): `api.` → `/api/v1/demo/*`, `rtc.` → LiveKit, `wa.` → `/wa/webhook`, `app.` → todo `app` (dashboard; pendiente de crear) | cloudflare/cloudflared | — | — |
+| `asterisk` | Puente SIP Anura ↔ LiveKit y llamadas de WhatsApp (Meta, TLS :5061) ↔ LiveKit (`network_mode: host`) | build | — | — |
+| `tunnel` | Cloudflare Tunnel de la demo de la landing (`docker-compose.tunnel.yml`, `make up-tunnel`): `api.` → `/api/v1/demo/*`, `rtc.` → LiveKit, `wa.` → `/wa/webhook`, `app.` → todo `app` (dashboard) | cloudflare/cloudflared | — | — |
 | `livekit`, `livekit-sip`, `livekit-redis` | LiveKit propio (desarrollo, `docker-compose.livekit.yml`), en lugar de Cloud | livekit-server v1.13.7, sip v1.17.0 | 7880, 7881, 7882/udp, 5060 | — |
 
 - La inferencia habla API OpenAI y exige `Authorization: Bearer $VLLM_API_KEY`. Los puertos 810x son solo para debug local.
@@ -53,7 +54,7 @@ números; API `/api/v1`, UI React en `web/` y worker de voz) está en [`README.m
     - 280 W, núcleo ≤ 1800 MHz y memoria 9501 MHz, en cada arranque, por `atentina-gpu-limits.service` (`deploy/gpu-limits.sh`, instalado el 2-oct-2026). El chequeo de `scripts/ops/healthcheck.sh` avisa si faltan.
     - El tope de potencia cambia el `hw_id` del test de capacidad.
   - **Arranque:** `atentina-stack.service` (`deploy/boot.sh`) levanta el compose sin build, el túnel y los trunks SIP, y calienta el TTS.
-  - **Backup** diario (03:30) y **chequeo** cada 2 min, por cron del usuario (`scripts/ops/`). Logs en `~/atentina-ops/`, backups en `~/atentina-backups/`.
+  - **Backup** diario (03:30), **chequeo** cada 2 min y **renovación** del certificado SIP de WhatsApp (04:15), por cron del usuario (`scripts/ops/`). Logs en `~/atentina-ops/`, backups en `~/atentina-backups/`.
 
 ## Reparto de GPU vigente (CAP-001, desde el 2-oct-2026)
 
@@ -61,11 +62,12 @@ Compose principal, sin override (`COMPOSE_FILE=docker-compose.yml:docker-compose
 
 | GPU | Servicios | Memoria |
 |---|---|---|
-| 0: 3090 | `vllm-llm` solo | 0.90, 128 secuencias (~21 GB usados) |
+| 0: 3090 | `vllm-llm` solo | Gemma: 0.90, 32 secuencias, contexto 16384 (~21 GB usados; KV cache 3,87 GiB = 49.082 tokens para todas las llamadas). Con Qwen (CAP-001): 128 secuencias |
 | 1: 3090 | `vllm-tts` + `stt-parakeet` + escritorio | TTS 0.4 (talker ~9,6 GB + Code2Wav ~3,5 GB), 128 por etapa; STT ~1,6 GB (~15,7 GB usados) |
 
 - **Motor por defecto:** `classic` (`WORKFLOW_ID=demo_booking_classic`).
-- **Capacidad medida** ([CAP-001](docs/capacity/CAP-001-2x3090-pl280-classic/), con los topes):
+- **Capacidad con Gemma 4 26B: sin medir.** Los números de abajo son de CAP-001 con el Qwen3.5-9B; con Gemma el KV cache es ~5 veces menor, así que el techo va a ser más bajo. Volver al Qwen: sacar `docker-compose.gemma4-26b.yml` de `COMPOSE_FILE` y restaurar `VLLM_LLM_MODEL` en `.env`, y recrear `vllm-llm`, `app` y `agent`.
+- **Capacidad medida con Qwen** ([CAP-001](docs/capacity/CAP-001-2x3090-pl280-classic/), con los topes):
   - ~20 llamadas con p95 ≤ 2,4 s y **~32 con p95 ≤ 3 s** (codo); con ~32 se saturan las dos GPUs.
   - Con 64, además la CPU del host (agente, ~0,12 cores por llamada), y el servicio colapsa.
   - Potencia de las dos GPUs: 559 W de pico.
@@ -111,6 +113,7 @@ Ver [`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md).
 - **Límites por tier:** admisión con lock de fila del cliente (`services/quota.py`); una llamada activa de hace más de `CALL_MAX_DURATION_SECONDS` + 10 min se considera colgada y no ocupa lugar. El loadtest y la de prueba ocupan lugar pero no consumen minutos: el cliente `atentina` (nosotros) no tiene límites.
 - **Auth:** `AUTH_SECRET` es obligatoria (sin ella `app` no arranca). La UI usa cookie de sesión; scripts y sistemas, API keys (`Authorization: Bearer vaas_...`).
 - **Demo de la landing:** `/api/v1/demo` es la única parte pública de la API (por el túnel; el 8011 no se publica en el router). Sin `TURNSTILE_SECRET_KEY` responde 503. Solo llama a los agentes de `DEMO_AGENTS` del cliente `atentina`, con tope de `DEMO_MAX_CONCURRENT_CALLS` (3) simultáneas entre ellos y cupo de `DEMO_DAILY_MINUTES` por día. Para que entren navegadores de internet, LiveKit anuncia la IP pública (`LIVEKIT_NODE_IP`) y el router reenvía UDP 7882 y TCP 7881. Ver [`docs/LANDING.md`](docs/LANDING.md).
+- **Llamadas de WhatsApp (fase 5):** Meta → `sip.atentina.com.ar:5061` (TLS, DNS sin proxy, TCP 5061 en el router) → Asterisk → LiveKit, con SRTP (SDES) y PCMA, sin transcodificar. Lo atiende el agente del DID, como una llamada de Anura. Certificado de Let's Encrypt por `make sip-cert`, renovado solo por cron (`scripts/ops/sip-cert-renew.sh`, 04:15). Procedimiento y trampas en [`docs/WHATSAPP_PLAN.md`](docs/WHATSAPP_PLAN.md), 5.4.
 - **Webhook de WhatsApp:** `/wa/webhook` (GET de verificación y POST con firma `X-Hub-Signature-256`) sale por el mismo túnel que la demo: `wa.atentina.com.ar`, path `^/wa/webhook` → `localhost:8011`, sin 443 en el router. Ver [`docs/WHATSAPP_PLAN.md`](docs/WHATSAPP_PLAN.md).
 - **Dashboard público: `app.atentina.com.ar`** (túnel, todo el host → `localhost:8011`, sin Cloudflare Access; la ruta la crea el usuario). La app se defiende sola:
   - sesión revocable (`users.session_version`), límites de login por IP real (`CF-Connecting-IP` solo desde `TRUSTED_PROXY_CIDRS`), CSRF por `Origin`, CSP con hash y SDK de Facebook, HSTS, docs solo admin;
@@ -170,11 +173,13 @@ Hay dos guías, con la misma marca (paleta, tipografías y voz). Cuál leer depe
 - [`docs/LANDING.md`](docs/LANDING.md): landing (Astro + Tailwind en `landing/`, `render.yaml`), demo por `/api/v1/demo` con su control de abuso, túnel, dominios y DNS (Render + Cloudflare).
 - [`docs/DESIGN_GUIDELINE.md`](docs/DESIGN_GUIDELINE.md): guía de diseño de la marca, con base en la landing (color y acento por vertical, tipografía, layout, componentes y patrones, estados, voz). Leerla antes de agregar o cambiar una pantalla de la landing.
 - [`docs/DESIGN_GUIDELINE_APP.md`](docs/DESIGN_GUIDELINE_APP.md): guía de diseño del dashboard (`web/`), interno y de clientes: adapta la de la marca a Mantine (colores de estado, tablas, formularios, gráficos, tema; solo claro). Leerla antes de agregar o cambiar una pantalla de `web/`.
-- [`docs/WHATSAPP_PLAN.md`](docs/WHATSAPP_PLAN.md): plan para WhatsApp en el mismo agente (Cloud API directo, registro del número de Anura por voz, Embedded Signup, costos de Meta). Fases 0, 1 y audios en producción; fase 2 (Embedded Signup) implementada, sin desplegar.
+- [`docs/WHATSAPP_PLAN.md`](docs/WHATSAPP_PLAN.md): plan para WhatsApp en el mismo agente (Cloud API directo, registro del número de Anura por voz, Embedded Signup, costos de Meta). Fases 0, 1 y audios en producción; fase 2 (Embedded Signup) implementada, sin desplegar; fase 5 (llamadas por SIP) en producción con el número de Atentina.
 - [`docs/EMAIL_PLAN.md`](docs/EMAIL_PLAN.md): plan para email en el mismo agente (entrada por Resend Inbound, dominio del cliente para responder, hilos, bucles y modo borrador). Análisis, sin código.
+- [`docs/MERCADOPAGO_PLAN.md`](docs/MERCADOPAGO_PLAN.md): plan para Mercado Pago en el mismo agente (verificar comprobantes que manda el cliente final contra la cuenta del cliente, OAuth por cliente, cobro con link). Análisis, sin código; falta confirmar con una cuenta real si las transferencias por alias salen por API.
 - [`docs/mercado/`](docs/mercado/plan-salida-al-mercado.md): mercado y plan comercial. Etapa de exploración (desde el 2-oct-2026): los casos de uso son hipótesis, no un límite. Contactos, envíos y conversaciones en [`seguimiento.md`](docs/mercado/seguimiento.md).
 - [`docs/archive/`](docs/archive/README.md): mediciones anteriores con el loadtest (EXP-001 a 013).
 - [`docs/PRODUCCION.md`](docs/PRODUCCION.md): plan de producción en este server, hallazgos, checklist y redundancia.
+- [`docs/MIGRACION_SERVER.md`](docs/MIGRACION_SERVER.md): montar el entorno en un server nuevo y hacer el corte (qué llevar, host, restauración, router, servicios externos, pruebas y vuelta atrás).
 - [`docs/SERVER_HARDWARE.md`](docs/SERVER_HARDWARE.md): elección de placas, CPU y PCIe.
 - [`docs/TELEFONIA_ANURA.md`](docs/TELEFONIA_ANURA.md): telefonía (Anura + Asterisk + LiveKit).
 - [`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md): fine-tuning de una voz de Qwen3-TTS (procedimiento, criterios, trampas).

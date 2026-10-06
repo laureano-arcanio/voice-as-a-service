@@ -61,5 +61,30 @@ for tpl in /etc/asterisk/templates/*.conf; do
 	chmod 640 "$out"
 done
 
-echo "Asterisk: SIP udp/${ASTERISK_SIP_PORT} (LiveKit) y udp/${ASTERISK_ANURA_SIP_PORT} (Anura), RTP ${ASTERISK_RTP_START}-${ASTERISK_RTP_END}, publico ${ASTERISK_PUBLIC_ADDRESS}"
+# WhatsApp (Calling API por SIP, docs/WHATSAPP_PLAN.md fase 5): solo con la clave
+# SIP de Meta (make wa-sip-password) y el certificado de WA_SIP_HOST (make sip-cert,
+# montado en /etc/letsencrypt). La clave privada se copia legible para asterisk,
+# que es el usuario con el que carga el transporte TLS.
+export WA_SIP_HOST="${WA_SIP_HOST:-sip.atentina.com.ar}"
+export WA_SIP_PORT="${WA_SIP_PORT:-5061}"
+export WA_SIP_USER="${WA_SIP_USER:-5493517002592}"
+live="/etc/letsencrypt/live/$WA_SIP_HOST"
+wa_out=/etc/asterisk/pjsip_whatsapp.conf
+if [ -n "${WA_SIP_PASSWORD:-}" ] && [ -r "$live/fullchain.pem" ] && [ -r "$live/privkey.pem" ]; then
+	mkdir -p /etc/asterisk/keys
+	cp -L "$live/fullchain.pem" /etc/asterisk/keys/whatsapp-fullchain.pem
+	cp -L "$live/privkey.pem" /etc/asterisk/keys/whatsapp-privkey.pem
+	chown root:asterisk /etc/asterisk/keys/whatsapp-*.pem
+	chmod 640 /etc/asterisk/keys/whatsapp-*.pem
+	envsubst '${WA_SIP_PORT} ${WA_SIP_USER} ${WA_SIP_PASSWORD} ${ASTERISK_PUBLIC_ADDRESS}' \
+		</etc/asterisk/templates/whatsapp/pjsip_whatsapp.conf >"$wa_out"
+	wa_msg="tls/${WA_SIP_PORT} (WhatsApp, ${WA_SIP_HOST})"
+else
+	: >"$wa_out"
+	wa_msg="WhatsApp apagado (falta WA_SIP_PASSWORD o el certificado de ${WA_SIP_HOST})"
+fi
+chown root:asterisk "$wa_out"
+chmod 640 "$wa_out"
+
+echo "Asterisk: SIP udp/${ASTERISK_SIP_PORT} (LiveKit) y udp/${ASTERISK_ANURA_SIP_PORT} (Anura), ${wa_msg}, RTP ${ASTERISK_RTP_START}-${ASTERISK_RTP_END}, publico ${ASTERISK_PUBLIC_ADDRESS}"
 exec asterisk -f -U asterisk -G asterisk
