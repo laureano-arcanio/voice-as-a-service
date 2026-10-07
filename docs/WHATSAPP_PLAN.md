@@ -326,7 +326,7 @@ Cumplido desde el 6-oct-2026 (mail de Meta, 3.2). Implementación en [5.4](#54-f
 | **1. El motor por WhatsApp** | `app/whatsapp/` (2), tablas, reglas por canal (sin variante `_wa` del agente, ver 5.1), dashboard con origen WhatsApp, saliente por plantilla, tests con payloads grabados, modo verificación (3.1, etapa 2), `make wa-send` para probar | El agente de demo conversa por WhatsApp de punta a punta; eval de calidad corrido con `channel: whatsapp` (`make eval-llm`) y comparado con voz | 2 semanas |
 | **2. Clientes con su número** | Tech Provider, App Review, Embedded Signup v4, `wa_accounts` multi-cliente con tokens cifrados, coexistencia, alta desde el dashboard | Un cliente conecta su número sin tocar Meta a mano; un piloto con número del cliente | 2 semanas de trabajo + tiempos de Meta (semanas) |
 | **3. Operación** | Notas de voz por STT y respuesta en audio (hechas, 5.2), derivación a humano con aviso, plantillas gestionadas desde la app, `wa_messages` con costo por cliente en el dashboard, perfil `whatsapp` del test de capacidad y `CAP-NNN`, webhook de resultado para el software del cliente | Reporte por campaña con costo de Meta por gestión; capacidad medida | 2 semanas |
-| **4. Campañas** | Hecho el 7-oct-2026, sin desplegar (5.5): carga por CSV o API, horario, ritmo, bajas. Queda: reintentos, tope por tier y reporte de costo | Campaña de cobranza por WhatsApp con un piloto | Se comparte con la campaña de voz |
+| **4. Campañas** | En producción desde el 7-oct-2026 (5.5): carga por CSV o API, horario, ritmo, bajas. Queda: reintentos, tope por tier y reporte de costo | Campaña de cobranza por WhatsApp con un piloto | Se comparte con la campaña de voz |
 | **5. Calling API** | Llamadas de WhatsApp por SIP (Meta ofrece SIP con TLS además de WebRTC) → Asterisk → LiveKit: el mismo agente de voz, sin telefonía. Requiere el límite de 2.000 destinatarios por día | Una llamada entrante de WhatsApp atendida por el agente de voz | 1–2 semanas, después de tener el límite |
 
 Orden: 0 y 1 dan valor con el número propio; 2 destraba la venta; 3 y 4 son lo que pide el piloto de
@@ -622,7 +622,7 @@ Variables (`.env.example`): `WA_SIP_HOST` (`sip.atentina.com.ar`), `WA_SIP_PORT`
 - **Modo automático de Claude Code:** bloquea crear el registro DNS y el `wa-calling-enable`. Los corre
   el usuario, o los pide explícitamente.
 
-### 5.5 Fase 4: campañas salientes (7-oct-2026, sin desplegar)
+### 5.5 Fase 4: campañas salientes (en producción desde el 7-oct-2026)
 
 Una plantilla aprobada a una lista de contactos, por un número conectado. Pantalla **Campañas** del
 dashboard (admin y cliente) y API `/api/v1/whatsapp/campaigns` (también con API key). Código en
@@ -659,8 +659,8 @@ dashboard (admin y cliente) y API `/api/v1/whatsapp/campaigns` (también con API
 - **Costo:** Meta cobra cada plantilla entregada a la WABA del número (Marketing ~USD 0,062 en Argentina,
   sección 4). La app todavía no lo muestra ni lo topea por tier.
 
-**Para desplegar:** `make migrate` (0008) y recrear `app` (imagen nueva, compila la UI). Después, en el
-número que va a mandar: crear la plantilla (Marketing, con botón a la landing y "No me interesa"), esperar
+**Desplegado** el 7-oct-2026 (`make migrate` a 0008 y `app` recreada). Para usarlo, en el número que va a
+mandar: crear la plantilla (Marketing, con botón a la landing y "No me interesa"), esperar
 la aprobación y crear la campaña. Probar primero con una lista de 2 o 3 números propios.
 
 **Pendiente:** reintentos de los fallidos, tope de plantillas por tier, costo estimado por campaña, campañas
