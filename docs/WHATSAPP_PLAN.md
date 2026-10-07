@@ -326,7 +326,7 @@ Cumplido desde el 6-oct-2026 (mail de Meta, 3.2). Implementación en [5.4](#54-f
 | **1. El motor por WhatsApp** | `app/whatsapp/` (2), tablas, reglas por canal (sin variante `_wa` del agente, ver 5.1), dashboard con origen WhatsApp, saliente por plantilla, tests con payloads grabados, modo verificación (3.1, etapa 2), `make wa-send` para probar | El agente de demo conversa por WhatsApp de punta a punta; eval de calidad corrido con `channel: whatsapp` (`make eval-llm`) y comparado con voz | 2 semanas |
 | **2. Clientes con su número** | Tech Provider, App Review, Embedded Signup v4, `wa_accounts` multi-cliente con tokens cifrados, coexistencia, alta desde el dashboard | Un cliente conecta su número sin tocar Meta a mano; un piloto con número del cliente | 2 semanas de trabajo + tiempos de Meta (semanas) |
 | **3. Operación** | Notas de voz por STT y respuesta en audio (hechas, 5.2), derivación a humano con aviso, plantillas gestionadas desde la app, `wa_messages` con costo por cliente en el dashboard, perfil `whatsapp` del test de capacidad y `CAP-NNN`, webhook de resultado para el software del cliente | Reporte por campaña con costo de Meta por gestión; capacidad medida | 2 semanas |
-| **4. Campañas** | Carga por CSV o API, ventana horaria, reintentos, opt-out ("no me escriban más" → no volver a mandar plantillas), lo mismo que pide la sección 4 del plan de mercado para voz | Campaña de cobranza por WhatsApp con un piloto | Se comparte con la campaña de voz |
+| **4. Campañas** | Hecho el 7-oct-2026, sin desplegar (5.5): carga por CSV o API, horario, ritmo, bajas. Queda: reintentos, tope por tier y reporte de costo | Campaña de cobranza por WhatsApp con un piloto | Se comparte con la campaña de voz |
 | **5. Calling API** | Llamadas de WhatsApp por SIP (Meta ofrece SIP con TLS además de WebRTC) → Asterisk → LiveKit: el mismo agente de voz, sin telefonía. Requiere el límite de 2.000 destinatarios por día | Una llamada entrante de WhatsApp atendida por el agente de voz | 1–2 semanas, después de tener el límite |
 
 Orden: 0 y 1 dan valor con el número propio; 2 destraba la venta; 3 y 4 son lo que pide el piloto de
@@ -621,6 +621,50 @@ Variables (`.env.example`): `WA_SIP_HOST` (`sip.atentina.com.ar`), `WA_SIP_PORT`
 - Las salientes (el negocio llama) piden permiso del usuario y digest en la otra dirección: sin hacer.
 - **Modo automático de Claude Code:** bloquea crear el registro DNS y el `wa-calling-enable`. Los corre
   el usuario, o los pide explícitamente.
+
+### 5.5 Fase 4: campañas salientes (7-oct-2026, sin desplegar)
+
+Una plantilla aprobada a una lista de contactos, por un número conectado. Pantalla **Campañas** del
+dashboard (admin y cliente) y API `/api/v1/whatsapp/campaigns` (también con API key). Código en
+`app/whatsapp/campaigns.py` (contactos, plantilla, bajas, totales) y `sender.py` (envío); tablas
+`wa_campaigns`, `wa_campaign_recipients` y `wa_optouts` (migración 0008).
+
+- **Quién:** el admin en cualquier número; el cliente solo en los suyos (token propio, Embedded Signup),
+  como las plantillas. Los de alta manual usan la WABA de nuestro portafolio. Pausar y cancelar, cualquiera
+  que la vea.
+- **Contactos:** CSV con encabezado (`telefono`, `nombre` opcional; las demás columnas, en orden, son
+  `{{1}}`, `{{2}}`…) o lista por API. El teléfono se normaliza al `wa_id` de Meta (Argentina: `549` + 10
+  dígitos; `351 555-1234`, `0351…`, `+54 9…`; otro país con `+`). Se saltean, con el motivo: inválidos,
+  repetidos, dados de baja y los que no completan las variables. Tope `WA_CAMPAIGN_MAX_RECIPIENTS` (10.000).
+- **Plantilla:** se lee de Meta al crear y al iniciar (tiene que estar `APPROVED`) y se guarda el cuerpo.
+  Variables solo en el cuerpo; encabezado de texto fijo, pie y botones fijos. **Nueva plantilla** ahora
+  acepta un botón de enlace (https fijo) y la respuesta rápida "No me interesa".
+- **Envío:** un loop en `app` (`campaign_loop`, cada `WA_CAMPAIGN_TICK_SECONDS` = 5 s) manda lo que toca
+  según `rate_per_minute` (1 a 600; ráfaga máxima de un minuto) y solo dentro del horario
+  (`window_start`–`window_end`, hora de `BILLING_TIMEZONE`). El contacto pasa a `sending` antes de llamar a
+  Meta: si `app` se reinicia en el medio, queda `failed` ("puede haber llegado"), no se reenvía.
+- **Errores de Meta:** token rechazado, 131031, 131042, 131048, 132001, 132015, 132016 y 368 pausan la
+  campaña con el motivo en español; 4, 80007, 130429 y 131056 la hacen esperar un minuto; el resto deja ese
+  contacto `failed`. Entregado, leído y los fallos posteriores (131049, 131026…) llegan por el webhook a
+  `wa_messages` y se cruzan por `wamid`.
+- **Respuesta:** la conversación se crea recién cuando el contacto responde (una campaña sin respuestas no
+  llena el dashboard). Si responde dentro de `WA_CAMPAIGN_REPLY_DAYS` (7), la conversación arranca con el
+  cuerpo de la plantilla, con sus variables, como apertura, y la atiende el agente de la campaña (o el del
+  número si no tiene, o si está archivado). Queda enlazada al contacto ("Respondió", "Ver conversación").
+- **Bajas:** un contacto de una campaña que responde "baja", "no me interesa", "stop"… (el mensaje entero,
+  sin acentos ni signos) o toca el botón "No me interesa" queda en `wa_optouts` del cliente, recibe
+  `WA_OPTOUT_REPLY` sin pasar por el LLM y ninguna campaña le vuelve a escribir. Solo si no hay una
+  conversación en curso: ahí un "no gracias" es parte de la charla y contesta el agente. También se cargan
+  y sacan a mano (tarjeta **Bajas**, `/whatsapp/optouts`).
+- **Costo:** Meta cobra cada plantilla entregada a la WABA del número (Marketing ~USD 0,062 en Argentina,
+  sección 4). La app todavía no lo muestra ni lo topea por tier.
+
+**Para desplegar:** `make migrate` (0008) y recrear `app` (imagen nueva, compila la UI). Después, en el
+número que va a mandar: crear la plantilla (Marketing, con botón a la landing y "No me interesa"), esperar
+la aprobación y crear la campaña. Probar primero con una lista de 2 o 3 números propios.
+
+**Pendiente:** reintentos de los fallidos, tope de plantillas por tier, costo estimado por campaña, campañas
+programadas (fecha de inicio) y plantillas con imagen o variables fuera del cuerpo.
 
 ## 6. Riesgos y trampas
 

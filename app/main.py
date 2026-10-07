@@ -35,11 +35,13 @@ from .api.routers import (
     tiers,
     users,
     voices,
+    wa_campaigns,
     whatsapp,
 )
 from .config import settings
 from .services.demo import allowed_origins
 from .whatsapp import webhook as wa_webhook
+from .whatsapp.sender import campaign_loop
 from .whatsapp.service import sweep_loop
 
 logger = logging.getLogger(__name__)
@@ -50,8 +52,11 @@ API_PREFIX = "/api/v1"
 async def lifespan(app: FastAPI):
     # Fin de los chats de WhatsApp vencidos, como el corte de una llamada (app/whatsapp/service.py).
     sweep = asyncio.create_task(sweep_loop())
+    # Envio de las campañas salientes de WhatsApp (app/whatsapp/sender.py).
+    sending = asyncio.create_task(campaign_loop())
     yield
     sweep.cancel()
+    sending.cancel()
 
 
 def create_app() -> FastAPI:
@@ -74,7 +79,7 @@ def create_app() -> FastAPI:
 
     api = APIRouter(prefix=API_PREFIX)
     for module in (auth, tiers, clients, phone_numbers, agents, users, api_keys, calls, conversations, voices,
-                   whatsapp, demo):
+                   whatsapp, wa_campaigns, demo):
         api.include_router(module.router)
     app.include_router(api)
     _mount_docs(app)

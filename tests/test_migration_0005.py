@@ -50,7 +50,9 @@ def test_0005_upgrade_downgrade_upgrade(tmp_path):
     # Sin diferencias con los modelos en las tablas de la migracion.
     with engine.connect() as conn:
         diff = compare_metadata(MigrationContext.configure(conn, opts={"compare_type": True}), Base.metadata)
-    touched = [d for d in diff if "wa_accounts" in repr(d) or "'users'" in repr(d)]
+    # Las tablas de migraciones posteriores (add_table) no cuentan.
+    touched = [d for d in diff if not (isinstance(d, tuple) and d[0] == "add_table")
+               and ("wa_accounts" in repr(d) or "'users'" in repr(d))]
     assert touched == []
 
     _run(engine, command.downgrade, "0004")

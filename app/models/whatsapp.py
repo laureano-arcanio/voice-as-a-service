@@ -10,8 +10,10 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     String,
     Text,
+    UniqueConstraint,
     false,
     true,
 )
@@ -98,3 +100,75 @@ class WaMessage(IdMixin, Base):
     meta_ts: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class WaCampaign(IdMixin, TimestampMixin, Base):
+    """Campaña saliente: una plantilla aprobada a una lista de contactos, por un numero
+    conectado, con ritmo y horario (app/whatsapp/campaigns.py). La respuesta de un contacto
+    abre la conversacion con el texto de la plantilla como apertura."""
+    __tablename__ = "wa_campaigns"
+    __table_args__ = (
+        CheckConstraint("status IN ('draft', 'running', 'paused', 'done', 'cancelled')", name="ck_wa_campaigns_status"),
+        CheckConstraint("rate_per_minute > 0", name="ck_wa_campaigns_rate"),
+        CheckConstraint("window_start >= 0 AND window_start <= 23 AND window_end >= 1 AND window_end <= 24 "
+                        "AND window_start < window_end", name="ck_wa_campaigns_window"),
+    )
+    client_id: Mapped[str] = mapped_column(String(36), ForeignKey("clients.id", ondelete="RESTRICT"), index=True)
+    account_id: Mapped[str] = mapped_column(String(36), ForeignKey("wa_accounts.id", ondelete="RESTRICT"), index=True)
+    # NULL: responde el agente del numero.
+    agent_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("agents.id", ondelete="RESTRICT"), nullable=True)
+    name: Mapped[str] = mapped_column(String(128))
+    # Copia de la plantilla de Meta al crearla: el cuerpo es la apertura de la conversacion.
+    template_name: Mapped[str] = mapped_column(String(512))
+    template_language: Mapped[str] = mapped_column(String(16))
+    template_category: Mapped[str] = mapped_column(String(32), default="", server_default="")
+    template_body: Mapped[str] = mapped_column(Text, default="", server_default="")
+    template_params: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    status: Mapped[str] = mapped_column(String(16), default="draft", server_default="draft")
+    # Motivo de la ultima pausa automatica (token rechazado, plantilla pausada por Meta...).
+    status_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    rate_per_minute: Mapped[int] = mapped_column(Integer, default=20, server_default="20")
+    # Horario de envio, en horas locales de settings.billing_timezone: [window_start, window_end).
+    window_start: Mapped[int] = mapped_column(Integer, default=9, server_default="9")
+    window_end: Mapped[int] = mapped_column(Integer, default=20, server_default="20")
+    created_by: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL", name="fk_wa_campaigns_created_by_users"),
+        nullable=True)
+    started_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    finished_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class WaCampaignRecipient(IdMixin, Base):
+    """Un contacto de una campaña. Entregado y leido salen de wa_messages (por wamid)."""
+    __tablename__ = "wa_campaign_recipients"
+    __table_args__ = (
+        CheckConstraint("status IN ('pending', 'sending', 'sent', 'failed', 'skipped')",
+                        name="ck_wa_campaign_recipients_status"),
+        UniqueConstraint("campaign_id", "wa_id", name="uq_wa_campaign_recipients_campaign_waid"),
+        Index("ix_wa_campaign_recipients_campaign_status", "campaign_id", "status"),
+        Index("ix_wa_campaign_recipients_waid_sent", "wa_id", "sent_at"),
+    )
+    campaign_id: Mapped[str] = mapped_column(String(36), ForeignKey("wa_campaigns.id", ondelete="CASCADE"))
+    wa_id: Mapped[str] = mapped_column(String(32))      # normalizado como lo manda Meta (549351...)
+    name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    params: Mapped[list] = mapped_column(JSONDoc)       # valores de {{1}}..{{n}}
+    # pending, sending (en vuelo), sent (Meta lo acepto), failed, skipped (baja o cancelada).
+    status: Mapped[str] = mapped_column(String(16), default="pending", server_default="pending")
+    error: Mapped[dict | None] = mapped_column(JSONDoc, nullable=True)   # {code, subcode, message}
+    wamid: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    sent_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    # La conversacion que abrio su respuesta.
+    conversation_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("conversations.id", ondelete="SET NULL"), nullable=True)
+    replied_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class WaOptout(Base):
+    """Contacto que pidio no recibir mas mensajes de un cliente: ninguna campaña le escribe."""
+    __tablename__ = "wa_optouts"
+    client_id: Mapped[str] = mapped_column(String(36), ForeignKey("clients.id", ondelete="CASCADE"), primary_key=True)
+    wa_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    source: Mapped[str] = mapped_column(String(16))     # keyword (lo escribio), manual (UI o API)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)

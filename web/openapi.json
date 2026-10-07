@@ -3288,6 +3288,713 @@
     }
    }
   },
+  "/api/v1/whatsapp/campaigns": {
+   "get": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "List Campaigns",
+    "operationId": "list_campaigns_api_v1_whatsapp_campaigns_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     },
+     {
+      "name": "account_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Account Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/WaCampaignOut"
+         },
+         "title": "Response List Campaigns Api V1 Whatsapp Campaigns Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "Create Campaign",
+    "description": "Crea la campaña en borrador con sus contactos. Lee la plantilla de Meta: tiene que\nestar aprobada (422 si no). Los contactos invalidos, repetidos o dados de baja vuelven\nen `skipped`. Se envia con /start.",
+    "operationId": "create_campaign_api_v1_whatsapp_campaigns_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/WaCampaignIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WaCampaignCreated"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/whatsapp/campaigns/{campaign_id}": {
+   "get": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "Get Campaign",
+    "operationId": "get_campaign_api_v1_whatsapp_campaigns__campaign_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "campaign_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Campaign Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WaCampaignOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "patch": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "Update Campaign",
+    "operationId": "update_campaign_api_v1_whatsapp_campaigns__campaign_id__patch",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "campaign_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Campaign Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/WaCampaignPatch"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WaCampaignOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "Delete Campaign",
+    "description": "Solo en borrador (409 si ya empezo: se cancela).",
+    "operationId": "delete_campaign_api_v1_whatsapp_campaigns__campaign_id__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "campaign_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Campaign Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/whatsapp/campaigns/{campaign_id}/recipients": {
+   "post": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "Add Recipients",
+    "description": "Suma contactos a una campaña en borrador o pausada.",
+    "operationId": "add_recipients_api_v1_whatsapp_campaigns__campaign_id__recipients_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "campaign_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Campaign Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/WaRecipientsIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WaRecipientsAdded"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "get": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "List Recipients",
+    "operationId": "list_recipients_api_v1_whatsapp_campaigns__campaign_id__recipients_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "campaign_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Campaign Id"
+      }
+     },
+     {
+      "name": "status",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "pending, sent, delivered, read, replied, failed o skipped",
+       "title": "Status"
+      },
+      "description": "pending, sent, delivered, read, replied, failed o skipped"
+     },
+     {
+      "name": "offset",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "minimum": 0,
+       "default": 0,
+       "title": "Offset"
+      }
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 500,
+       "minimum": 1,
+       "default": 50,
+       "title": "Limit"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WaRecipientPage"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/whatsapp/campaigns/{campaign_id}/start": {
+   "post": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "Start Campaign",
+    "description": "Empieza o retoma el envio. Relee la plantilla en Meta: si la pausaron, la rechazaron\no le cambiaron las variables, no arranca (422).",
+    "operationId": "start_campaign_api_v1_whatsapp_campaigns__campaign_id__start_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "campaign_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Campaign Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WaCampaignOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/whatsapp/campaigns/{campaign_id}/pause": {
+   "post": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "Pause Campaign",
+    "operationId": "pause_campaign_api_v1_whatsapp_campaigns__campaign_id__pause_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "campaign_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Campaign Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WaCampaignOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/whatsapp/campaigns/{campaign_id}/cancel": {
+   "post": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "Cancel Campaign",
+    "description": "Termina la campaña: los pendientes no se mandan. Las respuestas siguen llegando al agente.",
+    "operationId": "cancel_campaign_api_v1_whatsapp_campaigns__campaign_id__cancel_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "campaign_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Campaign Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WaCampaignOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/whatsapp/optouts": {
+   "get": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "List Optouts",
+    "operationId": "list_optouts_api_v1_whatsapp_optouts_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/WaOptoutOut"
+         },
+         "title": "Response List Optouts Api V1 Whatsapp Optouts Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "Add Optout",
+    "description": "Agrega un numero a la lista de bajas del cliente (ninguna campaña le escribe).",
+    "operationId": "add_optout_api_v1_whatsapp_optouts_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/WaOptoutIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WaOptoutOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/whatsapp/optouts/{wa_id}": {
+   "delete": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "Remove Optout",
+    "description": "Saca un numero de la lista de bajas (por ejemplo, si volvio a pedir que le escriban).",
+    "operationId": "remove_optout_api_v1_whatsapp_optouts__wa_id__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "wa_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Wa Id"
+      }
+     },
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/demo/sessions": {
    "post": {
     "tags": [
@@ -6771,6 +7478,427 @@
     "title": "WaAccountPatch",
     "description": "Usuario del cliente: solo agent_id, name y active. El resto, admin."
    },
+   "WaCampaignCreated": {
+    "properties": {
+     "added": {
+      "type": "integer",
+      "title": "Added"
+     },
+     "skipped": {
+      "items": {
+       "$ref": "#/components/schemas/WaRecipientSkipped"
+      },
+      "type": "array",
+      "title": "Skipped"
+     },
+     "campaign": {
+      "$ref": "#/components/schemas/WaCampaignOut"
+     }
+    },
+    "type": "object",
+    "required": [
+     "added",
+     "skipped",
+     "campaign"
+    ],
+    "title": "WaCampaignCreated"
+   },
+   "WaCampaignIn": {
+    "properties": {
+     "recipients": {
+      "items": {
+       "$ref": "#/components/schemas/WaRecipientIn"
+      },
+      "type": "array",
+      "maxItems": 10000,
+      "title": "Recipients",
+      "default": []
+     },
+     "csv": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 900000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Csv"
+     },
+     "account_id": {
+      "type": "string",
+      "title": "Account Id",
+      "description": "Numero de WhatsApp que manda la campaña"
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "template_name": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]{1,512}$",
+      "title": "Template Name",
+      "description": "Plantilla aprobada de la WABA del numero"
+     },
+     "template_language": {
+      "type": "string",
+      "pattern": "^[a-z]{2,3}(_[A-Z]{2})?$",
+      "title": "Template Language",
+      "default": "es_AR"
+     },
+     "agent_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agent Id",
+      "description": "Agente que atiende las respuestas; sin el, el del numero"
+     },
+     "rate_per_minute": {
+      "type": "integer",
+      "maximum": 600.0,
+      "minimum": 1.0,
+      "title": "Rate Per Minute",
+      "default": 20
+     },
+     "window_start": {
+      "type": "integer",
+      "maximum": 23.0,
+      "minimum": 0.0,
+      "title": "Window Start",
+      "description": "Hora local de inicio (BILLING_TIMEZONE)",
+      "default": 9
+     },
+     "window_end": {
+      "type": "integer",
+      "maximum": 24.0,
+      "minimum": 1.0,
+      "title": "Window End",
+      "description": "Hora local de fin, sin incluir",
+      "default": 20
+     }
+    },
+    "type": "object",
+    "required": [
+     "account_id",
+     "name",
+     "template_name"
+    ],
+    "title": "WaCampaignIn"
+   },
+   "WaCampaignOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "client_id": {
+      "type": "string",
+      "title": "Client Id"
+     },
+     "client_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Name"
+     },
+     "account_id": {
+      "type": "string",
+      "title": "Account Id"
+     },
+     "display_phone_number": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Display Phone Number"
+     },
+     "agent_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agent Id"
+     },
+     "agent_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agent Name",
+      "description": "El de la campaña o, sin uno, el del numero"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "template_name": {
+      "type": "string",
+      "title": "Template Name"
+     },
+     "template_language": {
+      "type": "string",
+      "title": "Template Language"
+     },
+     "template_category": {
+      "type": "string",
+      "title": "Template Category"
+     },
+     "template_body": {
+      "type": "string",
+      "title": "Template Body"
+     },
+     "template_params": {
+      "type": "integer",
+      "title": "Template Params"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "draft",
+       "running",
+       "paused",
+       "done",
+       "cancelled"
+      ],
+      "title": "Status"
+     },
+     "status_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status Reason"
+     },
+     "rate_per_minute": {
+      "type": "integer",
+      "title": "Rate Per Minute"
+     },
+     "window_start": {
+      "type": "integer",
+      "title": "Window Start"
+     },
+     "window_end": {
+      "type": "integer",
+      "title": "Window End"
+     },
+     "timezone": {
+      "type": "string",
+      "title": "Timezone"
+     },
+     "stats": {
+      "$ref": "#/components/schemas/WaCampaignStats"
+     },
+     "started_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Started At"
+     },
+     "finished_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Finished At"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Updated At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "client_id",
+     "account_id",
+     "name",
+     "template_name",
+     "template_language",
+     "template_category",
+     "template_body",
+     "template_params",
+     "status",
+     "rate_per_minute",
+     "window_start",
+     "window_end",
+     "timezone",
+     "stats",
+     "created_at",
+     "updated_at"
+    ],
+    "title": "WaCampaignOut"
+   },
+   "WaCampaignPatch": {
+    "properties": {
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 128,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "agent_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agent Id"
+     },
+     "rate_per_minute": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 600.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rate Per Minute"
+     },
+     "window_start": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 23.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Window Start"
+     },
+     "window_end": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 24.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Window End"
+     }
+    },
+    "type": "object",
+    "title": "WaCampaignPatch",
+    "description": "En borrador o pausada. agent_id null: responde el agente del numero."
+   },
+   "WaCampaignStats": {
+    "properties": {
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     },
+     "pending": {
+      "type": "integer",
+      "title": "Pending"
+     },
+     "sent": {
+      "type": "integer",
+      "title": "Sent"
+     },
+     "delivered": {
+      "type": "integer",
+      "title": "Delivered"
+     },
+     "read": {
+      "type": "integer",
+      "title": "Read"
+     },
+     "replied": {
+      "type": "integer",
+      "title": "Replied"
+     },
+     "failed": {
+      "type": "integer",
+      "title": "Failed"
+     },
+     "skipped": {
+      "type": "integer",
+      "title": "Skipped"
+     },
+     "opted_out": {
+      "type": "integer",
+      "title": "Opted Out",
+      "description": "Recibieron la campaña y despues pidieron la baja"
+     }
+    },
+    "type": "object",
+    "required": [
+     "total",
+     "pending",
+     "sent",
+     "delivered",
+     "read",
+     "replied",
+     "failed",
+     "skipped",
+     "opted_out"
+    ],
+    "title": "WaCampaignStats",
+    "description": "sent, delivered y read son acumulativos (uno leido tambien fue entregado y enviado)."
+   },
    "WaConfigOut": {
     "properties": {
      "enabled": {
@@ -6827,6 +7955,306 @@
     ],
     "title": "WaConfigOut",
     "description": "Lo que necesita la UI para lanzar Embedded Signup. enabled=false: el boton va\ndeshabilitado y se muestra reason."
+   },
+   "WaOptoutIn": {
+    "properties": {
+     "phone": {
+      "type": "string",
+      "maxLength": 32,
+      "minLength": 3,
+      "title": "Phone"
+     },
+     "client_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Id",
+      "description": "Solo admin"
+     }
+    },
+    "type": "object",
+    "required": [
+     "phone"
+    ],
+    "title": "WaOptoutIn"
+   },
+   "WaOptoutOut": {
+    "properties": {
+     "client_id": {
+      "type": "string",
+      "title": "Client Id"
+     },
+     "wa_id": {
+      "type": "string",
+      "title": "Wa Id"
+     },
+     "source": {
+      "type": "string",
+      "enum": [
+       "keyword",
+       "manual"
+      ],
+      "title": "Source"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "client_id",
+     "wa_id",
+     "source",
+     "created_at"
+    ],
+    "title": "WaOptoutOut"
+   },
+   "WaRecipientIn": {
+    "properties": {
+     "phone": {
+      "type": "string",
+      "maxLength": 32,
+      "minLength": 3,
+      "title": "Phone",
+      "examples": [
+       "+54 9 351 555-1234",
+       "3515551234"
+      ]
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 128
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "params": {
+      "items": {
+       "type": "string",
+       "maxLength": 1024
+      },
+      "type": "array",
+      "maxItems": 20,
+      "title": "Params",
+      "description": "Valores de {{1}}, {{2}}... del cuerpo de la plantilla",
+      "default": []
+     }
+    },
+    "type": "object",
+    "required": [
+     "phone"
+    ],
+    "title": "WaRecipientIn"
+   },
+   "WaRecipientOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "wa_id": {
+      "type": "string",
+      "title": "Wa Id"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "params": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Params"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "pending",
+       "sent",
+       "delivered",
+       "read",
+       "replied",
+       "failed",
+       "skipped"
+      ],
+      "title": "Status"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "sent_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sent At"
+     },
+     "replied_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Replied At"
+     },
+     "conversation_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Conversation Id"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "wa_id",
+     "params",
+     "status"
+    ],
+    "title": "WaRecipientOut"
+   },
+   "WaRecipientPage": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/WaRecipientOut"
+      },
+      "type": "array",
+      "title": "Items"
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     }
+    },
+    "type": "object",
+    "required": [
+     "items",
+     "total"
+    ],
+    "title": "WaRecipientPage"
+   },
+   "WaRecipientSkipped": {
+    "properties": {
+     "phone": {
+      "type": "string",
+      "title": "Phone"
+     },
+     "reason": {
+      "type": "string",
+      "title": "Reason"
+     },
+     "line": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Line",
+      "description": "Fila del CSV (la 1 es el encabezado)"
+     }
+    },
+    "type": "object",
+    "required": [
+     "phone",
+     "reason"
+    ],
+    "title": "WaRecipientSkipped"
+   },
+   "WaRecipientsAdded": {
+    "properties": {
+     "added": {
+      "type": "integer",
+      "title": "Added"
+     },
+     "skipped": {
+      "items": {
+       "$ref": "#/components/schemas/WaRecipientSkipped"
+      },
+      "type": "array",
+      "title": "Skipped"
+     }
+    },
+    "type": "object",
+    "required": [
+     "added",
+     "skipped"
+    ],
+    "title": "WaRecipientsAdded"
+   },
+   "WaRecipientsIn": {
+    "properties": {
+     "recipients": {
+      "items": {
+       "$ref": "#/components/schemas/WaRecipientIn"
+      },
+      "type": "array",
+      "maxItems": 10000,
+      "title": "Recipients",
+      "default": []
+     },
+     "csv": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 900000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Csv"
+     }
+    },
+    "type": "object",
+    "title": "WaRecipientsIn",
+    "description": "Contactos por lista o por CSV (o los dos). CSV con encabezado: columna telefono (o\ncelular, phone, whatsapp), nombre opcional, y las demas en orden son {{1}}, {{2}}..."
    },
    "WaRegisterIn": {
     "properties": {
@@ -6928,6 +8356,43 @@
     "title": "WaSignupIn",
     "description": "Lo que devuelve el popup de Embedded Signup: el codigo de FB.login (vence a los\n30 s) y los IDs del mensaje WA_EMBEDDED_SIGNUP."
    },
+   "WaTemplateButton": {
+    "properties": {
+     "type": {
+      "type": "string",
+      "enum": [
+       "URL",
+       "QUICK_REPLY"
+      ],
+      "title": "Type"
+     },
+     "text": {
+      "type": "string",
+      "maxLength": 25,
+      "minLength": 1,
+      "title": "Text"
+     },
+     "url": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 2000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Url"
+     }
+    },
+    "type": "object",
+    "required": [
+     "type",
+     "text"
+    ],
+    "title": "WaTemplateButton",
+    "description": "URL: abre la pagina (url fija, https). QUICK_REPLY: respuesta rapida; su texto llega\ncomo mensaje del contacto (\"No me interesa\" da la baja de las campañas)."
+   },
    "WaTemplateCreated": {
     "properties": {
      "id": {
@@ -7025,6 +8490,15 @@
        }
       ],
       "title": "Footer Text"
+     },
+     "buttons": {
+      "items": {
+       "$ref": "#/components/schemas/WaTemplateButton"
+      },
+      "type": "array",
+      "maxItems": 10,
+      "title": "Buttons",
+      "default": []
      }
     },
     "type": "object",
@@ -7034,7 +8508,7 @@
      "body"
     ],
     "title": "WaTemplateIn",
-    "description": "Plantilla de texto. Variables posicionales {{1}}, {{2}}... en el cuerpo, con un\nejemplo por variable (Meta los usa para revisarla)."
+    "description": "Plantilla de texto. Variables posicionales {{1}}, {{2}}... en el cuerpo, con un\nejemplo por variable (Meta los usa para revisarla). Botones opcionales."
    },
    "WaTemplateOut": {
     "properties": {

@@ -900,6 +900,171 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/whatsapp/campaigns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Campaigns */
+        get: operations["list_campaigns_api_v1_whatsapp_campaigns_get"];
+        put?: never;
+        /**
+         * Create Campaign
+         * @description Crea la campaña en borrador con sus contactos. Lee la plantilla de Meta: tiene que
+         *     estar aprobada (422 si no). Los contactos invalidos, repetidos o dados de baja vuelven
+         *     en `skipped`. Se envia con /start.
+         */
+        post: operations["create_campaign_api_v1_whatsapp_campaigns_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/whatsapp/campaigns/{campaign_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Campaign */
+        get: operations["get_campaign_api_v1_whatsapp_campaigns__campaign_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Campaign
+         * @description Solo en borrador (409 si ya empezo: se cancela).
+         */
+        delete: operations["delete_campaign_api_v1_whatsapp_campaigns__campaign_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Campaign */
+        patch: operations["update_campaign_api_v1_whatsapp_campaigns__campaign_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/whatsapp/campaigns/{campaign_id}/recipients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Recipients */
+        get: operations["list_recipients_api_v1_whatsapp_campaigns__campaign_id__recipients_get"];
+        put?: never;
+        /**
+         * Add Recipients
+         * @description Suma contactos a una campaña en borrador o pausada.
+         */
+        post: operations["add_recipients_api_v1_whatsapp_campaigns__campaign_id__recipients_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/whatsapp/campaigns/{campaign_id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Campaign
+         * @description Empieza o retoma el envio. Relee la plantilla en Meta: si la pausaron, la rechazaron
+         *     o le cambiaron las variables, no arranca (422).
+         */
+        post: operations["start_campaign_api_v1_whatsapp_campaigns__campaign_id__start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/whatsapp/campaigns/{campaign_id}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pause Campaign */
+        post: operations["pause_campaign_api_v1_whatsapp_campaigns__campaign_id__pause_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/whatsapp/campaigns/{campaign_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Campaign
+         * @description Termina la campaña: los pendientes no se mandan. Las respuestas siguen llegando al agente.
+         */
+        post: operations["cancel_campaign_api_v1_whatsapp_campaigns__campaign_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/whatsapp/optouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Optouts */
+        get: operations["list_optouts_api_v1_whatsapp_optouts_get"];
+        put?: never;
+        /**
+         * Add Optout
+         * @description Agrega un numero a la lista de bajas del cliente (ninguna campaña le escribe).
+         */
+        post: operations["add_optout_api_v1_whatsapp_optouts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/whatsapp/optouts/{wa_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Optout
+         * @description Saca un numero de la lista de bajas (por ejemplo, si volvio a pedir que le escriban).
+         */
+        delete: operations["remove_optout_api_v1_whatsapp_optouts__wa_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/demo/sessions": {
         parameters: {
             query?: never;
@@ -2136,6 +2301,168 @@ export interface components {
             /** Active */
             active?: boolean | null;
         };
+        /** WaCampaignCreated */
+        WaCampaignCreated: {
+            /** Added */
+            added: number;
+            /** Skipped */
+            skipped: components["schemas"]["WaRecipientSkipped"][];
+            campaign: components["schemas"]["WaCampaignOut"];
+        };
+        /** WaCampaignIn */
+        WaCampaignIn: {
+            /**
+             * Recipients
+             * @default []
+             */
+            recipients?: components["schemas"]["WaRecipientIn"][];
+            /** Csv */
+            csv?: string | null;
+            /**
+             * Account Id
+             * @description Numero de WhatsApp que manda la campaña
+             */
+            account_id: string;
+            /** Name */
+            name: string;
+            /**
+             * Template Name
+             * @description Plantilla aprobada de la WABA del numero
+             */
+            template_name: string;
+            /**
+             * Template Language
+             * @default es_AR
+             */
+            template_language?: string;
+            /**
+             * Agent Id
+             * @description Agente que atiende las respuestas; sin el, el del numero
+             */
+            agent_id?: string | null;
+            /**
+             * Rate Per Minute
+             * @default 20
+             */
+            rate_per_minute?: number;
+            /**
+             * Window Start
+             * @description Hora local de inicio (BILLING_TIMEZONE)
+             * @default 9
+             */
+            window_start?: number;
+            /**
+             * Window End
+             * @description Hora local de fin, sin incluir
+             * @default 20
+             */
+            window_end?: number;
+        };
+        /** WaCampaignOut */
+        WaCampaignOut: {
+            /** Id */
+            id: string;
+            /** Client Id */
+            client_id: string;
+            /** Client Name */
+            client_name?: string | null;
+            /** Account Id */
+            account_id: string;
+            /** Display Phone Number */
+            display_phone_number?: string | null;
+            /** Agent Id */
+            agent_id?: string | null;
+            /**
+             * Agent Name
+             * @description El de la campaña o, sin uno, el del numero
+             */
+            agent_name?: string | null;
+            /** Name */
+            name: string;
+            /** Template Name */
+            template_name: string;
+            /** Template Language */
+            template_language: string;
+            /** Template Category */
+            template_category: string;
+            /** Template Body */
+            template_body: string;
+            /** Template Params */
+            template_params: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "running" | "paused" | "done" | "cancelled";
+            /** Status Reason */
+            status_reason?: string | null;
+            /** Rate Per Minute */
+            rate_per_minute: number;
+            /** Window Start */
+            window_start: number;
+            /** Window End */
+            window_end: number;
+            /** Timezone */
+            timezone: string;
+            stats: components["schemas"]["WaCampaignStats"];
+            /** Started At */
+            started_at?: string | null;
+            /** Finished At */
+            finished_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * WaCampaignPatch
+         * @description En borrador o pausada. agent_id null: responde el agente del numero.
+         */
+        WaCampaignPatch: {
+            /** Name */
+            name?: string | null;
+            /** Agent Id */
+            agent_id?: string | null;
+            /** Rate Per Minute */
+            rate_per_minute?: number | null;
+            /** Window Start */
+            window_start?: number | null;
+            /** Window End */
+            window_end?: number | null;
+        };
+        /**
+         * WaCampaignStats
+         * @description sent, delivered y read son acumulativos (uno leido tambien fue entregado y enviado).
+         */
+        WaCampaignStats: {
+            /** Total */
+            total: number;
+            /** Pending */
+            pending: number;
+            /** Sent */
+            sent: number;
+            /** Delivered */
+            delivered: number;
+            /** Read */
+            read: number;
+            /** Replied */
+            replied: number;
+            /** Failed */
+            failed: number;
+            /** Skipped */
+            skipped: number;
+            /**
+             * Opted Out
+             * @description Recibieron la campaña y despues pidieron la baja
+             */
+            opted_out: number;
+        };
         /**
          * WaConfigOut
          * @description Lo que necesita la UI para lanzar Embedded Signup. enabled=false: el boton va
@@ -2154,6 +2481,116 @@ export interface components {
             graph_version: string;
             /** Sdk Locale */
             sdk_locale: string;
+        };
+        /** WaOptoutIn */
+        WaOptoutIn: {
+            /** Phone */
+            phone: string;
+            /**
+             * Client Id
+             * @description Solo admin
+             */
+            client_id?: string | null;
+        };
+        /** WaOptoutOut */
+        WaOptoutOut: {
+            /** Client Id */
+            client_id: string;
+            /** Wa Id */
+            wa_id: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "keyword" | "manual";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** WaRecipientIn */
+        WaRecipientIn: {
+            /**
+             * Phone
+             * @example +54 9 351 555-1234
+             * @example 3515551234
+             */
+            phone: string;
+            /** Name */
+            name?: string | null;
+            /**
+             * Params
+             * @description Valores de {{1}}, {{2}}... del cuerpo de la plantilla
+             * @default []
+             */
+            params?: string[];
+        };
+        /** WaRecipientOut */
+        WaRecipientOut: {
+            /** Id */
+            id: string;
+            /** Wa Id */
+            wa_id: string;
+            /** Name */
+            name?: string | null;
+            /** Params */
+            params: string[];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "sent" | "delivered" | "read" | "replied" | "failed" | "skipped";
+            /** Error */
+            error?: {
+                [key: string]: unknown;
+            } | null;
+            /** Sent At */
+            sent_at?: string | null;
+            /** Replied At */
+            replied_at?: string | null;
+            /** Conversation Id */
+            conversation_id?: string | null;
+        };
+        /** WaRecipientPage */
+        WaRecipientPage: {
+            /** Items */
+            items: components["schemas"]["WaRecipientOut"][];
+            /** Total */
+            total: number;
+        };
+        /** WaRecipientSkipped */
+        WaRecipientSkipped: {
+            /** Phone */
+            phone: string;
+            /** Reason */
+            reason: string;
+            /**
+             * Line
+             * @description Fila del CSV (la 1 es el encabezado)
+             */
+            line?: number | null;
+        };
+        /** WaRecipientsAdded */
+        WaRecipientsAdded: {
+            /** Added */
+            added: number;
+            /** Skipped */
+            skipped: components["schemas"]["WaRecipientSkipped"][];
+        };
+        /**
+         * WaRecipientsIn
+         * @description Contactos por lista o por CSV (o los dos). CSV con encabezado: columna telefono (o
+         *     celular, phone, whatsapp), nombre opcional, y las demas en orden son {{1}}, {{2}}...
+         */
+        WaRecipientsIn: {
+            /**
+             * Recipients
+             * @default []
+             */
+            recipients?: components["schemas"]["WaRecipientIn"][];
+            /** Csv */
+            csv?: string | null;
         };
         /** WaRegisterIn */
         WaRegisterIn: {
@@ -2200,6 +2637,22 @@ export interface components {
              */
             pin?: string | null;
         };
+        /**
+         * WaTemplateButton
+         * @description URL: abre la pagina (url fija, https). QUICK_REPLY: respuesta rapida; su texto llega
+         *     como mensaje del contacto ("No me interesa" da la baja de las campañas).
+         */
+        WaTemplateButton: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "URL" | "QUICK_REPLY";
+            /** Text */
+            text: string;
+            /** Url */
+            url?: string | null;
+        };
         /** WaTemplateCreated */
         WaTemplateCreated: {
             /** Id */
@@ -2212,7 +2665,7 @@ export interface components {
         /**
          * WaTemplateIn
          * @description Plantilla de texto. Variables posicionales {{1}}, {{2}}... en el cuerpo, con un
-         *     ejemplo por variable (Meta los usa para revisarla).
+         *     ejemplo por variable (Meta los usa para revisarla). Botones opcionales.
          */
         WaTemplateIn: {
             /**
@@ -2241,6 +2694,11 @@ export interface components {
             header_text?: string | null;
             /** Footer Text */
             footer_text?: string | null;
+            /**
+             * Buttons
+             * @default []
+             */
+            buttons?: components["schemas"]["WaTemplateButton"][];
         };
         /** WaTemplateOut */
         WaTemplateOut: {
@@ -4244,6 +4702,425 @@ export interface operations {
             header?: never;
             path: {
                 conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_campaigns_api_v1_whatsapp_campaigns_get: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+                account_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaCampaignOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_campaign_api_v1_whatsapp_campaigns_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaCampaignIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaCampaignCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_campaign_api_v1_whatsapp_campaigns__campaign_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaCampaignOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_campaign_api_v1_whatsapp_campaigns__campaign_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_campaign_api_v1_whatsapp_campaigns__campaign_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaCampaignPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaCampaignOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_recipients_api_v1_whatsapp_campaigns__campaign_id__recipients_get: {
+        parameters: {
+            query?: {
+                /** @description pending, sent, delivered, read, replied, failed o skipped */
+                status?: string | null;
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaRecipientPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_recipients_api_v1_whatsapp_campaigns__campaign_id__recipients_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaRecipientsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaRecipientsAdded"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_campaign_api_v1_whatsapp_campaigns__campaign_id__start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaCampaignOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pause_campaign_api_v1_whatsapp_campaigns__campaign_id__pause_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaCampaignOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_campaign_api_v1_whatsapp_campaigns__campaign_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaCampaignOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_optouts_api_v1_whatsapp_optouts_get: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaOptoutOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_optout_api_v1_whatsapp_optouts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaOptoutIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaOptoutOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_optout_api_v1_whatsapp_optouts__wa_id__delete: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+            };
+            header?: never;
+            path: {
+                wa_id: string;
             };
             cookie?: never;
         };

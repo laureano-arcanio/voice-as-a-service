@@ -160,6 +160,11 @@ class Settings(BaseSettings):
     wa_audio_too_long_reply: str = "Ese audio es muy largo para mí. ¿Me mandás uno más corto o me lo escribís?"
     wa_audio_empty_reply: str = "No te escuché bien, ¿me lo repetís?"
     wa_audio_error_reply: str = "No pude escuchar el audio. ¿Me lo escribís?"
+    # Campañas salientes (app/whatsapp/campaigns.py y sender.py).
+    wa_campaign_tick_seconds: float = 5.0   # cada cuanto el sender manda lo que toca segun el ritmo
+    wa_campaign_reply_days: int = 7         # una respuesta dentro de estos dias abre la conversacion con la plantilla
+    wa_campaign_max_recipients: int = 10_000  # por campaña
+    wa_optout_reply: str = "Listo, no te vamos a escribir más. ¡Gracias!"
 
     # --- Frontend ---
     # Build de la SPA (web/, `npm run build`). Si no existe, la API funciona sin UI.

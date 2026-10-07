@@ -3,6 +3,7 @@ import {
   Badge,
   Button,
   Card,
+  Checkbox,
   Group,
   Modal,
   Select,
@@ -30,6 +31,9 @@ import {
 } from './templates';
 import { useState } from 'react';
 
+// Respuesta rapida que da la baja de las campañas (app/whatsapp/campaigns.py, OPTOUT_TEXTS).
+const OPTOUT_BUTTON = 'No me interesa';
+
 const LANGUAGES = [
   { value: 'es_AR', label: 'Español (Argentina)' },
   { value: 'es', label: 'Español' },
@@ -56,6 +60,9 @@ function NewTemplateModal({ account, onClose }: { account: WaAccount; onClose: (
       body: '',
       footer_text: '',
       examples: [] as string[],
+      url_text: '',
+      url: '',
+      optout_button: false,
     },
     validate: {
       name: (v) => (TEMPLATE_NAME.test(v) ? null : 'Minúsculas, números y _'),
@@ -63,6 +70,9 @@ function NewTemplateModal({ account, onClose }: { account: WaAccount; onClose: (
         !v.trim() ? 'Requerido' : v.length > 1024 ? 'Hasta 1024 caracteres' : placeholderError(v),
       header_text: (v) => (v.includes('{{') ? 'El encabezado no admite variables' : null),
       footer_text: (v) => (v.includes('{{') ? 'El pie no admite variables' : null),
+      url: (v, values) =>
+        values.url_text.trim() && !/^https:\/\/\S+$/.test(v.trim()) ? 'Una dirección https://' : null,
+      url_text: (v, values) => (values.url.trim() && !v.trim() ? 'El texto del botón' : null),
       examples: (v, values) =>
         v.slice(0, placeholderNumbers(values.body).length).some((e) => !e.trim())
           ? 'Hace falta un ejemplo para cada variable'
@@ -83,6 +93,12 @@ function NewTemplateModal({ account, onClose }: { account: WaAccount; onClose: (
             examples: vars.map((_, i) => (v.examples[i] ?? '').trim()),
             header_text: v.header_text.trim() || null,
             footer_text: v.footer_text.trim() || null,
+            buttons: [
+              ...(v.url_text.trim()
+                ? [{ type: 'URL' as const, text: v.url_text.trim(), url: v.url.trim() }]
+                : []),
+              ...(v.optout_button ? [{ type: 'QUICK_REPLY' as const, text: OPTOUT_BUTTON }] : []),
+            ],
           };
           create.mutate(
             { accountId: account.id, body },
@@ -139,6 +155,24 @@ function NewTemplateModal({ account, onClose }: { account: WaAccount; onClose: (
             />
           ))}
           <TextInput label="Pie (opcional)" maxLength={60} {...form.getInputProps('footer_text')} />
+          <Group grow align="flex-start">
+            <TextInput
+              label="Botón con enlace (opcional)"
+              placeholder="Probar la demo"
+              maxLength={25}
+              {...form.getInputProps('url_text')}
+            />
+            <TextInput
+              label="Dirección"
+              placeholder="https://atentina.com.ar"
+              {...form.getInputProps('url')}
+            />
+          </Group>
+          <Checkbox
+            label={`Botón "${OPTOUT_BUTTON}"`}
+            description="Quien lo toca no recibe más campañas de este cliente. Recomendado en Marketing."
+            {...form.getInputProps('optout_button', { type: 'checkbox' })}
+          />
           <Text size="xs" c="dimmed">
             Meta revisa cada plantilla: queda "En revisión" y pasa a Aprobada o Rechazada (con el motivo).
             Hasta 100 altas por hora por cuenta.

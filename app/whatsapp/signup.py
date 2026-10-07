@@ -290,10 +290,12 @@ async def list_templates(s: Session, account: WaAccount,
 
 
 def template_payload(*, name: str, language: str, category: str, body: str, examples: list[str],
-                     header_text: str | None = None, footer_text: str | None = None) -> dict:
+                     header_text: str | None = None, footer_text: str | None = None,
+                     buttons: list[dict] | None = None) -> dict:
     """Cuerpo de POST /{waba_id}/message_templates. Variables posicionales {{1}}..{{n}} en el
-    cuerpo, con un ejemplo por variable (Meta los exige para revisarla). El encabezado y el
-    pie van sin variables."""
+    cuerpo, con un ejemplo por variable (Meta los exige para revisarla). El encabezado, el
+    pie y los botones van sin variables. Botones: hasta 2 de URL (https) y respuestas
+    rapidas; Meta pide los de cada tipo juntos: van primero los de URL."""
     numbers = sorted({int(n) for n in PLACEHOLDER_RE.findall(body)})
     if numbers != list(range(1, len(numbers) + 1)):
         raise Invalid("Las variables del cuerpo tienen que ser {{1}}, {{2}}... seguidas")
@@ -313,7 +315,27 @@ def template_payload(*, name: str, language: str, category: str, body: str, exam
     components.append(body_component)
     if footer_text:
         components.append({"type": "FOOTER", "text": footer_text})
+    if buttons:
+        components.append({"type": "BUTTONS", "buttons": _buttons(buttons)})
     return {"name": name, "language": language, "category": category, "components": components}
+
+
+def _buttons(buttons: list[dict]) -> list[dict]:
+    urls, replies = [], []
+    for b in buttons:
+        text = str(b.get("text") or "").strip()
+        if not text or "{{" in text:
+            raise Invalid("Cada botón necesita un texto, sin variables")
+        if b.get("type") == "URL":
+            url = str(b.get("url") or "").strip()
+            if not re.fullmatch(r"https://[^\s{}]+", url):
+                raise Invalid("La dirección del botón tiene que empezar con https:// y no lleva variables")
+            urls.append({"type": "URL", "text": text, "url": url})
+        else:
+            replies.append({"type": "QUICK_REPLY", "text": text})
+    if len(urls) > 2:
+        raise Invalid("Hasta 2 botones de enlace")
+    return urls + replies
 
 
 async def create_template(s: Session, account: WaAccount, payload: dict,

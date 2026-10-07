@@ -277,6 +277,31 @@ Solo funciona desde `https://app.atentina.com.ar` (Meta exige HTTPS).
 7. Un número que cargó un admin con la cuenta de la plataforma (alta manual) no muestra registro, datos de
    Meta ni plantillas al cliente: los maneja el admin.
 
+### Campañas (`/campaigns`, ambos roles)
+
+Mandan una plantilla aprobada de WhatsApp a una lista de contactos; las respuestas las atiende el agente.
+Hace falta un número conectado con su propia cuenta (el cliente) y una plantilla aprobada.
+
+1. **Plantilla:** en WhatsApp > Plantillas > **Nueva plantilla**, categoría Marketing para prospección, con
+   botón de enlace (ej. "Probar la demo" → la landing) y el botón "No me interesa". Esperar a que Meta la
+   apruebe.
+2. **Nueva campaña:** nombre, número que envía, plantilla, agente que responde (vacío: el del número),
+   horario (hora de Argentina) y mensajes por minuto. Contactos en CSV con encabezado: `telefono,nombre`
+   y una columna más por cada variable de la plantilla (pegado o en archivo). Al crearla muestra cuántos
+   entraron y los que quedaron afuera, con el motivo.
+3. Queda en **Borrador**: revisar el mensaje y los contactos y usar **Iniciar envío**. **Pausar**,
+   **Retomar envío**, **Agregar contactos** (en borrador o pausada) y **Cancelar campaña** (los pendientes
+   no se mandan).
+4. **Totales:** enviados, entregados, leídos, respondieron, fallidos (con el motivo por contacto) y bajas.
+   Cada contacto que respondió tiene **Ver conversación**.
+5. **Pausada automáticamente:** Meta pausó la plantilla, frenó el número o rechazó el token. El motivo
+   aparece arriba; resolverlo y **Retomar envío**.
+6. **Bajas:** quien responde "No me interesa" o "Baja" no recibe más campañas del cliente. Se pueden cargar
+   o sacar a mano en la tarjeta **Bajas**.
+
+Meta cobra cada plantilla entregada a la cuenta del número. Conviene escribirles solo a quienes aceptaron
+recibir mensajes: muchos bloqueos bajan la calidad del número y su límite de envío.
+
 ### Mi cuenta (cliente)
 
 - **Consumo del mes:** llamadas activas, minutos entrantes y salientes, y números, cada uno contra

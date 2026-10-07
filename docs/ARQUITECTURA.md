@@ -71,9 +71,10 @@ app/
   voice/             worker de LiveKit y latencia por turno
   whatsapp/          webhook (firma), graph.py (Cloud API y media), store.py (tablas wa_*), service.py (turnos),
                      audio.py (notas de voz: STT, TTS y OGG/Opus con PyAV), signup.py (Embedded Signup,
-                     registro, plantillas), crypto.py (tokens y PIN cifrados)
+                     registro, plantillas), crypto.py (tokens y PIN cifrados), campaigns.py y sender.py
+                     (campañas salientes por plantilla y bajas)
 migrations/          Alembic: 0001 esquema anterior (idempotente), 0002 tenencia, 0003 inventario de números,
-                     0004 WhatsApp, 0005 Embedded Signup y session_version
+                     0004 WhatsApp, 0005 Embedded Signup y session_version, …, 0008 campañas de WhatsApp
 web/                 SPA React (ver "Frontend")
 tests/               pytest: API, límites, motor
 ```
@@ -112,6 +113,9 @@ tiers 1───* clients 1───* agents 1───* agent_versions
 | `conversations.channel` | `voice` o `whatsapp`; se fija al crearla. Cambia el prompt (reglas por canal), no el agente. |
 | `wa_accounts` | Un número de WhatsApp: `phone_number_id` único (ID de Meta), `waba_id`, número visible, `client_id`, `agent_id`, `access_token` (NULL = `WA_ACCESS_TOKEN`; cifrado con `WA_TOKEN_KEY`, prefijo `fernet:`), `pin_enc`, `active`, `status` (`connected`, `pending`, `disconnected`) con motivo, `quality_rating`, `messaging_limit`, `source` (`manual`, `embedded_signup`, `coexistence`), `connected_by`. Sin borrado: se desactiva. |
 | `wa_threads` | Una por conversación de WhatsApp (como `call_logs`): cuenta, `wa_id` tal cual llega (`549…`), nombre del perfil, `last_user_at` (ventana de sesión), `paused` (fase 3). |
+| `wa_campaigns` | Campaña saliente: cliente, número (`account_id`), agente opcional (NULL = el del número), copia de la plantilla (nombre, idioma, categoría, cuerpo, cantidad de variables), `status` (`draft`, `running`, `paused`, `done`, `cancelled`) con motivo de pausa, `rate_per_minute` y horario (`window_start`, `window_end`). |
+| `wa_campaign_recipients` | Un contacto de una campaña (`campaign_id` + `wa_id` únicos): variables, `status` (`pending`, `sending`, `sent`, `failed`, `skipped`), error, `wamid` (entregado y leído salen de `wa_messages`), `conversation_id` y `replied_at` si respondió. |
+| `wa_optouts` | Bajas por cliente (`client_id` + `wa_id`), `source` `keyword` (lo escribió) o `manual`. Ninguna campaña les escribe. |
 | `contact_requests` | Pedidos del formulario de contacto de la landing (`POST /api/v1/demo/contact`), con `email_status` (`sent`, `failed`, `disabled`) y `email_error`; se guardan aunque Resend falle ([`LANDING.md`](LANDING.md)). |
 | `wa_messages` | Uno por `wamid` (unique: dedupe de reenvíos de Meta), entrante o saliente, tipo (`text`, `audio`, ...), estado y error de Meta. Sin texto ni audio: el texto está en `conversations.messages`, donde `voice_note` marca la transcripción de una nota de voz o la respuesta enviada como nota de voz. |
 
@@ -330,6 +334,8 @@ lo de esta sección es lo que lo protege.
 | WhatsApp: alta manual, token, número visible | Sí | No | No |
 | WhatsApp: conectar por Embedded Signup (`/whatsapp/signup`) | Sí | Los suyos | No |
 | WhatsApp: ver, agente, nombre, activar, registro, refresco, plantillas | Todo | Lo suyo | Lo suyo |
+| WhatsApp: campañas (crear, contactos, iniciar) | Todo | En sus números con token propio | Ídem |
+| WhatsApp: ver, pausar y cancelar campañas; bajas | Todo | Lo suyo | Lo suyo |
 | Llamadas, conversaciones, consumo, voces | Todo | Lo suyo | Lo suyo |
 | API keys | Sí | Las suyas | No |
 
@@ -356,6 +362,9 @@ lo de esta sección es lo que lo protege.
   `enabled` y el motivo si falta algo), `GET|POST /accounts`, `PATCH /accounts/{id}`,
   `POST /accounts/{id}/deactivate|register|refresh`, `GET|POST /accounts/{id}/templates` y
   `POST /signup`. Detalle en [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md), 5.3.
+- **Campañas de WhatsApp** (`/whatsapp`): `GET|POST /campaigns`, `GET|PATCH|DELETE /campaigns/{id}`,
+  `GET|POST /campaigns/{id}/recipients` (lista o CSV), `POST /campaigns/{id}/start|pause|cancel`,
+  `GET|POST /optouts` y `DELETE /optouts/{wa_id}`. Envío y reglas en [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md), 5.5.
 - **Errores:** `{"detail": "texto", "code": "snake_case", "errors": [{"path", "message"}]}`.
   - 404 `not_found`, 403 `forbidden`, 409 `conflict`/`agent_in_use`/`phone_numbers_limit`/…,
     422 `invalid`/`invalid_definition`, 429 límites del tier, 502 `upstream_error` (LiveKit, TTS

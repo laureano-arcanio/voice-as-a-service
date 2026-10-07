@@ -50,7 +50,7 @@ from ..db import utcnow
 from ..llm.prompt import VOICE_NOTE_TAG
 from ..models import Client, ConversationRow, WaAccount
 from . import audio as audio_module
-from . import store
+from . import campaigns, store
 from .audio import AudioError, AudioTooLong
 from .crypto import TokenKeyMissing
 from .graph import GraphClient, GraphError, MediaTooLarge
@@ -313,6 +313,9 @@ class WhatsAppService:
             body = None if kind in SILENT_TYPES else settings.wa_unsupported_reply
             await self._fixed_reply(info, wa_id, wamid, body, inbox)
             return
+        if campaigns.is_optout_text(text) and self._optout(info, wa_id):
+            await self._fixed_reply(info, wa_id, wamid, settings.wa_optout_reply, inbox)
+            return
         if self._over_cap(info, wamid, inbox):
             return
         inbox.items.append(Item(_stamp(msg), text, wamid))
@@ -384,6 +387,18 @@ class WhatsAppService:
         inbox.items.append(Item(_stamp(msg), text, wamid, voice_note=True))
         inbox.contact_name = contact_name or inbox.contact_name
         self._arm(info, wa_id, inbox)
+
+    def _optout(self, info: AccountInfo, wa_id: str) -> bool:
+        """Baja pedida en respuesta a una campaña: solo si este numero le mando alguna y no hay
+        una conversacion en curso (ahi un "no gracias" es parte de la charla y responde el agente)."""
+        with self.sessions() as s:
+            if store.active_thread(s, info.id, wa_id, utcnow(), self.session_hours) is not None \
+                    or not campaigns.got_campaign(s, info.id, wa_id):
+                return False
+            campaigns.add_optout(s, info.client_id, wa_id, "keyword")
+            s.commit()
+        logger.info("wa: baja de campañas pnid=%s", info.phone_number_id)
+        return True
 
     def _why_ignore(self, s: Session, account: WaAccount | None, wa_id: str) -> str | None:
         if account is None:
@@ -491,10 +506,11 @@ class WhatsAppService:
                 conversation_id = thread.conversation_id
                 store.touch_thread(s, conversation_id, now)
             else:
-                # El cliente escribe primero: sin apertura, su mensaje es el turno 1.
+                # El cliente escribe primero: sin apertura, su mensaje es el turno 1. Si responde a
+                # una campaña, la apertura es la plantilla que recibio, con el agente de la campaña.
+                target = campaigns.reply_target(s, info.id, wa_id, now)
                 try:
-                    state, _ = self.engine.new_conversation(info.agent_id, info.client_id, session=s,
-                                                            channel="whatsapp", opening=False)
+                    state = self._new_conversation(s, info, target)
                 except KeyError:
                     store.set_inbound(s, wamids, status="ignored")
                     s.commit()
@@ -508,6 +524,8 @@ class WhatsAppService:
                 ConversationStore.add(s, state)
                 store.add_thread(s, conversation_id=conversation_id, account=account, wa_id=wa_id,
                                  contact_name=inbox.contact_name)
+                if target is not None:
+                    campaigns.mark_replied(s, target.recipient_id, conversation_id, now)
             store.set_inbound(s, wamids, status="received", conversation_id=conversation_id)
             s.commit()
         if ended:
@@ -551,6 +569,20 @@ class WhatsAppService:
         with self.sessions() as s:
             store.set_inbound(s, wamids, status="answered" if sent else "error")
             s.commit()
+
+    def _new_conversation(self, s: Session, info: AccountInfo,
+                          target: campaigns.ReplyTarget | None) -> ConversationState:
+        """KeyError si el agente no existe o esta archivado. El de la campaña archivado: el del numero."""
+        if target is not None and target.agent_id:
+            try:
+                return self.engine.new_conversation(target.agent_id, info.client_id, session=s, channel="whatsapp",
+                                                    opening=target.opening)[0]
+            except KeyError:
+                logger.warning("wa: el agente de la campaña %s esta archivado: responde el del numero",
+                               target.campaign_id)
+        opening = target.opening if target is not None else False
+        return self.engine.new_conversation(info.agent_id, info.client_id, session=s, channel="whatsapp",
+                                            opening=opening)[0]
 
     def _auth_failed(self, info: AccountInfo, e: GraphError) -> bool:
         """Meta rechazo el token (190 o 401). Si es del cliente, la cuenta queda desconectada

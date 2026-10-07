@@ -5,9 +5,17 @@ from .calls import ACTIVE_CALL_STATUSES, CallMode, CallRow, CallStatus
 from .contact import ContactRequest
 from .conversations import ConversationRow
 from .tenancy import ApiKey, Client, PhoneNumber, Role, Tier, User
-from .whatsapp import WaAccount, WaMessage, WaThread
+from .whatsapp import (
+    WaAccount,
+    WaCampaign,
+    WaCampaignRecipient,
+    WaMessage,
+    WaOptout,
+    WaThread,
+)
 
 __all__ = [
     "ACTIVE_CALL_STATUSES", "Agent", "AgentVersion", "ApiKey", "CallMode", "CallRow", "CallStatus", "Client",
-    "ContactRequest", "ConversationRow", "PhoneNumber", "Role", "Tier", "User", "WaAccount", "WaMessage", "WaThread",
+    "ContactRequest", "ConversationRow", "PhoneNumber", "Role", "Tier", "User", "WaAccount", "WaCampaign",
+    "WaCampaignRecipient", "WaMessage", "WaOptout", "WaThread",
 ]

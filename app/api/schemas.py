@@ -274,9 +274,17 @@ class WaTemplateOut(BaseModel):
     components: list[dict[str, Any]] = []
 
 
+class WaTemplateButton(BaseModel):
+    """URL: abre la pagina (url fija, https). QUICK_REPLY: respuesta rapida; su texto llega
+    como mensaje del contacto ("No me interesa" da la baja de las campañas)."""
+    type: Literal["URL", "QUICK_REPLY"]
+    text: str = Field(min_length=1, max_length=25)
+    url: str | None = Field(default=None, max_length=2000)
+
+
 class WaTemplateIn(BaseModel):
     """Plantilla de texto. Variables posicionales {{1}}, {{2}}... en el cuerpo, con un
-    ejemplo por variable (Meta los usa para revisarla)."""
+    ejemplo por variable (Meta los usa para revisarla). Botones opcionales."""
     name: str = Field(pattern=r"^[a-z0-9_]{1,512}$", description="Minusculas, numeros y _")
     language: str = Field(default="es_AR", pattern=r"^[a-z]{2,3}(_[A-Z]{2})?$")
     category: Literal["UTILITY", "MARKETING", "AUTHENTICATION"]
@@ -284,12 +292,131 @@ class WaTemplateIn(BaseModel):
     examples: list[Annotated[str, Field(max_length=200)]] = Field(default=[], max_length=20)
     header_text: str | None = Field(default=None, max_length=60)
     footer_text: str | None = Field(default=None, max_length=60)
+    buttons: list[WaTemplateButton] = Field(default=[], max_length=10)
 
 
 class WaTemplateCreated(BaseModel):
     id: str
     status: str | None = None
     category: str | None = None
+
+
+class WaRecipientIn(BaseModel):
+    phone: str = Field(min_length=3, max_length=32, examples=["+54 9 351 555-1234", "3515551234"])
+    name: str | None = Field(default=None, max_length=128)
+    params: list[Annotated[str, Field(max_length=1024)]] = Field(
+        default=[], max_length=20, description="Valores de {{1}}, {{2}}... del cuerpo de la plantilla")
+
+
+class WaRecipientsIn(BaseModel):
+    """Contactos por lista o por CSV (o los dos). CSV con encabezado: columna telefono (o
+    celular, phone, whatsapp), nombre opcional, y las demas en orden son {{1}}, {{2}}..."""
+    recipients: list[WaRecipientIn] = Field(default=[], max_length=10_000)
+    csv: str | None = Field(default=None, max_length=900_000)
+
+
+class WaCampaignIn(WaRecipientsIn):
+    account_id: str = Field(description="Numero de WhatsApp que manda la campaña")
+    name: str = Field(min_length=1, max_length=128)
+    template_name: str = Field(pattern=r"^[a-z0-9_]{1,512}$", description="Plantilla aprobada de la WABA del numero")
+    template_language: str = Field(default="es_AR", pattern=r"^[a-z]{2,3}(_[A-Z]{2})?$")
+    agent_id: str | None = Field(default=None, description="Agente que atiende las respuestas; sin el, el del numero")
+    rate_per_minute: int = Field(default=20, ge=1, le=600)
+    window_start: int = Field(default=9, ge=0, le=23, description="Hora local de inicio (BILLING_TIMEZONE)")
+    window_end: int = Field(default=20, ge=1, le=24, description="Hora local de fin, sin incluir")
+
+
+class WaCampaignPatch(BaseModel):
+    """En borrador o pausada. agent_id null: responde el agente del numero."""
+    name: str | None = Field(default=None, min_length=1, max_length=128)
+    agent_id: str | None = None
+    rate_per_minute: int | None = Field(default=None, ge=1, le=600)
+    window_start: int | None = Field(default=None, ge=0, le=23)
+    window_end: int | None = Field(default=None, ge=1, le=24)
+
+
+class WaCampaignStats(BaseModel):
+    """sent, delivered y read son acumulativos (uno leido tambien fue entregado y enviado)."""
+    total: int
+    pending: int
+    sent: int
+    delivered: int
+    read: int
+    replied: int
+    failed: int
+    skipped: int
+    opted_out: int = Field(description="Recibieron la campaña y despues pidieron la baja")
+
+
+class WaCampaignOut(BaseModel):
+    id: str
+    client_id: str
+    client_name: str | None = None
+    account_id: str
+    display_phone_number: str | None = None
+    agent_id: str | None = None
+    agent_name: str | None = Field(default=None, description="El de la campaña o, sin uno, el del numero")
+    name: str
+    template_name: str
+    template_language: str
+    template_category: str
+    template_body: str
+    template_params: int
+    status: Literal["draft", "running", "paused", "done", "cancelled"]
+    status_reason: str | None = None
+    rate_per_minute: int
+    window_start: int
+    window_end: int
+    timezone: str
+    stats: WaCampaignStats
+    started_at: UTCDateTime | None = None
+    finished_at: UTCDateTime | None = None
+    created_at: UTCDateTime
+    updated_at: UTCDateTime
+
+
+class WaRecipientSkipped(BaseModel):
+    phone: str
+    reason: str
+    line: int | None = Field(default=None, description="Fila del CSV (la 1 es el encabezado)")
+
+
+class WaRecipientsAdded(BaseModel):
+    added: int
+    skipped: list[WaRecipientSkipped]
+
+
+class WaCampaignCreated(WaRecipientsAdded):
+    campaign: WaCampaignOut
+
+
+class WaRecipientOut(BaseModel):
+    id: str
+    wa_id: str
+    name: str | None = None
+    params: list[str]
+    status: Literal["pending", "sent", "delivered", "read", "replied", "failed", "skipped"]
+    error: dict[str, Any] | None = None
+    sent_at: UTCDateTime | None = None
+    replied_at: UTCDateTime | None = None
+    conversation_id: str | None = None
+
+
+class WaRecipientPage(BaseModel):
+    items: list[WaRecipientOut]
+    total: int
+
+
+class WaOptoutIn(BaseModel):
+    phone: str = Field(min_length=3, max_length=32)
+    client_id: str | None = Field(default=None, description="Solo admin")
+
+
+class WaOptoutOut(BaseModel):
+    client_id: str
+    wa_id: str
+    source: Literal["keyword", "manual"]
+    created_at: UTCDateTime
 
 
 # ---------- agentes ----------
