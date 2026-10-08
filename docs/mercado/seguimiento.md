@@ -4,17 +4,17 @@ Registro de cada contacto: qué se envió, cuándo, si hubo seguimiento y qué c
 de verdad de la etapa de exploración ([`plan-salida-al-mercado.md`](plan-salida-al-mercado.md),
 sección 0). Los textos exactos de cada envío están en [`envios/`](envios/).
 
-Actualizado: 6-oct-2026.
+Actualizado: 8-oct-2026.
 
 ## Resumen
 
 | Métrica | Valor | Objetivo (plan, sección 8) |
 |---|---|---|
-| Contactos enviados | 103 | ~150 |
-| Borradores sin enviar | 8 | — |
-| Contactos por LinkedIn (aparte, ver abajo) | 0 enviados, 1 borrador | — |
+| Contactos enviados | 171 | ~150 |
+| Borradores sin enviar | 97 | — |
+| Contactos por LinkedIn (aparte, ver abajo) | 28 enviados, 1 borrador | — |
 | Con seguimiento enviado | 11 | — |
-| Respuestas | 0 | — |
+| Respuestas | 3 | — |
 | Conversaciones registradas | 0 | 30 en 60 días, de 5 rubros o más |
 | Propuestas | 0 | ~8 |
 | Pilotos | 0 | 3 en 90 días |
@@ -38,7 +38,7 @@ Una fila por empresa. Fechas en formato `d-mes` del 2026. `—` es "todavía no"
 | 11 | Browix | Software de gestión de personal, Córdoba | cliente y canal | info@browix.com | https://browix.com | 2-oct | 5-oct, mismo hilo | — | seguimiento enviado | Si no contesta, `sin respuesta` el 12-oct |
 | 12 | Cotesma | Cooperativa de telecomunicaciones, San Martín de los Andes (Neuquén) | cliente | fabian.pell@cotesma.com.ar | https://www.cotesma.com.ar | 5-oct | — | — | enviado | Seguimiento el 9-oct |
 | 13 | Sanatorio El Carmen | Sanatorio privado, Salta | cliente | info@sanatorioelcarmen.com.ar | https://www.sanatorioelcarmen.ar | 5-oct | — | — | enviado | Seguimiento el 9-oct |
-| 14 | Unisem | Emergencias médicas, Santa Fe | cliente | fernandobaez@unisem.com.ar | https://www.unisem.com.ar | 5-oct | — | — | enviado | Seguimiento el 9-oct |
+| 14 | Unisem | Emergencias médicas, Santa Fe | cliente | fernandobaez@unisem.com.ar | https://www.unisem.com.ar | 5-oct | — | — | enviado | Texto listo en [`envios/2026-10-07-unisem-seguimiento.md`](envios/2026-10-07-unisem-seguimiento.md); lo manda el usuario hoy 7-oct (adelantado del 9-oct) |
 | 15 | Municipalidad de Trelew | Municipio, Chubut | cliente | coordintendencia@trelew.gov.ar | https://www.trelew.gov.ar | 5-oct | — | — | enviado | Seguimiento el 9-oct |
 | 16 | UCU (Universidad de Concepción del Uruguay) | Universidad privada, Entre Ríos | cliente | academica@ucu.edu.ar | https://ucu.edu.ar | 5-oct | — | — | enviado | Seguimiento el 9-oct |
 | 17 | Aulica (Netbel) | Software de gestión para colegios, Córdoba | canal | info@aulica.com.ar | https://aulica.com.ar | 5-oct | — | — | enviado | Seguimiento el 9-oct |
@@ -123,19 +123,176 @@ Una fila por empresa. Fechas en formato `d-mes` del 2026. `—` es "todavía no"
 | 96 | Kernel Informática | Software para mutuales y cooperativas, Rosario | canal | sistemas@kernelinformatica.com.ar | https://www.kernelinformatica.com.ar | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
 | 97 | RAS (Rent A Soft S.A.) | Software para salud, Godoy Cruz | canal | info@plataforma-ras.com | https://plataforma-ras.com | — | — | — | borrador | Mensaje por LinkedIn el 6-oct (L6); el mail no salió |
 | 98 | Grupo Cormos (DrApp) | Software para salud, CABA | canal | hola@cormos.com.ar | https://www.cormos.com.ar | — | — | — | borrador | Mensaje por LinkedIn el 6-oct (L7); el mail no salió |
-| 99 | Integrando Salud | Software para salud, Leandro N. Alem | canal | partners@integrandosalud.com | https://integrandosalud.com | — | — | — | borrador | Mensaje por LinkedIn el 6-oct (L8); el mail no salió |
+| 99 | Integrando Salud | Software para salud, Leandro N. Alem | canal | partners@integrandosalud.com | https://integrandosalud.com | — | — | 7-oct (LinkedIn, L8): derivan a Jaqueline Gutiérrez, encargada de partnership | respondió | Escribirle a Jaqueline Gutiérrez: presentación y charla de 15 min (ver L8) |
 | 100 | Alephoo | Software para salud, Campana | canal | info@alephoo.com | https://www.alephoo.com | — | — | — | borrador | Mensaje por LinkedIn el 6-oct (L9); el mail no salió |
 | 101 | Tekhne S.A. | Software para salud, CABA y San Fernando del Valle de Catamarca | canal | contacto@tekhne.com.ar | https://www.tekhne.com.ar | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
 | 102 | Engage SC (Soluciones Tecnológicas S.A.) | Software de contact center, CRM y cobranzas, CABA | canal | agurmandi@soluciones-ar.com.ar | https://engage-sc.com.ar | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
 | 103 | Teleprom (Teleprom Argentina S.A.) | Software de contact center, CRM y cobranzas, Córdoba capital | canal | ventas@teleprom.com | https://teleprom.com | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
 | 104 | Freetech Solutions (Telecomunicaciones Unificadas SRL), OMniLeads | Software de contact center, CRM y cobranzas, Córdoba capital | canal | info@freetechsolutions.com.ar | https://www.freetechsolutions.com.ar | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
 | 105 | TecnoVoz (Tecno Voz Noroeste S.A.) | Software de contact center, CRM y cobranzas, CABA | canal | info@tecnovoz.com | https://tecnovoz.com.ar | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
-| 106 | Yoizen (Yoizen S.A.) | Software de contact center, CRM y cobranzas, CABA | canal | ventas@yoizen.com | https://yoizen.com | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| 106 | Yoizen (Yoizen S.A.) | Software de contact center, CRM y cobranzas, CABA | canal | ventas@yoizen.com | https://yoizen.com | 6-oct | — | 7-oct (LinkedIn): pasan el contacto al equipo de producto | respondió | Escribir al equipo de producto: integración de voz en su suite; ojo, posible competidor |
 | 107 | Chatsell | Integrador o agencia de automatización e IA, Córdoba capital | canal | comercial@chatsell.net | https://chatsell.net | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
 | 108 | Origami Software | Integrador o agencia de automatización e IA, Mendoza | canal | info@origami-soft.com | https://www.origami-soft.com | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
-| 109 | Raptiv | Integrador o agencia de automatización e IA, Nordelta | canal | hola@raptiv.io | https://raptiv.io | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| 109 | Raptiv | Integrador o agencia de automatización e IA, Nordelta | canal | hola@raptiv.io | https://raptiv.io | 6-oct | — | 7-oct: responde Federico Vara (director, fvara@raptiv.io, +54 11 6481-1776, linkedin.com/in/fedevara), interesado en usarlo en sus apps; propone reunión | respondió | Confirmar reunión por https://cal.com/fedevara/30m; charla con foco en reventa/partnership vía API (no es cliente final de call center) |
 | 110 | Etixen | Integrador o agencia de automatización e IA, Buenos Aires | canal | gparadelo@etixen.com | https://etixen.com | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
 | 111 | StorySelling | Integrador o agencia de automatización e IA, Buenos Aires | canal | contacto@storyselling.la | https://www.storyselling.la | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| 112 | Kunan | Consultora tecnológica, Córdoba capital | canal | daniel.ibanez@kunan.com.ar | https://kunan.com.ar | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S1 de la tanda); WhatsApp publicado: +54 351 276-4175 (pendiente, ver S1 de la tanda) |
+| 113 | Aionixs | Agencia de IA, Buenos Aires | canal | fabrizio@aionixs.com | https://www.aionixs.com | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S2 de la tanda) |
+| 114 | Ithreex Global | IA as a Service, Córdoba capital | canal | dyvanoff@ithreexglobal.com | https://ithreexglobal.com | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S3 de la tanda) |
+| 115 | Crombie | Software a medida e IA para fintech y retail, Santa Fe capital | canal | mariano.dimaggio@crombie.dev | https://crombie.dev | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S4 de la tanda); WhatsApp publicado: +54 9 342 412-1195 (pendiente, ver S4 de la tanda) |
+| 116 | NeuralSoft | ERP en la nube (MyLogic) con IA, CRM, BPM, Rosario | canal | german.viceconti@neuralsoft.com | https://www.neuralsoft.com | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S5 de la tanda); WhatsApp publicado: +54 9 11 5884-6241 (pendiente, ver S5 de la tanda) |
+| 117 | ARTECH | Consultora, CABA | canal | sgalera@artech-consulting.com | https://www.artech-consulting.com.ar | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S6 de la tanda) |
+| 118 | AGOS | Software factory y servicios IT, CABA | canal | michnowicz@agos.global | https://agos.global | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S7 de la tanda) |
+| 119 | Consultores en IT S.A. | RPA + IA para procesos administrativos, infraestructura y ciberseguridad, Rosario | canal | diegor@consultoresenit.com.ar | https://www.consultoresenit.com.ar | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S8 de la tanda); WhatsApp publicado: +54 9 341 280-1694 (pendiente, ver S8 de la tanda) |
+| 120 | Cumbresoft | GovTech, Mendoza capital | canal | tomaseliseo@cumbresoft.com | https://cumbresoft.com | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S9 de la tanda) |
+| 121 | Dicsys | Consultora de datos e IA, Córdoba capital | canal | augusto.widmer@dicsys.com | https://www.dicsys.ai | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S10 de la tanda) |
+| 122 | Ecosistemas Global | Servicios IT, CABA | canal | vorciuoli@ecosistemas.com.ar | https://ecosistemasglobal.com | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S11 de la tanda); WhatsApp publicado: +54 11 2180-8261 (pendiente, ver S11 de la tanda) |
+| 123 | Exomindset | IA y datos, La Calera | canal | marcelo.franceschini@exomindset.co | https://exomindset.com | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S12 de la tanda) |
+| 124 | JEMER | Software a medida, integración y automatización para fintech, servicios públicos, retail y clubes, Córdoba capital | canal | agustin@jemersoft.com | https://jemer.co | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S13 de la tanda) |
+| 125 | KINETIC Corp | Consultora de IA, Córdoba capital | canal | rodrigo.porta@kinetic-corp.com | https://kinetic-corp.com | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S14 de la tanda) |
+| 126 | Making Sense | Desarrollo de software, IA, UX, modernización y automatización de procesos, Mar del Plata | canal | mlaguna@makingsense.com | https://makingsense.com | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S15 de la tanda) |
+| 127 | Holon Software | GovTech, Villa María | canal | marcelo.paris@holon.com.ar | http://www.holon.com.ar | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S16 de la tanda) |
+| 128 | Widergy | Plataforma omnicanal con agentes de IA para utilities (luz, gas, agua), CABA | canal | sales@widergy.com | https://widergy.com | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S17 de la tanda) |
+| 129 | Devlights | Software factory, Corrientes capital | canal | contact@devlights.com | https://devlights.com | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S18 de la tanda) |
+| 130 | Nybble Group | Transformación digital, CABA | canal | sales@nybblegroup.com | https://www.nybblegroup.com | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S19 de la tanda) |
+| 131 | Infolytics | IA y analítica, CABA | canal | info@infolytics.ai | https://infolytics.ai | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S20 de la tanda); WhatsApp publicado: +54 9 11 8031-0366 (pendiente, ver S20 de la tanda) |
+| 132 | GMO Solutions | Consultora tecnológica, San Juan capital | canal | info@gmosolutions.com.ar | https://gmosolutions.com.ar | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S21 de la tanda); WhatsApp publicado: +1 914 336-4117 (EE. UU.) (pendiente, ver S21 de la tanda) |
+| 133 | Quanam | Consultora de transformación digital, Montevideo (Uruguay) | canal | quanam@quanam.com | https://quanam.com | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S22 de la tanda) |
+| 134 | Henka (Digital Henka) | Consultora de innovación ágil, sin ciudad publicada (Uruguay) | canal | hello@digitalhenka.com | https://henka.ai | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S23 de la tanda); WhatsApp publicado: +598 93 880 344 (pendiente, ver S23 de la tanda) |
+| 135 | Accuratio | Servicios IT, Montevideo, Buenos Aires y Santiago (Uruguay y Argentina) | canal | contactuy@accuratio.global | https://accuratio.global | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S24 de la tanda); WhatsApp publicado: +54 9 11 2274-7080 (pendiente, ver S24 de la tanda) |
+| 136 | FutureFlow | Consultora de IA y automatización, Providencia, Santiago (Chile) | canal | hola@futureflow.cl | https://futureflow.cl | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S25 de la tanda); WhatsApp publicado: +56 9 2196 9200 (pendiente, ver S25 de la tanda) |
+| 137 | Brain Food | Consultora de ciencia de datos, Las Condes, Santiago (Chile) | canal | contacto@brainfood.cl | https://brainfood.cl | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S26 de la tanda) |
+| 138 | Sinnetic | Investigación de mercados, analítica de datos y consultoría en data science e IA, Bogotá (Colombia) | canal | contacto@sinnetic.com | https://www.sinnetic.com | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S27 de la tanda); WhatsApp publicado: +57 318 024 2831 (pendiente, ver S27 de la tanda) |
+| 139 | Biwares | Consultora de negocio y tecnología, CABA | canal | drivero@biwares.com | https://www.biwares.com | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S1 de la tanda 2) |
+| 140 | Duotach | Consultora de software y automatización con IA, CABA | canal | contact@duotach.com | https://duotach.com | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S2 de la tanda 2); WhatsApp publicado: +54 9 11 2516-1395 (pendiente, ver S2 de la tanda 2) |
+| 141 | Quilsoft | Partner Silver de Odoo, CABA | canal | info@quilsoft.com | https://www.quilsoft.com | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S3 de la tanda 2); WhatsApp publicado: +54 9 11 7078-0612 (pendiente, ver S3 de la tanda 2) |
+| 142 | BamAI | Consultora de automatización con IA para pymes, CABA | canal | contacto@bamai.ar | https://bamai.ar | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S4 de la tanda 2); WhatsApp publicado: +54 9 11 2277-7497 (pendiente, ver S4 de la tanda 2) |
+| 143 | AIViento | Consultoría de IA para empresas, CABA | canal | contacto@aiviento.com | https://www.aiviento.com | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S5 de la tanda 2); WhatsApp publicado: +54 9 11 2555-4381 (pendiente, ver S5 de la tanda 2) |
+| 144 | Bombieri | Consultora de transformación digital, CABA | canal | ventas@bombieri.com.ar | https://www.bombieri.com.ar | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S6 de la tanda 2); WhatsApp publicado: +54 9 11 3134-6000 y +54 9 344 268-4457 (pendiente, ver S6 de la tanda 2) |
+| 145 | booleAr S.A. | Servicios, SaaS, IA, automatización y modernización de sistemas críticos (finanzas, salud, agro), CABA | canal | info@boolear.com | https://www.boolear.com | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S7 de la tanda 2) |
+| 146 | Grupo Esfera | Desarrollo de software y agilidad organizacional potenciados por IA, CABA | canal | comercial@grupoesfera.com.ar | https://www.grupoesfera.com.ar | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S8 de la tanda 2) |
+| 147 | Eryx | Cooperativa de trabajo y software factory, CABA | canal | info@eryx.co | https://eryx.co | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S9 de la tanda 2) |
+| 148 | 7Puentes | Consultora de machine learning e IA, Buenos Aires | canal | info@7puentes.com | https://7puentes.com | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S10 de la tanda 2) |
+| 149 | Accion Point | Software a medida y core bancario (Bantotal) con agentes de IA, CABA | canal | marketing@accionpoint.com | https://accionpoint.com | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S11 de la tanda 2); WhatsApp publicado: +54 9 11 3831-4111 (pendiente, ver S11 de la tanda 2) |
+| 150 | Medve | Software factory, CABA | canal | info@medve.com.ar | https://www.medve.com.ar | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S12 de la tanda 2); WhatsApp publicado: +54 9 11 6637-6176 (pendiente, ver S12 de la tanda 2) |
+| 151 | Unitech | GovTech, CABA | canal | comercial@unitech-corp.com | https://www.unitech.com.ar | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S13 de la tanda 2) |
+| 152 | Xelere | Ciberseguridad y gestión de servicios de TI (ITSM) con IA, CABA | canal | info@xelere.com | https://www.xelere.com | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S14 de la tanda 2); WhatsApp publicado: +54 9 11 2306-3378 (pendiente, ver S14 de la tanda 2) |
+| 153 | QActions | QA, RPA e IA para calidad de software, Buenos Aires | canal | info@qactions.com | https://qactions.com | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S15 de la tanda 2); WhatsApp publicado: +54 9 11 6423-5643 (pendiente, ver S15 de la tanda 2) |
+| 154 | Mooving (Mooving Tech S.A.U.) | Consultoría estratégica, IA empresarial (Senda, agentes cognitivos) y arquitectura de datos para retail y utilities, CABA | canal | hola@moovingtech.com | https://mooving.ai | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S16 de la tanda 2); WhatsApp publicado: +54 9 11 5136-1574 (pendiente, ver S16 de la tanda 2) |
+| 155 | OneInfo Consulting | Consultora de CX, CRM e IA, CABA | canal | info@oneinfoconsulting.com | https://www.oneinfoconsulting.com | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S17 de la tanda 2) |
+| 156 | Kopernicus | Consultoría IT y arquitectura tecnológica para aseguradoras, San Isidro | canal | ramos.gaston@kopernicus.tech | https://www.kopernicus.com.ar | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S18 de la tanda 2) |
+| 157 | Innen | Estudio de software, automatización e IA 'con foco humano', Buenos Aires | canal | team@innen.io | https://innen.io | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S19 de la tanda 2) |
+| 158 | Zarego | Desarrollo de software a medida e ingeniería de IA (nearshore para EE. UU.), CABA | canal | hello@zarego.com | https://zarego.com | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S20 de la tanda 2) |
+| 159 | 404 // Software crafters | Estudio de software, Buenos Aires | canal | info@proyecto404.com | https://proyecto404.com | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S21) |
+| 160 | Grupo Kelsoft | Servicios y consultoría de IT + IA, CABA | canal | negocios@grupokelsoft.com | https://grupokelsoft.com | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S22) |
+| 161 | Infogestión | Consultoría digital para pymes, La Plata | canal | info@infogestion.com.ar | https://infogestion.com.ar | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S23) |
+| 162 | Julasoft | Software a medida, IA y machine learning, automatización inteligente para empresas y organismos, La Plata | canal | info@julasoft.com | https://www.julasoft.com | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S24); WhatsApp publicado: +54 9 221 570-6102 (pendiente, ver S24 de la tanda 2) |
+| 163 | Tecnom | CRM automotriz con IA (Tecna) para concesionarios, La Plata | canal | ventas@tecnom.com.ar | https://www.tecnom.com.ar | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S25); WhatsApp publicado: +54 9 2241 52-7982 (pendiente, ver S25 de la tanda 2) |
+| 164 | Quales Group | Consultora de datos e IA, CABA | canal | info@qualesgroup.com | https://www.qualesgroup.com | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S26) |
+| 165 | Snoop Consulting | Servicios de software y transformación digital con IA, La Plata | canal | atencion@snoop.ar | https://www.snoopconsulting.com | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S27); WhatsApp publicado: +54 9 11 6997-1830 (pendiente, ver S27 de la tanda 2) |
+| 166 | BlueDraft | Consultora de analítica de datos, modelos financieros e IA, La Plata | canal | hello@bluedraft.com.ar | https://www.bluedraft.com.ar | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S28) |
+| 167 | Avalith | Software 'human-led, AI-accelerated', Mar del Plata | canal | hello@avalith.net | https://avalith.net | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S29) |
+| 168 | Aoki Tech | Agentes de IA, ERP y gestión para pymes, Mar del Plata | canal | sofia@aokitech.com.ar | https://aokitech.com.ar | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S30) |
+| 169 | MINDO | Agentes de IA para e-commerce en WhatsApp e Instagram, Mar del Plata | canal | contacto@mindosoftware.com | https://mindosoftware.com | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S31); WhatsApp publicado: +54 9 223 535-1858 (pendiente, ver S31 de la tanda 2) |
+| 170 | NexoSmart | Software factory y company builder, Bahía Blanca | canal | maximo@sales.nexosmart.com.ar | https://www.nexosmart.com.ar | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S32); WhatsApp publicado: +54 9 291 507-8136 (pendiente, ver S32 de la tanda 2) |
+| 171 | VGS | Desarrollo de software, ERP propio y 'AI con VGS Labs', Bahía Blanca | canal | info@vgs.com.ar | https://vgs.com.ar | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S33) |
+| 172 | Vortex | Consultora de plataformas digitales AI-First, Córdoba capital | canal | jorge.nieves@vortex-it.com | https://vortex-it.com | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S34); WhatsApp publicado: +54 9 351 510-4734 (pendiente, ver S34 de la tanda 2) |
+| 173 | Puntonet Tech (Punto Net Soluciones SRL) | Consultora tecnológica, Villa Carlos Paz | canal | edutra@puntonet.tech | https://www.puntonet.tech | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S35) |
+| 174 | BIT S.A. | Software y agentes de IA para agro, logística y empresas (Agrobit, SAP Agro, Admis ERP), Villa María | canal | bit@bit.com.ar | https://www.bit.com.ar | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S36) |
+| 175 | AYI Group (BADI S.A.) | Servicios IT, Córdoba capital | canal | hi@ayi.group | https://ayi.group | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S37) |
+| 176 | Peperina Software | Modernización de sistemas críticos con agentes de IA (GovTech y empresas), Córdoba capital | canal | sergio.maurenzi@peperina.io | https://peperina.io | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S38) |
+| 177 | Skater Elephant (Resolution 8 Software SAS) | Consultora de IA, Córdoba capital | canal | hello@skaterelephant.com | https://skaterelephant.com/es | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S39) |
+| 178 | Digital Motus | Software a medida, nube y DevOps, Río Ceballos | canal | ignacio.lozita@digitalmotus.io | https://www.digitalmotus.io/es | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S40); WhatsApp publicado: +54 9 351 591-4862 (pendiente, ver S40 de la tanda 2) |
+| 179 | Vippinn | Partner Gold de Odoo y servicios SAP, software a medida e IA en procesos de negocio, Córdoba capital | canal | dcarrizo@vippinn.com | https://www.vippinn.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S41 de la tanda 2); LinkedIn pendiente (nota y mensaje en S41); WhatsApp publicado: +54 9 351 809-4455 (pendiente, ver S41 de la tanda 2) |
+| 180 | Ascentio Technologies | Ingeniería de sistemas, Córdoba capital | canal | manderson@ascentio.com.ar | https://www.ascentio.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S42 de la tanda 2); LinkedIn pendiente (nota y mensaje en S42) |
+| 181 | HMM Global (Home Medical Management) | Software vertical, Córdoba capital | canal | dgerosa@hmmglobal.com | https://hmmglobal.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S43 de la tanda 2); LinkedIn pendiente (nota y mensaje en S43) |
+| 182 | Asofix (Grupo Tagle) | Software vertical SaaS con IA para la gestión comercial de concesionarios, fabricantes y agencias de usados, Córdoba capital | canal | pablo.leoni@grupotagle.com.ar | https://www.asofix.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S44 de la tanda 2); LinkedIn pendiente (nota y mensaje en S44); WhatsApp publicado: +54 351 345-5100 (pendiente, ver S44 de la tanda 2) |
+| 183 | Syloper | Software factory, Rosario | canal | agustin@syloper.com | https://www.syloper.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S45 de la tanda 2); LinkedIn pendiente (nota y mensaje en S45) |
+| 184 | Santa Fe Sistemas (Grupo SFS) | Software vertical de salud, Santa Fe capital | canal | comercial@sfs.com.ar | https://www.sfs.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S46 de la tanda 2); LinkedIn pendiente (nota y mensaje en S46); WhatsApp publicado: +54 9 342 479-0990 (pendiente, ver S46 de la tanda 2) |
+| 185 | EximIA Solutions (Technology Service SAS) | Automatización con RPA, agentes de IA y machine learning para bancos, utilities, salud y retail, Rosario | canal | info@eximia.ar | https://eximia.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S47 de la tanda 2); LinkedIn pendiente (nota y mensaje en S47) |
+| 186 | Human Tech 4.0 (Business Buggers SRL) | Consultoría tecnológica, talento y capacitación para industria 4.0, con IA aplicada y consorcios de innovación, Rosario | canal | pablo.crembil@humantech40.com.ar | https://www.humantech40.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S48 de la tanda 2); LinkedIn pendiente (nota y mensaje en S48); WhatsApp publicado: +54 9 11 5853-3333 (pendiente, ver S48 de la tanda 2) |
+| 187 | Autologica | Software vertical, Rosario | canal | info@autologica.com | https://www.autologica.com/es | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S49 de la tanda 2); LinkedIn pendiente (nota y mensaje en S49) |
+| 188 | Kodear | Desarrollo de soluciones digitales a medida, automatización y e-commerce, Rosario | canal | dgiovanon@kodear.net | https://kodear.dev | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S50 de la tanda 2); LinkedIn pendiente (nota y mensaje en S50); WhatsApp publicado: +54 9 11 7143-9021 (pendiente, ver S50 de la tanda 2) |
+| 189 | Efficast | Plataforma industrial IoT con agentes de IA (monitoreo de planta, reportes, supervisor de IA en WhatsApp), Rosario | canal | simon@efficast.ai | https://efficast.ai | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S51 de la tanda 2); LinkedIn pendiente (nota y mensaje en S51); WhatsApp publicado: +54 9 341 655-5097 (pendiente, ver S51 de la tanda 2) |
+| 190 | Nonlinear Tecnología | Optimización de cadenas de suministro, logística de última milla y analítica predictiva, Santa Fe capital | canal | contacto@nonlinear.com.ar | https://nonlinear.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S52 de la tanda 2); LinkedIn pendiente (nota y mensaje en S52); WhatsApp publicado: +54 9 342 487-6180 (pendiente, ver S52 de la tanda 2) |
+| 191 | Datawise | Servicios IT, Rosario | canal | diego.garcia@datawise.com.ar | https://datawise.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S53 de la tanda 2); LinkedIn pendiente (nota y mensaje en S53) |
+| 192 | Midas Consultores | Consultora tecnológica, Mendoza capital | canal | comercial@midasconsultores.com.ar | https://midasconsultores.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S54 de la tanda 2); LinkedIn pendiente (nota y mensaje en S54) |
+| 193 | Merovingian Data | Consultora de datos, analítica e IA (dashboards, arquitectura de datos, ML), Mendoza capital | canal | mj@merovingiandata.com | https://merovingiandata.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S55 de la tanda 2); LinkedIn pendiente (nota y mensaje en S55); WhatsApp publicado: +54 9 261 650-8040 (pendiente, ver S55 de la tanda 2) |
+| 194 | Quinto Impacto | Transformación digital e IA, Luján de Cuyo | canal | hola@quintoimpacto.net | https://quintoimpacto.net | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S56 de la tanda 2); LinkedIn pendiente (nota y mensaje en S56) |
+| 195 | Axis Human (Inamika Interactive S.A.) | Integración de IA y software a medida, Mendoza capital | canal | info@axishuman.ai | https://axishuman.ai | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S57 de la tanda 2); LinkedIn pendiente (nota y mensaje en S57) |
+| 196 | Griftin (Área Clave Consultoría Estratégica SRL) | Outsourcing IT, experiencias inmersivas y agentes de IA para WhatsApp Business (Meta Tech Provider), Yerba Buena | canal | contacto@griftin.com.ar | https://griftin.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S58 de la tanda 2); LinkedIn pendiente (nota y mensaje en S58); WhatsApp publicado: +54 9 381 369-3980 (pendiente, ver S58 de la tanda 2) |
+| 197 | MBM Sistemas | Software vertical para laboratorios bioquímicos (mbm Lab, en la nube, con IA), Salta capital | canal | ventas@mbmsistemas.com.ar | https://www.mbmsistemas.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S59 de la tanda 2); LinkedIn pendiente (nota y mensaje en S59); WhatsApp publicado: +54 9 387 406-0585 (pendiente, ver S59 de la tanda 2) |
+| 198 | Blackfish Argentina | Software factory e implementadora de Odoo, Salta capital | canal | info@blackfish.com.ar | https://www.blackfish.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S60 de la tanda 2); LinkedIn pendiente (nota y mensaje en S60) |
+| 199 | Devoo | Implementadora de Odoo, desarrollo web y chatbots de WhatsApp con ChatGPT, Concordia | canal | info@devoo.io | https://devoo.io | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S61 de la tanda 2); LinkedIn pendiente (nota y mensaje en S61) |
+| 200 | Sudata | Consultora de BI, modelos predictivos y automatización con IA para pymes, Chaco | canal | contacto@sudata.co | https://sudata.co | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S62 de la tanda 2); LinkedIn pendiente (nota y mensaje en S62) |
+| 201 | Crenein | Software vertical para ISP (C-Network, C-Stock, C-Bills) y consultoría de IA con orquestación de agentes, Chaco | canal | comercial@crenein.com | https://crenein.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S63 de la tanda 2); LinkedIn pendiente (nota y mensaje en S63); WhatsApp publicado: +54 9 372 548-2757 (pendiente, ver S63 de la tanda 2) |
+| 202 | iSource | Software vertical de gestión para clínicas, sanatorios y obras sociales, Corrientes capital | canal | martindebiasi@isource.com.ar | https://isource.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S64 de la tanda 2); LinkedIn pendiente (nota y mensaje en S64); WhatsApp publicado: +54 379 470-1566 (pendiente, ver S64 de la tanda 2) |
+| 203 | Yugoo | ERP propio e implementación de Odoo, logística e IA (agentes conectados al ERP), Corrientes capital | canal | info@yugoo.com.ar | https://www.yugoo.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S65 de la tanda 2); LinkedIn pendiente (nota y mensaje en S65) |
+| 204 | Pipe Tech | Software a medida, IA aplicada, automatización de procesos y bots conversacionales, Pilar | canal | frojas@pipe.com.ar | https://www.pipe.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S1 de la tanda 3); LinkedIn pendiente (nota y mensaje en S1) |
+| 205 | TGV | Software a medida e implementación de SAP y JD Edwards, CABA | canal | mkt@tgv.com.ar | https://www.tgv.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S2 de la tanda 3); LinkedIn pendiente (nota y mensaje en S2); WhatsApp publicado: wa.me/12086490291 ('Hola TGV cuentame mas'), botón del sitio con un número de EE. UU. (7-oct-2026) (pendiente, ver S2 de la tanda 3) |
+| 206 | Mutt Data | Consultora de datos e IA, CABA | canal | sales@muttdata.ai | https://muttdata.ai | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S3 de la tanda 3); LinkedIn pendiente (nota y mensaje en S3) |
+| 207 | Pigmalion Software | Desarrollo de software y productos digitales, CABA | canal | hello@pigmalion.co | https://pigmalion.co | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S4 de la tanda 3); LinkedIn pendiente (nota y mensaje en S4) |
+| 208 | Tekne Data Labs | Consultora de datos e IA, CABA | canal | info@teknedatalabs.com | https://teknedatalabs.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S5 de la tanda 3); LinkedIn pendiente (nota y mensaje en S5) |
+| 209 | C&S Informática | Soluciones tecnológicas a medida con IA, automatización y analítica de datos, CABA | canal | info@cys.com.ar | https://www.cys.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S6 de la tanda 3); LinkedIn pendiente (nota y mensaje en S6) |
+| 210 | Appstract | Software a medida, automatización de procesos e integración de sistemas con IA, CABA | canal | sales@appstract.us | https://appstract.us | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S7 de la tanda 3); LinkedIn pendiente (nota y mensaje en S7) |
+| 211 | IT Maker | Consultora de integración y analítica de datos, gobierno de datos e IA, CABA | canal | info@itmaker.com.ar | https://www.itmaker.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S8 de la tanda 3); LinkedIn pendiente (nota y mensaje en S8) |
+| 212 | Big Data Estratégico | Consultora chica de transformación digital, datos e IA, CABA | canal | info@bigdataestrategico.com | https://bigdataestrategico.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S9 de la tanda 3); LinkedIn pendiente (nota y mensaje en S9); WhatsApp publicado: +54 9 11 5920-3837 (pendiente, ver S9 de la tanda 3) |
+| 213 | Cloud Solutions LATAM | Zoho Advanced Partner, Buenos Aires | canal | hola@cloudsolutionslatam.com | https://www.cloudsolutionslatam.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S10 de la tanda 3); LinkedIn pendiente (nota y mensaje en S10) |
+| 214 | HabSar | Agencia técnica y HubSpot Solutions Provider, Buenos Aires | canal | contact@habsar.com | https://www.habsar.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S11 de la tanda 3); LinkedIn pendiente (nota y mensaje en S11); WhatsApp publicado: +54 11 3934-2834 (pendiente, ver S11 de la tanda 3) |
+| 215 | Axcelere | Partner Gold de Odoo, CABA | canal | hola@axcelere.com | https://www.axcelere.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S12 de la tanda 3); LinkedIn pendiente (nota y mensaje en S12); WhatsApp publicado: https (pendiente, ver S12 de la tanda 3) |
+| 216 | Blueorange Group | Partner Gold de Odoo con localización argentina propia, San Martín | canal | contacto@blueorange.com.ar | https://www.blueorange.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S13 de la tanda 3); LinkedIn pendiente (nota y mensaje en S13); WhatsApp publicado: Comercial +54 9 11 3058-1769 (texto del pie); soporte https (pendiente, ver S13 de la tanda 3) |
+| 217 | Axioma IT Solutions | Software factory y staff augmentation, CABA | canal | axel.diaz@axiomait.com | https://axiomait.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S14 de la tanda 3); LinkedIn pendiente (nota y mensaje en S14); WhatsApp publicado: +54 9 11 4978-4822 (pendiente, ver S14 de la tanda 3) |
+| 218 | Hitofusion (Yügo SAS) | Partner Gold de Odoo, Florida | canal | lucas@hitofusion.com | https://www.hitofusion.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S15 de la tanda 3); LinkedIn pendiente (nota y mensaje en S15); WhatsApp publicado: +54 9 11 7100-6160 (pendiente, ver S15 de la tanda 3) |
+| 219 | MG Intelligence | Partner de Odoo, Lomas de San Isidro | canal | gflores@mgintelligence.com | https://www.mgintelligence.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S16 de la tanda 3); LinkedIn pendiente (nota y mensaje en S16) |
+| 220 | Chroma Agency | Implementación de Odoo ERP y consultoría de negocios, CABA | canal | web@chroma.agency | https://chroma.agency | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S17 de la tanda 3); LinkedIn pendiente (nota y mensaje en S17) |
+| 221 | ITBS Business Solutions | Partner Silver de Odoo y canal oficial de Buenos Aires Software (BAS), CABA | canal | contacto@it-bs.com.ar | https://www.it-bs.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S18 de la tanda 3); LinkedIn pendiente (nota y mensaje en S18); WhatsApp publicado: +54 9 11 7547-3844 (pendiente, ver S18 de la tanda 3) |
+| 222 | Sysmo | Consultora de software a medida para empresas y gobiernos, Buenos Aires | canal | info@sysmo.com.ar | https://sysmo.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S19 de la tanda 3); LinkedIn pendiente (nota y mensaje en S19) |
+| 223 | RockingData | Consultora de IA, machine learning y datos, CABA | canal | hello@rockingdata.com.ar | https://rockingdata.ai | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S20 de la tanda 3); LinkedIn pendiente (nota y mensaje en S20); WhatsApp publicado: +54 11 3172-2737 (pendiente, ver S20 de la tanda 3) |
+| 224 | Accedra | Infraestructura IT, ciberseguridad, consultoría Microsoft y 'Software & AI' para empresas, CABA | canal | info@accedra.com.ar | https://www.accedra.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S21 de la tanda 3); LinkedIn pendiente (nota y mensaje en S21); WhatsApp publicado: +54 11 3300-1233 (pendiente, ver S21 de la tanda 3) |
+| 225 | BGlobal Solutions | Premier Partner de Creatio (CRM y BPM no-code con agentes de IA), Buenos Aires | canal | info@bglobalsolutions.com | https://bglobalsolutions.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S22 de la tanda 3); LinkedIn pendiente (nota y mensaje en S22) |
+| 226 | PositiveIT | Integradora de CRM (Salesforce, SugarCRM, Zoho), marketing automation, agentes de IA y bots, Morón | canal | info@positiveit.com.ar | https://www.positiveit.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S23 de la tanda 3); LinkedIn pendiente (nota y mensaje en S23) |
+| 227 | Zennon BI | Partner de Microsoft Dynamics 365 y Power Platform, CABA | canal | contacto@zennonbi.com | https://zennonbi.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S24 de la tanda 3); LinkedIn pendiente (nota y mensaje en S24) |
+| 228 | GrowIT | Transformación digital, Buenos Aires | canal | contacto@growit.com.ar | https://growit.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S25 de la tanda 3); LinkedIn pendiente (nota y mensaje en S25) |
+| 229 | Quantit | Desarrollo de IA a medida y ciencia de datos, Buenos Aires | canal | somos@bequantit.com | https://bequantit.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S26 de la tanda 3); LinkedIn pendiente (nota y mensaje en S26) |
+| 230 | Silogik | Aceleración de procesos de negocio (BPA), RPA, integración de sistemas, analítica y desarrollo web y mobile, Buenos Aires | canal | info@silogik.com | https://www.silogik.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S27 de la tanda 3); LinkedIn pendiente (nota y mensaje en S27) |
+| 231 | Proda Software | Partner de Zoho (Zoho One, CRM, Creator, Analytics), Bernal | canal | german@prodasoftware.com | https://www.prodasoftware.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S28 de la tanda 3); LinkedIn pendiente (nota y mensaje en S28) |
+| 232 | Datcom Software | Software para logística, trazabilidad y almacenaje (Dettron WMS) con IA y BI, Mar del Plata | canal | info@datcom.io | https://www.datcom.io | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S29 de la tanda 3); LinkedIn pendiente (nota y mensaje en S29) |
+| 233 | Potencia Technologies | Productos SaaS nativos en IA para RRHH (SITA, selector de talentos) con WhatsApp Bot, Buenos Aires | canal | info@potenciatech.ar | https://www.potenciatech.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S30 de la tanda 3); LinkedIn pendiente (nota y mensaje en S30) |
+| 234 | GiGa Global | Partner Gold de Odoo, Córdoba capital | canal | hola@gigaglobal.com.ar | https://www.gigaglobal.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S31 de la tanda 3); LinkedIn pendiente (nota y mensaje en S31); WhatsApp publicado: +54 9 351 612-7500 (pendiente, ver S31 de la tanda 3) |
+| 235 | Global Think Technology | Consultora tecnológica AI-first, Córdoba capital | canal | dghione@globalthinktec.com | https://globalthink.io | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S32 de la tanda 3); LinkedIn pendiente (nota y mensaje en S32) |
+| 236 | Mindfactory | GovTech, Córdoba capital | canal | sebastian.sosa@mindfactory.ar | https://www.mindfactory.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S33 de la tanda 3); LinkedIn pendiente (nota y mensaje en S33) |
+| 237 | Program Consultores (PGM) | Software de gestión para municipios, comunas y cooperativas de servicios públicos, Córdoba capital | canal | agiraudo@municipalidad.com | https://www.municipalidad.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S34 de la tanda 3); LinkedIn pendiente (nota y mensaje en S34) |
+| 238 | Emser | Consultora tecnológica, Córdoba capital | canal | Jburkle@emser.net | http://www.emser.net | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S35 de la tanda 3); LinkedIn pendiente (nota y mensaje en S35) |
+| 239 | DinoCloud | AWS Premier Partner, Córdoba capital | canal | info@dinocloud.co | https://dinocloud.co | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S36 de la tanda 3); LinkedIn pendiente (nota y mensaje en S36) |
+| 240 | Vatrox | Integración de plataformas y datos, DevOps y procesos apoyados por IA aplicada (banca, seguros, retail), Córdoba capital | canal | contacto@vatrox.com | https://vatrox.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S37 de la tanda 3); LinkedIn pendiente (nota y mensaje en S37) |
+| 241 | Olpa Group | Consultora AI-native, Córdoba capital | canal | info@olpagroup.com | https://olpagroup.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S38 de la tanda 3); LinkedIn pendiente (nota y mensaje en S38); WhatsApp publicado: +54 9 351 753-2299 (pendiente, ver S38 de la tanda 3) |
+| 242 | Castelsoft | Implementación de Odoo con IA ('implementación aumentada'), Córdoba capital | canal | info@castelsoft.com | https://castelsoft.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S39 de la tanda 3); LinkedIn pendiente (nota y mensaje en S39) |
+| 243 | Dynetis | Consultoría en Odoo, integraciones (pagos, logística, BI) y datos, Villa Carlos Paz | canal | pablo.molla@dynetis.com | https://www.dynetis.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S40 de la tanda 3); LinkedIn pendiente (nota y mensaje en S40) |
+| 244 | Glowix / Neos Tech | Plataforma comercial B2B y partner de Microsoft Dynamics GP, Villa María | canal | ggomezarrufat@neos.com.ar | https://www.neos.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S41 de la tanda 3); LinkedIn pendiente (nota y mensaje en S41) |
+| 245 | Psiware | Desarrollo de software con IA, automatización y datos, Rosario | canal | contact@psiware.com.ar | https://www.psiware.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S42 de la tanda 3); LinkedIn pendiente (nota y mensaje en S42) |
+| 246 | Idear Tech | Software para gobiernos y empresas (GovTech, FinTech) con low-code e IA, Rosario | canal | negocios@ideartechcorp.com | https://ideartechcorp.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S43 de la tanda 3); LinkedIn pendiente (nota y mensaje en S43); WhatsApp publicado: +54 9 341 665-6506 (pendiente, ver S43 de la tanda 3) |
+| 247 | Inteligencia Analítica | Consultora de Business Intelligence y Data Analytics, Rosario | canal | contacto@inteligenciaanalitica.com | https://www.inteligenciaanalitica.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S44 de la tanda 3); LinkedIn pendiente (nota y mensaje en S44) |
+| 248 | Grupo Aicon | ERP especializado por rubro (sindicatos, obras sociales, mutuales, financieras, mayoristas, droguerías) con IA, Rosario | canal | administracion@grupoaicon.com.ar | https://grupoaicon.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S45 de la tanda 3); LinkedIn pendiente (nota y mensaje en S45); WhatsApp publicado: +54 9 341 690-6680 (pendiente, ver S45 de la tanda 3) |
+| 249 | Alchemid | Partner Silver de Odoo, Rafaela | canal | contacto@alchemid.com | https://www.alchemid.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S46 de la tanda 3); LinkedIn pendiente (nota y mensaje en S46); WhatsApp publicado: +54 9 3492 21-9294 (pendiente, ver S46 de la tanda 3) |
+| 250 | M3C Software | ERP de gestión integral para pymes con programa de partners (#M3Cpartner), Rosario | canal | comercial@m3csoftware.com.ar | https://m3csoftware.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S47 de la tanda 3); LinkedIn pendiente (nota y mensaje en S47) |
+| 251 | ERPYCA | Partner oficial de Odoo con conectores propios (pagos, logística, control horario), Rosario | canal | gaspar@erpyca.com | https://erpyca.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S48 de la tanda 3); LinkedIn pendiente (nota y mensaje en S48); WhatsApp publicado: +54 9 341 563-4579 (pendiente, ver S48 de la tanda 3) |
+| 252 | devFactory | ERP SaaS con asistente de IA para pymes, Luján de Cuyo | canal | contact@devfactory.ar | https://devfactory.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S49 de la tanda 3); LinkedIn pendiente (nota y mensaje en S49); WhatsApp publicado: +54 261 525-0354 (pendiente, ver S49 de la tanda 3) |
+| 253 | Solutions Hub / AGP & ROD Servicios | Consultoría SAP (S/4HANA, SuccessFactors, BTP), Mendoza capital | canal | rodrigo.lopez@solutionshub.com.ar | https://solutionshub.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S50 de la tanda 3); LinkedIn pendiente (nota y mensaje en S50); WhatsApp publicado: +54 9 261 501-8054 (pendiente, ver S50 de la tanda 3) |
+| 254 | Alpardata | Partner Silver de Odoo, Guaymallén | canal | joaquin@alpardata.com.ar | https://www.alpardata.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S51 de la tanda 3); LinkedIn pendiente (nota y mensaje en S51); WhatsApp publicado: +54 9 261 685-3970 (pendiente, ver S51 de la tanda 3) |
+| 255 | Hexium Software Factory | Software factory y partner oficial de Odoo, Godoy Cruz | canal | info@hexium.com.ar | https://hexium.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S52 de la tanda 3); LinkedIn pendiente (nota y mensaje en S52); WhatsApp publicado: +54 9 261 248-6994 (pendiente, ver S52 de la tanda 3) |
+| 256 | Corpora | IA generativa accesible y automatización no-code para pymes, con mentoría, Maipú | canal | gerencia@somoscorpora.com | https://www.somoscorpora.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S53 de la tanda 3); LinkedIn pendiente (nota y mensaje en S53) |
+| 257 | GoodComex (Full Comex SAS) | Partner Silver de Odoo, Mendoza | canal | marcelo.vazquez@goodcomex.com | https://goodcomex.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S54 de la tanda 3); LinkedIn pendiente (nota y mensaje en S54) |
+| 258 | Solution IT (SIT) | Desarrollo de software e IA (GPT, LLM) para empresas de Neuquén, Neuquén capital | canal | info@solution-it.com.ar | https://www.solution-it.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S55 de la tanda 3); LinkedIn pendiente (nota y mensaje en S55) |
+| 259 | PuntoGap | Software a medida y consultoría de IA para Oil & Gas y retail, Neuquén capital | canal | info@puntogap.com | https://www.puntogap.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S56 de la tanda 3); LinkedIn pendiente (nota y mensaje en S56) |
+| 260 | Pragmática Consultores | Partner de SAP Business One para Oil & Gas y minería, Neuquén capital | canal | info@pragmaticaconsultores.com | https://www.pragmaticaconsultores.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S57 de la tanda 3); LinkedIn pendiente (nota y mensaje en S57); WhatsApp publicado: +54 299 546-1483 (pendiente, ver S57 de la tanda 3) |
+| 261 | DITyC | Consultora de tecnología, Neuquén capital | canal | info@dityc.com.ar | https://www.dityc.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S58 de la tanda 3); LinkedIn pendiente (nota y mensaje en S58); WhatsApp publicado: +54 9 299 633-2007 (pendiente, ver S58 de la tanda 3) |
+| 262 | Patagonian | Software factory con práctica de IA agéntica, General Roca | canal | info@patagonian.com | https://patagonian.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S59 de la tanda 3); LinkedIn pendiente (nota y mensaje en S59) |
+| 263 | Waiki Consultores en Sistemas | Implementación de Odoo con módulos propios (sueldos argentinos, tableros, suscripciones), Cipolletti | canal | info@waiki.com.ar | https://waiki.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S60 de la tanda 3); LinkedIn pendiente (nota y mensaje en S60) |
+| 264 | Ingenio Solutions | Partner Silver de Odoo para fábricas de alimentos, distribuidoras y minería, Chajarí | canal | contacto@ingeniosolutions.com.ar | https://ingeniosolutions.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S61 de la tanda 3); LinkedIn pendiente (nota y mensaje en S61); WhatsApp publicado: +54 9 11 4038-1050 (pendiente, ver S61 de la tanda 3) |
+| 265 | Quay | Transformación digital, Concordia | canal | info@quay.com.ar | https://quay.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S62 de la tanda 3); LinkedIn pendiente (nota y mensaje en S62) |
+| 266 | Tecopens Consulting | Consultoría de transformación digital para pymes del NOA, San Miguel de Tucumán | canal | equipo@tecopensconsulting.com | https://www.tecopensconsulting.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S63 de la tanda 3); LinkedIn pendiente (nota y mensaje en S63) |
+| 267 | Grupo Orange | Soluciones tecnológicas integrales en Salta y el norte, Salta capital | canal | info@grupoorange.com.ar | https://grupoorange.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S64 de la tanda 3); LinkedIn pendiente (nota y mensaje en S64); WhatsApp publicado: +54 9 387 464-0626 (pendiente, ver S64 de la tanda 3) |
+| 268 | Grupo Mill | Consultora de profesionalización de pymes con servicios de inteligencia artificial, datos y agro, Santa Rosa | canal | comunicacion@grupomill.com | https://grupomill.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S65 de la tanda 3); LinkedIn pendiente (nota y mensaje en S65); WhatsApp publicado: +54 9 2954 33-0420 (pendiente, ver S65 de la tanda 3) |
 
 ### Cómo se llena
 
@@ -164,6 +321,37 @@ Una fila por empresa. Fechas en formato `d-mes` del 2026. `—` es "todavía no"
 | 5-oct | Cuarta tanda, mutuales de ayuda económica de Córdoba, partes A a D | 20 | laureano@atentina.com.ar | [`a`](envios/2026-10-05-cuarta-tanda-a.md), [`b`](envios/2026-10-05-cuarta-tanda-b.md), [`c`](envios/2026-10-05-cuarta-tanda-c.md), [`d`](envios/2026-10-05-cuarta-tanda-d.md) |
 | 5-oct | Quinta tanda, mutuales del interior este y sur de Córdoba (12 sin ayuda económica confirmada) | 30 | laureano@atentina.com.ar | [`g1`](envios/2026-10-05-quinta-tanda-g1.md), [`g2`](envios/2026-10-05-quinta-tanda-g2.md), [`g3`](envios/2026-10-05-quinta-tanda-g3.md), [`g4`](envios/2026-10-05-quinta-tanda-g4.md), [`g5`](envios/2026-10-05-quinta-tanda-g5.md), [`g6`](envios/2026-10-05-quinta-tanda-g6.md) |
 | 6-oct | Canales: 12 aliados sin LinkedIn enviado (parte C, parte D, Kernel y Tekhne) | 12 | laureano@atentina.com.ar | [`a`](envios/2026-10-06-canales-a.md), [`b`](envios/2026-10-06-canales-b.md), [`c`](envios/2026-10-06-canales-c.md), [`d`](envios/2026-10-06-canales-d.md) |
+| 7-oct | Software e IA (partners): 27 consultoras e integradores que ya venden IA, `canales2` | 27 | laureano@atentina.com.ar | [`envios/2026-10-07-software-ia-partners.md`](envios/2026-10-07-software-ia-partners.md) |
+| 8-oct | Software e IA (partners), tanda 2: S1 a S40, `canales3` | 40 | laureano@atentina.com.ar | [`envios/2026-10-07-software-ia-partners-2.md`](envios/2026-10-07-software-ia-partners-2.md) |
+
+Tanda de software e IA (partners), contactos 112 a 138: **email enviado el 7-oct-2026** (los 27); seguimiento en el mismo hilo el
+14-oct (4 días hábiles; el 12 es feriado). **LinkedIn pendiente** para los 27: la nota de invitación y el mensaje largo de cada empresa
+están en [`envios/2026-10-07-software-ia-partners.md`](envios/2026-10-07-software-ia-partners.md); al enviarlos, fila en "LinkedIn"
+con `utm_source=linkedin`. **WhatsApp**: 11 de las 27 publican un número (buscado el 7-oct-2026; número y fuente en "Otros canales"
+de cada empresa en el `.md` y columna `whatsapp` del `.csv`, y en "Próxima acción" de cada fila); canal pendiente, sin mensaje
+redactado. Aionixs no se recorrió (robots.txt). Reservas en `scratch/prospectos/software-ia/notas.md`.
+
+Tanda 2 de software e IA (partners), contactos 139 a 203, `canales3`: **S1 a S40 (contactos 139 a 178) enviados por email el 8-oct-2026**, seguimiento el 15-oct (4 días hábiles; el 12 es feriado); **S41 a S65 (179 a 203) en borrador** (65 empresas de toda Argentina: CABA,
+GBA y provincia de Buenos Aires 33, Córdoba 11, Santa Fe 9, Mendoza 4, Salta 2, Chaco 2, Corrientes 2, Tucumán 1, Entre Ríos 1; 19 con
+email de persona, 46 a casilla de área o de atención). Textos, nota y mensaje de LinkedIn por empresa en
+[`envios/2026-10-07-software-ia-partners-2.md`](envios/2026-10-07-software-ia-partners-2.md); ficha en el `.csv` del mismo nombre.
+Al enviarse: fila en esta tabla, fecha en "1.er envío" y estado `enviado`, 3 o 4 por hora (dos o tres días hábiles). **WhatsApp**: 29
+de las 65 publican un número (buscado el 7-oct-2026; en "Otros canales" del `.md`, columna `whatsapp` del `.csv` y "Próxima acción");
+canal pendiente, sin mensaje redactado. Avisos para revisar antes de enviar (iSource, Yugoo, Syloper, Snoop, Datawise, Human Tech 4.0,
+encajes parciales, ciudades de directorios externos) en la sección "Para revisar antes de enviar" del `.md`. Reservas y descartes en
+`scratch/prospectos/software-ia-2/notas_bsas.md` y `notas_interior.md`.
+
+Tanda 3 de software e IA (partners), contactos 204 a 268, `canales4`: **borrador, sin enviar** (65 empresas de toda Argentina: CABA 15,
+GBA 6, Mar del Plata 1 y provincia de Buenos Aires sin ciudad publicada 8; Córdoba 11, Santa Fe 7, Mendoza 6, Neuquén 4, Río Negro 2,
+Entre Ríos 2, Tucumán 1, Salta 1, La Pampa 1; 15 con email de persona, 50 a casilla de área o de atención). Textos, nota y mensaje de
+LinkedIn por empresa en [`envios/2026-10-07-software-ia-partners-3.md`](envios/2026-10-07-software-ia-partners-3.md); ficha en el
+`.csv` del mismo nombre. Al enviarse: fila en esta tabla, fecha en "1.er envío" y estado `enviado`, 3 o 4 por hora (dos o tres días
+hábiles). **WhatsApp**: 25 de las 65 publican un número (buscado el 7-oct-2026; en "Otros canales" del `.md`, columna `whatsapp` del
+`.csv` y "Próxima acción"); canal pendiente, sin mensaje redactado. Avisos para revisar antes de enviar (cargos no publicados de
+Axioma IT, Hitofusion y MG Intelligence; ciudad sin verificar de Quantit y Silogik; partners sin IA publicada; C&S sin texto en el
+sitio; WhatsApp de EE. UU. de TGV; seis sitios del interior leídos con user-agent de navegador; encajes parciales; nombres incompletos
+en ★ de persona) en la sección "Para revisar antes de enviar" del `.md`. Reservas y descartes (Moment of People entre ellas) en
+`scratch/prospectos/software-ia-3/bsas/notas_bsas.md` e `interior/notas_interior.md`.
 
 Reservas con email publicado, sin enviar (emails verificados el 5-oct-2026):
 
@@ -188,8 +376,33 @@ Si la charla avanza, entra en "Conversaciones" como cualquier otra.
 | L5 | Solsoft SRL | Software para mutuales y cooperativas, San Francisco | canal | — | — | https://www.linkedin.com/company/solsoftsrl | [`envios/2026-10-06-canales-a.md`](envios/2026-10-06-canales-a.md) | 6-oct | — | — | enviado | Seguimiento por LinkedIn el 13-oct (contacto #95) |
 | L6 | RAS (Rent A Soft S.A.) | Software para salud, Godoy Cruz | canal | — | — | https://www.linkedin.com/products/ras-rent-a-soft-sa-ras-salud/ | [`envios/2026-10-06-canales-b.md`](envios/2026-10-06-canales-b.md) | 6-oct | — | — | enviado | Seguimiento por LinkedIn el 13-oct (contacto #97) |
 | L7 | Grupo Cormos (DrApp) | Software para salud, CABA | canal | — | — | https://www.linkedin.com/company/grupocormos | [`envios/2026-10-06-canales-b.md`](envios/2026-10-06-canales-b.md) | 6-oct | — | — | enviado | Seguimiento por LinkedIn el 13-oct (contacto #98) |
-| L8 | Integrando Salud | Software para salud, Leandro N. Alem | canal | — | — | https://www.linkedin.com/company/integrandosalud/ | [`envios/2026-10-06-canales-b.md`](envios/2026-10-06-canales-b.md) | 6-oct | — | — | enviado | Seguimiento por LinkedIn el 13-oct (contacto #99) |
+| L8 | Integrando Salud | Software para salud, Leandro N. Alem | canal | Jaqueline Gutiérrez, encargada de partnership (contacto que pasaron) | — | https://www.linkedin.com/company/integrandosalud/ | [`envios/2026-10-06-canales-b.md`](envios/2026-10-06-canales-b.md) | 6-oct | — | 7-oct: derivan a Jaqueline Gutiérrez | respondió | Escribirle a Jaqueline hoy: presentación y charla de 15 min |
 | L9 | Alephoo | Software para salud, Campana | canal | — | — | https://www.linkedin.com/company/10177982 | [`envios/2026-10-06-canales-b.md`](envios/2026-10-06-canales-b.md) | 6-oct | — | — | enviado | Seguimiento por LinkedIn el 13-oct (contacto #100) |
+| L10 | Sanatorio Anchorena San Martín | Sanatorio, San Martín (GBA) | cliente | Marco David Andave, Jefe de atención al paciente - Supervisor de Hotelería | — | https://www.linkedin.com/sales/lead/ACwAACBFF1EB6NSJSTQ--CpOQHkuHXhky2C7m3I | [`envios/2026-10-07-linkedin-salud.md`](envios/2026-10-07-linkedin-salud.md) | 7-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| L11 | Sanatorio Sagrado Corazón | Sanatorio, CABA | cliente | Candice Selecki, Jefa de Gestión de Pacientes | — | https://www.linkedin.com/sales/lead/ACwAAB2VLqYBnoAPQ3drpJd1csAGFHxInyt0qbo | [`envios/2026-10-07-linkedin-salud.md`](envios/2026-10-07-linkedin-salud.md) | 7-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| L12 | Fundación Hospitalaria | Hospital, CABA | cliente | Felipe Saez, Jefe de Gestión en atención al paciente | — | https://www.linkedin.com/sales/lead/ACwAAA15-dIB4GU4_dmvsaM-OGyZuPFIE64v0VM | [`envios/2026-10-07-linkedin-salud.md`](envios/2026-10-07-linkedin-salud.md) | 7-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| L13 | ICBA Instituto Cardiovascular | Clínica cardiovascular, CABA | cliente | Silvina Stephani Ferradas, Jefa de Gestión Operativa de Pacientes | — | https://www.linkedin.com/sales/lead/ACwAAAdIsfABAalfXVtPgWAxIhLrin9FF_5wXHE | [`envios/2026-10-07-linkedin-salud.md`](envios/2026-10-07-linkedin-salud.md) | 7-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| L14 | IAF (Instituto Alexander Fleming) | Clínica oncológica, CABA | cliente | Diego Zentner, Jefe de contact center | — | https://www.linkedin.com/sales/lead/ACwAAAZwQnYBMlDOcmFHLuv4Y7ZbkhifpZ_kqTM | [`envios/2026-10-07-linkedin-salud.md`](envios/2026-10-07-linkedin-salud.md) | 7-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| L15 | Centro Médico Deragopyan | Diagnóstico por imágenes, CABA | cliente | Ornella Corigliano, Jefa de Atención al paciente | — | https://www.linkedin.com/sales/lead/ACwAAD7Za3oBvSh_fyjhZBc4hiqqBmQiFOdE6OI | [`envios/2026-10-07-linkedin-salud.md`](envios/2026-10-07-linkedin-salud.md) | 7-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| L16 | ARGUS Diagnóstico Médico | Diagnóstico por imágenes, GBA norte | cliente | Agustina Jiménez, Coordinadora de la central única de turnos | — | https://www.linkedin.com/sales/lead/ACwAAC0FKXMBm8wJSPP-uw1xFbUF9A10q_ww0nk | [`envios/2026-10-07-linkedin-salud.md`](envios/2026-10-07-linkedin-salud.md) | 7-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| L17 | Labmedicina | Laboratorio, — | cliente | Delia Benítez, Jefa de hospitales - Atención al cliente | — | https://www.linkedin.com/sales/lead/ACwAAAqGzowBJgmFv1thIEiu2bOQDTFZaTlYE8o | [`envios/2026-10-07-linkedin-salud.md`](envios/2026-10-07-linkedin-salud.md) | 7-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| L18 | Cibic Laboratorios (Rosario) | Laboratorio, Rosario y Funes | cliente | Lucio Caneda, Responsable de Experiencia del Usuario | — | https://www.linkedin.com/sales/lead/ACwAABhbGl4Bd49JIJwRZWf-UgBf_nu5SfF2wOI | [`envios/2026-10-07-linkedin-salud.md`](envios/2026-10-07-linkedin-salud.md) | 7-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| L19 | Vacunar | Vacunatorios, — | cliente | Fernanda Rojas, Coordinadora de atención al paciente | — | https://www.linkedin.com/sales/lead/ACwAABhLXEABDIaNM9j7MgNsSGoibz-oyL7m0_g | [`envios/2026-10-07-linkedin-salud.md`](envios/2026-10-07-linkedin-salud.md) | 7-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| L20 | Clínica San Camilo | Clínica, CABA | cliente | Luis Cervio, Director general | — | https://www.linkedin.com/sales/lead/ACwAAAr4MoABX2RZUcW-n-Jwab2XrevJZcehP00 | [`envios/2026-10-07-linkedin-salud.md`](envios/2026-10-07-linkedin-salud.md) | 7-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| L21 | Sanatorio Anchorena Recoleta | Sanatorio, CABA | cliente | Francisco Longo, Director general | — | https://www.linkedin.com/sales/lead/ACwAABkdfg8BBUKT23K-HCo-lJRFGxoXLJtjuxs | [`envios/2026-10-07-linkedin-salud.md`](envios/2026-10-07-linkedin-salud.md) | 7-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| L22 | Sanatorio Colegiales | Sanatorio, CABA | cliente | Eduardo Zalis, Director | — | https://www.linkedin.com/sales/lead/ACwAAASfFWUBsF-MJEjFRSsKMSMzcipK9Ci-FMg | [`envios/2026-10-07-linkedin-salud.md`](envios/2026-10-07-linkedin-salud.md) | 7-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| L23 | Sanatorio Juncal | Sanatorio, Temperley (GBA) | cliente | Diego Marucco, Gerente General | — | https://www.linkedin.com/sales/lead/ACwAAAh_HgkBG4bRfsRMqjd2JbGOh2T1tKCP53k | [`envios/2026-10-07-linkedin-salud.md`](envios/2026-10-07-linkedin-salud.md) | 7-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| L24 | Sanatorio del Oeste | Sanatorio, GBA oeste | cliente | Pablo Marucho, Director Médico Ejecutivo | — | https://www.linkedin.com/sales/lead/ACwAAEHH8WoBenA2BFf7swBq-H9MjS_huh-zfrM | [`envios/2026-10-07-linkedin-salud.md`](envios/2026-10-07-linkedin-salud.md) | 7-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| L25 | Sanatorio Clínica Modelo de Morón | Sanatorio, Morón (GBA) | cliente | Gustavo Borello, Director médico (sustituye al ★ original, José Luis Leone: su cargo real ahí es Coordinador de Docencia e Investigación, no decisor) | — | https://www.linkedin.com/sales/lead/ACwAAE0UnJ4BAtPM0N8jmQ8FoAceCwxgvmHhCUk | [`envios/2026-10-07-linkedin-salud.md`](envios/2026-10-07-linkedin-salud.md) | 7-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| L26 | Sanatorio Modelo Quilmes | Sanatorio, Quilmes (GBA) | cliente | Guillermo Malah, Gerente de Abastecimiento y Director | — | https://www.linkedin.com/sales/lead/ACwAAAKaCXMBU0HAtMJaBlS-AA0gJtrYOQOMd9M | [`envios/2026-10-07-linkedin-salud.md`](envios/2026-10-07-linkedin-salud.md) | 7-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| L27 | Clínica Adventista Belgrano | Clínica, CABA | cliente | Milton Rodríguez Müller, Director médico | — | https://www.linkedin.com/sales/lead/ACwAADmLAEMBAGQTrOZk-ypnN4UFwjAJUhQIeR8 | [`envios/2026-10-07-linkedin-salud.md`](envios/2026-10-07-linkedin-salud.md) | 7-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| L28 | Clínica Universitaria Reina Fabiola (Córdoba) | Clínica universitaria, Córdoba | cliente | María Belén Jávega, Gerente de Calidad y Operaciones | — | https://www.linkedin.com/sales/lead/ACwAAAhP9sUBr3UJHzPk8on6k6bNhQff1sD6jak | [`envios/2026-10-07-linkedin-salud.md`](envios/2026-10-07-linkedin-salud.md) | 7-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+| L29 | DIM Centros de Salud | Red de +15 centros, GBA oeste y CABA | cliente | Oscar Montaña, Director General | — | https://www.linkedin.com/sales/lead/ACwAAALH4SABJUyV9dgKDEETh873Ah-497q4rtE | [`envios/2026-10-07-linkedin-salud.md`](envios/2026-10-07-linkedin-salud.md) | 7-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
+
+**Sanatorio Británico (Rosario), sin enviar:** los dos contactos de la tanda (★ Lourdes Vázquez, 2.º Isabel
+Iberbuden) resuelven en Sales Navigator a personas en Asunción, Paraguay, no a Rosario — probablemente el
+buscador tomó otro "Sanatorio Británico" (hay uno en Paraguay). No se envió ninguna invitación a esta cuenta;
+falta rehacer la búsqueda de contactos antes de retomarla.
 
 Los mensajes L2 a L9 (6-oct) salieron **sin UTM**: sus visitas aparecen en GA como fuente `linkedin.com` / `lnkd.in`
 (canal Organic Social), sin la empresa. Para atribuirlas, cruzar fecha, hora y ciudad (Explorar).
@@ -323,6 +536,163 @@ dimensión "Ubicación de la página" (`page_location`) que contenga `utm_conten
 | 109 | Raptiv | canales1 | raptiv |
 | 110 | Etixen | canales1 | etixen |
 | 111 | StorySelling | canales1 | storyselling |
+| 112 | Kunan | canales2 | kunan |
+| 113 | Aionixs | canales2 | aionixs |
+| 114 | Ithreex Global | canales2 | ithreex |
+| 115 | Crombie | canales2 | crombie |
+| 116 | NeuralSoft | canales2 | neuralsoft |
+| 117 | ARTECH | canales2 | artech |
+| 118 | AGOS | canales2 | agos |
+| 119 | Consultores en IT S.A. | canales2 | consultores-en-it |
+| 120 | Cumbresoft | canales2 | cumbresoft |
+| 121 | Dicsys | canales2 | dicsys |
+| 122 | Ecosistemas Global | canales2 | ecosistemas |
+| 123 | Exomindset | canales2 | exomindset |
+| 124 | JEMER | canales2 | jemer |
+| 125 | KINETIC Corp | canales2 | kinetic |
+| 126 | Making Sense | canales2 | makingsense |
+| 127 | Holon Software | canales2 | holon |
+| 128 | Widergy | canales2 | widergy |
+| 129 | Devlights | canales2 | devlights |
+| 130 | Nybble Group | canales2 | nybble |
+| 131 | Infolytics | canales2 | infolytics |
+| 132 | GMO Solutions | canales2 | gmo |
+| 133 | Quanam | canales2 | quanam |
+| 134 | Henka (Digital Henka) | canales2 | henka |
+| 135 | Accuratio | canales2 | accuratio |
+| 136 | FutureFlow | canales2 | futureflow |
+| 137 | Brain Food | canales2 | brainfood |
+| 138 | Sinnetic | canales2 | sinnetic |
+| 139 | Biwares | canales3 | biwares |
+| 140 | Duotach | canales3 | duotach |
+| 141 | Quilsoft | canales3 | quilsoft |
+| 142 | BamAI | canales3 | bamai |
+| 143 | AIViento | canales3 | aiviento |
+| 144 | Bombieri | canales3 | bombieri |
+| 145 | booleAr S.A. | canales3 | boolear |
+| 146 | Grupo Esfera | canales3 | grupoesfera |
+| 147 | Eryx | canales3 | eryx |
+| 148 | 7Puentes | canales3 | 7puentes |
+| 149 | Accion Point | canales3 | accionpoint |
+| 150 | Medve | canales3 | medve |
+| 151 | Unitech | canales3 | unitech |
+| 152 | Xelere | canales3 | xelere |
+| 153 | QActions | canales3 | qactions |
+| 154 | Mooving (Mooving Tech S.A.U.) | canales3 | mooving |
+| 155 | OneInfo Consulting | canales3 | oneinfo |
+| 156 | Kopernicus | canales3 | kopernicus |
+| 157 | Innen | canales3 | innen |
+| 158 | Zarego | canales3 | zarego |
+| 159 | 404 // Software crafters | canales3 | 404 |
+| 160 | Grupo Kelsoft | canales3 | kelsoft |
+| 161 | Infogestión | canales3 | infogestion |
+| 162 | Julasoft | canales3 | julasoft |
+| 163 | Tecnom | canales3 | tecnom |
+| 164 | Quales Group | canales3 | quales |
+| 165 | Snoop Consulting | canales3 | snoop |
+| 166 | BlueDraft | canales3 | bluedraft |
+| 167 | Avalith | canales3 | avalith |
+| 168 | Aoki Tech | canales3 | aoki |
+| 169 | MINDO | canales3 | mindo |
+| 170 | NexoSmart | canales3 | nexosmart |
+| 171 | VGS | canales3 | vgs |
+| 172 | Vortex | canales3 | vortex |
+| 173 | Puntonet Tech (Punto Net Soluciones SRL) | canales3 | puntonet |
+| 174 | BIT S.A. | canales3 | bit |
+| 175 | AYI Group (BADI S.A.) | canales3 | ayi |
+| 176 | Peperina Software | canales3 | peperina |
+| 177 | Skater Elephant (Resolution 8 Software SAS) | canales3 | skaterelephant |
+| 178 | Digital Motus | canales3 | digitalmotus |
+| 179 | Vippinn | canales3 | vippinn |
+| 180 | Ascentio Technologies | canales3 | ascentio |
+| 181 | HMM Global (Home Medical Management) | canales3 | hmm |
+| 182 | Asofix (Grupo Tagle) | canales3 | asofix |
+| 183 | Syloper | canales3 | syloper |
+| 184 | Santa Fe Sistemas (Grupo SFS) | canales3 | sfs |
+| 185 | EximIA Solutions (Technology Service SAS) | canales3 | eximia |
+| 186 | Human Tech 4.0 (Business Buggers SRL) | canales3 | humantech |
+| 187 | Autologica | canales3 | autologica |
+| 188 | Kodear | canales3 | kodear |
+| 189 | Efficast | canales3 | efficast |
+| 190 | Nonlinear Tecnología | canales3 | nonlinear |
+| 191 | Datawise | canales3 | datawise |
+| 192 | Midas Consultores | canales3 | midas |
+| 193 | Merovingian Data | canales3 | merovingian |
+| 194 | Quinto Impacto | canales3 | quintoimpacto |
+| 195 | Axis Human (Inamika Interactive S.A.) | canales3 | axishuman |
+| 196 | Griftin (Área Clave Consultoría Estratégica SRL) | canales3 | griftin |
+| 197 | MBM Sistemas | canales3 | mbm |
+| 198 | Blackfish Argentina | canales3 | blackfish |
+| 199 | Devoo | canales3 | devoo |
+| 200 | Sudata | canales3 | sudata |
+| 201 | Crenein | canales3 | crenein |
+| 202 | iSource | canales3 | isource |
+| 203 | Yugoo | canales3 | yugoo |
+| 204 | Pipe Tech | canales4 | pipe-tech |
+| 205 | TGV | canales4 | tgv |
+| 206 | Mutt Data | canales4 | muttdata |
+| 207 | Pigmalion Software | canales4 | pigmalion |
+| 208 | Tekne Data Labs | canales4 | tekne-data-labs |
+| 209 | C&S Informática | canales4 | cys |
+| 210 | Appstract | canales4 | appstract |
+| 211 | IT Maker | canales4 | it-maker |
+| 212 | Big Data Estratégico | canales4 | big-data-estrategico |
+| 213 | Cloud Solutions LATAM | canales4 | cloud-solutions-latam |
+| 214 | HabSar | canales4 | habsar |
+| 215 | Axcelere | canales4 | axcelere |
+| 216 | Blueorange Group | canales4 | blueorange |
+| 217 | Axioma IT Solutions | canales4 | axioma-it |
+| 218 | Hitofusion (Yügo SAS) | canales4 | hitofusion |
+| 219 | MG Intelligence | canales4 | mg-intelligence |
+| 220 | Chroma Agency | canales4 | chroma |
+| 221 | ITBS Business Solutions | canales4 | itbs |
+| 222 | Sysmo | canales4 | sysmo |
+| 223 | RockingData | canales4 | rockingdata |
+| 224 | Accedra | canales4 | accedra |
+| 225 | BGlobal Solutions | canales4 | bglobal |
+| 226 | PositiveIT | canales4 | positiveit |
+| 227 | Zennon BI | canales4 | zennon |
+| 228 | GrowIT | canales4 | growit |
+| 229 | Quantit | canales4 | quantit |
+| 230 | Silogik | canales4 | silogik |
+| 231 | Proda Software | canales4 | proda |
+| 232 | Datcom Software | canales4 | datcom |
+| 233 | Potencia Technologies | canales4 | potencia-tech |
+| 234 | GiGa Global | canales4 | giga-global |
+| 235 | Global Think Technology | canales4 | global-think |
+| 236 | Mindfactory | canales4 | mindfactory |
+| 237 | Program Consultores (PGM) | canales4 | program-consultores |
+| 238 | Emser | canales4 | emser |
+| 239 | DinoCloud | canales4 | dinocloud |
+| 240 | Vatrox | canales4 | vatrox |
+| 241 | Olpa Group | canales4 | olpa-group |
+| 242 | Castelsoft | canales4 | castelsoft |
+| 243 | Dynetis | canales4 | dynetis |
+| 244 | Glowix / Neos Tech | canales4 | glowix-neos |
+| 245 | Psiware | canales4 | psiware |
+| 246 | Idear Tech | canales4 | idear-tech |
+| 247 | Inteligencia Analítica | canales4 | inteligencia-analitica |
+| 248 | Grupo Aicon | canales4 | grupo-aicon |
+| 249 | Alchemid | canales4 | alchemid |
+| 250 | M3C Software | canales4 | m3c |
+| 251 | ERPYCA | canales4 | erpyca |
+| 252 | devFactory | canales4 | devfactory |
+| 253 | Solutions Hub / AGP & ROD Servicios | canales4 | solutions-hub |
+| 254 | Alpardata | canales4 | alpardata |
+| 255 | Hexium Software Factory | canales4 | hexium |
+| 256 | Corpora | canales4 | corpora |
+| 257 | GoodComex (Full Comex SAS) | canales4 | goodcomex |
+| 258 | Solution IT (SIT) | canales4 | solution-it |
+| 259 | PuntoGap | canales4 | puntogap |
+| 260 | Pragmática Consultores | canales4 | pragmatica |
+| 261 | DITyC | canales4 | dityc |
+| 262 | Patagonian | canales4 | patagonian |
+| 263 | Waiki Consultores en Sistemas | canales4 | waiki |
+| 264 | Ingenio Solutions | canales4 | ingenio-solutions |
+| 265 | Quay | canales4 | quay |
+| 266 | Tecopens Consulting | canales4 | tecopens |
+| 267 | Grupo Orange | canales4 | grupo-orange |
+| 268 | Grupo Mill | canales4 | grupo-mill |
 
 ## Conversaciones
 
