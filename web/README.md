@@ -11,8 +11,12 @@ npm install
 npm run dev          # http://localhost:5173, /api va a VITE_API_PROXY (default http://127.0.0.1:8111)
 ```
 
-Backend de desarrollo (SQLite en `scratch/dev.db`, con seed): `scratch/dev_backend.sh` levanta la API en
-127.0.0.1:8111. Otro backend: `VITE_API_PROXY=http://host:puerto npm run dev`.
+Backend de desarrollo (SQLite en `scratch/dev.db`, con seed; admin `admin@oime.com.ar` / `admin12345`):
+`make dev-backend` (`scripts/dev_backend.sh`) levanta la API en 127.0.0.1:8111, sin tocar el stack. Necesita
+un `.venv` con Python 3.12 (`python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`).
+
+Otro backend: `VITE_API_PROXY=http://host:puerto npm run dev`. `make web-dev` usa el `app` del stack
+(:8011) en lugar del de desarrollo (:8111): los dos puertos son a propósito.
 
 | Script                    | Qué hace                                                                 |
 | ------------------------- | ------------------------------------------------------------------------ |

@@ -39,7 +39,7 @@ agente de voz con minutos asignados. Anura solo incide en el costo del minuto y 
 | **19** | Pueden informarnos a Veraz/Nosis | Disciplina de tesorería |
 | **21, 22** | No garantizan calidad (no es Servicio Básico Telefónico); solo descuentan proporcional del abono por cortes propios; **sin lucro cesante** ni daños indirectos | No podemos dar un SLA de telefonía respaldado por Anura. Nuestro SLA debe ser espejo: crédito proporcional, sin lucro cesante |
 | **27** | Sin ruteo a emergencias (911, 10Y, 11Y) salvo que lo configure el usuario | Avisar al cliente que el número no reemplaza su línea ni sirve para emergencias |
-| **24** | Grabaciones opcionales, 6 meses en el panel, uso bajo exclusiva responsabilidad del Usuario; Anura no divulga salvo oficio judicial | Grabamos nosotros (LiveKit). La responsabilidad por grabar, avisar y proteger datos (Ley 25.326) es nuestra y del cliente: trasladarla |
+| **24** | Grabaciones opcionales, 6 meses en el panel, uso bajo exclusiva responsabilidad del Usuario; Anura no divulga salvo oficio judicial | Hoy no grabamos audio: solo guardamos la transcripción (política de privacidad de la landing). Grabar está planeado, sin implementar. Si se graba, la responsabilidad por grabar, avisar y proteger datos (Ley 25.326) es nuestra y del cliente: trasladarla |
 | **12** | Plan corporativo: no aplica el Reglamento de Clientes TIC (Res. 733-E/2017) | Anura nos trata como empresa. Si nosotros vendemos a personas humanas, nos aplica Defensa del Consumidor (24.240). Vender solo a CUIT |
 | **7** | Revocación dentro de 10 días corridos de validada la transacción, irrenunciable | Al alta de cada número hay que contar ese plazo. Espejarlo o no según segmento (B2B puede no darlo) |
 | **Intro, 3, 6** | Solicitud firmada por apoderado, con poder, entregada en **48 h**; validación hasta 48 h hábiles; verificación crediticia; pueden pedir **garantía o fiador** | Alta lenta y con papeles. Averiguar si sumar números dentro de la cuenta es trámite o autoservicio, y el plazo |
@@ -85,7 +85,7 @@ Cada una es espejo de una cláusula de Anura; si no se traslada, la absorbemos n
 | No es servicio telefónico básico ni sirve para emergencias | 22, 27 |
 | **Política de uso aceptable:** prohibidas las salientes masivas no solicitadas; cumplir el Registro No Llame (Ley 26.951); avisar que habla con un sistema automatizado y que se graba; suspensión inmediata por abuso; el cliente indemniza | 32 c, 10, 24 |
 | El cliente es responsable del contenido del agente (lo que dice, lo que promete, los datos que pide) y del tratamiento de datos de sus llamantes (Ley 25.326); nosotros somos encargados del tratamiento | 24, 4 |
-| Grabaciones y transcripciones con retención definida (p. ej. 6 meses), descargables | 24 |
+| Transcripciones (y grabaciones, cuando existan: planeadas, sin implementar) con retención definida (p. ej. 6 meses), descargables | 24 |
 | Podemos cambiar los términos con aviso; el cliente puede dar de baja | 20 |
 | Marca: el cliente no menciona al operador telefónico | 9 |
 
@@ -116,7 +116,7 @@ Cada una es espejo de una cláusula de Anura; si no se traslada, la absorbemos n
   adelantado por débito automático, precio revisable mes a mes. Los competidores (Botmaker, Vapi)
   facturan en dólares y por mes.
 - **Precio del minuto:** cargar el redondeo de 16 en el costo de la calculadora
-  (`docs/capacity/calculadora-costos.html`): el costo de Anura por minuto vendido no es `$/min`,
+  (`docs/calculadora-costos.html`): el costo de Anura por minuto vendido no es `$/min`,
   es `$/min × (1 + 0,5/D)`. Y agregar el costo del DID por cliente a la base fija del plan.
 - **Un DID por cliente** para rutear la entrante al workflow. El costo mensual del número marca el
   piso de la base fija del plan más chico. Averiguar si hay descuento por volumen de DIDs.

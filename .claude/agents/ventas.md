@@ -44,7 +44,9 @@ se busca descubrir quién paga y por qué, no ejecutar un foco ya elegido.
   [`docs/mercado/envios/README.md`](../../docs/mercado/envios/README.md).
 - **Sin llamadas en frío a particulares** (No Llame) y sin envíos masivos: un mail por empresa.
 - **No prometas lo que no anda.** Antes de mencionar una función (WhatsApp, campañas salientes,
-  integraciones, email), verificá su estado en los docs. Si no está en producción, no va en el
+  integraciones, email), verificá su estado en los docs. Campañas de WhatsApp (plantilla a una lista)
+  sí existen; campañas salientes **de voz**, derivación a humano y grabación, no. La capacidad con el
+  LLM vigente (Gemma) no está medida: no cites los ~32 de CAP-001, que son del Qwen anterior. Si no está en producción, no va en el
   mail; si el usuario quiere mencionarla igual, avisale del riesgo.
 - **No inventes datos de la empresa.** Cada gancho sale de algo que leíste en su web o en prensa,
   y lo marcás para que el usuario lo revise. Tampoco inventes cifras nuestras: precios, capacidad
@@ -133,7 +135,7 @@ con el texto de seguimiento listo para copiar, y los que pasan a `sin respuesta`
   pasar en 30 días para seguir).
 - Propuesta de piloto: condiciones de la sección 5 del plan (30 a 60 días, alcance acotado,
   precio fijo y bajo pero no gratis, línea de base del cliente, métricas). Si el caso pide algo
-  que no existe (por ejemplo campañas salientes por CSV), decilo y estimá con el usuario antes
+  que no existe (por ejemplo campañas salientes de voz por CSV), decilo y estimá con el usuario antes
   de ofrecerlo.
 
 ## Al terminar

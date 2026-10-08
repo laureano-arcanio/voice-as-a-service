@@ -1,6 +1,6 @@
 # Plan: Mercado Pago en el mismo agente
 
-Diseño (6-oct-2026). **Estado: análisis, sin código.** Lo que ya existe y se reusa es el canal de
+Diseño (6-oct-2026). **Estado (8-oct-2026): propuesta sin integración en la app** (no hay `app/payments/`); **spike parcial hecho** el 6-oct-2026 con una cuenta personal real (resultados en la sección 6). Lo que ya existe y se reusa es el canal de
 WhatsApp ([`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md)): webhook, descarga de medios, cuentas por cliente con
 token cifrado y el alta guiada (Embedded Signup). Las estimaciones son sin desglose fino, con las
 2 semanas de la fase 1 de WhatsApp como referencia.
@@ -22,7 +22,7 @@ Fuente: documentación de Mercado Pago Developers, leída el 6-oct-2026.
 | Access token de 180 días; renovar con refresh token pide el scope `offline_access` | Confirmado |
 | Consultar y buscar pagos, y órdenes comerciales, por API (`api.mercadopago.com`) | Confirmado |
 | Reporte "Todas las transacciones": incluye **ingresos de dinero**, solo aprobados; se pide por `POST /v1/account/bank_report`, ventana de hasta 60 días, aviso por webhook; el medio de pago figura como `bank_transfer` | Confirmado, pero es un archivo asíncrono, no una consulta |
-| Que una **transferencia común por alias o CVU** (sin link ni QR de Mercado Pago) aparezca en la búsqueda de pagos | **Sin confirmar**: la página de referencia devolvió 404 y las búsquedas no lo dicen. Es el punto que decide el diseño: spike de la fase 0 |
+| Que una **transferencia común por alias o CVU** (sin link ni QR de Mercado Pago) aparezca en la búsqueda de pagos | **Confirmado en el spike para un caso** (Santander → CVU de Mercado Pago, 6-oct-2026): aparece como `account_fund`/`bank_transfer`, pero sin el nº de comprobante del banco ni el ordenante: verificación débil (monto + hora + destino). Otras billeteras y otros bancos: sin probar |
 | Qué scopes de un token OAuth alcanzan para leer pagos del vendedor | Sin confirmar (misma causa) |
 | Límites de pedidos y costo de la API | Sin confirmar; no se conoce costo por consulta |
 
@@ -86,7 +86,7 @@ cierra con un `outcome` (`pagado`, `pago_no_verificado`).
 
 ## 4. Cómo encaja en la app
 
-**Tablas nuevas** (migración `0008`):
+**Tablas nuevas** (migración nueva, con el número que siga al implementarla; la 0008 ya es de las campañas de WhatsApp):
 
 | Tabla | Qué guarda |
 |---|---|
@@ -125,9 +125,9 @@ un OCR cuesta del orden de 1 s de CPU por imagen (a medir). Con visión del LLM 
 ## 6. Respuestas del usuario (6-oct-2026) y qué implican
 
 - **Se ofrece a los clientes de Atentina** (negocios), para verificar lo que les mandan sus propios clientes.
-- **El pago normal es por alias o CVU.** Es justo el caso sin confirmar de la sección 0: **la fase 1 no se puede prometer** hasta el spike. Si la API de pagos no lista esas transferencias, el camino es el reporte (fase 3, más débil y con demora).
+- **El pago normal es por alias o CVU.** El spike mostró que la transferencia de un banco aparece en la API, pero sin dato que la ate al comprobante: verificación débil, usable con monto único por conversación (sección 6). Probado con un solo banco; no generalizar a cualquier banco o billetera.
 - **Alcance:** solo sirve si el alias o CVU del negocio es de **Mercado Pago**. Con el alias de un banco u otra billetera (Ualá, Brubank, etc.) no hay cuenta que consultar; no se investigó si esos tienen API para pymes. Antes de ofrecerlo, preguntarle al cliente dónde cobra.
-- **Todavía no hay cuenta de Mercado Pago.** El spike necesita una **cuenta real**: las cuentas de prueba no reciben transferencias y sus reportes salen vacíos.
+- **Cuenta:** el spike usó una cuenta personal real (las de prueba no reciben transferencias y sus reportes salen vacíos). La de Atentina y OAuth por cliente: sin hacer.
 
 ### Spike (fase 0), paso a paso
 
@@ -142,7 +142,7 @@ Resultado esperado del spike: una tabla "origen del pago → cómo se verifica �
 
 ### Resultados del spike (parcial, 6-oct-2026)
 
-Script: `scratch/mp_spike/spike.py` (solo lectura, token en `.env` como `MP_SPIKE_TOKEN`; el **Access Token**, no la Public Key, que tiene 44 caracteres y da 401/403). Cuenta personal; 32 movimientos en 3 días.
+Script: `scratch/mp_spike/spike.py` (no versionado: `scratch/` está en `.gitignore`; solo lectura, token en `.env` como `MP_SPIKE_TOKEN`; el **Access Token**, no la Public Key, que tiene 44 caracteres y da 401/403). Cuenta personal; 32 movimientos en 3 días.
 
 | Hallazgo | Dato |
 |---|---|

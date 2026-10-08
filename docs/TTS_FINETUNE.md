@@ -86,6 +86,10 @@ work/eval/<voz>/llamada/    <sistema>_s<semilla>/  (28 oraciones de una llamada 
    - En este server (reparto de CAP-001): `vllm-tts` y `stt-parakeet` están en la GPU 1.
      `docker stop voice-as-a-service-vllm-tts-1` libera ~13 GB de la GPU 1 (quedan el STT, ~1,6 GB,
      y el escritorio): entrenar en la GPU 1.
+   - **Fijar la GPU antes de los pasos:** `run.sh` usa la GPU 0 por defecto, que es la del LLM en
+     vivo. Exportarla una vez en la terminal (`export GPU=1` en este server; el reparto vigente está
+     en `AGENTS.md`) y confirmarla con `nvidia-smi`. Los comandos de abajo la heredan; los que dicen
+     `GPU=none` no usan GPU.
    - Generar y evaluar necesita unos 5 GB y entra al lado de `vllm-tts`.
    - El 0.6B entrena con 7,2 GB.
 2. **Modelos en el HF cache.** Hacen falta `Qwen/Qwen3-TTS-12Hz-1.7B-Base` (o `-0.6B-Base`)
@@ -309,11 +313,12 @@ como en el paso 5, por voz.
 ## Usar las voces desde la API
 
 `vllm-tts` habla la API de OpenAI (`/v1/audio/speech`). La voz va en `voice` en cada pedido,
-así que un mismo servidor sirve las 4 voces sin reiniciar:
+así que un mismo servidor sirve las 41 voces de `multi41` sin reiniciar (nombres en
+[`voces.tsv`](../tts/finetune/voces.tsv); `martin` es el `arm_08784` de la tabla de arriba):
 
 ```bash
 curl -H "Authorization: Bearer $VLLM_API_KEY" -H "Content-Type: application/json" \
-  -d '{"model":"qwen3-tts-ft","voice":"arm_08784","input":"Hola, buen día.","response_format":"wav"}' \
+  -d '{"model":"qwen3-tts-ft","voice":"martin","input":"Hola, buen día.","response_format":"wav"}' \
   http://181.104.113.28:8100/tts/v1/audio/speech -o hola.wav     # o 127.0.0.1:8103/v1 en el host
 ```
 

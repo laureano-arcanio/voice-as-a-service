@@ -7,7 +7,7 @@ texto: mide el LLM y el motor, no el STT ni el TTS (para eso, la capa de canal `
 
 ## Resultados vigentes
 
-Todavía no hay runs registrados. El primero es la línea base con Qwen3.5-9B w4a16 (EVAL-001).
+Todavía no hay runs registrados. El primero (EVAL-001) es la línea base con el LLM vigente, Gemma 4 26B-A4B (desde el 6-oct-2026); el Qwen3.5-9B anterior, como referencia.
 
 ## Índice
 

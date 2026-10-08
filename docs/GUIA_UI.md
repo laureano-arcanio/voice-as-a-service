@@ -84,8 +84,9 @@ El detalle del agente tiene cuatro pestañas:
   la vigente y **Restaurar**, que guarda esa definición como versión nueva.
 - **Probar:**
   - **Nueva llamada** con este agente: de prueba por navegador o saliente.
-  - **Conversación por texto:** chateás con el agente sin voz y ves los datos que va extrayendo y el
-    próximo objetivo.
+  - **Conversación por texto:** chateás con el agente sin voz. Con el motor estructurado ves los datos
+    que va extrayendo y el próximo objetivo en cada turno; con el clásico (el de por defecto), los datos
+    aparecen al terminar la conversación.
 
 Arriba, **Editar** (nombre y descripción), **Archivar/Desarchivar** y **Borrar**:
 - Un agente archivado no se puede usar en llamadas nuevas y queda en el historial.
@@ -118,10 +119,9 @@ Después de **cargar o borrar** números hay que correr `make livekit-sip` en el
 trunk entrante de LiveKit los acepte (la página lo recuerda). Asignar, liberar o cambiar de agente
 no lo necesita.
 
-**Limitación actual de Anura:** Anura entrega a Asterisk todas las entrantes de una cuenta por la
-misma línea, sin decir qué número se marcó. Para que cada número vaya a su agente, cada número
-tiene que estar en una cuenta de Anura distinta (o en una troncal con DID). Ver
-[`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md).
+**Varios números en la misma cuenta de Anura:** cada entrante va al agente del número marcado (Anura
+manda el número en la llamada, verificado el 29-sep-2026). Si no llega un número válido, va al número
+principal de la cuenta (`ANURA_DID`). Ver [`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md).
 
 ### 4b. WhatsApp (admin)
 
@@ -170,7 +170,8 @@ Si el cliente está desactivado, sus números de WhatsApp tampoco responden.
   - **Agente:** los no archivados; el admin los ve agrupados por cliente.
   - **Teléfono** en E.164 para una saliente, o **Modo prueba**: sin teléfono, te conectás por el
     navegador con el link "Conectate acá…", que se muestra una sola vez.
-  - **Número de origen:** opcional, uno del cliente. Hoy Asterisk sale siempre con el de Anura.
+  - **Número de origen:** opcional, uno del cliente. Es el que ve el destinatario; tiene que ser un
+    número de la cuenta de Anura. Sin número de origen, sale con el principal (`ANURA_DID`).
   - **Voz:** la del agente, u otra del catálogo con filtros de género, WER y car/s.
   - **Prueba de voz:** escuchás el texto con la voz elegida, directo contra el TTS, sin llamar.
   - Si el tier no deja (sin lugar o sin minutos), el error dice cuál límite.
@@ -316,7 +317,7 @@ recibir mensajes: muchos bloqueos bajan la calidad del número y su límite de e
 |---|---|
 | Las entrantes suenan y cortan ("ocupado") | El número no tiene agente, o está libre. Elegí el agente en Números o en la ficha del cliente. Log del agente: `no tiene cliente o agente asignado`. |
 | Una entrante escucha "no podemos atender tu llamada" | El tier no deja: tope de simultáneas, minutos entrantes agotados o cliente inactivo. Mirá el consumo del cliente. |
-| Todas las entrantes van al mismo agente | Anura manda todos los números de una cuenta por la misma línea (ver Números). |
+| Todas las entrantes van al mismo agente | No llega el número marcado y cae al principal (`ANURA_DID`). Mirar el log de Asterisk (`Entrante de Anura: ... (marcado: ...)`) y que cada número tenga su agente. |
 | "Llegaste al límite…" al llamar | Tope del tier. Esperá que terminen llamadas, subí el tier o el tope. |
 | Un número nuevo no recibe llamadas | Faltó `make livekit-sip` después de cargarlo, o Anura no lo entrega a esta troncal. |
 | "Conectar WhatsApp" abre y se cierra, o da error de dominio | Se entró por `http://` o por un dominio que no está en la app de Meta: usar `https://app.atentina.com.ar`. |

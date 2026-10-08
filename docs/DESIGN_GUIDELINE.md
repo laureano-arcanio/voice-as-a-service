@@ -28,7 +28,7 @@ cualquier pantalla de la landing. El dashboard (`web/`) sigue
   - Tamaño en el nav: isotipo de 26 px, palabra de 1.35rem, separación de 10 px.
   - No deformarlo, no cambiarle la tipografía, no ponerlo sobre el acento ni sobre fotos.
 - **Archivos:** `docs/brand/` (logo e isotipo), `landing/public/favicon.svg` (el isotipo) y
-  `landing/src/assets/og.png` (va con hash en la URL: al cambiarla, las vistas previas toman la nueva). Se generan en `scratch/logo/` (`build_atentina.py`, `og.html`).
+  `landing/src/assets/og.png` (va con hash en la URL: al cambiarla, las vistas previas toman la nueva). Se generan con `scripts/brand/` (`build_atentina.py`, `og.html`; ver [`LANDING.md`](LANDING.md)).
   - Sobre claro: anillo y palabra en `ink`, barras en `accent` (azul del hub).
   - Sobre fondo `ink` (archivos `-blanco`): anillo y palabra en `cta-ink`, barras en `accent-on-dark`.
   - `og.png` (1200 × 630): fondo del hero, logo, título en Bricolage 800 y rótulo en mono con el acento. Todo centrado y dentro del cuadrado central (630 × 630): las miniaturas cuadradas recortan por el centro.

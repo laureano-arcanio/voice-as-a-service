@@ -6,8 +6,9 @@ propia (LLM, STT y TTS sobre GPUs locales). Cada cliente tiene sus números, sus
 asesora comercial de [Browix](https://browix.com) (`docs/Browix_Contexto_Agente.md`).
 
 La conversacion no es un guion: la **definición del agente (workflow JSON)** fija los datos a
-obtener (objetivos), el estado guarda lo que ya se sabe, y en cada turno el LLM extrae datos, elige
-el siguiente objetivo y redacta la respuesta. La app valida los datos y decide cuando termina.
+obtener (objetivos) y el LLM conversa a partir de ella. Hay dos motores: el **clásico** (por defecto)
+conversa en texto libre y extrae los datos una sola vez, al terminar; el **estructurado** extrae datos
+y elige el siguiente objetivo en cada turno. La app valida los datos y clasifica el resultado.
 Detalle en "Motor conversacional" abajo; el diseño original esta en `docs/REFACTOR.md`.
 
 - Arquitectura y detalles técnicos: [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
@@ -75,7 +76,7 @@ apuntando `base_url` a cada contenedor en vez de a `api.openai.com`.
 
 | Rol | Modelo | Variable | Endpoint | Por que |
 | --- | --- | --- | --- | --- |
-| LLM del motor conversacional | `RedHatAI/Qwen3.5-9B-quantized.w4a16` (Qwen3.5-9B en 4 bits) | `VLLM_LLM_MODEL` | `/v1/chat/completions` | Structured output (JSON schema), sin pensamiento por latencia (`LLM_THINKING`) y muestreo recomendado por Qwen. Reemplazó al 4B en EXP-009: 8 de 8 demos con datos contra 4 de 8, y p50 0,90 s por turno contra 1,00 s. |
+| LLM del motor conversacional | `cyankiwi/gemma-4-26B-A4B-it-qat-AWQ-INT4` (Gemma 4 26B-A4B en 4 bits, override `docker-compose.gemma4-26b.yml`, desde el 6-oct-2026) | `VLLM_LLM_MODEL` | `/v1/chat/completions` | Structured output (JSON schema) y sin pensamiento por latencia (`LLM_THINKING`); el muestreo sigue siendo el recomendado por Qwen (`app/llm/client.py`). Sin eval ni CAP propios todavía. Antes, `RedHatAI/Qwen3.5-9B-quantized.w4a16`, que reemplazó al 4B en EXP-009 (8 de 8 demos con datos contra 4 de 8, p50 0,90 s por turno contra 1,00 s). |
 | STT | `nvidia/parakeet-tdt-0.6b-v3` | `VLLM_STT_MODEL` | `/v1/audio/transcriptions` | Servidor propio (`stt/server.py`, transformers + batching dinamico): 1,6 GB y mejor que Qwen3-ASR y Whisper Turbo en audio telefonico (ver "Eval de STT"). Es REST por turno, sin transcript parcial mientras el cliente habla. |
 | TTS | Qwen3-TTS 1.7B-Base con fine-tuning (41 voces en un checkpoint) | `VLLM_TTS_MODEL`, `VLLM_TTS_VOICE` | `/v1/audio/speech` (streaming) | Servido con vLLM-Omni. Las voces estan dentro del checkpoint (ver "Voces del TTS" abajo). |
 
@@ -88,8 +89,9 @@ reparto de GPU/memoria entre los 3 esta documentado con detalle en los comentari
 reservan memoria fuera del budget normal de KV-cache, y vLLM sigue capturando CUDA graphs
 nuevos con el trafico real, asi que el uso real de VRAM termina bien por encima de lo que
 estima `--gpu-memory-utilization` en frio). Hoy el server tiene 2 x RTX 3090 24 GB a 280 W: el
-LLM solo en la GPU 0 y TTS + STT en la GPU 1 (compose principal, sin override): ~32 llamadas
-simultaneas con p95 <= 3 s (CAP-001). La 5060 Ti (`docker-compose.gpu-5060.yml`, ~34 con p95 de 3,4 s)
+LLM solo en la GPU 0 y TTS + STT en la GPU 1. Con Gemma 4 26B (vigente) la capacidad no está medida;
+con el Qwen3.5-9B anterior eran ~32 llamadas simultaneas con p95 <= 3 s (CAP-001), y con Gemma el
+techo va a ser más bajo (KV cache ~5 veces menor). La 5060 Ti (`docker-compose.gpu-5060.yml`, ~34 con p95 de 3,4 s)
 fue una prueba (ver `docs/capacity/` y `AGENTS.md`; mediciones anteriores en `docs/archive/`).
 Driver probado: `nvidia-driver-580-open` (minimo rama 580, imagenes cu130); host desde cero:
 `docs/MIGRACION_SERVER.md`.
@@ -462,7 +464,7 @@ web/                         UI (React + Vite)
 tests/                       API, limites, motor con LLM falso + escenarios contra el LLM real
 ```
 
-**Un turno:** llega el mensaje (por la API o transcripto por el STT en una llamada) →
+**Un turno del motor estructurado (`engine: structured`):** llega el mensaje (por la API o transcripto por el STT en una llamada) →
 `ConversationEngine.process_turn` espera la extracción del turno anterior (hasta 1,5 s) → el LLM de
 conversación recibe workflow, conversación completa, estado (datos conocidos, objetivos pendientes,
 lo último que preguntó) y el mensaje nuevo, y devuelve `assistant_message`, `answered` (si el cliente
@@ -478,7 +480,7 @@ solo ese campo; si tampoco sale, lo marca respondido sin dato (`answered_without
 vuelve a preguntar. Al completar, el resultado se calcula con los datos extraídos; si el resultado
 sería el objetivo (`goal`) pero faltan datos obligatorios, es `incompleta`.
 
-**Motor clásico (`engine: classic`):** la alternativa sin estado por turno. El prompt de sistema se
+**Motor clásico (`engine: classic`, el de por defecto):** sin estado por turno. El prompt de sistema se
 arma de la definición (agente, objetivo, reglas, datos a obtener con su pregunta y condición, base de
 conocimiento y mensajes de cierre); la conversación va como mensajes multiturno y el LLM responde
 texto, que va directo al TTS. Al despedirse agrega `[FIN]` (no se dice) y ahí se hace la única
@@ -558,6 +560,7 @@ conversaciones por texto aparecen como origen "API".
 
 **Tests:** `make test` (los escenarios contra el LLM se saltean si `vllm-llm` no responde).
 
-Medido (2026-09-23, Qwen3.5-4B sin carga): los 5 escenarios de extraccion pasan 25/25; una
-conversacion completa de 7 turnos tarda 1,1-1,7 s por turno de LLM. La respuesta no se streamea
-(sale entera del JSON), asi que esa latencia se suma entera antes del TTS.
+Medido (2026-09-23, Qwen3.5-4B sin carga, motor estructurado): los 5 escenarios de extraccion
+pasan 25/25; una conversacion completa de 7 turnos tarda 1,1-1,7 s por turno de LLM. En una llamada
+la respuesta se streamea con los dos motores (`on_message` en `app/llm/client.py`): el TTS empieza
+con la primera frase, sin esperar el turno completo.

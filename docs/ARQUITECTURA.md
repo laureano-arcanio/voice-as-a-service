@@ -140,7 +140,9 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
   "knowledge": "…",
   "fields": {
     "contact_name": {"priority": 10, "description": "Nombre", "type": "string", "required": true,
-                     "question": "¿Con quién hablo?"}
+                     "question": "¿Con quién hablo?"},
+    "wants_demo": {"priority": 20, "description": "Quiere una demo", "type": "boolean", "required": true,
+                   "question": "¿Te interesa ver una demo?"}
   },
   "completion": {"outcomes": [
     {"id": "demo", "label": "Pide demo", "when": {"wants_demo": true}, "message": "…", "goal": true},
@@ -230,8 +232,9 @@ El formulario de contacto de la landing (`POST /demo/contact`, misma sesión) gu
    - **libre o sin agente:** se corta (`number_without_agent`);
    - **sin lugar o sin minutos:** queda `rechazada` y el que llama escucha `QUOTA_REJECT_MESSAGE`;
    - **si no:** conversación con el agente del número y llamada `entrante`.
-3. Hoy Anura entrega todos los números de una cuenta con el mismo destino, y Asterisk los manda como
-   `+54<ANURA_DID>` (ver [`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md)).
+3. Anura manda el número marcado (formato nacional con 0) y Asterisk lo pasa a LiveKit como `+54` + 10
+   dígitos; sin un número válido usa `+54<ANURA_DID>`. Un número que no está en el inbound trunk
+   (`make livekit-sip`) da 404 (ver [`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md), sección 1).
 
 ### Mensaje de WhatsApp
 
@@ -242,8 +245,12 @@ El formulario de contacto de la landing (`POST /demo/contact`, misma sesión) gu
    contacto durante `WA_DEBOUNCE_SECONDS`. Un audio se baja por la API de media, se pasa a WAV de
    16 kHz con PyAV y se transcribe con `stt-parakeet`; el texto entra al mismo debounce, marcado como
    nota de voz, y el turno espera a que termine.
-3. Con el lock del contacto: conversación activa (no completada y con actividad en las últimas
-   `WA_SESSION_HOURS`) o una nueva sin apertura, `process_turn`, `send_text` y `mark_read`.
+3. Con el lock del contacto: el hilo abierto (`store.active_thread`: sin cerrar, sin pausar y con un
+   mensaje del contacto en las últimas `WA_SESSION_HOURS`) o uno nuevo sin apertura, `process_turn`,
+   `send_text` y `mark_read`. Que el motor haya dado la conversación por completada (`[FIN]`) **no**
+   cierra el hilo: un mensaje después del cierre la retoma con el historial y la misma versión del
+   agente. Un hilo nuevo usa la versión vigente del agente del número, o la del agente de la campaña
+   si el contacto responde a una (ver [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md), 5.5).
    El motor trabaja igual que en una llamada (el clásico no extrae en cada turno). El equivalente del
    corte es el fin del chat: cerrarlo desde el dashboard, llegar a `WA_MAX_TURNS` o vencer
    (`WA_SESSION_HOURS` sin mensajes del contacto, barrido cada 5 min en el lifespan de `app`). Los
@@ -393,8 +400,9 @@ lo de esta sección es lo que lo protege.
   `/login`. Guardas por rol en rutas y navegación.
 - **Build:** `web/dist`. FastAPI sirve `/assets/*` y cualquier otra ruta que no sea de la API
   devuelve `index.html` (sin cache; los assets llevan hash).
-- **Desarrollo:** `make web-dev` (Vite en :5173 con proxy de `/api` a `VITE_API_PROXY`).
-  `scratch/dev_backend.sh` levanta la API sobre SQLite en :8111, sin tocar el stack.
+- **Desarrollo:** `make web-dev` (Vite en :5173 con proxy de `/api` al `app` del stack, :8011) o
+  `npm run dev` en `web/` contra `make dev-backend` (API sobre SQLite en :8111, sin tocar el stack). Ver
+  [`web/README.md`](../web/README.md).
 
 ## Tests y calidad
 

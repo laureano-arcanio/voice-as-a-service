@@ -57,7 +57,7 @@ Estos costos van sobre el plan mensual (ver [`botmaker-precios-planes.md`](botma
 ## Comparación con este proyecto
 
 - Mismo producto: STT, LLM y TTS sobre SIP o WhatsApp, con handoff a humanos y motor de flujos.
-- Botmaker usa inferencia de terceros y cobra por llamada (USD 0,07 hasta 2 min, USD 0,30 hasta 60 min); acá la inferencia es propia y el costo es el hardware (ver [`../../capacity/calculadora-costos.html`](../../capacity/calculadora-costos.html)).
+- Botmaker usa inferencia de terceros y cobra por llamada (USD 0,07 hasta 2 min, USD 0,30 hasta 60 min); acá la inferencia es propia y el costo es el hardware (ver [`../../calculadora-costos.html`](../../calculadora-costos.html)).
 - Botmaker no publica latencia ni concurrencia; acá están medidas en [`../../capacity/`](../../capacity/README.md) (CAP-002: ~22 llamadas con p95 de espera ≤ 2,8 s por servidor).
 
 ## Punto fuerte y base de clientes

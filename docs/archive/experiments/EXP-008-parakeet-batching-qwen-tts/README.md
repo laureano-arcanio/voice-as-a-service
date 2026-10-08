@@ -19,7 +19,7 @@
 - Host: server de validación (ver [README](../README.md#entorno-de-validación)). `agent` y los callers corren acá.
 - Loadtest: `make loadtest ARGS="--levels 16,32 --turns 6"`; warm-up `--levels 2 --turns 2` (2/2 ok), con fin marcado en `1790172467`.
 - Tandas: sin hueco entre ellas. El corte está en el pico de saludos de TTS de la tanda de 32 (17 síntesis en vuelo en `1790172627`).
-- Run crudo (local): `scripts/loadtest/monitor/run_20260923_110625_parakeet_batch_qwentts`; config efectiva en [meta.json](meta.json). CSV del cliente: [loadtest.csv](loadtest.csv).
+- Run crudo (local): `scripts/loadtest/monitor/run_20260923_110625_parakeet_batch_qwentts`; config efectiva en [meta.json](meta.json). CSV del cliente: [loadtest.csv](loadtest.csv) (`scripts/loadtest/results/loadtest_1790172476.csv`, copiado el 8-oct-2026).
 
 ## Resultados
 

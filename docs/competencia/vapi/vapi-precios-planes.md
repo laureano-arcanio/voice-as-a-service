@@ -67,7 +67,7 @@ Agentes ilimitados, evals y simulaciones, monitoreo, grabación, transcripción 
 
 - El precio de plataforma es bajo (USD 0,05/min) pero el total real es 2 a 3 veces eso, y depende de qué modelos elija el cliente. El costo se vuelve opaco: queja recurrente en reseñas.
 - Contra Botmaker Callbots (USD 0,07 por llamada de hasta 2 min, USD 0,30 hasta 60 min): una llamada de 5 min cuesta USD 0,41 a 0,65 en Vapi y USD 0,30 en Botmaker, más el plan mensual de cada uno.
-- Contra este proyecto: el costo por minuto de Vapi es variable y escala lineal con el uso; acá es fijo por servidor (ver [`../../capacity/calculadora-costos.html`](../../capacity/calculadora-costos.html)).
+- Contra este proyecto: el costo por minuto de Vapi es variable y escala lineal con el uso; acá es fijo por servidor (ver [`../../calculadora-costos.html`](../../calculadora-costos.html)).
 
 ## No publicado
 

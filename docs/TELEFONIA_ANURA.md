@@ -27,7 +27,8 @@ controla quién puede usar la troncal.
 1. Asterisk se registra en `ANURA_DOMAIN:55090` con `ANURA_USER`/`ANURA_PASSWORD`.
 2. Alguien llama al número de la troncal. Anura manda el INVITE a Asterisk, que
    lo reconoce porque viene de las redes de Anura.
-3. Asterisk lo reenvía a `LIVEKIT_SIP_HOST` con destino `+54<ANURA_DID>` y se
+3. Asterisk lo reenvía a `LIVEKIT_SIP_HOST` con destino `+54<número marcado>` (o `+54<ANURA_DID>` si no
+   llega uno válido) y se
    autentica con usuario `livekit` y `LIVEKIT_SIP_PASSWORD`.
 4. El inbound trunk de LiveKit acepta la llamada. La dispatch rule crea una room
    `anura-...` y despacha el agente (`LIVEKIT_AGENT_NAME`).
@@ -189,7 +190,7 @@ Crea (o actualiza, si ya existen) tres objetos en el proyecto de LiveKit de
 
 | Objeto | Nombre | Qué hace |
 |---|---|---|
-| Inbound trunk | `anura-asterisk-inbound` | Acepta llamadas a `+54<ANURA_DID>` que llegan con usuario `livekit` y la clave |
+| Inbound trunk | `anura-asterisk-inbound` | Acepta llamadas a `+54<ANURA_DID>` y a los números de `phone_numbers` que llegan con usuario `livekit` y la clave |
 | Dispatch rule | `anura-asterisk-dispatch` | Crea una room `anura-*` por llamada y despacha el agente |
 | Outbound trunk | `anura-asterisk-outbound` | Manda las salientes a `127.0.0.1:5080/udp` con LiveKit propio; con Cloud, a `<IP pública>:5080/udp`, originadas desde Brasil |
 
@@ -226,7 +227,7 @@ Para ver los mensajes SIP completos: `make pbx-cli` y después
 | Registro `Unregistered` o "No response received" | No llega a `ANURA_DOMAIN:55090` | `getent hosts $ANURA_DOMAIN`. Revisar que la red deje salir UDP 55090 |
 | Registrado, pero al llamar suena y en `make logs S=asterisk` no aparece "Entrante de Anura" | Anura no le manda la llamada a la terminal registrada | En el panel, el plan de llamada de la cuenta dueña del número tiene que llamar a la terminal con la que se registra Asterisk (ver "Datos de Anura"). Registrarse con una cuenta de *Troncales* no sirve |
 | Registrado, pero las entrantes no llegan a Asterisk | Anura no puede entrar por el NAT | Anura entra por el 5081 gracias al registro (no se reenvía): SIP ALG apagado, registro renovándose (`expiration=120`), IP pública correcta. El 5080 no tiene que ver |
-| Llega a Asterisk y LiveKit responde 404 | El número no coincide con el inbound trunk | `ANURA_DID` tiene que ser el mismo en Asterisk y en LiveKit. Correr de nuevo `make livekit-sip` |
+| Llega a Asterisk y LiveKit responde 404 | El número marcado no está en el inbound trunk | Cargarlo en Números y correr de nuevo `make livekit-sip`. `ANURA_DID` tiene que ser el mismo en Asterisk y en LiveKit |
 | Llega a Asterisk, suena y corta; `make logs S=livekit-sip` dice `status: 486, reason: flood` | LiveKit no tiene ningún inbound trunk (con LiveKit propio: se reinició el host y su Redis no persiste). `lk sip inbound list` sale vacío | `make livekit-sip` (`make up` ya lo corre al final con LiveKit propio) |
 | Llega a Asterisk y LiveKit sigue respondiendo 401/407 | Clave distinta entre Asterisk y LiveKit | Correr de nuevo `make livekit-sip` y `make up-pbx` con el mismo `LIVEKIT_SIP_PASSWORD` |
 | Saliente: el agente marca la llamada como fallida por timeout (408) | LiveKit no llega a Asterisk (`127.0.0.1:5080` con LiveKit propio; `<IP pública>:5080` con Cloud) | Con Cloud: port forwarding, o cambió la IP pública. `make up-pbx` y `make livekit-sip` |

@@ -21,8 +21,11 @@ catalogadas con sus métricas en `tts/finetune/voces.tsv` (ver el doc).
 ## Reglas
 
 - **Parar o reiniciar servicios requiere confirmación explícita.** Entrenar el 1.7B necesita
-  17 GB: hay que parar el servicio de esa GPU (en este server `vllm-tts`, GPU 0). Pedí permiso,
-  pará solo lo necesario con `docker stop <contenedor>` y anotá qué paraste para restaurarlo.
+  17 GB: hay que parar el servicio de esa GPU (en este server `vllm-tts`, en la GPU que diga el
+  reparto vigente de `AGENTS.md`; hoy la 1). Pedí permiso, pará solo lo necesario con
+  `docker stop <contenedor>` y anotá qué paraste para restaurarlo.
+- **Fijá la GPU siempre** (`export GPU=<n>` antes de `run.sh`): por defecto usa la 0, que es la
+  del LLM en vivo.
   Generar y evaluar (~5 GB) entra al lado de `vllm-tts` sin parar nada.
 - Todo corre con `tts/finetune/run.sh`. No instales nada en el host.
 - Las salidas van a `tts/finetune/work/` (no versionado). Los archivos sueltos de prueba, a `scratch/`.

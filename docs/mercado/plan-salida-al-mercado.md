@@ -8,8 +8,11 @@ ARS 1.525.
 
 ## 0. Etapa actual: exploración (desde el 2-oct-2026)
 
-El MVP está terminado (voz entrante y saliente, agentes por cliente, demo en la landing; WhatsApp
-espera la aprobación de Meta). Esta etapa es un **piloto comercial para descubrir quién paga y por
+El MVP está terminado (voz entrante y saliente, agentes por cliente, demo en la landing). **WhatsApp
+(8-oct-2026), adelantado respecto de la hoja de ruta de abajo:** texto, notas de voz, campañas de
+plantillas y llamadas por SIP en producción con el número de Atentina; que un cliente conecte su propio
+número espera la aprobación de Meta (estado por parte en [`../WHATSAPP_PLAN.md`](../WHATSAPP_PLAN.md)).
+Campañas salientes **de voz**, derivación a humano y grabación de llamadas: no implementadas. Esta etapa es un **piloto comercial para descubrir quién paga y por
 qué**, no para ejecutar un foco ya elegido.
 
 - Los casos de uso de las secciones 2 y 3 son **hipótesis de partida**, no un límite. Se habla con
@@ -96,7 +99,9 @@ argentinas y los datos en el país."
 1. **Por resultado (cobranzas):** por llamada atendida o por promesa de pago, con tope mensual.
    Es lo que el comprador de cobranzas ya entiende y ningún revendedor de Vapi puede seguir.
 2. **Packs con base fija más minutos (recordatorios, turnos, entrante):** los de la
-   [calculadora de costos](../calculadora-costos.html): Inicial, Pyme, Empresa, Corporativo.
+   [calculadora de costos](../calculadora-costos.html): Inicial, Pyme, Empresa, Corporativo. Son
+   escenarios de costos; los planes publicados son los de la landing (Mostrador, Sucursal, Central y Red,
+   `landing/src/data/site.ts`). La calculadora no está conectada a los tiers de la base.
    En PyMEs la base fija pesa más que los minutos.
 3. **Mayorista para canales:** USD 0,10 por minuto o 20-30 % de comisión recurrente.
 
@@ -112,7 +117,7 @@ Solo lo que necesita el caso de uso; el resto se posterga.
 | Reportes | Por campaña: contactados, resultado, promesas, minutos, costo por gestión; export CSV | A construir |
 | Integración | Webhook de resultado y API para que el software del cliente cargue y lea | Parcial |
 | Telefonía | Números de Anura a nuestro nombre, minutos de agente (no reventa de telefonía) | Listo; ver términos de Anura |
-| Capacidad | Un servidor CAP-002: 22 llamadas simultáneas, ~163.000 minutos por mes en horario comercial | Listo |
+| Capacidad | Medida con el LLM anterior (Qwen3.5-9B): 22 llamadas simultáneas en CAP-002, ~32 en CAP-001 (~163.000 minutos por mes en horario comercial con 22). Con Gemma 4 26B, el LLM vigente desde el 6-oct-2026: **sin medir**, y va a ser menos | A medir |
 | Calentamiento | El TTS tarda más de 20 s en el primer pedido: calentar antes de cada campaña | Conocido |
 
 Segundo trimestre: WhatsApp en el mismo agente (texto y Calling API), que es donde el cliente de

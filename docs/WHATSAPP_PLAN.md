@@ -1,6 +1,17 @@
 # Plan: WhatsApp en el mismo agente (mensajería)
 
-Diseño (2026-09-28). **Estado (1-oct-2026): fases 0 y 1 en producción con el número de prueba (el agente responde por texto) y notas de voz de entrada y salida (fase 3 parcial). Fase 2 (Tech Provider): verificación del negocio aprobada y de acceso en revisión; el código de Embedded Signup está implementado y sin desplegar ([5.3](#53-fase-2-implementada)). Fase 5 (6-oct-2026): llamadas de WhatsApp por SIP atendidas por el agente de voz con el número de Atentina ([5.4](#54-fase-5-llamadas-por-sip-6-oct-2026)).** El plan de salida al mercado
+Diseño (2026-09-28). **Estado al 8-oct-2026:**
+
+| Parte | Código | Desplegado | Aprobación de Meta | Prueba punta a punta |
+|---|---|---|---|---|
+| Texto (fases 0 y 1, [5.1](#51-fase-1-lo-implementado)) | sí | sí | — | sí, número de prueba y el de Atentina |
+| Notas de voz (fase 3 parcial, [5.2](#52-fase-3-parcial-audios)) | sí | sí | — | sí (1-oct-2026) |
+| Embedded Signup (fase 2, [5.3](#53-fase-2-implementada)) | sí | sí (migración 0005) | acceso de Tech Provider **en revisión**: los clientes todavía no pueden conectar su número | no, falta el alta real de un cliente |
+| Campañas (fase 4, [5.5](#55-fase-4-campañas-salientes-en-producción-desde-el-7-oct-2026)) | sí | sí (7-oct-2026, migración 0008) | plantillas, por cada una | — |
+| Llamadas por SIP (fase 5, [5.4](#54-fase-5-llamadas-por-sip-6-oct-2026)) | sí | sí | sí, con el número de Atentina | sí, con audio en los dos sentidos |
+| Derivación a humano, modo verificación (`verify.py`), consumo por tier | no | — | — | — |
+
+Las secciones 1 a 3 son el diseño original; donde no coincide con lo implementado, lo dicen. El plan de salida al mercado
 ([`mercado/plan-salida-al-mercado.md`](mercado/plan-salida-al-mercado.md), secciones 4 y 7) pone
 WhatsApp texto en el mes 5 y Calling en el 6: es donde el cliente de cobranzas sigue la conversación
 y el canal que Vapi no tiene y Botmaker sí
@@ -9,7 +20,7 @@ y el canal que Vapi no tiene y Botmaker sí
 **Fase 1 en vivo (1-oct-2026):** el agente responde texto por WhatsApp con el mismo motor. Detalle en
 [5.1](#51-fase-1-lo-implementado).
 
-**Audios (parte de la fase 3) implementados (1-oct-2026), pendientes de deploy:** las notas de voz entran
+**Audios (parte de la fase 3), en producción (probados el 1-oct-2026):** las notas de voz entran
 por el STT y la respuesta puede salir como nota de voz por el TTS. Ver [5.2](#52-fase-3-parcial-audios).
 
 Responde:
@@ -27,7 +38,7 @@ Responde:
 |---|---|---|
 | Vía de acceso | **Cloud API de Meta, directo**, con nuestra app como *Tech Provider* | Sin intermediario por mensaje (un BSP como 360dialog, Twilio o Infobip cobra un margen sobre Meta y agrega otra dependencia). Meta es inevitable: WhatsApp es de Meta. Es la única dependencia externa nueva del stack |
 | Librerías no oficiales (Baileys, whatsapp-web.js) | **Descartadas** | Violan los términos; Meta banea el número. Inaceptable con el número de un cliente |
-| Motor | **El mismo `ConversationEngine` y los mismos YAML**, con reglas por canal | `POST /conversations/{id}/turn` ya conversa por texto; el eval de calidad (`docs/eval/`) corre así. Cambia el prompt de canal, no el motor |
+| Motor | **El mismo `ConversationEngine` y las mismas definiciones de agente** (JSON versionado en la base), con reglas por canal | `POST /conversations/{id}/turn` ya conversa por texto; el eval de calidad (`docs/eval/`) corre así. Cambia el prompt de canal, no el motor |
 | Dónde corre | En `app` (FastAPI), no en `agent` | El webhook es HTTP y no hay room; los audios van al STT y al TTS por HTTP, como la prueba de voz. `agent` sigue siendo solo voz |
 | Datos | Mensajes y estado en PostgreSQL, como las llamadas | El dashboard muestra la conversación igual que una llamada, con origen "WhatsApp" |
 | Salientes | Solo con plantillas aprobadas por Meta (categoría *utility* para recordatorios y confirmaciones) | Fuera de la ventana de 24 h Meta no entrega texto libre. Es la regla de la plataforma, no una limitación nuestra |
@@ -56,10 +67,10 @@ si el cliente manda tres mensajes seguidos en 2 s, se juntan en un turno (el equ
   primer mensaje del agente, pensado para una llamada donde el agente habla primero. Por WhatsApp
   escribe primero el cliente: se crea la conversación sin apertura y el primer mensaje es el turno 1,
   así el LLM saluda y contesta lo que preguntó: `new_conversation(..., opening=False)`.
-- *Saliente* (el negocio inicia): `POST /wa/messages {to, template, workflow_id, params}` manda la
-  plantilla y crea la conversación con el texto de la plantilla como apertura. La respuesta del
-  cliente es el turno 1 y abre la ventana de 24 h. Sirve para cobranza, turnos y recordatorios; es
-  la campaña mínima de la sección 4 del plan de mercado, por texto.
+- *Saliente* (el negocio inicia): por **campañas** ([5.5](#55-fase-4-campañas-salientes-en-producción-desde-el-7-oct-2026)):
+  una plantilla aprobada a una lista. No hay un `POST /wa/messages` suelto (era el diseño original).
+  La respuesta del contacto abre la conversación con el texto de la plantilla como apertura y el
+  agente de la campaña, y abre la ventana de 24 h.
 
 **Fin de conversación.** El motor trabaja igual que en una llamada: el clásico extrae al despedirse
 (`[FIN]`) o al terminar la conversación, nunca en cada turno. El fin de un chat (cerrado desde el
@@ -68,11 +79,12 @@ llama a `engine.finish`, como el corte de una llamada. Por WhatsApp el `[FIN]` s
 historial) mientras haya mensajes dentro de las 24 h; tras 24 h sin actividad, el siguiente abre otra.
 La conversación corre con la versión del agente con que empezó: para que un contacto pase a la versión
 vigente sin esperar 24 h, **Cerrar conversación** en el detalle (`POST /api/v1/whatsapp/threads/{id}/close`,
-`wa_threads.closed_at`) hace que su próximo mensaje abra otra. La
-derivación a humano queda como resultado del workflow (`outcome` con `handoff: true`): la app deja de
-responder en esa conversación y avisa (webhook del cliente o email).
+`wa_threads.closed_at`) hace que su próximo mensaje abra otra. 
+**Derivación a humano: no implementada.** El diseño era un `outcome` con `handoff: true` que deja de
+responder y avisa; hoy `Outcome` no tiene ese campo y nada pone `wa_threads.paused` en true. Un
+resultado que *sugiere* derivar no es una transferencia a una persona.
 
-**Reglas por canal.** Las reglas de voz están en los YAML ("números en palabras", "correos como se
+**Reglas por canal.** Las reglas de voz están en las definiciones de agente ("números en palabras", "correos como se
 dicen", "dos frases por turno") y en `SYSTEM_PROMPT` ("agente conversacional telefónico"). El canal
 se guarda en la conversación (`conversations.channel`, `voice | whatsapp`, default `voice`), no en el
 workflow, y `prompt.py` suma el bloque base del canal:
@@ -92,7 +104,7 @@ por canal.
 `conversations` sigue guardando el estado y los mensajes; `wa_threads` es a WhatsApp lo que
 `call_logs` es a la telefonía. La UI lista origen `whatsapp` junto a `api`, `entrante` y
 `saliente`, y `/calls/<id>` muestra el chat igual que una llamada (sin latencia por turno de STT/TTS).
-Los mensajes cuentan contra el tier del cliente (a definir: conversaciones o mensajes por mes).
+**Tier:** los mensajes todavía no consumen cuota; solo se exige el cliente activo (pendiente, fase 3).
 
 **Archivos:**
 
@@ -105,7 +117,7 @@ app/whatsapp/
   store.py        acceso a wa_accounts, wa_threads, wa_messages (modelos en app/models/whatsapp.py)
   signup.py       fase 2: Embedded Signup (código → token, suscripción, registro), refresco y plantillas
   crypto.py       fase 2: tokens y PIN cifrados con WA_TOKEN_KEY (Fernet)
-  verify.py       registro del número: pedir código por voz, capturarlo de la llamada, verificar, registrar con PIN
+  verify.py       (no implementado) registro del número: pedir código por voz, capturarlo de la llamada, verificar, registrar con PIN
 app/api/routers/whatsapp.py  API de cuentas, registro y prueba de envío (/api/v1/whatsapp/...)
 web/src/features/whatsapp/   UI: cuentas conectadas, estado del número, registro, prueba de envío
 (el agente es el mismo de la base; una variante para chat es otra versión o agente del cliente)
@@ -170,7 +182,8 @@ poder atenderla "una persona". Nuestro agente atiende al primer ring, así que s
    que se actualiza cada segundo; se lee el código ahí y se carga en `verify_code`. El agente va a
    contestarle a la locución, no importa: la locución repite el código varias veces. Confirma que
    Anura acepta la llamada internacional de Meta y que Parakeet la transcribe.
-2. **Modo verificación** (`verify.py`): un botón en la UI (`web/src/features/whatsapp/`) deja una marca
+2. **Modo verificación** (`verify.py`, **no implementado**; el número de Atentina se registró con la
+   etapa 1 el 2-oct-2026, ver [`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md), sección 8): un botón en la UI (`web/src/features/whatsapp/`) deja una marca
    `wa_verification_pending` (en la base). Mientras está puesta, `agent` trata la entrante sin
    metadata como verificación: no habla, transcribe hasta 60 s, saca los 6 dígitos (regex sobre
    cifras y sobre dígitos en palabras, con `scripts/stt_corpus/entity_match.py`), los guarda y corta.
@@ -362,20 +375,20 @@ FakeLLM y payloads con la forma de Meta en `tests/fixtures/wa/`.
   el detalle muestra el chat, el número del negocio, el último mensaje y los envíos fallidos.
 - **Tier:** solo se exige el cliente activo. Consumo por mensajes y costo de Meta: pendiente (fase 3).
 
-**Para desplegar** (con la app y el número de prueba ya suscriptos):
+**Despliegue (hecho el 1-oct-2026; queda como procedimiento)** (con la app y el número de prueba ya suscriptos):
 1. `make migrate` (0004: `wa_accounts`, `wa_threads`, `wa_messages` y `conversations.channel`).
 2. Recrear `app` con la imagen nueva (compila la UI).
 3. `make wa-account PNID=1376760278849754 WABA=1763082738667089 NUMBER="+1 555 145 6632" AGENT=<slug>`
    (cliente `atentina` por defecto), o desde la página WhatsApp.
 4. Escribirle al número de prueba y ver la conversación en el dashboard.
 
-**Queda de la fila de la fase 1:** saliente por plantilla desde la app (fase 3), modo verificación
+**Queda de la fila de la fase 1:** modo verificación
 (3.1, etapa 2) y el eval con canal `whatsapp` comparado con voz.
 
 ### 5.2 Fase 3 parcial: audios
 
-Estado al 1-oct-2026: código y tests listos (`tests/test_whatsapp_audio.py` y los de service y graph,
-con Graph, STT y TTS simulados). **No está desplegado.** Sin migración: `wa_messages.type` ya admite
+En producción desde el 1-oct-2026 (prueba en vivo abajo). Tests: `tests/test_whatsapp_audio.py` y los de
+service y graph, con Graph, STT y TTS simulados. Sin migración: `wa_messages.type` ya admite
 `audio` y `conversations.messages` es JSON.
 
 - **Entrada** (`service._on_audio`, `audio.transcribe`): `GET /{media_id}` sin `phone_number_id` (Meta
@@ -409,7 +422,7 @@ con Graph, STT y TTS simulados). **No está desplegado.** Sin migración: `wa_me
   guarda el tipo `audio`, sin el audio ni el texto. Logs con `stt_ms`, `tts_ms`, bytes y segundos, sin
   texto ni teléfonos.
 
-**Para desplegar:**
+**Despliegue (hecho el 1-oct-2026; queda como procedimiento):**
 1. Recrear `app` con la imagen nueva: trae `av` (PyAV) y la UI con el rótulo. Verificar en el build que
    el `av` de la imagen tenga `libopus` (`python -c "import av; av.codec.Codec('libopus','w')"`).
 2. Si el `.env` tiene `WA_UNSUPPORTED_REPLY` con el texto viejo ("solo puedo leer mensajes de texto"),
@@ -435,8 +448,11 @@ los 512 KB. El TTS domina el turno; la capacidad con carga sigue sin medir.
 
 ### 5.3 Fase 2 implementada
 
-Estado al 1-oct-2026: código y tests listos, **sin desplegar**. Falta la aprobación de acceso de Meta
-(Tech Provider) y el App Review de `whatsapp_business_management` y `whatsapp_business_messaging`.
+Estado al 8-oct-2026: **desplegada** (migración 0005, `WA_CONFIG_ID` y `WA_TOKEN_KEY` en `.env`,
+`app.atentina.com.ar` en el túnel). Falta la aprobación de acceso de Meta (Tech Provider, en revisión) y el
+App Review de `whatsapp_business_management` y `whatsapp_business_messaging`: hasta entonces un cliente no
+puede completar el alta. `CSP_REPORT_ONLY` sigue en `true` (paso 2 de abajo): volver a `false` después del
+primer alta real.
 
 - **Alta por el cliente** (`POST /api/v1/whatsapp/signup`, `app/whatsapp/signup.py`): cualquier usuario
   con sesión (no API keys), límite `WA_SIGNUP_PER_HOUR` por cliente. Pasos: código → business token,
@@ -508,7 +524,7 @@ retoma cuando Meta la apruebe.
 - Lo atiende el agente `atentina_comercial` (plantilla en `app/agents/templates/`), por WhatsApp y por llamada.
 - Medio de pago: Visa en la cuenta de pago "Atentina" (ARS), sin aviso de "Payment method missing" (visto el 6-oct-2026).
 
-**Para desplegar (todo pendiente):**
+**Despliegue (pasos 1 a 4 hechos; el 5 espera la aprobación de Meta):**
 
 1. **Meta, configuración de Embedded Signup** (developers.facebook.com → app `Atentina`):
    1. *Facebook Login for Business* → *Settings* → *Client OAuth settings*: activar "Client OAuth login",
@@ -595,8 +611,8 @@ Variables (`.env.example`): `WA_SIP_HOST` (`sip.atentina.com.ar`), `WA_SIP_PORT`
   guarda como teléfono de la llamada. Header `x-wa-meta-wacid` (va al log).
 - Meta llegó desde `66.220.149.16` (AS32934).
 - La llamada quedó en el dashboard como entrante de voz (`call_logs`): 34 s, cortó el usuario. **La
-  conversación guardó solo el saludo del agente**: falta confirmar que el audio del usuario llegue
-  al STT (con `pjsip show channelstats` durante la llamada, como en `TELEFONIA_ANURA.md`, sección 4).
+  conversación guardó solo el saludo del agente** en esa primera prueba. Después se confirmó una
+  llamada con audio en los dos sentidos (el usuario, 8-oct-2026).
 
 #### Trampas y pendientes
 
@@ -726,7 +742,7 @@ programadas (fecha de inicio) y plantillas con imagen o variables fuera del cuer
 - **Verificación del negocio enviada (1-oct-2026):** como *Sole Proprietorship* registrada, nombre legal
   ARCANIO LAUREANO MARTIN y nombre alternativo "Atentina". **Verificado** el mismo día.
 - **Verificación de acceso (Tech Provider) enviada (1-oct-2026):** Plataforma SaaS, un solo portafolio,
-  sitio atentina.com.ar. En revisión (~5 días). Plazo de Meta para completarla: 30-nov-2026, si no restringe la app.
+  sitio atentina.com.ar. En revisión (~5 días hábiles); el 8-oct-2026 seguía en revisión, sin pedidos de Meta. Plazo de Meta para completarla: 7-dic-2026 (el panel dice "12/7/2026"), si no restringe la app.
 - **Notas de voz de Meta:** para que se vea como nota de voz, OGG con Opus y mono, y `"voice": true` en
   el mensaje; hasta 16 MB, sin duración máxima documentada. Hasta 512 KB se muestra con play; con más,
   para descargar. El webhook trae `audio.voice` (nota grabada en WhatsApp) y, desde nov-2025 y no en

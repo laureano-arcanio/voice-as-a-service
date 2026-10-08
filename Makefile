@@ -36,7 +36,7 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
         sh psql health gpu \
         pbx-cli pbx-status livekit-sip livekit-sip-si-local \
         wa-calling-status wa-calling-enable wa-calling-disable wa-sip-password sip-cert \
-        migrate create-admin api-key web-dev web-build web-check openapi landing-dev \
+        migrate create-admin api-key dev-backend web-dev web-build web-check openapi landing-dev \
         test eval-motor eval-llamadas eval-llm eval-llm-juez eval-llm-report loadtest-audio loadtest loadtest-report capacity capacity-monitor capacity-monitor-stop capacity-analyze gpubench stt-eval stt-corpus \
         db-reset clean
 
@@ -198,6 +198,9 @@ sip-cert: ## Certificado de Let's Encrypt para WA_SIP_HOST por DNS de Cloudflare
 		certbot/dns-cloudflare certonly --non-interactive --agree-tos --register-unsafely-without-email \
 		--dns-cloudflare --dns-cloudflare-credentials /cloudflare.ini --dns-cloudflare-propagation-seconds 30 \
 		--keep-until-expiring -d $$host
+
+dev-backend: ## API de desarrollo sobre SQLite (scratch/dev.db) en :8111, sin tocar el stack. Requiere .venv
+	scripts/dev_backend.sh
 
 web-dev: ## UI en modo desarrollo (Vite, :5173) contra la API de :8011. Requiere Node 22+
 	cd web && npm install && VITE_API_PROXY=$${VITE_API_PROXY:-http://127.0.0.1:8011} npm run dev

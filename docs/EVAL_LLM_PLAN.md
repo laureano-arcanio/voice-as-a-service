@@ -1,7 +1,9 @@
 # Plan: evaluación de calidad de llamadas por tipo de agente y modelo LLM
 
 Diseño (2026-09-26). **Implementado (fases 0 a 2 y 4):** uso y estado en
-[`eval/README.md`](eval/README.md), código en `scripts/eval/`. Complementa al test de capacidad
+[`eval/README.md`](eval/README.md), código en `scripts/eval/`. **Todavía no hay runs registrados** (ningún
+`EVAL-NNN`): el evaluador existe, pero ningún modelo está validado con él. Donde este diseño no coincide
+con el código (sufijos de motor, `personas/`, modelo vigente), manda el código; está marcado abajo. Complementa al test de capacidad
 ([`CAPACITY_TEST_PLAN.md`](CAPACITY_TEST_PLAN.md)): aquel mide cuántas llamadas aguanta el pipeline,
 este mide **qué tan bien conversa el LLM**, en varios tipos de agente y con varios tipos de cliente,
 para comparar modelos. Responde:
@@ -29,7 +31,7 @@ para comparar modelos. Responde:
 ## 2. Tipos de agente
 
 Un agente de referencia nuevo por tipo, en `app/agents/reference/` (JSON; antes YAML en `app/workflows/`; el motor structured es el mismo archivo con sufijo `_structured`) con prefijo `eval_` (mismo motor, sin código
-nuevo). Cada uno con `engine: classic` y una variante `_structured` por `extends`.
+nuevo). Cada uno con `engine: classic`; la variante `_structured` es el mismo archivo pedido con ese sufijo en el id (`app/agents/templates.py`, `reference_data`), sin `extends`.
 
 | Agente | Qué hace | Datos a obtener | Qué pone a prueba |
 |---|---|---|---|
@@ -123,8 +125,9 @@ Un modelo es apto si, sobre todos los agentes y personas:
 
 | Modelo | Cómo se levanta | Por qué |
 |---|---|---|
-| Qwen3.5-9B w4a16 (vigente) | config actual | Línea base (EVAL-001) |
-| Gemma 4 E4B QAT w4a16 | `docker-compose.gemma4-e4b.yml` (ya existe) | Alternativa del mismo tamaño |
+| Gemma 4 26B-A4B AWQ-INT4 (vigente desde el 6-oct-2026) | config actual (`docker-compose.gemma4-26b.yml`) | Línea base del modelo en producción |
+| Qwen3.5-9B w4a16 (el anterior) | sacar el override de Gemma | Referencia: con qué se midió CAP-001 |
+| Gemma 4 E4B QAT w4a16 | `docker-compose.gemma4-e4b.yml` (ya existe) | Alternativa del mismo tamaño que el Qwen |
 | Qwen3.5-4B | override nuevo | El anterior; cuanto se pierde por bajar de tamaño |
 | Qwen3.5-9B con pensamiento (`LLM_THINKING=true`, 128 tokens) | solo `.env` | Si el pensamiento corto mejora las personas difíciles a costa de ~0,8 s |
 | DeepSeek por API como agente | `--llm-base-url` y `--llm-model` del script | Techo: cuánta calidad se deja por correr local. Solo `classic`: la API no soporta `json_schema` estricto |
@@ -149,7 +152,7 @@ scripts/eval/
   analyze.py       summary.json y report.html: tabla modelo × agente × persona, peores conversaciones
                    con su transcript, comparación entre runs
   personas/*.yml   estilo, ficha (con campos al azar) y esperado, por agente
-  guiones/*.yml    guiones fijos por objetivo (como replay_calls.py), regresión gratis y determinista
+  guiones/*.yml    (no existe: el modo `--cliente guion` usa `personas/*.yml`) guiones fijos por objetivo, regresión gratis y determinista
   runs/            no versionado
 app/agents/reference/eval_*.json
 docs/eval/README.md, EVAL-NNN-<slug>/

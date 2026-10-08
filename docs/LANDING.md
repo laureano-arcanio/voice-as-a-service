@@ -14,8 +14,9 @@ Cloudflare Tunnel. No hay backend aparte ni base nueva: costo adicional cero.
   `/eliminacion-de-datos`, con el layout `Legal.astro`.
 - **Publicar:** push a la rama que sigue Render; solo los cambios en `landing/` despliegan.
 - **Diseño:** tokens, componentes, patrones y voz en [`DESIGN_GUIDELINE.md`](DESIGN_GUIDELINE.md).
-- **`og.png`, favicon y logos (`docs/brand/`):** se generan en `scratch/logo/` (`build_atentina.py`, y
-  `og.html` con Chrome headless a 1200 × 630), con los colores de la guía. El contenido de `og.png` va
+- **`og.png`, favicon y logos (`docs/brand/`):** se generan con `scripts/brand/`: `python scripts/brand/build_atentina.py` (con `fonttools`) escribe los SVG
+  en `docs/brand/`, y `og.html` da `og.png` con Chrome headless a 1200 × 630
+  (`google-chrome --headless --window-size=1200,630 --screenshot=landing/src/assets/og.png scripts/brand/og.html`), con los colores de la guía. El contenido de `og.png` va
   centrado, dentro del cuadrado central, para que no lo corten las miniaturas cuadradas.
 
 ## Desarrollo

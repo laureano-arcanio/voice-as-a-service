@@ -22,12 +22,12 @@ el hardware: es lo que el hardware permite. Y solo vale si la disponibilidad es 
 | **Costo por minuto** | Con inferencia propia se puede cobrar USD 0,08–0,15 por minuto. Un agente armado sobre Vapi más Twilio cuesta 0,19–0,26, y los agentes locales cobran 0,28–0,35 (plan comercial, sección 1). Las GPUs de un server tipo CAP-002 cuestan ~ARS 2,9 M (calculadora, tipo A). |
 | **Latencia** | Todo en una máquina: STT, LLM y TTS por loopback, y el worker lee y escribe la conversación en Postgres varias veces por turno. El piso medido ya es el punto débil (p50 1,66 s, CAP-002). Cualquier salto de red lo empeora. |
 | **Datos en Argentina** | Nada sale a OpenAI, Google ni ElevenLabs (Ley 25.326). Pesa en Estado, salud y cobranzas. |
-| **Capacidad** | Un server: ~22 llamadas con p95 ≤ 2,8 s, ~163.000 minutos por mes en horario comercial. El objetivo a 6 meses son 50–100 mil minutos por mes: **alcanza un server** (30–60 %). |
+| **Capacidad** | Con el Qwen3.5-9B (antes del 6-oct-2026; con Gemma 4 26B, el vigente, sin medir): un server: ~22 llamadas con p95 ≤ 2,8 s, ~163.000 minutos por mes en horario comercial. El objetivo a 6 meses son 50–100 mil minutos por mes: **alcanza un server** (30–60 %; a revalidar con la capacidad de Gemma). |
 
 | En contra (lo que hay que resolver) | Por qué importa |
 |---|---|
 | **Disponibilidad** | Hoy todo depende de una casa: energía, internet, una máquina y una persona. Un corte es una campaña de cobranza que no sale. |
-| **Operación 24×7** | La inferencia no vuelve sola después de un reinicio, y el TTS sobrecargado se cae y no se recupera (sección 2). Alguien tiene que enterarse y actuar. |
+| **Operación 24×7** | Desde el 2-oct-2026 el stack vuelve solo después de un reinicio (sección 3), pero el TTS sobrecargado se cae y no se recupera, y `docker` lo sigue viendo `running`. Alguien tiene que enterarse y actuar. |
 | **Host compartido** | Hoy corren otros proyectos en la misma máquina, y el segundo cuello medido es la CPU del host. |
 
 **Base de datos: local es lo correcto.** El worker de voz (`app/voice/worker.py`) usa la base dentro de cada
@@ -35,6 +35,8 @@ turno. Una base en la nube (Render no tiene región en Sudamérica, ~150 ms de i
 sumaría varias idas y vueltas por turno de llamada. La nube sirve para los backups, no para la base en uso.
 
 ## 2. Estado real del server (relevado el 2-oct-2026)
+
+Registro del relevamiento: lo resuelto después está en la sección 3.
 
 | Hallazgo | Riesgo | Qué hacer |
 |---|---|---|
@@ -53,11 +55,11 @@ sumaría varias idas y vueltas por turno de llamada. La nube sirve para los back
 | Qué | Dónde | Estado |
 |---|---|---|
 | Topes de las 3090 en cada arranque (280 W, núcleo ≤ 1800 MHz, memoria 9501 MHz, *persistence mode*) | `deploy/gpu-limits.sh`, `deploy/systemd/atentina-gpu-limits.service` | **Activo** (instalado con `sudo deploy/install.sh`) |
-| Stack en el arranque: compose sin build, túnel, trunks SIP y calentamiento del TTS | `deploy/boot.sh`, `deploy/systemd/atentina-stack.service` | **Habilitado**; se prueba en el próximo reinicio |
+| Stack en el arranque: compose sin build, túnel, trunks SIP y calentamiento del TTS | `deploy/boot.sh`, `deploy/systemd/atentina-stack.service` | **Activo, probado** en el reinicio del 8-oct-2026: topes aplicados a los 15 s del boot y stack listo (TTS caliente) en ~2 min (`journalctl -u atentina-stack`). No probado con un corte de luz ni con un pull de imágenes pendiente |
 | Backup diario a las 03:30 de la base (`pg_dump`), `.env` y checkpoint del TTS, 30 días, a `~/atentina-backups` (otro disco que Docker) | `scripts/ops/backup.sh`, cron del usuario | **Activo.** Restauración probada en un Postgres limpio (961 conversaciones, migración 0005); pasos en [`MIGRACION_SERVER.md`](MIGRACION_SERVER.md), 4.2. Si el host está apagado a las 03:30, ese día no hay backup (cron no recupera la corrida). Copia externa cifrada con `RCLONE_REMOTE` y `BACKUP_GPG_RECIPIENT` en `.env`: pendiente |
 | Fraude telefónico: reenvío del 5080 (SIP de LiveKit Cloud) borrado del router y ACL en el endpoint `livekit` (loopback y LAN) | router; `asterisk/conf/pjsip.conf` | **Activo.** Quedan reenviados el RTP de Anura (10000–10199), la demo web (7881, 7882) y, desde el 6-oct-2026, el TCP 5061 (llamadas de WhatsApp). El 8100 ya no estaba. Tabla completa en [`MIGRACION_SERVER.md`](MIGRACION_SERVER.md), 6 |
-| Reparto de GPU de CAP-001 (LLM solo en la GPU 0; TTS + STT en la GPU 1), sin el override de la 5060 Ti | `.env` (`COMPOSE_FILE`), `make up-inference` | **Activo.** ~4 min sin servicio al cambiarlo; TTS 0,8 s el primer pedido |
-| Chequeo cada 2 min: contenedores, app local, dashboard y webhook por el túnel, tope de las GPUs, certificado SIP de WhatsApp (<14 días) | `scripts/ops/healthcheck.sh`, cron del usuario; log en `~/atentina-ops/health.log` | **Activo.** Alertas: `ALERT_NTFY_TOPIC` (app ntfy) y vigilante externo `HEALTHCHECKS_PING_URL`: pendientes |
+| Reparto de GPU de CAP-001 (LLM solo en la GPU 0; TTS + STT en la GPU 1), sin el override de la 5060 Ti | `.env` (`COMPOSE_FILE`), `make up-inference` | **Activo.** ~4 min sin servicio al cambiarlo; TTS 0,8 s el primer pedido. Desde el 6-oct-2026 el LLM de la GPU 0 es Gemma 4 26B (`docker-compose.gemma4-26b.yml`) |
+| Chequeo cada 2 min: contenedores, app local, dashboard y webhook por el túnel, tope de las GPUs, certificado SIP de WhatsApp (<14 días) | `scripts/ops/healthcheck.sh`, cron del usuario; log en `~/atentina-ops/health.log` | **Activo.** No detecta un TTS o un LLM caído con el contenedor `running`: `/health` de `app` responde siempre `{"ok": true}`, sin mirar base, worker ni inferencia. Alertas: `ALERT_NTFY_TOPIC` (app ntfy) y vigilante externo `HEALTHCHECKS_PING_URL`: pendientes |
 | Renovación diaria (04:15) del certificado de `sip.atentina.com.ar` (llamadas de WhatsApp): renueva a 30 días del vencimiento y reinicia Asterisk solo sin llamadas en curso | `scripts/ops/sip-cert-renew.sh`, cron del usuario; log en `~/atentina-ops/sip-cert.log` | **Activo** (6-oct-2026). Ver [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md), 5.4 |
 
 ## 4. Qué falta para declarar producción con un server

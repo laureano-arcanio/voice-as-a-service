@@ -37,17 +37,16 @@ Clonar el repo no alcanza. Lo que está fuera de git:
 | Datos y runs de fine-tuning | `tts/finetune/work/` | 41 GB | no | solo para reentrenar: `rsync` del viejo, o regenerar ([`TTS_FINETUNE.md`](TTS_FINETUNE.md)) |
 | Certificado de `sip.atentina.com.ar` (llamadas de WhatsApp) | `asterisk/letsencrypt/` (de root) | KB | no | se regenera: `make sip-cert` (paso 4.3) |
 | Trunks SIP y dispatch rule de LiveKit | Redis de LiveKit, sin persistencia | — | no | se regeneran: `make livekit-sip` (lo corre `make up`) |
-| Pesos de Hugging Face | volumen `voice-as-a-service_hf_cache` (80 GB, casi todo de modelos descartados) | ~13,4 GB útiles | no | se bajan solos en el primer arranque (ningún modelo es *gated*: `HF_TOKEN` no hace falta). Opcional: copiar solo los dos en uso (paso 4.4) |
+| Pesos del LLM vigente (Gemma 4 26B, desde el 6-oct-2026) | `/home/laureano/Models/gemma-4-26B-A4B-it-qat-AWQ-INT4`, **fuera del repo y del volumen de HF**: el override `docker-compose.gemma4-26b.yml` lo monta con esa ruta fija | 17 GB | no | **no se bajan solos:** descargarlos con la revisión fijada o copiarlos del viejo (paso 4.4) |
+| Pesos de Hugging Face | volumen `voice-as-a-service_hf_cache` (80 GB, casi todo de modelos descartados) | Parakeet ~1,2 GB; el Qwen3.5-9B (~12 GB) solo para volver a él | no | se bajan solos en el primer arranque (ningún modelo es *gated*: `HF_TOKEN` no hace falta). Opcional: copiarlos (paso 4.4) |
 | Imágenes de Docker | `/var/lib/docker` | ~62 GB | no | `docker pull` y `make build` (paso 5.1) |
-| `storage/` | `./storage` montado en `app` | vacío | no | no se usa: el audio no se graba (las transcripciones están en la base). No hace falta copiarlo |
+| `storage/` | `./storage` montado en `app` | vacío | no | no se usa: el audio no se graba (las transcripciones están en la base; grabar está planeado, sin implementar). No hace falta copiarlo |
 | Crontab del usuario | `crontab -l` | — | no | paso 8.2 (líneas literales) |
 | Unidades de systemd | `/etc/systemd/system/atentina-*.service` | — | — | `sudo deploy/install.sh` (paso 8.1), desde la plantilla `deploy/systemd/` |
 
-**Antes de migrar, todo lo que usa el host tiene que estar commiteado y pusheado.** El 6-oct-2026 el
-working tree del server tenía 17 archivos modificados y archivos nuevos sin versionar que producción
-usa: `scripts/ops/sip-cert-renew.sh` (lo llama el cron) y `asterisk/conf/whatsapp/` (lo carga Asterisk
-para las llamadas de WhatsApp), además de cambios en `docker-compose.yml`, `asterisk/` y el
-`Makefile`. Un clon de `main` sin eso no tiene llamadas de WhatsApp ni renovación del certificado.
+**Antes de migrar, todo lo que usa el host tiene que estar commiteado y pusheado.** El 6-oct-2026 faltaban
+`scripts/ops/sip-cert-renew.sh` y `asterisk/conf/whatsapp/` (llamadas de WhatsApp y renovación del
+certificado); se versionaron ese día (`6a3f57a`). Repetir el chequeo antes del corte:
 
 ```bash
 git -C ~/voice-as-a-service status --short   # en el viejo: tiene que salir vacío (o copiar los cambios)
@@ -138,7 +137,7 @@ Con backup: `cp ~/atentina-backups/env/env-<último> ~/voice-as-a-service/.env &
 
 | Variable | Valor actual | Cambia si… |
 |---|---|---|
-| `COMPOSE_FILE` | `docker-compose.yml:docker-compose.livekit.yml` (LiveKit propio, vigente) | no cambia |
+| `COMPOSE_FILE` | `docker-compose.yml:docker-compose.livekit.yml:docker-compose.gemma4-26b.yml` (LiveKit propio y LLM Gemma, vigentes) | no cambia. Si el usuario o la ruta de `~/Models` cambian, ajustar el volumen del override (ruta fija `/home/laureano/Models`) |
 | `LIVEKIT_URL` | `ws://192.168.1.99:7880` | cambia la IP de la LAN. **Si el nuevo convive con el viejo en otra IP, poner la del nuevo antes del primer arranque** |
 | `LIVEKIT_LOCAL_NODE_IP` | `192.168.1.99` | cambia la IP de la LAN |
 | `LIVEKIT_NODE_IP`, `PUBLIC_HOST` | `181.104.113.28` | cambia la IP pública |
@@ -215,7 +214,7 @@ make build                                       # imágenes propias (también l
 docker compose up -d --wait --no-deps db         # volumen vacío: crea POSTGRES_DB del .env
 zcat <dump>.sql.gz | docker compose exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
 make migrate                                     # Alembic sigue desde la versión del dump; seed idempotente
-make psql   # verificar: select version_num from alembic_version;  (hoy 0007)
+make psql   # verificar: select version_num from alembic_version;  (0008 al 8-oct-2026; la última de migrations/versions/)
 ```
 
 Referencia (6-oct-2026): 4 tiers, 2 clientes, 7 agentes, 3 números, 2 `wa_accounts`, 2 usuarios.
@@ -238,9 +237,25 @@ Con el registro A `sip` ya apuntando a la IP pública (sección 7): `make sip-ce
 DNS-01 de Cloudflare con `CLOUDFLARE_DNS_API_TOKEN`; deja `asterisk/letsencrypt/`). Sin certificado,
 Asterisk arranca con "WhatsApp apagado". Alternativa: `sudo rsync -a viejo:~/voice-as-a-service/asterisk/letsencrypt/ asterisk/letsencrypt/`.
 
-### 4.4 Pesos de Hugging Face (opcional, ahorra ~13 GB de descarga)
+### 4.4 Pesos de los modelos
 
-En el viejo, solo los dos modelos en uso:
+**LLM Gemma (obligatorio).** No está en el volumen de HF: va a `~/Models` y el override lo monta. Descarga
+con la revisión que sirve el viejo (anotada el 8-oct-2026 de `.cache/huggingface/` del directorio):
+
+```bash
+mkdir -p ~/Models
+docker run --rm -v ~/Models:/m python:3.12-slim sh -c 'pip -q install "huggingface_hub[cli]" && \
+  hf download cyankiwi/gemma-4-26B-A4B-it-qat-AWQ-INT4 --revision 18a3c7285c33ee39d3e5e16ee6fb2c18f4955ef9 \
+  --local-dir /m/gemma-4-26B-A4B-it-qat-AWQ-INT4'
+sha256sum ~/Models/gemma-4-26B-A4B-it-qat-AWQ-INT4/model.safetensors
+# c0b6bbe9bacded55f45cd600c703ca299ebfb79efb2ec25023bc6bb563deb201
+```
+
+Alternativa sin internet: `rsync -a viejo:~/Models/gemma-4-26B-A4B-it-qat-AWQ-INT4 ~/Models/` y el mismo
+`sha256sum`. Que el dueño sea el usuario del repo (el contenedor lo lee como `ro`).
+
+**Volumen de HF (opcional, ahorra la descarga).** En el viejo, Parakeet (y el Qwen, solo si se quiere poder
+volver a él):
 
 ```bash
 docker run --rm -v voice-as-a-service_hf_cache:/v -v $PWD/scratch:/o alpine \
@@ -461,7 +476,7 @@ Dejar el viejo apagado (no borrado) al menos 30 días, con `atentina-stack` desh
 - [ ] `git status` limpio en el viejo y todo pusheado (sección 1)
 - [ ] Host: Ubuntu 24.04, zona horaria, driver 580, Docker + grupo, toolkit, paquetes (2)
 - [ ] Repo en `~/voice-as-a-service`; `.env` revisado con diff enmascarado (3)
-- [ ] Checkpoint con sha256 correcto; base restaurada en 0007 o posterior; certificado SIP (4)
+- [ ] Checkpoint y pesos de Gemma con sha256 correcto; base restaurada en 0008 o posterior; certificado SIP (4)
 - [ ] Imagen de vLLM por digest; topes de GPU en 280 W; inferencia con smoke test (5)
 - [ ] Router: reserva DHCP, 4 reenvíos, SIP ALG apagado (6)
 - [ ] Viejo: Asterisk y túnel parados, `atentina-stack` deshabilitado (9)
@@ -474,9 +489,6 @@ Dejar el viejo apagado (no borrado) al menos 30 días, con `atentina-stack` desh
 - **Copia externa del backup:** proveedor y bucket (`RCLONE_REMOTE`, ej. `r2:atentina-backups`),
   ID de la clave GPG (`BACKUP_GPG_RECIPIENT`) y dónde se guarda la clave privada (fuera del server).
   Mientras no exista, perder el server es perder base, `.env` (con `WA_TOKEN_KEY`) y checkpoint.
-- **Commitear el trabajo de WhatsApp SIP** que corre en producción sin versionar
-  (`scripts/ops/sip-cert-renew.sh`, `asterisk/conf/whatsapp/` y los cambios en `asterisk/`,
-  `docker-compose.yml`, `Makefile`).
 - **Router:** modelo, URL del panel, dónde están reserva DHCP y reenvíos, estado del SIP ALG.
 - **Anura:** cuenta dueña de los números y terminal que usa Asterisk; DIDs (3517002592, 3517003976,
   0800-220-1233) con su plan de llamada y cómo llega el 0800 en la Request-URI; si Anura tiene

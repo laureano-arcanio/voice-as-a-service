@@ -5,12 +5,19 @@ recurso, y cómo escala la memoria de cada parte. Se mide con el test de capacid
 [`../CAPACITY_TEST_PLAN.md`](../CAPACITY_TEST_PLAN.md), código en `scripts/capacity/`). Las
 mediciones anteriores con el loadtest (EXP-001 a 013) están en [`../archive/`](../archive/README.md).
 
-## Hardware vigente: 2 × 3090 ([CAP-001](CAP-001-2x3090-pl280-classic/))
+## Hardware vigente: 2 × 3090
 
 Desde el 2-oct-2026 el server (en camino a producción, [`../PRODUCCION.md`](../PRODUCCION.md)) corre con
-**2 × RTX 3090 a 280 W** y el reparto del compose principal: LLM solo en una, TTS + STT en la otra. Capacidad:
-~20 llamadas con p95 ≤ 2,4 s y **~32 con p95 ≤ 3 s**. La 5060 Ti (CAP-002 y CAP-004, abajo) fue una prueba.
-Pendiente: `fina` y `sostenida` con 2 × 3090 (CAP-001 solo tiene `base` y `rampa`).
+**2 × RTX 3090 a 280 W**: LLM solo en una, TTS + STT en la otra.
+
+- **Config vigente (desde el 6-oct-2026): LLM Gemma 4 26B-A4B** (`docker-compose.gemma4-26b.yml`, 32 secuencias,
+  contexto 16384). **Capacidad sin medir:** falta un CAP. Con un KV cache ~5 veces menor que el del Qwen, el techo
+  va a ser más bajo que el de CAP-001.
+- **Con el Qwen3.5-9B anterior ([CAP-001](CAP-001-2x3090-pl280-classic/)):** ~20 llamadas con p95 ≤ 2,4 s y
+  **~32 con p95 ≤ 3 s**. Solo `base` y `rampa`, sin `fina` ni `sostenida`. Es la medición de esa config, no de la
+  actual.
+
+La 5060 Ti (CAP-002 y CAP-004, abajo) fue una prueba.
 
 ## Resultados de la prueba con la 5060 Ti ([CAP-002](CAP-002-5060ti-tts-3090-llm-stt-classic/), 2026-09-25)
 
@@ -71,7 +78,7 @@ con ~140 W menos. Con este reparto, el límite de GPU es la 5060 Ti y el de CPU 
 
 ## Calculadora de costos
 
-[`calculadora-costos.html`](calculadora-costos.html) (HTML autocontenido, se abre en el navegador): con la capacidad medida por tipo de server y los precios de cada componente, fijos y energía, calcula cuántos servers hacen falta (N+1), el costo por canal y por minuto, y el precio de cada paquete con margen. Todos los valores son editables.
+[`calculadora-costos.html`](../calculadora-costos.html) (HTML autocontenido, se abre en el navegador): con la capacidad medida por tipo de server y los precios de cada componente, fijos y energía, calcula cuántos servers hacen falta (N+1), el costo por canal y por minuto, y el precio de cada paquete con margen. Todos los valores son editables.
 
 ## Cómo correrlo
 
@@ -144,9 +151,9 @@ el análisis también informa la carga máxima con p95 ≤ 2, 3, 4 y 5 s.
 
 ## Trampas
 
-- **Potencia:** sin tope, las 3090 pueden apagar el server por picos de consumo. Aplicar los límites de GPU antes de medir (ver `AGENTS.md`, Hosts): no sobreviven a un reinicio.
+- **Potencia:** sin tope, las 3090 pueden apagar el server por picos de consumo. `atentina-gpu-limits.service` los aplica en cada arranque (ver `AGENTS.md`, Hosts); confirmarlos con `nvidia-smi` antes de medir.
 - **TTS en la 5060 Ti:** el primer pedido después de arrancarlo tarda más de 20 s (compilación de kernels): calentarlo antes de medir.
-- **Tras un reinicio,** la inferencia no vuelve sola (`Exited (128)`): `make up-inference`.
+- **Tras un reinicio,** `atentina-stack.service` levanta el stack y calienta el TTS (~2 min). Si algo de la inferencia quedó en `Exited`, `make up-inference`.
 - **Escalones de 2 min (`rampa`)** con llamadas de ~115 s: la concurrencia real no sigue a la objetivo. Para el número fino, `fina` (4 min).
 - **Turnos desfasados** (después de uno sin respuesta) **y solapados** (espera negativa): el análisis los excluye de los percentiles y los cuenta aparte (`turnos_desfasados`, `turnos_solapados`).
 - **Memoria:** `memory.current` del cgroup incluye el caché de archivos (pesos del modelo). El análisis usa la memoria usada (anon + shmem + kernel) y reporta el caché aparte.
