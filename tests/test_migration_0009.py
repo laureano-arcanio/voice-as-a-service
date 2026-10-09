@@ -38,6 +38,8 @@ def test_0009_upgrade_downgrade_upgrade(tmp_path):
     assert tiers["pyme"] == (0, 0, 0, 0, 60)          # con limites: sin inferencia hasta que se la den
     assert tiers["int"] == (None,) * 5                  # sin ningun limite (Atentina): ilimitado
     assert scopes == "calls"
+    # Lo de 0010 (llamadas por hora, dia y mes) todavia no esta en este esquema.
+    diff = [d for d in diff if not any(t in repr(d) for t in ("max_calls_per", "ck_tiers_calls"))]
     assert [d for d in diff if any(t in repr(d) for t in ("api_usage_daily", "api_keys", "tiers"))] == []
 
     _run(engine, command.downgrade, "0008")

@@ -58,8 +58,16 @@ export function UsageMeter({ label, used, limit, unit = '', hint }: MeterProps) 
   );
 }
 
+/** Topes de cantidad de llamadas. La hora y el dia son los en curso: solo se muestran en el mes actual. */
+const CALL_COUNTS = [
+  { key: 'calls_hour', label: 'Llamadas esta hora', currentOnly: true },
+  { key: 'calls_day', label: 'Llamadas hoy', currentOnly: true },
+  { key: 'calls_month', label: 'Llamadas del mes', currentOnly: false },
+] as const;
+
 export function UsageMeters({ usage, limitsName = 'tier' }: { usage: Usage; limitsName?: LimitsName }) {
   const noLimit = `Sin límite en el ${limitsName}.`;
+  const isCurrentMonth = usage.month === recentMonths(1)[0];
   return (
     <SimpleGrid type="container" cols={{ base: 1, '420px': 2, '900px': 4 }} spacing="lg">
       <UsageMeter
@@ -100,6 +108,18 @@ export function UsageMeters({ usage, limitsName = 'tier' }: { usage: Usage; limi
             : noLimit
         }
       />
+      {CALL_COUNTS.filter((c) => usage[c.key].limit != null && (isCurrentMonth || !c.currentOnly)).map((c) => {
+        const { used, limit } = usage[c.key];
+        return (
+          <UsageMeter
+            key={c.key}
+            label={c.label}
+            used={used}
+            limit={limit}
+            hint={`Quedan ${Math.max((limit ?? 0) - used, 0)}.`}
+          />
+        );
+      })}
     </SimpleGrid>
   );
 }

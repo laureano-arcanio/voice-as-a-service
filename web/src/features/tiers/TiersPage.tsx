@@ -7,6 +7,7 @@ import {
   Modal,
   NumberInput,
   type NumberInputProps,
+  SimpleGrid,
   Stack,
   Table,
   Text,
@@ -16,7 +17,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { ApiError } from '@/api/errors';
 import type { Tier } from '@/api/types';
 import { confirmAction } from '@/components/confirm';
@@ -31,11 +32,11 @@ type Limit = number | '';
 
 const toLimit = (v: Limit): number | null => (v === '' ? null : v);
 
+/** Limite de un tier: vacio = ilimitado (la ayuda va una sola vez, arriba del formulario). */
 function LimitInput(props: NumberInputProps) {
   return (
     <NumberInput
       placeholder="Ilimitado"
-      description="Vacío = ilimitado"
       min={0}
       allowDecimal={false}
       allowNegative={false}
@@ -46,9 +47,14 @@ function LimitInput(props: NumberInputProps) {
   );
 }
 
-/** Limite de la API de inferencia: vacio = ilimitado, 0 = no incluido. */
-function ApiLimitInput(props: NumberInputProps) {
-  return <LimitInput description="Vacío = ilimitado · 0 = no incluido" {...props} />;
+/** Seccion del formulario: titulo y los campos en `cols` columnas desde `sm` (una en el movil). */
+function Section({ title, cols, children }: { title?: string; cols: number; children: ReactNode }) {
+  return (
+    <>
+      {title && <Divider label={title} labelPosition="left" mt="xs" />}
+      <SimpleGrid cols={{ base: 1, sm: cols }}>{children}</SimpleGrid>
+    </>
+  );
 }
 
 function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }) {
@@ -60,6 +66,9 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
     inbound_minutes: Limit;
     outbound_minutes: Limit;
     max_phone_numbers: Limit;
+    max_calls_per_hour: Limit;
+    max_calls_per_day: Limit;
+    max_calls_per_month: Limit;
     api_llm_input_tokens: Limit;
     api_llm_output_tokens: Limit;
     api_tts_minutes: Limit;
@@ -73,6 +82,9 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
       inbound_minutes: tier?.inbound_minutes ?? '',
       outbound_minutes: tier?.outbound_minutes ?? '',
       max_phone_numbers: tier?.max_phone_numbers ?? '',
+      max_calls_per_hour: tier?.max_calls_per_hour ?? '',
+      max_calls_per_day: tier?.max_calls_per_day ?? '',
+      max_calls_per_month: tier?.max_calls_per_month ?? '',
       // Un tier nuevo arranca sin inferencia (0) y con 60 pedidos por minuto, como en la API.
       api_llm_input_tokens: tier ? (tier.api_llm_input_tokens ?? '') : 0,
       api_llm_output_tokens: tier ? (tier.api_llm_output_tokens ?? '') : 0,
@@ -84,7 +96,7 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
   });
 
   return (
-    <Modal opened onClose={onClose} title={tier ? `Editar tier ${tier.name}` : 'Nuevo tier'}>
+    <Modal opened onClose={onClose} title={tier ? `Editar tier ${tier.name}` : 'Nuevo tier'} size="xl">
       <form
         onSubmit={form.onSubmit((v) =>
           save.mutate(
@@ -97,6 +109,9 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
                 inbound_minutes: toLimit(v.inbound_minutes),
                 outbound_minutes: toLimit(v.outbound_minutes),
                 max_phone_numbers: toLimit(v.max_phone_numbers),
+                max_calls_per_hour: toLimit(v.max_calls_per_hour),
+                max_calls_per_day: toLimit(v.max_calls_per_day),
+                max_calls_per_month: toLimit(v.max_calls_per_month),
                 api_llm_input_tokens: toLimit(v.api_llm_input_tokens),
                 api_llm_output_tokens: toLimit(v.api_llm_output_tokens),
                 api_tts_minutes: toLimit(v.api_tts_minutes),
@@ -115,34 +130,31 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
         )}
       >
         <Stack>
-          <TextInput label="Nombre" maxLength={64} data-autofocus {...form.getInputProps('name')} />
-          <Textarea label="Descripción" autosize minRows={1} {...form.getInputProps('description')} />
-          <LimitInput label="Llamadas simultáneas" {...form.getInputProps('max_concurrent_calls')} />
-          <LimitInput label="Minutos entrantes por mes" {...form.getInputProps('inbound_minutes')} />
-          <LimitInput label="Minutos salientes por mes" {...form.getInputProps('outbound_minutes')} />
-          <LimitInput label="Números" {...form.getInputProps('max_phone_numbers')} />
-          <Divider
-            label="API de inferencia (solo uso por API key, no cuenta los agentes integrados)"
-            labelPosition="left"
-            mt="xs"
-          />
-          <ApiLimitInput
-            label="Tokens de entrada del LLM por mes"
-            {...form.getInputProps('api_llm_input_tokens')}
-          />
-          <ApiLimitInput
-            label="Tokens de salida del LLM por mes"
-            {...form.getInputProps('api_llm_output_tokens')}
-          />
-          <ApiLimitInput
-            label="Minutos de síntesis (TTS) por mes"
-            {...form.getInputProps('api_tts_minutes')}
-          />
-          <ApiLimitInput
-            label="Minutos de transcripción (STT) por mes"
-            {...form.getInputProps('api_stt_minutes')}
-          />
-          <ApiLimitInput label="Pedidos por minuto" {...form.getInputProps('api_rate_limit')} />
+          <Section cols={2}>
+            <TextInput label="Nombre" maxLength={64} data-autofocus {...form.getInputProps('name')} />
+            <Textarea label="Descripción" autosize minRows={1} {...form.getInputProps('description')} />
+          </Section>
+          <Text size="xs" c="dimmed">
+            Un campo vacío es ilimitado. En la API de inferencia, 0 es no incluido.
+          </Text>
+          <Section title="Llamadas" cols={4}>
+            <LimitInput label="Simultáneas" {...form.getInputProps('max_concurrent_calls')} />
+            <LimitInput label="Por hora" {...form.getInputProps('max_calls_per_hour')} />
+            <LimitInput label="Por día" {...form.getInputProps('max_calls_per_day')} />
+            <LimitInput label="Por mes" {...form.getInputProps('max_calls_per_month')} />
+          </Section>
+          <Section title="Minutos por mes y números" cols={3}>
+            <LimitInput label="Minutos entrantes" {...form.getInputProps('inbound_minutes')} />
+            <LimitInput label="Minutos salientes" {...form.getInputProps('outbound_minutes')} />
+            <LimitInput label="Números" {...form.getInputProps('max_phone_numbers')} />
+          </Section>
+          <Section title="API de inferencia por mes (solo uso por API key, no cuenta los agentes integrados)" cols={3}>
+            <LimitInput label="Tokens de entrada del LLM" {...form.getInputProps('api_llm_input_tokens')} />
+            <LimitInput label="Tokens de salida del LLM" {...form.getInputProps('api_llm_output_tokens')} />
+            <LimitInput label="Minutos de síntesis (TTS)" {...form.getInputProps('api_tts_minutes')} />
+            <LimitInput label="Minutos de transcripción (STT)" {...form.getInputProps('api_stt_minutes')} />
+            <LimitInput label="Pedidos por minuto" {...form.getInputProps('api_rate_limit')} />
+          </Section>
           <Group justify="flex-end">
             <Button variant="default" onClick={onClose}>
               Cancelar
@@ -186,7 +198,7 @@ export function TiersPage() {
     <>
       <PageHeader
         title="Tiers"
-        description="Límites por cliente: llamadas simultáneas, minutos entrantes y salientes por mes, números y cupos de la API de inferencia (LLM, TTS, STT)."
+        description="Límites por cliente: llamadas simultáneas y por hora, día y mes, minutos entrantes y salientes por mes, números y cupos de la API de inferencia (LLM, TTS, STT)."
         actions={
           <Button leftSection={<IconPlus size={18} />} onClick={() => setEditing('new')}>
             Nuevo tier
@@ -199,12 +211,13 @@ export function TiersPage() {
             list.length === 0 ? (
               <EmptyState>No hay tiers.</EmptyState>
             ) : (
-              <Table.ScrollContainer minWidth={1080}>
+              <Table.ScrollContainer minWidth={1200}>
                 <Table>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>Nombre</Table.Th>
                       <Table.Th ta="right">Simultáneas</Table.Th>
+                      <Table.Th ta="right">Llamadas hora / día / mes</Table.Th>
                       <Table.Th ta="right">Min. entrantes/mes</Table.Th>
                       <Table.Th ta="right">Min. salientes/mes</Table.Th>
                       <Table.Th ta="right">Números</Table.Th>
@@ -229,6 +242,10 @@ export function TiersPage() {
                           )}
                         </Table.Td>
                         <Table.Td ta="right">{formatLimit(t.max_concurrent_calls)}</Table.Td>
+                        <Table.Td ta="right" style={{ whiteSpace: 'nowrap' }}>
+                          {formatLimit(t.max_calls_per_hour)} / {formatLimit(t.max_calls_per_day)} /{' '}
+                          {formatLimit(t.max_calls_per_month)}
+                        </Table.Td>
                         <Table.Td ta="right">{formatLimit(t.inbound_minutes)}</Table.Td>
                         <Table.Td ta="right">{formatLimit(t.outbound_minutes)}</Table.Td>
                         <Table.Td ta="right">{formatLimit(t.max_phone_numbers)}</Table.Td>

@@ -5864,6 +5864,31 @@
     ],
     "title": "CallSummary"
    },
+   "CallsUsageOut": {
+    "properties": {
+     "used": {
+      "type": "integer",
+      "title": "Used"
+     },
+     "limit": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Limit"
+     }
+    },
+    "type": "object",
+    "required": [
+     "used",
+     "limit"
+    ],
+    "title": "CallsUsageOut"
+   },
    "ChatCompletionIn": {
     "properties": {
      "model": {
@@ -7941,6 +7966,45 @@
       "title": "Max Phone Numbers",
       "description": "Numeros que puede tener el cliente"
      },
+     "max_calls_per_hour": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Calls Per Hour",
+      "description": "Llamadas por hora calendario"
+     },
+     "max_calls_per_day": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Calls Per Day",
+      "description": "Llamadas por dia calendario"
+     },
+     "max_calls_per_month": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Calls Per Month",
+      "description": "Llamadas por mes calendario"
+     },
      "api_llm_input_tokens": {
       "anyOf": [
        {
@@ -8076,6 +8140,39 @@
       ],
       "title": "Max Phone Numbers"
      },
+     "max_calls_per_hour": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Calls Per Hour"
+     },
+     "max_calls_per_day": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Calls Per Day"
+     },
+     "max_calls_per_month": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Calls Per Month"
+     },
      "api_llm_input_tokens": {
       "anyOf": [
        {
@@ -8151,6 +8248,9 @@
      "inbound_minutes",
      "outbound_minutes",
      "max_phone_numbers",
+     "max_calls_per_hour",
+     "max_calls_per_day",
+     "max_calls_per_month",
      "api_llm_input_tokens",
      "api_llm_output_tokens",
      "api_tts_minutes",
@@ -8233,6 +8333,42 @@
        }
       ],
       "title": "Max Phone Numbers"
+     },
+     "max_calls_per_hour": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Calls Per Hour"
+     },
+     "max_calls_per_day": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Calls Per Day"
+     },
+     "max_calls_per_month": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Calls Per Month"
      },
      "api_llm_input_tokens": {
       "anyOf": [
@@ -8419,6 +8555,18 @@
      },
      "phone_numbers": {
       "$ref": "#/components/schemas/NumbersUsageOut"
+     },
+     "calls_hour": {
+      "$ref": "#/components/schemas/CallsUsageOut",
+      "description": "Llamadas de la hora en curso"
+     },
+     "calls_day": {
+      "$ref": "#/components/schemas/CallsUsageOut",
+      "description": "Llamadas del dia en curso"
+     },
+     "calls_month": {
+      "$ref": "#/components/schemas/CallsUsageOut",
+      "description": "Llamadas del mes pedido"
      }
     },
     "type": "object",
@@ -8430,7 +8578,10 @@
      "max_concurrent_calls",
      "inbound",
      "outbound",
-     "phone_numbers"
+     "phone_numbers",
+     "calls_hour",
+     "calls_day",
+     "calls_month"
     ],
     "title": "UsageOut"
    },

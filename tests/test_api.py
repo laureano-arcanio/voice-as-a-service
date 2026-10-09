@@ -187,6 +187,12 @@ def test_tier_crud_and_in_use(api, admin):
     make_client(admin, tier=tier)
     assert admin.delete(f"{V1}/tiers/{tier['id']}").status_code == 409
     assert admin.post(f"{V1}/tiers", json={"name": "x", "inbound_minutes": -1}).status_code == 422
+    # Cantidad de llamadas por hora, dia y mes: se cargan y se sacan como los demas limites.
+    free = make_tier(admin, name="Free", max_calls_per_hour=20, max_calls_per_day=20)
+    assert (free["max_calls_per_hour"], free["max_calls_per_day"], free["max_calls_per_month"]) == (20, 20, None)
+    upd = admin.patch(f"{V1}/tiers/{free['id']}", json={"max_calls_per_day": None, "max_calls_per_month": 100}).json()
+    assert (upd["max_calls_per_hour"], upd["max_calls_per_day"], upd["max_calls_per_month"]) == (20, None, 100)
+    assert admin.post(f"{V1}/tiers", json={"name": "y", "max_calls_per_hour": -1}).status_code == 422
 
 
 def test_client_create_and_change_tier(api, admin):

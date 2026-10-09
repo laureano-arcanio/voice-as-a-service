@@ -12,6 +12,9 @@ const CALLS_USAGE = {
   inbound: { used_seconds: 600, used_minutes: 10, limit_minutes: 100, remaining_minutes: 90 },
   outbound: { used_seconds: 0, used_minutes: 0, limit_minutes: null, remaining_minutes: null },
   phone_numbers: { used: 1, limit: 2 },
+  calls_hour: { used: 0, limit: null },
+  calls_day: { used: 0, limit: null },
+  calls_month: { used: 0, limit: null },
 };
 const API_USAGE = {
   month: '2026-10',

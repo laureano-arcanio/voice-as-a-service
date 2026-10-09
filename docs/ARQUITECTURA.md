@@ -105,7 +105,7 @@ tiers 1───* clients 1───* agents 1───* agent_versions
 
 | Tabla | Claves y reglas |
 |---|---|
-| `tiers` | `max_concurrent_calls`, `inbound_minutes`, `outbound_minutes`, `max_phone_numbers`; NULL = ilimitado. API de inferencia: `api_llm_input_tokens`, `api_llm_output_tokens`, `api_tts_minutes`, `api_stt_minutes` (por mes) y `api_rate_limit` (pedidos por minuto); NULL = ilimitado, 0 = no incluido. |
+| `tiers` | `max_concurrent_calls`, `max_calls_per_hour`, `max_calls_per_day`, `max_calls_per_month` (llamadas entrantes y salientes por hora, día y mes calendario), `inbound_minutes`, `outbound_minutes`, `max_phone_numbers`; NULL = ilimitado. API de inferencia: `api_llm_input_tokens`, `api_llm_output_tokens`, `api_tts_minutes`, `api_stt_minutes` (por mes) y `api_rate_limit` (pedidos por minuto); NULL = ilimitado, 0 = no incluido. |
 | `clients` | `slug` único, `tier_id` (RESTRICT: un tier en uso no se borra), `active`. |
 | `agents` | `(client_id, slug)` único; `version` y `definition` vigentes (copia de la última versión); `archived_at`. |
 | `agent_versions` | `(agent_id, version)`; inmutables, con `created_by`. |
@@ -198,8 +198,9 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
    el caller ID (el número pedido o el primero del cliente).
 2. `engine.new_conversation(session=s)` arma el estado con la versión vigente, sin guardarlo.
 3. `quota.admit(s, client, mode)` toma el lock del cliente (`SELECT … FOR NO KEY UPDATE OF clients`).
-   Verifica que el cliente esté activo, que haya lugar en el tope de simultáneas y que queden minutos
-   de esa modalidad. Devuelve los segundos que quedan.
+   Verifica que el cliente esté activo, que haya lugar en el tope de simultáneas, que no se hayan
+   agotado los topes de llamadas por hora, día y mes (solo entrantes y salientes; cuenta `call_logs`
+   por `created_at` sin las `rechazada`) y que queden minutos de esa modalidad. Devuelve los segundos que quedan.
 4. En la misma transacción se guardan la conversación y la `call_logs` (`pendiente`), y el commit
    suelta el lock. Todo va por una sola conexión: pedir otra con el lock tomado agotaba el pool bajo
    carga.

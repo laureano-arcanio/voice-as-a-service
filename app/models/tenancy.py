@@ -29,6 +29,9 @@ class Tier(IdMixin, TimestampMixin, Base):
         CheckConstraint("inbound_minutes IS NULL OR inbound_minutes >= 0", name="ck_tiers_inbound"),
         CheckConstraint("outbound_minutes IS NULL OR outbound_minutes >= 0", name="ck_tiers_outbound"),
         CheckConstraint("max_phone_numbers IS NULL OR max_phone_numbers >= 0", name="ck_tiers_phone_numbers"),
+        CheckConstraint("max_calls_per_hour IS NULL OR max_calls_per_hour >= 0", name="ck_tiers_calls_hour"),
+        CheckConstraint("max_calls_per_day IS NULL OR max_calls_per_day >= 0", name="ck_tiers_calls_day"),
+        CheckConstraint("max_calls_per_month IS NULL OR max_calls_per_month >= 0", name="ck_tiers_calls_month"),
         CheckConstraint("api_llm_input_tokens IS NULL OR api_llm_input_tokens >= 0", name="ck_tiers_api_llm_in"),
         CheckConstraint("api_llm_output_tokens IS NULL OR api_llm_output_tokens >= 0", name="ck_tiers_api_llm_out"),
         CheckConstraint("api_tts_minutes IS NULL OR api_tts_minutes >= 0", name="ck_tiers_api_tts"),
@@ -43,6 +46,11 @@ class Tier(IdMixin, TimestampMixin, Base):
     outbound_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Numeros de telefono que puede tener asignados el cliente.
     max_phone_numbers: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Llamadas (entrantes y salientes) que puede empezar por hora, dia y mes calendario
+    # (settings.billing_timezone). Ver services/quota.py.
+    max_calls_per_hour: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    max_calls_per_day: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    max_calls_per_month: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # API de inferencia (/api/v1/inference: LLM, STT y TTS con una API key). Solo cuenta ese uso,
     # no los agentes integrados (llamadas, WhatsApp). Mensuales como los minutos; NULL = ilimitado
     # y 0 = no incluido. Ver services/api_usage.py.

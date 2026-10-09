@@ -18,6 +18,7 @@ from ...services.errors import Conflict, Invalid, NotFound
 from ...services.security import unusable_password_hash
 from ..deps import DB, AdminPrincipal, CurrentPrincipal
 from ..schemas import (
+    CallsUsageOut,
     ClientCreatedOut,
     ClientIn,
     ClientOut,
@@ -160,7 +161,10 @@ def client_usage(client_id: str, p: CurrentPrincipal, db: DB,
                     active_calls=u.active_calls, max_concurrent_calls=u.max_concurrent_calls,
                     inbound=_minutes(u.inbound), outbound=_minutes(u.outbound),
                     phone_numbers=NumbersUsageOut(used=phone_numbers.numbers_count(db, client.id),
-                                                  limit=client.tier.max_phone_numbers))
+                                                  limit=client.tier.max_phone_numbers),
+                    calls_hour=CallsUsageOut(used=u.calls_hour.used, limit=u.calls_hour.limit),
+                    calls_day=CallsUsageOut(used=u.calls_day.used, limit=u.calls_day.limit),
+                    calls_month=CallsUsageOut(used=u.calls_month.used, limit=u.calls_month.limit))
 
 
 @router.get("/{client_id}/inference-usage", response_model=InferenceUsageOut)

@@ -1732,6 +1732,13 @@ export interface components {
             /** Latency Avg */
             latency_avg: number | null;
         };
+        /** CallsUsageOut */
+        CallsUsageOut: {
+            /** Used */
+            used: number;
+            /** Limit */
+            limit: number | null;
+        };
         /**
          * ChatCompletionIn
          * @description Compatible con OpenAI. `model` se acepta (los SDK lo piden) pero lo fija la plataforma.
@@ -2514,6 +2521,21 @@ export interface components {
              */
             max_phone_numbers?: number | null;
             /**
+             * Max Calls Per Hour
+             * @description Llamadas por hora calendario
+             */
+            max_calls_per_hour?: number | null;
+            /**
+             * Max Calls Per Day
+             * @description Llamadas por dia calendario
+             */
+            max_calls_per_day?: number | null;
+            /**
+             * Max Calls Per Month
+             * @description Llamadas por mes calendario
+             */
+            max_calls_per_month?: number | null;
+            /**
              * Api Llm Input Tokens
              * @description Tokens de entrada del LLM por mes
              * @default 0
@@ -2560,6 +2582,12 @@ export interface components {
             outbound_minutes: number | null;
             /** Max Phone Numbers */
             max_phone_numbers: number | null;
+            /** Max Calls Per Hour */
+            max_calls_per_hour: number | null;
+            /** Max Calls Per Day */
+            max_calls_per_day: number | null;
+            /** Max Calls Per Month */
+            max_calls_per_month: number | null;
             /** Api Llm Input Tokens */
             api_llm_input_tokens: number | null;
             /** Api Llm Output Tokens */
@@ -2595,6 +2623,12 @@ export interface components {
             outbound_minutes?: number | null;
             /** Max Phone Numbers */
             max_phone_numbers?: number | null;
+            /** Max Calls Per Hour */
+            max_calls_per_hour?: number | null;
+            /** Max Calls Per Day */
+            max_calls_per_day?: number | null;
+            /** Max Calls Per Month */
+            max_calls_per_month?: number | null;
             /** Api Llm Input Tokens */
             api_llm_input_tokens?: number | null;
             /** Api Llm Output Tokens */
@@ -2659,6 +2693,12 @@ export interface components {
             inbound: components["schemas"]["MinutesUsageOut"];
             outbound: components["schemas"]["MinutesUsageOut"];
             phone_numbers: components["schemas"]["NumbersUsageOut"];
+            /** @description Llamadas de la hora en curso */
+            calls_hour: components["schemas"]["CallsUsageOut"];
+            /** @description Llamadas del dia en curso */
+            calls_day: components["schemas"]["CallsUsageOut"];
+            /** @description Llamadas del mes pedido */
+            calls_month: components["schemas"]["CallsUsageOut"];
         };
         /** UserIn */
         UserIn: {

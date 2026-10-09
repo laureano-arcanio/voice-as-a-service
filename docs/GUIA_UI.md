@@ -31,6 +31,7 @@ Los de la API de inferencia (abajo) arrancan en 0 = el plan no los incluye.
 | Campo | Qué limita |
 |---|---|
 | Llamadas simultáneas | Llamadas en curso a la vez, de cualquier modalidad (incluye pruebas y loadtest). |
+| Llamadas por hora, por día y por mes | Cantidad de llamadas (entrantes y salientes juntas) que se pueden empezar en la hora, el día o el mes calendario (hora de Buenos Aires): se renuevan al empezar la hora, a las 00:00 y el día 1. No cuentan las rechazadas por el tier ni las de prueba o loadtest. Son independientes: alcanza con agotar una. |
 | Minutos entrantes por mes | Minutos de llamadas recibidas, por mes calendario (hora de Buenos Aires). |
 | Minutos salientes por mes | Minutos de llamadas hechas por el agente. |
 | Números | Cantidad de números de teléfono que puede tener asignados el cliente. |
@@ -48,7 +49,8 @@ una sola vez). Si el aviso dice que no se pudo mandar, o el link venció, **Usua
 (el sobre de la fila). Te lleva a la ficha del cliente, que tiene cinco pestañas:
 
 - **Consumo y datos:** consumo del mes con selector de mes (llamadas activas contra el tope,
-  minutos entrantes y salientes, números usados), el **consumo de la API** del mes contra el tier (tokens de
+  minutos entrantes y salientes, números usados, y las llamadas de la hora, el día y el mes si el tier tiene tope),
+  el **consumo de la API** del mes contra el tier (tokens de
   entrada y salida del LLM, minutos de transcripción y de síntesis, pedidos por minuto y el desglose por key;
   no incluye lo que consumen los agentes integrados), y los datos del cliente:
   - **Cambiar el tier:** se rechaza si el tier nuevo permite menos números de los que tiene.
@@ -235,6 +237,7 @@ Motivos de fin frecuentes (`ended_reason`):
 | `customer_hangup` | Cortó el cliente. |
 | `quota_exhausted` | Se acabaron los minutos del mes durante la llamada. |
 | `concurrency_limit` | Rechazada: el cliente estaba al tope de llamadas simultáneas. |
+| `calls_per_hour`, `calls_per_day`, `calls_per_month` | Rechazada: el cliente llegó al tope de llamadas de la hora, el día o el mes. |
 | `inbound_minutes`, `outbound_minutes` | Rechazada: sin minutos del mes. |
 | `client_inactive` | Rechazada: el cliente está desactivado. |
 | `sip_call_failed` | La saliente no se pudo marcar (número, troncal o Anura). |
@@ -336,7 +339,7 @@ en la ficha del cliente. La API no cuenta lo que consumen los agentes integrados
 | Síntoma | Causa y solución |
 |---|---|
 | Las entrantes suenan y cortan ("ocupado") | El número no tiene agente, o está libre. Elegí el agente en Números o en la ficha del cliente. Log del agente: `no tiene cliente o agente asignado`. |
-| Una entrante escucha "no podemos atender tu llamada" | El tier no deja: tope de simultáneas, minutos entrantes agotados o cliente inactivo. Mirá el consumo del cliente. |
+| Una entrante escucha "no podemos atender tu llamada" | El tier no deja: tope de simultáneas, de llamadas por hora, día o mes, minutos entrantes agotados o cliente inactivo. Mirá el consumo del cliente. |
 | Todas las entrantes van al mismo agente | No llega el número marcado y cae al principal (`ANURA_DID`). Mirar el log de Asterisk (`Entrante de Anura: ... (marcado: ...)`) y que cada número tenga su agente. |
 | "Llegaste al límite…" al llamar | Tope del tier. Esperá que terminen llamadas, subí el tier o el tope. |
 | Un número nuevo no recibe llamadas | Faltó `make livekit-sip` después de cargarlo, o Anura no lo entrega a esta troncal. |

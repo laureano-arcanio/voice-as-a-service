@@ -149,6 +149,7 @@ CSP del dashboard solo permite fuentes de `'self'`: no se pueden cargar de Googl
 | Métrica | Tarjeta con rótulo `.label` arriba y número `.metric` abajo | El número va en color de texto; toma color de estado solo si indica un problema. El dato de apoyo (%, promedio) va al lado, en `sm dimmed`. |
 | Consumo contra un tope | `Progress` | Verde hasta 70 %, amarillo desde 70 % y rojo desde 90 % (`usageColor`). |
 | Formulario | Inputs de Mantine + `useForm` | Una columna; label arriba; ayuda en `description`; el error, debajo del campo. |
+| Formulario de límites (modal de tier) | `Modal size="xl"` + `Divider` por sección + `SimpleGrid` | Campos numéricos cortos en 2 a 4 columnas desde `sm` (una en móvil), agrupados por tema, para que entre sin scroll en un escritorio; la ayuda común ("vacío = ilimitado") va una sola vez arriba, no en cada campo. |
 | Formulario largo (definición de un agente) | Una tarjeta por sección + barra `.def-toolbar` | La barra (estado, guardar, descartar) queda fija arriba desde `sm`; los errores van arriba y al hacerles click llevan al campo. Las listas editables (datos, resultados) son bloques `.def-item` plegables, con subir, bajar y quitar como `ActionIcon` con `Tooltip`. |
 | Modal | `Modal`, `confirmAction` | Botones abajo a la derecha: "Cancelar" (`default`) y la acción principal al final. |
 | Aviso al terminar una acción | `notifySuccess` / `notifyError` (`lib/notify.ts`) | Arriba a la derecha. |

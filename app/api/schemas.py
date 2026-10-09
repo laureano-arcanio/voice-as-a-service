@@ -73,6 +73,9 @@ class TierIn(BaseModel):
     inbound_minutes: int | None = Field(default=None, ge=0, description="Minutos entrantes por mes")
     outbound_minutes: int | None = Field(default=None, ge=0, description="Minutos salientes por mes")
     max_phone_numbers: int | None = Field(default=None, ge=0, description="Numeros que puede tener el cliente")
+    max_calls_per_hour: int | None = Field(default=None, ge=0, description="Llamadas por hora calendario")
+    max_calls_per_day: int | None = Field(default=None, ge=0, description="Llamadas por dia calendario")
+    max_calls_per_month: int | None = Field(default=None, ge=0, description="Llamadas por mes calendario")
     # API de inferencia (solo uso por API key; no cuenta los agentes integrados). None: ilimitado; 0: no incluido.
     api_llm_input_tokens: int | None = Field(default=0, ge=0, description="Tokens de entrada del LLM por mes")
     api_llm_output_tokens: int | None = Field(default=0, ge=0, description="Tokens generados por el LLM por mes")
@@ -88,6 +91,9 @@ class TierUpdate(BaseModel):
     inbound_minutes: int | None = Field(default=None, ge=0)
     outbound_minutes: int | None = Field(default=None, ge=0)
     max_phone_numbers: int | None = Field(default=None, ge=0)
+    max_calls_per_hour: int | None = Field(default=None, ge=0)
+    max_calls_per_day: int | None = Field(default=None, ge=0)
+    max_calls_per_month: int | None = Field(default=None, ge=0)
     api_llm_input_tokens: int | None = Field(default=None, ge=0)
     api_llm_output_tokens: int | None = Field(default=None, ge=0)
     api_tts_minutes: int | None = Field(default=None, ge=0)
@@ -103,6 +109,9 @@ class TierOut(ORM):
     inbound_minutes: int | None
     outbound_minutes: int | None
     max_phone_numbers: int | None
+    max_calls_per_hour: int | None
+    max_calls_per_day: int | None
+    max_calls_per_month: int | None
     api_llm_input_tokens: int | None
     api_llm_output_tokens: int | None
     api_tts_minutes: int | None
@@ -170,6 +179,11 @@ class NumbersUsageOut(BaseModel):
     limit: int | None
 
 
+class CallsUsageOut(BaseModel):
+    used: int
+    limit: int | None
+
+
 class UsageOut(BaseModel):
     month: str
     period_start: UTCDateTime
@@ -179,6 +193,9 @@ class UsageOut(BaseModel):
     inbound: MinutesUsageOut
     outbound: MinutesUsageOut
     phone_numbers: NumbersUsageOut
+    calls_hour: CallsUsageOut = Field(description="Llamadas de la hora en curso")
+    calls_day: CallsUsageOut = Field(description="Llamadas del dia en curso")
+    calls_month: CallsUsageOut = Field(description="Llamadas del mes pedido")
 
 
 # ---------- numeros ----------
