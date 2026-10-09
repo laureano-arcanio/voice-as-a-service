@@ -9,6 +9,7 @@ from pydantic import (
     ConfigDict,
     EmailStr,
     Field,
+    field_validator,
     model_validator,
 )
 
@@ -72,6 +73,12 @@ class TierIn(BaseModel):
     inbound_minutes: int | None = Field(default=None, ge=0, description="Minutos entrantes por mes")
     outbound_minutes: int | None = Field(default=None, ge=0, description="Minutos salientes por mes")
     max_phone_numbers: int | None = Field(default=None, ge=0, description="Numeros que puede tener el cliente")
+    # API de inferencia (solo uso por API key; no cuenta los agentes integrados). None: ilimitado; 0: no incluido.
+    api_llm_input_tokens: int | None = Field(default=0, ge=0, description="Tokens de entrada del LLM por mes")
+    api_llm_output_tokens: int | None = Field(default=0, ge=0, description="Tokens generados por el LLM por mes")
+    api_tts_minutes: int | None = Field(default=0, ge=0, description="Minutos de audio sintetizado por mes")
+    api_stt_minutes: int | None = Field(default=0, ge=0, description="Minutos de audio transcripto por mes")
+    api_rate_limit: int | None = Field(default=60, ge=0, description="Pedidos por minuto a la API de inferencia")
 
 
 class TierUpdate(BaseModel):
@@ -81,6 +88,11 @@ class TierUpdate(BaseModel):
     inbound_minutes: int | None = Field(default=None, ge=0)
     outbound_minutes: int | None = Field(default=None, ge=0)
     max_phone_numbers: int | None = Field(default=None, ge=0)
+    api_llm_input_tokens: int | None = Field(default=None, ge=0)
+    api_llm_output_tokens: int | None = Field(default=None, ge=0)
+    api_tts_minutes: int | None = Field(default=None, ge=0)
+    api_stt_minutes: int | None = Field(default=None, ge=0)
+    api_rate_limit: int | None = Field(default=None, ge=0)
 
 
 class TierOut(ORM):
@@ -91,6 +103,11 @@ class TierOut(ORM):
     inbound_minutes: int | None
     outbound_minutes: int | None
     max_phone_numbers: int | None
+    api_llm_input_tokens: int | None
+    api_llm_output_tokens: int | None
+    api_tts_minutes: int | None
+    api_stt_minutes: int | None
+    api_rate_limit: int | None
     created_at: UTCDateTime
     clients_count: int = 0
 
@@ -551,8 +568,14 @@ class UserOut(ORM):
     last_login_at: UTCDateTime | None
 
 
+ApiScope = Literal["calls", "llm", "stt", "tts"]
+
+
 class ApiKeyIn(BaseModel):
     name: str = Field(min_length=1, max_length=64)
+    scopes: list[ApiScope] = Field(
+        default=["calls"], min_length=1,
+        description="calls: API de llamadas, agentes y reportes. llm, stt, tts: motores de la API de inferencia")
 
 
 class ApiKeyOut(ORM):
@@ -560,9 +583,15 @@ class ApiKeyOut(ORM):
     client_id: str
     name: str
     prefix: str
+    scopes: list[ApiScope]
     created_at: UTCDateTime
     last_used_at: UTCDateTime | None
     revoked_at: UTCDateTime | None
+
+    @field_validator("scopes", mode="before")
+    @classmethod
+    def _split_scopes(cls, v):
+        return [p for p in v.split(",") if p] if isinstance(v, str) else v
 
 
 class ApiKeyCreated(ApiKeyOut):
@@ -832,3 +861,82 @@ class DemoContactIn(BaseModel):
         if not self.email and not self.phone:
             raise ValueError("Dejanos un email o un teléfono para contactarte")
         return self
+
+
+# ---------- API de inferencia (LLM, STT, TTS) ----------
+
+class ChatCompletionIn(BaseModel):
+    """Compatible con OpenAI. `model` se acepta (los SDK lo piden) pero lo fija la plataforma."""
+    model: str | None = None
+    messages: list[dict[str, Any]] = Field(min_length=1)
+    stream: bool = False
+    max_tokens: int | None = Field(default=None, ge=1)
+    max_completion_tokens: int | None = Field(default=None, ge=1)
+    temperature: float | None = Field(default=None, ge=0, le=2)
+    top_p: float | None = Field(default=None, gt=0, le=1)
+    stop: str | list[str] | None = None
+    seed: int | None = None
+    presence_penalty: float | None = Field(default=None, ge=-2, le=2)
+    frequency_penalty: float | None = Field(default=None, ge=-2, le=2)
+    response_format: dict[str, Any] | None = None
+    tools: list[dict[str, Any]] | None = None
+    tool_choice: str | dict[str, Any] | None = None
+    n: int | None = Field(default=None, description="Solo 1")
+
+
+class SpeechIn(BaseModel):
+    model: str | None = None
+    input: str = Field(min_length=1, description="Texto a sintetizar (hasta INFERENCE_TTS_MAX_CHARS)")
+    voice: str = Field(description="Una de GET /inference/voices")
+    response_format: Literal["wav", "pcm"] = "wav"
+
+
+class InferenceModelOut(BaseModel):
+    id: str
+    object: str = "model"
+    owned_by: str
+    engine: Literal["llm", "stt", "tts"]
+
+
+class InferenceModelsOut(BaseModel):
+    object: str = "list"
+    data: list[InferenceModelOut]
+
+
+class MeterOut(BaseModel):
+    used: float
+    limit: int | None = Field(description="None: ilimitado; 0: no incluido en el plan")
+    remaining: float | None
+
+
+class InferenceRequestsOut(BaseModel):
+    llm: int
+    stt: int
+    tts: int
+
+
+class InferenceKeyUsageOut(BaseModel):
+    key_id: str
+    name: str
+    prefix: str
+    revoked: bool
+    scopes: list[str]
+    requests: InferenceRequestsOut
+    llm_input_tokens: int
+    llm_output_tokens: int
+    tts_minutes: float
+    stt_minutes: float
+
+
+class InferenceUsageOut(BaseModel):
+    """Consumo del mes de la API de inferencia contra los limites del tier."""
+    month: str
+    period_start: datetime.date
+    period_end: datetime.date = Field(description="Exclusivo")
+    rate_limit: int | None = Field(description="Pedidos por minuto; None: ilimitado")
+    llm_input_tokens: MeterOut
+    llm_output_tokens: MeterOut
+    tts_minutes: MeterOut
+    stt_minutes: MeterOut
+    requests: InferenceRequestsOut
+    keys: list[InferenceKeyUsageOut]

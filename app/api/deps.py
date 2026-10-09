@@ -13,6 +13,7 @@ par TCP es un proxy de confianza (settings.trusted_proxy_cidrs).
 import datetime
 import ipaddress
 from collections.abc import Callable, Iterator
+from dataclasses import dataclass
 from functools import cache
 from typing import Annotated, Literal
 
@@ -25,9 +26,10 @@ from ..agents.definitions import DefinitionSource
 from ..config import settings
 from ..conversation.engine import ConversationEngine
 from ..db import get_sessionmaker, utcnow
-from ..models import ApiKey, Role, User
+from ..models import ApiKey, Client, Role, User
 from ..runtime import get_conversation_engine
-from ..services.errors import Forbidden
+from ..services import api_usage
+from ..services.errors import Forbidden, QuotaExceeded
 from ..services.ratelimit import Limit, RateLimiter, client_key
 from ..services.security import (
     API_KEY_PREFIX,
@@ -58,21 +60,30 @@ def _unauthorized(detail: str = "No autenticado") -> HTTPException:
     return HTTPException(status.HTTP_401_UNAUTHORIZED, detail, headers={"WWW-Authenticate": "Bearer"})
 
 
+def _api_key(db: Session, token: str) -> ApiKey:
+    key = db.scalar(select(ApiKey).where(ApiKey.key_hash == hash_api_key(token), ApiKey.revoked_at.is_(None)))
+    if key is None:
+        raise _unauthorized("API key invalida o revocada")
+    now = utcnow()
+    # last_used_at con resolucion de un minuto: no escribir en cada pedido.
+    if key.last_used_at is None or now - key.last_used_at > datetime.timedelta(minutes=1):
+        key.last_used_at = now
+        db.commit()
+    return key
+
+
 def get_principal(request: Request, db: DB,
                   creds: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)]) -> Principal:
     token = creds.credentials if creds else request.cookies.get(SESSION_COOKIE)
     if not token:
         raise _unauthorized()
     if token.startswith(API_KEY_PREFIX):
-        key = db.scalar(select(ApiKey).where(ApiKey.key_hash == hash_api_key(token), ApiKey.revoked_at.is_(None)))
-        if key is None:
-            raise _unauthorized("API key invalida o revocada")
-        now = utcnow()
-        # last_used_at con resolucion de un minuto: no escribir en cada pedido.
-        if key.last_used_at is None or now - key.last_used_at > datetime.timedelta(minutes=1):
-            key.last_used_at = now
-            db.commit()
-        return Principal("api_key", key.id, Role.client, key.client_id)
+        key = _api_key(db, token)
+        scopes = api_usage.parse_scopes(key.scopes)
+        if api_usage.SCOPE_CALLS not in scopes:
+            # Una key de inferencia (llm/stt/tts) no administra agentes, llamadas ni numeros.
+            raise Forbidden("Esta API key es de la API de inferencia: no tiene acceso a esta API", "scope_missing")
+        return Principal("api_key", key.id, Role.client, key.client_id, scopes)
     payload = decode_session_token(token)
     user = db.get(User, payload["sub"]) if payload else None
     if user is None or not user.active or payload.get("sv", 0) != user.session_version:
@@ -111,6 +122,56 @@ def scoped_client_id(p: Principal, client_id: str | None) -> str | None:
 def ensure_access(p: Principal, client_id: str | None) -> None:
     if not p.can_access(client_id):
         raise Forbidden("Sin acceso a ese cliente")
+
+
+# ---------- API de inferencia (LLM, STT, TTS con API key) ----------
+
+@dataclass(frozen=True)
+class InferenceAccess:
+    """Una API key de inferencia ya autenticada, con permiso para el motor pedido y dentro de los
+    limites del tier del cliente."""
+    client: Client
+    key: ApiKey
+    remaining: api_usage.Remaining
+
+
+def inference_key(db: Session, creds: HTTPAuthorizationCredentials | None, scope: str | None) -> tuple[ApiKey, Client]:
+    """Key valida (solo por `Authorization: Bearer vaas_...`; la cookie de sesion no sirve), con el
+    `scope` pedido (None: cualquiera de inferencia) y de un cliente activo."""
+    if creds is None or not creds.credentials.startswith(API_KEY_PREFIX):
+        raise _unauthorized("Esta API se usa con una API key: Authorization: Bearer vaas_...")
+    key = _api_key(db, creds.credentials)
+    scopes = api_usage.parse_scopes(key.scopes)
+    allowed = {scope} if scope else set(api_usage.INFERENCE_SCOPES)
+    if not scopes & allowed:
+        what = f"el motor {scope}" if scope else "la API de inferencia"
+        raise Forbidden(f"Esta API key no tiene acceso a {what}", "scope_missing")
+    client = db.get(Client, key.client_id)
+    if client is None or not client.active:
+        raise QuotaExceeded("El cliente esta inactivo", "client_inactive")
+    return key, client
+
+
+def inference_access(scope: Literal["llm", "stt", "tts"]):
+    """Dependencia de cada motor: autentica la key y aplica los limites del tier (pedidos por
+    minuto y cupo del mes). 401 sin key valida, 403 sin ese alcance o sin el motor en el plan,
+    429 al pasar el tope de pedidos o al agotar el cupo."""
+    def dependency(db: DB, creds: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)]) -> InferenceAccess:
+        key, client = inference_key(db, creds, scope)
+        rate = client.tier.api_rate_limit
+        if rate == 0:
+            raise Forbidden("Tu plan no incluye la API de inferencia.", "not_in_plan")
+        if rate is not None:
+            # Por cliente (todas sus keys y los tres motores): los pedidos rechazados tambien cuentan.
+            api_limiter.consume(f"inference:{client.id}", [Limit(rate, 60)],
+                                f"Superaste los {rate} pedidos por minuto de tu plan. Probá de nuevo en unos segundos.")
+        return InferenceAccess(client, key, api_usage.check(db, client, scope))
+    return dependency
+
+
+LlmAccess = Annotated[InferenceAccess, Depends(inference_access("llm"))]
+SttAccess = Annotated[InferenceAccess, Depends(inference_access("stt"))]
+TtsAccess = Annotated[InferenceAccess, Depends(inference_access("tts"))]
 
 
 # ---------- IP real y esquema ----------

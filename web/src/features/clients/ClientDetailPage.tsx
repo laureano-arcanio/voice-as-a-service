@@ -33,7 +33,7 @@ import { formatDate, formatDateTime, formatLimit, recentMonths } from '@/lib/for
 import { ENGINE } from '@/lib/labels';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useClient, useDeleteClient, useUpdateClient } from './api';
-import { ApiKeysSection } from './ApiKeysSection';
+import { ApiAccess } from '@/features/developers/ApiAccess';
 import { NumbersSection } from './NumbersSection';
 import { UsageCard } from './UsageCard';
 
@@ -303,7 +303,7 @@ function ClientView({ client }: { client: Client }) {
           </Card>
         </Tabs.Panel>
         <Tabs.Panel value="api-keys">
-          <ApiKeysSection clientId={client.id} />
+          <ApiAccess clientId={client.id} />
         </Tabs.Panel>
       </Tabs>
     </>

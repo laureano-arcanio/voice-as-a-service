@@ -3,11 +3,10 @@ import { useState } from 'react';
 import { PageHeader } from '@/components/PageHeader';
 import { useCurrentUser } from '@/features/auth/api';
 import { recentMonths } from '@/lib/format';
-import { ApiKeysSection } from './ApiKeysSection';
 import { NumbersSection } from './NumbersSection';
 import { UsageCard } from './UsageCard';
 
-/** Cuenta del usuario de un cliente: consumo, API keys y sus numeros (agente y etiqueta editables). */
+/** Cuenta del usuario de un cliente: consumo y sus numeros (agente y etiqueta editables). Las API keys, en /developers. */
 export function AccountPage() {
   const me = useCurrentUser();
   const [month, setMonth] = useState(() => recentMonths(1)[0]);
@@ -18,7 +17,6 @@ export function AccountPage() {
       <Stack gap="md">
         <UsageCard clientId={me.client_id} month={month} onMonth={setMonth} limitsName="plan" />
         <NumbersSection clientId={me.client_id} canAssign={false} />
-        <ApiKeysSection clientId={me.client_id} />
       </Stack>
     </>
   );

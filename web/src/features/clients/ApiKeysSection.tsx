@@ -3,25 +3,87 @@ import {
   Badge,
   Button,
   Card,
+  Checkbox,
   Code,
   Group,
   Modal,
   Stack,
   Table,
+  Tabs,
   Text,
   TextInput,
   Title,
 } from '@mantine/core';
 import { IconAlertTriangle, IconKey, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
-import type { ApiKey, ApiKeyCreated } from '@/api/types';
+import type { ApiKey, ApiKeyCreated, ApiScope } from '@/api/types';
 import { confirmAction } from '@/components/confirm';
 import { CopyIcon } from '@/components/Copy';
 import { EmptyState, QueryState } from '@/components/QueryState';
 import { formatDateTime } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useApiKeys, useCreateApiKey, useRevokeApiKey } from './api';
+import { EXAMPLE_LABELS, inferenceExample, type ExampleKind } from '@/features/developers/examples';
 import { curlExample } from './curl';
+
+/** Para que sirve cada alcance de una key. `calls`: la API de llamadas; el resto, la de inferencia. */
+const SCOPE_OPTIONS: { value: ApiScope; label: string; description: string }[] = [
+  {
+    value: 'calls',
+    label: 'Llamadas y agentes',
+    description: 'Lanzar llamadas, ver conversaciones y reportes.',
+  },
+  { value: 'llm', label: 'LLM', description: 'Chat con nuestro modelo de lenguaje.' },
+  { value: 'stt', label: 'Transcripción (STT)', description: 'Audio a texto.' },
+  { value: 'tts', label: 'Síntesis (TTS)', description: 'Texto a voz.' },
+];
+const INFERENCE_EXAMPLES: Record<string, ExampleKind> = { llm: 'llm', stt: 'stt', tts: 'tts' };
+
+function ScopeBadges({ scopes }: { scopes: ApiScope[] }) {
+  return (
+    <Group gap={4}>
+      {scopes.map((s) => (
+        <Badge key={s} color={s === 'calls' ? 'blue' : 'gray'}>
+          {s}
+        </Badge>
+      ))}
+    </Group>
+  );
+}
+
+/** Ejemplos de la key recien creada, uno por alcance. */
+function KeyExamples({ created }: { created: ApiKeyCreated }) {
+  const tabs = created.scopes.map((s) =>
+    s === 'calls'
+      ? { value: s, label: 'Lanzar una llamada', code: curlExample(location.origin, created.key) }
+      : {
+          value: s,
+          label: EXAMPLE_LABELS[INFERENCE_EXAMPLES[s]],
+          code: inferenceExample(INFERENCE_EXAMPLES[s], location.origin, created.key),
+        },
+  );
+  return (
+    <Tabs defaultValue={tabs[0].value} keepMounted={false}>
+      <Tabs.List mb="xs">
+        {tabs.map((t) => (
+          <Tabs.Tab key={t.value} value={t.value}>
+            {t.label}
+          </Tabs.Tab>
+        ))}
+      </Tabs.List>
+      {tabs.map((t) => (
+        <Tabs.Panel key={t.value} value={t.value}>
+          <Group gap="xs" wrap="nowrap" align="flex-start">
+            <Code block style={{ flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+              {t.code}
+            </Code>
+            <CopyIcon value={t.code} label="Copiar ejemplo" />
+          </Group>
+        </Tabs.Panel>
+      ))}
+    </Tabs>
+  );
+}
 
 function NewKeyModal({
   clientId,
@@ -34,6 +96,7 @@ function NewKeyModal({
 }) {
   const create = useCreateApiKey(clientId);
   const [name, setName] = useState('');
+  const [scopes, setScopes] = useState<ApiScope[]>(['calls']);
   const [created, setCreated] = useState<ApiKeyCreated | null>(null);
 
   const close = async () => {
@@ -68,15 +131,7 @@ function NewKeyModal({
             </Code>
             <CopyIcon value={created.key} label="Copiar clave" />
           </Group>
-          <Text size="sm" fw={600}>
-            Ejemplo: lanzar una llamada
-          </Text>
-          <Group gap="xs" wrap="nowrap" align="flex-start">
-            <Code block style={{ flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-              {curlExample(location.origin, created.key)}
-            </Code>
-            <CopyIcon value={curlExample(location.origin, created.key)} label="Copiar ejemplo" />
-          </Group>
+          <KeyExamples created={created} />
           <Group justify="flex-end">
             <Button onClick={() => void close()}>Listo</Button>
           </Group>
@@ -86,10 +141,13 @@ function NewKeyModal({
           onSubmit={(e) => {
             e.preventDefault();
             if (!name.trim()) return;
-            create.mutate(name.trim(), {
-              onSuccess: (k) => setCreated(k),
-              onError: (err) => notifyError(err, 'No se pudo crear la API key'),
-            });
+            create.mutate(
+              { name: name.trim(), scopes },
+              {
+                onSuccess: (k) => setCreated(k),
+                onError: (err) => notifyError(err, 'No se pudo crear la API key'),
+              },
+            );
           }}
         >
           <Stack>
@@ -102,11 +160,23 @@ function NewKeyModal({
               data-autofocus
               required
             />
+            <Checkbox.Group
+              label="Acceso"
+              description="Una key solo sirve para lo que marques acá. Las de inferencia cuentan contra los límites de tu plan."
+              value={scopes}
+              onChange={(v) => setScopes(v as ApiScope[])}
+            >
+              <Stack gap="xs" mt="xs">
+                {SCOPE_OPTIONS.map((o) => (
+                  <Checkbox key={o.value} value={o.value} label={o.label} description={o.description} />
+                ))}
+              </Stack>
+            </Checkbox.Group>
             <Group justify="flex-end">
               <Button variant="default" onClick={onClose}>
                 Cancelar
               </Button>
-              <Button type="submit" loading={create.isPending} disabled={!name.trim()}>
+              <Button type="submit" loading={create.isPending} disabled={!name.trim() || scopes.length === 0}>
                 Crear
               </Button>
             </Group>
@@ -147,20 +217,21 @@ export function ApiKeysSection({ clientId }: { clientId: string }) {
         </Button>
       </Group>
       <Text size="xs" c="dimmed" mb="sm">
-        Para que tus sistemas lancen llamadas y lean resultados: van en{' '}
-        <Code>Authorization: Bearer &lt;key&gt;</Code>.
+        Para que tus sistemas lancen llamadas, lean resultados o usen el LLM, la transcripción y la síntesis
+        de voz: van en <Code>Authorization: Bearer &lt;key&gt;</Code>. Cada key tiene su alcance.
       </Text>
       <QueryState query={keys}>
         {(list) =>
           list.length === 0 ? (
             <EmptyState>Sin API keys.</EmptyState>
           ) : (
-            <Table.ScrollContainer minWidth={620}>
+            <Table.ScrollContainer minWidth={720}>
               <Table>
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th>Nombre</Table.Th>
                     <Table.Th>Prefijo</Table.Th>
+                    <Table.Th>Acceso</Table.Th>
                     <Table.Th>Creada</Table.Th>
                     <Table.Th>Último uso</Table.Th>
                     <Table.Th>Estado</Table.Th>
@@ -177,6 +248,9 @@ export function ApiKeysSection({ clientId }: { clientId: string }) {
                         </Group>
                       </Table.Td>
                       <Table.Td className="mono">{k.prefix}…</Table.Td>
+                      <Table.Td>
+                        <ScopeBadges scopes={k.scopes} />
+                      </Table.Td>
                       <Table.Td style={{ whiteSpace: 'nowrap' }}>{formatDateTime(k.created_at)}</Table.Td>
                       <Table.Td style={{ whiteSpace: 'nowrap' }}>
                         {k.last_used_at ? formatDateTime(k.last_used_at) : 'Nunca'}

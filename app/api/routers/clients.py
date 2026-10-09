@@ -13,7 +13,7 @@ from ...models import (
     User,
     WaAccount,
 )
-from ...services import phone_numbers, quota
+from ...services import api_usage, phone_numbers, quota
 from ...services.errors import Conflict, Invalid, NotFound
 from ...services.security import unusable_password_hash
 from ..deps import DB, AdminPrincipal, CurrentPrincipal
@@ -22,6 +22,7 @@ from ..schemas import (
     ClientIn,
     ClientOut,
     ClientUpdate,
+    InferenceUsageOut,
     InviteOut,
     MinutesUsageOut,
     NumbersUsageOut,
@@ -123,6 +124,24 @@ def delete_client(client_id: str, p: AdminPrincipal, db: DB):
     db.commit()
 
 
+def inference_usage_out(u: api_usage.InferenceUsage) -> InferenceUsageOut:
+    def meter(m: api_usage.Meter) -> dict:
+        return {"used": m.used, "limit": m.limit, "remaining": m.remaining}
+
+    def requests(t: api_usage.Totals) -> dict:
+        return {"llm": t.llm_requests, "stt": t.stt_requests, "tts": t.tts_requests}
+
+    return InferenceUsageOut(
+        month=u.month, period_start=u.period_start, period_end=u.period_end, rate_limit=u.rate_limit,
+        llm_input_tokens=meter(u.llm_input_tokens), llm_output_tokens=meter(u.llm_output_tokens),
+        tts_minutes=meter(u.tts_minutes), stt_minutes=meter(u.stt_minutes), requests=requests(u.requests),
+        keys=[{"key_id": k.key_id, "name": k.name, "prefix": k.prefix, "revoked": k.revoked, "scopes": k.scopes,
+               "requests": requests(k.totals), "llm_input_tokens": k.totals.llm_input_tokens,
+               "llm_output_tokens": k.totals.llm_output_tokens,
+               "tts_minutes": round(k.totals.tts_seconds / 60, 2), "stt_minutes": round(k.totals.stt_seconds / 60, 2)}
+              for k in u.keys])
+
+
 def _minutes(m: quota.MinutesUsage) -> MinutesUsageOut:
     used = round(m.used_seconds / 60, 1)
     remaining = None if m.limit_minutes is None else round(max(m.limit_minutes * 60 - m.used_seconds, 0) / 60, 1)
@@ -142,3 +161,13 @@ def client_usage(client_id: str, p: CurrentPrincipal, db: DB,
                     inbound=_minutes(u.inbound), outbound=_minutes(u.outbound),
                     phone_numbers=NumbersUsageOut(used=phone_numbers.numbers_count(db, client.id),
                                                   limit=client.tier.max_phone_numbers))
+
+
+@router.get("/{client_id}/inference-usage", response_model=InferenceUsageOut)
+def client_inference_usage(client_id: str, p: CurrentPrincipal, db: DB,
+                           month: str | None = Query(default=None, pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
+                                                     description="YYYY-MM; sin el, el mes en curso")):
+    """Consumo del mes de la API de inferencia (LLM, STT y TTS por API key) contra los limites del
+    tier, y por key. No incluye los agentes integrados."""
+    client = get_client(db, p, client_id)
+    return inference_usage_out(api_usage.usage(db, client, month))

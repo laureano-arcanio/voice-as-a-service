@@ -166,6 +166,7 @@ Hay dos guías, con la misma marca (paleta, tipografías y voz). Cuál leer depe
 
 - [`README.md`](README.md): la app, operación y deploy.
 - [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md): arquitectura y detalles técnicos (componentes, modelo de datos, flujos de llamada, límites, auth, API, frontend).
+- [`docs/API_INFERENCIA.md`](docs/API_INFERENCIA.md): API de inferencia para clientes (LLM, STT y TTS por API key compatible con OpenAI): alcance de las keys, endpoints, límites del tier (tokens, minutos, pedidos por minuto) y cómo se cortan, errores y consumo.
 - [`docs/GUIA_UI.md`](docs/GUIA_UI.md): cómo hacer cada acción en la UI (tiers, clientes, agentes, números, usuarios, API keys, llamadas).
 - [`docs/capacity/`](docs/capacity/README.md): capacidad vigente, test de capacidad y registro `CAP-NNN`.
 - [`docs/CAPACITY_TEST_PLAN.md`](docs/CAPACITY_TEST_PLAN.md): diseño del test de capacidad.

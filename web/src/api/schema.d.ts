@@ -208,6 +208,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clients/{client_id}/inference-usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Client Inference Usage
+         * @description Consumo del mes de la API de inferencia (LLM, STT y TTS por API key) contra los limites del
+         *     tier, y por key. No incluye los agentes integrados.
+         */
+        get: operations["client_inference_usage_api_v1_clients__client_id__inference_usage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/phone-numbers": {
         parameters: {
             query?: never;
@@ -579,7 +600,8 @@ export interface paths {
         put?: never;
         /**
          * Create Key
-         * @description La clave va en `Authorization: Bearer <key>`. Se muestra solo en esta respuesta.
+         * @description La clave va en `Authorization: Bearer <key>`. Se muestra solo en esta respuesta. `scopes` define
+         *     para que sirve: `calls` (API de llamadas) o `llm`, `stt`, `tts` (API de inferencia).
          */
         post: operations["create_key_api_v1_clients__client_id__api_keys_post"];
         delete?: never;
@@ -1133,6 +1155,129 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/inference/chat/completions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Chat Completions
+         * @description LLM. Requiere una key con alcance `llm`. Cuenta los tokens de entrada y de salida que informa el
+         *     motor; `max_tokens` se achica a lo que le queda al cliente este mes. Con `stream=true` responde SSE
+         *     y agrega el chunk final con `usage`.
+         */
+        post: operations["chat_completions_api_v1_inference_chat_completions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inference/audio/transcriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Transcriptions
+         * @description STT. Requiere una key con alcance `stt`. Cuenta los segundos de audio transcripto.
+         */
+        post: operations["transcriptions_api_v1_inference_audio_transcriptions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inference/audio/speech": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Speech
+         * @description TTS. Requiere una key con alcance `tts`. Devuelve el audio en streaming (wav, o pcm de 24 kHz,
+         *     mono, 16 bits) y cuenta los segundos sintetizados.
+         */
+        post: operations["speech_api_v1_inference_audio_speech_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inference/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Models
+         * @description Los modelos que sirve la plataforma (el campo `model` de los pedidos se ignora).
+         */
+        get: operations["models_api_v1_inference_models_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inference/voices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Voices
+         * @description Voces del TTS para el campo `voice` de /audio/speech, de menor a mayor WER. Requiere alcance `tts`.
+         */
+        get: operations["list_voices_api_v1_inference_voices_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inference/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Usage
+         * @description Consumo del mes del cliente de la key contra los limites de su tier. Consultarlo no gasta cupo.
+         */
+        get: operations["usage_api_v1_inference_usage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/demo/sessions": {
         parameters: {
             query?: never;
@@ -1368,6 +1513,8 @@ export interface components {
             name: string;
             /** Prefix */
             prefix: string;
+            /** Scopes */
+            scopes: ("calls" | "llm" | "stt" | "tts")[];
             /**
              * Created At
              * Format: date-time
@@ -1387,6 +1534,14 @@ export interface components {
         ApiKeyIn: {
             /** Name */
             name: string;
+            /**
+             * Scopes
+             * @description calls: API de llamadas, agentes y reportes. llm, stt, tts: motores de la API de inferencia
+             * @default [
+             *       "calls"
+             *     ]
+             */
+            scopes?: ("calls" | "llm" | "stt" | "tts")[];
         };
         /** ApiKeyOut */
         ApiKeyOut: {
@@ -1398,6 +1553,8 @@ export interface components {
             name: string;
             /** Prefix */
             prefix: string;
+            /** Scopes */
+            scopes: ("calls" | "llm" | "stt" | "tts")[];
             /**
              * Created At
              * Format: date-time
@@ -1412,6 +1569,25 @@ export interface components {
         AssignIn: {
             /** Client Id */
             client_id: string;
+        };
+        /** Body_transcriptions_api_v1_inference_audio_transcriptions_post */
+        Body_transcriptions_api_v1_inference_audio_transcriptions_post: {
+            /**
+             * File
+             * Format: binary
+             * @description Audio (wav, mp3, flac, ogg...)
+             */
+            file: string;
+            /** Model */
+            model?: string | null;
+            /** Language */
+            language?: string | null;
+            /**
+             * Response Format
+             * @description json, text o verbose_json
+             * @default json
+             */
+            response_format?: string;
         };
         /** CallDetail */
         CallDetail: {
@@ -1548,6 +1724,56 @@ export interface components {
             ended_reason: string;
             /** Latency Avg */
             latency_avg: number | null;
+        };
+        /**
+         * ChatCompletionIn
+         * @description Compatible con OpenAI. `model` se acepta (los SDK lo piden) pero lo fija la plataforma.
+         */
+        ChatCompletionIn: {
+            /** Model */
+            model?: string | null;
+            /** Messages */
+            messages: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Stream
+             * @default false
+             */
+            stream?: boolean;
+            /** Max Tokens */
+            max_tokens?: number | null;
+            /** Max Completion Tokens */
+            max_completion_tokens?: number | null;
+            /** Temperature */
+            temperature?: number | null;
+            /** Top P */
+            top_p?: number | null;
+            /** Stop */
+            stop?: string | string[] | null;
+            /** Seed */
+            seed?: number | null;
+            /** Presence Penalty */
+            presence_penalty?: number | null;
+            /** Frequency Penalty */
+            frequency_penalty?: number | null;
+            /** Response Format */
+            response_format?: {
+                [key: string]: unknown;
+            } | null;
+            /** Tools */
+            tools?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Tool Choice */
+            tool_choice?: string | {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * N
+             * @description Solo 1
+             */
+            n?: number | null;
         };
         /** ClientCreatedOut */
         ClientCreatedOut: {
@@ -1830,6 +2056,95 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** InferenceKeyUsageOut */
+        InferenceKeyUsageOut: {
+            /** Key Id */
+            key_id: string;
+            /** Name */
+            name: string;
+            /** Prefix */
+            prefix: string;
+            /** Revoked */
+            revoked: boolean;
+            /** Scopes */
+            scopes: string[];
+            requests: components["schemas"]["InferenceRequestsOut"];
+            /** Llm Input Tokens */
+            llm_input_tokens: number;
+            /** Llm Output Tokens */
+            llm_output_tokens: number;
+            /** Tts Minutes */
+            tts_minutes: number;
+            /** Stt Minutes */
+            stt_minutes: number;
+        };
+        /** InferenceModelOut */
+        InferenceModelOut: {
+            /** Id */
+            id: string;
+            /**
+             * Object
+             * @default model
+             */
+            object?: string;
+            /** Owned By */
+            owned_by: string;
+            /**
+             * Engine
+             * @enum {string}
+             */
+            engine: "llm" | "stt" | "tts";
+        };
+        /** InferenceModelsOut */
+        InferenceModelsOut: {
+            /**
+             * Object
+             * @default list
+             */
+            object?: string;
+            /** Data */
+            data: components["schemas"]["InferenceModelOut"][];
+        };
+        /** InferenceRequestsOut */
+        InferenceRequestsOut: {
+            /** Llm */
+            llm: number;
+            /** Stt */
+            stt: number;
+            /** Tts */
+            tts: number;
+        };
+        /**
+         * InferenceUsageOut
+         * @description Consumo del mes de la API de inferencia contra los limites del tier.
+         */
+        InferenceUsageOut: {
+            /** Month */
+            month: string;
+            /**
+             * Period Start
+             * Format: date
+             */
+            period_start: string;
+            /**
+             * Period End
+             * Format: date
+             * @description Exclusivo
+             */
+            period_end: string;
+            /**
+             * Rate Limit
+             * @description Pedidos por minuto; None: ilimitado
+             */
+            rate_limit: number | null;
+            llm_input_tokens: components["schemas"]["MeterOut"];
+            llm_output_tokens: components["schemas"]["MeterOut"];
+            tts_minutes: components["schemas"]["MeterOut"];
+            stt_minutes: components["schemas"]["MeterOut"];
+            requests: components["schemas"]["InferenceRequestsOut"];
+            /** Keys */
+            keys: components["schemas"]["InferenceKeyUsageOut"][];
+        };
         /**
          * InviteOut
          * @description Resultado del mail para crear la clave. disabled: el servidor no tiene RESEND_API_KEY.
@@ -1902,6 +2217,18 @@ export interface components {
              * @default false
              */
             voice_note?: boolean;
+        };
+        /** MeterOut */
+        MeterOut: {
+            /** Used */
+            used: number;
+            /**
+             * Limit
+             * @description None: ilimitado; 0: no incluido en el plan
+             */
+            limit: number | null;
+            /** Remaining */
+            remaining: number | null;
         };
         /** MinutesUsageOut */
         MinutesUsageOut: {
@@ -2067,6 +2394,27 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** SpeechIn */
+        SpeechIn: {
+            /** Model */
+            model?: string | null;
+            /**
+             * Input
+             * @description Texto a sintetizar (hasta INFERENCE_TTS_MAX_CHARS)
+             */
+            input: string;
+            /**
+             * Voice
+             * @description Una de GET /inference/voices
+             */
+            voice: string;
+            /**
+             * Response Format
+             * @default wav
+             * @enum {string}
+             */
+            response_format?: "wav" | "pcm";
+        };
         /** StatsOut */
         StatsOut: {
             /** Total */
@@ -2145,6 +2493,36 @@ export interface components {
              * @description Numeros que puede tener el cliente
              */
             max_phone_numbers?: number | null;
+            /**
+             * Api Llm Input Tokens
+             * @description Tokens de entrada del LLM por mes
+             * @default 0
+             */
+            api_llm_input_tokens?: number | null;
+            /**
+             * Api Llm Output Tokens
+             * @description Tokens generados por el LLM por mes
+             * @default 0
+             */
+            api_llm_output_tokens?: number | null;
+            /**
+             * Api Tts Minutes
+             * @description Minutos de audio sintetizado por mes
+             * @default 0
+             */
+            api_tts_minutes?: number | null;
+            /**
+             * Api Stt Minutes
+             * @description Minutos de audio transcripto por mes
+             * @default 0
+             */
+            api_stt_minutes?: number | null;
+            /**
+             * Api Rate Limit
+             * @description Pedidos por minuto a la API de inferencia
+             * @default 60
+             */
+            api_rate_limit?: number | null;
         };
         /** TierOut */
         TierOut: {
@@ -2162,6 +2540,16 @@ export interface components {
             outbound_minutes: number | null;
             /** Max Phone Numbers */
             max_phone_numbers: number | null;
+            /** Api Llm Input Tokens */
+            api_llm_input_tokens: number | null;
+            /** Api Llm Output Tokens */
+            api_llm_output_tokens: number | null;
+            /** Api Tts Minutes */
+            api_tts_minutes: number | null;
+            /** Api Stt Minutes */
+            api_stt_minutes: number | null;
+            /** Api Rate Limit */
+            api_rate_limit: number | null;
             /**
              * Created At
              * Format: date-time
@@ -2187,6 +2575,16 @@ export interface components {
             outbound_minutes?: number | null;
             /** Max Phone Numbers */
             max_phone_numbers?: number | null;
+            /** Api Llm Input Tokens */
+            api_llm_input_tokens?: number | null;
+            /** Api Llm Output Tokens */
+            api_llm_output_tokens?: number | null;
+            /** Api Tts Minutes */
+            api_tts_minutes?: number | null;
+            /** Api Stt Minutes */
+            api_stt_minutes?: number | null;
+            /** Api Rate Limit */
+            api_rate_limit?: number | null;
         };
         /** TtsPreviewIn */
         TtsPreviewIn: {
@@ -3358,6 +3756,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UsageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    client_inference_usage_api_v1_clients__client_id__inference_usage_get: {
+        parameters: {
+            query?: {
+                /** @description YYYY-MM; sin el, el mes en curso */
+                month?: string | null;
+            };
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InferenceUsageOut"];
                 };
             };
             /** @description Validation Error */
@@ -5368,6 +5800,255 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chat_completions_api_v1_inference_chat_completions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatCompletionIn"];
+            };
+        };
+        responses: {
+            /** @description Chat completion de OpenAI, o SSE con stream=true */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Sin API key valida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La key no tiene ese motor (scope_missing) o el plan no lo incluye (not_in_plan) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Pedidos por minuto (rate_limited) o cupo del mes agotado (api_*) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    transcriptions_api_v1_inference_audio_transcriptions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_transcriptions_api_v1_inference_audio_transcriptions_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Sin API key valida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La key no tiene ese motor (scope_missing) o el plan no lo incluye (not_in_plan) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Pedidos por minuto (rate_limited) o cupo del mes agotado (api_*) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    speech_api_v1_inference_audio_speech_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpeechIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "audio/wav": unknown;
+                    "audio/pcm": unknown;
+                };
+            };
+            /** @description Sin API key valida */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La key no tiene ese motor (scope_missing) o el plan no lo incluye (not_in_plan) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Pedidos por minuto (rate_limited) o cupo del mes agotado (api_*) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    models_api_v1_inference_models_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InferenceModelsOut"];
+                };
+            };
+        };
+    };
+    list_voices_api_v1_inference_voices_get: {
+        parameters: {
+            query?: {
+                genero?: string | null;
+                wer_max?: number | null;
+                car_min?: number | null;
+                car_max?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    usage_api_v1_inference_usage_get: {
+        parameters: {
+            query?: {
+                /** @description YYYY-MM */
+                month?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InferenceUsageOut"];
+                };
             };
             /** @description Validation Error */
             422: {

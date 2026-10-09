@@ -36,6 +36,8 @@ class Principal:
     id: str
     role: Role
     client_id: str | None   # None solo para admins
+    # De una API key: lo que puede hacer (api_usage.ALL_SCOPES). Un usuario de sesion no se limita por esto.
+    scopes: frozenset[str] = frozenset({"calls"})
 
     @property
     def is_admin(self) -> bool:

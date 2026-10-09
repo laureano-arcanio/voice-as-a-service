@@ -50,7 +50,7 @@ app/
     schemas.py       contratos pydantic (fuente del OpenAPI y de los tipos de la UI)
     errors.py        ServiceError -> JSON {detail, code, errors}; 500 JSON sin detalles internos
     routers/         auth, tiers, clients, phone_numbers, agents, users, api_keys, calls,
-                     conversations, voices, whatsapp (cuentas), demo
+                     conversations, voices, whatsapp (cuentas), inference, demo
   services/          negocio sin HTTP (lo usan la API y el worker)
     quota.py         límites del tier: admisión con lock, consumo del mes, saldo en curso
     calls.py         iniciar salientes/pruebas (prepare_call + dispatch) y entrantes (start_inbound)
@@ -58,6 +58,8 @@ app/
     agents.py        alta, validación de la definición, versionado, archivo
     reports.py       lista de llamadas, detalle, indicadores y serie diaria (filtros y zona horaria)
     security.py      argon2, JWT HS256, API keys (SHA-256), token de alta de clave
+    api_usage.py     consumo y límites de la API de inferencia (cupos del mes, check/record, reporte)
+    inference.py     gateway de la API de inferencia: reenvío a LLM, STT y TTS y medición del consumo
   mail/              mails por Resend: sender, layout.py + templates/layout.html (cabecera y pie),
                      messages.py (bienvenida con plan, número asignado) y notify.py (a quién llega)
     livekit.py       despacho a LiveKit y link de la llamada de prueba
@@ -103,13 +105,14 @@ tiers 1───* clients 1───* agents 1───* agent_versions
 
 | Tabla | Claves y reglas |
 |---|---|
-| `tiers` | `max_concurrent_calls`, `inbound_minutes`, `outbound_minutes`, `max_phone_numbers`; NULL = ilimitado. |
+| `tiers` | `max_concurrent_calls`, `inbound_minutes`, `outbound_minutes`, `max_phone_numbers`; NULL = ilimitado. API de inferencia: `api_llm_input_tokens`, `api_llm_output_tokens`, `api_tts_minutes`, `api_stt_minutes` (por mes) y `api_rate_limit` (pedidos por minuto); NULL = ilimitado, 0 = no incluido. |
 | `clients` | `slug` único, `tier_id` (RESTRICT: un tier en uso no se borra), `active`. |
 | `agents` | `(client_id, slug)` único; `version` y `definition` vigentes (copia de la última versión); `archived_at`. |
 | `agent_versions` | `(agent_id, version)`; inmutables, con `created_by`. |
 | `phone_numbers` | `e164` único; `client_id` NULL = libre; `agent_id` solo si hay cliente (CHECK); `provider`, `assigned_at`. |
 | `users` | `email` único; `role` admin o client (CHECK: client ⇔ `client_id`); hash argon2. |
-| `api_keys` | SHA-256 de la clave (`key_hash` único), `prefix` visible, `revoked_at`. |
+| `api_keys` | SHA-256 de la clave (`key_hash` único), `prefix` visible, `revoked_at`, `scopes` (`calls`, `llm`, `stt`, `tts`, separados por coma: una key de inferencia no usa la API de llamadas ni al revés). |
+| `api_usage_daily` | Consumo de la API de inferencia por `(client_id, api_key_id, day)` (día en `BILLING_TIMEZONE`): pedidos, tokens de entrada y salida del LLM y segundos de TTS y STT. Se suma con un UPDATE que incrementa. Sin contenido de los pedidos. |
 | `conversations` | Estado del motor (datos, mensajes, progreso), `client_id`, `agent_id` + `agent_version` (RESTRICT: un cliente o agente con historial no se borra). `legacy_workflow_id` para las anteriores a los agentes. |
 | `call_logs` | Una por conversación: modo, estado, teléfono del otro lado, `phone_number_id` del cliente, inicio, fin, duración, latencia. Base del consumo. |
 | `conversations.channel` | `voice` o `whatsapp`; se fija al crearla. Cambia el prompt (reglas por canal), no el agente. |
@@ -289,6 +292,19 @@ sin respuesta.
 | Minutos entrantes / salientes | `quota.admit` y el watchdog del worker | Suma de `duration_seconds` de las llamadas de esa modalidad que empezaron en el mes, más el tiempo de las en curso. Las de prueba y loadtest no consumen. Mes calendario en `BILLING_TIMEZONE`. |
 | Números | `phone_numbers.assign`, cambio de tier, cambio del tope | Números con `client_id` del cliente. Asignar toma el mismo lock del cliente y el del número. |
 
+**API de inferencia** (`/api/v1/inference`, [`API_INFERENCIA.md`](API_INFERENCIA.md)): LLM, STT y TTS por API key,
+con límites mensuales del tier por separado (tokens de entrada y de salida, minutos de síntesis y de transcripción) y
+pedidos por minuto. Solo cuenta ese uso, no los agentes integrados. `api_usage.check` rechaza el pedido
+antes de llegar al motor si el cupo está agotado y devuelve lo que queda (el chat achica `max_tokens` a ese saldo);
+`api_usage.record` suma al terminar lo que informó el motor.
+
+| Límite | Dónde se aplica | Qué cuenta |
+|---|---|---|
+| Tokens de entrada y salida del LLM | `deps.inference_access("llm")` + `InferenceGateway.chat` | `usage.prompt_tokens` y `completion_tokens` del motor; en un stream cortado, estimados. |
+| Minutos de STT | `inference_access("stt")` + `transcribe` | `duration` del motor (se pide `verbose_json`). |
+| Minutos de TTS | `inference_access("tts")` + `speech` | Bytes del audio que salió, con la frecuencia del encabezado WAV (PCM: 24 kHz). |
+| Pedidos por minuto | `inference_access(...)` | `api_limiter`, por cliente (todas las keys y motores); en memoria. |
+
 Carreras medidas en PostgreSQL:
 - 20 llamadas simultáneas con tope 3: entran exactamente 3.
 - 5 asignaciones simultáneas de números con tope 2: entran exactamente 2.
@@ -388,6 +404,12 @@ lo de esta sección es lo que lo protege.
   `{APP_URL}/login?email=…` (la pantalla de login prellena el email; con sesión abierta va al inicio). Un fallo de
   Resend no corta la operación: queda en el log. Sin `RESEND_API_KEY` no se envía nada (`disabled`).
   Variables: `MAIL_FROM`, `APP_URL`, `SITE_URL`, `SUPPORT_EMAIL` y `PASSWORD_SETUP_HOURS`.
+- **Inferencia** (`/inference`, key con alcance `llm`, `stt` o `tts`): `POST /chat/completions`, `POST /audio/transcriptions`,
+  `POST /audio/speech`, `GET /voices`, `GET /models` y `GET /usage`; el consumo por cliente es
+  `GET /clients/{id}/inference-usage`. Compatible con el SDK de OpenAI. Las keys llevan alcance (`scopes`):
+  `get_principal` rechaza (403 `scope_missing`) una key sin `calls` en la API de llamadas, y la de inferencia
+  solo acepta keys (no la cookie). `/audio/transcriptions` admite cuerpos de hasta `INFERENCE_STT_MAX_BYTES`
+  (el resto de `/api`, 1 MiB). Detalle y límites en [`API_INFERENCIA.md`](API_INFERENCIA.md).
 - **Errores:** `{"detail": "texto", "code": "snake_case", "errors": [{"path", "message"}]}`.
   - 404 `not_found`, 403 `forbidden`, 409 `conflict`/`agent_in_use`/`phone_numbers_limit`/…,
     422 `invalid`/`invalid_definition`, 429 límites del tier, 502 `upstream_error` (LiveKit, TTS

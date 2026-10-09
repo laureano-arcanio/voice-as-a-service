@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { unwrap } from '@/api/request';
-import type { ClientIn, ClientUpdate } from '@/api/types';
+import type { ApiScope, ClientIn, ClientUpdate } from '@/api/types';
 
 export const clientKeys = {
   all: ['clients'] as const,
@@ -99,11 +99,11 @@ export function useApiKeys(clientId: string | undefined) {
 export function useCreateApiKey(clientId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (name: string) =>
+    mutationFn: ({ name, scopes }: { name: string; scopes: ApiScope[] }) =>
       unwrap(
         api.POST('/api/v1/clients/{client_id}/api-keys', {
           params: { path: { client_id: clientId } },
-          body: { name },
+          body: { name, scopes },
         }),
       ),
     onSuccess: () => void qc.invalidateQueries({ queryKey: apiKeyKeys.list(clientId) }),

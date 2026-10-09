@@ -3,6 +3,7 @@ from sqlalchemy import select
 
 from ...db import utcnow
 from ...models import ApiKey
+from ...services import api_usage
 from ...services.errors import NotFound
 from ...services.security import generate_api_key
 from ..deps import DB, UserPrincipal
@@ -20,10 +21,12 @@ def list_keys(client_id: str, p: UserPrincipal, db: DB):
 
 @router.post("", response_model=ApiKeyCreated, status_code=201)
 def create_key(client_id: str, body: ApiKeyIn, p: UserPrincipal, db: DB):
-    """La clave va en `Authorization: Bearer <key>`. Se muestra solo en esta respuesta."""
+    """La clave va en `Authorization: Bearer <key>`. Se muestra solo en esta respuesta. `scopes` define
+    para que sirve: `calls` (API de llamadas) o `llm`, `stt`, `tts` (API de inferencia)."""
     client = get_client(db, p, client_id)
     key, prefix, key_hash = generate_api_key()
-    row = ApiKey(client_id=client.id, name=body.name, prefix=prefix, key_hash=key_hash)
+    row = ApiKey(client_id=client.id, name=body.name, prefix=prefix, key_hash=key_hash,
+                 scopes=api_usage.format_scopes(body.scopes))
     db.add(row)
     db.commit()
     return ApiKeyCreated(**ApiKeyOut.model_validate(row).model_dump(), key=key)

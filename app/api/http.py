@@ -23,6 +23,9 @@ from ..config import settings
 from .deps import SESSION_COOKIE, _peer_is_trusted, request_is_https
 
 UNSAFE_METHODS_EXEMPT = {"GET", "HEAD", "OPTIONS"}
+# El unico pedido de /api que sube archivos: audio para transcribir (el multipart agrega algo al tamaño).
+UPLOAD_PATH = "/api/v1/inference/audio/transcriptions"
+UPLOAD_OVERHEAD_BYTES = 64 * 1024
 
 
 def _is_api(scope: Scope) -> bool:
@@ -44,6 +47,8 @@ class BodyLimitMiddleware:
         if not _is_api(scope):
             return await self.app(scope, receive, send)
         limit = settings.api_max_body_bytes
+        if scope["path"] == UPLOAD_PATH:
+            limit = settings.inference_stt_max_bytes + UPLOAD_OVERHEAD_BYTES   # audio de la API de STT
         too_big = {"detail": "Pedido demasiado grande", "code": "payload_too_large", "errors": []}
         length = dict(scope["headers"]).get(b"content-length")
         if length is not None:

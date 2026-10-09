@@ -26,6 +26,7 @@ Orden recomendado: **tier → cliente → agente → número → usuario**.
 ### 1. Crear o elegir un tier (Tiers)
 
 **Tiers > Nuevo tier**: nombre, descripción y límites. Un campo vacío significa ilimitado.
+Los de la API de inferencia (abajo) arrancan en 0 = el plan no los incluye.
 
 | Campo | Qué limita |
 |---|---|
@@ -156,10 +157,15 @@ Si el cliente está desactivado, sus números de WhatsApp tampoco responden.
 
   Desde la tabla se editan el nombre, la clave y el estado activo, y se borra. Desactivar un usuario
   corta su sesión en el acto. Nadie puede desactivarse ni borrarse a sí mismo.
-- **API keys** (pestaña de la ficha del cliente, o Mi cuenta para el cliente) > **Nueva API key**:
-  - La clave se muestra **una sola vez**, con botón para copiarla y un ejemplo `curl`.
-  - Va en `Authorization: Bearer vaas_...` y da acceso a los agentes (también crearlos y editarlos),
-    números y llamadas de ese cliente (sus sistemas disparan llamadas con `POST /api/v1/calls`).
+- **API keys** (pestaña **API keys** de la ficha del cliente, o **API** en el menú del cliente) > **Nueva API key**:
+  - Se elige el **acceso**: *Llamadas y agentes* (`calls`) y/o los motores de la API de inferencia: *LLM*, *Transcripción (STT)*
+    y *Síntesis (TTS)*.
+  - La clave se muestra **una sola vez**, con botón para copiarla y ejemplos `curl` de lo que se eligió.
+  - Va en `Authorization: Bearer vaas_...`. Con `calls` da acceso a los agentes (también crearlos y editarlos),
+    números y llamadas de ese cliente (sus sistemas disparan llamadas con `POST /api/v1/calls`). Con `llm`, `stt` o `tts`
+    llama a los motores, dentro de los límites del tier ([`API_INFERENCIA.md`](API_INFERENCIA.md)).
+  - La pantalla **API** muestra además el consumo del mes contra el plan (tokens, minutos, pedidos por minuto, y por key),
+    la URL base y ejemplos.
   - **Revocar** la anula en el acto.
 
 ## Operación diaria (ambos roles)

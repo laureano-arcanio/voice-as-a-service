@@ -149,6 +149,11 @@ export function formatPeriod(startIso: string, endIso: string): string {
   return `${formatDate(startIso)} al ${formatDate(last)}`;
 }
 
+/** Limite de la API de inferencia de un tier (compacto, para tablas): null = ilimitado, 0 = el plan no lo incluye. */
+export function formatApiLimit(v: number | null | undefined, unit = ''): string {
+  return v === 0 ? 'No incl.' : formatLimit(v, unit);
+}
+
 /** Limite de un tier: null = ilimitado. */
 export function formatLimit(v: number | null | undefined, unit = ''): string {
   return v == null ? 'Ilimitado' : `${formatNumber(v, 0)}${unit}`;

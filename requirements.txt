@@ -8,6 +8,7 @@ pydantic[email]==2.*
 pyjwt==2.*
 argon2-cffi==25.*
 httpx==0.27.*
+python-multipart==0.0.*  # uploads de audio de la API de inferencia (STT)
 python-dotenv==1.0.*
 cryptography==50.*  # Fernet: tokens y PIN de WhatsApp (app/whatsapp/crypto.py)
 pyyaml==6.0.*

@@ -123,6 +123,15 @@ class Settings(BaseSettings):
     contact_ip_per_hour: int = 3
     contact_ip_per_day: int = 10
 
+    # --- API de inferencia (/api/v1/inference: LLM, STT y TTS con API key; docs/API_INFERENCIA.md) ---
+    # Tope de tokens que genera un pedido de chat (se achica al saldo del mes del cliente).
+    inference_llm_max_tokens: int = 4096
+    # Audio por pedido de transcripcion (bytes) y texto por pedido de sintesis (caracteres).
+    inference_stt_max_bytes: int = 25 * 1024 * 1024
+    inference_tts_max_chars: int = 1500
+    # Tiempo maximo de cada pedido al motor.
+    inference_timeout_seconds: float = 120
+
     # --- Mails transaccionales (app/mail/): alta de cliente y numero asignado ---
     # Salen por Resend (RESEND_API_KEY, arriba); sin clave no se envian y la API sigue igual.
     mail_from: str = "Atentina <hola@atentina.com.ar>"

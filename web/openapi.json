@@ -659,6 +659,73 @@
     }
    }
   },
+  "/api/v1/clients/{client_id}/inference-usage": {
+   "get": {
+    "tags": [
+     "clients"
+    ],
+    "summary": "Client Inference Usage",
+    "description": "Consumo del mes de la API de inferencia (LLM, STT y TTS por API key) contra los limites del\ntier, y por key. No incluye los agentes integrados.",
+    "operationId": "client_inference_usage_api_v1_clients__client_id__inference_usage_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     },
+     {
+      "name": "month",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "YYYY-MM; sin el, el mes en curso",
+       "title": "Month"
+      },
+      "description": "YYYY-MM; sin el, el mes en curso"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InferenceUsageOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/phone-numbers": {
    "get": {
     "tags": [
@@ -1953,7 +2020,7 @@
      "api-keys"
     ],
     "summary": "Create Key",
-    "description": "La clave va en `Authorization: Bearer <key>`. Se muestra solo en esta respuesta.",
+    "description": "La clave va en `Authorization: Bearer <key>`. Se muestra solo en esta respuesta. `scopes` define\npara que sirve: `calls` (API de llamadas) o `llm`, `stt`, `tts` (API de inferencia).",
     "operationId": "create_key_api_v1_clients__client_id__api_keys_post",
     "security": [
      {
@@ -4114,6 +4181,359 @@
     }
    }
   },
+  "/api/v1/inference/chat/completions": {
+   "post": {
+    "tags": [
+     "inference"
+    ],
+    "summary": "Chat Completions",
+    "description": "LLM. Requiere una key con alcance `llm`. Cuenta los tokens de entrada y de salida que informa el\nmotor; `max_tokens` se achica a lo que le queda al cliente este mes. Con `stream=true` responde SSE\ny agrega el chunk final con `usage`.",
+    "operationId": "chat_completions_api_v1_inference_chat_completions_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ChatCompletionIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Chat completion de OpenAI, o SSE con stream=true",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "401": {
+      "description": "Sin API key valida"
+     },
+     "403": {
+      "description": "La key no tiene ese motor (scope_missing) o el plan no lo incluye (not_in_plan)"
+     },
+     "429": {
+      "description": "Pedidos por minuto (rate_limited) o cupo del mes agotado (api_*)"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/inference/audio/transcriptions": {
+   "post": {
+    "tags": [
+     "inference"
+    ],
+    "summary": "Transcriptions",
+    "description": "STT. Requiere una key con alcance `stt`. Cuenta los segundos de audio transcripto.",
+    "operationId": "transcriptions_api_v1_inference_audio_transcriptions_post",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_transcriptions_api_v1_inference_audio_transcriptions_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "401": {
+      "description": "Sin API key valida"
+     },
+     "403": {
+      "description": "La key no tiene ese motor (scope_missing) o el plan no lo incluye (not_in_plan)"
+     },
+     "429": {
+      "description": "Pedidos por minuto (rate_limited) o cupo del mes agotado (api_*)"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/inference/audio/speech": {
+   "post": {
+    "tags": [
+     "inference"
+    ],
+    "summary": "Speech",
+    "description": "TTS. Requiere una key con alcance `tts`. Devuelve el audio en streaming (wav, o pcm de 24 kHz,\nmono, 16 bits) y cuenta los segundos sintetizados.",
+    "operationId": "speech_api_v1_inference_audio_speech_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SpeechIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "audio/wav": {},
+       "audio/pcm": {}
+      }
+     },
+     "401": {
+      "description": "Sin API key valida"
+     },
+     "403": {
+      "description": "La key no tiene ese motor (scope_missing) o el plan no lo incluye (not_in_plan)"
+     },
+     "429": {
+      "description": "Pedidos por minuto (rate_limited) o cupo del mes agotado (api_*)"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/inference/models": {
+   "get": {
+    "tags": [
+     "inference"
+    ],
+    "summary": "Models",
+    "description": "Los modelos que sirve la plataforma (el campo `model` de los pedidos se ignora).",
+    "operationId": "models_api_v1_inference_models_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InferenceModelsOut"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/inference/voices": {
+   "get": {
+    "tags": [
+     "inference"
+    ],
+    "summary": "List Voices",
+    "description": "Voces del TTS para el campo `voice` de /audio/speech, de menor a mayor WER. Requiere alcance `tts`.",
+    "operationId": "list_voices_api_v1_inference_voices_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "genero",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Genero"
+      }
+     },
+     {
+      "name": "wer_max",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "number"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Wer Max"
+      }
+     },
+     {
+      "name": "car_min",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "number"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Car Min"
+      }
+     },
+     {
+      "name": "car_max",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "number"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Car Max"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/VoiceOut"
+         },
+         "title": "Response List Voices Api V1 Inference Voices Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/inference/usage": {
+   "get": {
+    "tags": [
+     "inference"
+    ],
+    "summary": "Usage",
+    "description": "Consumo del mes del cliente de la key contra los limites de su tier. Consultarlo no gasta cupo.",
+    "operationId": "usage_api_v1_inference_usage_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "month",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "YYYY-MM",
+       "title": "Month"
+      },
+      "description": "YYYY-MM"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InferenceUsageOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/demo/sessions": {
    "post": {
     "tags": [
@@ -4689,6 +5109,19 @@
       "type": "string",
       "title": "Prefix"
      },
+     "scopes": {
+      "items": {
+       "type": "string",
+       "enum": [
+        "calls",
+        "llm",
+        "stt",
+        "tts"
+       ]
+      },
+      "type": "array",
+      "title": "Scopes"
+     },
      "created_at": {
       "type": "string",
       "format": "date-time",
@@ -4730,6 +5163,7 @@
      "client_id",
      "name",
      "prefix",
+     "scopes",
      "created_at",
      "last_used_at",
      "revoked_at",
@@ -4744,6 +5178,24 @@
       "maxLength": 64,
       "minLength": 1,
       "title": "Name"
+     },
+     "scopes": {
+      "items": {
+       "type": "string",
+       "enum": [
+        "calls",
+        "llm",
+        "stt",
+        "tts"
+       ]
+      },
+      "type": "array",
+      "minItems": 1,
+      "title": "Scopes",
+      "description": "calls: API de llamadas, agentes y reportes. llm, stt, tts: motores de la API de inferencia",
+      "default": [
+       "calls"
+      ]
      }
     },
     "type": "object",
@@ -4769,6 +5221,19 @@
      "prefix": {
       "type": "string",
       "title": "Prefix"
+     },
+     "scopes": {
+      "items": {
+       "type": "string",
+       "enum": [
+        "calls",
+        "llm",
+        "stt",
+        "tts"
+       ]
+      },
+      "type": "array",
+      "title": "Scopes"
      },
      "created_at": {
       "type": "string",
@@ -4806,6 +5271,7 @@
      "client_id",
      "name",
      "prefix",
+     "scopes",
      "created_at",
      "last_used_at",
      "revoked_at"
@@ -4824,6 +5290,49 @@
      "client_id"
     ],
     "title": "AssignIn"
+   },
+   "Body_transcriptions_api_v1_inference_audio_transcriptions_post": {
+    "properties": {
+     "file": {
+      "type": "string",
+      "format": "binary",
+      "title": "File",
+      "description": "Audio (wav, mp3, flac, ogg...)"
+     },
+     "model": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Model"
+     },
+     "language": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Language"
+     },
+     "response_format": {
+      "type": "string",
+      "title": "Response Format",
+      "description": "json, text o verbose_json",
+      "default": "json"
+     }
+    },
+    "type": "object",
+    "required": [
+     "file"
+    ],
+    "title": "Body_transcriptions_api_v1_inference_audio_transcriptions_post"
    },
    "CallDetail": {
     "properties": {
@@ -5350,6 +5859,199 @@
      "latency_avg"
     ],
     "title": "CallSummary"
+   },
+   "ChatCompletionIn": {
+    "properties": {
+     "model": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Model"
+     },
+     "messages": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "minItems": 1,
+      "title": "Messages"
+     },
+     "stream": {
+      "type": "boolean",
+      "title": "Stream",
+      "default": false
+     },
+     "max_tokens": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Tokens"
+     },
+     "max_completion_tokens": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Completion Tokens"
+     },
+     "temperature": {
+      "anyOf": [
+       {
+        "type": "number",
+        "maximum": 2.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Temperature"
+     },
+     "top_p": {
+      "anyOf": [
+       {
+        "type": "number",
+        "maximum": 1.0,
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Top P"
+     },
+     "stop": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Stop"
+     },
+     "seed": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Seed"
+     },
+     "presence_penalty": {
+      "anyOf": [
+       {
+        "type": "number",
+        "maximum": 2.0,
+        "minimum": -2.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Presence Penalty"
+     },
+     "frequency_penalty": {
+      "anyOf": [
+       {
+        "type": "number",
+        "maximum": 2.0,
+        "minimum": -2.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Frequency Penalty"
+     },
+     "response_format": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Response Format"
+     },
+     "tools": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tools"
+     },
+     "tool_choice": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tool Choice"
+     },
+     "n": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "N",
+      "description": "Solo 1"
+     }
+    },
+    "type": "object",
+    "required": [
+     "messages"
+    ],
+    "title": "ChatCompletionIn",
+    "description": "Compatible con OpenAI. `model` se acepta (los SDK lo piden) pero lo fija la plataforma."
    },
    "ClientCreatedOut": {
     "properties": {
@@ -6063,6 +6765,211 @@
     "type": "object",
     "title": "HTTPValidationError"
    },
+   "InferenceKeyUsageOut": {
+    "properties": {
+     "key_id": {
+      "type": "string",
+      "title": "Key Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "prefix": {
+      "type": "string",
+      "title": "Prefix"
+     },
+     "revoked": {
+      "type": "boolean",
+      "title": "Revoked"
+     },
+     "scopes": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Scopes"
+     },
+     "requests": {
+      "$ref": "#/components/schemas/InferenceRequestsOut"
+     },
+     "llm_input_tokens": {
+      "type": "integer",
+      "title": "Llm Input Tokens"
+     },
+     "llm_output_tokens": {
+      "type": "integer",
+      "title": "Llm Output Tokens"
+     },
+     "tts_minutes": {
+      "type": "number",
+      "title": "Tts Minutes"
+     },
+     "stt_minutes": {
+      "type": "number",
+      "title": "Stt Minutes"
+     }
+    },
+    "type": "object",
+    "required": [
+     "key_id",
+     "name",
+     "prefix",
+     "revoked",
+     "scopes",
+     "requests",
+     "llm_input_tokens",
+     "llm_output_tokens",
+     "tts_minutes",
+     "stt_minutes"
+    ],
+    "title": "InferenceKeyUsageOut"
+   },
+   "InferenceModelOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "object": {
+      "type": "string",
+      "title": "Object",
+      "default": "model"
+     },
+     "owned_by": {
+      "type": "string",
+      "title": "Owned By"
+     },
+     "engine": {
+      "type": "string",
+      "enum": [
+       "llm",
+       "stt",
+       "tts"
+      ],
+      "title": "Engine"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "owned_by",
+     "engine"
+    ],
+    "title": "InferenceModelOut"
+   },
+   "InferenceModelsOut": {
+    "properties": {
+     "object": {
+      "type": "string",
+      "title": "Object",
+      "default": "list"
+     },
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/InferenceModelOut"
+      },
+      "type": "array",
+      "title": "Data"
+     }
+    },
+    "type": "object",
+    "required": [
+     "data"
+    ],
+    "title": "InferenceModelsOut"
+   },
+   "InferenceRequestsOut": {
+    "properties": {
+     "llm": {
+      "type": "integer",
+      "title": "Llm"
+     },
+     "stt": {
+      "type": "integer",
+      "title": "Stt"
+     },
+     "tts": {
+      "type": "integer",
+      "title": "Tts"
+     }
+    },
+    "type": "object",
+    "required": [
+     "llm",
+     "stt",
+     "tts"
+    ],
+    "title": "InferenceRequestsOut"
+   },
+   "InferenceUsageOut": {
+    "properties": {
+     "month": {
+      "type": "string",
+      "title": "Month"
+     },
+     "period_start": {
+      "type": "string",
+      "format": "date",
+      "title": "Period Start"
+     },
+     "period_end": {
+      "type": "string",
+      "format": "date",
+      "title": "Period End",
+      "description": "Exclusivo"
+     },
+     "rate_limit": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rate Limit",
+      "description": "Pedidos por minuto; None: ilimitado"
+     },
+     "llm_input_tokens": {
+      "$ref": "#/components/schemas/MeterOut"
+     },
+     "llm_output_tokens": {
+      "$ref": "#/components/schemas/MeterOut"
+     },
+     "tts_minutes": {
+      "$ref": "#/components/schemas/MeterOut"
+     },
+     "stt_minutes": {
+      "$ref": "#/components/schemas/MeterOut"
+     },
+     "requests": {
+      "$ref": "#/components/schemas/InferenceRequestsOut"
+     },
+     "keys": {
+      "items": {
+       "$ref": "#/components/schemas/InferenceKeyUsageOut"
+      },
+      "type": "array",
+      "title": "Keys"
+     }
+    },
+    "type": "object",
+    "required": [
+     "month",
+     "period_start",
+     "period_end",
+     "rate_limit",
+     "llm_input_tokens",
+     "llm_output_tokens",
+     "tts_minutes",
+     "stt_minutes",
+     "requests",
+     "keys"
+    ],
+    "title": "InferenceUsageOut",
+    "description": "Consumo del mes de la API de inferencia contra los limites del tier."
+   },
    "InviteOut": {
     "properties": {
      "email": {
@@ -6268,6 +7175,44 @@
      "text"
     ],
     "title": "MessageOut"
+   },
+   "MeterOut": {
+    "properties": {
+     "used": {
+      "type": "number",
+      "title": "Used"
+     },
+     "limit": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Limit",
+      "description": "None: ilimitado; 0: no incluido en el plan"
+     },
+     "remaining": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Remaining"
+     }
+    },
+    "type": "object",
+    "required": [
+     "used",
+     "limit",
+     "remaining"
+    ],
+    "title": "MeterOut"
    },
    "MinutesUsageOut": {
     "properties": {
@@ -6722,6 +7667,47 @@
     ],
     "title": "SkippedNumber"
    },
+   "SpeechIn": {
+    "properties": {
+     "model": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Model"
+     },
+     "input": {
+      "type": "string",
+      "minLength": 1,
+      "title": "Input",
+      "description": "Texto a sintetizar (hasta INFERENCE_TTS_MAX_CHARS)"
+     },
+     "voice": {
+      "type": "string",
+      "title": "Voice",
+      "description": "Una de GET /inference/voices"
+     },
+     "response_format": {
+      "type": "string",
+      "enum": [
+       "wav",
+       "pcm"
+      ],
+      "title": "Response Format",
+      "default": "wav"
+     }
+    },
+    "type": "object",
+    "required": [
+     "input",
+     "voice"
+    ],
+    "title": "SpeechIn"
+   },
    "StatsOut": {
     "properties": {
      "total": {
@@ -6923,6 +7909,76 @@
       ],
       "title": "Max Phone Numbers",
       "description": "Numeros que puede tener el cliente"
+     },
+     "api_llm_input_tokens": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Api Llm Input Tokens",
+      "description": "Tokens de entrada del LLM por mes",
+      "default": 0
+     },
+     "api_llm_output_tokens": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Api Llm Output Tokens",
+      "description": "Tokens generados por el LLM por mes",
+      "default": 0
+     },
+     "api_tts_minutes": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Api Tts Minutes",
+      "description": "Minutos de audio sintetizado por mes",
+      "default": 0
+     },
+     "api_stt_minutes": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Api Stt Minutes",
+      "description": "Minutos de audio transcripto por mes",
+      "default": 0
+     },
+     "api_rate_limit": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Api Rate Limit",
+      "description": "Pedidos por minuto a la API de inferencia",
+      "default": 60
      }
     },
     "type": "object",
@@ -6989,6 +8045,61 @@
       ],
       "title": "Max Phone Numbers"
      },
+     "api_llm_input_tokens": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Api Llm Input Tokens"
+     },
+     "api_llm_output_tokens": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Api Llm Output Tokens"
+     },
+     "api_tts_minutes": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Api Tts Minutes"
+     },
+     "api_stt_minutes": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Api Stt Minutes"
+     },
+     "api_rate_limit": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Api Rate Limit"
+     },
      "created_at": {
       "type": "string",
       "format": "date-time",
@@ -7009,6 +8120,11 @@
      "inbound_minutes",
      "outbound_minutes",
      "max_phone_numbers",
+     "api_llm_input_tokens",
+     "api_llm_output_tokens",
+     "api_tts_minutes",
+     "api_stt_minutes",
+     "api_rate_limit",
      "created_at"
     ],
     "title": "TierOut"
@@ -7086,6 +8202,66 @@
        }
       ],
       "title": "Max Phone Numbers"
+     },
+     "api_llm_input_tokens": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Api Llm Input Tokens"
+     },
+     "api_llm_output_tokens": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Api Llm Output Tokens"
+     },
+     "api_tts_minutes": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Api Tts Minutes"
+     },
+     "api_stt_minutes": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Api Stt Minutes"
+     },
+     "api_rate_limit": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Api Rate Limit"
      }
     },
     "type": "object",

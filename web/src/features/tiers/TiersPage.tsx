@@ -2,6 +2,7 @@ import {
   ActionIcon,
   Button,
   Card,
+  Divider,
   Group,
   Modal,
   NumberInput,
@@ -21,7 +22,7 @@ import type { Tier } from '@/api/types';
 import { confirmAction } from '@/components/confirm';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState, QueryState } from '@/components/QueryState';
-import { formatLimit } from '@/lib/format';
+import { formatApiLimit, formatLimit } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { numberErrorTitle } from '@/features/numbers/errors';
 import { useDeleteTier, useSaveTier, useTiers } from './api';
@@ -45,6 +46,11 @@ function LimitInput(props: NumberInputProps) {
   );
 }
 
+/** Limite de la API de inferencia: vacio = ilimitado, 0 = no incluido. */
+function ApiLimitInput(props: NumberInputProps) {
+  return <LimitInput description="Vacío = ilimitado · 0 = no incluido" {...props} />;
+}
+
 function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }) {
   const save = useSaveTier();
   const form = useForm<{
@@ -54,6 +60,11 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
     inbound_minutes: Limit;
     outbound_minutes: Limit;
     max_phone_numbers: Limit;
+    api_llm_input_tokens: Limit;
+    api_llm_output_tokens: Limit;
+    api_tts_minutes: Limit;
+    api_stt_minutes: Limit;
+    api_rate_limit: Limit;
   }>({
     initialValues: {
       name: tier?.name ?? '',
@@ -62,6 +73,12 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
       inbound_minutes: tier?.inbound_minutes ?? '',
       outbound_minutes: tier?.outbound_minutes ?? '',
       max_phone_numbers: tier?.max_phone_numbers ?? '',
+      // Un tier nuevo arranca sin inferencia (0) y con 60 pedidos por minuto, como en la API.
+      api_llm_input_tokens: tier ? (tier.api_llm_input_tokens ?? '') : 0,
+      api_llm_output_tokens: tier ? (tier.api_llm_output_tokens ?? '') : 0,
+      api_tts_minutes: tier ? (tier.api_tts_minutes ?? '') : 0,
+      api_stt_minutes: tier ? (tier.api_stt_minutes ?? '') : 0,
+      api_rate_limit: tier ? (tier.api_rate_limit ?? '') : 60,
     },
     validate: { name: (v) => (v.trim() ? null : 'Poné un nombre') },
   });
@@ -80,6 +97,11 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
                 inbound_minutes: toLimit(v.inbound_minutes),
                 outbound_minutes: toLimit(v.outbound_minutes),
                 max_phone_numbers: toLimit(v.max_phone_numbers),
+                api_llm_input_tokens: toLimit(v.api_llm_input_tokens),
+                api_llm_output_tokens: toLimit(v.api_llm_output_tokens),
+                api_tts_minutes: toLimit(v.api_tts_minutes),
+                api_stt_minutes: toLimit(v.api_stt_minutes),
+                api_rate_limit: toLimit(v.api_rate_limit),
               },
             },
             {
@@ -99,6 +121,28 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
           <LimitInput label="Minutos entrantes por mes" {...form.getInputProps('inbound_minutes')} />
           <LimitInput label="Minutos salientes por mes" {...form.getInputProps('outbound_minutes')} />
           <LimitInput label="Números" {...form.getInputProps('max_phone_numbers')} />
+          <Divider
+            label="API de inferencia (solo uso por API key, no cuenta los agentes integrados)"
+            labelPosition="left"
+            mt="xs"
+          />
+          <ApiLimitInput
+            label="Tokens de entrada del LLM por mes"
+            {...form.getInputProps('api_llm_input_tokens')}
+          />
+          <ApiLimitInput
+            label="Tokens de salida del LLM por mes"
+            {...form.getInputProps('api_llm_output_tokens')}
+          />
+          <ApiLimitInput
+            label="Minutos de síntesis (TTS) por mes"
+            {...form.getInputProps('api_tts_minutes')}
+          />
+          <ApiLimitInput
+            label="Minutos de transcripción (STT) por mes"
+            {...form.getInputProps('api_stt_minutes')}
+          />
+          <ApiLimitInput label="Pedidos por minuto" {...form.getInputProps('api_rate_limit')} />
           <Group justify="flex-end">
             <Button variant="default" onClick={onClose}>
               Cancelar
@@ -142,7 +186,7 @@ export function TiersPage() {
     <>
       <PageHeader
         title="Tiers"
-        description="Límites por cliente: llamadas simultáneas, minutos entrantes y salientes por mes y números."
+        description="Límites por cliente: llamadas simultáneas, minutos entrantes y salientes por mes, números y cupos de la API de inferencia (LLM, TTS, STT)."
         actions={
           <Button leftSection={<IconPlus size={18} />} onClick={() => setEditing('new')}>
             Nuevo tier
@@ -155,7 +199,7 @@ export function TiersPage() {
             list.length === 0 ? (
               <EmptyState>No hay tiers.</EmptyState>
             ) : (
-              <Table.ScrollContainer minWidth={720}>
+              <Table.ScrollContainer minWidth={1080}>
                 <Table>
                   <Table.Thead>
                     <Table.Tr>
@@ -164,6 +208,9 @@ export function TiersPage() {
                       <Table.Th ta="right">Min. entrantes/mes</Table.Th>
                       <Table.Th ta="right">Min. salientes/mes</Table.Th>
                       <Table.Th ta="right">Números</Table.Th>
+                      <Table.Th ta="right">API: LLM ent./sal. (tokens)</Table.Th>
+                      <Table.Th ta="right">API: TTS / STT (min)</Table.Th>
+                      <Table.Th ta="right">API: pedidos/min</Table.Th>
                       <Table.Th ta="right">Clientes</Table.Th>
                       <Table.Th />
                     </Table.Tr>
@@ -185,6 +232,13 @@ export function TiersPage() {
                         <Table.Td ta="right">{formatLimit(t.inbound_minutes)}</Table.Td>
                         <Table.Td ta="right">{formatLimit(t.outbound_minutes)}</Table.Td>
                         <Table.Td ta="right">{formatLimit(t.max_phone_numbers)}</Table.Td>
+                        <Table.Td ta="right" style={{ whiteSpace: 'nowrap' }}>
+                          {formatApiLimit(t.api_llm_input_tokens)} / {formatApiLimit(t.api_llm_output_tokens)}
+                        </Table.Td>
+                        <Table.Td ta="right" style={{ whiteSpace: 'nowrap' }}>
+                          {formatApiLimit(t.api_tts_minutes)} / {formatApiLimit(t.api_stt_minutes)}
+                        </Table.Td>
+                        <Table.Td ta="right">{formatApiLimit(t.api_rate_limit)}</Table.Td>
                         <Table.Td ta="right">{t.clients_count ?? 0}</Table.Td>
                         <Table.Td>
                           <Group gap={4} justify="flex-end" wrap="nowrap">
