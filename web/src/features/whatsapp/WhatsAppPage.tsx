@@ -33,6 +33,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { EmptyState, QueryState } from '@/components/QueryState';
 import { useAgents } from '@/features/agents/api';
 import { useCurrentUser } from '@/features/auth/api';
+import { READ_ONLY_REASON, useReadOnly } from '@/features/auth/readOnly';
 import { useClients } from '@/features/clients/api';
 import { formatDate } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
@@ -151,10 +152,14 @@ export function WhatsAppPage() {
     templatesFor && manageable.some((a) => a.id === templatesFor)
       ? templatesFor
       : (manageable[0]?.id ?? null);
-  const signupEnabled = !!config.data?.enabled;
-  const signupReason = config.isError
-    ? 'No se pudo leer la configuración de WhatsApp.'
-    : (config.data?.reason ?? 'Cargando…');
+  // Solo lectura (cliente inactivo): no se conectan ni registran numeros.
+  const readOnly = useReadOnly();
+  const signupEnabled = !!config.data?.enabled && !readOnly;
+  const signupReason = readOnly
+    ? READ_ONLY_REASON
+    : config.isError
+      ? 'No se pudo leer la configuración de WhatsApp.'
+      : (config.data?.reason ?? 'Cargando…');
 
   const setClient = (v: string | null) =>
     setParams(
@@ -342,7 +347,7 @@ export function WhatsAppPage() {
                                     </Menu.Item>
                                     <Menu.Item
                                       leftSection={<IconRepeat size={16} />}
-                                      disabled={a.status === 'disconnected'}
+                                      disabled={a.status === 'disconnected' || readOnly}
                                       onClick={() => setDialog({ kind: 'register', account: a })}
                                     >
                                       Reintentar registro

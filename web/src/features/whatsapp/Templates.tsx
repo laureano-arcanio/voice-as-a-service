@@ -19,6 +19,7 @@ import { useForm } from '@mantine/form';
 import { IconPlus, IconRefresh } from '@tabler/icons-react';
 import type { WaAccount, WaTemplateIn } from '@/api/types';
 import { EmptyState, QueryState } from '@/components/QueryState';
+import { useReadOnly } from '@/features/auth/readOnly';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useCreateWaTemplate, useWaTemplates } from './api';
 import { TEMPLATE_CATEGORY, TEMPLATE_STATUS } from './labels';
@@ -204,6 +205,7 @@ export function TemplatesCard({
   const account = accounts.find((a) => a.id === accountId);
   const templates = useWaTemplates(account && account.status !== 'disconnected' ? account.id : undefined);
   const [creating, setCreating] = useState(false);
+  const readOnly = useReadOnly();
 
   return (
     <Card id="wa-templates" mt="md">
@@ -236,7 +238,7 @@ export function TemplatesCard({
           <Button
             variant="default"
             leftSection={<IconPlus size={16} />}
-            disabled={!account || account.status === 'disconnected'}
+            disabled={!account || account.status === 'disconnected' || readOnly}
             onClick={() => setCreating(true)}
           >
             Nueva plantilla

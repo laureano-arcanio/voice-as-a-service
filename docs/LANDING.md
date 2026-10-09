@@ -70,7 +70,7 @@ canjea el token por una sesión corta.
 | `POST /api/v1/demo/sessions` | token de Turnstile | Lo valida con Cloudflare (`siteverify`) y devuelve una sesión JWT de `DEMO_SESSION_MINUTES` (30). |
 | `POST /api/v1/demo/calls` | sesión | `{agent, voice?}`: llamada `prueba` con un agente de `DEMO_AGENTS` del cliente `DEMO_CLIENT` (`atentina`). Devuelve `livekit_url`, el token del participante y un `result_token`. |
 | `GET /api/v1/demo/calls/{id}` | `result_token` | Estado, resultado (`outcome`), datos extraídos con su `label` y transcripción. |
-| `POST /api/v1/demo/tts` | sesión | `{voice, text}`: WAV del TTS, hasta `DEMO_TTS_MAX_CHARS` (300). |
+| `POST /api/v1/demo/tts` | sesión | `{voice, text}`: WAV del TTS (entero, no en streaming), hasta `DEMO_TTS_MAX_CHARS` (300). Topes: `DEMO_IP_TTS_PER_HOUR` por IP, `DEMO_SESSION_TTS_MAX` por sesión y el cupo global de síntesis fuera de llamadas (`TTS_PREVIEW_MAX_CONCURRENT`, compartido con las pruebas de voz del dashboard): lleno, 503 `tts_busy` con `Retry-After`. |
 | `POST /api/v1/demo/contact` | sesión | Formulario de contacto (ver abajo). 204. |
 
 1. Al tocar "Iniciar llamada", la página pide el micrófono, abre la sesión y crea la llamada.

@@ -18,19 +18,29 @@ Detalle en "Motor conversacional" abajo; el diseño original esta en `docs/REFAC
 
 | Entidad | Qué es |
 | --- | --- |
-| Tier | Límites: llamadas simultáneas, minutos entrantes y salientes por mes calendario (`BILLING_TIMEZONE`, default Buenos Aires) y cantidad de números. Vacío = ilimitado. |
-| Cliente | Tenant: un tier, sus números, agentes, usuarios y API keys. Inactivo: no llama ni atiende. |
+| Tier | Límites: llamadas simultáneas, minutos entrantes y salientes por mes calendario (`BILLING_TIMEZONE`, default Buenos Aires) y cantidad de números. Vacío = ilimitado. Además, duración máxima por llamada (`max_call_duration_seconds`; vacío = `CALL_MAX_DURATION_SECONDS`, 900 s, nunca más de `CALL_DURATION_CEILING_SECONDS`, 3600 s), también para tiers ilimitados, y retención de conversaciones en días (`retention_days`; vacío = sin borrado). |
+| Cliente | Tenant: un tier, sus números, agentes, usuarios y API keys (hasta 10 activas). Retención propia opcional (`retention_days`, pisa la del tier). **Inactivo = solo lectura:** sus usuarios entran y ven o exportan el historial, pero no llama, no atiende (llamadas ni WhatsApp), no usa el LLM ni el TTS y no crea API keys (403 `client_inactive`). |
 | Agente | Definición JSON del workflow (esquema: `GET /api/v1/agents/schema`), **versionada**: cada cambio es una versión nueva e inmutable y cada conversación guarda con cuál corrió. Se crea en blanco o desde el asistente básico (`app/agents/templates/asistente.json`), con el motor que se elija, y se edita por formulario. Los crea y edita un admin o el propio cliente (usuario o API key), cada uno solo en su cliente. |
 | Número | Inventario de los números que provee Anura (E.164, únicos). El admin los carga libres (UI > Números, o `POST /api/v1/phone-numbers/bulk`), los asigna a un cliente hasta el tope de su tier y se rutean a un agente del cliente (el admin o el propio cliente): las entrantes a ese número las atiende ese agente. Liberar lo devuelve al inventario. Bajar de tier o de tope con más números asignados da 409. Después de cargar o borrar: `make livekit-sip`. |
 | Usuario | `admin` (opera la plataforma) o `client` (ve lo de su cliente, crea y edita sus agentes, llama y maneja sus API keys). |
 
 **Límites (corte duro):** `POST /api/v1/calls` responde 429 (`concurrency_limit`,
-`outbound_minutes`, `inbound_minutes`, `client_inactive`) si no hay lugar o minutos; una entrante
-sin lugar escucha `QUOTA_REJECT_MESSAGE` y se corta (queda como `rechazada`). En curso, el worker
-revisa el saldo cada `QUOTA_CHECK_SECONDS` (15 s) contando todas las llamadas del cliente y corta
-al agotarse; la saliente además sale con `max_call_duration` = minutos que quedan. Las de prueba y
-el loadtest ocupan lugar pero no consumen minutos. La admisión toma un lock de fila del cliente:
-con 20 pedidos simultáneos y tope 3 entran exactamente 3 (medido en PostgreSQL).
+`outbound_minutes`, `inbound_minutes`) si el tier no tiene lugar o minutos, y 429 `platform_busy` si
+la plataforma está en su tope global (`MAX_CONCURRENT_CALLS_GLOBAL`, 20 provisional; las salientes y
+pruebas dejan `INBOUND_RESERVE_CALLS` libres para las entrantes). Un cliente inactivo recibe 403
+`client_inactive`, y una saliente de un cliente sin número propio, 409 `no_caller_id` (solo un admin
+sale con el número de Atentina). Una entrante sin lugar escucha `QUOTA_REJECT_MESSAGE` y se corta
+(queda como `rechazada`). En curso, el worker revisa el saldo cada `QUOTA_CHECK_SECONDS` (15 s)
+contando todas las llamadas del cliente, y corta al agotarse o al llegar a la duración máxima del
+tier, en todas las modalidades. Las de prueba y el loadtest ocupan lugar pero no consumen minutos.
+La admisión toma un lock consultivo global y el de la fila del cliente: con 20 pedidos simultáneos y
+tope 3 entran exactamente 3 (medido en PostgreSQL). Los límites de uso por hora (texto, previews)
+son por cliente, compartidos entre todos sus usuarios y API keys.
+
+**Reintentos sin duplicar:** `POST /api/v1/calls` acepta el header `Idempotency-Key` (hasta 128
+caracteres). Repetir el pedido con la misma clave devuelve la misma llamada (200) sin marcar otra vez;
+la misma clave con otro pedido da 409 `idempotency_key_reused`. Si el despacho falló (502), la clave
+queda libre y el reintento marca.
 
 **API** (`/api/v1`; OpenAPI en `/api/v1/docs` y `/api/v1/openapi.json`, solo para un admin con sesión
 salvo `API_DOCS=public`; el esquema también está versionado en `web/openapi.json`): la UI usa una
@@ -42,8 +52,12 @@ túnel, sin Cloudflare Access: settings de seguridad (`AUTH_COOKIE_SECURE`, `TRU
 
 ```bash
 curl -X POST http://<host>:8011/api/v1/calls -H "Authorization: Bearer $VAAS_API_KEY" \
+  -H "Idempotency-Key: $(uuidgen)" \
   -H 'Content-Type: application/json' -d '{"agent_id": "<id>", "phone": "+5491155551234"}'
 ```
+
+`app` escucha solo en `127.0.0.1:8011` (`APP_BIND`): desde afuera se entra por el túnel
+(`https://app.atentina.com.ar`).
 
 **Demo de la landing** (`/api/v1/demo`, sin usuario): la landing llama a los agentes de `DEMO_AGENTS`
 (`atentina_comercial`, `turnos`, `cobranzas`, `reclamos`) del cliente `DEMO_CLIENT` (`atentina`) desde el navegador y sintetiza texto, con Turnstile y límites por IP y por día. Ver
@@ -346,7 +360,9 @@ llegue `/v1/...`. Lo levanta `make up` (o solo el, `make up-nginx`).
    - `PUBLIC_HOST`: la IP fija del host (hoy `181.104.113.28`), sin esquema ni puerto.
    - `PROXY_PORT`: 8100 por defecto.
 2. En el router: redirigir `PROXY_PORT` (TCP) a este host (`192.168.1.99`). Solo mientras se use:
-   en produccion el 8100 no se reenvia (`docs/PRODUCCION.md`).
+   en produccion el 8100 no se reenvia (`docs/PRODUCCION.md`; el estado actual del router lo
+   confirma el usuario). El proxy deja pasar solo `health`, `v1/models` y el endpoint de cada
+   servicio; el resto da 404.
 3. `make up-nginx` imprime las URLs. No depende de la inferencia: el servicio que este
    apagado da 502 en su path.
 
@@ -391,7 +407,7 @@ el host GPU.
 
 1. `AUTH_SECRET` (`openssl rand -hex 32`) — firma de las sesiones; sin ella la app no arranca.
    `ADMIN_EMAIL` / `ADMIN_PASSWORD` para el primer admin. `AUTH_COOKIE_SECURE=false` mientras la
-   UI se sirva por HTTP plano.
+   UI se sirva por HTTP plano; en producción, `true` (el dashboard se usa por el túnel, con HTTPS).
 2. `LIVEKIT_URL` / `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` — del LiveKit propio (vigente, claves
    generadas: `docs/TELEFONIA_ANURA.md`, 7) o de un proyecto de LiveKit Cloud (Project Settings → Keys).
 3. `LIVEKIT_SIP_TRUNK_ID` — troncal SIP saliente de LiveKit (Anura: `make livekit-sip`, ver

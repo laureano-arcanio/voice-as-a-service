@@ -3,7 +3,8 @@
 # y fastapi/uvicorn, y comparte capas con la imagen de vllm-llm que ya esta en
 # disco. Con una base propia (python-slim + torch cu12x) la imagen pesaba
 # 11.6GB nuevos y lleno el disco del host.
-FROM vllm/vllm-openai:latest
+# Fijada por digest (8-oct-2026): la misma vllm-openai que vllm-llm (docker-compose.yml).
+FROM vllm/vllm-openai:latest@sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -11,8 +12,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /srv
 
-COPY requirements.txt ./
-RUN pip install -r requirements.txt
+# requirements.lock: versiones exactas (constraints) de lo que instala esta capa.
+COPY requirements.txt requirements.lock ./
+RUN pip install -r requirements.txt -c requirements.lock
 
 COPY server.py .
 

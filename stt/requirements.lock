@@ -1,0 +1,17 @@
+# Lo que pip instalo sobre la base (vllm/vllm-openai@sha256:c2914767...) en la imagen de
+# stt-parakeet vigente (3f33029c49db): diff de `pip freeze` entre la imagen y la base, 8-oct-2026.
+# stt/Dockerfile instala requirements.txt con este archivo como constraints (-c). Regenerarlo
+# despues de cada build que cambie dependencias o la base.
+audioread==3.1.0
+decorator==5.3.1
+joblib==1.6.0
+lazy-loader==0.6
+librosa==0.11.0
+narwhals==2.26.0
+platformdirs==4.11.12
+pooch==1.9.0
+scikit-learn==1.9.1
+scipy==1.18.1
+soundfile==0.13.1
+soxr==1.1.0
+threadpoolctl==3.7.0

@@ -35,8 +35,8 @@ Clonar el repo no alcanza. Lo que está fuera de git:
 | Base PostgreSQL (clientes, tiers, agentes y sus versiones, números y su ruteo, cuentas de WhatsApp, usuarios, conversaciones) | volumen `voice-as-a-service_postgres_data` | MB | sí: `~/atentina-backups/db/db-AAAAMMDD-HHMM.sql.gz` | paso 4.2 |
 | Checkpoint del TTS servido (41 voces; **perderlo es reentrenar**) | `tts/finetune/work/runs/multi41/lr2e-6/checkpoint-epoch-2` (`TTS_FT_CKPT`) | 4,3 GB | sí, pero como `~/atentina-backups/tts/lr2e-6-checkpoint-epoch-2` (**pierde el nivel `multi41`**) | paso 4.1 |
 | Datos y runs de fine-tuning | `tts/finetune/work/` | 41 GB | no | solo para reentrenar: `rsync` del viejo, o regenerar ([`TTS_FINETUNE.md`](TTS_FINETUNE.md)) |
-| Certificado de `sip.atentina.com.ar` (llamadas de WhatsApp) | `asterisk/letsencrypt/` (de root) | KB | no | se regenera: `make sip-cert` (paso 4.3) |
-| Trunks SIP y dispatch rule de LiveKit | Redis de LiveKit, sin persistencia | — | no | se regeneran: `make livekit-sip` (lo corre `make up`) |
+| Certificado de `sip.atentina.com.ar` (llamadas de WhatsApp) | `asterisk/letsencrypt/` (de root) | KB | sí, desde el 8-oct-2026: tar en `~/atentina-backups/` (`scripts/ops/backup.sh`) | restaurar el tar con `sudo tar` o regenerar con `make sip-cert` (paso 4.3) |
+| Trunks SIP y dispatch rule de LiveKit | Redis de LiveKit, con AOF en el volumen `livekit_redis_data` desde el 8-oct-2026 | KB | no | se regeneran: `make livekit-sip` (lo corre `make up`; `healthcheck.sh` lo repara si faltan) |
 | Pesos del LLM vigente (Gemma 4 26B, desde el 6-oct-2026) | `/home/laureano/Models/gemma-4-26B-A4B-it-qat-AWQ-INT4`, **fuera del repo y del volumen de HF**: el override `docker-compose.gemma4-26b.yml` lo monta con esa ruta fija | 17 GB | no | **no se bajan solos:** descargarlos con la revisión fijada o copiarlos del viejo (paso 4.4) |
 | Pesos de Hugging Face | volumen `voice-as-a-service_hf_cache` (80 GB, casi todo de modelos descartados) | Parakeet ~1,2 GB; el Qwen3.5-9B (~12 GB) solo para volver a él | no | se bajan solos en el primer arranque (ningún modelo es *gated*: `HF_TOKEN` no hace falta). Opcional: copiarlos (paso 4.4) |
 | Imágenes de Docker | `/var/lib/docker` | ~62 GB | no | `docker pull` y `make build` (paso 5.1) |
@@ -71,9 +71,10 @@ Versiones probadas (server actual, 6-oct-2026):
 | NVIDIA Container Toolkit | 1.20.0; `/etc/docker/daemon.json` solo con el runtime `nvidia` |
 | vLLM (LLM y base del STT) | `vllm/vllm-openai:latest` = vLLM 0.29.0, digest `sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1` (9-sep-2026) |
 | vLLM-Omni (TTS) | `vllm/vllm-omni:v0.28.0`, digest `sha256:6f8be103eaf0055448cf7578cfd621405fd669079d4361bd58896326b2bf722a` |
-| Asterisk | 22.9.0-r0 + asterisk-srtp 22.9.0-r0 sobre `alpine:3.24` (`apk` sin versión fija en el Dockerfile) |
-| LiveKit | `livekit-server:v1.13.7`, `livekit/sip:v1.17.0`, `redis:7-alpine`; CLI `lk` 2.18.6 |
+| Asterisk | 22.9.0-r0 + asterisk-srtp 22.9.0-r0 sobre `alpine:3.24` (`apk` fijado a `~22.9` en el Dockerfile desde el 8-oct-2026; `gettext-envsubst` y `tzdata` sin fijar) |
+| LiveKit | `livekit-server:v1.13.7`, `livekit/sip:v1.17.0`, `redis:7-alpine` (con AOF en el volumen `livekit_redis_data` desde el 8-oct-2026); CLI `lk` 2.18.6 |
 | cloudflared | `cloudflare/cloudflared:2026.9.0` |
+| Fijación | Desde el 8-oct-2026 el compose y los Dockerfile fijan todas las imágenes por digest (`tag@sha256:...`), y `requirements.lock` tiene el `pip freeze` de la imagen de app: el server nuevo baja exactamente las mismas |
 
 Pasos (como el usuario dueño del repo, con sudo):
 
@@ -501,5 +502,5 @@ Dejar el viejo apagado (no borrado) al menos 30 días, con `atentina-stack` desh
   valor), registrador y vencimiento de los dos dominios.
 - **Cuentas:** quién tiene acceso a cada panel (Cloudflare, Render y su rama, Meta, Resend, Anura,
   GA, LiveKit Cloud de respaldo) y dónde están las credenciales.
-- **Decisión:** fijar `vllm/vllm-openai` por tag o digest en `docker-compose.yml` y `stt/Dockerfile`,
-  y el `apk` de Asterisk, como ya está `vllm-omni`.
+- **Decisión:** ~~fijar `vllm/vllm-openai` por tag o digest en `docker-compose.yml` y `stt/Dockerfile`~~
+  (hecho el 8-oct-2026: todas las imágenes por digest y el `apk` de Asterisk en `~22.9`).

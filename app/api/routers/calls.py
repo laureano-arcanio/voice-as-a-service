@@ -2,13 +2,20 @@ import datetime
 from typing import Annotated
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Header, Query, Response
 
 from ...config import settings
 from ...services import calls as service
 from ...services.errors import Invalid, NotFound
 from ...services.reports import CallFilter, Reports
-from ..deps import DB, CurrentPrincipal, Definitions, Engine, scoped_client_id
+from ..deps import (
+    DB,
+    ActiveClientPrincipal,
+    CurrentPrincipal,
+    Definitions,
+    Engine,
+    scoped_client_id,
+)
 from ..schemas import CallDetail, CallIn, CallPage, CallStartedOut, DailyOut, StatsOut
 
 router = APIRouter(tags=["calls"])
@@ -26,13 +33,28 @@ def _filter(p, client_id, agent_id, date_from, date_to, tz, status=None, mode=No
                       date_to=date_to, status=status or [], mode=mode, tz=zone)
 
 
+IdempotencyKey = Annotated[str | None, Header(
+    alias="Idempotency-Key", min_length=1, max_length=128,
+    description="Opcional: un reintento con la misma clave devuelve la misma llamada (200) sin marcar de nuevo")]
+
+
 @router.post("/calls", response_model=CallStartedOut, status_code=201,
-             responses={429: {"description": "Limite del tier (concurrencia o minutos)"}})
-async def start_call(body: CallIn, p: CurrentPrincipal, db: DB, engine: Engine):
+             responses={200: {"description": "Ya existia una llamada con esa Idempotency-Key"},
+                        409: {"description": "Saliente sin numero propio del cliente (no_caller_id) o "
+                                            "Idempotency-Key reusada para otra llamada"},
+                        429: {"description": "Limite del tier (concurrencia o minutos)"}})
+async def start_call(body: CallIn, p: ActiveClientPrincipal, db: DB, engine: Engine, response: Response,
+                     idempotency_key: IdempotencyKey = None):
     """Con `phone`, llamada saliente; sin el, de prueba por navegador (devuelve join_url).
-    429 si el cliente esta al tope de llamadas simultaneas o sin minutos del mes."""
-    started = await service.start_call(db, engine, p, service.CallRequest(**body.model_dump()))
-    return CallStartedOut(**started.__dict__)
+    Saliente: sale con un numero del cliente (from_number_id o el primero); sin numero
+    propio, 409 no_caller_id. 429 si el cliente esta al tope de llamadas simultaneas o
+    sin minutos del mes."""
+    req = service.CallRequest(**body.model_dump(), idempotency_key=idempotency_key)
+    started = await service.start_call(db, engine, p, req)
+    if started.replayed:
+        response.status_code = 200
+    return CallStartedOut(conversation_id=started.conversation_id, room=started.room, mode=started.mode,
+                          join_url=started.join_url)
 
 
 @router.get("/calls", response_model=CallPage)

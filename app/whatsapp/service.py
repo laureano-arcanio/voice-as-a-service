@@ -1,10 +1,21 @@
 """Del webhook al motor y de vuelta (docs/WHATSAPP_PLAN.md, seccion 2).
 
-El webhook responde 200 al instante y deja el payload aca: handle_payload solo
-parsea y agenda tareas en el loop de la app. Cada mensaje: dedupe por wamid
-(unique de wa_messages, antes de agendar nada), cuenta por phone_number_id,
-mensajes seguidos juntados en un turno (debounce), un turno a la vez por contacto
-(lock), process_turn, envio por la Graph API y registro de wamids.
+Entrantes durables (H03): el webhook guarda cada mensaje con su cuerpo en wa_messages
+(accept -> ingest, en un hilo) antes de responder 200; si la base falla responde 500 y
+Meta reintenta (el dedupe por wamid lo hace seguro). Estados: received -> processing
+(reclamo atomico: claimed_at, attempts) -> answered | ignored | error. Despues, en el loop:
+cuenta por phone_number_id, mensajes seguidos juntados en un turno (debounce), un turno a
+la vez por contacto (lock), process_turn, envio por la Graph API y registro de wamids.
+
+Si el proceso cae, lo que quedo received o processing lo retoma recover() (lider, al
+arrancar y cada RECOVERY_SECONDS): hasta WA_MAX_ATTEMPTS reclamos y WA_RECOVERY_MAX_AGE_HOURS
+de antiguedad; lo demas queda error con log. processed_at se marca antes de mandar la
+respuesta: uno que cayo en el envio no se reenvia a ciegas (queda error, puede haber llegado).
+El cuerpo se borra al terminar (answered, ignored): la conversacion ya tiene el texto.
+
+Un turno que falla (LLM caido, contexto excedido...) responde WA_ERROR_REPLY y queda error:
+el contacto no se queda sin respuesta. Turnos con LLM simultaneos: WA_MAX_CONCURRENT_TURNS
+(encolan; H04). La base va en asyncio.to_thread, en unidades de trabajo cortas (H07).
 
 Topes: WA_MAX_TURN_CHARS por turno (lo que pase se descarta) y WA_MAX_TURNS por
 conversacion (despues abre otra), para no pasar el largo de contexto del LLM.
@@ -24,9 +35,9 @@ phone_number_quality_update (limite de envio) y
 message_template_status_update (solo log: la UI lista las plantillas en vivo). Un
 token de cliente rechazado por Meta (190 o 401) tambien la desconecta y no se reintenta.
 
-Todo en memoria del proceso (inbox, lock, debounce): supone un solo worker de
-uvicorn. Si se reinicia `app`, lo pendiente se pierde y esos entrantes quedan
-`received` sin respuesta.
+Inbox, lock y debounce viven en memoria del proceso, pero cada mensaje esta en la base:
+con un reinicio se rearman desde ahi (recover). El lock por contacto supone un solo worker de
+uvicorn; los loops de fondo (barrido, recuperacion) corren solo en el lider (services/leader.py).
 
 Sin texto, telefonos ni tokens en los logs: solo phone_number_id y wamid.
 """
@@ -49,6 +60,7 @@ from ..conversation.store import ConversationStore
 from ..db import utcnow
 from ..llm.prompt import VOICE_NOTE_TAG
 from ..models import Client, ConversationRow, WaAccount
+from ..services.leader import Leader, every
 from . import audio as audio_module
 from . import campaigns, store
 from .audio import AudioError, AudioTooLong
@@ -67,6 +79,12 @@ DISCONNECT_EVENTS = {"PARTNER_REMOVED", "PARTNER_APP_UNINSTALLED", "ACCOUNT_OFFB
 # DISABLED_UPDATE depende de ban_info.waba_ban_state: DISABLE desconecta, REINSTATE reconecta
 # lo que desconecto un DISABLE y SCHEDULE_FOR_DISABLE solo avisa (la WABA sigue andando).
 DISABLED_REASON = "account_update DISABLED_UPDATE"
+# Un processing con claimed_at mas viejo que esto se da por colgado (el proceso cayo) y se
+# reclama de nuevo. Holgado: debounce + audio + cola del LLM; el turno renueva el reclamo.
+CLAIM_STALE_SECONDS = 300
+RECOVERY_SECONDS = 60
+# Ventana de 24 h de Meta para responder texto libre (con margen).
+REPLY_WINDOW_SECONDS = 23.5 * 3600
 
 
 def _ban_states(value: dict) -> set[str]:
@@ -130,6 +148,51 @@ def recipient(wa_id: str) -> str:
     return wa_id
 
 
+@dataclass(frozen=True)
+class Claimed:
+    """Un entrante reclamado (processing) y listo para procesar en el loop."""
+    info: AccountInfo
+    wamid: str
+    wa_id: str
+    msg: dict
+    contact_name: str | None
+
+
+@dataclass
+class Batch:
+    """Lo que dejo un payload: entrantes reclamados, statuses y eventos de la cuenta."""
+    claimed: list[Claimed] = field(default_factory=list)
+    statuses: list[tuple[str, dict]] = field(default_factory=list)
+    events: list[tuple[str, str, dict]] = field(default_factory=list)
+
+
+def _parse(payload) -> tuple[list[tuple[str, dict, str | None]], list[tuple[str, dict]], list[tuple[str, str, dict]]]:
+    """(mensajes, statuses, eventos) de un payload de Meta, en su orden."""
+    msgs, statuses, events = [], [], []
+    if not isinstance(payload, dict):
+        return msgs, statuses, events
+    for entry in payload.get("entry") or []:
+        for change in (entry.get("changes") or []) if isinstance(entry, dict) else []:
+            value = change.get("value") if isinstance(change, dict) else None
+            if not isinstance(value, dict):
+                continue
+            if change.get("field") in ACCOUNT_EVENT_FIELDS:
+                events.append((str(change["field"]), str(entry.get("id") or ""), value))
+                continue
+            pnid = str((value.get("metadata") or {}).get("phone_number_id") or "")
+            if not pnid:
+                continue
+            names = {c.get("wa_id"): (c.get("profile") or {}).get("name")
+                     for c in value.get("contacts") or [] if isinstance(c, dict)}
+            for msg in value.get("messages") or []:
+                if isinstance(msg, dict) and msg.get("id") and msg.get("from"):
+                    msgs.append((pnid, msg, names.get(msg.get("from"))))
+            for st in value.get("statuses") or []:
+                if isinstance(st, dict) and st.get("id") and st.get("status"):
+                    statuses.append((pnid, st))
+    return msgs, statuses, events
+
+
 def _ts(value) -> datetime.datetime | None:
     try:
         return datetime.datetime.fromtimestamp(int(value), datetime.UTC).replace(tzinfo=None)
@@ -187,7 +250,7 @@ class WhatsAppService:
                  debounce_seconds: float = settings.wa_debounce_seconds,
                  session_hours: int = settings.wa_session_hours,
                  max_turn_chars: int = settings.wa_max_turn_chars, max_turns: int = settings.wa_max_turns,
-                 audio=None):
+                 audio=None, max_concurrent_turns: int = settings.wa_max_concurrent_turns):
         """audio: lo que transcribe y sintetiza (transcribe, synthesize_ogg); por defecto
         app/whatsapp/audio.py, un fake en los tests."""
         self.engine = engine
@@ -201,53 +264,164 @@ class WhatsAppService:
         self._graphs: dict[str, GraphClient] = {}
         self._tasks: set[asyncio.Task] = set()      # referencias: que el GC no junte tareas en curso
         self._inbox: dict[tuple[str, str], Inbox] = {}
+        # Turnos con LLM a la vez (H04): los demas esperan su lugar, no se responde "ocupado".
+        self._turn_slots = asyncio.Semaphore(max(1, max_concurrent_turns))
+        # wamids reclamados por este proceso y sin terminar: la recuperacion no los toca
+        # aunque su reclamo envejezca esperando (cola del LLM, lock del contacto).
+        self._held: set[str] = set()
 
     # --- Entrada ---
 
-    def handle_payload(self, payload: dict) -> None:
-        """Sincronico y rapido: no toca la base ni la red; agenda una tarea por mensaje y
-        status, en el orden del payload."""
-        if not isinstance(payload, dict):
-            return
-        for entry in payload.get("entry") or []:
-            for change in (entry.get("changes") or []) if isinstance(entry, dict) else []:
-                value = change.get("value") if isinstance(change, dict) else None
-                if not isinstance(value, dict):
+    async def accept(self, payload: dict) -> None:
+        """Lo que llama el webhook: guarda los entrantes en un hilo (si falla, levanta y el
+        webhook responde 500) y agenda el resto en el loop."""
+        batch = await asyncio.to_thread(self.ingest, payload)
+        try:
+            self.dispatch(batch)
+        except Exception:   # ya estan en la base: los retoma recover()
+            logger.exception("wa: no se pudo agendar el payload")
+
+    def handle_payload(self, payload: dict) -> Batch:
+        """ingest + dispatch en el loop (tests y scripts; el webhook usa accept)."""
+        batch = self.ingest(payload)
+        self.dispatch(batch)
+        return batch
+
+    def ingest(self, payload: dict) -> Batch:
+        """Sincronico (va en un hilo): guarda cada entrante con su cuerpo y lo reclama. Un
+        wamid ya procesado o en proceso se descarta; uno que sigue received se reclama."""
+        msgs, statuses, events = _parse(payload)
+        batch = Batch(statuses=statuses, events=events)
+        if not msgs:
+            return batch
+        accounts: dict[str, str | None] = {}
+        pending: list[str] = []
+        with self.sessions() as s:
+            for pnid, msg, contact_name in msgs:
+                wamid, wa_id = str(msg["id"]), str(msg["from"])
+                if pnid not in accounts:
+                    account = store.account_by_pnid(s, pnid)
+                    accounts[pnid] = account.id if account else None
+                text = _text_of(msg)
+                kind = msg.get("type") or "other"
+                kind_db = "text" if text is not None else (kind if kind in MESSAGE_TYPES else "other")
+                body = {"pnid": pnid, "contact_name": contact_name, "msg": msg}
+                if not store.save_inbound(s, wamid=wamid, account_id=accounts[pnid], wa_id=wa_id, type=kind_db,
+                                          meta_ts=_ts(msg.get("timestamp")), body=body):
+                    logger.info("wa: wamid repetido, se descarta pnid=%s wamid=%s", pnid, wamid)
                     continue
-                if change.get("field") in ACCOUNT_EVENT_FIELDS:
-                    waba_id = str(entry.get("id") or "")
-                    self._spawn(self._on_account_event(str(change["field"]), waba_id, value))
-                    continue
-                pnid = str((value.get("metadata") or {}).get("phone_number_id") or "")
-                if not pnid:
-                    continue
-                names = {c.get("wa_id"): (c.get("profile") or {}).get("name")
-                         for c in value.get("contacts") or [] if isinstance(c, dict)}
-                for msg in value.get("messages") or []:
-                    if isinstance(msg, dict) and msg.get("id") and msg.get("from"):
-                        self._spawn(self._on_message(pnid, msg, names.get(msg.get("from"))))
-                for st in value.get("statuses") or []:
-                    if isinstance(st, dict) and st.get("id") and st.get("status"):
-                        self._spawn(self._on_status(pnid, st))
+                pending.append(wamid)
+        for wamid in pending:
+            if (claimed := self._claim(wamid)) is not None:
+                batch.claimed.append(claimed)
+        return batch
+
+    def dispatch(self, batch: Batch) -> None:
+        """Agenda una tarea por entrante reclamado, status y evento (en el loop)."""
+        for field_name, waba_id, value in batch.events:
+            self._spawn(self._on_account_event(field_name, waba_id, value))
+        for c in batch.claimed:
+            self._held.add(c.wamid)
+            self._spawn(self._run_claimed(c))
+        for pnid, st in batch.statuses:
+            self._spawn(self._on_status(pnid, st))
+
+    def _claim(self, wamid: str, stale_before: datetime.datetime | None = None) -> Claimed | None:
+        """Sincronico: reclama el entrante y decide si se procesa. Lo que no (cuenta o cliente
+        inactivos, pausado, sin cuerpo, demasiados intentos o viejo, envio incierto) queda
+        ignored o error con log; devuelve None."""
+        with self.sessions() as s:
+            row = store.claim_inbound(s, wamid, stale_before)
+            if row is None:
+                return None
+            body = row.body if isinstance(row.body, dict) else {}
+            msg = body.get("msg") if isinstance(body.get("msg"), dict) else None
+            pnid = str(body.get("pnid") or "")
+            problem = None
+            if msg is None or not pnid:
+                problem = "sin cuerpo (anterior a la recuperacion o incompleto)"
+            elif row.processed_at is not None:
+                problem = "envio interrumpido: la respuesta puede haber llegado, no se reenvia"
+            elif row.attempts > settings.wa_max_attempts:
+                problem = f"supero {settings.wa_max_attempts} intentos"
+            elif row.created_at < utcnow() - datetime.timedelta(hours=settings.wa_recovery_max_age_hours):
+                problem = f"mas viejo que {settings.wa_recovery_max_age_hours} h"
+            if problem:
+                store.set_inbound(s, [wamid], status="error", error={"message": f"Sin procesar: {problem}"})
+                s.commit()
+                logger.error("wa: entrante sin procesar (%s) pnid=%s wamid=%s", problem, pnid or "?", wamid)
+                return None
+            account = store.account_by_pnid(s, pnid)
+            reason = self._why_ignore(s, account, row.wa_id)
+            if reason:
+                store.set_inbound(s, [wamid], status="ignored")
+                s.commit()
+                logger.info("wa: entrante ignorado (%s) pnid=%s wamid=%s", reason, pnid, wamid)
+                return None
+            try:
+                token = store.token_for(account)
+            except TokenKeyMissing:
+                store.set_inbound(s, [wamid], status="error")
+                s.commit()
+                logger.error("wa: no se puede descifrar el token de la cuenta (WA_TOKEN_KEY) pnid=%s", pnid)
+                return None
+            info = AccountInfo(account.id, account.client_id, account.agent_id, pnid, token,
+                               store.has_own_token(account))
+            return Claimed(info, wamid, row.wa_id, msg, body.get("contact_name"))
+
+    async def recover(self, stale_seconds: float = CLAIM_STALE_SECONDS) -> int:
+        """Retoma los entrantes que nadie atiende (el proceso cayo antes de responder). Corre en
+        el lider, al arrancar y cada RECOVERY_SECONDS. Devuelve cuantos retomo."""
+        held = frozenset(self._held)
+        claimed = await asyncio.to_thread(self._reclaim, held, stale_seconds)
+        for c in claimed:
+            logger.warning("wa: entrante retomado pnid=%s wamid=%s", c.info.phone_number_id, c.wamid)
+        self.dispatch(Batch(claimed=claimed))
+        return len(claimed)
+
+    def _reclaim(self, held: frozenset[str], stale_seconds: float) -> list[Claimed]:
+        before = utcnow() - datetime.timedelta(seconds=stale_seconds)
+        with self.sessions() as s:
+            wamids = [w for w in store.stale_inbound(s, before) if w not in held]
+        return [c for w in wamids if (c := self._claim(w, stale_before=before)) is not None]
 
     def end(self, conversation_id: str) -> None:
         """Fin de una conversacion ya cerrada en la base: lo mismo que el corte de una llamada."""
-        self._spawn(self.engine.finish(conversation_id))
+        self._spawn(self._end(conversation_id))
+
+    async def _end(self, conversation_id: str) -> None:
+        if not await self._db(self._client_active, conversation_id):
+            # Cliente inactivo = solo lectura (H12): el chat se cierra igual, sin la extraccion
+            # final con el LLM.
+            logger.info("wa: %s cerrada sin extraccion final (cliente inactivo)", conversation_id)
+            return
+        async with self._turn_slots:    # la extraccion final tambien usa el LLM
+            await self.engine.finish(conversation_id)
+
+    def _client_active(self, conversation_id: str) -> bool:
+        with self.sessions() as s:
+            row = s.get(ConversationRow, conversation_id)
+            client = s.get(Client, row.client_id) if row is not None and row.client_id else None
+            return client is None or client.active
 
     async def sweep(self) -> int:
         """Cierra las conversaciones vencidas y les hace el fin (extraccion final del clasico)."""
+        ended = await asyncio.to_thread(self._close_expired)
+        for conversation_id in ended:
+            self.end(conversation_id)
+        return len(ended)
+
+    def _close_expired(self) -> list[str]:
         with self.sessions() as s:
             threads = store.expired_threads(s, utcnow(), self.session_hours)
             ended = [t.conversation_id for t in threads]
             for t in threads:
                 store.close_thread(s, t)
             s.commit()
-        for conversation_id in ended:
-            self.end(conversation_id)
-        return len(ended)
+        return ended
 
     async def drain(self) -> None:
-        """Espera todas las tareas en curso, incluidas las que agenden otras (tests)."""
+        """Espera todas las tareas en curso, incluidas las que agenden otras (tests y apagado)."""
         while self._tasks:
             await asyncio.wait(list(self._tasks))
             # Los done callbacks (_done, que las saca de _tasks) corren en una vuelta del loop.
@@ -275,36 +449,46 @@ class WhatsAppService:
             self._graphs[token] = self._graph_factory(token)
         return self._graphs[token]
 
+    async def _db(self, fn: Callable, *args, **kwargs):
+        """Una unidad de trabajo de base en un hilo: no frena el loop (H07)."""
+        return await asyncio.to_thread(fn, *args, **kwargs)
+
+    def _set(self, wamids: list[str], status: str, conversation_id: str | None = None,
+             error: dict | None = None) -> None:
+        with self.sessions() as s:
+            store.set_inbound(s, wamids, status=status, conversation_id=conversation_id, error=error)
+            s.commit()
+
+    async def _finish(self, wamids: list[str], status: str, conversation_id: str | None = None,
+                      error: dict | None = None) -> None:
+        """Estado final de los entrantes; dejan de estar en manos de este proceso."""
+        try:
+            await self._db(self._set, wamids, status, conversation_id, error)
+        finally:
+            self._held.difference_update(wamids)
+
+    def _replying(self, wamids: list[str]) -> None:
+        with self.sessions() as s:
+            store.mark_replying(s, wamids)
+            s.commit()
+
     # --- Mensajes ---
 
-    async def _on_message(self, pnid: str, msg: dict, contact_name: str | None) -> None:
-        wamid, wa_id = str(msg["id"]), str(msg["from"])
+    async def _run_claimed(self, c: Claimed) -> None:
+        try:
+            await self._on_message(c.info, c.wa_id, c.wamid, c.msg, c.contact_name)
+        except BaseException:
+            # Queda processing: lo retoma recover() cuando venza el reclamo.
+            self._held.discard(c.wamid)
+            raise
+
+    async def _on_message(self, info: AccountInfo, wa_id: str, wamid: str, msg: dict,
+                          contact_name: str | None) -> None:
+        """Sin await antes de sumarlo al inbox (salvo bajas y tope): el orden de llegada se
+        respeta y un texto que llega mientras responde el LLM rehace el turno."""
         kind = msg.get("type") or "other"
         text = _text_of(msg)
-        kind_db = "text" if text is not None else (kind if kind in MESSAGE_TYPES else "other")
-        with self.sessions() as s:
-            account = store.account_by_pnid(s, pnid)
-            if not store.record_inbound(s, wamid=wamid, account_id=account.id if account else None,
-                                        wa_id=wa_id, type=kind_db, meta_ts=_ts(msg.get("timestamp"))):
-                logger.info("wa: wamid repetido, se descarta pnid=%s wamid=%s", pnid, wamid)
-                return
-            reason = self._why_ignore(s, account, wa_id)
-            if reason:
-                store.set_inbound(s, [wamid], status="ignored")
-                s.commit()
-                logger.info("wa: entrante ignorado (%s) pnid=%s wamid=%s", reason, pnid, wamid)
-                return
-            try:
-                token = store.token_for(account)
-            except TokenKeyMissing:
-                store.set_inbound(s, [wamid], status="error")
-                s.commit()
-                logger.error("wa: no se puede descifrar el token de la cuenta (WA_TOKEN_KEY) pnid=%s", pnid)
-                return
-            info = AccountInfo(account.id, account.client_id, account.agent_id, pnid, token,
-                               store.has_own_token(account))
-
-        key = (pnid, wa_id)
+        key = (info.phone_number_id, wa_id)
         inbox = self._inbox.setdefault(key, Inbox())
         if kind == "audio":
             await self._on_audio(info, wa_id, wamid, msg, contact_name, inbox)
@@ -313,22 +497,20 @@ class WhatsAppService:
             body = None if kind in SILENT_TYPES else settings.wa_unsupported_reply
             await self._fixed_reply(info, wa_id, wamid, body, inbox)
             return
-        if campaigns.is_optout_text(text) and self._optout(info, wa_id):
+        if campaigns.is_optout_text(text) and await self._db(self._optout, info, wa_id):
             await self._fixed_reply(info, wa_id, wamid, settings.wa_optout_reply, inbox)
             return
-        if self._over_cap(info, wamid, inbox):
+        if await self._over_cap(info, wamid, inbox):
             return
         inbox.items.append(Item(_stamp(msg), text, wamid))
         inbox.contact_name = contact_name or inbox.contact_name
         self._arm(info, wa_id, inbox)
 
-    def _over_cap(self, info: AccountInfo, wamid: str, inbox: Inbox) -> bool:
+    async def _over_cap(self, info: AccountInfo, wamid: str, inbox: Inbox) -> bool:
         """Tope por turno: lo que pasa se descarta y el timer no se re-arma (el turno sale)."""
         if inbox.chars() < self.max_turn_chars:
             return False
-        with self.sessions() as s:
-            store.set_inbound(s, [wamid], status="ignored")
-            s.commit()
+        await self._finish([wamid], "ignored")
         logger.info("wa: entrante ignorado (tope de caracteres) pnid=%s wamid=%s", info.phone_number_id, wamid)
         return True
 
@@ -342,7 +524,7 @@ class WhatsAppService:
                         contact_name: str | None, inbox: Inbox) -> None:
         """Baja el audio, lo transcribe y lo suma al turno como nota de voz. Si es muy
         largo, no se entiende o falla el STT o Meta: respuesta fija, sin LLM."""
-        if self._over_cap(info, wamid, inbox):
+        if await self._over_cap(info, wamid, inbox):
             return
         graph = self._graph(info.token)
         media = msg.get("audio") if isinstance(msg.get("audio"), dict) else {}
@@ -371,7 +553,7 @@ class WhatsAppService:
             logger.info("wa: audio demasiado largo pnid=%s wamid=%s (%s)", info.phone_number_id, wamid, e)
         except (AudioError, GraphError) as e:
             if isinstance(e, GraphError):
-                self._auth_failed(info, e)     # la respuesta fija igual falla y queda registrada
+                await self._auth_failed(info, e)     # la respuesta fija igual falla y queda registrada
             body = settings.wa_audio_error_reply
             logger.warning("wa: audio sin transcribir pnid=%s wamid=%s error=%s code=%s", info.phone_number_id,
                            wamid, type(e).__name__, getattr(e, "code", None))
@@ -409,12 +591,17 @@ class WhatsAppService:
             return "cuenta desconectada"
         client = s.get(Client, account.client_id)
         if client is None or not client.active:
-            # TODO: consumo por mensajes del tier (a definir en el plan); hoy solo se exige cliente activo.
+            # Inactivo = solo lectura (H12): no consume LLM ni manda nada.
             return "cliente inactivo"
         last = store.last_thread(s, account.id, wa_id)
         if last is not None and last.paused:
             return "conversacion pausada"
         return None
+
+    def _active_conversation(self, info: AccountInfo, wa_id: str) -> str | None:
+        with self.sessions() as s:
+            thread = store.active_thread(s, info.id, wa_id, utcnow(), self.session_hours)
+            return thread.conversation_id if thread else None
 
     async def _fixed_reply(self, info: AccountInfo, wa_id: str, wamid: str, body: str | None,
                            inbox: Inbox) -> None:
@@ -430,18 +617,13 @@ class WhatsAppService:
             inbox.fixed_sent_at[body] = now
         await self._mark_read(graph, info, wamid)
         if not reply:
-            with self.sessions() as s:
-                store.set_inbound(s, [wamid], status="ignored")
-                s.commit()
+            await self._finish([wamid], "ignored")
             self._prune(now)
             return
-        with self.sessions() as s:
-            thread = store.active_thread(s, info.id, wa_id, utcnow(), self.session_hours)
-            conversation_id = thread.conversation_id if thread else None
+        conversation_id = await self._db(self._active_conversation, info, wa_id)
+        await self._db(self._replying, [wamid])
         sent = await self._send(graph, info, wa_id, conversation_id, body)
-        with self.sessions() as s:
-            store.set_inbound(s, [wamid], status="answered" if sent else "error", conversation_id=conversation_id)
-            s.commit()
+        await self._finish([wamid], "answered" if sent else "error", conversation_id)
         self._prune(now)
 
     def _prune(self, now: float) -> None:
@@ -485,15 +667,19 @@ class WhatsAppService:
         row = s.get(ConversationRow, conversation_id)
         return row is not None and len(row.messages or []) >= 2 * self.max_turns
 
-    async def _turn(self, info: AccountInfo, wa_id: str, inbox: Inbox, items: list[Item]) -> None:
-        wamids = [item.wamid for item in items]
+    def _open_turn(self, info: AccountInfo, wa_id: str, wamids: list[str],
+                   contact_name: str | None) -> tuple[str | None, str | None]:
+        """Sincronico: la conversacion del turno (la en curso o una nueva, con su hilo) y la que
+        termina por vencida o en el tope. (None, ended) si el turno no se hace (quedan ignored)."""
         now = utcnow()
         with self.sessions() as s:
             account = s.get(WaAccount, info.id)
-            if account is None or not account.active:     # desactivada mientras esperaba
+            client = s.get(Client, info.client_id)
+            # Desactivada (o el cliente) mientras esperaba.
+            if account is None or not account.active or client is None or not client.active:
                 store.set_inbound(s, wamids, status="ignored")
                 s.commit()
-                return
+                return None, None
             thread = store.active_thread(s, info.id, wa_id, now, self.session_hours)
             if thread is not None and self._full(s, thread.conversation_id):
                 thread = None       # tope de turnos: sigue en otra, como si hubiera vencido
@@ -516,59 +702,89 @@ class WhatsAppService:
                     s.commit()
                     logger.warning("wa: el agente de la cuenta no existe o esta archivado pnid=%s",
                                    info.phone_number_id)
-                    if ended:
-                        self.end(ended)
-                    return
+                    return None, ended
                 conversation_id = state.conversation_id
                 # Conversacion e hilo en la misma transaccion.
                 ConversationStore.add(s, state)
                 store.add_thread(s, conversation_id=conversation_id, account=account, wa_id=wa_id,
-                                 contact_name=inbox.contact_name)
+                                 contact_name=contact_name)
                 if target is not None:
                     campaigns.mark_replied(s, target.recipient_id, conversation_id, now)
-            store.set_inbound(s, wamids, status="received", conversation_id=conversation_id)
+            store.link_inbound(s, wamids, conversation_id)
             s.commit()
+        return conversation_id, ended
+
+    def _link(self, wamids: list[str], conversation_id: str) -> None:
+        with self.sessions() as s:
+            store.link_inbound(s, wamids, conversation_id)
+            s.commit()
+
+    async def _turn(self, info: AccountInfo, wa_id: str, inbox: Inbox, items: list[Item]) -> None:
+        taken = [item.wamid for item in items]
+        try:
+            await self._run_turn(info, wa_id, inbox, items, taken)
+        finally:
+            # Terminados o no (un fallo de la base los deja processing para recover()).
+            self._held.difference_update(taken)
+
+    async def _run_turn(self, info: AccountInfo, wa_id: str, inbox: Inbox, items: list[Item],
+                        taken: list[str]) -> None:
+        wamids = [item.wamid for item in items]
+        conversation_id, ended = await self._db(self._open_turn, info, wa_id, wamids, inbox.contact_name)
         if ended:
             self.end(ended)
+        if conversation_id is None:
+            return
 
         graph = self._graph(info.token)
         await self._mark_read(graph, info, wamids[-1])
         try:
             media = self._media(items)
-            state, turn = await self.engine.process_turn(conversation_id, self._text(items), media=media)
+            async with self._turn_slots:
+                state, turn = await self.engine.process_turn(conversation_id, self._text(items), media=media)
             if inbox.items:
                 # Llegaron mas mientras respondia el LLM: la respuesta no salio, se rehace
                 # el turno con todo (una sola vez; lo que llegue despues va en el siguiente).
                 self.engine.retract_last_turn(conversation_id)
-                items = _ordered(items + inbox.take())
+                more = inbox.take()
+                taken.extend(item.wamid for item in more)
+                items = _ordered(items + more)
                 wamids = [item.wamid for item in items]
-                with self.sessions() as s:
-                    store.set_inbound(s, wamids, status="received", conversation_id=conversation_id)
-                    s.commit()
+                await self._db(self._link, wamids, conversation_id)
                 await self._mark_read(graph, info, wamids[-1])
                 media = self._media(items)
-                state, turn = await self.engine.process_turn(conversation_id, self._text(items), media=media)
-        except Exception:
+                async with self._turn_slots:
+                    state, turn = await self.engine.process_turn(conversation_id, self._text(items), media=media)
+        except Exception as e:
             logger.exception("wa: fallo el turno pnid=%s wamid=%s", info.phone_number_id, wamids[-1])
-            with self.sessions() as s:
-                store.set_inbound(s, wamids, status="error")
-                s.commit()
+            await self._error_reply(graph, info, wa_id, conversation_id, wamids, items, e)
             return
 
+        # Desde aca el turno esta en la conversacion: un reinicio no lo rehace ni lo reenvia.
+        await self._db(self._replying, wamids)
         reply = turn.assistant_message.strip()[:settings.wa_max_reply_chars]
         sent = True
         if reply and media.reply_voice_note and len(reply) <= settings.wa_audio_max_reply_chars:
             sent = await self._send_audio(graph, info, wa_id, state, reply)
             if sent:
+                # En el loop, no en un hilo: no se intercala con la extraccion (relee y guarda).
                 self.engine.mark_voice_note(conversation_id)
             else:
                 # Fallback: la misma respuesta en texto (puede quedar con numeros en palabras).
                 sent = await self._send(graph, info, wa_id, conversation_id, reply)
         elif reply:
             sent = await self._send(graph, info, wa_id, conversation_id, reply)
-        with self.sessions() as s:
-            store.set_inbound(s, wamids, status="answered" if sent else "error")
-            s.commit()
+        await self._finish(wamids, "answered" if sent else "error")
+
+    async def _error_reply(self, graph: GraphClient, info: AccountInfo, wa_id: str, conversation_id: str,
+                           wamids: list[str], items: list[Item], e: Exception) -> None:
+        """El turno fallo: WA_ERROR_REPLY (si sigue abierta la ventana de 24 h) y error. Sin
+        respuesta el contacto quedaria esperando; el siguiente mensaje es otro turno."""
+        await self._db(self._replying, wamids)
+        newest = max((item.ts for item in items), default=0)
+        if settings.wa_error_reply and time.time() - newest < REPLY_WINDOW_SECONDS:
+            await self._send(graph, info, wa_id, conversation_id, settings.wa_error_reply)
+        await self._finish(wamids, "error", error={"message": f"Fallo el turno: {type(e).__name__}"})
 
     def _new_conversation(self, s: Session, info: AccountInfo,
                           target: campaigns.ReplyTarget | None) -> ConversationState:
@@ -584,7 +800,7 @@ class WhatsAppService:
         return self.engine.new_conversation(info.agent_id, info.client_id, session=s, channel="whatsapp",
                                             opening=opening)[0]
 
-    def _auth_failed(self, info: AccountInfo, e: GraphError) -> bool:
+    async def _auth_failed(self, info: AccountInfo, e: GraphError) -> bool:
         """Meta rechazo el token (190 o 401). Si es del cliente, la cuenta queda desconectada
         (los mensajes siguientes se ignoran); si es el global, solo se loguea. True si es
         un error de autenticacion."""
@@ -594,6 +810,10 @@ class WhatsAppService:
             logger.error("wa: el token global (WA_ACCESS_TOKEN) fue rechazado pnid=%s code=%s",
                          info.phone_number_id, e.code)
             return True
+        await self._db(self._disconnect, info, e)
+        return True
+
+    def _disconnect(self, info: AccountInfo, e: GraphError) -> None:
         with self.sessions() as s:
             account = s.get(WaAccount, info.id)
             if account is not None and account.status != "disconnected":
@@ -601,13 +821,19 @@ class WhatsAppService:
                 s.commit()
                 logger.warning("wa: cuenta desconectada (token rechazado) pnid=%s code=%s",
                                info.phone_number_id, e.code)
-        return True
 
     async def _mark_read(self, graph: GraphClient, info: AccountInfo, wamid: str) -> None:
         try:
             await graph.mark_read(info.phone_number_id, wamid)
         except GraphError as e:
             logger.warning("wa: mark_read fallo pnid=%s wamid=%s code=%s", info.phone_number_id, wamid, e.code)
+
+    def _record_out(self, info: AccountInfo, wa_id: str, conversation_id: str | None, type: str,
+                    wamid: str | None, status: str, error: dict | None = None) -> None:
+        with self.sessions() as s:
+            store.record_outbound(s, wamid=wamid, account_id=info.id, conversation_id=conversation_id,
+                                  wa_id=wa_id, type=type, status=status, error=error)
+            s.commit()
 
     async def _send(self, graph: GraphClient, info: AccountInfo, wa_id: str,
                     conversation_id: str | None, body: str) -> bool:
@@ -617,19 +843,13 @@ class WhatsAppService:
             data = await graph.send_text(info.phone_number_id, recipient(wa_id), body)
         except GraphError as e:
             logger.warning("wa: envio fallido pnid=%s code=%s subcode=%s", info.phone_number_id, e.code, e.subcode)
-            self._auth_failed(info, e)
-            with self.sessions() as s:
-                store.record_outbound(s, wamid=None, account_id=info.id, conversation_id=conversation_id,
-                                      wa_id=wa_id, type="text", status="failed",
-                                      error={"code": e.code, "subcode": e.subcode, "message": e.message})
-                s.commit()
+            await self._auth_failed(info, e)
+            await self._db(self._record_out, info, wa_id, conversation_id, "text", None, "failed",
+                           {"code": e.code, "subcode": e.subcode, "message": e.message})
             return False
         messages = data.get("messages")
         out_wamid = messages[0].get("id") if isinstance(messages, list) and messages else None
-        with self.sessions() as s:
-            store.record_outbound(s, wamid=out_wamid, account_id=info.id, conversation_id=conversation_id,
-                                  wa_id=wa_id, type="text", status="sent")
-            s.commit()
+        await self._db(self._record_out, info, wa_id, conversation_id, "text", out_wamid, "sent")
         return True
 
     async def _send_audio(self, graph: GraphClient, info: AccountInfo, wa_id: str,
@@ -653,19 +873,13 @@ class WhatsAppService:
         except GraphError as e:
             logger.warning("wa: nota de voz no enviada, va en texto pnid=%s code=%s subcode=%s",
                            pnid, e.code, e.subcode)
-            self._auth_failed(info, e)
-            with self.sessions() as s:
-                store.record_outbound(s, wamid=None, account_id=info.id, conversation_id=conversation_id,
-                                      wa_id=wa_id, type="audio", status="failed",
-                                      error={"code": e.code, "subcode": e.subcode, "message": e.message})
-                s.commit()
+            await self._auth_failed(info, e)
+            await self._db(self._record_out, info, wa_id, conversation_id, "audio", None, "failed",
+                           {"code": e.code, "subcode": e.subcode, "message": e.message})
             return False
         messages = data.get("messages")
         out_wamid = messages[0].get("id") if isinstance(messages, list) and messages else None
-        with self.sessions() as s:
-            store.record_outbound(s, wamid=out_wamid, account_id=info.id, conversation_id=conversation_id,
-                                  wa_id=wa_id, type="audio", status="sent")
-            s.commit()
+        await self._db(self._record_out, info, wa_id, conversation_id, "audio", out_wamid, "sent")
         logger.info("wa: nota de voz enviada pnid=%s bytes=%d tts_ms=%d total_ms=%d", pnid, len(ogg), tts_ms,
                     round((time.perf_counter() - started) * 1000))
         return True
@@ -673,6 +887,9 @@ class WhatsAppService:
     # --- Eventos de la cuenta ---
 
     async def _on_account_event(self, field: str, waba_id: str, value: dict) -> None:
+        await self._db(self._account_event, field, waba_id, value)
+
+    def _account_event(self, field: str, waba_id: str, value: dict) -> None:
         event = str(value.get("event") or "")
         if field == "account_update":
             waba_id = str((value.get("waba_info") or {}).get("waba_id") or waba_id)
@@ -713,9 +930,12 @@ class WhatsAppService:
     # --- Statuses ---
 
     async def _on_status(self, pnid: str, st: dict) -> None:
+        await self._db(self._status, pnid, st)
+
+    def _status(self, pnid: str, st: dict) -> None:
         kwargs = {"wamid": str(st["id"]), "status": str(st["status"]), "error": _error_of(st),
                   "meta_ts": _ts(st.get("timestamp")), "wa_id": str(st.get("recipient_id") or "")}
-        for attempt in (1, 2):
+        for _attempt in (1, 2):
             with self.sessions() as s:
                 account = store.account_by_pnid(s, pnid)
                 store.apply_status(s, account_id=account.id if account else None, **kwargs)
@@ -743,14 +963,38 @@ async def get_service() -> WhatsAppService:
 
 
 SWEEP_SECONDS = 300
+# Al apagar (lifespan): cuanto se esperan los turnos en curso. Lo que no termine queda en la
+# base y lo retoma el proximo arranque. docker stop da 10 s antes del SIGKILL.
+DRAIN_SECONDS = 8.0
 
 
-async def sweep_loop(interval: float = SWEEP_SECONDS) -> None:
+async def sweep_loop(leader: Leader | None = None, interval: float = SWEEP_SECONDS) -> None:
     """Corre en la app (lifespan): termina las conversaciones de WhatsApp vencidas."""
-    while True:
-        await asyncio.sleep(interval)
-        try:
-            if n := await (await get_service()).sweep():
-                logger.info("wa: %d conversaciones vencidas terminadas", n)
-        except Exception:
-            logger.exception("wa: fallo el barrido de conversaciones vencidas")
+    async def run():
+        if n := await (await get_service()).sweep():
+            logger.info("wa: %d conversaciones vencidas terminadas", n)
+
+    await every(leader, interval, run, "wa: barrido de conversaciones vencidas")
+
+
+async def recovery_loop(leader: Leader | None = None, interval: float = RECOVERY_SECONDS) -> None:
+    """Corre en la app (lifespan): al arrancar y cada interval, retoma los entrantes que
+    quedaron sin responder (el proceso cayo o se reinicio en el medio)."""
+    async def run():
+        if n := await (await get_service()).recover():
+            logger.warning("wa: %d entrantes retomados", n)
+
+    await every(leader, interval, run, "wa: recuperacion de entrantes", first_delay=0)
+
+
+async def shutdown(timeout: float = DRAIN_SECONDS) -> None:
+    """Al apagar: espera los turnos en curso (con tope) y cierra los clientes de Meta. No crea
+    el servicio si no se uso."""
+    if _service is None:
+        return
+    try:
+        await asyncio.wait_for(_service.drain(), timeout)
+    except TimeoutError:
+        logger.warning("wa: apagado con %d tareas en curso: quedan en la base para el proximo arranque",
+                       len(_service._tasks))
+    await _service.aclose()

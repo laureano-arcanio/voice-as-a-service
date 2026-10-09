@@ -10,6 +10,7 @@ str(GraphError). Tampoco el app secret ni el codigo del intercambio.
 
 from __future__ import annotations
 
+import json as json_module
 import logging
 import re
 
@@ -24,6 +25,11 @@ MEDIA_TIMEOUT = httpx.Timeout(30.0, connect=5.0)
 # base_url). La url de get_media es de lookaside.fbsbx.com segun los ejemplos de Meta;
 # los demas, por las dudas. Una url de otro host da GraphError (se loguea el host).
 MEDIA_HOSTS = ("fbsbx.com", "facebook.com", "fbcdn.net", "whatsapp.net", "whatsapp.com")
+# Redirecciones que se siguen al bajar un media, cada una re-validada (https y host de Meta):
+# el Bearer no sale nunca a otro host.
+MAX_REDIRECTS = 3
+# Lo que se lee de una respuesta de error de la descarga (Meta manda un JSON chico).
+MAX_ERROR_BYTES = 64 * 1024
 
 
 _SECRET_QUERY_RE = re.compile(r"((?:client_secret|code|access_token)=)[^&\s\"']*")
@@ -82,6 +88,28 @@ def _json_or_error(resp: httpx.Response) -> dict:
     if resp.status_code >= 400 or not isinstance(data, dict):
         raise GraphError("respuesta inesperada de Meta", status=resp.status_code)
     return data
+
+
+async def _read_capped(resp: httpx.Response, limit: int) -> bytes:
+    buf = bytearray()
+    async for chunk in resp.aiter_bytes():
+        buf += chunk
+        if len(buf) >= limit:
+            break
+    return bytes(buf[:limit])
+
+
+def _stream_error(resp: httpx.Response, raw: bytes) -> GraphError:
+    """GraphError de una respuesta de error leida en parte (stream)."""
+    try:
+        data = json_module.loads(raw)
+    except ValueError:
+        data = None
+    if isinstance(data, dict) and isinstance(data.get("error"), dict):
+        err = data["error"]
+        return GraphError(str(err.get("message", ""))[:500], err.get("code"), err.get("error_subcode"),
+                          resp.status_code)
+    return GraphError("respuesta inesperada de Meta", status=resp.status_code)
 
 
 class GraphClient:
@@ -183,23 +211,30 @@ class GraphClient:
     async def download_media(self, url: str, max_bytes: int) -> bytes:
         """Bytes del media (url de get_media). MediaTooLarge si pasa max_bytes: corta la
         descarga ahi, sin bajarlo entero. Solo https y a un host de Meta (MEDIA_HOSTS): la
-        descarga lleva el Bearer."""
-        self._check_media_url(url)
+        descarga lleva el Bearer. Las redirecciones se siguen a mano, validando cada salto."""
         try:
-            async with self._client().stream("GET", url, headers=self._auth(), timeout=MEDIA_TIMEOUT,
-                                             follow_redirects=True) as resp:
-                if resp.status_code >= 400:
-                    await resp.aread()
-                    _json_or_error(resp)
-                size = resp.headers.get("content-length")
-                if size and size.isdigit() and int(size) > max_bytes:
-                    raise MediaTooLarge(f"media de {size} bytes, tope {max_bytes}", status=resp.status_code)
-                buf = bytearray()
-                async for chunk in resp.aiter_bytes():
-                    buf += chunk
-                    if len(buf) > max_bytes:
-                        raise MediaTooLarge(f"media de mas de {max_bytes} bytes", status=resp.status_code)
-                return bytes(buf)
+            for _ in range(MAX_REDIRECTS + 1):
+                self._check_media_url(url)
+                async with self._client().stream("GET", url, headers=self._auth(), timeout=MEDIA_TIMEOUT,
+                                                 follow_redirects=False) as resp:
+                    if resp.is_redirect:
+                        location = resp.headers.get("location")
+                        if not location:
+                            raise GraphError("redireccion sin destino", status=resp.status_code)
+                        url = str(resp.url.join(location))
+                        continue
+                    if resp.status_code >= 400:
+                        raise _stream_error(resp, await _read_capped(resp, MAX_ERROR_BYTES))
+                    size = resp.headers.get("content-length")
+                    if size and size.isdigit() and int(size) > max_bytes:
+                        raise MediaTooLarge(f"media de {size} bytes, tope {max_bytes}", status=resp.status_code)
+                    buf = bytearray()
+                    async for chunk in resp.aiter_bytes():
+                        buf += chunk
+                        if len(buf) > max_bytes:
+                            raise MediaTooLarge(f"media de mas de {max_bytes} bytes", status=resp.status_code)
+                    return bytes(buf)
+            raise GraphError(f"media con mas de {MAX_REDIRECTS} redirecciones")
         except httpx.HTTPError as e:
             raise GraphError(f"fallo de red en /media: {type(e).__name__}") from None
 

@@ -2,7 +2,16 @@ from fastapi import APIRouter, Query
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
-from ...models import Agent, Client, ConversationRow, PhoneNumber, Tier, WaAccount
+from ...models import (
+    Agent,
+    Client,
+    ConversationRow,
+    PhoneNumber,
+    Tier,
+    WaAccount,
+    effective_max_call_seconds,
+    effective_retention_days,
+)
 from ...services import phone_numbers, quota
 from ...services.errors import Conflict, Invalid, NotFound
 from ..deps import DB, AdminPrincipal, CurrentPrincipal
@@ -22,7 +31,10 @@ def _out(db, client: Client) -> ClientOut:
     agents = db.scalar(select(func.count()).select_from(Agent).where(
         Agent.client_id == client.id, Agent.archived_at.is_(None))) or 0
     numbers = db.scalar(select(func.count()).select_from(PhoneNumber).where(PhoneNumber.client_id == client.id)) or 0
-    return ClientOut.model_validate(client).model_copy(update={"agents_count": agents, "numbers_count": numbers})
+    return ClientOut.model_validate(client).model_copy(update={
+        "agents_count": agents, "numbers_count": numbers,
+        "effective_retention_days": effective_retention_days(client),
+        "effective_max_call_seconds": effective_max_call_seconds(client)})
 
 
 def get_client(db, p, client_id: str) -> Client:
@@ -69,7 +81,8 @@ def read_client(client_id: str, p: CurrentPrincipal, db: DB):
 @router.patch("/{client_id}", response_model=ClientOut)
 def update_client(client_id: str, body: ClientUpdate, p: AdminPrincipal, db: DB):
     client = get_client(db, p, client_id)
-    data = body.model_dump(exclude_unset=True, exclude_none=True)
+    # retention_days en null vuelve al del tier; en los demas, null = no cambiar.
+    data = {k: v for k, v in body.model_dump(exclude_unset=True).items() if v is not None or k == "retention_days"}
     if "tier_id" in data:
         tier = _tier(db, data.pop("tier_id"))
         phone_numbers.check_tier_fits(db, client, tier)

@@ -100,8 +100,10 @@ def _summarize(payload) -> list[str]:
 
 @router.post("/webhook", include_in_schema=False)
 async def receive(request: Request, service: Annotated[WhatsAppService, Depends(get_service)]):
-    """200 siempre (salvo firma invalida): Meta reintenta ante un 5xx. El turno corre en
-    segundo plano (service.handle_payload), sin esperar a la base ni al LLM."""
+    """200 una vez guardados los entrantes (service.accept, wa_messages con el cuerpo); el
+    turno sigue en segundo plano. 500 si no se pudieron guardar: Meta reintenta y el dedupe
+    por wamid lo hace seguro. 403 con firma invalida. Un payload no interpretable da 200
+    (reintentarlo no lo arregla)."""
     raw = await _read_body(request)
     if not _valid_signature(raw, request.headers.get("X-Hub-Signature-256")):
         raise HTTPException(403)
@@ -113,7 +115,8 @@ async def receive(request: Request, service: Annotated[WhatsAppService, Depends(
         logger.warning("wa webhook: payload no interpretable (%d bytes)", len(raw))
         return Response(status_code=200)
     try:
-        service.handle_payload(payload)
+        await service.accept(payload)
     except Exception:
-        logger.exception("wa webhook: no se pudo agendar el payload")
+        logger.exception("wa webhook: no se pudieron guardar los entrantes: 500 para que Meta reintente")
+        return Response(status_code=500)
     return Response(status_code=200)

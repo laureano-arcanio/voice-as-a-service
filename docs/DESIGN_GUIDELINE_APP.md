@@ -153,6 +153,7 @@ CSP del dashboard solo permite fuentes de `'self'`: no se pueden cargar de Googl
 | Modal | `Modal`, `confirmAction` | Botones abajo a la derecha: "Cancelar" (`default`) y la acción principal al final. |
 | Aviso al terminar una acción | `notifySuccess` / `notifyError` (`lib/notify.ts`) | Arriba a la derecha. |
 | Error que bloquea un bloque | `ErrorAlert` (`components/QueryState.tsx`) | Con "Reintentar" si se puede. |
+| Cuenta en solo lectura (cliente inactivo) | `ReadOnlyBanner` (en `AppLayout`) + `useReadOnly()` (`features/auth/readOnly.ts`) | Aviso amarillo arriba de cada pantalla. Lo que consume (llamar, probar texto o voz, WhatsApp, campañas, API keys) queda deshabilitado, con `Tooltip` si no es obvio; la API igual lo rechaza. |
 | Carga | `QueryState`; `Skeleton` si se conoce la forma; `loading` en el botón | Sin spinners de página entera, salvo al iniciar la app. |
 | Vacío | `EmptyState` | Dice por qué está vacío y cómo se llena. |
 | Valor faltante | `Dash` (`components/Badges.tsx`): `–` en `dimmed` | Nunca "null", "N/A", "sin dato" ni la celda en blanco. |

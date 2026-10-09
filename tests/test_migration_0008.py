@@ -18,7 +18,9 @@ def test_0008_upgrade_downgrade_upgrade(tmp_path):
     assert TABLES <= set(sa.inspect(engine).get_table_names())
     with engine.connect() as conn:
         diff = compare_metadata(MigrationContext.configure(conn, opts={"compare_type": True}), Base.metadata)
-    assert [d for d in diff if any(t in repr(d) for t in TABLES)] == []
+    # Las columnas de migraciones posteriores (add_column, ej. claimed_at de 0009) no cuentan.
+    assert [d for d in diff if any(t in repr(d) for t in TABLES)
+            and not (isinstance(d, tuple) and d[0] == "add_column")] == []
 
     _run(engine, command.downgrade, "0007")
     assert not TABLES & set(sa.inspect(engine).get_table_names())

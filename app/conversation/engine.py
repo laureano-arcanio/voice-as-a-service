@@ -5,8 +5,17 @@ import uuid
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from .models import AgentTurn, Channel, ConversationState, Extraction, Message, TurnMedia, Workflow
-from .store import ConversationStore
+from ..llm.errors import LLMError
+from .models import (
+    AgentTurn,
+    Channel,
+    ConversationState,
+    Extraction,
+    Message,
+    TurnMedia,
+    Workflow,
+)
+from .store import ConversationConflict, ConversationStore
 from .workflow import check_updates, is_required, outcome_for
 
 if TYPE_CHECKING:
@@ -83,7 +92,10 @@ class ConversationEngine:
         """on_message recibe assistant_message a medida que lo genera el LLM
         (agente de voz). Devuelve sin esperar la extraccion de este turno.
         media: si el mensaje vino por audio y si la respuesta sale como nota de
-        voz (WhatsApp); cambia el prompt del turno y no se guarda."""
+        voz (WhatsApp); cambia el prompt del turno y no se guarda.
+
+        Si el LLM falla, LLMError (o LLMContextError / LLMTimeoutError, app/llm/errors.py)
+        sin guardar el turno; e.spoken es lo que ya salio por on_message."""
         media = media or TurnMedia()
         await self.wait_extraction(conversation_id, EXTRACTION_WAIT)
         state = self.store.get(conversation_id)
@@ -95,7 +107,17 @@ class ConversationEngine:
         classic = workflow.engine == "classic"
         started = time.perf_counter()
         llm_turn = self.llm.converse if classic else self.llm.process_turn
-        result = await llm_turn(workflow, state, user_message, on_message=on_message)
+        try:
+            result = await llm_turn(workflow, state, user_message, on_message=on_message)
+        except LLMError as e:
+            # Sin guardar nada: el turno no existio y quien llama responde su frase de respaldo
+            # (voz: VOICE_LLM_ERROR_REPLY; WhatsApp: WA_ERROR_REPLY).
+            logger.warning("llm turn failed %s (%s): %s", conversation_id, e.kind, e)
+            raise
+        except Exception as e:
+            # Un solo tipo para quien llama, sea cual sea el LLM (los de tests, eval).
+            logger.exception("llm turn failed %s", conversation_id)
+            raise LLMError(f"{type(e).__name__}: {e}") from e
         trace = [{"kind": "turno", "input": user_message, "ms": round((time.perf_counter() - started) * 1000),
                   "reasoning": result.reasoning, "output": result.raw or result.model_dump_json()}]
 
@@ -123,14 +145,21 @@ class ConversationEngine:
         """Marca la ultima respuesta del agente como enviada en nota de voz
         (WhatsApp, despues de un envio exitoso). Sin await: no se intercala con
         la extraccion, que relee y guarda el estado."""
-        state = self.store.get(conversation_id)
-        if state is None:
-            return False
-        for message in reversed(state.messages):
-            if message.role == "assistant":
-                message.voice_note = True
-                self.store.save(state)
-                return True
+        for _ in range(2):     # un conflicto de version (H08): se relee y se reintenta una vez
+            state = self.store.get(conversation_id)
+            if state is None:
+                return False
+            for message in reversed(state.messages):
+                if message.role == "assistant":
+                    message.voice_note = True
+                    try:
+                        self.store.save(state)
+                    except ConversationConflict:
+                        break
+                    return True
+            else:
+                return False
+        logger.warning("nota de voz no marcada %s: conflicto de version", conversation_id)
         return False
 
     def _launch_extraction(self, conversation_id: str, reply: int, answered: str | None) -> asyncio.Task:
@@ -190,10 +219,21 @@ class ConversationEngine:
         except Exception:
             logger.exception("extraction failed %s", conversation_id)
         finally:
-            state = self.store.get(conversation_id)
-            if state is not None and state.status == "completed":
-                state.progress.outcome = outcome_for(self.workflow(state), state).id
-                self.store.save(state)
+            # Fuera del try de arriba: un conflicto (otro guardo en el medio, H08) aca seria una
+            # excepcion de task sin recuperar. Se relee y se reintenta una vez.
+            for attempt in range(2):
+                try:
+                    state = self.store.get(conversation_id)
+                    if state is not None and state.status == "completed":
+                        state.progress.outcome = outcome_for(self.workflow(state), state).id
+                        self.store.save(state)
+                    break
+                except ConversationConflict:
+                    if attempt:
+                        logger.warning("outcome no guardado %s: conflicto de version", conversation_id)
+                except Exception:
+                    logger.exception("outcome failed %s", conversation_id)
+                    break
 
     async def _run_extraction(self, workflow, state: ConversationState, reply: int, kind: str,
                               only: list[str] | None = None) -> None:

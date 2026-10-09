@@ -21,6 +21,17 @@ export interface CallListParams extends CallFilters {
 /** Zona del navegador: los dias de los filtros y del grafico son dias locales. */
 export const BROWSER_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
+// Refresco de cada vista (H09): la lista y las metricas son consultas sobre toda la base;
+// lo que esta en curso se mira mas seguido.
+export const REFRESH_MS = {
+  list: 5000,
+  live: 3000,
+  stats: 30_000,
+  daily: 60_000,
+  detailCall: 2000,
+  detailWhatsApp: 5000,
+} as const;
+
 export const callKeys = {
   all: ['calls'] as const,
   list: (p: CallListParams) => ['calls', 'list', p] as const,
@@ -34,12 +45,12 @@ export function useCalls(p: CallListParams) {
   return useQuery({
     queryKey: callKeys.list(p),
     queryFn: () => unwrap(api.GET('/api/v1/calls', { params: { query: { ...p, tz: BROWSER_TZ } } })),
-    refetchInterval: 2000,
+    refetchInterval: REFRESH_MS.list,
     placeholderData: keepPreviousData,
   });
 }
 
-/** Llamadas en curso (pendiente, sonando, en_curso) en un pedido, refresco cada 2 s. */
+/** Llamadas en curso (pendiente, sonando, en_curso) en un pedido, refresco cada 3 s. */
 export function useLiveCalls(p: CallFilters) {
   return useQuery({
     queryKey: callKeys.live(p),
@@ -59,7 +70,7 @@ export function useLiveCalls(p: CallFilters) {
       );
       return page.items;
     },
-    refetchInterval: 2000,
+    refetchInterval: REFRESH_MS.live,
   });
 }
 
@@ -67,7 +78,7 @@ export function useStats(p: CallFilters) {
   return useQuery({
     queryKey: callKeys.stats(p),
     queryFn: () => unwrap(api.GET('/api/v1/stats', { params: { query: { ...p, tz: BROWSER_TZ } } })),
-    refetchInterval: 5000,
+    refetchInterval: REFRESH_MS.stats,
     placeholderData: keepPreviousData,
   });
 }
@@ -76,7 +87,7 @@ export function useDailyStats(p: CallFilters & { date_from: string; date_to: str
   return useQuery({
     queryKey: callKeys.daily(p),
     queryFn: () => unwrap(api.GET('/api/v1/stats/daily', { params: { query: { ...p, tz: BROWSER_TZ } } })),
-    refetchInterval: 30_000,
+    refetchInterval: REFRESH_MS.daily,
     placeholderData: keepPreviousData,
   });
 }
@@ -86,11 +97,11 @@ export function isCallLive(c: CallDetail | undefined): boolean {
   return c.call ? isLiveStatus(c.call.status) : c.workflow_status === 'active';
 }
 
-/** Refresco del detalle: 1 s en una llamada en curso; 3 s en un chat de WhatsApp activo
+/** Refresco del detalle: 2 s en una llamada en curso; 5 s en un chat de WhatsApp activo
  * (los mensajes llegan de a uno y el cliente puede volver a escribir horas despues). */
 export function detailRefetchMs(c: CallDetail | undefined): number | false {
   if (!isCallLive(c)) return false;
-  return c?.whatsapp ? 3000 : 1000;
+  return c?.whatsapp ? REFRESH_MS.detailWhatsApp : REFRESH_MS.detailCall;
 }
 
 export function useCallDetail(id: string | undefined) {
@@ -103,10 +114,13 @@ export function useCallDetail(id: string | undefined) {
   });
 }
 
+/** Crea la llamada con un Idempotency-Key: si la respuesta se pierde y se reintenta con
+ * la misma clave, la API devuelve la misma llamada en vez de marcar dos veces. */
 export function useStartCall() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: CallIn) => unwrap(api.POST('/api/v1/calls', { body })),
+    mutationFn: ({ body, idempotencyKey }: { body: CallIn; idempotencyKey: string }) =>
+      unwrap(api.POST('/api/v1/calls', { body, params: { header: { 'Idempotency-Key': idempotencyKey } } })),
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: callKeys.all });
       void qc.invalidateQueries({ queryKey: ['stats'] });

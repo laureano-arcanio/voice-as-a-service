@@ -5,6 +5,8 @@ import yaml
 from app.conversation.models import ConversationState, Message, Workflow
 from app.conversation.workflow import pending_fields
 
+from .budget import omitted_note
+
 SYSTEM_PROMPT = """Sos un agente conversacional telefónico que ejecuta un workflow.
 
 Los datos del usuario no los guardás vos: otro proceso los extrae de la conversación mientras hablás. Por eso known_fields puede no tener todavía lo que el usuario dijo en el mensaje nuevo o en el anterior: guiate por la conversación.
@@ -100,9 +102,9 @@ _WHATSAPP_SYSTEM = _swap(
     SYSTEM_PROMPT,
     ("Sos un agente conversacional telefónico", "Sos un agente conversacional por WhatsApp"),
     ("apropiadas para una conversación de voz.", "apropiadas para un chat de WhatsApp."),
-    ("\n\nRespondé con:", f"\n\n{CHANNEL_RULES['whatsapp']}\n\n"
-                         f"{VOICE_NOTE_RULES.format(when='Si CURRENT STATE trae \"reply_format\": \"nota de voz\"')}"
-                         "\n\nRespondé con:"),
+    ("\n\nRespondé con:", (f"\n\n{CHANNEL_RULES['whatsapp']}\n\n"
+                          f"{VOICE_NOTE_RULES.format(when='Si CURRENT STATE trae \"reply_format\": \"nota de voz\"')}"
+                          "\n\nRespondé con:")),
     ("- assistant_message: lo que le decís al usuario.", "- assistant_message: el texto del mensaje que le mandás al usuario."),
 )
 
@@ -110,9 +112,9 @@ _WHATSAPP_EXTRACTION = _swap(
     EXTRACTION_PROMPT,
     ("de una llamada telefónica.", "de una conversación escrita por WhatsApp."),
     ("- El texto viene de un reconocimiento de voz y puede tener errores. Si una palabra mal transcripta",
-     "- El texto lo escribió el usuario: puede tener errores de tipeo o abreviaturas. Los mensajes marcados "
-     "(nota de voz) no: vienen de un reconocimiento de voz y pueden tener errores de transcripción. "
-     "Si una palabra mal escrita o mal transcripta"),
+     ("- El texto lo escribió el usuario: puede tener errores de tipeo o abreviaturas. Los mensajes marcados "
+      "(nota de voz) no: vienen de un reconocimiento de voz y pueden tener errores de transcripción. "
+      "Si una palabra mal escrita o mal transcripta")),
 )
 
 
@@ -128,7 +130,7 @@ def render_workflow(workflow: Workflow) -> str:
     return yaml.safe_dump(workflow.model_dump(exclude_none=True), allow_unicode=True, sort_keys=False, width=1000)
 
 
-def render_conversation(state: ConversationState) -> str:
+def render_conversation(state: ConversationState, omitted: int = 0) -> str:
     """Toda la conversacion: con solo el ultimo intercambio, el LLM no veia un
     dato que no habia guardado y lo volvia a preguntar ("ya te dije antes").
 
@@ -136,9 +138,17 @@ def render_conversation(state: ConversationState) -> str:
     aplanan con " / ", si no "\nagente: ..." inventaria turnos del agente.
 
     Por WhatsApp, los mensajes del usuario que llegaron como audio van marcados
-    (es una transcripcion); los del agente no, para que el modelo no imite la marca."""
+    (es una transcripcion); los del agente no, para que el modelo no imite la marca.
+
+    omitted: mensajes viejos que se sacaron por el contexto (app/llm/budget.py); state ya
+    viene sin ellos y una linea avisa que faltan."""
     whatsapp = state.channel == "whatsapp"
-    return "\n".join(f"{_speaker(m, whatsapp)}: {_one_line(m.text)}" for m in state.messages)
+    lines = [conversation_line(m, whatsapp) for m in state.messages]
+    return "\n".join([omitted_note(omitted), *lines] if omitted else lines)
+
+
+def conversation_line(message: Message, whatsapp: bool) -> str:
+    return f"{_speaker(message, whatsapp)}: {_one_line(message.text)}"
 
 
 def _speaker(message: Message, whatsapp: bool) -> str:
@@ -153,7 +163,7 @@ def _one_line(text: str) -> str:
     return " / ".join(line.strip() for line in text.splitlines() if line.strip())
 
 
-def build_user_prompt(workflow: Workflow, state: ConversationState, user_message: str) -> str:
+def build_user_prompt(workflow: Workflow, state: ConversationState, user_message: str, omitted: int = 0) -> str:
     answered_empty = state.progress.answered_empty
     current = {
         "status": state.status,
@@ -175,7 +185,7 @@ def build_user_prompt(workflow: Workflow, state: ConversationState, user_message
     # asi vLLM reusa el prefijo (prefix caching) del turno anterior.
     return (
         f"WORKFLOW:\n{render_workflow(workflow)}\n"
-        f"CONVERSATION:\n{render_conversation(state)}\n\n"
+        f"CONVERSATION:\n{render_conversation(state, omitted)}\n\n"
         f"CURRENT STATE:\n{json.dumps(current, ensure_ascii=False, indent=2)}\n\n"
         f"{header}\n{user_message}"
     )
@@ -190,7 +200,8 @@ def render_fields(workflow: Workflow, only: list[str] | None = None) -> str:
     return yaml.safe_dump(fields, allow_unicode=True, sort_keys=False, width=1000)
 
 
-def build_extraction_prompt(workflow: Workflow, state: ConversationState, only: list[str] | None = None) -> str:
+def build_extraction_prompt(workflow: Workflow, state: ConversationState, only: list[str] | None = None,
+                            omitted: int = 0) -> str:
     focus = f"Devolvé solo el campo {', '.join(only)}: el agente lo preguntó y el usuario lo respondió.\n\n" if only else ""
     known = {k: v for k, v in state.fields.items() if v is not None and (only is None or k in only)}
     objective = "OBJETIVO" if state.channel == "whatsapp" else "OBJETIVO DE LA LLAMADA"
@@ -198,7 +209,7 @@ def build_extraction_prompt(workflow: Workflow, state: ConversationState, only: 
         f"AGENTE: {workflow.agent.name}, {workflow.agent.role}.\n"
         f"{objective}: {workflow.objective.description.strip()}\n\n"
         f"CAMPOS:\n{render_fields(workflow, only)}\n"
-        f"CONVERSATION:\n{render_conversation(state)}\n\n"
+        f"CONVERSATION:\n{render_conversation(state, omitted)}\n\n"
         f"KNOWN FIELDS:\n{json.dumps(known, ensure_ascii=False)}\n\n"
         f"{focus}Devolvé el valor de cada campo según la conversación."
     )
@@ -263,10 +274,14 @@ Al final de ese último mensaje, y solo en ese, escribí {END_MARKER}.{extra}
 {reply}"""
 
 
-def build_classic_messages(workflow: Workflow, state: ConversationState, user_message: str) -> list[dict]:
+def build_classic_messages(workflow: Workflow, state: ConversationState, user_message: str,
+                           omitted: int = 0) -> list[dict]:
     """Por WhatsApp, los mensajes del usuario que llegaron como audio llevan
     VOICE_NOTE_TAG (los del agente no) y, si la respuesta sale como nota de voz,
-    el mensaje nuevo termina con VOICE_NOTE_REPLY."""
+    el mensaje nuevo termina con VOICE_NOTE_REPLY.
+
+    omitted: mensajes viejos sacados por el contexto (state ya viene sin ellos); el aviso
+    va al final del prompt de sistema, no como mensaje, para no romper la alternancia."""
     whatsapp = state.channel == "whatsapp"
     history = [{"role": m.role, "content": _classic_text(m.text, whatsapp and m.role == "user" and m.voice_note)}
                for m in state.messages]
@@ -274,8 +289,10 @@ def build_classic_messages(workflow: Workflow, state: ConversationState, user_me
     content = _classic_text(user_message, bool(media and media.user_voice_note))
     if media and media.reply_voice_note:
         content += VOICE_NOTE_REPLY
-    return [{"role": "system", "content": build_classic_system(workflow, state.channel)}, *history,
-            {"role": "user", "content": content}]
+    system = build_classic_system(workflow, state.channel)
+    if omitted:
+        system += f"\n\n{omitted_note(omitted)}"
+    return [{"role": "system", "content": system}, *history, {"role": "user", "content": content}]
 
 
 def _classic_text(text: str, voice_note: bool) -> str:

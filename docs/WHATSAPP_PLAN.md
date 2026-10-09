@@ -356,7 +356,8 @@ FakeLLM y payloads con la forma de Meta en `tests/fixtures/wa/`.
   llega en `WA_DEBOUNCE_SECONDS` (2 s) en un turno, un turno a la vez por contacto, `send_text` y
   `mark_read`. Si llega texto mientras responde el LLM, deshace el turno y responde todo junto.
 - **Topes:** `WA_MAX_TURN_CHARS` (2000) por turno, lo que pase se descarta; `WA_MAX_TURNS` (40) por
-  conversación, después sigue en otra. Así un contacto o un bot no pasa el contexto del LLM (32768).
+  conversación, después sigue en otra. Además el historial se recorta para entrar en el contexto
+  del LLM (`LLM_CONTEXT_TOKENS`, 16384 con Gemma; `app/llm/budget.py`).
   Los turnos por la API (`/conversations/{id}/turns`) a una conversación de WhatsApp dan 409.
 - **Statuses:** `sent < delivered < read` no retrocede; `failed` gana y guarda el error de Meta. Un
   envío fallido (ej. 131047, fuera de las 24 h) se guarda y no se reintenta.
@@ -384,6 +385,25 @@ FakeLLM y payloads con la forma de Meta en `tests/fixtures/wa/`.
 
 **Queda de la fila de la fase 1:** modo verificación
 (3.1, etapa 2) y el eval con canal `whatsapp` comparado con voz.
+
+**Entrantes durables (8-oct-2026, revisión de producción H03):** antes el cuerpo vivía solo en
+memoria (debounce) y cada deploy o reinicio perdía lo que estaba en la ventana. Ahora:
+- El webhook guarda cada entrante con su cuerpo (`wa_messages.body`) antes del 200; si la base falla,
+  responde 500 y Meta reintenta.
+- Estados: `received` → `processing` (`claimed_at`, `attempts`) → `answered`, `ignored` o `error`.
+  `processed_at` se marca antes de mandar la respuesta: un `processing` con `processed_at` es un envío
+  incierto y pasa a `error` sin reenvío.
+- La recuperación corre en el líder (lock consultivo, `app/services/leader.py`) al arrancar y cada
+  minuto: retoma lo pendiente de menos de `WA_RECOVERY_MAX_AGE_HOURS` (24) hasta `WA_MAX_ATTEMPTS` (3).
+- Si el turno falla (LLM caído, contexto), se responde `WA_ERROR_REPLY` dentro de la ventana de 24 h y
+  el mensaje queda `error`: el contacto no queda esperando.
+- Tope de turnos simultáneos: `WA_MAX_CONCURRENT_TURNS` (8); encolan.
+- Al apagar, `app` espera los turnos en curso hasta 8 s; lo que no termine queda en la base.
+- El cuerpo se borra al responder o ignorar; en `error` queda hasta la retención del cliente.
+- Cliente inactivo: los entrantes quedan `ignored`, y conectar números, plantillas y campañas dan
+  403 `client_inactive`.
+- Pendiente de probar en vivo: `docker stop app` en medio de un turno y ver que se responde al volver
+  (~5 min, `CLAIM_STALE_SECONDS`).
 
 ### 5.2 Fase 3 parcial: audios
 

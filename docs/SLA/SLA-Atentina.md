@@ -6,6 +6,25 @@ NOTAS INTERNAS (borrar antes de enviar)
 - 99,8% mensual = ~86 min de indisponibilidad permitida en un mes de 30 días.
 -->
 
+> **OBJETIVO, no vigente (8-oct-2026): no compartir con clientes ni publicar hasta cumplir lo que sigue.**
+> Los números de este borrador (99,8 %, tiempos de respuesta, RPO/RTO, créditos) son la meta y no se
+> cambian; lo que falta es poder cumplirlos y medirlos. Estado en [`../PRODUCCION.md`](../PRODUCCION.md)
+> y [`../revision-produccion-2026-10-07-respuesta.md`](../revision-produccion-2026-10-07-respuesta.md).
+>
+> | Sección | Promete | Hoy |
+> |---|---|---|
+> | §3, §4.2 | 99,8 % medido desde 3 ubicaciones cada 60 s y una llamada de prueba por hora | Sin monitoreo externo (`HEALTHCHECKS_PING_URL` vacío) ni llamada de control. Sin datos de cortes del sitio: hacen falta ~3 meses de medición antes de prometer un porcentaje (PRODUCCION, 6). |
+> | §2, §7 | Página de Estado e incidente publicado en 15 min | No hay Página de Estado. Las alertas no le llegan a nadie (`ALERT_NTFY_TOPIC` vacío): 46 h de falla del TLS del SIP pasaron sin aviso (6 al 8-oct-2026). |
+> | §8.3 | Guardia 24×7 para Severidad 1, primera respuesta en 1 h | Sin responsable de guardia definido (PRODUCCION, 8). |
+> | §6.3, §9.1 | Arquitectura redundante en 2 sitios, UPS y conectividad dual | Un server, un sitio, sin UPS, una conexión (PRODUCCION, 4 A–C y 5). |
+> | §9.2 | Réplica entre sitios y backup diario fuera de los sitios, 30 días | Backup diario solo en otro disco del mismo host; la copia externa cifrada (`RCLONE_REMOTE`, `BACKUP_GPG_RECIPIENT`) está pendiente. No hay réplica. El Servicio no graba audio de llamadas: sacar "grabaciones" de §9.2 y §13 o implementarlas. |
+> | §9.3 | RPO 1 h, RTO 4 h | Con un dump diario el RPO real es de hasta 24 h. Restauración probada solo desde el disco local (`make restore-test`, 8-oct-2026: 2,6 s la base); falta un simulacro completo desde la copia externa en otra máquina (base, `.env`, checkpoint del TTS) con el tiempo medido. |
+> | §8.3 (pérdida de mensajes), §4 | Sin pérdida de mensajes; capacidad acorde al plan | WhatsApp durable y tope global de llamadas están en el árbol, sin desplegar. La capacidad con Gemma 4 26B no está medida: falta un CAP para fijar `MAX_CONCURRENT_CALLS_GLOBAL` y los topes que se venden. |
+> | §13 | Cifrado en tránsito y registro de accesos | Pendientes `AUTH_COOKIE_SECURE=true` y CSP en modo estricto (`CSP_REPORT_ONLY=false`); la inferencia remota por el 8100 es HTTP plano. No hay registro de auditoría de acciones administrativas. |
+> | §6.2 | Mantenimiento ≤ 4 h por mes, con 72 h de aviso | Sin procedimiento de despliegue con ventana ni aviso a clientes (PRODUCCION, 4 H). |
+>
+> Además: completar los [CORCHETES] y revisarlo con un abogado (notas internas de arriba).
+
 # Acuerdo de Nivel de Servicio (SLA)
 
 **Atentina**

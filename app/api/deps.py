@@ -25,7 +25,7 @@ from ..agents.definitions import DefinitionSource
 from ..config import settings
 from ..conversation.engine import ConversationEngine
 from ..db import get_sessionmaker, utcnow
-from ..models import ApiKey, Role, User
+from ..models import ApiKey, Client, Role, User
 from ..runtime import get_conversation_engine
 from ..services.errors import Forbidden
 from ..services.ratelimit import Limit, RateLimiter, client_key
@@ -71,12 +71,15 @@ def get_principal(request: Request, db: DB,
         # last_used_at con resolucion de un minuto: no escribir en cada pedido.
         if key.last_used_at is None or now - key.last_used_at > datetime.timedelta(minutes=1):
             key.last_used_at = now
-            db.commit()
+        # Cierra la transaccion de la lectura (H07): sin esto la conexion queda "idle in
+        # transaction" mientras el endpoint espera al LLM, al TTS o a LiveKit.
+        db.commit()
         return Principal("api_key", key.id, Role.client, key.client_id)
     payload = decode_session_token(token)
     user = db.get(User, payload["sub"]) if payload else None
     if user is None or not user.active or payload.get("sv", 0) != user.session_version:
         raise _unauthorized("Sesion invalida o vencida")
+    db.commit()
     return Principal("user", user.id, Role(user.role), user.client_id)
 
 
@@ -95,8 +98,30 @@ def require_user(p: CurrentPrincipal) -> Principal:
     return p
 
 
+def require_active_client(p: CurrentPrincipal, db: DB) -> Principal:
+    """Cliente inactivo = solo lectura (H12): entra, ve y exporta su historial, pero no
+    consume (texto con el LLM, pruebas de voz, llamadas, WhatsApp, campañas) ni crea API
+    keys. El admin no tiene cliente: lo que pida para un cliente inactivo lo frenan los
+    servicios (quota.admit). Para endpoints que consumen: ActiveClientPrincipal."""
+    if p.client_id is not None and not p.is_admin:
+        active = db.scalar(select(Client.active).where(Client.id == p.client_id))
+        db.commit()     # como get_principal: no retener la transaccion
+        if not active:
+            raise Forbidden("El cliente está inactivo: solo puede consultar su historial", "client_inactive")
+    return p
+
+
+def ensure_client_active(db, client_id: str | None) -> None:
+    """Como require_active_client, pero para el cliente del recurso y tambien para un admin
+    (WhatsApp y campañas: conectar numeros, plantillas, lanzar envios). 403 client_inactive."""
+    client = db.get(Client, client_id) if client_id else None
+    if client is not None and not client.active:
+        raise Forbidden("El cliente está inactivo: solo puede ver su historial", code="client_inactive")
+
+
 AdminPrincipal = Annotated[Principal, Depends(require_admin)]
 UserPrincipal = Annotated[Principal, Depends(require_user)]
+ActiveClientPrincipal = Annotated[Principal, Depends(require_active_client)]
 
 
 def scoped_client_id(p: Principal, client_id: str | None) -> str | None:

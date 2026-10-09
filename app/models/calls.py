@@ -5,7 +5,15 @@ ConversationRow; esta tabla la complementa y es la base del consumo por tier.
 import datetime
 import enum
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..db import Base, JSONDoc, utcnow
@@ -36,6 +44,8 @@ class CallRow(Base):
         # Consumo del mes y llamadas activas por cliente (services/quota.py).
         Index("ix_call_logs_client_started", "client_id", "started_at"),
         Index("ix_call_logs_client_status", "client_id", "status"),
+        # Reintento de POST /calls con el mismo Idempotency-Key: devuelve la misma llamada.
+        UniqueConstraint("client_id", "idempotency_key", name="uq_call_logs_client_idempotency"),
     )
     # Una llamada por conversacion; se va con ella.
     conversation_id: Mapped[str] = mapped_column(
@@ -56,3 +66,8 @@ class CallRow(Base):
     duration_seconds: Mapped[int] = mapped_column(Integer, default=0)
     latency: Mapped[dict | None] = mapped_column(JSONDoc, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
+    # Header Idempotency-Key de POST /calls (NULL: sin el).
+    idempotency_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    # sha256 del pedido (agente, telefono, numero de origen, voz, loadtest): la misma clave
+    # con otro pedido da 409 idempotency_key_reused.
+    idempotency_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)

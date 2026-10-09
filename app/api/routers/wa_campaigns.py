@@ -14,7 +14,13 @@ from ...models import Agent, Client, WaAccount, WaCampaign
 from ...services.errors import Invalid, NotFound
 from ...services.security import Principal
 from ...whatsapp import campaigns
-from ..deps import DB, CurrentPrincipal, ensure_access, scoped_client_id
+from ..deps import (
+    DB,
+    CurrentPrincipal,
+    ensure_access,
+    ensure_client_active,
+    scoped_client_id,
+)
 from ..schemas import (
     WaCampaignCreated,
     WaCampaignIn,
@@ -88,6 +94,7 @@ async def create_campaign(body: WaCampaignIn, p: CurrentPrincipal, db: DB):
     estar aprobada (422 si no). Los contactos invalidos, repetidos o dados de baja vuelven
     en `skipped`. Se envia con /start."""
     account = _get_managed(db, body.account_id, p)
+    ensure_client_active(db, account.client_id)
     rows = _rows(body)
     template = await campaigns.fetch_template(db, account, body.template_name, body.template_language)
     c = campaigns.create(db, account=account, name=body.name, template=template, agent_id=body.agent_id,
@@ -106,6 +113,7 @@ def get_campaign(campaign_id: str, p: CurrentPrincipal, db: DB):
 @router.patch("/campaigns/{campaign_id}", response_model=WaCampaignOut)
 def update_campaign(campaign_id: str, body: WaCampaignPatch, p: CurrentPrincipal, db: DB):
     c, _ = _get_editable(db, campaign_id, p)
+    ensure_client_active(db, c.client_id)     # solo lectura (H12): pausar y cancelar si se puede
     changes = body.model_dump(exclude_unset=True)
     # null es "sin cambio", salvo agent_id (null: el agente del numero).
     changes = {k: v for k, v in changes.items() if v is not None or k == "agent_id"}
@@ -126,6 +134,7 @@ def delete_campaign(campaign_id: str, p: CurrentPrincipal, db: DB):
 def add_recipients(campaign_id: str, body: WaRecipientsIn, p: CurrentPrincipal, db: DB):
     """Suma contactos a una campaña en borrador o pausada."""
     c, _ = _get_editable(db, campaign_id, p)
+    ensure_client_active(db, c.client_id)
     added, skipped = campaigns.add_recipients(db, c, _rows(body))
     db.commit()
     return _added(added, skipped)
@@ -154,6 +163,7 @@ async def start_campaign(campaign_id: str, p: CurrentPrincipal, db: DB):
     """Empieza o retoma el envio. Relee la plantilla en Meta: si la pausaron, la rechazaron
     o le cambiaron las variables, no arranca (422)."""
     c, account = _get_editable(db, campaign_id, p)
+    ensure_client_active(db, c.client_id)
     template = await campaigns.fetch_template(db, account, c.template_name, c.template_language)
     if template.params != c.template_params:
         raise Invalid(f"La plantilla ahora tiene {template.params} variables y la campaña se cargó con "
@@ -215,5 +225,7 @@ def remove_optout(wa_id: str, p: CurrentPrincipal, db: DB, client_id: str | None
     if not client_id:
         raise NotFound("Falta client_id")
     ensure_access(p, client_id)
+    # Sacar una baja habilita envios: no con el cliente inactivo (H12). Agregarla si: protege.
+    ensure_client_active(db, client_id)
     campaigns.remove_optout(db, client_id, wa_id)
     db.commit()

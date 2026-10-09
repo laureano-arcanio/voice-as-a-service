@@ -5,7 +5,7 @@
 # en curso: espera hasta 60 min y si no, reintenta al otro dia (quedan ~30 intentos).
 # El chequeo (healthcheck.sh) avisa si el certificado servido vence en menos de 14 dias.
 set -uo pipefail
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/../.." || exit 1
 
 env_get() { grep -E "^$1=" .env | tail -1 | cut -d= -f2- || true; }
 log() { echo "$(date '+%F %T') $*"; }

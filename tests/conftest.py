@@ -38,6 +38,10 @@ def store(tmp_path):
     engine = s.sessions.kw["bind"]
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
+    # Los tests del motor usan los agentes de referencia (load_reference), sin fila en agents:
+    # en PostgreSQL la FK de conversations.agent_id los rechazaria. SQLite no la aplica.
+    with engine.begin() as conn:
+        conn.exec_driver_sql("ALTER TABLE conversations DROP CONSTRAINT IF EXISTS conversations_agent_id_fkey")
     yield s
     engine.dispose()
 

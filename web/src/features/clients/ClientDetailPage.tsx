@@ -5,6 +5,7 @@ import {
   Card,
   Grid,
   Group,
+  NumberInput,
   Select,
   Stack,
   Switch,
@@ -29,7 +30,14 @@ import { NewAgentModal } from '@/features/agents/NewAgentModal';
 import { numberErrorTitle } from '@/features/numbers/errors';
 import { useTiers } from '@/features/tiers/api';
 import { UsersTable } from '@/features/users/UsersTable';
-import { formatDate, formatDateTime, formatLimit, recentMonths } from '@/lib/format';
+import {
+  formatCallLimit,
+  formatDate,
+  formatDateTime,
+  formatLimit,
+  formatRetention,
+  recentMonths,
+} from '@/lib/format';
 import { ENGINE } from '@/lib/labels';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useClient, useDeleteClient, useUpdateClient } from './api';
@@ -43,7 +51,10 @@ function ClientDataCard({ client }: { client: Client }) {
   const del = useDeleteClient();
   const navigate = useNavigate();
   const [name, setName] = useState(client.name);
+  // Retencion propia del cliente; vacio = la del tier.
+  const [retention, setRetention] = useState<number | ''>(client.retention_days ?? '');
   const tier = tiers.data?.find((t) => t.id === client.tier.id);
+  const retentionValue = retention === '' ? null : retention;
 
   const patch = (body: Parameters<typeof update.mutate>[0], ok: string) =>
     update.mutate(body, {
@@ -56,7 +67,7 @@ function ClientDataCard({ client }: { client: Client }) {
       !active &&
       !(await confirmAction({
         title: 'Desactivar cliente',
-        message: `${client.name} no podrá hacer ni recibir llamadas hasta que lo actives de nuevo.`,
+        message: `${client.name} queda en solo lectura hasta que lo actives de nuevo: ve y exporta su historial, pero no hace ni recibe llamadas, ni usa WhatsApp, campañas, pruebas o API keys nuevas.`,
         confirmLabel: 'Desactivar',
         danger: true,
       }))
@@ -124,13 +135,49 @@ function ClientDataCard({ client }: { client: Client }) {
           allowDeselect={false}
           description={
             tier
-              ? `${formatLimit(tier.max_concurrent_calls)} simultáneas · ${formatLimit(tier.inbound_minutes, ' min')} entrantes · ${formatLimit(tier.outbound_minutes, ' min')} salientes por mes · ${formatLimit(tier.max_phone_numbers)} números`
+              ? `${formatLimit(tier.max_concurrent_calls)} simultáneas · ${formatLimit(tier.inbound_minutes, ' min')} entrantes · ${formatLimit(tier.outbound_minutes, ' min')} salientes por mes · ${formatLimit(tier.max_phone_numbers)} números · retención: ${formatRetention(tier.retention_days).toLowerCase()}`
               : undefined
           }
         />
+        <Group align="flex-end" gap="xs">
+          <NumberInput
+            label="Retención de conversaciones (días)"
+            description={
+              tier
+                ? `Vacío = la del tier (${formatRetention(tier.retention_days).toLowerCase()}).`
+                : 'Vacío = la del tier.'
+            }
+            placeholder="La del tier"
+            value={retention}
+            onChange={(v) => setRetention(typeof v === 'number' ? v : '')}
+            min={1}
+            allowDecimal={false}
+            allowNegative={false}
+            thousandSeparator="."
+            decimalSeparator=","
+            style={{ flex: 1 }}
+          />
+          <Button
+            variant="default"
+            disabled={retentionValue === (client.retention_days ?? null)}
+            loading={update.isPending && update.variables?.retention_days !== undefined}
+            onClick={() =>
+              patch(
+                { retention_days: retentionValue },
+                retentionValue == null ? 'Retención: la del tier.' : 'Retención actualizada.',
+              )
+            }
+          >
+            Guardar
+          </Button>
+        </Group>
+        <Text size="xs" c="dimmed">
+          Se aplica: retención {formatRetention(client.effective_retention_days).toLowerCase()} · llamadas de
+          hasta {formatCallLimit(client.effective_max_call_seconds)}
+        </Text>
         <Switch
           label="Activo"
-          description="Inactivo: no puede hacer ni recibir llamadas."
+          description="Inactivo: solo lectura. Ve su historial; no hace ni recibe llamadas ni usa WhatsApp."
           checked={client.active}
           onChange={(e) => void setActive(e.currentTarget.checked)}
         />
@@ -303,7 +350,7 @@ function ClientView({ client }: { client: Client }) {
           </Card>
         </Tabs.Panel>
         <Tabs.Panel value="api-keys">
-          <ApiKeysSection clientId={client.id} />
+          <ApiKeysSection clientId={client.id} inactive={!client.active} />
         </Tabs.Panel>
       </Tabs>
     </>

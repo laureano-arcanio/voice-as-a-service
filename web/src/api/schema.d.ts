@@ -94,8 +94,8 @@ export interface paths {
         head?: never;
         /**
          * Update Tier
-         * @description Solo los campos enviados; un limite en null lo deja ilimitado. Aplica desde ya
-         *     al mes en curso.
+         * @description Solo los campos enviados; un limite en null lo deja ilimitado (la duracion vuelve a
+         *     CALL_MAX_DURATION_SECONDS; la retencion, sin borrado). Aplica desde ya al mes en curso.
          */
         patch: operations["update_tier_api_v1_tiers__tier_id__patch"];
         trace?: never;
@@ -266,7 +266,8 @@ export interface paths {
         head?: never;
         /**
          * Update Number
-         * @description Etiqueta y agente que atiende las entrantes (un agente del mismo cliente).
+         * @description Etiqueta y agente que atiende las entrantes (un agente del mismo cliente). Cliente
+         *     inactivo: 403 client_inactive (solo lectura, H12).
          */
         patch: operations["update_number_api_v1_phone_numbers__number_id__patch"];
         trace?: never;
@@ -512,6 +513,7 @@ export interface paths {
         /**
          * Create Key
          * @description La clave va en `Authorization: Bearer <key>`. Se muestra solo en esta respuesta.
+         *     Cliente inactivo: 403 client_inactive (solo lectura).
          */
         post: operations["create_key_api_v1_clients__client_id__api_keys_post"];
         delete?: never;
@@ -553,7 +555,9 @@ export interface paths {
         /**
          * Start Call
          * @description Con `phone`, llamada saliente; sin el, de prueba por navegador (devuelve join_url).
-         *     429 si el cliente esta al tope de llamadas simultaneas o sin minutos del mes.
+         *     Saliente: sale con un numero del cliente (from_number_id o el primero); sin numero
+         *     propio, 409 no_caller_id. 429 si el cliente esta al tope de llamadas simultaneas o
+         *     sin minutos del mes.
          */
         post: operations["start_call_api_v1_calls_post"];
         delete?: never;
@@ -699,6 +703,7 @@ export interface paths {
         /**
          * Tts Preview
          * @description Sintetiza el texto con la voz pedida y devuelve el WAV, directo contra el TTS.
+         *     503 tts_busy si ya hay TTS_PREVIEW_MAX_CONCURRENT pruebas en curso (con las de la demo).
          */
         post: operations["tts_preview_api_v1_tts_preview_post"];
         delete?: never;
@@ -891,7 +896,8 @@ export interface paths {
          * Close Thread
          * @description Cierra una conversacion de WhatsApp: el proximo mensaje del contacto empieza otra, con la
          *     version vigente del agente. Esta queda en el historial. Es su fin, como el corte de una
-         *     llamada (extraccion final del clasico). Cerrar una ya cerrada no hace nada.
+         *     llamada (extraccion final del clasico; sin ella si el cliente esta inactivo: no consume
+         *     el LLM, H12). Cerrar una ya cerrada no hace nada.
          */
         post: operations["close_thread_api_v1_whatsapp_threads__conversation_id__close_post"];
         delete?: never;
@@ -1494,6 +1500,11 @@ export interface components {
              * @default true
              */
             active?: boolean;
+            /**
+             * Retention Days
+             * @description Dias que se guardan las conversaciones (null: los del tier)
+             */
+            retention_days?: number | null;
         };
         /** ClientOut */
         ClientOut: {
@@ -1506,6 +1517,8 @@ export interface components {
             /** Active */
             active: boolean;
             tier: components["schemas"]["TierBrief"];
+            /** Retention Days */
+            retention_days: number | null;
             /**
              * Created At
              * Format: date-time
@@ -1521,6 +1534,13 @@ export interface components {
              * @default 0
              */
             numbers_count?: number;
+            /** Effective Retention Days */
+            effective_retention_days?: number | null;
+            /**
+             * Effective Max Call Seconds
+             * @default 0
+             */
+            effective_max_call_seconds?: number;
         };
         /** ClientUpdate */
         ClientUpdate: {
@@ -1530,6 +1550,8 @@ export interface components {
             tier_id?: string | null;
             /** Active */
             active?: boolean | null;
+            /** Retention Days */
+            retention_days?: number | null;
         };
         /** ConversationIn */
         ConversationIn: {
@@ -2002,6 +2024,16 @@ export interface components {
              * @description Numeros que puede tener el cliente
              */
             max_phone_numbers?: number | null;
+            /**
+             * Max Call Duration Seconds
+             * @description Tope duro de cada llamada, en segundos (null: el del sistema)
+             */
+            max_call_duration_seconds?: number | null;
+            /**
+             * Retention Days
+             * @description Dias que se guardan las conversaciones (null: sin borrado)
+             */
+            retention_days?: number | null;
         };
         /** TierOut */
         TierOut: {
@@ -2019,6 +2051,10 @@ export interface components {
             outbound_minutes: number | null;
             /** Max Phone Numbers */
             max_phone_numbers: number | null;
+            /** Max Call Duration Seconds */
+            max_call_duration_seconds: number | null;
+            /** Retention Days */
+            retention_days: number | null;
             /**
              * Created At
              * Format: date-time
@@ -2044,6 +2080,10 @@ export interface components {
             outbound_minutes?: number | null;
             /** Max Phone Numbers */
             max_phone_numbers?: number | null;
+            /** Max Call Duration Seconds */
+            max_call_duration_seconds?: number | null;
+            /** Retention Days */
+            retention_days?: number | null;
         };
         /** TtsPreviewIn */
         TtsPreviewIn: {
@@ -3976,6 +4016,13 @@ export interface operations {
                     "application/json": components["schemas"]["ApiKeyCreated"];
                 };
             };
+            /** @description El cliente ya tiene MAX_API_KEYS_PER_CLIENT claves activas */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -4061,7 +4108,10 @@ export interface operations {
     start_call_api_v1_calls_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Opcional: un reintento con la misma clave devuelve la misma llamada (200) sin marcar de nuevo */
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -4071,6 +4121,13 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Ya existia una llamada con esa Idempotency-Key */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Successful Response */
             201: {
                 headers: {
@@ -4079,6 +4136,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["CallStartedOut"];
                 };
+            };
+            /** @description Saliente sin numero propio del cliente (no_caller_id) o Idempotency-Key reusada para otra llamada */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -4289,17 +4353,29 @@ export interface operations {
                     "application/json": components["schemas"]["TurnOut"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Conversacion de WhatsApp, de una llamada, terminada o con un turno en curso */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La conversacion no entra en el contexto del modelo (context_too_long) */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
+                content?: never;
             };
             /** @description El LLM no respondio */
             502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Demasiados turnos de texto a la vez (llm_busy, Retry-After) */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4374,6 +4450,13 @@ export interface operations {
             };
             /** @description Limite de uso por hora */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Demasiadas pruebas de voz a la vez (Retry-After) */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5278,6 +5361,20 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Limite por IP o por sesion */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Demasiadas pruebas de voz a la vez (Retry-After) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

@@ -58,6 +58,11 @@ class TierIn(BaseModel):
     inbound_minutes: int | None = Field(default=None, ge=0, description="Minutos entrantes por mes")
     outbound_minutes: int | None = Field(default=None, ge=0, description="Minutos salientes por mes")
     max_phone_numbers: int | None = Field(default=None, ge=0, description="Numeros que puede tener el cliente")
+    # None: CALL_MAX_DURATION_SECONDS. Vale para todas las modalidades, tambien sin limites de minutos.
+    max_call_duration_seconds: int | None = Field(
+        default=None, gt=0, description="Tope duro de cada llamada, en segundos (null: el del sistema)")
+    retention_days: int | None = Field(
+        default=None, gt=0, description="Dias que se guardan las conversaciones (null: sin borrado)")
 
 
 class TierUpdate(BaseModel):
@@ -67,6 +72,8 @@ class TierUpdate(BaseModel):
     inbound_minutes: int | None = Field(default=None, ge=0)
     outbound_minutes: int | None = Field(default=None, ge=0)
     max_phone_numbers: int | None = Field(default=None, ge=0)
+    max_call_duration_seconds: int | None = Field(default=None, gt=0)
+    retention_days: int | None = Field(default=None, gt=0)
 
 
 class TierOut(ORM):
@@ -77,6 +84,8 @@ class TierOut(ORM):
     inbound_minutes: int | None
     outbound_minutes: int | None
     max_phone_numbers: int | None
+    max_call_duration_seconds: int | None
+    retention_days: int | None
     created_at: UTCDateTime
     clients_count: int = 0
 
@@ -88,12 +97,17 @@ class ClientIn(BaseModel):
     slug: str = Field(pattern=SLUG)
     tier_id: str
     active: bool = True
+    # None: el del tier.
+    retention_days: int | None = Field(
+        default=None, gt=0, description="Dias que se guardan las conversaciones (null: los del tier)")
 
 
 class ClientUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=128)
     tier_id: str | None = None
     active: bool | None = None
+    # null explicito: vuelve al del tier.
+    retention_days: int | None = Field(default=None, gt=0)
 
 
 class TierBrief(ORM):
@@ -107,9 +121,13 @@ class ClientOut(ORM):
     slug: str
     active: bool
     tier: TierBrief
+    retention_days: int | None
     created_at: UTCDateTime
     agents_count: int = 0
     numbers_count: int = 0
+    # Lo que se aplica: retencion del cliente o del tier (null: sin borrado) y tope de llamada.
+    effective_retention_days: int | None = None
+    effective_max_call_seconds: int = 0
 
 
 class MinutesUsageOut(BaseModel):

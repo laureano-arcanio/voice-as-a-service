@@ -16,7 +16,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 
 from .api import errors
-from .api.deps import _bearer, get_db, get_principal, require_admin
+from .api.deps import _bearer, _peer_is_trusted, get_db, get_principal, require_admin
 from .api.http import (
     BodyLimitMiddleware,
     CsrfMiddleware,
@@ -39,10 +39,15 @@ from .api.routers import (
     whatsapp,
 )
 from .config import settings
+from .db import get_sessionmaker
 from .services.demo import allowed_origins
+from .services.leader import get_leader
+from .services.reconcile import reconcile_loop
+from .services.retention import retention_loop
+from .whatsapp import service as wa_service
 from .whatsapp import webhook as wa_webhook
 from .whatsapp.sender import campaign_loop
-from .whatsapp.service import sweep_loop
+from .whatsapp.service import recovery_loop, sweep_loop
 
 logger = logging.getLogger(__name__)
 API_PREFIX = "/api/v1"
@@ -50,13 +55,34 @@ API_PREFIX = "/api/v1"
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Fin de los chats de WhatsApp vencidos, como el corte de una llamada (app/whatsapp/service.py).
-    sweep = asyncio.create_task(sweep_loop())
-    # Envio de las campañas salientes de WhatsApp (app/whatsapp/sender.py).
-    sending = asyncio.create_task(campaign_loop())
+    # Consumidor unico (H14): los loops de fondo corren solo en el proceso que tiene el lock
+    # consultivo de PostgreSQL (app/services/leader.py); los demas esperan su turno.
+    leader = get_leader()
+    await leader.acquire()
+    loops = [
+        leader.loop(),
+        # Entrantes de WhatsApp que quedaron sin responder (reinicio, caida): al arrancar y cada minuto.
+        recovery_loop(leader),
+        # Fin de los chats de WhatsApp vencidos, como el corte de una llamada (app/whatsapp/service.py).
+        sweep_loop(leader),
+        # Envio de las campañas salientes de WhatsApp (app/whatsapp/sender.py).
+        campaign_loop(leader),
+        # Retencion por tier/cliente (app/services/retention.py).
+        retention_loop(leader),
+    ]
+    if settings.livekit_url:
+        # Llamadas activas cuya room ya no existe en LiveKit (worker caido o reiniciado a
+        # mitad de una llamada): se cierran para que no ocupen cupo (app/services/reconcile.py).
+        loops.append(reconcile_loop(get_sessionmaker(), leader=leader))
+    tasks = [asyncio.create_task(loop) for loop in loops]
     yield
-    sweep.cancel()
-    sending.cancel()
+    # Apagado: primero se terminan los turnos de WhatsApp en curso (con tope); lo que no
+    # alcance queda en la base y lo retoma el proximo arranque.
+    await wa_service.shutdown()
+    for task in tasks:
+        task.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)
+    await asyncio.to_thread(leader.release)
 
 
 def create_app() -> FastAPI:
@@ -88,10 +114,60 @@ def create_app() -> FastAPI:
 
     @app.get("/health", include_in_schema=False)
     def health():
+        """Liveness: el proceso responde (no mira dependencias)."""
         return {"ok": True}
+
+    @app.get("/health/ready", include_in_schema=False, dependencies=[Depends(_local_only)])
+    async def ready(db: Annotated[object, Depends(get_db)], inference: bool = False):
+        """Readiness: 200 si la base responde (SELECT 1), 503 si no. leader dice si este proceso
+        corre los loops de fondo. Con ?inference=true mira tambien vllm-llm (informativo: no
+        cambia el codigo, la app atiende el dashboard aunque el LLM este caido)."""
+        checks: dict[str, object] = {}
+        try:
+            await asyncio.wait_for(asyncio.to_thread(_db_ping, db), READY_TIMEOUT)
+            checks["db"] = "ok"
+        except Exception as e:  # noqa: BLE001 - cualquier falla es "no listo"
+            checks["db"] = f"error: {type(e).__name__}"
+        checks["leader"] = get_leader().is_leader
+        if inference:
+            checks["llm"] = await _llm_check()
+        ok = checks["db"] == "ok"
+        return JSONResponse({"ok": ok, "checks": checks}, status_code=200 if ok else 503)
 
     _mount_spa(app)
     return app
+
+
+READY_TIMEOUT = 3.0
+
+
+def _local_only(request: Request) -> None:
+    """/health/ready solo para pares locales: el HEALTHCHECK de la imagen (127.0.0.1) y
+    healthcheck.sh desde el host (entra por el gateway de docker). Por el tunel llega con
+    CF-Connecting-IP: desde internet seria una forma barata de ocupar el pool de la base y
+    pegarle a vLLM (?inference=true), y muestra el estado interno. 403 y no 404: si un
+    TRUSTED_PROXY_CIDRS mal puesto frena a healthcheck.sh, lo informa como falla."""
+    if "cf-connecting-ip" in request.headers or not _peer_is_trusted(request):
+        raise HTTPException(403, "Solo desde el host")
+
+
+def _db_ping(db) -> None:
+    from sqlalchemy import text
+
+    db.execute(text("SELECT 1"))
+    db.rollback()   # no dejar la conexion idle in transaction
+
+
+async def _llm_check() -> str:
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(READY_TIMEOUT, connect=1.0)) as http:
+            r = await http.get(f"{settings.vllm_llm_base_url.rstrip('/')}/models",
+                               headers={"Authorization": f"Bearer {settings.vllm_api_key}"})
+        return "ok" if r.status_code == 200 else f"http {r.status_code}"
+    except httpx.HTTPError as e:
+        return f"error: {type(e).__name__}"
 
 
 SWAGGER_CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "

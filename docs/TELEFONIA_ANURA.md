@@ -60,8 +60,23 @@ agente lo corta el worker.
    como caller ID: el agente lo manda como `sip_number` (el primero del cliente,
    o el elegido) y Asterisk lo pone en `P-Asserted-Identity` como `0` + 10
    dígitos, el formato de las entrantes (Anura confirmó que lo toma de ahí,
-   29-sep-2026). Tiene que ser un número de la cuenta de Anura; sin número
-   válido sale con `ANURA_DID`.
+   29-sep-2026). Tiene que ser un número de la cuenta de Anura. Desde el
+   8-oct-2026 un cliente sin número propio no puede llamar (409 `no_caller_id`):
+   solo la saliente de un admin llega sin caller ID y sale con `ANURA_DID`. Un
+   caller ID que llega pero no es válido se rechaza (`Hangup(21)`).
+
+**Tope de duración (8-oct-2026):** el worker corta al tope del tier
+(`tiers.max_call_duration_seconds`, o `CALL_MAX_DURATION_SECONDS`). Por si el
+worker se cae, el trunk entrante de LiveKit lleva `max_call_duration` =
+`CALL_DURATION_CEILING_SECONDS` (3600, `make livekit-sip`) y los `Dial` de
+Asterisk `L(${CALL_CEILING_MS})` (`[globals]` de `extensions.conf`, 3600000).
+Si se cambia el techo, cambiar los dos, `make livekit-sip` y `make up-pbx`.
+`python -m scripts.livekit_sip_setup --check` (sin crear nada) da exit 1 si
+faltan trunks, la dispatch rule, números o el `max_call_duration`.
+
+**WhatsApp:** un DID de WhatsApp que no se puede leer como número argentino de
+10 dígitos se corta (`Hangup(1)`, con log); ya no cae en `ANURA_DID`, el agente
+de Atentina.
 
 **Formatos de número.** Anura marca en formato nacional de 10 dígitos
 (característica + abonado), sin 0, sin 15 y sin 54. Los celulares también van
@@ -228,7 +243,7 @@ Para ver los mensajes SIP completos: `make pbx-cli` y después
 | Registrado, pero al llamar suena y en `make logs S=asterisk` no aparece "Entrante de Anura" | Anura no le manda la llamada a la terminal registrada | En el panel, el plan de llamada de la cuenta dueña del número tiene que llamar a la terminal con la que se registra Asterisk (ver "Datos de Anura"). Registrarse con una cuenta de *Troncales* no sirve |
 | Registrado, pero las entrantes no llegan a Asterisk | Anura no puede entrar por el NAT | Anura entra por el 5081 gracias al registro (no se reenvía): SIP ALG apagado, registro renovándose (`expiration=120`), IP pública correcta. El 5080 no tiene que ver |
 | Llega a Asterisk y LiveKit responde 404 | El número marcado no está en el inbound trunk | Cargarlo en Números y correr de nuevo `make livekit-sip`. `ANURA_DID` tiene que ser el mismo en Asterisk y en LiveKit |
-| Llega a Asterisk, suena y corta; `make logs S=livekit-sip` dice `status: 486, reason: flood` | LiveKit no tiene ningún inbound trunk (con LiveKit propio: se reinició el host y su Redis no persiste). `lk sip inbound list` sale vacío | `make livekit-sip` (`make up` ya lo corre al final con LiveKit propio) |
+| Llega a Asterisk, suena y corta; `make logs S=livekit-sip` dice `status: 486, reason: flood` | LiveKit no tiene ningún inbound trunk (con LiveKit propio: antes del 8-oct-2026 su Redis no persistía y cada reinicio los borraba; ahora persiste, pero puede pasar con un volumen nuevo o borrado). `lk sip inbound list` sale vacío | `make livekit-sip` (`make up` ya lo corre al final con LiveKit propio, y `healthcheck.sh` lo corre si `livekit_sip_setup --check` falla) |
 | Llega a Asterisk y LiveKit sigue respondiendo 401/407 | Clave distinta entre Asterisk y LiveKit | Correr de nuevo `make livekit-sip` y `make up-pbx` con el mismo `LIVEKIT_SIP_PASSWORD` |
 | Saliente: el agente marca la llamada como fallida por timeout (408) | LiveKit no llega a Asterisk (`127.0.0.1:5080` con LiveKit propio; `<IP pública>:5080` con Cloud) | Con Cloud: port forwarding, o cambió la IP pública. `make up-pbx` y `make livekit-sip` |
 | Saliente: SIP 403 y en los logs "Saliente RECHAZADA" | El número no es argentino o tiene un formato desconocido | Cargarlo en E.164 (`+549...` o `+54...`) |

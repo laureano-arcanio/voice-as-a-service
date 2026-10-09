@@ -153,3 +153,25 @@ export function formatPeriod(startIso: string, endIso: string): string {
 export function formatLimit(v: number | null | undefined, unit = ''): string {
   return v == null ? 'Ilimitado' : `${formatNumber(v, 0)}${unit}`;
 }
+
+/** Tope de duracion de cada llamada: 900 → "15 min" (1230 → "20,5 min"). */
+export function formatCallLimit(seconds: number | null | undefined): string {
+  return seconds ? `${formatNumber(seconds / 60)} min` : EMPTY;
+}
+
+/** Retencion de conversaciones: null = no se borran. */
+export function formatRetention(days: number | null | undefined): string {
+  if (days == null) return 'Sin borrado';
+  return days === 1 ? '1 día' : `${formatNumber(days, 0)} días`;
+}
+
+/**
+ * Minutos del formulario a segundos para la API ('' = null). Si los minutos no cambiaron
+ * respecto de `prevSeconds` (redondeado), devuelve esos segundos tal cual: guardar sin tocar
+ * el campo no pisa un tope cargado por la API en segundos sueltos (1230 s).
+ */
+export function minutesToSeconds(minutes: number | '', prevSeconds?: number | null): number | null {
+  if (minutes === '') return null;
+  if (prevSeconds && Math.round(prevSeconds / 60) === minutes) return prevSeconds;
+  return Math.round(minutes * 60);
+}

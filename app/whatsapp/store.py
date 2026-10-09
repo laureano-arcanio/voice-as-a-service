@@ -1,12 +1,12 @@
 """Acceso a wa_accounts, wa_threads y wa_messages (modelos en app/models/whatsapp.py).
 
 Funciones sincronicas con la Session del que llama; el commit lo hace el que llama,
-salvo record_inbound (el dedupe necesita el commit para valer).
+salvo save_inbound y claim_inbound (el dedupe y el reclamo necesitan el commit para valer).
 """
 import datetime
 import re
 
-from sqlalchemy import select
+from sqlalchemy import and_, null, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -173,26 +173,93 @@ def touch_thread(s: Session, conversation_id: str, at: datetime.datetime) -> Non
 
 # --- Mensajes ---
 
-def record_inbound(s: Session, *, wamid: str, account_id: str | None, wa_id: str, type: str,
-                   meta_ts: datetime.datetime | None) -> bool:
-    """Registra el entrante y hace commit. False si el wamid ya estaba: Meta reenvia."""
+# Entrantes durables (H03): received -> processing -> answered | ignored | error.
+DONE_STATUSES = ("answered", "ignored", "error")
+
+
+def save_inbound(s: Session, *, wamid: str, account_id: str | None, wa_id: str, type: str,
+                 meta_ts: datetime.datetime | None, body: dict) -> bool:
+    """Guarda el entrante con su cuerpo (commit) antes de responderle 200 a Meta. True si hay
+    que procesarlo: es nuevo o Meta reenvio uno que sigue `received` (no se descarta: puede
+    ser de un proceso que cayo). False si ya esta en proceso o terminado."""
     s.add(WaMessage(wamid=wamid, account_id=account_id, direction="in", wa_id=wa_id, type=type,
-                    status="received", meta_ts=meta_ts))
+                    status="received", meta_ts=meta_ts, body=body))
     try:
         s.commit()
+        return True
     except IntegrityError:
         s.rollback()
+    prev = s.scalar(select(WaMessage).where(WaMessage.wamid == wamid))
+    if prev is None or prev.direction != "in" or prev.status != "received":
         return False
+    if prev.body is None:       # fila anterior a la 0009 (sin cuerpo): el reenvio la completa
+        prev.body = body
+        s.commit()
     return True
 
 
-def set_inbound(s: Session, wamids: list[str], *, status: str, conversation_id: str | None = None) -> None:
+def claim_inbound(s: Session, wamid: str, stale_before: datetime.datetime | None = None) -> WaMessage | None:
+    """Reclamo atomico (commit): received -> processing, suma un intento. Con stale_before,
+    tambien uno processing colgado (claimed_at anterior). None si otro lo tiene o ya termino."""
+    cond = WaMessage.status == "received"
+    if stale_before is not None:
+        cond = or_(cond, and_(WaMessage.status == "processing",
+                              or_(WaMessage.claimed_at.is_(None), WaMessage.claimed_at < stale_before)))
+    n = s.execute(update(WaMessage).where(WaMessage.wamid == wamid, WaMessage.direction == "in", cond)
+                  .values(status="processing", claimed_at=utcnow(), attempts=WaMessage.attempts + 1)
+                  .execution_options(synchronize_session=False)).rowcount
+    s.commit()
+    if n != 1:
+        return None
+    return s.scalar(select(WaMessage).where(WaMessage.wamid == wamid).execution_options(populate_existing=True))
+
+
+def stale_inbound(s: Session, before: datetime.datetime, limit: int = 200) -> list[str]:
+    """wamids sin terminar que nadie atiende: received desde antes de `before`, o processing
+    reclamado antes (el proceso cayo o se colgo). Los mas viejos primero."""
+    return list(s.scalars(
+        select(WaMessage.wamid).where(
+            WaMessage.direction == "in",
+            or_(and_(WaMessage.status == "received", WaMessage.created_at < before),
+                and_(WaMessage.status == "processing",
+                     or_(WaMessage.claimed_at.is_(None), WaMessage.claimed_at < before))))
+        .order_by(WaMessage.created_at).limit(limit)))
+
+
+def link_inbound(s: Session, wamids: list[str], conversation_id: str) -> None:
+    """El turno los tomo: quedan con su conversacion y el reclamo renovado (siguen processing)."""
+    if wamids:
+        s.execute(update(WaMessage).where(WaMessage.wamid.in_(wamids), WaMessage.direction == "in")
+                  .values(conversation_id=conversation_id, claimed_at=utcnow())
+                  .execution_options(synchronize_session=False))
+
+
+def mark_replying(s: Session, wamids: list[str]) -> None:
+    """processed_at antes de mandar la respuesta a Meta: si el proceso cae en el envio, la
+    recuperacion no la reenvia a ciegas (el turno ya esta en la conversacion)."""
+    if wamids:
+        s.execute(update(WaMessage).where(WaMessage.wamid.in_(wamids), WaMessage.direction == "in")
+                  .values(processed_at=utcnow()).execution_options(synchronize_session=False))
+
+
+def set_inbound(s: Session, wamids: list[str], *, status: str, conversation_id: str | None = None,
+                error: dict | None = None) -> None:
+    """Estado final. answered e ignored borran el cuerpo (la conversacion ya tiene el texto);
+    error lo deja para revisarlo, hasta que lo borre la retencion."""
     if not wamids:
         return
+    now = utcnow()
     for msg in s.scalars(select(WaMessage).where(WaMessage.wamid.in_(wamids), WaMessage.direction == "in")):
         msg.status = status
         if conversation_id is not None:
             msg.conversation_id = conversation_id
+        if status in DONE_STATUSES:
+            msg.processed_at = msg.processed_at or now
+            msg.claimed_at = None
+        if status in ("answered", "ignored") and msg.body is not None:
+            msg.body = null()       # SQL NULL, no el null de JSON
+        if error is not None:
+            msg.error = error
 
 
 def _advance(current: str, new: str) -> str:

@@ -425,7 +425,7 @@ def test_whatsapp_webhook_still_works(api, monkeypatch):
         def __init__(self):
             self.payloads = []
 
-        def handle_payload(self, payload):
+        async def accept(self, payload):     # el webhook guarda antes del 200 (H03)
             self.payloads.append(payload)
 
     rec = Recording()

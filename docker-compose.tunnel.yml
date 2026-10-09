@@ -11,7 +11,7 @@
 
 services:
   tunnel:
-    image: cloudflare/cloudflared:2026.9.0
+    image: cloudflare/cloudflared:2026.9.0@sha256:ff69a2225ad7c6f85ed84fbd5f3087df46202426b2388ec60214098e0adf05e9
     restart: unless-stopped
     network_mode: host
     command: ["tunnel", "--no-autoupdate", "run"]

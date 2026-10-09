@@ -34,7 +34,9 @@ class Invalid(ServiceError):
 
 
 class QuotaExceeded(ServiceError):
-    """Limite del tier. code: concurrency_limit, inbound_minutes, outbound_minutes o client_inactive."""
+    """Limite del tier o de la plataforma. code: concurrency_limit, inbound_minutes,
+    outbound_minutes, client_inactive (entrantes: la API corta antes con 403) o platform_busy
+    (tope global MAX_CONCURRENT_CALLS_GLOBAL, services/quota.py)."""
     status_code = 429
     default_code = "quota_exceeded"
 

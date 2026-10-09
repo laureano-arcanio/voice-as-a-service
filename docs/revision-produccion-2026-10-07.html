@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Revisión de producción · 7 de octubre de 2026</title>
+<style>
+:root{--ink:#172b40;--muted:#526379;--line:#d8e1ea;--paper:#fff;--bg:#f3f6f9;--red:#9b2037;--red-bg:#fff0f2;--amber:#825100;--amber-bg:#fff5df;--blue:#17558a;--green:#176349}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:20px}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}main{max-width:1120px;margin:auto;padding:40px 24px 60px}h1{font-size:clamp(30px,5vw,46px);line-height:1.15;letter-spacing:-1.5px;margin:12px 0 20px}h2{font-size:24px;line-height:1.3;margin:36px 0 16px}h3{font-size:17px;margin:0 0 6px}p{margin:10px 0}a{color:var(--blue);text-underline-offset:3px}code{font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}button,input,select{font:inherit}button,select,input{border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:white;color:var(--ink)}button{cursor:pointer}button:hover{background:#eaf1f8}button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible,a:focus-visible{outline:3px solid #367fb4;outline-offset:3px}.eyebrow{font-size:13px;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;color:var(--muted)}.muted,small{color:var(--muted)}.lead{font-size:19px;max-width:920px}.verdict{background:var(--red-bg);border-left:5px solid var(--red);padding:20px 24px;border-radius:0 12px 12px 0}.verdict strong{color:var(--red)}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px 0}.stat,.panel{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:18px}.stat b{display:block;font-size:30px;line-height:1.2}.stat span{font-size:13px;color:var(--muted)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.panel ul{margin:8px 0;padding-left:20px}li{margin:6px 0}.badge{display:inline-block;font-size:12px;font-weight:700;line-height:1.6;padding:3px 9px;border-radius:20px;white-space:nowrap}.p1{color:var(--red);background:var(--red-bg)}.p2{color:var(--amber);background:var(--amber-bg)}.proof{color:var(--blue);background:#edf4fc}.good{color:var(--green)}.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:white}table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top}th{background:#eaf0f6;font-weight:700}tr:last-child td{border-bottom:0}.toolbar{display:none;gap:10px;align-items:center;flex-wrap:wrap;margin:18px 0}.toolbar input{flex:1;min-width:220px}.toolbar label{font-size:13px}.finding{background:white;border:1px solid var(--line);border-left:4px solid var(--line);border-radius:10px;margin:12px 0;scroll-margin-top:20px}.finding[data-priority="p1"]{border-left-color:var(--red)}.finding[data-priority="p2"]{border-left-color:#b88221}.finding summary{padding:17px 20px;cursor:pointer;font-size:17px;font-weight:650}.finding summary .badge{margin-right:8px}.finding summary small{display:block;font-size:14px;font-weight:400;margin:7px 0 0 26px}.detail{padding:0 22px 20px;border-top:1px solid var(--line)}.detail p{margin:14px 0}.evidence{font-size:14px;background:#f5f7fa;border-radius:8px;padding:12px 16px}.evidence code{font-size:12px}.test{font-size:14px;color:var(--green)}.note{background:var(--amber-bg);padding:14px 18px;border-radius:9px;font-size:14px}.meta{font-size:13px;margin-top:22px}.checks{padding-left:20px}.checks li{padding-left:4px}.footer{border-top:1px solid var(--line);margin-top:36px;padding-top:20px;font-size:13px;color:var(--muted)}[hidden]{display:none!important}.screen-reader{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}nav{display:flex;gap:18px;flex-wrap:wrap;font-size:14px;margin:22px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f0f4f8;padding:15px;border-radius:8px;font-size:12px}
+@media(max-width:700px){main{padding:24px 16px}.stats{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}.verdict{padding:16px}.finding summary{padding:15px 12px}.detail{padding:0 15px 16px}th,td{padding:10px}h1{letter-spacing:-.7px}}
+@media print{body{background:white;font-size:11px}main{padding:0;max-width:none}h1{font-size:28px}h2{font-size:19px;margin-top:24px}.toolbar,nav,.print-btn{display:none!important}.finding{break-inside:avoid}.detail{display:block!important}.finding:not([open])> .detail{display:block!important}.stats{grid-template-columns:repeat(4,1fr)}.panel,.verdict{break-inside:avoid}.badge{border:1px solid currentColor;font-size:10px}a{color:inherit}.finding summary{font-size:14px}.finding summary small{font-size:11px}.evidence,.test,table,.note{font-size:11px}h2{break-after:avoid}}
+</style>
+</head>
+<body>
+<main>
+<header>
+<div class="eyebrow">Revisión técnica · Seguridad / múltiples clientes / escala</div>
+<h1>Qué falta para poner<br>este sistema en producción</h1>
+<p class="lead">La base tiene controles de acceso y cuotas útiles. Hay fallas concretas de aislamiento, duración de llamadas y recuperación de mensajes que conviene resolver antes de incorporar clientes con compromisos de servicio.</p>
+<div class="verdict"><strong>Recomendación: no habilitar producción multi-cliente sin cerrar los P1.</strong><br>Un piloto acotado requiere límites explícitos, supervisión y aceptación de las limitaciones. Esta revisión no demuestra una intrusión ni una fuga ya ocurrida.</div>
+<div class="stats">
+<div class="stat"><b>14</b><span>hallazgos priorizados</span></div>
+<div class="stat"><b>7 P1</b><span>corregir o cerrar antes de producción</span></div>
+<div class="stat"><b>6</b><span>comportamientos reproducidos sin red</span></div>
+<div class="stat"><b>Sin medir</b><span>capacidad del Gemma actual con carga mixta</span></div>
+</div>
+<p class="meta">7 de octubre de 2026 · Repositorio <code>voice-as-a-service</code> · Commit <code>3fc800b9949906b399aaf1c5116590e420316449</code>.<br>Auditoría del árbol local, configuración seleccionada y estado básico de contenedores. No se comparó cada archivo con las imágenes desplegadas. Documento autocontenido; funciona sin internet.</p>
+<nav aria-label="Secciones"><a href="#primero">En un minuto</a><a href="#arquitectura">Arquitectura</a><a href="#hallazgos">Hallazgos</a><a href="#salida">Condiciones de salida</a><a href="#evidencia">Alcance y evidencia</a></nav>
+</header>
+
+<section id="primero">
+<h2>Lo primero que revisaría</h2>
+<div class="grid">
+<div class="panel"><h3>Aislamiento y llamadas</h3><ul>
+<li><a href="#H01">H01</a>: al reasignar un número, una edición concurrente puede dejarlo con el agente de otro cliente.</li>
+<li><a href="#H02">H02</a>: las entrantes pueden superar los 15 minutos configurados; después de 25 minutos dejan de ocupar cupo y sumar consumo mientras siguen activas.</li>
+<li><a href="#H05">H05</a>: un cliente sin números puede iniciar una saliente que llega al fallback de identidad telefónica compartida.</li>
+</ul></div>
+<div class="panel"><h3>Continuidad y capacidad</h3><ul>
+<li><a href="#H03">H03</a>: un reinicio o error puede perder mensajes de WhatsApp ya confirmados a Meta.</li>
+<li><a href="#H04">H04</a>: los límites por cliente no protegen la capacidad total de las GPUs.</li>
+<li><a href="#H06">H06</a> y <a href="#H10">H10</a>: falta detectar fallas funcionales, alertar desde afuera y contar con un respaldo externo recuperable.</li>
+</ul></div>
+</div>
+<p class="note"><b>Cómo leer las prioridades.</b> P1: bloqueo recomendado para producción o continuidad. P2: corregir antes de aumentar uso o clientes. “Reproducido” significa una reproducción local controlada; “código” es un camino identificado por inspección; “operación” combina scripts y observaciones locales. No se confirmó una vulnerabilidad P0 de acceso anónimo total.</p>
+</section>
+
+<section id="arquitectura">
+<h2>La arquitectura y sus puntos de concentración</h2>
+<div class="table-wrap"><table><thead><tr><th>Entrada</th><th>Camino real en el código</th><th>Lo que concentra riesgo</th></tr></thead><tbody>
+<tr><td>Dashboard / API / demo</td><td>Túnel → FastAPI → PostgreSQL; llamadas → dispatch de LiveKit → worker de voz</td><td>Autenticación y consultas comparten la app con tareas de WhatsApp. El tenant se valida en aplicación.</td></tr>
+<tr><td>Telefonía / WhatsApp Calling</td><td>Anura o Meta → Asterisk → LiveKit SIP → worker → admisión por cliente</td><td>DID, agente y cliente deben permanecer coherentes incluso durante una reasignación.</td></tr>
+<tr><td>Mensajes / campañas de WhatsApp</td><td>Webhook firmado → tareas y locks en memoria → motor; campañas desde un loop de FastAPI</td><td>No hay inbox durable de trabajo ni coordinación de consumidores entre procesos.</td></tr>
+<tr><td>Recursos compartidos</td><td>PostgreSQL + LLM en GPU 0 + STT/TTS en GPU 1; todo en el mismo host</td><td>Una ráfaga o caída puede afectar a todos los clientes. El host también ejecuta otros proyectos.</td></tr>
+</tbody></table></div>
+<p><b>Observado:</b> <code>docker ps</code> mostró app en <code>0.0.0.0:8011</code> y <code>[::]:8011</code>, proxy en <code>0.0.0.0:8100</code>, base e inferencia directa en loopback. Esto prueba la publicación en el host; <b>no prueba exposición desde internet</b>. El router y el firewall no se auditaron.</p>
+</section>
+
+<section id="hallazgos">
+<h2>Hallazgos y acciones</h2>
+<p class="muted">Abrí cada hallazgo para ver el caso, la evidencia y cómo comprobar una solución.</p>
+<div class="toolbar" id="toolbar">
+<label for="priority">Prioridad</label><select id="priority"><option value="all">Todas</option><option value="p1">P1 · Antes de producción</option><option value="p2">P2 · Antes de escalar</option></select>
+<label class="screen-reader" for="search">Buscar hallazgos</label><input id="search" type="search" placeholder="Buscar: clientes, WhatsApp, backups…">
+<button type="button" id="expand">Abrir visibles</button><button type="button" id="collapse">Cerrar todos</button><button type="button" id="print" class="print-btn">Imprimir / PDF</button>
+<span id="counter" aria-live="polite">14 hallazgos</span>
+</div>
+
+<details class="finding" data-priority="p1" id="H01">
+<summary><span class="badge p1">P1 · H01</span>Un número puede quedar asociado al agente de otro cliente<small>Multi tenancy · Reproducido con dos sesiones y claves foráneas habilitadas.</small></summary>
+<div class="detail">
+<p><b>Caso.</b> El cliente A comienza un PATCH de su número. Antes del commit, un admin lo libera y lo asigna a B. El PATCH de A valida contra el objeto ORM anterior y guarda <code>agent_id=A</code> sobre la fila que ahora pertenece a B. La base solo exige que exista un cliente cuando hay agente; no exige que ambos pertenezcan al mismo tenant.</p>
+<p><b>Impacto.</b> El código de entrantes acepta ese estado: crea una conversación propiedad de B con la definición del agente de A. Hay riesgo de exponer información del agente de A a B y de atender contactos con instrucciones de otra empresa. Requiere esa ventana de concurrencia; no es un acceso directo por adivinar un ID.</p>
+<div class="evidence"><b>Evidencia:</b> <code>app/api/routers/phone_numbers.py:105–115</code>; <code>app/services/phone_numbers.py:67–83</code>; <code>app/models/tenancy.py:52–68</code>; <code>app/services/calls.py:152–159</code>. La reproducción obtuvo <code>number.client_id=B</code> y <code>agent.client_id=A</code> y creó la entrante con esa combinación.</div>
+<p><b>Acción.</b> Bloquear y releer la fila antes de autorizar y modificar; usar el mismo protocolo de locks para liberar, asignar y rutear. Agregar una restricción compuesta de pertenencia y validar otra vez al admitir la llamada. Revisar también la carrera entre elección del caller ID y reasignación.</p>
+<p class="test"><b>Cierre:</b> repetir el intercalado en PostgreSQL con dos conexiones; el PATCH viejo debe fallar o quedar serializado, y una combinación de tenants distintos debe ser imposible.</p>
+</div></details>
+
+<details class="finding" data-priority="p1" id="H02">
+<summary><span class="badge p1">P1 · H02</span>Las entrantes no respetan el máximo de duración de la aplicación<small>Disponibilidad y cuotas · Reproducido con worker simulado y reloj de base controlado.</small></summary>
+<div class="detail">
+<p><b>Caso.</b> Una entrante sin metadata solo agenda <code>quota_watchdog</code>. El temporizador de duración está en un <code>elif</code> que excluye entrantes y salientes. A las salientes se les pasa un máximo a SIP; el setup del trunk entrante no fija uno equivalente.</p>
+<p><b>Impacto.</b> Con saldo suficiente o ilimitado, la app no garantiza el corte a los <b>900 segundos</b> configurados. A partir de <b>900 + 600 segundos desde su creación</b>, la lógica de llamadas “colgadas” la excluye tanto de concurrencia como de minutos activos. Puede seguir consumiendo recursos mientras entran nuevas llamadas. Un eventual límite del proveedor no reemplaza el límite configurado.</p>
+<div class="evidence"><code>app/voice/worker.py:355–370, 387–420</code>; <code>app/services/quota.py:46–73</code>; <code>scripts/livekit_sip_setup.py:129–149</code>. La reproducción registró solo <code>quota_watchdog</code> y cero segundos consumidos por una llamada <code>en_curso</code> de más de 1500 s.</div>
+<p><b>Acción.</b> Temporizador independiente para todas las modalidades; límite adicional en SIP cuando corresponda. Reconciliar llamadas con LiveKit/worker en lugar de declarar que están terminadas solo por edad. Manejar errores de base en el watchdog.</p>
+<p class="test"><b>Cierre:</b> entrantes, salientes y pruebas cortan al máximo incluso con tier ilimitado, base indisponible o workflow que nunca completa; el consumo no desaparece.</p>
+</div></details>
+
+<details class="finding" data-priority="p1" id="H03">
+<summary><span class="badge p1">P1 · H03</span>WhatsApp confirma mensajes que todavía puede perder<small>Durabilidad · Reproducida la supresión de un mensaje pendiente al reenviarlo.</small></summary>
+<div class="detail">
+<p><b>Caso.</b> El webhook devuelve 200 después de agendar tareas en memoria, incluso si agendarlas falla. Luego se guarda el <code>wamid</code> como <code>received</code>, pero el cuerpo pendiente vive en el inbox del proceso. Si la app cae antes del turno, el reenvío del mismo <code>wamid</code> se descarta como duplicado.</p>
+<p><b>Impacto.</b> Pérdida silenciosa de consultas y leads. La deduplicación evita repetir trabajo ya terminado, pero también impide recuperar trabajo incompleto. La tabla de mensajes no conserva el contenido necesario para reconstruirlo.</p>
+<div class="evidence"><code>app/whatsapp/webhook.py:101–119</code>; <code>app/whatsapp/service.py:207–231, 261–264, 280–323</code>; <code>app/whatsapp/store.py:176–186</code>; <code>app/models/whatsapp.py:WaMessage</code>.</div>
+<p><b>Acción.</b> Guardar un inbox durable y el contenido mínimo antes del 200; consumidor con estados, reintentos, reserva temporal del trabajo y cola de errores. Diferenciar “recibido” de “procesado”. Tratar el envío a Meta como operación externa con resultado potencialmente incierto.</p>
+<p class="test"><b>Cierre:</b> matar un proceso aislado antes y después de cada commit/envío; al volver, todos los entrantes deben poder procesarse o quedar explícitamente pendientes, sin reenvíos ciegos de mensajes aceptados por Meta.</p>
+</div></details>
+
+<details class="finding" data-priority="p1" id="H04">
+<summary><span class="badge p1">P1 · H04</span>No hay un presupuesto global de capacidad entre clientes y canales<small>Escalabilidad · Confirmado por código; umbral real de saturación pendiente.</small></summary>
+<div class="detail">
+<p><b>Caso.</b> La admisión serializa llamadas del mismo cliente; dos clientes con cupo disponible entran independientemente. WhatsApp texto no pasa por esa admisión y genera tareas por mensaje. Las pruebas TTS tienen límite horario, pero no comparten una reserva global de GPU con las llamadas.</p>
+<p><b>Impacto.</b> Cada cliente puede cumplir su plan y aun así saturar el host entre todos. Una ráfaga de WhatsApp puede perjudicar voz. Los semáforos de audio de WhatsApp solo limitan ese proceso y ese canal. <code>max-num-seqs=32</code> limita secuencias de inferencia; no equivale a 32 llamadas con latencia aceptable.</p>
+<div class="evidence"><code>app/services/quota.py:94–117</code>; <code>app/whatsapp/service.py:202–231</code>; <code>app/whatsapp/audio.py:59–65</code>; <code>app/api/routers/voices.py:20–26</code>. <code>.env</code> selecciona Gemma y <code>docker-compose.gemma4-26b.yml</code>; CAP-001 corresponde a Qwen.</div>
+<p><b>Acción.</b> Admisión global por host/recurso y por tenant, colas acotadas, rechazo controlado y prioridad para llamadas ya iniciadas. Medir Gemma con llamadas + WhatsApp + previews + extracción final, incluyendo fallo y recuperación.</p>
+<p class="test"><b>Cierre:</b> perfil base/rampa/fina/sostenida de la configuración real; un cliente ruidoso no rompe el SLO de los demás. No usar la cifra histórica de 32 llamadas como capacidad vigente garantizada.</p>
+</div></details>
+
+<details class="finding" data-priority="p1" id="H05">
+<summary><span class="badge p1">P1 · H05</span>Un cliente sin números puede llamar con una identidad compartida<small>Aislamiento telefónico · Admisión reproducida; no se efectuó una llamada real.</small></summary>
+<div class="detail">
+<p><b>Caso.</b> <code>_caller_id</code> devuelve <code>None</code> si el cliente no tiene números. <code>prepare_call</code> admite igual la saliente. El worker envía <code>sip_number=""</code>; el trunk comparte números de todos los clientes y el dialplan usa <code>ANURA_DID</code> si no obtiene un caller ID válido.</p>
+<p><b>Impacto.</b> Tener un agente y minutos permite iniciar telefonía sin disponer de identidad propia. El número finalmente presentado depende del fallback de LiveKit/Anura, pero el código no garantiza pertenencia al cliente. Puede exponer la identidad de la plataforma y atribuirle llamadas ajenas.</p>
+<div class="evidence"><code>app/services/calls.py:56–63, 86–110</code>; <code>app/voice/worker.py:393–400</code>; <code>scripts/livekit_sip_setup.py:157–164</code>; <code>asterisk/conf/extensions.conf:105–119</code>. La reproducción admitió la saliente con <code>from_number=null</code>.</div>
+<p><b>Acción.</b> Exigir un número válido del cliente antes de reservar o despachar; eliminar el fallback compartido para salientes de clientes. Persistir la identidad elegida y protegerla frente a una reasignación concurrente.</p>
+<p class="test"><b>Cierre:</b> cliente sin número recibe un error sin despacho SIP; con número asignado, el caller ID coincide y conserva atribución inequívoca.</p>
+</div></details>
+
+<details class="finding" data-priority="p1" id="H06">
+<summary><span class="badge p1">P1 · H06</span>El monitoreo puede dar “todo bien” mientras no se atienden llamadas<small>Operación · Código y configuración observados.</small></summary>
+<div class="detail">
+<p><b>Caso.</b> El script comprueba <code>State.Status=running</code>, no la salud del contenedor ni la funcionalidad del motor. <code>/health</code> devuelve siempre <code>{ok:true}</code> si la app responde. El worker no tiene healthcheck y no se comprueban trunks, dispatch ni antigüedad del último backup.</p>
+<p><b>Impacto.</b> TTS colgado, base caída, worker desconectado o pérdida de trunks pueden pasar inadvertidos. <code>ALERT_NTFY_TOPIC</code> y <code>HEALTHCHECKS_PING_URL</code> estaban ausentes/vacíos en el <code>.env</code> leído. Además, el recordatorio de falla cada hora revisa el mtime de un archivo que acaba de sobrescribir: no llegará a cumplir 60 minutos.</p>
+<div class="evidence"><code>scripts/ops/healthcheck.sh:15–28, 47–60</code>; <code>app/main.py:89–91</code>; <code>docker-compose.yml:96–100</code>. Redis de LiveKit está sin persistencia en <code>docker-compose.livekit.yml:18–22</code>; la reposición de trunks corre en <code>deploy/boot.sh</code>, no ante toda pérdida de Redis.</div>
+<p><b>Acción.</b> Separar proceso vivo de servicio listo; chequeos de dependencias, worker y estado SIP. Alertas externas, timestamp separado para último aviso, control de frescura de backups y un procedimiento seguro para recuperar motores.</p>
+<p class="test"><b>Cierre:</b> inducir fallas en un entorno aislado y comprobar detección, notificación y recuperación. Probar pérdida de Redis sin reiniciar todo el host.</p>
+</div></details>
+
+<details class="finding" data-priority="p2" id="H07">
+<summary><span class="badge p2">P2 · H07</span>Consultas bloqueantes y conexiones retenidas pueden detener la app<small>Arquitectura de concurrencia · Riesgo sustentado por código; falta medirlo en PostgreSQL.</small></summary>
+<div class="detail">
+<p><b>Caso.</b> Coroutines de WhatsApp y del motor hacen operaciones SQLAlchemy síncronas en el event loop. La autenticación obtiene una sesión/conexión del pool que puede seguir abierta mientras la petición espera al LLM o a Meta; el motor pide sesiones adicionales del mismo pool.</p>
+<p><b>Impacto.</b> Una consulta lenta o una espera de pool bloquea el loop que atiende webhooks y otras peticiones. Muchos turnos autenticados simultáneos pueden retener las conexiones necesarias para progresar. También hay un pool por proceso de worker de voz: la demanda de conexiones crece con las llamadas.</p>
+<div class="evidence"><code>app/db.py:29–40, 51–60</code>; <code>app/api/deps.py:45–48, 61–80</code>; <code>app/conversation/engine.py:88–114</code>; <code>app/conversation/store.py:20–37</code>; <code>app/whatsapp/service.py:285–306, 491–530</code>; <code>app/whatsapp/signup.py:connect</code>.</div>
+<p><b>Acción.</b> Transacciones cortas, sin retener conexión durante llamadas externas; acceso SQL asíncrono o unidades completas de trabajo en threads. Presupuesto explícito de conexiones para app y procesos de voz. Subir el pool solamente no resuelve el bloqueo.</p>
+<p class="test"><b>Cierre:</b> prueba aislada con PostgreSQL lento y solicitudes concurrentes; medir retraso del loop, ocupación del pool y latencia de webhook. No se afirma un umbral exacto de caída.</p>
+</div></details>
+
+<details class="finding" data-priority="p2" id="H08">
+<summary><span class="badge p2">P2 · H08</span>La API de texto puede modificar conversaciones de llamadas<small>Integridad de estado · Aceptación reproducida; carrera multiproceso pendiente.</small></summary>
+<div class="detail">
+<p><b>Caso.</b> <code>POST /conversations/{id}/turns</code> rechaza WhatsApp, pero permite cualquier conversación de canal <code>voice</code>, incluidas llamadas. El lock del worker protege solo sus propios turnos; la API vive en otro proceso. El store guarda documentos completos sin comparación de versión.</p>
+<p><b>Impacto.</b> Un usuario autorizado del mismo cliente puede insertar un turno durante la llamada o alterar su conversación después del corte. Dos escritores pueden perder mensajes o aplicar extracción a un estado distinto del que leyó el LLM. No permite leer por sí solo conversaciones de otro tenant.</p>
+<div class="evidence"><code>app/api/routers/conversations.py:52–65</code>; <code>app/voice/worker.py:74</code>; <code>app/conversation/engine.py:80–119, 198–219</code>; <code>app/conversation/store.py:33–53</code>.</div>
+<p><b>Acción.</b> Distinguir conversaciones de prueba de texto de llamadas y cerrar la escritura por la ruta incorrecta. Para escritores legítimos, serialización compartida o control optimista de versión; definir mutabilidad del historial terminado.</p>
+<p class="test"><b>Cierre:</b> un ID de llamada debe devolver conflicto en la ruta de texto; dos turnos concurrentes nunca deben sobrescribir silenciosamente el estado.</p>
+</div></details>
+
+<details class="finding" data-priority="p2" id="H09">
+<summary><span class="badge p2">P2 · H09</span>Las estadísticas cargan el historial completo en memoria<small>Escalabilidad de datos · Confirmado por código.</small></summary>
+<div class="detail">
+<p><b>Caso.</b> <code>Reports.stats</code> llama a <code>_all</code>, que selecciona las entidades completas, incluidos mensajes JSON, y calcula resúmenes en Python. El rango es opcional. La UI consulta estadísticas cada 5 segundos y listados cada 2 segundos.</p>
+<p><b>Impacto.</b> A mayor historial o más dashboards abiertos, aumentan lectura de base, RAM, CPU y transferencia interna. Una sola consulta de resumen puede leer transcripciones que ni siquiera necesita. La paginación del listado no protege las estadísticas.</p>
+<div class="evidence"><code>app/services/reports.py:74–80, 137–146, 195–230</code>; <code>app/api/routers/calls.py:57–72</code>; <code>web/src/features/calls/api.ts:33–79</code>.</div>
+<p><b>Acción.</b> Agregación SQL y proyecciones mínimas, índices acordes a filtros y resúmenes por período; limitar rango y frecuencia, con caché aislada por tenant.</p>
+<p class="test"><b>Cierre:</b> historial sintético de tamaño de producción: revisar planes de consulta y memoria; la estadística no debe materializar los mensajes.</p>
+</div></details>
+
+<details class="finding" data-priority="p1" id="H10">
+<summary><span class="badge p1">P1 · H10</span>Los respaldos comprobados siguen dentro del mismo host<small>Recuperación · Dumps locales recientes observados; respaldo externo sin configurar.</small></summary>
+<div class="detail">
+<p><b>Estado.</b> Se observaron dumps locales del 3, 6 y 7 de octubre y entradas <code>backup ok</code>. El más reciente fue creado a las 03:30 del día de esta revisión. No se inspeccionaron datos de clientes. <code>RCLONE_REMOTE</code> y <code>BACKUP_GPG_RECIPIENT</code> estaban ausentes/vacíos; por ese camino no se ejecuta la copia externa.</p>
+<p><b>Impacto.</b> Otra unidad del mismo host ayuda ante una falla de disco, pero no ante pérdida del equipo, compromiso del host o pérdida del sitio. DB, secretos de cifrado y checkpoint TTS deben recuperarse juntos. Los dumps diarios no ofrecen recuperación al instante anterior a una falla.</p>
+<div class="evidence"><code>scripts/ops/backup.sh:16–41</code>; metadatos de <code>~/atentina-backups/db/</code> y registro de backups. <code>docs/PRODUCCION.md</code> declara una restauración anterior con migración 0005; hoy el repositorio incluye 0008. No se verificó una restauración actual.</div>
+<p><b>Acción.</b> Copia externa cifrada con retención/versionado, alerta por backup faltante y prueba de restauración de la versión actual. Definir pérdida máxima tolerable de datos (RPO) y tiempo de recuperación (RTO); comprobar que las claves también están disponibles fuera del host.</p>
+<p class="test"><b>Cierre:</b> recuperar en una máquina/base aislada a partir de la copia externa, incluyendo tokens, agentes, migraciones y TTS; registrar tiempos y verificaciones.</p>
+</div></details>
+
+<details class="finding" data-priority="p2" id="H11">
+<summary><span class="badge p2">P2 · H11</span>El contexto crece sin un presupuesto de tokens<small>Disponibilidad del LLM · Confirmado por código; sin prueba de saturación real.</small></summary>
+<div class="detail">
+<p><b>Caso.</b> El motor clásico reenvía todo el historial y la definición del agente. Los pedidos no fijan <code>max_tokens</code>/<code>max_completion_tokens</code> ni ajustan el historial al contexto del modelo. WhatsApp limita caracteres por turno y número de turnos, pero eso no asegura entrar en los 16.384 tokens de Gemma. La definición puede ser grande.</p>
+<p><b>Impacto.</b> Una conversación válida para la API puede ser inválida para el modelo y quedar sin respuesta. También puede consumir mucha más generación de la prevista. El timeout por operación de red no es un límite integral del turno en streaming.</p>
+<div class="evidence"><code>app/llm/client.py:86–156</code>; <code>app/llm/prompt.py:266–278</code>; <code>app/api/schemas.py:443–444, 690</code>; <code>app/config.py:150–151</code>; <code>docker-compose.gemma4-26b.yml:29</code>.</div>
+<p><b>Acción.</b> Presupuesto total por modelo (sistema + historial + entrada + salida), validación de tamaño de definición, compactación controlada y deadline integral. Respuesta de recuperación ante contexto excesivo, sin silencios indefinidos.</p>
+<p class="test"><b>Cierre:</b> conversar con textos largos y definición grande hasta el límite; la app debe recortar/rechazar de forma controlada antes de llegar al motor.</p>
+</div></details>
+
+<details class="finding" data-priority="p2" id="H12">
+<summary><span class="badge p2">P2 · H12</span>Suspender un cliente y limitar su consumo son controles incompletos<small>Abuso de recursos · Cliente inactivo reproducido; multiplicación de límites visible en código.</small></summary>
+<div class="detail">
+<p><b>Caso.</b> Auth verifica usuario o API key, pero no <code>Client.active</code>. Llamadas y mensajes entrantes de WhatsApp lo controlan después; conversaciones de texto y previews TTS no. Los límites de esas rutas son por principal, y un usuario del cliente puede crear más API keys sin un cupo en esa ruta.</p>
+<p><b>Impacto.</b> Desactivar un cliente no corta todo su uso de inferencia. Con varias keys se multiplican los límites horarios: cada key nueva tiene su propio contador. No es una escalada de rol, sino un bypass del objetivo de protección por tenant.</p>
+<div class="evidence"><code>app/api/deps.py:61–80, 178–195</code>; <code>app/api/routers/conversations.py:30–44</code>; <code>app/api/routers/voices.py:20–26</code>; <code>app/api/routers/api_keys.py:21–29</code>; <code>app/api/routers/clients.py:28–33</code>.</div>
+<p><b>Acción.</b> Definir qué conserva un cliente suspendido (por ejemplo, lectura de historial) y negar operaciones de consumo. Cupos agregados por cliente, además de principal/IP; controlar emisión y scopes de keys.</p>
+<p class="test"><b>Cierre:</b> un cliente suspendido no genera texto ni audio; dos keys del mismo cliente comparten el mismo presupuesto.</p>
+</div></details>
+
+<details class="finding" data-priority="p2" id="H13">
+<summary><span class="badge p2">P2 · H13</span>La exposición del host y la configuración web necesitan cierre explícito<small>Seguridad operativa · Configuración observada; exposición WAN no verificada.</small></summary>
+<div class="detail">
+<p><b>Estado.</b> App y proxy escuchan en interfaces del host. El proxy de inferencia usa HTTP y deja pasar rutas completas a los motores sin admisión por tenant. <code>.env</code> tiene <code>AUTH_COOKIE_SECURE=false</code> y <code>CSP_REPORT_ONLY=true</code>. El código sí marca la cookie Secure si reconoce HTTPS por el proxy confiable.</p>
+<p><b>Impacto condicionado.</b> El login directo por HTTP puede enviar credenciales y cookie sin cifrar; Report-Only no bloquea inyecciones. Confiar en el gateway de Docker para cabeceras admite suplantación desde procesos/contenedores que lleguen por ese origen. No se encontró aquí una explotación XSS, ni se afirmó que 8100 siga abierto en el router.</p>
+<div class="evidence"><code>docker-compose.yml:68–69</code>; <code>proxy/nginx.conf:server</code>; <code>app/api/deps.py:136–167</code>; <code>app/api/routers/auth.py:75–80</code>; <code>app/api/http.py:SecurityHeadersMiddleware</code>; observación de puertos y flags no secretos del <code>.env</code>.</div>
+<p><b>Acción.</b> Reducir interfaces/redes accesibles; VPN o TLS para inferencia remota; cerrar rutas que el proxy no necesita. Validar Secure permanente y CSP efectiva sobre el flujo real de Embedded Signup. Probar la frontera entre túnel, host y otros contenedores.</p>
+<p class="test"><b>Cierre:</b> evidencia de firewall/router, login exclusivamente cifrado y headers efectivos del despliegue. Activar CSP después de validar sus dependencias.</p>
+</div></details>
+
+<details class="finding" data-priority="p2" id="H14">
+<summary><span class="badge p2">P2 · H14</span>Agregar workers o réplicas puede duplicar trabajo y romper orden<small>Escala horizontal · Limitación de diseño confirmada por código.</small></summary>
+<div class="detail">
+<p><b>Caso.</b> Cada proceso de FastAPI arranca su barrido y su emisor de campañas. Los locks de contacto, límites, debounce y créditos de campañas están en memoria. La transición de destinatario <code>pending → sending</code> se hace con lectura y escritura sin reserva atómica compartida; <code>recover</code> marca todos los <code>sending</code> como fallidos.</p>
+<p><b>Impacto al escalar.</b> Dos workers pueden elegir un mismo envío o procesar simultáneamente mensajes del mismo contacto. El arranque de una réplica puede marcar como interrumpido el trabajo de otra. Con un único proceso, una campaña lenta demora las siguientes porque el tick recorre todas en serie.</p>
+<div class="evidence"><code>app/main.py:50–59</code>; <code>app/whatsapp/service.py:202–203, 459–465</code>; <code>app/whatsapp/sender.py:75–84, 96–107, 178–206, 248–259</code>; <code>app/api/deps.py:173–175</code>.</div>
+<p><b>Acción.</b> Separar recepción HTTP de consumidores; reservar trabajo con transacción/lease, particionar por cuenta y contacto, y compartir límites. Hasta resolverlo, hacer explícito y verificable que solo existe un consumidor activo.</p>
+<p class="test"><b>Cierre:</b> dos consumidores y reinicio de uno durante un envío: sin dobles reservas, sin invalidar trabajo ajeno y con orden por contacto.</p>
+</div></details>
+<p id="empty" hidden>No hay hallazgos que coincidan con el filtro.</p>
+</section>
+
+<section id="salida">
+<h2>Condiciones concretas para salir a producción</h2>
+<div class="table-wrap"><table><thead><tr><th>Orden</th><th>Trabajo</th><th>Evidencia de cierre</th></tr></thead><tbody>
+<tr><td>1 · Aislamiento</td><td>Corregir H01 y H05; integridad de tenant en DB y rutas telefónicas.</td><td>Pruebas concurrentes en PostgreSQL, matriz de acceso entre dos clientes y caller ID verificado en entorno autorizado.</td></tr>
+<tr><td>2 · Ciclo de llamada</td><td>Corregir H02; cerrar H08 y reconciliar llamadas interrumpidas.</td><td>Corte en todos los modos, consumo consistente y rechazo de escritores ajenos al canal.</td></tr>
+<tr><td>3 · Durabilidad</td><td>Inbox durable para H03; un consumidor activo hasta resolver H14.</td><td>Pruebas de caída y recuperación en puntos de fallo del flujo.</td></tr>
+<tr><td>4 · Operación</td><td>Alertas y chequeos funcionales H06; respaldo externo H10.</td><td>Alerta recibida, simulacro de recuperación, RPO/RTO medidos y responsable definido.</td></tr>
+<tr><td>5 · Capacidad vendible</td><td>Admisión global H04; resolver H07/H09/H11/H12 según la carga objetivo.</td><td>CAP de Gemma con tráfico mixto, latencia p95, rechazos y recuperación medidos; cupos fijados con margen.</td></tr>
+<tr><td>6 · Exposición</td><td>Cerrar H13 y revisar despliegues reproducibles.</td><td>Puertos autorizados, TLS/headers comprobados, rollback probado.</td></tr>
+</tbody></table></div>
+
+<h2>Otros casos que deben quedar en el plan</h2>
+<div class="panel"><ul>
+<li><b>Idempotencia y estados de llamadas.</b> <code>POST /calls</code> crea y confirma antes del dispatch; no recibe una clave de idempotencia. Un timeout/reintento puede crear dos llamadas. Falta conciliar llamadas pendientes tras reinicios (<code>app/services/calls.py:99–129</code>).</li>
+<li><b>Minutos facturados.</b> El finalizador espera <code>engine.finish</code> antes de calcular duración: puede incluir espera de extracción después del corte (<code>app/voice/worker.py:322–334</code>). Revisar redondeo, cierre de mes y sobreconsumo durante el intervalo del watchdog.</li>
+<li><b>Retención y trazabilidad.</b> No se identificó un mecanismo general de expiración/anonimización de transcripciones, ni un log de auditoría transversal de cambios administrativos. El versionado de agentes ayuda, pero no cubre reasignaciones, lecturas sensibles o todas las acciones. Definir política técnica y permisos de soporte.</li>
+<li><b>WhatsApp Calling de terceros.</b> El template SIP tiene un único usuario/contraseña globales y enruta por DID. Embedded Signup de mensajería no provisiona por sí solo endpoints SIP aislados para cada cliente. Validar autenticación asociada al número antes de extender la modalidad (<code>asterisk/conf/whatsapp/pjsip_whatsapp.conf</code>).</li>
+<li><b>Dependencias y despliegue.</b> Hay rangos en <code>requirements.txt</code> y <code>vllm/vllm-openai:latest</code>. Un rebuild puede cambiar software sin un cambio de código. Fijar versiones/digests, inventario y rollback; no se hizo un escaneo de vulnerabilidades de dependencias.</li>
+<li><b>Voces y recuperación del TTS.</b> La API valida catálogo, pero el fallback del worker devuelve <code>VLLM_TTS_VOICE</code> sin validar siempre que esté servida (<code>app/voice/worker.py:203–215</code>). Validar modelo/voz al arrancar y ensayar fallo del motor fuera de producción.</li>
+<li><b>Descarga de media.</b> Se valida el host inicial, pero se siguen redirects automáticamente (<code>app/whatsapp/graph.py:183–215</code>). Revalidar destinos y limitar respuestas de error; no se demostró una URL controlable que permita explotar esto.</li>
+</ul></div>
+</section>
+
+<section>
+<h2>Qué ya está bien encaminado</h2>
+<div class="grid">
+<div class="panel"><h3 class="good">Controles de aplicación</h3><p>Principal centralizado, comprobaciones de tenant en rutas inspeccionadas, JWT con revocación por versión, contraseñas Argon2, hashes de API keys, protección CSRF y límite de cuerpo. Las voces se validan en las rutas de edición y preview.</p></div>
+<div class="panel"><h3 class="good">Consistencia y operación básica</h3><p>Admisión con lock por cliente y commit conjunto de conversación/llamada; agentes versionados; firma HMAC del webhook; cifrado de tokens WA; backups locales existentes y scripts de arranque. Son bases útiles para corregir los límites encontrados.</p></div>
+</div>
+<p class="muted">No se encontró un bypass simple de tenant en las rutas CRUD revisadas. Eso no invalida la carrera H01 ni certifica todos los caminos de acceso.</p>
+</section>
+
+<section>
+<h2>Documentación que conviene reconciliar</h2>
+<div class="table-wrap"><table><thead><tr><th>Documento / afirmación</th><th>Contraste</th></tr></thead><tbody>
+<tr><td>README y capacidad: Qwen / ~32 llamadas vigentes</td><td><code>.env</code> y override seleccionan Gemma desde el 6-oct. CAP-001 no valida esta configuración; AGENTS sí advierte la falta de medición.</td></tr>
+<tr><td>ARQUITECTURA: TTS de WhatsApp en 5060 Ti</td><td>El reparto principal es de 2 × 3090. Las cifras de la 5060 Ti no representan el reparto documentado como actual.</td></tr>
+<tr><td>AGENTS: entrantes/caller ID único de ANURA_DID</td><td><code>asterisk/conf/extensions.conf</code> ya enruta DID dinámico y caller ID del cliente, con fallback al número global. Hay comentarios viejos también en el worker.</td></tr>
+<tr><td>PRODUCCION: faltan backups y arranque</td><td>El mismo documento tiene una sección posterior de “implementado”. Hay scripts y backups locales; eso no demuestra backup externo, arranque completo probado ni recuperación funcional.</td></tr>
+<tr><td>AGENTS: proxy 8100 reenviado; PRODUCCION: reenvío quitado</td><td>Solo se confirmó el puerto publicado en el host. Es necesaria evidencia del router/firewall para cerrar esta contradicción.</td></tr>
+<tr><td>Inferencia propia = ningún dato fuera del host</td><td>Los modelos son locales, pero WhatsApp usa Meta, las entradas web usan Cloudflare y pruebas de llamada generan un link con token a <code>meet.livekit.io</code>. Documentar el flujo de datos completo, sin equiparar inferencia local a ausencia de terceros.</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="evidencia">
+<h2>Alcance, validación y límites</h2>
+<div class="panel">
+<p><b>Revisado:</b> README, AGENTS, arquitectura, plan de producción, capacidad y secciones relevantes de WhatsApp; auth/middlewares, routers y modelos, llamadas/cuotas/números, motor/store/LLM, worker de voz, WhatsApp/campañas/signup/media, consultas del dashboard, migraciones, Compose, Asterisk/LiveKit, backup/healthcheck/boot y pruebas relacionadas.</p>
+<p><b>Reproducciones:</b> seis comportamientos de H01/H02/H03/H05/H08/H12 ejecutados correctamente con SQLite temporal y claves foráneas activas; LLM/LiveKit simulados y conexiones de red bloqueadas. H01 simula un intercalado de dos sesiones; falta repetirlo con las reglas de concurrencia de PostgreSQL. H03 reproduce el descarte por dedupe de un mensaje registrado y no terminado, no una caída real de Meta.</p>
+<p id="suite-result"><b>Suite existente:</b> <b>102 tests aprobados</b> de <code>test_security_public.py</code>, <code>test_api.py</code>, <code>test_quota.py</code> y <code>test_whatsapp_webhook.py</code> (19,77 s; un aviso de deprecación de TestClient/AnyIO). SQLite temporal, red bloqueada y servicios simulados. El cliente ASGI se bloqueó dentro del sandbox; la selección terminó correctamente fuera de él. La suite actual no cubre las carreras descubiertas; incluso contiene un test que espera 200 si falla el procesamiento del webhook. No se ejecutó la suite completa ni pruebas contra el LLM real.</p>
+<p><b>Sin cambios funcionales:</b> no se reiniciaron servicios, no se tocaron datos productivos, no se enviaron mensajes ni se hicieron llamadas, inferencia o pruebas de carga. Se conservaron cambios ajenos. Los scripts auxiliares quedaron en <code>scratch/</code>.</p>
+<p><b>No validado:</b> firewall/router desde internet, vulnerabilidades de paquetes, permisos reales de Meta/Anura, RLS desplegada fuera de migraciones, configuración completa del sistema operativo, contenido/restauración actual de backups, capacidad y fallos bajo tráfico real, ni equivalencia completa entre repo e imágenes en ejecución. No es una certificación de seguridad.</p>
+<div class="evidence"><b>Reproducción local:</b><pre>.venv/bin/python scratch/revision-produccion-2026-10-07/repro.py</pre>Las referencias de archivo y línea corresponden al árbol auditado. El informe incluye toda la explicación; los archivos fuente no son necesarios para leerlo.</div>
+</div>
+</section>
+<footer class="footer">Revisión al 07/10/2026. Severidad basada en impacto y condiciones del caso; los riesgos condicionados se indican expresamente. Sin secretos, tokens ni transcripciones reales en este documento.</footer>
+</main>
+<script>
+(() => {
+  const findings = [...document.querySelectorAll('.finding')];
+  const priority = document.getElementById('priority');
+  const search = document.getElementById('search');
+  const normalize = value => value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const filter = () => {
+    let visible = 0;
+    for (const item of findings) {
+      const match = (priority.value === 'all' || item.dataset.priority === priority.value) && normalize(item.textContent).includes(normalize(search.value.trim()));
+      item.hidden = !match;
+      visible += Number(match);
+    }
+    document.getElementById('counter').textContent = `${visible} de ${findings.length} hallazgos`;
+    document.getElementById('empty').hidden = visible !== 0;
+  };
+  const openHash = () => {
+    const item = findings.find(item => `#${item.id}` === location.hash);
+    if (!item) return;
+    priority.value = 'all'; search.value = ''; filter(); item.open = true;
+    requestAnimationFrame(() => item.scrollIntoView({block:'start'}));
+  };
+  priority.addEventListener('change', filter); search.addEventListener('input', filter);
+  document.getElementById('expand').addEventListener('click', () => findings.filter(item => !item.hidden).forEach(item => item.open = true));
+  document.getElementById('collapse').addEventListener('click', () => findings.forEach(item => item.open = false));
+  let beforePrint;
+  window.addEventListener('beforeprint', () => {
+    beforePrint = findings.map(item => [item.open, item.hidden]);
+    findings.forEach(item => {item.open = true; item.hidden = false;});
+  });
+  window.addEventListener('afterprint', () => {
+    if (beforePrint) findings.forEach((item, i) => {[item.open, item.hidden] = beforePrint[i];});
+  });
+  document.getElementById('print').addEventListener('click', () => window.print());
+  window.addEventListener('hashchange', openHash);
+  document.getElementById('toolbar').style.display = 'flex';
+  filter(); openHash();
+})();
+</script>
+</body>
+</html>

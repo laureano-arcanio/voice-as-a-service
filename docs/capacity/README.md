@@ -151,6 +151,8 @@ el análisis también informa la carga máxima con p95 ≤ 2, 3, 4 y 5 s.
 
 ## Trampas
 
+- **Antes de medir desde la laptop** (8-oct-2026): `app` escucha solo en 127.0.0.1 y el tope global de llamadas (`MAX_CONCURRENT_CALLS_GLOBAL`, 20) frena la rampa con 429 `platform_busy`. En `.env`, con diff enmascarado: `APP_BIND=0.0.0.0` y `MAX_CONCURRENT_CALLS_GLOBAL=200`; recrear `app`. Al terminar, sacar los dos y recrear `app` otra vez.
+- **Duración:** las llamadas cortan al tope del tier del cliente `atentina` (o `CALL_MAX_DURATION_SECONDS`): con `sostenida` o turnos largos, que el tope no corte antes.
 - **Potencia:** sin tope, las 3090 pueden apagar el server por picos de consumo. `atentina-gpu-limits.service` los aplica en cada arranque (ver `AGENTS.md`, Hosts); confirmarlos con `nvidia-smi` antes de medir.
 - **TTS en la 5060 Ti:** el primer pedido después de arrancarlo tarda más de 20 s (compilación de kernels): calentarlo antes de medir.
 - **Tras un reinicio,** `atentina-stack.service` levanta el stack y calienta el TTS (~2 min). Si algo de la inferencia quedó en `Exited`, `make up-inference`.

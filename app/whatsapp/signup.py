@@ -77,6 +77,13 @@ def _reason(step: str, e: GraphError) -> str:
     return f"{step}: code={e.code} {e.message}"[:255]
 
 
+def release(s: Session) -> None:
+    """Devuelve la conexion al pool antes de esperar a Meta (H07): sin esto el pedido la tiene
+    tomada (idle in transaction) los segundos que tarde Meta. Hasta aca solo hubo lecturas, y
+    con expire_on_commit=False los objetos siguen cargados."""
+    s.commit()
+
+
 async def _close(graph) -> None:
     close = getattr(graph, "aclose", None)
     if close is not None:
@@ -111,6 +118,7 @@ async def connect(s: Session, *, client_id: str, agent_id: str, code: str, waba_
         raise Conflict("Ese número de WhatsApp ya está conectado a otra cuenta")
 
     # 1. Codigo -> business token (sin Bearer: va con el secret de la app).
+    release(s)
     exchanger = factory("")
     try:
         token = await exchanger.exchange_code(settings.wa_app_id, settings.wa_app_secret, code)
@@ -230,6 +238,7 @@ async def retry_register(s: Session, account: WaAccount, pin: str | None = None,
     if account.source != "coexistence" and not re.fullmatch(r"\d{6}", pin or ""):
         raise Invalid("Falta el PIN de 6 dígitos del número (WA_REGISTRATION_PIN o el del pedido)")
     graph = (graph_factory or graph_for)(store.token_for(account))
+    release(s)
     step = "subscribed_apps"
     try:
         await graph.subscribe_app(account.waba_id)
@@ -261,6 +270,7 @@ async def refresh(s: Session, account: WaAccount,
                   graph_factory: Callable[[str], GraphClient] | None = None) -> WaAccount:
     """Relee el numero en Meta (numero visible y calidad). Un 190 la desconecta."""
     graph = (graph_factory or graph_for)(store.token_for(account))
+    release(s)
     try:
         data = await graph.get_phone_number(account.phone_number_id)
     except GraphError as e:
@@ -280,6 +290,7 @@ async def refresh(s: Session, account: WaAccount,
 async def list_templates(s: Session, account: WaAccount,
                          graph_factory: Callable[[str], GraphClient] | None = None) -> list[dict]:
     graph = (graph_factory or graph_for)(store.token_for(account))
+    release(s)
     try:
         return await graph.list_templates(account.waba_id)
     except GraphError as e:
@@ -341,6 +352,7 @@ def _buttons(buttons: list[dict]) -> list[dict]:
 async def create_template(s: Session, account: WaAccount, payload: dict,
                           graph_factory: Callable[[str], GraphClient] | None = None) -> dict:
     graph = (graph_factory or graph_for)(store.token_for(account))
+    release(s)
     try:
         result = await graph.create_template(account.waba_id, payload)
     except GraphError as e:

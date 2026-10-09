@@ -144,6 +144,9 @@ class ConversationState(BaseModel):
     fields: dict[str, Any]
     messages: list[Message] = Field(default_factory=list)
     progress: Progress = Field(default_factory=Progress)
+    # conversations.version al leerla (store.get): el guardado solo pisa si nadie guardo
+    # en el medio (app/conversation/store.py). None: nueva o armada a mano, sin control.
+    version: int | None = None
     # Solo el turno en curso: lo fija process_turn y no se guarda (exclude).
     media: TurnMedia = Field(default_factory=TurnMedia, exclude=True)
 

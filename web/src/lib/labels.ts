@@ -45,5 +45,7 @@ export const QUOTA_TITLES: Record<string, string> = {
   concurrency_limit: 'Tope de llamadas simultáneas',
   inbound_minutes: 'Sin minutos entrantes este mes',
   outbound_minutes: 'Sin minutos salientes este mes',
-  client_inactive: 'Cliente inactivo',
+  client_inactive: 'Cuenta en solo lectura',
+  // Tope global de la plataforma (MAX_CONCURRENT_CALLS_GLOBAL): no es del plan del cliente.
+  platform_busy: 'Plataforma al máximo de llamadas',
 };

@@ -2,6 +2,7 @@ import { ActionIcon, Group, Loader, Progress, Stack, Text, Textarea } from '@man
 import { IconPlayerPause, IconPlayerPlay } from '@tabler/icons-react';
 import { useEffect, useRef, useState } from 'react';
 import { errorMessage } from '@/api/errors';
+import { READ_ONLY_REASON, useReadOnly } from '@/features/auth/readOnly';
 import { formatClock, formatNumber } from '@/lib/format';
 import { useTtsPreview } from './api';
 import { voiceName } from './names';
@@ -32,6 +33,8 @@ export function VoicePreview({
   const audioRef = useRef<HTMLAudioElement>(null);
   const cache = useRef<{ key: string; url: string } | null>(null);
   const tts = useTtsPreview();
+  // Solo lectura: generar audio consume el TTS (lo ya generado se puede volver a escuchar).
+  const readOnly = useReadOnly();
 
   // Otra voz: se corta lo que suena (el audio se regenera al volver a dar play).
   useEffect(() => {
@@ -58,6 +61,7 @@ export function VoicePreview({
     if (!t) return setMsg({ text: 'Escribí un texto.', bad: true });
     const key = `${voice}\n${t}`;
     if (cache.current?.key !== key) {
+      if (readOnly) return setMsg({ text: READ_ONLY_REASON, bad: true });
       setMsg({ text: `Generando con ${voiceName(voice)}…`, bad: false });
       const t0 = performance.now();
       try {
@@ -104,7 +108,7 @@ export function VoicePreview({
           radius={999}
           variant="filled"
           onClick={() => void toggle()}
-          disabled={tts.isPending}
+          disabled={tts.isPending || (readOnly && !playing)}
           aria-label={playing ? 'Pausar' : 'Reproducir'}
           title="Escuchar la voz elegida"
         >

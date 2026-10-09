@@ -17,6 +17,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import { useLogout, useMe } from '@/features/auth/api';
 import { notifyError } from '@/lib/notify';
 import { isAdminOnly, navItemsFor, type NavItem } from './nav';
+import { ReadOnlyBanner } from './ReadOnlyBanner';
 
 function isActive(pathname: string, to: string): boolean {
   if (to === '/') return pathname === '/';
@@ -115,6 +116,7 @@ export function AppLayout() {
 
       <AppShell.Main className="app-main">
         <Box maw={1440} mx="auto">
+          <ReadOnlyBanner />
           <Outlet />
         </Box>
       </AppShell.Main>

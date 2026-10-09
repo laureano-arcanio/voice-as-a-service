@@ -5,12 +5,17 @@
 # falta, y sin config de ejemplo en /etc/asterisk: toda la config sale de
 # asterisk/conf/ (montado en /etc/asterisk/templates, ver docker-compose.yml),
 # renderizada por entrypoint.sh al arrancar.
-FROM alpine:3.24
+# Base fijada por digest (8-oct-2026, la del build vigente); los paquetes de apk siguen la 3.24.
+FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
 
 # gettext-envsubst: envsubst para renderizar los templates con los datos de
 # Anura/LiveKit de .env. tzdata: logs con hora local (TZ en docker-compose.yml).
 # asterisk-srtp: audio cifrado (SDES) de las llamadas de WhatsApp (conf/whatsapp/).
-RUN apk add --no-cache asterisk asterisk-srtp gettext-envsubst tzdata
+# Asterisk fijado a la 22.9 (la probada, 22.9.0-r0 el 8-oct-2026) con ~: acepta parches
+# (22.9.x y -rN), no otra menor. Alpine borra del repo las versiones viejas: fijar -r0 exacto
+# rompe el build en cuanto sale un parche. Si falla por la menor, probar la nueva y subirla
+# aca. gettext-envsubst y tzdata sin fijar: riesgo aceptado (tzdata tiene que actualizarse).
+RUN apk add --no-cache asterisk~22.9 asterisk-srtp~22.9 gettext-envsubst tzdata
 
 # Configs del core que Asterisk lee siempre y que aca no se usan: sin estos
 # archivos cada arranque llena el log de "Unable to load config file". CDR y

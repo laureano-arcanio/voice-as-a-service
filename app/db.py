@@ -33,7 +33,14 @@ def make_engine(dsn: str) -> Engine:
     # eval y los tests corren conversaciones de plantillas que no estan en `agents`.
     # hide_parameters: los errores de SQL no llevan los valores (textos, telefonos, DNI)
     # a los logs; logger.exception los escribiria enteros.
-    return create_engine(dsn, pool_pre_ping=True, hide_parameters=True)
+    kw = {}
+    if dsn.startswith("postgresql"):
+        from .config import settings
+
+        # El default de SQLAlchemy es 5 + 10 y 30 s de espera (H07).
+        kw = {"pool_size": settings.db_pool_size, "max_overflow": settings.db_max_overflow,
+              "pool_timeout": settings.db_pool_timeout}
+    return create_engine(dsn, pool_pre_ping=True, hide_parameters=True, **kw)
 
 
 def make_sessions(engine: Engine) -> sessionmaker[Session]:

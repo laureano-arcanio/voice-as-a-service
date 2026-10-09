@@ -33,6 +33,8 @@ Orden recomendado: **tier → cliente → agente → número → usuario**.
 | Minutos entrantes por mes | Minutos de llamadas recibidas, por mes calendario (hora de Buenos Aires). |
 | Minutos salientes por mes | Minutos de llamadas hechas por el agente. |
 | Números | Cantidad de números de teléfono que puede tener asignados el cliente. |
+| Duración máxima por llamada (minutos) | Corta cada llamada al llegar, en todas las modalidades (entrante, saliente, prueba), aunque el tier no tenga límite de minutos. Vacío = la de la plataforma (15 min); nunca más de 60. |
+| Retención de conversaciones (días) | Pasado el plazo sin actividad, la conversación se anonimiza: se borran mensajes, datos y el teléfono (queda `***1234`); la llamada y su duración quedan para el consumo. Vacío = no se borra. |
 
 - **Editar:** los cambios rigen en el acto, también para el mes en curso.
 - **Bajar el tope de números:** no se puede si algún cliente de ese tier ya tiene más asignados.
@@ -46,7 +48,13 @@ Te lleva a la ficha del cliente, que tiene cinco pestañas:
 - **Consumo y datos:** consumo del mes con selector de mes (llamadas activas contra el tope,
   minutos entrantes y salientes, números usados), y los datos del cliente:
   - **Cambiar el tier:** se rechaza si el tier nuevo permite menos números de los que tiene.
-  - **Activo:** apagarlo impide hacer y recibir llamadas; las entrantes escuchan un aviso y se cortan.
+  - **Activo:** apagarlo deja al cliente en **solo lectura**: sus usuarios entran y ven o exportan el
+    historial, pero no hace ni recibe llamadas (las entrantes escuchan un aviso y se cortan), WhatsApp
+    no responde, y no puede usar la conversación por texto, la prueba de voz, campañas ni crear API
+    keys. Arriba de cada pantalla ve el aviso "Cuenta en solo lectura". El admin puede seguir editando
+    sus agentes y números para dejarlo listo antes de reactivarlo.
+  - **Retención de conversaciones (días):** pisa la del tier para este cliente; vacío y **Guardar**
+    vuelve a la del tier. Debajo se ve la que se aplica y la duración máxima por llamada.
   - **Borrar:** solo si el cliente no tiene conversaciones; si tiene, desactivalo.
 - **Números**, **Agentes**, **Usuarios** y **API keys**: ver abajo.
 
@@ -154,6 +162,9 @@ Si el cliente está desactivado, sus números de WhatsApp tampoco responden.
   Desde la tabla se editan el nombre, la clave y el estado activo, y se borra. Desactivar un usuario
   corta su sesión en el acto. Nadie puede desactivarse ni borrarse a sí mismo.
 - **API keys** (pestaña de la ficha del cliente, o Mi cuenta para el cliente) > **Nueva API key**:
+  - Hasta 10 activas por cliente: para crear otra, revocar una. Con el cliente inactivo no se crean.
+  - Los límites de uso por hora (conversaciones de texto, prueba de voz) son del cliente: todas sus
+    claves y usuarios comparten el mismo cupo.
   - La clave se muestra **una sola vez**, con botón para copiarla y un ejemplo `curl`.
   - Va en `Authorization: Bearer vaas_...` y da acceso a los agentes (también crearlos y editarlos),
     números y llamadas de ese cliente (sus sistemas disparan llamadas con `POST /api/v1/calls`).
@@ -171,10 +182,15 @@ Si el cliente está desactivado, sus números de WhatsApp tampoco responden.
   - **Teléfono** en E.164 para una saliente, o **Modo prueba**: sin teléfono, te conectás por el
     navegador con el link "Conectate acá…", que se muestra una sola vez.
   - **Número de origen:** opcional, uno del cliente. Es el que ve el destinatario; tiene que ser un
-    número de la cuenta de Anura. Sin número de origen, sale con el principal (`ANURA_DID`).
+    número de la cuenta de Anura. Sin elegir, sale con el primero del cliente. **Un cliente sin
+    números no puede hacer salientes** (error "Sin número para salientes"; **Llamar** queda
+    deshabilitado): hay que asignarle uno, y mientras tanto se prueba con el modo prueba. Solo un
+    admin puede hacer una saliente sin número del cliente: sale con el de Atentina (`ANURA_DID`).
   - **Voz:** la del agente, u otra del catálogo con filtros de género, WER y car/s.
   - **Prueba de voz:** escuchás el texto con la voz elegida, directo contra el TTS, sin llamar.
-  - Si el tier no deja (sin lugar o sin minutos), el error dice cuál límite.
+  - Si el tier no deja (sin lugar o sin minutos), el error dice cuál límite. "Plataforma al máximo de
+    llamadas" es el tope de toda la plataforma, no del cliente: reintentar en unos minutos.
+  - Un doble clic o un reintento después de un corte de red no marca dos veces (`Idempotency-Key`).
 - **En vivo:** llamadas pendientes, sonando o en curso, con "Ver en vivo".
 - **Indicadores:** conversaciones (con cuántas por WhatsApp), llamadas finalizadas, workflow
   completo, objetivo cumplido, fallidas, rechazadas (por límite), minutos y latencia por turno. El
@@ -221,6 +237,8 @@ Motivos de fin frecuentes (`ended_reason`):
 | `completed` | El agente terminó el workflow y cortó. |
 | `customer_hangup` | Cortó el cliente. |
 | `quota_exhausted` | Se acabaron los minutos del mes durante la llamada. |
+| `max_duration` | Llegó a la duración máxima por llamada. |
+| `room_gone` | La llamada se cerró sola: el agente se cayó o se reinició en el medio (la duración es estimada). |
 | `concurrency_limit` | Rechazada: el cliente estaba al tope de llamadas simultáneas. |
 | `inbound_minutes`, `outbound_minutes` | Rechazada: sin minutos del mes. |
 | `client_inactive` | Rechazada: el cliente está desactivado. |
@@ -307,6 +325,7 @@ recibir mensajes: muchos bloqueos bajan la calidad del número y su límite de e
 
 - **Consumo del mes:** llamadas activas, minutos entrantes y salientes, y números, cada uno contra
   su tope.
+- **Plan:** duración máxima por llamada y cuánto tiempo se guarda el historial.
 - **Números:** elegís qué agente tuyo atiende cada número y editás la etiqueta. Asignar y liberar
   números lo hace el admin.
 - **API keys:** crear y revocar.
@@ -319,6 +338,9 @@ recibir mensajes: muchos bloqueos bajan la calidad del número y su límite de e
 | Una entrante escucha "no podemos atender tu llamada" | El tier no deja: tope de simultáneas, minutos entrantes agotados o cliente inactivo. Mirá el consumo del cliente. |
 | Todas las entrantes van al mismo agente | No llega el número marcado y cae al principal (`ANURA_DID`). Mirar el log de Asterisk (`Entrante de Anura: ... (marcado: ...)`) y que cada número tenga su agente. |
 | "Llegaste al límite…" al llamar | Tope del tier. Esperá que terminen llamadas, subí el tier o el tope. |
+| "Plataforma al máximo de llamadas" | Tope global de llamadas simultáneas de toda la plataforma (`MAX_CONCURRENT_CALLS_GLOBAL`). Reintentar en unos minutos. |
+| "Sin número para salientes" | El cliente no tiene números asignados: asignarle uno (Números). |
+| "Cuenta en solo lectura" | El cliente está inactivo: activarlo en su ficha. |
 | Un número nuevo no recibe llamadas | Faltó `make livekit-sip` después de cargarlo, o Anura no lo entrega a esta troncal. |
 | "Conectar WhatsApp" abre y se cierra, o da error de dominio | Se entró por `http://` o por un dominio que no está en la app de Meta: usar `https://app.atentina.com.ar`. |
 | Un número de WhatsApp queda "Pendiente" | Falló el registro en Meta (ej. PIN de dos pasos incorrecto, 133005): Reintentar registro con el PIN correcto. |

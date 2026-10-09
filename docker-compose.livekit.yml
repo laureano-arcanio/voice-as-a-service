@@ -16,13 +16,21 @@
 
 services:
   livekit-redis:
-    image: redis:7-alpine
+    # Imagenes fijadas por digest (8-oct-2026; tag en el nombre, ignorado al resolver).
+    image: redis:7-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
     restart: unless-stopped
     network_mode: host
-    command: ["redis-server", "--bind", "127.0.0.1", "--port", "6380", "--save", "", "--appendonly", "no"]
+    # Con persistencia (AOF en el volumen, fsync por segundo): sin ella, un reinicio de
+    # Redis o del host borraba los trunks SIP y la dispatch rule, y las entrantes daban 486
+    # "flood" hasta correr `make livekit-sip` (26-sep-2026). boot.sh y healthcheck.sh lo
+    # siguen corriendo igual (idempotente). Sin RDB (--save ""): el AOF alcanza.
+    command: ["redis-server", "--bind", "127.0.0.1", "--port", "6380", "--save", "",
+              "--appendonly", "yes", "--appendfsync", "everysec", "--dir", "/data"]
+    volumes:
+      - livekit_redis_data:/data
 
   livekit:
-    image: livekit/livekit-server:v1.13.7
+    image: livekit/livekit-server:v1.13.7@sha256:6fd3b7088874c4d119160dd688798dfec852bc014786d392caad15f6f63912a3
     restart: unless-stopped
     network_mode: host
     command: ["--config", "/etc/livekit.yaml"]
@@ -39,7 +47,7 @@ services:
       - livekit-redis
 
   livekit-sip:
-    image: livekit/sip:v1.17.0
+    image: livekit/sip:v1.17.0@sha256:d3c6441eb0918a81ab9e48ba7df6f02c1eebbeace42c963b2c6a6e5418675671
     restart: unless-stopped
     network_mode: host
     environment:
@@ -64,3 +72,7 @@ services:
       # Para `make livekit-sip`: el trunk saliente apunta a Asterisk en este
       # host, no a la IP publica que ve Anura.
       LIVEKIT_SIP_OUTBOUND_ADDRESS: 127.0.0.1:${ASTERISK_SIP_PORT:-5080}
+
+volumes:
+  # AOF del Redis de LiveKit (trunks SIP, dispatch rule, rooms).
+  livekit_redis_data:

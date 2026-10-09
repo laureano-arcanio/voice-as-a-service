@@ -38,7 +38,7 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
         wa-calling-status wa-calling-enable wa-calling-disable wa-sip-password sip-cert \
         migrate create-admin api-key dev-backend web-dev web-build web-check openapi landing-dev \
         test eval-motor eval-llamadas eval-llm eval-llm-juez eval-llm-report loadtest-audio loadtest loadtest-report capacity capacity-monitor capacity-monitor-stop capacity-analyze gpubench stt-eval stt-corpus \
-        db-reset clean
+        ops-health backup restore-test db-reset clean
 
 help: ## Muestra esta ayuda
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -141,8 +141,9 @@ livekit-sip: ## Crea/actualiza en LiveKit los trunks SIP + dispatch rule para An
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts app python -m scripts.livekit_sip_setup
 
 # Paso fijo de `make up` con LiveKit propio (docker-compose.livekit.yml en COMPOSE_FILE):
-# su Redis no persiste, asi que cada reinicio del host borra los trunks y la dispatch
-# rule y las entrantes vuelven con 486 "flood" (26-sep-2026). Con Cloud no hace falta.
+# antes su Redis no persistia y cada reinicio borraba los trunks y la dispatch rule
+# (entrantes con 486 "flood", 26-sep-2026). Desde el 8-oct-2026 persiste (AOF); queda
+# porque es idempotente y aplica los cambios de numeros y de max_call_duration. Con Cloud no hace falta.
 livekit-sip-si-local:
 	@if $(COMPOSE) config --services 2>/dev/null | grep -qx livekit; then \
 		echo "LiveKit propio: recreando trunks SIP y dispatch rule (make livekit-sip)"; \
@@ -189,13 +190,17 @@ wa-sip-password: ## Trae la clave SIP de Meta a WA_SIP_PASSWORD en .env (backup 
 	diff <(sed -E 's/=(.{4}).*/=\1…/' $$bak) <(sed -E 's/=(.{4}).*/=\1…/' .env) || true; \
 	echo "Aplicar con make up-pbx (corta llamadas en curso)"
 
+# Fijada por digest (la misma que estaba local el 8-oct-2026): recibe el token de DNS de
+# Cloudflare y la clave del certificado, todos los dias por cron. Actualizar a mano.
+CERTBOT_IMAGE := certbot/dns-cloudflare:v5.8.0@sha256:c45edb002b883da1a1235abb205dff474a7a1a459d878e8d5fdc7f9d83073aea
+
 sip-cert: ## Certificado de Let's Encrypt para WA_SIP_HOST por DNS de Cloudflare (CLOUDFLARE_DNS_API_TOKEN). Renueva si vence en <30 dias
 	@tok=$$(grep -E '^CLOUDFLARE_DNS_API_TOKEN=.+' .env | cut -d= -f2-); [ -n "$$tok" ] || { echo "Falta CLOUDFLARE_DNS_API_TOKEN en .env"; exit 1; }; \
 	host=$$(grep -E '^WA_SIP_HOST=.+' .env | cut -d= -f2-); host=$${host:-sip.atentina.com.ar}; \
 	mkdir -p scratch asterisk/letsencrypt && ini=$$(mktemp -p scratch cf-XXXXXX.ini) && trap 'rm -f $$ini' EXIT && \
 	chmod 600 $$ini && printf 'dns_cloudflare_api_token = %s\n' "$$tok" >$$ini && \
 	docker run --rm -v $(CURDIR)/asterisk/letsencrypt:/etc/letsencrypt -v $(CURDIR)/$$ini:/cloudflare.ini:ro \
-		certbot/dns-cloudflare certonly --non-interactive --agree-tos --register-unsafely-without-email \
+		$(CERTBOT_IMAGE) certonly --non-interactive --agree-tos --register-unsafely-without-email \
 		--dns-cloudflare --dns-cloudflare-credentials /cloudflare.ini --dns-cloudflare-propagation-seconds 30 \
 		--keep-until-expiring -d $$host
 
@@ -266,7 +271,7 @@ loadtest-report: ## Sirve scripts/loadtest/ en :8099 y abre report.html (carga r
 CAP := scripts/capacity
 PERFIL ?= rampa
 
-capacity: ## Test de capacidad (cliente). Ej: make capacity PERFIL=rampa ARGS="--base-url http://192.168.1.99:8011"
+capacity: ## Test de capacidad (cliente). Ej: make capacity PERFIL=rampa ARGS="--base-url http://192.168.1.99:8011" (en el server: APP_BIND=0.0.0.0 y MAX_CONCURRENT_CALLS_GLOBAL alto, docs/capacity/README.md)
 	@mkdir -p $(CAP)/runs
 	@python3 $(CAP)/hwinfo.py --role cliente --out $(CAP)/runs/.hw_cliente.json $(if $(PING),--ping $(PING)) >/dev/null || echo "aviso: hwinfo del cliente fallo"
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts agent python -m scripts.capacity.run --perfil $(PERFIL) $(ARGS)
@@ -291,6 +296,17 @@ stt-eval: ## WER + latencia de stt-parakeet sobre un corpus. Ej: make stt-eval A
 
 stt-corpus: ## Arma el corpus de eval de STT con voces argentinas (OpenSLR 61): limpio, telefonico, +ruido, +cortes
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts agent python -m scripts.stt_corpus.openslr61 $(ARGS)
+
+# --- Operacion (scripts/ops/, cron en docs/PRODUCCION.md) -----------------
+
+ops-health: ## Corre el chequeo de cron una vez y muestra el resultado (~/atentina-ops/health.log)
+	@scripts/ops/healthcheck.sh; rc=$$?; tail -3 $${OPS_STATE_DIR:-$$HOME/atentina-ops}/health.log; exit $$rc
+
+backup: ## Backup ahora (base, .env, storage/, certificado SIP, checkpoint del TTS), como el cron de las 03:30
+	scripts/ops/backup.sh
+
+restore-test: ## Restaura el ultimo backup en un PostgreSQL desechable (:55433), migra a head y cuenta filas. Requiere .venv
+	scripts/ops/restore-test.sh $(DUMP)
 
 # --- Limpieza ------------------------------------------------------------
 

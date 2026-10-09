@@ -36,6 +36,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { EmptyState, ErrorAlert, QueryState } from '@/components/QueryState';
 import { useAgents } from '@/features/agents/api';
 import { useIsAdmin } from '@/features/auth/api';
+import { useReadOnly } from '@/features/auth/readOnly';
 import { TEMPLATE_CATEGORY } from '@/features/whatsapp/labels';
 import { formatDateTime } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
@@ -282,6 +283,8 @@ export function CampaignDetailPage() {
   const query = useCampaign(id);
   const action = useCampaignAction(id);
   const remove = useDeleteCampaign();
+  // Solo lectura: enviar consume (mensajes de Meta y respuestas del agente).
+  const readOnly = useReadOnly();
   const [dialog, setDialog] = useState<'edit' | 'add' | null>(null);
 
   const back = (
@@ -388,7 +391,7 @@ export function CampaignDetailPage() {
                       <Button
                         leftSection={<IconPlayerPlay size={18} />}
                         loading={action.isPending}
-                        disabled={c.stats.pending === 0}
+                        disabled={c.stats.pending === 0 || readOnly}
                         onClick={() => run('start', 'Envío iniciado.')}
                       >
                         {c.status === 'paused' ? 'Retomar envío' : 'Iniciar envío'}

@@ -23,6 +23,7 @@ import { confirmAction } from '@/components/confirm';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState, QueryState } from '@/components/QueryState';
 import { useCurrentUser } from '@/features/auth/api';
+import { READ_ONLY_REASON, useReadOnly } from '@/features/auth/readOnly';
 import { useClients } from '@/features/clients/api';
 import { useWaAccounts } from '@/features/whatsapp/api';
 import { formatDate, formatDateTime } from '@/lib/format';
@@ -199,6 +200,8 @@ export function CampaignsPage() {
     (a) => a.active && a.status === 'connected' && (isAdmin || a.has_token),
   );
   const noSender = accounts.isSuccess && senders.length === 0;
+  const readOnly = useReadOnly();
+  const blocked = noSender || readOnly;
 
   const setClient = (v: string | null) =>
     setParams(
@@ -218,16 +221,20 @@ export function CampaignsPage() {
         description="Mensajes de WhatsApp que inicia el negocio, con una plantilla aprobada por Meta. Las respuestas las atiende el agente."
         actions={
           <Tooltip
-            label="Hace falta un número de WhatsApp conectado con su propia cuenta (Conectar WhatsApp)"
+            label={
+              readOnly
+                ? READ_ONLY_REASON
+                : 'Hace falta un número de WhatsApp conectado con su propia cuenta (Conectar WhatsApp)'
+            }
             multiline
             w={260}
             withArrow
-            disabled={!noSender}
+            disabled={!blocked}
           >
             <Button
               leftSection={<IconPlus size={18} />}
-              data-disabled={noSender || undefined}
-              onClick={(e) => (noSender ? e.preventDefault() : setCreating(true))}
+              data-disabled={blocked || undefined}
+              onClick={(e) => (blocked ? e.preventDefault() : setCreating(true))}
             >
               Nueva campaña
             </Button>

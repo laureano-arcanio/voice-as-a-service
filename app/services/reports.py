@@ -2,13 +2,18 @@
 indicadores y la serie diaria. Filtrable por cliente, agente y fechas.
 
 Las conversaciones de WhatsApp (channel="whatsapp") no tienen CallRow: su origen es
-"whatsapp", el telefono es el wa_id del hilo y no cuentan como llamadas."""
+"whatsapp", el telefono es el wa_id del hilo y no cuentan como llamadas.
+
+Indicadores y serie diaria se agregan en SQL (count/sum/group by) sin leer mensajes
+ni latencias por turno (H09): el dashboard los pide cada 30-60 s."""
+import dataclasses
 import datetime
+from collections import Counter
 from dataclasses import dataclass, field
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, case, func, literal_column, or_, select
+from sqlalchemy.orm import Session, defer
 
 from ..agents.definitions import DefinitionSource
 from ..agents.templates import load_reference
@@ -24,6 +29,12 @@ from ..models import (
     WaMessage,
     WaThread,
 )
+from .errors import Invalid
+
+# Rango de indicadores sin fechas (dias locales) y la diferencia maxima entre las dos
+# fechas (la misma que valida /stats/daily).
+DEFAULT_RANGE_DAYS = 30
+MAX_RANGE_DAYS = 366
 
 
 def iso(dt: datetime.datetime | None) -> str | None:
@@ -46,8 +57,15 @@ class CallFilter:
     # Zona de las fechas: date_from/date_to y los dias del grafico son dias locales.
     tz: ZoneInfo = field(default_factory=lambda: ZoneInfo("UTC"))
 
-    def local_date(self, dt: datetime.datetime) -> datetime.date:
-        return dt.replace(tzinfo=datetime.UTC).astimezone(self.tz).date()
+    def bounded(self) -> "CallFilter":
+        """Con las dos fechas: sin hasta, hoy; sin desde, DEFAULT_RANGE_DAYS antes del hasta.
+        Invalid si el rango esta al reves o pasa de MAX_RANGE_DAYS."""
+        today = datetime.datetime.now(self.tz).date()
+        date_to = self.date_to or max(today, self.date_from or today)
+        date_from = self.date_from or date_to - datetime.timedelta(DEFAULT_RANGE_DAYS - 1)
+        if date_to < date_from or (date_to - date_from).days > MAX_RANGE_DAYS:
+            raise Invalid(f"Rango de fechas invalido (hasta {MAX_RANGE_DAYS} dias)", "invalid_date_range")
+        return dataclasses.replace(self, date_from=date_from, date_to=date_to)
 
     def where(self) -> list:
         conds = []
@@ -71,6 +89,25 @@ class CallFilter:
         return conds
 
 
+# Latencia media de la llamada (call_logs.latency.stats.total.avg), leida en SQL: el
+# documento entero trae cada turno.
+_LATENCY_AVG = CallRow.latency[("stats", "total", "avg")].as_float()
+# Resultado guardado al completar (progress.outcome).
+_OUTCOME_ID = ConversationRow.progress["outcome"].as_string()
+# Llamada telefonica o de prueba: tiene CallRow y no es de WhatsApp.
+_IS_CALL = and_(CallRow.conversation_id.is_not(None), ConversationRow.channel.is_distinct_from("whatsapp"))
+_DONE = and_(_IS_CALL, CallRow.status == "finalizada")
+_COMPLETED = ConversationRow.status == "completed"
+
+
+def _count(cond):
+    return func.coalesce(func.sum(case((cond, 1), else_=0)), 0)
+
+
+def _eq(col, value):
+    return col.is_(None) if value is None else col == value
+
+
 def _base_query():
     return (select(ConversationRow, CallRow, Agent.name, Client.name, WaThread, WaAccount.display_phone_number)
             .outerjoin(CallRow, CallRow.conversation_id == ConversationRow.id)
@@ -84,17 +121,25 @@ class Reports:
     def __init__(self, s: Session, definitions: DefinitionSource):
         self.s = s
         self.definitions = definitions
+        self._workflows: dict[tuple, Workflow | None] = {}
 
     def workflow(self, conv: ConversationRow) -> Workflow | None:
         """La version del agente con que corrio; si es anterior a los agentes, la de referencia."""
-        try:
-            if conv.agent_id:
-                return self.definitions.get(conv.agent_id, conv.agent_version or 1, self.s)
-            if conv.legacy_workflow_id:
-                return load_reference(conv.legacy_workflow_id)
-        except KeyError:
-            pass
-        return None
+        return self._workflow(conv.agent_id, conv.agent_version, conv.legacy_workflow_id)
+
+    def _workflow(self, agent_id: str | None, version: int | None, legacy_id: str | None) -> Workflow | None:
+        key = (agent_id, version, legacy_id)
+        if key not in self._workflows:
+            wf = None
+            try:
+                if agent_id:
+                    wf = self.definitions.get(agent_id, version or 1, self.s)
+                elif legacy_id:
+                    wf = load_reference(legacy_id)
+            except KeyError:
+                pass
+            self._workflows[key] = wf
+        return self._workflows[key]
 
     def outcome(self, workflow: Workflow | None, conv: ConversationRow):
         """Resultado de una conversacion completa (el guardado, o calculado si es anterior a outcomes)."""
@@ -108,12 +153,13 @@ class Reports:
         return outcome
 
     def summary(self, conv: ConversationRow, call: CallRow | None, agent_name: str | None,
-                client_name: str | None, thread: WaThread | None = None, business_number: str | None = None) -> dict:
+                client_name: str | None, thread: WaThread | None, business_number: str | None,
+                latency_avg: float | None) -> dict:
+        """Fila de la lista. latency_avg: _LATENCY_AVG (la latencia de la llamada no se carga)."""
         workflow = self.workflow(conv)
         f = conv.fields
         required = [n for n, spec in workflow.fields.items() if is_required(spec, f)] if workflow else list(f)
         outcome = self.outcome(workflow, conv)
-        lat = (call.latency or {}).get("stats", {}).get("total") if call else None
         if conv.channel == "whatsapp":
             mode, phone = "whatsapp", thread.wa_id if thread else None
         else:
@@ -131,19 +177,18 @@ class Reports:
             "status": call.status if call else None,
             "duration_seconds": call.duration_seconds if call else 0,
             "ended_reason": call.ended_reason if call else "",
-            "latency_avg": lat["avg"] if lat else None,
+            "latency_avg": latency_avg if call else None,
         }
 
     def page(self, flt: CallFilter, limit: int = 100, offset: int = 0) -> tuple[list[dict], int]:
         conds = flt.where()
         total = self.s.scalar(select(func.count()).select_from(ConversationRow)
                               .outerjoin(CallRow, CallRow.conversation_id == ConversationRow.id).where(*conds)) or 0
-        rows = self.s.execute(_base_query().where(*conds).order_by(ConversationRow.created_at.desc())
-                              .limit(limit).offset(offset)).all()
+        # Sin mensajes ni latencia por turno: la lista no los muestra y se refresca cada 5 s.
+        rows = self.s.execute(_base_query().add_columns(_LATENCY_AVG).where(*conds)
+                              .options(defer(ConversationRow.messages), defer(CallRow.latency))
+                              .order_by(ConversationRow.created_at.desc()).limit(limit).offset(offset)).all()
         return [self.summary(*r) for r in rows], total
-
-    def _all(self, flt: CallFilter) -> list[dict]:
-        return [self.summary(*r) for r in self.s.execute(_base_query().where(*flt.where())).all()]
 
     def detail(self, conversation_id: str) -> dict | None:
         row = self.s.execute(_base_query().where(ConversationRow.id == conversation_id)).first()
@@ -192,39 +237,88 @@ class Reports:
             "failed_messages": len(failed), "last_error": failed[-1].error if failed else None,
         }
 
+    def _goals(self, conds: list, bucket=None) -> Counter:
+        """Conversaciones completas cuyo resultado es objetivo, por `bucket` (sin el, todas en 0).
+
+        Se agrupan por agente, version y resultado guardado: el workflow se resuelve una
+        vez por grupo. Solo las anteriores a progress.outcome (o con un resultado que ya
+        no esta en la definicion) se calculan fila por fila con sus datos."""
+        keys = [ConversationRow.agent_id, ConversationRow.agent_version, ConversationRow.legacy_workflow_id]
+        day = bucket.label("day") if bucket is not None else literal_column("0").label("day")
+        sub = (select(*keys, _OUTCOME_ID.label("outcome"), day).select_from(ConversationRow)
+               .outerjoin(CallRow, CallRow.conversation_id == ConversationRow.id)
+               .where(*conds, _COMPLETED).subquery())
+        goals: Counter = Counter()
+        unresolved = []
+        for agent_id, version, legacy, outcome_id, d, n in self.s.execute(
+                select(*sub.c, func.count()).group_by(*sub.c)):
+            workflow = self._workflow(agent_id, version, legacy)
+            if workflow is None:
+                continue
+            outcome = next((o for o in [*workflow.completion.outcomes, INCOMPLETE] if o.id == outcome_id), None)
+            if outcome is None:
+                unresolved.append((agent_id, version, legacy, outcome_id))
+            elif outcome.goal:
+                goals[d] += n
+        if unresolved:
+            match = or_(*[and_(_eq(keys[0], a), _eq(keys[1], v), _eq(keys[2], lg), _eq(_OUTCOME_ID, o))
+                          for a, v, lg, o in unresolved])
+            for conv_id, agent_id, version, legacy, fields, d in self.s.execute(
+                    select(ConversationRow.id, *keys, ConversationRow.fields, day)
+                    .outerjoin(CallRow, CallRow.conversation_id == ConversationRow.id)
+                    .where(*conds, _COMPLETED, match)):
+                outcome = outcome_for(self._workflow(agent_id, version, legacy), ConversationState(
+                    conversation_id=conv_id, agent_id=agent_id or "", fields=fields, progress=Progress()))
+                if outcome.goal:
+                    goals[d] += 1
+        return goals
+
     def stats(self, flt: CallFilter) -> dict:
-        rows = self._all(flt)
-        phone_calls = [r for r in rows if r["mode"] not in ("api", "whatsapp")]
-        done = [r for r in phone_calls if r["status"] == "finalizada"]
-        completed = [r for r in rows if r["workflow_status"] == "completed"]
-        goal = [r for r in rows if r["goal"]]
-        latencies = [r["latency_avg"] for r in done if r["latency_avg"] is not None]
+        """Indicadores del rango (sin fechas, los ultimos DEFAULT_RANGE_DAYS dias)."""
+        conds = flt.bounded().where()
+        row = self.s.execute(
+            select(func.count(), _count(_IS_CALL), _count(_DONE),
+                   _count(_IS_CALL & (CallRow.status == "fallida")),
+                   _count(_IS_CALL & (CallRow.status == "rechazada")),
+                   _count(_COMPLETED),
+                   func.coalesce(func.sum(case((_DONE, CallRow.duration_seconds), else_=0)), 0),
+                   func.sum(case((_DONE, _LATENCY_AVG))), func.count(case((_DONE, _LATENCY_AVG))),
+                   _count(ConversationRow.channel == "whatsapp"))
+            .select_from(ConversationRow).outerjoin(CallRow, CallRow.conversation_id == ConversationRow.id)
+            .where(*conds)).one()
+        total, calls, done, failed, rejected, completed, seconds, lat_sum, lat_n, whatsapp = row
+        goal = self._goals(conds)[0]
         pct = lambda n, d: round(100 * n / d, 1) if d else 0
         return {
-            "total": len(rows), "calls": len(phone_calls), "finished": len(done),
-            "failed": sum(r["status"] == "fallida" for r in phone_calls),
-            "rejected": sum(r["status"] == "rechazada" for r in phone_calls),
-            "completed": len(completed), "completed_pct": pct(len(completed), len(rows)),
-            "goal": len(goal), "goal_pct": pct(len(goal), len(rows)),
-            "total_minutes": round(sum(r["duration_seconds"] for r in done) / 60, 1),
-            "avg_duration": round(sum(r["duration_seconds"] for r in done) / len(done)) if done else 0,
-            "latency_avg": round(sum(latencies) / len(latencies), 2) if latencies else None,
-            "whatsapp": sum(r["mode"] == "whatsapp" for r in rows),
+            "total": total, "calls": calls, "finished": done, "failed": failed, "rejected": rejected,
+            "completed": completed, "completed_pct": pct(completed, total),
+            "goal": goal, "goal_pct": pct(goal, total),
+            "total_minutes": round(seconds / 60, 1),
+            "avg_duration": round(seconds / done) if done else 0,
+            "latency_avg": round(lat_sum / lat_n, 2) if lat_n else None,
+            "whatsapp": whatsapp,
         }
 
     def daily(self, flt: CallFilter) -> dict:
         """Conversaciones por dia + % con workflow completo y % que cumplen el objetivo."""
-        assert flt.date_from and flt.date_to
+        flt = flt.bounded()
         days = [flt.date_from + datetime.timedelta(d) for d in range((flt.date_to - flt.date_from).days + 1)]
-        buckets: dict[datetime.date, list[dict]] = {d: [] for d in days}
-        for r in self._all(flt):
-            day = flt.local_date(datetime.datetime.fromisoformat(r["created_at"].rstrip("Z")))
-            if day in buckets:
-                buckets[day].append(r)
-        pct = lambda rows, key: round(100 * sum(key(r) for r in rows) / len(rows), 1) if rows else None
+        # Dia local de cada conversacion en SQL, contra la medianoche UTC de cada dia (sirve
+        # para cualquier zona y con cambio de horario, igual en PostgreSQL y SQLite).
+        ends = [_utc(d + datetime.timedelta(1), flt.tz) for d in days]
+        bucket = case(*[(ConversationRow.created_at < end, literal_column(str(i))) for i, end in enumerate(ends)])
+        conds = flt.where()
+        sub = (select(bucket.label("day"), _COMPLETED.label("completed")).select_from(ConversationRow)
+               .outerjoin(CallRow, CallRow.conversation_id == ConversationRow.id).where(*conds).subquery())
+        totals, completed = Counter(), Counter()
+        for d, n, c in self.s.execute(select(sub.c.day, func.count(), _count(sub.c.completed))
+                                      .group_by(sub.c.day)):
+            totals[d], completed[d] = n, c
+        goals = self._goals(conds, bucket)
+        pct = lambda n, d: round(100 * n / d, 1) if d else None
         return {
             "labels": [d.isoformat() for d in days],
-            "totals": [len(buckets[d]) for d in days],
-            "completed_pct": [pct(buckets[d], lambda r: r["workflow_status"] == "completed") for d in days],
-            "goal_pct": [pct(buckets[d], lambda r: r["goal"]) for d in days],
+            "totals": [totals[i] for i in range(len(days))],
+            "completed_pct": [pct(completed[i], totals[i]) for i in range(len(days))],
+            "goal_pct": [pct(goals[i], totals[i]) for i in range(len(days))],
         }

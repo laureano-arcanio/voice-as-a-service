@@ -11,10 +11,12 @@ import {
   Text,
   TextInput,
   Title,
+  Tooltip,
 } from '@mantine/core';
 import { IconAlertTriangle, IconKey, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import type { ApiKey, ApiKeyCreated } from '@/api/types';
+import { READ_ONLY_REASON, useReadOnly } from '@/features/auth/readOnly';
 import { confirmAction } from '@/components/confirm';
 import { CopyIcon } from '@/components/Copy';
 import { EmptyState, QueryState } from '@/components/QueryState';
@@ -117,8 +119,11 @@ function NewKeyModal({
   );
 }
 
-export function ApiKeysSection({ clientId }: { clientId: string }) {
+/** inactive: el cliente esta inactivo (vista del admin); no se crean claves (H12). */
+export function ApiKeysSection({ clientId, inactive = false }: { clientId: string; inactive?: boolean }) {
   const keys = useApiKeys(clientId);
+  const readOnly = useReadOnly();
+  const blocked = readOnly || inactive;
   const revoke = useRevokeApiKey(clientId);
   const [creating, setCreating] = useState(false);
 
@@ -142,9 +147,20 @@ export function ApiKeysSection({ clientId }: { clientId: string }) {
     <Card>
       <Group justify="space-between" mb="xs">
         <Title order={4}>API keys</Title>
-        <Button size="xs" leftSection={<IconPlus size={16} />} onClick={() => setCreating(true)}>
-          Nueva API key
-        </Button>
+        <Tooltip
+          label={readOnly ? READ_ONLY_REASON : 'El cliente está inactivo: activalo para crear API keys.'}
+          disabled={!blocked}
+          withArrow
+        >
+          <Button
+            size="xs"
+            leftSection={<IconPlus size={16} />}
+            data-disabled={blocked || undefined}
+            onClick={(e) => (blocked ? e.preventDefault() : setCreating(true))}
+          >
+            Nueva API key
+          </Button>
+        </Tooltip>
       </Group>
       <Text size="xs" c="dimmed" mb="sm">
         Para que tus sistemas lancen llamadas y lean resultados: van en{' '}

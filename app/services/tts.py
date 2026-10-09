@@ -5,9 +5,22 @@ import httpx
 
 from ..config import settings
 from . import voices
-from .errors import Invalid, Upstream
+from .errors import Invalid, ServiceError, Upstream
 
 MAX_PREVIEW_CHARS = 600
+
+
+class TtsBusy(ServiceError):
+    status_code = 503
+    default_code = "tts_busy"
+    retry_after = 5
+
+
+class PreviewSlots:
+    """Sintesis fuera de una llamada en curso en este proceso: pruebas de voz del dashboard
+    (/tts/preview) y de la demo publica (/demo/tts). El TTS es el mismo de las llamadas: sin
+    tope global, varios clientes o visitantes a la vez le sacan lugar (H04)."""
+    in_use = 0
 
 
 async def preview(voice: str, text: str) -> AsyncIterator[bytes]:
@@ -45,3 +58,19 @@ async def preview(voice: str, text: str) -> AsyncIterator[bytes]:
             await client.aclose()
 
     return stream()
+
+
+async def synthesize_bounded(voice: str, text: str) -> bytes:
+    """preview leido entero dentro del cupo TTS_PREVIEW_MAX_CONCURRENT; lleno: TtsBusy (503
+    con Retry-After). Entero y no en streaming: con streaming, un cliente que corta antes de
+    empezar a leer dejaba el cupo tomado (la UI y la landing lo bajan entero igual, como blob)."""
+    if PreviewSlots.in_use >= settings.tts_preview_max_concurrent:
+        raise TtsBusy("Hay muchas pruebas de voz en curso. Probá en unos segundos.")
+    PreviewSlots.in_use += 1
+    try:
+        stream = await preview(voice, text)
+        return b"".join([chunk async for chunk in stream])
+    except httpx.HTTPError as e:
+        raise Upstream(f"El TTS cortó el audio: {type(e).__name__}") from e
+    finally:
+        PreviewSlots.in_use -= 1

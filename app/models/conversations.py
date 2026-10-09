@@ -33,3 +33,7 @@ class ConversationRow(Base):
     progress: Mapped[dict | None] = mapped_column(JSONDoc, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+    # Control optimista: cada guardado la sube y solo pisa si no cambio desde que se leyo.
+    version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # Retencion: se borraron datos y mensajes (queda la fila para el consumo y el historial).
+    purged_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)

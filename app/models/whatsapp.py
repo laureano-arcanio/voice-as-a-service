@@ -1,6 +1,7 @@
 """WhatsApp (Cloud API de Meta, docs/WHATSAPP_PLAN.md): numeros conectados, el hilo
 de cada conversacion (lo que call_logs es a la telefonia) y los mensajes por wamid
-(dedupe y estados de entrega). El texto no se guarda aca: esta en conversations.messages.
+(dedupe y estados de entrega). La conversacion esta en conversations.messages; el
+entrante guarda ademas su cuerpo (body) hasta procesarlo, para no perderlo si el proceso cae.
 """
 import datetime
 
@@ -83,6 +84,8 @@ class WaMessage(IdMixin, Base):
     __tablename__ = "wa_messages"
     __table_args__ = (
         Index("ix_wa_messages_account_created", "account_id", "created_at"),
+        # Barrido al arrancar y reintentos: entrantes received/processing por antiguedad.
+        Index("ix_wa_messages_direction_status_created", "direction", "status", "created_at"),
     )
     # NULL: un envio que fallo antes de que Meta le diera un wamid.
     wamid: Mapped[str | None] = mapped_column(String(128), unique=True, nullable=True)
@@ -94,10 +97,23 @@ class WaMessage(IdMixin, Base):
     wa_id: Mapped[str] = mapped_column(String(32))
     # text, audio, image, document, sticker, video, location, template, other
     type: Mapped[str] = mapped_column(String(16))
-    # in: received, answered, ignored, error. out: sent, delivered, read, failed.
+    # in (durable: se guarda con el cuerpo antes del 200 a Meta):
+    #   received: guardado, sin procesar (o devuelto a la cola para reintentar).
+    #   processing: tomado por un proceso (claimed_at); si queda colgado, se reintenta.
+    #   answered: respondido. ignored: no corresponde responder (pausado, baja, duplicado...).
+    #   error: fallo tras WA_MAX_ATTEMPTS intentos (o no se puede reprocesar).
+    # out: sent, delivered, read, failed.
     status: Mapped[str] = mapped_column(String(16))
     error: Mapped[dict | None] = mapped_column(JSONDoc, nullable=True)   # {code, subcode, message}
     meta_ts: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    # in: lo minimo para reprocesar el mensaje de Meta (tipo, texto, media id, contacto...).
+    body: Mapped[dict | None] = mapped_column(JSONDoc, nullable=True)
+    attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    claimed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    # Se marca antes de mandar la respuesta a Meta: un processing con processed_at es un envio
+    # incierto (cayo el proceso mandando) y la recuperacion lo pasa a error sin reenviar.
+    # El cuerpo se borra con sql null() (answered/ignored; JSONDoc no guarda None como NULL).
+    processed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
@@ -162,6 +178,8 @@ class WaCampaignRecipient(IdMixin, Base):
     conversation_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("conversations.id", ondelete="SET NULL"), nullable=True)
     replied_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    # Cuando un sender lo paso a sending (reclamo atomico); uno colgado se puede reclamar de nuevo.
+    claimed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
 
 

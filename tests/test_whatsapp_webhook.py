@@ -19,7 +19,7 @@ class RecordingService:
     def __init__(self):
         self.payloads = []
 
-    def handle_payload(self, payload):
+    async def accept(self, payload):
         self.payloads.append(payload)
 
 
@@ -83,12 +83,14 @@ def test_firma_invalida(client, service):
     assert service.payloads == []
 
 
-def test_falla_del_service_igual_da_200(client, service, monkeypatch):
-    def boom(payload):
+def test_falla_al_guardar_da_500(client, service, monkeypatch):
+    """Entrantes durables (H03): si no se pudieron guardar, 500 y Meta reintenta (antes 200
+    y el mensaje se perdia)."""
+    async def boom(payload):
         raise RuntimeError("x")
 
-    monkeypatch.setattr(service, "handle_payload", boom)
-    assert post(client, change()).status_code == 200
+    monkeypatch.setattr(service, "accept", boom)
+    assert post(client, change()).status_code == 500
 
 
 def test_sin_firma(client):

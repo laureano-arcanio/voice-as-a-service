@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from sqlalchemy import exists, func, select
 from sqlalchemy.orm import Session
 
+from ..agents.limits import definition_errors
 from ..agents.templates import blank_definition, template_data
 from ..conversation.models import Workflow
 from ..db import utcnow
@@ -40,6 +41,9 @@ def normalize_definition(raw: dict, slug: str, version: int) -> dict:
     if workflow.agent.voice and catalog and workflow.agent.voice not in catalog:
         raise Invalid("La definicion del agente no es valida", "invalid_definition",
                       [{"path": "agent.voice", "message": f"La voz {workflow.agent.voice!r} no esta en el catalogo del TTS"}])
+    if errors := definition_errors(workflow):
+        # Va entera en el prompt de cada turno: tiene que dejar lugar a la conversacion (app/agents/limits.py).
+        raise Invalid("La definicion del agente es demasiado larga", "invalid_definition", errors)
     return workflow.model_dump(mode="json", exclude_none=True)
 
 

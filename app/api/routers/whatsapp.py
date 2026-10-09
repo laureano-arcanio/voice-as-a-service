@@ -26,6 +26,7 @@ from ..deps import (
     AdminPrincipal,
     CurrentPrincipal,
     UserPrincipal,
+    ensure_client_active,
     rate_limit,
     scoped_client_id,
 )
@@ -113,6 +114,9 @@ def update_account(account_id: str, body: WaAccountPatch, p: CurrentPrincipal, d
     solo agent_id, name y active."""
     a = _get(db, account_id, p)
     changes = body.model_dump(exclude_unset=True)
+    if changes != {"active": False}:
+        # Cliente inactivo: solo lectura (H12), tambien para un admin; apagar el numero si se puede.
+        ensure_client_active(db, a.client_id)
     if not p.is_admin and set(changes) - CLIENT_PATCH_FIELDS:
         raise Forbidden("Solo un admin puede cambiar " + ", ".join(sorted(set(changes) - CLIENT_PATCH_FIELDS)))
     # Columnas NOT NULL: null es "sin cambio". El token si se puede borrar.
@@ -140,6 +144,7 @@ async def signup_account(body: WaSignupIn, p: UserPrincipal, db: DB):
     client_id = body.client_id if p.is_admin else p.client_id
     if not client_id:
         raise NotFound("Falta client_id")
+    ensure_client_active(db, client_id)
     a = await signup.connect(db, client_id=client_id, agent_id=body.agent_id, code=body.code,
                              waba_id=body.waba_id, phone_number_id=body.phone_number_id, event=body.event,
                              business_id=body.business_id, pin=body.pin, user_id=p.id)
@@ -152,6 +157,7 @@ async def register_account(account_id: str, body: WaRegisterIn, p: CurrentPrinci
     """Reintenta la suscripcion y el registro (cuenta pending). PIN: el pedido, el
     guardado o uno nuevo."""
     a = _get_managed(db, account_id, p)
+    ensure_client_active(db, a.client_id)
     await signup.retry_register(db, a, body.pin)
     return _out(db, a)
 
@@ -185,6 +191,7 @@ async def list_templates(account_id: str, p: CurrentPrincipal, db: DB):
 async def create_template(account_id: str, body: WaTemplateIn, p: CurrentPrincipal, db: DB):
     """Crea una plantilla en la WABA de la cuenta. Meta la revisa: queda PENDING."""
     a = _get_managed(db, account_id, p)
+    ensure_client_active(db, a.client_id)
     payload = signup.template_payload(**body.model_dump())
     result = await signup.create_template(db, a, payload)
     return WaTemplateCreated(id=str(result.get("id") or ""), status=result.get("status"),
@@ -196,7 +203,8 @@ async def close_thread(conversation_id: str, p: CurrentPrincipal, db: DB,
                        service: Annotated[WhatsAppService, Depends(get_service)]):
     """Cierra una conversacion de WhatsApp: el proximo mensaje del contacto empieza otra, con la
     version vigente del agente. Esta queda en el historial. Es su fin, como el corte de una
-    llamada (extraccion final del clasico). Cerrar una ya cerrada no hace nada."""
+    llamada (extraccion final del clasico; sin ella si el cliente esta inactivo: no consume
+    el LLM, H12). Cerrar una ya cerrada no hace nada."""
     thread = db.get(WaThread, conversation_id)
     if thread is None or not p.can_access(thread.client_id):
         raise NotFound("Conversación de WhatsApp inexistente")

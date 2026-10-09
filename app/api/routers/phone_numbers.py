@@ -14,7 +14,13 @@ from sqlalchemy.exc import IntegrityError
 from ...models import Agent, Client, PhoneNumber
 from ...services import phone_numbers as service
 from ...services.errors import Conflict, NotFound
-from ..deps import DB, AdminPrincipal, CurrentPrincipal, scoped_client_id
+from ..deps import (
+    DB,
+    ActiveClientPrincipal,
+    AdminPrincipal,
+    CurrentPrincipal,
+    scoped_client_id,
+)
 from ..schemas import (
     AssignIn,
     PhoneNumberBulkIn,
@@ -33,6 +39,16 @@ def _out(db, n: PhoneNumber) -> PhoneNumberOut:
     client = db.get(Client, n.client_id) if n.client_id else None
     return PhoneNumberOut.model_validate(n).model_copy(
         update={"agent_name": agent.name if agent else None, "client_name": client.name if client else None})
+
+
+def _commit(db) -> None:
+    """En PostgreSQL la FK compuesta (0009) rechaza un numero ruteado a un agente de otro
+    cliente aunque se cuele una carrera: 409 en vez de 500."""
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise Conflict("El número cambió mientras se editaba: probá de nuevo", "number_changed") from None
 
 
 def _get(db, p, number_id: str) -> PhoneNumber:
@@ -71,7 +87,7 @@ def create_number(body: PhoneNumberIn, p: AdminPrincipal, db: DB):
     if body.client_id:
         service.assign(db, n, body.client_id)
         service.set_agent(db, n, body.agent_id)
-    db.commit()
+    _commit(db)
     return _out(db, n)
 
 
@@ -89,7 +105,7 @@ def assign_number(number_id: str, body: AssignIn, p: AdminPrincipal, db: DB):
     n = _get(db, p, number_id)
     get_client(db, p, body.client_id)
     service.assign(db, n, body.client_id)
-    db.commit()
+    _commit(db)
     return _out(db, n)
 
 
@@ -97,21 +113,29 @@ def assign_number(number_id: str, body: AssignIn, p: AdminPrincipal, db: DB):
 def release_number(number_id: str, p: AdminPrincipal, db: DB):
     """Lo devuelve al inventario (sin cliente ni agente): sus entrantes dejan de atenderse."""
     n = _get(db, p, number_id)
-    service.release(n)
-    db.commit()
+    service.release(db, n)
+    _commit(db)
     return _out(db, n)
 
 
 @router.patch("/{number_id}", response_model=PhoneNumberOut)
-def update_number(number_id: str, body: PhoneNumberUpdate, p: CurrentPrincipal, db: DB):
-    """Etiqueta y agente que atiende las entrantes (un agente del mismo cliente)."""
+def update_number(number_id: str, body: PhoneNumberUpdate, p: ActiveClientPrincipal, db: DB):
+    """Etiqueta y agente que atiende las entrantes (un agente del mismo cliente). Cliente
+    inactivo: 403 client_inactive (solo lectura, H12)."""
     n = _get(db, p, number_id)
+    # Lock y relectura (H01): un admin pudo liberarlo o pasarlo a otro cliente entre la
+    # lectura y el cambio; el acceso se vuelve a mirar con el numero vigente.
+    changed = service.lock(db, n)
+    if not p.can_access(n.client_id):
+        raise NotFound("Número inexistente")
+    if changed:
+        raise service.changed_conflict(n)
     data = body.model_dump(exclude_unset=True)
     if "agent_id" in data:
         service.set_agent(db, n, data["agent_id"])
     if data.get("label") is not None:
         n.label = data["label"]
-    db.commit()
+    _commit(db)
     return _out(db, n)
 
 

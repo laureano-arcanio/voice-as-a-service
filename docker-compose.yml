@@ -2,7 +2,10 @@ services:
   db:
     # PostgreSQL 16 (antes MySQL 8; se migro sin conservar datos). El esquema lo
     # manejan las migraciones de Alembic (servicio migrate, migrations/).
-    image: postgres:16-alpine
+    # postgres:16-alpine fijada por digest (8-oct-2026): un tag flotante cambia la imagen en
+    # cualquier recreate. Para subirla: docker pull del tag, probar, y anotar el digest nuevo
+    # (docker image inspect -f '{{json .RepoDigests}}'). Lo mismo en el resto de las imagenes.
+    image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -25,6 +28,8 @@ services:
 
   # Migraciones (alembic upgrade head) y seed idempotente (cliente interno, agentes de
   # las plantillas, admin de ADMIN_EMAIL): corre una vez antes de app y agent.
+  # La 0009 corre con lock_timeout de 5 s: si la app vieja tiene un lock, falla sin cambios
+  # a medias y se reintenta (mejor en una ventana sin llamadas).
   migrate:
     build:
       context: .
@@ -57,7 +62,12 @@ services:
         condition: service_completed_successfully
       # vllm-llm: la conversacion por texto (/api/v1/conversations) usa el LLM. No
       # usa STT directo (eso lo hace el worker `agent`); al TTS solo le pide la
-      # prueba de voz de la UI (/api/v1/tts/preview), sin depender de el.
+      # prueba de voz de la UI (/api/v1/tts/preview) y la de la demo, sin depender de el
+      # (cupo compartido TTS_PREVIEW_MAX_CONCURRENT: 503 tts_busy).
+      # Un solo proceso uvicorn (Dockerfile): el debounce y el lock por contacto de WhatsApp
+      # y los cupos por proceso dependen de eso. Los loops de fondo corren solo en el lider
+      # (lock consultivo de PostgreSQL, app/services/leader.py). El HEALTHCHECK de la
+      # imagen pide /health/ready (503 sin base).
       vllm-llm:
         condition: service_healthy
     env_file:
@@ -66,9 +76,16 @@ services:
       # DB_DSN armado con las POSTGRES_* del .env, contra el servicio `db`.
       DB_DSN: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
     ports:
-      - "8011:8011"
+      # Solo localhost: el tunel (cloudflared, network_mode host) entra por 127.0.0.1:8011 y
+      # desde la LAN no hace falta. Para el test de capacidad desde la laptop
+      # (--base-url http://192.168.1.99:8011), APP_BIND=0.0.0.0 en .env y `make up-agent`;
+      # despues volver a sacarlo.
+      - "${APP_BIND:-127.0.0.1}:8011:8011"
     volumes:
       - ./storage:/app/storage
+    # Al parar (deploy, restart) la app termina los turnos de WhatsApp en curso (drain);
+    # el default de 10 s los cortaba.
+    stop_grace_period: 30s
 
   agent:
     build:
@@ -93,11 +110,21 @@ services:
     environment:
       DB_DSN: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
     command: ["python", "-m", "app.voice.worker", "start"]
-    # The image's HEALTHCHECK probes the FastAPI app's /health over HTTP, which
-    # this service doesn't serve (it's a worker process, no HTTP port) -- disable
-    # it here so `docker compose ps` doesn't show a misleading "unhealthy".
+    # El HEALTHCHECK de la imagen mira el /health de la app (:8011), que el worker no
+    # sirve. En modo `start`, LiveKit Agents (1.8) levanta su servidor de salud en :8081
+    # (WorkerOptions.port, prod_default=8081; log "HTTP server listening on :8081"):
+    # GET / da 503 si se cayo el proceso de inferencia local o no pudo conectar a
+    # LiveKit. healthcheck.sh avisa si queda unhealthy. Los `docker compose run agent`
+    # (loadtest, capacidad) no lo levantan: quedan unhealthy, sin efecto.
     healthcheck:
-      disable: true
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    # SIGTERM: el worker deja de tomar llamadas y espera las que estan en curso; a los 30 s
+    # Docker lo mata (corta las que sigan). Antes, 10 s.
+    stop_grace_period: 30s
     # El default del contenedor (1024 fds) se queda corto para el load test
     # (scripts/loadtest/, `make loadtest`): cada VirtualCaller concurrente abre
     # varios sockets (WebRTC + señalización) por room -- probado en vivo, con
@@ -131,7 +158,9 @@ services:
     # en los escenarios de scripts/replay_calls.py cierra 8 de 8 demos con nombre y
     # contacto (el 4B, 4 de 8) y es mas rapido por turno (p50 0,90 s contra 1,00 s):
     # lee menos memoria por token que el 4B en bf16.
-    image: vllm/vllm-openai:latest
+    # vllm/vllm-openai:latest del 9-sep-2026 (vLLM 0.29.0), fijada por digest: es la que
+    # corre (docs/MIGRACION_SERVER.md). stt/Dockerfile usa la misma.
+    image: vllm/vllm-openai:latest@sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1
     restart: unless-stopped
     ipc: host
     environment:
@@ -253,7 +282,7 @@ services:
     # (ModuleNotFoundError: vllm.entrypoints.launchers). v0.28.0 es la ultima
     # release donde ambas versiones coinciden. Revisar tags nuevos en
     # https://hub.docker.com/r/vllm/vllm-omni/tags antes de subir esta version.
-    image: vllm/vllm-omni:v0.28.0
+    image: vllm/vllm-omni:v0.28.0@sha256:6f8be103eaf0055448cf7578cfd621405fd669079d4361bd58896326b2bf722a
     restart: unless-stopped
     ipc: host
     environment:
@@ -307,9 +336,11 @@ services:
       start_period: 300s
 
   # --- Exposicion publica de la inferencia --------------------------------
-  # Un solo puerto en la IP fija del host (PUBLIC_HOST en .env; el router
-  # redirige PROXY_PORT a este host) y nginx rutea por path a la red de compose,
-  # sacando el prefijo antes de reenviar (proxy/nginx.conf):
+  # Un solo puerto en la IP fija del host (PUBLIC_HOST en .env; el reenvio de PROXY_PORT
+  # en el router se abre solo para el modo remoto o el loadtest desde otra PC: si hoy esta
+  # abierto lo confirma el usuario) y nginx rutea por path a la red de compose,
+  # sacando el prefijo antes de reenviar (proxy/nginx.conf). Solo pasan las rutas que usan
+  # app y agent (chat, transcripcion, sintesis, voces, modelos, health); el resto da 404:
   #   http://$PUBLIC_HOST:$PROXY_PORT/llm/v1   (LLM)
   #   http://$PUBLIC_HOST:$PROXY_PORT/stt/v1   (STT)
   #   http://$PUBLIC_HOST:$PROXY_PORT/tts/v1   (TTS)
@@ -319,7 +350,7 @@ services:
   # clave viaja sin cifrar. Sin depends_on: nginx resuelve cada servicio en cada
   # request y da 502 solo en el path del que este apagado.
   proxy:
-    image: nginx:alpine
+    image: nginx:alpine@sha256:62ff2089abf5a9ed33bd232895bef5e22f7bb4b200675cec49a5ebc48e3d4ac8
     restart: unless-stopped
     ports:
       - "0.0.0.0:${PROXY_PORT:-8100}:80"

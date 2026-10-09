@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=BASE_DIR / ".env", extra="ignore")
 
     db_dsn: str = "postgresql+psycopg://aiva_validate:changeme@127.0.0.1:5432/aiva_validate"
+    # Pool de PostgreSQL por proceso (SQLite no lo usa). pool_timeout: segundos esperando una
+    # conexion libre antes de fallar el pedido (mejor un 500 rapido que colgar la API).
+    db_pool_size: int = 10
+    db_max_overflow: int = 10
+    db_pool_timeout: int = 10
 
     # --- Auth ---
     # Firma de los JWT de sesion. Sin valor la app no arranca (ver main.create_app).
@@ -48,6 +53,10 @@ class Settings(BaseSettings):
     rate_tts_preview_per_hour: int = 60
     rate_conversations_per_hour: int = 60
     rate_turns_per_hour: int = 600
+    # Por cliente (no por principal: cada API key multiplicaria los limites de arriba).
+    max_api_keys_per_client: int = 10
+    # Previews de voz (TTS) simultaneos en todo el proceso: comparten GPU con las llamadas.
+    tts_preview_max_concurrent: int = 2
     # Unico cliente (slug) que puede pedir llamadas de loadtest, ademas de los admins.
     loadtest_client: str = "atentina"
     # Admin inicial que crea `python -m app.cli seed` (solo si no existe).
@@ -63,6 +72,13 @@ class Settings(BaseSettings):
         "Hola. En este momento no podemos atender tu llamada. Por favor, volvé a llamar más tarde. Gracias."
     )
     quota_end_message: str = "Disculpá, tenemos que terminar la llamada. Gracias por tu tiempo."
+    # Tope global de llamadas simultaneas (todas las modalidades y clientes), ademas del de
+    # cada tier. Provisional: ~20 con p95 <= 2,4 s era el Qwen (CAP-001); Gemma sin CAP.
+    max_concurrent_calls_global: int = 20
+    # Lugares del tope global que solo pueden usar las entrantes (no se pueden reprogramar).
+    inbound_reserve_calls: int = 4
+    # Retencion por tier/cliente: cada cuanto se borran los datos vencidos.
+    retention_sweep_interval_seconds: int = 3600
 
     # --- LiveKit ---
     livekit_url: str = ""
@@ -74,7 +90,13 @@ class Settings(BaseSettings):
     livekit_sip_trunk_id: str = ""
     livekit_sip_outbound_trunk_name: str = "anura-asterisk-outbound"
     livekit_agent_name: str = "aiva-outbound-caller"
+    # Tope de una llamada si el tier no fija max_call_duration_seconds.
     call_max_duration_seconds: int = 900
+    # Tope duro de SIP (max_call_duration del trunk) y Asterisk (Dial L()): corta aunque el
+    # worker se caiga. Tiene que ser >= el mayor max_call_duration_seconds de los tiers.
+    call_duration_ceiling_seconds: int = 3600
+    # Cada cuanto se concilian las llamadas activas de la base con las rooms de LiveKit.
+    livekit_reconcile_interval_seconds: int = 60
 
     # --- Inferencia ---
     vllm_api_key: str = "not-needed"
@@ -87,6 +109,15 @@ class Settings(BaseSettings):
     llm_thinking_budget: int = 128
     # Muestreo recomendado por Qwen para cada modo; LLM_TEMPERATURE lo pisa si se define.
     llm_temperature: float | None = None
+    # Contexto de vllm-llm (--max-model-len): Gemma 4 26B con 16384 (override del compose).
+    llm_context_tokens: int = 16384
+    # max_tokens por pedido: respuesta de un turno y extraccion de datos al final.
+    llm_max_tokens_reply: int = 512
+    llm_max_tokens_extract: int = 1024
+    # Tope del conocimiento de un agente (va entero en el prompt de cada turno).
+    knowledge_max_chars: int = 24000
+    # Lo que dice la llamada si el LLM falla en un turno (si no, queda muda).
+    voice_llm_error_reply: str = "Perdón, no te escuché bien. ¿Me lo repetís?"
     vllm_stt_base_url: str = "http://stt-parakeet:8000/v1"
     vllm_stt_model: str = "nvidia/parakeet-tdt-0.6b-v3"
     vllm_tts_base_url: str = "http://vllm-tts:8000/v1"
@@ -145,7 +176,7 @@ class Settings(BaseSettings):
     wa_debounce_seconds: float = 2.0
     wa_unsupported_reply: str = "Por ahora no puedo ver imágenes ni archivos. ¿Me lo escribís?"
     wa_max_reply_chars: int = 4096  # tope de Meta para un texto; se trunca
-    # Topes contra abuso y contra el largo de contexto del LLM (--max-model-len 32768):
+    # Topes contra abuso y contra el largo de contexto del LLM (LLM_CONTEXT_TOKENS, 16384 con Gemma):
     # caracteres por turno (lo que pase se descarta) y turnos por conversacion (despues, otra).
     wa_max_turn_chars: int = 2000
     wa_max_turns: int = 40
@@ -165,10 +196,34 @@ class Settings(BaseSettings):
     wa_campaign_reply_days: int = 7         # una respuesta dentro de estos dias abre la conversacion con la plantilla
     wa_campaign_max_recipients: int = 10_000  # por campaña
     wa_optout_reply: str = "Listo, no te vamos a escribir más. ¡Gracias!"
+    # Entrantes durables (wa_messages.body): turnos con LLM simultaneos por proceso, intentos
+    # antes de dar error, y antiguedad maxima de lo que se recupera al arrancar (mas viejo: error).
+    wa_max_concurrent_turns: int = 8
+    wa_max_attempts: int = 3
+    wa_recovery_max_age_hours: int = 24
+    # Respuesta cuando un turno falla del todo (el contacto no queda sin respuesta).
+    wa_error_reply: str = "Perdón, tuve un problema para responderte. ¿Me lo repetís?"
 
     # --- Frontend ---
     # Build de la SPA (web/, `npm run build`). Si no existe, la API funciona sin UI.
     web_dist_dir: Path = Field(default=BASE_DIR / "web" / "dist")
+
+    # --- Presupuesto del LLM (app/llm/budget.py) ---
+    # Margen del contexto por error de la estimacion de tokens (caracteres / 3,5, sin tokenizer).
+    llm_context_margin_tokens: int = 1024
+    # Deadline del pedido entero (streaming incluido), no por operacion de red: un stream
+    # lento pero vivo no corta el timeout de 30 s del cliente HTTP.
+    llm_turn_deadline_seconds: float = 20.0
+    llm_extract_deadline_seconds: float = 45.0
+
+    # --- Topes globales fuera de llamadas (H04) ---
+    # Turnos de texto por la API (/conversations/{id}/turns) simultaneos en el proceso: usan
+    # el LLM de las llamadas (Gemma: 32 secuencias). Lleno: 503 llm_busy con Retry-After.
+    api_max_concurrent_turns: int = 4
+    # Sintesis de la demo publica por sesion (un Turnstile), por hora, ademas del tope por IP.
+    demo_session_tts_max: int = 30
+    # Entrantes de WhatsApp sin cuenta (pnid desconocido): se borra cuerpo y numero a los N dias.
+    retention_orphan_wa_days: int = 30
 
 
 @cache

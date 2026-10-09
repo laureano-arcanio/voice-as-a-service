@@ -17,6 +17,7 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { errorMessage } from '@/api/errors';
 import type { AgentDetail, ChatMessage, ConversationState } from '@/api/types';
+import { useReadOnly } from '@/features/auth/readOnly';
 import { useSendTurn, useStartConversation } from '@/features/calls/api';
 import { Dash } from '@/components/Badges';
 import { ChatView } from '@/features/calls/ChatView';
@@ -33,6 +34,8 @@ interface Session {
 export function TextChat({ agent }: { agent: AgentDetail }) {
   const start = useStartConversation();
   const turn = useSendTurn();
+  // Solo lectura: cada turno consume el LLM.
+  const readOnly = useReadOnly();
   const [session, setSession] = useState<Session | null>(null);
   const [text, setText] = useState('');
   const [pending, setPending] = useState<string | null>(null);
@@ -73,7 +76,12 @@ export function TextChat({ agent }: { agent: AgentDetail }) {
             Probá el agente escribiendo, sin llamada ni voz. Queda registrada como conversación de origen API.
           </Text>
         </Stack>
-        <Button variant="default" onClick={begin} loading={start.isPending} disabled={agent.archived}>
+        <Button
+          variant="default"
+          onClick={begin}
+          loading={start.isPending}
+          disabled={agent.archived || readOnly}
+        >
           {session ? 'Empezar de nuevo' : 'Empezar conversación'}
         </Button>
       </Group>
@@ -117,14 +125,14 @@ export function TextChat({ agent }: { agent: AgentDetail }) {
                     }
                     value={text}
                     onChange={(e) => setText(e.currentTarget.value)}
-                    disabled={turn.isPending || completed}
+                    disabled={turn.isPending || completed || readOnly}
                     maxLength={4000}
                     aria-label="Mensaje"
                   />
                   <Button
                     type="submit"
                     loading={turn.isPending}
-                    disabled={!text.trim() || completed}
+                    disabled={!text.trim() || completed || readOnly}
                     leftSection={<IconSend size={16} />}
                   >
                     Enviar

@@ -215,7 +215,7 @@
      "tiers"
     ],
     "summary": "Update Tier",
-    "description": "Solo los campos enviados; un limite en null lo deja ilimitado. Aplica desde ya\nal mes en curso.",
+    "description": "Solo los campos enviados; un limite en null lo deja ilimitado (la duracion vuelve a\nCALL_MAX_DURATION_SECONDS; la retencion, sin borrado). Aplica desde ya al mes en curso.",
     "operationId": "update_tier_api_v1_tiers__tier_id__patch",
     "security": [
      {
@@ -871,7 +871,7 @@
      "phone-numbers"
     ],
     "summary": "Update Number",
-    "description": "Etiqueta y agente que atiende las entrantes (un agente del mismo cliente).",
+    "description": "Etiqueta y agente que atiende las entrantes (un agente del mismo cliente). Cliente\ninactivo: 403 client_inactive (solo lectura, H12).",
     "operationId": "update_number_api_v1_phone_numbers__number_id__patch",
     "security": [
      {
@@ -1834,7 +1834,7 @@
      "api-keys"
     ],
     "summary": "Create Key",
-    "description": "La clave va en `Authorization: Bearer <key>`. Se muestra solo en esta respuesta.",
+    "description": "La clave va en `Authorization: Bearer <key>`. Se muestra solo en esta respuesta.\nCliente inactivo: 403 client_inactive (solo lectura).",
     "operationId": "create_key_api_v1_clients__client_id__api_keys_post",
     "security": [
      {
@@ -1872,6 +1872,9 @@
         }
        }
       }
+     },
+     "409": {
+      "description": "El cliente ya tiene MAX_API_KEYS_PER_CLIENT claves activas"
      },
      "422": {
       "description": "Validation Error",
@@ -1941,11 +1944,33 @@
      "calls"
     ],
     "summary": "Start Call",
-    "description": "Con `phone`, llamada saliente; sin el, de prueba por navegador (devuelve join_url).\n429 si el cliente esta al tope de llamadas simultaneas o sin minutos del mes.",
+    "description": "Con `phone`, llamada saliente; sin el, de prueba por navegador (devuelve join_url).\nSaliente: sale con un numero del cliente (from_number_id o el primero); sin numero\npropio, 409 no_caller_id. 429 si el cliente esta al tope de llamadas simultaneas o\nsin minutos del mes.",
     "operationId": "start_call_api_v1_calls_post",
     "security": [
      {
       "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "Idempotency-Key",
+      "in": "header",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 128
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Opcional: un reintento con la misma clave devuelve la misma llamada (200) sin marcar de nuevo",
+       "title": "Idempotency-Key"
+      },
+      "description": "Opcional: un reintento con la misma clave devuelve la misma llamada (200) sin marcar de nuevo"
      }
     ],
     "requestBody": {
@@ -1968,6 +1993,12 @@
         }
        }
       }
+     },
+     "200": {
+      "description": "Ya existia una llamada con esa Idempotency-Key"
+     },
+     "409": {
+      "description": "Saliente sin numero propio del cliente (no_caller_id) o Idempotency-Key reusada para otra llamada"
      },
      "429": {
       "description": "Limite del tier (concurrencia o minutos)"
@@ -2585,14 +2616,13 @@
       "description": "El LLM no respondio"
      },
      "422": {
-      "description": "Validation Error",
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/HTTPValidationError"
-        }
-       }
-      }
+      "description": "La conversacion no entra en el contexto del modelo (context_too_long)"
+     },
+     "503": {
+      "description": "Demasiados turnos de texto a la vez (llm_busy, Retry-After)"
+     },
+     "409": {
+      "description": "Conversacion de WhatsApp, de una llamada, terminada o con un turno en curso"
      }
     }
    }
@@ -2710,7 +2740,7 @@
      "voices"
     ],
     "summary": "Tts Preview",
-    "description": "Sintetiza el texto con la voz pedida y devuelve el WAV, directo contra el TTS.",
+    "description": "Sintetiza el texto con la voz pedida y devuelve el WAV, directo contra el TTS.\n503 tts_busy si ya hay TTS_PREVIEW_MAX_CONCURRENT pruebas en curso (con las de la demo).",
     "operationId": "tts_preview_api_v1_tts_preview_post",
     "requestBody": {
      "content": {
@@ -2731,6 +2761,9 @@
      },
      "429": {
       "description": "Limite de uso por hora"
+     },
+     "503": {
+      "description": "Demasiadas pruebas de voz a la vez (Retry-After)"
      },
      "422": {
       "description": "Validation Error",
@@ -3253,7 +3286,7 @@
      "whatsapp"
     ],
     "summary": "Close Thread",
-    "description": "Cierra una conversacion de WhatsApp: el proximo mensaje del contacto empieza otra, con la\nversion vigente del agente. Esta queda en el historial. Es su fin, como el corte de una\nllamada (extraccion final del clasico). Cerrar una ya cerrada no hace nada.",
+    "description": "Cierra una conversacion de WhatsApp: el proximo mensaje del contacto empieza otra, con la\nversion vigente del agente. Esta queda en el historial. Es su fin, como el corte de una\nllamada (extraccion final del clasico; sin ella si el cliente esta inactivo: no consume\nel LLM, H12). Cerrar una ya cerrada no hace nada.",
     "operationId": "close_thread_api_v1_whatsapp_threads__conversation_id__close_post",
     "security": [
      {
@@ -4158,6 +4191,12 @@
       "content": {
        "audio/wav": {}
       }
+     },
+     "429": {
+      "description": "Limite por IP o por sesion"
+     },
+     "503": {
+      "description": "Demasiadas pruebas de voz a la vez (Retry-After)"
      },
      "422": {
       "description": "Validation Error",
@@ -5253,6 +5292,19 @@
       "type": "boolean",
       "title": "Active",
       "default": true
+     },
+     "retention_days": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Retention Days",
+      "description": "Dias que se guardan las conversaciones (null: los del tier)"
      }
     },
     "type": "object",
@@ -5284,6 +5336,17 @@
      "tier": {
       "$ref": "#/components/schemas/TierBrief"
      },
+     "retention_days": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Retention Days"
+     },
      "created_at": {
       "type": "string",
       "format": "date-time",
@@ -5298,6 +5361,22 @@
       "type": "integer",
       "title": "Numbers Count",
       "default": 0
+     },
+     "effective_retention_days": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Effective Retention Days"
+     },
+     "effective_max_call_seconds": {
+      "type": "integer",
+      "title": "Effective Max Call Seconds",
+      "default": 0
      }
     },
     "type": "object",
@@ -5307,6 +5386,7 @@
      "slug",
      "active",
      "tier",
+     "retention_days",
      "created_at"
     ],
     "title": "ClientOut"
@@ -5347,6 +5427,18 @@
        }
       ],
       "title": "Active"
+     },
+     "retention_days": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Retention Days"
      }
     },
     "type": "object",
@@ -6624,6 +6716,32 @@
       ],
       "title": "Max Phone Numbers",
       "description": "Numeros que puede tener el cliente"
+     },
+     "max_call_duration_seconds": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Call Duration Seconds",
+      "description": "Tope duro de cada llamada, en segundos (null: el del sistema)"
+     },
+     "retention_days": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Retention Days",
+      "description": "Dias que se guardan las conversaciones (null: sin borrado)"
      }
     },
     "type": "object",
@@ -6690,6 +6808,28 @@
       ],
       "title": "Max Phone Numbers"
      },
+     "max_call_duration_seconds": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Call Duration Seconds"
+     },
+     "retention_days": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Retention Days"
+     },
      "created_at": {
       "type": "string",
       "format": "date-time",
@@ -6710,6 +6850,8 @@
      "inbound_minutes",
      "outbound_minutes",
      "max_phone_numbers",
+     "max_call_duration_seconds",
+     "retention_days",
      "created_at"
     ],
     "title": "TierOut"
@@ -6787,6 +6929,30 @@
        }
       ],
       "title": "Max Phone Numbers"
+     },
+     "max_call_duration_seconds": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Call Duration Seconds"
+     },
+     "retention_days": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Retention Days"
      }
     },
     "type": "object",

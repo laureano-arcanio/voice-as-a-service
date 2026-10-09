@@ -27,13 +27,18 @@ from ..runtime import get_conversation_engine
 from ..services import calls as call_service
 from ..services import quota
 from ..services.errors import NotFound, QuotaExceeded
+from ..services.reconcile import room_metadata
 from .latency import TurnLatencyTracker
 
 logger = logging.getLogger("agent")
 
-# Un pedido sin voz mata el engine de vllm-tts (docs/TTS_FINETUNE.md, Trampas 8).
+# Un pedido sin voz, o con "default", mata el engine de vllm-tts (busca `vivian`, que el
+# checkpoint fine-tuneado no tiene; docs/TTS_FINETUNE.md, Trampas 8). Que este servida se
+# mira al arrancar (check_default_voice).
 if not (settings.vllm_tts_model and settings.vllm_tts_voice):
     raise RuntimeError("Faltan VLLM_TTS_MODEL y/o VLLM_TTS_VOICE en .env")
+if settings.vllm_tts_voice.strip().lower() == "default":
+    raise RuntimeError('VLLM_TTS_VOICE no puede ser "default": mata vllm-tts. Usar una voz del checkpoint')
 openai.tts.AUDIO_STREAM_MODELS.add(settings.vllm_tts_model)
 
 # Espera de silencio antes de dar el turno por terminado. MIN_ENDPOINTING_DELAY
@@ -58,6 +63,9 @@ DICTATED_TYPES = {"email", "email_or_phone"}
 CONTINUATION_WINDOW = 1.5
 # Cuanto se espera a que termine de cerrarse una respuesta cortada.
 SETTLE_TIMEOUT = 2.0
+# El corte de SIP (max_call_duration de la saliente) va despues del del worker, para que
+# alcance a sonar la despedida (QUOTA_END_MESSAGE).
+SIP_GRACE_SECONDS = 30
 
 
 class WorkflowAgent(Agent):
@@ -116,6 +124,14 @@ class WorkflowAgent(Agent):
                     first_text = time.perf_counter() - started
                 yield text
             state, turn = await task
+        except Exception:
+            # Error del LLM (ej. 400 de vLLM por contexto): sin esto la llamada queda muda.
+            # El turno no se guardo, asi que lo que dijo el cliente entra de nuevo en el
+            # siguiente. Si ya sono parte de la respuesta, no se agrega nada.
+            logger.exception("turno %s: fallo el LLM", self.conversation_id)
+            if first_text is None:
+                yield settings.voice_llm_error_reply
+            return
         finally:
             if not task.done():
                 task.cancel()
@@ -200,12 +216,23 @@ async def served_voices() -> set[str] | None:
     return _voices[1]
 
 
+async def check_default_voice() -> None:
+    """Al arrancar: VLLM_TTS_VOICE tiene que estar servida, porque es el respaldo de todas
+    las llamadas (si no, cada frase da 400). Si vllm-tts no responde, solo avisa: puede
+    estar arrancando."""
+    served = await served_voices()
+    if served is None:
+        logger.warning("vllm-tts no responde: no se pudo verificar VLLM_TTS_VOICE=%r", settings.vllm_tts_voice)
+    elif settings.vllm_tts_voice not in served:
+        raise RuntimeError(f"VLLM_TTS_VOICE={settings.vllm_tts_voice!r} no esta en vllm-tts ({sorted(served)})")
+
+
 async def resolve_voice(workflow: Workflow, override: str | None = None) -> str:
     """La voz elegida para la llamada (override, desde la UI) o la del agente
     (agent.voice), si vllm-tts la sirve; si no, VLLM_TTS_VOICE. Una voz inexistente daria
-    400 en cada frase de la llamada."""
+    400 en cada frase de la llamada, y "default" mata vllm-tts."""
     voice = override or workflow.agent.voice
-    if not voice or voice == settings.vllm_tts_voice:
+    if not voice or voice == settings.vllm_tts_voice or voice.strip().lower() == "default":
         return settings.vllm_tts_voice
     served = await served_voices()
     if served is not None and voice not in served:
@@ -261,6 +288,43 @@ async def outbound_trunk_id(lkapi: api.LiveKitAPI) -> str:
     )
 
 
+async def guard_call(conversation_id: str, limit: float, remaining, cut, check_seconds: float) -> None:
+    """Corte duro de la llamada, en todas las modalidades: a los `limit` s (tope del tier y
+    del pedido, quota.call_limit_seconds) o cuando `remaining()` (segundos de minutos del
+    tier, async; None: sin tope; 0 tambien si el cliente se desactivo) llega a 0.
+    Un error de `remaining` (ej. la base) no lo mata: se registra y se reintenta en la
+    vuelta siguiente; el tope de duracion sigue corriendo igual."""
+    deadline = time.monotonic() + limit
+    while True:
+        left = deadline - time.monotonic()
+        if left <= 0:
+            logger.info("llamada %s: duracion maxima (%ss), se corta", conversation_id, int(limit))
+            await cut("max_duration")
+            return
+        await asyncio.sleep(min(check_seconds, left))
+        if time.monotonic() >= deadline:
+            continue
+        try:
+            quota_left = await remaining()
+        except Exception:
+            logger.exception("llamada %s: no se pudo mirar la cuota, reintento", conversation_id)
+            continue
+        if quota_left is not None and quota_left <= 0:
+            logger.warning("llamada %s: sin minutos del tier, se corta", conversation_id)
+            await cut("quota_exhausted")
+            return
+
+
+async def tag_room(ctx: JobContext, conversation_id: str) -> None:
+    """Pone el conversation_id en la metadata de la room de una entrante: es como la
+    conciliacion (services/reconcile.py) sabe que la llamada sigue viva."""
+    try:
+        await ctx.api.room.update_room_metadata(
+            api.UpdateRoomMetadataRequest(room=ctx.room.name, metadata=room_metadata(conversation_id)))
+    except Exception:
+        logger.exception("no se pudo marcar la room %s de la llamada %s", ctx.room.name, conversation_id)
+
+
 async def say_and_hang_up(ctx: JobContext, text: str, voice: str, reason: str) -> None:
     """Avisa con una frase y corta. Para la entrante que el tier no deja atender."""
     session = build_session(voice)
@@ -299,6 +363,7 @@ async def entrypoint(ctx: JobContext):
             await say_and_hang_up(ctx, settings.quota_reject_message, settings.vllm_tts_voice, e.code)
             return
         conversation_id, mode = inbound.conversation_id, CallMode.entrante
+        await tag_room(ctx, conversation_id)
     else:
         mode = (CallMode.saliente if metadata.get("phone")
                 else CallMode.loadtest if metadata.get("loadtest") else CallMode.prueba)
@@ -320,6 +385,8 @@ async def entrypoint(ctx: JobContext):
     watchdog: asyncio.Task | None = None
 
     async def finalize(reason: str = ""):
+        # La hora de fin antes de esperar la extraccion: si no, se facturaba ese tiempo.
+        ended, ended_at = time.time(), utcnow()
         if watchdog is not None:
             watchdog.cancel()
         # La extraccion del ultimo turno puede seguir corriendo (el resultado sale
@@ -330,8 +397,8 @@ async def entrypoint(ctx: JobContext):
             if call is None or call.status == CallStatus.fallida:
                 return
             call_service.update_call(
-                s, conversation_id, status=CallStatus.finalizada, ended_reason=(reason or "")[:128], ended_at=utcnow(),
-                duration_seconds=int(time.time() - started_at) if started_at else 0, latency=latency.summary())
+                s, conversation_id, status=CallStatus.finalizada, ended_reason=(reason or "")[:128], ended_at=ended_at,
+                duration_seconds=int(ended - started_at) if started_at else 0, latency=latency.summary())
 
     ctx.add_shutdown_callback(finalize)
 
@@ -340,7 +407,10 @@ async def entrypoint(ctx: JobContext):
         ctx.shutdown(reason=reason)
 
     async def hang_up(reason: str = "completed"):
-        await ctx.delete_room()
+        try:
+            await ctx.delete_room()
+        except Exception:
+            logger.exception("llamada %s: no se pudo borrar la room", conversation_id)
         ctx.shutdown(reason=reason)
 
     async def say_end_and_hang_up(reason: str):
@@ -352,22 +422,14 @@ async def entrypoint(ctx: JobContext):
             logger.exception("no se pudo avisar el corte (%s)", reason)
         await hang_up(reason)
 
-    async def quota_watchdog():
-        """Corte duro: cuando al cliente se le acaban los minutos del mes (contando
-        esta y sus otras llamadas en curso), avisa y corta."""
-        while True:
-            await asyncio.sleep(settings.quota_check_seconds)
-            with sessions() as s:
-                remaining = call_service.call_remaining_seconds(s, conversation_id)
-            if remaining is not None and remaining <= 0:
-                logger.warning("llamada %s: sin minutos del tier, se corta", conversation_id)
-                await say_end_and_hang_up("quota_exhausted")
-                return
+    def remaining_now() -> int | None:
+        # Minutos del mes que le quedan al cliente (contando esta y sus otras en curso).
+        with sessions() as s:
+            return call_service.call_remaining_seconds(s, conversation_id)
 
-    async def duration_limit(seconds: int):
-        await asyncio.sleep(seconds)
-        logger.info("llamada %s: duracion maxima (%ss), se corta", conversation_id, seconds)
-        await say_end_and_hang_up("max_duration")
+    def limit_now() -> int:
+        with sessions() as s:
+            return quota.call_limit_seconds(s, conversation_id, metadata.get("max_duration_seconds"))
 
     # En el loadtest no se corta al completar: si no, cada llamada duraria
     # distinto segun lo que conteste el caller y la carga no seria comparable
@@ -383,21 +445,29 @@ async def entrypoint(ctx: JobContext):
     await session.start(agent=agent, room=ctx.room)
 
     update_call(status=CallStatus.sonando)
+    # Tope de esta llamada, en todas las modalidades (tambien entrantes y tiers sin limites).
+    # Si la base falla aca, el tope por defecto: mejor cortar antes que no cortar.
+    try:
+        limit = await asyncio.to_thread(limit_now)
+    except Exception:
+        logger.exception("llamada %s: no se pudo calcular el tope de duracion", conversation_id)
+        limit = min(settings.call_max_duration_seconds, settings.call_duration_ceiling_seconds)
     if phone:
-        max_duration = metadata.get("max_duration_seconds") or settings.call_max_duration_seconds
         try:
             await ctx.api.sip.create_sip_participant(
                 api.CreateSIPParticipantRequest(
                     room_name=ctx.room.name,
                     sip_trunk_id=await outbound_trunk_id(ctx.api),
                     sip_call_to=phone,
-                    # Caller ID: el numero del cliente. Asterisk hoy lo pisa con ANURA_DID
-                    # (docs/TELEFONIA_ANURA.md).
+                    # Caller ID: un numero del cliente (prepare_call no despacha una saliente
+                    # de un cliente sin numero: 409 no_caller_id). Vacio solo en la de un
+                    # admin: Asterisk sale con ANURA_DID, la linea propia (extensions.conf).
                     sip_number=metadata.get("from_number") or "",
                     participant_identity="customer",
                     participant_name="Cliente",
                     wait_until_answered=True,
-                    max_call_duration=Duration(seconds=max_duration),
+                    # Respaldo del corte del worker (guard_call), por si este se cae.
+                    max_call_duration=Duration(seconds=limit + SIP_GRACE_SECONDS),
                 )
             )
         except Exception as e:
@@ -414,13 +484,14 @@ async def entrypoint(ctx: JobContext):
 
     started_at = time.time()
     update_call(status=CallStatus.en_curso, started_at=utcnow())
-    if mode in quota.MINUTE_MODES:
-        watchdog = asyncio.create_task(quota_watchdog())
-    elif not phone and metadata.get("max_duration_seconds"):
-        watchdog = asyncio.create_task(duration_limit(metadata["max_duration_seconds"]))
+    # Para todas: corta al tope o cuando se acaban los minutos (o se desactiva el cliente).
+    watchdog = asyncio.create_task(guard_call(
+        conversation_id, limit, lambda: asyncio.to_thread(remaining_now), say_end_and_hang_up,
+        settings.quota_check_seconds))
     await session.say(opening)
 
 if __name__ == "__main__":
+    asyncio.run(check_default_voice())
     cli.run_app(WorkerOptions(
         entrypoint_fnc=entrypoint,
         agent_name=settings.livekit_agent_name,

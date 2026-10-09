@@ -12,7 +12,11 @@ from ._common import IdMixin, TimestampMixin
 
 class Agent(IdMixin, TimestampMixin, Base):
     __tablename__ = "agents"
-    __table_args__ = (UniqueConstraint("client_id", "slug", name="uq_agents_client_slug"),)
+    __table_args__ = (
+        UniqueConstraint("client_id", "slug", name="uq_agents_client_slug"),
+        # Destino de la FK compuesta de phone_numbers (agente del mismo cliente, migracion 0009).
+        UniqueConstraint("id", "client_id", name="uq_agents_id_client"),
+    )
     client_id: Mapped[str] = mapped_column(String(36), ForeignKey("clients.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(128))
     # Identificador legible, unico por cliente; es el `id` de la definicion (va en el prompt).

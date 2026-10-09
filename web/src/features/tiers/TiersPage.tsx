@@ -21,7 +21,7 @@ import type { Tier } from '@/api/types';
 import { confirmAction } from '@/components/confirm';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState, QueryState } from '@/components/QueryState';
-import { formatLimit } from '@/lib/format';
+import { formatCallLimit, formatLimit, formatRetention, minutesToSeconds } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { numberErrorTitle } from '@/features/numbers/errors';
 import { useDeleteTier, useSaveTier, useTiers } from './api';
@@ -29,6 +29,12 @@ import { useDeleteTier, useSaveTier, useTiers } from './api';
 type Limit = number | '';
 
 const toLimit = (v: Limit): number | null => (v === '' ? null : v);
+
+function tierErrorTitle(e: unknown): string | undefined {
+  if (e instanceof ApiError && e.code === 'invalid_max_call_duration')
+    return 'La duración pasa el tope de la plataforma';
+  return numberErrorTitle(e);
+}
 
 function LimitInput(props: NumberInputProps) {
   return (
@@ -54,6 +60,8 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
     inbound_minutes: Limit;
     outbound_minutes: Limit;
     max_phone_numbers: Limit;
+    max_call_minutes: Limit;
+    retention_days: Limit;
   }>({
     initialValues: {
       name: tier?.name ?? '',
@@ -62,6 +70,10 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
       inbound_minutes: tier?.inbound_minutes ?? '',
       outbound_minutes: tier?.outbound_minutes ?? '',
       max_phone_numbers: tier?.max_phone_numbers ?? '',
+      max_call_minutes: tier?.max_call_duration_seconds
+        ? Math.round(tier.max_call_duration_seconds / 60)
+        : '',
+      retention_days: tier?.retention_days ?? '',
     },
     validate: { name: (v) => (v.trim() ? null : 'Poné un nombre') },
   });
@@ -80,6 +92,11 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
                 inbound_minutes: toLimit(v.inbound_minutes),
                 outbound_minutes: toLimit(v.outbound_minutes),
                 max_phone_numbers: toLimit(v.max_phone_numbers),
+                max_call_duration_seconds: minutesToSeconds(
+                  v.max_call_minutes,
+                  tier?.max_call_duration_seconds,
+                ),
+                retention_days: toLimit(v.retention_days),
               },
             },
             {
@@ -87,7 +104,7 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
                 notifySuccess(tier ? 'Tier actualizado. Aplica desde ya al mes en curso.' : 'Tier creado.');
                 onClose();
               },
-              onError: (e) => notifyError(e, numberErrorTitle(e)),
+              onError: (e) => notifyError(e, tierErrorTitle(e)),
             },
           ),
         )}
@@ -99,6 +116,20 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
           <LimitInput label="Minutos entrantes por mes" {...form.getInputProps('inbound_minutes')} />
           <LimitInput label="Minutos salientes por mes" {...form.getInputProps('outbound_minutes')} />
           <LimitInput label="Números" {...form.getInputProps('max_phone_numbers')} />
+          <LimitInput
+            label="Duración máxima por llamada (minutos)"
+            placeholder="La de la plataforma"
+            description="Vacío = la de la plataforma. Corta toda llamada, aunque el tier no tenga límite de minutos."
+            min={1}
+            {...form.getInputProps('max_call_minutes')}
+          />
+          <LimitInput
+            label="Retención de conversaciones (días)"
+            placeholder="Sin borrado"
+            description="Vacío = no se borran. Pasado el plazo se borran mensajes y datos; el consumo queda."
+            min={1}
+            {...form.getInputProps('retention_days')}
+          />
           <Group justify="flex-end">
             <Button variant="default" onClick={onClose}>
               Cancelar
@@ -142,7 +173,7 @@ export function TiersPage() {
     <>
       <PageHeader
         title="Tiers"
-        description="Límites por cliente: llamadas simultáneas, minutos entrantes y salientes por mes y números."
+        description="Límites por cliente: llamadas simultáneas, minutos entrantes y salientes por mes, números, duración de cada llamada y retención."
         actions={
           <Button leftSection={<IconPlus size={18} />} onClick={() => setEditing('new')}>
             Nuevo tier
@@ -155,7 +186,7 @@ export function TiersPage() {
             list.length === 0 ? (
               <EmptyState>No hay tiers.</EmptyState>
             ) : (
-              <Table.ScrollContainer minWidth={720}>
+              <Table.ScrollContainer minWidth={900}>
                 <Table>
                   <Table.Thead>
                     <Table.Tr>
@@ -164,6 +195,8 @@ export function TiersPage() {
                       <Table.Th ta="right">Min. entrantes/mes</Table.Th>
                       <Table.Th ta="right">Min. salientes/mes</Table.Th>
                       <Table.Th ta="right">Números</Table.Th>
+                      <Table.Th ta="right">Duración máx.</Table.Th>
+                      <Table.Th ta="right">Retención</Table.Th>
                       <Table.Th ta="right">Clientes</Table.Th>
                       <Table.Th />
                     </Table.Tr>
@@ -185,6 +218,16 @@ export function TiersPage() {
                         <Table.Td ta="right">{formatLimit(t.inbound_minutes)}</Table.Td>
                         <Table.Td ta="right">{formatLimit(t.outbound_minutes)}</Table.Td>
                         <Table.Td ta="right">{formatLimit(t.max_phone_numbers)}</Table.Td>
+                        <Table.Td ta="right">
+                          {t.max_call_duration_seconds ? (
+                            formatCallLimit(t.max_call_duration_seconds)
+                          ) : (
+                            <Text span size="sm" c="dimmed">
+                              Plataforma
+                            </Text>
+                          )}
+                        </Table.Td>
+                        <Table.Td ta="right">{formatRetention(t.retention_days)}</Table.Td>
                         <Table.Td ta="right">{t.clients_count ?? 0}</Table.Td>
                         <Table.Td>
                           <Group gap={4} justify="flex-end" wrap="nowrap">

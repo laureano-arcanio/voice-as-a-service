@@ -64,12 +64,35 @@ def assign(s: Session, number: PhoneNumber, client_id: str) -> None:
     number.client_id, number.agent_id, number.assigned_at = client.id, None, utcnow()
 
 
-def release(number: PhoneNumber) -> None:
-    """Vuelve al inventario: sin cliente ni agente (las entrantes dejan de atenderse)."""
+def lock(s: Session, number: PhoneNumber) -> bool:
+    """Lock del cliente del numero y despues del numero, en el orden de assign (sin
+    deadlocks entre los dos), y relee el numero (H01). Devuelve si cambio de cliente
+    entre la lectura y el lock (lo liberaron o lo pasaron a otro): quien llama decide
+    (404 si ya no tiene acceso, 409 si sigue teniendo)."""
+    client_id = number.client_id
+    if client_id is not None:
+        s.scalar(select(Client.id).where(Client.id == client_id).with_for_update(key_share=True, of=Client))
+    s.refresh(number, with_for_update=True)
+    return number.client_id != client_id
+
+
+def changed_conflict(number: PhoneNumber) -> Conflict:
+    return Conflict(f"El número {number.e164} cambió de cliente mientras se editaba: probá de nuevo",
+                    "number_changed")
+
+
+def release(s: Session, number: PhoneNumber) -> None:
+    """Vuelve al inventario: sin cliente ni agente (las entrantes dejan de atenderse).
+    Cliente y agente en el mismo UPDATE: la FK compuesta (0009) no admite uno sin el otro.
+    Si cambio de cliente desde que se leyo, Conflict: se liberaria el numero de otro."""
+    if lock(s, number):
+        raise changed_conflict(number)
     number.client_id, number.agent_id, number.assigned_at = None, None, None
 
 
 def set_agent(s: Session, number: PhoneNumber, agent_id: str | None) -> None:
+    """Agente del mismo cliente que el numero. Con el numero ya leido con lock (lock o
+    assign): compara contra el cliente vigente, no contra uno viejo en memoria."""
     if agent_id is None:
         number.agent_id = None
         return

@@ -1,16 +1,28 @@
 """Inicio de llamadas (salientes, de prueba, de loadtest y entrantes) con los limites del tier."""
 import asyncio
+import hashlib
+import json
 import logging
 import re
 from dataclasses import dataclass
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..conversation.engine import ConversationEngine
 from ..db import utcnow
-from ..models import Agent, CallMode, CallRow, CallStatus, Client, PhoneNumber
+from ..models import (
+    Agent,
+    CallMode,
+    CallRow,
+    CallStatus,
+    Client,
+    ConversationRow,
+    PhoneNumber,
+    effective_max_call_seconds,
+)
 from . import livekit, quota, voices
 from .errors import Conflict, Forbidden, Invalid, NotFound, QuotaExceeded, Upstream
 from .security import Principal
@@ -43,6 +55,9 @@ class CallRequest:
     # sus agentes comparten cliente con el resto de Atentina, que no tiene limites).
     group_agent_ids: tuple[str, ...] = ()
     group_max_concurrent: int | None = None
+    # Header Idempotency-Key de POST /calls: un reintento con la misma clave devuelve la
+    # llamada ya creada en vez de marcar dos veces (unica por cliente, call_logs).
+    idempotency_key: str | None = None
 
 
 @dataclass
@@ -51,6 +66,8 @@ class CallStarted:
     room: str
     mode: str
     join_url: str | None = None
+    # Ya existia con esa Idempotency-Key: no se despacha de nuevo (la API responde 200).
+    replayed: bool = False
 
 
 def _caller_id(s: Session, client_id: str, from_number_id: str | None) -> PhoneNumber | None:
@@ -63,16 +80,49 @@ def _caller_id(s: Session, client_id: str, from_number_id: str | None) -> PhoneN
                     .order_by(PhoneNumber.created_at).limit(1))
 
 
+def _fingerprint(agent_id: str, phone: str | None, req: CallRequest) -> str:
+    """Huella del pedido completo (lo que cambia la llamada): un reintento con la misma
+    Idempotency-Key tiene que ser el mismo pedido."""
+    voice = req.voice.strip().lower() if req.voice else None
+    body = {"agent_id": agent_id, "phone": phone, "from_number_id": req.from_number_id or None,
+            "voice": voice or None, "loadtest": bool(req.loadtest)}
+    return hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
+
+
+def _replay(s: Session, client_id: str, req: CallRequest, agent: Agent, phone: str | None) -> CallStarted | None:
+    """La llamada del cliente con esa Idempotency-Key, si ya existe. Con otro pedido (otro
+    agente, telefono, numero de origen, voz o loadtest) la clave esta mal reusada: Conflict.
+    Una llamada que no se pudo despachar suelta su clave (_mark_failed): el reintento marca."""
+    if not req.idempotency_key:
+        return None
+    call = s.scalar(select(CallRow).where(CallRow.client_id == client_id,
+                                          CallRow.idempotency_key == req.idempotency_key))
+    if call is None:
+        return None
+    if call.idempotency_fingerprint is not None:
+        same = call.idempotency_fingerprint == _fingerprint(agent.id, phone, req)
+    else:
+        conv_agent = s.scalar(select(ConversationRow.agent_id).where(ConversationRow.id == call.conversation_id))
+        same = conv_agent == agent.id and call.phone == phone
+    if not same:
+        raise Conflict("La Idempotency-Key ya se usó para otra llamada", "idempotency_key_reused")
+    return CallStarted(conversation_id=call.conversation_id, room=f"call-{call.conversation_id}",
+                       mode=call.mode, replayed=True)
+
+
 def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
-                 req: CallRequest) -> tuple[CallStarted, dict]:
+                 req: CallRequest) -> tuple[CallStarted, dict | None]:
     """Valida, admite con los limites del tier y guarda conversacion + llamada en una
-    sola transaccion. Devuelve la llamada y la metadata para el worker de voz."""
+    sola transaccion. Devuelve la llamada y la metadata para el worker de voz (None si
+    es un reintento con la misma Idempotency-Key: ya se despacho)."""
     agent = s.get(Agent, req.agent_id)
     if agent is None or not principal.can_access(agent.client_id):
         raise NotFound("Agente inexistente")
+    phone = normalize_e164(req.phone) if req.phone else None
+    if replayed := _replay(s, agent.client_id, req, agent, phone):
+        return replayed, None
     if agent.archived_at is not None:
         raise Conflict("El agente está archivado")
-    phone = normalize_e164(req.phone) if req.phone else None
     if phone and req.loadtest:
         raise Invalid("El loadtest no marca teléfonos")
     if req.loadtest and not principal.is_admin:
@@ -85,6 +135,11 @@ def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
         raise Invalid(f"Voz inexistente: {voice}", "invalid_voice")
     mode = CallMode.saliente if phone else CallMode.loadtest if req.loadtest else CallMode.prueba
     caller_id = _caller_id(s, agent.client_id, req.from_number_id) if phone else None
+    if phone and caller_id is None and not principal.is_admin:
+        # Sin numero propio la llamada saldria con el DID de Atentina (ANURA_DID, que pone
+        # Asterisk): el contacto veria otro numero y devolveria la llamada a nuestro agente (H05).
+        raise Conflict("El cliente no tiene un número propio para identificar la llamada: pedí uno para "
+                       "hacer salientes", "no_caller_id")
     try:
         state, _ = engine.new_conversation(agent.id, client_id=agent.client_id, session=s)
     except KeyError:
@@ -96,14 +151,24 @@ def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
     if req.group_max_concurrent is not None and quota.active_calls(
             s, agent.client_id, agent_ids=req.group_agent_ids) >= req.group_max_concurrent:
         raise QuotaExceeded("Los agentes de la demo están ocupados. Probá en unos minutos.", "concurrency_limit")
+    client = s.get(Client, agent.client_id)
     engine.store.add(s, state)
     s.flush()   # la conversacion antes que la llamada (foreign key)
     s.add(CallRow(conversation_id=state.conversation_id, client_id=agent.client_id, mode=mode, phone=phone,
-                  phone_number_id=caller_id.id if caller_id else None))
-    s.commit()
+                  phone_number_id=caller_id.id if caller_id else None, idempotency_key=req.idempotency_key,
+                  idempotency_fingerprint=_fingerprint(agent.id, phone, req) if req.idempotency_key else None))
+    try:
+        s.commit()
+    except IntegrityError:
+        # Dos pedidos con la misma Idempotency-Key a la vez: gano el otro (UNIQUE por cliente).
+        s.rollback()
+        if replayed := _replay(s, agent.client_id, req, agent, phone):
+            return replayed, None
+        raise
 
     room = f"call-{state.conversation_id}"
-    max_duration = min(v for v in (settings.call_max_duration_seconds, remaining, req.max_duration_seconds)
+    # Tope duro: el del tier del cliente (H02), los minutos que le quedan y el del pedido.
+    max_duration = min(v for v in (effective_max_call_seconds(client), remaining, req.max_duration_seconds)
                        if v is not None)
     metadata = {"conversation_id": state.conversation_id, "phone": phone, "voice": voice, "loadtest": req.loadtest,
                 "max_duration_seconds": max_duration, "from_number": caller_id.e164 if caller_id else None,
@@ -112,13 +177,31 @@ def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
 
 
 def _mark_failed(s: Session, conversation_id: str, error: str, reason: str) -> None:
+    # Sin despacho la llamada no salio: suelta la Idempotency-Key para que el reintento del
+    # integrador (lo normal ante un 502) marque, en vez de recibir 200 con esta fallida.
     update_call(s, conversation_id, status=CallStatus.fallida, error=error[:2000], ended_reason=reason,
-                ended_at=utcnow())
+                ended_at=utcnow(), idempotency_key=None, idempotency_fingerprint=None)
+
+
+def _prepare_or_rollback(s: Session, engine: ConversationEngine, principal: Principal,
+                         req: CallRequest) -> tuple[CallStarted, dict | None]:
+    """prepare_call, y si falla, rollback: suelta el lock del cliente (quota.admit) ya,
+    no cuando se cierra la sesion del pedido."""
+    try:
+        return prepare_call(s, engine, principal, req)
+    except Exception:
+        s.rollback()
+        raise
 
 
 async def start_call(s: Session, engine: ConversationEngine, principal: Principal, req: CallRequest) -> CallStarted:
     """prepare_call (en un thread: es I/O de base bloqueante) y despacho al worker."""
-    started, metadata = await asyncio.to_thread(prepare_call, s, engine, principal, req)
+    started, metadata = await asyncio.to_thread(_prepare_or_rollback, s, engine, principal, req)
+    if metadata is None:
+        # Reintento con la misma Idempotency-Key: la llamada ya se despacho.
+        if started.mode != CallMode.saliente:
+            started.join_url = livekit.build_test_join_url(started.room)
+        return started
     try:
         await livekit.dispatch_call(started.room, metadata)
     except Exception as e:
@@ -137,6 +220,8 @@ class InboundCall:
     conversation_id: str
     client_id: str
     opening: str
+    # Tope duro de esta entrante: el del tier (H02) o los minutos que le quedan, el menor.
+    max_duration_seconds: int | None = None
 
 
 def dialed_e164(raw: str | None) -> str | None:
@@ -152,6 +237,13 @@ def start_inbound(s: Session, engine: ConversationEngine, dialed: str | None, ca
     number = s.scalar(select(PhoneNumber).where(PhoneNumber.e164 == dialed_e164(dialed)))
     if number is None or number.client_id is None or number.agent_id is None:
         raise NotFound(f"El número {dialed!r} no tiene cliente o agente asignado", "number_without_agent")
+    agent = s.get(Agent, number.agent_id)
+    if agent is None or agent.client_id != number.client_id:
+        # No deberia pasar (lock al rutear y FK compuesta en PostgreSQL, H01); si pasa, no se
+        # atiende con el agente de otro cliente: se corta y queda en el log como error.
+        logger.error("entrante a %s: el agente %s no es del cliente %s del numero", number.e164,
+                     number.agent_id, number.client_id)
+        raise NotFound(f"El agente del número {dialed!r} es de otro cliente", "number_agent_mismatch")
     try:
         state, opening = engine.new_conversation(number.agent_id, client_id=number.client_id, session=s)
     except KeyError:
@@ -159,7 +251,7 @@ def start_inbound(s: Session, engine: ConversationEngine, dialed: str | None, ca
     call = CallRow(conversation_id=state.conversation_id, client_id=number.client_id, mode=CallMode.entrante,
                    phone=caller, phone_number_id=number.id)
     try:
-        quota.admit(s, number.client_id, CallMode.entrante)
+        remaining = quota.admit(s, number.client_id, CallMode.entrante)
     except QuotaExceeded as e:
         s.rollback()
         state.messages = []     # la apertura no llego a sonar
@@ -169,11 +261,14 @@ def start_inbound(s: Session, engine: ConversationEngine, dialed: str | None, ca
         s.add(call)
         s.commit()
         raise
+    max_duration = min(v for v in (effective_max_call_seconds(s.get(Client, number.client_id)), remaining)
+                       if v is not None)
     engine.store.add(s, state)
     s.flush()
     s.add(call)
     s.commit()
-    return InboundCall(conversation_id=state.conversation_id, client_id=number.client_id, opening=opening)
+    return InboundCall(conversation_id=state.conversation_id, client_id=number.client_id, opening=opening,
+                       max_duration_seconds=max_duration)
 
 
 def update_call(s: Session, conversation_id: str, **values) -> None:

@@ -1,7 +1,6 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response
-from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from ...services import contact
@@ -50,10 +49,12 @@ def call_result(conversation_id: str, creds: Bearer, db: DB, definitions: Defini
     return service.call_result(db, definitions, conversation_id, creds.credentials if creds else None)
 
 
-@router.post("/tts", response_class=StreamingResponse, responses={200: {"content": {"audio/wav": {}}}})
-async def synthesize(body: DemoTtsIn, request: Request, _: DemoSession):
-    stream = await service.synthesize(body.voice, body.text, client_ip(request))
-    return StreamingResponse(stream, media_type="audio/wav", headers={"Cache-Control": "no-store"})
+@router.post("/tts", response_class=Response,
+             responses={200: {"content": {"audio/wav": {}}}, 429: {"description": "Limite por IP o por sesion"},
+                        503: {"description": "Demasiadas pruebas de voz a la vez (Retry-After)"}})
+async def synthesize(body: DemoTtsIn, request: Request, sid: DemoSession):
+    audio = await service.synthesize(body.voice, body.text, client_ip(request), sid)
+    return Response(audio, media_type="audio/wav", headers={"Cache-Control": "no-store"})
 
 
 @router.post("/contact", status_code=204, response_class=Response,

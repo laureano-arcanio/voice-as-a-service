@@ -3,7 +3,6 @@ import datetime
 import secrets
 import uuid
 from collections import OrderedDict
-from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from zoneinfo import ZoneInfo
 
@@ -208,28 +207,27 @@ def _cache_put(key: tuple[str, str], audio: bytes) -> None:
         _tts_cache.popitem(last=False)
 
 
-async def synthesize(voice: str, text: str, ip: str) -> AsyncIterator[bytes]:
+async def synthesize(voice: str, text: str, ip: str, sid: str) -> bytes:
+    """WAV de la prueba de voz de la landing. Topes: por IP y por sesion (un Turnstile resuelto
+    no sirve para sintetizar sin limite desde muchas IP) y el cupo global de sintesis fuera de
+    llamadas (tts.synthesize_bounded, compartido con /tts/preview, H04): 503 tts_busy."""
     text = " ".join(text.split())
     if len(text) > settings.demo_tts_max_chars:
         raise Invalid(f"El texto puede tener hasta {settings.demo_tts_max_chars} caracteres")
     key = (voice.strip().lower(), text)
-    limiter.consume(f"tts:{client_key(ip)}", [Limit(settings.demo_ip_tts_per_hour, HOUR)],
-                    "Llegaste al límite de pruebas de voz. Probá más tarde.")
+    keys = [f"tts:{client_key(ip)}", f"tts-sid:{sid}"]
+    limiter.consume_all([(keys[0], [Limit(settings.demo_ip_tts_per_hour, HOUR)]),
+                         (keys[1], [Limit(settings.demo_session_tts_max, HOUR)])],
+                        "Llegaste al límite de pruebas de voz. Probá más tarde.")
     cached = _tts_cache.get(key)
     if cached is not None:
         _tts_cache.move_to_end(key)
-
-        async def replay() -> AsyncIterator[bytes]:
-            yield cached
-
-        return replay()
-    stream = await tts.preview(*key)
-
-    async def caching() -> AsyncIterator[bytes]:
-        chunks = []
-        async for chunk in stream:
-            chunks.append(chunk)
-            yield chunk
-        _cache_put(key, b"".join(chunks))
-
-    return caching()
+        return cached
+    try:
+        audio = await tts.synthesize_bounded(*key)
+    except tts.TtsBusy:
+        for k in keys:          # no se sintetizo: el reintento no cuenta dos veces
+            limiter.unhit(k)
+        raise
+    _cache_put(key, audio)
+    return audio
