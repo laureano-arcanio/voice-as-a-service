@@ -32,7 +32,7 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
 .DEFAULT_GOAL := help
 
 .PHONY: help setup env storage build \
-        up up-agent up-inference up-nginx up-pbx down restart ps logs \
+        up up-agent up-app up-inference up-nginx up-pbx down restart ps logs \
         sh psql health gpu \
         pbx-cli pbx-status livekit-sip livekit-sip-si-local \
         wa-calling-status wa-calling-enable wa-calling-disable wa-sip-password sip-cert \
@@ -72,6 +72,11 @@ up-agent: storage ## Solo db + app + agent, sin la inferencia (--no-deps; usa VL
 	$(COMPOSE) up -d --build --wait --no-deps db
 	@$(MAKE) --no-print-directory migrate
 	$(COMPOSE) up -d --build --no-deps app agent
+
+up-app: ## Solo app (API + UI): build, migraciones y recreate, sin tocar agent (no corta llamadas en curso)
+	$(COMPOSE) build app
+	@$(MAKE) --no-print-directory migrate
+	$(COMPOSE) up -d --no-deps app
 
 up-inference: ## Solo la inferencia: vllm-llm + stt-parakeet + vllm-tts (espera a que esten healthy)
 	$(COMPOSE) up -d --build --wait $(INFERENCE_SERVICES)
