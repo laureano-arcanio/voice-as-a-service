@@ -263,5 +263,8 @@ que el TTS lo genera**, con Web Audio (`pcm-player.ts`: lee el stream, pasa Int1
   sigue apenas llega.
 - `pcm-player.ts` es una **copia** de `web/src/lib/pcmPlayer.ts` (la landing es otro paquete): un test del dashboard
   (`pcmPlayer.parity.test.ts`) falla si se desvían. Cambiar los dos juntos.
-- Probado contra la app directa. Por el túnel (`api.atentina.com.ar`) el streaming depende de que Cloudflare no acumule la
-  respuesta: sin verificar hasta desplegar.
+- **En producción (9-oct-2026, Chrome, `atentina.com.ar` por el túnel `api.`):** el audio llega escalonado (primer bloque a los
+  168 ms, síntesis completa a los 1.717 ms) y suena a los 645 ms: Cloudflare no acumula la respuesta.
+- **La primera vez de cada visita tarda más (~2,6 s hasta sonar):** incluye el Turnstile y la creación de la sesión. Las
+  siguientes ya usan la sesión y suenan a los ~0,6 s. Chrome automatizado no pasa el Turnstile, así que esta demo se prueba
+  a mano en un navegador real.
