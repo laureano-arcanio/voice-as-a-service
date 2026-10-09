@@ -7,11 +7,15 @@ Cloudflare Tunnel. No hay backend aparte ni base nueva: costo adicional cero.
 
 - **Canónico:** `https://atentina.com.ar/`. `www.atentina.com.ar`, `atentina.com` y
   `www.atentina.com` redirigen ahí con 301.
-- **Páginas:** `/` (hub: agentes de voz, producto, soluciones, voces, precios, desarrolladores, demo) y tres
-  verticales con su tema de acento: `/turnos` (verde azulado), `/cobranzas` (violeta) y
-  `/municipios` (ámbar). Las verticales salen de `src/pages/[vertical].astro` con los datos de
-  `src/data/site.ts`. Legales (las pide Meta para WhatsApp): `/privacidad`, `/terminos` y
-  `/eliminacion-de-datos`, con el layout `Legal.astro`.
+- **Páginas:** `/` es para **integradores** (empresas que ofrecen o quieren ofrecer telefonía, agentes y audio, por la app o
+  por API): hero con ejemplos de la API, plataforma, API compatible con OpenAI, voces, precios (con el plan Free), lo que
+  viene y contacto. `/casos-de-uso` es el hub anterior (agente de la demo, producto y las tres verticales). Las verticales
+  conservan su URL, con su tema de acento: `/turnos` (verde azulado), `/cobranzas` (violeta) y `/municipios` (ámbar), desde
+  `src/pages/[vertical].astro` con los datos de `src/data/site.ts`. Legales (las pide Meta para WhatsApp): `/privacidad`,
+  `/terminos` y `/eliminacion-de-datos`, con el layout `Legal.astro`.
+- **Plan Free (provisorio):** solo API, sin número de teléfono (`freeTier` en `site.ts`: cupos y cantidad de agentes a
+  definir). Es contenido de la landing: el tier real se crea en Tiers (`api_*` y `max_phone_numbers` en 0) cuando se
+  definan los detalles. "Empezar gratis" lleva al formulario de contacto: todavía no hay alta autoservicio.
 - **Publicar:** push a la rama que sigue Render; solo los cambios en `landing/` despliegan.
 - **Diseño:** tokens, componentes, patrones y voz en [`DESIGN_GUIDELINE.md`](DESIGN_GUIDELINE.md).
 - **`og.png`, favicon y logos (`docs/brand/`):** se generan con `scripts/brand/`: `python scripts/brand/build_atentina.py` (con `fonttools`) escribe los SVG

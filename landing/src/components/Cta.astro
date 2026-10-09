@@ -5,9 +5,23 @@ import Icon from "./Icon.astro";
 
 interface Props {
   subject?: string;
+  eyebrow?: string;
+  title?: string;
+  lead?: string;
+  placeholder?: string;
+  submit?: string;
+  question?: string;
 }
 
-const { subject = "Quiero una demo de Atentina" } = Astro.props;
+const {
+  subject = "Quiero una demo de Atentina",
+  eyebrow = "Demo",
+  title = "Escuchá un agente con tu propio caso",
+  lead = "Nos contás a qué se dedica tu empresa y armamos un agente para que lo escuches con tus datos. Sin costo y sin compromiso.",
+  placeholder = "Por ejemplo: turnos de una clínica, unas 200 llamadas por día",
+  submit = "Pedir una demo",
+  question = "¿Qué tendría que atender el agente?",
+} = Astro.props;
 const mailto = `mailto:${contactEmail}?subject=${encodeURIComponent(subject)}`;
 const label = "grid gap-1.5 text-[.85rem] font-medium text-ink-2";
 const field =
@@ -16,11 +30,9 @@ const field =
 
 <section class="bg-ink py-12 text-center text-cta-ink min-[901px]:py-[76px]" id="demo">
   <div class="mx-auto grid max-w-[1120px] justify-items-center gap-5 px-5">
-    <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent-on-dark uppercase">Demo</span>
-    <h2>Escuchá un agente con tu propio caso</h2>
-    <p class="max-w-[62ch] text-[1.12rem] text-cta-muted">
-      Nos contás a qué se dedica tu empresa y armamos un agente para que lo escuches con tus datos. Sin costo y sin compromiso.
-    </p>
+    <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent-on-dark uppercase">{eyebrow}</span>
+    <h2>{title}</h2>
+    <p class="max-w-[62ch] text-[1.12rem] text-cta-muted">{lead}</p>
 
     <div
       class="group/contact mt-2 w-full max-w-[640px] overflow-hidden rounded-[18px] border border-line bg-surface text-left text-ink shadow-card"
@@ -55,20 +67,20 @@ const field =
           </label>
         </div>
         <label class={label}>
-          ¿Qué tendría que atender el agente?
+          {question}
           <textarea
             class:list={[field, "min-h-24 resize-y"]}
             name="message"
             maxlength="2000"
             rows="3"
-            placeholder="Por ejemplo: turnos de una clínica, unas 200 llamadas por día"></textarea>
+            placeholder={placeholder}></textarea>
         </label>
         <div class="hidden" aria-hidden="true">
           <label>Sitio web <input name="website" tabindex="-1" autocomplete="off" /></label>
         </div>
         <div class="grid gap-2 sm:grid-cols-[auto_1fr] sm:items-center">
           <Button type="submit" data-contact-submit>
-            <span class="group-data-[state=sending]/contact:hidden">Pedir una demo</span>
+            <span class="group-data-[state=sending]/contact:hidden">{submit}</span>
             <span class="hidden group-data-[state=sending]/contact:inline">Enviando…</span>
           </Button>
           <p class="text-[.85rem] text-muted">Dejanos un email o un teléfono y te contactamos.</p>

@@ -1,17 +1,57 @@
 ---
-import { plans } from "../data/site";
+import { freeTier, plans } from "../data/site";
 import Button from "./Button.astro";
 import Icon from "./Icon.astro";
 import Section from "./Section.astro";
+
+interface Props {
+  /** Muestra el plan Free (solo API, sin telefonía) arriba de los planes con telefonía. */
+  free?: boolean;
+}
+
+const { free = false } = Astro.props;
 ---
 
 <Section id="precios">
   <h2>Un precio por mes, en pesos</h2>
   <p class="mt-3 max-w-[62ch] text-[1.12rem] text-ink-2">
-    Cada plan incluye sus números, una cantidad de minutos por mes (entre las llamadas que entran y las que hace el agente) y cuántas llamadas atiende a la vez. Si te pasás de los minutos, pagás solo los que usaste.
+    {
+      free
+        ? "Empezá gratis con la API. Cuando necesites telefonía, pasás a un plan con números, minutos y llamadas a la vez."
+        : ""
+    }{" "}
+    Cada plan con telefonía incluye sus números, una cantidad de minutos por mes (entre las llamadas que entran y las que hace el agente) y cuántas llamadas atiende a la vez. Si te pasás de los minutos, pagás solo los que usaste.
   </p>
 
-  <div class="mt-9 grid gap-4 min-[561px]:grid-cols-2 min-[1001px]:grid-cols-4">
+  {
+    free && (
+      <div class="mt-9 grid items-start gap-6 rounded-[18px] border-[1.5px] border-line bg-surface px-[22px] py-[26px] min-[901px]:grid-cols-[.8fr_1.2fr_auto] min-[901px]:gap-10">
+        <div class="grid gap-3">
+          <h3 class="text-[1.4rem]">{freeTier.name}</h3>
+          <p class="text-[.92rem] text-muted">{freeTier.for}</p>
+          <div class="flex flex-wrap items-baseline gap-1.5">
+            <span class="font-display text-[2rem] font-extrabold tracking-[-0.02em] whitespace-nowrap tabular-nums">{freeTier.price}</span>
+            <span class="text-[.9rem] text-muted">{freeTier.per}</span>
+          </div>
+        </div>
+        <ul class="m-0 grid list-none content-start gap-[9px] p-0 text-[.95rem] min-[561px]:grid-cols-2 [&_b]:font-semibold">
+          {freeTier.items.map((item) => (
+            <li class="flex items-start gap-[9px]">
+              <span class="mt-0.5 grid size-[18px] flex-none place-items-center rounded-full bg-ok-soft text-ok">
+                <Icon name="check" class="size-3.5 stroke-[2.2]" />
+              </span>
+              <span set:html={item} />
+            </li>
+          ))}
+        </ul>
+        <Button href="#demo" class="min-[901px]:self-end">
+          {freeTier.cta}
+        </Button>
+      </div>
+    )
+  }
+
+  <div class:list={[free ? "mt-4" : "mt-9", "grid gap-4 min-[561px]:grid-cols-2 min-[1001px]:grid-cols-4"]}>
     {
       plans.map((plan) => (
         <div

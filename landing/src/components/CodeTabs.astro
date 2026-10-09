@@ -1,0 +1,108 @@
+---
+// El producto como ilustración: pedidos reales a la API, con su respuesta. Mismos ejemplos que docs/API_INFERENCIA.md.
+const BASE = "https://app.atentina.com.ar/api/v1/inference";
+const tabs = [
+  {
+    id: "llm",
+    label: "LLM",
+    request: `curl ${BASE}/chat/completions \\
+  -H "Authorization: Bearer $ATENTINA_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"messages":[{"role":"user","content":"¿Qué horarios tienen?"}]}'`,
+    response: `{"choices":[{"message":{"role":"assistant",
+  "content":"Atendemos de lunes a viernes, de 9 a 18."}}],
+ "usage":{"prompt_tokens":21,"completion_tokens":14}}`,
+  },
+  {
+    id: "stt",
+    label: "Transcripción",
+    request: `curl ${BASE}/audio/transcriptions \\
+  -H "Authorization: Bearer $ATENTINA_KEY" \\
+  -F file=@llamada.wav -F language=es`,
+    response: `{"text":"Hola, quería confirmar mi turno del martes.",
+ "usage":{"type":"duration","seconds":4.0}}`,
+  },
+  {
+    id: "tts",
+    label: "Síntesis",
+    request: `curl ${BASE}/audio/speech \\
+  -H "Authorization: Bearer $ATENTINA_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"voice":"sofia","input":"Hola, ¿en qué te puedo ayudar?",
+       "response_format":"pcm"}' --output respuesta.pcm`,
+    response: `audio PCM de 24 kHz: el primer bloque llega mientras
+el resto se sigue sintetizando`,
+  },
+  {
+    id: "sdk",
+    label: "Python",
+    request: `from openai import OpenAI
+
+client = OpenAI(base_url="${BASE}",
+                api_key="vaas_...")
+chat = client.chat.completions.create(
+    model="atentina",
+    messages=[{"role": "user", "content": "Hola"}])`,
+    response: `# el mismo SDK, solo cambia la base_url`,
+  },
+];
+---
+
+<div class="overflow-hidden rounded-[18px] border border-line bg-surface shadow-card" data-code-tabs>
+  <div class="flex items-center justify-between gap-3 border-b border-line bg-surface-2 px-4 py-3">
+    <div class="-mx-1 flex gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Ejemplos de la API">
+      {
+        tabs.map((t, i) => (
+          <button
+            type="button"
+            role="tab"
+            id={`tab-${t.id}`}
+            aria-controls={`panel-${t.id}`}
+            aria-selected={i === 0 ? "true" : "false"}
+            tabindex={i === 0 ? 0 : -1}
+            class="cursor-pointer rounded-full px-3 py-1 text-[.88rem] font-semibold whitespace-nowrap text-ink-2 hover:text-ink aria-selected:bg-accent-soft aria-selected:text-accent"
+          >
+            {t.label}
+          </button>
+        ))
+      }
+    </div>
+    <span class="hidden font-mono text-[.76rem] whitespace-nowrap text-muted min-[1101px]:inline">API compatible con OpenAI</span>
+  </div>
+  {
+    tabs.map((t, i) => (
+      <div role="tabpanel" id={`panel-${t.id}`} aria-labelledby={`tab-${t.id}`} hidden={i !== 0} tabindex="0">
+        <pre class="m-0 overflow-x-auto px-4 pt-4 pb-3 font-mono text-[.78rem]/[1.6] text-ink"><code>{t.request}</code></pre>
+        <div class="border-t border-line bg-bg-2 px-4 pt-3 pb-4">
+          <span class="font-mono text-[.72rem] tracking-[.06em] text-muted uppercase">Respuesta</span>
+          <pre class="m-0 mt-1.5 overflow-x-auto font-mono text-[.78rem]/[1.6] text-ink-2"><code>{t.response}</code></pre>
+        </div>
+      </div>
+    ))
+  }
+</div>
+
+<script>
+  document.querySelectorAll<HTMLElement>("[data-code-tabs]").forEach((root) => {
+    const tabs = [...root.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+    const select = (tab: HTMLButtonElement, focus = false) => {
+      tabs.forEach((t) => {
+        const on = t === tab;
+        t.setAttribute("aria-selected", String(on));
+        t.tabIndex = on ? 0 : -1;
+        root.querySelector<HTMLElement>(`#${t.getAttribute("aria-controls")}`)!.hidden = !on;
+      });
+      if (focus) tab.focus();
+    };
+    tabs.forEach((tab, i) => {
+      tab.addEventListener("click", () => select(tab));
+      tab.addEventListener("keydown", (e) => {
+        const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+        if (step) {
+          e.preventDefault();
+          select(tabs[(i + step + tabs.length) % tabs.length]!, true);
+        }
+      });
+    });
+  });
+</script>

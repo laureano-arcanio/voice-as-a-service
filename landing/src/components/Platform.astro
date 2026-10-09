@@ -1,0 +1,28 @@
+---
+import { platform } from "../data/site";
+import Section from "./Section.astro";
+import Status from "./Status.astro";
+---
+
+<Section id="plataforma">
+  <h2>Una plataforma, tres formas de usarla</h2>
+  <p class="mt-3 max-w-[62ch] text-[1.12rem] text-ink-2">
+    Usá solo lo que necesitás: los motores sueltos, los agentes armados o el servicio completo con telefonía.
+  </p>
+  <div class="mt-9 grid gap-4 min-[801px]:grid-cols-3">
+    {
+      platform.map((c) => (
+        <div class="grid content-start gap-3 rounded-2xl border border-line bg-surface p-6">
+          <Status status={c.status} />
+          <h3 class="text-[1.25rem]">{c.title}</h3>
+          <p class="text-[.96rem] text-ink-2">{c.text}</p>
+          {c.href && (
+            <a class="mt-auto text-[.95rem] font-semibold text-accent no-underline hover:text-accent-2" href={c.href}>
+              {c.link}
+            </a>
+          )}
+        </div>
+      ))
+    }
+  </div>
+</Section>

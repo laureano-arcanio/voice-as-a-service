@@ -1,0 +1,17 @@
+---
+interface Props {
+  status: "available" | "soon";
+}
+
+const { status } = Astro.props;
+---
+
+<span
+  class:list={[
+    "inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-0.5 font-mono text-[.74rem] tracking-[.02em]",
+    status === "available" ? "bg-ok-soft text-ok" : "bg-surface-2 text-ink-2",
+  ]}
+>
+  <span class:list={["size-1.5 rounded-full", status === "available" ? "bg-ok" : "bg-muted"]} aria-hidden="true"></span>
+  {status === "available" ? "disponible" : "próximamente"}
+</span>

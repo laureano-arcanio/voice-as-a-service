@@ -149,10 +149,11 @@ Usar el componente; no copiar sus clases a mano.
 | `Section` | Toda sección de página. |
 | `Icon` | Íconos (sección 9). |
 | `CheckList` | Lista de características: check en círculo `accent-soft`, título en semibold y texto en `muted`. |
-| `Logo`, `Nav`, `Footer` | Marco de toda página. `Nav home` solo en el hub. |
-| `Cta` | Cierre de toda página comercial: sección oscura con los botones de contacto. |
-| `Solutions`, `Voices`, `Pricing` | Secciones compartidas entre el hub y las verticales. |
-| `Developers` | Solo en el hub, debajo de precios: lo que viene para desarrolladores. Al sumar algo que ya existe, sacarlo de ahí. |
+| `Logo`, `Nav`, `Footer` | Marco de toda página. `Nav current="home"` en `/` (integradores) y `"casos"` en `/casos-de-uso`: define qué links son del mismo documento. |
+| `Cta` | Cierre de toda página comercial: sección oscura con los botones de contacto. Textos configurables (`eyebrow`, `title`, `lead`, `question`, `submit`): `/` los cambia para integradores. |
+| `Solutions`, `Voices`, `Pricing` | Secciones compartidas. `Pricing free` agrega el plan Free (solo API) arriba de los planes con telefonía; solo en `/`. |
+| `Platform`, `ApiSection`, `CodeTabs`, `Status` | Home de integradores. `CodeTabs`: pedidos reales a la API con su respuesta (el producto como ilustración). `Status`: píldora `disponible` / `próximamente`: no prometer sin marcarlo. |
+| `Developers` | Solo en `/`, debajo de precios: **lo que viene** (`roadmap` en `site.ts`, todo `próximamente`). Al sumar algo que ya existe, pasarlo a `platform` o `apiFeatures`. |
 | `CallWidget`, `SampleResult`, `TelDialog` | Demo de llamada, ejemplo de resultado y diálogo del teléfono. |
 | `Legal` | Layout de las páginas legales. |
 

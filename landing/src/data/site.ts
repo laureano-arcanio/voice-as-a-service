@@ -306,3 +306,121 @@ export const defaultVoiceLine = {
 
 export const contactEmail = "hola@atentina.com.ar";
 
+// ---- Home para integradores ----
+
+/** Tier Free: solo API, sin número de telefono. PROVISORIO: los cupos y la cantidad de agentes se definen despues. */
+export const freeTier = {
+  name: "Free",
+  for: "Para probar e integrar: solo la API, sin número de teléfono.",
+  price: "$ 0",
+  per: "por mes",
+  items: [
+    "<b>LLM, transcripción y síntesis</b> por API",
+    "<b>Webhooks</b> de tus agentes",
+    "Hasta <b>3 agentes</b>",
+    "<b>Sin número</b> de teléfono",
+    "Cupos por mes: <b class=\"tabular-nums\">500.000</b> tokens de entrada y <b class=\"tabular-nums\">100.000</b> de salida",
+    "<b class=\"tabular-nums\">30</b> min de síntesis y <b class=\"tabular-nums\">60</b> min de transcripción",
+    "<b class=\"tabular-nums\">20</b> pedidos por minuto",
+  ],
+  cta: "Empezar gratis",
+};
+
+export interface Capability {
+  title: string;
+  text: string;
+  /** Lo que ya funciona o lo que todavía no. */
+  status: "available" | "soon";
+  href?: string;
+  link?: string;
+}
+
+export const platform: Capability[] = [
+  {
+    title: "Motores por API",
+    text: "LLM, transcripción y síntesis de voz con una API key. Compatible con el SDK de OpenAI y con streaming. Sin telefonía: usás solo lo que necesitás.",
+    status: "available",
+    href: "#api",
+    link: "Ver la API →",
+  },
+  {
+    title: "Agentes",
+    text: "Definís el agente (datos a tomar, reglas y voz) y lo operamos nosotros. Se versiona, se prueba desde el panel y deja datos ordenados de cada conversación.",
+    status: "available",
+    href: "/casos-de-uso",
+    link: "Ver casos de uso →",
+  },
+  {
+    title: "Telefonía y WhatsApp",
+    text: "Números argentinos, llamadas entrantes y salientes, y WhatsApp para el mismo agente. Todo en un solo servicio, por la app o por API.",
+    status: "available",
+    href: "#precios",
+    link: "Ver planes →",
+  },
+];
+
+export const endpoints: { method: "GET" | "POST"; path: string; text: string }[] = [
+  { method: "POST", path: "/chat/completions", text: "Chat con el LLM, con o sin streaming" },
+  { method: "POST", path: "/audio/transcriptions", text: "Audio a texto" },
+  { method: "POST", path: "/audio/speech", text: "Texto a voz: WAV, o PCM mientras se sintetiza" },
+  { method: "GET", path: "/voices", text: "Las voces disponibles" },
+  { method: "GET", path: "/usage", text: "Tu consumo del mes contra el plan" },
+];
+
+export const apiFeatures: Feature[] = [
+  { title: "LLM con streaming", text: "Chat completions: los tokens llegan mientras se generan, y se cobra solo lo entregado." },
+  { title: "Síntesis con voces argentinas", text: "WAV completo, o PCM en streaming: empieza a sonar en medio segundo, sin esperar toda la frase." },
+  { title: "Transcripción", text: "Subís el audio y recibís el texto, con los segundos que se descontaron." },
+  { title: "Keys con alcance", text: "Una key para el LLM y otra para las llamadas: cada una hace solo lo que le diste." },
+  { title: "Límites y consumo a la vista", text: "Tokens, minutos y pedidos por minuto por plan, y un endpoint que dice cuánto te queda." },
+];
+
+export const integration: { title: string; text: string; items: string[] }[] = [
+  {
+    title: "Desde la app",
+    text: "Para quien prefiere un panel.",
+    items: [
+      "Agentes por formulario, con prueba de voz y de conversación",
+      "Números, llamadas y conversaciones con su transcripción",
+      "Usuarios, API keys y consumo del mes",
+    ],
+  },
+  {
+    title: "Por API",
+    text: "Para quien integra desde su sistema.",
+    items: [
+      "Agentes versionados y llamadas salientes por <code class=\"font-mono text-[.88em]\">/api/v1</code>",
+      "Resultados estructurados de cada llamada",
+      "LLM, transcripción y síntesis por <code class=\"font-mono text-[.88em]\">/api/v1/inference</code>, con OpenAPI",
+    ],
+  },
+];
+
+export const roadmap: Capability[] = [
+  {
+    title: "Webhooks de eventos",
+    text: "Te avisamos a tu sistema cuando termina una llamada o una conversación, con el resultado.",
+    status: "soon",
+  },
+  {
+    title: "Ruteo SIP a webhooks",
+    text: "Cada llamada que entra por SIP llega a tu webhook, que decide qué agente atiende y con qué datos.",
+    status: "soon",
+  },
+  {
+    title: "Llamado de herramientas",
+    text: "Durante la conversación, el agente llama a tus APIs: consulta, reserva o registra en tu sistema.",
+    status: "soon",
+  },
+  {
+    title: "Con tu propia telefonía",
+    text: "Usá tu troncal SIP y pagá solo la inteligencia artificial.",
+    status: "soon",
+  },
+  {
+    title: "Skills para agentes de programación",
+    text: "Documentación y skills para que tu agente de programación cree, configure y pruebe agentes por vos.",
+    status: "soon",
+  },
+];
+
