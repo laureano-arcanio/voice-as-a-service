@@ -229,6 +229,69 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clients/{client_id}/limits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Client Limits
+         * @description Limites del tier, los que rigen hoy con los ajustes del cliente y la lista de ajustes
+         *     (vigentes, futuros y vencidos).
+         */
+        get: operations["client_limits_api_v1_clients__client_id__limits_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clients/{client_id}/limit-adjustments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Limit Adjustment
+         * @description Suma o reemplaza un limite del tier solo para este cliente (mas minutos, una linea mas,
+         *     un tope propio), de forma permanente o por un periodo. Vale ya, sin reiniciar nada.
+         */
+        post: operations["add_limit_adjustment_api_v1_clients__client_id__limit_adjustments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clients/{client_id}/limit-adjustments/{adjustment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Limit Adjustment
+         * @description Quita un ajuste: el cliente vuelve al limite del tier (o al de los otros ajustes). Se rechaza si
+         *     lo deja con mas numeros de los que permite.
+         */
+        delete: operations["delete_limit_adjustment_api_v1_clients__client_id__limit_adjustments__adjustment_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/phone-numbers": {
         parameters: {
             query?: never;
@@ -1815,6 +1878,12 @@ export interface components {
              * @default 0
              */
             numbers_count?: number;
+            /**
+             * Adjustments Count
+             * @description Ajustes de limites vigentes hoy
+             * @default 0
+             */
+            adjustments_count?: number;
             invite?: components["schemas"]["InviteOut"] | null;
         };
         /** ClientIn */
@@ -1842,6 +1911,15 @@ export interface components {
              */
             owner_name?: string;
         };
+        /** ClientLimitsOut */
+        ClientLimitsOut: {
+            /** Tier Name */
+            tier_name: string;
+            /** Limits */
+            limits: components["schemas"]["LimitRowOut"][];
+            /** Adjustments */
+            adjustments: components["schemas"]["LimitAdjustmentOut"][];
+        };
         /** ClientOut */
         ClientOut: {
             /** Id */
@@ -1868,6 +1946,12 @@ export interface components {
              * @default 0
              */
             numbers_count?: number;
+            /**
+             * Adjustments Count
+             * @description Ajustes de limites vigentes hoy
+             * @default 0
+             */
+            adjustments_count?: number;
         };
         /** ClientUpdate */
         ClientUpdate: {
@@ -2180,6 +2264,91 @@ export interface components {
             status: "sent" | "failed" | "disabled";
             /** Error */
             error?: string | null;
+        };
+        /**
+         * LimitAdjustmentIn
+         * @description `add` suma `value` al limite del tier; `set` lo reemplaza (value null = ilimitado). Sin fechas
+         *     es permanente; con ellas, vale entre `starts_on` y `ends_on`, ambos inclusive.
+         */
+        LimitAdjustmentIn: {
+            /**
+             * Field
+             * @enum {string}
+             */
+            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit";
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "add" | "set";
+            /**
+             * Value
+             * @description Cantidad (minutos, numeros, llamadas, tokens)
+             */
+            value?: number | null;
+            /** Starts On */
+            starts_on?: string | null;
+            /** Ends On */
+            ends_on?: string | null;
+            /**
+             * Note
+             * @description Para que se dio (queda en el registro)
+             * @default
+             */
+            note?: string;
+        };
+        /** LimitAdjustmentOut */
+        LimitAdjustmentOut: {
+            /** Id */
+            id: string;
+            /**
+             * Field
+             * @enum {string}
+             */
+            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit";
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "add" | "set";
+            /** Value */
+            value: number | null;
+            /** Starts On */
+            starts_on: string | null;
+            /** Ends On */
+            ends_on: string | null;
+            /** Note */
+            note: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "scheduled" | "expired";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By Email */
+            created_by_email?: string | null;
+        };
+        /** LimitRowOut */
+        LimitRowOut: {
+            /**
+             * Field
+             * @enum {string}
+             */
+            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit";
+            /**
+             * Tier
+             * @description Valor del tier (null = ilimitado)
+             */
+            tier: number | null;
+            /**
+             * Effective
+             * @description Valor que rige hoy, con los ajustes vigentes
+             */
+            effective: number | null;
         };
         /**
          * LlmCall
@@ -3857,6 +4026,104 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InferenceUsageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    client_limits_api_v1_clients__client_id__limits_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientLimitsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_limit_adjustment_api_v1_clients__client_id__limit_adjustments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LimitAdjustmentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientLimitsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_limit_adjustment_api_v1_clients__client_id__limit_adjustments__adjustment_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+                adjustment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientLimitsOut"];
                 };
             };
             /** @description Validation Error */

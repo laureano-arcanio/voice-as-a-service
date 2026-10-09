@@ -28,7 +28,7 @@ from ..conversation.engine import ConversationEngine
 from ..db import get_sessionmaker, utcnow
 from ..models import ApiKey, Client, Role, User
 from ..runtime import get_conversation_engine
-from ..services import api_usage
+from ..services import api_usage, limits
 from ..services.errors import Forbidden, QuotaExceeded
 from ..services.ratelimit import Limit, RateLimiter, client_key
 from ..services.security import (
@@ -158,14 +158,15 @@ def inference_access(scope: Literal["llm", "stt", "tts"]):
     429 al pasar el tope de pedidos o al agotar el cupo."""
     def dependency(db: DB, creds: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)]) -> InferenceAccess:
         key, client = inference_key(db, creds, scope)
-        rate = client.tier.api_rate_limit
+        effective = limits.effective_limits(db, client)
+        rate = effective.api_rate_limit
         if rate == 0:
             raise Forbidden("Tu plan no incluye la API de inferencia.", "not_in_plan")
         if rate is not None:
             # Por cliente (todas sus keys y los tres motores): los pedidos rechazados tambien cuentan.
             api_limiter.consume(f"inference:{client.id}", [Limit(rate, 60)],
                                 f"Superaste los {rate} pedidos por minuto de tu plan. Probá de nuevo en unos segundos.")
-        return InferenceAccess(client, key, api_usage.check(db, client, scope))
+        return InferenceAccess(client, key, api_usage.check(db, client, scope, effective))
     return dependency
 
 

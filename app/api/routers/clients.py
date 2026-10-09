@@ -6,6 +6,7 @@ from ...mail import notify
 from ...models import (
     Agent,
     Client,
+    ClientLimitAdjustment,
     ConversationRow,
     PhoneNumber,
     Role,
@@ -13,7 +14,7 @@ from ...models import (
     User,
     WaAccount,
 )
-from ...services import api_usage, phone_numbers, quota
+from ...services import api_usage, limits, phone_numbers, quota
 from ...services.errors import Conflict, Invalid, NotFound
 from ...services.security import unusable_password_hash
 from ..deps import DB, AdminPrincipal, CurrentPrincipal
@@ -21,10 +22,14 @@ from ..schemas import (
     CallsUsageOut,
     ClientCreatedOut,
     ClientIn,
+    ClientLimitsOut,
     ClientOut,
     ClientUpdate,
     InferenceUsageOut,
     InviteOut,
+    LimitAdjustmentIn,
+    LimitAdjustmentOut,
+    LimitRowOut,
     MinutesUsageOut,
     NumbersUsageOut,
     UsageOut,
@@ -37,7 +42,9 @@ def _out(db, client: Client) -> ClientOut:
     agents = db.scalar(select(func.count()).select_from(Agent).where(
         Agent.client_id == client.id, Agent.archived_at.is_(None))) or 0
     numbers = db.scalar(select(func.count()).select_from(PhoneNumber).where(PhoneNumber.client_id == client.id)) or 0
-    return ClientOut.model_validate(client).model_copy(update={"agents_count": agents, "numbers_count": numbers})
+    return ClientOut.model_validate(client).model_copy(
+        update={"agents_count": agents, "numbers_count": numbers,
+                "adjustments_count": limits.active_count(db, client.id)})
 
 
 def get_client(db, p, client_id: str) -> Client:
@@ -161,7 +168,7 @@ def client_usage(client_id: str, p: CurrentPrincipal, db: DB,
                     active_calls=u.active_calls, max_concurrent_calls=u.max_concurrent_calls,
                     inbound=_minutes(u.inbound), outbound=_minutes(u.outbound),
                     phone_numbers=NumbersUsageOut(used=phone_numbers.numbers_count(db, client.id),
-                                                  limit=client.tier.max_phone_numbers),
+                                                  limit=limits.effective_limits(db, client).max_phone_numbers),
                     calls_hour=CallsUsageOut(used=u.calls_hour.used, limit=u.calls_hour.limit),
                     calls_day=CallsUsageOut(used=u.calls_day.used, limit=u.calls_day.limit),
                     calls_month=CallsUsageOut(used=u.calls_month.used, limit=u.calls_month.limit))
@@ -175,3 +182,62 @@ def client_inference_usage(client_id: str, p: CurrentPrincipal, db: DB,
     tier, y por key. No incluye los agentes integrados."""
     client = get_client(db, p, client_id)
     return inference_usage_out(api_usage.usage(db, client, month))
+
+
+# ---------- ajustes de limites (solo admin) ----------
+
+def _limits_out(db, client: Client) -> ClientLimitsOut:
+    day = limits.today()
+    rows = limits.adjustments(db, client.id)
+    emails = dict(db.execute(select(User.id, User.email).where(
+        User.id.in_({r.created_by for r in rows if r.created_by}))).all()) if rows else {}
+    effective = limits.effective_limits(db, client)
+    return ClientLimitsOut(
+        tier_name=client.tier.name,
+        limits=[LimitRowOut(field=f, tier=getattr(client.tier, f), effective=getattr(effective, f))
+                for f in limits.LIMIT_FIELDS],
+        adjustments=[LimitAdjustmentOut(
+            id=r.id, field=r.field, mode=r.mode, value=r.value, starts_on=r.starts_on, ends_on=r.ends_on,
+            note=r.note, status=limits.status(r, day), created_at=r.created_at,
+            created_by_email=emails.get(r.created_by)) for r in rows])
+
+
+@router.get("/{client_id}/limits", response_model=ClientLimitsOut)
+def client_limits(client_id: str, p: AdminPrincipal, db: DB):
+    """Limites del tier, los que rigen hoy con los ajustes del cliente y la lista de ajustes
+    (vigentes, futuros y vencidos)."""
+    return _limits_out(db, get_client(db, p, client_id))
+
+
+@router.post("/{client_id}/limit-adjustments", response_model=ClientLimitsOut, status_code=201)
+def add_limit_adjustment(client_id: str, body: LimitAdjustmentIn, p: AdminPrincipal, db: DB):
+    """Suma o reemplaza un limite del tier solo para este cliente (mas minutos, una linea mas,
+    un tope propio), de forma permanente o por un periodo. Vale ya, sin reiniciar nada."""
+    client = get_client(db, p, client_id)
+    adj = ClientLimitAdjustment(client_id=client.id, field=body.field, mode=body.mode, value=body.value,
+                                starts_on=body.starts_on, ends_on=body.ends_on, note=body.note.strip(),
+                                created_by=p.id if p.kind == "user" else None)
+    day = limits.today()
+    if body.mode == "add" and limits.is_active(adj, day) \
+            and getattr(limits.effective_limits(db, client), body.field) is None:
+        raise Invalid("Ese límite ya es ilimitado para el cliente: no hay nada que sumar", "already_unlimited")
+    db.add(adj)
+    db.flush()
+    phone_numbers.check_tier_fits(db, client, client.tier)   # un tope propio no puede dejarlo con numeros de mas
+    db.commit()
+    return _limits_out(db, client)
+
+
+@router.delete("/{client_id}/limit-adjustments/{adjustment_id}", response_model=ClientLimitsOut)
+def delete_limit_adjustment(client_id: str, adjustment_id: str, p: AdminPrincipal, db: DB):
+    """Quita un ajuste: el cliente vuelve al limite del tier (o al de los otros ajustes). Se rechaza si
+    lo deja con mas numeros de los que permite."""
+    client = get_client(db, p, client_id)
+    adj = db.get(ClientLimitAdjustment, adjustment_id)
+    if adj is None or adj.client_id != client.id:
+        raise NotFound("Ajuste inexistente")
+    db.delete(adj)
+    db.flush()
+    phone_numbers.check_tier_fits(db, client, client.tier)
+    db.commit()
+    return _limits_out(db, client)

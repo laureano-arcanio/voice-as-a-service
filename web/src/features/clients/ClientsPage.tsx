@@ -1,4 +1,4 @@
-import { Anchor, Button, Card, Table, Text } from '@mantine/core';
+import { Anchor, Badge, Button, Card, Table, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
 import { Link } from 'react-router';
@@ -51,7 +51,14 @@ export function ClientsPage() {
                           </Anchor>
                         </Table.Td>
                         <Table.Td className="mono">{c.slug}</Table.Td>
-                        <Table.Td>{c.tier.name}</Table.Td>
+                        <Table.Td>
+                          {c.tier.name}
+                          {!!c.adjustments_count && (
+                            <Badge color="blue" ml={6}>
+                              Ajustado
+                            </Badge>
+                          )}
+                        </Table.Td>
                         <Table.Td>
                           <ActiveBadge active={c.active} />
                         </Table.Td>

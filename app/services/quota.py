@@ -1,5 +1,5 @@
 """Limites del tier de cada cliente: llamadas simultaneas, cantidad de llamadas por hora, dia y mes,
-y minutos por mes.
+y minutos por mes. Son los efectivos (tier mas los ajustes del cliente, services/limits.py).
 
 - Concurrencia: llamadas del cliente en pendiente, sonando o en curso (todas las
   modalidades; la de prueba y el loadtest tambien ocupan agente e inferencia).
@@ -32,7 +32,9 @@ from ..models import (
     Client,
     ConversationRow,
 )
+from . import limits as limits_service
 from .errors import QuotaExceeded
+from .limits import Limits
 
 MINUTE_MODES = {CallMode.entrante: "inbound", CallMode.saliente: "outbound"}
 # Una llamada "activa" mas vieja que esto quedo colgada (se cayo el worker sin
@@ -112,20 +114,21 @@ def used_seconds(s: Session, client_id: str, mode: str, start: datetime.datetime
     return int(done) + sum(max(int((now - t).total_seconds()), 0) for t in running)
 
 
-def limit_seconds(client: Client, mode: str) -> int | None:
-    """Tope de minutos del tier para esa modalidad, en segundos. None: sin tope."""
+def limit_seconds(limits: Limits, mode: str) -> int | None:
+    """Tope de minutos del cliente (tier y ajustes) para esa modalidad, en segundos. None: sin tope."""
     kind = MINUTE_MODES.get(mode)
     if kind is None:
         return None
-    minutes = getattr(client.tier, f"{kind}_minutes")
+    minutes = getattr(limits, f"{kind}_minutes")
     return None if minutes is None else minutes * 60
 
 
-def remaining_seconds(s: Session, client: Client, mode: str, now: datetime.datetime | None = None) -> int | None:
-    limit = limit_seconds(client, mode)
+def remaining_seconds(s: Session, client: Client, mode: str, now: datetime.datetime | None = None,
+                      limits: Limits | None = None) -> int | None:
+    now = now or utcnow()
+    limit = limit_seconds(limits or limits_service.effective_limits(s, client, now), mode)
     if limit is None:
         return None
-    now = now or utcnow()
     start, end = month_bounds(now.replace(tzinfo=datetime.UTC))
     return limit - used_seconds(s, client.id, mode, start, end, now)
 
@@ -144,17 +147,17 @@ def admit(s: Session, client_id: str, mode: str) -> int | None:
     if client is None or not client.active:
         raise QuotaExceeded("El cliente esta inactivo", "client_inactive")
     now = utcnow()
-    tier = client.tier
-    if tier.max_concurrent_calls is not None and active_calls(s, client.id, now) >= tier.max_concurrent_calls:
-        raise QuotaExceeded(f"Llegaste al limite de {tier.max_concurrent_calls} llamadas simultaneas de tu plan",
+    limits = limits_service.effective_limits(s, client, now)
+    if limits.max_concurrent_calls is not None and active_calls(s, client.id, now) >= limits.max_concurrent_calls:
+        raise QuotaExceeded(f"Llegaste al limite de {limits.max_concurrent_calls} llamadas simultaneas de tu plan",
                             "concurrency_limit")
     if mode in MINUTE_MODES:
         for period, attr, label, renews in CALL_COUNT_LIMITS:
-            limit = getattr(tier, attr)
+            limit = getattr(limits, attr)
             if limit is not None and calls_started(s, client.id, period_start(period, now)) >= limit:
                 raise QuotaExceeded(f"Llegaste al limite de {limit} llamadas {label} de tu plan. "
                                     f"Se renueva {renews}", f"calls_per_{period}")
-    remaining = remaining_seconds(s, client, mode, now)
+    remaining = remaining_seconds(s, client, mode, now, limits)
     if remaining is not None and remaining <= 0:
         kind = MINUTE_MODES[mode]
         label = "entrantes" if kind == "inbound" else "salientes"
@@ -191,16 +194,16 @@ class Usage:
 
 def usage(s: Session, client: Client, month: str | None = None) -> Usage:
     now = utcnow()
-    tier = client.tier
+    limits = limits_service.effective_limits(s, client, now)
     start, end = month_bounds(now.replace(tzinfo=datetime.UTC), month)
     local = start.replace(tzinfo=datetime.UTC).astimezone(ZoneInfo(settings.billing_timezone))
     return Usage(
         month=f"{local.year:04d}-{local.month:02d}", period_start=start, period_end=end,
-        active_calls=active_calls(s, client.id, now), max_concurrent_calls=client.tier.max_concurrent_calls,
-        inbound=MinutesUsage(used_seconds(s, client.id, CallMode.entrante, start, end, now), client.tier.inbound_minutes),
-        outbound=MinutesUsage(used_seconds(s, client.id, CallMode.saliente, start, end, now), client.tier.outbound_minutes),
-        calls_hour=CallsUsage(calls_started(s, client.id, period_start("hour", now)), tier.max_calls_per_hour),
-        calls_day=CallsUsage(calls_started(s, client.id, period_start("day", now)), tier.max_calls_per_day),
-        calls_month=CallsUsage(calls_started(s, client.id, start, end), tier.max_calls_per_month),
+        active_calls=active_calls(s, client.id, now), max_concurrent_calls=limits.max_concurrent_calls,
+        inbound=MinutesUsage(used_seconds(s, client.id, CallMode.entrante, start, end, now), limits.inbound_minutes),
+        outbound=MinutesUsage(used_seconds(s, client.id, CallMode.saliente, start, end, now), limits.outbound_minutes),
+        calls_hour=CallsUsage(calls_started(s, client.id, period_start("hour", now)), limits.max_calls_per_hour),
+        calls_day=CallsUsage(calls_started(s, client.id, period_start("day", now)), limits.max_calls_per_day),
+        calls_month=CallsUsage(calls_started(s, client.id, start, end), limits.max_calls_per_month),
     )
 

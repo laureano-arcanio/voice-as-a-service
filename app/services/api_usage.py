@@ -1,7 +1,8 @@
 """Consumo y limites de la API de inferencia (`/api/v1/inference`: LLM, STT y TTS con API key).
 
 Solo cuenta el uso por la API: los agentes integrados (llamadas, WhatsApp) no pasan por aca y
-siguen con los limites de minutos del tier (services/quota.py). Los limites son del tier, por
+siguen con los limites de minutos del tier (services/quota.py). Los limites son los del tier mas
+los ajustes del cliente (services/limits.py), por
 mes calendario en settings.billing_timezone (como los minutos de llamadas), y valen para todas
 las keys del cliente juntas:
 
@@ -26,6 +27,7 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..models import ApiKey, ApiUsageDaily, Client
 from .errors import Forbidden, QuotaExceeded
+from .limits import Limits, effective_limits
 
 SCOPE_CALLS = "calls"
 INFERENCE_SCOPES = ("llm", "stt", "tts")
@@ -148,10 +150,10 @@ def _not_in_plan(label: str) -> Forbidden:
     return Forbidden(f"Tu plan no incluye {label} por API.", "not_in_plan")
 
 
-def check(s: Session, client: Client, kind: str) -> Remaining:
+def check(s: Session, client: Client, kind: str, limits: Limits | None = None) -> Remaining:
     """Rechaza el pedido si el cupo del mes de ese motor ya se agoto; devuelve lo que queda.
-    kind: llm, stt o tts."""
-    tier = client.tier
+    kind: llm, stt o tts. `limits`: los efectivos del cliente, si el llamador ya los tiene."""
+    tier = limits or effective_limits(s, client)
     start, end = month_days()
     used = totals(s, client.id, start, end)
     if kind == "llm":
@@ -222,7 +224,7 @@ def usage(s: Session, client: Client, month: str | None = None, key_id: str | No
     del cliente igual)."""
     start, end = month_days(month)
     t = totals(s, client.id, start, end, key_id)
-    tier = client.tier
+    tier = effective_limits(s, client)
     keys = []
     per_key = totals_by_key(s, client.id, start, end)
     rows = s.scalars(select(ApiKey).where(ApiKey.client_id == client.id).order_by(ApiKey.created_at.desc())).all()

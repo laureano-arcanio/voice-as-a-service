@@ -74,6 +74,31 @@ class Client(IdMixin, TimestampMixin, Base):
     tier: Mapped[Tier] = relationship(lazy="joined", innerjoin=True)
 
 
+class ClientLimitAdjustment(IdMixin, TimestampMixin, Base):
+    """Ajuste de un limite del tier para un cliente en particular (mas minutos, una linea mas,
+    un tope propio). `add` suma al valor del tier; `set` lo reemplaza (value NULL = ilimitado).
+    Vigente entre `starts_on` y `ends_on` (inclusive, en billing_timezone); sin fechas, permanente.
+    Se resuelve en services/limits.py."""
+    __tablename__ = "client_limit_adjustments"
+    __table_args__ = (
+        CheckConstraint("mode IN ('add', 'set')", name="ck_limit_adj_mode"),
+        CheckConstraint("value IS NULL OR value >= 0", name="ck_limit_adj_value"),
+        CheckConstraint("mode = 'set' OR value IS NOT NULL", name="ck_limit_adj_add_value"),
+        CheckConstraint("starts_on IS NULL OR ends_on IS NULL OR starts_on <= ends_on", name="ck_limit_adj_dates"),
+        Index("ix_limit_adj_client_field", "client_id", "field"),
+    )
+    client_id: Mapped[str] = mapped_column(String(36), ForeignKey("clients.id", ondelete="CASCADE"))
+    # Un campo numerico de Tier (services/limits.LIMIT_FIELDS).
+    field: Mapped[str] = mapped_column(String(32))
+    mode: Mapped[str] = mapped_column(String(8))
+    value: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    starts_on: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
+    ends_on: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
+    note: Mapped[str] = mapped_column(String(255), default="")
+    created_by: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+
 class PhoneNumber(IdMixin, TimestampMixin, Base):
     """Numero del inventario (los que provee Anura). Libre (sin cliente) o asignado a
     un cliente, hasta el tope de su tier. Las entrantes a este numero las atiende

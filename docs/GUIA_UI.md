@@ -53,7 +53,14 @@ una sola vez). Si el aviso dice que no se pudo mandar, o el link venció, **Usua
   el **consumo de la API** del mes contra el tier (tokens de
   entrada y salida del LLM, minutos de transcripción y de síntesis, pedidos por minuto y el desglose por key;
   no incluye lo que consumen los agentes integrados), y los datos del cliente:
-  - **Cambiar el tier:** se rechaza si el tier nuevo permite menos números de los que tiene.
+  - **Cambiar el tier:** se rechaza si el tier nuevo permite menos números de los que tiene. Los ajustes del cliente se conservan.
+  - **Ajustes de límites:** para darle algo distinto a un solo cliente sin tocar su tier (que comparten otros) ni
+    armar uno nuevo. **Nuevo ajuste**: elegí el límite, si **suma** al del tier (ej. 10 minutos más, una línea más) o lo
+    **reemplaza** (un tope propio; vacío = ilimitado), la cantidad, la vigencia (permanente, solo este mes o hasta una
+    fecha) y un motivo. El modal muestra cómo queda ("Hoy: 100 min → 110 min"). Rige desde ya y los vencidos dejan de
+    aplicar solos. Varios ajustes del mismo límite se suman. En la lista de clientes aparece "Ajustado". Quitar un ajuste
+    o bajar un tope de números se rechaza si el cliente ya tiene más números de los que quedarían. El cliente ve el
+    límite resultante en su consumo, sin distinguir el origen.
   - **Activo:** apagarlo impide hacer y recibir llamadas; las entrantes escuchan un aviso y se cortan.
   - **Borrar:** solo si el cliente no tiene conversaciones; si tiene, desactivalo.
 - **Números**, **Agentes**, **Usuarios** y **API keys**: ver abajo.

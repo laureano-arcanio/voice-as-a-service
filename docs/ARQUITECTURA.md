@@ -53,6 +53,7 @@ app/
                      conversations, voices, whatsapp (cuentas), inference, demo
   services/          negocio sin HTTP (lo usan la API y el worker)
     quota.py         límites del tier: admisión con lock, consumo del mes, saldo en curso
+    limits.py        límites efectivos de un cliente: el tier más sus ajustes vigentes (`effective_limits`)
     calls.py         iniciar salientes/pruebas (prepare_call + dispatch) y entrantes (start_inbound)
     phone_numbers.py inventario: carga, asignación con tope, liberación, ruteo a agente
     agents.py        alta, validación de la definición, versionado, archivo
@@ -96,6 +97,7 @@ tiers 1───* clients 1───* agents 1───* agent_versions
                 ├───* phone_numbers (client_id, SET NULL: vuelve al inventario)
                 ├───* users (rol client)            users (rol admin: sin cliente)
                 ├───* api_keys
+                ├───* client_limit_adjustments (ajustes de límites del tier, CASCADE)
                 ├───* wa_accounts (agent_id, RESTRICT) 1───* wa_threads
                 └───* conversations 1───1 call_logs        (voz)
                          │          1───1 wa_threads       (whatsapp)
@@ -107,6 +109,7 @@ tiers 1───* clients 1───* agents 1───* agent_versions
 |---|---|
 | `tiers` | `max_concurrent_calls`, `max_calls_per_hour`, `max_calls_per_day`, `max_calls_per_month` (llamadas entrantes y salientes por hora, día y mes calendario), `inbound_minutes`, `outbound_minutes`, `max_phone_numbers`; NULL = ilimitado. API de inferencia: `api_llm_input_tokens`, `api_llm_output_tokens`, `api_tts_minutes`, `api_stt_minutes` (por mes) y `api_rate_limit` (pedidos por minuto); NULL = ilimitado, 0 = no incluido. |
 | `clients` | `slug` único, `tier_id` (RESTRICT: un tier en uso no se borra), `active`. |
+| `client_limit_adjustments` | Ajuste de un límite del tier para un cliente: `field` (uno de los 12 de `tiers`), `mode` (`add` suma, `set` reemplaza; `value` NULL = ilimitado solo con `set`), `starts_on`/`ends_on` (inclusive, en `BILLING_TIMEZONE`; sin fechas, permanente), `note`, `created_by`. Se resuelven en `services/limits.py`. |
 | `agents` | `(client_id, slug)` único; `version` y `definition` vigentes (copia de la última versión); `archived_at`. |
 | `agent_versions` | `(agent_id, version)`; inmutables, con `created_by`. |
 | `phone_numbers` | `e164` único; `client_id` NULL = libre; `agent_id` solo si hay cliente (CHECK); `provider`, `assigned_at`. |
@@ -293,6 +296,17 @@ sin respuesta.
 | Minutos entrantes / salientes | `quota.admit` y el watchdog del worker | Suma de `duration_seconds` de las llamadas de esa modalidad que empezaron en el mes, más el tiempo de las en curso. Las de prueba y loadtest no consumen. Mes calendario en `BILLING_TIMEZONE`. |
 | Números | `phone_numbers.assign`, cambio de tier, cambio del tope | Números con `client_id` del cliente. Asignar toma el mismo lock del cliente y el del número. |
 
+**Ajustes por cliente** (`services/limits.py`): para darle a un cliente algo distinto de su tier (una línea más, 10 minutos
+más este mes, un tope propio) sin tocar el tier ni clonarlo. Toda la tabla anterior, la API de inferencia y el rate limit leen
+`effective_limits(s, client)`, no `client.tier`. Por campo: los `set` vigentes reemplazan el valor del tier (gana el último
+cargado) y después se suman los `add`; sobre un valor ilimitado (NULL) un `add` no tiene efecto, y por eso se rechaza al cargarlo
+(`already_unlimited`). Un ajuste vale entre `starts_on` y `ends_on`, inclusive; al vencer, el cliente vuelve al valor del tier
+sin tocar nada. Cambiar de tier conserva los ajustes. Quitar un ajuste, o cargar un `set` más bajo, se rechaza (409
+`phone_numbers_limit`) si deja al cliente con más números de los que permite. Solo el admin los maneja
+(`GET /clients/{id}/limits`, `POST /clients/{id}/limit-adjustments`, `DELETE .../{adjustment_id}`); el usuario del cliente
+ve el límite efectivo en su consumo. Si se cambia la lógica de un límite del tier, `LIMIT_FIELDS` y `LimitField` de la API
+tienen que seguir iguales a las columnas numéricas de `Tier` (lo verifica `tests/test_limits.py`).
+
 **API de inferencia** (`/api/v1/inference`, [`API_INFERENCIA.md`](API_INFERENCIA.md)): LLM, STT y TTS por API key,
 con límites mensuales del tier por separado (tokens de entrada y de salida, minutos de síntesis y de transcripción) y
 pedidos por minuto. Solo cuenta ese uso, no los agentes integrados. `api_usage.check` rechaza el pedido
@@ -359,7 +373,7 @@ lo de esta sección es lo que lo protege.
 
 | Acción | Admin | Usuario cliente | API key |
 |---|---|---|---|
-| Tiers, clientes (alta, edición, baja), usuarios | Sí | No | No |
+| Tiers, clientes (alta, edición, baja), ajustes de límites de un cliente, usuarios | Sí | No | No |
 | Agentes: crear, editar, versionar, archivar, borrar | Sí | Los suyos | Los suyos |
 | Agentes: ver el prompt que arma el motor (`POST /agents/prompt`) | Sí | No | No |
 | Números: cargar, asignar, liberar, borrar | Sí | No | No |

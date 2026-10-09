@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..models import Agent, Client, PhoneNumber, Role, User
-from ..services import phone_numbers
+from ..services import limits, phone_numbers
 from ..services.security import create_password_setup_token
 from . import messages
 from .sender import Mail, SendResult, send
@@ -37,7 +37,8 @@ def number_assigned_mails(db: Session, number: PhoneNumber) -> list[Mail]:
                                           User.active.is_(True)).order_by(User.email))
     return [messages.number_assigned(email=u.email, name=u.name, client_name=client.name, number=number.e164,
                                      label=number.label, agent_name=agent.name if agent else None,
-                                     numbers_used=used, numbers_limit=client.tier.max_phone_numbers)
+                                     numbers_used=used,
+                                     numbers_limit=limits.effective_limits(db, client).max_phone_numbers)
             for u in users]
 
 

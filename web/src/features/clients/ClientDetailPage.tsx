@@ -35,6 +35,7 @@ import { notifyError, notifySuccess } from '@/lib/notify';
 import { useClient, useDeleteClient, useUpdateClient } from './api';
 import { ApiAccess } from '@/features/developers/ApiAccess';
 import { ClientUsage } from './ClientUsage';
+import { LimitAdjustmentsCard } from './LimitAdjustmentsCard';
 import { NumbersSection } from './NumbersSection';
 
 function ClientDataCard({ client }: { client: Client }) {
@@ -261,7 +262,7 @@ function ClientView({ client }: { client: Client }) {
             <Text span className="mono">
               {client.slug}
             </Text>
-            {` · tier ${client.tier.name} · ${client.agents_count ?? 0} agentes · ${client.numbers_count ?? 0} números`}
+            {` · tier ${client.tier.name}${client.adjustments_count ? ` (+${client.adjustments_count} ajustes)` : ''} · ${client.agents_count ?? 0} agentes · ${client.numbers_count ?? 0} números`}
           </>
         }
       />
@@ -279,7 +280,10 @@ function ClientView({ client }: { client: Client }) {
               <ClientUsage clientId={client.id} month={month} onMonth={(m) => setParam('month', m)} />
             </Grid.Col>
             <Grid.Col span={{ base: 12, lg: 5 }}>
-              <ClientDataCard key={client.id} client={client} />
+              <Stack gap="md">
+                <ClientDataCard key={client.id} client={client} />
+                <LimitAdjustmentsCard clientId={client.id} />
+              </Stack>
             </Grid.Col>
           </Grid>
         </Tabs.Panel>

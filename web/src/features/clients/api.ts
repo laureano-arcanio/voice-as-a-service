@@ -1,12 +1,13 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { unwrap } from '@/api/request';
-import type { ApiScope, ClientIn, ClientUpdate } from '@/api/types';
+import type { ApiScope, ClientIn, ClientUpdate, LimitAdjustmentIn } from '@/api/types';
 
 export const clientKeys = {
   all: ['clients'] as const,
   detail: (id: string) => ['clients', id] as const,
   usage: (id: string, month: string) => ['clients', id, 'usage', month] as const,
+  limits: (id: string) => ['clients', id, 'limits'] as const,
 };
 
 export const apiKeyKeys = {
@@ -45,6 +46,52 @@ export function useClientUsage(
     enabled: !!id,
     placeholderData: keepPreviousData,
     refetchInterval,
+  });
+}
+
+/** Limites del tier, los que rigen hoy y los ajustes del cliente (solo admin). */
+export function useClientLimits(id: string | undefined) {
+  return useQuery({
+    queryKey: clientKeys.limits(id ?? ''),
+    queryFn: () =>
+      unwrap(api.GET('/api/v1/clients/{client_id}/limits', { params: { path: { client_id: id! } } })),
+    enabled: !!id,
+  });
+}
+
+/** Un ajuste cambia el consumo (limites), el cliente (contador) y la lista de clientes. */
+function useInvalidateLimits(id: string) {
+  const qc = useQueryClient();
+  return () => {
+    void qc.invalidateQueries({ queryKey: clientKeys.detail(id) });
+    void qc.invalidateQueries({ queryKey: clientKeys.all });
+  };
+}
+
+export function useAddLimitAdjustment(id: string) {
+  const invalidate = useInvalidateLimits(id);
+  return useMutation({
+    mutationFn: (body: LimitAdjustmentIn) =>
+      unwrap(
+        api.POST('/api/v1/clients/{client_id}/limit-adjustments', {
+          params: { path: { client_id: id } },
+          body,
+        }),
+      ),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteLimitAdjustment(id: string) {
+  const invalidate = useInvalidateLimits(id);
+  return useMutation({
+    mutationFn: (adjustmentId: string) =>
+      unwrap(
+        api.DELETE('/api/v1/clients/{client_id}/limit-adjustments/{adjustment_id}', {
+          params: { path: { client_id: id, adjustment_id: adjustmentId } },
+        }),
+      ),
+    onSuccess: invalidate,
   });
 }
 

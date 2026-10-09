@@ -9,6 +9,7 @@ from ..db import utcnow
 from ..models import Agent, Client, PhoneNumber, Tier
 from .calls import normalize_e164
 from .errors import Conflict, Invalid, NotFound
+from .limits import effective_limits
 
 
 @dataclass
@@ -57,9 +58,10 @@ def assign(s: Session, number: PhoneNumber, client_id: str) -> None:
         return
     if number.client_id is not None:
         raise Conflict(f"El número {number.e164} ya está asignado a otro cliente: liberalo primero", "number_assigned")
-    limit = client.tier.max_phone_numbers
+    limits = effective_limits(s, client)
+    limit = limits.max_phone_numbers
     if limit is not None and numbers_count(s, client.id) >= limit:
-        raise Conflict(f"El plan {client.tier.name} permite {limit} número{'s' if limit != 1 else ''} y "
+        raise Conflict(f"El plan {limits.tier_name} permite {limit} número{'s' if limit != 1 else ''} y "
                        f"{client.name} ya los tiene", "phone_numbers_limit")
     number.client_id, number.agent_id, number.assigned_at = client.id, None, utcnow()
 
@@ -84,8 +86,9 @@ def set_agent(s: Session, number: PhoneNumber, agent_id: str | None) -> None:
 
 
 def check_tier_fits(s: Session, client: Client, tier: Tier) -> None:
-    """Un cliente no puede quedar con mas numeros que los que permite su tier."""
+    """Un cliente no puede quedar con mas numeros que los que permite su tier (con sus ajustes)."""
     count = numbers_count(s, client.id)
-    if tier.max_phone_numbers is not None and count > tier.max_phone_numbers:
+    limit = effective_limits(s, client, tier=tier).max_phone_numbers
+    if limit is not None and count > limit:
         raise Conflict(f"{client.name} tiene {count} números y el plan {tier.name} permite "
-                       f"{tier.max_phone_numbers}: liberá números primero", "phone_numbers_limit")
+                       f"{limit}: liberá números primero", "phone_numbers_limit")

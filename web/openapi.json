@@ -726,6 +726,169 @@
     }
    }
   },
+  "/api/v1/clients/{client_id}/limits": {
+   "get": {
+    "tags": [
+     "clients"
+    ],
+    "summary": "Client Limits",
+    "description": "Limites del tier, los que rigen hoy con los ajustes del cliente y la lista de ajustes\n(vigentes, futuros y vencidos).",
+    "operationId": "client_limits_api_v1_clients__client_id__limits_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ClientLimitsOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/clients/{client_id}/limit-adjustments": {
+   "post": {
+    "tags": [
+     "clients"
+    ],
+    "summary": "Add Limit Adjustment",
+    "description": "Suma o reemplaza un limite del tier solo para este cliente (mas minutos, una linea mas,\nun tope propio), de forma permanente o por un periodo. Vale ya, sin reiniciar nada.",
+    "operationId": "add_limit_adjustment_api_v1_clients__client_id__limit_adjustments_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/LimitAdjustmentIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ClientLimitsOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/clients/{client_id}/limit-adjustments/{adjustment_id}": {
+   "delete": {
+    "tags": [
+     "clients"
+    ],
+    "summary": "Delete Limit Adjustment",
+    "description": "Quita un ajuste: el cliente vuelve al limite del tier (o al de los otros ajustes). Se rechaza si\nlo deja con mas numeros de los que permite.",
+    "operationId": "delete_limit_adjustment_api_v1_clients__client_id__limit_adjustments__adjustment_id__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     },
+     {
+      "name": "adjustment_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Adjustment Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ClientLimitsOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/phone-numbers": {
    "get": {
     "tags": [
@@ -6118,6 +6281,12 @@
       "title": "Numbers Count",
       "default": 0
      },
+     "adjustments_count": {
+      "type": "integer",
+      "title": "Adjustments Count",
+      "description": "Ajustes de limites vigentes hoy",
+      "default": 0
+     },
      "invite": {
       "anyOf": [
        {
@@ -6191,6 +6360,35 @@
     ],
     "title": "ClientIn"
    },
+   "ClientLimitsOut": {
+    "properties": {
+     "tier_name": {
+      "type": "string",
+      "title": "Tier Name"
+     },
+     "limits": {
+      "items": {
+       "$ref": "#/components/schemas/LimitRowOut"
+      },
+      "type": "array",
+      "title": "Limits"
+     },
+     "adjustments": {
+      "items": {
+       "$ref": "#/components/schemas/LimitAdjustmentOut"
+      },
+      "type": "array",
+      "title": "Adjustments"
+     }
+    },
+    "type": "object",
+    "required": [
+     "tier_name",
+     "limits",
+     "adjustments"
+    ],
+    "title": "ClientLimitsOut"
+   },
    "ClientOut": {
     "properties": {
      "id": {
@@ -6225,6 +6423,12 @@
      "numbers_count": {
       "type": "integer",
       "title": "Numbers Count",
+      "default": 0
+     },
+     "adjustments_count": {
+      "type": "integer",
+      "title": "Adjustments Count",
+      "description": "Ajustes de limites vigentes hoy",
       "default": 0
      }
     },
@@ -7043,6 +7247,251 @@
     ],
     "title": "InviteOut",
     "description": "Resultado del mail para crear la clave. disabled: el servidor no tiene RESEND_API_KEY."
+   },
+   "LimitAdjustmentIn": {
+    "properties": {
+     "field": {
+      "type": "string",
+      "enum": [
+       "max_concurrent_calls",
+       "max_calls_per_hour",
+       "max_calls_per_day",
+       "max_calls_per_month",
+       "inbound_minutes",
+       "outbound_minutes",
+       "max_phone_numbers",
+       "api_llm_input_tokens",
+       "api_llm_output_tokens",
+       "api_tts_minutes",
+       "api_stt_minutes",
+       "api_rate_limit"
+      ],
+      "title": "Field"
+     },
+     "mode": {
+      "type": "string",
+      "enum": [
+       "add",
+       "set"
+      ],
+      "title": "Mode"
+     },
+     "value": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Value",
+      "description": "Cantidad (minutos, numeros, llamadas, tokens)"
+     },
+     "starts_on": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Starts On"
+     },
+     "ends_on": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ends On"
+     },
+     "note": {
+      "type": "string",
+      "maxLength": 255,
+      "title": "Note",
+      "description": "Para que se dio (queda en el registro)",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "field",
+     "mode"
+    ],
+    "title": "LimitAdjustmentIn",
+    "description": "`add` suma `value` al limite del tier; `set` lo reemplaza (value null = ilimitado). Sin fechas\nes permanente; con ellas, vale entre `starts_on` y `ends_on`, ambos inclusive."
+   },
+   "LimitAdjustmentOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "field": {
+      "type": "string",
+      "enum": [
+       "max_concurrent_calls",
+       "max_calls_per_hour",
+       "max_calls_per_day",
+       "max_calls_per_month",
+       "inbound_minutes",
+       "outbound_minutes",
+       "max_phone_numbers",
+       "api_llm_input_tokens",
+       "api_llm_output_tokens",
+       "api_tts_minutes",
+       "api_stt_minutes",
+       "api_rate_limit"
+      ],
+      "title": "Field"
+     },
+     "mode": {
+      "type": "string",
+      "enum": [
+       "add",
+       "set"
+      ],
+      "title": "Mode"
+     },
+     "value": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Value"
+     },
+     "starts_on": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Starts On"
+     },
+     "ends_on": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ends On"
+     },
+     "note": {
+      "type": "string",
+      "title": "Note"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "active",
+       "scheduled",
+       "expired"
+      ],
+      "title": "Status"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "created_by_email": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created By Email"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "field",
+     "mode",
+     "value",
+     "starts_on",
+     "ends_on",
+     "note",
+     "status",
+     "created_at"
+    ],
+    "title": "LimitAdjustmentOut"
+   },
+   "LimitRowOut": {
+    "properties": {
+     "field": {
+      "type": "string",
+      "enum": [
+       "max_concurrent_calls",
+       "max_calls_per_hour",
+       "max_calls_per_day",
+       "max_calls_per_month",
+       "inbound_minutes",
+       "outbound_minutes",
+       "max_phone_numbers",
+       "api_llm_input_tokens",
+       "api_llm_output_tokens",
+       "api_tts_minutes",
+       "api_stt_minutes",
+       "api_rate_limit"
+      ],
+      "title": "Field"
+     },
+     "tier": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tier",
+      "description": "Valor del tier (null = ilimitado)"
+     },
+     "effective": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Effective",
+      "description": "Valor que rige hoy, con los ajustes vigentes"
+     }
+    },
+    "type": "object",
+    "required": [
+     "field",
+     "tier",
+     "effective"
+    ],
+    "title": "LimitRowOut"
    },
    "LlmCall": {
     "properties": {

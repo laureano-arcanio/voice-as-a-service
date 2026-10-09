@@ -154,6 +154,61 @@ class ClientOut(ORM):
     created_at: UTCDateTime
     agents_count: int = 0
     numbers_count: int = 0
+    adjustments_count: int = Field(default=0, description="Ajustes de limites vigentes hoy")
+
+
+# ---------- ajustes de limites por cliente ----------
+
+# Los campos de Tier que se pueden ajustar (igual a services/limits.LIMIT_FIELDS; un test lo verifica).
+LimitField = Literal[
+    "max_concurrent_calls", "max_calls_per_hour", "max_calls_per_day", "max_calls_per_month",
+    "inbound_minutes", "outbound_minutes", "max_phone_numbers",
+    "api_llm_input_tokens", "api_llm_output_tokens", "api_tts_minutes", "api_stt_minutes", "api_rate_limit",
+]
+
+
+class LimitAdjustmentIn(BaseModel):
+    """`add` suma `value` al limite del tier; `set` lo reemplaza (value null = ilimitado). Sin fechas
+    es permanente; con ellas, vale entre `starts_on` y `ends_on`, ambos inclusive."""
+    field: LimitField
+    mode: Literal["add", "set"]
+    value: int | None = Field(default=None, ge=0, description="Cantidad (minutos, numeros, llamadas, tokens)")
+    starts_on: datetime.date | None = None
+    ends_on: datetime.date | None = None
+    note: str = Field(default="", max_length=255, description="Para que se dio (queda en el registro)")
+
+    @model_validator(mode="after")
+    def _coherent(self):
+        if self.mode == "add" and not self.value:
+            raise ValueError("Un ajuste de tipo add necesita una cantidad mayor que 0")
+        if self.starts_on and self.ends_on and self.ends_on < self.starts_on:
+            raise ValueError("ends_on no puede ser anterior a starts_on")
+        return self
+
+
+class LimitAdjustmentOut(ORM):
+    id: str
+    field: LimitField
+    mode: Literal["add", "set"]
+    value: int | None
+    starts_on: datetime.date | None
+    ends_on: datetime.date | None
+    note: str
+    status: Literal["active", "scheduled", "expired"]
+    created_at: UTCDateTime
+    created_by_email: str | None = None
+
+
+class LimitRowOut(BaseModel):
+    field: LimitField
+    tier: int | None = Field(description="Valor del tier (null = ilimitado)")
+    effective: int | None = Field(description="Valor que rige hoy, con los ajustes vigentes")
+
+
+class ClientLimitsOut(BaseModel):
+    tier_name: str
+    limits: list[LimitRowOut]
+    adjustments: list[LimitAdjustmentOut]
 
 
 class InviteOut(BaseModel):
