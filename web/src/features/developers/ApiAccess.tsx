@@ -1,6 +1,8 @@
 import { Card, Code, Group, Stack, Table, Tabs, Text, Title } from '@mantine/core';
+import { useState } from 'react';
 import { CopyIcon } from '@/components/Copy';
 import { ApiKeysSection } from '@/features/clients/ApiKeysSection';
+import { recentMonths } from '@/lib/format';
 import { InferenceUsageCard } from './InferenceUsageCard';
 import { ENDPOINTS, EXAMPLE_LABELS, inferenceBaseUrl, inferenceExample, type ExampleKind } from './examples';
 
@@ -97,11 +99,15 @@ function ExamplesCard() {
   );
 }
 
-/** API de inferencia de un cliente: conexion y ejemplos, consumo contra el plan y API keys con su alcance. */
-export function ApiAccess({ clientId }: { clientId: string }) {
+/**
+ * API de inferencia de un cliente: conexion y ejemplos, consumo contra el plan y API keys con su alcance.
+ * showUsage=false cuando el consumo ya se muestra en otro lado (el detalle del cliente, para el admin).
+ */
+export function ApiAccess({ clientId, showUsage = true }: { clientId: string; showUsage?: boolean }) {
+  const [month, setMonth] = useState(() => recentMonths(1)[0]);
   return (
     <Stack gap="md">
-      <InferenceUsageCard clientId={clientId} />
+      {showUsage && <InferenceUsageCard clientId={clientId} month={month} onMonth={setMonth} />}
       <ApiKeysSection clientId={clientId} />
       <ConnectionCard />
       <ExamplesCard />

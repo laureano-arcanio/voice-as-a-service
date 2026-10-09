@@ -70,7 +70,7 @@ describe('InferenceUsageCard', () => {
         return Promise.resolve(jsonResponse(USAGE));
       }),
     );
-    renderWithProviders(<InferenceUsageCard clientId="c-1" />);
+    renderWithProviders(<InferenceUsageCard clientId="c-1" month="2026-10" onMonth={() => {}} />);
     expect(await screen.findByText('Consumo de la API')).toBeInTheDocument();
     expect(await screen.findByText(/Período: 01\/10\/2026 al 31\/10\/2026/)).toBeInTheDocument();
     expect(await screen.findByText('CRM')).toBeInTheDocument();

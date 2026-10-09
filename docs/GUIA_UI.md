@@ -7,7 +7,7 @@ puede hacer por la API (`/api/v1/docs`, solo con sesión de admin). La arquitect
 
 Hay dos roles:
 - **Admin:** opera la plataforma y ve todo. Menú: Inicio, Conversaciones, Agentes, Voces, WhatsApp, Clientes, Números, Tiers y Usuarios.
-- **Cliente:** usuario de un cliente, que solo ve lo suyo. Menú: Inicio, Conversaciones, Agentes, Voces, WhatsApp y Mi cuenta.
+- **Cliente:** usuario de un cliente, que solo ve lo suyo. Menú: Inicio, Conversaciones, Agentes, Voces, WhatsApp, Consumos, API y Mi cuenta.
 
 ## Primer ingreso
 
@@ -48,7 +48,9 @@ una sola vez). Si el aviso dice que no se pudo mandar, o el link venció, **Usua
 (el sobre de la fila). Te lleva a la ficha del cliente, que tiene cinco pestañas:
 
 - **Consumo y datos:** consumo del mes con selector de mes (llamadas activas contra el tope,
-  minutos entrantes y salientes, números usados), y los datos del cliente:
+  minutos entrantes y salientes, números usados), el **consumo de la API** del mes contra el tier (tokens de
+  entrada y salida del LLM, minutos de transcripción y de síntesis, pedidos por minuto y el desglose por key;
+  no incluye lo que consumen los agentes integrados), y los datos del cliente:
   - **Cambiar el tier:** se rechaza si el tier nuevo permite menos números de los que tiene.
   - **Activo:** apagarlo impide hacer y recibir llamadas; las entrantes escuchan un aviso y se cortan.
   - **Borrar:** solo si el cliente no tiene conversaciones; si tiene, desactivalo.
@@ -157,7 +159,8 @@ Si el cliente está desactivado, sus números de WhatsApp tampoco responden.
 
   Desde la tabla se editan el nombre, la clave y el estado activo, y se borra. Desactivar un usuario
   corta su sesión en el acto. Nadie puede desactivarse ni borrarse a sí mismo.
-- **API keys** (pestaña **API keys** de la ficha del cliente, o **API** en el menú del cliente) > **Nueva API key**:
+- **API keys** (pestaña **API keys** de la ficha del cliente, o **API** en el menú del cliente) > **Nueva API key**
+  (en la ficha del admin, el consumo de la API está en **Consumo y datos**):
   - Se elige el **acceso**: *Llamadas y agentes* (`calls`) y/o los motores de la API de inferencia: *LLM*, *Transcripción (STT)*
     y *Síntesis (TTS)*.
   - La clave se muestra **una sola vez**, con botón para copiarla y ejemplos `curl` de lo que se eligió.
@@ -312,6 +315,13 @@ Hace falta un número conectado con su propia cuenta (el cliente) y una plantill
 
 Meta cobra cada plantilla entregada a la cuenta del número. Conviene escribirles solo a quienes aceptaron
 recibir mensajes: muchos bloqueos bajan la calidad del número y su límite de envío.
+
+### Consumos (cliente)
+
+Consumo del mes con selector de mes, contra los límites del plan: llamadas simultáneas, números, minutos
+entrantes y salientes, y el consumo de la API de inferencia (tokens de entrada y salida del LLM, minutos de
+transcripción y de síntesis, pedidos por minuto y desglose por key). Es la misma información que ve el admin
+en la ficha del cliente. La API no cuenta lo que consumen los agentes integrados (llamadas y WhatsApp).
 
 ### Mi cuenta (cliente)
 

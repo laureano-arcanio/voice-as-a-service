@@ -34,8 +34,8 @@ import { ENGINE } from '@/lib/labels';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useClient, useDeleteClient, useUpdateClient } from './api';
 import { ApiAccess } from '@/features/developers/ApiAccess';
+import { ClientUsage } from './ClientUsage';
 import { NumbersSection } from './NumbersSection';
-import { UsageCard } from './UsageCard';
 
 function ClientDataCard({ client }: { client: Client }) {
   const tiers = useTiers();
@@ -276,7 +276,7 @@ function ClientView({ client }: { client: Client }) {
         <Tabs.Panel value="resumen">
           <Grid gutter="md">
             <Grid.Col span={{ base: 12, lg: 7 }}>
-              <UsageCard clientId={client.id} month={month} onMonth={(m) => setParam('month', m)} />
+              <ClientUsage clientId={client.id} month={month} onMonth={(m) => setParam('month', m)} />
             </Grid.Col>
             <Grid.Col span={{ base: 12, lg: 5 }}>
               <ClientDataCard key={client.id} client={client} />
@@ -303,7 +303,7 @@ function ClientView({ client }: { client: Client }) {
           </Card>
         </Tabs.Panel>
         <Tabs.Panel value="api-keys">
-          <ApiAccess clientId={client.id} />
+          <ApiAccess clientId={client.id} showUsage={false} />
         </Tabs.Panel>
       </Tabs>
     </>

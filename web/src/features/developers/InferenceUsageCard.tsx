@@ -1,5 +1,4 @@
 import { Badge, Card, Group, Select, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
-import { useState } from 'react';
 import type { InferenceUsage } from '@/api/types';
 import { ErrorAlert } from '@/components/QueryState';
 import { UsageMeter } from '@/features/clients/UsageCard';
@@ -117,9 +116,16 @@ function KeysTable({ usage }: { usage: InferenceUsage }) {
 }
 
 /** Consumo del mes de la API de inferencia (no incluye los agentes integrados), con selector de mes. */
-export function InferenceUsageCard({ clientId }: { clientId: string }) {
+export function InferenceUsageCard({
+  clientId,
+  month,
+  onMonth,
+}: {
+  clientId: string;
+  month: string;
+  onMonth: (m: string) => void;
+}) {
   const months = recentMonths(12);
-  const [month, setMonth] = useState(months[0]);
   const usage = useInferenceUsage(clientId, month, month === months[0] ? 10_000 : false);
   return (
     <Card>
@@ -134,7 +140,7 @@ export function InferenceUsageCard({ clientId }: { clientId: string }) {
         <Select
           data={months.map((m) => ({ value: m, label: formatMonth(m) }))}
           value={month}
-          onChange={(v) => setMonth(v ?? months[0])}
+          onChange={(v) => onMonth(v ?? months[0])}
           allowDeselect={false}
           w={200}
           size="xs"
