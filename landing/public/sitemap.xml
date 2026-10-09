@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://atentina.com.ar/</loc></url>
+  <url><loc>https://atentina.com.ar/desarrolladores</loc></url>
+  <url><loc>https://atentina.com.ar/desarrolladores/docs</loc></url>
   <url><loc>https://atentina.com.ar/casos-de-uso</loc></url>
-  <url><loc>https://atentina.com.ar/turnos</loc></url>
-  <url><loc>https://atentina.com.ar/cobranzas</loc></url>
-  <url><loc>https://atentina.com.ar/municipios</loc></url>
+  <url><loc>https://atentina.com.ar/casos-de-uso/turnos</loc></url>
+  <url><loc>https://atentina.com.ar/casos-de-uso/cobranzas</loc></url>
+  <url><loc>https://atentina.com.ar/casos-de-uso/municipios</loc></url>
   <url><loc>https://atentina.com.ar/privacidad</loc></url>
   <url><loc>https://atentina.com.ar/terminos</loc></url>
   <url><loc>https://atentina.com.ar/eliminacion-de-datos</loc></url>

@@ -3,32 +3,38 @@ import Button from "./Button.astro";
 import Logo from "./Logo.astro";
 
 interface Props {
-  /** home: la de integradores. casos: /casos-de-uso. other: verticales y demas. Define que links son del mismo documento. */
-  current?: "home" | "casos" | "other";
+  /** Donde estamos: define que links son del mismo documento y cual queda marcado. home: `/`. dev: `/desarrolladores`. docs: su documentacion. casos: `/casos-de-uso`. sector: una vertical. other: legales. */
+  current?: "home" | "dev" | "docs" | "casos" | "sector" | "other";
 }
 
 const { current = "other" } = Astro.props;
 // Las anclas que existen en cada pagina; el resto va a la home.
 const local: Record<NonNullable<Props["current"]>, string[]> = {
-  home: ["plataforma", "api", "voces", "precios", "demo"],
+  home: ["precios", "demo"],
+  dev: ["precios", "demo"],
+  docs: ["demo"],
   casos: ["precios", "demo"],
-  other: ["voces", "precios", "demo"],
+  sector: ["precios", "demo"],
+  other: [],
 };
 const anchor = (id: string) => (local[current].includes(id) ? `#${id}` : `/#${id}`);
+// Las paginas con widget de llamada (id="llamada") ofrecen "Hacé una demo"; el resto, el formulario.
+const hasCall = current === "home" || current === "casos" || current === "sector";
 const links = [
-  { href: anchor("plataforma"), label: "Plataforma", short: "Plataforma" },
+  { href: "/", label: "Home", short: "Home", active: current === "home" },
+  { href: "/desarrolladores", label: "Desarrolladores", short: "Desarrolladores", active: current === "dev" },
+  { href: "/casos-de-uso", label: "Casos de uso", short: "Casos", active: current === "casos" || current === "sector" },
   { href: anchor("precios"), label: "Precios", short: "Precios" },
-  { href: anchor("api"), label: "API", short: "API" },
-  { href: anchor("voces"), label: "Voces", short: "Voces" },
-  { href: "/casos-de-uso", label: "Casos de uso", short: "Casos", active: current === "casos" },
+  { href: "/desarrolladores/docs", label: "Docs", short: "Docs", active: current === "docs" },
   { href: anchor("demo"), label: "Contacto", short: "Contacto" },
 ];
+const cta = current === "docs" ? "Pedir acceso" : current === "dev" ? "Empezar gratis" : hasCall ? "Hacé una demo" : "Empezar gratis";
 ---
 
 <nav class="sticky top-[env(safe-area-inset-top,0px)] z-10 border-b border-line bg-white/86 backdrop-blur-[10px]">
   <div class="mx-auto flex max-w-[1120px] items-center justify-between gap-4 px-5 py-3.5">
-    <Logo href={current === "home" ? "#" : "/"} />
-    <div class="flex items-center gap-6 text-[.98rem] font-medium max-[900px]:gap-4">
+    <Logo href="/" />
+    <div class="flex items-center gap-6 text-[.98rem] font-medium max-[1000px]:gap-4">
       {
         links.map((l) => (
           <a
@@ -40,8 +46,8 @@ const links = [
           </a>
         ))
       }
-      <Button href={current === "casos" ? "#llamada" : anchor("demo")} size="sm" class="whitespace-nowrap" data-demo-link={current === "casos" ? "" : undefined}>
-        {current === "casos" ? "Hacé una demo" : "Empezar gratis"}
+      <Button href={hasCall ? "#llamada" : anchor("demo")} size="sm" class="whitespace-nowrap" data-demo-link={hasCall ? "" : undefined}>
+        {cta}
       </Button>
     </div>
   </div>

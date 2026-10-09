@@ -317,13 +317,14 @@ export interface Capability {
   link?: string;
 }
 
+/** Home: las tres capas de la plataforma, con los desarrolladores primero. */
 export const platform: Capability[] = [
   {
-    title: "Telefonía y WhatsApp",
-    text: "Números argentinos, llamadas entrantes y salientes, y WhatsApp para el mismo agente. Todo en un solo servicio, por la app o por API.",
+    title: "Motores por API",
+    text: "Reconocimiento de voz, modelo de lenguaje y síntesis con acento argentino, con una API key. Compatible con el SDK de OpenAI y con streaming.",
     status: "available",
-    href: "#precios",
-    link: "Ver planes →",
+    href: "/desarrolladores#api",
+    link: "Ver la API →",
   },
   {
     title: "Agentes",
@@ -333,12 +334,56 @@ export const platform: Capability[] = [
     link: "Ver casos de uso →",
   },
   {
-    title: "Motores por API",
-    text: "LLM, transcripción y síntesis de voz con una API key. Compatible con el SDK de OpenAI y con streaming. Sin telefonía: usás solo lo que necesitás.",
+    title: "Telefonía y WhatsApp",
+    text: "Números argentinos, llamadas entrantes y salientes, y WhatsApp para el mismo agente. Todo en un solo servicio, por la app o por API.",
+    status: "available",
+    href: "#precios",
+    link: "Ver planes →",
+  },
+];
+
+/** `/desarrolladores`: lo que se puede construir. */
+export const devCapabilities: Capability[] = [
+  {
+    title: "Motores sueltos",
+    text: "LLM, transcripción y síntesis con una API key por sistema. Usás solo el motor que necesitás, con streaming de texto y de audio.",
     status: "available",
     href: "#api",
     link: "Ver la API →",
   },
+  {
+    title: "Agentes y llamadas",
+    text: "Creás el agente, lanzás las llamadas y recibís el resultado de cada una en tu sistema, por API o webhook.",
+    status: "available",
+    href: "#agentes",
+    link: "Integrarlo con tu agente de programación →",
+  },
+  {
+    title: "Telefonía incluida",
+    text: "Números argentinos, entrantes y salientes, y WhatsApp. No contratás telefonía aparte: los minutos van en el plan.",
+    status: "available",
+    href: "#precios",
+    link: "Ver planes →",
+  },
+];
+
+/** Home: lo que normalmente se contrata por separado, contra lo que incluye el plan. */
+export const costsSeparate: string[] = [
+  "Telefonía: línea, numeración y minutos con un proveedor",
+  "Reconocimiento de voz, cobrado por minuto de audio",
+  "Modelo de lenguaje, cobrado por token",
+  "Síntesis de voz, cobrada por carácter o por segundo",
+  "WhatsApp, con su propio alta y proveedor",
+  "Servidores y plataforma para unirlo todo",
+];
+
+export const costsIncluded: string[] = [
+  "Número argentino, entrante y saliente",
+  "Minutos de llamada, a la vez y por mes",
+  "Reconocimiento de voz, LLM y voces con acento argentino",
+  "WhatsApp para el mismo agente",
+  "Panel con la transcripción y los datos de cada conversación",
+  "Un precio por mes, en pesos, sin permanencia",
 ];
 
 export const apiFeatures: Feature[] = [
@@ -349,31 +394,87 @@ export const apiFeatures: Feature[] = [
   { title: "Límites y consumo a la vista", text: "Tokens, minutos y pedidos por minuto por plan, y un endpoint que dice cuánto te queda." },
 ];
 
-export const faq: { q: string; a: string }[] = [
+export interface Endpoint {
+  path: string;
+  scope: string;
+  text: string;
+}
+
+/** Los endpoints de la API de inferencia (docs/API_INFERENCIA.md), sobre `/api/v1/inference`. */
+export const endpoints: Endpoint[] = [
+  { path: "POST /chat/completions", scope: "llm", text: "Chat con el LLM, con o sin streaming" },
+  { path: "POST /audio/transcriptions", scope: "stt", text: "Transcribe un archivo de audio" },
+  { path: "POST /audio/speech", scope: "tts", text: "Sintetiza texto con una de las voces" },
+  { path: "GET /voices", scope: "tts", text: "Voces disponibles" },
+  { path: "GET /models", scope: "cualquiera", text: "Modelos que sirve la plataforma" },
+  { path: "GET /usage", scope: "cualquiera", text: "Tu consumo del mes contra el plan" },
+];
+
+export interface Qa {
+  q: string;
+  a: string;
+}
+
+const faqFree: Qa = {
+  q: "¿Qué incluye el plan Free?",
+  a: "20 minutos por mes, llamadas web, acceso a la plataforma web y acceso a la API. No incluye telefonía: ni números ni llamadas por teléfono. Cuando la necesites, pasás a un plan con telefonía.",
+};
+const faqNumbers: Qa = { q: "¿Qué numeración tienen?", a: "Numeración regional argentina, 0800 y 0810." };
+const faqMinutes: Qa = {
+  q: "¿Cómo se cuentan los minutos?",
+  a: "Cada llamada se cuenta por minuto iniciado. Los minutos del plan son por mes y no se acumulan: suman las llamadas que entran y las que hace el agente.",
+};
+const faqOver: Qa = { q: "¿Qué pasa si me paso de los minutos?", a: "Podés comprar packs de minutos por adelantado, o cuando los necesites." };
+const faqTerms: Qa = {
+  q: "¿Los precios llevan IVA? ¿Hay permanencia?",
+  a: "Los precios son en pesos y no incluyen IVA. No hay permanencia: se cancela cuando quieras. Si el precio cambia, avisamos con 15 días de anticipación.",
+};
+
+/** Home. */
+export const faqGeneral: Qa[] = [
   {
-    q: "¿Qué incluye el plan Free?",
-    a: "20 minutos por mes, llamadas web, acceso a la plataforma web y acceso a la API. No incluye telefonía: ni números ni llamadas por teléfono. Cuando la necesites, pasás a un plan con telefonía.",
+    q: "¿Tengo que contratar telefonía aparte?",
+    a: "No. Los planes con telefonía incluyen el número argentino, los minutos y las llamadas a la vez, junto con la inteligencia artificial y las voces. Es un solo servicio con un precio por mes en pesos.",
   },
+  faqFree,
+  faqNumbers,
+  faqMinutes,
+  faqTerms,
+];
+
+/** `/casos-de-uso`. */
+export const faqBusiness: Qa[] = [
+  {
+    q: "¿Tengo que contratar telefonía aparte?",
+    a: "No. El número argentino, los minutos, las llamadas a la vez y la inteligencia artificial vienen en el plan. Lo contratás y empieza a atender.",
+  },
+  faqNumbers,
+  faqMinutes,
+  faqOver,
+  faqTerms,
+];
+
+/** `/desarrolladores`. */
+export const faqDev: Qa[] = [
+  faqFree,
   {
     q: "¿Cómo accedo a la API?",
     a: "Pedí acceso con el formulario y te creamos la cuenta. Desde el panel generás tus API keys, cada una con el alcance que elijas (LLM, transcripción, síntesis o llamadas), y ves cuánto consumiste en el mes.",
   },
   {
-    q: "¿Qué numeración tienen?",
-    a: "Numeración regional argentina, 0800 y 0810.",
+    q: "¿Puedo usar el SDK de OpenAI?",
+    a: "Sí. Cambiás la base_url y la API key y usás el SDK que ya tenés. El modelo lo fija la plataforma: el campo model es obligatorio en los SDK pero se ignora.",
   },
   {
-    q: "¿Cómo se cuentan los minutos?",
-    a: "Cada llamada se cuenta por minuto iniciado. Los minutos del plan son por mes y no se acumulan: suman las llamadas que entran y las que hace el agente.",
+    q: "¿Qué pasa cuando se agota un cupo?",
+    a: "Los cupos de tokens y minutos son por mes y separados por motor: agotar uno no afecta a los otros. El pedido que no entra responde 429 con un código que dice qué cupo falta, y no llega al motor ni se cobra.",
   },
   {
-    q: "¿Qué pasa si me paso de los minutos?",
-    a: "Podés comprar packs de minutos por adelantado, o cuando los necesites.",
+    q: "¿Guardan los textos y los audios que mando?",
+    a: "No. La plataforma guarda cuánto consumiste, por key y por día, pero no los prompts, los audios ni los textos de la API.",
   },
-  {
-    q: "¿Los precios llevan IVA? ¿Hay permanencia?",
-    a: "Los precios son en pesos y no incluyen IVA. No hay permanencia: se cancela cuando quieras. Si el precio cambia, avisamos con 15 días de anticipación.",
-  },
+  faqMinutes,
+  faqTerms,
 ];
 
 /** Integración agéntica: lo que un agente de programación puede hacer con la plataforma. */

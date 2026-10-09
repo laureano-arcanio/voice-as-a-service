@@ -1,16 +1,16 @@
 ---
-import CallWidget from "../components/CallWidget.astro";
-import CheckList from "../components/CheckList.astro";
-import Cta from "../components/Cta.astro";
-import Faq from "../components/Faq.astro";
-import Footer from "../components/Footer.astro";
-import Nav from "../components/Nav.astro";
-import Pricing from "../components/Pricing.astro";
-import Section from "../components/Section.astro";
-import Solutions from "../components/Solutions.astro";
-import TelDialog from "../components/TelDialog.astro";
-import { atentinaAgent, whatsappUrl } from "../data/site";
-import Base from "../layouts/Base.astro";
+import CallWidget from "../../components/CallWidget.astro";
+import CheckList from "../../components/CheckList.astro";
+import Cta from "../../components/Cta.astro";
+import Faq from "../../components/Faq.astro";
+import Footer from "../../components/Footer.astro";
+import Nav from "../../components/Nav.astro";
+import Pricing from "../../components/Pricing.astro";
+import Section from "../../components/Section.astro";
+import Solutions from "../../components/Solutions.astro";
+import TelDialog from "../../components/TelDialog.astro";
+import { atentinaAgent, faqBusiness, whatsappUrl } from "../../data/site";
+import Base from "../../layouts/Base.astro";
 
 const features = [
   { title: "Número argentino", text: "Uno nuevo o tu línea de siempre. Entrantes y salientes." },
@@ -20,6 +20,12 @@ const features = [
   { title: "API y webhooks", text: "Creás llamadas y campañas, y recibís cada resultado en tu sistema." },
   { title: "Integración con tu gestión", text: "El agente consulta y escribe en tu sistema durante la llamada." },
   { title: "Derivación a una persona", text: "Si lo supera, toma el dato y avisa a tu equipo." },
+];
+
+const steps = [
+  { title: "Lo configuramos con vos", text: "Nos contás qué tiene que atender y armamos el agente con tus reglas, tus datos y la voz que elijas." },
+  { title: "Se conecta a tu sistema", text: "Consulta y escribe en tu gestión durante la llamada. El número y la telefonía van incluidos." },
+  { title: "Ves cada resultado", text: "Transcripción, datos tomados y resultado de cada llamada y chat, en el panel o en tu sistema." },
 ];
 ---
 
@@ -54,7 +60,9 @@ const features = [
 
   <TelDialog />
 
-  <Section id="como">
+  <Solutions other />
+
+  <Section id="como" class="border-b border-line">
     <div class="grid items-start gap-7 min-[901px]:grid-cols-2 min-[901px]:gap-12">
       <div class="grid gap-4">
         <h2>Nuestro producto</h2>
@@ -66,9 +74,23 @@ const features = [
     </div>
   </Section>
 
-  <Solutions />
-  <Pricing free />
-  <Faq />
+  <Section>
+    <h2>Cómo empieza</h2>
+    <ol class="mt-9 grid list-none gap-4 p-0 min-[801px]:grid-cols-3">
+      {
+        steps.map((step, i) => (
+          <li class="grid content-start gap-3 rounded-2xl border border-line bg-surface p-6">
+            <span class="grid size-9 place-items-center rounded-full bg-accent font-display font-extrabold text-accent-ink">{i + 1}</span>
+            <h3 class="text-[1.2rem]">{step.title}</h3>
+            <p class="text-[.96rem] text-ink-2">{step.text}</p>
+          </li>
+        ))
+      }
+    </ol>
+  </Section>
+
+  <Pricing class="border-t border-line" />
+  <Faq items={faqBusiness} />
   <Cta />
   <Footer />
 </Base>

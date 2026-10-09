@@ -1,0 +1,27 @@
+---
+// El resultado de una llamada contado para las dos audiencias (el panel del equipo y el sistema del integrador), con un
+// ejemplo de la vertical de turnos.
+import { verticals } from "../data/site";
+import CheckList from "./CheckList.astro";
+import SampleResult from "./SampleResult.astro";
+import Section from "./Section.astro";
+
+const { sample } = verticals[0]!;
+const points = [
+  { title: "Para tu equipo", text: "La transcripción, el resultado y los datos de cada conversación, en el panel." },
+  { title: "Para tu sistema", text: "Los mismos datos por API o webhook, listos para guardar en tu gestión." },
+];
+---
+
+<Section id="resultado">
+  <div class="grid items-start gap-7 min-[901px]:grid-cols-2 min-[901px]:gap-12">
+    <div class="grid gap-4">
+      <h2>Cada conversación termina en datos</h2>
+      <p class="max-w-[62ch] text-[1.12rem] text-ink-2">
+        No es solo una transcripción: el agente deja ordenado lo que acordó. Lo ve tu equipo y lo recibe tu sistema, sin que nadie lo cargue a mano.
+      </p>
+      <CheckList items={points} />
+    </div>
+    <SampleResult sample={sample} />
+  </div>
+</Section>

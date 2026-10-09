@@ -1,7 +1,7 @@
 # Guía de diseño de Atentina
 
-Cómo se ve y cómo habla la marca. La base es la landing (`landing/`): hub `/`, verticales
-`/turnos`, `/cobranzas`, `/municipios` y páginas legales. Leerla antes de agregar o cambiar
+Cómo se ve y cómo habla la marca. La base es la landing (`landing/`): plataforma `/`, `/desarrolladores`, `/casos-de-uso`, verticales
+`/casos-de-uso/turnos`, `/casos-de-uso/cobranzas`, `/casos-de-uso/municipios` y páginas legales. Leerla antes de agregar o cambiar
 cualquier pantalla de la landing. El dashboard (`web/`) sigue
 [`DESIGN_GUIDELINE_APP.md`](DESIGN_GUIDELINE_APP.md), que adapta esta guía a la app.
 
@@ -149,12 +149,13 @@ Usar el componente; no copiar sus clases a mano.
 | `Section` | Toda sección de página. |
 | `Icon` | Íconos (sección 9). |
 | `CheckList` | Lista de características: check en círculo `accent-soft`, título en semibold y texto en `muted`. |
-| `Logo`, `Nav`, `Footer` | Marco de toda página. `Nav current="home"` en `/` (integradores) y `"casos"` en `/casos-de-uso`: define qué links son del mismo documento. |
-| `Cta` | Cierre de toda página comercial: sección oscura con los botones de contacto. Textos configurables (`eyebrow`, `title`, `lead`, `question`, `submit`): `/` los cambia para integradores. |
-| `Solutions`, `Voices`, `Pricing` | Secciones compartidas. `Pricing free` suma el plan Free (API y panel web, sin telefonía) como primera tarjeta, con el mismo formato; en `/` y `/casos-de-uso`. Las columnas siguen la cantidad de planes (3 o 4). Acepta `class`. |
-| `Faq` | Preguntas frecuentes con `<details>` (contenido en `faq` de `site.ts`); debajo de los precios o de la API. Responder solo con lo que ya dice la landing o está confirmado. |
-| `AgentTerminal`, `AgenticSection` | Sección de integración agéntica de `/` (arriba de la API): terminal animada de un agente de programación llamando por la API, con las skills disponibles. Único lugar con colores fuera de los tokens (`--term-*`, locales): imita otra herramienta. Ver `LANDING.md`. |
-| `Platform`, `ApiSection`, `CodeTabs`, `Status` | Home de integradores. `CodeTabs`: pedidos reales a la API con su respuesta; va en la sección API, no en el hero. `Status`: píldora `disponible` / `próximamente`: no prometer sin marcarlo. |
+| `Logo`, `Nav`, `Footer` | Marco de toda página. `Nav current` (`home`, `dev`, `docs`, `casos`, `sector`, `other`) marca la página y define qué anclas (`#precios`, `#demo`) son del mismo documento; el resto va a la home. Los tres links de página (Plataforma, Desarrolladores, Casos de uso) son fijos. |
+| `Cta` | Cierre de toda página comercial: sección oscura con los botones de contacto. Textos configurables (`eyebrow`, `title`, `lead`, `question`, `submit`): cada página lo adapta (`/`, `/desarrolladores`, la documentación). |
+| `Solutions`, `Voices`, `Pricing` | Secciones compartidas. `Pricing free` suma el plan Free (API y panel web, sin telefonía) como primera tarjeta, con el mismo formato; solo en `/desarrolladores`: `/casos-de-uso` y las verticales muestran los planes con telefonía, y la home la escalera completa (`Pricing free`). Las columnas siguen la cantidad de planes (3 o 4). Acepta `class`. |
+| `Faq` | Preguntas frecuentes con `<details>` (contenido en `faqGeneral`, `faqBusiness` y `faqDev` de `site.ts`, una por página; el componente recibe `items`); debajo de los precios o de la API. Responder solo con lo que ya dice la landing o está confirmado. |
+| `AgentTerminal`, `AgenticSection` | Terminal animada del hero de `/desarrolladores` (`AgenticSection` queda debajo de la API, sin la terminal): dos escenas de un agente de programación operando la API (cobranza desde PDF y confirmación de turnos); `AgenticSection` lista las skills disponibles. Único lugar con colores fuera de los tokens (`--term-*`, locales): imita otra herramienta. Ver `LANDING.md`. |
+| `Platform`, `Costs`, `ResultBridge` | Home de plataforma. `Platform` recibe `items` (tres capas en `/`, tres formas de integrar en `/desarrolladores`). `Costs`: lo que se contrata por separado contra lo que incluye el plan. `ResultBridge`: el resultado de una llamada, contado para el equipo (panel) y para el sistema. |
+| `ApiSection`, `CodeTabs`, `CodeBlock`, `Status` | `/desarrolladores` y su documentación. `CodeTabs`: pedidos reales a la API con su respuesta, en `ApiSection`; `CodeBlock`, un bloque de código de la documentación. `Status`: píldora `disponible` / `próximamente`: no prometer sin marcarlo. |
 | `CallWidget`, `SampleResult`, `TelDialog` | Demo de llamada, ejemplo de resultado y diálogo del teléfono. |
 | `Legal` | Layout de las páginas legales. |
 

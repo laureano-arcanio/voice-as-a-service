@@ -1,17 +1,17 @@
 ---
-import CallWidget from "../components/CallWidget.astro";
-import CheckList from "../components/CheckList.astro";
-import Cta from "../components/Cta.astro";
-import Footer from "../components/Footer.astro";
-import Nav from "../components/Nav.astro";
-import Pricing from "../components/Pricing.astro";
-import SampleResult from "../components/SampleResult.astro";
-import Section from "../components/Section.astro";
-import Solutions from "../components/Solutions.astro";
-import TelDialog from "../components/TelDialog.astro";
-import Voices from "../components/Voices.astro";
-import { agents, type Vertical, verticals } from "../data/site";
-import Base from "../layouts/Base.astro";
+import CallWidget from "../../components/CallWidget.astro";
+import CheckList from "../../components/CheckList.astro";
+import Cta from "../../components/Cta.astro";
+import Footer from "../../components/Footer.astro";
+import Nav from "../../components/Nav.astro";
+import Pricing from "../../components/Pricing.astro";
+import SampleResult from "../../components/SampleResult.astro";
+import Section from "../../components/Section.astro";
+import Solutions from "../../components/Solutions.astro";
+import TelDialog from "../../components/TelDialog.astro";
+import Voices from "../../components/Voices.astro";
+import { agents, type Vertical, verticals } from "../../data/site";
+import Base from "../../layouts/Base.astro";
 
 export function getStaticPaths() {
   return verticals.map((vertical) => ({ params: { vertical: vertical.slug }, props: { vertical } }));
@@ -25,12 +25,13 @@ const { vertical } = Astro.props;
 const agent = agents.filter((a) => a.slug === vertical.agent);
 ---
 
-<Base title={vertical.metaTitle} description={vertical.metaDescription} path={`/${vertical.slug}`} theme={vertical.slug}>
-  <Nav />
+<Base title={vertical.metaTitle} description={vertical.metaDescription} path={`/casos-de-uso/${vertical.slug}`} theme={vertical.slug}>
+  <Nav current="sector" />
 
   <header class="border-b border-line bg-linear-to-b from-accent-soft to-bg pt-10 pb-14 min-[901px]:pt-[72px]">
     <div class="mx-auto grid max-w-[1120px] items-center gap-9 px-5 min-[901px]:grid-cols-[1fr_380px] min-[901px]:gap-12">
       <div class="grid gap-[22px]">
+        <a class="w-fit text-[.9rem] font-semibold text-muted no-underline hover:text-ink" href="/casos-de-uso">← Casos de uso</a>
         <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">{vertical.eyebrow}</span>
         <h1>{vertical.headline}</h1>
         <p class="max-w-[62ch] text-[1.12rem] text-ink-2">{vertical.lead}</p>

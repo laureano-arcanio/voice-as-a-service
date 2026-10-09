@@ -1,26 +1,26 @@
 ---
-import AgenticSection from "../components/AgenticSection.astro";
-import ApiSection from "../components/ApiSection.astro";
 import Button from "../components/Button.astro";
+import CallWidget from "../components/CallWidget.astro";
+import Costs from "../components/Costs.astro";
 import Cta from "../components/Cta.astro";
 import Faq from "../components/Faq.astro";
 import Footer from "../components/Footer.astro";
 import Nav from "../components/Nav.astro";
 import Platform from "../components/Platform.astro";
-import CallWidget from "../components/CallWidget.astro";
 import Pricing from "../components/Pricing.astro";
+import ResultBridge from "../components/ResultBridge.astro";
 import TelDialog from "../components/TelDialog.astro";
 import Voices from "../components/Voices.astro";
-import { atentinaAgent, freePlan, whatsappUrl } from "../data/site";
+import { atentinaAgent, faqGeneral, whatsappUrl } from "../data/site";
 import Base from "../layouts/Base.astro";
 
-const facts = ["Compatible con OpenAI", "Streaming de texto y audio", "Más de 30 voces argentinas", "Servidores en Argentina"];
+const facts = ["Telefonía incluida", "Compatible con OpenAI", "Más de 30 voces argentinas", "Servidores en Argentina"];
 ---
 
 <Base
-  title="Atentina: telefonía, agentes y voz con IA para integrar en tu producto"
-  description="LLM, transcripción y síntesis de voz con acento argentino por API, y agentes con telefonía y WhatsApp. Propios, en servidores en Argentina, con un plan gratis para empezar."
-  ogDescription="LLM, voz y telefonía por API, con acento argentino. Plan gratis."
+  title="Atentina: telefonía, voz y agentes con IA en un solo servicio"
+  description="Telefonía, reconocimiento de voz, LLM y voces con acento argentino en un solo servicio, con un precio por mes en pesos. Por API o con agentes listos, en servidores en Argentina."
+  ogDescription="Telefonía, voz e IA en un solo servicio, con precio en pesos."
   path="/"
 >
   <Nav current="home" />
@@ -28,27 +28,17 @@ const facts = ["Compatible con OpenAI", "Streaming de texto y audio", "Más de 3
   <header class="border-b border-line bg-linear-to-b from-bg-2 to-bg pt-10 pb-14 min-[901px]:pt-[72px]">
     <div class="mx-auto grid max-w-[1120px] items-start gap-9 px-5 min-[901px]:grid-cols-[1fr_380px] min-[901px]:gap-12">
       <div class="grid gap-[22px]">
-        <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">Plataforma agéntica para integradores</span>
+        <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">Plataforma de voz con IA</span>
         <h1>
-          Telefonía, agentes y voz con IA para <span class="text-accent">integrar en tu producto</span>
+          Telefonía, voz e inteligencia artificial <span class="text-accent">en un solo servicio</span>
         </h1>
         <p class="max-w-[62ch] text-[1.12rem] text-ink-2">
-          Reconocimiento de voz, modelo de lenguaje y síntesis con acento argentino, propios y en servidores en Argentina con la menor latencia del mercado. Usalos por API, o armá agentes con número y WhatsApp desde nuestra app.
+          Número argentino, llamadas, WhatsApp, reconocimiento de voz, modelo de lenguaje y voces con acento argentino, propios y en servidores en Argentina con la menor latencia del mercado. <span class="text-accent">Sin contratar telefonía ni combinar proveedores</span>: un precio por mes, en pesos.
         </p>
         <div class="flex flex-wrap items-center gap-3">
-          <Button href="#demo">Empezar gratis</Button>
-          <Button href="#api" variant="ghost">Ver la API</Button>
+          <Button href="/desarrolladores">Construir con la API</Button>
+          <Button href="/casos-de-uso" variant="ghost">Un agente para mi empresa</Button>
         </div>
-        <a
-          class="grid max-w-[520px] gap-1 rounded-xl border border-line bg-surface px-4 py-3 no-underline transition-[border-color,box-shadow] duration-150 hover:border-accent hover:shadow-card"
-          href="#precios"
-        >
-          <span class="font-mono text-[.76rem] tracking-[.04em] text-muted uppercase">Plan {freePlan.name}</span>
-          <span class="text-[.98rem] text-ink-2">
-            <span class="font-display text-[1.15rem] tabular-nums text-ink">{freePlan.price}</span> por mes · <b class="font-semibold text-ink">20 minutos</b> · llamadas web · acceso a la API
-          </span>
-          <span class="text-[.9rem] font-semibold text-accent">Ver todos los planes →</span>
-        </a>
         <ul class="m-0 grid list-none grid-cols-2 gap-x-5 gap-y-1.5 p-0 font-mono text-[.76rem] tracking-[.03em] text-muted min-[561px]:flex min-[561px]:flex-wrap">
           {facts.map((f) => <li>{f}</li>)}
         </ul>
@@ -59,20 +49,20 @@ const facts = ["Compatible con OpenAI", "Streaming de texto y audio", "Más de 3
 
   <TelDialog />
 
+  <Costs />
   <Platform />
-  <Pricing free class="border-y border-line bg-bg-2" />
-  <AgenticSection />
-  <ApiSection />
+  <ResultBridge />
   <Voices />
-  <Faq />
+  <Pricing free />
+  <Faq items={faqGeneral} />
   <Cta
-    eyebrow="Acceso"
-    title="Probá la API con tu caso"
-    lead="Contanos qué querés construir y te damos acceso al plan Free. Si necesitás telefonía o un agente armado, lo vemos juntos."
-    subject="Quiero acceso a la API de Atentina"
-    question="¿Qué querés construir?"
+    eyebrow="Contacto"
+    title="Contanos qué querés construir"
+    lead="Si vas a integrar la plataforma o querés un agente para tu empresa, escribinos y lo vemos juntos. Sin costo y sin compromiso."
+    subject="Consulta sobre la plataforma de Atentina"
+    question="¿Qué querés construir o resolver?"
     placeholder="Por ejemplo: un asistente de voz para el sistema de turnos de mis clientes"
-    submit="Pedir acceso"
+    submit="Enviar consulta"
   />
   <Footer />
 </Base>

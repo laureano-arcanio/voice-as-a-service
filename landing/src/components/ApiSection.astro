@@ -1,5 +1,6 @@
 ---
 import { apiFeatures } from "../data/site";
+import Button from "./Button.astro";
 import CheckList from "./CheckList.astro";
 import CodeTabs from "./CodeTabs.astro";
 import Section from "./Section.astro";
@@ -13,7 +14,12 @@ import Section from "./Section.astro";
   </p>
 
   <div class="mt-9 grid items-start gap-7 min-[901px]:grid-cols-2 min-[901px]:gap-12">
-    <CheckList items={apiFeatures} />
+    <div class="grid gap-6">
+      <CheckList items={apiFeatures} />
+      <div>
+        <Button href="/desarrolladores/docs" variant="ghost">Leer la documentación</Button>
+      </div>
+    </div>
     <CodeTabs />
   </div>
 </Section>

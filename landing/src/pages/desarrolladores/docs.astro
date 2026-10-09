@@ -1,0 +1,321 @@
+---
+// Documentación pública de la API de inferencia. Contenido base: sale de docs/API_INFERENCIA.md, sin lo que es solo
+// para quien opera el server. Falta la referencia completa de pedidos y respuestas y la API de agentes y llamadas.
+import CodeBlock from "../../components/CodeBlock.astro";
+import Cta from "../../components/Cta.astro";
+import Footer from "../../components/Footer.astro";
+import Nav from "../../components/Nav.astro";
+import { endpoints } from "../../data/site";
+import Base from "../../layouts/Base.astro";
+
+const BASE = "https://app.atentina.com.ar/api/v1/inference";
+
+const toc = [
+  { id: "empezar", label: "Empezar" },
+  { id: "keys", label: "API keys y alcances" },
+  { id: "endpoints", label: "Endpoints" },
+  { id: "streaming", label: "Streaming" },
+  { id: "limites", label: "Límites y consumo" },
+  { id: "errores", label: "Errores" },
+  { id: "agentes", label: "Agentes y llamadas" },
+];
+
+const sdk = `from openai import OpenAI
+
+client = OpenAI(base_url="${BASE}", api_key="vaas_...")
+
+chat = client.chat.completions.create(
+    model="atentina",  # obligatorio en el SDK, pero se ignora
+    messages=[{"role": "user", "content": "Hola"}],
+)
+print(chat.choices[0].message.content)`;
+
+const llm = `curl ${BASE}/chat/completions \\
+  -H "Authorization: Bearer $ATENTINA_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"messages":[{"role":"user","content":"Hola, ¿qué horarios tienen?"}],"max_tokens":200}'`;
+
+const stt = `curl ${BASE}/audio/transcriptions \\
+  -H "Authorization: Bearer $ATENTINA_KEY" \\
+  -F file=@audio.wav -F language=es`;
+
+const tts = `curl ${BASE}/audio/speech \\
+  -H "Authorization: Bearer $ATENTINA_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"voice":"sofia","input":"Hola, ¿en qué te puedo ayudar?"}' \\
+  --output respuesta.wav`;
+
+const stream = `curl -N ${BASE}/chat/completions \\
+  -H "Authorization: Bearer $ATENTINA_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"stream": true, "max_tokens": 200, "messages": [{"role": "user", "content": "Contame algo breve"}]}'`;
+
+const ttsStream = `# Escuchar mientras se sintetiza (ffplay viene con ffmpeg)
+curl -sN ${BASE}/audio/speech \\
+  -H "Authorization: Bearer $ATENTINA_KEY" -H "Content-Type: application/json" \\
+  -d '{"voice":"sofia","input":"Hola, ¿en qué te puedo ayudar?","response_format":"pcm"}' \\
+  | ffplay -f s16le -ar 24000 -ac 1 -nodisp -autoexit -`;
+
+const usage = `curl ${BASE}/usage -H "Authorization: Bearer $ATENTINA_KEY"`;
+
+const scopes = [
+  { scope: "llm", text: "POST /chat/completions" },
+  { scope: "stt", text: "POST /audio/transcriptions" },
+  { scope: "tts", text: "POST /audio/speech y GET /voices" },
+  { scope: "calls", text: "La API de llamadas, agentes y reportes (no usa los motores)" },
+];
+
+const streamFormats = [
+  { format: 'response_format: "wav" (default)', gets: "El archivo WAV completo, al terminar", use: "Guardar o reproducir un audio ya hecho" },
+  { format: 'response_format: "pcm"', gets: "Bytes PCM crudos (24 kHz, mono, 16 bits) a medida que se sintetizan", use: "Reproducir en vivo o enviarlo a otro sistema" },
+  { format: 'response_format: "pcm" + stream_format: "sse"', gets: "Eventos SSE con el audio en base64", use: "Navegadores y clientes que ya consumen SSE" },
+];
+
+const quotas = [
+  { name: "api_llm_input_tokens", text: "Tokens del prompt, por mes" },
+  { name: "api_llm_output_tokens", text: "Tokens generados, por mes" },
+  { name: "api_tts_minutes", text: "Audio sintetizado, en minutos por mes" },
+  { name: "api_stt_minutes", text: "Audio transcripto, en minutos por mes" },
+  { name: "api_rate_limit", text: "Pedidos por minuto, entre todas las keys" },
+];
+
+const errors = [
+  { http: "401", code: "", text: "Sin API key, inválida o revocada" },
+  { http: "403", code: "scope_missing", text: "La key no tiene el alcance de ese motor" },
+  { http: "403", code: "not_in_plan", text: "El plan no incluye ese motor" },
+  { http: "429", code: "rate_limited", text: "Te pasaste de los pedidos por minuto; trae Retry-After" },
+  { http: "429", code: "api_*", text: "Se agotó el cupo del mes de ese motor" },
+  { http: "400", code: "upstream_rejected", text: "El motor rechazó el pedido (prompt más largo que el contexto, audio ilegible)" },
+  { http: "400", code: "payload_too_large", text: "Audio de más de 25 MB: partilo" },
+  { http: "422", code: "invalid_request / invalid_voice", text: "Pedido mal armado, o voz inexistente" },
+  { http: "502", code: "upstream_error", text: "El motor no responde" },
+];
+
+const error = `{"detail": "texto para mostrar", "code": "codigo_estable", "errors": []}`;
+---
+
+<Base
+  title="Documentación de la API | Atentina"
+  description="Cómo usar la API de Atentina: base URL, API keys, endpoints de LLM, transcripción y síntesis de voz, streaming, límites y errores."
+  ogDescription="Documentación de la API de LLM, transcripción y voz de Atentina."
+  path="/desarrolladores/docs"
+>
+  <Nav current="docs" />
+
+  <header class="border-b border-line bg-linear-to-b from-bg-2 to-bg pt-10 pb-10 min-[901px]:pt-[72px]">
+    <div class="mx-auto grid max-w-[1120px] gap-4 px-5">
+      <a class="w-fit text-[.9rem] font-semibold text-muted no-underline hover:text-ink" href="/desarrolladores">← Desarrolladores</a>
+      <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">Documentación</span>
+      <h1>API de Atentina</h1>
+      <p class="max-w-[62ch] text-[1.12rem] text-ink-2">
+        LLM, transcripción y síntesis de voz con acento argentino, por una API compatible con la de OpenAI. Esta es la guía básica para hacer el primer pedido.
+      </p>
+    </div>
+  </header>
+
+  <div class="mx-auto grid max-w-[1120px] gap-8 px-5 py-12 min-[901px]:grid-cols-[200px_minmax(0,1fr)] min-[901px]:gap-14 min-[901px]:py-[76px]">
+    <aside class="min-[901px]:sticky min-[901px]:top-[96px] min-[901px]:self-start">
+      <nav aria-label="En esta página">
+        <ul class="m-0 flex list-none flex-wrap gap-2 p-0 min-[901px]:grid min-[901px]:gap-1">
+          {
+            toc.map((t) => (
+              <li>
+                <a
+                  class="block rounded-full border border-line-2 bg-white px-3 py-1.5 text-[.9rem] font-semibold text-ink no-underline hover:border-accent hover:text-accent min-[901px]:rounded-lg min-[901px]:border-0 min-[901px]:bg-transparent min-[901px]:px-2 min-[901px]:py-1 min-[901px]:font-medium min-[901px]:text-ink-2"
+                  href={`#${t.id}`}
+                >
+                  {t.label}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </nav>
+    </aside>
+
+    <main class="docs grid min-w-0 gap-12 text-ink-2">
+      <section id="empezar" class="grid gap-4">
+        <h2>Empezar</h2>
+        <ul>
+          <li><strong>URL base:</strong> <code>{BASE}</code></li>
+          <li><strong>Autenticación:</strong> <code>Authorization: Bearer vaas_...</code>, con una API key que tenga el alcance del motor.</li>
+          <li>
+            <strong>Compatible con el SDK de OpenAI:</strong> cambiás la <code>base_url</code> y la API key. El campo <code>model</code> es obligatorio en los SDK pero se ignora: el modelo lo fija la plataforma.
+          </li>
+        </ul>
+        <ol>
+          <li><a href="#demo">Pedí acceso</a>: te creamos la cuenta con el plan Free (20 minutos por mes, llamadas web, panel y API).</li>
+          <li>En el panel, entrá a <strong>API &gt; Nueva API key</strong>, elegí el alcance y copiala: se muestra una sola vez.</li>
+          <li>Hacé el primer pedido:</li>
+        </ol>
+        <CodeBlock label="Python" code={sdk} />
+      </section>
+
+      <section id="keys" class="grid gap-4">
+        <h2>API keys y alcances</h2>
+        <p>Cada key hace solo lo que le diste. Una key puede tener varios alcances; conviene una por sistema y con el mínimo necesario, porque se revoca en el acto si se filtra.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Alcance</th><th>Sirve para</th></tr></thead>
+          <tbody>
+            {scopes.map((s) => <tr><td><code>{s.scope}</code></td><td>{s.text}</td></tr>)}
+          </tbody>
+        </table></div>
+        <p>Las dos APIs no se cruzan: una key <code>llm</code> no administra agentes ni llamadas, y una key <code>calls</code> no usa los motores.</p>
+      </section>
+
+      <section id="endpoints" class="grid gap-4">
+        <h2>Endpoints</h2>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Endpoint</th><th>Alcance</th><th>Qué hace</th></tr></thead>
+          <tbody>
+            {endpoints.map((e) => <tr><td><code>{e.path}</code></td><td>{e.scope}</td><td>{e.text}</td></tr>)}
+          </tbody>
+        </table></div>
+
+        <h3>LLM</h3>
+        <p>Acepta <code>messages</code>, <code>max_tokens</code>, <code>temperature</code>, <code>top_p</code>, <code>stop</code>, <code>seed</code>, <code>response_format</code>, <code>tools</code>, <code>tool_choice</code> y <code>stream</code>. La respuesta trae <code>usage</code> con los tokens de entrada y salida, que es lo que se descuenta.</p>
+        <CodeBlock label="curl" code={llm} />
+
+        <h3>Transcripción</h3>
+        <p>Subís el archivo (wav, mp3, flac, ogg…; hasta 25 MB) y, si querés, <code>language</code>. Se descuentan los segundos de audio que informa <code>usage</code>.</p>
+        <CodeBlock label="curl" code={stt} />
+
+        <h3>Síntesis</h3>
+        <p><code>voice</code> es obligatoria y tiene que ser una de <code>GET /voices</code> (41 voces con nombres argentinos, como <code>sofia</code> o <code>martin</code>). <code>input</code> admite hasta 1.500 caracteres. Se descuentan los segundos de audio generado.</p>
+        <CodeBlock label="curl" code={tts} />
+      </section>
+
+      <section id="streaming" class="grid gap-4">
+        <h2>Streaming</h2>
+        <p>El LLM y la síntesis se pueden consumir sin esperar a que termine la respuesta.</p>
+        <p><strong>LLM:</strong> con <code>"stream": true</code> responde SSE como OpenAI: líneas <code>data: {"{chunk}"}</code>, un último chunk con <code>usage</code> y <code>data: [DONE]</code>.</p>
+        <CodeBlock label="curl" code={stream} />
+        <p><strong>Síntesis:</strong> tres formas de recibir el audio.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Pedido</th><th>Qué llega</th><th>Para qué</th></tr></thead>
+          <tbody>
+            {streamFormats.map((f) => <tr><td><code>{f.format}</code></td><td>{f.gets}</td><td>{f.use}</td></tr>)}
+          </tbody>
+        </table></div>
+        <CodeBlock label="curl + ffplay" code={ttsStream} />
+        <p>En una medición del 9 de octubre de 2026, el primer audio en <code>pcm</code> llegó a los 53 ms, contra 2,1 s del WAV completo; y el primer token del LLM con <code>stream</code>, a los 32 ms.</p>
+        <p>Un stream cuenta contra el cupo igual que un pedido normal. Si cortás antes de que termine, se cobra solo lo ya entregado.</p>
+      </section>
+
+      <section id="limites" class="grid gap-4">
+        <h2>Límites y consumo</h2>
+        <p>Los fija tu plan y valen para todas las keys de tu cuenta juntas. Los cupos son por mes calendario (se renuevan el día 1 a las 00:00, hora de Argentina) y están separados por motor: agotar uno no afecta a los otros.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Límite</th><th>Qué mide</th></tr></thead>
+          <tbody>
+            {quotas.map((q) => <tr><td><code>{q.name}</code></td><td>{q.text}</td></tr>)}
+          </tbody>
+        </table></div>
+        <ul>
+          <li>Antes de cada pedido se verifica la key, su alcance, el tope por minuto y el cupo. Si no pasa, el pedido no llega al motor ni se cobra.</li>
+          <li>Un pedido que falla en el motor no se cobra.</li>
+          <li>En el chat, <code>max_tokens</code> se achica a lo que te queda de tokens de salida del mes.</li>
+          <li>La plataforma guarda cuánto consumiste, por key y por día, pero no los prompts, los audios ni los textos.</li>
+        </ul>
+        <p>Para ver tu consumo del mes contra el plan (no gasta cupo):</p>
+        <CodeBlock label="curl" code={usage} />
+      </section>
+
+      <section id="errores" class="grid gap-4">
+        <h2>Errores</h2>
+        <p>El cuerpo siempre tiene la misma forma:</p>
+        <CodeBlock code={error} />
+        <div class="table-wrap"><table>
+          <thead><tr><th>HTTP</th><th><code>code</code></th><th>Cuándo</th></tr></thead>
+          <tbody>
+            {errors.map((e) => <tr><td>{e.http}</td><td>{e.code && <code>{e.code}</code>}</td><td>{e.text}</td></tr>)}
+          </tbody>
+        </table></div>
+        <p>Un 429 por cupo agotado no se arregla reintentando: hay que esperar al día 1 o ampliar el plan. Uno por <code>rate_limited</code> sí, después de los segundos de <code>Retry-After</code>.</p>
+      </section>
+
+      <section id="agentes" class="grid gap-4">
+        <h2>Agentes y llamadas</h2>
+        <p>Con una key <code>calls</code> podés crear agentes, lanzar llamadas, recibir el resultado de cada una por API o webhook y descargar reportes. También se puede hacer desde tu agente de programación, con las <a href="/desarrolladores#agentes">skills</a> para Claude Code, Cursor y Codex.</p>
+        <p class="rounded-xl border border-line bg-surface-2 px-4 py-3 text-[.95rem]">
+          <strong>Estamos completando esta sección.</strong> La referencia de pedidos y respuestas de esta API y de la de llamadas y agentes todavía no está publicada. Si la necesitás ya, <a href="#demo">pedila</a> y te la pasamos.
+        </p>
+      </section>
+    </main>
+  </div>
+
+  <Cta
+    eyebrow="Acceso"
+    title="¿Algo no está claro? Escribinos"
+    lead="Pedí acceso al plan Free, o contanos qué te falta en la documentación y lo sumamos."
+    subject="Consulta sobre la API de Atentina"
+    question="¿Qué querés construir o qué te falta?"
+    placeholder="Por ejemplo: necesito transcribir audios de WhatsApp"
+    submit="Enviar consulta"
+  />
+  <Footer />
+</Base>
+
+<style>
+  .docs :global(h2) {
+    scroll-margin-top: 96px;
+  }
+  .docs :global(h3) {
+    margin-top: 0.75rem;
+    color: var(--color-ink);
+  }
+  .docs :global(ul),
+  .docs :global(ol) {
+    display: grid;
+    gap: 0.4rem;
+    padding-left: 1.2rem;
+  }
+  .docs :global(ul) {
+    list-style: disc;
+  }
+  .docs :global(ol) {
+    list-style: decimal;
+  }
+  .docs :global(a) {
+    color: var(--color-accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .docs :global(strong) {
+    color: var(--color-ink);
+  }
+  .docs :global(code) {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    color: var(--color-ink);
+  }
+  .docs :global(pre code) {
+    font-size: inherit;
+  }
+  .docs :global(.table-wrap) {
+    overflow-x: auto;
+    border: 1px solid var(--color-line);
+    border-radius: 0.75rem;
+  }
+  .docs :global(table) {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+  }
+  .docs :global(th),
+  .docs :global(td) {
+    padding: 0.55rem 0.8rem;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--color-line);
+  }
+  .docs :global(th) {
+    background: var(--color-surface-2);
+    color: var(--color-ink);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .docs :global(tr:last-child td) {
+    border-bottom: 0;
+  }
+</style>

@@ -22,15 +22,16 @@ services:
     domains:
       - atentina.com.ar
     routes:
-      - type: rewrite
+      # Las verticales se movieron a /casos-de-uso/<slug> (9-oct-2026).
+      - type: redirect
         source: /turnos
-        destination: /turnos.html
-      - type: rewrite
+        destination: /casos-de-uso/turnos
+      - type: redirect
         source: /cobranzas
-        destination: /cobranzas.html
-      - type: rewrite
+        destination: /casos-de-uso/cobranzas
+      - type: redirect
         source: /municipios
-        destination: /municipios.html
+        destination: /casos-de-uso/municipios
     headers:
       - path: /*
         name: X-Content-Type-Options

@@ -5,9 +5,11 @@ import Section from "./Section.astro";
 interface Props {
   exclude?: string;
   title?: string;
+  /** Suma "¿Tu caso es otro?" debajo de las tarjetas. */
+  other?: boolean;
 }
 
-const { exclude, title = "Un agente por necesidad, listo para usar." } = Astro.props;
+const { exclude, title = "Un agente por necesidad, listo para usar.", other = false } = Astro.props;
 const list = verticals.filter((v) => v.slug !== exclude);
 ---
 
@@ -18,7 +20,7 @@ const list = verticals.filter((v) => v.slug !== exclude);
       list.map((v) => (
         <a
           class="grid content-start gap-3 rounded-2xl border border-line bg-surface p-6 no-underline transition-[border-color,translate,box-shadow] duration-150 hover:-translate-y-0.5 hover:border-accent hover:shadow-card"
-          href={`/${v.slug}`}
+          href={`/casos-de-uso/${v.slug}`}
           data-theme={v.slug}
         >
           <span class="font-mono text-[.76rem] tracking-[.04em] text-muted uppercase">{v.who}</span>
@@ -29,4 +31,11 @@ const list = verticals.filter((v) => v.slug !== exclude);
       ))
     }
   </div>
+  {
+    other && (
+      <p class="mt-6 text-[1.02rem] text-ink-2">
+        ¿Tu caso es otro? <a class="font-semibold text-accent no-underline hover:text-accent-2" href="#demo">Contanos qué necesitás atender →</a>
+      </p>
+    )
+  }
 </Section>

@@ -7,14 +7,24 @@ Cloudflare Tunnel. No hay backend aparte ni base nueva: costo adicional cero.
 
 - **Canónico:** `https://atentina.com.ar/`. `www.atentina.com.ar`, `atentina.com` y
   `www.atentina.com` redirigen ahí con 301.
-- **Páginas:** `/` es para **integradores** (empresas que ofrecen o quieren ofrecer telefonía, agentes y audio, por la app o
-  por API). Orden, pensado para convertir (resumen del Free en el hero, precios temprano y preguntas frecuentes al lado):
-  hero (demo de llamada y plan Free) → plataforma → **precios** → **integración agéntica** (terminal animada y skills) → API compatible con OpenAI (acá van los ejemplos de código) → voces → **preguntas
-  frecuentes** → contacto. `/casos-de-uso` es el hub anterior (agente de la demo, producto y las tres verticales). Las verticales
-  conservan su URL, con su tema de acento: `/turnos` (verde azulado), `/cobranzas` (violeta) y `/municipios` (ámbar), desde
-  `src/pages/[vertical].astro` con los datos de `src/data/site.ts`. Legales (las pide Meta para WhatsApp): `/privacidad`,
-  `/terminos` y `/eliminacion-de-datos`, con el layout `Legal.astro`.
-- **Plan Free (provisorio):** API y panel web, sin telefonía; es la primera tarjeta de precios en `/` y en `/casos-de-uso` (`freePlan` en `site.ts`, mismo
+- **Páginas** (reestructuración del 9-oct-2026: tres puertas, cada una con su público y su vocabulario; los desarrolladores van primero):
+  - `/` (**Home** en el nav), para quien evalúa. Propuesta de valor: la telefonía resuelta y sus costos asociados. Orden: hero (demo de llamada y dos
+    botones: "Construir con la API" y "Un agente para mi empresa") → **costos** (un servicio en lugar de seis proveedores) → plataforma en
+    tres capas → resultado de una llamada → voces → **precios** (la escalera completa: Free "para probar e integrar" y los planes "con telefonía incluida") → preguntas frecuentes → contacto.
+    Sin código ni endpoints.
+  - `/desarrolladores`, para quien integra: hero con la animación del agente de programación (`AgentTerminal`) → tres formas de integrarlo →
+    API compatible con OpenAI (`CodeTabs` con pedidos reales) → integración agéntica (skills y lo que puede hacer) → voces → **precios** (Free + planes con telefonía) → preguntas frecuentes de la API → pedir acceso.
+  - `/desarrolladores/docs`: documentación pública **básica** (URL base, keys y alcances, endpoints, streaming, límites, errores), de
+    [`API_INFERENCIA.md`](API_INFERENCIA.md) sin lo que es solo para quien opera. **Pendiente:** la referencia completa de pedidos y respuestas y la API de
+    agentes y llamadas (la página lo dice). Al cambiar `API_INFERENCIA.md`, actualizarla.
+  - `/casos-de-uso`, para quien tiene un problema de atención: hero y demo → rubros (con "¿Tu caso es otro?") → producto → cómo empieza →
+    planes con telefonía (sin Free) → preguntas de negocio → demo con tu caso. Las verticales viven bajo `/casos-de-uso/<slug>`, con su tema de acento:
+    `/casos-de-uso/turnos` (verde azulado), `/casos-de-uso/cobranzas` (violeta) y `/casos-de-uso/municipios` (ámbar), desde `src/pages/casos-de-uso/[vertical].astro` con los datos de
+    `src/data/site.ts`, y un "← Casos de uso" arriba.
+  - Legales (las pide Meta para WhatsApp): `/privacidad`, `/terminos` y `/eliminacion-de-datos`, con el layout `Legal.astro`.
+  - Cada página lleva sus precios y su FAQ (`faqGeneral`, `faqBusiness`, `faqDev` en `site.ts`): la unidad es distinta (minutos y números contra
+    tokens y pedidos). Los links `/#api` y similares de antes pasaron a `/desarrolladores#api`. Las URL viejas `/turnos`, `/cobranzas` y `/municipios` redirigen (301) a las nuevas, por `render.yaml`.
+- **Plan Free (provisorio):** API y panel web, sin telefonía; es la primera tarjeta de precios en `/desarrolladores` (y en `/`, que muestra la escalera completa; `/casos-de-uso` y las verticales solo muestran los planes con telefonía, sin la línea "Todo lo que ofrece Free") (`freePlan` en `site.ts`, mismo
   formato que los demás planes): 20 minutos por mes, llamadas web, acceso a la plataforma web y acceso a la API. Mostrador y
   Sucursal arrancan con "Telefonía incluida" y "Todo lo que ofrece Free". Es contenido de la landing: el tier real se crea
   en Tiers (`max_phone_numbers` en 0; el tope de pedidos por minuto de la API, los cupos `api_*` y la cantidad de agentes
@@ -277,21 +287,27 @@ que el TTS lo genera**, con Web Audio (`pcm-player.ts`: lee el stream, pasa Int1
   siguientes ya usan la sesión y suenan a los ~0,6 s. Chrome automatizado no pasa el Turnstile, así que esta demo se prueba
   a mano en un navegador real.
 
-## Animación de la sección agéntica (`AgentTerminal.astro`)
+## Animación del hero de `/desarrolladores` (`AgentTerminal.astro`)
 
-Una terminal al estilo de Claude Code (fondo oscuro, coral, `>` del pedido, `●` de cada acción y `⎿` de su resultado) donde un
-agente de programación recibe "tengo turnos.csv con 240 pacientes, llamalos a todos para confirmar el turno de mañana y dejame
-un resultados.csv", lee el CSV, hace `POST /api/v1/calls` por cada número (contador y barra de progreso), descarga los
-resultados con `GET /api/v1/calls?limit=240` y escribe `resultados.csv`, con un resumen (198 confirmaron, 31 reagendar, 11 no
-atendieron). El flujo es real (ambos endpoints existen, con una API key `calls`; la lista admite hasta 500); los nombres,
-teléfonos y cifras son de ejemplo. Las llamadas que haga la campaña quedan sujetas a las llamadas a la vez del plan.
+Una terminal al estilo de Claude Code (fondo gris cálido, coral, `>` del pedido, `●` de cada acción y `⎿` de su resultado) donde un
+agente de programación opera la plataforma. Dos escenas que se alternan (la caja mide la más alta y no cambia de tamaño):
 
-- HTML y JS, sin video ni dependencias: ~19 s en bucle, solo mientras está a la vista (`IntersectionObserver`). Con
-  `prefers-reduced-motion` muestra el estado final. La caja no cambia de alto mientras corre (los pasos ocupan su lugar
-  con `invisible`).
+1. **Cobranza (primero):** "En facturas/ tengo los PDF de las facturas vencidas. Programá las llamadas para cobrarles el martes, y
+   volvé a llamar en 15 días a los que no hayan pagado". Lee los PDF (64 → 58 clientes), programa las llamadas del martes 10:00
+   (`POST /api/v1/calls × 58`, con barra de progreso) y agenda el seguimiento a los 15 días. **La API no programa horarios:** el
+   martes y los 15 días los agenda el agente de programación (cron o similar) y la API recibe las llamadas cuando toca.
+2. **Confirmación de turnos:** "tengo turnos.csv con 240 pacientes, llamalos a todos para confirmar el turno de mañana", lee el CSV,
+   hace `POST /api/v1/calls` por cada número, descarga los resultados con `GET /api/v1/calls?limit=240` y escribe `resultados.csv`
+   (198 confirmaron, 31 reagendar, 11 no atendieron).
+
+Los endpoints son reales (con una API key `calls`; la lista admite hasta 500); los nombres, teléfonos y cifras son de ejemplo. Las
+llamadas que haga una campaña quedan sujetas a las llamadas a la vez del plan.
+
+- HTML y JS, sin video ni dependencias: ~10 s por escena (~20 s el ciclo), en bucle y solo mientras está a la vista
+  (`IntersectionObserver`). Con `prefers-reduced-motion` y sin JavaScript muestra la primera escena completa.
 - Los colores de la terminal son locales (`--term-*`): representan otra herramienta y no son tokens de la marca.
-- No lleva el logo ni la interfaz exacta de Claude Code, y los nombres de herramientas van solo como texto (pie del hero).
-- **Skills para Claude Code, Cursor y Codex:** la sección `AgenticSection` (arriba de la API) las presenta como disponibles,
+- No lleva el logo ni la interfaz exacta de Claude Code, y los nombres de herramientas van solo como texto (sección agéntica).
+- **Skills para Claude Code, Cursor y Codex:** la sección `AgenticSection` (debajo de la API) las presenta como disponibles,
   sin marca de "próximamente". Al publicarla, tienen que existir: hoy no hay skills publicadas.
-- Va en la sección de integración agéntica, no en el hero: el hero muestra la demo de llamada (`CallWidget`), coherente
-  con las "llamadas web" del plan Free.
+- Va en el hero de `/desarrolladores`; la home (`/`) muestra la demo de llamada (`CallWidget`), coherente con las "llamadas web" del
+  plan Free.

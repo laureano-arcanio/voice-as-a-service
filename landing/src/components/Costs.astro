@@ -1,0 +1,47 @@
+---
+import { costsIncluded, costsSeparate } from "../data/site";
+import Icon from "./Icon.astro";
+import Section from "./Section.astro";
+---
+
+<Section id="costos" class="border-y border-line bg-bg-2">
+  <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">Telefonía y costos</span>
+  <h2 class="mt-3">Un servicio en lugar de seis proveedores</h2>
+  <p class="mt-3 max-w-[62ch] text-[1.12rem] text-ink-2">
+    Un agente de voz necesita telefonía, reconocimiento de voz, un modelo de lenguaje y una voz. Normalmente cada pieza es un contrato aparte, con su unidad de cobro. <span class="text-accent">Acá van juntas y con un precio por mes, en pesos.</span>
+  </p>
+
+  <div class="mt-9 grid gap-4 min-[801px]:grid-cols-2">
+    <div class="grid content-start gap-4 rounded-2xl border border-line bg-surface p-6">
+      <h3 class="text-[1.25rem] text-ink-2">Por separado</h3>
+      <ul class="m-0 grid list-none gap-3 p-0 text-[.96rem] text-muted">
+        {
+          costsSeparate.map((item) => (
+            <li class="flex items-start gap-3">
+              <span class="mt-0.5 grid size-[18px] flex-none place-items-center rounded-full bg-surface-2 text-muted" aria-hidden="true">
+                <span class="size-1.5 rounded-full bg-muted"></span>
+              </span>
+              {item}
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+    <div class="grid content-start gap-4 rounded-2xl border-[1.5px] border-accent bg-surface p-6 shadow-card">
+      <h3 class="text-[1.25rem]">Con Atentina</h3>
+      <ul class="m-0 grid list-none gap-3 p-0 text-[.96rem]">
+        {
+          costsIncluded.map((item) => (
+            <li class="flex items-start gap-3">
+              <span class="mt-0.5 grid size-[18px] flex-none place-items-center rounded-full bg-ok-soft text-ok">
+                <Icon name="check" class="size-3.5 stroke-[2.2]" />
+              </span>
+              {item}
+            </li>
+          ))
+        }
+      </ul>
+      <a class="mt-1 text-[.95rem] font-semibold text-accent no-underline hover:text-accent-2" href="#precios">Ver los planes →</a>
+    </div>
+  </div>
+</Section>

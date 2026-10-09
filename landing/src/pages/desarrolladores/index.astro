@@ -1,0 +1,68 @@
+---
+import AgentTerminal from "../../components/AgentTerminal.astro";
+import AgenticSection from "../../components/AgenticSection.astro";
+import ApiSection from "../../components/ApiSection.astro";
+import Button from "../../components/Button.astro";
+import Cta from "../../components/Cta.astro";
+import Faq from "../../components/Faq.astro";
+import Footer from "../../components/Footer.astro";
+import Nav from "../../components/Nav.astro";
+import Platform from "../../components/Platform.astro";
+import Pricing from "../../components/Pricing.astro";
+import TelDialog from "../../components/TelDialog.astro";
+import Voices from "../../components/Voices.astro";
+import { devCapabilities, faqDev } from "../../data/site";
+import Base from "../../layouts/Base.astro";
+
+const facts = ["Compatible con OpenAI", "Streaming de texto y audio", "Más de 30 voces argentinas", "Servidores en Argentina"];
+---
+
+<Base
+  title="Atentina para desarrolladores: LLM, voz y telefonía por API"
+  description="LLM, transcripción y síntesis de voz con acento argentino por API compatible con OpenAI, más agentes con telefonía y WhatsApp. Propios, en servidores en Argentina, con un plan gratis."
+  ogDescription="LLM, voz y telefonía por API compatible con OpenAI. Plan gratis."
+  path="/desarrolladores"
+>
+  <Nav current="dev" />
+
+  <header class="border-b border-line bg-linear-to-b from-bg-2 to-bg pt-10 pb-14 min-[901px]:pt-[72px]">
+    <div class="mx-auto grid max-w-[1120px] items-start gap-9 px-5 min-[901px]:grid-cols-[1fr_minmax(0,500px)] min-[901px]:gap-12">
+      <div class="grid gap-[22px]">
+        <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">Para desarrolladores</span>
+        <h1>
+          Voz, LLM y telefonía por API, <span class="text-accent">compatible con OpenAI</span>
+        </h1>
+        <p class="max-w-[62ch] text-[1.12rem] text-ink-2">
+          Número argentino, llamadas, WhatsApp, reconocimiento de voz, modelo de lenguaje y voces con acento argentino, propios y en servidores en Argentina con la menor latencia del mercado. <span class="text-accent">Sin contratar telefonía ni combinar proveedores</span>: un precio por mes, en pesos.
+        </p>
+        <div class="flex flex-wrap items-center gap-3">
+          <Button href="#demo">Empezar gratis</Button>
+          <Button href="/desarrolladores/docs" variant="ghost">Leer la documentación</Button>
+        </div>
+        <ul class="m-0 grid list-none grid-cols-2 gap-x-5 gap-y-1.5 p-0 font-mono text-[.76rem] tracking-[.03em] text-muted min-[561px]:flex min-[561px]:flex-wrap">
+          {facts.map((f) => <li>{f}</li>)}
+        </ul>
+      </div>
+      <AgentTerminal />
+    </div>
+  </header>
+
+  <TelDialog />
+
+  <Platform items={devCapabilities} title="Tres formas de integrarlo" lead="Usá los motores sueltos, operá agentes completos por API o sumá telefonía: todo con la misma cuenta y las mismas keys." />
+  <ApiSection />
+  <AgenticSection />
+  <Voices />
+  <Pricing free />
+  <Faq items={faqDev} />
+  <Cta
+    eyebrow="Acceso"
+    title="Probá la API con tu caso"
+    lead="Contanos qué querés construir y te damos acceso al plan Free. Si necesitás telefonía o un agente armado, lo vemos juntos."
+    subject="Quiero acceso a la API de Atentina"
+    question="¿Qué querés construir?"
+    placeholder="Por ejemplo: un asistente de voz para el sistema de turnos de mis clientes"
+    submit="Pedir acceso"
+  />
+  <Footer />
+</Base>
