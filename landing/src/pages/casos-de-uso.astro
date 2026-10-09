@@ -2,6 +2,7 @@
 import CallWidget from "../components/CallWidget.astro";
 import CheckList from "../components/CheckList.astro";
 import Cta from "../components/Cta.astro";
+import Faq from "../components/Faq.astro";
 import Footer from "../components/Footer.astro";
 import Nav from "../components/Nav.astro";
 import Pricing from "../components/Pricing.astro";
@@ -31,7 +32,7 @@ const features = [
   <Nav current="casos" />
 
   <header class="border-b border-line bg-linear-to-b from-bg-2 to-bg pt-10 pb-14 min-[901px]:pt-[72px]">
-    <div class="mx-auto grid max-w-[1120px] items-center gap-9 px-5 min-[901px]:grid-cols-[1.2fr_.8fr] min-[901px]:gap-12">
+    <div class="mx-auto grid max-w-[1120px] items-center gap-9 px-5 min-[901px]:grid-cols-[1fr_380px] min-[901px]:gap-12">
       <div class="grid gap-[22px]">
         <h1>
           Los agentes de atención para tu empresa, más <span class="text-accent">inteligentes</span> y <span class="text-accent">rápidos</span> del mercado
@@ -44,7 +45,7 @@ const features = [
         </p>
         {/* En mobile no va: lo repite "Nuestro producto", justo debajo, y empuja la demo fuera del primer pantallazo. */}
         <p class="hidden max-w-[62ch] text-[1.12rem] text-ink-2 min-[901px]:block">
-          <b class="font-bold text-accent">Un solo servicio que integra todo lo que necesitás</b>: telefonía, voces e inteligencia artificial incluidas. Lo contratás y empieza a atender.
+          <span class="text-accent">Un solo servicio que integra todo lo que necesitás</span>: telefonía, voces e inteligencia artificial incluidas. Lo contratás y empieza a atender.
         </p>
       </div>
       <CallWidget agents={[atentinaAgent]} whatsapp={whatsappUrl} others="#soluciones" />
@@ -58,7 +59,7 @@ const features = [
       <div class="grid gap-4">
         <h2>Nuestro producto</h2>
         <p class="max-w-[62ch] text-[1.12rem] text-ink-2">
-          Todo lo necesario para automatizar la atención por teléfono y por WhatsApp de tu empresa, en un solo servicio: número argentino, varias llamadas a la vez, WhatsApp e inteligencia artificial incluida. <b class="font-bold text-accent">No necesitás contratar telefonía ni combinar proveedores</b>: lo contratás y empieza a atender.
+          Todo lo necesario para automatizar la atención por teléfono y por WhatsApp de tu empresa, en un solo servicio: número argentino, varias llamadas a la vez, WhatsApp e inteligencia artificial incluida. <span class="text-accent">No necesitás contratar telefonía ni combinar proveedores</span>: lo contratás y empieza a atender.
         </p>
       </div>
       <CheckList items={features} />
@@ -66,7 +67,8 @@ const features = [
   </Section>
 
   <Solutions />
-  <Pricing />
+  <Pricing free />
+  <Faq />
   <Cta />
   <Footer />
 </Base>

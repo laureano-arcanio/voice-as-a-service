@@ -17,10 +17,10 @@ const local: Record<NonNullable<Props["current"]>, string[]> = {
 const anchor = (id: string) => (local[current].includes(id) ? `#${id}` : `/#${id}`);
 const links = [
   { href: anchor("plataforma"), label: "Plataforma", short: "Plataforma" },
+  { href: anchor("precios"), label: "Precios", short: "Precios" },
   { href: anchor("api"), label: "API", short: "API" },
   { href: anchor("voces"), label: "Voces", short: "Voces" },
   { href: "/casos-de-uso", label: "Casos de uso", short: "Casos", active: current === "casos" },
-  { href: anchor("precios"), label: "Precios", short: "Precios" },
   { href: anchor("demo"), label: "Contacto", short: "Contacto" },
 ];
 ---
@@ -40,7 +40,7 @@ const links = [
           </a>
         ))
       }
-      <Button href={current === "casos" ? "#llamada" : anchor("demo")} size="sm" class="whitespace-nowrap" data-demo-link>
+      <Button href={current === "casos" ? "#llamada" : anchor("demo")} size="sm" class="whitespace-nowrap" data-demo-link={current === "casos" ? "" : undefined}>
         {current === "casos" ? "Hacé una demo" : "Empezar gratis"}
       </Button>
     </div>

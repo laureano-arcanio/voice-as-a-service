@@ -111,7 +111,7 @@ la tabla hay que sumarlo ahí.
 - **Alternancia:** las secciones se separan con `border-line` (`border-t`, `border-b` o `border-y`) y, para
   cortar el ritmo, fondo `bg-bg-2`. La única sección oscura es la CTA final (`bg-ink`).
 - **Hero:** `border-b border-line bg-linear-to-b from-bg-2 to-bg pt-10 pb-14 min-[901px]:pt-[72px]`; en una vertical,
-  `from-accent-soft`. Dos columnas `1.2fr / .8fr`: texto a la izquierda, widget a la derecha.
+  `from-accent-soft`. Dos columnas `1fr / 380px`: texto a la izquierda, widget (de 380 px) a la derecha.
   - En mobile el botón de la demo tiene que entrar en el primer pantallazo: título, una línea de apoyo
     y un solo párrafo antes del widget. El segundo párrafo de la home se muestra desde `min-[901px]`.
 - **Grillas:** `gap-4` entre tarjetas, `gap-7` a `gap-12` entre columnas. Todo es una columna en mobile.
@@ -151,9 +151,10 @@ Usar el componente; no copiar sus clases a mano.
 | `CheckList` | Lista de características: check en círculo `accent-soft`, título en semibold y texto en `muted`. |
 | `Logo`, `Nav`, `Footer` | Marco de toda página. `Nav current="home"` en `/` (integradores) y `"casos"` en `/casos-de-uso`: define qué links son del mismo documento. |
 | `Cta` | Cierre de toda página comercial: sección oscura con los botones de contacto. Textos configurables (`eyebrow`, `title`, `lead`, `question`, `submit`): `/` los cambia para integradores. |
-| `Solutions`, `Voices`, `Pricing` | Secciones compartidas. `Pricing free` agrega el plan Free (solo API) arriba de los planes con telefonía; solo en `/`. |
-| `Platform`, `ApiSection`, `CodeTabs`, `Status` | Home de integradores. `CodeTabs`: pedidos reales a la API con su respuesta (el producto como ilustración). `Status`: píldora `disponible` / `próximamente`: no prometer sin marcarlo. |
-| `Developers` | Solo en `/`, debajo de precios: **lo que viene** (`roadmap` en `site.ts`, todo `próximamente`). Al sumar algo que ya existe, pasarlo a `platform` o `apiFeatures`. |
+| `Solutions`, `Voices`, `Pricing` | Secciones compartidas. `Pricing free` suma el plan Free (API y panel web, sin telefonía) como primera tarjeta, con el mismo formato; en `/` y `/casos-de-uso`. Las columnas siguen la cantidad de planes (3 o 4). Acepta `class`. |
+| `Faq` | Preguntas frecuentes con `<details>` (contenido en `faq` de `site.ts`); debajo de los precios o de la API. Responder solo con lo que ya dice la landing o está confirmado. |
+| `AgentTerminal`, `AgenticSection` | Sección de integración agéntica de `/` (arriba de la API): terminal animada de un agente de programación llamando por la API, con las skills disponibles. Único lugar con colores fuera de los tokens (`--term-*`, locales): imita otra herramienta. Ver `LANDING.md`. |
+| `Platform`, `ApiSection`, `CodeTabs`, `Status` | Home de integradores. `CodeTabs`: pedidos reales a la API con su respuesta; va en la sección API, no en el hero. `Status`: píldora `disponible` / `próximamente`: no prometer sin marcarlo. |
 | `CallWidget`, `SampleResult`, `TelDialog` | Demo de llamada, ejemplo de resultado y diálogo del teléfono. |
 | `Legal` | Layout de las páginas legales. |
 

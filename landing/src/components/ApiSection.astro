@@ -1,6 +1,7 @@
 ---
-import { apiFeatures, endpoints, integration } from "../data/site";
+import { apiFeatures } from "../data/site";
 import CheckList from "./CheckList.astro";
+import CodeTabs from "./CodeTabs.astro";
 import Section from "./Section.astro";
 ---
 
@@ -13,44 +14,6 @@ import Section from "./Section.astro";
 
   <div class="mt-9 grid items-start gap-7 min-[901px]:grid-cols-2 min-[901px]:gap-12">
     <CheckList items={apiFeatures} />
-    <div class="overflow-hidden rounded-[18px] border border-line bg-surface shadow-card">
-      <div class="flex items-center justify-between gap-3 border-b border-line bg-surface-2 px-4 py-3">
-        <h3 class="font-display text-[1.05rem]">Endpoints</h3>
-        <span class="font-mono text-[.76rem] text-muted">/api/v1/inference</span>
-      </div>
-      <dl class="m-0 grid divide-y divide-line">
-        {
-          endpoints.map((e) => (
-            <div class="grid gap-1 px-4 py-3 min-[561px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] min-[561px]:items-baseline min-[561px]:gap-3">
-              <dt class="font-mono text-[.85rem] font-medium text-ink">
-                <span class="text-accent">{e.method}</span> {e.path}
-              </dt>
-              <dd class="m-0 text-[.88rem] text-muted">{e.text}</dd>
-            </div>
-          ))
-        }
-      </dl>
-    </div>
-  </div>
-
-  <h3 class="mt-14 text-[1.4rem]">Desde la app o por API</h3>
-  <p class="mt-2 max-w-[62ch] text-ink-2">Lo mismo se puede hacer desde el panel o desde tu sistema.</p>
-  <div class="mt-6 grid gap-4 min-[801px]:grid-cols-2">
-    {
-      integration.map((c) => (
-        <div class="grid content-start gap-3 rounded-2xl border border-line bg-surface p-6">
-          <h3 class="text-[1.2rem]">{c.title}</h3>
-          <p class="text-[.96rem] text-muted">{c.text}</p>
-          <ul class="m-0 grid list-none gap-2 p-0 text-[.95rem] text-ink-2">
-            {c.items.map((item) => (
-              <li class="flex items-start gap-2.5">
-                <span class="mt-2.5 size-1.5 flex-none rounded-full bg-accent" aria-hidden="true" />
-                <span set:html={item} />
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))
-    }
+    <CodeTabs />
   </div>
 </Section>

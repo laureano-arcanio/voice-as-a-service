@@ -12,10 +12,10 @@ interface Props {
   others?: string;
 }
 
-const { agents: list, title = "Hacé una demo ahora", whatsapp, others } = Astro.props;
+const { agents: list, title = "Hablá con un agente ahora", whatsapp, others } = Astro.props;
 const panel = "hidden flex-col gap-3 p-3.5";
 // Las verticales no tienen línea propia: solo se ofrece llamar si algún agente la tiene.
-const tel = list.some((agent) => agent.phone);
+const phone = list.find((agent) => agent.phone)?.phone;
 ---
 
 <div
@@ -28,7 +28,7 @@ const tel = list.some((agent) => agent.phone);
 >
   <div class="flex items-center justify-between gap-3 border-b border-line bg-surface-2 px-4 py-3">
     <strong class="font-display text-[1.05rem]" id="llamadaTitulo">{title}</strong>
-    <span class="inline-flex items-center gap-2 font-mono text-[.78rem] text-muted" data-status>
+    <span class="inline-flex items-center gap-2 font-mono text-[.78rem] text-muted group-data-[state=idle]/call:invisible" data-status>
       <span
         class="size-2 rounded-full bg-ok shadow-[0_0_0_4px_var(--color-ok-soft)] group-data-[state=connecting]/call:bg-line-2 group-data-[state=connecting]/call:shadow-none group-data-[state=live]/call:animate-live group-data-[state=live]/call:shadow-none group-data-[state=processing]/call:bg-line-2 group-data-[state=processing]/call:shadow-none"
       ></span>
@@ -64,11 +64,17 @@ const tel = list.some((agent) => agent.phone);
     </div>
     <div class="mt-1 grid gap-2.5">
       <Button type="submit" data-start>
-        <Icon name="phone" class="size-5" />Iniciar llamada sin costo
+        <Icon name="phone" class="size-5" />Iniciar llamada web sin costo
       </Button>
-      <p class="min-h-[1.3em] text-center text-[.82rem] text-muted data-[warn]:font-medium data-[warn]:text-warn" data-note>
-        Hablás desde el navegador, con el micrófono.{tel && <> O <a href="#" data-open-tel><strong>llamá gratis</strong></a>.</>}
-      </p>
+      <p class="text-center text-[.82rem] text-muted empty:hidden data-[warn]:font-medium data-[warn]:text-warn" data-note></p>
+      {
+        phone && (
+          <Button href="#" variant="ghost" data-open-tel>
+            <Icon name="phone" class="size-5" />
+            <span>Llamá gratis al <span class="tabular-nums">{phone.display}</span></span>
+          </Button>
+        )
+      }
       {
         whatsapp && (
           <Button href={whatsapp} variant="whatsapp" target="_blank" rel="noopener">

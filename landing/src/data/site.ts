@@ -84,10 +84,12 @@ export const plans: Plan[] = [
     per: "por mes",
     usd: "unos USD 19",
     items: [
+      "Telefonía incluida",
+      "Todo lo que ofrece Free",
       "<b>300 minutos</b> por mes",
-      "<b>1 llamada</b> a la vez",
+      "1 llamada a la vez",
       "1 número",
-      "Minuto adicional <b class=\"tabular-nums\">$ 99</b>",
+      "Minuto adicional <span class=\"tabular-nums\">$ 99</span>",
     ],
     cta: "Empezar",
   },
@@ -98,29 +100,16 @@ export const plans: Plan[] = [
     per: "por mes",
     usd: "unos USD 64",
     items: [
+      "Telefonía incluida",
+      "Todo lo que ofrece Free",
       "<b>1.200 minutos</b> por mes",
-      "<b>5 llamadas</b> a la vez",
-      "2 números y una línea 0800",
+      "3 llamadas a la vez",
+      "3 números",
       "Llamadas programadas",
-      "Minuto adicional <b class=\"tabular-nums\">$ 79</b>",
+      "Minuto adicional <span class=\"tabular-nums\">$ 79</span>",
     ],
     cta: "Empezar",
     featured: true,
-  },
-  {
-    name: "Central",
-    for: "Empresas medianas y municipios.",
-    price: "$ 399.000",
-    per: "por mes",
-    usd: "unos USD 258",
-    items: [
-      "<b>5.000 minutos</b> por mes",
-      "<b>10 llamadas</b> a la vez",
-      "5 números y una línea 0800",
-      "Llamadas programadas",
-      "Minuto adicional <b class=\"tabular-nums\">$ 69</b>",
-    ],
-    cta: "Empezar",
   },
   {
     name: "Red",
@@ -129,7 +118,7 @@ export const plans: Plan[] = [
     usd: "Lo cotizamos según tu volumen",
     items: [
       "<b>Más de 5.000 minutos</b> por mes",
-      "<b>Las llamadas</b> a la vez que necesites",
+      "Las llamadas a la vez que necesites",
       "Los números que necesites",
       "Llamadas programadas",
     ],
@@ -308,21 +297,14 @@ export const contactEmail = "hola@atentina.com.ar";
 
 // ---- Home para integradores ----
 
-/** Tier Free: solo API, sin número de telefono. PROVISORIO: los cupos y la cantidad de agentes se definen despues. */
-export const freeTier = {
+/** Plan Free: API y panel web, sin telefonía. Mismo formato que los demás planes; se muestra primero en `/` y `/casos-de-uso`. */
+export const freePlan: Plan = {
   name: "Free",
-  for: "Para probar e integrar: solo la API, sin número de teléfono.",
+  for: "Para probar e integrar: la API y el panel web.",
   price: "$ 0",
   per: "por mes",
-  items: [
-    "<b>LLM, transcripción y síntesis</b> por API",
-    "<b>Webhooks</b> de tus agentes",
-    "Hasta <b>3 agentes</b>",
-    "<b>Sin número</b> de teléfono",
-    "Cupos por mes: <b class=\"tabular-nums\">500.000</b> tokens de entrada y <b class=\"tabular-nums\">100.000</b> de salida",
-    "<b class=\"tabular-nums\">30</b> min de síntesis y <b class=\"tabular-nums\">60</b> min de transcripción",
-    "<b class=\"tabular-nums\">20</b> pedidos por minuto",
-  ],
+  usd: "Sin costo",
+  items: ["<b>20 minutos</b> por mes", "Llamadas web", "Acceso plataforma web", "Acceso a la API"],
   cta: "Empezar gratis",
 };
 
@@ -337,11 +319,11 @@ export interface Capability {
 
 export const platform: Capability[] = [
   {
-    title: "Motores por API",
-    text: "LLM, transcripción y síntesis de voz con una API key. Compatible con el SDK de OpenAI y con streaming. Sin telefonía: usás solo lo que necesitás.",
+    title: "Telefonía y WhatsApp",
+    text: "Números argentinos, llamadas entrantes y salientes, y WhatsApp para el mismo agente. Todo en un solo servicio, por la app o por API.",
     status: "available",
-    href: "#api",
-    link: "Ver la API →",
+    href: "#precios",
+    link: "Ver planes →",
   },
   {
     title: "Agentes",
@@ -351,20 +333,12 @@ export const platform: Capability[] = [
     link: "Ver casos de uso →",
   },
   {
-    title: "Telefonía y WhatsApp",
-    text: "Números argentinos, llamadas entrantes y salientes, y WhatsApp para el mismo agente. Todo en un solo servicio, por la app o por API.",
+    title: "Motores por API",
+    text: "LLM, transcripción y síntesis de voz con una API key. Compatible con el SDK de OpenAI y con streaming. Sin telefonía: usás solo lo que necesitás.",
     status: "available",
-    href: "#precios",
-    link: "Ver planes →",
+    href: "#api",
+    link: "Ver la API →",
   },
-];
-
-export const endpoints: { method: "GET" | "POST"; path: string; text: string }[] = [
-  { method: "POST", path: "/chat/completions", text: "Chat con el LLM, con o sin streaming" },
-  { method: "POST", path: "/audio/transcriptions", text: "Audio a texto" },
-  { method: "POST", path: "/audio/speech", text: "Texto a voz: WAV, o PCM mientras se sintetiza" },
-  { method: "GET", path: "/voices", text: "Las voces disponibles" },
-  { method: "GET", path: "/usage", text: "Tu consumo del mes contra el plan" },
 ];
 
 export const apiFeatures: Feature[] = [
@@ -375,52 +349,40 @@ export const apiFeatures: Feature[] = [
   { title: "Límites y consumo a la vista", text: "Tokens, minutos y pedidos por minuto por plan, y un endpoint que dice cuánto te queda." },
 ];
 
-export const integration: { title: string; text: string; items: string[] }[] = [
+export const faq: { q: string; a: string }[] = [
   {
-    title: "Desde la app",
-    text: "Para quien prefiere un panel.",
-    items: [
-      "Agentes por formulario, con prueba de voz y de conversación",
-      "Números, llamadas y conversaciones con su transcripción",
-      "Usuarios, API keys y consumo del mes",
-    ],
+    q: "¿Qué incluye el plan Free?",
+    a: "20 minutos por mes, llamadas web, acceso a la plataforma web y acceso a la API. No incluye telefonía: ni números ni llamadas por teléfono. Cuando la necesites, pasás a un plan con telefonía.",
   },
   {
-    title: "Por API",
-    text: "Para quien integra desde su sistema.",
-    items: [
-      "Agentes versionados y llamadas salientes por <code class=\"font-mono text-[.88em]\">/api/v1</code>",
-      "Resultados estructurados de cada llamada",
-      "LLM, transcripción y síntesis por <code class=\"font-mono text-[.88em]\">/api/v1/inference</code>, con OpenAPI",
-    ],
-  },
-];
-
-export const roadmap: Capability[] = [
-  {
-    title: "Webhooks de eventos",
-    text: "Te avisamos a tu sistema cuando termina una llamada o una conversación, con el resultado.",
-    status: "soon",
+    q: "¿Cómo accedo a la API?",
+    a: "Pedí acceso con el formulario y te creamos la cuenta. Desde el panel generás tus API keys, cada una con el alcance que elijas (LLM, transcripción, síntesis o llamadas), y ves cuánto consumiste en el mes.",
   },
   {
-    title: "Ruteo SIP a webhooks",
-    text: "Cada llamada que entra por SIP llega a tu webhook, que decide qué agente atiende y con qué datos.",
-    status: "soon",
+    q: "¿Qué numeración tienen?",
+    a: "Numeración regional argentina, 0800 y 0810.",
   },
   {
-    title: "Llamado de herramientas",
-    text: "Durante la conversación, el agente llama a tus APIs: consulta, reserva o registra en tu sistema.",
-    status: "soon",
+    q: "¿Cómo se cuentan los minutos?",
+    a: "Cada llamada se cuenta por minuto iniciado. Los minutos del plan son por mes y no se acumulan: suman las llamadas que entran y las que hace el agente.",
   },
   {
-    title: "Con tu propia telefonía",
-    text: "Usá tu troncal SIP y pagá solo la inteligencia artificial.",
-    status: "soon",
+    q: "¿Qué pasa si me paso de los minutos?",
+    a: "Podés comprar packs de minutos por adelantado, o cuando los necesites.",
   },
   {
-    title: "Skills para agentes de programación",
-    text: "Documentación y skills para que tu agente de programación cree, configure y pruebe agentes por vos.",
-    status: "soon",
+    q: "¿Los precios llevan IVA? ¿Hay permanencia?",
+    a: "Los precios son en pesos y no incluyen IVA. No hay permanencia: se cancela cuando quieras. Si el precio cambia, avisamos con 15 días de anticipación.",
   },
 ];
 
+/** Integración agéntica: lo que un agente de programación puede hacer con la plataforma. */
+export const agenticFeatures: Feature[] = [
+  { title: "Crear y probar agentes", text: "Define el agente, lo versiona y lo prueba con una conversación de texto antes de publicarlo." },
+  { title: "Campañas desde un CSV", text: "Lee tu lista de números, llama a todos y te devuelve un CSV con lo que dijo cada persona." },
+  { title: "Usar los motores de IA", text: "Chat, transcripción y síntesis con voces argentinas, desde el mismo agente de programación." },
+  { title: "Controlar el consumo", text: "Consulta cuánto se usó en el mes contra el plan, antes de que se agote." },
+];
+
+/** Agentes de programación con skills. */
+export const skillTools = ["Claude Code", "Cursor", "Codex"];

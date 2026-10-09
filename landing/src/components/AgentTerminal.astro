@@ -1,0 +1,189 @@
+---
+// Animación de la sección agéntica: un agente de programación recibe un CSV de números, llama a todos por la API de
+// Atentina y devuelve un CSV con lo que dijo cada uno. Imita la terminal de Claude Code (fondo oscuro, coral de acento,
+// `>` del pedido, `●` de cada acción y `⎿` de su resultado). Es la representación de otra herramienta: sus colores son
+// locales (--term-*), no los tokens de la marca. El flujo es real (POST /calls por cada número, GET /calls con
+// limit hasta 500); los nombres, teléfonos y cifras son de ejemplo.
+const prompt = "Tengo turnos.csv con 240 pacientes. Llamalos a todos para confirmar el turno de mañana y dejame un resultados.csv con lo que dijo cada uno.";
+const rows = [
+  { name: "Ana Pérez", phone: "11 5555-0101", result: "confirmó", tone: "ok" },
+  { name: "Luis Gómez", phone: "11 5555-0102", result: "reagendar", tone: "coral" },
+  { name: "Marta Ruiz", phone: "11 5555-0103", result: "confirmó", tone: "ok" },
+  { name: "Pablo Sosa", phone: "11 5555-0104", result: "no atendió", tone: "dim" },
+];
+const description =
+  "Animación de ejemplo: un agente de programación recibe un archivo con 240 números, llama a todos por la API de Atentina para confirmar un turno, descarga los resultados y crea un archivo con lo que dijo cada persona: 198 confirmaron, 31 pidieron reagendar y 11 no atendieron.";
+---
+
+<figure class="m-0 grid gap-3">
+  <div
+    class="overflow-hidden rounded-[18px] border border-(--term-line) bg-(--term-bg) font-mono text-[.78rem]/[1.5] text-(--term-fg) shadow-card [--term-bg:#2a2927] [--term-coral:#d97757] [--term-dim:#8a877f] [--term-fg:#ece9e1] [--term-line:#44423e] [--term-ok:#7fc29b] [--term-user:#363431]"
+    data-terminal
+    role="img"
+    aria-label={description}
+  >
+    <div class="flex items-center gap-2 border-b border-(--term-line) px-4 py-2" aria-hidden="true">
+      <span class="size-2.5 rounded-full bg-(--term-line)"></span>
+      <span class="size-2.5 rounded-full bg-(--term-line)"></span>
+      <span class="size-2.5 rounded-full bg-(--term-line)"></span>
+      <span class="ml-2 text-[.72rem] text-(--term-dim)">~/turnos · agente de programación</span>
+    </div>
+
+    <div class="grid content-start gap-2 px-4 py-3.5" aria-hidden="true">
+      <div class="w-fit rounded-lg border border-(--term-coral) px-3 py-1.5">
+        <span class="text-(--term-coral)">✻</span> Agente de programación
+        <div class="text-(--term-dim)">~/turnos</div>
+      </div>
+
+      <div class="rounded bg-(--term-user) px-3 py-1" data-step>
+        <span class="text-(--term-dim)">&gt;&nbsp;</span><span data-typed={prompt}></span><span class="invisible" data-rest>{prompt}</span><span class="ml-px inline-block h-[1.1em] w-[.55em] translate-y-[.2em] animate-pulse bg-(--term-fg) motion-reduce:animate-none" data-cursor></span>
+      </div>
+
+      <div class="invisible" data-step>
+        <span class="text-(--term-fg)">●</span> Leo <span class="text-(--term-coral)">turnos.csv</span> y llamo a cada número con el agente de turnos.
+      </div>
+
+      <div class="invisible" data-step>
+        <div><span class="text-(--term-fg)">●</span> Read<span class="text-(--term-dim)">(turnos.csv)</span></div>
+        <div class="text-(--term-dim)">&nbsp;&nbsp;⎿ <span class="tabular-nums">240</span> filas · nombre, teléfono, turno</div>
+      </div>
+
+      <div class="invisible" data-step>
+        <div><span class="text-(--term-fg)">●</span> Atentina<span class="text-(--term-dim)">(POST /api/v1/calls × 240)</span></div>
+        <div class="text-(--term-dim)">
+          &nbsp;&nbsp;⎿ <span class="text-(--term-coral)" data-spinner>✻</span> <span class="tabular-nums"><span data-bar-on class="text-(--term-coral)"></span><span data-bar-off>░░░░░░░░░░░░</span></span> <span data-count class="tabular-nums">0</span>/240 llamadas
+        </div>
+      </div>
+
+      <div class="invisible" data-step>
+        <div><span class="text-(--term-fg)">●</span> Atentina<span class="text-(--term-dim)">(GET /api/v1/calls?limit=240)</span></div>
+        <div class="text-(--term-dim)">&nbsp;&nbsp;⎿ <span class="tabular-nums">240</span> resultados descargados</div>
+      </div>
+
+      <div class="invisible" data-step>
+        <div><span class="text-(--term-fg)">●</span> Write<span class="text-(--term-dim)">(resultados.csv)</span></div>
+        <div class="text-(--term-dim)">&nbsp;&nbsp;⎿ <span class="tabular-nums">240</span> filas</div>
+        <div class="mt-1 ml-3 grid gap-x-3 border-l-2 border-(--term-line) py-0.5 pl-3 text-[.74rem]">
+          {
+            rows.map((r) => (
+              <div class="grid grid-cols-[6.4rem_6.6rem_1fr] gap-x-2">
+                <span>{r.name}</span>
+                <span class="tabular-nums text-(--term-dim)">{r.phone}</span>
+                <span class:list={[r.tone === "ok" && "text-(--term-ok)", r.tone === "coral" && "text-(--term-coral)", r.tone === "dim" && "text-(--term-dim)"]}>{r.result}</span>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+
+      <div class="invisible" data-step>
+        <span class="text-(--term-fg)">●</span> Listo. De <span class="tabular-nums">240</span> llamadas, <span class="text-(--term-ok)"><span class="tabular-nums">198</span> confirmaron</span>, <span class="text-(--term-coral)"><span class="tabular-nums">31</span> pidieron reagendar</span> y <span class="tabular-nums">11</span> no atendieron. Está todo en <span class="text-(--term-coral)">resultados.csv</span>.
+      </div>
+    </div>
+    <p class="sr-only">{description}</p>
+  </div>
+  <!-- Sin JavaScript no hay animación: se muestra la conversación completa. -->
+  <noscript><style is:inline>[data-terminal] .invisible{visibility:visible}</style></noscript>
+</figure>
+
+<script>
+  const SPINNER = ["✻", "✽", "✶", "✳", "✢"];
+  const TOTAL = 240;
+  const BAR = 12;
+  const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+  document.querySelectorAll<HTMLElement>("[data-terminal]").forEach((root) => {
+    const steps = [...root.querySelectorAll<HTMLElement>("[data-step]")];
+    const typed = root.querySelector<HTMLElement>("[data-typed]")!;
+    const rest = root.querySelector<HTMLElement>("[data-rest]")!;
+    const cursor = root.querySelector<HTMLElement>("[data-cursor]")!;
+    const spinner = root.querySelector<HTMLElement>("[data-spinner]")!;
+    const barOn = root.querySelector<HTMLElement>("[data-bar-on]")!;
+    const barOff = root.querySelector<HTMLElement>("[data-bar-off]")!;
+    const count = root.querySelector<HTMLElement>("[data-count]")!;
+    const text = typed.dataset.typed ?? "";
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // Los pasos ocupan su lugar desde el principio (invisible, no hidden): la caja no cambia de alto mientras corre.
+    const show = (el: HTMLElement, on: boolean) => el.classList.toggle("invisible", !on);
+    const setTyped = (n: number) => {
+      typed.textContent = text.slice(0, n);
+      rest.textContent = text.slice(n);
+    };
+    const setProgress = (n: number) => {
+      const filled = Math.round((n / TOTAL) * BAR);
+      barOn.textContent = "█".repeat(filled);
+      barOff.textContent = "░".repeat(BAR - filled);
+      count.textContent = String(n);
+    };
+    const done = (on: boolean) => {
+      spinner.textContent = on ? "✓" : SPINNER[0]!;
+      for (const el of [spinner, barOn]) {
+        el.classList.toggle("text-(--term-ok)", on);
+        el.classList.toggle("text-(--term-coral)", !on);
+      }
+    };
+    const finish = () => {
+      steps.forEach((s) => show(s, true));
+      setTyped(text.length);
+      cursor.classList.add("invisible");
+      setProgress(TOTAL);
+      done(true);
+    };
+    const reset = () => {
+      steps.forEach((s) => show(s, false));
+      setTyped(0);
+      cursor.classList.remove("invisible");
+      setProgress(0);
+      done(false);
+    };
+
+    if (reduce) {
+      finish();
+      return;
+    }
+
+    let run = 0;
+    async function play(id: number) {
+      const alive = () => id === run;
+      reset();
+      show(steps[0]!, true);
+      await sleep(700);
+      for (let i = 1; i <= text.length && alive(); i++) {
+        setTyped(i);
+        await sleep(i % 7 === 0 ? 55 : 22);
+      }
+      if (!alive()) return;
+      await sleep(450);
+      cursor.classList.add("invisible");
+      show(steps[1]!, true);
+      await sleep(800);
+      show(steps[2]!, true);
+      await sleep(800);
+      show(steps[3]!, true);
+      // Las llamadas: el contador sube rápido al principio y se estira al final, como una campaña real.
+      const frames = 40;
+      for (let f = 1; f <= frames && alive(); f++) {
+        setProgress(Math.round(TOTAL * (1 - Math.pow(1 - f / frames, 1.6))));
+        spinner.textContent = SPINNER[f % SPINNER.length]!;
+        await sleep(85);
+      }
+      if (!alive()) return;
+      setProgress(TOTAL);
+      done(true);
+      await sleep(700);
+      show(steps[4]!, true);
+      await sleep(900);
+      show(steps[5]!, true);
+      await sleep(1100);
+      show(steps[6]!, true);
+      await sleep(7000);
+      if (alive()) void play(id);
+    }
+
+    // Corre solo mientras se ve: no gasta CPU fuera de pantalla.
+    new IntersectionObserver(([entry]) => {
+      run++;
+      if (entry?.isIntersecting) void play(run);
+    }).observe(root);
+  });
+</script>

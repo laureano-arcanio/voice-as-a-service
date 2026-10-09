@@ -1,0 +1,21 @@
+---
+import { faq } from "../data/site";
+import Section from "./Section.astro";
+---
+
+<Section id="preguntas" class="bg-bg-2">
+  <h2>Preguntas frecuentes</h2>
+  <div class="mt-9 grid gap-3">
+    {
+      faq.map((item) => (
+        <details class="group rounded-2xl border border-line bg-surface open:border-line-2">
+          <summary class="flex cursor-pointer list-none items-center justify-between gap-4 rounded-2xl px-5 py-4 text-[1.02rem] font-semibold marker:hidden [&::-webkit-details-marker]:hidden">
+            {item.q}
+            <span class="grid size-6 flex-none place-items-center rounded-full bg-surface-2 text-ink-2 transition-transform duration-150 group-open:rotate-45 motion-reduce:transition-none" aria-hidden="true">+</span>
+          </summary>
+          <p class="px-5 pb-5 text-[.96rem] text-ink-2">{item.a}</p>
+        </details>
+      ))
+    }
+  </div>
+</Section>

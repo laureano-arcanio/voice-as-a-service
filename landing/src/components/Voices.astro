@@ -9,7 +9,7 @@ interface Props {
 
 const { line = defaultVoiceLine, selected = "sofia" } = Astro.props;
 const ordered = [...voices].sort((a, b) => Number(b.id === selected) - Number(a.id === selected));
-const visible = ordered.map((v, i) => ({ ...v, more: i >= 5 }));
+const visible = ordered.map((v, i) => ({ ...v, more: i >= 6 }));
 const first = visible[0]!;
 const MAX_CHARS = 300;
 ---
@@ -22,7 +22,7 @@ const MAX_CHARS = 300;
     </p>
     <div class="mt-9 grid items-start gap-7 min-[901px]:grid-cols-[1.1fr_.9fr]" data-voices data-line-f={line.f} data-line-m={line.m}>
       <div class="grid gap-3">
-        <form class="group/list grid gap-2.5" role="radiogroup" aria-label="Voz" data-voice-form>
+        <form class="group/list grid gap-2.5 min-[561px]:grid-cols-2" role="radiogroup" aria-label="Voz" data-voice-form>
           {
             visible.map((v) => (
               <label

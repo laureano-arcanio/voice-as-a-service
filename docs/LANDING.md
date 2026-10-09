@@ -8,14 +8,18 @@ Cloudflare Tunnel. No hay backend aparte ni base nueva: costo adicional cero.
 - **Canónico:** `https://atentina.com.ar/`. `www.atentina.com.ar`, `atentina.com` y
   `www.atentina.com` redirigen ahí con 301.
 - **Páginas:** `/` es para **integradores** (empresas que ofrecen o quieren ofrecer telefonía, agentes y audio, por la app o
-  por API): hero con ejemplos de la API, plataforma, API compatible con OpenAI, voces, precios (con el plan Free), lo que
-  viene y contacto. `/casos-de-uso` es el hub anterior (agente de la demo, producto y las tres verticales). Las verticales
+  por API). Orden, pensado para convertir (resumen del Free en el hero, precios temprano y preguntas frecuentes al lado):
+  hero (demo de llamada y plan Free) → plataforma → **precios** → **integración agéntica** (terminal animada y skills) → API compatible con OpenAI (acá van los ejemplos de código) → voces → **preguntas
+  frecuentes** → contacto. `/casos-de-uso` es el hub anterior (agente de la demo, producto y las tres verticales). Las verticales
   conservan su URL, con su tema de acento: `/turnos` (verde azulado), `/cobranzas` (violeta) y `/municipios` (ámbar), desde
   `src/pages/[vertical].astro` con los datos de `src/data/site.ts`. Legales (las pide Meta para WhatsApp): `/privacidad`,
   `/terminos` y `/eliminacion-de-datos`, con el layout `Legal.astro`.
-- **Plan Free (provisorio):** solo API, sin número de teléfono (`freeTier` en `site.ts`: cupos y cantidad de agentes a
-  definir). Es contenido de la landing: el tier real se crea en Tiers (`api_*` y `max_phone_numbers` en 0) cuando se
-  definan los detalles. "Empezar gratis" lleva al formulario de contacto: todavía no hay alta autoservicio.
+- **Plan Free (provisorio):** API y panel web, sin telefonía; es la primera tarjeta de precios en `/` y en `/casos-de-uso` (`freePlan` en `site.ts`, mismo
+  formato que los demás planes): 20 minutos por mes, llamadas web, acceso a la plataforma web y acceso a la API. Mostrador y
+  Sucursal arrancan con "Telefonía incluida" y "Todo lo que ofrece Free". Es contenido de la landing: el tier real se crea
+  en Tiers (`max_phone_numbers` en 0; el tope de pedidos por minuto de la API, los cupos `api_*` y la cantidad de agentes
+  están por definir). "Empezar gratis" lleva al formulario de contacto: todavía no hay alta autoservicio. Planes: Mostrador,
+  Sucursal y Red (Central se quitó).
 - **Publicar:** push a la rama que sigue Render; solo los cambios en `landing/` despliegan.
 - **Diseño:** tokens, componentes, patrones y voz en [`DESIGN_GUIDELINE.md`](DESIGN_GUIDELINE.md).
 - **`og.png`, favicon y logos (`docs/brand/`):** se generan con `scripts/brand/`: `python scripts/brand/build_atentina.py` (con `fonttools`) escribe los SVG
@@ -272,3 +276,22 @@ que el TTS lo genera**, con Web Audio (`pcm-player.ts`: lee el stream, pasa Int1
 - **La primera vez de cada visita tarda más (~2,6 s hasta sonar):** incluye el Turnstile y la creación de la sesión. Las
   siguientes ya usan la sesión y suenan a los ~0,6 s. Chrome automatizado no pasa el Turnstile, así que esta demo se prueba
   a mano en un navegador real.
+
+## Animación de la sección agéntica (`AgentTerminal.astro`)
+
+Una terminal al estilo de Claude Code (fondo oscuro, coral, `>` del pedido, `●` de cada acción y `⎿` de su resultado) donde un
+agente de programación recibe "tengo turnos.csv con 240 pacientes, llamalos a todos para confirmar el turno de mañana y dejame
+un resultados.csv", lee el CSV, hace `POST /api/v1/calls` por cada número (contador y barra de progreso), descarga los
+resultados con `GET /api/v1/calls?limit=240` y escribe `resultados.csv`, con un resumen (198 confirmaron, 31 reagendar, 11 no
+atendieron). El flujo es real (ambos endpoints existen, con una API key `calls`; la lista admite hasta 500); los nombres,
+teléfonos y cifras son de ejemplo. Las llamadas que haga la campaña quedan sujetas a las llamadas a la vez del plan.
+
+- HTML y JS, sin video ni dependencias: ~19 s en bucle, solo mientras está a la vista (`IntersectionObserver`). Con
+  `prefers-reduced-motion` muestra el estado final. La caja no cambia de alto mientras corre (los pasos ocupan su lugar
+  con `invisible`).
+- Los colores de la terminal son locales (`--term-*`): representan otra herramienta y no son tokens de la marca.
+- No lleva el logo ni la interfaz exacta de Claude Code, y los nombres de herramientas van solo como texto (pie del hero).
+- **Skills para Claude Code, Cursor y Codex:** la sección `AgenticSection` (arriba de la API) las presenta como disponibles,
+  sin marca de "próximamente". Al publicarla, tienen que existir: hoy no hay skills publicadas.
+- Va en la sección de integración agéntica, no en el hero: el hero muestra la demo de llamada (`CallWidget`), coherente
+  con las "llamadas web" del plan Free.
