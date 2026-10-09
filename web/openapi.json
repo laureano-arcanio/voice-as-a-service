@@ -90,6 +90,76 @@
     ]
    }
   },
+  "/api/v1/auth/password-setup/check": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Password Setup Check",
+    "description": "Datos del usuario de un link de alta, para mostrar la pantalla de crear la clave.",
+    "operationId": "password_setup_check_api_v1_auth_password_setup_check_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PasswordSetupCheckIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PasswordSetupInfo"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Link vencido o ya usado (code invalid_setup_token)"
+     }
+    }
+   }
+  },
+  "/api/v1/auth/password-setup": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Password Setup",
+    "description": "Guarda la clave y abre la sesion. El link no sirve de nuevo (la huella de la clave cambio) y\nlas sesiones que hubiera abiertas se cierran.",
+    "operationId": "password_setup_api_v1_auth_password_setup_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PasswordSetupIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MeOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Link vencido o ya usado (code invalid_setup_token)"
+     }
+    }
+   }
+  },
   "/api/v1/tiers": {
    "get": {
     "tags": [
@@ -340,6 +410,7 @@
      "clients"
     ],
     "summary": "Create Client",
+    "description": "Crea el cliente. Con owner_email crea tambien su usuario, sin clave, y le manda un mail con\nel link para crearla (invite.status: sent, failed o disabled; si falla, se reenvia desde Usuarios).",
     "operationId": "create_client_api_v1_clients_post",
     "requestBody": {
      "content": {
@@ -357,7 +428,7 @@
       "content": {
        "application/json": {
         "schema": {
-         "$ref": "#/components/schemas/ClientOut"
+         "$ref": "#/components/schemas/ClientCreatedOut"
         }
        }
       }
@@ -671,7 +742,7 @@
      "phone-numbers"
     ],
     "summary": "Create Number",
-    "description": "Carga un numero; con client_id lo asigna (tope del tier) y con agent_id lo rutea.",
+    "description": "Carga un numero; con client_id lo asigna (tope del tier) y con agent_id lo rutea.\nAsignado, avisa por mail a los usuarios del cliente.",
     "operationId": "create_number_api_v1_phone_numbers_post",
     "security": [
      {
@@ -765,7 +836,7 @@
      "phone-numbers"
     ],
     "summary": "Assign Number",
-    "description": "Asigna un numero libre a un cliente. 409 phone_numbers_limit si su tier no tiene lugar.",
+    "description": "Asigna un numero libre a un cliente y avisa por mail a sus usuarios.\n409 phone_numbers_limit si su tier no tiene lugar.",
     "operationId": "assign_number_api_v1_phone_numbers__number_id__assign_post",
     "security": [
      {
@@ -1667,6 +1738,54 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/UserOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/users/{user_id}/invite": {
+   "post": {
+    "tags": [
+     "users"
+    ],
+    "summary": "Invite User",
+    "description": "Manda de nuevo el mail con el link para crear la clave. Los links anteriores siguen valiendo\nhasta que se cree la clave o venzan. Solo usuarios activos de un cliente.",
+    "operationId": "invite_user_api_v1_users__user_id__invite_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "user_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "User Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InviteOut"
         }
        }
       }
@@ -5232,6 +5351,64 @@
     ],
     "title": "CallSummary"
    },
+   "ClientCreatedOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "slug": {
+      "type": "string",
+      "title": "Slug"
+     },
+     "active": {
+      "type": "boolean",
+      "title": "Active"
+     },
+     "tier": {
+      "$ref": "#/components/schemas/TierBrief"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "agents_count": {
+      "type": "integer",
+      "title": "Agents Count",
+      "default": 0
+     },
+     "numbers_count": {
+      "type": "integer",
+      "title": "Numbers Count",
+      "default": 0
+     },
+     "invite": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/InviteOut"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "name",
+     "slug",
+     "active",
+     "tier",
+     "created_at"
+    ],
+    "title": "ClientCreatedOut"
+   },
    "ClientIn": {
     "properties": {
      "name": {
@@ -5253,6 +5430,26 @@
       "type": "boolean",
       "title": "Active",
       "default": true
+     },
+     "owner_email": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "email"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Owner Email",
+      "description": "Si viene, se crea el usuario del cliente y se le manda un mail para crear su clave"
+     },
+     "owner_name": {
+      "type": "string",
+      "maxLength": 128,
+      "title": "Owner Name",
+      "description": "Nombre del usuario (saludo del mail)",
+      "default": ""
      }
     },
     "type": "object",
@@ -5866,6 +6063,41 @@
     "type": "object",
     "title": "HTTPValidationError"
    },
+   "InviteOut": {
+    "properties": {
+     "email": {
+      "type": "string",
+      "title": "Email"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "sent",
+       "failed",
+       "disabled"
+      ],
+      "title": "Status"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     }
+    },
+    "type": "object",
+    "required": [
+     "email",
+     "status"
+    ],
+    "title": "InviteOut",
+    "description": "Resultado del mail para crear la clave. disabled: el servidor no tiene RESEND_API_KEY."
+   },
    "LlmCall": {
     "properties": {
      "kind": {
@@ -6121,6 +6353,73 @@
      "goal"
     ],
     "title": "OutcomeOut"
+   },
+   "PasswordSetupCheckIn": {
+    "properties": {
+     "token": {
+      "type": "string",
+      "maxLength": 2048,
+      "minLength": 10,
+      "title": "Token"
+     }
+    },
+    "type": "object",
+    "required": [
+     "token"
+    ],
+    "title": "PasswordSetupCheckIn"
+   },
+   "PasswordSetupIn": {
+    "properties": {
+     "token": {
+      "type": "string",
+      "maxLength": 2048,
+      "minLength": 10,
+      "title": "Token"
+     },
+     "password": {
+      "type": "string",
+      "maxLength": 256,
+      "minLength": 10,
+      "title": "Password"
+     }
+    },
+    "type": "object",
+    "required": [
+     "token",
+     "password"
+    ],
+    "title": "PasswordSetupIn"
+   },
+   "PasswordSetupInfo": {
+    "properties": {
+     "email": {
+      "type": "string",
+      "title": "Email"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "client_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Name"
+     }
+    },
+    "type": "object",
+    "required": [
+     "email",
+     "name",
+     "client_name"
+    ],
+    "title": "PasswordSetupInfo"
    },
    "PhoneNumberBulkIn": {
     "properties": {

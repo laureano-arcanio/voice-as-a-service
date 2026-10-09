@@ -57,7 +57,9 @@ app/
     phone_numbers.py inventario: carga, asignación con tope, liberación, ruteo a agente
     agents.py        alta, validación de la definición, versionado, archivo
     reports.py       lista de llamadas, detalle, indicadores y serie diaria (filtros y zona horaria)
-    security.py      argon2, JWT HS256, API keys (SHA-256)
+    security.py      argon2, JWT HS256, API keys (SHA-256), token de alta de clave
+  mail/              mails por Resend: sender, layout.py + templates/layout.html (cabecera y pie),
+                     messages.py (bienvenida con plan, número asignado) y notify.py (a quién llega)
     livekit.py       despacho a LiveKit y link de la llamada de prueba
     tts.py, voices.py prueba de voz y catálogo (tts/finetune/voces.tsv)
     errors.py        NotFound, Forbidden, Conflict, Invalid, QuotaExceeded, Upstream
@@ -300,6 +302,13 @@ lo de esta sección es lo que lo protege.
   setea la cookie `vaas_session`: un JWT HS256 firmado con `AUTH_SECRET`, httpOnly,
   SameSite=Strict, path `/api`, `Max-Age` de `AUTH_TOKEN_HOURS` y `Secure` si `AUTH_COOKIE_SECURE=true`
   o si el pedido llega por HTTPS (así anda en `http://localhost:8011` y sale Secure por el túnel).
+- **Alta de usuario con link por mail** (`POST /clients` con `owner_email`, `POST /users/{id}/invite`): el
+  usuario se crea con un hash de una clave al azar (no puede ingresar) y le llega el mail de bienvenida con
+  `/set-password?token=…`. El token es un JWT firmado con una clave **derivada** de `AUTH_SECRET` (no vale
+  como sesión ni al revés), vence a las `PASSWORD_SETUP_HOURS` (72) y lleva la huella de la clave actual
+  (`ph`): al crearla deja de valer, así que es de un solo uso sin tabla. `POST /auth/password-setup/check`
+  y `POST /auth/password-setup` son públicos, con tope de 30 pedidos por hora por IP (429); el segundo
+  guarda la clave, sube `session_version` y abre la sesión. Link vencido o usado: 422 `invalid_setup_token`.
 - **Límites de login fallido** (en memoria del proceso, `services/ratelimit.py`): 5 por IP y email y 10
   por email en 15 min; 20 por IP en 15 min y 100 por día (`LOGIN_FAIL_*`). Se cuentan antes de verificar
   la clave, de forma atómica (pedidos en paralelo no pasan todos), y un login correcto se descuenta y
@@ -372,6 +381,13 @@ lo de esta sección es lo que lo protege.
 - **Campañas de WhatsApp** (`/whatsapp`): `GET|POST /campaigns`, `GET|PATCH|DELETE /campaigns/{id}`,
   `GET|POST /campaigns/{id}/recipients` (lista o CSV), `POST /campaigns/{id}/start|pause|cancel`,
   `GET|POST /optouts` y `DELETE /optouts/{wa_id}`. Envío y reglas en [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md), 5.5.
+- **Mails** (Resend, `app/mail/`): `POST /clients` con `owner_email` crea el usuario y manda la bienvenida
+  (respuesta con `invite.status`: `sent`, `failed` o `disabled`); `POST /users/{id}/invite` la reenvía.
+  Al asignar un número (`POST /phone-numbers` con `client_id`, `POST /phone-numbers/{id}/assign`) sale
+  un mail a cada usuario activo del cliente, en segundo plano. Todos llevan el link
+  `{APP_URL}/login?email=…` (la pantalla de login prellena el email; con sesión abierta va al inicio). Un fallo de
+  Resend no corta la operación: queda en el log. Sin `RESEND_API_KEY` no se envía nada (`disabled`).
+  Variables: `MAIL_FROM`, `APP_URL`, `SITE_URL`, `SUPPORT_EMAIL` y `PASSWORD_SETUP_HOURS`.
 - **Errores:** `{"detail": "texto", "code": "snake_case", "errors": [{"path", "message"}]}`.
   - 404 `not_found`, 403 `forbidden`, 409 `conflict`/`agent_in_use`/`phone_numbers_limit`/…,
     422 `invalid`/`invalid_definition`, 429 límites del tier, 502 `upstream_error` (LiveKit, TTS
@@ -408,7 +424,7 @@ lo de esta sección es lo que lo protege.
 
 | Qué | Comando | Cubre |
 |---|---|---|
-| Backend | `make test` (o `.venv/bin/pytest`) | API (auth, permisos, tiers, clientes, agentes y versiones, inventario de números, llamadas y límites, fechas por zona, cuentas, conversaciones y alta de WhatsApp, plantillas), seguridad del dashboard público (`test_security_public.py`), migración 0005 de ida y vuelta, cuotas, motor con LLM falso, WhatsApp (webhook, service con payloads de Meta y Graph simulado) y escenarios contra el LLM real (se saltean si no responde). |
+| Backend | `make test` (o `.venv/bin/pytest`) | API (auth, permisos, tiers, clientes, mails y alta de clave (`test_mail.py`), agentes y versiones, inventario de números, llamadas y límites, fechas por zona, cuentas, conversaciones y alta de WhatsApp, plantillas), seguridad del dashboard público (`test_security_public.py`), migración 0005 de ida y vuelta, cuotas, motor con LLM falso, WhatsApp (webhook, service con payloads de Meta y Graph simulado) y escenarios contra el LLM real (se saltean si no responde). |
 | Frontend | `make web-check` | ESLint, tipos y Vitest (formatos, parseo de números, errores de API, guardas por rol, consumo, WhatsApp: origen y mensajes de Embedded Signup, alta con el SDK simulado, plantillas). |
 | Migraciones | `alembic upgrade head` / `downgrade` / `check` | Ida y vuelta en PostgreSQL y SQLite. |
 

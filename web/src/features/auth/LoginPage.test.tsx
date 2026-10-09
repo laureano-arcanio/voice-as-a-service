@@ -24,6 +24,12 @@ describe('LoginPage', () => {
     expect(await screen.findByText('Ingresá un email válido')).toBeInTheDocument();
   });
 
+  it('prellena el email que viene en la URL (links de los mails)', () => {
+    renderWithProviders(<LoginPage />, { me: null, path: '/login?email=ana%2Bventas%40acme.com' });
+    expect(screen.getByLabelText('Email')).toHaveValue('ana+ventas@acme.com');
+    expect(screen.getByLabelText('Clave')).toHaveFocus();
+  });
+
   it('muestra credenciales incorrectas y demasiados intentos', async () => {
     let status = 401;
     mockFetch(() =>

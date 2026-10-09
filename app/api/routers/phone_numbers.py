@@ -7,10 +7,11 @@ Despues de cargar o borrar numeros: `make livekit-sip` (el trunk entrante los li
 """
 from typing import Literal
 
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
+from ...mail import notify
 from ...models import Agent, Client, PhoneNumber
 from ...services import phone_numbers as service
 from ...services.errors import Conflict, NotFound
@@ -58,8 +59,9 @@ def list_numbers(p: CurrentPrincipal, db: DB, client_id: str | None = None,
 
 
 @router.post("", response_model=PhoneNumberOut, status_code=201)
-def create_number(body: PhoneNumberIn, p: AdminPrincipal, db: DB):
-    """Carga un numero; con client_id lo asigna (tope del tier) y con agent_id lo rutea."""
+def create_number(body: PhoneNumberIn, p: AdminPrincipal, db: DB, background: BackgroundTasks):
+    """Carga un numero; con client_id lo asigna (tope del tier) y con agent_id lo rutea.
+    Asignado, avisa por mail a los usuarios del cliente."""
     if body.client_id:
         get_client(db, p, body.client_id)
     n = PhoneNumber(e164=body.e164, label=body.label, provider=body.provider)
@@ -72,6 +74,7 @@ def create_number(body: PhoneNumberIn, p: AdminPrincipal, db: DB):
         service.assign(db, n, body.client_id)
         service.set_agent(db, n, body.agent_id)
     db.commit()
+    background.add_task(notify.deliver, notify.number_assigned_mails(db, n))
     return _out(db, n)
 
 
@@ -84,12 +87,16 @@ def load_numbers(body: PhoneNumberBulkIn, _: AdminPrincipal, db: DB):
 
 
 @router.post("/{number_id}/assign", response_model=PhoneNumberOut)
-def assign_number(number_id: str, body: AssignIn, p: AdminPrincipal, db: DB):
-    """Asigna un numero libre a un cliente. 409 phone_numbers_limit si su tier no tiene lugar."""
+def assign_number(number_id: str, body: AssignIn, p: AdminPrincipal, db: DB, background: BackgroundTasks):
+    """Asigna un numero libre a un cliente y avisa por mail a sus usuarios.
+    409 phone_numbers_limit si su tier no tiene lugar."""
     n = _get(db, p, number_id)
     get_client(db, p, body.client_id)
+    was_there = n.client_id == body.client_id
     service.assign(db, n, body.client_id)
     db.commit()
+    if not was_there:   # asignar de nuevo al mismo cliente no cambia nada: sin mail
+        background.add_task(notify.deliver, notify.number_assigned_mails(db, n))
     return _out(db, n)
 
 

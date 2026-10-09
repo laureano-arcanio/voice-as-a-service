@@ -13,7 +13,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { Navigate, useLocation, useNavigate, type Location } from 'react-router';
+import { Navigate, useLocation, useNavigate, useSearchParams, type Location } from 'react-router';
 import { ApiError, errorMessage } from '@/api/errors';
 import { useDocumentTitle } from '@mantine/hooks';
 import { useLogin, useMe } from './api';
@@ -32,11 +32,14 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   useDocumentTitle('Ingresar · Atentina');
+  // Los mails traen /login?email=...: el campo viene lleno y el foco va a la clave.
+  const [params] = useSearchParams();
+  const prefilled = params.get('email')?.trim() ?? '';
   const from = (location.state as { from?: Location } | null)?.from;
   const target = from && from.pathname !== '/login' ? `${from.pathname}${from.search}` : '/';
 
   const form = useForm({
-    initialValues: { email: '', password: '' },
+    initialValues: { email: prefilled, password: '' },
     validate: {
       email: (v) => (/^\S+@\S+\.\S+$/.test(v.trim()) ? null : 'Ingresá un email válido'),
       password: (v) => (v ? null : 'Ingresá tu clave'),
@@ -73,12 +76,13 @@ export function LoginPage() {
                 type="email"
                 autoComplete="username"
                 placeholder="vos@empresa.com"
-                autoFocus
+                autoFocus={!prefilled}
                 {...form.getInputProps('email')}
               />
               <PasswordInput
                 label="Clave"
                 autoComplete="current-password"
+                autoFocus={!!prefilled}
                 {...form.getInputProps('password')}
               />
               {login.isError && (

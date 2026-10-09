@@ -40,8 +40,11 @@ Orden recomendado: **tier → cliente → agente → número → usuario**.
 
 ### 2. Crear el cliente (Clientes)
 
-**Clientes > Nuevo cliente**: nombre, slug (se arma del nombre; minúsculas, números y `_`) y tier.
-Te lleva a la ficha del cliente, que tiene cinco pestañas:
+**Clientes > Nuevo cliente**: nombre, slug (se arma del nombre; minúsculas, números y `_`), tier y el
+email de su primer usuario (con el nombre, opcional, para el saludo). Se crea ese usuario, sin clave, y
+le llega un email de Atentina con el plan contratado y un link para crear su clave (vale 72 horas y se usa
+una sola vez). Si el aviso dice que no se pudo mandar, o el link venció, **Usuarios > Reenviar invitación**
+(el sobre de la fila). Te lleva a la ficha del cliente, que tiene cinco pestañas:
 
 - **Consumo y datos:** consumo del mes con selector de mes (llamadas activas contra el tope,
   minutos entrantes y salientes, números usados), y los datos del cliente:

@@ -61,6 +61,42 @@ def decode_session_token(token: str) -> dict | None:
         return None
 
 
+def _setup_key() -> bytes:
+    # Clave propia, derivada de la de sesion: un token de alta de clave no vale como sesion
+    # (ambos llevan `sub` y `exp`) ni al reves.
+    return hashlib.sha256(f"{settings.auth_secret}|password-setup".encode()).digest()
+
+
+def _fingerprint(password_hash: str) -> str:
+    return hashlib.sha256(password_hash.encode()).hexdigest()[:16]
+
+
+def create_password_setup_token(user_id: str, password_hash: str) -> tuple[str, datetime.datetime]:
+    """Link de un solo uso para crear la clave: lleva la huella de la clave actual (`ph`) y deja
+    de valer cuando esta cambia, o a las `password_setup_hours`."""
+    now = datetime.datetime.now(datetime.UTC)
+    expires = now + datetime.timedelta(hours=settings.password_setup_hours)
+    payload = {"sub": user_id, "ph": _fingerprint(password_hash), "exp": expires, "iat": now}
+    return jwt.encode(payload, _setup_key(), algorithm="HS256"), expires
+
+
+def decode_password_setup_token(token: str) -> dict | None:
+    try:
+        return jwt.decode(token, _setup_key(), algorithms=["HS256"], options={"require": ["sub", "exp", "ph"]})
+    except jwt.PyJWTError:
+        return None
+
+
+def password_setup_token_matches(payload: dict, password_hash: str) -> bool:
+    """False si la clave ya cambio desde que se emitio el token (ya se usó)."""
+    return secrets.compare_digest(payload["ph"], _fingerprint(password_hash))
+
+
+def unusable_password_hash() -> str:
+    """Hash de una clave al azar que nadie conoce: el usuario existe pero no puede ingresar hasta crear la suya."""
+    return hash_password(secrets.token_urlsafe(32))
+
+
 def generate_api_key() -> tuple[str, str, str]:
     """(clave, prefijo visible, hash)."""
     key = API_KEY_PREFIX + secrets.token_urlsafe(32)

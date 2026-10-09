@@ -5,6 +5,7 @@ import { AppLayout } from '@/components/AppLayout';
 import { NotFound, RouteError } from '@/components/NotFound';
 import { FullPageLoader, RequireAuth, RequireRole } from '@/features/auth/guards';
 import { LoginPage } from '@/features/auth/LoginPage';
+import { SetPasswordPage } from '@/features/auth/SetPasswordPage';
 
 /** Pagina cargada a demanda (code splitting por ruta), opcionalmente solo para un rol. */
 function page(load: () => Promise<ComponentType>, role?: Role): Pick<RouteObject, 'lazy'> {
@@ -26,6 +27,7 @@ function page(load: () => Promise<ComponentType>, role?: Role): Pick<RouteObject
 
 export const routes: RouteObject[] = [
   { path: '/login', element: <LoginPage />, errorElement: <RouteError /> },
+  { path: '/set-password', element: <SetPasswordPage />, errorElement: <RouteError /> },
   {
     path: '/',
     element: (

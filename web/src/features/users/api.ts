@@ -44,3 +44,11 @@ export function useDeleteUser() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: userKeys.all }),
   });
 }
+
+/** Manda de nuevo el mail con el link para crear la clave. */
+export function useInviteUser() {
+  return useMutation({
+    mutationFn: (id: string) =>
+      unwrap(api.POST('/api/v1/users/{user_id}/invite', { params: { path: { user_id: id } } })),
+  });
+}

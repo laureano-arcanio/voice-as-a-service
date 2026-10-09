@@ -2,11 +2,12 @@ from fastapi import APIRouter
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
+from ...mail import notify
 from ...models import Client, Role, User
 from ...services.errors import Conflict, Invalid, NotFound
 from ...services.security import hash_password
 from ..deps import DB, AdminPrincipal
-from ..schemas import UserIn, UserOut, UserUpdate
+from ..schemas import InviteOut, UserIn, UserOut, UserUpdate
 from .clients import get_client
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -52,6 +53,18 @@ def create_user(body: UserIn, p: AdminPrincipal, db: DB):
     except IntegrityError:
         raise Conflict(f"Ya existe un usuario {body.email}") from None
     return _out(user, _client_name(db, user))
+
+
+@router.post("/{user_id}/invite", response_model=InviteOut)
+def invite_user(user_id: str, _: AdminPrincipal, db: DB):
+    """Manda de nuevo el mail con el link para crear la clave. Los links anteriores siguen valiendo
+    hasta que se cree la clave o venzan. Solo usuarios activos de un cliente."""
+    user = _get(db, user_id)
+    client = db.get(Client, user.client_id) if user.client_id else None
+    if client is None or not user.active:
+        raise Invalid("Solo se invita a usuarios activos de un cliente", "invalid_user")
+    result = notify.invite(user, client)
+    return InviteOut(email=user.email, status=result.status, error=result.error)
 
 
 @router.patch("/{user_id}", response_model=UserOut)

@@ -1,13 +1,13 @@
 import { ActionIcon, Badge, Button, Group, Switch, Table, Text, Tooltip } from '@mantine/core';
-import { IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconMail, IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useState } from 'react';
 import type { User } from '@/api/types';
 import { confirmAction } from '@/components/confirm';
 import { EmptyState, QueryState } from '@/components/QueryState';
 import { useCurrentUser } from '@/features/auth/api';
 import { formatDateTime } from '@/lib/format';
-import { notifyError, notifySuccess } from '@/lib/notify';
-import { useDeleteUser, useUpdateUser, useUsers } from './api';
+import { notifyError, notifyInvite, notifySuccess } from '@/lib/notify';
+import { useDeleteUser, useInviteUser, useUpdateUser, useUsers } from './api';
 import { UserModal } from './UserModal';
 
 /** Usuarios (todos, o los de un cliente) con alta, edicion, activar y borrar. Solo admin. */
@@ -22,6 +22,7 @@ export function UsersTable({
   const users = useUsers(clientId);
   const update = useUpdateUser();
   const del = useDeleteUser();
+  const invite = useInviteUser();
   const [editing, setEditing] = useState<User | 'new' | null>(null);
 
   const toggleActive = (u: User, active: boolean) =>
@@ -32,6 +33,9 @@ export function UsersTable({
         onError: (e) => notifyError(e),
       },
     );
+
+  const sendInvite = (u: User) =>
+    invite.mutate(u.id, { onSuccess: (r) => notifyInvite(r), onError: (e) => notifyError(e) });
 
   const remove = async (u: User) => {
     if (
@@ -121,6 +125,19 @@ export function UsersTable({
                         </Table.Td>
                         <Table.Td>
                           <Group gap={4} justify="flex-end" wrap="nowrap">
+                            {u.role === 'client' && u.active && (
+                              <Tooltip label="Reenviar email para crear la clave">
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="gray"
+                                  loading={invite.isPending && invite.variables === u.id}
+                                  onClick={() => sendInvite(u)}
+                                  aria-label="Reenviar invitación"
+                                >
+                                  <IconMail size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                            )}
                             <Tooltip label="Editar">
                               <ActionIcon
                                 variant="subtle"

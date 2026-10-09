@@ -123,6 +123,16 @@ class Settings(BaseSettings):
     contact_ip_per_hour: int = 3
     contact_ip_per_day: int = 10
 
+    # --- Mails transaccionales (app/mail/): alta de cliente y numero asignado ---
+    # Salen por Resend (RESEND_API_KEY, arriba); sin clave no se envian y la API sigue igual.
+    mail_from: str = "Atentina <hola@atentina.com.ar>"
+    # Dashboard y sitio: los links de los mails. El de la clave es /set-password?token=...
+    app_url: str = "https://app.atentina.com.ar"
+    site_url: str = "https://atentina.com.ar"
+    support_email: str = "hola@atentina.com.ar"
+    # Vigencia del link para crear la clave (de un solo uso).
+    password_setup_hours: int = 72
+
     # --- WhatsApp (Cloud API de Meta, docs/WHATSAPP_PLAN.md) ---
     wa_app_id: str = ""
     wa_app_secret: str = ""  # firma X-Hub-Signature-256; vacio = el webhook rechaza todo

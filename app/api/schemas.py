@@ -39,6 +39,20 @@ class LoginIn(BaseModel):
     password: str = Field(min_length=1, max_length=256)
 
 
+class PasswordSetupCheckIn(BaseModel):
+    token: str = Field(min_length=10, max_length=2048)
+
+
+class PasswordSetupIn(PasswordSetupCheckIn):
+    password: str = Field(min_length=10, max_length=256)
+
+
+class PasswordSetupInfo(BaseModel):
+    email: str
+    name: str
+    client_name: str | None
+
+
 class MeOut(BaseModel):
     id: str
     email: str
@@ -88,6 +102,10 @@ class ClientIn(BaseModel):
     slug: str = Field(pattern=SLUG)
     tier_id: str
     active: bool = True
+    owner_email: EmailStr | None = Field(
+        default=None,
+        description="Si viene, se crea el usuario del cliente y se le manda un mail para crear su clave")
+    owner_name: str = Field(default="", max_length=128, description="Nombre del usuario (saludo del mail)")
 
 
 class ClientUpdate(BaseModel):
@@ -110,6 +128,17 @@ class ClientOut(ORM):
     created_at: UTCDateTime
     agents_count: int = 0
     numbers_count: int = 0
+
+
+class InviteOut(BaseModel):
+    """Resultado del mail para crear la clave. disabled: el servidor no tiene RESEND_API_KEY."""
+    email: str
+    status: Literal["sent", "failed", "disabled"]
+    error: str | None = None
+
+
+class ClientCreatedOut(ClientOut):
+    invite: InviteOut | None = None
 
 
 class MinutesUsageOut(BaseModel):

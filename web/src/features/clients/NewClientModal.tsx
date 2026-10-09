@@ -3,7 +3,7 @@ import { useForm } from '@mantine/form';
 import { useNavigate } from 'react-router';
 import { useTiers } from '@/features/tiers/api';
 import { SLUG_RE, slugify } from '@/lib/format';
-import { notifyError, notifySuccess } from '@/lib/notify';
+import { notifyError, notifyInvite, notifySuccess } from '@/lib/notify';
 import { useCreateClient } from './api';
 
 export function NewClientModal({ opened, onClose }: { opened: boolean; onClose: () => void }) {
@@ -11,12 +11,13 @@ export function NewClientModal({ opened, onClose }: { opened: boolean; onClose: 
   const create = useCreateClient();
   const navigate = useNavigate();
   const form = useForm({
-    initialValues: { name: '', slug: '', slugEdited: false, tier_id: '' },
+    initialValues: { name: '', slug: '', slugEdited: false, tier_id: '', owner_email: '', owner_name: '' },
     validate: {
       name: (v) => (v.trim() ? null : 'Poné un nombre'),
       slug: (v) =>
         SLUG_RE.test(v) ? null : 'Minúsculas, números y _ (empieza con letra o número, hasta 64)',
       tier_id: (v) => (v ? null : 'Elegí un tier'),
+      owner_email: (v) => (/^\S+@\S+\.\S+$/.test(v.trim()) ? null : 'Ingresá un email válido'),
     },
   });
 
@@ -25,10 +26,18 @@ export function NewClientModal({ opened, onClose }: { opened: boolean; onClose: 
       <form
         onSubmit={form.onSubmit((v) =>
           create.mutate(
-            { name: v.name.trim(), slug: v.slug, tier_id: v.tier_id, active: true },
+            {
+              name: v.name.trim(),
+              slug: v.slug,
+              tier_id: v.tier_id,
+              active: true,
+              owner_email: v.owner_email.trim(),
+              owner_name: v.owner_name.trim(),
+            },
             {
               onSuccess: (c) => {
-                notifySuccess(`Cliente ${c.name} creado.`);
+                if (c.invite) notifyInvite(c.invite, `Cliente ${c.name} creado. `);
+                else notifySuccess(`Cliente ${c.name} creado.`);
                 onClose();
                 void navigate(`/clients/${c.id}`);
               },
@@ -63,6 +72,20 @@ export function NewClientModal({ opened, onClose }: { opened: boolean; onClose: 
             placeholder={tiers.isPending ? 'Cargando…' : 'Elegí un tier'}
             data={(tiers.data ?? []).map((t) => ({ value: t.id, label: t.name }))}
             {...form.getInputProps('tier_id')}
+          />
+          <TextInput
+            label="Email del primer usuario"
+            description="Le mandamos un email con el plan y el link para crear su clave."
+            type="email"
+            autoComplete="off"
+            placeholder="persona@empresa.com"
+            {...form.getInputProps('owner_email')}
+          />
+          <TextInput
+            label="Nombre del usuario"
+            description="Opcional: el saludo del email."
+            maxLength={128}
+            {...form.getInputProps('owner_name')}
           />
           <Group justify="flex-end">
             <Button variant="default" onClick={onClose}>

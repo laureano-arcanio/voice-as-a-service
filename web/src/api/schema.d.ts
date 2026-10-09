@@ -59,6 +59,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/password-setup/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Password Setup Check
+         * @description Datos del usuario de un link de alta, para mostrar la pantalla de crear la clave.
+         */
+        post: operations["password_setup_check_api_v1_auth_password_setup_check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/password-setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Password Setup
+         * @description Guarda la clave y abre la sesion. El link no sirve de nuevo (la huella de la clave cambio) y
+         *     las sesiones que hubiera abiertas se cierran.
+         */
+        post: operations["password_setup_api_v1_auth_password_setup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tiers": {
         parameters: {
             query?: never;
@@ -113,7 +154,11 @@ export interface paths {
          */
         get: operations["list_clients_api_v1_clients_get"];
         put?: never;
-        /** Create Client */
+        /**
+         * Create Client
+         * @description Crea el cliente. Con owner_email crea tambien su usuario, sin clave, y le manda un mail con
+         *     el link para crearla (invite.status: sent, failed o disabled; si falla, se reenvia desde Usuarios).
+         */
         post: operations["create_client_api_v1_clients_post"];
         delete?: never;
         options?: never;
@@ -179,6 +224,7 @@ export interface paths {
         /**
          * Create Number
          * @description Carga un numero; con client_id lo asigna (tope del tier) y con agent_id lo rutea.
+         *     Asignado, avisa por mail a los usuarios del cliente.
          */
         post: operations["create_number_api_v1_phone_numbers_post"];
         delete?: never;
@@ -218,7 +264,8 @@ export interface paths {
         put?: never;
         /**
          * Assign Number
-         * @description Asigna un numero libre a un cliente. 409 phone_numbers_limit si su tier no tiene lugar.
+         * @description Asigna un numero libre a un cliente y avisa por mail a sus usuarios.
+         *     409 phone_numbers_limit si su tier no tiene lugar.
          */
         post: operations["assign_number_api_v1_phone_numbers__number_id__assign_post"];
         delete?: never;
@@ -475,6 +522,27 @@ export interface paths {
         put?: never;
         /** Create User */
         post: operations["create_user_api_v1_users_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/invite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Invite User
+         * @description Manda de nuevo el mail con el link para crear la clave. Los links anteriores siguen valiendo
+         *     hasta que se cree la clave o venzan. Solo usuarios activos de un cliente.
+         */
+        post: operations["invite_user_api_v1_users__user_id__invite_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1481,6 +1549,34 @@ export interface components {
             /** Latency Avg */
             latency_avg: number | null;
         };
+        /** ClientCreatedOut */
+        ClientCreatedOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+            /** Active */
+            active: boolean;
+            tier: components["schemas"]["TierBrief"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Agents Count
+             * @default 0
+             */
+            agents_count?: number;
+            /**
+             * Numbers Count
+             * @default 0
+             */
+            numbers_count?: number;
+            invite?: components["schemas"]["InviteOut"] | null;
+        };
         /** ClientIn */
         ClientIn: {
             /** Name */
@@ -1494,6 +1590,17 @@ export interface components {
              * @default true
              */
             active?: boolean;
+            /**
+             * Owner Email
+             * @description Si viene, se crea el usuario del cliente y se le manda un mail para crear su clave
+             */
+            owner_email?: string | null;
+            /**
+             * Owner Name
+             * @description Nombre del usuario (saludo del mail)
+             * @default
+             */
+            owner_name?: string;
         };
         /** ClientOut */
         ClientOut: {
@@ -1724,6 +1831,21 @@ export interface components {
             detail?: components["schemas"]["ValidationError"][];
         };
         /**
+         * InviteOut
+         * @description Resultado del mail para crear la clave. disabled: el servidor no tiene RESEND_API_KEY.
+         */
+        InviteOut: {
+            /** Email */
+            email: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "sent" | "failed" | "disabled";
+            /** Error */
+            error?: string | null;
+        };
+        /**
          * LlmCall
          * @description Una llamada al LLM en un turno (conversacion o extraccion), tal cual.
          */
@@ -1805,6 +1927,27 @@ export interface components {
             label: string;
             /** Goal */
             goal: boolean;
+        };
+        /** PasswordSetupCheckIn */
+        PasswordSetupCheckIn: {
+            /** Token */
+            token: string;
+        };
+        /** PasswordSetupIn */
+        PasswordSetupIn: {
+            /** Token */
+            token: string;
+            /** Password */
+            password: string;
+        };
+        /** PasswordSetupInfo */
+        PasswordSetupInfo: {
+            /** Email */
+            email: string;
+            /** Name */
+            name: string;
+            /** Client Name */
+            client_name: string | null;
         };
         /**
          * PhoneNumberBulkIn
@@ -2836,6 +2979,68 @@ export interface operations {
             };
         };
     };
+    password_setup_check_api_v1_auth_password_setup_check_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordSetupCheckIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PasswordSetupInfo"];
+                };
+            };
+            /** @description Link vencido o ya usado (code invalid_setup_token) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    password_setup_api_v1_auth_password_setup_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordSetupIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
+                };
+            };
+            /** @description Link vencido o ya usado (code invalid_setup_token) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     list_tiers_api_v1_tiers_get: {
         parameters: {
             query?: never;
@@ -3023,7 +3228,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ClientOut"];
+                    "application/json": components["schemas"]["ClientCreatedOut"];
                 };
             };
             /** @description Validation Error */
@@ -3844,6 +4049,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    invite_user_api_v1_users__user_id__invite_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteOut"];
                 };
             };
             /** @description Validation Error */

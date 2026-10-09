@@ -2,14 +2,27 @@ from fastapi import APIRouter, Query
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
-from ...models import Agent, Client, ConversationRow, PhoneNumber, Tier, WaAccount
+from ...mail import notify
+from ...models import (
+    Agent,
+    Client,
+    ConversationRow,
+    PhoneNumber,
+    Role,
+    Tier,
+    User,
+    WaAccount,
+)
 from ...services import phone_numbers, quota
 from ...services.errors import Conflict, Invalid, NotFound
+from ...services.security import unusable_password_hash
 from ..deps import DB, AdminPrincipal, CurrentPrincipal
 from ..schemas import (
+    ClientCreatedOut,
     ClientIn,
     ClientOut,
     ClientUpdate,
+    InviteOut,
     MinutesUsageOut,
     NumbersUsageOut,
     UsageOut,
@@ -49,16 +62,32 @@ def list_clients(p: CurrentPrincipal, db: DB):
     return [_out(db, c) for c in db.scalars(q)]
 
 
-@router.post("", response_model=ClientOut, status_code=201)
+@router.post("", response_model=ClientCreatedOut, status_code=201)
 def create_client(body: ClientIn, _: AdminPrincipal, db: DB):
+    """Crea el cliente. Con owner_email crea tambien su usuario, sin clave, y le manda un mail con
+    el link para crearla (invite.status: sent, failed o disabled; si falla, se reenvia desde Usuarios)."""
     _tier(db, body.tier_id)
-    client = Client(**body.model_dump())
+    client = Client(**body.model_dump(exclude={"owner_email", "owner_name"}))
     db.add(client)
+    try:
+        db.flush()
+    except IntegrityError:
+        raise Conflict(f"Ya existe un cliente {body.slug!r}") from None
+    owner = None
+    if body.owner_email:
+        owner = User(email=body.owner_email.lower(), name=body.owner_name.strip(),
+                     password_hash=unusable_password_hash(), role=Role.client, client_id=client.id)
+        db.add(owner)
     try:
         db.commit()
     except IntegrityError:
-        raise Conflict(f"Ya existe un cliente {body.slug!r}") from None
-    return _out(db, client)
+        raise Conflict(f"Ya existe un usuario {body.owner_email}", "user_exists") from None
+    invite = None
+    if owner:
+        # Despues del commit: el envio puede tardar hasta el timeout de Resend.
+        result = notify.invite(owner, client)
+        invite = InviteOut(email=owner.email, status=result.status, error=result.error)
+    return ClientCreatedOut(**_out(db, client).model_dump(), invite=invite)
 
 
 @router.get("/{client_id}", response_model=ClientOut)

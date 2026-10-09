@@ -37,6 +37,30 @@ export function useLogin() {
   });
 }
 
+/** Datos del link del mail de alta (email, nombre y cliente), o ApiError si venció o ya se usó. */
+export function usePasswordSetupInfo(token: string) {
+  return useQuery({
+    queryKey: ['password-setup', token],
+    queryFn: () => unwrap(api.POST('/api/v1/auth/password-setup/check', { body: { token } })),
+    enabled: !!token,
+    retry: false,
+    staleTime: Infinity,
+  });
+}
+
+/** Guarda la clave del link y deja la sesion abierta. */
+export function usePasswordSetup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { token: string; password: string }) =>
+      unwrap(api.POST('/api/v1/auth/password-setup', { body })),
+    onSuccess: (me) => {
+      qc.clear();
+      qc.setQueryData(meKey, me);
+    },
+  });
+}
+
 export function useLogout() {
   const qc = useQueryClient();
   return useMutation({
