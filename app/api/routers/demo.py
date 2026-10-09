@@ -50,10 +50,14 @@ def call_result(conversation_id: str, creds: Bearer, db: DB, definitions: Defini
     return service.call_result(db, definitions, conversation_id, creds.credentials if creds else None)
 
 
-@router.post("/tts", response_class=StreamingResponse, responses={200: {"content": {"audio/wav": {}}}})
+@router.post("/tts", response_class=StreamingResponse,
+             responses={200: {"content": {"audio/wav": {}, "audio/pcm": {}}}})
 async def synthesize(body: DemoTtsIn, request: Request, _: DemoSession):
-    stream = await service.synthesize(body.voice, body.text, client_ip(request))
-    return StreamingResponse(stream, media_type="audio/wav", headers={"Cache-Control": "no-store"})
+    """`format=wav` (default): el archivo completo. `format=pcm`: audio crudo (16 bits, mono, 24 kHz) que se
+    transmite mientras se sintetiza, para reproducirlo con Web Audio sin esperar."""
+    stream = await service.synthesize(body.voice, body.text, client_ip(request), body.format)
+    return StreamingResponse(stream, media_type="audio/pcm" if body.format == "pcm" else "audio/wav",
+                             headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
 
 
 @router.post("/contact", status_code=204, response_class=Response,

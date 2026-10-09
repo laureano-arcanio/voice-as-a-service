@@ -6,12 +6,13 @@ export function inferenceBaseUrl(origin: string) {
   return `${origin}${INFERENCE_PATH}`;
 }
 
-export type ExampleKind = 'llm' | 'stt' | 'tts' | 'python';
+export type ExampleKind = 'llm' | 'stt' | 'tts' | 'stream' | 'python';
 
 export const EXAMPLE_LABELS: Record<ExampleKind, string> = {
   llm: 'LLM (chat)',
   stt: 'Transcripción (STT)',
   tts: 'Síntesis (TTS)',
+  stream: 'Streaming',
   python: 'Python (SDK de OpenAI)',
 };
 
@@ -34,6 +35,19 @@ export function inferenceExample(kind: ExampleKind, origin: string, key = '<tu A
   -H 'Content-Type: application/json' \\
   -d '{"voice":"sofia","input":"Hola, ¿en qué te puedo ayudar?"}' \\
   --output respuesta.wav`;
+    case 'stream':
+      return `# LLM: tokens a medida que se generan (SSE)
+curl -N ${base}/chat/completions \\
+  -H "Authorization: Bearer ${key}" \\
+  -H 'Content-Type: application/json' \\
+  -d '{"stream":true,"messages":[{"role":"user","content":"Contame algo breve"}]}'
+
+# TTS: audio PCM (24 kHz, mono, 16 bits) mientras se sintetiza; acá se escucha con ffplay
+curl -sN ${base}/audio/speech \\
+  -H "Authorization: Bearer ${key}" \\
+  -H 'Content-Type: application/json' \\
+  -d '{"voice":"sofia","input":"Hola, ¿en qué te puedo ayudar?","response_format":"pcm"}' \\
+  | ffplay -f s16le -ar 24000 -ac 1 -nodisp -autoexit -`;
     case 'python':
       return `from openai import OpenAI
 
@@ -50,7 +64,7 @@ print(chat.choices[0].message.content)
 with open("audio.wav", "rb") as f:
     print(client.audio.transcriptions.create(model="atentina", file=f, language="es").text)
 
-# TTS
+# TTS (archivo completo; para streaming: response_format="pcm" con with_streaming_response)
 audio = client.audio.speech.create(model="atentina", voice="sofia", input="Hola", response_format="wav")
 audio.write_to_file("respuesta.wav")`;
   }

@@ -788,7 +788,8 @@ export interface paths {
         put?: never;
         /**
          * Tts Preview
-         * @description Sintetiza el texto con la voz pedida y devuelve el WAV, directo contra el TTS.
+         * @description Sintetiza el texto con la voz pedida, directo contra el TTS. `format=wav` (default): el WAV completo.
+         *     `format=pcm`: audio crudo (16 bits, mono, 24 kHz) que se transmite mientras se sintetiza.
          */
         post: operations["tts_preview_api_v1_tts_preview_post"];
         delete?: never;
@@ -1208,8 +1209,10 @@ export interface paths {
         put?: never;
         /**
          * Speech
-         * @description TTS. Requiere una key con alcance `tts`. Devuelve el audio en streaming (wav, o pcm de 24 kHz,
-         *     mono, 16 bits) y cuenta los segundos sintetizados.
+         * @description TTS. Requiere una key con alcance `tts`. `response_format=wav` (default) devuelve el archivo completo;
+         *     `pcm` (24 kHz, mono, 16 bits) se transmite a medida que se sintetiza, y con `stream_format=sse` llega como
+         *     eventos `speech.audio.delta` (audio en base64) y un `speech.audio.done` final. Cuenta los segundos
+         *     sintetizados, también si el cliente corta el stream.
          */
         post: operations["speech_api_v1_inference_audio_speech_post"];
         delete?: never;
@@ -1347,7 +1350,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Synthesize */
+        /**
+         * Synthesize
+         * @description `format=wav` (default): el archivo completo. `format=pcm`: audio crudo (16 bits, mono, 24 kHz) que se
+         *     transmite mientras se sintetiza, para reproducirlo con Web Audio sin esperar.
+         */
         post: operations["synthesize_api_v1_demo_tts_post"];
         delete?: never;
         options?: never;
@@ -2037,6 +2044,13 @@ export interface components {
             voice: string;
             /** Text */
             text: string;
+            /**
+             * Format
+             * @description wav: archivo completo. pcm: crudo (16 bits, mono, 24 kHz) mientras se sintetiza
+             * @default wav
+             * @enum {string}
+             */
+            format?: "wav" | "pcm";
         };
         /** FieldValue */
         FieldValue: {
@@ -2410,10 +2424,16 @@ export interface components {
             voice: string;
             /**
              * Response Format
-             * @default wav
+             * @description wav (default): archivo completo. pcm: 24 kHz, mono, 16 bits, a medida que se sintetiza
+             */
+            response_format?: ("wav" | "pcm") | null;
+            /**
+             * Stream Format
+             * @description audio: los bytes. sse: eventos speech.audio.delta/done (solo con pcm)
+             * @default audio
              * @enum {string}
              */
-            response_format?: "wav" | "pcm";
+            stream_format?: "audio" | "sse";
         };
         /** StatsOut */
         StatsOut: {
@@ -2592,6 +2612,13 @@ export interface components {
             voice: string;
             /** Text */
             text: string;
+            /**
+             * Format
+             * @description wav: archivo completo. pcm: crudo (16 bits, mono, 24 kHz) mientras se sintetiza
+             * @default wav
+             * @enum {string}
+             */
+            format?: "wav" | "pcm";
         };
         /** TurnIn */
         TurnIn: {
@@ -5029,6 +5056,7 @@ export interface operations {
                 };
                 content: {
                     "audio/wav": unknown;
+                    "audio/pcm": unknown;
                 };
             };
             /** @description Validation Error */
@@ -5941,6 +5969,7 @@ export interface operations {
                 content: {
                     "audio/wav": unknown;
                     "audio/pcm": unknown;
+                    "text/event-stream": unknown;
                 };
             };
             /** @description Sin API key valida */
@@ -6185,6 +6214,7 @@ export interface operations {
                 };
                 content: {
                     "audio/wav": unknown;
+                    "audio/pcm": unknown;
                 };
             };
             /** @description Validation Error */

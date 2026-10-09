@@ -783,6 +783,8 @@ class VoiceOut(BaseModel):
 class TtsPreviewIn(BaseModel):
     voice: str
     text: str = Field(max_length=600)
+    format: Literal["wav", "pcm"] = Field(
+        default="wav", description="wav: archivo completo. pcm: crudo (16 bits, mono, 24 kHz) mientras se sintetiza")
 
 
 # ---------- demo de la landing ----------
@@ -842,6 +844,8 @@ class DemoCallResult(BaseModel):
 class DemoTtsIn(BaseModel):
     voice: str = Field(max_length=32)
     text: str = Field(min_length=1, max_length=600)
+    format: Literal["wav", "pcm"] = Field(
+        default="wav", description="wav: archivo completo. pcm: crudo (16 bits, mono, 24 kHz) mientras se sintetiza")
 
 
 class DemoContactIn(BaseModel):
@@ -888,7 +892,11 @@ class SpeechIn(BaseModel):
     model: str | None = None
     input: str = Field(min_length=1, description="Texto a sintetizar (hasta INFERENCE_TTS_MAX_CHARS)")
     voice: str = Field(description="Una de GET /inference/voices")
-    response_format: Literal["wav", "pcm"] = "wav"
+    response_format: Literal["wav", "pcm"] | None = Field(
+        default=None,
+        description="wav (default): archivo completo. pcm: 24 kHz, mono, 16 bits, a medida que se sintetiza")
+    stream_format: Literal["audio", "sse"] = Field(
+        default="audio", description="audio: los bytes. sse: eventos speech.audio.delta/done (solo con pcm)")
 
 
 class InferenceModelOut(BaseModel):

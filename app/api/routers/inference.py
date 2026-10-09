@@ -56,11 +56,13 @@ async def transcriptions(access: SttAccess, gateway: Gateway,
 
 
 @router.post("/audio/speech", response_class=StreamingResponse,
-             responses={**LIMIT_RESPONSES, 200: {"content": {"audio/wav": {}, "audio/pcm": {}}}})
+             responses={**LIMIT_RESPONSES, 200: {"content": {"audio/wav": {}, "audio/pcm": {}, "text/event-stream": {}}}})
 async def speech(body: SpeechIn, access: TtsAccess, gateway: Gateway):
-    """TTS. Requiere una key con alcance `tts`. Devuelve el audio en streaming (wav, o pcm de 24 kHz,
-    mono, 16 bits) y cuenta los segundos sintetizados."""
-    return await gateway.speech(access, body.voice, body.input, body.response_format)
+    """TTS. Requiere una key con alcance `tts`. `response_format=wav` (default) devuelve el archivo completo;
+    `pcm` (24 kHz, mono, 16 bits) se transmite a medida que se sintetiza, y con `stream_format=sse` llega como
+    eventos `speech.audio.delta` (audio en base64) y un `speech.audio.done` final. Cuenta los segundos
+    sintetizados, también si el cliente corta el stream."""
+    return await gateway.speech(access, body.voice, body.input, body.response_format, body.stream_format)
 
 
 @router.get("/models", response_model=InferenceModelsOut)

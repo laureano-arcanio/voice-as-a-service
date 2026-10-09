@@ -9,6 +9,7 @@ del TTS. Los agentes integrados (llamadas, WhatsApp) no pasan por aca.
 Cada pedido usa su propio cliente HTTP y su propia sesion de base (el consumo se registra al
 terminar, tambien en un stream que el cliente corta); en los tests se inyecta un transporte falso.
 """
+import base64
 import json
 import logging
 import struct
@@ -22,7 +23,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from ..config import settings
 from ..db import get_sessionmaker
-from . import api_usage, voices
+from . import api_usage, tts, voices
 from .errors import Invalid, ServiceError, Upstream
 
 logger = logging.getLogger(__name__)
@@ -31,6 +32,8 @@ CHARS_PER_TOKEN = 3        # estimacion cuando el motor no informa el uso (strea
 WAV_HEADER_BYTES = 44
 PCM_SAMPLE_RATE = 24_000   # Qwen3-TTS: 24 kHz, mono, 16 bits
 TTS_FORMATS = ("wav", "pcm")
+TTS_STREAM_FORMATS = ("audio", "sse")
+PCM_BYTES_PER_SECOND = PCM_SAMPLE_RATE * 2
 STT_FORMATS = ("json", "text", "verbose_json")
 # Lo unico que se reenvia al LLM: el resto (guided_*, chat_template_kwargs, logprobs...) lo fija
 # la plataforma o no se admite.
@@ -60,6 +63,10 @@ def _upstream_error(engine: str, status: int, text: str) -> ServiceError:
         return ServiceError(f"El motor {engine} rechazó el pedido: {_message(text)}", "upstream_rejected")
     logger.warning("inferencia %s: el motor respondio %s: %s", engine, status, text[:300])
     return Upstream(f"El motor {engine} no está disponible ({status})", "upstream_error")
+
+
+def _sse(event: dict) -> bytes:
+    return f"event: {event['type']}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n".encode()
 
 
 def _positive_int(value, name: str) -> int | None:
@@ -166,7 +173,7 @@ class InferenceGateway:
         tail = b""
         try:
             async for data in response.aiter_bytes():
-                yield data
+                # Se cuenta antes de entregar: si el cliente corta justo despues de este pedazo, ya cuenta.
                 lines = (tail + data).split(b"\n")
                 tail = lines.pop()
                 for line in lines:
@@ -180,6 +187,7 @@ class InferenceGateway:
                         usage = found or usage
                     elif b'"content"' in line:
                         chunks += 1
+                yield data
         except httpx.HTTPError as e:
             logger.warning("inferencia LLM: stream cortado: %s", type(e).__name__)
         finally:
@@ -224,7 +232,9 @@ class InferenceGateway:
 
     # ---------- TTS ----------
 
-    async def speech(self, access, voice: str, text: str, response_format: str):
+    async def speech(self, access, voice: str, text: str, response_format: str | None, stream_format: str = "audio"):
+        """response_format: `wav` (archivo completo, con encabezado correcto) o `pcm` (24 kHz, mono, 16 bits, a
+        medida que se sintetiza). stream_format: `audio` (los bytes) o `sse` (eventos de OpenAI, solo con pcm)."""
         voice = voice.strip().lower()
         # Una voz que el checkpoint no tiene mata el engine de vllm-tts (AGENTS.md): solo las del catalogo.
         if voice not in voices.catalog():
@@ -236,10 +246,20 @@ class InferenceGateway:
         if len(text) > settings.inference_tts_max_chars:
             raise Invalid(f"input de más de {settings.inference_tts_max_chars} caracteres: partilo en pedidos más "
                           "cortos", "invalid_request")
+        if stream_format not in TTS_STREAM_FORMATS:
+            raise Invalid(f"stream_format no soportado: {stream_format} (usá {', '.join(TTS_STREAM_FORMATS)})",
+                          "invalid_request")
+        response_format = response_format or ("pcm" if stream_format == "sse" else "wav")
         if response_format not in TTS_FORMATS:
             raise Invalid(f"response_format no soportado: {response_format} (usá {', '.join(TTS_FORMATS)})",
                           "invalid_request")
+        if stream_format == "sse" and response_format != "pcm":
+            raise Invalid("stream_format=sse solo se usa con response_format=pcm", "invalid_request")
+        # pcm: el motor transmite el audio de a pedazos (SSE) y se reenvia al instante. wav: el archivo entero.
+        incremental = response_format == "pcm"
         body = {"model": settings.vllm_tts_model, "voice": voice, "input": text, "response_format": response_format}
+        if incremental:
+            body["stream"] = True
         http = self._http()
         try:
             response = await http.send(
@@ -253,13 +273,16 @@ class InferenceGateway:
             await response.aclose()
             await http.aclose()
             raise _upstream_error("TTS", response.status_code, detail)
-        media = "audio/wav" if response_format == "wav" else "audio/pcm"
-        return StreamingResponse(self._speech_stream(access, response_format, http, response), media_type=media,
-                                 headers={"Cache-Control": "no-store"})
+        if not incremental:
+            return StreamingResponse(self._speech_file(access, http, response), media_type="audio/wav",
+                                     headers={"Cache-Control": "no-store"})
+        headers = {"Cache-Control": "no-store", "X-Accel-Buffering": "no"}
+        media = "text/event-stream" if stream_format == "sse" else "audio/pcm"
+        return StreamingResponse(self._speech_pcm(access, stream_format, http, response), media_type=media,
+                                 headers=headers)
 
-    async def _speech_stream(self, access, response_format: str, http: httpx.AsyncClient,
-                             response: httpx.Response) -> AsyncIterator[bytes]:
-        """Reenvia el audio y cuenta los bytes: los segundos salen del formato (del encabezado del WAV)."""
+    async def _speech_file(self, access, http: httpx.AsyncClient, response: httpx.Response) -> AsyncIterator[bytes]:
+        """WAV completo: se reenvia tal cual y los segundos salen del encabezado y los bytes."""
         header = b""
         total = 0
         try:
@@ -273,7 +296,36 @@ class InferenceGateway:
         finally:
             await response.aclose()
             await http.aclose()
-            await self._record(access, tts_requests=1, tts_seconds=audio_seconds(response_format, header, total))
+            await self._record(access, tts_requests=1, tts_seconds=audio_seconds("wav", header, total))
+
+    async def _speech_pcm(self, access, stream_format: str, http: httpx.AsyncClient,
+                          response: httpx.Response) -> AsyncIterator[bytes]:
+        """PCM a medida que el motor lo sintetiza. `audio`: los bytes crudos. `sse`: los eventos
+        `speech.audio.delta` (audio en base64) y un `speech.audio.done` final con el uso y la duracion.
+        Se cuenta el audio que salio: si el cliente corta, se cobra lo ya entregado."""
+        total = 0
+        done = False
+        try:
+            async for event in tts.sse_events(response):
+                kind = event.get("type")
+                if kind == "speech.audio.delta" and event.get("audio"):
+                    pcm = base64.b64decode(event["audio"])
+                    total += len(pcm)
+                    yield pcm if stream_format == "audio" else _sse({"type": kind, "audio": event["audio"]})
+                elif kind == "speech.audio.done":
+                    done = True
+                    if stream_format == "sse":
+                        yield _sse({"type": kind, "usage": event.get("usage"),
+                                    "duration_seconds": round(total / PCM_BYTES_PER_SECOND, 3)})
+            if stream_format == "sse" and not done:   # el motor cerro sin `done`: se avisa igual el fin
+                yield _sse({"type": "speech.audio.done", "usage": None,
+                            "duration_seconds": round(total / PCM_BYTES_PER_SECOND, 3)})
+        except httpx.HTTPError as e:
+            logger.warning("inferencia TTS: stream cortado: %s", type(e).__name__)
+        finally:
+            await response.aclose()
+            await http.aclose()
+            await self._record(access, tts_requests=1, tts_seconds=total / PCM_BYTES_PER_SECOND)
 
     # ---------- catalogo ----------
 

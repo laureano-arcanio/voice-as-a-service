@@ -1,8 +1,11 @@
 """API de inferencia (/api/v1/inference): alcance de las keys, limites del tier (tokens, minutos y
 pedidos por minuto), consumo registrado y reenvio a los motores (simulados con httpx.MockTransport)."""
+import asyncio
+import base64
 import datetime
 import json
 import struct
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -69,8 +72,17 @@ class Engines:
             return httpx.Response(200, json={"task": "transcribe", "language": None, "duration": self.stt_seconds,
                                              "text": "hola mundo", "segments": []})
         if path.endswith("/audio/speech"):
-            audio = wav(self.tts_seconds) if body["response_format"] == "wav" else b"\0\0" * int(self.tts_seconds * 24_000)
-            return httpx.Response(200, stream=Slices(audio, 4096), headers={"content-type": "audio/wav"})
+            if body.get("stream"):    # como vllm-tts: eventos SSE con el PCM en base64 y un `done` con el uso
+                pcm = b"\0\0" * int(self.tts_seconds * 24_000)
+                parts = [pcm[:3840], pcm[3840:]] if len(pcm) > 3840 else [pcm]
+                events = [{"type": "speech.audio.delta", "response_format": "pcm", "audio": base64.b64encode(p).decode()}
+                          for p in parts]
+                events.append({"type": "speech.audio.done", "usage": {"input_tokens": 5, "output_tokens": 16,
+                                                                      "total_tokens": 21}})
+                sse = "".join(f"event: {e['type']}\ndata: {json.dumps(e)}\n\n" for e in events)
+                return httpx.Response(200, stream=Slices(sse.encode(), self.slice),
+                                      headers={"content-type": "text/event-stream"})
+            return httpx.Response(200, stream=Slices(wav(self.tts_seconds), 4096), headers={"content-type": "audio/wav"})
         return httpx.Response(404)
 
 
@@ -364,6 +376,132 @@ def test_speech_streams_audio_and_counts_seconds(api, admin, engines):
     assert u["tts_minutes"]["used"] == round(5 / 60, 2) and u["requests"]["tts"] == 2
 
 
+def sse_events(text: str) -> list[dict]:
+    return [json.loads(line[5:]) for line in text.splitlines() if line.startswith("data:")]
+
+
+def test_speech_pcm_uses_the_engine_stream_and_wav_does_not(api, admin, engines):
+    key = make_key(admin, make_client_with_tier(admin))
+    engines.tts_seconds = 1.0
+    tts(api, key, response_format="pcm")
+    assert engines.calls[-1]["body"]["stream"] is True               # pcm: el motor transmite
+    r = tts(api, key)                                                 # wav: archivo completo, encabezado correcto
+    assert "stream" not in engines.calls[-1]["body"] and r.content[:4] == b"RIFF"
+    assert struct.unpack("<I", r.content[40:44])[0] == 48_000
+
+
+def test_speech_sse_events_and_usage(api, admin, engines):
+    client = make_client_with_tier(admin)
+    key = make_key(admin, client)
+    engines.tts_seconds = 2.0
+    r = tts(api, key, stream_format="sse")                            # sin response_format: pcm
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/event-stream")
+    events = sse_events(r.text)
+    assert [e["type"] for e in events] == ["speech.audio.delta", "speech.audio.delta", "speech.audio.done"]
+    audio = b"".join(base64.b64decode(e["audio"]) for e in events[:-1])
+    assert len(audio) == 96_000                                        # 2 s de PCM 24 kHz 16 bits
+    assert events[-1]["duration_seconds"] == 2.0 and events[-1]["usage"]["output_tokens"] == 16
+    assert usage(api, key)["tts_minutes"]["used"] == round(2 / 60, 2)
+    assert tts(api, key, stream_format="sse", response_format="wav").status_code == 422     # sse solo con pcm
+    assert tts(api, key, stream_format="chunked").status_code == 422
+    assert len(engines.calls) == 1
+
+
+def test_speech_quota_applies_to_streams(api, admin, engines):
+    client = make_client_with_tier(admin, api_tts_minutes=1)
+    key = make_key(admin, client)
+    engines.tts_seconds, engines.slice = 70, 16_384
+    assert tts(api, key, response_format="pcm").status_code == 200
+    r = tts(api, key, stream_format="sse")
+    assert r.status_code == 429 and r.json()["code"] == "api_tts_minutes"
+
+
+def _access(api, admin, **limits):
+    client = make_client_with_tier(admin, **limits)
+    key = make_key(admin, client)
+    with api.sessions() as s:
+        from app.models import ApiKey
+        key_id = s.query(ApiKey).filter_by(client_id=client["id"]).one().id
+    return SimpleNamespace(client=SimpleNamespace(id=client["id"], slug="x"), key=SimpleNamespace(id=key_id),
+                           remaining=api_usage.Remaining()), key
+
+
+def _gated_gateway(api, first: bytes, rest: list[bytes], gate: asyncio.Event) -> InferenceGateway:
+    """Un motor que manda el primer pedazo y no sigue hasta que el cliente lo haya recibido: si el gateway
+    acumulara todo antes de reenviar, el primer pedazo nunca llegaria y el test se cuelga (y falla)."""
+    class Body(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            yield first
+            await asyncio.wait_for(gate.wait(), 5)
+            for part in rest:
+                yield part
+
+    return InferenceGateway(api.sessions, transport=httpx.MockTransport(
+        lambda request: httpx.Response(200, stream=Body(), headers={"content-type": "text/event-stream"})))
+
+
+def _delta(pcm: bytes) -> bytes:
+    event = {"type": "speech.audio.delta", "audio": base64.b64encode(pcm).decode()}
+    return f"event: {event['type']}\ndata: {json.dumps(event)}\n\n".encode()
+
+
+def test_tts_pcm_is_forwarded_before_the_engine_finishes(api, admin):
+    access, _ = _access(api, admin)
+    gate = asyncio.Event()
+    done = b'event: speech.audio.done\ndata: {"type": "speech.audio.done", "usage": {}}\n\n'
+    gateway = _gated_gateway(api, _delta(b"\1\0" * 100), [_delta(b"\2\0" * 50), done], gate)
+
+    async def run():
+        response = await gateway.speech(access, "sofia", "Hola", "pcm")
+        chunks = response.body_iterator
+        first = await asyncio.wait_for(chunks.__anext__(), 2)      # llega con el motor todavia sintetizando
+        assert first == b"\1\0" * 100 and not gate.is_set()
+        gate.set()
+        return first, [c async for c in chunks]
+
+    first, rest = asyncio.run(run())
+    assert rest == [b"\2\0" * 50]
+    with api.sessions() as s:
+        t = api_usage.totals(s, access.client.id, *api_usage.month_days())
+    assert t.tts_requests == 1 and t.tts_seconds == 300 / 48_000
+
+
+def test_tts_stream_cut_by_the_client_bills_what_was_delivered(api, admin):
+    access, _ = _access(api, admin)
+    gate = asyncio.Event()
+    gateway = _gated_gateway(api, _delta(b"\1\0" * 4800), [_delta(b"\2\0" * 4800)], gate)
+
+    async def run():
+        response = await gateway.speech(access, "sofia", "Hola", "pcm")
+        chunks = response.body_iterator
+        await chunks.__anext__()
+        await chunks.aclose()                                      # el cliente se va
+
+    asyncio.run(run())
+    with api.sessions() as s:
+        t = api_usage.totals(s, access.client.id, *api_usage.month_days())
+    assert t.tts_requests == 1 and t.tts_seconds == 9600 / 48_000
+
+
+def test_llm_stream_is_forwarded_before_the_engine_finishes_and_a_cut_is_estimated(api, admin):
+    access, _ = _access(api, admin)
+    gate = asyncio.Event()
+    token = b'data: {"choices":[{"delta":{"content":"Ho"}}],"usage":null}\n\n'
+    gateway = _gated_gateway(api, token, [token, b"data: [DONE]\n\n"], gate)
+
+    async def run():
+        response = await gateway.chat(access, {"messages": [{"role": "user", "content": "hola"}], "stream": True})
+        chunks = response.body_iterator
+        first = await asyncio.wait_for(chunks.__anext__(), 2)
+        assert first == token and not gate.is_set()
+        await chunks.aclose()                                      # corta con el motor todavia generando
+
+    asyncio.run(run())
+    with api.sessions() as s:
+        t = api_usage.totals(s, access.client.id, *api_usage.month_days())
+    assert t.llm_requests == 1 and t.llm_output_tokens == 1 and t.llm_input_tokens >= 1   # estimado: 1 chunk
+
+
 def test_speech_validates_before_touching_the_engine(api, admin, engines, monkeypatch):
     key = make_key(admin, make_client_with_tier(admin))
     r = tts(api, key, voice="vivian")                                  # una voz fuera del checkpoint mata vllm-tts
@@ -564,6 +702,16 @@ def test_official_openai_sdk_works_against_the_api(api, admin, engines):
     engines.tts_seconds = 1.0
     speech = sdk.audio.speech.create(model="atentina", voice="sofia", input="Hola", response_format="wav")
     assert speech.content[:4] == b"RIFF" and len(speech.content) == 44 + 48_000
+
+    # TTS en streaming: pcm crudo con with_streaming_response, y los eventos SSE con stream_format.
+    engines.tts_seconds = 0.5
+    with sdk.audio.speech.with_streaming_response.create(model="atentina", voice="sofia", input="Hola",
+                                                         response_format="pcm") as r:
+        assert b"".join(r.iter_bytes()) == b"\0\0" * 12_000
+    with sdk.audio.speech.with_streaming_response.create(model="atentina", voice="sofia", input="Hola",
+                                                         extra_body={"stream_format": "sse"}) as r:
+        events = sse_events("".join(r.iter_text()))
+    assert events[-1]["type"] == "speech.audio.done" and events[-1]["duration_seconds"] == 0.5
 
     # 5 + 3 = 8 de 12 tokens de salida; el siguiente sigue entrando y el que lo pasa deja afuera al otro.
     engines.chat_usage = {"prompt_tokens": 1, "completion_tokens": 9}

@@ -63,7 +63,7 @@ app/
   mail/              mails por Resend: sender, layout.py + templates/layout.html (cabecera y pie),
                      messages.py (bienvenida con plan, número asignado) y notify.py (a quién llega)
     livekit.py       despacho a LiveKit y link de la llamada de prueba
-    tts.py, voices.py prueba de voz y catálogo (tts/finetune/voces.tsv)
+    tts.py, voices.py prueba de voz (WAV completo, o PCM en streaming desde el SSE del motor) y catálogo (tts/finetune/voces.tsv)
     errors.py        NotFound, Forbidden, Conflict, Invalid, QuotaExceeded, Upstream
   agents/
     templates/       asistente.json: la plantilla de la UI (asistente básico)
@@ -302,7 +302,7 @@ antes de llegar al motor si el cupo está agotado y devuelve lo que queda (el ch
 |---|---|---|
 | Tokens de entrada y salida del LLM | `deps.inference_access("llm")` + `InferenceGateway.chat` | `usage.prompt_tokens` y `completion_tokens` del motor; en un stream cortado, estimados. |
 | Minutos de STT | `inference_access("stt")` + `transcribe` | `duration` del motor (se pide `verbose_json`). |
-| Minutos de TTS | `inference_access("tts")` + `speech` | Bytes del audio que salió, con la frecuencia del encabezado WAV (PCM: 24 kHz). |
+| Minutos de TTS | `inference_access("tts")` + `speech` | Audio que salió: `wav`, los bytes con la frecuencia del encabezado; `pcm`, los bytes decodificados de los eventos SSE del motor (se piden con `stream: true`, así llega a medida que se sintetiza) a 24 kHz. Si el cliente corta, lo ya entregado. |
 | Pedidos por minuto | `inference_access(...)` | `api_limiter`, por cliente (todas las keys y motores); en memoria. |
 
 Carreras medidas en PostgreSQL:
@@ -405,7 +405,8 @@ lo de esta sección es lo que lo protege.
   Resend no corta la operación: queda en el log. Sin `RESEND_API_KEY` no se envía nada (`disabled`).
   Variables: `MAIL_FROM`, `APP_URL`, `SITE_URL`, `SUPPORT_EMAIL` y `PASSWORD_SETUP_HOURS`.
 - **Inferencia** (`/inference`, key con alcance `llm`, `stt` o `tts`): `POST /chat/completions`, `POST /audio/transcriptions`,
-  `POST /audio/speech`, `GET /voices`, `GET /models` y `GET /usage`; el consumo por cliente es
+  `POST /audio/speech` (`wav` completo, o `pcm` en streaming, crudo o como eventos SSE con `stream_format`),
+  `GET /voices`, `GET /models` y `GET /usage`; el chat y el TTS en `pcm` transmiten a medida que el motor genera; el consumo por cliente es
   `GET /clients/{id}/inference-usage`. Compatible con el SDK de OpenAI. Las keys llevan alcance (`scopes`):
   `get_principal` rechaza (403 `scope_missing`) una key sin `calls` en la API de llamadas, y la de inferencia
   solo acepta keys (no la cookie). `/audio/transcriptions` admite cuerpos de hasta `INFERENCE_STT_MAX_BYTES`

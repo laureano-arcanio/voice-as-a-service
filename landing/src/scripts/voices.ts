@@ -1,4 +1,5 @@
-import { synthesize } from "./api";
+import { synthesizeStream } from "./api";
+import { int16ToFloat32, PCM_SAMPLE_RATE, PcmStreamPlayback } from "./pcm-player";
 import { track } from "./analytics";
 import { UserFacingError } from "./errors";
 
@@ -25,8 +26,8 @@ export function initVoices(root: HTMLElement) {
   let edited = false;
   let context: AudioContext | null = null;
   let clip: { key: string; buffer: AudioBuffer } | null = null;
-  let node: AudioBufferSourceNode | null = null;
-  let startedAt = 0;
+  // Lo que suena ahora: un audio ya generado (repetir) o el que llega mientras se sintetiza.
+  let active: { elapsed: () => number; total: () => number; final: () => boolean; stop: () => void } | null = null;
   let frame = 0;
   let request: AbortController | null = null;
 
@@ -56,22 +57,21 @@ export function initVoices(root: HTMLElement) {
   }
 
   function updateProgress() {
-    const total = clip?.buffer.duration ?? 0;
-    const elapsed = node && context ? Math.min(context.currentTime - startedAt, total) : 0;
-    progress.style.width = `${total > 0 ? (elapsed / total) * 100 : 0}%`;
-    time.textContent = `${clock(elapsed)} / ${clock(total)}`;
-    if (node) frame = requestAnimationFrame(updateProgress);
+    // Mientras se genera no se sabe cuanto dura: la barra espera y el total se muestra con puntos.
+    const known = active ? active.final() : true;
+    const total = active ? active.total() : (clip?.buffer.duration ?? 0);
+    const elapsed = active ? Math.min(active.elapsed(), total) : 0;
+    progress.style.width = `${known && total > 0 ? (elapsed / total) * 100 : 0}%`;
+    time.textContent = `${clock(elapsed)} / ${known ? clock(total) : "…"}`;
+    if (active) frame = requestAnimationFrame(updateProgress);
   }
 
   function stop() {
     request?.abort();
     request = null;
-    const current = node;
-    node = null;
-    if (current) {
-      current.onended = null;
-      current.stop();
-    }
+    const current = active;
+    active = null;
+    current?.stop();
     cancelAnimationFrame(frame);
     setState("idle");
     play.disabled = false;
@@ -79,25 +79,78 @@ export function initVoices(root: HTMLElement) {
     updateProgress();
   }
 
-  async function load(voice: string, content: string, ac: AudioContext): Promise<AudioBuffer | null> {
-    const key = `${voice}\n${content}`;
-    if (clip?.key === key) return clip.buffer;
+  function playing(handle: NonNullable<typeof active>, voice: string) {
+    active = handle;
+    setState("playing");
+    play.disabled = false;
+    track("voice_sample_play", { voice });
+    play.setAttribute("aria-label", "Pausar");
+    updateProgress();
+  }
+
+  /** Repite un audio ya generado: suena al instante. */
+  function replay(ac: AudioContext, buffer: AudioBuffer, voice: string) {
+    const source = ac.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ac.destination);
+    const startedAt = ac.currentTime;
+    const handle = {
+      elapsed: () => ac.currentTime - startedAt,
+      total: () => buffer.duration,
+      final: () => true,
+      stop: () => {
+        source.onended = null;
+        source.stop();
+      },
+    };
+    source.onended = () => {
+      if (active === handle) stop();
+    };
+    source.start();
+    playing(handle, voice);
+  }
+
+  /** Pide el audio y lo reproduce a medida que llega: suena a los ~0,5 s en vez de esperar la sintesis entera. */
+  async function stream(ac: AudioContext, voice: string, content: string, key: string) {
     setState("loading");
     play.disabled = true;
-    request = new AbortController();
+    const controller = new AbortController();
+    request = controller;
     try {
-      const blob = await synthesize(voice, content, request.signal);
-      const buffer = await ac.decodeAudioData(await blob.arrayBuffer());
+      const body = await synthesizeStream(voice, content, controller.signal);
+      let playback!: PcmStreamPlayback;
+      const handle = {
+        elapsed: () => playback.elapsed(),
+        total: () => playback.total(),
+        final: () => playback.isFinal(),
+        stop: () => playback.stop(),
+      };
+      playback = new PcmStreamPlayback(ac, body, {
+        onStart: () => {
+          if (request === controller) playing(handle, voice);
+        },
+        onEnd: () => {
+          if (active === handle) stop();
+        },
+      });
+      active = handle;
+      const pcm = await playback.generated;
+      if (!pcm) return; // se corto antes de terminar
+      if (!pcm.length) throw new UserFacingError("No pudimos generar el audio. Probá de nuevo.");
+      // Ya llego todo: queda guardado para repetirlo sin volver a generar.
+      const buffer = ac.createBuffer(1, pcm.length >> 1, PCM_SAMPLE_RATE);
+      buffer.getChannelData(0).set(int16ToFloat32(pcm));
       clip = { key, buffer };
-      return buffer;
     } catch (err) {
       if (!(err instanceof DOMException && err.name === "AbortError")) {
         error.textContent = err instanceof UserFacingError ? err.message : "No pudimos generar el audio. Probá de nuevo.";
       }
-      return null;
+      if (request === controller) stop();
     } finally {
-      request = null;
-      play.disabled = false;
+      if (request === controller) {
+        request = null;
+        play.disabled = false;
+      }
     }
   }
 
@@ -111,24 +164,10 @@ export function initVoices(root: HTMLElement) {
     context ??= new AudioContext();
     const ac = context;
     void ac.resume();
-    const buffer = await load(selected().value, content, ac);
-    if (!buffer) {
-      stop();
-      return;
-    }
-    const source = ac.createBufferSource();
-    source.buffer = buffer;
-    source.connect(ac.destination);
-    source.onended = () => {
-      if (node === source) stop();
-    };
-    node = source;
-    startedAt = ac.currentTime;
-    source.start();
-    setState("playing");
-    track("voice_sample_play", { voice: selected().value });
-    play.setAttribute("aria-label", "Pausar");
-    updateProgress();
+    const voice = selected().value;
+    const key = `${voice}\n${content}`;
+    if (clip?.key === key) replay(ac, clip.buffer, voice);
+    else await stream(ac, voice, content, key);
   }
 
   play.addEventListener("click", () => (player.dataset.state === "playing" ? stop() : void start()));

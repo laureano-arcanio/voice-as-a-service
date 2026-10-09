@@ -182,7 +182,8 @@ Si el cliente está desactivado, sus números de WhatsApp tampoco responden.
   - **Número de origen:** opcional, uno del cliente. Es el que ve el destinatario; tiene que ser un
     número de la cuenta de Anura. Sin número de origen, sale con el principal (`ANURA_DID`).
   - **Voz:** la del agente, u otra del catálogo con filtros de género, WER y car/s.
-  - **Prueba de voz:** escuchás el texto con la voz elegida, directo contra el TTS, sin llamar.
+  - **Prueba de voz:** escuchás el texto con la voz elegida, directo contra el TTS, sin llamar. Suena a los ~0,5 s,
+    mientras se genera; al terminar queda guardada: repetirla o pausarla es instantáneo.
   - Si el tier no deja (sin lugar o sin minutos), el error dice cuál límite.
 - **En vivo:** llamadas pendientes, sonando o en curso, con "Ver en vivo".
 - **Indicadores:** conversaciones (con cuántas por WhatsApp), llamadas finalizadas, workflow

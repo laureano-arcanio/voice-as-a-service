@@ -100,7 +100,7 @@ describe('DevelopersPage', () => {
 
 describe('ejemplos', () => {
   it('llevan la URL base y la key', () => {
-    for (const kind of ['llm', 'stt', 'tts', 'python'] as const) {
+    for (const kind of ['llm', 'stt', 'tts', 'stream', 'python'] as const) {
       const code = inferenceExample(kind, 'https://app.atentina.com.ar', 'vaas_x');
       expect(code).toContain('https://app.atentina.com.ar/api/v1/inference');
       expect(code).toContain('vaas_x');

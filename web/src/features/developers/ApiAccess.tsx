@@ -4,7 +4,7 @@ import { ApiKeysSection } from '@/features/clients/ApiKeysSection';
 import { InferenceUsageCard } from './InferenceUsageCard';
 import { ENDPOINTS, EXAMPLE_LABELS, inferenceBaseUrl, inferenceExample, type ExampleKind } from './examples';
 
-const KINDS: ExampleKind[] = ['llm', 'stt', 'tts', 'python'];
+const KINDS: ExampleKind[] = ['llm', 'stt', 'tts', 'stream', 'python'];
 
 function CodeBlock({ code }: { code: string }) {
   return (

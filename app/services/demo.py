@@ -41,7 +41,7 @@ TTS_CACHE_MAX_BYTES = 2_000_000
 HOUR, DAY = 3600, 86_400
 
 limiter = RateLimiter()
-_tts_cache: OrderedDict[tuple[str, str], bytes] = OrderedDict()
+_tts_cache: OrderedDict[tuple[str, str, str], bytes] = OrderedDict()   # (voz, texto, wav|pcm)
 
 
 class DemoUnavailable(ServiceError):
@@ -199,7 +199,7 @@ def call_result(s: Session, definitions: DefinitionSource, conversation_id: str,
     }
 
 
-def _cache_put(key: tuple[str, str], audio: bytes) -> None:
+def _cache_put(key: tuple[str, str, str], audio: bytes) -> None:
     if len(audio) > TTS_CACHE_MAX_BYTES:
         return
     _tts_cache[key] = audio
@@ -208,11 +208,12 @@ def _cache_put(key: tuple[str, str], audio: bytes) -> None:
         _tts_cache.popitem(last=False)
 
 
-async def synthesize(voice: str, text: str, ip: str) -> AsyncIterator[bytes]:
+async def synthesize(voice: str, text: str, ip: str, audio_format: str = "wav") -> AsyncIterator[bytes]:
+    """wav: el archivo completo. pcm: crudo (16 bits, mono, 24 kHz) a medida que se sintetiza."""
     text = " ".join(text.split())
     if len(text) > settings.demo_tts_max_chars:
         raise Invalid(f"El texto puede tener hasta {settings.demo_tts_max_chars} caracteres")
-    key = (voice.strip().lower(), text)
+    key = (voice.strip().lower(), text, audio_format)
     limiter.consume(f"tts:{client_key(ip)}", [Limit(settings.demo_ip_tts_per_hour, HOUR)],
                     "Llegaste al límite de pruebas de voz. Probá más tarde.")
     cached = _tts_cache.get(key)
@@ -223,7 +224,7 @@ async def synthesize(voice: str, text: str, ip: str) -> AsyncIterator[bytes]:
             yield cached
 
         return replay()
-    stream = await tts.preview(*key)
+    stream = await (tts.preview_pcm if audio_format == "pcm" else tts.preview)(key[0], key[1])
 
     async def caching() -> AsyncIterator[bytes]:
         chunks = []

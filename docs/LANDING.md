@@ -70,7 +70,7 @@ canjea el token por una sesión corta.
 | `POST /api/v1/demo/sessions` | token de Turnstile | Lo valida con Cloudflare (`siteverify`) y devuelve una sesión JWT de `DEMO_SESSION_MINUTES` (30). |
 | `POST /api/v1/demo/calls` | sesión | `{agent, voice?}`: llamada `prueba` con un agente de `DEMO_AGENTS` del cliente `DEMO_CLIENT` (`atentina`). Devuelve `livekit_url`, el token del participante y un `result_token`. |
 | `GET /api/v1/demo/calls/{id}` | `result_token` | Estado, resultado (`outcome`), datos extraídos con su `label` y transcripción. |
-| `POST /api/v1/demo/tts` | sesión | `{voice, text}`: WAV del TTS, hasta `DEMO_TTS_MAX_CHARS` (300). |
+| `POST /api/v1/demo/tts` | sesión | `{voice, text, format}`, hasta `DEMO_TTS_MAX_CHARS` (300). `format: "pcm"` (lo que usa la landing): audio crudo (16 bits, mono, 24 kHz) que llega mientras el TTS lo genera. `wav` (default): el archivo completo. |
 | `POST /api/v1/demo/contact` | sesión | Formulario de contacto (ver abajo). 204. |
 
 1. Al tocar "Iniciar llamada", la página pide el micrófono, abre la sesión y crea la llamada.
@@ -116,7 +116,7 @@ El `Cta` de cada página lleva un formulario (nombre, empresa, email o teléfono
 | Sesiones por IP | `DEMO_IP_SESSIONS_PER_HOUR` (20) | memoria del proceso |
 | Llamadas por IP | `DEMO_IP_CALLS_PER_HOUR` (4) y `DEMO_IP_CALLS_PER_DAY` (10) | memoria del proceso |
 | Contactos por IP | `CONTACT_IP_PER_HOUR` (3) y `CONTACT_IP_PER_DAY` (10) | memoria del proceso |
-| Síntesis por IP | `DEMO_IP_TTS_PER_HOUR` (30); caché de las últimas 32 frases | memoria del proceso |
+| Síntesis por IP | `DEMO_IP_TTS_PER_HOUR` (30); caché de las últimas 32 frases (por formato) | memoria del proceso |
 | Simultáneas | `DEMO_MAX_CONCURRENT_CALLS` (3) entre los agentes de la demo (el tier de Atentina no tiene tope) | `calls.prepare_call`, con el lock del cliente |
 | Minutos por día | `DEMO_DAILY_MINUTES` (120) entre las llamadas de los agentes de la demo | base (`call_logs`) |
 | Duración | `DEMO_CALL_MAX_SECONDS` (180): el agente avisa y corta | worker |
@@ -245,3 +245,23 @@ El túnel no lleva UDP: el audio va directo a la IP fija. LiveKit anuncia la IP 
   con la misma Redirect Rule (hoy no resuelve) y sumar el link "Ingresar" en la landing.
 - **Redes con UDP bloqueado:** sin TURN sobre TLS (443), el audio usa TCP 7881; si también está
   bloqueado, la llamada no conecta.
+
+## Demo de voces con streaming de audio
+
+La demo de voces (`landing/src/scripts/voices.ts`) pide `POST /demo/tts` con `format: "pcm"` y reproduce el audio **a medida
+que el TTS lo genera**, con Web Audio (`pcm-player.ts`: lee el stream, pasa Int16 a Float32 y encadena los bloques en el
+`AudioContext`). Un `<audio>` no reproduce PCM en streaming.
+
+- **Cuándo suena:** el motor entrega un bloque de ~80 ms y a los ~0,4 s uno de 2 s, y de ahí uno de 2 s cada ~0,4 s (la
+  síntesis es ~5 veces más rápida que la reproducción). El reproductor junta 0,5 s de audio antes de empezar para que no
+  haya un corte entre el primer bloque y el segundo: suena a los **~0,5 s** (medido en Chrome, 9-oct-2026) en vez de
+  esperar la síntesis entera (1,9 s para 189 caracteres, 4,2 s para 420).
+- **Repetir:** al terminar de llegar, el audio queda en un `AudioBuffer`; volver a dar play suena al instante, sin otro
+  pedido ni otro descuento del límite por IP (con la misma voz y texto). La caché del servidor también guarda el PCM.
+- **Mientras se genera** no se sabe cuánto dura: la barra espera y el tiempo muestra `0:02 / …` hasta que llega todo.
+- **Si el servidor tarda** más que el audio (GPU saturada), hay un corte hasta que llega el siguiente bloque; el sonido
+  sigue apenas llega.
+- `pcm-player.ts` es una **copia** de `web/src/lib/pcmPlayer.ts` (la landing es otro paquete): un test del dashboard
+  (`pcmPlayer.parity.test.ts`) falla si se desvían. Cambiar los dos juntos.
+- Probado contra la app directa. Por el túnel (`api.atentina.com.ar`) el streaming depende de que Cloudflare no acumule la
+  respuesta: sin verificar hasta desplegar.

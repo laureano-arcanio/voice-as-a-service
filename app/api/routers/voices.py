@@ -18,9 +18,11 @@ def list_voices(_: CurrentPrincipal, genero: str | None = None, wer_max: float |
 
 
 @router.post("/tts/preview", response_class=StreamingResponse,
-             responses={200: {"content": {"audio/wav": {}}}, 429: {"description": "Limite de uso por hora"}},
+             responses={200: {"content": {"audio/wav": {}, "audio/pcm": {}}}, 429: {"description": "Limite de uso por hora"}},
              dependencies=[Depends(rate_limit("tts_preview", lambda: Limit(settings.rate_tts_preview_per_hour, 3600)))])
 async def tts_preview(body: TtsPreviewIn, _: CurrentPrincipal):
-    """Sintetiza el texto con la voz pedida y devuelve el WAV, directo contra el TTS."""
-    stream = await tts.preview(body.voice, body.text)
-    return StreamingResponse(stream, media_type="audio/wav", headers={"Cache-Control": "no-store"})
+    """Sintetiza el texto con la voz pedida, directo contra el TTS. `format=wav` (default): el WAV completo.
+    `format=pcm`: audio crudo (16 bits, mono, 24 kHz) que se transmite mientras se sintetiza."""
+    stream = await (tts.preview_pcm if body.format == "pcm" else tts.preview)(body.voice, body.text)
+    return StreamingResponse(stream, media_type="audio/pcm" if body.format == "pcm" else "audio/wav",
+                             headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})

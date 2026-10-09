@@ -2896,7 +2896,7 @@
      "voices"
     ],
     "summary": "Tts Preview",
-    "description": "Sintetiza el texto con la voz pedida y devuelve el WAV, directo contra el TTS.",
+    "description": "Sintetiza el texto con la voz pedida, directo contra el TTS. `format=wav` (default): el WAV completo.\n`format=pcm`: audio crudo (16 bits, mono, 24 kHz) que se transmite mientras se sintetiza.",
     "operationId": "tts_preview_api_v1_tts_preview_post",
     "requestBody": {
      "content": {
@@ -2912,7 +2912,8 @@
      "200": {
       "description": "Successful Response",
       "content": {
-       "audio/wav": {}
+       "audio/wav": {},
+       "audio/pcm": {}
       }
      },
      "429": {
@@ -4295,7 +4296,7 @@
      "inference"
     ],
     "summary": "Speech",
-    "description": "TTS. Requiere una key con alcance `tts`. Devuelve el audio en streaming (wav, o pcm de 24 kHz,\nmono, 16 bits) y cuenta los segundos sintetizados.",
+    "description": "TTS. Requiere una key con alcance `tts`. `response_format=wav` (default) devuelve el archivo completo;\n`pcm` (24 kHz, mono, 16 bits) se transmite a medida que se sintetiza, y con `stream_format=sse` llega como\neventos `speech.audio.delta` (audio en base64) y un `speech.audio.done` final. Cuenta los segundos\nsintetizados, también si el cliente corta el stream.",
     "operationId": "speech_api_v1_inference_audio_speech_post",
     "requestBody": {
      "content": {
@@ -4312,7 +4313,8 @@
       "description": "Successful Response",
       "content": {
        "audio/wav": {},
-       "audio/pcm": {}
+       "audio/pcm": {},
+       "text/event-stream": {}
       }
      },
      "401": {
@@ -4680,6 +4682,7 @@
      "demo"
     ],
     "summary": "Synthesize",
+    "description": "`format=wav` (default): el archivo completo. `format=pcm`: audio crudo (16 bits, mono, 24 kHz) que se\ntransmite mientras se sintetiza, para reproducirlo con Web Audio sin esperar.",
     "operationId": "synthesize_api_v1_demo_tts_post",
     "requestBody": {
      "content": {
@@ -4695,7 +4698,8 @@
      "200": {
       "description": "Successful Response",
       "content": {
-       "audio/wav": {}
+       "audio/wav": {},
+       "audio/pcm": {}
       }
      },
      "422": {
@@ -6713,6 +6717,16 @@
       "maxLength": 600,
       "minLength": 1,
       "title": "Text"
+     },
+     "format": {
+      "type": "string",
+      "enum": [
+       "wav",
+       "pcm"
+      ],
+      "title": "Format",
+      "description": "wav: archivo completo. pcm: crudo (16 bits, mono, 24 kHz) mientras se sintetiza",
+      "default": "wav"
      }
     },
     "type": "object",
@@ -7692,13 +7706,30 @@
       "description": "Una de GET /inference/voices"
      },
      "response_format": {
-      "type": "string",
-      "enum": [
-       "wav",
-       "pcm"
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "wav",
+         "pcm"
+        ]
+       },
+       {
+        "type": "null"
+       }
       ],
       "title": "Response Format",
-      "default": "wav"
+      "description": "wav (default): archivo completo. pcm: 24 kHz, mono, 16 bits, a medida que se sintetiza"
+     },
+     "stream_format": {
+      "type": "string",
+      "enum": [
+       "audio",
+       "sse"
+      ],
+      "title": "Stream Format",
+      "description": "audio: los bytes. sse: eventos speech.audio.delta/done (solo con pcm)",
+      "default": "audio"
      }
     },
     "type": "object",
@@ -8277,6 +8308,16 @@
       "type": "string",
       "maxLength": 600,
       "title": "Text"
+     },
+     "format": {
+      "type": "string",
+      "enum": [
+       "wav",
+       "pcm"
+      ],
+      "title": "Format",
+      "description": "wav: archivo completo. pcm: crudo (16 bits, mono, 24 kHz) mientras se sintetiza",
+      "default": "wav"
      }
     },
     "type": "object",

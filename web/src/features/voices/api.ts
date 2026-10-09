@@ -1,4 +1,4 @@
-import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { toApiError } from '@/api/errors';
 import { unwrap } from '@/api/request';
@@ -27,13 +27,20 @@ export function useVoices(f: VoiceFilters = EMPTY_VOICE_FILTERS) {
   });
 }
 
-/** Sintetiza texto con una voz: WAV como Blob (directo al TTS, sin llamada). */
-export function useTtsPreview() {
-  return useMutation({
-    mutationFn: async (body: { voice: string; text: string }): Promise<Blob> => {
-      const { data, error, response } = await api.POST('/api/v1/tts/preview', { body, parseAs: 'blob' });
-      if (!response.ok) throw toApiError(error, response.status);
-      return data as Blob;
-    },
+/**
+ * Sintetiza texto con una voz y devuelve el audio PCM crudo (16 bits, mono, 24 kHz) como stream: llega a medida que
+ * el TTS lo genera y se reproduce con PcmStreamPlayback (directo al TTS, sin llamada).
+ */
+export async function streamTtsPreview(
+  body: { voice: string; text: string },
+  signal?: AbortSignal,
+): Promise<ReadableStream<Uint8Array>> {
+  const { data, error, response } = await api.POST('/api/v1/tts/preview', {
+    body: { ...body, format: 'pcm' },
+    parseAs: 'stream',
+    signal,
   });
+  if (!response.ok) throw toApiError(error, response.status);
+  if (!data) throw new Error('El servidor no devolvió audio.');
+  return data as ReadableStream<Uint8Array>;
 }

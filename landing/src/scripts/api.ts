@@ -118,7 +118,9 @@ export async function callResult(call: DemoCall): Promise<DemoResult> {
   return response.json();
 }
 
-export async function synthesize(voice: string, text: string, signal?: AbortSignal): Promise<Blob> {
-  const response = await withSession("/tts", { method: "POST", body: JSON.stringify({ voice, text }), signal });
-  return response.blob();
+/** Sintetiza texto con una voz: PCM crudo (16 bits, mono, 24 kHz) que llega mientras el TTS lo genera. */
+export async function synthesizeStream(voice: string, text: string, signal?: AbortSignal): Promise<ReadableStream<Uint8Array>> {
+  const response = await withSession("/tts", { method: "POST", body: JSON.stringify({ voice, text, format: "pcm" }), signal });
+  if (!response.body) throw new ApiError("No pudimos generar el audio. Probá de nuevo.", 0, "no_stream");
+  return response.body;
 }
