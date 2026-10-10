@@ -28,8 +28,11 @@ Cloudflare Tunnel. No hay backend aparte ni base nueva: costo adicional cero.
   formato que los demás planes): 20 minutos por mes, llamadas web, acceso a la plataforma web y acceso a la API. Mostrador y
   Sucursal arrancan con "Telefonía incluida" y "Todo lo que ofrece Free". Es contenido de la landing: el tier real se crea
   en Tiers (`max_phone_numbers` en 0; el tope de pedidos por minuto de la API, los cupos `api_*` y la cantidad de agentes
-  están por definir). "Empezar gratis" lleva al formulario de contacto: todavía no hay alta autoservicio. Planes: Mostrador,
-  Sucursal y Red (Central se quitó).
+  están por definir). Planes: Mostrador, Sucursal y Red (Central se quitó).
+- **Registro (`/registro`, 9-oct-2026):** "Empezar gratis" y los planes con precio llevan a `/registro` (los pagos, con
+  `?plan=<nombre>`); "A medida" sigue yendo al contacto. El formulario (empresa, nombre, email, Turnstile) llama a
+  `/api/v1/demo/signup` y crea la cuenta en el tier Free; el plan pago se pide y se paga desde el panel. Ver
+  [`SUSCRIPCIONES_PLAN.md`](SUSCRIPCIONES_PLAN.md). Los precios son finales (sin "IVA aparte").
 - **Publicar:** push a la rama que sigue Render; solo los cambios en `landing/` despliegan.
 - **Diseño:** tokens, componentes, patrones y voz en [`DESIGN_GUIDELINE.md`](DESIGN_GUIDELINE.md).
 - **`og.png`, favicon y logos (`docs/brand/`):** se generan con `scripts/brand/`: `python scripts/brand/build_atentina.py` (con `fonttools`) escribe los SVG

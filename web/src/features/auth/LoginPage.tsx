@@ -1,5 +1,6 @@
 import {
   Alert,
+  Anchor,
   Box,
   Button,
   Card,
@@ -13,10 +14,13 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { Navigate, useLocation, useNavigate, useSearchParams, type Location } from 'react-router';
+import { Link, Navigate, useLocation, useNavigate, useSearchParams, type Location } from 'react-router';
 import { ApiError, errorMessage } from '@/api/errors';
 import { useDocumentTitle } from '@mantine/hooks';
 import { useLogin, useMe } from './api';
+
+// Registro autoservicio: en la landing (docs/SUSCRIPCIONES_PLAN.md).
+const SIGNUP_URL = 'https://atentina.com.ar/registro';
 
 function loginError(err: unknown): string {
   if (err instanceof ApiError && err.status === 429) {
@@ -96,9 +100,17 @@ export function LoginPage() {
             </Stack>
           </form>
         </Card>
-        <Text ta="center" size="xs" c="dimmed" mt="md">
-          ¿Te olvidaste la clave? Pedile una nueva a tu administrador.
-        </Text>
+        <Stack gap={4} mt="md" align="center">
+          <Anchor component={Link} to="/forgot-password" size="sm">
+            Olvidé mi clave
+          </Anchor>
+          <Text size="xs" c="dimmed">
+            ¿No tenés cuenta?{' '}
+            <Anchor href={SIGNUP_URL} size="xs">
+              Creá una gratis
+            </Anchor>
+          </Text>
+        </Stack>
       </Box>
     </Center>
   );

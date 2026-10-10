@@ -160,6 +160,44 @@
     }
    }
   },
+  "/api/v1/auth/password-reset": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Password Reset",
+    "description": "Olvidé mi clave: si el email es de un usuario activo, le manda el link para crear una nueva\n(el mismo de /password-setup). Responde 202 siempre.",
+    "operationId": "password_reset_api_v1_auth_password_reset_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PasswordResetIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "202": {
+      "description": "Successful Response"
+     },
+     "429": {
+      "description": "Demasiados pedidos"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/tiers": {
    "get": {
     "tags": [
@@ -4925,6 +4963,542 @@
      }
     ]
    }
+  },
+  "/api/v1/demo/signup": {
+   "post": {
+    "tags": [
+     "demo"
+    ],
+    "summary": "Create Account",
+    "description": "Registro desde la landing: crea el cliente en el plan gratuito y manda el link para crear la\nclave. Responde 202 aunque el email ya tenga cuenta (a ese le llega un link para una clave nueva).",
+    "operationId": "create_account_api_v1_demo_signup_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SignupIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "202": {
+      "description": "Successful Response"
+     },
+     "429": {
+      "description": "Limite por IP"
+     },
+     "503": {
+      "description": "Registro apagado"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/clients/{client_id}/billing": {
+   "get": {
+    "tags": [
+     "billing"
+    ],
+    "summary": "Read Billing",
+    "description": "Plan actual, suscripcion, planes que se pueden contratar, datos fiscales y pagos.",
+    "operationId": "read_billing_api_v1_clients__client_id__billing_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BillingOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/clients/{client_id}/billing/subscribe": {
+   "post": {
+    "tags": [
+     "billing"
+    ],
+    "summary": "Subscribe",
+    "description": "Pide un plan pago. Por transferencia: queda pendiente hasta que se registra el pago, y al\nusuario le llega un mail con los datos bancarios. Con un plan activo, el pedido se aplica al\nregistrar el proximo pago.",
+    "operationId": "subscribe_api_v1_clients__client_id__billing_subscribe_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SubscribeIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BillingOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/clients/{client_id}/billing/cancel": {
+   "post": {
+    "tags": [
+     "billing"
+    ],
+    "summary": "Cancel",
+    "description": "Da de baja el plan pago: sigue hasta el fin del periodo pagado y despues pasa al gratuito.",
+    "operationId": "cancel_api_v1_clients__client_id__billing_cancel_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BillingOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/clients/{client_id}/billing/fiscal": {
+   "put": {
+    "tags": [
+     "billing"
+    ],
+    "summary": "Update Fiscal",
+    "description": "Datos para la factura.",
+    "operationId": "update_fiscal_api_v1_clients__client_id__billing_fiscal_put",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/FiscalIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BillingOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/clients/{client_id}/billing/payments": {
+   "post": {
+    "tags": [
+     "billing"
+    ],
+    "summary": "Record Payment",
+    "description": "Registra un pago por transferencia: activa el plan, o lo renueva, por un mes desde el\nvencimiento actual (o desde hoy). Al cliente le llega un mail.",
+    "operationId": "record_payment_api_v1_clients__client_id__billing_payments_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PaymentIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BillingOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/clients/{client_id}/billing/suspend": {
+   "post": {
+    "tags": [
+     "billing"
+    ],
+    "summary": "Suspend",
+    "description": "Rechaza un pedido pendiente, o corta el plan pago ya: el cliente pasa al gratuito.",
+    "operationId": "suspend_api_v1_clients__client_id__billing_suspend_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BillingOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/billing/subscriptions": {
+   "get": {
+    "tags": [
+     "billing"
+    ],
+    "summary": "List Subscriptions",
+    "description": "Suscripciones abiertas (pendientes, activas y vencidas), las que vencen antes primero.",
+    "operationId": "list_subscriptions_api_v1_billing_subscriptions_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/SubscriptionRowOut"
+         },
+         "type": "array",
+         "title": "Response List Subscriptions Api V1 Billing Subscriptions Get"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/billing/payments": {
+   "get": {
+    "tags": [
+     "billing"
+    ],
+    "summary": "List Payments",
+    "operationId": "list_payments_api_v1_billing_payments_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "invoiced",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "boolean"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "false: los que falta facturar",
+       "title": "Invoiced"
+      },
+      "description": "false: los que falta facturar"
+     },
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 1000,
+       "minimum": 1,
+       "default": 200,
+       "title": "Limit"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/PaymentOut"
+         },
+         "title": "Response List Payments Api V1 Billing Payments Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/billing/payments/{payment_id}": {
+   "patch": {
+    "tags": [
+     "billing"
+    ],
+    "summary": "Update Payment",
+    "description": "Marca un pago como facturado (la factura se emite fuera de la app).",
+    "operationId": "update_payment_api_v1_billing_payments__payment_id__patch",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "payment_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Payment Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PaymentPatch"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PaymentOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
   }
  },
  "components": {
@@ -5457,6 +6031,115 @@
      "client_id"
     ],
     "title": "AssignIn"
+   },
+   "BankRow": {
+    "properties": {
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "value": {
+      "type": "string",
+      "title": "Value"
+     }
+    },
+    "type": "object",
+    "required": [
+     "label",
+     "value"
+    ],
+    "title": "BankRow"
+   },
+   "BillingOut": {
+    "properties": {
+     "tier": {
+      "$ref": "#/components/schemas/TierBrief"
+     },
+     "tier_price_ars": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tier Price Ars"
+     },
+     "subscription": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/SubscriptionOut"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "plans": {
+      "items": {
+       "$ref": "#/components/schemas/PlanOut"
+      },
+      "type": "array",
+      "title": "Plans"
+     },
+     "methods": {
+      "items": {
+       "type": "string",
+       "enum": [
+        "transfer",
+        "mercadopago"
+       ]
+      },
+      "type": "array",
+      "title": "Methods",
+      "description": "Medios de pago disponibles"
+     },
+     "fiscal": {
+      "$ref": "#/components/schemas/FiscalOut"
+     },
+     "bank": {
+      "items": {
+       "$ref": "#/components/schemas/BankRow"
+      },
+      "type": "array",
+      "title": "Bank",
+      "description": "Datos para la transferencia"
+     },
+     "support_email": {
+      "type": "string",
+      "title": "Support Email"
+     },
+     "payments": {
+      "items": {
+       "$ref": "#/components/schemas/PaymentOut"
+      },
+      "type": "array",
+      "title": "Payments"
+     },
+     "suspended_numbers": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Suspended Numbers"
+     }
+    },
+    "type": "object",
+    "required": [
+     "tier",
+     "tier_price_ars",
+     "subscription",
+     "plans",
+     "methods",
+     "fiscal",
+     "bank",
+     "support_email",
+     "payments",
+     "suspended_numbers"
+    ],
+    "title": "BillingOut",
+    "description": "Plan y cobro de un cliente: lo que muestra la pantalla Plan."
    },
    "Body_transcriptions_api_v1_inference_audio_transcriptions_post": {
     "properties": {
@@ -6263,6 +6946,15 @@
       "type": "boolean",
       "title": "Active"
      },
+     "created_via": {
+      "type": "string",
+      "enum": [
+       "admin",
+       "signup"
+      ],
+      "title": "Created Via",
+      "default": "admin"
+     },
      "tier": {
       "$ref": "#/components/schemas/TierBrief"
      },
@@ -6406,6 +7098,15 @@
      "active": {
       "type": "boolean",
       "title": "Active"
+     },
+     "created_via": {
+      "type": "string",
+      "enum": [
+       "admin",
+       "signup"
+      ],
+      "title": "Created Via",
+      "default": "admin"
      },
      "tier": {
       "$ref": "#/components/schemas/TierBrief"
@@ -6994,6 +7695,77 @@
      "required"
     ],
     "title": "FieldValue"
+   },
+   "FiscalIn": {
+    "properties": {
+     "legal_name": {
+      "type": "string",
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Legal Name",
+      "description": "Razon social o nombre y apellido"
+     },
+     "tax_id": {
+      "type": "string",
+      "pattern": "^\\d{11}$",
+      "title": "Tax Id",
+      "description": "CUIT o CUIL, 11 digitos sin guiones"
+     },
+     "tax_condition": {
+      "type": "string",
+      "enum": [
+       "ri",
+       "monotributo",
+       "exento",
+       "cf"
+      ],
+      "title": "Tax Condition"
+     }
+    },
+    "type": "object",
+    "required": [
+     "legal_name",
+     "tax_id",
+     "tax_condition"
+    ],
+    "title": "FiscalIn"
+   },
+   "FiscalOut": {
+    "properties": {
+     "legal_name": {
+      "type": "string",
+      "title": "Legal Name"
+     },
+     "tax_id": {
+      "type": "string",
+      "title": "Tax Id"
+     },
+     "tax_condition": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "ri",
+         "monotributo",
+         "exento",
+         "cf"
+        ]
+       },
+       {
+        "type": "string",
+        "const": ""
+       }
+      ],
+      "title": "Tax Condition"
+     }
+    },
+    "type": "object",
+    "required": [
+     "legal_name",
+     "tax_id",
+     "tax_condition"
+    ],
+    "title": "FiscalOut"
    },
    "HTTPValidationError": {
     "properties": {
@@ -7787,6 +8559,21 @@
     ],
     "title": "OutcomeOut"
    },
+   "PasswordResetIn": {
+    "properties": {
+     "email": {
+      "type": "string",
+      "maxLength": 254,
+      "minLength": 3,
+      "title": "Email"
+     }
+    },
+    "type": "object",
+    "required": [
+     "email"
+    ],
+    "title": "PasswordResetIn"
+   },
    "PasswordSetupCheckIn": {
     "properties": {
      "token": {
@@ -7853,6 +8640,173 @@
      "client_name"
     ],
     "title": "PasswordSetupInfo"
+   },
+   "PaymentIn": {
+    "properties": {
+     "tier_id": {
+      "type": "string",
+      "title": "Tier Id"
+     },
+     "amount_ars": {
+      "type": "integer",
+      "minimum": 0.0,
+      "title": "Amount Ars"
+     },
+     "paid_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Paid On"
+     },
+     "note": {
+      "type": "string",
+      "maxLength": 255,
+      "title": "Note",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "tier_id",
+     "amount_ars",
+     "paid_on"
+    ],
+    "title": "PaymentIn",
+    "description": "Pago por transferencia confirmado por un admin."
+   },
+   "PaymentOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "client_id": {
+      "type": "string",
+      "title": "Client Id"
+     },
+     "client_name": {
+      "type": "string",
+      "title": "Client Name",
+      "default": ""
+     },
+     "tier_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tier Name"
+     },
+     "method": {
+      "type": "string",
+      "enum": [
+       "transfer",
+       "mercadopago"
+      ],
+      "title": "Method"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "approved",
+       "rejected",
+       "refunded"
+      ],
+      "title": "Status"
+     },
+     "amount_ars": {
+      "type": "integer",
+      "title": "Amount Ars"
+     },
+     "paid_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Paid On"
+     },
+     "period_end": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Period End"
+     },
+     "note": {
+      "type": "string",
+      "title": "Note"
+     },
+     "invoiced_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Invoiced At"
+     },
+     "recorded_by_email": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Recorded By Email"
+     },
+     "legal_name": {
+      "type": "string",
+      "title": "Legal Name",
+      "default": ""
+     },
+     "tax_id": {
+      "type": "string",
+      "title": "Tax Id",
+      "default": ""
+     },
+     "tax_condition": {
+      "type": "string",
+      "title": "Tax Condition",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "client_id",
+     "tier_name",
+     "method",
+     "status",
+     "amount_ars",
+     "paid_on",
+     "period_end",
+     "note",
+     "invoiced_at"
+    ],
+    "title": "PaymentOut"
+   },
+   "PaymentPatch": {
+    "properties": {
+     "invoiced": {
+      "type": "boolean",
+      "title": "Invoiced"
+     }
+    },
+    "type": "object",
+    "required": [
+     "invoiced"
+    ],
+    "title": "PaymentPatch"
    },
    "PhoneNumberBulkIn": {
     "properties": {
@@ -8083,6 +9037,95 @@
     "type": "object",
     "title": "PhoneNumberUpdate"
    },
+   "PlanOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "description": {
+      "type": "string",
+      "title": "Description"
+     },
+     "price_ars": {
+      "type": "integer",
+      "title": "Price Ars"
+     },
+     "max_concurrent_calls": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Concurrent Calls"
+     },
+     "inbound_minutes": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Inbound Minutes"
+     },
+     "outbound_minutes": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Outbound Minutes"
+     },
+     "max_phone_numbers": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Phone Numbers"
+     },
+     "api_rate_limit": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Api Rate Limit"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "name",
+     "description",
+     "price_ars",
+     "max_concurrent_calls",
+     "inbound_minutes",
+     "outbound_minutes",
+     "max_phone_numbers",
+     "api_rate_limit"
+    ],
+    "title": "PlanOut",
+    "description": "Un tier publico, como se ofrece en la pantalla Plan."
+   },
    "PromptIn": {
     "properties": {
      "definition": {
@@ -8136,6 +9179,48 @@
      "system"
     ],
     "title": "PromptOut"
+   },
+   "SignupIn": {
+    "properties": {
+     "company": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Company",
+      "description": "Nombre de la empresa (el del cliente)"
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "email": {
+      "type": "string",
+      "format": "email",
+      "title": "Email"
+     },
+     "turnstile_token": {
+      "type": "string",
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Turnstile Token"
+     },
+     "website": {
+      "type": "string",
+      "maxLength": 200,
+      "title": "Website",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "company",
+     "name",
+     "email",
+     "turnstile_token"
+    ],
+    "title": "SignupIn"
    },
    "SkippedNumber": {
     "properties": {
@@ -8292,6 +9377,221 @@
      "latency_avg"
     ],
     "title": "StatsOut"
+   },
+   "SubscribeIn": {
+    "properties": {
+     "tier_id": {
+      "type": "string",
+      "title": "Tier Id"
+     },
+     "method": {
+      "type": "string",
+      "enum": [
+       "transfer",
+       "mercadopago"
+      ],
+      "title": "Method",
+      "default": "transfer"
+     }
+    },
+    "type": "object",
+    "required": [
+     "tier_id"
+    ],
+    "title": "SubscribeIn"
+   },
+   "SubscriptionOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "tier": {
+      "$ref": "#/components/schemas/TierBrief"
+     },
+     "pending_tier": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/TierBrief"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "method": {
+      "type": "string",
+      "enum": [
+       "transfer",
+       "mercadopago"
+      ],
+      "title": "Method"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "pending",
+       "active",
+       "past_due",
+       "canceled"
+      ],
+      "title": "Status"
+     },
+     "current_period_end": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Current Period End"
+     },
+     "grace_until": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Grace Until"
+     },
+     "cancel_at_period_end": {
+      "type": "boolean",
+      "title": "Cancel At Period End"
+     },
+     "amount_due": {
+      "type": "integer",
+      "title": "Amount Due",
+      "description": "Lo que se cobra en el proximo periodo, en pesos"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "tier",
+     "pending_tier",
+     "method",
+     "status",
+     "current_period_end",
+     "grace_until",
+     "cancel_at_period_end",
+     "amount_due",
+     "created_at"
+    ],
+    "title": "SubscriptionOut"
+   },
+   "SubscriptionRowOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "tier": {
+      "$ref": "#/components/schemas/TierBrief"
+     },
+     "pending_tier": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/TierBrief"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "method": {
+      "type": "string",
+      "enum": [
+       "transfer",
+       "mercadopago"
+      ],
+      "title": "Method"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "pending",
+       "active",
+       "past_due",
+       "canceled"
+      ],
+      "title": "Status"
+     },
+     "current_period_end": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Current Period End"
+     },
+     "grace_until": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Grace Until"
+     },
+     "cancel_at_period_end": {
+      "type": "boolean",
+      "title": "Cancel At Period End"
+     },
+     "amount_due": {
+      "type": "integer",
+      "title": "Amount Due",
+      "description": "Lo que se cobra en el proximo periodo, en pesos"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "client_id": {
+      "type": "string",
+      "title": "Client Id"
+     },
+     "client_name": {
+      "type": "string",
+      "title": "Client Name"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "tier",
+     "pending_tier",
+     "method",
+     "status",
+     "current_period_end",
+     "grace_until",
+     "cancel_at_period_end",
+     "amount_due",
+     "created_at",
+     "client_id",
+     "client_name"
+    ],
+    "title": "SubscriptionRowOut",
+    "description": "Una suscripcion en la vista Cobros (admin)."
    },
    "TemplateOut": {
     "properties": {
@@ -8523,6 +9823,31 @@
       "title": "Api Rate Limit",
       "description": "Pedidos por minuto a la API de inferencia",
       "default": 60
+     },
+     "price_ars": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price Ars",
+      "description": "Precio mensual en pesos, lo que se cobra. null: no se vende por el dashboard; 0: gratis"
+     },
+     "public": {
+      "type": "boolean",
+      "title": "Public",
+      "description": "Se ofrece en el registro y en la pantalla Plan",
+      "default": false
+     },
+     "sort": {
+      "type": "integer",
+      "title": "Sort",
+      "description": "Orden en la pantalla Plan (menor primero)",
+      "default": 0
      }
     },
     "type": "object",
@@ -8677,6 +10002,25 @@
       ],
       "title": "Api Rate Limit"
      },
+     "price_ars": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price Ars"
+     },
+     "public": {
+      "type": "boolean",
+      "title": "Public"
+     },
+     "sort": {
+      "type": "integer",
+      "title": "Sort"
+     },
      "created_at": {
       "type": "string",
       "format": "date-time",
@@ -8705,6 +10049,9 @@
      "api_tts_minutes",
      "api_stt_minutes",
      "api_rate_limit",
+     "price_ars",
+     "public",
+     "sort",
      "created_at"
     ],
     "title": "TierOut"
@@ -8878,6 +10225,40 @@
        }
       ],
       "title": "Api Rate Limit"
+     },
+     "price_ars": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price Ars"
+     },
+     "public": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Public"
+     },
+     "sort": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sort"
      }
     },
     "type": "object",
@@ -10768,7 +12149,7 @@
   "securitySchemes": {
    "HTTPBearer": {
     "type": "http",
-    "description": "Token de la sesion de demo o de la llamada",
+    "description": "API key del cliente (vaas_...) o token de sesion",
     "scheme": "bearer"
    }
   }

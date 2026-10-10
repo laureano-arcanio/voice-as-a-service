@@ -1,7 +1,9 @@
 import {
   IconBuilding,
+  IconCash,
   IconChartBar,
   IconCode,
+  IconCreditCard,
   IconFileInvoice,
   IconHome,
   IconMessages,
@@ -34,9 +36,11 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/usage', label: 'Consumos', icon: IconChartBar, roles: ['client'] },
   { to: '/developers', label: 'API', icon: IconCode, roles: ['client'] },
   { to: '/account', label: 'Mi cuenta', icon: IconFileInvoice, roles: ['client'] },
+  { to: '/plan', label: 'Plan', icon: IconCreditCard, roles: ['client'] },
   { to: '/clients', label: 'Clientes', icon: IconBuilding, roles: ['admin'] },
   { to: '/numbers', label: 'Números', icon: IconPhone, roles: ['admin'] },
   { to: '/tiers', label: 'Tiers', icon: IconStack2, roles: ['admin'] },
+  { to: '/billing', label: 'Cobros', icon: IconCash, roles: ['admin'] },
   { to: '/users', label: 'Usuarios', icon: IconUsers, roles: ['admin'] },
 ];
 

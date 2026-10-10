@@ -158,6 +158,7 @@ CSP del dashboard solo permite fuentes de `'self'`: no se pueden cargar de Googl
 | Vacío | `EmptyState` | Dice por qué está vacío y cómo se llena. |
 | Valor faltante | `Dash` (`components/Badges.tsx`): `–` en `dimmed` | Nunca "null", "N/A", "sin dato" ni la celda en blanco. |
 | Conversación | Burbujas (`ChatView`) | Agente: superficie 2, a la izquierda. Persona: acento suave, a la derecha. Nombre de quien habla en `.label`. |
+| Opción de plan (pantalla Plan) | `.plan-option`: bloque interno de 12 px con borde; el plan actual, con borde azul y acento suave | Nombre, precio en `.metric`, lo que incluye en `List` con check y el botón abajo. El estado del plan pago sale de `SUBSCRIPTION_STATUS` (`lib/labels.ts`): esperando el pago en amarillo, activo en verde, vencido en rojo. |
 | Código y JSON | `pre.code`, `Code`, `JsonEditor` | Mono 12 px sobre superficie 2, borde, radio de 12 px. En el editor, claves en azul y valores en neutro: el rojo queda para los errores. |
 
 Gráficos (`@mantine/charts`):
@@ -249,7 +250,7 @@ Variables propias (`cssVariablesResolver`):
 - **Fuentes:** `@fontsource-variable/figtree`, `@fontsource-variable/bricolage-grotesque` y
   `@fontsource/ibm-plex-mono` (400 y 500, subconjunto latino), importadas en `main.tsx`.
 - **`styles.css`:** solo lo que el tema no cubre: `.label` (también los encabezados de tabla), `.mono`,
-  `.metric`, `.live-dot`, `.just-set`, `pre.code`, las burbujas, `.def-toolbar` y `.def-item`, el `letter-spacing` de los títulos, el
+  `.metric`, `.live-dot`, `.just-set`, `pre.code`, las burbujas, `.def-toolbar`, `.def-item` y `.plan-option`, el `letter-spacing` de los títulos, el
   ítem seleccionado del menú y de las pestañas, y las variables de los gráficos.
 - **Sin modo oscuro:** `forceColorScheme="light"` y `data-mantine-color-scheme="light"` en `index.html`.
   No hay botón de tema, script de tema, `light-dark()` ni logos `-blanco` en `web/`.

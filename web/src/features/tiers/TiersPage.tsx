@@ -1,5 +1,6 @@
 import {
   ActionIcon,
+  Badge,
   Button,
   Card,
   Divider,
@@ -9,6 +10,7 @@ import {
   type NumberInputProps,
   SimpleGrid,
   Stack,
+  Switch,
   Table,
   Text,
   Textarea,
@@ -23,7 +25,7 @@ import type { Tier } from '@/api/types';
 import { confirmAction } from '@/components/confirm';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState, QueryState } from '@/components/QueryState';
-import { formatApiLimit, formatLimit } from '@/lib/format';
+import { formatApiLimit, formatArs, formatLimit } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { numberErrorTitle } from '@/features/numbers/errors';
 import { useDeleteTier, useSaveTier, useTiers } from './api';
@@ -74,6 +76,9 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
     api_tts_minutes: Limit;
     api_stt_minutes: Limit;
     api_rate_limit: Limit;
+    price_ars: Limit;
+    public: boolean;
+    sort: number | '';
   }>({
     initialValues: {
       name: tier?.name ?? '',
@@ -91,8 +96,15 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
       api_tts_minutes: tier ? (tier.api_tts_minutes ?? '') : 0,
       api_stt_minutes: tier ? (tier.api_stt_minutes ?? '') : 0,
       api_rate_limit: tier ? (tier.api_rate_limit ?? '') : 60,
+      price_ars: tier?.price_ars ?? '',
+      public: tier?.public ?? false,
+      sort: tier?.sort ?? 0,
     },
-    validate: { name: (v) => (v.trim() ? null : 'Poné un nombre') },
+    validate: {
+      name: (v) => (v.trim() ? null : 'Poné un nombre'),
+      public: (v, values) =>
+        v && values.price_ars === '' ? 'Un tier público necesita precio (0 = gratis)' : null,
+    },
   });
 
   return (
@@ -117,6 +129,9 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
                 api_tts_minutes: toLimit(v.api_tts_minutes),
                 api_stt_minutes: toLimit(v.api_stt_minutes),
                 api_rate_limit: toLimit(v.api_rate_limit),
+                price_ars: toLimit(v.price_ars),
+                public: v.public,
+                sort: v.sort === '' ? 0 : v.sort,
               },
             },
             {
@@ -148,12 +163,39 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
             <LimitInput label="Minutos salientes" {...form.getInputProps('outbound_minutes')} />
             <LimitInput label="Números" {...form.getInputProps('max_phone_numbers')} />
           </Section>
-          <Section title="API de inferencia por mes (solo uso por API key, no cuenta los agentes integrados)" cols={3}>
+          <Section
+            title="API de inferencia por mes (solo uso por API key, no cuenta los agentes integrados)"
+            cols={3}
+          >
             <LimitInput label="Tokens de entrada del LLM" {...form.getInputProps('api_llm_input_tokens')} />
             <LimitInput label="Tokens de salida del LLM" {...form.getInputProps('api_llm_output_tokens')} />
             <LimitInput label="Minutos de síntesis (TTS)" {...form.getInputProps('api_tts_minutes')} />
             <LimitInput label="Minutos de transcripción (STT)" {...form.getInputProps('api_stt_minutes')} />
             <LimitInput label="Pedidos por minuto" {...form.getInputProps('api_rate_limit')} />
+          </Section>
+          <Section title="Venta por el dashboard" cols={3}>
+            <NumberInput
+              label="Precio por mes ($)"
+              description="Vacío: no se vende por el dashboard. 0: gratis (el del registro)."
+              min={0}
+              allowDecimal={false}
+              allowNegative={false}
+              thousandSeparator="."
+              decimalSeparator=","
+              {...form.getInputProps('price_ars')}
+            />
+            <NumberInput
+              label="Orden"
+              description="En la pantalla Plan, menor primero."
+              allowDecimal={false}
+              {...form.getInputProps('sort')}
+            />
+            <Switch
+              label="Público"
+              description="Se ofrece en el registro y en la pantalla Plan."
+              mt="md"
+              {...form.getInputProps('public', { type: 'checkbox' })}
+            />
           </Section>
           <Group justify="flex-end">
             <Button variant="default" onClick={onClose}>
@@ -216,6 +258,7 @@ export function TiersPage() {
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>Nombre</Table.Th>
+                      <Table.Th ta="right">Precio/mes</Table.Th>
                       <Table.Th ta="right">Simultáneas</Table.Th>
                       <Table.Th ta="right">Llamadas hora / día / mes</Table.Th>
                       <Table.Th ta="right">Min. entrantes/mes</Table.Th>
@@ -232,14 +275,20 @@ export function TiersPage() {
                     {list.map((t) => (
                       <Table.Tr key={t.id}>
                         <Table.Td>
-                          <Text size="sm" fw={600}>
-                            {t.name}
-                          </Text>
+                          <Group gap={6} wrap="nowrap">
+                            <Text size="sm" fw={600}>
+                              {t.name}
+                            </Text>
+                            {t.public && <Badge color="gray">público</Badge>}
+                          </Group>
                           {t.description && (
                             <Text size="xs" c="dimmed">
                               {t.description}
                             </Text>
                           )}
+                        </Table.Td>
+                        <Table.Td ta="right" className="mono">
+                          {formatArs(t.price_ars)}
                         </Table.Td>
                         <Table.Td ta="right">{formatLimit(t.max_concurrent_calls)}</Table.Td>
                         <Table.Td ta="right" style={{ whiteSpace: 'nowrap' }}>

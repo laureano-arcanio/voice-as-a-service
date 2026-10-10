@@ -74,6 +74,8 @@ export interface Plan {
   items: string[];
   cta: string;
   featured?: boolean;
+  /** false: no se contrata por el registro ("A medida"): el botón va al contacto. */
+  signup?: boolean;
 }
 
 export const plans: Plan[] = [
@@ -89,7 +91,6 @@ export const plans: Plan[] = [
       "<b>300 minutos</b> por mes",
       "1 llamada a la vez",
       "1 número",
-      "Minuto adicional <span class=\"tabular-nums\">$ 99</span>",
     ],
     cta: "Empezar",
   },
@@ -106,7 +107,6 @@ export const plans: Plan[] = [
       "3 llamadas a la vez",
       "3 números",
       "Llamadas programadas",
-      "Minuto adicional <span class=\"tabular-nums\">$ 79</span>",
     ],
     cta: "Empezar",
     featured: true,
@@ -123,6 +123,7 @@ export const plans: Plan[] = [
       "Llamadas programadas",
     ],
     cta: "Hablemos",
+    signup: false,
   },
 ];
 
@@ -424,10 +425,13 @@ const faqMinutes: Qa = {
   q: "¿Cómo se cuentan los minutos?",
   a: "Cada llamada se cuenta por minuto iniciado. Los minutos del plan son por mes y no se acumulan: suman las llamadas que entran y las que hace el agente.",
 };
-const faqOver: Qa = { q: "¿Qué pasa si me paso de los minutos?", a: "Podés comprar packs de minutos por adelantado, o cuando los necesites." };
+const faqOver: Qa = {
+  q: "¿Qué pasa si me paso de los minutos?",
+  a: "Al llegar al tope del plan, el agente deja de atender hasta el mes siguiente. Podés pasar a un plan mayor desde el panel, o escribinos y te sumamos minutos para ese mes.",
+};
 const faqTerms: Qa = {
-  q: "¿Los precios llevan IVA? ¿Hay permanencia?",
-  a: "Los precios son en pesos y no incluyen IVA. No hay permanencia: se cancela cuando quieras. Si el precio cambia, avisamos con 15 días de anticipación.",
+  q: "¿Cómo se paga? ¿Hay permanencia?",
+  a: "Los precios son finales, por mes y en pesos. Te registrás gratis y, cuando elegís un plan, lo pagás por transferencia desde el panel. No hay permanencia: se cancela cuando quieras. Si el precio cambia, avisamos con 15 días de anticipación.",
 };
 
 /** Home. */

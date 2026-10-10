@@ -159,6 +159,9 @@ def start_inbound(s: Session, engine: ConversationEngine, dialed: str | None, ca
     call = CallRow(conversation_id=state.conversation_id, client_id=number.client_id, mode=CallMode.entrante,
                    phone=caller, phone_number_id=number.id)
     try:
+        if number.suspended_at is not None:
+            # El plan del cliente bajo y este numero no entra (app/billing/service.py): no atiende.
+            raise QuotaExceeded("El número está suspendido: el plan del cliente no lo incluye", "number_suspended")
         quota.admit(s, number.client_id, CallMode.entrante)
     except QuotaExceeded as e:
         s.rollback()

@@ -25,6 +25,9 @@ export function SetPasswordPage() {
   useDocumentTitle('Crear clave · Atentina');
   const [params] = useSearchParams();
   const token = params.get('token') ?? '';
+  // A donde ir despues (el registro con un plan elegido manda a /plan?tier=...). Solo rutas propias.
+  const next = params.get('next') ?? '';
+  const target = next.startsWith('/') && !next.startsWith('//') ? next : '/';
   const info = usePasswordSetupInfo(token);
   const setup = usePasswordSetup();
   const navigate = useNavigate();
@@ -62,6 +65,9 @@ export function SetPasswordPage() {
               <Alert color="red" icon={<IconAlertCircle size={18} />} role="alert">
                 {linkError}
               </Alert>
+              <Button component={Link} to="/forgot-password" fullWidth>
+                Pedir un link nuevo
+              </Button>
               <Button component={Link} to="/login" variant="default" fullWidth>
                 Ir a ingresar
               </Button>
@@ -83,7 +89,7 @@ export function SetPasswordPage() {
                 onSubmit={form.onSubmit((values) =>
                   setup.mutate(
                     { token, password: values.password },
-                    { onSuccess: () => void navigate('/', { replace: true }) },
+                    { onSuccess: () => void navigate(target, { replace: true }) },
                   ),
                 )}
                 noValidate

@@ -35,7 +35,7 @@ class Invalid(ServiceError):
 
 class QuotaExceeded(ServiceError):
     """Limite del tier. code: concurrency_limit, calls_per_hour, calls_per_day, calls_per_month,
-    inbound_minutes, outbound_minutes o client_inactive."""
+    inbound_minutes, outbound_minutes, client_inactive o number_suspended."""
     status_code = 429
     default_code = "quota_exceeded"
 

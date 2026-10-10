@@ -28,7 +28,9 @@ const links = [
   { href: "/desarrolladores/docs", label: "Docs", short: "Docs", active: current === "docs" },
   { href: anchor("demo"), label: "Contacto", short: "Contacto" },
 ];
-const cta = current === "docs" ? "Pedir acceso" : current === "dev" ? "Empezar gratis" : hasCall ? "Hacé una demo" : "Empezar gratis";
+const cta = current === "docs" || current === "dev" ? "Empezar gratis" : hasCall ? "Hacé una demo" : "Empezar gratis";
+// Sin widget de llamada, el botón lleva al registro (docs/SUSCRIPCIONES_PLAN.md).
+const ctaHref = hasCall ? "#llamada" : "/registro";
 ---
 
 <nav class="sticky top-[env(safe-area-inset-top,0px)] z-10 border-b border-line bg-white/86 backdrop-blur-[10px]">
@@ -46,7 +48,7 @@ const cta = current === "docs" ? "Pedir acceso" : current === "dev" ? "Empezar g
           </a>
         ))
       }
-      <Button href={hasCall ? "#llamada" : anchor("demo")} size="sm" class="whitespace-nowrap" data-demo-link={hasCall ? "" : undefined}>
+      <Button href={ctaHref} size="sm" class="whitespace-nowrap" data-demo-link={hasCall ? "" : undefined}>
         {cta}
       </Button>
     </div>

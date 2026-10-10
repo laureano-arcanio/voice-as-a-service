@@ -4,6 +4,7 @@ from sqlalchemy import select
 from ...config import settings
 from ...db import utcnow
 from ...models import Client, User
+from ...services import signup
 from ...services.errors import Invalid, ServiceError
 from ...services.ratelimit import Limit, RateLimited, client_key
 from ...services.security import (
@@ -29,6 +30,7 @@ from ..schemas import (
     MeOut,
     PasswordSetupCheckIn,
     PasswordSetupIn,
+    PasswordResetIn,
     PasswordSetupInfo,
 )
 
@@ -121,7 +123,7 @@ def me(p: CurrentPrincipal, db: DB):
 
 # ---------- crear la clave desde el link del mail de alta ----------
 
-SETUP_LINK_INVALID = "El link venció o ya se usó. Pedile a tu administrador que te mande uno nuevo."
+SETUP_LINK_INVALID = "El link venció o ya se usó. Pedí uno nuevo con «Olvidé mi clave» en el ingreso."
 
 
 def _setup_user(db, token: str) -> User:
@@ -156,6 +158,16 @@ def password_setup(body: PasswordSetupIn, request: Request, response: Response, 
     user = _setup_user(db, body.token)
     user.password_hash = hash_password(body.password)
     user.session_version += 1
+    user.last_login_at = utcnow()
     db.commit()
     _open_session(request, response, user)
     return _me(db, user)
+
+
+@router.post("/password-reset", status_code=202, response_class=Response,
+             responses={429: {"description": "Demasiados pedidos"}})
+def password_reset(body: PasswordResetIn, request: Request, db: DB):
+    """Olvidé mi clave: si el email es de un usuario activo, le manda el link para crear una nueva
+    (el mismo de /password-setup). Responde 202 siempre."""
+    signup.password_reset(db, body.email, client_ip(request))
+    return Response(status_code=202)

@@ -61,6 +61,16 @@ export function usePasswordSetup() {
   });
 }
 
+/** Olvidé mi clave: siempre 202 (no revela si el email tiene cuenta). Devuelve el email pedido. */
+export function usePasswordReset() {
+  return useMutation({
+    mutationFn: async (email: string) => {
+      await unwrap(api.POST('/api/v1/auth/password-reset', { body: { email } }));
+      return email;
+    },
+  });
+}
+
 export function useLogout() {
   const qc = useQueryClient();
   return useMutation({

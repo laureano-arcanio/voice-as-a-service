@@ -72,6 +72,14 @@ export type LlmCall = S['LlmCall'];
 export type ConversationState = S['ConversationStateOut'];
 export type ConversationStart = S['ConversationStartOut'];
 export type TurnResult = S['TurnOut'];
+export type Billing = S['BillingOut'];
+export type Plan = S['PlanOut'];
+export type Subscription = S['SubscriptionOut'];
+export type SubscriptionRow = S['SubscriptionRowOut'];
+export type Payment = S['PaymentOut'];
+export type PaymentIn = S['PaymentIn'];
+export type FiscalIn = S['FiscalIn'];
+export type TaxCondition = FiscalIn['tax_condition'];
 
 /** Definicion de un agente: JSON libre para la API (ver GET /agents/schema). */
 export type Definition = Record<string, unknown>;

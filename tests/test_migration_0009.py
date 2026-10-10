@@ -8,6 +8,7 @@ from alembic.migration import MigrationContext
 from app.db import Base
 
 from .test_migration_0005 import _columns, _run
+from .test_migration_0010 import LATER_TIER_COLUMNS
 
 TIER_COLUMNS = {"api_llm_input_tokens", "api_llm_output_tokens", "api_tts_minutes", "api_stt_minutes",
                 "api_rate_limit"}
@@ -39,7 +40,8 @@ def test_0009_upgrade_downgrade_upgrade(tmp_path):
     assert tiers["int"] == (None,) * 5                  # sin ningun limite (Atentina): ilimitado
     assert scopes == "calls"
     # Lo de 0010 (llamadas por hora, dia y mes) todavia no esta en este esquema.
-    diff = [d for d in diff if not any(t in repr(d) for t in ("max_calls_per", "ck_tiers_calls"))]
+    # Columnas de migraciones posteriores (0010, 0012).
+    diff = [d for d in diff if not any(t in repr(d) for t in ("max_calls_per", "ck_tiers_calls", *LATER_TIER_COLUMNS))]
     assert [d for d in diff if any(t in repr(d) for t in ("api_usage_daily", "api_keys", "tiers"))] == []
 
     _run(engine, command.downgrade, "0008")

@@ -100,6 +100,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/password-reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Password Reset
+         * @description Olvidé mi clave: si el email es de un usuario activo, le manda el link para crear una nueva
+         *     (el mismo de /password-setup). Responde 202 siempre.
+         */
+        post: operations["password_reset_api_v1_auth_password_reset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tiers": {
         parameters: {
             query?: never;
@@ -1445,6 +1466,207 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/demo/signup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Account
+         * @description Registro desde la landing: crea el cliente en el plan gratuito y manda el link para crear la
+         *     clave. Responde 202 aunque el email ya tenga cuenta (a ese le llega un link para una clave nueva).
+         */
+        post: operations["create_account_api_v1_demo_signup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clients/{client_id}/billing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Billing
+         * @description Plan actual, suscripcion, planes que se pueden contratar, datos fiscales y pagos.
+         */
+        get: operations["read_billing_api_v1_clients__client_id__billing_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clients/{client_id}/billing/subscribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Subscribe
+         * @description Pide un plan pago. Por transferencia: queda pendiente hasta que se registra el pago, y al
+         *     usuario le llega un mail con los datos bancarios. Con un plan activo, el pedido se aplica al
+         *     registrar el proximo pago.
+         */
+        post: operations["subscribe_api_v1_clients__client_id__billing_subscribe_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clients/{client_id}/billing/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel
+         * @description Da de baja el plan pago: sigue hasta el fin del periodo pagado y despues pasa al gratuito.
+         */
+        post: operations["cancel_api_v1_clients__client_id__billing_cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clients/{client_id}/billing/fiscal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update Fiscal
+         * @description Datos para la factura.
+         */
+        put: operations["update_fiscal_api_v1_clients__client_id__billing_fiscal_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clients/{client_id}/billing/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record Payment
+         * @description Registra un pago por transferencia: activa el plan, o lo renueva, por un mes desde el
+         *     vencimiento actual (o desde hoy). Al cliente le llega un mail.
+         */
+        post: operations["record_payment_api_v1_clients__client_id__billing_payments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clients/{client_id}/billing/suspend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Suspend
+         * @description Rechaza un pedido pendiente, o corta el plan pago ya: el cliente pasa al gratuito.
+         */
+        post: operations["suspend_api_v1_clients__client_id__billing_suspend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Subscriptions
+         * @description Suscripciones abiertas (pendientes, activas y vencidas), las que vencen antes primero.
+         */
+        get: operations["list_subscriptions_api_v1_billing_subscriptions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Payments */
+        get: operations["list_payments_api_v1_billing_payments_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/payments/{payment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Payment
+         * @description Marca un pago como facturado (la factura se emite fuera de la app).
+         */
+        patch: operations["update_payment_api_v1_billing_payments__payment_id__patch"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1639,6 +1861,42 @@ export interface components {
         AssignIn: {
             /** Client Id */
             client_id: string;
+        };
+        /** BankRow */
+        BankRow: {
+            /** Label */
+            label: string;
+            /** Value */
+            value: string;
+        };
+        /**
+         * BillingOut
+         * @description Plan y cobro de un cliente: lo que muestra la pantalla Plan.
+         */
+        BillingOut: {
+            tier: components["schemas"]["TierBrief"];
+            /** Tier Price Ars */
+            tier_price_ars: number | null;
+            subscription: components["schemas"]["SubscriptionOut"] | null;
+            /** Plans */
+            plans: components["schemas"]["PlanOut"][];
+            /**
+             * Methods
+             * @description Medios de pago disponibles
+             */
+            methods: ("transfer" | "mercadopago")[];
+            fiscal: components["schemas"]["FiscalOut"];
+            /**
+             * Bank
+             * @description Datos para la transferencia
+             */
+            bank: components["schemas"]["BankRow"][];
+            /** Support Email */
+            support_email: string;
+            /** Payments */
+            payments: components["schemas"]["PaymentOut"][];
+            /** Suspended Numbers */
+            suspended_numbers: string[];
         };
         /** Body_transcriptions_api_v1_inference_audio_transcriptions_post */
         Body_transcriptions_api_v1_inference_audio_transcriptions_post: {
@@ -1862,6 +2120,12 @@ export interface components {
             slug: string;
             /** Active */
             active: boolean;
+            /**
+             * Created Via
+             * @default admin
+             * @enum {string}
+             */
+            created_via?: "admin" | "signup";
             tier: components["schemas"]["TierBrief"];
             /**
              * Created At
@@ -1930,6 +2194,12 @@ export interface components {
             slug: string;
             /** Active */
             active: boolean;
+            /**
+             * Created Via
+             * @default admin
+             * @enum {string}
+             */
+            created_via?: "admin" | "signup";
             tier: components["schemas"]["TierBrief"];
             /**
              * Created At
@@ -2155,6 +2425,33 @@ export interface components {
             required: boolean;
             /** Rejected */
             rejected?: unknown;
+        };
+        /** FiscalIn */
+        FiscalIn: {
+            /**
+             * Legal Name
+             * @description Razon social o nombre y apellido
+             */
+            legal_name: string;
+            /**
+             * Tax Id
+             * @description CUIT o CUIL, 11 digitos sin guiones
+             */
+            tax_id: string;
+            /**
+             * Tax Condition
+             * @enum {string}
+             */
+            tax_condition: "ri" | "monotributo" | "exento" | "cf";
+        };
+        /** FiscalOut */
+        FiscalOut: {
+            /** Legal Name */
+            legal_name: string;
+            /** Tax Id */
+            tax_id: string;
+            /** Tax Condition */
+            tax_condition: ("ri" | "monotributo" | "exento" | "cf") | "";
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -2445,6 +2742,11 @@ export interface components {
             /** Goal */
             goal: boolean;
         };
+        /** PasswordResetIn */
+        PasswordResetIn: {
+            /** Email */
+            email: string;
+        };
         /** PasswordSetupCheckIn */
         PasswordSetupCheckIn: {
             /** Token */
@@ -2465,6 +2767,85 @@ export interface components {
             name: string;
             /** Client Name */
             client_name: string | null;
+        };
+        /**
+         * PaymentIn
+         * @description Pago por transferencia confirmado por un admin.
+         */
+        PaymentIn: {
+            /** Tier Id */
+            tier_id: string;
+            /** Amount Ars */
+            amount_ars: number;
+            /**
+             * Paid On
+             * Format: date
+             */
+            paid_on: string;
+            /**
+             * Note
+             * @default
+             */
+            note?: string;
+        };
+        /** PaymentOut */
+        PaymentOut: {
+            /** Id */
+            id: string;
+            /** Client Id */
+            client_id: string;
+            /**
+             * Client Name
+             * @default
+             */
+            client_name?: string;
+            /** Tier Name */
+            tier_name: string | null;
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "transfer" | "mercadopago";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "approved" | "rejected" | "refunded";
+            /** Amount Ars */
+            amount_ars: number;
+            /**
+             * Paid On
+             * Format: date
+             */
+            paid_on: string;
+            /** Period End */
+            period_end: string | null;
+            /** Note */
+            note: string;
+            /** Invoiced At */
+            invoiced_at: string | null;
+            /** Recorded By Email */
+            recorded_by_email?: string | null;
+            /**
+             * Legal Name
+             * @default
+             */
+            legal_name?: string;
+            /**
+             * Tax Id
+             * @default
+             */
+            tax_id?: string;
+            /**
+             * Tax Condition
+             * @default
+             */
+            tax_condition?: string;
+        };
+        /** PaymentPatch */
+        PaymentPatch: {
+            /** Invoiced */
+            invoiced: boolean;
         };
         /**
          * PhoneNumberBulkIn
@@ -2549,6 +2930,30 @@ export interface components {
             /** Agent Id */
             agent_id?: string | null;
         };
+        /**
+         * PlanOut
+         * @description Un tier publico, como se ofrece en la pantalla Plan.
+         */
+        PlanOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string;
+            /** Price Ars */
+            price_ars: number;
+            /** Max Concurrent Calls */
+            max_concurrent_calls: number | null;
+            /** Inbound Minutes */
+            inbound_minutes: number | null;
+            /** Outbound Minutes */
+            outbound_minutes: number | null;
+            /** Max Phone Numbers */
+            max_phone_numbers: number | null;
+            /** Api Rate Limit */
+            api_rate_limit: number | null;
+        };
         /** PromptIn */
         PromptIn: {
             /** Definition */
@@ -2576,6 +2981,28 @@ export interface components {
              * @description structured: la definicion que va en cada turno
              */
             workflow?: string | null;
+        };
+        /** SignupIn */
+        SignupIn: {
+            /**
+             * Company
+             * @description Nombre de la empresa (el del cliente)
+             */
+            company: string;
+            /** Name */
+            name: string;
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /** Turnstile Token */
+            turnstile_token: string;
+            /**
+             * Website
+             * @default
+             */
+            website?: string;
         };
         /** SkippedNumber */
         SkippedNumber: {
@@ -2642,6 +3069,90 @@ export interface components {
              * @default 0
              */
             whatsapp?: number;
+        };
+        /** SubscribeIn */
+        SubscribeIn: {
+            /** Tier Id */
+            tier_id: string;
+            /**
+             * Method
+             * @default transfer
+             * @enum {string}
+             */
+            method?: "transfer" | "mercadopago";
+        };
+        /** SubscriptionOut */
+        SubscriptionOut: {
+            /** Id */
+            id: string;
+            tier: components["schemas"]["TierBrief"];
+            pending_tier: components["schemas"]["TierBrief"] | null;
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "transfer" | "mercadopago";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "active" | "past_due" | "canceled";
+            /** Current Period End */
+            current_period_end: string | null;
+            /** Grace Until */
+            grace_until: string | null;
+            /** Cancel At Period End */
+            cancel_at_period_end: boolean;
+            /**
+             * Amount Due
+             * @description Lo que se cobra en el proximo periodo, en pesos
+             */
+            amount_due: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * SubscriptionRowOut
+         * @description Una suscripcion en la vista Cobros (admin).
+         */
+        SubscriptionRowOut: {
+            /** Id */
+            id: string;
+            tier: components["schemas"]["TierBrief"];
+            pending_tier: components["schemas"]["TierBrief"] | null;
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "transfer" | "mercadopago";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "active" | "past_due" | "canceled";
+            /** Current Period End */
+            current_period_end: string | null;
+            /** Grace Until */
+            grace_until: string | null;
+            /** Cancel At Period End */
+            cancel_at_period_end: boolean;
+            /**
+             * Amount Due
+             * @description Lo que se cobra en el proximo periodo, en pesos
+             */
+            amount_due: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Client Id */
+            client_id: string;
+            /** Client Name */
+            client_name: string;
         };
         /** TemplateOut */
         TemplateOut: {
@@ -2734,6 +3245,23 @@ export interface components {
              * @default 60
              */
             api_rate_limit?: number | null;
+            /**
+             * Price Ars
+             * @description Precio mensual en pesos, lo que se cobra. null: no se vende por el dashboard; 0: gratis
+             */
+            price_ars?: number | null;
+            /**
+             * Public
+             * @description Se ofrece en el registro y en la pantalla Plan
+             * @default false
+             */
+            public?: boolean;
+            /**
+             * Sort
+             * @description Orden en la pantalla Plan (menor primero)
+             * @default 0
+             */
+            sort?: number;
         };
         /** TierOut */
         TierOut: {
@@ -2767,6 +3295,12 @@ export interface components {
             api_stt_minutes: number | null;
             /** Api Rate Limit */
             api_rate_limit: number | null;
+            /** Price Ars */
+            price_ars: number | null;
+            /** Public */
+            public: boolean;
+            /** Sort */
+            sort: number;
             /**
              * Created At
              * Format: date-time
@@ -2808,6 +3342,12 @@ export interface components {
             api_stt_minutes?: number | null;
             /** Api Rate Limit */
             api_rate_limit?: number | null;
+            /** Price Ars */
+            price_ars?: number | null;
+            /** Public */
+            public?: boolean | null;
+            /** Sort */
+            sort?: number | null;
         };
         /** TtsPreviewIn */
         TtsPreviewIn: {
@@ -3668,6 +4208,44 @@ export interface operations {
             };
             /** @description Link vencido o ya usado (code invalid_setup_token) */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    password_reset_api_v1_auth_password_reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Demasiados pedidos */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6570,6 +7148,338 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    create_account_api_v1_demo_signup_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignupIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Limite por IP */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Registro apagado */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    read_billing_api_v1_clients__client_id__billing_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    subscribe_api_v1_clients__client_id__billing_subscribe_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscribeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_api_v1_clients__client_id__billing_cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_fiscal_api_v1_clients__client_id__billing_fiscal_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FiscalIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_payment_api_v1_clients__client_id__billing_payments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    suspend_api_v1_clients__client_id__billing_suspend_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_subscriptions_api_v1_billing_subscriptions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionRowOut"][];
+                };
+            };
+        };
+    };
+    list_payments_api_v1_billing_payments_get: {
+        parameters: {
+            query?: {
+                /** @description false: los que falta facturar */
+                invoiced?: boolean | null;
+                client_id?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_payment_api_v1_billing_payments__payment_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                payment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

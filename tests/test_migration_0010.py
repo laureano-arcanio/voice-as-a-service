@@ -10,6 +10,8 @@ from app.db import Base
 from .test_migration_0005 import _columns, _run
 
 COLUMNS = {"max_calls_per_hour", "max_calls_per_day", "max_calls_per_month"}
+# Agregado despues (0012) que menciona a tiers: el modelo lo tiene y la base en 0010 no.
+LATER_TIER_COLUMNS = ("'price_ars'", "'public'", "'sort'", "ck_tiers_price", "'subscriptions'", "'billing_payments'")
 
 
 def test_0010_upgrade_downgrade_upgrade(tmp_path):
@@ -26,7 +28,7 @@ def test_0010_upgrade_downgrade_upgrade(tmp_path):
             "SELECT max_calls_per_hour, max_calls_per_day, max_calls_per_month FROM tiers")).one()
         diff = compare_metadata(MigrationContext.configure(conn, opts={"compare_type": True}), Base.metadata)
     assert tuple(row) == (None, None, None)
-    assert [d for d in diff if "tiers" in repr(d)] == []
+    assert [d for d in diff if "tiers" in repr(d) and not any(c in repr(d) for c in LATER_TIER_COLUMNS)] == []
 
     _run(engine, command.downgrade, "0009")
     assert not COLUMNS & _columns(engine, "tiers")

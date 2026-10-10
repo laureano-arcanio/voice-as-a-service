@@ -27,6 +27,7 @@ from .api.routers import (
     agents,
     api_keys,
     auth,
+    billing,
     calls,
     clients,
     conversations,
@@ -39,6 +40,7 @@ from .api.routers import (
     wa_campaigns,
     whatsapp,
 )
+from .billing.loop import billing_loop
 from .config import settings
 from .services.demo import allowed_origins
 from .whatsapp import webhook as wa_webhook
@@ -55,9 +57,12 @@ async def lifespan(app: FastAPI):
     sweep = asyncio.create_task(sweep_loop())
     # Envio de las campañas salientes de WhatsApp (app/whatsapp/sender.py).
     sending = asyncio.create_task(campaign_loop())
+    # Vencimientos de los planes pagos y registros sin activar (app/billing/loop.py).
+    billing_sweep = asyncio.create_task(billing_loop(settings.billing_tick_seconds))
     yield
     sweep.cancel()
     sending.cancel()
+    billing_sweep.cancel()
 
 
 def create_app() -> FastAPI:
@@ -80,7 +85,7 @@ def create_app() -> FastAPI:
 
     api = APIRouter(prefix=API_PREFIX)
     for module in (auth, tiers, clients, phone_numbers, agents, users, api_keys, calls, conversations, voices,
-                   whatsapp, wa_campaigns, inference, demo):
+                   whatsapp, wa_campaigns, inference, demo, billing):
         api.include_router(module.router)
     app.include_router(api)
     _mount_docs(app)

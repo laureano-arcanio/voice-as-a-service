@@ -14,6 +14,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    false,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -37,6 +38,7 @@ class Tier(IdMixin, TimestampMixin, Base):
         CheckConstraint("api_tts_minutes IS NULL OR api_tts_minutes >= 0", name="ck_tiers_api_tts"),
         CheckConstraint("api_stt_minutes IS NULL OR api_stt_minutes >= 0", name="ck_tiers_api_stt"),
         CheckConstraint("api_rate_limit IS NULL OR api_rate_limit >= 0", name="ck_tiers_api_rate"),
+        CheckConstraint("price_ars IS NULL OR price_ars >= 0", name="ck_tiers_price"),
     )
     name: Mapped[str] = mapped_column(String(64), unique=True)
     description: Mapped[str] = mapped_column(Text, default="")
@@ -60,6 +62,12 @@ class Tier(IdMixin, TimestampMixin, Base):
     api_stt_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)   # audio transcripto
     # Pedidos por minuto a la API de inferencia, sumando las tres y todas las keys del cliente.
     api_rate_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Autoservicio (docs/SUSCRIPCIONES_PLAN.md): precio mensual en pesos, lo que se cobra (NULL = no
+    # se vende por el dashboard; 0 = gratis). `public`: se ofrece en el registro y en /plan. El tier
+    # publico con precio 0 es el del registro.
+    price_ars: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    public: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    sort: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
 
 class Client(IdMixin, TimestampMixin, Base):
@@ -70,6 +78,12 @@ class Client(IdMixin, TimestampMixin, Base):
     tier_id: Mapped[str] = mapped_column(String(36), ForeignKey("tiers.id", ondelete="RESTRICT"), index=True)
     # Inactivo: no puede hacer ni recibir llamadas; sus datos quedan.
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # admin (lo creo un admin) o signup (registro desde la landing).
+    created_via: Mapped[str] = mapped_column(String(16), default="admin", server_default="admin")
+    # Datos para la factura (la emite Atentina a mano). tax_condition: ri, monotributo, exento o cf.
+    legal_name: Mapped[str] = mapped_column(String(128), default="", server_default="")
+    tax_id: Mapped[str] = mapped_column(String(13), default="", server_default="")
+    tax_condition: Mapped[str] = mapped_column(String(16), default="", server_default="")
 
     tier: Mapped[Tier] = relationship(lazy="joined", innerjoin=True)
 
@@ -117,6 +131,9 @@ class PhoneNumber(IdMixin, TimestampMixin, Base):
     assigned_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     agent_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("agents.id", ondelete="SET NULL"), nullable=True, index=True)
+    # Suspendido: el cliente bajo a un plan con menos numeros por falta de pago. Sigue asignado
+    # pero no atiende; a los BILLING_NUMBER_HOLD_DAYS vuelve al inventario (app/billing/service.py).
+    suspended_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class Role(enum.StrEnum):

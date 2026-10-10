@@ -68,7 +68,7 @@ def assign(s: Session, number: PhoneNumber, client_id: str) -> None:
 
 def release(number: PhoneNumber) -> None:
     """Vuelve al inventario: sin cliente ni agente (las entrantes dejan de atenderse)."""
-    number.client_id, number.agent_id, number.assigned_at = None, None, None
+    number.client_id, number.agent_id, number.assigned_at, number.suspended_at = None, None, None, None
 
 
 def set_agent(s: Session, number: PhoneNumber, agent_id: str | None) -> None:

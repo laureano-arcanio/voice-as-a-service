@@ -104,6 +104,20 @@ export interface ContactRequest {
   website: string;
 }
 
+export interface SignupRequest {
+  company: string;
+  name: string;
+  email: string;
+  plan: string;
+  website: string;
+}
+
+/** Registro autoservicio: crea la cuenta en el plan gratuito y manda el mail para activarla. Sin sesión de demo: lleva su propio Turnstile. */
+export async function signup(request: SignupRequest): Promise<void> {
+  const captcha = await turnstileToken();
+  await send("/signup", { method: "POST", body: JSON.stringify({ ...request, turnstile_token: captcha }) });
+}
+
 export async function sendContact(request: ContactRequest): Promise<void> {
   await withSession("/contact", { method: "POST", body: JSON.stringify(request) });
 }

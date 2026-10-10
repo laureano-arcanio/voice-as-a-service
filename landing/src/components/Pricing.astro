@@ -14,9 +14,12 @@ const { free = false, class: className } = Astro.props;
 const list = free ? [freePlan, ...plans] : plans;
 // Sin la tarjeta Free no se la nombra: los planes con telefonía no dicen "Todo lo que ofrece Free".
 const itemsOf = (items: string[]) => (free ? items : items.filter((item) => !item.startsWith("Todo lo que ofrece Free")));
-// En mobile las tarjetas van más cortas: sin lo que repite la escalera ni el minuto adicional (queda en las notas de abajo).
-const secondary = (item: string) => /^Todo lo que ofrece|^Minuto adicional/.test(item);
+// En mobile las tarjetas van más cortas: sin lo que repite la escalera.
+const secondary = (item: string) => /^Todo lo que ofrece/.test(item);
 const label = "border-b border-line pb-2 font-mono text-[.76rem] tracking-[.06em] text-muted uppercase";
+// Los planes con precio van al registro (con el plan, para abrirlo en el panel al activar la cuenta); "A medida", al contacto.
+const signupHref = (plan: (typeof list)[number]) =>
+  plan.signup === false ? "#demo" : plan.name === freePlan.name ? "/registro" : `/registro?plan=${encodeURIComponent(plan.name)}`;
 const columns = { 3: "min-[1001px]:grid-cols-3", 4: "min-[1001px]:grid-cols-4" }[list.length] ?? "min-[1001px]:grid-cols-4";
 ---
 
@@ -28,7 +31,7 @@ const columns = { 3: "min-[1001px]:grid-cols-3", 4: "min-[1001px]:grid-cols-4" }
         ? "Empezá gratis con la plataforma y la API. Cuando necesites telefonía, pasás a un plan con números, minutos y llamadas a la vez."
         : ""
     }{" "}
-    Cada plan con telefonía incluye sus números, una cantidad de minutos por mes (entre las llamadas que entran y las que hace el agente) y cuántas llamadas atiende a la vez. Si te pasás de los minutos, pagás solo los que usaste.
+    Cada plan con telefonía incluye sus números, una cantidad de minutos por mes (entre las llamadas que entran y las que hace el agente) y cuántas llamadas atiende a la vez. Si necesitás más minutos, pasás al plan siguiente.
   </p>
 
   <div class:list={["mt-9 grid gap-4 min-[561px]:grid-cols-2", columns]}>
@@ -66,7 +69,7 @@ const columns = { 3: "min-[1001px]:grid-cols-3", 4: "min-[1001px]:grid-cols-4" }
               </li>
             ))}
           </ul>
-          <Button href="#demo" variant={plan.featured ? "primary" : "ghost"} class="mt-auto self-end">
+          <Button href={signupHref(plan)} variant={plan.featured ? "primary" : "ghost"} class="mt-auto self-end">
             {plan.cta}
           </Button>
         </div>
@@ -84,7 +87,7 @@ const columns = { 3: "min-[1001px]:grid-cols-3", 4: "min-[1001px]:grid-cols-4" }
   }
 
   <div class="mt-[22px] grid max-w-[78ch] gap-1.5 text-[.9rem] text-muted">
-    <p>Precios en pesos, sin IVA. Sin permanencia: se cancela cuando quieras.</p>
+    <p>Precio final por mes, en pesos. Sin permanencia: se cancela cuando quieras.</p>
     <p class="tabular-nums">
       Los minutos del plan son por mes y no se acumulan. Si el precio cambia, avisamos con 15 días de anticipación. Cada llamada se cuenta por minuto iniciado.
     </p>

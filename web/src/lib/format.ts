@@ -48,6 +48,12 @@ export function formatNumber(x: number | null | undefined, digits = 1): string {
   return x.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: digits });
 }
 
+/** Pesos sin decimales: $ 29.000. */
+export function formatArs(x: number | null | undefined): string {
+  if (x == null || !Number.isFinite(x)) return EMPTY;
+  return `$ ${Math.round(x).toLocaleString('es-AR')}`;
+}
+
 /** Segundos con 2 decimales: 1,23 s. */
 export function formatSeconds(x: number | null | undefined): string {
   if (x == null || !Number.isFinite(x)) return EMPTY;

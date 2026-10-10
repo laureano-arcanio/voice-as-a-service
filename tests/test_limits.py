@@ -42,7 +42,7 @@ def resolve(tier_kwargs, *adjustments, day=DAY) -> limits.Limits:
 
 def test_limit_fields_are_the_numeric_limits_of_tier():
     numeric = {c.name for c in inspect(Tier).columns if c.name not in
-               {"id", "name", "description", "created_at", "updated_at"}}
+               {"id", "name", "description", "created_at", "updated_at", "price_ars", "public", "sort"}}
     assert set(limits.LIMIT_FIELDS) == numeric
     assert set(LimitField.__args__) == numeric
     assert {f for f in limits.Limits.__dataclass_fields__} - {"tier_name", "adjusted"} == numeric

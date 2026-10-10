@@ -254,6 +254,18 @@ details.llm summary {
   border-radius: var(--mantine-radius-lg);
 }
 
+/* Opcion de plan (pantalla Plan): bloque interno; el plan actual, con borde y fondo de acento suave. */
+.plan-option {
+  padding: var(--mantine-spacing-md);
+  border: 1px solid var(--app-line);
+  border-radius: var(--mantine-radius-lg);
+}
+
+.plan-option[data-current] {
+  border-color: var(--mantine-color-blue-6);
+  background: var(--mantine-color-blue-light);
+}
+
 /* Menu lateral: seleccionado en acento suave, texto azul en 600. */
 .mantine-NavLink-root {
   border-radius: var(--mantine-radius-md);

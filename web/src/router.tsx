@@ -4,6 +4,7 @@ import type { Role } from '@/api/types';
 import { AppLayout } from '@/components/AppLayout';
 import { NotFound, RouteError } from '@/components/NotFound';
 import { FullPageLoader, RequireAuth, RequireRole } from '@/features/auth/guards';
+import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { SetPasswordPage } from '@/features/auth/SetPasswordPage';
 
@@ -28,6 +29,7 @@ function page(load: () => Promise<ComponentType>, role?: Role): Pick<RouteObject
 export const routes: RouteObject[] = [
   { path: '/login', element: <LoginPage />, errorElement: <RouteError /> },
   { path: '/set-password', element: <SetPasswordPage />, errorElement: <RouteError /> },
+  { path: '/forgot-password', element: <ForgotPasswordPage />, errorElement: <RouteError /> },
   {
     path: '/',
     element: (
@@ -68,6 +70,7 @@ export const routes: RouteObject[] = [
         path: 'account',
         ...page(async () => (await import('@/features/clients/AccountPage')).AccountPage, 'client'),
       },
+      { path: 'plan', ...page(async () => (await import('@/features/billing/PlanPage')).PlanPage, 'client') },
       {
         path: 'clients',
         ...page(async () => (await import('@/features/clients/ClientsPage')).ClientsPage, 'admin'),
@@ -93,6 +96,10 @@ export const routes: RouteObject[] = [
         ...page(async () => (await import('@/features/whatsapp/WhatsAppPage')).WhatsAppPage),
       },
       { path: 'tiers', ...page(async () => (await import('@/features/tiers/TiersPage')).TiersPage, 'admin') },
+      {
+        path: 'billing',
+        ...page(async () => (await import('@/features/billing/BillingPage')).BillingPage, 'admin'),
+      },
       { path: 'users', ...page(async () => (await import('@/features/users/UsersPage')).UsersPage, 'admin') },
       { path: '*', element: <NotFound /> },
     ],

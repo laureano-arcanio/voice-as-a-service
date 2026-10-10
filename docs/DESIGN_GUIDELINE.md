@@ -1,7 +1,7 @@
 # Guía de diseño de Atentina
 
 Cómo se ve y cómo habla la marca. La base es la landing (`landing/`): plataforma `/`, `/desarrolladores`, `/casos-de-uso`, verticales
-`/casos-de-uso/turnos`, `/casos-de-uso/cobranzas`, `/casos-de-uso/municipios` y páginas legales. Leerla antes de agregar o cambiar
+`/casos-de-uso/turnos`, `/casos-de-uso/cobranzas`, `/casos-de-uso/municipios`, el registro (`/registro`) y páginas legales. Leerla antes de agregar o cambiar
 cualquier pantalla de la landing. El dashboard (`web/`) sigue
 [`DESIGN_GUIDELINE_APP.md`](DESIGN_GUIDELINE_APP.md), que adapta esta guía a la app.
 

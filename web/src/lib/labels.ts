@@ -46,4 +46,25 @@ export const QUOTA_TITLES: Record<string, string> = {
   inbound_minutes: 'Sin minutos entrantes este mes',
   outbound_minutes: 'Sin minutos salientes este mes',
   client_inactive: 'Cliente inactivo',
+  number_suspended: 'Número suspendido',
+};
+
+/** Estado del plan pago (suscripcion). */
+export const SUBSCRIPTION_STATUS: Record<string, Label> = {
+  pending: { label: 'Esperando el pago', color: 'yellow' },
+  active: { label: 'Activo', color: 'green' },
+  past_due: { label: 'Vencido', color: 'red' },
+  canceled: { label: 'Terminado', color: 'gray' },
+};
+
+export const PAYMENT_METHOD: Record<string, string> = {
+  transfer: 'Transferencia',
+  mercadopago: 'Mercado Pago',
+};
+
+export const TAX_CONDITION: Record<string, string> = {
+  ri: 'Responsable inscripto',
+  monotributo: 'Monotributo',
+  exento: 'Exento',
+  cf: 'Consumidor final',
 };

@@ -54,6 +54,10 @@ class PasswordSetupInfo(BaseModel):
     client_name: str | None
 
 
+class PasswordResetIn(BaseModel):
+    email: str = Field(min_length=3, max_length=254)
+
+
 class MeOut(BaseModel):
     id: str
     email: str
@@ -82,6 +86,11 @@ class TierIn(BaseModel):
     api_tts_minutes: int | None = Field(default=0, ge=0, description="Minutos de audio sintetizado por mes")
     api_stt_minutes: int | None = Field(default=0, ge=0, description="Minutos de audio transcripto por mes")
     api_rate_limit: int | None = Field(default=60, ge=0, description="Pedidos por minuto a la API de inferencia")
+    # Autoservicio (docs/SUSCRIPCIONES_PLAN.md).
+    price_ars: int | None = Field(default=None, ge=0,
+                                  description="Precio mensual en pesos, lo que se cobra. null: no se vende por el dashboard; 0: gratis")
+    public: bool = Field(default=False, description="Se ofrece en el registro y en la pantalla Plan")
+    sort: int = Field(default=0, description="Orden en la pantalla Plan (menor primero)")
 
 
 class TierUpdate(BaseModel):
@@ -99,6 +108,9 @@ class TierUpdate(BaseModel):
     api_tts_minutes: int | None = Field(default=None, ge=0)
     api_stt_minutes: int | None = Field(default=None, ge=0)
     api_rate_limit: int | None = Field(default=None, ge=0)
+    price_ars: int | None = Field(default=None, ge=0)
+    public: bool | None = None
+    sort: int | None = None
 
 
 class TierOut(ORM):
@@ -117,6 +129,9 @@ class TierOut(ORM):
     api_tts_minutes: int | None
     api_stt_minutes: int | None
     api_rate_limit: int | None
+    price_ars: int | None
+    public: bool
+    sort: int
     created_at: UTCDateTime
     clients_count: int = 0
 
@@ -150,6 +165,7 @@ class ClientOut(ORM):
     name: str
     slug: str
     active: bool
+    created_via: Literal["admin", "signup"] = "admin"
     tier: TierBrief
     created_at: UTCDateTime
     agents_count: int = 0
@@ -937,6 +953,132 @@ class DemoContactIn(BaseModel):
         if not self.email and not self.phone:
             raise ValueError("Dejanos un email o un teléfono para contactarte")
         return self
+
+
+class SignupIn(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    company: str = Field(min_length=1, max_length=120, description="Nombre de la empresa (el del cliente)")
+    name: str = Field(min_length=1, max_length=120)
+    email: EmailStr
+    turnstile_token: str = Field(min_length=1, max_length=2048)
+    # Plan elegido en la landing (nombre del tier): despues de crear la clave abre /plan con ese plan.
+    plan: str = Field(default="", max_length=64, pattern=r"^[\w .-]*$")
+    # Trampa para bots, como en /contact.
+    website: str = Field(default="", max_length=200)
+
+
+# ---------- cobro de los planes (docs/SUSCRIPCIONES_PLAN.md) ----------
+
+TaxCondition = Literal["ri", "monotributo", "exento", "cf"]
+SubscriptionStatus = Literal["pending", "active", "past_due", "canceled"]
+PaymentMethod = Literal["transfer", "mercadopago"]
+
+
+class PlanOut(ORM):
+    """Un tier publico, como se ofrece en la pantalla Plan."""
+    id: str
+    name: str
+    description: str
+    price_ars: int
+    max_concurrent_calls: int | None
+    inbound_minutes: int | None
+    outbound_minutes: int | None
+    max_phone_numbers: int | None
+    api_rate_limit: int | None
+
+
+class SubscriptionOut(BaseModel):
+    id: str
+    tier: TierBrief
+    pending_tier: TierBrief | None
+    method: PaymentMethod
+    status: SubscriptionStatus
+    current_period_end: datetime.date | None
+    grace_until: datetime.date | None
+    cancel_at_period_end: bool
+    amount_due: int = Field(description="Lo que se cobra en el proximo periodo, en pesos")
+    created_at: UTCDateTime
+
+
+class FiscalIn(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    legal_name: str = Field(min_length=1, max_length=128, description="Razon social o nombre y apellido")
+    tax_id: str = Field(pattern=r"^\d{11}$", description="CUIT o CUIL, 11 digitos sin guiones")
+    tax_condition: TaxCondition
+
+    @field_validator("tax_id", mode="before")
+    @classmethod
+    def _digits(cls, v):
+        return "".join(ch for ch in v if ch.isdigit()) if isinstance(v, str) else v
+
+
+class FiscalOut(BaseModel):
+    legal_name: str
+    tax_id: str
+    tax_condition: TaxCondition | Literal[""]
+
+
+class BankRow(BaseModel):
+    label: str
+    value: str
+
+
+class PaymentOut(BaseModel):
+    id: str
+    client_id: str
+    client_name: str = ""
+    tier_name: str | None
+    method: PaymentMethod
+    status: Literal["approved", "rejected", "refunded"]
+    amount_ars: int
+    paid_on: datetime.date
+    period_end: datetime.date | None
+    note: str
+    invoiced_at: UTCDateTime | None
+    recorded_by_email: str | None = None
+    # Para facturar (vista de admin).
+    legal_name: str = ""
+    tax_id: str = ""
+    tax_condition: str = ""
+
+
+class BillingOut(BaseModel):
+    """Plan y cobro de un cliente: lo que muestra la pantalla Plan."""
+    tier: TierBrief
+    tier_price_ars: int | None
+    subscription: SubscriptionOut | None
+    plans: list[PlanOut]
+    methods: list[PaymentMethod] = Field(description="Medios de pago disponibles")
+    fiscal: FiscalOut
+    bank: list[BankRow] = Field(description="Datos para la transferencia")
+    support_email: str
+    payments: list[PaymentOut]
+    suspended_numbers: list[str]
+
+
+class SubscribeIn(BaseModel):
+    tier_id: str
+    method: PaymentMethod = "transfer"
+
+
+class PaymentIn(BaseModel):
+    """Pago por transferencia confirmado por un admin."""
+    tier_id: str
+    amount_ars: int = Field(ge=0)
+    paid_on: datetime.date
+    note: str = Field(default="", max_length=255)
+
+
+class PaymentPatch(BaseModel):
+    invoiced: bool
+
+
+class SubscriptionRowOut(SubscriptionOut):
+    """Una suscripcion en la vista Cobros (admin)."""
+    client_id: str
+    client_name: str
 
 
 # ---------- API de inferencia (LLM, STT, TTS) ----------

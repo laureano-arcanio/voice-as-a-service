@@ -14,11 +14,12 @@ from .sender import Mail, SendResult, send
 logger = logging.getLogger(__name__)
 
 
-def invite(user: User, client: Client) -> SendResult:
-    """Mail con el link para crear la clave (de un solo uso, ver security.create_password_setup_token)."""
+def invite(user: User, client: Client, next_path: str | None = None) -> SendResult:
+    """Mail con el link para crear la clave (de un solo uso, ver security.create_password_setup_token).
+    next_path: a donde va el dashboard despues de crearla (el registro con un plan elegido: /plan)."""
     token, expires = create_password_setup_token(user.id, user.password_hash)
     mail = messages.welcome(email=user.email, name=user.name, client_name=client.name, tier=client.tier,
-                            setup_url=messages.password_setup_url(token), expires_at=expires)
+                            setup_url=messages.password_setup_url(token, next_path), expires_at=expires)
     result = send(mail)
     if result.status == "sent":
         logger.info("alta de %s (%s): mail enviado, id %s", user.email, client.slug, result.id)

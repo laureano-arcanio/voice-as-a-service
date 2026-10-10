@@ -34,6 +34,7 @@ import { ENGINE } from '@/lib/labels';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useClient, useDeleteClient, useUpdateClient } from './api';
 import { ApiAccess } from '@/features/developers/ApiAccess';
+import { SubscriptionCard } from '@/features/billing/SubscriptionCard';
 import { ClientUsage } from './ClientUsage';
 import { LimitAdjustmentsCard } from './LimitAdjustmentsCard';
 import { NumbersSection } from './NumbersSection';
@@ -137,6 +138,7 @@ function ClientDataCard({ client }: { client: Client }) {
         />
         <Text size="xs" c="dimmed">
           Alta: {formatDate(client.created_at)}
+          {client.created_via === 'signup' ? ' · registro desde la landing' : ''}
         </Text>
         <Group justify="flex-end">
           <Button
@@ -282,6 +284,7 @@ function ClientView({ client }: { client: Client }) {
             <Grid.Col span={{ base: 12, lg: 5 }}>
               <Stack gap="md">
                 <ClientDataCard key={client.id} client={client} />
+                <SubscriptionCard clientId={client.id} />
                 <LimitAdjustmentsCard clientId={client.id} />
               </Stack>
             </Grid.Col>

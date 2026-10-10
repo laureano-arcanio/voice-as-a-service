@@ -341,6 +341,21 @@ en la ficha del cliente. La API no cuenta lo que consumen los agentes integrados
   números lo hace el admin.
 - **API keys:** crear y revocar.
 
+### Plan (cliente) y Cobros (admin)
+
+Registro y cobro por transferencia ([`SUSCRIPCIONES_PLAN.md`](SUSCRIPCIONES_PLAN.md)):
+
+- **Registro:** el cliente se da de alta en `atentina.com.ar/registro` y entra en el tier Free (el
+  público con precio 0). Para que haya registro, ese tier tiene que existir en Tiers.
+- **Tiers que se venden:** en el formulario del tier, "Precio por mes" y "Público". Vacío = no se vende
+  por el dashboard; 0 = gratis.
+- **Plan (`/plan`, cliente):** datos para la factura, planes con precio y el pedido por transferencia.
+  Ve los datos bancarios (`BANK_TRANSFER_INFO`) y manda el comprobante por email.
+- **Ficha del cliente, tarjeta "Plan pago" (admin):** "Registrar pago" activa o renueva el plan por un
+  mes; "Rechazar pedido" o "Pasar al gratuito" lo corta.
+- **Cobros (`/billing`, admin):** planes pagos y pedidos abiertos, y pagos para facturar ("Marcar facturado").
+- **Olvidé mi clave:** link en el ingreso (`/forgot-password`); manda un link nuevo por mail.
+
 ## Problemas frecuentes
 
 | Síntoma | Causa y solución |

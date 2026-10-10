@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from ...services import contact
+from ...services import contact, signup
 from ...services import demo as service
 from ..deps import DB, Definitions, Engine, client_ip
 from ..schemas import (
@@ -15,6 +15,7 @@ from ..schemas import (
     DemoSessionIn,
     DemoSessionOut,
     DemoTtsIn,
+    SignupIn,
 )
 
 router = APIRouter(prefix="/demo", tags=["demo"])
@@ -69,3 +70,15 @@ async def send_contact(body: DemoContactIn, request: Request, _: DemoSession, db
             name=body.name, company=body.company, email=body.email or "", phone=body.phone,
             message=body.message, page=body.page), client_ip(request))
     return Response(status_code=204)
+
+
+@router.post("/signup", status_code=202, response_class=Response,
+             responses={429: {"description": "Limite por IP"}, 503: {"description": "Registro apagado"}})
+async def create_account(body: SignupIn, request: Request, db: DB):
+    """Registro desde la landing: crea el cliente en el plan gratuito y manda el link para crear la
+    clave. Responde 202 aunque el email ya tenga cuenta (a ese le llega un link para una clave nueva)."""
+    if not body.website:
+        await signup.signup(db, signup.SignupData(company=body.company, name=body.name, email=str(body.email),
+                                                plan=body.plan),
+                            body.turnstile_token, client_ip(request))
+    return Response(status_code=202)

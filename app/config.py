@@ -142,6 +142,27 @@ class Settings(BaseSettings):
     # Vigencia del link para crear la clave (de un solo uso).
     password_setup_hours: int = 72
 
+    # --- Registro autoservicio y cobro de planes (docs/SUSCRIPCIONES_PLAN.md) ---
+    # Registro desde la landing (POST /api/v1/demo/signup, con Turnstile). Va al tier publico con precio 0.
+    signup_enabled: bool = True
+    signup_ip_per_hour: int = 3
+    signup_ip_per_day: int = 10
+    # "Olvidé mi clave" (POST /api/v1/auth/password-reset): por IP y por email.
+    password_reset_ip_per_hour: int = 5
+    password_reset_email_per_hour: int = 3
+    # Datos para la transferencia, como se muestran al cliente (una linea por dato: titular, CUIT, CBU, alias).
+    bank_transfer_info: str = ""
+    # A quien avisar de un pedido de plan por transferencia (vacio: SUPPORT_EMAIL).
+    billing_notify_to: str = ""
+    # Dias con el plan pago despues del vencimiento sin pago, y dias que un numero queda suspendido
+    # (asignado, sin atender) despues de bajar a un plan con menos numeros, antes de volver al inventario.
+    billing_grace_days: int = 7
+    billing_number_hold_days: int = 30
+    # Aviso de renovacion de las transferencias, estos dias antes del vencimiento.
+    billing_reminder_days: int = 5
+    # Cada cuanto corre el barrido de vencimientos (app/billing/loop.py).
+    billing_tick_seconds: float = 900
+
     # --- WhatsApp (Cloud API de Meta, docs/WHATSAPP_PLAN.md) ---
     wa_app_id: str = ""
     wa_app_secret: str = ""  # firma X-Hub-Signature-256; vacio = el webhook rechaza todo
