@@ -12,7 +12,7 @@ reciben nuestros clientes: es otra cuenta y otra app de MP.
 | 1. Registro y "olvidé mi clave" | **Desplegado el 10-oct-2026** (migración 0012, `app` y `agent` recreados) |
 | 2. Cobro por transferencia | **Desplegado el 10-oct-2026** |
 | 0. Spike de MP en sandbox | Hecho el 10-oct-2026 (sección 6.2), salvo el `init_point` con otro email y las notificaciones |
-| 3. Mercado Pago y registro con clave | Código y tests listos (10-oct-2026); probado de punta a punta en local contra el sandbox; **sin desplegar** (sección 7) |
+| 3. Mercado Pago y registro con clave | **Desplegado el 10-oct-2026** con las credenciales de producción (sección 7); falta la primera compra real |
 | 4. Puesta en marcha | Sin empezar (sección 5) |
 
 ## 0. Qué se reusa
@@ -325,6 +325,11 @@ pasar por la cuenta de MP del comprador, y una tarjeta mala falla en el acto. Si
 emails distintos, el camino es el **Card Payment Brick** en una página propia (relajar la CSP solo ahí).
 
 ## 7. Puesta en marcha de la fase 3
+
+Hecha el 10-oct-2026: credenciales de producción y webhook (`callback` y `callback_sandbox` a
+`/mp/billing/webhook`) con el MCP; la clave secreta del webhook es la misma de la app. `app` y `agent`
+recreados y landing publicada (commit `f6924d8`). Pendiente: la primera compra real y ver llegar el webhook.
+
 
 1. **El usuario** activa las credenciales de producción de la app "atentina suscripciones" (6.3, paso 1)
    y elige el plazo de acreditación (6.3, paso 3).
