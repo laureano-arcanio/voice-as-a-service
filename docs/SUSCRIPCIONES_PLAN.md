@@ -42,7 +42,7 @@ Confirmadas con el usuario el 9-oct-2026, salvo las marcadas como propuestas.
 | Cambio de plan con uno activo | Propuesta: se aplica **con el próximo pago** (`pending_tier_id`), tanto subida como bajada. En transferencia, el admin puede registrar una subida antes |
 | Flujo del registro (10-oct-2026) | **Registrarse → si el plan es pago, pagarlo en el momento.** La clave se elige en el formulario y la sesión se abre sin esperar un mail |
 | Pago obligatorio en el registro (10-oct-2026) | Con un plan pago y MP, el pago es el **paso 2 del formulario de la landing**, con su diseño y sin otras opciones (ni transferencia ni seguir gratis). **La cuenta se crea solo si MP aprueba la tarjeta.** Después, al inicio del panel. Los datos de factura se piden después, en Plan |
-| Checkout de MP (fase 3) | **Card Payment Brick** en `/plan/pagar` (tarjeta tokenizada por MP, `card_token_id`, suscripción `authorized`): no hace falta cuenta de MP y una tarjeta rechazada avisa en el acto. Antes se había elegido el `init_point`; se cambió después del spike. La CSP se relaja solo en esa ruta |
+| Checkout de MP (fase 3) | **Formulario propio con los campos seguros de MP** ("Core Methods": número, vencimiento y código son iframes de MP; tarjeta tokenizada, `card_token_id`, suscripción `authorized`). No hace falta cuenta de MP y una tarjeta rechazada avisa en el acto. Primero fue el Card Payment Brick, pero no pide el código de seguridad cuando MP lo marca opcional y la suscripción lo exige (ver 6.2). Antes se había elegido el `init_point`; se cambió después del spike. En el panel, la CSP se relaja solo en `/plan/pagar` |
 | Transferencia | Sigue como alternativa en Plan, aprobada a mano |
 | Subida de plan en MP (fase 3) | **Cambio inmediato**; el monto nuevo rige desde el próximo débito (`PUT /preapproval`). Sin prorrateo. La bajada, con el próximo débito |
 | Minuto extra | **No se vende** (10-oct-2026): la cuota corta al llegar al tope. Se sacó de la landing; más minutos para un mes se dan con un ajuste de límites del cliente |
@@ -59,8 +59,9 @@ Confirmadas con el usuario el 9-oct-2026, salvo las marcadas como propuestas.
    - **Free, o plan pago sin MP:** un paso. `POST /api/v1/demo/signup` (con Turnstile) crea el `Client`
      (tier Free) y el usuario; sin MP, `next` es `/plan?tier=<nombre>` para pagarlo por transferencia.
    - **Plan pago con MP:** "Continuar al pago" verifica el email (`POST /demo/signup/check`: 409
-     `email_taken`, 422 descartable, 30 por hora por IP) y muestra el **paso 2**: plan, precio y el Card
-     Payment Brick (`landing/src/scripts/mercadopago.ts`, con los tokens de color de la landing). "Pagar y
+     `email_taken`, 422 descartable, 30 por hora por IP) y muestra el **paso 2**: plan, precio y el formulario de
+     tarjeta con los campos seguros de MP (`landing/src/scripts/mercadopago.ts`; número, vencimiento y código
+     en iframes de MP con el estilo de los campos de la landing; titular y documento son campos nuestros). "Pagar y
      crear mi cuenta" manda todo junto con `card_token_id`: el backend crea cliente y usuario, la suscripción
      en MP (`subscribe_card`) y recién ahí hace commit. Tarjeta rechazada: 422 `card_rejected` en el paso 2,
      sin crear nada (MP deja una suscripción `pending` que cancela sola a los segundos). Si el commit falla
@@ -112,8 +113,8 @@ Solo con `MP_BILLING_ACCESS_TOKEN` y `MP_BILLING_PUBLIC_KEY` (si faltan, Plan of
 1. En el registro, es el paso 2 de la landing (2.1). Con la cuenta creada, desde Plan → "Elegir este
    plan" → "Pagar con tarjeta", el cliente llega a `/plan/pagar?tier=<id>` (`CheckoutPage`, en el panel). Si
    faltan los datos de factura, los pide primero.
-2. El **Card Payment Brick** (SDK `sdk.mercadopago.com/js/v2`, `web/src/features/billing/mercadopago.ts`)
-   tokeniza la tarjeta y la página hace `POST /clients/{id}/billing/subscribe {tier_id, method:
+2. Los **campos seguros de MP** (SDK `sdk.mercadopago.com/js/v2`, `web/src/features/billing/mercadopago.ts`;
+   el código de seguridad siempre obligatorio) tokenizan la tarjeta y la página hace `POST /clients/{id}/billing/subscribe {tier_id, method:
    "mercadopago", card_token_id}` → `service.subscribe_card`:
    - `POST /preapproval` con `status: authorized`, `external_reference` = id de nuestra suscripción,
      `payer_email` (en sandbox, `MP_BILLING_TEST_PAYER_EMAIL`) y el monto del tier;
@@ -294,6 +295,7 @@ la public key de prueba) y `POST /preapproval` con `card_token_id` y `status: au
 | Qué | Resultado |
 |---|---|
 | Suscripción autorizada con tarjeta (`APRO`) | `authorized` al instante; **cobra el primer mes en el momento** (pago `approved`, `accredited`) y fija `next_payment_date` un mes después. Es lo que ve el usuario como "pago hasta" |
+| **Token sin código de seguridad (10-oct-2026, primera compra real)** | `POST /preapproval` da 400 `Card token was generated without cvv validation`. MP marca el código como **opcional** en Mastercard, Mastercard Prepaid (la tarjeta de Mercado Pago) y Naranja (`GET /v1/payment_methods`, `settings.security_code.mode`), y para esas el Card Payment Brick no lo pide. Reproducido en sandbox: sin código, ese error; con código, `authorized`. Se reemplazó el Brick por los campos seguros (`mercadopago.ts` en la landing y en el panel), con el código **siempre obligatorio**; el error se traduce a `card_cvv_required`. El email de la cuenta de MP no influye en este flujo |
 | Tarjeta de débito (Visa débito de prueba, 10-oct-2026) | Igual que la de crédito: `authorized`, cobro aprobado, pago `debit_card` / `debvisa`. El Brick acepta crédito y débito (solo se limitaron las cuotas a 1); el saldo de la cuenta de MP no se ofrece en este flujo |
 | Tarjeta rechazada (`OTHE`) | **Falla al crear la suscripción**: 400 `CC_VAL_433 Credit card validation has failed`. No queda una suscripción a medias |
 | Pagos de la suscripción | `GET /authorized_payments/search?preapproval_id=…`: `status: processed`, `payment.status: approved`, `retry_attempt`, `debit_date` |

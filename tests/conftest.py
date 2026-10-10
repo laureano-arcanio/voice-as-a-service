@@ -9,6 +9,10 @@ os.environ["TURNSTILE_SECRET_KEY"] = ""
 # Ni mails reales: sin clave de Resend el formulario de contacto solo guarda (la prende el fixture).
 os.environ["RESEND_API_KEY"] = ""
 os.environ["CONTACT_TO"] = ""
+# Ni Mercado Pago (los tests de cobro con tarjeta lo prenden con un MP falso).
+for _name in ("MP_BILLING_ACCESS_TOKEN", "MP_BILLING_PUBLIC_KEY", "MP_BILLING_WEBHOOK_SECRET",
+              "MP_BILLING_TEST_PAYER_EMAIL"):
+    os.environ[_name] = ""
 # El default `gateway` depende de donde corren (contenedor o host): fijo el de compose.
 os.environ["TRUSTED_PROXY_CIDRS"] = "127.0.0.1/32,::1/128,172.24.0.1/32"
 # La CSP del .env local puede estar en Report-Only (primer deploy): los tests prueban la que bloquea.

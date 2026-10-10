@@ -137,8 +137,9 @@ def inline_script_hashes(index: Path) -> list[str]:
 # con navegacion completa (la CSP es la del documento). Los campos de la tarjeta son iframes de MP.
 MP_PAGES = ("/plan/pagar",)
 MP_SCRIPTS = "https://sdk.mercadopago.com https://http2.mlstatic.com"
+# mercadolivre.com: la huella del dispositivo (antifraude) que carga el SDK de MP.
 MP_HOSTS = ("https://*.mercadopago.com https://*.mercadopago.com.ar https://*.mercadolibre.com "
-            "https://*.mercadolibre.com.ar https://*.mlstatic.com")
+            "https://*.mercadolibre.com.ar https://*.mercadolivre.com https://*.mlstatic.com")
 
 
 def content_security_policy(mercadopago: bool = False) -> str:

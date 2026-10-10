@@ -371,3 +371,9 @@ def test_signup_cancels_mp_subscription_if_account_is_not_saved(landing, fake_mp
     with pytest.raises(RuntimeError):
         register(landing, plan="Sucursal", card_token_id="tok_APRO")
     assert ("cancel", "pre1") in fake_mp.calls
+
+
+def test_card_token_without_cvv_is_explained():
+    e = mp._rejection({"message": "Card token was generated without cvv validation", "status": 400})
+    assert isinstance(e, mp.CardRejected) and e.code == "card_cvv_required"
+    assert mp._rejection({"message": "CC_VAL_433 Credit card validation has failed"}).code == "card_rejected"

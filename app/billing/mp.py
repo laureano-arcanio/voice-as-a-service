@@ -97,6 +97,11 @@ class Client:
 
 def _rejection(data: dict) -> Invalid:
     message = str(data.get("message") or "")
+    if "cvv" in message.lower():
+        # El token se genero sin el codigo de seguridad (MP lo marca opcional en Mastercard, Mastercard
+        # Prepaid y Naranja) y la suscripcion lo exige: el formulario siempre lo pide (landing y panel).
+        return CardRejected("Falta el código de seguridad de la tarjeta. Ingresalo y probá de nuevo.",
+                            "card_cvv_required")
     if message.startswith("CC_VAL") or "card" in message.lower():
         return CardRejected("La tarjeta fue rechazada. Probá con otra o revisá los datos.")
     return Invalid("Mercado Pago rechazó la operación. Probá de nuevo o escribinos.", "mp_rejected")

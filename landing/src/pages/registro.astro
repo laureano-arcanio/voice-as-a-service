@@ -14,6 +14,10 @@ import Base from "../layouts/Base.astro";
 const label = "grid gap-1.5 text-[.85rem] font-medium text-ink-2";
 const field =
   "w-full rounded-xl border border-line bg-bg-2 px-3 py-2.5 font-body text-base text-ink hover:border-line-2 focus:border-accent focus:bg-surface focus:outline-none";
+// Contenedor de un campo seguro de MP: el mismo aspecto que `field`, con el iframe adentro; data-focused lo
+// pone el script cuando el iframe tiene el foco.
+const secure =
+  "h-[46px] w-full rounded-xl border border-line bg-bg-2 px-3 font-normal hover:border-line-2 data-focused:border-accent data-focused:bg-surface [&>iframe]:h-full [&>iframe]:w-full";
 const eyebrow = "font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase";
 const step = "font-mono text-[.78rem] tracking-[.04em] text-muted uppercase";
 const included = [
@@ -130,7 +134,39 @@ const onPay = "hidden group-data-[state=pay]/signup:grid group-data-[state=payin
             <span class="size-6 animate-spin rounded-full border-3 border-line border-t-accent motion-reduce:animate-none" aria-hidden="true"></span>
             <span class="sr-only">Cargando el formulario de pago</span>
           </div>
-          <div id="signup-card-brick"></div>
+          <!-- Numero, vencimiento y codigo: campos seguros de Mercado Pago (iframes) dentro de contenedores con el
+          estilo de los campos de la landing. El codigo de seguridad siempre se pide (scripts/mercadopago.ts). -->
+          <form class="grid gap-3" data-pay-form hidden novalidate>
+            <div class={label}>
+              Número de tarjeta
+              <div id="mp-card-number" class={secure} data-secure></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class={label}>
+                Vencimiento
+                <div id="mp-card-expiry" class={secure} data-secure></div>
+              </div>
+              <div class={label}>
+                Código de seguridad
+                <div id="mp-card-cvv" class={secure} data-secure></div>
+              </div>
+            </div>
+            <label class={label}>
+              Nombre del titular, como figura en la tarjeta
+              <input class={field} name="holder" autocomplete="cc-name" required maxlength="120" placeholder="María López" />
+            </label>
+            <div class={label}>
+              Documento del titular
+              <div class="grid grid-cols-[minmax(0,7rem)_1fr] gap-2">
+                <select class={field} name="docType" aria-label="Tipo de documento"><option value="DNI">DNI</option></select>
+                <input class={field} name="docNumber" inputmode="numeric" required maxlength="20" placeholder="30123456" aria-label="Número de documento" />
+              </div>
+            </div>
+            <Button type="submit" class="mt-1" data-pay-submit>
+              <span class="group-data-[state=paying]/signup:hidden">Pagar y crear mi cuenta</span>
+              <span class="hidden group-data-[state=paying]/signup:inline">Procesando el pago…</span>
+            </Button>
+          </form>
           <p class="min-h-[1.3em] text-[.82rem] font-medium text-warn" data-pay-error aria-live="polite"></p>
           <button type="button" class="cursor-pointer justify-self-start text-[.85rem] text-muted underline hover:text-ink-2" data-pay-back>
             ← Corregir mis datos

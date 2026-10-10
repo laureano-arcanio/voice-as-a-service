@@ -179,7 +179,7 @@ Patrones que se repiten; copiar estas clases al armar algo nuevo:
 | Burbuja de conversación | `max-w-[85%] rounded-xl px-3 py-1.5`: agente `bg-surface`, persona `justify-self-end bg-accent text-accent-ink` |
 | Mensaje de error | `text-[.82rem] font-medium text-warn`, con `min-h-[1.3em]` para que no salte el layout |
 | Formulario en pasos (`/registro`) | Un solo panel; cada paso con su rótulo secundario ("Paso 1 de 2 · Tus datos") y el estado en `data-state` del panel (`group-data-[state=…]/signup:`) |
-| Formulario de tarjeta (Mercado Pago) | Card Payment Brick sin título propio y con los colores de los tokens leídos de `global.css` (`landing/src/scripts/mercadopago.ts`): campos con borde `line-2` y foco en el acento, radios de 12 px y botón de 10 px |
+| Formulario de tarjeta (Mercado Pago) | Campos seguros de MP (iframes) dentro de contenedores con la clase de un campo de texto (`secure` en `registro.astro`; `data-focused` marca el foco), texto con `--color-ink` y `--color-muted` (`landing/src/scripts/mercadopago.ts`); titular y documento, campos comunes. El contenedor tiene que estar visible antes de montar los iframes |
 
 ## 8. Estados y movimiento
 

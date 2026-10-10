@@ -1,10 +1,9 @@
 import { ApiError, checkSignupEmail, publicPlans, signup, type PublicPlans } from "./api";
 import { track } from "./analytics";
 import { UserFacingError } from "./errors";
-import { type BrickController, mountCardBrick } from "./mercadopago";
+import { type CardForm, mountCardForm } from "./mercadopago";
 
 const TAKEN = "Ya hay una cuenta con ese email. Ingresá en app.atentina.com.ar o recuperá tu clave.";
-const CONTAINER = "signup-card-brick";
 
 const money = (n: number) => `$ ${n.toLocaleString("es-AR")}`;
 const REDIRECT_SECONDS = 5;
@@ -27,7 +26,9 @@ export function initSignupForm(root: HTMLElement) {
 
   const plan = new URLSearchParams(location.search).get("plan")?.replace(/[^\w .-]/g, "").slice(0, 64) ?? "";
   let catalog: PublicPlans | null = null;
-  let brick: BrickController | null = null;
+  let card: CardForm | null = null;
+  const payForm = root.querySelector<HTMLFormElement>("[data-pay-form]")!;
+  const payButton = root.querySelector<HTMLButtonElement>("[data-pay-submit]")!;
   const setState = (state: string) => (root.dataset.state = state);
 
   /** El plan elegido, si es pago y se contrata en el registro. */
@@ -88,45 +89,60 @@ export function initSignupForm(root: HTMLElement) {
         ? e.message
         : "No pudimos crear la cuenta. Probá de nuevo o escribinos por WhatsApp.";
 
-  // Paso 2: el brick se monta una vez (con el email del paso 1) y se reusa si vuelve a corregir datos.
+  // Paso 2: los campos de la tarjeta se montan una vez y se reusan si vuelve a corregir datos.
   const showPayment = async () => {
     const chosen = paidPlan()!;
     root.querySelector("[data-pay-plan]")!.textContent = chosen.name;
     root.querySelector("[data-pay-price]")!.textContent = money(chosen.price_ars);
     setState("pay");
     payError.textContent = "";
-    if (brick) return;
+    if (card) return;
     payLoading.hidden = false;
+    // Visible antes de montar: los iframes de MP necesitan su contenedor en pantalla.
+    payForm.hidden = false;
     try {
-      brick = await mountCardBrick({
+      card = await mountCardForm({
         publicKey: catalog!.mp_public_key!,
-        containerId: CONTAINER,
-        amount: chosen.price_ars,
-        email: values().email,
-        onReady: () => (payLoading.hidden = true),
-        onError: (message) => (payError.textContent = message),
-        onSubmit: async (card) => {
-          setState("paying");
-          payError.textContent = "";
-          try {
-            finish(await signup({ ...values(), card_token_id: card.token }), paidPlan()!.name);
-          } catch (e) {
-            if (e instanceof ApiError && e.code === "email_taken") {
-              setState("idle");
-              error.textContent = TAKEN;
-            } else {
-              setState("pay");
-              payError.textContent = failMessage(e);
-            }
-            throw e; // el brick vuelve a habilitar el botón
-          }
+        containers: { cardNumber: "mp-card-number", expirationDate: "mp-card-expiry", securityCode: "mp-card-cvv" },
+        onFocus: (field, focused) => {
+          const id = { cardNumber: "mp-card-number", expirationDate: "mp-card-expiry", securityCode: "mp-card-cvv" }[field];
+          document.getElementById(id)?.toggleAttribute("data-focused", focused);
         },
       });
+      const select = payForm.elements.namedItem("docType") as HTMLSelectElement;
+      select.replaceChildren(...card.identificationTypes.map((t) => new Option(t.name, t.id, false, t.id === "DNI")));
     } catch (e) {
-      payLoading.hidden = true;
+      payForm.hidden = true;
       payError.textContent = failMessage(e);
+    } finally {
+      payLoading.hidden = true;
     }
   };
+
+  payForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!card || root.dataset.state === "paying") return;
+    if (!payForm.reportValidity()) return;
+    const data = new FormData(payForm);
+    const value = (name: string) => String(data.get(name) ?? "").trim();
+    setState("paying");
+    payButton.disabled = true;
+    payError.textContent = "";
+    try {
+      const token = await card.createToken(value("holder"), value("docType"), value("docNumber").replace(/\D/g, ""));
+      finish(await signup({ ...values(), card_token_id: token }), paidPlan()!.name);
+    } catch (e) {
+      if (e instanceof ApiError && e.code === "email_taken") {
+        setState("idle");
+        error.textContent = TAKEN;
+      } else {
+        setState("pay");
+        payError.textContent = failMessage(e);
+      }
+    } finally {
+      payButton.disabled = false;
+    }
+  });
 
   root.querySelector("[data-pay-back]")!.addEventListener("click", () => {
     setState("idle");
