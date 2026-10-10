@@ -147,6 +147,8 @@ class Settings(BaseSettings):
     signup_enabled: bool = True
     signup_ip_per_hour: int = 3
     signup_ip_per_day: int = 10
+    # Verificacion del email antes del paso del pago (POST /api/v1/demo/signup/check), por IP.
+    signup_check_ip_per_hour: int = 30
     # "Olvidé mi clave" (POST /api/v1/auth/password-reset): por IP y por email.
     password_reset_ip_per_hour: int = 5
     password_reset_email_per_hour: int = 3
@@ -162,6 +164,14 @@ class Settings(BaseSettings):
     billing_reminder_days: int = 5
     # Cada cuanto corre el barrido de vencimientos (app/billing/loop.py).
     billing_tick_seconds: float = 900
+    # Mercado Pago (suscripciones con debito automatico, fase 3). Sin access token no se ofrece.
+    # En sandbox: las credenciales de prueba de la app y, como pagador, el email del comprador de prueba
+    # (MP rechaza un pagador real con credenciales de prueba).
+    mp_billing_access_token: str = ""
+    mp_billing_public_key: str = ""
+    mp_billing_webhook_secret: str = ""   # firma x-signature; vacio = el webhook rechaza todo
+    mp_billing_test_payer_email: str = ""
+    mp_api_url: str = "https://api.mercadopago.com"
 
     # --- WhatsApp (Cloud API de Meta, docs/WHATSAPP_PLAN.md) ---
     wa_app_id: str = ""

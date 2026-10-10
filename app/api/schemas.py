@@ -961,11 +961,39 @@ class SignupIn(BaseModel):
     company: str = Field(min_length=1, max_length=120, description="Nombre de la empresa (el del cliente)")
     name: str = Field(min_length=1, max_length=120)
     email: EmailStr
+    password: str = Field(min_length=10, max_length=256)
     turnstile_token: str = Field(min_length=1, max_length=2048)
-    # Plan elegido en la landing (nombre del tier): despues de crear la clave abre /plan con ese plan.
+    # Plan elegido en la landing (nombre del tier). Pago y con Mercado Pago: `card_token_id` (Card Payment
+    # Brick, paso 2 del formulario) y la cuenta se crea solo si MP aprueba la tarjeta.
     plan: str = Field(default="", max_length=64, pattern=r"^[\w .-]*$")
+    card_token_id: str | None = Field(default=None, max_length=128)
     # Trampa para bots, como en /contact.
     website: str = Field(default="", max_length=200)
+
+
+class SignupCheckIn(BaseModel):
+    email: EmailStr
+
+
+class PublicPlanOut(BaseModel):
+    id: str
+    name: str
+    price_ars: int
+
+
+class PublicPlansOut(BaseModel):
+    """Planes con precio que se contratan en el registro. `mp_public_key`: si viene, los pagos se pagan con
+    tarjeta en el registro (Card Payment Brick)."""
+    mp_public_key: str | None
+    plans: list[PublicPlanOut]
+
+
+class SignupOut(BaseModel):
+    continue_url: str = Field(description="Link de un solo uso (10 min) que abre la sesion en el dashboard")
+
+
+class HandoffIn(BaseModel):
+    token: str = Field(min_length=10, max_length=2048)
 
 
 # ---------- cobro de los planes (docs/SUSCRIPCIONES_PLAN.md) ----------
@@ -1051,6 +1079,7 @@ class BillingOut(BaseModel):
     subscription: SubscriptionOut | None
     plans: list[PlanOut]
     methods: list[PaymentMethod] = Field(description="Medios de pago disponibles")
+    mp_public_key: str | None = Field(default=None, description="Public key de Mercado Pago para el formulario de tarjeta")
     fiscal: FiscalOut
     bank: list[BankRow] = Field(description="Datos para la transferencia")
     support_email: str
@@ -1059,8 +1088,11 @@ class BillingOut(BaseModel):
 
 
 class SubscribeIn(BaseModel):
+    """transfer: queda pedido hasta el pago. mercadopago: sin plan pago, `card_token_id` (Card Payment Brick)
+    crea el debito automatico y cobra el primer mes; con uno activo, cambia el plan (sin tarjeta)."""
     tier_id: str
     method: PaymentMethod = "transfer"
+    card_token_id: str | None = Field(default=None, max_length=128)
 
 
 class PaymentIn(BaseModel):

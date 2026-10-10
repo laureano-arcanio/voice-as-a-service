@@ -10,6 +10,7 @@ from ...services.ratelimit import Limit, RateLimited, client_key
 from ...services.security import (
     API_KEY_PREFIX,
     create_session_token,
+    decode_handoff_token,
     decode_password_setup_token,
     decode_session_token,
     hash_password,
@@ -30,6 +31,7 @@ from ..schemas import (
     MeOut,
     PasswordSetupCheckIn,
     PasswordSetupIn,
+    HandoffIn,
     PasswordResetIn,
     PasswordSetupInfo,
 )
@@ -171,3 +173,19 @@ def password_reset(body: PasswordResetIn, request: Request, db: DB):
     (el mismo de /password-setup). Responde 202 siempre."""
     signup.password_reset(db, body.email, client_ip(request))
     return Response(status_code=202)
+
+
+@router.post("/handoff", response_model=MeOut, dependencies=[_setup_limit],
+             responses={422: {"description": "Link vencido o ya usado (code invalid_handoff)"}})
+def handoff(body: HandoffIn, request: Request, response: Response, db: DB):
+    """Abre la sesion con el link del registro (de un solo uso, 10 min): sube session_version, asi el
+    mismo link no sirve dos veces."""
+    payload = decode_handoff_token(body.token)
+    user = db.get(User, payload["sub"]) if payload else None
+    if user is None or not user.active or payload.get("sv") != user.session_version:
+        raise Invalid("El link venció o ya se usó. Ingresá con tu email y tu clave.", "invalid_handoff")
+    user.session_version += 1
+    user.last_login_at = utcnow()
+    db.commit()
+    _open_session(request, response, user)
+    return _me(db, user)

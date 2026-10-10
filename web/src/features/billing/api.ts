@@ -33,12 +33,20 @@ function useBillingMutation<V>(clientId: string, fn: (vars: V) => Promise<Billin
   });
 }
 
+export interface SubscribeVars {
+  tierId: string;
+  method: 'transfer' | 'mercadopago';
+  /** Token de la tarjeta (Card Payment Brick): da de alta el debito automatico. */
+  cardTokenId?: string;
+}
+
+/** transfer: pedido hasta el pago. mercadopago: con `cardTokenId` alta con tarjeta; sin, cambio de plan. */
 export function useSubscribe(clientId: string) {
-  return useBillingMutation(clientId, (tierId: string) =>
+  return useBillingMutation(clientId, (v: SubscribeVars) =>
     unwrap(
       api.POST('/api/v1/clients/{client_id}/billing/subscribe', {
         params: { path: { client_id: clientId } },
-        body: { tier_id: tierId, method: 'transfer' },
+        body: { tier_id: v.tierId, method: v.method, card_token_id: v.cardTokenId ?? null },
       }),
     ),
   );

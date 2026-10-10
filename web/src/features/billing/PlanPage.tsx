@@ -24,10 +24,13 @@ import { useCurrentUser } from '@/features/auth/api';
 import { formatArs } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useBilling, useCancelPlan, useSubscribe } from './api';
-import { formatDay, hasFiscal, planFeatures } from './format';
+import { checkoutUrl, formatDay, hasFiscal, planFeatures } from './format';
 import { BankDetails, FiscalForm, SubscriptionBadge } from './parts';
 
-/** Pedido de un plan: datos para la factura (si faltan) y despues los datos de la transferencia. */
+type Step = 'fiscal' | 'method' | 'confirm' | 'done' | 'change';
+
+/** Pedido de un plan: datos para la factura (si faltan), medio de pago (tarjeta o transferencia) y, por
+ * transferencia, los datos para pagar. Con un debito automatico activo, cambia el plan sin tarjeta. */
 function SubscribeModal({
   billing,
   clientId,
@@ -40,14 +43,30 @@ function SubscribeModal({
   onClose: () => void;
 }) {
   const subscribe = useSubscribe(clientId);
-  const [step, setStep] = useState<'fiscal' | 'confirm' | 'done'>(hasFiscal(billing) ? 'confirm' : 'fiscal');
-  const active = billing.subscription?.status === 'active' || billing.subscription?.status === 'past_due';
+  const sub = billing.subscription;
+  const cardPlan = sub?.method === 'mercadopago' && sub.status !== 'pending';
+  const transferPlan = sub?.method === 'transfer' && sub.status !== 'pending';
+  const cardAvailable = billing.methods.includes('mercadopago') && !transferPlan;
+  const afterFiscal: Step = cardAvailable ? 'method' : 'confirm';
+  const [step, setStep] = useState<Step>(cardPlan ? 'change' : hasFiscal(billing) ? afterFiscal : 'fiscal');
+  const upgrade = cardPlan && plan.price_ars > (billing.tier_price_ars ?? 0);
 
-  const confirm = () =>
-    subscribe.mutate(plan.id, {
-      onSuccess: () => setStep('done'),
-      onError: (e) => notifyError(e, 'No se pudo pedir el plan'),
-    });
+  const transfer = () =>
+    subscribe.mutate(
+      { tierId: plan.id, method: 'transfer' },
+      { onSuccess: () => setStep('done'), onError: (e) => notifyError(e, 'No se pudo pedir el plan') },
+    );
+  const change = () =>
+    subscribe.mutate(
+      { tierId: plan.id, method: 'mercadopago' },
+      {
+        onSuccess: () => {
+          notifySuccess(upgrade ? `Ya estás en el plan ${plan.name}.` : 'Cambio de plan registrado.');
+          onClose();
+        },
+        onError: (e) => notifyError(e, 'No se pudo cambiar el plan'),
+      },
+    );
 
   return (
     <Modal opened onClose={onClose} title={`Plan ${plan.name}`}>
@@ -58,14 +77,48 @@ function SubscribeModal({
             billing={billing}
             clientId={clientId}
             submitLabel="Continuar"
-            onSaved={() => setStep('confirm')}
+            onSaved={() => setStep(afterFiscal)}
           />
+        </Stack>
+      )}
+      {step === 'method' && (
+        <Stack gap="md">
+          <Text size="sm">
+            El plan {plan.name} cuesta {formatArs(plan.price_ars)} por mes. ¿Cómo lo querés pagar?
+          </Text>
+          <Button onClick={() => window.location.assign(checkoutUrl(plan.id))}>
+            Pagar con tarjeta (débito automático)
+          </Button>
+          <Button variant="default" onClick={() => setStep('confirm')}>
+            Pagar por transferencia
+          </Button>
+          <Text size="xs" c="dimmed">
+            Con tarjeta, el plan se activa en el momento y se cobra solo cada mes, con Mercado Pago. Por
+            transferencia, lo activamos cuando confirmamos el pago.
+          </Text>
+        </Stack>
+      )}
+      {step === 'change' && (
+        <Stack gap="md">
+          <Text size="sm">
+            {upgrade
+              ? `Pasás al plan ${plan.name} ahora. Desde el próximo débito se cobran ${formatArs(plan.price_ars)} por mes.`
+              : `Pasás al plan ${plan.name} con el próximo débito, de ${formatArs(plan.price_ars)}. Hasta entonces seguís con ${billing.tier.name}.`}
+          </Text>
+          <Group justify="flex-end">
+            <Button variant="default" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button onClick={change} loading={subscribe.isPending}>
+              Cambiar de plan
+            </Button>
+          </Group>
         </Stack>
       )}
       {step === 'confirm' && (
         <Stack gap="md">
           <Text size="sm">
-            {active
+            {transferPlan
               ? `Pasás al plan ${plan.name} con tu próximo pago, de ${formatArs(plan.price_ars)} por mes.`
               : `El plan ${plan.name} cuesta ${formatArs(plan.price_ars)} por mes. Se paga por transferencia y lo activamos cuando confirmamos el pago.`}
           </Text>
@@ -73,7 +126,7 @@ function SubscribeModal({
             <Button variant="default" onClick={onClose}>
               Cancelar
             </Button>
-            <Button onClick={confirm} loading={subscribe.isPending}>
+            <Button onClick={transfer} loading={subscribe.isPending}>
               Pedir el plan
             </Button>
           </Group>
@@ -88,7 +141,9 @@ function SubscribeModal({
           <BankDetails billing={subscribe.data ?? billing} amount={plan.price_ars} />
           <Text size="sm">
             Después mandá el comprobante a <b>{billing.support_email}</b>.{' '}
-            {active ? 'El cambio se aplica con ese pago.' : 'Activamos el plan apenas confirmamos el pago.'}
+            {transferPlan
+              ? 'El cambio se aplica con ese pago.'
+              : 'Activamos el plan apenas confirmamos el pago.'}
           </Text>
           <Group justify="flex-end">
             <Button onClick={onClose}>Listo</Button>
@@ -103,6 +158,7 @@ function CurrentPlanCard({ billing, clientId }: { billing: Billing; clientId: st
   const cancel = useCancelPlan(clientId);
   const sub = billing.subscription;
   const isPaid = sub && sub.status !== 'pending';
+  const card = sub?.method === 'mercadopago';
 
   const doCancel = async () => {
     if (!sub) return;
@@ -114,7 +170,7 @@ function CurrentPlanCard({ billing, clientId }: { billing: Billing; clientId: st
           ? `Se cancela el pedido del plan ${sub.tier.name}. Si ya transferiste, escribinos a ${billing.support_email}.`
           : sub.status === 'past_due'
             ? 'La cuenta pasa al plan gratuito ahora.'
-            : `El plan ${sub.tier.name} sigue hasta el ${formatDay(sub.current_period_end)}; después la cuenta pasa al plan gratuito.`,
+            : `El plan ${sub.tier.name} sigue hasta el ${formatDay(sub.current_period_end)}; después la cuenta pasa al plan gratuito.${card ? ' No se te cobra más.' : ''}`,
         confirmLabel: pending ? 'Cancelar el pedido' : 'Dar de baja',
         danger: true,
       }))
@@ -142,19 +198,28 @@ function CurrentPlanCard({ billing, clientId }: { billing: Billing; clientId: st
         <Stack gap={4} mt="sm">
           <Text size="sm">
             {sub.status === 'past_due'
-              ? `Venció el ${formatDay(sub.current_period_end)} y no registramos el pago. Sigue activo hasta el ${formatDay(sub.grace_until)}; después pasa al plan gratuito.`
+              ? card
+                ? `No pudimos cobrar la tarjeta el ${formatDay(sub.current_period_end)}. Mercado Pago lo reintenta; el plan sigue activo hasta el ${formatDay(sub.grace_until)} y después pasa al gratuito.`
+                : `Venció el ${formatDay(sub.current_period_end)} y no registramos el pago. Sigue activo hasta el ${formatDay(sub.grace_until)}; después pasa al plan gratuito.`
               : sub.cancel_at_period_end
                 ? `Dado de baja: sigue hasta el ${formatDay(sub.current_period_end)} y después pasa al plan gratuito.`
-                : `Pago hasta el ${formatDay(sub.current_period_end)}. Para renovarlo, transferí ${formatArs(sub.amount_due)} antes de esa fecha.`}
+                : card
+                  ? `Débito automático con tarjeta, por Mercado Pago. Próximo débito: ${formatDay(sub.current_period_end)}, de ${formatArs(sub.amount_due)}.`
+                  : `Pago hasta el ${formatDay(sub.current_period_end)}. Para renovarlo, transferí ${formatArs(sub.amount_due)} antes de esa fecha.`}
           </Text>
           {sub.pending_tier && (
             <Text size="sm" c="dimmed">
-              Con el próximo pago pasás al plan {sub.pending_tier.name}.
+              Con el próximo {card ? 'débito' : 'pago'} pasás al plan {sub.pending_tier.name}.
             </Text>
           )}
         </Stack>
       )}
-      {sub?.status === 'pending' && (
+      {sub?.status === 'pending' && card && (
+        <Alert color="blue" icon={<IconInfoCircle size={18} />} mt="md" title={`Plan ${sub.tier.name}`}>
+          Estamos confirmando el pago con Mercado Pago. Se activa apenas se acredite.
+        </Alert>
+      )}
+      {sub?.status === 'pending' && !card && (
         <Alert
           color="yellow"
           icon={<IconInfoCircle size={18} />}
@@ -170,7 +235,7 @@ function CurrentPlanCard({ billing, clientId }: { billing: Billing; clientId: st
           </Stack>
         </Alert>
       )}
-      {(sub?.status === 'past_due' || (sub?.status === 'active' && !sub.cancel_at_period_end)) && (
+      {!card && (sub?.status === 'past_due' || (sub?.status === 'active' && !sub.cancel_at_period_end)) && (
         <Box mt="md">
           <Divider mb="sm" label="Datos para la transferencia" labelPosition="left" />
           <BankDetails billing={billing} amount={sub.amount_due} />

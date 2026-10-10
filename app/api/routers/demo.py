@@ -4,6 +4,9 @@ from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from ...billing import mp
+from ...billing import service as billing
+from ...config import settings
 from ...services import contact, signup
 from ...services import demo as service
 from ..deps import DB, Definitions, Engine, client_ip
@@ -15,7 +18,11 @@ from ..schemas import (
     DemoSessionIn,
     DemoSessionOut,
     DemoTtsIn,
+    PublicPlanOut,
+    PublicPlansOut,
+    SignupCheckIn,
     SignupIn,
+    SignupOut,
 )
 
 router = APIRouter(prefix="/demo", tags=["demo"])
@@ -72,13 +79,34 @@ async def send_contact(body: DemoContactIn, request: Request, _: DemoSession, db
     return Response(status_code=204)
 
 
-@router.post("/signup", status_code=202, response_class=Response,
-             responses={429: {"description": "Limite por IP"}, 503: {"description": "Registro apagado"}})
+@router.post("/signup", response_model=SignupOut, status_code=201,
+             responses={409: {"description": "El email ya tiene cuenta (email_taken)"},
+                        429: {"description": "Limite por IP"}, 503: {"description": "Registro apagado"}})
 async def create_account(body: SignupIn, request: Request, db: DB):
-    """Registro desde la landing: crea el cliente en el plan gratuito y manda el link para crear la
-    clave. Responde 202 aunque el email ya tenga cuenta (a ese le llega un link para una clave nueva)."""
-    if not body.website:
-        await signup.signup(db, signup.SignupData(company=body.company, name=body.name, email=str(body.email),
-                                                plan=body.plan),
-                            body.turnstile_token, client_ip(request))
-    return Response(status_code=202)
+    """Registro desde la landing: crea el cliente en el plan gratuito con la clave elegida y devuelve el
+    link de un solo uso que abre la sesion en el dashboard (y, con un plan pago, lleva a pagarlo)."""
+    if body.website:   # trampa para bots: parece que anduvo
+        return SignupOut(continue_url=settings.site_url)
+    url = await signup.signup(db, signup.SignupData(company=body.company, name=body.name, email=str(body.email),
+                                                    password=body.password, plan=body.plan,
+                                                    card_token_id=body.card_token_id),
+                              body.turnstile_token, client_ip(request))
+    return SignupOut(continue_url=url)
+
+
+@router.post("/signup/check", status_code=204, response_class=Response,
+             responses={409: {"description": "El email ya tiene cuenta (email_taken)"},
+                        422: {"description": "Email descartable"}, 429: {"description": "Limite por IP"}})
+def check_signup_email(body: SignupCheckIn, request: Request, db: DB):
+    """Antes del paso del pago del registro: si el email puede registrarse."""
+    signup.check_email(db, str(body.email), client_ip(request))
+    return Response(status_code=204)
+
+
+@router.get("/plans", response_model=PublicPlansOut)
+def public_plans(db: DB):
+    """Planes con precio para el registro, y la public key de Mercado Pago si se paga con tarjeta."""
+    return PublicPlansOut(
+        mp_public_key=settings.mp_billing_public_key if mp.enabled() else None,
+        plans=[PublicPlanOut(id=t.id, name=t.name, price_ars=t.price_ars)
+               for t in billing.public_tiers(db) if t.price_ars])

@@ -345,12 +345,14 @@ en la ficha del cliente. La API no cuenta lo que consumen los agentes integrados
 
 Registro y cobro por transferencia ([`SUSCRIPCIONES_PLAN.md`](SUSCRIPCIONES_PLAN.md)):
 
-- **Registro:** el cliente se da de alta en `atentina.com.ar/registro` y entra en el tier Free (el
-  público con precio 0). Para que haya registro, ese tier tiene que existir en Tiers.
+- **Registro:** el cliente se da de alta en `atentina.com.ar/registro` (con su clave) y entra directo al
+  panel, en el tier Free (el público con precio 0, que tiene que existir en Tiers). Si eligió un plan pago,
+  va a pagarlo con tarjeta (`/plan/pagar`).
 - **Tiers que se venden:** en el formulario del tier, "Precio por mes" y "Público". Vacío = no se vende
   por el dashboard; 0 = gratis.
-- **Plan (`/plan`, cliente):** datos para la factura, planes con precio y el pedido por transferencia.
-  Ve los datos bancarios (`BANK_TRANSFER_INFO`) y manda el comprobante por email.
+- **Plan (`/plan`, cliente):** datos para la factura y planes con precio. Se pagan con **tarjeta**
+  (débito automático de Mercado Pago, se activa en el momento; con uno activo, cambiar de plan no pide la
+  tarjeta) o por **transferencia** (ve los datos bancarios y manda el comprobante por email).
 - **Ficha del cliente, tarjeta "Plan pago" (admin):** "Registrar pago" activa o renueva el plan por un
   mes; "Rechazar pedido" o "Pasar al gratuito" lo corta.
 - **Cobros (`/billing`, admin):** planes pagos y pedidos abiertos, y pagos para facturar ("Marcar facturado").

@@ -1,9 +1,16 @@
 """Registro autoservicio desde la landing (POST /api/v1/demo/signup) y "olvidé mi clave".
 
-El registro crea el cliente en el tier Free (publico, precio 0) y su usuario sin clave, y manda el
-link para crearla: solo el dueño del email puede activar la cuenta. Siempre responde lo mismo,
-exista o no el email (no revela quien tiene cuenta): a un email registrado le llega un link para
-crear una clave nueva. Los registros que nadie activo se borran a las PASSWORD_SETUP_HOURS.
+El registro crea el cliente y su usuario con la clave que eligio y devuelve un link de un solo uso
+(`continue_url`, 10 min) que abre la sesion en el dashboard.
+
+- Free: el cliente queda en el tier Free y va al inicio.
+- Plan pago con Mercado Pago: el pago es parte del registro (paso 2 del formulario de la landing, con la
+  tarjeta tokenizada). **La cuenta se crea solo si MP aprueba la tarjeta**: rechazada, no queda nada; si
+  algo falla despues de crear la suscripcion en MP, se cancela alla. Va al inicio con el plan activo.
+- Plan pago sin Mercado Pago: queda en Free y va a la pantalla Plan (transferencia).
+
+Un email que ya tiene cuenta da 409 (`check_email` lo dice antes de pedir la tarjeta). Le llega un mail de
+bienvenida. Los registros en los que nadie entro se borran a las PASSWORD_SETUP_HOURS.
 """
 import asyncio
 import datetime
@@ -16,17 +23,19 @@ from sqlalchemy import delete, exists, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from ..billing.service import free_tier
+from ..billing import mp
+from ..billing import service as billing
+from ..billing.service import free_tier, public_tiers
 from ..config import settings
 from ..db import utcnow
 from ..mail import messages, notify
 from ..mail.sender import Mail
-from ..models import Client, ConversationRow, Role, User
+from ..models import Client, ConversationRow, Role, Tier, User
 from .agents import slugify
 from .demo import DemoUnavailable, verify_turnstile
-from .errors import Forbidden, Invalid
+from .errors import Conflict, Forbidden, Invalid, ServiceError
 from .ratelimit import Limit, RateLimiter, client_key
-from .security import create_password_setup_token, unusable_password_hash
+from .security import create_handoff_token, create_password_setup_token, hash_password
 
 logger = logging.getLogger(__name__)
 HOUR, DAY = 3600, 86_400
@@ -46,7 +55,13 @@ class SignupData:
     company: str
     name: str
     email: str
-    plan: str = ""      # tier elegido en la landing: el link de activacion termina en /plan?tier=...
+    password: str
+    plan: str = ""      # nombre del tier elegido en la landing
+    card_token_id: str | None = None   # tarjeta tokenizada por el Card Payment Brick (plan pago con MP)
+
+
+class EmailTaken(Conflict):
+    default_code = "email_taken"
 
 
 def ensure_enabled(s: Session) -> None:
@@ -65,41 +80,91 @@ def _unique_slug(s: Session, company: str) -> str:
     return slug
 
 
-def _reset_mail(user: User, existing_signup: bool) -> Mail:
+def _reset_mail(user: User) -> Mail:
     token, expires = create_password_setup_token(user.id, user.password_hash)
     return messages.password_reset(email=user.email, name=user.name, setup_url=messages.password_setup_url(token),
-                                   expires_at=expires, existing_signup=existing_signup)
+                                   expires_at=expires)
 
 
-def create_account(s: Session, data: SignupData) -> None:
-    """Crea el cliente y su usuario, o avisa al dueño del email si ya tiene cuenta. Manda el mail
-    despues del commit."""
-    email = data.email.strip().lower()
+def paid_tier(s: Session, plan: str) -> Tier | None:
+    """El tier pago y publico que eligio en la landing (por nombre), si existe."""
+    return next((t for t in public_tiers(s) if t.price_ars and t.name.lower() == plan.strip().lower()), None)
+
+
+def _taken() -> EmailTaken:
+    return EmailTaken("Ya hay una cuenta con ese email. Ingresá o recuperá tu clave.")
+
+
+def _check_email(s: Session, email: str) -> None:
     if email.rsplit("@", 1)[-1] in DISPOSABLE_DOMAINS:
         raise Invalid("Usá el email de tu empresa o uno personal permanente", "disposable_email")
-    user = s.scalar(select(User).where(User.email == email))
-    if user is not None:
-        if user.active:
-            notify.deliver([_reset_mail(user, existing_signup=True)])
-        return
-    tier = free_tier(s)
-    client = Client(name=data.company.strip(), slug=_unique_slug(s, data.company), tier=tier, created_via="signup")
+    if s.scalar(select(exists().where(User.email == email))):
+        raise _taken()
+
+
+def check_email(s: Session, email: str, ip: str) -> None:
+    """Antes del paso del pago: que el email sirva para registrarse (no pedir la tarjeta para despues
+    decir que ya tiene cuenta). Tope por IP."""
+    limiter.consume(f"check:{client_key(ip)}", [Limit(settings.signup_check_ip_per_hour, HOUR)],
+                    "Demasiados intentos. Probá más tarde.")
+    _check_email(s, email.strip().lower())
+
+
+def create_account(s: Session, data: SignupData) -> str:
+    """Crea el cliente y su usuario con su clave (y, con un plan pago y Mercado Pago, la suscripcion: si MP
+    rechaza la tarjeta no se crea nada); devuelve el link de un solo uso al dashboard. Los mails salen
+    despues del commit."""
+    email = data.email.strip().lower()
+    _check_email(s, email)
+    tier = paid_tier(s, data.plan)
+    pay_now = tier is not None and mp.enabled()
+    if pay_now and not data.card_token_id:
+        raise Invalid("Faltan los datos de la tarjeta", "card_required")
+    client = Client(name=data.company.strip(), slug=_unique_slug(s, data.company), tier=free_tier(s),
+                    created_via="signup")
     s.add(client)
     s.flush()
-    user = User(email=email, name=data.name.strip(), password_hash=unusable_password_hash(), role=Role.client,
+    user = User(email=email, name=data.name.strip(), password_hash=hash_password(data.password), role=Role.client,
                 client_id=client.id)
     s.add(user)
     try:
-        s.commit()
+        s.flush()
     except IntegrityError:
-        # Otro registro con el mismo email (o slug) en paralelo: lo resolvio ese.
+        s.rollback()   # el mismo email en paralelo
+        raise _taken() from None
+    mails, sub = [], None
+    if pay_now:
+        try:
+            sub, mails = billing.subscribe_card(s, client, tier.id, data.card_token_id, user)
+        except ServiceError:
+            s.rollback()   # tarjeta rechazada o MP caido: no queda ni la cuenta
+            raise
+    try:
+        s.commit()
+    except Exception:
         s.rollback()
-        return
-    logger.info("registro: cliente %s (%s)", client.slug, email)
-    notify.invite(user, client, next_path=f"/plan?{urlencode({'tier': data.plan})}" if data.plan else None)
+        if sub is not None and sub.mp_preapproval_id:
+            _cancel_orphan(sub.mp_preapproval_id)
+        raise
+    logger.info("registro: cliente %s (%s)%s", client.slug, email, f", plan {tier.name}" if pay_now else "")
+    notify.deliver([messages.account_ready(email=user.email, name=user.name, client_name=client.name,
+                                           tier_name=client.tier.name), *mails])
+    token = create_handoff_token(user.id, user.session_version)
+    next_path = f"/plan?{urlencode({'tier': tier.name})}" if tier is not None and not pay_now else "/"
+    query = urlencode({"token": token, "next": next_path})
+    return f"{settings.app_url.rstrip('/')}/welcome?{query}"
 
 
-async def signup(s: Session, data: SignupData, turnstile_token: str, ip: str) -> None:
+def _cancel_orphan(preapproval_id: str) -> None:
+    """La suscripcion se creo en MP pero la cuenta no se guardo: que MP no la siga debitando."""
+    try:
+        billing.mp_client().cancel(preapproval_id)
+        logger.warning("registro: suscripcion %s cancelada en MP (no se guardo la cuenta)", preapproval_id)
+    except ServiceError as e:
+        logger.error("registro: no se pudo cancelar la suscripcion huerfana %s en MP: %s", preapproval_id, e.message)
+
+
+async def signup(s: Session, data: SignupData, turnstile_token: str, ip: str) -> str:
     await asyncio.to_thread(ensure_enabled, s)
     key = f"signup:{client_key(ip)}"
     limiter.check(key, [Limit(settings.signup_ip_per_hour, HOUR), Limit(settings.signup_ip_per_day, DAY)],
@@ -107,7 +172,7 @@ async def signup(s: Session, data: SignupData, turnstile_token: str, ip: str) ->
     if not await verify_turnstile(turnstile_token, ip):
         raise Forbidden("No pudimos verificar que seas una persona. Recargá la página.", "captcha_failed")
     limiter.hit(key)
-    await asyncio.to_thread(create_account, s, data)
+    return await asyncio.to_thread(create_account, s, data)
 
 
 def password_reset(s: Session, email: str, ip: str) -> None:
@@ -120,7 +185,7 @@ def password_reset(s: Session, email: str, ip: str) -> None:
     ], "Demasiados pedidos. Probá de nuevo en un rato.")
     user = s.scalar(select(User).where(User.email == email))
     if user is not None and user.active:
-        notify.deliver([_reset_mail(user, existing_signup=False)])
+        notify.deliver([_reset_mail(user)])
 
 
 def purge_unactivated(s: Session, now: datetime.datetime | None = None) -> int:

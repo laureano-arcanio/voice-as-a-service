@@ -132,21 +132,37 @@ def _simple(*, to: str, subject: str, preheader: str, title: str, name: str | No
     return Mail(to, subject, L.render(subject, preheader, content, reason), "\n".join(lines))
 
 
-def password_reset(*, email: str, name: str, setup_url: str, expires_at: datetime.datetime,
-                   existing_signup: bool = False) -> Mail:
-    """Link para crear una clave nueva. existing_signup: lo pidio un registro con un email que ya tiene cuenta."""
+def password_reset(*, email: str, name: str, setup_url: str, expires_at: datetime.datetime) -> Mail:
+    """Link para crear una clave nueva ("olvidé mi clave")."""
     hours = settings.password_setup_hours
-    first = ("Alguien intentó crear una cuenta de Atentina con este email, pero ya tenés una. "
-             "Si fuiste vos, ingresá con tu clave o creá una nueva:" if existing_signup
-             else "Pediste crear una clave nueva para ingresar a Atentina:")
+    first = "Pediste crear una clave nueva para ingresar a Atentina:"
     return _simple(
-        to=email, subject="Ya tenés una cuenta en Atentina" if existing_signup else "Creá una clave nueva",
+        to=email, subject="Creá una clave nueva",
         preheader="Link para crear tu clave de Atentina.", title="Creá tu clave", name=name,
         paragraphs=[first], button=(setup_url, "Crear una clave nueva"),
         after=[f"El link vale {hours} horas (hasta el {_when(expires_at)}) y se usa una sola vez. "
                "Tu clave actual sigue valiendo hasta que crees la nueva.",
                "Si no lo pediste, ignorá este mail."],
         reason=f"Recibiste este email porque se pidió una clave para {email} en Atentina.")
+
+
+def account_ready(*, email: str, name: str, client_name: str, tier_name: str | None = None) -> Mail:
+    """Registro desde la landing: la cuenta ya esta creada (la clave la eligio en el formulario)."""
+    dash = dashboard_url(email)
+    plan = (f"en el plan {tier_name}" if tier_name and tier_name.lower() != "free" else "en el plan gratuito")
+    later = ("" if tier_name and tier_name.lower() != "free"
+             else " Cuando necesites números de teléfono o más minutos, elegí un plan en la sección Plan.")
+    return _simple(
+        to=email, subject="Tu cuenta de Atentina está lista",
+        preheader=f"Ya podés armar el agente de {client_name}.", title="Tu cuenta está lista", name=name,
+        paragraphs=[f"Creamos la cuenta de {client_name} en Atentina, {plan}.",
+                    "Para empezar, armá tu agente o elegí uno de la plantilla y probalo con una llamada de prueba."
+                    + later],
+        button=(dash, "Ir al dashboard"),
+        after=[f"Ingresá siempre con este email ({email}) y la clave que elegiste. Si no la recordás, "
+               "usá «Olvidé mi clave» en el ingreso."],
+        reason=f"Recibiste este email porque se creó una cuenta en Atentina con {email}. "
+               f"Si no fuiste vos, escribinos a {settings.support_email}.")
 
 
 def bank_rows() -> list[tuple[str, str]]:

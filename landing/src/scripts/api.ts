@@ -108,14 +108,37 @@ export interface SignupRequest {
   company: string;
   name: string;
   email: string;
+  password: string;
   plan: string;
   website: string;
+  /** Plan pago con Mercado Pago: la tarjeta tokenizada. La cuenta se crea solo si MP la aprueba. */
+  card_token_id?: string;
 }
 
-/** Registro autoservicio: crea la cuenta en el plan gratuito y manda el mail para activarla. Sin sesión de demo: lleva su propio Turnstile. */
-export async function signup(request: SignupRequest): Promise<void> {
+export interface PublicPlans {
+  /** Con valor, los planes pagos se pagan con tarjeta en el registro. */
+  mp_public_key: string | null;
+  plans: { id: string; name: string; price_ars: number }[];
+}
+
+/** Planes con precio del registro (los de la base, no los de site.ts) y la public key de Mercado Pago. */
+export async function publicPlans(): Promise<PublicPlans> {
+  const response = await send("/plans", { method: "GET" });
+  return response.json();
+}
+
+/** Antes del pago: que el email pueda registrarse (409 email_taken, 422 descartable). */
+export async function checkSignupEmail(email: string): Promise<void> {
+  await send("/signup/check", { method: "POST", body: JSON.stringify({ email }) });
+}
+
+/** Registro autoservicio: crea la cuenta (plan gratuito) y devuelve el link de un solo uso que abre la sesión en
+ * el panel; con un plan pago, el panel sigue al pago. Sin sesión de demo: lleva su propio Turnstile. */
+export async function signup(request: SignupRequest): Promise<string> {
   const captcha = await turnstileToken();
-  await send("/signup", { method: "POST", body: JSON.stringify({ ...request, turnstile_token: captcha }) });
+  const response = await send("/signup", { method: "POST", body: JSON.stringify({ ...request, turnstile_token: captcha }) });
+  const body: { continue_url: string } = await response.json();
+  return body.continue_url;
 }
 
 export async function sendContact(request: ContactRequest): Promise<void> {

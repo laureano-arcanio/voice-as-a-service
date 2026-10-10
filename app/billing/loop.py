@@ -13,7 +13,10 @@ logger = logging.getLogger(__name__)
 
 def run_once() -> None:
     with get_sessionmaker()() as s:
-        mails = service.tick(s)
+        # Primero lo que diga MP (un pago que llego sin webhook evita marcarlo vencido).
+        mails = service.reconcile(s)
+        s.commit()
+        mails += service.tick(s)
         purged = signup.purge_unactivated(s)
         s.commit()
     if purged:

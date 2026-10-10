@@ -54,3 +54,8 @@ export function planFeatures(p: Plan): string[] {
 export function hasFiscal(billing: Billing): boolean {
   return !!(billing.fiscal.legal_name && billing.fiscal.tax_id && billing.fiscal.tax_condition);
 }
+
+/** Pagina del pago con tarjeta. Navegacion completa: su CSP permite el SDK de Mercado Pago (app/api/http.py). */
+export function checkoutUrl(tierId: string): string {
+  return `/plan/pagar?${new URLSearchParams({ tier: tierId })}`;
+}

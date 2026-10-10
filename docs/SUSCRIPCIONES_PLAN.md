@@ -12,7 +12,7 @@ reciben nuestros clientes: es otra cuenta y otra app de MP.
 | 1. Registro y "olvidé mi clave" | **Desplegado el 10-oct-2026** (migración 0012, `app` y `agent` recreados) |
 | 2. Cobro por transferencia | **Desplegado el 10-oct-2026** |
 | 0. Spike de MP en sandbox | Hecho el 10-oct-2026 (sección 6.2), salvo el `init_point` con otro email y las notificaciones |
-| 3. Mercado Pago | Sin empezar |
+| 3. Mercado Pago y registro con clave | Código y tests listos (10-oct-2026); probado de punta a punta en local contra el sandbox; **sin desplegar** (sección 7) |
 | 4. Puesta en marcha | Sin empezar (sección 5) |
 
 ## 0. Qué se reusa
@@ -40,28 +40,46 @@ Confirmadas con el usuario el 9-oct-2026, salvo las marcadas como propuestas.
 | Pago por transferencia | **Mensual, por adelantado.** El cliente pide el plan y ve los datos bancarios; **el comprobante lo manda por email**. El tier se activa cuando el admin registra el pago |
 | Plan vencido sin pagar | **7 días de gracia** con el tier pago y avisos, después **Free**. Los números que sobran quedan **suspendidos 30 días** (asignados, sin atender) y después vuelven al inventario |
 | Cambio de plan con uno activo | Propuesta: se aplica **con el próximo pago** (`pending_tier_id`), tanto subida como bajada. En transferencia, el admin puede registrar una subida antes |
-| Checkout de MP (fase 3) | **Redirección al `init_point`**: preapproval sin plan, `status: pending`. La CSP del dashboard no cambia |
-| Subida de plan en MP (fase 3) | **Cambio inmediato**; el monto nuevo rige desde el próximo débito (`PUT /preapproval`). Sin prorrateo |
+| Flujo del registro (10-oct-2026) | **Registrarse → si el plan es pago, pagarlo en el momento.** La clave se elige en el formulario y la sesión se abre sin esperar un mail |
+| Pago obligatorio en el registro (10-oct-2026) | Con un plan pago y MP, el pago es el **paso 2 del formulario de la landing**, con su diseño y sin otras opciones (ni transferencia ni seguir gratis). **La cuenta se crea solo si MP aprueba la tarjeta.** Después, al inicio del panel. Los datos de factura se piden después, en Plan |
+| Checkout de MP (fase 3) | **Card Payment Brick** en `/plan/pagar` (tarjeta tokenizada por MP, `card_token_id`, suscripción `authorized`): no hace falta cuenta de MP y una tarjeta rechazada avisa en el acto. Antes se había elegido el `init_point`; se cambió después del spike. La CSP se relaja solo en esa ruta |
+| Transferencia | Sigue como alternativa en Plan, aprobada a mano |
+| Subida de plan en MP (fase 3) | **Cambio inmediato**; el monto nuevo rige desde el próximo débito (`PUT /preapproval`). Sin prorrateo. La bajada, con el próximo débito |
 | Minuto extra | **No se vende** (10-oct-2026): la cuota corta al llegar al tope. Se sacó de la landing; más minutos para un mes se dan con un ajuste de límites del cliente |
 
 ## 2. Flujos
 
-### 2.1 Registro (Free)
+### 2.1 Registro
 
 1. En la landing, "Empezar gratis" (nav, `/desarrolladores`, plan Free) lleva a `/registro`; los planes
    pagos, a `/registro?plan=<tier>`. "A medida" sigue yendo al contacto.
-2. `/registro` pide empresa, nombre y email, con Turnstile, y hace `POST /api/v1/demo/signup`
-   (`app/services/signup.py`). **Responde 202 siempre**, para no revelar qué emails existen:
-   - Email nuevo: crea el `Client` (tier Free, `created_via='signup'`) y el usuario `client` sin clave,
-     y manda el mail de alta. Con `plan`, el link termina en `&next=/plan?tier=<plan>`.
-   - Email existente: le manda "Ya tenés una cuenta" con un link para crear una clave nueva.
-3. El usuario crea la clave en `/set-password` y entra (a `next` si vino con plan).
+2. `/registro` pide empresa, nombre, email y **clave** (dos veces, 10 caracteres o más). Con `?plan=` de un
+   plan pago, la página lee `GET /api/v1/demo/plans` (precios de la base y `mp_public_key`) y muestra a la
+   izquierda lo que incluye ese plan.
+   - **Free, o plan pago sin MP:** un paso. `POST /api/v1/demo/signup` (con Turnstile) crea el `Client`
+     (tier Free) y el usuario; sin MP, `next` es `/plan?tier=<nombre>` para pagarlo por transferencia.
+   - **Plan pago con MP:** "Continuar al pago" verifica el email (`POST /demo/signup/check`: 409
+     `email_taken`, 422 descartable, 30 por hora por IP) y muestra el **paso 2**: plan, precio y el Card
+     Payment Brick (`landing/src/scripts/mercadopago.ts`, con los tokens de color de la landing). "Pagar y
+     crear mi cuenta" manda todo junto con `card_token_id`: el backend crea cliente y usuario, la suscripción
+     en MP (`subscribe_card`) y recién ahí hace commit. Tarjeta rechazada: 422 `card_rejected` en el paso 2,
+     sin crear nada (MP deja una suscripción `pending` que cancela sola a los segundos). Si el commit falla
+     después de crearla en MP, se cancela en MP.
+   - Responde 201 con `continue_url`: `APP_URL/welcome?token=…&next=…`, un link de **un solo uso, 10 min**
+     (JWT con `sv`; al usarlo sube `session_version`). Le llega "Tu cuenta de Atentina está lista" (con el
+     plan) y, si pagó, "Recibimos tu pago".
+   - Un email que ya tiene cuenta da **409 `email_taken`** (con la clave en el formulario, quien se registra
+     necesita saberlo).
+3. La landing muestra la pantalla final en el mismo panel: check verde, "Pago aprobado" ("Tu plan X ya está
+   activo…") o "Cuenta creada" (Free), el botón "Entrar al panel" y una cuenta regresiva de 5 s que redirige
+   sola a `continue_url`. `/welcome` (`WelcomePage`) hace `POST /auth/handoff`, que abre la
+   sesión, y sigue a `next` (el inicio, con el plan ya activo si pagó).
 4. Defensa:
    - 3 registros por hora y 10 por día por IP (`SIGNUP_IP_PER_HOUR`, `SIGNUP_IP_PER_DAY`);
    - lista corta de dominios descartables y trampa para bots (`website`);
    - `SIGNUP_ENABLED`; sin Turnstile o sin tier Free, 503 `signup_unavailable`.
-   - El loop borra los registros sin activar a las `PASSWORD_SETUP_HOURS` (72): ningún usuario con
-     `last_login_at` (crear la clave lo marca) y sin conversaciones.
+   - El loop borra los registros en los que nadie entró a las `PASSWORD_SETUP_HOURS` (72): ningún usuario
+     con `last_login_at` (el handoff lo marca) y sin conversaciones.
 5. **Olvidé mi clave** (`POST /auth/password-reset`, pantalla `/forgot-password`, link en el login):
    - responde 202 siempre; tope de 5 por hora por IP y 3 por hora por email;
    - sin Turnstile, para no relajar la CSP del dashboard: solo manda mails a usuarios que existen;
@@ -87,24 +105,36 @@ Confirmadas con el usuario el 9-oct-2026, salvo las marcadas como propuestas.
 5. Vista **Cobros** (`/billing`, admin): planes pagos y pedidos abiertos, y pagos con los datos para
    facturar y "Marcar facturado".
 
-### 2.3 Pago con Mercado Pago (fase 3, sin código)
+### 2.3 Pago con tarjeta: Mercado Pago (fase 3)
 
-1. En `/plan` el cliente elige el plan y "Mercado Pago".
-2. `POST /clients/{id}/billing/subscribe {tier_id, method: "mercadopago"}` crea la `subscription`
-   pendiente y un preapproval con:
-   - `external_reference = subscription.id`, `payer_email` = el email del usuario;
-   - `auto_recurring` mensual en ARS por `price_ars`;
-   - `back_url = APP_URL/plan`.
+Solo con `MP_BILLING_ACCESS_TOKEN` y `MP_BILLING_PUBLIC_KEY` (si faltan, Plan ofrece solo transferencia).
 
-   Responde el `init_point` y el front redirige.
-3. El webhook `POST /mp/billing/webhook` valida `x-signature`: HMAC-SHA256 de
-   `id:<data.id>;request-id:<x-request-id>;ts:<ts>;` con `MP_BILLING_WEBHOOK_SECRET`.
-   - Responde 200 enseguida y procesa después; nunca usa el cuerpo: vuelve a pedir el recurso a MP.
-   - `subscription_preapproval`: `authorized` → `active` y cambia el `tier_id`; `cancelled`/`canceled` → 2.4.
-   - `subscription_authorized_payment` y `payment`: registra el pago (idempotente por `mp_payment_id`).
-     Aprobado: `current_period_end` hasta el `next_payment_date` del preapproval. Rechazado: `past_due`.
-4. **Conciliación** una vez por día: `GET /preapproval/{id}` de cada suscripción abierta.
-5. Cambio de plan: `PUT` del monto. Baja: `PUT status: cancelled`; el tier dura hasta `current_period_end`.
+1. En el registro, es el paso 2 de la landing (2.1). Con la cuenta creada, desde Plan → "Elegir este
+   plan" → "Pagar con tarjeta", el cliente llega a `/plan/pagar?tier=<id>` (`CheckoutPage`, en el panel). Si
+   faltan los datos de factura, los pide primero.
+2. El **Card Payment Brick** (SDK `sdk.mercadopago.com/js/v2`, `web/src/features/billing/mercadopago.ts`)
+   tokeniza la tarjeta y la página hace `POST /clients/{id}/billing/subscribe {tier_id, method:
+   "mercadopago", card_token_id}` → `service.subscribe_card`:
+   - `POST /preapproval` con `status: authorized`, `external_reference` = id de nuestra suscripción,
+     `payer_email` (en sandbox, `MP_BILLING_TEST_PAYER_EMAIL`) y el monto del tier;
+   - MP cobra el primer mes en el momento. El cobro aparece un instante después: hasta 4 reintentos de
+     1,5 s; con el pago aprobado, `active` hasta `next_payment_date`;
+   - tarjeta rechazada: 422 `card_rejected`, no queda nada; un pedido por transferencia pendiente se reemplaza;
+   - si algo falla **después** de crearla en MP, la suscripción se guarda igual como pendiente: si se
+     deshiciera, MP seguiría debitando una suscripción que no conocemos (pasó en la prueba, sección 6.2).
+3. `service.sync` aplica lo que diga MP: registra cada cuota una vez (`mp_payment_id`); con un pago aprobado
+   activa o renueva hasta `next_payment_date` y aplica una bajada pedida; `cancelled` en MP deja el plan
+   hasta el fin del período. Lo llaman:
+   - el **webhook** `POST /mp/billing/webhook` (`app/billing/webhook.py`): valida `x-signature` (HMAC-SHA256
+     de `id:<data.id>;request-id:<x-request-id>;ts:<ts>;` con `MP_BILLING_WEBHOOK_SECRET`; si no, 401),
+     responde 200 y procesa aparte; vuelve a pedir el recurso a MP (`subscription_preapproval`,
+     `subscription_authorized_payment`, `payment` con `subscription_id`);
+   - la **conciliación** en el barrido (`service.reconcile`, antes de `tick`): las suscripciones con débito
+     que esperan un pago (pendientes, vencidas o que vencen hoy o antes).
+4. **Cambio de plan** (con débito activo, sin tarjeta): `PUT` del monto; subida ya, bajada con el próximo
+   débito. **Baja:** `PUT status: cancelled`; el tier dura hasta `current_period_end`.
+5. Cobro rechazado: `tick` lo pasa a `past_due` con gracia (MP reintenta); al terminar la gracia, Free y
+   cancelación en MP.
 
 ### 2.4 Vencimiento y caída a Free
 
@@ -138,22 +168,26 @@ Confirmadas con el usuario el 9-oct-2026, salvo las marcadas como propuestas.
 
 | Dónde | Qué |
 |---|---|
-| `app/billing/service.py` | Máquina de estados: pedido, pago, baja, caída al Free, números (`fit_numbers`) y el barrido (`tick`) |
-| `app/billing/loop.py` | En el lifespan, cada `BILLING_TICK_SECONDS` (900): `tick` y borrar registros sin activar |
-| `app/services/signup.py` | Registro y "olvidé mi clave" |
+| `app/billing/service.py` | Máquina de estados: pedido, pago, baja, caída al Free, números (`fit_numbers`), Mercado Pago (`subscribe_card`, `change_card_plan`, `sync`, `reconcile`) y el barrido (`tick`) |
+| `app/billing/mp.py` | Cliente de la API de MP (preapproval, cuotas, pagos) y la firma del webhook |
+| `app/billing/webhook.py` | `POST /mp/billing/webhook`, fuera de `/api/v1` |
+| `app/billing/loop.py` | En el lifespan, cada `BILLING_TICK_SECONDS` (900): conciliación con MP, `tick` y borrar registros sin activar |
+| `app/services/signup.py` | Registro con clave, `continue_url` y "olvidé mi clave" |
+| `app/api/http.py` | CSP con el SDK y los iframes de MP solo en `MP_PAGES` (`/plan/pagar`) |
 | `app/api/routers/billing.py` | `GET /clients/{id}/billing`, `POST .../billing/subscribe`, `.../cancel`, `PUT .../fiscal`. Admin: `POST .../billing/payments`, `.../suspend`, `GET /billing/subscriptions`, `GET /billing/payments`, `PATCH /billing/payments/{id}` |
-| `app/api/routers/demo.py`, `auth.py` | `POST /demo/signup`, `POST /auth/password-reset` |
+| `app/api/routers/demo.py`, `auth.py` | `POST /demo/signup`, `POST /auth/handoff`, `POST /auth/password-reset` |
 | `app/mail/messages.py` | Clave nueva, cómo pagar, aviso al admin, pago recibido, renovación, plan vencido, paso al Free |
 | `app/services/calls.py` | Rechazo de entrantes a números suspendidos |
-| `web/src/features/billing/` | `/plan` (cliente), tarjeta "Plan pago" de la ficha y vista Cobros (admin). Precio, público y orden en el formulario de tiers; `/forgot-password` |
+| `web/src/features/billing/` | `/plan` y `/plan/pagar` (cliente), tarjeta "Plan pago" de la ficha y vista Cobros (admin). Precio, público y orden en el formulario de tiers; `/forgot-password` y `/welcome` en `features/auth/` |
 | `landing/src/pages/registro.astro` | Registro; botones de `Pricing`, `Nav` y `/desarrolladores` hacia `/registro`. Los precios de `site.ts` se mantienen a mano iguales a `price_ars` |
-| `tests/test_billing.py`, `web/src/features/billing/PlanPage.test.tsx` | Registro, clave, pedido, pago, vencimiento, gracia, Free, números y permisos |
+| `tests/test_billing.py`, `tests/test_billing_mp.py`, `web/src/features/billing/PlanPage.test.tsx` | Registro, handoff, pedido, pago, vencimiento, gracia, Free, números, permisos; MP con un cliente falso (alta, rechazo, cambio, baja, cuotas una vez, webhook firmado, conciliación) |
 
 Variables nuevas (`app/config.py`, `.env.example`): `SIGNUP_ENABLED`, `SIGNUP_IP_PER_HOUR`,
 `SIGNUP_IP_PER_DAY`, `PASSWORD_RESET_IP_PER_HOUR`, `PASSWORD_RESET_EMAIL_PER_HOUR`,
 `BANK_TRANSFER_INFO`, `BILLING_NOTIFY_TO`, `BILLING_GRACE_DAYS`, `BILLING_NUMBER_HOLD_DAYS`,
-`BILLING_REMINDER_DAYS`, `BILLING_TICK_SECONDS`. En la fase 3: `MP_BILLING_ACCESS_TOKEN` y
-`MP_BILLING_WEBHOOK_SECRET` (el prefijo no choca con las de `MERCADOPAGO_PLAN.md`).
+`BILLING_REMINDER_DAYS`, `BILLING_TICK_SECONDS`. Fase 3: `MP_BILLING_ACCESS_TOKEN`,
+`MP_BILLING_PUBLIC_KEY`, `MP_BILLING_WEBHOOK_SECRET` y, solo en sandbox, `MP_BILLING_TEST_PAYER_EMAIL` (el
+prefijo no choca con las de `MERCADOPAGO_PLAN.md`).
 
 ## 5. Puesta en marcha de las fases 1 y 2
 
@@ -274,9 +308,36 @@ Pendiente (lo hace el usuario, porque pide entrar a MP como comprador): pagar po
 una suscripción `pending` con un comprador cuyo email no es el `payer_email`, para saber si la
 redirección sirve sola.
 
+**Prueba de punta a punta (10-oct-2026, backend de desarrollo + build de la UI + sandbox):** registro con
+plan → `/welcome` → `/plan/pagar` → datos de factura → Brick con la Mastercard de prueba (`APRO`) → "Pago
+aprobado", plan activo y próximo débito a un mes. También subida de plan (monto nuevo en MP) y baja
+(`cancelled` en MP). Sin errores de CSP con los dominios de `MP_HOSTS`. Dos hallazgos, corregidos:
+- `GET /authorized_payments/search` con `limit=50` da 400 (`Invalid value for limit`): sin `limit`.
+- El primer cobro aparece en la búsqueda un instante después del alta: reintentos cortos en `subscribe_card`.
+
+**Pago en el registro desde la landing (10-oct-2026, landing local + backend de desarrollo + sandbox):**
+`/registro?plan=Mostrador` → datos → paso 2 → Mastercard `APRO` → inicio del panel con Mostrador activo y el
+pago registrado. Con `OTHE` en Sucursal: "La tarjeta fue rechazada" en el paso 2 y ni cliente ni usuario.
+`GET /preapproval/search?external_reference=…` no filtra (devuelve todas): no sirve para buscar una.
+
 **Consecuencia para la fase 3:** el flujo con tarjeta tokenizada (`authorized`) anduvo completo sin
 pasar por la cuenta de MP del comprador, y una tarjeta mala falla en el acto. Si el `init_point` falla con
 emails distintos, el camino es el **Card Payment Brick** en una página propia (relajar la CSP solo ahí).
+
+## 7. Puesta en marcha de la fase 3
+
+1. **El usuario** activa las credenciales de producción de la app "atentina suscripciones" (6.3, paso 1)
+   y elige el plazo de acreditación (6.3, paso 3).
+2. Con el MCP: `get_credentials` de producción y `save_webhook` con `callback` (URL de producción) y los
+   tópicos de suscripciones y pagos; la clave secreta, del panel.
+3. `.env`: `MP_BILLING_ACCESS_TOKEN`, `MP_BILLING_PUBLIC_KEY`, `MP_BILLING_WEBHOOK_SECRET` de producción
+   (sin `MP_BILLING_TEST_PAYER_EMAIL`). Diff enmascarado contra el backup.
+4. Build, recrear `app` (y `agent`, mismo código), **después** push de la landing: el formulario nuevo manda
+   la clave, usa `/demo/plans` y `/demo/signup/check`, y espera `continue_url`; el backend viejo no los tiene.
+5. Prueba real: registro con plan Mostrador y una tarjeta propia; baja desde Plan.
+
+Sin las credenciales de MP se puede desplegar igual (registro con clave y transferencia): la tarjeta no se
+ofrece hasta cargarlas.
 
 ### 6.3 Producción (después de la fase 3)
 

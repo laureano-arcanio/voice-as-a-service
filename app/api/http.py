@@ -133,19 +133,29 @@ def inline_script_hashes(index: Path) -> list[str]:
     return hashes
 
 
-def content_security_policy() -> str:
+# Pago con tarjeta (Card Payment Brick de Mercado Pago): solo en las paginas que lo cargan, que se abren
+# con navegacion completa (la CSP es la del documento). Los campos de la tarjeta son iframes de MP.
+MP_PAGES = ("/plan/pagar",)
+MP_SCRIPTS = "https://sdk.mercadopago.com https://http2.mlstatic.com"
+MP_HOSTS = ("https://*.mercadopago.com https://*.mercadopago.com.ar https://*.mercadolibre.com "
+            "https://*.mercadolibre.com.ar https://*.mlstatic.com")
+
+
+def content_security_policy(mercadopago: bool = False) -> str:
     """CSP de la UI: sus assets, los scripts inline de index.html (por hash; hoy no tiene) y el SDK de Facebook
-    (Embedded Signup de WhatsApp: script en connect.facebook.net, popup e iframes en facebook.com)."""
+    (Embedded Signup de WhatsApp: script en connect.facebook.net, popup e iframes en facebook.com). Con
+    `mercadopago`, ademas el SDK y los iframes de MP (MP_PAGES)."""
+    mp_hosts = f" {MP_HOSTS}" if mercadopago else ""
     scripts = " ".join(["'self'", *inline_script_hashes(settings.web_dist_dir / "index.html"),
-                        "https://connect.facebook.net"])
+                        "https://connect.facebook.net", *([MP_SCRIPTS] if mercadopago else [])])
     return "; ".join([
         "default-src 'self'",
         f"script-src {scripts}",
-        "style-src 'self' 'unsafe-inline'",   # Mantine pone estilos inline
-        "img-src 'self' data: blob: https://*.facebook.com https://*.fbcdn.net https://*.fbsbx.com",
-        "font-src 'self' data:",
-        "connect-src 'self' https://*.facebook.com https://*.facebook.net",
-        "frame-src https://*.facebook.com https://*.facebook.net",
+        f"style-src 'self' 'unsafe-inline'{mp_hosts}",   # Mantine pone estilos inline
+        f"img-src 'self' data: blob: https://*.facebook.com https://*.fbcdn.net https://*.fbsbx.com{mp_hosts}",
+        f"font-src 'self' data:{mp_hosts}",
+        f"connect-src 'self' https://*.facebook.com https://*.facebook.net{mp_hosts}",
+        f"frame-src https://*.facebook.com https://*.facebook.net{mp_hosts}",
         "media-src 'self' blob:",
         "worker-src 'self' blob:",
         "object-src 'none'",
@@ -205,7 +215,7 @@ class SecurityHeadersMiddleware:
                 if b"content-security-policy" not in present and b"content-security-policy-report-only" not in present:
                     name = "content-security-policy-report-only" if settings.csp_report_only \
                         else "content-security-policy"
-                    add(name, content_security_policy())
+                    add(name, content_security_policy(mercadopago=scope["path"].startswith(MP_PAGES)))
                 if https:
                     add("strict-transport-security", "max-age=31536000; includeSubDomains")
                 message = {**message, "headers": headers}

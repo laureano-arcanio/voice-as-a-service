@@ -1,51 +1,78 @@
 ---
-// Registro autoservicio (docs/SUSCRIPCIONES_PLAN.md): crea la cuenta en el plan gratuito y manda el mail
-// para activarla. Con ?plan=<nombre> (desde los precios), al activar la cuenta abre ese plan en el panel.
+// Registro autoservicio (docs/SUSCRIPCIONES_PLAN.md). Free: un paso y al panel. Plan pago (?plan=<nombre>,
+// desde los precios): paso 1 los datos y paso 2 el pago con tarjeta (Card Payment Brick de Mercado Pago),
+// sin otras opciones; la cuenta se crea solo si el pago se aprueba y despues va al inicio del panel. Sin
+// Mercado Pago en la API, el plan pago se crea en Free y se paga desde el panel.
 import Button from "../components/Button.astro";
 import CheckList from "../components/CheckList.astro";
 import Footer from "../components/Footer.astro";
 import Icon from "../components/Icon.astro";
 import Nav from "../components/Nav.astro";
-import { whatsappUrl } from "../data/site";
+import { plans } from "../data/site";
 import Base from "../layouts/Base.astro";
 
 const label = "grid gap-1.5 text-[.85rem] font-medium text-ink-2";
 const field =
   "w-full rounded-xl border border-line bg-bg-2 px-3 py-2.5 font-body text-base text-ink hover:border-line-2 focus:border-accent focus:bg-surface focus:outline-none";
+const eyebrow = "font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase";
+const step = "font-mono text-[.78rem] tracking-[.04em] text-muted uppercase";
 const included = [
   { title: "20 minutos por mes", text: "Para probar tus agentes con llamadas web." },
   { title: "El panel completo", text: "Armá agentes, elegí la voz y mirá cada conversación con sus datos." },
   { title: "La API", text: "LLM, transcripción y voces argentinas, compatible con OpenAI." },
   { title: "Sin tarjeta", text: "Cuando necesites telefonía, elegís un plan desde el panel." },
 ];
+// Los planes que se contratan en el registro (los "A medida" van al contacto).
+const paid = plans.filter((p) => p.signup !== false);
+// Estados del panel (data-state): idle, checking, pay, paying, sending, sent.
+const onForm = "group-data-[state=pay]/signup:hidden group-data-[state=paying]/signup:hidden group-data-[state=sent]/signup:hidden";
+const onPay = "hidden group-data-[state=pay]/signup:grid group-data-[state=paying]/signup:grid";
 ---
 
 <Base
-  title="Creá tu cuenta gratis · Atentina"
-  description="Registrate gratis en Atentina: armá tu agente, probalo con llamadas web y usá la API. Sin tarjeta."
+  title="Creá tu cuenta · Atentina"
+  description="Registrate en Atentina: armá tu agente, probalo con llamadas web y usá la API. Plan gratis, o uno con telefonía pagado con tarjeta."
   path="/registro"
 >
   <Nav />
 
   <header class="border-b border-line bg-linear-to-b from-bg-2 to-bg pt-10 pb-14 min-[901px]:pt-[72px]">
-    <!-- Desktop: texto y lista a la izquierda, formulario a la derecha. Mobile: el formulario va antes de la lista. -->
-    <div class="mx-auto grid max-w-[1120px] items-start gap-9 px-5 min-[901px]:grid-cols-[1fr_minmax(0,520px)] min-[901px]:gap-x-12">
-      <div class="grid gap-[22px]">
-        <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">Plan Free</span>
+    <!-- Desktop: texto y lista a la izquierda, formulario a la derecha. Mobile: el formulario va antes de la lista.
+    Al terminar (data-done) queda solo el recuadro, centrado. -->
+    <div
+      class="group/page mx-auto grid max-w-[1120px] items-start gap-9 px-5 min-[901px]:grid-cols-[1fr_minmax(0,520px)] min-[901px]:gap-x-12 data-done:justify-items-center min-[901px]:data-done:grid-cols-1"
+      data-signup-page
+    >
+      <div class="grid gap-[22px]" data-intro="free">
+        <span class={eyebrow}>Plan Free</span>
         <h1>Creá tu cuenta <span class="text-accent">gratis</span></h1>
         <p class="max-w-[62ch] text-[1.12rem] text-ink-2">
-          Te mandamos un mail para crear tu clave y entrás al panel. Empezás en el plan gratuito y, cuando quieras, pasás a un plan con números y minutos.
+          Creás tu cuenta y entrás al panel en el momento. Empezás en el plan gratuito y, cuando quieras, pasás a un plan con números y minutos.
         </p>
       </div>
+      {
+        paid.map((plan) => (
+          <div class="grid gap-[22px]" data-intro={plan.name.toLowerCase()} hidden>
+            <span class={eyebrow}>Plan {plan.name}</span>
+            <h1>
+              Contratá el plan <span class="text-accent">{plan.name}</span>
+            </h1>
+            <p class="max-w-[62ch] text-[1.12rem] text-ink-2">
+              Creás tu cuenta y pagás con tarjeta. El plan queda activo en el momento y se cobra cada mes con débito automático. Sin permanencia.
+            </p>
+          </div>
+        ))
+      }
 
       <div
-        class="group/signup overflow-hidden rounded-[18px] border border-line bg-surface shadow-card min-[901px]:col-start-2 min-[901px]:row-span-2 min-[901px]:row-start-1"
+        class="group/signup w-full overflow-hidden rounded-[18px] border border-line bg-surface shadow-card min-[901px]:col-start-2 min-[901px]:row-span-2 min-[901px]:row-start-1 group-data-done/page:max-w-[520px] min-[901px]:group-data-done/page:col-start-1"
         data-signup
         data-state="idle"
       >
-        <form class="grid gap-3 p-5 group-data-[state=sent]/signup:hidden" data-signup-form>
+        <form class:list={["grid gap-3 p-5", onForm]} data-signup-form>
+          <span class={step} data-step-one hidden>Paso 1 de 2 · Tus datos</span>
           <p class="rounded-xl bg-accent-soft px-3 py-2 text-[.92rem] text-ink-2" data-signup-plan hidden>
-            Plan elegido: <b class="font-semibold text-accent"></b>. Lo pagás desde el panel después de activar la cuenta.
+            Plan elegido: <b class="font-semibold text-accent"></b>. Después de crear la cuenta lo pagás desde el panel.
           </p>
           <label class={label}>
             Empresa
@@ -57,14 +84,25 @@ const included = [
           </label>
           <label class={label}>
             Email
-            <input class={field} name="email" type="email" autocomplete="email" required maxlength="254" placeholder="vos@empresa.com" />
+            <input class={field} name="email" type="email" autocomplete="username" required maxlength="254" placeholder="vos@empresa.com" />
           </label>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <label class={label}>
+              Clave
+              <input class={field} name="password" type="password" autocomplete="new-password" required minlength="10" maxlength="256" />
+            </label>
+            <label class={label}>
+              Repetí la clave
+              <input class={field} name="confirm" type="password" autocomplete="new-password" required minlength="10" maxlength="256" />
+            </label>
+          </div>
+          <p class="-mt-1 text-[.82rem] text-muted">Al menos 10 caracteres.</p>
           <div class="hidden" aria-hidden="true">
             <label>Sitio web <input name="website" tabindex="-1" autocomplete="off" /></label>
           </div>
           <Button type="submit" data-signup-submit class="mt-1">
-            <span class="group-data-[state=sending]/signup:hidden">Crear mi cuenta</span>
-            <span class="hidden group-data-[state=sending]/signup:inline">Creando…</span>
+            <span class="group-data-[state=sending]/signup:hidden group-data-[state=checking]/signup:hidden" data-submit-label>Crear mi cuenta</span>
+            <span class="hidden group-data-[state=sending]/signup:inline group-data-[state=checking]/signup:inline">Un momento…</span>
           </Button>
           <p class="text-[.85rem] text-muted">
             Al crear la cuenta aceptás los <a class="text-ink-2" href="/terminos">términos</a> y la{" "}
@@ -74,21 +112,66 @@ const included = [
           <p class="min-h-[1.3em] text-[.82rem] font-medium text-warn" data-signup-error aria-live="polite"></p>
         </form>
 
-        <div class="hidden justify-items-center gap-2 p-8 text-center group-data-[state=sent]/signup:grid" role="status" tabindex="-1" data-signup-sent>
-          <span class="grid size-10 place-items-center rounded-full bg-ok-soft text-ok" aria-hidden="true">
-            <Icon name="check" class="size-5" />
-          </span>
-          <h2 class="text-[1.4rem]">Revisá tu email</h2>
-          <p class="text-[.96rem] text-ink-2">
-            Te mandamos a <b class="font-semibold" data-signup-email></b> el link para crear tu clave. Vale 72 horas. Si no llega en unos minutos, mirá en spam.
+        <section class:list={["gap-4 p-5", onPay]} data-signup-pay aria-labelledby="signup-pay-title">
+          <div class="grid gap-1">
+            <span class={step}>Paso 2 de 2 · Pago</span>
+            <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <h2 id="signup-pay-title" class="text-[1.4rem]">Plan <span data-pay-plan></span></h2>
+              <p class="flex items-baseline gap-1.5">
+                <span class="font-display text-[1.6rem] font-extrabold tracking-[-0.02em] tabular-nums" data-pay-price></span>
+                <span class="text-[.9rem] text-muted">por mes</span>
+              </p>
+            </div>
+          </div>
+          <p class="text-[.92rem] text-ink-2">
+            Se cobra hoy y después cada mes, con débito automático de Mercado Pago. Sin permanencia: lo das de baja cuando quieras desde el panel.
           </p>
-          <Button href={whatsappUrl} variant="ghost" target="_blank" rel="noopener" class="mt-2">¿No llegó? Escribinos</Button>
+          <div class="grid min-h-24 place-items-center" data-pay-loading>
+            <span class="size-6 animate-spin rounded-full border-3 border-line border-t-accent motion-reduce:animate-none" aria-hidden="true"></span>
+            <span class="sr-only">Cargando el formulario de pago</span>
+          </div>
+          <div id="signup-card-brick"></div>
+          <p class="min-h-[1.3em] text-[.82rem] font-medium text-warn" data-pay-error aria-live="polite"></p>
+          <button type="button" class="cursor-pointer justify-self-start text-[.85rem] text-muted underline hover:text-ink-2" data-pay-back>
+            ← Corregir mis datos
+          </button>
+        </section>
+
+        <!-- Final: pago aprobado (plan pago) o cuenta creada (Free), con cuenta regresiva hacia el panel. -->
+        <div class="hidden justify-items-center gap-3 px-6 py-10 text-center group-data-[state=sent]/signup:grid" role="status" tabindex="-1" data-signup-sent>
+          <span class="grid size-16 place-items-center rounded-full bg-ok-soft text-ok" aria-hidden="true">
+            <Icon name="check" class="size-8 stroke-[2.4]" />
+          </span>
+          <h2 class="text-[1.6rem]" data-sent-title>Cuenta creada</h2>
+          <p class="max-w-[38ch] text-[.98rem] text-ink-2" data-sent-text>Tu cuenta ya está lista.</p>
+          <Button href="#" class="mt-2" data-sent-go>Entrar al panel</Button>
+          <p class="text-[.85rem] text-muted tabular-nums" aria-live="off">
+            Te llevamos al panel en <span data-sent-count>5</span> s.
+          </p>
         </div>
       </div>
 
-      <div class="min-[901px]:col-start-1 min-[901px]:row-start-2">
+      <div class="min-[901px]:col-start-1 min-[901px]:row-start-2" data-intro-list="free">
         <CheckList items={included} />
       </div>
+      {
+        paid.map((plan) => (
+          <ul
+            class="m-0 grid list-none content-start gap-[9px] p-0 text-[.98rem] min-[901px]:col-start-1 min-[901px]:row-start-2 [&_b]:font-semibold"
+            data-intro-list={plan.name.toLowerCase()}
+            hidden
+          >
+            {plan.items.map((item) => (
+              <li class="flex items-start gap-[9px]">
+                <span class="mt-0.5 grid size-[18px] flex-none place-items-center rounded-full bg-ok-soft text-ok">
+                  <Icon name="check" class="size-3.5 stroke-[2.2]" />
+                </span>
+                <span set:html={item} />
+              </li>
+            ))}
+          </ul>
+        ))
+      }
     </div>
   </header>
 

@@ -7,6 +7,7 @@ import { FullPageLoader, RequireAuth, RequireRole } from '@/features/auth/guards
 import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { SetPasswordPage } from '@/features/auth/SetPasswordPage';
+import { WelcomePage } from '@/features/auth/WelcomePage';
 
 /** Pagina cargada a demanda (code splitting por ruta), opcionalmente solo para un rol. */
 function page(load: () => Promise<ComponentType>, role?: Role): Pick<RouteObject, 'lazy'> {
@@ -30,6 +31,7 @@ export const routes: RouteObject[] = [
   { path: '/login', element: <LoginPage />, errorElement: <RouteError /> },
   { path: '/set-password', element: <SetPasswordPage />, errorElement: <RouteError /> },
   { path: '/forgot-password', element: <ForgotPasswordPage />, errorElement: <RouteError /> },
+  { path: '/welcome', element: <WelcomePage />, errorElement: <RouteError /> },
   {
     path: '/',
     element: (
@@ -71,6 +73,10 @@ export const routes: RouteObject[] = [
         ...page(async () => (await import('@/features/clients/AccountPage')).AccountPage, 'client'),
       },
       { path: 'plan', ...page(async () => (await import('@/features/billing/PlanPage')).PlanPage, 'client') },
+      {
+        path: 'plan/pagar',
+        ...page(async () => (await import('@/features/billing/CheckoutPage')).CheckoutPage, 'client'),
+      },
       {
         path: 'clients',
         ...page(async () => (await import('@/features/clients/ClientsPage')).ClientsPage, 'admin'),

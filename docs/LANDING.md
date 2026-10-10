@@ -29,10 +29,14 @@ Cloudflare Tunnel. No hay backend aparte ni base nueva: costo adicional cero.
   Sucursal arrancan con "Telefonía incluida" y "Todo lo que ofrece Free". Es contenido de la landing: el tier real se crea
   en Tiers (`max_phone_numbers` en 0; el tope de pedidos por minuto de la API, los cupos `api_*` y la cantidad de agentes
   están por definir). Planes: Mostrador, Sucursal y Red (Central se quitó).
-- **Registro (`/registro`, 9-oct-2026):** "Empezar gratis" y los planes con precio llevan a `/registro` (los pagos, con
-  `?plan=<nombre>`); "A medida" sigue yendo al contacto. El formulario (empresa, nombre, email, Turnstile) llama a
-  `/api/v1/demo/signup` y crea la cuenta en el tier Free; el plan pago se pide y se paga desde el panel. Ver
-  [`SUSCRIPCIONES_PLAN.md`](SUSCRIPCIONES_PLAN.md). Los precios son finales (sin "IVA aparte").
+- **Registro (`/registro`):** "Empezar gratis" y los planes con precio llevan a `/registro` (los pagos, con
+  `?plan=<nombre>`); "A medida" sigue yendo al contacto. Free: un paso (empresa, nombre, email, clave, Turnstile) y
+  al panel. Plan pago con Mercado Pago: paso 1 los datos y paso 2 el pago con tarjeta (Card Payment Brick, sin
+  otras opciones); la cuenta se crea con el pago aprobado y va al inicio del panel. Usa `/api/v1/demo/plans`,
+  `/demo/signup/check` y `/demo/signup`. Ver [`SUSCRIPCIONES_PLAN.md`](SUSCRIPCIONES_PLAN.md). Los precios son
+  finales (sin "IVA aparte"); los que se cobran salen de la base (`tiers.price_ars`).
+  - La landing no tiene CSP en Render, así que el SDK de MP (`sdk.mercadopago.com`) carga sin cambios. Si se
+    agrega una, sumar los dominios de `MP_HOSTS` (`app/api/http.py`).
 - **Publicar:** push a la rama que sigue Render; solo los cambios en `landing/` despliegan.
 - **Diseño:** tokens, componentes, patrones y voz en [`DESIGN_GUIDELINE.md`](DESIGN_GUIDELINE.md).
 - **`og.png`, favicon y logos (`docs/brand/`):** se generan con `scripts/brand/`: `python scripts/brand/build_atentina.py` (con `fonttools`) escribe los SVG

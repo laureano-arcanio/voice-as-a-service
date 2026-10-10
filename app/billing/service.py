@@ -7,13 +7,19 @@
 - Vencido sin pago: `past_due` con el tier pago hasta `grace_until` (BILLING_GRACE_DAYS); despues
   baja al Free (`downgrade_to_free`). Los numeros que no entran en el Free quedan suspendidos
   (asignados, sin atender) BILLING_NUMBER_HOLD_DAYS y despues vuelven al inventario.
+- Mercado Pago (tarjeta con debito automatico): `subscribe_card` crea la suscripcion `authorized` en MP
+  con el token de la tarjeta (cobra el primer mes en el momento) y `sync` aplica lo que diga MP: pagos
+  aprobados activan o renuevan hasta `next_payment_date`; una cancelacion deja el plan hasta el fin del
+  periodo. Lo llaman el alta, el webhook (billing/webhook.py) y la conciliacion del barrido.
 - `tick` corre en el loop de la app (billing/loop.py): vencimientos, gracia, recordatorios y
   numeros a liberar. Devuelve los mails, que se mandan despues del commit.
 """
 import calendar
 import datetime
 import logging
+import time
 from dataclasses import dataclass
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -23,13 +29,35 @@ from ..db import utcnow
 from ..mail import messages
 from ..mail.sender import Mail
 from ..models import BillingPayment, Client, PhoneNumber, Role, Subscription, Tier, User
+from ..models._common import new_id
 from ..services import limits, phone_numbers
-from ..services.errors import Conflict, Invalid
+from ..services.errors import Conflict, Invalid, ServiceError
+from . import mp
 
 logger = logging.getLogger(__name__)
 
 OPEN_STATUSES = ("pending", "active", "past_due")
-METHODS = ("transfer",)   # mercadopago: fase 3
+
+
+def methods() -> list[str]:
+    """Medios de pago ofrecidos: Mercado Pago solo con credenciales cargadas."""
+    return ["mercadopago", "transfer"] if mp.enabled() else ["transfer"]
+
+
+SUBSCRIBE_RETRIES, SUBSCRIBE_RETRY_SECONDS = 4, 1.5
+wait = time.sleep   # los tests lo anulan
+
+
+def mp_client() -> mp.Client:
+    """Los tests lo reemplazan por uno falso."""
+    return mp.Client()
+
+
+def _local_date(iso: str | None) -> datetime.date | None:
+    """Fecha de MP (ISO con zona) en BILLING_TIMEZONE."""
+    if not iso:
+        return None
+    return datetime.datetime.fromisoformat(iso).astimezone(ZoneInfo(settings.billing_timezone)).date()
 
 
 def add_month(d: datetime.date) -> datetime.date:
@@ -104,7 +132,7 @@ def _users(s: Session, client_id: str) -> list[User]:
 def request_plan(s: Session, client: Client, tier_id: str, method: str, user: User | None) -> Subscription:
     """Pide un plan pago. Sin suscripcion: queda `pending` hasta el pago. Con una activa: el plan
     nuevo queda pedido (`pending_tier_id`) y se aplica al registrar el proximo pago."""
-    if method not in METHODS:
+    if method != "transfer":
         raise Invalid("Ese medio de pago todavía no está disponible", "method_unavailable")
     tier = _sellable(s, tier_id)
     _lock(s, client)
@@ -147,6 +175,8 @@ def cancel(s: Session, client: Client) -> Subscription:
     sub = current(s, client.id)
     if sub is None:
         raise Invalid("No tenés un plan pago", "no_subscription")
+    if sub.method == "mercadopago" and sub.mp_preapproval_id and sub.status != "past_due":
+        mp_client().cancel(sub.mp_preapproval_id)   # sin mas debitos; la vencida la cancela downgrade_to_free
     if sub.status == "pending":
         sub.status, sub.canceled_at = "canceled", utcnow()
     elif sub.status == "active":
@@ -159,6 +189,144 @@ def cancel(s: Session, client: Client) -> Subscription:
 
 def update_fiscal(client: Client, legal_name: str, tax_id: str, tax_condition: str) -> None:
     client.legal_name, client.tax_id, client.tax_condition = legal_name.strip(), tax_id, tax_condition
+
+
+# ---------- Mercado Pago ----------
+
+def subscribe_card(s: Session, client: Client, tier_id: str, card_token_id: str,
+                   user: User | None) -> tuple[Subscription, list[Mail]]:
+    """Plan pago con tarjeta y debito automatico. Una tarjeta rechazada falla aca (CardRejected) y no
+    queda nada. Un pedido por transferencia pendiente se reemplaza."""
+    if not mp.enabled():
+        raise Invalid("El pago con tarjeta todavía no está disponible", "method_unavailable")
+    tier = _sellable(s, tier_id)
+    _lock(s, client)
+    sub = current(s, client.id)
+    if sub is not None and sub.status != "pending":
+        raise Conflict("Ya tenés un plan pago: cambialo desde la pantalla Plan", "already_subscribed")
+    payer = user.email if user else ""
+    sub_id = new_id()
+    pre = mp_client().create_subscription(
+        reason=f"Atentina - plan {tier.name}", external_reference=sub_id,
+        payer_email=settings.mp_billing_test_payer_email or payer, card_token_id=card_token_id,
+        amount=tier.price_ars, back_url=f"{settings.app_url.rstrip('/')}/plan")
+    if sub is not None:   # el pedido por transferencia que no se pago
+        sub.status, sub.canceled_at = "canceled", utcnow()
+    new = Subscription(id=sub_id, client_id=client.id, tier_id=tier.id, method="mercadopago", status="pending",
+                       mp_preapproval_id=pre.id, payer_email=payer)
+    s.add(new)
+    s.flush()
+    try:
+        mails = sync(s, new, pre)
+        # El primer cobro se acredita en MP un instante despues del alta (probado en sandbox): unos
+        # reintentos cortos para activarlo ya; si no, lo activan el webhook o la conciliacion.
+        for _ in range(SUBSCRIBE_RETRIES):
+            if new.status != "pending":
+                break
+            wait(SUBSCRIBE_RETRY_SECONDS)
+            mails += sync(s, new)
+        return new, mails
+    except ServiceError as e:
+        # La suscripcion ya existe en MP (y pudo cobrar): queda pendiente y la toma la conciliacion. Si
+        # esto se deshiciera, MP seguiria debitando una suscripcion que no conocemos.
+        logger.warning("billing: %s creada en MP, sin sincronizar: %s", pre.id, e.message)
+        return new, []
+
+
+def change_card_plan(s: Session, client: Client, tier_id: str) -> Subscription:
+    """Cambio de plan con debito automatico: el monto nuevo rige desde el proximo debito (MP no
+    prorratea). Una subida aplica el plan ya; una bajada, con el proximo pago."""
+    tier = _sellable(s, tier_id)
+    _lock(s, client)
+    sub = current(s, client.id)
+    if sub is None or sub.method != "mercadopago" or sub.status == "pending":
+        raise Invalid("No tenés un plan con débito automático", "no_subscription")
+    current_tier = s.get(Tier, sub.tier_id)
+    mp_client().set_amount(sub.mp_preapproval_id, tier.price_ars)
+    sub.cancel_at_period_end = False
+    if tier.id == sub.tier_id:
+        sub.pending_tier_id = None
+    elif (tier.price_ars or 0) > (current_tier.price_ars or 0):
+        sub.tier_id, sub.pending_tier_id = tier.id, None
+        client.tier = tier
+        s.flush()
+        fit_numbers(s, client)
+    else:
+        sub.pending_tier_id = tier.id
+    s.flush()
+    return sub
+
+
+def sync(s: Session, sub: Subscription, pre: mp.Preapproval | None = None,
+         now: datetime.datetime | None = None) -> list[Mail]:
+    """Aplica el estado de MP a la suscripcion: registra los pagos nuevos (una vez cada uno, por
+    `mp_payment_id`); con un pago aprobado activa o renueva hasta `next_payment_date` (y aplica una bajada
+    pedida); una cancelacion en MP deja el plan hasta el fin del periodo pagado."""
+    api = mp_client()
+    pre = pre or api.get_subscription(sub.mp_preapproval_id)
+    client = s.get(Client, sub.client_id)
+    _lock(s, client)
+    known = set(s.scalars(select(BillingPayment.mp_payment_id).where(BillingPayment.subscription_id == sub.id)))
+    approved_now = []
+    for quota in api.subscription_payments(pre.id):
+        pay = quota.get("payment") or {}
+        status = {"approved": "approved", "rejected": "rejected", "refunded": "refunded"}.get(pay.get("status"))
+        if not pay.get("id") or status is None or str(pay["id"]) in known:
+            continue
+        row = BillingPayment(client_id=client.id, subscription_id=sub.id, tier_id=sub.pending_tier_id or sub.tier_id,
+                             method="mercadopago", status=status, mp_payment_id=str(pay["id"]),
+                             amount_ars=int(round(float(quota.get("transaction_amount") or 0))),
+                             paid_on=_local_date(quota.get("debit_date") or quota.get("date_created")) or limits.today(now),
+                             period_end=_local_date(pre.next_payment_date), raw=quota)
+        s.add(row)
+        known.add(row.mp_payment_id)
+        if status == "approved":
+            approved_now.append(row)
+    mails: list[Mail] = []
+    if pre.status in ("authorized", "paused") and approved_now:
+        if sub.pending_tier_id:
+            sub.tier_id, sub.pending_tier_id = sub.pending_tier_id, None
+        end = _local_date(pre.next_payment_date)
+        if end and (sub.current_period_end is None or end > sub.current_period_end):
+            sub.current_period_end = end
+        sub.status, sub.grace_until = "active", None
+        tier = s.get(Tier, sub.tier_id)
+        client.tier = tier
+        s.flush()
+        fit_numbers(s, client, now)
+        mails += [messages.payment_recorded(email=u.email, name=u.name, client_name=client.name, tier=tier,
+                                            amount=p.amount_ars, period_end=sub.current_period_end)
+                  for p in approved_now for u in _users(s, client.id)]
+    elif pre.status == "cancelled" and sub.status != "canceled":
+        if sub.status == "pending":
+            sub.status, sub.canceled_at = "canceled", now or utcnow()
+        else:
+            sub.cancel_at_period_end, sub.pending_tier_id = True, None
+    s.flush()
+    return mails
+
+
+def by_preapproval(s: Session, preapproval_id: str) -> Subscription | None:
+    return s.scalar(select(Subscription).where(Subscription.mp_preapproval_id == preapproval_id))
+
+
+def reconcile(s: Session, now: datetime.datetime | None = None) -> list[Mail]:
+    """Por si se perdio un webhook: pregunta a MP por las suscripciones con debito automatico que
+    esperan un pago (pendientes, vencidas o que vencen hoy o antes)."""
+    if not mp.enabled():
+        return []
+    today = limits.today(now)
+    mails: list[Mail] = []
+    subs = s.scalars(select(Subscription).where(Subscription.method == "mercadopago",
+                                                Subscription.status.in_(OPEN_STATUSES)))
+    for sub in list(subs):
+        if sub.status == "active" and sub.current_period_end and sub.current_period_end > today:
+            continue
+        try:
+            mails += sync(s, sub, now=now)
+        except ServiceError as e:
+            logger.warning("billing: conciliacion de %s: %s", sub.mp_preapproval_id, e.message)
+    return mails
 
 
 # ---------- acciones del admin ----------
@@ -176,6 +344,11 @@ def downgrade_to_free(s: Session, client: Client, sub: Subscription,
     """Termina la suscripcion y pasa el cliente al Free (sin Free cargado, lo desactiva)."""
     now = now or utcnow()
     sub.status, sub.canceled_at, sub.pending_tier_id = "canceled", now, None
+    if sub.method == "mercadopago" and sub.mp_preapproval_id:
+        try:
+            mp_client().cancel(sub.mp_preapproval_id)
+        except ServiceError as e:   # ya cancelada en MP (final) o MP caido: el plan baja igual
+            logger.warning("billing: no se pudo cancelar %s en MP: %s", sub.mp_preapproval_id, e.message)
     old = client.tier.name
     free = free_tier(s)
     if free is None:

@@ -121,6 +121,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/handoff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Handoff
+         * @description Abre la sesion con el link del registro (de un solo uso, 10 min): sube session_version, asi el
+         *     mismo link no sirve dos veces.
+         */
+        post: operations["handoff_api_v1_auth_handoff_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tiers": {
         parameters: {
             query?: never;
@@ -1477,8 +1498,8 @@ export interface paths {
         put?: never;
         /**
          * Create Account
-         * @description Registro desde la landing: crea el cliente en el plan gratuito y manda el link para crear la
-         *     clave. Responde 202 aunque el email ya tenga cuenta (a ese le llega un link para una clave nueva).
+         * @description Registro desde la landing: crea el cliente en el plan gratuito con la clave elegida y devuelve el
+         *     link de un solo uso que abre la sesion en el dashboard (y, con un plan pago, lleva a pagarlo).
          */
         post: operations["create_account_api_v1_demo_signup_post"];
         delete?: never;
@@ -1520,7 +1541,8 @@ export interface paths {
          * Subscribe
          * @description Pide un plan pago. Por transferencia: queda pendiente hasta que se registra el pago, y al
          *     usuario le llega un mail con los datos bancarios. Con un plan activo, el pedido se aplica al
-         *     registrar el proximo pago.
+         *     registrar el proximo pago. Con Mercado Pago (`card_token_id`): debito automatico, cobra el primer mes
+         *     ya (422 card_rejected si MP rechaza la tarjeta); con un debito activo, cambia el plan.
          */
         post: operations["subscribe_api_v1_clients__client_id__billing_subscribe_post"];
         delete?: never;
@@ -1885,6 +1907,11 @@ export interface components {
              * @description Medios de pago disponibles
              */
             methods: ("transfer" | "mercadopago")[];
+            /**
+             * Mp Public Key
+             * @description Public key de Mercado Pago para el formulario de tarjeta
+             */
+            mp_public_key?: string | null;
             fiscal: components["schemas"]["FiscalOut"];
             /**
              * Bank
@@ -2458,6 +2485,11 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** HandoffIn */
+        HandoffIn: {
+            /** Token */
+            token: string;
+        };
         /** InferenceKeyUsageOut */
         InferenceKeyUsageOut: {
             /** Key Id */
@@ -2996,13 +3028,28 @@ export interface components {
              * Format: email
              */
             email: string;
+            /** Password */
+            password: string;
             /** Turnstile Token */
             turnstile_token: string;
+            /**
+             * Plan
+             * @default
+             */
+            plan?: string;
             /**
              * Website
              * @default
              */
             website?: string;
+        };
+        /** SignupOut */
+        SignupOut: {
+            /**
+             * Continue Url
+             * @description Link de un solo uso (10 min) que abre la sesion en el dashboard
+             */
+            continue_url: string;
         };
         /** SkippedNumber */
         SkippedNumber: {
@@ -3070,7 +3117,11 @@ export interface components {
              */
             whatsapp?: number;
         };
-        /** SubscribeIn */
+        /**
+         * SubscribeIn
+         * @description transfer: queda pedido hasta el pago. mercadopago: sin plan pago, `card_token_id` (Card Payment Brick)
+         *     crea el debito automatico y cobra el primer mes; con uno activo, cambia el plan (sin tarjeta).
+         */
         SubscribeIn: {
             /** Tier Id */
             tier_id: string;
@@ -3080,6 +3131,8 @@ export interface components {
              * @enum {string}
              */
             method?: "transfer" | "mercadopago";
+            /** Card Token Id */
+            card_token_id?: string | null;
         };
         /** SubscriptionOut */
         SubscriptionOut: {
@@ -4246,6 +4299,37 @@ export interface operations {
             };
             /** @description Demasiados pedidos */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    handoff_api_v1_auth_handoff_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandoffIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
+                };
+            };
+            /** @description Link vencido o ya usado (code invalid_handoff) */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7165,7 +7249,16 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            202: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignupOut"];
+                };
+            };
+            /** @description El email ya tiene cuenta (email_taken) */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

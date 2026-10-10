@@ -40,6 +40,7 @@ from .api.routers import (
     wa_campaigns,
     whatsapp,
 )
+from .billing import webhook as mp_webhook
 from .billing.loop import billing_loop
 from .config import settings
 from .services.demo import allowed_origins
@@ -73,6 +74,7 @@ def create_app() -> FastAPI:
                   lifespan=lifespan)
     errors.install(app)
     wa_webhook.install_logging()
+    mp_webhook.install_logging()
     # Middlewares: el ultimo agregado es el de afuera. Orden de afuera hacia adentro:
     # http -> https por el tunel, headers (tambien en los 403/413), CORS (la demo de la
     # landing, sin credenciales), tope de cuerpo y CSRF.
@@ -91,6 +93,7 @@ def create_app() -> FastAPI:
     _mount_docs(app)
     # Fuera de /api/v1 y antes de _mount_spa (su catch-all es GET y tragaria /wa/webhook).
     app.include_router(wa_webhook.router)
+    app.include_router(mp_webhook.router)
 
     @app.get("/health", include_in_schema=False)
     def health():

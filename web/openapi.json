@@ -198,6 +198,41 @@
     }
    }
   },
+  "/api/v1/auth/handoff": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Handoff",
+    "description": "Abre la sesion con el link del registro (de un solo uso, 10 min): sube session_version, asi el\nmismo link no sirve dos veces.",
+    "operationId": "handoff_api_v1_auth_handoff_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/HandoffIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MeOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Link vencido o ya usado (code invalid_handoff)"
+     }
+    }
+   }
+  },
   "/api/v1/tiers": {
    "get": {
     "tags": [
@@ -4970,7 +5005,7 @@
      "demo"
     ],
     "summary": "Create Account",
-    "description": "Registro desde la landing: crea el cliente en el plan gratuito y manda el link para crear la\nclave. Responde 202 aunque el email ya tenga cuenta (a ese le llega un link para una clave nueva).",
+    "description": "Registro desde la landing: crea el cliente en el plan gratuito con la clave elegida y devuelve el\nlink de un solo uso que abre la sesion en el dashboard (y, con un plan pago, lleva a pagarlo).",
     "operationId": "create_account_api_v1_demo_signup_post",
     "requestBody": {
      "content": {
@@ -4983,8 +5018,18 @@
      "required": true
     },
     "responses": {
-     "202": {
-      "description": "Successful Response"
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SignupOut"
+        }
+       }
+      }
+     },
+     "409": {
+      "description": "El email ya tiene cuenta (email_taken)"
      },
      "429": {
       "description": "Limite por IP"
@@ -5059,7 +5104,7 @@
      "billing"
     ],
     "summary": "Subscribe",
-    "description": "Pide un plan pago. Por transferencia: queda pendiente hasta que se registra el pago, y al\nusuario le llega un mail con los datos bancarios. Con un plan activo, el pedido se aplica al\nregistrar el proximo pago.",
+    "description": "Pide un plan pago. Por transferencia: queda pendiente hasta que se registra el pago, y al\nusuario le llega un mail con los datos bancarios. Con un plan activo, el pedido se aplica al\nregistrar el proximo pago. Con Mercado Pago (`card_token_id`): debito automatico, cobra el primer mes\nya (422 card_rejected si MP rechaza la tarjeta); con un debito activo, cambia el plan.",
     "operationId": "subscribe_api_v1_clients__client_id__billing_subscribe_post",
     "security": [
      {
@@ -6094,6 +6139,18 @@
       "type": "array",
       "title": "Methods",
       "description": "Medios de pago disponibles"
+     },
+     "mp_public_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Mp Public Key",
+      "description": "Public key de Mercado Pago para el formulario de tarjeta"
      },
      "fiscal": {
       "$ref": "#/components/schemas/FiscalOut"
@@ -7780,6 +7837,21 @@
     "type": "object",
     "title": "HTTPValidationError"
    },
+   "HandoffIn": {
+    "properties": {
+     "token": {
+      "type": "string",
+      "maxLength": 2048,
+      "minLength": 10,
+      "title": "Token"
+     }
+    },
+    "type": "object",
+    "required": [
+     "token"
+    ],
+    "title": "HandoffIn"
+   },
    "InferenceKeyUsageOut": {
     "properties": {
      "key_id": {
@@ -9200,11 +9272,24 @@
       "format": "email",
       "title": "Email"
      },
+     "password": {
+      "type": "string",
+      "maxLength": 256,
+      "minLength": 10,
+      "title": "Password"
+     },
      "turnstile_token": {
       "type": "string",
       "maxLength": 2048,
       "minLength": 1,
       "title": "Turnstile Token"
+     },
+     "plan": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[\\w .-]*$",
+      "title": "Plan",
+      "default": ""
      },
      "website": {
       "type": "string",
@@ -9218,9 +9303,24 @@
      "company",
      "name",
      "email",
+     "password",
      "turnstile_token"
     ],
     "title": "SignupIn"
+   },
+   "SignupOut": {
+    "properties": {
+     "continue_url": {
+      "type": "string",
+      "title": "Continue Url",
+      "description": "Link de un solo uso (10 min) que abre la sesion en el dashboard"
+     }
+    },
+    "type": "object",
+    "required": [
+     "continue_url"
+    ],
+    "title": "SignupOut"
    },
    "SkippedNumber": {
     "properties": {
@@ -9392,13 +9492,26 @@
       ],
       "title": "Method",
       "default": "transfer"
+     },
+     "card_token_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 128
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Card Token Id"
      }
     },
     "type": "object",
     "required": [
      "tier_id"
     ],
-    "title": "SubscribeIn"
+    "title": "SubscribeIn",
+    "description": "transfer: queda pedido hasta el pago. mercadopago: sin plan pago, `card_token_id` (Card Payment Brick)\ncrea el debito automatico y cobra el primer mes; con uno activo, cambia el plan (sin tarjeta)."
    },
    "SubscriptionOut": {
     "properties": {

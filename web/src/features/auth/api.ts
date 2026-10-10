@@ -71,6 +71,18 @@ export function usePasswordReset() {
   });
 }
 
+/** Sesion con el link de un solo uso del registro de la landing. */
+export function useHandoff() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (token: string) => unwrap(api.POST('/api/v1/auth/handoff', { body: { token } })),
+    onSuccess: (me) => {
+      qc.clear();
+      qc.setQueryData(meKey, me);
+    },
+  });
+}
+
 export function useLogout() {
   const qc = useQueryClient();
   return useMutation({

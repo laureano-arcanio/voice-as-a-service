@@ -69,7 +69,13 @@ export function LoginPage() {
             onSubmit={form.onSubmit((values) =>
               login.mutate(
                 { email: values.email.trim(), password: values.password },
-                { onSuccess: () => void navigate(target, { replace: true }) },
+                {
+                  // /plan/pagar necesita su CSP (SDK de Mercado Pago): navegacion completa.
+                  onSuccess: () =>
+                    target.startsWith('/plan/pagar')
+                      ? window.location.replace(target)
+                      : void navigate(target, { replace: true }),
+                },
               ),
             )}
             noValidate

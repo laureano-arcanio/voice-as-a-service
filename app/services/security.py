@@ -94,6 +94,25 @@ def password_setup_token_matches(payload: dict, password_hash: str) -> bool:
     return secrets.compare_digest(payload["ph"], _fingerprint(password_hash))
 
 
+def _handoff_key() -> bytes:
+    return hashlib.sha256(f"{settings.auth_secret}|handoff".encode()).digest()
+
+
+def create_handoff_token(user_id: str, session_version: int, minutes: int = 10) -> str:
+    """Link de un solo uso del registro (landing) al dashboard: abre la sesion (POST /auth/handoff).
+    Lleva `sv`; al usarlo sube session_version y deja de valer."""
+    now = datetime.datetime.now(datetime.UTC)
+    payload = {"sub": user_id, "sv": session_version, "iat": now, "exp": now + datetime.timedelta(minutes=minutes)}
+    return jwt.encode(payload, _handoff_key(), algorithm="HS256")
+
+
+def decode_handoff_token(token: str) -> dict | None:
+    try:
+        return jwt.decode(token, _handoff_key(), algorithms=["HS256"], options={"require": ["sub", "exp", "sv"]})
+    except jwt.PyJWTError:
+        return None
+
+
 def unusable_password_hash() -> str:
     """Hash de una clave al azar que nadie conoce: el usuario existe pero no puede ingresar hasta crear la suya."""
     return hash_password(secrets.token_urlsafe(32))

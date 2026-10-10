@@ -24,6 +24,7 @@ const FREE: Billing = {
   subscription: null,
   plans: [PLAN],
   methods: ['transfer'],
+  mp_public_key: null,
   fiscal: { legal_name: 'Acme SA', tax_id: '30712345678', tax_condition: 'ri' },
   bank: [
     { label: 'Titular', value: 'Atentina' },
@@ -79,7 +80,7 @@ describe('PlanPage', () => {
     expect(calls.find((c) => c.method === 'POST')).toEqual({
       method: 'POST',
       path: '/api/v1/clients/c-1/billing/subscribe',
-      body: { tier_id: 't-suc', method: 'transfer' },
+      body: { tier_id: 't-suc', method: 'transfer', card_token_id: null },
     });
   });
 
@@ -91,6 +92,48 @@ describe('PlanPage', () => {
     expect(within(dialog).getByRole('button', { name: 'Continuar' })).toBeInTheDocument();
     await userEvent.click(within(dialog).getByRole('button', { name: 'Continuar' }));
     expect(await within(dialog).findByText('El CUIT tiene 11 números')).toBeInTheDocument();
+  });
+
+  it('con Mercado Pago ofrece pagar con tarjeta o por transferencia', async () => {
+    mockApi({ ...FREE, methods: ['mercadopago', 'transfer'], mp_public_key: 'TEST-pk' });
+    renderWithProviders(<PlanPage />, { me: CLIENT_USER });
+    await userEvent.click(await screen.findByRole('button', { name: 'Elegir este plan' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      within(dialog).getByRole('button', { name: 'Pagar con tarjeta (débito automático)' }),
+    ).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Pagar por transferencia' }));
+    expect(within(dialog).getByRole('button', { name: 'Pedir el plan' })).toBeInTheDocument();
+  });
+
+  it('con débito automático activo muestra el próximo débito y cambia de plan sin tarjeta', async () => {
+    const calls = mockApi({
+      ...FREE,
+      tier: { id: 't-mos', name: 'Mostrador' },
+      tier_price_ars: 29000,
+      methods: ['mercadopago', 'transfer'],
+      mp_public_key: 'TEST-pk',
+      subscription: {
+        ...PENDING.subscription!,
+        tier: { id: 't-mos', name: 'Mostrador' },
+        method: 'mercadopago',
+        status: 'active',
+        current_period_end: '2026-11-10',
+        amount_due: 29000,
+      },
+    });
+    renderWithProviders(<PlanPage />, { me: CLIENT_USER });
+    expect(await screen.findByText(/Débito automático con tarjeta/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Elegir este plan' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cambiar de plan' }));
+    await vi.waitFor(() =>
+      expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
+        tier_id: 't-suc',
+        method: 'mercadopago',
+        card_token_id: null,
+      }),
+    );
   });
 
   it('con un pedido pendiente muestra cómo pagarlo', async () => {

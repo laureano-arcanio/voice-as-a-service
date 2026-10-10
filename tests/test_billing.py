@@ -2,7 +2,6 @@
 (docs/SUSCRIPCIONES_PLAN.md): pedido, pago registrado por un admin, vencimiento, gracia, caída al
 Free con números suspendidos y vuelta al inventario."""
 import datetime
-import re
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
@@ -20,7 +19,7 @@ from .test_api import V1, admin, make_agent, make_tier  # noqa: F401  (admin: fi
 from .test_mail import outbox, setup_token  # noqa: F401  (outbox: fixture)
 
 SIGNUP = {"company": "Panadería Doña Rosa", "name": "Rosa Gómez", "email": "Rosa@Example.com",
-          "turnstile_token": "ok"}
+          "password": "rosa-password-1", "turnstile_token": "ok"}
 
 
 @pytest.fixture
@@ -52,21 +51,29 @@ def register(api, **extra):
     return api.client.post(f"{V1}/demo/signup", json={**SIGNUP, **extra})
 
 
-def activate(api, mail) -> "object":
-    """Crea la clave con el link del mail: devuelve un TestClient con la sesion."""
+def handoff(signup_response) -> tuple[str, str]:
+    """(token, next) del continue_url del registro."""
+    assert signup_response.status_code == 201, signup_response.text
+    url = urlsplit(signup_response.json()["continue_url"])
+    assert url.path == "/welcome"
+    q = parse_qs(url.query)
+    return q["token"][0], q["next"][0]
+
+
+def activate(api, signup_response) -> "object":
+    """Abre la sesion con el link del registro: devuelve un TestClient con la sesion."""
     from fastapi.testclient import TestClient
 
     c = TestClient(api.app)
-    r = c.post(f"{V1}/auth/password-setup", json={"token": setup_token(mail), "password": "rosa-password-1"})
+    r = c.post(f"{V1}/auth/handoff", json={"token": handoff(signup_response)[0]})
     assert r.status_code == 200, r.text
     return c
 
 
 # ---------- registro ----------
 
-def test_signup_creates_free_client_and_sends_activation(landing):
+def test_signup_creates_free_client_and_opens_session(landing):
     r = register(landing)
-    assert r.status_code == 202, r.text
     with landing.sessions() as s:
         client = s.scalar(select(Client).where(Client.created_via == "signup"))
         user = s.scalar(select(User).where(User.client_id == client.id))
@@ -74,28 +81,34 @@ def test_signup_creates_free_client_and_sends_activation(landing):
                                                           landing.plans["free"]["id"])
     assert user.email == "rosa@example.com" and user.role == "client"
     [mail] = landing.outbox
-    assert mail.to == "rosa@example.com" and mail.subject == "Activá tu cuenta de Atentina"
-    me = activate(landing, mail).get(f"{V1}/auth/me").json()
-    assert me["client_id"] == client.id
+    assert mail.to == "rosa@example.com" and mail.subject == "Tu cuenta de Atentina está lista"
+    token, next_path = handoff(r)
+    assert next_path == "/"
+    c = activate(landing, r)
+    assert c.get(f"{V1}/auth/me").json()["client_id"] == client.id
+    # El link es de un solo uso; la clave elegida sirve para ingresar.
+    assert landing.client.post(f"{V1}/auth/handoff", json={"token": token}).json()["code"] == "invalid_handoff"
+    landing.login("rosa@example.com", "rosa-password-1")
 
 
-def test_signup_with_plan_links_activation_to_plan_page(landing):
-    assert register(landing, plan="Sucursal").status_code == 202
-    [mail] = landing.outbox
-    url = re.search(r"https://\S+/set-password\?\S+", mail.text).group(0)
-    assert parse_qs(urlsplit(url).query)["next"] == ["/plan?tier=Sucursal"]
+def test_signup_with_plan_without_mercadopago_goes_to_plan(landing):
+    _, next_path = handoff(register(landing, plan="Sucursal"))
+    assert next_path == "/plan?tier=Sucursal"                   # sin Mercado Pago: transferencia
+    _, next_path = handoff(register(landing, email="tercera@example.com", plan="A medida"))   # no publico
+    assert next_path == "/"
     assert register(landing, email="x@example.com", plan="<script>").status_code == 422
 
 
-def test_signup_with_existing_email_sends_reset_and_creates_nothing(landing):
-    assert register(landing).status_code == 202
-    landing.outbox.clear()
-    assert register(landing, company="Otra").status_code == 202
+def test_signup_with_existing_email_is_409(landing):
+    register(landing)
+    r = register(landing, company="Otra", email="ROSA@example.com")
+    assert r.status_code == 409 and r.json()["code"] == "email_taken"
     with landing.sessions() as s:
         assert len(s.scalars(select(Client).where(Client.created_via == "signup")).all()) == 1
-    [mail] = landing.outbox
-    assert mail.subject == "Ya tenés una cuenta en Atentina"
-    activate(landing, mail)
+
+
+def test_signup_requires_a_long_password(landing):
+    assert register(landing, password="corta").status_code == 422
 
 
 def test_signup_slug_is_unique(landing):
@@ -111,15 +124,15 @@ def test_signup_rejects_bots_and_disposable_emails(landing):
     assert register(landing).json()["code"] == "captcha_failed"
     landing.turnstile_ok = True
     assert register(landing, email="x@mailinator.com").json()["code"] == "disposable_email"
-    assert register(landing, website="http://spam").status_code == 202   # trampa: no crea nada
+    assert register(landing, website="http://spam").status_code == 201   # trampa: no crea nada
     with landing.sessions() as s:
         assert s.scalar(select(Client).where(Client.created_via == "signup")) is None
 
 
 def test_signup_ip_limit(landing, monkeypatch):
     monkeypatch.setattr(settings, "signup_ip_per_hour", 2)
-    assert register(landing, email="a@example.com").status_code == 202
-    assert register(landing, email="b@example.com").status_code == 202
+    assert register(landing, email="a@example.com").status_code == 201
+    assert register(landing, email="b@example.com").status_code == 201
     assert register(landing, email="c@example.com").status_code == 429
 
 
@@ -133,8 +146,7 @@ def test_signup_unavailable_without_free_tier_or_turnstile(api, admin, monkeypat
 
 def test_unactivated_signups_are_purged(landing):
     register(landing)
-    register(landing, email="activa@example.com", company="Activa")
-    activate(landing, landing.outbox[-1])
+    activate(landing, register(landing, email="activa@example.com", company="Activa"))
     later = utcnow() + datetime.timedelta(hours=settings.password_setup_hours + 1)
     with landing.sessions() as s:
         assert signup.purge_unactivated(s) == 0               # todavia vale el link
@@ -147,8 +159,7 @@ def test_unactivated_signups_are_purged(landing):
 # ---------- olvidé mi clave ----------
 
 def test_password_reset(landing):
-    register(landing)
-    activate(landing, landing.outbox[-1])
+    activate(landing, register(landing))
     landing.outbox.clear()
     r = landing.client.post(f"{V1}/auth/password-reset", json={"email": "ROSA@example.com"})
     assert r.status_code == 202
@@ -156,7 +167,10 @@ def test_password_reset(landing):
     assert mail.subject == "Creá una clave nueva"
     assert landing.client.post(f"{V1}/auth/password-reset", json={"email": "nadie@example.com"}).status_code == 202
     assert len(landing.outbox) == 1
-    activate(landing, mail)
+    from fastapi.testclient import TestClient
+    r = TestClient(landing.app).post(f"{V1}/auth/password-setup",
+                                     json={"token": setup_token(mail), "password": "rosa-password-2"})
+    assert r.status_code == 200, r.text
 
 
 def test_password_reset_limit_per_email(landing, monkeypatch):
@@ -173,8 +187,7 @@ def rosa(landing, monkeypatch):
     """Cliente del registro, con sesion; BANK_TRANSFER_INFO y aviso al admin."""
     monkeypatch.setattr(settings, "bank_transfer_info", "Titular: Atentina\nAlias: atentina.pagos")
     monkeypatch.setattr(settings, "billing_notify_to", "cobros@atentina.com.ar")
-    register(landing)
-    c = activate(landing, landing.outbox[-1])
+    c = activate(landing, register(landing))
     landing.outbox.clear()
     me = c.get(f"{V1}/auth/me").json()
     landing.rosa, landing.rosa_id = c, me["client_id"]
@@ -350,8 +363,7 @@ def test_fiscal_data(rosa):
 
 
 def test_other_client_cannot_see_billing(rosa, admin):  # noqa: F811
-    register(rosa, email="otro@example.com", company="Otro")
-    other = activate(rosa, rosa.outbox[-1])
+    other = activate(rosa, register(rosa, email="otro@example.com", company="Otro"))
     assert other.get(f"{V1}/clients/{rosa.rosa_id}/billing").status_code == 404
 
 

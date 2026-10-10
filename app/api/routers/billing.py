@@ -8,7 +8,7 @@ from ...config import settings
 from ...db import utcnow
 from ...mail import messages, notify
 from ...models import BillingPayment, Client, PhoneNumber, Subscription, Tier, User
-from ...services.errors import NotFound
+from ...services.errors import Invalid, NotFound
 from ..deps import DB, AdminPrincipal, UserPrincipal
 from ..schemas import (
     BankRow,
@@ -67,7 +67,8 @@ def _billing(db, client: Client) -> BillingOut:
         tier=TierBrief.model_validate(client.tier), tier_price_ars=client.tier.price_ars,
         subscription=SubscriptionOut(**_subscription(db, sub)) if sub else None,
         plans=[PlanOut.model_validate(t) for t in service.public_tiers(db) if t.price_ars],
-        methods=list(service.METHODS),
+        methods=service.methods(),
+        mp_public_key=settings.mp_billing_public_key or None if "mercadopago" in service.methods() else None,
         fiscal=FiscalOut(legal_name=client.legal_name, tax_id=client.tax_id, tax_condition=client.tax_condition),
         bank=[BankRow(label=label, value=value) for label, value in messages.bank_rows()],
         support_email=settings.support_email,
@@ -88,11 +89,22 @@ def read_billing(client_id: str, p: UserPrincipal, db: DB):
 def subscribe(client_id: str, body: SubscribeIn, p: UserPrincipal, db: DB):
     """Pide un plan pago. Por transferencia: queda pendiente hasta que se registra el pago, y al
     usuario le llega un mail con los datos bancarios. Con un plan activo, el pedido se aplica al
-    registrar el proximo pago."""
+    registrar el proximo pago. Con Mercado Pago (`card_token_id`): debito automatico, cobra el primer mes
+    ya (422 card_rejected si MP rechaza la tarjeta); con un debito activo, cambia el plan."""
     client = get_client(db, p, client_id)
     user = db.get(User, p.id) if not p.is_admin else None
-    sub = service.request_plan(db, client, body.tier_id, body.method, user)
-    mails = service.request_mails(db, client, sub, user)
+    if body.method == "mercadopago":
+        sub = service.current(db, client.id)
+        if sub is not None and sub.method == "mercadopago" and sub.status != "pending":
+            service.change_card_plan(db, client, body.tier_id)
+            mails = []
+        elif not body.card_token_id:
+            raise Invalid("Faltan los datos de la tarjeta", "card_required")
+        else:
+            _, mails = service.subscribe_card(db, client, body.tier_id, body.card_token_id, user)
+    else:
+        sub = service.request_plan(db, client, body.tier_id, body.method, user)
+        mails = service.request_mails(db, client, sub, user)
     db.commit()
     notify.deliver(mails)
     return _billing(db, client)
