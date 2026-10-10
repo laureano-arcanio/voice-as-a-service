@@ -294,6 +294,7 @@ la public key de prueba) y `POST /preapproval` con `card_token_id` y `status: au
 | Qué | Resultado |
 |---|---|
 | Suscripción autorizada con tarjeta (`APRO`) | `authorized` al instante; **cobra el primer mes en el momento** (pago `approved`, `accredited`) y fija `next_payment_date` un mes después. Es lo que ve el usuario como "pago hasta" |
+| Tarjeta de débito (Visa débito de prueba, 10-oct-2026) | Igual que la de crédito: `authorized`, cobro aprobado, pago `debit_card` / `debvisa`. El Brick acepta crédito y débito (solo se limitaron las cuotas a 1); el saldo de la cuenta de MP no se ofrece en este flujo |
 | Tarjeta rechazada (`OTHE`) | **Falla al crear la suscripción**: 400 `CC_VAL_433 Credit card validation has failed`. No queda una suscripción a medias |
 | Pagos de la suscripción | `GET /authorized_payments/search?preapproval_id=…`: `status: processed`, `payment.status: approved`, `retry_attempt`, `debit_date` |
 | Atar el pago a la suscripción | El pago (`/v1/payments/{id}`) trae `external_reference` (el de la suscripción) y `point_of_interaction.transaction_data.subscription_id` con `subscription_sequence.number` |
