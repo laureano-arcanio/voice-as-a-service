@@ -377,3 +377,20 @@ def test_card_token_without_cvv_is_explained():
     e = mp._rejection({"message": "Card token was generated without cvv validation", "status": 400})
     assert isinstance(e, mp.CardRejected) and e.code == "card_cvv_required"
     assert mp._rejection({"message": "CC_VAL_433 Credit card validation has failed"}).code == "card_rejected"
+
+
+def test_webhook_retries_until_the_subscription_exists(rosa, monkeypatch):
+    """En el alta MP avisa antes de que termine de guardarse la cuenta: se reintenta."""
+    subscribe(rosa, card_token_id="tok")
+    monkeypatch.setattr(webhook, "get_sessionmaker", lambda: rosa.sessions)
+    calls = []
+    real = billing.by_preapproval
+
+    def late(s, pid):
+        calls.append(pid)
+        return None if len(calls) == 1 else real(s, pid)
+    monkeypatch.setattr(billing, "by_preapproval", late)
+    rosa.mp.charge("pre1", "2026-11-10T07:28:03.000-04:00", next_date="2026-12-10T07:28:04.000-04:00")
+    webhook.process("subscription_preapproval", "pre1", delays=(0, 0))
+    assert len(calls) == 2
+    assert billing_of(rosa)["subscription"]["current_period_end"] == "2026-12-10"

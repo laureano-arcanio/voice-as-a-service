@@ -12,7 +12,7 @@ reciben nuestros clientes: es otra cuenta y otra app de MP.
 | 1. Registro y "olvidé mi clave" | **Desplegado el 10-oct-2026** (migración 0012, `app` y `agent` recreados) |
 | 2. Cobro por transferencia | **Desplegado el 10-oct-2026** |
 | 0. Spike de MP en sandbox | Hecho el 10-oct-2026 (sección 6.2), salvo el `init_point` con otro email y las notificaciones |
-| 3. Mercado Pago y registro con clave | **Desplegado el 10-oct-2026** con las credenciales de producción (sección 7); falta la primera compra real |
+| 3. Mercado Pago y registro con clave | **En producción.** Primera compra real el 11-oct-2026 (sección 7) |
 | 4. Puesta en marcha | Sin empezar (sección 5) |
 
 ## 0. Qué se reusa
@@ -331,7 +331,15 @@ emails distintos, el camino es el **Card Payment Brick** en una página propia (
 
 Hecha el 10-oct-2026: credenciales de producción y webhook (`callback` y `callback_sandbox` a
 `/mp/billing/webhook`) con el MCP; la clave secreta del webhook es la misma de la app. `app` y `agent`
-recreados y landing publicada (commit `f6924d8`). Pendiente: la primera compra real y ver llegar el webhook.
+recreados y landing publicada (commit `f6924d8`).
+
+**Primera compra real (11-oct-2026):** registro con Mostrador y la tarjeta prepaga de Mercado Pago (Mastercard,
+`prepaid_card`), después del arreglo del código de seguridad (6.2). Suscripción `active` hasta el 11/11 y el pago
+de $ 29.000 registrado. Llegaron los tres avisos (`payment`, `subscription_preapproval`,
+`subscription_authorized_payment`) y **la firma `x-signature` validó con el manifiesto documentado**. Dos
+llegaron antes de tiempo: el del pago, antes de que se guardara la cuenta; el de la cuota, antes de que MP la
+mostrara en su API (404). Se agregaron reintentos al webhook (a los 0, 5 y 30 s; `RETRY_DELAYS`).
+Comisión: $ 2.316,14 (8 %) con la plata disponible en el momento; con 18 días baja a ~4,1 % (6.3, paso 3).
 
 
 1. **El usuario** activa las credenciales de producción de la app "atentina suscripciones" (6.3, paso 1)
