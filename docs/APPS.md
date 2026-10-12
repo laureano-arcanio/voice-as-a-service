@@ -63,7 +63,11 @@ Un agente con `engine: "assistant"` y `tools: [{"app": "<slug>", "tools": ["*"]}
 usa herramientas. Cada turno:
 
 1. **El prompt** lleva:
-   - las reglas del asistente, la fecha y hora (`ASSISTANT_TIMEZONE`) y las herramientas;
+   - en el de sistema, las reglas del asistente, el formato del canal, la definición del agente y las
+     herramientas;
+   - la fecha y hora (`ASSISTANT_TIMEZONE`) al principio del mensaje del usuario, así el prompt de
+     sistema no cambia y vLLM reusa su procesamiento (prefix caching; 85 % de aciertos medido el
+     12-oct-2026);
    - los últimos 16 mensajes;
    - en la respuesta anterior, los resultados de sus herramientas (si no, el LLM inventaba los ids al
      seguir el pedido).
@@ -85,6 +89,19 @@ usa herramientas. Cada turno:
    - Lo pendiente vale un solo turno.
 5. **Respuesta** siempre en texto, aunque el usuario mande audio: listados y links no van en una nota
    de voz.
+
+### De dónde sale el prompt
+
+| Parte | De dónde | Quién la cambia |
+|---|---|---|
+| Protocolo: cómo responder (JSON), confirmaciones, `ambiguo`, links `[[linkN]]`, archivos, `SISTEMA`, hora | `SYSTEM` y `WHATSAPP` en `app/conversation/assistant.py`; sin nada de ningún negocio (lo verifica un test) | Código: depende de lo que hace la plataforma |
+| Quién es, idioma, objetivo, **reglas** (tono, qué hacer en cada caso del negocio) y base de conocimiento | La definición del agente (`agent`, `objective`, `conversation.rules`, `knowledge`), versionada | **El admin, en la UI** (Agentes → Definición) |
+| Herramientas: nombre, tipo, descripción y argumentos | El `/manifest` de cada app, filtrado por `tools` del agente | La app (atentina-apps) |
+| Fecha y hora | `AHORA: …` al principio del mensaje del usuario | — |
+
+Cada app puede traer la definición recomendada de su agente: la de SUGYM es
+`atentina-apps/clients/sugym/gestion/agente.yaml`, que usan también sus casos de uso. Se carga en el
+panel (el JSON del agente) y desde ahí se versiona.
 
 ### Controles de la plataforma
 

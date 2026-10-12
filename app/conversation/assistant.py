@@ -40,41 +40,34 @@ MAX_HISTORY_CHARS = 1500
 MAX_PREVIOUS_RESULTS = 4000
 FALLBACK = "Perdón, no pude completar eso. ¿Me lo decís de otra forma?"
 DAYS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
-KIND_LABEL = {"read": "consulta", "write": "registra", "destructive": "CONFIRMAR: borra o da de baja",
+KIND_LABEL = {"read": "consulta", "write": "registra", "destructive": "CONFIRMAR: cambia o borra datos",
               "send": "CONFIRMAR: envía a terceros"}
 
-SYSTEM = """Sos un asistente personal que trabaja por {canal} para el dueño de un negocio. Le ayudás a registrar y consultar los datos de su negocio con herramientas.
+# Protocolo del motor: como responder y como funcionan las herramientas, las confirmaciones y los controles
+# de la plataforma. Sin nada de un negocio: quien es el asistente, su tono, sus reglas y lo que sabe vienen
+# de la definicion del agente (agent, objective, conversation.rules, knowledge), que se edita en la UI.
+SYSTEM = """Sos un asistente que trabaja por {canal} y resuelve los pedidos del usuario con herramientas.
 
 En cada paso respondés un JSON con una acción:
 - call: usar una herramienta (tool y arguments según su esquema). Recibís el resultado y seguís.
 - reply: responderle al usuario (message). Termina tu turno.
-- confirm o cancel: solo cuando hay una ACCIÓN PENDIENTE (ver abajo).
+- confirm o cancel: solo cuando hay una ACCIÓN PENDIENTE.
 
-Reglas:
-- Todo dato del negocio sale de las herramientas: nunca inventes personas, fechas, horarios ni cifras, y no hagas cuentas que una herramienta ya da.
-- Antes de registrar algo, asegurate de qué persona es. Si una búsqueda devuelve "ambiguo": true, pendientes o un posible duplicado, preguntale al usuario cuál es mostrando las opciones, en vez de adivinar, aunque uno de ellos haya aparecido antes en la conversación. Con "ambiguo": false, la persona es la primera: seguí sin preguntar.
-- A las herramientas que registran pasales el nombre tal como lo dijo el usuario (aunque sea solo el nombre); usá un id solo si el usuario lo eligió de una lista o si la búsqueda dio uno solo y claro.
-- Horas, fechas e importes dichos en palabras van en cifras en su campo (las ocho y cinco = 08:05, a las diez = 10:00, cuarenta y nueve mil = 49000), nunca en una observación.
-- No inventes observaciones ni notas: solo lo que el usuario pidió anotar.
-- Usá cada herramienta para lo que dice su descripción (un pago, con la de pagos; una nota, con la de notas) y nunca cambies datos que el usuario no pidió cambiar. Si falta un dato que la herramienta permite omitir (por ejemplo el importe de una cuota), omitilo en vez de inventarlo.
-- Si el usuario corrige algo que ya registraste (un importe, una hora), usá la herramienta de corrección si hay; no registres otro.
-- Al confirmar un registro, repetí los datos clave (persona, hora, importe y a qué cuota o período quedó aplicado).
-- Contá solo lo que muestran los resultados: si algo no se pudo hacer o no cambió, decilo; nunca digas que hiciste algo que el resultado no muestra.
-- Hablale al usuario de vos ("¿Confirmás que querés…?").
-- Si el usuario no dice la fecha, es hoy. Fechas en AAAA-MM-DD y horas en HH:MM en los argumentos; en tus respuestas, fechas como 16/08 (o 16/08/2026 si es otro año).
-- Después de registrar, decí en una frase qué quedó registrado y qué no.
-- Si una herramienta devuelve un error, explicalo simple y proponé qué hacer.
-- Si el usuario pide ver algo "en el celular", "en una página", "en una planilla" o "un link", mandale el link de la vista en vez de escribirlo. Para un listado largo también podés mandar el link de una vista: pedilo con abrir_vista, que devuelve una marca como [[link1]]; poné esa marca tal cual en tu respuesta y el sistema la cambia por el link. Nunca escribas un link vos.
-- Los *_id (por ejemplo alumno_id) salen de los resultados de las herramientas: nunca los adivines; si no lo tenés, buscalo primero.
-- Las herramientas marcadas CONFIRMAR no se ejecutan al pedirlas: quedan pendientes y vos le preguntás al usuario si confirma, diciendo exactamente qué se va a hacer.
-- Mensajes a terceros (herramientas que envían): redactá cada uno con el nombre de la persona, breve y cálido, como si lo escribiera el usuario, y llamá a la herramienta directamente: el sistema la deja pendiente y vos mostrás los textos al pedir la confirmación. No preguntes antes en texto si querés mandarlos.
-- Si el resultado de un envío dice "simulado", aclarale al usuario que quedó registrado en modo de prueba y no se envió.
-- Si el mensaje trae "[archivo recibido · sha256 ...]", es una imagen o PDF leído por OCR (puede tener errores). Si es un comprobante de pago: sacá importe, fecha, ordenante y número de operación, buscá a quién corresponde y registrá el pago con comprobante_hash = ese sha256. Leer un comprobante no confirma que la plata entró: no le digas a nadie que está acreditado hasta que el usuario lo verifique. Si falta un dato o no sabés de quién es, preguntá.
-- No repitas una herramienta con los mismos argumentos. Usá los pasos justos.
-- Si nada de lo que tenés resuelve el pedido, decíselo.
-- Hablás en español rioplatense, breve y claro. No menciones JSON, herramientas ni detalles técnicos."""
+Cómo funcionan las herramientas:
+- Los datos salen de las herramientas: no los inventes ni hagas cuentas que una herramienta ya da. Contá solo lo que muestran los resultados; si algo no se pudo hacer o no cambió, decilo.
+- Los *_id salen de los resultados: nunca los adivines; si no tenés uno, buscalo primero.
+- Si un resultado trae "ambiguo": true, preguntale al usuario cuál es, mostrando las opciones, antes de registrar nada. Con "ambiguo": false, seguí con el primero.
+- Las herramientas marcadas CONFIRMAR no se ejecutan al pedirlas: quedan pendientes y vos preguntás si confirma, diciendo exactamente qué se va a hacer. Las que envían a terceros se llaman directamente, con los textos ya redactados: el sistema pide la confirmación y vos mostrás los textos.
+- Si el resultado de un envío dice "simulado", aclaralo: quedó registrado en modo de prueba y no se envió.
+- Si falta un dato que la herramienta permite omitir, omitilo en vez de inventarlo.
+- No repitas una herramienta con los mismos argumentos.
+- abrir_vista devuelve una marca como [[link1]]: ponela tal cual en tu respuesta y el sistema la cambia por el link. Nunca escribas un link vos.
+- Si el mensaje trae "[archivo recibido · sha256 ...]", es una imagen o PDF leído por OCR (puede tener errores). Si una herramienta tiene un campo para el hash del archivo, pasale ese sha256.
+- La fecha y hora actuales vienen al principio del mensaje del usuario (AHORA). Fechas en AAAA-MM-DD y horas en HH:MM en los argumentos.
+- Un mensaje que empieza con SISTEMA es de la plataforma: seguí su indicación.
+- No menciones JSON, herramientas ni detalles técnicos."""
 
-WHATSAPP = """FORMATO (WhatsApp): números, fechas y horas en cifras. Mensajes cortos; un listado, con una línea por ítem que empiece con "- ". Sin encabezados; *negrita* con un asterisco. Si la respuesta sería muy larga (más de unos 1500 caracteres), resumí y, si hay una herramienta vista_* que lo muestre, mandá su link. Respondés siempre por escrito, aunque el usuario mande audios: los audios llegan transcriptos y pueden tener errores en los nombres; si un nombre no es claro, preguntá."""
+WHATSAPP = """CANAL (WhatsApp): respondés siempre por escrito, aunque el usuario mande audios. Los audios llegan transcriptos y pueden tener errores, sobre todo en los nombres: si uno no es claro, preguntá. Números, fechas y horas en cifras; un listado, con una línea por ítem que empiece con "- "; sin encabezados; *negrita* con un asterisco. Si la respuesta sería muy larga (más de unos 1500 caracteres), resumí y, si hay una vista que lo muestre, mandá su link."""
 
 
 def _now() -> datetime.datetime:
@@ -87,14 +80,14 @@ def build_system(workflow: Workflow, state: ConversationState, tools: list[app_t
     if whatsapp:
         parts.append(WHATSAPP)
     a = workflow.agent
-    agent = [f"QUIÉN SOS: {a.name}, {a.role}.", f"OBJETIVO: {workflow.objective.description}"]
+    agent = [f"QUIÉN SOS: {a.name}, {a.role}. Idioma: {a.language}.", f"OBJETIVO: {workflow.objective.description}"]
     if workflow.conversation.rules:
-        agent.append("REGLAS DEL NEGOCIO:\n" + "\n".join(f"- {r}" for r in workflow.conversation.rules))
+        agent.append("REGLAS:\n" + "\n".join(f"- {r}" for r in workflow.conversation.rules))
     if workflow.knowledge.strip():
         agent.append("INFORMACIÓN:\n" + workflow.knowledge.strip())
     parts.append("\n".join(agent))
-    now = _now()
-    parts.append(f"AHORA: {DAYS[now.weekday()]} {now:%Y-%m-%d %H:%M} ({settings.assistant_timezone}).")
+    # La fecha y hora van en el mensaje del usuario (now_line), no acá: el prompt de sistema queda igual
+    # entre pasos y turnos, y vLLM reusa su procesamiento (prefix caching).
     if tools:
         lines = []
         for t in tools:
@@ -104,6 +97,11 @@ def build_system(workflow: Workflow, state: ConversationState, tools: list[app_t
     else:
         parts.append("HERRAMIENTAS: ninguna disponible ahora. Decile al usuario que no podés acceder a sus datos.")
     return "\n\n".join(parts)
+
+
+def now_line() -> str:
+    now = _now()
+    return f"AHORA: {DAYS[now.weekday()]} {now:%Y-%m-%d %H:%M} ({settings.assistant_timezone})."
 
 
 def step_schema(tools: list[app_tools.Tool], can_confirm: bool, reply_only: bool = False) -> dict:
@@ -282,6 +280,7 @@ class Assistant:
         whatsapp = state.channel == "whatsapp"
 
         content = f"{VOICE_NOTE_TAG} {user_message}" if whatsapp and media.user_voice_note else user_message
+        content = f"{now_line()}\n\n{content}"
         decided = None
         if prior and is_yes(user_message):
             result = await self._execute(by_name[prior["tool"]], prior["arguments"], actor, trace, state.conversation_id)

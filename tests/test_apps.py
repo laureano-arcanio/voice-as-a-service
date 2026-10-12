@@ -260,7 +260,10 @@ async def test_turno_con_herramienta_y_respuesta(sessions, monkeypatch):
     # El segundo paso ve el resultado de la herramienta.
     assert "Juan Pérez" in llm.seen[1][0][-1]["content"]
     system = llm.seen[0][0][0]["content"]
-    assert "buscar_alumno [consulta]" in system and "baja_alumno [CONFIRMAR" in system and "AHORA:" in system
+    assert "buscar_alumno [consulta]" in system and "baja_alumno [CONFIRMAR" in system
+    # La hora va en el mensaje del usuario: el prompt de sistema no cambia entre pasos (prefix caching).
+    assert "AHORA:" not in system and llm.seen[0][0][-1]["content"].startswith("AHORA: ")
+    assert system == llm.seen[1][0][0]["content"]
     kinds = [t["kind"] for t in state.messages[-1].llm]
     assert kinds == ["paso", "herramienta", "paso"]
     assert state.status == "active" and state.progress.pending is None
@@ -679,7 +682,7 @@ async def test_archivo_del_operador_entra_al_turno_con_su_hash(sessions, monkeyp
     message.update(type="image", image={"id": "media.1", "mime_type": "image/jpeg", "caption": "pago de juan"})
     await send(w, payload)
 
-    turn = llm.seen[0][0][-1]["content"]
+    turn = llm.seen[0][0][-1]["content"].split("\n\n", 1)[1]          # después de la línea AHORA
     assert turn.startswith(f"[archivo recibido · sha256 {hashlib.sha256(b'JPEG-comprobante').hexdigest()}]")
     assert "pago de juan" in turn and "N° de operación 123456" in turn
     assert w.graph.sent[-1][2] == "Leí una transferencia de $49.000. ¿De qué alumno es?"
@@ -891,3 +894,20 @@ def test_placeholders():
     assert placeholders({"alumno": "alumno_id", "medio": "efectivo"}, {"alumno", "medio"}) == ["alumno_id"]
     assert placeholders({"ingresos": [{"alumno": "alumno", "hora": "08:00"}]}, {"alumno", "hora"}) == ["alumno"]
     assert placeholders({"alumno": "Juan Pérez", "texto": "pago_id del lunes"}, {"alumno", "texto"}) == []
+
+
+def test_el_protocolo_no_tiene_nada_de_un_negocio_y_las_reglas_son_del_agente():
+    """12-oct-2026: las reglas de SUGYM (pagos, cuotas, comprobantes, tono) estaban en el código; son
+    configuración del agente (conversation.rules)."""
+    import re
+
+    from app.conversation.assistant import SYSTEM, WHATSAPP, build_system
+    from app.conversation.models import ConversationState, Workflow
+    assert not re.search(r"alumno|cuota|pago|comprobante|gimnas|rioplat|importe|dueño|negocio", SYSTEM + WHATSAPP,
+                         re.IGNORECASE)
+    w = Workflow.model_validate({**ASSISTANT, "id": "a", "version": 1,
+                                 "conversation": {"opening": "Hola", "rules": ["Hablás de vos.", "Fechas como 16/08."]},
+                                 "knowledge": "Abre de 7 a 22."})
+    system = build_system(w, ConversationState(conversation_id="c", agent_id="a", channel="whatsapp", fields={}), [])
+    assert "REGLAS:\n- Hablás de vos.\n- Fechas como 16/08." in system and "Abre de 7 a 22." in system
+    assert "Idioma: es-AR" in system

@@ -149,8 +149,9 @@ def _view_tool(app: App, manifest) -> Tool | None:
         params = ", ".join(v.params) or "sin parámetros"
         lines.append(f"{v.name} («{v.title}»: {v.description} Parámetros: {params})")
     return Tool(name="abrir_vista", kind="read", app_id=app.id, app_slug=app.slug, target="", platform=True,
-                description=("Devuelve un link para que el usuario vea una pantalla en su celular. Copiá el link "
-                             "tal cual. Vistas: " + "; ".join(lines)),
+                description=("Devuelve un link para que el usuario vea una pantalla en su celular, como una marca "
+                             "[[linkN]] que el sistema cambia por el link: ponela tal cual en tu respuesta. "
+                             "Vistas: " + "; ".join(lines)),
                 schema={"type": "object", "properties": props, "required": ["vista"]},
                 params={v.name: list(v.params) for v in manifest.views})
 

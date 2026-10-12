@@ -6,8 +6,8 @@ Lo lanza `make casos A=<cliente>/<app>` desde atentina-apps (copia descartable d
 adentro de la imagen de app (tesseract, red atentina-apps, vllm-llm) y con una base SQLite propia:
 
   docker compose run --rm --no-deps -e DB_DSN=sqlite:////tmp/casos.db -e APP_TOKEN=... -e APP_BASE_URL=... \\
-    -v <dir de casos>:/casos:ro -v $PWD/scripts:/app/scripts:ro -v $PWD/scratch:/app/scratch \\
-    app python scripts/apps/casos.py /casos/casos.yaml
+    -v <dir de la app>:/cliente:ro -v $PWD/scripts:/app/scripts:ro -v $PWD/scratch:/app/scratch \\
+    app python scripts/apps/casos.py /cliente/casos/casos.yaml
 
 Reporte en scratch/casos_apps/<slug>/<fecha>/ (report.md y casos.json). CASOS=1.1,2.4 corre solo esos.
 """
@@ -38,11 +38,15 @@ ACTOR = "wa:5490000000000"
 MIME = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".pdf": "application/pdf"}
 
 
-def definition(spec: dict) -> dict:
-    """El agente assistant del caso: lo de la app (agent, objective, conversation...) y todas sus herramientas."""
+def definition(spec: dict, base: pathlib.Path) -> dict:
+    """El agente assistant de los casos: su definición (agent, objective, conversation.rules, knowledge) es
+    configuración de la app (`agente: agente.yaml`, o inline), con todas las herramientas de la app."""
+    agente = spec["agente"]
+    if isinstance(agente, str):
+        agente = yaml.safe_load((base / agente).read_text())
     return {"engine": "assistant", "conversation": {"opening": "Hola", "rules": []},
             "completion": {"outcomes": [{"id": "default", "label": "Conversación", "message": "Chau"}]},
-            **spec["agente"], "tools": [{"app": spec["app"], "tools": ["*"]}]}
+            **agente, "tools": [{"app": spec["app"], "tools": ["*"]}]}
 
 
 def calls(turns: list[dict], tool: str) -> list[str]:
@@ -104,7 +108,7 @@ async def main(path: pathlib.Path) -> None:
         app.client_id = client.id
         s.flush()
         agent = agent_service.create_agent(s, client, name="Asistente", slug="asistente", description="",
-                                           definition=definition(spec), template_id=None, user_id=None)
+                                           definition=definition(spec, path.parent.parent), template_id=None, user_id=None)
         s.commit()
         client_id, agent_id, app_id = client.id, agent.id, app.id
     llm = LLMClient(settings.vllm_llm_base_url, settings.vllm_api_key, settings.vllm_llm_model)
@@ -157,4 +161,4 @@ async def main(path: pathlib.Path) -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main(pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else "/casos/casos.yaml")))
+    asyncio.run(main(pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else "/cliente/casos/casos.yaml")))

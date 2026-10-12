@@ -123,6 +123,7 @@ Ver [`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md).
   - No relajar la CSP, `APP_ORIGINS` ni `TRUSTED_PROXY_CIDRS` sin medir: con `CSP_REPORT_ONLY=true` se prueba sin romper.
   - Embedded Signup de WhatsApp (fase 2) solo anda por ese dominio: ver [`docs/WHATSAPP_PLAN.md`](docs/WHATSAPP_PLAN.md), 5.3.
 - **Apps por cliente** ([`docs/APPS.md`](docs/APPS.md)): contenedores `app-<slug>` del repo `atentina-apps` en la red `atentina-apps` (interna, sin internet; `make apps-network`, también en `deploy/boot.sh`). `app` está en esa red y les habla con su `APP_TOKEN` (cifrado con `WA_TOKEN_KEY`). Las vistas salen por `apps.atentina.com.ar` (`APPS_PUBLIC_HOST`, ruta del túnel a `localhost:8011`), con link firmado. Sin la red, `app` no arranca.
+- **Prompts sin nada de un cliente en el código:** el prompt del motor `assistant` tiene solo el protocolo de la plataforma (un test lo verifica); el tono y las reglas de un negocio van en la definición del agente (Reglas, editable en la UI y versionada). La de SUGYM es `atentina-apps/clients/sugym/gestion/agente.yaml`. Ver [`docs/APPS.md`](docs/APPS.md), "De dónde sale el prompt".
 - **Comentarios del compose:** explican el porqué medido de cada flag. Mantenerlos al día al cambiar valores.
 
 ## Capacidad
