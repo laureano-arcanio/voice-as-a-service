@@ -42,6 +42,7 @@ from dataclasses import dataclass, field
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
+from ..apps import attachments
 from ..config import settings
 from ..conversation.engine import ConversationEngine
 from ..conversation.models import ConversationState, TurnMedia
@@ -119,6 +120,8 @@ class AccountInfo:
     phone_number_id: str
     token: str
     own_token: bool = False     # token del cliente (Embedded Signup): si Meta lo rechaza, se desconecta
+    # El que escribe es un operador (wa_operators): client_id y agent_id son los suyos, no los del numero.
+    operator: bool = False
 
 
 def recipient(wa_id: str) -> str:
@@ -303,11 +306,23 @@ class WhatsAppService:
                 return
             info = AccountInfo(account.id, account.client_id, account.agent_id, pnid, token,
                                store.has_own_token(account))
+            if (op := store.operator_for(s, account.id, wa_id)) is not None:
+                client = s.get(Client, op.client_id)
+                if client is None or not client.active:
+                    store.set_inbound(s, [wamid], status="ignored")
+                    s.commit()
+                    logger.info("wa: entrante ignorado (cliente del operador inactivo) pnid=%s wamid=%s", pnid, wamid)
+                    return
+                info = AccountInfo(account.id, op.client_id, op.agent_id, pnid, token,
+                                   store.has_own_token(account), operator=True)
 
         key = (pnid, wa_id)
         inbox = self._inbox.setdefault(key, Inbox())
         if kind == "audio":
             await self._on_audio(info, wa_id, wamid, msg, contact_name, inbox)
+            return
+        if kind in ("image", "document") and self._is_assistant(info.agent_id):
+            await self._on_attachment(info, wa_id, wamid, msg, contact_name, inbox)
             return
         if text is None:
             body = None if kind in SILENT_TYPES else settings.wa_unsupported_reply
@@ -385,6 +400,54 @@ class WhatsAppService:
                 self._arm(info, wa_id, inbox)    # un texto que esperaba a este audio
             return
         inbox.items.append(Item(_stamp(msg), text, wamid, voice_note=True))
+        inbox.contact_name = contact_name or inbox.contact_name
+        self._arm(info, wa_id, inbox)
+
+    def _is_assistant(self, agent_id: str) -> bool:
+        try:
+            return self.engine.definitions.current(agent_id)[1].engine == "assistant"
+        except KeyError:
+            return False
+
+    async def _on_attachment(self, info: AccountInfo, wa_id: str, wamid: str, msg: dict,
+                          contact_name: str | None, inbox: Inbox) -> None:
+        """Motor assistant (docs/APPS_PLAN.md, contrato v1.1): un archivo (imagen o PDF) se baja, se lee
+        con OCR en la CPU y entra al turno como texto con su sha256. Si falla: respuesta fija."""
+        if self._over_cap(info, wamid, inbox):
+            return
+        kind = msg.get("type")
+        media = msg.get(kind) if isinstance(msg.get(kind), dict) else {}
+        mime = str(media.get("mime_type") or "")
+        text, body = "", None
+        inbox.pending_audio += 1        # el turno espera a este archivo, como a un audio
+        try:
+            if not mime.startswith(("image/", "application/pdf")):
+                body = settings.wa_unsupported_reply
+            else:
+                if not media.get("id"):
+                    raise GraphError("archivo sin media id")
+                graph = self._graph(info.token)
+                meta = await graph.get_media(str(media["id"]))
+                size = _size(meta.get("file_size"))
+                if size is not None and size > attachments.MAX_BYTES:
+                    raise MediaTooLarge(f"media de {size} bytes")
+                data = await graph.download_media(str(meta["url"]), attachments.MAX_BYTES)
+                text = attachments.turn_text(data, await attachments.read(data, mime), media.get("caption"))
+                logger.info("wa: archivo leido pnid=%s wamid=%s bytes=%d", info.phone_number_id, wamid, len(data))
+        except (GraphError, MediaTooLarge, attachments.AttachmentError) as e:
+            if isinstance(e, GraphError):
+                self._auth_failed(info, e)
+            body = settings.wa_attachment_error_reply
+            logger.warning("wa: archivo sin leer pnid=%s wamid=%s error=%s", info.phone_number_id, wamid,
+                           type(e).__name__)
+        finally:
+            inbox.pending_audio -= 1
+        if body is not None:
+            await self._fixed_reply(info, wa_id, wamid, body, inbox)
+            if inbox.items:
+                self._arm(info, wa_id, inbox)
+            return
+        inbox.items.append(Item(_stamp(msg), text, wamid))
         inbox.contact_name = contact_name or inbox.contact_name
         self._arm(info, wa_id, inbox)
 
@@ -472,14 +535,28 @@ class WhatsAppService:
                          for item in items)[:self.max_turn_chars]
 
     @staticmethod
-    def _media(items: list[Item]) -> TurnMedia:
+    def _media(items: list[Item], text_only: bool = False) -> TurnMedia:
         """Modalidad del turno. user_voice_note: todo el mensaje es transcripcion (si se
         mezcla con texto, la marca va por linea en _text). La respuesta sale como nota de
-        voz en mirror si hubo algun audio."""
+        voz en mirror si hubo algun audio. text_only: siempre en texto (motor assistant)."""
         heard = any(item.voice_note for item in items)
         mode = settings.wa_audio_reply
         return TurnMedia(user_voice_note=bool(items) and all(item.voice_note for item in items),
-                         reply_voice_note=mode == "always" or (mode == "mirror" and heard))
+                         reply_voice_note=not text_only and (mode == "always" or (mode == "mirror" and heard)))
+
+    def _text_only(self, conversation_id: str) -> bool:
+        """El motor assistant responde siempre en texto: listados y links no van en una nota de voz
+        (12-oct-2026: por audio decia "aca tenes la lista" sin la lista)."""
+        state = self.engine.store.get(conversation_id)
+        try:
+            return state is not None and self.engine.workflow(state).engine == "assistant"
+        except KeyError:
+            return False
+
+    @staticmethod
+    def _other_agent(s: Session, conversation_id: str, agent_id: str) -> bool:
+        row = s.get(ConversationRow, conversation_id)
+        return row is not None and row.agent_id != agent_id
 
     def _full(self, s: Session, conversation_id: str) -> bool:
         row = s.get(ConversationRow, conversation_id)
@@ -497,6 +574,8 @@ class WhatsAppService:
             thread = store.active_thread(s, info.id, wa_id, now, self.session_hours)
             if thread is not None and self._full(s, thread.conversation_id):
                 thread = None       # tope de turnos: sigue en otra, como si hubiera vencido
+            elif thread is not None and info.operator and self._other_agent(s, thread.conversation_id, info.agent_id):
+                thread = None       # lo hicieron operador con un chat abierto: sigue con su asistente
             ended = None
             if thread is None and (last := store.last_thread(s, info.id, wa_id)) and last.closed_at is None:
                 # Vencida o en el tope y sin cerrar todavia: termina ahora, como un corte.
@@ -508,7 +587,7 @@ class WhatsAppService:
             else:
                 # El cliente escribe primero: sin apertura, su mensaje es el turno 1. Si responde a
                 # una campaña, la apertura es la plantilla que recibio, con el agente de la campaña.
-                target = campaigns.reply_target(s, info.id, wa_id, now)
+                target = None if info.operator else campaigns.reply_target(s, info.id, wa_id, now)
                 try:
                     state = self._new_conversation(s, info, target)
                 except KeyError:
@@ -523,7 +602,7 @@ class WhatsAppService:
                 # Conversacion e hilo en la misma transaccion.
                 ConversationStore.add(s, state)
                 store.add_thread(s, conversation_id=conversation_id, account=account, wa_id=wa_id,
-                                 contact_name=inbox.contact_name)
+                                 contact_name=inbox.contact_name, client_id=info.client_id)
                 if target is not None:
                     campaigns.mark_replied(s, target.recipient_id, conversation_id, now)
             store.set_inbound(s, wamids, status="received", conversation_id=conversation_id)
@@ -533,9 +612,11 @@ class WhatsAppService:
 
         graph = self._graph(info.token)
         await self._mark_read(graph, info, wamids[-1])
+        text_only = self._text_only(conversation_id)
         try:
-            media = self._media(items)
-            state, turn = await self.engine.process_turn(conversation_id, self._text(items), media=media)
+            media = self._media(items, text_only)
+            state, turn = await self.engine.process_turn(conversation_id, self._text(items), media=media,
+                                                         actor=f"wa:{wa_id}")
             if inbox.items:
                 # Llegaron mas mientras respondia el LLM: la respuesta no salio, se rehace
                 # el turno con todo (una sola vez; lo que llegue despues va en el siguiente).
@@ -546,8 +627,9 @@ class WhatsAppService:
                     store.set_inbound(s, wamids, status="received", conversation_id=conversation_id)
                     s.commit()
                 await self._mark_read(graph, info, wamids[-1])
-                media = self._media(items)
-                state, turn = await self.engine.process_turn(conversation_id, self._text(items), media=media)
+                media = self._media(items, text_only)
+                state, turn = await self.engine.process_turn(conversation_id, self._text(items), media=media,
+                                                             actor=f"wa:{wa_id}")
         except Exception:
             logger.exception("wa: fallo el turno pnid=%s wamid=%s", info.phone_number_id, wamids[-1])
             with self.sessions() as s:

@@ -31,6 +31,8 @@ export interface WorkflowView {
   knowledge: string;
   fields: [string, FieldSpec][];
   outcomes: Outcome[];
+  /** Motor assistant: apps y herramientas (["*"] = todas). */
+  tools: { app: string; tools: string[] }[];
 }
 
 const obj = (x: unknown): Record<string, unknown> =>
@@ -84,6 +86,10 @@ export function readWorkflow(d: Definition): WorkflowView {
     knowledge: str(d.knowledge).trim(),
     fields,
     outcomes,
+    tools: (Array.isArray(d.tools) ? d.tools : []).map((raw) => {
+      const g = obj(raw);
+      return { app: str(g.app), tools: Array.isArray(g.tools) ? g.tools.map(str) : ['*'] };
+    }),
   };
 }
 

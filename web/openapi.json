@@ -4418,6 +4418,203 @@
     }
    }
   },
+  "/api/v1/wa-operators": {
+   "get": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "List Operators",
+    "operationId": "list_operators_api_v1_wa_operators_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/WaOperatorOut"
+         },
+         "title": "Response List Operators Api V1 Wa Operators Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "Create Operator",
+    "operationId": "create_operator_api_v1_wa_operators_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/WaOperatorIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WaOperatorOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/wa-operators/{op_id}": {
+   "patch": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "Update Operator",
+    "operationId": "update_operator_api_v1_wa_operators__op_id__patch",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "op_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Op Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/WaOperatorUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WaOperatorOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "Delete Operator",
+    "operationId": "delete_operator_api_v1_wa_operators__op_id__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "op_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Op Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/inference/chat/completions": {
    "post": {
     "tags": [
@@ -5050,6 +5247,62 @@
     }
    }
   },
+  "/api/v1/demo/signup/check": {
+   "post": {
+    "tags": [
+     "demo"
+    ],
+    "summary": "Check Signup Email",
+    "description": "Antes del paso del pago del registro: si el email puede registrarse.",
+    "operationId": "check_signup_email_api_v1_demo_signup_check_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SignupCheckIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "409": {
+      "description": "El email ya tiene cuenta (email_taken)"
+     },
+     "422": {
+      "description": "Email descartable"
+     },
+     "429": {
+      "description": "Limite por IP"
+     }
+    }
+   }
+  },
+  "/api/v1/demo/plans": {
+   "get": {
+    "tags": [
+     "demo"
+    ],
+    "summary": "Public Plans",
+    "description": "Planes con precio para el registro, y la public key de Mercado Pago si se paga con tarjeta.",
+    "operationId": "public_plans_api_v1_demo_plans_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PublicPlansOut"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/clients/{client_id}/billing": {
    "get": {
     "tags": [
@@ -5544,6 +5797,505 @@
      }
     }
    }
+  },
+  "/api/v1/apps": {
+   "post": {
+    "tags": [
+     "apps"
+    ],
+    "summary": "Register App",
+    "description": "Alta o version nueva (la llama `make register` de atentina-apps). Atentina pide /health y\n/manifest con el token; 422 si no responde o el manifest no cumple el contrato.",
+    "operationId": "register_app_api_v1_apps_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AppRegisterIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AppOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "get": {
+    "tags": [
+     "apps"
+    ],
+    "summary": "List Apps",
+    "description": "Admin: todas (client_id: las de ese cliente). Cliente: las suyas.",
+    "operationId": "list_apps_api_v1_apps_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/AppOut"
+         },
+         "title": "Response List Apps Api V1 Apps Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/apps/{app_id}": {
+   "get": {
+    "tags": [
+     "apps"
+    ],
+    "summary": "Get App",
+    "operationId": "get_app_api_v1_apps__app_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "app_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "App Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AppOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "apps"
+    ],
+    "summary": "Delete App",
+    "description": "Solo del inventario. No toca el contenedor (eso es `make down` en atentina-apps).",
+    "operationId": "delete_app_api_v1_apps__app_id__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "app_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "App Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/apps/{app_id}/refresh": {
+   "post": {
+    "tags": [
+     "apps"
+    ],
+    "summary": "Refresh App",
+    "description": "Relee /health y /manifest (por ejemplo, despues de levantar una version nueva).",
+    "operationId": "refresh_app_api_v1_apps__app_id__refresh_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "app_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "App Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AppOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/apps/{app_id}/assign": {
+   "post": {
+    "tags": [
+     "apps"
+    ],
+    "summary": "Assign App",
+    "operationId": "assign_app_api_v1_apps__app_id__assign_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "app_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "App Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AssignIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AppOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/apps/{app_id}/release": {
+   "post": {
+    "tags": [
+     "apps"
+    ],
+    "summary": "Release App",
+    "description": "La devuelve al inventario. Sus links dejan de abrir y los agentes del cliente pierden\nsus herramientas (las definiciones no cambian: al guardarlas de nuevo, la validacion avisa).",
+    "operationId": "release_app_api_v1_apps__app_id__release_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "app_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "App Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AppOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/apps/{app_id}/links": {
+   "get": {
+    "tags": [
+     "apps"
+    ],
+    "summary": "List Links",
+    "operationId": "list_links_api_v1_apps__app_id__links_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "app_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "App Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/AppLinkOut"
+         },
+         "title": "Response List Links Api V1 Apps  App Id  Links Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "apps"
+    ],
+    "summary": "Create Link",
+    "description": "Un link a una vista (el mismo que arma el asistente). La URL solo se ve en esta respuesta.",
+    "operationId": "create_link_api_v1_apps__app_id__links_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "app_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "App Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AppLinkIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AppLinkOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/apps/{app_id}/links/{link_id}": {
+   "delete": {
+    "tags": [
+     "apps"
+    ],
+    "summary": "Revoke Link",
+    "operationId": "revoke_link_api_v1_apps__app_id__links__link_id__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "app_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "App Id"
+      }
+     },
+     {
+      "name": "link_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Link Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
   }
  },
  "components": {
@@ -5615,7 +6367,8 @@
         "type": "string",
         "enum": [
          "classic",
-         "structured"
+         "structured",
+         "assistant"
         ]
        },
        {
@@ -5623,7 +6376,7 @@
        }
       ],
       "title": "Engine",
-      "description": "Motor; pisa el de la definicion o la plantilla (la definicion es la misma)"
+      "description": "Motor; pisa el de la definicion o la plantilla (la definicion es la misma). assistant: herramientas de las apps del cliente (docs/APPS_PLAN.md)"
      }
     },
     "type": "object",
@@ -6063,6 +6816,301 @@
      "revoked_at"
     ],
     "title": "ApiKeyOut"
+   },
+   "AppLinkIn": {
+    "properties": {
+     "view": {
+      "type": "string",
+      "title": "View"
+     },
+     "params": {
+      "additionalProperties": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "integer"
+        }
+       ]
+      },
+      "type": "object",
+      "title": "Params",
+      "default": {}
+     }
+    },
+    "type": "object",
+    "required": [
+     "view"
+    ],
+    "title": "AppLinkIn"
+   },
+   "AppLinkOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "view": {
+      "type": "string",
+      "title": "View"
+     },
+     "params": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Params"
+     },
+     "created_by": {
+      "type": "string",
+      "title": "Created By"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Expires At"
+     },
+     "revoked_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Revoked At"
+     },
+     "opens": {
+      "type": "integer",
+      "title": "Opens"
+     },
+     "last_opened_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Opened At"
+     },
+     "url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Url",
+      "description": "Solo al crearlo: el token no se guarda"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "view",
+     "params",
+     "created_by",
+     "created_at",
+     "expires_at",
+     "revoked_at",
+     "opens",
+     "last_opened_at"
+    ],
+    "title": "AppLinkOut"
+   },
+   "AppOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "slug": {
+      "type": "string",
+      "title": "Slug"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "client_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Id"
+     },
+     "client_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Name"
+     },
+     "base_url": {
+      "type": "string",
+      "title": "Base Url"
+     },
+     "version": {
+      "type": "string",
+      "title": "Version"
+     },
+     "status": {
+      "type": "string",
+      "title": "Status"
+     },
+     "last_error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Error"
+     },
+     "last_health_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Health At"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "views": {
+      "items": {
+       "$ref": "#/components/schemas/AppViewOut"
+      },
+      "type": "array",
+      "title": "Views",
+      "default": []
+     },
+     "tools": {
+      "items": {
+       "$ref": "#/components/schemas/AppToolOut"
+      },
+      "type": "array",
+      "title": "Tools",
+      "default": []
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "slug",
+     "name",
+     "client_id",
+     "base_url",
+     "version",
+     "status",
+     "last_error",
+     "last_health_at",
+     "created_at"
+    ],
+    "title": "AppOut"
+   },
+   "AppRegisterIn": {
+    "properties": {
+     "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+      "title": "Slug"
+     },
+     "base_url": {
+      "type": "string",
+      "maxLength": 255,
+      "title": "Base Url",
+      "description": "http://app-<slug>:8000 (red interna atentina-apps)"
+     },
+     "token": {
+      "type": "string",
+      "maxLength": 256,
+      "minLength": 16,
+      "title": "Token",
+      "description": "APP_TOKEN de la app; se guarda cifrado"
+     }
+    },
+    "type": "object",
+    "required": [
+     "slug",
+     "base_url",
+     "token"
+    ],
+    "title": "AppRegisterIn"
+   },
+   "AppToolOut": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "description": {
+      "type": "string",
+      "title": "Description"
+     }
+    },
+    "type": "object",
+    "required": [
+     "name",
+     "kind",
+     "description"
+    ],
+    "title": "AppToolOut"
+   },
+   "AppViewOut": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "description": {
+      "type": "string",
+      "title": "Description",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "name",
+     "title"
+    ],
+    "title": "AppViewOut"
    },
    "AssignIn": {
     "properties": {
@@ -9252,6 +10300,72 @@
     ],
     "title": "PromptOut"
    },
+   "PublicPlanOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "price_ars": {
+      "type": "integer",
+      "title": "Price Ars"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "name",
+     "price_ars"
+    ],
+    "title": "PublicPlanOut"
+   },
+   "PublicPlansOut": {
+    "properties": {
+     "mp_public_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Mp Public Key"
+     },
+     "plans": {
+      "items": {
+       "$ref": "#/components/schemas/PublicPlanOut"
+      },
+      "type": "array",
+      "title": "Plans"
+     }
+    },
+    "type": "object",
+    "required": [
+     "mp_public_key",
+     "plans"
+    ],
+    "title": "PublicPlansOut",
+    "description": "Planes con precio que se contratan en el registro. `mp_public_key`: si viene, los pagos se pagan con\ntarjeta en el registro (Card Payment Brick)."
+   },
+   "SignupCheckIn": {
+    "properties": {
+     "email": {
+      "type": "string",
+      "format": "email",
+      "title": "Email"
+     }
+    },
+    "type": "object",
+    "required": [
+     "email"
+    ],
+    "title": "SignupCheckIn"
+   },
    "SignupIn": {
     "properties": {
      "company": {
@@ -9290,6 +10404,18 @@
       "pattern": "^[\\w .-]*$",
       "title": "Plan",
       "default": ""
+     },
+     "card_token_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 128
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Card Token Id"
      },
      "website": {
       "type": "string",
@@ -11565,6 +12691,164 @@
     ],
     "title": "WaConfigOut",
     "description": "Lo que necesita la UI para lanzar Embedded Signup. enabled=false: el boton va\ndeshabilitado y se muestra reason."
+   },
+   "WaOperatorIn": {
+    "properties": {
+     "account_id": {
+      "type": "string",
+      "title": "Account Id"
+     },
+     "wa_id": {
+      "type": "string",
+      "pattern": "^\\d{8,15}$",
+      "title": "Wa Id",
+      "description": "Como lo manda Meta, sin + (549351...)"
+     },
+     "client_id": {
+      "type": "string",
+      "title": "Client Id"
+     },
+     "agent_id": {
+      "type": "string",
+      "title": "Agent Id"
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 128,
+      "title": "Name",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "account_id",
+     "wa_id",
+     "client_id",
+     "agent_id"
+    ],
+    "title": "WaOperatorIn"
+   },
+   "WaOperatorOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "account_id": {
+      "type": "string",
+      "title": "Account Id"
+     },
+     "account_number": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Account Number"
+     },
+     "wa_id": {
+      "type": "string",
+      "title": "Wa Id"
+     },
+     "client_id": {
+      "type": "string",
+      "title": "Client Id"
+     },
+     "client_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Name"
+     },
+     "agent_id": {
+      "type": "string",
+      "title": "Agent Id"
+     },
+     "agent_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agent Name"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "active": {
+      "type": "boolean",
+      "title": "Active"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "account_id",
+     "wa_id",
+     "client_id",
+     "agent_id",
+     "name",
+     "active",
+     "created_at"
+    ],
+    "title": "WaOperatorOut"
+   },
+   "WaOperatorUpdate": {
+    "properties": {
+     "agent_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agent Id"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 128
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "active": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Active"
+     }
+    },
+    "type": "object",
+    "title": "WaOperatorUpdate"
    },
    "WaOptoutIn": {
     "properties": {

@@ -1261,6 +1261,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/wa-operators": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Operators */
+        get: operations["list_operators_api_v1_wa_operators_get"];
+        put?: never;
+        /** Create Operator */
+        post: operations["create_operator_api_v1_wa_operators_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/wa-operators/{op_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Operator */
+        delete: operations["delete_operator_api_v1_wa_operators__op_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Operator */
+        patch: operations["update_operator_api_v1_wa_operators__op_id__patch"];
+        trace?: never;
+    };
     "/api/v1/inference/chat/completions": {
         parameters: {
             query?: never;
@@ -1508,6 +1544,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/demo/signup/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check Signup Email
+         * @description Antes del paso del pago del registro: si el email puede registrarse.
+         */
+        post: operations["check_signup_email_api_v1_demo_signup_check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/demo/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public Plans
+         * @description Planes con precio para el registro, y la public key de Mercado Pago si se paga con tarjeta.
+         */
+        get: operations["public_plans_api_v1_demo_plans_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clients/{client_id}/billing": {
         parameters: {
             query?: never;
@@ -1689,6 +1765,148 @@ export interface paths {
         patch: operations["update_payment_api_v1_billing_payments__payment_id__patch"];
         trace?: never;
     };
+    "/api/v1/apps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Apps
+         * @description Admin: todas (client_id: las de ese cliente). Cliente: las suyas.
+         */
+        get: operations["list_apps_api_v1_apps_get"];
+        put?: never;
+        /**
+         * Register App
+         * @description Alta o version nueva (la llama `make register` de atentina-apps). Atentina pide /health y
+         *     /manifest con el token; 422 si no responde o el manifest no cumple el contrato.
+         */
+        post: operations["register_app_api_v1_apps_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{app_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get App */
+        get: operations["get_app_api_v1_apps__app_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete App
+         * @description Solo del inventario. No toca el contenedor (eso es `make down` en atentina-apps).
+         */
+        delete: operations["delete_app_api_v1_apps__app_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{app_id}/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh App
+         * @description Relee /health y /manifest (por ejemplo, despues de levantar una version nueva).
+         */
+        post: operations["refresh_app_api_v1_apps__app_id__refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{app_id}/assign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Assign App */
+        post: operations["assign_app_api_v1_apps__app_id__assign_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{app_id}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Release App
+         * @description La devuelve al inventario. Sus links dejan de abrir y los agentes del cliente pierden
+         *     sus herramientas (las definiciones no cambian: al guardarlas de nuevo, la validacion avisa).
+         */
+        post: operations["release_app_api_v1_apps__app_id__release_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{app_id}/links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Links */
+        get: operations["list_links_api_v1_apps__app_id__links_get"];
+        put?: never;
+        /**
+         * Create Link
+         * @description Un link a una vista (el mismo que arma el asistente). La URL solo se ve en esta respuesta.
+         */
+        post: operations["create_link_api_v1_apps__app_id__links_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/apps/{app_id}/links/{link_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Link */
+        delete: operations["revoke_link_api_v1_apps__app_id__links__link_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1720,9 +1938,9 @@ export interface components {
             template_id?: string | null;
             /**
              * Engine
-             * @description Motor; pisa el de la definicion o la plantilla (la definicion es la misma)
+             * @description Motor; pisa el de la definicion o la plantilla (la definicion es la misma). assistant: herramientas de las apps del cliente (docs/APPS_PLAN.md)
              */
-            engine?: ("classic" | "structured") | null;
+            engine?: ("classic" | "structured" | "assistant") | null;
         };
         /** AgentDetail */
         AgentDetail: {
@@ -1878,6 +2096,126 @@ export interface components {
             last_used_at: string | null;
             /** Revoked At */
             revoked_at: string | null;
+        };
+        /** AppLinkIn */
+        AppLinkIn: {
+            /** View */
+            view: string;
+            /**
+             * Params
+             * @default {}
+             */
+            params?: {
+                [key: string]: string | number;
+            };
+        };
+        /** AppLinkOut */
+        AppLinkOut: {
+            /** Id */
+            id: string;
+            /** View */
+            view: string;
+            /** Params */
+            params: {
+                [key: string]: unknown;
+            };
+            /** Created By */
+            created_by: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Revoked At */
+            revoked_at: string | null;
+            /** Opens */
+            opens: number;
+            /** Last Opened At */
+            last_opened_at: string | null;
+            /**
+             * Url
+             * @description Solo al crearlo: el token no se guarda
+             */
+            url?: string | null;
+        };
+        /** AppOut */
+        AppOut: {
+            /** Id */
+            id: string;
+            /** Slug */
+            slug: string;
+            /** Name */
+            name: string;
+            /** Client Id */
+            client_id: string | null;
+            /** Client Name */
+            client_name?: string | null;
+            /** Base Url */
+            base_url: string;
+            /** Version */
+            version: string;
+            /** Status */
+            status: string;
+            /** Last Error */
+            last_error: string | null;
+            /** Last Health At */
+            last_health_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Views
+             * @default []
+             */
+            views?: components["schemas"]["AppViewOut"][];
+            /**
+             * Tools
+             * @default []
+             */
+            tools?: components["schemas"]["AppToolOut"][];
+        };
+        /** AppRegisterIn */
+        AppRegisterIn: {
+            /** Slug */
+            slug: string;
+            /**
+             * Base Url
+             * @description http://app-<slug>:8000 (red interna atentina-apps)
+             */
+            base_url: string;
+            /**
+             * Token
+             * @description APP_TOKEN de la app; se guarda cifrado
+             */
+            token: string;
+        };
+        /** AppToolOut */
+        AppToolOut: {
+            /** Name */
+            name: string;
+            /** Kind */
+            kind: string;
+            /** Description */
+            description: string;
+        };
+        /** AppViewOut */
+        AppViewOut: {
+            /** Name */
+            name: string;
+            /** Title */
+            title: string;
+            /**
+             * Description
+             * @default
+             */
+            description?: string;
         };
         /** AssignIn */
         AssignIn: {
@@ -3014,6 +3352,34 @@ export interface components {
              */
             workflow?: string | null;
         };
+        /** PublicPlanOut */
+        PublicPlanOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Price Ars */
+            price_ars: number;
+        };
+        /**
+         * PublicPlansOut
+         * @description Planes con precio que se contratan en el registro. `mp_public_key`: si viene, los pagos se pagan con
+         *     tarjeta en el registro (Card Payment Brick).
+         */
+        PublicPlansOut: {
+            /** Mp Public Key */
+            mp_public_key: string | null;
+            /** Plans */
+            plans: components["schemas"]["PublicPlanOut"][];
+        };
+        /** SignupCheckIn */
+        SignupCheckIn: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+        };
         /** SignupIn */
         SignupIn: {
             /**
@@ -3037,6 +3403,8 @@ export interface components {
              * @default
              */
             plan?: string;
+            /** Card Token Id */
+            card_token_id?: string | null;
             /**
              * Website
              * @default
@@ -3851,6 +4219,62 @@ export interface components {
             graph_version: string;
             /** Sdk Locale */
             sdk_locale: string;
+        };
+        /** WaOperatorIn */
+        WaOperatorIn: {
+            /** Account Id */
+            account_id: string;
+            /**
+             * Wa Id
+             * @description Como lo manda Meta, sin + (549351...)
+             */
+            wa_id: string;
+            /** Client Id */
+            client_id: string;
+            /** Agent Id */
+            agent_id: string;
+            /**
+             * Name
+             * @default
+             */
+            name?: string;
+        };
+        /** WaOperatorOut */
+        WaOperatorOut: {
+            /** Id */
+            id: string;
+            /** Account Id */
+            account_id: string;
+            /** Account Number */
+            account_number?: string | null;
+            /** Wa Id */
+            wa_id: string;
+            /** Client Id */
+            client_id: string;
+            /** Client Name */
+            client_name?: string | null;
+            /** Agent Id */
+            agent_id: string;
+            /** Agent Name */
+            agent_name?: string | null;
+            /** Name */
+            name: string;
+            /** Active */
+            active: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** WaOperatorUpdate */
+        WaOperatorUpdate: {
+            /** Agent Id */
+            agent_id?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Active */
+            active?: boolean | null;
         };
         /** WaOptoutIn */
         WaOptoutIn: {
@@ -6809,6 +7233,134 @@ export interface operations {
             };
         };
     };
+    list_operators_api_v1_wa_operators_get: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaOperatorOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_operator_api_v1_wa_operators_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaOperatorIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaOperatorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_operator_api_v1_wa_operators__op_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                op_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_operator_api_v1_wa_operators__op_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                op_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaOperatorUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaOperatorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     chat_completions_api_v1_inference_chat_completions_post: {
         parameters: {
             query?: never;
@@ -7289,6 +7841,69 @@ export interface operations {
             };
         };
     };
+    check_signup_email_api_v1_demo_signup_check_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignupCheckIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El email ya tiene cuenta (email_taken) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Email descartable */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Limite por IP */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    public_plans_api_v1_demo_plans_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicPlansOut"];
+                };
+            };
+        };
+    };
     read_billing_api_v1_clients__client_id__billing_get: {
         parameters: {
             query?: never;
@@ -7564,6 +8179,323 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PaymentOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_apps_api_v1_apps_get: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    register_app_api_v1_apps_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppRegisterIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_app_api_v1_apps__app_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_app_api_v1_apps__app_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refresh_app_api_v1_apps__app_id__refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assign_app_api_v1_apps__app_id__assign_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    release_app_api_v1_apps__app_id__release_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_links_api_v1_apps__app_id__links_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppLinkOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_link_api_v1_apps__app_id__links_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppLinkIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppLinkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_link_api_v1_apps__app_id__links__link_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

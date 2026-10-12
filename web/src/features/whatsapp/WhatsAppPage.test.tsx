@@ -230,4 +230,59 @@ describe('WhatsAppPage', () => {
     ).toBeInTheDocument();
     expect(calls.filter((c) => c.method === 'POST')).toHaveLength(0);
   });
+  it('admin: operadores del numero compartido, alta y desactivar', async () => {
+    const OP = {
+      id: 'op-1',
+      account_id: 'wa-1',
+      account_number: '+54 351 555 0000',
+      wa_id: '5493511111111',
+      client_id: 'c-2',
+      client_name: 'SUGYM',
+      agent_id: 'ag-2',
+      agent_name: 'Asistente',
+      name: 'Dueño',
+      active: true,
+      created_at: '2026-10-12T10:00:00Z',
+    };
+    const calls = mockApi({
+      'GET /api/v1/whatsapp/accounts': () => jsonResponse([{ ...ACCOUNT, status: 'connected' }]),
+      'GET /api/v1/whatsapp/config': () => jsonResponse(ENABLED),
+      'GET /api/v1/clients': () => jsonResponse([{ id: 'c-2', name: 'SUGYM' }]),
+      'GET /api/v1/agents': () => jsonResponse([{ id: 'ag-2', name: 'Asistente' }]),
+      'GET /api/v1/wa-operators': () => jsonResponse([OP]),
+      'PATCH /api/v1/wa-operators/op-1': () => jsonResponse({ ...OP, active: false }),
+      'POST /api/v1/wa-operators': () => jsonResponse({ ...OP, id: 'op-2', wa_id: '5493512222222' }, 201),
+      'GET /api/v1/whatsapp/accounts/wa-1/templates': () => jsonResponse([]),
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<WhatsAppPage />, { me: ADMIN });
+
+    expect(await screen.findByText('5493511111111')).toBeInTheDocument();
+    expect(screen.getByText(/los atiende el agente del operador/)).toBeInTheDocument();
+    await user.click(screen.getByRole('switch', { name: /Activo Dueño/ }));
+    await waitFor(() =>
+      expect(calls.find((c) => c.method === 'PATCH')).toMatchObject({
+        path: '/api/v1/wa-operators/op-1',
+        body: { active: false },
+      }),
+    );
+
+    await user.click(screen.getByRole('button', { name: /Agregar operador/ }));
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByRole('textbox', { name: /Contacto/ }), '5493512222222');
+    await user.click(within(dialog).getByRole('textbox', { name: 'Cliente' }));
+    await user.click((await screen.findAllByRole('option', { name: 'SUGYM', hidden: true })).at(-1)!);
+    await user.click(within(dialog).getByRole('textbox', { name: /Agente/ }));
+    await user.click((await screen.findAllByRole('option', { name: 'Asistente', hidden: true })).at(-1)!);
+    await user.click(within(dialog).getByRole('button', { name: 'Crear operador' }));
+    await waitFor(() =>
+      expect(calls.find((c) => c.method === 'POST' && c.path === '/api/v1/wa-operators')?.body).toEqual({
+        account_id: 'wa-1',
+        wa_id: '5493512222222',
+        client_id: 'c-2',
+        agent_id: 'ag-2',
+        name: '',
+      }),
+    );
+  });
 });

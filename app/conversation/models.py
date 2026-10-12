@@ -56,6 +56,13 @@ class Completion(BaseModel):
     outcomes: list[Outcome]
 
 
+class ToolGrant(BaseModel):
+    """Herramientas de una app (docs/APPS_PLAN.md) que puede usar un agente con motor assistant.
+    tools: nombres del manifest de la app, o ["*"] para todas."""
+    app: str
+    tools: list[str] = Field(default_factory=lambda: ["*"])
+
+
 class Workflow(BaseModel):
     """Definicion de un agente. Se guarda como JSON (agents.definition en la base,
     app/agents/templates/*.json las plantillas). id y version los fija la app: el
@@ -64,20 +71,27 @@ class Workflow(BaseModel):
     version: int
     # structured: por turno el LLM responde en JSON y otra llamada extrae los
     # datos, con estado. classic: prompt armado del YAML, conversacion
-    # multiturno en texto y una sola extraccion al final.
-    engine: Literal["structured", "classic"] = "structured"
+    # multiturno en texto y una sola extraccion al final. assistant: asistente
+    # con herramientas de las apps del cliente (sin datos a extraer).
+    engine: Literal["structured", "classic", "assistant"] = "structured"
     agent: AgentInfo
     objective: Objective
     conversation: ConversationConfig
     knowledge: str = ""
-    fields: dict[str, FieldSpec]
+    fields: dict[str, FieldSpec] = Field(default_factory=dict)
     completion: Completion
+    tools: list[ToolGrant] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _consistent(self) -> "Workflow":
         """Lo que el motor da por sentado: las definiciones ahora se editan desde la UI."""
-        if not self.fields:
+        if not self.fields and self.engine != "assistant":
             raise ValueError("fields: el agente necesita al menos un dato a obtener")
+        if self.tools and self.engine != "assistant":
+            raise ValueError("tools: solo el motor assistant usa herramientas")
+        apps = [g.app for g in self.tools]
+        if len(set(apps)) != len(apps):
+            raise ValueError("tools: una app repetida")
         for name, spec in self.fields.items():
             if not re.fullmatch(r"[a-z][a-z0-9_]*", name):
                 raise ValueError(f"fields.{name}: usar minusculas, numeros y _ (ej. contact_name)")
@@ -126,6 +140,9 @@ class Progress(BaseModel):
     # Objetivos que el LLM dio por respondidos pero la extraccion no encontro:
     # no se vuelven a preguntar, y sin el dato el workflow queda incompleto.
     answered_empty: list[str] = Field(default_factory=list)
+    # Motor assistant: accion destructiva o de envio esperando el si del usuario
+    # ({tool, arguments, summary}); vale solo para el turno siguiente.
+    pending: dict[str, Any] | None = None
 
 
 # Por donde se conversa: cambia las reglas del prompt (app/llm/prompt.py), no el agente.

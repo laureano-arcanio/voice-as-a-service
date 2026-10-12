@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..db import utcnow
-from ..models import Agent, Client, WaAccount, WaMessage, WaThread
+from ..models import Agent, Client, WaAccount, WaMessage, WaOperator, WaThread
 from ..services.errors import Conflict, Invalid, NotFound
 from . import crypto
 
@@ -140,9 +140,11 @@ def last_thread(s: Session, account_id: str, wa_id: str) -> WaThread | None:
 
 
 def add_thread(s: Session, *, conversation_id: str, account: WaAccount, wa_id: str,
-               contact_name: str | None) -> WaThread:
+               contact_name: str | None, client_id: str | None = None) -> WaThread:
+    """client_id: el de la conversacion (el de un operador); sin pasarlo, el del numero."""
     now = utcnow()
-    thread = WaThread(conversation_id=conversation_id, account_id=account.id, client_id=account.client_id,
+    thread = WaThread(conversation_id=conversation_id, account_id=account.id,
+                      client_id=client_id or account.client_id,
                       wa_id=wa_id, contact_name=(contact_name or None) and contact_name[:128],
                       last_user_at=now, created_at=now)
     s.add(thread)
@@ -234,3 +236,9 @@ def apply_status(s: Session, *, wamid: str, status: str, error: dict | None,
         msg.error = error
     if meta_ts is not None:
         msg.meta_ts = meta_ts
+
+
+def operator_for(s: Session, account_id: str, wa_id: str) -> WaOperator | None:
+    """El operador activo de ese contacto en ese numero (docs/APPS_PLAN.md), si hay."""
+    return s.scalar(select(WaOperator).where(WaOperator.account_id == account_id, WaOperator.wa_id == wa_id,
+                                             WaOperator.active.is_(True)))

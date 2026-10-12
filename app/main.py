@@ -26,6 +26,7 @@ from .api.http import (
 from .api.routers import (
     agents,
     api_keys,
+    apps,
     auth,
     billing,
     calls,
@@ -38,8 +39,12 @@ from .api.routers import (
     users,
     voices,
     wa_campaigns,
+    wa_operators,
     whatsapp,
 )
+from .apps.gateway import AppsHostMiddleware
+from .apps.jobs import jobs_loop as apps_jobs_loop
+from .apps.registry import health_loop as apps_health_loop
 from .billing import webhook as mp_webhook
 from .billing.loop import billing_loop
 from .config import settings
@@ -60,10 +65,16 @@ async def lifespan(app: FastAPI):
     sending = asyncio.create_task(campaign_loop())
     # Vencimientos de los planes pagos y registros sin activar (app/billing/loop.py).
     billing_sweep = asyncio.create_task(billing_loop(settings.billing_tick_seconds))
+    # Salud de las apps de los clientes (app/apps/registry.py).
+    apps_health = asyncio.create_task(apps_health_loop())
+    # Avisos programados de las apps (app/apps/jobs.py).
+    apps_jobs = asyncio.create_task(apps_jobs_loop())
     yield
     sweep.cancel()
     sending.cancel()
     billing_sweep.cancel()
+    apps_health.cancel()
+    apps_jobs.cancel()
 
 
 def create_app() -> FastAPI:
@@ -83,11 +94,13 @@ def create_app() -> FastAPI:
     app.add_middleware(CORSMiddleware, allow_origins=allowed_origins(), allow_methods=["GET", "POST"],
                        allow_headers=["Authorization", "Content-Type"], expose_headers=["Retry-After"], max_age=600)
     app.add_middleware(SecurityHeadersMiddleware)
+    # Host de las vistas de las apps (APPS_PUBLIC_HOST): solo el gateway, con sus propios headers.
+    app.add_middleware(AppsHostMiddleware)
     app.add_middleware(HttpsRedirectMiddleware)
 
     api = APIRouter(prefix=API_PREFIX)
     for module in (auth, tiers, clients, phone_numbers, agents, users, api_keys, calls, conversations, voices,
-                   whatsapp, wa_campaigns, inference, demo, billing):
+                   whatsapp, wa_campaigns, wa_operators, inference, demo, billing, apps):
         api.include_router(module.router)
     app.include_router(api)
     _mount_docs(app)

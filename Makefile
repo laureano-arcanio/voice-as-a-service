@@ -32,7 +32,7 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
 .DEFAULT_GOAL := help
 
 .PHONY: help setup env storage build \
-        up up-agent up-app up-inference up-nginx up-pbx down restart ps logs \
+        apps-network up up-agent up-app up-inference up-nginx up-pbx down restart ps logs \
         sh psql health gpu \
         pbx-cli pbx-status livekit-sip livekit-sip-si-local \
         wa-calling-status wa-calling-enable wa-calling-disable wa-sip-password sip-cert \
@@ -64,16 +64,19 @@ build: storage ## Build de las imagenes propias (app/agent, stt-parakeet, asteri
 PUBLIC_URL_SH = host=$$(sed -n 's/^PUBLIC_HOST=//p' .env | tail -1); \
 	port=$$(sed -n 's/^PROXY_PORT=//p' .env | tail -1); url="http://$${host:-<PUBLIC_HOST>}:$${port:-8100}"
 
-up: storage ## Levanta todo: agente + inferencia + proxy + asterisk (+ make livekit-sip si el LiveKit es propio)
+apps-network: ## Crea la red interna atentina-apps (apps de los clientes, docs/APPS_PLAN.md) si no existe
+	@docker network inspect atentina-apps >/dev/null 2>&1 || docker network create --internal atentina-apps >/dev/null
+
+up: storage apps-network ## Levanta todo: agente + inferencia + proxy + asterisk (+ make livekit-sip si el LiveKit es propio)
 	$(COMPOSE) up -d --build
 	@$(MAKE) --no-print-directory livekit-sip-si-local
 
-up-agent: storage ## Solo db + app + agent, sin la inferencia (--no-deps; usa VLLM_*_BASE_URL del .env)
+up-agent: storage apps-network ## Solo db + app + agent, sin la inferencia (--no-deps; usa VLLM_*_BASE_URL del .env)
 	$(COMPOSE) up -d --build --wait --no-deps db
 	@$(MAKE) --no-print-directory migrate
 	$(COMPOSE) up -d --build --no-deps app agent
 
-up-app: ## Solo app (API + UI): build, migraciones y recreate, sin tocar agent (no corta llamadas en curso)
+up-app: apps-network ## Solo app (API + UI): build, migraciones y recreate, sin tocar agent (no corta llamadas en curso)
 	$(COMPOSE) build app
 	@$(MAKE) --no-print-directory migrate
 	$(COMPOSE) up -d --no-deps app

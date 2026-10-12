@@ -1,6 +1,7 @@
 """Modelos ORM. Importar este paquete registra todas las tablas en Base.metadata
 (Alembic y create_schema lo necesitan)."""
 from .agents import Agent, AgentVersion
+from .apps import App, AppJobRun, AppLink
 from .billing import BillingPayment, Subscription
 from .calls import ACTIVE_CALL_STATUSES, CallMode, CallRow, CallStatus
 from .contact import ContactRequest
@@ -20,12 +21,13 @@ from .whatsapp import (
     WaCampaign,
     WaCampaignRecipient,
     WaMessage,
+    WaOperator,
     WaOptout,
     WaThread,
 )
 
 __all__ = [
-    "ACTIVE_CALL_STATUSES", "Agent", "AgentVersion", "ApiKey", "ApiUsageDaily", "BillingPayment", "CallMode", "CallRow", "CallStatus", "Client",
+    "ACTIVE_CALL_STATUSES", "Agent", "AgentVersion", "App", "AppJobRun", "AppLink", "ApiKey", "ApiUsageDaily", "BillingPayment", "CallMode", "CallRow", "CallStatus", "Client",
     "ClientLimitAdjustment", "ContactRequest", "ConversationRow", "PhoneNumber", "Role", "Subscription", "Tier", "User", "WaAccount", "WaCampaign",
-    "WaCampaignRecipient", "WaMessage", "WaOptout", "WaThread",
+    "WaCampaignRecipient", "WaMessage", "WaOperator", "WaOptout", "WaThread",
 ]

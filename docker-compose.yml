@@ -69,6 +69,11 @@ services:
       - "8011:8011"
     volumes:
       - ./storage:/app/storage
+    networks:
+      - default
+      # Apps de los clientes (atentina-apps, docs/APPS_PLAN.md): red interna, sin salida a
+      # internet; app les habla por http://app-<slug>:8000. La crea `make apps-network`.
+      - apps
 
   agent:
     build:
@@ -375,6 +380,11 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+
+networks:
+  apps:
+    name: atentina-apps
+    external: true
 
 volumes:
   postgres_data:

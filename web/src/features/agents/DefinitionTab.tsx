@@ -130,7 +130,9 @@ function PromptModal({
                   <Text span size="xs" c="dimmed" fw={400}>
                     {p.engine === 'classic'
                       ? '· motor clásico: todo el agente va acá'
-                      : '· motor estructurado: es igual para todos los agentes'}
+                      : p.engine === 'assistant'
+                        ? '· motor asistente: en cada turno se suman la fecha y las herramientas de las apps del cliente'
+                        : '· motor estructurado: es igual para todos los agentes'}
                   </Text>
                 </Text>
                 <pre className="code">{p.system}</pre>
@@ -368,6 +370,7 @@ export function DefinitionTab({ agent }: { agent: AgentDetail }) {
           toggle={toggle}
           voiceSeed={agent.id}
           showEngine={isAdmin}
+          clientId={agent.client_id}
         />
       ) : (
         <Card>

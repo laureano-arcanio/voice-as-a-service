@@ -13,14 +13,23 @@ export const FIELD_TYPES = [
 ] as const;
 
 export type FieldType = (typeof FIELD_TYPES)[number]['value'];
-export type Engine = 'classic' | 'structured';
+export type Engine = 'classic' | 'structured' | 'assistant';
+export const ENGINES: Engine[] = ['classic', 'structured', 'assistant'];
 
 export const ENGINE_HELP: Record<Engine, string> = {
   classic:
     'Conversa en texto con un prompt de sistema armado de esta definición y extrae los datos al final de la conversación. Es el motor por defecto.',
   structured:
     'En cada turno el LLM responde en JSON (mensaje, objetivo siguiente y estado) y otra llamada extrae los datos y lleva el estado de la conversación.',
+  assistant:
+    'Asistente con las herramientas de las apps del cliente (registrar, consultar, links a vistas). No tiene datos a obtener ni resultados: por WhatsApp, para el dueño del negocio.',
 };
+
+/** Herramientas de una app que usa el motor assistant: ["*"] = todas. */
+export interface ToolGrantDraft {
+  app: string;
+  tools: string[];
+}
 
 /** id del elemento de una seccion del formulario (para llevar a un error). */
 export const sectionId = (name: string) => `def-${name}`;
@@ -75,6 +84,8 @@ export interface Draft {
   knowledge: string;
   fields: FieldDraft[];
   outcomes: OutcomeDraft[];
+  /** Solo con el motor assistant. */
+  tools: ToolGrantDraft[];
 }
 
 let seq = 0;
@@ -127,7 +138,7 @@ export function toDraft(d: Definition): Draft {
   return {
     id: str(d.id),
     version: typeof d.version === 'number' ? d.version : null,
-    engine: d.engine === 'structured' ? 'structured' : 'classic',
+    engine: d.engine === 'structured' || d.engine === 'assistant' ? d.engine : 'classic',
     name: str(agent.name),
     role: str(agent.role),
     language: str(agent.language),
@@ -147,6 +158,10 @@ export function toDraft(d: Definition): Draft {
         message: str(o.message),
         conditions: toConditions(o.when),
       };
+    }),
+    tools: (Array.isArray(d.tools) ? d.tools : []).map((raw) => {
+      const g = obj(raw);
+      return { app: str(g.app), tools: Array.isArray(g.tools) ? g.tools.map(str) : ['*'] };
     }),
   };
 }
@@ -195,6 +210,10 @@ export function fromDraft(draft: Draft): Definition {
         goal: o.goal,
       })),
     },
+    // Las herramientas solo valen con el motor assistant (el servidor rechaza tools con otro).
+    ...(draft.engine === 'assistant'
+      ? { tools: draft.tools.map((g) => ({ app: g.app, tools: g.tools })) }
+      : {}),
   };
 }
 
@@ -268,7 +287,10 @@ export function move<T>(list: T[], from: number, to: number): T[] {
 
 /** Seccion del formulario donde va un error de validacion (ruta de pydantic). */
 export type ErrorTarget =
-  | { section: 'agente' | 'voz' | 'objetivo' | 'reglas' | 'conocimiento' | 'datos' | 'resultados' }
+  | {
+      section:
+        'agente' | 'voz' | 'objetivo' | 'reglas' | 'conocimiento' | 'datos' | 'resultados' | 'herramientas';
+    }
   | { section: 'dato'; key: string }
   | { section: 'resultado'; key: string };
 
@@ -285,6 +307,7 @@ export function errorTarget(draft: Draft, path: string): ErrorTarget | null {
   if (head === 'objective') return { section: 'objetivo' };
   if (head === 'conversation') return { section: second === 'rules' ? 'reglas' : 'objetivo' };
   if (head === 'knowledge') return { section: 'conocimiento' };
+  if (head === 'tools') return { section: 'herramientas' };
   if (head === 'fields') {
     const f = draft.fields.find((x) => x.name === second);
     return f ? { section: 'dato', key: f.key } : { section: 'datos' };
@@ -323,6 +346,8 @@ const PATH_WORDS: Record<string, string> = {
   when: 'condiciones',
   message: 'mensaje',
   goal: 'objetivo cumplido',
+  tools: 'Herramientas',
+  app: 'app',
 };
 
 /** "fields.contacto.question" -> "Datos › contacto › pregunta". */
@@ -335,6 +360,9 @@ export function pathLabel(draft: Draft, path: string): string {
       const o = outcomeAt(draft, p);
       out.push(o?.label || o?.id || p);
     } else if (parts[i - 1] === 'rules' && /^\d+$/.test(p)) out.push(`regla ${Number(p) + 1}`);
+    else if (p === 'tools' && i > 0) out.push('herramientas');
+    else if (parts[i - 1] === 'tools' && /^\d+$/.test(p))
+      out.push(draft.tools[Number(p)]?.app || `app ${Number(p) + 1}`);
     else if (PATH_WORDS[p] !== '') out.push(PATH_WORDS[p] ?? p);
   });
   return out.join(' › ');

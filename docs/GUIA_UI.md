@@ -6,8 +6,8 @@ puede hacer por la API (`/api/v1/docs`, solo con sesión de admin). La arquitect
 [`ARQUITECTURA.md`](ARQUITECTURA.md).
 
 Hay dos roles:
-- **Admin:** opera la plataforma y ve todo. Menú: Inicio, Conversaciones, Agentes, Voces, WhatsApp, Clientes, Números, Tiers y Usuarios.
-- **Cliente:** usuario de un cliente, que solo ve lo suyo. Menú: Inicio, Conversaciones, Agentes, Voces, WhatsApp, Consumos, API y Mi cuenta.
+- **Admin:** opera la plataforma y ve todo. Menú: Inicio, Conversaciones, Agentes, Voces, WhatsApp, Campañas, Apps, Clientes, Números, Tiers, Cobros y Usuarios.
+- **Cliente:** usuario de un cliente, que solo ve lo suyo. Menú: Inicio, Conversaciones, Agentes, Voces, WhatsApp, Campañas, Apps, Consumos, API y Mi cuenta.
 
 ## Primer ingreso
 
@@ -78,7 +78,8 @@ El detalle del agente tiene cuatro pestañas:
   conocimiento, datos a obtener (orden, tipo, obligatorio, pregunta sugerida) y resultados.
 - **Definición:** un formulario por partes. El cliente ve el mismo, sin motor, **Ver prompt** ni JSON
   (ver [Agentes (cliente)](#agentes-cliente)):
-  - **Agente:** nombre, rol, idioma y **motor** (Clásico o Estructurado, en tarjetas). La definición es la misma con los dos motores: cambiarlo no toca nada más.
+  - **Agente:** nombre, rol, idioma y **motor** (Clásico, Estructurado o Asistente, en tarjetas). La definición es la misma con los dos primeros: cambiarlo no toca nada más. **Asistente** (solo admin) es el asistente personal con las herramientas de las apps del cliente ([`APPS.md`](APPS.md)): oculta Datos a obtener y Resultados (lo que haya queda guardado) y muestra **Herramientas**.
+  - **Herramientas** (motor Asistente): un switch por cada app del cliente, con **Todas** o **Elegir** herramientas una por una. Las que borran o envían se confirman con el usuario antes de usarlas.
   - **Voz:** tarjetas con las voces (filtro por mujeres u hombres); al lado, la prueba con la voz elegida, con la apertura como texto (editable).
   - **Objetivo y apertura**, **Reglas** (una por regla) y **Base de conocimiento**.
   - **Datos a obtener:** cada dato con etiqueta, nombre interno, tipo (texto, número, sí o no, opción
@@ -158,6 +159,28 @@ contacto manda un audio, el agente lo transcribe y contesta con una nota de voz 
    lo referencian. **Activar** lo vuelve a habilitar.
 
 Si el cliente está desactivado, sus números de WhatsApp tampoco responden.
+
+**Operadores** (en WhatsApp, solo admin): el dueño de un negocio que le habla a su asistente por un
+número compartido. Se carga el número, el contacto (`wa_id`, sin +, como `5493511234567`), el
+cliente y un agente de ese cliente. Los mensajes de ese contacto a ese número los atiende el agente
+del operador; los demás contactos siguen con el agente del número. Se puede cambiar el agente,
+desactivar o borrar.
+
+### 4c. Apps del cliente (Apps)
+
+Las apps son los contenedores de `atentina-apps` ([`APPS.md`](APPS.md)): aparecen solas cuando se
+registran con `make register` desde ese repo.
+
+- **Admin:** ve todas y filtra por cliente. Por cada app: versión, estado (Responde, No responde o
+  Inválida, con el motivo), cliente, vistas y herramientas (las que borran o envían, resaltadas) y
+  último chequeo. Acciones: **Asignar** a un cliente, **Liberar** (vuelve al inventario y revoca sus
+  links), **Releer** el manifest (después de una versión nueva) y **Borrar** (solo del inventario).
+- **Ambos roles:** **Link a una vista** (elegir la vista y, si hace falta, parámetros como
+  `fecha=2026-10-12`): muestra la URL una sola vez, con botón de copiar. **Ver links:** quién los
+  creó, cuándo vencen, cuántas veces se abrieron, y revocar.
+
+Para que un dueño use su app: asignarla, crear un agente con motor **Asistente** y la app en
+**Herramientas**, y cargarlo como **Operador** del número.
 
 ### 5. Usuarios y API keys del cliente
 

@@ -1,4 +1,5 @@
 import {
+  IconApps,
   IconBuilding,
   IconCash,
   IconChartBar,
@@ -33,6 +34,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/voices', label: 'Voces', icon: IconMicrophone, roles: ['admin', 'client'] },
   { to: '/whatsapp', label: 'WhatsApp', icon: IconBrandWhatsapp, roles: ['admin', 'client'] },
   { to: '/campaigns', label: 'Campañas', icon: IconSpeakerphone, roles: ['admin', 'client'] },
+  { to: '/apps', label: 'Apps', icon: IconApps, roles: ['admin', 'client'] },
   { to: '/usage', label: 'Consumos', icon: IconChartBar, roles: ['client'] },
   { to: '/developers', label: 'API', icon: IconCode, roles: ['client'] },
   { to: '/account', label: 'Mi cuenta', icon: IconFileInvoice, roles: ['client'] },

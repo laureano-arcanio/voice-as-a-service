@@ -71,7 +71,11 @@ app/
     reference/*.json agentes de referencia (seed, eval, tests)
     definitions.py   DbDefinitions: versiones de la base, cacheadas (son inmutables)
     templates.py     plantilla, agente en blanco y ReferenceDefinitions (agentes de referencia)
-  conversation/      motor: engine, models (Workflow = definición), workflow (validación), store
+  conversation/      motor: engine, models (Workflow = definición), workflow (validación), store,
+                     assistant.py (motor assistant: pasos con herramientas, confirmación y controles)
+  apps/              apps por cliente (docs/APPS_PLAN.md): client.py (HTTP y MCP mínimo), registry.py
+                     (registro, contrato, salud), tools.py (herramientas de un agente), links.py
+                     (links firmados) y gateway.py (vistas por APPS_PUBLIC_HOST)
   llm/               cliente y prompts del LLM
   voice/             worker de LiveKit y latencia por turno
   whatsapp/          webhook (firma), graph.py (Cloud API y media), store.py (tablas wa_*), service.py (turnos),
@@ -79,7 +83,8 @@ app/
                      registro, plantillas), crypto.py (tokens y PIN cifrados), campaigns.py y sender.py
                      (campañas salientes por plantilla y bajas)
 migrations/          Alembic: 0001 esquema anterior (idempotente), 0002 tenencia, 0003 inventario de números,
-                     0004 WhatsApp, 0005 Embedded Signup y session_version, …, 0008 campañas de WhatsApp
+                     0004 WhatsApp, 0005 Embedded Signup y session_version, …, 0008 campañas de WhatsApp,
+                     …, 0013 apps por cliente y operadores de WhatsApp
 web/                 SPA React (ver "Frontend")
 tests/               pytest: API, límites, motor
 ```
@@ -98,7 +103,9 @@ tiers 1───* clients 1───* agents 1───* agent_versions
                 ├───* users (rol client)            users (rol admin: sin cliente)
                 ├───* api_keys
                 ├───* client_limit_adjustments (ajustes de límites del tier, CASCADE)
+                ├───* apps (client_id, SET NULL: vuelve al inventario) 1───* app_links
                 ├───* wa_accounts (agent_id, RESTRICT) 1───* wa_threads
+                │                                      1───* wa_operators (client_id + agent_id propios)
                 └───* conversations 1───1 call_logs        (voz)
                          │          1───1 wa_threads       (whatsapp)
                          │          1───* wa_messages
@@ -125,6 +132,9 @@ tiers 1───* clients 1───* agents 1───* agent_versions
 | `wa_campaign_recipients` | Un contacto de una campaña (`campaign_id` + `wa_id` únicos): variables, `status` (`pending`, `sending`, `sent`, `failed`, `skipped`), error, `wamid` (entregado y leído salen de `wa_messages`), `conversation_id` y `replied_at` si respondió. |
 | `wa_optouts` | Bajas por cliente (`client_id` + `wa_id`), `source` `keyword` (lo escribió) o `manual`. Ninguna campaña les escribe. |
 | `contact_requests` | Pedidos del formulario de contacto de la landing (`POST /api/v1/demo/contact`), con `email_status` (`sent`, `failed`, `disabled`) y `email_error`; se guardan aunque Resend falle ([`LANDING.md`](LANDING.md)). |
+| `apps` | App de un cliente (contenedor de atentina-apps, [`APPS_PLAN.md`](APPS_PLAN.md)): `slug` único, `client_id` (NULL = inventario), `base_url` (`http://app-<slug>:8000`), `token_enc` (APP_TOKEN cifrado con `WA_TOKEN_KEY`), `version`, `manifest` (copia del último válido: vistas y herramientas), `status` (`ok`, `down`, `invalid`), `last_error`, `last_health_at`. |
+| `app_links` | Link firmado a una vista: `token_hash` (SHA-256; el token no se guarda), `app_id`, `view`, `params`, `expires_at` (`APPS_LINK_TTL_DAYS`), `revoked_at`, `created_by` (`wa:<wa_id>`, `user:<id>`), `opens`. |
+| `wa_operators` | Dueño de un negocio que le habla a su asistente por un número compartido: `account_id` + `wa_id` únicos, `client_id` y `agent_id` propios (los del número no se usan), `name`, `active`. |
 | `wa_messages` | Uno por `wamid` (unique: dedupe de reenvíos de Meta), entrante o saliente, tipo (`text`, `audio`, ...), estado y error de Meta. Sin texto ni audio: el texto está en `conversations.messages`, donde `voice_note` marca la transcripción de una nota de voz o la respuesta enviada como nota de voz. |
 
 Las fechas se guardan en UTC sin zona; la API las devuelve con zona (`+00:00`/`Z`).
@@ -160,6 +170,9 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
 ```
 
 - `id` y `version` los fija la app: el slug del agente y el número de versión. Van al prompt.
+- **Motor `assistant`** ([`APPS.md`](APPS.md)): sin datos a extraer (`fields` puede ir vacío)
+  y con `tools: [{"app": "<slug>", "tools": ["*"]}]`, las herramientas de las apps del cliente. Al
+  guardar se valida que cada app sea del cliente y tenga esas herramientas.
 - `fields.<campo>.label` (opcional): nombre del dato para mostrarlo (resultado de la demo de la
   landing). No va al prompt.
 - **Validación al guardar:**
@@ -268,6 +281,29 @@ El formulario de contacto de la landing (`POST /demo/contact`, misma sesión) gu
    formato para escuchar) y la respuesta sale como nota de voz: `vllm-tts` → OGG/Opus → subida →
    mensaje `audio`. Si algo falla, va en texto.
 4. Los statuses actualizan `wa_messages`. No se crea `call_logs` ni se pasa por `quota.admit`.
+
+**Operadores:** si el `wa_id` está en `wa_operators` para ese número (activo), la conversación es del
+cliente y del agente del operador, no de los del número, y no se mira la campaña. Así un número de
+Atentina atiende a los dueños de varios negocios, cada uno con su asistente. Un hilo abierto con otro
+agente (lo hicieron operador a mitad de un chat) empieza una conversación nueva.
+
+### Motor assistant y apps
+
+Referencia completa: [`APPS.md`](APPS.md). En corto:
+
+- Un agente `assistant` usa las herramientas de las apps del cliente (contenedores de
+  `atentina-apps`, por MCP en la red interna `atentina-apps`), más `abrir_vista` (link firmado).
+- `app/conversation/assistant.py` corre hasta 6 pasos por turno con JSON guiado (`reply`, `call`,
+  `confirm`, `cancel`), con razonamiento (`ASSISTANT_THINKING`). La respuesta sale siempre en texto.
+- Las herramientas `destructive` y `send` se confirman. Un sí o un no claros los resuelve la
+  plataforma.
+- Controles de la plataforma: ids que salen de un resultado, nada escribe después de una búsqueda
+  ambigua, nombres de campo como valor, links (marcas `[[linkN]]`), repeticiones y JSON inválido.
+- Operadores (`wa_operators`): por un número compartido, el dueño habla con su asistente.
+- Archivos (OCR), outbox (mensajes a terceros; simulado por defecto) y jobs (avisos diarios):
+  `app/apps/`.
+- Gateway: con `Host: APPS_PUBLIC_HOST`, `app` atiende solo las vistas de las apps, con su propia
+  CSP.
 
 **Capacidad:** un turno de texto carga solo el LLM (3090); uno con audio usa además el STT y el TTS,
 y la síntesis va a la 5060 Ti, el cuello de CAP-002. `WA_AUDIO_CONCURRENCY` (4, sin medir) limita los

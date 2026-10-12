@@ -76,96 +76,126 @@ export function WorkflowSummary({ definition }: { definition: Definition }) {
         )}
       </Card>
 
-      <Card>
-        <Title order={4} mb="sm">
-          Datos a obtener
-        </Title>
-        <Table.ScrollContainer minWidth={760}>
-          <Table>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th w={60} ta="right">
-                  Orden
-                </Table.Th>
-                <Table.Th>Dato</Table.Th>
-                <Table.Th>Tipo</Table.Th>
-                <Table.Th>Obligatorio</Table.Th>
-                <Table.Th>Pregunta sugerida</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {w.fields.map(([name, f]) => (
-                <Table.Tr key={name}>
-                  <Table.Td ta="right" className="mono">
-                    {f.priority}
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm" fw={600}>
-                      {name}
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                      {f.description}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm">{f.type}</Text>
-                    {f.options && (
-                      <Text size="xs" c="dimmed">
-                        {f.options.join(' / ')}
-                      </Text>
-                    )}
-                  </Table.Td>
-                  <Table.Td>{requiredLabel(f)}</Table.Td>
-                  <Table.Td>
-                    <Text size="sm">{f.question}</Text>
-                  </Table.Td>
-                </Table.Tr>
+      {w.engine === 'assistant' ? (
+        <Card>
+          <Title order={4} mb={4}>
+            Herramientas
+          </Title>
+          <Text size="xs" c="dimmed" mb="sm">
+            De las apps del cliente. Con ellas el asistente registra y consulta datos y manda links a las
+            vistas.
+          </Text>
+          {w.tools.length ? (
+            <List size="sm" spacing={4}>
+              {w.tools.map((g) => (
+                <List.Item key={g.app}>
+                  <Text span className="mono">
+                    {g.app}
+                  </Text>
+                  : {g.tools.includes('*') ? 'todas' : g.tools.join(', ')}
+                </List.Item>
               ))}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
-      </Card>
+            </List>
+          ) : (
+            <Text size="sm" c="dimmed">
+              Sin herramientas.
+            </Text>
+          )}
+        </Card>
+      ) : (
+        <>
+          <Card>
+            <Title order={4} mb="sm">
+              Datos a obtener
+            </Title>
+            <Table.ScrollContainer minWidth={760}>
+              <Table>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th w={60} ta="right">
+                      Orden
+                    </Table.Th>
+                    <Table.Th>Dato</Table.Th>
+                    <Table.Th>Tipo</Table.Th>
+                    <Table.Th>Obligatorio</Table.Th>
+                    <Table.Th>Pregunta sugerida</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {w.fields.map(([name, f]) => (
+                    <Table.Tr key={name}>
+                      <Table.Td ta="right" className="mono">
+                        {f.priority}
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm" fw={600}>
+                          {name}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          {f.description}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm">{f.type}</Text>
+                        {f.options && (
+                          <Text size="xs" c="dimmed">
+                            {f.options.join(' / ')}
+                          </Text>
+                        )}
+                      </Table.Td>
+                      <Table.Td>{requiredLabel(f)}</Table.Td>
+                      <Table.Td>
+                        <Text size="sm">{f.question}</Text>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
+          </Card>
 
-      <Card>
-        <Title order={4} mb={4}>
-          Resultados
-        </Title>
-        <Text size="xs" c="dimmed" mb="sm">
-          Clasifican la llamada al terminar (el primero cuyas condiciones se cumplen). El mensaje es una guía
-          para el LLM.
-        </Text>
-        <Table.ScrollContainer minWidth={640}>
-          <Table>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Resultado</Table.Th>
-                <Table.Th>Cuándo</Table.Th>
-                <Table.Th>Mensaje de cierre</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {w.outcomes.map((o) => (
-                <Table.Tr key={o.id}>
-                  <Table.Td>
-                    <OutcomeBadge label={o.label} goal={o.goal} />
-                    {o.goal && (
-                      <Text size="xs" c="dimmed" mt={2}>
-                        Cumple el objetivo
-                      </Text>
-                    )}
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm">{conditionLabel(o.when)}</Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm">{o.message}</Text>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
-      </Card>
+          <Card>
+            <Title order={4} mb={4}>
+              Resultados
+            </Title>
+            <Text size="xs" c="dimmed" mb="sm">
+              Clasifican la llamada al terminar (el primero cuyas condiciones se cumplen). El mensaje es una
+              guía para el LLM.
+            </Text>
+            <Table.ScrollContainer minWidth={640}>
+              <Table>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Resultado</Table.Th>
+                    <Table.Th>Cuándo</Table.Th>
+                    <Table.Th>Mensaje de cierre</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {w.outcomes.map((o) => (
+                    <Table.Tr key={o.id}>
+                      <Table.Td>
+                        <OutcomeBadge label={o.label} goal={o.goal} />
+                        {o.goal && (
+                          <Text size="xs" c="dimmed" mt={2}>
+                            Cumple el objetivo
+                          </Text>
+                        )}
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm">{conditionLabel(o.when)}</Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm">{o.message}</Text>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
+          </Card>
+        </>
+      )}
     </Stack>
   );
 }

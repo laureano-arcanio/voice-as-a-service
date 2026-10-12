@@ -142,3 +142,63 @@ describe('errores', () => {
     expect(pathLabel(d, 'completion.outcomes')).toBe('Resultados');
   });
 });
+
+describe('motor assistant', () => {
+  // Como la devuelve el servidor: sin datos y con las herramientas de una app.
+  const assistant = {
+    id: 'asistente',
+    version: 2,
+    engine: 'assistant',
+    agent: { name: 'Asis', role: 'asistente del gym', language: 'es-AR' },
+    objective: { description: 'Ayudar al dueño' },
+    conversation: { opening: 'Hola', rules: [] },
+    knowledge: '',
+    fields: {},
+    completion: {
+      when: 'all_required_fields_completed',
+      outcomes: [{ id: 'default', label: 'Conversación', when: {}, message: 'Chau', goal: false }],
+    },
+    tools: [
+      { app: 'sugym-gestion', tools: ['*'] },
+      { app: 'sugym-turnos', tools: ['buscar_turno', 'reservar'] },
+    ],
+  };
+
+  it('ida y vuelta conserva el motor y las herramientas', () => {
+    const d = toDraft(assistant);
+    expect(d.engine).toBe('assistant');
+    expect(d.tools).toEqual(assistant.tools);
+    expect(stableJson(fromDraft(d))).toBe(stableJson(assistant));
+  });
+
+  it('con otro motor no manda tools (el servidor las rechaza)', () => {
+    const out = fromDraft({ ...toDraft(assistant), engine: 'classic' });
+    expect(out).not.toHaveProperty('tools');
+    expect(out.engine).toBe('classic');
+  });
+
+  it('un motor desconocido queda en classic', () => {
+    expect(toDraft({ ...assistant, engine: 'otro' }).engine).toBe('classic');
+  });
+
+  it('errores de tools van a la seccion Herramientas', () => {
+    const d = toDraft(assistant);
+    expect(errorTarget(d, 'tools.1.tools')).toEqual({ section: 'herramientas' });
+    expect(pathLabel(d, 'tools.1.tools')).toBe('Herramientas › sugym-turnos › herramientas');
+    expect(pathLabel(d, 'tools.0.app')).toBe('Herramientas › sugym-gestion › app');
+  });
+});
+
+describe('setGrant', () => {
+  it('agrega, cambia y saca la app', async () => {
+    const { setGrant } = await import('./grants');
+    const one = setGrant([], 'a', ['*']);
+    expect(one).toEqual([{ app: 'a', tools: ['*'] }]);
+    const two = setGrant(setGrant(one, 'b', ['x']), 'a', ['y', 'z']);
+    expect(two).toEqual([
+      { app: 'a', tools: ['y', 'z'] },
+      { app: 'b', tools: ['x'] },
+    ]);
+    expect(setGrant(two, 'a', null)).toEqual([{ app: 'b', tools: ['x'] }]);
+  });
+});

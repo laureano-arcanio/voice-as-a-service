@@ -564,8 +564,9 @@ class AgentCreate(BaseModel):
     # La definicion (workflow JSON), la plantilla de partida (GET /agent-templates) o ninguna: en blanco.
     definition: dict[str, Any] | None = None
     template_id: str | None = None
-    engine: Literal["classic", "structured"] | None = Field(
-        default=None, description="Motor; pisa el de la definicion o la plantilla (la definicion es la misma)")
+    engine: Literal["classic", "structured", "assistant"] | None = Field(
+        default=None, description="Motor; pisa el de la definicion o la plantilla (la definicion es la misma). "
+                                  "assistant: herramientas de las apps del cliente (docs/APPS_PLAN.md)")
 
 
 class AgentUpdate(BaseModel):
@@ -1194,3 +1195,99 @@ class InferenceUsageOut(BaseModel):
     stt_minutes: MeterOut
     requests: InferenceRequestsOut
     keys: list[InferenceKeyUsageOut]
+
+
+# --- Apps por cliente (docs/APPS_PLAN.md) ---
+
+class AppRegisterIn(BaseModel):
+    slug: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{0,63}$")
+    base_url: str = Field(max_length=255, description="http://app-<slug>:8000 (red interna atentina-apps)")
+    token: str = Field(min_length=16, max_length=256, description="APP_TOKEN de la app; se guarda cifrado")
+
+
+class AppViewOut(BaseModel):
+    name: str
+    title: str
+    description: str = ""
+
+
+class AppToolOut(BaseModel):
+    name: str
+    kind: str
+    description: str
+
+
+class AppJobOut(BaseModel):
+    name: str
+    title: str = ""
+    hora: str
+    dias: list[int] = []
+
+
+class AppJobRunOut(BaseModel):
+    message: str | None
+    url: str | None
+    entregas: list[dict[str, str]]
+
+
+class AppOut(ORM):
+    id: str
+    slug: str
+    name: str
+    client_id: str | None
+    client_name: str | None = None
+    base_url: str
+    version: str
+    status: str
+    last_error: str | None
+    last_health_at: UTCDateTime | None
+    created_at: UTCDateTime
+    views: list[AppViewOut] = []
+    tools: list[AppToolOut] = []
+    jobs: list[AppJobOut] = []
+
+
+class AppLinkIn(BaseModel):
+    view: str
+    params: dict[str, str | int] = {}
+
+
+class AppLinkOut(ORM):
+    id: str
+    view: str
+    params: dict[str, Any]
+    created_by: str
+    created_at: UTCDateTime
+    expires_at: UTCDateTime
+    revoked_at: UTCDateTime | None
+    opens: int
+    last_opened_at: UTCDateTime | None
+    url: str | None = Field(default=None, description="Solo al crearlo: el token no se guarda")
+
+
+class WaOperatorIn(BaseModel):
+    account_id: str
+    wa_id: str = Field(pattern=r"^\d{8,15}$", description="Como lo manda Meta, sin + (549351...)")
+    client_id: str
+    agent_id: str
+    name: str = Field(default="", max_length=128)
+
+
+class WaOperatorUpdate(BaseModel):
+    agent_id: str | None = None
+    name: str | None = Field(default=None, max_length=128)
+    active: bool | None = None
+
+
+class WaOperatorOut(ORM):
+    id: str
+    account_id: str
+    account_number: str | None = None
+    wa_id: str
+    client_id: str
+    client_name: str | None = None
+    agent_id: str
+    agent_name: str | None = None
+    name: str
+    active: bool
+    created_at: UTCDateTime

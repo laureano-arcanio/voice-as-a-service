@@ -1,7 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { unwrap } from '@/api/request';
-import type { WaAccountIn, WaAccountPatch, WaSignupIn, WaTemplateIn } from '@/api/types';
+import type {
+  WaAccountIn,
+  WaAccountPatch,
+  WaOperatorIn,
+  WaOperatorUpdate,
+  WaSignupIn,
+  WaTemplateIn,
+} from '@/api/types';
 
 export const waKeys = {
   all: ['wa-accounts'] as const,
@@ -117,5 +124,51 @@ export function useCreateWaTemplate() {
         api.POST('/api/v1/whatsapp/accounts/{account_id}/templates', { ...accountPath(accountId), body }),
       ),
     onSuccess: (_, { accountId }) => void qc.invalidateQueries({ queryKey: waKeys.templates(accountId) }),
+  });
+}
+
+// --- Operadores (docs/APPS_PLAN.md): el dueño de un negocio que le habla a su asistente por un
+// numero compartido. Solo admin.
+
+export const operatorKeys = {
+  all: ['wa-operators'] as const,
+};
+
+export function useWaOperators(enabled = true) {
+  return useQuery({
+    queryKey: operatorKeys.all,
+    queryFn: () => unwrap(api.GET('/api/v1/wa-operators')),
+    enabled,
+  });
+}
+
+function useInvalidateOperators() {
+  const qc = useQueryClient();
+  return () => void qc.invalidateQueries({ queryKey: operatorKeys.all });
+}
+
+export function useCreateWaOperator() {
+  const invalidate = useInvalidateOperators();
+  return useMutation({
+    mutationFn: (body: WaOperatorIn) => unwrap(api.POST('/api/v1/wa-operators', { body })),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUpdateWaOperator() {
+  const invalidate = useInvalidateOperators();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: WaOperatorUpdate }) =>
+      unwrap(api.PATCH('/api/v1/wa-operators/{op_id}', { params: { path: { op_id: id } }, body })),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteWaOperator() {
+  const invalidate = useInvalidateOperators();
+  return useMutation({
+    mutationFn: (id: string) =>
+      unwrap(api.DELETE('/api/v1/wa-operators/{op_id}', { params: { path: { op_id: id } } })),
+    onSuccess: invalidate,
   });
 }

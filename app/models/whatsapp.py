@@ -172,3 +172,17 @@ class WaOptout(Base):
     wa_id: Mapped[str] = mapped_column(String(32), primary_key=True)
     source: Mapped[str] = mapped_column(String(16))     # keyword (lo escribio), manual (UI o API)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class WaOperator(IdMixin, TimestampMixin, Base):
+    """El dueño de un negocio que le habla a su asistente por un numero compartido de Atentina
+    (docs/APPS_PLAN.md): sus mensajes los atiende el agente del operador, del cliente del
+    operador, no el agente del numero."""
+    __tablename__ = "wa_operators"
+    __table_args__ = (UniqueConstraint("account_id", "wa_id", name="uq_wa_operators_account_waid"),)
+    account_id: Mapped[str] = mapped_column(String(36), ForeignKey("wa_accounts.id", ondelete="CASCADE"))
+    wa_id: Mapped[str] = mapped_column(String(32))          # como lo manda Meta (549351...)
+    client_id: Mapped[str] = mapped_column(String(36), ForeignKey("clients.id", ondelete="CASCADE"), index=True)
+    agent_id: Mapped[str] = mapped_column(String(36), ForeignKey("agents.id", ondelete="RESTRICT"))
+    name: Mapped[str] = mapped_column(String(128), default="", server_default="")
+    active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())

@@ -5,7 +5,15 @@ import uuid
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from .models import AgentTurn, Channel, ConversationState, Extraction, Message, TurnMedia, Workflow
+from .models import (
+    AgentTurn,
+    Channel,
+    ConversationState,
+    Extraction,
+    Message,
+    TurnMedia,
+    Workflow,
+)
 from .store import ConversationStore
 from .workflow import check_updates, is_required, outcome_for
 
@@ -41,6 +49,7 @@ class ConversationEngine:
         self.store = store
         self.definitions = definitions or ReferenceDefinitions()
         self.extractions: dict[str, list[asyncio.Task]] = {}   # extracciones en curso por conversacion, en orden
+        self.assistant = None   # motor assistant, al primer turno (app/conversation/assistant.py)
 
     def workflow(self, state: ConversationState) -> Workflow:
         return self.definitions.get(state.agent_id, state.agent_version)
@@ -73,17 +82,20 @@ class ConversationEngine:
             return state, ""
         text = workflow.conversation.opening if opening is True else opening
         state.messages = [Message(role="assistant", text=text)]
-        # La apertura pregunta por el primer dato del workflow.
-        state.progress.asked = min(workflow.fields, key=lambda name: workflow.fields[name].priority)
+        # La apertura pregunta por el primer dato del workflow (assistant: sin datos).
+        if workflow.fields:
+            state.progress.asked = min(workflow.fields, key=lambda name: workflow.fields[name].priority)
         return state, text
 
     async def process_turn(self, conversation_id: str, user_message: str,
                            on_message: Callable[[str], None] | None = None, *,
-                           media: TurnMedia | None = None) -> tuple[ConversationState, AgentTurn]:
+                           media: TurnMedia | None = None, actor: str | None = None
+                           ) -> tuple[ConversationState, AgentTurn]:
         """on_message recibe assistant_message a medida que lo genera el LLM
         (agente de voz). Devuelve sin esperar la extraccion de este turno.
         media: si el mensaje vino por audio y si la respuesta sale como nota de
-        voz (WhatsApp); cambia el prompt del turno y no se guarda."""
+        voz (WhatsApp); cambia el prompt del turno y no se guarda.
+        actor: quien escribe (wa:<wa_id>); el motor assistant se lo pasa a las apps."""
         media = media or TurnMedia()
         await self.wait_extraction(conversation_id, EXTRACTION_WAIT)
         state = self.store.get(conversation_id)
@@ -92,6 +104,9 @@ class ConversationEngine:
         state.media = media
         workflow = self.workflow(state)
 
+        if workflow.engine == "assistant":
+            return await self._assistant_turn(workflow, state, user_message, media, on_message,
+                                              actor or f"conversation:{conversation_id}")
         classic = workflow.engine == "classic"
         started = time.perf_counter()
         llm_turn = self.llm.converse if classic else self.llm.process_turn
@@ -117,6 +132,26 @@ class ConversationEngine:
         # conversacion (finish: el corte de la llamada, o el cierre o vencimiento del chat).
         if not classic or result.status == "completed":
             self._launch_extraction(conversation_id, len(state.messages) - 1, asked if result.answered else None)
+        return state, result
+
+    async def _assistant_turn(self, workflow: Workflow, state: ConversationState, user_message: str,
+                              media: TurnMedia, on_message: Callable[[str], None] | None, actor: str
+                              ) -> tuple[ConversationState, AgentTurn]:
+        """Motor assistant (app/conversation/assistant.py): herramientas, sin extraccion ni fin."""
+        if self.assistant is None:
+            from .assistant import Assistant
+            self.assistant = Assistant(self.llm, self.store.sessions)
+        result, trace, pending = await self.assistant.run(workflow, state, user_message, media, actor)
+        state = self.store.get(state.conversation_id)
+        undo = state.model_dump(include={"status", "fields", "progress"}, exclude={"progress": {"undo"}})
+        undo["n_messages"] = len(state.messages)
+        state.progress.undo = undo
+        state.progress.pending = pending
+        state.messages += [Message(role="user", text=user_message, voice_note=media.user_voice_note),
+                           Message(role="assistant", text=result.assistant_message, llm=trace)]
+        self.store.save(state)
+        if on_message is not None:
+            on_message(result.assistant_message)
         return state, result
 
     def mark_voice_note(self, conversation_id: str) -> bool:

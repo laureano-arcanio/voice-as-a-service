@@ -7,7 +7,8 @@ from sqlalchemy import exists, func, select
 from sqlalchemy.orm import Session
 
 from ..agents.templates import blank_definition, template_data
-from ..conversation.models import Workflow
+from ..apps.tools import check_grants
+from ..conversation.models import ToolGrant, Workflow
 from ..db import utcnow
 from ..models import Agent, AgentVersion, Client, ConversationRow, WaAccount
 from . import voices
@@ -43,6 +44,12 @@ def normalize_definition(raw: dict, slug: str, version: int) -> dict:
     return workflow.model_dump(mode="json", exclude_none=True)
 
 
+def _check_tools(s: Session, client_id: str, normalized: dict) -> None:
+    """Motor assistant: las apps de tools son del cliente y tienen esas herramientas."""
+    if grants := [ToolGrant.model_validate(g) for g in normalized.get("tools") or []]:
+        check_grants(s, client_id, grants)
+
+
 def slugify(name: str) -> str:
     text = unicodedata.normalize("NFKD", name.lower()).encode("ascii", "ignore").decode()
     return re.sub(r"[^a-z0-9]+", "_", text).strip("_")[:64] or "agente"
@@ -70,6 +77,7 @@ def create_agent(s: Session, client: Client, name: str, slug: str | None, descri
     if s.scalar(select(exists().where(Agent.client_id == client.id, Agent.slug == slug))):
         raise Conflict(f"El cliente ya tiene un agente {slug!r}")
     normalized = normalize_definition(definition, slug, 1)
+    _check_tools(s, client.id, normalized)
     agent = Agent(client_id=client.id, name=name, slug=slug, description=description,
                   version=1, definition=normalized)
     s.add(agent)
@@ -84,6 +92,7 @@ def update_definition(s: Session, agent: Agent, definition: dict, user_id: str |
     s.refresh(agent, with_for_update=True)
     current = {k: v for k, v in agent.definition.items() if k != "version"}
     normalized = normalize_definition(definition, agent.slug, agent.version + 1)
+    _check_tools(s, agent.client_id, normalized)
     if {k: v for k, v in normalized.items() if k != "version"} == current:
         return agent
     agent.version += 1

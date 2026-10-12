@@ -80,6 +80,14 @@ export type Payment = S['PaymentOut'];
 export type PaymentIn = S['PaymentIn'];
 export type FiscalIn = S['FiscalIn'];
 export type TaxCondition = FiscalIn['tax_condition'];
+export type App = S['AppOut'];
+export type AppTool = S['AppToolOut'];
+export type AppView = S['AppViewOut'];
+export type AppLink = S['AppLinkOut'];
+export type AppLinkIn = S['AppLinkIn'];
+export type WaOperator = S['WaOperatorOut'];
+export type WaOperatorIn = S['WaOperatorIn'];
+export type WaOperatorUpdate = S['WaOperatorUpdate'];
 
 /** Definicion de un agente: JSON libre para la API (ver GET /agents/schema). */
 export type Definition = Record<string, unknown>;

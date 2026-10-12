@@ -1,6 +1,6 @@
 import { Badge, Group, Radio, SimpleGrid, Stack, Text } from '@mantine/core';
 import { ENGINE } from '@/lib/labels';
-import { ENGINE_HELP } from './draft';
+import { ENGINE_HELP, ENGINES } from './draft';
 
 /** Rotulo del motor: solo lo ve un admin, en pantallas que comparte con el cliente. */
 export function EngineLabel() {
@@ -17,8 +17,8 @@ export function EngineLabel() {
 /** Opciones de motor como tarjetas; van dentro de un Radio.Group. */
 export function EngineCards() {
   return (
-    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs" mt="xs">
-      {(['classic', 'structured'] as const).map((e) => (
+    <SimpleGrid cols={{ base: 1, md: 3 }} spacing="xs" mt="xs">
+      {ENGINES.map((e) => (
         <Radio.Card key={e} value={e} p="sm">
           <Group wrap="nowrap" align="flex-start" gap="sm">
             <Radio.Indicator />

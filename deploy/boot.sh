@@ -11,6 +11,9 @@ env_get() { grep -E "^$1=" .env | tail -1 | cut -d= -f2-; }
 log "esperando a Docker"
 until docker info >/dev/null 2>&1; do sleep 2; done
 
+log "red de las apps de los clientes (atentina-apps, interna)"
+docker network inspect atentina-apps >/dev/null 2>&1 || docker network create --internal atentina-apps >/dev/null
+
 log "stack (COMPOSE_FILE del .env), esperando healthy hasta 15 min"
 docker compose up -d --wait --wait-timeout 900
 

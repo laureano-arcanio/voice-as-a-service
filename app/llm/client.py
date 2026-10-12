@@ -56,16 +56,26 @@ def extraction_schema(workflow: Workflow, only: list[str] | None = None) -> dict
     }
 
 
-# Recomendados por Qwen: con pensamiento, 0.6 / 0.95 / 20; sin pensamiento, 0.7 / 0.8 / 20.
-# Qwen desaconseja temperaturas bajas o greedy con pensamiento (se repite).
+# Muestreo recomendado por familia de modelo, con y sin pensamiento.
+# - Qwen3.5: con pensamiento, 0.6 / 0.95 / 20; sin, 0.7 / 0.8 / 20 (desaconseja temperaturas bajas o
+#   greedy con pensamiento: se repite).
+# - Gemma 4: 1.0 / 0.95 / 64 en todos los casos (model card de Google, "Best practices"; 12-oct-2026).
 SAMPLING = {
-    True: {"temperature": 0.6, "top_p": 0.95, "top_k": 20, "min_p": 0.0},
-    False: {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "min_p": 0.0},
+    "qwen": {True: {"temperature": 0.6, "top_p": 0.95, "top_k": 20, "min_p": 0.0},
+             False: {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "min_p": 0.0}},
+    "gemma": {True: {"temperature": 1.0, "top_p": 0.95, "top_k": 64, "min_p": 0.0},
+              False: {"temperature": 1.0, "top_p": 0.95, "top_k": 64, "min_p": 0.0}},
 }
 
 
-def request_options(thinking: bool, budget: int, temperature: float | None = None) -> dict:
-    sampling = dict(SAMPLING[thinking])
+def sampling_family(model: str, setting: str = settings.llm_sampling) -> str:
+    if setting != "auto":
+        return setting
+    return "gemma" if "gemma" in model.lower() else "qwen"
+
+
+def request_options(thinking: bool, budget: int, temperature: float | None = None, family: str = "qwen") -> dict:
+    sampling = dict(SAMPLING[family][thinking])
     if temperature is not None:
         sampling["temperature"] = temperature
     extra = {"top_k": sampling.pop("top_k"), "min_p": sampling.pop("min_p"),
@@ -80,7 +90,9 @@ class LLMClient:
                  thinking_budget: int = settings.llm_thinking_budget, temperature: float | None = settings.llm_temperature):
         self.client = AsyncOpenAI(base_url=base_url, api_key=api_key, timeout=30)
         self.model = model
-        self.options = request_options(thinking, thinking_budget, temperature)
+        self.family = sampling_family(model)
+        self.temperature = temperature
+        self.options = request_options(thinking, thinking_budget, temperature, self.family)
 
     async def process_turn(self, workflow: Workflow, state: ConversationState, user_message: str,
                            on_message: Callable[[str], None] | None = None) -> AgentTurn:
@@ -156,6 +168,23 @@ class LLMClient:
         )).choices[0].message
         reasoning = getattr(message, "reasoning_content", None) or getattr(message, "reasoning", None)
         return Extraction(fields=json.loads(message.content), raw=message.content, reasoning=reasoning)
+
+    async def structured(self, messages: list[dict], schema: dict, name: str = "step",
+                         thinking: bool | None = None, budget: int | None = None,
+                         max_tokens: int | None = None) -> tuple[str, str | None]:
+        """Un pedido con salida JSON guiada (motor assistant, app/conversation/assistant.py).
+        Devuelve el JSON tal cual y el razonamiento. thinking: pisa el del cliente (LLM_THINKING) para
+        este pedido; vLLM aplica el esquema despues del razonamiento (probado con Gemma 4)."""
+        options = self.options if thinking is None else \
+            request_options(thinking, budget or settings.llm_thinking_budget, self.temperature, self.family)
+        message = (await self.client.chat.completions.create(
+            model=self.model, messages=messages,
+            response_format={"type": "json_schema", "json_schema": {"name": name, "schema": schema, "strict": True}},
+            timeout=90 if thinking else None, max_tokens=max_tokens,
+            **options,
+        )).choices[0].message
+        reasoning = getattr(message, "reasoning_content", None) or getattr(message, "reasoning", None)
+        return message.content or "", reasoning
 
     async def _stream(self, request: dict, on_message: Callable[[str], None]) -> tuple[str, str | None]:
         content, reasoning = [], []

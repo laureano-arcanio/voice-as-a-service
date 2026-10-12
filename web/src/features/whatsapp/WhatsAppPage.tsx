@@ -45,6 +45,7 @@ import {
   useWaConfig,
 } from './api';
 import { WA_MANAGER_URL, WA_QUALITY, WA_SOURCE, WA_STATUS, WA_STATUS_HELP } from './labels';
+import { OperatorsCard } from './Operators';
 import { RegisterModal } from './RegisterModal';
 import { SignupModal } from './SignupModal';
 import { TemplatesCard } from './Templates';
@@ -401,6 +402,7 @@ export function WhatsAppPage() {
           .
         </Text>
       </Card>
+      {isAdmin && <OperatorsCard accounts={list} />}
       {manageable.length > 0 && (
         <TemplatesCard accounts={manageable} accountId={templatesAccount} onSelect={setTemplatesFor} />
       )}

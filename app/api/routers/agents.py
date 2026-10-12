@@ -2,7 +2,8 @@ from fastapi import APIRouter
 from sqlalchemy import select
 
 from ...agents.templates import template_data, template_ids
-from ...conversation.models import Workflow
+from ...conversation.assistant import build_system as build_assistant_system
+from ...conversation.models import ConversationState, Workflow
 from ...llm.prompt import build_classic_system, render_workflow, system_prompt
 from ...models import Agent, AgentVersion, User
 from ...services import agents as service
@@ -65,6 +66,10 @@ def preview_prompt(body: PromptIn, _: AdminPrincipal):
     w = Workflow.model_validate(service.normalize_definition(body.definition, body.definition.get("id") or "borrador", 1))
     if w.engine == "classic":
         return PromptOut(engine=w.engine, system=build_classic_system(w, body.channel))
+    if w.engine == "assistant":
+        # Sin las herramientas: dependen de las apps del cliente (se agregan en cada turno).
+        state = ConversationState(conversation_id="borrador", agent_id=w.id, channel=body.channel, fields={})
+        return PromptOut(engine=w.engine, system=build_assistant_system(w, state, []))
     return PromptOut(engine=w.engine, system=system_prompt(body.channel), workflow=render_workflow(w))
 
 

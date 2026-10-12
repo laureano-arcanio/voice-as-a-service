@@ -43,6 +43,7 @@ import {
   sectionId,
 } from './draft';
 import { EngineCards, EngineLabel } from './EngineCards';
+import { ToolsEditor } from './ToolsSection';
 
 const LANGUAGES = ['es-AR', 'es-UY', 'es-CL', 'es-MX', 'es-ES', 'en-US', 'pt-BR'];
 const TYPE_LABEL: Record<string, string> = Object.fromEntries(FIELD_TYPES.map((t) => [t.value, t.label]));
@@ -550,6 +551,7 @@ export function DefinitionForm({
   toggle,
   voiceSeed,
   showEngine,
+  clientId,
 }: {
   draft: Draft;
   update: (fn: (d: Draft) => Draft) => void;
@@ -560,8 +562,11 @@ export function DefinitionForm({
   voiceSeed: string;
   /** El motor es interno: solo lo elige un admin. El cliente conserva el que tiene el agente. */
   showEngine: boolean;
+  /** Cliente del agente: sus apps dan las herramientas del motor assistant. */
+  clientId: string;
 }) {
   const set = (patch: Partial<Draft>) => update((d) => ({ ...d, ...patch }));
+  const assistant = draft.engine === 'assistant';
 
   return (
     <Stack gap="md">
@@ -597,7 +602,7 @@ export function DefinitionForm({
           {showEngine && (
             <Radio.Group
               label={<EngineLabel />}
-              description="La definición es la misma con los dos: cambiarlo no toca nada más."
+              description="Clásico y estructurado usan la misma definición. El asistente usa herramientas de las apps del cliente en lugar de datos y resultados (los que haya quedan guardados)."
               value={draft.engine}
               onChange={(v) => set({ engine: v as Engine })}
             >
@@ -606,6 +611,16 @@ export function DefinitionForm({
           )}
         </Stack>
       </Section>
+
+      {assistant && (
+        <Section
+          name="herramientas"
+          title="Herramientas"
+          description="De las apps del cliente: con ellas el asistente registra y consulta datos y manda links a las vistas. Las que borran o envían a terceros las confirma con la persona antes."
+        >
+          <ToolsEditor draft={draft} update={update} clientId={clientId} />
+        </Section>
+      )}
 
       <Section
         name="voz"
@@ -703,74 +718,78 @@ export function DefinitionForm({
         />
       </Section>
 
-      <Section
-        name="datos"
-        title="Datos a obtener"
-        description="Lo que el agente pregunta, en este orden salvo que la persona los dé antes. La conversación termina cuando tiene los obligatorios."
-        actions={
-          <Button
-            variant="default"
-            size="xs"
-            leftSection={<IconPlus size={16} />}
-            onClick={() => {
-              const f = newField(draft.fields);
-              update((d) => ({ ...d, fields: [...d.fields, f] }));
-              toggle(f.key, true);
-            }}
-          >
-            Agregar dato
-          </Button>
-        }
-      >
-        <Stack gap="xs">
-          {draft.fields.map((f, i) => (
-            <FieldEditor
-              key={f.key}
-              field={f}
-              index={i}
-              draft={draft}
-              opened={opened.has(f.key)}
-              onToggle={() => toggle(f.key)}
-              update={update}
-            />
-          ))}
-        </Stack>
-      </Section>
+      {!assistant && (
+        <Section
+          name="datos"
+          title="Datos a obtener"
+          description="Lo que el agente pregunta, en este orden salvo que la persona los dé antes. La conversación termina cuando tiene los obligatorios."
+          actions={
+            <Button
+              variant="default"
+              size="xs"
+              leftSection={<IconPlus size={16} />}
+              onClick={() => {
+                const f = newField(draft.fields);
+                update((d) => ({ ...d, fields: [...d.fields, f] }));
+                toggle(f.key, true);
+              }}
+            >
+              Agregar dato
+            </Button>
+          }
+        >
+          <Stack gap="xs">
+            {draft.fields.map((f, i) => (
+              <FieldEditor
+                key={f.key}
+                field={f}
+                index={i}
+                draft={draft}
+                opened={opened.has(f.key)}
+                onToggle={() => toggle(f.key)}
+                update={update}
+              />
+            ))}
+          </Stack>
+        </Section>
+      )}
 
-      <Section
-        name="resultados"
-        title="Resultados"
-        description="Clasifican la conversación al terminar: vale el primero cuyas condiciones se cumplen. El último es el de por defecto."
-        actions={
-          <Button
-            variant="default"
-            size="xs"
-            leftSection={<IconPlus size={16} />}
-            onClick={() => {
-              const o = newOutcome(draft.outcomes);
-              // Antes del de por defecto, que queda ultimo.
-              update((d) => ({ ...d, outcomes: [...d.outcomes.slice(0, -1), o, ...d.outcomes.slice(-1)] }));
-              toggle(o.key, true);
-            }}
-          >
-            Agregar resultado
-          </Button>
-        }
-      >
-        <Stack gap="xs">
-          {draft.outcomes.map((o, i) => (
-            <OutcomeEditor
-              key={o.key}
-              outcome={o}
-              index={i}
-              draft={draft}
-              opened={opened.has(o.key)}
-              onToggle={() => toggle(o.key)}
-              update={update}
-            />
-          ))}
-        </Stack>
-      </Section>
+      {!assistant && (
+        <Section
+          name="resultados"
+          title="Resultados"
+          description="Clasifican la conversación al terminar: vale el primero cuyas condiciones se cumplen. El último es el de por defecto."
+          actions={
+            <Button
+              variant="default"
+              size="xs"
+              leftSection={<IconPlus size={16} />}
+              onClick={() => {
+                const o = newOutcome(draft.outcomes);
+                // Antes del de por defecto, que queda ultimo.
+                update((d) => ({ ...d, outcomes: [...d.outcomes.slice(0, -1), o, ...d.outcomes.slice(-1)] }));
+                toggle(o.key, true);
+              }}
+            >
+              Agregar resultado
+            </Button>
+          }
+        >
+          <Stack gap="xs">
+            {draft.outcomes.map((o, i) => (
+              <OutcomeEditor
+                key={o.key}
+                outcome={o}
+                index={i}
+                draft={draft}
+                opened={opened.has(o.key)}
+                onToggle={() => toggle(o.key)}
+                update={update}
+              />
+            ))}
+          </Stack>
+        </Section>
+      )}
     </Stack>
   );
 }
