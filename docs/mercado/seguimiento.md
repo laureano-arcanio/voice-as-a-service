@@ -4,18 +4,20 @@ Registro de cada contacto: qué se envió, cuándo, si hubo seguimiento y qué c
 de verdad de la etapa de exploración ([`plan-salida-al-mercado.md`](plan-salida-al-mercado.md),
 sección 0). Los textos exactos de cada envío están en [`envios/`](envios/).
 
-Actualizado: 8-oct-2026.
+Actualizado: 9-oct-2026.
 
 ## Resumen
 
 | Métrica | Valor | Objetivo (plan, sección 8) |
 |---|---|---|
-| Contactos enviados | 171 | ~150 |
+| Contactos enviados | 170 (por email; hasta el 8-oct figuraba 171 porque contaba a Integrando Salud, #99, que respondió por LinkedIn sin mail) | ~150 |
 | Borradores sin enviar | 97 | — |
 | Contactos por LinkedIn (aparte, ver abajo) | 28 enviados, 1 borrador | — |
+| Contactos que llegaron por otra vía (referidos, sin envío) | 2 (#269 ERP local, #270 gimnasio) | — |
 | Con seguimiento enviado | 11 | — |
-| Respuestas | 3 | — |
-| Conversaciones registradas | 0 | 30 en 60 días, de 5 rubros o más |
+| Respuestas | 5 (Integrando Salud, Yoizen, Raptiv, Nybble, MINDO) | — |
+| Charlas agendadas | 2 (#269 ERP local; partner de una empresa grande de salud, empresa a confirmar) | — |
+| Conversaciones registradas | 3 (Raptiv, MINDO, gimnasio; 2 rubros: integradores de IA y gimnasio) | 30 en 60 días, de 5 rubros o más |
 | Propuestas | 0 | ~8 |
 | Pilotos | 0 | 3 en 90 días |
 
@@ -133,7 +135,7 @@ Una fila por empresa. Fechas en formato `d-mes` del 2026. `—` es "todavía no"
 | 106 | Yoizen (Yoizen S.A.) | Software de contact center, CRM y cobranzas, CABA | canal | ventas@yoizen.com | https://yoizen.com | 6-oct | — | 7-oct (LinkedIn): pasan el contacto al equipo de producto | respondió | Escribir al equipo de producto: integración de voz en su suite; ojo, posible competidor |
 | 107 | Chatsell | Integrador o agencia de automatización e IA, Córdoba capital | canal | comercial@chatsell.net | https://chatsell.net | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
 | 108 | Origami Software | Integrador o agencia de automatización e IA, Mendoza | canal | info@origami-soft.com | https://www.origami-soft.com | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
-| 109 | Raptiv | Integrador o agencia de automatización e IA, Nordelta | canal | hola@raptiv.io | https://raptiv.io | 6-oct | — | 7-oct: responde Federico Vara (director, fvara@raptiv.io, +54 11 6481-1776, linkedin.com/in/fedevara), interesado en usarlo en sus apps; propone reunión | respondió | Confirmar reunión por https://cal.com/fedevara/30m; charla con foco en reventa/partnership vía API (no es cliente final de call center) |
+| 109 | Raptiv | Integrador o agencia de automatización e IA, Nordelta | canal | hola@raptiv.io | https://raptiv.io | 6-oct | — | 7-oct: responde Federico Vara (director, fvara@raptiv.io, +54 11 6481-1776, linkedin.com/in/fedevara), interesado en usarlo en sus apps; propone reunión. 9-oct (informado): charla hecha, positiva (fecha exacta a confirmar); demo enviada a Raptiv o a MINDO (a confirmar a cuál) | charla hecha | Confirmar con el usuario si la demo fue a Raptiv o a MINDO, y el próximo paso acordado (ver "Conversaciones") |
 | 110 | Etixen | Integrador o agencia de automatización e IA, Buenos Aires | canal | gparadelo@etixen.com | https://etixen.com | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
 | 111 | StorySelling | Integrador o agencia de automatización e IA, Buenos Aires | canal | contacto@storyselling.la | https://www.storyselling.la | 6-oct | — | — | enviado | Seguimiento el 13-oct (el 12 es feriado) |
 | 112 | Kunan | Consultora tecnológica, Córdoba capital | canal | daniel.ibanez@kunan.com.ar | https://kunan.com.ar | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S1 de la tanda); WhatsApp publicado: +54 351 276-4175 (pendiente, ver S1 de la tanda) |
@@ -154,7 +156,7 @@ Una fila por empresa. Fechas en formato `d-mes` del 2026. `—` es "todavía no"
 | 127 | Holon Software | GovTech, Villa María | canal | marcelo.paris@holon.com.ar | http://www.holon.com.ar | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S16 de la tanda) |
 | 128 | Widergy | Plataforma omnicanal con agentes de IA para utilities (luz, gas, agua), CABA | canal | sales@widergy.com | https://widergy.com | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S17 de la tanda) |
 | 129 | Devlights | Software factory, Corrientes capital | canal | contact@devlights.com | https://devlights.com | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S18 de la tanda) |
-| 130 | Nybble Group | Transformación digital, CABA | canal | sales@nybblegroup.com | https://www.nybblegroup.com | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S19 de la tanda) |
+| 130 | Nybble Group | Transformación digital, CABA | canal | sales@nybblegroup.com | https://www.nybblegroup.com | 7-oct | — | 9-oct (informado; fecha exacta a confirmar): Facundo Galán (cargo y email a confirmar) responde por email con interés | respondió | Seguimiento a Facundo Galán en el mismo hilo (fecha a definir); reemplaza el seguimiento del 14-oct a sales@ |
 | 131 | Infolytics | IA y analítica, CABA | canal | info@infolytics.ai | https://infolytics.ai | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S20 de la tanda); WhatsApp publicado: +54 9 11 8031-0366 (pendiente, ver S20 de la tanda) |
 | 132 | GMO Solutions | Consultora tecnológica, San Juan capital | canal | info@gmosolutions.com.ar | https://gmosolutions.com.ar | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S21 de la tanda); WhatsApp publicado: +1 914 336-4117 (EE. UU.) (pendiente, ver S21 de la tanda) |
 | 133 | Quanam | Consultora de transformación digital, Montevideo (Uruguay) | canal | quanam@quanam.com | https://quanam.com | 7-oct | — | — | enviado | Seguimiento el 14-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S22 de la tanda) |
@@ -193,7 +195,7 @@ Una fila por empresa. Fechas en formato `d-mes` del 2026. `—` es "todavía no"
 | 166 | BlueDraft | Consultora de analítica de datos, modelos financieros e IA, La Plata | canal | hello@bluedraft.com.ar | https://www.bluedraft.com.ar | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S28) |
 | 167 | Avalith | Software 'human-led, AI-accelerated', Mar del Plata | canal | hello@avalith.net | https://avalith.net | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S29) |
 | 168 | Aoki Tech | Agentes de IA, ERP y gestión para pymes, Mar del Plata | canal | sofia@aokitech.com.ar | https://aokitech.com.ar | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S30) |
-| 169 | MINDO | Agentes de IA para e-commerce en WhatsApp e Instagram, Mar del Plata | canal | contacto@mindosoftware.com | https://mindosoftware.com | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S31); WhatsApp publicado: +54 9 223 535-1858 (pendiente, ver S31 de la tanda 2) |
+| 169 | MINDO | Agentes de IA para e-commerce en WhatsApp e Instagram, Mar del Plata | canal | contacto@mindosoftware.com | https://mindosoftware.com | 8-oct | — | 9-oct (informado): charla hecha, positiva (persona y fecha exacta a confirmar); pyme integradora; demo enviada a Raptiv o a MINDO (a confirmar a cuál) | charla hecha | Confirmar con el usuario con quién fue la charla, si la demo fue a MINDO o a Raptiv, y el próximo paso; ya no va el seguimiento del 15-oct |
 | 170 | NexoSmart | Software factory y company builder, Bahía Blanca | canal | maximo@sales.nexosmart.com.ar | https://www.nexosmart.com.ar | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S32); WhatsApp publicado: +54 9 291 507-8136 (pendiente, ver S32 de la tanda 2) |
 | 171 | VGS | Desarrollo de software, ERP propio y 'AI con VGS Labs', Bahía Blanca | canal | info@vgs.com.ar | https://vgs.com.ar | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S33) |
 | 172 | Vortex | Consultora de plataformas digitales AI-First, Córdoba capital | canal | jorge.nieves@vortex-it.com | https://vortex-it.com | 8-oct | — | — | enviado | Seguimiento el 15-oct (el 12 es feriado); LinkedIn pendiente (nota y mensaje en S34); WhatsApp publicado: +54 9 351 510-4734 (pendiente, ver S34 de la tanda 2) |
@@ -293,6 +295,12 @@ Una fila por empresa. Fechas en formato `d-mes` del 2026. `—` es "todavía no"
 | 266 | Tecopens Consulting | Consultoría de transformación digital para pymes del NOA, San Miguel de Tucumán | canal | equipo@tecopensconsulting.com | https://www.tecopensconsulting.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S63 de la tanda 3); LinkedIn pendiente (nota y mensaje en S63) |
 | 267 | Grupo Orange | Soluciones tecnológicas integrales en Salta y el norte, Salta capital | canal | info@grupoorange.com.ar | https://grupoorange.com.ar | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S64 de la tanda 3); LinkedIn pendiente (nota y mensaje en S64); WhatsApp publicado: +54 9 387 464-0626 (pendiente, ver S64 de la tanda 3) |
 | 268 | Grupo Mill | Consultora de profesionalización de pymes con servicios de inteligencia artificial, datos y agro, Santa Rosa | canal | comunicacion@grupomill.com | https://grupomill.com | — | — | — | borrador | Enviar, 3 o 4 por hora (texto en S65 de la tanda 3); LinkedIn pendiente (nota y mensaje en S65); WhatsApp publicado: +54 9 2954 33-0420 (pendiente, ver S65 de la tanda 3) |
+| 269 | ERP local (nombre a confirmar) | Servicios de ERP, lugar a confirmar | canal | — | — | — (llegó por un contacto del usuario, sin envío) | — | 9-oct: charla agendada (informado por el usuario) | charla agendada | Falta el nombre de la empresa y la fecha de la charla; preparar la charla |
+| 270 | Gimnasio (nombre a confirmar) | Gimnasio con 200 alumnos, lugar a confirmar | cliente | — | — | — (sin envío) | — | 9-oct (informado): charla hecha; necesitan agentes para varias cosas | charla hecha | Armar el prototipo para la venta (alcance y fecha a definir); falta nombre, contacto y lugar |
+
+**Charla agendada con un partner de una empresa grande de salud (informado el 9-oct-2026):** el usuario no dijo
+cuál. Puede ser Integrando Salud (#99 / L8), pero no está confirmado: sus filas quedan como estaban hasta confirmarlo.
+Falta la empresa y la fecha.
 
 ### Cómo se llena
 
@@ -699,7 +707,7 @@ dimensión "Ubicación de la página" (`page_location`) que contenga `utm_conten
 Una entrada por charla (llamada, reunión o intercambio de mails con contenido), aunque no termine
 en venta. Son los campos de la sección 0 del plan.
 
-Todavía no hay ninguna. Formato:
+Formato:
 
 ```
 ### <fecha> · <empresa> · <persona, cargo>
@@ -713,10 +721,46 @@ Todavía no hay ninguna. Formato:
 - Próximo paso:
 ```
 
+Las tres primeras se cargaron el 9-oct-2026 con lo que contó el usuario; lo que dice "a confirmar" hay que pedírselo.
+
+### ≤9-oct (fecha exacta a confirmar) · Raptiv (#109) · Federico Vara, director
+
+- Resultado: positiva.
+- Problema: a confirmar (en su respuesta del 7-oct: usarlo en sus apps).
+- Volumen: a confirmar.
+- Costo actual: a confirmar.
+- Quién decide: a confirmar.
+- ¿Pagaría un piloto?: a confirmar.
+- Caso de uso: canal (integrador que revende o integra la voz en sus apps); caso final a confirmar.
+- Próximo paso: demo enviada a Raptiv o a MINDO (a confirmar a cuál); siguiente paso a confirmar.
+
+### ≤9-oct (fecha exacta a confirmar) · MINDO (#169) · persona a confirmar
+
+- Resultado: positiva. Pyme integradora (agentes de IA para e-commerce en WhatsApp e Instagram, Mar del Plata).
+- Problema: a confirmar.
+- Volumen: a confirmar.
+- Costo actual: a confirmar.
+- Quién decide: a confirmar.
+- ¿Pagaría un piloto?: a confirmar.
+- Caso de uso: canal (integrador); caso final a confirmar.
+- Próximo paso: demo enviada a Raptiv o a MINDO (a confirmar a cuál); siguiente paso a confirmar.
+
+### ≤9-oct (fecha exacta a confirmar) · Gimnasio, nombre a confirmar (#270) · persona a confirmar
+
+- Resultado: positiva; gimnasio con 200 alumnos.
+- Problema: necesitan agentes para varias cosas (cuáles, a confirmar).
+- Volumen: a confirmar.
+- Costo actual: a confirmar.
+- Quién decide: a confirmar.
+- ¿Pagaría un piloto?: a confirmar.
+- Caso de uso: otro (gimnasio, varios agentes; detalle a confirmar).
+- Próximo paso: armar un prototipo para la venta.
+
 ## Casos de uso que aparecen
 
 Se cuenta en cuántas conversaciones aparece cada caso. Con 3, se justifica construir para él.
 
 | Caso de uso | Conversaciones | Empresas |
 |---|---|---|
-| — | 0 | — |
+| Canal: integrador que suma la voz a lo que vende (caso final a confirmar) | 2 | Raptiv, MINDO |
+| Gimnasio: varios agentes (cuáles, a confirmar) | 1 | Gimnasio (#270, nombre a confirmar) |
