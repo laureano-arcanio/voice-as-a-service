@@ -22,6 +22,7 @@ TYPE_SCHEMAS = {
     "boolean": {"type": "boolean"},
     "email": {"type": "string"},
     "email_or_phone": {"type": "string"},
+    "digits": {"type": "string"},
 }
 
 

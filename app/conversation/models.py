@@ -36,7 +36,10 @@ class FieldSpec(BaseModel):
     priority: int
     label: str | None = None
     description: str
-    type: Literal["string", "integer", "boolean", "email", "email_or_phone", "choice"] = "string"
+    # digits: como string, pero el agente de voz espera mas de silencio antes de responder
+    # (DICTATED_TYPES en app/voice/worker.py), para no taparle el audio a quien lee numeros
+    # con pausas (ej. un codigo de verificacion leido por una locucion).
+    type: Literal["string", "integer", "boolean", "email", "email_or_phone", "choice", "digits"] = "string"
     options: list[str] | None = None  # valores posibles de un campo choice
     required: bool = False
     required_if: dict[str, Any] | None = None

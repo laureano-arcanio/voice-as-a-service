@@ -52,7 +52,7 @@ openai.tts.AUDIO_STREAM_MODELS.add(settings.vllm_tts_model)
 MIN_ENDPOINTING_DELAY = 0.4
 MAX_ENDPOINTING_DELAY = 1.0
 DICTATION_ENDPOINTING_DELAY = 2.5
-DICTATED_TYPES = {"email", "email_or_phone"}
+DICTATED_TYPES = {"email", "email_or_phone", "digits"}
 
 # Si el cliente vuelve a hablar cuando la respuesta sono menos que esto, sigue
 # con la misma frase: se deshace el turno aunque haya sonado un pedazo y el

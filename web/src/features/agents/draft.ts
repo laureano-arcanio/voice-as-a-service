@@ -10,6 +10,7 @@ export const FIELD_TYPES = [
   { value: 'choice', label: 'Opción de una lista' },
   { value: 'email', label: 'Email' },
   { value: 'email_or_phone', label: 'Email o teléfono' },
+  { value: 'digits', label: 'Dígitos (leídos o dictados)' },
 ] as const;
 
 export type FieldType = (typeof FIELD_TYPES)[number]['value'];
