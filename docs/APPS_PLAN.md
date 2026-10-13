@@ -395,6 +395,30 @@ Se suma a la v1; las apps 0.1 siguen andando.
 - **Links de vistas.** El LLM no ve la URL de `abrir_vista`, ve una marca `[[linkN]]` que Atentina
   cambia en la respuesta (y la agrega al final si el LLM no la puso).
 
+### Contrato v1.2 (12-oct-2026: planes y precios de SUGYM)
+
+- **Formularios.** Una vista con `form: true` en el manifest recibe `POST /views/{vista}` (urlencoded,
+  hasta 64 KB) y responde `303` a la vista (`guardado=1`) o la vista con el error. Es para la
+  configuración que no tiene sentido dictar: en SUGYM, los planes y precios (el dueño los cambia
+  algunos meses). El gateway reenvía el POST solo con la cookie del link de esa vista y con `Origin`
+  del gateway; el resto de las vistas sigue siendo de solo lectura.
+
+### Contrato v1.3 (12-oct-2026: perfil del alumno en SUGYM)
+
+- **Link desde una herramienta.** El resultado de una herramienta de la app puede traer
+  `"view": {"name", "params"}`, como la respuesta de un job. Atentina crea el link firmado con el actor
+  del turno (solo con los parámetros que la vista declara) y el LLM ve la marca `[[linkN]]`. Así "mostrame
+  el perfil de Carlos" es una sola herramienta (`perfil_alumno`, con `editar` para abrirla en edición):
+  un resumen corto que escribe la app y el link, en vez de buscar el `alumno_id` y después `abrir_vista`.
+
+### Contrato v1.4 (13-oct-2026: SUGYM navegable)
+
+- **App navegable.** `navigation: true` en el manifest: la cookie del link abre todas las vistas de la
+  app, no solo la del link, y el núcleo pone una barra con la marca y el menú de secciones (drawer;
+  las vistas sin parámetros obligatorios), el "Volver" (`data-back`) y las filas que llevan a otra vista (`tr[data-href]`), con
+  `static/core.js` (la CSP no deja scripts en línea). En SUGYM, la lista de alumnos busca por nombre y
+  cada fila abre el perfil. Un link vale para toda la app, así que solo va a los operadores.
+
 ## 11. Implementación del MVP (12-oct-2026)
 
 **atentina-apps** (`/home/laureano/atentina-apps`, `git init` sin commits):
@@ -506,7 +530,15 @@ Pago y Galicia, y uno repetido.
 | 12 (+3 casos y la vista `pagos`) | **46/46** | `corregir_pago` con `periodo` y sin cambios da error. `registrar_pago` devuelve `aplicado_a`. Filtro `deudores` (con saldo y vencida o que vence hoy). Saldo visible en el celular. Marca sin vista: el sistema pide la vista. Un "sí" es cualquier respuesta hecha solo de palabras de aceptación ("dale, mandalo"). Reglas: no afirmar lo que el resultado no muestra, hablar de vos, link si lo pide "en el celular" |
 
 Las reglas del prompt solas no alcanzaron: lo que importa (quién es la persona y el link) lo
-controla la plataforma. Falta repetirla (N=5) para tener una tasa, y probar con audios reales y
+controla la plataforma.
+
+**Cuotas por clases (SUGYM 0.3.0, 12-oct-2026, pedido del cliente).** No hay abono fijo: cada plan
+(Nivel 1 y 2, de clase suelta a pase libre) da clases por mes, en cualquier día y horario. El mes va
+de fecha a fecha o hasta la última clase; las que sobran pasan un mes si renueva antes de que
+termine; quien viene sin mes pagado entra y queda debiendo. Todo se calcula desde las asistencias y
+los pagos. Los planes y precios están en la base, con historial: un precio nuevo vale para los meses
+que se abren después (quien debe meses viejos los paga al precio de entonces). Los casos de uso
+pasaron a 50 (planes, renovaciones, plan ambiguo, vino sin pagar); falta correrlos. Falta repetirla (N=5) para tener una tasa, y probar con audios reales y
 comprobantes fotografiados, no sintéticos.
 
 ## 12. A decidir

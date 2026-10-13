@@ -2,7 +2,8 @@
 workflow.tools, mas las de la plataforma (un link por vista de cada app).
 
 Nombres: el de la herramienta en la app; si dos apps del agente usan el mismo, <app>__<nombre>.
-Las de la plataforma: vista_<vista> (o vista_<app>__<vista>).
+La de la plataforma: abrir_vista, una por app. Una herramienta de la app tambien puede devolver el
+link a una vista ("view" en el resultado, contrato v1.3).
 """
 import copy
 from dataclasses import dataclass, field
@@ -172,7 +173,7 @@ async def execute(s_factory, tool: Tool, arguments: dict, actor: str, conversati
             except Invalid as e:
                 return {"ok": False, "result": e.message}
             s.commit()
-        return {"ok": True, "result": {"url": url}}
+        return {"ok": True, "result": {"link": url}, "link": url}
     with s_factory() as s:
         app = s.get(App, tool.app_id)
         base_url, token = app.base_url, token_of(app)
@@ -185,4 +186,26 @@ async def execute(s_factory, tool: Tool, arguments: dict, actor: str, conversati
         from . import outbox
         result = {**result, "outbox": await outbox.deliver(s_factory, tool.app_id, result["outbox"], conversation_id)}
         out = {**out, "result": result}
+    if out["ok"] and isinstance(result, dict) and "view" in result:
+        out = {**out, **_view_link(s_factory, tool, result, actor)}
     return out
+
+
+def _view_link(s_factory, tool: Tool, result: dict, actor: str) -> dict:
+    """Contrato v1.3: una herramienta que devuelve "view": {"name", "params"} (como un job) recibe el link
+    firmado a esa vista, primero en el resultado (el asistente lo cambia por una marca). Si la vista no
+    existe, el resultado sigue sin link."""
+    rest = {k: v for k, v in result.items() if k != "view"}
+    view = result["view"] if isinstance(result["view"], dict) else {}
+    with s_factory() as s:
+        app = s.get(App, tool.app_id)
+        spec = next((v for v in manifest_of(app).views if v.name == view.get("name")), None)
+        if spec is None:
+            return {"result": rest}
+        params = view.get("params") if isinstance(view.get("params"), dict) else {}
+        try:
+            url, _ = links.create_link(s, app, spec.name, {k: v for k, v in params.items() if k in spec.params}, actor)
+        except Invalid:
+            return {"result": rest}
+        s.commit()
+    return {"result": {"link": url, **rest}, "link": url}

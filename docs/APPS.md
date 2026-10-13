@@ -31,17 +31,18 @@ dueño ◄── link ── apps.atentina.com.ar ── gateway (Atentina) ─�
 | Motor `assistant` | `app/conversation/assistant.py` | El bucle de pasos con sus controles (abajo) |
 | Operadores | `wa_operators`, `app/whatsapp/service.py` | Por un número compartido, el `wa_id` del dueño va a su agente y su cliente |
 | Archivos | `app/apps/attachments.py` | Imagen o PDF del operador → OCR (tesseract `spa`, CPU) → `[archivo recibido · sha256 …]` + texto |
-| Links y gateway | `app/apps/links.py`, `app/apps/gateway.py` | Link firmado a una vista; `apps.atentina.com.ar` atiende solo el gateway |
+| Links y gateway | `app/apps/links.py`, `app/apps/gateway.py` | Link firmado a una vista; `apps.atentina.com.ar` atiende solo el gateway. Reenvía el POST del formulario de una vista con `form: true` (v1.2) |
 | Outbox | `app/apps/outbox.py` | Entrega lo que devuelve una herramienta `send` ya confirmada y avisa a la app |
 | Jobs | `app/apps/jobs.py`, `app_job_runs` | Corre los avisos del manifest a su hora, una vez por día, y los manda a los operadores |
 
-## Contrato con la app (v1.1)
+## Contrato con la app (v1.4)
 
 | Ruta de la app | Para qué |
 |---|---|
 | `GET /health`, `GET /manifest` | Registro y salud. El manifest trae `views`, `tools` (con `kind` e `input_schema`) y `jobs` |
 | `POST /mcp` | Herramientas (Streamable HTTP, sin estado) |
 | `GET /views/<vista>?…&formato=csv` | Vistas HTML o CSV, con `X-Forwarded-Prefix` |
+| `POST /views/<vista>` | Formulario de una vista con `form: true` (v1.2): `303` a la vista o la vista con el error |
 | `POST /outbox/<ref>` | Resultado de la entrega de un mensaje (`enviado`, `simulado`, `error`) |
 | `POST /jobs/<name>` | Corre un aviso: `{"message", "view"}` |
 
@@ -53,9 +54,20 @@ dueño ◄── link ── apps.atentina.com.ar ── gateway (Atentina) ─�
 - **Convenciones en los resultados:**
   - `"ambiguo": true` cuando no está claro de quién se habla;
   - `outbox: [...]` en una herramienta `send`;
+  - `"view": {"name", "params"}` (v1.3): Atentina arma el link firmado a esa vista (con los parámetros
+    que declara) y el LLM ve la marca `[[linkN]]` en lugar de `view`, como con `abrir_vista`. Para
+    pedidos como "mostrame el perfil de X": el resumen va en el resultado y la página trae el resto;
+    una vista que la app no declara no da link;
   - los ids se llaman `*_id`.
 - Hasta 20 herramientas por app y 400 caracteres por descripción. Las descripciones van en cada paso
   al LLM.
+- **App navegable (v1.4):** con `navigation: true` en el manifest, la cookie de un link abre todas las
+  vistas de la app (y sus formularios), y el núcleo muestra la marca y el menú de secciones. Sin eso, solo la vista
+  del link. El token en la URL abre siempre solo su vista. Los links van solo a los operadores.
+- **Formularios (v1.2):** para lo que no se dicta por voz (en SUGYM, los planes y precios). El gateway
+  reenvía el POST solo con la cookie del link de esa vista (o de la app, si es navegable), con `Origin` de `APPS_PUBLIC_HOST` (la
+  cookie además es `SameSite=Lax`), urlencoded y hasta 64 KB; de la respuesta, solo un `303` a la
+  misma vista o el HTML.
 
 ## Motor `assistant`
 
@@ -167,5 +179,9 @@ crean `make apps-network` y `deploy/boot.sh`; sin ella `app` no arranca.
 - **Plantillas de WhatsApp,** para avisos y mensajes fuera de la ventana de 24 h. Hoy el outbox está
   simulado y el aviso diario solo llega si el operador escribió en las últimas 24 h.
 - **El eval con razonamiento repetido (N=5),** con audios reales y comprobantes fotografiados.
-- **Desplegar lo último de esta tanda** (razonamiento, controles y vista de pagos): hace falta
-  `make up-app`.
+- **Desplegar lo último de esta tanda** (razonamiento, controles, prompt sin reglas de negocio,
+  formularios v1.2, links desde herramientas v1.3, app navegable v1.4) con `make up-app`, y SUGYM 0.3.0 (cuotas por clases,
+  planes y perfil): antes, cargar la definición del agente de `agente.yaml`, y la base de la app se
+  migra sola (los datos de prueba conviene reiniciarlos).
+- **Correr los casos de uso de SUGYM 0.3.0** (55; los nuevos: planes, renovaciones, plan ambiguo, vino
+  sin pagar, perfil, editar el perfil, listado con link, dos veces el mismo día y clases que quedan).

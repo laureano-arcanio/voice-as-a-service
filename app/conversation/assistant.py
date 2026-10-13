@@ -16,7 +16,8 @@ Controles de la plataforma (no dependen del prompt; vistos en las pruebas con Ge
 - Despues de una consulta que devuelve "ambiguo": true (contrato v1.1), nada escribe en ese turno: hay
   que preguntar ("vino Juan" registraba a Juan Perez, o a los dos Juanes).
 - Un link en la respuesta tiene que haber salido de una herramienta (inventaba uno), y el de una vista
-  lo pone el sistema: el LLM ve [[linkN]] (copiaba mal el token).
+  (abrir_vista, o una herramienta de la app que devuelve "view", contrato v1.3) lo pone el sistema: el
+  LLM ve [[linkN]] (copiaba mal el token).
 """
 import datetime
 import json
@@ -196,7 +197,9 @@ def _seen_before(state: ConversationState) -> str:
 
 
 AMBIGUOUS = '"ambiguo": true'
-MARK_RE = re.compile(r"\[\[link\d+\]\]")
+# Cualquier marca [[...]] que quede después de poner los links (12-oct-2026: "[[link_planes]]", inventada
+# para una vista que la app no tenía).
+MARK_RE = re.compile(r"\[\[[^\[\]\n]{1,60}\]\]")
 # Respuesta clara a una accion pendiente: la resuelve la plataforma, no el LLM (12-oct-2026: con "Sí"
 # volvia a pedir la misma herramienta en vez de confirm, y quedaba preguntando en cada turno).
 YES_START = {"si", "sí", "sip", "dale", "ok", "okey", "okay", "confirmo", "confirmado", "confirmá", "hacelo",
@@ -215,12 +218,14 @@ def is_yes(text: str) -> bool:
 NO = re.compile(r"^\W*(no|nop|nah|cancel[aá](lo)?|mejor no|par[aá]|dejalo|olvidalo)\b", re.IGNORECASE)
 
 
-def _url_of(result: str) -> str | None:
-    try:
-        data = json.loads(result)
-    except ValueError:
-        return None
-    return data.get("url") if isinstance(data, dict) else None
+def _mark_link(result: str, url: str | None, links: dict[str, str]) -> str:
+    """El link a una vista (de abrir_vista, o de una herramienta que devuelve "view"): el LLM ve una marca
+    [[linkN]] y el sistema la cambia en la respuesta (12-oct-2026: copiaba mal el token)."""
+    if not url:
+        return result
+    mark = f"[[link{len(links) + 1}]]"
+    links[mark] = url
+    return result.replace(f'"link": "{url}"', f'"link": "{mark}", "nota": "Poné {mark} tal cual en tu respuesta."', 1)
 
 
 def _put_links(message: str, links: dict[str, str]) -> str:
@@ -282,8 +287,12 @@ class Assistant:
         content = f"{VOICE_NOTE_TAG} {user_message}" if whatsapp and media.user_voice_note else user_message
         content = f"{now_line()}\n\n{content}"
         decided = None
+        links: dict[str, str] = {}      # [[linkN]] -> URL de una vista pedida en este turno
+        confirmed = ""                  # resultado de lo pendiente que confirmo el usuario
         if prior and is_yes(user_message):
-            result = await self._execute(by_name[prior["tool"]], prior["arguments"], actor, trace, state.conversation_id)
+            confirmed, url = await self._execute(by_name[prior["tool"]], prior["arguments"], actor, trace,
+                                                 state.conversation_id)
+            result = _mark_link(confirmed, url, links)
             decided = f"SISTEMA: el usuario confirmó y se ejecutó {prior['tool']}. RESULTADO: {result}"
             prior = None
         elif prior and NO.match(user_message.strip()):
@@ -297,10 +306,9 @@ class Assistant:
         messages = [{"role": "system", "content": build_system(workflow, state, tools)},
                     *self.history(state), {"role": "user", "content": content}]
         done_calls: set[str] = set()
-        seen = _seen_before(state)
+        seen = _seen_before(state) + "\n" + confirmed
         url_retries = 1
         json_retries = 1
-        links: dict[str, str] = {}      # [[linkN]] -> URL de una vista pedida en este turno
         ambiguous = False               # una consulta del turno devolvio "ambiguo": true
 
         steps = max(settings.assistant_max_steps, 1)
@@ -337,7 +345,8 @@ class Assistant:
                         url_retries -= 1
                         messages.append({"role": "user", "content": (
                             "SISTEMA: escribiste una marca de link sin pedir la vista. Para mandar un link, primero "
-                            "pedilo con abrir_vista y después poné la marca que devuelve.")})
+                            "pedilo con abrir_vista y después poné la marca que devuelve. Si la vista no está en "
+                            "abrir_vista, no hay link: respondé con lo que sepas o decí que no está disponible.")})
                         continue
                     message = MARK_RE.sub("", message).strip() or FALLBACK
                 if bad := unseen_urls(message, seen):
@@ -346,7 +355,7 @@ class Assistant:
                         url_retries -= 1
                         messages.append({"role": "user", "content": (
                             "SISTEMA: ese link no salió de ninguna herramienta. No inventes links: para mostrar una "
-                            "vista, pedila con su herramienta vista_*; si no hay, decí que no está disponible.")})
+                            "vista, pedila con abrir_vista; si no está, decí que no está disponible.")})
                         continue
                     for url in bad:
                         message = message.replace(url, "(link no disponible)")
@@ -356,9 +365,10 @@ class Assistant:
                 if kind == "cancel":
                     messages.append({"role": "user", "content": "SISTEMA: acción pendiente cancelada, no se ejecutó."})
                     continue
-                result = await self._execute(by_name[pending["tool"]], pending["arguments"], actor, trace,
-                                             state.conversation_id)
+                result, url = await self._execute(by_name[pending["tool"]], pending["arguments"], actor, trace,
+                                                  state.conversation_id)
                 seen += "\n" + result
+                result = _mark_link(result, url, links)
                 messages.append({"role": "user", "content": f"RESULTADO de {pending['tool']} (confirmada): {result}"})
                 continue
             tool = by_name.get(action.get("tool") or "")
@@ -402,15 +412,11 @@ class Assistant:
                     f"SISTEMA: {tool.name} NO se ejecutó: queda pendiente. Preguntale al usuario si confirma, "
                     "diciendo exactamente qué se va a hacer. Respondé ahora con reply.")})
                 continue
-            result = await self._execute(tool, arguments, actor, trace, state.conversation_id)
+            result, url = await self._execute(tool, arguments, actor, trace, state.conversation_id)
             seen += "\n" + result
             if tool.kind == "read" and AMBIGUOUS in result:
                 ambiguous = True
-            if tool.platform and (url := _url_of(result)):
-                # El LLM copiaba mal el token del link (12-oct-2026): ve una marca y la cambia el sistema.
-                mark = f"[[link{len(links) + 1}]]"
-                links[mark] = url
-                result = json.dumps({"link": mark, "nota": f"Poné {mark} tal cual en tu respuesta."}, ensure_ascii=False)
+            result = _mark_link(result, url, links)
             messages.append({"role": "user", "content": f"RESULTADO de {tool.name}: {result}"})
 
         return AgentTurn(assistant_message=FALLBACK), trace, new_pending
@@ -426,4 +432,4 @@ class Assistant:
         result = _dump(out["result"]) if out["ok"] else "ERROR: " + _dump(out["result"])
         trace.append({"kind": "herramienta", "input": f"{tool.name} {json.dumps(arguments, ensure_ascii=False)}",
                       "ms": round((time.perf_counter() - started) * 1000), "output": result})
-        return result
+        return result, out.get("link")

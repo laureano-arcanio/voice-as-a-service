@@ -1,9 +1,14 @@
 """Gateway de las vistas de las apps (docs/APPS_PLAN.md, seccion 5): https://<APPS_PUBLIC_HOST>/...
 
-Con ese Host, app atiende solo esto (AppsHostMiddleware): ni el panel ni la API. Solo GET y HEAD.
+Con ese Host, app atiende solo esto (AppsHostMiddleware): ni el panel ni la API. GET y HEAD, y POST
+solo para el formulario de una vista que lo declara (contrato v1.2).
 - /{cliente}/{app}/{vista}/?k=<token>: valida el link, pone la cookie `ak` (HttpOnly, con path de
   la app y la vida que le queda al link) y redirige a la misma URL sin el token.
-- Despues, la cookie: la vista del link (con cualquier parametro) y los estaticos de la app.
+- Despues, la cookie: la vista del link (con cualquier parametro) y los estaticos de la app. Si el
+  manifest dice `navigation: true` (contrato v1.4), todas las vistas de la app.
+- POST a la vista del link, si el manifest dice `form: true`: Origin del gateway (CSRF; la cookie
+  ademas es SameSite=Lax), formulario urlencoded de hasta 64 KB. La app guarda y redirige a la vista
+  (303, se reenvia si es de la misma vista) o la devuelve con el error.
 La pagina la arma la app (red interna); los headers de seguridad los pone el gateway, no la app.
 """
 import html
@@ -20,7 +25,7 @@ from ..db import get_sessionmaker, utcnow
 from ..models import App, AppLink, Client
 from . import client as app_client
 from . import links
-from .registry import token_of
+from .registry import manifest_of, token_of
 
 COOKIE = "ak"
 CSP = ("default-src 'none'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; "
@@ -32,6 +37,7 @@ HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "Cache-Control": "private, no-store",
 }
+MAX_FORM_BYTES = 64 * 1024
 # Lo unico que se reenvia de la respuesta de la app.
 STATIC_TYPES = ("text/css", "image/", "font/", "application/javascript", "text/javascript")
 
@@ -66,6 +72,14 @@ def _link_from_cookie(s, request: Request, app: App) -> AppLink | None:
     token = request.cookies.get(COOKIE)
     link = links.resolve(s, token) if token else None
     return link if link is not None and link.app_id == app.id else None
+
+
+def _opens(app: App, link: AppLink, view: str) -> bool:
+    """La cookie abre la vista del link o, si la app es navegable, cualquiera de las suyas."""
+    if link.view == view:
+        return True
+    manifest = manifest_of(app)
+    return manifest.navigation and any(v.name == view for v in manifest.views)
 
 
 async def _proxy(app: App, link: AppLink, path: str, query: str, prefix: str, static: bool) -> Response:
@@ -122,9 +136,47 @@ async def view(client_slug: str, app_slug: str, view: str, request: Request):
                                 secure=settings.apps_public_scheme == "https")
             return response
         link = _link_from_cookie(s, request, app)
-        if link is None or link.view != view:
+        if link is None or not _opens(app, link, view):
             return _expired()
     return await _proxy(app, link, f"/views/{view}", urlencode(params), f"/{client_slug}/{app_slug}", static=False)
+
+
+@gateway.post("/{client_slug}/{app_slug}/{view}/")
+async def submit(client_slug: str, app_slug: str, view: str, request: Request):
+    origin = f"{settings.apps_public_scheme}://{settings.apps_public_host}"
+    if request.headers.get("origin") != origin:
+        return _page(403, "No permitido", "Este formulario solo se puede mandar desde su página.")
+    if not request.headers.get("content-type", "").startswith("application/x-www-form-urlencoded"):
+        return _page(415, "No permitido", "Formulario invalido.")
+    body = await request.body()
+    if len(body) > MAX_FORM_BYTES:
+        return _page(413, "Demasiado grande", "El formulario es demasiado grande.")
+    with get_sessionmaker()() as s:
+        app = _find_app(s, client_slug, app_slug)
+        if app is None:
+            return _not_found()
+        link = _link_from_cookie(s, request, app)
+        if link is None or not _opens(app, link, view):
+            return _expired()
+        spec = next((v for v in manifest_of(app).views if v.name == view), None)
+        if spec is None or not spec.form:
+            return _not_found()
+    prefix = f"/{client_slug}/{app_slug}"
+    try:
+        r = await app_client.post_form(app.base_url, token_of(app), f"/views/{view}", request.url.query, body,
+                                       f"link:{link.id}", prefix)
+    except app_client.AppError:
+        return _page(502, "No disponible", "La aplicación no responde. Probá de nuevo en unos minutos.")
+    if r.status_code == 303:
+        location = r.headers.get("location", "")
+        if not location.startswith(f"{prefix}/{view}/"):
+            return _page(502, "No disponible", "La aplicación no pudo guardar.")
+        return RedirectResponse(location, 303, headers=HEADERS)
+    if r.status_code == 200 and r.headers.get("content-type", "").startswith("text/html"):
+        return Response(r.content, 200, media_type=r.headers["content-type"], headers=HEADERS)
+    if r.status_code == 404:
+        return _not_found()
+    return _page(502, "No disponible", "La aplicación no pudo guardar.")
 
 
 @gateway.api_route("/{path:path}", methods=["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])

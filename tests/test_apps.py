@@ -373,6 +373,32 @@ async def test_vista_devuelve_link_firmado(sessions, monkeypatch):
                                                                          f"wa:{WA_ID}")
 
 
+async def test_herramienta_de_la_app_devuelve_el_link_de_una_vista(sessions, monkeypatch):
+    """Contrato v1.3 (perfil de SUGYM): el resultado trae "view" y Atentina arma el link firmado; el LLM ve
+    la marca, con el resumen de la app al lado."""
+    llm = ScriptLLM({"action": "call", "tool": "buscar_alumno", "arguments": {"texto": "carlos"}},
+                    {"action": "reply", "message": "Carlos Gómez, al día. [[link1]]"})
+    fake, engine, llm, (client_id, agent_id, _) = gym_world(sessions, monkeypatch, llm)
+    fake.results["buscar_alumno"] = {"ok": True, "result": {"resumen": "Carlos Gómez, al día.", "view": {
+        "name": "minuta", "params": {"fecha": "2026-10-12", "otro": "x"}}}}
+    cid = start(engine, agent_id, client_id)
+    _, turn = await engine.process_turn(cid, "mostrame el perfil de carlos", actor=f"wa:{WA_ID}")
+    result = json.loads(llm.seen[1][0][-1]["content"].split(": ", 1)[1])
+    assert result["link"] == "[[link1]]" and result["resumen"] == "Carlos Gómez, al día." and "view" not in result
+    url = turn.assistant_message.removeprefix("Carlos Gómez, al día. ")
+    assert url.startswith("https://apps.test/gym/gym-gestion/minuta/?fecha=2026-10-12&k=")
+    with sessions() as s:
+        link = s.scalar(select(AppLink))
+        assert (link.view, link.params, link.created_by) == ("minuta", {"fecha": "2026-10-12"}, f"wa:{WA_ID}")
+    # Una vista que la app no declara: el resultado sigue, sin link.
+    fake.results["buscar_alumno"] = {"ok": True, "result": {"resumen": "x", "view": {"name": "no_existe"}}}
+    llm.steps = [json.dumps({"action": "call", "tool": "buscar_alumno", "arguments": {"texto": "otro"}}),
+                 json.dumps({"action": "reply", "message": "Listo."})]
+    _, turn = await engine.process_turn(cid, "y el de otro")
+    assert json.loads(llm.seen[-1][0][-1]["content"].split(": ", 1)[1]) == {"resumen": "x"}
+    assert turn.assistant_message == "Listo."
+
+
 async def test_app_caida_vuelve_como_error_para_el_llm(sessions, monkeypatch):
     llm = ScriptLLM({"action": "call", "tool": "buscar_alumno", "arguments": {"texto": "x"}},
                     {"action": "reply", "message": "La app no anda."})
@@ -457,11 +483,67 @@ def test_gateway_rechaza_sin_link_vencido_o_de_otra_vista(sessions, monkeypatch,
     assert fake.views == []
 
 
+def test_gateway_app_navegable_abre_todas_sus_vistas(sessions, monkeypatch, gateway_client):
+    """Contrato v1.4: con navigation, la cookie abre las otras vistas de la app (el token en la URL no)."""
+    fake, _, _, (_, _, app_id) = gym_world(sessions, monkeypatch)
+    fake.manifest["views"].append({"name": "alumnos", "title": "Alumnos", "params": {}})
+
+    def refresh():
+        with sessions() as s:
+            registry.refresh(s, s.get(App, app_id))
+            s.commit()
+    refresh()
+    url, _ = make_link(sessions, app_id)
+    gateway_client.get(url.removeprefix("https://apps.test"), follow_redirects=False)
+    assert gateway_client.get("/gym/gym-gestion/alumnos/").status_code == 401
+    fake.manifest["navigation"] = True
+    refresh()
+    assert gateway_client.get("/gym/gym-gestion/alumnos/").status_code == 200
+    assert gateway_client.get("/gym/gym-gestion/inexistente/").status_code == 401
+
+
 def test_gateway_no_expone_el_panel_ni_la_api(sessions, monkeypatch, gateway_client):
     gym_world(sessions, monkeypatch)
     assert gateway_client.get("/api/v1/auth/me").status_code == 404
     assert gateway_client.post("/api/v1/auth/login", json={}).status_code == 404
     assert gateway_client.get("/").status_code == 404
+
+
+def test_gateway_formulario_de_una_vista(sessions, monkeypatch, gateway_client):
+    """Contrato v1.2: POST solo a una vista con form, desde el gateway (Origin) y con la cookie del link."""
+    import httpx
+    fake, _, _, (_, _, app_id) = gym_world(sessions, monkeypatch)
+    fake.manifest["views"].append({"name": "planes", "title": "Planes", "params": {}, "form": True})
+    with sessions() as s:
+        registry.refresh(s, s.get(App, app_id))
+        s.commit()
+    posts = []
+
+    async def post_form(base_url, token, path, query, body, actor, prefix):
+        posts.append((path, body, actor, prefix))
+        if b"precio=" in body and b"precio=&" not in body and not body.endswith(b"precio="):
+            return httpx.Response(303, headers={"location": f"{prefix}/planes/?guardado=1"})
+        return httpx.Response(200, content=b"<p>No se guardo nada</p>", headers={"content-type": "text/html"})
+    monkeypatch.setattr(app_client, "post_form", post_form)
+    origin = {"Origin": "https://apps.test"}
+    form = {"p3_precio": "70000", "precio": "1"}
+    assert gateway_client.post("/gym/gym-gestion/planes/", data=form, headers=origin).status_code == 401   # sin link
+    url, link_id = make_link(sessions, app_id, "planes", {})
+    gateway_client.get(url.removeprefix("https://apps.test"), follow_redirects=False)
+    assert gateway_client.post("/gym/gym-gestion/planes/", data=form).status_code == 403                  # sin Origin
+    assert gateway_client.post("/gym/gym-gestion/planes/", data=form,
+                               headers={"Origin": "https://evil.test"}).status_code == 403
+    assert gateway_client.post("/gym/gym-gestion/planes/", json=form, headers=origin).status_code == 415
+    r = gateway_client.post("/gym/gym-gestion/planes/", data=form, headers=origin, follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == "/gym/gym-gestion/planes/?guardado=1"
+    assert posts[-1][0] == "/views/planes" and posts[-1][2] == f"link:{link_id}" and posts[-1][3] == "/gym/gym-gestion"
+    r = gateway_client.post("/gym/gym-gestion/planes/", data={"precio": ""}, headers=origin)
+    assert r.status_code == 200 and "No se guardo nada" in r.text and "default-src 'none'" in r.headers["content-security-policy"]
+    # Una vista sin form no recibe POST, aunque el link sea suyo.
+    url, _ = make_link(sessions, app_id)
+    gateway_client.get(url.removeprefix("https://apps.test"), follow_redirects=False)
+    assert gateway_client.post("/gym/gym-gestion/minuta/", data=form, headers=origin).status_code == 404
+    assert len(posts) == 2
 
 
 # ---------- API ----------
@@ -805,6 +887,17 @@ async def test_marca_sin_vista_pide_la_vista(sessions, monkeypatch):
     _, turn = await engine.process_turn(cid, "corregilo y pasame el listado")
     assert "escribiste una marca de link sin pedir la vista" in llm.seen[1][0][-1]["content"]
     assert "[[" not in turn.assistant_message and "https://apps.test/gym/gym-gestion/minuta/" in turn.assistant_message
+
+
+async def test_marca_inventada_de_una_vista_que_no_existe(sessions, monkeypatch):
+    """12-oct-2026: "te mando la planilla: [[link_planes]]" (la app todavía no tenía la vista planes)."""
+    llm = ScriptLLM({"action": "reply", "message": "Te mando la planilla: [[link_planes]]"},
+                    {"action": "reply", "message": "Te mando la planilla: [[planes]]"})
+    _, engine, llm, (client_id, agent_id, _) = gym_world(sessions, monkeypatch, llm)
+    cid = start(engine, agent_id, client_id)
+    _, turn = await engine.process_turn(cid, "qué planes hay")
+    assert "no está en abrir_vista" in llm.seen[1][0][-1]["content"]
+    assert turn.assistant_message == "Te mando la planilla:"
 
 
 async def test_marca_sin_vista_dos_veces_se_saca(sessions, monkeypatch):

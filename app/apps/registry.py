@@ -38,6 +38,7 @@ class ViewSpec(BaseModel):
     title: str
     description: str = ""
     params: dict[str, ViewParam] = Field(default_factory=dict)
+    form: bool = False           # contrato v1.2: la vista recibe POST (un formulario, por el gateway)
 
 
 class ToolSpec(BaseModel):
@@ -64,6 +65,8 @@ class Manifest(BaseModel):
     core: str = ""
     description: str = ""
     views: list[ViewSpec] = Field(default_factory=list)
+    # Contrato v1.4: con un link a cualquier vista se navega entre todas (la cookie abre la app entera).
+    navigation: bool = False
     tools: list[ToolSpec] = Field(default_factory=list)
     jobs: list[JobSpec] = Field(default_factory=list)
 

@@ -144,3 +144,17 @@ async def get_view(base_url: str, token: str, path: str, query: str, actor: str,
             return await client.get(url, headers={**_headers(token, actor), "X-Forwarded-Prefix": prefix})
         except httpx.HTTPError as e:
             raise AppError(f"vista: no responde ({type(e).__name__})") from None
+
+
+async def post_form(base_url: str, token: str, path: str, query: str, body: bytes, actor: str,
+                    prefix: str) -> httpx.Response:
+    """POST de un formulario de una vista (contrato v1.2), para el gateway. No sigue el redirect:
+    lo reenvía el gateway."""
+    url = base_url.rstrip("/") + path + (f"?{query}" if query else "")
+    async with httpx.AsyncClient(timeout=settings.apps_http_timeout) as client:
+        try:
+            return await client.post(url, content=body, headers={
+                **_headers(token, actor), "X-Forwarded-Prefix": prefix,
+                "Content-Type": "application/x-www-form-urlencoded"})
+        except httpx.HTTPError as e:
+            raise AppError(f"formulario: no responde ({type(e).__name__})") from None
