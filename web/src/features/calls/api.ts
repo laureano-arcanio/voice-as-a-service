@@ -120,6 +120,20 @@ export function useStartCall() {
   });
 }
 
+/** Borra conversaciones (solo admin): la llamada con su consumo del mes, el hilo y los
+ * mensajes de WhatsApp y las grabaciones. Los ids inexistentes se ignoran. */
+export function useDeleteConversations() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => unwrap(api.POST('/api/v1/calls/bulk-delete', { body: { ids } })),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: callKeys.all });
+      void qc.invalidateQueries({ queryKey: ['stats'] });
+      void qc.invalidateQueries({ queryKey: ['clients'] });
+    },
+  });
+}
+
 /** Cierra un chat de WhatsApp: el proximo mensaje del contacto empieza otra conversacion. */
 export function useCloseWhatsApp(conversationId: string) {
   const qc = useQueryClient();

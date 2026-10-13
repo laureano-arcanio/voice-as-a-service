@@ -3,7 +3,17 @@ import pytest
 
 from app.agents.templates import reference_data
 from app.conversation.models import AgentTurn
-from app.models import CallMode, CallRow, CallStatus, Role, User
+from app.models import (
+    CallMode,
+    CallRow,
+    CallStatus,
+    ConversationRow,
+    Role,
+    User,
+    WaCampaignRecipient,
+    WaMessage,
+    WaThread,
+)
 from app.services.security import hash_password
 
 V1 = "/api/v1"
@@ -372,6 +382,70 @@ def test_call_recordings(api, admin, monkeypatch, tmp_path):
     key = admin.post(f"{V1}/clients/{other['id']}/api-keys", json={"name": "k"}).json()["key"]
     headers = {"Authorization": f"Bearer {key}"}
     assert api.client.get(f"{V1}/calls/{conversation_id}/recordings/1", headers=headers).status_code == 404
+
+
+def test_delete_conversations_admin_only_and_not_active(api, admin):
+    c = make_client(admin)
+    agent = make_agent(admin, c)
+    conversation_id = admin.post(f"{V1}/calls", json={"agent_id": agent["id"]}).json()["conversation_id"]
+
+    # Solo admin: un usuario del cliente (y una API key) no borran.
+    user = client_user(api, admin, c)
+    assert user.delete(f"{V1}/calls/{conversation_id}").status_code == 403
+    assert user.post(f"{V1}/calls/bulk-delete", json={"ids": [conversation_id]}).status_code == 403
+    assert api.client.delete(f"{V1}/calls/{conversation_id}").status_code == 401
+    # Con la llamada activa no se borra: el worker la recrearia.
+    r = admin.delete(f"{V1}/calls/{conversation_id}")
+    assert r.status_code == 409 and r.json()["code"] == "call_in_progress"
+    with api.sessions() as s:
+        s.query(CallRow).update({"status": CallStatus.finalizada})
+        s.commit()
+    assert admin.get(f"{V1}/calls/{conversation_id}").status_code == 200
+    assert admin.delete(f"{V1}/calls/{conversation_id}").status_code == 204
+    assert admin.get(f"{V1}/calls/{conversation_id}").status_code == 404
+    assert admin.delete(f"{V1}/calls/{conversation_id}").status_code == 404
+
+
+def test_delete_conversations_cascade_and_consumption(api, admin, monkeypatch, tmp_path):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "call_recordings_dir", tmp_path)
+    c = make_client(admin, outbound_minutes=1)
+    agent = make_agent(admin, c)
+    call = admin.post(f"{V1}/calls", json={"agent_id": agent["id"], "phone": "+5491155551234"}).json()
+    conversation_id = call["conversation_id"]
+    with api.sessions() as s:
+        s.query(CallRow).update({"status": CallStatus.finalizada, "duration_seconds": 60})
+        # Hilo, mensaje de WhatsApp y registro de campana que cuelgan de la conversacion.
+        s.add(WaThread(conversation_id=conversation_id, account_id="acc-1", wa_id="5493515550000"))
+        s.add(WaMessage(wamid="wamid-1", account_id="acc-1", conversation_id=conversation_id,
+                        direction="in", wa_id="5493515550000", type="text", status="received"))
+        s.add(WaCampaignRecipient(campaign_id="cmp-1", wa_id="5493515550000", params=[],
+                                  conversation_id=conversation_id))
+        s.commit()
+    rec_dir = tmp_path / conversation_id
+    rec_dir.mkdir()
+    (rec_dir / "001.wav").write_bytes(b"RIFF....WAVEfmt ")
+    assert admin.get(f"{V1}/stats", params={"client_id": c["id"]}).json()["total_minutes"] == 1.0
+
+    # En bloque: ids repetidos o inexistentes no fallan; devuelve cuantas habia.
+    r = admin.post(f"{V1}/calls/bulk-delete", json={"ids": [conversation_id, conversation_id, "nope"]})
+    assert r.status_code == 200 and r.json() == {"deleted": 1}
+
+    assert not rec_dir.exists()
+    assert admin.get(f"{V1}/calls", params={"client_id": c["id"]}).json()["total"] == 0
+    # El consumo del mes tambien se va (la CallRow es la que cuenta minutos).
+    stats = admin.get(f"{V1}/stats", params={"client_id": c["id"]}).json()
+    assert stats["total"] == 0 and stats["total_minutes"] == 0
+    assert admin.post(f"{V1}/calls/bulk-delete", json={"ids": ["nope"]}).json() == {"deleted": 0}
+    assert admin.post(f"{V1}/calls/bulk-delete", json={"ids": []}).status_code == 422
+    with api.sessions() as s:
+        assert s.get(ConversationRow, conversation_id) is None
+        assert s.get(CallRow, conversation_id) is None
+        assert s.get(WaThread, conversation_id) is None
+        assert s.query(WaMessage).filter_by(conversation_id=conversation_id).count() == 0
+        recipient = s.query(WaCampaignRecipient).filter_by(wa_id="5493515550000").one()
+        assert recipient.conversation_id is None
 
 
 def test_concurrency_limit(api, admin):

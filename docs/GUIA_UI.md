@@ -237,6 +237,10 @@ Para que un dueño use su app: asignarla, crear un agente con motor **Asistente*
   agente y período), en la URL.
 - Tabla paginada, filtrable además por estado y origen. Las de WhatsApp no tienen estado ni duración y
   muestran el teléfono del contacto. Cada fila lleva al detalle.
+- **Borrar (solo admin):** cada fila tiene el ícono de borrar a la derecha y las casillas para
+  seleccionar varias estilo Gmail (la del encabezado selecciona la página; la barra muestra cuántas
+  hay y las borra juntas). Siempre pide confirmación. Se borra la conversación con sus mensajes,
+  grabaciones y su consumo del mes; las que tienen una llamada en curso no se pueden borrar.
 
 ### Detalle de una llamada (`/calls/<id>`)
 

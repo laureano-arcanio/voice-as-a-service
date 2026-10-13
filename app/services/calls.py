@@ -1,16 +1,30 @@
-"""Inicio de llamadas (salientes, de prueba, de loadtest y entrantes) con los limites del tier."""
+"""Inicio de llamadas (salientes, de prueba, de loadtest y entrantes) con los limites del tier,
+y borrado de conversaciones (admin)."""
 import asyncio
 import logging
 import re
+import shutil
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..conversation.engine import ConversationEngine
 from ..db import utcnow
-from ..models import Agent, CallMode, CallRow, CallStatus, Client, PhoneNumber
+from ..models import (
+    ACTIVE_CALL_STATUSES,
+    Agent,
+    CallMode,
+    CallRow,
+    CallStatus,
+    Client,
+    ConversationRow,
+    PhoneNumber,
+    WaCampaignRecipient,
+    WaMessage,
+    WaThread,
+)
 from . import livekit, quota, voices, wa_routing
 from .errors import Conflict, Forbidden, Invalid, NotFound, QuotaExceeded, Upstream
 from .security import Principal
@@ -208,3 +222,40 @@ def call_remaining_seconds(s: Session, conversation_id: str) -> int | None:
     if not client.active:
         return 0
     return quota.remaining_seconds(s, client, call.mode)
+
+
+# ---------- borrado (solo admin: lo exige el router) ----------
+
+def delete_conversations(s: Session, ids: list[str]) -> int:
+    """Borra conversaciones enteras: la llamada y su consumo del mes, el hilo y los
+    mensajes de WhatsApp, el registro de campana y los WAV de las grabaciones.
+
+    No borra las que tienen una llamada activa (el worker las recrearia). Devuelve
+    cuantas borro; los ids que no existen se ignoran (el que borra desde la UI puede
+    tener una lista vieja)."""
+    ids = list(dict.fromkeys(ids))
+    found = list(s.scalars(select(ConversationRow.id).where(ConversationRow.id.in_(ids)))) if ids else []
+    if not found:
+        return 0
+    active = s.scalar(select(func.count()).select_from(CallRow).where(
+        CallRow.conversation_id.in_(found), CallRow.status.in_(ACTIVE_CALL_STATUSES))) or 0
+    if active:
+        raise Conflict("Hay conversaciones con una llamada en curso: esperá a que terminen y volvé a intentar",
+                       "call_in_progress")
+    # Explicitos y en orden: en SQLite de tests las foreign keys no aplican y el
+    # ondelete=CASCADE de PostgreSQL no se ve desde el ORM (no hay relationships).
+    s.execute(update(WaCampaignRecipient).where(WaCampaignRecipient.conversation_id.in_(found))
+              .values(conversation_id=None))
+    s.execute(delete(WaMessage).where(WaMessage.conversation_id.in_(found)))
+    s.execute(delete(WaThread).where(WaThread.conversation_id.in_(found)))
+    s.execute(delete(CallRow).where(CallRow.conversation_id.in_(found)))
+    s.execute(delete(ConversationRow).where(ConversationRow.id.in_(found)))
+    s.commit()
+    for conversation_id in found:
+        shutil.rmtree(settings.call_recordings_dir / conversation_id, ignore_errors=True)
+    return len(found)
+
+
+def delete_conversation(s: Session, conversation_id: str) -> None:
+    if not delete_conversations(s, [conversation_id]):
+        raise NotFound("Conversación inexistente")

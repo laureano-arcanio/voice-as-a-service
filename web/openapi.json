@@ -2633,6 +2633,92 @@
       }
      }
     }
+   },
+   "delete": {
+    "tags": [
+     "calls"
+    ],
+    "summary": "Delete Call",
+    "description": "Borra la conversacion con su llamada (y el consumo del mes), su hilo y mensajes de\nWhatsApp y sus grabaciones. Solo admin; 409 si la llamada esta en curso.",
+    "operationId": "delete_call_api_v1_calls__conversation_id__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "conversation_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Conversation Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/calls/bulk-delete": {
+   "post": {
+    "tags": [
+     "calls"
+    ],
+    "summary": "Bulk Delete Calls",
+    "description": "Borra varias conversaciones (las seleccionadas en la UI). Devuelve cuantas habia;\nlos ids inexistentes se ignoran. Solo admin; 409 si alguna llamada esta en curso.",
+    "operationId": "bulk_delete_calls_api_v1_calls_bulk_delete_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CallBulkDeleteIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CallBulkDeleteOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
    }
   },
   "/api/v1/calls/{conversation_id}/recordings/{n}": {
@@ -7548,6 +7634,39 @@
      "file"
     ],
     "title": "Body_transcriptions_api_v1_inference_audio_transcriptions_post"
+   },
+   "CallBulkDeleteIn": {
+    "properties": {
+     "ids": {
+      "items": {
+       "type": "string",
+       "maxLength": 36
+      },
+      "type": "array",
+      "maxItems": 500,
+      "minItems": 1,
+      "title": "Ids"
+     }
+    },
+    "type": "object",
+    "required": [
+     "ids"
+    ],
+    "title": "CallBulkDeleteIn"
+   },
+   "CallBulkDeleteOut": {
+    "properties": {
+     "deleted": {
+      "type": "integer",
+      "title": "Deleted",
+      "description": "Cuantas habia de las pedidas; los ids inexistentes se ignoran"
+     }
+    },
+    "type": "object",
+    "required": [
+     "deleted"
+    ],
+    "title": "CallBulkDeleteOut"
    },
    "CallDetail": {
     "properties": {

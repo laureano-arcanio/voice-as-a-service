@@ -748,6 +748,14 @@ class CallPage(BaseModel):
     total: int
 
 
+class CallBulkDeleteIn(BaseModel):
+    ids: list[Annotated[str, Field(max_length=36)]] = Field(min_length=1, max_length=500)
+
+
+class CallBulkDeleteOut(BaseModel):
+    deleted: int = Field(description="Cuantas habia de las pedidas; los ids inexistentes se ignoran")
+
+
 class FieldValue(BaseModel):
     name: str
     description: str

@@ -9,8 +9,17 @@ from ...config import settings
 from ...services import calls as service
 from ...services.errors import Invalid, NotFound
 from ...services.reports import CallFilter, Reports
-from ..deps import DB, CurrentPrincipal, Definitions, Engine, scoped_client_id
-from ..schemas import CallDetail, CallIn, CallPage, CallStartedOut, DailyOut, StatsOut
+from ..deps import DB, AdminPrincipal, CurrentPrincipal, Definitions, Engine, scoped_client_id
+from ..schemas import (
+    CallBulkDeleteIn,
+    CallBulkDeleteOut,
+    CallDetail,
+    CallIn,
+    CallPage,
+    CallStartedOut,
+    DailyOut,
+    StatsOut,
+)
 
 router = APIRouter(tags=["calls"])
 
@@ -55,6 +64,20 @@ def get_call(conversation_id: str, p: CurrentPrincipal, db: DB, definitions: Def
     if detail is None or not p.can_access(detail["client_id"]):
         raise NotFound("Conversación inexistente")
     return detail
+
+
+@router.delete("/calls/{conversation_id}", status_code=204)
+def delete_call(conversation_id: str, _: AdminPrincipal, db: DB):
+    """Borra la conversacion con su llamada (y el consumo del mes), su hilo y mensajes de
+    WhatsApp y sus grabaciones. Solo admin; 409 si la llamada esta en curso."""
+    service.delete_conversation(db, conversation_id)
+
+
+@router.post("/calls/bulk-delete", response_model=CallBulkDeleteOut)
+def bulk_delete_calls(body: CallBulkDeleteIn, _: AdminPrincipal, db: DB):
+    """Borra varias conversaciones (las seleccionadas en la UI). Devuelve cuantas habia;
+    los ids inexistentes se ignoran. Solo admin; 409 si alguna llamada esta en curso."""
+    return CallBulkDeleteOut(deleted=service.delete_conversations(db, body.ids))
 
 
 @router.get("/calls/{conversation_id}/recordings/{n}")

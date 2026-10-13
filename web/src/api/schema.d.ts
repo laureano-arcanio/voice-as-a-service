@@ -768,6 +768,32 @@ export interface paths {
         get: operations["get_call_api_v1_calls__conversation_id__get"];
         put?: never;
         post?: never;
+        /**
+         * Delete Call
+         * @description Borra la conversacion con su llamada (y el consumo del mes), su hilo y mensajes de
+         *     WhatsApp y sus grabaciones. Solo admin; 409 si la llamada esta en curso.
+         */
+        delete: operations["delete_call_api_v1_calls__conversation_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/calls/bulk-delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Delete Calls
+         * @description Borra varias conversaciones (las seleccionadas en la UI). Devuelve cuantas habia;
+         *     los ids inexistentes se ignoran. Solo admin; 409 si alguna llamada esta en curso.
+         */
+        post: operations["bulk_delete_calls_api_v1_calls_bulk_delete_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2377,6 +2403,19 @@ export interface components {
              * @default json
              */
             response_format?: string;
+        };
+        /** CallBulkDeleteIn */
+        CallBulkDeleteIn: {
+            /** Ids */
+            ids: string[];
+        };
+        /** CallBulkDeleteOut */
+        CallBulkDeleteOut: {
+            /**
+             * Deleted
+             * @description Cuantas habia de las pedidas; los ids inexistentes se ignoran
+             */
+            deleted: number;
         };
         /** CallDetail */
         CallDetail: {
@@ -6337,6 +6376,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CallDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_call_api_v1_calls__conversation_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_delete_calls_api_v1_calls_bulk_delete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CallBulkDeleteIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallBulkDeleteOut"];
                 };
             };
             /** @description Validation Error */
