@@ -1,7 +1,7 @@
 # Guía de diseño de Atentina
 
 Cómo se ve y cómo habla la marca. La base es la landing (`landing/`): plataforma `/`, `/desarrolladores`, `/casos-de-uso`, verticales
-`/casos-de-uso/turnos`, `/casos-de-uso/cobranzas`, `/casos-de-uso/municipios`, el registro (`/registro`) y páginas legales. Leerla antes de agregar o cambiar
+`/casos-de-uso/turnos`, `/casos-de-uso/cobranzas`, `/casos-de-uso/municipios`, `/asistentes`, el registro (`/registro`) y páginas legales. Leerla antes de agregar o cambiar
 cualquier pantalla de la landing. El dashboard (`web/`) sigue
 [`DESIGN_GUIDELINE_APP.md`](DESIGN_GUIDELINE_APP.md), que adapta esta guía a la app.
 
@@ -119,7 +119,7 @@ la tabla hay que sumarlo ahí.
 | Corte | Qué cambia |
 |---|---|
 | `min-[561px]` | Planes en 2 columnas |
-| `max-[720px]` | El nav pasa los links a una segunda fila de píldoras |
+| `max-[900px]` | El nav pasa los links a una segunda fila de píldoras (con 7 links no entran en una fila más angosta) |
 | `min-[801px]` | Tarjetas en 2 o 3 columnas |
 | `min-[901px]` | Hero y secciones de texto + panel en 2 columnas |
 | `min-[1001px]` | Planes en 4 columnas |
@@ -149,11 +149,12 @@ Usar el componente; no copiar sus clases a mano.
 | `Section` | Toda sección de página. |
 | `Icon` | Íconos (sección 9). |
 | `CheckList` | Lista de características: check en círculo `accent-soft`, título en semibold y texto en `muted`. |
-| `Logo`, `Nav`, `Footer` | Marco de toda página. `Nav current` (`home`, `dev`, `docs`, `casos`, `sector`, `other`) marca la página y define qué anclas (`#precios`, `#demo`) son del mismo documento; el resto va a la home. Los tres links de página (Plataforma, Desarrolladores, Casos de uso) son fijos. |
+| `Logo`, `Nav`, `Footer` | Marco de toda página. `Nav current` (`home`, `dev`, `docs`, `casos`, `sector`, `asist`, `other`) marca la página y define qué anclas (`#precios`, `#demo`) son del mismo documento; el resto va a la home. Los cuatro links de página (Home, Desarrolladores, Casos de uso, Asistentes) son fijos. |
 | `Cta` | Cierre de toda página comercial: sección oscura con los botones de contacto. Textos configurables (`eyebrow`, `title`, `lead`, `question`, `submit`): cada página lo adapta (`/`, `/desarrolladores`, la documentación). |
 | `Solutions`, `Voices`, `Pricing` | Secciones compartidas. `Pricing free` suma el plan Free (API y panel web, sin telefonía) como primera tarjeta, con el mismo formato; solo en `/desarrolladores`: `/casos-de-uso` y las verticales muestran los planes con telefonía, y la home la escalera completa (`Pricing free`). Las columnas siguen la cantidad de planes (3 o 4). Acepta `class`. |
 | `Faq` | Preguntas frecuentes con `<details>` (contenido en `faqGeneral`, `faqBusiness` y `faqDev` de `site.ts`, una por página; el componente recibe `items`); debajo de los precios o de la API. Responder solo con lo que ya dice la landing o está confirmado. |
-| `AgentTerminal`, `AgenticSection` | Terminal animada del hero de `/desarrolladores` (`AgenticSection` queda debajo de la API, sin la terminal): dos escenas de un agente de programación operando la API (cobranza desde PDF y confirmación de turnos); `AgenticSection` lista las skills disponibles. Único lugar con colores fuera de los tokens (`--term-*`, locales): imita otra herramienta. Ver `LANDING.md`. |
+| `AgentTerminal`, `AgenticSection` | Terminal animada del hero de `/desarrolladores` (`AgenticSection` queda debajo de la API, sin la terminal): dos escenas de un agente de programación operando la API (cobranza desde PDF y confirmación de turnos); `AgenticSection` lista las skills disponibles. Con `AssistantChat`, los únicos lugares con colores fuera de los tokens (`--term-*`, locales): imitan otra herramienta. Ver `LANDING.md`. |
+| `AssistantChat` | Animación del hero de `/asistentes`, a la derecha: un chat de WhatsApp donde el dueño de un negocio opera su gestión, siempre con notas de voz (lo que dice va debajo, entre paréntesis): audio → texto y link a una vista → recordatorio enviado → link a un formulario. Imita WhatsApp, así que, como `AgentTerminal`, tiene colores locales (`--wa-*`); el marco es el de un panel. Sin JS o con movimiento reducido muestra la charla completa. |
 | `Platform`, `Costs`, `ResultBridge` | Home de plataforma. `Platform` recibe `items` (tres capas en `/`, tres formas de integrar en `/desarrolladores`). `Costs`: lo que se contrata por separado contra lo que incluye el plan. `ResultBridge`: el resultado de una llamada, contado para el equipo (panel) y para el sistema. |
 | `ApiSection`, `CodeTabs`, `CodeBlock`, `Status` | `/desarrolladores` y su documentación. `CodeTabs`: pedidos reales a la API con su respuesta, en `ApiSection`; `CodeBlock`, un bloque de código de la documentación. `Status`: píldora `disponible` / `próximamente`: no prometer sin marcarlo. |
 | `CallWidget`, `SampleResult`, `TelDialog` | Demo de llamada, ejemplo de resultado y diálogo del teléfono. |
@@ -202,6 +203,7 @@ Patrones que se repiten; copiar estas clases al armar algo nuevo:
 
 - **Español rioplatense con voseo:** "Hacé una demo", "Escribinos", "lo contratás y empieza a atender".
 - **Categoría: agentes con IA que atienden a tus clientes**, no "agentes de voz". Los canales (teléfono, WhatsApp) son la prueba y la voz argentina es el diferencial, no la categoría. "Agente de voz" queda en los `metaTitle` de las verticales, porque es lo que se busca.
+- **Excepción, `/asistentes`:** ahí la categoría es **agente personal** ("para todo el movimiento diario", "tu software, controlado por voz"): trabaja para el dueño y su equipo y opera su software; no atiende clientes. No mezclar los dos mensajes en una misma página.
 - **Directo y concreto:** qué hace y cuánto cuesta, con frases cortas. Sin superlativos vacíos, sin signos de exclamación y sin anglicismos que tengan palabra en español.
 - **Botones:** verbo + objeto ("Iniciar llamada sin costo", "Ver más voces"). Los links de tarjeta terminan en "→".
 - **Números:** pesos como `$ 29.000` (espacio y punto de miles), dólares como `USD 19`, duración como `1:42`. Siempre con `tabular-nums`.

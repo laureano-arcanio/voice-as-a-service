@@ -21,6 +21,10 @@ Cloudflare Tunnel. No hay backend aparte ni base nueva: costo adicional cero.
     planes con telefonía (sin Free) → preguntas de negocio → demo con tu caso. Las verticales viven bajo `/casos-de-uso/<slug>`, con su tema de acento:
     `/casos-de-uso/turnos` (verde azulado), `/casos-de-uso/cobranzas` (violeta) y `/casos-de-uso/municipios` (ámbar), desde `src/pages/casos-de-uso/[vertical].astro` con los datos de
     `src/data/site.ts`, y un "← Casos de uso" arriba.
+  - `/asistentes` (**Asistentes** en el nav, desde el 13-oct-2026): el **agente personal**, otro producto que las otras páginas. Trabaja para el dueño y su equipo,
+    no atiende clientes: "un agente personal para todo el movimiento diario", su software controlado por voz. Opera el sistema que ya usan, una API o una app
+    a medida (el motor `assistant` con las apps por cliente, [`APPS.md`](APPS.md), sin nombrar a SUGYM). Hero con el chat de WhatsApp (`AssistantChat`) a la
+    derecha → con qué software habla (tres tarjetas) → qué hace (`CheckList`) → cómo empieza → contacto. Sin precios ni FAQ: todavía no tiene plan publicado.
   - Legales (las pide Meta para WhatsApp): `/privacidad`, `/terminos` y `/eliminacion-de-datos`, con el layout `Legal.astro`.
   - Cada página lleva sus precios y su FAQ (`faqGeneral`, `faqBusiness`, `faqDev` en `site.ts`): la unidad es distinta (minutos y números contra
     tokens y pedidos). Los links `/#api` y similares de antes pasaron a `/desarrolladores#api`. Las URL viejas `/turnos`, `/cobranzas` y `/municipios` redirigen (301) a las nuevas, por `render.yaml`.

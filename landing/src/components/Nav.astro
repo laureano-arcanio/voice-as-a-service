@@ -3,8 +3,8 @@ import Button from "./Button.astro";
 import Logo from "./Logo.astro";
 
 interface Props {
-  /** Donde estamos: define que links son del mismo documento y cual queda marcado. home: `/`. dev: `/desarrolladores`. docs: su documentacion. casos: `/casos-de-uso`. sector: una vertical. other: legales. */
-  current?: "home" | "dev" | "docs" | "casos" | "sector" | "other";
+  /** Donde estamos: define que links son del mismo documento y cual queda marcado. home: `/`. dev: `/desarrolladores`. docs: su documentacion. casos: `/casos-de-uso`. sector: una vertical. asist: `/asistentes`. other: legales. */
+  current?: "home" | "dev" | "docs" | "casos" | "sector" | "asist" | "other";
 }
 
 const { current = "other" } = Astro.props;
@@ -15,6 +15,7 @@ const local: Record<NonNullable<Props["current"]>, string[]> = {
   docs: ["demo"],
   casos: ["precios", "demo"],
   sector: ["precios", "demo"],
+  asist: ["demo"],
   other: [],
 };
 const anchor = (id: string) => (local[current].includes(id) ? `#${id}` : `/#${id}`);
@@ -24,6 +25,7 @@ const links = [
   { href: "/", label: "Home", short: "Home", active: current === "home" },
   { href: "/desarrolladores", label: "Desarrolladores", short: "Desarrolladores", active: current === "dev" },
   { href: "/casos-de-uso", label: "Casos de uso", short: "Casos", active: current === "casos" || current === "sector" },
+  { href: "/asistentes", label: "Asistentes", short: "Asistentes", active: current === "asist" },
   { href: anchor("precios"), label: "Precios", short: "Precios" },
   { href: "/desarrolladores/docs", label: "Docs", short: "Docs", active: current === "docs" },
   { href: anchor("demo"), label: "Contacto", short: "Contacto" },
@@ -40,7 +42,7 @@ const ctaHref = hasCall ? "#llamada" : "/registro";
       {
         links.map((l) => (
           <a
-            class:list={["whitespace-nowrap no-underline hover:text-ink max-[720px]:hidden", l.active ? "text-ink" : "text-ink-2"]}
+            class:list={["whitespace-nowrap no-underline hover:text-ink max-[900px]:hidden", l.active ? "text-ink" : "text-ink-2"]}
             href={l.href}
             aria-current={l.active ? "page" : undefined}
           >
@@ -53,9 +55,9 @@ const ctaHref = hasCall ? "#llamada" : "/registro";
       </Button>
     </div>
   </div>
-  <!-- Mobile: los links en una segunda fila con rótulos cortos. Los 6 entran desde ~460 px; más angosto,
+  <!-- Mobile: los links en una segunda fila con rótulos cortos. Hasta 900 px los links van en esta fila (los 7 no entran en la de arriba). Entran todos desde ~740 px; más angosto,
   la fila se desliza y el borde derecho se desvanece para que se note. -->
-  <div class="flex gap-2 overflow-x-auto px-5 pb-3 max-[440px]:gap-1.5 max-[440px]:px-4 max-[460px]:mask-r-from-85% [scrollbar-width:none] min-[721px]:hidden [&::-webkit-scrollbar]:hidden">
+  <div class="flex gap-2 overflow-x-auto px-5 pb-3 max-[440px]:gap-1.5 max-[440px]:px-4 max-[740px]:mask-r-from-85% [scrollbar-width:none] min-[901px]:hidden [&::-webkit-scrollbar]:hidden">
     {
       links.map((l) => (
         <a

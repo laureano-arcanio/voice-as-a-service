@@ -1,0 +1,361 @@
+---
+// Animación de /asistentes: el dueño de un negocio opera su sistema de gestión por WhatsApp, siempre con audios (lo que dice
+// va debajo, entre paréntesis). El asistente contesta con texto y un link a una vista,
+// manda el recordatorio y la charla sigue con un alta por formulario.
+// Imita WhatsApp (fondo con su textura, burbujas verde y blanca con cola, doble tilde azul, nota de voz, barra con el
+// micrófono que graba): es la representación de otra herramienta, así que sus colores son locales (--wa-*), no los tokens
+// de la marca, como la terminal de /desarrolladores. El marco (radio, borde y sombra) es el de un panel de la marca.
+// Sin JavaScript o con movimiento reducido se ve la charla completa. El negocio, los nombres y las cifras son de ejemplo.
+
+type Link = { title: string; sub: string; url: string };
+type Msg =
+  | { from: "me"; dur: string; text: string; time: string }
+  | { from: "bot"; text: string[]; link?: Link; time: string };
+
+const msgs: Msg[] = [
+  { from: "me", dur: "0:05", text: "¿Quién debe la cuota de octubre?", time: "09:12" },
+  {
+    from: "bot",
+    text: ["Son 7 clientes, $ 196.000 en total. Martín Sosa debe dos cuotas. Te dejo el detalle:"],
+    link: { title: "Cuotas impagas · octubre", sub: "7 clientes · $ 196.000", url: "apps.atentina.com.ar/v/cuotas" },
+    time: "09:12",
+  },
+  { from: "me", dur: "0:03", text: "Mandales un recordatorio a los 7", time: "09:13" },
+  {
+    from: "bot",
+    text: ['Mensaje enviado: "Hola, te recordamos que la cuota de octubre venció el 10. Podés pagarla en recepción o por transferencia."'],
+    time: "09:13",
+  },
+  { from: "me", dur: "0:04", text: "Dame de alta a Lucía Paz, plan mensual", time: "09:15" },
+  {
+    from: "bot",
+    text: ["Completá la ficha de Lucía acá:"],
+    link: { title: "Alta de cliente", sub: "Formulario · plan mensual", url: "apps.atentina.com.ar/f/alta" },
+    time: "09:15",
+  },
+];
+
+// Íconos de la interfaz de WhatsApp (locales: imitan otra app, no son los de la marca).
+const ico = {
+  back: '<path d="M15 5l-7 7 7 7"/>',
+  video: '<rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="M15.5 10.5l6-3.5v10l-6-3.5"/>',
+  phone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
+  dots: '<circle cx="12" cy="5" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="12" cy="19" r="1.2"/>',
+  emoji: '<circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0M9 9.5h.01M15 9.5h.01"/>',
+  clip: '<path d="M20 11.5l-8.2 8.2a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/>',
+  camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
+  user: '<circle cx="12" cy="9" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/>',
+  play: '<path d="M7 4.5v15l12.5-7.5z"/>',
+  file: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
+  form: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h4"/>',
+  tick: '<path d="M2 12.5l4 4 9-9M10 16.5l1 1 9-9.5"/>',
+};
+const svg = (name: keyof typeof ico, cls: string, fill = false) =>
+  `<svg class="${cls}" viewBox="0 0 24 24" fill="${fill ? "currentColor" : "none"}" stroke="${fill ? "none" : "currentColor"}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ico[name]}</svg>`;
+
+// Alturas fijas de la onda de las notas de voz, para que se vean igual en cada carga.
+const wave = Array.from({ length: 28 }, (_, i) => 0.22 + 0.78 * Math.abs(Math.sin(i * 1.7) * Math.cos(i * 0.45)));
+const description =
+  "Animación de ejemplo con forma de chat de WhatsApp. El dueño de un negocio le habla a su agente personal, que opera su software de gestión, siempre con notas de voz. Pregunta quién debe la cuota de octubre; el asistente responde que son 7 clientes por $ 196.000 y manda el link al detalle. Le pide mandarles un recordatorio y el asistente responde con el mensaje enviado. Después le pide dar de alta a una clienta y el asistente responde con el link al formulario de alta.";
+---
+
+<figure class="m-0" data-assistant>
+  <div class="wa group/chat overflow-hidden rounded-[18px] border border-line shadow-card" data-state="idle" role="img" aria-label={description}>
+    <div class="wa-head flex items-center gap-2.5 px-3 py-2.5" aria-hidden="true">
+      <Fragment set:html={svg("back", "size-5 flex-none")} />
+      <span class="grid size-10 flex-none place-items-center rounded-full bg-accent font-display text-[.95rem] font-extrabold text-accent-ink">AG</span>
+      <div class="grid min-w-0 flex-1 leading-tight">
+        <span class="truncate text-[1rem] font-semibold">Agente personal</span>
+        <span class="wa-status text-[.8rem]" data-status>en línea</span>
+      </div>
+      <span class="wa-icons flex flex-none items-center gap-4 max-[420px]:gap-3">
+        <Fragment set:html={svg("video", "size-[22px] max-[420px]:hidden")} />
+        <Fragment set:html={svg("phone", "size-5")} />
+        <Fragment set:html={svg("dots", "size-5", true)} />
+      </span>
+    </div>
+
+    <div class="wa-wall" aria-hidden="true">
+      {/* La charla se apoya abajo, como en WhatsApp: los mensajes nuevos empujan a los viejos hacia arriba. */}
+      <div class="flex h-[460px] flex-col justify-end overflow-hidden px-3 pt-3 text-[.9rem]/[1.35] max-[560px]:h-[420px]">
+        <span class="wa-day mb-2 self-center">Hoy</span>
+        <div class="grid gap-1.5" data-thread>
+          {
+            msgs.map((m) =>
+              m.from === "me" ? (
+                <div class="wa-msg wa-out" data-msg data-from="me" data-dur={m.dur}>
+                  <div class="flex items-center gap-2">
+                    <Fragment set:html={svg("play", "wa-play size-7 flex-none", true)} />
+                    <div class="grid min-w-0 flex-1 gap-0.5">
+                      <span class="relative flex h-7 items-center gap-[2px]">
+                        <span class="wa-knob absolute left-0 size-3 rounded-full" />
+                        {wave.map((h) => (
+                          <i class="wa-bar block h-full w-[3px] rounded-full" style={`scale: 1 ${h.toFixed(2)}`} />
+                        ))}
+                      </span>
+                      <span class="flex justify-between">
+                        <span class="wa-meta tabular-nums">{m.dur}</span>
+                        <span class="wa-meta flex items-center gap-1 tabular-nums">
+                          {m.time}
+                          <Fragment set:html={svg("tick", "wa-tick size-4")} />
+                        </span>
+                      </span>
+                    </div>
+                    <span class="relative ml-1 flex-none">
+                      <span class="wa-avatar grid size-11 place-items-center rounded-full">
+                        <Fragment set:html={svg("user", "size-7")} />
+                      </span>
+                      <Fragment set:html={svg("mic", "wa-mic absolute -bottom-0.5 -left-1.5 size-4")} />
+                    </span>
+                  </div>
+                  <p class="wa-said mt-1">({m.text})</p>
+                </div>
+              ) : (
+                <div class="wa-msg wa-in grid gap-1" data-msg data-from="bot">
+                  {m.link && (
+                    <span class="wa-preview grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2.5 rounded-md p-2">
+                      <span class="grid size-10 place-items-center rounded-md bg-accent-soft text-accent">
+                        <Fragment set:html={svg(m.link.url.includes("/f/") ? "form" : "file", "size-5")} />
+                      </span>
+                      <span class="grid min-w-0">
+                        <b class="truncate text-[.86rem] font-semibold">{m.link.title}</b>
+                        <span class="wa-meta truncate">{m.link.sub}</span>
+                        <span class="wa-meta truncate">apps.atentina.com.ar</span>
+                      </span>
+                    </span>
+                  )}
+                  {m.text.map((t) => <p>{t}</p>)}
+                  {m.link && <span class="wa-link truncate">https://{m.link.url}</span>}
+                  <span class="wa-meta -mt-0.5 justify-self-end tabular-nums">{m.time}</span>
+                </div>
+              ),
+            )
+          }
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1.5 px-2 pt-2 pb-2.5">
+        <div class="wa-field flex h-11 min-w-0 flex-1 items-center gap-3 rounded-full px-3">
+          <span class="contents group-data-[state=rec]/chat:hidden">
+            <Fragment set:html={svg("emoji", "wa-ic size-6 flex-none")} />
+            <span class="wa-ph flex-1 text-[.95rem]">Mensaje</span>
+            <Fragment set:html={svg("clip", "wa-ic size-[22px] flex-none")} />
+            <Fragment set:html={svg("camera", "wa-ic size-[22px] flex-none")} />
+          </span>
+          <span class="hidden flex-1 items-center gap-2.5 group-data-[state=rec]/chat:flex">
+            <Fragment set:html={svg("mic", "wa-rec size-5 flex-none animate-pulse motion-reduce:animate-none")} />
+            <span class="tabular-nums text-[.95rem]" data-timer>0:00</span>
+            <span class="wa-ph ml-auto truncate text-[.85rem]">‹ Deslizá para cancelar</span>
+          </span>
+        </div>
+        <span class="wa-send grid size-11 flex-none place-items-center rounded-full transition-[scale] duration-150 group-data-[state=rec]/chat:scale-115">
+          <Fragment set:html={svg("mic", "size-[22px]")} />
+        </span>
+      </div>
+    </div>
+  </div>
+</figure>
+
+<style is:global>
+  /* Paleta de WhatsApp (modo claro), solo para esta imitación. Global porque los íconos van por set:html y no llevan el
+     atributo de los estilos con alcance; todas las clases empiezan con wa-. */
+  .wa {
+    --wa-wall: #efeae2;
+    --wa-doodle: #e2dbd0;
+    --wa-out: #d9fdd3;
+    --wa-in: #ffffff;
+    --wa-ink: #111b21;
+    --wa-ink-2: #3b4a54;
+    --wa-meta: #667781;
+    --wa-icon: #54656f;
+    --wa-tick: #53bdeb;
+    --wa-green: #00a884;
+    --wa-red: #ea0038;
+    --wa-link: #027eb5;
+    --wa-preview: #f0f2f5;
+    --wa-avatar: #dfe5e7;
+    --wa-avatar-ink: #ffffff;
+    background: var(--wa-wall);
+    color: var(--wa-ink);
+  }
+  .wa-head {
+    background: #ffffff;
+    color: var(--wa-ink);
+    border-bottom: 1px solid #e9edef;
+  }
+  .wa-icons,
+  .wa-ic {
+    color: var(--wa-icon);
+  }
+  .wa-status {
+    color: var(--wa-meta);
+  }
+  .wa-status[data-typing] {
+    color: var(--wa-green);
+  }
+  /* La textura del fondo: puntos suaves en dos tramas, como el dibujo de WhatsApp sin copiarlo. */
+  .wa-wall {
+    background-color: var(--wa-wall);
+    background-image:
+      radial-gradient(var(--wa-doodle) 1.2px, transparent 1.3px),
+      radial-gradient(var(--wa-doodle) 1px, transparent 1.1px);
+    background-size: 22px 22px, 22px 22px;
+    background-position: 0 0, 11px 11px;
+  }
+  .wa-day {
+    background: #ffffff;
+    color: var(--wa-meta);
+    border-radius: 8px;
+    padding: 3px 10px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+  }
+  .wa-msg {
+    position: relative;
+    max-width: 85%;
+    padding: 6px 9px 5px;
+    border-radius: 8px;
+    box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+  }
+  /* La cola de la burbuja: un triángulo pegado arriba, del lado de quien habla. */
+  .wa-msg::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    border-top: 9px solid;
+  }
+  .wa-out {
+    justify-self: end;
+    background: var(--wa-out);
+    border-top-right-radius: 0;
+    min-width: 250px;
+  }
+  .wa-out::before {
+    right: -8px;
+    border-top-color: var(--wa-out);
+    border-right: 9px solid transparent;
+  }
+  .wa-in {
+    justify-self: start;
+    background: var(--wa-in);
+    border-top-left-radius: 0;
+  }
+  .wa-in::before {
+    left: -8px;
+    border-top-color: var(--wa-in);
+    border-left: 9px solid transparent;
+  }
+  .wa-meta {
+    color: var(--wa-meta);
+    font-size: 0.7rem;
+  }
+  .wa-tick,
+  .wa-mic,
+  .wa-knob {
+    color: var(--wa-tick);
+  }
+  .wa-knob {
+    background: var(--wa-tick);
+    top: 50%;
+    translate: 0 -50%;
+  }
+  .wa-play {
+    color: var(--wa-icon);
+  }
+  .wa-bar {
+    background: color-mix(in srgb, var(--wa-icon) 45%, transparent);
+  }
+  .wa-avatar {
+    background: var(--wa-avatar);
+    color: var(--wa-avatar-ink);
+  }
+  .wa-said {
+    color: var(--wa-ink-2);
+    font-style: italic;
+    font-size: 0.86rem;
+  }
+  .wa-preview {
+    background: var(--wa-preview);
+  }
+  .wa-link {
+    color: var(--wa-link);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .wa-field {
+    background: #ffffff;
+    color: var(--wa-ink);
+    box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+  }
+  .wa-ph {
+    color: var(--wa-meta);
+  }
+  .wa-rec {
+    color: var(--wa-red);
+  }
+  .wa-send {
+    background: var(--wa-green);
+    color: #ffffff;
+  }
+</style>
+
+<script>
+  const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+  document.querySelectorAll<HTMLElement>("[data-assistant]").forEach((root) => {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const chat = root.querySelector<HTMLElement>("[data-state]")!;
+    const status = root.querySelector<HTMLElement>("[data-status]")!;
+    const timer = root.querySelector<HTMLElement>("[data-timer]")!;
+    const msgs = [...root.querySelectorAll<HTMLElement>("[data-msg]")];
+    // El estado del contacto en el encabezado; "escribiendo…" va en verde, como en WhatsApp.
+    const setTyping = (on: boolean) => {
+      status.textContent = on ? "escribiendo…" : "en línea";
+      status.toggleAttribute("data-typing", on);
+    };
+    const reset = () => {
+      msgs.forEach((m) => (m.hidden = false));
+      chat.dataset.state = "idle";
+      setTyping(false);
+    };
+
+    let run = 0;
+    async function play(id: number) {
+      const alive = () => id === run;
+      for (;;) {
+        msgs.forEach((m) => (m.hidden = true));
+        await sleep(600);
+        for (const m of msgs) {
+          if (!alive()) return;
+          if (m.dataset.from === "bot") {
+            setTyping(true);
+            await sleep(1400);
+            setTyping(false);
+          } else {
+            // Graba la nota de voz: el contador avanza hasta su duración y se envía.
+            chat.dataset.state = "rec";
+            const secs = Number(m.dataset.dur?.split(":")[1] ?? 3);
+            for (let s = 0; s <= secs && alive(); s++) {
+              timer.textContent = `0:${String(s).padStart(2, "0")}`;
+              await sleep(380);
+            }
+            chat.dataset.state = "idle";
+          }
+          if (!alive()) return;
+          m.hidden = false;
+          await sleep(m.dataset.from === "bot" ? 1700 : 500);
+        }
+        await sleep(4000);
+      }
+    }
+
+    // Corre solo mientras se ve. Al salir de pantalla se corta y la charla queda completa.
+    new IntersectionObserver(([entry]) => {
+      run++;
+      if (entry?.isIntersecting) void play(run);
+      else reset();
+    }).observe(root);
+  });
+</script>

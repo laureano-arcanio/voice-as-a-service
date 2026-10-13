@@ -54,7 +54,7 @@ app/
   services/          negocio sin HTTP (lo usan la API y el worker)
     quota.py         límites del tier: admisión con lock, consumo del mes, saldo en curso
     limits.py        límites efectivos de un cliente: el tier más sus ajustes vigentes (`effective_limits`)
-    calls.py         iniciar salientes/pruebas (prepare_call + dispatch) y entrantes (start_inbound)
+    calls.py         iniciar salientes/pruebas (prepare_call + dispatch), entrantes (start_inbound) y borrado
     phone_numbers.py inventario: carga, asignación con tope, liberación, ruteo a agente
     wa_routing.py    ruteo por contacto de WhatsApp (wa_routes): normaliza los wa_id, resuelve el
                      agente de un contacto y reemplaza las reglas de una cuenta
@@ -449,6 +449,7 @@ lo de esta sección es lo que lo protege.
 | WhatsApp: campañas (crear, contactos, iniciar) | Todo | En sus números con token propio | Ídem |
 | WhatsApp: ver, pausar y cancelar campañas; bajas | Todo | Lo suyo | Lo suyo |
 | Llamadas, conversaciones, consumo, voces | Todo | Lo suyo | Lo suyo |
+| Conversaciones: borrar (una o en bulk) | Sí | No | No |
 | API keys | Sí | Las suyas | No |
 
 - Un recurso de otro cliente responde 404, no 403, para no revelar que existe.
@@ -499,6 +500,11 @@ lo de esta sección es lo que lo protege.
   - Los 422 de validación de pydantic mantienen el formato de FastAPI.
 - **Listas:** `GET /calls` pagina con `limit`/`offset` y devuelve `{items, total}`; el resto devuelve
   listas simples.
+- **Borrado de conversaciones** (solo admin): `DELETE /calls/{conversation_id}` y
+  `POST /calls/bulk-delete` con `{ids}` (los ids inexistentes se ignoran; devuelve `deleted`).
+  Borra la conversación con su llamada (y el consumo del mes), el hilo y los mensajes de WhatsApp,
+  el registro de respuesta de campaña y los WAV de las grabaciones; 409 `call_in_progress` si
+  alguna tiene una llamada activa. Desde la UI: selección en bulk estilo Gmail en Conversaciones.
 - **WhatsApp en `/calls`:** `mode=whatsapp` (sin `call_logs`: `status` null, duración 0, `phone` = `wa_id`);
   `mode=api` son solo las de texto por la API. El detalle trae `whatsapp` en lugar de `call`, y
   `/stats` no las cuenta como llamadas (`whatsapp` aparte).
