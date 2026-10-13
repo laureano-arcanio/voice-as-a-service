@@ -1006,6 +1006,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/whatsapp/accounts/{account_id}/routes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Account Routes
+         * @description Reemplaza el ruteo por contacto de la cuenta: los contactos de cada regla los atiende
+         *     ese agente, en los mensajes y las llamadas de WhatsApp, en vez del agente por defecto.
+         *     409 si un contacto esta en dos reglas; 422 con agente ajeno, archivado o regla vacia.
+         */
+        put: operations["set_account_routes_api_v1_whatsapp_accounts__account_id__routes_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/whatsapp/signup": {
         parameters: {
             query?: never;
@@ -4091,6 +4113,11 @@ export interface components {
              */
             source?: "manual" | "embedded_signup" | "coexistence";
             /**
+             * Routes
+             * @description Ruteo por contacto: pisa al agente por defecto en mensajes y llamadas de WhatsApp
+             */
+            routes: components["schemas"]["WaRouteOut"][];
+            /**
              * Created At
              * Format: date-time
              */
@@ -4471,6 +4498,31 @@ export interface components {
         WaRegisterIn: {
             /** Pin */
             pin?: string | null;
+        };
+        /**
+         * WaRouteIn
+         * @description Una regla de ruteo por contacto: estos contactos los atiende este agente.
+         */
+        WaRouteIn: {
+            /** Agent Id */
+            agent_id: string;
+            /**
+             * Contacts
+             * @description WhatsApp de cada contacto, con código de país
+             * @example [
+             *       "5491155551234"
+             *     ]
+             */
+            contacts?: string[];
+        };
+        /** WaRouteOut */
+        WaRouteOut: {
+            /** Agent Id */
+            agent_id: string;
+            /** Agent Name */
+            agent_name?: string | null;
+            /** Contacts */
+            contacts: string[];
         };
         /**
          * WaSignupIn
@@ -6720,6 +6772,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WaAccountOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_account_routes_api_v1_whatsapp_accounts__account_id__routes_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaRouteIn"][];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaRouteOut"][];
                 };
             };
             /** @description Validation Error */

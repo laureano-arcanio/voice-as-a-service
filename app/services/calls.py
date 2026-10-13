@@ -11,7 +11,7 @@ from ..config import settings
 from ..conversation.engine import ConversationEngine
 from ..db import utcnow
 from ..models import Agent, CallMode, CallRow, CallStatus, Client, PhoneNumber
-from . import livekit, quota, voices
+from . import livekit, quota, voices, wa_routing
 from .errors import Conflict, Forbidden, Invalid, NotFound, QuotaExceeded, Upstream
 from .security import Principal
 
@@ -145,15 +145,25 @@ def dialed_e164(raw: str | None) -> str | None:
     return f"+{digits}" if digits else None
 
 
-def start_inbound(s: Session, engine: ConversationEngine, dialed: str | None, caller: str | None) -> InboundCall:
+def start_inbound(s: Session, engine: ConversationEngine, dialed: str | None, caller: str | None,
+                  wa_id: str | None = None) -> InboundCall:
     """Rutea la entrante por el numero marcado al agente de ese numero y la admite
-    con los limites del cliente. Si el tier no la deja, queda registrada como
-    rechazada y se levanta QuotaExceeded (el worker avisa y corta)."""
+    con los limites del cliente. En una llamada de WhatsApp (wa_id del llamante), manda
+    la regla de ruteo por contacto de la cuenta, si hay. Si el tier no la deja, queda
+    registrada como rechazada y se levanta QuotaExceeded (el worker avisa y corta)."""
     number = s.scalar(select(PhoneNumber).where(PhoneNumber.e164 == dialed_e164(dialed)))
-    if number is None or number.client_id is None or number.agent_id is None:
+    if number is None or number.client_id is None:
+        raise NotFound(f"El número {dialed!r} no tiene cliente o agente asignado", "number_without_agent")
+    agent_id = number.agent_id
+    if wa_id:
+        # WhatsApp: la regla por contacto de la cuenta pisa al agente por defecto del numero.
+        account = wa_routing.account_for_number(s, number.e164)
+        if account is not None:
+            agent_id = wa_routing.resolve_agent_id(s, account, wa_id) or number.agent_id
+    if agent_id is None:
         raise NotFound(f"El número {dialed!r} no tiene cliente o agente asignado", "number_without_agent")
     try:
-        state, opening = engine.new_conversation(number.agent_id, client_id=number.client_id, session=s)
+        state, opening = engine.new_conversation(agent_id, client_id=number.client_id, session=s)
     except KeyError:
         raise NotFound(f"El agente del número {dialed!r} está archivado", "number_without_agent") from None
     call = CallRow(conversation_id=state.conversation_id, client_id=number.client_id, mode=CallMode.entrante,

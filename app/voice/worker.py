@@ -452,12 +452,16 @@ async def entrypoint(ctx: JobContext):
     conversation_id = metadata.get("conversation_id")
     if conversation_id is None:
         # Entrante: la despacha la dispatch rule de LiveKit, sin metadata. Se rutea por
-        # el numero marcado al agente de ese numero, con los limites de su cliente.
+        # el numero marcado al agente de ese numero (y en WhatsApp, por la regla del
+        # contacto que llama), con los limites de su cliente.
         caller = await ctx.wait_for_participant()
         dialed = caller.attributes.get("sip.trunkPhoneNumber")
         try:
             with sessions() as s:
-                inbound = call_service.start_inbound(s, engine, dialed, caller.attributes.get("sip.phoneNumber"))
+                # En una llamada de WhatsApp, el inbound trunk mapea el header
+                # X-WA-Meta-Wacid a este atributo (scripts/livekit_sip_setup.py).
+                inbound = call_service.start_inbound(s, engine, dialed, caller.attributes.get("sip.phoneNumber"),
+                                                     wa_id=caller.attributes.get("wa.wacid"))
         except NotFound as e:
             logger.error("entrante a %s sin atender: %s", dialed, e.message)
             await ctx.delete_room()

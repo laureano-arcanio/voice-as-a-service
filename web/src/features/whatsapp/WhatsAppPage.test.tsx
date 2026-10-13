@@ -25,6 +25,7 @@ const ACCOUNT: WaAccount = {
   quality_rating: 'GREEN',
   messaging_limit: 'TIER_1K',
   source: 'embedded_signup',
+  routes: [],
   created_at: '2026-10-01T12:00:00Z',
   updated_at: '2026-10-01T12:00:00Z',
 };
@@ -230,6 +231,44 @@ describe('WhatsAppPage', () => {
     ).toBeInTheDocument();
     expect(calls.filter((c) => c.method === 'POST')).toHaveLength(0);
   });
+  it('ruteo por contacto: muestra las reglas y guarda los cambios', async () => {
+    const calls = mockApi({
+      'GET /api/v1/whatsapp/accounts': () =>
+        jsonResponse([
+          {
+            ...ACCOUNT,
+            status: 'connected',
+            has_token: false,
+            source: 'manual',
+            routes: [{ agent_id: 'ag-2', agent_name: 'Soporte', contacts: ['5491155551234'] }],
+          },
+        ]),
+      'GET /api/v1/whatsapp/config': () => jsonResponse(ENABLED),
+      'GET /api/v1/agents': () =>
+        jsonResponse([
+          { id: 'ag-1', name: 'Turnos' },
+          { id: 'ag-2', name: 'Soporte' },
+        ]),
+      'PUT /api/v1/whatsapp/accounts/wa-1/routes': () =>
+        jsonResponse([{ agent_id: 'ag-2', agent_name: 'Soporte', contacts: ['5491155551234', '5491155559999'] }]),
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<WhatsAppPage />, { me: CLIENT_USER });
+
+    expect(await screen.findByText('1 regla por contacto')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Acciones de \+54 351 555 0000/ }));
+    await user.click(await screen.findByRole('menuitem', { name: /Ruteo por contacto/ }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('5491155551234')).toBeInTheDocument();
+    await user.type(within(dialog).getByRole('textbox', { name: 'Contactos que atiende' }), '5491155559999{Enter}');
+    await user.click(within(dialog).getByRole('button', { name: 'Guardar' }));
+    await waitFor(() =>
+      expect(calls.find((c) => c.method === 'PUT')?.body).toEqual([
+        { agent_id: 'ag-2', contacts: ['5491155551234', '5491155559999'] },
+      ]),
+    );
+  });
+
   it('admin: operadores del numero compartido, alta y desactivar', async () => {
     const OP = {
       id: 'op-1',

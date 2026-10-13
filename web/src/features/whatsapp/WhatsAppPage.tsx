@@ -23,6 +23,7 @@ import {
   IconPlus,
   IconRefresh,
   IconRepeat,
+  IconRoute,
   IconTemplate,
 } from '@tabler/icons-react';
 import { useState } from 'react';
@@ -47,6 +48,7 @@ import {
 import { WA_MANAGER_URL, WA_QUALITY, WA_SOURCE, WA_STATUS, WA_STATUS_HELP } from './labels';
 import { OperatorsCard } from './Operators';
 import { RegisterModal } from './RegisterModal';
+import { WaRoutesModal } from './RoutesModal';
 import { SignupModal } from './SignupModal';
 import { TemplatesCard } from './Templates';
 
@@ -54,6 +56,7 @@ type Dialog =
   | { kind: 'signup' }
   | { kind: 'manual' }
   | { kind: 'edit'; account: WaAccount }
+  | { kind: 'routes'; account: WaAccount }
   | { kind: 'register'; account: WaAccount }
   | null;
 
@@ -103,28 +106,37 @@ function WaAgentSelect({ account }: { account: WaAccount }) {
     data.push({ value: account.agent_id, label: `${account.agent_name ?? 'Agente'} (archivado)` });
   }
   return (
-    <Select
-      size="xs"
-      w={200}
-      data={data}
-      value={account.agent_id}
-      searchable
-      allowDeselect={false}
-      disabled={update.isPending}
-      aria-label={`Agente de ${account.display_phone_number}`}
-      onChange={(agentId) =>
-        agentId &&
-        agentId !== account.agent_id &&
-        update.mutate(
-          { id: account.id, body: { agent_id: agentId } },
-          {
-            onSuccess: (a) =>
-              notifySuccess(`${a.display_phone_number} lo atiende ${a.agent_name ?? 'el agente'}.`),
-            onError: (e) => notifyError(e),
-          },
-        )
-      }
-    />
+    <Stack gap={2}>
+      <Select
+        size="xs"
+        w={200}
+        data={data}
+        value={account.agent_id}
+        searchable
+        allowDeselect={false}
+        disabled={update.isPending}
+        aria-label={`Agente de ${account.display_phone_number}`}
+        onChange={(agentId) =>
+          agentId &&
+          agentId !== account.agent_id &&
+          update.mutate(
+            { id: account.id, body: { agent_id: agentId } },
+            {
+              onSuccess: (a) =>
+                notifySuccess(`${a.display_phone_number} lo atiende ${a.agent_name ?? 'el agente'}.`),
+              onError: (e) => notifyError(e),
+            },
+          )
+        }
+      />
+      {account.routes.length > 0 && (
+        <Text size="xs" c="dimmed">
+          {account.routes.length === 1
+            ? '1 regla por contacto'
+            : `${account.routes.length} reglas por contacto`}
+        </Text>
+      )}
+    </Stack>
   );
 }
 
@@ -221,7 +233,7 @@ export function WhatsAppPage() {
     <>
       <PageHeader
         title="WhatsApp"
-        description="Números de WhatsApp Business conectados por la Cloud API de Meta. Cada uno lo atiende un agente; responde texto y notas de voz."
+        description="Números de WhatsApp Business conectados por la Cloud API de Meta. Cada uno tiene un agente por defecto y reglas por contacto; responde texto y notas de voz."
         actions={
           <>
             {isAdmin && (
@@ -333,6 +345,13 @@ export function WhatsAppPage() {
                                 </ActionIcon>
                               </Menu.Target>
                               <Menu.Dropdown>
+                                <Menu.Item
+                                  leftSection={<IconRoute size={16} />}
+                                  onClick={() => setDialog({ kind: 'routes', account: a })}
+                                >
+                                  Ruteo por contacto
+                                </Menu.Item>
+                                <Menu.Divider />
                                 {canManage(a) && (
                                   <>
                                     <Menu.Item
@@ -412,6 +431,9 @@ export function WhatsAppPage() {
       {dialog?.kind === 'manual' && <NewWaAccountModal onClose={() => setDialog(null)} />}
       {dialog?.kind === 'edit' && (
         <EditWaAccountModal account={dialog.account} onClose={() => setDialog(null)} />
+      )}
+      {dialog?.kind === 'routes' && (
+        <WaRoutesModal account={dialog.account} onClose={() => setDialog(null)} />
       )}
       {dialog?.kind === 'register' && (
         <RegisterModal account={dialog.account} onClose={() => setDialog(null)} />

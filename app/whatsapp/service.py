@@ -37,7 +37,7 @@ import datetime
 import logging
 import time
 from collections.abc import Callable, Coroutine
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
@@ -50,6 +50,7 @@ from ..conversation.store import ConversationStore
 from ..db import utcnow
 from ..llm.prompt import VOICE_NOTE_TAG
 from ..models import Client, ConversationRow, WaAccount
+from ..services import wa_routing
 from . import audio as audio_module
 from . import campaigns, store
 from .audio import AudioError, AudioTooLong
@@ -122,6 +123,9 @@ class AccountInfo:
     own_token: bool = False     # token del cliente (Embedded Signup): si Meta lo rechaza, se desconecta
     # El que escribe es un operador (wa_operators): client_id y agent_id son los suyos, no los del numero.
     operator: bool = False
+    # El agente sale de una regla de ruteo por contacto (wa_routes), no del agente por defecto:
+    # un hilo abierto con otro agente se corta y sigue con el de la regla (como el operador).
+    routed: bool = False
 
 
 def recipient(wa_id: str) -> str:
@@ -315,6 +319,9 @@ class WhatsAppService:
                     return
                 info = AccountInfo(account.id, op.client_id, op.agent_id, pnid, token,
                                    store.has_own_token(account), operator=True)
+            elif (routed := wa_routing.resolve_agent_id(s, account, wa_id)) not in (None, account.agent_id):
+                # Ruteo por contacto: a este contacto lo atiende el agente de su regla.
+                info = replace(info, agent_id=routed, routed=True)
 
         key = (pnid, wa_id)
         inbox = self._inbox.setdefault(key, Inbox())
@@ -558,6 +565,15 @@ class WhatsAppService:
         row = s.get(ConversationRow, conversation_id)
         return row is not None and row.agent_id != agent_id
 
+    @staticmethod
+    def _cuts_open_thread(s: Session, conversation_id: str, info: AccountInfo) -> bool:
+        """Con el hilo en curso de otro agente: el operador siempre lo corta (habla con su
+        asistente); una regla por contacto tambien, salvo que el hilo lo haya abierto una
+        campaña (esa conversacion termina con el agente de la campaña)."""
+        if not (info.operator or info.routed):
+            return False
+        return info.operator or not campaigns.is_campaign_conversation(s, conversation_id)
+
     def _full(self, s: Session, conversation_id: str) -> bool:
         row = s.get(ConversationRow, conversation_id)
         return row is not None and len(row.messages or []) >= 2 * self.max_turns
@@ -574,8 +590,9 @@ class WhatsAppService:
             thread = store.active_thread(s, info.id, wa_id, now, self.session_hours)
             if thread is not None and self._full(s, thread.conversation_id):
                 thread = None       # tope de turnos: sigue en otra, como si hubiera vencido
-            elif thread is not None and info.operator and self._other_agent(s, thread.conversation_id, info.agent_id):
-                thread = None       # lo hicieron operador con un chat abierto: sigue con su asistente
+            elif (thread is not None and self._other_agent(s, thread.conversation_id, info.agent_id)
+                  and self._cuts_open_thread(s, thread.conversation_id, info)):
+                thread = None       # otro agente manda: el hilo sigue en otra conversacion
             ended = None
             if thread is None and (last := store.last_thread(s, info.id, wa_id)) and last.closed_at is None:
                 # Vencida o en el tope y sin cerrar todavia: termina ahora, como un corte.

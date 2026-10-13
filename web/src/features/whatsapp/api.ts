@@ -6,6 +6,7 @@ import type {
   WaAccountPatch,
   WaOperatorIn,
   WaOperatorUpdate,
+  WaRouteIn,
   WaSignupIn,
   WaTemplateIn,
 } from '@/api/types';
@@ -65,6 +66,19 @@ export function useDeactivateWaAccount() {
   return useMutation({
     mutationFn: (id: string) =>
       unwrap(api.POST('/api/v1/whatsapp/accounts/{account_id}/deactivate', accountPath(id))),
+    onSuccess: invalidate,
+  });
+}
+
+/** Reemplaza el ruteo por contacto de la cuenta: esos contactos los atiende cada agente,
+ * en los mensajes y las llamadas de WhatsApp, en vez del agente por defecto. */
+export function useSetWaRoutes() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ id, routes }: { id: string; routes: WaRouteIn[] }) =>
+      unwrap(
+        api.PUT('/api/v1/whatsapp/accounts/{account_id}/routes', { ...accountPath(id), body: routes }),
+      ),
     onSuccess: invalidate,
   });
 }

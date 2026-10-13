@@ -131,6 +131,10 @@ async def main() -> None:
             numbers=numbers,
             auth_username=SIP_USERNAME,
             auth_password=password,
+            # WhatsApp del que llama en una llamada de WhatsApp (lo agrega el predial de
+            # Asterisk): el agente lo lee como wa.wacid y rutea por contacto
+            # (app/services/wa_routing.py). Sin el header, el atributo no aparece.
+            headers_to_attributes={"X-WA-Meta-Wacid": "wa.wacid"},
         )
         inbound, inbound_action = await upsert(
             INBOUND_NAME,

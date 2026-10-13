@@ -27,6 +27,7 @@ const ACCOUNT: WaAccount = {
   quality_rating: 'GREEN',
   messaging_limit: null,
   source: 'embedded_signup',
+  routes: [],
   created_at: '2026-10-01T12:00:00Z',
   updated_at: '2026-10-01T12:00:00Z',
 };

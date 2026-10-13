@@ -153,9 +153,14 @@ contacto manda un audio, el agente lo transcribe y contesta con una nota de voz 
    (de Meta: WhatsApp → Configuración de la API; el ID, no el teléfono), número visible y nombre.
 2. **Token:** vacío usa el del system user (`WA_ACCESS_TOKEN`). Uno propio solo para números de otro
    portafolio; no se vuelve a mostrar (la tabla dice "Propio" o "Global").
-3. **Editar:** agente, número visible, nombre y token. El agente nuevo vale para las conversaciones
-   nuevas; las en curso siguen con el suyo.
-4. **Desactivar:** los mensajes a ese número dejan de responderse. No hay borrado: las conversaciones
+3. **Editar:** agente por defecto, número visible, nombre y token. El agente nuevo vale para las
+   conversaciones nuevas; las en curso siguen con el suyo.
+4. **Ruteo por contacto** (menú de la fila): agrega uno o más agentes y, a cada uno, la lista de
+   contactos que atiende (el WhatsApp con código de país, ej. `5493511234567`; Enter después de cada
+   uno). Esos contactos los atiende ese agente en los mensajes y las llamadas de WhatsApp; los demás,
+   el agente por defecto. Los operadores siguen por encima. Se ve debajo del agente ("N reglas por
+   contacto").
+5. **Desactivar:** los mensajes a ese número dejan de responderse. No hay borrado: las conversaciones
    lo referencian. **Activar** lo vuelve a habilitar.
 
 Si el cliente está desactivado, sus números de WhatsApp tampoco responden.
@@ -318,11 +323,13 @@ Solo funciona desde `https://app.atentina.com.ar` (Meta exige HTTPS).
      mismo número.
    - **Calidad** (Alta, Media, Baja) y límite de envío, según Meta. **Releer datos de Meta** los actualiza.
 4. **Agente:** se cambia en la fila; vale para las conversaciones nuevas.
-5. **Plantillas:** abajo, por número. Lista las de tu cuenta con su estado (En revisión, Aprobada,
+5. **Ruteo por contacto:** en el menú de la fila, elegí los agentes y cargá los contactos que atiende
+   cada uno (mensajes y llamadas de WhatsApp); los demás los atiende el agente por defecto.
+6. **Plantillas:** abajo, por número. Lista las de tu cuenta con su estado (En revisión, Aprobada,
    Rechazada con el motivo) y **Nueva plantilla** crea una (nombre en minúsculas y `_`, categoría
    Utilidad o Marketing, cuerpo con `{{1}}`, `{{2}}`… y un ejemplo por variable). Meta la revisa.
-6. **Desactivar** deja de responder ese número; **Activar** lo vuelve a habilitar.
-7. Un número que cargó un admin con la cuenta de la plataforma (alta manual) no muestra registro, datos de
+7. **Desactivar** deja de responder ese número; **Activar** lo vuelve a habilitar.
+8. Un número que cargó un admin con la cuenta de la plataforma (alta manual) no muestra registro, datos de
    Meta ni plantillas al cliente: los maneja el admin.
 
 ### Campañas (`/campaigns`, ambos roles)

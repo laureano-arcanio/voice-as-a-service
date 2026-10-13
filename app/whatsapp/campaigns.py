@@ -450,6 +450,13 @@ def mark_replied(s: Session, recipient_id: str, conversation_id: str | None, at:
         recipient.replied_at, recipient.conversation_id = at, conversation_id
 
 
+def is_campaign_conversation(s: Session, conversation_id: str) -> bool:
+    """Si la conversacion la abrio la respuesta a una campaña (su agente no se pisa con una
+    regla de ruteo por contacto mientras siga abierta)."""
+    return s.scalar(select(WaCampaignRecipient.id)
+                    .where(WaCampaignRecipient.conversation_id == conversation_id).limit(1)) is not None
+
+
 def is_optout_text(text: str) -> bool:
     norm = unicodedata.normalize("NFD", text or "").encode("ascii", "ignore").decode().lower()
     norm = re.sub(r"[^a-z0-9 ]+", " ", norm)

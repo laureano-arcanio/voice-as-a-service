@@ -10,7 +10,7 @@ from ..agents.templates import blank_definition, template_data
 from ..apps.tools import check_grants
 from ..conversation.models import ToolGrant, Workflow
 from ..db import utcnow
-from ..models import Agent, AgentVersion, Client, ConversationRow, WaAccount
+from ..models import Agent, AgentVersion, Client, ConversationRow, WaAccount, WaRoute
 from . import voices
 from .errors import Conflict, Invalid, NotFound
 
@@ -112,4 +112,8 @@ def delete_agent(s: Session, agent: Agent) -> None:
     # wa_accounts.agent_id es RESTRICT: sin esto, IntegrityError (500) en PostgreSQL.
     if s.scalar(select(func.count()).select_from(WaAccount).where(WaAccount.agent_id == agent.id)):
         raise Conflict("El agente atiende un número de WhatsApp: conectá el número a otro agente", "agent_in_use")
+    # Igual con wa_routes.agent_id (reglas de ruteo por contacto).
+    if s.scalar(select(func.count()).select_from(WaRoute).where(WaRoute.agent_id == agent.id)):
+        raise Conflict("El agente atiende contactos de un número de WhatsApp: quitá la regla de ruteo",
+                       "agent_in_use")
     s.delete(agent)

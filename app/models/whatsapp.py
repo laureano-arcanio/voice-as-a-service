@@ -58,6 +58,19 @@ class WaAccount(IdMixin, TimestampMixin, Base):
         nullable=True)
 
 
+class WaRoute(IdMixin, TimestampMixin, Base):
+    """Ruteo por contacto de un numero de WhatsApp: los contactos de `contacts` (como los
+    manda Meta, 549351...) los atiende `agent` en vez del agente por defecto de la cuenta,
+    en los mensajes y las llamadas de WhatsApp (docs/WHATSAPP_PLAN.md)."""
+    __tablename__ = "wa_routes"
+    __table_args__ = (UniqueConstraint("account_id", "agent_id", name="uq_wa_routes_account_agent"),)
+    account_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("wa_accounts.id", ondelete="CASCADE"), index=True)
+    # RESTRICT como wa_accounts.agent_id: un agente en uso no se borra (services/agents.py).
+    agent_id: Mapped[str] = mapped_column(String(36), ForeignKey("agents.id", ondelete="RESTRICT"))
+    contacts: Mapped[list] = mapped_column(JSONDoc)     # wa_id, como los manda Meta
+
+
 class WaThread(Base):
     """Una fila por conversacion de WhatsApp: con quien y por que numero."""
     __tablename__ = "wa_threads"

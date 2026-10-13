@@ -178,8 +178,8 @@ export function EditWaAccountModal({ account, onClose }: { account: WaAccount; o
       >
         <Stack>
           <Select
-            label="Agente que responde"
-            description="Las conversaciones en curso siguen con su agente; el cambio vale para las nuevas."
+            label="Agente por defecto"
+            description="Los contactos sin regla de ruteo. Las conversaciones en curso siguen con su agente; el cambio vale para las nuevas."
             data={agentOptions(agents.data, account)}
             searchable
             data-autofocus

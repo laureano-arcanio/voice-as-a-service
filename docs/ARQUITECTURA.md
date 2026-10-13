@@ -56,6 +56,8 @@ app/
     limits.py        límites efectivos de un cliente: el tier más sus ajustes vigentes (`effective_limits`)
     calls.py         iniciar salientes/pruebas (prepare_call + dispatch) y entrantes (start_inbound)
     phone_numbers.py inventario: carga, asignación con tope, liberación, ruteo a agente
+    wa_routing.py    ruteo por contacto de WhatsApp (wa_routes): normaliza los wa_id, resuelve el
+                     agente de un contacto y reemplaza las reglas de una cuenta
     agents.py        alta, validación de la definición, versionado, archivo
     reports.py       lista de llamadas, detalle, indicadores y serie diaria (filtros y zona horaria)
     security.py      argon2, JWT HS256, API keys (SHA-256), token de alta de clave
@@ -84,7 +86,7 @@ app/
                      (campañas salientes por plantilla y bajas)
 migrations/          Alembic: 0001 esquema anterior (idempotente), 0002 tenencia, 0003 inventario de números,
                      0004 WhatsApp, 0005 Embedded Signup y session_version, …, 0008 campañas de WhatsApp,
-                     …, 0013 apps por cliente y operadores de WhatsApp
+                     …, 0013 apps por cliente y operadores de WhatsApp, 0015 ruteo por contacto de WhatsApp
 web/                 SPA React (ver "Frontend")
 tests/               pytest: API, límites, motor
 ```
@@ -104,7 +106,8 @@ tiers 1───* clients 1───* agents 1───* agent_versions
                 ├───* api_keys
                 ├───* client_limit_adjustments (ajustes de límites del tier, CASCADE)
                 ├───* apps (client_id, SET NULL: vuelve al inventario) 1───* app_links
-                ├───* wa_accounts (agent_id, RESTRICT) 1───* wa_threads
+                ├───* wa_accounts (agent_id, RESTRICT) 1───* wa_routes (ruteo por contacto)
+                │                                      1───* wa_threads
                 │                                      1───* wa_operators (client_id + agent_id propios)
                 └───* conversations 1───1 call_logs        (voz)
                          │          1───1 wa_threads       (whatsapp)
@@ -127,6 +130,7 @@ tiers 1───* clients 1───* agents 1───* agent_versions
 | `call_logs` | Una por conversación: modo, estado, teléfono del otro lado, `phone_number_id` del cliente, inicio, fin, duración, latencia. Base del consumo. |
 | `conversations.channel` | `voice` o `whatsapp`; se fija al crearla. Cambia el prompt (reglas por canal), no el agente. |
 | `wa_accounts` | Un número de WhatsApp: `phone_number_id` único (ID de Meta), `waba_id`, número visible, `client_id`, `agent_id`, `access_token` (NULL = `WA_ACCESS_TOKEN`; cifrado con `WA_TOKEN_KEY`, prefijo `fernet:`), `pin_enc`, `active`, `status` (`connected`, `pending`, `disconnected`) con motivo, `quality_rating`, `messaging_limit`, `source` (`manual`, `embedded_signup`, `coexistence`), `connected_by`. Sin borrado: se desactiva. |
+| `wa_routes` | Ruteo por contacto de una cuenta (`account_id` + `agent_id` únicos): `contacts` (wa_id como los manda Meta) que atiende ese agente en los mensajes y las llamadas de WhatsApp, en vez del agente por defecto. Un contacto está en una sola regla; el agente es del cliente de la cuenta y no archivado. Se resuelve en `services/wa_routing.py`. |
 | `wa_threads` | Una por conversación de WhatsApp (como `call_logs`): cuenta, `wa_id` tal cual llega (`549…`), nombre del perfil, `last_user_at` (ventana de sesión), `paused` (fase 3). |
 | `wa_campaigns` | Campaña saliente: cliente, número (`account_id`), agente opcional (NULL = el del número), copia de la plantilla (nombre, idioma, categoría, cuerpo, cantidad de variables), `status` (`draft`, `running`, `paused`, `done`, `cancelled`) con motivo de pausa, `rate_per_minute` y horario (`window_start`, `window_end`). |
 | `wa_campaign_recipients` | Un contacto de una campaña (`campaign_id` + `wa_id` únicos): variables, `status` (`pending`, `sending`, `sent`, `failed`, `skipped`), error, `wamid` (entregado y leído salen de `wa_messages`), `conversation_id` y `replied_at` si respondió. |
@@ -271,6 +275,9 @@ El formulario de contacto de la landing (`POST /demo/contact`, misma sesión) gu
    - **libre o sin agente:** se corta (`number_without_agent`);
    - **sin lugar o sin minutos:** queda `rechazada` y el que llama escucha `QUOTA_REJECT_MESSAGE`;
    - **si no:** conversación con el agente del número y llamada `entrante`.
+   En una llamada de WhatsApp el inbound trunk mapea el header `X-WA-Meta-Wacid` al atributo `wa.wacid`
+   (lo agrega el predial de Asterisk) y, si el llamante tiene regla de ruteo en la cuenta de ese número,
+   la atiende el agente de la regla; sin regla, el del número (ver "Mensaje de WhatsApp").
 3. Anura manda el número marcado (formato nacional con 0) y Asterisk lo pasa a LiveKit como `+54` + 10
    dígitos; sin un número válido usa `+54<ANURA_DID>`. Un número que no está en el inbound trunk
    (`make livekit-sip`) da 404 (ver [`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md), sección 1).
@@ -303,6 +310,11 @@ El formulario de contacto de la landing (`POST /demo/contact`, misma sesión) gu
 cliente y del agente del operador, no de los del número, y no se mira la campaña. Así un número de
 Atentina atiende a los dueños de varios negocios, cada uno con su asistente. Un hilo abierto con otro
 agente (lo hicieron operador a mitad de un chat) empieza una conversación nueva.
+
+**Ruteo por contacto (`wa_routes`):** debajo de operadores y campañas, si el `wa_id` está en la regla
+de un agente de esa cuenta, lo atiende ese agente, en los mensajes y las llamadas de WhatsApp. Un
+hilo abierto con otro agente se corta y sigue en una conversación nueva, como con los operadores; uno
+abierto por una campaña no se pisa. Un agente archivado se saltea y vuelve el de la cuenta.
 
 ### Motor assistant y apps
 
@@ -433,7 +445,7 @@ lo de esta sección es lo que lo protege.
 | Números: elegir agente y etiqueta | Sí | Los suyos | Los suyos |
 | WhatsApp: alta manual, token, número visible | Sí | No | No |
 | WhatsApp: conectar por Embedded Signup (`/whatsapp/signup`) | Sí | Los suyos | No |
-| WhatsApp: ver, agente, nombre, activar, registro, refresco, plantillas | Todo | Lo suyo | Lo suyo |
+| WhatsApp: ver, agente, nombre, activar, registro, refresco, plantillas, ruteo por contacto | Todo | Lo suyo | Lo suyo |
 | WhatsApp: campañas (crear, contactos, iniciar) | Todo | En sus números con token propio | Ídem |
 | WhatsApp: ver, pausar y cancelar campañas; bajas | Todo | Lo suyo | Lo suyo |
 | Llamadas, conversaciones, consumo, voces | Todo | Lo suyo | Lo suyo |
@@ -460,7 +472,8 @@ lo de esta sección es lo que lo protege.
   no depende de eso.
 - **WhatsApp** (`/whatsapp`): `GET /config` (datos para lanzar Embedded Signup: `app_id`, `config_id`,
   `enabled` y el motivo si falta algo), `GET|POST /accounts`, `PATCH /accounts/{id}`,
-  `POST /accounts/{id}/deactivate|register|refresh`, `GET|POST /accounts/{id}/templates` y
+  `POST /accounts/{id}/deactivate|register|refresh`, `PUT /accounts/{id}/routes` (ruteo por contacto:
+  reemplaza las reglas de la cuenta), `GET|POST /accounts/{id}/templates` y
   `POST /signup`. Detalle en [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md), 5.3.
 - **Campañas de WhatsApp** (`/whatsapp`): `GET|POST /campaigns`, `GET|PATCH|DELETE /campaigns/{id}`,
   `GET|POST /campaigns/{id}/recipients` (lista o CSV), `POST /campaigns/{id}/start|pause|cancel`,
@@ -515,8 +528,8 @@ lo de esta sección es lo que lo protege.
 
 | Qué | Comando | Cubre |
 |---|---|---|
-| Backend | `make test` (o `.venv/bin/pytest`) | API (auth, permisos, tiers, clientes, mails y alta de clave (`test_mail.py`), agentes y versiones, inventario de números, llamadas y límites, fechas por zona, cuentas, conversaciones y alta de WhatsApp, plantillas), seguridad del dashboard público (`test_security_public.py`), migración 0005 de ida y vuelta, cuotas, motor con LLM falso, WhatsApp (webhook, service con payloads de Meta y Graph simulado) y escenarios contra el LLM real (se saltean si no responde). |
-| Frontend | `make web-check` | ESLint, tipos y Vitest (formatos, parseo de números, errores de API, guardas por rol, consumo, WhatsApp: origen y mensajes de Embedded Signup, alta con el SDK simulado, plantillas). |
+| Backend | `make test` (o `.venv/bin/pytest`) | API (auth, permisos, tiers, clientes, mails y alta de clave (`test_mail.py`), agentes y versiones, inventario de números, llamadas y límites, fechas por zona, cuentas, conversaciones y alta de WhatsApp, plantillas, ruteo por contacto), seguridad del dashboard público (`test_security_public.py`), migración 0005 de ida y vuelta, cuotas, motor con LLM falso, WhatsApp (webhook, service con payloads de Meta y Graph simulado) y escenarios contra el LLM real (se saltean si no responde). |
+| Frontend | `make web-check` | ESLint, tipos y Vitest (formatos, parseo de números, errores de API, guardas por rol, consumo, WhatsApp: origen y mensajes de Embedded Signup, alta con el SDK simulado, plantillas, ruteo por contacto). |
 | Migraciones | `alembic upgrade head` / `downgrade` / `check` | Ida y vuelta en PostgreSQL y SQLite. |
 
 ## Configuración

@@ -3464,6 +3464,72 @@
     }
    }
   },
+  "/api/v1/whatsapp/accounts/{account_id}/routes": {
+   "put": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "Set Account Routes",
+    "description": "Reemplaza el ruteo por contacto de la cuenta: los contactos de cada regla los atiende\nese agente, en los mensajes y las llamadas de WhatsApp, en vez del agente por defecto.\n409 si un contacto esta en dos reglas; 422 con agente ajeno, archivado o regla vacia.",
+    "operationId": "set_account_routes_api_v1_whatsapp_accounts__account_id__routes_put",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "account_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Account Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "array",
+        "items": {
+         "$ref": "#/components/schemas/WaRouteIn"
+        },
+        "title": "Body"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/WaRouteOut"
+         },
+         "title": "Response Set Account Routes Api V1 Whatsapp Accounts  Account Id  Routes Put"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/whatsapp/signup": {
    "post": {
     "tags": [
@@ -12332,6 +12398,14 @@
       "title": "Source",
       "default": "manual"
      },
+     "routes": {
+      "items": {
+       "$ref": "#/components/schemas/WaRouteOut"
+      },
+      "type": "array",
+      "title": "Routes",
+      "description": "Ruteo por contacto: pisa al agente por defecto en mensajes y llamadas de WhatsApp"
+     },
      "created_at": {
       "type": "string",
       "format": "date-time",
@@ -12355,6 +12429,7 @@
      "has_token",
      "active",
      "status",
+     "routes",
      "created_at",
      "updated_at"
     ],
@@ -13380,6 +13455,66 @@
     },
     "type": "object",
     "title": "WaRegisterIn"
+   },
+   "WaRouteIn": {
+    "properties": {
+     "agent_id": {
+      "type": "string",
+      "title": "Agent Id"
+     },
+     "contacts": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "maxItems": 500,
+      "title": "Contacts",
+      "description": "WhatsApp de cada contacto, con código de país",
+      "examples": [
+       [
+        "5491155551234"
+       ]
+      ]
+     }
+    },
+    "type": "object",
+    "required": [
+     "agent_id"
+    ],
+    "title": "WaRouteIn",
+    "description": "Una regla de ruteo por contacto: estos contactos los atiende este agente."
+   },
+   "WaRouteOut": {
+    "properties": {
+     "agent_id": {
+      "type": "string",
+      "title": "Agent Id"
+     },
+     "agent_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agent Name"
+     },
+     "contacts": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Contacts"
+     }
+    },
+    "type": "object",
+    "required": [
+     "agent_id",
+     "contacts"
+    ],
+    "title": "WaRouteOut"
    },
    "WaSignupIn": {
     "properties": {

@@ -2,7 +2,9 @@
 
 - Admin: ve y administra todas; alta manual (numeros de nuestro portafolio) y token.
 - Usuario del cliente: conecta los suyos por Embedded Signup (/signup), elige el agente,
-  los activa o desactiva, reintenta el registro y maneja sus plantillas. Una cuenta de
+  los activa o desactiva, reintenta el registro, maneja sus plantillas y el ruteo por
+  contacto (PUT /routes: los contactos de cada regla los atiende ese agente, en mensajes
+  y llamadas de WhatsApp, en vez del agente por defecto de la cuenta). Una cuenta de
   otro cliente da 404; registro, /refresh y plantillas en una cuenta sin token propio
   (alta manual, token de nuestro portafolio), 403.
 No hay DELETE (las conversaciones le hacen RESTRICT): se desactiva.
@@ -15,7 +17,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 
 from ...config import settings
-from ...models import Agent, Client, WaAccount, WaThread
+from ...models import Agent, Client, WaAccount, WaRoute, WaThread
+from ...services import wa_routing
 from ...services.errors import Forbidden, NotFound
 from ...services.ratelimit import Limit
 from ...services.security import Principal
@@ -35,6 +38,8 @@ from ..schemas import (
     WaAccountPatch,
     WaConfigOut,
     WaRegisterIn,
+    WaRouteIn,
+    WaRouteOut,
     WaSignupIn,
     WaTemplateCreated,
     WaTemplateIn,
@@ -55,6 +60,12 @@ templates_limit = rate_limit("wa_templates", lambda: Limit(settings.wa_templates
                              message="Demasiadas plantillas creadas. Probá en una hora.")
 
 
+def _route_out(db, r: WaRoute) -> WaRouteOut:
+    agent = db.get(Agent, r.agent_id)
+    return WaRouteOut(agent_id=r.agent_id, agent_name=agent.name if agent else None,
+                      contacts=list(r.contacts or []))
+
+
 def _out(db, a: WaAccount) -> WaAccountOut:
     agent = db.get(Agent, a.agent_id)
     client = db.get(Client, a.client_id)
@@ -64,7 +75,9 @@ def _out(db, a: WaAccount) -> WaAccountOut:
         business_id=a.business_id, display_phone_number=a.display_phone_number, name=a.name,
         has_token=bool(a.access_token), has_pin=bool(a.pin_enc), active=a.active, status=a.status,
         status_reason=a.status_reason, status_changed_at=a.status_changed_at, quality_rating=a.quality_rating,
-        messaging_limit=a.messaging_limit, source=a.source, created_at=a.created_at, updated_at=a.updated_at)
+        messaging_limit=a.messaging_limit, source=a.source,
+        routes=[_route_out(db, r) for r in wa_routing.routes_for(db, a.id)],
+        created_at=a.created_at, updated_at=a.updated_at)
 
 
 def _get(db, account_id: str, p: Principal) -> WaAccount:
@@ -129,6 +142,17 @@ def deactivate_account(account_id: str, p: CurrentPrincipal, db: DB):
     store.update_account(db, a, active=False)
     db.commit()
     return _out(db, a)
+
+
+@router.put("/accounts/{account_id}/routes", response_model=list[WaRouteOut])
+def set_account_routes(account_id: str, body: list[WaRouteIn], p: CurrentPrincipal, db: DB):
+    """Reemplaza el ruteo por contacto de la cuenta: los contactos de cada regla los atiende
+    ese agente, en los mensajes y las llamadas de WhatsApp, en vez del agente por defecto.
+    409 si un contacto esta en dos reglas; 422 con agente ajeno, archivado o regla vacia."""
+    a = _get(db, account_id, p)
+    routes = wa_routing.set_routes(db, a, [(r.agent_id, r.contacts) for r in body])
+    db.commit()
+    return [_route_out(db, r) for r in routes]
 
 
 @router.post("/signup", response_model=WaAccountOut, status_code=201, dependencies=[Depends(signup_limit)])

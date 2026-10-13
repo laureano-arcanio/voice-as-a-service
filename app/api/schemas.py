@@ -340,6 +340,20 @@ class WaAccountPatch(BaseModel):
     active: bool | None = None
 
 
+class WaRouteIn(BaseModel):
+    """Una regla de ruteo por contacto: estos contactos los atiende este agente."""
+    agent_id: str
+    contacts: list[str] = Field(default_factory=list, max_length=500,
+                                examples=[["5491155551234"]],
+                                description="WhatsApp de cada contacto, con código de país")
+
+
+class WaRouteOut(BaseModel):
+    agent_id: str
+    agent_name: str | None = None
+    contacts: list[str]
+
+
 class WaAccountOut(BaseModel):
     """El token y el PIN nunca salen: solo si la cuenta tiene uno propio."""
     id: str
@@ -363,6 +377,8 @@ class WaAccountOut(BaseModel):
     quality_rating: str | None = Field(default=None, description="GREEN, YELLOW, RED, NA o UNKNOWN (Meta)")
     messaging_limit: str | None = Field(default=None, description="current_limit de phone_number_quality_update")
     source: Literal["manual", "embedded_signup", "coexistence"] = "manual"
+    routes: list[WaRouteOut] = Field(description="Ruteo por contacto: pisa al agente por defecto en mensajes y "
+                                                  "llamadas de WhatsApp")
     created_at: UTCDateTime
     updated_at: UTCDateTime
 

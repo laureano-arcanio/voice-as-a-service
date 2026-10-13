@@ -23,11 +23,12 @@ from .whatsapp import (
     WaMessage,
     WaOperator,
     WaOptout,
+    WaRoute,
     WaThread,
 )
 
 __all__ = [
     "ACTIVE_CALL_STATUSES", "Agent", "AgentVersion", "App", "AppJobRun", "AppLink", "ApiKey", "ApiUsageDaily", "BillingPayment", "CallMode", "CallRow", "CallStatus", "Client",
     "ClientLimitAdjustment", "ContactRequest", "ConversationRow", "PhoneNumber", "Role", "Subscription", "Tier", "User", "WaAccount", "WaCampaign",
-    "WaCampaignRecipient", "WaMessage", "WaOperator", "WaOptout", "WaThread",
+    "WaCampaignRecipient", "WaMessage", "WaOperator", "WaOptout", "WaRoute", "WaThread",
 ]

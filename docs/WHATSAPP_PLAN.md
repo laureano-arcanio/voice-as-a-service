@@ -632,8 +632,8 @@ Variables (`.env.example`): `WA_SIP_HOST` (`sip.atentina.com.ar`), `WA_SIP_PORT`
 - Si cambia el usuario del digest (otro número): `make pbx-cli` → `pjsip set logger on`, leer el
   `username` del `Authorization` y ponerlo en `WA_SIP_USER`.
 - Con SIP activo, Meta no manda el webhook `calls` ni deja usar los endpoints de llamadas de la Graph API.
-- La llamada aparece como una de teléfono: falta marcarla como WhatsApp (headers `x-wa-meta-*` →
-  atributos de LiveKit → `call_logs`).
+- La llamada aparece como una de teléfono: el WhatsApp del que llama ya viaja a LiveKit como atributo
+  `wa.wacid` (5.6), pero falta marcarla como de WhatsApp en `call_logs`.
 - Las salientes (el negocio llama) piden permiso del usuario y digest en la otra dirección: sin hacer.
 - **Modo automático de Claude Code:** bloquea crear el registro DNS y el `wa-calling-enable`. Los corre
   el usuario, o los pide explícitamente.
@@ -681,6 +681,37 @@ la aprobación y crear la campaña. Probar primero con una lista de 2 o 3 númer
 
 **Pendiente:** reintentos de los fallidos, tope de plantillas por tier, costo estimado por campaña, campañas
 programadas (fecha de inicio) y plantillas con imagen o variables fuera del cuerpo.
+
+### 5.6 Ruteo por contacto (13-oct-2026)
+
+Un número de WhatsApp puede atender distintos agentes según quién escribe o llama. En cada cuenta: el
+**agente por defecto** (`wa_accounts.agent_id`, el de siempre) y **reglas** (`wa_routes`): una lista de
+contactos por agente. Los contactos de una regla los atiende ese agente; los demás, el agente por defecto.
+
+- **Alcance:** mensajes y llamadas de WhatsApp. La voz de Anura no cambia (sigue el agente del número).
+  Una llamada de un contacto de una regla va a su agente; un número sin agente por defecto pero con una
+  regla que aplica atiende igual.
+- **Prioridad:** operador (`wa_operators`) y respuesta a campaña ganan; debajo va la regla y después el
+  agente por defecto. Un contacto de una regla con un hilo abierto con otro agente pasa a una conversación
+  nueva con el de la regla (como al hacer operador); una conversación abierta por una campaña no se pisa.
+  Un agente de regla archivado se saltea: lo atiende el agente por defecto.
+- **Contactos:** se cargan como el `wa_id` de Meta (celular argentino con el 9; se aceptan `+`, espacios y
+  guiones). Para comparar se canonizan: solo dígitos y, en Argentina, sin el 9 internacional (Meta manda
+  `549…`, Anura entrega `54…` para el mismo número). Un contacto está en una sola regla de la cuenta y el
+  agente tiene que ser del cliente y no estar archivado.
+- **UI:** WhatsApp → menú de la fila → **Ruteo por contacto**; debajo del agente se ve cuántas reglas tiene.
+  **API:** `PUT /api/v1/whatsapp/accounts/{id}/routes` reemplaza la lista completa (admin, usuario del
+  cliente o API key con `calls`).
+- **Código:** `app/services/wa_routing.py` (canonicalización, resolución y validación), tabla `wa_routes`
+  (migración 0015), `app/api/routers/whatsapp.py`, `app/whatsapp/service.py` (mensajes) y
+  `calls.start_inbound` (llamadas).
+- **Llamadas:** Asterisk agrega `X-WA-Meta-Wacid` al INVITE hacia LiveKit (`whatsapp-predial`), el inbound
+  trunk lo mapea al atributo `wa.wacid` (`headers_to_attributes`, `scripts/livekit_sip_setup.py`) y el
+  worker lo pasa a `start_inbound`. Desplegar: `make livekit-sip` (actualiza el trunk) y recrear Asterisk
+  (`make up-pbx`, corta las llamadas en curso). Sin eso, las llamadas siguen yendo al agente del número.
+
+**Pendiente:** marcar la llamada como de WhatsApp en `call_logs` (el `wa.wacid` ya llega) y ruteo por
+contacto para la voz de Anura (hoy solo WhatsApp, por decisión del 13-oct-2026).
 
 ## 6. Riesgos y trampas
 
