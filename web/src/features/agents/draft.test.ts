@@ -53,6 +53,14 @@ describe('toDraft / fromDraft', () => {
     expect(stableJson(fromDraft(toDraft(def)))).toBe(stableJson(def));
   });
 
+  it('record_audio: false no va (como la voz); true si', () => {
+    expect(toDraft(def).recordAudio).toBe(false);
+    expect(fromDraft(toDraft(def))).not.toHaveProperty('record_audio');
+    const d = toDraft({ ...def, record_audio: true });
+    expect(d.recordAudio).toBe(true);
+    expect(fromDraft(d)).toMatchObject({ record_audio: true });
+  });
+
   it('ordena los datos por prioridad y lee las condiciones', () => {
     const d = toDraft(def);
     expect(d.fields.map((f) => f.name)).toEqual(['wants', 'zone']);

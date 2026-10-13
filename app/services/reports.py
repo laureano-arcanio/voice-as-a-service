@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..agents.definitions import DefinitionSource
+from ..config import settings
 from ..agents.templates import load_reference
 from ..conversation.models import ConversationState, Progress, Workflow
 from ..conversation.workflow import INCOMPLETE, is_required, outcome_for
@@ -162,6 +163,8 @@ class Reports:
             f["rejected"] = progress.rejected.get(f["name"])
         outcome = self.outcome(workflow, conv)
         number = self.s.get(PhoneNumber, call.phone_number_id) if call and call.phone_number_id else None
+        rec_dir = settings.call_recordings_dir / conv.id
+        recordings = sorted(int(p.stem) for p in rec_dir.glob("*.wav")) if rec_dir.is_dir() else []
         return {
             "id": conv.id, "client_id": conv.client_id, "client_name": client_name,
             "agent_id": conv.agent_id, "agent_name": agent_name or conv.legacy_workflow_id,
@@ -169,6 +172,7 @@ class Reports:
             "workflow_status": conv.status, "fields": fields,
             "outcome": None if outcome is None else {"label": outcome.label, "goal": outcome.goal},
             "messages": conv.messages,
+            "recordings": recordings,
             "call": None if call is None else {
                 "mode": call.mode, "phone": call.phone, "status": call.status,
                 "client_number": number.e164 if number else None,

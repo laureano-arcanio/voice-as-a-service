@@ -81,6 +81,11 @@ export function useDailyStats(p: CallFilters & { date_from: string; date_to: str
   });
 }
 
+/** URL del WAV de ese turno (agent.record_audio): la cookie de sesion viaja sola, mismo origen. */
+export function recordingUrl(conversationId: string, turn: number): string {
+  return `/api/v1/calls/${conversationId}/recordings/${turn}`;
+}
+
 export function isCallLive(c: CallDetail | undefined): boolean {
   if (!c || c.whatsapp?.closed_at) return false;
   return c.call ? isLiveStatus(c.call.status) : c.workflow_status === 'active';

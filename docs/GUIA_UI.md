@@ -80,7 +80,7 @@ El detalle del agente tiene cuatro pestañas:
   (ver [Agentes (cliente)](#agentes-cliente)):
   - **Agente:** nombre, rol, idioma y **motor** (Clásico, Estructurado o Asistente, en tarjetas). La definición es la misma con los dos primeros: cambiarlo no toca nada más. **Asistente** (solo admin) es el asistente personal con las herramientas de las apps del cliente ([`APPS.md`](APPS.md)): oculta Datos a obtener y Resultados (lo que haya queda guardado) y muestra **Herramientas**.
   - **Herramientas** (motor Asistente): un switch por cada app del cliente, con **Todas** o **Elegir** herramientas una por una. Las que borran o envían se confirman con el usuario antes de usarlas.
-  - **Voz:** tarjetas con las voces (filtro por mujeres u hombres); al lado, la prueba con la voz elegida, con la apertura como texto (editable).
+  - **Voz:** tarjetas con las voces (filtro por mujeres u hombres); al lado, la prueba con la voz elegida, con la apertura como texto (editable). **Grabar audio**: un WAV por turno de cada llamada (telefónica o de WhatsApp), localmente en el servidor.
   - **Objetivo y apertura**, **Reglas** (una por regla) y **Base de conocimiento**.
   - **Datos a obtener:** cada dato con etiqueta, nombre interno, tipo (texto, número, sí o no, opción
     de una lista, email, email o teléfono), si es obligatorio (sí, no o según otro dato), descripción
@@ -241,6 +241,7 @@ Para que un dueño use su app: asignarla, crear un agente con motor **Asistente*
   rechazados. Los recién obtenidos se resaltan unos segundos.
 - **Conversación:** el chat. Con **Salida del LLM** se despliega lo que devolvió el LLM en cada turno
   (conversación y extracción, con su tiempo y razonamiento).
+- **Grabaciones:** si el agente tiene **Grabar audio** prendido, un reproductor por turno.
 - **Latencia por turno:** E2E, EOU, STT, endpointing, LLM, TTS y audio, con promedios y máximos.
 - El cliente ve las dos cosas como **Detalle técnico**: el interruptor del chat y, al final, una
   tarjeta plegada con la latencia.

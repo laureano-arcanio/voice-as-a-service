@@ -345,6 +345,35 @@ def test_test_call_and_outbound_call(api, admin):
     assert admin.get(f"{V1}/stats", params={"client_id": c["id"]}).json()["calls"] == 2
 
 
+def test_call_recordings(api, admin, monkeypatch, tmp_path):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "call_recordings_dir", tmp_path)
+    c = make_client(admin)
+    agent = make_agent(admin, c)
+    call = admin.post(f"{V1}/calls", json={"agent_id": agent["id"]}).json()
+    conversation_id = call["conversation_id"]
+
+    assert admin.get(f"{V1}/calls/{conversation_id}").json()["recordings"] == []
+    assert admin.get(f"{V1}/calls/{conversation_id}/recordings/1").status_code == 404
+
+    rec_dir = tmp_path / conversation_id
+    rec_dir.mkdir()
+    (rec_dir / "001.wav").write_bytes(b"RIFF....WAVEfmt ")
+    (rec_dir / "002.wav").write_bytes(b"RIFF....WAVEfmt ")
+
+    assert admin.get(f"{V1}/calls/{conversation_id}").json()["recordings"] == [1, 2]
+    r = admin.get(f"{V1}/calls/{conversation_id}/recordings/1")
+    assert r.status_code == 200 and r.content == b"RIFF....WAVEfmt " and r.headers["content-type"] == "audio/wav"
+    assert admin.get(f"{V1}/calls/{conversation_id}/recordings/3").status_code == 404
+
+    # Otro cliente no puede escuchar las grabaciones de esta llamada.
+    other = make_client(admin, "otro")
+    key = admin.post(f"{V1}/clients/{other['id']}/api-keys", json={"name": "k"}).json()["key"]
+    headers = {"Authorization": f"Bearer {key}"}
+    assert api.client.get(f"{V1}/calls/{conversation_id}/recordings/1", headers=headers).status_code == 404
+
+
 def test_concurrency_limit(api, admin):
     c = make_client(admin, max_concurrent_calls=1)
     agent = make_agent(admin, c)

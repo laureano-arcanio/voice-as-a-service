@@ -2,8 +2,11 @@ import asyncio
 import json
 import logging
 import time
+import wave
+from pathlib import Path
 
 import httpx
+import numpy as np
 from google.protobuf.duration_pb2 import Duration
 from livekit.agents import (
     Agent,
@@ -16,7 +19,7 @@ from livekit.agents import (
 from livekit.agents.voice.agent_activity import _SpeechHandleContextVar
 from livekit.plugins import openai, silero
 
-from livekit import api
+from livekit import api, rtc
 
 from ..config import settings
 from ..conversation.engine import ConversationEngine
@@ -59,9 +62,37 @@ CONTINUATION_WINDOW = 1.5
 # Cuanto se espera a que termine de cerrarse una respuesta cortada.
 SETTLE_TIMEOUT = 2.0
 
+# Grabacion por turno (agent.record_audio en la definicion, docs/ARQUITECTURA.md): un WAV mono
+# por turno en RECORDINGS_DIR/<conversation_id>/NNN.wav. Mismo sample rate que la convencion de
+# audio de WhatsApp (STT_RATE en app/whatsapp/audio.py): voz, no necesita mas.
+RECORDING_SAMPLE_RATE = 16000
+
+
+class _MonoResampler:
+    """Frames de un canal a RECORDING_SAMPLE_RATE, mono: misma logica que
+    livekit.agents.voice.recorder_io._Track._resample (modulo privado, no se importa)."""
+
+    def __init__(self) -> None:
+        self._resampler: rtc.AudioResampler | None = None
+        self._source_rate: int | None = None
+
+    def push(self, frame: rtc.AudioFrame) -> list[rtc.AudioFrame]:
+        data = np.frombuffer(frame.data, dtype=np.int16).reshape(-1, frame.num_channels)
+        mono = data.mean(axis=1).astype(np.int16) if frame.num_channels > 1 else data[:, 0]
+        mono_frame = rtc.AudioFrame(
+            data=mono.tobytes(), sample_rate=frame.sample_rate, num_channels=1, samples_per_channel=len(mono))
+        if frame.sample_rate == RECORDING_SAMPLE_RATE:
+            return [mono_frame]
+        if self._resampler is None or self._source_rate != frame.sample_rate:
+            self._source_rate = frame.sample_rate
+            self._resampler = rtc.AudioResampler(
+                input_rate=frame.sample_rate, output_rate=RECORDING_SAMPLE_RATE, num_channels=1)
+        return self._resampler.push(mono_frame)
+
 
 class WorkflowAgent(Agent):
-    def __init__(self, engine: ConversationEngine, conversation_id: str, latency: TurnLatencyTracker, on_completed):
+    def __init__(self, engine: ConversationEngine, conversation_id: str, latency: TurnLatencyTracker, on_completed,
+                 record_dir: Path | None = None):
         super().__init__(instructions="")
         self.engine = engine
         self.conversation_id = conversation_id
@@ -77,6 +108,71 @@ class WorkflowAgent(Agent):
         self.consumed: set[str] = set()         # mensajes del cliente ya procesados
         self.played: dict[str, float] = {}      # segundos que sono cada respuesta (speech_id)
         self._speaking: tuple[str, float] | None = None
+        # Grabacion por turno (None: agent.record_audio en false, no se graba).
+        self.record_dir = record_dir
+        self._rec_seq = 0
+        self._rec_customer = bytearray()        # audio del cliente desde el ultimo turno confirmado
+        self._rec_customer_resampler = _MonoResampler()
+        self._rec_agent_resampler = _MonoResampler()
+        self._rec_pending: tuple[bytes, bytes] | None = None  # (cliente, agente) del ultimo turno, sin confirmar
+
+    def stt_node(self, audio, model_settings):
+        if self.record_dir is None:
+            return super().stt_node(audio, model_settings)
+        return super().stt_node(self._tee_customer_audio(audio), model_settings)
+
+    async def _tee_customer_audio(self, audio):
+        async for frame in audio:
+            for f in self._rec_customer_resampler.push(frame):
+                self._rec_customer.extend(f.data)
+            yield frame
+
+    def tts_node(self, text, model_settings):
+        if self.record_dir is None:
+            return super().tts_node(text, model_settings)
+        return self._tee_agent_audio(text, model_settings)
+
+    async def _tee_agent_audio(self, text, model_settings):
+        agent_audio = bytearray()
+        try:
+            async for frame in super().tts_node(text, model_settings):
+                for f in self._rec_agent_resampler.push(frame):
+                    agent_audio.extend(f.data)
+                yield frame
+        finally:
+            # No se escribe todavia: si settle_last_reply deshace este turno (respuesta
+            # interrumpida apenas empezada), este audio tiene que volver al turno siguiente,
+            # no quedar en un WAV de un turno que el motor ya fusiono con otro.
+            self._rec_pending = (bytes(self._rec_customer), bytes(agent_audio))
+            self._rec_customer.clear()
+
+    def _commit_turn(self, customer_audio: bytes, agent_audio: bytes) -> None:
+        """Un WAV con lo que dijo el cliente desde el turno anterior y esta respuesta (o el
+        saludo, en el primer turno). Se llama solo para un turno ya confirmado (no retractado)."""
+        if not customer_audio and not agent_audio:
+            return
+        self._rec_seq += 1
+        path = self.record_dir / f"{self._rec_seq:03d}.wav"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with wave.open(str(path), "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(RECORDING_SAMPLE_RATE)
+            w.writeframes(customer_audio)
+            w.writeframes(agent_audio)
+
+    def flush_recording(self) -> None:
+        """Al cortar: confirma el ultimo turno si quedo pendiente y, si el cliente hablo
+        despues sin que el agente respondiera, ese resto tambien queda en un archivo (sin
+        esto se perdia el final de la llamada)."""
+        if self.record_dir is None:
+            return
+        if self._rec_pending is not None:
+            self._commit_turn(*self._rec_pending)
+            self._rec_pending = None
+        if self._rec_customer:
+            self._commit_turn(bytes(self._rec_customer), b"")
+            self._rec_customer.clear()
 
     async def on_enter(self):
         self.session.on("agent_state_changed", self.on_agent_state)
@@ -142,10 +238,13 @@ class WorkflowAgent(Agent):
     async def settle_last_reply(self) -> None:
         """Si la respuesta anterior se corto antes de sonar o apenas empezada, el
         cliente seguia con la misma frase: se deshace ese turno y sus mensajes
-        vuelven a entrar en este. Si no, el principio quedaba procesado dos
-        veces y el agente contestaba cada pedazo."""
+        (y, si se graba, su audio) vuelven a entrar en este. Si no, el principio
+        quedaba procesado dos veces y el agente contestaba cada pedazo."""
         prev = self.last_reply
         if prev is None or not prev.interrupted:
+            if self._rec_pending is not None:
+                self._commit_turn(*self._rec_pending)
+                self._rec_pending = None
             return
         if not prev.done():
             try:
@@ -154,9 +253,17 @@ class WorkflowAgent(Agent):
                 logger.warning("reply %s not done after %ss", prev.id, SETTLE_TIMEOUT)
         self.last_reply = None
         played = self.played.get(prev.id, 0.0)
+        # El audio de esta respuesta ya termino de sintetizarse para cuando wait_for_playout
+        # resuelve (o prev.done() ya era true), asi que _tee_agent_audio ya dejo su pendiente.
+        pending = self._rec_pending
+        self._rec_pending = None
         if played < CONTINUATION_WINDOW and self.engine.retract_last_turn(self.conversation_id):
             self.consumed -= self.last_user_ids
+            if pending is not None:
+                self._rec_customer[0:0] = pending[0]
             logger.info("turn retracted %s (reply interrupted after %.2fs)", self.conversation_id, played)
+        elif pending is not None:
+            self._commit_turn(*pending)
 
     def on_reply_done(self, speech) -> None:
         for item in speech.chat_items:
@@ -310,9 +417,11 @@ async def entrypoint(ctx: JobContext):
         with sessions() as s:
             call_service.update_call(s, conversation_id, **values)
 
-    voice = await resolve_voice(engine.workflow(state), metadata.get("voice"))
+    workflow = engine.workflow(state)
+    voice = await resolve_voice(workflow, metadata.get("voice"))
     logger.info("llamada %s (%s): agente %s v%s, voz %s", conversation_id, mode, state.agent_id,
                 state.agent_version, voice)
+    record_dir = settings.call_recordings_dir / conversation_id if workflow.record_audio else None
     session = build_session(voice)
     latency = TurnLatencyTracker()
     session.on("metrics_collected", lambda ev: latency.on_metrics(ev.metrics))
@@ -322,6 +431,7 @@ async def entrypoint(ctx: JobContext):
     async def finalize(reason: str = ""):
         if watchdog is not None:
             watchdog.cancel()
+        agent.flush_recording()
         # La extraccion del ultimo turno puede seguir corriendo (el resultado sale
         # de ahi); en el motor clasico, si corto el cliente, es la unica.
         await engine.finish(conversation_id)
@@ -376,7 +486,7 @@ async def entrypoint(ctx: JobContext):
         on_completed = lambda: logger.info("loadtest %s: workflow completo, sigue la llamada", conversation_id)
     else:
         on_completed = lambda: asyncio.create_task(hang_up())
-    agent = WorkflowAgent(engine, conversation_id, latency, on_completed=on_completed)
+    agent = WorkflowAgent(engine, conversation_id, latency, on_completed=on_completed, record_dir=record_dir)
 
     ctx.room.on("participant_disconnected", lambda _: ctx.shutdown(reason="customer_hangup"))
 

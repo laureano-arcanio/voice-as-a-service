@@ -78,6 +78,8 @@ export interface Draft {
   language: string;
   /** '' = la predeterminada (VLLM_TTS_VOICE). */
   voice: string;
+  /** Un WAV por turno (telefono o WhatsApp), localmente. */
+  recordAudio: boolean;
   objective: string;
   opening: string;
   rules: RuleDraft[];
@@ -143,6 +145,7 @@ export function toDraft(d: Definition): Draft {
     role: str(agent.role),
     language: str(agent.language),
     voice: str(agent.voice),
+    recordAudio: d.record_audio === true,
     objective: str(obj(d.objective).description),
     opening: str(conv.opening),
     rules: (Array.isArray(conv.rules) ? conv.rules : []).map((r) => ({ key: newKey(), text: str(r) })),
@@ -186,6 +189,7 @@ export function fromDraft(draft: Draft): Definition {
     id: draft.id,
     ...(draft.version != null ? { version: draft.version } : {}),
     engine: draft.engine,
+    ...(draft.recordAudio ? { record_audio: true } : {}),
     agent: {
       name: draft.name,
       role: draft.role,
@@ -303,6 +307,7 @@ function outcomeAt(draft: Draft, seg: string | undefined): OutcomeDraft | undefi
 export function errorTarget(draft: Draft, path: string): ErrorTarget | null {
   const [head, second, third] = path.split('.');
   if (head === 'engine') return { section: 'agente' };
+  if (head === 'record_audio') return { section: 'voz' };
   if (head === 'agent') return { section: second === 'voice' ? 'voz' : 'agente' };
   if (head === 'objective') return { section: 'objetivo' };
   if (head === 'conversation') return { section: second === 'rules' ? 'reglas' : 'objetivo' };
@@ -325,6 +330,7 @@ const PATH_WORDS: Record<string, string> = {
   role: 'rol',
   language: 'idioma',
   voice: 'voz',
+  record_audio: 'grabar audio',
   engine: 'Motor',
   objective: 'Objetivo',
   conversation: 'Conversación',

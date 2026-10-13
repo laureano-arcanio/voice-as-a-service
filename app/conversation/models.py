@@ -74,6 +74,9 @@ class Workflow(BaseModel):
     # multiturno en texto y una sola extraccion al final. assistant: asistente
     # con herramientas de las apps del cliente (sin datos a extraer).
     engine: Literal["structured", "classic", "assistant"] = "structured"
+    # Graba un WAV por turno (telefono o WhatsApp, mismo agente de voz), localmente:
+    # app/voice/worker.py, RECORDINGS_DIR/<conversation_id>/NNN.wav.
+    record_audio: bool = False
     agent: AgentInfo
     objective: Objective
     conversation: ConversationConfig

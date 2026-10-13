@@ -2635,6 +2635,61 @@
     }
    }
   },
+  "/api/v1/calls/{conversation_id}/recordings/{n}": {
+   "get": {
+    "tags": [
+     "calls"
+    ],
+    "summary": "Get Recording",
+    "description": "El WAV de ese turno (agent.record_audio prendido): CALL_RECORDINGS_DIR/<id>/NNN.wav.",
+    "operationId": "get_recording_api_v1_calls__conversation_id__recordings__n__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "conversation_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Conversation Id"
+      }
+     },
+     {
+      "name": "n",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "N"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/stats": {
    "get": {
     "tags": [
@@ -6141,6 +6196,63 @@
     }
    }
   },
+  "/api/v1/apps/{app_id}/jobs/{job}/run": {
+   "post": {
+    "tags": [
+     "apps"
+    ],
+    "summary": "Run Job",
+    "description": "Corre un aviso programado ahora (prueba): llama a la app y le manda el aviso a los\noperadores del cliente, en APPS_OUTBOX_MODE. No cuenta como la corrida del dia.",
+    "operationId": "run_job_api_v1_apps__app_id__jobs__job__run_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "app_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "App Id"
+      }
+     },
+     {
+      "name": "job",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Job"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AppJobRunOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/apps/{app_id}/links": {
    "get": {
     "tags": [
@@ -6817,6 +6929,80 @@
     ],
     "title": "ApiKeyOut"
    },
+   "AppJobOut": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "title": {
+      "type": "string",
+      "title": "Title",
+      "default": ""
+     },
+     "hora": {
+      "type": "string",
+      "title": "Hora"
+     },
+     "dias": {
+      "items": {
+       "type": "integer"
+      },
+      "type": "array",
+      "title": "Dias",
+      "default": []
+     }
+    },
+    "type": "object",
+    "required": [
+     "name",
+     "hora"
+    ],
+    "title": "AppJobOut"
+   },
+   "AppJobRunOut": {
+    "properties": {
+     "message": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Message"
+     },
+     "url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Url"
+     },
+     "entregas": {
+      "items": {
+       "additionalProperties": {
+        "type": "string"
+       },
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Entregas"
+     }
+    },
+    "type": "object",
+    "required": [
+     "message",
+     "url",
+     "entregas"
+    ],
+    "title": "AppJobRunOut"
+   },
    "AppLinkIn": {
     "properties": {
      "view": {
@@ -7019,6 +7205,14 @@
       },
       "type": "array",
       "title": "Tools",
+      "default": []
+     },
+     "jobs": {
+      "items": {
+       "$ref": "#/components/schemas/AppJobOut"
+      },
+      "type": "array",
+      "title": "Jobs",
       "default": []
      }
     },
@@ -7388,6 +7582,14 @@
       },
       "type": "array",
       "title": "Messages"
+     },
+     "recordings": {
+      "items": {
+       "type": "integer"
+      },
+      "type": "array",
+      "title": "Recordings",
+      "default": []
      },
      "call": {
       "anyOf": [

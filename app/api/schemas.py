@@ -800,6 +800,8 @@ class CallDetail(BaseModel):
     fields: list[FieldValue]
     outcome: OutcomeOut | None
     messages: list[MessageOut]
+    # Numero de turno de cada WAV grabado (agent.record_audio), si los hay.
+    recordings: list[int] = []
     call: CallInfo | None
     whatsapp: WhatsAppInfo | None = None
 

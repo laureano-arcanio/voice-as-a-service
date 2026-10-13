@@ -3,6 +3,7 @@ from typing import Annotated
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Query
+from fastapi.responses import FileResponse
 
 from ...config import settings
 from ...services import calls as service
@@ -54,6 +55,18 @@ def get_call(conversation_id: str, p: CurrentPrincipal, db: DB, definitions: Def
     if detail is None or not p.can_access(detail["client_id"]):
         raise NotFound("Conversación inexistente")
     return detail
+
+
+@router.get("/calls/{conversation_id}/recordings/{n}")
+def get_recording(conversation_id: str, n: int, p: CurrentPrincipal, db: DB, definitions: Definitions):
+    """El WAV de ese turno (agent.record_audio prendido): CALL_RECORDINGS_DIR/<id>/NNN.wav."""
+    detail = Reports(db, definitions).detail(conversation_id)
+    if detail is None or not p.can_access(detail["client_id"]):
+        raise NotFound("Conversación inexistente")
+    path = settings.call_recordings_dir / conversation_id / f"{n:03d}.wav"
+    if not path.is_file():
+        raise NotFound("Grabación inexistente")
+    return FileResponse(path, media_type="audio/wav", filename=path.name)
 
 
 @router.get("/stats", response_model=StatsOut)

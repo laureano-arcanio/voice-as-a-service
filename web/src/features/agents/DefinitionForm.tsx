@@ -633,6 +633,12 @@ export function DefinitionForm({
           onChange={(voice) => set({ voice })}
           previewText={draft.opening}
         />
+        <Switch
+          label="Grabar audio"
+          description="Un archivo por turno (la llamada completa, telefónica o de WhatsApp), localmente en el servidor."
+          checked={draft.recordAudio}
+          onChange={(e) => set({ recordAudio: e.currentTarget.checked })}
+        />
       </Section>
 
       <Section name="objetivo" title="Objetivo y apertura">

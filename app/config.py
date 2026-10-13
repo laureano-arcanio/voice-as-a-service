@@ -75,6 +75,9 @@ class Settings(BaseSettings):
     livekit_sip_outbound_trunk_name: str = "anura-asterisk-outbound"
     livekit_agent_name: str = "aiva-outbound-caller"
     call_max_duration_seconds: int = 900
+    # Grabaciones por turno (agent.record_audio, app/voice/worker.py): storage/ montado en
+    # `agent` (docker-compose.yml), no versionado (.gitignore).
+    call_recordings_dir: Path = Field(default=BASE_DIR / "storage" / "recordings")
 
     # --- Inferencia ---
     vllm_api_key: str = "not-needed"

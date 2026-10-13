@@ -28,7 +28,7 @@ export function WorkflowSummary({ definition }: { definition: Definition }) {
         <Text size="xs" c="dimmed" mb="sm">
           Las preguntas son sugeridas: el agente las reformula y completa los datos en el orden que surjan.
         </Text>
-        <SimpleGrid cols={{ base: 2, sm: isAdmin ? 5 : 4 }} spacing="md">
+        <SimpleGrid cols={{ base: 2, sm: isAdmin ? 6 : 5 }} spacing="md">
           <Item label="Agente">
             {w.agent.name}
             {w.agent.role && ` (${w.agent.role})`}
@@ -37,6 +37,7 @@ export function WorkflowSummary({ definition }: { definition: Definition }) {
           <Item label="Versión">{w.version != null ? `v${w.version}` : '–'}</Item>
           {isAdmin && <Item label="Motor">{ENGINE[w.engine] ?? w.engine}</Item>}
           <Item label="Voz">{w.agent.voice ?? 'La predeterminada'}</Item>
+          <Item label="Grabación">{w.recordAudio ? 'Sí, por turno' : 'No'}</Item>
         </SimpleGrid>
         <Title order={5} mt="lg" mb={4}>
           Objetivo

@@ -151,7 +151,7 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
 
 ```json
 {
-  "id": "ventas", "version": 3, "engine": "classic",
+  "id": "ventas", "version": 3, "engine": "classic", "record_audio": false,
   "agent": {"name": "Sofía", "role": "asesora comercial", "language": "es-AR", "voice": "sofia"},
   "objective": {"description": "…"},
   "conversation": {"opening": "Hola, te habla Sofía…", "rules": ["…"]},
@@ -175,6 +175,18 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
   guardar se valida que cada app sea del cliente y tenga esas herramientas.
 - `fields.<campo>.label` (opcional): nombre del dato para mostrarlo (resultado de la demo de la
   landing). No va al prompt.
+- **`record_audio`** (default `false`): graba la llamada (telefónica o de WhatsApp, mismo agente
+  de voz), un WAV mono de 16 kHz por turno, localmente (`CALL_RECORDINGS_DIR`, default
+  `storage/recordings/<conversation_id>/NNN.wav`; `storage/` montado en `agent`, no versionado).
+  El turno 1 es el saludo; cada archivo siguiente junta lo que dijo el cliente desde el archivo
+  anterior con esa respuesta (`app/voice/worker.py`, `WorkflowAgent.stt_node`/`tts_node`). Si el
+  cliente interrumpe una respuesta recién empezada, el motor deshace ese turno (`settle_last_reply`,
+  caso de `c5fa81cd`) y el WAV pendiente se descarta: ese audio del cliente vuelve al turno
+  siguiente en vez de quedar en un archivo aparte. Sin backup todavía (`scripts/ops/backup.sh` no
+  lo cubre). Se escucha desde el dashboard: `CallDetailPage` (web/) muestra un reproductor por
+  turno si la llamada tiene grabaciones (`CallDetail.recordings`), servido por
+  `GET /api/v1/calls/{conversation_id}/recordings/{n}` con el mismo control de acceso que el resto
+  del detalle de la llamada.
 - **Validación al guardar:**
   - nombres de campo en minúsculas;
   - `choice` con `options`;

@@ -774,6 +774,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/calls/{conversation_id}/recordings/{n}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Recording
+         * @description El WAV de ese turno (agent.record_audio prendido): CALL_RECORDINGS_DIR/<id>/NNN.wav.
+         */
+        get: operations["get_recording_api_v1_calls__conversation_id__recordings__n__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/stats": {
         parameters: {
             query?: never;
@@ -1869,6 +1889,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/apps/{app_id}/jobs/{job}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run Job
+         * @description Corre un aviso programado ahora (prueba): llama a la app y le manda el aviso a los
+         *     operadores del cliente, en APPS_OUTBOX_MODE. No cuenta como la corrida del dia.
+         */
+        post: operations["run_job_api_v1_apps__app_id__jobs__job__run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/apps/{app_id}/links": {
         parameters: {
             query?: never;
@@ -2097,6 +2138,34 @@ export interface components {
             /** Revoked At */
             revoked_at: string | null;
         };
+        /** AppJobOut */
+        AppJobOut: {
+            /** Name */
+            name: string;
+            /**
+             * Title
+             * @default
+             */
+            title?: string;
+            /** Hora */
+            hora: string;
+            /**
+             * Dias
+             * @default []
+             */
+            dias?: number[];
+        };
+        /** AppJobRunOut */
+        AppJobRunOut: {
+            /** Message */
+            message: string | null;
+            /** Url */
+            url: string | null;
+            /** Entregas */
+            entregas: {
+                [key: string]: string;
+            }[];
+        };
         /** AppLinkIn */
         AppLinkIn: {
             /** View */
@@ -2180,6 +2249,11 @@ export interface components {
              * @default []
              */
             tools?: components["schemas"]["AppToolOut"][];
+            /**
+             * Jobs
+             * @default []
+             */
+            jobs?: components["schemas"]["AppJobOut"][];
         };
         /** AppRegisterIn */
         AppRegisterIn: {
@@ -2305,6 +2379,11 @@ export interface components {
             outcome: components["schemas"]["OutcomeOut"] | null;
             /** Messages */
             messages: components["schemas"]["MessageOut"][];
+            /**
+             * Recordings
+             * @default []
+             */
+            recordings?: number[];
             call: components["schemas"]["CallInfo"] | null;
             whatsapp?: components["schemas"]["WhatsAppInfo"] | null;
         };
@@ -6217,6 +6296,38 @@ export interface operations {
             };
         };
     };
+    get_recording_api_v1_calls__conversation_id__recordings__n__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+                n: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     stats_api_v1_stats_get: {
         parameters: {
             query?: {
@@ -8399,6 +8510,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AppOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_job_api_v1_apps__app_id__jobs__job__run_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app_id: string;
+                job: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppJobRunOut"];
                 };
             };
             /** @description Validation Error */

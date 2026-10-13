@@ -25,6 +25,7 @@ export interface WorkflowView {
   version: number | null;
   engine: string;
   agent: { name: string; role: string; language: string; voice: string | null };
+  recordAudio: boolean;
   objective: string;
   opening: string;
   rules: string[];
@@ -80,6 +81,7 @@ export function readWorkflow(d: Definition): WorkflowView {
       language: str(agent.language),
       voice: agent.voice ? str(agent.voice) : null,
     },
+    recordAudio: d.record_audio === true,
     objective: str(obj(d.objective).description).trim(),
     opening: str(conv.opening).trim(),
     rules: Array.isArray(conv.rules) ? conv.rules.map(str) : [],
