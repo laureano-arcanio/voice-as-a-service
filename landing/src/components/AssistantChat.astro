@@ -7,7 +7,7 @@
 // de la marca, como la terminal de /desarrolladores. El marco (radio, borde y sombra) es el de un panel de la marca.
 // Sin JavaScript o con movimiento reducido se ve la charla completa. El negocio, los nombres y las cifras son de ejemplo.
 
-type Link = { title: string; sub: string; url: string };
+type Link = { title: string; sub: string; url: string; /** El toque que abre la vista en la animación. */ open?: boolean };
 type Msg =
   | { from: "me"; dur: string; text: string; time: string }
   | { from: "bot"; text: string[]; link?: Link; time: string };
@@ -17,7 +17,7 @@ const msgs: Msg[] = [
   {
     from: "bot",
     text: ["Son 7 clientes, $ 196.000 en total. Martín Sosa debe dos cuotas. Te dejo el detalle:"],
-    link: { title: "Cuotas impagas · octubre", sub: "7 clientes · $ 196.000", url: "apps.atentina.com.ar/v/cuotas" },
+    link: { title: "Cuotas impagas · octubre", sub: "7 clientes · $ 196.000", url: "apps.atentina.com.ar/v/cuotas", open: true },
     time: "09:12",
   },
   { from: "me", dur: "0:03", text: "Mandales un recordatorio a los 7", time: "09:13" },
@@ -35,6 +35,18 @@ const msgs: Msg[] = [
   },
 ];
 
+// La vista del link "Cuotas impagas": una app de gestión aparte, con la forma de las vistas de las apps de Atentina
+// (encabezado, filtros, resumen y lista). Se abre en el navegador de WhatsApp y se vuelve al chat con la X.
+const owed = [
+  { name: "Martín Sosa", plan: "Mensual · 2 cuotas", amount: "$ 56.000" },
+  { name: "Carla Benítez", plan: "Mensual", amount: "$ 24.000" },
+  { name: "Diego Ferreyra", plan: "Mensual", amount: "$ 24.000" },
+  { name: "Paula Ríos", plan: "Mensual", amount: "$ 24.000" },
+  { name: "Jorge Acosta", plan: "Mensual", amount: "$ 24.000" },
+  { name: "Valeria Núñez", plan: "Mensual", amount: "$ 24.000" },
+  { name: "Tomás Herrera", plan: "2 veces por semana", amount: "$ 20.000" },
+];
+
 // Íconos de la interfaz de WhatsApp (locales: imitan otra app, no son los de la marca).
 const ico = {
   back: '<path d="M15 5l-7 7 7 7"/>',
@@ -50,6 +62,8 @@ const ico = {
   file: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
   form: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h4"/>',
   tick: '<path d="M2 12.5l4 4 9-9M10 16.5l1 1 9-9.5"/>',
+  close: '<path d="M6 6l12 12M18 6L6 18"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
 };
 const svg = (name: keyof typeof ico, cls: string, fill = false) =>
   `<svg class="${cls}" viewBox="0 0 24 24" fill="${fill ? "currentColor" : "none"}" stroke="${fill ? "none" : "currentColor"}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ico[name]}</svg>`;
@@ -57,11 +71,11 @@ const svg = (name: keyof typeof ico, cls: string, fill = false) =>
 // Alturas fijas de la onda de las notas de voz, para que se vean igual en cada carga.
 const wave = Array.from({ length: 28 }, (_, i) => 0.22 + 0.78 * Math.abs(Math.sin(i * 1.7) * Math.cos(i * 0.45)));
 const description =
-  "Animación de ejemplo con forma de chat de WhatsApp. El dueño de un negocio le habla a su agente personal, que opera su software de gestión, siempre con notas de voz. Pregunta quién debe la cuota de octubre; el asistente responde que son 7 clientes por $ 196.000 y manda el link al detalle. Le pide mandarles un recordatorio y el asistente responde con el mensaje enviado. Después le pide dar de alta a una clienta y el asistente responde con el link al formulario de alta.";
+  "Animación de ejemplo con forma de chat de WhatsApp. El dueño de un negocio le habla a su agente personal, que opera su software de gestión, siempre con notas de voz. Pregunta quién debe la cuota de octubre; el asistente responde que son 7 clientes por $ 196.000 y manda el link al detalle. Le pide mandarles un recordatorio y el asistente responde con el mensaje enviado. Toca el link y se abre la vista de la app de gestión con la lista de los 7 clientes y cuánto debe cada uno; la cierra y vuelve al chat. Después le pide dar de alta a una clienta y el asistente responde con el link al formulario de alta.";
 ---
 
 <figure class="m-0" data-assistant>
-  <div class="wa group/chat overflow-hidden rounded-[18px] border border-line shadow-card" data-state="idle" role="img" aria-label={description}>
+  <div class="wa group/chat relative overflow-hidden rounded-[18px] border border-line shadow-card" data-state="idle" role="img" aria-label={description}>
     <div class="wa-head flex items-center gap-2.5 px-3 py-2.5" aria-hidden="true">
       <Fragment set:html={svg("back", "size-5 flex-none")} />
       <span class="grid size-10 flex-none place-items-center rounded-full bg-accent font-display text-[.95rem] font-extrabold text-accent-ink">AG</span>
@@ -126,7 +140,7 @@ const description =
                     </span>
                   )}
                   {m.text.map((t) => <p>{t}</p>)}
-                  {m.link && <span class="wa-link truncate">https://{m.link.url}</span>}
+                  {m.link && <span class="wa-link truncate" data-open={m.link.open ? "" : undefined}>https://{m.link.url}</span>}
                   <span class="wa-meta -mt-0.5 justify-self-end tabular-nums">{m.time}</span>
                 </div>
               ),
@@ -154,6 +168,58 @@ const description =
         </span>
       </div>
     </div>
+
+    {/* La vista del link, en el navegador de WhatsApp: entra desde la derecha y sale con la X. */}
+    <div class="wa-app absolute inset-0 z-10 flex translate-x-full flex-col transition-[translate] duration-300 ease-out group-data-[view=open]/chat:translate-x-0 motion-reduce:transition-none" aria-hidden="true">
+      <div class="wa-head flex items-center gap-3 px-3 py-2.5">
+        <span data-close><Fragment set:html={svg("close", "size-6 flex-none")} /></span>
+        <div class="grid min-w-0 flex-1 leading-tight">
+          <span class="truncate text-[.95rem] font-semibold">Cuotas impagas</span>
+          <span class="wa-status flex items-center gap-1 text-[.78rem]"><Fragment set:html={svg("lock", "size-3")} />apps.atentina.com.ar</span>
+        </div>
+        <Fragment set:html={svg("dots", "wa-ic size-5 flex-none", true)} />
+      </div>
+      <div class="min-h-0 flex-1 overflow-hidden">
+        <div class="transition-[translate] duration-700 ease-in-out group-data-[scroll=down]/chat:-translate-y-[150px] motion-reduce:transition-none">
+          <div class="app-top px-4 pt-3.5 pb-3">
+            <p class="app-muted text-[.72rem] tracking-[.04em] uppercase">Gestión</p>
+            <p class="text-[1.3rem] leading-tight font-bold">Cuotas impagas</p>
+            <p class="app-muted text-[.88rem]">Octubre · vencieron el 10</p>
+          </div>
+          <div class="grid gap-3 px-4 pt-3.5 pb-4">
+            <div class="flex flex-wrap gap-1.5 text-[.8rem]">
+              <span class="app-pill app-on">Impagas del mes</span>
+              <span class="app-pill">Vencen pronto</span>
+              <span class="app-pill">Todas</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="app-card px-3 py-2"><div class="text-[1.25rem] font-bold tabular-nums">7</div><div class="app-muted text-[.78rem]">clientes</div></div>
+              <div class="app-card px-3 py-2"><div class="text-[1.25rem] font-bold tabular-nums">$ 196.000</div><div class="app-muted text-[.78rem]">pendiente</div></div>
+            </div>
+            <div class="app-card app-list">
+              {
+                owed.map((o) => (
+                  <div class="app-row flex items-center gap-3 px-3 py-2.5">
+                    <div class="grid min-w-0 flex-1">
+                      <span class="app-name truncate text-[.9rem] font-semibold">{o.name}</span>
+                      <span class="app-muted truncate text-[.76rem]">{o.plan}</span>
+                    </div>
+                    <div class="grid justify-items-end">
+                      <span class="text-[.9rem] font-semibold tabular-nums">{o.amount}</span>
+                      <span class="app-late">vencida</span>
+                    </div>
+                  </div>
+                ))
+              }
+            </div>
+            <p class="app-muted text-[.72rem]">Generado hoy a las 09:12 · Atentina</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* El toque del dedo: el script lo ubica sobre el link o sobre la X. */}
+    <span class="wa-tap pointer-events-none absolute z-20 size-11 -translate-x-1/2 -translate-y-1/2 rounded-full" data-tap aria-hidden="true"></span>
   </div>
 </figure>
 
@@ -295,6 +361,67 @@ const description =
   .wa-rec {
     color: var(--wa-red);
   }
+  /* La vista de la app que abre el link: otro sistema, con la paleta de las vistas de las apps (fondo gris claro, tarjetas
+     blancas, azul de las apps) y la letra del sistema. */
+  .wa-app {
+    --app-bg: #f6f7fb;
+    --app-text: #1a2233;
+    --app-muted: #5b6577;
+    --app-line: #e2e6ef;
+    --app-accent: #2552d0;
+    --app-late: #9a5b00;
+    --app-late-soft: #fdf3e2;
+    background: var(--app-bg);
+    color: var(--app-text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .app-top {
+    background: #ffffff;
+    border-bottom: 1px solid var(--app-line);
+  }
+  .app-muted {
+    color: var(--app-muted);
+  }
+  .app-card {
+    background: #ffffff;
+    border: 1px solid var(--app-line);
+    border-radius: 10px;
+  }
+  .app-list > * + * {
+    border-top: 1px solid var(--app-line);
+  }
+  .app-pill {
+    padding: 4px 10px;
+    border-radius: 99px;
+    border: 1px solid var(--app-line);
+    background: #ffffff;
+  }
+  .app-pill.app-on {
+    background: var(--app-accent);
+    border-color: var(--app-accent);
+    color: #ffffff;
+  }
+  .app-name {
+    color: var(--app-accent);
+  }
+  .app-late {
+    font-size: 0.7rem;
+    padding: 0 7px;
+    border-radius: 99px;
+    color: var(--app-late);
+    background: var(--app-late-soft);
+  }
+  /* El toque: un círculo que aparece y se achica, como el indicador de toques de Android. */
+  .wa-tap {
+    background: rgba(17, 27, 33, 0.22);
+    opacity: 0;
+    scale: 0.4;
+    transition: opacity 0.15s, scale 0.25s;
+  }
+  .wa-tap[data-on] {
+    opacity: 1;
+    scale: 1;
+  }
   .wa-send {
     background: var(--wa-green);
     color: #ffffff;
@@ -315,9 +442,27 @@ const description =
       status.textContent = on ? "escribiendo…" : "en línea";
       status.toggleAttribute("data-typing", on);
     };
+    const tap = root.querySelector<HTMLElement>("[data-tap]")!;
+    const close = root.querySelector<HTMLElement>("[data-close]")!;
+    const view = (open: boolean) => {
+      chat.dataset.view = open ? "open" : "";
+      chat.dataset.scroll = "";
+    };
+    // Apoya el dedo sobre un elemento (posición relativa al panel) y lo levanta.
+    async function touch(el: HTMLElement) {
+      const a = el.getBoundingClientRect();
+      const b = chat.getBoundingClientRect();
+      tap.style.left = `${a.left - b.left + Math.min(a.width, 160) / 2}px`;
+      tap.style.top = `${a.top - b.top + a.height / 2}px`;
+      tap.toggleAttribute("data-on", true);
+      await sleep(380);
+      tap.toggleAttribute("data-on", false);
+    }
     const reset = () => {
       msgs.forEach((m) => (m.hidden = false));
       chat.dataset.state = "idle";
+      view(false);
+      tap.toggleAttribute("data-on", false);
       setTyping(false);
     };
 
@@ -346,6 +491,20 @@ const description =
           if (!alive()) return;
           m.hidden = false;
           await sleep(m.dataset.from === "bot" ? 1700 : 500);
+          // El link marcado se abre: toque, la vista entra, baja hasta el final de la lista, toque en la X y vuelve al chat.
+          const link = m.querySelector<HTMLElement>("[data-open]");
+          if (link && alive()) {
+            await touch(link);
+            view(true);
+            await sleep(1800);
+            if (!alive()) return;
+            chat.dataset.scroll = "down";
+            await sleep(2400);
+            if (!alive()) return;
+            await touch(close);
+            view(false);
+            await sleep(900);
+          }
         }
         await sleep(4000);
       }
