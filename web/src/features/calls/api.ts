@@ -81,9 +81,9 @@ export function useDailyStats(p: CallFilters & { date_from: string; date_to: str
   });
 }
 
-/** URL del WAV de ese turno (agent.record_audio): la cookie de sesion viaja sola, mismo origen. */
-export function recordingUrl(conversationId: string, turn: number): string {
-  return `/api/v1/calls/${conversationId}/recordings/${turn}`;
+/** URL del WAV de ese mensaje (agent.record_audio): la cookie de sesion viaja sola, mismo origen. */
+export function recordingUrl(conversationId: string, n: number): string {
+  return `/api/v1/calls/${conversationId}/recordings/${n}`;
 }
 
 export function isCallLive(c: CallDetail | undefined): boolean {

@@ -125,6 +125,9 @@ class Message(BaseModel):
     # WhatsApp. Usuario: el texto es la transcripcion de una nota de voz;
     # agente: la respuesta salio como nota de voz.
     voice_note: bool = False
+    # Llamada (telefono o WhatsApp) con agent.record_audio: numero de secuencia de su WAV
+    # en CALL_RECORDINGS_DIR (app/voice/worker.py, WorkflowAgent._tag_recording).
+    recording: int | None = None
 
 
 class TurnMedia(BaseModel):

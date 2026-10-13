@@ -783,7 +783,7 @@ export interface paths {
         };
         /**
          * Get Recording
-         * @description El WAV de ese turno (agent.record_audio prendido): CALL_RECORDINGS_DIR/<id>/NNN.wav.
+         * @description El WAV de ese mensaje (agent.record_audio prendido): CALL_RECORDINGS_DIR/<id>/NNN.wav.
          */
         get: operations["get_recording_api_v1_calls__conversation_id__recordings__n__get"];
         put?: never;
@@ -3153,6 +3153,8 @@ export interface components {
              * @default false
              */
             voice_note?: boolean;
+            /** Recording */
+            recording?: number | null;
         };
         /** MeterOut */
         MeterOut: {

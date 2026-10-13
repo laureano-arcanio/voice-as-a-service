@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { EmptyState } from '@/components/QueryState';
 import { prettyJson } from '@/lib/format';
 import type { ChatMessage, LlmCall } from '@/api/types';
+import { recordingUrl } from './api';
 
 function LlmTraces({ calls, open, title }: { calls: LlmCall[]; open: boolean; title: string }) {
   const totalMs = calls.reduce((a, c) => a + (c.ms ?? 0), 0);
@@ -49,6 +50,7 @@ export function ChatView({
   agentLabel = 'Agente IA',
   userLabel = 'Interesado',
   maxHeight,
+  conversationId,
 }: {
   messages: ChatMessage[];
   showLlm?: boolean;
@@ -57,6 +59,8 @@ export function ChatView({
   agentLabel?: string;
   userLabel?: string;
   maxHeight?: number;
+  /** Para el reproductor de cada mensaje grabado (agent.record_audio). */
+  conversationId?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const count = messages.length;
@@ -80,6 +84,14 @@ export function ChatView({
             </span>
           )}
           {m.text}
+          {conversationId && m.recording != null && (
+            <audio
+              controls
+              preload="none"
+              className="bubble-recording"
+              src={recordingUrl(conversationId, m.recording)}
+            />
+          )}
           {m.llm && m.llm.length > 0 && <LlmTraces calls={m.llm} open={showLlm} title={llmTitle} />}
         </div>
       ))}

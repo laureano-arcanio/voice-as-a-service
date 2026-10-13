@@ -59,7 +59,7 @@ def get_call(conversation_id: str, p: CurrentPrincipal, db: DB, definitions: Def
 
 @router.get("/calls/{conversation_id}/recordings/{n}")
 def get_recording(conversation_id: str, n: int, p: CurrentPrincipal, db: DB, definitions: Definitions):
-    """El WAV de ese turno (agent.record_audio prendido): CALL_RECORDINGS_DIR/<id>/NNN.wav."""
+    """El WAV de ese mensaje (agent.record_audio prendido): CALL_RECORDINGS_DIR/<id>/NNN.wav."""
     detail = Reports(db, definitions).detail(conversation_id)
     if detail is None or not p.can_access(detail["client_id"]):
         raise NotFound("Conversación inexistente")

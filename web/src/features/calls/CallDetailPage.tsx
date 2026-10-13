@@ -32,7 +32,7 @@ import { ErrorAlert, QueryState } from '@/components/QueryState';
 import { useIsAdmin } from '@/features/auth/api';
 import { formatDateTimeLong, formatDuration, formatValue } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
-import { isCallLive, recordingUrl, useCallDetail, useCloseWhatsApp } from './api';
+import { isCallLive, useCallDetail, useCloseWhatsApp } from './api';
 import { ChatView } from './ChatView';
 import { LatencyCard } from './LatencyCard';
 import { useFreshFields } from './useFreshFields';
@@ -222,30 +222,7 @@ function ChatCard({ c, live }: { c: CallDetail; live: boolean }) {
           onChange={(e) => setShowLlm(e.currentTarget.checked)}
         />
       </Group>
-      <ChatView messages={c.messages} showLlm={showLlm} llmTitle={llmTitle} />
-    </Card>
-  );
-}
-
-/** Grabaciones por turno (agent.record_audio), si la llamada las tiene: un reproductor por WAV. */
-function RecordingsCard({ c }: { c: CallDetail }) {
-  const recordings = c.recordings ?? [];
-  if (!recordings.length) return null;
-  return (
-    <Card>
-      <Title order={4} mb="sm">
-        Grabaciones
-      </Title>
-      <Stack gap="xs">
-        {recordings.map((n) => (
-          <Group key={n} gap="sm" wrap="nowrap">
-            <Text size="sm" fw={600} w={64}>
-              Turno {n}
-            </Text>
-            <audio controls preload="none" src={recordingUrl(c.id, n)} style={{ height: 32, flex: 1 }} />
-          </Group>
-        ))}
-      </Stack>
+      <ChatView messages={c.messages} showLlm={showLlm} llmTitle={llmTitle} conversationId={c.id} />
     </Card>
   );
 }
@@ -337,7 +314,6 @@ export function CallDetailPage() {
                 <ChatCard c={c} live={live} />
               </Grid.Col>
             </Grid>
-            <RecordingsCard c={c} />
             <LatencyCard latency={asLatency(c.call?.latency)} folded={!isAdmin} />
           </Stack>
         )}

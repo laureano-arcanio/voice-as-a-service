@@ -62,10 +62,15 @@ CONTINUATION_WINDOW = 1.5
 # Cuanto se espera a que termine de cerrarse una respuesta cortada.
 SETTLE_TIMEOUT = 2.0
 
-# Grabacion por turno (agent.record_audio en la definicion, docs/ARQUITECTURA.md): un WAV mono
-# por turno en RECORDINGS_DIR/<conversation_id>/NNN.wav. Mismo sample rate que la convencion de
-# audio de WhatsApp (STT_RATE en app/whatsapp/audio.py): voz, no necesita mas.
+# Grabacion por mensaje (agent.record_audio en la definicion, docs/ARQUITECTURA.md): un WAV mono
+# por mensaje (cliente y agente por separado) en RECORDINGS_DIR/<conversation_id>/NNN.wav,
+# asociado a ese Message por su numero (Message.recording). Mismo sample rate que la
+# convencion de audio de WhatsApp (STT_RATE en app/whatsapp/audio.py): voz, no necesita mas.
 RECORDING_SAMPLE_RATE = 16000
+# El WAV del cliente se recorta a lo que el VAD marco como habla (user_state_changed): el stream
+# de stt_node es continuo y sin esto cada archivo arrancaba con el playout del agente. El evento
+# de inicio de habla llega despues de la primera silaba (min_speech_duration): pre-roll.
+RECORDING_PREROLL_SECONDS = 0.3
 
 
 class _MonoResampler:
@@ -108,13 +113,15 @@ class WorkflowAgent(Agent):
         self.consumed: set[str] = set()         # mensajes del cliente ya procesados
         self.played: dict[str, float] = {}      # segundos que sono cada respuesta (speech_id)
         self._speaking: tuple[str, float] | None = None
-        # Grabacion por turno (None: agent.record_audio en false, no se graba).
+        # Grabacion por mensaje (None: agent.record_audio en false, no se graba).
         self.record_dir = record_dir
         self._rec_seq = 0
         self._rec_customer = bytearray()        # audio del cliente desde el ultimo turno confirmado
+        self._rec_marks: list[tuple[int, bool]] = []  # (offset, hablando) de cada cambio de VAD
+        self._rec_user_speaking = False         # VAD: el cliente esta hablando (user_state_changed)
         self._rec_customer_resampler = _MonoResampler()
         self._rec_agent_resampler = _MonoResampler()
-        self._rec_pending: tuple[bytes, bytes] | None = None  # (cliente, agente) del ultimo turno, sin confirmar
+        self._rec_pending: tuple[bytes, list[tuple[int, bool]], bytes] | None = None  # (cliente, marcas, agente) sin confirmar
 
     def stt_node(self, audio, model_settings):
         if self.record_dir is None:
@@ -124,8 +131,15 @@ class WorkflowAgent(Agent):
     async def _tee_customer_audio(self, audio):
         async for frame in audio:
             for f in self._rec_customer_resampler.push(frame):
-                self._rec_customer.extend(f.data)
+                self._rec_push_customer(f.data)
             yield frame
+
+    def _rec_push_customer(self, data: bytes) -> None:
+        """Acumula un frame del cliente y, en cada cambio de VAD, deja la marca (offset,
+        hablando) para recortar el WAV del turno al habla (_trim_customer)."""
+        if not self._rec_marks or self._rec_marks[-1][1] != self._rec_user_speaking:
+            self._rec_marks.append((len(self._rec_customer), self._rec_user_speaking))
+        self._rec_customer.extend(data)
 
     def tts_node(self, text, model_settings):
         if self.record_dir is None:
@@ -143,14 +157,15 @@ class WorkflowAgent(Agent):
             # No se escribe todavia: si settle_last_reply deshace este turno (respuesta
             # interrumpida apenas empezada), este audio tiene que volver al turno siguiente,
             # no quedar en un WAV de un turno que el motor ya fusiono con otro.
-            self._rec_pending = (bytes(self._rec_customer), bytes(agent_audio))
+            self._rec_pending = (bytes(self._rec_customer), list(self._rec_marks), bytes(agent_audio))
             self._rec_customer.clear()
+            self._rec_marks.clear()
 
-    def _commit_turn(self, customer_audio: bytes, agent_audio: bytes) -> None:
-        """Un WAV con lo que dijo el cliente desde el turno anterior y esta respuesta (o el
-        saludo, en el primer turno). Se llama solo para un turno ya confirmado (no retractado)."""
-        if not customer_audio and not agent_audio:
-            return
+    def _commit_audio(self, audio: bytes) -> int | None:
+        """Un WAV con ese audio (ya resampleado); devuelve su numero de secuencia, o None
+        si no hay nada que grabar."""
+        if not audio:
+            return None
         self._rec_seq += 1
         path = self.record_dir / f"{self._rec_seq:03d}.wav"
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -158,24 +173,70 @@ class WorkflowAgent(Agent):
             w.setnchannels(1)
             w.setsampwidth(2)
             w.setframerate(RECORDING_SAMPLE_RATE)
-            w.writeframes(customer_audio)
-            w.writeframes(agent_audio)
+            w.writeframes(audio)
+        return self._rec_seq
+
+    @staticmethod
+    def _trim_customer(audio: bytes, marks: list[tuple[int, bool]]) -> bytes:
+        """Solo lo hablado: del primer tramo marcado como habla (menos el pre-roll, que tapa
+        la demora del evento de VAD) al fin del ultimo. Las pausas entre tramos quedan; el
+        silencio previo (playout del agente) y el posterior (latencia y sintesis), no."""
+        spans = []
+        for i, (offset, speaking) in enumerate(marks):
+            if speaking:
+                end = marks[i + 1][0] if i + 1 < len(marks) else len(audio)
+                spans.append((offset, end))
+        if not spans:
+            return b""
+        preroll = int(RECORDING_PREROLL_SECONDS * RECORDING_SAMPLE_RATE) * 2  # 16 bits, mono
+        return audio[max(0, spans[0][0] - preroll):spans[-1][1]]
+
+    def _commit_turn(self, customer_audio: bytes, marks: list[tuple[int, bool]], agent_audio: bytes) -> None:
+        """Un WAV por lado (el cliente: lo que hablo desde el turno anterior, sin los silencios;
+        el agente: esta respuesta o el saludo en el primer turno), asociados al mensaje de cada
+        uno (_tag_recording). Se llama solo para un turno ya confirmado (no retractado)."""
+        user_seq = self._commit_audio(self._trim_customer(customer_audio, marks))
+        assistant_seq = self._commit_audio(agent_audio)
+        if user_seq is not None or assistant_seq is not None:
+            self._tag_recording(user_seq, assistant_seq)
+
+    def _tag_recording(self, user_seq: int | None, assistant_seq: int | None) -> None:
+        """Guarda el numero de archivo en el ultimo mensaje de cada rol (ya persistidos por
+        engine.process_turn: el guardado de este turno paso por el, llm_node solo cierra el
+        TTS despues). Busca desde el final para no leer toda la conversacion."""
+        state = self.engine.store.get(self.conversation_id)
+        if state is None:
+            return
+        remaining = {k: v for k, v in {"assistant": assistant_seq, "user": user_seq}.items() if v is not None}
+        for m in reversed(state.messages):
+            if m.role in remaining:
+                m.recording = remaining.pop(m.role)
+                if not remaining:
+                    break
+        self.engine.store.save(state)
 
     def flush_recording(self) -> None:
         """Al cortar: confirma el ultimo turno si quedo pendiente y, si el cliente hablo
         despues sin que el agente respondiera, ese resto tambien queda en un archivo (sin
-        esto se perdia el final de la llamada)."""
+        esto se perdia el final de la llamada). Ese resto no tiene mensaje propio (el motor
+        nunca llego a procesarlo): queda sin asociar."""
         if self.record_dir is None:
             return
         if self._rec_pending is not None:
             self._commit_turn(*self._rec_pending)
             self._rec_pending = None
         if self._rec_customer:
-            self._commit_turn(bytes(self._rec_customer), b"")
+            self._commit_audio(self._trim_customer(bytes(self._rec_customer), self._rec_marks))
             self._rec_customer.clear()
+            self._rec_marks.clear()
 
     async def on_enter(self):
         self.session.on("agent_state_changed", self.on_agent_state)
+        self.session.on("user_state_changed", self.on_user_state)
+
+    def on_user_state(self, ev) -> None:
+        # VAD: marca que frames del stream continuo son habla del cliente (_rec_push_customer).
+        self._rec_user_speaking = ev.new_state == "speaking"
 
     def on_agent_state(self, ev) -> None:
         # Pausa o corte por voz del cliente = sale de "speaking".
@@ -261,6 +322,7 @@ class WorkflowAgent(Agent):
             self.consumed -= self.last_user_ids
             if pending is not None:
                 self._rec_customer[0:0] = pending[0]
+                self._rec_marks = list(pending[1]) + [(off + len(pending[0]), s) for off, s in self._rec_marks]
             logger.info("turn retracted %s (reply interrupted after %.2fs)", self.conversation_id, played)
         elif pending is not None:
             self._commit_turn(*pending)

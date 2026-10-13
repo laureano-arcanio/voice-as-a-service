@@ -774,6 +774,8 @@ class MessageOut(BaseModel):
     llm: list[LlmCall] | None = None
     # WhatsApp: del usuario, transcripcion de una nota de voz; del agente, enviada como nota de voz.
     voice_note: bool = False
+    # Llamada con agent.record_audio: numero de su WAV (/calls/{id}/recordings/{n}), uno por mensaje.
+    recording: int | None = None
 
 
 class WhatsAppInfo(BaseModel):
@@ -800,7 +802,7 @@ class CallDetail(BaseModel):
     fields: list[FieldValue]
     outcome: OutcomeOut | None
     messages: list[MessageOut]
-    # Numero de turno de cada WAV grabado (agent.record_audio), si los hay.
+    # Numero de cada WAV grabado (agent.record_audio), uno por mensaje, si los hay.
     recordings: list[int] = []
     call: CallInfo | None
     whatsapp: WhatsAppInfo | None = None

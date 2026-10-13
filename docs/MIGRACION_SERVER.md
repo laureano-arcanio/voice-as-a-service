@@ -40,7 +40,7 @@ Clonar el repo no alcanza. Lo que está fuera de git:
 | Pesos del LLM vigente (Gemma 4 26B, desde el 6-oct-2026) | `/home/laureano/Models/gemma-4-26B-A4B-it-qat-AWQ-INT4`, **fuera del repo y del volumen de HF**: el override `docker-compose.gemma4-26b.yml` lo monta con esa ruta fija | 17 GB | no | **no se bajan solos:** descargarlos con la revisión fijada o copiarlos del viejo (paso 4.4) |
 | Pesos de Hugging Face | volumen `voice-as-a-service_hf_cache` (80 GB, casi todo de modelos descartados) | Parakeet ~1,2 GB; el Qwen3.5-9B (~12 GB) solo para volver a él | no | se bajan solos en el primer arranque (ningún modelo es *gated*: `HF_TOKEN` no hace falta). Opcional: copiarlos (paso 4.4) |
 | Imágenes de Docker | `/var/lib/docker` | ~62 GB | no | `docker pull` y `make build` (paso 5.1) |
-| `storage/` (grabaciones por turno, si `agent.record_audio`: `docs/ARQUITECTURA.md`) | `./storage` montado en `app` y `agent` | vacío si nadie activó `record_audio` | no (`backup.sh` no lo cubre todavía) | copiar a mano (`rsync`) si hay agentes con grabación activada; si no, no hace falta |
+| `storage/` (grabaciones por mensaje, si `agent.record_audio`: `docs/ARQUITECTURA.md`) | `./storage` montado en `app` y `agent` | vacío si nadie activó `record_audio` | no (`backup.sh` no lo cubre todavía) | copiar a mano (`rsync`) si hay agentes con grabación activada; si no, no hace falta |
 | Crontab del usuario | `crontab -l` | — | no | paso 8.2 (líneas literales) |
 | Unidades de systemd | `/etc/systemd/system/atentina-*.service` | — | — | `sudo deploy/install.sh` (paso 8.1), desde la plantilla `deploy/systemd/` |
 

@@ -176,17 +176,22 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
 - `fields.<campo>.label` (opcional): nombre del dato para mostrarlo (resultado de la demo de la
   landing). No va al prompt.
 - **`record_audio`** (default `false`): graba la llamada (telefónica o de WhatsApp, mismo agente
-  de voz), un WAV mono de 16 kHz por turno, localmente (`CALL_RECORDINGS_DIR`, default
+  de voz), un WAV mono de 16 kHz por mensaje, localmente (`CALL_RECORDINGS_DIR`, default
   `storage/recordings/<conversation_id>/NNN.wav`; `storage/` montado en `agent`, no versionado).
-  El turno 1 es el saludo; cada archivo siguiente junta lo que dijo el cliente desde el archivo
-  anterior con esa respuesta (`app/voice/worker.py`, `WorkflowAgent.stt_node`/`tts_node`). Si el
-  cliente interrumpe una respuesta recién empezada, el motor deshace ese turno (`settle_last_reply`,
-  caso de `c5fa81cd`) y el WAV pendiente se descarta: ese audio del cliente vuelve al turno
-  siguiente en vez de quedar en un archivo aparte. Sin backup todavía (`scripts/ops/backup.sh` no
-  lo cubre). Se escucha desde el dashboard: `CallDetailPage` (web/) muestra un reproductor por
-  turno si la llamada tiene grabaciones (`CallDetail.recordings`), servido por
-  `GET /api/v1/calls/{conversation_id}/recordings/{n}` con el mismo control de acceso que el resto
-  del detalle de la llamada.
+  El cliente y el agente van en archivos separados: uno con lo que dijo el cliente desde el turno
+  anterior y otro con esta respuesta (o la apertura, en el primer turno); el número queda en el
+  `Message.recording` de cada uno para escucharlo en el chat (`app/voice/worker.py`,
+  `WorkflowAgent.stt_node`/`tts_node` y `_tag_recording`). El stream del cliente es continuo (el
+  micrófono, con o sin voz), así que el WAV se recorta a lo que el VAD marcó como habla
+  (`user_state_changed`, con 0,3 s de pre-roll): sin el playout del agente antes ni la latencia y
+  la síntesis de la respuesta después. Si el cliente interrumpe una respuesta
+  recién empezada, el motor deshace ese turno (`settle_last_reply`, caso de `c5fa81cd`) y el WAV
+  pendiente se descarta: ese audio del cliente vuelve al turno siguiente en vez de quedar en un
+  archivo aparte. Si al cortar quedó audio del cliente que el motor no procesó, se guarda igual,
+  sin mensaje asociado. Sin backup todavía (`scripts/ops/backup.sh` no lo cubre). Se escucha desde
+  el dashboard: `ChatView` (web/) muestra el reproductor en la burbuja de cada mensaje grabado,
+  servido por `GET /api/v1/calls/{conversation_id}/recordings/{n}` con el mismo control de acceso
+  que el resto del detalle de la llamada (`CallDetail.recordings` sigue listando los archivos).
 - **Validación al guardar:**
   - nombres de campo en minúsculas;
   - `choice` con `options`;
