@@ -1,0 +1,212 @@
+---
+// Una página por capacidad de la plataforma (docs/SEO_LANDING.md): voces, transcripción, WhatsApp y telefonía.
+// Los datos salen de `capabilities` en `src/data/site.ts`; la plantilla es la misma para las cuatro.
+import Button from "../../components/Button.astro";
+import CallWidget from "../../components/CallWidget.astro";
+import CheckList from "../../components/CheckList.astro";
+import CodeBlock from "../../components/CodeBlock.astro";
+import Cta from "../../components/Cta.astro";
+import Faq from "../../components/Faq.astro";
+import Footer from "../../components/Footer.astro";
+import Icon from "../../components/Icon.astro";
+import Nav from "../../components/Nav.astro";
+import Pricing from "../../components/Pricing.astro";
+import Section from "../../components/Section.astro";
+import TelDialog from "../../components/TelDialog.astro";
+import Voices from "../../components/Voices.astro";
+import { capabilitySchema, pricingPlans } from "../../data/schema";
+import { atentinaAgent, type CapabilityPage, capabilities, verticals, whatsappUrl, allVoices } from "../../data/site";
+import Base from "../../layouts/Base.astro";
+
+export function getStaticPaths() {
+  return capabilities.map((page) => ({ params: { slug: page.slug }, props: { page } }));
+}
+
+interface Props {
+  page: CapabilityPage;
+}
+
+const { page } = Astro.props;
+const path = `/plataforma/${page.slug}`;
+const [before = page.headline, after = ""] = page.headline.split(page.highlight);
+const others = capabilities.filter((c) => c.slug !== page.slug);
+const women = allVoices.filter((v) => v.gender === "f");
+const men = allVoices.filter((v) => v.gender === "m");
+const buttons =
+  page.hero === "code"
+    ? { primary: { href: "/registro", label: "Empezar gratis" }, ghost: { href: "/desarrolladores/docs", label: "Leer la documentación" } }
+    : { primary: { href: "#demo", label: "Pedir una demo" }, ghost: { href: "#precios", label: "Ver los planes" } };
+const columns = page.hero === "code" ? "min-[901px]:grid-cols-[1fr_minmax(0,540px)]" : "min-[901px]:grid-cols-[1fr_380px]";
+---
+
+<Base
+  title={page.metaTitle}
+  description={page.metaDescription}
+  ogDescription={page.ogDescription}
+  path={path}
+  schema={capabilitySchema(page, pricingPlans(page.pricingFree))}
+>
+  <Nav current="platform" />
+
+  <main>
+    <header class="border-b border-line bg-linear-to-b from-bg-2 to-bg pt-10 pb-14 min-[901px]:pt-[72px]">
+      <div class:list={["mx-auto grid max-w-[1120px] items-start gap-9 px-5 min-[901px]:gap-12", columns]}>
+        <div class="grid gap-[22px]">
+          <a class="w-fit text-[.9rem] font-semibold text-muted no-underline hover:text-ink" href="/plataforma">← Plataforma</a>
+          <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">{page.eyebrow}</span>
+          <h1>{before}<span class="text-accent">{page.highlight}</span>{after}</h1>
+          <p class="max-w-[62ch] text-[1.12rem] text-ink-2">{page.lead}</p>
+          <div class="flex flex-wrap items-center gap-3">
+            <Button href={buttons.primary.href}>{buttons.primary.label}</Button>
+            <Button href={buttons.ghost.href} variant="ghost">{buttons.ghost.label}</Button>
+          </div>
+          <ul class="m-0 grid list-none grid-cols-2 gap-x-5 gap-y-1.5 p-0 font-mono text-[.76rem] tracking-[.03em] text-muted min-[561px]:flex min-[561px]:flex-wrap">
+            {page.facts.map((f) => <li>{f}</li>)}
+          </ul>
+        </div>
+        {page.hero === "code" && page.heroCode && <CodeBlock code={page.heroCode.code} label={page.heroCode.label} />}
+        {page.hero === "call" && <CallWidget agents={[atentinaAgent]} title="Llamá al agente ahora" />}
+        {
+          page.hero === "whatsapp" && (
+            <div class="overflow-hidden rounded-[18px] border border-line bg-surface shadow-card">
+              <div class="border-b border-line bg-surface-2 px-4 py-3">
+                <strong class="font-display text-[1.05rem]">Probalo por WhatsApp</strong>
+              </div>
+              <div class="grid gap-4 p-5">
+                <p class="text-[.96rem] text-ink-2">
+                  Escribile a la asesora de Atentina: es el mismo agente que atiende el 0800. Mandale un mensaje o una nota de voz y mirá cómo responde.
+                </p>
+                <Button href={whatsappUrl} variant="whatsapp" target="_blank" rel="noopener">
+                  <Icon name="whatsapp" class="size-5" />
+                  Escribile por WhatsApp
+                </Button>
+              </div>
+            </div>
+          )
+        }
+      </div>
+    </header>
+
+    {page.hero === "call" && <TelDialog />}
+
+    {page.voices && <Voices title={page.voices.title} lead={page.voices.lead} all={page.voices.all} />}
+
+    <Section id="como">
+      <h2>Cómo funciona</h2>
+      <ol class="mt-9 grid list-none gap-4 p-0 min-[801px]:grid-cols-3">
+        {
+          page.steps.map((step, i) => (
+            <li class="grid content-start gap-3 rounded-2xl border border-line bg-surface p-6">
+              <span class="grid size-9 place-items-center rounded-full bg-accent font-display font-extrabold text-accent-ink">{i + 1}</span>
+              <h3 class="text-[1.2rem]">{step.title}</h3>
+              <p class="text-[.96rem] text-ink-2">{step.text}</p>
+            </li>
+          ))
+        }
+      </ol>
+    </Section>
+
+    <Section id="detalle" class="border-t border-line">
+      <div class="grid items-start gap-10 min-[901px]:grid-cols-[minmax(0,1.15fr)_minmax(0,.85fr)] min-[901px]:gap-14">
+        <div class="grid gap-9">
+          <h2>En detalle</h2>
+          {
+            page.sections.map((section) => (
+              <article class="grid gap-3">
+                <h3 class="text-[1.35rem]">{section.title}</h3>
+                {section.paragraphs.map((text) => <p class="max-w-[62ch] text-[1.02rem] text-ink-2">{text}</p>)}
+              </article>
+            ))
+          }
+        </div>
+        <div class="grid content-start gap-5 rounded-[18px] border border-line bg-surface p-6 shadow-card min-[901px]:sticky min-[901px]:top-[96px]">
+          <h2 class="text-[1.5rem]">Qué incluye</h2>
+          <CheckList items={page.features} />
+        </div>
+      </div>
+    </Section>
+
+    {
+      page.catalog && (
+        <Section id="catalogo" class="border-y border-line bg-bg-2">
+          <h2>Las {allVoices.length} voces, por nombre</h2>
+          <p class="mt-3 max-w-[62ch] text-[1.12rem] text-ink-2">
+            En la API se piden por el nombre en minúscula y sin tildes (sofia, martin, veronica). La lista sale también de GET /voices.
+          </p>
+          <div class="mt-9 grid gap-4 min-[801px]:grid-cols-[1.6fr_1fr]">
+            <div class="grid content-start gap-3 rounded-2xl border border-line bg-surface p-6">
+              <h3>Voces femeninas ({women.length})</h3>
+              <ul class="m-0 flex list-none flex-wrap gap-x-4 gap-y-1.5 p-0 text-[.96rem] text-ink-2">
+                {women.map((v) => <li>{v.name}</li>)}
+              </ul>
+            </div>
+            <div class="grid content-start gap-3 rounded-2xl border border-line bg-surface p-6">
+              <h3>Voces masculinas ({men.length})</h3>
+              <ul class="m-0 flex list-none flex-wrap gap-x-4 gap-y-1.5 p-0 text-[.96rem] text-ink-2">
+                {men.map((v) => <li>{v.name}</li>)}
+              </ul>
+            </div>
+          </div>
+        </Section>
+      )
+    }
+
+    {
+      page.code && (
+        <Section id="api" class={page.catalog ? "" : "border-t border-line"}>
+          <h2>{page.code.title}</h2>
+          <p class="mt-3 max-w-[62ch] text-[1.12rem] text-ink-2">{page.code.lead}</p>
+          <div class="mt-9 grid gap-4 min-[901px]:grid-cols-2">
+            {page.code.examples.map((example) => <CodeBlock code={example.code} label={example.label} />)}
+          </div>
+          <p class="mt-6 text-[1.02rem] text-ink-2">
+            <a class="font-semibold text-accent no-underline hover:text-accent-2" href="/desarrolladores/docs">Leer la documentación de la API →</a>
+          </p>
+        </Section>
+      )
+    }
+
+    <Pricing free={page.pricingFree} class="border-t border-line" />
+    <Faq items={page.faq} />
+
+    <Section id="otras" class="border-b border-line">
+      <h2>Otras capacidades</h2>
+      <div class="mt-9 grid gap-4 min-[801px]:grid-cols-3">
+        {
+          others.map((c) => (
+            <a
+              class="grid content-start gap-3 rounded-2xl border border-line bg-surface p-6 no-underline transition-[border-color,translate,box-shadow] duration-150 hover:-translate-y-0.5 hover:border-accent hover:shadow-card"
+              href={`/plataforma/${c.slug}`}
+            >
+              <h3 class="text-[1.25rem]">{c.title}</h3>
+              <p class="text-[.96rem] text-ink-2">{c.summary}</p>
+              <span class="mt-auto text-[.95rem] font-semibold text-accent">Ver {c.title.toLowerCase()} →</span>
+            </a>
+          ))
+        }
+      </div>
+      <p class="mt-6 text-[1.02rem] text-ink-2">
+        Mirá cómo se usa en los casos de uso:
+        {
+          verticals.map((v, i) => (
+            <>
+              {i > 0 && " · "}
+              <a class="font-semibold text-accent no-underline hover:text-accent-2" href={`/casos-de-uso/${v.slug}`}>{v.title} →</a>
+            </>
+          ))
+        }
+      </p>
+    </Section>
+
+    <Cta
+      eyebrow="Contacto"
+      title="Contanos tu caso"
+      lead="Nos contás qué querés resolver y lo vemos juntos. Sin costo y sin compromiso."
+      subject={page.cta.subject}
+      question={page.cta.question}
+      placeholder={page.cta.placeholder}
+      submit="Enviar consulta"
+    />
+  </main>
+  <Footer />
+</Base>

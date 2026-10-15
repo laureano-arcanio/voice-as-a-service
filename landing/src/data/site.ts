@@ -65,6 +65,51 @@ export const voices: Voice[] = [
   { id: "gabriela", name: "Gabriela", gender: "f", tags: "Madura, segura y cordial", more: true },
 ];
 
+/** Catálogo completo servido por el TTS (`multi41`; fuente: tts/finetune/voces.tsv, sin WER ni car/s). Las 10 de arriba traen descripción; el resto, solo el género. */
+const restOfVoices: [id: string, name: string, gender: "f" | "m"][] = [
+  ["martina", "Martina", "f"],
+  ["camila", "Camila", "f"],
+  ["lucia", "Lucía", "f"],
+  ["julieta", "Julieta", "f"],
+  ["florencia", "Florencia", "f"],
+  ["agustina", "Agustina", "f"],
+  ["mariana", "Mariana", "f"],
+  ["paula", "Paula", "f"],
+  ["romina", "Romina", "f"],
+  ["natalia", "Natalia", "f"],
+  ["silvina", "Silvina", "f"],
+  ["andrea", "Andrea", "f"],
+  ["veronica", "Verónica", "f"],
+  ["lorena", "Lorena", "f"],
+  ["daniela", "Daniela", "f"],
+  ["micaela", "Micaela", "f"],
+  ["rocio", "Rocío", "f"],
+  ["belen", "Belén", "f"],
+  ["milagros", "Milagros", "f"],
+  ["antonella", "Antonella", "f"],
+  ["carla", "Carla", "f"],
+  ["noelia", "Noelia", "f"],
+  ["mateo", "Mateo", "m"],
+  ["santiago", "Santiago", "m"],
+  ["nicolas", "Nicolás", "m"],
+  ["facundo", "Facundo", "m"],
+  ["joaquin", "Joaquín", "m"],
+  ["federico", "Federico", "m"],
+  ["gonzalo", "Gonzalo", "m"],
+  ["pablo", "Pablo", "m"],
+  ["emiliano", "Emiliano", "m"],
+];
+
+/** Las 41 voces: las 10 con descripción primero y después el resto, con el género como descripción. */
+export const allVoices: Voice[] = [
+  ...voices,
+  ...restOfVoices.map(([id, name, gender]) => ({ id, name, gender, tags: gender === "f" ? "Voz femenina" : "Voz masculina" })),
+];
+
+export const voiceCount = allVoices.length;
+export const voiceCountFemale = allVoices.filter((v) => v.gender === "f").length;
+export const voiceCountMale = voiceCount - voiceCountFemale;
+
 export interface Plan {
   name: string;
   for: string;
@@ -130,6 +175,9 @@ export const plans: Plan[] = [
 export interface Feature {
   title: string;
   text: string;
+  /** Link de texto al final (enlazado interno hacia las páginas de `/plataforma`). */
+  href?: string;
+  link?: string;
 }
 
 export interface Step {
@@ -183,7 +231,7 @@ export const verticals: Vertical[] = [
       { title: "Agenda conectada", text: "Consulta y reserva en tu sistema de turnos durante la llamada." },
       { title: "Menos ausentismo", text: "Confirmación el día anterior y reprogramación en la misma llamada." },
       { title: "Respuestas al paciente", text: "Preparación de estudios, sede, horarios y qué llevar." },
-      { title: "Varias llamadas a la vez", text: "Nadie espera en línea a las 8 de la mañana." },
+      { title: "Varias llamadas a la vez", text: "Nadie espera en línea a las 8 de la mañana.", href: "/plataforma/telefonia", link: "Ver la telefonía" },
     ],
     sample: {
       agent: "Sofía · Clínica del Sol",
@@ -212,7 +260,7 @@ export const verticals: Vertical[] = [
       "Llama a los deudores de 1 a 60 días, informa la deuda, acuerda una promesa de pago y la registra. Con buenos modos y dentro de la normativa.",
     metaTitle: "Agente de voz para cobranza de mora temprana | Atentina",
     metaDescription:
-      "Un agente de voz con IA que llama a deudores de 1 a 60 días, acuerda una promesa de pago y la registra en tu sistema. Con buenos modos y dentro de la normativa.",
+      "Agente de voz con IA que llama a deudores de 1 a 60 días y registra la promesa de pago. Para estudios de cobranza, cooperativas y fintech.",
     eyebrow: "Cobranza de mora temprana",
     headline: "Cada deudor recibe su llamada a tiempo, con buenos modos",
     lead: "El agente llama a toda la cartera en mora temprana, confirma que habla con el titular, ofrece las opciones de pago que definís y deja registrada la promesa con fecha y monto.",
@@ -222,9 +270,9 @@ export const verticals: Vertical[] = [
       { title: "Registra la promesa", text: "Fecha, monto o cuotas, y el motivo del atraso, en tu sistema." },
     ],
     features: [
-      { title: "Campañas programadas", text: "Toda la cartera llamada en horario permitido, con reintentos." },
+      { title: "Campañas programadas", text: "Toda la cartera llamada en horario permitido, con reintentos.", href: "/plataforma/telefonia", link: "Ver la telefonía" },
       { title: "Dentro de la normativa", text: "Sin amenazas ni presiones; respeta a quien pide no ser llamado." },
-      { title: "Link de pago", text: "Envía el medio de pago por WhatsApp o correo al cerrar el acuerdo." },
+      { title: "Link de pago", text: "Envía el medio de pago por WhatsApp o correo al cerrar el acuerdo.", href: "/plataforma/whatsapp", link: "Ver WhatsApp con IA" },
       { title: "Precio por resultado", text: "Para carteras grandes, pagás por promesa lograda." },
     ],
     sample: {
@@ -254,7 +302,7 @@ export const verticals: Vertical[] = [
       "Atiende las 24 horas: tasas, turnos, reclamos de servicios. Registra cada gestión y deriva a la oficina que corresponde.",
     metaTitle: "Agente de voz para consultas y reclamos de vecinos | Atentina",
     metaDescription:
-      "Un agente de voz con IA que atiende a los vecinos las 24 horas: tasas, trámites y reclamos de servicios, registrados y derivados a cada área.",
+      "Agente de voz con IA que atiende a los vecinos las 24 horas: tasas, trámites y reclamos, derivados a cada área. Para municipios y organismos.",
     eyebrow: "Consultas y reclamos de vecinos",
     headline: "La municipalidad atiende las 24 horas, sin esperas",
     lead: "El agente responde las consultas de tasas, trámites y servicios, y registra cada reclamo con categoría, dirección y contacto, listo para derivar a la oficina que corresponde.",
@@ -264,7 +312,7 @@ export const verticals: Vertical[] = [
       { title: "Deriva y avisa", text: "Envía el reclamo al área y le manda el número al vecino." },
     ],
     features: [
-      { title: "24 horas, todos los días", text: "Fines de semana y feriados, con muchas llamadas a la vez." },
+      { title: "24 horas, todos los días", text: "Fines de semana y feriados, con muchas llamadas a la vez.", href: "/plataforma/telefonia", link: "Ver la telefonía" },
       { title: "Reclamos completos", text: "Categoría, dirección, descripción y contacto en cada uno." },
       { title: "Integración con tu sistema", text: "Cada reclamo entra a tu gestión de expedientes o tickets." },
       { title: "Información al día", text: "Vencimientos, horarios y requisitos que actualizás vos." },
@@ -316,6 +364,8 @@ export interface Capability {
   status: "available" | "soon";
   href?: string;
   link?: string;
+  /** Links de texto debajo del principal, hacia las páginas de `/plataforma`. */
+  more?: { href: string; label: string }[];
 }
 
 /** Home: las tres capas de la plataforma, con los desarrolladores primero. */
@@ -326,6 +376,10 @@ export const platform: Capability[] = [
     status: "available",
     href: "/desarrolladores#api",
     link: "Ver la API →",
+    more: [
+      { href: "/plataforma/voces-argentinas", label: "Voces argentinas →" },
+      { href: "/plataforma/transcripcion", label: "Transcripción de audio →" },
+    ],
   },
   {
     title: "Agentes",
@@ -340,6 +394,10 @@ export const platform: Capability[] = [
     status: "available",
     href: "#precios",
     link: "Ver planes →",
+    more: [
+      { href: "/plataforma/telefonia", label: "Telefonía y SIP →" },
+      { href: "/plataforma/whatsapp", label: "WhatsApp con IA →" },
+    ],
   },
 ];
 
@@ -351,6 +409,10 @@ export const devCapabilities: Capability[] = [
     status: "available",
     href: "#api",
     link: "Ver la API →",
+    more: [
+      { href: "/plataforma/voces-argentinas", label: "Voces argentinas →" },
+      { href: "/plataforma/transcripcion", label: "Transcripción de audio →" },
+    ],
   },
   {
     title: "Agentes y llamadas",
@@ -365,6 +427,10 @@ export const devCapabilities: Capability[] = [
     status: "available",
     href: "#precios",
     link: "Ver planes →",
+    more: [
+      { href: "/plataforma/telefonia", label: "Telefonía y SIP →" },
+      { href: "/plataforma/whatsapp", label: "WhatsApp con IA →" },
+    ],
   },
 ];
 
@@ -491,3 +557,515 @@ export const agenticFeatures: Feature[] = [
 
 /** Agentes de programación con skills. */
 export const skillTools = ["Claude Code", "Cursor", "Codex"];
+
+// ---- Páginas de capacidad (`/plataforma/<slug>`, docs/SEO_LANDING.md) ----
+
+const API_BASE = "https://app.atentina.com.ar/api/v1/inference";
+
+export interface CodeExample {
+  label: string;
+  code: string;
+}
+
+export interface TextSection {
+  title: string;
+  paragraphs: string[];
+}
+
+export interface CapabilityPage {
+  slug: "voces-argentinas" | "transcripcion" | "whatsapp" | "telefonia";
+  /** Nombre corto: tarjetas, migas de pan y footer. */
+  title: string;
+  /** Texto de la tarjeta en `/plataforma`. */
+  summary: string;
+  metaTitle: string;
+  metaDescription: string;
+  ogDescription: string;
+  eyebrow: string;
+  headline: string;
+  /** Parte del `headline` que va en el acento. */
+  highlight: string;
+  lead: string;
+  /** Datos en mono debajo de los botones del hero. */
+  facts: string[];
+  /** Qué hay a la derecha del hero: un pedido a la API, la llamada de la demo o el botón a WhatsApp. */
+  hero: "code" | "call" | "whatsapp";
+  heroCode?: CodeExample;
+  /** Suma la demo de voces (`Voices`) debajo del hero, con otro título y bajada. */
+  voices?: { title: string; lead: string; all?: boolean };
+  /** Muestra el catálogo completo de voces como texto. */
+  catalog?: boolean;
+  sections: TextSection[];
+  steps: Step[];
+  features: Feature[];
+  /** Ejemplos de pedidos a la API (`CodeBlock`). */
+  code?: { title: string; lead: string; examples: CodeExample[] };
+  /** Precios: `free` suma el plan Free (API); sin él, solo los planes con telefonía. */
+  pricingFree: boolean;
+  faq: Qa[];
+  serviceType: string;
+  /** Cta del cierre. */
+  cta: { subject: string; question: string; placeholder: string };
+}
+
+export const capabilities: CapabilityPage[] = [
+  {
+    slug: "voces-argentinas",
+    title: "Voces argentinas",
+    summary: "41 voces con acento argentino para agentes, avisos y audios. Por API compatible con OpenAI, con streaming.",
+    metaTitle: "Voces argentinas con IA: síntesis de voz (TTS) | Atentina",
+    metaDescription:
+      "41 voces argentinas con IA para convertir texto en audio, 28 femeninas y 13 masculinas, por API compatible con OpenAI o en tus agentes. Probalas acá.",
+    ogDescription: "41 voces con acento argentino, por API y en tus agentes.",
+    eyebrow: "Voces argentinas",
+    headline: "Voces argentinas con IA, con nuestro acento",
+    highlight: "con nuestro acento",
+    lead: "41 voces con acento argentino para convertir texto en audio: 28 femeninas y 13 masculinas, entrenadas en servidores propios. Las usan nuestros agentes y las podés usar vos por API.",
+    facts: ["41 voces", "28 femeninas, 13 masculinas", "Compatible con OpenAI", "Streaming de audio"],
+    hero: "code",
+    heroCode: {
+      label: "POST /audio/speech",
+      code: `curl ${API_BASE}/audio/speech \\
+  -H "Authorization: Bearer $ATENTINA_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"voice":"sofia","input":"Hola, ¿en qué te puedo ayudar?"}' \\
+  --output respuesta.wav`,
+    },
+    voices: {
+      title: "Escuchá las 41 voces",
+      lead: "Elegí una, escribí lo que quieras y escuchala. Es el mismo motor que habla en las llamadas de nuestros agentes.",
+      all: true,
+    },
+    catalog: true,
+    sections: [
+      {
+        title: "Qué son las voces de Atentina",
+        paragraphs: [
+          "Son voces sintéticas que hablan con acento argentino. Entrenamos el modelo de síntesis con hablantes argentinos, en servidores propios, y hoy sirve 41 voces con nombre propio: 28 femeninas y 13 masculinas. Algunas suenan cálidas y cercanas; otras, más serenas y formales. Cada una se elige por su nombre, como sofia o martin.",
+          "Son las mismas voces que usan los agentes de Atentina en las llamadas y en WhatsApp. Lo que escuchás en la demo de esta página sale del mismo motor que atiende a quien recibe una llamada.",
+        ],
+      },
+      {
+        title: "Tres formas de usarlas",
+        paragraphs: [
+          "La primera es un agente: elegís la voz al armarlo y atiende llamadas y mensajes con ella. La segunda es la API de síntesis, POST /audio/speech, compatible con OpenAI: mandás el texto y el nombre de la voz, y recibís el audio. La tercera es la demo de esta página, para escuchar un texto tuyo antes de decidir.",
+          "Si ya usás el SDK de OpenAI, solo cambiás la base_url y la API key. El campo model es obligatorio en el SDK, pero la plataforma lo ignora.",
+        ],
+      },
+      {
+        title: "Para qué se usan",
+        paragraphs: [
+          "En agentes que atienden por teléfono y por WhatsApp, donde la voz es lo primero que percibe quien llama. En menús y avisos de telefonía (IVR), con acento local. En audios para WhatsApp, como recordatorios y confirmaciones. Y en la lectura de textos: novedades, avisos de un sistema o contenido para quien prefiere escuchar.",
+        ],
+      },
+      {
+        title: "Empieza a sonar enseguida",
+        paragraphs: [
+          "Con response_format en wav recibís el archivo completo, cuando termina la síntesis. Con pcm recibís el audio crudo (24 kHz, mono, 16 bits) a medida que se genera, y con stream_format en sse, eventos listos para el navegador. En la demo de esta página, el audio empieza a sonar a los 0,5 segundos, sin esperar a que termine la frase.",
+        ],
+      },
+      {
+        title: "Para quién es",
+        paragraphs: [
+          "Para desarrolladores y equipos de producto que necesitan una voz argentina en su aplicación, y para empresas que quieren que su agente, su 0800 o sus avisos suenen locales. También para quien produce audio en español y no quiere una voz neutra.",
+        ],
+      },
+    ],
+    steps: [
+      { title: "Elegí la voz", text: "Escuchá las 41 con tu propio texto y quedate con la que va con tu marca." },
+      { title: "Creá tu cuenta y una key", text: "Gratis, desde el registro. La API key lleva el alcance de síntesis (tts)." },
+      { title: "Pedí el audio", text: "Mandás el texto y el nombre de la voz a /audio/speech, y recibís WAV o PCM en streaming." },
+    ],
+    features: [
+      { title: "41 voces con nombre", text: "28 femeninas y 13 masculinas. La lista sale por API en GET /voices." },
+      { title: "Streaming de audio", text: "PCM crudo a medida que se sintetiza, o eventos SSE para el navegador." },
+      { title: "WAV completo", text: "Un archivo con el encabezado correcto, listo para guardar o reproducir." },
+      { title: "Compatible con OpenAI", text: "El SDK que ya usás, con otra base_url y tu API key." },
+      { title: "Hasta 1.500 caracteres por pedido", text: "Para textos más largos, mandás varios pedidos." },
+      { title: "Consumo a la vista", text: "Se descuentan los segundos de audio generado, y GET /usage dice cuánto te queda del mes." },
+    ],
+    code: {
+      title: "Un pedido, un audio",
+      lead: "Los dos ejemplos son pedidos reales a la API. El primero guarda el archivo; el segundo lo escucha mientras se sintetiza.",
+      examples: [
+        {
+          label: "Python con el SDK de OpenAI",
+          code: `from openai import OpenAI
+
+client = OpenAI(base_url="${API_BASE}", api_key="vaas_...")
+client.audio.speech.create(
+    model="atentina",
+    voice="sofia",
+    input="Hola, ¿en qué te puedo ayudar?",
+    response_format="wav",
+).write_to_file("respuesta.wav")`,
+        },
+        {
+          label: "curl con streaming (ffplay viene con ffmpeg)",
+          code: `curl -sN ${API_BASE}/audio/speech \\
+  -H "Authorization: Bearer $ATENTINA_KEY" -H "Content-Type: application/json" \\
+  -d '{"voice":"sofia","input":"Hola, ¿en qué te puedo ayudar?","response_format":"pcm"}' \\
+  | ffplay -f s16le -ar 24000 -ac 1 -nodisp -autoexit -`,
+        },
+      ],
+    },
+    pricingFree: true,
+    faq: [
+      {
+        q: "¿Cuántas voces hay y cuáles son?",
+        a: "41, todas con acento argentino: 28 femeninas y 13 masculinas. La lista completa está en esta página y la API la devuelve en GET /voices.",
+      },
+      {
+        q: "¿Puedo tener una voz propia o clonar la mía?",
+        a: "Hoy el catálogo es el de las 41 voces. Si necesitás una voz distinta para tu marca, escribinos y lo vemos.",
+      },
+      {
+        q: "¿Recibo el audio completo o en streaming?",
+        a: "Las dos. Con wav recibís el archivo al terminar la síntesis; con pcm, el audio llega a medida que se genera, y con sse en eventos para el navegador.",
+      },
+      {
+        q: "¿Qué pasa si pido una voz que no existe?",
+        a: "La API responde 422 con el código invalid_voice. Mandá siempre una de las voces de GET /voices: el campo voice es obligatorio.",
+      },
+      {
+        q: "¿Cómo se cuenta el consumo?",
+        a: "Se descuentan los segundos de audio generado contra el cupo mensual de síntesis. El plan Free te deja probar la API; si necesitás más volumen, lo armamos a medida.",
+      },
+      {
+        q: "¿Guardan los textos que sintetizo?",
+        a: "No. La plataforma guarda cuánto consumiste, por key y por día, pero no los textos ni los audios de la API.",
+      },
+    ],
+    serviceType: "Síntesis de voz con acento argentino",
+    cta: {
+      subject: "Consulta sobre las voces argentinas de Atentina",
+      question: "¿Para qué querés usar las voces?",
+      placeholder: "Por ejemplo: avisos grabados para el 0800 de mi empresa",
+    },
+  },
+  {
+    slug: "transcripcion",
+    title: "Transcripción",
+    summary: "Audio en español a texto, por API compatible con OpenAI. Archivos y llamadas, con el consumo a la vista.",
+    metaTitle: "Transcripción de audio en español por API | Atentina",
+    metaDescription:
+      "Transcripción de audio en español por API (speech to text) compatible con OpenAI: archivos, llamadas y notas de voz, con los minutos a la vista.",
+    ogDescription: "Audio en español a texto por API compatible con OpenAI.",
+    eyebrow: "Transcripción",
+    headline: "Transcripción de audio en español por API",
+    highlight: "por API",
+    lead: "Subís un archivo de audio y recibís el texto en español, con el acento rioplatense de las llamadas y las notas de voz. Es el reconocimiento de voz que usan nuestros agentes.",
+    facts: ["POST /audio/transcriptions", "Compatible con OpenAI", "Español rioplatense", "No guardamos tus audios"],
+    hero: "code",
+    heroCode: {
+      label: "POST /audio/transcriptions",
+      code: `curl ${API_BASE}/audio/transcriptions \\
+  -H "Authorization: Bearer $ATENTINA_KEY" \\
+  -F file=@llamada.wav -F language=es
+
+{"text":"Hola, quería confirmar mi turno del martes.",
+ "usage":{"type":"duration","seconds":4.0}}`,
+    },
+    voices: {
+      title: "Y en el otro sentido, texto a voz",
+      lead: "La transcripción pasa la voz a texto; la síntesis, el texto a voz. Probá las voces argentinas con tu propio texto.",
+    },
+    sections: [
+      {
+        title: "Qué hace",
+        paragraphs: [
+          "Convierte audio en texto. Mandás un archivo (wav, mp3, flac, ogg y más, mono o estéreo, a cualquier frecuencia) a POST /audio/transcriptions y la API devuelve la transcripción en español. La respuesta puede ser json, texto plano o verbose_json, que además trae la duración del audio.",
+          "Es el mismo reconocimiento de voz que usan nuestros agentes con el español rioplatense de las llamadas y las notas de voz. En una prueba, 4 segundos de audio se transcribieron en 0,13 segundos.",
+        ],
+      },
+      {
+        title: "Para qué se usa",
+        paragraphs: [
+          "Para pasar a texto las llamadas que grabó tu central o tu sistema y poder buscarlas, resumirlas o analizarlas. Para las notas de voz que te mandan tus clientes o tu equipo. Para entrevistas y reuniones grabadas. Y para cualquier sistema que reciba audio y necesite el texto: un CRM, un formulario por voz o un flujo de trabajo propio.",
+        ],
+      },
+      {
+        title: "Cómo se usa",
+        paragraphs: [
+          "Creás una API key con el alcance de transcripción (stt) y mandás el archivo como multipart/form-data, con language=es. Si ya usás el SDK de OpenAI, cambiás la base_url y la key y llamás a client.audio.transcriptions.create. Cada archivo puede pesar hasta 25 MB: para audios más largos, partilos.",
+        ],
+      },
+      {
+        title: "Dentro de los agentes",
+        paragraphs: [
+          "Cuando un agente de Atentina atiende, transcribe en vivo lo que dice la persona en cada turno de la llamada y cada nota de voz de WhatsApp. El panel guarda la transcripción de cada conversación junto con los datos que el agente tomó, y el resultado llega a tu sistema por API o webhook.",
+        ],
+      },
+      {
+        title: "Consumo y privacidad",
+        paragraphs: [
+          "Se descuentan los segundos de audio que informa el campo usage, contra un cupo de minutos por mes. GET /usage muestra cuánto llevás consumido, y cuando el cupo se agota el pedido responde 429 con un código que dice cuál falta. La plataforma guarda el consumo por key y por día, pero no los audios ni los textos que mandás por la API.",
+        ],
+      },
+      {
+        title: "Para quién es",
+        paragraphs: [
+          "Para desarrolladores y equipos que reciben audio y necesitan el texto: soporte, calidad, cobranzas u operaciones. Y para quien ya usa el SDK de OpenAI y quiere probar un motor en español, en servidores en Argentina, con el consumo a la vista.",
+        ],
+      },
+    ],
+    steps: [
+      { title: "Creá tu cuenta y una key", text: "Gratis, desde el registro. La API key lleva el alcance de transcripción (stt)." },
+      { title: "Mandá el audio", text: "Un archivo por pedido, como multipart/form-data, con language=es." },
+      { title: "Recibí el texto", text: "En json, texto plano o verbose_json, con los segundos que se descontaron." },
+    ],
+    features: [
+      { title: "Formatos de audio comunes", text: "wav, mp3, flac, ogg y más; mono o estéreo, a cualquier frecuencia." },
+      { title: "Tres formatos de respuesta", text: "json, text o verbose_json, que trae la duración." },
+      { title: "Compatible con OpenAI", text: "El SDK que ya usás, con otra base_url y tu API key." },
+      { title: "Minutos a la vista", text: "Se descuentan los segundos de audio, y GET /usage muestra el consumo del mes." },
+      { title: "Sin guardar tus audios", text: "La plataforma no guarda los audios ni los textos que mandás por la API." },
+      { title: "Servidores en Argentina", text: "Corre en servidores propios, los mismos que usan nuestros agentes." },
+    ],
+    code: {
+      title: "Un archivo, un texto",
+      lead: "El mismo pedido con el SDK de OpenAI para Python.",
+      examples: [
+        {
+          label: "Python con el SDK de OpenAI",
+          code: `from openai import OpenAI
+
+client = OpenAI(base_url="${API_BASE}", api_key="vaas_...")
+texto = client.audio.transcriptions.create(
+    model="atentina",
+    file=open("llamada.wav", "rb"),
+    language="es",
+).text`,
+        },
+      ],
+    },
+    pricingFree: true,
+    faq: [
+      {
+        q: "¿Qué idioma transcribe?",
+        a: "Español, que es para lo que lo usamos con nuestros agentes. Indicá language=es en el pedido.",
+      },
+      {
+        q: "¿Qué formatos y tamaños acepta?",
+        a: "wav, mp3, flac, ogg y más, mono o estéreo y a cualquier frecuencia, hasta 25 MB por archivo. Un archivo más grande se rechaza: partilo en pedazos.",
+      },
+      {
+        q: "¿Transcribe llamadas en vivo?",
+        a: "La API transcribe archivos. Los agentes de Atentina sí transcriben en vivo cada llamada y cada nota de voz de WhatsApp, y guardan la transcripción en el panel.",
+      },
+      {
+        q: "¿Guardan mis audios?",
+        a: "No. La plataforma guarda cuánto consumiste, por key y por día, pero no los audios ni los textos que mandás por la API.",
+      },
+      {
+        q: "¿Cómo se cuenta el consumo?",
+        a: "Por los segundos de audio de cada archivo, contra el cupo mensual de minutos de transcripción. El plan Free te deja probar la API; si necesitás más volumen, lo armamos a medida.",
+      },
+    ],
+    serviceType: "Transcripción de audio en español",
+    cta: {
+      subject: "Consulta sobre la transcripción de audio de Atentina",
+      question: "¿Qué audios querés transcribir?",
+      placeholder: "Por ejemplo: las llamadas grabadas de mi central, unas 500 por día",
+    },
+  },
+  {
+    slug: "whatsapp",
+    title: "WhatsApp con IA",
+    summary: "El mismo agente que atiende el teléfono atiende WhatsApp: texto, notas de voz y llamadas.",
+    metaTitle: "WhatsApp con IA para empresas: texto, voz y llamadas | Atentina",
+    metaDescription:
+      "Un agente con IA que atiende tu WhatsApp con texto, notas de voz y llamadas, y es el mismo que atiende el teléfono. Con campañas salientes y link de pago.",
+    ogDescription: "El mismo agente atiende tu teléfono y tu WhatsApp.",
+    eyebrow: "WhatsApp con IA",
+    headline: "WhatsApp con IA para tu empresa",
+    highlight: "con IA",
+    lead: "El mismo agente que atiende tu teléfono atiende tu WhatsApp: responde mensajes, entiende notas de voz y atiende llamadas de WhatsApp. Sin sumar otro proveedor ni otro bot.",
+    facts: ["Texto, notas de voz y llamadas", "El mismo agente que el teléfono", "Campañas salientes", "Alta del número desde el panel"],
+    hero: "whatsapp",
+    sections: [
+      {
+        title: "Un agente, dos canales",
+        paragraphs: [
+          "Un agente de Atentina no está atado a un canal. Lo definís una vez (los datos que toma, sus reglas y su voz) y atiende por teléfono y por WhatsApp. Vos ves los chats y las llamadas en el mismo panel, con la transcripción y los datos que el agente tomó.",
+        ],
+      },
+      {
+        title: "Qué atiende",
+        paragraphs: [
+          "Mensajes de texto, que el agente contesta con las reglas y la información de tu negocio. Notas de voz, que transcribe, entiende y contesta, incluso con una nota de voz propia, con la voz que elegiste. Y llamadas de WhatsApp: las atiende el agente del número, igual que una llamada telefónica.",
+        ],
+      },
+      {
+        title: "Campañas salientes",
+        paragraphs: [
+          "Para avisar, recordar o cobrar, cargás una lista de contactos, elegís una plantilla aprobada por Meta y la campaña la manda en el horario y al ritmo que definas. Cuando alguien responde, lo atiende el agente. Las campañas respetan a quien pide no recibir más mensajes.",
+        ],
+      },
+      {
+        title: "Ruteo por contacto",
+        paragraphs: [
+          "Cada cuenta de WhatsApp tiene su agente por defecto y reglas: una lista de contactos puede atenderla otro agente. Así, tus clientes habituales, tus proveedores y los que escriben por primera vez pueden tener cada uno el agente que corresponde, desde el mismo número. Se configura en la cuenta, desde el panel.",
+        ],
+      },
+      {
+        title: "Qué ve tu equipo",
+        paragraphs: [
+          "Cada chat y cada llamada queda en el panel con su transcripción, los datos que el agente tomó y el resultado, y el panel marca el origen: WhatsApp o teléfono. Ese resultado también llega a tu sistema por API o webhook, para que no tengas que copiarlo a mano.",
+        ],
+      },
+      {
+        title: "Para quién es",
+        paragraphs: [
+          "Para empresas que ya reciben consultas por WhatsApp y no llegan a contestarlas todas: clínicas y consultorios, estudios de cobranza, comercios y servicios. Y para quienes quieren avisar o recordar algo a su base de clientes sin hacerlo mensaje por mensaje.",
+        ],
+      },
+      {
+        title: "Alta del número y link de pago",
+        paragraphs: [
+          "El número de WhatsApp se da de alta desde el panel. Si querés usar el de tu línea de siempre, consultanos. Cuando el agente cierra un acuerdo, por ejemplo un plan de pago, manda el link de pago por WhatsApp para que la persona lo resuelva ahí mismo.",
+        ],
+      },
+    ],
+    steps: [
+      { title: "Nos contás qué tiene que atender", text: "Armamos el agente con tus reglas, tus datos y la voz que elijas. Es el mismo del teléfono." },
+      { title: "Das de alta tu número", text: "Desde el panel, sin armar otra integración." },
+      { title: "El agente atiende y deja los datos", text: "Cada conversación queda en el panel, y el resultado llega a tu sistema por API o webhook." },
+    ],
+    features: [
+      { title: "Mensajes de texto", text: "Responde con las reglas y la información de tu negocio." },
+      { title: "Notas de voz", text: "Las transcribe, las entiende y puede contestar con voz." },
+      { title: "Llamadas de WhatsApp", text: "Las atiende el agente del número, como una llamada telefónica." },
+      { title: "Campañas salientes", text: "Plantillas aprobadas, a una lista de contactos, con horario y ritmo." },
+      { title: "Ruteo por contacto", text: "Un agente por defecto y reglas para listas de contactos." },
+      { title: "Link de pago", text: "Lo envía por WhatsApp al cerrar el acuerdo." },
+      { title: "Panel de conversaciones", text: "Transcripción, datos tomados y resultado de cada chat y cada llamada." },
+    ],
+    pricingFree: false,
+    faq: [
+      {
+        q: "¿Es el mismo agente que atiende el teléfono?",
+        a: "Sí. Lo definís una vez y atiende por llamada y por WhatsApp, con las mismas reglas, los mismos datos y la misma voz.",
+      },
+      {
+        q: "¿Atiende notas de voz y llamadas de WhatsApp?",
+        a: "Sí. Transcribe y entiende las notas de voz, y las llamadas de WhatsApp las atiende el agente del número, como una llamada telefónica.",
+      },
+      {
+        q: "¿Puedo mandar campañas por WhatsApp?",
+        a: "Sí, con plantillas aprobadas por Meta, a una lista de contactos. Meta solo permite escribir primero con una plantilla; las respuestas las atiende el agente.",
+      },
+      {
+        q: "¿WhatsApp tiene un costo aparte?",
+        a: "Meta cobra por los mensajes de plantilla que se envían, según su categoría y el país de destino. Escribinos y te contamos el detalle para tu caso.",
+      },
+      {
+        q: "¿Cómo se da de alta mi número?",
+        a: "Desde el panel. Si querés usar el número de tu línea de siempre, consultanos cómo conviene hacerlo.",
+      },
+    ],
+    serviceType: "Atención por WhatsApp con inteligencia artificial",
+    cta: {
+      subject: "Quiero un agente de WhatsApp con Atentina",
+      question: "¿Qué tendría que atender por WhatsApp?",
+      placeholder: "Por ejemplo: consultas y turnos de una clínica, unos 100 mensajes por día",
+    },
+  },
+  {
+    slug: "telefonia",
+    title: "Telefonía",
+    summary: "Números argentinos, 0800 y 0810, entrantes y salientes, con los minutos incluidos en el plan.",
+    metaTitle: "Telefonía en Argentina: números, 0800 y SIP con IA | Atentina",
+    metaDescription:
+      "Números regionales, 0800 y 0810, llamadas entrantes y salientes con agentes de IA y minutos incluidos. Si tenés central o proveedor SIP propio, consultanos.",
+    ogDescription: "Números, 0800 y SIP con agentes de IA. Minutos en el plan.",
+    eyebrow: "Telefonía",
+    headline: "Telefonía argentina incluida: números, 0800 y SIP",
+    highlight: "incluida",
+    lead: "Un número argentino, llamadas entrantes y salientes, varias a la vez y los minutos dentro del plan. La plataforma corre sobre SIP: si tenés una línea o una central, consultanos.",
+    facts: ["Regionales, 0800 y 0810", "Entrantes y salientes", "Varias llamadas a la vez", "Minutos incluidos"],
+    hero: "call",
+    sections: [
+      {
+        title: "Qué incluye la telefonía",
+        paragraphs: [
+          "No contratás un proveedor de telefonía aparte. Cada plan con telefonía trae sus números, una cantidad de minutos por mes y cuántas llamadas atiende el agente a la vez. Todo en un solo servicio, con un precio por mes en pesos. Podés probarlo ahora: llamá al 0800-220-1233 y te atiende uno de nuestros agentes.",
+        ],
+      },
+      {
+        title: "Numeración",
+        paragraphs: [
+          "Numeración regional argentina, 0800 y 0810. Cada número atiende al agente que elijas, y los planes incluyen uno (Mostrador), tres (Sucursal) o los que necesites (Red). Si querés separar la atención de ventas de la de reclamos, cada una puede tener su número y su agente.",
+        ],
+      },
+      {
+        title: "Llamadas entrantes y salientes",
+        paragraphs: [
+          "En las entrantes, el agente atiende, toma los datos y deja el resultado en el panel y en tu sistema. En las salientes, es el agente el que llama: para confirmar un turno, recordar un vencimiento o acordar un pago. Los planes Sucursal y Red suman llamadas programadas, y por API o webhook lanzás las llamadas que necesites y recibís el resultado de cada una.",
+        ],
+      },
+      {
+        title: "SIP y tu central telefónica",
+        paragraphs: [
+          "La plataforma corre sobre SIP, el protocolo estándar de la telefonía IP, y por ahí conecta la red telefónica argentina con los agentes. Si tenés una central telefónica (PBX) o un proveedor SIP propio y querés usarlo, consultanos: hoy lo armamos con vos, no es algo que se active solo desde el panel.",
+        ],
+      },
+      {
+        title: "Cómo se cuentan los minutos",
+        paragraphs: [
+          "Cada llamada se cuenta por minuto iniciado. Los minutos del plan son por mes, no se acumulan y suman las llamadas que entran y las que hace el agente. Al llegar al tope, el agente deja de atender hasta el mes siguiente: podés pasar a un plan mayor desde el panel, o escribirnos y sumamos minutos para ese mes.",
+        ],
+      },
+      {
+        title: "Para quién es",
+        paragraphs: [
+          "Para consultorios, estudios y locales con una línea (plan Mostrador), clínicas, comercios y servicios con varias (Sucursal) y organismos con mucho volumen (Red). Si ya tenés una central, consultanos cómo conectarla.",
+        ],
+      },
+    ],
+    steps: [
+      { title: "Elegís el plan", text: "Con los números, los minutos y las llamadas a la vez que necesitás, en pesos." },
+      { title: "Armamos el agente con vos", text: "Le definimos las reglas y la voz, y se asigna al número que atiende." },
+      { title: "Empieza a atender", text: "Entrantes y salientes, con la transcripción y los datos de cada llamada en el panel." },
+    ],
+    features: [
+      { title: "Numeración argentina", text: "Regional, 0800 y 0810." },
+      { title: "Entrantes y salientes", text: "El agente atiende y también llama." },
+      { title: "Varias llamadas a la vez", text: "Una, tres o las que necesites, según el plan." },
+      { title: "Minutos incluidos", text: "Por mes, entre las llamadas que entran y las que hace el agente." },
+      { title: "Llamadas programadas", text: "En los planes Sucursal y Red." },
+      { title: "Tu línea o tu central", text: "Corre sobre SIP. Si tenés central o proveedor SIP propio, consultanos." },
+      { title: "El resultado de cada llamada", text: "Transcripción y datos tomados, en el panel y en tu sistema." },
+    ],
+    pricingFree: false,
+    faq: [
+      { q: "¿Qué numeración tienen?", a: "Numeración regional argentina, 0800 y 0810." },
+      {
+        q: "¿Puedo usar mi número o mi central telefónica?",
+        a: "La plataforma corre sobre SIP. Si tenés una central (PBX) o un proveedor SIP propio, consultanos: hoy lo armamos con vos, no se activa solo desde el panel.",
+      },
+      {
+        q: "¿Tengo que contratar telefonía aparte?",
+        a: "No. El número argentino, los minutos, las llamadas a la vez y la inteligencia artificial vienen en el plan. Lo contratás y empieza a atender.",
+      },
+      {
+        q: "¿El agente puede llamar a mis clientes?",
+        a: "Sí. Hace llamadas salientes para confirmar, recordar o cobrar. Los planes Sucursal y Red suman llamadas programadas.",
+      },
+      {
+        q: "¿Cómo se cuentan los minutos?",
+        a: "Cada llamada se cuenta por minuto iniciado. Los minutos del plan son por mes y no se acumulan: suman las llamadas que entran y las que hace el agente.",
+      },
+      {
+        q: "¿Qué pasa si me paso de los minutos?",
+        a: "Al llegar al tope del plan, el agente deja de atender hasta el mes siguiente. Podés pasar a un plan mayor desde el panel, o escribinos y te sumamos minutos para ese mes.",
+      },
+    ],
+    serviceType: "Telefonía con agentes de inteligencia artificial",
+    cta: {
+      subject: "Consulta sobre la telefonía de Atentina",
+      question: "¿Qué línea o central tenés hoy?",
+      placeholder: "Por ejemplo: un 0800 y una central con proveedor SIP propio",
+    },
+  },
+];

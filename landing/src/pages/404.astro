@@ -1,0 +1,50 @@
+---
+// Render sirve `404.html` cuando una URL no existe (docs/SEO_LANDING.md).
+import Footer from "../components/Footer.astro";
+import Nav from "../components/Nav.astro";
+import Section from "../components/Section.astro";
+import Base from "../layouts/Base.astro";
+
+const doors = [
+  { href: "/desarrolladores", title: "Desarrolladores", text: "LLM, transcripción y voces por API compatible con OpenAI." },
+  { href: "/casos-de-uso", title: "Casos de uso", text: "Agentes con IA que atienden por teléfono y WhatsApp." },
+  { href: "/asistentes", title: "Asistentes", text: "Un agente personal para el movimiento diario de tu negocio." },
+  { href: "/plataforma", title: "Plataforma", text: "Voces, transcripción, WhatsApp y telefonía." },
+];
+---
+
+<Base
+  title="No encontramos la página | Atentina"
+  description="La página que buscás no existe o cambió de lugar. Entrá por alguna de las secciones de Atentina."
+  path="/404"
+  noindex
+>
+  <Nav />
+
+  <main>
+    <Section>
+      <div class="grid gap-[22px]">
+        <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">Error 404</span>
+        <h1>No encontramos <span class="text-accent">esa página</span></h1>
+        <p class="max-w-[62ch] text-[1.12rem] text-ink-2">
+          La dirección no existe o cambió de lugar. Entrá por alguna de estas secciones, o volvé al <a class="font-semibold text-accent no-underline hover:text-accent-2" href="/">inicio</a>.
+        </p>
+      </div>
+      <div class="mt-9 grid gap-4 min-[801px]:grid-cols-2 min-[1001px]:grid-cols-4">
+        {
+          doors.map((d) => (
+            <a
+              class="grid content-start gap-3 rounded-2xl border border-line bg-surface p-6 no-underline transition-[border-color,translate,box-shadow] duration-150 hover:-translate-y-0.5 hover:border-accent hover:shadow-card"
+              href={d.href}
+            >
+              <h3 class="text-[1.25rem]">{d.title}</h3>
+              <p class="text-[.96rem] text-ink-2">{d.text}</p>
+              <span class="mt-auto text-[.95rem] font-semibold text-accent">Ir a {d.title.toLowerCase()} →</span>
+            </a>
+          ))
+        }
+      </div>
+    </Section>
+  </main>
+  <Footer />
+</Base>

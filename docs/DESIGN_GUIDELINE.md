@@ -1,7 +1,7 @@
 # Guía de diseño de Atentina
 
 Cómo se ve y cómo habla la marca. La base es la landing (`landing/`): plataforma `/`, `/desarrolladores`, `/casos-de-uso`, verticales
-`/casos-de-uso/turnos`, `/casos-de-uso/cobranzas`, `/casos-de-uso/municipios`, `/asistentes`, el registro (`/registro`) y páginas legales. Leerla antes de agregar o cambiar
+`/casos-de-uso/turnos`, `/casos-de-uso/cobranzas`, `/casos-de-uso/municipios`, `/asistentes`, la plataforma (`/plataforma` y sus cuatro capacidades), el registro (`/registro`), el 404 y páginas legales. Leerla antes de agregar o cambiar
 cualquier pantalla de la landing. El dashboard (`web/`) sigue
 [`DESIGN_GUIDELINE_APP.md`](DESIGN_GUIDELINE_APP.md), que adapta esta guía a la app.
 
@@ -83,8 +83,9 @@ No escribir hex en componentes ni usar la paleta por defecto de Tailwind (`blue-
 | Figtree | `font-body` | 400, 500, 600, 700 | Todo el resto |
 | IBM Plex Mono | `font-mono` | 400, 500 | Rótulos, estados, tiempos, contadores |
 
-Se cargan de Google Fonts en [`Base.astro`](../landing/src/layouts/Base.astro). Un peso que no está en
-la tabla hay que sumarlo ahí.
+Se cargan desde `@fontsource` (sin Google Fonts): las importaciones están en [`global.css`](../landing/src/styles/global.css) y el `preload` de Bricolage y Figtree, en
+[`Base.astro`](../landing/src/layouts/Base.astro). Las familias se llaman `Bricolage Grotesque Variable` y `Figtree Variable` (así las declaran los paquetes). Un peso que no está en
+la tabla hay que sumarlo en `global.css`.
 
 | Estilo | Clases |
 |---|---|
@@ -149,18 +150,19 @@ Usar el componente; no copiar sus clases a mano.
 | `Section` | Toda sección de página. |
 | `Icon` | Íconos (sección 9). |
 | `CheckList` | Lista de características: check en círculo `accent-soft`, título en semibold y texto en `muted`. |
-| `Logo`, `Nav`, `Footer` | Marco de toda página. `Nav current` (`home`, `dev`, `docs`, `casos`, `sector`, `asist`, `other`) marca la página y define qué anclas (`#precios`, `#demo`) son del mismo documento; el resto va a la home. Los cuatro links de página (Home, Desarrolladores, Casos de uso, Asistentes) son fijos. |
+| `Logo`, `Nav`, `Footer` | Marco de toda página. `Footer`: tres columnas (Producto, Desarrolladores, Legales) con todas las páginas, y debajo "Atentina · Hecho en Argentina", el mail y el teléfono como texto; las verticales y las capacidades salen de `site.ts`. `Nav current` (`home`, `dev`, `docs`, `casos`, `sector`, `asist`, `platform`, `other`) marca la página y define qué anclas (`#precios`, `#demo`) son del mismo documento; el resto va a la home. Los cuatro links de página (Home, Desarrolladores, Casos de uso, Asistentes) son fijos. |
 | `Cta` | Cierre de toda página comercial: sección oscura con los botones de contacto. Textos configurables (`eyebrow`, `title`, `lead`, `question`, `submit`): cada página lo adapta (`/`, `/desarrolladores`, la documentación). |
-| `Solutions`, `Voices`, `Pricing` | Secciones compartidas. `Pricing free` suma el plan Free (API y panel web, sin telefonía) como primera tarjeta, con el mismo formato; solo en `/desarrolladores`: `/casos-de-uso` y las verticales muestran los planes con telefonía, y la home la escalera completa (`Pricing free`). Las columnas siguen la cantidad de planes (3 o 4). Acepta `class`. |
+| `Solutions`, `Voices`, `Pricing` | Secciones compartidas. `Voices` acepta `title`, `lead` y `all` (lista las 41 voces en lugar de las 10 con descripción); sin `all` linkea a `/plataforma/voces-argentinas` ("Ver todas las voces →"). `Pricing free` suma el plan Free (API y panel web, sin telefonía) como primera tarjeta, con el mismo formato; solo en `/desarrolladores`: `/casos-de-uso` y las verticales muestran los planes con telefonía, y la home la escalera completa (`Pricing free`). Las columnas siguen la cantidad de planes (3 o 4). Acepta `class`. |
 | `Faq` | Preguntas frecuentes con `<details>` (contenido en `faqGeneral`, `faqBusiness` y `faqDev` de `site.ts`, una por página; el componente recibe `items`); debajo de los precios o de la API. Responder solo con lo que ya dice la landing o está confirmado. |
 | `AgentTerminal`, `AgenticSection` | Terminal animada del hero de `/desarrolladores` (`AgenticSection` queda debajo de la API, sin la terminal): dos escenas de un agente de programación operando la API (cobranza desde PDF y confirmación de turnos); `AgenticSection` lista las skills disponibles. Con `AssistantChat`, los únicos lugares con colores fuera de los tokens (`--term-*`, locales): imitan otra herramienta. Ver `LANDING.md`. |
 | `AssistantChat` | Animación del hero de `/asistentes`, a la derecha: un chat de WhatsApp donde el dueño de un negocio opera su gestión, siempre con notas de voz (lo que dice va debajo, entre paréntesis): audio → texto y link a una vista (un toque la abre en el navegador de WhatsApp: una vista de otra app, con la forma de las vistas de las apps de Atentina; baja y se vuelve con la X) → recordatorio enviado → link a un formulario. Imita WhatsApp y esa app, así que, como `AgentTerminal`, tiene colores locales (`--wa-*`, `--app-*`); el marco es el de un panel. Sin JS o con movimiento reducido muestra la charla completa. |
-| `Platform`, `Costs`, `ResultBridge` | Home de plataforma. `Platform` recibe `items` (tres capas en `/`, tres formas de integrar en `/desarrolladores`). `Costs`: lo que se contrata por separado contra lo que incluye el plan. `ResultBridge`: el resultado de una llamada, contado para el equipo (panel) y para el sistema. |
+| `Platform`, `Costs`, `ResultBridge` | Home de plataforma. `Platform` recibe `items` (tres capas en `/`, tres formas de integrar en `/desarrolladores`); cada tarjeta puede traer `more` (links de texto a las capacidades) y el componente, un `more` debajo de las tarjetas ("Ver toda la plataforma →"). `Costs`: lo que se contrata por separado contra lo que incluye el plan. `ResultBridge`: el resultado de una llamada, contado para el equipo (panel) y para el sistema. |
 | `ApiSection`, `CodeTabs`, `CodeBlock`, `Status` | `/desarrolladores` y su documentación. `CodeTabs`: pedidos reales a la API con su respuesta, en `ApiSection`; `CodeBlock`, un bloque de código de la documentación. `Status`: píldora `disponible` / `próximamente`: no prometer sin marcarlo. |
 | `CallWidget`, `SampleResult`, `TelDialog` | Demo de llamada, ejemplo de resultado y diálogo del teléfono. |
 | `Legal` | Layout de las páginas legales. |
+| Página de capacidad | `src/pages/plataforma/[slug].astro`, una sola plantilla para `/plataforma/<slug>` con datos de `capabilities` (`site.ts`): hero con el acento por defecto (sin `data-theme`) y a la derecha un pedido a la API (`CodeBlock`), la llamada (`CallWidget`) o el botón a WhatsApp; después `Voices` (si aplica), "Cómo funciona", "En detalle" con el panel "Qué incluye" (`CheckList`), catálogo, ejemplos de código, `Pricing`, `Faq` y "Otras capacidades" (tarjetas clicables). Una capacidad nueva es un objeto más en `capabilities`. |
 
-El contenido (agentes, voces, planes, verticales, contacto) vive en
+`CheckList` acepta `href` y `link` en un ítem (un link de texto al final, con "→") para el enlazado interno. El contenido (agentes, voces, planes, verticales, capacidades, contacto) vive en
 [`landing/src/data/site.ts`](../landing/src/data/site.ts), no en los componentes.
 
 Patrones que se repiten; copiar estas clases al armar algo nuevo:
@@ -209,7 +211,7 @@ Patrones que se repiten; copiar estas clases al armar algo nuevo:
 - **Números:** pesos como `$ 29.000` (espacio y punto de miles), dólares como `USD 19`, duración como `1:42`. Siempre con `tabular-nums`.
 - **Estados en mono y minúscula:** "listo", "terminada".
 - **Errores:** dicen qué pasó y qué hacer, en una línea.
-- `lang="es-AR"`. Cada página tiene su `title` y `description` (props de `Base.astro`). `ogDescription` es el texto de la tarjeta del link, de hasta ~70 caracteres: WhatsApp corta la descripción a las dos líneas. Hoy la tiene la home; sin ella va `description`.
+- `lang="es-AR"`. Cada página tiene su `title` y `description` (props de `Base.astro`). `ogDescription` es el texto de la tarjeta del link, de hasta ~70 caracteres: WhatsApp corta la descripción a las dos líneas. Hoy la tiene la home; sin ella va `description`. `noindex` (registro, 404) y `schema` (JSON-LD, `landing/src/data/schema.ts`) son los otros props de `Base`: ver [`LANDING.md`](LANDING.md), "SEO técnico".
 
 ## 11. Antes de entregar
 

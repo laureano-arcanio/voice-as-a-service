@@ -3,8 +3,8 @@ import Button from "./Button.astro";
 import Logo from "./Logo.astro";
 
 interface Props {
-  /** Donde estamos: define que links son del mismo documento y cual queda marcado. home: `/`. dev: `/desarrolladores`. docs: su documentacion. casos: `/casos-de-uso`. sector: una vertical. asist: `/asistentes`. other: legales. */
-  current?: "home" | "dev" | "docs" | "casos" | "sector" | "asist" | "other";
+  /** Donde estamos: define que links son del mismo documento y cual queda marcado. home: `/`. dev: `/desarrolladores`. docs: su documentacion. casos: `/casos-de-uso`. sector: una vertical. asist: `/asistentes`. platform: `/plataforma` y sus capacidades. other: legales. */
+  current?: "home" | "dev" | "docs" | "casos" | "sector" | "asist" | "platform" | "other";
 }
 
 const { current = "other" } = Astro.props;
@@ -16,6 +16,7 @@ const local: Record<NonNullable<Props["current"]>, string[]> = {
   casos: ["precios", "demo"],
   sector: ["precios", "demo"],
   asist: ["demo"],
+  platform: ["precios", "demo"],
   other: [],
 };
 const anchor = (id: string) => (local[current].includes(id) ? `#${id}` : `/#${id}`);

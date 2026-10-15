@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Fuentes propias (sin Google Fonts). Bricolage con eje opsz (como la hoja de Google) y pesos 500 a 800; Figtree 400 a 700;
+   Plex Mono 400 y 500. Solo el subconjunto latino alcanza al español; las variables traen además latin-ext por unicode-range. */
+@import "@fontsource-variable/bricolage-grotesque/opsz.css";
+@import "@fontsource-variable/figtree/index.css";
+@import "@fontsource/ibm-plex-mono/latin-400.css";
+@import "@fontsource/ibm-plex-mono/latin-500.css";
+
 @theme {
   --color-bg: #ffffff;
   --color-bg-2: #f6f8fb;
@@ -24,8 +31,8 @@
   --color-cta-ink: #f4f6fa;
   --color-cta-muted: #b8c2d6;
 
-  --font-display: "Bricolage Grotesque", "Trebuchet MS", "Segoe UI", sans-serif;
-  --font-body: "Figtree", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-display: "Bricolage Grotesque Variable", "Trebuchet MS", "Segoe UI", sans-serif;
+  --font-body: "Figtree Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   --shadow-card: 0 12px 34px rgba(11, 18, 32, 0.08);

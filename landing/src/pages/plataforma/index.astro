@@ -1,0 +1,88 @@
+---
+// Índice de `/plataforma`: las tres capas y las cuatro capacidades (docs/SEO_LANDING.md).
+import Button from "../../components/Button.astro";
+import Cta from "../../components/Cta.astro";
+import Footer from "../../components/Footer.astro";
+import Nav from "../../components/Nav.astro";
+import Platform from "../../components/Platform.astro";
+import Section from "../../components/Section.astro";
+import { breadcrumb, service } from "../../data/schema";
+import { capabilities } from "../../data/site";
+import Base from "../../layouts/Base.astro";
+
+const description =
+  "La plataforma de Atentina: voces argentinas, transcripción de audio, WhatsApp y telefonía con agentes de IA, en servidores en Argentina y con un precio en pesos.";
+---
+
+<Base
+  title="Plataforma: voces, transcripción, WhatsApp y telefonía | Atentina"
+  description={description}
+  ogDescription="Voces, transcripción, WhatsApp y telefonía en un solo servicio."
+  path="/plataforma"
+  schema={[
+    service({
+      name: "Plataforma de Atentina",
+      serviceType: "Agentes con inteligencia artificial para atención por teléfono y WhatsApp",
+      description,
+      path: "/plataforma",
+    }),
+    breadcrumb([
+      { name: "Atentina", path: "/" },
+      { name: "Plataforma", path: "/plataforma" },
+    ]),
+  ]}
+>
+  <Nav />
+
+  <main>
+    <header class="border-b border-line bg-linear-to-b from-bg-2 to-bg pt-10 pb-14 min-[901px]:pt-[72px]">
+      <div class="mx-auto grid max-w-[1120px] gap-[22px] px-5">
+        <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">Plataforma</span>
+        <h1>
+          Voces, transcripción, WhatsApp y telefonía <span class="text-accent">en una sola plataforma</span>
+        </h1>
+        <p class="max-w-[62ch] text-[1.12rem] text-ink-2">
+          Cuatro capacidades propias, en servidores en Argentina. Las usás sueltas, por API, o armadas en agentes con IA que atienden a tus clientes por teléfono y por WhatsApp.
+        </p>
+        <div class="flex flex-wrap items-center gap-3">
+          <Button href="/registro">Empezar gratis</Button>
+          <Button href="/casos-de-uso" variant="ghost">Ver casos de uso</Button>
+        </div>
+      </div>
+    </header>
+
+    <Section id="capacidades">
+      <h2>Cuatro capacidades</h2>
+      <div class="mt-9 grid gap-4 min-[801px]:grid-cols-2">
+        {
+          capabilities.map((c) => (
+            <a
+              class="grid content-start gap-3 rounded-2xl border border-line bg-surface p-6 no-underline transition-[border-color,translate,box-shadow] duration-150 hover:-translate-y-0.5 hover:border-accent hover:shadow-card"
+              href={`/plataforma/${c.slug}`}
+            >
+              <span class="font-mono text-[.76rem] tracking-[.04em] text-muted uppercase">{c.eyebrow}</span>
+              <h3 class="text-[1.25rem]">{c.headline}</h3>
+              <p class="text-[.96rem] text-ink-2">{c.summary}</p>
+              <span class="mt-auto text-[.95rem] font-semibold text-accent">Ver {c.title.toLowerCase()} →</span>
+            </a>
+          ))
+        }
+      </div>
+    </Section>
+
+    <div class="border-y border-line bg-bg-2">
+      <Platform />
+    </div>
+
+    <Cta
+      eyebrow="Contacto"
+      title="Contanos qué querés construir"
+      lead="Si vas a integrar la plataforma o querés un agente para tu empresa, escribinos y lo vemos juntos. Sin costo y sin compromiso."
+      subject="Consulta sobre la plataforma de Atentina"
+      question="¿Qué querés construir o resolver?"
+      placeholder="Por ejemplo: un agente que atienda el teléfono y el WhatsApp de mi clínica"
+      submit="Enviar consulta"
+    />
+  </main>
+  <Footer />
+</Base>

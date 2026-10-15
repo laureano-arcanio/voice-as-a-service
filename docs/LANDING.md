@@ -25,6 +25,15 @@ Cloudflare Tunnel. No hay backend aparte ni base nueva: costo adicional cero.
     no atiende clientes: "un agente personal para todo el movimiento diario", su software controlado por voz. Opera el sistema que ya usan, una API o una app
     a medida (el motor `assistant` con las apps por cliente, [`APPS.md`](APPS.md), sin nombrar a SUGYM). Hero con el chat de WhatsApp (`AssistantChat`) a la
     derecha → con qué software habla (tres tarjetas) → qué hace (`CheckList`) → cómo empieza → contacto. Sin precios ni FAQ: todavía no tiene plan publicado.
+  - `/plataforma` y `/plataforma/<slug>` (desde el 15-oct-2026, [`SEO_LANDING.md`](SEO_LANDING.md)): una página por capacidad, para posicionar las búsquedas
+    por término (voces, transcripción, WhatsApp, telefonía y SIP) y no solo por público. `/plataforma` es el índice (las cuatro tarjetas y las tres capas) y
+    las cuatro salen de **una sola plantilla**, `src/pages/plataforma/[slug].astro`, con los datos de `capabilities` en `site.ts` (misma idea que las verticales):
+    `/plataforma/voces-argentinas` (las 41 voces, con la demo de `Voices` y el catálogo por nombre), `/plataforma/transcripcion` (`POST /audio/transcriptions`, también con
+    `Voices`: no hay demo de transcripción), `/plataforma/whatsapp` (botón al WhatsApp de Atentina) y `/plataforma/telefonia` (`CallWidget`; SIP se cuenta como "corre sobre SIP,
+    consultanos si tenés central o proveedor propio", nunca como trunk autoservicio). Cada una: hero con `facts`, algo para probar o un pedido real a la API, "Cómo funciona",
+    "En detalle" (600 a 900 palabras en total, en `sections`) con "Qué incluye", ejemplos de código donde aplica, precios, FAQ propia y "Otras capacidades". Sin nav propio: se llega por
+    el footer, las tarjetas de `Platform` (`more`) y los links de las verticales (`Feature.href`). Para sumar una capacidad: un objeto más en `capabilities` (el footer y `/plataforma` la toman solo).
+  - `404.html` (`src/pages/404.astro`, `noindex`): Render la sirve para toda URL inexistente; linkea a las cuatro puertas.
   - Legales (las pide Meta para WhatsApp): `/privacidad`, `/terminos` y `/eliminacion-de-datos`, con el layout `Legal.astro`.
   - Cada página lleva sus precios y su FAQ (`faqGeneral`, `faqBusiness`, `faqDev` en `site.ts`): la unidad es distinta (minutos y números contra
     tokens y pedidos). Los links `/#api` y similares de antes pasaron a `/desarrolladores#api`. Las URL viejas `/turnos`, `/cobranzas` y `/municipios` redirigen (301) a las nuevas, por `render.yaml`.
@@ -48,6 +57,22 @@ Cloudflare Tunnel. No hay backend aparte ni base nueva: costo adicional cero.
   (`google-chrome --headless --window-size=1200,630 --screenshot=landing/src/assets/og.png scripts/brand/og.html`), con los colores de la guía. El contenido de `og.png` va
   centrado, dentro del cuadrado central, para que no lo corten las miniaturas cuadradas.
 
+## SEO técnico
+
+Plan, diagnóstico y registro en [`SEO_LANDING.md`](SEO_LANDING.md).
+
+- **Datos estructurados (JSON-LD):** `Base.astro` recibe `schema?: object[]` y lo suma a la `Organization`, que va siempre (logo PNG de 512 × 512, `landing/src/assets/logo-512.png`,
+  generado de `docs/brand/atentina-mark.svg` con Chrome headless sobre fondo blanco; `contactPoint` con el 0800, email y `areaServed` AR). Cada página arma lo suyo con `data/schema.ts`: `WebSite` (home),
+  `Service` con sus planes como `Offer` en pesos por mes (home, `/desarrolladores`, `/casos-de-uso`, verticales y capacidades), `FAQPage` con los mismos `items` que muestra `Faq` y `BreadcrumbList`
+  (verticales y capacidades). El JSON va con `<` escapado. Validar con la prueba de resultados enriquecidos de Google después de cada deploy.
+- **Sitemap:** `@astrojs/sitemap` en `astro.config.mjs` (el `public/sitemap.xml` a mano se borró). Genera `sitemap-index.xml` y `sitemap-0.xml` con `lastmod` (la fecha del build) y excluye `/registro` y `/404`.
+  `robots.txt` apunta a `sitemap-index.xml`. **Reenviarlo en Search Console** (la URL cambió).
+- **Metas:** `robots` con `index, follow, max-image-preview:large` por defecto; el prop `noindex` de `Base` pone `noindex, follow` (lo usan `/registro` y el 404). `og:image:alt` y `twitter:title`, `description`, `image` e `image:alt` salen de los mismos props.
+- **`<main>`:** todas las páginas envuelven su contenido en `<main>` (después de `Nav`, antes de `Footer`); `Legal` y la documentación ya lo tenían.
+- **Fuentes propias:** sin Google Fonts. `@fontsource-variable/bricolage-grotesque` (`opsz.css`: eje opsz y pesos 200 a 800, como pedía la hoja de Google), `@fontsource-variable/figtree` y `@fontsource/ibm-plex-mono` (400 y 500)
+  se importan en `global.css`, y `Base.astro` hace `preload` de los woff2 latinos de Bricolage y Figtree. Los paquetes declaran las familias `Bricolage Grotesque Variable` y `Figtree Variable`:
+  los tokens `--font-display` y `--font-body` usan esos nombres. `scripts/brand/og.html` sigue pidiendo Google Fonts (es un generador, no una página del sitio).
+
 ## Desarrollo
 
 ```bash
@@ -63,7 +88,8 @@ Desde la raíz, `make landing-dev` hace `npm install` y `npm run dev`. Con `HOST
 | Archivo | Qué es |
 |---|---|
 | `src/styles/global.css` | Tokens del diseño (`@theme`) y el acento de cada vertical (`[data-theme]`). |
-| `src/data/site.ts` | Agentes de la demo, voces, planes y contenido de cada vertical. |
+| `src/data/site.ts` | Agentes de la demo, voces (`voices` con descripción y `allVoices`, las 41 del catálogo `tts/finetune/voces.tsv`), planes, contenido de cada vertical y de cada capacidad (`capabilities`). |
+| `src/data/schema.ts` | JSON-LD: `service`, `faqPage`, `breadcrumb`, `webSite` y `capabilitySchema`, que cada página pasa a `Base` en `schema`. |
 | `src/components/` | Secciones (`CallWidget`, `Voices`, `Pricing`, …). |
 | `src/scripts/api.ts` | Cliente de `/api/v1/demo`: sesión con Turnstile, llamadas, resultado y voz. |
 | `src/scripts/call.ts` | Llamada con `livekit-client` (se descarga recién al llamar, ~550 KB). |
@@ -266,7 +292,7 @@ El túnel no lleva UDP: el audio va directo a la IP fija. LiveKit anuncia la IP 
      `hola@atentina.com.ar`, SMTP `smtp.resend.com`, puerto 465 (SSL), usuario `resend`, clave:
      una API key de Resend. Gmail manda el código de confirmación a `hola@`, que llega por el paso 8.
 10. **Google Search Console:** propiedad de dominio `atentina.com.ar` (TXT en Cloudflare) y enviar
-   `https://atentina.com.ar/sitemap.xml`.
+   `https://atentina.com.ar/sitemap-index.xml` (hasta el 15-oct-2026 era `sitemap.xml`, hecho a mano: ya no existe). Después de publicar las páginas de `/plataforma`, pedir su indexación.
 
 ## Pendiente
 

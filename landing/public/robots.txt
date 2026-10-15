@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://atentina.com.ar/sitemap.xml
+Sitemap: https://atentina.com.ar/sitemap-index.xml

@@ -1,17 +1,47 @@
-<footer class="border-t border-line py-7 text-[.88rem] text-muted">
-  <div class="mx-auto flex max-w-[1120px] flex-wrap justify-between gap-4 px-5">
-    <span>Atentina · Hecho en Argentina</span>
-    <span>Los precios son de referencia.</span>
-    <nav class="flex flex-wrap gap-x-5 gap-y-1" aria-label="Sitio">
-      <a class="hover:text-ink" href="/">Home</a>
-      <a class="hover:text-ink" href="/desarrolladores">Desarrolladores</a>
-      <a class="hover:text-ink" href="/casos-de-uso">Casos de uso</a>
-      <a class="hover:text-ink" href="/desarrolladores/docs">Documentación</a>
+---
+import { capabilities, contactEmail, contactPhone, verticals } from "../data/site";
+
+const group = "grid content-start gap-2";
+const heading = "font-mono text-[.78rem] tracking-[.04em] text-muted uppercase";
+const link = "hover:text-ink";
+---
+
+<footer class="border-t border-line py-10 text-[.9rem] text-muted">
+  <div class="mx-auto grid max-w-[1120px] gap-8 px-5 min-[801px]:grid-cols-[2fr_1fr_1fr]">
+    <nav class="grid content-start gap-3" aria-label="Producto">
+      <p class={heading}>Producto</p>
+      <div class="grid gap-x-6 gap-y-2 min-[561px]:grid-cols-2">
+        <ul class={`m-0 list-none p-0 ${group}`}>
+          <li><a class={link} href="/">Home</a></li>
+          <li><a class={link} href="/casos-de-uso">Casos de uso</a></li>
+          {verticals.map((v) => <li class="pl-3"><a class={link} href={`/casos-de-uso/${v.slug}`}>{v.title}</a></li>)}
+          <li><a class={link} href="/asistentes">Asistentes</a></li>
+        </ul>
+        <ul class={`m-0 list-none p-0 ${group}`}>
+          <li><a class={link} href="/plataforma">Plataforma</a></li>
+          {capabilities.map((c) => <li class="pl-3"><a class={link} href={`/plataforma/${c.slug}`}>{c.title}</a></li>)}
+        </ul>
+      </div>
     </nav>
-    <nav class="flex flex-wrap gap-x-5 gap-y-1" aria-label="Legales">
-      <a class="hover:text-ink" href="/privacidad">Privacidad</a>
-      <a class="hover:text-ink" href="/terminos">Condiciones</a>
-      <a class="hover:text-ink" href="/eliminacion-de-datos">Eliminación de datos</a>
+    <nav class="grid content-start gap-3" aria-label="Desarrolladores">
+      <p class={heading}>Desarrolladores</p>
+      <ul class={`m-0 list-none p-0 ${group}`}>
+        <li><a class={link} href="/desarrolladores">API</a></li>
+        <li><a class={link} href="/desarrolladores/docs">Documentación</a></li>
+        <li><a class={link} href="/registro">Registro</a></li>
+      </ul>
+    </nav>
+    <nav class="grid content-start gap-3" aria-label="Legales">
+      <p class={heading}>Legales</p>
+      <ul class={`m-0 list-none p-0 ${group}`}>
+        <li><a class={link} href="/privacidad">Privacidad</a></li>
+        <li><a class={link} href="/terminos">Condiciones</a></li>
+        <li><a class={link} href="/eliminacion-de-datos">Eliminación de datos</a></li>
+      </ul>
     </nav>
   </div>
+  <p class="mx-auto mt-8 max-w-[1120px] border-t border-line px-5 pt-5">
+    Atentina · Hecho en Argentina · <a class={link} href={`mailto:${contactEmail}`}>{contactEmail}</a>{" · "}
+    <a class={`${link} tabular-nums`} href={`tel:${contactPhone.tel}`}>{contactPhone.display}</a>
+  </p>
 </footer>

@@ -7,12 +7,15 @@ interface Props {
   items?: Capability[];
   title?: string;
   lead?: string;
+  /** Link de texto debajo de las tarjetas (la home: "Ver toda la plataforma →"). */
+  more?: { href: string; label: string };
 }
 
 const {
   items = platform,
   title = "Una plataforma, tres capas",
   lead = "Usá solo lo que necesitás: los motores sueltos, los agentes armados o el servicio completo con telefonía.",
+  more,
 } = Astro.props;
 ---
 
@@ -26,13 +29,33 @@ const {
           <Status status={c.status} />
           <h3 class="text-[1.25rem]">{c.title}</h3>
           <p class="text-[.96rem] text-ink-2">{c.text}</p>
-          {c.href && (
-            <a class="mt-auto text-[.95rem] font-semibold text-accent no-underline hover:text-accent-2" href={c.href}>
-              {c.link}
-            </a>
-          )}
+          <div class="mt-auto grid gap-2">
+            {c.href && (
+              <a class="text-[.95rem] font-semibold text-accent no-underline hover:text-accent-2" href={c.href}>
+                {c.link}
+              </a>
+            )}
+            {c.more && (
+              <ul class="m-0 flex list-none flex-wrap gap-x-4 gap-y-1 p-0 text-[.95rem]">
+                {c.more.map((m) => (
+                  <li>
+                    <a class="font-semibold text-accent no-underline hover:text-accent-2" href={m.href}>
+                      {m.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       ))
     }
   </div>
+  {
+    more && (
+      <p class="mt-6 text-[1.02rem] text-ink-2">
+        <a class="font-semibold text-accent no-underline hover:text-accent-2" href={more.href}>{more.label}</a>
+      </p>
+    )
+  }
 </Section>

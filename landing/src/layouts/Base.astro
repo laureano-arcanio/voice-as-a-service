@@ -1,5 +1,9 @@
 ---
+import bricolageFont from "@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-opsz-normal.woff2?url";
+import figtreeFont from "@fontsource-variable/figtree/files/figtree-latin-wght-normal.woff2?url";
+import logo from "../assets/logo-512.png";
 import ogImage from "../assets/og.png";
+import { ORG_ID } from "../data/schema";
 import "../styles/global.css";
 
 interface Props {
@@ -9,24 +13,42 @@ interface Props {
   ogDescription?: string;
   path: string;
   theme?: string;
+  /** Páginas que no tienen que aparecer en Google (el registro, el 404): `noindex, follow`. */
+  noindex?: boolean;
+  /** JSON-LD de la página (`Service`, `FAQPage`, `BreadcrumbList`...), ver `data/schema.ts`. La `Organization` va siempre. */
+  schema?: object[];
 }
 
-const { title, description, ogDescription = description, path, theme } = Astro.props;
+const { title, description, ogDescription = description, path, theme, noindex = false, schema = [] } = Astro.props;
 // Google Analytics: solo con PUBLIC_GA_ID (lo fija render.yaml). En local queda vacío y no mide.
 const gaId = import.meta.env.PUBLIC_GA_ID;
 const canonical = new URL(path, Astro.site).href;
 // Con hash en el nombre (/_astro/og.<hash>.png): al cambiar la imagen cambia la URL, y Cloudflare y
 // WhatsApp no siguen mostrando la vieja de su caché.
 const og = new URL(ogImage.src, Astro.site).href;
+const ogAlt = "Atentina: agentes con IA que atienden a tus clientes. Teléfono, WhatsApp y voz argentina.";
 const organization = {
   "@context": "https://schema.org",
   "@type": "Organization",
+  "@id": ORG_ID,
   name: "Atentina",
   url: "https://atentina.com.ar/",
-  logo: og,
+  // El logo real (PNG de 512 × 512 generado de docs/brand/atentina-mark.svg), no la imagen de las vistas previas.
+  logo: new URL(logo.src, Astro.site).href,
   email: "hola@atentina.com.ar",
+  contactPoint: {
+    "@type": "ContactPoint",
+    contactType: "sales",
+    telephone: "+54 800 220 1233",
+    email: "hola@atentina.com.ar",
+    areaServed: "AR",
+    availableLanguage: "es",
+  },
   areaServed: "AR",
+  address: { "@type": "PostalAddress", addressCountry: "AR" },
 };
+// `<` escapado: el JSON va dentro de un <script> y no puede cerrarlo.
+const jsonLd = [organization, ...schema].map((item) => JSON.stringify(item).replace(/</g, "\\u003c"));
 ---
 
 <!doctype html>
@@ -46,16 +68,19 @@ const organization = {
     <meta property="og:image" content={og} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={ogAlt} />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={ogDescription} />
+    <meta name="twitter:image" content={og} />
+    <meta name="twitter:image:alt" content={ogAlt} />
     <meta name="theme-color" content="#FFFFFF" />
-    <script type="application/ld+json" set:html={JSON.stringify(organization)} />
+    <meta name="robots" content={noindex ? "noindex, follow" : "index, follow, max-image-preview:large"} />
+    {jsonLd.map((json) => <script type="application/ld+json" set:html={json} />)}
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
-    />
+    <!-- Fuentes propias (@fontsource, importadas en global.css): preload de las dos de lo que se ve primero. Mono no, se usa en rótulos chicos. -->
+    <link rel="preload" as="font" type="font/woff2" href={bricolageFont} crossorigin />
+    <link rel="preload" as="font" type="font/woff2" href={figtreeFont} crossorigin />
     {
       gaId && (
         <>

@@ -1,14 +1,24 @@
 ---
-import { defaultVoiceLine, voices } from "../data/site";
+import { allVoices, defaultVoiceLine, voiceCount, voiceCountFemale, voiceCountMale, voices } from "../data/site";
 import Button from "./Button.astro";
 
 interface Props {
   line?: { f: string; m: string };
   selected?: string;
+  title?: string;
+  lead?: string;
+  /** Lista las 41 voces (con "Ver más voces") en lugar de las 10 con descripción, y no linkea a la página de las voces. */
+  all?: boolean;
 }
 
-const { line = defaultVoiceLine, selected = "sofia" } = Astro.props;
-const ordered = [...voices].sort((a, b) => Number(b.id === selected) - Number(a.id === selected));
+const {
+  line = defaultVoiceLine,
+  selected = "sofia",
+  title = "Voces argentinas, con nuestro acento",
+  lead = `${voiceCount} voces con acento argentino, ${voiceCountFemale} femeninas y ${voiceCountMale} masculinas. Estas son algunas: elegí una, escribí lo que quieras y escuchala.`,
+  all = false,
+} = Astro.props;
+const ordered = [...(all ? allVoices : voices)].sort((a, b) => Number(b.id === selected) - Number(a.id === selected));
 const visible = ordered.map((v, i) => ({ ...v, more: i >= 6 }));
 const first = visible[0]!;
 const MAX_CHARS = 300;
@@ -16,10 +26,8 @@ const MAX_CHARS = 300;
 
 <section class="border-b border-line py-12 min-[901px]:py-[76px]" id="voces">
   <div class="mx-auto max-w-[1120px] px-5">
-    <h2>Voces con nuestro acento.</h2>
-    <p class="mt-3 max-w-[62ch] text-[1.12rem] text-ink-2">
-      Más de 30 voces con acento argentino, masculinas y femeninas. Estas son algunas: elegí una, escribí lo que quieras y escuchala.
-    </p>
+    <h2>{title}</h2>
+    <p class="mt-3 max-w-[62ch] text-[1.12rem] text-ink-2">{lead}</p>
     <div class="mt-9 grid items-start gap-7 min-[901px]:grid-cols-[1.1fr_.9fr]" data-voices data-line-f={line.f} data-line-m={line.m}>
       <div class="grid gap-3">
         <form class="group/list grid gap-2.5 min-[561px]:grid-cols-2" role="radiogroup" aria-label="Voz" data-voice-form>
@@ -52,7 +60,16 @@ const MAX_CHARS = 300;
             ))
           }
         </form>
-        <Button variant="ghost" type="button" class="justify-self-start" data-more aria-expanded="false">Ver más voces</Button>
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <Button variant="ghost" type="button" class="justify-self-start" data-more aria-expanded="false">Ver más voces</Button>
+          {
+            !all && (
+              <a class="font-semibold text-accent no-underline hover:text-accent-2" href="/plataforma/voces-argentinas">
+                Ver todas las voces →
+              </a>
+            )
+          }
+        </div>
       </div>
       <div class="group/player grid gap-[18px] rounded-[18px] border border-line bg-surface p-[22px] shadow-card" data-player aria-live="polite">
         <div class="flex flex-wrap items-baseline justify-between gap-3">

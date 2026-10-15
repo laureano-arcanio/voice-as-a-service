@@ -11,58 +11,73 @@ import Pricing from "../components/Pricing.astro";
 import ResultBridge from "../components/ResultBridge.astro";
 import TelDialog from "../components/TelDialog.astro";
 import Voices from "../components/Voices.astro";
-import { atentinaAgent, faqGeneral, whatsappUrl } from "../data/site";
+import { faqPage, pricingPlans, service, webSite } from "../data/schema";
+import { atentinaAgent, faqGeneral, voiceCount, whatsappUrl } from "../data/site";
 import Base from "../layouts/Base.astro";
 
-const facts = ["Telefonía incluida", "Compatible con OpenAI", "Más de 30 voces argentinas", "Servidores en Argentina"];
+const facts = ["Telefonía incluida", "Compatible con OpenAI", `${voiceCount} voces argentinas`, "Servidores en Argentina"];
 ---
 
 <Base
-  title="Atentina: telefonía, voz y agentes con IA en un solo servicio"
+  title="Atentina: agentes con IA, voces argentinas y telefonía"
   description="Telefonía, reconocimiento de voz, LLM y voces con acento argentino en un solo servicio, con un precio por mes en pesos. Por API o con agentes listos, en servidores en Argentina."
   ogDescription="Telefonía, voz e IA en un solo servicio, con precio en pesos."
   path="/"
+  schema={[
+    webSite(),
+    service({
+      name: "Atentina",
+      serviceType: "Agentes con inteligencia artificial que atienden por teléfono y WhatsApp",
+      description:
+        "Telefonía, reconocimiento de voz, LLM y voces con acento argentino en un solo servicio, con un precio por mes en pesos.",
+      path: "/",
+      plans: pricingPlans(true),
+    }),
+    faqPage(faqGeneral),
+  ]}
 >
   <Nav current="home" />
 
-  <header class="border-b border-line bg-linear-to-b from-bg-2 to-bg pt-10 pb-14 min-[901px]:pt-[72px]">
-    <div class="mx-auto grid max-w-[1120px] items-start gap-9 px-5 min-[901px]:grid-cols-[1fr_380px] min-[901px]:gap-12">
-      <div class="grid gap-[22px]">
-        <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">Plataforma de voz con IA</span>
-        <h1>
-          Telefonía, voz e inteligencia artificial <span class="text-accent">en un solo servicio</span>
-        </h1>
-        <p class="max-w-[62ch] text-[1.12rem] text-ink-2">
-          Número argentino, llamadas, WhatsApp, reconocimiento de voz, modelo de lenguaje y voces con acento argentino, propios y en servidores en Argentina con la menor latencia del mercado. <span class="text-accent">Sin contratar telefonía ni combinar proveedores</span>: un precio por mes, en pesos.
-        </p>
-        <div class="flex flex-wrap items-center gap-3">
-          <Button href="/desarrolladores">Construir con la API</Button>
-          <Button href="/casos-de-uso" variant="ghost">Un agente para mi empresa</Button>
+  <main>
+    <header class="border-b border-line bg-linear-to-b from-bg-2 to-bg pt-10 pb-14 min-[901px]:pt-[72px]">
+      <div class="mx-auto grid max-w-[1120px] items-start gap-9 px-5 min-[901px]:grid-cols-[1fr_380px] min-[901px]:gap-12">
+        <div class="grid gap-[22px]">
+          <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">Plataforma de voz con IA</span>
+          <h1>
+            Telefonía, voz e inteligencia artificial <span class="text-accent">en un solo servicio</span>
+          </h1>
+          <p class="max-w-[62ch] text-[1.12rem] text-ink-2">
+            Número argentino, llamadas, <a class="text-accent underline decoration-1 underline-offset-4 hover:text-accent-2" href="/plataforma/whatsapp">WhatsApp</a>, reconocimiento de voz, modelo de lenguaje y <a class="text-accent underline decoration-1 underline-offset-4 hover:text-accent-2" href="/plataforma/voces-argentinas">voces con acento argentino</a>, propios y en servidores en Argentina con la menor latencia del mercado. <span class="text-accent">Sin contratar telefonía ni combinar proveedores</span>: un precio por mes, en pesos.
+          </p>
+          <div class="flex flex-wrap items-center gap-3">
+            <Button href="/desarrolladores">Construir con la API</Button>
+            <Button href="/casos-de-uso" variant="ghost">Un agente para mi empresa</Button>
+          </div>
+          <ul class="m-0 grid list-none grid-cols-2 gap-x-5 gap-y-1.5 p-0 font-mono text-[.76rem] tracking-[.03em] text-muted min-[561px]:flex min-[561px]:flex-wrap">
+            {facts.map((f) => <li>{f}</li>)}
+          </ul>
         </div>
-        <ul class="m-0 grid list-none grid-cols-2 gap-x-5 gap-y-1.5 p-0 font-mono text-[.76rem] tracking-[.03em] text-muted min-[561px]:flex min-[561px]:flex-wrap">
-          {facts.map((f) => <li>{f}</li>)}
-        </ul>
+        <CallWidget agents={[atentinaAgent]} whatsapp={whatsappUrl} others="/casos-de-uso#soluciones" />
       </div>
-      <CallWidget agents={[atentinaAgent]} whatsapp={whatsappUrl} others="/casos-de-uso#soluciones" />
-    </div>
-  </header>
+    </header>
 
-  <TelDialog />
+    <TelDialog />
 
-  <Costs />
-  <Platform />
-  <ResultBridge />
-  <Voices />
-  <Pricing free />
-  <Faq items={faqGeneral} />
-  <Cta
-    eyebrow="Contacto"
-    title="Contanos qué querés construir"
-    lead="Si vas a integrar la plataforma o querés un agente para tu empresa, escribinos y lo vemos juntos. Sin costo y sin compromiso."
-    subject="Consulta sobre la plataforma de Atentina"
-    question="¿Qué querés construir o resolver?"
-    placeholder="Por ejemplo: un asistente de voz para el sistema de turnos de mis clientes"
-    submit="Enviar consulta"
-  />
+    <Costs />
+    <Platform more={{ href: "/plataforma", label: "Ver toda la plataforma →" }} />
+    <ResultBridge />
+    <Voices />
+    <Pricing free />
+    <Faq items={faqGeneral} />
+    <Cta
+      eyebrow="Contacto"
+      title="Contanos qué querés construir"
+      lead="Si vas a integrar la plataforma o querés un agente para tu empresa, escribinos y lo vemos juntos. Sin costo y sin compromiso."
+      subject="Consulta sobre la plataforma de Atentina"
+      question="¿Qué querés construir o resolver?"
+      placeholder="Por ejemplo: un asistente de voz para el sistema de turnos de mis clientes"
+      submit="Enviar consulta"
+    />
+  </main>
   <Footer />
 </Base>

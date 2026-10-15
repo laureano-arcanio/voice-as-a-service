@@ -10,6 +10,7 @@ import Section from "../../components/Section.astro";
 import Solutions from "../../components/Solutions.astro";
 import TelDialog from "../../components/TelDialog.astro";
 import Voices from "../../components/Voices.astro";
+import { breadcrumb, pricingPlans, service } from "../../data/schema";
 import { agents, type Vertical, verticals } from "../../data/site";
 import Base from "../../layouts/Base.astro";
 
@@ -25,55 +26,76 @@ const { vertical } = Astro.props;
 const agent = agents.filter((a) => a.slug === vertical.agent);
 ---
 
-<Base title={vertical.metaTitle} description={vertical.metaDescription} path={`/casos-de-uso/${vertical.slug}`} theme={vertical.slug}>
+<Base
+  title={vertical.metaTitle}
+  description={vertical.metaDescription}
+  path={`/casos-de-uso/${vertical.slug}`}
+  theme={vertical.slug}
+  schema={[
+    service({
+      name: vertical.title,
+      serviceType: `Agente de voz con IA: ${vertical.title.toLowerCase()}`,
+      description: vertical.metaDescription,
+      path: `/casos-de-uso/${vertical.slug}`,
+      plans: pricingPlans(),
+    }),
+    breadcrumb([
+      { name: "Atentina", path: "/" },
+      { name: "Casos de uso", path: "/casos-de-uso" },
+      { name: vertical.title, path: `/casos-de-uso/${vertical.slug}` },
+    ]),
+  ]}
+>
   <Nav current="sector" />
 
-  <header class="border-b border-line bg-linear-to-b from-accent-soft to-bg pt-10 pb-14 min-[901px]:pt-[72px]">
-    <div class="mx-auto grid max-w-[1120px] items-center gap-9 px-5 min-[901px]:grid-cols-[1fr_380px] min-[901px]:gap-12">
-      <div class="grid gap-[22px]">
-        <a class="w-fit text-[.9rem] font-semibold text-muted no-underline hover:text-ink" href="/casos-de-uso">← Casos de uso</a>
-        <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">{vertical.eyebrow}</span>
-        <h1>{vertical.headline}</h1>
-        <p class="max-w-[62ch] text-[1.12rem] text-ink-2">{vertical.lead}</p>
-        <p class="font-mono text-[.78rem] tracking-[.04em] text-muted uppercase">{vertical.who}</p>
+  <main>
+    <header class="border-b border-line bg-linear-to-b from-accent-soft to-bg pt-10 pb-14 min-[901px]:pt-[72px]">
+      <div class="mx-auto grid max-w-[1120px] items-center gap-9 px-5 min-[901px]:grid-cols-[1fr_380px] min-[901px]:gap-12">
+        <div class="grid gap-[22px]">
+          <a class="w-fit text-[.9rem] font-semibold text-muted no-underline hover:text-ink" href="/casos-de-uso">← Casos de uso</a>
+          <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">{vertical.eyebrow}</span>
+          <h1>{vertical.headline}</h1>
+          <p class="max-w-[62ch] text-[1.12rem] text-ink-2">{vertical.lead}</p>
+          <p class="font-mono text-[.78rem] tracking-[.04em] text-muted uppercase">{vertical.who}</p>
+        </div>
+        <CallWidget agents={agent} title="Probá el agente ahora" />
       </div>
-      <CallWidget agents={agent} title="Probá el agente ahora" />
-    </div>
-  </header>
+    </header>
 
-  <TelDialog />
+    <TelDialog />
 
-  <Section id="como">
-    <h2>Cómo funciona</h2>
-    <ol class="mt-9 grid list-none gap-4 p-0 min-[801px]:grid-cols-3">
-      {
-        vertical.steps.map((step, i) => (
-          <li class="grid content-start gap-3 rounded-2xl border border-line bg-surface p-6">
-            <span class="grid size-9 place-items-center rounded-full bg-accent font-display font-extrabold text-accent-ink">{i + 1}</span>
-            <h3 class="text-[1.2rem]">{step.title}</h3>
-            <p class="text-[.96rem] text-ink-2">{step.text}</p>
-          </li>
-        ))
-      }
-    </ol>
-  </Section>
+    <Section id="como">
+      <h2>Cómo funciona</h2>
+      <ol class="mt-9 grid list-none gap-4 p-0 min-[801px]:grid-cols-3">
+        {
+          vertical.steps.map((step, i) => (
+            <li class="grid content-start gap-3 rounded-2xl border border-line bg-surface p-6">
+              <span class="grid size-9 place-items-center rounded-full bg-accent font-display font-extrabold text-accent-ink">{i + 1}</span>
+              <h3 class="text-[1.2rem]">{step.title}</h3>
+              <p class="text-[.96rem] text-ink-2">{step.text}</p>
+            </li>
+          ))
+        }
+      </ol>
+    </Section>
 
-  <Section class="border-t border-line">
-    <div class="grid items-start gap-7 min-[901px]:grid-cols-2 min-[901px]:gap-12">
-      <div class="grid gap-4">
-        <h2>Cada llamada termina en datos</h2>
-        <p class="max-w-[62ch] text-[1.12rem] text-ink-2">
-          Además de la transcripción, el agente deja ordenado lo que acordó, listo para tu sistema por API o webhook. Así se ve el resultado de una llamada:
-        </p>
-        <CheckList items={vertical.features} />
+    <Section class="border-t border-line">
+      <div class="grid items-start gap-7 min-[901px]:grid-cols-2 min-[901px]:gap-12">
+        <div class="grid gap-4">
+          <h2>Cada llamada termina en datos</h2>
+          <p class="max-w-[62ch] text-[1.12rem] text-ink-2">
+            Además de la transcripción, el agente deja ordenado lo que acordó, listo para tu sistema por API o webhook. Así se ve el resultado de una llamada:
+          </p>
+          <CheckList items={vertical.features} />
+        </div>
+        <SampleResult sample={vertical.sample} />
       </div>
-      <SampleResult sample={vertical.sample} />
-    </div>
-  </Section>
+    </Section>
 
-  <Voices line={vertical.voiceLine} selected={vertical.defaultVoice} />
-  <Solutions exclude={vertical.slug} title="Otros agentes" />
-  <Pricing />
-  <Cta subject={`Quiero una demo de Atentina para ${vertical.title.toLowerCase()}`} />
+    <Voices line={vertical.voiceLine} selected={vertical.defaultVoice} />
+    <Solutions exclude={vertical.slug} title="Otros agentes" />
+    <Pricing />
+    <Cta subject={`Quiero una demo de Atentina para ${vertical.title.toLowerCase()}`} />
+  </main>
   <Footer />
 </Base>

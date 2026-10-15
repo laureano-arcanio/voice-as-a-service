@@ -17,7 +17,15 @@ const { items } = Astro.props;
           <Icon name="check" class="size-4 stroke-[2.4]" />
         </span>
         <b class="text-[1.02rem] font-semibold">{item.title}</b>
-        <span class="text-[.95rem] text-muted">{item.text}</span>
+        <span class="text-[.95rem] text-muted">
+          {item.text}
+          {item.href && (
+            <>
+              {" "}
+              <a class="font-semibold whitespace-nowrap text-accent no-underline hover:text-accent-2" href={item.href}>{item.link} →</a>
+            </>
+          )}
+        </span>
       </li>
     ))
   }
