@@ -26,6 +26,8 @@ export interface WorkflowView {
   engine: string;
   agent: { name: string; role: string; language: string; voice: string | null };
   recordAudio: boolean;
+  /** Etapas del LLM (workflow.llm); vacio = siempre el servidor propio. */
+  llm: { fromTurn: number; connection: string | null; model: string }[];
   objective: string;
   opening: string;
   rules: string[];
@@ -82,6 +84,14 @@ export function readWorkflow(d: Definition): WorkflowView {
       voice: agent.voice ? str(agent.voice) : null,
     },
     recordAudio: d.record_audio === true,
+    llm: (Array.isArray(obj(d.llm).stages) ? (obj(d.llm).stages as unknown[]) : []).map((raw) => {
+      const st = obj(raw);
+      return {
+        fromTurn: typeof st.from_turn === 'number' ? st.from_turn : 1,
+        connection: typeof st.connection === 'string' && st.connection ? st.connection : null,
+        model: str(st.model),
+      };
+    }),
     objective: str(obj(d.objective).description).trim(),
     opening: str(conv.opening).trim(),
     rules: Array.isArray(conv.rules) ? conv.rules.map(str) : [],

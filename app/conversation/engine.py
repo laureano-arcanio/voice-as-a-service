@@ -5,6 +5,7 @@ import uuid
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
+from ..llm.resolver import LLMResolver
 from .models import (
     AgentTurn,
     Channel,
@@ -21,6 +22,13 @@ if TYPE_CHECKING:
     from ..agents.definitions import DefinitionSource
 
 logger = logging.getLogger(__name__)
+
+
+def _llm_info(llm) -> dict:
+    """Proveedor y modelo del turno, para la traza, cuando contesto uno externo o el respaldo."""
+    info = getattr(llm, "info", None)
+    return info() if callable(info) else {}
+
 
 # Cuanto espera un turno a la extraccion del anterior. Corre mientras suena la
 # respuesta y el cliente contesta (varios segundos), asi que casi nunca espera;
@@ -46,6 +54,9 @@ class ConversationEngine:
         from ..agents.templates import ReferenceDefinitions
 
         self.llm = llm
+        # Que LLM atiende cada turno segun workflow.llm (conexiones BYOK; app/llm/resolver.py).
+        # Sin plan en el agente es self.llm, igual que antes.
+        self.llms = LLMResolver(llm, store.sessions)
         self.store = store
         self.definitions = definitions or ReferenceDefinitions()
         self.extractions: dict[str, list[asyncio.Task]] = {}   # extracciones en curso por conversacion, en orden
@@ -103,16 +114,18 @@ class ConversationEngine:
             raise KeyError(conversation_id)
         state.media = media
         workflow = self.workflow(state)
+        # Turno del usuario (1 = su primer mensaje): elige la etapa de workflow.llm.
+        llm = self.llms.for_turn(workflow, 1 + sum(m.role == "user" for m in state.messages), state.client_id)
 
         if workflow.engine == "assistant":
             return await self._assistant_turn(workflow, state, user_message, media, on_message,
-                                              actor or f"conversation:{conversation_id}")
+                                              actor or f"conversation:{conversation_id}", llm)
         classic = workflow.engine == "classic"
         started = time.perf_counter()
-        llm_turn = self.llm.converse if classic else self.llm.process_turn
+        llm_turn = llm.converse if classic else llm.process_turn
         result = await llm_turn(workflow, state, user_message, on_message=on_message)
         trace = [{"kind": "turno", "input": user_message, "ms": round((time.perf_counter() - started) * 1000),
-                  "reasoning": result.reasoning, "output": result.raw or result.model_dump_json()}]
+                  "reasoning": result.reasoning, "output": result.raw or result.model_dump_json(), **_llm_info(llm)}]
 
         # Una extraccion atrasada pudo guardar mientras el LLM respondia: se
         # relee el estado y el turno solo agrega lo suyo.
@@ -135,13 +148,17 @@ class ConversationEngine:
         return state, result
 
     async def _assistant_turn(self, workflow: Workflow, state: ConversationState, user_message: str,
-                              media: TurnMedia, on_message: Callable[[str], None] | None, actor: str
+                              media: TurnMedia, on_message: Callable[[str], None] | None, actor: str, llm
                               ) -> tuple[ConversationState, AgentTurn]:
         """Motor assistant (app/conversation/assistant.py): herramientas, sin extraccion ni fin."""
         if self.assistant is None:
             from .assistant import Assistant
             self.assistant = Assistant(self.llm, self.store.sessions)
-        result, trace, pending = await self.assistant.run(workflow, state, user_message, media, actor)
+        result, trace, pending = await self.assistant.run(workflow, state, user_message, media, actor, llm=llm)
+        if info := _llm_info(llm):
+            for entry in trace:
+                if entry.get("kind") == "paso":
+                    entry.update(info)
         state = self.store.get(state.conversation_id)
         undo = state.model_dump(include={"status", "fields", "progress"}, exclude={"progress": {"undo"}})
         undo["n_messages"] = len(state.messages)
@@ -237,7 +254,9 @@ class ConversationEngine:
         # same_number cuando el cliente solo habia dicho actividad y zona).
         seen = state.model_copy(update={"messages": state.messages[:reply]})
         started = time.perf_counter()
-        result: Extraction = await self.llm.extract(workflow, seen, only)
+        # La etapa del turno de esta extraccion: el usuario que habla en `reply - 1`.
+        llm = self.llms.for_turn(workflow, sum(m.role == "user" for m in seen.messages), state.client_id)
+        result: Extraction = await llm.extract(workflow, seen, only)
         ms = round((time.perf_counter() - started) * 1000)
         # Sin await desde aca hasta guardar: nada se intercala.
         state = self.store.get(state.conversation_id)
@@ -250,7 +269,7 @@ class ConversationEngine:
         state.progress.answered_empty = [f for f in state.progress.answered_empty if state.fields.get(f) is None]
         message = state.messages[reply]
         message.llm = (message.llm or []) + [{"kind": kind, "input": "conversación completa", "ms": ms,
-                                              "reasoning": result.reasoning, "output": result.raw}]
+                                              "reasoning": result.reasoning, "output": result.raw, **_llm_info(llm)}]
         self.store.save(state)
 
     def retract_last_turn(self, conversation_id: str) -> bool:

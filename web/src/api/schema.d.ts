@@ -1996,6 +1996,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clients/{client_id}/llm-connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Connections */
+        get: operations["list_connections_api_v1_clients__client_id__llm_connections_get"];
+        put?: never;
+        /**
+         * Create Connection
+         * @description Guarda la conexion. Probarla (`POST .../{id}/test`) detecta si el proveedor soporta salida JSON
+         *     estricta y deja el resultado en la ficha.
+         */
+        post: operations["create_connection_api_v1_clients__client_id__llm_connections_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clients/{client_id}/llm-connections/{connection_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke Connection
+         * @description Los agentes que la usan siguen con el servidor propio (si tienen fallback_local).
+         */
+        delete: operations["revoke_connection_api_v1_clients__client_id__llm_connections__connection_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Connection */
+        patch: operations["update_connection_api_v1_clients__client_id__llm_connections__connection_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/clients/{client_id}/llm-connections/{connection_id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Connection
+         * @description Hace un pedido real al proveedor (cuenta contra la clave del cliente, unos pocos tokens).
+         */
+        post: operations["test_connection_api_v1_clients__client_id__llm_connections__connection_id__test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clients/{client_id}/llm-connections/{connection_id}/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Connection Models */
+        get: operations["connection_models_api_v1_clients__client_id__llm_connections__connection_id__models_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3172,6 +3252,105 @@ export interface components {
             reasoning?: string | null;
             /** Output */
             output?: string | null;
+            /** Provider */
+            provider?: string | null;
+            /** Model */
+            model?: string | null;
+            /** Fallback From */
+            fallback_from?: string | null;
+            /** Fallback Reason */
+            fallback_reason?: string | null;
+        };
+        /**
+         * LlmConnectionIn
+         * @description Conexion a un proveedor de LLM con la clave del cliente (BYOK). La clave no se devuelve nunca.
+         */
+        LlmConnectionIn: {
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "openai_compatible" | "openrouter" | "anthropic";
+            /**
+             * Base Url
+             * @description Solo openai_compatible; openrouter y anthropic tienen la suya fija
+             */
+            base_url?: string | null;
+            /** Api Key */
+            api_key: string;
+            /**
+             * Default Model
+             * @default
+             */
+            default_model?: string;
+        };
+        /** LlmConnectionOut */
+        LlmConnectionOut: {
+            /** Id */
+            id: string;
+            /** Client Id */
+            client_id: string;
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "openai_compatible" | "openrouter" | "anthropic";
+            /** Base Url */
+            base_url: string;
+            /** Last4 */
+            last4: string;
+            /** Default Model */
+            default_model: string;
+            /**
+             * Json Mode
+             * @enum {string}
+             */
+            json_mode: "json_schema" | "json_object" | "prompt";
+            /** Created By */
+            created_by: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Last Test At */
+            last_test_at: string | null;
+            /** Last Test Ok */
+            last_test_ok: boolean | null;
+            /** Last Test Detail */
+            last_test_detail: string;
+            /**
+             * Used By
+             * @description Agentes vigentes que la usan
+             * @default 0
+             */
+            used_by?: number;
+        };
+        /** LlmConnectionPatch */
+        LlmConnectionPatch: {
+            /** Name */
+            name?: string | null;
+            /** Base Url */
+            base_url?: string | null;
+            /**
+             * Api Key
+             * @description Para rotar la clave
+             */
+            api_key?: string | null;
+            /** Default Model */
+            default_model?: string | null;
+        };
+        /** LlmConnectionTestIn */
+        LlmConnectionTestIn: {
+            /**
+             * Model
+             * @description Sin modelo, el de la conexion
+             */
+            model?: string | null;
         };
         /** LoginIn */
         LoginIn: {
@@ -8829,6 +9008,206 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_connections_api_v1_clients__client_id__llm_connections_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmConnectionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_connection_api_v1_clients__client_id__llm_connections_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LlmConnectionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmConnectionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_connection_api_v1_clients__client_id__llm_connections__connection_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_connection_api_v1_clients__client_id__llm_connections__connection_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LlmConnectionPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmConnectionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_connection_api_v1_clients__client_id__llm_connections__connection_id__test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LlmConnectionTestIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmConnectionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    connection_models_api_v1_clients__client_id__llm_connections__connection_id__models_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
+                };
             };
             /** @description Validation Error */
             422: {

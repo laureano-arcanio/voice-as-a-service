@@ -683,6 +683,47 @@ class ApiKeyIn(BaseModel):
         description="calls: API de llamadas, agentes y reportes. llm, stt, tts: motores de la API de inferencia")
 
 
+LlmConnectionKind = Literal["openai_compatible", "openrouter", "anthropic"]
+
+
+class LlmConnectionIn(BaseModel):
+    """Conexion a un proveedor de LLM con la clave del cliente (BYOK). La clave no se devuelve nunca."""
+    name: str = Field(min_length=1, max_length=64)
+    kind: LlmConnectionKind
+    base_url: str | None = Field(
+        default=None, max_length=255, description="Solo openai_compatible; openrouter y anthropic tienen la suya fija")
+    api_key: str = Field(min_length=1, max_length=512)
+    default_model: str = Field(default="", max_length=128)
+
+
+class LlmConnectionPatch(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=64)
+    base_url: str | None = Field(default=None, max_length=255)
+    api_key: str | None = Field(default=None, max_length=512, description="Para rotar la clave")
+    default_model: str | None = Field(default=None, max_length=128)
+
+
+class LlmConnectionTestIn(BaseModel):
+    model: str | None = Field(default=None, max_length=128, description="Sin modelo, el de la conexion")
+
+
+class LlmConnectionOut(ORM):
+    id: str
+    client_id: str
+    name: str
+    kind: LlmConnectionKind
+    base_url: str
+    last4: str
+    default_model: str
+    json_mode: Literal["json_schema", "json_object", "prompt"]
+    created_by: str | None
+    created_at: UTCDateTime
+    last_test_at: UTCDateTime | None
+    last_test_ok: bool | None
+    last_test_detail: str
+    used_by: int = Field(default=0, description="Agentes vigentes que la usan")
+
+
 class ApiKeyOut(ORM):
     id: str
     client_id: str
@@ -790,6 +831,11 @@ class LlmCall(BaseModel):
     ms: int | None = None
     reasoning: str | None = None
     output: str | None = None
+    # LLM externo (conexion BYOK) o el respaldo que contesto: docs/BYOK_LLM_PLAN.md.
+    provider: str | None = None
+    model: str | None = None
+    fallback_from: str | None = None
+    fallback_reason: str | None = None
 
 
 class MessageOut(BaseModel):

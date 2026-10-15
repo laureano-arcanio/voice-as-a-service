@@ -1,5 +1,7 @@
 # Software e IA, partners, tanda 2 (7-oct-2026): consultoras e integradores de toda Argentina, 65 posibles aliados
 
+**15-oct-2026:** el asunto («Llamadas de voz») y el texto del primer mail de los pendientes (contacto 201 en adelante) se reemplazaron a pedido del usuario: sin presentación, primero el problema, después la integración por API o MCP y el encaje, y cierre con «¿Agendamos una llamada la semana que viene?». La nota y el mensaje de LinkedIn no cambian.
+
 **S1 a S40 enviados por email el 8-oct-2026; S41 a S65 en borrador. LinkedIn pendiente.** Segunda tanda de canales de software e IA: empresas de software, consultoras tecnológicas e integradores
 que ya implementan IA para sus clientes (agentes conversacionales, automatización, datos e IA, ERP/CRM con IA, GovTech, software
 vertical con IA), todas de Argentina: CABA, GBA y provincia de Buenos Aires (33: CABA 18, GBA (San Isidro) 1, La Plata 5, Mar del Plata 3, Bahía Blanca 2, Buenos Aires sin dirección publicada 4) e interior (32: Córdoba 11, Santa Fe 9, Mendoza 4, Salta 2, Chaco 2, Corrientes 2, Tucumán 1, Entre Ríos 1).
@@ -4716,7 +4718,7 @@ comercial@crenein.com
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Crenein
+Llamadas de voz
 ```
 
 Texto:
@@ -4724,17 +4726,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un costo que se puede pagar en Argentina: en pesos y muy por debajo de armarlo con Twilio, ElevenLabs u OpenAI.
 
-Crenein ya factura y cobra para ISPs y ofrece orquestación de agentes de IA: atender reclamos y avisar vencimientos por teléfono puede salir de un agente de voz integrado a C-Bills.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Crenein ya factura y cobra para ISPs y orquesta agentes de IA: con nuestra voz, esos agentes pueden atender reclamos y avisar vencimientos por teléfono desde C-Bills.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales3&utm_content=crenein
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (277 caracteres):

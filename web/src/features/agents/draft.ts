@@ -89,6 +89,72 @@ export interface Draft {
   outcomes: OutcomeDraft[];
   /** Solo con el motor assistant. */
   tools: ToolGrantDraft[];
+  /** LLM por etapa de la conversacion (conexiones BYOK, docs/BYOK_LLM_PLAN.md). null = siempre el
+   * servidor propio (no va a la definicion). */
+  llm: LlmDraft | null;
+}
+
+export interface LlmStageDraft {
+  key: string;
+  /** Desde que turno del usuario (1 = su primer mensaje) responde este LLM. */
+  fromTurn: number;
+  /** Id de la conexion; null = el servidor propio. */
+  connection: string | null;
+  model: string;
+  /** Texto del campo: '' = la del modelo. */
+  temperature: string;
+}
+
+export interface LlmDraft {
+  stages: LlmStageDraft[];
+  fallbackLocal: boolean;
+}
+
+export const MAX_LLM_STAGES = 3;
+
+export const blankStage = (fromTurn: number): LlmStageDraft => ({
+  key: newKey(),
+  fromTurn,
+  connection: null,
+  model: '',
+  temperature: '',
+});
+
+/** Sin etapas externas el agente usa siempre el servidor propio: no hay nada que guardar. */
+function isLocalOnly(llm: LlmDraft): boolean {
+  return llm.stages.every((st) => st.connection === null) && llm.fallbackLocal;
+}
+
+function toLlmDraft(raw: unknown): LlmDraft | null {
+  const llm = obj(raw);
+  if (!Array.isArray(llm.stages) || llm.stages.length === 0) return null;
+  return {
+    fallbackLocal: llm.fallback_local !== false,
+    stages: llm.stages.map((r) => {
+      const st = obj(r);
+      return {
+        key: newKey(),
+        fromTurn: typeof st.from_turn === 'number' ? st.from_turn : 1,
+        connection: typeof st.connection === 'string' && st.connection ? st.connection : null,
+        model: str(st.model),
+        temperature: typeof st.temperature === 'number' ? String(st.temperature) : '',
+      };
+    }),
+  };
+}
+
+function fromLlmDraft(llm: LlmDraft): Record<string, unknown> {
+  return {
+    stages: llm.stages.map((st) => {
+      const temperature = Number(st.temperature);
+      return {
+        from_turn: st.fromTurn,
+        ...(st.connection ? { connection: st.connection, model: st.model.trim() } : {}),
+        ...(st.connection && st.temperature.trim() !== '' && !Number.isNaN(temperature) ? { temperature } : {}),
+      };
+    }),
+    fallback_local: llm.fallbackLocal,
+  };
 }
 
 let seq = 0;
@@ -167,6 +233,7 @@ export function toDraft(d: Definition): Draft {
       const g = obj(raw);
       return { app: str(g.app), tools: Array.isArray(g.tools) ? g.tools.map(str) : ['*'] };
     }),
+    llm: toLlmDraft(d.llm),
   };
 }
 
@@ -191,6 +258,7 @@ export function fromDraft(draft: Draft): Definition {
     ...(draft.version != null ? { version: draft.version } : {}),
     engine: draft.engine,
     ...(draft.recordAudio ? { record_audio: true } : {}),
+    ...(draft.llm && !isLocalOnly(draft.llm) ? { llm: fromLlmDraft(draft.llm) } : {}),
     agent: {
       name: draft.name,
       role: draft.role,
@@ -294,7 +362,15 @@ export function move<T>(list: T[], from: number, to: number): T[] {
 export type ErrorTarget =
   | {
       section:
-        'agente' | 'voz' | 'objetivo' | 'reglas' | 'conocimiento' | 'datos' | 'resultados' | 'herramientas';
+        | 'agente'
+        | 'voz'
+        | 'modelo'
+        | 'objetivo'
+        | 'reglas'
+        | 'conocimiento'
+        | 'datos'
+        | 'resultados'
+        | 'herramientas';
     }
   | { section: 'dato'; key: string }
   | { section: 'resultado'; key: string };
@@ -314,6 +390,7 @@ export function errorTarget(draft: Draft, path: string): ErrorTarget | null {
   if (head === 'conversation') return { section: second === 'rules' ? 'reglas' : 'objetivo' };
   if (head === 'knowledge') return { section: 'conocimiento' };
   if (head === 'tools') return { section: 'herramientas' };
+  if (head === 'llm') return { section: 'modelo' };
   if (head === 'fields') {
     const f = draft.fields.find((x) => x.name === second);
     return f ? { section: 'dato', key: f.key } : { section: 'datos' };
@@ -355,6 +432,13 @@ const PATH_WORDS: Record<string, string> = {
   goal: 'objetivo cumplido',
   tools: 'Herramientas',
   app: 'app',
+  llm: 'Modelo de lenguaje',
+  stages: '',
+  from_turn: 'turno',
+  connection: 'conexión',
+  model: 'modelo',
+  temperature: 'temperatura',
+  fallback_local: 'respaldo',
 };
 
 /** "fields.contacto.question" -> "Datos › contacto › pregunta". */
@@ -367,6 +451,7 @@ export function pathLabel(draft: Draft, path: string): string {
       const o = outcomeAt(draft, p);
       out.push(o?.label || o?.id || p);
     } else if (parts[i - 1] === 'rules' && /^\d+$/.test(p)) out.push(`regla ${Number(p) + 1}`);
+    else if (parts[i - 1] === 'stages' && /^\d+$/.test(p)) out.push(`etapa ${Number(p) + 1}`);
     else if (p === 'tools' && i > 0) out.push('herramientas');
     else if (parts[i - 1] === 'tools' && /^\d+$/.test(p))
       out.push(draft.tools[Number(p)]?.app || `app ${Number(p) + 1}`);

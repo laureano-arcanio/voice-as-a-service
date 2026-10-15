@@ -43,6 +43,7 @@ import {
   sectionId,
 } from './draft';
 import { EngineCards, EngineLabel } from './EngineCards';
+import { LlmSection } from './LlmSection';
 import { ToolsEditor } from './ToolsSection';
 
 const LANGUAGES = ['es-AR', 'es-UY', 'es-CL', 'es-MX', 'es-ES', 'en-US', 'pt-BR'];
@@ -639,6 +640,14 @@ export function DefinitionForm({
           checked={draft.recordAudio}
           onChange={(e) => set({ recordAudio: e.currentTarget.checked })}
         />
+      </Section>
+
+      <Section
+        name="modelo"
+        title="Modelo de lenguaje"
+        description="Qué modelo contesta cada tramo de la conversación."
+      >
+        <LlmSection draft={draft} update={update} clientId={clientId} />
       </Section>
 
       <Section name="objetivo" title="Objetivo y apertura">

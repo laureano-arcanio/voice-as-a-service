@@ -10,7 +10,7 @@ from ..agents.templates import blank_definition, template_data
 from ..apps.tools import check_grants
 from ..conversation.models import ToolGrant, Workflow
 from ..db import utcnow
-from ..models import Agent, AgentVersion, Client, ConversationRow, WaAccount, WaRoute
+from ..models import Agent, AgentVersion, Client, ConversationRow, LlmConnection, WaAccount, WaRoute
 from . import voices
 from .errors import Conflict, Invalid, NotFound
 
@@ -50,6 +50,20 @@ def _check_tools(s: Session, client_id: str, normalized: dict) -> None:
         check_grants(s, client_id, grants)
 
 
+def _check_llm(s: Session, client_id: str, normalized: dict) -> None:
+    """workflow.llm: cada conexion es del cliente del agente y esta vigente (la de otro cliente no sirve)."""
+    errors = []
+    for i, stage in enumerate((normalized.get("llm") or {}).get("stages") or []):
+        if not (connection_id := stage.get("connection")):
+            continue
+        row = s.get(LlmConnection, connection_id)
+        if row is None or row.client_id != client_id or row.revoked_at is not None:
+            errors.append({"path": f"llm.stages.{i}.connection",
+                           "message": "La conexion no existe, esta dada de baja o es de otro cliente"})
+    if errors:
+        raise Invalid("La definicion del agente no es valida", "invalid_definition", errors)
+
+
 def slugify(name: str) -> str:
     text = unicodedata.normalize("NFKD", name.lower()).encode("ascii", "ignore").decode()
     return re.sub(r"[^a-z0-9]+", "_", text).strip("_")[:64] or "agente"
@@ -78,6 +92,7 @@ def create_agent(s: Session, client: Client, name: str, slug: str | None, descri
         raise Conflict(f"El cliente ya tiene un agente {slug!r}")
     normalized = normalize_definition(definition, slug, 1)
     _check_tools(s, client.id, normalized)
+    _check_llm(s, client.id, normalized)
     agent = Agent(client_id=client.id, name=name, slug=slug, description=description,
                   version=1, definition=normalized)
     s.add(agent)
@@ -93,6 +108,7 @@ def update_definition(s: Session, agent: Agent, definition: dict, user_id: str |
     current = {k: v for k, v in agent.definition.items() if k != "version"}
     normalized = normalize_definition(definition, agent.slug, agent.version + 1)
     _check_tools(s, agent.client_id, normalized)
+    _check_llm(s, agent.client_id, normalized)
     if {k: v for k, v in normalized.items() if k != "version"} == current:
         return agent
     agent.version += 1

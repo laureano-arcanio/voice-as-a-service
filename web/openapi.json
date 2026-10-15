@@ -6560,6 +6560,354 @@
      }
     }
    }
+  },
+  "/api/v1/clients/{client_id}/llm-connections": {
+   "get": {
+    "tags": [
+     "llm-connections"
+    ],
+    "summary": "List Connections",
+    "operationId": "list_connections_api_v1_clients__client_id__llm_connections_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/LlmConnectionOut"
+         },
+         "title": "Response List Connections Api V1 Clients  Client Id  Llm Connections Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "llm-connections"
+    ],
+    "summary": "Create Connection",
+    "description": "Guarda la conexion. Probarla (`POST .../{id}/test`) detecta si el proveedor soporta salida JSON\nestricta y deja el resultado en la ficha.",
+    "operationId": "create_connection_api_v1_clients__client_id__llm_connections_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/LlmConnectionIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/LlmConnectionOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/clients/{client_id}/llm-connections/{connection_id}": {
+   "patch": {
+    "tags": [
+     "llm-connections"
+    ],
+    "summary": "Update Connection",
+    "operationId": "update_connection_api_v1_clients__client_id__llm_connections__connection_id__patch",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     },
+     {
+      "name": "connection_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Connection Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/LlmConnectionPatch"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/LlmConnectionOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "llm-connections"
+    ],
+    "summary": "Revoke Connection",
+    "description": "Los agentes que la usan siguen con el servidor propio (si tienen fallback_local).",
+    "operationId": "revoke_connection_api_v1_clients__client_id__llm_connections__connection_id__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     },
+     {
+      "name": "connection_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Connection Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/clients/{client_id}/llm-connections/{connection_id}/test": {
+   "post": {
+    "tags": [
+     "llm-connections"
+    ],
+    "summary": "Test Connection",
+    "description": "Hace un pedido real al proveedor (cuenta contra la clave del cliente, unos pocos tokens).",
+    "operationId": "test_connection_api_v1_clients__client_id__llm_connections__connection_id__test_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     },
+     {
+      "name": "connection_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Connection Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/LlmConnectionTestIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/LlmConnectionOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/clients/{client_id}/llm-connections/{connection_id}/models": {
+   "get": {
+    "tags": [
+     "llm-connections"
+    ],
+    "summary": "Connection Models",
+    "operationId": "connection_models_api_v1_clients__client_id__llm_connections__connection_id__models_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     },
+     {
+      "name": "connection_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Connection Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         },
+         "title": "Response Connection Models Api V1 Clients  Client Id  Llm Connections  Connection Id  Models Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
   }
  },
  "components": {
@@ -9814,6 +10162,50 @@
        }
       ],
       "title": "Output"
+     },
+     "provider": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Provider"
+     },
+     "model": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Model"
+     },
+     "fallback_from": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Fallback From"
+     },
+     "fallback_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Fallback Reason"
      }
     },
     "type": "object",
@@ -9823,6 +10215,245 @@
     ],
     "title": "LlmCall",
     "description": "Una llamada al LLM en un turno (conversacion o extraccion), tal cual."
+   },
+   "LlmConnectionIn": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "kind": {
+      "type": "string",
+      "enum": [
+       "openai_compatible",
+       "openrouter",
+       "anthropic"
+      ],
+      "title": "Kind"
+     },
+     "base_url": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 255
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Base Url",
+      "description": "Solo openai_compatible; openrouter y anthropic tienen la suya fija"
+     },
+     "api_key": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Api Key"
+     },
+     "default_model": {
+      "type": "string",
+      "maxLength": 128,
+      "title": "Default Model",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "name",
+     "kind",
+     "api_key"
+    ],
+    "title": "LlmConnectionIn",
+    "description": "Conexion a un proveedor de LLM con la clave del cliente (BYOK). La clave no se devuelve nunca."
+   },
+   "LlmConnectionOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "client_id": {
+      "type": "string",
+      "title": "Client Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "kind": {
+      "type": "string",
+      "enum": [
+       "openai_compatible",
+       "openrouter",
+       "anthropic"
+      ],
+      "title": "Kind"
+     },
+     "base_url": {
+      "type": "string",
+      "title": "Base Url"
+     },
+     "last4": {
+      "type": "string",
+      "title": "Last4"
+     },
+     "default_model": {
+      "type": "string",
+      "title": "Default Model"
+     },
+     "json_mode": {
+      "type": "string",
+      "enum": [
+       "json_schema",
+       "json_object",
+       "prompt"
+      ],
+      "title": "Json Mode"
+     },
+     "created_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created By"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "last_test_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Test At"
+     },
+     "last_test_ok": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Test Ok"
+     },
+     "last_test_detail": {
+      "type": "string",
+      "title": "Last Test Detail"
+     },
+     "used_by": {
+      "type": "integer",
+      "title": "Used By",
+      "description": "Agentes vigentes que la usan",
+      "default": 0
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "client_id",
+     "name",
+     "kind",
+     "base_url",
+     "last4",
+     "default_model",
+     "json_mode",
+     "created_by",
+     "created_at",
+     "last_test_at",
+     "last_test_ok",
+     "last_test_detail"
+    ],
+    "title": "LlmConnectionOut"
+   },
+   "LlmConnectionPatch": {
+    "properties": {
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 64,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "base_url": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 255
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Base Url"
+     },
+     "api_key": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 512
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Api Key",
+      "description": "Para rotar la clave"
+     },
+     "default_model": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 128
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Default Model"
+     }
+    },
+    "type": "object",
+    "title": "LlmConnectionPatch"
+   },
+   "LlmConnectionTestIn": {
+    "properties": {
+     "model": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 128
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Model",
+      "description": "Sin modelo, el de la conexion"
+     }
+    },
+    "type": "object",
+    "title": "LlmConnectionTestIn"
    },
    "LoginIn": {
     "properties": {

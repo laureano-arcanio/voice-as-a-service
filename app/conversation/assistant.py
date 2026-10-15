@@ -275,8 +275,10 @@ class Assistant:
         return out
 
     async def run(self, workflow: Workflow, state: ConversationState, user_message: str,
-                  media: TurnMedia, actor: str) -> tuple[AgentTurn, list[dict], dict | None]:
-        """Devuelve la respuesta, la traza del turno (para el dashboard) y lo que queda pendiente."""
+                  media: TurnMedia, actor: str, llm=None) -> tuple[AgentTurn, list[dict], dict | None]:
+        """Devuelve la respuesta, la traza del turno (para el dashboard) y lo que queda pendiente.
+        llm: el del turno segun workflow.llm (app/llm/resolver.py); sin pasarlo, el del motor."""
+        llm = llm or self.llm
         tools = self.tools_for(workflow, state)
         by_name = {t.name: t for t in tools}
         prior = state.progress.pending if state.progress.pending and state.progress.pending.get("tool") in by_name else None
@@ -318,10 +320,10 @@ class Assistant:
             # El ultimo paso, o despues de repetir una herramienta, solo puede responder (12-oct-2026: con
             # razonamiento repetia ficha_alumno hasta agotar los pasos y el usuario recibia el FALLBACK).
             schema = step_schema(tools, prior is not None, reply_only or step == steps - 1)
-            raw, reasoning = await self.llm.structured(messages, schema, "paso",
-                                                       thinking=settings.assistant_thinking,
-                                                       budget=settings.assistant_thinking_budget,
-                                                       max_tokens=settings.assistant_max_step_tokens)
+            raw, reasoning = await llm.structured(messages, schema, "paso",
+                                                  thinking=settings.assistant_thinking,
+                                                  budget=settings.assistant_thinking_budget,
+                                                  max_tokens=settings.assistant_max_step_tokens)
             trace.append({"kind": "paso", "input": "", "ms": round((time.perf_counter() - started) * 1000),
                           "reasoning": reasoning, "output": raw})
             try:

@@ -61,6 +61,36 @@ describe('toDraft / fromDraft', () => {
     expect(fromDraft(d)).toMatchObject({ record_audio: true });
   });
 
+  it('llm (conexiones BYOK): ida y vuelta, y sin etapas externas no va a la definicion', () => {
+    const llm = {
+      stages: [
+        { from_turn: 1 },
+        { from_turn: 4, connection: 'c1', model: 'vendor/model', temperature: 0.3 },
+      ],
+      fallback_local: false,
+    };
+    const d = toDraft({ ...def, llm });
+    expect(d.llm?.stages.map((s) => [s.fromTurn, s.connection, s.model, s.temperature])).toEqual([
+      [1, null, '', ''],
+      [4, 'c1', 'vendor/model', '0.3'],
+    ]);
+    expect(fromDraft(d)).toMatchObject({ llm });
+    expect(fromDraft(toDraft(def))).not.toHaveProperty('llm');
+    const local = toDraft({ ...def, llm: { stages: [{ from_turn: 1 }], fallback_local: true } });
+    expect(fromDraft(local)).not.toHaveProperty('llm');
+    // Sin proveedor externo, la temperatura y el modelo no viajan.
+    local.llm!.stages[0]!.temperature = '0.5';
+    local.llm!.fallbackLocal = false;
+    expect(fromDraft(local)).toMatchObject({ llm: { stages: [{ from_turn: 1 }], fallback_local: false } });
+    expect(JSON.stringify(fromDraft(local))).not.toContain('temperature');
+  });
+
+  it('los errores de llm llevan a la seccion Modelo de lenguaje', () => {
+    const d = toDraft(def);
+    expect(errorTarget(d, 'llm.stages.1.connection')).toEqual({ section: 'modelo' });
+    expect(pathLabel(d, 'llm.stages.1.connection')).toBe('Modelo de lenguaje › etapa 2 › conexión');
+  });
+
   it('ordena los datos por prioridad y lee las condiciones', () => {
     const d = toDraft(def);
     expect(d.fields.map((f) => f.name)).toEqual(['wants', 'zone']);

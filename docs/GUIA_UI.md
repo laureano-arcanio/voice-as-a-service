@@ -303,6 +303,27 @@ No se muestran el cliente, el slug, el motor, el JSON ni el prompt: son internos
 el motor Clásico; desde la UI lo cambia un admin. Por API el cliente hace lo mismo con su API key
 (`POST /api/v1/agents` sin `client_id`); ahí `engine` es un campo más de la definición.
 
+### Modelos (cliente) y Modelo de lenguaje de un agente
+
+Por defecto todos los agentes contestan con el servidor de Atentina. Con **BYOK** el cliente trae la
+clave de su proveedor y elige, por agente, desde qué turno lo usa
+([`BYOK_LLM_PLAN.md`](BYOK_LLM_PLAN.md)).
+
+1. **Modelos > Nueva conexión** (el admin, en la ficha del cliente, pestaña **Modelos**): proveedor
+   (Anthropic, OpenRouter u OpenAI compatible, con su URL base), nombre, API key y modelo por defecto.
+   Al guardar se **prueba** sola: dice si la clave y el modelo andan, cuánto tardó y cómo pide el JSON
+   ese proveedor. La clave se guarda cifrada y no se vuelve a mostrar (solo `…1234`).
+2. En la lista: **Probar** de nuevo, **Editar** (nombre, modelo, o rotar la clave) y **Dar de baja**.
+   La columna *Agentes* dice cuántos la usan: al darla de baja pasan al servidor Atentina.
+3. **Agente > Definición > Modelo de lenguaje:** una etapa por tramo de la conversación.
+   *Desde el turno* es el mensaje número N de la persona (la apertura no cuenta); la primera etapa
+   empieza siempre en 1 y hay hasta 3. Cada etapa elige el servidor Atentina o una conexión, su modelo
+   (la lista sale del proveedor; si no la da, se escribe) y, opcional, la temperatura.
+4. **Usar el servidor Atentina si el proveedor falla** (activado por defecto): si el proveedor da error,
+   ese turno lo contesta el servidor propio. Apagado, el error corta el turno.
+5. Las conversaciones con una etapa externa **salen del servidor**: el editor lo avisa. En el detalle
+   de una conversación, cada llamada al modelo muestra proveedor y modelo, y cuándo contestó el respaldo.
+
 ### Voces
 
 Catálogo de las 41 voces del TTS, con género, WER y velocidad (car/s), filtrable, y la prueba de voz.
@@ -405,3 +426,5 @@ Registro y cobro por transferencia ([`SUSCRIPCIONES_PLAN.md`](SUSCRIPCIONES_PLAN
 | "Conectar WhatsApp" abre y se cierra, o da error de dominio | Se entró por `http://` o por un dominio que no está en la app de Meta: usar `https://app.atentina.com.ar`. |
 | Un número de WhatsApp queda "Pendiente" | Falló el registro en Meta (ej. PIN de dos pasos incorrecto, 133005): Reintentar registro con el PIN correcto. |
 | La prueba de voz o el chat por texto dan error | El TTS o el LLM no responden (`make health`). |
+| Una conexión de modelos "falló la prueba" | El detalle lo dice: clave inválida, modelo inexistente o URL incorrecta (OpenAI compatible), límite del proveedor o sin conexión. Corregí y volvé a **Probar**. |
+| Un agente con modelo propio contesta con el servidor Atentina | El proveedor falló y el agente tiene el respaldo activado: mirá en el detalle de la conversación el motivo (`fallback_reason`). Si la conexión se dio de baja, también. |

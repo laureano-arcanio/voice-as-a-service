@@ -1,5 +1,7 @@
 # Software e IA, partners, tanda 3 (7-oct-2026): consultoras e integradores de toda Argentina, 65 posibles aliados
 
+**15-oct-2026:** el asunto («Llamadas de voz») y el texto del primer mail de los pendientes (contacto 201 en adelante) se reemplazaron a pedido del usuario: sin presentación, primero el problema, después la integración por API o MCP y el encaje, y cierre con «¿Agendamos una llamada la semana que viene?». La nota y el mensaje de LinkedIn no cambian.
+
 **Borrador, sin enviar.** Tercera tanda de canales de software e IA: empresas de software, consultoras tecnológicas e integradores
 que ya implementan IA para sus clientes (agentes conversacionales, automatización, datos e IA, ERP/CRM con IA, GovTech, software
 vertical con IA), todas de Argentina: CABA, GBA y provincia de Buenos Aires (30: CABA 15, GBA 6, Mar del Plata 1, Buenos Aires sin dirección publicada 8) e interior (35: Córdoba 11, Santa Fe 7, Mendoza 6, Neuquén 4, Río Negro 2, Entre Ríos 2, Tucumán 1, Salta 1, La Pampa 1).
@@ -165,7 +167,7 @@ frojas@pipe.com.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Pipe Tech
+Llamadas de voz
 ```
 
 Texto:
@@ -173,17 +175,16 @@ Texto:
 ```
 Hola Federico, ¿cómo estás?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un precio razonable para Argentina: en pesos y muy por debajo de lo que cuesta con proveedores como Twilio, ElevenLabs u OpenAI.
 
-Pipe Tech ya arma agentes y bots conversacionales que automatizan procesos de sus clientes: el teléfono, con número incluido, es el canal que le falta a esos mismos agentes.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Pipe Tech ya arma agentes y bots que automatizan procesos de sus clientes: con nuestra voz, esos mismos agentes pueden atender y hacer llamadas.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=pipe-tech
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (288 caracteres):
@@ -239,7 +240,7 @@ mkt@tgv.com.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de TGV
+Llamadas de voz
 ```
 
 Texto:
@@ -247,17 +248,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA sin pagar precios en dólares: el minuto sale en pesos y muy por debajo de Twilio, ElevenLabs u OpenAI.
 
-TGV ya vende IA empresarial dentro del ERP, como Melissa en JD Edwards: un agente que atienda y llame por teléfono a los clientes de esas empresas es la pieza que sigue, integrada por API.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. TGV ya vende IA dentro del ERP, como Melissa en JD Edwards: con nuestra voz, ese asistente también puede atender y llamar a los clientes por teléfono.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=tgv
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (273 caracteres):
@@ -312,7 +312,7 @@ sales@muttdata.ai
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Mutt Data
+Llamadas de voz
 ```
 
 Texto:
@@ -320,17 +320,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un costo que se puede pagar en Argentina: en pesos y muy por debajo de armarlo con Twilio, ElevenLabs u OpenAI.
 
-Mutt Data ya construye plataformas de datos e IA para bancos, fintechs y retailers: un agente de voz que atienda y llame a los clientes de esas empresas se conecta a esa misma plataforma por API.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Mutt Data ya construye plataformas de datos e IA para bancos, fintechs y retailers: con nuestra voz, esas plataformas pueden hablar por teléfono con los clientes de esas empresas.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=muttdata
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (279 caracteres):
@@ -386,7 +385,7 @@ hello@pigmalion.co
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Pigmalion Software
+Llamadas de voz
 ```
 
 Texto:
@@ -394,17 +393,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un precio razonable para Argentina: en pesos y muy por debajo de lo que cuesta con proveedores como Twilio, ElevenLabs u OpenAI.
 
-Pigmalion ya entrega modelos de IA y software a empresas industriales y financieras: el teléfono es el canal que esas empresas siguen atendiendo a mano, y un agente de voz se integra a lo que ustedes construyen.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Pigmalion ya entrega modelos de IA y software a empresas industriales y financieras, que todavía atienden el teléfono a mano: con nuestra voz, lo que ustedes construyen puede atender esas llamadas.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=pigmalion
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (288 caracteres):
@@ -460,7 +458,7 @@ info@teknedatalabs.com
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Tekne Data Labs
+Llamadas de voz
 ```
 
 Texto:
@@ -468,17 +466,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA sin pagar precios en dólares: el minuto sale en pesos y muy por debajo de Twilio, ElevenLabs u OpenAI.
 
-Tekne ya despliega agentes y flujos de IA que ejecutan trabajo real en aseguradoras y energéticas: atender y hacer llamadas por teléfono es el flujo que sigue, y se conecta por API.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Tekne ya despliega agentes y flujos de IA en aseguradoras y energéticas: con nuestra voz, esos flujos pueden atender y hacer llamadas.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=tekne-data-labs
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (285 caracteres):
@@ -533,7 +530,7 @@ info@cys.com.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de C&S Informática
+Llamadas de voz
 ```
 
 Texto:
@@ -541,17 +538,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un costo que se puede pagar en Argentina: en pesos y muy por debajo de armarlo con Twilio, ElevenLabs u OpenAI.
 
-C&S ya integra IA, automatización y analítica en software a medida para gobierno y logística: un agente que atienda y llame por teléfono es una pieza más de esos proyectos, con número incluido.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. C&S ya integra IA y automatización en software a medida para gobierno y logística: con nuestra voz, esos proyectos suman la atención y las llamadas por teléfono.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=cys
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (285 caracteres):
@@ -606,7 +602,7 @@ sales@appstract.us
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Appstract
+Llamadas de voz
 ```
 
 Texto:
@@ -614,17 +610,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un precio razonable para Argentina: en pesos y muy por debajo de lo que cuesta con proveedores como Twilio, ElevenLabs u OpenAI.
 
-Appstract ya automatiza procesos de negocio con IA e integra sistemas para sus clientes: las llamadas de atención y cobranza son el proceso que sigue, y se suman por API.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Appstract ya automatiza procesos con IA e integra sistemas para sus clientes: con nuestra voz, las llamadas de atención y cobranza son un proceso más para automatizar.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=appstract
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (279 caracteres):
@@ -679,7 +674,7 @@ info@itmaker.com.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de IT Maker
+Llamadas de voz
 ```
 
 Texto:
@@ -687,17 +682,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA sin pagar precios en dólares: el minuto sale en pesos y muy por debajo de Twilio, ElevenLabs u OpenAI.
 
-IT Maker ya integra datos y analítica con IA para empresas y servicios públicos: un agente de voz que atienda y llame a los usuarios de esas empresas se alimenta de esas mismas integraciones.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. IT Maker ya integra datos y analítica con IA para empresas y servicios públicos: con nuestra voz, esas integraciones pueden atender y llamar a los usuarios.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=it-maker
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (278 caracteres):
@@ -752,7 +746,7 @@ info@bigdataestrategico.com
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Big Data Estratégico
+Llamadas de voz
 ```
 
 Texto:
@@ -760,17 +754,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un costo que se puede pagar en Argentina: en pesos y muy por debajo de armarlo con Twilio, ElevenLabs u OpenAI.
 
-Big Data Estratégico ya arma chats con IA por WhatsApp y Telegram para hablar con los datos de la empresa: el mismo asistente puede atender la línea telefónica de esos clientes, con número incluido.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Big Data Estratégico ya arma chats con IA por WhatsApp y Telegram sobre los datos de la empresa: con nuestra voz, el mismo asistente puede atender el teléfono.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=big-data-estrategico
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (290 caracteres):
@@ -825,7 +818,7 @@ hola@cloudsolutionslatam.com
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Cloud Solutions LATAM
+Llamadas de voz
 ```
 
 Texto:
@@ -833,17 +826,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un precio razonable para Argentina: en pesos y muy por debajo de lo que cuesta con proveedores como Twilio, ElevenLabs u OpenAI.
 
-Cloud Solutions ya implementa Zoho CRM en empresas de toda la región: un agente que atienda y llame por teléfono y deje cada contacto en el CRM es el módulo que esos clientes siguen cubriendo con personas.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Cloud Solutions ya implementa Zoho CRM en empresas de toda la región: con nuestra voz, sus clientes pueden atender y hacer llamadas que quedan registradas en el CRM.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=cloud-solutions-latam
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (291 caracteres):
@@ -898,7 +890,7 @@ contact@habsar.com
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de HabSar
+Llamadas de voz
 ```
 
 Texto:
@@ -906,17 +898,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA sin pagar precios en dólares: el minuto sale en pesos y muy por debajo de Twilio, ElevenLabs u OpenAI.
 
-HabSar ya conecta WhatsApp, pagos y automatizaciones al CRM de sus clientes: el teléfono atendido por un agente y registrado en HubSpot es la integración que les falta.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. HabSar ya conecta WhatsApp, pagos y automatizaciones a HubSpot: con nuestra voz, el teléfono es una integración más, con cada llamada registrada en el CRM.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=habsar
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (276 caracteres):
@@ -971,7 +962,7 @@ hola@axcelere.com
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Axcelere
+Llamadas de voz
 ```
 
 Texto:
@@ -979,17 +970,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un costo que se puede pagar en Argentina: en pesos y muy por debajo de armarlo con Twilio, ElevenLabs u OpenAI.
 
-Axcelere ya implementa Odoo con IA en empresas de distribución y construcción: un agente que atienda y llame por teléfono, conectado al ERP, es el módulo que sus clientes siguen resolviendo a mano.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Axcelere ya implementa Odoo con IA en distribuidoras y constructoras: con nuestra voz, sus clientes pueden atender y hacer por teléfono lo que hoy resuelven a mano.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=axcelere
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (278 caracteres):
@@ -1045,7 +1035,7 @@ contacto@blueorange.com.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Blueorange Group
+Llamadas de voz
 ```
 
 Texto:
@@ -1053,17 +1043,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un precio razonable para Argentina: en pesos y muy por debajo de lo que cuesta con proveedores como Twilio, ElevenLabs u OpenAI.
 
-Blueorange ya vende un bot de WhatsApp que atiende y notifica desde Odoo: un agente que haga lo mismo por teléfono, con número incluido y conectado al ERP, completa esa oferta.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Blueorange ya vende un bot de WhatsApp que atiende y notifica desde Odoo: con nuestra voz, ese mismo bot puede hacerlo por teléfono.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=blueorange
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (286 caracteres):
@@ -1119,7 +1108,7 @@ axel.diaz@axiomait.com
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Axioma IT Solutions
+Llamadas de voz
 ```
 
 Texto:
@@ -1127,17 +1116,16 @@ Texto:
 ```
 Hola Axel, ¿cómo estás?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA sin pagar precios en dólares: el minuto sale en pesos y muy por debajo de Twilio, ElevenLabs u OpenAI.
 
-Axioma ya vende soluciones de IA que automatizan procesos e implementa Odoo y Microsoft 365: un agente que atienda y llame por teléfono, conectado a esos sistemas, es el servicio que le falta al catálogo.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Axioma ya automatiza procesos con IA e implementa Odoo y Microsoft 365: con nuestra voz, esas soluciones pueden atender y hacer llamadas.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=axioma-it
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (294 caracteres):
@@ -1193,7 +1181,7 @@ lucas@hitofusion.com
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Hitofusion
+Llamadas de voz
 ```
 
 Texto:
@@ -1201,17 +1189,16 @@ Texto:
 ```
 Hola Lucas, ¿cómo estás?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un costo que se puede pagar en Argentina: en pesos y muy por debajo de armarlo con Twilio, ElevenLabs u OpenAI.
 
-Hitofusion ya vende Jinzo, agentes de IA que trabajan dentro de Odoo, y la integración con WhatsApp: el mismo agente atendiendo y llamando por teléfono, con número incluido, es el canal que falta.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Hitofusion ya vende Jinzo, agentes de IA dentro de Odoo, y la integración con WhatsApp: con nuestra voz, Jinzo también puede atender y llamar por teléfono.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=hitofusion
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (286 caracteres):
@@ -1267,7 +1254,7 @@ gflores@mgintelligence.com
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de MG Intelligence
+Llamadas de voz
 ```
 
 Texto:
@@ -1275,17 +1262,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un precio razonable para Argentina: en pesos y muy por debajo de lo que cuesta con proveedores como Twilio, ElevenLabs u OpenAI.
 
-MG Intelligence ya automatiza la operación de empresas medianas sobre Odoo: las llamadas de cobranza, pedidos y atención son la tarea manual que sigue, y un agente de voz las toma conectado al ERP.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. MG Intelligence ya automatiza la operación de empresas medianas sobre Odoo: con nuestra voz, las llamadas de cobranza, pedidos y atención son la próxima tarea para automatizar.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=mg-intelligence
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (285 caracteres):
@@ -1341,7 +1327,7 @@ web@chroma.agency
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Chroma Agency
+Llamadas de voz
 ```
 
 Texto:
@@ -1349,17 +1335,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA sin pagar precios en dólares: el minuto sale en pesos y muy por debajo de Twilio, ElevenLabs u OpenAI.
 
-Chroma ya vende chatbots con IA e implementa Odoo: el mismo asistente atendiendo y llamando por teléfono, con número incluido y conectado al ERP, es el canal que le falta a sus clientes.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Chroma ya vende chatbots con IA e implementa Odoo: con nuestra voz, esos mismos chatbots pueden atender y hacer llamadas.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=chroma
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (283 caracteres):
@@ -1416,7 +1401,7 @@ contacto@it-bs.com.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de ITBS Business Solutions
+Llamadas de voz
 ```
 
 Texto:
@@ -1424,17 +1409,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un costo que se puede pagar en Argentina: en pesos y muy por debajo de armarlo con Twilio, ElevenLabs u OpenAI.
 
-ITBS ya implementa Odoo y BAS en pymes que escalan y dice que su paso natural es la IA: un agente que atienda y llame por teléfono, conectado a esos ERP, es un producto concreto para ese paso.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. ITBS ya implementa Odoo y BAS en pymes y dice que su paso natural es la IA: la voz por teléfono es un producto concreto para ese paso.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=itbs
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (293 caracteres):
@@ -1489,7 +1473,7 @@ info@sysmo.com.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Sysmo
+Llamadas de voz
 ```
 
 Texto:
@@ -1497,17 +1481,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un precio razonable para Argentina: en pesos y muy por debajo de lo que cuesta con proveedores como Twilio, ElevenLabs u OpenAI.
 
-Sysmo ya vende chatbots con IA y aplicaciones a municipios y empresas: la línea telefónica de atención, atendida por el mismo asistente y con número incluido, es el canal que falta en esos proyectos.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Sysmo ya vende chatbots con IA a municipios y empresas: con nuestra voz, el mismo asistente puede atender la línea telefónica.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=sysmo
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (275 caracteres):
@@ -1562,7 +1545,7 @@ hello@rockingdata.com.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de RockingData
+Llamadas de voz
 ```
 
 Texto:
@@ -1570,17 +1553,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA sin pagar precios en dólares: el minuto sale en pesos y muy por debajo de Twilio, ElevenLabs u OpenAI.
 
-RockingData ya lleva IA y GenAI a bancos, aseguradoras y empresas de salud: un agente de voz que atienda y llame a los clientes de esas empresas se apoya en los modelos que ustedes ya construyen.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. RockingData ya lleva IA y GenAI a bancos, aseguradoras y empresas de salud: con nuestra voz, esos modelos pueden atender y llamar a los clientes por teléfono.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=rockingdata
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (281 caracteres):
@@ -1635,7 +1617,7 @@ info@accedra.com.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Accedra
+Llamadas de voz
 ```
 
 Texto:
@@ -1643,17 +1625,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un costo que se puede pagar en Argentina: en pesos y muy por debajo de armarlo con Twilio, ElevenLabs u OpenAI.
 
-Accedra ya vende software a medida e IA aplicada a más de 400 empresas: un agente que atienda y llame por teléfono, con número incluido, es un servicio más para esa base de clientes.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Accedra ya vende software a medida e IA a más de 400 empresas: la voz por teléfono es un servicio más para esa base de clientes.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=accedra
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (277 caracteres):
@@ -1708,7 +1689,7 @@ info@bglobalsolutions.com
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de BGlobal Solutions
+Llamadas de voz
 ```
 
 Texto:
@@ -1716,17 +1697,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un precio razonable para Argentina: en pesos y muy por debajo de lo que cuesta con proveedores como Twilio, ElevenLabs u OpenAI.
 
-BGlobal ya implementa Creatio con agentes de IA en más de 200 clientes: un agente que atienda y llame por teléfono y deje todo en el CRM es el canal que esos procesos todavía no tienen.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. BGlobal ya implementa Creatio con agentes de IA en más de 200 clientes: con nuestra voz, esos agentes pueden atender y hacer llamadas, con todo registrado en el CRM.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=bglobal
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (287 caracteres):
@@ -1781,7 +1761,7 @@ info@positiveit.com.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de PositiveIT
+Llamadas de voz
 ```
 
 Texto:
@@ -1789,17 +1769,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA sin pagar precios en dólares: el minuto sale en pesos y muy por debajo de Twilio, ElevenLabs u OpenAI.
 
-PositiveIT ya integra agentes de IA y bots conversacionales con Salesforce, Zoho y SugarCRM: el mismo agente atendiendo y llamando por teléfono, con todo registrado en el CRM, es el canal que falta.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. PositiveIT ya integra agentes y bots con Salesforce, Zoho y SugarCRM: con nuestra voz, esos mismos agentes pueden atender y llamar por teléfono.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=positiveit
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (280 caracteres):
@@ -1854,7 +1833,7 @@ contacto@zennonbi.com
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Zennon BI
+Llamadas de voz
 ```
 
 Texto:
@@ -1862,17 +1841,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un costo que se puede pagar en Argentina: en pesos y muy por debajo de armarlo con Twilio, ElevenLabs u OpenAI.
 
-Zennon ya vende agentes de IA y copilots para atención y soporte sobre Dynamics 365: un agente que atienda y llame por teléfono, con número incluido y conectado al CRM, es el canal que esos copilots no cubren.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Zennon ya vende agentes y copilots de atención sobre Dynamics 365: con nuestra voz, esos agentes también pueden atender y hacer llamadas.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=zennon
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (279 caracteres):
@@ -1927,7 +1905,7 @@ contacto@growit.com.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de GrowIT
+Llamadas de voz
 ```
 
 Texto:
@@ -1935,17 +1913,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un precio razonable para Argentina: en pesos y muy por debajo de lo que cuesta con proveedores como Twilio, ElevenLabs u OpenAI.
 
-GrowIT ya arma CRM, marketing automation y omnicanalidad con IA para sus clientes: el teléfono atendido por un agente y registrado en el CRM es el canal que completa esa omnicanalidad.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. GrowIT ya arma CRM, marketing automation y omnicanalidad con IA: con nuestra voz, el teléfono completa esa omnicanalidad.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=growit
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (276 caracteres):
@@ -2000,7 +1977,7 @@ somos@bequantit.com
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Quantit
+Llamadas de voz
 ```
 
 Texto:
@@ -2008,17 +1985,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA sin pagar precios en dólares: el minuto sale en pesos y muy por debajo de Twilio, ElevenLabs u OpenAI.
 
-Quantit ya desarrolla chatbots y procesamiento de lenguaje a medida para empresas: el mismo asistente atendiendo y llamando por teléfono, con número incluido, es el canal que le falta a esos proyectos.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Quantit ya desarrolla chatbots y procesamiento de lenguaje a medida: con nuestra voz, esos asistentes pueden atender y hacer llamadas.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=quantit
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (277 caracteres):
@@ -2073,7 +2049,7 @@ info@silogik.com
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Silogik
+Llamadas de voz
 ```
 
 Texto:
@@ -2081,17 +2057,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un costo que se puede pagar en Argentina: en pesos y muy por debajo de armarlo con Twilio, ElevenLabs u OpenAI.
 
-Silogik ya automatiza procesos con RPA e integra sistemas para sus clientes: las llamadas de atención, confirmación y cobranza son el proceso que sigue, y un agente de voz las toma por API.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Silogik ya automatiza procesos con RPA e integra sistemas: con nuestra voz, las llamadas de atención, confirmación y cobranza son un proceso más para automatizar.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=silogik
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (277 caracteres):
@@ -2146,7 +2121,7 @@ german@prodasoftware.com
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Proda Software
+Llamadas de voz
 ```
 
 Texto:
@@ -2154,17 +2129,16 @@ Texto:
 ```
 Hola Germán, ¿cómo estás?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un precio razonable para Argentina: en pesos y muy por debajo de lo que cuesta con proveedores como Twilio, ElevenLabs u OpenAI.
 
-Proda ya implementa Zoho CRM y Creator en pymes de toda la región: un agente que atienda y llame por teléfono, dejando cada contacto en el CRM, es el módulo que esos clientes siguen cubriendo con personas.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Proda ya implementa Zoho CRM y Creator en pymes de toda la región: con nuestra voz, sus clientes pueden atender y hacer llamadas que quedan registradas en el CRM.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=proda
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (291 caracteres):
@@ -2221,7 +2195,7 @@ info@datcom.io
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Datcom Software
+Llamadas de voz
 ```
 
 Texto:
@@ -2229,17 +2203,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA sin pagar precios en dólares: el minuto sale en pesos y muy por debajo de Twilio, ElevenLabs u OpenAI.
 
-Datcom ya vende un WMS con IA y tableros a operadores logísticos y distribuidoras: confirmar entregas y pedidos por teléfono con un agente, integrado a Dettron, es el canal que esos clientes siguen cubriendo a mano.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Datcom ya vende Dettron, un WMS con IA, a operadores logísticos y distribuidoras: con nuestra voz, la confirmación de entregas y pedidos por teléfono puede salir del mismo sistema.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=datcom
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (285 caracteres):
@@ -2295,7 +2268,7 @@ info@potenciatech.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Potencia Technologies
+Llamadas de voz
 ```
 
 Texto:
@@ -2303,17 +2276,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un costo que se puede pagar en Argentina: en pesos y muy por debajo de armarlo con Twilio, ElevenLabs u OpenAI.
 
-Potencia ya vende SITA, selección de talentos con IA y bot de WhatsApp: llamar a los candidatos para confirmar entrevistas y atender sus consultas por teléfono es el canal que ese producto todavía no tiene.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Potencia ya vende SITA, selección de talentos con IA y bot de WhatsApp: con nuestra voz, SITA también puede llamar a los candidatos y atender sus consultas por teléfono.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=potencia-tech
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (291 caracteres):
@@ -2368,7 +2340,7 @@ hola@gigaglobal.com.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de GiGa Global
+Llamadas de voz
 ```
 
 Texto:
@@ -2376,17 +2348,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un precio razonable para Argentina: en pesos y muy por debajo de lo que cuesta con proveedores como Twilio, ElevenLabs u OpenAI.
 
-GiGa ya implementa Odoo y vende agentes de IA y automatizaciones a esos mismos clientes: el teléfono, con número incluido y conectado al ERP, es el canal que les falta.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. GiGa ya implementa Odoo y vende agentes de IA a esos mismos clientes: con nuestra voz, esos agentes suman el teléfono.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=giga-global
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (281 caracteres):
@@ -2519,7 +2490,7 @@ sebastian.sosa@mindfactory.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Mindfactory
+Llamadas de voz
 ```
 
 Texto:
@@ -2527,17 +2498,16 @@ Texto:
 ```
 Hola Sebastián, ¿cómo estás?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA sin pagar precios en dólares: el minuto sale en pesos y muy por debajo de Twilio, ElevenLabs u OpenAI.
 
-Mindfactory moderniza organismos de gobierno y empresas de salud y servicios públicos: un agente que atienda el teléfono del organismo y llame por vencimientos o turnos se integra a esas plataformas por API.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Mindfactory moderniza organismos de gobierno, salud y servicios públicos: con nuestra voz, esas plataformas pueden atender el teléfono y llamar por vencimientos o turnos.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=mindfactory
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (291 caracteres):
@@ -2594,7 +2564,7 @@ agiraudo@municipalidad.com
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Program Consultores
+Llamadas de voz
 ```
 
 Texto:
@@ -2602,17 +2572,16 @@ Texto:
 ```
 Hola Alberto, ¿cómo estás?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un costo que se puede pagar en Argentina: en pesos y muy por debajo de armarlo con Twilio, ElevenLabs u OpenAI.
 
-PGM gestiona la recaudación y la atención ciudadana de municipios y cooperativas: un agente que atienda el teléfono del municipio y llame por vencimientos de tasas se integra a esa plataforma, y ustedes lo venden dentro de su suite.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. PGM gestiona la recaudación y la atención ciudadana de municipios y cooperativas: con nuestra voz, su suite puede atender el teléfono del municipio y llamar por vencimientos de tasas.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=program-consultores
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (297 caracteres):
@@ -2668,7 +2637,7 @@ Jburkle@emser.net
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Emser
+Llamadas de voz
 ```
 
 Texto:
@@ -2676,17 +2645,16 @@ Texto:
 ```
 Hola Jorge, ¿cómo estás?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un precio razonable para Argentina: en pesos y muy por debajo de lo que cuesta con proveedores como Twilio, ElevenLabs u OpenAI.
 
-Emser ya automatiza con IA la operación de distribuidoras y servicios públicos como Ecogas o Aysa: las llamadas de reclamos, cobranza y confirmación son el proceso que sigue, y se integran por API.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Emser ya automatiza con IA la operación de distribuidoras y servicios públicos como Ecogas o Aysa: con nuestra voz, las llamadas de reclamos, cobranza y confirmación son el proceso que sigue.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=emser
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (281 caracteres):
@@ -2742,7 +2710,7 @@ info@dinocloud.co
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de DinoCloud
+Llamadas de voz
 ```
 
 Texto:
@@ -2750,17 +2718,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA sin pagar precios en dólares: el minuto sale en pesos y muy por debajo de Twilio, ElevenLabs u OpenAI.
 
-DinoCloud ya integra modelos de lenguaje y automatiza procesos para bancos, logística y salud en AWS: un agente que atienda y llame por teléfono, con número incluido, es la pieza de voz que esos proyectos no tienen.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. DinoCloud ya integra modelos de lenguaje para bancos, logística y salud en AWS: con nuestra voz, esos proyectos suman la atención y las llamadas por teléfono.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=dinocloud
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (279 caracteres):
@@ -2816,7 +2783,7 @@ contacto@vatrox.com
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Vatrox
+Llamadas de voz
 ```
 
 Texto:
@@ -2824,17 +2791,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un costo que se puede pagar en Argentina: en pesos y muy por debajo de armarlo con Twilio, ElevenLabs u OpenAI.
 
-Vatrox ya integra datos y procesos con IA aplicada en banca, seguros y retail: un agente que atienda y llame por teléfono se conecta a esas mismas integraciones por API, sin que ustedes armen la telefonía.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Vatrox ya integra datos y procesos con IA en banca, seguros y retail: con nuestra voz, esas integraciones pueden atender y hacer llamadas sin que ustedes armen la telefonía.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=vatrox
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (276 caracteres):
@@ -2889,7 +2855,7 @@ info@olpagroup.com
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Olpa Group
+Llamadas de voz
 ```
 
 Texto:
@@ -2897,17 +2863,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un precio razonable para Argentina: en pesos y muy por debajo de lo que cuesta con proveedores como Twilio, ElevenLabs u OpenAI.
 
-Olpa ya arma agentes de IA y flujos en n8n sobre Odoo para 27 pymes: el agente que atiende y llama por teléfono es un nodo más de esos flujos, con número incluido.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Olpa ya arma agentes de IA y flujos en n8n sobre Odoo para 27 pymes: con nuestra voz, atender y llamar por teléfono es un nodo más de esos flujos.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=olpa-group
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (280 caracteres):
@@ -2962,7 +2927,7 @@ info@castelsoft.com
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Castelsoft
+Llamadas de voz
 ```
 
 Texto:
@@ -2970,17 +2935,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA sin pagar precios en dólares: el minuto sale en pesos y muy por debajo de Twilio, ElevenLabs u OpenAI.
 
-Castelsoft ya implementa Odoo con IA para acelerar: un agente que atienda y llame por teléfono, con número incluido y conectado al ERP, es el módulo que falta en esas implementaciones.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Castelsoft ya implementa Odoo con IA: con nuestra voz, esas implementaciones suman la atención y las llamadas por teléfono.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=castelsoft
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (280 caracteres):
@@ -3037,7 +3001,7 @@ pablo.molla@dynetis.com
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Dynetis
+Llamadas de voz
 ```
 
 Texto:
@@ -3045,17 +3009,16 @@ Texto:
 ```
 Hola Pablo, ¿cómo estás?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un costo que se puede pagar en Argentina: en pesos y muy por debajo de armarlo con Twilio, ElevenLabs u OpenAI.
 
-Dynetis conecta Odoo con pagos, logística y BI para sus clientes: un agente que atienda y llame por teléfono es un conector más, con número incluido.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Dynetis conecta Odoo con pagos, logística y BI: con nuestra voz, el teléfono es un conector más.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=dynetis
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (283 caracteres):
@@ -3111,7 +3074,7 @@ ggomezarrufat@neos.com.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Glowix / Neos Tech
+Llamadas de voz
 ```
 
 Texto:
@@ -3119,17 +3082,16 @@ Texto:
 ```
 Hola Gustavo, ¿cómo estás?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un precio razonable para Argentina: en pesos y muy por debajo de lo que cuesta con proveedores como Twilio, ElevenLabs u OpenAI.
 
-Neos automatiza los procesos comerciales de distribuidoras sobre Glowix y Dynamics: las llamadas de pedidos, cobranza y confirmación son el siguiente proceso, y se integran por API.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Neos automatiza los procesos comerciales de distribuidoras sobre Glowix y Dynamics: con nuestra voz, las llamadas de pedidos, cobranza y confirmación son el proceso que sigue.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=glowix-neos
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (296 caracteres):
@@ -3186,7 +3148,7 @@ contact@psiware.com.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Psiware
+Llamadas de voz
 ```
 
 Texto:
@@ -3194,17 +3156,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA sin pagar precios en dólares: el minuto sale en pesos y muy por debajo de Twilio, ElevenLabs u OpenAI.
 
-Psiware ya construye agentes inteligentes y automatizaciones para clientes como Nestlé Purina: con nuestra API esos agentes también pueden atender y llamar por teléfono, sin que ustedes armen la telefonía.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Psiware ya construye agentes inteligentes para clientes como Nestlé Purina: con nuestra voz, esos agentes pueden atender y hacer llamadas sin que ustedes armen la telefonía.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=psiware
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (277 caracteres):
@@ -3260,7 +3221,7 @@ negocios@ideartechcorp.com
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Idear Tech
+Llamadas de voz
 ```
 
 Texto:
@@ -3268,17 +3229,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un costo que se puede pagar en Argentina: en pesos y muy por debajo de armarlo con Twilio, ElevenLabs u OpenAI.
 
-Idear Tech ya desarrolla con IA para gobiernos y financieras: un agente que atienda el teléfono del organismo y llame por vencimientos o cobranzas se integra a esas soluciones por API.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Idear Tech ya desarrolla con IA para gobiernos y financieras: con nuestra voz, esas soluciones pueden atender el teléfono y llamar por vencimientos o cobranzas.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=idear-tech
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (280 caracteres):
@@ -3333,7 +3293,7 @@ contacto@inteligenciaanalitica.com
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Inteligencia Analítica
+Llamadas de voz
 ```
 
 Texto:
@@ -3341,17 +3301,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un precio razonable para Argentina: en pesos y muy por debajo de lo que cuesta con proveedores como Twilio, ElevenLabs u OpenAI.
 
-Inteligencia Analítica ya ordena los datos de sus clientes en tableros de BI: las llamadas de cobranza, confirmación y atención generan y consumen esos mismos datos, y se integran por API.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Inteligencia Analítica ya ordena los datos de sus clientes en tableros de BI: con nuestra voz, las llamadas de cobranza y atención se suman a esos mismos datos.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=inteligencia-analitica
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (292 caracteres):
@@ -3406,7 +3365,7 @@ administracion@grupoaicon.com.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Grupo Aicon
+Llamadas de voz
 ```
 
 Texto:
@@ -3414,17 +3373,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA sin pagar precios en dólares: el minuto sale en pesos y muy por debajo de Twilio, ElevenLabs u OpenAI.
 
-Aicon gestiona afiliados, cuotas y cobranzas de más de 200 mutuales, sindicatos y financieras: un agente de voz conectado a su ERP puede llamar por vencimientos y atender a los afiliados, y ustedes lo venden dentro de su suite.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Aicon gestiona afiliados, cuotas y cobranzas de más de 200 mutuales, sindicatos y financieras: con nuestra voz, su ERP puede llamar por vencimientos y atender a los afiliados.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=grupo-aicon
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (281 caracteres):
@@ -3479,7 +3437,7 @@ contacto@alchemid.com
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Alchemid
+Llamadas de voz
 ```
 
 Texto:
@@ -3487,17 +3445,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un costo que se puede pagar en Argentina: en pesos y muy por debajo de armarlo con Twilio, ElevenLabs u OpenAI.
 
-Alchemid ya automatiza la operación de más de 50 distribuidoras y mayoristas sobre Odoo: las llamadas de pedidos, cobranza y confirmación son el siguiente proceso, y se integran al ERP por API.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Alchemid ya automatiza la operación de más de 50 distribuidoras sobre Odoo: con nuestra voz, las llamadas de pedidos, cobranza y confirmación son el proceso que sigue.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=alchemid
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (278 caracteres):
@@ -3552,7 +3509,7 @@ comercial@m3csoftware.com.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de M3C Software
+Llamadas de voz
 ```
 
 Texto:
@@ -3560,17 +3517,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un precio razonable para Argentina: en pesos y muy por debajo de lo que cuesta con proveedores como Twilio, ElevenLabs u OpenAI.
 
-M3C ya tiene un programa de partners para revender su ERP: un agente de voz que atienda y llame por pedidos y cobranzas, conectado a M3C Gestión, es un módulo más para esa red.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. M3C ya tiene un programa de partners para revender su ERP: con nuestra voz, M3C Gestión puede atender y llamar por pedidos y cobranzas, un módulo más para esa red.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=m3c
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (282 caracteres):
@@ -3699,7 +3655,7 @@ contact@devfactory.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de devFactory
+Llamadas de voz
 ```
 
 Texto:
@@ -3707,17 +3663,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA sin pagar precios en dólares: el minuto sale en pesos y muy por debajo de Twilio, ElevenLabs u OpenAI.
 
-devFactory ya pone un asistente de IA dentro del ERP de 50 pymes: un agente que atienda y llame por teléfono, con número incluido, es un módulo más de esa plataforma y de su programa de partners.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. devFactory ya pone un asistente de IA dentro del ERP de 50 pymes: con nuestra voz, ese asistente también puede atender y hacer llamadas.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=devfactory
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (280 caracteres):
@@ -3773,7 +3728,7 @@ rodrigo.lopez@solutionshub.com.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Solutions Hub / AGP & ROD Servicios
+Llamadas de voz
 ```
 
 Texto:
@@ -3781,17 +3736,16 @@ Texto:
 ```
 Hola Rodrigo, ¿cómo estás?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un costo que se puede pagar en Argentina: en pesos y muy por debajo de armarlo con Twilio, ElevenLabs u OpenAI.
 
-Solutions Hub ya integra procesos de sus clientes sobre SAP BTP: un agente que atienda y llame por teléfono se conecta a esos procesos por API, y ustedes lo venden dentro del proyecto SAP.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Solutions Hub ya integra procesos de sus clientes sobre SAP BTP: con nuestra voz, esos procesos suman la atención y las llamadas por teléfono dentro del proyecto SAP.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=solutions-hub
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (291 caracteres):
@@ -3846,7 +3800,7 @@ joaquin@alpardata.com.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Alpardata
+Llamadas de voz
 ```
 
 Texto:
@@ -3854,17 +3808,16 @@ Texto:
 ```
 Hola Joaquín, ¿cómo estás?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un precio razonable para Argentina: en pesos y muy por debajo de lo que cuesta con proveedores como Twilio, ElevenLabs u OpenAI.
 
-Alpardata ya automatiza la operación de 35 empresas sobre Odoo: las llamadas de cobranza, pedidos y confirmación son la siguiente automatización, y se integran al ERP por API.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Alpardata ya automatiza la operación de 35 empresas sobre Odoo: con nuestra voz, las llamadas de cobranza, pedidos y confirmación son la próxima automatización.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=alpardata
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (287 caracteres):
@@ -3920,7 +3873,7 @@ info@hexium.com.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Hexium Software Factory
+Llamadas de voz
 ```
 
 Texto:
@@ -3928,17 +3881,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA sin pagar precios en dólares: el minuto sale en pesos y muy por debajo de Twilio, ElevenLabs u OpenAI.
 
-Hexium implementa Odoo y vende LIRA a centros oncológicos, donde el teléfono sigue siendo el canal de turnos y seguimiento: un agente de voz integrado a esos sistemas puede atender esas llamadas.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Hexium vende LIRA a centros oncológicos, donde los turnos y el seguimiento siguen pasando por el teléfono: con nuestra voz, LIRA puede atender esas llamadas.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=hexium
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (293 caracteres):
@@ -4140,7 +4092,7 @@ info@solution-it.com.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Solution IT
+Llamadas de voz
 ```
 
 Texto:
@@ -4148,17 +4100,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un costo que se puede pagar en Argentina: en pesos y muy por debajo de armarlo con Twilio, ElevenLabs u OpenAI.
 
-SIT ya desarrolla con GPT y LLM para empresas neuquinas: con nuestra API esos desarrollos también pueden atender y llamar por teléfono, con número incluido, sin armar la telefonía.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. SIT ya desarrolla con GPT y LLM para empresas neuquinas: con nuestra voz, esos desarrollos pueden atender y hacer llamadas sin armar la telefonía.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=solution-it
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (281 caracteres):
@@ -4213,7 +4164,7 @@ info@puntogap.com
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de PuntoGap
+Llamadas de voz
 ```
 
 Texto:
@@ -4221,17 +4172,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un precio razonable para Argentina: en pesos y muy por debajo de lo que cuesta con proveedores como Twilio, ElevenLabs u OpenAI.
 
-PuntoGap ya asesora y desarrolla soluciones de IA para empresas de Oil & Gas y retail: el agente que atiende y llama por teléfono es una solución más para esos mismos clientes, con número incluido.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. PuntoGap ya desarrolla soluciones de IA para Oil & Gas y retail: la voz por teléfono es una solución más para esos mismos clientes.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=puntogap
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (278 caracteres):
@@ -4288,7 +4238,7 @@ info@pragmaticaconsultores.com
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Pragmática Consultores
+Llamadas de voz
 ```
 
 Texto:
@@ -4296,17 +4246,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA sin pagar precios en dólares: el minuto sale en pesos y muy por debajo de Twilio, ElevenLabs u OpenAI.
 
-Pragmática ya integra la gestión de 40 empresas sobre SAP Business One: un agente que atienda y llame por teléfono se conecta a ese ERP por API, y ustedes lo venden dentro de la implementación.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Pragmática ya integra la gestión de 40 empresas sobre SAP Business One: con nuestra voz, esas implementaciones suman la atención y las llamadas por teléfono.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=pragmatica
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (292 caracteres):
@@ -4361,7 +4310,7 @@ info@dityc.com.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de DITyC
+Llamadas de voz
 ```
 
 Texto:
@@ -4369,17 +4318,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un costo que se puede pagar en Argentina: en pesos y muy por debajo de armarlo con Twilio, ElevenLabs u OpenAI.
 
-DITyC ya implementa Odoo y Finnegans en empresas neuquinas que cobran y confirman por teléfono a mano: un agente de voz conectado al ERP puede hacerlo, y ustedes lo venden dentro de la implementación.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. DITyC ya implementa Odoo y Finnegans en empresas neuquinas que cobran y confirman por teléfono a mano: con nuestra voz, esas llamadas se automatizan.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=dityc
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (275 caracteres):
@@ -4508,7 +4456,7 @@ info@waiki.com.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Waiki Consultores en Sistemas
+Llamadas de voz
 ```
 
 Texto:
@@ -4516,17 +4464,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un precio razonable para Argentina: en pesos y muy por debajo de lo que cuesta con proveedores como Twilio, ElevenLabs u OpenAI.
 
-Waiki ya extiende Odoo con módulos propios para 70 empresas: un agente que atienda y llame por teléfono, conectado a ventas y cobranzas de Odoo, es un módulo más, con número incluido.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Waiki ya extiende Odoo con módulos propios para 70 empresas: con nuestra voz, atender y llamar por ventas y cobranzas es un módulo más.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=waiki
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (299 caracteres):
@@ -4581,7 +4528,7 @@ contacto@ingeniosolutions.com.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Ingenio Solutions
+Llamadas de voz
 ```
 
 Texto:
@@ -4589,17 +4536,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA sin pagar precios en dólares: el minuto sale en pesos y muy por debajo de Twilio, ElevenLabs u OpenAI.
 
-Ingenio ya implementa Odoo en distribuidoras y concesionarias que confirman pedidos y cobran por teléfono: un agente de voz conectado al ERP puede hacerlo, y ustedes lo venden dentro de la implementación.
+Integramos nuestro servicio en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Ingenio ya implementa Odoo en distribuidoras y concesionarias que confirman pedidos y cobran por teléfono: con nuestra voz, esas llamadas se automatizan.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=ingenio-solutions
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (287 caracteres):
@@ -4654,7 +4600,7 @@ info@quay.com.ar
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Quay
+Llamadas de voz
 ```
 
 Texto:
@@ -4662,17 +4608,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un costo que se puede pagar en Argentina: en pesos y muy por debajo de armarlo con Twilio, ElevenLabs u OpenAI.
 
-Quay ya automatiza procesos y servicios de atención a clientes para empresas del litoral: el teléfono, con un agente que atiende y llama con número incluido, es el canal que falta en esa automatización.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Quay ya automatiza la atención a clientes de empresas del litoral: con nuestra voz, el teléfono es el canal que completa esa automatización.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=quay
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (274 caracteres):
@@ -4728,7 +4673,7 @@ equipo@tecopensconsulting.com
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Tecopens Consulting
+Llamadas de voz
 ```
 
 Texto:
@@ -4736,17 +4681,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA a un precio razonable para Argentina: en pesos y muy por debajo de lo que cuesta con proveedores como Twilio, ElevenLabs u OpenAI.
 
-Tecopens ya ordena procesos y ERP de pymes del NOA: las llamadas de cobranza, pedidos y confirmación son el proceso que sigue, y se integran a Odoo por API.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Tecopens ya ordena procesos y ERP de pymes del NOA: con nuestra voz, las llamadas de cobranza, pedidos y confirmación son el proceso que sigue.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=tecopens
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (289 caracteres):
@@ -4877,7 +4821,7 @@ comunicacion@grupomill.com
 Asunto:
 
 ```
-Voz y telefonía para los agentes de IA de Grupo Mill
+Llamadas de voz
 ```
 
 Texto:
@@ -4885,17 +4829,16 @@ Texto:
 ```
 Hola, ¿cómo están?
 
-Soy Laureano, de Atentina. Somos una plataforma que resuelve telefonía e IA con precios argentinos: agentes que atienden y llaman por teléfono y WhatsApp, con número incluido y voces argentinas. Como no dependemos de Twilio, ElevenLabs ni OpenAI, el costo por minuto queda muy por debajo del de armarlo con esos proveedores, y en pesos. Tiene API y panel multi-cliente para integrarla en sus soluciones.
+Ayudamos a empresas de tecnología y pymes a sumar llamadas de voz con IA sin pagar precios en dólares: el minuto sale en pesos y muy por debajo de Twilio, ElevenLabs u OpenAI.
 
-Grupo Mill ya lleva inteligencia artificial y automatización a pymes pampeanas: el agente que atiende y llama por teléfono, con número incluido, es una automatización más para esos mismos clientes.
+Lo integramos en sus productos por API o MCP: telefonía con número incluido, llamadas de WhatsApp, voces argentinas y transcripción. Grupo Mill ya lleva IA y automatización a pymes pampeanas: la voz por teléfono es una automatización más para esos mismos clientes.
 
 https://atentina.com.ar/?utm_source=email&utm_campaign=canales4&utm_content=grupo-mill
 
-¿Lo vemos como aliados? Ustedes ponen el cliente y la integración; nosotros, la voz y la telefonía a un precio mayorista que deja margen. Podemos empezar con un piloto.
+¿Agendamos una llamada la semana que viene?
 
 Saludos,
 Laureano
-laureano@atentina.com.ar
 ```
 
 LinkedIn, nota de invitación (280 caracteres):

@@ -34,6 +34,7 @@ from .api.routers import (
     conversations,
     demo,
     inference,
+    llm_connections,
     phone_numbers,
     tiers,
     users,
@@ -100,7 +101,7 @@ def create_app() -> FastAPI:
 
     api = APIRouter(prefix=API_PREFIX)
     for module in (auth, tiers, clients, phone_numbers, agents, users, api_keys, calls, conversations, voices,
-                   whatsapp, wa_campaigns, wa_operators, inference, demo, billing, apps):
+                   whatsapp, wa_campaigns, wa_operators, inference, demo, billing, apps, llm_connections):
         api.include_router(module.router)
     app.include_router(api)
     _mount_docs(app)

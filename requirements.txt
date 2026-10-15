@@ -13,6 +13,7 @@ python-dotenv==1.0.*
 cryptography==50.*  # Fernet: tokens y PIN de WhatsApp (app/whatsapp/crypto.py)
 pyyaml==6.0.*
 openai>=1.40
+anthropic==1.*  # BYOK de LLM con el SDK nativo (app/llm/anthropic_client.py)
 pytest==8.*
 pytest-asyncio==0.24.*
 livekit-agents[openai,silero]==1.8.*

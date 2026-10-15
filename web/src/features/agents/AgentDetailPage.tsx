@@ -204,7 +204,7 @@ function AgentView({ agent }: { agent: AgentDetail }) {
           </Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="resumen">
-          <WorkflowSummary definition={agent.definition} />
+          <WorkflowSummary definition={agent.definition} clientId={agent.client_id} />
         </Tabs.Panel>
         <Tabs.Panel value="definicion">
           <DefinitionTab agent={agent} />

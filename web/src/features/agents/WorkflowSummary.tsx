@@ -3,6 +3,8 @@ import type { Definition } from '@/api/types';
 import { OutcomeBadge } from '@/components/Badges';
 import { useIsAdmin } from '@/features/auth/api';
 import { ENGINE } from '@/lib/labels';
+import { useLlmConnections } from '@/features/llm/api';
+import { LOCAL_LABEL } from '@/features/llm/labels';
 import { conditionLabel, readWorkflow, requiredLabel } from './definition';
 
 function Item({ label, children }: { label: string; children: React.ReactNode }) {
@@ -19,16 +21,28 @@ function Item({ label, children }: { label: string; children: React.ReactNode })
 }
 
 /** Vista legible de la definicion (como el viejo templates/workflow.html). */
-export function WorkflowSummary({ definition }: { definition: Definition }) {
+export function WorkflowSummary({ definition, clientId }: { definition: Definition; clientId?: string }) {
   const isAdmin = useIsAdmin();
+  const connections = useLlmConnections(clientId).data ?? [];
   const w = readWorkflow(definition);
+  // "Servidor Atentina" o "Servidor Atentina, desde el turno 4 Claude (claude-haiku-5-5)".
+  const model = w.llm.length
+    ? w.llm
+        .map((st, i) => {
+          const name = st.connection
+            ? `${connections.find((c) => c.id === st.connection)?.name ?? 'Conexión dada de baja'} (${st.model})`
+            : LOCAL_LABEL;
+          return i === 0 ? name : `desde el turno ${st.fromTurn} ${name}`;
+        })
+        .join(', ')
+    : LOCAL_LABEL;
   return (
     <Stack gap="md">
       <Card>
         <Text size="xs" c="dimmed" mb="sm">
           Las preguntas son sugeridas: el agente las reformula y completa los datos en el orden que surjan.
         </Text>
-        <SimpleGrid cols={{ base: 2, sm: isAdmin ? 6 : 5 }} spacing="md">
+        <SimpleGrid cols={{ base: 2, sm: isAdmin ? 4 : 3, md: isAdmin ? 7 : 6 }} spacing="md">
           <Item label="Agente">
             {w.agent.name}
             {w.agent.role && ` (${w.agent.role})`}
@@ -37,6 +51,7 @@ export function WorkflowSummary({ definition }: { definition: Definition }) {
           <Item label="Versión">{w.version != null ? `v${w.version}` : '–'}</Item>
           {isAdmin && <Item label="Motor">{ENGINE[w.engine] ?? w.engine}</Item>}
           <Item label="Voz">{w.agent.voice ?? 'La predeterminada'}</Item>
+          <Item label="Modelo">{model}</Item>
           <Item label="Grabación">{w.recordAudio ? 'Sí, por turno' : 'No'}</Item>
         </SimpleGrid>
         <Title order={5} mt="lg" mb={4}>

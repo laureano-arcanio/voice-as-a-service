@@ -21,7 +21,19 @@ function LlmTraces({ calls, open, title }: { calls: LlmCall[]; open: boolean; ti
             <Text span size="xs" c="dimmed" className="mono">
               {c.ms ?? '–'} ms
             </Text>
+            {c.provider && (
+              <Text span size="xs" c="dimmed" className="mono">
+                {' · '}
+                {c.model ? `${c.provider}:${c.model}` : c.provider}
+              </Text>
+            )}
           </div>
+          {c.fallback_from && (
+            <Text size="xs" c="yellow.7">
+              Respaldo: {c.fallback_from} falló{c.fallback_reason ? ` (${c.fallback_reason})` : ''} y contestó el
+              servidor Atentina.
+            </Text>
+          )}
           {c.input && (
             <Text size="xs" c="dimmed">
               entrada: {c.input}

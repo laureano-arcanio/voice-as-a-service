@@ -1,4 +1,5 @@
 import re
+from itertools import pairwise
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -66,6 +67,46 @@ class ToolGrant(BaseModel):
     tools: list[str] = Field(default_factory=lambda: ["*"])
 
 
+class LlmStage(BaseModel):
+    """Desde el turno `from_turn` del usuario (1 = su primer mensaje) responde este LLM.
+    connection: id de una conexion del cliente (llm_connections); None = el servidor propio."""
+    from_turn: int = Field(ge=1)
+    connection: str | None = None
+    model: str | None = None
+    temperature: float | None = Field(default=None, ge=0, le=2)
+
+    @model_validator(mode="after")
+    def _consistent(self) -> "LlmStage":
+        if self.connection and not (self.model or "").strip():
+            raise ValueError("model: una conexion externa necesita el modelo")
+        if not self.connection and (self.model or self.temperature is not None):
+            raise ValueError("connection: model y temperature solo valen con una conexion externa")
+        return self
+
+
+MAX_LLM_STAGES = 3
+
+
+class LlmPlan(BaseModel):
+    """Que LLM atiende cada turno de la conversacion (docs/BYOK_LLM_PLAN.md). Sin plan, el servidor
+    propio en todos los turnos."""
+    stages: list[LlmStage] = Field(min_length=1, max_length=MAX_LLM_STAGES)
+    # Si el proveedor externo falla, ese turno lo contesta el servidor propio.
+    fallback_local: bool = True
+
+    @model_validator(mode="after")
+    def _consistent(self) -> "LlmPlan":
+        turns = [st.from_turn for st in self.stages]
+        if turns[0] != 1:
+            raise ValueError("stages: la primera etapa empieza en el turno 1")
+        if any(b <= a for a, b in pairwise(turns)):
+            raise ValueError("stages: from_turn tiene que crecer de una etapa a la siguiente")
+        return self
+
+    def stage_for(self, turn: int) -> LlmStage:
+        return next(st for st in reversed(self.stages) if st.from_turn <= max(turn, 1))
+
+
 class Workflow(BaseModel):
     """Definicion de un agente. Se guarda como JSON (agents.definition en la base,
     app/agents/templates/*.json las plantillas). id y version los fija la app: el
@@ -80,6 +121,8 @@ class Workflow(BaseModel):
     # Graba un WAV por turno (telefono o WhatsApp, mismo agente de voz), localmente:
     # app/voice/worker.py, RECORDINGS_DIR/<conversation_id>/NNN.wav.
     record_audio: bool = False
+    # LLM por etapa de la conversacion (conexiones BYOK del cliente). None: el servidor propio.
+    llm: LlmPlan | None = None
     agent: AgentInfo
     objective: Objective
     conversation: ConversationConfig

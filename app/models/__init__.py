@@ -6,6 +6,7 @@ from .billing import BillingPayment, Subscription
 from .calls import ACTIVE_CALL_STATUSES, CallMode, CallRow, CallStatus
 from .contact import ContactRequest
 from .conversations import ConversationRow
+from .llm import LlmConnection
 from .tenancy import (
     ApiKey,
     ApiUsageDaily,
@@ -29,6 +30,6 @@ from .whatsapp import (
 
 __all__ = [
     "ACTIVE_CALL_STATUSES", "Agent", "AgentVersion", "App", "AppJobRun", "AppLink", "ApiKey", "ApiUsageDaily", "BillingPayment", "CallMode", "CallRow", "CallStatus", "Client",
-    "ClientLimitAdjustment", "ContactRequest", "ConversationRow", "PhoneNumber", "Role", "Subscription", "Tier", "User", "WaAccount", "WaCampaign",
+    "ClientLimitAdjustment", "ContactRequest", "ConversationRow", "LlmConnection", "PhoneNumber", "Role", "Subscription", "Tier", "User", "WaAccount", "WaCampaign",
     "WaCampaignRecipient", "WaMessage", "WaOperator", "WaOptout", "WaRoute", "WaThread",
 ]
