@@ -6908,6 +6908,33 @@
      }
     }
    }
+  },
+  "/api/v1/llm/params": {
+   "get": {
+    "tags": [
+     "llm"
+    ],
+    "summary": "Llm Params",
+    "description": "El catalogo, por proveedor, con los defaults del LLM local por motor. Solo lectura.",
+    "operationId": "llm_params_api_v1_llm_params_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/LlmParamsOut"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
   }
  },
  "components": {
@@ -10454,6 +10481,133 @@
     },
     "type": "object",
     "title": "LlmConnectionTestIn"
+   },
+   "LlmParamSpec": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "type": {
+      "type": "string",
+      "enum": [
+       "number",
+       "int",
+       "bool",
+       "choice"
+      ],
+      "title": "Type"
+     },
+     "minimum": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Minimum"
+     },
+     "maximum": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Maximum"
+     },
+     "choices": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Choices",
+      "default": []
+     },
+     "hint": {
+      "type": "string",
+      "title": "Hint",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "name",
+     "label",
+     "type"
+    ],
+    "title": "LlmParamSpec",
+    "description": "Un parametro de generacion que ofrece un proveedor (app/llm/params.py)."
+   },
+   "LlmParamsOut": {
+    "properties": {
+     "local_model": {
+      "type": "string",
+      "title": "Local Model"
+     },
+     "local_family": {
+      "type": "string",
+      "title": "Local Family"
+     },
+     "local_defaults": {
+      "additionalProperties": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "object",
+      "title": "Local Defaults"
+     },
+     "providers": {
+      "items": {
+       "$ref": "#/components/schemas/LlmProviderSpec"
+      },
+      "type": "array",
+      "title": "Providers"
+     }
+    },
+    "type": "object",
+    "required": [
+     "local_model",
+     "local_family",
+     "local_defaults",
+     "providers"
+    ],
+    "title": "LlmParamsOut",
+    "description": "Catalogo de parametros para el editor del agente: el de cada proveedor y los del LLM local\n(que dependen de la familia del modelo y del motor)."
+   },
+   "LlmProviderSpec": {
+    "properties": {
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "params": {
+      "items": {
+       "$ref": "#/components/schemas/LlmParamSpec"
+      },
+      "type": "array",
+      "title": "Params"
+     }
+    },
+    "type": "object",
+    "required": [
+     "kind",
+     "label",
+     "params"
+    ],
+    "title": "LlmProviderSpec"
    },
    "LoginIn": {
     "properties": {

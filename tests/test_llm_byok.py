@@ -71,7 +71,7 @@ def test_plan_validation():
         LlmPlan(stages=[LlmStage(from_turn=1), LlmStage(from_turn=1, connection="c", model="m")])
     with pytest.raises(ValidationError, match="necesita el modelo"):
         LlmStage(from_turn=1, connection="c1")
-    with pytest.raises(ValidationError, match="solo valen"):
+    with pytest.raises(ValidationError, match="solo vale"):
         LlmStage(from_turn=1, model="m")
     with pytest.raises(ValidationError):
         LlmPlan(stages=[LlmStage(from_turn=n) for n in (1, 2, 3, 4)])
@@ -172,7 +172,7 @@ def setup_agent(api, admin, monkeypatch, external: External, *, fallback=True, f
     external_stage = {"from_turn": from_turn, "connection": conn["id"], "model": "vendor/model"}
     plan = {"stages": ([{"from_turn": 1}] if from_turn > 1 else []) + [external_stage], "fallback_local": fallback}
     agent = agent_with_plan(admin, acme, plan).json()
-    monkeypatch.setattr(LLMResolver, "_client", lambda self, data, stage: external)
+    monkeypatch.setattr(LLMResolver, "_client", lambda self, data, stage, generation, defaults: external)
     state, _ = api.engine.start_conversation(agent["id"], acme["id"])
     return state.conversation_id, acme
 
@@ -236,7 +236,7 @@ def setup_agent_again(api, admin, monkeypatch, external):
     conn = new_connection(admin, other)
     plan = {"stages": [{"from_turn": 1, "connection": conn["id"], "model": "m"}], "fallback_local": True}
     agent = agent_with_plan(admin, other, plan).json()
-    monkeypatch.setattr(LLMResolver, "_client", lambda self, data, stage: external)
+    monkeypatch.setattr(LLMResolver, "_client", lambda self, data, stage, generation, defaults: external)
     state, _ = api.engine.start_conversation(agent["id"], other["id"])
     return state.conversation_id, other
 
@@ -294,7 +294,7 @@ def test_connection_of_another_client_is_not_used_at_runtime(api, admin, monkeyp
         s.commit()
     api.engine.definitions._cache.clear()
     called = []
-    monkeypatch.setattr(LLMResolver, "_client", lambda self, data, stage: called.append(1))
+    monkeypatch.setattr(LLMResolver, "_client", lambda self, data, stage, generation, defaults: called.append(1))
     state, _ = api.engine.start_conversation(agent["id"], acme["id"])
     api.llm.turns = [turn("local")]
     _, result = asyncio.run(api.engine.process_turn(state.conversation_id, "hola"))

@@ -17,9 +17,11 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from ..conversation.models import LlmStage, Workflow
+from ..config import settings
+from ..conversation.models import Generation, LlmStage, Workflow
 from ..models import LlmConnection
 from ..whatsapp import crypto
+from . import params as llm_params
 from .anthropic_client import AnthropicClient
 from .client import LLMClient
 
@@ -132,6 +134,22 @@ class TurnLLM:
         return await self._run("structured", *args, **kwargs)
 
 
+def engine_defaults(engine: str) -> dict:
+    """Los parametros de plataforma por motor, cuando el agente no los pisa. Voz: sin razonamiento.
+    Assistant: con razonamiento y tope por paso (app/config.py)."""
+    if engine == "assistant":
+        return {"thinking": settings.assistant_thinking, "thinking_budget": settings.assistant_thinking_budget,
+                "max_tokens": settings.assistant_max_step_tokens}
+    return {"thinking": settings.llm_thinking, "thinking_budget": settings.llm_thinking_budget, "max_tokens": None}
+
+
+def effective_generation(workflow: Workflow, stage: LlmStage | None) -> dict:
+    """Los parametros del turno: agente (Workflow.generation) y etapa (LlmStage.generation)."""
+    agent = workflow.generation.params if workflow.generation else {}
+    over = stage.generation.params if stage and stage.generation else {}
+    return llm_params.merge(agent, over)
+
+
 class LLMResolver:
     def __init__(self, local, sessions: sessionmaker[Session]):
         self.local = local
@@ -140,31 +158,54 @@ class LLMResolver:
         self._lock = threading.Lock()
         self._connections: dict[str, tuple[float, ConnectionData | None]] = {}
         self._clients: dict[tuple, LLMClient | AnthropicClient] = {}
+        self._locals: dict[tuple, LLMClient] = {}
 
     def for_turn(self, workflow: Workflow, turn: int, client_id: str | None):
         """El LLM del turno `turn` (1 = el primer mensaje del usuario) del agente."""
+        defaults = engine_defaults(workflow.engine)
         plan = workflow.llm
         if plan is None:
-            return self.local
+            return self._local(effective_generation(workflow, None), defaults)
         stage = plan.stage_for(turn)
+        generation = effective_generation(workflow, stage)
         if stage.connection is None:
-            return self.local
+            return self._local(generation, defaults)
         data = self._connection(stage.connection)
         # El agente solo usa conexiones de su cliente: una definicion con el id de otro no sirve.
         if data is None or data.client_id != client_id:
-            return self._unavailable(plan.fallback_local, stage, "conexion inexistente, revocada o de otro cliente")
+            return self._unavailable(plan.fallback_local, stage, generation, defaults,
+                                     "conexion inexistente, revocada o de otro cliente")
         try:
-            primary = self._client(data, stage)
+            primary = self._client(data, stage, generation, defaults)
         except crypto.TokenKeyMissing as e:
-            return self._unavailable(plan.fallback_local, stage, e.message)
-        return TurnLLM(primary, self.local, plan.fallback_local, self.breaker, data.id, data.kind, stage.model or "")
+            return self._unavailable(plan.fallback_local, stage, generation, defaults, e.message)
+        return TurnLLM(primary, self._local(generation, defaults), plan.fallback_local, self.breaker,
+                       data.id, data.kind, stage.model or "")
 
-    def _unavailable(self, fallback: bool, stage: LlmStage, reason: str):
+    def _local(self, generation: dict, defaults: dict) -> LLMClient:
+        """El cliente propio con los parametros del agente/etapa, cacheado (el LLMClient hornea sus
+        options al construirse: derive y cachear es lo unico seguro con varias conversaciones a la vez)."""
+        if not hasattr(self.local, "derive"):    # local de prueba (FakeLLM): no aplica parametros
+            return self.local
+        key = (tuple(sorted(generation.items())), defaults["thinking"], defaults["thinking_budget"],
+               defaults["max_tokens"], settings.llm_temperature)
+        with self._lock:
+            client = self._locals.get(key)
+            if client is not None:
+                return client
+        client = self.local.derive(generation=Generation(params=generation), **defaults)
+        with self._lock:
+            if len(self._locals) >= 64:
+                self._locals.clear()
+            self._locals[key] = client
+        return client
+
+    def _unavailable(self, fallback: bool, stage: LlmStage, generation: dict, defaults: dict, reason: str):
         logger.error("conexion %s no disponible: %s", stage.connection, reason)
         if not fallback:
             raise LlmUnavailable(reason)
-        return TurnLLM(None, self.local, True, self.breaker, stage.connection or "", "external",
-                       stage.model or "", reason=reason)
+        return TurnLLM(None, self._local(generation, defaults), True, self.breaker, stage.connection or "",
+                       "external", stage.model or "", reason=reason)
 
     def _connection(self, connection_id: str) -> ConnectionData | None:
         now = time.monotonic()
@@ -186,23 +227,26 @@ class LLMResolver:
             self._connections[connection_id] = (now, data)
         return data
 
-    def _client(self, data: ConnectionData, stage: LlmStage) -> LLMClient | AnthropicClient:
+    def _client(self, data: ConnectionData, stage: LlmStage, generation: dict,
+                defaults: dict) -> LLMClient | AnthropicClient:
         if not data.api_key:
             raise crypto.TokenKeyMissing("No se puede descifrar la API key de la conexion (WA_TOKEN_KEY)")
-        cache_key = (data.id, data.stamp, stage.model, stage.temperature)
+        cache_key = (data.id, data.stamp, stage.model, tuple(sorted(generation.items())), defaults["max_tokens"])
         with self._lock:
             client = self._clients.get(cache_key)
             if client is None:
                 if len(self._clients) >= 64:
                     self._clients.clear()
+                gen = Generation(params=generation)
                 if data.kind == "anthropic":
-                    client = AnthropicClient(data.api_key, stage.model or "", stage.temperature,
-                                             json_mode=data.json_mode, timeout=EXTERNAL_TIMEOUT,
-                                             base_url=data.base_url)
+                    client = AnthropicClient(data.api_key, stage.model or "", json_mode=data.json_mode,
+                                             timeout=EXTERNAL_TIMEOUT, base_url=data.base_url, generation=gen,
+                                             max_tokens=defaults["max_tokens"])
                 else:
                     headers = OPENROUTER_HEADERS if data.kind == "openrouter" else None
-                    client = LLMClient(data.base_url, data.api_key, stage.model or "", temperature=stage.temperature,
+                    # temperature=None: un externo solo usa la de generation (LLM_TEMPERATURE es del propio).
+                    client = LLMClient(data.base_url, data.api_key, stage.model or "", temperature=None,
                                        profile=data.kind, json_mode=data.json_mode, default_headers=headers,
-                                       timeout=EXTERNAL_TIMEOUT)
+                                       timeout=EXTERNAL_TIMEOUT, generation=gen, max_tokens=defaults["max_tokens"])
                 self._clients[cache_key] = client
         return client

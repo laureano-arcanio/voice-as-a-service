@@ -5,7 +5,7 @@ from collections.abc import Callable
 from openai import AsyncOpenAI
 
 from app.config import settings
-from app.conversation.models import AgentTurn, ConversationState, Extraction, Workflow
+from app.conversation.models import AgentTurn, ConversationState, Extraction, Generation, Workflow
 
 from .prompt import (
     END_MARKER,
@@ -107,7 +107,10 @@ class LLMClient:
     def __init__(self, base_url: str, api_key: str, model: str, thinking: bool = settings.llm_thinking,
                  thinking_budget: int = settings.llm_thinking_budget, temperature: float | None = settings.llm_temperature,
                  *, profile: str = "vllm", json_mode: str = "json_schema", default_headers: dict | None = None,
-                 timeout: float = 30, label: str | None = None):
+                 timeout: float = 30, label: str | None = None, generation: Generation | None = None,
+                 max_tokens: int | None = None):
+        self._base_url, self._api_key = base_url, api_key
+        self._default_headers, self._timeout = default_headers, timeout
         self.client = AsyncOpenAI(base_url=base_url, api_key=api_key, timeout=timeout,
                                   default_headers=default_headers, max_retries=0 if profile != "vllm" else 2)
         self.model = model
@@ -116,12 +119,55 @@ class LLMClient:
         self.label = label or ("local" if profile == "vllm" else f"{profile}:{model}")
         self.family = sampling_family(model) if profile == "vllm" else "generic"
         self.temperature = temperature
-        if profile == "vllm":
-            self.options = request_options(thinking, thinking_budget, temperature, self.family)
-        else:
-            self.options = {} if temperature is None else {"temperature": temperature}
+        self.thinking = thinking
+        self.thinking_budget = thinking_budget
+        self.max_tokens = max_tokens
+        # Parametros del agente/etapa (app/llm/params.py); pisan a los de la plataforma.
+        self.generation = generation.params if generation else {}
+        self.options = self._options()
         # OpenAI pide max_completion_tokens (los modelos con razonamiento rechazan max_tokens).
         self._tokens_param = "max_completion_tokens" if "api.openai.com" in base_url else "max_tokens"
+
+    def _options(self, thinking: bool | None = None, budget: int | None = None,
+                 temperature: float | None = None) -> dict:
+        """Los parametros del pedido, con la generacion del agente/etapa pisando los de la plataforma.
+        El perfil vllm usa el muestreo por familia; el generico solo temperatura/top_p/esfuerzo."""
+        gen = self.generation
+        thinking = bool(gen.get("enable_thinking", self.thinking if thinking is None else thinking))
+        budget = gen.get("thinking_token_budget", self.thinking_budget if budget is None else budget)
+        temperature = gen.get("temperature", self.temperature if temperature is None else temperature)
+        if self.profile == "vllm":
+            options = request_options(thinking, budget, temperature, self.family)
+            for key in ("top_k", "min_p"):
+                if key in gen:
+                    options["extra_body"][key] = gen[key]
+            if "top_p" in gen:
+                options["top_p"] = gen["top_p"]
+            return options
+        options = {}
+        if temperature is not None:
+            options["temperature"] = temperature
+        if "top_p" in gen:
+            options["top_p"] = gen["top_p"]
+        if "reasoning_effort" in gen:
+            options["reasoning_effort"] = gen["reasoning_effort"]
+        return options
+
+    def _limit(self, max_tokens: int | None = None) -> dict:
+        """Tope de tokens de salida: la generacion pisa el de la llamada y el de la plataforma."""
+        cap = self.generation.get("max_tokens", self.max_tokens if max_tokens is None else max_tokens)
+        return {} if cap is None else {self._tokens_param: cap}
+
+    def derive(self, *, generation=None, thinking: bool | None = None,
+               thinking_budget: int | None = None, max_tokens: int | None = None) -> "LLMClient":
+        """Otro cliente sobre la misma conexion, con los parametros del agente/etapa (app/llm/resolver.py)."""
+        return LLMClient(
+            self._base_url, self._api_key, self.model,
+            thinking=self.thinking if thinking is None else thinking,
+            thinking_budget=self.thinking_budget if thinking_budget is None else thinking_budget,
+            temperature=self.temperature,
+            profile=self.profile, json_mode=self.json_mode, default_headers=self._default_headers,
+            timeout=self._timeout, label=self.label, generation=generation, max_tokens=max_tokens)
 
     def _guided(self, messages: list[dict], name: str, schema: dict) -> tuple[list[dict], dict]:
         """Mensajes y parametros para pedir `schema` segun json_mode."""
@@ -144,7 +190,7 @@ class LLMClient:
             [{"role": "system", "content": system_prompt(state.channel)},
              {"role": "user", "content": build_user_prompt(workflow, state, user_message)}],
             "agent_turn", turn_schema(workflow))
-        request = dict(model=self.model, messages=messages, **guided, **self.options)
+        request = dict(model=self.model, messages=messages, **guided, **self._limit(), **self.options)
         if on_message is None:
             message = (await self.client.chat.completions.create(**request)).choices[0].message
             content = message.content
@@ -161,7 +207,8 @@ class LLMClient:
                        on_message: Callable[[str], None] | None = None) -> AgentTurn:
         """Motor clasico: texto libre con la conversacion como mensajes. El fin
         lo marca END_MARKER, que se saca antes de decirlo."""
-        request = dict(model=self.model, messages=build_classic_messages(workflow, state, user_message), **self.options)
+        request = dict(model=self.model, messages=build_classic_messages(workflow, state, user_message),
+                       **self._limit(), **self.options)
         marker = MarkerFilter(END_MARKER)
         if on_message is None:
             message = (await self.client.chat.completions.create(**request)).choices[0].message
@@ -194,7 +241,7 @@ class LLMClient:
              {"role": "user", "content": build_extraction_prompt(workflow, state, only)}],
             "extraction", extraction_schema(workflow, only))
         message = (await self.client.chat.completions.create(
-            model=self.model, messages=messages, **guided, **self.options)).choices[0].message
+            model=self.model, messages=messages, **guided, **self._limit(), **self.options)).choices[0].message
         reasoning = getattr(message, "reasoning_content", None) or getattr(message, "reasoning", None)
         content = clean_json(message.content or "")
         return Extraction(fields=json.loads(content), raw=content, reasoning=reasoning)
@@ -205,15 +252,14 @@ class LLMClient:
         """Un pedido con salida JSON guiada (motor assistant, app/conversation/assistant.py).
         Devuelve el JSON tal cual y el razonamiento. thinking: pisa el del cliente (LLM_THINKING) para
         este pedido; vLLM aplica el esquema despues del razonamiento (probado con Gemma 4)."""
-        if self.profile != "vllm" or thinking is None:
-            options = self.options
-        else:
-            options = request_options(thinking, budget or settings.llm_thinking_budget, self.temperature, self.family)
+        options = self._options(thinking=thinking, budget=budget)
         messages, guided = self._guided(messages, name, schema)
-        limit = {} if max_tokens is None else {self._tokens_param: max_tokens}
+        limit = self._limit(max_tokens)
+        active = bool(self.generation.get("enable_thinking",
+                                          self.thinking if thinking is None else thinking))
         message = (await self.client.chat.completions.create(
             model=self.model, messages=messages, **guided, **limit,
-            timeout=90 if thinking and self.profile == "vllm" else None,
+            timeout=90 if active and self.profile == "vllm" else None,
             **options,
         )).choices[0].message
         reasoning = getattr(message, "reasoning_content", None) or getattr(message, "reasoning", None)

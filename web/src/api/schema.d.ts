@@ -2076,6 +2076,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/llm/params": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Llm Params
+         * @description El catalogo, por proveedor, con los defaults del LLM local por motor. Solo lectura.
+         */
+        get: operations["llm_params_api_v1_llm_params_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3351,6 +3371,63 @@ export interface components {
              * @description Sin modelo, el de la conexion
              */
             model?: string | null;
+        };
+        /**
+         * LlmParamSpec
+         * @description Un parametro de generacion que ofrece un proveedor (app/llm/params.py).
+         */
+        LlmParamSpec: {
+            /** Name */
+            name: string;
+            /** Label */
+            label: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "number" | "int" | "bool" | "choice";
+            /** Minimum */
+            minimum?: number | null;
+            /** Maximum */
+            maximum?: number | null;
+            /**
+             * Choices
+             * @default []
+             */
+            choices?: string[];
+            /**
+             * Hint
+             * @default
+             */
+            hint?: string;
+        };
+        /**
+         * LlmParamsOut
+         * @description Catalogo de parametros para el editor del agente: el de cada proveedor y los del LLM local
+         *     (que dependen de la familia del modelo y del motor).
+         */
+        LlmParamsOut: {
+            /** Local Model */
+            local_model: string;
+            /** Local Family */
+            local_family: string;
+            /** Local Defaults */
+            local_defaults: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+            /** Providers */
+            providers: components["schemas"]["LlmProviderSpec"][];
+        };
+        /** LlmProviderSpec */
+        LlmProviderSpec: {
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
+            /** Params */
+            params: components["schemas"]["LlmParamSpec"][];
         };
         /** LoginIn */
         LoginIn: {
@@ -9216,6 +9293,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    llm_params_api_v1_llm_params_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmParamsOut"];
                 };
             };
         };

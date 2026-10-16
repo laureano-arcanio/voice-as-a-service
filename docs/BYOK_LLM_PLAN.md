@@ -5,10 +5,11 @@ agrega **conexiones** (la API key del cliente y su proveedor) y que cada **agent
 etapa de la conversación**: por ejemplo, el servidor propio en los primeros turnos y un modelo de
 otro proveedor desde el turno N.
 
-Estado (15-oct-2026): **fases 1 y 2 desplegadas** (migración 0016 aplicada; `app` y `agent`
+Estado (16-oct-2026): **fases 1 y 2 desplegadas** (migración 0016 aplicada; `app` y `agent`
 reconstruidos con `anthropic` y recreados, sin llamadas activas). La fase 2 se probó contra un SDK
-simulado, **no con una key real**. **Fase 3 (UI) implementada y probada, sin desplegar** (hay que
-reconstruir `web/dist` y recrear `app`; no toca `agent`). Fase 4 pendiente.
+simulado, **no con una key real**. **Fase 3 (UI) y los parámetros de generación por agente, sin
+desplegar** (reconstruir `web/dist` y recrear `app` y `agent`: la definición y el cliente del LLM
+tocan los dos). Fase 4 pendiente.
 
 ## Alcance
 
@@ -81,6 +82,27 @@ Mismos cuatro métodos que `LLMClient`, sobre la Messages API (no el shim OpenAI
 - Un `refusal` del proveedor es un error del turno: lo toma el fallback al servidor propio.
 - Sin caché de prompt todavía (los modelos que lo exigen tienen un mínimo de tokens por prefijo).
 
+### Parametros de generacion
+
+Hasta ahora los hiperparametros eran globales por variable de entorno (`LLM_THINKING`, `LLM_SAMPLING`,
+`LLM_TEMPERATURE`, `ASSISTANT_THINKING*`, `ASSISTANT_MAX_STEP_TOKENS`). Ahora son por agente, con
+override por etapa, y el proveedor activo manda solo los que soporta:
+
+- `Workflow.generation` (`Generation.params`): default del agente para toda la conversacion.
+- `LlmStage.generation`: pisa el del agente en ese tramo (funciona tambien en una etapa local; el
+  `temperature` suelto de la etapa vieja se pliega aca).
+- Catalogo (`app/llm/params.py`, expuesto en `GET /api/v1/llm/params`): `temperature`, `top_p`,
+  `top_k`/`min_p` (solo vLLM), `max_tokens`, `enable_thinking`/`thinking_token_budget` (solo vLLM),
+  `reasoning_effort` (OpenAI/OpenRouter) y `effort` (Anthropic). El editor los agrega y quita, con los
+  defaults del proveedor (para el local, los de la familia del modelo y del motor).
+- Traduccion (`app/llm/client.py`, `app/llm/anthropic_client.py`): vLLM arma `extra_body`
+  (`chat_template_kwargs`, `top_k`/`min_p`); el generico, `temperature`/`top_p`/`reasoning_effort` y
+  `max_completion_tokens` en api.openai.com; Anthropic, `temperature`/`top_p` (si el modelo las
+  acepta), `effort` y `max_tokens` con piso de 2048. Lo que el proveedor no soporta se descarta con
+  log. Sin `generation`, todo igual que antes (muestreo por familia y razonamiento por motor).
+- El resolver cachea un `LLMClient` local por combinacion de parametros (`LLMClient.derive`), porque
+  las options se hornean al construirlo y el cliente base es unico por proceso.
+
 ### API
 
 `/api/v1/clients/{client_id}/llm-connections` (cliente: el suyo; admin: cualquiera), igual que las API keys:
@@ -95,7 +117,8 @@ Mismos cuatro métodos que `LLMClient`, sobre la Messages API (no el shim OpenAI
 | `DELETE /{id}` | Da de baja. Los agentes que la usan caen al propio (si tienen fallback). |
 
 Al guardar un agente se valida que cada `connection` sea de su cliente y esté vigente
-(`errors[].path = llm.stages.N.connection`).
+(`errors[].path = llm.stages.N.connection`). Los parametros de `generation` se validan contra el
+catalogo (nombre, tipo, rango) y `GET /api/v1/llm/params` devuelve el catalogo para el editor.
 
 ### Seguridad
 
@@ -136,6 +159,11 @@ Al guardar un agente se valida que cada `connection` sea de su cliente y esté v
    Guía de uso en [`GUIA_UI.md`](GUIA_UI.md), "Modelos".
 4. **Cierre:** texto de privacidad, eval comparativa, `GUIA_UI.md`, `ARQUITECTURA.md`, flag de tier
    (`allow_byok_llm`) si se decide limitarlo a planes pagos.
+5. **Parametros de generacion (hecha, sin desplegar):** `Workflow.generation` + `LlmStage.generation`,
+   catalogo y traduccion por proveedor (`app/llm/params.py`), `GET /api/v1/llm/params`, editor en
+   `web/src/features/agents/{GenerationEditor.tsx,LlmSection.tsx,draft.ts}`. Tests:
+   `tests/test_llm_generation.py`, `LlmSection.test.tsx`, `draft.test.ts`. Medir con `make eval-llm`
+   antes de recomendar valores (temperatura y razonamiento cambian calidad y latencia).
 
 ## Despliegue
 

@@ -70,6 +70,13 @@ export interface RuleDraft {
   text: string;
 }
 
+/** Un parametro de generacion enviado al LLM (app/llm/params.py), agregado por el usuario. */
+export interface ParamDraft {
+  key: string;
+  name: string;
+  value: string | number | boolean;
+}
+
 export interface Draft {
   id: string;
   version: number | null;
@@ -89,6 +96,8 @@ export interface Draft {
   outcomes: OutcomeDraft[];
   /** Solo con el motor assistant. */
   tools: ToolGrantDraft[];
+  /** Parametros de generacion por defecto del agente (todo el flujo). */
+  generation: ParamDraft[];
   /** LLM por etapa de la conversacion (conexiones BYOK, docs/BYOK_LLM_PLAN.md). null = siempre el
    * servidor propio (no va a la definicion). */
   llm: LlmDraft | null;
@@ -101,8 +110,8 @@ export interface LlmStageDraft {
   /** Id de la conexion; null = el servidor propio. */
   connection: string | null;
   model: string;
-  /** Texto del campo: '' = la del modelo. */
-  temperature: string;
+  /** Parametros de generacion de esta etapa (pisan los del agente). */
+  generation: ParamDraft[];
 }
 
 export interface LlmDraft {
@@ -117,12 +126,35 @@ export const blankStage = (fromTurn: number): LlmStageDraft => ({
   fromTurn,
   connection: null,
   model: '',
-  temperature: '',
+  generation: [],
 });
 
-/** Sin etapas externas el agente usa siempre el servidor propio: no hay nada que guardar. */
+export const blankParam = (name: string, value: string | number | boolean): ParamDraft => ({
+  key: newKey(),
+  name,
+  value,
+});
+
+/** Definicion cruda {params: {...}} -> filas del formulario. */
+function toParams(raw: unknown): ParamDraft[] {
+  const params = obj(obj(raw).params);
+  return Object.entries(params).map(([name, value]) => ({
+    key: newKey(),
+    name,
+    value: typeof value === 'number' || typeof value === 'boolean' ? value : str(value),
+  }));
+}
+
+/** Filas del formulario -> {params: {...}}: las que tienen nombre y un valor puesto ('' = sin poner). */
+function fromParams(rows: ParamDraft[]): Record<string, unknown> {
+  const params: Record<string, unknown> = {};
+  for (const row of rows) if (row.name && row.value !== '') params[row.name] = row.value;
+  return { params };
+}
+
+/** Sin etapas externas ni parametros por etapa, y con el respaldo, no hay plan que guardar. */
 function isLocalOnly(llm: LlmDraft): boolean {
-  return llm.stages.every((st) => st.connection === null) && llm.fallbackLocal;
+  return llm.stages.every((st) => st.connection === null && st.generation.length === 0) && llm.fallbackLocal;
 }
 
 function toLlmDraft(raw: unknown): LlmDraft | null {
@@ -137,7 +169,12 @@ function toLlmDraft(raw: unknown): LlmDraft | null {
         fromTurn: typeof st.from_turn === 'number' ? st.from_turn : 1,
         connection: typeof st.connection === 'string' && st.connection ? st.connection : null,
         model: str(st.model),
-        temperature: typeof st.temperature === 'number' ? String(st.temperature) : '',
+        // temperature suelta (definiciones viejas) se muestra como parametro.
+        generation: (() => {
+          const rows = toParams(st.generation);
+          if (!rows.length && typeof st.temperature === 'number') return [blankParam('temperature', st.temperature)];
+          return rows;
+        })(),
       };
     }),
   };
@@ -145,14 +182,11 @@ function toLlmDraft(raw: unknown): LlmDraft | null {
 
 function fromLlmDraft(llm: LlmDraft): Record<string, unknown> {
   return {
-    stages: llm.stages.map((st) => {
-      const temperature = Number(st.temperature);
-      return {
-        from_turn: st.fromTurn,
-        ...(st.connection ? { connection: st.connection, model: st.model.trim() } : {}),
-        ...(st.connection && st.temperature.trim() !== '' && !Number.isNaN(temperature) ? { temperature } : {}),
-      };
-    }),
+    stages: llm.stages.map((st) => ({
+      from_turn: st.fromTurn,
+      ...(st.connection ? { connection: st.connection, model: st.model.trim() } : {}),
+      ...(st.generation.length ? { generation: fromParams(st.generation) } : {}),
+    })),
     fallback_local: llm.fallbackLocal,
   };
 }
@@ -233,6 +267,7 @@ export function toDraft(d: Definition): Draft {
       const g = obj(raw);
       return { app: str(g.app), tools: Array.isArray(g.tools) ? g.tools.map(str) : ['*'] };
     }),
+    generation: toParams(d.generation),
     llm: toLlmDraft(d.llm),
   };
 }
@@ -258,6 +293,7 @@ export function fromDraft(draft: Draft): Definition {
     ...(draft.version != null ? { version: draft.version } : {}),
     engine: draft.engine,
     ...(draft.recordAudio ? { record_audio: true } : {}),
+    ...(draft.generation.length ? { generation: fromParams(draft.generation) } : {}),
     ...(draft.llm && !isLocalOnly(draft.llm) ? { llm: fromLlmDraft(draft.llm) } : {}),
     agent: {
       name: draft.name,
@@ -390,7 +426,7 @@ export function errorTarget(draft: Draft, path: string): ErrorTarget | null {
   if (head === 'conversation') return { section: second === 'rules' ? 'reglas' : 'objetivo' };
   if (head === 'knowledge') return { section: 'conocimiento' };
   if (head === 'tools') return { section: 'herramientas' };
-  if (head === 'llm') return { section: 'modelo' };
+  if (head === 'llm' || head === 'generation') return { section: 'modelo' };
   if (head === 'fields') {
     const f = draft.fields.find((x) => x.name === second);
     return f ? { section: 'dato', key: f.key } : { section: 'datos' };
@@ -439,6 +475,8 @@ const PATH_WORDS: Record<string, string> = {
   model: 'modelo',
   temperature: 'temperatura',
   fallback_local: 'respaldo',
+  generation: 'Parámetros',
+  params: '',
 };
 
 /** "fields.contacto.question" -> "Datos › contacto › pregunta". */

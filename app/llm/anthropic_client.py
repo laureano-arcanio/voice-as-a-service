@@ -19,7 +19,7 @@ from collections.abc import Callable
 
 import anthropic
 
-from app.conversation.models import AgentTurn, ConversationState, Extraction, Workflow
+from app.conversation.models import AgentTurn, ConversationState, Extraction, Generation, Workflow
 
 from .client import (
     MarkerFilter,
@@ -68,25 +68,34 @@ def to_messages(messages: list[dict]) -> tuple[str, list[dict]]:
 
 class AnthropicClient:
     def __init__(self, api_key: str, model: str, temperature: float | None = None, *,
-                 json_mode: str = "json_schema", timeout: float = 30, base_url: str = ANTHROPIC_URL):
+                 json_mode: str = "json_schema", timeout: float = 30, base_url: str = ANTHROPIC_URL,
+                 generation: Generation | None = None, max_tokens: int | None = None):
         self.client = anthropic.AsyncAnthropic(api_key=api_key, base_url=base_url, timeout=timeout, max_retries=0)
         self.model = model
         self.profile = "anthropic"
         self.json_mode = json_mode
         self.label = f"anthropic:{model}"
-        self.temperature = temperature if temperature is not None and accepts_sampling(model) else None
+        # Parametros del agente/etapa (app/llm/params.py); pisan a los de la plataforma.
+        self.generation = generation.params if generation else {}
+        self.max_tokens = max_tokens
+        temp = self.generation.get("temperature", temperature)
+        self.temperature = temp if temp is not None and accepts_sampling(model) else None
         self._schema_rejected = False
 
     # --- pedido ----------------------------------------------------------------------------
 
     def _params(self, messages: list[dict], max_tokens: int | None, effort: str = "low") -> dict:
         system, rest = to_messages(messages)
+        cap = self.generation.get("max_tokens", max_tokens if max_tokens is not None else self.max_tokens)
         params: dict = {"model": self.model, "messages": rest,
-                        "max_tokens": max(max_tokens or DEFAULT_OUTPUT_TOKENS, MIN_OUTPUT_TOKENS)}
+                        "max_tokens": max(cap or DEFAULT_OUTPUT_TOKENS, MIN_OUTPUT_TOKENS)}
         if system:
             params["system"] = system
         if self.temperature is not None:
             params["temperature"] = self.temperature
+        if "top_p" in self.generation and accepts_sampling(self.model):
+            params["top_p"] = self.generation["top_p"]
+        effort = self.generation.get("effort", effort)
         if supports_effort(self.model):
             params["output_config"] = {"effort": effort}
         return params

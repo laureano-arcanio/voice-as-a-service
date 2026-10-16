@@ -724,6 +724,32 @@ class LlmConnectionOut(ORM):
     used_by: int = Field(default=0, description="Agentes vigentes que la usan")
 
 
+class LlmParamSpec(BaseModel):
+    """Un parametro de generacion que ofrece un proveedor (app/llm/params.py)."""
+    name: str
+    label: str
+    type: Literal["number", "int", "bool", "choice"]
+    minimum: float | None = None
+    maximum: float | None = None
+    choices: list[str] = []
+    hint: str = ""
+
+
+class LlmProviderSpec(BaseModel):
+    kind: str
+    label: str
+    params: list[LlmParamSpec]
+
+
+class LlmParamsOut(BaseModel):
+    """Catalogo de parametros para el editor del agente: el de cada proveedor y los del LLM local
+    (que dependen de la familia del modelo y del motor)."""
+    local_model: str
+    local_family: str
+    local_defaults: dict[str, dict[str, Any]]
+    providers: list[LlmProviderSpec]
+
+
 class ApiKeyOut(ORM):
     id: str
     client_id: str

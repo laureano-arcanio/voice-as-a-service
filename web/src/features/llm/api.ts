@@ -6,7 +6,18 @@ import type { LlmConnectionIn, LlmConnectionPatch } from '@/api/types';
 export const llmKeys = {
   list: (clientId: string) => ['llm-connections', clientId] as const,
   models: (clientId: string, connectionId: string) => ['llm-connections', clientId, connectionId, 'models'] as const,
+  params: ['llm-params'] as const,
 };
+
+/** Catalogo de parametros de generacion por proveedor y defaults del LLM local (app/llm/params.py). */
+export function useLlmParams() {
+  return useQuery({
+    queryKey: llmKeys.params,
+    queryFn: () => unwrap(api.GET('/api/v1/llm/params', {})),
+    staleTime: 10 * 60_000,
+    retry: false,
+  });
+}
 
 const BASE = '/api/v1/clients/{client_id}/llm-connections';
 

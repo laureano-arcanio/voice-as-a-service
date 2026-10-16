@@ -315,13 +315,19 @@ clave de su proveedor y elige, por agente, desde qué turno lo usa
    ese proveedor. La clave se guarda cifrada y no se vuelve a mostrar (solo `…1234`).
 2. En la lista: **Probar** de nuevo, **Editar** (nombre, modelo, o rotar la clave) y **Dar de baja**.
    La columna *Agentes* dice cuántos la usan: al darla de baja pasan al servidor Atentina.
-3. **Agente > Definición > Modelo de lenguaje:** una etapa por tramo de la conversación.
+3. **Parámetros por defecto** (arriba de todo, en la misma sección): con **Agregar parámetro** se elige
+   uno del proveedor del motor (temperatura, `top_p`, `top_k`/`min_p`, razonamiento y su tope, máximo de
+   tokens…), con el valor recomendado ya puesto, y se puede quitar. Valen para toda la conversación y
+   rigen con cualquier proveedor: el que no los soporta los descarta (el editor lo dice). Sin ninguno,
+   valen los de siempre (muestreo por familia del modelo y los del motor).
+4. **Agente > Definición > Modelo de lenguaje:** una etapa por tramo de la conversación.
    *Desde el turno* es el mensaje número N de la persona (la apertura no cuenta); la primera etapa
    empieza siempre en 1 y hay hasta 3. Cada etapa elige el servidor Atentina o una conexión, su modelo
-   (la lista sale del proveedor; si no la da, se escribe) y, opcional, la temperatura.
-4. **Usar el servidor Atentina si el proveedor falla** (activado por defecto): si el proveedor da error,
+   (la lista sale del proveedor; si no la da, se escribe) y sus propios **parámetros** (pisan los del
+   agente en ese tramo).
+5. **Usar el servidor Atentina si el proveedor falla** (activado por defecto): si el proveedor da error,
    ese turno lo contesta el servidor propio. Apagado, el error corta el turno.
-5. Las conversaciones con una etapa externa **salen del servidor**: el editor lo avisa. En el detalle
+6. Las conversaciones con una etapa externa **salen del servidor**: el editor lo avisa. En el detalle
    de una conversación, cada llamada al modelo muestra proveedor y modelo, y cuándo contestó el respaldo.
 
 ### Voces

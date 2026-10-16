@@ -4,6 +4,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from ..llm import params as llm_params
+
 
 class AgentInfo(BaseModel):
     name: str
@@ -67,20 +69,44 @@ class ToolGrant(BaseModel):
     tools: list[str] = Field(default_factory=lambda: ["*"])
 
 
+class Generation(BaseModel):
+    """Parametros de generacion que se le mandan al LLM (app/llm/params.py): temperatura, top_p,
+    razonamiento, tope de tokens... Cada proveedor manda los que soporta y descarta el resto.
+    Vacio = los defaults de la plataforma (por motor y por familia del modelo)."""
+    params: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("params")
+    @classmethod
+    def _validate(cls, value: dict) -> dict:
+        try:
+            return llm_params.validate_params(value)
+        except ValueError as e:
+            raise ValueError(str(e)) from None
+
+
 class LlmStage(BaseModel):
     """Desde el turno `from_turn` del usuario (1 = su primer mensaje) responde este LLM.
-    connection: id de una conexion del cliente (llm_connections); None = el servidor propio."""
+    connection: id de una conexion del cliente (llm_connections); None = el servidor propio.
+    generation: pisa el default del agente (Workflow.generation) en este tramo."""
     from_turn: int = Field(ge=1)
     connection: str | None = None
     model: str | None = None
+    generation: Generation | None = None
+    # Deprecado (se pliega en generation.temperature); se acepta para no romper definiciones viejas.
     temperature: float | None = Field(default=None, ge=0, le=2)
 
     @model_validator(mode="after")
     def _consistent(self) -> "LlmStage":
         if self.connection and not (self.model or "").strip():
             raise ValueError("model: una conexion externa necesita el modelo")
-        if not self.connection and (self.model or self.temperature is not None):
-            raise ValueError("connection: model y temperature solo valen con una conexion externa")
+        if not self.connection and (self.model or "").strip():
+            raise ValueError("connection: model solo vale con una conexion externa")
+        if self.temperature is not None:
+            self.generation = Generation(params={**(self.generation.params if self.generation else {}),
+                                                 "temperature": self.temperature})
+            self.temperature = None
+        if self.generation is not None and not self.generation.params:
+            self.generation = None
         return self
 
 
@@ -123,6 +149,8 @@ class Workflow(BaseModel):
     record_audio: bool = False
     # LLM por etapa de la conversacion (conexiones BYOK del cliente). None: el servidor propio.
     llm: LlmPlan | None = None
+    # Parametros de generacion por defecto del agente (todo el flujo); las etapas de llm los pisan.
+    generation: Generation | None = None
     agent: AgentInfo
     objective: Objective
     conversation: ConversationConfig
@@ -159,6 +187,8 @@ class Workflow(BaseModel):
             for dep in o.when:
                 if dep not in self.fields:
                     raise ValueError(f"completion.outcomes.{o.id}.when: {dep} no es un campo")
+        if self.generation is not None and not self.generation.params:
+            self.generation = None
         return self
 
 

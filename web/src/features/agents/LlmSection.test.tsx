@@ -47,12 +47,35 @@ function Harness({ initial }: { initial: Draft }) {
   return <LlmSection draft={draft} update={(fn) => setDraft(fn)} clientId="c-1" />;
 }
 
+const PARAMS = {
+  local_model: 'cyankiwi/gemma-4-26B',
+  local_family: 'gemma',
+  local_defaults: { classic: { temperature: 1, enable_thinking: false, top_k: 64 }, assistant: {} },
+  providers: [
+    {
+      kind: 'vllm',
+      label: 'Servidor propio (local)',
+      params: [
+        { name: 'temperature', label: 'Temperatura', type: 'number', minimum: 0, maximum: 2, choices: [], hint: '' },
+        { name: 'top_k', label: 'Top K', type: 'int', minimum: 0, choices: [], hint: '' },
+        { name: 'enable_thinking', label: 'Razonamiento', type: 'bool', choices: [], hint: '' },
+      ],
+    },
+    {
+      kind: 'anthropic',
+      label: 'Anthropic',
+      params: [{ name: 'effort', label: 'Esfuerzo', type: 'choice', choices: ['low', 'medium', 'high'], hint: '' }],
+    },
+  ],
+};
+
 function mockApi(connections: LlmConnection[]) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL) => {
       const req = input instanceof Request ? input : new Request(input);
       const path = new URL(req.url).pathname;
+      if (path.endsWith('/llm/params')) return jsonResponse(PARAMS);
       if (path.endsWith('/models')) return jsonResponse(['claude-haiku-5-5', 'claude-sonnet-5-5']);
       if (path.endsWith('/llm-connections')) return jsonResponse(connections);
       return jsonResponse({ detail: 'no mock' }, 404);
@@ -99,6 +122,20 @@ describe('LlmSection', () => {
     expect(add).toBeDisabled();
     await userEvent.click(within(document.body).getAllByRole('button', { name: 'Quitar etapa' })[0]!);
     expect(latest.current.llm?.stages).toHaveLength(2);
+  });
+
+  it('agrega un parámetro de generación con el default del proveedor, y lo quita', async () => {
+    mockApi([CONN]);
+    renderWithProviders(<Harness initial={toDraft(DEF)} />, { me: ADMIN });
+    const adds = await screen.findAllByRole('button', { name: /Agregar parámetro/ });
+    await userEvent.click(adds[0]!);
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Temperatura' }));
+    // El default de la familia local (gemma) es 1.
+    expect(latest.current.generation).toEqual([{ key: expect.any(String), name: 'temperature', value: 1 }]);
+    expect(fromDraft(latest.current)).toMatchObject({ generation: { params: { temperature: 1 } } });
+
+    await userEvent.click(screen.getAllByRole('button', { name: 'Quitar parámetro' })[0]!);
+    expect(fromDraft(latest.current)).not.toHaveProperty('generation');
   });
 
   it('una conexión dada de baja se ve como tal en la etapa', async () => {

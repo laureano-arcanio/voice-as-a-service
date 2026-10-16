@@ -65,29 +65,40 @@ describe('toDraft / fromDraft', () => {
     const llm = {
       stages: [
         { from_turn: 1 },
-        { from_turn: 4, connection: 'c1', model: 'vendor/model', temperature: 0.3 },
+        { from_turn: 4, connection: 'c1', model: 'vendor/model', generation: { params: { temperature: 0.3, top_p: 0.9 } } },
       ],
       fallback_local: false,
     };
     const d = toDraft({ ...def, llm });
-    expect(d.llm?.stages.map((s) => [s.fromTurn, s.connection, s.model, s.temperature])).toEqual([
-      [1, null, '', ''],
-      [4, 'c1', 'vendor/model', '0.3'],
+    expect(d.llm?.stages.map((s) => [s.fromTurn, s.connection, s.model, s.generation.map((p) => [p.name, p.value])])).toEqual([
+      [1, null, '', []],
+      [4, 'c1', 'vendor/model', [['temperature', 0.3], ['top_p', 0.9]]],
     ]);
     expect(fromDraft(d)).toMatchObject({ llm });
     expect(fromDraft(toDraft(def))).not.toHaveProperty('llm');
     const local = toDraft({ ...def, llm: { stages: [{ from_turn: 1 }], fallback_local: true } });
     expect(fromDraft(local)).not.toHaveProperty('llm');
-    // Sin proveedor externo, la temperatura y el modelo no viajan.
-    local.llm!.stages[0]!.temperature = '0.5';
-    local.llm!.fallbackLocal = false;
-    expect(fromDraft(local)).toMatchObject({ llm: { stages: [{ from_turn: 1 }], fallback_local: false } });
-    expect(JSON.stringify(fromDraft(local))).not.toContain('temperature');
+    // Una etapa local con parametros si viaja (no necesita conexion).
+    local.llm!.stages[0]!.generation = [{ key: 'k', name: 'temperature', value: 0.5 }];
+    expect(fromDraft(local)).toMatchObject({
+      llm: { stages: [{ from_turn: 1, generation: { params: { temperature: 0.5 } } }], fallback_local: true },
+    });
+  });
+
+  it('generation del agente: ida y vuelta con tipos y sin parametros no va', () => {
+    const d = toDraft({ ...def, generation: { params: { temperature: 0.4, enable_thinking: true } } });
+    expect(d.generation.map((p) => [p.name, p.value])).toEqual([
+      ['temperature', 0.4],
+      ['enable_thinking', true],
+    ]);
+    expect(fromDraft(d)).toMatchObject({ generation: { params: { temperature: 0.4, enable_thinking: true } } });
+    expect(fromDraft(toDraft(def))).not.toHaveProperty('generation');
   });
 
   it('los errores de llm llevan a la seccion Modelo de lenguaje', () => {
     const d = toDraft(def);
     expect(errorTarget(d, 'llm.stages.1.connection')).toEqual({ section: 'modelo' });
+    expect(errorTarget(d, 'generation.params.temperature')).toEqual({ section: 'modelo' });
     expect(pathLabel(d, 'llm.stages.1.connection')).toBe('Modelo de lenguaje › etapa 2 › conexión');
   });
 

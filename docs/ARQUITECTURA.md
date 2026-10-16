@@ -156,6 +156,7 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
 ```json
 {
   "id": "ventas", "version": 3, "engine": "classic", "record_audio": false,
+  "generation": {"params": {"temperature": 0.5, "enable_thinking": false}},
   "agent": {"name": "Sofía", "role": "asesora comercial", "language": "es-AR", "voice": "sofia"},
   "objective": {"description": "…"},
   "conversation": {"opening": "Hola, te habla Sofía…", "rules": ["…"]},
@@ -174,6 +175,14 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
 ```
 
 - `id` y `version` los fija la app: el slug del agente y el número de versión. Van al prompt.
+- **`generation`** (opcional): parámetros de generación del LLM (temperatura, `top_p`/`top_k`/`min_p`,
+  razonamiento y su tope, `max_tokens`, esfuerzo), con un default para todo el agente
+  (`Workflow.generation`) y override por etapa (`LlmStage.generation`). Son las claves del catálogo
+  (`app/llm/params.py`): el proveedor activo manda solo las que soporta y descarta el resto
+  (`enable_thinking`/`top_k` solo el servidor propio, `effort` solo Anthropic, `reasoning_effort`
+  OpenAI/OpenRouter). Sin `generation`, rigen los defaults de la plataforma (muestreo por familia
+  del modelo y `LLM_THINKING`/`ASSISTANT_*`). El editor los agrega y quita, con los defaults del
+  proveedor (`GET /api/v1/llm/params`). Ver [`BYOK_LLM_PLAN.md`](BYOK_LLM_PLAN.md).
 - **Motor `assistant`** ([`APPS.md`](APPS.md)): sin datos a extraer (`fields` puede ir vacío)
   y con `tools: [{"app": "<slug>", "tools": ["*"]}]`, las herramientas de las apps del cliente. Al
   guardar se valida que cada app sea del cliente y tenga esas herramientas.
