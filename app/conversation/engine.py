@@ -185,6 +185,20 @@ class ConversationEngine:
                 return True
         return False
 
+    def mark_recording(self, conversation_id: str, recording: int, role: str = "assistant") -> bool:
+        """Asocia el numero del WAV grabado (record_audio) al ultimo mensaje de ese rol
+        (WhatsApp: el audio entrante al mensaje del usuario, la nota de voz saliente al del
+        agente). Sin await, igual que mark_voice_note."""
+        state = self.store.get(conversation_id)
+        if state is None:
+            return False
+        for message in reversed(state.messages):
+            if message.role == role:
+                message.recording = recording
+                self.store.save(state)
+                return True
+        return False
+
     def _launch_extraction(self, conversation_id: str, reply: int, answered: str | None) -> asyncio.Task:
         tasks = self.extractions.setdefault(conversation_id, [])
         previous = tasks[-1] if tasks else None

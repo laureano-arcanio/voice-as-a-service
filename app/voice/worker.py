@@ -2,7 +2,6 @@ import asyncio
 import json
 import logging
 import time
-import wave
 from pathlib import Path
 
 import httpx
@@ -22,6 +21,7 @@ from livekit.plugins import openai, silero
 from livekit import api, rtc
 
 from ..config import settings
+from ..conversation import recordings
 from ..conversation.engine import ConversationEngine
 from ..conversation.models import Workflow
 from ..db import get_sessionmaker, utcnow
@@ -62,11 +62,12 @@ CONTINUATION_WINDOW = 1.5
 # Cuanto se espera a que termine de cerrarse una respuesta cortada.
 SETTLE_TIMEOUT = 2.0
 
-# Grabacion por mensaje (agent.record_audio en la definicion, docs/ARQUITECTURA.md): un WAV mono
-# por mensaje (cliente y agente por separado) en RECORDINGS_DIR/<conversation_id>/NNN.wav,
-# asociado a ese Message por su numero (Message.recording). Mismo sample rate que la
+# Grabacion por mensaje (record_audio en la definicion, docs/ARQUITECTURA.md): un WAV mono
+# por mensaje (cliente y agente por separado) en CALL_RECORDINGS_DIR/<conversation_id>/NNN.wav,
+# asociado a ese Message por su numero (Message.recording). El WAV lo escribe
+# app/conversation/recordings.py (lo comparte WhatsApp). Mismo sample rate que la
 # convencion de audio de WhatsApp (STT_RATE en app/whatsapp/audio.py): voz, no necesita mas.
-RECORDING_SAMPLE_RATE = 16000
+RECORDING_SAMPLE_RATE = recordings.RECORDING_SAMPLE_RATE
 # El WAV del cliente se recorta a lo que el VAD marco como habla (user_state_changed): el stream
 # de stt_node es continuo y sin esto cada archivo arrancaba con el playout del agente. El evento
 # de inicio de habla llega despues de la primera silaba (min_speech_duration): pre-roll.
@@ -167,13 +168,7 @@ class WorkflowAgent(Agent):
         if not audio:
             return None
         self._rec_seq += 1
-        path = self.record_dir / f"{self._rec_seq:03d}.wav"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with wave.open(str(path), "wb") as w:
-            w.setnchannels(1)
-            w.setsampwidth(2)
-            w.setframerate(RECORDING_SAMPLE_RATE)
-            w.writeframes(audio)
+        recordings.write_wav(self.record_dir / f"{self._rec_seq:03d}.wav", audio)
         return self._rec_seq
 
     @staticmethod

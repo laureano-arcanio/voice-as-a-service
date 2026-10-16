@@ -118,8 +118,8 @@ class Workflow(BaseModel):
     # multiturno en texto y una sola extraccion al final. assistant: asistente
     # con herramientas de las apps del cliente (sin datos a extraer).
     engine: Literal["structured", "classic", "assistant"] = "structured"
-    # Graba un WAV por turno (telefono o WhatsApp, mismo agente de voz), localmente:
-    # app/voice/worker.py, RECORDINGS_DIR/<conversation_id>/NNN.wav.
+    # Graba un WAV por mensaje/audio, localmente, con su numero en Message.recording:
+    # llamadas y audios de WhatsApp (app/conversation/recordings.py).
     record_audio: bool = False
     # LLM por etapa de la conversacion (conexiones BYOK del cliente). None: el servidor propio.
     llm: LlmPlan | None = None
@@ -171,8 +171,10 @@ class Message(BaseModel):
     # WhatsApp. Usuario: el texto es la transcripcion de una nota de voz;
     # agente: la respuesta salio como nota de voz.
     voice_note: bool = False
-    # Llamada (telefono o WhatsApp) con agent.record_audio: numero de secuencia de su WAV
-    # en CALL_RECORDINGS_DIR (app/voice/worker.py, WorkflowAgent._tag_recording).
+    # Con record_audio: numero de secuencia de su WAV en CALL_RECORDINGS_DIR. En una
+    # llamada telefónica/de WhatsApp, el recorte del lado de cada uno (app/voice/worker.py);
+    # en WhatsApp de mensajeria, el audio entrante o la nota de voz saliente
+    # (app/whatsapp/service.py). Se sirve en /calls/{id}/recordings/{n}.
     recording: int | None = None
 
 

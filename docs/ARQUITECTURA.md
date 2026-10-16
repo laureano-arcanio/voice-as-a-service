@@ -179,23 +179,33 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
   guardar se valida que cada app sea del cliente y tenga esas herramientas.
 - `fields.<campo>.label` (opcional): nombre del dato para mostrarlo (resultado de la demo de la
   landing). No va al prompt.
-- **`record_audio`** (default `false`): graba la llamada (telefónica o de WhatsApp, mismo agente
-  de voz), un WAV mono de 16 kHz por mensaje, localmente (`CALL_RECORDINGS_DIR`, default
-  `storage/recordings/<conversation_id>/NNN.wav`; `storage/` montado en `agent`, no versionado).
-  El cliente y el agente van en archivos separados: uno con lo que dijo el cliente desde el turno
-  anterior y otro con esta respuesta (o la apertura, en el primer turno); el número queda en el
-  `Message.recording` de cada uno para escucharlo en el chat (`app/voice/worker.py`,
-  `WorkflowAgent.stt_node`/`tts_node` y `_tag_recording`). El stream del cliente es continuo (el
-  micrófono, con o sin voz), así que el WAV se recorta a lo que el VAD marcó como habla
-  (`user_state_changed`, con 0,3 s de pre-roll): sin el playout del agente antes ni la latencia y
-  la síntesis de la respuesta después. Si el cliente interrumpe una respuesta
-  recién empezada, el motor deshace ese turno (`settle_last_reply`, caso de `c5fa81cd`) y el WAV
-  pendiente se descarta: ese audio del cliente vuelve al turno siguiente en vez de quedar en un
-  archivo aparte. Si al cortar quedó audio del cliente que el motor no procesó, se guarda igual,
-  sin mensaje asociado. Sin backup todavía (`scripts/ops/backup.sh` no lo cubre). Se escucha desde
-  el dashboard: `ChatView` (web/) muestra el reproductor en la burbuja de cada mensaje grabado,
-  servido por `GET /api/v1/calls/{conversation_id}/recordings/{n}` con el mismo control de acceso
-  que el resto del detalle de la llamada (`CallDetail.recordings` sigue listando los archivos).
+- **`record_audio`** (default `false`): graba el audio, un WAV mono de 16 kHz por mensaje,
+  localmente (`CALL_RECORDINGS_DIR`, default `storage/recordings/<conversation_id>/NNN.wav`;
+  `storage/` montado en `agent`, no versionado). Lo escribe `app/conversation/recordings.py`
+  (lo comparten los dos caminos). Aplica a:
+  - **Llamadas** (telefónica o de WhatsApp, mismo agente de voz): un WAV por lado. El cliente y
+    el agente van en archivos separados: uno con lo que dijo el cliente desde el turno anterior y
+    otro con esta respuesta (o la apertura, en el primer turno); el número queda en el
+    `Message.recording` de cada uno para escucharlo en el chat (`app/voice/worker.py`,
+    `WorkflowAgent.stt_node`/`tts_node` y `_tag_recording`). El stream del cliente es continuo (el
+    micrófono, con o sin voz), así que el WAV se recorta a lo que el VAD marcó como habla
+    (`user_state_changed`, con 0,3 s de pre-roll): sin el playout del agente antes ni la latencia y
+    la síntesis de la respuesta después. Si el cliente interrumpe una respuesta
+    recién empezada, el motor deshace ese turno (`settle_last_reply`, caso de `c5fa81cd`) y el WAV
+    pendiente se descarta: ese audio del cliente vuelve al turno siguiente en vez de quedar en un
+    archivo aparte. Si al cortar quedó audio del cliente que el motor no procesó, se guarda igual,
+    sin mensaje asociado.
+  - **WhatsApp (mensajería)**: el audio entrante que se transcribe y la nota de voz que se manda
+    (`app/whatsapp/service.py`). El entrante queda en el `Message.recording` del mensaje del
+    usuario (el PCM que devuelve el STT, sin decodificar dos veces) y la nota de voz saliente en el
+    de la respuesta; si la respuesta sale en texto (TTS caído, o un turno sin audio en `mirror`),
+    no hay WAV del agente. Un turno con varios audios del cliente los une en un solo WAV (van en un
+    mismo mensaje del motor).
+
+  Sin backup todavía (`scripts/ops/backup.sh` no lo cubre). Se escucha desde el dashboard:
+  `ChatView` (web/) muestra el reproductor en la burbuja de cada mensaje grabado, servido por
+  `GET /api/v1/calls/{conversation_id}/recordings/{n}` con el mismo control de acceso que el
+  resto del detalle (`CallDetail.recordings` sigue listando los archivos).
 - **Validación al guardar:**
   - nombres de campo en minúsculas;
   - `choice` con `options`;

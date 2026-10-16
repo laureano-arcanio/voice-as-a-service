@@ -237,7 +237,8 @@ async def test_tts_colgado_no_frena_al_stt(monkeypatch):
 
 class FakeAudio:
     """transcribe devuelve los textos en orden (una excepcion se levanta); gate: espera antes
-    de devolver. synthesize_ogg devuelve un OGG falso, o levanta tts_fail."""
+    de devolver. transcribe_recording suma el PCM falso (record_audio). synthesize_recording
+    devuelve (PCM, OGG falsos), o levanta tts_fail."""
 
     def __init__(self, *texts):
         self.texts = list(texts)
@@ -246,6 +247,8 @@ class FakeAudio:
         self.tts_fail: Exception | None = None
         self.gate: asyncio.Event | None = None
         self.started = asyncio.Event()
+        self.audio_pcm = b"\x01\x02\x03\x04"
+        self.tts_pcm = b"\x05\x06\x07\x08"
 
     async def transcribe(self, data, mime):
         self.heard.append((data, mime))
@@ -257,11 +260,17 @@ class FakeAudio:
             raise text
         return text
 
-    async def synthesize_ogg(self, text, voice):
+    async def transcribe_recording(self, data, mime):
+        return await self.transcribe(data, mime), self.audio_pcm
+
+    async def synthesize_recording(self, text, voice):
         if self.tts_fail:
             raise self.tts_fail
         self.spoken.append((text, voice))
-        return b"OggS-respuesta"
+        return self.tts_pcm, b"OggS-respuesta"
+
+    async def synthesize_ogg(self, text, voice):
+        return (await self.synthesize_recording(text, voice))[1]
 
 
 class MediaLLM(FakeLLM):
@@ -567,3 +576,83 @@ async def test_audio_con_graph_client_real(sessions):
     with sessions() as s:
         out = s.scalar(select(WaMessage).where(WaMessage.direction == "out"))
         assert (out.type, out.wamid, out.status) == ("audio", "wamid.real", "sent")
+
+
+# --- Grabacion por mensaje (record_audio) ---
+
+def recorded_wavs(tmp_path, conversation_id) -> list:
+    rec = tmp_path / conversation_id
+    return sorted(rec.glob("*.wav")) if rec.is_dir() else []
+
+
+def read_pcm(path) -> bytes:
+    with wave.open(str(path)) as w:
+        assert (w.getnchannels(), w.getsampwidth(), w.getframerate()) == (1, 2, 16000)
+        return w.readframes(w.getnframes())
+
+
+async def test_audios_entrante_y_saliente_se_graban(sessions, monkeypatch, tmp_path):
+    """Con record_audio, el audio entrante y la nota de voz saliente quedan en un WAV cada uno,
+    asociados a su mensaje, con numeros consecutivos."""
+    monkeypatch.setattr(settings, "call_recordings_dir", tmp_path)
+    a = FakeAudio("quiero un turno para el lunes")
+    w = make_wa(sessions, llm=MediaLLM(reply(REPLY)), audio=a, record_audio=True)
+    await send(w, audio_payload())
+
+    (conv,) = conversations(sessions)
+    state = w.engine.store.get(conv.id)
+    assert [(m.role, m.recording) for m in state.messages] == [("user", 1), ("assistant", 2)]
+    assert [m.get("recording") for m in conv.messages] == [1, 2]
+    wavs = recorded_wavs(tmp_path, conv.id)
+    assert [p.name for p in wavs] == ["001.wav", "002.wav"]
+    assert read_pcm(wavs[0]) == a.audio_pcm
+    assert read_pcm(wavs[1]) == a.tts_pcm
+
+
+async def test_sin_record_audio_no_se_graba(sessions, monkeypatch, tmp_path):
+    monkeypatch.setattr(settings, "call_recordings_dir", tmp_path)
+    a = FakeAudio("quiero un turno")
+    w = make_wa(sessions, llm=MediaLLM(reply(REPLY)), audio=a)
+    await send(w, audio_payload())
+    (conv,) = conversations(sessions)
+    assert all(m.get("recording") is None for m in conv.messages)
+    assert recorded_wavs(tmp_path, conv.id) == []
+
+
+async def test_texto_sin_audio_no_graba_aunque_record_audio(sessions, monkeypatch, tmp_path):
+    monkeypatch.setattr(settings, "call_recordings_dir", tmp_path)
+    a = FakeAudio()
+    w = make_wa(sessions, llm=MediaLLM(reply(REPLY)), audio=a, record_audio=True)
+    await send(w, text_payload("hola", "wamid.t1"))
+    (conv,) = conversations(sessions)
+    assert all(m.get("recording") is None for m in conv.messages)
+    assert recorded_wavs(tmp_path, conv.id) == []
+
+
+async def test_respuesta_siempre_en_audio_graba_la_nota(sessions, monkeypatch, tmp_path):
+    """Un turno de texto con WA_AUDIO_REPLY=always: la respuesta sale como nota de voz y se
+    graba (el mensaje del usuario, sin audio, no)."""
+    monkeypatch.setattr(settings, "call_recordings_dir", tmp_path)
+    monkeypatch.setattr(settings, "wa_audio_reply", "always")
+    a = FakeAudio()
+    w = make_wa(sessions, llm=MediaLLM(reply(REPLY)), audio=a, record_audio=True)
+    await send(w, text_payload("hola", "wamid.t1"))
+    (conv,) = conversations(sessions)
+    state = w.engine.store.get(conv.id)
+    assert [(m.role, m.recording) for m in state.messages] == [("user", None), ("assistant", 1)]
+    wavs = recorded_wavs(tmp_path, conv.id)
+    assert [p.name for p in wavs] == ["001.wav"] and read_pcm(wavs[0]) == a.tts_pcm
+
+
+async def test_tts_caido_no_deja_grabacion_del_agente(sessions, monkeypatch, tmp_path):
+    """Si el TTS falla y la respuesta sale en texto, el audio del usuario se graba igual y no
+    queda un WAV huerfano del agente."""
+    monkeypatch.setattr(settings, "call_recordings_dir", tmp_path)
+    a = FakeAudio("quiero un turno")
+    a.tts_fail = AudioError("TTS respondio 500")
+    w = make_wa(sessions, llm=MediaLLM(reply(REPLY)), audio=a, record_audio=True)
+    await send(w, audio_payload())
+    (conv,) = conversations(sessions)
+    state = w.engine.store.get(conv.id)
+    assert [(m.role, m.recording) for m in state.messages] == [("user", 1), ("assistant", None)]
+    assert [p.name for p in recorded_wavs(tmp_path, conv.id)] == ["001.wav"]

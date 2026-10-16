@@ -98,7 +98,8 @@ services:
     environment:
       DB_DSN: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
     volumes:
-      # Grabaciones por turno (agent.record_audio): CALL_RECORDINGS_DIR, storage/recordings.
+      # Grabaciones (record_audio): CALL_RECORDINGS_DIR, storage/recordings. Tambien en `app`
+      # (audios de WhatsApp): mismo directorio, mismo numero por conversacion.
       - ./storage:/app/storage
     command: ["python", "-m", "app.voice.worker", "start"]
     # The image's HEALTHCHECK probes the FastAPI app's /health over HTTP, which

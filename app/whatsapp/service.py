@@ -16,7 +16,9 @@ mensajes del contacto: sweep, cada SWEEP_SECONDS).
 
 Audios (audio.py): el entrante se baja, se transcribe y entra al turno como texto
 marcado como nota de voz; la respuesta sale como nota de voz segun WA_AUDIO_REPLY,
-y si falla el TTS, la conversion o el envio, sale en texto.
+y si falla el TTS, la conversion o el envio, sale en texto. Con `record_audio` en el
+agente, ambos audios se graban (app/conversation/recordings.py) y se asocian a su
+mensaje, como en una llamada: se escuchan en el chat del dashboard.
 
 Eventos de la cuenta (fase 2): account_update (el cliente nos quito el acceso o Meta
 dio de baja la WABA: la cuenta queda desconectada; DISABLED_UPDATE segun waba_ban_state),
@@ -44,6 +46,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from ..apps import attachments
 from ..config import settings
+from ..conversation import recordings
 from ..conversation.engine import ConversationEngine
 from ..conversation.models import ConversationState, TurnMedia
 from ..conversation.store import ConversationStore
@@ -80,11 +83,13 @@ def _ban_states(value: dict) -> set[str]:
 
 @dataclass
 class Item:
-    """Un mensaje que espera su turno. voice_note: el texto es la transcripcion de un audio."""
+    """Un mensaje que espera su turno. voice_note: el texto es la transcripcion de un audio.
+    audio: el PCM 16 kHz mono del audio, para grabarlo (record_audio); None si no se graba."""
     ts: int             # timestamp de Meta
     text: str
     wamid: str
     voice_note: bool = False
+    audio: bytes | None = None
 
 
 @dataclass
@@ -195,8 +200,8 @@ class WhatsAppService:
                  session_hours: int = settings.wa_session_hours,
                  max_turn_chars: int = settings.wa_max_turn_chars, max_turns: int = settings.wa_max_turns,
                  audio=None):
-        """audio: lo que transcribe y sintetiza (transcribe, synthesize_ogg); por defecto
-        app/whatsapp/audio.py, un fake en los tests."""
+        """audio: lo que transcribe y sintetiza (transcribe, transcribe_recording,
+        synthesize_recording); por defecto app/whatsapp/audio.py, un fake en los tests."""
         self.engine = engine
         self.audio = audio or audio_module
         self.sessions = sessions
@@ -369,7 +374,7 @@ class WhatsAppService:
         graph = self._graph(info.token)
         media = msg.get("audio") if isinstance(msg.get("audio"), dict) else {}
         max_bytes = settings.wa_audio_max_bytes
-        text, body = "", None
+        text, body, pcm = "", None, b""
         inbox.pending_audio += 1
         started = time.perf_counter()
         try:
@@ -385,7 +390,11 @@ class WhatsAppService:
                 raise GraphError("media sin url")
             data = await graph.download_media(str(meta["url"]), max_bytes)
             mime = str(meta.get("mime_type") or media.get("mime_type") or "")
-            text = await self.audio.transcribe(data, mime)
+            if self._records(info.agent_id):
+                # Con record_audio, la transcripcion devuelve tambien el PCM para grabarlo.
+                text, pcm = await self.audio.transcribe_recording(data, mime)
+            else:
+                text = await self.audio.transcribe(data, mime)
             logger.info("wa: audio transcripto pnid=%s wamid=%s bytes=%d chars=%d ms=%d", info.phone_number_id,
                         wamid, len(data), len(text), round((time.perf_counter() - started) * 1000))
         except (AudioTooLong, MediaTooLarge) as e:
@@ -406,13 +415,20 @@ class WhatsAppService:
             if inbox.items:
                 self._arm(info, wa_id, inbox)    # un texto que esperaba a este audio
             return
-        inbox.items.append(Item(_stamp(msg), text, wamid, voice_note=True))
+        inbox.items.append(Item(_stamp(msg), text, wamid, voice_note=True, audio=pcm or None))
         inbox.contact_name = contact_name or inbox.contact_name
         self._arm(info, wa_id, inbox)
 
     def _is_assistant(self, agent_id: str) -> bool:
         try:
             return self.engine.definitions.current(agent_id)[1].engine == "assistant"
+        except KeyError:
+            return False
+
+    def _records(self, agent_id: str) -> bool:
+        """Si el agente graba los audios (record_audio): la transcripcion devuelve el PCM."""
+        try:
+            return self.engine.definitions.current(agent_id)[1].record_audio
         except KeyError:
             return False
 
@@ -560,6 +576,21 @@ class WhatsAppService:
         except KeyError:
             return False
 
+    def _record_incoming(self, state: ConversationState, items: list[Item]) -> None:
+        """Graba el audio entrante del turno (record_audio) y lo asocia al mensaje del usuario,
+        como en una llamada. Un solo WAV: los audios del turno van en un mismo mensaje del motor
+        (su texto se une en uno)."""
+        if not any(item.audio for item in items):
+            return
+        try:
+            if not self.engine.workflow(state).record_audio:
+                return
+        except KeyError:
+            return
+        seq = recordings.append_recording(state.conversation_id, b"".join(i.audio for i in items if i.audio))
+        if seq is not None:
+            self.engine.mark_recording(state.conversation_id, seq, role="user")
+
     @staticmethod
     def _other_agent(s: Session, conversation_id: str, agent_id: str) -> bool:
         row = s.get(ConversationRow, conversation_id)
@@ -654,6 +685,7 @@ class WhatsAppService:
                 s.commit()
             return
 
+        self._record_incoming(state, items)
         reply = turn.assistant_message.strip()[:settings.wa_max_reply_chars]
         sent = True
         if reply and media.reply_voice_note and len(reply) <= settings.wa_audio_max_reply_chars:
@@ -735,12 +767,13 @@ class WhatsAppService:
                           state: ConversationState, body: str) -> bool:
         """Sintetiza la respuesta, la sube y la manda como nota de voz. False si algo falla
         (el que llama la manda en texto). Un fallo del TTS no llego a Meta: solo se loguea;
-        uno de la subida o el envio queda como fila audio failed."""
+        uno de la subida o el envio queda como fila audio failed. Con record_audio, el PCM
+        de la nota enviada se graba y se asocia a la respuesta (_record_incoming, del otro lado)."""
         pnid, conversation_id = info.phone_number_id, state.conversation_id
         started = time.perf_counter()
         try:
             voice = audio_module.pick_voice(self.engine.workflow(state).agent.voice)
-            ogg = await self.audio.synthesize_ogg(body, voice)
+            pcm, ogg = await self.audio.synthesize_recording(body, voice)
         except (AudioError, KeyError) as e:
             logger.warning("wa: nota de voz sin sintetizar, va en texto pnid=%s conversation=%s error=%s",
                            pnid, conversation_id, type(e).__name__)
@@ -765,6 +798,10 @@ class WhatsAppService:
             store.record_outbound(s, wamid=out_wamid, account_id=info.id, conversation_id=conversation_id,
                                   wa_id=wa_id, type="audio", status="sent")
             s.commit()
+        if self.engine.workflow(state).record_audio:
+            seq = recordings.append_recording(conversation_id, pcm)
+            if seq is not None:
+                self.engine.mark_recording(conversation_id, seq, role="assistant")
         logger.info("wa: nota de voz enviada pnid=%s bytes=%d tts_ms=%d total_ms=%d", pnid, len(ogg), tts_ms,
                     round((time.perf_counter() - started) * 1000))
         return True

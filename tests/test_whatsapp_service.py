@@ -122,7 +122,8 @@ class Wa:
     pass
 
 
-def make_wa(sessions, template="demo_booking_classic", llm=None, graph=None, audio=None) -> Wa:
+def make_wa(sessions, template="demo_booking_classic", llm=None, graph=None, audio=None,
+            record_audio=False) -> Wa:
     w = Wa()
     with sessions() as s:
         tier = Tier(name="T")
@@ -131,8 +132,11 @@ def make_wa(sessions, template="demo_booking_classic", llm=None, graph=None, aud
         client = Client(name="Acme", slug="acme", tier_id=tier.id)
         s.add(client)
         s.flush()
+        definition = reference_data(template)
+        if record_audio:
+            definition["record_audio"] = True
         agent = agent_service.create_agent(s, client, name="Turnos", slug="turnos", description="",
-                                           definition=reference_data(template), template_id=None, user_id=None)
+                                           definition=definition, template_id=None, user_id=None)
         s.flush()
         account = store.create_account(s, client_id=client.id, agent_id=agent.id, phone_number_id=PNID,
                                        waba_id="100000000000001", display_phone_number="+1 555 000 0000")
