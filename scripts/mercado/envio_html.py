@@ -31,6 +31,8 @@ h2 {{ font-size: 16px; margin: 0 0 8px; }}
 button {{ font: inherit; font-size: 13px; padding: 4px 10px; border: 1px solid #2f5bd3; color: #2f5bd3; background: #fff; border-radius: 6px; cursor: pointer; }}
 button.ok {{ background: #2f5bd3; color: #fff; }}
 .note {{ color: #5a6577; font-size: 13px; }}
+.web {{ margin: 0 0 10px; }}
+.web a {{ color: #2f5bd3; }}
 </style></head><body><main>
 <h1>{title}</h1>
 <p class="note">Copiar destinatario, asunto y texto, y pegar en Gmail. El texto se pega con el link como
@@ -74,8 +76,13 @@ def build(md_path: Path) -> Path:
         name = sec.splitlines()[0][3:]
         get = lambda label: re.search(label + r":\n\n```\n(.*?)\n```", sec, re.S).group(1)
         para, asunto, texto = get("Para"), get("Asunto"), get("Texto")
+        mweb = re.search(r"(?m)^- Web: (\S+)", sec)
+        web = ""
+        if mweb and mweb.group(1).startswith("http"):
+            url = mweb.group(1)
+            web = f'<p class="web">Sitio: <a href="{html.escape(url)}" target="_blank" rel="noopener">{html.escape(url)}</a></p>'
         out.append(
-            f"<section><h2>{html.escape(name)}</h2>"
+            f"<section><h2>{html.escape(name)}</h2>{web}"
             f'<div class="row"><code id="p{i}">{html.escape(para)}</code>'
             f'<button onclick="copy(this,\'p{i}\')">Copiar para</button></div>'
             f'<div class="row"><code id="a{i}">{html.escape(asunto)}</code>'
