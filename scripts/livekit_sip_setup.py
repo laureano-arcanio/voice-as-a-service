@@ -24,8 +24,9 @@ objetos y las entrantes vuelven con 486 hasta recrearlos. Como el ID del trunk
 saliente cambia cada vez, con LiveKit propio conviene dejar LIVEKIT_SIP_TRUNK_ID
 vacio: el agente lo busca por nombre (OUTBOUND_NAME) al marcar.
 
-Al agregar o quitar numeros en la UI, volver a correrlo. Anura y Asterisk tienen
-que entregar esos numeros (docs/TELEFONIA_ANURA.md).
+Al cargar o borrar numeros, la API los agrega o quita en caliente
+(app/services/livekit.py); este script rearma la lista entera. Anura y Asterisk
+tienen que entregar esos numeros (docs/TELEFONIA_ANURA.md).
 
 Uso: make livekit-sip
 """

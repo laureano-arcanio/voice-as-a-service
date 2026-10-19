@@ -36,7 +36,6 @@ import { useDeleteNumber, usePhoneNumbers, useReleaseNumber, type NumberStatus }
 import { numberErrorTitle } from './errors';
 import { AssignNumberModal, BulkLoadModal, EditNumberModal } from './NumberModals';
 import { matchesNumber, plural } from './parse';
-import { SipNotice } from './SipNotice';
 
 type Dialog = { kind: 'bulk' } | { kind: 'assign' | 'edit'; number: PhoneNumber } | null;
 
@@ -82,7 +81,7 @@ export function NumbersPage() {
   const doDelete = async (n: PhoneNumber) => {
     const ok = await confirmAction({
       title: `Borrar ${n.e164}`,
-      message: 'Se quita del inventario. Después corré make livekit-sip en el server.',
+      message: 'Se quita del inventario y deja de aceptar llamadas.',
       confirmLabel: 'Borrar',
       danger: true,
     });
@@ -109,7 +108,6 @@ export function NumbersPage() {
           </Button>
         }
       />
-      <SipNotice />
       <Card>
         <Group mb="md" gap="sm" align="flex-end" wrap="wrap">
           <SegmentedControl

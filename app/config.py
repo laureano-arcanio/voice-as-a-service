@@ -73,6 +73,11 @@ class Settings(BaseSettings):
     # persiste y el ID cambia en cada reinicio del host (docker-compose.livekit.yml).
     livekit_sip_trunk_id: str = ""
     livekit_sip_outbound_trunk_name: str = "anura-asterisk-outbound"
+    # Trunk SIP entrante (lo crea `make livekit-sip`). Al cargar o borrar numeros por la API
+    # se agregan o quitan de los dos trunks en caliente (app/services/livekit.py): sin
+    # reiniciar livekit-sip ni cortar llamadas. Los tests lo apagan.
+    livekit_sip_inbound_trunk_name: str = "anura-asterisk-inbound"
+    livekit_sip_sync: bool = True
     livekit_agent_name: str = "aiva-outbound-caller"
     call_max_duration_seconds: int = 900
     # Grabaciones por mensaje (record_audio en la definicion; app/conversation/recordings.py):

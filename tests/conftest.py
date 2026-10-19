@@ -17,6 +17,8 @@ for _name in ("MP_BILLING_ACCESS_TOKEN", "MP_BILLING_PUBLIC_KEY", "MP_BILLING_WE
 os.environ["TRUSTED_PROXY_CIDRS"] = "127.0.0.1/32,::1/128,172.24.0.1/32"
 # La CSP del .env local puede estar en Report-Only (primer deploy): los tests prueban la que bloquea.
 os.environ["CSP_REPORT_ONLY"] = "false"
+# Ni los trunks SIP del LiveKit del host (cargar numeros los sincroniza; app/services/livekit.py).
+os.environ["LIVEKIT_SIP_SYNC"] = "false"
 
 import pytest
 

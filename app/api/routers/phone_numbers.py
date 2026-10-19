@@ -3,7 +3,8 @@ el tope del tier y ruteo a un agente del cliente.
 
 - Admin: carga, asigna, libera, borra y rutea.
 - Cliente (usuario o API key): ve sus numeros y elige que agente atiende cada uno.
-Despues de cargar o borrar numeros: `make livekit-sip` (el trunk entrante los lista).
+Al cargar o borrar numeros se agregan o quitan de los trunks SIP de LiveKit en caliente
+(services/livekit.py), sin reiniciar livekit-sip. `make livekit-sip` los rearma enteros.
 """
 from typing import Literal
 
@@ -14,6 +15,7 @@ from sqlalchemy.exc import IntegrityError
 from ...mail import notify
 from ...models import Agent, Client, PhoneNumber
 from ...services import phone_numbers as service
+from ...services.livekit import sync_trunk_numbers
 from ...services.errors import Conflict, NotFound
 from ..deps import DB, AdminPrincipal, CurrentPrincipal, scoped_client_id
 from ..schemas import (
@@ -74,15 +76,17 @@ def create_number(body: PhoneNumberIn, p: AdminPrincipal, db: DB, background: Ba
         service.assign(db, n, body.client_id)
         service.set_agent(db, n, body.agent_id)
     db.commit()
+    background.add_task(sync_trunk_numbers, add=[n.e164])
     background.add_task(notify.deliver, notify.number_assigned_mails(db, n))
     return _out(db, n)
 
 
 @router.post("/bulk", response_model=PhoneNumberBulkOut, status_code=201)
-def load_numbers(body: PhoneNumberBulkIn, _: AdminPrincipal, db: DB):
+def load_numbers(body: PhoneNumberBulkIn, _: AdminPrincipal, db: DB, background: BackgroundTasks):
     """Carga varios numeros libres al inventario; los repetidos o invalidos se informan en skipped."""
     result = service.load(db, body.numbers, body.label, body.provider)
     db.commit()
+    background.add_task(sync_trunk_numbers, add=[n.e164 for n in result.created])
     return PhoneNumberBulkOut(created=[_out(db, n) for n in result.created], skipped=result.skipped)
 
 
@@ -123,10 +127,12 @@ def update_number(number_id: str, body: PhoneNumberUpdate, p: CurrentPrincipal, 
 
 
 @router.delete("/{number_id}", status_code=204)
-def delete_number(number_id: str, p: AdminPrincipal, db: DB):
+def delete_number(number_id: str, p: AdminPrincipal, db: DB, background: BackgroundTasks):
     """Solo libres: uno asignado se libera primero."""
     n = _get(db, p, number_id)
     if n.client_id is not None:
         raise Conflict("El número está asignado a un cliente: liberalo antes de borrarlo", "number_assigned")
+    e164 = n.e164
     db.delete(n)
     db.commit()
+    background.add_task(sync_trunk_numbers, remove=[e164])

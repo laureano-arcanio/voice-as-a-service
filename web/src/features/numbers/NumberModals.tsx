@@ -56,8 +56,7 @@ export function BulkLoadModal({ onClose }: { onClose: () => void }) {
             color={result.created.length ? 'green' : 'yellow'}
             title={plural(result.created.length, 'número cargado', 'números cargados')}
           >
-            Quedaron libres en el inventario. Corré <code>make livekit-sip</code> en el server para que
-            LiveKit los acepte.
+            Quedaron libres en el inventario. Asignalos a un cliente y elegí el agente que atiende.
           </Alert>
           {result.skipped.length > 0 && (
             <Stack gap={4}>

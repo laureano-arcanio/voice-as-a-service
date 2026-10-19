@@ -139,9 +139,8 @@ agente**.
 4. **Liberar:** devuelve el número al inventario, sin cliente ni agente, y sus entrantes dejan de
    atenderse. **Borrar:** solo los libres.
 
-Después de **cargar o borrar** números hay que correr `make livekit-sip` en el server, para que el
-trunk entrante de LiveKit los acepte (la página lo recuerda). Asignar, liberar o cambiar de agente
-no lo necesita.
+Al **cargar o borrar** números, la app los agrega o quita sola del trunk entrante de LiveKit, en
+caliente: no hay que reiniciar nada ni se cortan llamadas.
 
 **Varios números en la misma cuenta de Anura:** cada entrante va al agente del número marcado (Anura
 manda el número en la llamada, verificado el 29-sep-2026). Si no llega un número válido, va al número
@@ -492,7 +491,7 @@ Registro y cobro por transferencia ([`SUSCRIPCIONES_PLAN.md`](SUSCRIPCIONES_PLAN
 | Una entrante escucha "no podemos atender tu llamada" | El tier no deja: tope de simultáneas, de llamadas por hora, día o mes, minutos entrantes agotados o cliente inactivo. Mirá el consumo del cliente. |
 | Todas las entrantes van al mismo agente | No llega el número marcado y cae al principal (`ANURA_DID`). Mirar el log de Asterisk (`Entrante de Anura: ... (marcado: ...)`) y que cada número tenga su agente. |
 | "Llegaste al límite…" al llamar | Tope del tier. Esperá que terminen llamadas, subí el tier o el tope. |
-| Un número nuevo no recibe llamadas | Faltó `make livekit-sip` después de cargarlo, o Anura no lo entrega a esta troncal. |
+| Un número nuevo no recibe llamadas | No entró al trunk de LiveKit (ver el log de `app`; se arregla con `make livekit-sip`), o Anura no lo entrega a esta troncal. |
 | "Conectar WhatsApp" abre y se cierra, o da error de dominio | Se entró por `http://` o por un dominio que no está en la app de Meta: usar `https://app.atentina.com.ar`. |
 | Un número de WhatsApp queda "Pendiente" | Falló el registro en Meta (ej. PIN de dos pasos incorrecto, 133005): Reintentar registro con el PIN correcto. |
 | La prueba de voz o el chat por texto dan error | El TTS o el LLM no responden (`make health`). |

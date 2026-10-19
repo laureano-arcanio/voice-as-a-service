@@ -39,8 +39,9 @@ controla quién puede usar la troncal.
    corta; sin lugar o sin minutos: avisa y corta (queda `rechazada`).
 
 **Números nuevos de Anura:** cargarlos en la UI (Números > Cargar números),
-asignarlos a un cliente y elegir el agente; después `make livekit-sip` para que
-el trunk entrante los acepte.
+asignarlos a un cliente y elegir el agente. La API los agrega a los trunks de
+LiveKit en caliente (`app/services/livekit.py`, sin reiniciar `livekit-sip` ni
+cortar llamadas). Si eso falla (queda en el log de `app`), `make livekit-sip`.
 
 **Número marcado (verificado 29-sep-2026):** con varios DIDs en la misma cuenta,
 Anura manda el número marcado en la Request-URI y en `P-Asserted-Identity`, en
@@ -227,7 +228,7 @@ Para ver los mensajes SIP completos: `make pbx-cli` y después
 | Registro `Unregistered` o "No response received" | No llega a `ANURA_DOMAIN:55090` | `getent hosts $ANURA_DOMAIN`. Revisar que la red deje salir UDP 55090 |
 | Registrado, pero al llamar suena y en `make logs S=asterisk` no aparece "Entrante de Anura" | Anura no le manda la llamada a la terminal registrada | En el panel, el plan de llamada de la cuenta dueña del número tiene que llamar a la terminal con la que se registra Asterisk (ver "Datos de Anura"). Registrarse con una cuenta de *Troncales* no sirve |
 | Registrado, pero las entrantes no llegan a Asterisk | Anura no puede entrar por el NAT | Anura entra por el 5081 gracias al registro (no se reenvía): SIP ALG apagado, registro renovándose (`expiration=120`), IP pública correcta. El 5080 no tiene que ver |
-| Llega a Asterisk y LiveKit responde 404 | El número marcado no está en el inbound trunk | Cargarlo en Números y correr de nuevo `make livekit-sip`. `ANURA_DID` tiene que ser el mismo en Asterisk y en LiveKit |
+| Llega a Asterisk y LiveKit responde 404 | El número marcado no está en el inbound trunk | Cargarlo en Números (la API lo agrega al trunk); si no entró, `make livekit-sip`. `ANURA_DID` tiene que ser el mismo en Asterisk y en LiveKit |
 | Llega a Asterisk, suena y corta; `make logs S=livekit-sip` dice `status: 486, reason: flood` | LiveKit no tiene ningún inbound trunk (con LiveKit propio: se reinició el host y su Redis no persiste). `lk sip inbound list` sale vacío | `make livekit-sip` (`make up` ya lo corre al final con LiveKit propio) |
 | Llega a Asterisk y LiveKit sigue respondiendo 401/407 | Clave distinta entre Asterisk y LiveKit | Correr de nuevo `make livekit-sip` y `make up-pbx` con el mismo `LIVEKIT_SIP_PASSWORD` |
 | Saliente: el agente marca la llamada como fallida por timeout (408) | LiveKit no llega a Asterisk (`127.0.0.1:5080` con LiveKit propio; `<IP pública>:5080` con Cloud) | Con Cloud: port forwarding, o cambió la IP pública. `make up-pbx` y `make livekit-sip` |
