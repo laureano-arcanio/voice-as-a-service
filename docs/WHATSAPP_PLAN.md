@@ -7,7 +7,7 @@ Diseño (2026-09-28). **Estado al 8-oct-2026:**
 | Texto (fases 0 y 1, [5.1](#51-fase-1-lo-implementado)) | sí | sí | — | sí, número de prueba y el de Atentina |
 | Notas de voz (fase 3 parcial, [5.2](#52-fase-3-parcial-audios)) | sí | sí | — | sí (1-oct-2026) |
 | Embedded Signup (fase 2, [5.3](#53-fase-2-implementada)) | sí | sí (migración 0005) | acceso de Tech Provider **en revisión**: los clientes todavía no pueden conectar su número | no, falta el alta real de un cliente |
-| Campañas (fase 4, [5.5](#55-fase-4-campañas-salientes-en-producción-desde-el-7-oct-2026)) | sí | sí (7-oct-2026, migración 0008) | plantillas, por cada una | — |
+| Campañas (fase 4, [5.5](#55-fase-4-campañas-salientes-en-producción-desde-el-7-oct-2026)) | sí | sí (7-oct-2026, migración 0008; en `campaigns` desde la 0017, sin desplegar) | plantillas, por cada una | — |
 | Llamadas por SIP (fase 5, [5.4](#54-fase-5-llamadas-por-sip-6-oct-2026)) | sí | sí | sí, con el número de Atentina | sí, con audio en los dos sentidos |
 | Derivación a humano, modo verificación (`verify.py`), consumo por tier | no | — | — | — |
 
@@ -339,7 +339,7 @@ Cumplido desde el 6-oct-2026 (mail de Meta, 3.2). Implementación en [5.4](#54-f
 | **1. El motor por WhatsApp** | `app/whatsapp/` (2), tablas, reglas por canal (sin variante `_wa` del agente, ver 5.1), dashboard con origen WhatsApp, saliente por plantilla, tests con payloads grabados, modo verificación (3.1, etapa 2), `make wa-send` para probar | El agente de demo conversa por WhatsApp de punta a punta; eval de calidad corrido con `channel: whatsapp` (`make eval-llm`) y comparado con voz | 2 semanas |
 | **2. Clientes con su número** | Tech Provider, App Review, Embedded Signup v4, `wa_accounts` multi-cliente con tokens cifrados, coexistencia, alta desde el dashboard | Un cliente conecta su número sin tocar Meta a mano; un piloto con número del cliente | 2 semanas de trabajo + tiempos de Meta (semanas) |
 | **3. Operación** | Notas de voz por STT y respuesta en audio (hechas, 5.2), derivación a humano con aviso, plantillas gestionadas desde la app, `wa_messages` con costo por cliente en el dashboard, perfil `whatsapp` del test de capacidad y `CAP-NNN`, webhook de resultado para el software del cliente | Reporte por campaña con costo de Meta por gestión; capacidad medida | 2 semanas |
-| **4. Campañas** | En producción desde el 7-oct-2026 (5.5): carga por CSV o API, horario, ritmo, bajas. Queda: reintentos, tope por tier y reporte de costo | Campaña de cobranza por WhatsApp con un piloto | Se comparte con la campaña de voz |
+| **4. Campañas** | En producción desde el 7-oct-2026 (5.5): carga por CSV o API, horario, ritmo, bajas. Queda: reintentos y reporte de costo (el tope por tier y la programación están, sin desplegar) | Campaña de cobranza por WhatsApp con un piloto | Se comparte con la campaña de voz |
 | **5. Calling API** | Llamadas de WhatsApp por SIP (Meta ofrece SIP con TLS además de WebRTC) → Asterisk → LiveKit: el mismo agente de voz, sin telefonía. Requiere el límite de 2.000 destinatarios por día | Una llamada entrante de WhatsApp atendida por el agente de voz | 1–2 semanas, después de tener el límite |
 
 Orden: 0 y 1 dan valor con el número propio; 2 destraba la venta; 3 y 4 son lo que pide el piloto de
@@ -363,9 +363,14 @@ FakeLLM y payloads con la forma de Meta en `tests/fixtures/wa/`.
 - **No texto** (imagen, video, documento...): `WA_UNSUPPORTED_REPLY`, una vez por ventana, sin LLM. Los
   audios se transcriben desde 5.2.
 - **Fin:** `completed` del motor marca la conversación y calcula el resultado, pero un mensaje dentro de
-  `WA_SESSION_HOURS` (24) la retoma con el historial (2-oct-2026: un "sí" después del cierre abría otra y
-  el agente saludaba de cero). Después de 24 h sin actividad, o con el tope de turnos, abre otra con el
-  mismo agente. La vencida queda como estaba: `completed`, o `active` ("Incompleto") si no terminó.
+  la ventana de contexto temporal (`WA_SESSION_HOURS`, 24 hs por default) la retoma con el historial
+  (2-oct-2026: un "sí" después del cierre abría otra y el agente saludaba de cero). Pasadas esas horas
+  sin actividad, o con el tope de turnos, abre otra con el mismo agente. La vencida queda como estaba:
+  `completed`, o `active` ("Incompleto") si no terminó.
+- **Ventana de contexto por agente (16-oct-2026):** `Workflow.wa_session_minutes` (en minutos) pisa el
+  default global para ese agente (`None` = los `WA_SESSION_HOURS` del servidor, 1440 min = 24 hs); se
+  edita en la UI, sección "Voz" del editor del agente. No confundir con la ventana de 24 h de Meta
+  (cuándo entrega texto libre vs. solo plantillas): esa la aplica Meta y es ajena a esto.
 - **Reglas por canal:** el canal sale de la conversación (`conversations.channel`); con `whatsapp` el
   prompt pide texto escrito (cifras, emails como dirección, ~300 caracteres, solo `*negrita*`) y pisa
   las reglas de voz de la definición. No hace falta un `demo_booking_wa`.
@@ -645,6 +650,18 @@ dashboard (admin y cliente) y API `/api/v1/whatsapp/campaigns` (también con API
 `app/whatsapp/campaigns.py` (contactos, plantilla, bajas, totales) y `sender.py` (envío); tablas
 `wa_campaigns`, `wa_campaign_recipients` y `wa_optouts` (migración 0008).
 
+**Unificadas con las de voz (19-oct-2026, migración 0017, sin desplegar):** esas tres tablas pasaron a
+`campaigns` (`channel='whatsapp'`, mismo id), `campaign_contacts` y `contact_optouts` (`channel='whatsapp'`), y cada
+`wa_id` es un contacto de la agenda (`contacts`, fuente `campaign`). Estados: `sending` → `in_progress`, `sent` →
+`done` con `result='sent'`; `delivered`, `read` y `replied` se siguen sacando de `wa_messages` y `replied_at`;
+los parámetros de la plantilla, de `vars["params"]`. La conducta de abajo no cambió, y `/api/v1/whatsapp/campaigns`
+y `/whatsapp/optouts` siguen como alias de `/api/v1/campaigns` y `/contacts/optouts`. Lo que suma: contactos de
+la agenda (por etiqueta o elegidos), variables por nombre de atributo (`param_names`: `{{1}}` = el primero),
+programación (`starts_at` y `ends_at`, que el sender activa y cierra), días de la semana, la finalidad
+(`purpose`), tope por tier (canal, campañas por mes, contactos por campaña) y webhook. El sender también manda
+el **seguimiento por WhatsApp** de las campañas de voz. Diseño, API y despliegue en
+[`LLAMADAS_SALIENTES_PLAN.md`](LLAMADAS_SALIENTES_PLAN.md).
+
 - **Quién:** el admin en cualquier número; el cliente solo en los suyos (token propio, Embedded Signup),
   como las plantillas. Los de alta manual usan la WABA de nuestro portafolio. Pausar y cancelar, cualquiera
   que la vea.
@@ -655,7 +672,7 @@ dashboard (admin y cliente) y API `/api/v1/whatsapp/campaigns` (también con API
 - **Plantilla:** se lee de Meta al crear y al iniciar (tiene que estar `APPROVED`) y se guarda el cuerpo.
   Variables solo en el cuerpo; encabezado de texto fijo, pie y botones fijos. **Nueva plantilla** ahora
   acepta un botón de enlace (https fijo) y la respuesta rápida "No me interesa".
-- **Envío:** un loop en `app` (`campaign_loop`, cada `WA_CAMPAIGN_TICK_SECONDS` = 5 s) manda lo que toca
+- **Envío:** un loop en `app` (`app/campaigns/loop.py`, que llama al sender cada `WA_CAMPAIGN_TICK_SECONDS` = 5 s y al dialer de voz) manda lo que toca
   según `rate_per_minute` (1 a 600; ráfaga máxima de un minuto) y solo dentro del horario
   (`window_start`–`window_end`, hora de `BILLING_TIMEZONE`). El contacto pasa a `sending` antes de llamar a
   Meta: si `app` se reinicia en el medio, queda `failed` ("puede haber llegado"), no se reenvía.
@@ -679,8 +696,8 @@ dashboard (admin y cliente) y API `/api/v1/whatsapp/campaigns` (también con API
 mandar: crear la plantilla (Marketing, con botón a la landing y "No me interesa"), esperar
 la aprobación y crear la campaña. Probar primero con una lista de 2 o 3 números propios.
 
-**Pendiente:** reintentos de los fallidos, tope de plantillas por tier, costo estimado por campaña, campañas
-programadas (fecha de inicio) y plantillas con imagen o variables fuera del cuerpo.
+**Pendiente:** reintentos de los fallidos, costo estimado por campaña y plantillas con imagen o variables fuera
+del cuerpo. Hechos el 19-oct-2026 (sin desplegar): tope por tier y campañas programadas.
 
 ### 5.6 Ruteo por contacto (13-oct-2026)
 

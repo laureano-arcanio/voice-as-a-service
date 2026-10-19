@@ -34,13 +34,15 @@ const STATUS: Record<LimitAdjustment['status'], { label: string; color: string }
   expired: { label: 'Vencido', color: 'gray' },
 };
 
-const FIELD_OPTIONS = ['Llamadas', 'Minutos y números', 'API de inferencia'].map((group) => ({
-  group,
-  items: LIMIT_FIELDS.filter((f) => LIMIT_META[f].group === group).map((f) => ({
-    value: f,
-    label: LIMIT_META[f].label,
-  })),
-}));
+const FIELD_OPTIONS = ['Llamadas', 'Minutos y números', 'API de inferencia', 'Campañas y agenda'].map(
+  (group) => ({
+    group,
+    items: LIMIT_FIELDS.filter((f) => LIMIT_META[f].group === group).map((f) => ({
+      value: f,
+      label: LIMIT_META[f].label,
+    })),
+  }),
+);
 
 /** "+10 min", "= 500 min" o "= Ilimitado". */
 function adjustmentText(a: Pick<LimitAdjustment, 'field' | 'mode' | 'value'>): string {
@@ -57,7 +59,11 @@ function validityText(a: Pick<LimitAdjustment, 'starts_on' | 'ends_on'>): string
 }
 
 /** Como queda el limite del cliente hoy con lo que se esta cargando (para el modal). */
-function preview(row: ClientLimits['limits'][number] | undefined, mode: Mode, value: number | ''): string | null {
+function preview(
+  row: ClientLimits['limits'][number] | undefined,
+  mode: Mode,
+  value: number | '',
+): string | null {
   if (!row) return null;
   const unit = LIMIT_META[row.field].unit;
   const now = `Hoy: ${formatLimit(row.effective, unit)}`;

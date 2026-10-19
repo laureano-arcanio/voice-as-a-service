@@ -2,6 +2,8 @@ import { Group, Select } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { useAgents } from '@/features/agents/api';
 import { useIsAdmin } from '@/features/auth/api';
+import { useCampaigns } from '@/features/campaigns/api';
+import { CHANNEL } from '@/features/campaigns/labels';
 import { useClients } from '@/features/clients/api';
 import { toIsoDate } from '@/lib/format';
 import type { DashboardFilters, RangePreset } from './useDashboardFilters';
@@ -22,6 +24,7 @@ export function DashboardFiltersBar({
   const isAdmin = useIsAdmin();
   const clients = useClients(isAdmin);
   const agents = useAgents(filters.client ?? undefined, true);
+  const campaigns = useCampaigns(filters.client ?? undefined);
 
   return (
     <Group gap="sm" align="flex-end" wrap="wrap">
@@ -33,7 +36,7 @@ export function DashboardFiltersBar({
             ...(clients.data ?? []).map((c) => ({ value: c.id, label: c.name })),
           ]}
           value={filters.client ?? ''}
-          onChange={(v) => update({ client: v || null, agent: null })}
+          onChange={(v) => update({ client: v || null, agent: null, campaign: null })}
           allowDeselect={false}
           searchable
           w={200}
@@ -54,6 +57,23 @@ export function DashboardFiltersBar({
         searchable
         w={220}
       />
+      {(campaigns.data?.length ?? 0) > 0 && (
+        <Select
+          label="Campaña"
+          data={[
+            { value: '', label: 'Todas' },
+            ...(campaigns.data ?? []).map((c) => ({
+              value: c.id,
+              label: `${c.name} · ${CHANNEL[c.channel]}`,
+            })),
+          ]}
+          value={filters.campaign ?? ''}
+          onChange={(v) => update({ campaign: v || null })}
+          allowDeselect={false}
+          searchable
+          w={220}
+        />
+      )}
       <Select
         label="Período"
         data={RANGES}

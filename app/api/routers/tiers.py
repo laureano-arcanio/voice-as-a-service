@@ -3,7 +3,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from ...models import Client, Tier
-from ...services import phone_numbers
+from ...services import limits, phone_numbers
 from ...services.errors import Conflict, NotFound
 from ..deps import DB, AdminPrincipal
 from ..schemas import TierIn, TierOut, TierUpdate
@@ -30,7 +30,9 @@ def list_tiers(_: AdminPrincipal, db: DB):
 
 @router.post("", response_model=TierOut, status_code=201)
 def create_tier(body: TierIn, _: AdminPrincipal, db: DB):
-    tier = Tier(**body.model_dump())
+    data = body.model_dump()
+    data["campaign_channels"] = list(dict.fromkeys(data["campaign_channels"]))
+    tier = Tier(**data)
     db.add(tier)
     try:
         db.commit()
@@ -49,13 +51,19 @@ def update_tier(tier_id: str, body: TierUpdate, _: AdminPrincipal, db: DB):
     """Solo los campos enviados; un limite en null lo deja ilimitado. Aplica desde ya
     al mes en curso."""
     tier = _get(db, tier_id)
-    for k, v in body.model_dump(exclude_unset=True).items():
-        if v is None and k in ("name", "description"):
+    changes = body.model_dump(exclude_unset=True)
+    for k, v in changes.items():
+        if v is None and k in ("name", "description", "campaign_channels", "campaign_followup"):
             continue    # no son nulables: null = no cambiar
+        if k == "campaign_channels":
+            v = list(dict.fromkeys(v))
         setattr(tier, k, v)
     if tier.max_phone_numbers is not None:
         for client in db.scalars(select(Client).where(Client.tier_id == tier.id)):
             phone_numbers.check_tier_fits(db, client, tier)
+    if "campaign_channels" in changes:      # las campañas de un canal que el plan ya no incluye se pausan
+        for client in db.scalars(select(Client).where(Client.tier_id == tier.id)):
+            limits.pause_campaigns_outside_plan(db, client, limits.effective_limits(db, client))
     try:
         db.commit()
     except IntegrityError:

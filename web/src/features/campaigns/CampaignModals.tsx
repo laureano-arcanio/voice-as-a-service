@@ -1,90 +1,48 @@
 import {
   Alert,
   Button,
-  FileInput,
   Group,
   Modal,
   NumberInput,
   Paper,
   Select,
   Stack,
-  Table,
+  Tabs,
   Text,
   Textarea,
   TextInput,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconFileUpload, IconInfoCircle } from '@tabler/icons-react';
+import { IconInfoCircle } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import type { WaAccount, WaCampaignCreated, WaRecipientsAdded } from '@/api/types';
+import type { Campaign, ContactRejected, WaAccount, WaCampaignCreated } from '@/api/types';
 import { useAgents } from '@/features/agents/api';
+import { CsvFileInput, RejectedTable } from '@/features/contacts/ContactModals';
 import { useWaTemplates } from '@/features/whatsapp/api';
 import { TEMPLATE_CATEGORY } from '@/features/whatsapp/labels';
 import { placeholderNumbers, templateBody } from '@/features/whatsapp/templates';
 import { notifyError } from '@/lib/notify';
-import { useAddRecipients, useCreateCampaign } from './api';
+import { useAddContacts, useAddRecipients, useCreateWhatsAppCampaign } from './api';
 import { csvHelp } from './labels';
-
-const MAX_CSV_BYTES = 900_000;
-
-/** Lee un archivo .csv en el textarea (hasta ~900 KB). */
-function CsvFileInput({ onText }: { onText: (text: string) => void }) {
-  return (
-    <FileInput
-      label="O subí un archivo"
-      placeholder="contactos.csv"
-      accept=".csv,text/csv,text/plain"
-      leftSection={<IconFileUpload size={16} />}
-      clearable
-      onChange={(file) => {
-        if (!file) return;
-        if (file.size > MAX_CSV_BYTES) {
-          notifyError(new Error('El archivo pasa de 900 KB: dividilo en partes.'));
-          return;
-        }
-        void file.text().then(onText);
-      }}
-    />
-  );
-}
+import { RecipientsPicker } from './RecipientsPicker';
+import { EMPTY_RECIPIENTS, type Recipients, recipientsEmpty } from './recipients';
 
 /** Resultado de una carga: cuantos entraron y los salteados con el motivo. */
-export function LoadResult({ result }: { result: WaRecipientsAdded }) {
+export function LoadResult({ result }: { result: { added: number; skipped: ContactRejected[] } }) {
   return (
     <Stack gap="xs">
       <Text size="sm">
         Se cargaron <b>{result.added}</b> contactos.
         {result.skipped.length > 0 && ` ${result.skipped.length} quedaron afuera:`}
       </Text>
-      {result.skipped.length > 0 && (
-        <Table.ScrollContainer minWidth={420} mah={260}>
-          <Table>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Fila</Table.Th>
-                <Table.Th>Teléfono</Table.Th>
-                <Table.Th>Motivo</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {result.skipped.map((s, i) => (
-                <Table.Tr key={i}>
-                  <Table.Td className="mono">{s.line ?? '–'}</Table.Td>
-                  <Table.Td className="mono">{s.phone || '–'}</Table.Td>
-                  <Table.Td>{s.reason}</Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
-      )}
+      {result.skipped.length > 0 && <RejectedTable rows={result.skipped} />}
     </Stack>
   );
 }
 
 export function NewCampaignModal({ accounts, onClose }: { accounts: WaAccount[]; onClose: () => void }) {
-  const create = useCreateCampaign();
+  const create = useCreateWhatsAppCampaign();
   const navigate = useNavigate();
   const [created, setCreated] = useState<WaCampaignCreated | null>(null);
   const form = useForm({
@@ -249,19 +207,64 @@ export function NewCampaignModal({ accounts, onClose }: { accounts: WaAccount[];
   );
 }
 
-/** Suma contactos a una campaña en borrador o pausada. */
-export function AddRecipientsModal({
-  campaignId,
-  vars,
-  onClose,
-}: {
-  campaignId: string;
-  vars: number;
-  onClose: () => void;
-}) {
-  const add = useAddRecipients(campaignId);
+/** Suma contactos a una campaña en borrador o pausada. En WhatsApp el CSV sigue siendo posicional
+ * ({{1}}, {{2}}...); las campañas de voz (y las de WhatsApp con las variables por nombre) toman los
+ * contactos de la agenda. */
+export function AddContactsModal({ campaign, onClose }: { campaign: Campaign; onClose: () => void }) {
+  const whatsapp = campaign.channel === 'whatsapp';
+  const byAgenda = !whatsapp || !campaign.template_params || !!campaign.param_names?.length;
+  const addRecipients = useAddRecipients(campaign.id);
+  const addContacts = useAddContacts(campaign.id);
   const [csv, setCsv] = useState('');
-  const [result, setResult] = useState<WaRecipientsAdded | null>(null);
+  const [picked, setPicked] = useState<Recipients>(EMPTY_RECIPIENTS);
+  const [result, setResult] = useState<{ added: number; skipped: ContactRejected[] } | null>(null);
+  const pending = addRecipients.isPending || addContacts.isPending;
+  const fail = (e: unknown) => notifyError(e, 'No se pudieron cargar');
+
+  const sendCsv = () =>
+    whatsapp
+      ? addRecipients.mutate({ csv, recipients: [] }, { onSuccess: setResult, onError: fail })
+      : addContacts.mutate({ csv }, { onSuccess: setResult, onError: fail });
+  const sendAgenda = () =>
+    addContacts.mutate(
+      {
+        tags: picked.tags,
+        contact_ids: picked.contactIds,
+        csv: picked.csv.trim() || null,
+      },
+      { onSuccess: setResult, onError: fail },
+    );
+
+  const csvForm = (
+    <Stack>
+      <Textarea
+        label="Contactos (CSV)"
+        description={
+          whatsapp
+            ? csvHelp(campaign.template_params ?? 0)
+            : 'Con encabezado: telefono (obligatorio), nombre, email y las demás columnas como datos del contacto. Quienes no estén en la agenda se agregan.'
+        }
+        placeholder={'telefono,nombre\n351 555-1234,Ana'}
+        autosize
+        minRows={6}
+        maxRows={14}
+        classNames={{ input: 'mono' }}
+        value={csv}
+        onChange={(e) => setCsv(e.currentTarget.value)}
+        data-autofocus
+      />
+      <CsvFileInput onText={setCsv} />
+      <Group justify="flex-end">
+        <Button variant="default" onClick={onClose}>
+          Cancelar
+        </Button>
+        <Button disabled={!csv.trim()} loading={pending} onClick={sendCsv}>
+          Agregar
+        </Button>
+      </Group>
+    </Stack>
+  );
+
   return (
     <Modal opened onClose={onClose} title="Agregar contactos" size="lg">
       {result ? (
@@ -271,39 +274,29 @@ export function AddRecipientsModal({
             <Button onClick={onClose}>Listo</Button>
           </Group>
         </Stack>
+      ) : byAgenda ? (
+        <Tabs defaultValue="agenda">
+          <Tabs.List mb="md">
+            <Tabs.Tab value="agenda">De la agenda</Tabs.Tab>
+            <Tabs.Tab value="csv">Cargar un CSV</Tabs.Tab>
+          </Tabs.List>
+          <Tabs.Panel value="agenda">
+            <Stack>
+              <RecipientsPicker clientId={campaign.client_id} value={picked} onChange={setPicked} />
+              <Group justify="flex-end">
+                <Button variant="default" onClick={onClose}>
+                  Cancelar
+                </Button>
+                <Button disabled={recipientsEmpty(picked)} loading={pending} onClick={sendAgenda}>
+                  Agregar
+                </Button>
+              </Group>
+            </Stack>
+          </Tabs.Panel>
+          <Tabs.Panel value="csv">{csvForm}</Tabs.Panel>
+        </Tabs>
       ) : (
-        <Stack>
-          <Textarea
-            label="Contactos (CSV)"
-            description={csvHelp(vars)}
-            placeholder={'telefono,nombre\n351 555-1234,Ana'}
-            autosize
-            minRows={6}
-            maxRows={14}
-            classNames={{ input: 'mono' }}
-            value={csv}
-            onChange={(e) => setCsv(e.currentTarget.value)}
-            data-autofocus
-          />
-          <CsvFileInput onText={setCsv} />
-          <Group justify="flex-end">
-            <Button variant="default" onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button
-              disabled={!csv.trim()}
-              loading={add.isPending}
-              onClick={() =>
-                add.mutate(
-                  { csv, recipients: [] },
-                  { onSuccess: setResult, onError: (e) => notifyError(e, 'No se pudieron cargar') },
-                )
-              }
-            >
-              Agregar
-            </Button>
-          </Group>
-        </Stack>
+        csvForm
       )}
     </Modal>
   );

@@ -25,15 +25,16 @@ router = APIRouter(tags=["calls"])
 
 TzQuery = Annotated[str | None, Query(description="Zona IANA de las fechas (ej. America/Argentina/Buenos_Aires); "
                                                   "default BILLING_TIMEZONE")]
+CampaignQuery = Annotated[str | None, Query(description="Solo las llamadas y conversaciones de esa campaña")]
 
 
-def _filter(p, client_id, agent_id, date_from, date_to, tz, status=None, mode=None) -> CallFilter:
+def _filter(p, client_id, agent_id, date_from, date_to, tz, status=None, mode=None, campaign_id=None) -> CallFilter:
     try:
         zone = ZoneInfo(tz or settings.billing_timezone)
     except (ZoneInfoNotFoundError, ValueError):
         raise Invalid(f"Zona horaria inexistente: {tz}") from None
     return CallFilter(client_id=scoped_client_id(p, client_id), agent_id=agent_id, date_from=date_from,
-                      date_to=date_to, status=status or [], mode=mode, tz=zone)
+                      date_to=date_to, status=status or [], mode=mode, campaign_id=campaign_id, tz=zone)
 
 
 @router.post("/calls", response_model=CallStartedOut, status_code=201,
@@ -50,11 +51,11 @@ def list_calls(p: CurrentPrincipal, db: DB, definitions: Definitions,
                client_id: str | None = None, agent_id: str | None = None,
                date_from: datetime.date | None = None, date_to: datetime.date | None = None, tz: TzQuery = None,
                status: Annotated[list[str] | None, Query(description="Uno o varios (status=a&status=b)")] = None,
-               mode: str | None = None,
+               mode: str | None = None, campaign_id: CampaignQuery = None,
                limit: int = Query(default=100, ge=1, le=500), offset: int = Query(default=0, ge=0)):
     """Conversaciones con su llamada, de la mas nueva a la mas vieja."""
     items, total = Reports(db, definitions).page(
-        _filter(p, client_id, agent_id, date_from, date_to, tz, status, mode), limit, offset)
+        _filter(p, client_id, agent_id, date_from, date_to, tz, status, mode, campaign_id), limit, offset)
     return CallPage(items=items, total=total)
 
 
@@ -95,14 +96,15 @@ def get_recording(conversation_id: str, n: int, p: CurrentPrincipal, db: DB, def
 @router.get("/stats", response_model=StatsOut)
 def stats(p: CurrentPrincipal, db: DB, definitions: Definitions, client_id: str | None = None,
           agent_id: str | None = None, date_from: datetime.date | None = None, date_to: datetime.date | None = None,
-          tz: TzQuery = None):
-    return Reports(db, definitions).stats(_filter(p, client_id, agent_id, date_from, date_to, tz))
+          tz: TzQuery = None, campaign_id: CampaignQuery = None):
+    return Reports(db, definitions).stats(_filter(p, client_id, agent_id, date_from, date_to, tz, campaign_id=campaign_id))
 
 
 @router.get("/stats/daily", response_model=DailyOut)
 def daily(p: CurrentPrincipal, db: DB, definitions: Definitions, date_from: datetime.date, date_to: datetime.date,
-          client_id: str | None = None, agent_id: str | None = None, tz: TzQuery = None):
+          client_id: str | None = None, agent_id: str | None = None, tz: TzQuery = None,
+          campaign_id: CampaignQuery = None):
     """Conversaciones por dia local y % con workflow completo y con objetivo cumplido."""
     if date_to < date_from or (date_to - date_from).days > 366:
         raise Invalid("Rango de fechas invalido (hasta un año)")
-    return Reports(db, definitions).daily(_filter(p, client_id, agent_id, date_from, date_to, tz))
+    return Reports(db, definitions).daily(_filter(p, client_id, agent_id, date_from, date_to, tz, campaign_id=campaign_id))

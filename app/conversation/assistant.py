@@ -31,6 +31,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from ..apps import tools as app_tools
 from ..config import settings
 from ..llm.prompt import VOICE_NOTE_TAG
+from .contact import prompt_block
 from .models import AgentTurn, ConversationState, TurnMedia, Workflow
 
 logger = logging.getLogger(__name__)
@@ -87,6 +88,8 @@ def build_system(workflow: Workflow, state: ConversationState, tools: list[app_t
     if workflow.knowledge.strip():
         agent.append("INFORMACIÓN:\n" + workflow.knowledge.strip())
     parts.append("\n".join(agent))
+    if campaign := prompt_block(state):      # llamada de una campaña: datos del contacto (fijos en la conversacion)
+        parts.append(campaign)
     # La fecha y hora van en el mensaje del usuario (now_line), no acá: el prompt de sistema queda igual
     # entre pasos y turnos, y vLLM reusa su procesamiento (prefix caching).
     if tools:

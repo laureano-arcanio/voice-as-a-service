@@ -39,6 +39,17 @@ async def test_send_text():
     }
 
 
+async def test_send_cta_url():
+    c, seen = make(ok)
+    await c.send_cta_url(PID, "54351", "Registré a Olga.", "Perfil del alumno", "https://apps.test/a/b/perfil/?k=x")
+    assert json.loads(seen[0].content) == {
+        "messaging_product": "whatsapp", "recipient_type": "individual", "to": "54351", "type": "interactive",
+        "interactive": {"type": "cta_url", "body": {"text": "Registré a Olga."},
+                        "action": {"name": "cta_url", "parameters": {"display_text": "Perfil del alumno",
+                                                                     "url": "https://apps.test/a/b/perfil/?k=x"}}},
+    }
+
+
 async def test_send_template_con_y_sin_params():
     c, seen = make(ok)
     await c.send_template(PID, "54351", "recordatorio", "es_AR", ["Ana", "10:00"])

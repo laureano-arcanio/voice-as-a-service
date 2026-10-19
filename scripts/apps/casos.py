@@ -25,11 +25,13 @@ import yaml
 
 from app.agents.definitions import DbDefinitions
 from app.apps import attachments, registry
+from app.apps import client as app_client
 from app.apps import jobs as app_jobs
 from app.config import settings
 from app.conversation.engine import ConversationEngine
 from app.conversation.store import ConversationStore
 from app.db import create_schema, make_engine, make_sessions
+from app.llm import resolver
 from app.llm.client import LLMClient
 from app.models import Client, Tier
 from app.services import agents as agent_service
@@ -40,13 +42,13 @@ MIME = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".pdf"
 
 def definition(spec: dict, base: pathlib.Path) -> dict:
     """El agente assistant de los casos: su definición (agent, objective, conversation.rules, knowledge) es
-    configuración de la app (`agente: agente.yaml`, o inline), con todas las herramientas de la app."""
+    configuración de la app (`agente: agente.yaml`, o inline), con sus `tools` o, sin ellas, todas las de la app."""
     agente = spec["agente"]
     if isinstance(agente, str):
         agente = yaml.safe_load((base / agente).read_text())
     return {"engine": "assistant", "conversation": {"opening": "Hola", "rules": []},
             "completion": {"outcomes": [{"id": "default", "label": "Conversación", "message": "Chau"}]},
-            **agente, "tools": [{"app": spec["app"], "tools": ["*"]}]}
+            "tools": [{"app": spec["app"], "tools": ["*"]}], **agente}
 
 
 def calls(turns: list[dict], tool: str) -> list[str]:
@@ -54,7 +56,24 @@ def calls(turns: list[dict], tool: str) -> list[str]:
     return [h for t in turns for h in t["herramientas"] if h.startswith(tool + " ")]
 
 
-def check(turns: list[dict], rules: list[dict]) -> list[str]:
+def state_key(tool: str, arguments: dict) -> str:
+    return json.dumps([tool, arguments], sort_keys=True, ensure_ascii=False)
+
+
+async def read_states(rules: list[dict]) -> dict[str, str]:
+    """Para estado/estado_no: llama la herramienta directo a la app (sin LLM) al terminar el caso, para
+    ver lo que quedó guardado y no lo que dijo el asistente (16-oct-2026: "Listo, le asigné el plan" sin plan)."""
+    states = {}
+    for rule in rules:
+        (kind, value), = rule.items()
+        if kind in ("estado", "estado_no") and (key := state_key(value[0], value[1])) not in states:
+            out = await app_client.call_tool(os.environ["APP_BASE_URL"], os.environ["APP_TOKEN"], value[0], value[1],
+                                             ACTOR)
+            states[key] = json.dumps(out["result"], ensure_ascii=False)
+    return states
+
+
+def check(turns: list[dict], rules: list[dict], states: dict[str, str] | None = None) -> list[str]:
     used = {h.split(" ", 1)[0] for t in turns for h in t["herramientas"] if "->" in h}
     reply = " ".join(t["asistente"] for t in turns)
     fails = []
@@ -77,7 +96,28 @@ def check(turns: list[dict], rules: list[dict]) -> list[str]:
                 fails.append(f"{tool} sin /{pattern}/ en los argumentos")
             elif kind == "args_no" and hit:
                 fails.append(f"{tool} con /{pattern}/ en los argumentos")
+        elif kind in ("estado", "estado_no"):
+            tool, arguments, pattern = value
+            hit = re.search(pattern, (states or {})[state_key(tool, arguments)])
+            if kind == "estado" and not hit:
+                fails.append(f"{tool} {json.dumps(arguments, ensure_ascii=False)} no tiene /{pattern}/")
+            elif kind == "estado_no" and hit:
+                fails.append(f"{tool} {json.dumps(arguments, ensure_ascii=False)} tiene /{pattern}/")
     return fails
+
+
+def casos_llm() -> LLMClient:
+    """El LLM del stack, o uno externo para comparar (como una conexión BYOK, perfil generic):
+    CASOS_LLM_MODEL, CASOS_LLM_KIND (openrouter | openai_compatible), CASOS_LLM_URL y la key en el archivo
+    CASOS_LLM_KEY_FILE (bajo scratch/, montado en /app/scratch), para que no quede en la línea de comandos."""
+    model = os.environ.get("CASOS_LLM_MODEL")
+    if not model:
+        return LLMClient(settings.vllm_llm_base_url, settings.vllm_api_key, settings.vllm_llm_model)
+    kind = os.environ.get("CASOS_LLM_KIND", "openrouter")
+    url = os.environ.get("CASOS_LLM_URL") or (resolver.OPENROUTER_URL if kind == "openrouter" else "")
+    key = pathlib.Path(os.environ["CASOS_LLM_KEY_FILE"]).read_text().strip()
+    return LLMClient(url, key, model, temperature=None, profile=kind, json_mode="json_schema",
+                     default_headers=resolver.OPENROUTER_HEADERS if kind == "openrouter" else None, timeout=90)
 
 
 async def text_of(message, base: pathlib.Path) -> str:
@@ -111,12 +151,16 @@ async def main(path: pathlib.Path) -> None:
                                            definition=definition(spec, path.parent.parent), template_id=None, user_id=None)
         s.commit()
         client_id, agent_id, app_id = client.id, agent.id, app.id
-    llm = LLMClient(settings.vllm_llm_base_url, settings.vllm_api_key, settings.vllm_llm_model)
+    llm = casos_llm()
+    modelo = llm.model if llm.profile != "vllm" else settings.vllm_llm_model
     engine = ConversationEngine(llm, ConversationStore(sessions), DbDefinitions(sessions))
     only = set(filter(None, os.environ.get("CASOS", "").split(",")))
     results = []
     for case in spec["casos"]:
         if only and case["id"] not in only:
+            continue
+        if case.get("omitir"):
+            print(f"--  {case['id']:5} {case['proceso']:34} omitido: {case['omitir']}", flush=True)
             continue
         state, _ = engine.start_conversation(agent_id, client_id, channel="whatsapp", opening=False)
         turns, started = [], time.perf_counter()
@@ -133,9 +177,10 @@ async def main(path: pathlib.Path) -> None:
                                           for t in trace if t["kind"] == "paso"],
                           "herramientas": [f"{t['input'][:200]} -> {t['output'][:300]}" for t in trace
                                            if t["kind"] in ("herramienta", "pendiente", "control")]})
-        fails = check(turns, case.get("chequeos", []))
+        states = await read_states(case.get("chequeos", []))
+        fails = check(turns, case.get("chequeos", []), states)
         results.append({"caso": case["id"], "proceso": case["proceso"], "ok": not fails, "fallas": fails,
-                        "turnos": turns, "ms": round((time.perf_counter() - started) * 1000)})
+                        "turnos": turns, "estados": states, "ms": round((time.perf_counter() - started) * 1000)})
         print(f"{'OK ' if not fails else 'MAL'} {case['id']:5} {case['proceso']:34} {results[-1]['ms']:6} ms  "
               f"{'; '.join(fails)}", flush=True)
     for job in spec.get("jobs", []):
@@ -145,9 +190,16 @@ async def main(path: pathlib.Path) -> None:
         results.append({"caso": f"job:{job}", "proceso": "Aviso programado", "ok": bool(r["message"]), "fallas": [],
                         "turnos": [{"usuario": "(a su hora)", "asistente": r["message"] or "", "ms": 0, "pasos": 0,
                                     "herramientas": [json.dumps(r["entregas"])]}], "ms": 0})
+    (out / "config.json").write_text(json.dumps({"modelo": modelo, "perfil": llm.profile,
+                                                 "tools": definition(spec, path.parent.parent)["tools"],
+                                                 "razonamiento": settings.assistant_thinking if llm.profile == "vllm" else None,
+                                                 "temperatura": settings.llm_temperature if llm.profile == "vllm" else None}))
     (out / "casos.json").write_text(json.dumps(results, ensure_ascii=False, indent=1))
     ok = sum(r["ok"] for r in results)
-    lines = [f"# Casos de {spec['app']} ({now:%d-%m-%Y %H:%M}, {settings.vllm_llm_model})", "",
+    config = (f"razonamiento {'sí' if settings.assistant_thinking else 'no'}, "
+              f"temperatura {settings.llm_temperature if settings.llm_temperature is not None else 'del modelo'}"
+              if llm.profile == "vllm" else "razonamiento y temperatura del proveedor")
+    lines = [f"# Casos de {spec['app']} ({now:%d-%m-%Y %H:%M}, {modelo} ({llm.profile}), {config})", "",
              f"{ok} de {len(results)} pasan los chequeos automáticos.", ""]
     for r in results:
         lines.append(f"## {r['caso']} · {r['proceso']} · {'OK' if r['ok'] else 'MAL: ' + '; '.join(r['fallas'])}")
@@ -155,6 +207,8 @@ async def main(path: pathlib.Path) -> None:
             lines += ["", f"**Usuario:** {t['usuario']}", "", f"**Asistente** ({t['ms']} ms, {t['pasos']} pasos):",
                       "", t["asistente"], ""]
             lines += [f"- `{h}`" for h in t["herramientas"]]
+        if r.get("estados"):
+            lines += ["", "**Estado al terminar:**", ""] + [f"- `{k}` → `{v[:400]}`" for k, v in r["estados"].items()]
         lines.append("")
     (out / "report.md").write_text("\n".join(lines))
     print(f"\n{ok}/{len(results)} OK. Reporte: {out}/report.md")

@@ -6,8 +6,8 @@ puede hacer por la API (`/api/v1/docs`, solo con sesión de admin). La arquitect
 [`ARQUITECTURA.md`](ARQUITECTURA.md).
 
 Hay dos roles:
-- **Admin:** opera la plataforma y ve todo. Menú: Inicio, Conversaciones, Agentes, Voces, WhatsApp, Campañas, Apps, Clientes, Números, Tiers, Cobros y Usuarios.
-- **Cliente:** usuario de un cliente, que solo ve lo suyo. Menú: Inicio, Conversaciones, Agentes, Voces, WhatsApp, Campañas, Apps, Consumos, API y Mi cuenta.
+- **Admin:** opera la plataforma y ve todo. Menú: Inicio, Conversaciones, Agentes, Voces, WhatsApp, Contactos, Campañas, Apps, Clientes, Números, Tiers, Cobros y Usuarios.
+- **Cliente:** usuario de un cliente, que solo ve lo suyo. Menú: Inicio, Conversaciones, Agentes, Voces, WhatsApp, Contactos, Campañas, Apps, Consumos, API y Mi cuenta.
 
 ## Primer ingreso
 
@@ -35,9 +35,17 @@ Los de la API de inferencia (abajo) arrancan en 0 = el plan no los incluye.
 | Minutos entrantes por mes | Minutos de llamadas recibidas, por mes calendario (hora de Buenos Aires). |
 | Minutos salientes por mes | Minutos de llamadas hechas por el agente. |
 | Números | Cantidad de números de teléfono que puede tener asignados el cliente. |
+| Canales de campañas | Qué campañas puede crear: WhatsApp, llamadas, las dos o ninguna. Los tiers que ya existían quedan con WhatsApp. |
+| Campañas por mes | Campañas que puede iniciar en el mes calendario (cuenta al pasar de borrador a programada o en curso; cancelar no devuelve el cupo). |
+| Contactos por campaña | Tope de destinatarios de una campaña. |
+| Llamadas simultáneas por campaña | Tope de la concurrencia de una campaña de llamadas. |
+| Contactos en la agenda | Contactos activos del cliente (los archivados no cuentan). |
+| Seguimiento por WhatsApp | Si una campaña de llamadas puede escribirle por WhatsApp a quien no atendió. |
 
 - **Editar:** los cambios rigen en el acto, también para el mes en curso.
 - **Bajar el tope de números:** no se puede si algún cliente de ese tier ya tiene más asignados.
+- **Sacar un canal de campañas:** las campañas en curso o programadas de ese canal, de los clientes del tier,
+  pasan a Pausada con el motivo. Lo mismo al cambiar a un cliente de tier.
 - **Borrar:** solo si el tier no tiene clientes.
 
 ### 2. Crear el cliente (Clientes)
@@ -80,7 +88,7 @@ El detalle del agente tiene cuatro pestañas:
   (ver [Agentes (cliente)](#agentes-cliente)):
   - **Agente:** nombre, rol, idioma y **motor** (Clásico, Estructurado o Asistente, en tarjetas). La definición es la misma con los dos primeros: cambiarlo no toca nada más. **Asistente** (solo admin) es el asistente personal con las herramientas de las apps del cliente ([`APPS.md`](APPS.md)): oculta Datos a obtener y Resultados (lo que haya queda guardado) y muestra **Herramientas**.
   - **Herramientas** (motor Asistente): un switch por cada app del cliente, con **Todas** o **Elegir** herramientas una por una. Las que borran o envían se confirman con el usuario antes de usarlas.
-  - **Voz:** tarjetas con las voces (filtro por mujeres u hombres); al lado, la prueba con la voz elegida, con la apertura como texto (editable). **Grabar audio**: un WAV por mensaje de cada llamada (telefónica o de WhatsApp; el cliente y el agente por separado), localmente en el servidor.
+  - **Voz:** tarjetas con las voces (filtro por mujeres u hombres); al lado, la prueba con la voz elegida, con la apertura como texto (editable). **Grabar audio**: un WAV por mensaje de cada llamada (telefónica o de WhatsApp; el cliente y el agente por separado), localmente en el servidor. **Ventana de contexto en WhatsApp (minutos)**: minutos sin mensaje del contacto para que la próxima conversación arranque en limpio, sin el historial anterior; vacío usa el default del servidor (1440 min = 24 hs).
   - **Objetivo y apertura**, **Reglas** (una por regla) y **Base de conocimiento**.
   - **Datos a obtener:** cada dato con etiqueta, nombre interno, tipo (texto, número, sí o no, opción
     de una lista, email, email o teléfono), si es obligatorio (sí, no o según otro dato), descripción
@@ -235,6 +243,8 @@ Para que un dueño use su app: asignarla, crear un agente con motor **Asistente*
 
 - Todas las conversaciones (llamadas, API y WhatsApp), con los mismos filtros que el inicio (cliente,
   agente y período), en la URL.
+- Se puede filtrar por campaña (también en Inicio): los intentos de una campaña de llamadas y las
+  conversaciones que abrió la respuesta de un contacto.
 - Tabla paginada, filtrable además por estado y origen. Las de WhatsApp no tienen estado ni duración y
   muestran el teléfono del contacto. Cada fila lleva al detalle.
 - **Borrar (solo admin):** cada fila tiene el ícono de borrar a la derecha y las casillas para
@@ -363,9 +373,32 @@ Solo funciona desde `https://app.atentina.com.ar` (Meta exige HTTPS).
 8. Un número que cargó un admin con la cuenta de la plataforma (alta manual) no muestra registro, datos de
    Meta ni plantillas al cliente: los maneja el admin.
 
+### Contactos (`/contacts`, ambos roles)
+
+La agenda del cliente: de ahí salen los destinatarios de las campañas. Lo único obligatorio es el teléfono
+(único por cliente, se normaliza a formato internacional); nombre, email, ID externo, etiquetas y datos libres
+(`deuda`, `vence`…) son opcionales. El admin elige primero el cliente.
+
+1. **Nuevo contacto** o **Importar CSV**: encabezado `telefono` (obligatorio), `nombre`, `email`, `id_externo`,
+   `etiquetas` (separadas por `|` o `;`) y una columna más por cada dato libre. La vista previa muestra las columnas; el resultado, los
+   creados, actualizados, archivados e inválidos (con fila y motivo). Un contacto que ya existe se actualiza:
+   los datos y las etiquetas se suman, no se pisan.
+2. **Etiquetas:** sirven para armar campañas por segmento. Se escriben en minúsculas, sin acentos.
+3. **No se borran, se archivan.** El filtro Activos / Archivados / Todos muestra el resto. Se archiva uno,
+   varios seleccionados o una etiqueta entera. Un archivado no entra en campañas nuevas y se saltea en las
+   que tenía pendientes. Recargar su teléfono no lo desarchiva: **Desarchivar** es explícito.
+4. **Ficha** (clic en la fila): datos y campañas en que participó o participa.
+5. **Tope:** el tier limita los contactos activos de la agenda.
+
 ### Campañas (`/campaigns`, ambos roles)
 
-Mandan una plantilla aprobada de WhatsApp a una lista de contactos; las respuestas las atiende el agente.
+Un lote de contactos al que el agente le escribe por WhatsApp (plantilla) o llama. Las respuestas de
+WhatsApp las atiende el agente. La lista filtra por canal y estado. **Nueva campaña** ofrece los canales; el
+que el plan no incluye aparece deshabilitado con el motivo. Mientras corre o espera su hora, el detalle se
+actualiza cada 5 s.
+
+#### Campaña de WhatsApp
+
 Hace falta un número conectado con su propia cuenta (el cliente) y una plantilla aprobada.
 
 1. **Plantilla:** en WhatsApp > Plantillas > **Nueva plantilla**, categoría Marketing para prospección, con
@@ -387,6 +420,37 @@ Hace falta un número conectado con su propia cuenta (el cliente) y una plantill
 
 Meta cobra cada plantilla entregada a la cuenta del número. Conviene escribirles solo a quienes aceptaron
 recibir mensajes: muchos bloqueos bajan la calidad del número y su límite de envío.
+
+#### Campaña de llamadas
+
+1. **Nueva campaña > Llamadas:**
+   - **Agente que llama**, **número de origen** (uno del cliente: es el que ve el destinatario) y **voz**
+     (vacío: la del agente).
+   - **Finalidad:** comercial, cobranza, turnos o aviso. Una **comercial** exige marcar "Confirmo que filtré la
+     lista contra el Registro No Llame" (Ley 26.951; es responsabilidad del cliente).
+   - **Destinatarios:** por etiquetas, contactos elegidos de la agenda o un CSV (que también los carga en la agenda).
+   - **Horario:** desde, hasta, días y, opcional, **Inicio programado** y **Termina como máximo**. Fuera de
+     horario (o en un feriado de `CAMPAIGN_HOLIDAYS`) no llama.
+   - **Llamadas:** de a una, o en paralelo hasta el tope del plan; intentos por contacto, minutos entre intentos
+     y en qué resultados se vuelve a llamar (no atendió, ocupado, contestador, falló).
+   - **Seguimiento por WhatsApp** (si el plan lo incluye): número, plantilla aprobada, dato de cada `{{n}}`, en
+     qué resultados se manda y agente que responde. Se le escribe a quien no atendió tras el último intento.
+   - **Webhook:** URL https pública. Si no se carga un secreto se genera y **se muestra una sola vez**.
+2. Queda en **Borrador**: **Iniciar**, **Pausar**, **Retomar** y **Cancelar** (los pendientes no se llaman). **Editar** en
+   el borrador y la pausada.
+3. **Variables:** los datos del contacto se usan en la apertura del agente (`{{nombre}}`, `{{deuda}}`; si falta
+   un dato, el texto se acomoda sin él) y los que se llaman como un campo del agente lo cargan ya completo.
+4. **Detalle:** barra de avance, ritmo y tiempo estimado; tarjetas por resultado (atendió, no atendió,
+   ocupado, contestador, número inválido, rechazó, falló); indicadores (tasa de contacto, objetivo cumplido,
+   duración, minutos) y atendidas por hora del día, para elegir el horario; seguimiento; y la tabla de
+   contactos, filtrable, con **Ver conversación**. **Descargar reporte** baja el `report.csv`.
+5. **Pausada automáticamente:** sin minutos o tope de llamadas del plan, agente archivado, número de origen
+   suspendido o 10 intentos seguidos fallidos (Anura o el trunk caídos). El motivo aparece arriba; resolverlo
+   y **Retomar**.
+6. **Bajas:** un resultado del agente marcado "No volver a llamar" (en el editor del agente) agrega el teléfono
+   a las bajas de llamadas; ninguna campaña de llamadas del cliente lo marca más.
+
+El contestador se detecta por lo que dice (frases como "deje su mensaje"): puede equivocarse con un humano.
 
 ### Consumos (cliente)
 

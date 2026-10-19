@@ -1,39 +1,42 @@
 import {
-  ActionIcon,
   Anchor,
   Badge,
   Button,
   Card,
   Group,
+  Menu,
   Progress,
+  SegmentedControl,
   Select,
   Stack,
   Table,
   Text,
-  TextInput,
-  Title,
   Tooltip,
 } from '@mantine/core';
-import { IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconBrandWhatsapp, IconChevronDown, IconPhoneCall, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import type { WaCampaign } from '@/api/types';
+import type { Campaign, CampaignChannel } from '@/api/types';
 import { Dash, LiveBadge } from '@/components/Badges';
-import { confirmAction } from '@/components/confirm';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState, QueryState } from '@/components/QueryState';
 import { useCurrentUser } from '@/features/auth/api';
 import { useClients } from '@/features/clients/api';
+import { OptoutsCard } from '@/features/contacts/OptoutsCard';
 import { useWaAccounts } from '@/features/whatsapp/api';
-import { formatDate, formatDateTime } from '@/lib/format';
-import { notifyError, notifySuccess } from '@/lib/notify';
-import { useAddOptout, useCampaigns, useOptouts, useRemoveOptout } from './api';
+import { formatDate } from '@/lib/format';
+import { useCampaigns, usePlan } from './api';
 import { NewCampaignModal } from './CampaignModals';
-import { CAMPAIGN_STATUS, OPTOUT_SOURCE, pct } from './labels';
+import { CHANNEL, pct, statusLabel } from './labels';
+import { VoiceCampaignModal } from './VoiceCampaignModal';
 
-export function CampaignStatusBadge({ campaign }: { campaign: WaCampaign }) {
-  if (campaign.status === 'running') return <LiveBadge>{CAMPAIGN_STATUS.running.label}</LiveBadge>;
-  const l = CAMPAIGN_STATUS[campaign.status] ?? { label: campaign.status, color: 'gray' };
+export function CampaignStatusBadge({
+  campaign,
+}: {
+  campaign: Pick<Campaign, 'status' | 'channel' | 'status_reason'>;
+}) {
+  const l = statusLabel(campaign);
+  if (campaign.status === 'running') return <LiveBadge>{l.label}</LiveBadge>;
   return (
     <Tooltip label={campaign.status_reason} multiline w={280} withArrow disabled={!campaign.status_reason}>
       <Badge color={l.color}>{l.label}</Badge>
@@ -41,16 +44,25 @@ export function CampaignStatusBadge({ campaign }: { campaign: WaCampaign }) {
   );
 }
 
-/** Enviados (o procesados) sobre el total, con la barra. */
-function ProgressCell({ c }: { c: WaCampaign }) {
-  const done = c.stats.total - c.stats.pending;
-  const p = pct(done, c.stats.total) ?? 0;
+export function CampaignChannelBadge({ channel }: { channel: CampaignChannel }) {
+  const Icon = channel === 'whatsapp' ? IconBrandWhatsapp : IconPhoneCall;
+  return (
+    <Badge color="gray" leftSection={<Icon size={12} aria-hidden />}>
+      {CHANNEL[channel]}
+    </Badge>
+  );
+}
+
+/** Procesados (enviados, llamados o salteados) sobre el total, con la barra. */
+function ProgressCell({ c }: { c: Campaign }) {
+  const done = c.progress.done + c.progress.failed + c.progress.skipped;
+  const p = Math.round(c.percent);
   return (
     <Stack gap={4} w={140}>
       <Text size="sm" className="mono">
-        {done} / {c.stats.total}
+        {done} / {c.total}
       </Text>
-      <Progress value={p} size="sm" aria-label={`${p} % procesado`} />
+      <Progress value={c.percent} size="sm" aria-label={`${p} % procesado`} />
     </Stack>
   );
 }
@@ -70,129 +82,27 @@ function Rate({ value, of }: { value: number; of: number }) {
   );
 }
 
-/** Numeros que pidieron no recibir campañas (por WhatsApp o cargados a mano). */
-function OptoutsCard({ clientId, isAdmin }: { clientId?: string; isAdmin: boolean }) {
-  const optouts = useOptouts(clientId);
-  const add = useAddOptout();
-  const remove = useRemoveOptout();
-  const [phone, setPhone] = useState('');
-  const canAdd = !isAdmin || !!clientId;
-
-  const doRemove = async (waId: string, cid: string) => {
-    const ok = await confirmAction({
-      title: `Sacar ${waId} de las bajas`,
-      message: 'Las próximas campañas le van a volver a escribir. Hacelo solo si pidió que le escriban.',
-      confirmLabel: 'Sacar',
-      danger: true,
-    });
-    if (ok)
-      remove.mutate(
-        { waId, clientId: cid },
-        { onSuccess: () => notifySuccess('Número sacado de las bajas.'), onError: (e) => notifyError(e) },
-      );
-  };
-
-  return (
-    <Card>
-      <Group justify="space-between" mb="sm" gap="sm">
-        <Title order={4}>Bajas</Title>
-        <Tooltip label="Elegí un cliente para cargar bajas" disabled={canAdd} withArrow>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              add.mutate(
-                { phone, client_id: clientId ?? null },
-                {
-                  onSuccess: (o) => {
-                    notifySuccess(`${o.wa_id} no va a recibir campañas.`);
-                    setPhone('');
-                  },
-                  onError: (err) => notifyError(err, 'No se pudo cargar la baja'),
-                },
-              );
-            }}
-          >
-            <Group gap="xs">
-              <TextInput
-                placeholder="351 555-1234"
-                aria-label="Teléfono a dar de baja"
-                value={phone}
-                onChange={(e) => setPhone(e.currentTarget.value)}
-                disabled={!canAdd}
-                w={180}
-              />
-              <Button
-                type="submit"
-                variant="default"
-                disabled={!canAdd || !phone.trim()}
-                loading={add.isPending}
-              >
-                Dar de baja
-              </Button>
-            </Group>
-          </form>
-        </Tooltip>
-      </Group>
-      <Text size="sm" c="dimmed" mb="sm">
-        Ninguna campaña les escribe. Se suman solos cuando un contacto responde a una campaña con "No me
-        interesa" o "Baja".
-      </Text>
-      <QueryState query={optouts}>
-        {(rows) =>
-          rows.length === 0 ? (
-            <EmptyState>Nadie pidió la baja.</EmptyState>
-          ) : (
-            <Table.ScrollContainer minWidth={480} mah={320}>
-              <Table>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Teléfono</Table.Th>
-                    <Table.Th>Origen</Table.Th>
-                    <Table.Th>Fecha</Table.Th>
-                    <Table.Th />
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {rows.map((o) => (
-                    <Table.Tr key={`${o.client_id}-${o.wa_id}`}>
-                      <Table.Td className="mono">{o.wa_id}</Table.Td>
-                      <Table.Td>{OPTOUT_SOURCE[o.source] ?? o.source}</Table.Td>
-                      <Table.Td style={{ whiteSpace: 'nowrap' }}>{formatDateTime(o.created_at)}</Table.Td>
-                      <Table.Td>
-                        <Group justify="flex-end">
-                          <Tooltip label="Sacar de las bajas" withArrow>
-                            <ActionIcon
-                              variant="subtle"
-                              color="red"
-                              aria-label={`Sacar ${o.wa_id} de las bajas`}
-                              onClick={() => void doRemove(o.wa_id, o.client_id)}
-                            >
-                              <IconTrash size={16} />
-                            </ActionIcon>
-                          </Tooltip>
-                        </Group>
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
-            </Table.ScrollContainer>
-          )
-        }
-      </QueryState>
-    </Card>
-  );
+/** Alcanzados: entregados (WhatsApp) o atendidas (llamadas), sobre lo enviado o llamado. */
+function reached(c: Campaign): { value: number; of: number } {
+  if (c.channel === 'whatsapp') return { value: c.results.delivered ?? 0, of: c.results.sent ?? 0 };
+  return { value: c.results.answered ?? 0, of: Object.values(c.results).reduce((a, b) => a + b, 0) };
 }
+
+type ChannelFilter = 'all' | CampaignChannel;
 
 export function CampaignsPage() {
   const me = useCurrentUser();
   const isAdmin = me.role === 'admin';
   const [params, setParams] = useSearchParams();
   const clientId = isAdmin ? (params.get('client') ?? undefined) : undefined;
-  const campaigns = useCampaigns(clientId);
+  const channel = (
+    ['whatsapp', 'voice'].includes(params.get('channel') ?? '') ? params.get('channel') : 'all'
+  ) as ChannelFilter;
+  const campaigns = useCampaigns(clientId, channel === 'all' ? undefined : channel);
   const accounts = useWaAccounts(clientId);
   const clients = useClients(isAdmin);
-  const [creating, setCreating] = useState(false);
+  const plan = usePlan(clientId, !isAdmin || !!clientId);
+  const [creating, setCreating] = useState<CampaignChannel | null>(null);
 
   // Mandan campañas los numeros conectados que el cliente administra (token propio); el admin, todos.
   const senders = (accounts.data ?? []).filter(
@@ -200,112 +110,176 @@ export function CampaignsPage() {
   );
   const noSender = accounts.isSuccess && senders.length === 0;
 
-  const setClient = (v: string | null) =>
+  // Por que un canal no se puede usar (null = se puede). Sin plan cargado (admin sin cliente), se deja pasar.
+  const channels = plan.data?.channels;
+  const blocked: Record<CampaignChannel, string | null> = {
+    whatsapp:
+      channels && !channels.includes('whatsapp')
+        ? `Tu plan (${plan.data?.tier_name}) no incluye campañas por WhatsApp`
+        : noSender
+          ? 'Hace falta un número de WhatsApp conectado con su propia cuenta (Conectar WhatsApp)'
+          : null,
+    voice:
+      channels && !channels.includes('voice')
+        ? `Tu plan (${plan.data?.tier_name}) no incluye campañas por llamadas`
+        : null,
+  };
+  const allBlocked = blocked.whatsapp && blocked.voice;
+  const blockedText = [blocked.whatsapp, blocked.voice].filter(Boolean).join('. ');
+
+  const setParam = (key: string, v: string | null) =>
     setParams(
       (prev) => {
         const next = new URLSearchParams(prev);
-        if (v) next.set('client', v);
-        else next.delete('client');
+        if (v) next.set(key, v);
+        else next.delete(key);
         return next;
       },
       { replace: true },
     );
 
+  const item = (ch: CampaignChannel, label: string, icon: React.ReactNode) => (
+    <Menu.Item leftSection={icon} disabled={!!blocked[ch]} onClick={() => setCreating(ch)}>
+      <Text size="sm">{label}</Text>
+      {blocked[ch] && (
+        <Text size="xs" c="dimmed" maw={260} style={{ whiteSpace: 'normal' }}>
+          {blocked[ch]}
+        </Text>
+      )}
+    </Menu.Item>
+  );
+
   return (
     <Stack gap="md">
       <PageHeader
         title="Campañas"
-        description="Mensajes de WhatsApp que inicia el negocio, con una plantilla aprobada por Meta. Las respuestas las atiende el agente."
+        description="Mensajes de WhatsApp con una plantilla aprobada por Meta, o llamadas del agente, a una lista de contactos. Las respuestas y las llamadas las atiende el agente."
         actions={
-          <Tooltip
-            label="Hace falta un número de WhatsApp conectado con su propia cuenta (Conectar WhatsApp)"
-            multiline
-            w={260}
-            withArrow
-            disabled={!noSender}
-          >
-            <Button
-              leftSection={<IconPlus size={18} />}
-              data-disabled={noSender || undefined}
-              onClick={(e) => (noSender ? e.preventDefault() : setCreating(true))}
-            >
-              Nueva campaña
-            </Button>
-          </Tooltip>
+          allBlocked ? (
+            <Tooltip label={blockedText} multiline w={300} withArrow>
+              <Button leftSection={<IconPlus size={18} />} data-disabled onClick={(e) => e.preventDefault()}>
+                Nueva campaña
+              </Button>
+            </Tooltip>
+          ) : (
+            <Menu position="bottom-end" withinPortal>
+              <Menu.Target>
+                <Button leftSection={<IconPlus size={18} />} rightSection={<IconChevronDown size={16} />}>
+                  Nueva campaña
+                </Button>
+              </Menu.Target>
+              <Menu.Dropdown>
+                {item('whatsapp', 'Por WhatsApp', <IconBrandWhatsapp size={16} />)}
+                {item('voice', 'Por llamadas', <IconPhoneCall size={16} />)}
+              </Menu.Dropdown>
+            </Menu>
+          )
         }
       />
       <Card>
-        {isAdmin && (
-          <Group mb="md" gap="sm">
+        <Group mb="md" gap="sm">
+          {isAdmin && (
             <Select
               placeholder="Todos los clientes"
               data={(clients.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
               value={clientId ?? null}
-              onChange={setClient}
+              onChange={(v) => setParam('client', v)}
               clearable
               searchable
               w={220}
               aria-label="Cliente"
             />
-          </Group>
-        )}
+          )}
+          <SegmentedControl
+            aria-label="Canal"
+            value={channel}
+            onChange={(v) => setParam('channel', v === 'all' ? null : v)}
+            data={[
+              { value: 'all', label: 'Todas' },
+              { value: 'whatsapp', label: 'WhatsApp' },
+              { value: 'voice', label: 'Llamadas' },
+            ]}
+          />
+        </Group>
         <QueryState query={campaigns}>
           {(rows) =>
             rows.length === 0 ? (
               <EmptyState>
-                {noSender
-                  ? 'Para mandar campañas, primero conectá un número en WhatsApp y creá una plantilla.'
-                  : 'No hay campañas. Usá "Nueva campaña" para mandar una plantilla a una lista de contactos.'}
+                {channel !== 'all'
+                  ? `No hay campañas por ${CHANNEL[channel].toLowerCase()}.`
+                  : allBlocked
+                    ? blockedText
+                    : 'No hay campañas. Usá "Nueva campaña" para mandar una plantilla o llamar a una lista de contactos.'}
               </EmptyState>
             ) : (
-              <Table.ScrollContainer minWidth={isAdmin ? 1080 : 960}>
+              <Table.ScrollContainer minWidth={isAdmin ? 1160 : 1040}>
                 <Table>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>Campaña</Table.Th>
                       {isAdmin && <Table.Th>Cliente</Table.Th>}
-                      <Table.Th>Número</Table.Th>
+                      <Table.Th>Canal</Table.Th>
                       <Table.Th>Estado</Table.Th>
-                      <Table.Th>Enviados</Table.Th>
-                      <Table.Th style={{ textAlign: 'right' }}>Entregados</Table.Th>
+                      <Table.Th>Avance</Table.Th>
+                      <Table.Th style={{ textAlign: 'right' }}>Alcanzados</Table.Th>
                       <Table.Th style={{ textAlign: 'right' }}>Respondieron</Table.Th>
                       <Table.Th style={{ textAlign: 'right' }}>Fallidos</Table.Th>
                       <Table.Th>Creada</Table.Th>
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
-                    {rows.map((c) => (
-                      <Table.Tr key={c.id}>
-                        <Table.Td>
-                          <Anchor component={Link} to={`/campaigns/${c.id}`} size="sm" fw={600}>
-                            {c.name}
-                          </Anchor>
-                          <Text size="xs" c="dimmed" className="mono">
-                            {c.template_name}
-                          </Text>
-                        </Table.Td>
-                        {isAdmin && <Table.Td>{c.client_name ?? <Dash />}</Table.Td>}
-                        <Table.Td className="mono">{c.display_phone_number ?? <Dash />}</Table.Td>
-                        <Table.Td>
-                          <CampaignStatusBadge campaign={c} />
-                        </Table.Td>
-                        <Table.Td>
-                          <ProgressCell c={c} />
-                        </Table.Td>
-                        <Table.Td>
-                          <Rate value={c.stats.delivered} of={c.stats.sent} />
-                        </Table.Td>
-                        <Table.Td>
-                          <Rate value={c.stats.replied} of={c.stats.delivered} />
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm" className="mono" ta="right" c={c.stats.failed ? 'red' : undefined}>
-                            {c.stats.failed}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td style={{ whiteSpace: 'nowrap' }}>{formatDate(c.created_at)}</Table.Td>
-                      </Table.Tr>
-                    ))}
+                    {rows.map((c) => {
+                      const r = reached(c);
+                      return (
+                        <Table.Tr key={c.id}>
+                          <Table.Td>
+                            <Anchor component={Link} to={`/campaigns/${c.id}`} size="sm" fw={600}>
+                              {c.name}
+                            </Anchor>
+                            <Text
+                              size="xs"
+                              c="dimmed"
+                              className={c.channel === 'whatsapp' ? 'mono' : undefined}
+                            >
+                              {c.channel === 'whatsapp' ? c.template_name : `Agente ${c.agent_name ?? '–'}`}
+                            </Text>
+                          </Table.Td>
+                          {isAdmin && <Table.Td>{c.client_name ?? <Dash />}</Table.Td>}
+                          <Table.Td>
+                            <CampaignChannelBadge channel={c.channel} />
+                          </Table.Td>
+                          <Table.Td>
+                            <CampaignStatusBadge campaign={c} />
+                          </Table.Td>
+                          <Table.Td>
+                            <ProgressCell c={c} />
+                          </Table.Td>
+                          <Table.Td>
+                            <Rate value={r.value} of={r.of} />
+                          </Table.Td>
+                          <Table.Td>
+                            {c.channel === 'whatsapp' ? (
+                              <Rate value={c.results.replied ?? 0} of={c.results.delivered ?? 0} />
+                            ) : (
+                              <Text ta="right">
+                                <Dash />
+                              </Text>
+                            )}
+                          </Table.Td>
+                          <Table.Td>
+                            <Text
+                              size="sm"
+                              className="mono"
+                              ta="right"
+                              c={c.progress.failed ? 'red' : undefined}
+                            >
+                              {c.progress.failed}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td style={{ whiteSpace: 'nowrap' }}>{formatDate(c.created_at)}</Table.Td>
+                        </Table.Tr>
+                      );
+                    })}
                   </Table.Tbody>
                 </Table>
               </Table.ScrollContainer>
@@ -314,7 +288,8 @@ export function CampaignsPage() {
         </QueryState>
       </Card>
       <OptoutsCard clientId={clientId} isAdmin={isAdmin} />
-      {creating && <NewCampaignModal accounts={senders} onClose={() => setCreating(false)} />}
+      {creating === 'whatsapp' && <NewCampaignModal accounts={senders} onClose={() => setCreating(null)} />}
+      {creating === 'voice' && <VoiceCampaignModal clientId={clientId} onClose={() => setCreating(null)} />}
     </Stack>
   );
 }

@@ -61,6 +61,8 @@ export interface OutcomeDraft {
   id: string;
   label: string;
   goal: boolean;
+  /** Campañas de voz: el contacto pidió que no lo llamen más; el teléfono pasa a la lista de bajas. */
+  noContact: boolean;
   message: string;
   conditions: ConditionDraft[];
 }
@@ -88,6 +90,10 @@ export interface Draft {
   voice: string;
   /** Un WAV por turno (telefono o WhatsApp), localmente. */
   recordAudio: boolean;
+  /** WhatsApp: minutos sin mensaje del contacto para dar la conversacion por terminada y abrir
+   * otra en limpio (ventana de contexto temporal). null = el default global del servidor
+   * (WA_SESSION_HOURS, 1440 min = 24 hs). */
+  waSessionMinutes: number | null;
   objective: string;
   opening: string;
   rules: RuleDraft[];
@@ -247,6 +253,7 @@ export function toDraft(d: Definition): Draft {
     language: str(agent.language),
     voice: str(agent.voice),
     recordAudio: d.record_audio === true,
+    waSessionMinutes: typeof d.wa_session_minutes === 'number' ? d.wa_session_minutes : null,
     objective: str(obj(d.objective).description),
     opening: str(conv.opening),
     rules: (Array.isArray(conv.rules) ? conv.rules : []).map((r) => ({ key: newKey(), text: str(r) })),
@@ -259,6 +266,7 @@ export function toDraft(d: Definition): Draft {
         id: str(o.id),
         label: str(o.label),
         goal: o.goal === true,
+        noContact: o.no_contact === true,
         message: str(o.message),
         conditions: toConditions(o.when),
       };
@@ -293,6 +301,7 @@ export function fromDraft(draft: Draft): Definition {
     ...(draft.version != null ? { version: draft.version } : {}),
     engine: draft.engine,
     ...(draft.recordAudio ? { record_audio: true } : {}),
+    ...(draft.waSessionMinutes != null ? { wa_session_minutes: draft.waSessionMinutes } : {}),
     ...(draft.generation.length ? { generation: fromParams(draft.generation) } : {}),
     ...(draft.llm && !isLocalOnly(draft.llm) ? { llm: fromLlmDraft(draft.llm) } : {}),
     agent: {
@@ -317,6 +326,8 @@ export function fromDraft(draft: Draft): Definition {
         when: i === last ? {} : fromConditions(o.conditions),
         message: o.message,
         goal: o.goal,
+        // Solo si esta marcado: las definiciones sin la bandera quedan igual.
+        ...(o.noContact ? { no_contact: true } : {}),
       })),
     },
     // Las herramientas solo valen con el motor assistant (el servidor rechaza tools con otro).
@@ -367,7 +378,7 @@ export function newOutcome(outcomes: OutcomeDraft[]): OutcomeDraft {
   const ids = new Set(outcomes.map((o) => o.id));
   let n = outcomes.length;
   while (ids.has(`resultado_${n}`)) n++;
-  return { key: newKey(), id: `resultado_${n}`, label: '', goal: false, message: '', conditions: [] };
+  return { key: newKey(), id: `resultado_${n}`, label: '', goal: false, noContact: false, message: '', conditions: [] };
 }
 
 /** Renombra un dato y lo que lo nombra (condiciones de otros datos y de los resultados). */
@@ -420,7 +431,7 @@ function outcomeAt(draft: Draft, seg: string | undefined): OutcomeDraft | undefi
 export function errorTarget(draft: Draft, path: string): ErrorTarget | null {
   const [head, second, third] = path.split('.');
   if (head === 'engine') return { section: 'agente' };
-  if (head === 'record_audio') return { section: 'voz' };
+  if (head === 'record_audio' || head === 'wa_session_minutes') return { section: 'voz' };
   if (head === 'agent') return { section: second === 'voice' ? 'voz' : 'agente' };
   if (head === 'objective') return { section: 'objetivo' };
   if (head === 'conversation') return { section: second === 'rules' ? 'reglas' : 'objetivo' };
@@ -445,6 +456,7 @@ const PATH_WORDS: Record<string, string> = {
   language: 'idioma',
   voice: 'voz',
   record_audio: 'grabar audio',
+  wa_session_minutes: 'ventana de contexto de WhatsApp',
   engine: 'Motor',
   objective: 'Objetivo',
   conversation: 'Conversación',
@@ -466,6 +478,7 @@ const PATH_WORDS: Record<string, string> = {
   when: 'condiciones',
   message: 'mensaje',
   goal: 'objetivo cumplido',
+  no_contact: 'no volver a llamar',
   tools: 'Herramientas',
   app: 'app',
   llm: 'Modelo de lenguaje',

@@ -61,6 +61,32 @@ describe('toDraft / fromDraft', () => {
     expect(fromDraft(d)).toMatchObject({ record_audio: true });
   });
 
+  it('no_contact (baja por voz): sin marcar no va a la definicion; marcado, ida y vuelta', () => {
+    expect(toDraft(def).outcomes.map((o) => o.noContact)).toEqual([false, false]);
+    expect(JSON.stringify(fromDraft(toDraft(def)))).not.toContain('no_contact');
+    const flagged = {
+      ...def,
+      completion: {
+        ...def.completion,
+        outcomes: [
+          { id: 'baja', label: 'Baja', when: { wants: false }, message: 'Listo', goal: false, no_contact: true },
+          ...def.completion.outcomes,
+        ],
+      },
+    };
+    const d = toDraft(flagged);
+    expect(d.outcomes[0].noContact).toBe(true);
+    expect(stableJson(fromDraft(d))).toBe(stableJson(flagged));
+  });
+
+  it('wa_session_minutes: sin valor no va (como record_audio); con valor, ida y vuelta', () => {
+    expect(toDraft(def).waSessionMinutes).toBeNull();
+    expect(fromDraft(toDraft(def))).not.toHaveProperty('wa_session_minutes');
+    const d = toDraft({ ...def, wa_session_minutes: 2 });
+    expect(d.waSessionMinutes).toBe(2);
+    expect(fromDraft(d)).toMatchObject({ wa_session_minutes: 2 });
+  });
+
   it('llm (conexiones BYOK): ida y vuelta, y sin etapas externas no va a la definicion', () => {
     const llm = {
       stages: [

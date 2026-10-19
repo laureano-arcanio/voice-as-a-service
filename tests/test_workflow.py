@@ -7,7 +7,7 @@ from app.agents.templates import (
     template_data,
     template_ids,
 )
-from app.conversation.models import AgentInfo, ConversationState
+from app.conversation.models import AgentInfo, ConversationState, Workflow
 from app.conversation.workflow import (
     check_updates,
     is_workflow_complete,
@@ -95,3 +95,20 @@ def test_voice_rejects_default_and_empty(voice):
 def test_voice_is_optional_and_lowercased():
     assert AgentInfo(name="A", role="r", language="es-AR").voice is None
     assert AgentInfo(name="A", role="r", language="es-AR", voice=" Martin ").voice == "martin"
+
+
+def test_wa_session_minutes_is_optional_and_defaults_to_none(workflow):
+    # None: en WhatsApp rige el default global (WA_SESSION_HOURS, 1440 min = 24 hs).
+    assert workflow.wa_session_minutes is None
+
+
+@pytest.mark.parametrize("minutes", [0, -1])
+def test_wa_session_minutes_rejects_non_positive(minutes):
+    data = load_reference("sales_discovery").model_dump(mode="json")
+    with pytest.raises(ValidationError, match="wa_session_minutes"):
+        Workflow.model_validate({**data, "wa_session_minutes": minutes})
+
+
+def test_wa_session_minutes_accepts_a_custom_window():
+    data = load_reference("sales_discovery").model_dump(mode="json")
+    assert Workflow.model_validate({**data, "wa_session_minutes": 30}).wa_session_minutes == 30

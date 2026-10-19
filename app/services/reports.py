@@ -7,7 +7,7 @@ import datetime
 from dataclasses import dataclass, field
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from ..agents.definitions import DefinitionSource
@@ -18,6 +18,7 @@ from ..conversation.workflow import INCOMPLETE, is_required, outcome_for
 from ..models import (
     Agent,
     CallRow,
+    CampaignContact,
     Client,
     ConversationRow,
     PhoneNumber,
@@ -44,6 +45,9 @@ class CallFilter:
     date_to: datetime.date | None = None     # inclusive
     status: list[str] = field(default_factory=list)
     mode: str | None = None
+    # Solo lo de una campaña: los intentos de voz (call_logs.campaign_contact_id) y las conversaciones
+    # que abrio la respuesta de un contacto de WhatsApp (campaign_contacts.conversation_id).
+    campaign_id: str | None = None
     # Zona de las fechas: date_from/date_to y los dias del grafico son dias locales.
     tz: ZoneInfo = field(default_factory=lambda: ZoneInfo("UTC"))
 
@@ -60,6 +64,14 @@ class CallFilter:
             conds.append(ConversationRow.created_at >= _utc(self.date_from, self.tz))
         if self.date_to:
             conds.append(ConversationRow.created_at < _utc(self.date_to + datetime.timedelta(days=1), self.tz))
+        if self.campaign_id:
+            members = select(CampaignContact.id).where(CampaignContact.campaign_id == self.campaign_id)
+            replies = select(CampaignContact.conversation_id).where(
+                CampaignContact.campaign_id == self.campaign_id, CampaignContact.conversation_id.is_not(None))
+            followups = select(CampaignContact.followup_conversation_id).where(
+                CampaignContact.campaign_id == self.campaign_id, CampaignContact.followup_conversation_id.is_not(None))
+            conds.append(or_(CallRow.campaign_contact_id.in_(members), ConversationRow.id.in_(replies),
+                             ConversationRow.id.in_(followups)))
         if self.status:
             conds.append(CallRow.status.in_(self.status))
         if self.mode == "whatsapp":

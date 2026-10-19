@@ -15,10 +15,11 @@ from sqlalchemy import (
     String,
     Text,
     false,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from ..db import Base, utcnow
+from ..db import Base, JSONDoc, utcnow
 from ._common import IdMixin, TimestampMixin
 
 
@@ -39,6 +40,11 @@ class Tier(IdMixin, TimestampMixin, Base):
         CheckConstraint("api_stt_minutes IS NULL OR api_stt_minutes >= 0", name="ck_tiers_api_stt"),
         CheckConstraint("api_rate_limit IS NULL OR api_rate_limit >= 0", name="ck_tiers_api_rate"),
         CheckConstraint("price_ars IS NULL OR price_ars >= 0", name="ck_tiers_price"),
+        CheckConstraint("max_campaigns_per_month IS NULL OR max_campaigns_per_month >= 0", name="ck_tiers_campaigns_month"),
+        CheckConstraint("max_campaign_contacts IS NULL OR max_campaign_contacts >= 0", name="ck_tiers_campaign_contacts"),
+        CheckConstraint("max_campaign_concurrency IS NULL OR max_campaign_concurrency >= 0",
+                        name="ck_tiers_campaign_concurrency"),
+        CheckConstraint("max_contacts IS NULL OR max_contacts >= 0", name="ck_tiers_contacts"),
     )
     name: Mapped[str] = mapped_column(String(64), unique=True)
     description: Mapped[str] = mapped_column(Text, default="")
@@ -62,6 +68,15 @@ class Tier(IdMixin, TimestampMixin, Base):
     api_stt_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)   # audio transcripto
     # Pedidos por minuto a la API de inferencia, sumando las tres y todas las keys del cliente.
     api_rate_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Campañas salientes y agenda de contactos (docs/LLAMADAS_SALIENTES_PLAN.md, 3.5). NULL = sin
+    # limite y 0 = no incluido, como el resto. campaign_channels: los canales habilitados ([],
+    # ["whatsapp"], ["voice"] o los dos).
+    campaign_channels: Mapped[list] = mapped_column(JSONDoc, default=list, server_default=text("'[]'"))
+    max_campaigns_per_month: Mapped[int | None] = mapped_column(Integer, nullable=True)   # iniciadas por mes calendario
+    max_campaign_contacts: Mapped[int | None] = mapped_column(Integer, nullable=True)     # contactos por campaña
+    max_campaign_concurrency: Mapped[int | None] = mapped_column(Integer, nullable=True)  # llamadas simultaneas de una de voz
+    max_contacts: Mapped[int | None] = mapped_column(Integer, nullable=True)              # contactos activos en la agenda
+    campaign_followup: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())   # seguimiento por WhatsApp
     # Autoservicio (docs/SUSCRIPCIONES_PLAN.md): precio mensual en pesos, lo que se cobra (NULL = no
     # se vende por el dashboard; 0 = gratis). `public`: se ofrece en el registro y en /plan. El tier
     # publico con precio 0 es el del registro.

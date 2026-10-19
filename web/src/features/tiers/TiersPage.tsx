@@ -3,6 +3,7 @@ import {
   Badge,
   Button,
   Card,
+  Checkbox,
   Divider,
   Group,
   Modal,
@@ -22,6 +23,7 @@ import { IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
 import { type ReactNode, useState } from 'react';
 import { ApiError } from '@/api/errors';
 import type { Tier } from '@/api/types';
+import { Dash } from '@/components/Badges';
 import { confirmAction } from '@/components/confirm';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState, QueryState } from '@/components/QueryState';
@@ -31,6 +33,19 @@ import { numberErrorTitle } from '@/features/numbers/errors';
 import { useDeleteTier, useSaveTier, useTiers } from './api';
 
 type Limit = number | '';
+
+const CHANNELS = [
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'voice', label: 'Llamadas' },
+];
+
+/** "WhatsApp y llamadas", "WhatsApp", o "No incluidas". */
+function channelsText(channels: string[] | undefined): string {
+  const names = CHANNELS.filter((c) => channels?.includes(c.value)).map((c, i) =>
+    i ? c.label.toLowerCase() : c.label,
+  );
+  return names.length ? names.join(' y ') : 'No incluidas';
+}
 
 const toLimit = (v: Limit): number | null => (v === '' ? null : v);
 
@@ -76,6 +91,12 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
     api_tts_minutes: Limit;
     api_stt_minutes: Limit;
     api_rate_limit: Limit;
+    campaign_channels: string[];
+    max_campaigns_per_month: Limit;
+    max_campaign_contacts: Limit;
+    max_campaign_concurrency: Limit;
+    max_contacts: Limit;
+    campaign_followup: boolean;
     price_ars: Limit;
     public: boolean;
     sort: number | '';
@@ -96,6 +117,13 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
       api_tts_minutes: tier ? (tier.api_tts_minutes ?? '') : 0,
       api_stt_minutes: tier ? (tier.api_stt_minutes ?? '') : 0,
       api_rate_limit: tier ? (tier.api_rate_limit ?? '') : 60,
+      // Un tier nuevo no incluye campañas (como en la API): se habilitan por canal.
+      campaign_channels: tier?.campaign_channels ?? [],
+      max_campaigns_per_month: tier?.max_campaigns_per_month ?? '',
+      max_campaign_contacts: tier?.max_campaign_contacts ?? '',
+      max_campaign_concurrency: tier?.max_campaign_concurrency ?? '',
+      max_contacts: tier?.max_contacts ?? '',
+      campaign_followup: tier?.campaign_followup ?? false,
       price_ars: tier?.price_ars ?? '',
       public: tier?.public ?? false,
       sort: tier?.sort ?? 0,
@@ -129,6 +157,12 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
                 api_tts_minutes: toLimit(v.api_tts_minutes),
                 api_stt_minutes: toLimit(v.api_stt_minutes),
                 api_rate_limit: toLimit(v.api_rate_limit),
+                campaign_channels: v.campaign_channels as ('whatsapp' | 'voice')[],
+                max_campaigns_per_month: toLimit(v.max_campaigns_per_month),
+                max_campaign_contacts: toLimit(v.max_campaign_contacts),
+                max_campaign_concurrency: toLimit(v.max_campaign_concurrency),
+                max_contacts: toLimit(v.max_contacts),
+                campaign_followup: v.campaign_followup,
                 price_ars: toLimit(v.price_ars),
                 public: v.public,
                 sort: v.sort === '' ? 0 : v.sort,
@@ -172,6 +206,36 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
             <LimitInput label="Minutos de síntesis (TTS)" {...form.getInputProps('api_tts_minutes')} />
             <LimitInput label="Minutos de transcripción (STT)" {...form.getInputProps('api_stt_minutes')} />
             <LimitInput label="Pedidos por minuto" {...form.getInputProps('api_rate_limit')} />
+          </Section>
+          <Section title="Campañas y agenda de contactos" cols={3}>
+            <Checkbox.Group
+              label="Canales de campañas"
+              description="Sin ninguno, el plan no incluye campañas."
+              {...form.getInputProps('campaign_channels')}
+            >
+              <Group mt={6} gap="md">
+                {CHANNELS.map((c) => (
+                  <Checkbox key={c.value} value={c.value} label={c.label} />
+                ))}
+              </Group>
+            </Checkbox.Group>
+            <LimitInput label="Campañas por mes" {...form.getInputProps('max_campaigns_per_month')} />
+            <LimitInput label="Contactos por campaña" {...form.getInputProps('max_campaign_contacts')} />
+            <LimitInput
+              label="Llamadas simultáneas por campaña"
+              {...form.getInputProps('max_campaign_concurrency')}
+            />
+            <LimitInput
+              label="Contactos en la agenda"
+              description="Solo cuentan los activos."
+              {...form.getInputProps('max_contacts')}
+            />
+            <Switch
+              label="Seguimiento por WhatsApp"
+              description="A quien no atendió una llamada de campaña."
+              mt="md"
+              {...form.getInputProps('campaign_followup', { type: 'checkbox' })}
+            />
           </Section>
           <Section title="Venta por el dashboard" cols={3}>
             <NumberInput
@@ -240,7 +304,7 @@ export function TiersPage() {
     <>
       <PageHeader
         title="Tiers"
-        description="Límites por cliente: llamadas simultáneas y por hora, día y mes, minutos entrantes y salientes por mes, números y cupos de la API de inferencia (LLM, TTS, STT)."
+        description="Límites por cliente: llamadas simultáneas y por hora, día y mes, minutos entrantes y salientes por mes, números, cupos de la API de inferencia (LLM, TTS, STT) y campañas y agenda de contactos."
         actions={
           <Button leftSection={<IconPlus size={18} />} onClick={() => setEditing('new')}>
             Nuevo tier
@@ -253,7 +317,7 @@ export function TiersPage() {
             list.length === 0 ? (
               <EmptyState>No hay tiers.</EmptyState>
             ) : (
-              <Table.ScrollContainer minWidth={1200}>
+              <Table.ScrollContainer minWidth={1560}>
                 <Table>
                   <Table.Thead>
                     <Table.Tr>
@@ -267,6 +331,9 @@ export function TiersPage() {
                       <Table.Th ta="right">API: LLM ent./sal. (tokens)</Table.Th>
                       <Table.Th ta="right">API: TTS / STT (min)</Table.Th>
                       <Table.Th ta="right">API: pedidos/min</Table.Th>
+                      <Table.Th>Campañas</Table.Th>
+                      <Table.Th ta="right">Camp. mes / contactos / simult.</Table.Th>
+                      <Table.Th ta="right">Agenda</Table.Th>
                       <Table.Th ta="right">Clientes</Table.Th>
                       <Table.Th />
                     </Table.Tr>
@@ -305,6 +372,26 @@ export function TiersPage() {
                           {formatApiLimit(t.api_tts_minutes)} / {formatApiLimit(t.api_stt_minutes)}
                         </Table.Td>
                         <Table.Td ta="right">{formatApiLimit(t.api_rate_limit)}</Table.Td>
+                        <Table.Td>
+                          <Text size="sm">{channelsText(t.campaign_channels)}</Text>
+                          {t.campaign_followup && (
+                            <Text size="xs" c="dimmed">
+                              con seguimiento
+                            </Text>
+                          )}
+                        </Table.Td>
+                        <Table.Td ta="right" style={{ whiteSpace: 'nowrap' }}>
+                          {t.campaign_channels?.length ? (
+                            <>
+                              {formatLimit(t.max_campaigns_per_month)} /{' '}
+                              {formatLimit(t.max_campaign_contacts)} /{' '}
+                              {formatLimit(t.max_campaign_concurrency)}
+                            </>
+                          ) : (
+                            <Dash />
+                          )}
+                        </Table.Td>
+                        <Table.Td ta="right">{formatLimit(t.max_contacts)}</Table.Td>
                         <Table.Td ta="right">{t.clients_count ?? 0}</Table.Td>
                         <Table.Td>
                           <Group gap={4} justify="flex-end" wrap="nowrap">

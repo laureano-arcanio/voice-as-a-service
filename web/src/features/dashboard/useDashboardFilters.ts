@@ -7,6 +7,7 @@ export type RangePreset = '7' | '30' | 'custom';
 export interface DashboardFilters {
   client: string | null;
   agent: string | null;
+  campaign: string | null;
   range: RangePreset;
   from: string | null;
   to: string | null;
@@ -24,6 +25,7 @@ export function useDashboardFilters() {
   const filters: DashboardFilters = {
     client: params.get('client'),
     agent: params.get('agent'),
+    campaign: params.get('campaign'),
     range,
     from: params.get('from'),
     to: params.get('to'),
@@ -60,6 +62,7 @@ export function useDashboardFilters() {
   const apiFilters: CallFilters = {
     client_id: filters.client ?? undefined,
     agent_id: filters.agent ?? undefined,
+    campaign_id: filters.campaign ?? undefined,
     date_from: dates.from,
     date_to: dates.to,
   };

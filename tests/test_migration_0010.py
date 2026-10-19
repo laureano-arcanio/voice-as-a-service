@@ -11,7 +11,11 @@ from .test_migration_0005 import _columns, _run
 
 COLUMNS = {"max_calls_per_hour", "max_calls_per_day", "max_calls_per_month"}
 # Agregado despues (0012) que menciona a tiers: el modelo lo tiene y la base en 0010 no.
-LATER_TIER_COLUMNS = ("'price_ars'", "'public'", "'sort'", "ck_tiers_price", "'subscriptions'", "'billing_payments'")
+LATER_TIER_COLUMNS = ("'price_ars'", "'public'", "'sort'", "ck_tiers_price", "'subscriptions'", "'billing_payments'",
+                      # 0017 (campañas y agenda).
+                      "'campaign_channels'", "'campaign_followup'", "'max_campaigns_per_month'",
+                      "'max_campaign_contacts'", "'max_campaign_concurrency'", "'max_contacts'",
+                      "ck_tiers_campaign", "ck_tiers_contacts")
 
 
 def test_0010_upgrade_downgrade_upgrade(tmp_path):

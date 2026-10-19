@@ -2541,6 +2541,24 @@
       }
      },
      {
+      "name": "campaign_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas y conversaciones de esa campaña",
+       "title": "Campaign Id"
+      },
+      "description": "Solo las llamadas y conversaciones de esa campaña"
+     },
+     {
       "name": "limit",
       "in": "query",
       "required": false,
@@ -2872,6 +2890,24 @@
        "title": "Tz"
       },
       "description": "Zona IANA de las fechas (ej. America/Argentina/Buenos_Aires); default BILLING_TIMEZONE"
+     },
+     {
+      "name": "campaign_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas y conversaciones de esa campaña",
+       "title": "Campaign Id"
+      },
+      "description": "Solo las llamadas y conversaciones de esa campaña"
      }
     ],
     "responses": {
@@ -2981,6 +3017,24 @@
        "title": "Tz"
       },
       "description": "Zona IANA de las fechas (ej. America/Argentina/Buenos_Aires); default BILLING_TIMEZONE"
+     },
+     {
+      "name": "campaign_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas y conversaciones de esa campaña",
+       "title": "Campaign Id"
+      },
+      "description": "Solo las llamadas y conversaciones de esa campaña"
      }
     ],
     "responses": {
@@ -4611,6 +4665,1667 @@
     "responses": {
      "204": {
       "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/campaigns": {
+   "get": {
+    "tags": [
+     "campaigns"
+    ],
+    "summary": "List Campaigns",
+    "description": "Las campañas, las mas nuevas primero, con su avance.",
+    "operationId": "list_campaigns_api_v1_campaigns_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     },
+     {
+      "name": "channel",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "whatsapp",
+          "voice"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Channel"
+      }
+     },
+     {
+      "name": "status",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "draft",
+          "scheduled",
+          "running",
+          "paused",
+          "done",
+          "cancelled"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     },
+     {
+      "name": "offset",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "minimum": 0,
+       "default": 0,
+       "title": "Offset"
+      }
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 500,
+       "minimum": 1,
+       "default": 100,
+       "title": "Limit"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/CampaignOut"
+         },
+         "title": "Response List Campaigns Api V1 Campaigns Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "campaigns"
+    ],
+    "summary": "Create Campaign",
+    "description": "Crea la campaña en borrador, con sus contactos si vienen. Valida el plan. Con `start` la inicia\nen el mismo pedido (si algo falla, no queda nada). Lo que no entra vuelve en `skipped`.",
+    "operationId": "create_campaign_api_v1_campaigns_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CampaignIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CampaignCreated"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/campaigns/plan": {
+   "get": {
+    "tags": [
+     "campaigns"
+    ],
+    "summary": "Campaign Plan",
+    "description": "Lo que el plan del cliente permite en campañas y agenda, con lo que ya usó este mes: la UI\ndeshabilita con el motivo lo que no entra. Un admin indica `client_id`.",
+    "operationId": "campaign_plan_api_v1_campaigns_plan_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CampaignPlanOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/campaigns/{campaign_id}": {
+   "get": {
+    "tags": [
+     "campaigns"
+    ],
+    "summary": "Get Campaign",
+    "description": "El estado y el avance de la campaña, para consultar cada pocos segundos: `progress` (contactos\npor estado), `results`, `percent`, `eta_minutes` y, en voz, `goal` y `minutes_used`.",
+    "operationId": "get_campaign_api_v1_campaigns__campaign_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "campaign_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Campaign Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CampaignOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "patch": {
+    "tags": [
+     "campaigns"
+    ],
+    "summary": "Update Campaign",
+    "operationId": "update_campaign_api_v1_campaigns__campaign_id__patch",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "campaign_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Campaign Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CampaignPatch"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CampaignOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "campaigns"
+    ],
+    "summary": "Delete Campaign",
+    "description": "Solo en borrador (409 si ya empezo: se cancela).",
+    "operationId": "delete_campaign_api_v1_campaigns__campaign_id__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "campaign_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Campaign Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/campaigns/{campaign_id}/contacts": {
+   "post": {
+    "tags": [
+     "campaigns"
+    ],
+    "summary": "Add Contacts",
+    "description": "Suma contactos a una campaña en borrador o pausada: de la agenda (`contact_ids`, `tags`) o nuevos\n(`contacts`, `csv`: tambien entran en la agenda). Valida los topes del plan.",
+    "operationId": "add_contacts_api_v1_campaigns__campaign_id__contacts_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "campaign_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Campaign Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CampaignContactsIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CampaignContactsAdded"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "get": {
+    "tags": [
+     "campaigns"
+    ],
+    "summary": "List Campaign Contacts",
+    "description": "Los contactos de la campaña, en orden de carga, con el resultado de cada uno y la conversacion.",
+    "operationId": "list_campaign_contacts_api_v1_campaigns__campaign_id__contacts_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "campaign_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Campaign Id"
+      }
+     },
+     {
+      "name": "status",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "pending",
+          "in_progress",
+          "retry",
+          "done",
+          "failed",
+          "skipped"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     },
+     {
+      "name": "result",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Voz: answered, no_answer, busy, voicemail, invalid, rejected o failed. WhatsApp: sent, delivered, read, replied o failed (el estado mas avanzado de cada uno)",
+       "title": "Result"
+      },
+      "description": "Voz: answered, no_answer, busy, voicemail, invalid, rejected o failed. WhatsApp: sent, delivered, read, replied o failed (el estado mas avanzado de cada uno)"
+     },
+     {
+      "name": "offset",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "minimum": 0,
+       "default": 0,
+       "title": "Offset"
+      }
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 500,
+       "minimum": 1,
+       "default": 50,
+       "title": "Limit"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CampaignContactPage"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/campaigns/{campaign_id}/stats": {
+   "get": {
+    "tags": [
+     "campaigns"
+    ],
+    "summary": "Campaign Stats",
+    "description": "Indicadores de la campaña: tasa de contacto (atendidas o respondidas sobre llamadas o envios), tasa\nde objetivo, duracion media, minutos, distribucion de resultados y llamadas por hora del dia.",
+    "operationId": "campaign_stats_api_v1_campaigns__campaign_id__stats_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "campaign_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Campaign Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CampaignStatsOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/campaigns/{campaign_id}/report.csv": {
+   "get": {
+    "tags": [
+     "campaigns"
+    ],
+    "summary": "Campaign Report",
+    "description": "El reporte por contacto en CSV (UTF-8 con BOM): external_id, telefono, vars, intentos, resultado,\nduracion, outcome, objetivo, campos capturados, seguimiento y link a la conversacion.",
+    "operationId": "campaign_report_api_v1_campaigns__campaign_id__report_csv_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "campaign_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Campaign Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "text/csv": {}
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/campaigns/{campaign_id}/start": {
+   "post": {
+    "tags": [
+     "campaigns"
+    ],
+    "summary": "Start Campaign",
+    "description": "Inicia una campaña en borrador: valida el plan, el agente, el numero o la plantilla, y los\ncontactos. Con `starts_at` futuro queda `scheduled` y arranca sola. Una campaña comercial pide\n`no_call_registry_checked` (Registro No Llame).",
+    "operationId": "start_campaign_api_v1_campaigns__campaign_id__start_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "campaign_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Campaign Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "anyOf": [
+         {
+          "$ref": "#/components/schemas/CampaignStartIn"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Body"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CampaignOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/campaigns/{campaign_id}/resume": {
+   "post": {
+    "tags": [
+     "campaigns"
+    ],
+    "summary": "Resume Campaign",
+    "description": "Retoma una campaña pausada (a mano o por un problema), con las mismas validaciones.",
+    "operationId": "resume_campaign_api_v1_campaigns__campaign_id__resume_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "campaign_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Campaign Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "anyOf": [
+         {
+          "$ref": "#/components/schemas/CampaignStartIn"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Body"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CampaignOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/campaigns/{campaign_id}/pause": {
+   "post": {
+    "tags": [
+     "campaigns"
+    ],
+    "summary": "Pause Campaign",
+    "operationId": "pause_campaign_api_v1_campaigns__campaign_id__pause_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "campaign_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Campaign Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CampaignOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/campaigns/{campaign_id}/cancel": {
+   "post": {
+    "tags": [
+     "campaigns"
+    ],
+    "summary": "Cancel Campaign",
+    "description": "Termina la campaña: los pendientes no se mandan ni se llaman. Las respuestas siguen llegando al agente.",
+    "operationId": "cancel_campaign_api_v1_campaigns__campaign_id__cancel_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "campaign_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Campaign Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CampaignOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/contacts": {
+   "get": {
+    "tags": [
+     "contacts"
+    ],
+    "summary": "List Contacts",
+    "operationId": "list_contacts_api_v1_contacts_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     },
+     {
+      "name": "q",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 100
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Busca en nombre, telefono, email e id externo",
+       "title": "Q"
+      },
+      "description": "Busca en nombre, telefono, email e id externo"
+     },
+     {
+      "name": "tag",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 32
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Tag"
+      }
+     },
+     {
+      "name": "archived",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "enum": [
+        "false",
+        "true",
+        "all"
+       ],
+       "type": "string",
+       "description": "false: activos; true: archivados; all: todos",
+       "default": "false",
+       "title": "Archived"
+      },
+      "description": "false: activos; true: archivados; all: todos"
+     },
+     {
+      "name": "offset",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "minimum": 0,
+       "default": 0,
+       "title": "Offset"
+      }
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 500,
+       "minimum": 1,
+       "default": 50,
+       "title": "Limit"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ContactPage"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "contacts"
+    ],
+    "summary": "Upsert Contacts",
+    "description": "Carga un contacto o una lista (upsert por telefono): los nuevos se crean y los que ya\nexisten se actualizan, sumando atributos y etiquetas. Las filas invalidas o que no entran por\nel tope del plan vuelven en `invalid`; con un solo contacto, eso es un error. Los archivados\nse actualizan pero siguen archivados (`archived`).",
+    "operationId": "upsert_contacts_api_v1_contacts_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "anyOf": [
+         {
+          "$ref": "#/components/schemas/ContactIn"
+         },
+         {
+          "type": "array",
+          "items": {
+           "$ref": "#/components/schemas/ContactIn"
+          }
+         }
+        ],
+        "title": "Body"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ContactsUpsertOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/contacts/import": {
+   "post": {
+    "tags": [
+     "contacts"
+    ],
+    "summary": "Import Contacts",
+    "description": "Carga un CSV (upsert por telefono). Devuelve creados, actualizados e invalidos con su fila y\nel motivo.",
+    "operationId": "import_contacts_api_v1_contacts_import_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ContactImportIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ContactsUpsertOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/contacts/archive": {
+   "post": {
+    "tags": [
+     "contacts"
+    ],
+    "summary": "Archive Contacts",
+    "description": "Archiva en lote, por ids o por etiquetas. Sus intentos pendientes en campañas abiertas\npasan a salteados.",
+    "operationId": "archive_contacts_api_v1_contacts_archive_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ContactsArchiveIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ContactsArchiveOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/contacts/optouts": {
+   "get": {
+    "tags": [
+     "contacts"
+    ],
+    "summary": "List Optouts",
+    "operationId": "list_optouts_api_v1_contacts_optouts_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     },
+     {
+      "name": "channel",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "whatsapp",
+          "voice",
+          "all"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Channel"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/ContactOptoutOut"
+         },
+         "title": "Response List Optouts Api V1 Contacts Optouts Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "contacts"
+    ],
+    "summary": "Add Optout",
+    "description": "Pone un telefono en la lista de no contactar de un canal (o de todos). Ninguna campaña de\nese canal le escribe ni lo llama.",
+    "operationId": "add_optout_api_v1_contacts_optouts_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ContactOptoutIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ContactOptoutOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/contacts/optouts/{phone}": {
+   "delete": {
+    "tags": [
+     "contacts"
+    ],
+    "summary": "Remove Optout",
+    "description": "Saca un telefono de la lista de bajas, del canal indicado o de todos.",
+    "operationId": "remove_optout_api_v1_contacts_optouts__phone__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "phone",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Phone"
+      }
+     },
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     },
+     {
+      "name": "channel",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "whatsapp",
+          "voice",
+          "all"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Sin canal, de todos",
+       "title": "Channel"
+      },
+      "description": "Sin canal, de todos"
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/contacts/{contact_id}": {
+   "get": {
+    "tags": [
+     "contacts"
+    ],
+    "summary": "Get Contact",
+    "operationId": "get_contact_api_v1_contacts__contact_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "contact_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Contact Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ContactOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "patch": {
+    "tags": [
+     "contacts"
+    ],
+    "summary": "Update Contact",
+    "description": "Edita datos y etiquetas (los atributos y las etiquetas reemplazan a los anteriores). El\ntelefono no se cambia: otro telefono es otro contacto.",
+    "operationId": "update_contact_api_v1_contacts__contact_id__patch",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "contact_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Contact Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ContactPatch"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ContactOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/contacts/{contact_id}/campaigns": {
+   "get": {
+    "tags": [
+     "contacts"
+    ],
+    "summary": "Contact Campaigns",
+    "description": "Las campañas en las que está el contacto, las más nuevas primero, con su resultado en cada una.",
+    "operationId": "contact_campaigns_api_v1_contacts__contact_id__campaigns_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "contact_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Contact Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/ContactCampaignOut"
+         },
+         "title": "Response Contact Campaigns Api V1 Contacts  Contact Id  Campaigns Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/contacts/{contact_id}/archive": {
+   "post": {
+    "tags": [
+     "contacts"
+    ],
+    "summary": "Archive Contact",
+    "description": "Archiva el contacto (no se borra). Sus intentos pendientes en campañas abiertas pasan a salteados.",
+    "operationId": "archive_contact_api_v1_contacts__contact_id__archive_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "contact_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Contact Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ContactOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/contacts/{contact_id}/unarchive": {
+   "post": {
+    "tags": [
+     "contacts"
+    ],
+    "summary": "Unarchive Contact",
+    "description": "Vuelve a activar un contacto archivado, si el tope de contactos del plan tiene lugar (429).",
+    "operationId": "unarchive_contact_api_v1_contacts__contact_id__unarchive_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "contact_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Contact Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ContactOut"
+        }
+       }
+      }
      },
      "422": {
       "description": "Validation Error",
@@ -8602,6 +10317,1656 @@
     ],
     "title": "CallsUsageOut"
    },
+   "CampaignContactOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "contact_id": {
+      "type": "string",
+      "title": "Contact Id"
+     },
+     "phone": {
+      "type": "string",
+      "title": "Phone"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "vars": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Vars"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "pending",
+       "in_progress",
+       "retry",
+       "done",
+       "failed",
+       "skipped"
+      ],
+      "title": "Status"
+     },
+     "result": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Result",
+      "description": "Voz: el resultado de la llamada. WhatsApp: sent, delivered, read, replied o failed"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "conversation_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Conversation Id"
+     },
+     "attempts": {
+      "type": "integer",
+      "title": "Attempts"
+     },
+     "next_attempt_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Next Attempt At"
+     },
+     "last_attempt_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Attempt At"
+     },
+     "sent_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sent At"
+     },
+     "replied_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Replied At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "contact_id",
+     "phone",
+     "vars",
+     "status",
+     "attempts"
+    ],
+    "title": "CampaignContactOut"
+   },
+   "CampaignContactPage": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/CampaignContactOut"
+      },
+      "type": "array",
+      "title": "Items"
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     }
+    },
+    "type": "object",
+    "required": [
+     "items",
+     "total"
+    ],
+    "title": "CampaignContactPage"
+   },
+   "CampaignContactsAdded": {
+    "properties": {
+     "added": {
+      "type": "integer",
+      "title": "Added"
+     },
+     "skipped": {
+      "items": {
+       "$ref": "#/components/schemas/ContactRejected"
+      },
+      "type": "array",
+      "title": "Skipped"
+     }
+    },
+    "type": "object",
+    "required": [
+     "added",
+     "skipped"
+    ],
+    "title": "CampaignContactsAdded"
+   },
+   "CampaignContactsIn": {
+    "properties": {
+     "contact_ids": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "maxItems": 10000,
+      "title": "Contact Ids",
+      "description": "Contactos de la agenda",
+      "default": []
+     },
+     "tags": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "maxItems": 20,
+      "title": "Tags",
+      "description": "Los contactos activos con alguna de estas etiquetas",
+      "default": []
+     },
+     "contacts": {
+      "items": {
+       "$ref": "#/components/schemas/ContactIn"
+      },
+      "type": "array",
+      "maxItems": 10000,
+      "title": "Contacts",
+      "description": "Contactos nuevos o a actualizar",
+      "default": []
+     },
+     "csv": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 900000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Csv",
+      "description": "CSV de contactos: como /contacts/import"
+     },
+     "recipients": {
+      "items": {
+       "$ref": "#/components/schemas/WaRecipientIn"
+      },
+      "type": "array",
+      "maxItems": 10000,
+      "title": "Recipients",
+      "description": "Solo WhatsApp: contactos con los valores de {{1}}, {{2}}... de la plantilla en orden",
+      "default": []
+     }
+    },
+    "type": "object",
+    "title": "CampaignContactsIn",
+    "description": "Los contactos de la campaña, de una o varias fuentes a la vez. Los de `contacts` y `csv` tambien\nse cargan en la agenda (upsert por telefono). Los archivados, repetidos y dados de baja no entran:\nvuelven en `skipped`."
+   },
+   "CampaignCreated": {
+    "properties": {
+     "added": {
+      "type": "integer",
+      "title": "Added"
+     },
+     "skipped": {
+      "items": {
+       "$ref": "#/components/schemas/ContactRejected"
+      },
+      "type": "array",
+      "title": "Skipped"
+     },
+     "campaign": {
+      "$ref": "#/components/schemas/CampaignOut"
+     }
+    },
+    "type": "object",
+    "required": [
+     "added",
+     "skipped",
+     "campaign"
+    ],
+    "title": "CampaignCreated"
+   },
+   "CampaignHour": {
+    "properties": {
+     "hour": {
+      "type": "integer",
+      "maximum": 23.0,
+      "minimum": 0.0,
+      "title": "Hour",
+      "description": "Hora local (zona del campo timezone)"
+     },
+     "attempts": {
+      "type": "integer",
+      "title": "Attempts",
+      "description": "Llamadas marcadas (voz) o mensajes enviados (WhatsApp) en esa hora"
+     },
+     "reached": {
+      "type": "integer",
+      "title": "Reached",
+      "description": "De esas, las atendidas (voz) o las que respondieron (WhatsApp)"
+     }
+    },
+    "type": "object",
+    "required": [
+     "hour",
+     "attempts",
+     "reached"
+    ],
+    "title": "CampaignHour"
+   },
+   "CampaignIn": {
+    "properties": {
+     "contact_ids": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "maxItems": 10000,
+      "title": "Contact Ids",
+      "description": "Contactos de la agenda",
+      "default": []
+     },
+     "tags": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "maxItems": 20,
+      "title": "Tags",
+      "description": "Los contactos activos con alguna de estas etiquetas",
+      "default": []
+     },
+     "contacts": {
+      "items": {
+       "$ref": "#/components/schemas/ContactIn"
+      },
+      "type": "array",
+      "maxItems": 10000,
+      "title": "Contacts",
+      "description": "Contactos nuevos o a actualizar",
+      "default": []
+     },
+     "csv": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 900000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Csv",
+      "description": "CSV de contactos: como /contacts/import"
+     },
+     "recipients": {
+      "items": {
+       "$ref": "#/components/schemas/WaRecipientIn"
+      },
+      "type": "array",
+      "maxItems": 10000,
+      "title": "Recipients",
+      "description": "Solo WhatsApp: contactos con los valores de {{1}}, {{2}}... de la plantilla en orden",
+      "default": []
+     },
+     "channel": {
+      "type": "string",
+      "enum": [
+       "whatsapp",
+       "voice"
+      ],
+      "title": "Channel"
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "client_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Id",
+      "description": "Solo admin, en voz (en WhatsApp sale del numero)"
+     },
+     "agent_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agent Id",
+      "description": "Voz: obligatorio. WhatsApp: quien atiende las respuestas; sin el, el del numero"
+     },
+     "rate_per_minute": {
+      "type": "integer",
+      "maximum": 600.0,
+      "minimum": 1.0,
+      "title": "Rate Per Minute",
+      "description": "Envios o arranques de llamada por minuto",
+      "default": 20
+     },
+     "window_start": {
+      "type": "integer",
+      "maximum": 23.0,
+      "minimum": 0.0,
+      "title": "Window Start",
+      "description": "Hora local de inicio (BILLING_TIMEZONE)",
+      "default": 9
+     },
+     "window_end": {
+      "type": "integer",
+      "maximum": 24.0,
+      "minimum": 1.0,
+      "title": "Window End",
+      "description": "Hora local de fin, sin incluir",
+      "default": 20
+     },
+     "weekdays": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "integer"
+        },
+        "type": "array",
+        "maxItems": 7
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Weekdays",
+      "description": "Dias permitidos, 0 lunes a 6 domingo; null: todos"
+     },
+     "starts_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Starts At",
+      "description": "No arranca antes de esta fecha"
+     },
+     "ends_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ends At",
+      "description": "Termina pasada esta fecha"
+     },
+     "start": {
+      "type": "boolean",
+      "title": "Start",
+      "description": "Iniciarla de una vez, con los contactos del mismo pedido",
+      "default": false
+     },
+     "purpose": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "comercial",
+         "cobranza",
+         "turnos",
+         "aviso"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Purpose",
+      "description": "comercial, cobranza, turnos o aviso. La comercial se inicia confirmando el Registro No Llame"
+     },
+     "no_call_registry_checked": {
+      "type": "boolean",
+      "title": "No Call Registry Checked",
+      "description": "Con `start`: la confirmacion del Registro No Llame",
+      "default": false
+     },
+     "callback_url": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 512
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Callback Url",
+      "description": "Webhook: un POST firmado por cada contacto que termina y otro al terminar la campaña"
+     },
+     "callback_secret": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 128,
+        "minLength": 16
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Callback Secret",
+      "description": "Firma del webhook (HMAC-SHA256). Sin el, se genera uno y se muestra una sola vez"
+     },
+     "account_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Account Id",
+      "description": "WhatsApp: numero que manda la campaña"
+     },
+     "template_name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^[a-z0-9_]{1,512}$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Template Name",
+      "description": "WhatsApp: plantilla aprobada de la WABA del numero"
+     },
+     "template_language": {
+      "type": "string",
+      "pattern": "^[a-z]{2,3}(_[A-Z]{2})?$",
+      "title": "Template Language",
+      "default": "es_AR"
+     },
+     "param_names": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string",
+         "maxLength": 64,
+         "minLength": 1
+        },
+        "type": "array",
+        "maxItems": 20
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Param Names",
+      "description": "WhatsApp: atributo del contacto de cada variable de la plantilla"
+     },
+     "from_number_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "From Number Id",
+      "description": "Voz: numero del cliente que se muestra al llamar"
+     },
+     "voice": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 64
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Voice",
+      "description": "Voz: voz del TTS; sin ella, la del agente"
+     },
+     "concurrency": {
+      "type": "integer",
+      "maximum": 100.0,
+      "minimum": 1.0,
+      "title": "Concurrency",
+      "description": "Voz: llamadas simultaneas. 1: secuencial",
+      "default": 1
+     },
+     "max_attempts": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 10.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Attempts",
+      "description": "Voz: intentos por contacto (default 3)"
+     },
+     "retry_minutes": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 10080.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Retry Minutes",
+      "description": "Voz: minutos entre intentos (default 60)"
+     },
+     "retry_on": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string",
+         "enum": [
+          "answered",
+          "no_answer",
+          "busy",
+          "voicemail",
+          "invalid",
+          "rejected",
+          "failed"
+         ]
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Retry On",
+      "description": "Voz: resultados que se reintentan (default no_answer, busy, voicemail, failed)"
+     },
+     "followup": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/FollowupIn"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Voz: seguimiento por WhatsApp a quien no atendio; sin el, apagado"
+     }
+    },
+    "type": "object",
+    "required": [
+     "channel",
+     "name"
+    ],
+    "title": "CampaignIn",
+    "description": "channel whatsapp: account_id y template_name (la plantilla aprobada); `param_names` dice que\ndato de cada contacto completa {{1}}, {{2}}... ([\"nombre\", \"deuda\"]). channel voice: agent_id y,\nopcional, from_number_id, voice, concurrency (1: de a uno) y reintentos."
+   },
+   "CampaignOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "client_id": {
+      "type": "string",
+      "title": "Client Id"
+     },
+     "client_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Name"
+     },
+     "channel": {
+      "type": "string",
+      "enum": [
+       "whatsapp",
+       "voice"
+      ],
+      "title": "Channel"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "agent_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agent Id"
+     },
+     "agent_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agent Name",
+      "description": "El de la campaña o, sin uno en WhatsApp, el del numero"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "draft",
+       "scheduled",
+       "running",
+       "paused",
+       "done",
+       "cancelled"
+      ],
+      "title": "Status"
+     },
+     "status_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status Reason"
+     },
+     "in_window": {
+      "type": "boolean",
+      "title": "In Window",
+      "description": "Si ahora cae en el horario y los dias permitidos"
+     },
+     "rate_per_minute": {
+      "type": "integer",
+      "title": "Rate Per Minute"
+     },
+     "window_start": {
+      "type": "integer",
+      "title": "Window Start"
+     },
+     "window_end": {
+      "type": "integer",
+      "title": "Window End"
+     },
+     "weekdays": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "integer"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Weekdays"
+     },
+     "timezone": {
+      "type": "string",
+      "title": "Timezone"
+     },
+     "starts_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Starts At"
+     },
+     "ends_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ends At"
+     },
+     "account_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Account Id"
+     },
+     "display_phone_number": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Display Phone Number"
+     },
+     "template_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Template Name"
+     },
+     "template_language": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Template Language"
+     },
+     "template_category": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Template Category"
+     },
+     "template_body": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Template Body"
+     },
+     "template_params": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Template Params"
+     },
+     "param_names": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Param Names"
+     },
+     "from_number_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "From Number Id"
+     },
+     "voice": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Voice"
+     },
+     "concurrency": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Concurrency"
+     },
+     "max_attempts": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Attempts"
+     },
+     "retry_minutes": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Retry Minutes"
+     },
+     "retry_on": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Retry On"
+     },
+     "followup_config": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Followup Config",
+      "description": "Voz: el seguimiento por WhatsApp configurado"
+     },
+     "purpose": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "comercial",
+         "cobranza",
+         "turnos",
+         "aviso"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Purpose"
+     },
+     "registry_confirmed": {
+      "type": "boolean",
+      "title": "Registry Confirmed",
+      "description": "Se confirmo el Registro No Llame (campañas comerciales)",
+      "default": false
+     },
+     "callback_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Callback Url"
+     },
+     "callback_secret": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Callback Secret",
+      "description": "Solo en la respuesta que genera el secreto del webhook: no se vuelve a mostrar"
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     },
+     "percent": {
+      "type": "number",
+      "title": "Percent",
+      "description": "Contactos que ya no esperan nada (terminados, fallidos o salteados)"
+     },
+     "eta_minutes": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Eta Minutes",
+      "description": "Al ritmo de los ultimos 15 minutos; null sin ritmo o fuera de curso"
+     },
+     "progress": {
+      "$ref": "#/components/schemas/CampaignProgress"
+     },
+     "results": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "Results"
+     },
+     "goal": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Goal",
+      "description": "Voz: atendidas cuya conversacion llego al objetivo del agente (solo en GET /campaigns/{id}, no en la lista)"
+     },
+     "minutes_used": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Minutes Used",
+      "description": "Voz: minutos de llamada"
+     },
+     "followup": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "type": "integer"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Followup",
+      "description": "Voz con seguimiento: contactos pending, sent, replied (de los enviados), failed y skipped"
+     },
+     "started_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Started At"
+     },
+     "finished_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Finished At"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Updated At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "client_id",
+     "channel",
+     "name",
+     "status",
+     "in_window",
+     "rate_per_minute",
+     "window_start",
+     "window_end",
+     "timezone",
+     "total",
+     "percent",
+     "progress",
+     "results",
+     "created_at",
+     "updated_at"
+    ],
+    "title": "CampaignOut",
+    "description": "La campaña y su avance (el polling: GET /campaigns/{id}). `results`: en voz, contactos por\nresultado de la llamada; en WhatsApp, sent, delivered, read y replied (acumulativos: uno leido\ntambien fue entregado y enviado)."
+   },
+   "CampaignPatch": {
+    "properties": {
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 128,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "agent_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agent Id"
+     },
+     "rate_per_minute": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 600.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rate Per Minute"
+     },
+     "window_start": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 23.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Window Start"
+     },
+     "window_end": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 24.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Window End"
+     },
+     "weekdays": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "integer"
+        },
+        "type": "array",
+        "maxItems": 7
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Weekdays"
+     },
+     "starts_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Starts At"
+     },
+     "ends_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ends At"
+     },
+     "from_number_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "From Number Id"
+     },
+     "voice": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 64
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Voice"
+     },
+     "concurrency": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 100.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Concurrency"
+     },
+     "max_attempts": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 10.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Attempts"
+     },
+     "retry_minutes": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 10080.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Retry Minutes"
+     },
+     "retry_on": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string",
+         "enum": [
+          "answered",
+          "no_answer",
+          "busy",
+          "voicemail",
+          "invalid",
+          "rejected",
+          "failed"
+         ]
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Retry On"
+     },
+     "purpose": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "comercial",
+         "cobranza",
+         "turnos",
+         "aviso"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Purpose",
+      "description": "null: sin finalidad. Cambiarla pide la campaña pausada"
+     },
+     "followup": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/FollowupIn"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Voz. null: apaga el seguimiento"
+     },
+     "callback_url": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 512
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Callback Url",
+      "description": "null: apaga el webhook"
+     },
+     "callback_secret": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 128,
+        "minLength": 16
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Callback Secret",
+      "description": "Rota la firma del webhook"
+     }
+    },
+    "type": "object",
+    "title": "CampaignPatch",
+    "description": "Solo los campos enviados, en una campaña que no termino. agent_id null en WhatsApp: el agente del numero."
+   },
+   "CampaignPlanOut": {
+    "properties": {
+     "client_id": {
+      "type": "string",
+      "title": "Client Id"
+     },
+     "tier_name": {
+      "type": "string",
+      "title": "Tier Name"
+     },
+     "channels": {
+      "items": {
+       "type": "string",
+       "enum": [
+        "whatsapp",
+        "voice"
+       ]
+      },
+      "type": "array",
+      "title": "Channels"
+     },
+     "followup": {
+      "type": "boolean",
+      "title": "Followup"
+     },
+     "max_campaigns_per_month": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Campaigns Per Month"
+     },
+     "campaigns_started": {
+      "type": "integer",
+      "title": "Campaigns Started",
+      "description": "Campañas iniciadas en el mes en curso"
+     },
+     "max_campaign_contacts": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Campaign Contacts"
+     },
+     "max_campaign_concurrency": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Campaign Concurrency"
+     },
+     "max_contacts": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Contacts"
+     },
+     "contacts_active": {
+      "type": "integer",
+      "title": "Contacts Active",
+      "description": "Contactos activos de la agenda (los archivados no cuentan)"
+     }
+    },
+    "type": "object",
+    "required": [
+     "client_id",
+     "tier_name",
+     "channels",
+     "followup",
+     "max_campaigns_per_month",
+     "campaigns_started",
+     "max_campaign_contacts",
+     "max_campaign_concurrency",
+     "max_contacts",
+     "contacts_active"
+    ],
+    "title": "CampaignPlanOut",
+    "description": "Lo que el plan del cliente permite en campañas y agenda (GET /campaigns/plan), para que la UI\ndeshabilite lo que no entra. None = sin tope; 0 = no incluido."
+   },
+   "CampaignProgress": {
+    "properties": {
+     "pending": {
+      "type": "integer",
+      "title": "Pending"
+     },
+     "in_progress": {
+      "type": "integer",
+      "title": "In Progress"
+     },
+     "retry": {
+      "type": "integer",
+      "title": "Retry"
+     },
+     "done": {
+      "type": "integer",
+      "title": "Done"
+     },
+     "failed": {
+      "type": "integer",
+      "title": "Failed"
+     },
+     "skipped": {
+      "type": "integer",
+      "title": "Skipped"
+     }
+    },
+    "type": "object",
+    "required": [
+     "pending",
+     "in_progress",
+     "retry",
+     "done",
+     "failed",
+     "skipped"
+    ],
+    "title": "CampaignProgress"
+   },
+   "CampaignStartIn": {
+    "properties": {
+     "no_call_registry_checked": {
+      "type": "boolean",
+      "title": "No Call Registry Checked",
+      "description": "Una campaña comercial se inicia confirmando que la lista se filtro contra el Registro No Llame",
+      "default": false
+     }
+    },
+    "type": "object",
+    "title": "CampaignStartIn",
+    "description": "Cuerpo opcional de start y resume."
+   },
+   "CampaignStatsOut": {
+    "properties": {
+     "campaign_id": {
+      "type": "string",
+      "title": "Campaign Id"
+     },
+     "channel": {
+      "type": "string",
+      "enum": [
+       "whatsapp",
+       "voice"
+      ],
+      "title": "Channel"
+     },
+     "contacts": {
+      "type": "integer",
+      "title": "Contacts"
+     },
+     "attempts": {
+      "type": "integer",
+      "title": "Attempts"
+     },
+     "reached": {
+      "type": "integer",
+      "title": "Reached"
+     },
+     "contact_rate": {
+      "type": "number",
+      "title": "Contact Rate",
+      "description": "reached / attempts, en %"
+     },
+     "goal": {
+      "type": "integer",
+      "title": "Goal",
+      "description": "Conversaciones que llegaron al objetivo del agente"
+     },
+     "goal_rate": {
+      "type": "number",
+      "title": "Goal Rate",
+      "description": "goal / reached, en %"
+     },
+     "avg_duration_seconds": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Avg Duration Seconds",
+      "description": "Voz: duracion media de las atendidas"
+     },
+     "minutes": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Minutes",
+      "description": "Voz: minutos de llamada, con los intentos que no se atendieron"
+     },
+     "results": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "Results",
+      "description": "Voz: contactos por resultado. WhatsApp: sent, delivered, read y replied"
+     },
+     "by_hour": {
+      "items": {
+       "$ref": "#/components/schemas/CampaignHour"
+      },
+      "type": "array",
+      "title": "By Hour",
+      "description": "Las 24 horas del dia, para elegir el horario"
+     },
+     "timezone": {
+      "type": "string",
+      "title": "Timezone"
+     }
+    },
+    "type": "object",
+    "required": [
+     "campaign_id",
+     "channel",
+     "contacts",
+     "attempts",
+     "reached",
+     "contact_rate",
+     "goal",
+     "goal_rate",
+     "results",
+     "by_hour",
+     "timezone"
+    ],
+    "title": "CampaignStatsOut",
+    "description": "Indicadores de una campaña (GET /campaigns/{id}/stats). En voz, `attempts` son las llamadas\nmarcadas (con los reintentos) y `reached` las atendidas; en WhatsApp, los mensajes enviados y los\ncontactos que respondieron."
+   },
    "ChatCompletionIn": {
     "properties": {
      "model": {
@@ -9051,6 +12416,631 @@
     },
     "type": "object",
     "title": "ClientUpdate"
+   },
+   "ContactCampaignOut": {
+    "properties": {
+     "campaign_id": {
+      "type": "string",
+      "title": "Campaign Id"
+     },
+     "campaign_name": {
+      "type": "string",
+      "title": "Campaign Name"
+     },
+     "channel": {
+      "type": "string",
+      "enum": [
+       "whatsapp",
+       "voice"
+      ],
+      "title": "Channel"
+     },
+     "campaign_status": {
+      "type": "string",
+      "enum": [
+       "draft",
+       "scheduled",
+       "running",
+       "paused",
+       "done",
+       "cancelled"
+      ],
+      "title": "Campaign Status"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "pending",
+       "in_progress",
+       "retry",
+       "done",
+       "failed",
+       "skipped"
+      ],
+      "title": "Status"
+     },
+     "result": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Result"
+     },
+     "attempts": {
+      "type": "integer",
+      "title": "Attempts"
+     },
+     "last_attempt_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Attempt At"
+     },
+     "sent_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sent At"
+     },
+     "conversation_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Conversation Id"
+     }
+    },
+    "type": "object",
+    "required": [
+     "campaign_id",
+     "campaign_name",
+     "channel",
+     "campaign_status",
+     "status",
+     "result",
+     "attempts",
+     "last_attempt_at",
+     "sent_at",
+     "conversation_id"
+    ],
+    "title": "ContactCampaignOut",
+    "description": "Un contacto en una campaña, para su ficha (GET /contacts/{id}/campaigns)."
+   },
+   "ContactImportIn": {
+    "properties": {
+     "csv": {
+      "type": "string",
+      "maxLength": 900000,
+      "minLength": 1,
+      "title": "Csv"
+     },
+     "tags": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "maxItems": 20,
+      "title": "Tags",
+      "description": "Etiquetas que se suman a todos",
+      "default": []
+     }
+    },
+    "type": "object",
+    "required": [
+     "csv"
+    ],
+    "title": "ContactImportIn",
+    "description": "CSV con encabezado: columna telefono (o celular, phone, whatsapp); nombre, email, external_id\ny etiquetas (separadas por | o ;) opcionales; las demas columnas son atributos."
+   },
+   "ContactIn": {
+    "properties": {
+     "phone": {
+      "type": "string",
+      "maxLength": 32,
+      "minLength": 3,
+      "title": "Phone",
+      "examples": [
+       "+54 9 351 555-1234",
+       "3515551234"
+      ]
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 128
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "email": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 254
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Email"
+     },
+     "external_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 128
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "External Id",
+      "description": "Id en el sistema del cliente"
+     },
+     "attributes": {
+      "additionalProperties": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "integer"
+        },
+        {
+         "type": "number"
+        },
+        {
+         "type": "boolean"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "type": "object",
+      "title": "Attributes",
+      "description": "Datos libres: {\"deuda\": 15000}",
+      "default": {}
+     },
+     "tags": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "maxItems": 20,
+      "title": "Tags",
+      "description": "Etiquetas: letras, numeros y _ . : -",
+      "default": []
+     }
+    },
+    "type": "object",
+    "required": [
+     "phone"
+    ],
+    "title": "ContactIn",
+    "description": "El telefono es lo unico obligatorio: E.164 o como se escribe (351 555-1234, +54 9 351 555-1234)."
+   },
+   "ContactOptoutIn": {
+    "properties": {
+     "phone": {
+      "type": "string",
+      "maxLength": 32,
+      "minLength": 3,
+      "title": "Phone"
+     },
+     "channel": {
+      "type": "string",
+      "enum": [
+       "whatsapp",
+       "voice",
+       "all"
+      ],
+      "title": "Channel",
+      "description": "Canal que no se contacta; all: todos",
+      "default": "all"
+     }
+    },
+    "type": "object",
+    "required": [
+     "phone"
+    ],
+    "title": "ContactOptoutIn"
+   },
+   "ContactOptoutOut": {
+    "properties": {
+     "client_id": {
+      "type": "string",
+      "title": "Client Id"
+     },
+     "phone": {
+      "type": "string",
+      "title": "Phone"
+     },
+     "channel": {
+      "type": "string",
+      "enum": [
+       "whatsapp",
+       "voice",
+       "all"
+      ],
+      "title": "Channel"
+     },
+     "source": {
+      "type": "string",
+      "enum": [
+       "keyword",
+       "outcome",
+       "manual"
+      ],
+      "title": "Source"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "client_id",
+     "phone",
+     "channel",
+     "source",
+     "created_at"
+    ],
+    "title": "ContactOptoutOut"
+   },
+   "ContactOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "client_id": {
+      "type": "string",
+      "title": "Client Id"
+     },
+     "phone": {
+      "type": "string",
+      "title": "Phone"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "email": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Email"
+     },
+     "external_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "External Id"
+     },
+     "attributes": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Attributes"
+     },
+     "tags": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Tags"
+     },
+     "source": {
+      "type": "string",
+      "enum": [
+       "manual",
+       "csv",
+       "api",
+       "campaign",
+       "inbound"
+      ],
+      "title": "Source"
+     },
+     "archived_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Archived At"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Updated At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "client_id",
+     "phone",
+     "name",
+     "email",
+     "external_id",
+     "attributes",
+     "tags",
+     "source",
+     "archived_at",
+     "created_at",
+     "updated_at"
+    ],
+    "title": "ContactOut"
+   },
+   "ContactPage": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/ContactOut"
+      },
+      "type": "array",
+      "title": "Items"
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     }
+    },
+    "type": "object",
+    "required": [
+     "items",
+     "total"
+    ],
+    "title": "ContactPage"
+   },
+   "ContactPatch": {
+    "properties": {
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 128
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "email": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 254
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Email"
+     },
+     "external_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 128
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "External Id"
+     },
+     "attributes": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "anyOf": [
+          {
+           "type": "string"
+          },
+          {
+           "type": "integer"
+          },
+          {
+           "type": "number"
+          },
+          {
+           "type": "boolean"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Attributes"
+     },
+     "tags": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array",
+        "maxItems": 20
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tags"
+     }
+    },
+    "type": "object",
+    "title": "ContactPatch",
+    "description": "Solo los campos enviados. attributes y tags reemplazan a los anteriores; el telefono no se cambia."
+   },
+   "ContactRejected": {
+    "properties": {
+     "phone": {
+      "type": "string",
+      "title": "Phone"
+     },
+     "reason": {
+      "type": "string",
+      "title": "Reason"
+     },
+     "line": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Line",
+      "description": "Fila del CSV (la 1 es el encabezado)"
+     }
+    },
+    "type": "object",
+    "required": [
+     "phone",
+     "reason"
+    ],
+    "title": "ContactRejected"
+   },
+   "ContactsArchiveIn": {
+    "properties": {
+     "contact_ids": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "maxItems": 10000,
+      "title": "Contact Ids",
+      "default": []
+     },
+     "tags": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "maxItems": 20,
+      "title": "Tags",
+      "description": "Archiva los que tengan alguna de estas etiquetas",
+      "default": []
+     }
+    },
+    "type": "object",
+    "title": "ContactsArchiveIn"
+   },
+   "ContactsArchiveOut": {
+    "properties": {
+     "archived": {
+      "type": "integer",
+      "title": "Archived"
+     }
+    },
+    "type": "object",
+    "required": [
+     "archived"
+    ],
+    "title": "ContactsArchiveOut"
+   },
+   "ContactsUpsertOut": {
+    "properties": {
+     "created": {
+      "type": "integer",
+      "title": "Created"
+     },
+     "updated": {
+      "type": "integer",
+      "title": "Updated"
+     },
+     "archived": {
+      "type": "integer",
+      "title": "Archived",
+      "description": "De los actualizados, cuantos estan archivados (no se desarchivan solos)"
+     },
+     "invalid": {
+      "items": {
+       "$ref": "#/components/schemas/ContactRejected"
+      },
+      "type": "array",
+      "title": "Invalid"
+     },
+     "contacts": {
+      "items": {
+       "$ref": "#/components/schemas/ContactOut"
+      },
+      "type": "array",
+      "title": "Contacts",
+      "description": "Los creados y actualizados"
+     }
+    },
+    "type": "object",
+    "required": [
+     "created",
+     "updated",
+     "archived",
+     "invalid",
+     "contacts"
+    ],
+    "title": "ContactsUpsertOut"
    },
    "ConversationIn": {
     "properties": {
@@ -9634,6 +13624,81 @@
     ],
     "title": "FiscalOut"
    },
+   "FollowupIn": {
+    "properties": {
+     "after": {
+      "items": {
+       "type": "string",
+       "enum": [
+        "no_answer",
+        "busy",
+        "voicemail",
+        "invalid",
+        "rejected",
+        "failed"
+       ]
+      },
+      "type": "array",
+      "maxItems": 6,
+      "minItems": 1,
+      "title": "After",
+      "description": "Resultados finales de la llamada que disparan el seguimiento",
+      "default": [
+       "no_answer",
+       "busy",
+       "voicemail"
+      ]
+     },
+     "account_id": {
+      "type": "string",
+      "title": "Account Id",
+      "description": "Numero de WhatsApp del cliente que manda la plantilla"
+     },
+     "template_name": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]{1,512}$",
+      "title": "Template Name",
+      "description": "Plantilla aprobada de ese numero"
+     },
+     "template_language": {
+      "type": "string",
+      "pattern": "^[a-z]{2,3}(_[A-Z]{2})?$",
+      "title": "Template Language",
+      "default": "es_AR"
+     },
+     "params": {
+      "items": {
+       "type": "string",
+       "maxLength": 64,
+       "minLength": 1
+      },
+      "type": "array",
+      "maxItems": 20,
+      "title": "Params",
+      "description": "Dato del contacto que completa cada variable ({{1}}, {{2}}...)",
+      "default": []
+     },
+     "agent_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agent Id",
+      "description": "Quien atiende las respuestas; sin el, el agente de la campaña"
+     }
+    },
+    "type": "object",
+    "required": [
+     "account_id",
+     "template_name"
+    ],
+    "title": "FollowupIn",
+    "description": "Seguimiento por WhatsApp de una campaña de voz: a quien termino sin atender (`after`) se le manda esta\nplantilla despues del ultimo intento. Su respuesta abre la conversacion con `agent_id` o, sin el, el agente\nde la campaña. Lo incluye el plan (`campaign_followup`)."
+   },
    "HTTPValidationError": {
     "properties": {
      "detail": {
@@ -9918,7 +13983,11 @@
        "api_llm_output_tokens",
        "api_tts_minutes",
        "api_stt_minutes",
-       "api_rate_limit"
+       "api_rate_limit",
+       "max_campaigns_per_month",
+       "max_campaign_contacts",
+       "max_campaign_concurrency",
+       "max_contacts"
       ],
       "title": "Field"
      },
@@ -10003,7 +14072,11 @@
        "api_llm_output_tokens",
        "api_tts_minutes",
        "api_stt_minutes",
-       "api_rate_limit"
+       "api_rate_limit",
+       "max_campaigns_per_month",
+       "max_campaign_contacts",
+       "max_campaign_concurrency",
+       "max_contacts"
       ],
       "title": "Field"
      },
@@ -10110,7 +14183,11 @@
        "api_llm_output_tokens",
        "api_tts_minutes",
        "api_stt_minutes",
-       "api_rate_limit"
+       "api_rate_limit",
+       "max_campaigns_per_month",
+       "max_campaign_contacts",
+       "max_campaign_concurrency",
+       "max_contacts"
       ],
       "title": "Field"
      },
@@ -11412,6 +15489,67 @@
        }
       ],
       "title": "Api Rate Limit"
+     },
+     "campaign_channels": {
+      "items": {
+       "type": "string",
+       "enum": [
+        "whatsapp",
+        "voice"
+       ]
+      },
+      "type": "array",
+      "title": "Campaign Channels",
+      "default": []
+     },
+     "max_campaigns_per_month": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Campaigns Per Month"
+     },
+     "max_campaign_contacts": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Campaign Contacts"
+     },
+     "max_campaign_concurrency": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Campaign Concurrency"
+     },
+     "max_contacts": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Contacts"
+     },
+     "campaign_followup": {
+      "type": "boolean",
+      "title": "Campaign Followup",
+      "default": false
      }
     },
     "type": "object",
@@ -12246,6 +16384,77 @@
       "description": "Pedidos por minuto a la API de inferencia",
       "default": 60
      },
+     "campaign_channels": {
+      "items": {
+       "type": "string",
+       "enum": [
+        "whatsapp",
+        "voice"
+       ]
+      },
+      "type": "array",
+      "title": "Campaign Channels",
+      "description": "Canales de campañas del plan: whatsapp, voice",
+      "default": []
+     },
+     "max_campaigns_per_month": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Campaigns Per Month",
+      "description": "Campañas iniciadas por mes calendario"
+     },
+     "max_campaign_contacts": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Campaign Contacts",
+      "description": "Contactos por campaña"
+     },
+     "max_campaign_concurrency": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Campaign Concurrency",
+      "description": "Llamadas simultaneas de una campaña de voz"
+     },
+     "max_contacts": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Contacts",
+      "description": "Contactos activos en la agenda (los archivados no cuentan)"
+     },
+     "campaign_followup": {
+      "type": "boolean",
+      "title": "Campaign Followup",
+      "description": "Puede activar el seguimiento por WhatsApp de las campañas de voz",
+      "default": false
+     },
      "price_ars": {
       "anyOf": [
        {
@@ -12424,6 +16633,65 @@
       ],
       "title": "Api Rate Limit"
      },
+     "campaign_channels": {
+      "items": {
+       "type": "string",
+       "enum": [
+        "whatsapp",
+        "voice"
+       ]
+      },
+      "type": "array",
+      "title": "Campaign Channels"
+     },
+     "max_campaigns_per_month": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Campaigns Per Month"
+     },
+     "max_campaign_contacts": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Campaign Contacts"
+     },
+     "max_campaign_concurrency": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Campaign Concurrency"
+     },
+     "max_contacts": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Contacts"
+     },
+     "campaign_followup": {
+      "type": "boolean",
+      "title": "Campaign Followup"
+     },
      "price_ars": {
       "anyOf": [
        {
@@ -12471,6 +16739,12 @@
      "api_tts_minutes",
      "api_stt_minutes",
      "api_rate_limit",
+     "campaign_channels",
+     "max_campaigns_per_month",
+     "max_campaign_contacts",
+     "max_campaign_concurrency",
+     "max_contacts",
+     "campaign_followup",
      "price_ars",
      "public",
      "sort",
@@ -12647,6 +16921,83 @@
        }
       ],
       "title": "Api Rate Limit"
+     },
+     "campaign_channels": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string",
+         "enum": [
+          "whatsapp",
+          "voice"
+         ]
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Campaign Channels"
+     },
+     "max_campaigns_per_month": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Campaigns Per Month"
+     },
+     "max_campaign_contacts": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Campaign Contacts"
+     },
+     "max_campaign_concurrency": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Campaign Concurrency"
+     },
+     "max_contacts": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Contacts"
+     },
+     "campaign_followup": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Campaign Followup"
      },
      "price_ars": {
       "anyOf": [
@@ -13511,6 +17862,24 @@
       "title": "Window End",
       "description": "Hora local de fin, sin incluir",
       "default": 20
+     },
+     "param_names": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string",
+         "maxLength": 64,
+         "minLength": 1
+        },
+        "type": "array",
+        "maxItems": 20
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Param Names",
+      "description": "Atributo del contacto que completa cada variable ({{1}} = el primero); un contacto sin `params` los toma de ahi"
      }
     },
     "type": "object",
@@ -13608,6 +17977,7 @@
       "type": "string",
       "enum": [
        "draft",
+       "scheduled",
        "running",
        "paused",
        "done",

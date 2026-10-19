@@ -18,6 +18,7 @@ export interface Outcome {
   when: Record<string, unknown>;
   message: string;
   goal: boolean;
+  noContact: boolean;
 }
 
 export interface WorkflowView {
@@ -26,6 +27,9 @@ export interface WorkflowView {
   engine: string;
   agent: { name: string; role: string; language: string; voice: string | null };
   recordAudio: boolean;
+  /** WhatsApp: ventana de contexto temporal (minutos sin mensaje del contacto para abrir otra
+   * conversacion). null = el default global del servidor (1440 min = 24 hs). */
+  waSessionMinutes: number | null;
   /** Etapas del LLM (workflow.llm); vacio = siempre el servidor propio. */
   llm: { fromTurn: number; connection: string | null; model: string }[];
   objective: string;
@@ -71,6 +75,7 @@ export function readWorkflow(d: Definition): WorkflowView {
       when: obj(o.when),
       message: str(o.message),
       goal: o.goal === true,
+      noContact: o.no_contact === true,
     };
   });
   return {
@@ -84,6 +89,7 @@ export function readWorkflow(d: Definition): WorkflowView {
       voice: agent.voice ? str(agent.voice) : null,
     },
     recordAudio: d.record_audio === true,
+    waSessionMinutes: typeof d.wa_session_minutes === 'number' ? d.wa_session_minutes : null,
     llm: (Array.isArray(obj(d.llm).stages) ? (obj(d.llm).stages as unknown[]) : []).map((raw) => {
       const st = obj(raw);
       return {

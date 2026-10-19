@@ -11,8 +11,11 @@ conversacion (despues abre otra), para no pasar el largo de contexto del LLM.
 
 Fin de una conversacion: el motor trabaja igual que en una llamada, y el equivalente del
 corte es cerrar el hilo y llamar a engine.finish (la extraccion final del clasico). Pasa al
-cerrarla desde el dashboard, al llegar al tope de turnos y al vencer (WA_SESSION_HOURS sin
-mensajes del contacto: sweep, cada SWEEP_SECONDS).
+cerrarla desde el dashboard, al llegar al tope de turnos y al vencer la ventana de contexto
+temporal: WA_SESSION_HOURS global (default 1440 min = 24 hs) o, si el agente la fijo, su
+propio Workflow.wa_session_minutes (_session_minutes); sin mensajes del contacto en esos
+minutos, el siguiente mensaje arranca otra conversacion, sin el historial previo (sweep,
+cada SWEEP_SECONDS).
 
 Audios (audio.py): el entrante se baja, se transcribe y entra al turno como texto
 marcado como nota de voz; la respuesta sale como nota de voz segun WA_AUDIO_REPLY,
@@ -41,10 +44,12 @@ import time
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field, replace
 
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from ..apps import attachments
+from ..apps.registry import manifest_of
 from ..config import settings
 from ..conversation import recordings
 from ..conversation.engine import ConversationEngine
@@ -52,10 +57,10 @@ from ..conversation.models import ConversationState, TurnMedia
 from ..conversation.store import ConversationStore
 from ..db import utcnow
 from ..llm.prompt import VOICE_NOTE_TAG
-from ..models import Client, ConversationRow, WaAccount
+from ..models import App, Client, ConversationRow, WaAccount, WaThread
 from ..services import wa_routing
 from . import audio as audio_module
-from . import campaigns, store
+from . import buttons, campaigns, store
 from .audio import AudioError, AudioTooLong
 from .crypto import TokenKeyMissing
 from .graph import GraphClient, GraphError, MediaTooLarge
@@ -247,9 +252,11 @@ class WhatsAppService:
         self._spawn(self.engine.finish(conversation_id))
 
     async def sweep(self) -> int:
-        """Cierra las conversaciones vencidas y les hace el fin (extraccion final del clasico)."""
+        """Cierra las conversaciones vencidas (cada una segun su propia ventana de contexto,
+        self._session_minutes) y les hace el fin (extraccion final del clasico)."""
+        now = utcnow()
         with self.sessions() as s:
-            threads = store.expired_threads(s, utcnow(), self.session_hours)
+            threads = [t for t in store.open_threads(s) if self._expired(s, t, now)]
             ended = [t.conversation_id for t in threads]
             for t in threads:
                 store.close_thread(s, t)
@@ -257,6 +264,32 @@ class WhatsAppService:
         for conversation_id in ended:
             self.end(conversation_id)
         return len(ended)
+
+    def _session_minutes(self, s: Session, conversation_id: str) -> float:
+        """Minutos sin mensaje del contacto para dar esta conversacion por terminada: los del
+        agente que la abrio (Workflow.wa_session_minutes), o si no los fijo, el default global
+        (self.session_hours, WA_SESSION_HOURS) convertido a minutos."""
+        row = s.get(ConversationRow, conversation_id)
+        workflow = None
+        if row is not None and row.agent_id and row.agent_version:
+            try:
+                workflow = self.engine.definitions.get(row.agent_id, row.agent_version, session=s)
+            except KeyError:
+                workflow = None
+        if workflow is not None and workflow.wa_session_minutes is not None:
+            return workflow.wa_session_minutes
+        return self.session_hours * 60
+
+    def _expired(self, s: Session, thread: WaThread, now: datetime.datetime) -> bool:
+        minutes = self._session_minutes(s, thread.conversation_id)
+        return now - thread.last_user_at >= datetime.timedelta(minutes=minutes)
+
+    def _active_thread(self, s: Session, account_id: str, wa_id: str, now: datetime.datetime) -> WaThread | None:
+        """El hilo en curso con este contacto, si no vencio su ventana de contexto temporal."""
+        thread = store.open_thread(s, account_id, wa_id)
+        if thread is None or self._expired(s, thread, now):
+            return None
+        return thread
 
     async def drain(self) -> None:
         """Espera todas las tareas en curso, incluidas las que agenden otras (tests)."""
@@ -478,7 +511,7 @@ class WhatsAppService:
         """Baja pedida en respuesta a una campaña: solo si este numero le mando alguna y no hay
         una conversacion en curso (ahi un "no gracias" es parte de la charla y responde el agente)."""
         with self.sessions() as s:
-            if store.active_thread(s, info.id, wa_id, utcnow(), self.session_hours) is not None \
+            if self._active_thread(s, info.id, wa_id, utcnow()) is not None \
                     or not campaigns.got_campaign(s, info.id, wa_id):
                 return False
             campaigns.add_optout(s, info.client_id, wa_id, "keyword")
@@ -522,7 +555,7 @@ class WhatsAppService:
             self._prune(now)
             return
         with self.sessions() as s:
-            thread = store.active_thread(s, info.id, wa_id, utcnow(), self.session_hours)
+            thread = self._active_thread(s, info.id, wa_id, utcnow())
             conversation_id = thread.conversation_id if thread else None
         sent = await self._send(graph, info, wa_id, conversation_id, body)
         with self.sessions() as s:
@@ -618,7 +651,7 @@ class WhatsAppService:
                 store.set_inbound(s, wamids, status="ignored")
                 s.commit()
                 return
-            thread = store.active_thread(s, info.id, wa_id, now, self.session_hours)
+            thread = self._active_thread(s, info.id, wa_id, now)
             if thread is not None and self._full(s, thread.conversation_id):
                 thread = None       # tope de turnos: sigue en otra, como si hubiera vencido
             elif (thread is not None and self._other_agent(s, thread.conversation_id, info.agent_id)
@@ -743,15 +776,54 @@ class WhatsAppService:
     async def _send(self, graph: GraphClient, info: AccountInfo, wa_id: str,
                     conversation_id: str | None, body: str) -> bool:
         """Manda un texto y lo registra. Si Meta lo rechaza (ej. 131047, fuera de la
-        ventana de 24 h) se guarda el error y no se reintenta."""
+        ventana de 24 h) se guarda el error y no se reintenta. Los links a vistas de apps salen como
+        botón (buttons.py): uno, en el mismo mensaje; varios, el texto y un botón por link. Si Meta
+        rechaza el botón, va el texto con la URL, como antes."""
+        to = recipient(wa_id)
+        text, links = buttons.extract(body, settings.apps_public_host)
+        if not links:
+            return await self._deliver(info, wa_id, conversation_id, "text",
+                                       graph.send_text(info.phone_number_id, to, body))
+        titles = self._view_titles(links)
+        if len(links) == 1 and text and len(text) <= buttons.BODY_MAX:
+            if await self._deliver(info, wa_id, conversation_id, "interactive", graph.send_cta_url(
+                    info.phone_number_id, to, text, titles[0], links[0].url)):
+                return True
+            return await self._deliver(info, wa_id, conversation_id, "text",
+                                       graph.send_text(info.phone_number_id, to, body))
+        if text and not await self._deliver(info, wa_id, conversation_id, "text",
+                                            graph.send_text(info.phone_number_id, to, text)):
+            return False
+        for link, title in zip(links, titles):
+            caption = link.line if link.line and len(links) > 1 else title
+            if not await self._deliver(info, wa_id, conversation_id, "interactive", graph.send_cta_url(
+                    info.phone_number_id, to, caption[:buttons.BODY_MAX], title, link.url)):
+                await self._deliver(info, wa_id, conversation_id, "text",
+                                    graph.send_text(info.phone_number_id, to, f"{caption}: {link.url}"))
+        return True
+
+    def _view_titles(self, links: list[buttons.AppLink]) -> list[str]:
+        """El rótulo de cada botón: el título de la vista en el manifest de su app."""
+        out = []
+        with self.sessions() as s:
+            for link in links:
+                app = s.scalar(select(App).join(Client, App.client_id == Client.id)
+                               .where(App.slug == link.app, Client.slug == link.client))
+                spec = next((v for v in manifest_of(app).views if v.name == link.view), None) if app else None
+                out.append(buttons.label(spec.title if spec else "Abrir"))
+        return out
+
+    async def _deliver(self, info: AccountInfo, wa_id: str, conversation_id: str | None, kind: str,
+                       request: Coroutine) -> bool:
+        """Un envío a Meta, registrado en wa_messages (sent o failed, con el error)."""
         try:
-            data = await graph.send_text(info.phone_number_id, recipient(wa_id), body)
+            data = await request
         except GraphError as e:
             logger.warning("wa: envio fallido pnid=%s code=%s subcode=%s", info.phone_number_id, e.code, e.subcode)
             self._auth_failed(info, e)
             with self.sessions() as s:
                 store.record_outbound(s, wamid=None, account_id=info.id, conversation_id=conversation_id,
-                                      wa_id=wa_id, type="text", status="failed",
+                                      wa_id=wa_id, type=kind, status="failed",
                                       error={"code": e.code, "subcode": e.subcode, "message": e.message})
                 s.commit()
             return False
@@ -759,7 +831,7 @@ class WhatsAppService:
         out_wamid = messages[0].get("id") if isinstance(messages, list) and messages else None
         with self.sessions() as s:
             store.record_outbound(s, wamid=out_wamid, account_id=info.id, conversation_id=conversation_id,
-                                  wa_id=wa_id, type="text", status="sent")
+                                  wa_id=wa_id, type=kind, status="sent")
             s.commit()
         return True
 

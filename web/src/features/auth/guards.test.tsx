@@ -54,12 +54,14 @@ describe('navegación por rol', () => {
     const client = navItemsFor('client').map((i) => i.label);
     expect(client).toContain('Mi cuenta');
     expect(client).toContain('Consumos');
+    expect(client).toContain('Contactos');
     expect(client).not.toContain('Clientes');
     expect(client).not.toContain('Tiers');
     expect(client).not.toContain('Usuarios');
     expect(client).not.toContain('Números');
     const admin = navItemsFor('admin').map((i) => i.label);
     expect(admin).toEqual(expect.arrayContaining(['Clientes', 'Números', 'Tiers', 'Usuarios']));
+    expect(admin).toContain('Contactos');
     expect(admin).not.toContain('Mi cuenta');
     expect(admin).not.toContain('Consumos');
   });

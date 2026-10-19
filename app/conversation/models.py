@@ -55,6 +55,9 @@ class Outcome(BaseModel):
     when: dict[str, Any] = Field(default_factory=dict)  # igualdades sobre los campos; vacio = default
     message: str                                  # cierre sugerido al LLM
     goal: bool = False                            # cumple el objetivo del workflow
+    # El contacto pidio que no lo llamen mas: en una llamada de campaña, el telefono queda en la lista
+    # de bajas de voz del cliente (contact_optouts, source "outcome": campaign_calls.apply_outcome_optout).
+    no_contact: bool = False
 
 
 class Completion(BaseModel):
@@ -147,6 +150,10 @@ class Workflow(BaseModel):
     # Graba un WAV por mensaje/audio, localmente, con su numero en Message.recording:
     # llamadas y audios de WhatsApp (app/conversation/recordings.py).
     record_audio: bool = False
+    # WhatsApp: minutos sin mensaje del contacto para dar la conversacion por terminada y que
+    # la siguiente arranque en limpio, sin el historial previo (ventana de contexto temporal).
+    # None: el default global del servidor (WA_SESSION_HOURS, 1440 min = 24 hs).
+    wa_session_minutes: int | None = Field(default=None, gt=0, le=60 * 24 * 90)
     # LLM por etapa de la conversacion (conexiones BYOK del cliente). None: el servidor propio.
     llm: LlmPlan | None = None
     # Parametros de generacion por defecto del agente (todo el flujo); las etapas de llm los pisan.
@@ -227,6 +234,10 @@ class Progress(BaseModel):
     # Motor assistant: accion destructiva o de envio esperando el si del usuario
     # ({tool, arguments, summary}); vale solo para el turno siguiente.
     pending: dict[str, Any] | None = None
+    # Llamada de una campaña de voz (app/conversation/contact.py): los datos del contacto que van al prompt
+    # y los campos que la campaña ya cargo en `fields` (el agente no los pregunta). No cambian en la conversacion.
+    contact: dict[str, Any] = Field(default_factory=dict)
+    preloaded: list[str] = Field(default_factory=list)
 
 
 # Por donde se conversa: cambia las reglas del prompt (app/llm/prompt.py), no el agente.

@@ -7,10 +7,11 @@ from app.models import (
     CallMode,
     CallRow,
     CallStatus,
+    CampaignContact,
+    Contact,
     ConversationRow,
     Role,
     User,
-    WaCampaignRecipient,
     WaMessage,
     WaThread,
 )
@@ -420,8 +421,9 @@ def test_delete_conversations_cascade_and_consumption(api, admin, monkeypatch, t
         s.add(WaThread(conversation_id=conversation_id, account_id="acc-1", wa_id="5493515550000"))
         s.add(WaMessage(wamid="wamid-1", account_id="acc-1", conversation_id=conversation_id,
                         direction="in", wa_id="5493515550000", type="text", status="received"))
-        s.add(WaCampaignRecipient(campaign_id="cmp-1", wa_id="5493515550000", params=[],
-                                  conversation_id=conversation_id))
+        contact = Contact(client_id=c["id"], phone="+5493515550000")
+        s.add(CampaignContact(campaign_id="cmp-1", contact=contact, vars={"params": []},
+                              conversation_id=conversation_id))
         s.commit()
     rec_dir = tmp_path / conversation_id
     rec_dir.mkdir()
@@ -444,7 +446,7 @@ def test_delete_conversations_cascade_and_consumption(api, admin, monkeypatch, t
         assert s.get(CallRow, conversation_id) is None
         assert s.get(WaThread, conversation_id) is None
         assert s.query(WaMessage).filter_by(conversation_id=conversation_id).count() == 0
-        recipient = s.query(WaCampaignRecipient).filter_by(wa_id="5493515550000").one()
+        recipient = s.query(CampaignContact).filter_by(campaign_id="cmp-1").one()
         assert recipient.conversation_id is None
 
 

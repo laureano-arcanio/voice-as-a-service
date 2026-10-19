@@ -8,6 +8,16 @@
 Diseño (12-oct-2026). **Estado (12-oct-2026): MVP desplegado. SUGYM completo (contrato v1.1)
 probado con los casos de uso, 38/38; falta desplegar la v1.1 en `app`** (sección 11). Primer caso: SUGYM (gimnasio, #270 de
 [`mercado/seguimiento.md`](mercado/seguimiento.md)): alumnos y asistencias; cuotas y pagos después.
+**15-oct-2026: datos reales en producción.** Se borró la seed de `app-sugym-gestion` (backup previo en
+`~/atentina-backups/apps/sugym-gestion/app-20261015-170828.db`) y se cargó la planilla de alumnos del
+dueño: 2.616 alumnos (de 2.636 filas: 4 de gastos y 16 nombres repetidos unidos), todos activos, sin
+teléfono, plan ni pagos, alta el 15-oct, con las notas de la planilla en `observaciones` ("fila N" para
+ubicarlos). La planilla es histórica (2019 a 2026, los más nuevos arriba, y el monto es la última
+cuota que pagó cada uno): el mismo día se borraron los de la fila 202 en adelante (montos de 2025 y
+anteriores) y quedaron los 200 primeros (filas 2 a 201, cuotas de $55.000 a $125.000: precios de 2026).
+Quién sigue viniendo lo define el dueño. Los precios volvieron a los de la migración 0003 (la seed había agregado precios
+viejos falsos). Scripts de una sola vez en `scratch/sugym-alumnos/` del repo de Atentina (no
+versionados); `seed.py` sigue siendo solo de prueba.
 
 ## 0. Idea
 
@@ -540,6 +550,44 @@ los pagos. Los planes y precios están en la base, con historial: un precio nuev
 que se abren después (quien debe meses viejos los paga al precio de entonces). Los casos de uso
 pasaron a 50 (planes, renovaciones, plan ambiguo, vino sin pagar); falta correrlos. Falta repetirla (N=5) para tener una tasa, y probar con audios reales y
 comprobantes fotografiados, no sintéticos.
+
+**Alcance mínimo (SUGYM 0.4.0, 16-oct-2026, sin desplegar).** El primer día con el padrón real
+(conversación `0c9dbde8`, por audios), el dueño cargó asistencias y planes de alumnos importados sin plan:
+- los planes no se guardaron: 10 de 11 `editar_alumno` sin `plan`, con `dias_para_pagar` y
+  `fecha_nacimiento` inventados, y el asistente decía "listo";
+- confirmaciones en bucle;
+- un alumno duplicado (`alta_alumno` con `forzar`);
+- un pago que nadie pidió.
+
+Reproducido con los casos 8.x (sus mensajes, con 11 alumnos sin plan en la seed) y repetido 5 veces:
+
+| Config (Gemma 4 26B) | Casos 8.x OK | Guardado al terminar | Altas mal usadas | Duplicados | Turno p50 / p90 |
+|---|---|---|---|---|---|
+| 20 herramientas, razonamiento, temp. 1.0 | 4/40 | 19/70 planes | 27 | 3 | 6,2 / 10,9 s |
+| Sin razonamiento, temp. 1.0 | 1/40 | 14/70 | 34 | 9 | 1,6 / 2,9 s |
+| Sin razonamiento, temp. 0.2 | 4/40 | 12/70 | 43 | 11 | 1,5 / 2,5 s |
+| 12 herramientas | 7/40 | 23/70 | 0 | 0 | 5,6 / 10,3 s |
+| **7 herramientas, el plan y el alta por link** | **49/50** | **64/65 asistencias** | 0 | 0 | 4,5 / 9,0 s |
+
+- Bajar la temperatura no ayuda: vuelve constante el error ("asignar plan" = `alta_alumno`). Google
+  recomienda 1.0 para todo (ficha de Gemma 4) y el razonamiento mejora las llamadas.
+- Diseño nuevo (`agente.yaml` de la app):
+  - el asistente solo escribe asistencias, notas y pagos;
+  - el plan, los datos y la baja los edita el dueño en el perfil, y el alta en la vista `alta`
+    (formulario nuevo), con el link que le da el asistente;
+  - `registrar_asistencias` registra aunque no haya plan y trae el link al perfil;
+  - `perfil_alumno` reemplaza a `ficha_alumno`: los datos y siempre el link editable;
+  - `registrar_pago` queda con alumno, medio, importe y fecha: confirmado y sin `forzar`, porque con
+    `forzar` "ese pago es de septiembre" registraba un segundo pago (caso 2.5).
+- Suite completa adaptada: 57/59 (7 casos omitidos: recibos, comprobantes, verificar, mensajes). Las 2
+  fallas dependen de la hora (la seed trae asistencias de hoy).
+- Queda en la plataforma:
+  - con un nombre ambiguo en el turno, el control bloquea también los claros (8.5, 1 de 5);
+  - un control que frena una llamada no impide que el LLM diga "registré" (8.5 y 2.3);
+  - a veces el link al perfil sale de `abrir_vista` y no de `perfil_alumno`: falta poder elegir qué
+    vistas ofrece cada agente.
+- Desplegar: `make deploy A=sugym/gestion` (0.4.0) y la lista de herramientas de `agente.yaml` en el
+  agente de producción, que hoy tiene `"*"`.
 
 ## 12. A decidir
 

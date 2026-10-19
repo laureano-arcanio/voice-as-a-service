@@ -50,7 +50,8 @@ app/
     schemas.py       contratos pydantic (fuente del OpenAPI y de los tipos de la UI)
     errors.py        ServiceError -> JSON {detail, code, errors}; 500 JSON sin detalles internos
     routers/         auth, tiers, clients, phone_numbers, agents, users, api_keys, calls,
-                     conversations, voices, whatsapp (cuentas), inference, demo
+                     conversations, voices, whatsapp (cuentas), inference, demo, contacts, campaigns
+                     (más wa_campaigns: el alias de /whatsapp/campaigns y /whatsapp/optouts)
   services/          negocio sin HTTP (lo usan la API y el worker)
     quota.py         límites del tier: admisión con lock, consumo del mes, saldo en curso
     limits.py        límites efectivos de un cliente: el tier más sus ajustes vigentes (`effective_limits`)
@@ -60,6 +61,12 @@ app/
                      agente de un contacto y reemplaza las reglas de una cuenta
     agents.py        alta, validación de la definición, versionado, archivo
     reports.py       lista de llamadas, detalle, indicadores y serie diaria (filtros y zona horaria)
+    phones.py        teléfonos a E.164, único para los dos canales (el wa_id de Meta sale de ahí)
+    contacts.py      agenda: upsert por teléfono, archivar, import CSV, bajas por canal, tope del tier
+    campaigns.py     lógica común de campañas: estados, horario, programación, variables, plan, progreso
+    campaign_calls.py resultado SIP de un intento de voz, reintentos, recuperación y baja por outcome
+    campaign_reports.py report.csv y stats por campaña
+    campaign_callbacks.py cola (outbox) y firma del webhook de campañas
     security.py      argon2, JWT HS256, API keys (SHA-256), token de alta de clave
     api_usage.py     consumo y límites de la API de inferencia (cupos del mes, check/record, reporte)
     inference.py     gateway de la API de inferencia: reenvío a LLM, STT y TTS y medición del consumo
@@ -79,16 +86,19 @@ app/
                      (registro, contrato, salud), tools.py (herramientas de un agente), links.py
                      (links firmados) y gateway.py (vistas por APPS_PUBLIC_HOST)
   llm/               cliente y prompts del LLM
+  campaigns/         loop único de campañas (loop.py: delega por canal), dialer de voz (dialer.py),
+                     contestador por heurística (voicemail.py) y entrega del webhook (callbacks.py)
   voice/             worker de LiveKit y latencia por turno
   whatsapp/          webhook (firma), graph.py (Cloud API y media), store.py (tablas wa_*), service.py (turnos),
                      audio.py (notas de voz: STT, TTS y OGG/Opus con PyAV), signup.py (Embedded Signup,
                      registro, plantillas), crypto.py (tokens y PIN cifrados), campaigns.py y sender.py
-                     (campañas salientes por plantilla y bajas)
+                     (campañas de WhatsApp por plantilla, bajas y seguimiento de las de voz)
 migrations/          Alembic: 0001 esquema anterior (idempotente), 0002 tenencia, 0003 inventario de números,
                      0004 WhatsApp, 0005 Embedded Signup y session_version, …, 0008 campañas de WhatsApp,
-                     …, 0013 apps por cliente y operadores de WhatsApp, 0015 ruteo por contacto de WhatsApp
+                     …, 0013 apps por cliente y operadores de WhatsApp, 0015 ruteo por contacto de WhatsApp,
+                     0017 agenda y campañas unificadas (WhatsApp y voz)
 web/                 SPA React (ver "Frontend")
-tests/               pytest: API, límites, motor
+tests/               pytest: API, límites, motor, campañas (test_campaigns, _dialer, _vars, _integration)
 ```
 
 **Capas:** los routers validan la entrada, resuelven permisos y llaman a `services/`; los servicios
@@ -106,6 +116,10 @@ tiers 1───* clients 1───* agents 1───* agent_versions
                 ├───* api_keys
                 ├───* client_limit_adjustments (ajustes de límites del tier, CASCADE)
                 ├───* apps (client_id, SET NULL: vuelve al inventario) 1───* app_links
+                ├───* contacts (agenda, archivable) 1───* campaign_contacts
+                ├───* contact_optouts (bajas por teléfono y canal)
+                ├───* campaigns (whatsapp | voice) 1───* campaign_contacts ───* call_logs (intentos de voz)
+                │                                  1───* campaign_callbacks (cola del webhook)
                 ├───* wa_accounts (agent_id, RESTRICT) 1───* wa_routes (ruteo por contacto)
                 │                                      1───* wa_threads
                 │                                      1───* wa_operators (client_id + agent_id propios)
@@ -117,9 +131,9 @@ tiers 1───* clients 1───* agents 1───* agent_versions
 
 | Tabla | Claves y reglas |
 |---|---|
-| `tiers` | `max_concurrent_calls`, `max_calls_per_hour`, `max_calls_per_day`, `max_calls_per_month` (llamadas entrantes y salientes por hora, día y mes calendario), `inbound_minutes`, `outbound_minutes`, `max_phone_numbers`; NULL = ilimitado. API de inferencia: `api_llm_input_tokens`, `api_llm_output_tokens`, `api_tts_minutes`, `api_stt_minutes` (por mes) y `api_rate_limit` (pedidos por minuto); NULL = ilimitado, 0 = no incluido. |
+| `tiers` | `max_concurrent_calls`, `max_calls_per_hour`, `max_calls_per_day`, `max_calls_per_month` (llamadas entrantes y salientes por hora, día y mes calendario), `inbound_minutes`, `outbound_minutes`, `max_phone_numbers`; NULL = ilimitado. Campañas: `campaign_channels` (`[]`, `["whatsapp"]`, `["voice"]` o los dos), `max_campaigns_per_month`, `max_campaign_contacts`, `max_campaign_concurrency`, `max_contacts` (contactos activos de la agenda; NULL = ilimitado, 0 = no incluido) y `campaign_followup`. API de inferencia: `api_llm_input_tokens`, `api_llm_output_tokens`, `api_tts_minutes`, `api_stt_minutes` (por mes) y `api_rate_limit` (pedidos por minuto); NULL = ilimitado, 0 = no incluido. |
 | `clients` | `slug` único, `tier_id` (RESTRICT: un tier en uso no se borra), `active`. |
-| `client_limit_adjustments` | Ajuste de un límite del tier para un cliente: `field` (uno de los 12 de `tiers`), `mode` (`add` suma, `set` reemplaza; `value` NULL = ilimitado solo con `set`), `starts_on`/`ends_on` (inclusive, en `BILLING_TIMEZONE`; sin fechas, permanente), `note`, `created_by`. Se resuelven en `services/limits.py`. |
+| `client_limit_adjustments` | Ajuste de un límite del tier para un cliente: `field` (uno de los 16 numéricos de `tiers`), `mode` (`add` suma, `set` reemplaza; `value` NULL = ilimitado solo con `set`), `starts_on`/`ends_on` (inclusive, en `BILLING_TIMEZONE`; sin fechas, permanente), `note`, `created_by`. Se resuelven en `services/limits.py`. |
 | `agents` | `(client_id, slug)` único; `version` y `definition` vigentes (copia de la última versión); `archived_at`. |
 | `agent_versions` | `(agent_id, version)`; inmutables, con `created_by`. |
 | `phone_numbers` | `e164` único; `client_id` NULL = libre; `agent_id` solo si hay cliente (CHECK); `provider`, `assigned_at`. |
@@ -127,14 +141,16 @@ tiers 1───* clients 1───* agents 1───* agent_versions
 | `api_keys` | SHA-256 de la clave (`key_hash` único), `prefix` visible, `revoked_at`, `scopes` (`calls`, `llm`, `stt`, `tts`, separados por coma: una key de inferencia no usa la API de llamadas ni al revés). |
 | `api_usage_daily` | Consumo de la API de inferencia por `(client_id, api_key_id, day)` (día en `BILLING_TIMEZONE`): pedidos, tokens de entrada y salida del LLM y segundos de TTS y STT. Se suma con un UPDATE que incrementa. Sin contenido de los pedidos. |
 | `conversations` | Estado del motor (datos, mensajes, progreso), `client_id`, `agent_id` + `agent_version` (RESTRICT: un cliente o agente con historial no se borra). `legacy_workflow_id` para las anteriores a los agentes. |
-| `call_logs` | Una por conversación: modo, estado, teléfono del otro lado, `phone_number_id` del cliente, inicio, fin, duración, latencia. Base del consumo. |
+| `call_logs` | Una por conversación: modo, estado, teléfono del otro lado, `phone_number_id` del cliente, inicio, fin, duración, latencia. Base del consumo. `campaign_contact_id` ata el intento de una campaña de voz; `sip_status`, el código SIP de una saliente fallida. |
 | `conversations.channel` | `voice` o `whatsapp`; se fija al crearla. Cambia el prompt (reglas por canal), no el agente. |
 | `wa_accounts` | Un número de WhatsApp: `phone_number_id` único (ID de Meta), `waba_id`, número visible, `client_id`, `agent_id`, `access_token` (NULL = `WA_ACCESS_TOKEN`; cifrado con `WA_TOKEN_KEY`, prefijo `fernet:`), `pin_enc`, `active`, `status` (`connected`, `pending`, `disconnected`) con motivo, `quality_rating`, `messaging_limit`, `source` (`manual`, `embedded_signup`, `coexistence`), `connected_by`. Sin borrado: se desactiva. |
 | `wa_routes` | Ruteo por contacto de una cuenta (`account_id` + `agent_id` únicos): `contacts` (wa_id como los manda Meta) que atiende ese agente en los mensajes y las llamadas de WhatsApp, en vez del agente por defecto. Un contacto está en una sola regla; el agente es del cliente de la cuenta y no archivado. Se resuelve en `services/wa_routing.py`. |
 | `wa_threads` | Una por conversación de WhatsApp (como `call_logs`): cuenta, `wa_id` tal cual llega (`549…`), nombre del perfil, `last_user_at` (ventana de sesión), `paused` (fase 3). |
-| `wa_campaigns` | Campaña saliente: cliente, número (`account_id`), agente opcional (NULL = el del número), copia de la plantilla (nombre, idioma, categoría, cuerpo, cantidad de variables), `status` (`draft`, `running`, `paused`, `done`, `cancelled`) con motivo de pausa, `rate_per_minute` y horario (`window_start`, `window_end`). |
-| `wa_campaign_recipients` | Un contacto de una campaña (`campaign_id` + `wa_id` únicos): variables, `status` (`pending`, `sending`, `sent`, `failed`, `skipped`), error, `wamid` (entregado y leído salen de `wa_messages`), `conversation_id` y `replied_at` si respondió. |
-| `wa_optouts` | Bajas por cliente (`client_id` + `wa_id`), `source` `keyword` (lo escribió) o `manual`. Ninguna campaña les escribe. |
+| `contacts` | Agenda del cliente: `phone` (E.164) único por `client_id`, `name`, `email`, `external_id`, `attributes` (JSON libre: las columnas extra del CSV), `tags` (minúsculas ASCII), `source` (`manual`, `csv`, `api`, `campaign`, `inbound`) y `archived_at`. **No se borran, se archivan**; un archivado no se desarchiva solo al recargarlo. `max_contacts` cuenta los activos. |
+| `contact_optouts` | Bajas por `(client_id, phone, channel)` con `channel` `whatsapp`, `voice` o `all` y `source` (`keyword`, `outcome`, `manual`). Aparte de `contacts` a propósito: sigue aunque el contacto se archive o no exista. Reemplaza a `wa_optouts`. |
+| `campaigns` | Campaña de un cliente con `channel` `whatsapp` o `voice` (un CHECK exige los campos de cada canal), `status` (`draft`, `scheduled`, `running`, `paused`, `done`, `cancelled`) con motivo, `rate_per_minute`, horario (`window_start`, `window_end`, `weekdays`), programación (`starts_at`, `ends_at`), `started_at`/`finished_at`, `purpose` (`comercial`, `cobranza`, `turnos`, `aviso`) con `no_call_confirmed_at`, y `callback_url` / `callback_secret` (cifrado). WhatsApp: número (`account_id`), copia de la plantilla y `template_param_names`. Voz: `from_number_id`, `voice`, `concurrency` (1 = secuencial), `max_attempts`, `retry_minutes`, `retry_on` y `followup` (JSON, NULL = apagado). Reemplaza a `wa_campaigns`; las existentes conservan su id. |
+| `campaign_contacts` | Un contacto en una campaña (`campaign_id` + `contact_id` únicos): `vars` (copia de sus datos al agregarlo; WhatsApp guarda los parámetros en `vars["params"]`), `status` (`pending`, `in_progress`, `retry`, `done`, `failed`, `skipped`), `result` (WhatsApp: `sent`; voz: `answered`, `no_answer`, `busy`, `voicemail`, `invalid`, `rejected`, `failed`), `error`, `conversation_id`, y según el canal `wamid`/`sent_at`/`replied_at` o `attempts`/`next_attempt_at`/`last_attempt_at` y el seguimiento (`followup_status`, `followup_wamid`, `followup_sent_at`, `followup_error`, `followup_conversation_id`). Entregado y leído salen de `wa_messages`. Reemplaza a `wa_campaign_recipients`. |
+| `campaign_callbacks` | Cola del webhook (outbox): `campaign_id`, `event` (`contact.finished`, `contact.followup`, `campaign.finished`), cuerpo, `status` (`pending`, `sent`, `failed`), intentos y próximo intento. Se escribe en la misma transacción que el evento. |
 | `contact_requests` | Pedidos del formulario de contacto de la landing (`POST /api/v1/demo/contact`), con `email_status` (`sent`, `failed`, `disabled`) y `email_error`; se guardan aunque Resend falle ([`LANDING.md`](LANDING.md)). |
 | `apps` | App de un cliente (contenedor de atentina-apps, [`APPS_PLAN.md`](APPS_PLAN.md)): `slug` único, `client_id` (NULL = inventario), `base_url` (`http://app-<slug>:8000`), `token_enc` (APP_TOKEN cifrado con `WA_TOKEN_KEY`), `version`, `manifest` (copia del último válido: vistas y herramientas), `status` (`ok`, `down`, `invalid`), `last_error`, `last_health_at`. |
 | `app_links` | Link firmado a una vista: `token_hash` (SHA-256; el token no se guarda), `app_id`, `view`, `params`, `expires_at` (`APPS_LINK_TTL_DAYS`), `revoked_at`, `created_by` (`wa:<wa_id>`, `user:<id>`), `opens`. |
@@ -267,6 +283,35 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
    prueba, espera al participante del navegador.
 7. Estados de la llamada: `sonando` → `en_curso` → `finalizada` (con duración y latencia) o `fallida`.
 
+### Campaña de llamadas (`/api/v1/campaigns`, `channel: voice`)
+
+1. Se crea en `draft` (agente, número de origen, voz, horario, `concurrency`, reintentos) y se le suman
+   contactos de la agenda (`contact_ids`, `tags`), una lista o un CSV. `start` valida el plan del tier,
+   el agente, el número y el horario; una campaña `comercial` pide además confirmar el Registro No Llame.
+2. `app/campaigns/loop.py` (en el lifespan de `app`) delega por canal: el `CampaignSender` de WhatsApp
+   cada `WA_CAMPAIGN_TICK_SECONDS` y el **dialer** cada `CALL_CAMPAIGN_TICK_SECONDS` (2 s).
+3. El dialer, por cada campaña de voz `running`: activa las `scheduled` y cierra las vencidas, respeta
+   horario, días y feriados, y toma `min(concurrency − en curso, crédito de rate_per_minute,
+   CALL_CAMPAIGN_MAX_CONCURRENT − en curso global)` contactos `pending`/`retry` con `FOR UPDATE SKIP LOCKED`.
+   Saltea bajas de voz y archivados, y llama a `start_call` (el flujo de arriba, con `quota.admit`) con
+   `campaign_contact_id` y `vars`. Sin lugar por concurrencia el contacto vuelve a `pending` sin gastar el
+   intento; sin minutos, tope de llamadas, agente archivado o número suspendido, la campaña se pausa con el motivo.
+4. `prepare_call` ata la `CallRow` al contacto y `engine.new_conversation(..., contact=vars)` reemplaza
+   `{{variable}}` en la apertura, precarga los campos con nombre igual y pasa el resto al prompt
+   (solo en llamadas de campaña).
+5. El worker marca con `ringing_timeout` (`CALL_RINGING_TIMEOUT_SECONDS`) y clasifica el error SIP
+   (`sip_status_code`) en `no_answer`, `busy`, `invalid`, `rejected` o `failed`; un detector de contestador
+   sobre las primeras transcripciones cierra el intento como `voicemail`. `services/campaign_calls.py` deja
+   el contacto en `done`, `retry` (a los `retry_minutes`) o `failed`, y si el outcome está marcado
+   `no_contact` agrega la baja de voz. Sin nada pendiente, la campaña pasa a `done`.
+6. Los `in_progress` sin llamada activa vuelven a `retry` al arrancar `app` y cada 60 s. N intentos
+   `failed` seguidos (`CALL_CAMPAIGN_FAILURE_STREAK`) pausan la campaña.
+7. Con `followup`, a quien no atendió se le manda por el `CampaignSender` una plantilla de WhatsApp;
+   su respuesta abre la conversación (5.5 de [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md) y
+   [`LLAMADAS_SALIENTES_PLAN.md`](LLAMADAS_SALIENTES_PLAN.md), sección 14). Con `callback_url`, cada
+   contacto terminado y el cierre de la campaña se entregan por `callback_loop` (POST con firma
+   `X-Atentina-Signature`, https y host público, reintentos de 30 s a 6 h).
+
 ### Demo de la landing (`/api/v1/demo`)
 
 Llamada de prueba sin usuario, para la landing (ver [`LANDING.md`](LANDING.md)):
@@ -310,15 +355,21 @@ El formulario de contacto de la landing (`POST /demo/contact`, misma sesión) gu
    contacto durante `WA_DEBOUNCE_SECONDS`. Un audio se baja por la API de media, se pasa a WAV de
    16 kHz con PyAV y se transcribe con `stt-parakeet`; el texto entra al mismo debounce, marcado como
    nota de voz, y el turno espera a que termine.
-3. Con el lock del contacto: el hilo abierto (`store.active_thread`: sin cerrar, sin pausar y con un
-   mensaje del contacto en las últimas `WA_SESSION_HOURS`) o uno nuevo sin apertura, `process_turn`,
-   `send_text` y `mark_read`. Que el motor haya dado la conversación por completada (`[FIN]`) **no**
+3. Con el lock del contacto: el hilo abierto (`WhatsAppService._active_thread`, sobre `store.open_thread`:
+   sin cerrar, sin pausar y dentro de su ventana de contexto temporal) o uno nuevo sin apertura,
+   `process_turn`, `send_text` y `mark_read`. La ventana es `Workflow.wa_session_minutes` del agente
+   que abrió el hilo si la definió (en minutos), o si no el default global `WA_SESSION_HOURS`
+   (1440 min = 24 hs, `WhatsAppService._session_minutes`): pasados esos minutos sin mensaje del
+   contacto, el siguiente mensaje abre otra conversación, sin el historial anterior. Se edita por
+   agente en la UI (sección "Voz" del editor, en minutos) o en su `definition`. Que el motor haya
+   dado la conversación por completada (`[FIN]`) **no**
    cierra el hilo: un mensaje después del cierre la retoma con el historial y la misma versión del
    agente. Un hilo nuevo usa la versión vigente del agente del número, o la del agente de la campaña
    si el contacto responde a una (ver [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md), 5.5).
    El motor trabaja igual que en una llamada (el clásico no extrae en cada turno). El equivalente del
-   corte es el fin del chat: cerrarlo desde el dashboard, llegar a `WA_MAX_TURNS` o vencer
-   (`WA_SESSION_HOURS` sin mensajes del contacto, barrido cada 5 min en el lifespan de `app`). Los
+   corte es el fin del chat: cerrarlo desde el dashboard, llegar a `WA_MAX_TURNS` o vencer su ventana
+   de contexto (barrido cada 5 min en el lifespan de `app`, `WhatsAppService.sweep`: mira todos los
+   hilos abiertos y cierra el que venció según el agente que lo abrió). Los
    tres cierran el hilo (`wa_threads.closed_at`) y llaman a `engine.finish`, la extracción final.
    Si el turno tuvo audio (`WA_AUDIO_REPLY=mirror`), `process_turn` recibe `TurnMedia` (el prompt pide
    formato para escuchar) y la respuesta sale como nota de voz: `vllm-tts` → OGG/Opus → subida →
@@ -379,6 +430,8 @@ sin respuesta.
 | Simultáneas | `quota.admit` (salientes, pruebas, loadtest, entrantes) | Llamadas del cliente en `pendiente`, `sonando` o `en_curso` creadas hace menos de `CALL_MAX_DURATION_SECONDS` + 10 min. Las más viejas se consideran colgadas y no ocupan lugar. |
 | Minutos entrantes / salientes | `quota.admit` y el watchdog del worker | Suma de `duration_seconds` de las llamadas de esa modalidad que empezaron en el mes, más el tiempo de las en curso. Las de prueba y loadtest no consumen. Mes calendario en `BILLING_TIMEZONE`. |
 | Números | `phone_numbers.assign`, cambio de tier, cambio del tope | Números con `client_id` del cliente. Asignar toma el mismo lock del cliente y el del número. |
+| Campañas | `services/limits.py` (`check_campaign_*`), al crear, sumar contactos, iniciar y retomar | Canal habilitado (`campaign_channels`), campañas iniciadas en el mes (`started_at`; la primera vez que sale de borrador), contactos por campaña y `concurrency` de voz. Las llamadas de campaña también pasan por `quota.admit` (minutos, topes de llamadas, simultáneas). Al cambiar de tier o de canales, las campañas de un canal que ya no entra pasan a `paused`. |
+| Agenda | `services/contacts.py` | Contactos activos (`max_contacts`); los archivados no cuentan. |
 
 **Ajustes por cliente** (`services/limits.py`): para darle a un cliente algo distinto de su tier (una línea más, 10 minutos
 más este mes, un tope propio) sin tocar el tier ni clonarlo. Toda la tabla anterior, la API de inferencia y el rate limit leen
@@ -467,6 +520,7 @@ lo de esta sección es lo que lo protege.
 | WhatsApp: ver, agente, nombre, activar, registro, refresco, plantillas, ruteo por contacto | Todo | Lo suyo | Lo suyo |
 | WhatsApp: campañas (crear, contactos, iniciar) | Todo | En sus números con token propio | Ídem |
 | WhatsApp: ver, pausar y cancelar campañas; bajas | Todo | Lo suyo | Lo suyo |
+| Campañas de llamadas y contactos (crear, iniciar, archivar, bajas, reportes) | Todo | Lo suyo, si el plan incluye el canal | Ídem |
 | Llamadas, conversaciones, consumo, voces | Todo | Lo suyo | Lo suyo |
 | Conversaciones: borrar (una o en bulk) | Sí | No | No |
 | API keys | Sí | Las suyas | No |
@@ -495,9 +549,22 @@ lo de esta sección es lo que lo protege.
   `POST /accounts/{id}/deactivate|register|refresh`, `PUT /accounts/{id}/routes` (ruteo por contacto:
   reemplaza las reglas de la cuenta), `GET|POST /accounts/{id}/templates` y
   `POST /signup`. Detalle en [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md), 5.3.
-- **Campañas de WhatsApp** (`/whatsapp`): `GET|POST /campaigns`, `GET|PATCH|DELETE /campaigns/{id}`,
-  `GET|POST /campaigns/{id}/recipients` (lista o CSV), `POST /campaigns/{id}/start|pause|cancel`,
-  `GET|POST /optouts` y `DELETE /optouts/{wa_id}`. Envío y reglas en [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md), 5.5.
+- **Contactos** (`/contacts`): `GET` (paginado; `q`, `tag`, `archived` = `false`, `true` o `all`), `POST` (uno o
+  una lista, upsert por teléfono), `POST /import` (JSON `{csv, tags}`), `GET|PATCH /{id}`, `GET /{id}/campaigns`,
+  `POST /{id}/archive|unarchive`, `POST /archive` (en lote, por `contact_ids` o `tags`) y
+  `GET|POST /optouts`, `DELETE /optouts/{phone}`. No hay DELETE de contactos. Los admins pasan `client_id`.
+- **Campañas** (`/campaigns`, canal `whatsapp` o `voice`): `GET` (`channel`, `status`), `POST` (con `start: true`
+  opcional), `GET /plan` (lo que permite el plan y lo usado), `GET|PATCH|DELETE /{id}` (el `GET` es el
+  **polling**: estado, progreso, `results`, `percent`, `eta_minutes`, `in_window`, `goal` y `followup`; el
+  `DELETE`, solo de borradores), `POST /{id}/contacts`, `GET /{id}/contacts` (`status`, `result`),
+  `GET /{id}/stats`, `GET /{id}/report.csv` y `POST /{id}/start|resume|pause|cancel`. `start` y
+  `resume` de una `comercial` piden `no_call_registry_checked: true` (422 `no_call_confirmation_required`).
+  `GET /calls`, `/stats` y `/stats/daily` filtran por `campaign_id`.
+- **Campañas de WhatsApp** (`/whatsapp`, alias de las anteriores, sobre el mismo código; se borran en una
+  versión): `GET|POST /campaigns`, `GET|PATCH|DELETE /campaigns/{id}`, `GET|POST /campaigns/{id}/recipients`
+  (lista o CSV posicional), `POST /campaigns/{id}/start|pause|cancel`, `GET|POST /optouts` y
+  `DELETE /optouts/{wa_id}`. Envío y reglas en [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md), 5.5 y
+  [`LLAMADAS_SALIENTES_PLAN.md`](LLAMADAS_SALIENTES_PLAN.md).
 - **Mails** (Resend, `app/mail/`): `POST /clients` con `owner_email` crea el usuario y manda la bienvenida
   (respuesta con `invite.status`: `sent`, `failed` o `disabled`); `POST /users/{id}/invite` la reenvía.
   Al asignar un número (`POST /phone-numbers` con `client_id`, `POST /phone-numbers/{id}/assign`) sale
@@ -570,5 +637,9 @@ Todo por `.env`, leído con `app/config.py` (ver `.env.example`):
   `WA_AUDIO_MAX_BYTES`, `WA_AUDIO_MAX_SECONDS`, `WA_AUDIO_MAX_REPLY_CHARS`, `WA_AUDIO_CONCURRENCY`, ...;
   ver [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md), 5.2) y los de la fase 2 (`WA_CONFIG_ID`, `WA_TOKEN_KEY`,
   `WA_SIGNUP_PER_HOUR`, `WA_TEMPLATES_PER_HOUR`, `WA_SDK_LOCALE`).
+- **Campañas** (`docs/LLAMADAS_SALIENTES_PLAN.md`): `CALL_CAMPAIGN_MAX_CONCURRENT` (8, tope global de llamadas de
+  campaña; provisorio hasta medir con Gemma), `CALL_CAMPAIGN_TICK_SECONDS`, `CALL_CAMPAIGN_FAILURE_STREAK` (10),
+  `CALL_RINGING_TIMEOUT_SECONDS` (30), `CAMPAIGN_HOLIDAYS` y las del webhook (`CAMPAIGN_CALLBACK_TICK_SECONDS`,
+  `_TIMEOUT_SECONDS`, `_MAX_ATTEMPTS`, `_ALLOW_PRIVATE`, solo desarrollo).
 - **Seguridad del dashboard público:** `AUTH_COOKIE_SECURE`, `TRUSTED_PROXY_CIDRS`, `APP_ORIGINS`,
   `API_DOCS`, `CSP_REPORT_ONLY`, `LOGIN_FAIL_*`, `API_MAX_BODY_BYTES`, `RATE_*` y `LOADTEST_CLIENT`.

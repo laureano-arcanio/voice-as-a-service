@@ -118,18 +118,15 @@ def pin_for(account: WaAccount) -> str | None:
 
 # --- Hilos ---
 
-def active_thread(s: Session, account_id: str, wa_id: str, now: datetime.datetime,
-                  session_hours: float) -> WaThread | None:
-    """La conversacion en curso con este contacto: la ultima, no pausada y con un mensaje
-    del cliente dentro de las ultimas session_hours. Aunque el agente la haya dado por
-    completada: por WhatsApp el chat sigue (un "si" despues del cierre no es otra
-    conversacion), asi que se retoma con el historial. Corta por inactividad, por tope o
-    porque la cerraron desde el dashboard (close_thread)."""
-    since = now - datetime.timedelta(hours=session_hours)
+def open_thread(s: Session, account_id: str, wa_id: str) -> WaThread | None:
+    """El hilo sin cerrar con este contacto (a lo sumo uno a la vez: lo cierra el que lo da
+    por vencido antes de abrir otro). No mira cuanto hace del ultimo mensaje: eso depende de
+    la ventana de contexto temporal del agente que lo abrio (Workflow.wa_session_minutes, o el
+    default global si no la fijo), que resuelve el que llama."""
     return s.scalar(
         select(WaThread)
         .where(WaThread.account_id == account_id, WaThread.wa_id == wa_id,
-               WaThread.paused.is_(False), WaThread.closed_at.is_(None), WaThread.last_user_at >= since)
+               WaThread.paused.is_(False), WaThread.closed_at.is_(None))
         .order_by(WaThread.created_at.desc()).limit(1))
 
 
@@ -159,12 +156,11 @@ def close_thread(s: Session, thread: WaThread) -> None:
     thread.closed_at = thread.closed_at or utcnow()
 
 
-def expired_threads(s: Session, now: datetime.datetime, session_hours: float) -> list[WaThread]:
-    """Las que vencieron (session_hours sin mensajes del contacto) y siguen sin cerrar. Las
-    pausadas no: las atiende una persona."""
-    since = now - datetime.timedelta(hours=session_hours)
+def open_threads(s: Session) -> list[WaThread]:
+    """Todos los hilos sin cerrar (sweep): el que llama decide cuales vencieron, agente por
+    agente. Los pausados no entran: los atiende una persona."""
     return list(s.scalars(select(WaThread).where(
-        WaThread.closed_at.is_(None), WaThread.paused.is_(False), WaThread.last_user_at < since)))
+        WaThread.closed_at.is_(None), WaThread.paused.is_(False))))
 
 
 def touch_thread(s: Session, conversation_id: str, at: datetime.datetime) -> None:

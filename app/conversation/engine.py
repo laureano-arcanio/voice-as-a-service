@@ -6,6 +6,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from ..llm.resolver import LLMResolver
+from . import contact as contact_data
 from .models import (
     AgentTurn,
     Channel,
@@ -65,37 +66,49 @@ class ConversationEngine:
     def workflow(self, state: ConversationState) -> Workflow:
         return self.definitions.get(state.agent_id, state.agent_version)
 
-    def start_conversation(self, agent_id: str, client_id: str | None = None, *,
-                           channel: Channel = "voice", opening: bool | str = True) -> tuple[ConversationState, str]:
+    def start_conversation(self, agent_id: str, client_id: str | None = None, *, channel: Channel = "voice",
+                           opening: bool | str = True, contact: dict | None = None) -> tuple[ConversationState, str]:
         """Crea y guarda la conversacion con la version vigente del agente. KeyError si
         no existe o esta archivado."""
-        state, text = self.new_conversation(agent_id, client_id, channel=channel, opening=opening)
+        state, text = self.new_conversation(agent_id, client_id, channel=channel, opening=opening, contact=contact)
         self.store.save(state)
         return state, text
 
     def new_conversation(self, agent_id: str, client_id: str | None = None, session=None, *,
-                         channel: Channel = "voice", opening: bool | str = True) -> tuple[ConversationState, str]:
+                         channel: Channel = "voice", opening: bool | str = True,
+                         contact: dict | None = None) -> tuple[ConversationState, str]:
         """Como start_conversation pero sin guardarla: para guardarla en la misma
         transaccion que la llamada (services/calls.py, store.add). session: la del que
         llama, para leer el agente sin pedir otra conexion.
 
         opening: True, la apertura del workflow (el agente habla primero, como en una
         llamada); False, sin apertura (WhatsApp entrante: el cliente escribe primero y su
-        mensaje es el turno 1); un texto, esa apertura (plantilla saliente)."""
+        mensaje es el turno 1); un texto, esa apertura (plantilla saliente).
+
+        contact: los datos del contacto de una campaña de voz (`vars`; app/conversation/contact.py):
+        reemplazan los `{{variable}}` de la apertura, precargan los campos del workflow que se llaman
+        igual y el resto va al prompt. Con `{}` (una campaña sin datos) la apertura igual se limpia de
+        variables; sin contact (None) no se toca."""
         version, workflow = self.definitions.current(agent_id, session)
         state = ConversationState(
             conversation_id=str(uuid.uuid4()),
             agent_id=agent_id, agent_version=version, client_id=client_id, channel=channel,
             fields={name: None for name in workflow.fields},
         )
+        if contact is not None:
+            preloaded, state.progress.contact = contact_data.preload(workflow, contact)
+            state.fields.update(preloaded)
+            state.progress.preloaded = list(preloaded)
         if opening is False:
             # Sin apertura nadie pregunto nada: asked=None, o el LLM cree que ya pidio el primer dato.
             return state, ""
         text = workflow.conversation.opening if opening is True else opening
+        if contact is not None:
+            text = contact_data.render_template(text, contact)
         state.messages = [Message(role="assistant", text=text)]
-        # La apertura pregunta por el primer dato del workflow (assistant: sin datos).
-        if workflow.fields:
-            state.progress.asked = min(workflow.fields, key=lambda name: workflow.fields[name].priority)
+        # La apertura pregunta por el primer dato del workflow que falta (assistant: sin datos).
+        if unknown := [name for name in workflow.fields if state.fields[name] is None]:
+            state.progress.asked = min(unknown, key=lambda name: workflow.fields[name].priority)
         return state, text
 
     async def process_turn(self, conversation_id: str, user_message: str,

@@ -20,6 +20,12 @@ const TIER = {
   api_tts_minutes: 0,
   api_stt_minutes: 0,
   api_rate_limit: 60,
+  campaign_channels: ['whatsapp', 'voice'],
+  max_campaigns_per_month: 5,
+  max_campaign_contacts: 500,
+  max_campaign_concurrency: null,
+  max_contacts: 1000,
+  campaign_followup: true,
   created_at: '2026-10-01T00:00:00Z',
   clients_count: 0,
 };
@@ -67,6 +73,38 @@ describe('TiersPage', () => {
       max_concurrent_calls: null,
       api_llm_input_tokens: 0,
       api_rate_limit: 60,
+    });
+  });
+
+  it('lista los canales de campañas, sus topes y la agenda', async () => {
+    mockApi();
+    renderWithProviders(<TiersPage />, { me: ADMIN });
+    await screen.findByText('Free');
+    expect(screen.getByText('WhatsApp y llamadas')).toBeInTheDocument();
+    expect(screen.getByText('con seguimiento')).toBeInTheDocument();
+    expect(screen.getByText('5 / 500 / Ilimitado')).toBeInTheDocument();
+    expect(screen.getByText('1.000')).toBeInTheDocument();
+  });
+
+  it('un tier nuevo no incluye campañas; se habilitan por canal con sus topes', async () => {
+    const created = mockApi();
+    renderWithProviders(<TiersPage />, { me: ADMIN });
+    await userEvent.click(await screen.findByRole('button', { name: /Nuevo tier/ }));
+    await userEvent.type(screen.getByLabelText(/Nombre/), 'Pro');
+    expect(screen.getByRole('checkbox', { name: 'WhatsApp' })).not.toBeChecked();
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Llamadas' }));
+    await userEvent.type(screen.getByLabelText('Campañas por mes'), '10');
+    await userEvent.type(screen.getByLabelText('Llamadas simultáneas por campaña'), '4');
+    await userEvent.click(screen.getByRole('switch', { name: /Seguimiento por WhatsApp/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(created).toHaveLength(1));
+    expect(created[0]).toMatchObject({
+      campaign_channels: ['voice'],
+      max_campaigns_per_month: 10,
+      max_campaign_contacts: null,
+      max_campaign_concurrency: 4,
+      max_contacts: null,
+      campaign_followup: true,
     });
   });
 });

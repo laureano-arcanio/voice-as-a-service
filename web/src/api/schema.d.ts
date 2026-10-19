@@ -1329,6 +1329,414 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/campaigns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Campaigns
+         * @description Las campañas, las mas nuevas primero, con su avance.
+         */
+        get: operations["list_campaigns_api_v1_campaigns_get"];
+        put?: never;
+        /**
+         * Create Campaign
+         * @description Crea la campaña en borrador, con sus contactos si vienen. Valida el plan. Con `start` la inicia
+         *     en el mismo pedido (si algo falla, no queda nada). Lo que no entra vuelve en `skipped`.
+         */
+        post: operations["create_campaign_api_v1_campaigns_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Campaign Plan
+         * @description Lo que el plan del cliente permite en campañas y agenda, con lo que ya usó este mes: la UI
+         *     deshabilita con el motivo lo que no entra. Un admin indica `client_id`.
+         */
+        get: operations["campaign_plan_api_v1_campaigns_plan_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Campaign
+         * @description El estado y el avance de la campaña, para consultar cada pocos segundos: `progress` (contactos
+         *     por estado), `results`, `percent`, `eta_minutes` y, en voz, `goal` y `minutes_used`.
+         */
+        get: operations["get_campaign_api_v1_campaigns__campaign_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Campaign
+         * @description Solo en borrador (409 si ya empezo: se cancela).
+         */
+        delete: operations["delete_campaign_api_v1_campaigns__campaign_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Campaign */
+        patch: operations["update_campaign_api_v1_campaigns__campaign_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/contacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Campaign Contacts
+         * @description Los contactos de la campaña, en orden de carga, con el resultado de cada uno y la conversacion.
+         */
+        get: operations["list_campaign_contacts_api_v1_campaigns__campaign_id__contacts_get"];
+        put?: never;
+        /**
+         * Add Contacts
+         * @description Suma contactos a una campaña en borrador o pausada: de la agenda (`contact_ids`, `tags`) o nuevos
+         *     (`contacts`, `csv`: tambien entran en la agenda). Valida los topes del plan.
+         */
+        post: operations["add_contacts_api_v1_campaigns__campaign_id__contacts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Campaign Stats
+         * @description Indicadores de la campaña: tasa de contacto (atendidas o respondidas sobre llamadas o envios), tasa
+         *     de objetivo, duracion media, minutos, distribucion de resultados y llamadas por hora del dia.
+         */
+        get: operations["campaign_stats_api_v1_campaigns__campaign_id__stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/report.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Campaign Report
+         * @description El reporte por contacto en CSV (UTF-8 con BOM): external_id, telefono, vars, intentos, resultado,
+         *     duracion, outcome, objetivo, campos capturados, seguimiento y link a la conversacion.
+         */
+        get: operations["campaign_report_api_v1_campaigns__campaign_id__report_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Campaign
+         * @description Inicia una campaña en borrador: valida el plan, el agente, el numero o la plantilla, y los
+         *     contactos. Con `starts_at` futuro queda `scheduled` y arranca sola. Una campaña comercial pide
+         *     `no_call_registry_checked` (Registro No Llame).
+         */
+        post: operations["start_campaign_api_v1_campaigns__campaign_id__start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resume Campaign
+         * @description Retoma una campaña pausada (a mano o por un problema), con las mismas validaciones.
+         */
+        post: operations["resume_campaign_api_v1_campaigns__campaign_id__resume_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pause Campaign */
+        post: operations["pause_campaign_api_v1_campaigns__campaign_id__pause_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Campaign
+         * @description Termina la campaña: los pendientes no se mandan ni se llaman. Las respuestas siguen llegando al agente.
+         */
+        post: operations["cancel_campaign_api_v1_campaigns__campaign_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/contacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Contacts */
+        get: operations["list_contacts_api_v1_contacts_get"];
+        put?: never;
+        /**
+         * Upsert Contacts
+         * @description Carga un contacto o una lista (upsert por telefono): los nuevos se crean y los que ya
+         *     existen se actualizan, sumando atributos y etiquetas. Las filas invalidas o que no entran por
+         *     el tope del plan vuelven en `invalid`; con un solo contacto, eso es un error. Los archivados
+         *     se actualizan pero siguen archivados (`archived`).
+         */
+        post: operations["upsert_contacts_api_v1_contacts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/contacts/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Contacts
+         * @description Carga un CSV (upsert por telefono). Devuelve creados, actualizados e invalidos con su fila y
+         *     el motivo.
+         */
+        post: operations["import_contacts_api_v1_contacts_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/contacts/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Archive Contacts
+         * @description Archiva en lote, por ids o por etiquetas. Sus intentos pendientes en campañas abiertas
+         *     pasan a salteados.
+         */
+        post: operations["archive_contacts_api_v1_contacts_archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/contacts/optouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Optouts */
+        get: operations["list_optouts_api_v1_contacts_optouts_get"];
+        put?: never;
+        /**
+         * Add Optout
+         * @description Pone un telefono en la lista de no contactar de un canal (o de todos). Ninguna campaña de
+         *     ese canal le escribe ni lo llama.
+         */
+        post: operations["add_optout_api_v1_contacts_optouts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/contacts/optouts/{phone}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Optout
+         * @description Saca un telefono de la lista de bajas, del canal indicado o de todos.
+         */
+        delete: operations["remove_optout_api_v1_contacts_optouts__phone__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/contacts/{contact_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Contact */
+        get: operations["get_contact_api_v1_contacts__contact_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Contact
+         * @description Edita datos y etiquetas (los atributos y las etiquetas reemplazan a los anteriores). El
+         *     telefono no se cambia: otro telefono es otro contacto.
+         */
+        patch: operations["update_contact_api_v1_contacts__contact_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/contacts/{contact_id}/campaigns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Contact Campaigns
+         * @description Las campañas en las que está el contacto, las más nuevas primero, con su resultado en cada una.
+         */
+        get: operations["contact_campaigns_api_v1_contacts__contact_id__campaigns_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/contacts/{contact_id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Archive Contact
+         * @description Archiva el contacto (no se borra). Sus intentos pendientes en campañas abiertas pasan a salteados.
+         */
+        post: operations["archive_contact_api_v1_contacts__contact_id__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/contacts/{contact_id}/unarchive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unarchive Contact
+         * @description Vuelve a activar un contacto archivado, si el tope de contactos del plan tiene lugar (429).
+         */
+        post: operations["unarchive_contact_api_v1_contacts__contact_id__unarchive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/wa-operators": {
         parameters: {
             query?: never;
@@ -2665,6 +3073,614 @@ export interface components {
             /** Limit */
             limit: number | null;
         };
+        /** CampaignContactOut */
+        CampaignContactOut: {
+            /** Id */
+            id: string;
+            /** Contact Id */
+            contact_id: string;
+            /** Phone */
+            phone: string;
+            /** Name */
+            name?: string | null;
+            /** Vars */
+            vars: {
+                [key: string]: unknown;
+            };
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "in_progress" | "retry" | "done" | "failed" | "skipped";
+            /**
+             * Result
+             * @description Voz: el resultado de la llamada. WhatsApp: sent, delivered, read, replied o failed
+             */
+            result?: string | null;
+            /** Error */
+            error?: {
+                [key: string]: unknown;
+            } | null;
+            /** Conversation Id */
+            conversation_id?: string | null;
+            /** Attempts */
+            attempts: number;
+            /** Next Attempt At */
+            next_attempt_at?: string | null;
+            /** Last Attempt At */
+            last_attempt_at?: string | null;
+            /** Sent At */
+            sent_at?: string | null;
+            /** Replied At */
+            replied_at?: string | null;
+        };
+        /** CampaignContactPage */
+        CampaignContactPage: {
+            /** Items */
+            items: components["schemas"]["CampaignContactOut"][];
+            /** Total */
+            total: number;
+        };
+        /** CampaignContactsAdded */
+        CampaignContactsAdded: {
+            /** Added */
+            added: number;
+            /** Skipped */
+            skipped: components["schemas"]["ContactRejected"][];
+        };
+        /**
+         * CampaignContactsIn
+         * @description Los contactos de la campaña, de una o varias fuentes a la vez. Los de `contacts` y `csv` tambien
+         *     se cargan en la agenda (upsert por telefono). Los archivados, repetidos y dados de baja no entran:
+         *     vuelven en `skipped`.
+         */
+        CampaignContactsIn: {
+            /**
+             * Contact Ids
+             * @description Contactos de la agenda
+             * @default []
+             */
+            contact_ids?: string[];
+            /**
+             * Tags
+             * @description Los contactos activos con alguna de estas etiquetas
+             * @default []
+             */
+            tags?: string[];
+            /**
+             * Contacts
+             * @description Contactos nuevos o a actualizar
+             * @default []
+             */
+            contacts?: components["schemas"]["ContactIn"][];
+            /**
+             * Csv
+             * @description CSV de contactos: como /contacts/import
+             */
+            csv?: string | null;
+            /**
+             * Recipients
+             * @description Solo WhatsApp: contactos con los valores de {{1}}, {{2}}... de la plantilla en orden
+             * @default []
+             */
+            recipients?: components["schemas"]["WaRecipientIn"][];
+        };
+        /** CampaignCreated */
+        CampaignCreated: {
+            /** Added */
+            added: number;
+            /** Skipped */
+            skipped: components["schemas"]["ContactRejected"][];
+            campaign: components["schemas"]["CampaignOut"];
+        };
+        /** CampaignHour */
+        CampaignHour: {
+            /**
+             * Hour
+             * @description Hora local (zona del campo timezone)
+             */
+            hour: number;
+            /**
+             * Attempts
+             * @description Llamadas marcadas (voz) o mensajes enviados (WhatsApp) en esa hora
+             */
+            attempts: number;
+            /**
+             * Reached
+             * @description De esas, las atendidas (voz) o las que respondieron (WhatsApp)
+             */
+            reached: number;
+        };
+        /**
+         * CampaignIn
+         * @description channel whatsapp: account_id y template_name (la plantilla aprobada); `param_names` dice que
+         *     dato de cada contacto completa {{1}}, {{2}}... (["nombre", "deuda"]). channel voice: agent_id y,
+         *     opcional, from_number_id, voice, concurrency (1: de a uno) y reintentos.
+         */
+        CampaignIn: {
+            /**
+             * Contact Ids
+             * @description Contactos de la agenda
+             * @default []
+             */
+            contact_ids?: string[];
+            /**
+             * Tags
+             * @description Los contactos activos con alguna de estas etiquetas
+             * @default []
+             */
+            tags?: string[];
+            /**
+             * Contacts
+             * @description Contactos nuevos o a actualizar
+             * @default []
+             */
+            contacts?: components["schemas"]["ContactIn"][];
+            /**
+             * Csv
+             * @description CSV de contactos: como /contacts/import
+             */
+            csv?: string | null;
+            /**
+             * Recipients
+             * @description Solo WhatsApp: contactos con los valores de {{1}}, {{2}}... de la plantilla en orden
+             * @default []
+             */
+            recipients?: components["schemas"]["WaRecipientIn"][];
+            /**
+             * Channel
+             * @enum {string}
+             */
+            channel: "whatsapp" | "voice";
+            /** Name */
+            name: string;
+            /**
+             * Client Id
+             * @description Solo admin, en voz (en WhatsApp sale del numero)
+             */
+            client_id?: string | null;
+            /**
+             * Agent Id
+             * @description Voz: obligatorio. WhatsApp: quien atiende las respuestas; sin el, el del numero
+             */
+            agent_id?: string | null;
+            /**
+             * Rate Per Minute
+             * @description Envios o arranques de llamada por minuto
+             * @default 20
+             */
+            rate_per_minute?: number;
+            /**
+             * Window Start
+             * @description Hora local de inicio (BILLING_TIMEZONE)
+             * @default 9
+             */
+            window_start?: number;
+            /**
+             * Window End
+             * @description Hora local de fin, sin incluir
+             * @default 20
+             */
+            window_end?: number;
+            /**
+             * Weekdays
+             * @description Dias permitidos, 0 lunes a 6 domingo; null: todos
+             */
+            weekdays?: number[] | null;
+            /**
+             * Starts At
+             * @description No arranca antes de esta fecha
+             */
+            starts_at?: string | null;
+            /**
+             * Ends At
+             * @description Termina pasada esta fecha
+             */
+            ends_at?: string | null;
+            /**
+             * Start
+             * @description Iniciarla de una vez, con los contactos del mismo pedido
+             * @default false
+             */
+            start?: boolean;
+            /**
+             * Purpose
+             * @description comercial, cobranza, turnos o aviso. La comercial se inicia confirmando el Registro No Llame
+             */
+            purpose?: ("comercial" | "cobranza" | "turnos" | "aviso") | null;
+            /**
+             * No Call Registry Checked
+             * @description Con `start`: la confirmacion del Registro No Llame
+             * @default false
+             */
+            no_call_registry_checked?: boolean;
+            /**
+             * Callback Url
+             * @description Webhook: un POST firmado por cada contacto que termina y otro al terminar la campaña
+             */
+            callback_url?: string | null;
+            /**
+             * Callback Secret
+             * @description Firma del webhook (HMAC-SHA256). Sin el, se genera uno y se muestra una sola vez
+             */
+            callback_secret?: string | null;
+            /**
+             * Account Id
+             * @description WhatsApp: numero que manda la campaña
+             */
+            account_id?: string | null;
+            /**
+             * Template Name
+             * @description WhatsApp: plantilla aprobada de la WABA del numero
+             */
+            template_name?: string | null;
+            /**
+             * Template Language
+             * @default es_AR
+             */
+            template_language?: string;
+            /**
+             * Param Names
+             * @description WhatsApp: atributo del contacto de cada variable de la plantilla
+             */
+            param_names?: string[] | null;
+            /**
+             * From Number Id
+             * @description Voz: numero del cliente que se muestra al llamar
+             */
+            from_number_id?: string | null;
+            /**
+             * Voice
+             * @description Voz: voz del TTS; sin ella, la del agente
+             */
+            voice?: string | null;
+            /**
+             * Concurrency
+             * @description Voz: llamadas simultaneas. 1: secuencial
+             * @default 1
+             */
+            concurrency?: number;
+            /**
+             * Max Attempts
+             * @description Voz: intentos por contacto (default 3)
+             */
+            max_attempts?: number | null;
+            /**
+             * Retry Minutes
+             * @description Voz: minutos entre intentos (default 60)
+             */
+            retry_minutes?: number | null;
+            /**
+             * Retry On
+             * @description Voz: resultados que se reintentan (default no_answer, busy, voicemail, failed)
+             */
+            retry_on?: ("answered" | "no_answer" | "busy" | "voicemail" | "invalid" | "rejected" | "failed")[] | null;
+            /** @description Voz: seguimiento por WhatsApp a quien no atendio; sin el, apagado */
+            followup?: components["schemas"]["FollowupIn"] | null;
+        };
+        /**
+         * CampaignOut
+         * @description La campaña y su avance (el polling: GET /campaigns/{id}). `results`: en voz, contactos por
+         *     resultado de la llamada; en WhatsApp, sent, delivered, read y replied (acumulativos: uno leido
+         *     tambien fue entregado y enviado).
+         */
+        CampaignOut: {
+            /** Id */
+            id: string;
+            /** Client Id */
+            client_id: string;
+            /** Client Name */
+            client_name?: string | null;
+            /**
+             * Channel
+             * @enum {string}
+             */
+            channel: "whatsapp" | "voice";
+            /** Name */
+            name: string;
+            /** Agent Id */
+            agent_id?: string | null;
+            /**
+             * Agent Name
+             * @description El de la campaña o, sin uno en WhatsApp, el del numero
+             */
+            agent_name?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "scheduled" | "running" | "paused" | "done" | "cancelled";
+            /** Status Reason */
+            status_reason?: string | null;
+            /**
+             * In Window
+             * @description Si ahora cae en el horario y los dias permitidos
+             */
+            in_window: boolean;
+            /** Rate Per Minute */
+            rate_per_minute: number;
+            /** Window Start */
+            window_start: number;
+            /** Window End */
+            window_end: number;
+            /** Weekdays */
+            weekdays?: number[] | null;
+            /** Timezone */
+            timezone: string;
+            /** Starts At */
+            starts_at?: string | null;
+            /** Ends At */
+            ends_at?: string | null;
+            /** Account Id */
+            account_id?: string | null;
+            /** Display Phone Number */
+            display_phone_number?: string | null;
+            /** Template Name */
+            template_name?: string | null;
+            /** Template Language */
+            template_language?: string | null;
+            /** Template Category */
+            template_category?: string | null;
+            /** Template Body */
+            template_body?: string | null;
+            /** Template Params */
+            template_params?: number | null;
+            /** Param Names */
+            param_names?: string[] | null;
+            /** From Number Id */
+            from_number_id?: string | null;
+            /** Voice */
+            voice?: string | null;
+            /** Concurrency */
+            concurrency?: number | null;
+            /** Max Attempts */
+            max_attempts?: number | null;
+            /** Retry Minutes */
+            retry_minutes?: number | null;
+            /** Retry On */
+            retry_on?: string[] | null;
+            /**
+             * Followup Config
+             * @description Voz: el seguimiento por WhatsApp configurado
+             */
+            followup_config?: {
+                [key: string]: unknown;
+            } | null;
+            /** Purpose */
+            purpose?: ("comercial" | "cobranza" | "turnos" | "aviso") | null;
+            /**
+             * Registry Confirmed
+             * @description Se confirmo el Registro No Llame (campañas comerciales)
+             * @default false
+             */
+            registry_confirmed?: boolean;
+            /** Callback Url */
+            callback_url?: string | null;
+            /**
+             * Callback Secret
+             * @description Solo en la respuesta que genera el secreto del webhook: no se vuelve a mostrar
+             */
+            callback_secret?: string | null;
+            /** Total */
+            total: number;
+            /**
+             * Percent
+             * @description Contactos que ya no esperan nada (terminados, fallidos o salteados)
+             */
+            percent: number;
+            /**
+             * Eta Minutes
+             * @description Al ritmo de los ultimos 15 minutos; null sin ritmo o fuera de curso
+             */
+            eta_minutes?: number | null;
+            progress: components["schemas"]["CampaignProgress"];
+            /** Results */
+            results: {
+                [key: string]: number;
+            };
+            /**
+             * Goal
+             * @description Voz: atendidas cuya conversacion llego al objetivo del agente (solo en GET /campaigns/{id}, no en la lista)
+             */
+            goal?: number | null;
+            /**
+             * Minutes Used
+             * @description Voz: minutos de llamada
+             */
+            minutes_used?: number | null;
+            /**
+             * Followup
+             * @description Voz con seguimiento: contactos pending, sent, replied (de los enviados), failed y skipped
+             */
+            followup?: {
+                [key: string]: number;
+            } | null;
+            /** Started At */
+            started_at?: string | null;
+            /** Finished At */
+            finished_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * CampaignPatch
+         * @description Solo los campos enviados, en una campaña que no termino. agent_id null en WhatsApp: el agente del numero.
+         */
+        CampaignPatch: {
+            /** Name */
+            name?: string | null;
+            /** Agent Id */
+            agent_id?: string | null;
+            /** Rate Per Minute */
+            rate_per_minute?: number | null;
+            /** Window Start */
+            window_start?: number | null;
+            /** Window End */
+            window_end?: number | null;
+            /** Weekdays */
+            weekdays?: number[] | null;
+            /** Starts At */
+            starts_at?: string | null;
+            /** Ends At */
+            ends_at?: string | null;
+            /** From Number Id */
+            from_number_id?: string | null;
+            /** Voice */
+            voice?: string | null;
+            /** Concurrency */
+            concurrency?: number | null;
+            /** Max Attempts */
+            max_attempts?: number | null;
+            /** Retry Minutes */
+            retry_minutes?: number | null;
+            /** Retry On */
+            retry_on?: ("answered" | "no_answer" | "busy" | "voicemail" | "invalid" | "rejected" | "failed")[] | null;
+            /**
+             * Purpose
+             * @description null: sin finalidad. Cambiarla pide la campaña pausada
+             */
+            purpose?: ("comercial" | "cobranza" | "turnos" | "aviso") | null;
+            /** @description Voz. null: apaga el seguimiento */
+            followup?: components["schemas"]["FollowupIn"] | null;
+            /**
+             * Callback Url
+             * @description null: apaga el webhook
+             */
+            callback_url?: string | null;
+            /**
+             * Callback Secret
+             * @description Rota la firma del webhook
+             */
+            callback_secret?: string | null;
+        };
+        /**
+         * CampaignPlanOut
+         * @description Lo que el plan del cliente permite en campañas y agenda (GET /campaigns/plan), para que la UI
+         *     deshabilite lo que no entra. None = sin tope; 0 = no incluido.
+         */
+        CampaignPlanOut: {
+            /** Client Id */
+            client_id: string;
+            /** Tier Name */
+            tier_name: string;
+            /** Channels */
+            channels: ("whatsapp" | "voice")[];
+            /** Followup */
+            followup: boolean;
+            /** Max Campaigns Per Month */
+            max_campaigns_per_month: number | null;
+            /**
+             * Campaigns Started
+             * @description Campañas iniciadas en el mes en curso
+             */
+            campaigns_started: number;
+            /** Max Campaign Contacts */
+            max_campaign_contacts: number | null;
+            /** Max Campaign Concurrency */
+            max_campaign_concurrency: number | null;
+            /** Max Contacts */
+            max_contacts: number | null;
+            /**
+             * Contacts Active
+             * @description Contactos activos de la agenda (los archivados no cuentan)
+             */
+            contacts_active: number;
+        };
+        /** CampaignProgress */
+        CampaignProgress: {
+            /** Pending */
+            pending: number;
+            /** In Progress */
+            in_progress: number;
+            /** Retry */
+            retry: number;
+            /** Done */
+            done: number;
+            /** Failed */
+            failed: number;
+            /** Skipped */
+            skipped: number;
+        };
+        /**
+         * CampaignStartIn
+         * @description Cuerpo opcional de start y resume.
+         */
+        CampaignStartIn: {
+            /**
+             * No Call Registry Checked
+             * @description Una campaña comercial se inicia confirmando que la lista se filtro contra el Registro No Llame
+             * @default false
+             */
+            no_call_registry_checked?: boolean;
+        };
+        /**
+         * CampaignStatsOut
+         * @description Indicadores de una campaña (GET /campaigns/{id}/stats). En voz, `attempts` son las llamadas
+         *     marcadas (con los reintentos) y `reached` las atendidas; en WhatsApp, los mensajes enviados y los
+         *     contactos que respondieron.
+         */
+        CampaignStatsOut: {
+            /** Campaign Id */
+            campaign_id: string;
+            /**
+             * Channel
+             * @enum {string}
+             */
+            channel: "whatsapp" | "voice";
+            /** Contacts */
+            contacts: number;
+            /** Attempts */
+            attempts: number;
+            /** Reached */
+            reached: number;
+            /**
+             * Contact Rate
+             * @description reached / attempts, en %
+             */
+            contact_rate: number;
+            /**
+             * Goal
+             * @description Conversaciones que llegaron al objetivo del agente
+             */
+            goal: number;
+            /**
+             * Goal Rate
+             * @description goal / reached, en %
+             */
+            goal_rate: number;
+            /**
+             * Avg Duration Seconds
+             * @description Voz: duracion media de las atendidas
+             */
+            avg_duration_seconds?: number | null;
+            /**
+             * Minutes
+             * @description Voz: minutos de llamada, con los intentos que no se atendieron
+             */
+            minutes?: number | null;
+            /**
+             * Results
+             * @description Voz: contactos por resultado. WhatsApp: sent, delivered, read y replied
+             */
+            results: {
+                [key: string]: number;
+            };
+            /**
+             * By Hour
+             * @description Las 24 horas del dia, para elegir el horario
+             */
+            by_hour: components["schemas"]["CampaignHour"][];
+            /** Timezone */
+            timezone: string;
+        };
         /**
          * ChatCompletionIn
          * @description Compatible con OpenAI. `model` se acepta (los SDK lo piden) pero lo fija la plataforma.
@@ -2836,6 +3852,238 @@ export interface components {
             tier_id?: string | null;
             /** Active */
             active?: boolean | null;
+        };
+        /**
+         * ContactCampaignOut
+         * @description Un contacto en una campaña, para su ficha (GET /contacts/{id}/campaigns).
+         */
+        ContactCampaignOut: {
+            /** Campaign Id */
+            campaign_id: string;
+            /** Campaign Name */
+            campaign_name: string;
+            /**
+             * Channel
+             * @enum {string}
+             */
+            channel: "whatsapp" | "voice";
+            /**
+             * Campaign Status
+             * @enum {string}
+             */
+            campaign_status: "draft" | "scheduled" | "running" | "paused" | "done" | "cancelled";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "in_progress" | "retry" | "done" | "failed" | "skipped";
+            /** Result */
+            result: string | null;
+            /** Attempts */
+            attempts: number;
+            /** Last Attempt At */
+            last_attempt_at: string | null;
+            /** Sent At */
+            sent_at: string | null;
+            /** Conversation Id */
+            conversation_id: string | null;
+        };
+        /**
+         * ContactImportIn
+         * @description CSV con encabezado: columna telefono (o celular, phone, whatsapp); nombre, email, external_id
+         *     y etiquetas (separadas por | o ;) opcionales; las demas columnas son atributos.
+         */
+        ContactImportIn: {
+            /** Csv */
+            csv: string;
+            /**
+             * Tags
+             * @description Etiquetas que se suman a todos
+             * @default []
+             */
+            tags?: string[];
+        };
+        /**
+         * ContactIn
+         * @description El telefono es lo unico obligatorio: E.164 o como se escribe (351 555-1234, +54 9 351 555-1234).
+         */
+        ContactIn: {
+            /**
+             * Phone
+             * @example +54 9 351 555-1234
+             * @example 3515551234
+             */
+            phone: string;
+            /** Name */
+            name?: string | null;
+            /** Email */
+            email?: string | null;
+            /**
+             * External Id
+             * @description Id en el sistema del cliente
+             */
+            external_id?: string | null;
+            /**
+             * Attributes
+             * @description Datos libres: {"deuda": 15000}
+             * @default {}
+             */
+            attributes?: {
+                [key: string]: string | number | boolean | null;
+            };
+            /**
+             * Tags
+             * @description Etiquetas: letras, numeros y _ . : -
+             * @default []
+             */
+            tags?: string[];
+        };
+        /** ContactOptoutIn */
+        ContactOptoutIn: {
+            /** Phone */
+            phone: string;
+            /**
+             * Channel
+             * @description Canal que no se contacta; all: todos
+             * @default all
+             * @enum {string}
+             */
+            channel?: "whatsapp" | "voice" | "all";
+        };
+        /** ContactOptoutOut */
+        ContactOptoutOut: {
+            /** Client Id */
+            client_id: string;
+            /** Phone */
+            phone: string;
+            /**
+             * Channel
+             * @enum {string}
+             */
+            channel: "whatsapp" | "voice" | "all";
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "keyword" | "outcome" | "manual";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** ContactOut */
+        ContactOut: {
+            /** Id */
+            id: string;
+            /** Client Id */
+            client_id: string;
+            /** Phone */
+            phone: string;
+            /** Name */
+            name: string | null;
+            /** Email */
+            email: string | null;
+            /** External Id */
+            external_id: string | null;
+            /** Attributes */
+            attributes: {
+                [key: string]: unknown;
+            };
+            /** Tags */
+            tags: string[];
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "manual" | "csv" | "api" | "campaign" | "inbound";
+            /** Archived At */
+            archived_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** ContactPage */
+        ContactPage: {
+            /** Items */
+            items: components["schemas"]["ContactOut"][];
+            /** Total */
+            total: number;
+        };
+        /**
+         * ContactPatch
+         * @description Solo los campos enviados. attributes y tags reemplazan a los anteriores; el telefono no se cambia.
+         */
+        ContactPatch: {
+            /** Name */
+            name?: string | null;
+            /** Email */
+            email?: string | null;
+            /** External Id */
+            external_id?: string | null;
+            /** Attributes */
+            attributes?: {
+                [key: string]: string | number | boolean | null;
+            } | null;
+            /** Tags */
+            tags?: string[] | null;
+        };
+        /** ContactRejected */
+        ContactRejected: {
+            /** Phone */
+            phone: string;
+            /** Reason */
+            reason: string;
+            /**
+             * Line
+             * @description Fila del CSV (la 1 es el encabezado)
+             */
+            line?: number | null;
+        };
+        /** ContactsArchiveIn */
+        ContactsArchiveIn: {
+            /**
+             * Contact Ids
+             * @default []
+             */
+            contact_ids?: string[];
+            /**
+             * Tags
+             * @description Archiva los que tengan alguna de estas etiquetas
+             * @default []
+             */
+            tags?: string[];
+        };
+        /** ContactsArchiveOut */
+        ContactsArchiveOut: {
+            /** Archived */
+            archived: number;
+        };
+        /** ContactsUpsertOut */
+        ContactsUpsertOut: {
+            /** Created */
+            created: number;
+            /** Updated */
+            updated: number;
+            /**
+             * Archived
+             * @description De los actualizados, cuantos estan archivados (no se desarchivan solos)
+             */
+            archived: number;
+            /** Invalid */
+            invalid: components["schemas"]["ContactRejected"][];
+            /**
+             * Contacts
+             * @description Los creados y actualizados
+             */
+            contacts: components["schemas"]["ContactOut"][];
         };
         /** ConversationIn */
         ConversationIn: {
@@ -3058,6 +4306,50 @@ export interface components {
             /** Tax Condition */
             tax_condition: ("ri" | "monotributo" | "exento" | "cf") | "";
         };
+        /**
+         * FollowupIn
+         * @description Seguimiento por WhatsApp de una campaña de voz: a quien termino sin atender (`after`) se le manda esta
+         *     plantilla despues del ultimo intento. Su respuesta abre la conversacion con `agent_id` o, sin el, el agente
+         *     de la campaña. Lo incluye el plan (`campaign_followup`).
+         */
+        FollowupIn: {
+            /**
+             * After
+             * @description Resultados finales de la llamada que disparan el seguimiento
+             * @default [
+             *       "no_answer",
+             *       "busy",
+             *       "voicemail"
+             *     ]
+             */
+            after?: ("no_answer" | "busy" | "voicemail" | "invalid" | "rejected" | "failed")[];
+            /**
+             * Account Id
+             * @description Numero de WhatsApp del cliente que manda la plantilla
+             */
+            account_id: string;
+            /**
+             * Template Name
+             * @description Plantilla aprobada de ese numero
+             */
+            template_name: string;
+            /**
+             * Template Language
+             * @default es_AR
+             */
+            template_language?: string;
+            /**
+             * Params
+             * @description Dato del contacto que completa cada variable ({{1}}, {{2}}...)
+             * @default []
+             */
+            params?: string[];
+            /**
+             * Agent Id
+             * @description Quien atiende las respuestas; sin el, el agente de la campaña
+             */
+            agent_id?: string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -3182,7 +4474,7 @@ export interface components {
              * Field
              * @enum {string}
              */
-            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit";
+            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts";
             /**
              * Mode
              * @enum {string}
@@ -3212,7 +4504,7 @@ export interface components {
              * Field
              * @enum {string}
              */
-            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit";
+            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts";
             /**
              * Mode
              * @enum {string}
@@ -3245,7 +4537,7 @@ export interface components {
              * Field
              * @enum {string}
              */
-            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit";
+            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts";
             /**
              * Tier
              * @description Valor del tier (null = ilimitado)
@@ -3721,6 +5013,24 @@ export interface components {
             max_phone_numbers: number | null;
             /** Api Rate Limit */
             api_rate_limit: number | null;
+            /**
+             * Campaign Channels
+             * @default []
+             */
+            campaign_channels?: ("whatsapp" | "voice")[];
+            /** Max Campaigns Per Month */
+            max_campaigns_per_month?: number | null;
+            /** Max Campaign Contacts */
+            max_campaign_contacts?: number | null;
+            /** Max Campaign Concurrency */
+            max_campaign_concurrency?: number | null;
+            /** Max Contacts */
+            max_contacts?: number | null;
+            /**
+             * Campaign Followup
+             * @default false
+             */
+            campaign_followup?: boolean;
         };
         /** PromptIn */
         PromptIn: {
@@ -4065,6 +5375,38 @@ export interface components {
              */
             api_rate_limit?: number | null;
             /**
+             * Campaign Channels
+             * @description Canales de campañas del plan: whatsapp, voice
+             * @default []
+             */
+            campaign_channels?: ("whatsapp" | "voice")[];
+            /**
+             * Max Campaigns Per Month
+             * @description Campañas iniciadas por mes calendario
+             */
+            max_campaigns_per_month?: number | null;
+            /**
+             * Max Campaign Contacts
+             * @description Contactos por campaña
+             */
+            max_campaign_contacts?: number | null;
+            /**
+             * Max Campaign Concurrency
+             * @description Llamadas simultaneas de una campaña de voz
+             */
+            max_campaign_concurrency?: number | null;
+            /**
+             * Max Contacts
+             * @description Contactos activos en la agenda (los archivados no cuentan)
+             */
+            max_contacts?: number | null;
+            /**
+             * Campaign Followup
+             * @description Puede activar el seguimiento por WhatsApp de las campañas de voz
+             * @default false
+             */
+            campaign_followup?: boolean;
+            /**
              * Price Ars
              * @description Precio mensual en pesos, lo que se cobra. null: no se vende por el dashboard; 0: gratis
              */
@@ -4114,6 +5456,18 @@ export interface components {
             api_stt_minutes: number | null;
             /** Api Rate Limit */
             api_rate_limit: number | null;
+            /** Campaign Channels */
+            campaign_channels: ("whatsapp" | "voice")[];
+            /** Max Campaigns Per Month */
+            max_campaigns_per_month: number | null;
+            /** Max Campaign Contacts */
+            max_campaign_contacts: number | null;
+            /** Max Campaign Concurrency */
+            max_campaign_concurrency: number | null;
+            /** Max Contacts */
+            max_contacts: number | null;
+            /** Campaign Followup */
+            campaign_followup: boolean;
             /** Price Ars */
             price_ars: number | null;
             /** Public */
@@ -4161,6 +5515,18 @@ export interface components {
             api_stt_minutes?: number | null;
             /** Api Rate Limit */
             api_rate_limit?: number | null;
+            /** Campaign Channels */
+            campaign_channels?: ("whatsapp" | "voice")[] | null;
+            /** Max Campaigns Per Month */
+            max_campaigns_per_month?: number | null;
+            /** Max Campaign Contacts */
+            max_campaign_contacts?: number | null;
+            /** Max Campaign Concurrency */
+            max_campaign_concurrency?: number | null;
+            /** Max Contacts */
+            max_contacts?: number | null;
+            /** Campaign Followup */
+            campaign_followup?: boolean | null;
             /** Price Ars */
             price_ars?: number | null;
             /** Public */
@@ -4498,6 +5864,11 @@ export interface components {
              * @default 20
              */
             window_end?: number;
+            /**
+             * Param Names
+             * @description Atributo del contacto que completa cada variable ({{1}} = el primero); un contacto sin `params` los toma de ahi
+             */
+            param_names?: string[] | null;
         };
         /** WaCampaignOut */
         WaCampaignOut: {
@@ -4534,7 +5905,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "draft" | "running" | "paused" | "done" | "cancelled";
+            status: "draft" | "scheduled" | "running" | "paused" | "done" | "cancelled";
             /** Status Reason */
             status_reason?: string | null;
             /** Rate Per Minute */
@@ -6545,6 +7916,8 @@ export interface operations {
                 /** @description Uno o varios (status=a&status=b) */
                 status?: string[] | null;
                 mode?: string | null;
+                /** @description Solo las llamadas y conversaciones de esa campaña */
+                campaign_id?: string | null;
                 limit?: number;
                 offset?: number;
             };
@@ -6748,6 +8121,8 @@ export interface operations {
                 date_to?: string | null;
                 /** @description Zona IANA de las fechas (ej. America/Argentina/Buenos_Aires); default BILLING_TIMEZONE */
                 tz?: string | null;
+                /** @description Solo las llamadas y conversaciones de esa campaña */
+                campaign_id?: string | null;
             };
             header?: never;
             path?: never;
@@ -6784,6 +8159,8 @@ export interface operations {
                 agent_id?: string | null;
                 /** @description Zona IANA de las fechas (ej. America/Argentina/Buenos_Aires); default BILLING_TIMEZONE */
                 tz?: string | null;
+                /** @description Solo las llamadas y conversaciones de esa campaña */
+                campaign_id?: string | null;
             };
             header?: never;
             path?: never;
@@ -7778,6 +9155,868 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_campaigns_api_v1_campaigns_get: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+                channel?: ("whatsapp" | "voice") | null;
+                status?: ("draft" | "scheduled" | "running" | "paused" | "done" | "cancelled") | null;
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_campaign_api_v1_campaigns_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CampaignIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    campaign_plan_api_v1_campaigns_plan_get: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignPlanOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_campaign_api_v1_campaigns__campaign_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_campaign_api_v1_campaigns__campaign_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_campaign_api_v1_campaigns__campaign_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CampaignPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_campaign_contacts_api_v1_campaigns__campaign_id__contacts_get: {
+        parameters: {
+            query?: {
+                status?: ("pending" | "in_progress" | "retry" | "done" | "failed" | "skipped") | null;
+                /** @description Voz: answered, no_answer, busy, voicemail, invalid, rejected o failed. WhatsApp: sent, delivered, read, replied o failed (el estado mas avanzado de cada uno) */
+                result?: string | null;
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignContactPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_contacts_api_v1_campaigns__campaign_id__contacts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CampaignContactsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignContactsAdded"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    campaign_stats_api_v1_campaigns__campaign_id__stats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignStatsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    campaign_report_api_v1_campaigns__campaign_id__report_csv_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_campaign_api_v1_campaigns__campaign_id__start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CampaignStartIn"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resume_campaign_api_v1_campaigns__campaign_id__resume_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CampaignStartIn"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pause_campaign_api_v1_campaigns__campaign_id__pause_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_campaign_api_v1_campaigns__campaign_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_contacts_api_v1_contacts_get: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+                /** @description Busca en nombre, telefono, email e id externo */
+                q?: string | null;
+                tag?: string | null;
+                /** @description false: activos; true: archivados; all: todos */
+                archived?: "false" | "true" | "all";
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upsert_contacts_api_v1_contacts_post: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContactIn"] | components["schemas"]["ContactIn"][];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactsUpsertOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_contacts_api_v1_contacts_import_post: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContactImportIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactsUpsertOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    archive_contacts_api_v1_contacts_archive_post: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContactsArchiveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactsArchiveOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_optouts_api_v1_contacts_optouts_get: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+                channel?: ("whatsapp" | "voice" | "all") | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactOptoutOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_optout_api_v1_contacts_optouts_post: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContactOptoutIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactOptoutOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_optout_api_v1_contacts_optouts__phone__delete: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+                /** @description Sin canal, de todos */
+                channel?: ("whatsapp" | "voice" | "all") | null;
+            };
+            header?: never;
+            path: {
+                phone: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_contact_api_v1_contacts__contact_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_contact_api_v1_contacts__contact_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContactPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    contact_campaigns_api_v1_contacts__contact_id__campaigns_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactCampaignOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    archive_contact_api_v1_contacts__contact_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unarchive_contact_api_v1_contacts__contact_id__unarchive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactOut"];
+                };
             };
             /** @description Validation Error */
             422: {

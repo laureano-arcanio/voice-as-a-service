@@ -20,6 +20,8 @@ UTCDateTime = Annotated[datetime.datetime,
 
 SLUG = r"^[a-z0-9][a-z0-9_]{0,63}$"
 E164 = r"^\+\d{8,15}$"
+CampaignChannel = Literal["whatsapp", "voice"]
+CampaignStatus = Literal["draft", "scheduled", "running", "paused", "done", "cancelled"]
 
 
 class ORM(BaseModel):
@@ -86,6 +88,13 @@ class TierIn(BaseModel):
     api_tts_minutes: int | None = Field(default=0, ge=0, description="Minutos de audio sintetizado por mes")
     api_stt_minutes: int | None = Field(default=0, ge=0, description="Minutos de audio transcripto por mes")
     api_rate_limit: int | None = Field(default=60, ge=0, description="Pedidos por minuto a la API de inferencia")
+    # Campañas y agenda de contactos (docs/LLAMADAS_SALIENTES_PLAN.md). None: ilimitado; 0: no incluido.
+    campaign_channels: list[CampaignChannel] = Field(default=[], description="Canales de campañas del plan: whatsapp, voice")
+    max_campaigns_per_month: int | None = Field(default=None, ge=0, description="Campañas iniciadas por mes calendario")
+    max_campaign_contacts: int | None = Field(default=None, ge=0, description="Contactos por campaña")
+    max_campaign_concurrency: int | None = Field(default=None, ge=0, description="Llamadas simultaneas de una campaña de voz")
+    max_contacts: int | None = Field(default=None, ge=0, description="Contactos activos en la agenda (los archivados no cuentan)")
+    campaign_followup: bool = Field(default=False, description="Puede activar el seguimiento por WhatsApp de las campañas de voz")
     # Autoservicio (docs/SUSCRIPCIONES_PLAN.md).
     price_ars: int | None = Field(default=None, ge=0,
                                   description="Precio mensual en pesos, lo que se cobra. null: no se vende por el dashboard; 0: gratis")
@@ -108,6 +117,12 @@ class TierUpdate(BaseModel):
     api_tts_minutes: int | None = Field(default=None, ge=0)
     api_stt_minutes: int | None = Field(default=None, ge=0)
     api_rate_limit: int | None = Field(default=None, ge=0)
+    campaign_channels: list[CampaignChannel] | None = None
+    max_campaigns_per_month: int | None = Field(default=None, ge=0)
+    max_campaign_contacts: int | None = Field(default=None, ge=0)
+    max_campaign_concurrency: int | None = Field(default=None, ge=0)
+    max_contacts: int | None = Field(default=None, ge=0)
+    campaign_followup: bool | None = None
     price_ars: int | None = Field(default=None, ge=0)
     public: bool | None = None
     sort: int | None = None
@@ -129,6 +144,12 @@ class TierOut(ORM):
     api_tts_minutes: int | None
     api_stt_minutes: int | None
     api_rate_limit: int | None
+    campaign_channels: list[CampaignChannel]
+    max_campaigns_per_month: int | None
+    max_campaign_contacts: int | None
+    max_campaign_concurrency: int | None
+    max_contacts: int | None
+    campaign_followup: bool
     price_ars: int | None
     public: bool
     sort: int
@@ -180,6 +201,7 @@ LimitField = Literal[
     "max_concurrent_calls", "max_calls_per_hour", "max_calls_per_day", "max_calls_per_month",
     "inbound_minutes", "outbound_minutes", "max_phone_numbers",
     "api_llm_input_tokens", "api_llm_output_tokens", "api_tts_minutes", "api_stt_minutes", "api_rate_limit",
+    "max_campaigns_per_month", "max_campaign_contacts", "max_campaign_concurrency", "max_contacts",
 ]
 
 
@@ -474,6 +496,10 @@ class WaCampaignIn(WaRecipientsIn):
     rate_per_minute: int = Field(default=20, ge=1, le=600)
     window_start: int = Field(default=9, ge=0, le=23, description="Hora local de inicio (BILLING_TIMEZONE)")
     window_end: int = Field(default=20, ge=1, le=24, description="Hora local de fin, sin incluir")
+    param_names: list[Annotated[str, Field(min_length=1, max_length=64)]] | None = Field(
+        default=None, max_length=20,
+        description="Atributo del contacto que completa cada variable ({{1}} = el primero); un contacto "
+                    "sin `params` los toma de ahi")
 
 
 class WaCampaignPatch(BaseModel):
@@ -512,7 +538,7 @@ class WaCampaignOut(BaseModel):
     template_category: str
     template_body: str
     template_params: int
-    status: Literal["draft", "running", "paused", "done", "cancelled"]
+    status: CampaignStatus
     status_reason: str | None = None
     rate_per_minute: int
     window_start: int
@@ -1115,6 +1141,13 @@ class PlanOut(ORM):
     outbound_minutes: int | None
     max_phone_numbers: int | None
     api_rate_limit: int | None
+    # Campañas y agenda (None = sin tope, 0 = no incluido).
+    campaign_channels: list[CampaignChannel] = []
+    max_campaigns_per_month: int | None = None
+    max_campaign_contacts: int | None = None
+    max_campaign_concurrency: int | None = None
+    max_contacts: int | None = None
+    campaign_followup: bool = False
 
 
 class SubscriptionOut(BaseModel):
@@ -1391,3 +1424,349 @@ class WaOperatorOut(ORM):
     name: str
     active: bool
     created_at: UTCDateTime
+
+
+# ---------- contactos (agenda del cliente, docs/LLAMADAS_SALIENTES_PLAN.md) ----------
+
+OptoutChannel = Literal["whatsapp", "voice", "all"]
+ContactSource = Literal["manual", "csv", "api", "campaign", "inbound"]
+ContactScalar = str | int | float | bool | None
+
+
+class ContactIn(BaseModel):
+    """El telefono es lo unico obligatorio: E.164 o como se escribe (351 555-1234, +54 9 351 555-1234)."""
+    phone: str = Field(min_length=3, max_length=32, examples=["+54 9 351 555-1234", "3515551234"])
+    name: str | None = Field(default=None, max_length=128)
+    email: str | None = Field(default=None, max_length=254)
+    external_id: str | None = Field(default=None, max_length=128, description="Id en el sistema del cliente")
+    attributes: dict[str, ContactScalar] = Field(default={}, description='Datos libres: {"deuda": 15000}')
+    tags: list[str] = Field(default=[], max_length=20, description="Etiquetas: letras, numeros y _ . : -")
+
+
+class ContactImportIn(BaseModel):
+    """CSV con encabezado: columna telefono (o celular, phone, whatsapp); nombre, email, external_id
+    y etiquetas (separadas por | o ;) opcionales; las demas columnas son atributos."""
+    csv: str = Field(min_length=1, max_length=900_000)
+    tags: list[str] = Field(default=[], max_length=20, description="Etiquetas que se suman a todos")
+
+
+class ContactPatch(BaseModel):
+    """Solo los campos enviados. attributes y tags reemplazan a los anteriores; el telefono no se cambia."""
+    name: str | None = Field(default=None, max_length=128)
+    email: str | None = Field(default=None, max_length=254)
+    external_id: str | None = Field(default=None, max_length=128)
+    attributes: dict[str, ContactScalar] | None = None
+    tags: list[str] | None = Field(default=None, max_length=20)
+
+
+class ContactOut(ORM):
+    id: str
+    client_id: str
+    phone: str
+    name: str | None
+    email: str | None
+    external_id: str | None
+    attributes: dict[str, Any]
+    tags: list[str]
+    source: ContactSource
+    archived_at: UTCDateTime | None
+    created_at: UTCDateTime
+    updated_at: UTCDateTime
+
+
+class ContactPage(BaseModel):
+    items: list[ContactOut]
+    total: int
+
+
+class ContactRejected(BaseModel):
+    phone: str
+    reason: str
+    line: int | None = Field(default=None, description="Fila del CSV (la 1 es el encabezado)")
+
+
+class ContactsUpsertOut(BaseModel):
+    created: int
+    updated: int
+    archived: int = Field(description="De los actualizados, cuantos estan archivados (no se desarchivan solos)")
+    invalid: list[ContactRejected]
+    contacts: list[ContactOut] = Field(description="Los creados y actualizados")
+
+
+class ContactsArchiveIn(BaseModel):
+    contact_ids: list[str] = Field(default=[], max_length=10_000)
+    tags: list[str] = Field(default=[], max_length=20, description="Archiva los que tengan alguna de estas etiquetas")
+
+
+class ContactsArchiveOut(BaseModel):
+    archived: int
+
+
+class ContactOptoutIn(BaseModel):
+    phone: str = Field(min_length=3, max_length=32)
+    channel: OptoutChannel = Field(default="all", description="Canal que no se contacta; all: todos")
+
+
+class ContactOptoutOut(BaseModel):
+    client_id: str
+    phone: str
+    channel: OptoutChannel
+    source: Literal["keyword", "outcome", "manual"]
+    created_at: UTCDateTime
+
+
+# ---------- campañas (WhatsApp y voz, docs/LLAMADAS_SALIENTES_PLAN.md) ----------
+
+CampaignContactStatus = Literal["pending", "in_progress", "retry", "done", "failed", "skipped"]
+VoiceResult = Literal["answered", "no_answer", "busy", "voicemail", "invalid", "rejected", "failed"]
+
+
+CampaignPurpose = Literal["comercial", "cobranza", "turnos", "aviso"]
+FollowupResult = Literal["no_answer", "busy", "voicemail", "invalid", "rejected", "failed"]
+
+
+class FollowupIn(BaseModel):
+    """Seguimiento por WhatsApp de una campaña de voz: a quien termino sin atender (`after`) se le manda esta
+    plantilla despues del ultimo intento. Su respuesta abre la conversacion con `agent_id` o, sin el, el agente
+    de la campaña. Lo incluye el plan (`campaign_followup`)."""
+    after: list[FollowupResult] = Field(default=["no_answer", "busy", "voicemail"], min_length=1, max_length=6,
+                                        description="Resultados finales de la llamada que disparan el seguimiento")
+    account_id: str = Field(description="Numero de WhatsApp del cliente que manda la plantilla")
+    template_name: str = Field(pattern=r"^[a-z0-9_]{1,512}$", description="Plantilla aprobada de ese numero")
+    template_language: str = Field(default="es_AR", pattern=r"^[a-z]{2,3}(_[A-Z]{2})?$")
+    params: list[Annotated[str, Field(min_length=1, max_length=64)]] = Field(
+        default=[], max_length=20, description="Dato del contacto que completa cada variable ({{1}}, {{2}}...)")
+    agent_id: str | None = Field(default=None, description="Quien atiende las respuestas; sin el, el agente de la campaña")
+
+
+class CampaignStartIn(BaseModel):
+    """Cuerpo opcional de start y resume."""
+    no_call_registry_checked: bool = Field(
+        default=False, description="Una campaña comercial se inicia confirmando que la lista se filtro contra el Registro No Llame")
+
+
+class CampaignContactsIn(BaseModel):
+    """Los contactos de la campaña, de una o varias fuentes a la vez. Los de `contacts` y `csv` tambien
+    se cargan en la agenda (upsert por telefono). Los archivados, repetidos y dados de baja no entran:
+    vuelven en `skipped`."""
+    contact_ids: list[str] = Field(default=[], max_length=10_000, description="Contactos de la agenda")
+    tags: list[str] = Field(default=[], max_length=20, description="Los contactos activos con alguna de estas etiquetas")
+    contacts: list[ContactIn] = Field(default=[], max_length=10_000, description="Contactos nuevos o a actualizar")
+    csv: str | None = Field(default=None, max_length=900_000, description="CSV de contactos: como /contacts/import")
+    recipients: list[WaRecipientIn] = Field(
+        default=[], max_length=10_000,
+        description="Solo WhatsApp: contactos con los valores de {{1}}, {{2}}... de la plantilla en orden")
+
+
+class CampaignIn(CampaignContactsIn):
+    """channel whatsapp: account_id y template_name (la plantilla aprobada); `param_names` dice que
+    dato de cada contacto completa {{1}}, {{2}}... (["nombre", "deuda"]). channel voice: agent_id y,
+    opcional, from_number_id, voice, concurrency (1: de a uno) y reintentos."""
+    channel: CampaignChannel
+    name: str = Field(min_length=1, max_length=128)
+    client_id: str | None = Field(default=None, description="Solo admin, en voz (en WhatsApp sale del numero)")
+    agent_id: str | None = Field(default=None, description="Voz: obligatorio. WhatsApp: quien atiende las respuestas; sin el, el del numero")
+    rate_per_minute: int = Field(default=20, ge=1, le=600, description="Envios o arranques de llamada por minuto")
+    window_start: int = Field(default=9, ge=0, le=23, description="Hora local de inicio (BILLING_TIMEZONE)")
+    window_end: int = Field(default=20, ge=1, le=24, description="Hora local de fin, sin incluir")
+    weekdays: list[int] | None = Field(default=None, max_length=7, description="Dias permitidos, 0 lunes a 6 domingo; null: todos")
+    starts_at: datetime.datetime | None = Field(default=None, description="No arranca antes de esta fecha")
+    ends_at: datetime.datetime | None = Field(default=None, description="Termina pasada esta fecha")
+    start: bool = Field(default=False, description="Iniciarla de una vez, con los contactos del mismo pedido")
+    purpose: CampaignPurpose | None = Field(
+        default=None, description="comercial, cobranza, turnos o aviso. La comercial se inicia confirmando el Registro No Llame")
+    no_call_registry_checked: bool = Field(default=False, description="Con `start`: la confirmacion del Registro No Llame")
+    callback_url: str | None = Field(
+        default=None, max_length=512, description="Webhook: un POST firmado por cada contacto que termina y otro al terminar la campaña")
+    callback_secret: str | None = Field(
+        default=None, min_length=16, max_length=128, description="Firma del webhook (HMAC-SHA256). Sin el, se genera uno y se muestra una sola vez")
+    # WhatsApp.
+    account_id: str | None = Field(default=None, description="WhatsApp: numero que manda la campaña")
+    template_name: str | None = Field(default=None, pattern=r"^[a-z0-9_]{1,512}$", description="WhatsApp: plantilla aprobada de la WABA del numero")
+    template_language: str = Field(default="es_AR", pattern=r"^[a-z]{2,3}(_[A-Z]{2})?$")
+    param_names: list[Annotated[str, Field(min_length=1, max_length=64)]] | None = Field(
+        default=None, max_length=20, description="WhatsApp: atributo del contacto de cada variable de la plantilla")
+    # Voz.
+    from_number_id: str | None = Field(default=None, description="Voz: numero del cliente que se muestra al llamar")
+    voice: str | None = Field(default=None, max_length=64, description="Voz: voz del TTS; sin ella, la del agente")
+    concurrency: int = Field(default=1, ge=1, le=100, description="Voz: llamadas simultaneas. 1: secuencial")
+    max_attempts: int | None = Field(default=None, ge=1, le=10, description="Voz: intentos por contacto (default 3)")
+    retry_minutes: int | None = Field(default=None, ge=1, le=10_080, description="Voz: minutos entre intentos (default 60)")
+    retry_on: list[VoiceResult] | None = Field(default=None, description="Voz: resultados que se reintentan (default no_answer, busy, voicemail, failed)")
+    followup: FollowupIn | None = Field(default=None, description="Voz: seguimiento por WhatsApp a quien no atendio; sin el, apagado")
+
+
+class CampaignPatch(BaseModel):
+    """Solo los campos enviados, en una campaña que no termino. agent_id null en WhatsApp: el agente del numero."""
+    name: str | None = Field(default=None, min_length=1, max_length=128)
+    agent_id: str | None = None
+    rate_per_minute: int | None = Field(default=None, ge=1, le=600)
+    window_start: int | None = Field(default=None, ge=0, le=23)
+    window_end: int | None = Field(default=None, ge=1, le=24)
+    weekdays: list[int] | None = Field(default=None, max_length=7)
+    starts_at: datetime.datetime | None = None
+    ends_at: datetime.datetime | None = None
+    from_number_id: str | None = None
+    voice: str | None = Field(default=None, max_length=64)
+    concurrency: int | None = Field(default=None, ge=1, le=100)
+    max_attempts: int | None = Field(default=None, ge=1, le=10)
+    retry_minutes: int | None = Field(default=None, ge=1, le=10_080)
+    retry_on: list[VoiceResult] | None = None
+    purpose: CampaignPurpose | None = Field(default=None, description="null: sin finalidad. Cambiarla pide la campaña pausada")
+    followup: FollowupIn | None = Field(default=None, description="Voz. null: apaga el seguimiento")
+    callback_url: str | None = Field(default=None, max_length=512, description="null: apaga el webhook")
+    callback_secret: str | None = Field(default=None, min_length=16, max_length=128, description="Rota la firma del webhook")
+
+
+class CampaignProgress(BaseModel):
+    pending: int
+    in_progress: int
+    retry: int
+    done: int
+    failed: int
+    skipped: int
+
+
+class CampaignOut(BaseModel):
+    """La campaña y su avance (el polling: GET /campaigns/{id}). `results`: en voz, contactos por
+    resultado de la llamada; en WhatsApp, sent, delivered, read y replied (acumulativos: uno leido
+    tambien fue entregado y enviado)."""
+    id: str
+    client_id: str
+    client_name: str | None = None
+    channel: CampaignChannel
+    name: str
+    agent_id: str | None = None
+    agent_name: str | None = Field(default=None, description="El de la campaña o, sin uno en WhatsApp, el del numero")
+    status: CampaignStatus
+    status_reason: str | None = None
+    in_window: bool = Field(description="Si ahora cae en el horario y los dias permitidos")
+    rate_per_minute: int
+    window_start: int
+    window_end: int
+    weekdays: list[int] | None = None
+    timezone: str
+    starts_at: UTCDateTime | None = None
+    ends_at: UTCDateTime | None = None
+    # WhatsApp.
+    account_id: str | None = None
+    display_phone_number: str | None = None
+    template_name: str | None = None
+    template_language: str | None = None
+    template_category: str | None = None
+    template_body: str | None = None
+    template_params: int | None = None
+    param_names: list[str] | None = None
+    # Voz.
+    from_number_id: str | None = None
+    voice: str | None = None
+    concurrency: int | None = None
+    max_attempts: int | None = None
+    retry_minutes: int | None = None
+    retry_on: list[str] | None = None
+    followup_config: dict[str, Any] | None = Field(default=None, description="Voz: el seguimiento por WhatsApp configurado")
+    # Finalidad y webhook.
+    purpose: CampaignPurpose | None = None
+    registry_confirmed: bool = Field(default=False, description="Se confirmo el Registro No Llame (campañas comerciales)")
+    callback_url: str | None = None
+    callback_secret: str | None = Field(
+        default=None, description="Solo en la respuesta que genera el secreto del webhook: no se vuelve a mostrar")
+    # Avance.
+    total: int
+    percent: float = Field(description="Contactos que ya no esperan nada (terminados, fallidos o salteados)")
+    eta_minutes: int | None = Field(default=None, description="Al ritmo de los ultimos 15 minutos; null sin ritmo o fuera de curso")
+    progress: CampaignProgress
+    results: dict[str, int]
+    goal: int | None = Field(default=None, description="Voz: atendidas cuya conversacion llego al objetivo del agente (solo en GET /campaigns/{id}, no en la lista)")
+    minutes_used: float | None = Field(default=None, description="Voz: minutos de llamada")
+    followup: dict[str, int] | None = Field(
+        default=None, description="Voz con seguimiento: contactos pending, sent, replied (de los enviados), failed y skipped")
+    started_at: UTCDateTime | None = None
+    finished_at: UTCDateTime | None = None
+    created_at: UTCDateTime
+    updated_at: UTCDateTime
+
+
+class CampaignContactsAdded(BaseModel):
+    added: int
+    skipped: list[ContactRejected]
+
+
+class CampaignCreated(CampaignContactsAdded):
+    campaign: CampaignOut
+
+
+class CampaignContactOut(BaseModel):
+    id: str
+    contact_id: str
+    phone: str
+    name: str | None = None
+    vars: dict[str, Any]
+    status: CampaignContactStatus
+    result: str | None = Field(default=None, description="Voz: el resultado de la llamada. WhatsApp: sent, delivered, read, replied o failed")
+    error: dict[str, Any] | None = None
+    conversation_id: str | None = None
+    attempts: int
+    next_attempt_at: UTCDateTime | None = None
+    last_attempt_at: UTCDateTime | None = None
+    sent_at: UTCDateTime | None = None
+    replied_at: UTCDateTime | None = None
+
+
+class CampaignContactPage(BaseModel):
+    items: list[CampaignContactOut]
+    total: int
+
+
+class CampaignHour(BaseModel):
+    hour: int = Field(ge=0, le=23, description="Hora local (zona del campo timezone)")
+    attempts: int = Field(description="Llamadas marcadas (voz) o mensajes enviados (WhatsApp) en esa hora")
+    reached: int = Field(description="De esas, las atendidas (voz) o las que respondieron (WhatsApp)")
+
+
+class CampaignStatsOut(BaseModel):
+    """Indicadores de una campaña (GET /campaigns/{id}/stats). En voz, `attempts` son las llamadas
+    marcadas (con los reintentos) y `reached` las atendidas; en WhatsApp, los mensajes enviados y los
+    contactos que respondieron."""
+    campaign_id: str
+    channel: CampaignChannel
+    contacts: int
+    attempts: int
+    reached: int
+    contact_rate: float = Field(description="reached / attempts, en %")
+    goal: int = Field(description="Conversaciones que llegaron al objetivo del agente")
+    goal_rate: float = Field(description="goal / reached, en %")
+    avg_duration_seconds: int | None = Field(default=None, description="Voz: duracion media de las atendidas")
+    minutes: float | None = Field(default=None, description="Voz: minutos de llamada, con los intentos que no se atendieron")
+    results: dict[str, int] = Field(description="Voz: contactos por resultado. WhatsApp: sent, delivered, read y replied")
+    by_hour: list[CampaignHour] = Field(description="Las 24 horas del dia, para elegir el horario")
+    timezone: str
+
+
+class CampaignPlanOut(BaseModel):
+    """Lo que el plan del cliente permite en campañas y agenda (GET /campaigns/plan), para que la UI
+    deshabilite lo que no entra. None = sin tope; 0 = no incluido."""
+    client_id: str
+    tier_name: str
+    channels: list[CampaignChannel]
+    followup: bool
+    max_campaigns_per_month: int | None
+    campaigns_started: int = Field(description="Campañas iniciadas en el mes en curso")
+    max_campaign_contacts: int | None
+    max_campaign_concurrency: int | None
+    max_contacts: int | None
+    contacts_active: int = Field(description="Contactos activos de la agenda (los archivados no cuentan)")
+
+
+class ContactCampaignOut(BaseModel):
+    """Un contacto en una campaña, para su ficha (GET /contacts/{id}/campaigns)."""
+    campaign_id: str
+    campaign_name: str
+    channel: CampaignChannel
+    campaign_status: CampaignStatus
+    status: Literal["pending", "in_progress", "retry", "done", "failed", "skipped"]
+    result: str | None
+    attempts: int
+    last_attempt_at: UTCDateTime | None
+    sent_at: UTCDateTime | None
+    conversation_id: str | None

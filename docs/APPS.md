@@ -57,7 +57,10 @@ dueño ◄── link ── apps.atentina.com.ar ── gateway (Atentina) ─�
   - `"view": {"name", "params"}` (v1.3): Atentina arma el link firmado a esa vista (con los parámetros
     que declara) y el LLM ve la marca `[[linkN]]` en lugar de `view`, como con `abrir_vista`. Para
     pedidos como "mostrame el perfil de X": el resumen va en el resultado y la página trae el resto;
-    una vista que la app no declara no da link;
+    una vista que la app no declara no da link. En WhatsApp el link sale como botón (mensaje
+    interactivo `cta_url`, `app/whatsapp/buttons.py`, 16-oct-2026): el texto sin la URL y el título de la
+    vista como rótulo; con varios links, el texto y un botón por link; si Meta lo rechaza, va el texto
+    con la URL. La conversación guarda la URL (el panel la muestra);
   - los ids se llaman `*_id`.
 - Hasta 20 herramientas por app y 400 caracteres por descripción. Las descripciones van en cada paso
   al LLM.

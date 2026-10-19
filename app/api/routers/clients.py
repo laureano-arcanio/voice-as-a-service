@@ -112,6 +112,7 @@ def update_client(client_id: str, body: ClientUpdate, p: AdminPrincipal, db: DB)
         tier = _tier(db, data.pop("tier_id"))
         phone_numbers.check_tier_fits(db, client, tier)
         client.tier = tier
+        limits.pause_campaigns_outside_plan(db, client, limits.effective_limits(db, client))
     for k, v in data.items():
         setattr(client, k, v)
     db.commit()

@@ -2,6 +2,7 @@ import json
 
 import yaml
 
+from app.conversation.contact import prompt_block, render_contact
 from app.conversation.models import ConversationState, Message, Workflow
 from app.conversation.workflow import pending_fields
 
@@ -173,8 +174,11 @@ def build_user_prompt(workflow: Workflow, state: ConversationState, user_message
     header = "NEW USER MESSAGE (nota de voz transcripta):" if media and media.user_voice_note else "NEW USER MESSAGE:"
     # La conversacion va antes del estado: crece al final y el resto no cambia,
     # asi vLLM reusa el prefijo (prefix caching) del turno anterior.
+    # Llamada de una campaña: los datos del contacto, fijos en toda la conversacion, van antes de ella.
+    contact = f"{render_contact(state.progress.contact)}\n\n" if state.progress.contact else ""
     return (
         f"WORKFLOW:\n{render_workflow(workflow)}\n"
+        f"{contact}"
         f"CONVERSATION:\n{render_conversation(state)}\n\n"
         f"CURRENT STATE:\n{json.dumps(current, ensure_ascii=False, indent=2)}\n\n"
         f"{header}\n{user_message}"
@@ -215,10 +219,11 @@ def describe_condition(when: dict) -> str:
     return " y ".join(f"{k} = {json.dumps(v, ensure_ascii=False)}" for k, v in when.items())
 
 
-def build_classic_system(workflow: Workflow, channel: str = "voice") -> str:
+def build_classic_system(workflow: Workflow, channel: str = "voice", state: ConversationState | None = None) -> str:
     """Todo el agente en un prompt de sistema, sacado del YAML. Con whatsapp
     cambia el medio, suma las reglas del canal y el saludo: el usuario escribe
-    primero y no hay apertura en la conversacion."""
+    primero y no hay apertura en la conversacion. Con el estado de una llamada de campaña suma
+    los datos del contacto y los campos que ya vienen cargados (fijos en la conversacion)."""
     whatsapp = channel == "whatsapp"
     where = "Estás conversando por WhatsApp (texto)" if whatsapp else "Estás en una llamada telefónica"
     reply = "Respondé solo con el texto del mensaje." if whatsapp else "Respondé solo con lo que decís en voz alta."
@@ -239,10 +244,11 @@ def build_classic_system(workflow: Workflow, channel: str = "voice") -> str:
     outcomes = [f"- {o.label}{' (si ' + describe_condition(o.when) + ')' if o.when else ' (en cualquier otro caso)'}: "
                 f"{' '.join(o.message.split())}" for o in workflow.completion.outcomes]
     rules = "\n".join(f"- {r}" for r in workflow.conversation.rules)
+    campaign = f"\n\n{block}" if (block := prompt_block(state)) else ""
     return f"""Sos {workflow.agent.name}, {workflow.agent.role}. {where}; idioma: {workflow.agent.language}.
 
 OBJETIVO:
-{workflow.objective.description.strip()}
+{workflow.objective.description.strip()}{campaign}
 
 DATOS A OBTENER, en este orden salvo que el usuario los dé antes. Los nombres son internos: nunca los digas. Las preguntas son sugerencias, reformulalas para que la conversación sea natural. No vuelvas a preguntar lo que el usuario ya respondió.
 {chr(10).join(fields)}
@@ -274,7 +280,7 @@ def build_classic_messages(workflow: Workflow, state: ConversationState, user_me
     content = _classic_text(user_message, bool(media and media.user_voice_note))
     if media and media.reply_voice_note:
         content += VOICE_NOTE_REPLY
-    return [{"role": "system", "content": build_classic_system(workflow, state.channel)}, *history,
+    return [{"role": "system", "content": build_classic_system(workflow, state.channel, state)}, *history,
             {"role": "user", "content": content}]
 
 

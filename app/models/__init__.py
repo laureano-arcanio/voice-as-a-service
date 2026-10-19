@@ -4,6 +4,13 @@ from .agents import Agent, AgentVersion
 from .apps import App, AppJobRun, AppLink
 from .billing import BillingPayment, Subscription
 from .calls import ACTIVE_CALL_STATUSES, CallMode, CallRow, CallStatus
+from .campaigns import (
+    Campaign,
+    CampaignCallback,
+    CampaignContact,
+    Contact,
+    ContactOptout,
+)
 from .contact import ContactRequest
 from .conversations import ConversationRow
 from .llm import LlmConnection
@@ -19,17 +26,43 @@ from .tenancy import (
 )
 from .whatsapp import (
     WaAccount,
-    WaCampaign,
-    WaCampaignRecipient,
     WaMessage,
     WaOperator,
-    WaOptout,
     WaRoute,
     WaThread,
 )
 
 __all__ = [
-    "ACTIVE_CALL_STATUSES", "Agent", "AgentVersion", "App", "AppJobRun", "AppLink", "ApiKey", "ApiUsageDaily", "BillingPayment", "CallMode", "CallRow", "CallStatus", "Client",
-    "ClientLimitAdjustment", "ContactRequest", "ConversationRow", "LlmConnection", "PhoneNumber", "Role", "Subscription", "Tier", "User", "WaAccount", "WaCampaign",
-    "WaCampaignRecipient", "WaMessage", "WaOperator", "WaOptout", "WaRoute", "WaThread",
+    "ACTIVE_CALL_STATUSES",
+    "Agent",
+    "AgentVersion",
+    "ApiKey",
+    "ApiUsageDaily",
+    "App",
+    "AppJobRun",
+    "AppLink",
+    "BillingPayment",
+    "CallMode",
+    "CallRow",
+    "CallStatus",
+    "Campaign",
+    "CampaignCallback",
+    "CampaignContact",
+    "Client",
+    "ClientLimitAdjustment",
+    "Contact",
+    "ContactOptout",
+    "ContactRequest",
+    "ConversationRow",
+    "LlmConnection",
+    "PhoneNumber",
+    "Role",
+    "Subscription",
+    "Tier",
+    "User",
+    "WaAccount",
+    "WaMessage",
+    "WaOperator",
+    "WaRoute",
+    "WaThread",
 ]

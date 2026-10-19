@@ -1,0 +1,777 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arquitectura · Atentina</title>
+<style>
+:root {
+  --bg:#f7f7f5; --panel:#fff; --fg:#1b1b1b; --muted:#666; --line:#e2e2dd; --line2:#9a9a94;
+  --accent:#1f5fbf; --accent-bg:#eaf1fc;
+  --ext-bg:#f1f1ee; --ext-bd:#8d8d86;
+  --edge-bg:#fdf1de; --edge-bd:#d99a2b;
+  --app-bg:#eaf1fc; --app-bd:#1f5fbf;
+  --data-bg:#e6f4ea; --data-bd:#2e8b4f;
+  --gpu-bg:#f0eafc; --gpu-bd:#7a4fd0;
+  --ok:#1e7a3c; --warn:#a15c00; --bad:#b3261e;
+}
+@media (prefers-color-scheme: dark) { :root {
+  --bg:#151515; --panel:#1f1f1f; --fg:#eaeaea; --muted:#a0a0a0; --line:#333; --line2:#777;
+  --accent:#7aa8ff; --accent-bg:#1d2a40;
+  --ext-bg:#2a2a28; --ext-bd:#8a8a84;
+  --edge-bg:#3a2d14; --edge-bd:#d9a64a;
+  --app-bg:#1d2a40; --app-bd:#7aa8ff;
+  --data-bg:#16301f; --data-bd:#5fcf85;
+  --gpu-bg:#2a2140; --gpu-bd:#a98bf0;
+  --ok:#5fcf85; --warn:#f0b04a; --bad:#ff8a80;
+} }
+* { box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
+main { max-width:1240px; margin:0 auto; padding:20px 16px 60px; }
+header h1 { font-size:26px; margin:0 0 4px; }
+header p { color:var(--muted); margin:0; }
+nav { position:sticky; top:0; z-index:5; background:var(--bg); border-bottom:1px solid var(--line); margin:14px -16px 0; padding:8px 16px; display:flex; gap:6px; flex-wrap:wrap; }
+nav a { color:var(--fg); text-decoration:none; font-size:13px; padding:4px 10px; border:1px solid var(--line); border-radius:999px; background:var(--panel); }
+nav a:hover { border-color:var(--accent); color:var(--accent); }
+section { margin-top:36px; scroll-margin-top:56px; }
+h2 { font-size:20px; margin:0 0 4px; }
+h3 { font-size:15px; margin:0 0 2px; }
+p.sub { color:var(--muted); margin:0 0 10px; font-size:13px; }
+code { font:12.5px ui-monospace,SFMono-Regular,Menlo,monospace; background:var(--accent-bg); padding:1px 5px; border-radius:4px; }
+.card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; }
+.svgwrap { overflow-x:auto; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:8px; margin:10px 0; }
+svg { display:block; width:100%; height:auto; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; }
+.box { fill:var(--panel); stroke:var(--line2); stroke-width:1.5; }
+.box.dashed, .zone.dashed { stroke-dasharray:6 4; }
+.c-ext { fill:var(--ext-bg); stroke:var(--ext-bd); }
+.c-edge { fill:var(--edge-bg); stroke:var(--edge-bd); }
+.c-app { fill:var(--app-bg); stroke:var(--app-bd); }
+.c-data { fill:var(--data-bg); stroke:var(--data-bd); }
+.c-gpu { fill:var(--gpu-bg); stroke:var(--gpu-bd); }
+.zone { fill:none; stroke:var(--line2); stroke-width:1.4; }
+.zone.z-gpu { stroke:var(--gpu-bd); }
+.t { font-size:13px; font-weight:650; fill:var(--fg); }
+.s { font-size:11.5px; fill:var(--muted); }
+.zt { font-size:11.5px; font-weight:700; letter-spacing:.06em; fill:var(--muted); }
+.lb { font-size:11px; fill:var(--muted); paint-order:stroke; stroke:var(--panel); stroke-width:4px; stroke-linejoin:round; }
+.ln { stroke:var(--muted); stroke-width:1.6; fill:none; }
+.ln.dash { stroke-dasharray:6 4; }
+.mk { fill:var(--muted); }
+.legend { display:flex; flex-wrap:wrap; gap:14px; font-size:12.5px; color:var(--muted); margin:6px 0 0; align-items:center; }
+.legend i { display:inline-block; width:14px; height:14px; border-radius:4px; border:1.5px solid; vertical-align:-2px; margin-right:5px; }
+.legend .ln-s, .legend .ln-d { display:inline-block; width:28px; border-top:2px solid var(--muted); vertical-align:middle; margin-right:5px; }
+.legend .ln-d { border-top-style:dashed; }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(270px,1fr)); gap:12px; margin-top:12px; }
+.grid .card h3 { margin-bottom:6px; }
+.grid ul { margin:0; padding-left:18px; font-size:13.5px; }
+.grid li { margin:3px 0; }
+.tag { display:inline-block; font-size:11.5px; font-weight:600; padding:1px 8px; border-radius:999px; border:1px solid; margin-left:6px; vertical-align:1px; }
+.tag.ok { color:var(--ok); } .tag.warn { color:var(--warn); } .tag.bad { color:var(--bad); }
+table { width:100%; border-collapse:collapse; font-size:13.5px; }
+th,td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+th { color:var(--muted); font-weight:600; font-size:12.5px; }
+.scroll { overflow-x:auto; }
+.banner { border-left:4px solid var(--warn); background:var(--edge-bg); padding:8px 12px; border-radius:6px; font-size:13.5px; margin:10px 0; }
+.flows { display:grid; gap:12px; }
+.flow { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; }
+ol.steps { list-style:none; counter-reset:s; display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 0; padding:0; }
+ol.steps li { counter-increment:s; flex:1 1 170px; max-width:260px; background:var(--accent-bg); border:1px solid var(--line); border-radius:10px; padding:8px 10px 8px 34px; position:relative; font-size:13px; }
+ol.steps li::before { content:counter(s); position:absolute; left:9px; top:8px; width:19px; height:19px; border-radius:50%; background:var(--accent); color:#fff; font-size:11.5px; font-weight:700; display:grid; place-items:center; }
+.fin { margin-top:10px; font-size:13px; color:var(--muted); }
+.layers { display:grid; grid-template-columns:2fr 1fr; gap:12px; }
+.layer { border:1.5px solid; border-radius:10px; padding:10px 14px; margin-bottom:8px; background:var(--panel); }
+.layer b { display:block; }
+.layer span { font-size:12.5px; color:var(--muted); }
+.l-app { border-color:var(--app-bd); background:var(--app-bg); }
+.l-data { border-color:var(--data-bd); background:var(--data-bg); }
+.l-edge { border-color:var(--edge-bd); background:var(--edge-bg); }
+.l-gpu { border-color:var(--gpu-bd); background:var(--gpu-bg); }
+.down { text-align:center; color:var(--muted); font-size:12px; margin:-2px 0 4px; }
+footer { margin-top:40px; color:var(--muted); font-size:12.5px; border-top:1px solid var(--line); padding-top:12px; }
+@media (max-width:760px) { .layers { grid-template-columns:1fr; } }
+@media print { nav { display:none; } .svgwrap { overflow:visible; } svg { min-width:0 !important; } }
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>Arquitectura de la plataforma de agentes de voz</h1>
+  <p>Inferencia propia (LLM, STT y TTS en GPUs locales), multi-cliente. Resumen visual de
+  <code>docs/ARQUITECTURA.md</code>, <code>AGENTS.md</code> y <code>docs/PRODUCCION.md</code> · 8-oct-2026.</p>
+</header>
+<nav>
+  <a href="#actual">1 · Componentes</a><a href="#redundancia">2 · Con redundancia</a>
+  <a href="#nube">3 · Telefonía en la nube</a><a href="#flujos">4 · Flujos</a><a href="#datos">5 · Modelo de datos</a>
+  <a href="#codigo">6 · Capas del código</a><a href="#seguridad">7 · Auth y límites</a>
+</nav>
+
+<section id="actual">
+  <h2>1 · Componentes: un server, hoy</h2>
+  <p class="sub">Todo corre en este host (<code>docker-compose.yml</code> + LiveKit propio + override del LLM). Lo único que sale a internet es el túnel de Cloudflare y los puertos del router.</p>
+  <div class="svgwrap"><svg viewBox="0 0 1200 750" style="min-width:980px" role="img" aria-label="Diagrama de componentes de la arquitectura actual" xmlns="http://www.w3.org/2000/svg"><defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk" d="M0 0L10 5L0 10z"/></marker></defs>
+<rect class="zone z-host dashed" x="430" y="40" width="750" height="700" rx="12"/>
+<text class="zt" x="444" y="60">ESTE SERVER</text>
+<text class="s" x="1166" y="60" text-anchor="end">Ryzen 7 5700X · 64 GB · 2 × RTX 3090 a 280 W</text>
+<text class="zt" x="20" y="30">AFUERA</text>
+<text class="zt" x="260" y="30">BORDE</text>
+<rect class="box c-ext" x="20" y="75" width="170" height="44" rx="8"/>
+<text class="t" x="105.0" y="94.5" text-anchor="middle">Teléfono (PSTN)</text>
+<text class="s" x="105.0" y="108.5" text-anchor="middle">quien llama o recibe</text>
+<rect class="box c-ext" x="20" y="145" width="170" height="50" rx="8"/>
+<text class="t" x="105.0" y="167.5" text-anchor="middle">Anura</text>
+<text class="s" x="105.0" y="181.5" text-anchor="middle">troncal SIP</text>
+<rect class="box c-ext" x="20" y="265" width="170" height="90" rx="8"/>
+<text class="t" x="105.0" y="300.0" text-anchor="middle">WhatsApp · Meta</text>
+<text class="s" x="105.0" y="314.0" text-anchor="middle">webhook de mensajes</text>
+<text class="s" x="105.0" y="329.0" text-anchor="middle">llamadas por SIP</text>
+<rect class="box c-ext" x="20" y="385" width="170" height="48" rx="8"/>
+<text class="t" x="105.0" y="406.5" text-anchor="middle">Visitante de la landing</text>
+<text class="s" x="105.0" y="420.5" text-anchor="middle">demo web (WebRTC)</text>
+<rect class="box c-ext" x="20" y="450" width="170" height="48" rx="8"/>
+<text class="t" x="105.0" y="471.5" text-anchor="middle">Dashboard</text>
+<text class="s" x="105.0" y="485.5" text-anchor="middle">navegador · cookie de sesión</text>
+<rect class="box c-ext" x="20" y="515" width="170" height="48" rx="8"/>
+<text class="t" x="105.0" y="536.5" text-anchor="middle">Sistemas del cliente</text>
+<text class="s" x="105.0" y="550.5" text-anchor="middle">API key vaas_…</text>
+<rect class="box c-ext" x="20" y="610" width="170" height="60" rx="8"/>
+<text class="t" x="105.0" y="630.0" text-anchor="middle">Servicios externos</text>
+<text class="s" x="105.0" y="644.0" text-anchor="middle">Graph API · Resend</text>
+<text class="s" x="105.0" y="659.0" text-anchor="middle">Turnstile</text>
+<rect class="box c-edge" x="260" y="60" width="140" height="250" rx="8"/>
+<text class="t" x="330.0" y="130.0" text-anchor="middle">Router · IP fija</text>
+<text class="s" x="330.0" y="144.0" text-anchor="middle">181.104.113.28</text>
+<text class="s" x="330.0" y="159.0" text-anchor="middle"></text>
+<text class="s" x="330.0" y="174.0" text-anchor="middle">RTP 10000-10199</text>
+<text class="s" x="330.0" y="189.0" text-anchor="middle">(Anura)</text>
+<text class="s" x="330.0" y="204.0" text-anchor="middle">TCP 5061</text>
+<text class="s" x="330.0" y="219.0" text-anchor="middle">(SIP de WhatsApp)</text>
+<text class="s" x="330.0" y="234.0" text-anchor="middle">UDP 7882 · TCP 7881</text>
+<text class="s" x="330.0" y="249.0" text-anchor="middle">(medios de la demo)</text>
+<rect class="box c-edge" x="260" y="325" width="140" height="250" rx="8"/>
+<text class="t" x="330.0" y="395.0" text-anchor="middle">Cloudflare Tunnel</text>
+<text class="s" x="330.0" y="409.0" text-anchor="middle">contenedor cloudflared</text>
+<text class="s" x="330.0" y="424.0" text-anchor="middle"></text>
+<text class="s" x="330.0" y="439.0" text-anchor="middle">app.  → dashboard</text>
+<text class="s" x="330.0" y="454.0" text-anchor="middle">api.  → /api/v1/demo</text>
+<text class="s" x="330.0" y="469.0" text-anchor="middle">wa.   → /wa/webhook</text>
+<text class="s" x="330.0" y="484.0" text-anchor="middle">rtc.  → LiveKit</text>
+<text class="s" x="330.0" y="499.0" text-anchor="middle"></text>
+<text class="s" x="330.0" y="514.0" text-anchor="middle">sin 443 en el router</text>
+<rect class="box c-app" x="455" y="78" width="170" height="60" rx="8"/>
+<text class="t" x="540.0" y="98.0" text-anchor="middle">Asterisk</text>
+<text class="s" x="540.0" y="112.0" text-anchor="middle">puente SIP</text>
+<text class="s" x="540.0" y="127.0" text-anchor="middle">network_mode: host</text>
+<rect class="box c-app" x="455" y="175" width="170" height="80" rx="8"/>
+<text class="t" x="540.0" y="205.0" text-anchor="middle">LiveKit + SIP</text>
+<text class="s" x="540.0" y="219.0" text-anchor="middle">server v1.13 · sip v1.17</text>
+<text class="s" x="540.0" y="234.0" text-anchor="middle">Redis sin persistencia</text>
+<rect class="box c-app" x="700" y="175" width="170" height="80" rx="8"/>
+<text class="t" x="785.0" y="205.0" text-anchor="middle">agent</text>
+<text class="s" x="785.0" y="219.0" text-anchor="middle">worker de voz</text>
+<text class="s" x="785.0" y="234.0" text-anchor="middle">STT → motor → TTS</text>
+<rect class="box c-app" x="455" y="345" width="170" height="100" rx="8"/>
+<text class="t" x="540.0" y="377.5" text-anchor="middle">app :8011</text>
+<text class="s" x="540.0" y="391.5" text-anchor="middle">FastAPI /api/v1 + SPA</text>
+<text class="s" x="540.0" y="406.5" text-anchor="middle">dispatch, cuotas, WhatsApp</text>
+<text class="s" x="540.0" y="421.5" text-anchor="middle">1 solo worker de uvicorn</text>
+<rect class="box c-data" x="455" y="500" width="170" height="70" rx="8"/>
+<text class="t" x="540.0" y="525.0" text-anchor="middle">PostgreSQL 16</text>
+<text class="s" x="540.0" y="539.0" text-anchor="middle">estado de todo</text>
+<text class="s" x="540.0" y="554.0" text-anchor="middle">migrate: alembic + seed</text>
+<rect class="box c-edge" x="700" y="610" width="170" height="60" rx="8"/>
+<text class="t" x="785.0" y="630.0" text-anchor="middle">proxy nginx :8100</text>
+<text class="s" x="785.0" y="644.0" text-anchor="middle">/llm  /stt  /tts</text>
+<text class="s" x="785.0" y="659.0" text-anchor="middle">modo remoto (HTTP plano)</text>
+<rect class="zone z-gpu" x="930" y="75" width="235" height="140" rx="12"/>
+<text class="zt" x="944" y="95">GPU 0 · RTX 3090</text>
+<rect class="box c-gpu" x="945" y="105" width="205" height="90" rx="8"/>
+<text class="t" x="1047.5" y="132.5" text-anchor="middle">vllm-llm</text>
+<text class="s" x="1047.5" y="146.5" text-anchor="middle">Gemma 4 26B-A4B · 4 bits</text>
+<text class="s" x="1047.5" y="161.5" text-anchor="middle">32 secuencias · ctx 16384</text>
+<text class="s" x="1047.5" y="176.5" text-anchor="middle">0,90 de la GPU</text>
+<rect class="zone z-gpu" x="930" y="250" width="235" height="270" rx="12"/>
+<text class="zt" x="944" y="270">GPU 1 · RTX 3090</text>
+<text class="s" x="1151" y="270" text-anchor="end">+ escritorio</text>
+<rect class="box c-gpu" x="945" y="280" width="205" height="80" rx="8"/>
+<text class="t" x="1047.5" y="310.0" text-anchor="middle">stt-parakeet</text>
+<text class="s" x="1047.5" y="324.0" text-anchor="middle">Parakeet TDT 0.6B v3</text>
+<text class="s" x="1047.5" y="339.0" text-anchor="middle">batching dinámico · ~1,6 GB</text>
+<rect class="box c-gpu" x="945" y="385" width="205" height="105" rx="8"/>
+<text class="t" x="1047.5" y="420.0" text-anchor="middle">vllm-tts</text>
+<text class="s" x="1047.5" y="434.0" text-anchor="middle">Qwen3-TTS 1.7B fine-tuneado</text>
+<text class="s" x="1047.5" y="449.0" text-anchor="middle">41 voces en un checkpoint</text>
+<text class="s" x="1047.5" y="464.0" text-anchor="middle">0,4 de la GPU</text>
+<path class="ln" d="M105 119 V145" marker-end="url(#a)"/>
+<path class="ln" d="M190 170 H260" marker-end="url(#a)" marker-start="url(#a)"/>
+<text class="lb" x="225" y="163" text-anchor="middle">SIP</text>
+<path class="ln" d="M190 285 H260" marker-end="url(#a)" marker-start="url(#a)"/>
+<text class="lb" x="225" y="278" text-anchor="middle">TLS</text>
+<path class="ln" d="M400 105 H455" marker-end="url(#a)" marker-start="url(#a)"/>
+<path class="ln" d="M400 200 H455" marker-end="url(#a)" marker-start="url(#a)"/>
+<path class="ln" d="M540 138 V175" marker-end="url(#a)" marker-start="url(#a)"/>
+<text class="lb" x="548" y="160" text-anchor="start">SIP</text>
+<path class="ln" d="M625 215 H700" marker-end="url(#a)"/>
+<text class="lb" x="662" y="208" text-anchor="middle">job</text>
+<path class="ln" d="M190 335 H260" marker-end="url(#a)"/>
+<text class="lb" x="225" y="328" text-anchor="middle">webhook</text>
+<path class="ln" d="M190 409 H260" marker-end="url(#a)" marker-start="url(#a)"/>
+<path class="ln" d="M190 474 H260" marker-end="url(#a)" marker-start="url(#a)"/>
+<path class="ln" d="M190 539 H260" marker-end="url(#a)" marker-start="url(#a)"/>
+<path class="ln" d="M400 415 H455" marker-end="url(#a)" marker-start="url(#a)"/>
+<path class="ln dash" d="M400 345 H442 V240 H455" marker-end="url(#a)"/>
+<text class="lb" x="436" y="300" text-anchor="end">rtc.</text>
+<path class="ln" d="M540 345 V255" marker-end="url(#a)"/>
+<text class="lb" x="548" y="300" text-anchor="start">dispatch</text>
+<path class="ln" d="M540 445 V500" marker-end="url(#a)" marker-start="url(#a)"/>
+<path class="ln" d="M720 255 V535 H625" marker-end="url(#a)"/>
+<text class="lb" x="728" y="480" text-anchor="start">estado</text>
+<path class="ln dash" d="M455 430 H420 V640 H190" marker-end="url(#a)"/>
+<text class="lb" x="305" y="632" text-anchor="middle">salidas de app</text>
+<path class="ln" d="M900 150 V640"/>
+<path class="ln" d="M870 215 H900"/>
+<path class="ln" d="M625 395 H900"/>
+<path class="ln dash" d="M870 640 H900"/>
+<path class="ln" d="M900 150 H945" marker-end="url(#a)"/>
+<path class="ln" d="M900 320 H945" marker-end="url(#a)"/>
+<path class="ln" d="M900 437 H945" marker-end="url(#a)"/>
+<text class="lb" x="890" y="120" text-anchor="end">API OpenAI</text>
+<text class="lb" x="890" y="133" text-anchor="end">Bearer VLLM_API_KEY</text>
+</svg></div>
+  <div class="legend"><span><i style="background:var(--ext-bg);border-color:var(--ext-bd)"></i>Externo</span><span><i style="background:var(--edge-bg);border-color:var(--edge-bd)"></i>Borde / red</span><span><i style="background:var(--app-bg);border-color:var(--app-bd)"></i>Aplicación</span><span><i style="background:var(--data-bg);border-color:var(--data-bd)"></i>Datos</span><span><i style="background:var(--gpu-bg);border-color:var(--gpu-bd)"></i>Inferencia (GPU)</span><span><span class="ln-s"></span>tráfico</span><span><span class="ln-d"></span>opcional, a confirmar o pasivo</span></div>
+  <div class="grid">
+    <div class="card"><h3>Procesos de la app</h3><ul>
+      <li><code>migrate</code>: una vez, <code>alembic upgrade head</code> + seed</li>
+      <li><code>app</code>: API <code>/api/v1</code>, SPA, dispatch a LiveKit, webhook de WhatsApp</li>
+      <li><code>agent</code>: worker de LiveKit Agents (misma imagen que <code>app</code>)</li>
+      <li><code>db</code>: PostgreSQL 16, estado de todo</li></ul></div>
+    <div class="card"><h3>Reparto de GPU</h3><ul>
+      <li>GPU 0: <code>vllm-llm</code> solo (Gemma 4 26B desde el 6-oct)</li>
+      <li>GPU 1: TTS 0,4 + STT ~1,6 GB + escritorio</li>
+      <li>El TTS no comparte GPU con el LLM ni con otra réplica</li>
+      <li>Tope de 280 W y 1800 MHz por GPU en cada arranque</li></ul></div>
+    <div class="card"><h3>Capacidad <span class="tag warn">sin medir</span></h3><ul>
+      <li>Con Gemma 4 26B no hay CAP: el KV cache es ~5 veces menor</li>
+      <li>Con Qwen3.5-9B (CAP-001): ~32 llamadas con p95 ≤ 3 s</li>
+      <li>Con ~110 llamadas el talker del TTS se cae y no se recupera solo</li></ul></div>
+    <div class="card"><h3>Puntos únicos de falla</h3><ul>
+      <li>Un solo server, una GPU por servicio, una IP fija</li>
+      <li>Un solo worker de uvicorn (debounce y locks en memoria)</li>
+      <li>Redis de LiveKit sin persistencia: un reinicio borra los trunks SIP</li>
+      <li>Backups solo en disco local</li></ul></div>
+  </div>
+</section>
+
+<section id="redundancia">
+  <h2>2 · Misma arquitectura, con redundancia (relay)</h2>
+  <p class="sub">Dos servers activos que se reparten la carga, dos salidas a internet (A: fibra con la única IP fija; B: Starlink o punto a punto) y un relay en la nube con IP pública. Si cae A, todo sigue por B.</p>
+  <div class="banner"><b>Propuesta, no implementada.</b> Cambia dos decisiones de <code>docs/PRODUCCION.md</code> §5: <code>app</code> pasa de activo-pasivo a activo-activo y el failover de la base pasa de manual a automático. Lo punteado es nuevo, pasivo o a confirmar.</div>
+  <div class="svgwrap"><svg viewBox="0 0 1280 900" style="min-width:1040px" role="img" aria-label="Diagrama de la arquitectura con redundancia" xmlns="http://www.w3.org/2000/svg"><defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk" d="M0 0L10 5L0 10z"/></marker></defs>
+<rect class="box c-ext" x="30" y="40" width="250" height="44" rx="8"/>
+<text class="t" x="155.0" y="59.5" text-anchor="middle">Anura (PSTN)</text>
+<text class="s" x="155.0" y="73.5" text-anchor="middle">troncal SIP por registro</text>
+<rect class="box c-ext" x="310" y="40" width="260" height="44" rx="8"/>
+<text class="t" x="440.0" y="59.5" text-anchor="middle">WhatsApp · Meta</text>
+<text class="s" x="440.0" y="73.5" text-anchor="middle">webhook, Graph API y SIP</text>
+<rect class="box c-ext" x="690" y="40" width="270" height="44" rx="8"/>
+<text class="t" x="825.0" y="59.5" text-anchor="middle">Dashboard · landing · API</text>
+<text class="s" x="825.0" y="73.5" text-anchor="middle">navegador y sistemas del cliente</text>
+<rect class="box c-ext dashed" x="1000" y="40" width="250" height="44" rx="8"/>
+<text class="t" x="1125.0" y="59.5" text-anchor="middle">Monitoreo externo</text>
+<text class="s" x="1125.0" y="73.5" text-anchor="middle">sondeo cada minuto</text>
+<rect class="box c-edge dashed" x="30" y="130" width="590" height="96" rx="8"/>
+<text class="t" x="325.0" y="160.5" text-anchor="middle">Relay en la nube · IP pública fija (nuevo)</text>
+<text class="s" x="325.0" y="174.5" text-anchor="middle">balanceador SIP: registro con Anura y reparto de llamadas entre los servers</text>
+<text class="s" x="325.0" y="189.5" text-anchor="middle">reenvío de los medios de la demo (UDP 7882 · TCP 7881) y SIP TLS :5061</text>
+<text class="s" x="325.0" y="204.5" text-anchor="middle">testigo de Postgres · a diseñar y medir</text>
+<rect class="box c-edge" x="650" y="130" width="600" height="56" rx="8"/>
+<text class="t" x="950.0" y="148.0" text-anchor="middle">Cloudflare Tunnel</text>
+<text class="s" x="950.0" y="162.0" text-anchor="middle">un conector en cada server, los dos reciben pedidos</text>
+<text class="s" x="950.0" y="177.0" text-anchor="middle">salen por la conexión que esté viva</text>
+<path class="ln" d="M155 84 V130" marker-end="url(#a)" marker-start="url(#a)"/>
+<path class="ln" d="M380 84 V130" marker-end="url(#a)" marker-start="url(#a)"/>
+<text class="lb" x="388" y="112" text-anchor="start">SIP TLS</text>
+<path class="ln" d="M545 84 V106 H700 V130" marker-end="url(#a)"/>
+<text class="lb" x="622" y="100" text-anchor="middle">webhook</text>
+<path class="ln" d="M820 84 V130" marker-end="url(#a)" marker-start="url(#a)"/>
+<path class="ln dash" d="M1125 84 V130" marker-end="url(#a)"/>
+<text class="lb" x="1118" y="112" text-anchor="end">sondeo</text>
+<rect class="box c-edge" x="30" y="290" width="1220" height="60" rx="8"/>
+<text class="t" x="640.0" y="325.0" text-anchor="middle"></text>
+<text class="t" x="270" y="315" text-anchor="middle">Conexión A · fibra con IP fija</text>
+<text class="s" x="270" y="333" text-anchor="middle">ya no es obligatoria para la telefonía</text>
+<text class="t" x="620" y="315" text-anchor="middle">Conexión B · Starlink o punto a punto</text>
+<text class="s" x="620" y="333" text-anchor="middle">sin IP fija ni entrantes (CGNAT)</text>
+<text class="t" x="1000" y="315" text-anchor="middle">Router con failover + UPS</text>
+<text class="s" x="1000" y="333" text-anchor="middle">UPS también para router y ONT</text>
+<path class="ln" d="M330 226 V290" marker-end="url(#a)" marker-start="url(#a)"/>
+<text class="lb" x="338" y="262" text-anchor="start">WireGuard (saliente)</text>
+<path class="ln" d="M900 186 V290" marker-end="url(#a)" marker-start="url(#a)"/>
+<text class="lb" x="908" y="240" text-anchor="start">cloudflared (saliente)</text>
+<rect class="zone z-host" x="30" y="400" width="560" height="380" rx="12"/>
+<text class="zt" x="44" y="420">SERVER A</text>
+<text class="s" x="576" y="420" text-anchor="end">activo · 2 × RTX 3090 + UPS</text>
+<rect class="box c-app" x="50" y="455" width="150" height="55" rx="8"/>
+<text class="t" x="125.0" y="480.0" text-anchor="middle">Asterisk</text>
+<text class="s" x="125.0" y="494.0" text-anchor="middle">puente SIP</text>
+<rect class="box c-app" x="50" y="550" width="150" height="60" rx="8"/>
+<text class="t" x="125.0" y="577.5" text-anchor="middle">LiveKit + SIP</text>
+<text class="s" x="125.0" y="591.5" text-anchor="middle">propio · Redis local</text>
+<rect class="box c-app" x="235" y="550" width="150" height="60" rx="8"/>
+<text class="t" x="310.0" y="577.5" text-anchor="middle">agent</text>
+<text class="s" x="310.0" y="591.5" text-anchor="middle">worker de voz</text>
+<rect class="box c-app" x="420" y="455" width="150" height="55" rx="8"/>
+<text class="t" x="495.0" y="472.5" text-anchor="middle">app :8011</text>
+<text class="s" x="495.0" y="486.5" text-anchor="middle">ACTIVO</text>
+<text class="s" x="495.0" y="501.5" text-anchor="middle">+ cloudflared</text>
+<rect class="box c-data" x="420" y="550" width="150" height="60" rx="8"/>
+<text class="t" x="495.0" y="577.5" text-anchor="middle">PostgreSQL</text>
+<text class="s" x="495.0" y="591.5" text-anchor="middle">primario</text>
+<rect class="box c-gpu" x="50" y="660" width="250" height="70" rx="8"/>
+<text class="t" x="175.0" y="692.5" text-anchor="middle">GPU 0 · 3090</text>
+<text class="s" x="175.0" y="706.5" text-anchor="middle">vllm-llm · Gemma 4 26B</text>
+<rect class="box c-gpu" x="320" y="660" width="250" height="70" rx="8"/>
+<text class="t" x="445.0" y="692.5" text-anchor="middle">GPU 1 · 3090</text>
+<text class="s" x="445.0" y="706.5" text-anchor="middle">stt-parakeet + vllm-tts</text>
+<text class="s" x="50" y="762">~32 llamadas por server (CAP-001 con Qwen; Gemma sin medir)</text>
+<path class="ln" d="M125 510 V550" marker-end="url(#a)" marker-start="url(#a)"/>
+<path class="ln" d="M200 580 H235" marker-end="url(#a)" marker-start="url(#a)"/>
+<path class="ln" d="M385 580 H420" marker-end="url(#a)" marker-start="url(#a)"/>
+<path class="ln" d="M495 510 V550" marker-end="url(#a)" marker-start="url(#a)"/>
+<path class="ln" d="M310 610 V635 H175 V660" marker-end="url(#a)"/>
+<path class="ln" d="M310 635 H445 V660" marker-end="url(#a)"/>
+<rect class="zone z-host" x="690" y="400" width="560" height="380" rx="12"/>
+<text class="zt" x="704" y="420">SERVER B</text>
+<text class="s" x="1236" y="420" text-anchor="end">activo · idéntico a A + UPS</text>
+<rect class="box c-app" x="1080" y="455" width="150" height="55" rx="8"/>
+<text class="t" x="1155.0" y="480.0" text-anchor="middle">Asterisk</text>
+<text class="s" x="1155.0" y="494.0" text-anchor="middle">puente SIP</text>
+<rect class="box c-app" x="1080" y="550" width="150" height="60" rx="8"/>
+<text class="t" x="1155.0" y="577.5" text-anchor="middle">LiveKit + SIP</text>
+<text class="s" x="1155.0" y="591.5" text-anchor="middle">propio · Redis local</text>
+<rect class="box c-app" x="895" y="550" width="150" height="60" rx="8"/>
+<text class="t" x="970.0" y="577.5" text-anchor="middle">agent</text>
+<text class="s" x="970.0" y="591.5" text-anchor="middle">worker de voz</text>
+<rect class="box c-app" x="710" y="455" width="150" height="55" rx="8"/>
+<text class="t" x="785.0" y="472.5" text-anchor="middle">app :8011</text>
+<text class="s" x="785.0" y="486.5" text-anchor="middle">ACTIVO</text>
+<text class="s" x="785.0" y="501.5" text-anchor="middle">+ cloudflared</text>
+<rect class="box c-data dashed" x="710" y="550" width="150" height="60" rx="8"/>
+<text class="t" x="785.0" y="577.5" text-anchor="middle">PostgreSQL</text>
+<text class="s" x="785.0" y="591.5" text-anchor="middle">réplica streaming</text>
+<rect class="box c-gpu" x="710" y="660" width="250" height="70" rx="8"/>
+<text class="t" x="835.0" y="692.5" text-anchor="middle">GPU 0 · 3090</text>
+<text class="s" x="835.0" y="706.5" text-anchor="middle">vllm-llm · Gemma 4 26B</text>
+<rect class="box c-gpu" x="980" y="660" width="250" height="70" rx="8"/>
+<text class="t" x="1105.0" y="692.5" text-anchor="middle">GPU 1 · 3090</text>
+<text class="s" x="1105.0" y="706.5" text-anchor="middle">stt-parakeet + vllm-tts</text>
+<text class="s" x="710" y="762">~32 llamadas por server (CAP-001 con Qwen; Gemma sin medir)</text>
+<path class="ln" d="M1155 510 V550" marker-end="url(#a)" marker-start="url(#a)"/>
+<path class="ln" d="M1045 580 H1080" marker-end="url(#a)" marker-start="url(#a)"/>
+<path class="ln" d="M895 580 H860" marker-end="url(#a)" marker-start="url(#a)"/>
+<path class="ln" d="M785 510 V550" marker-end="url(#a)" marker-start="url(#a)"/>
+<path class="ln" d="M970 610 V635 H835 V660" marker-end="url(#a)"/>
+<path class="ln" d="M970 635 H1105 V660" marker-end="url(#a)"/>
+<path class="ln" d="M125 350 V455" marker-end="url(#a)"/>
+<text class="lb" x="133" y="380" text-anchor="start">SIP y medios</text>
+<path class="ln" d="M1155 350 V455" marker-end="url(#a)"/>
+<text class="lb" x="1147" y="380" text-anchor="end">SIP y medios</text>
+<path class="ln" d="M495 350 V455" marker-end="url(#a)"/>
+<text class="lb" x="503" y="380" text-anchor="start">web</text>
+<path class="ln" d="M785 350 V455" marker-end="url(#a)"/>
+<text class="lb" x="777" y="380" text-anchor="end">web</text>
+<path class="ln" d="M570 482 H710" marker-end="url(#a)" marker-start="url(#a)"/>
+<text class="lb" x="640" y="474" text-anchor="middle">estado compartido</text>
+<path class="ln" d="M570 580 H710" marker-end="url(#a)"/>
+<text class="lb" x="640" y="572" text-anchor="middle">réplica streaming</text>
+<text class="lb" x="640" y="598" text-anchor="middle">failover automático</text>
+<rect class="box c-data dashed" x="30" y="820" width="380" height="62" rx="8"/>
+<text class="t" x="220.0" y="841.0" text-anchor="middle">Backups cifrados fuera del sitio</text>
+<text class="s" x="220.0" y="855.0" text-anchor="middle">pg_dump + .env + checkpoint del TTS</text>
+<text class="s" x="220.0" y="870.0" text-anchor="middle">hoy solo en disco local · pendiente</text>
+<rect class="box c-ext dashed" x="440" y="820" width="380" height="62" rx="8"/>
+<text class="t" x="630.0" y="841.0" text-anchor="middle">Segundo sitio</text>
+<text class="s" x="630.0" y="855.0" text-anchor="middle">si un contrato exige SLA</text>
+<text class="s" x="630.0" y="870.0" text-anchor="middle">contra la caída del sitio entero</text>
+<rect class="box c-ext dashed" x="850" y="820" width="400" height="62" rx="8"/>
+<text class="t" x="1050.0" y="841.0" text-anchor="middle">Alertas a una persona</text>
+<text class="s" x="1050.0" y="855.0" text-anchor="middle">ntfy + vigilante externo</text>
+<text class="s" x="1050.0" y="870.0" text-anchor="middle">pendientes</text>
+</svg></div>
+  <div class="legend"><span><i style="background:var(--ext-bg);border-color:var(--ext-bd)"></i>Externo</span><span><i style="background:var(--edge-bg);border-color:var(--edge-bd)"></i>Borde / red</span><span><i style="background:var(--app-bg);border-color:var(--app-bd)"></i>Aplicación</span><span><i style="background:var(--data-bg);border-color:var(--data-bd)"></i>Datos</span><span><i style="background:var(--gpu-bg);border-color:var(--gpu-bd)"></i>Inferencia (GPU)</span><span><span class="ln-s"></span>tráfico</span><span><span class="ln-d"></span>opcional, a confirmar o pasivo</span></div>
+  <div class="grid">
+    <div class="card"><h3>Por qué hace falta el relay</h3><ul>
+      <li>Starlink (y muchos puntos a punto) van detrás de CGNAT: <b>sin IP fija ni conexiones entrantes</b></li>
+      <li>Lo entrante necesita una IP pública estable: SIP de Meta (:5061), RTP de Anura y medios de la demo (UDP 7882, TCP 7881)</li>
+      <li>Lo que sale desde adentro anda por A o por B: el túnel de Cloudflare y WireGuard hacia el relay</li>
+      <li>Si Starlink ofrece IP pública en tu plan, o el punto a punto termina en una IP fija, el relay se podría evitar: <b>a confirmar</b></li></ul></div>
+    <div class="card"><h3>Cómo se reparte la carga</h3><ul>
+      <li><b>Entrantes:</b> el relay reparte entre los dos Asterisk (menos llamadas activas) y saca al que no responde</li>
+      <li><b>Salientes y pruebas:</b> <code>app</code> despacha al LiveKit del server con lugar (hoy despacha a uno solo)</li>
+      <li>Cada llamada usa el agente y las GPUs de su server: no se reparte una llamada</li>
+      <li><b>Web y WhatsApp:</b> los dos conectores del túnel reciben pedidos</li></ul></div>
+    <div class="card"><h3>Qué hay que cambiar para ir activo-activo</h3><ul>
+      <li><code>app</code> guarda en memoria el debounce y el lock por contacto de WhatsApp, y los límites de login, demo y TTS: pasarlos a Postgres o Redis</li>
+      <li>El barrido de hilos de WhatsApp (cada 5 min) tiene que correr en un solo server</li>
+      <li><code>make livekit-sip</code> en cada server: el Redis de LiveKit no persiste</li>
+      <li><code>quota.admit</code> ya sirve con dos <code>app</code> si escriben en el mismo primario (lock de fila)</li></ul></div>
+    <div class="card"><h3>Base: failover automático</h3><ul>
+      <li>Los dos <code>app</code> escriben en el primario: si cae su server, el otro queda sin escritura hasta promover la réplica</li>
+      <li>Con carga repartida, el failover manual deja de alcanzar</li>
+      <li>Un orquestador (Patroni o pg_auto_failover) necesita un tercer nodo de testigo: el relay</li></ul></div>
+    <div class="card"><h3>Capacidad <span class="tag warn">sin medir</span></h3><ul>
+      <li>~32 llamadas por server (CAP-001 con Qwen; Gemma sin medir): ~64 con los dos sanos</li>
+      <li>Si cae uno, el tope vuelve a ~32: hace falta un tope de concurrencia por server</li>
+      <li>La capacidad que se vende sigue siendo la de uno (N+1)</li></ul></div>
+    <div class="card"><h3>Qué cubre y qué no</h3><ul>
+      <li><b>Cae A:</b> telefonía, WhatsApp, demo y dashboard siguen por B</li>
+      <li><b>Cae un server:</b> el otro atiende con la mitad de capacidad</li>
+      <li><b>Cae el relay:</b> se cae lo entrante de telefonía; web y WhatsApp siguen por el túnel</li>
+      <li><b>No cubre</b> luz larga, caída del sitio ni incendio: segundo sitio</li></ul></div>
+    <div class="card"><h3>B como camino de audio</h3><ul>
+      <li>~6 Mbps por sentido con 64 llamadas (estimado: G.711 ~80 kbps por llamada más WireGuard)</li>
+      <li>Starlink agrega latencia y jitter, y puede cortar por obstrucciones: medir antes de prometer</li>
+      <li>El relay agrega un salto de audio también con A sana: elegir región cercana y medir el p95 por turno</li></ul></div>
+    <div class="card"><h3>Decisiones abiertas</h3><ul>
+      <li>Starlink: plan con IP pública, o punto a punto con IP fija propia</li>
+      <li>Anura: ¿acepta el registro desde la IP del relay y que el audio vuelva por ahí?</li>
+      <li>Meta: el SIP TLS (:5061) con certificado y SRTP termina en el relay o se reenvía al Asterisk</li>
+      <li>Dónde se aloja el relay y quién lo mantiene: es un nuevo punto único</li></ul></div>
+  </div>
+</section>
+
+<section id="nube">
+  <h2>3 · Variante simplificada: la telefonía en la nube</h2>
+  <p class="sub">Asterisk, LiveKit y <code>livekit-sip</code> pasan a un VPS con IP pública fija. Los servers dejan de recibir conexiones: solo salen. Con eso desaparecen el NAT, los reenvíos del router y el relay aparte.</p>
+  <div class="banner"><b>Propuesta, no implementada.</b> Es la variante que menos piezas tiene de las dos propuestas. No mejora la latencia respecto del relay: el desvío entre la nube y los servers es el mismo.</div>
+  <div class="svgwrap"><svg viewBox="0 0 1280 880" style="min-width:1040px" role="img" aria-label="Diagrama con la telefonía en la nube" xmlns="http://www.w3.org/2000/svg"><defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk" d="M0 0L10 5L0 10z"/></marker></defs>
+<rect class="box c-ext" x="30" y="40" width="220" height="44" rx="8"/>
+<text class="t" x="140.0" y="59.5" text-anchor="middle">Anura (PSTN)</text>
+<text class="s" x="140.0" y="73.5" text-anchor="middle">troncal SIP por registro</text>
+<rect class="box c-ext" x="270" y="40" width="220" height="44" rx="8"/>
+<text class="t" x="380.0" y="59.5" text-anchor="middle">WhatsApp · Meta</text>
+<text class="s" x="380.0" y="73.5" text-anchor="middle">llamadas por SIP</text>
+<rect class="box c-ext" x="510" y="40" width="220" height="44" rx="8"/>
+<text class="t" x="620.0" y="59.5" text-anchor="middle">Visitante de la demo</text>
+<text class="s" x="620.0" y="73.5" text-anchor="middle">navegador (WebRTC)</text>
+<rect class="box c-ext" x="750" y="40" width="240" height="44" rx="8"/>
+<text class="t" x="870.0" y="59.5" text-anchor="middle">Dashboard · API · webhook</text>
+<text class="s" x="870.0" y="73.5" text-anchor="middle">navegador, sistemas y Meta</text>
+<rect class="box c-ext dashed" x="1010" y="40" width="240" height="44" rx="8"/>
+<text class="t" x="1130.0" y="59.5" text-anchor="middle">Monitoreo externo</text>
+<text class="s" x="1130.0" y="73.5" text-anchor="middle">sondeo cada minuto</text>
+<rect class="zone z-host dashed" x="30" y="120" width="780" height="180" rx="12"/>
+<text class="zt" x="44" y="140"></text>
+<text class="zt" x="44" y="290">NUBE · VPS con IP pública fija (nuevo)</text>
+<rect class="box c-app" x="50" y="165" width="170" height="75" rx="8"/>
+<text class="t" x="135.0" y="185.0" text-anchor="middle">Asterisk</text>
+<text class="s" x="135.0" y="199.0" text-anchor="middle">registro con Anura</text>
+<text class="s" x="135.0" y="214.0" text-anchor="middle">SIP TLS de Meta :5061</text>
+<text class="s" x="135.0" y="229.0" text-anchor="middle">sin NAT</text>
+<rect class="box c-app" x="250" y="165" width="160" height="75" rx="8"/>
+<text class="t" x="330.0" y="192.5" text-anchor="middle">livekit-sip</text>
+<text class="s" x="330.0" y="206.5" text-anchor="middle">SIP ↔ LiveKit</text>
+<text class="s" x="330.0" y="221.5" text-anchor="middle">trunks y dispatch rule</text>
+<rect class="box c-app" x="440" y="165" width="190" height="75" rx="8"/>
+<text class="t" x="535.0" y="185.0" text-anchor="middle">LiveKit server + Redis</text>
+<text class="s" x="535.0" y="199.0" text-anchor="middle">reparte cada llamada al</text>
+<text class="s" x="535.0" y="214.0" text-anchor="middle">agente con lugar</text>
+<text class="s" x="535.0" y="229.0" text-anchor="middle">UDP 7882 · TCP 7881</text>
+<rect class="box c-data dashed" x="660" y="165" width="130" height="75" rx="8"/>
+<text class="t" x="725.0" y="192.5" text-anchor="middle">Testigo</text>
+<text class="s" x="725.0" y="206.5" text-anchor="middle">tercer voto del</text>
+<text class="s" x="725.0" y="221.5" text-anchor="middle">failover de Postgres</text>
+<path class="ln" d="M220 202 H250" marker-end="url(#a)" marker-start="url(#a)"/>
+<path class="ln" d="M410 202 H440" marker-end="url(#a)" marker-start="url(#a)"/>
+<text class="s" x="440" y="276">LiveKit elige el agente con lugar, de A o de B</text>
+<rect class="box c-edge" x="830" y="130" width="420" height="56" rx="8"/>
+<text class="t" x="1040.0" y="148.0" text-anchor="middle">Cloudflare Tunnel</text>
+<text class="s" x="1040.0" y="162.0" text-anchor="middle">un conector en cada server, los dos reciben pedidos</text>
+<text class="s" x="1040.0" y="177.0" text-anchor="middle">salen por la conexión que esté viva</text>
+<path class="ln" d="M135 84 V165" marker-end="url(#a)" marker-start="url(#a)"/>
+<text class="lb" x="143" y="112" text-anchor="start">SIP</text>
+<path class="ln" d="M380 84 V104 H190 V165" marker-end="url(#a)" marker-start="url(#a)"/>
+<text class="lb" x="290" y="98" text-anchor="middle">SIP TLS :5061</text>
+<path class="ln" d="M620 84 V104 H535 V165" marker-end="url(#a)" marker-start="url(#a)"/>
+<text class="lb" x="578" y="98" text-anchor="middle">WebRTC</text>
+<path class="ln" d="M870 84 V130" marker-end="url(#a)" marker-start="url(#a)"/>
+<path class="ln dash" d="M1130 84 V130" marker-end="url(#a)"/>
+<text class="lb" x="1123" y="112" text-anchor="end">sondeo</text>
+<rect class="box c-edge" x="30" y="370" width="1220" height="60" rx="8"/>
+<text class="t" x="640.0" y="405.0" text-anchor="middle"></text>
+<text class="t" x="270" y="395" text-anchor="middle">Conexión A · fibra con IP fija</text>
+<text class="s" x="270" y="413" text-anchor="middle">ya no es obligatoria</text>
+<text class="t" x="620" y="395" text-anchor="middle">Conexión B · Starlink o punto a punto</text>
+<text class="s" x="620" y="413" text-anchor="middle">alcanza con conexiones salientes</text>
+<text class="t" x="1000" y="395" text-anchor="middle">Router con failover + UPS</text>
+<text class="s" x="1000" y="413" text-anchor="middle">UPS también para router y ONT</text>
+<path class="ln" d="M420 300 V370" marker-end="url(#a)" marker-start="url(#a)"/>
+<text class="lb" x="428" y="340" text-anchor="start">agentes y app (salientes)</text>
+<path class="ln" d="M1000 370 V186" marker-end="url(#a)" marker-start="url(#a)"/>
+<text class="lb" x="1008" y="280" text-anchor="start">cloudflared (saliente)</text>
+<rect class="zone z-host" x="30" y="470" width="560" height="285" rx="12"/>
+<text class="zt" x="44" y="490">SERVER A</text>
+<text class="s" x="576" y="490" text-anchor="end">activo · 2 × RTX 3090 + UPS</text>
+<rect class="box c-app" x="50" y="525" width="150" height="60" rx="8"/>
+<text class="t" x="125.0" y="545.0" text-anchor="middle">agent</text>
+<text class="s" x="125.0" y="559.0" text-anchor="middle">worker de voz</text>
+<text class="s" x="125.0" y="574.0" text-anchor="middle">se conecta a LiveKit</text>
+<rect class="box c-app" x="235" y="525" width="150" height="60" rx="8"/>
+<text class="t" x="310.0" y="545.0" text-anchor="middle">app :8011</text>
+<text class="s" x="310.0" y="559.0" text-anchor="middle">ACTIVO</text>
+<text class="s" x="310.0" y="574.0" text-anchor="middle">+ cloudflared</text>
+<rect class="box c-data" x="420" y="525" width="150" height="60" rx="8"/>
+<text class="t" x="495.0" y="552.5" text-anchor="middle">PostgreSQL</text>
+<text class="s" x="495.0" y="566.5" text-anchor="middle">primario</text>
+<rect class="box c-gpu" x="50" y="645" width="250" height="70" rx="8"/>
+<text class="t" x="175.0" y="677.5" text-anchor="middle">GPU 0 · 3090</text>
+<text class="s" x="175.0" y="691.5" text-anchor="middle">vllm-llm · Gemma 4 26B</text>
+<rect class="box c-gpu" x="320" y="645" width="250" height="70" rx="8"/>
+<text class="t" x="445.0" y="677.5" text-anchor="middle">GPU 1 · 3090</text>
+<text class="s" x="445.0" y="691.5" text-anchor="middle">stt-parakeet + vllm-tts</text>
+<text class="s" x="50" y="740">~32 llamadas por server (CAP-001 con Qwen; Gemma sin medir)</text>
+<path class="ln" d="M200 555 H235" marker-end="url(#a)" marker-start="url(#a)"/>
+<path class="ln" d="M385 555 H420" marker-end="url(#a)" marker-start="url(#a)"/>
+<path class="ln" d="M125 585 V615 H175 V645" marker-end="url(#a)"/>
+<path class="ln" d="M125 615 H445 V645" marker-end="url(#a)"/>
+<rect class="zone z-host" x="690" y="470" width="560" height="285" rx="12"/>
+<text class="zt" x="704" y="490">SERVER B</text>
+<text class="s" x="1236" y="490" text-anchor="end">activo · idéntico a A + UPS</text>
+<rect class="box c-app" x="1080" y="525" width="150" height="60" rx="8"/>
+<text class="t" x="1155.0" y="545.0" text-anchor="middle">agent</text>
+<text class="s" x="1155.0" y="559.0" text-anchor="middle">worker de voz</text>
+<text class="s" x="1155.0" y="574.0" text-anchor="middle">se conecta a LiveKit</text>
+<rect class="box c-app" x="895" y="525" width="150" height="60" rx="8"/>
+<text class="t" x="970.0" y="545.0" text-anchor="middle">app :8011</text>
+<text class="s" x="970.0" y="559.0" text-anchor="middle">ACTIVO</text>
+<text class="s" x="970.0" y="574.0" text-anchor="middle">+ cloudflared</text>
+<rect class="box c-data dashed" x="710" y="525" width="150" height="60" rx="8"/>
+<text class="t" x="785.0" y="552.5" text-anchor="middle">PostgreSQL</text>
+<text class="s" x="785.0" y="566.5" text-anchor="middle">réplica streaming</text>
+<rect class="box c-gpu" x="710" y="645" width="250" height="70" rx="8"/>
+<text class="t" x="835.0" y="677.5" text-anchor="middle">GPU 0 · 3090</text>
+<text class="s" x="835.0" y="691.5" text-anchor="middle">vllm-llm · Gemma 4 26B</text>
+<rect class="box c-gpu" x="980" y="645" width="250" height="70" rx="8"/>
+<text class="t" x="1105.0" y="677.5" text-anchor="middle">GPU 1 · 3090</text>
+<text class="s" x="1105.0" y="691.5" text-anchor="middle">stt-parakeet + vllm-tts</text>
+<text class="s" x="710" y="740">~32 llamadas por server (CAP-001 con Qwen; Gemma sin medir)</text>
+<path class="ln" d="M1045 555 H1080" marker-end="url(#a)" marker-start="url(#a)"/>
+<path class="ln" d="M860 555 H895" marker-end="url(#a)" marker-start="url(#a)"/>
+<path class="ln" d="M1155 585 V615 H835 V645" marker-end="url(#a)"/>
+<path class="ln" d="M1155 615 H1105 V645" marker-end="url(#a)"/>
+<path class="ln" d="M125 430 V525" marker-end="url(#a)" marker-start="url(#a)"/>
+<text class="lb" x="133" y="455" text-anchor="start">agente (saliente)</text>
+<path class="ln" d="M1155 430 V525" marker-end="url(#a)" marker-start="url(#a)"/>
+<text class="lb" x="1147" y="455" text-anchor="end">agente (saliente)</text>
+<path class="ln" d="M335 430 V525" marker-end="url(#a)" marker-start="url(#a)"/>
+<text class="lb" x="343" y="455" text-anchor="start">app (saliente)</text>
+<path class="ln" d="M985 430 V525" marker-end="url(#a)" marker-start="url(#a)"/>
+<text class="lb" x="977" y="455" text-anchor="end">app (saliente)</text>
+<path class="ln" d="M570 555 H710" marker-end="url(#a)"/>
+<text class="lb" x="640" y="547" text-anchor="middle">réplica streaming</text>
+<text class="lb" x="640" y="573" text-anchor="middle">failover automático</text>
+<rect class="box c-data dashed" x="30" y="800" width="380" height="62" rx="8"/>
+<text class="t" x="220.0" y="821.0" text-anchor="middle">Backups cifrados fuera del sitio</text>
+<text class="s" x="220.0" y="835.0" text-anchor="middle">pg_dump + .env + checkpoint del TTS</text>
+<text class="s" x="220.0" y="850.0" text-anchor="middle">hoy solo en disco local · pendiente</text>
+<rect class="box c-ext dashed" x="440" y="800" width="380" height="62" rx="8"/>
+<text class="t" x="630.0" y="821.0" text-anchor="middle">Nube de respaldo</text>
+<text class="s" x="630.0" y="835.0" text-anchor="middle">segunda máquina, otro proveedor</text>
+<text class="s" x="630.0" y="850.0" text-anchor="middle">la nube pasa a ser el punto único</text>
+<rect class="box c-ext dashed" x="850" y="800" width="400" height="62" rx="8"/>
+<text class="t" x="1050.0" y="821.0" text-anchor="middle">Alertas a una persona</text>
+<text class="s" x="1050.0" y="835.0" text-anchor="middle">ntfy + vigilante externo</text>
+<text class="s" x="1050.0" y="850.0" text-anchor="middle">pendientes</text>
+</svg></div>
+  <div class="legend"><span><i style="background:var(--ext-bg);border-color:var(--ext-bd)"></i>Externo</span><span><i style="background:var(--edge-bg);border-color:var(--edge-bd)"></i>Borde / red</span><span><i style="background:var(--app-bg);border-color:var(--app-bd)"></i>Aplicación</span><span><i style="background:var(--data-bg);border-color:var(--data-bd)"></i>Datos</span><span><i style="background:var(--gpu-bg);border-color:var(--gpu-bd)"></i>Inferencia (GPU)</span><span><span class="ln-s"></span>tráfico</span><span><span class="ln-d"></span>opcional, a confirmar o pasivo</span></div>
+  <div class="flow" style="margin-top:12px">
+    <h3>Cómo funciona, sin vueltas</h3>
+    <p class="sub">La nube es la recepción: tiene una dirección que nunca cambia y atiende el teléfono. Los servers son las oficinas: no reciben visitas, <b>llaman a la recepción</b> y dicen "estoy libre, mandame llamadas". Como la conexión la abren ellas, funciona igual por la fibra que por Starlink.</p>
+    <ol class="steps">
+      <li><b>Suena el teléfono</b><br>Anura o Meta llegan a Asterisk, en la nube, a una IP que no cambia</li>
+      <li><b>Asterisk le pasa la llamada a LiveKit</b><br>están en la misma máquina</li>
+      <li><b>LiveKit elige un agente</b><br>el del server A o el del B que tenga lugar</li>
+      <li><b>El audio viaja hasta ese server</b><br>por la conexión que abrió el agente</li>
+      <li><b>Acá se piensa y se habla</b><br>STT, LLM y TTS corren en las GPUs de ese server</li>
+      <li><b>La voz vuelve</b><br>por el mismo camino hasta quien llamó</li>
+    </ol>
+    <div class="fin"><b>Salientes:</b> <code>app</code> le pide a LiveKit (en la nube) que marque; la llamada sale por Asterisk hacia Anura. <b>Demo web:</b> el navegador se conecta directo a LiveKit, sin pasar por el router. <b>Dashboard y webhook de WhatsApp:</b> siguen por Cloudflare, sin cambios.</div>
+  </div>
+  <div class="grid">
+    <div class="card"><h3>Qué pasa si cae algo</h3>
+      <div class="scroll"><table>
+        <tr><th>Cae</th><th>Qué pasa</th></tr>
+        <tr><td>Fibra A</td><td>El router pasa a B, los agentes se reconectan y siguen recibiendo llamadas. Quien llama no cambia de dirección. Las llamadas en curso pueden cortarse o tener un salto (a medir).</td></tr>
+        <tr><td>Un server</td><td>LiveKit manda todo al otro, con la mitad de capacidad (~32).</td></tr>
+        <tr><td>Starlink (con A sana)</td><td>Nada: era el respaldo.</td></tr>
+        <tr><td>La nube</td><td>Se cae la telefonía y la demo. El dashboard y WhatsApp de texto siguen por el túnel.</td></tr>
+        <tr><td>Cloudflare</td><td>Se cae el dashboard y el webhook; las llamadas siguen.</td></tr>
+      </table></div></div>
+    <div class="card"><h3>Qué desaparece</h3><ul>
+      <li>El NAT de Asterisk y sus direcciones anunciadas (<code>external_signaling_address</code>, <code>external_media_address</code>)</li>
+      <li>Los reenvíos del router: RTP 10000–10199, TCP 5061, UDP 7882, TCP 7881</li>
+      <li>El segundo Asterisk y el balanceador SIP</li>
+      <li>El Redis de LiveKit que no persiste: acá es uno solo y se puede persistir</li></ul></div>
+    <div class="card"><h3>Qué hay que hacer</h3><ul>
+      <li>Instalar Asterisk, LiveKit, <code>livekit-sip</code> y Redis en el VPS, y repetir el registro con Anura y el certificado SIP de Meta</li>
+      <li>Apuntar <code>app</code> y <code>agent</code> de los dos servers al LiveKit de la nube (<code>LIVEKIT_URL</code> y claves)</li>
+      <li>Limitar a ~32 llamadas por agente: hoy el reparto lo hace LiveKit, no el código</li>
+      <li>Los cambios de <code>app</code> y de la base de la sección 2 siguen valiendo</li></ul></div>
+    <div class="card"><h3>Qué hay que medir antes</h3><ul>
+      <li>La latencia del audio entre la nube y el agente, con A y con B (Starlink)</li>
+      <li>Que el worker se reconecte solo al cambiar de conexión, y qué pasa con las llamadas en curso</li>
+      <li>Que el reparto de LiveKit respete el tope por server</li>
+      <li>Si Anura acepta el registro desde la IP de la nube</li></ul></div>
+  </div>
+</section>
+
+<section id="flujos">
+  <h2>4 · Flujos</h2>
+  <p class="sub">Los cuatro caminos de entrada. En la llamada, un watchdog mira cada 15 s (<code>QUOTA_CHECK_SECONDS</code>) los minutos que quedan y corta con <code>ended_reason=quota_exhausted</code>.</p>
+  <div class="flows"><div class="flow"><h3>Llamada saliente o de prueba</h3><p class="sub"><code>POST /api/v1/calls</code></p><ol class="steps"><li><b>prepare_call</b><br>agente, teléfono E.164, voz y caller ID</li><li><b>new_conversation</b><br>estado con la versión vigente</li><li><b>quota.admit</b><br>lock del cliente: simultáneas y minutos</li><li><b>Guarda</b><br>conversación + <code>call_logs</code> pendiente, en una transacción</li><li><b>dispatch_call</b><br>a LiveKit, con metadata</li><li><b>Worker marca por SIP</b><br>o espera al navegador (prueba)</li></ol><div class="fin">Estados: sonando → en_curso → finalizada o fallida. Si el dispatch falla: <code>dispatch_failed</code> y 502.</div></div>
+<div class="flow"><h3>Llamada entrante</h3><p class="sub">Anura o WhatsApp → Asterisk → LiveKit</p><ol class="steps"><li><b>Dispatch rule</b><br>crea la room <code>anura-*</code> y despacha el worker</li><li><b>Worker lee el DID</b><br><code>sip.trunkPhoneNumber</code></li><li><b>start_inbound</b><br>busca el número en <code>phone_numbers</code></li><li><b>Decide</b><br>sin agente: corta · sin lugar o minutos: rechazada · si no: conversación del agente</li></ol><div class="fin">Un número que no está en el inbound trunk da 404: <code>make livekit-sip</code>.</div></div>
+<div class="flow"><h3>Mensaje de WhatsApp</h3><p class="sub">Meta → túnel <code>wa.</code> → app</p><ol class="steps"><li><b>Firma</b><br><code>X-Hub-Signature-256</code>; responde 200 sin esperar</li><li><b>Dedupe y cuenta</b><br>por <code>wamid</code> y <code>phone_number_id</code></li><li><b>Debounce</b><br>junta textos; un audio pasa por Parakeet</li><li><b>Turno</b><br>lock del contacto, hilo abierto, <code>process_turn</code></li><li><b>Respuesta</b><br>texto, o nota de voz: TTS → OGG/Opus</li></ol><div class="fin">Sin <code>call_logs</code> ni <code>quota.admit</code>. Un solo worker de uvicorn: el debounce y los locks están en memoria.</div></div>
+<div class="flow"><h3>Demo de la landing</h3><p class="sub"><code>/api/v1/demo</code>, lo único público</p><ol class="steps"><li><b>Sesión</b><br>Turnstile → JWT <code>aud=atentina-demo</code></li><li><b>Llamada</b><br>límites por IP y cupo diario; agentes de <code>DEMO_AGENTS</code></li><li><b>Tokens</b><br>LiveKit del visitante + <code>result_token</code></li><li><b>Corte</b><br>a <code>max_duration_seconds</code> con <code>QUOTA_END_MESSAGE</code></li></ol></div></div>
+</section>
+
+<section id="datos">
+  <h2>5 · Modelo de datos</h2>
+  <p class="sub">Tenencia, agentes versionados, números, WhatsApp y conversaciones. Las fechas se guardan en UTC. El esquema lo manejan las migraciones de Alembic.</p>
+  <div class="svgwrap"><svg viewBox="0 0 1200 575" style="min-width:900px" role="img" aria-label="Modelo de datos" xmlns="http://www.w3.org/2000/svg"><defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk" d="M0 0L10 5L0 10z"/></marker></defs>
+<rect class="box c-edge" x="20" y="200" width="150" height="50" rx="8"/>
+<text class="t" x="95.0" y="222.5" text-anchor="middle">tiers</text>
+<text class="s" x="95.0" y="236.5" text-anchor="middle">límites</text>
+<rect class="box c-app" x="230" y="200" width="160" height="50" rx="8"/>
+<text class="t" x="310.0" y="222.5" text-anchor="middle">clients</text>
+<text class="s" x="310.0" y="236.5" text-anchor="middle">slug · tier · active</text>
+<rect class="box c-data" x="500" y="60" width="170" height="50" rx="8"/>
+<text class="t" x="585.0" y="82.5" text-anchor="middle">agents</text>
+<text class="s" x="585.0" y="96.5" text-anchor="middle">definición vigente</text>
+<rect class="box c-data" x="780" y="60" width="170" height="50" rx="8"/>
+<text class="t" x="865.0" y="82.5" text-anchor="middle">agent_versions</text>
+<text class="s" x="865.0" y="96.5" text-anchor="middle">inmutables</text>
+<rect class="box c-data" x="500" y="150" width="170" height="50" rx="8"/>
+<text class="t" x="585.0" y="172.5" text-anchor="middle">phone_numbers</text>
+<text class="s" x="585.0" y="186.5" text-anchor="middle">e164 único · agente</text>
+<rect class="box c-data" x="500" y="240" width="170" height="50" rx="8"/>
+<text class="t" x="585.0" y="262.5" text-anchor="middle">users</text>
+<text class="s" x="585.0" y="276.5" text-anchor="middle">admin o cliente</text>
+<rect class="box c-data" x="500" y="320" width="170" height="50" rx="8"/>
+<text class="t" x="585.0" y="342.5" text-anchor="middle">api_keys</text>
+<text class="s" x="585.0" y="356.5" text-anchor="middle">SHA-256 de la clave</text>
+<rect class="box c-data" x="500" y="410" width="170" height="50" rx="8"/>
+<text class="t" x="585.0" y="432.5" text-anchor="middle">wa_accounts</text>
+<text class="s" x="585.0" y="446.5" text-anchor="middle">número de WhatsApp</text>
+<rect class="box c-data" x="500" y="500" width="170" height="50" rx="8"/>
+<text class="t" x="585.0" y="522.5" text-anchor="middle">wa_threads</text>
+<text class="s" x="585.0" y="536.5" text-anchor="middle">1 por chat</text>
+<rect class="box c-data" x="780" y="330" width="170" height="50" rx="8"/>
+<text class="t" x="865.0" y="352.5" text-anchor="middle">wa_campaigns</text>
+<text class="s" x="865.0" y="366.5" text-anchor="middle">plantilla a una lista</text>
+<rect class="box c-data" x="780" y="420" width="200" height="50" rx="8"/>
+<text class="t" x="880.0" y="442.5" text-anchor="middle">wa_campaign_recipients</text>
+<text class="s" x="880.0" y="456.5" text-anchor="middle">contacto y estado</text>
+<rect class="box c-data" x="780" y="240" width="170" height="50" rx="8"/>
+<text class="t" x="865.0" y="262.5" text-anchor="middle">wa_optouts</text>
+<text class="s" x="865.0" y="276.5" text-anchor="middle">bajas por cliente</text>
+<rect class="box c-ext" x="780" y="150" width="170" height="50" rx="8"/>
+<text class="t" x="865.0" y="172.5" text-anchor="middle">contact_requests</text>
+<text class="s" x="865.0" y="186.5" text-anchor="middle">formulario de la landing</text>
+<rect class="box c-app" x="230" y="420" width="160" height="56" rx="8"/>
+<text class="t" x="310.0" y="438.0" text-anchor="middle">conversations</text>
+<text class="s" x="310.0" y="452.0" text-anchor="middle">estado del motor</text>
+<text class="s" x="310.0" y="467.0" text-anchor="middle">agent_id + agent_version</text>
+<rect class="box c-data" x="20" y="420" width="150" height="56" rx="8"/>
+<text class="t" x="95.0" y="438.0" text-anchor="middle">call_logs</text>
+<text class="s" x="95.0" y="452.0" text-anchor="middle">voz · 1 a 1</text>
+<text class="s" x="95.0" y="467.0" text-anchor="middle">base del consumo</text>
+<rect class="box c-data" x="20" y="500" width="150" height="50" rx="8"/>
+<text class="t" x="95.0" y="522.5" text-anchor="middle">wa_messages</text>
+<text class="s" x="95.0" y="536.5" text-anchor="middle">1 por wamid</text>
+<path class="ln" d="M170 225 H230" marker-end="url(#a)"/>
+<text class="lb" x="200" y="217" text-anchor="middle">1 a N</text>
+<path class="ln" d="M390 225 H440"/>
+<path class="ln" d="M440 85 V435"/>
+<path class="ln" d="M440 85 H500" marker-end="url(#a)"/>
+<path class="ln" d="M440 175 H500" marker-end="url(#a)"/>
+<path class="ln" d="M440 265 H500" marker-end="url(#a)"/>
+<path class="ln" d="M440 345 H500" marker-end="url(#a)"/>
+<path class="ln" d="M440 435 H500" marker-end="url(#a)"/>
+<path class="ln" d="M670 85 H780" marker-end="url(#a)"/>
+<path class="ln" d="M310 250 V420" marker-end="url(#a)"/>
+<text class="lb" x="318" y="340" text-anchor="start">1 a N</text>
+<path class="ln" d="M230 448 H170" marker-end="url(#a)"/>
+<path class="ln" d="M260 476 V525 H170" marker-end="url(#a)"/>
+<path class="ln" d="M360 476 V525 H500" marker-end="url(#a)"/>
+<path class="ln" d="M670 435 H725 V355 H780" marker-end="url(#a)"/>
+<path class="ln" d="M865 380 V420" marker-end="url(#a)"/>
+<text class="lb" x="150" y="20" text-anchor="start">las flechas van del padre al hijo</text>
+</svg></div>
+  <div class="grid">
+    <div class="card"><h3>Reglas que importan</h3><ul>
+      <li>Un tier en uso no se borra (RESTRICT)</li>
+      <li>Un número liberado vuelve al inventario (<code>client_id</code> NULL)</li>
+      <li>Un cliente o agente con historial no se borra</li>
+      <li>Cada conversación guarda la versión del agente con la que corrió</li></ul></div>
+    <div class="card"><h3>Dos canales, una conversación</h3><ul>
+      <li><code>conversations.channel</code>: <code>voice</code> o <code>whatsapp</code></li>
+      <li>Voz: una <code>call_logs</code> por conversación, base del consumo</li>
+      <li>WhatsApp: un <code>wa_threads</code> y varios <code>wa_messages</code>, sin texto ni audio</li></ul></div>
+  </div>
+</section>
+
+<section id="codigo">
+  <h2>6 · Capas del código</h2>
+  <p class="sub">Los routers validan y resuelven permisos; los servicios tienen la lógica y no saben de HTTP; los modelos son solo persistencia. El worker de voz usa los mismos servicios que la API.</p>
+  <div class="layers">
+    <div>
+      <div class="layer l-edge"><b>Routers · <code>app/api/routers/</code></b><span>auth, tiers, clients, phone_numbers, agents, users, api_keys, calls, conversations, voices, whatsapp, demo · middlewares: tope de cuerpo, CSRF, headers</span></div>
+      <div class="down">▼ llaman a</div>
+      <div class="layer l-app"><b>Servicios · <code>app/services/</code></b><span>quota, calls, phone_numbers, agents, reports, security, livekit, tts, voices · levantan <code>ServiceError</code></span></div>
+      <div class="down">▼ leen y escriben</div>
+      <div class="layer l-data"><b>Modelos · <code>app/models/</code></b><span>SQLAlchemy 2: tenancy, agents, conversations, calls · PostgreSQL 16 (SQLite solo en tests)</span></div>
+    </div>
+    <div>
+      <div class="layer l-app"><b><code>app/voice/</code></b><span>worker de LiveKit: STT → motor → TTS, latencia por turno</span></div>
+      <div class="layer l-app"><b><code>app/conversation/</code> + <code>llm/</code></b><span>motor (engine, workflow, store), cliente y prompts del LLM</span></div>
+      <div class="layer l-app"><b><code>app/agents/</code></b><span>definiciones versionadas, plantilla y agentes de referencia</span></div>
+      <div class="layer l-app"><b><code>app/whatsapp/</code></b><span>webhook, graph, service, audio, signup, campañas</span></div>
+      <div class="layer l-gpu"><b><code>web/</code></b><span>SPA React 19 + Mantine 8, cliente tipado desde el OpenAPI</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="seguridad">
+  <h2>7 · Autenticación, permisos y límites</h2>
+  <p class="sub">El dashboard está publicado en <code>app.atentina.com.ar</code> sin Cloudflare Access: lo protege la propia app.</p>
+  <div class="grid">
+    <div class="card"><h3>Quién entra</h3><ul>
+      <li><b>UI:</b> cookie <code>vaas_session</code> (JWT HS256, httpOnly, SameSite=Strict)</li>
+      <li><b>Sistemas:</b> <code>Bearer vaas_…</code>; se guarda solo el SHA-256</li>
+      <li><b>Demo:</b> Turnstile → JWT propio, no sirve como sesión de la UI</li>
+      <li>Cada pedido relee el usuario: desactivarlo corta el acceso al instante</li></ul></div>
+    <div class="card"><h3>Defensas</h3><ul>
+      <li>Sesión revocable por <code>session_version</code></li>
+      <li>Login: 5 fallos por IP y email en 15 min, 429</li>
+      <li>CSRF por <code>Origin</code>; CSP con hash; HSTS</li>
+      <li>IP real por <code>CF-Connecting-IP</code> solo desde proxies de confianza</li>
+      <li>Errores 500 sin detalle interno</li></ul></div>
+    <div class="card"><h3>Permisos</h3><ul>
+      <li><b>Admin:</b> tiers, clientes, usuarios, números, alta manual de WhatsApp</li>
+      <li><b>Cliente / API key:</b> sus agentes, números (agente y etiqueta), llamadas, API keys</li>
+      <li>Un recurso de otro cliente da 404, no 403</li></ul></div>
+    <div class="card"><h3>Límites por tier</h3>
+      <div class="scroll"><table>
+        <tr><th>Límite</th><th>Dónde</th></tr>
+        <tr><td>Simultáneas</td><td><code>quota.admit</code>, con lock de fila del cliente</td></tr>
+        <tr><td>Minutos entrantes / salientes</td><td><code>quota.admit</code> + watchdog del worker</td></tr>
+        <tr><td>Números</td><td><code>phone_numbers.assign</code></td></tr>
+      </table></div>
+      <p class="sub" style="margin-top:8px">20 llamadas simultáneas con tope 3: entran exactamente 3.</p></div>
+  </div>
+</section>
+
+<footer>Fuentes: <code>docs/ARQUITECTURA.md</code>, <code>AGENTS.md</code>, <code>docs/PRODUCCION.md</code> §5 (con los cambios de las secciones 2 y 3). Generado con <code>scratch/gen_arquitectura.py</code>. Archivo autocontenido: sin recursos externos.</footer>
+</main>
+</body>
+</html>

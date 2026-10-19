@@ -77,6 +77,8 @@ class FakeGraph:
         self.fail_media: GraphError | None = None
         self.fail_upload: GraphError | None = None
         self.fail_audio: GraphError | None = None
+        self.ctas: list[tuple[str, str, str]] = []
+        self.fail_cta: GraphError | None = None
 
     async def get_media(self, media_id, phone_number_id=None):
         if self.fail_media:
@@ -110,6 +112,12 @@ class FakeGraph:
         return {"messaging_product": "whatsapp", "contacts": [{"input": to, "wa_id": to}],
                 "messages": [{"id": f"wamid.out{len(self.sent)}"}]}
 
+    async def send_cta_url(self, pnid, to, body, label, url):
+        if self.fail_cta:
+            raise self.fail_cta
+        self.ctas.append((body, label, url))
+        return {"messaging_product": "whatsapp", "messages": [{"id": f"wamid.cta{len(self.ctas)}"}]}
+
     async def mark_read(self, pnid, wamid):
         self.read.append(wamid)
         return {"success": True}
@@ -123,7 +131,7 @@ class Wa:
 
 
 def make_wa(sessions, template="demo_booking_classic", llm=None, graph=None, audio=None,
-            record_audio=False) -> Wa:
+            record_audio=False, wa_session_minutes=None) -> Wa:
     w = Wa()
     with sessions() as s:
         tier = Tier(name="T")
@@ -135,6 +143,8 @@ def make_wa(sessions, template="demo_booking_classic", llm=None, graph=None, aud
         definition = reference_data(template)
         if record_audio:
             definition["record_audio"] = True
+        if wa_session_minutes is not None:
+            definition["wa_session_minutes"] = wa_session_minutes
         agent = agent_service.create_agent(s, client, name="Turnos", slug="turnos", description="",
                                            definition=definition, template_id=None, user_id=None)
         s.flush()
@@ -334,6 +344,35 @@ async def test_session_expires_after_hours(sessions):
     assert new.messages[0]["text"] == "volví"
 
 
+async def test_wa_session_minutes_del_agente_acorta_la_ventana(sessions):
+    # El agente fija una ventana de contexto mas corta que el default global (24 hs, con que
+    # arranca el service): a los 30 min sin mensajes del contacto, ya abre otra conversacion.
+    w = make_wa(sessions, llm=FakeLLM(reply(), reply()), wa_session_minutes=15)
+    await send(w, text_payload("hola", "wamid.1"))
+    with sessions() as s:
+        thread = s.scalar(select(WaThread))
+        thread.last_user_at -= datetime.timedelta(minutes=30)
+        s.commit()
+    await send(w, text_payload("volví", "wamid.2"))
+    old, new = conversations(sessions)
+    assert old.status == "active" and new.messages[0]["text"] == "volví"
+
+
+async def test_wa_session_minutes_del_agente_extiende_la_ventana(sessions):
+    # Con una ventana mas larga que el default global, el mismo vencimiento que en
+    # test_session_expires_after_hours (25 hs) no corta la conversacion.
+    w = make_wa(sessions, llm=FakeLLM(reply(), reply()), wa_session_minutes=48 * 60)
+    await send(w, text_payload("hola", "wamid.1"))
+    with sessions() as s:
+        thread = s.scalar(select(WaThread))
+        thread.last_user_at -= datetime.timedelta(hours=25)
+        s.commit()
+    await send(w, text_payload("sigo", "wamid.2"))
+    (conv,) = conversations(sessions)
+    assert [m["text"] for m in conv.messages] == ["hola", reply().assistant_message, "sigo",
+                                                   reply().assistant_message]
+
+
 @pytest.mark.parametrize("what", ["client", "account", "unknown_pnid"])
 async def test_ignored(sessions, caplog, what):
     caplog.set_level(logging.INFO, logger="app.whatsapp")
@@ -414,6 +453,19 @@ async def test_expired_without_sweep_ends_when_the_contact_writes_again(sessions
         closed = {t.conversation_id: t.closed_at for t in s.scalars(select(WaThread))}
     assert closed[first.id] is not None and closed[second.id] is None
     assert len(w.llm.extract_calls) == 1         # la extraccion final de la primera
+
+
+async def test_sweep_respeta_la_ventana_del_agente(sessions):
+    # El barrido es global (todas las cuentas), pero cada hilo vence segun la ventana de SU
+    # agente, no un session_minutes unico.
+    w = make_wa(sessions, llm=FakeLLM(reply()), wa_session_minutes=15)
+    await send(w, text_payload("hola", "wamid.1"))
+    with sessions() as s:
+        s.scalar(select(WaThread)).last_user_at -= datetime.timedelta(minutes=30)
+        s.commit()
+    assert await w.service.sweep() == 1
+    await w.service.drain()
+    assert len(w.llm.extract_calls) == 1
 
 
 async def test_paused_thread_is_not_answered(sessions):
@@ -571,3 +623,61 @@ def test_recipient_quita_el_9_de_celulares_argentinos():
     assert recipient("543513962553") == "543513962553"
     assert recipient("15551456632") == "15551456632"
     assert recipient("549351") == "549351"
+
+
+# ---------- links a vistas como botón (cta_url, 16-oct-2026) ----------
+
+def _app_con_vistas(w):
+    from app.models import App
+
+    from .test_apps import MANIFEST, SLUG
+    manifest = {**MANIFEST, "views": [*MANIFEST["views"], {"name": "perfil", "title": "Perfil del alumno",
+                                                           "description": "El perfil.", "params": {}}]}
+    with w.sessions() as s:
+        s.add(App(slug=SLUG, name="Gym", client_id=w.client_id, base_url="http://app-gym:8000", token_enc="x",
+                  version="0.1.0", manifest=manifest))
+        s.commit()
+    return f"https://apps.test/acme/{SLUG}"
+
+
+async def test_link_a_una_vista_sale_como_boton(sessions, monkeypatch):
+    from app.config import settings
+    monkeypatch.setattr(settings, "apps_public_host", "apps.test")
+    w = make_wa(sessions, llm=FakeLLM(reply("x")))
+    base = _app_con_vistas(w)
+    url = f"{base}/perfil/?alumno_id=7&editar=1&k=abc_-1"
+    w.llm.turns = [reply(f"Registré a Olga. No tiene plan.\n{url}")]
+    await send(w, text_payload("vino olga", "wamid.in1"))
+    assert w.graph.ctas == [("Registré a Olga. No tiene plan.", "Perfil del alumno", url)] and w.graph.sent == []
+    (out,) = messages(sessions, direction="out")
+    assert (out.type, out.status, out.wamid) == ("interactive", "sent", "wamid.cta1")
+    # La conversación guarda el texto completo, con el link (el panel lo muestra igual que antes).
+    (conv,) = conversations(sessions)
+    assert url in conv.messages[-1]["text"]
+
+
+async def test_varios_links_texto_y_un_boton_por_link(sessions, monkeypatch):
+    from app.config import settings
+    monkeypatch.setattr(settings, "apps_public_host", "apps.test")
+    w = make_wa(sessions, llm=FakeLLM(reply("x")))
+    base = _app_con_vistas(w)
+    a, b = f"{base}/perfil/?alumno_id=1&k=a", f"{base}/minuta/?k=b"
+    w.llm.turns = [reply(f"Anoté a las dos:\n- Anahi: {a}\n- La minuta: {b}")]
+    await send(w, text_payload("vinieron", "wamid.in1"))
+    assert w.graph.sent == [(PNID, SEND_TO, "Anoté a las dos:")]
+    assert w.graph.ctas == [("Anahi", "Perfil del alumno", a), ("La minuta", "Minuta del día", b)]
+
+
+async def test_si_meta_rechaza_el_boton_va_el_texto(sessions, monkeypatch):
+    from app.config import settings
+    monkeypatch.setattr(settings, "apps_public_host", "apps.test")
+    w = make_wa(sessions, llm=FakeLLM(reply("x")))
+    base = _app_con_vistas(w)
+    url = f"{base}/perfil/?alumno_id=7&k=abc"
+    body = f"Registré a Olga.\n{url}"
+    w.llm.turns = [reply(body)]
+    w.graph.fail_cta = GraphError("interactive no permitido", code=131009)
+    await send(w, text_payload("vino olga", "wamid.in1"))
+    assert w.graph.sent == [(PNID, SEND_TO, body)]
+    assert [(m.type, m.status) for m in messages(sessions, direction="out")] == [("interactive", "failed"), ("text", "sent")]
+

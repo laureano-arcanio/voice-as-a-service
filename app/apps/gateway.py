@@ -32,7 +32,9 @@ CSP = ("default-src 'none'; img-src 'self' data:; style-src 'self'; script-src '
        "font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
 HEADERS = {
     "Content-Security-Policy": CSP,
-    "Referrer-Policy": "no-referrer",
+    # same-origin y no no-referrer: con no-referrer el navegador manda "Origin: null" en el POST de un
+    # formulario y el chequeo de CSRF lo rechazaba (16-oct-2026, perfil de SUGYM). A otros sitios no va nada.
+    "Referrer-Policy": "same-origin",
     "X-Robots-Tag": "noindex, nofollow",
     "X-Content-Type-Options": "nosniff",
     "Cache-Control": "private, no-store",

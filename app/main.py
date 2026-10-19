@@ -30,7 +30,9 @@ from .api.routers import (
     auth,
     billing,
     calls,
+    campaigns,
     clients,
+    contacts,
     conversations,
     demo,
     inference,
@@ -49,10 +51,11 @@ from .apps.jobs import jobs_loop as apps_jobs_loop
 from .apps.registry import health_loop as apps_health_loop
 from .billing import webhook as mp_webhook
 from .billing.loop import billing_loop
+from .campaigns.callbacks import callback_loop
+from .campaigns.loop import campaign_loop
 from .config import settings
 from .services.demo import allowed_origins
 from .whatsapp import webhook as wa_webhook
-from .whatsapp.sender import campaign_loop
 from .whatsapp.service import sweep_loop
 
 logger = logging.getLogger(__name__)
@@ -63,8 +66,10 @@ API_PREFIX = "/api/v1"
 async def lifespan(app: FastAPI):
     # Fin de los chats de WhatsApp vencidos, como el corte de una llamada (app/whatsapp/service.py).
     sweep = asyncio.create_task(sweep_loop())
-    # Envio de las campañas salientes de WhatsApp (app/whatsapp/sender.py).
+    # Campañas salientes: envio de WhatsApp (app/whatsapp/sender.py) y llamadas (app/campaigns/dialer.py).
     sending = asyncio.create_task(campaign_loop())
+    # Webhook de las campañas: entrega con reintentos, aparte para que uno lento no frene el envio (app/campaigns/callbacks.py).
+    webhooks = asyncio.create_task(callback_loop())
     # Vencimientos de los planes pagos y registros sin activar (app/billing/loop.py).
     billing_sweep = asyncio.create_task(billing_loop(settings.billing_tick_seconds))
     # Salud de las apps de los clientes (app/apps/registry.py).
@@ -74,6 +79,7 @@ async def lifespan(app: FastAPI):
     yield
     sweep.cancel()
     sending.cancel()
+    webhooks.cancel()
     billing_sweep.cancel()
     apps_health.cancel()
     apps_jobs.cancel()
@@ -102,7 +108,7 @@ def create_app() -> FastAPI:
 
     api = APIRouter(prefix=API_PREFIX)
     for module in (auth, tiers, clients, phone_numbers, agents, users, api_keys, calls, conversations, voices,
-                   whatsapp, wa_campaigns, wa_operators, inference, demo, billing, apps, llm_connections,
+                   whatsapp, wa_campaigns, campaigns, contacts, wa_operators, inference, demo, billing, apps, llm_connections,
                    llm_params):
         api.include_router(module.router)
     app.include_router(api)

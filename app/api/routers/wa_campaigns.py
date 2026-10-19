@@ -10,7 +10,8 @@
 from fastapi import APIRouter, Query
 
 from ...config import settings
-from ...models import Agent, Client, WaAccount, WaCampaign
+from ...models import Agent, Campaign, Client, WaAccount
+from ...services import phones
 from ...services.errors import Invalid, NotFound
 from ...services.security import Principal
 from ...whatsapp import campaigns
@@ -34,7 +35,7 @@ from .whatsapp import _get_managed
 router = APIRouter(prefix="/whatsapp", tags=["whatsapp"])
 
 
-def _out(db, c: WaCampaign, stats: dict | None = None) -> WaCampaignOut:
+def _out(db, c: Campaign, stats: dict | None = None) -> WaCampaignOut:
     account = db.get(WaAccount, c.account_id)
     client = db.get(Client, c.client_id)
     agent = db.get(Agent, c.agent_id or (account.agent_id if account else ""))
@@ -51,14 +52,14 @@ def _out(db, c: WaCampaign, stats: dict | None = None) -> WaCampaignOut:
         started_at=c.started_at, finished_at=c.finished_at, created_at=c.created_at, updated_at=c.updated_at)
 
 
-def _get(db, campaign_id: str, p: Principal) -> WaCampaign:
-    c = db.get(WaCampaign, campaign_id)
-    if c is None or not p.can_access(c.client_id):
+def _get(db, campaign_id: str, p: Principal) -> Campaign:
+    c = db.get(Campaign, campaign_id)
+    if c is None or c.channel != campaigns.CHANNEL or not p.can_access(c.client_id):
         raise NotFound("Campaña inexistente")
     return c
 
 
-def _get_editable(db, campaign_id: str, p: Principal) -> tuple[WaCampaign, WaAccount]:
+def _get_editable(db, campaign_id: str, p: Principal) -> tuple[Campaign, WaAccount]:
     c = _get(db, campaign_id, p)
     return c, _get_managed(db, c.account_id, p)
 
@@ -92,7 +93,8 @@ async def create_campaign(body: WaCampaignIn, p: CurrentPrincipal, db: DB):
     template = await campaigns.fetch_template(db, account, body.template_name, body.template_language)
     c = campaigns.create(db, account=account, name=body.name, template=template, agent_id=body.agent_id,
                          rate_per_minute=body.rate_per_minute, window_start=body.window_start,
-                         window_end=body.window_end, created_by=p.id if p.kind == "user" else None)
+                         window_end=body.window_end, created_by=p.id if p.kind == "user" else None,
+                         param_names=body.param_names)
     added, skipped = campaigns.add_recipients(db, c, rows)
     db.commit()
     return WaCampaignCreated(campaign=_out(db, c), **_added(added, skipped))
@@ -140,10 +142,10 @@ def list_recipients(campaign_id: str, p: CurrentPrincipal, db: DB,
     rows, total = campaigns.recipients_page(db, c.id, status, offset, limit)
     items = []
     for r, m in rows:
-        failed_later = r.status == "sent" and m is not None and m.status == "failed"
+        failed_later = r.status == "done" and m is not None and m.status == "failed"
         items.append(WaRecipientOut(
-            id=r.id, wa_id=r.wa_id, name=r.name, params=list(r.params or []),
-            status=campaigns.shown_status(r.status, m.status if m else None, r.replied_at is not None),
+            id=r.id, wa_id=r.wa_id, name=r.name, params=r.params,
+            status=campaigns.shown_status(campaigns.wa_status(r), m.status if m else None, r.replied_at is not None),
             error=(m.error if failed_later else r.error), sent_at=r.sent_at, replied_at=r.replied_at,
             conversation_id=r.conversation_id))
     return WaRecipientPage(items=items, total=total)
@@ -184,7 +186,7 @@ def cancel_campaign(campaign_id: str, p: CurrentPrincipal, db: DB):
 # --- Bajas ---
 
 def _optout_out(o) -> WaOptoutOut:
-    return WaOptoutOut(client_id=o.client_id, wa_id=o.wa_id, source=o.source, created_at=o.created_at)
+    return WaOptoutOut(client_id=o.client_id, wa_id=phones.wa_id(o.phone), source=o.source, created_at=o.created_at)
 
 
 @router.get("/optouts", response_model=list[WaOptoutOut])

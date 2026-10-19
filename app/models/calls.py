@@ -48,7 +48,12 @@ class CallRow(Base):
     # Numero del cliente: el marcado (entrante) o el caller ID (saliente).
     phone_number_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("phone_numbers.id", ondelete="SET NULL"), nullable=True)
+    # Si es un intento de una campaña de voz: el contacto de la campaña (app/models/campaigns.py).
+    campaign_contact_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("campaign_contacts.id", ondelete="SET NULL"), nullable=True, index=True)
     status: Mapped[str] = mapped_column(String(16), default=CallStatus.pendiente)
+    # Codigo SIP con el que termino el intento saliente (486 ocupado, 408 no atiende...), si lo hubo.
+    sip_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
     ended_reason: Mapped[str] = mapped_column(String(128), default="")
     error: Mapped[str] = mapped_column(Text, default="")
     started_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)

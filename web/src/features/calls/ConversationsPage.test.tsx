@@ -99,4 +99,28 @@ describe('conversaciones', () => {
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Borrar conversación' })).not.toBeInTheDocument();
   });
+
+  it('filtra por campaña: las llamadas que hizo y las que abrió', async () => {
+    const urls: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const req = input instanceof Request ? input : new Request(input);
+        const url = new URL(req.url);
+        urls.push(`${url.pathname}${url.search}`);
+        if (url.pathname === '/api/v1/calls') return jsonResponse({ items: [CALL], total: 1 });
+        if (url.pathname === '/api/v1/campaigns')
+          return jsonResponse([{ id: 'cmp-9', name: 'Cobranza octubre', channel: 'voice' }]);
+        return jsonResponse([]);
+      }),
+    );
+    renderWithProviders(<ConversationsPage />, { me: CLIENT_USER });
+    await userEvent.click(await screen.findByRole('textbox', { name: 'Campaña' }));
+    await userEvent.click(
+      await screen.findByRole('option', { name: 'Cobranza octubre · Llamadas', hidden: true }),
+    );
+    await waitFor(() =>
+      expect(urls.some((u) => u.startsWith('/api/v1/calls') && u.includes('campaign_id=cmp-9'))).toBe(true),
+    );
+  });
 });

@@ -162,4 +162,25 @@ describe('planFeatures', () => {
       }),
     ).toEqual(['1.200 minutos entrantes por mes', '1 llamada a la vez', 'Acceso a la API']);
   });
+
+  it('lista las campañas del plan con sus canales y el seguimiento', () => {
+    const base = { ...PLAN, outbound_minutes: 0, max_phone_numbers: 0 };
+    expect(
+      planFeatures({
+        ...base,
+        campaign_channels: ['whatsapp', 'voice'],
+        max_campaigns_per_month: 5,
+        campaign_followup: true,
+      }),
+    ).toEqual([
+      '1.200 minutos entrantes por mes',
+      '3 llamadas a la vez',
+      '5 campañas por mes por WhatsApp y llamadas',
+      'Seguimiento por WhatsApp a quien no atiende',
+    ]);
+    expect(planFeatures({ ...base, campaign_channels: ['voice'] })).toContain('Campañas por llamadas');
+    expect(planFeatures({ ...base, campaign_channels: ['voice'], max_campaigns_per_month: 0 })).toHaveLength(
+      2,
+    );
+  });
 });

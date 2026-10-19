@@ -454,7 +454,7 @@ def test_gateway_link_cookie_y_proxy(sessions, monkeypatch, gateway_client):
     r = gateway_client.get("/gym/gym-gestion/minuta/?fecha=2026-10-11")
     assert r.status_code == 200 and r.text == "<h1>Minuta</h1>"
     assert "default-src 'none'" in r.headers["content-security-policy"]
-    assert r.headers["referrer-policy"] == "no-referrer"
+    assert r.headers["referrer-policy"] == "same-origin"
     assert fake.views[-1] == ("/views/minuta", "fecha=2026-10-11", f"link:{link_id}", "/gym/gym-gestion")
 
     r = gateway_client.get("/gym/gym-gestion/static/app.css")

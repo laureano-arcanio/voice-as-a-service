@@ -18,10 +18,10 @@ from ..models import (
     CallMode,
     CallRow,
     CallStatus,
+    CampaignContact,
     Client,
     ConversationRow,
     PhoneNumber,
-    WaCampaignRecipient,
     WaMessage,
     WaThread,
 )
@@ -57,6 +57,11 @@ class CallRequest:
     # sus agentes comparten cliente con el resto de Atentina, que no tiene limites).
     group_agent_ids: tuple[str, ...] = ()
     group_max_concurrent: int | None = None
+    # Intento de una campaña de voz (app/campaigns/dialer.py): el contacto de la campaña, con los datos
+    # (`vars`) que la conversacion usa en la apertura, en los campos precargados y en el prompt
+    # (app/conversation/contact.py).
+    campaign_contact_id: str | None = None
+    vars: dict | None = None
 
 
 @dataclass
@@ -89,6 +94,8 @@ def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
     phone = normalize_e164(req.phone) if req.phone else None
     if phone and req.loadtest:
         raise Invalid("El loadtest no marca teléfonos")
+    if req.campaign_contact_id and not phone:
+        raise Invalid("Un intento de campaña necesita teléfono")
     if req.loadtest and not principal.is_admin:
         # El loadtest no corta al completar el workflow: solo admins y el cliente del loadtest.
         client = s.get(Client, agent.client_id)
@@ -100,7 +107,7 @@ def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
     mode = CallMode.saliente if phone else CallMode.loadtest if req.loadtest else CallMode.prueba
     caller_id = _caller_id(s, agent.client_id, req.from_number_id) if phone else None
     try:
-        state, _ = engine.new_conversation(agent.id, client_id=agent.client_id, session=s)
+        state, _ = engine.new_conversation(agent.id, client_id=agent.client_id, session=s, contact=req.vars)
     except KeyError:
         raise NotFound("Agente inexistente") from None
 
@@ -113,7 +120,10 @@ def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
     engine.store.add(s, state)
     s.flush()   # la conversacion antes que la llamada (foreign key)
     s.add(CallRow(conversation_id=state.conversation_id, client_id=agent.client_id, mode=mode, phone=phone,
-                  phone_number_id=caller_id.id if caller_id else None))
+                  phone_number_id=caller_id.id if caller_id else None, campaign_contact_id=req.campaign_contact_id))
+    if req.campaign_contact_id:     # el ultimo intento del contacto, en la misma transaccion que su llamada
+        s.execute(update(CampaignContact).where(CampaignContact.id == req.campaign_contact_id)
+                  .values(conversation_id=state.conversation_id))
     s.commit()
 
     room = f"call-{state.conversation_id}"
@@ -121,7 +131,7 @@ def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
                        if v is not None)
     metadata = {"conversation_id": state.conversation_id, "phone": phone, "voice": voice, "loadtest": req.loadtest,
                 "max_duration_seconds": max_duration, "from_number": caller_id.e164 if caller_id else None,
-                "join_timeout_seconds": req.join_timeout_seconds}
+                "join_timeout_seconds": req.join_timeout_seconds, "campaign_contact_id": req.campaign_contact_id}
     return CallStarted(conversation_id=state.conversation_id, room=room, mode=mode), metadata
 
 
@@ -244,7 +254,7 @@ def delete_conversations(s: Session, ids: list[str]) -> int:
                        "call_in_progress")
     # Explicitos y en orden: en SQLite de tests las foreign keys no aplican y el
     # ondelete=CASCADE de PostgreSQL no se ve desde el ORM (no hay relationships).
-    s.execute(update(WaCampaignRecipient).where(WaCampaignRecipient.conversation_id.in_(found))
+    s.execute(update(CampaignContact).where(CampaignContact.conversation_id.in_(found))
               .values(conversation_id=None))
     s.execute(delete(WaMessage).where(WaMessage.conversation_id.in_(found)))
     s.execute(delete(WaThread).where(WaThread.conversation_id.in_(found)))

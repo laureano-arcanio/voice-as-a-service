@@ -12,8 +12,20 @@ export const LIMIT_META: Record<LimitField, { label: string; unit: string; group
   api_llm_input_tokens: { label: 'Tokens de entrada del LLM por mes', unit: '', group: 'API de inferencia' },
   api_llm_output_tokens: { label: 'Tokens de salida del LLM por mes', unit: '', group: 'API de inferencia' },
   api_tts_minutes: { label: 'Minutos de síntesis (TTS) por mes', unit: ' min', group: 'API de inferencia' },
-  api_stt_minutes: { label: 'Minutos de transcripción (STT) por mes', unit: ' min', group: 'API de inferencia' },
+  api_stt_minutes: {
+    label: 'Minutos de transcripción (STT) por mes',
+    unit: ' min',
+    group: 'API de inferencia',
+  },
   api_rate_limit: { label: 'Pedidos por minuto', unit: '', group: 'API de inferencia' },
+  max_campaigns_per_month: { label: 'Campañas por mes', unit: '', group: 'Campañas y agenda' },
+  max_campaign_contacts: { label: 'Contactos por campaña', unit: '', group: 'Campañas y agenda' },
+  max_campaign_concurrency: {
+    label: 'Llamadas simultáneas por campaña',
+    unit: '',
+    group: 'Campañas y agenda',
+  },
+  max_contacts: { label: 'Contactos en la agenda', unit: '', group: 'Campañas y agenda' },
 };
 
 /** Campos en el orden del selector (agrupados). */

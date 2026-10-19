@@ -137,6 +137,14 @@ class GraphClient:
             "text": {"body": body},
         })
 
+    async def send_cta_url(self, phone_number_id: str, to: str, body: str, label: str, url: str) -> dict:
+        """Mensaje interactivo con un botón de link (cta_url): cuerpo hasta 1024, rótulo hasta 20."""
+        return await self._post(phone_number_id, "messages", {
+            "messaging_product": "whatsapp", "recipient_type": "individual", "to": to, "type": "interactive",
+            "interactive": {"type": "cta_url", "body": {"text": body},
+                            "action": {"name": "cta_url", "parameters": {"display_text": label, "url": url}}},
+        })
+
     async def send_template(self, phone_number_id: str, to: str, name: str,
                             language: str, params: list[str] | None = None) -> dict:
         template: dict = {"name": name, "language": {"code": language}}

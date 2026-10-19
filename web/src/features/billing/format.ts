@@ -48,6 +48,16 @@ export function planFeatures(p: Plan): string[] {
   if (p.max_phone_numbers !== 0)
     out.push(amount(p.max_phone_numbers, 'número de teléfono', 'números de teléfono', 'Números sin límite'));
   if (p.api_rate_limit !== 0) out.push('Acceso a la API');
+  const channels = p.campaign_channels ?? [];
+  if (channels.length && p.max_campaigns_per_month !== 0) {
+    const names = channels.map((c) => (c === 'whatsapp' ? 'WhatsApp' : 'llamadas')).join(' y ');
+    out.push(
+      p.max_campaigns_per_month == null
+        ? `Campañas por ${names}`
+        : `${amount(p.max_campaigns_per_month, 'campaña', 'campañas', '', ' por mes')} por ${names}`,
+    );
+    if (p.campaign_followup) out.push('Seguimiento por WhatsApp a quien no atiende');
+  }
   return out;
 }
 

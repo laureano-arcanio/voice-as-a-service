@@ -4,11 +4,12 @@ import pytest
 from sqlalchemy import select
 
 from app.models import (
+    Campaign,
+    CampaignContact,
+    Contact,
+    ContactOptout,
     ConversationRow,
-    WaCampaign,
-    WaCampaignRecipient,
     WaMessage,
-    WaOptout,
 )
 from app.services.errors import Invalid
 from app.whatsapp import campaigns, signup
@@ -111,11 +112,14 @@ def test_template_payload_buttons():
 # ---------- API ----------
 
 @pytest.fixture
-def account(meta, acme):  # noqa: F811
-    """Un numero conectado por Embedded Signup (token propio) y una plantilla aprobada."""
+def account(meta, acme, admin):  # noqa: F811
+    """Un numero conectado por Embedded Signup (token propio) y una plantilla aprobada. El plan
+    incluye las campañas de WhatsApp."""
     meta.templates.append({"id": "t9", "name": "demo", "language": "es_AR", "category": "MARKETING",
                            "status": "APPROVED", "components": [{"type": "BODY", "text": BODY}]})
     c, agent, user = acme
+    r = admin.patch(f"{V1}/tiers/{c['tier']['id']}", json={"campaign_channels": ["whatsapp"]})
+    assert r.status_code == 200, r.text
     return user, signup_ok(user, agent), c
 
 
@@ -238,27 +242,30 @@ class Clock:
 
 def make_campaign(w, *phones, status="running", agent_id=None, rate=60, window=(0, 24), body=BODY) -> str:
     with w.sessions() as s:
-        c = WaCampaign(client_id=w.client_id, account_id=w.account_id, agent_id=agent_id, name="C",
-                       template_name="demo", template_language="es_AR", template_category="MARKETING",
+        c = Campaign(client_id=w.client_id, channel="whatsapp", account_id=w.account_id, agent_id=agent_id, name="C",
+                     template_name="demo", template_language="es_AR", template_category="MARKETING",
                        template_body=body, template_params=1, status=status, rate_per_minute=rate,
                        window_start=window[0], window_end=window[1])
         s.add(c)
         s.flush()
         for i, phone in enumerate(phones):
-            s.add(WaCampaignRecipient(campaign_id=c.id, wa_id=phone, params=[f"Ana{i}"]))
+            contact = s.scalar(select(Contact).where(Contact.client_id == w.client_id, Contact.phone == "+" + phone))
+            if contact is None:
+                contact = Contact(client_id=w.client_id, phone="+" + phone)
+            s.add(CampaignContact(campaign_id=c.id, contact=contact, vars={"params": [f"Ana{i}"]}))
         s.commit()
         return c.id
 
 
-def recipients(sessions, campaign_id) -> list[WaCampaignRecipient]:
+def recipients(sessions, campaign_id) -> list[CampaignContact]:
     with sessions() as s:
-        return list(s.scalars(select(WaCampaignRecipient).where(WaCampaignRecipient.campaign_id == campaign_id)
-                              .order_by(WaCampaignRecipient.created_at)))
+        return list(s.scalars(select(CampaignContact).where(CampaignContact.campaign_id == campaign_id)
+                              .order_by(CampaignContact.created_at)))
 
 
-def campaign(sessions, campaign_id) -> WaCampaign:
+def campaign(sessions, campaign_id) -> Campaign:
     with sessions() as s:
-        return s.get(WaCampaign, campaign_id)
+        return s.get(Campaign, campaign_id)
 
 
 def sender_for(w, hour=12, clock=None) -> CampaignSender:
@@ -275,7 +282,7 @@ async def test_sender_respects_rate_and_finishes(sessions):
     clock.t += 10
     assert await sender.tick() == 2
     assert w.graph.templates[0] == (PNID, SEND_TO, "demo", "es_AR", ["Ana0"])
-    assert [r.status for r in recipients(sessions, cid)] == ["sent"] * 3
+    assert [(r.status, r.result) for r in recipients(sessions, cid)] == [("done", "sent")] * 3
     (first, *_) = recipients(sessions, cid)
     assert first.wamid == "wamid.tpl1" and first.sent_at is not None
     out = messages(sessions, direction="out")
@@ -302,7 +309,7 @@ async def test_sender_skips_optouts_and_paused(sessions):
     paused = make_campaign(w, "5493515550009", status="paused")
     await sender_for(w).tick()
     assert [(r.wa_id, r.status) for r in recipients(sessions, cid)] == [
-        (WA_ID, "skipped"), ("5493515550001", "sent")]
+        (WA_ID, "skipped"), ("5493515550001", "done")]
     assert [r.status for r in recipients(sessions, paused)] == ["pending"]
 
 
@@ -353,7 +360,7 @@ async def test_recover_marks_inflight_as_failed(sessions):
     w = make_wa(sessions, graph=CampaignGraph())
     cid = make_campaign(w, WA_ID)
     with sessions() as s:
-        s.scalar(select(WaCampaignRecipient)).status = "sending"
+        s.scalar(select(CampaignContact)).status = "in_progress"
         s.commit()
     assert sender_for(w).recover() == 1
     assert recipients(sessions, cid)[0].status == "failed"
@@ -418,7 +425,7 @@ async def test_optout_reply(sessions):
     assert w.graph.sent == [(PNID, SEND_TO, "Listo, no te vamos a escribir más. ¡Gracias!")]
     assert conversations(sessions) == [] and w.llm.calls == []
     with sessions() as s:
-        assert s.get(WaOptout, (w.client_id, WA_ID)).source == "keyword"
+        assert s.get(ContactOptout, (w.client_id, "+" + WA_ID, "whatsapp")).source == "keyword"
     # Otra campaña no le escribe.
     cid = make_campaign(w, WA_ID)
     await sender_for(w).tick()
@@ -430,7 +437,7 @@ async def test_optout_text_without_campaign_goes_to_the_agent(sessions):
     await send(w, text_payload("baja", "wamid.in1"))
     assert w.graph.sent == [(PNID, SEND_TO, "¿Seguro?")]
     with sessions() as s:
-        assert s.scalars(select(WaOptout)).all() == []
+        assert s.scalars(select(ContactOptout)).all() == []
 
 
 def test_campaign_conversation_row_count(sessions):

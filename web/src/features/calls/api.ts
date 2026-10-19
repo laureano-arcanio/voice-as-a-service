@@ -7,6 +7,7 @@ import type { CallDetail, CallIn } from './types';
 export interface CallFilters {
   client_id?: string;
   agent_id?: string;
+  campaign_id?: string;
   date_from?: string;
   date_to?: string;
 }
@@ -50,6 +51,7 @@ export function useLiveCalls(p: CallFilters) {
             query: {
               client_id: p.client_id,
               agent_id: p.agent_id,
+              campaign_id: p.campaign_id,
               status: LIVE_STATUSES,
               limit: 50,
               tz: BROWSER_TZ,

@@ -517,6 +517,12 @@ function OutcomeEditor({
         checked={outcome.goal}
         onChange={(e) => set({ goal: e.currentTarget.checked })}
       />
+      <Switch
+        label="No volver a llamar"
+        description="En una campaña de llamadas, el teléfono pasa a la lista de bajas de voz del cliente y ninguna campaña lo vuelve a llamar."
+        checked={outcome.noContact}
+        onChange={(e) => set({ noContact: e.currentTarget.checked })}
+      />
       <Textarea
         label="Mensaje de cierre"
         description="Guía para la despedida: el agente la adapta."
@@ -639,6 +645,16 @@ export function DefinitionForm({
           description="Un archivo por turno (la llamada completa, telefónica o de WhatsApp), localmente en el servidor."
           checked={draft.recordAudio}
           onChange={(e) => set({ recordAudio: e.currentTarget.checked })}
+        />
+        <NumberInput
+          label="Ventana de contexto en WhatsApp (minutos)"
+          description="Minutos sin mensaje del contacto para dar la conversación por terminada: la siguiente arranca de cero, sin el historial anterior. Vacío = el default del servidor (1440 min = 24 hs)."
+          placeholder="1440"
+          value={draft.waSessionMinutes ?? ''}
+          onChange={(v) => set({ waSessionMinutes: typeof v === 'number' ? v : null })}
+          min={1}
+          max={60 * 24 * 90}
+          allowDecimal={false}
         />
       </Section>
 

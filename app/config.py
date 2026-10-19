@@ -222,6 +222,23 @@ class Settings(BaseSettings):
     wa_campaign_reply_days: int = 7         # una respuesta dentro de estos dias abre la conversacion con la plantilla
     wa_campaign_max_recipients: int = 10_000  # por campaña
     wa_optout_reply: str = "Listo, no te vamos a escribir más. ¡Gracias!"
+    # Campañas de voz (app/campaigns/dialer.py, docs/LLAMADAS_SALIENTES_PLAN.md, secciones 4 y 5).
+    call_campaign_tick_seconds: float = 2.0     # cada cuanto el dialer revisa que llamar
+    # Llamadas de campaña a la vez entre todos los clientes: deja lugar a las entrantes y la demo. 8 hasta
+    # medir la capacidad con Gemma (fase 5 del plan).
+    call_campaign_max_concurrent: int = 8
+    call_campaign_failure_streak: int = 10      # intentos seguidos fallidos que pausan la campaña (trunk o Anura caidos)
+    call_ringing_timeout_seconds: int = 30      # cuanto suena antes de dar la llamada por no atendida
+    # Feriados (fechas YYYY-MM-DD separadas por coma, hora local de billing_timezone): el dialer no marca esos
+    # dias (plan, seccion 11). Las campañas de WhatsApp no los miran.
+    campaign_holidays: str = ""
+    # Webhook de las campañas (app/campaigns/callbacks.py, plan seccion 8): cada cuanto se entrega lo pendiente,
+    # tiempo maximo de un POST, intentos por evento (con espera creciente) y si se permite un host privado
+    # o http (solo para desarrollo: sin esto un cliente podria apuntar a la red interna).
+    campaign_callback_tick_seconds: float = 5.0
+    campaign_callback_timeout_seconds: float = 10.0
+    campaign_callback_max_attempts: int = 6
+    campaign_callback_allow_private: bool = False
 
     # --- Apps por cliente (docs/APPS_PLAN.md) ---
     # Host publico de las vistas (gateway): con ese Host, app atiende solo el gateway. Vacio = apagado.

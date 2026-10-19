@@ -20,6 +20,7 @@ from livekit.plugins import openai, silero
 
 from livekit import api, rtc
 
+from ..campaigns.voicemail import VoicemailDetector
 from ..config import settings
 from ..conversation import recordings
 from ..conversation.engine import ConversationEngine
@@ -28,7 +29,7 @@ from ..db import get_sessionmaker, utcnow
 from ..models import CallMode, CallRow, CallStatus
 from ..runtime import get_conversation_engine
 from ..services import calls as call_service
-from ..services import quota
+from ..services import campaign_calls, quota
 from ..services.errors import NotFound, QuotaExceeded
 from .latency import TurnLatencyTracker
 
@@ -503,11 +504,26 @@ async def entrypoint(ctx: JobContext):
             call_service.update_call(
                 s, conversation_id, status=CallStatus.finalizada, ended_reason=(reason or "")[:128], ended_at=utcnow(),
                 duration_seconds=int(time.time() - started_at) if started_at else 0, latency=latency.summary())
+            # Intento de una campaña de voz: atendio si la llamada llego a conectarse (y si el agente quedo
+            # en un resultado "no contactar", el telefono pasa a la lista de bajas de voz).
+            if started_at:
+                campaign_calls.close_attempt(s, conversation_id, "answered")
+                campaign_calls.apply_outcome_optout(s, conversation_id, engine.definitions)
+            else:
+                campaign_calls.close_attempt(s, conversation_id, "failed",
+                                             error={"message": "La llamada terminó sin conectarse", "reason": reason})
+            s.commit()
 
     ctx.add_shutdown_callback(finalize)
 
-    def fail(error: str, reason: str):
-        update_call(status=CallStatus.fallida, error=error[:2000], ended_reason=reason, ended_at=utcnow())
+    def fail(error: str, reason: str, result: str = "failed", sip_status: int | None = None):
+        update_call(status=CallStatus.fallida, error=error[:2000], ended_reason=reason, ended_at=utcnow(),
+                    sip_status=sip_status)
+        # Intento de una campaña de voz: ocupado, no atiende, numero inexistente... (plan, seccion 5).
+        with sessions() as s:
+            campaign_calls.close_attempt(s, conversation_id, result,
+                                         error={"message": error[:500], "reason": reason, "sip_status": sip_status})
+            s.commit()
         ctx.shutdown(reason=reason)
 
     async def hang_up(reason: str = "completed"):
@@ -551,6 +567,25 @@ async def entrypoint(ctx: JobContext):
 
     ctx.room.on("participant_disconnected", lambda _: ctx.shutdown(reason="customer_hangup"))
 
+    # Campaña de voz: si lo primero que dice quien atiende suena a buzon, el intento queda `voicemail`
+    # (se reintenta segun la campaña) y se corta (app/campaigns/voicemail.py).
+    voicemail = VoicemailDetector() if metadata.get("campaign_contact_id") else None
+
+    async def voicemail_hang_up():
+        logger.info("llamada %s: atendio un contestador, se corta", conversation_id)
+        with sessions() as s:
+            campaign_calls.close_attempt(s, conversation_id, "voicemail",
+                                         error={"message": "Atendió un contestador", "reason": "voicemail"})
+            s.commit()
+        session.interrupt()
+        await hang_up("voicemail")
+
+    def on_transcript(ev) -> None:
+        if voicemail is not None and voicemail.feed(ev.transcript, ev.is_final):
+            asyncio.create_task(voicemail_hang_up())
+
+    session.on("user_input_transcribed", on_transcript)
+
     await session.start(agent=agent, room=ctx.room)
 
     update_call(status=CallStatus.sonando)
@@ -568,12 +603,14 @@ async def entrypoint(ctx: JobContext):
                     participant_identity="customer",
                     participant_name="Cliente",
                     wait_until_answered=True,
+                    ringing_timeout=Duration(seconds=settings.call_ringing_timeout_seconds),
                     max_call_duration=Duration(seconds=max_duration),
                 )
             )
         except Exception as e:
-            logger.exception("sip call failed %s", conversation_id)
-            fail(str(e), "sip_call_failed")
+            result, sip_code = campaign_calls.classify_error(e)
+            logger.exception("sip call failed %s (%s, SIP %s)", conversation_id, result, sip_code)
+            fail(str(e), "sip_call_failed", result, sip_code)
             return
     elif mode in (CallMode.prueba, CallMode.loadtest):
         join_timeout = metadata.get("join_timeout_seconds") or 300

@@ -33,6 +33,9 @@ se busca descubrir quién paga y por qué, no ejecutar un foco ya elegido.
 
 - **No enviás mails ni completás formularios de contacto.** Dejás los textos listos para copiar
   y el usuario los envía. Recién cuando el usuario dice que salieron, lo anotás como enviado.
+- **Blacklist antes de cada envío.** Ningún destinatario de un primer contacto, seguimiento o tanda puede
+  estar en [`docs/mercado/blacklist.md`](../../docs/mercado/blacklist.md) (rebotes y empresas que pidieron no
+  seguir). Cruzá cada email (en minúsculas) antes de entregar los textos o el HTML, y sacá el que esté.
 - **Emails solo publicados.** Cada dirección tiene que figurar en una fuente que abriste (sitio,
   ficha de cámara, prospecto, boletín oficial, prensa) y la verificás literal (WebFetch, `curl`,
   `pdftotext`; Cloudflare `data-cfemail` decodificado). Nada deducido ("será nombre.apellido@") ni
@@ -118,6 +121,7 @@ Todo cambio va a `docs/mercado/seguimiento.md`, siguiendo su sección "Cómo se 
   fecha) y una fila en "Envíos" con el link al `.md` de los textos.
 - **Seguimiento enviado:** fecha en la columna "Seguimiento" y estado `seguimiento enviado`.
 - **Respuesta o rebote:** fecha y una línea en "Respuesta"; actualizá estado y próxima acción.
+  Un rebote o un "no nos escriban más" suma además la dirección a `docs/mercado/blacklist.md`.
 - **Charla:** una entrada en "Conversaciones" con los campos de la sección 0 del plan (problema,
   volumen, costo actual, quién decide, si pagaría un piloto) y sumá el caso en "Casos de uso que
   aparecen".

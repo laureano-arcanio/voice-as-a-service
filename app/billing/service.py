@@ -105,9 +105,11 @@ def amount_due(s: Session, sub: Subscription) -> int:
 def fit_numbers(s: Session, client: Client, now: datetime.datetime | None = None) -> list[str]:
     """Deja atendiendo a lo sumo los numeros que permite el plan actual: suspende los que sobran
     (los asignados mas recientemente) y reactiva los suspendidos que entran. Devuelve los recien
-    suspendidos (E.164)."""
+    suspendidos (E.164). Tambien pausa las campañas de un canal que el plan ya no incluye."""
     now = now or utcnow()
-    limit = limits.effective_limits(s, client, now).max_phone_numbers
+    effective = limits.effective_limits(s, client, now)
+    limits.pause_campaigns_outside_plan(s, client, effective)
+    limit = effective.max_phone_numbers
     numbers = list(s.scalars(select(PhoneNumber).where(PhoneNumber.client_id == client.id)))
     # Primero los que ya atendian, por antiguedad.
     numbers.sort(key=lambda n: (n.suspended_at is not None, n.assigned_at or datetime.datetime.min))

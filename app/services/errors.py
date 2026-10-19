@@ -35,7 +35,9 @@ class Invalid(ServiceError):
 
 class QuotaExceeded(ServiceError):
     """Limite del tier. code: concurrency_limit, calls_per_hour, calls_per_day, calls_per_month,
-    inbound_minutes, outbound_minutes, client_inactive o number_suspended."""
+    inbound_minutes, outbound_minutes, client_inactive o number_suspended. Campañas y agenda:
+    campaign_channel_not_in_plan, campaigns_per_month, campaign_contacts, campaign_concurrency,
+    campaign_followup_not_in_plan y contacts_limit."""
     status_code = 429
     default_code = "quota_exceeded"
 
