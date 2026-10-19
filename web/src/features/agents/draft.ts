@@ -96,6 +96,10 @@ export interface Draft {
   waSessionMinutes: number | null;
   objective: string;
   opening: string;
+  /** Llamadas: la apertura se sintetiza entera al guardar y se reproduce ese audio. */
+  openingAudio: boolean;
+  /** Llamadas: espera antes de que el agente hable, en ms. */
+  openingDelayMs: number;
   rules: RuleDraft[];
   knowledge: string;
   fields: FieldDraft[];
@@ -126,6 +130,9 @@ export interface LlmDraft {
 }
 
 export const MAX_LLM_STAGES = 3;
+
+/** Default de conversation.opening_delay_ms (app/conversation/models.py). */
+export const OPENING_DELAY_MS = 200;
 
 export const blankStage = (fromTurn: number): LlmStageDraft => ({
   key: newKey(),
@@ -256,6 +263,8 @@ export function toDraft(d: Definition): Draft {
     waSessionMinutes: typeof d.wa_session_minutes === 'number' ? d.wa_session_minutes : null,
     objective: str(obj(d.objective).description),
     opening: str(conv.opening),
+    openingAudio: conv.opening_audio === true,
+    openingDelayMs: typeof conv.opening_delay_ms === 'number' ? conv.opening_delay_ms : OPENING_DELAY_MS,
     rules: (Array.isArray(conv.rules) ? conv.rules : []).map((r) => ({ key: newKey(), text: str(r) })),
     knowledge: str(d.knowledge),
     fields,
@@ -313,6 +322,8 @@ export function fromDraft(draft: Draft): Definition {
     objective: { description: draft.objective },
     conversation: {
       opening: draft.opening,
+      ...(draft.openingAudio ? { opening_audio: true } : {}),
+      ...(draft.openingDelayMs !== OPENING_DELAY_MS ? { opening_delay_ms: draft.openingDelayMs } : {}),
       rules: draft.rules.map((r) => r.text).filter((t) => t.trim()),
     },
     knowledge: draft.knowledge,
@@ -461,6 +472,8 @@ const PATH_WORDS: Record<string, string> = {
   objective: 'Objetivo',
   conversation: 'Conversación',
   opening: 'apertura',
+  opening_audio: 'apertura pregenerada',
+  opening_delay_ms: 'espera antes de la apertura',
   rules: 'reglas',
   knowledge: 'Base de conocimiento',
   fields: 'Datos',

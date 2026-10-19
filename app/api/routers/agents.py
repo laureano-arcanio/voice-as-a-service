@@ -1,7 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks
 from sqlalchemy import select
 
 from ...agents.templates import template_data, template_ids
+from ...conversation import opening_audio
 from ...conversation.assistant import build_system as build_assistant_system
 from ...conversation.models import ConversationState, Workflow
 from ...llm.prompt import build_classic_system, render_workflow, system_prompt
@@ -102,7 +103,7 @@ def list_agents(p: CurrentPrincipal, db: DB, client_id: str | None = None, inclu
 
 
 @router.post("/agents", response_model=AgentDetail, status_code=201)
-def create_agent(body: AgentCreate, p: CurrentPrincipal, db: DB):
+def create_agent(body: AgentCreate, p: CurrentPrincipal, db: DB, background: BackgroundTasks):
     """Admin: en el cliente de client_id. Usuario o API key de un cliente: en el suyo
     (client_id se puede omitir; el de otro cliente da 404)."""
     client_id = body.client_id or p.client_id
@@ -112,6 +113,7 @@ def create_agent(body: AgentCreate, p: CurrentPrincipal, db: DB):
     agent = service.create_agent(db, client, body.name, body.slug, body.description, body.definition,
                                  body.template_id, p.id if p.kind == "user" else None, body.engine)
     db.commit()
+    _pregenerate_opening(background, agent)
     return _out(agent, detail=True)
 
 
@@ -133,19 +135,31 @@ def update_agent(agent_id: str, body: AgentUpdate, p: CurrentPrincipal, db: DB):
 
 
 @router.put("/agents/{agent_id}/definition", response_model=AgentDetail)
-def update_definition(agent_id: str, body: DefinitionIn, p: CurrentPrincipal, db: DB):
+def update_definition(agent_id: str, body: DefinitionIn, p: CurrentPrincipal, db: DB, background: BackgroundTasks):
     """Guarda la definicion como version nueva (si cambio). Las llamadas en curso
     siguen con la version con que empezaron."""
     agent = service.update_definition(db, get_agent(db, p, agent_id), body.definition,
                                       p.id if p.kind == "user" else None)
     db.commit()
+    _pregenerate_opening(background, agent)
     return _out(agent, detail=True)
+
+
+def _pregenerate_opening(background: BackgroundTasks, agent: Agent) -> None:
+    """conversation.opening_audio: sintetiza la apertura de la version vigente despues de responder
+    (hasta que este, las llamadas la sintetizan en vivo)."""
+    workflow = Workflow.model_validate(agent.definition)
+    if opening_audio.wanted(workflow):
+        background.add_task(opening_audio.generate, agent.id, workflow)
 
 
 @router.delete("/agents/{agent_id}", status_code=204)
 def delete_agent(agent_id: str, p: CurrentPrincipal, db: DB):
-    service.delete_agent(db, get_agent(db, p, agent_id))
+    agent = get_agent(db, p, agent_id)
+    agent_uuid = agent.id
+    service.delete_agent(db, agent)
     db.commit()
+    opening_audio.delete(agent_uuid)
 
 
 @router.get("/agents/{agent_id}/versions", response_model=list[AgentVersionOut])

@@ -34,6 +34,8 @@ export interface WorkflowView {
   llm: { fromTurn: number; connection: string | null; model: string }[];
   objective: string;
   opening: string;
+  openingAudio: boolean;
+  openingDelayMs: number;
   rules: string[];
   knowledge: string;
   fields: [string, FieldSpec][];
@@ -100,6 +102,8 @@ export function readWorkflow(d: Definition): WorkflowView {
     }),
     objective: str(obj(d.objective).description).trim(),
     opening: str(conv.opening).trim(),
+    openingAudio: conv.opening_audio === true,
+    openingDelayMs: typeof conv.opening_delay_ms === 'number' ? conv.opening_delay_ms : 200,
     rules: Array.isArray(conv.rules) ? conv.rules.map(str) : [],
     knowledge: str(d.knowledge).trim(),
     fields,

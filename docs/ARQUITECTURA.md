@@ -204,6 +204,16 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
   guardar se valida que cada app sea del cliente y tenga esas herramientas.
 - `fields.<campo>.label` (opcional): nombre del dato para mostrarlo (resultado de la demo de la
   landing). No va al prompt.
+- **`conversation.opening_audio`** (default `false`) y **`conversation.opening_delay_ms`**
+  (default 200): en las llamadas, la apertura pregenerada y la espera antes de que hable el agente.
+  En vivo, el TTS de LiveKit sintetiza frase por frase y cada una suena sin el contexto de las
+  otras; con la bandera, al crear o guardar el agente `app` sintetiza la apertura entera en un solo
+  pedido (en segundo plano, después de responder) y la deja en
+  `storage/openings/<agent_id>/<versión>-<voz>.wav` (`OPENING_AUDIO_DIR`). El worker la reproduce
+  si coinciden versión, voz y texto; si no (falló el TTS, todavía se genera, la llamada eligió
+  otra voz, la apertura tiene `{{variables}}`), la sintetiza en vivo. Se graba igual que la
+  apertura en vivo. Al cambiar el checkpoint del TTS hay que borrar `storage/openings/` o volver a
+  guardar los agentes. Código en `app/conversation/opening_audio.py`.
 - **`record_audio`** (default `false`): graba el audio, un WAV mono de 16 kHz por mensaje,
   localmente (`CALL_RECORDINGS_DIR`, default `storage/recordings/<conversation_id>/NNN.wav`;
   `storage/` montado en `agent`, no versionado). Lo escribe `app/conversation/recordings.py`

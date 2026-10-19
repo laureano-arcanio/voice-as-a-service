@@ -69,6 +69,9 @@ export function WorkflowSummary({ definition, clientId }: { definition: Definiti
         <Text size="sm" style={{ whiteSpace: 'pre-line' }}>
           {w.opening || '–'}
         </Text>
+        <Text size="xs" c="dimmed" mt={4}>
+          {w.openingAudio ? 'Audio pregenerado' : 'Sintetizada en vivo'}, tras {w.openingDelayMs} ms
+        </Text>
         <Title order={5} mt="md" mb={4}>
           Reglas
         </Title>

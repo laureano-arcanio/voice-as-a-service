@@ -33,6 +33,11 @@ class Objective(BaseModel):
 class ConversationConfig(BaseModel):
     opening: str
     rules: list[str] = []
+    # Llamadas: la apertura se sintetiza entera al guardar el agente (suena mejor que frase por
+    # frase) y se reproduce ese audio (app/conversation/opening_audio.py).
+    opening_audio: bool = False
+    # Llamadas: espera desde que se conecta la llamada hasta que el agente empieza a hablar.
+    opening_delay_ms: int = Field(default=200, ge=0, le=10_000)
 
 
 class FieldSpec(BaseModel):

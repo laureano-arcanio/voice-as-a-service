@@ -36,6 +36,7 @@ import {
   newField,
   newKey,
   newOutcome,
+  OPENING_DELAY_MS,
   type OutcomeDraft,
   renameField,
   renumber,
@@ -685,6 +686,22 @@ export function DefinitionForm({
             maxRows={6}
             value={draft.opening}
             onChange={(e) => set({ opening: e.currentTarget.value })}
+          />
+          <Switch
+            label="Pregenerar el audio de la apertura"
+            description="En las llamadas, la apertura se sintetiza entera al guardar (suena más natural que frase por frase) y se reproduce ese audio. Se regenera en cada guardado. No aplica si la apertura tiene {{variables}} o la llamada usa otra voz."
+            checked={draft.openingAudio}
+            onChange={(e) => set({ openingAudio: e.currentTarget.checked })}
+          />
+          <NumberInput
+            label="Espera antes de la apertura (ms)"
+            description="En las llamadas, cuánto espera desde que se conecta hasta que empieza a hablar."
+            value={draft.openingDelayMs}
+            onChange={(v) => set({ openingDelayMs: typeof v === 'number' ? v : OPENING_DELAY_MS })}
+            min={0}
+            max={10_000}
+            step={100}
+            allowDecimal={false}
           />
         </Stack>
       </Section>

@@ -22,7 +22,7 @@ from livekit import api, rtc
 
 from ..campaigns.voicemail import VoicemailDetector
 from ..config import settings
-from ..conversation import recordings
+from ..conversation import opening_audio, recordings
 from ..conversation.engine import ConversationEngine
 from ..conversation.models import Workflow
 from ..db import get_sessionmaker, utcnow
@@ -97,6 +97,14 @@ class _MonoResampler:
         return self._resampler.push(mono_frame)
 
 
+async def _pcm_frames(pcm: bytes, sample_rate: int, frame_ms: int = 20):
+    """PCM de 16 bits mono en frames de frame_ms."""
+    step = sample_rate * frame_ms // 1000 * 2
+    for i in range(0, len(pcm), step):
+        chunk = pcm[i:i + step]
+        yield rtc.AudioFrame(data=chunk, sample_rate=sample_rate, num_channels=1, samples_per_channel=len(chunk) // 2)
+
+
 class WorkflowAgent(Agent):
     def __init__(self, engine: ConversationEngine, conversation_id: str, latency: TurnLatencyTracker, on_completed,
                  record_dir: Path | None = None):
@@ -146,12 +154,18 @@ class WorkflowAgent(Agent):
     def tts_node(self, text, model_settings):
         if self.record_dir is None:
             return super().tts_node(text, model_settings)
-        return self._tee_agent_audio(text, model_settings)
+        return self._tee_agent_audio(super().tts_node(text, model_settings))
 
-    async def _tee_agent_audio(self, text, model_settings):
+    def opening_frames(self, pcm: bytes):
+        """La apertura pregenerada como frames para session.say(audio=...): no pasa por tts_node,
+        asi que se graba aca como el saludo sintetizado en vivo."""
+        frames = _pcm_frames(pcm, opening_audio.SAMPLE_RATE)
+        return frames if self.record_dir is None else self._tee_agent_audio(frames)
+
+    async def _tee_agent_audio(self, frames):
         agent_audio = bytearray()
         try:
-            async for frame in super().tts_node(text, model_settings):
+            async for frame in frames:
                 for f in self._rec_agent_resampler.push(frame):
                     agent_audio.extend(f.data)
                 yield frame
@@ -626,7 +640,17 @@ async def entrypoint(ctx: JobContext):
         watchdog = asyncio.create_task(quota_watchdog())
     elif not phone and metadata.get("max_duration_seconds"):
         watchdog = asyncio.create_task(duration_limit(metadata["max_duration_seconds"]))
-    await session.say(opening)
+    # Pausa antes de hablar (conversation.opening_delay_ms): sin ella el saludo arranca apenas
+    # se conecta el audio y se puede perder el principio.
+    if delay_ms := workflow.conversation.opening_delay_ms:
+        await asyncio.sleep(delay_ms / 1000)
+    # Apertura pregenerada al guardar el agente (opening_audio), si coincide version, voz y texto.
+    if (pcm := opening_audio.load_pcm(state.agent_id, workflow, voice, opening)) is not None:
+        logger.info("llamada %s: apertura pregenerada (%.1f s)", conversation_id,
+                    len(pcm) / (2 * opening_audio.SAMPLE_RATE))
+        await session.say(opening, audio=agent.opening_frames(pcm))
+    else:
+        await session.say(opening)
 
 if __name__ == "__main__":
     cli.run_app(WorkerOptions(
