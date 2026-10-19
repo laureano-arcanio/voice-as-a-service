@@ -14,9 +14,10 @@ Cloudflare Tunnel. No hay backend aparte ni base nueva: costo adicional cero.
     Sin código ni endpoints.
   - `/desarrolladores`, para quien integra: hero con la animación del agente de programación (`AgentTerminal`) → tres formas de integrarlo →
     API compatible con OpenAI (`CodeTabs` con pedidos reales) → integración agéntica (skills y lo que puede hacer) → voces → **precios** (Free + planes con telefonía) → preguntas frecuentes de la API → pedir acceso.
-  - `/desarrolladores/docs`: documentación pública **básica** (URL base, keys y alcances, endpoints, streaming, límites, errores), de
-    [`API_INFERENCIA.md`](API_INFERENCIA.md) sin lo que es solo para quien opera. **Pendiente:** la referencia completa de pedidos y respuestas y la API de
-    agentes y llamadas (la página lo dice). Al cambiar `API_INFERENCIA.md`, actualizarla.
+  - `/desarrolladores/docs`: documentación pública (URL base, keys y alcances, endpoints, streaming, límites, errores), de
+    [`API_INFERENCIA.md`](API_INFERENCIA.md) sin lo que es solo para quien opera. Desde el 19-oct-2026 también llamadas, contactos, campañas (estado,
+    resultados, reporte, límites) y webhook, de [`LLAMADAS_SALIENTES_PLAN.md`](LLAMADAS_SALIENTES_PLAN.md) y `app/api/schemas.py`; la referencia completa de
+    pedidos y respuestas es el OpenAPI del panel. Al cambiar `API_INFERENCIA.md` o la API de campañas, actualizarla.
   - `/casos-de-uso`, para quien tiene un problema de atención: hero y demo → rubros (con "¿Tu caso es otro?") → producto → cómo empieza →
     planes con telefonía (sin Free) → preguntas de negocio → demo con tu caso. Las verticales viven bajo `/casos-de-uso/<slug>`, con su tema de acento:
     `/casos-de-uso/turnos` (verde azulado), `/casos-de-uso/cobranzas` (violeta) y `/casos-de-uso/municipios` (ámbar), desde `src/pages/casos-de-uso/[vertical].astro` con los datos de

@@ -1005,6 +1005,12 @@ texto = client.audio.transcriptions.create(
         ],
       },
       {
+        title: "Campañas de llamadas",
+        paragraphs: [
+          "Cargás tus contactos (a mano, desde un CSV o por API), elegís el agente y la campaña llama sola: de a uno o varios a la vez, en el horario y los días que elijas, con reintentos a quien no atendió o daba ocupado. El agente saluda a cada persona por su nombre y ya conoce sus datos, como el monto o el vencimiento. En el panel ves el avance en vivo, cuántos atendieron y cuántos llegaron al objetivo, y al final descargás un reporte con lo que dijo cada uno. Si querés, a quien no atendió le llega un WhatsApp para seguir la conversación por ahí.",
+        ],
+      },
+      {
         title: "SIP y tu central telefónica",
         paragraphs: [
           "La plataforma corre sobre SIP, el protocolo estándar de la telefonía IP, y por ahí conecta la red telefónica argentina con los agentes. Si tenés una central telefónica (PBX) o un proveedor SIP propio y querés usarlo, consultanos: hoy lo armamos con vos, no es algo que se active solo desde el panel.",

@@ -1,6 +1,7 @@
 ---
-// Documentación pública de la API de inferencia. Contenido base: sale de docs/API_INFERENCIA.md, sin lo que es solo
-// para quien opera el server. Falta la referencia completa de pedidos y respuestas y la API de agentes y llamadas.
+// Documentación pública de la API. Inferencia: sale de docs/API_INFERENCIA.md, sin lo que es solo para quien opera el
+// server. Llamadas, contactos y campañas: de docs/LLAMADAS_SALIENTES_PLAN.md y app/api/schemas.py. La referencia
+// completa de pedidos y respuestas es el OpenAPI del panel (/api/v1/docs).
 import CodeBlock from "../../components/CodeBlock.astro";
 import Cta from "../../components/Cta.astro";
 import Footer from "../../components/Footer.astro";
@@ -9,6 +10,7 @@ import { endpoints } from "../../data/site";
 import Base from "../../layouts/Base.astro";
 
 const BASE = "https://app.atentina.com.ar/api/v1/inference";
+const API = "https://app.atentina.com.ar/api/v1";
 
 const toc = [
   { id: "empezar", label: "Empezar" },
@@ -18,6 +20,9 @@ const toc = [
   { id: "limites", label: "Límites y consumo" },
   { id: "errores", label: "Errores" },
   { id: "agentes", label: "Agentes y llamadas" },
+  { id: "contactos", label: "Contactos" },
+  { id: "campanas", label: "Campañas" },
+  { id: "webhook", label: "Webhook" },
 ];
 
 const sdk = `from openai import OpenAI
@@ -92,11 +97,98 @@ const errors = [
 ];
 
 const error = `{"detail": "texto para mostrar", "code": "codigo_estable", "errors": []}`;
+
+const call = `curl ${API}/calls \\
+  -H "Authorization: Bearer $ATENTINA_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"agent_id": "<id del agente>", "phone": "+5493515551234"}'`;
+
+const contactsUpsert = `curl ${API}/contacts \\
+  -H "Authorization: Bearer $ATENTINA_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '[{"phone": "351 555-1234", "name": "Ana Pérez", "external_id": "C-1032",
+        "attributes": {"deuda": 15000, "vence": "10 de noviembre"}, "tags": ["mora_30"]},
+       {"phone": "+54 9 11 5555-0000"}]'`;
+
+const contactsCsv = `telefono,nombre,deuda,vence
+351 555-1234,Ana Pérez,15000,10 de noviembre
+11 5555-0000,,8200,15 de noviembre`;
+
+const campaign = `curl ${API}/campaigns \\
+  -H "Authorization: Bearer $ATENTINA_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "channel": "voice",
+    "name": "Mora 30 días - noviembre",
+    "agent_id": "<id del agente>",
+    "purpose": "cobranza",
+    "tags": ["mora_30"],
+    "concurrency": 3,
+    "window_start": 9, "window_end": 20, "weekdays": [0, 1, 2, 3, 4],
+    "starts_at": "2026-11-03T12:00:00Z",
+    "max_attempts": 3, "retry_minutes": 120,
+    "callback_url": "https://tu-sistema.com.ar/atentina/webhook",
+    "start": true
+  }'`;
+
+const poll = `curl ${API}/campaigns/<id> -H "Authorization: Bearer $ATENTINA_KEY"`;
+
+const pollOut = `{
+  "id": "…", "channel": "voice", "status": "running", "status_reason": null, "in_window": true,
+  "total": 500, "percent": 33.0, "eta_minutes": 95,
+  "progress": {"pending": 310, "in_progress": 3, "retry": 22, "done": 140, "failed": 25, "skipped": 0},
+  "results": {"answered": 120, "no_answer": 30, "busy": 8, "voicemail": 10,
+              "invalid": 6, "rejected": 1, "failed": 0},
+  "goal": 64, "minutes_used": 212.5
+}`;
+
+const report = `curl ${API}/campaigns/<id>/report.csv -H "Authorization: Bearer $ATENTINA_KEY" -o reporte.csv`;
+
+const verify = `import hashlib, hmac
+
+def firma_valida(cuerpo: bytes, header: str, secreto: str) -> bool:
+    esperada = "sha256=" + hmac.new(secreto.encode(), cuerpo, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(esperada, header)
+
+# header = request.headers["X-Atentina-Signature"]; cuerpo = el body crudo, antes de parsear el JSON`;
+
+const campaignStatuses = [
+  { status: "draft", text: "Creada, sin iniciar. Podés sumar contactos y cambiar la configuración." },
+  { status: "scheduled", text: "Iniciada con fecha de inicio futura: arranca sola en starts_at." },
+  { status: "running", text: "Llamando o enviando, dentro del horario. Fuera de horario sigue running con in_window en false." },
+  { status: "paused", text: "Pausada por vos, o sola: se acabaron los minutos del plan o fallaron muchas llamadas seguidas (status_reason dice por qué)." },
+  { status: "done", text: "Terminó: no queda nadie por contactar, o pasó ends_at." },
+  { status: "cancelled", text: "Cancelada. Los contactos pendientes quedan en skipped." },
+];
+
+const voiceResults = [
+  { result: "answered", text: "Atendió y habló con el agente", retry: "No" },
+  { result: "no_answer", text: "Sonó y no atendió", retry: "Sí" },
+  { result: "busy", text: "Ocupado", retry: "Sí" },
+  { result: "voicemail", text: "Atendió un contestador", retry: "Sí" },
+  { result: "invalid", text: "El número no existe", retry: "No" },
+  { result: "rejected", text: "Rechazó la llamada", retry: "No" },
+  { result: "failed", text: "Falló la llamada por otro motivo", retry: "Sí" },
+];
+
+const campaignEndpoints = [
+  { path: "POST /campaigns", text: "Crea la campaña (en draft) con sus contactos; con \"start\": true la inicia en el mismo pedido" },
+  { path: "POST /campaigns/{id}/contacts", text: "Suma contactos: contact_ids, tags, contacts (lista) o csv" },
+  { path: "POST /campaigns/{id}/start", text: "La inicia (o la programa, si tiene starts_at)" },
+  { path: "POST /campaigns/{id}/pause · /resume · /cancel", text: "Las llamadas en curso terminan normalmente" },
+  { path: "PATCH /campaigns/{id}", text: "Cambia horario, ritmo, reintentos o webhook de una campaña que no terminó" },
+  { path: "GET /campaigns", text: "Lista, con filtros channel y status" },
+  { path: "GET /campaigns/{id}", text: "Estado y avance: lo que se consulta en el polling" },
+  { path: "GET /campaigns/{id}/contacts", text: "Contactos paginados, con filtros status y result, y su conversation_id" },
+  { path: "GET /campaigns/{id}/stats", text: "Indicadores: tasa de contacto y de objetivo, duración media, atendidas por hora" },
+  { path: "GET /campaigns/{id}/report.csv", text: "Reporte con una fila por contacto" },
+  { path: "GET /campaigns/plan", text: "Qué permite tu plan: canales, campañas por mes, contactos por campaña, llamadas a la vez" },
+];
 ---
 
 <Base
-  title="Documentación de la API: LLM, transcripción y voz | Atentina"
-  description="Cómo usar la API de Atentina: base URL, API keys, endpoints de LLM, transcripción y síntesis de voz, streaming, límites y errores."
+  title="Documentación de la API: voz, llamadas y campañas | Atentina"
+  description="Cómo usar la API de Atentina: LLM, transcripción y síntesis de voz, llamadas, contactos, campañas salientes programadas, estado, reportes y webhook."
   ogDescription="Documentación de la API de LLM, transcripción y voz de Atentina."
   path="/desarrolladores/docs"
 >
@@ -236,10 +328,77 @@ const error = `{"detail": "texto para mostrar", "code": "codigo_estable", "error
 
       <section id="agentes" class="grid gap-4">
         <h2>Agentes y llamadas</h2>
-        <p>Con una key <code>calls</code> podés crear agentes, lanzar llamadas, recibir el resultado de cada una por API o webhook y descargar reportes. También se puede hacer desde tu agente de programación, con las <a href="/desarrolladores#agentes">skills</a> para Claude Code, Cursor y Codex.</p>
-        <p class="rounded-xl border border-line bg-surface-2 px-4 py-3 text-[.95rem]">
-          <strong>Estamos completando esta sección.</strong> La referencia de pedidos y respuestas de esta API y de la de llamadas y agentes todavía no está publicada. Si la necesitás ya, <a href="#demo">pedila</a> y te la pasamos.
-        </p>
+        <p>Con una key <code>calls</code> administrás agentes, lanzás llamadas, cargás contactos, armás campañas y descargás reportes, con la URL base <code>{API}</code>. También se puede hacer desde tu agente de programación, con las <a href="/desarrolladores#agentes">skills</a> para Claude Code, Cursor y Codex. La referencia completa de cada pedido y respuesta está en el panel, en <code>/api/v1/docs</code>.</p>
+        <h3>Una llamada</h3>
+        <p>El agente llama al número y la conversación queda en el panel. El teléfono va en formato internacional; <code>from_number_id</code> elige con qué número tuyo sale (sin él, el primero) y <code>voice</code> cambia la voz.</p>
+        <CodeBlock label="curl" code={call} />
+        <p>La respuesta trae el <code>conversation_id</code>. Con <code>GET /calls/{"{"}conversation_id{"}"}</code> ves el estado (<code>pendiente</code>, <code>sonando</code>, <code>en_curso</code>, <code>finalizada</code>, <code>fallida</code>), la duración, los datos que tomó el agente y el resultado. Para muchos números, usá una campaña.</p>
+      </section>
+
+      <section id="contactos" class="grid gap-4">
+        <h2>Contactos</h2>
+        <p>Cada cuenta tiene su agenda. El teléfono es lo único obligatorio y no se repite: cargar uno que ya está lo actualiza (los datos se suman, no se borran). El resto es opcional: <code>name</code>, <code>email</code>, <code>external_id</code> (el id en tu sistema, para cruzar el reporte), <code>attributes</code> (datos libres) y <code>tags</code> (para armar campañas por grupo).</p>
+        <CodeBlock label="curl" code={contactsUpsert} />
+        <p>Por CSV, con <code>POST /contacts/import</code>: una columna de teléfono (<code>telefono</code>, <code>celular</code>, <code>phone</code>…) y, si querés, <code>nombre</code>, <code>email</code>, <code>id</code> y <code>etiquetas</code>; el resto de las columnas pasan a <code>attributes</code>. La respuesta dice cuántos se crearon y actualizaron, y cuáles no entraron, con la fila y el motivo.</p>
+        <CodeBlock label="CSV" code={contactsCsv} />
+        <ul>
+          <li><strong>No se borran: se archivan</strong> (<code>POST /contacts/{"{"}id{"}"}/archive</code> o en lote por ids o etiquetas). Un archivado no entra en campañas nuevas y sale de las que están en curso. <code>GET /contacts?archived=true</code> los lista. Si lo volvés a cargar, se actualiza pero sigue archivado hasta que lo desarchives.</li>
+          <li><strong>No contactar:</strong> <code>/contacts/optouts</code> guarda los teléfonos que pidieron no ser contactados, por canal (<code>voice</code>, <code>whatsapp</code> o <code>all</code>). Ninguna campaña los llama ni les escribe. También se cargan solos: cuando alguien responde "baja" por WhatsApp, o lo pide en la llamada si el agente tiene un resultado marcado como "no contactar".</li>
+        </ul>
+      </section>
+
+      <section id="campanas" class="grid gap-4">
+        <h2>Campañas</h2>
+        <p>Una campaña llama (<code>"channel": "voice"</code>) o escribe por WhatsApp (<code>"channel": "whatsapp"</code>, con una plantilla aprobada) a una lista de contactos, sola, dentro del horario que le pongas. Este ejemplo llama a los contactos con la etiqueta <code>mora_30</code>, de a tres a la vez, de lunes a viernes de 9 a 20, desde el 3 de noviembre, con hasta tres intentos cada dos horas:</p>
+        <CodeBlock label="curl" code={campaign} />
+        <ul>
+          <li><strong>De a uno o en paralelo:</strong> <code>concurrency</code> en 1 llama de a un contacto; con N, hasta N a la vez (el tope lo pone tu plan). <code>rate_per_minute</code> limita cuántas llamadas empiezan por minuto.</li>
+          <li><strong>Programada:</strong> <code>starts_at</code> y <code>ends_at</code> (UTC), y el horario en la hora de Argentina con <code>window_start</code>, <code>window_end</code> y <code>weekdays</code> (0 es lunes).</li>
+          <li><strong>Reintentos:</strong> <code>max_attempts</code>, <code>retry_minutes</code> y <code>retry_on</code>, los resultados que se reintentan (por defecto no atendió, ocupado, contestador y falla).</li>
+          <li><strong>Datos del contacto:</strong> el saludo del agente puede usar <code>{"{{"}nombre{"}}"}</code> o cualquier atributo (<code>{"{{"}deuda{"}}"}</code>). Un atributo con el mismo nombre que un dato que el agente pide ya no se pregunta, y el resto lo recibe como contexto.</li>
+          <li><strong>Finalidad:</strong> <code>purpose</code> es <code>comercial</code>, <code>cobranza</code>, <code>turnos</code> o <code>aviso</code>. Una comercial se inicia con <code>"no_call_registry_checked": true</code>: confirmás que filtraste la lista contra el Registro Nacional No Llame (Ley 26.951).</li>
+          <li><strong>Seguimiento por WhatsApp:</strong> con <code>followup</code> (apagado por defecto), a quien no atendió después del último intento le llega una plantilla de WhatsApp; si responde, sigue la conversación con el agente.</li>
+        </ul>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Endpoint</th><th>Qué hace</th></tr></thead>
+          <tbody>
+            {campaignEndpoints.map((e) => <tr><td><code>{e.path}</code></td><td>{e.text}</td></tr>)}
+          </tbody>
+        </table></div>
+
+        <h3>Estado y avance</h3>
+        <p>Consultá <code>GET /campaigns/{"{"}id{"}"}</code> cada pocos segundos (el panel lo hace cada 5). <code>progress</code> cuenta los contactos por estado y <code>results</code>, por resultado de la llamada; <code>goal</code> son los que llegaron al objetivo del agente (por ejemplo, una promesa de pago), y <code>eta_minutes</code> estima cuánto falta al ritmo de los últimos 15 minutos. En WhatsApp, <code>results</code> trae enviados, entregados, leídos y respondidos.</p>
+        <CodeBlock label="curl" code={poll} />
+        <CodeBlock label="Respuesta" code={pollOut} />
+        <div class="table-wrap"><table>
+          <thead><tr><th>Estado</th><th>Qué significa</th></tr></thead>
+          <tbody>
+            {campaignStatuses.map((s) => <tr><td><code>{s.status}</code></td><td>{s.text}</td></tr>)}
+          </tbody>
+        </table></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Resultado</th><th>Qué pasó</th><th>Se reintenta</th></tr></thead>
+          <tbody>
+            {voiceResults.map((v) => <tr><td><code>{v.result}</code></td><td>{v.text}</td><td>{v.retry}</td></tr>)}
+          </tbody>
+        </table></div>
+
+        <h3>Reporte</h3>
+        <p>Una fila por contacto: <code>external_id</code>, teléfono, nombre, sus datos, estado, resultado, intentos, duración, resultado de la conversación, si llegó al objetivo, los datos que tomó el agente y el link a la conversación. Se abre en Excel con los acentos bien.</p>
+        <CodeBlock label="curl" code={report} />
+
+        <h3>Límites</h3>
+        <p>Las campañas son parte del plan: qué canales, cuántas campañas por mes, cuántos contactos por campaña, cuántas llamadas a la vez y el tamaño de la agenda (<code>GET /campaigns/plan</code>). Las llamadas de una campaña usan los minutos salientes del plan; si se acaban, la campaña se pausa sola y la retomás con <code>/resume</code> cuando haya minutos.</p>
+      </section>
+
+      <section id="webhook" class="grid gap-4">
+        <h2>Webhook</h2>
+        <p>En vez de consultar el estado, podés recibirlo: con <code>callback_url</code> (https), la campaña hace un POST a tu sistema por cada contacto que termina (<code>contact.finished</code>, con la misma fila del reporte), por cada seguimiento por WhatsApp (<code>contact.followup</code>) y uno al terminar (<code>campaign.finished</code>, con el avance y los indicadores).</p>
+        <ul>
+          <li><strong>Firma:</strong> cada POST trae <code>X-Atentina-Signature: sha256=&lt;hex&gt;</code>, el HMAC-SHA256 del cuerpo con tu <code>callback_secret</code>. Si no mandás uno al crear la campaña, se genera y se muestra una sola vez en la respuesta.</li>
+          <li><strong>Reintentos:</strong> se toma como recibido cualquier 2xx. Si no, se reintenta a los 30 s, 2 min, 10 min, 1 h y 6 h. <code>delivery_id</code> (también en <code>X-Atentina-Delivery</code>) es el mismo en los reintentos: usalo para no procesar dos veces el mismo evento.</li>
+        </ul>
+        <CodeBlock label="Python" code={verify} />
       </section>
     </main>
   </div>
