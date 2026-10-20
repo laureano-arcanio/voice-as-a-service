@@ -26,6 +26,7 @@ from ..conversation import opening_audio, recordings
 from ..conversation.engine import ConversationEngine
 from ..conversation.models import Workflow
 from ..db import get_sessionmaker, utcnow
+from ..mail import call_summary
 from ..models import CallMode, CallRow, CallStatus
 from ..runtime import get_conversation_engine
 from ..services import calls as call_service
@@ -53,7 +54,7 @@ openai.tts.AUDIO_STREAM_MODELS.add(settings.vllm_tts_model)
 MIN_ENDPOINTING_DELAY = 0.4
 MAX_ENDPOINTING_DELAY = 1.0
 DICTATION_ENDPOINTING_DELAY = 2.5
-DICTATED_TYPES = {"email", "email_or_phone", "digits"}
+DICTATED_TYPES = {"email", "email_or_phone", "digits", "phone"}
 
 # Si el cliente vuelve a hablar cuando la respuesta sono menos que esto, sigue
 # con la misma frase: se deshace el turno aunque haya sonado un pedazo y el
@@ -519,6 +520,8 @@ async def entrypoint(ctx: JobContext):
             call_service.update_call(
                 s, conversation_id, status=CallStatus.finalizada, ended_reason=(reason or "")[:128], ended_at=utcnow(),
                 duration_seconds=int(time.time() - started_at) if started_at else 0, latency=latency.summary())
+            # Resumen por email al cliente, si el agente lo tiene prendido: lo manda el loop de `app`.
+            call_summary.mark_pending(s, call, workflow, connected=started_at is not None)
             # Intento de una campaña de voz: atendio si la llamada llego a conectarse (y si el agente quedo
             # en un resultado "no contactar", el telefono pasa a la lista de bajas de voz).
             if started_at:

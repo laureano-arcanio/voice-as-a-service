@@ -665,6 +665,110 @@
     }
    }
   },
+  "/api/v1/clients/{client_id}/call-emails": {
+   "get": {
+    "tags": [
+     "clients"
+    ],
+    "summary": "Read Call Emails",
+    "description": "Resumen por email de cada llamada: si esta prendido para el cliente, a quien le llega y que\nagentes lo mandan.",
+    "operationId": "read_call_emails_api_v1_clients__client_id__call_emails_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CallEmailsOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "put": {
+    "tags": [
+     "clients"
+    ],
+    "summary": "Update Call Emails",
+    "description": "El cliente (o un admin) lo prende o apaga para todos sus agentes y elige los destinos.",
+    "operationId": "update_call_emails_api_v1_clients__client_id__call_emails_put",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CallEmailsIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CallEmailsOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/clients/{client_id}/usage": {
    "get": {
     "tags": [
@@ -10415,6 +10519,71 @@
      "call"
     ],
     "title": "CallDetail"
+   },
+   "CallEmailsIn": {
+    "properties": {
+     "enabled": {
+      "type": "boolean",
+      "title": "Enabled"
+     },
+     "recipients": {
+      "items": {
+       "type": "string",
+       "format": "email"
+      },
+      "type": "array",
+      "maxItems": 10,
+      "title": "Recipients",
+      "description": "Destinos; vacio = los usuarios activos del cliente"
+     }
+    },
+    "type": "object",
+    "required": [
+     "enabled"
+    ],
+    "title": "CallEmailsIn",
+    "description": "Resumen por email de cada llamada (app/mail/call_summary.py). Cada agente lo prende en su\ndefinicion (`call_summary_email`); `enabled` en false lo apaga para todos los agentes del cliente."
+   },
+   "CallEmailsOut": {
+    "properties": {
+     "enabled": {
+      "type": "boolean",
+      "title": "Enabled"
+     },
+     "recipients": {
+      "items": {
+       "type": "string",
+       "format": "email"
+      },
+      "type": "array",
+      "maxItems": 10,
+      "title": "Recipients",
+      "description": "Destinos; vacio = los usuarios activos del cliente"
+     },
+     "default_recipients": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Default Recipients",
+      "description": "Usuarios activos del cliente (los destinos si recipients va vacio)"
+     },
+     "agents": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Agents",
+      "description": "Agentes del cliente (no archivados) con el resumen prendido"
+     }
+    },
+    "type": "object",
+    "required": [
+     "enabled",
+     "default_recipients",
+     "agents"
+    ],
+    "title": "CallEmailsOut"
    },
    "CallIn": {
     "properties": {

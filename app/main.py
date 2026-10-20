@@ -55,6 +55,7 @@ from .billing.loop import billing_loop
 from .campaigns.callbacks import callback_loop
 from .campaigns.loop import campaign_loop
 from .config import settings
+from .mail.call_summary import call_summary_loop
 from .services.demo import allowed_origins
 from .whatsapp import webhook as wa_webhook
 from .whatsapp.service import sweep_loop
@@ -77,6 +78,8 @@ async def lifespan(app: FastAPI):
     apps_health = asyncio.create_task(apps_health_loop())
     # Avisos programados de las apps (app/apps/jobs.py).
     apps_jobs = asyncio.create_task(apps_jobs_loop())
+    # Resumen por email de cada llamada, para el cliente (app/mail/call_summary.py).
+    call_summaries = asyncio.create_task(call_summary_loop())
     yield
     sweep.cancel()
     sending.cancel()
@@ -84,6 +87,7 @@ async def lifespan(app: FastAPI):
     billing_sweep.cancel()
     apps_health.cancel()
     apps_jobs.cancel()
+    call_summaries.cancel()
 
 
 def create_app() -> FastAPI:

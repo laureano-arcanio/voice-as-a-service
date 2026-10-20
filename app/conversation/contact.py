@@ -94,16 +94,17 @@ def render_contact(contact: dict | None) -> str:
 
 
 def render_known(state: ConversationState) -> str:
-    """Los campos que la campaña ya cargo, para los motores que no ven el estado (classic y assistant)."""
+    """Los campos ya cargados al empezar (la campaña o el telefono de la llamada), para los motores que no
+    ven el estado (classic y assistant)."""
     known = {n: state.fields[n] for n in state.progress.preloaded if state.fields.get(n) is not None}
     lines = _lines(known)
     if not lines:
         return ""
-    return f"DATOS YA CONOCIDOS (vinieron de la campaña: no los preguntes; si hace falta, confirmalos):\n{lines}"
+    return f"DATOS YA CONOCIDOS (no los preguntes; si hace falta, confirmalos):\n{lines}"
 
 
 def prompt_block(state: ConversationState | None) -> str:
-    """Todo lo que la campaña le suma al prompt (datos del contacto y campos ya conocidos), o vacio."""
+    """Lo que la campaña o la llamada le suman al prompt (datos del contacto y campos ya conocidos), o vacio."""
     if state is None:
         return ""
     return "\n\n".join(b for b in (render_contact(state.progress.contact), render_known(state)) if b)

@@ -48,6 +48,8 @@ def coerce_value(spec: FieldSpec, value: Any) -> Any:
         return normalize_email(str(value))
     if spec.type == "email_or_phone":
         return normalize_email(str(value)) or normalize_phone(str(value))
+    if spec.type == "phone":
+        return normalize_phone(str(value))
     if spec.type == "choice":
         option = plain(str(value))
         return next((o for o in spec.options or [] if plain(o) == option), None)

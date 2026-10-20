@@ -11,6 +11,7 @@ export const FIELD_TYPES = [
   { value: 'email', label: 'Email' },
   { value: 'email_or_phone', label: 'Email o teléfono' },
   { value: 'digits', label: 'Dígitos (leídos o dictados)' },
+  { value: 'phone', label: 'Teléfono (el de la llamada, o lo pide)' },
 ] as const;
 
 export type FieldType = (typeof FIELD_TYPES)[number]['value'];
@@ -90,6 +91,8 @@ export interface Draft {
   voice: string;
   /** Un WAV por turno (telefono o WhatsApp), localmente. */
   recordAudio: boolean;
+  /** Llamadas: al terminar, Atentina le manda al cliente el resumen por email (el cliente lo apaga en Mi cuenta). */
+  callSummaryEmail: boolean;
   /** WhatsApp: minutos sin mensaje del contacto para dar la conversacion por terminada y abrir
    * otra en limpio (ventana de contexto temporal). null = el default global del servidor
    * (WA_SESSION_HOURS, 1440 min = 24 hs). */
@@ -260,6 +263,7 @@ export function toDraft(d: Definition): Draft {
     language: str(agent.language),
     voice: str(agent.voice),
     recordAudio: d.record_audio === true,
+    callSummaryEmail: d.call_summary_email === true,
     waSessionMinutes: typeof d.wa_session_minutes === 'number' ? d.wa_session_minutes : null,
     objective: str(obj(d.objective).description),
     opening: str(conv.opening),
@@ -310,6 +314,7 @@ export function fromDraft(draft: Draft): Definition {
     ...(draft.version != null ? { version: draft.version } : {}),
     engine: draft.engine,
     ...(draft.recordAudio ? { record_audio: true } : {}),
+    ...(draft.callSummaryEmail ? { call_summary_email: true } : {}),
     ...(draft.waSessionMinutes != null ? { wa_session_minutes: draft.waSessionMinutes } : {}),
     ...(draft.generation.length ? { generation: fromParams(draft.generation) } : {}),
     ...(draft.llm && !isLocalOnly(draft.llm) ? { llm: fromLlmDraft(draft.llm) } : {}),
@@ -385,6 +390,29 @@ export function newField(fields: FieldDraft[]): FieldDraft {
   };
 }
 
+/** Tiene un dato de tipo phone: en las llamadas con número se completa solo; por el link, el agente lo pide. */
+export function hasPhoneField(draft: Draft): boolean {
+  return draft.fields.some((f) => f.type === 'phone');
+}
+
+/** Prender el resumen por email: el email lleva el teléfono, así que el agente necesita un dato de tipo
+ * phone (por el link no hay número y lo tiene que pedir). Si no lo tiene, se agrega al final. */
+export function withPhoneField(draft: Draft): Draft {
+  if (draft.engine === 'assistant' || hasPhoneField(draft)) return draft;
+  const names = new Set(draft.fields.map((f) => f.name));
+  let name = 'telefono';
+  for (let n = 2; names.has(name); n++) name = `telefono_${n}`;
+  const field: FieldDraft = {
+    ...newField(draft.fields),
+    name,
+    label: 'Teléfono',
+    type: 'phone',
+    description: 'Teléfono de contacto de quien llama.',
+    question: '¿A qué número te podemos llamar?',
+  };
+  return { ...draft, fields: [...draft.fields, field] };
+}
+
 export function newOutcome(outcomes: OutcomeDraft[]): OutcomeDraft {
   const ids = new Set(outcomes.map((o) => o.id));
   let n = outcomes.length;
@@ -442,7 +470,8 @@ function outcomeAt(draft: Draft, seg: string | undefined): OutcomeDraft | undefi
 export function errorTarget(draft: Draft, path: string): ErrorTarget | null {
   const [head, second, third] = path.split('.');
   if (head === 'engine') return { section: 'agente' };
-  if (head === 'record_audio' || head === 'wa_session_minutes') return { section: 'voz' };
+  if (head === 'record_audio' || head === 'call_summary_email' || head === 'wa_session_minutes')
+    return { section: 'voz' };
   if (head === 'agent') return { section: second === 'voice' ? 'voz' : 'agente' };
   if (head === 'objective') return { section: 'objetivo' };
   if (head === 'conversation') return { section: second === 'rules' ? 'reglas' : 'objetivo' };
@@ -467,6 +496,7 @@ const PATH_WORDS: Record<string, string> = {
   language: 'idioma',
   voice: 'voz',
   record_audio: 'grabar audio',
+  call_summary_email: 'resumen por email',
   wa_session_minutes: 'ventana de contexto de WhatsApp',
   engine: 'Motor',
   objective: 'Objetivo',

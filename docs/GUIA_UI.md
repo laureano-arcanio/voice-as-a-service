@@ -465,6 +465,12 @@ en la ficha del cliente. La API no cuenta lo que consumen los agentes integrados
 - **Números:** elegís qué agente tuyo atiende cada número y editás la etiqueta. Asignar y liberar
   números lo hace el admin.
 - **API keys:** crear y revocar.
+- **Resumen de llamadas por email:** prende o apaga, para todos tus agentes, el email que manda Atentina
+  después de cada llamada, y elegís a quién le llega (vacío: a los usuarios de la cuenta). Cada agente lo
+  prende en su editor, sección Voz ("Resumen por email después de cada llamada"); al prenderlo se agrega el dato
+  "Teléfono" si el agente no lo tiene: en las llamadas por teléfono se completa solo con el número de quien llama, y
+  por el link para llamar el agente lo pide. El admin lo ve y lo
+  edita en la ficha del cliente.
 
 ### Plan (cliente) y Cobros (admin)
 

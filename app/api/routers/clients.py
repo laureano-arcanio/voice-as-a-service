@@ -19,6 +19,8 @@ from ...services.errors import Conflict, Invalid, NotFound
 from ...services.security import unusable_password_hash
 from ..deps import DB, AdminPrincipal, CurrentPrincipal
 from ..schemas import (
+    CallEmailsIn,
+    CallEmailsOut,
     CallsUsageOut,
     ClientCreatedOut,
     ClientIn,
@@ -131,6 +133,34 @@ def delete_client(client_id: str, p: AdminPrincipal, db: DB):
                        "client_in_use")
     db.delete(client)
     db.commit()
+
+
+# ---------- resumen por email de cada llamada ----------
+
+def _call_emails_out(db, client: Client) -> CallEmailsOut:
+    agents = db.execute(select(Agent.name, Agent.definition).where(
+        Agent.client_id == client.id, Agent.archived_at.is_(None)).order_by(Agent.name)).all()
+    users = list(db.scalars(select(User.email).where(User.client_id == client.id, User.role == Role.client,
+                                                     User.active.is_(True)).order_by(User.email)))
+    return CallEmailsOut(enabled=client.call_emails, recipients=client.call_emails_to, default_recipients=users,
+                         agents=[name for name, d in agents if d.get("call_summary_email")])
+
+
+@router.get("/{client_id}/call-emails", response_model=CallEmailsOut)
+def read_call_emails(client_id: str, p: CurrentPrincipal, db: DB):
+    """Resumen por email de cada llamada: si esta prendido para el cliente, a quien le llega y que
+    agentes lo mandan."""
+    return _call_emails_out(db, get_client(db, p, client_id))
+
+
+@router.put("/{client_id}/call-emails", response_model=CallEmailsOut)
+def update_call_emails(client_id: str, body: CallEmailsIn, p: CurrentPrincipal, db: DB):
+    """El cliente (o un admin) lo prende o apaga para todos sus agentes y elige los destinos."""
+    client = get_client(db, p, client_id)
+    client.call_emails = body.enabled
+    client.call_emails_to = list(dict.fromkeys(str(e).lower() for e in body.recipients))
+    db.commit()
+    return _call_emails_out(db, client)
 
 
 def inference_usage_out(u: api_usage.InferenceUsage) -> InferenceUsageOut:

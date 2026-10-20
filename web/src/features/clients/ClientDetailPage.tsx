@@ -35,6 +35,7 @@ import { notifyError, notifySuccess } from '@/lib/notify';
 import { useClient, useDeleteClient, useUpdateClient } from './api';
 import { ApiAccess } from '@/features/developers/ApiAccess';
 import { SubscriptionCard } from '@/features/billing/SubscriptionCard';
+import { CallEmailsCard } from './CallEmailsCard';
 import { ClientUsage } from './ClientUsage';
 import { LlmConnectionsSection } from '@/features/llm/LlmConnectionsSection';
 import { LimitAdjustmentsCard } from './LimitAdjustmentsCard';
@@ -287,6 +288,7 @@ function ClientView({ client }: { client: Client }) {
               <Stack gap="md">
                 <ClientDataCard key={client.id} client={client} />
                 <SubscriptionCard clientId={client.id} />
+                <CallEmailsCard clientId={client.id} />
                 <LimitAdjustmentsCard clientId={client.id} />
               </Stack>
             </Grid.Col>

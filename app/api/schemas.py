@@ -197,6 +197,19 @@ class ClientOut(ORM):
     adjustments_count: int = Field(default=0, description="Ajustes de limites vigentes hoy")
 
 
+class CallEmailsIn(BaseModel):
+    """Resumen por email de cada llamada (app/mail/call_summary.py). Cada agente lo prende en su
+    definicion (`call_summary_email`); `enabled` en false lo apaga para todos los agentes del cliente."""
+    enabled: bool
+    recipients: list[EmailStr] = Field(default_factory=list, max_length=10,
+                                       description="Destinos; vacio = los usuarios activos del cliente")
+
+
+class CallEmailsOut(CallEmailsIn):
+    default_recipients: list[str] = Field(description="Usuarios activos del cliente (los destinos si recipients va vacio)")
+    agents: list[str] = Field(description="Agentes del cliente (no archivados) con el resumen prendido")
+
+
 # ---------- ajustes de limites por cliente ----------
 
 # Los campos de Tier que se pueden ajustar (igual a services/limits.LIMIT_FIELDS; un test lo verifica).

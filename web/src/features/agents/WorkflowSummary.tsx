@@ -53,6 +53,7 @@ export function WorkflowSummary({ definition, clientId }: { definition: Definiti
           <Item label="Voz">{w.agent.voice ?? 'La predeterminada'}</Item>
           <Item label="Modelo">{model}</Item>
           <Item label="Grabación">{w.recordAudio ? 'Sí, por turno' : 'No'}</Item>
+          <Item label="Resumen por email">{w.callSummaryEmail ? 'Sí, al cliente' : 'No'}</Item>
           <Item label="Ventana de WhatsApp">
             {w.waSessionMinutes != null ? `${w.waSessionMinutes} min` : '1440 min (default)'}
           </Item>

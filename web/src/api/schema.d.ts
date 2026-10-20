@@ -230,6 +230,31 @@ export interface paths {
         patch: operations["update_client_api_v1_clients__client_id__patch"];
         trace?: never;
     };
+    "/api/v1/clients/{client_id}/call-emails": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Call Emails
+         * @description Resumen por email de cada llamada: si esta prendido para el cliente, a quien le llega y que
+         *     agentes lo mandan.
+         */
+        get: operations["read_call_emails_api_v1_clients__client_id__call_emails_get"];
+        /**
+         * Update Call Emails
+         * @description El cliente (o un admin) lo prende o apaga para todos sus agentes y elige los destinos.
+         */
+        put: operations["update_call_emails_api_v1_clients__client_id__call_emails_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clients/{client_id}/usage": {
         parameters: {
             query?: never;
@@ -3091,6 +3116,40 @@ export interface components {
             recordings?: number[];
             call: components["schemas"]["CallInfo"] | null;
             whatsapp?: components["schemas"]["WhatsAppInfo"] | null;
+        };
+        /**
+         * CallEmailsIn
+         * @description Resumen por email de cada llamada (app/mail/call_summary.py). Cada agente lo prende en su
+         *     definicion (`call_summary_email`); `enabled` en false lo apaga para todos los agentes del cliente.
+         */
+        CallEmailsIn: {
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Recipients
+             * @description Destinos; vacio = los usuarios activos del cliente
+             */
+            recipients?: string[];
+        };
+        /** CallEmailsOut */
+        CallEmailsOut: {
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Recipients
+             * @description Destinos; vacio = los usuarios activos del cliente
+             */
+            recipients?: string[];
+            /**
+             * Default Recipients
+             * @description Usuarios activos del cliente (los destinos si recipients va vacio)
+             */
+            default_recipients: string[];
+            /**
+             * Agents
+             * @description Agentes del cliente (no archivados) con el resumen prendido
+             */
+            agents: string[];
         };
         /** CallIn */
         CallIn: {
@@ -7153,6 +7212,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClientOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_call_emails_api_v1_clients__client_id__call_emails_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallEmailsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_call_emails_api_v1_clients__client_id__call_emails_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CallEmailsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallEmailsOut"];
                 };
             };
             /** @description Validation Error */

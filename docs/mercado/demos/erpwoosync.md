@@ -262,3 +262,9 @@ Pendiente de definir con Gabriel:
   4. Por teléfono, dictar los links cortos ("en erpwoosync punto com, barra solicitar demo") o, mejor, ofrecer mandarlos por
      WhatsApp.
   5. Clasificar cada llamada con el triage de la parte 6 y cerrarla con un resumen al equipo.
+
+## Agente creado (19-oct-2026)
+
+- Cliente propio `erpwoosync` (tier Central, sin usuario todavía) y agente `erpwoosync_gaby` (motor `classic`, voz `gabriela`, apertura pregenerada), id `a6acdea9-4050-4eaa-8238-981dd1642037`. Definición en `scratch/erpwoosync/agente.json`.
+- Número: el 0810 `+548102200605` ("0810 Erpwoosync"). Antes era de Atentina y lo atendía `atentina_comercial`.
+- Flujo: nombre → área (ventas, soporte, administración, otro) → detalle → rubro (solo ventas) → urgente → teléfono → "alguien del equipo se va a contactar". El resultado de la llamada es el área; `urgente` marca a quién llamar primero.

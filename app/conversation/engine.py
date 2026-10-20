@@ -17,7 +17,7 @@ from .models import (
     Workflow,
 )
 from .store import ConversationStore
-from .workflow import check_updates, is_required, outcome_for
+from .workflow import check_updates, is_required, normalize_phone, outcome_for
 
 if TYPE_CHECKING:
     from ..agents.definitions import DefinitionSource
@@ -76,7 +76,7 @@ class ConversationEngine:
 
     def new_conversation(self, agent_id: str, client_id: str | None = None, session=None, *,
                          channel: Channel = "voice", opening: bool | str = True,
-                         contact: dict | None = None) -> tuple[ConversationState, str]:
+                         contact: dict | None = None, phone: str | None = None) -> tuple[ConversationState, str]:
         """Como start_conversation pero sin guardarla: para guardarla en la misma
         transaccion que la llamada (services/calls.py, store.add). session: la del que
         llama, para leer el agente sin pedir otra conexion.
@@ -88,7 +88,10 @@ class ConversationEngine:
         contact: los datos del contacto de una campaña de voz (`vars`; app/conversation/contact.py):
         reemplazan los `{{variable}}` de la apertura, precargan los campos del workflow que se llaman
         igual y el resto va al prompt. Con `{}` (una campaña sin datos) la apertura igual se limpia de
-        variables; sin contact (None) no se toca."""
+        variables; sin contact (None) no se toca.
+
+        phone: el numero de la otra punta de la llamada (entrante o saliente). Precarga los campos de tipo
+        phone que el contacto no cargo: el agente no lo pregunta. Sin numero (link para llamar), lo pide."""
         version, workflow = self.definitions.current(agent_id, session)
         state = ConversationState(
             conversation_id=str(uuid.uuid4()),
@@ -99,6 +102,11 @@ class ConversationEngine:
             preloaded, state.progress.contact = contact_data.preload(workflow, contact)
             state.fields.update(preloaded)
             state.progress.preloaded = list(preloaded)
+        if phone and (number := normalize_phone(phone)):
+            for name, spec in workflow.fields.items():
+                if spec.type == "phone" and state.fields.get(name) is None:
+                    state.fields[name] = number
+                    state.progress.preloaded.append(name)
         if opening is False:
             # Sin apertura nadie pregunto nada: asked=None, o el LLM cree que ya pidio el primer dato.
             return state, ""

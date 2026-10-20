@@ -31,6 +31,7 @@ import {
   type Engine,
   FIELD_TYPES,
   type FieldDraft,
+  hasPhoneField,
   type FieldType,
   move,
   newField,
@@ -42,6 +43,7 @@ import {
   renumber,
   type Requirement,
   sectionId,
+  withPhoneField,
 } from './draft';
 import { EngineCards, EngineLabel } from './EngineCards';
 import { LlmSection } from './LlmSection';
@@ -646,6 +648,37 @@ export function DefinitionForm({
           description="Un archivo por turno (la llamada completa, telefónica o de WhatsApp), localmente en el servidor."
           checked={draft.recordAudio}
           onChange={(e) => set({ recordAudio: e.currentTarget.checked })}
+        />
+        <Switch
+          label="Resumen por email después de cada llamada"
+          description={
+            <>
+              Al cortar, Atentina le manda al cliente los datos, el resultado y la conversación. El cliente lo
+              apaga o elige a quién le llega en Mi cuenta.
+              {draft.callSummaryEmail && (
+                <Text
+                  component="span"
+                  display="block"
+                  size="xs"
+                  mt={4}
+                  c={assistant || hasPhoneField(draft) ? 'dimmed' : 'orange.8'}
+                >
+                  {assistant
+                    ? 'Con el motor Asistente no se piden datos: en las llamadas por el link el email va sin teléfono.'
+                    : hasPhoneField(draft)
+                      ? 'El email lleva el teléfono: en las llamadas por teléfono es el número de quien llama (el agente no lo pregunta); por el link para llamar, lo pide (dato de tipo Teléfono).'
+                      : 'Falta un dato de tipo Teléfono: en las llamadas por el link el email va a ir sin teléfono.'}
+                </Text>
+              )}
+            </>
+          }
+          checked={draft.callSummaryEmail}
+          onChange={(e) => {
+            const on = e.currentTarget.checked;
+            update((d) =>
+              on ? withPhoneField({ ...d, callSummaryEmail: true }) : { ...d, callSummaryEmail: false },
+            );
+          }}
         />
         <NumberInput
           label="Ventana de contexto en WhatsApp (minutos)"

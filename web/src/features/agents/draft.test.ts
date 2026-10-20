@@ -9,6 +9,7 @@ import {
   renumber,
   stableJson,
   toDraft,
+  withPhoneField,
 } from './draft';
 
 // Como la devuelve el servidor (model_dump con exclude_none).
@@ -59,6 +60,24 @@ describe('toDraft / fromDraft', () => {
     const d = toDraft({ ...def, record_audio: true });
     expect(d.recordAudio).toBe(true);
     expect(fromDraft(d)).toMatchObject({ record_audio: true });
+  });
+
+  it('call_summary_email: false no va (como record_audio); true si', () => {
+    expect(toDraft(def).callSummaryEmail).toBe(false);
+    expect(fromDraft(toDraft(def))).not.toHaveProperty('call_summary_email');
+    const d = toDraft({ ...def, call_summary_email: true });
+    expect(d.callSummaryEmail).toBe(true);
+    expect(fromDraft(d)).toMatchObject({ call_summary_email: true });
+    expect(errorTarget(d, 'call_summary_email')).toEqual({ section: 'voz' });
+  });
+
+  it('withPhoneField: agrega telefono (tipo phone, obligatorio) si falta; no lo duplica', () => {
+    const d = withPhoneField(toDraft(def));
+    const phone = d.fields.at(-1)!;
+    expect(phone).toMatchObject({ name: 'telefono', type: 'phone', requirement: 'yes', label: 'Teléfono' });
+    expect(withPhoneField(d).fields).toHaveLength(d.fields.length);
+    expect(fromDraft(d).fields).toMatchObject({ telefono: { type: 'phone', required: true } });
+    expect(withPhoneField({ ...toDraft(def), engine: 'assistant' }).fields).toHaveLength(toDraft(def).fields.length);
   });
 
   it('no_contact (baja por voz): sin marcar no va a la definicion; marcado, ida y vuelta', () => {

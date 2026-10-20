@@ -47,7 +47,9 @@ class FieldSpec(BaseModel):
     # digits: como string, pero el agente de voz espera mas de silencio antes de responder
     # (DICTATED_TYPES en app/voice/worker.py), para no taparle el audio a quien lee numeros
     # con pausas (ej. un codigo de verificacion leido por una locucion).
-    type: Literal["string", "integer", "boolean", "email", "email_or_phone", "choice", "digits"] = "string"
+    # phone: en las llamadas con numero (entrante, saliente, WhatsApp) se precarga con el de la otra
+    # punta y el agente no lo pregunta; en las del link para llamar lo pide (engine.new_conversation).
+    type: Literal["string", "integer", "boolean", "email", "email_or_phone", "choice", "digits", "phone"] = "string"
     options: list[str] | None = None  # valores posibles de un campo choice
     required: bool = False
     required_if: dict[str, Any] | None = None
@@ -155,6 +157,9 @@ class Workflow(BaseModel):
     # Graba un WAV por mensaje/audio, localmente, con su numero en Message.recording:
     # llamadas y audios de WhatsApp (app/conversation/recordings.py).
     record_audio: bool = False
+    # Llamadas: al terminar, Atentina le manda al cliente un email con el resumen (datos, resultado y
+    # transcripcion; app/mail/call_summary.py). El cliente lo puede apagar para todos (clients.call_emails).
+    call_summary_email: bool = False
     # WhatsApp: minutos sin mensaje del contacto para dar la conversacion por terminada y que
     # la siguiente arranque en limpio, sin el historial previo (ventana de contexto temporal).
     # None: el default global del servidor (WA_SESSION_HOURS, 1440 min = 24 hs).

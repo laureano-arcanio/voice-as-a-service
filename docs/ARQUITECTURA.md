@@ -214,6 +214,20 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
   otra voz, la apertura tiene `{{variables}}`), la sintetiza en vivo. Se graba igual que la
   apertura en vivo. Al cambiar el checkpoint del TTS hay que borrar `storage/openings/` o volver a
   guardar los agentes. Código en `app/conversation/opening_audio.py`.
+- **`call_summary_email`** (default `false`): al terminar cada llamada (entrante, saliente suelta o por el
+  link, que se conectó; no las de campaña, prueba ni loadtest), Atentina le manda al cliente un email
+  con los datos tomados, el resultado, la conversación (hasta `CALL_SUMMARY_TRANSCRIPT_CHARS`) y el link a
+  la llamada. El worker deja `call_logs.summary_email = pending` y un loop de `app` lo manda por Resend
+  (`app/mail/call_summary.py`, cada `CALL_SUMMARY_TICK_SECONDS`), con 4 intentos (ya, 1 min, 10 min, 1 h)
+  e `Idempotency-Key` por llamada y destino. El cliente lo apaga para todos sus agentes y elige los
+  destinos en Mi cuenta (`clients.call_emails`, `clients.call_emails_to`; vacío = sus usuarios
+  activos; API `GET/PUT /api/v1/clients/{id}/call-emails`). Estados: `sent`, `disabled` (sin
+  `RESEND_API_KEY`), `skipped` (apagado o sin destinos) y `failed`.
+  El email lleva el teléfono: el de la llamada o, por el link (sin número), el que dio la persona en un
+  dato de tipo `phone`. Ese tipo se precarga con el número de la otra punta en las entrantes y salientes
+  (`engine.new_conversation(phone=...)`, va a `progress.preloaded`) y el agente no lo pregunta; por el link
+  queda vacío y lo pide. Al prender el resumen en el editor se agrega el dato `telefono` si el agente no
+  tiene uno (no con el motor `assistant`, que no pide datos).
 - **`record_audio`** (default `false`): graba el audio, un WAV mono de 16 kHz por mensaje,
   localmente (`CALL_RECORDINGS_DIR`, default `storage/recordings/<conversation_id>/NNN.wav`;
   `storage/` montado en `agent`, no versionado). Lo escribe `app/conversation/recordings.py`

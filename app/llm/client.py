@@ -23,6 +23,7 @@ TYPE_SCHEMAS = {
     "email": {"type": "string"},
     "email_or_phone": {"type": "string"},
     "digits": {"type": "string"},
+    "phone": {"type": "string"},
 }
 
 

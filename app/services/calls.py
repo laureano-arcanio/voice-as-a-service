@@ -114,7 +114,8 @@ def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
             else CallMode.web if req.call_link_id else CallMode.prueba)
     caller_id = _caller_id(s, agent.client_id, req.from_number_id) if phone else None
     try:
-        state, _ = engine.new_conversation(agent.id, client_id=agent.client_id, session=s, contact=req.vars)
+        state, _ = engine.new_conversation(agent.id, client_id=agent.client_id, session=s, contact=req.vars,
+                                           phone=phone)
     except KeyError:
         raise NotFound("Agente inexistente") from None
 
@@ -202,7 +203,7 @@ def start_inbound(s: Session, engine: ConversationEngine, dialed: str | None, ca
     if agent_id is None:
         raise NotFound(f"El número {dialed!r} no tiene cliente o agente asignado", "number_without_agent")
     try:
-        state, opening = engine.new_conversation(agent_id, client_id=number.client_id, session=s)
+        state, opening = engine.new_conversation(agent_id, client_id=number.client_id, session=s, phone=caller)
     except KeyError:
         raise NotFound(f"El agente del número {dialed!r} está archivado", "number_without_agent") from None
     call = CallRow(conversation_id=state.conversation_id, client_id=number.client_id, mode=CallMode.entrante,

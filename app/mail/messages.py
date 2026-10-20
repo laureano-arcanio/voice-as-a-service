@@ -288,3 +288,47 @@ def number_assigned(*, email: str, name: str, client_name: str, number: str, lab
         f"Atentina · {settings.site_url} · {settings.support_email}",
     ]
     return Mail(email, subject, html, "\n".join(lines))
+
+
+CALL_MODES = {"entrante": "Entrante", "saliente": "Saliente", "web": "Por el link para llamar"}
+
+
+def _duration(seconds: int) -> str:
+    minutes, secs = divmod(max(seconds, 0), 60)
+    return f"{minutes} min {secs:02d} s" if minutes else f"{secs} s"
+
+
+def call_summary(*, to: str, client_name: str, agent_name: str, mode: str, phone: str | None,
+                 client_number: str | None, started_at: datetime.datetime, duration_seconds: int,
+                 outcome: str | None, fields: list[tuple[str, str]], transcript: list[tuple[str, str]],
+                 truncated: bool, call_url: str) -> Mail:
+    """Resumen de una llamada para el cliente (app/mail/call_summary.py): datos, resultado y transcripcion."""
+    # phone: el de la llamada o, por el link, el que dio la persona (None si no lo dio).
+    who = phone or "número oculto"
+    web = f"Llamada por el link de {phone} a {agent_name}" if phone else f"Llamada por el link a {agent_name}"
+    subject = {"saliente": f"Llamada de {agent_name} a {who}", "web": web}.get(mode, f"Llamada de {who} a {agent_name}")
+    label = {"entrante": "Llamó", "saliente": "Destino"}.get(mode, "Teléfono")
+    rows: list[tuple[str, object]] = [("Agente", agent_name), ("Tipo", CALL_MODES.get(mode, mode)),
+                                      (label, phone or ("No lo dio" if mode == "web" else "Número oculto"))]
+    if client_number:
+        rows.append(("Tu número", client_number))
+    rows += [("Fecha", _when(started_at)), ("Duración", _duration(duration_seconds)),
+             ("Resultado", outcome or "Sin resultado (no completó los datos)")]
+    note = "La transcripción sigue en el dashboard." if truncated else None
+    reason = (f"Recibiste este email porque {client_name} tiene prendido el resumen de llamadas de {agent_name} "
+              "en Atentina. Para dejar de recibirlo, apagalo en Mi cuenta.")
+    content = [L.heading("Resumen de la llamada"), L.details("La llamada", rows)]
+    if fields:
+        content.append(L.details("Datos que tomó el agente", fields))
+    if transcript:
+        content.append(L.transcript("Conversación", transcript, note=note))
+    content.append(L.button(call_url, "Ver la llamada"))
+    lines = [subject, "", "La llamada", *(f"- {label}: {value}" for label, value in rows), ""]
+    if fields:
+        lines += ["Datos que tomó el agente", *(f"- {label}: {value}" for label, value in fields), ""]
+    if transcript:
+        lines += ["Conversación", *(f"{speaker}: {text}" for speaker, text in transcript), ""]
+        lines += [note, ""] if note else []
+    lines += [f"Ver la llamada: {call_url}", "", reason, "", _footer()]
+    preheader = f"{outcome or 'Sin resultado'} · {_duration(duration_seconds)}"
+    return Mail(to, subject, L.render(subject, preheader, content, reason), "\n".join(lines))

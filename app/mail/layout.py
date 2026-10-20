@@ -87,6 +87,24 @@ def details(title: str, rows: list[tuple[str, object]], note: object | None = No
         f'{note_html}</td></tr></table>')
 
 
+def transcript(title: str, lines: list[tuple[str, object]], note: object | None = None) -> Safe:
+    """Conversacion: quien habla y que dijo, una fila por mensaje."""
+    body = "".join(
+        '<tr>'
+        f'<td valign="top" width="96" style="width:96px;padding:8px 12px 8px 0;border-top:1px solid {LINE};'
+        f'font-size:13px;font-weight:700;color:{MUTED};">{esc(who)}</td>'
+        f'<td valign="top" style="padding:8px 0;border-top:1px solid {LINE};font-size:14px;line-height:1.55;'
+        f'color:{INK_2};">{esc(text)}</td>'
+        '</tr>' for who, text in lines)
+    note_html = (f'<p style="margin:0 0 24px;font-size:13px;line-height:1.5;color:{MUTED};">{esc(note)}</p>'
+                 if note else "")
+    return Safe(
+        f'<div style="margin:0 0 6px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;'
+        f'color:{MUTED};">{esc(title)}</div>'
+        f'<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" '
+        f'style="margin:0 0 {12 if note else 24}px;">{body}</table>{note_html}')
+
+
 def render(title: str, preheader: str, content: list[Safe], reason: str) -> str:
     """Mail completo. `reason`: por que le llega (va en el pie)."""
     return _LAYOUT.substitute(

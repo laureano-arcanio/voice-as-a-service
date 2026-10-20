@@ -170,6 +170,10 @@ class Settings(BaseSettings):
     support_email: str = "hola@atentina.com.ar"
     # Vigencia del link para crear la clave (de un solo uso).
     password_setup_hours: int = 72
+    # Resumen por email de cada llamada (app/mail/call_summary.py): cada cuanto mira los pendientes
+    # y cuanto de la transcripcion va en el mail (el resto, en el dashboard).
+    call_summary_tick_seconds: float = 15
+    call_summary_transcript_chars: int = 8000
 
     # --- Registro autoservicio y cobro de planes (docs/SUSCRIPCIONES_PLAN.md) ---
     # Registro desde la landing (POST /api/v1/demo/signup, con Turnstile). Va al tier publico con precio 0.

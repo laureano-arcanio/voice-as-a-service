@@ -16,6 +16,7 @@ from sqlalchemy import (
     Text,
     false,
     text,
+    true,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -103,6 +104,11 @@ class Client(IdMixin, TimestampMixin, Base):
     legal_name: Mapped[str] = mapped_column(String(128), default="", server_default="")
     tax_id: Mapped[str] = mapped_column(String(13), default="", server_default="")
     tax_condition: Mapped[str] = mapped_column(String(16), default="", server_default="")
+    # Resumen por email despues de cada llamada (app/mail/call_summary.py): lo prende cada agente
+    # (Workflow.call_summary_email) y el cliente lo apaga para todos desde Mi cuenta.
+    # call_emails_to: destinos; vacio = los usuarios activos del cliente.
+    call_emails: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    call_emails_to: Mapped[list] = mapped_column(JSONDoc, default=list, server_default=text("'[]'"))
 
     tier: Mapped[Tier] = relationship(lazy="joined", innerjoin=True)
 

@@ -64,4 +64,9 @@ class CallRow(Base):
     ended_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     duration_seconds: Mapped[int] = mapped_column(Integer, default=0)
     latency: Mapped[dict | None] = mapped_column(JSONDoc, nullable=True)
+    # Resumen por email al cliente (app/mail/call_summary.py): pending (lo deja el worker al terminar,
+    # si el agente lo tiene prendido), sent, disabled (sin RESEND_API_KEY), skipped (apagado en el
+    # cliente o sin destinos) o failed. NULL: no corresponde.
+    summary_email: Mapped[str | None] = mapped_column(String(16), nullable=True, index=True)
+    summary_email_attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
