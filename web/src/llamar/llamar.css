@@ -58,10 +58,21 @@ body {
   min-height: 100%;
   background: var(--color-surface);
   display: grid;
-  grid-template-rows: auto 1fr auto auto;
+  /* Espacio arriba y el medio se reparten lo que sobra: la identidad queda centrada entre el borde de
+     arriba y los botones (el ::before es el espacio de arriba). */
+  grid-template-rows: minmax(24px, 1fr) auto minmax(0, 1fr) auto auto;
   text-align: center;
   padding: max(32px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
     max(16px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+}
+
+.phone::before {
+  content: '';
+}
+
+/* Con los subtitulos abiertos, el espacio de arriba se achica para dejarles lugar. */
+.phone:has(.captions:not([hidden])) {
+  grid-template-rows: 24px auto minmax(0, 1fr) auto auto;
 }
 
 /* Escritorio: el telefono como tarjeta centrada. */
@@ -82,7 +93,6 @@ body {
   display: grid;
   justify-items: center;
   gap: 4px;
-  padding-top: 24px;
 }
 
 .avatar {
