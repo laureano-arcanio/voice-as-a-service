@@ -85,6 +85,8 @@ class Settings(BaseSettings):
     call_recordings_dir: Path = Field(default=BASE_DIR / "storage" / "recordings")
     # Aperturas pregeneradas (conversation.opening_audio; app/conversation/opening_audio.py).
     opening_audio_dir: Path = Field(default=BASE_DIR / "storage" / "openings")
+    # Imagenes de los links para llamar (app/services/call_links.py): las sirve `app`, sin backup.
+    call_link_images_dir: Path = Field(default=BASE_DIR / "storage" / "call-links")
 
     # --- Inferencia ---
     vllm_api_key: str = "not-needed"

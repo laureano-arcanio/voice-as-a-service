@@ -38,6 +38,8 @@ class CallLink(IdMixin, TimestampMixin, Base):
     display_name: Mapped[str] = mapped_column(String(64), default="", server_default="")
     company_name: Mapped[str] = mapped_column(String(128), default="", server_default="")
     subtitle: Mapped[str] = mapped_column(String(120), default="", server_default="")
+    # Imagen redonda de arriba: archivo en CALL_LINK_IMAGES_DIR. NULL: la inicial de la empresa.
+    image: Mapped[str | None] = mapped_column(String(64), nullable=True)
     max_call_seconds: Mapped[int] = mapped_column(Integer, default=300, server_default="300")
     # Topes propios del link, ademas de los del tier. NULL: sin tope.
     max_concurrent: Mapped[int | None] = mapped_column(Integer, nullable=True)

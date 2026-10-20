@@ -4,6 +4,7 @@ import {
   Badge,
   Button,
   Card,
+  FileButton,
   Group,
   Menu,
   NumberInput,
@@ -23,6 +24,7 @@ import {
   IconPlayerPause,
   IconPlayerPlay,
   IconRefresh,
+  IconPhoto,
   IconTrash,
 } from '@tabler/icons-react';
 import type { AgentDetail, CallLink, CallLinkState } from '@/api/types';
@@ -37,20 +39,47 @@ import {
   useCallLink,
   useCreateCallLink,
   useDeleteCallLink,
+  useRemoveCallLinkImage,
   useRotateCallLink,
+  useSetCallLinkImage,
   useUpdateCallLink,
 } from './callLink';
 
+const IMAGE_MAX_MB = 5;
+
 /** Como se va a ver la pagina publica (la tarjeta de arriba del telefono). */
-function Preview({ name, company, subtitle }: { name: string; company: string; subtitle: string }) {
+function Preview({
+  name,
+  company,
+  subtitle,
+  image,
+}: {
+  name: string;
+  company: string;
+  subtitle: string;
+  image: string | null;
+}) {
   return (
     <Card bg="gray.0" ta="center" py="xl" style={{ alignSelf: 'start' }}>
       <Stack gap={6} align="center">
-        <Avatar size={72} radius={999} color="blue" variant="light" fw={800}>
+        <Avatar
+          size={72}
+          radius={999}
+          color="blue"
+          variant="light"
+          fw={800}
+          src={image}
+          bg={image ? 'white' : undefined}
+        >
           {initials(company)}
         </Avatar>
         <Text fw={800} fz="xl" ff="heading" mt="xs">
           {name}
+          {company && (
+            <Text span inherit fw={500} c="gray.7">
+              , asistente de
+            </Text>
+          )}
         </Text>
         <Text c="gray.7" fw={500}>
           {company}
@@ -77,6 +106,8 @@ function LinkEditor({ agent, state, link }: { agent: AgentDetail; state: CallLin
   const update = useUpdateCallLink(agent.id);
   const rotate = useRotateCallLink(agent.id);
   const del = useDeleteCallLink(agent.id);
+  const setImage = useSetCallLinkImage(agent.id);
+  const removeImage = useRemoveCallLinkImage(agent.id);
   const form = useForm({
     initialValues: {
       display_name: link.display_name,
@@ -146,6 +177,18 @@ function LinkEditor({ agent, state, link }: { agent: AgentDetail; state: CallLin
       });
   };
 
+  const uploadImage = (file: File | null) => {
+    if (!file) return;
+    if (file.size > IMAGE_MAX_MB * 1024 * 1024) {
+      notifyError(new Error(`La imagen pasa de ${IMAGE_MAX_MB} MB.`));
+      return;
+    }
+    setImage.mutate(file, {
+      onSuccess: () => notifySuccess('Imagen actualizada.'),
+      onError: (e) => notifyError(e),
+    });
+  };
+
   const usage = link.usage;
   return (
     <Stack gap="md">
@@ -157,7 +200,8 @@ function LinkEditor({ agent, state, link }: { agent: AgentDetail; state: CallLin
               {link.paused ? <Badge color="yellow">Pausado</Badge> : <Badge color="green">Activo</Badge>}
             </Group>
             <Text size="sm" c="dimmed">
-              Quien lo abre habla con este agente desde el navegador. Las llamadas usan minutos entrantes del plan.
+              Quien lo abre habla con este agente desde el navegador. Las llamadas usan minutos entrantes del
+              plan.
             </Text>
           </div>
           <Group gap="xs" wrap="nowrap">
@@ -209,7 +253,8 @@ function LinkEditor({ agent, state, link }: { agent: AgentDetail; state: CallLin
         </Group>
         <Text size="sm" c="dimmed" mt="xs" className="mono">
           Hoy: {usage.calls_today} {usage.calls_today === 1 ? 'llamada' : 'llamadas'} ·{' '}
-          {formatNumber(usage.seconds_today / 60)} min · Este mes: {formatNumber(usage.seconds_month / 60)} min
+          {formatNumber(usage.seconds_today / 60)} min · Este mes: {formatNumber(usage.seconds_month / 60)}{' '}
+          min
         </Text>
         {!state.enabled && (
           <Alert color="yellow" icon={<IconInfoCircle size={18} />} mt="sm">
@@ -223,6 +268,56 @@ function LinkEditor({ agent, state, link }: { agent: AgentDetail; state: CallLin
           <Card>
             <Stack gap="sm">
               <Title order={5}>Lo que ve quien llama</Title>
+              <Group gap="sm" wrap="nowrap">
+                <Avatar
+                  size={56}
+                  radius={999}
+                  color="blue"
+                  variant="light"
+                  fw={800}
+                  src={link.image_url}
+                  bg={link.image_url ? 'white' : undefined}
+                >
+                  {initials(v.company_name.trim() || state.default_company_name)}
+                </Avatar>
+                <Stack gap={4}>
+                  <Group gap="xs">
+                    <FileButton onChange={uploadImage} accept="image/png,image/jpeg,image/webp">
+                      {(props) => (
+                        <Button
+                          {...props}
+                          variant="default"
+                          size="xs"
+                          leftSection={<IconPhoto size={14} />}
+                          loading={setImage.isPending}
+                        >
+                          {link.image_url ? 'Cambiar imagen' : 'Subir imagen'}
+                        </Button>
+                      )}
+                    </FileButton>
+                    {link.image_url && (
+                      <Button
+                        variant="subtle"
+                        color="gray"
+                        size="xs"
+                        loading={removeImage.isPending}
+                        onClick={() =>
+                          removeImage.mutate(undefined, {
+                            onSuccess: () => notifySuccess('Volvió la inicial de la empresa.'),
+                            onError: (e) => notifyError(e),
+                          })
+                        }
+                      >
+                        Quitar
+                      </Button>
+                    )}
+                  </Group>
+                  <Text size="xs" c="dimmed">
+                    Logo o foto, PNG, JPG o WebP hasta {IMAGE_MAX_MB} MB. Se recorta en círculo. Sin imagen:
+                    la inicial de la empresa.
+                  </Text>
+                </Stack>
+              </Group>
               <TextInput
                 label="Nombre"
                 placeholder={state.default_display_name}
@@ -281,6 +376,7 @@ function LinkEditor({ agent, state, link }: { agent: AgentDetail; state: CallLin
             name={v.display_name.trim() || state.default_display_name}
             company={v.company_name.trim() || state.default_company_name}
             subtitle={v.subtitle.trim()}
+            image={link.image_url}
           />
         </SimpleGrid>
       </form>
@@ -292,14 +388,13 @@ function NoLink({ agent, state }: { agent: AgentDetail; state: CallLinkState }) 
   const create = useCreateCallLink(agent.id);
   const isAdmin = useIsAdmin();
   const { plan_max: max, plan_used: used } = state;
-  const blocked =
-    agent.archived
-      ? 'El agente está archivado.'
-      : max === 0
-        ? 'Tu plan no incluye links para llamar.'
-        : max != null && used >= max
-          ? `Usaste ${max === 1 ? 'el link' : `los ${max} links`} de tu plan.`
-          : null;
+  const blocked = agent.archived
+    ? 'El agente está archivado.'
+    : max === 0
+      ? 'Tu plan no incluye links para llamar.'
+      : max != null && used >= max
+        ? `Usaste ${max === 1 ? 'el link' : `los ${max} links`} de tu plan.`
+        : null;
   return (
     <Card>
       <Stack gap="sm" align="flex-start">
@@ -308,14 +403,17 @@ function NoLink({ agent, state }: { agent: AgentDetail; state: CallLinkState }) 
           <Title order={4}>Link para llamar</Title>
         </Group>
         <Text size="sm" c="dimmed" maw={640}>
-          Creá un link para que tus clientes hablen con este agente desde el navegador, sin número de teléfono.
-          Sirve para la web, las redes, una firma de mail o un QR en el mostrador. Las llamadas usan minutos
-          entrantes del plan.
+          Creá un link para que tus clientes hablen con este agente desde el navegador, sin número de
+          teléfono. Sirve para la web, las redes, una firma de mail o un QR en el mostrador. Las llamadas usan
+          minutos entrantes del plan.
         </Text>
         {blocked && (
           <Text size="sm" c="yellow.7">
             {blocked}
-            {isAdmin && max != null && !agent.archived && ' Se cambia en el tier o con un ajuste del cliente.'}
+            {isAdmin &&
+              max != null &&
+              !agent.archived &&
+              ' Se cambia en el tier o con un ajuste del cliente.'}
           </Text>
         )}
         <Button
@@ -333,8 +431,8 @@ function NoLink({ agent, state }: { agent: AgentDetail; state: CallLinkState }) 
         </Button>
         {!state.enabled && isAdmin && (
           <Text size="xs" c="dimmed">
-            Falta habilitar la página pública en el servidor: TURNSTILE_SITE_KEY, TURNSTILE_SECRET_KEY y la URL
-            de LiveKit para navegadores (DEMO_LIVEKIT_URL).
+            Falta habilitar la página pública en el servidor: TURNSTILE_SITE_KEY, TURNSTILE_SECRET_KEY y la
+            URL de LiveKit para navegadores (DEMO_LIVEKIT_URL).
           </Text>
         )}
       </Stack>

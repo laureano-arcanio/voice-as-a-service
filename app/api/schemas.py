@@ -1043,6 +1043,7 @@ class CallLinkOut(ORM):
     display_name: str
     company_name: str
     subtitle: str
+    image_url: str | None = Field(description="Imagen de arriba de la pagina (null: la inicial de la empresa)")
     max_call_seconds: int
     max_concurrent: int | None
     daily_minutes: int | None
@@ -1065,6 +1066,7 @@ class PublicLinkOut(BaseModel):
     display_name: str
     company_name: str
     subtitle: str
+    image_url: str | None
     max_call_seconds: int
     records_audio: bool
     available: bool

@@ -3,7 +3,10 @@
 - `/agents/{agent_id}/call-link`: lo gestiona el cliente (o un admin), uno activo por agente.
 - `/public/call-links/{token}`: la usa la pagina publica (sin auth; Turnstile al llamar).
 """
-from fastapi import APIRouter, Request, Response
+from typing import Annotated
+
+from fastapi import APIRouter, File, Request, Response, UploadFile
+from fastapi.responses import FileResponse
 
 from ...models import CallLink, Client
 from ...services import call_links as service
@@ -32,8 +35,9 @@ PUBLIC_ERRORS = {404: {"description": "Link inexistente o revocado"},
 def _out(db, link: CallLink) -> CallLinkOut:
     usage = CallLinkUsageOut(**service.usage(db, link).__dict__)
     return CallLinkOut.model_validate({**{k: getattr(link, k) for k in CallLinkOut.model_fields
-                                          if k not in ("url", "usage")},
-                                       "url": service.url(link), "usage": usage})
+                                          if k not in ("url", "image_url", "usage")},
+                                       "url": service.url(link), "image_url": service.image_url(link),
+                                       "usage": usage})
 
 
 def _user_id(p) -> str | None:
@@ -89,6 +93,26 @@ def rotate_link(agent_id: str, p: CurrentPrincipal, db: DB):
     return _out(db, link)
 
 
+@router.put("/agents/{agent_id}/call-link/image", response_model=CallLinkOut,
+            responses={422: {"description": "image_format, image_too_large o image_invalid"}})
+def put_image(agent_id: str, file: Annotated[UploadFile, File(description="PNG, JPG o WebP, hasta 5 MB")],
+              p: CurrentPrincipal, db: DB):
+    """Imagen redonda de arriba de la pagina (logo o foto): se recorta al cuadrado y se achica a 512 px."""
+    agent = get_agent(db, p, agent_id)
+    link = service.set_image(db, _link(db, agent.id), file.file.read(service.IMAGE_MAX_BYTES + 1))
+    db.commit()
+    return _out(db, link)
+
+
+@router.delete("/agents/{agent_id}/call-link/image", response_model=CallLinkOut)
+def delete_image(agent_id: str, p: CurrentPrincipal, db: DB):
+    """Vuelve a la inicial de la empresa."""
+    agent = get_agent(db, p, agent_id)
+    link = service.remove_image(db, _link(db, agent.id))
+    db.commit()
+    return _out(db, link)
+
+
 @router.delete("/agents/{agent_id}/call-link", status_code=204, response_class=Response)
 def delete_link(agent_id: str, p: CurrentPrincipal, db: DB):
     agent = get_agent(db, p, agent_id)
@@ -102,6 +126,13 @@ def public_link(token: str, db: DB):
     """Lo que muestra la pagina publica del link."""
     view = service.public_view(db, token)
     return PublicLinkOut(**{k: v for k, v in view.__dict__.items() if k != "token"})
+
+
+@router.get("/public/call-links/{token}/image", response_class=FileResponse, responses={404: PUBLIC_ERRORS[404]})
+def public_image(token: str, db: DB):
+    path = service.public_image(db, token)
+    return FileResponse(path, media_type=service.IMAGE_TYPES.get(path.suffix, "application/octet-stream"),
+                        headers={"Cache-Control": "public, max-age=86400"})
 
 
 @router.post("/public/call-links/{token}/calls", response_model=PublicLinkCallOut, status_code=201,

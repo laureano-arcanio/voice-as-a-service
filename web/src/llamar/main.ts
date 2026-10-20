@@ -15,6 +15,7 @@ interface LinkData {
   display_name?: string;
   company_name?: string;
   subtitle?: string;
+  image_url?: string | null;
   max_call_seconds?: number;
   records_audio?: boolean;
   available?: boolean;
@@ -128,7 +129,11 @@ function idle() {
 function micSteps(): string[] {
   const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
   return ios
-    ? ['Tocá "aA" en la barra de direcciones.', 'Configuración del sitio → Micrófono → Permitir.', 'Volvé a intentar.']
+    ? [
+        'Tocá "aA" en la barra de direcciones.',
+        'Configuración del sitio → Micrófono → Permitir.',
+        'Volvé a intentar.',
+      ]
     : ['Tocá el candado de la barra de direcciones.', 'Micrófono → Permitir.', 'Volvé a intentar.'];
 }
 
@@ -154,7 +159,8 @@ async function onTranscription(reader: TextStreamReader, participant: { identity
   const trackId = attributes['lk.transcribed_track_id'];
   const local = room?.localParticipant;
   const isUser =
-    participant.identity === local?.identity || (trackId !== undefined && !!local?.trackPublications.has(trackId));
+    participant.identity === local?.identity ||
+    (trackId !== undefined && !!local?.trackPublications.has(trackId));
   const id = attributes['lk.segment_id'] ?? reader.info.id;
   let text = '';
   for await (const chunk of reader) {
@@ -283,7 +289,10 @@ async function createRoom(): Promise<Room> {
     hint.textContent = '';
   });
   r.on(RoomEvent.Disconnected, () => finish());
-  r.registerTextStreamHandler('lk.transcription', (reader, participant) => void onTranscription(reader, participant));
+  r.registerTextStreamHandler(
+    'lk.transcription',
+    (reader, participant) => void onTranscription(reader, participant),
+  );
   return r;
 }
 
@@ -324,7 +333,9 @@ function callFailed(error: unknown) {
       return fail('No disponible', 'Este canal no está disponible en este momento.', { retry: false });
     case 'link_not_found':
     case 'http_404':
-      return fail('Este link ya no está activo', 'Pedile el link nuevo a quien te lo compartió.', { retry: false });
+      return fail('Este link ya no está activo', 'Pedile el link nuevo a quien te lo compartió.', {
+        retry: false,
+      });
     case 'captcha_failed':
       return fail('No pudimos verificar la llamada', 'Recargá la página y volvé a intentar.');
     default:
@@ -350,14 +361,20 @@ async function call() {
   // 1. Microfono, con el gesto del usuario: si lo niega, no se gasta la llamada.
   const { createLocalAudioTrack } = await livekit();
   try {
-    mic = await createLocalAudioTrack({ echoCancellation: true, noiseSuppression: true, autoGainControl: true });
+    mic = await createLocalAudioTrack({
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+    });
   } catch (error) {
     release();
     const name = error instanceof DOMException ? error.name : '';
     if (name === 'NotFoundError' || name === 'OverconstrainedError') {
       fail('No encontramos un micrófono', 'Conectá uno y volvé a intentar.');
     } else {
-      fail(`Sin permiso para el micrófono`, `Para hablar con ${agentName}, permitilo:`, { steps: micSteps() });
+      fail(`Sin permiso para el micrófono`, `Para hablar con ${agentName}, permitilo:`, {
+        steps: micSteps(),
+      });
     }
     return;
   }
@@ -412,10 +429,30 @@ document.addEventListener('visibilitychange', () => {
 
 // ---------- arranque ----------
 
+/** Logo o foto del link en el circulo; si no carga, queda la inicial. */
+function showImage(src: string) {
+  const avatar = $('.avatar');
+  const img = document.createElement('img');
+  img.alt = '';
+  img.src = src;
+  img.addEventListener('load', () => avatar.classList.add('has-image'));
+  img.addEventListener('error', () => img.remove());
+  avatar.append(img);
+}
+
 function init() {
   const company = data.company_name ?? '';
   $('[data-initials]').textContent = data.found ? initials(company) : '·';
-  $('[data-name]').textContent = data.found ? agentName : 'Link no disponible';
+  if (data.found && data.image_url) showImage(data.image_url);
+  const name = $('[data-name]');
+  name.textContent = data.found ? agentName : 'Link no disponible';
+  // "Gaby, asistente de" y abajo la empresa: se lee como una frase.
+  if (data.found && company) {
+    const role = document.createElement('span');
+    role.className = 'role';
+    role.textContent = ', asistente de';
+    name.append(role);
+  }
   $('[data-company]').textContent = company;
   const subtitle = $('[data-subtitle]');
   subtitle.textContent = data.subtitle ?? '';

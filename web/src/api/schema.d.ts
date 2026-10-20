@@ -2550,6 +2550,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/agents/{agent_id}/call-link/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Image
+         * @description Imagen redonda de arriba de la pagina (logo o foto): se recorta al cuadrado y se achica a 512 px.
+         */
+        put: operations["put_image_api_v1_agents__agent_id__call_link_image_put"];
+        post?: never;
+        /**
+         * Delete Image
+         * @description Vuelve a la inicial de la empresa.
+         */
+        delete: operations["delete_image_api_v1_agents__agent_id__call_link_image_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/call-links/{token}": {
         parameters: {
             query?: never;
@@ -2562,6 +2586,23 @@ export interface paths {
          * @description Lo que muestra la pagina publica del link.
          */
         get: operations["public_link_api_v1_public_call_links__token__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/call-links/{token}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public Image */
+        get: operations["public_image_api_v1_public_call_links__token__image_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2979,6 +3020,15 @@ export interface components {
             /** Suspended Numbers */
             suspended_numbers: string[];
         };
+        /** Body_put_image_api_v1_agents__agent_id__call_link_image_put */
+        Body_put_image_api_v1_agents__agent_id__call_link_image_put: {
+            /**
+             * File
+             * Format: binary
+             * @description PNG, JPG o WebP, hasta 5 MB
+             */
+            file: string;
+        };
         /** Body_transcriptions_api_v1_inference_audio_transcriptions_post */
         Body_transcriptions_api_v1_inference_audio_transcriptions_post: {
             /**
@@ -3151,6 +3201,11 @@ export interface components {
             company_name: string;
             /** Subtitle */
             subtitle: string;
+            /**
+             * Image Url
+             * @description Imagen de arriba de la pagina (null: la inicial de la empresa)
+             */
+            image_url: string | null;
             /** Max Call Seconds */
             max_call_seconds: number;
             /** Max Concurrent */
@@ -5297,6 +5352,8 @@ export interface components {
             company_name: string;
             /** Subtitle */
             subtitle: string;
+            /** Image Url */
+            image_url: string | null;
             /** Max Call Seconds */
             max_call_seconds: number;
             /** Records Audio */
@@ -11984,6 +12041,70 @@ export interface operations {
             };
         };
     };
+    put_image_api_v1_agents__agent_id__call_link_image_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_put_image_api_v1_agents__agent_id__call_link_image_put"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallLinkOut"];
+                };
+            };
+            /** @description image_format, image_too_large o image_invalid */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    delete_image_api_v1_agents__agent_id__call_link_image_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallLinkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     public_link_api_v1_public_call_links__token__get: {
         parameters: {
             query?: never;
@@ -12003,6 +12124,42 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PublicLinkOut"];
                 };
+            };
+            /** @description Link inexistente o revocado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_image_api_v1_public_call_links__token__image_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Link inexistente o revocado */
             404: {

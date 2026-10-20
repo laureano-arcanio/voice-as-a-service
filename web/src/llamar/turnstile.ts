@@ -26,7 +26,9 @@ export function loadTurnstile(): Promise<Turnstile> {
     script.src = SCRIPT_URL;
     script.async = true;
     script.onload = () =>
-      window.turnstile ? resolve(window.turnstile) : reject(new CaptchaError('No se pudo cargar la verificación.'));
+      window.turnstile
+        ? resolve(window.turnstile)
+        : reject(new CaptchaError('No se pudo cargar la verificación.'));
     script.onerror = () => {
       loading = null;
       reject(new CaptchaError('No se pudo cargar la verificación. Revisá tu conexión.'));

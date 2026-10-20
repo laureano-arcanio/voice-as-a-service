@@ -5,15 +5,21 @@
 - Publico (https://<CALL_LINK_HOST>/<token>): la pagina lee `public_view` y la llamada arranca con
   `start_call` (Turnstile, limites por IP, cupo diario y concurrencia del link, y los del tier). Es una
   llamada `web`: consume minutos entrantes.
+- Imagen (opcional): se recorta al cuadrado, se achica a 512 px y se recodifica (PNG si tiene
+  transparencia, si no JPEG) en CALL_LINK_IMAGES_DIR; la sirve la API publica del link.
 - Los errores publicos no hablan del plan ni de minutos (quien llama no es el cliente): `busy` (429),
   `ip_limit` (429), `unavailable` (503) y 404. El motivo real queda en el log.
 """
 import asyncio
 import datetime
+import io
 import logging
 import secrets
 from dataclasses import dataclass
+from pathlib import Path
+from urllib.parse import urlparse
 
+from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -32,7 +38,7 @@ from ..models import (
 from . import calls, livekit, quota
 from . import demo as demo_service
 from . import limits as limits_service
-from .errors import Conflict, Forbidden, NotFound, QuotaExceeded, ServiceError
+from .errors import Conflict, Forbidden, Invalid, NotFound, QuotaExceeded, ServiceError
 from .ratelimit import Limit, RateLimiter, client_key
 from .security import Principal
 
@@ -46,6 +52,12 @@ EDITABLE = ("display_name", "company_name", "subtitle", "max_call_seconds", "max
             "paused")
 # Codigos de QuotaExceeded que se le dicen a quien llama como "ocupado" (el resto, "no disponible").
 BUSY_CODES = {"concurrency_limit", "link_concurrency_limit", "link_global_limit"}
+# Imagen: lo que se acepta y como se guarda.
+IMAGE_MAX_BYTES = 5 * 1024 * 1024    # el mismo de app/api/http.py (BodyLimitMiddleware)
+IMAGE_MAX_PIXELS = 40_000_000     # antes de decodificar: corta las "bombas" de descompresion
+IMAGE_FORMATS = {"PNG", "JPEG", "WEBP"}
+IMAGE_SIZE = 512
+IMAGE_TYPES = {".png": "image/png", ".jpg": "image/jpeg"}
 
 limiter = RateLimiter()
 
@@ -87,6 +99,19 @@ def url(link: CallLink) -> str:
 
 def new_token() -> str:
     return secrets.token_urlsafe(TOKEN_BYTES)
+
+
+def image_url(link: CallLink) -> str | None:
+    """Por la API publica del link (pasa por el host `llamar.`); `v` cambia con cada imagen."""
+    if not link.image:
+        return None
+    return f"/api/v1/public/call-links/{link.token}/image?v={Path(link.image).stem[:8]}"
+
+
+def absolute_url(path: str) -> str:
+    """Un path de la API publica con el origen de los links (og:image tiene que ser absoluta)."""
+    parsed = urlparse(base_url())
+    return f"{parsed.scheme}://{parsed.netloc}{path}"
 
 
 # ---------- del cliente ----------
@@ -147,7 +172,7 @@ def rotate(s: Session, link: CallLink, user_id: str | None) -> CallLink:
     link.revoked_at = utcnow()
     s.flush()
     new = CallLink(client_id=link.client_id, agent_id=link.agent_id, token=new_token(), created_by=user_id,
-                   **{k: getattr(link, k) for k in EDITABLE})
+                   image=link.image, **{k: getattr(link, k) for k in EDITABLE})
     s.add(new)
     s.flush()
     return new
@@ -156,6 +181,68 @@ def rotate(s: Session, link: CallLink, user_id: str | None) -> CallLink:
 def revoke(s: Session, link: CallLink) -> None:
     link.revoked_at = utcnow()
     s.flush()
+    _drop_image(s, link.image)
+
+
+# ---------- imagen ----------
+
+def _encode_image(data: bytes) -> tuple[bytes, str]:
+    """Recorte cuadrado al centro, hasta IMAGE_SIZE px, recodificada (no queda nada del archivo original)."""
+    if len(data) > IMAGE_MAX_BYTES:
+        raise Invalid("La imagen pasa de 5 MB", "image_too_large")
+    try:
+        with Image.open(io.BytesIO(data)) as img:
+            if img.format not in IMAGE_FORMATS:
+                raise Invalid("La imagen tiene que ser PNG, JPG o WebP", "image_format")
+            if img.width * img.height > IMAGE_MAX_PIXELS:
+                raise Invalid("La imagen es demasiado grande", "image_too_large")
+            img = ImageOps.exif_transpose(img)
+            side = min(IMAGE_SIZE, img.width, img.height)
+            alpha = img.mode in ("RGBA", "LA", "PA") or "transparency" in img.info
+            img = ImageOps.fit(img.convert("RGBA" if alpha else "RGB"), (side, side), Image.Resampling.LANCZOS)
+            out = io.BytesIO()
+            if alpha:
+                img.save(out, "PNG", optimize=True)
+                return out.getvalue(), ".png"
+            img.save(out, "JPEG", quality=88, progressive=True)
+            return out.getvalue(), ".jpg"
+    except (UnidentifiedImageError, OSError, Image.DecompressionBombError, ValueError):
+        raise Invalid("No pudimos leer la imagen. Probá con un PNG o JPG.", "image_invalid") from None
+
+
+def image_path(link: CallLink) -> Path | None:
+    if not link.image:
+        return None
+    path = settings.call_link_images_dir / link.image
+    return path if path.is_file() else None
+
+
+def _drop_image(s: Session, name: str | None) -> None:
+    """Borra el archivo si ningun link activo lo usa (regenerar el link comparte la imagen)."""
+    if not name:
+        return
+    in_use = s.scalar(select(func.count()).select_from(CallLink).where(
+        CallLink.image == name, CallLink.revoked_at.is_(None))) or 0
+    if not in_use:
+        (settings.call_link_images_dir / name).unlink(missing_ok=True)
+
+
+def set_image(s: Session, link: CallLink, data: bytes) -> CallLink:
+    content, ext = _encode_image(data)
+    name = f"{secrets.token_hex(16)}{ext}"
+    settings.call_link_images_dir.mkdir(parents=True, exist_ok=True)
+    (settings.call_link_images_dir / name).write_bytes(content)
+    old, link.image = link.image, name
+    s.flush()
+    _drop_image(s, old)
+    return link
+
+
+def remove_image(s: Session, link: CallLink) -> CallLink:
+    old, link.image = link.image, None
+    s.flush()
+    _drop_image(s, old)
+    return link
 
 
 @dataclass
@@ -192,6 +279,7 @@ class PublicView:
     display_name: str
     company_name: str
     subtitle: str
+    image_url: str | None
     max_call_seconds: int
     records_audio: bool
     available: bool
@@ -221,10 +309,19 @@ def public_view(s: Session, token: str) -> PublicView:
         display_name=link.display_name or (definition.get("agent") or {}).get("name") or agent.name,
         company_name=link.company_name or client.name,
         subtitle=link.subtitle,
+        image_url=image_url(link),
         max_call_seconds=link.max_call_seconds,
         records_audio=bool(definition.get("record_audio")),
         available=enabled() and client.active and not link.paused,
     )
+
+
+def public_image(s: Session, token: str) -> Path:
+    link, _, _ = _resolve(s, token)
+    path = image_path(link)
+    if path is None:
+        raise NotFound("El link no tiene imagen", "image_not_found")
+    return path
 
 
 def _check_daily(s: Session, link: CallLink) -> None:

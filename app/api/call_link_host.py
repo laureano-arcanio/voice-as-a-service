@@ -86,11 +86,12 @@ def render(template: str, view: service.PublicView | None) -> str:
         title = f"Hablá con {view.display_name} · {view.company_name}"
         description = view.subtitle or f"Llamá a {view.company_name} desde el navegador."
         data = {"found": True, "token": view.token, "display_name": view.display_name,
-                "company_name": view.company_name, "subtitle": view.subtitle,
+                "company_name": view.company_name, "subtitle": view.subtitle, "image_url": view.image_url,
                 "max_call_seconds": view.max_call_seconds, "records_audio": view.records_audio,
                 "available": view.available, "turnstile_site_key": settings.turnstile_site_key,
                 "home_url": settings.site_url}
     e = html.escape
+    image = service.absolute_url(view.image_url) if view and view.image_url else None
     head = "\n    ".join([
         f"<title>{e(title)}</title>",
         f'<meta name="description" content="{e(description)}" />',
@@ -100,6 +101,7 @@ def render(template: str, view: service.PublicView | None) -> str:
         '<meta property="og:type" content="website" />',
         f'<meta property="og:url" content="{e(service.url_for_token(view.token)) if view else ""}" />',
         '<meta name="twitter:card" content="summary" />',
+        *([f'<meta property="og:image" content="{e(image)}" />'] if image else []),
     ])
     body = f'<script type="application/json" id="link-data">{_json_for_html(data)}</script>'
     return template.replace(HEAD_MARK, head, 1).replace(DATA_MARK, body, 1)

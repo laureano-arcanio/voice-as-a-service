@@ -8902,6 +8902,103 @@
     }
    }
   },
+  "/api/v1/agents/{agent_id}/call-link/image": {
+   "put": {
+    "tags": [
+     "call-links"
+    ],
+    "summary": "Put Image",
+    "description": "Imagen redonda de arriba de la pagina (logo o foto): se recorta al cuadrado y se achica a 512 px.",
+    "operationId": "put_image_api_v1_agents__agent_id__call_link_image_put",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "agent_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Agent Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_put_image_api_v1_agents__agent_id__call_link_image_put"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CallLinkOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "image_format, image_too_large o image_invalid"
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "call-links"
+    ],
+    "summary": "Delete Image",
+    "description": "Vuelve a la inicial de la empresa.",
+    "operationId": "delete_image_api_v1_agents__agent_id__call_link_image_delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "agent_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Agent Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CallLinkOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/public/call-links/{token}": {
    "get": {
     "tags": [
@@ -8931,6 +9028,44 @@
         }
        }
       }
+     },
+     "404": {
+      "description": "Link inexistente o revocado"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/public/call-links/{token}/image": {
+   "get": {
+    "tags": [
+     "call-links"
+    ],
+    "summary": "Public Image",
+    "operationId": "public_image_api_v1_public_call_links__token__image_get",
+    "parameters": [
+     {
+      "name": "token",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response"
      },
      "404": {
       "description": "Link inexistente o revocado"
@@ -10044,6 +10179,21 @@
     "title": "BillingOut",
     "description": "Plan y cobro de un cliente: lo que muestra la pantalla Plan."
    },
+   "Body_put_image_api_v1_agents__agent_id__call_link_image_put": {
+    "properties": {
+     "file": {
+      "type": "string",
+      "format": "binary",
+      "title": "File",
+      "description": "PNG, JPG o WebP, hasta 5 MB"
+     }
+    },
+    "type": "object",
+    "required": [
+     "file"
+    ],
+    "title": "Body_put_image_api_v1_agents__agent_id__call_link_image_put"
+   },
    "Body_transcriptions_api_v1_inference_audio_transcriptions_post": {
     "properties": {
      "file": {
@@ -10527,6 +10677,18 @@
       "type": "string",
       "title": "Subtitle"
      },
+     "image_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Image Url",
+      "description": "Imagen de arriba de la pagina (null: la inicial de la empresa)"
+     },
      "max_call_seconds": {
       "type": "integer",
       "title": "Max Call Seconds"
@@ -10575,6 +10737,7 @@
      "display_name",
      "company_name",
      "subtitle",
+     "image_url",
      "max_call_seconds",
      "max_concurrent",
      "daily_minutes",
@@ -16375,6 +16538,17 @@
       "type": "string",
       "title": "Subtitle"
      },
+     "image_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Image Url"
+     },
      "max_call_seconds": {
       "type": "integer",
       "title": "Max Call Seconds"
@@ -16393,6 +16567,7 @@
      "display_name",
      "company_name",
      "subtitle",
+     "image_url",
      "max_call_seconds",
      "records_audio",
      "available"

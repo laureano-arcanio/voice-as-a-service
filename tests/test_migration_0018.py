@@ -20,7 +20,8 @@ def test_0018_upgrade_downgrade_upgrade(tmp_path):
     assert set(TABLES) <= set(sa.inspect(engine).get_table_names())
     with engine.connect() as conn:
         diff = compare_metadata(MigrationContext.configure(conn, opts={"compare_type": True}), Base.metadata)
-    assert [d for d in diff if any(t in repr(d) for t in (*TABLES, *COLUMNS))] == []
+    # call_links.image es de la 0019.
+    assert [d for d in diff if any(t in repr(d) for t in (*TABLES, *COLUMNS)) and "'image'" not in repr(d)] == []
 
     _run(engine, command.downgrade, "0017")
     assert "call_links" not in sa.inspect(engine).get_table_names()

@@ -1,11 +1,13 @@
 """Link publico para llamar a un agente (docs/LINK_LLAMADA_PLAN.md): alta por agente con el tope del
 plan, pausa, regenerar y revocar; la API publica (Turnstile, topes por IP y por link, errores sin
 hablar del plan); minutos entrantes del tier; la pagina con sus metas y el host propio."""
+import io
 import json
 import re
 
 import pytest
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from app.config import settings
 from app.models import CallLink, CallMode, CallRow, CallStatus
@@ -26,6 +28,7 @@ def links(api, admin, monkeypatch, tmp_path):  # noqa: F811  (fixture)
     monkeypatch.setattr(settings, "call_link_base_url", f"https://{HOST}")
     (tmp_path / "llamar.html").write_text(TEMPLATE)
     monkeypatch.setattr(settings, "web_dist_dir", tmp_path)
+    monkeypatch.setattr(settings, "call_link_images_dir", tmp_path / "images")
     api.turnstile_ok = True
 
     async def fake_verify(token, ip):
@@ -113,8 +116,8 @@ def test_public_view(links):
     token = create(links, subtitle="Turnos").json()["token"]
     view = links.client.get(f"{V1}/public/call-links/{token}").json()
     assert view == {"display_name": "Sofía", "company_name": "Acme", "subtitle": "Turnos",
-                    "max_call_seconds": settings.call_link_default_seconds, "records_audio": False,
-                    "available": True}
+                    "image_url": None, "max_call_seconds": settings.call_link_default_seconds,
+                    "records_audio": False, "available": True}
     assert links.client.get(f"{V1}/public/call-links/nope12345678").status_code == 404
 
 
@@ -234,3 +237,67 @@ def test_agent_archived_link_is_gone(links):
         assert s.query(CallLink).count() == 1
     assert links.user.delete(f"{V1}/agents/{links.agent['id']}").status_code in (200, 204)
     assert links.client.get(f"{V1}/public/call-links/{token}").status_code == 404
+
+
+# ---------- imagen ----------
+
+def _image(fmt: str, size=(900, 600), mode="RGB") -> bytes:
+    out = io.BytesIO()
+    Image.new(mode, size, (200, 30, 30, 128) if mode == "RGBA" else (200, 30, 30)).save(out, fmt)
+    return out.getvalue()
+
+
+def put_image(api, data: bytes, name="logo.png", user=None):
+    return (user or api.user).put(f"{V1}/agents/{api.agent['id']}/call-link/image",
+                                  files={"file": (name, data, "application/octet-stream")})
+
+
+def test_image_upload_crop_serve_and_remove(links):
+    token = create(links).json()["token"]
+    images = settings.call_link_images_dir
+
+    r = put_image(links, _image("JPEG"))
+    assert r.status_code == 200, r.text
+    url = r.json()["image_url"]
+    assert url.startswith(f"{V1}/public/call-links/{token}/image?v=")
+    got = links.client.get(url)
+    assert got.status_code == 200 and got.headers["content-type"] == "image/jpeg"
+    assert Image.open(io.BytesIO(got.content)).size == (512, 512)   # recorte cuadrado y achicada
+    assert links.client.get(f"{V1}/public/call-links/{token}").json()["image_url"] == url
+
+    # Con transparencia queda PNG; la anterior se borra.
+    png = put_image(links, _image("PNG", (300, 200), "RGBA")).json()["image_url"]
+    assert png != url and len(list(images.iterdir())) == 1
+    got = links.client.get(png)
+    assert got.headers["content-type"] == "image/png"
+    assert Image.open(io.BytesIO(got.content)).size == (200, 200)   # no se agranda
+
+    # La pagina la muestra y la usa para la vista previa al compartir (absoluta, por el host del link).
+    page = links.client.get(f"/llamar/{token}").text
+    assert _data(page)["image_url"] == png and f'property="og:image" content="https://{HOST}{png}' in page
+    host = TestClient(links.app, base_url=f"https://{HOST}")
+    assert host.get(png).status_code == 200
+
+    # Regenerar el link la conserva; quitarla vuelve a la inicial y borra el archivo.
+    url = f"{V1}/agents/{links.agent['id']}/call-link"
+    rotated = links.user.post(f"{url}/rotate").json()
+    assert rotated["image_url"].startswith(f"{V1}/public/call-links/{rotated['token']}/image")
+    assert links.client.get(png).status_code == 404     # el token viejo ya no existe
+    r = links.user.delete(f"{url}/image")
+    assert r.status_code == 200 and r.json()["image_url"] is None
+    assert list(images.iterdir()) == []
+    assert links.client.get(rotated["image_url"]).status_code == 404
+
+
+def test_image_rejects_other_formats_and_other_clients(links, admin, api):  # noqa: F811  (fixture)
+    assert put_image(links, _image("PNG")).status_code == 404       # sin link todavia
+    create(links)
+    gif = put_image(links, _image("GIF"), "a.gif")
+    assert gif.status_code == 422 and gif.json()["code"] == "image_format"
+    assert put_image(links, b"<svg xmlns='http://www.w3.org/2000/svg'/>", "a.svg").json()["code"] == "image_invalid"
+    big = put_image(links, b"0" * (call_links.IMAGE_MAX_BYTES + 1))
+    assert big.json()["code"] == "image_too_large"
+
+    other = make_client(admin, slug="otro")
+    user = client_user(api, admin, other, email="otro@otro.com")
+    assert put_image(links, _image("PNG"), user=user).status_code == 404

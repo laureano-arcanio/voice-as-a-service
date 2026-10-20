@@ -53,3 +53,31 @@ export function useDeleteCallLink(agentId: string) {
     onSuccess: refresh,
   });
 }
+
+/** Imagen de arriba de la pagina (PNG, JPG o WebP): el server la recorta y la achica. */
+export function useSetCallLinkImage(agentId: string) {
+  const refresh = useRefresh(agentId);
+  return useMutation({
+    mutationFn: (file: File) =>
+      unwrap(
+        api.PUT('/api/v1/agents/{agent_id}/call-link/image', {
+          ...path(agentId),
+          body: { file: file as unknown as string },
+          bodySerializer: (body) => {
+            const form = new FormData();
+            form.append('file', body.file as unknown as File);
+            return form;
+          },
+        }),
+      ),
+    onSuccess: refresh,
+  });
+}
+
+export function useRemoveCallLinkImage(agentId: string) {
+  const refresh = useRefresh(agentId);
+  return useMutation({
+    mutationFn: () => unwrap(api.DELETE('/api/v1/agents/{agent_id}/call-link/image', path(agentId))),
+    onSuccess: refresh,
+  });
+}

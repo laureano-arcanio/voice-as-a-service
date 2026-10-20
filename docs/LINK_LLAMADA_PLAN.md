@@ -265,11 +265,26 @@ En la ficha del agente, sección **"Link para llamar"** (sigue [`DESIGN_GUIDELIN
 - **Tests:** `tests/test_call_links.py` (14) y `tests/test_migration_0018.py`; capturas de la página y del
   panel con el backend de desarrollo (`scratch/shots/llamar-*.png`).
 
+### Imagen propia y "asistente de" (20-oct-2026)
+
+- **Página:** el nombre se lee "Gaby, asistente de" y debajo la empresa (sin empresa, solo el nombre).
+- **Imagen:** logo o foto opcional por link, en lugar de la inicial de la empresa. Migración `0019`
+  (`call_links.image`).
+  - Se sube desde la pestaña del agente: `PUT /agents/{id}/call-link/image`, multipart, PNG, JPG o WebP de hasta
+    5 MB (`BodyLimitMiddleware` deja pasar ese path).
+  - El server la recorta al cuadrado, la achica a 512 px como máximo y la recodifica con Pillow: PNG si tiene
+    transparencia, si no JPEG. No guarda nada del archivo original. Queda en `storage/call-links/`
+    (`CALL_LINK_IMAGES_DIR`), **sin backup**, como las grabaciones.
+  - La sirve `GET /public/call-links/{token}/image` (pasa por el host `llamar.`) y va también como `og:image`.
+  - Regenerar el link la conserva; quitarla o borrar el link borra el archivo.
+- **Tests:** 2 más en `tests/test_call_links.py` y `tests/test_migration_0019.py`.
+- **Desplegar:** `make up-app` (build, migración 0019 y recreate de `app`); `agent` no cambia.
+
 ### Desvíos respecto del diseño
 
 - API del cliente bajo el agente (`/agents/{id}/call-link`, uno por agente) en vez de `/call-links?agent_id=`.
 - Pausado responde 503 `unavailable` (no 423): para quien llama es lo mismo que "no disponible".
-- Sin QR ni logo en la fase 1 (quedan para la 2). La vista previa al compartir no tiene `og:image`.
+- Sin QR en la fase 1 (queda para la 2). La imagen propia llegó el 20-oct-2026 (arriba).
 - El tope global (`CALL_LINK_MAX_CONCURRENT`) se cuenta con el lock del cliente, no uno global: entre
   clientes distintos puede pasarse por una o dos llamadas.
 - Si el navegador no logra entrar a la room después del `POST`, la llamada ocupa lugar hasta que el worker

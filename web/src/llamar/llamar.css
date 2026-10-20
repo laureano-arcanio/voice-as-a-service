@@ -111,6 +111,27 @@ body {
   opacity: 0;
 }
 
+/* Con imagen: fondo blanco y borde fino (los logos con transparencia no quedan sobre el celeste). */
+.avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  opacity: 0;
+}
+.avatar.has-image {
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-line);
+}
+.avatar.has-image img {
+  opacity: 1;
+}
+.avatar.has-image [data-initials] {
+  visibility: hidden;
+}
+
 /* Llamando: dos anillos que se expanden. */
 .phone[data-state='connecting'] .avatar::before {
   animation: ring 1.4s ease-out infinite;
@@ -147,6 +168,11 @@ body {
   margin: 0;
   text-wrap: balance;
   overflow-wrap: anywhere;
+}
+
+.name .role {
+  font-weight: 500;
+  color: var(--color-ink-2);
 }
 
 .company {
