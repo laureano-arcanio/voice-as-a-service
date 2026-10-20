@@ -250,6 +250,7 @@ El túnel no lleva UDP: el audio va directo a la IP fija. LiveKit anuncia la IP 
    | `rtc.atentina.com.ar` | (vacío) | `http://localhost:7880` |
    | `wa.atentina.com.ar` | `^/wa/webhook` | `http://localhost:8011` |
    | `app.atentina.com.ar` | (vacío) | `http://localhost:8011` |
+   | `llamar.atentina.com.ar` | (vacío) | `http://localhost:8011` (link para llamar a un agente, [`LINK_LLAMADA_PLAN.md`](LINK_LLAMADA_PLAN.md); con `CALL_LINK_BASE_URL`, `app` solo sirve ahí la página y su API) |
 
    El mismo túnel sirve el webhook de WhatsApp en `wa.atentina.com.ar` (ver
    [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md)).

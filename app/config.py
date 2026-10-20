@@ -126,6 +126,21 @@ class Settings(BaseSettings):
     demo_ip_sessions_per_hour: int = 20
     demo_tts_max_chars: int = 300
 
+    # --- Link publico para llamar a un agente (docs/LINK_LLAMADA_PLAN.md) ---
+    # Base de las URLs (https://llamar.atentina.com.ar): con ese Host, app sirve solo la pagina del
+    # link y su API (app/api/call_link_host.py). Vacio: la pagina queda en <host del panel>/llamar/<token>.
+    call_link_base_url: str = ""
+    # Site key publica de Turnstile (la misma de la landing); el widget tiene que permitir el host
+    # del link. Sin ella o sin TURNSTILE_SECRET_KEY la pagina dice "no disponible".
+    turnstile_site_key: str = ""
+    call_link_default_seconds: int = 300
+    call_link_join_timeout_seconds: int = 60
+    call_link_ip_calls_per_hour: int = 4
+    call_link_ip_calls_per_day: int = 10
+    # Llamadas por link a la vez entre todos los clientes: deja lugar a las entrantes por telefono.
+    # Sin medir con Gemma (como CALL_CAMPAIGN_MAX_CONCURRENT): no subirlo sin un CAP.
+    call_link_max_concurrent: int = 8
+
     # --- Formulario de contacto de la landing (POST /api/v1/demo/contact) ---
     # Aviso por mail con Resend (dominio atentina.com.ar verificado). Sin clave o sin destino,
     # el pedido igual se guarda en contact_requests.

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="es-AR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#ffffff" />
+    <link rel="icon" type="image/svg+xml" href="/atentina-mark.svg" />
+    <!-- Pagina publica del link para llamar a un agente (docs/LINK_LLAMADA_PLAN.md). app completa el
+         titulo, las metas y los datos del link (app/api/call_link_host.py). -->
+    <!--LINK_HEAD-->
+  </head>
+  <body>
+    <main class="phone" data-state="loading">
+      <header class="who">
+        <div class="avatar" aria-hidden="true"><span data-initials></span></div>
+        <h1 class="name" data-name></h1>
+        <p class="company" data-company></p>
+        <p class="subtitle" data-subtitle hidden></p>
+        <p class="status" data-status role="status"></p>
+      </header>
+
+      <section class="middle" aria-live="polite">
+        <p class="timer" data-timer hidden>0:00</p>
+        <p class="hint" data-hint></p>
+        <div class="notice" data-notice hidden>
+          <p class="notice-title" data-notice-title></p>
+          <p data-notice-text></p>
+          <ol class="steps" data-notice-steps hidden></ol>
+        </div>
+        <button type="button" class="link-button" data-captions-toggle aria-expanded="false" hidden>
+          Ver subtítulos
+        </button>
+        <div class="captions" data-captions aria-label="Subtítulos de la llamada" hidden></div>
+        <div id="turnstile"></div>
+      </section>
+
+      <section class="actions">
+        <div class="action" data-group="idle" hidden>
+          <button type="button" class="round call" data-call aria-describedby="nota">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"
+              />
+            </svg>
+            <span class="label">Llamar</span>
+          </button>
+        </div>
+        <div class="action pair" data-group="call" hidden>
+          <button type="button" class="round" data-mute aria-pressed="false" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true" data-mic-on>
+              <rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="2" />
+              <path d="M5 11a7 7 0 0 0 14 0M12 18v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+            <svg viewBox="0 0 24 24" aria-hidden="true" data-mic-off hidden>
+              <rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="2" />
+              <path d="M5 11a7 7 0 0 0 14 0M12 18v3M4 4l16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+            <span class="label" data-mute-label>Silenciar</span>
+          </button>
+          <button type="button" class="round end" data-hangup>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M12 9c-3.2 0-6.2.9-8.8 2.6a1.5 1.5 0 0 0-.5 1.9l1.1 2.2a1.5 1.5 0 0 0 1.9.7l2.6-1a1.5 1.5 0 0 0 .9-1.4V12a13 13 0 0 1 5.6 0v2a1.5 1.5 0 0 0 .9 1.4l2.6 1a1.5 1.5 0 0 0 1.9-.7l1.1-2.2a1.5 1.5 0 0 0-.5-1.9A16 16 0 0 0 12 9z"
+              />
+            </svg>
+            <span class="label">Cortar</span>
+          </button>
+        </div>
+        <div class="action" data-group="retry" hidden>
+          <button type="button" class="pill" data-retry>Volver a llamar</button>
+        </div>
+        <button type="button" class="link-button" data-unmute-audio hidden>Activar el sonido</button>
+      </section>
+
+      <footer class="foot">
+        <p class="note" id="nota" data-note></p>
+        <p class="brand">
+          <a data-home href="https://atentina.com.ar" target="_blank" rel="noopener">Con tecnología de <b>Atentina</b></a>
+          <a data-privacy href="https://atentina.com.ar/privacidad" target="_blank" rel="noopener">Privacidad</a>
+        </p>
+      </footer>
+    </main>
+    <!--LINK_DATA-->
+    <script type="module" src="/src/llamar/main.ts"></script>
+  </body>
+</html>

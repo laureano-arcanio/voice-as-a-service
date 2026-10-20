@@ -94,6 +94,7 @@ class TierIn(BaseModel):
     max_campaign_contacts: int | None = Field(default=None, ge=0, description="Contactos por campaña")
     max_campaign_concurrency: int | None = Field(default=None, ge=0, description="Llamadas simultaneas de una campaña de voz")
     max_contacts: int | None = Field(default=None, ge=0, description="Contactos activos en la agenda (los archivados no cuentan)")
+    max_call_links: int | None = Field(default=None, ge=0, description="Links publicos para llamar a un agente (uno por agente)")
     campaign_followup: bool = Field(default=False, description="Puede activar el seguimiento por WhatsApp de las campañas de voz")
     # Autoservicio (docs/SUSCRIPCIONES_PLAN.md).
     price_ars: int | None = Field(default=None, ge=0,
@@ -122,6 +123,7 @@ class TierUpdate(BaseModel):
     max_campaign_contacts: int | None = Field(default=None, ge=0)
     max_campaign_concurrency: int | None = Field(default=None, ge=0)
     max_contacts: int | None = Field(default=None, ge=0)
+    max_call_links: int | None = Field(default=None, ge=0)
     campaign_followup: bool | None = None
     price_ars: int | None = Field(default=None, ge=0)
     public: bool | None = None
@@ -149,6 +151,7 @@ class TierOut(ORM):
     max_campaign_contacts: int | None
     max_campaign_concurrency: int | None
     max_contacts: int | None
+    max_call_links: int | None
     campaign_followup: bool
     price_ars: int | None
     public: bool
@@ -202,6 +205,7 @@ LimitField = Literal[
     "inbound_minutes", "outbound_minutes", "max_phone_numbers",
     "api_llm_input_tokens", "api_llm_output_tokens", "api_tts_minutes", "api_stt_minutes", "api_rate_limit",
     "max_campaigns_per_month", "max_campaign_contacts", "max_campaign_concurrency", "max_contacts",
+    "max_call_links",
 ]
 
 
@@ -1002,6 +1006,80 @@ class TtsPreviewIn(BaseModel):
         default="wav", description="wav: archivo completo. pcm: crudo (16 bits, mono, 24 kHz) mientras se sintetiza")
 
 
+# ---------- link para llamar a un agente (docs/LINK_LLAMADA_PLAN.md) ----------
+
+class CallLinkIn(BaseModel):
+    """Textos vacios: el nombre del agente y el del cliente. Topes en null: sin tope propio."""
+    display_name: str = Field(default="", max_length=64, description="Nombre que ve quien llama")
+    company_name: str = Field(default="", max_length=128, description="Empresa que ve quien llama")
+    subtitle: str = Field(default="", max_length=120, description="Debajo de la empresa, ej. 'Turnos y consultas'")
+    max_call_seconds: int | None = Field(default=None, ge=30, description="Duracion maxima de cada llamada")
+    max_concurrent: int | None = Field(default=None, ge=0, description="Llamadas a la vez por este link")
+    daily_minutes: int | None = Field(default=None, ge=0, description="Minutos por dia por este link")
+    paused: bool = False
+
+
+class CallLinkPatch(BaseModel):
+    display_name: str | None = Field(default=None, max_length=64)
+    company_name: str | None = Field(default=None, max_length=128)
+    subtitle: str | None = Field(default=None, max_length=120)
+    max_call_seconds: int | None = Field(default=None, ge=30)
+    max_concurrent: int | None = Field(default=None, ge=0)
+    daily_minutes: int | None = Field(default=None, ge=0)
+    paused: bool | None = None
+
+
+class CallLinkUsageOut(BaseModel):
+    calls_today: int
+    seconds_today: int
+    seconds_month: int
+
+
+class CallLinkOut(ORM):
+    id: str
+    agent_id: str
+    token: str
+    url: str
+    display_name: str
+    company_name: str
+    subtitle: str
+    max_call_seconds: int
+    max_concurrent: int | None
+    daily_minutes: int | None
+    paused: bool
+    created_at: UTCDateTime
+    usage: CallLinkUsageOut
+
+
+class CallLinkStateOut(BaseModel):
+    """El link del agente (null si no tiene) y lo que permite el plan del cliente."""
+    link: CallLinkOut | None
+    plan_max: int | None = Field(description="Links que incluye el plan (null: sin tope; 0: no incluido)")
+    plan_used: int = Field(description="Links activos del cliente")
+    enabled: bool = Field(description="El servidor tiene configurada la pagina publica (Turnstile y LiveKit)")
+    default_display_name: str
+    default_company_name: str
+
+
+class PublicLinkOut(BaseModel):
+    display_name: str
+    company_name: str
+    subtitle: str
+    max_call_seconds: int
+    records_audio: bool
+    available: bool
+
+
+class PublicLinkCallIn(BaseModel):
+    turnstile_token: str = Field(min_length=1, max_length=2048)
+
+
+class PublicLinkCallOut(BaseModel):
+    livekit_url: str
+    token: str
+    max_call_seconds: int
+
+
 # ---------- demo de la landing ----------
 
 class DemoSessionIn(BaseModel):
@@ -1147,6 +1225,7 @@ class PlanOut(ORM):
     max_campaign_contacts: int | None = None
     max_campaign_concurrency: int | None = None
     max_contacts: int | None = None
+    max_call_links: int | None = None
     campaign_followup: bool = False
 
 

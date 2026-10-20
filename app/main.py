@@ -15,7 +15,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 
-from .api import errors
+from .api import call_link_host, errors
 from .api.deps import _bearer, get_db, get_principal, require_admin
 from .api.http import (
     BodyLimitMiddleware,
@@ -29,6 +29,7 @@ from .api.routers import (
     apps,
     auth,
     billing,
+    call_links,
     calls,
     campaigns,
     clients,
@@ -96,7 +97,8 @@ def create_app() -> FastAPI:
     mp_webhook.install_logging()
     # Middlewares: el ultimo agregado es el de afuera. Orden de afuera hacia adentro:
     # http -> https por el tunel, headers (tambien en los 403/413), CORS (la demo de la
-    # landing, sin credenciales), tope de cuerpo y CSRF.
+    # landing, sin credenciales), tope de cuerpo, CSRF y el host del link para llamar.
+    app.add_middleware(call_link_host.CallLinkHostMiddleware)
     app.add_middleware(CsrfMiddleware)
     app.add_middleware(BodyLimitMiddleware)
     app.add_middleware(CORSMiddleware, allow_origins=allowed_origins(), allow_methods=["GET", "POST"],
@@ -109,13 +111,15 @@ def create_app() -> FastAPI:
     api = APIRouter(prefix=API_PREFIX)
     for module in (auth, tiers, clients, phone_numbers, agents, users, api_keys, calls, conversations, voices,
                    whatsapp, wa_campaigns, campaigns, contacts, wa_operators, inference, demo, billing, apps, llm_connections,
-                   llm_params):
+                   llm_params, call_links):
         api.include_router(module.router)
     app.include_router(api)
     _mount_docs(app)
     # Fuera de /api/v1 y antes de _mount_spa (su catch-all es GET y tragaria /wa/webhook).
     app.include_router(wa_webhook.router)
     app.include_router(mp_webhook.router)
+    # Pagina publica del link para llamar a un agente (/llamar/<token>; en su host, /<token>).
+    app.include_router(call_link_host.router)
 
     @app.get("/health", include_in_schema=False)
     def health():

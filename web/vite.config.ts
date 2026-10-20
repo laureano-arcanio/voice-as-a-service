@@ -18,6 +18,13 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       emptyOutDir: true,
       chunkSizeWarningLimit: 1500,
+      // Dos paginas: el panel (index.html) y la del link para llamar (llamar.html, sin React).
+      rollupOptions: {
+        input: {
+          main: fileURLToPath(new URL('./index.html', import.meta.url)),
+          llamar: fileURLToPath(new URL('./llamar.html', import.meta.url)),
+        },
+      },
     },
     test: {
       globals: true,

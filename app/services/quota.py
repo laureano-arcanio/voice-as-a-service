@@ -36,7 +36,8 @@ from . import limits as limits_service
 from .errors import QuotaExceeded
 from .limits import Limits
 
-MINUTE_MODES = {CallMode.entrante: "inbound", CallMode.saliente: "outbound"}
+# La llamada por el link publico de un agente (web) es una entrante mas: consume esos minutos.
+MINUTE_MODES = {CallMode.entrante: "inbound", CallMode.web: "inbound", CallMode.saliente: "outbound"}
 # Una llamada "activa" mas vieja que esto quedo colgada (se cayo el worker sin
 # cerrarla): no ocupa lugar. Cubre la espera de la de prueba (5 min) + la duracion maxima.
 STALE_MARGIN_SECONDS = 600
@@ -102,16 +103,33 @@ def active_calls(s: Session, client_id: str, now: datetime.datetime | None = Non
                     .where(*_active_filter(client_id, now or utcnow()), *_agents_filter(agent_ids))) or 0
 
 
+def active_link_calls(s: Session, call_link_id: str | None = None, now: datetime.datetime | None = None) -> int:
+    """Llamadas activas por el link `call_link_id`, o por cualquier link (de todos los clientes)."""
+    now = now or utcnow()
+    stale = now - datetime.timedelta(seconds=settings.call_max_duration_seconds + STALE_MARGIN_SECONDS)
+    where = [CallRow.mode == CallMode.web, CallRow.status.in_(ACTIVE_CALL_STATUSES), CallRow.created_at >= stale]
+    if call_link_id is not None:
+        where.append(CallRow.call_link_id == call_link_id)
+    return s.scalar(select(func.count()).select_from(CallRow).where(*where)) or 0
+
+
 def used_seconds(s: Session, client_id: str, mode: str, start: datetime.datetime, end: datetime.datetime,
                  now: datetime.datetime | None = None, agent_ids: Collection[str] | None = None) -> int:
-    """Segundos de `mode` que empezaron en [start, end): terminadas + lo que llevan las en curso."""
+    """Segundos de `mode` (y de las que gastan sus mismos minutos: entrante y web) que empezaron en
+    [start, end): terminadas + lo que llevan las en curso."""
     now = now or utcnow()
-    in_period = (CallRow.client_id == client_id, CallRow.mode == mode,
+    in_period = (CallRow.client_id == client_id, CallRow.mode.in_(same_minutes(mode)),
                  CallRow.started_at >= start, CallRow.started_at < end, *_agents_filter(agent_ids))
     done = s.scalar(select(func.coalesce(func.sum(CallRow.duration_seconds), 0))
                     .where(*in_period, CallRow.status.notin_(ACTIVE_CALL_STATUSES))) or 0
     running = s.scalars(select(CallRow.started_at).where(*in_period, *_active_filter(client_id, now))).all()
     return int(done) + sum(max(int((now - t).total_seconds()), 0) for t in running)
+
+
+def same_minutes(mode: str) -> list[str]:
+    """Las modalidades que gastan los mismos minutos que `mode` (entrante y web), o solo `mode`."""
+    kind = MINUTE_MODES.get(mode)
+    return [m for m, k in MINUTE_MODES.items() if k == kind] if kind else [mode]
 
 
 def limit_seconds(limits: Limits, mode: str) -> int | None:

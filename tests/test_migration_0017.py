@@ -66,7 +66,9 @@ def _diff(engine):
     with engine.connect() as conn:
         diff = compare_metadata(MigrationContext.configure(conn, opts={"compare_type": True}), Base.metadata)
     touched = NEW_TABLES | TIER_COLUMNS | {"call_logs"}
-    return [d for d in diff if any(t in repr(d) for t in touched)]
+    # Lo de la 0018 (link para llamar) todavia no esta en este esquema.
+    later = ("call_link", "max_call_links", "ck_tiers_call_links")
+    return [d for d in diff if any(t in repr(d) for t in touched) and not any(t in repr(d) for t in later)]
 
 
 def test_0017_upgrade_keeps_whatsapp_data(tmp_path):

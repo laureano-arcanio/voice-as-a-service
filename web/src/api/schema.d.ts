@@ -2504,6 +2504,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/agents/{agent_id}/call-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Link
+         * @description El link del agente (o null) y cuantos permite el plan.
+         */
+        get: operations["read_link_api_v1_agents__agent_id__call_link_get"];
+        put?: never;
+        /** Create Link */
+        post: operations["create_link_api_v1_agents__agent_id__call_link_post"];
+        /** Delete Link */
+        delete: operations["delete_link_api_v1_agents__agent_id__call_link_delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Link
+         * @description Textos, topes y pausa. Un tope en null lo deja sin tope propio (solo los del plan).
+         */
+        patch: operations["update_link_api_v1_agents__agent_id__call_link_patch"];
+        trace?: never;
+    };
+    "/api/v1/agents/{agent_id}/call-link/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rotate Link
+         * @description Crea un link nuevo con la misma configuracion; el actual deja de funcionar.
+         */
+        post: operations["rotate_link_api_v1_agents__agent_id__call_link_rotate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/call-links/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public Link
+         * @description Lo que muestra la pagina publica del link.
+         */
+        get: operations["public_link_api_v1_public_call_links__token__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/call-links/{token}/calls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Public Call
+         * @description Empieza la llamada: devuelve la URL y el token de LiveKit para entrar a la room.
+         */
+        post: operations["public_call_api_v1_public_call_links__token__calls_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3004,6 +3090,133 @@ export interface components {
             started_at: string | null;
             /** Ended At */
             ended_at: string | null;
+        };
+        /**
+         * CallLinkIn
+         * @description Textos vacios: el nombre del agente y el del cliente. Topes en null: sin tope propio.
+         */
+        CallLinkIn: {
+            /**
+             * Display Name
+             * @description Nombre que ve quien llama
+             * @default
+             */
+            display_name?: string;
+            /**
+             * Company Name
+             * @description Empresa que ve quien llama
+             * @default
+             */
+            company_name?: string;
+            /**
+             * Subtitle
+             * @description Debajo de la empresa, ej. 'Turnos y consultas'
+             * @default
+             */
+            subtitle?: string;
+            /**
+             * Max Call Seconds
+             * @description Duracion maxima de cada llamada
+             */
+            max_call_seconds?: number | null;
+            /**
+             * Max Concurrent
+             * @description Llamadas a la vez por este link
+             */
+            max_concurrent?: number | null;
+            /**
+             * Daily Minutes
+             * @description Minutos por dia por este link
+             */
+            daily_minutes?: number | null;
+            /**
+             * Paused
+             * @default false
+             */
+            paused?: boolean;
+        };
+        /** CallLinkOut */
+        CallLinkOut: {
+            /** Id */
+            id: string;
+            /** Agent Id */
+            agent_id: string;
+            /** Token */
+            token: string;
+            /** Url */
+            url: string;
+            /** Display Name */
+            display_name: string;
+            /** Company Name */
+            company_name: string;
+            /** Subtitle */
+            subtitle: string;
+            /** Max Call Seconds */
+            max_call_seconds: number;
+            /** Max Concurrent */
+            max_concurrent: number | null;
+            /** Daily Minutes */
+            daily_minutes: number | null;
+            /** Paused */
+            paused: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            usage: components["schemas"]["CallLinkUsageOut"];
+        };
+        /** CallLinkPatch */
+        CallLinkPatch: {
+            /** Display Name */
+            display_name?: string | null;
+            /** Company Name */
+            company_name?: string | null;
+            /** Subtitle */
+            subtitle?: string | null;
+            /** Max Call Seconds */
+            max_call_seconds?: number | null;
+            /** Max Concurrent */
+            max_concurrent?: number | null;
+            /** Daily Minutes */
+            daily_minutes?: number | null;
+            /** Paused */
+            paused?: boolean | null;
+        };
+        /**
+         * CallLinkStateOut
+         * @description El link del agente (null si no tiene) y lo que permite el plan del cliente.
+         */
+        CallLinkStateOut: {
+            link: components["schemas"]["CallLinkOut"] | null;
+            /**
+             * Plan Max
+             * @description Links que incluye el plan (null: sin tope; 0: no incluido)
+             */
+            plan_max: number | null;
+            /**
+             * Plan Used
+             * @description Links activos del cliente
+             */
+            plan_used: number;
+            /**
+             * Enabled
+             * @description El servidor tiene configurada la pagina publica (Turnstile y LiveKit)
+             */
+            enabled: boolean;
+            /** Default Display Name */
+            default_display_name: string;
+            /** Default Company Name */
+            default_company_name: string;
+        };
+        /** CallLinkUsageOut */
+        CallLinkUsageOut: {
+            /** Calls Today */
+            calls_today: number;
+            /** Seconds Today */
+            seconds_today: number;
+            /** Seconds Month */
+            seconds_month: number;
         };
         /** CallPage */
         CallPage: {
@@ -4474,7 +4687,7 @@ export interface components {
              * Field
              * @enum {string}
              */
-            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts";
+            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts" | "max_call_links";
             /**
              * Mode
              * @enum {string}
@@ -4504,7 +4717,7 @@ export interface components {
              * Field
              * @enum {string}
              */
-            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts";
+            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts" | "max_call_links";
             /**
              * Mode
              * @enum {string}
@@ -4537,7 +4750,7 @@ export interface components {
              * Field
              * @enum {string}
              */
-            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts";
+            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts" | "max_call_links";
             /**
              * Tier
              * @description Valor del tier (null = ilimitado)
@@ -5026,6 +5239,8 @@ export interface components {
             max_campaign_concurrency?: number | null;
             /** Max Contacts */
             max_contacts?: number | null;
+            /** Max Call Links */
+            max_call_links?: number | null;
             /**
              * Campaign Followup
              * @default false
@@ -5059,6 +5274,35 @@ export interface components {
              * @description structured: la definicion que va en cada turno
              */
             workflow?: string | null;
+        };
+        /** PublicLinkCallIn */
+        PublicLinkCallIn: {
+            /** Turnstile Token */
+            turnstile_token: string;
+        };
+        /** PublicLinkCallOut */
+        PublicLinkCallOut: {
+            /** Livekit Url */
+            livekit_url: string;
+            /** Token */
+            token: string;
+            /** Max Call Seconds */
+            max_call_seconds: number;
+        };
+        /** PublicLinkOut */
+        PublicLinkOut: {
+            /** Display Name */
+            display_name: string;
+            /** Company Name */
+            company_name: string;
+            /** Subtitle */
+            subtitle: string;
+            /** Max Call Seconds */
+            max_call_seconds: number;
+            /** Records Audio */
+            records_audio: boolean;
+            /** Available */
+            available: boolean;
         };
         /** PublicPlanOut */
         PublicPlanOut: {
@@ -5401,6 +5645,11 @@ export interface components {
              */
             max_contacts?: number | null;
             /**
+             * Max Call Links
+             * @description Links publicos para llamar a un agente (uno por agente)
+             */
+            max_call_links?: number | null;
+            /**
              * Campaign Followup
              * @description Puede activar el seguimiento por WhatsApp de las campañas de voz
              * @default false
@@ -5466,6 +5715,8 @@ export interface components {
             max_campaign_concurrency: number | null;
             /** Max Contacts */
             max_contacts: number | null;
+            /** Max Call Links */
+            max_call_links: number | null;
             /** Campaign Followup */
             campaign_followup: boolean;
             /** Price Ars */
@@ -5525,6 +5776,8 @@ export interface components {
             max_campaign_concurrency?: number | null;
             /** Max Contacts */
             max_contacts?: number | null;
+            /** Max Call Links */
+            max_call_links?: number | null;
             /** Campaign Followup */
             campaign_followup?: boolean | null;
             /** Price Ars */
@@ -11553,6 +11806,282 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["LlmParamsOut"];
                 };
+            };
+        };
+    };
+    read_link_api_v1_agents__agent_id__call_link_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallLinkStateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_link_api_v1_agents__agent_id__call_link_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CallLinkIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallLinkOut"];
+                };
+            };
+            /** @description El agente ya tiene link */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description call_links_limit: el plan no incluye mas links */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    delete_link_api_v1_agents__agent_id__call_link_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_link_api_v1_agents__agent_id__call_link_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CallLinkPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallLinkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rotate_link_api_v1_agents__agent_id__call_link_rotate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallLinkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_link_api_v1_public_call_links__token__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicLinkOut"];
+                };
+            };
+            /** @description Link inexistente o revocado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_call_api_v1_public_call_links__token__calls_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublicLinkCallIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicLinkCallOut"];
+                };
+            };
+            /** @description captcha_failed */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Link inexistente o revocado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description busy (lineas ocupadas) o rate_limited (llamadas seguidas desde la IP) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description unavailable (pausado, cliente inactivo, sin minutos o sin configurar) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

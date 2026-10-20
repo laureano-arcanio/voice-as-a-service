@@ -7,6 +7,7 @@ import {
   IconFileCode,
   IconHistory,
   IconInfoCircle,
+  IconLink,
   IconPencil,
   IconPlayerPlay,
   IconRestore,
@@ -24,13 +25,14 @@ import { formatDateTime } from '@/lib/format';
 import { ENGINE } from '@/lib/labels';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useAgent, useDeleteAgent, useUpdateAgent } from './api';
+import { CallLinkTab } from './CallLinkTab';
 import { DefinitionTab } from './DefinitionTab';
 import { EditAgentModal } from './EditAgentModal';
 import { TestTab } from './TestTab';
 import { VersionsTab } from './VersionsTab';
 import { WorkflowSummary } from './WorkflowSummary';
 
-const TABS = ['resumen', 'definicion', 'versiones', 'probar'] as const;
+const TABS = ['resumen', 'definicion', 'versiones', 'probar', 'link'] as const;
 type Tab = (typeof TABS)[number];
 
 function AgentActions({ agent }: { agent: AgentDetail }) {
@@ -202,6 +204,9 @@ function AgentView({ agent }: { agent: AgentDetail }) {
           <Tabs.Tab value="probar" leftSection={<IconPlayerPlay size={16} />}>
             Probar
           </Tabs.Tab>
+          <Tabs.Tab value="link" leftSection={<IconLink size={16} />}>
+            Link para llamar
+          </Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="resumen">
           <WorkflowSummary definition={agent.definition} clientId={agent.client_id} />
@@ -214,6 +219,9 @@ function AgentView({ agent }: { agent: AgentDetail }) {
         </Tabs.Panel>
         <Tabs.Panel value="probar">
           <TestTab agent={agent} />
+        </Tabs.Panel>
+        <Tabs.Panel value="link">
+          <CallLinkTab agent={agent} />
         </Tabs.Panel>
       </Tabs>
     </>

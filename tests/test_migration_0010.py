@@ -15,7 +15,9 @@ LATER_TIER_COLUMNS = ("'price_ars'", "'public'", "'sort'", "ck_tiers_price", "'s
                       # 0017 (campañas y agenda).
                       "'campaign_channels'", "'campaign_followup'", "'max_campaigns_per_month'",
                       "'max_campaign_contacts'", "'max_campaign_concurrency'", "'max_contacts'",
-                      "ck_tiers_campaign", "ck_tiers_contacts")
+                      "ck_tiers_campaign", "ck_tiers_contacts",
+                      # 0018 (link para llamar).
+                      "'max_call_links'", "ck_tiers_call_links")
 
 
 def test_0010_upgrade_downgrade_upgrade(tmp_path):

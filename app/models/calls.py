@@ -27,6 +27,7 @@ class CallMode(enum.StrEnum):
     saliente = "saliente"   # marca por SIP
     entrante = "entrante"   # llama el cliente final a un numero del cliente
     prueba = "prueba"       # navegador (LiveKit Meet)
+    web = "web"             # navegador, por el link publico de un agente (call_links); consume minutos entrantes
     loadtest = "loadtest"   # scripts/loadtest y scripts/capacity
 
 
@@ -51,6 +52,9 @@ class CallRow(Base):
     # Si es un intento de una campaña de voz: el contacto de la campaña (app/models/campaigns.py).
     campaign_contact_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("campaign_contacts.id", ondelete="SET NULL"), nullable=True, index=True)
+    # Si entro por el link publico de un agente (app/models/call_links.py).
+    call_link_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("call_links.id", ondelete="SET NULL"), nullable=True, index=True)
     status: Mapped[str] = mapped_column(String(16), default=CallStatus.pendiente)
     # Codigo SIP con el que termino el intento saliente (486 ocupado, 408 no atiende...), si lo hubo.
     sip_status: Mapped[int | None] = mapped_column(Integer, nullable=True)

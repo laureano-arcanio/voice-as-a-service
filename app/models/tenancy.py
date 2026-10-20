@@ -45,6 +45,7 @@ class Tier(IdMixin, TimestampMixin, Base):
         CheckConstraint("max_campaign_concurrency IS NULL OR max_campaign_concurrency >= 0",
                         name="ck_tiers_campaign_concurrency"),
         CheckConstraint("max_contacts IS NULL OR max_contacts >= 0", name="ck_tiers_contacts"),
+        CheckConstraint("max_call_links IS NULL OR max_call_links >= 0", name="ck_tiers_call_links"),
     )
     name: Mapped[str] = mapped_column(String(64), unique=True)
     description: Mapped[str] = mapped_column(Text, default="")
@@ -77,6 +78,9 @@ class Tier(IdMixin, TimestampMixin, Base):
     max_campaign_concurrency: Mapped[int | None] = mapped_column(Integer, nullable=True)  # llamadas simultaneas de una de voz
     max_contacts: Mapped[int | None] = mapped_column(Integer, nullable=True)              # contactos activos en la agenda
     campaign_followup: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())   # seguimiento por WhatsApp
+    # Links publicos para llamar a un agente desde el navegador (docs/LINK_LLAMADA_PLAN.md). NULL = sin
+    # limite, 0 = no incluido.
+    max_call_links: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Autoservicio (docs/SUSCRIPCIONES_PLAN.md): precio mensual en pesos, lo que se cobra (NULL = no
     # se vende por el dashboard; 0 = gratis). `public`: se ofrece en el registro y en /plan. El tier
     # publico con precio 0 es el del registro.

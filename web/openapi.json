@@ -8650,6 +8650,368 @@
      }
     ]
    }
+  },
+  "/api/v1/agents/{agent_id}/call-link": {
+   "get": {
+    "tags": [
+     "call-links"
+    ],
+    "summary": "Read Link",
+    "description": "El link del agente (o null) y cuantos permite el plan.",
+    "operationId": "read_link_api_v1_agents__agent_id__call_link_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "agent_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Agent Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CallLinkStateOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "call-links"
+    ],
+    "summary": "Create Link",
+    "operationId": "create_link_api_v1_agents__agent_id__call_link_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "agent_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Agent Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CallLinkIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CallLinkOut"
+        }
+       }
+      }
+     },
+     "409": {
+      "description": "El agente ya tiene link"
+     },
+     "429": {
+      "description": "call_links_limit: el plan no incluye mas links"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "patch": {
+    "tags": [
+     "call-links"
+    ],
+    "summary": "Update Link",
+    "description": "Textos, topes y pausa. Un tope en null lo deja sin tope propio (solo los del plan).",
+    "operationId": "update_link_api_v1_agents__agent_id__call_link_patch",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "agent_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Agent Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CallLinkPatch"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CallLinkOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "call-links"
+    ],
+    "summary": "Delete Link",
+    "operationId": "delete_link_api_v1_agents__agent_id__call_link_delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "agent_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Agent Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/agents/{agent_id}/call-link/rotate": {
+   "post": {
+    "tags": [
+     "call-links"
+    ],
+    "summary": "Rotate Link",
+    "description": "Crea un link nuevo con la misma configuracion; el actual deja de funcionar.",
+    "operationId": "rotate_link_api_v1_agents__agent_id__call_link_rotate_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "agent_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Agent Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CallLinkOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/public/call-links/{token}": {
+   "get": {
+    "tags": [
+     "call-links"
+    ],
+    "summary": "Public Link",
+    "description": "Lo que muestra la pagina publica del link.",
+    "operationId": "public_link_api_v1_public_call_links__token__get",
+    "parameters": [
+     {
+      "name": "token",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PublicLinkOut"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Link inexistente o revocado"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/public/call-links/{token}/calls": {
+   "post": {
+    "tags": [
+     "call-links"
+    ],
+    "summary": "Public Call",
+    "description": "Empieza la llamada: devuelve la URL y el token de LiveKit para entrar a la room.",
+    "operationId": "public_call_api_v1_public_call_links__token__calls_post",
+    "parameters": [
+     {
+      "name": "token",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Token"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PublicLinkCallIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PublicLinkCallOut"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "captcha_failed"
+     },
+     "404": {
+      "description": "Link inexistente o revocado"
+     },
+     "429": {
+      "description": "busy (lineas ocupadas) o rate_limited (llamadas seguidas desde la IP)"
+     },
+     "503": {
+      "description": "unavailable (pausado, cliente inactivo, sin minutos o sin configurar)"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
   }
  },
  "components": {
@@ -10062,6 +10424,332 @@
      "ended_at"
     ],
     "title": "CallInfo"
+   },
+   "CallLinkIn": {
+    "properties": {
+     "display_name": {
+      "type": "string",
+      "maxLength": 64,
+      "title": "Display Name",
+      "description": "Nombre que ve quien llama",
+      "default": ""
+     },
+     "company_name": {
+      "type": "string",
+      "maxLength": 128,
+      "title": "Company Name",
+      "description": "Empresa que ve quien llama",
+      "default": ""
+     },
+     "subtitle": {
+      "type": "string",
+      "maxLength": 120,
+      "title": "Subtitle",
+      "description": "Debajo de la empresa, ej. 'Turnos y consultas'",
+      "default": ""
+     },
+     "max_call_seconds": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 30.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Call Seconds",
+      "description": "Duracion maxima de cada llamada"
+     },
+     "max_concurrent": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Concurrent",
+      "description": "Llamadas a la vez por este link"
+     },
+     "daily_minutes": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Daily Minutes",
+      "description": "Minutos por dia por este link"
+     },
+     "paused": {
+      "type": "boolean",
+      "title": "Paused",
+      "default": false
+     }
+    },
+    "type": "object",
+    "title": "CallLinkIn",
+    "description": "Textos vacios: el nombre del agente y el del cliente. Topes en null: sin tope propio."
+   },
+   "CallLinkOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "agent_id": {
+      "type": "string",
+      "title": "Agent Id"
+     },
+     "token": {
+      "type": "string",
+      "title": "Token"
+     },
+     "url": {
+      "type": "string",
+      "title": "Url"
+     },
+     "display_name": {
+      "type": "string",
+      "title": "Display Name"
+     },
+     "company_name": {
+      "type": "string",
+      "title": "Company Name"
+     },
+     "subtitle": {
+      "type": "string",
+      "title": "Subtitle"
+     },
+     "max_call_seconds": {
+      "type": "integer",
+      "title": "Max Call Seconds"
+     },
+     "max_concurrent": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Concurrent"
+     },
+     "daily_minutes": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Daily Minutes"
+     },
+     "paused": {
+      "type": "boolean",
+      "title": "Paused"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "usage": {
+      "$ref": "#/components/schemas/CallLinkUsageOut"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "agent_id",
+     "token",
+     "url",
+     "display_name",
+     "company_name",
+     "subtitle",
+     "max_call_seconds",
+     "max_concurrent",
+     "daily_minutes",
+     "paused",
+     "created_at",
+     "usage"
+    ],
+    "title": "CallLinkOut"
+   },
+   "CallLinkPatch": {
+    "properties": {
+     "display_name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 64
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Display Name"
+     },
+     "company_name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 128
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Company Name"
+     },
+     "subtitle": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 120
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Subtitle"
+     },
+     "max_call_seconds": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 30.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Call Seconds"
+     },
+     "max_concurrent": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Concurrent"
+     },
+     "daily_minutes": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Daily Minutes"
+     },
+     "paused": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Paused"
+     }
+    },
+    "type": "object",
+    "title": "CallLinkPatch"
+   },
+   "CallLinkStateOut": {
+    "properties": {
+     "link": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/CallLinkOut"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "plan_max": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Plan Max",
+      "description": "Links que incluye el plan (null: sin tope; 0: no incluido)"
+     },
+     "plan_used": {
+      "type": "integer",
+      "title": "Plan Used",
+      "description": "Links activos del cliente"
+     },
+     "enabled": {
+      "type": "boolean",
+      "title": "Enabled",
+      "description": "El servidor tiene configurada la pagina publica (Turnstile y LiveKit)"
+     },
+     "default_display_name": {
+      "type": "string",
+      "title": "Default Display Name"
+     },
+     "default_company_name": {
+      "type": "string",
+      "title": "Default Company Name"
+     }
+    },
+    "type": "object",
+    "required": [
+     "link",
+     "plan_max",
+     "plan_used",
+     "enabled",
+     "default_display_name",
+     "default_company_name"
+    ],
+    "title": "CallLinkStateOut",
+    "description": "El link del agente (null si no tiene) y lo que permite el plan del cliente."
+   },
+   "CallLinkUsageOut": {
+    "properties": {
+     "calls_today": {
+      "type": "integer",
+      "title": "Calls Today"
+     },
+     "seconds_today": {
+      "type": "integer",
+      "title": "Seconds Today"
+     },
+     "seconds_month": {
+      "type": "integer",
+      "title": "Seconds Month"
+     }
+    },
+    "type": "object",
+    "required": [
+     "calls_today",
+     "seconds_today",
+     "seconds_month"
+    ],
+    "title": "CallLinkUsageOut"
    },
    "CallPage": {
     "properties": {
@@ -13987,7 +14675,8 @@
        "max_campaigns_per_month",
        "max_campaign_contacts",
        "max_campaign_concurrency",
-       "max_contacts"
+       "max_contacts",
+       "max_call_links"
       ],
       "title": "Field"
      },
@@ -14076,7 +14765,8 @@
        "max_campaigns_per_month",
        "max_campaign_contacts",
        "max_campaign_concurrency",
-       "max_contacts"
+       "max_contacts",
+       "max_call_links"
       ],
       "title": "Field"
      },
@@ -14187,7 +14877,8 @@
        "max_campaigns_per_month",
        "max_campaign_contacts",
        "max_campaign_concurrency",
-       "max_contacts"
+       "max_contacts",
+       "max_call_links"
       ],
       "title": "Field"
      },
@@ -15546,6 +16237,17 @@
       ],
       "title": "Max Contacts"
      },
+     "max_call_links": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Call Links"
+     },
      "campaign_followup": {
       "type": "boolean",
       "title": "Campaign Followup",
@@ -15620,6 +16322,82 @@
      "system"
     ],
     "title": "PromptOut"
+   },
+   "PublicLinkCallIn": {
+    "properties": {
+     "turnstile_token": {
+      "type": "string",
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Turnstile Token"
+     }
+    },
+    "type": "object",
+    "required": [
+     "turnstile_token"
+    ],
+    "title": "PublicLinkCallIn"
+   },
+   "PublicLinkCallOut": {
+    "properties": {
+     "livekit_url": {
+      "type": "string",
+      "title": "Livekit Url"
+     },
+     "token": {
+      "type": "string",
+      "title": "Token"
+     },
+     "max_call_seconds": {
+      "type": "integer",
+      "title": "Max Call Seconds"
+     }
+    },
+    "type": "object",
+    "required": [
+     "livekit_url",
+     "token",
+     "max_call_seconds"
+    ],
+    "title": "PublicLinkCallOut"
+   },
+   "PublicLinkOut": {
+    "properties": {
+     "display_name": {
+      "type": "string",
+      "title": "Display Name"
+     },
+     "company_name": {
+      "type": "string",
+      "title": "Company Name"
+     },
+     "subtitle": {
+      "type": "string",
+      "title": "Subtitle"
+     },
+     "max_call_seconds": {
+      "type": "integer",
+      "title": "Max Call Seconds"
+     },
+     "records_audio": {
+      "type": "boolean",
+      "title": "Records Audio"
+     },
+     "available": {
+      "type": "boolean",
+      "title": "Available"
+     }
+    },
+    "type": "object",
+    "required": [
+     "display_name",
+     "company_name",
+     "subtitle",
+     "max_call_seconds",
+     "records_audio",
+     "available"
+    ],
+    "title": "PublicLinkOut"
    },
    "PublicPlanOut": {
     "properties": {
@@ -16449,6 +17227,19 @@
       "title": "Max Contacts",
       "description": "Contactos activos en la agenda (los archivados no cuentan)"
      },
+     "max_call_links": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Call Links",
+      "description": "Links publicos para llamar a un agente (uno por agente)"
+     },
      "campaign_followup": {
       "type": "boolean",
       "title": "Campaign Followup",
@@ -16688,6 +17479,17 @@
       ],
       "title": "Max Contacts"
      },
+     "max_call_links": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Call Links"
+     },
      "campaign_followup": {
       "type": "boolean",
       "title": "Campaign Followup"
@@ -16744,6 +17546,7 @@
      "max_campaign_contacts",
      "max_campaign_concurrency",
      "max_contacts",
+     "max_call_links",
      "campaign_followup",
      "price_ars",
      "public",
@@ -16987,6 +17790,18 @@
        }
       ],
       "title": "Max Contacts"
+     },
+     "max_call_links": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Call Links"
      },
      "campaign_followup": {
       "anyOf": [

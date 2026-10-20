@@ -484,7 +484,8 @@ async def entrypoint(ctx: JobContext):
         conversation_id, mode = inbound.conversation_id, CallMode.entrante
     else:
         mode = (CallMode.saliente if metadata.get("phone")
-                else CallMode.loadtest if metadata.get("loadtest") else CallMode.prueba)
+                else CallMode.loadtest if metadata.get("loadtest")
+                else CallMode.web if metadata.get("call_link_id") else CallMode.prueba)
     state = engine.store.get(conversation_id)
     opening = state.messages[0].text
     phone = metadata.get("phone")
@@ -502,11 +503,11 @@ async def entrypoint(ctx: JobContext):
     latency = TurnLatencyTracker()
     session.on("metrics_collected", lambda ev: latency.on_metrics(ev.metrics))
     started_at: float | None = None
-    watchdog: asyncio.Task | None = None
+    watchdogs: list[asyncio.Task] = []   # corte por minutos del tier y por duracion maxima
 
     async def finalize(reason: str = ""):
-        if watchdog is not None:
-            watchdog.cancel()
+        for task in watchdogs:
+            task.cancel()
         agent.flush_recording()
         # La extraccion del ultimo turno puede seguir corriendo (el resultado sale
         # de ahi); en el motor clasico, si corto el cliente, es la unica.
@@ -626,7 +627,7 @@ async def entrypoint(ctx: JobContext):
             logger.exception("sip call failed %s (%s, SIP %s)", conversation_id, result, sip_code)
             fail(str(e), "sip_call_failed", result, sip_code)
             return
-    elif mode in (CallMode.prueba, CallMode.loadtest):
+    elif mode in (CallMode.prueba, CallMode.loadtest, CallMode.web):
         join_timeout = metadata.get("join_timeout_seconds") or 300
         try:
             await asyncio.wait_for(ctx.wait_for_participant(), timeout=join_timeout)
@@ -637,9 +638,10 @@ async def entrypoint(ctx: JobContext):
     started_at = time.time()
     update_call(status=CallStatus.en_curso, started_at=utcnow())
     if mode in quota.MINUTE_MODES:
-        watchdog = asyncio.create_task(quota_watchdog())
-    elif not phone and metadata.get("max_duration_seconds"):
-        watchdog = asyncio.create_task(duration_limit(metadata["max_duration_seconds"]))
+        watchdogs.append(asyncio.create_task(quota_watchdog()))
+    if not phone and metadata.get("max_duration_seconds"):
+        # La de prueba y la del link (web, que ademas tiene el corte por minutos del tier).
+        watchdogs.append(asyncio.create_task(duration_limit(metadata["max_duration_seconds"])))
     # Pausa antes de hablar (conversation.opening_delay_ms): sin ella el saludo arranca apenas
     # se conecta el audio y se puede perder el principio.
     if delay_ms := workflow.conversation.opening_delay_ms:

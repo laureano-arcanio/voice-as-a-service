@@ -1,0 +1,443 @@
+/* Pagina publica del link para llamar (docs/LINK_LLAMADA_PLAN.md, seccion 6). La ve el cliente final:
+   sigue la guia de la marca (docs/DESIGN_GUIDELINE.md), no la del panel. Tokens copiados de
+   landing/src/styles/global.css; solo tema claro, como la marca. */
+:root {
+  --color-bg: #ffffff;
+  --color-bg-2: #f6f8fb;
+  --color-surface: #ffffff;
+  --color-surface-2: #f1f4f9;
+  --color-ink: #0b1220;
+  --color-ink-2: #33415c;
+  --color-muted: #64748b;
+  --color-line: #e3e8ef;
+  --color-line-2: #cbd5e1;
+  --color-accent: #2456e6;
+  --color-accent-2: #1740b8;
+  --color-accent-soft: #eaf0ff;
+  --color-accent-ink: #ffffff;
+  --color-ok: #1b9c5b;
+  --color-ok-soft: #e3f6ec;
+  --color-warn: #b42318;
+  --color-warn-soft: #fef3f2;
+  --font-display: 'Bricolage Grotesque Variable', 'Trebuchet MS', 'Segoe UI', sans-serif;
+  --font-body: 'Figtree Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --level: 0; /* nivel de voz del agente, 0 a 1 (lo pone main.ts) */
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--color-bg-2);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  display: grid;
+  place-items: center;
+}
+
+.phone {
+  width: 100%;
+  min-height: 100%;
+  background: var(--color-surface);
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  text-align: center;
+  padding: max(32px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+}
+
+/* Escritorio: el telefono como tarjeta centrada. */
+@media (min-width: 560px) and (min-height: 640px) {
+  .phone {
+    width: 400px;
+    min-height: 0;
+    height: min(780px, calc(100% - 48px));
+    border: 1px solid var(--color-line);
+    border-radius: 28px;
+    box-shadow: 0 12px 34px rgba(11, 18, 32, 0.08);
+  }
+}
+
+/* ---------- identidad ---------- */
+
+.who {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding-top: 24px;
+}
+
+.avatar {
+  position: relative;
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 2.1rem;
+  letter-spacing: -0.02em;
+  margin-bottom: 14px;
+}
+
+.avatar::before,
+.avatar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--color-accent);
+  opacity: 0;
+}
+
+/* Llamando: dos anillos que se expanden. */
+.phone[data-state='connecting'] .avatar::before {
+  animation: ring 1.4s ease-out infinite;
+}
+.phone[data-state='connecting'] .avatar::after {
+  animation: ring 1.4s ease-out 0.7s infinite;
+}
+
+@keyframes ring {
+  from {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+/* En llamada: el halo sigue la voz del agente (--level). */
+.phone[data-state='live'] .avatar {
+  box-shadow:
+    0 0 0 calc(4px + var(--level) * 10px) rgba(36, 86, 230, 0.16),
+    0 0 0 calc(8px + var(--level) * 20px) rgba(36, 86, 230, 0.06);
+  transition: box-shadow 90ms linear;
+}
+
+.name {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.85rem;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: 0;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+.company {
+  margin: 0;
+  color: var(--color-ink-2);
+  font-weight: 500;
+  font-size: 1.05rem;
+  overflow-wrap: anywhere;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.92rem;
+}
+
+.status {
+  margin: 12px 0 0;
+  min-height: 1.5em;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--color-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.phone[data-state='idle'] .status::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-ok);
+  box-shadow: 0 0 0 4px var(--color-ok-soft);
+}
+
+/* ---------- medio ---------- */
+
+.middle {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 8px;
+  padding-block: 16px;
+  min-height: 0;
+}
+
+.timer {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.hint {
+  margin: 0;
+  min-height: 1.5em;
+  color: var(--color-muted);
+  font-size: 0.95rem;
+}
+
+.notice {
+  width: 100%;
+  max-width: 340px;
+  text-align: left;
+  background: var(--color-warn-soft);
+  color: var(--color-ink-2);
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 0.92rem;
+}
+
+.notice p {
+  margin: 0;
+}
+
+.notice-title {
+  color: var(--color-warn);
+  font-weight: 600;
+  margin-bottom: 2px !important;
+}
+
+.steps {
+  margin: 6px 0 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 2px;
+}
+
+.captions {
+  width: 100%;
+  max-width: 340px;
+  max-height: 168px;
+  overflow-y: auto;
+  text-align: left;
+  background: var(--color-bg-2);
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: var(--color-ink-2);
+}
+
+.captions p {
+  margin: 0;
+}
+
+.captions b {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.link-button {
+  background: none;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.link-button:hover {
+  border-color: var(--color-line-2);
+}
+
+/* ---------- botones ---------- */
+
+.actions {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding-block: 8px 16px;
+}
+
+.action {
+  display: flex;
+  justify-content: center;
+}
+
+.action.pair {
+  gap: 48px;
+}
+
+.round {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--color-ink-2);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.round svg {
+  box-sizing: content-box;
+  width: 28px;
+  height: 28px;
+  padding: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--color-line-2);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  transition:
+    translate 150ms,
+    background-color 150ms;
+}
+
+.round.call svg {
+  width: 32px;
+  height: 32px;
+  padding: 20px;
+  background: var(--color-ok);
+  border-color: var(--color-ok);
+  color: #fff;
+}
+
+.round.end svg {
+  background: var(--color-warn);
+  border-color: var(--color-warn);
+  color: #fff;
+}
+
+.round[aria-pressed='true'] svg {
+  background: var(--color-ink);
+  border-color: var(--color-ink);
+  color: #fff;
+}
+
+.round:hover:not(:disabled) svg {
+  translate: 0 -1px;
+}
+
+.round:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.round svg[hidden] {
+  display: none;
+}
+
+.pill {
+  border: 0;
+  border-radius: 10px;
+  padding: 13px 24px;
+  font: inherit;
+  font-weight: 600;
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  cursor: pointer;
+}
+
+.pill:hover {
+  background: var(--color-accent-2);
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: 12px;
+}
+
+.round:focus-visible {
+  outline: none;
+}
+
+.round:focus-visible svg {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+/* ---------- pie ---------- */
+
+.foot {
+  display: grid;
+  gap: 10px;
+}
+
+.note {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-muted);
+  line-height: 1.45;
+}
+
+.brand {
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--color-line);
+  padding-top: 10px;
+  font-size: 0.78rem;
+}
+
+.brand a {
+  color: var(--color-muted);
+  text-decoration: none;
+}
+
+.brand a:hover {
+  color: var(--color-ink-2);
+}
+
+.brand b {
+  color: var(--color-ink-2);
+  font-weight: 600;
+}
+
+/* Turnstile en modo interaction-only: solo ocupa lugar si pide un desafio. */
+#turnstile:empty {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phone[data-state='connecting'] .avatar::before,
+  .phone[data-state='connecting'] .avatar::after {
+    animation: none;
+  }
+  .phone[data-state='live'] .avatar {
+    box-shadow: 0 0 0 6px rgba(36, 86, 230, 0.16);
+    transition: none;
+  }
+}
