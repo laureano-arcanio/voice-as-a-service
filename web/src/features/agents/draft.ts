@@ -214,7 +214,6 @@ export const newKey = () => `k${++seq}`;
 const obj = (x: unknown): Record<string, unknown> =>
   x && typeof x === 'object' && !Array.isArray(x) ? (x as Record<string, unknown>) : {};
 const str = (x: unknown): string => (typeof x === 'string' ? x : x == null ? '' : String(x));
-const isType = (t: string): t is FieldType => FIELD_TYPES.some((f) => f.value === t);
 
 function toConditions(when: unknown): ConditionDraft[] {
   return Object.entries(obj(when)).map(([field, value]) => ({
@@ -243,7 +242,9 @@ export function toDraft(d: Definition): Draft {
         key: newKey(),
         name,
         label: str(f.label),
-        type: isType(type) ? type : 'string',
+        // Un tipo que esta version de la UI no conoce se conserva: pasarlo a 'string' lo pisaba al guardar
+        // (una pestana abierta antes de un deploy guardo el telefono como texto, 20-oct-2026).
+        type: (type || 'string') as FieldType,
         options: Array.isArray(f.options) ? f.options.map(str) : [],
         description: str(f.description),
         question: str(f.question),

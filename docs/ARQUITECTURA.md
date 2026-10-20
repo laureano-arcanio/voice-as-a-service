@@ -227,7 +227,11 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
   dato de tipo `phone`. Ese tipo se precarga con el número de la otra punta en las entrantes y salientes
   (`engine.new_conversation(phone=...)`, va a `progress.preloaded`) y el agente no lo pregunta; por el link
   queda vacío y lo pide. Al prender el resumen en el editor se agrega el dato `telefono` si el agente no
-  tiene uno (no con el motor `assistant`, que no pide datos).
+  tiene uno (no con el motor `assistant`, que no pide datos). En el motor `classic` el LLM daba por sabido el
+  número ("estás en una llamada telefónica") y no lo pedía (0 de 10 con Gemma 4 26B, 20-oct-2026): el prompt
+  dice que no lo tiene y, mientras no haya un número en lo que dijo el usuario, su último mensaje lleva una nota
+  para pedirlo antes de despedirse (`PHONE_REMINDER` en `app/llm/prompt.py`). Medido: lo pide 8 de 10 después del
+  dato anterior y 9 de 10 al cierre en vez de cerrar (antes 0 y cerraba 10 de 10); si ya lo dio, no lo repite (10 de 10).
 - **`record_audio`** (default `false`): graba el audio, un WAV mono de 16 kHz por mensaje,
   localmente (`CALL_RECORDINGS_DIR`, default `storage/recordings/<conversation_id>/NNN.wav`;
   `storage/` montado en `agent`, no versionado). Lo escribe `app/conversation/recordings.py`

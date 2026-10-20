@@ -78,3 +78,40 @@ async def test_structured_finish_does_not_extract_again(store):
     await turn_and_extract(engine, state.conversation_id, "Yoga.")
     await engine.finish(state.conversation_id)
     assert llm.extract_calls == [None]
+
+
+# ---------- telefono (dato tipo phone): sin numero de la llamada, hay que pedirlo ----------
+
+def _with_phone():
+    wf = load_reference("berlin_signup_classic").model_copy(deep=True)   # la de referencia esta en cache
+    from app.conversation.models import FieldSpec
+    wf.fields["telefono"] = FieldSpec(priority=1, description="Teléfono de contacto", type="phone", required=True,
+                                      question="¿A qué número te llamamos?")
+    return wf
+
+
+def _state(wf, **fields):
+    return ConversationState(conversation_id="c", agent_id=wf.id, fields={n: None for n in wf.fields} | fields,
+                             messages=[Message(role="assistant", text="Hola.")])
+
+
+def test_phone_unknown_is_asked_and_reminded():
+    from app.llm.prompt import PHONE_REMINDER
+
+    wf = _with_phone()
+    messages = build_classic_messages(wf, _state(wf), "Quiero anotarme.")
+    assert "No lo tenés: en esta conversación no se ve el número" in messages[0]["content"]
+    assert "Antes de despedirte, si todavía no tenés el teléfono" in messages[0]["content"]
+    assert messages[-1]["content"] == "Quiero anotarme." + PHONE_REMINDER
+
+
+def test_phone_given_or_preloaded_is_not_reminded():
+    wf = _with_phone()
+    said = build_classic_messages(wf, _state(wf), "Mi número es 351 555 1234.")
+    assert said[-1]["content"] == "Mi número es 351 555 1234."
+    preloaded = build_classic_messages(wf, _state(wf, telefono="+5493515551234"), "Hola.")
+    assert preloaded[-1]["content"] == "Hola."
+    assert "No lo tenés" not in preloaded[0]["content"] and "Antes de despedirte" not in preloaded[0]["content"]
+    # Sin dato phone, nada cambia.
+    plain = load_reference("berlin_signup_classic")
+    assert build_classic_messages(plain, _state(plain), "Hola.")[-1]["content"] == "Hola."

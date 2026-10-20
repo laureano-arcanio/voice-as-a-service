@@ -32,7 +32,7 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
 .DEFAULT_GOAL := help
 
 .PHONY: help setup env storage build \
-        apps-network up up-agent up-app up-inference up-nginx up-pbx down restart ps logs \
+        apps-network up up-agent up-app up-inference up-stt up-nginx up-pbx down restart ps logs calls-active \
         sh psql health gpu \
         pbx-cli pbx-status livekit-sip livekit-sip-si-local \
         wa-calling-status wa-calling-enable wa-calling-disable wa-sip-password sip-cert \
@@ -84,6 +84,12 @@ up-app: apps-network ## Solo app (API + UI): build, migraciones y recreate, sin 
 up-inference: ## Solo la inferencia: vllm-llm + stt-parakeet + vllm-tts (espera a que esten healthy)
 	$(COMPOSE) up -d --build --wait $(INFERENCE_SERVICES)
 
+up-stt: ## Solo el STT (stt-parakeet): build y recreate, ~20 s sin transcripcion. Se niega con llamadas en curso (FORCE=1 lo saltea)
+	@[ "$(FORCE)" = 1 ] || $(MAKE) --no-print-directory calls-active
+	$(COMPOSE) build stt-parakeet
+	$(COMPOSE) up -d --no-deps --wait stt-parakeet
+	@$(COMPOSE) logs stt-parakeet 2>&1 | grep -E "prefijo de idioma|listo:" | tail -2
+
 up-nginx: ## Solo el proxy publico (nginx en :PROXY_PORT) e imprime las URLs
 	$(COMPOSE) up -d proxy
 	@$(PUBLIC_URL_SH); \
@@ -118,6 +124,10 @@ logs: ## Sigue los logs. Ej: make logs S=agent (o S="vllm-tts stt-parakeet")
 
 sh: ## Shell en un contenedor (default: agent). Ej: make sh S=app
 	$(COMPOSE) exec $(or $(S),agent) bash
+
+calls-active: ## Llamadas en curso (de la ultima hora). Falla si hay alguna: make calls-active && make up-agent
+	@n=$$($(COMPOSE) exec -T db sh -c 'psql -U "$$POSTGRES_USER" "$$POSTGRES_DB" -tAc "select count(*) from call_logs where status in ('"'"'pendiente'"'"','"'"'sonando'"'"','"'"'en_curso'"'"') and created_at > now() - interval '"'"'1 hour'"'"'"'); \
+		echo "Llamadas en curso: $$n"; [ "$$n" = 0 ] || { echo "Hay llamadas en curso: esperar (o FORCE=1 donde se acepte)"; exit 1; }
 
 psql: ## Cliente psql dentro de db, con las credenciales de .env
 	$(COMPOSE) exec db sh -c 'psql -U "$$POSTGRES_USER" "$$POSTGRES_DB"'

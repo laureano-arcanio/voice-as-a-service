@@ -227,6 +227,12 @@ services:
       # segundos de audio por batch (items x el mas largo). Configurables en .env.
       STT_MAX_BATCH: ${STT_MAX_BATCH:-8}
       STT_MAX_BATCH_SECONDS: ${STT_MAX_BATCH_SECONDS:-120}
+      # Prefijo de idioma (stt/server.py): con un turno corto Parakeet erra el idioma ("sí" -> "tři", vacio);
+      # una frase fija en castellano adelante lo corrige (respuestas cortas: WER 28,7 % -> 0 %, +9 ms p50).
+      # Solo en los pedidos con language=es (el agente lo manda). Vacio STT_PRIMER_WAV: apagado.
+      STT_PRIMER_WAV: ${STT_PRIMER_WAV-/srv/primers/es.wav}
+      STT_PRIMER_TEXT: "A ver, te cuento."
+      STT_PRIMER_LANGUAGES: es
     volumes:
       - hf_cache:/root/.cache/huggingface
     ports:

@@ -71,6 +71,11 @@ describe('toDraft / fromDraft', () => {
     expect(errorTarget(d, 'call_summary_email')).toEqual({ section: 'voz' });
   });
 
+  it('un tipo de dato que la UI no conoce se conserva (no pasa a string)', () => {
+    const d = { ...def, fields: { ...def.fields, x: { ...Object.values(def.fields)[0], type: 'tipo_nuevo' } } };
+    expect(fromDraft(toDraft(d)).fields).toMatchObject({ x: { type: 'tipo_nuevo' } });
+  });
+
   it('withPhoneField: agrega telefono (tipo phone, obligatorio) si falta; no lo duplica', () => {
     const d = withPhoneField(toDraft(def));
     const phone = d.fields.at(-1)!;

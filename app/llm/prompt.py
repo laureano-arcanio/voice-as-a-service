@@ -1,10 +1,11 @@
 import json
+import re
 
 import yaml
 
 from app.conversation.contact import prompt_block, render_contact
 from app.conversation.models import ConversationState, Message, Workflow
-from app.conversation.workflow import pending_fields
+from app.conversation.workflow import is_required, pending_fields
 
 SYSTEM_PROMPT = """Sos un agente conversacional telefónico que ejecuta un workflow.
 
@@ -240,11 +241,20 @@ def build_classic_system(workflow: Workflow, channel: str = "voice", state: Conv
         description = " ".join(spec.description.split()).rstrip(".") + "."
         options = f" Opciones: {', '.join(spec.options)}." if spec.options else ""
         question = "" if "No se pregunta" in description else f" Pregunta sugerida: {spec.question.strip()}"
-        fields.append(f"- {name} ({need}): {description}{options}{question}")
+        # "Estas en una llamada telefonica": el LLM daba por sabido el numero y no lo pedia (0 de 10, 20-oct-2026).
+        # Con numero, el dato viene precargado (DATOS YA CONOCIDOS); sin el (link para llamar), hay que pedirlo.
+        unknown = (" No lo tenés: en esta conversación no se ve el número de quien llama, así que preguntalo."
+                   if spec.type == "phone" and not (state and state.fields.get(name)) else "")
+        fields.append(f"- {name} ({need}): {description}{unknown}{options}{question}")
     outcomes = [f"- {o.label}{' (si ' + describe_condition(o.when) + ')' if o.when else ' (en cualquier otro caso)'}: "
                 f"{' '.join(o.message.split())}" for o in workflow.completion.outcomes]
     rules = "\n".join(f"- {r}" for r in workflow.conversation.rules)
     campaign = f"\n\n{block}" if (block := prompt_block(state)) else ""
+    # Sin el aviso del cierre, si el telefono no salio antes, cerraba sin pedirlo (10 de 10, 20-oct-2026).
+    missing_phone = any(spec.type == "phone" and is_required(spec, {}) and not (state and state.fields.get(n))
+                        for n, spec in workflow.fields.items())
+    phone_close = ("\nAntes de despedirte, si todavía no tenés el teléfono de quien llama, pedilo: sin eso nadie "
+                   "lo puede volver a contactar." if missing_phone else "")
     return f"""Sos {workflow.agent.name}, {workflow.agent.role}. {where}; idioma: {workflow.agent.language}.
 
 OBJETIVO:
@@ -262,7 +272,7 @@ BASE DE CONOCIMIENTO:
 {workflow.knowledge.strip()}
 
 CIERRE:
-La conversación termina cuando obtuviste los datos obligatorios o cuando el usuario no quiere seguir. En ese turno despedite usando como guía el mensaje que corresponda:
+La conversación termina cuando obtuviste los datos obligatorios o cuando el usuario no quiere seguir.{phone_close} En ese turno despedite usando como guía el mensaje que corresponda:
 {chr(10).join(outcomes)}
 Al final de ese último mensaje, y solo en ese, escribí {END_MARKER}.{extra}
 
@@ -280,8 +290,24 @@ def build_classic_messages(workflow: Workflow, state: ConversationState, user_me
     content = _classic_text(user_message, bool(media and media.user_voice_note))
     if media and media.reply_voice_note:
         content += VOICE_NOTE_REPLY
+    if _phone_missing(workflow, state, [*(m.text for m in state.messages if m.role == "user"), user_message]):
+        content += PHONE_REMINDER
     return [{"role": "system", "content": build_classic_system(workflow, state.channel, state)}, *history,
             {"role": "user", "content": content}]
+
+
+# Motor clasico: el recordatorio del cierre en el prompt de sistema no alcanzaba al final de una llamada larga
+# (cerraba sin pedirlo 7 de 10); al lado del ultimo mensaje del usuario pesa mas. Mientras no haya un numero
+# en lo que dijo y el dato phone no venga de la llamada.
+PHONE_REMINDER = ("\n\n[Nota del sistema, no la leas: todavía no tenés el teléfono de quien llama. Si ya obtuviste el "
+                  "resto o vas a despedirte, primero pedile el número; si no lo quiere dar, no insistas.]")
+
+
+def _phone_missing(workflow: Workflow, state: ConversationState, user_texts: list[str]) -> bool:
+    phone_fields = [n for n, spec in workflow.fields.items() if spec.type == "phone" and is_required(spec, {})]
+    if not phone_fields or any(state.fields.get(n) for n in phone_fields):
+        return False
+    return not any(len(re.sub(r"\D", "", text)) >= 8 for text in user_texts)
 
 
 def _classic_text(text: str, voice_note: bool) -> str:

@@ -15,6 +15,8 @@ COPY requirements.txt ./
 RUN pip install -r requirements.txt
 
 COPY server.py .
+# Prefijo de idioma (STT_PRIMER_WAV): frase fija por idioma, sintetizada con el TTS propio.
+COPY primers/ primers/
 
 EXPOSE 8000
 

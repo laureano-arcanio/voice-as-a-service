@@ -368,7 +368,12 @@ function FieldEditor({
         />
         <Select
           label="Tipo"
-          data={FIELD_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+          data={[
+            ...FIELD_TYPES.map((t) => ({ value: t.value, label: t.label })),
+            ...(FIELD_TYPES.some((t) => t.value === field.type)
+              ? []
+              : [{ value: field.type, label: field.type }]),
+          ]}
           value={field.type}
           onChange={(v) => v && set({ type: v as FieldType })}
           allowDeselect={false}

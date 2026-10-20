@@ -24,14 +24,26 @@ analyze.py lo mide igual que a vllm-stt: inferencia y cola por
 request, en vuelo, req/s. generation_tokens_total cuenta palabras del
 transcript + 1 por request: no son tokens reales, solo sirve para que el
 sampler detecte actividad (la detecta por avance de contadores de tokens).
+
+Prefijo de idioma: Parakeet detecta el idioma solo y con un turno corto se
+equivoca ("sí" sale "tři", vacio o "Yeah"; "Necesito un sistema", en
+cirilico). En los pedidos con `language` en STT_PRIMER_LANGUAGES se le pone
+adelante una frase fija en ese idioma (STT_PRIMER_WAV, que dice
+STT_PRIMER_TEXT) y se saca del texto. Si el texto no empieza con la frase, se
+transcribe de nuevo sin ella. Medido el 20-oct-2026 (scratch/stt-si/): 80
+respuestas cortas del TTS a 8 kHz, WER 28,7 % -> 0 %; 300 frases de OpenSLR 61
+tel8k, 1,6 % -> 1,5 % (sin las que tienen numeros: con el prefijo salen en
+cifras, "15" por "quince"); +9 ms de p50.
 """
 import asyncio
 import io
 import logging
 import os
 import queue
+import re
 import threading
 import time
+import unicodedata
 from concurrent.futures import Future
 from dataclasses import dataclass, field
 from contextlib import asynccontextmanager
@@ -52,6 +64,11 @@ MAX_BATCH = int(os.getenv("STT_MAX_BATCH", "8"))
 MAX_BATCH_SECONDS = float(os.getenv("STT_MAX_BATCH_SECONDS", "120"))
 # Parakeet espera audio mono a 16kHz.
 SAMPLE_RATE = 16000
+# Prefijo de idioma (docstring). Sin STT_PRIMER_WAV, apagado.
+PRIMER_WAV = os.getenv("STT_PRIMER_WAV", "")
+PRIMER_TEXT = os.getenv("STT_PRIMER_TEXT", "")
+PRIMER_LANGUAGES = {x.strip().lower() for x in os.getenv("STT_PRIMER_LANGUAGES", "es").split(",") if x.strip()}
+PRIMER_GAP_SECONDS = 0.3
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("stt")
@@ -108,6 +125,33 @@ def _decode(data: bytes) -> np.ndarray:
     if sr != SAMPLE_RATE:
         audio = soxr.resample(audio, sr, SAMPLE_RATE)
     return audio
+
+
+def _words(text: str) -> list[str]:
+    """Palabras comparables: minusculas, sin tildes ni puntuacion."""
+    plain = unicodedata.normalize("NFKD", text.lower()).encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9 ]+", " ", plain).split()
+
+
+class Primer:
+    def __init__(self, path: str, text: str):
+        audio = _decode(open(path, "rb").read())
+        self.audio = np.concatenate([audio, np.zeros(int(SAMPLE_RATE * PRIMER_GAP_SECONDS), dtype=np.float32)])
+        self.words = _words(text)
+
+    def wanted(self, language: str | None) -> bool:
+        return (language or "").lower().split("-")[0] in PRIMER_LANGUAGES
+
+    def strip(self, text: str) -> str | None:
+        """El texto sin la frase del prefijo; None si no empieza con ella."""
+        words = text.split()
+        n = len(self.words)
+        if _words(" ".join(words[:n])) != self.words:
+            return None
+        return " ".join(words[n:]).lstrip(" ,.;:")
+
+
+_primer: Primer | None = None
 
 
 def _add(**deltas: float) -> None:
@@ -176,6 +220,10 @@ async def lifespan(app: FastAPI):
     # hasta que el modelo esta listo (el healthcheck de compose cubre la espera).
     t0 = time.monotonic()
     backend = ParakeetBackend()
+    global _primer
+    if PRIMER_WAV and PRIMER_TEXT:
+        _primer = Primer(PRIMER_WAV, PRIMER_TEXT)
+        log.info("prefijo de idioma %s (%s): %r", PRIMER_WAV, ",".join(sorted(PRIMER_LANGUAGES)), PRIMER_TEXT)
     # Warmup: el primer request real no paga la inicializacion (CUDA, etc.).
     backend.transcribe([np.zeros(SAMPLE_RATE, dtype=np.float32)] * 2)
     threading.Thread(target=_worker, args=(backend,), daemon=True, name="stt-batch").start()
@@ -239,7 +287,15 @@ async def transcriptions(
         raise HTTPException(400, f"no se pudo decodificar el audio: {e}") from None
 
     t0 = time.monotonic()
-    text, inference = await _transcribe(audio)
+    if _primer is not None and _primer.wanted(language):
+        raw, inference = await _transcribe(np.concatenate([_primer.audio, audio]))
+        text = _primer.strip(raw)
+        if text is None:
+            log.warning("el prefijo no salio en %r: se transcribe sin el", raw)
+            text, again = await _transcribe(audio)
+            inference += again
+    else:
+        text, inference = await _transcribe(audio)
     elapsed = time.monotonic() - t0
     duration = len(audio) / SAMPLE_RATE
     log.info("%.2fs de audio en %.0fms (inferencia %.0fms): %r",
