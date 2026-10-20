@@ -1,0 +1,10 @@
+node_modules
+dist
+.DS_Store
+.env
+
+# Renders: se regeneran con `make video` desde el código y la locución versionados
+*.mp4
+out/
+# Música: determinística, se regenera con `make video-musica`
+public/proyectos/*/musica.wav

@@ -1,0 +1,41 @@
+{
+  "nota": "Video técnico para Yoizen. Narrador lucas. 'ápi' como en español; 'ópen, ei, ái' para OpenAI en inglés.",
+  "musica_segundos": 72,
+  "lineas": [
+    {
+      "id": "y1",
+      "voz": "lucas",
+      "texto": "Atentina: voz con inteligencia artificial para los agentes que ya tienen."
+    },
+    {
+      "id": "y2",
+      "voz": "lucas",
+      "texto": "Ustedes mantienen su plataforma, sus bots y sus canales. Atentina suma la voz como un servicio administrado, conectado por ápi."
+    },
+    {
+      "id": "y3",
+      "voz": "lucas",
+      "texto": "Cada bot se publica como agente de voz con la ápi de agentes: las mismas instrucciones, el mismo conocimiento y los datos que necesitan tomar."
+    },
+    {
+      "id": "y4",
+      "voz": "lucas",
+      "texto": "Las llamadas entrantes y salientes se disparan por ápi, con el contexto de la conversación digital. Al terminar, el resultado vuelve a su plataforma."
+    },
+    {
+      "id": "y5",
+      "voz": "lucas",
+      "texto": "Si un bot de texto solo necesita voz, la ápi de inferencia transcribe y sintetiza, compatible con ópen, ei, ái."
+    },
+    {
+      "id": "y6",
+      "voz": "lucas",
+      "texto": "Y tienen acceso completo: transcripciones, datos, métricas y configuración, por ápi o desde el panel."
+    },
+    {
+      "id": "y7",
+      "voz": "lucas",
+      "texto": "Nosotros operamos la telefonía, los modelos y la infraestructura. Ustedes integran lo que ya tienen."
+    }
+  ]
+}

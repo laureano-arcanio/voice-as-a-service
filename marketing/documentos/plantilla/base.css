@@ -1,0 +1,80 @@
+/* Plantilla de documentos de Atentina (docs/DOCUMENTOS.md).
+   Marca: tokens de landing/src/styles/global.css y tipografías de docs/DESIGN_GUIDELINE.md.
+   A4 vertical, márgenes propios por hoja (.page), pensado para imprimir con Chrome (scripts/render.sh). */
+@font-face { font-family: "Bricolage"; src: url(fonts/bricolage-grotesque-latin-wght-normal.woff2) format("woff2"); font-weight: 200 800; }
+@font-face { font-family: "Figtree"; src: url(fonts/figtree-latin-wght-normal.woff2) format("woff2"); font-weight: 300 900; }
+@font-face { font-family: "Plex Mono"; src: url(fonts/ibm-plex-mono-latin-400-normal.woff2) format("woff2"); font-weight: 400; }
+@font-face { font-family: "Plex Mono"; src: url(fonts/ibm-plex-mono-latin-500-normal.woff2) format("woff2"); font-weight: 500; }
+:root {
+  --bg2: #f6f8fb; --surface2: #f1f4f9; --ink: #0b1220; --ink2: #33415c; --muted: #64748b; --line: #e3e8ef; --line2: #cbd5e1;
+  --accent: #2456e6; --accent-soft: #eaf0ff; --accent2: #1740b8; --on-dark: #9db6ff; --ok: #1b9c5b; --ok-soft: #e3f6ec;
+  --wa: #13843f; --cta-ink: #f4f6fa; --cta-muted: #b8c2d6;
+}
+@page { size: A4; margin: 0; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: #fff; }
+body { font-family: "Figtree", sans-serif; color: var(--ink2); font-size: 9.6pt; line-height: 1.42; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.page { width: 210mm; height: 297mm; padding: 13mm 15mm 0; position: relative; overflow: hidden; page-break-after: always; }
+.page:last-child { page-break-after: auto; }
+h1, h2, h3 { font-family: "Bricolage", sans-serif; color: var(--ink); margin: 0; letter-spacing: -0.015em; }
+h1 { font-size: 25pt; font-weight: 800; line-height: 1.05; }
+h2 { font-size: 13.5pt; font-weight: 800; margin: 0 0 2.2mm; }
+h3 { font-size: 11pt; font-weight: 700; margin: 0 0 1mm; }
+p { margin: 0 0 2mm; }
+.accent { color: var(--accent); }
+.eyebrow { font-family: "Plex Mono", monospace; font-weight: 500; font-size: 7.6pt; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.muted { color: var(--muted); }
+strong { color: var(--ink); font-weight: 700; }
+
+header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 5mm; border-bottom: 1px solid var(--line); }
+header img { height: 8.5mm; }
+header .meta { text-align: right; font-family: "Plex Mono", monospace; font-size: 7.4pt; color: var(--muted); letter-spacing: .04em; line-height: 1.5; }
+
+.hero { margin: 7mm 0 5mm; display: grid; grid-template-columns: 1fr; gap: 3mm; }
+.lead { font-size: 11pt; color: var(--ink2); max-width: 168mm; }
+
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 4mm 0 6mm; }
+.stat { background: var(--bg2); border: 1px solid var(--line); border-radius: 3.5mm; padding: 3mm 3.5mm; }
+.stat b { display: block; font-family: "Bricolage", sans-serif; font-weight: 800; font-size: 17pt; color: var(--accent); line-height: 1.1; }
+.stat span { font-size: 8.2pt; color: var(--ink2); }
+
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+ul { margin: 0; padding: 0; list-style: none; }
+li { position: relative; padding-left: 4.5mm; margin-bottom: 1.6mm; }
+li::before { content: ""; position: absolute; left: 0; top: 1.8mm; width: 1.8mm; height: 1.8mm; border-radius: 50%; background: var(--accent); }
+.warn li::before { background: #c2410c; }
+
+.diagram { margin-top: 6mm; border: 1px solid var(--line); border-radius: 4mm; padding: 4.5mm 5mm 3mm; background: linear-gradient(180deg, var(--bg2), #fff 70%); }
+.diagram svg { width: 100%; height: auto; display: block; margin-top: 2mm; }
+.caption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
+
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; margin: 2.5mm 0 4mm; }
+.card { border: 1px solid var(--line); border-radius: 4mm; padding: 3.5mm 4mm; background: #fff; }
+.card .num { width: 7.5mm; height: 7.5mm; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-family: "Bricolage"; font-weight: 800; font-size: 10pt; margin-bottom: 2.5mm; }
+.card p { font-size: 9pt; }
+.card .ej { font-size: 8.2pt; color: var(--muted); border-top: 1px solid var(--line); padding-top: 2mm; margin-top: 2.5mm; }
+
+.ops { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; margin: 3mm 0 6mm; }
+.ops > div { border-radius: 3.5mm; padding: 2.8mm 4mm 1.6mm; }
+.ops li { margin-bottom: 1mm; }
+.ops .ours { border: 1.5px solid var(--accent); }
+.ops .theirs { border: 1px solid var(--line2); background: #fbfcfe; }
+.ops li::before { width: 2.6mm; height: 1.4mm; border-radius: 0; background: none; border-left: 1.4px solid var(--accent); border-bottom: 1.4px solid var(--accent); transform: rotate(-45deg); top: 1.4mm; }
+.ops .theirs li::before { border-color: var(--ok); }
+
+.steps { counter-reset: s; display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 2mm 0 3.5mm; }
+.step { background: var(--bg2); border-radius: 3.5mm; padding: 3.5mm; font-size: 8.8pt; }
+.step::before { counter-increment: s; content: counter(s); display: block; font-family: "Bricolage"; font-weight: 800; font-size: 15pt; color: var(--accent); line-height: 1; margin-bottom: 1.5mm; }
+.step b { display: block; color: var(--ink); margin-bottom: .6mm; }
+
+.note { font-size: 8.4pt; color: var(--ink2); background: var(--accent-soft); border-radius: 3mm; padding: 3mm 4mm; }
+
+footer.contact { position: absolute; left: 0; right: 0; bottom: 0; background: var(--ink); color: var(--cta-ink); padding: 7mm 15mm 7.5mm; display: grid; grid-template-columns: auto 1fr auto; gap: 8mm; align-items: center; }
+footer.contact img { height: 8mm; }
+footer.contact .tag { font-family: "Bricolage"; font-weight: 800; font-size: 13pt; line-height: 1.15; white-space: nowrap; }
+footer.contact .tag span { color: var(--on-dark); }
+footer.contact .data { font-size: 9pt; line-height: 1.65; text-align: right; color: var(--cta-muted); white-space: nowrap; }
+footer.contact .who { font-family: "Figtree"; font-weight: 500; font-size: 8.6pt; color: var(--cta-muted); margin-top: 1.2mm; }
+footer.contact .data b { color: #fff; font-family: "Bricolage"; font-weight: 800; font-size: 14pt; letter-spacing: .01em; }
+footer.contact a { color: var(--cta-ink); text-decoration: none; }
+.pagefoot { position: absolute; left: 15mm; right: 15mm; bottom: 7mm; display: flex; justify-content: space-between; font-family: "Plex Mono"; font-size: 7.2pt; color: var(--muted); }

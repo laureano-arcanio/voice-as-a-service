@@ -38,6 +38,7 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
         wa-calling-status wa-calling-enable wa-calling-disable wa-sip-password sip-cert \
         migrate create-admin api-key dev-backend web-dev web-build web-check openapi landing-dev \
         test eval-motor eval-llamadas eval-llm eval-llm-juez eval-llm-report loadtest-audio loadtest loadtest-report capacity capacity-monitor capacity-monitor-stop capacity-analyze gpubench stt-eval stt-corpus \
+        video-setup video-studio video-voces video-musica video video-revisar video-cerrar doc doc-cerrar \
         db-reset clean
 
 help: ## Muestra esta ayuda
@@ -309,6 +310,51 @@ stt-eval: ## WER + latencia de stt-parakeet sobre un corpus. Ej: make stt-eval A
 
 stt-corpus: ## Arma el corpus de eval de STT con voces argentinas (OpenSLR 61): limpio, telefonico, +ruido, +cortes
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts agent python -m scripts.stt_corpus.openslr61 $(ARGS)
+
+# --- Marketing: videos y documentos (docs/VIDEOS.md, docs/DOCUMENTOS.md) --
+# Un proyecto por carpeta en marketing/{videos,documentos}/proyectos/<P>/, con versiones v<V>.
+# Una versión con "Estado: cerrada" en su NOTAS.md no se vuelve a generar: un cambio es una V nueva.
+VIDEOS := marketing/videos
+DOCS := marketing/documentos
+need-p = @test -n "$(P)" || { echo "falta P=<proyecto>"; exit 1; }
+need-pv = @test -n "$(P)" -a -n "$(V)" || { echo "faltan P=<proyecto> y V=<versión>"; exit 1; }
+
+video-setup: ## Instala el estudio de video (Remotion, marketing/videos)
+	cd $(VIDEOS) && npm ci
+
+video-studio: ## Abre Remotion Studio para ver y ajustar los videos
+	cd $(VIDEOS) && npx remotion studio
+
+video-voces: ## Locución con el TTS propio (mejor de N tomas). Ej: make video-voces P=yoizen [IDS="y2 y5"] [TOMAS=4]
+	$(need-p)
+	cd $(VIDEOS) && python3 scripts/voces.py $(P) --tomas $(or $(TOMAS),4) $(IDS)
+
+video-musica: ## Música de fondo (determinística). Ej: make video-musica P=yoizen [SEG=72]
+	$(need-p)
+	cd $(VIDEOS) && python3 scripts/musica.py $(P) $(SEG)
+
+video: ## Renderiza una versión de un video (no pisa una cerrada). Ej: make video P=yoizen V=2
+	$(need-pv)
+	@dir=proyectos/$(P)/versiones/v$(V); cd $(VIDEOS) && \
+	  { ! grep -qi '^Estado: cerrada' $$dir/NOTAS.md 2>/dev/null || { echo "v$(V) está cerrada: hacé una versión nueva"; exit 1; }; } && \
+	  { test -f public/proyectos/$(P)/musica.wav || python3 scripts/musica.py $(P); } && \
+	  npx remotion render $(P) $$dir/$(P)-v$(V).mp4 --codec=h264 --crf=18
+
+video-revisar: ## Revisa un render: volumen, locución transcrita y hojas de cuadros. Ej: make video-revisar P=yoizen V=1 [ARGS="--tramos 0,5.4"]
+	$(need-pv)
+	cd $(VIDEOS) && python3 scripts/revisar.py proyectos/$(P)/versiones/v$(V)/$(P)-v$(V).mp4 $(ARGS)
+
+video-cerrar: ## Cierra una versión de un video: guarda su fuente y la congela. Ej: make video-cerrar P=yoizen V=1
+	$(need-pv)
+	cd $(VIDEOS) && scripts/cerrar.sh $(P) $(V)
+
+doc-cerrar: ## Cierra una versión de un documento y la congela. Ej: make doc-cerrar P=yoizen-propuesta V=1
+	$(need-pv)
+	cd $(DOCS) && scripts/cerrar.sh proyectos/$(P)/versiones/v$(V)
+
+doc: ## Imprime un documento a PDF y lo controla (no pisa uno cerrado). Ej: make doc P=yoizen-propuesta V=1 [HOJAS=2]
+	$(need-pv)
+	cd $(DOCS) && scripts/render.sh proyectos/$(P)/versiones/v$(V) $(HOJAS)
 
 # --- Limpieza ------------------------------------------------------------
 

@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Atentina × Yoizen · Propuesta de integración de voz</title>
+<link rel="stylesheet" href="../../../../plantilla/base.css">
+</head>
+<body>
+
+<!-- ========== HOJA 1 ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA DE INTEGRACIÓN · YOIZEN<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero">
+    <div class="eyebrow">Voz con inteligencia artificial, como servicio administrado</div>
+    <h1>Voz para los agentes <span class="accent">que Yoizen ya tiene.</span></h1>
+    <p class="lead">
+      Yoizen ya resuelve la atención digital de sus clientes: WhatsApp, web chat, bots sin código, IVR y ACD.
+      Lo que falta es que esos mismos bots <strong>atiendan y hagan llamadas</strong>. Atentina suma ese canal
+      sin reemplazar nada: Yoizen conserva su plataforma, sus bots y la relación con sus clientes, y Atentina
+      pone la voz, la opera y entrega todos los datos.
+    </p>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><b>0,9 s</b><span>tiempo de respuesta del agente en llamadas reales (mediana)</span></div>
+    <div class="stat"><b>4 en 1</b><span>telefonía, reconocimiento, modelo de lenguaje y síntesis de voz</span></div>
+    <div class="stat"><b>41 voces</b><span>con acento argentino, natural y cercano</span></div>
+    <div class="stat"><b>Por API</b><span>agentes, llamadas, voz y datos, integrados a su plataforma</span></div>
+  </div>
+
+  <div class="two">
+    <div>
+      <h2>El problema de sumar voz</h2>
+      <ul class="warn">
+        <li><strong>Costos en dólares</strong> y varios proveedores encadenados (telefonía, transcripción, modelo, voz) para cada minuto.</li>
+        <li><strong>Demoras</strong>: si el agente tarda en contestar, la conversación se corta y el cliente cuelga.</li>
+        <li><strong>Dependencia y datos afuera</strong>: las conversaciones pasan por servicios de terceros que nadie controla.</li>
+        <li><strong>Saber hacer</strong>: lograr una voz natural y rápida exige especialización que no es el foco de Yoizen.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Qué aporta Atentina</h2>
+      <ul>
+        <li><strong>Todo en un servicio</strong>: números y llamadas, reconocimiento de voz, modelo de lenguaje y voces, en servidores propios en Argentina.</li>
+        <li><strong>Rápido</strong>: 9 de cada 10 respuestas del agente llegan en menos de 1,5 segundos.</li>
+        <li><strong>Administrado</strong>: operamos la infraestructura, los modelos y la escala; Yoizen no tiene que montar nada.</li>
+        <li><strong>Abierto</strong>: cada conversación, dato y configuración está disponible para Yoizen, por API o desde el panel.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="eyebrow">Cómo se integra</div>
+    <svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg" font-family="Figtree, sans-serif">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#2456e6"/>
+        </marker>
+        <marker id="arg" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#94a3b8"/>
+        </marker>
+      </defs>
+
+      <!-- Sus clientes -->
+      <rect x="4" y="96" width="138" height="108" rx="14" fill="#fff" stroke="#cbd5e1"/>
+      <g fill="#2456e6" opacity=".9">
+        <circle cx="52" cy="128" r="9"/><path d="M36 156 a16 14 0 0 1 32 0z"/>
+        <circle cx="90" cy="128" r="9" opacity=".55"/><path d="M74 156 a16 14 0 0 1 32 0z" opacity=".55"/>
+      </g>
+      <text x="73" y="178" text-anchor="middle" font-family="Bricolage, sans-serif" font-weight="800" font-size="15" fill="#0b1220">Clientes finales</text>
+      <text x="73" y="194" text-anchor="middle" font-size="10.5" fill="#64748b">de cada empresa</text>
+
+      <!-- Flechas desde los clientes -->
+      <path d="M142 125 C 185 125, 185 62, 238 62" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#arg)"/>
+      <text x="150" y="104" font-size="10" fill="#64748b" stroke="#f8fafc" stroke-width="4" paint-order="stroke">chat y mensajes</text>
+      <path d="M142 175 C 185 175, 185 238, 238 238" fill="none" stroke="#2456e6" stroke-width="2.2" marker-end="url(#ar)"/>
+      <text x="150" y="203" font-size="10" fill="#2456e6" font-weight="700" stroke="#fff" stroke-width="4" paint-order="stroke">llamadas</text>
+
+      <!-- Yoizen -->
+      <rect x="240" y="14" width="476" height="96" rx="14" fill="#fbfcfe" stroke="#cbd5e1"/>
+      <text x="258" y="40" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#64748b">SU PLATAFORMA · SIN CAMBIOS</text>
+      <text x="258" y="62" font-family="Bricolage, sans-serif" font-weight="800" font-size="19" fill="#0b1220">Yoizen</text>
+      <g font-size="11" fill="#33415c">
+        <rect x="258" y="74" width="98" height="24" rx="12" fill="#f1f4f9"/><text x="307" y="90" text-anchor="middle">Bots sin código</text>
+        <rect x="362" y="74" width="122" height="24" rx="12" fill="#f1f4f9"/><text x="423" y="90" text-anchor="middle">Web chat · WhatsApp</text>
+        <rect x="490" y="74" width="82" height="24" rx="12" fill="#f1f4f9"/><text x="531" y="90" text-anchor="middle">IVR · ACD</text>
+        <rect x="578" y="74" width="122" height="24" rx="12" fill="#f1f4f9"/><text x="639" y="90" text-anchor="middle">CRM y tickets</text>
+      </g>
+
+      <!-- Conexiones por API -->
+      <g font-size="10.5" font-weight="700" fill="#1740b8">
+        <path d="M300 112 V188" stroke="#2456e6" stroke-width="2" marker-start="url(#ar)" marker-end="url(#ar)"/>
+        <rect x="262" y="136" width="76" height="22" rx="11" fill="#eaf0ff" stroke="#2456e6"/><text x="300" y="151" text-anchor="middle">Agentes</text>
+        <path d="M418 112 V188" stroke="#2456e6" stroke-width="2" marker-start="url(#ar)" marker-end="url(#ar)"/>
+        <rect x="380" y="136" width="76" height="22" rx="11" fill="#eaf0ff" stroke="#2456e6"/><text x="418" y="151" text-anchor="middle">Llamadas</text>
+        <path d="M536 112 V188" stroke="#2456e6" stroke-width="2" marker-start="url(#ar)" marker-end="url(#ar)"/>
+        <rect x="488" y="136" width="96" height="22" rx="11" fill="#eaf0ff" stroke="#2456e6"/><text x="536" y="151" text-anchor="middle">Voz para bots</text>
+        <path d="M654 112 V188" stroke="#2456e6" stroke-width="2" marker-start="url(#ar)" marker-end="url(#ar)"/>
+        <rect x="616" y="136" width="76" height="22" rx="11" fill="#eaf0ff" stroke="#2456e6"/><text x="654" y="151" text-anchor="middle">Datos</text>
+      </g>
+
+      <!-- Atentina -->
+      <rect x="240" y="190" width="476" height="104" rx="14" fill="#fff" stroke="#2456e6" stroke-width="1.6"/>
+      <text x="258" y="216" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#2456e6">VOZ ADMINISTRADA</text>
+      <text x="258" y="238" font-family="Bricolage, sans-serif" font-weight="800" font-size="19" fill="#0b1220">Atentina</text>
+      <g font-size="11" fill="#1740b8">
+        <rect x="258" y="252" width="118" height="24" rx="12" fill="#eaf0ff"/><text x="317" y="268" text-anchor="middle">Números y llamadas</text>
+        <rect x="382" y="252" width="128" height="24" rx="12" fill="#eaf0ff"/><text x="446" y="268" text-anchor="middle">Entiende lo que dicen</text>
+        <rect x="516" y="252" width="90" height="24" rx="12" fill="#eaf0ff"/><text x="561" y="268" text-anchor="middle">Responde</text>
+        <rect x="612" y="252" width="88" height="24" rx="12" fill="#eaf0ff"/><text x="656" y="268" text-anchor="middle">Habla</text>
+      </g>
+    </svg>
+    <div class="caption">Los clientes siguen escribiendo a Yoizen como hoy. Las llamadas las atiende Atentina con el bot de Yoizen convertido en agente de voz, y el resultado vuelve a Yoizen.</div>
+  </div>
+
+  <div class="pagefoot"><span>Atentina × Yoizen</span><span>1 / 2</span></div>
+</section>
+
+<!-- ========== HOJA 2 ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA DE INTEGRACIÓN · YOIZEN<br>OCTUBRE 2026</div>
+  </header>
+
+  <h2 style="margin-top:4mm">Tres formas de integrarse, de menor a mayor alcance</h2>
+  <p class="muted" style="max-width:170mm">Se pueden combinar. En todas, los equipos de Yoizen siguen configurando en su plataforma, sin depender de Atentina para cada cambio.</p>
+  <div class="cards">
+    <div class="card">
+      <div class="num">1</div>
+      <h3>Voz para los bots de texto</h3>
+      <p>Los bots actuales entienden notas de voz y pueden responder con audio. El bot no cambia: Atentina transcribe lo que llega y pone la voz a lo que sale.</p>
+      <div class="ej">Ejemplo: un cliente manda un audio por WhatsApp y recibe la respuesta del bot, también en audio.</div>
+    </div>
+    <div class="card">
+      <div class="num">2</div>
+      <h3>Cada bot, como agente de voz</h3>
+      <p>Yoizen publica sus bots como agentes de voz con las mismas instrucciones, conocimiento y datos a tomar. Cada cambio queda registrado como una versión nueva.</p>
+      <div class="ej">Ejemplo: el bot de atención del web chat atiende también el teléfono de la empresa.</div>
+    </div>
+    <div class="card">
+      <div class="num">3</div>
+      <h3>Llamadas entrantes y salientes</h3>
+      <p>Atender números, llamadas de WhatsApp y un botón de llamada en la web. Llamar desde un chat con el contexto de la conversación, o en campañas programadas.</p>
+      <div class="ej">Ejemplo: el cliente pide "llámenme" en el chat; el agente lo llama sabiendo el motivo y deja el resultado en el ticket.</div>
+    </div>
+  </div>
+
+  <div class="two">
+    <div>
+      <h2>Qué gana Yoizen</h2>
+      <ul>
+        <li><strong>Un canal nuevo en su oferta</strong>, sin construir ni operar infraestructura de voz.</li>
+        <li><strong>Su plataforma sigue siendo la puerta de entrada</strong>: los bots, los clientes y la relación comercial son de Yoizen.</li>
+        <li><strong>Control total de la información</strong>: transcripciones, datos tomados, resultados y métricas de cada llamada.</li>
+        <li><strong>Una sola contraparte</strong> para la voz completa, en lugar de cuatro proveedores.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Quién hace qué</h2>
+      <div class="ops" style="margin:0; grid-template-columns:1fr; gap:3mm">
+        <div class="ours">
+          <div class="eyebrow" style="margin-bottom:1.5mm">Atentina opera</div>
+          <ul><li>Telefonía, números y conexión con su Asterisk</li><li>Servidores, modelos y voces</li><li>Escala, monitoreo y soporte</li></ul>
+        </div>
+        <div class="theirs">
+          <div class="eyebrow" style="margin-bottom:1.5mm;color:var(--ok)">Yoizen integra</div>
+          <ul><li>Sus bots y flujos sin código</li><li>Sus canales y sus clientes</li></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2 style="margin-top:3.5mm">Próximos pasos</h2>
+  <div class="steps">
+    <div class="step"><b>Revisión interna</b>Yoizen evalúa la propuesta con su CTO y el responsable de producto.</div>
+    <div class="step"><b>Caso de uso</b>Elegir juntos un cliente y un caso acotado para empezar.</div>
+    <div class="step"><b>Conexión técnica</b>Conectar su Asterisk con Atentina y medir la demora real desde su infraestructura.</div>
+    <div class="step"><b>Piloto sin costo</b>Medir calidad, capacidad y costos con llamadas reales antes de ofrecerlo.</div>
+  </div>
+  <div class="note">
+    <strong>Otros países.</strong> Hoy los servidores y la telefonía están en Argentina y las voces tienen acento argentino.
+    Para clientes de México, Perú o Colombia evaluamos en el piloto dónde ubicar servidores y telefonía, y la voz adecuada para cada mercado.
+  </div>
+
+  <footer class="contact">
+    <img src="../../../../plantilla/marca/atentina-logo-blanco.svg" alt="Atentina">
+    <div><div class="tag">Voz administrada,<br><span>integrada a lo que ya tienen.</span></div><div class="who">Contacto: Laureano Arcanio</div></div>
+    <div class="data">
+      <b>0800-220-1233</b><br>
+      <a href="https://atentina.com.ar">atentina.com.ar</a> · <a href="mailto:hola@atentina.com.ar">hola@atentina.com.ar</a><br>
+      WhatsApp +54 9 351 700-2592
+    </div>
+  </footer>
+</section>
+</body>
+</html>

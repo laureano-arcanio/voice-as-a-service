@@ -1,0 +1,51 @@
+{
+  "nota": "Video general de Atentina. Narrador lucas, cliente carolina, asistente valentina. 'ápi' como en español y 'yéison' para JSON en inglés.",
+  "musica_segundos": 62,
+  "lineas": [
+    {
+      "id": "n1",
+      "voz": "lucas",
+      "texto": "Cada llamada sin atender es un cliente que se va con la competencia."
+    },
+    {
+      "id": "n2",
+      "voz": "lucas",
+      "texto": "Atentina atiende a todos a la vez: por teléfono, WhatsApp o la web."
+    },
+    {
+      "id": "c1",
+      "voz": "carolina",
+      "texto": "Hola, quería hacer una consulta."
+    },
+    {
+      "id": "a1",
+      "voz": "valentina",
+      "texto": "¡Hola, Carolina! Ya tengo tu cuenta abierta. ¿En qué te ayudo?"
+    },
+    {
+      "id": "n3",
+      "voz": "lucas",
+      "texto": "Para desarrolladores: definís el agente en un yéison y lo creás por ápi."
+    },
+    {
+      "id": "n3b",
+      "voz": "lucas",
+      "texto": "Al terminar cada llamada, recibís el resultado: los datos, las observaciones y cómo terminó."
+    },
+    {
+      "id": "n6",
+      "voz": "lucas",
+      "texto": "También llama por vos: cargás tus contactos, programás la campaña y Atentina hace las llamadas."
+    },
+    {
+      "id": "n4",
+      "voz": "lucas",
+      "texto": "En el panel, visibilidad total: llamadas en vivo, transcripciones y resultados."
+    },
+    {
+      "id": "n5",
+      "voz": "lucas",
+      "texto": "Atentina. Telefonía, voz e inteligencia artificial, en un solo servicio."
+    }
+  ]
+}
