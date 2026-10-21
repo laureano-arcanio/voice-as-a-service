@@ -41,6 +41,10 @@ if [[ -n "$(env_get WA_SIP_PASSWORD)" ]]; then
         || problems+=("certificado SIP de WhatsApp vencido, por vencer (<14 días) o sin TLS en el 5061")
 fi
 
+# Backup completo (local y, si está configurada, la copia a S3) en las últimas 26 h (backup.sh).
+[[ -n "$(find "$STATE_DIR/backup.ok" -mmin -1560 2>/dev/null)" ]] \
+    || problems+=("sin backup completo en 26 h (~/atentina-ops/backup.log)")
+
 status="ok"; detail="todo bien"
 if ((${#problems[@]})); then status="falla"; detail="$(IFS='; '; echo "${problems[*]}")"; fi
 

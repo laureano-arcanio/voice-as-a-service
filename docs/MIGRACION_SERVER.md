@@ -33,15 +33,16 @@ Clonar el repo no alcanza. Lo que está fuera de git:
 |---|---|---|---|---|
 | `.env` (todos los secretos; `WA_TOKEN_KEY`) | `~/voice-as-a-service/.env` | — | sí: `~/atentina-backups/env/env-AAAAMMDD-HHMM` | copiar (paso 3.2) |
 | Base PostgreSQL (clientes, tiers, agentes y sus versiones, números y su ruteo, cuentas de WhatsApp, usuarios, conversaciones) | volumen `voice-as-a-service_postgres_data` | MB | sí: `~/atentina-backups/db/db-AAAAMMDD-HHMM.sql.gz` | paso 4.2 |
-| Checkpoint del TTS servido (41 voces; **perderlo es reentrenar**) | `tts/finetune/work/runs/multi41/lr2e-6/checkpoint-epoch-2` (`TTS_FT_CKPT`) | 4,3 GB | sí, pero como `~/atentina-backups/tts/lr2e-6-checkpoint-epoch-2` (**pierde el nivel `multi41`**) | paso 4.1 |
+| Checkpoint del TTS servido (41 voces; **perderlo es reentrenar**) | `tts/finetune/work/runs/multi41/lr2e-6/checkpoint-epoch-2` (`TTS_FT_CKPT`) | 4,3 GB | sí: `~/atentina-backups/tts/multi41/lr2e-6/checkpoint-epoch-2` (desde el 21-oct-2026; antes `tts/lr2e-6-checkpoint-epoch-2`) y en S3 `tts/…` sin cifrar | paso 4.1 |
 | Datos y runs de fine-tuning | `tts/finetune/work/` | 41 GB | no | solo para reentrenar: `rsync` del viejo, o regenerar ([`TTS_FINETUNE.md`](TTS_FINETUNE.md)) |
-| Certificado de `sip.atentina.com.ar` (llamadas de WhatsApp) | `asterisk/letsencrypt/` (de root) | KB | no | se regenera: `make sip-cert` (paso 4.3) |
+| Certificado de `sip.atentina.com.ar` (llamadas de WhatsApp) | `asterisk/letsencrypt/` (de root) | KB | sí (desde el 21-oct-2026): `letsencrypt/letsencrypt-*.tar.gz` | restaurar el tar, o regenerar con `make sip-cert` (paso 4.3) |
 | Trunks SIP y dispatch rule de LiveKit | Redis de LiveKit, sin persistencia | — | no | se regeneran: `make livekit-sip` (lo corre `make up`) |
 | Pesos del LLM vigente (Gemma 4 26B, desde el 6-oct-2026) | `/home/laureano/Models/gemma-4-26B-A4B-it-qat-AWQ-INT4`, **fuera del repo y del volumen de HF**: el override `docker-compose.gemma4-26b.yml` lo monta con esa ruta fija | 17 GB | no | **no se bajan solos:** descargarlos con la revisión fijada o copiarlos del viejo (paso 4.4) |
 | Pesos de Hugging Face | volumen `voice-as-a-service_hf_cache` (80 GB, casi todo de modelos descartados) | Parakeet ~1,2 GB; el Qwen3.5-9B (~12 GB) solo para volver a él | no | se bajan solos en el primer arranque (ningún modelo es *gated*: `HF_TOKEN` no hace falta). Opcional: copiarlos (paso 4.4) |
 | Imágenes de Docker | `/var/lib/docker` | ~62 GB | no | `docker pull` y `make build` (paso 5.1) |
-| `storage/` (grabaciones por mensaje, si `agent.record_audio`: `docs/ARQUITECTURA.md`) | `./storage` montado en `app` y `agent` | vacío si nadie activó `record_audio` | no (`backup.sh` no lo cubre todavía) | copiar a mano (`rsync`) si hay agentes con grabación activada; si no, no hace falta |
-| Crontab del usuario | `crontab -l` | — | no | paso 8.2 (líneas literales) |
+| `storage/` (grabaciones por mensaje, aperturas pregeneradas, imágenes de los links para llamar) | `./storage` montado en `app` y `agent` | 42 MB (21-oct-2026) | sí (desde el 21-oct-2026): `storage/storage-*.tar.gz` | `tar -xzf` en la raíz del repo (las aperturas se regeneran solas al guardar el agente) |
+| Apps de clientes (`app-sugym-gestion`, SQLite en su volumen) | repo `atentina-apps` | KB | no, a propósito | no se usan: se regeneran con `make deploy` de ese repo |
+| Crontab del usuario | `crontab -l` | — | versionado en `deploy/crontab` | `make cron-install` (paso 8.2) |
 | Unidades de systemd | `/etc/systemd/system/atentina-*.service` | — | — | `sudo deploy/install.sh` (paso 8.1), desde la plantilla `deploy/systemd/` |
 
 **Antes de migrar, todo lo que usa el host tiene que estar commiteado y pusheado.** El 6-oct-2026 faltaban
@@ -53,11 +54,25 @@ git -C ~/voice-as-a-service status --short   # en el viejo: tiene que salir vac�
 git -C ~/voice-as-a-service log origin/main..HEAD --oneline   # vacío: todo pusheado
 ```
 
-**Copia externa:** hoy (6-oct-2026) los backups están solo en `~/atentina-backups`, en el mismo
-equipo (`/home`, el mismo disco que el repo). `RCLONE_REMOTE` y `BACKUP_GPG_RECIPIENT` no están en
-`.env`. Si el server viejo se perdió, no hay de dónde restaurar base, `.env` ni checkpoint: quedaría
-volver a sembrar (sección 4.2, "Sin backup") y reentrenar las voces. Además, cron no recupera la
-corrida de las 03:30 si el host estaba apagado (no hay dumps del 4 ni del 5 de octubre).
+**Copia externa a S3** (implementada el 21-oct-2026; **activa cuando estén el bucket y la llave**):
+`backup.sh` sube a `s3://$BACKUP_S3_BUCKET/daily/<STAMP>/` la base, `.env`, `storage/` y el
+certificado, cifrados con la llave pública `deploy/backup-key.asc`, y sincroniza el checkpoint en
+`tts/`; `latest` apunta al último backup completo. El usuario IAM del server (`make backup-s3-setup`)
+puede escribir y leer, no borrar; el lifecycle del bucket borra `daily/` a los 30 días. Alta, una vez:
+1. `make backup-key` → commitear `deploy/backup-key.asc`; la privada (`scratch/backup-key/`) va al
+   gestor de claves **(usuario)** y se borra del server con `shred -u`.
+2. `make backup-s3-setup BUCKET=<nombre> PROFILE=<perfil admin de AWS>` (crea bucket y usuario, y
+   agrega las `BACKUP_S3_*` a `.env`: diff enmascarado después).
+3. `make backup` y `make backup-list`.
+
+Mientras no esté activa, los backups están solo en `~/atentina-backups`, en el mismo equipo: si el
+server se pierde, no hay de dónde restaurar base, `.env` ni checkpoint (quedaría sembrar, sección
+4.2 "Sin backup", y reentrenar las voces).
+
+**Restaurar desde S3** en el server nuevo (sin acceso al viejo): poner en un `.env` mínimo las
+`BACKUP_S3_*`, importar la llave privada (`gpg --import`), `make backup-fetch TTS=1` (baja y
+descifra en `scratch/restore/<STAMP>/` y el checkpoint a `TTS_FT_CKPT`) y seguir con 3.2 y 4.2 con
+esos archivos. Después, `gpg --delete-secret-keys` y borrar `scratch/restore/`.
 
 ## 2. Preparar el host
 
@@ -96,8 +111,8 @@ Pasos (como el usuario dueño del repo, con sudo):
    clonar, paso 3.1; instala, configura el runtime, reinicia Docker y prueba `nvidia-smi` en un
    contenedor).
 6. **Paquetes del host:** `sudo apt install git make curl jq rsync gnupg openssl python3-yaml dnsutils`.
-   - Copia externa del backup: `rclone` (`sudo apt install rclone` + `rclone config`) y la llave
-     pública de `BACKUP_GPG_RECIPIENT` importada.
+   - Copia externa del backup: nada más (aws-cli corre en contenedor, `amazon/aws-cli`; la llave
+     pública está en el repo, `deploy/backup-key.asc`). `gnupg` y `util-linux` (`flock`) ya están arriba.
    - Test de capacidad: python3 + `python3-yaml` (y `python3-psutil`); `make gpubench`:
      `nvidia-cuda-toolkit` (nvcc).
    - Desarrollo de `web/` y `landing/`: Node 22+ (hoy 24.15.0 por nvm). En producción no hace falta:
@@ -176,7 +191,8 @@ Sin backup (`.env` desde cero, `make setup`): completar cada secreto según esta
 | `WA_CONFIG_ID`, `WA_PHONE_NUMBER_ID`, `WA_REGISTRATION_PIN` | [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md) | conservar |
 | `WA_SIP_PASSWORD` | `make wa-sip-password` (la trae de Meta) | regenerable |
 | `HF_TOKEN` | opcional | — |
-| `RCLONE_REMOTE`, `BACKUP_GPG_RECIPIENT`, `ALERT_NTFY_TOPIC`, `HEALTHCHECKS_PING_URL` | pendientes (bloque "Operación" de `.env.example`) | — |
+| `BACKUP_S3_BUCKET/REGION/ACCESS_KEY_ID/SECRET_ACCESS_KEY` | `make backup-s3-setup` (sección 1) | conservar: el nuevo sigue subiendo al mismo bucket |
+| `ALERT_NTFY_TOPIC`, `HEALTHCHECKS_PING_URL` | pendientes (bloque "Operación" de `.env.example`) | — |
 
 Variables del `.env` actual que el código no usa: `AGENT_NAME`, `COMPANY_NAME`, `VLLM_TTS_SPEED`. Se
 pueden omitir.
@@ -188,12 +204,12 @@ pueden omitir.
 ```bash
 cd ~/voice-as-a-service
 mkdir -p tts/finetune/work/runs/multi41/lr2e-6
-rsync -a <origen>/lr2e-6-checkpoint-epoch-2/ tts/finetune/work/runs/multi41/lr2e-6/checkpoint-epoch-2/
+rsync -a <origen>/checkpoint-epoch-2/ tts/finetune/work/runs/multi41/lr2e-6/checkpoint-epoch-2/
 sha256sum tts/finetune/work/runs/multi41/lr2e-6/checkpoint-epoch-2/model.safetensors
 ```
 
-`<origen>`: `viejo:~/atentina-backups/tts` o `viejo:~/voice-as-a-service/tts/finetune/work/runs/multi41/lr2e-6`
-(con el `checkpoint-epoch-2` al final). El sha256 de `model.safetensors` (3.833.402.520 bytes) tiene
+`<origen>`: `viejo:~/atentina-backups/tts/multi41/lr2e-6` o `viejo:~/voice-as-a-service/tts/finetune/work/runs/multi41/lr2e-6`
+(con el `checkpoint-epoch-2` al final). Desde S3: `make backup-fetch TTS=1` lo deja en `TTS_FT_CKPT`. El sha256 de `model.safetensors` (3.833.402.520 bytes) tiene
 que ser `9cf9298d1809519ab5e9b9c809ca8d7f89a14124f7278798634621e705fab247`. El directorio es
 autosuficiente: `vllm-tts` sirve de `/models/ft` sin bajar el modelo base de Hugging Face. Para
 reentrenar en el nuevo, llevar también el resto de `tts/finetune/work/` (41 GB).
@@ -386,21 +402,10 @@ calentamiento del TTS en el arranque). Verificar: `systemctl is-enabled atentina
 ### 8.2 Cron del usuario
 
 Instalarlo después del corte (antes, el chequeo marca falta de Asterisk y túnel, y el backup
-respalda una base que todavía se va a reemplazar).
-
-```bash
-mkdir -p ~/atentina-ops ~/atentina-backups
-crontab -e
-```
-
-Con estas líneas (ajustar la ruta si el home no es `/home/laureano`):
-
-```
-# Atentina (docs/PRODUCCION.md): backup diario, chequeo cada 2 min y certificado SIP
-30 3 * * * /home/laureano/voice-as-a-service/scripts/ops/backup.sh >> $HOME/atentina-ops/backup.log 2>&1
-*/2 * * * * /home/laureano/voice-as-a-service/scripts/ops/healthcheck.sh >/dev/null 2>&1
-15 4 * * * /home/laureano/voice-as-a-service/scripts/ops/sip-cert-renew.sh >> $HOME/atentina-ops/sip-cert.log 2>&1
-```
+respalda una base que todavía se va a reemplazar): `make cron-install`. Toma `deploy/crontab` con
+la ruta del repo, crea `~/atentina-ops` y `~/atentina-backups`, y reemplaza solo el bloque de
+Atentina del crontab (el resto queda igual). Backup a las 03:30 y cada hora con `--if-due` (corre
+solo si el último completo tiene más de 25 h), chequeo cada 2 min, certificado a las 04:15.
 
 `sip-cert-renew.sh` necesita `CLOUDFLARE_DNS_API_TOKEN` y `WA_SIP_PASSWORD` en `.env`. Sin esa línea,
 el certificado de `sip.atentina.com.ar` vence (el actual, el 4-ene-2027; renovarlo sin el cron:
@@ -423,7 +428,7 @@ Ventana: avisar, elegir un horario sin campañas; 15–30 min sin servicio.
 5. **DNS (usuario), solo si cambió la IP pública:** A `sip` → IP nueva; `make sip-cert`.
 6. **En el nuevo:** `make up` (levanta todo, incluido Asterisk, y recrea los trunks), `make up-tunnel`
    y `sudo systemctl enable atentina-stack`.
-7. **Cron** (8.2) y en el viejo comentar las 3 líneas de Atentina (`crontab -e`), para que no corra el chequeo ni
+7. **Cron** (8.2) y en el viejo sacar el bloque de Atentina del crontab (`crontab -e`, entre `# >>> atentina` y `# <<< atentina`), para que no corra el chequeo ni
    la renovación del certificado contra un stack parado.
 
 Pruebas (todas tienen que dar lo esperado antes de dar el corte por bueno):
@@ -462,8 +467,9 @@ Dejar el viejo apagado (no borrado) al menos 30 días, con `atentina-stack` desh
 
 ## 10. Trampas conocidas
 
-- **Backup del checkpoint con otro nombre:** `backup.sh` lo guarda como
-  `tts/lr2e-6-checkpoint-epoch-2`, sin `multi41`. Restaurarlo en la ruta de `TTS_FT_CKPT` (4.1).
+- **Backup del checkpoint con otro nombre** (hasta el 20-oct-2026): los backups viejos lo tienen como
+  `tts/lr2e-6-checkpoint-epoch-2`, sin `multi41`; los nuevos, con la ruta desde `runs/`. Restaurarlo
+  en la ruta de `TTS_FT_CKPT` (4.1).
 - **`vllm/vllm-openai:latest` sin fijar** (5.1). Con vllm-omni ya pasó que `latest` no arrancaba.
 - **Redis de LiveKit sin persistencia:** después de cada reinicio, `make livekit-sip` (lo hacen
   `make up` y `deploy/boot.sh`); si no, las entrantes dan 486 `flood`.
@@ -482,13 +488,13 @@ Dejar el viejo apagado (no borrado) al menos 30 días, con `atentina-stack` desh
 - [ ] Viejo: Asterisk y túnel parados, `atentina-stack` deshabilitado (9)
 - [ ] systemd instalado, `atentina-stack` habilitado después del corte y probado con un reinicio; cron con las 3 líneas (8)
 - [ ] Pruebas 1–17 en verde; CAP-NNN registrado (9)
-- [ ] Copia externa del backup configurada (pendiente desde el 2-oct-2026)
+- [ ] Copia externa a S3 activa en el nuevo (mismas `BACKUP_S3_*` y `deploy/backup-key.asc`): `make backup` dice `externo: s3://…`
 
 ## 12. PENDIENTE (usuario)
 
-- **Copia externa del backup:** proveedor y bucket (`RCLONE_REMOTE`, ej. `r2:atentina-backups`),
-  ID de la clave GPG (`BACKUP_GPG_RECIPIENT`) y dónde se guarda la clave privada (fuera del server).
-  Mientras no exista, perder el server es perder base, `.env` (con `WA_TOKEN_KEY`) y checkpoint.
+- **Copia externa del backup:** cuenta de AWS y nombre del bucket (`make backup-s3-setup`), y dónde
+  se guarda la llave privada de `make backup-key` (fuera del server). Mientras no exista, perder el
+  server es perder base, `.env` (con `WA_TOKEN_KEY`) y checkpoint.
 - **Router:** modelo, URL del panel, dónde están reserva DHCP y reenvíos, estado del SIP ALG.
 - **Anura:** cuenta dueña de los números y terminal que usa Asterisk; DIDs (3517002592, 3517003976,
   0800-220-1233) con su plan de llamada y cómo llega el 0800 en la Request-URI; si Anura tiene
@@ -503,3 +509,30 @@ Dejar el viejo apagado (no borrado) al menos 30 días, con `atentina-stack` desh
   GA, LiveKit Cloud de respaldo) y dónde están las credenciales.
 - **Decisión:** fijar `vllm/vllm-openai` por tag o digest en `docker-compose.yml` y `stt/Dockerfile`,
   y el `apk` de Asterisk, como ya está `vllm-omni`.
+
+## 13. Pendiente para que la migración sea reproducible y se pueda re-desplegar
+
+Relevado el 21-oct-2026; nada de esto está hecho todavía. En orden:
+
+1. **Versiones fijas.** `vllm/vllm-openai` por digest en `docker-compose.yml` y `stt/Dockerfile`
+   (5.1); `asterisk=22.9.0-r0 asterisk-srtp=22.9.0-r0` en el `apk` de `asterisk/Dockerfile`; tag menor
+   en `postgres`, `nginx` y `redis`; lock de las dependencias transitivas de Python (`openai>=1.40`
+   está abierta). Cambiar la versión de vLLM es un cambio de config: CAP.
+2. **Nada atado al host.** `name: voice-as-a-service` en el compose (hoy sale del nombre del
+   directorio, 3.1); `MODELS_DIR` en `.env` en lugar de `/home/laureano/Models` en el override de
+   Gemma; `docker compose exec` en lugar de `voice-as-a-service-<svc>-1` en los scripts que quedan
+   (`healthcheck.sh`, `sip-cert-renew.sh`, `make db-reset`).
+3. **Host en un script.** `deploy/host-setup.sh` idempotente con la sección 2 (driver, Docker y
+   grupo, toolkit, zona horaria, paquetes) y el chequeo de qué índice de GPU dibuja el escritorio.
+4. **Artefactos pesados.** `make fetch-models`: Gemma (revisión fijada) y Parakeet de Hugging Face,
+   checkpoint del TTS de S3 (`make backup-fetch TTS=1`) o del viejo por `rsync`, con el sha256 de 4.1 y 4.4.
+5. **Restauración en un comando.** `make restore DIR=scratch/restore/<STAMP>`: `db` vacío, dump,
+   `migrate`, `storage/`, certificado y `livekit-sip`, en el orden de 4.2 (el dump antes del seed).
+6. **Deploy por versión.** Release = tag de git pusheado; el server despliega tags, no el working
+   tree. `make deploy REF=<tag>`: árbol limpio, `make calls-active`, dump previo
+   (`db-…-pre<versión>.sql.gz`), build con el tag como versión de imagen, `make migrate`, recrear solo
+   lo que cambió, `make health` y un pedido al TTS con voz, y una línea en `~/atentina-ops/deploys.log`.
+   `make rollback`: la imagen del tag anterior (queda en disco) y, si la migración no vuelve, el dump previo.
+7. **CI.** GitHub Actions con `make test` (sin LLM) y `make web-check` en cada push y tag.
+8. **Ensayo.** Migración completa a una máquina o disco de prueba, desde S3, sin Asterisk ni túnel
+   (fases 2–5), cronometrada; anotar acá lo que falle.

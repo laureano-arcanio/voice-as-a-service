@@ -1,0 +1,6 @@
+# >>> atentina (make cron-install; docs/PRODUCCION.md): backup a las 03:30 (y cada hora, si el último completo tiene más de 25 h: se recupera si el host estuvo apagado), chequeo cada 2 min y certificado SIP
+30 3 * * * @REPO@/scripts/ops/backup.sh >> $HOME/atentina-ops/backup.log 2>&1
+30 * * * * @REPO@/scripts/ops/backup.sh --if-due >> $HOME/atentina-ops/backup.log 2>&1
+*/2 * * * * @REPO@/scripts/ops/healthcheck.sh >/dev/null 2>&1
+15 4 * * * @REPO@/scripts/ops/sip-cert-renew.sh >> $HOME/atentina-ops/sip-cert.log 2>&1
+# <<< atentina
