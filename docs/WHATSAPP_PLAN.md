@@ -790,7 +790,7 @@ contacto para la voz de Anura (hoy solo WhatsApp, por decisión del 13-oct-2026)
 - **Verificación del negocio enviada (1-oct-2026):** como *Sole Proprietorship* registrada, nombre legal
   ARCANIO LAUREANO MARTIN y nombre alternativo "Atentina". **Verificado** el mismo día.
 - **Verificación de acceso (Tech Provider) enviada (1-oct-2026):** Plataforma SaaS, un solo portafolio,
-  sitio atentina.com.ar. En revisión (~5 días hábiles); el 8-oct-2026 seguía en revisión, sin pedidos de Meta. Plazo de Meta para completarla: 7-dic-2026 (el panel dice "12/7/2026"), si no restringe la app.
+  sitio atentina.com.ar. En revisión (~5 días hábiles); el 20-oct-2026 seguía en revisión, sin pedidos de Meta (ni alertas ni historial). Plazo de Meta para completarla: 19-dic-2026 (el panel dice "12/19/2026"; el 8-oct decía 7-dic), si no restringe la app.
 - **Notas de voz de Meta:** para que se vea como nota de voz, OGG con Opus y mono, y `"voice": true` en
   el mensaje; hasta 16 MB, sin duración máxima documentada. Hasta 512 KB se muestra con play; con más,
   para descargar. El webhook trae `audio.voice` (nota grabada en WhatsApp) y, desde nov-2025 y no en

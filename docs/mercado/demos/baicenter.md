@@ -396,3 +396,28 @@ y en el **fijo**:
     https://www.perfil.com/noticias/cordoba/la-empresa-china-baic-suma-concesionario-oficial-en-cordoba.phtml
   - iProfesional, BAIC Plan (23-jul-2026):
     https://www.iprofesional.com/autos/460654-china-baic-lanza-plan-de-ahorro-y-permite-comprar-el-bj30-con-cuota-menor-a-1-millon-de-pesos
+
+## 10. Agente y pantalla Llamadas (20-oct-2026, sin desplegar)
+
+- **Pantalla Llamadas** (`/outbound`, en el menú después de Conversaciones): agente, contacto de la agenda u
+  otro número, motivo en texto libre (hasta 2000 caracteres) y Llamar. El agente llama con ese motivo como
+  contexto. Detalle en [`../../GUIA_UI.md`](../../GUIA_UI.md), "Llamadas".
+- **Agente:** Sofía, de BAIC Center (`baicenter_sofia`, motor `classic`, voz `sofia`, resumen por email
+  prendido). La definición está en `scratch/baicenter/agente.json`. Todavía no está creado en producción.
+  - Apertura: "Hola {{nombre}}, ... Te llamo por la consulta que dejaste en nuestra página. ¿Tenés un minuto?".
+  - Confirma el motivo en una frase, no pregunta lo que el motivo ya dice y toma los datos que faltan: área
+    (ventas, soporte, administración u otro), detalle, modelo, forma de pago, usado para entregar, urgencia
+    (alta, media o baja) y cuándo prefiere que lo llame una persona.
+  - Resultados: Ventas, Soporte y Administración, cada uno con su variante "urgente", más Otra consulta,
+    Sin interés, Volver a llamar (no podía hablar y dejó un horario) y Sin cierre.
+- **Prueba local** (backend de desarrollo con el LLM real, por texto: `scratch/baicenter/prueba_local.py`):
+  4 casos, todos con el resultado esperado. Por ejemplo: "BJ30 en plan de ahorro, con un Gol 2015" dio
+  Ventas · urgente con los 9 datos; "service de los 20.000 de mi X55" dio Soporte; "ya compré en otro lado"
+  dio Sin interés; "estoy manejando, llamame mañana a las diez" dio Volver a llamar.
+  - Pendiente: a veces pregunta la forma de pago aunque el motivo ya la dice.
+- **Cómo desplegar** (fuera de las llamadas en curso):
+  1. recrear `app` y `agent` (`make up-agent`; corta las llamadas en curso). No hay migración.
+  2. crear el agente por la API con `scratch/baicenter/agente.json`, en el cliente `atentina` para la
+     demo o en uno propio de BAIC. Para salientes, el cliente necesita minutos salientes en el tier y un
+     número de origen.
+  3. probar con números propios desde Llamadas.
