@@ -804,6 +804,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/calls/{conversation_id}/hangup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hang Up Call
+         * @description Corta una llamada en curso: cuelga a la otra punta y la llamada termina con
+         *     ended_reason `hangup_by_user`. Para no volver a atender ese número: /blocked-numbers.
+         */
+        post: operations["hang_up_call_api_v1_calls__conversation_id__hangup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/calls/bulk-delete": {
         parameters: {
             query?: never;
@@ -2656,6 +2677,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/blocked-numbers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Blocked */
+        get: operations["list_blocked_api_v1_blocked_numbers_get"];
+        put?: never;
+        /**
+         * Block
+         * @description Bloquea un teléfono: sus llamadas entrantes a los números del cliente (línea o WhatsApp) se
+         *     cortan sin atender y quedan como rechazadas (`blocked_number`). Si ya estaba, actualiza la nota.
+         */
+        post: operations["block_api_v1_blocked_numbers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/blocked-numbers/{phone}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Unblock */
+        delete: operations["unblock_api_v1_blocked_numbers__phone__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3045,6 +3105,31 @@ export interface components {
             /** Suspended Numbers */
             suspended_numbers: string[];
         };
+        /** BlockedNumberIn */
+        BlockedNumberIn: {
+            /** Phone */
+            phone: string;
+            /**
+             * Note
+             * @description Por qué se bloqueó (para el equipo)
+             * @default
+             */
+            note?: string;
+        };
+        /** BlockedNumberOut */
+        BlockedNumberOut: {
+            /** Client Id */
+            client_id: string;
+            /** Phone */
+            phone: string;
+            /** Note */
+            note: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
         /** Body_put_image_api_v1_agents__agent_id__call_link_image_put */
         Body_put_image_api_v1_agents__agent_id__call_link_image_put: {
             /**
@@ -3109,6 +3194,8 @@ export interface components {
             outcome: components["schemas"]["OutcomeOut"] | null;
             /** Messages */
             messages: components["schemas"]["MessageOut"][];
+            /** Context */
+            context?: string | null;
             /**
              * Recordings
              * @default []
@@ -3151,6 +3238,13 @@ export interface components {
              */
             agents: string[];
         };
+        /** CallHangupOut */
+        CallHangupOut: {
+            /** Status */
+            status: string;
+            /** Ended Reason */
+            ended_reason: string;
+        };
         /** CallIn */
         CallIn: {
             /** Agent Id */
@@ -3172,6 +3266,16 @@ export interface components {
              * @default false
              */
             loadtest?: boolean;
+            /**
+             * Contact Id
+             * @description Contacto de la agenda: sin `phone`, marca el suyo, y sus datos van a la conversacion como en una campaña
+             */
+            contact_id?: string | null;
+            /**
+             * Context
+             * @description Motivo del llamado en texto libre (lo que el contacto dejo en la web): el agente llama con ese contexto
+             */
+            context?: string | null;
         };
         /** CallInfo */
         CallInfo: {
@@ -8482,6 +8586,44 @@ export interface operations {
             };
         };
     };
+    hang_up_call_api_v1_calls__conversation_id__hangup_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallHangupOut"];
+                };
+            };
+            /** @description La llamada no está en curso */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     bulk_delete_calls_api_v1_calls_bulk_delete_post: {
         parameters: {
             query?: never;
@@ -12364,6 +12506,103 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    list_blocked_api_v1_blocked_numbers_get: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BlockedNumberOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    block_api_v1_blocked_numbers_post: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BlockedNumberIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BlockedNumberOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unblock_api_v1_blocked_numbers__phone__delete: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+            };
+            header?: never;
+            path: {
+                phone: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

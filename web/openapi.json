@@ -2796,6 +2796,57 @@
     }
    }
   },
+  "/api/v1/calls/{conversation_id}/hangup": {
+   "post": {
+    "tags": [
+     "calls"
+    ],
+    "summary": "Hang Up Call",
+    "description": "Corta una llamada en curso: cuelga a la otra punta y la llamada termina con\nended_reason `hangup_by_user`. Para no volver a atender ese número: /blocked-numbers.",
+    "operationId": "hang_up_call_api_v1_calls__conversation_id__hangup_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "conversation_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Conversation Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CallHangupOut"
+        }
+       }
+      }
+     },
+     "409": {
+      "description": "La llamada no está en curso"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/calls/bulk-delete": {
    "post": {
     "tags": [
@@ -9251,6 +9302,183 @@
      }
     }
    }
+  },
+  "/api/v1/blocked-numbers": {
+   "get": {
+    "tags": [
+     "blocked-numbers"
+    ],
+    "summary": "List Blocked",
+    "operationId": "list_blocked_api_v1_blocked_numbers_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/BlockedNumberOut"
+         },
+         "title": "Response List Blocked Api V1 Blocked Numbers Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "blocked-numbers"
+    ],
+    "summary": "Block",
+    "description": "Bloquea un teléfono: sus llamadas entrantes a los números del cliente (línea o WhatsApp) se\ncortan sin atender y quedan como rechazadas (`blocked_number`). Si ya estaba, actualiza la nota.",
+    "operationId": "block_api_v1_blocked_numbers_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BlockedNumberIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BlockedNumberOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/blocked-numbers/{phone}": {
+   "delete": {
+    "tags": [
+     "blocked-numbers"
+    ],
+    "summary": "Unblock",
+    "operationId": "unblock_api_v1_blocked_numbers__phone__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "phone",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Phone"
+      }
+     },
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
   }
  },
  "components": {
@@ -10283,6 +10511,57 @@
     "title": "BillingOut",
     "description": "Plan y cobro de un cliente: lo que muestra la pantalla Plan."
    },
+   "BlockedNumberIn": {
+    "properties": {
+     "phone": {
+      "type": "string",
+      "maxLength": 32,
+      "minLength": 3,
+      "title": "Phone"
+     },
+     "note": {
+      "type": "string",
+      "maxLength": 500,
+      "title": "Note",
+      "description": "Por qué se bloqueó (para el equipo)",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "phone"
+    ],
+    "title": "BlockedNumberIn"
+   },
+   "BlockedNumberOut": {
+    "properties": {
+     "client_id": {
+      "type": "string",
+      "title": "Client Id"
+     },
+     "phone": {
+      "type": "string",
+      "title": "Phone"
+     },
+     "note": {
+      "type": "string",
+      "title": "Note"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "client_id",
+     "phone",
+     "note",
+     "created_at"
+    ],
+    "title": "BlockedNumberOut"
+   },
    "Body_put_image_api_v1_agents__agent_id__call_link_image_put": {
     "properties": {
      "file": {
@@ -10474,6 +10753,17 @@
       "type": "array",
       "title": "Messages"
      },
+     "context": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Context"
+     },
      "recordings": {
       "items": {
        "type": "integer"
@@ -10585,6 +10875,24 @@
     ],
     "title": "CallEmailsOut"
    },
+   "CallHangupOut": {
+    "properties": {
+     "status": {
+      "type": "string",
+      "title": "Status"
+     },
+     "ended_reason": {
+      "type": "string",
+      "title": "Ended Reason"
+     }
+    },
+    "type": "object",
+    "required": [
+     "status",
+     "ended_reason"
+    ],
+    "title": "CallHangupOut"
+   },
    "CallIn": {
     "properties": {
      "agent_id": {
@@ -10630,6 +10938,31 @@
       "type": "boolean",
       "title": "Loadtest",
       "default": false
+     },
+     "contact_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Contact Id",
+      "description": "Contacto de la agenda: sin `phone`, marca el suyo, y sus datos van a la conversacion como en una campaña"
+     },
+     "context": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 2000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Context",
+      "description": "Motivo del llamado en texto libre (lo que el contacto dejo en la web): el agente llama con ese contexto"
      }
     },
     "type": "object",

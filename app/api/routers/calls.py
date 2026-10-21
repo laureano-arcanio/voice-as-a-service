@@ -14,6 +14,7 @@ from ..schemas import (
     CallBulkDeleteIn,
     CallBulkDeleteOut,
     CallDetail,
+    CallHangupOut,
     CallIn,
     CallPage,
     CallStartedOut,
@@ -65,6 +66,15 @@ def get_call(conversation_id: str, p: CurrentPrincipal, db: DB, definitions: Def
     if detail is None or not p.can_access(detail["client_id"]):
         raise NotFound("Conversación inexistente")
     return detail
+
+
+@router.post("/calls/{conversation_id}/hangup", response_model=CallHangupOut,
+             responses={409: {"description": "La llamada no está en curso"}})
+async def hang_up_call(conversation_id: str, p: CurrentPrincipal, db: DB):
+    """Corta una llamada en curso: cuelga a la otra punta y la llamada termina con
+    ended_reason `hangup_by_user`. Para no volver a atender ese número: /blocked-numbers."""
+    call = await service.hang_up(db, p, conversation_id)
+    return CallHangupOut(status=call.status, ended_reason=call.ended_reason)
 
 
 @router.delete("/calls/{conversation_id}", status_code=204)

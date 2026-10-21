@@ -22,6 +22,7 @@ export const contactKeys = {
   detail: (id: string) => ['contacts', 'detail', id] as const,
   campaigns: (id: string) => ['contacts', 'detail', id, 'campaigns'] as const,
   optouts: (clientId?: string) => ['contact-optouts', clientId ?? 'all'] as const,
+  blocked: (clientId?: string) => ['blocked-numbers', clientId ?? 'all'] as const,
 };
 
 export function useContacts(f: ContactFilters) {
@@ -183,5 +184,42 @@ export function useRemoveOptout() {
         }),
       ),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['contact-optouts'] }),
+  });
+}
+
+// ---- Numeros bloqueados: sus llamadas entrantes se cortan sin atender ----
+
+export function useBlockedNumbers(clientId?: string) {
+  return useQuery({
+    queryKey: contactKeys.blocked(clientId),
+    queryFn: () => unwrap(api.GET('/api/v1/blocked-numbers', { params: { query: { client_id: clientId } } })),
+  });
+}
+
+/** clientId: el del numero (un admin lo indica; el cliente bloquea en lo suyo). */
+export function useBlockNumber() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ phone, note, clientId }: { phone: string; note?: string; clientId?: string }) =>
+      unwrap(
+        api.POST('/api/v1/blocked-numbers', {
+          params: { query: { client_id: clientId } },
+          body: { phone, note: note ?? '' },
+        }),
+      ),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['blocked-numbers'] }),
+  });
+}
+
+export function useUnblockNumber() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ phone, clientId }: { phone: string; clientId: string }) =>
+      unwrap(
+        api.DELETE('/api/v1/blocked-numbers/{phone}', {
+          params: { path: { phone }, query: { client_id: clientId } },
+        }),
+      ),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['blocked-numbers'] }),
   });
 }

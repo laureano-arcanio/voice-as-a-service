@@ -102,6 +102,7 @@ export type ContactsUpsert = S['ContactsUpsertOut'];
 export type ContactCampaign = S['ContactCampaignOut'];
 export type ContactOptout = S['ContactOptoutOut'];
 export type OptoutChannel = ContactOptout['channel'];
+export type BlockedNumber = S['BlockedNumberOut'];
 export type ChatMessage = S['MessageOut'];
 export type LlmCall = S['LlmCall'];
 export type ConversationState = S['ConversationStateOut'];

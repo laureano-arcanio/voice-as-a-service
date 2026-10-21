@@ -20,7 +20,7 @@ const HINT_PHONE =
 const HINT_TEST =
   'Se crea la llamada sin marcar ningún teléfono. Te aparece un link para conectarte por navegador (LiveKit Meet) y hablar con el agente.';
 
-function CallError({ error }: { error: unknown }) {
+export function CallError({ error }: { error: unknown }) {
   const quota = error instanceof ApiError && error.status === 429;
   const title = quota
     ? (QUOTA_TITLES[error.code ?? ''] ?? 'Límite del plan')
@@ -36,7 +36,7 @@ function CallError({ error }: { error: unknown }) {
   );
 }
 
-function CallStartedAlert({ started }: { started: CallStarted }) {
+export function CallStartedAlert({ started }: { started: CallStarted }) {
   return (
     <Alert
       color="green"

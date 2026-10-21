@@ -4,7 +4,7 @@ from .agents import Agent, AgentVersion
 from .apps import App, AppJobRun, AppLink
 from .billing import BillingPayment, Subscription
 from .call_links import CallLink
-from .calls import ACTIVE_CALL_STATUSES, CallMode, CallRow, CallStatus
+from .calls import ACTIVE_CALL_STATUSES, BlockedNumber, CallMode, CallRow, CallStatus
 from .campaigns import (
     Campaign,
     CampaignCallback,
@@ -43,6 +43,7 @@ __all__ = [
     "AppJobRun",
     "AppLink",
     "BillingPayment",
+    "BlockedNumber",
     "CallLink",
     "CallMode",
     "CallRow",

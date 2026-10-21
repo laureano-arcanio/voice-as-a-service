@@ -248,6 +248,9 @@ class Progress(BaseModel):
     # y los campos que la campaña ya cargo en `fields` (el agente no los pregunta). No cambian en la conversacion.
     contact: dict[str, Any] = Field(default_factory=dict)
     preloaded: list[str] = Field(default_factory=list)
+    # Llamada saliente suelta (pantalla Llamadas): el motivo, en texto libre (lo que el contacto dejo en la web, por
+    # ejemplo). Va al prompt como "MOTIVO DEL LLAMADO" y no cambia en la conversacion.
+    context: str | None = None
 
 
 # Por donde se conversa: cambia las reglas del prompt (app/llm/prompt.py), no el agente.
@@ -277,6 +280,9 @@ class AgentTurn(BaseModel):
     next_objective: str | None = None
     assistant_message: str
     status: Literal["active", "completed"] = "active"
+    # Con status completed: "off_topic" si el agente corta porque la conversacion no tiene que ver
+    # con su objetivo (motor clasico, OFF_TOPIC_MARKER); None, el cierre normal.
+    end_reason: Literal["off_topic"] | None = None
     # Salida cruda del LLM y su razonamiento; no son parte del contrato.
     raw: str | None = Field(default=None, exclude=True)
     reasoning: str | None = Field(default=None, exclude=True)

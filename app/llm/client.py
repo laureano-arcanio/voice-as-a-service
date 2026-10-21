@@ -5,10 +5,18 @@ from collections.abc import Callable
 from openai import AsyncOpenAI
 
 from app.config import settings
-from app.conversation.models import AgentTurn, ConversationState, Extraction, Generation, Workflow
+from app.conversation.models import (
+    AgentTurn,
+    ConversationState,
+    Extraction,
+    Generation,
+    Workflow,
+)
+from app.conversation.workflow import OFF_TOPIC_REASON
 
 from .prompt import (
     END_MARKER,
+    OFF_TOPIC_MARKER,
     build_classic_messages,
     build_extraction_prompt,
     build_user_prompt,
@@ -207,10 +215,10 @@ class LLMClient:
     async def converse(self, workflow: Workflow, state: ConversationState, user_message: str,
                        on_message: Callable[[str], None] | None = None) -> AgentTurn:
         """Motor clasico: texto libre con la conversacion como mensajes. El fin
-        lo marca END_MARKER, que se saca antes de decirlo."""
+        lo marca END_MARKER (u OFF_TOPIC_MARKER), que se saca antes de decirlo."""
         request = dict(model=self.model, messages=build_classic_messages(workflow, state, user_message),
                        **self._limit(), **self.options)
-        marker = MarkerFilter(END_MARKER)
+        marker = MarkerFilter(END_MARKER, OFF_TOPIC_MARKER)
         if on_message is None:
             message = (await self.client.chat.completions.create(**request)).choices[0].message
             content = message.content or ""
@@ -232,8 +240,7 @@ class LLMClient:
             if text := marker.flush():
                 on_message(text)
             content, reasoning = "".join(parts), "".join(reasoning_parts) or None
-        return AgentTurn(assistant_message=marker.text.strip(), status="completed" if marker.found else "active",
-                         raw=content, reasoning=reasoning)
+        return classic_turn(marker, raw=content, reasoning=reasoning)
 
     async def extract(self, workflow: Workflow, state: ConversationState, only: list[str] | None = None) -> Extraction:
         """Los datos del usuario segun toda la conversacion (only: solo esos campos)."""
@@ -322,23 +329,31 @@ class MessageExtractor:
         return "".join(out)
 
 
-class MarkerFilter:
-    """Saca una marca de un texto que llega por partes. feed() devuelve lo que
-    ya se puede decir: retiene el final si puede ser el principio de la marca."""
+def classic_turn(marker: "MarkerFilter", **extra) -> AgentTurn:
+    """El turno del motor clasico segun la marca que escribio el LLM (si escribio una)."""
+    return AgentTurn(assistant_message=marker.text.strip(), status="completed" if marker.found else "active",
+                     end_reason=OFF_TOPIC_REASON if marker.found == OFF_TOPIC_MARKER else None, **extra)
 
-    def __init__(self, marker: str):
-        self.marker = marker
+
+class MarkerFilter:
+    """Saca las marcas de un texto que llega por partes. feed() devuelve lo que
+    ya se puede decir: retiene el final si puede ser el principio de una marca.
+    found: la ultima marca que aparecio (None si ninguna)."""
+
+    def __init__(self, *markers: str):
+        self.markers = markers
         self.pending = ""
-        self.text = ""          # todo lo dicho, sin la marca
-        self.found = False
+        self.text = ""          # todo lo dicho, sin las marcas
+        self.found: str | None = None
 
     def feed(self, chunk: str) -> str:
         self.pending += chunk
-        if self.marker in self.pending:
-            self.found = True
-            self.pending = self.pending.replace(self.marker, "")
-        keep = next((n for n in range(len(self.marker) - 1, 0, -1)
-                     if self.pending.endswith(self.marker[:n])), 0)
+        for marker in self.markers:
+            if marker in self.pending:
+                self.found = marker
+                self.pending = self.pending.replace(marker, "")
+        keep = max((n for marker in self.markers for n in range(len(marker) - 1, 0, -1)
+                    if self.pending.endswith(marker[:n])), default=0)
         out, self.pending = self.pending[:len(self.pending) - keep], self.pending[len(self.pending) - keep:]
         self.text += out
         return out

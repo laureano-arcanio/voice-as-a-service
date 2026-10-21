@@ -25,13 +25,14 @@ from ..config import settings
 from ..conversation import opening_audio, recordings
 from ..conversation.engine import ConversationEngine
 from ..conversation.models import Workflow
+from ..conversation.workflow import OFF_TOPIC_REASON
 from ..db import get_sessionmaker, utcnow
 from ..mail import call_summary
 from ..models import CallMode, CallRow, CallStatus
 from ..runtime import get_conversation_engine
 from ..services import calls as call_service
 from ..services import campaign_calls, quota
-from ..services.errors import NotFound, QuotaExceeded
+from ..services.errors import Forbidden, NotFound, QuotaExceeded
 from .latency import TurnLatencyTracker
 
 logger = logging.getLogger("agent")
@@ -113,7 +114,8 @@ class WorkflowAgent(Agent):
         self.engine = engine
         self.conversation_id = conversation_id
         self.latency = latency
-        self.on_completed = on_completed
+        self.on_completed = on_completed      # on_completed(reason): corta la llamada
+        self.end_reason = "completed"           # o OFF_TOPIC_REASON: el agente corto una llamada fuera de tema
         self.dictation = False
         # Un turno a la vez: con preemptive generation LiveKit puede llamar a
         # llm_node antes de cerrar la respuesta anterior, y los dos turnos
@@ -291,6 +293,7 @@ class WorkflowAgent(Agent):
         if speech is not None:
             speech.add_done_callback(self.on_reply_done)
             if turn.status == "completed":
+                self.end_reason = turn.end_reason or "completed"
                 speech.add_done_callback(self.on_final_reply_done)
         self.set_dictation(self.engine.workflow(state), turn.next_objective)
         logger.info("turn %s answered=%s next=%s status=%s", self.conversation_id, turn.answered, turn.next_objective, turn.status)
@@ -345,9 +348,10 @@ class WorkflowAgent(Agent):
 
     def on_final_reply_done(self, speech) -> None:
         # Se corta cuando la despedida termina de sonar; si el cliente la
-        # interrumpio, sigue hablando y el turno siguiente decide.
-        if not speech.interrupted:
-            self.on_completed()
+        # interrumpio, sigue hablando y el turno siguiente decide. Una llamada
+        # fuera de tema se corta igual: el que llama suele hablar encima.
+        if not speech.interrupted or self.end_reason == OFF_TOPIC_REASON:
+            self.on_completed(self.end_reason)
 
     def set_dictation(self, workflow: Workflow, objective: str | None) -> None:
         spec = workflow.fields.get(objective) if objective else None
@@ -478,6 +482,12 @@ async def entrypoint(ctx: JobContext):
             await ctx.delete_room()
             ctx.shutdown(reason=e.code)
             return
+        except Forbidden as e:
+            # Numero bloqueado por el cliente (blocked_numbers): se corta sin atender.
+            logger.info("entrante a %s de un numero bloqueado: se corta", dialed)
+            await ctx.delete_room()
+            ctx.shutdown(reason=e.code)
+            return
         except QuotaExceeded as e:
             logger.warning("entrante a %s rechazada por el tier: %s", dialed, e.code)
             await say_and_hang_up(ctx, settings.quota_reject_message, settings.vllm_tts_voice, e.code)
@@ -517,8 +527,10 @@ async def entrypoint(ctx: JobContext):
             call = s.get(CallRow, conversation_id)
             if call is None or call.status == CallStatus.fallida:
                 return
+            # Cortada desde la API (call_service.hang_up): ese motivo ya quedo puesto y gana.
             call_service.update_call(
-                s, conversation_id, status=CallStatus.finalizada, ended_reason=(reason or "")[:128], ended_at=utcnow(),
+                s, conversation_id, status=CallStatus.finalizada, ended_reason=(call.ended_reason or reason or "")[:128],
+                ended_at=utcnow(),
                 duration_seconds=int(time.time() - started_at) if started_at else 0, latency=latency.summary())
             # Resumen por email al cliente, si el agente lo tiene prendido: lo manda el loop de `app`.
             call_summary.mark_pending(s, call, workflow, connected=started_at is not None)
@@ -578,9 +590,9 @@ async def entrypoint(ctx: JobContext):
     # distinto segun lo que conteste el caller y la carga no seria comparable
     # entre runs. Corta el caller despues de sus turnos.
     if metadata.get("loadtest"):
-        on_completed = lambda: logger.info("loadtest %s: workflow completo, sigue la llamada", conversation_id)
+        on_completed = lambda reason: logger.info("loadtest %s: workflow completo, sigue la llamada", conversation_id)
     else:
-        on_completed = lambda: asyncio.create_task(hang_up())
+        on_completed = lambda reason: asyncio.create_task(hang_up(reason))
     agent = WorkflowAgent(engine, conversation_id, latency, on_completed=on_completed, record_dir=record_dir)
 
     ctx.room.on("participant_disconnected", lambda _: ctx.shutdown(reason="customer_hangup"))
@@ -606,7 +618,8 @@ async def entrypoint(ctx: JobContext):
 
     await session.start(agent=agent, room=ctx.room)
 
-    update_call(status=CallStatus.sonando)
+    # La room queda en la llamada: con ella se corta desde la API (call_service.hang_up).
+    update_call(status=CallStatus.sonando, room=ctx.room.name)
     if phone:
         max_duration = metadata.get("max_duration_seconds") or settings.call_max_duration_seconds
         try:

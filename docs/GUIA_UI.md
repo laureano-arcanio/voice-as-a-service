@@ -251,6 +251,21 @@ Para que un dueño use su app: asignarla, crear un agente con motor **Asistente*
   hay y las borra juntas). Siempre pide confirmación. Se borra la conversación con sus mensajes,
   grabaciones y su consumo del mes; las que tienen una llamada en curso no se pueden borrar.
 
+### Llamadas (`/outbound`, ambos roles)
+
+- El agente llama a un contacto **con un motivo**: por ejemplo, la consulta que la persona dejó en la web
+  ("quiero el precio de la BJ30 en plan de ahorro"). El agente arranca por ahí, sin preguntar lo que el
+  motivo ya dice.
+- **Formulario:** agente, destino (un contacto de la agenda, buscado por nombre o teléfono, o un número
+  suelto en formato +549…), número de origen, motivo (hasta 2000 caracteres) y **Llamar**. Con un contacto,
+  su nombre y sus atributos también le llegan al agente (como en una campaña: `{{nombre}}` en la apertura).
+- **Modo prueba:** no marca; te conectás por navegador y hacés de contacto. Usa solo el motivo.
+- Un número en la lista de bajas de voz del cliente (Contactos, Bajas) no se llama (409).
+- **Últimas llamadas:** las 10 salientes más nuevas, con estado, duración y resultado. El resultado sale
+  de la definición del agente (por ejemplo, área y urgencia). Si el agente tiene prendido el resumen por
+  email, al cortar le llega al equipo, con el motivo.
+- El detalle de la llamada muestra el motivo en "Motivo del llamado".
+
 ### Detalle de una llamada (`/calls/<id>`)
 
 - **Cabecera:** contacto, empresa, origen, número del cliente, fecha, estado, duración, motivo de fin,
@@ -264,6 +279,10 @@ Para que un dueño use su app: asignarla, crear un agente con motor **Asistente*
 - El cliente ve las dos cosas como **Detalle técnico**: el interruptor del chat y, al final, una
   tarjeta plegada con la latencia.
 - Mientras la llamada sigue, todo se actualiza cada segundo.
+- **Cortar llamada** (arriba a la derecha, mientras está en curso): cuelga en el momento; termina con
+  `hangup_by_user`.
+- **Bloquear número** (en las entrantes): las próximas llamadas de ese número a los números del cliente se
+  cortan sin atender. Se desbloquea en Contactos, **Números bloqueados**.
 - **WhatsApp:** en lugar de estado, duración y fin de llamada muestra el último mensaje del contacto y
   los envíos fallidos, con el último error de Meta (131047: pasaron más de 24 h desde el último
   mensaje del contacto, no se puede mandar texto libre). No hay latencia por turno. Mientras la
@@ -283,6 +302,9 @@ Motivos de fin frecuentes (`ended_reason`):
 | Motivo | Qué pasó |
 |---|---|
 | `completed` | El agente terminó el workflow y cortó. |
+| `off_topic` | El agente cortó porque la llamada no tenía que ver con su objetivo (broma, burla, acoso, número equivocado). Resultado "Fuera de tema". |
+| `hangup_by_user` | La cortó alguien desde el panel (**Cortar llamada**) o la API. |
+| `blocked_number` | Rechazada sin atender: el número que llama está bloqueado. |
 | `customer_hangup` | Cortó el cliente. |
 | `quota_exhausted` | Se acabaron los minutos del mes durante la llamada. |
 | `concurrency_limit` | Rechazada: el cliente estaba al tope de llamadas simultáneas. |
@@ -388,6 +410,9 @@ La agenda del cliente: de ahí salen los destinatarios de las campañas. Lo úni
    que tenía pendientes. Recargar su teléfono no lo desarchiva: **Desarchivar** es explícito.
 4. **Ficha** (clic en la fila): datos y campañas en que participó o participa.
 5. **Tope:** el tier limita los contactos activos de la agenda.
+6. **Números bloqueados** (al final): sus llamadas entrantes, por la línea o por WhatsApp, se cortan sin
+   atender y quedan como rechazadas (`blocked_number`). Se cargan acá (teléfono y motivo) o desde el detalle
+   de una llamada (**Bloquear número**). No cambian las campañas: para no llamar a alguien están las bajas.
 
 ### Campañas (`/campaigns`, ambos roles)
 

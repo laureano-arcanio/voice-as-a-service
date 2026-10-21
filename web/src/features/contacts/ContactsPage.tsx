@@ -45,6 +45,7 @@ import {
   useTagSuggestions,
   useUnarchiveMany,
 } from './api';
+import { BlockedNumbersCard } from './BlockedNumbersCard';
 import { ContactModal, ImportContactsModal } from './ContactModals';
 import { TagBadges } from './TagBadges';
 import { attributesText } from './labels';
@@ -434,6 +435,7 @@ export function ContactsPage() {
           }
         </QueryState>
       </Card>
+      <BlockedNumbersCard clientId={clientId} isAdmin={isAdmin} />
       {dialog === 'new' && (
         <ContactModal contact={null} clientId={clientId} onClose={() => setDialog(null)} />
       )}

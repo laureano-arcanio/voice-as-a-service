@@ -17,7 +17,14 @@ from .models import (
     Workflow,
 )
 from .store import ConversationStore
-from .workflow import check_updates, is_required, normalize_phone, outcome_for
+from .workflow import (
+    OFF_TOPIC,
+    OFF_TOPIC_REASON,
+    check_updates,
+    is_required,
+    normalize_phone,
+    outcome_for,
+)
 
 if TYPE_CHECKING:
     from ..agents.definitions import DefinitionSource
@@ -76,7 +83,8 @@ class ConversationEngine:
 
     def new_conversation(self, agent_id: str, client_id: str | None = None, session=None, *,
                          channel: Channel = "voice", opening: bool | str = True,
-                         contact: dict | None = None, phone: str | None = None) -> tuple[ConversationState, str]:
+                         contact: dict | None = None, phone: str | None = None,
+                         context: str | None = None) -> tuple[ConversationState, str]:
         """Como start_conversation pero sin guardarla: para guardarla en la misma
         transaccion que la llamada (services/calls.py, store.add). session: la del que
         llama, para leer el agente sin pedir otra conexion.
@@ -91,7 +99,9 @@ class ConversationEngine:
         variables; sin contact (None) no se toca.
 
         phone: el numero de la otra punta de la llamada (entrante o saliente). Precarga los campos de tipo
-        phone que el contacto no cargo: el agente no lo pregunta. Sin numero (link para llamar), lo pide."""
+        phone que el contacto no cargo: el agente no lo pregunta. Sin numero (link para llamar), lo pide.
+
+        context: el motivo de una llamada saliente suelta (texto libre); va al prompt (contact.prompt_block)."""
         version, workflow = self.definitions.current(agent_id, session)
         state = ConversationState(
             conversation_id=str(uuid.uuid4()),
@@ -102,6 +112,8 @@ class ConversationEngine:
             preloaded, state.progress.contact = contact_data.preload(workflow, contact)
             state.fields.update(preloaded)
             state.progress.preloaded = list(preloaded)
+        if context and context.strip():
+            state.progress.context = context.strip()[:contact_data.MAX_CONTEXT_CHARS]
         if phone and (number := normalize_phone(phone)):
             for name, spec in workflow.fields.items():
                 if spec.type == "phone" and state.fields.get(name) is None:
@@ -156,7 +168,8 @@ class ConversationEngine:
         asked = state.progress.asked
         state.status = result.status
         state.progress.asked = result.next_objective
-        state.progress.outcome = None
+        # Fuera de tema: el resultado lo decide el agente al cortar, no los datos (_extract no lo pisa).
+        state.progress.outcome = OFF_TOPIC.id if result.end_reason == OFF_TOPIC_REASON else None
         state.progress.undo = undo
         state.messages += [Message(role="user", text=user_message, voice_note=media.user_voice_note),
                            Message(role="assistant", text=result.assistant_message, llm=trace)]
@@ -278,7 +291,7 @@ class ConversationEngine:
             logger.exception("extraction failed %s", conversation_id)
         finally:
             state = self.store.get(conversation_id)
-            if state is not None and state.status == "completed":
+            if state is not None and state.status == "completed" and state.progress.outcome != OFF_TOPIC.id:
                 state.progress.outcome = outcome_for(self.workflow(state), state).id
                 self.store.save(state)
 

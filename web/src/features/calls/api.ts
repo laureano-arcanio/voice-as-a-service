@@ -136,6 +136,20 @@ export function useDeleteConversations() {
   });
 }
 
+/** Corta una llamada en curso (cuelga a la otra punta). */
+export function useHangUp(conversationId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      unwrap(
+        api.POST('/api/v1/calls/{conversation_id}/hangup', {
+          params: { path: { conversation_id: conversationId } },
+        }),
+      ),
+    onSettled: () => void qc.invalidateQueries({ queryKey: callKeys.all }),
+  });
+}
+
 /** Cierra un chat de WhatsApp: el proximo mensaje del contacto empieza otra conversacion. */
 export function useCloseWhatsApp(conversationId: string) {
   const qc = useQueryClient();

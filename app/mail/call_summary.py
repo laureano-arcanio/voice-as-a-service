@@ -90,6 +90,7 @@ def build(s: Session, definitions: DefinitionSource, call: CallRow, client: Clie
         phone=phone, client_number=number.e164 if number else None,
         started_at=call.started_at or call.created_at, duration_seconds=call.duration_seconds,
         outcome=outcome.label if outcome else None, fields=fields, transcript=transcript, truncated=truncated,
+        context=(conv.progress or {}).get("context"),
         call_url=f"{settings.app_url.rstrip('/')}/calls/{conv.id}")
 
 

@@ -11,10 +11,10 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from ..agents.definitions import DefinitionSource
-from ..config import settings
 from ..agents.templates import load_reference
+from ..config import settings
 from ..conversation.models import ConversationState, Progress, Workflow
-from ..conversation.workflow import INCOMPLETE, is_required, outcome_for
+from ..conversation.workflow import INCOMPLETE, OFF_TOPIC, is_required, outcome_for
 from ..models import (
     Agent,
     CallRow,
@@ -114,7 +114,8 @@ class Reports:
         if workflow is None or conv.status != "completed":
             return None
         progress = Progress.model_validate(conv.progress or {})
-        outcome = next((o for o in [*workflow.completion.outcomes, INCOMPLETE] if o.id == progress.outcome), None)
+        outcomes = [*workflow.completion.outcomes, INCOMPLETE, OFF_TOPIC]
+        outcome = next((o for o in outcomes if o.id == progress.outcome), None)
         if outcome is None:
             outcome = outcome_for(workflow, ConversationState(
                 conversation_id=conv.id, agent_id=conv.agent_id or "", fields=conv.fields, progress=Progress()))
@@ -184,6 +185,7 @@ class Reports:
             "workflow_status": conv.status, "fields": fields,
             "outcome": None if outcome is None else {"label": outcome.label, "goal": outcome.goal},
             "messages": conv.messages,
+            "context": progress.context,
             "recordings": recordings,
             "call": None if call is None else {
                 "mode": call.mode, "phone": call.phone, "status": call.status,

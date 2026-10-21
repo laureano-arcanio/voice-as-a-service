@@ -116,6 +116,12 @@ def validate_updates(workflow: Workflow, updates: dict[str, Any]) -> dict[str, A
 # llamada 80ac0e22 pidio el link y corto sin actividad ni contacto, y contaba como exito.
 INCOMPLETE = Outcome(id="incompleta", label="Incompleta", message="")
 
+# El agente corto porque la conversacion no tenia que ver con su objetivo (broma, burla, acoso,
+# numero equivocado; llamada 07381a4d): resultado propio, no el default del workflow, y
+# ended_reason OFF_TOPIC_REASON en la llamada.
+OFF_TOPIC = Outcome(id="fuera_de_tema", label="Fuera de tema", message="")
+OFF_TOPIC_REASON = "off_topic"
+
 
 def outcome_for(workflow: Workflow, state: ConversationState) -> Outcome:
     """El primer resultado cuyas condiciones se cumplen; el ultimo, sin when, es el default."""

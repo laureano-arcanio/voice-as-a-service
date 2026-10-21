@@ -1,4 +1,5 @@
-"""Datos del contacto de una campaña de voz en la conversación (docs/LLAMADAS_SALIENTES_PLAN.md, 4).
+"""Datos del contacto de una campaña de voz o de una llamada suelta en la conversación
+(docs/LLAMADAS_SALIENTES_PLAN.md, 4).
 
 `vars` es la copia de los datos del contacto que guarda la campaña (nombre, teléfono, atributos...).
 Llegan a la conversación de tres formas:
@@ -7,6 +8,10 @@ Llegan a la conversación de tres formas:
 - Los atributos cuyo nombre coincide con un campo del workflow lo precargan (`state.fields`): el agente no
   los pregunta. Sirve el valor que el tipo del campo acepta; el que no, va con el resto.
 - El resto va al prompt como "Datos del contacto" (`Progress.contact`).
+
+Una llamada suelta (pantalla Llamadas, `POST /calls` con `contact_id` y `context`) usa los mismos `vars` del
+contacto de la agenda, y además el motivo en texto libre (`Progress.context`), que va al prompt como
+"MOTIVO DEL LLAMADO".
 """
 import re
 import unicodedata
@@ -18,6 +23,8 @@ from .workflow import check_updates
 VAR_RE = re.compile(r"\{\{\s*([^{}]+?)\s*\}\}")
 MAX_ENTRIES = 30
 MAX_VALUE_CHARS = 200
+# El motivo de una llamada suelta: el mensaje que el contacto dejo en la web entra entero.
+MAX_CONTEXT_CHARS = 2000
 # Datos que viajan en `vars` pero no son del contacto: los valores posicionales de una plantilla de WhatsApp.
 INTERNAL = ("params",)
 
@@ -89,8 +96,17 @@ def render_contact(contact: dict | None) -> str:
     lines = _lines(contact or {})
     if not lines:
         return ""
-    return ("DATOS DEL CONTACTO (de la campaña que originó la conversación; usalos con naturalidad, sin leerlos "
-            f"como una lista ni inventar otros):\n{lines}")
+    return ("DATOS DEL CONTACTO (de la campaña o la llamada que originó la conversación; usalos con naturalidad, "
+            f"sin leerlos como una lista ni inventar otros):\n{lines}")
+
+
+def render_context(context: str | None) -> str:
+    """El bloque "Motivo del llamado" del prompt (llamada suelta), o vacio si no hay."""
+    if not context or not context.strip():
+        return ""
+    return ("MOTIVO DEL LLAMADO (lo que dejó escrito el contacto, o el equipo, antes de esta llamada: es la razón por "
+            "la que llamás. Usalo para ir al punto y no preguntes lo que ya dice; no lo leas textual ni inventes lo "
+            f"que no dice):\n{context.strip()[:MAX_CONTEXT_CHARS]}")
 
 
 def render_known(state: ConversationState) -> str:
@@ -104,7 +120,9 @@ def render_known(state: ConversationState) -> str:
 
 
 def prompt_block(state: ConversationState | None) -> str:
-    """Lo que la campaña o la llamada le suman al prompt (datos del contacto y campos ya conocidos), o vacio."""
+    """Lo que la campaña o la llamada le suman al prompt (datos del contacto, motivo del llamado y campos ya
+    conocidos), o vacio."""
     if state is None:
         return ""
-    return "\n\n".join(b for b in (render_contact(state.progress.contact), render_known(state)) if b)
+    blocks = (render_contact(state.progress.contact), render_context(state.progress.context), render_known(state))
+    return "\n\n".join(b for b in blocks if b)

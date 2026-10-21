@@ -12,6 +12,7 @@ import {
   IconMessages,
   IconMicrophone,
   IconPhone,
+  IconPhoneOutgoing,
   IconRobot,
   IconSpeakerphone,
   IconStack2,
@@ -32,6 +33,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Inicio', icon: IconHome, roles: ['admin', 'client'] },
   { to: '/calls', label: 'Conversaciones', icon: IconMessages, roles: ['admin', 'client'] },
+  { to: '/outbound', label: 'Llamadas', icon: IconPhoneOutgoing, roles: ['admin', 'client'] },
   { to: '/agents', label: 'Agentes', icon: IconRobot, roles: ['admin', 'client'] },
   { to: '/voices', label: 'Voces', icon: IconMicrophone, roles: ['admin', 'client'] },
   { to: '/models', label: 'Modelos', icon: IconCpu, roles: ['client'] },

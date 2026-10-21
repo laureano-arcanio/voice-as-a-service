@@ -19,17 +19,25 @@ from collections.abc import Callable
 
 import anthropic
 
-from app.conversation.models import AgentTurn, ConversationState, Extraction, Generation, Workflow
+from app.conversation.models import (
+    AgentTurn,
+    ConversationState,
+    Extraction,
+    Generation,
+    Workflow,
+)
 
 from .client import (
     MarkerFilter,
     MessageExtractor,
+    classic_turn,
     clean_json,
     extraction_schema,
     turn_schema,
 )
 from .prompt import (
     END_MARKER,
+    OFF_TOPIC_MARKER,
     build_classic_messages,
     build_extraction_prompt,
     build_user_prompt,
@@ -177,7 +185,7 @@ class AnthropicClient:
 
     async def converse(self, workflow: Workflow, state: ConversationState, user_message: str,
                        on_message: Callable[[str], None] | None = None) -> AgentTurn:
-        marker = MarkerFilter(END_MARKER)
+        marker = MarkerFilter(END_MARKER, OFF_TOPIC_MARKER)
 
         def feed(text: str) -> None:
             if said := marker.feed(text):
@@ -189,8 +197,7 @@ class AnthropicClient:
             marker.feed(content)
         if (said := marker.flush()) and on_message:
             on_message(said)
-        return AgentTurn(assistant_message=marker.text.strip(), status="completed" if marker.found else "active",
-                         raw=content)
+        return classic_turn(marker, raw=content)
 
     async def extract(self, workflow: Workflow, state: ConversationState, only: list[str] | None = None) -> Extraction:
         content = await self._json(

@@ -69,4 +69,18 @@ class CallRow(Base):
     # cliente o sin destinos) o failed. NULL: no corresponde.
     summary_email: Mapped[str | None] = mapped_column(String(16), nullable=True, index=True)
     summary_email_attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # Room de LiveKit (la deja el worker): para cortar la llamada desde la API (services/calls.hang_up).
+    room: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class BlockedNumber(Base):
+    """Telefono que el cliente no atiende: sus entrantes (por linea o llamada de WhatsApp) se cortan
+    sin atender y quedan como rechazadas (blocked_number). No toca las salientes (eso son las bajas)."""
+    __tablename__ = "blocked_numbers"
+    client_id: Mapped[str] = mapped_column(String(36), ForeignKey("clients.id", ondelete="CASCADE"), primary_key=True)
+    phone: Mapped[str] = mapped_column(String(20), primary_key=True)     # E.164, normalizado (services/phones.py)
+    note: Mapped[str] = mapped_column(Text, default="", server_default="")
+    created_by: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)

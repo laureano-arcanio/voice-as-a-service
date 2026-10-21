@@ -141,12 +141,13 @@ tiers 1───* clients 1───* agents 1───* agent_versions
 | `api_keys` | SHA-256 de la clave (`key_hash` único), `prefix` visible, `revoked_at`, `scopes` (`calls`, `llm`, `stt`, `tts`, separados por coma: una key de inferencia no usa la API de llamadas ni al revés). |
 | `api_usage_daily` | Consumo de la API de inferencia por `(client_id, api_key_id, day)` (día en `BILLING_TIMEZONE`): pedidos, tokens de entrada y salida del LLM y segundos de TTS y STT. Se suma con un UPDATE que incrementa. Sin contenido de los pedidos. |
 | `conversations` | Estado del motor (datos, mensajes, progreso), `client_id`, `agent_id` + `agent_version` (RESTRICT: un cliente o agente con historial no se borra). `legacy_workflow_id` para las anteriores a los agentes. |
-| `call_logs` | Una por conversación: modo, estado, teléfono del otro lado, `phone_number_id` del cliente, inicio, fin, duración, latencia. Base del consumo. `campaign_contact_id` ata el intento de una campaña de voz; `sip_status`, el código SIP de una saliente fallida. |
+| `call_logs` | Una por conversación: modo, estado, teléfono del otro lado, `phone_number_id` del cliente, inicio, fin, duración, latencia. Base del consumo. `campaign_contact_id` ata el intento de una campaña de voz; `sip_status`, el código SIP de una saliente fallida. `room`, la room de LiveKit (la deja el worker): con ella `POST /calls/{id}/hangup` corta la llamada (`ended_reason=hangup_by_user`, que `finalize` no pisa). |
 | `conversations.channel` | `voice` o `whatsapp`; se fija al crearla. Cambia el prompt (reglas por canal), no el agente. |
 | `wa_accounts` | Un número de WhatsApp: `phone_number_id` único (ID de Meta), `waba_id`, número visible, `client_id`, `agent_id`, `access_token` (NULL = `WA_ACCESS_TOKEN`; cifrado con `WA_TOKEN_KEY`, prefijo `fernet:`), `pin_enc`, `active`, `status` (`connected`, `pending`, `disconnected`) con motivo, `quality_rating`, `messaging_limit`, `source` (`manual`, `embedded_signup`, `coexistence`), `connected_by`. Sin borrado: se desactiva. |
 | `wa_routes` | Ruteo por contacto de una cuenta (`account_id` + `agent_id` únicos): `contacts` (wa_id como los manda Meta) que atiende ese agente en los mensajes y las llamadas de WhatsApp, en vez del agente por defecto. Un contacto está en una sola regla; el agente es del cliente de la cuenta y no archivado. Se resuelve en `services/wa_routing.py`. |
 | `wa_threads` | Una por conversación de WhatsApp (como `call_logs`): cuenta, `wa_id` tal cual llega (`549…`), nombre del perfil, `last_user_at` (ventana de sesión), `paused` (fase 3). |
 | `contacts` | Agenda del cliente: `phone` (E.164) único por `client_id`, `name`, `email`, `external_id`, `attributes` (JSON libre: las columnas extra del CSV), `tags` (minúsculas ASCII), `source` (`manual`, `csv`, `api`, `campaign`, `inbound`) y `archived_at`. **No se borran, se archivan**; un archivado no se desarchiva solo al recargarlo. `max_contacts` cuenta los activos. |
+| `blocked_numbers` | Teléfonos (E.164) que un cliente no atiende, por `(client_id, phone)`, con `note` y `created_by`: sus entrantes se cortan sin atender. No toca las salientes (eso son las bajas). API `/blocked-numbers`. |
 | `contact_optouts` | Bajas por `(client_id, phone, channel)` con `channel` `whatsapp`, `voice` o `all` y `source` (`keyword`, `outcome`, `manual`). Aparte de `contacts` a propósito: sigue aunque el contacto se archive o no exista. Reemplaza a `wa_optouts`. |
 | `campaigns` | Campaña de un cliente con `channel` `whatsapp` o `voice` (un CHECK exige los campos de cada canal), `status` (`draft`, `scheduled`, `running`, `paused`, `done`, `cancelled`) con motivo, `rate_per_minute`, horario (`window_start`, `window_end`, `weekdays`), programación (`starts_at`, `ends_at`), `started_at`/`finished_at`, `purpose` (`comercial`, `cobranza`, `turnos`, `aviso`) con `no_call_confirmed_at`, y `callback_url` / `callback_secret` (cifrado). WhatsApp: número (`account_id`), copia de la plantilla y `template_param_names`. Voz: `from_number_id`, `voice`, `concurrency` (1 = secuencial), `max_attempts`, `retry_minutes`, `retry_on` y `followup` (JSON, NULL = apagado). Reemplaza a `wa_campaigns`; las existentes conservan su id. |
 | `campaign_contacts` | Un contacto en una campaña (`campaign_id` + `contact_id` únicos): `vars` (copia de sus datos al agregarlo; WhatsApp guarda los parámetros en `vars["params"]`), `status` (`pending`, `in_progress`, `retry`, `done`, `failed`, `skipped`), `result` (WhatsApp: `sent`; voz: `answered`, `no_answer`, `busy`, `voicemail`, `invalid`, `rejected`, `failed`), `error`, `conversation_id`, y según el canal `wamid`/`sent_at`/`replied_at` o `attempts`/`next_attempt_at`/`last_attempt_at` y el seguimiento (`followup_status`, `followup_wamid`, `followup_sent_at`, `followup_error`, `followup_conversation_id`). Entregado y leído salen de `wa_messages`. Reemplaza a `wa_campaign_recipients`. |
@@ -295,8 +296,13 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
 
 1. El router resuelve el `Principal`. `services/calls.prepare_call` corre en un thread, porque la
    base es bloqueante. Valida el agente (visible y no archivado), el teléfono E.164 y la voz, y elige
-   el caller ID (el número pedido o el primero del cliente).
-2. `engine.new_conversation(session=s)` arma el estado con la versión vigente, sin guardarlo.
+   el caller ID (el número pedido o el primero del cliente). Con `contact_id` (pantalla Llamadas), el
+   contacto tiene que ser del cliente del agente y estar activo: sin `phone`, marca el suyo, y sus datos van
+   como los `vars` de una campaña. Un teléfono en las bajas de voz del cliente da 409 (`opted_out`), salvo en
+   campañas, que filtran antes.
+2. `engine.new_conversation(session=s)` arma el estado con la versión vigente, sin guardarlo. `context` (el
+   motivo, hasta 2000 caracteres) queda en `Progress.context` y va al prompt de los tres motores y al de
+   extracción como "MOTIVO DEL LLAMADO" (`conversation/contact.py`); se ve en el detalle y en el resumen por email.
 3. `quota.admit(s, client, mode)` toma el lock del cliente (`SELECT … FOR NO KEY UPDATE OF clients`).
    Verifica que el cliente esté activo, que haya lugar en el tope de simultáneas, que no se hayan
    agotado los topes de llamadas por hora, día y mes (solo entrantes y salientes; cuenta `call_logs`
@@ -365,6 +371,8 @@ El formulario de contacto de la landing (`POST /demo/contact`, misma sesión) gu
 2. El worker espera al participante SIP y lee el número marcado (`sip.trunkPhoneNumber`).
    `calls.start_inbound` lo busca en `phone_numbers`:
    - **libre o sin agente:** se corta (`number_without_agent`);
+   - **el que llama está bloqueado por el cliente** (`blocked_numbers`, por el caller o el `wa.wacid`,
+     normalizados): se corta sin atender y queda `rechazada` (`blocked_number`);
    - **sin lugar o sin minutos:** queda `rechazada` y el que llama escucha `QUOTA_REJECT_MESSAGE`;
    - **si no:** conversación con el agente del número y llamada `entrante`.
    En una llamada de WhatsApp el inbound trunk mapea el header `X-WA-Meta-Wacid` al atributo `wa.wacid`

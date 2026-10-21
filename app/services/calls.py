@@ -20,16 +20,22 @@ from ..models import (
     CallStatus,
     CampaignContact,
     Client,
+    Contact,
     ConversationRow,
     PhoneNumber,
     WaMessage,
     WaThread,
 )
-from . import livekit, quota, voices, wa_routing
+from . import blocked_numbers, livekit, quota, voices, wa_routing
+from .campaigns import contact_vars
+from .contacts import is_opted_out
 from .errors import Conflict, Forbidden, Invalid, NotFound, QuotaExceeded, Upstream
 from .security import Principal
 
 logger = logging.getLogger(__name__)
+
+# ended_reason de una llamada cortada desde la UI o la API (hang_up).
+HANGUP_REASON = "hangup_by_user"
 E164_RE = re.compile(r"\+\d{8,15}")
 
 
@@ -66,6 +72,10 @@ class CallRequest:
     # entrantes. Tope de llamadas activas del link, ademas del tier y del global (CALL_LINK_MAX_CONCURRENT).
     call_link_id: str | None = None
     link_max_concurrent: int | None = None
+    # Llamada suelta desde la pantalla Llamadas: un contacto de la agenda (su telefono y sus datos, como en una
+    # campaña) y el motivo en texto libre, que va al prompt (app/conversation/contact.py).
+    contact_id: str | None = None
+    context: str | None = None
 
 
 @dataclass
@@ -95,7 +105,22 @@ def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
         raise NotFound("Agente inexistente")
     if agent.archived_at is not None:
         raise Conflict("El agente está archivado")
+    vars = req.vars
+    if req.contact_id:
+        contact = s.get(Contact, req.contact_id)
+        if contact is None or contact.client_id != agent.client_id:
+            raise NotFound("Contacto inexistente para el cliente del agente")
+        if contact.archived_at is not None:
+            raise Conflict("El contacto está archivado")
+        if req.campaign_contact_id or req.loadtest or req.call_link_id:
+            raise Invalid("contact_id es solo para llamadas sueltas")
+        vars = contact_vars(contact)
+        req.phone = req.phone or contact.phone
+    elif req.context and vars is None:
+        vars = {}   # sin contacto, la apertura igual se limpia de {{variables}}
     phone = normalize_e164(req.phone) if req.phone else None
+    if phone and not req.campaign_contact_id and is_opted_out(s, agent.client_id, phone, "voice"):
+        raise Conflict("El número pidió no recibir llamadas de este cliente (Contactos, Bajas)", "opted_out")
     if phone and req.loadtest:
         raise Invalid("El loadtest no marca teléfonos")
     if req.campaign_contact_id and not phone:
@@ -114,8 +139,8 @@ def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
             else CallMode.web if req.call_link_id else CallMode.prueba)
     caller_id = _caller_id(s, agent.client_id, req.from_number_id) if phone else None
     try:
-        state, _ = engine.new_conversation(agent.id, client_id=agent.client_id, session=s, contact=req.vars,
-                                           phone=phone)
+        state, _ = engine.new_conversation(agent.id, client_id=agent.client_id, session=s, contact=vars,
+                                           phone=phone, context=req.context)
     except KeyError:
         raise NotFound("Agente inexistente") from None
 
@@ -190,7 +215,8 @@ def start_inbound(s: Session, engine: ConversationEngine, dialed: str | None, ca
     """Rutea la entrante por el numero marcado al agente de ese numero y la admite
     con los limites del cliente. En una llamada de WhatsApp (wa_id del llamante), manda
     la regla de ruteo por contacto de la cuenta, si hay. Si el tier no la deja, queda
-    registrada como rechazada y se levanta QuotaExceeded (el worker avisa y corta)."""
+    registrada como rechazada y se levanta QuotaExceeded (el worker avisa y corta). Si el que
+    llama esta bloqueado por el cliente, igual pero con Forbidden (el worker corta sin atender)."""
     number = s.scalar(select(PhoneNumber).where(PhoneNumber.e164 == dialed_e164(dialed)))
     if number is None or number.client_id is None:
         raise NotFound(f"El número {dialed!r} no tiene cliente o agente asignado", "number_without_agent")
@@ -209,11 +235,13 @@ def start_inbound(s: Session, engine: ConversationEngine, dialed: str | None, ca
     call = CallRow(conversation_id=state.conversation_id, client_id=number.client_id, mode=CallMode.entrante,
                    phone=caller, phone_number_id=number.id)
     try:
+        if blocked_numbers.is_blocked(s, number.client_id, caller, wa_id):
+            raise Forbidden("El número que llama está bloqueado", "blocked_number")
         if number.suspended_at is not None:
             # El plan del cliente bajo y este numero no entra (app/billing/service.py): no atiende.
             raise QuotaExceeded("El número está suspendido: el plan del cliente no lo incluye", "number_suspended")
         quota.admit(s, number.client_id, CallMode.entrante)
-    except QuotaExceeded as e:
+    except (QuotaExceeded, Forbidden) as e:
         s.rollback()
         state.messages = []     # la apertura no llego a sonar
         call.status, call.ended_reason, call.ended_at = CallStatus.rechazada, e.code, utcnow()
@@ -236,6 +264,35 @@ def update_call(s: Session, conversation_id: str, **values) -> None:
     for k, v in values.items():
         setattr(row, k, v)
     s.commit()
+
+
+async def hang_up(s: Session, principal: Principal, conversation_id: str) -> CallRow:
+    """Corta una llamada en curso desde la API: cierra su room de LiveKit y el worker la cierra
+    como cualquier otra, con ended_reason HANGUP_REASON. Si la room ya no existe (llamada
+    colgada), la da por finalizada."""
+    call = s.get(CallRow, conversation_id)
+    if call is None or not principal.can_access(call.client_id):
+        raise NotFound("Llamada inexistente")
+    if call.status not in ACTIVE_CALL_STATUSES:
+        raise Conflict("La llamada no está en curso", "call_not_active")
+    # Antes de cerrar la room: el worker (finalize) respeta un ended_reason ya puesto.
+    call.ended_reason = HANGUP_REASON
+    s.commit()
+    room = call.room or f"call-{conversation_id}"
+    try:
+        found = await livekit.delete_room(room)
+    except Exception as e:
+        logger.exception("no se pudo cortar la llamada %s (room %s)", conversation_id, room)
+        call.ended_reason = ""
+        s.commit()
+        raise Upstream("No se pudo cortar la llamada") from e
+    if not found:
+        logger.warning("llamada %s: la room %s ya no existe, se da por finalizada", conversation_id, room)
+        s.refresh(call)
+        if call.status in ACTIVE_CALL_STATUSES:
+            call.status, call.ended_at = CallStatus.finalizada, utcnow()
+            s.commit()
+    return call
 
 
 def call_remaining_seconds(s: Session, conversation_id: str) -> int | None:

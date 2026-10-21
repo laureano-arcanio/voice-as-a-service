@@ -20,6 +20,20 @@ async def dispatch_call(room_name: str, metadata: dict) -> None:
             agent_name=settings.livekit_agent_name, room=room_name, metadata=json.dumps(metadata)))
 
 
+async def delete_room(room_name: str) -> bool:
+    """Cierra la room: cuelga a todos (la otra punta de la llamada incluida) y el worker termina.
+    False si la room ya no existe."""
+    async with api.LiveKitAPI(url=settings.livekit_url, api_key=settings.livekit_api_key,
+                              api_secret=settings.livekit_api_secret) as lkapi:
+        try:
+            await lkapi.room.delete_room(api.DeleteRoomRequest(room=room_name))
+        except api.TwirpError as e:
+            if e.code == api.TwirpErrorCode.NOT_FOUND:
+                return False
+            raise
+    return True
+
+
 def participant_token(room_name: str, identity: str, name: str, ttl: datetime.timedelta | None = None) -> str:
     token = (
         api.AccessToken(settings.livekit_api_key, settings.livekit_api_secret)

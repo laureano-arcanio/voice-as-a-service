@@ -13,7 +13,7 @@ import {
   Text,
   Title,
 } from '@mantine/core';
-import { IconArrowLeft, IconMessageOff } from '@tabler/icons-react';
+import { IconArrowLeft, IconBan, IconMessageOff, IconPhoneOff } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { ApiError } from '@/api/errors';
@@ -30,9 +30,10 @@ import { confirmAction } from '@/components/confirm';
 import { PageHeader } from '@/components/PageHeader';
 import { ErrorAlert, QueryState } from '@/components/QueryState';
 import { useIsAdmin } from '@/features/auth/api';
+import { useBlockNumber } from '@/features/contacts/api';
 import { formatDateTimeLong, formatDuration, formatValue } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
-import { isCallLive, useCallDetail, useCloseWhatsApp } from './api';
+import { isCallLive, useCallDetail, useCloseWhatsApp, useHangUp } from './api';
 import { ChatView } from './ChatView';
 import { LatencyCard } from './LatencyCard';
 import { useFreshFields } from './useFreshFields';
@@ -58,6 +59,20 @@ function fieldValue(c: CallDetail, name: string): string {
 function FieldBadge({ f }: { f: FieldValue }) {
   if (f.value != null) return <Badge color="green">Obtenido</Badge>;
   return <Badge color={f.required ? 'yellow' : 'gray'}>{f.required ? 'Pendiente' : 'Opcional'}</Badge>;
+}
+
+/** Llamada desde la pantalla Llamadas: el motivo con que llamó el agente. */
+function ContextCard({ context }: { context: string }) {
+  return (
+    <Card>
+      <Title order={4} mb="xs">
+        Motivo del llamado
+      </Title>
+      <Text size="sm" style={{ whiteSpace: 'pre-line' }}>
+        {context}
+      </Text>
+    </Card>
+  );
 }
 
 function FieldsCard({ c }: { c: CallDetail }) {
@@ -256,6 +271,81 @@ function CloseWhatsAppButton({ c }: { c: CallDetail }) {
   );
 }
 
+/** Corta la llamada en curso: la otra punta queda colgada y la llamada termina como "hangup_by_user". */
+function HangUpButton({ c }: { c: CallDetail }) {
+  const hangUp = useHangUp(c.id);
+  const run = async () => {
+    const ok = await confirmAction({
+      title: 'Cortar llamada',
+      message: `¿Cortar la llamada${c.call?.phone ? ` con ${c.call.phone}` : ''}? Se cuelga en el momento.`,
+      confirmLabel: 'Cortar',
+      danger: true,
+    });
+    if (!ok) return;
+    hangUp.mutate(undefined, {
+      onSuccess: () => notifySuccess('Llamada cortada.'),
+      onError: (e) => notifyError(e, 'No se pudo cortar la llamada'),
+    });
+  };
+  return (
+    <Button
+      color="red"
+      leftSection={<IconPhoneOff size={18} />}
+      onClick={() => void run()}
+      loading={hangUp.isPending}
+    >
+      Cortar llamada
+    </Button>
+  );
+}
+
+/** Bloquea el numero que llamo: sus proximas llamadas entrantes se cortan sin atender. */
+function BlockCallerButton({ c }: { c: CallDetail }) {
+  const block = useBlockNumber();
+  const phone = c.call?.phone ?? '';
+  const run = async () => {
+    const ok = await confirmAction({
+      title: `Bloquear ${phone}`,
+      message:
+        'Sus próximas llamadas a los números de este cliente se cortan sin atender. Se desbloquea en Contactos, Números bloqueados.',
+      confirmLabel: 'Bloquear',
+      danger: true,
+    });
+    if (!ok) return;
+    block.mutate(
+      { phone, note: `Desde la conversación ${c.id.slice(0, 8)}`, clientId: c.client_id ?? undefined },
+      {
+        onSuccess: (b) => notifySuccess(`${b.phone} bloqueado.`),
+        onError: (e) => notifyError(e, 'No se pudo bloquear'),
+      },
+    );
+  };
+  return (
+    <Button
+      variant="default"
+      leftSection={<IconBan size={18} />}
+      onClick={() => void run()}
+      loading={block.isPending}
+    >
+      Bloquear número
+    </Button>
+  );
+}
+
+function DetailActions({ c, live }: { c: CallDetail; live: boolean }) {
+  const canHangUp = !!c.call && live;
+  const canBlock = c.call?.mode === 'entrante' && !!c.call.phone;
+  const canClose = !!c.whatsapp && !c.whatsapp.closed_at;
+  if (!canHangUp && !canBlock && !canClose) return null;
+  return (
+    <Group gap="sm">
+      {canBlock && <BlockCallerButton c={c} />}
+      {canHangUp && <HangUpButton c={c} />}
+      {canClose && <CloseWhatsAppButton c={c} />}
+    </Group>
+  );
+}
+
 export function CallDetailPage() {
   const { id } = useParams();
   const query = useCallDetail(id);
@@ -296,11 +386,7 @@ export function CallDetailPage() {
             {query.data?.whatsapp?.closed_at && <Badge color="gray">Cerrada</Badge>}
           </Group>
         }
-        actions={
-          query.data?.whatsapp && !query.data.whatsapp.closed_at ? (
-            <CloseWhatsAppButton c={query.data} />
-          ) : undefined
-        }
+        actions={query.data ? <DetailActions c={query.data} live={live} /> : undefined}
       />
       <QueryState query={query}>
         {(c) => (
@@ -308,7 +394,10 @@ export function CallDetailPage() {
             <CallHeader c={c} />
             <Grid gutter="md">
               <Grid.Col span={{ base: 12, lg: 5 }}>
-                <FieldsCard c={c} />
+                <Stack gap="md">
+                  {c.context && <ContextCard context={c.context} />}
+                  <FieldsCard c={c} />
+                </Stack>
               </Grid.Col>
               <Grid.Col span={{ base: 12, lg: 7 }}>
                 <ChatCard c={c} live={live} />

@@ -3,7 +3,7 @@ import re
 
 import yaml
 
-from app.conversation.contact import prompt_block, render_contact
+from app.conversation.contact import prompt_block, render_contact, render_context
 from app.conversation.models import ConversationState, Message, Workflow
 from app.conversation.workflow import is_required, pending_fields
 
@@ -175,8 +175,9 @@ def build_user_prompt(workflow: Workflow, state: ConversationState, user_message
     header = "NEW USER MESSAGE (nota de voz transcripta):" if media and media.user_voice_note else "NEW USER MESSAGE:"
     # La conversacion va antes del estado: crece al final y el resto no cambia,
     # asi vLLM reusa el prefijo (prefix caching) del turno anterior.
-    # Llamada de una campaña: los datos del contacto, fijos en toda la conversacion, van antes de ella.
-    contact = f"{render_contact(state.progress.contact)}\n\n" if state.progress.contact else ""
+    # Llamada de una campaña o suelta: los datos del contacto y el motivo, fijos en toda la conversacion, van antes.
+    fixed = [b for b in (render_contact(state.progress.contact), render_context(state.progress.context)) if b]
+    contact = "".join(f"{b}\n\n" for b in fixed)
     return (
         f"WORKFLOW:\n{render_workflow(workflow)}\n"
         f"{contact}"
@@ -199,10 +200,14 @@ def build_extraction_prompt(workflow: Workflow, state: ConversationState, only: 
     focus = f"Devolvé solo el campo {', '.join(only)}: el agente lo preguntó y el usuario lo respondió.\n\n" if only else ""
     known = {k: v for k, v in state.fields.items() if v is not None and (only is None or k in only)}
     objective = "OBJETIVO" if state.channel == "whatsapp" else "OBJETIVO DE LA LLAMADA"
+    # Llamada suelta: lo que el contacto escribio antes tambien es un dato (el modelo, el pedido).
+    motive = (f"MOTIVO DEL LLAMADO (escrito antes de la llamada; vale como dato si la conversación no lo "
+              f"contradice):\n{state.progress.context}\n\n" if state.progress.context else "")
     return (
         f"AGENTE: {workflow.agent.name}, {workflow.agent.role}.\n"
         f"{objective}: {workflow.objective.description.strip()}\n\n"
         f"CAMPOS:\n{render_fields(workflow, only)}\n"
+        f"{motive}"
         f"CONVERSATION:\n{render_conversation(state)}\n\n"
         f"KNOWN FIELDS:\n{json.dumps(known, ensure_ascii=False)}\n\n"
         f"{focus}Devolvé el valor de cada campo según la conversación."
@@ -214,6 +219,9 @@ def build_extraction_prompt(workflow: Workflow, state: ConversationState, only: 
 # Marca de fin: el modelo la agrega al despedirse y no se dice (el texto va
 # directo al TTS, sin JSON donde poner un status).
 END_MARKER = "[FIN]"
+# Igual, pero corta una conversacion que no tiene que ver con el objetivo (broma, burla, acoso, numero
+# equivocado): en la llamada 07381a4d el agente siguio 4 minutos con alguien que decia ser "un choro".
+OFF_TOPIC_MARKER = "[CORTAR]"
 
 
 def describe_condition(when: dict) -> str:
@@ -255,6 +263,8 @@ def build_classic_system(workflow: Workflow, channel: str = "voice", state: Conv
                         for n, spec in workflow.fields.items())
     phone_close = ("\nAntes de despedirte, si todavía no tenés el teléfono de quien llama, pedilo: sin eso nadie "
                    "lo puede volver a contactar." if missing_phone else "")
+    line, talk, garble = (("este chat", "la conversación", "de tipeo o de la transcripción de un audio") if whatsapp
+                          else ("esta línea", "la llamada", "del reconocimiento de voz"))
     return f"""Sos {workflow.agent.name}, {workflow.agent.role}. {where}; idioma: {workflow.agent.language}.
 
 OBJETIVO:
@@ -274,7 +284,10 @@ BASE DE CONOCIMIENTO:
 CIERRE:
 La conversación termina cuando obtuviste los datos obligatorios o cuando el usuario no quiere seguir.{phone_close} En ese turno despedite usando como guía el mensaje que corresponda:
 {chr(10).join(outcomes)}
-Al final de ese último mensaje, y solo en ese, escribí {END_MARKER}.{extra}
+Al final de ese último mensaje, y solo en ese, escribí {END_MARKER}. Si ya te despediste y el usuario solo responde el saludo o no trae nada nuevo, despedite en una frase corta y volvé a escribir {END_MARKER}.
+
+FUERA DE TEMA:
+Si {talk} no tiene nada que ver con el objetivo (una broma, alguien que se burla, insulta o acosa, un número equivocado, o alguien que después de dos intentos sigue sin hablar del tema), no insistas con los datos: despedite en una sola frase amable que diga para qué es {line} y al final escribí {OFF_TOPIC_MARKER} en vez de {END_MARKER}. Un mensaje que no se entiende o no tiene sentido no es fuera de tema (puede ser un error {garble}): pedí que lo repita. Si puede ser un interesado real, seguí la conversación.{extra}
 
 {reply}"""
 

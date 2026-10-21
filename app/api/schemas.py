@@ -821,6 +821,11 @@ class CallIn(BaseModel):
     from_number_id: str | None = Field(default=None, description="Numero del cliente para el caller ID")
     voice: str | None = None
     loadtest: bool = False
+    contact_id: str | None = Field(default=None, description="Contacto de la agenda: sin `phone`, marca el suyo, y "
+                                                              "sus datos van a la conversacion como en una campaña")
+    context: str | None = Field(default=None, max_length=2000,
+                                description="Motivo del llamado en texto libre (lo que el contacto dejo en la web): "
+                                            "el agente llama con ese contexto")
 
 
 class CallStartedOut(BaseModel):
@@ -828,6 +833,11 @@ class CallStartedOut(BaseModel):
     room: str
     mode: str
     join_url: str | None = None
+
+
+class CallHangupOut(BaseModel):
+    status: str
+    ended_reason: str
 
 
 class CallSummary(BaseModel):
@@ -941,6 +951,8 @@ class CallDetail(BaseModel):
     fields: list[FieldValue]
     outcome: OutcomeOut | None
     messages: list[MessageOut]
+    # Llamada suelta (pantalla Llamadas): el motivo con que se llamo.
+    context: str | None = None
     # Numero de cada WAV grabado (agent.record_audio), uno por mensaje, si los hay.
     recordings: list[int] = []
     call: CallInfo | None
@@ -1606,6 +1618,18 @@ class ContactOptoutOut(BaseModel):
     phone: str
     channel: OptoutChannel
     source: Literal["keyword", "outcome", "manual"]
+    created_at: UTCDateTime
+
+
+class BlockedNumberIn(BaseModel):
+    phone: str = Field(min_length=3, max_length=32)
+    note: str = Field(default="", max_length=500, description="Por qué se bloqueó (para el equipo)")
+
+
+class BlockedNumberOut(BaseModel):
+    client_id: str
+    phone: str
+    note: str
     created_at: UTCDateTime
 
 
