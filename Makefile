@@ -180,6 +180,28 @@ create-admin: ## Crea un admin o le cambia la clave (la pide). Ej: make create-a
 api-key: ## API key de un cliente (se muestra una vez). Ej: make api-key CLIENT=atentina NAME=loadtest
 	$(COMPOSE) run --rm --no-deps app python -m app.cli create-api-key $(CLIENT) $(NAME)
 
+crm-db: ## Crea la base `crm` en db si no existe (CRM de ventas, docs/CRM_PLAN.md)
+	@$(COMPOSE) exec -T db sh -c 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -tAc "select 1 from pg_database where datname = '"'"'crm'"'"'" | grep -q 1 || createdb -U "$$POSTGRES_USER" crm && echo "base crm lista"'
+
+crm-migrate: crm-db ## Migraciones del CRM (alembic de crm/)
+	mkdir -p secrets
+	$(COMPOSE) run --rm --build --no-deps crm python -m alembic -c crm/alembic.ini upgrade head
+
+crm-up: crm-migrate ## Levanta el CRM en http://127.0.0.1:8030 (no toca app ni agent)
+	$(COMPOSE) up -d --build --no-deps --wait crm
+
+crm-key: ## Muestra la key para entrar a la UI del CRM (copiar la linea entera)
+	@grep -m1 '^CRM_API_KEY=' .env | cut -d= -f2-
+
+crm-logs: ## Logs del CRM
+	$(COMPOSE) logs -f --tail=100 crm
+
+crm-psql: ## psql contra la base del CRM
+	$(COMPOSE) exec db sh -c 'psql -U "$$POSTGRES_USER" crm'
+
+seguimientos-enviar: ## Manda una tanda de mails por Resend, 1 cada ~2 min (en seco sin ENVIAR=1). Ej: make seguimientos-enviar TANDA=docs/mercado/envios/2026-10-21-seguimientos-pendientes.md N=50 ENVIAR=1
+	python3 scripts/mercado/enviar_seguimientos.py $(TANDA) --cantidad $(or $(N),50) $(if $(ENVIAR),--enviar)
+
 wa-send: ## Texto por WhatsApp con la Graph API. Ej: make wa-send TO=54351... TEXT="hola" [PHONE_NUMBER_ID=...]
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts app python -m scripts.wa $(if $(PHONE_NUMBER_ID),--phone-number-id $(PHONE_NUMBER_ID)) send-text --to "$(TO)" --text "$(TEXT)"
 
@@ -241,7 +263,7 @@ openapi: ## Regenera web/openapi.json y los tipos de la UI (web/src/api/schema.d
 # --- Tests ---------------------------------------------------------------
 
 test: ## Tests del motor conversacional (los que usan el LLM se saltean si vllm-llm no responde)
-	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/tests:/app/tests -v $(CURDIR)/pytest.ini:/app/pytest.ini -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app:/app/app -v $(CURDIR)/migrations:/app/migrations -v $(CURDIR)/alembic.ini:/app/alembic.ini app pytest -q $(ARGS)
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/tests:/app/tests -v $(CURDIR)/pytest.ini:/app/pytest.ini -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app:/app/app -v $(CURDIR)/crm:/app/crm -v $(CURDIR)/migrations:/app/migrations -v $(CURDIR)/alembic.ini:/app/alembic.ini app pytest -q $(ARGS)
 
 eval-motor: ## Escenarios de llamada contra el motor y el LLM real (scripts/replay_calls.py). Ej: make eval-motor N=3 S=si-pero
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts app python -m scripts.replay_calls $(or $(N),1) $(S)

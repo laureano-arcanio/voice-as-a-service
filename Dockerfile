@@ -36,6 +36,8 @@ RUN groupadd -g "${GID}" appuser \
 COPY alembic.ini ./
 COPY migrations/ ./migrations/
 COPY app/ ./app/
+# CRM de ventas (servicio crm, docs/CRM_PLAN.md).
+COPY crm/ ./crm/
 # Catalogo de voces del TTS con sus metricas (app/services/voices.py).
 COPY tts/finetune/voces.tsv ./tts/finetune/voces.tsv
 COPY --from=web /web/dist ./web/dist

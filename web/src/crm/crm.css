@@ -1,0 +1,28 @@
+/* CRM: lo poco que no resuelven el tema ni styles.css. */
+
+/* Cuerpo de un mail: bloque interno (12 px, borde, superficie 2), texto tal cual. */
+.crm-mail {
+  background: var(--app-surface-2);
+  border: 1px solid var(--app-line);
+  border-radius: var(--mantine-radius-lg);
+  padding: 10px 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Linea de tiempo: punto + linea vertical a la izquierda de cada item. */
+.crm-timeline-item {
+  border-left: 2px solid var(--app-line);
+  padding-left: 14px;
+  position: relative;
+}
+.crm-timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dot, var(--mantine-color-gray-5));
+}

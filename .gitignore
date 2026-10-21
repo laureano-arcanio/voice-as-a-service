@@ -27,3 +27,5 @@ tts/finetune/work/
 
 # certificado TLS de las llamadas de WhatsApp (make sip-cert)
 asterisk/letsencrypt/
+# Credenciales locales (GA del CRM): no se versionan
+secrets/

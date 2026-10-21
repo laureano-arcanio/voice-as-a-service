@@ -27,6 +27,13 @@ db_file="$DEST/db/db-$STAMP.sql.gz"
 docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner' | gzip > "$db_file"
 [[ $(zcat "$db_file" | head -c 1000 | wc -c) -gt 100 ]] || { echo "backup de la base vacío" >&2; exit 1; }
 
+# Base del CRM de ventas (docs/CRM_PLAN.md), si existe.
+crm_file=""
+if docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "select 1 from pg_database where datname = '"'"'crm'"'"'"' | grep -q 1; then
+    crm_file="$DEST/db/crm-$STAMP.sql.gz"
+    docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d crm --no-owner' | gzip > "$crm_file"
+fi
+
 # .env: tiene los secretos (WA_TOKEN_KEY: sin ella no se leen los tokens de los clientes).
 env_file="$DEST/env/env-$STAMP"
 cp "${OPS_ENV_FILE:-.env}" "$env_file"
@@ -62,6 +69,7 @@ if [[ -n "$(env_get BACKUP_S3_BUCKET)" ]]; then
     tmp="$(mktemp -d "$DEST/.subida-XXXX")"; trap 'rm -rf "$tmp"' EXIT
     enc() { backup_gpg --trust-model always -e -r "$fpr" -o "$tmp/$2" "$1"; }
     enc "$db_file" db.sql.gz.gpg
+    [[ -n "$crm_file" ]] && enc "$crm_file" crm.sql.gz.gpg
     enc "$env_file" env.gpg
     enc "$storage_file" storage.tar.gz.gpg
     [[ -n "$le_file" ]] && enc "$le_file" letsencrypt.tar.gz.gpg

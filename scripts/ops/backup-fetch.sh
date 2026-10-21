@@ -39,6 +39,7 @@ fi
 cat <<EOF
 Listo. Restaurar (docs/MIGRACION_SERVER.md, 4):
   base:        zcat $dir/db.sql.gz | docker compose exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -U "\$POSTGRES_USER" -d "\$POSTGRES_DB"'
+  crm:         make crm-db && zcat $dir/crm.sql.gz | docker compose exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -U "\$POSTGRES_USER" -d crm'
   .env:        diff enmascarado contra $dir/env antes de copiarlo
   storage/:    tar -xzf $dir/storage.tar.gz
   certificado: sudo tar -xzf $dir/letsencrypt.tar.gz -C asterisk

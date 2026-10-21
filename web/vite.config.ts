@@ -18,11 +18,13 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       emptyOutDir: true,
       chunkSizeWarningLimit: 1500,
-      // Dos paginas: el panel (index.html) y la del link para llamar (llamar.html, sin React).
+      // Tres paginas: el panel (index.html), la del link para llamar (llamar.html, sin React) y el
+      // CRM de ventas (crm.html, lo sirve el servicio crm; docs/CRM_PLAN.md).
       rollupOptions: {
         input: {
           main: fileURLToPath(new URL('./index.html', import.meta.url)),
           llamar: fileURLToPath(new URL('./llamar.html', import.meta.url)),
+          crm: fileURLToPath(new URL('./crm.html', import.meta.url)),
         },
       },
     },

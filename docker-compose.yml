@@ -75,6 +75,36 @@ services:
       # internet; app les habla por http://app-<slug>:8000. La crea `make apps-network`.
       - apps
 
+  crm:
+    # CRM de ventas (docs/CRM_PLAN.md): API y UI locales, solo en 127.0.0.1. Base `crm` en el
+    # mismo db (make crm-db), con migraciones propias (crm/migrations, make crm-migrate).
+    # Manda mails por Resend con una cola lenta (crm/services/sending.py).
+    build:
+      context: .
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      CRM_DB_DSN: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/crm
+    command: ["uvicorn", "crm.main:app", "--host", "0.0.0.0", "--port", "8030", "--no-server-header"]
+    ports:
+      - "127.0.0.1:8030:8030"
+    volumes:
+      # Credenciales de Google Analytics (CRM_GA_CREDENTIALS=/app/secrets/ga.json). No versionado.
+      - ./secrets:/app/secrets:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8030/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      start_period: 15s
+      retries: 5
+
   agent:
     build:
       context: .
