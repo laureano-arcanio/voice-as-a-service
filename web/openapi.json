@@ -9691,6 +9691,221 @@
      }
     }
    }
+  },
+  "/api/v1/api-requests": {
+   "get": {
+    "tags": [
+     "inference"
+    ],
+    "summary": "List Api Requests",
+    "description": "Pedidos a la API de inferencia (LLM, STT, TTS) del mas nuevo al mas viejo, con los totales del\nfiltro. Sin contenido: la plataforma no guarda prompts, audios ni textos.",
+    "operationId": "list_api_requests_api_v1_api_requests_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     },
+     {
+      "name": "api_key_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Api Key Id"
+      }
+     },
+     {
+      "name": "kind",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "array",
+         "items": {
+          "enum": [
+           "llm",
+           "stt",
+           "tts"
+          ],
+          "type": "string"
+         }
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Uno o varios",
+       "title": "Kind"
+      },
+      "description": "Uno o varios"
+     },
+     {
+      "name": "status",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "array",
+         "items": {
+          "enum": [
+           "ok",
+           "cut",
+           "error",
+           "rejected"
+          ],
+          "type": "string"
+         }
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Uno o varios",
+       "title": "Status"
+      },
+      "description": "Uno o varios"
+     },
+     {
+      "name": "stream",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "boolean"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Stream"
+      }
+     },
+     {
+      "name": "date_from",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Date From"
+      }
+     },
+     {
+      "name": "date_to",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Date To"
+      }
+     },
+     {
+      "name": "tz",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Zona IANA de las fechas; default BILLING_TIMEZONE",
+       "title": "Tz"
+      },
+      "description": "Zona IANA de las fechas; default BILLING_TIMEZONE"
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 500,
+       "minimum": 1,
+       "default": 50,
+       "title": "Limit"
+      }
+     },
+     {
+      "name": "offset",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "minimum": 0,
+       "default": 0,
+       "title": "Offset"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ApiRequestPage"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
   }
  },
  "components": {
@@ -10257,6 +10472,297 @@
      "revoked_at"
     ],
     "title": "ApiKeyOut"
+   },
+   "ApiRequestOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "client_id": {
+      "type": "string",
+      "title": "Client Id"
+     },
+     "client_name": {
+      "type": "string",
+      "title": "Client Name"
+     },
+     "api_key_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Api Key Id"
+     },
+     "api_key_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Api Key Name",
+      "description": "None si la key se borró"
+     },
+     "api_key_prefix": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Api Key Prefix"
+     },
+     "kind": {
+      "type": "string",
+      "enum": [
+       "llm",
+       "stt",
+       "tts"
+      ],
+      "title": "Kind"
+     },
+     "stream": {
+      "type": "boolean",
+      "title": "Stream"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "ok",
+       "cut",
+       "error",
+       "rejected"
+      ],
+      "title": "Status",
+      "description": "ok; cut: stream cortado (se cobra lo entregado); error: del motor o del pedido; rejected: cupo del mes agotado o motor fuera del plan"
+     },
+     "http_status": {
+      "type": "integer",
+      "title": "Http Status"
+     },
+     "error_code": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error Code"
+     },
+     "duration_ms": {
+      "type": "integer",
+      "title": "Duration Ms",
+      "description": "Hasta el último byte (en un stream, hasta que terminó o se cortó)"
+     },
+     "ttfb_ms": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ttfb Ms",
+      "description": "Hasta el primer byte o token (stream y TTS)"
+     },
+     "input_tokens": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Input Tokens"
+     },
+     "output_tokens": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Output Tokens"
+     },
+     "audio_seconds": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Audio Seconds",
+      "description": "Transcripto (STT) o sintetizado (TTS)"
+     },
+     "characters": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Characters",
+      "description": "Largo del texto del TTS"
+     },
+     "voice": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Voice"
+     },
+     "response_format": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Response Format"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "created_at",
+     "client_id",
+     "client_name",
+     "api_key_id",
+     "api_key_name",
+     "api_key_prefix",
+     "kind",
+     "stream",
+     "status",
+     "http_status",
+     "error_code",
+     "duration_ms",
+     "ttfb_ms",
+     "input_tokens",
+     "output_tokens",
+     "audio_seconds",
+     "characters",
+     "voice",
+     "response_format"
+    ],
+    "title": "ApiRequestOut"
+   },
+   "ApiRequestPage": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/ApiRequestOut"
+      },
+      "type": "array",
+      "title": "Items"
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     },
+     "summary": {
+      "$ref": "#/components/schemas/ApiRequestsSummaryOut",
+      "description": "Totales de todo el filtro, no solo de la página"
+     }
+    },
+    "type": "object",
+    "required": [
+     "items",
+     "total",
+     "summary"
+    ],
+    "title": "ApiRequestPage"
+   },
+   "ApiRequestsSummaryOut": {
+    "properties": {
+     "requests": {
+      "type": "integer",
+      "title": "Requests"
+     },
+     "by_status": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "By Status"
+     },
+     "by_kind": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "By Kind"
+     },
+     "input_tokens": {
+      "type": "integer",
+      "title": "Input Tokens"
+     },
+     "output_tokens": {
+      "type": "integer",
+      "title": "Output Tokens"
+     },
+     "stt_seconds": {
+      "type": "number",
+      "title": "Stt Seconds"
+     },
+     "tts_seconds": {
+      "type": "number",
+      "title": "Tts Seconds"
+     },
+     "avg_duration_ms": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Avg Duration Ms",
+      "description": "De los pedidos ok"
+     }
+    },
+    "type": "object",
+    "required": [
+     "requests",
+     "by_status",
+     "by_kind",
+     "input_tokens",
+     "output_tokens",
+     "stt_seconds",
+     "tts_seconds",
+     "avg_duration_ms"
+    ],
+    "title": "ApiRequestsSummaryOut"
    },
    "AppJobOut": {
     "properties": {

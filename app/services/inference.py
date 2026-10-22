@@ -8,12 +8,16 @@ del TTS. Los agentes integrados (llamadas, WhatsApp) no pasan por aca.
 
 Cada pedido usa su propio cliente HTTP y su propia sesion de base (el consumo se registra al
 terminar, tambien en un stream que el cliente corta); en los tests se inyecta un transporte falso.
+Ademas del agregado diario, cada pedido queda en `api_requests` (services/api_requests.py) con su
+estado, duracion y consumo, tambien los que fallan.
 """
 import base64
 import json
 import logging
 import struct
+import time
 from collections.abc import AsyncIterator
+from dataclasses import dataclass, field
 from functools import cache
 
 import anyio
@@ -23,7 +27,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from ..config import settings
 from ..db import get_sessionmaker
-from . import api_usage, tts, voices
+from . import api_requests, api_usage, tts, voices
 from .errors import Invalid, ServiceError, Upstream
 
 logger = logging.getLogger(__name__)
@@ -77,6 +81,39 @@ def _positive_int(value, name: str) -> int | None:
     return value
 
 
+@dataclass
+class Trace:
+    """Lo que se anota de un pedido en api_requests, ademas del consumo."""
+    kind: str
+    stream: bool = False
+    voice: str | None = None
+    response_format: str | None = None
+    characters: int | None = None
+    started: float = field(default_factory=time.monotonic)
+    first_byte: float | None = None
+
+    def mark(self) -> None:
+        if self.first_byte is None:
+            self.first_byte = time.monotonic()
+
+    def fields(self) -> dict:
+        now = time.monotonic()
+        return {"stream": self.stream, "voice": self.voice, "response_format": self.response_format,
+                "characters": self.characters, "duration_ms": int((now - self.started) * 1000),
+                "ttfb_ms": None if self.first_byte is None else int((self.first_byte - self.started) * 1000)}
+
+
+class _Internal(ServiceError):
+    """Solo para anotar un error inesperado (500) en api_requests."""
+    status_code = 500
+    default_code = "internal_error"
+
+
+# Consumo del agregado diario -> columnas de api_requests.
+_LOG_FIELDS = {"llm_input_tokens": "input_tokens", "llm_output_tokens": "output_tokens",
+               "stt_seconds": "audio_seconds", "tts_seconds": "audio_seconds"}
+
+
 class InferenceGateway:
     def __init__(self, sessions: sessionmaker[Session], transport: httpx.AsyncBaseTransport | None = None):
         self.sessions = sessions
@@ -92,17 +129,36 @@ class InferenceGateway:
     def _headers() -> dict[str, str]:
         return {"Authorization": f"Bearer {settings.vllm_api_key}"}
 
-    def _record_sync(self, access, **deltas) -> None:
+    def _record_sync(self, access, trace: Trace, status: str, error: ServiceError | None, deltas: dict) -> None:
         with self.sessions() as s:
-            api_usage.record(s, access.client.id, access.key.id, **deltas)
+            if deltas:
+                api_usage.record(s, access.client.id, access.key.id, **deltas)
+            usage = {col: deltas[k] for k, col in _LOG_FIELDS.items() if k in deltas}
+            if usage.get("audio_seconds") is not None:
+                usage["audio_seconds"] = round(usage["audio_seconds"], 3)
+            api_requests.log(s, access.client.id, access.key.id, trace.kind, status, **trace.fields(), **usage,
+                             http_status=error.status_code if error else 200,
+                             error_code=error.code if error else None)
 
-    async def _record(self, access, **deltas) -> None:
+    async def _record(self, access, trace: Trace, status: str = "ok", error: ServiceError | None = None,
+                      **deltas) -> None:
         # Blindado: en un stream que el cliente corta, la tarea se cancela y el consumo igual se anota.
         with anyio.CancelScope(shield=True):
             try:
-                await anyio.to_thread.run_sync(lambda: self._record_sync(access, **deltas))
+                await anyio.to_thread.run_sync(lambda: self._record_sync(access, trace, status, error, deltas))
             except Exception:
                 logger.exception("no se pudo registrar el consumo de la API de %s", access.client.slug)
+
+    async def _traced(self, access, trace: Trace, call):
+        """Corre el pedido y, si falla antes de responder, lo anota como error (sin consumo)."""
+        try:
+            return await call
+        except ServiceError as e:
+            await self._record(access, trace, "error", e)
+            raise
+        except Exception:
+            await self._record(access, trace, "error", _Internal("error interno"))
+            raise
 
     # ---------- LLM ----------
 
@@ -132,6 +188,10 @@ class InferenceGateway:
         return chars // CHARS_PER_TOKEN + 1
 
     async def chat(self, access, body: dict):
+        trace = Trace("llm", stream=bool(body.get("stream")))
+        return await self._traced(access, trace, self._chat(access, body, trace))
+
+    async def _chat(self, access, body: dict, trace: Trace):
         upstream = self._chat_request(body, access)
         url = f"{settings.vllm_llm_base_url}/chat/completions"
         http = self._http()
@@ -144,7 +204,7 @@ class InferenceGateway:
                 data = r.json()
                 usage = data.get("usage") or {}
                 await self._record(
-                    access, llm_requests=1,
+                    access, trace, llm_requests=1,
                     llm_input_tokens=int(usage.get("prompt_tokens") or self._prompt_estimate(upstream["messages"])),
                     llm_output_tokens=int(usage.get("completion_tokens") or 0))
                 return JSONResponse(data)
@@ -161,18 +221,21 @@ class InferenceGateway:
             await response.aclose()
             await http.aclose()
             raise _upstream_error("LLM", response.status_code, text)
-        return StreamingResponse(self._chat_stream(access, upstream, http, response), media_type="text/event-stream",
+        return StreamingResponse(self._chat_stream(access, trace, upstream, http, response),
+                                 media_type="text/event-stream",
                                  headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
-    async def _chat_stream(self, access, upstream: dict, http: httpx.AsyncClient,
+    async def _chat_stream(self, access, trace: Trace, upstream: dict, http: httpx.AsyncClient,
                            response: httpx.Response) -> AsyncIterator[bytes]:
         """Reenvia el SSE tal cual y lee el chunk final con `usage`. Si el stream se corta antes,
         estima: los tokens de salida como los chunks con contenido y los de entrada por caracteres."""
         usage: dict | None = None
         chunks = 0
         tail = b""
+        completed = False
         try:
             async for data in response.aiter_bytes():
+                trace.mark()
                 # Se cuenta antes de entregar: si el cliente corta justo despues de este pedazo, ya cuenta.
                 lines = (tail + data).split(b"\n")
                 tail = lines.pop()
@@ -188,6 +251,7 @@ class InferenceGateway:
                     elif b'"content"' in line:
                         chunks += 1
                 yield data
+            completed = True
         except httpx.HTTPError as e:
             logger.warning("inferencia LLM: stream cortado: %s", type(e).__name__)
         finally:
@@ -195,7 +259,7 @@ class InferenceGateway:
             await http.aclose()
             usage = usage or {}
             await self._record(
-                access, llm_requests=1,
+                access, trace, "ok" if completed else "cut", llm_requests=1,
                 llm_input_tokens=int(usage.get("prompt_tokens") or self._prompt_estimate(upstream["messages"])),
                 llm_output_tokens=int(usage.get("completion_tokens") or chunks))
 
@@ -203,6 +267,15 @@ class InferenceGateway:
 
     async def transcribe(self, access, audio: bytes, filename: str | None, content_type: str | None,
                          language: str | None, response_format: str):
+        trace = Trace("stt", response_format=response_format[:16])
+        return await self._traced(access, trace, self._transcribe(audio, filename, content_type, language,
+                                                                  response_format, access, trace))
+
+    async def _transcribe(self, audio: bytes, filename: str | None, content_type: str | None,
+                          language: str | None, response_format: str, access, trace: Trace):
+        limit = settings.inference_stt_max_bytes
+        if len(audio) > limit:
+            raise ServiceError(f"El audio supera los {limit // (1024 * 1024)} MB", "payload_too_large")
         if response_format not in STT_FORMATS:
             raise Invalid(f"response_format no soportado: {response_format} (usá {', '.join(STT_FORMATS)})",
                           "invalid_request")
@@ -222,7 +295,7 @@ class InferenceGateway:
             raise _upstream_error("STT", r.status_code, r.text)
         result = r.json()
         seconds = float(result.get("duration") or 0)
-        await self._record(access, stt_requests=1, stt_seconds=seconds)
+        await self._record(access, trace, stt_requests=1, stt_seconds=seconds)
         text = result.get("text", "")
         if response_format == "text":
             return PlainTextResponse(text)
@@ -235,6 +308,14 @@ class InferenceGateway:
     async def speech(self, access, voice: str, text: str, response_format: str | None, stream_format: str = "audio"):
         """response_format: `wav` (archivo completo, con encabezado correcto) o `pcm` (24 kHz, mono, 16 bits, a
         medida que se sintetiza). stream_format: `audio` (los bytes) o `sse` (eventos de OpenAI, solo con pcm)."""
+        trace = Trace("tts", stream=(response_format or ("pcm" if stream_format == "sse" else "wav")) == "pcm",
+                      voice=voice.strip().lower()[:64], response_format=(response_format or "")[:16] or None,
+                      characters=len(text.strip()))
+        return await self._traced(access, trace, self._speech(access, voice, text, response_format, stream_format,
+                                                              trace))
+
+    async def _speech(self, access, voice: str, text: str, response_format: str | None, stream_format: str,
+                      trace: Trace):
         voice = voice.strip().lower()
         # Una voz que el checkpoint no tiene mata el engine de vllm-tts (AGENTS.md): solo las del catalogo.
         if voice not in voices.catalog():
@@ -255,6 +336,7 @@ class InferenceGateway:
                           "invalid_request")
         if stream_format == "sse" and response_format != "pcm":
             raise Invalid("stream_format=sse solo se usa con response_format=pcm", "invalid_request")
+        trace.response_format = response_format if stream_format == "audio" else f"{response_format}+sse"
         # pcm: el motor transmite el audio de a pedazos (SSE) y se reenvia al instante. wav: el archivo entero.
         incremental = response_format == "pcm"
         body = {"model": settings.vllm_tts_model, "voice": voice, "input": text, "response_format": response_format}
@@ -274,41 +356,48 @@ class InferenceGateway:
             await http.aclose()
             raise _upstream_error("TTS", response.status_code, detail)
         if not incremental:
-            return StreamingResponse(self._speech_file(access, http, response), media_type="audio/wav",
+            return StreamingResponse(self._speech_file(access, trace, http, response), media_type="audio/wav",
                                      headers={"Cache-Control": "no-store"})
         headers = {"Cache-Control": "no-store", "X-Accel-Buffering": "no"}
         media = "text/event-stream" if stream_format == "sse" else "audio/pcm"
-        return StreamingResponse(self._speech_pcm(access, stream_format, http, response), media_type=media,
+        return StreamingResponse(self._speech_pcm(access, trace, stream_format, http, response), media_type=media,
                                  headers=headers)
 
-    async def _speech_file(self, access, http: httpx.AsyncClient, response: httpx.Response) -> AsyncIterator[bytes]:
+    async def _speech_file(self, access, trace: Trace, http: httpx.AsyncClient,
+                           response: httpx.Response) -> AsyncIterator[bytes]:
         """WAV completo: se reenvia tal cual y los segundos salen del encabezado y los bytes."""
         header = b""
         total = 0
+        completed = False
         try:
             async for data in response.aiter_bytes():
+                trace.mark()
                 if len(header) < WAV_HEADER_BYTES:
                     header += data[:WAV_HEADER_BYTES - len(header)]
                 total += len(data)
                 yield data
+            completed = True
         except httpx.HTTPError as e:
             logger.warning("inferencia TTS: stream cortado: %s", type(e).__name__)
         finally:
             await response.aclose()
             await http.aclose()
-            await self._record(access, tts_requests=1, tts_seconds=audio_seconds("wav", header, total))
+            await self._record(access, trace, "ok" if completed else "cut", tts_requests=1,
+                               tts_seconds=audio_seconds("wav", header, total))
 
-    async def _speech_pcm(self, access, stream_format: str, http: httpx.AsyncClient,
+    async def _speech_pcm(self, access, trace: Trace, stream_format: str, http: httpx.AsyncClient,
                           response: httpx.Response) -> AsyncIterator[bytes]:
         """PCM a medida que el motor lo sintetiza. `audio`: los bytes crudos. `sse`: los eventos
         `speech.audio.delta` (audio en base64) y un `speech.audio.done` final con el uso y la duracion.
         Se cuenta el audio que salio: si el cliente corta, se cobra lo ya entregado."""
         total = 0
         done = False
+        completed = False
         try:
             async for event in tts.sse_events(response):
                 kind = event.get("type")
                 if kind == "speech.audio.delta" and event.get("audio"):
+                    trace.mark()
                     pcm = base64.b64decode(event["audio"])
                     total += len(pcm)
                     yield pcm if stream_format == "audio" else _sse({"type": kind, "audio": event["audio"]})
@@ -320,12 +409,14 @@ class InferenceGateway:
             if stream_format == "sse" and not done:   # el motor cerro sin `done`: se avisa igual el fin
                 yield _sse({"type": "speech.audio.done", "usage": None,
                             "duration_seconds": round(total / PCM_BYTES_PER_SECOND, 3)})
+            completed = True
         except httpx.HTTPError as e:
             logger.warning("inferencia TTS: stream cortado: %s", type(e).__name__)
         finally:
             await response.aclose()
             await http.aclose()
-            await self._record(access, tts_requests=1, tts_seconds=total / PCM_BYTES_PER_SECOND)
+            await self._record(access, trace, "ok" if completed else "cut", tts_requests=1,
+                               tts_seconds=total / PCM_BYTES_PER_SECOND)
 
     # ---------- catalogo ----------
 

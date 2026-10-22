@@ -258,6 +258,21 @@ Cuerpo `{"detail": "texto para mostrar", "code": "codigo_estable", "errors": []}
 - Se guarda por cliente, key y día (`api_usage_daily`), sin el contenido de los pedidos: **la plataforma no
   guarda prompts, audios ni textos de la API**.
 
+### Pedido por pedido
+
+- **Dashboard:** **Uso de la API** (`/inference-requests`): el cliente ve los suyos y el admin los de todos, con
+  filtros por cliente, API key, tipo (LLM, STT, TTS), estado, streaming y período, y totales del filtro
+  (pedidos, tokens, minutos, duración promedio). El admin ve además el primer byte, el formato y el código de error.
+- **API:** `GET /api/v1/api-requests` (sesión de usuario o key `calls`; `client_id`, `api_key_id`, `kind`, `status`,
+  `stream`, `date_from`, `date_to`, `tz`, `limit`, `offset`).
+- Cada fila (`api_requests`, migración 0022): tipo, key, duración hasta el último byte, primer byte (stream y TTS),
+  tokens o segundos de audio, caracteres y voz del TTS, HTTP y `code`. Sin contenido, como el agregado.
+- **Estados:** `ok`; `cut` (stream cortado: se cobra lo entregado); `error` (del motor o del pedido: 400, 422, 502);
+  `rejected` (cupo del mes agotado o motor fuera del plan).
+- **Qué no se anota:** los 401, `scope_missing`, `client_inactive`, `not_in_plan` de `api_rate_limit` en 0 y los
+  `rate_limited`. Se rechazan antes del tope de pedidos por minuto: sin tope, un sistema en loop llenaría la tabla.
+- La tabla crece una fila por pedido y todavía no tiene purga.
+
 ## 5. Para quien opera
 
 - Variables (`.env`, ver `.env.example`): `INFERENCE_LLM_MAX_TOKENS`, `INFERENCE_STT_MAX_BYTES`,

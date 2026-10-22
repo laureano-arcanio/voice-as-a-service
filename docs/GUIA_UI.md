@@ -7,7 +7,7 @@ puede hacer por la API (`/api/v1/docs`, solo con sesión de admin). La arquitect
 
 Hay dos roles:
 - **Admin:** opera la plataforma y ve todo. Menú: Inicio, Conversaciones, Agentes, Voces, WhatsApp, Contactos, Campañas, Apps, Clientes, Números, Tiers, Cobros y Usuarios.
-- **Cliente:** usuario de un cliente, que solo ve lo suyo. Menú: Inicio, Conversaciones, Agentes, Voces, WhatsApp, Contactos, Campañas, Apps, Consumos, API y Mi cuenta.
+- **Cliente:** usuario de un cliente, que solo ve lo suyo. Menú: Inicio, Conversaciones, Agentes, Voces, WhatsApp, Contactos, Campañas, Apps, Consumos, API, Uso de la API y Mi cuenta.
 
 ## Primer ingreso
 
@@ -213,6 +213,9 @@ Para que un dueño use su app: asignarla, crear un agente con motor **Asistente*
     llama a los motores, dentro de los límites del tier ([`API_INFERENCIA.md`](API_INFERENCIA.md)).
   - La pantalla **API** muestra además el consumo del mes contra el plan (tokens, minutos, pedidos por minuto, y por key),
     la URL base y ejemplos.
+- **Uso de la API** (en el menú, admin y cliente): cada pedido a la API de inferencia, con fecha, key, tipo, estado,
+  duración y consumo, y los totales del filtro. Filtros: cliente (admin), API key, tipo, estado, streaming y período.
+  Desde la tarjeta de consumo, **Ver los pedidos** abre esta pantalla filtrada por el cliente.
   - **Revocar** la anula en el acto.
 
 ## Operación diaria (ambos roles)

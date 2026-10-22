@@ -85,3 +85,17 @@ export const TAX_CONDITION: Record<string, string> = {
   exento: 'Exento',
   cf: 'Consumidor final',
 };
+
+// Pedidos a la API de inferencia (/api-requests).
+export const API_REQUEST_STATUS: Record<string, Label> = {
+  ok: { label: 'Completado', color: 'green' },
+  cut: { label: 'Cortado', color: 'yellow' },
+  error: { label: 'Error', color: 'red' },
+  rejected: { label: 'Rechazado por el plan', color: 'yellow' },
+};
+
+export const API_KIND: Record<string, Label> = {
+  llm: { label: 'LLM', color: 'gray' },
+  stt: { label: 'Transcripción', color: 'gray' },
+  tts: { label: 'Síntesis de voz', color: 'gray' },
+};

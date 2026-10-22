@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { InferenceUsage } from '@/api/types';
-import { jsonResponse, renderWithProviders } from '@/test/render';
+import { CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
 import { InferenceMeters, InferenceUsageCard } from './InferenceUsageCard';
 
 const USAGE: InferenceUsage = {
@@ -70,7 +70,9 @@ describe('InferenceUsageCard', () => {
         return Promise.resolve(jsonResponse(USAGE));
       }),
     );
-    renderWithProviders(<InferenceUsageCard clientId="c-1" month="2026-10" onMonth={() => {}} />);
+    renderWithProviders(<InferenceUsageCard clientId="c-1" month="2026-10" onMonth={() => {}} />, {
+      me: CLIENT_USER,
+    });
     expect(await screen.findByText('Consumo de la API')).toBeInTheDocument();
     expect(await screen.findByText(/Período: 01\/10\/2026 al 31\/10\/2026/)).toBeInTheDocument();
     expect(await screen.findByText('CRM')).toBeInTheDocument();

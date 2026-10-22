@@ -28,8 +28,8 @@ from ..conversation.engine import ConversationEngine
 from ..db import get_sessionmaker, utcnow
 from ..models import ApiKey, Client, Role, User
 from ..runtime import get_conversation_engine
-from ..services import api_usage, limits
-from ..services.errors import Forbidden, QuotaExceeded
+from ..services import api_requests, api_usage, limits
+from ..services.errors import Forbidden, QuotaExceeded, ServiceError
 from ..services.ratelimit import Limit, RateLimiter, client_key
 from ..services.security import (
     API_KEY_PREFIX,
@@ -166,7 +166,12 @@ def inference_access(scope: Literal["llm", "stt", "tts"]):
             # Por cliente (todas sus keys y los tres motores): los pedidos rechazados tambien cuentan.
             api_limiter.consume(f"inference:{client.id}", [Limit(rate, 60)],
                                 f"Superaste los {rate} pedidos por minuto de tu plan. Probá de nuevo en unos segundos.")
-        return InferenceAccess(client, key, api_usage.check(db, client, scope, effective))
+        try:
+            remaining = api_usage.check(db, client, scope, effective)
+        except ServiceError as e:   # cupo del mes agotado o motor fuera del plan: queda en la lista de pedidos
+            api_requests.log(db, client.id, key.id, scope, "rejected", http_status=e.status_code, error_code=e.code)
+            raise
+        return InferenceAccess(client, key, remaining)
     return dependency
 
 

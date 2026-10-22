@@ -1,6 +1,8 @@
-import { Badge, Card, Group, Select, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
+import { Anchor, Badge, Card, Group, Select, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
+import { Link } from 'react-router';
 import type { InferenceUsage } from '@/api/types';
 import { ErrorAlert } from '@/components/QueryState';
+import { useIsAdmin } from '@/features/auth/api';
 import { UsageMeter } from '@/features/clients/UsageCard';
 import { formatMonth, formatNumber, recentMonths } from '@/lib/format';
 import { useInferenceUsage } from './api';
@@ -125,6 +127,7 @@ export function InferenceUsageCard({
   month: string;
   onMonth: (m: string) => void;
 }) {
+  const isAdmin = useIsAdmin();
   const months = recentMonths(12);
   const usage = useInferenceUsage(clientId, month, month === months[0] ? 10_000 : false);
   return (
@@ -137,15 +140,24 @@ export function InferenceUsageCard({
             {usage.data && ` Período: ${dayRange(usage.data.period_start, usage.data.period_end)}`}
           </Text>
         </Stack>
-        <Select
-          data={months.map((m) => ({ value: m, label: formatMonth(m) }))}
-          value={month}
-          onChange={(v) => onMonth(v ?? months[0])}
-          allowDeselect={false}
-          w={200}
-          size="xs"
-          aria-label="Mes"
-        />
+        <Group gap="sm">
+          <Anchor
+            component={Link}
+            to={isAdmin ? `/inference-requests?client=${clientId}` : '/inference-requests'}
+            size="sm"
+          >
+            Ver los pedidos
+          </Anchor>
+          <Select
+            data={months.map((m) => ({ value: m, label: formatMonth(m) }))}
+            value={month}
+            onChange={(v) => onMonth(v ?? months[0])}
+            allowDeselect={false}
+            w={200}
+            size="xs"
+            aria-label="Mes"
+          />
+        </Group>
       </Group>
       {usage.isError ? (
         <ErrorAlert error={usage.error} onRetry={usage.refetch} />

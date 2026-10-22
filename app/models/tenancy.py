@@ -218,3 +218,31 @@ class ApiUsageDaily(Base):
     stt_seconds: Mapped[float] = mapped_column(Float, default=0, server_default="0")
     tts_requests: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
     tts_seconds: Mapped[float] = mapped_column(Float, default=0, server_default="0")
+
+
+class ApiRequest(IdMixin, Base):
+    """Un pedido a la API de inferencia (para la lista de pedidos del admin y del cliente). Solo
+    metadatos y consumo: ni prompts, ni audios, ni textos. Se anotan los que pasan el tope de
+    pedidos por minuto (los rechazados antes, como rate_limited, no tienen tope y no se guardan).
+    status: ok, cut (stream cortado: se cobra lo entregado), error (el motor o el pedido) o
+    rejected (cupo del mes agotado o motor fuera del plan)."""
+    __tablename__ = "api_requests"
+    __table_args__ = (Index("ix_api_requests_client_created", "client_id", "created_at"),
+                      Index("ix_api_requests_created", "created_at"))
+    client_id: Mapped[str] = mapped_column(String(36), ForeignKey("clients.id", ondelete="CASCADE"))
+    api_key_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("api_keys.id", ondelete="SET NULL"),
+                                                   nullable=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
+    kind: Mapped[str] = mapped_column(String(8))           # llm, stt, tts
+    stream: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    status: Mapped[str] = mapped_column(String(16))
+    http_status: Mapped[int] = mapped_column(Integer, default=200, server_default="200")
+    error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    duration_ms: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    ttfb_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)   # primer byte (stream y TTS)
+    input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    audio_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
+    characters: Mapped[int | None] = mapped_column(Integer, nullable=True)   # texto del TTS
+    voice: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    response_format: Mapped[str | None] = mapped_column(String(16), nullable=True)

@@ -1,5 +1,6 @@
 import {
   IconAddressBook,
+  IconApi,
   IconApps,
   IconBuilding,
   IconCash,
@@ -43,6 +44,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/apps', label: 'Apps', icon: IconApps, roles: ['admin', 'client'] },
   { to: '/usage', label: 'Consumos', icon: IconChartBar, roles: ['client'] },
   { to: '/developers', label: 'API', icon: IconCode, roles: ['client'] },
+  { to: '/inference-requests', label: 'Uso de la API', icon: IconApi, roles: ['admin', 'client'] },
   { to: '/account', label: 'Mi cuenta', icon: IconFileInvoice, roles: ['client'] },
   { to: '/plan', label: 'Plan', icon: IconCreditCard, roles: ['client'] },
   { to: '/clients', label: 'Clientes', icon: IconBuilding, roles: ['admin'] },

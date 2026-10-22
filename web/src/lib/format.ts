@@ -60,6 +60,12 @@ export function formatSeconds(x: number | null | undefined): string {
   return `${x.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} s`;
 }
 
+/** Milisegundos: 850 ms, o 2,10 s desde un segundo. */
+export function formatMs(ms: number | null | undefined): string {
+  if (ms == null || !Number.isFinite(ms)) return EMPTY;
+  return ms < 1000 ? `${Math.round(ms)} ms` : formatSeconds(ms / 1000);
+}
+
 /** Fecha local YYYY-MM-DD (para los filtros de la API, sin pasar por UTC). */
 export function toIsoDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

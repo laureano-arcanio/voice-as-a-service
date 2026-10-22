@@ -1912,3 +1912,47 @@ class ContactCampaignOut(BaseModel):
     last_attempt_at: UTCDateTime | None
     sent_at: UTCDateTime | None
     conversation_id: str | None
+
+
+# ---------- pedidos a la API de inferencia ----------
+
+class ApiRequestOut(BaseModel):
+    id: str
+    created_at: UTCDateTime
+    client_id: str
+    client_name: str
+    api_key_id: str | None
+    api_key_name: str | None = Field(description="None si la key se borró")
+    api_key_prefix: str | None
+    kind: Literal["llm", "stt", "tts"]
+    stream: bool
+    status: Literal["ok", "cut", "error", "rejected"] = Field(
+        description="ok; cut: stream cortado (se cobra lo entregado); error: del motor o del pedido; "
+                    "rejected: cupo del mes agotado o motor fuera del plan")
+    http_status: int
+    error_code: str | None
+    duration_ms: int = Field(description="Hasta el último byte (en un stream, hasta que terminó o se cortó)")
+    ttfb_ms: int | None = Field(description="Hasta el primer byte o token (stream y TTS)")
+    input_tokens: int | None
+    output_tokens: int | None
+    audio_seconds: float | None = Field(description="Transcripto (STT) o sintetizado (TTS)")
+    characters: int | None = Field(description="Largo del texto del TTS")
+    voice: str | None
+    response_format: str | None
+
+
+class ApiRequestsSummaryOut(BaseModel):
+    requests: int
+    by_status: dict[str, int]
+    by_kind: dict[str, int]
+    input_tokens: int
+    output_tokens: int
+    stt_seconds: float
+    tts_seconds: float
+    avg_duration_ms: int | None = Field(description="De los pedidos ok")
+
+
+class ApiRequestPage(BaseModel):
+    items: list[ApiRequestOut]
+    total: int
+    summary: ApiRequestsSummaryOut = Field(description="Totales de todo el filtro, no solo de la página")

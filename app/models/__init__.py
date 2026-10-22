@@ -17,6 +17,7 @@ from .conversations import ConversationRow
 from .llm import LlmConnection
 from .tenancy import (
     ApiKey,
+    ApiRequest,
     ApiUsageDaily,
     Client,
     ClientLimitAdjustment,
@@ -38,6 +39,7 @@ __all__ = [
     "Agent",
     "AgentVersion",
     "ApiKey",
+    "ApiRequest",
     "ApiUsageDaily",
     "App",
     "AppJobRun",

@@ -12,7 +12,6 @@ from fastapi.security import HTTPAuthorizationCredentials
 
 from ...config import settings
 from ...services import api_usage, voices
-from ...services.errors import ServiceError
 from ...services.inference import InferenceGateway, get_gateway
 from ..deps import DB, LlmAccess, SttAccess, TtsAccess, _bearer, inference_key
 from ..routers.clients import inference_usage_out
@@ -48,10 +47,8 @@ async def transcriptions(access: SttAccess, gateway: Gateway,
                          language: Annotated[str | None, Form()] = None,
                          response_format: Annotated[str, Form(description="json, text o verbose_json")] = "json"):
     """STT. Requiere una key con alcance `stt`. Cuenta los segundos de audio transcripto."""
-    limit = settings.inference_stt_max_bytes
-    audio = await file.read(limit + 1)
-    if len(audio) > limit:
-        raise ServiceError(f"El audio supera los {limit // (1024 * 1024)} MB", "payload_too_large")
+    # Hasta un byte de mas: el gateway rechaza (y anota) el que supera INFERENCE_STT_MAX_BYTES.
+    audio = await file.read(settings.inference_stt_max_bytes + 1)
     return await gateway.transcribe(access, audio, file.filename, file.content_type, language, response_format)
 
 

@@ -2797,6 +2797,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/api-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Api Requests
+         * @description Pedidos a la API de inferencia (LLM, STT, TTS) del mas nuevo al mas viejo, con los totales del
+         *     filtro. Sin contenido: la plataforma no guarda prompts, audios ni textos.
+         */
+        get: operations["list_api_requests_api_v1_api_requests_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3008,6 +3029,109 @@ export interface components {
             last_used_at: string | null;
             /** Revoked At */
             revoked_at: string | null;
+        };
+        /** ApiRequestOut */
+        ApiRequestOut: {
+            /** Id */
+            id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Client Id */
+            client_id: string;
+            /** Client Name */
+            client_name: string;
+            /** Api Key Id */
+            api_key_id: string | null;
+            /**
+             * Api Key Name
+             * @description None si la key se borró
+             */
+            api_key_name: string | null;
+            /** Api Key Prefix */
+            api_key_prefix: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "llm" | "stt" | "tts";
+            /** Stream */
+            stream: boolean;
+            /**
+             * Status
+             * @description ok; cut: stream cortado (se cobra lo entregado); error: del motor o del pedido; rejected: cupo del mes agotado o motor fuera del plan
+             * @enum {string}
+             */
+            status: "ok" | "cut" | "error" | "rejected";
+            /** Http Status */
+            http_status: number;
+            /** Error Code */
+            error_code: string | null;
+            /**
+             * Duration Ms
+             * @description Hasta el último byte (en un stream, hasta que terminó o se cortó)
+             */
+            duration_ms: number;
+            /**
+             * Ttfb Ms
+             * @description Hasta el primer byte o token (stream y TTS)
+             */
+            ttfb_ms: number | null;
+            /** Input Tokens */
+            input_tokens: number | null;
+            /** Output Tokens */
+            output_tokens: number | null;
+            /**
+             * Audio Seconds
+             * @description Transcripto (STT) o sintetizado (TTS)
+             */
+            audio_seconds: number | null;
+            /**
+             * Characters
+             * @description Largo del texto del TTS
+             */
+            characters: number | null;
+            /** Voice */
+            voice: string | null;
+            /** Response Format */
+            response_format: string | null;
+        };
+        /** ApiRequestPage */
+        ApiRequestPage: {
+            /** Items */
+            items: components["schemas"]["ApiRequestOut"][];
+            /** Total */
+            total: number;
+            /** @description Totales de todo el filtro, no solo de la página */
+            summary: components["schemas"]["ApiRequestsSummaryOut"];
+        };
+        /** ApiRequestsSummaryOut */
+        ApiRequestsSummaryOut: {
+            /** Requests */
+            requests: number;
+            /** By Status */
+            by_status: {
+                [key: string]: number;
+            };
+            /** By Kind */
+            by_kind: {
+                [key: string]: number;
+            };
+            /** Input Tokens */
+            input_tokens: number;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Stt Seconds */
+            stt_seconds: number;
+            /** Tts Seconds */
+            tts_seconds: number;
+            /**
+             * Avg Duration Ms
+             * @description De los pedidos ok
+             */
+            avg_duration_ms: number | null;
         };
         /** AppJobOut */
         AppJobOut: {
@@ -12915,6 +13039,49 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_api_requests_api_v1_api_requests_get: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+                api_key_id?: string | null;
+                /** @description Uno o varios */
+                kind?: ("llm" | "stt" | "tts")[] | null;
+                /** @description Uno o varios */
+                status?: ("ok" | "cut" | "error" | "rejected")[] | null;
+                stream?: boolean | null;
+                date_from?: string | null;
+                date_to?: string | null;
+                /** @description Zona IANA de las fechas; default BILLING_TIMEZONE */
+                tz?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiRequestPage"];
+                };
             };
             /** @description Validation Error */
             422: {
