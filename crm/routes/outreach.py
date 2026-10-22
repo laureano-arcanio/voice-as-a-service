@@ -1,5 +1,6 @@
-"""Campanas, plantillas, mensajes y cola, blocklist, GA, "Hoy" y tablero."""
+"""Campanas, plantillas, mensajes y cola, blocklist, GA, /today y tablero."""
 import datetime
+import zoneinfo
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query
@@ -9,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from .. import schemas as S
 from ..auth import UserOnly, Who
-from ..config import local_today
+from ..config import local_today, settings
 from ..db import get_session, naive_utc, utcnow
 from ..models import (
     CLOSED_STAGES,
@@ -20,11 +21,13 @@ from ..models import (
     Block,
     Campaign,
     GaVisit,
+    InboundEmail,
     Lead,
     Message,
     Template,
 )
 from ..services import ga as GA
+from ..services import inbound as INB
 from ..services import leads as L
 from ..services import messages as M
 from ..services import sending
@@ -235,17 +238,55 @@ def create_draft(body: S.DraftIn, s: DB, who: Who):
     return msg_out(m)
 
 
-@router.patch("/messages/{mid}", response_model=S.MessageOut, tags=["mensajes"], summary="Editar un borrador")
-def edit_draft(mid: int, body: S.DraftPatch, s: DB, _: Who):
+@router.patch("/messages/{mid}", response_model=S.MessageOut, tags=["mensajes"],
+              summary="Editar un borrador o corregir una respuesta cargada")
+def edit_message(mid: int, body: S.MessagePatch, s: DB, _: Who):
     m = one(s, Message, mid, f"mensaje {mid}")
-    if m.status != "draft":
-        raise Conflict(f"mensaje {mid}: está {m.status}, solo se editan borradores")
-    for k in ("subject", "text"):
-        v = getattr(body, k)
-        if v:
-            setattr(m, k, v)
+    if m.status == "draft":
+        for k in ("subject", "text"):
+            v = getattr(body, k)
+            if v:
+                setattr(m, k, v)
+    elif m.direction == "in":
+        M.edit_inbound(m, body.model_dump(exclude_unset=True))
+    else:
+        raise Conflict(f"mensaje {mid}: está {m.status}, solo se editan borradores y respuestas")
     s.commit()
     return msg_out(m)
+
+
+# --- Recibidos (Resend Receiving) ---
+
+@router.get("/inbox", response_model=list[S.InboundEmailOut], tags=["recibidos"],
+            summary="Mails recibidos: por defecto, los que no se pudieron asociar a un lead")
+def inbox(s: DB, _: Who, status: str = Query("unassigned", pattern="^(unassigned|assigned|ignored)$"),
+          limit: int = Query(100, le=500)):
+    return s.scalars(select(InboundEmail).where(InboundEmail.status == status)
+                     .order_by(InboundEmail.received_at.desc()).limit(limit)).all()
+
+
+def _unassigned(s: Session, inbound_id: int) -> InboundEmail:
+    ib = one(s, InboundEmail, inbound_id, f"recibido {inbound_id}")
+    if ib.status != "unassigned":
+        raise Conflict(f"recibido {inbound_id}: ya está {ib.status}")
+    return ib
+
+
+@router.post("/inbox/{inbound_id}/assign", response_model=S.MessageOut, tags=["recibidos"],
+             summary="Asignar a un lead: se registra la respuesta, se clasifica y se aplica como las automaticas")
+def inbox_assign(inbound_id: int, body: S.AssignIn, s: DB, _: Who):
+    ib = _unassigned(s, inbound_id)
+    m = INB.assign(s, ib, get_lead(s, body.lead_id))
+    s.commit()
+    return msg_out(m)
+
+
+@router.post("/inbox/{inbound_id}/ignore", response_model=S.InboundEmailOut, tags=["recibidos"])
+def inbox_ignore(inbound_id: int, s: DB, _: Who):
+    ib = _unassigned(s, inbound_id)
+    ib.status, ib.reason = "ignored", "a mano"
+    s.commit()
+    return ib
 
 
 @router.post("/messages/approve", response_model=list[S.MessageOut], tags=["mensajes"],
@@ -371,6 +412,8 @@ def today(s: DB, _: Who):
         "next_actions": summaries(s, actions),
         "queue": sending.status(s),
         "reply_rates": [S.ReplyRate(**r) for r in M.reply_rates(s)],
+        "inbox": [S.InboundEmailOut.model_validate(x) for x in s.scalars(
+            select(InboundEmail).where(InboundEmail.status == "unassigned").order_by(InboundEmail.received_at.desc()))],
     }
 
 
@@ -392,5 +435,38 @@ def stats(s: DB, _: Who):
         "sent_last_7d": s.scalar(select(func.count(Message.id)).where(
             Message.direction == "out", Message.status.in_(SENT_STATUSES),
             Message.sent_at >= utcnow() - datetime.timedelta(days=7))) or 0,
+        "sent_by_day": sent_by_day(s),
+        "by_campaign": by_campaign(s),
     }
+
+
+def sent_by_day(s: Session, days: int = 30) -> list[dict]:
+    """Mails enviados por dia (hora de Argentina), primeros y seguimientos, los ultimos `days` dias."""
+    tz = zoneinfo.ZoneInfo(settings.send_timezone)
+    today = local_today()
+    start = today - datetime.timedelta(days=days - 1)
+    out = {start + datetime.timedelta(days=i): {"first": 0, "follow_up": 0} for i in range(days)}
+    since = datetime.datetime.combine(start, datetime.time(), tz)
+    for kind, at in s.execute(select(Message.kind, Message.sent_at).where(
+            Message.direction == "out", Message.status.in_(SENT_STATUSES), Message.sent_at >= naive_utc(since))):
+        day = at.replace(tzinfo=datetime.UTC).astimezone(tz).date()
+        if day in out:
+            out[day]["first" if kind == "first" else "follow_up"] += 1
+    return [{"day": d.isoformat(), **v} for d, v in out.items()]
+
+
+def by_campaign(s: Session) -> list[dict]:
+    """Por campaña: leads alcanzados con el primer mail, cuantos respondieron (en cualquier nivel, como en el
+    reply rate) y cuantos entraron al sitio (GA). En orden de inicio."""
+    rates = M.reply_rates(s)
+    clicks = dict(s.execute(select(GaVisit.campaign_id, func.count(func.distinct(GaVisit.lead_id)))
+                            .where(GaVisit.lead_id.isnot(None)).group_by(GaVisit.campaign_id)).all())
+    out = []
+    for c in s.scalars(select(Campaign).order_by(Campaign.started_at.nulls_last(), Campaign.id)):
+        mine = [r for r in rates if r["campaign_slug"] == c.slug]
+        reached = sum(r["reached"] for r in mine if r["step"] == 0)
+        if reached:
+            out.append({"slug": c.slug, "reached": reached, "replied": sum(r["replied"] for r in mine),
+                        "clicked": clicks.get(c.id, 0)})
+    return out
 

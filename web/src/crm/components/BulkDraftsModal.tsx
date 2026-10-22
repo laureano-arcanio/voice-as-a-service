@@ -6,7 +6,7 @@ import { MESSAGE_KIND_OPTIONS } from '../format';
 import type { BulkDraftResult, MessageKind } from '../types';
 
 /**
- * Borradores de una plantilla para varios leads. Con `followUps` (seguimientos de "Hoy") cada lead recibe
+ * Borradores de una plantilla para varios leads. Con `followUps` (seguimientos que vencen, desde Leads) cada lead recibe
  * el paso que le toca de la secuencia de su campaña, con la plantilla del paso salvo que se elija otra;
  * si no, se elige campaña, plantilla y tipo.
  */
@@ -63,7 +63,7 @@ export function BulkDraftsModal({
             kind,
           });
       setResult(acc);
-      if (acc.created.length) notifySuccess(`${acc.created.length} borradores listos para revisar en Hoy.`);
+      if (acc.created.length) notifySuccess(`${acc.created.length} borradores listos para aprobar.`);
     } catch (e) {
       notifyError(e, 'No se pudieron armar los borradores');
     } finally {
@@ -81,7 +81,8 @@ export function BulkDraftsModal({
       {result ? (
         <Stack>
           <Text size="sm">
-            <b>{result.created.length}</b> borradores creados. Quedan en <b>Hoy</b> para revisar y aprobar.
+            <b>{result.created.length}</b> borradores creados. Quedan en <b>Leads</b> (filtro Pendiente: con
+            borrador) para revisar y aprobar.
           </Text>
           {result.skipped.length > 0 && (
             <Alert color="yellow" title={`${result.skipped.length} salteados`}>

@@ -172,6 +172,8 @@ class Message(Base):
     kind: Mapped[str] = mapped_column(String(20), default="first")    # first, follow_up, other
     step: Mapped[int | None] = mapped_column(Integer)                  # 0 el primero, 1.. seguimientos
     direction: Mapped[str] = mapped_column(String(3), default="out")  # out, in
+    # email, phone, agent, other: los enviados son email; una respuesta a mano puede venir por otro lado
+    channel: Mapped[str] = mapped_column(String(10), default="email", server_default="email")
     from_addr: Mapped[str | None] = mapped_column(String(200))
     to_addr: Mapped[str] = mapped_column(String(300), index=True)
     subject: Mapped[str] = mapped_column(String(300))
@@ -190,6 +192,8 @@ class Message(Base):
     sent_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, index=True)
     last_event_at: Mapped[datetime.datetime | None] = mapped_column(DateTime)
     events_checked_at: Mapped[datetime.datetime | None] = mapped_column(DateTime)
+    # Respuestas: lo que dijo el LLM (intencion, resumen, ...) y lo que se aplico al lead
+    analysis: Mapped[dict | None] = mapped_column(JSONDoc)
 
     lead: Mapped[Lead] = relationship()
     campaign: Mapped["Campaign | None"] = relationship()
@@ -228,6 +232,26 @@ class GaVisit(Base):
     campaign_id: Mapped[int | None] = mapped_column(ForeignKey("campaigns.id", ondelete="SET NULL"))
     follow_up: Mapped[bool] = mapped_column(Boolean, default=False)
     synced_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class InboundEmail(Base):
+    """Cada mail recibido por Resend, con lo que se hizo: asignado a un lead (con su mensaje), sin asignar
+    (bandeja, para asignarlo a mano) o ignorado (copias nuestras, rebotes)."""
+    __tablename__ = "inbound_emails"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    resend_id: Mapped[str] = mapped_column(String(80), unique=True)
+    from_addr: Mapped[str] = mapped_column(String(300))
+    to_addr: Mapped[str] = mapped_column(String(300), default="")
+    subject: Mapped[str] = mapped_column(String(300), default="")
+    text: Mapped[str] = mapped_column(Text, default="")
+    headers: Mapped[dict] = mapped_column(JSONDoc, default=dict)
+    received_at: Mapped[datetime.datetime] = mapped_column(DateTime, index=True)
+    status: Mapped[str] = mapped_column(String(20), index=True)   # assigned, unassigned, ignored
+    reason: Mapped[str | None] = mapped_column(String(200))        # como se asigno o por que se ignoro
+    lead_id: Mapped[int | None] = mapped_column(ForeignKey("leads.id", ondelete="SET NULL"))
+    message_id: Mapped[int | None] = mapped_column(ForeignKey("messages.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime.datetime] = _now_col()
 
 
 class KV(Base):

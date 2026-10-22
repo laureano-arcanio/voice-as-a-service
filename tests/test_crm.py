@@ -215,7 +215,8 @@ def test_importar_historial_y_hoy(api):
     assert api.post("/api/messages/import", json={"lead_id": a["id"], "to_addr": "x@y.com", "subject": "s",
                                                   "sent_at": "2026-10-05T10:00:00Z"}, headers=AGENT).status_code == 403
     today = api.get("/api/today", headers=USER).json()
-    assert set(today) == {"follow_ups_due", "drafts", "tasks", "replies", "next_actions", "queue", "reply_rates"}
+    assert set(today) == {"follow_ups_due", "drafts", "tasks", "replies", "next_actions", "queue", "reply_rates",
+                         "inbox"}
     assert settings.send_daily_max == today["queue"]["daily_max"]
 
 
@@ -290,8 +291,17 @@ def test_secuencia_de_dos_seguimientos(api, db, sent, monkeypatch):
     today(datetime.date(2026, 10, 15))
     due = api.get("/api/today", headers=USER).json()["follow_ups_due"]
     assert [(x["step"], x["template_id"], x["business_days"]) for x in due] == [(2, fu2["id"], 5)]
+    # La tabla de leads sabe a quien le toca y que borradores tiene (para elegir y aprobar desde ahi)
+    r = api.get("/api/leads?pending=follow_up", headers=USER).json()
+    assert [(x["id"], x["follow_up_step"], x["draft_ids"]) for x in r["items"]] == [(a["id"], 2, [])]
     r = api.post("/api/followups/drafts", json={"lead_ids": [a["id"]]}, headers=AGENT).json()
     f2 = r["created"][0]
+    assert api.get("/api/leads?pending=follow_up", headers=USER).json()["total"] == 0
+    r = api.get("/api/leads?pending=draft", headers=USER).json()["items"]
+    assert [(x["id"], x["draft_ids"], x["follow_up_step"]) for x in r] == [(a["id"], [f2["id"]], None)]
+    st = api.get("/api/stats", headers=USER).json()
+    assert st["by_campaign"] == [{"slug": c["slug"], "reached": 1, "replied": 0, "clicked": 0}]
+    assert len(st["sent_by_day"]) == 30
     assert f2["step"] == 2 and f2["subject"] == "Re: Llamadas de voz para Empresa SA"
     assert f2["in_reply_to"] == "<fu1@ses>" and "no insisto" in f2["text"]
     api.post("/api/messages/approve", json={"ids": [f2["id"]]}, headers=USER)
@@ -338,6 +348,43 @@ def test_etapa_seguimiento_cuenta_como_un_seguimiento(api, db, sent, monkeypatch
     monkeypatch.setattr(M, "local_today", lambda: datetime.date(2026, 10, 20))
     with db() as s:
         assert M.followups_due(s) == []
+
+
+def test_respuesta_por_telefono_solo_con_nombre(api):
+    a = lead(api)
+    r = api.post(f"/api/leads/{a['id']}/inbound", json={"channel": "phone", "from_addr": "Marta",
+                                                      "text": "Llamó, quiere una demo"}, headers=USER)
+    assert r.status_code == 201
+    m = r.json()
+    assert m["channel"] == "phone" and m["from_addr"] == "Marta" and m["to_addr"] == "" and m["subject"] == ""
+    r = api.post(f"/api/leads/{a['id']}/inbound", json={"channel": "agent"}, headers=USER).json()
+    assert r["channel"] == "agent" and r["from_addr"] is None
+    assert api.get(f"/api/leads/{a['id']}", headers=USER).json()["stage"] == "respondio"
+    assert api.post(f"/api/leads/{a['id']}/inbound", json={"channel": "fax"}, headers=USER).status_code == 422
+
+
+def test_editar_respuesta_cargada(api):
+    a = lead(api)
+    m = api.post(f"/api/leads/{a['id']}/inbound", json={"from_addr": "pablo@empresa.com.ar", "subject": "Re: x",
+                                                      "text": "Sí"}, headers=USER).json()
+    r = api.patch(f"/api/messages/{m['id']}", json={"channel": "phone", "from_addr": "Pablo", "subject": "",
+                                                    "text": "Llamó: quiere demo",
+                                                    "at": "2026-10-22T11:05:00-03:00"}, headers=AGENT)
+    assert r.status_code == 200
+    r = r.json()
+    assert (r["channel"], r["from_addr"], r["to_addr"], r["subject"], r["text"]) == \
+        ("phone", "Pablo", "", "", "Llamó: quiere demo")
+    assert r["sent_at"].startswith("2026-10-22T14:05")
+    r = api.patch(f"/api/messages/{m['id']}", json={"from_addr": ""}, headers=USER).json()
+    assert r["from_addr"] is None and r["text"] == "Llamó: quiere demo"
+    # Lo que salio (o esta en la cola) no se edita
+    b = lead(api, name="Otra SA", website="https://otra.com.ar",
+             contacts=[{"kind": "email", "value": "ana@otra.com.ar", "is_primary": True, "source_url": SRC}])
+    c, t, _ = campaign_and_template(api)
+    d = api.post(f"/api/campaigns/{c['id']}/drafts", json={"lead_ids": [b["id"]], "template_id": t["id"]},
+                 headers=USER).json()["created"][0]
+    api.post("/api/messages/approve", json={"ids": [d["id"]]}, headers=USER)
+    assert api.patch(f"/api/messages/{d['id']}", json={"text": "otro"}, headers=USER).status_code == 409
 
 
 def test_reply_rate_por_nivel(api, db):

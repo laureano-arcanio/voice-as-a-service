@@ -5,7 +5,7 @@ CRM_SEND_MIN_GAP_SECONDS entre dos, solo en horario habil y hasta CRM_SEND_DAILY
 Antes de cada uno vuelve a chequear blocklist, no contactar y si el lead respondio.
 
 Eventos: lee de Resend el ultimo evento de lo enviado en los ultimos CRM_EVENTS_DAYS dias (cada
-CRM_EVENTS_INTERVAL_SECONDS o a pedido, con el boton de "Hoy"; nunca dos a la vez).
+CRM_EVENTS_INTERVAL_SECONDS o a pedido, con el boton del Tablero; nunca dos a la vez).
 
 Secuencias: en el mismo loop, arma los borradores de los seguimientos que tienen plantilla.
 """

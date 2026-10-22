@@ -14,7 +14,7 @@ from sqlalchemy.exc import DataError, IntegrityError
 
 from .config import settings
 from .routes import leads, outreach
-from .services import ga, sending
+from .services import ga, inbound, sending
 from .services.errors import CrmError
 
 logger = logging.getLogger("crm")
@@ -30,7 +30,10 @@ def problem(status: int, title: str, detail: str, **extra) -> JSONResponse:
 async def lifespan(_: FastAPI):
     tasks = []
     if settings.loops:
-        tasks = [asyncio.create_task(f()) for f in (sending.send_loop, sending.events_loop, ga.ga_loop)]
+        loops = [sending.send_loop, sending.events_loop, ga.ga_loop]
+        if settings.inbound_enabled:
+            loops.append(inbound.inbound_loop)
+        tasks = [asyncio.create_task(f()) for f in loops]
     yield
     for t in tasks:
         t.cancel()

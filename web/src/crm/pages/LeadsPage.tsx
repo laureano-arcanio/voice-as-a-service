@@ -24,12 +24,20 @@ import { Dash } from '@/components/Badges';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState, QueryState } from '@/components/QueryState';
 import { notifyError, notifySuccess } from '@/lib/notify';
-import { LEADS_PAGE, api, useCampaigns, useLeads, useUpsertLead } from '../api';
+import { LEADS_PAGE, api, useApprove, useCampaigns, useLeads, useMessages, useUpsertLead } from '../api';
 import { LEAD_KIND_OPTIONS, STAGE_OPTIONS, fmtAgo, fmtDate } from '../format';
 import { BulkDraftsModal } from '../components/BulkDraftsModal';
 import { StageBadge } from '../components/Badges';
+import { MessageModal } from '../components/MessageModal';
 import { useQueryClient } from '@tanstack/react-query';
-import type { LeadKind, LeadSummary, Stage } from '../types';
+import type { LeadFilters } from '../api';
+import type { LeadKind, LeadSummary, Message, Stage } from '../types';
+
+const PENDING_OPTIONS = [
+  { value: 'draft', label: 'Con borrador' },
+  { value: 'follow_up', label: 'Le toca seguimiento' },
+  { value: 'queued', label: 'En cola' },
+];
 
 function NewLeadModal({ opened, onClose }: { opened: boolean; onClose: () => void }) {
   const upsert = useUpsertLead();
@@ -175,6 +183,22 @@ function StageModal({ ids, onClose }: { ids: number[]; onClose: (done: boolean) 
   );
 }
 
+/** Lo que el lead tiene pendiente: borrador (abre la vista previa), en cola o seguimiento vencido. */
+function Pending({ lead, onOpen }: { lead: LeadSummary; onOpen: (id: number) => void }) {
+  if (!lead.draft_ids.length && !lead.queued && !lead.follow_up_step) return <Dash />;
+  return (
+    <Group gap={4} wrap="nowrap">
+      {lead.draft_ids.map((id) => (
+        <Badge key={id} color="gray" style={{ cursor: 'pointer' }} onClick={() => onOpen(id)}>
+          Borrador
+        </Badge>
+      ))}
+      {lead.queued > 0 && <Badge color="blue">En cola</Badge>}
+      {lead.follow_up_step && <Badge color="yellow">Toca seguimiento {lead.follow_up_step}</Badge>}
+    </Group>
+  );
+}
+
 export function LeadsPage() {
   const [search, setSearch] = useState('');
   const [q] = useDebouncedValue(search.trim(), 300);
@@ -184,10 +208,17 @@ export function LeadsPage() {
   const [kind, setKind] = useState<string | null>(null);
   const [campaign, setCampaign] = useState<string | null>(null);
   const [clicks, setClicks] = useState<string | null>(null);
+  const [pending, setPending] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [dialog, setDialog] = useState<'new' | 'drafts' | 'stage' | null>(null);
+  // Por id, con el lead: la seleccion sobrevive al cambio de pagina y las acciones saben que tiene pendiente
+  const [selected, setSelected] = useState<Map<number, LeadSummary>>(new Map());
+  const [dialog, setDialog] = useState<'new' | 'drafts' | 'followups' | 'stage' | null>(null);
+  const [preview, setPreview] = useState<Message | null>(null);
   const campaigns = useCampaigns();
+  const approve = useApprove();
+  // Los borradores, para verlos antes de aprobar (son pocos: los que esperan aprobacion)
+  const drafts = useMessages({ status: 'draft', limit: 500 });
+  const draftById = new Map((drafts.data?.items ?? []).map((m) => [m.id, m]));
 
   const leads = useLeads({
     q: q || undefined,
@@ -197,6 +228,7 @@ export function LeadsPage() {
     kind: kind ?? undefined,
     campaign_id: campaign ? Number(campaign) : undefined,
     has_clicks: clicks === null ? undefined : clicks === 'si',
+    pending: (pending as LeadFilters['pending']) ?? undefined,
     limit: LEADS_PAGE,
     offset: (page - 1) * LEADS_PAGE,
   });
@@ -206,20 +238,41 @@ export function LeadsPage() {
     (v: T) => {
       set(v);
       setPage(1);
-      setSelected(new Set());
+      setSelected(new Map());
     };
 
   const items: LeadSummary[] = leads.data?.items ?? [];
   const total = leads.data?.total ?? 0;
   const all = items.length > 0 && items.every((l) => selected.has(l.id));
-  const names = Object.fromEntries(items.map((l) => [l.id, l.name]));
+  const chosen = [...selected.values()];
+  const names = Object.fromEntries(chosen.map((l) => [l.id, l.name]));
+  const draftIds = chosen.flatMap((l) => l.draft_ids);
+  const dueIds = chosen.filter((l) => l.follow_up_step).map((l) => l.id);
 
-  const toggle = (id: number) =>
+  const toggle = (l: LeadSummary) =>
     setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      const next = new Map(prev);
+      if (next.has(l.id)) next.delete(l.id);
+      else next.set(l.id, l);
       return next;
+    });
+  const toggleAll = () =>
+    setSelected((prev) => {
+      const next = new Map(prev);
+      for (const l of items) {
+        if (all) next.delete(l.id);
+        else next.set(l.id, l);
+      }
+      return next;
+    });
+
+  const approveDrafts = () =>
+    approve.mutate(draftIds, {
+      onSuccess: (r) => {
+        notifySuccess(`${r.length} aprobados: salen por la cola (uno cada ~2 min, en horario hábil).`);
+        setSelected(new Map());
+      },
+      onError: (e) => notifyError(e, 'No se pudo aprobar'),
     });
 
   return (
@@ -298,6 +351,15 @@ export function LeadsPage() {
             w={120}
             placeholder="Todos"
           />
+          <Select
+            label="Pendiente"
+            data={PENDING_OPTIONS}
+            value={pending}
+            onChange={restart(setPending)}
+            clearable
+            w={170}
+            placeholder="Todos"
+          />
         </Group>
       </Card>
 
@@ -306,13 +368,29 @@ export function LeadsPage() {
           <Text size="sm" fw={600}>
             {selected.size} elegidos
           </Text>
-          <Button size="compact-sm" onClick={() => setDialog('drafts')}>
-            Armar borradores
+          <Button
+            size="compact-sm"
+            disabled={draftIds.length === 0}
+            loading={approve.isPending}
+            onClick={approveDrafts}
+          >
+            Aprobar borradores ({draftIds.length})
+          </Button>
+          <Button
+            size="compact-sm"
+            variant="default"
+            disabled={dueIds.length === 0}
+            onClick={() => setDialog('followups')}
+          >
+            Armar seguimientos ({dueIds.length})
+          </Button>
+          <Button size="compact-sm" variant="default" onClick={() => setDialog('drafts')}>
+            Armar primer mail
           </Button>
           <Button size="compact-sm" variant="default" onClick={() => setDialog('stage')}>
             Cambiar etapa
           </Button>
-          <Button size="compact-sm" variant="subtle" onClick={() => setSelected(new Set())}>
+          <Button size="compact-sm" variant="subtle" onClick={() => setSelected(new Map())}>
             Limpiar
           </Button>
         </Group>
@@ -333,11 +411,12 @@ export function LeadsPage() {
                           aria-label="Todos"
                           checked={all}
                           indeterminate={selected.size > 0 && !all}
-                          onChange={() => setSelected(all ? new Set() : new Set(items.map((l) => l.id)))}
+                          onChange={toggleAll}
                         />
                       </Table.Th>
                       <Table.Th>Lead</Table.Th>
                       <Table.Th>Etapa</Table.Th>
+                      <Table.Th>Pendiente</Table.Th>
                       <Table.Th>Email ★</Table.Th>
                       <Table.Th>Último envío</Table.Th>
                       <Table.Th>Respuesta</Table.Th>
@@ -352,7 +431,7 @@ export function LeadsPage() {
                           <Checkbox
                             aria-label={`Elegir ${l.name}`}
                             checked={selected.has(l.id)}
-                            onChange={() => toggle(l.id)}
+                            onChange={() => toggle(l)}
                           />
                         </Table.Td>
                         <Table.Td maw={320}>
@@ -373,6 +452,9 @@ export function LeadsPage() {
                         </Table.Td>
                         <Table.Td>
                           <StageBadge stage={l.stage as Stage} />
+                        </Table.Td>
+                        <Table.Td>
+                          <Pending lead={l} onOpen={(id) => setPreview(draftById.get(id) ?? null)} />
                         </Table.Td>
                         <Table.Td className="mono">{l.primary_email ?? <Dash />}</Table.Td>
                         <Table.Td>{l.last_out_at ? fmtAgo(l.last_out_at) : <Dash />}</Table.Td>
@@ -416,18 +498,29 @@ export function LeadsPage() {
         opened={dialog === 'drafts'}
         onClose={(done) => {
           setDialog(null);
-          if (done) setSelected(new Set());
+          if (done) setSelected(new Map());
         }}
-        leadIds={[...selected]}
+        leadIds={[...selected.keys()]}
+        names={names}
+      />
+      <BulkDraftsModal
+        opened={dialog === 'followups'}
+        onClose={(done) => {
+          setDialog(null);
+          if (done) setSelected(new Map());
+        }}
+        leadIds={dueIds}
+        followUps
         names={names}
       />
       <StageModal
-        ids={dialog === 'stage' ? [...selected] : []}
+        ids={dialog === 'stage' ? [...selected.keys()] : []}
         onClose={(done) => {
           setDialog(null);
-          if (done) setSelected(new Set());
+          if (done) setSelected(new Map());
         }}
       />
+      <MessageModal message={preview} onClose={() => setPreview(null)} />
     </>
   );
 }

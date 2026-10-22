@@ -1,10 +1,11 @@
-import { Button, Group, Modal, Stack, Text, TextInput, Textarea } from '@mantine/core';
+import { Button, Group, Modal, Select, Stack, Text, TextInput, Textarea } from '@mantine/core';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { notifyError, notifySuccess } from '@/lib/notify';
-import { useApprove, useCancelMessage, useEditDraft } from '../api';
-import { fmtDateTime, messageLabel } from '../format';
-import type { Message } from '../types';
+import { useApprove, useCancelMessage, useEditDraft, useEditInbound } from '../api';
+import { MESSAGE_CHANNEL, MESSAGE_CHANNEL_OPTIONS, fmtDateTime, messageLabel } from '../format';
+import type { Message, MessageChannel } from '../types';
+import { AnalysisCard } from './Analysis';
 import { MessageStatusBadge } from './Badges';
 
 function Meta({ label, children }: { label: string; children: React.ReactNode }) {
@@ -20,7 +21,7 @@ function Meta({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
-/** Ver un mensaje; si es borrador, editarlo, aprobarlo o descartarlo. */
+/** Ver un mensaje; si es borrador, editarlo, aprobarlo o descartarlo; si es una respuesta, corregirla. */
 export function MessageModal({ message, onClose }: { message: Message | null; onClose: () => void }) {
   return (
     <Modal opened={!!message} onClose={onClose} title={message ? messageLabel(message) : ''} size="lg">
@@ -35,6 +36,7 @@ function MessageBody({ m, onClose }: { m: Message; onClose: () => void }) {
   const edit = useEditDraft();
   const approve = useApprove();
   const cancel = useCancelMessage();
+  const [editing, setEditing] = useState(false);
   const isDraft = m.status === 'draft';
   const dirty = subject !== m.subject || text !== m.text;
 
@@ -65,9 +67,14 @@ function MessageBody({ m, onClose }: { m: Message; onClose: () => void }) {
             {m.lead_name ?? `#${m.lead_id}`}
           </Link>
         </Meta>
-        <Meta label={m.direction === 'in' ? 'De' : 'Para'}>
-          <span className="mono">{m.direction === 'in' ? m.from_addr : m.to_addr}</span>
-        </Meta>
+        {m.direction === 'in' && m.channel !== 'email' && (
+          <Meta label="Canal">{MESSAGE_CHANNEL[m.channel]}</Meta>
+        )}
+        {(m.direction === 'out' || m.from_addr) && (
+          <Meta label={m.direction === 'in' ? 'De' : 'Para'}>
+            <span className="mono">{m.direction === 'in' ? m.from_addr : m.to_addr}</span>
+          </Meta>
+        )}
         {m.direction === 'out' && (
           <Meta label="Desde">
             <span className="mono">{m.from_addr}</span>
@@ -131,14 +138,24 @@ function MessageBody({ m, onClose }: { m: Message; onClose: () => void }) {
             </Group>
           </Group>
         </>
+      ) : editing ? (
+        <InboundEdit m={m} onCancel={() => setEditing(false)} onSaved={onClose} />
       ) : (
         <>
+          <AnalysisCard m={m} />
           <Text fw={600} size="sm">
             {m.subject}
           </Text>
           <Text size="sm" style={{ whiteSpace: 'pre-wrap' }} className="crm-mail">
             {m.text || '–'}
           </Text>
+          {m.direction === 'in' && (
+            <Group justify="flex-end">
+              <Button variant="default" onClick={() => setEditing(true)}>
+                Editar
+              </Button>
+            </Group>
+          )}
           {m.status === 'queued' && (
             <Group justify="flex-end">
               <Button
@@ -161,6 +178,66 @@ function MessageBody({ m, onClose }: { m: Message; onClose: () => void }) {
           )}
         </>
       )}
+    </Stack>
+  );
+}
+
+/** Corregir una respuesta cargada a mano: canal, quién respondió, asunto y texto. */
+function InboundEdit({ m, onCancel, onSaved }: { m: Message; onCancel: () => void; onSaved: () => void }) {
+  const [channel, setChannel] = useState<MessageChannel>(m.channel);
+  const [from, setFrom] = useState(m.from_addr ?? '');
+  const [subject, setSubject] = useState(m.subject);
+  const [text, setText] = useState(m.text);
+  const edit = useEditInbound();
+  const isEmail = channel === 'email';
+  return (
+    <Stack gap="sm">
+      <Select
+        label="Canal"
+        data={MESSAGE_CHANNEL_OPTIONS}
+        value={channel}
+        onChange={(v) => v && setChannel(v as MessageChannel)}
+        allowDeselect={false}
+      />
+      <TextInput
+        label="De"
+        placeholder={isEmail ? 'email' : 'nombre, teléfono o email (opcional)'}
+        value={from}
+        onChange={(e) => setFrom(e.currentTarget.value)}
+      />
+      {isEmail && (
+        <TextInput label="Asunto" value={subject} onChange={(e) => setSubject(e.currentTarget.value)} />
+      )}
+      <Textarea
+        label="Texto"
+        value={text}
+        onChange={(e) => setText(e.currentTarget.value)}
+        autosize
+        minRows={5}
+        maxRows={16}
+      />
+      <Group justify="flex-end">
+        <Button variant="default" onClick={onCancel}>
+          Cancelar
+        </Button>
+        <Button
+          loading={edit.isPending}
+          onClick={() =>
+            edit.mutate(
+              { id: m.id, channel, from_addr: from.trim(), subject: isEmail ? subject : '', text },
+              {
+                onSuccess: () => {
+                  notifySuccess('Respuesta corregida.');
+                  onSaved();
+                },
+                onError: (e) => notifyError(e, 'No se pudo guardar'),
+              },
+            )
+          }
+        >
+          Guardar
+        </Button>
+      </Group>
     </Stack>
   );
 }

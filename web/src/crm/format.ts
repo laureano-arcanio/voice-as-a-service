@@ -1,6 +1,15 @@
 // Formatos y etiquetas del CRM. La API del CRM da las horas en UTC sin zona: se les agrega la Z.
 import type { Label } from '@/lib/labels';
-import type { ActivityKind, Campaign, ContactKind, MessageKind, MessageStatus, Stage } from './types';
+import type {
+  ActivityKind,
+  Campaign,
+  ContactKind,
+  Intent,
+  MessageChannel,
+  MessageKind,
+  MessageStatus,
+  Stage,
+} from './types';
 
 const EMPTY = '–';
 
@@ -95,9 +104,43 @@ export const MESSAGE_KIND: Record<MessageKind, string> = {
   other: 'Otro',
 };
 
-/** "Primer mail", "Seguimiento 2", "Respuesta". */
-export function messageLabel(m: { kind: MessageKind; step?: number | null; direction?: string }): string {
-  if (m.direction === 'in') return 'Respuesta';
+/** Intencion de una respuesta, segun el LLM (crm/services/inbound.py). */
+export const INTENTS: Record<Intent, Label> = {
+  interesado: { label: 'Interesado', color: 'green' },
+  agendar: { label: 'Quiere hablar', color: 'green' },
+  pide_info: { label: 'Pide información', color: 'green' },
+  derivado: { label: 'Deriva a otra persona', color: 'green' },
+  mas_adelante: { label: 'Más adelante', color: 'yellow' },
+  no_interesa: { label: 'No le interesa', color: 'red' },
+  baja: { label: 'Pide la baja', color: 'red' },
+  autorespuesta: { label: 'Autorespuesta', color: 'gray' },
+  otro: { label: 'Otro', color: 'gray' },
+};
+
+export const MESSAGE_CHANNEL: Record<MessageChannel, string> = {
+  email: 'Mail',
+  phone: 'Teléfono',
+  agent: 'Agente',
+  other: 'Otro',
+};
+
+export const MESSAGE_CHANNEL_OPTIONS = (Object.keys(MESSAGE_CHANNEL) as MessageChannel[]).map((v) => ({
+  value: v,
+  label: MESSAGE_CHANNEL[v],
+}));
+
+/** "Primer mail", "Seguimiento 2", "Respuesta", "Respuesta por teléfono". */
+export function messageLabel(m: {
+  kind: MessageKind;
+  step?: number | null;
+  direction?: string;
+  channel?: MessageChannel;
+}): string {
+  if (m.direction === 'in') {
+    return !m.channel || m.channel === 'email'
+      ? 'Respuesta'
+      : `Respuesta (${MESSAGE_CHANNEL[m.channel].toLowerCase()})`;
+  }
   if (m.kind === 'follow_up' && m.step) return `Seguimiento ${m.step}`;
   return MESSAGE_KIND[m.kind];
 }
@@ -106,6 +149,17 @@ export const MESSAGE_KIND_OPTIONS = (Object.keys(MESSAGE_KIND) as MessageKind[])
   value: v,
   label: MESSAGE_KIND[v],
 }));
+
+/** "de pablo@x.com", "a pablo@x.com"; en una respuesta sin remitente cargado, el canal. */
+export function messagePeer(m: {
+  direction: string;
+  channel?: MessageChannel;
+  from_addr: string | null;
+  to_addr: string;
+}): string {
+  if (m.direction === 'out') return `a ${m.to_addr}`;
+  return m.from_addr ? `de ${m.from_addr}` : `por ${MESSAGE_CHANNEL[m.channel ?? 'email'].toLowerCase()}`;
+}
 
 export const ACTIVITY_KIND: Record<ActivityKind, string> = {
   note: 'Nota',

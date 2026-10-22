@@ -17,7 +17,6 @@ import {
   IconLogout,
   IconMail,
   IconSpeakerphone,
-  IconSun,
   IconTemplate,
   IconUsers,
 } from '@tabler/icons-react';
@@ -25,12 +24,11 @@ import { Link, Outlet, useLocation } from 'react-router';
 import { setApiKey, useQueue } from './api';
 
 const NAV = [
-  { to: '/', label: 'Hoy', icon: IconSun },
+  { to: '/', label: 'Tablero', icon: IconChartBar },
   { to: '/leads', label: 'Leads', icon: IconUsers },
   { to: '/campanas', label: 'Campañas', icon: IconSpeakerphone },
   { to: '/plantillas', label: 'Plantillas', icon: IconTemplate },
   { to: '/mensajes', label: 'Mensajes', icon: IconMail },
-  { to: '/tablero', label: 'Tablero', icon: IconChartBar },
 ];
 
 function isActive(pathname: string, to: string): boolean {
@@ -54,7 +52,7 @@ export function CrmLayout() {
         <Group h="100%" px="md" justify="space-between" wrap="nowrap">
           <Group gap="sm" wrap="nowrap">
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" aria-label="Menú" />
-            <Link to="/" aria-label="Hoy" style={{ display: 'flex' }}>
+            <Link to="/" aria-label="Tablero" style={{ display: 'flex' }}>
               <Image src="/atentina-logo.svg" alt="Atentina" h={28} w="auto" />
             </Link>
             <Badge color="gray">CRM</Badge>

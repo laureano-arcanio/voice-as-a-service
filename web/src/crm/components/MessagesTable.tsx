@@ -3,7 +3,13 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { EmptyState, QueryState } from '@/components/QueryState';
 import { MESSAGES_PAGE, useCampaigns, useMessages } from '../api';
-import { MESSAGE_KIND_OPTIONS, MESSAGE_STATUS_OPTIONS, fmtDateTime, messageLabel } from '../format';
+import {
+  MESSAGE_KIND_OPTIONS,
+  MESSAGE_STATUS_OPTIONS,
+  fmtDateTime,
+  messageLabel,
+  messagePeer,
+} from '../format';
 import type { Message } from '../types';
 import { MessageStatusBadge } from './Badges';
 import { MessageModal } from './MessageModal';
@@ -115,9 +121,7 @@ export function MessagesTable({ campaignId }: { campaignId?: number }) {
                         <Table.Td>
                           <Badge color="gray">{messageLabel(m)}</Badge>
                         </Table.Td>
-                        <Table.Td className="mono">
-                          {m.direction === 'in' ? `de ${m.from_addr}` : `a ${m.to_addr}`}
-                        </Table.Td>
+                        <Table.Td className="mono">{messagePeer(m)}</Table.Td>
                         <Table.Td maw={320}>
                           <Text size="sm" lineClamp={1}>
                             {m.subject}

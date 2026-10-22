@@ -93,7 +93,7 @@ Entrega, en el CRM (ejemplos en [`docs/CRM_API.md`](../../docs/CRM_API.md)):
    `{{nombre}}`, `{{empresa}}`, `{{link}}`). Probala con `POST /api/templates/{id}/preview`.
 3. Borradores: `POST /api/campaigns/{id}/drafts` con los `lead_ids`. Revisá `skipped`.
 4. Al usuario: la tabla (empresa, email ★, tipo, quién), un texto de ejemplo y "quedan N borradores
-   para aprobar en Hoy".
+   para aprobar en Leads".
 
 ### Envío (lo hace el CRM, no vos)
 
@@ -170,4 +170,4 @@ empresa, competencia), reglas y la estructura del documento `docs/mercado/demos/
 ## Al terminar
 
 Informe breve: qué hiciste, qué quedó en el CRM (leads, campaña, borradores), qué tiene que hacer
-el usuario (aprobar en Hoy, revisar ganchos) y qué no pudiste verificar.
+el usuario (aprobar en Leads, filtro Pendiente; revisar ganchos) y qué no pudiste verificar.

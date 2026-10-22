@@ -13,6 +13,7 @@ import type {
   LeadSummary,
   LeadUpsert,
   Message,
+  MessageChannel,
   MessageKind,
   Page,
   PersonIn,
@@ -126,6 +127,7 @@ export interface LeadFilters {
   kind?: string;
   campaign_id?: number | null;
   has_clicks?: boolean | null;
+  pending?: 'draft' | 'queued' | 'follow_up';
   limit?: number;
   offset?: number;
 }
@@ -274,6 +276,7 @@ export const useInbound = () =>
       ...b
     }: {
       leadId: number;
+      channel: MessageChannel;
       from_addr: string;
       subject: string;
       text: string;
@@ -338,6 +341,28 @@ export const useCreateDraft = () => useCrmMutation((b: DraftIn) => api<Message>(
 
 export const useEditDraft = () =>
   useCrmMutation(({ id, ...b }: DraftIn & { id: number }) => api<Message>('PATCH', `/messages/${id}`, b));
+
+/** Corregir una respuesta ya registrada (no cambia la etapa del lead). */
+export const useEditInbound = () =>
+  useCrmMutation(
+    ({
+      id,
+      ...b
+    }: {
+      id: number;
+      channel: MessageChannel;
+      from_addr: string;
+      subject: string;
+      text: string;
+    }) => api<Message>('PATCH', `/messages/${id}`, b),
+  );
+
+export const useAssignInbound = () =>
+  useCrmMutation(({ id, lead_id }: { id: number; lead_id: number }) =>
+    api<Message>('POST', `/inbox/${id}/assign`, { lead_id }),
+  );
+
+export const useIgnoreInbound = () => useCrmMutation((id: number) => api('POST', `/inbox/${id}/ignore`));
 
 export const useApprove = () =>
   useCrmMutation((ids: number[]) => api<Message[]>('POST', '/messages/approve', { ids }));

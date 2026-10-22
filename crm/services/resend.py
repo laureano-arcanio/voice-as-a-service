@@ -76,3 +76,26 @@ def list_sent(limit_pages: int = 50) -> list[dict]:
             break
         after = d["data"][-1]["id"]
     return out
+
+
+def list_received(after: str | None = None) -> dict:
+    """Recibidos (Resend Receiving), del mas nuevo al mas viejo: {data: [{id, from, subject, created_at}], has_more}."""
+    q = "?limit=100" + (f"&after={after}" if after else "")
+    try:
+        r = httpx.get(f"{API}/emails/receiving{q}", headers=_headers(), timeout=30)
+    except httpx.HTTPError as e:
+        raise ResendError(str(e) or type(e).__name__) from e
+    if r.status_code >= 400:
+        raise ResendError(f"{r.status_code} {r.text[:300]}")
+    return r.json()
+
+
+def get_received(resend_id: str) -> dict:
+    """Un recibido entero: from, to, subject, text, html, headers (objeto), message_id, created_at."""
+    try:
+        r = httpx.get(f"{API}/emails/receiving/{resend_id}", headers=_headers(), timeout=30)
+    except httpx.HTTPError as e:
+        raise ResendError(str(e) or type(e).__name__) from e
+    if r.status_code >= 400:
+        raise ResendError(f"{r.status_code} {r.text[:300]}")
+    return r.json()

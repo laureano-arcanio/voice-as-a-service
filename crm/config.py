@@ -4,6 +4,7 @@ import zoneinfo
 from functools import cache
 from pathlib import Path
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -43,7 +44,22 @@ class Settings(BaseSettings):
     ga_credentials: str = ""          # ruta al JSON de la cuenta de servicio
     ga_interval_seconds: int = 86400
 
-    # Dias habiles despues del primer mail para que el seguimiento aparezca en "Hoy".
+    # Respuestas (docs/CRM_PLAN.md, 6): Resend Receiving en un subdominio, leido cada tanto (sin webhook).
+    # Apagado hasta que el subdominio y el reenvio de la casilla esten andando.
+    inbound_enabled: bool = False
+    inbound_interval_seconds: int = 120
+    # Lo que llega de nuestras casillas (las copias BCC de cada envio) se ignora. Separados por coma.
+    own_domains: str = "atentina.net,atentina.com.ar"
+    # LLM local que clasifica cada respuesta (vllm-llm, en la misma red). Sin modelo: sin analisis.
+    llm_url: str = "http://vllm-llm:8000/v1"
+    llm_api_key: str = Field("", validation_alias=AliasChoices("CRM_LLM_API_KEY", "VLLM_API_KEY"))
+    llm_model: str = Field("", validation_alias=AliasChoices("CRM_LLM_MODEL", "VLLM_LLM_MODEL"))
+    llm_min_confidence: float = 0.7
+    # Aviso por mail de cada respuesta (no las autorespuestas). Vacio: sin aviso.
+    notify_to: str = ""
+    crm_url: str = "http://127.0.0.1:8030"
+
+    # Dias habiles despues del primer mail para que el seguimiento venza (filtro Pendiente de Leads).
     follow_up_business_days: int = 4
 
     web_dist_dir: Path = BASE_DIR / "web" / "dist"

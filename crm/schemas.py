@@ -141,6 +141,10 @@ class LeadSummary(Out):
     last_out_at: datetime.datetime | None = None
     last_in_at: datetime.datetime | None = None
     ga_users: int = 0
+    # Pendiente de salir: borradores para aprobar y mails en cola; y el seguimiento que le toca, si vencio
+    draft_ids: list[int] = []
+    queued: int = 0
+    follow_up_step: int | None = None
 
 
 class LeadOut(LeadSummary):
@@ -283,9 +287,13 @@ class DraftIn(BaseModel):
     to: str | None = Field(None, description="Si falta: el ★ (primer mail) o la direccion del hilo")
 
 
-class DraftPatch(BaseModel):
+class MessagePatch(BaseModel):
+    """Borrador: asunto y texto. Respuesta recibida: tambien canal, remitente y fecha."""
     subject: str | None = None
     text: str | None = None
+    channel: Literal["email", "phone", "agent", "other"] | None = None
+    from_addr: str | None = None
+    at: datetime.datetime | None = None
 
 
 class BulkDraftIn(BaseModel):
@@ -311,6 +319,7 @@ class MessageOut(Out):
     kind: str
     step: int | None = None
     direction: str
+    channel: str = "email"
     from_addr: str | None
     to_addr: str
     subject: str
@@ -325,8 +334,27 @@ class MessageOut(Out):
     created_at: datetime.datetime
     queued_at: datetime.datetime | None
     sent_at: datetime.datetime | None
+    analysis: dict | None = None
     lead_name: str | None = None
     campaign_slug: str | None = None
+
+
+class InboundEmailOut(Out):
+    id: int
+    resend_id: str
+    from_addr: str
+    to_addr: str
+    subject: str
+    text: str
+    received_at: datetime.datetime
+    status: str
+    reason: str | None
+    lead_id: int | None
+    message_id: int | None
+
+
+class AssignIn(BaseModel):
+    lead_id: int
 
 
 class BulkDraftOut(BaseModel):
@@ -343,7 +371,9 @@ class IdsIn(BaseModel):
 
 
 class InboundIn(BaseModel):
-    from_addr: str
+    channel: Literal["email", "phone", "agent", "other"] = Field(
+        "email", description="Por dónde respondió: mail, teléfono, el agente de Atentina u otro")
+    from_addr: str = Field("", description="Quién respondió: email, teléfono o solo el nombre (opcional)")
     subject: str = ""
     text: str = ""
     at: datetime.datetime | None = None

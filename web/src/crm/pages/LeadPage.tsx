@@ -61,16 +61,28 @@ import {
   CONTACT_KIND,
   CONTACT_LABEL,
   LEAD_KIND_OPTIONS,
+  MESSAGE_CHANNEL_OPTIONS,
   MESSAGE_KIND_OPTIONS,
   STAGES,
   STAGE_OPTIONS,
   fmtDate,
   fmtDateTime,
   messageLabel,
+  messagePeer,
 } from '../format';
 import { MessageStatusBadge, StageBadge } from '../components/Badges';
 import { MessageModal } from '../components/MessageModal';
-import type { ContactKind, ContactLabel, Lead, Message, MessageKind, Stage, TimelineItem } from '../types';
+import { IntentBadge } from '../components/Analysis';
+import type {
+  ContactKind,
+  ContactLabel,
+  Lead,
+  Message,
+  MessageChannel,
+  MessageKind,
+  Stage,
+  TimelineItem,
+} from '../types';
 
 // --- Datos ---
 
@@ -653,9 +665,23 @@ function ActivityModal({
 function InboundModal({ lead, opened, onClose }: { lead: Lead; opened: boolean; onClose: () => void }) {
   const inbound = useInbound();
   const form = useForm({
-    initialValues: { from_addr: lead.primary_email ?? '', subject: '', text: '', auto_reply: false },
-    validate: { from_addr: (v) => (v.trim() ? null : 'Falta quién respondió') },
+    initialValues: {
+      channel: 'email' as MessageChannel,
+      from_addr: lead.primary_email ?? '',
+      subject: '',
+      text: '',
+      auto_reply: false,
+    },
   });
+  const isEmail = form.values.channel === 'email';
+  const setChannel = (v: string) => {
+    const channel = v as MessageChannel;
+    form.setFieldValue('channel', channel);
+    // El email del lead solo sirve de remitente si respondió por mail.
+    const from = form.values.from_addr.trim();
+    if (channel === 'email' && !from) form.setFieldValue('from_addr', lead.primary_email ?? '');
+    if (channel !== 'email' && from === (lead.primary_email ?? '')) form.setFieldValue('from_addr', '');
+  };
   return (
     <Modal opened={opened} onClose={onClose} title="Registrar respuesta" size="lg">
       <form
@@ -663,8 +689,9 @@ function InboundModal({ lead, opened, onClose }: { lead: Lead; opened: boolean; 
           inbound.mutate(
             {
               leadId: lead.id,
+              channel: v.channel,
               from_addr: v.from_addr.trim(),
-              subject: v.subject,
+              subject: isEmail ? v.subject : '',
               text: v.text,
               auto_reply: v.auto_reply,
             },
@@ -685,8 +712,19 @@ function InboundModal({ lead, opened, onClose }: { lead: Lead; opened: boolean; 
           <Text size="xs" c="dimmed">
             Cambia la etapa a Respondió y cancela lo que estaba por salir a este lead.
           </Text>
-          <TextInput label="De" required {...form.getInputProps('from_addr')} />
-          <TextInput label="Asunto" {...form.getInputProps('subject')} />
+          <Select
+            label="Canal"
+            data={MESSAGE_CHANNEL_OPTIONS}
+            value={form.values.channel}
+            onChange={(v) => v && setChannel(v)}
+            allowDeselect={false}
+          />
+          <TextInput
+            label="De"
+            placeholder={isEmail ? 'email' : 'nombre, teléfono o email (opcional)'}
+            {...form.getInputProps('from_addr')}
+          />
+          {isEmail && <TextInput label="Asunto" {...form.getInputProps('subject')} />}
           <Textarea label="Texto" autosize minRows={5} maxRows={16} {...form.getInputProps('text')} />
           <Checkbox
             label="Es una autorespuesta (fuera de la oficina): no cambia la etapa"
@@ -732,7 +770,7 @@ function ComposeModal({ lead, opened, onClose }: { lead: Lead; opened: boolean; 
       },
       {
         onSuccess: () => {
-          notifySuccess('Borrador creado: aprobalo en Hoy o en la línea de tiempo.');
+          notifySuccess('Borrador creado: aprobalo en Leads o en la línea de tiempo.');
           onClose();
         },
         onError: (e) => notifyError(e, 'No se pudo crear'),
@@ -846,6 +884,7 @@ function TimelineEntry({ item, onOpen }: { item: TimelineItem; onOpen: (m: Messa
               {messageLabel(m)}
             </Text>
             <MessageStatusBadge status={m.status} error={m.error} />
+            <IntentBadge m={m} />
             {m.campaign_slug && (
               <Text size="xs" c="dimmed" className="mono">
                 {m.campaign_slug}
@@ -859,7 +898,7 @@ function TimelineEntry({ item, onOpen }: { item: TimelineItem; onOpen: (m: Messa
             {m.subject}
           </Text>
           <Text size="xs" c="dimmed" className="mono">
-            {m.direction === 'in' ? `de ${m.from_addr}` : `a ${m.to_addr}`}
+            {messagePeer(m)}
           </Text>
         </UnstyledButton>
       </div>

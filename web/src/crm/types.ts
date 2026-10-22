@@ -72,6 +72,9 @@ export interface LeadSummary {
   last_out_at: string | null;
   last_in_at: string | null;
   ga_users: number;
+  draft_ids: number[];
+  queued: number;
+  follow_up_step: number | null;
 }
 
 export interface Lead extends LeadSummary {
@@ -211,6 +214,9 @@ export interface Preview {
 export type MessageStatus =
   'draft' | 'queued' | 'sent' | 'delivered' | 'bounced' | 'complained' | 'failed' | 'canceled' | 'received';
 
+/** Por dónde llegó: los enviados son email; una respuesta cargada a mano puede venir por otro lado. */
+export type MessageChannel = 'email' | 'phone' | 'agent' | 'other';
+
 export interface Message {
   id: number;
   lead_id: number;
@@ -218,6 +224,7 @@ export interface Message {
   kind: MessageKind;
   step: number | null;
   direction: 'out' | 'in';
+  channel: MessageChannel;
   from_addr: string | null;
   to_addr: string;
   subject: string;
@@ -232,8 +239,47 @@ export interface Message {
   created_at: string;
   queued_at: string | null;
   sent_at: string | null;
+  analysis: MessageAnalysis | null;
   lead_name: string | null;
   campaign_slug: string | null;
+}
+
+export type Intent =
+  | 'interesado'
+  | 'agendar'
+  | 'pide_info'
+  | 'derivado'
+  | 'mas_adelante'
+  | 'no_interesa'
+  | 'baja'
+  | 'autorespuesta'
+  | 'otro';
+
+/** Respuestas recibidas por Resend: lo que dijo el LLM y lo que se aplico al lead. */
+export interface MessageAnalysis {
+  status: 'ok' | 'low_confidence' | 'error';
+  intencion?: Intent;
+  resumen?: string;
+  proxima_accion?: string;
+  fecha?: string;
+  confianza?: number;
+  error?: string;
+  applied?: string[];
+  matched_by?: string;
+}
+
+export interface InboundEmail {
+  id: number;
+  resend_id: string;
+  from_addr: string;
+  to_addr: string;
+  subject: string;
+  text: string;
+  received_at: string;
+  status: 'unassigned' | 'assigned' | 'ignored';
+  reason: string | null;
+  lead_id: number | null;
+  message_id: number | null;
 }
 
 export interface BulkDraftResult {
@@ -314,6 +360,7 @@ export interface Today {
   next_actions: LeadSummary[];
   queue: QueueStatus;
   reply_rates: ReplyRate[];
+  inbox: InboundEmail[];
 }
 
 export interface Stats {
@@ -325,4 +372,6 @@ export interface Stats {
   bounced_addresses: number;
   with_clicks: number;
   sent_last_7d: number;
+  sent_by_day: { day: string; first: number; follow_up: number }[];
+  by_campaign: { slug: string; reached: number; replied: number; clicked: number }[];
 }

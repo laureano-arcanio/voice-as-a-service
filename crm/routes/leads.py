@@ -41,12 +41,21 @@ def summaries(s: Session, leads: list[Lead]) -> list[S.LeadSummary]:
         Message.lead_id.in_(ids), Message.direction == "in").group_by(Message.lead_id)).all())
     ga = dict(s.execute(select(GaVisit.lead_id, func.sum(GaVisit.active_users)).where(
         GaVisit.lead_id.in_(ids)).group_by(GaVisit.lead_id)).all())
+    drafts: dict[int, list[int]] = {}
+    queued: dict[int, int] = {}
+    for lead_id, mid, status in s.execute(select(Message.lead_id, Message.id, Message.status).where(
+            Message.lead_id.in_(ids), Message.status.in_(("draft", "queued"))).order_by(Message.id)):
+        if status == "draft":
+            drafts.setdefault(lead_id, []).append(mid)
+        else:
+            queued[lead_id] = queued.get(lead_id, 0) + 1
     out = []
     for x in leads:
         pe = L.primary_email(x)
         out.append(S.LeadSummary.model_validate(x).model_copy(update={
             "primary_email": pe.value if pe else None, "last_out_at": last_out.get(x.id),
-            "last_in_at": last_in.get(x.id), "ga_users": int(ga.get(x.id) or 0)}))
+            "last_in_at": last_in.get(x.id), "ga_users": int(ga.get(x.id) or 0),
+            "draft_ids": drafts.get(x.id, []), "queued": queued.get(x.id, 0)}))
     return out
 
 
@@ -64,6 +73,9 @@ def list_leads(s: DB, _: Who,
                campaign_id: int | None = Query(None, description="Con algun mail de esa campaña"),
                has_clicks: bool | None = Query(None, description="Con visitas de GA"),
                next_action_due: bool | None = Query(None, description="Proxima accion vencida u hoy"),
+               pending: str | None = Query(None, pattern="^(draft|queued|follow_up)$",
+                                           description="draft: con borrador; queued: en cola; "
+                                                       "follow_up: le toca seguimiento"),
                limit: int = Query(100, le=500), offset: int = 0):
     query = select(Lead)
     if q:
@@ -85,11 +97,17 @@ def list_leads(s: DB, _: Who,
         query = query.where(Lead.id.in_(sub) if has_clicks else Lead.id.notin_(sub))
     if next_action_due:
         query = query.where(Lead.next_action_at <= local_today())
+    if pending in ("draft", "queued"):
+        query = query.where(Lead.id.in_(select(Message.lead_id).where(Message.status == pending)))
+    due = {d["lead"].id: d["step"] for d in M.followups_due(s)}
+    if pending == "follow_up":
+        query = query.where(Lead.id.in_(due or [0]))
     items = s.scalars(query.order_by(Lead.stage_changed_at.desc(), Lead.id.desc())).all()
     if tag:
         items = [x for x in items if tag in (x.tags or [])]
     total = len(items)
-    return {"total": total, "items": summaries(s, items[offset:offset + limit])}
+    page = summaries(s, items[offset:offset + limit])
+    return {"total": total, "items": [x.model_copy(update={"follow_up_step": due.get(x.id)}) for x in page]}
 
 
 @router.get("/leads/check", summary="¿Ya existe o esta bloqueado? (antes de proponer un lead)")
@@ -260,7 +278,8 @@ def patch_activity(activity_id: int, body: S.ActivityPatch, s: DB, _: Who):
 @router.post("/leads/{lead_id}/inbound", response_model=S.MessageOut, status_code=201,
              summary="Registrar una respuesta del lead (cambia la etapa a respondio y frena lo pendiente)")
 def inbound(lead_id: int, body: S.InboundIn, s: DB, who: Who):
-    m = M.record_inbound(s, get_lead(s, lead_id), from_addr=body.from_addr, subject=body.subject,
+    m = M.record_inbound(s, get_lead(s, lead_id), channel=body.channel, from_addr=body.from_addr,
+                         subject=body.subject,
                          text=body.text, at=body.at, by=who, auto=body.auto_reply)
     s.commit()
     return m

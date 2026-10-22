@@ -128,7 +128,8 @@ function SequenceCard({ c }: { c: Campaign }) {
       </Group>
       <Text size="sm" c="dimmed" mb="sm">
         Cada seguimiento sale en el hilo, los días hábiles indicados después del último mail, si el lead no
-        respondió. Con plantilla, el CRM arma el borrador solo (campaña activa) y queda en Hoy para aprobar.
+        respondió. Con plantilla, el CRM arma el borrador solo (campaña activa) y queda para aprobar en Leads
+        (filtro Pendiente).
         {steps.length === 0 &&
           ' Sin secuencia: un seguimiento a los 4 días hábiles, con la plantilla que elijas al armarlo.'}
       </Text>

@@ -146,19 +146,45 @@ La de `app` sigue siendo de solo envío.
 
 ## 6. Entrante
 
+En producción desde el 22-oct-2026 (`CRM_INBOUND_ENABLED=true`; pasos 1 a 3 hechos, probado con un mail reenviado).
+Código en `crm/services/inbound.py`; migración `0005`; tests en `tests/test_crm_inbound.py`.
+
 Hoy `laureano@atentina.com.ar` y `.net` tienen MX en Cloudflare Email Routing, que reenvía a Gmail.
 Para que el CRM vea las respuestas sin perder la casilla:
 
-1. Verificar recepción en Resend para un subdominio (`in.atentina.net`: MX solo en el subdominio).
-2. En Cloudflare, cambiar la regla de cada casilla por un **Email Worker** que haga dos
-   `message.forward()`: a Gmail, como hoy, y a `crm@in.atentina.net`. Plan B, sin Worker: un filtro
-   de Gmail que reenvía a esa dirección (Gmail pide confirmar la dirección una vez).
-3. El loop de recibidos lee `GET /emails/receiving` desde el último id visto, baja el contenido y los
-   encabezados de cada uno y lo asocia: primero por `In-Reply-To`/`References` contra
-   `messages.message_id`; si no, por dirección; si no, por dominio. Sin match queda en una bandeja
-   "sin asignar" de la UI.
-4. Respuesta asociada: mensaje `in`, etapa `respondio`, lo pendiente cancelado. Autorespuestas
-   (`Auto-Submitted`, "fuera de la oficina") se guardan, pero no cambian la etapa.
+1. **Resend:** activar la recepción para `in.atentina.net` (Domains → Receiving) y cargar en Cloudflare
+   el MX que indica, **solo en el subdominio** (la raíz sigue con Email Routing).
+2. **Cloudflare:** cambiar la regla de cada casilla por un **Email Worker** ([`deploy/crm-email-worker.js`](../deploy/crm-email-worker.js)) que haga dos
+   `message.forward()`: a Gmail, como hoy, y a `crm@in.atentina.net`. Cubre también las respuestas a lo
+   ya enviado (poner `Reply-To` no, y además rompería el hilo en Gmail). Plan B, sin Worker: un filtro de
+   Gmail que reenvía a esa dirección.
+3. **`.env`:** `CRM_INBOUND_ENABLED=true` y `CRM_NOTIFY_TO` (el aviso), y `make crm-up`.
+
+Cómo procesa cada recibido (cada `CRM_INBOUND_INTERVAL_SECONDS`, 120; `GET /emails/receiving`, sin webhook):
+
+- **Ignora** lo que viene de nuestros dominios (`CRM_OWN_DOMAINS`: las copias BCC de cada envío) y los
+  rebotes (los ven los eventos).
+- **Asocia** por el hilo (`In-Reply-To`/`References` contra `messages.message_id`), si no por la
+  dirección del remitente y si no por el dominio (salvo correo gratuito). Sin lead queda en
+  **"Respuestas sin asignar"** del Tablero, para asignarlo a mano (`POST /api/inbox/{id}/assign`) o ignorarlo.
+- **Clasifica** con el LLM local (`vllm-llm`, Gemma) lo que escribió, sin el mail citado: intención,
+  resumen, próxima acción, fecha y persona a la que deriva. JSON pedido en el prompt: con el esquema
+  forzado (guided decoding) Gemma se colgaba en espacios en 3 de 5; así, 8 de 9 bien, 0,5 a 0,9 s
+  (`scratch/crm-inbound/`). La etapa la decide el código, no el LLM:
+
+| Intención | Qué cambia en el lead (además de mensaje `in`, etapa `respondio` y lo pendiente cancelado) |
+|---|---|
+| interesado, agendar, pide info | Próxima acción y su fecha (la que proponen, o hoy) |
+| derivado | Lo mismo, y la persona y su email como contacto nuevo |
+| más adelante | Próxima acción a la fecha que digan, o en 90 días |
+| no interesa | Etapa `no_interesa` |
+| baja | `no_interesa`, no contactar y el email a la blocklist (`opt_out`) |
+| autorespuesta (por encabezados o LLM) | Nada: ni etapa ni cancelación. Si dice hasta cuándo, próxima acción ese día |
+
+- Con el LLM caído, confianza menor a `CRM_LLM_MIN_CONFIDENCE` (0,7) u "otro": solo `respondio`, marcado
+  "Sin analizar" o "Revisar". Todo queda en `messages.analysis` y en una nota de la línea de tiempo.
+- **Aviso** por mail a `CRM_NOTIFY_TO` de cada respuesta (no las autorespuestas) y de cada una sin
+  asignar, directo por Resend (no por la cola ni su tope diario). Nunca contesta solo.
 
 Cupo: los recibidos cuentan en el plan de Resend igual que los enviados ([`EMAIL_PLAN.md`](EMAIL_PLAN.md), 3).
 

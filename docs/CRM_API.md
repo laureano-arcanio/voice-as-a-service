@@ -84,8 +84,9 @@ curl -s -H "Authorization: Bearer $K" "$U/leads?stage=contactado,seguimiento&has
 ```
 
 Filtros: `q` (nombre, dominio, email, rubro o `#` viejo), `stage` (varias con coma), `tag`, `industry`,
-`kind`, `campaign_id`, `has_clicks`, `next_action_due`. Cada item trae `primary_email`, `last_out_at`,
-`last_in_at` y `ga_users`. El detalle (`GET /leads/{id}`) suma `people`, `contacts` y `sources`, y
+`kind`, `campaign_id`, `has_clicks`, `next_action_due` y `pending` (`draft`: con borrador, `queued`: en
+cola, `follow_up`: le toca seguimiento). Cada item trae `primary_email`, `last_out_at`, `last_in_at`,
+`ga_users`, `draft_ids`, `queued` y `follow_up_step`. El detalle (`GET /leads/{id}`) suma `people`, `contacts` y `sources`, y
 `GET /leads/{id}/timeline` da mails, actividad y visitas de GA en orden.
 
 ### 4. Armar una tanda (borradores)
@@ -137,7 +138,7 @@ respuesta en adelante, como `replied` de `/stats`; cuenta para el último mail e
 cambio de etapa; sin fecha, el último mail).
 
 Si el paso tiene plantilla y la campaña está **activa**, el servidor arma solo el borrador (cada 10 min,
-`created_by: "sistema"`); igual queda en "Hoy" para aprobar.
+`created_by: "sistema"`); igual queda para aprobar (en Leads, filtro Pendiente).
 
 ### 6. Registrar lo que pasa
 
@@ -145,6 +146,10 @@ Si el paso tiene plantilla y la campaña está **activa**, el servidor arma solo
 # Respuesta del lead (pegada desde el mail): etapa -> respondio y cancela lo que estaba por salir
 curl -s -X POST -H "Authorization: Bearer $K" -H "Content-Type: application/json" "$U/leads/12/inbound" \
   -d '{"from_addr": "pablo@empresa.com.ar", "subject": "Re: IA aplicada a Empresa SA", "text": "...", "at": "2026-10-22T11:05:00-03:00"}'
+# Por otro canal: channel = email (default), phone, agent u other; from_addr es opcional (a veces solo el nombre)
+curl -s -X POST ... "$U/leads/12/inbound" -d '{"channel": "phone", "from_addr": "Marta", "text": "Llamó, quiere una demo"}'
+# Corregir una respuesta ya cargada (canal, from_addr, subject, text, at); no cambia la etapa
+curl -s -X PATCH ... "$U/messages/230" -d '{"channel": "agent", "text": "Habló con el agente: pidió precios"}'
 
 # Charla, llamada, nota, LinkedIn o tarea
 curl -s -X POST -H "Authorization: Bearer $K" -H "Content-Type: application/json" "$U/leads/12/activities" \
@@ -160,6 +165,14 @@ curl -s -X POST ... "$U/blocklist" -d '{"value": "info@empresa.com.ar", "reason"
 curl -s -X PATCH ... "$U/leads/12" -d '{"do_not_contact": true}'
 ```
 
+### Respuestas recibidas por mail
+
+Con `CRM_INBOUND_ENABLED` el CRM lee las respuestas de Resend, las asocia, las clasifica con el LLM local y
+actualiza el lead solo ([`CRM_PLAN.md`](CRM_PLAN.md), 6). El mensaje entrante trae `analysis`
+(`status`: `ok`, `low_confidence` o `error`; `intencion`, `resumen`, `applied`, `matched_by`). Las que no se
+pudieron asociar: `GET /inbox` (también en `/today` → `inbox`); `POST /inbox/{id}/assign {"lead_id": 12}`
+la procesa como las automáticas y `POST /inbox/{id}/ignore` la descarta.
+
 ### 7. Números
 
 `GET /stats` (por etapa, contactados, con seguimiento, respondieron, rebotes, con clics, enviados en 7
@@ -172,7 +185,7 @@ La cola manda un mail aprobado por ventana de `CRM_SEND_WINDOW_SECONDS` (120), e
 con al menos 30 s entre dos, de lunes a viernes de 9 a 18 (hora argentina) y hasta `CRM_SEND_DAILY_MAX`
 (50) por día. Antes de cada uno vuelve a mirar blocklist, no contactar y si el lead respondió. Rebotes y
 quejas se leen de Resend cada 10 min (o ya, con `POST /events/check`, el botón "Revisar entregas y
-rebotes" de "Hoy"; solo el usuario): el email va a la blocklist.
+rebotes" del Tablero; solo el usuario): el email va a la blocklist.
 
 ## Endpoints
 

@@ -187,12 +187,39 @@ def on_bounce(s: Session, m: Message) -> None:
         L.set_stage(s, lead, "descartado", "sistema", f"rebotó {m.to_addr} y no hay otro email")
 
 
-def record_inbound(s: Session, lead: Lead, *, from_addr: str, subject: str, text: str,
-                   at: datetime.datetime | None, by: str, auto: bool = False) -> Message:
-    """Respuesta del lead (a mano en esta version). Cambia la etapa salvo autorespuestas."""
+def _inbound_to(channel: str) -> str:
+    """Destinatario de una respuesta: nuestra casilla si vino por mail; si no, nada."""
+    if channel != "email":
+        return ""
     own = re.search(r"[\w.+-]+@[\w.-]+", settings.mail_from)
-    m = Message(lead_id=lead.id, direction="in", kind="other", from_addr=from_addr,
-                to_addr=own.group(0) if own else settings.mail_from, subject=subject or "(sin asunto)",
+    return own.group(0) if own else settings.mail_from
+
+
+def edit_inbound(m: Message, changes: dict) -> None:
+    """Corrige una respuesta ya registrada (canal, remitente, asunto, texto, fecha).
+    No toca la etapa del lead ni lo cancelado al registrarla."""
+    if changes.get("channel"):
+        m.channel = changes["channel"]
+        m.to_addr = _inbound_to(m.channel)
+    if "from_addr" in changes:
+        m.from_addr = (changes["from_addr"] or "").strip() or None
+    if "subject" in changes:
+        m.subject = changes["subject"] or ("(sin asunto)" if m.channel == "email" else "")
+    if "text" in changes:
+        m.text = changes["text"] or ""
+    if changes.get("at"):
+        m.sent_at = naive_utc(changes["at"])
+
+
+def record_inbound(s: Session, lead: Lead, *, from_addr: str, subject: str, text: str,
+                   at: datetime.datetime | None, by: str, auto: bool = False,
+                   channel: str = "email") -> Message:
+    """Respuesta del lead (a mano o desde Resend, crm/services/inbound.py). Cambia la etapa y cancela lo
+    pendiente, salvo las autorespuestas.
+    Por telefono, el agente u otro canal: `from_addr` es lo que haya (a veces solo el nombre)."""
+    m = Message(lead_id=lead.id, direction="in", kind="other", channel=channel,
+                from_addr=from_addr.strip() or None, to_addr=_inbound_to(channel),
+                subject=subject or ("(sin asunto)" if channel == "email" else ""),
                 text=text or "", status="received", sent_at=naive_utc(at) or utcnow(), created_by=by)
     parent = _thread_parent(s, lead, None, None)
     if parent:
@@ -200,10 +227,11 @@ def record_inbound(s: Session, lead: Lead, *, from_addr: str, subject: str, text
     s.add(m)
     if not auto and lead.stage in OPEN_STAGES_FOR_REPLY:
         L.set_stage(s, lead, "respondio", by)
-    # Lo que quedaba por salir a ese lead ya no va.
-    for q in s.scalars(select(Message).where(Message.lead_id == lead.id,
-                                             Message.status.in_(("draft", "queued")))):
-        q.status, q.error = "canceled", "respondió"
+    # Lo que quedaba por salir a ese lead ya no va (una autorespuesta no es una respuesta).
+    if not auto:
+        for q in s.scalars(select(Message).where(Message.lead_id == lead.id,
+                                                 Message.status.in_(("draft", "queued")))):
+            q.status, q.error = "canceled", "respondió"
     s.flush()
     return m
 
@@ -250,7 +278,7 @@ def followups_due(s: Session, today: datetime.date | None = None) -> list[dict]:
 
 
 def auto_followups(s: Session) -> int:
-    """Borradores de los pasos que tienen plantilla, en campañas activas. Quedan para aprobar en Hoy."""
+    """Borradores de los pasos que tienen plantilla, en campañas activas. Quedan para aprobar en Leads."""
     n = 0
     for d in followups_due(s):
         c = d["campaign"]
@@ -264,6 +292,7 @@ def auto_followups(s: Session) -> int:
             logger.info("crm: seguimiento %s de %s: %s", d["step"], d["lead"].name, e.detail)
     s.commit()
     return n
+
 
 
 def reply_rates(s: Session) -> list[dict]:
