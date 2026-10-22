@@ -1,0 +1,72 @@
+{
+  "nota": "v1 (22-oct-2026): narradora paula a 1× y lucas como voz secundaria en las cuatro líneas de producto de Zennon (b1 a b4, un solo bloque, como en axiomait-analisis v1; lucas por pedido del usuario). Textos y cifras del PDF zennonbi-propuesta v1. Ortografía normal; única grafía, la de la tabla: «ápi» por API. «Zennon», «Dynamics», «Dataverse», «Power Automate», «Power BI», «KickStart», «Sales», «Customer Service», «Field Service» escritos normal; «Journeys» no se dice (lucas: «SORNAYS»), va escrito en la tarjeta (probados con scripts/candidatas.py zennonbi). Números en palabras; pausas con puntuación. Sin precios. No nombra MCP.",
+  "ganancia_db": -1.5,
+  "musica_segundos": 82,
+  "lineas": [
+    {
+      "id": "a1",
+      "voz": "paula",
+      "texto": "La línea de voz argentina de cada proyecto Dynamics que implementan."
+    },
+    {
+      "id": "a2",
+      "voz": "paula",
+      "texto": "En Zennon implementan Dynamics desde dos mil dieciocho, con treinta y dos clientes que lo muestran."
+    },
+    {
+      "id": "a3",
+      "voz": "paula",
+      "texto": "Con la voz pasa lo mismo: el agente se arma con el conocimiento de cada cliente."
+    },
+    {
+      "id": "b1",
+      "voz": "lucas",
+      "texto": "Dynamics Sales: el agente llama al lead apenas entra."
+    },
+    {
+      "id": "b2",
+      "voz": "lucas",
+      "texto": "Customer Service: el número del cliente atiende a toda hora."
+    },
+    {
+      "id": "b3",
+      "voz": "lucas",
+      "texto": "Field Service: las visitas, confirmadas el día anterior."
+    },
+    {
+      "id": "b4",
+      "voz": "lucas",
+      "texto": "Customer Insights: un paso de llamada o de WhatsApp en el recorrido."
+    },
+    {
+      "id": "a4",
+      "voz": "paula",
+      "texto": "Por dentro: Power Automate pide la llamada por ápi, el agente habla con el cliente, y el resultado vuelve a Dataverse."
+    },
+    {
+      "id": "a5",
+      "voz": "paula",
+      "texto": "Si el cliente llama, atiende el mismo agente y deja el caso. Y Power BI lo mide."
+    },
+    {
+      "id": "a6",
+      "voz": "paula",
+      "texto": "La alianza: un módulo de voz en cada KickStart. Zennon lo diseña y lo conecta, y el cliente sigue siendo de Zennon."
+    },
+    {
+      "id": "a7",
+      "voz": "paula",
+      "texto": "Atentina pone el número, la voz y el soporte, y cada llamada queda medida."
+    },
+    {
+      "id": "a8",
+      "voz": "paula",
+      "texto": "Primero, una demo técnica con un Dynamics de prueba. Después, un piloto de treinta días con un caso real."
+    },
+    {
+      "id": "a9",
+      "voz": "paula",
+      "texto": "¿Agendamos una demo técnica?"
+    }
+  ]
+}

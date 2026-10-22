@@ -69,6 +69,16 @@ GRUPOS = {
         "En Báic Center ya hicieron lo difícil. Nueve años, cuatro marcas, y flotas como la de EPEC.",
         "En Baik Center ya hicieron lo difícil. Nueve años, cuatro marcas, y flotas como la de EPEC.",
     ] for _ in range(2)],
+    # zennonbi-analisis v1: "Zennon", "Dynamics", "Dataverse", "Power Automate", "Power BI", "KickStart" y "API"
+    "zennonbi": [(v, t) for v, t in [
+        ("paula", "En Zennon implementan Dynamics desde dos mil dieciocho."),
+        ("paula", "En Zénon implementan Dynamics desde dos mil dieciocho."),
+        ("paula", "Power Automate la pide por ápi, y el resultado vuelve a Dataverse."),
+        ("paula", "Power Automate la pide por API, y el resultado vuelve a Dataverse."),
+        ("paula", "Un módulo de voz en cada KickStart, medido en Power BI."),
+        ("lucas", "Dynamics Sales: el agente llama al lead apenas entra."),
+        ("lucas", "Customer Service: el número del cliente atiende a toda hora."),
+    ] for _ in range(2)],
 }
 
 

@@ -20,6 +20,8 @@ Piezas de comunicación de Atentina, una carpeta por proyecto y una carpeta por 
 | [`goldman-propuesta`](documentos/proyectos/goldman-propuesta/README.md) | PDF, 5 hojas | Isaías Goldman SA (Isaías, Jonatan y Carolina) | v1, borrador |
 | [`baicenter-analisis`](videos/proyectos/baicenter-analisis/README.md) | Video, ~65 s | BAIC Center / Grupo Signature (el PDF en video: lo que hacen bien, áreas a mejorar, la propuesta) | v1, borrador |
 | [`baicenter-propuesta`](documentos/proyectos/baicenter-propuesta/README.md) | PDF, 5 hojas | BAIC Center / Grupo Signature (Edgardo Fernández Favaron) | v2, borrador |
+| [`zennonbi-propuesta`](documentos/proyectos/zennonbi-propuesta/README.md) | PDF, 5 hojas | Zennon BI (Cristian Ventura; propuesta de alianza e integración con Dynamics 365 y Power Platform) | v1, borrador |
+| [`zennonbi-analisis`](videos/proyectos/zennonbi-analisis/README.md) | Video, ~76 s | Zennon BI (Cristian Ventura; el PDF de alianza en video: lo que hacen, dónde encaja la voz, la integración por Power Automate, el módulo en sus KickStart con el tablero ilustrativo y la puesta en marcha; paula y lucas) | v1, borrador |
 | [`propuesta-atentina`](documentos/proyectos/propuesta-atentina/README.md) | PDF, 3 hojas | Genérico (cualquier prospecto) | v1, borrador |
 
 ## Convención

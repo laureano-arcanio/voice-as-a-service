@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Atentina · Propuesta de alianza para Zennon BI</title>
+<link rel="stylesheet" href="../../../../plantilla/base.css">
+<style>
+  /* Ajustes locales de este documento (no tocan base.css) */
+  .src-line { font-size: 7.8pt; color: var(--muted); }
+  .pull { border-left: 3px solid var(--accent); padding: 1mm 0 1mm 4mm; margin: 0 0 4.5mm; }
+  .pull q { font-family: "Bricolage"; font-weight: 700; font-size: 13pt; color: var(--ink); quotes: "“" "”"; }
+  .pull span { display: block; font-size: 8.4pt; color: var(--muted); margin-top: 1mm; }
+  code { font-family: "Plex Mono"; font-size: 7.8pt; color: var(--accent2); background: var(--accent-soft); border-radius: 1mm; padding: 0 .8mm; }
+
+  .opps { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2.6mm; margin: 2mm 0 3mm; }
+  .opp { border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 3mm; padding: 2.3mm 3.6mm; background: #fff; }
+  .opp .k { font-family: "Plex Mono"; font-size: 6.9pt; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: .8mm; }
+  .opp b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 11pt; color: var(--ink); line-height: 1.12; margin-bottom: 1mm; }
+  .opp p { font-size: 8.4pt; margin: 0; }
+  .opp .to { font-size: 8.2pt; color: var(--accent2); margin-top: 1.3mm; padding-top: 1.3mm; border-top: 1px solid var(--line); }
+  .opp .to strong { color: var(--accent2); }
+  .opp.main { border: 1.5px solid var(--accent); border-left-width: 3px; background: linear-gradient(180deg, var(--accent-soft), #fff 80%); }
+
+  .market { display: grid; grid-template-columns: 40mm 1fr; gap: 5mm; align-items: center; border: 1px solid var(--line2); background: #fbfcfe; border-radius: 3.5mm; padding: 2.8mm 4.5mm; }
+  .market b { font-family: "Bricolage"; font-weight: 800; font-size: 11pt; color: var(--ink); line-height: 1.15; }
+  .market p { margin: 0; font-size: 8.5pt; }
+
+  .flows { display: grid; grid-template-columns: 1fr 1fr; gap: 3.5mm; margin: 2.5mm 0 2.5mm; }
+  .flowbox { border: 1px solid var(--line); border-radius: 3.5mm; padding: 2.8mm 4mm; background: #fff; font-size: 8.6pt; }
+  .flowbox.out { border: 1.5px solid var(--accent); }
+  .flowbox .k { font-family: "Plex Mono"; font-size: 7pt; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); margin-bottom: .6mm; }
+  .flowbox b.t { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 11.5pt; color: var(--ink); margin-bottom: 1.2mm; }
+  .flowbox ol { margin: 0; padding-left: 4.5mm; }
+  .flowbox ol li { padding-left: .5mm; margin-bottom: .8mm; }
+  .flowbox ol li::before { display: none; }
+
+  table.spec { width: 100%; border-collapse: collapse; font-size: 8.5pt; margin: 1.5mm 0 0; }
+  table.spec th { font-family: "Plex Mono"; font-weight: 500; font-size: 7pt; letter-spacing: .06em; text-transform: uppercase; text-align: left; padding: 0 3mm 1.4mm 0; color: var(--muted); }
+  table.spec td { padding: 1.1mm 3mm 1.1mm 0; border-top: 1px solid var(--line); vertical-align: top; }
+  table.spec td:first-child { width: 27%; color: var(--ink); font-weight: 600; }
+
+  .codes { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; margin: 2.5mm 0 1.5mm; }
+  .code { background: var(--ink); color: var(--cta-ink); border-radius: 3mm; padding: 2.4mm 3.4mm 2.8mm; font-family: "Plex Mono"; font-size: 6.7pt; line-height: 1.5; white-space: pre; overflow: hidden; }
+  .code .t { display: block; font-size: 6.3pt; letter-spacing: .06em; text-transform: uppercase; color: var(--on-dark); margin-bottom: 1.2mm; }
+  .code .c { color: var(--cta-muted); }
+  .code .s { color: #a5d8b8; }
+
+  .gains { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; margin: 1mm 0 2.5mm; }
+  .gain { border-top: 2px solid var(--accent); padding: 2mm 0 0; font-size: 8.5pt; }
+  .gain.cli { border-top-color: var(--ok); }
+  .gain .k { font-family: "Plex Mono"; font-size: 7pt; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); margin-bottom: 1mm; }
+  .gain.cli .k { color: var(--ok); }
+  .gain li { margin-bottom: .6mm; }
+  .gain.cli li::before { background: var(--ok); }
+
+  .module { display: grid; grid-template-columns: repeat(3, 1fr) 1.15fr; gap: 2.5mm; margin: 1.5mm 0 3mm; align-items: stretch; }
+  .module > div { border: 1px solid var(--line2); background: #fbfcfe; border-radius: 3mm; padding: 2.4mm 3mm; font-size: 8.2pt; }
+  .module .k { font-family: "Plex Mono"; font-size: 6.8pt; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .module b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 11pt; color: var(--ink); margin: .4mm 0 .6mm; }
+  .module > div.plus { border: 1.5px solid var(--accent); background: linear-gradient(180deg, var(--accent-soft), #fff 85%); }
+  .module .plus .k, .module .plus b { color: var(--accent); }
+
+  .panel { border: 1px solid var(--line2); border-radius: 4mm; overflow: hidden; margin: 2mm 0 1.5mm; background: #fff; }
+  .panel .bar { background: var(--ink); color: var(--cta-ink); font-family: "Plex Mono"; font-size: 7.2pt; letter-spacing: .05em; padding: 2mm 4mm; display: flex; justify-content: space-between; }
+  .panel .bar span { color: var(--cta-muted); }
+  .panel .body { padding: 3mm 4mm 3mm; background: var(--bg2); }
+  .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2.5mm; margin-bottom: 2.5mm; }
+  .kpi { background: #fff; border: 1px solid var(--line); border-radius: 2.5mm; padding: 2mm 2.8mm; }
+  .kpi b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 14pt; color: var(--accent); line-height: 1.1; }
+  .kpi span { font-size: 7.3pt; color: var(--ink2); line-height: 1.25; display: block; }
+  .pgrid { display: grid; grid-template-columns: 1fr 1.6fr; gap: 2.5mm; }
+  .pbox { background: #fff; border: 1px solid var(--line); border-radius: 2.5mm; padding: 2.3mm 3mm; }
+  .pbox .t { font-family: "Plex Mono"; font-size: 6.8pt; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 1.5mm; }
+  .hb { display: grid; grid-template-columns: 24mm 1fr 8mm; align-items: center; gap: 1.5mm; font-size: 7.5pt; margin-bottom: .7mm; }
+  .hb i { display: block; height: 2.6mm; border-radius: 1.3mm; background: var(--accent); }
+  .hb em { font-style: normal; text-align: right; color: var(--ink); font-weight: 600; }
+  table.pt { width: 100%; border-collapse: collapse; font-size: 7.5pt; }
+  table.pt th { text-align: left; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--line); padding: 0 1mm 1mm 0; }
+  table.pt td { padding: 1mm 1mm 1mm 0; border-bottom: 1px solid var(--line); color: var(--ink2); }
+  table.pt td.n, table.pt th.n { text-align: right; }
+  table.pt tr:last-child td { border-bottom: none; }
+
+  table.map { width: 100%; border-collapse: collapse; font-size: 8.5pt; margin: 1.5mm 0 0; }
+  table.map th { font-family: "Plex Mono"; font-weight: 500; font-size: 7pt; letter-spacing: .06em; text-transform: uppercase; text-align: left; padding: 0 3mm 1.4mm 0; color: var(--muted); }
+  table.map th:last-child { color: var(--accent); }
+  table.map td { padding: 1mm 3mm 1mm 0; border-top: 1px solid var(--line); vertical-align: top; }
+  table.map td:first-child { width: 47%; color: var(--ink2); }
+  table.map td:last-child { color: var(--ink); }
+
+  .offer { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; margin: 2mm 0 3.5mm; }
+  .offer > div { border: 1px solid var(--line); border-radius: 3.5mm; padding: 2.8mm 3.5mm; font-size: 8.6pt; background: #fff; }
+  .offer > div.main { border: 1.5px solid var(--accent); background: linear-gradient(180deg, var(--accent-soft), #fff 85%); }
+  .offer .k { font-family: "Plex Mono"; font-size: 6.9pt; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: .6mm; }
+  .offer b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 11.5pt; color: var(--accent); line-height: 1.15; margin-bottom: .8mm; }
+  .steps.six { grid-template-columns: repeat(3, 1fr); margin-bottom: 3mm; gap: 2.5mm; }
+  .steps.six .step { padding: 2.5mm 3.2mm; font-size: 8.3pt; }
+  .steps.six .step::before { font-size: 12.5pt; margin-bottom: .8mm; }
+  .ops.tight li { font-size: 8.6pt; margin-bottom: .5mm; }
+  .phases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 2mm 0 3mm; }
+  .phase { border-left: 2px solid var(--accent); padding: .5mm 0 .5mm 3mm; font-size: 8.3pt; }
+  .phase b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 10pt; color: var(--ink); margin-bottom: .6mm; }
+</style>
+</head>
+<body>
+
+<!-- ========== HOJA 1: portada y quiénes son ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA DE ALIANZA · ZENNON BI<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero">
+    <div class="eyebrow">Voz con IA para sus proyectos de Dynamics 365 y Power Platform</div>
+    <h1>La línea de voz argentina <span class="accent">de cada proyecto Dynamics 365 que implementan.</span></h1>
+    <p class="lead">
+      Cristian: gracias por la charla del 19 de octubre. Esta propuesta no es para la atención de Zennon: es para
+      <strong>sumar Atentina a lo que Zennon ya vende</strong>. Que el CRM de sus clientes atienda el teléfono, llame
+      al lead y deje cada conversación en Dataverse, con un número argentino y voces con nuestro acento.
+    </p>
+  </div>
+
+  <h2>Lo que ya hacen bien</h2>
+  <div class="stats" style="margin:2mm 0 4.5mm">
+    <div class="stat"><b>2018</b><span>implementando Dynamics 365, Power Platform y Power BI, como socios de Microsoft</span></div>
+    <div class="stat"><b>32</b><span>clientes que muestran: aseguradoras, energía, bancos, universidades, cooperativas y siete partners</span></div>
+    <div class="stat"><b>+11.000</b><span>productores y organizadores de Federación Patronal unificados en Dynamics 365 Sales</span></div>
+    <div class="stat"><b>12</b><span>unidades de negocio de Federación Patronal, en todo el país, que trabajan sobre FEDPAS 360</span></div>
+  </div>
+
+  <div class="pull">
+    <q>El 70% de esta plataforma está personalizada con el conocimiento y experiencia que el área comercial tenía.</q>
+    <span>Cristian Ventura, sobre FEDPAS 360 de Federación Patronal. Lo mismo vale para la voz: el agente se arma con el
+      conocimiento de cada cliente, y la integración es el oficio de Zennon.</span>
+  </div>
+
+  <h2>Atentina, en cuatro datos</h2>
+  <div class="stats" style="margin:2mm 0 4mm">
+    <div class="stat"><b>41 voces</b><span>con acento argentino, 28 de mujer y 13 de hombre</span></div>
+    <div class="stat"><b>0800 · 0810</b><span>y numeración regional argentina, entrantes y salientes, incluida en el plan</span></div>
+    <div class="stat"><b>4 en 1</b><span>número, agente, voces y WhatsApp en un solo servicio, con precio en pesos</span></div>
+    <div class="stat"><b>1 API</b><span>para llamadas, campañas, contactos, resultados y los motores de voz y lenguaje</span></div>
+  </div>
+
+  <div class="two">
+    <ul>
+      <li><strong>Inferencia propia en Argentina:</strong> el reconocimiento de voz, el modelo de lenguaje y la voz
+        corren en servidores propios en el país; las conversaciones no salen a proveedores externos.</li>
+      <li><strong>Mismo método que el de Zennon:</strong> una tarea acotada, una línea de base y medir antes de
+        ampliar.</li>
+    </ul>
+    <ul>
+      <li><strong>Se conecta con lo que ya usan:</strong> API REST con API keys, webhooks firmados y estadísticas que
+        se leen desde Power Automate y Power BI.</li>
+      <li><strong>Zennon conserva al cliente:</strong> la relación, el diseño del agente y la integración con Dynamics
+        son de Zennon.</li>
+    </ul>
+  </div>
+
+  <p class="src-line" style="margin-top:3mm">Fuentes: zennonbi.com (inicio, clientes y caso Federación Patronal),
+    página de empresa en LinkedIn y ficha de socio de CESSI, leídos el 22-oct-2026.</p>
+
+  <div class="pagefoot"><span>Atentina · Zennon BI</span><span>1 / 5</span></div>
+</section>
+
+<!-- ========== HOJA 2: dónde encaja Atentina ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA DE ALIANZA · ZENNON BI<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin:6mm 0 2.5mm">
+    <div class="eyebrow">Dónde encaja Atentina</div>
+    <h2 style="font-size:17pt;margin:0">Una oportunidad de voz en cada línea que venden, <span class="accent">sin montar telefonía.</span></h2>
+    <p class="lead" style="font-size:9.8pt">
+      Zennon conecta procesos, datos y equipos. Al CRM de sus clientes le llegan formularios, mails y casos; las
+      llamadas casi siempre quedan afuera. Atentina suma <strong>el teléfono y el WhatsApp</strong> como un componente
+      más de cada proyecto, conectado por Power Automate.
+    </p>
+  </div>
+
+  <div class="opps">
+    <div class="opp main">
+      <div class="k">Dynamics 365 Sales · CRM KickStart</div>
+      <b>El agente llama al lead apenas entra</b>
+      <p>El Sales Qualification Agent investiga y prepara un correo; el siguiente paso es la llamada.</p>
+      <div class="to"><strong>Oportunidad:</strong> confirma el interés, califica y agenda la reunión del vendedor. El resultado queda en el lead.</div>
+    </div>
+    <div class="opp main">
+      <div class="k">Dynamics 365 Customer Service</div>
+      <b>El número del cliente atiende a toda hora</b>
+      <p>Para los clientes con volumen de llamadas: pagos, cooperativas de servicios, microcréditos y operaciones tercerizadas.</p>
+      <div class="to"><strong>Oportunidad:</strong> toma el reclamo o la consulta, identifica al cliente y deja el caso en Dataverse.</div>
+    </div>
+    <div class="opp">
+      <div class="k">Dynamics 365 Contact Center</div>
+      <b>Primer nivel, fuera de horario y desborde</b>
+      <p>Para los clientes que necesitan voz con IA y no justifican licencias de voz por puesto.</p>
+      <div class="to"><strong>Oportunidad:</strong> la noche, el fin de semana y los picos los atiende el agente, con número argentino.</div>
+    </div>
+    <div class="opp">
+      <div class="k">Dynamics 365 Field Service</div>
+      <b>Visitas confirmadas el día anterior</b>
+      <p>Cada visita fallida es un técnico en la calle sin trabajo: una métrica que el cliente entiende.</p>
+      <div class="to"><strong>Oportunidad:</strong> llama con fecha, franja y dirección; confirma, reprograma o avisa la demora en la orden.</div>
+    </div>
+    <div class="opp">
+      <div class="k">Customer Insights · Journeys</div>
+      <b>Un paso “llamada” o “WhatsApp” en el recorrido</b>
+      <p>Recordatorios, vencimientos y cobranza temprana, dentro del recorrido que ya diseñan.</p>
+      <div class="to"><strong>Oportunidad:</strong> el segmento dispara la campaña de voz o de WhatsApp; el resultado vuelve al contacto.</div>
+    </div>
+    <div class="opp">
+      <div class="k">Power Pages</div>
+      <b>“Hablá con un asesor” desde el portal</b>
+      <p>Un link que abre una llamada con el agente desde el navegador, sin teléfono ni app.</p>
+      <div class="to"><strong>Oportunidad:</strong> atención por voz en el portal del cliente, con el mismo agente del teléfono.</div>
+    </div>
+    <div class="opp">
+      <div class="k">Copilot Studio y Power BI</div>
+      <b>Sus agentes también llaman; y todo se mide</b>
+      <p>Una acción “llamar a este contacto” para los agentes que arman, y las llamadas como datos para sus tableros.</p>
+      <div class="to"><strong>Oportunidad:</strong> un tablero de voz por cliente, como entregable propio de Zennon.</div>
+    </div>
+    <div class="opp">
+      <div class="k">Para partners e integraciones</div>
+      <b>Un componente que llevan a otros partners</b>
+      <p>Zennon trabaja para otros partners de Dynamics, y desarrolla a medida sobre Azure.</p>
+      <div class="to"><strong>Oportunidad:</strong> el mismo módulo en sus proyectos; y transcripción, voz y lenguaje sueltos por API.</div>
+    </div>
+  </div>
+
+  <div class="market">
+    <b>Un dato del mercado</b>
+    <p>Hoy la voz con IA dentro de Dynamics 365 se licencia por puesto (Contact Center, USD 110, y el agregado de voz,
+      USD 95, por usuario por mes, más el uso), y los números de Azure Communication Services para Argentina son
+      <strong>solo 0800 de entrada, sin salientes, y se compran con facturación fuera del país</strong>. Atentina no
+      reemplaza a Microsoft: suma el número argentino, las llamadas salientes y las voces locales a lo que Zennon ya
+      implementa.</p>
+  </div>
+
+  <p class="src-line" style="margin-top:2mm">Fuentes: zennonbi.com (soluciones, clientes, CRM KickStart y nota del
+    Sales Qualification Agent del 21-oct-2026); precios de Dynamics 365 Contact Center en microsoft.com y números de
+    Azure Communication Services para Argentina en Microsoft Learn, leídos el 22-oct-2026.</p>
+
+  <div class="pagefoot"><span>Atentina · Zennon BI</span><span>2 / 5</span></div>
+</section>
+
+<!-- ========== HOJA 3: la integración por dentro ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA DE ALIANZA · ZENNON BI<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin:6mm 0 2mm">
+    <div class="eyebrow">La integración por dentro</div>
+    <h2 style="font-size:17pt;margin:0">Dynamics decide, Atentina habla <span class="accent">y el resultado vuelve a Dataverse.</span></h2>
+    <p class="lead" style="font-size:9.8pt">
+      Se conecta con lo que Zennon ya domina: un <strong>conector personalizado de Power Automate</strong> sobre la API
+      de Atentina. Dynamics dispara la llamada; el agente habla con el cliente; el resultado vuelve firmado y Power
+      Automate lo escribe en el registro. Power BI lo mide.
+    </p>
+  </div>
+
+  <div class="diagram" style="margin-top:1mm;padding-top:3mm">
+    <svg viewBox="0 0 720 330" xmlns="http://www.w3.org/2000/svg" font-family="Figtree, sans-serif">
+      <defs>
+        <marker id="a3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#2456e6"/>
+        </marker>
+        <marker id="g3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#94a3b8"/>
+        </marker>
+      </defs>
+
+      <!-- Dynamics 365 / Dataverse (del cliente) -->
+      <rect x="4" y="8" width="152" height="236" rx="14" fill="#f1f4f9" stroke="#cbd5e1"/>
+      <text x="18" y="28" font-family="Plex Mono, monospace" font-size="8.5" letter-spacing="1" fill="#64748b">EL CLIENTE DE ZENNON</text>
+      <text x="18" y="49" font-family="Bricolage, sans-serif" font-weight="800" font-size="15" fill="#0b1220">Dynamics 365</text>
+      <g font-size="10">
+        <rect x="16" y="60" width="128" height="34" rx="9" fill="#fff" stroke="#cbd5e1"/>
+        <text x="26" y="75" font-weight="700" fill="#0b1220">Sales</text>
+        <text x="26" y="88" fill="#64748b" font-size="9">leads y oportunidades</text>
+        <rect x="16" y="100" width="128" height="34" rx="9" fill="#fff" stroke="#cbd5e1"/>
+        <text x="26" y="115" font-weight="700" fill="#0b1220">Customer Service</text>
+        <text x="26" y="128" fill="#64748b" font-size="9">casos y contactos</text>
+        <rect x="16" y="140" width="128" height="34" rx="9" fill="#fff" stroke="#cbd5e1"/>
+        <text x="26" y="155" font-weight="700" fill="#0b1220">Field Service</text>
+        <text x="26" y="168" fill="#64748b" font-size="9">órdenes y visitas</text>
+      </g>
+      <rect x="16" y="186" width="128" height="46" rx="9" fill="#e3e8ef" stroke="#cbd5e1"/>
+      <text x="80" y="206" text-anchor="middle" font-family="Bricolage, sans-serif" font-weight="800" font-size="12.5" fill="#0b1220">Dataverse</text>
+      <text x="80" y="222" text-anchor="middle" font-size="9" fill="#64748b">registro y actividades</text>
+
+      <!-- Power Automate (de Zennon) -->
+      <rect x="208" y="52" width="122" height="150" rx="14" fill="#f1f4f9" stroke="#cbd5e1"/>
+      <text x="220" y="72" font-family="Plex Mono, monospace" font-size="8.5" letter-spacing="1" fill="#64748b">LO ARMA ZENNON</text>
+      <text x="220" y="92" font-family="Bricolage, sans-serif" font-weight="800" font-size="13.5" fill="#0b1220">Power</text>
+      <text x="220" y="108" font-family="Bricolage, sans-serif" font-weight="800" font-size="13.5" fill="#0b1220">Automate</text>
+      <rect x="218" y="118" width="102" height="34" rx="9" fill="#eaf0ff" stroke="#2456e6"/>
+      <text x="269" y="132" text-anchor="middle" font-size="9.5" font-weight="700" fill="#1740b8">Conector</text>
+      <text x="269" y="145" text-anchor="middle" font-size="9.5" font-weight="700" fill="#1740b8">Atentina</text>
+      <text x="220" y="170" font-size="9" fill="#33415c">dispara y recibe;</text>
+      <text x="220" y="183" font-size="9" fill="#33415c">escribe en el registro</text>
+
+      <!-- Flechas Dynamics <-> Power Automate -->
+      <path d="M156 92 L206 92" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#g3)"/>
+      <circle cx="181" cy="80" r="8" fill="#64748b"/><text x="181" y="83.5" text-anchor="middle" font-size="9.5" font-weight="800" fill="#fff">1</text>
+      <path d="M206 168 L158 168" fill="none" stroke="#2456e6" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a3)"/>
+      <circle cx="181" cy="182" r="8" fill="#2456e6"/><text x="181" y="185.5" text-anchor="middle" font-size="9.5" font-weight="800" fill="#fff">5</text>
+
+      <!-- Atentina -->
+      <rect x="376" y="8" width="170" height="236" rx="14" fill="#fff" stroke="#2456e6" stroke-width="1.8"/>
+      <text x="390" y="28" font-family="Plex Mono, monospace" font-size="8.5" letter-spacing="1" fill="#2456e6">ATENTINA · EN ARGENTINA</text>
+      <rect x="388" y="38" width="146" height="50" rx="10" fill="#eaf0ff" stroke="#2456e6"/>
+      <text x="400" y="57" font-family="Plex Mono, monospace" font-size="10" font-weight="500" fill="#1740b8">API /api/v1</text>
+      <text x="400" y="72" font-size="9" fill="#33415c">llamadas, campañas,</text>
+      <text x="400" y="83" font-size="9" fill="#33415c">contactos y webhooks</text>
+      <path d="M461 88 L461 100" stroke="#2456e6" stroke-width="1.6" marker-end="url(#a3)"/>
+      <rect x="388" y="102" width="146" height="90" rx="10" fill="#eaf0ff"/>
+      <text x="400" y="121" font-family="Bricolage, sans-serif" font-weight="800" font-size="13" fill="#0b1220">El agente</text>
+      <text x="400" y="138" font-size="9.5" fill="#1740b8"><tspan font-weight="700">Escucha</tspan> lo que dicen</text>
+      <text x="400" y="153" font-size="9.5" fill="#1740b8"><tspan font-weight="700">Decide</tspan> con sus reglas</text>
+      <text x="400" y="168" font-size="9.5" fill="#1740b8"><tspan font-weight="700">Habla</tspan> con voz argentina</text>
+      <text x="400" y="183" font-size="9" fill="#33415c">y captura los datos pedidos</text>
+      <rect x="388" y="200" width="146" height="34" rx="10" fill="#fff" stroke="#c9d7ff"/>
+      <text x="400" y="215" font-size="9.5" font-weight="700" fill="#1740b8">Panel por cliente</text>
+      <text x="400" y="228" font-size="9" fill="#33415c">transcripción y resultado</text>
+
+      <!-- Flechas Power Automate <-> Atentina -->
+      <path d="M330 92 L386 70" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#a3)"/>
+      <circle cx="355" cy="68" r="8" fill="#2456e6"/><text x="355" y="71.5" text-anchor="middle" font-size="9.5" font-weight="800" fill="#fff">2</text>
+      <path d="M386 160 L332 160" fill="none" stroke="#2456e6" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a3)"/>
+      <circle cx="355" cy="174" r="8" fill="#2456e6"/><text x="355" y="177.5" text-anchor="middle" font-size="9.5" font-weight="800" fill="#fff">4</text>
+
+      <!-- Canales -->
+      <g fill="#1740b8">
+        <rect x="590" y="20" width="126" height="44" rx="12" fill="#eaf0ff" stroke="#2456e6"/>
+        <text x="653" y="38" text-anchor="middle" font-size="11" font-weight="700">Línea argentina</text>
+        <text x="653" y="53" text-anchor="middle" font-size="9">regional, 0800, 0810</text>
+        <rect x="590" y="74" width="126" height="44" rx="12" fill="#eaf0ff" stroke="#2456e6"/>
+        <text x="653" y="92" text-anchor="middle" font-size="11" font-weight="700">WhatsApp</text>
+        <text x="653" y="107" text-anchor="middle" font-size="9">mensajes y llamadas</text>
+        <rect x="590" y="128" width="126" height="44" rx="12" fill="#eaf0ff" stroke="#2456e6"/>
+        <text x="653" y="146" text-anchor="middle" font-size="11" font-weight="700">Link en el navegador</text>
+        <text x="653" y="161" text-anchor="middle" font-size="9">desde Power Pages</text>
+      </g>
+      <path d="M546 120 C 566 120, 568 42, 588 42" fill="none" stroke="#2456e6" stroke-width="2" marker-start="url(#a3)" marker-end="url(#a3)"/>
+      <path d="M546 132 C 566 132, 568 96, 588 96" fill="none" stroke="#2456e6" stroke-width="2" marker-start="url(#a3)" marker-end="url(#a3)"/>
+      <path d="M546 144 C 566 144, 568 150, 588 150" fill="none" stroke="#2456e6" stroke-width="2" marker-start="url(#a3)" marker-end="url(#a3)"/>
+      <circle cx="567" cy="182" r="8" fill="#2456e6"/><text x="567" y="185.5" text-anchor="middle" font-size="9.5" font-weight="800" fill="#fff">3</text>
+
+      <!-- Sus clientes -->
+      <rect x="590" y="186" width="126" height="58" rx="12" fill="#fff" stroke="#cbd5e1"/>
+      <g fill="#64748b">
+        <circle cx="612" cy="205" r="7"/><path d="M600 226 a12 11 0 0 1 24 0z"/>
+        <circle cx="632" cy="205" r="7" opacity=".55"/><path d="M620 226 a12 11 0 0 1 24 0z" opacity=".55"/>
+      </g>
+      <text x="650" y="204" font-size="9.5" font-weight="700" fill="#0b1220">Sus clientes</text>
+      <text x="650" y="217" font-size="8.5" fill="#64748b">llaman o</text>
+      <text x="650" y="228" font-size="8.5" fill="#64748b">reciben</text>
+      <text x="650" y="239" font-size="8.5" fill="#64748b">la llamada</text>
+
+      <!-- Power BI -->
+      <path d="M461 244 L461 278" fill="none" stroke="#2456e6" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a3)"/>
+      <circle cx="475" cy="262" r="8" fill="#2456e6"/><text x="475" y="265.5" text-anchor="middle" font-size="9.5" font-weight="800" fill="#fff">6</text>
+      <path d="M80 244 C 80 300, 180 300, 206 300" fill="none" stroke="#94a3b8" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#g3)"/>
+      <rect x="208" y="280" width="338" height="44" rx="12" fill="#f1f4f9" stroke="#cbd5e1"/>
+      <text x="222" y="299" font-family="Bricolage, sans-serif" font-weight="800" font-size="13" fill="#0b1220">Power BI</text>
+      <text x="290" y="299" font-size="9.5" fill="#33415c">tablero que arma Zennon: llamadas, resultados,</text>
+      <text x="222" y="314" font-size="9.5" fill="#33415c">minutos y lo que el agente dejó en Dynamics, por cliente</text>
+    </svg>
+    <div class="caption">Gris: lo del cliente y lo que arma Zennon. Azul: Atentina. 1 a 5, el recorrido de una llamada;
+      6, la medición. Una entrante empieza en 3: el cliente llama al número y el agente atiende.</div>
+  </div>
+
+  <div class="flows">
+    <div class="flowbox out">
+      <div class="k">Saliente</div>
+      <b class="t">El CRM dispara la llamada</b>
+      <ol>
+        <li><strong>Entra un lead</strong>, se crea una orden o vence un pago en Dynamics.</li>
+        <li><strong>Power Automate</strong> llama a la API con el teléfono, el nombre y el motivo.</li>
+        <li><strong>El agente llama</strong>, en el horario que se defina, con reintentos si no atiende.</li>
+        <li><strong>Vuelve el resultado</strong> por webhook firmado: qué pasó y qué datos dejó.</li>
+        <li><strong>Queda la actividad</strong> en el lead o la orden, con el link a la conversación.</li>
+      </ol>
+    </div>
+    <div class="flowbox">
+      <div class="k">Entrante</div>
+      <b class="t">El agente atiende el número del cliente</b>
+      <ol start="3">
+        <li><strong>El cliente llama</strong> a su número de siempre, escribe por WhatsApp o abre el link del portal.</li>
+        <li><strong>El agente atiende</strong>, identifica a quien llama y toma la consulta o el reclamo.</li>
+        <li><strong>Queda el caso</strong> en Dataverse, con el resumen, los datos y el link a la conversación.</li>
+      </ol>
+    </div>
+  </div>
+
+  <table class="spec">
+    <tr><th>Qué viaja</th><th>Detalle</th></tr>
+    <tr><td>De Dynamics a Atentina</td><td>Teléfono, nombre, motivo del llamado en texto libre, el agente y la voz; para una
+      campaña, además, el horario, los días, las llamadas a la vez, los reintentos y el id del registro.</td></tr>
+    <tr><td>De Atentina a Dynamics</td><td>Resultado (reunión agendada, caso creado, volver a llamar, no volver a
+      llamar), los datos capturados, la duración, el resumen y el link a la transcripción. Firmado con HMAC-SHA256.</td></tr>
+    <tr><td>A Power BI</td><td>Llamadas, resultados, contactabilidad, minutos y estadísticas por día, por API con una
+      API key, o el reporte CSV de cada campaña.</td></tr>
+  </table>
+
+  <div class="pagefoot"><span>Atentina · Zennon BI</span><span>3 / 5</span></div>
+</section>
+
+<!-- ========== HOJA 4: el modelo de alianza y el panel ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA DE ALIANZA · ZENNON BI<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin:6mm 0 2mm">
+    <div class="eyebrow">El modelo de alianza</div>
+    <h2 style="font-size:17pt;margin:0">Un módulo de voz para cada KickStart. <span class="accent">El cliente sigue siendo de Zennon.</span></h2>
+    <p class="lead" style="font-size:9.8pt">
+      Zennon lo suma a sus paquetes: diseña el agente con el cliente, lo conecta con su Dynamics y entrega el tablero.
+      Atentina pone el número, la voz, la inferencia y el soporte.
+    </p>
+  </div>
+
+  <div class="module">
+    <div><div class="k">KickStart</div><b>Esencial</b>El CRM en marcha, con el lead llamado apenas entra.</div>
+    <div><div class="k">KickStart</div><b>Crecimiento</b>Más un número que atiende y deja casos en Customer Service.</div>
+    <div><div class="k">KickStart</div><b>Expansión</b>Más campañas de voz y WhatsApp desde Journeys y Field Service.</div>
+    <div class="plus"><div class="k">Para todos</div><b>Módulo de voz Atentina</b>Agente, número argentino, conector y
+      tablero de Power BI, con precio fijo por mes.</div>
+  </div>
+  <p class="src-line" style="margin:-2mm 0 3mm">Un ejemplo de cómo sumarlo: qué incluye cada paquete lo define Zennon.</p>
+
+  <div class="gains">
+    <div class="gain">
+      <div class="k">Zennon gana</div>
+      <ul>
+        <li>Un agregado con margen en cada proyecto, que se cobra todos los meses</li>
+        <li>Horas de integración y de tablero, su trabajo de siempre</li>
+        <li>Agentes que además llaman, sin licencias de voz por puesto</li>
+      </ul>
+    </div>
+    <div class="gain">
+      <div class="k">Atentina gana</div>
+      <ul>
+        <li>Llegar a empresas que ya confían en Zennon</li>
+        <li>Minutos y números por cada cliente que se suma</li>
+        <li>Un caso de integración con Dynamics para mostrar</li>
+      </ul>
+    </div>
+    <div class="gain cli">
+      <div class="k">El cliente final gana</div>
+      <ul>
+        <li>Un número que atiende de noche y el fin de semana</li>
+        <li>Leads llamados en minutos, no al día siguiente</li>
+        <li>Cada llamada registrada en su CRM, con costo en pesos</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="bar"><b>TABLERO · CLIENTE DE ZENNON</b><span>EJEMPLO CON DATOS ILUSTRATIVOS · UN MES</span></div>
+    <div class="body">
+      <div class="kpis">
+        <div class="kpi"><b>1.180</b><span>llamadas atendidas por el agente</span></div>
+        <div class="kpi"><b>34 %</b><span>fuera del horario de atención</span></div>
+        <div class="kpi"><b>742</b><span>casos creados en Dynamics por el agente</span></div>
+        <div class="kpi"><b>4 min</b><span>del lead nuevo a la primera llamada (mediana)</span></div>
+        <div class="kpi"><b>58</b><span>reuniones agendadas para los vendedores</span></div>
+      </div>
+      <div class="pgrid">
+        <div class="pbox">
+          <div class="t">Por resultado</div>
+          <div class="hb">Caso creado<i style="width:100%"></i><em>742</em></div>
+          <div class="hb">Consulta resuelta<i style="width:46%"></i><em>341</em></div>
+          <div class="hb">Reunión agendada<i style="width:8%"></i><em>58</em></div>
+          <div class="hb">Volver a llamar<i style="width:6%"></i><em>44</em></div>
+          <div class="hb">No volver a llamar<i style="width:2%"></i><em>12</em></div>
+        </div>
+        <div class="pbox">
+          <div class="t">Salientes por campaña</div>
+          <table class="pt">
+            <tr><th>Campaña</th><th class="n">Contactos</th><th class="n">Atendidas</th><th class="n">Objetivo</th><th class="n">Minutos</th></tr>
+            <tr><td>Leads del sitio</td><td class="n">212</td><td class="n">71 %</td><td class="n">27 %</td><td class="n">398</td></tr>
+            <tr><td>Visitas de mañana</td><td class="n">486</td><td class="n">83 %</td><td class="n">91 %</td><td class="n">612</td></tr>
+            <tr><td>Cuotas por vencer</td><td class="n">320</td><td class="n">64 %</td><td class="n">52 %</td><td class="n">455</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="src-line" style="margin-bottom:3mm">Las cifras son ilustrativas: muestran qué se mide, no un resultado. Los
+    datos salen de la API de Atentina y de Dataverse; Zennon arma el tablero en Power BI, y cada conversación también se
+    abre en el panel de Atentina con su transcripción.</p>
+
+  <h2>Hoy en Dynamics, y con Atentina</h2>
+  <table class="map">
+    <tr><th>Hoy</th><th>Con Atentina</th></tr>
+    <tr><td>El lead del formulario espera a que un vendedor lo vea</td><td>El agente lo llama en minutos, califica y agenda.</td></tr>
+    <tr><td>Fuera de horario, el teléfono no atiende</td><td>Atiende las 24 horas y deja el caso cargado.</td></tr>
+    <tr><td>Voz con IA: licencias por puesto y un 0800 facturado afuera</td><td>Número argentino regional, 0800 o 0810, con los minutos en el plan.</td></tr>
+    <tr><td>Visitas de Field Service sin confirmar</td><td>Confirmadas el día anterior, con la orden actualizada.</td></tr>
+    <tr><td>Las llamadas quedan fuera del CRM</td><td>Cada conversación en Dataverse y medida en Power BI.</td></tr>
+  </table>
+
+  <div class="pagefoot"><span>Atentina · Zennon BI</span><span>4 / 5</span></div>
+</section>
+
+<!-- ========== HOJA 5: puesta en marcha ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA DE ALIANZA · ZENNON BI<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin:6mm 0 2mm">
+    <div class="eyebrow">Cómo se pone en marcha</div>
+    <h2 style="font-size:17pt;margin:0">Primero la demo técnica. <span class="accent">Después, 30 días de piloto de integración.</span></h2>
+  </div>
+
+  <div class="offer">
+    <div><div class="k">Desde hoy</div><b>Acceso para probar</b>Registro en atentina.com.ar: panel, API keys, agentes,
+      las 41 voces y llamadas desde el navegador, con 20 minutos por mes.</div>
+    <div class="main"><div class="k">En la reunión</div><b>Demo técnica, 30 min</b>Con un Dynamics de prueba de Zennon:
+      se carga un lead con el celular de Cristian, suena a los segundos y la actividad aparece en el lead.</div>
+    <div><div class="k">Para decidir</div><b>Piloto de 30 días</b>Un caso real, en Zennon (sus propias consultas) o en un
+      cliente de su cartera, con número argentino y soporte directo.</div>
+  </div>
+
+  <h2>Los pasos del piloto</h2>
+  <div class="steps six">
+    <div class="step"><b>Elegir el caso</b>Los leads de Zennon, las entrantes de un cliente de Customer Service o las
+      visitas de Field Service.</div>
+    <div class="step"><b>Credenciales</b>Cuenta con salientes, número argentino, API key y la especificación de la API
+      para el conector.</div>
+    <div class="step"><b>El conector</b>Zennon arma el flujo de Power Automate y el receptor del resultado en Dataverse.</div>
+    <div class="step"><b>Agente y voz</b>Definimos juntos qué dice, qué pregunta, qué datos captura, qué resultados deja
+      y con qué voz.</div>
+    <div class="step"><b>En vivo</b>Primero con números del equipo; después con el caso real, con revisión semanal
+      sobre los números.</div>
+    <div class="step"><b>Decisión</b>Tiempo al primer llamado, contactabilidad, casos o reuniones, minutos y horas de
+      integración, contra la línea de base.</div>
+  </div>
+
+  <div class="ops tight" style="margin-bottom:3mm">
+    <div class="ours">
+      <div class="eyebrow" style="margin-bottom:1.5mm">Atentina hace</div>
+      <ul>
+        <li>Habilita la cuenta, el número y las llamadas salientes</li>
+        <li>Entrega la especificación de la API y del webhook</li>
+        <li>Acompaña el diseño del agente y la elección de la voz</li>
+        <li>Da soporte técnico directo durante el piloto</li>
+      </ul>
+    </div>
+    <div class="theirs">
+      <div class="eyebrow" style="margin-bottom:1.5mm;color:var(--ok)">Necesitamos de Zennon</div>
+      <ul>
+        <li>Un entorno de Dynamics de prueba y el caso elegido</li>
+        <li>El evento que dispara la llamada y dónde vuelve el resultado</li>
+        <li>La línea de base: leads, llamadas o visitas de hoy</li>
+        <li>Un responsable técnico y uno comercial</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Después del piloto</h2>
+  <div class="phases">
+    <div class="phase"><b>Primer cliente</b>El caso medido, llevado a un cliente de la cartera con volumen de llamadas.</div>
+    <div class="phase"><b>Conector y tablero</b>El conector de Power Automate y la plantilla de Power BI, listos para
+      cada proyecto.</div>
+    <div class="phase"><b>Copilot Studio</b>Atentina como herramienta de los agentes que arma Zennon: “llamar a este
+      contacto”.</div>
+    <div class="phase"><b>Acuerdo de aliado</b>Margen o comisión, sin exclusividad, y una cuenta por cada cliente.</div>
+  </div>
+
+  <div class="note">
+    <strong>Condiciones.</strong> El precio del piloto y las condiciones del aliado se acuerdan en la reunión, según el
+    modelo que prefiera Zennon (revender o referir) y los clientes que sumen. Probar el acceso no tiene costo.
+  </div>
+
+  <footer class="contact">
+    <img src="../../../../plantilla/marca/atentina-logo-blanco.svg" alt="Atentina">
+    <div><div class="tag">La voz argentina<br><span>de sus proyectos Dynamics 365.</span></div><div class="who">Contacto: Laureano Arcanio</div></div>
+    <div class="data">
+      <b>0800-220-1233</b><br>
+      <a href="https://atentina.com.ar">atentina.com.ar</a> · <a href="mailto:hola@atentina.com.ar">hola@atentina.com.ar</a><br>
+      WhatsApp +54 9 351 700-2592
+    </div>
+  </footer>
+</section>
+</body>
+</html>

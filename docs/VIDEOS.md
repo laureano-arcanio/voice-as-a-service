@@ -28,7 +28,8 @@ Proyectos hoy: [`general`](../marketing/videos/proyectos/general/README.md) (el 
 [`transcripcion`](../marketing/videos/proyectos/transcripcion/README.md) (transcripción y voz para call centers) y
 [`goldman`](../marketing/videos/proyectos/goldman/README.md) y
 [`goldman-analisis`](../marketing/videos/proyectos/goldman-analisis/README.md) (propuesta para un prospecto: Isaías Goldman SA) y
-[`baicenter-analisis`](../marketing/videos/proyectos/baicenter-analisis/README.md) (BAIC Center / Grupo Signature, con el formato de su PDF).
+[`baicenter-analisis`](../marketing/videos/proyectos/baicenter-analisis/README.md) (BAIC Center / Grupo Signature, con el formato de su PDF) y
+[`zennonbi-analisis`](../marketing/videos/proyectos/zennonbi-analisis/README.md) (Zennon BI, propuesta de alianza para un partner de Dynamics 365 con el formato de su PDF; paula y lucas).
 
 ## Comandos
 
@@ -134,6 +135,7 @@ El TTS es `vllm-tts` (Qwen3-TTS con 41 voces argentinas, [`TTS_FINETUNE.md`](TTS
 | clasifica | `clasifíca` | Pedido del usuario (goldman v3) |
 | Goldman | `Goldman` | Sin tilde: con `Góldman` el STT oyó "Colman" en una de dos tomas |
 | BAIC ("báic") | `Báic` | Escrito `BAIC`, el TTS dijo "Bic", "Big" o "Vice" en la frase; con `Báic`, 4 de 4 tomas bien (baicenter-analisis) |
+| Zennon, Dynamics, Dataverse, Power Automate, Power BI, KickStart, Sales, Customer Service, Field Service, Customer Insights | escritos normal | zennonbi-analisis v1, con `paula` y `lucas`: el STT oye "Xenon" por "Zennon" en todas las tomas y una vez "Zenón" (a confirmar de oído cómo lo dicen ellos); "Dataverse" sale "Dataverses" o "Detaverses"; "KickStart", "Kickstart"; "Dynamics", bien (lucas, "Dynamic Sales" en 2 de 2 candidatas); "Power Automate" y "Power BI", bien salvo una candidata ("Paolo Automate", "Power B"). **"Journeys" con `lucas` salió "SORNAYS":** no se dice, va escrito |
 | Pausas | con puntuación | Comas y puntos marcan las pausas ("Actualmente, un solo número…") |
 
 - **El STT no distingue "voz" de "vos":** esa diferencia en la transcripción no es un error de la toma.
