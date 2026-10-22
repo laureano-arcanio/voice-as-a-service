@@ -730,6 +730,76 @@ contactos por agente. Los contactos de una regla los atiende ese agente; los dem
 **Pendiente:** marcar la llamada como de WhatsApp en `call_logs` (el `wa.wacid` ya llega) y ruteo por
 contacto para la voz de Anura (hoy solo WhatsApp, por decisión del 13-oct-2026).
 
+### 5.7 Registro completo en coexistencia (a implementar, 21-oct-2026)
+
+Pedido: el número sigue en el teléfono del negocio (app de WhatsApp Business) y **todo** lo que entra y
+sale queda registrado en la plataforma, con o sin agente que responda.
+
+**Lo que ya está:** el alta en coexistencia (5.3, `source="coexistence"`) y el pedido de las dos
+sincronizaciones dentro de las 24 h (`signup._smb_sync`, `graph.smb_app_data`).
+
+**Lo que falta:** `WhatsAppService.handle_payload` solo procesa `messages`, `statuses` y los eventos de
+cuenta. Los campos de coexistencia llegan al webhook y se descartan:
+
+| Campo del webhook | Qué trae | Qué hacer |
+|---|---|---|
+| `smb_message_echoes` | Lo que el negocio manda desde el teléfono (`value.message_echoes[]`, `from` = el negocio, `to` = el contacto) | Guardarlo en el hilo del contacto como mensaje del negocio (rol nuevo, p. ej. `business`), no del agente |
+| `history` | Historial de hasta 6 meses, una sola vez después del alta, por partes (`progress`, `phase`) | Importarlo como conversaciones cerradas, de forma idempotente por `id` de mensaje |
+| `smb_app_state_sync` | Contactos de la app (alta, cambio, baja) | Guardar o actualizar el nombre en la agenda (`contacts`) del cliente |
+
+Decisiones a tomar al implementar:
+- **Modo de la cuenta:** `agent` (hoy) o `log_only` (guarda todo y no responde nunca). En `log_only` no
+  hace falta agente por defecto.
+- **Humano y agente en el mismo hilo:** si llega un eco (el dueño contestó a mano), el agente se calla en
+  ese hilo por N minutos (configurable por cuenta). Sin esto contestan los dos.
+- **Medios de los ecos:** bajar audios e imágenes como los entrantes (5.2) para que el registro esté
+  completo; transcribir los audios del negocio solo si se pide.
+- **UI:** en el chat, distinguir los mensajes "del negocio (teléfono)" de los del agente.
+
+Límites de Meta (3.2): la app se abre cada ~13 días o se corta la coexistencia; sin grupos ni llamadas por
+API; 20 mensajes/s. Lo que se manda desde la app no lo cobra Meta.
+
+Código a tocar: `app/whatsapp/service.py` (`handle_payload` y handlers nuevos), `app/whatsapp/store.py`,
+modelo de mensaje (rol nuevo), `wa_accounts` (modo y silencio del agente), migración, tests con payloads
+reales de los tres campos (grabarlos con un número propio antes de escribir el parser: los ejemplos de la
+documentación de Meta no siempre coinciden, ver 3.4).
+
+### 5.8 Bandeja y derivación a vendedores (a implementar, 21-oct-2026)
+
+Pedido: los clientes le escriben a **un número de bandeja** y la conversación pasa al WhatsApp de **un
+vendedor**, con registro. WhatsApp no pasa un chat de un número a otro: hay que armarlo con la API. Tres
+variantes:
+
+| Variante | Cómo funciona | A favor | En contra |
+|---|---|---|---|
+| **A. Puente por la bandeja** (recomendada si la empresa quiere quedarse con el cliente) | La plataforma reenvía cada mensaje del cliente al WhatsApp del vendedor **desde la bandeja**, y lo que el vendedor responde se lo manda al cliente, también desde la bandeja | El cliente nunca ve el número del vendedor; la conversación queda en la empresa si el vendedor se va; registro completo sin coexistencia | El vendedor ve a todos sus clientes en un solo chat con la bandeja; ventana de 24 h con el vendedor; medios bajados y vueltos a subir; algo de demora |
+| **B. Derivación con link** | La bandeja (o el agente) califica y le pasa al cliente `wa.me/<vendedor>?text=...`; al vendedor le llega un aviso con los datos | Lo más simple; hablan directo | Desde el link no se registra nada (salvo que el vendedor esté en coexistencia: C) |
+| **C. Derivación a vendedores en coexistencia** | Como B, pero cada vendedor tiene su número Business en la WABA de la empresa, conectado en coexistencia (5.7) | El vendedor usa su WhatsApp de siempre; registro completo, bandeja y vendedor ligados al mismo contacto | Un número Business por vendedor, alta de Meta para cada uno, la app abierta cada ~13 días; si el vendedor se va, el cliente queda en su número |
+
+Piezas comunes:
+- **Vendedores:** números internos de la cuenta (tabla nueva, parecida a `wa_operators`), con nombre,
+  activo o no y, en C, el `wa_account` de su número.
+- **Asignación:** a mano desde el panel, por reglas (como `wa_routes`, 5.6), por turno (round robin entre
+  los activos) o por el agente al terminar de calificar (herramienta "derivar"). Un contacto queda con su
+  vendedor hasta que se reasigne.
+- **Prioridad:** encaja con la de 5.6: un vendedor se reconoce antes que el ruteo (como un operador), y un
+  contacto con vendedor asignado ya no lo atiende el agente.
+
+Detalle de la variante A:
+- **Separar clientes en el chat del vendedor:** cada mensaje reenviado lleva un encabezado (nombre y
+  número del cliente). El vendedor responde **citando** el mensaje: Meta manda `context.id`, que se mapea
+  al cliente. Sin cita, va al último cliente que le escribió y se le avisa al vendedor a quién se mandó.
+  Comandos simples por texto (p. ej. `#cerrar`, `#pasar <vendedor>`).
+- **Ventana de 24 h con el vendedor:** para escribirle si no habló con la bandeja en 24 h hace falta una
+  plantilla (utility, se paga). Con uso diario casi siempre está dentro de la ventana; si no, mandar la
+  plantilla "tenés un cliente nuevo" y reenviar al responder.
+- **Medios:** bajar de Meta y volver a subir (como los audios de 5.2).
+- **Costo:** cada mensaje cuenta dos veces (cliente ↔ bandeja y bandeja ↔ vendedor); el de servicio dentro
+  de la ventana no lo cobra Meta, la plantilla al vendedor sí (4).
+
+Antes de implementar: elegir la variante con un cliente concreto, probar A con dos números propios
+(tiempos y cómo se ve el chat del vendedor) y anotar el resultado acá.
+
 ## 6. Riesgos y trampas
 
 - **Meta manda los tiempos:** verificación del negocio y App Review no tienen plazo garantizado.
