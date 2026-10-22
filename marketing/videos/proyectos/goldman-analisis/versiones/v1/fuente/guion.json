@@ -1,0 +1,41 @@
+{
+  "nota": "Video para Isaías Goldman SA con el formato del PDF goldman-propuesta v1. Solo narrador lucas. Grafías solo para la locución (en pantalla, la ortografía normal): 'Georgálos' (con 'Georgalos' el STT oyó 'Jorgalos' en una de dos tomas; con tilde, 2 de 2 bien); 'Goldman' sin tilde. 'aire' no aparece en v1 (probadas 'aire' y 'áire' en scripts/candidatas.py goldman-analisis; en goldman v2 quedó 'áires'). Números en palabras; pausas con puntuación.",
+  "musica_segundos": 62,
+  "lineas": [
+    {
+      "id": "a1",
+      "voz": "lucas",
+      "texto": "Que cada consulta tenga respuesta, y que ustedes las vean todas."
+    },
+    {
+      "id": "a2",
+      "voz": "lucas",
+      "texto": "En Isaías Goldman ya hicieron lo difícil. Treinta años en el rubro, unas cincuenta personas, y empresas como Arcor, Georgálos y Mostaza."
+    },
+    {
+      "id": "a3",
+      "voz": "lucas",
+      "texto": "Como dijo Isaías Goldman: nos gusta hacer cosas donde podemos responder."
+    },
+    {
+      "id": "a4",
+      "voz": "lucas",
+      "texto": "Lo que observamos: un solo número para todo. Doscientos sesenta y seis productos, ninguno con precio. Ciento veintiuna horas por semana, cerrado. Y en noviembre, arranca la temporada."
+    },
+    {
+      "id": "a5",
+      "voz": "lucas",
+      "texto": "Sus clientes los valoran, y lo que piden es poder comunicarse: un llamado que se devuelva, un presupuesto a tiempo, un aviso."
+    },
+    {
+      "id": "a6",
+      "voz": "lucas",
+      "texto": "Proponemos un especialista de guardia en el cero ochocientos, el WhatsApp y la web, que deriva a su equipo. Y un panel. Hoy, la atención se mide en reseñas. Con el panel, cada día."
+    },
+    {
+      "id": "a7",
+      "voz": "lucas",
+      "texto": "Empecemos un piloto en noviembre, antes del pico de consultas."
+    }
+  ]
+}

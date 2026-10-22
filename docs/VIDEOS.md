@@ -12,7 +12,7 @@ voces, música, control de las afirmaciones, revisión y versiones. Lo usa el ag
 marketing/videos/
   src/Root.tsx              una <Composition> por proyecto, con id = carpeta del proyecto
   src/comun/                lo compartido: theme.ts (tokens y fuentes), ui.tsx (títulos, tarjetas, píldoras,
-                            íconos, globos, onda), characters.tsx (personajes y mascota), code.tsx (ventana de
+                            íconos, globos, onda), characters.tsx (personajes y el agente con el logo), code.tsx (ventana de
                             código y de pedidos HTTP), montaje.tsx (escenas, fundidos, locución y música)
   proyectos/<slug>/
     README.md               pedido, público, mensaje, guion por escena, afirmaciones y tabla de versiones
@@ -23,8 +23,10 @@ marketing/videos/
   scripts/                  voces.py, musica.py, candidatas.py, revisar.py, cerrar.sh
 ```
 
-Proyectos hoy: [`general`](../marketing/videos/proyectos/general/README.md) (el video de Atentina para empresas) y
-[`yoizen`](../marketing/videos/proyectos/yoizen/README.md) (técnico, para integradores).
+Proyectos hoy: [`general`](../marketing/videos/proyectos/general/README.md) (el video de Atentina para empresas),
+[`yoizen`](../marketing/videos/proyectos/yoizen/README.md) (técnico, para integradores),
+[`transcripcion`](../marketing/videos/proyectos/transcripcion/README.md) (transcripción y voz para call centers) y
+[`goldman`](../marketing/videos/proyectos/goldman/README.md) (propuesta para un prospecto: Isaías Goldman SA).
 
 ## Comandos
 
@@ -81,9 +83,12 @@ Sigue [`DESIGN_GUIDELINE.md`](DESIGN_GUIDELINE.md), sección 10:
 - **Componentes** (`ui.tsx`, `code.tsx`): `Headline`, `Card`, `Pill`, `Bubble`, `Icon`, `Wave`, `CodeWindow` con
   `Typed` (código que se escribe, coloreado), `Link` (curva punteada que corre).
 - **Personajes** (`characters.tsx`): bustos planos de estilo negocios, con el elenco fijo en `CAST` (cliente,
-  cliente2, cliente3, dueña, integrador, otro) y poses `phone`, `texting`, `laptop`, `back`. **La mascota de
-  Atentina** tiene la marca como cara: el anillo es la cabeza y las tres barras son la boca, que se mueve con la
-  envolvente de su voz (`level()` con `vo/envolventes.json`). Los personajes que hablan mueven la boca igual.
+  cliente2, cliente3, dueña, integrador, otro) y poses `phone`, `texting`, `laptop`, `back`. Los personajes que
+  hablan mueven la boca con la envolvente de su voz (`vo/envolventes.json`).
+- **El agente de Atentina es el logo, no un robot** (decisión del usuario, 21-oct-2026): `AgenteLogo` dibuja la
+  marca (aro y tres barras) en un círculo blanco, y las barras se mueven con su voz. La mascota con cuerpo
+  (`Mascot`) no se usa más; queda en el código solo por los videos ya entregados (`general`, `yoizen`,
+  `transcripcion` y `goldman` v1).
 - **Movimiento:** `useCurrentFrame` + `interpolate`/`spring` (`useIn`, `usePop`). Nada de transiciones ni
   animaciones CSS: no se renderizan. Fundido de 8 cuadros entre escenas; la intro se funde 0,6 s sobre la primera.
 - **Diagramas animados:** nodos en tarjetas, paquetes que viajan (onda = voz, "Aa" = texto, "{ }" = herramienta),
@@ -109,6 +114,12 @@ El TTS es `vllm-tts` (Qwen3-TTS con 41 voces argentinas, [`TTS_FINETUNE.md`](TTS
   escucharlas: la decisión final es de oído.
 - **Mejor de N tomas:** el TTS varía en cada toma. `make video-voces ... TOMAS=4` transcribe cada toma con nuestro
   STT y se queda con la más fiel al texto. Una fidelidad menor a 0,97 es para escuchar o regenerar.
+- **Ortografía normal en la locución** (decisión del usuario, 21-oct-2026, después de escuchar `goldman` v2: las
+  tildes forzadas en la sílaba tónica sonaban mal en general). Solo se fuerza una grafía puntual cuando el usuario
+  la pide; esas van en la tabla. Para probar variantes, `scripts/candidatas.py` con un grupo propio y dos tomas por
+  texto, y dejar las tomas para escuchar: el STT no distingue dónde cae el acento.
+- **Velocidad:** `"velocidad": 1.1` en `guion.json` acelera cada línea con `ffmpeg atempo` (no cambia el tono)
+  después de elegir la toma; las duraciones y envolventes salen del audio acelerado. Sin el campo, 1,0.
 - **Grafías que funcionan:**
 
 | Se dice | Se escribe en `guion.json` | Nota |
@@ -118,6 +129,9 @@ El TTS es `vllm-tts` (Qwen3-TTS con 41 voces argentinas, [`TTS_FINETUNE.md`](TTS
 | OpenAI (en inglés) | `ópen, ei, ái` | Con comas; regenerar si el STT oye "Open LI" |
 | Nombres que el TTS dice mal | no decirlos | "Yóisen" salió "Joyce": el nombre va escrito en pantalla |
 | Números y horas | en palabras | "a las diez", no "10:00" |
+| clasifica | `clasifíca` | Pedido del usuario (goldman v3) |
+| Goldman | `Goldman` | Sin tilde: con `Góldman` el STT oyó "Colman" en una de dos tomas |
+| Pausas | con puntuación | Comas y puntos marcan las pausas ("Actualmente, un solo número…") |
 
 - **El STT no distingue "voz" de "vos":** esa diferencia en la transcripción no es un error de la toma.
 

@@ -45,7 +45,7 @@ en `marketing/videos/proyectos/<slug>/`.
    duraciones. Para elegir una voz, `scripts/candidatas.py` y dejá las tomas en `scratch/videos/candidatas/` para que
    el usuario las escuche.
 4. **Escenas** en `proyectos/<slug>/src/` con `src/comun/` (`Montaje`, `armarEscenas`, `Headline`, `CodeWindow`,
-   personajes, mascota). Registrá la composición en `src/Root.tsx` con id = slug. `npx tsc --noEmit` sin errores.
+   personajes, `AgenteLogo`). Registrá la composición en `src/Root.tsx` con id = slug. `npx tsc --noEmit` sin errores.
 5. **Cuadros de prueba** (`npx remotion still`, a `scratch/videos/`) y miralos con Read: corregí antes del render.
 6. **Render y revisión:** `make video P=<slug> V=<n>` y `make video-revisar P=<slug> V=<n> ARGS="--tramos ..."`;
    mirá las hojas de cuadros y leé la transcripción por escena.
@@ -61,6 +61,10 @@ en `marketing/videos/proyectos/<slug>/`.
 - **Comandos para el usuario, con `make`** (los de la tabla de VIDEOS.md). Si falta un paso, proponé el target.
 - **Temporales en `scratch/videos/`**, nunca en `/tmp`. Los MP4 no se commitean; no hacés commits salvo que te lo pidan.
 - **Textos en español rioplatense**, sin signos de exclamación en pantalla, títulos con rótulo + remate en el acento.
+- **El agente de Atentina se representa con el logo** (`AgenteLogo`), nunca con el robot o mascota (`Mascot`, retirada
+  el 21-oct-2026).
+- **Locución con la ortografía normal** y pausas con comas y puntos. No fuerces tildes en la sílaba tónica (sonaban mal,
+  21-oct-2026): solo una grafía puntual cuando el usuario la pide, y anotala en la tabla de grafías de VIDEOS.md.
 
 ## Al terminar
 

@@ -30,6 +30,31 @@ GRUPOS = {
         "Lo definís en un yéison.",
         "Lo definís en un JSON.",
     ]],
+    # Video goldman v2: "aires", "Goldman", "clasifica" y el cierre (dos tomas por texto: el TTS varía)
+    "goldman": [("lucas", t) for t in [
+        "En Isaías Goldman, en temporada de aires, las consultas no paran.",
+        "En Isaías Goldman, en temporada de áires, las consultas no paran.",
+        "En Isaías Góldman, en temporada de áires, las consultas no paran.",
+        "En Isaías Góldman, en temporada de áires las consultas no paran.",
+        "En Isaías Gold man, en la temporada de áires, las consultas no paran.",
+        "En Isaías Goldman, en temporada de aire acondicionado, las consultas no paran.",
+        "Actualmente, un solo número y el local cerrado no alcanzan. La consulta que no se contesta en minutos, se va a otro lado.",
+        "Clasifica, responde lo general, y deriva a su equipo.",
+        "Clasífica, responde lo general, y deriva a su equipo.",
+        "Empecemos un piloto en noviembre, antes del pico de consultas.",
+        "Arranquemos con un piloto en noviembre, antes del pico de consultas.",
+    ] for _ in range(2)],
+    # Video goldman-analisis v1: nombres de clientes, cifras y "aire" (dos tomas por texto)
+    "goldman-analisis": [("lucas", t) for t in [
+        "En Isaías Goldman ya hicieron lo difícil.",
+        "Empresas como Arcor, Georgalos y Mostaza.",
+        "Empresas como Arcor, Yeorgalos y Mostaza.",
+        "Empresas como Arcor, Georgálos y Mostaza.",
+        "Mil seiscientas setenta y una reseñas, con cuatro coma dos.",
+        "Quien quiere saber cuánto sale un aire, tiene que escribir y esperar.",
+        "Quien quiere saber cuánto sale un áire, tiene que escribir y esperar.",
+        "Ciento veintiuna de las ciento sesenta y ocho horas de la semana, cerrado.",
+    ] for _ in range(2)],
 }
 
 

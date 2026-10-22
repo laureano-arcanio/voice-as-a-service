@@ -1,0 +1,31 @@
+{
+  "nota": "Video para Isaías Goldman SA (Córdoba, climatización). Solo narrador lucas. Grafías solo para la locución (en pantalla, la ortografía normal): 'áires' (aires), 'clasífica' (clasifica); 'Goldman' sin tilde (con 'Góldman' el STT oyó 'Colman' en una toma). Números en palabras.",
+  "musica_segundos": 42,
+  "lineas": [
+    {
+      "id": "g1",
+      "voz": "lucas",
+      "texto": "En Isaías Goldman, en temporada de áires, las consultas no paran."
+    },
+    {
+      "id": "g2",
+      "voz": "lucas",
+      "texto": "Actualmente, un solo número y el local cerrado no alcanzan. La consulta que no se contesta en minutos, se va a otro lado."
+    },
+    {
+      "id": "g3",
+      "voz": "lucas",
+      "texto": "Nuestro agente atiende las veinticuatro horas el cero ochocientos, el WhatsApp y el chat de la web. Clasífica, responde lo general, y deriva a su equipo."
+    },
+    {
+      "id": "g4",
+      "voz": "lucas",
+      "texto": "Y todo queda en un panel: cada canal, cada tipo de consulta, tiempos de respuesta, fuera de horario y derivaciones por vendedor."
+    },
+    {
+      "id": "g5",
+      "voz": "lucas",
+      "texto": "Empecemos un piloto en noviembre, antes del pico de consultas."
+    }
+  ]
+}

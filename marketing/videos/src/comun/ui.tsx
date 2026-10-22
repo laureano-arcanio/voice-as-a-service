@@ -52,7 +52,7 @@ export const Pill: React.FC<{ bg: string; fg: string; children: React.ReactNode;
   </div>
 );
 
-type IconName = "phone" | "wa" | "web" | "ear" | "speaker" | "missed" | "check" | "calendar" | "store" | "clock" | "users" | "upload";
+type IconName = "phone" | "wa" | "web" | "ear" | "speaker" | "missed" | "check" | "calendar" | "store" | "clock" | "users" | "upload" | "chart";
 export const Icon: React.FC<{ name: IconName; size?: number; color?: string }> = ({ name, size = 32, color = "currentColor" }) => {
   const p = { fill: "none", stroke: color, strokeWidth: 2.2, strokeLinecap: "round", strokeLinejoin: "round" } as const;
   return (
@@ -108,6 +108,12 @@ export const Icon: React.FC<{ name: IconName; size?: number; color?: string }> =
         <>
           <path {...p} d="M12 15V4M7.5 8.5 12 4l4.5 4.5" />
           <path {...p} d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+        </>
+      ) : null}
+      {name === "chart" ? (
+        <>
+          <path {...p} d="M4 4v16h16" />
+          <path {...p} d="M8 16v-4M12 16V8M16 16v-6" />
         </>
       ) : null}
       {name === "clock" ? (

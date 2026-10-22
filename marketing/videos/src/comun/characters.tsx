@@ -135,6 +135,32 @@ export const Person: React.FC<PersonProps> = ({
   );
 };
 
+/**
+ * El agente de Atentina: el logo (aro + tres barras) en un círculo blanco. Las barras se mueven con la voz
+ * (`talk`, 0..1) y en reposo quedan como en la marca. Desde el 21-oct-2026 el agente se representa así, no con
+ * la mascota (docs/VIDEOS.md, "Estilo visual").
+ */
+export const AgenteLogo: React.FC<{ size: number; talk?: number; style?: React.CSSProperties }> = ({ size, talk = 0, style }) => {
+  const frame = useCurrentFrame();
+  const base = [12, 22, 12];
+  const h = base.map((b, i) => {
+    const wob = 0.6 + 0.4 * Math.abs(Math.sin(frame / 2.3 + i * 1.7));
+    return Math.min(30, b * (1 + (talk > 0.04 ? talk * wob * 0.7 : 0)));
+  });
+  return (
+    <svg viewBox="0 0 64 64" width={size} height={size} style={{ overflow: "visible", ...style }}>
+      <circle cx={32} cy={32} r={31} fill="#ffffff" stroke={C.line} strokeWidth={1} />
+      <g transform="translate(32 32) scale(0.78) translate(-32 -32)">
+        <path d="M55.07 38.62A24 24 0 1 1 55.07 25.38" fill="none" stroke={C.ink} strokeWidth={8} strokeLinecap="round" />
+        {h.map((v, i) => (
+          <rect key={i} x={20 + i * 9} y={32 - v / 2} width={6} height={v} rx={3} fill={C.accent} />
+        ))}
+      </g>
+    </svg>
+  );
+};
+
+/** NO USAR desde el 21-oct-2026: el agente va con el logo (`AgenteLogo`). Queda por los videos ya entregados. */
 /** Atentina: la cabeza es la marca (aro con las tres barras como boca), con vincha y saco azul. */
 export const Mascot: React.FC<{ size: number; talk?: number; bodyless?: boolean; style?: React.CSSProperties }> = ({
   size, talk = 0, bodyless, style,

@@ -1,0 +1,14 @@
+{
+  "nota": "v2: ortografía normal en toda la locución (sin tildes forzadas, pedido del usuario: 'los acentos están mal en general'). Solo narrador lucas, a 1,1x sin cambiar el tono ('velocidad', atempo de ffmpeg). Sin 'Como dijo' (sonaba 'Cómmo') ni 'Lo que observamos' (mal pronunciado). Ninguna línea termina en una palabra corta: en v1 'un aviso' quedaba recortado al final de la toma. Números en palabras; pausas con puntuación.",
+  "musica_segundos": 62,
+  "velocidad": 1.1,
+  "lineas": [
+    {"id": "a1", "voz": "lucas", "texto": "Hagamos que cada cliente tenga una respuesta."},
+    {"id": "a2", "voz": "lucas", "texto": "En Isaías Goldman ya hicieron lo difícil. Treinta años en el rubro, unas cincuenta personas, y empresas como Arcor, Georgalos y Mostaza."},
+    {"id": "a3", "voz": "lucas", "texto": "En palabras de Isaías Goldman: nos gusta hacer cosas donde podemos responder."},
+    {"id": "a4", "voz": "lucas", "texto": "Esto es lo que vimos. Un solo número para todo. Doscientos sesenta y seis productos, ninguno con precio. Cerrado, ciento veintiuna horas por semana. Y en noviembre, arranca la temporada."},
+    {"id": "a5", "voz": "lucas", "texto": "Sus clientes los valoran, y lo que piden es poder comunicarse: que les devuelvan el llamado, un presupuesto a tiempo, y un aviso si el técnico se demora."},
+    {"id": "a6", "voz": "lucas", "texto": "Proponemos un especialista de guardia en el cero ochocientos, el WhatsApp y la web, que deriva a su equipo. Y un panel. Hoy, la atención se mide en reseñas. Con el panel, cada día."},
+    {"id": "a7", "voz": "lucas", "texto": "¿Les parece que hagamos un piloto antes de que inicie la temporada?"}
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "nota": "Video de transcripción y síntesis para call centers. Solo narrador lucas. 'ápi' como en español; 'ópen, ei, ái' para OpenAI en inglés.",
+  "musica_segundos": 44,
+  "lineas": [
+    {
+      "id": "t1",
+      "voz": "lucas",
+      "texto": "Atentina transcribe y sintetiza voz para tu call center, con modelos propios y servidores en Argentina."
+    },
+    {
+      "id": "t2",
+      "voz": "lucas",
+      "texto": "Soltás la grabación de una llamada y la transcripción aparece al instante, separada entre el agente y el cliente. Después, la descargás."
+    },
+    {
+      "id": "t3",
+      "voz": "lucas",
+      "texto": "También por ápi, compatible con ópen, ei, ái: transcribís audios y generás voz con cuarenta y una voces argentinas."
+    },
+    {
+      "id": "t4",
+      "voz": "lucas",
+      "texto": "Y lo integramos a tus sistemas: transcripción en tiempo real, análisis de sentimiento y extracción de datos de cada llamada."
+    },
+    {
+      "id": "t5",
+      "voz": "lucas",
+      "texto": "Atentina. Cada llamada, en texto y en datos."
+    }
+  ]
+}

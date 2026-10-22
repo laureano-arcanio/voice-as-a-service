@@ -1,0 +1,31 @@
+{
+  "nota": "Video para Isaías Goldman SA (Córdoba, climatización), después de la charla telefónica del 21-oct-2026. Solo narrador lucas. Números en palabras ('cero ochocientos', 'veinticuatro horas'). 'Goldman' no se dice: va escrito en pantalla.",
+  "musica_segundos": 42,
+  "lineas": [
+    {
+      "id": "g1",
+      "voz": "lucas",
+      "texto": "Isaías, en temporada de aires las consultas no paran."
+    },
+    {
+      "id": "g2",
+      "voz": "lucas",
+      "texto": "Un solo número para teléfono y WhatsApp, el local cerrado al mediodía y de noche, y la consulta que no se contesta en minutos se va a otro lado."
+    },
+    {
+      "id": "g3",
+      "voz": "lucas",
+      "texto": "Nuestro agente atiende las veinticuatro horas el cero ochocientos, el WhatsApp y el chat de la web: clasifica, responde lo general y deriva a su equipo."
+    },
+    {
+      "id": "g4",
+      "voz": "lucas",
+      "texto": "Y todo queda en un panel: cada canal, cada tipo de consulta, tiempos de respuesta, fuera de horario y derivaciones por vendedor."
+    },
+    {
+      "id": "g5",
+      "voz": "lucas",
+      "texto": "Arranquemos un piloto en noviembre, con la temporada."
+    }
+  ]
+}

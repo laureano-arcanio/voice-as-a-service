@@ -11,6 +11,7 @@ import difflib
 import json
 import os
 import struct
+import subprocess
 import sys
 import urllib.request
 from pathlib import Path
@@ -44,6 +45,15 @@ def tts(key, model, voz, texto):
     req = urllib.request.Request(f"{TTS_URL}/audio/speech", data=body,
                                  headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
     return urllib.request.urlopen(req, timeout=60).read()
+
+
+def acelerar(pcm: bytes, factor: float) -> bytes:
+    """Acelera el PCM (s16le, 24 kHz, mono) sin cambiar el tono (ffmpeg atempo)."""
+    if abs(factor - 1) < 1e-3:
+        return pcm
+    cmd = ["ffmpeg", "-v", "error", "-f", "s16le", "-ar", str(SR), "-ac", "1", "-i", "-",
+           "-filter:a", f"atempo={factor}", "-f", "s16le", "-ar", str(SR), "-ac", "1", "-"]
+    return subprocess.run(cmd, input=pcm, capture_output=True, check=True).stdout
 
 
 def _letras(t):
@@ -80,7 +90,9 @@ def main():
     tomas = 1
     if args[:1] == ["--tomas"]:
         tomas, args = int(args[1]), args[2:]
-    guion = json.loads((RAIZ / "proyectos" / proyecto / "guion.json").read_text())["lineas"]
+    datos = json.loads((RAIZ / "proyectos" / proyecto / "guion.json").read_text())
+    guion = datos["lineas"]
+    velocidad = float(datos.get("velocidad", 1))  # "velocidad": 1.1 acelera la locución sin cambiar el tono
     out = RAIZ / "public" / "proyectos" / proyecto / "vo"
     out.mkdir(parents=True, exist_ok=True)
     key, model = env("VLLM_API_KEY"), env("VLLM_TTS_MODEL")
@@ -96,6 +108,7 @@ def main():
             if mejor is None or puntaje > mejor[0]:
                 mejor = (puntaje, oido, pcm)
         puntaje, oido, pcm = mejor
+        pcm = acelerar(pcm, velocidad)
         (out / f"{id_}.wav").write_bytes(wav(pcm))
         print(f"{id_} {voz:9s} {len(pcm) / 2 / SR:5.2f} s  {texto}\n    {puntaje:.2f} -> {oido}")
 

@@ -1,0 +1,61 @@
+{
+  "nota": "v3: velocidad normal (1x). Lo observado va en cuatro líneas (a4a a a4d), una por tarjeta, con un respiro entre cada una. La propuesta en dos escenas: a6a (canales, clasifica y deriva, sobre todo a Ventas; 'Clasifíca' es la grafía pedida por el usuario) y a6b (el panel). Cierre: '¿Agendamos una reunión personalmente?'. Ortografía normal en el resto. Sin 'Como dijo' ni 'Lo que observamos'. Ninguna línea termina en una palabra corta (en v1 'un aviso' quedó recortado). Números en palabras; pausas con puntuación.",
+  "musica_segundos": 68,
+  "lineas": [
+    {
+      "id": "a1",
+      "voz": "lucas",
+      "texto": "Hagamos que cada cliente tenga una respuesta."
+    },
+    {
+      "id": "a2",
+      "voz": "lucas",
+      "texto": "En Isaías Goldman ya hicieron lo difícil. Treinta años, unas cincuenta personas, y empresas como Arcor, Georgalos y Mostaza."
+    },
+    {
+      "id": "a3",
+      "voz": "lucas",
+      "texto": "En palabras de Isaías Goldman: nos gusta hacer cosas donde podemos responder."
+    },
+    {
+      "id": "a4a",
+      "voz": "lucas",
+      "texto": "Esto es lo que vimos. Un solo número para todo."
+    },
+    {
+      "id": "a4b",
+      "voz": "lucas",
+      "texto": "Doscientos sesenta y seis productos, ninguno con precio."
+    },
+    {
+      "id": "a4c",
+      "voz": "lucas",
+      "texto": "Cerrado, ciento veintiuna horas por semana."
+    },
+    {
+      "id": "a4d",
+      "voz": "lucas",
+      "texto": "La temporada ya está por arrancar."
+    },
+    {
+      "id": "a5",
+      "voz": "lucas",
+      "texto": "Sus clientes los valoran. Lo que piden es que les devuelvan el llamado, un presupuesto a tiempo, y un aviso si el técnico se demora."
+    },
+    {
+      "id": "a6a",
+      "voz": "lucas",
+      "texto": "Proponemos un especialista de guardia en el cero ochocientos, el WhatsApp y la web. Clasifíca cada consulta y la pasa al área que corresponde, sobre todo a Ventas."
+    },
+    {
+      "id": "a6b",
+      "voz": "lucas",
+      "texto": "Y en el panel, ven todo lo que pasa: quién tomó cada consulta, y cuánto tardó."
+    },
+    {
+      "id": "a7",
+      "voz": "lucas",
+      "texto": "¿Agendamos una reunión personalmente?"
+    }
+  ]
+}
