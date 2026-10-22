@@ -131,6 +131,11 @@ ninguno registrado cuenta como que ya tuvo uno (se mandó por fuera del CRM).
 **en el hilo** del último mail (`Re: <asunto>`, `In-Reply-To`) y al mismo destinatario; el asunto de la
 plantilla se ignora. Cada mensaje lleva `step` (0 el primero).
 
+`GET /today` → `reply_rates`: por nivel (`step`, 0 el primer mail) y campaña (`campaign_slug`; `null` = todas),
+`reached` (leads que lo recibieron, sin rebote), `replied` y `rate`. Respondió = mensaje entrante o etapa de
+respuesta en adelante, como `replied` de `/stats`; cuenta para el último mail enviado antes de la respuesta (o del
+cambio de etapa; sin fecha, el último mail).
+
 Si el paso tiene plantilla y la campaña está **activa**, el servidor arma solo el borrador (cada 10 min,
 `created_by: "sistema"`); igual queda en "Hoy" para aprobar.
 

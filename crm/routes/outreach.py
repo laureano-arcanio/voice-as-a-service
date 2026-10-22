@@ -370,6 +370,7 @@ def today(s: DB, _: Who):
         "replies": [msg_out(m) for m in replies],
         "next_actions": summaries(s, actions),
         "queue": sending.status(s),
+        "reply_rates": [S.ReplyRate(**r) for r in M.reply_rates(s)],
     }
 
 

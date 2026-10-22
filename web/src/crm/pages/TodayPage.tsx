@@ -5,6 +5,7 @@ import {
   Card,
   Checkbox,
   Group,
+  Select,
   SimpleGrid,
   Stack,
   Table,
@@ -22,7 +23,7 @@ import { fmtAgo, fmtDate, fmtDateTime, messageLabel, todayIso } from '../format'
 import { BulkDraftsModal } from '../components/BulkDraftsModal';
 import { StageBadge } from '../components/Badges';
 import { MessageModal } from '../components/MessageModal';
-import type { Message, QueueStatus, Today } from '../types';
+import type { Message, QueueStatus, ReplyRate, Today } from '../types';
 
 function toggleIn(set: Set<number>, id: number): Set<number> {
   const next = new Set(set);
@@ -116,12 +117,75 @@ function QueueCard({ q }: { q: QueueStatus }) {
   );
 }
 
+const pct = (r: ReplyRate) => `${Math.round(100 * r.rate)} %`;
+const levelLabel = (step: number) => (step === 0 ? 'Primer mail' : `Seguimiento ${step}`);
+
+function ReplyRates({ rates }: { rates: ReplyRate[] }) {
+  const [campaign, setCampaign] = useState<string | null>(null);
+  const campaigns = [...new Set(rates.flatMap((r) => (r.campaign_slug ? [r.campaign_slug] : [])))].sort();
+  const rows = rates.filter((r) => r.campaign_slug === campaign);
+  return (
+    <Card withBorder>
+      <Group justify="space-between" mb="xs">
+        <Title order={4}>Reply rate por nivel</Title>
+        <Select
+          size="xs"
+          placeholder="Todas las campañas"
+          aria-label="Campaña"
+          data={campaigns}
+          value={campaign}
+          onChange={setCampaign}
+          clearable
+          w={220}
+        />
+      </Group>
+      {rows.length === 0 ? (
+        <EmptyState>Todavía no hay mails enviados.</EmptyState>
+      ) : (
+        <Table>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Nivel</Table.Th>
+              <Table.Th ta="right">Alcanzados</Table.Th>
+              <Table.Th ta="right">Respondieron</Table.Th>
+              <Table.Th ta="right">Reply rate</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {rows.map((r) => (
+              <Table.Tr key={r.step}>
+                <Table.Td>{levelLabel(r.step)}</Table.Td>
+                <Table.Td ta="right" className="mono">
+                  {r.reached}
+                </Table.Td>
+                <Table.Td ta="right" className="mono">
+                  {r.replied}
+                </Table.Td>
+                <Table.Td ta="right" className="mono" fw={600}>
+                  {pct(r)}
+                </Table.Td>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
+      )}
+      <Text size="xs" c="dimmed" mt="xs">
+        Respondió: mensaje entrante o etapa de respuesta en adelante (como en el Resumen). Cuenta para el último
+        mail que recibió antes de responder. Los rebotados no cuentan como alcanzados.
+      </Text>
+    </Card>
+  );
+}
+
 function FollowUps({ data }: { data: Today }) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [open, setOpen] = useState(false);
   const due = data.follow_ups_due;
   const all = due.length > 0 && due.every((d) => selected.has(d.lead.id));
   const names = Object.fromEntries(due.map((d) => [d.lead.id, d.lead.name]));
+  // Reply rate historico del nivel que toca, en la misma campaña
+  const rateOf = (slug: string | null, step: number) =>
+    data.reply_rates.find((r) => r.campaign_slug === (slug ?? 'sin campaña') && r.step === step);
 
   return (
     <Card withBorder>
@@ -181,6 +245,10 @@ function FollowUps({ data }: { data: Today }) {
                     <Text size="sm">Seguimiento {d.step}</Text>
                     <Text size="xs" c="dimmed">
                       {d.template_id ? 'con plantilla' : 'elegir plantilla'}
+                      {(() => {
+                        const r = rateOf(d.campaign_slug, d.step);
+                        return r ? ` · responde el ${pct(r)}` : '';
+                      })()}
                     </Text>
                   </Table.Td>
                   <Table.Td>{fmtDate(d.sent_at)}</Table.Td>
@@ -428,6 +496,7 @@ export function TodayPage() {
           <Stack gap="md">
             <QueueCard q={data.queue} />
             <FollowUps data={data} />
+            <ReplyRates rates={data.reply_rates} />
             <Drafts drafts={data.drafts} />
             <SimpleGrid cols={{ base: 1, md: 3 }}>
               <Tasks data={data} />

@@ -3,12 +3,21 @@ import datetime
 import logging
 import re
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..config import local_today, settings
 from ..db import naive_utc, utcnow
-from ..models import SENT_STATUSES, Campaign, ContactPoint, Lead, Message, Template
+from ..models import (
+    REPLIED_STAGES,
+    SENT_STATUSES,
+    Activity,
+    Campaign,
+    ContactPoint,
+    Lead,
+    Message,
+    Template,
+)
 from . import leads as L
 from .errors import Conflict, CrmError, Invalid
 from .templates import render, utm_campaign
@@ -255,3 +264,50 @@ def auto_followups(s: Session) -> int:
             logger.info("crm: seguimiento %s de %s: %s", d["step"], d["lead"].name, e.detail)
     s.commit()
     return n
+
+
+def reply_rates(s: Session) -> list[dict]:
+    """Reply rate por nivel de la secuencia (0 el primer mail, 1.. seguimientos), en total y por campaña.
+    Respondio = mensaje entrante o etapa de respuesta en adelante, como en /stats (las respuestas por telefono o
+    LinkedIn se cargan cambiando la etapa). Cuenta para el ultimo mail que el lead recibio antes de responder: el
+    mensaje entrante, o el cambio de etapa (sin fecha, el ultimo mail). Los rebotados no cuentan como alcanzados;
+    un lead cuenta una vez por nivel y campaña."""
+    msgs = s.scalars(select(Message).where(Message.sent_at.is_not(None), (Message.direction == "in") | (
+        (Message.direction == "out") & Message.status.in_(SENT_STATUSES) & Message.kind.in_(("first", "follow_up"))))
+        .order_by(Message.lead_id, Message.sent_at)).all()
+    with_inbound = {m.lead_id for m in msgs if m.direction == "in"}
+    stage_at = dict(s.execute(select(Activity.lead_id, func.min(Activity.at)).where(
+        Activity.kind == "stage_change", Activity.data["to"].as_string().in_(REPLIED_STAGES))
+        .group_by(Activity.lead_id)).all())
+    # (lead, momento, es_respuesta, mensaje): por lead y en orden; a igual momento, el envio primero; sin
+    # momento (etapa sin cambio registrado), al final
+    events = [(m.lead_id, m.sent_at, m.direction == "in", m) for m in msgs]
+    events += [(lid, stage_at.get(lid), True, None) for lid in s.scalars(
+        select(Lead.id).where(Lead.stage.in_(REPLIED_STAGES))) if lid not in with_inbound]
+    events.sort(key=lambda e: (e[0], e[1] is None, e[1] or utcnow(), e[2]))
+    reached: dict[tuple, set[int]] = {}
+    replied: dict[tuple, set[int]] = {}
+    last: dict[int, tuple | None] = {}       # lead -> (campaña, nivel) del ultimo mail sin respuesta
+    level: dict[int, int] = {}               # lead -> nivel del ultimo enviado (para los que no tienen step)
+    for lid, _, is_reply, m in events:
+        if is_reply:
+            k = last.get(lid)
+            if k:
+                for key in (k, (None, k[1])):
+                    replied.setdefault(key, set()).add(lid)
+                last[lid] = None
+            continue
+        lvl = m.step if m.step is not None else (0 if m.kind == "first" else level.get(lid, 0) + 1)
+        level[lid] = lvl
+        if m.status == "bounced":
+            continue
+        k = (m.campaign.slug if m.campaign else "sin campaña", lvl)
+        for key in (k, (None, lvl)):
+            reached.setdefault(key, set()).add(lid)
+        last[lid] = k
+    out = []
+    for (camp, lvl), leads in sorted(reached.items(), key=lambda x: (x[0][0] is not None, x[0][0] or "", x[0][1])):
+        n = len(replied.get((camp, lvl), set()) & leads)
+        out.append({"campaign_slug": camp, "step": lvl, "reached": len(leads), "replied": n,
+                    "rate": round(n / len(leads), 4)})
+    return out

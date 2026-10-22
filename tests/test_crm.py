@@ -215,7 +215,7 @@ def test_importar_historial_y_hoy(api):
     assert api.post("/api/messages/import", json={"lead_id": a["id"], "to_addr": "x@y.com", "subject": "s",
                                                   "sent_at": "2026-10-05T10:00:00Z"}, headers=AGENT).status_code == 403
     today = api.get("/api/today", headers=USER).json()
-    assert set(today) == {"follow_ups_due", "drafts", "tasks", "replies", "next_actions", "queue"}
+    assert set(today) == {"follow_ups_due", "drafts", "tasks", "replies", "next_actions", "queue", "reply_rates"}
     assert settings.send_daily_max == today["queue"]["daily_max"]
 
 
@@ -338,3 +338,34 @@ def test_etapa_seguimiento_cuenta_como_un_seguimiento(api, db, sent, monkeypatch
     monkeypatch.setattr(M, "local_today", lambda: datetime.date(2026, 10, 20))
     with db() as s:
         assert M.followups_due(s) == []
+
+
+def test_reply_rate_por_nivel(api, db):
+    c, _, _ = campaign_and_template(api)
+    ids = [lead(api, name=f"Empresa {i}", website=f"https://e{i}.com.ar/", contacts=[])["id"] for i in range(4)]
+    d = lambda day: datetime.datetime(2026, 10, day, 12)
+    with db() as s:
+        def out(lid, kind, step, day, status="sent"):
+            s.add(models.Message(lead_id=lid, campaign_id=c["id"], kind=kind, step=step, direction="out",
+                                 to_addr="x@y.com", subject="s", status=status, sent_at=d(day)))
+        for lid in ids[:2]:
+            out(lid, "first", 0, 1)
+        out(ids[2], "first", 0, 1, status="bounced")                  # rebotado: no cuenta como alcanzado
+        s.add(models.Message(lead_id=ids[0], direction="in", kind="other", to_addr="nos", subject="r",
+                             status="received", sent_at=d(2)))       # responde al primer mail
+        out(ids[1], "follow_up", 1, 8)
+        out(ids[3], "first", 0, 1)
+        out(ids[3], "follow_up", 1, 8)
+        out(ids[3], "follow_up", 2, 15)
+        # Respondio por telefono: solo el cambio de etapa, entre el seguimiento 1 y el 2 (el 2 salio igual)
+        s.get(models.Lead, ids[3]).stage = "charla_agendada"
+        s.add(models.Activity(lead_id=ids[3], kind="stage_change", at=d(10), data={"to": "respondio"}))
+        s.add(models.Message(lead_id=ids[1], direction="in", kind="other", to_addr="nos", subject="r",
+                             status="received", sent_at=d(9)))       # responde al seguimiento 1
+        s.commit()
+        rates = M.reply_rates(s)
+    total = {r["step"]: (r["reached"], r["replied"], r["rate"]) for r in rates if r["campaign_slug"] is None}
+    assert total == {0: (3, 1, 0.3333), 1: (2, 2, 1.0), 2: (1, 0, 0.0)}
+    assert {r["step"] for r in rates if r["campaign_slug"] == "canales9"} == {0, 1, 2}
+    assert api.get("/api/today", headers=USER).json()["reply_rates"][0] == {
+        "campaign_slug": None, "step": 0, "reached": 3, "replied": 1, "rate": 0.3333}

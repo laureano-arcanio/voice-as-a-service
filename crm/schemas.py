@@ -431,6 +431,14 @@ class TimelineItem(BaseModel):
     data: dict
 
 
+class ReplyRate(BaseModel):
+    campaign_slug: str | None = Field(description="None: todas las campañas juntas")
+    step: int = Field(description="Nivel: 0 el primer mail, 1.. los seguimientos")
+    reached: int = Field(description="Leads que recibieron ese nivel (sin rebote)")
+    replied: int = Field(description="De ellos, los que respondieron despues de ese nivel y antes del siguiente")
+    rate: float = Field(description="replied / reached")
+
+
 class FollowUpDue(BaseModel):
     lead: LeadSummary
     campaign_id: int | None

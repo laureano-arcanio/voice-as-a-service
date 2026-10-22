@@ -298,6 +298,14 @@ export interface FollowUpDue {
   business_days: number;
 }
 
+export interface ReplyRate {
+  campaign_slug: string | null; // null: todas las campañas
+  step: number; // 0 el primer mail, 1.. seguimientos
+  reached: number;
+  replied: number;
+  rate: number;
+}
+
 export interface Today {
   follow_ups_due: FollowUpDue[];
   drafts: Message[];
@@ -305,6 +313,7 @@ export interface Today {
   replies: Message[];
   next_actions: LeadSummary[];
   queue: QueueStatus;
+  reply_rates: ReplyRate[];
 }
 
 export interface Stats {
