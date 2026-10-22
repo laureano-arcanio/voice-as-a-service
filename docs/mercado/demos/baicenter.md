@@ -125,7 +125,11 @@ la reunión y como base de un agente posterior. Todavía no tiene fila en [`../s
   - Cuota inicial del 21-jul al 20-ago de 2026, según iProfesional y 16 Válvulas: entre $ 736.104 (X35) y $ 914.759 (BJ30).
   - En junio, Edgardo dijo que estaba armando un plan propio, y la home de BAIC Center ya muestra el banner "Llegó el plan
     de ahorro: 84 cuotas sin interés".
-  - **Hay que confirmar con él** las condiciones vigentes y si opera el plan de la marca, uno propio o los dos.
+  - **Corrección (22-oct-2026, Laureano): BAIC Center no ofrece plan de ahorro.** El banner de sus sitios es el BAIC Plan
+    de la marca (imagen con la foto del local, link a Arcfox), y el plan propio de junio no salió. Lo confirmado es la
+    financiación con los cuatro bancos y el crédito propio (Edgardo, Punto a Punto, 29-jun-2026); la nota no menciona
+    leasing ni prendarios, que salen solo de LinkedIn. Las menciones al plan de ahorro de este documento (D8, 7.5, 8.2,
+    8.3) quedan sin efecto.
 
 ### 2.4 Posventa
 

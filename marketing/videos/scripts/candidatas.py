@@ -55,6 +55,20 @@ GRUPOS = {
         "Quien quiere saber cuánto sale un áire, tiene que escribir y esperar.",
         "Ciento veintiuna de las ciento sesenta y ocho horas de la semana, cerrado.",
     ] for _ in range(2)],
+    # Video baicenter-analisis v1: cómo dice "BAIC" y "EPEC" (dos tomas por texto)
+    "baicenter": [("lucas", t) for t in [
+        "En BAIC Center ya hicieron lo difícil.",
+        "En Baic Center ya hicieron lo difícil.",
+        "En Báic Center ya hicieron lo difícil.",
+        "Y flotas como la de EPEC.",
+        "Y flotas como la de Epec.",
+        "Cuatro marcas: BAIC, Arcfox, Mitsubishi y Foton.",
+    ] for _ in range(2)],
+    "baicenter2": [("lucas", t) for t in [
+        "En BAIC Center, ya hicieron lo difícil. Nueve años, cuatro marcas, y flotas como la de EPEC.",
+        "En Báic Center ya hicieron lo difícil. Nueve años, cuatro marcas, y flotas como la de EPEC.",
+        "En Baik Center ya hicieron lo difícil. Nueve años, cuatro marcas, y flotas como la de EPEC.",
+    ] for _ in range(2)],
 }
 
 

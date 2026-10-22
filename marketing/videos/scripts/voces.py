@@ -23,7 +23,7 @@ TTS_URL = os.environ.get("TTS_URL", "http://127.0.0.1:8103/v1")
 STT_URL = os.environ.get("STT_URL", "http://127.0.0.1:8102/v1")
 
 # Cómo se escribe para que el TTS lo pronuncie -> cómo lo escribe el STT (para medir la fidelidad)
-GRAFIAS = {"ópen, ei, ái": "OpenAI", "yéison": "JSON"}
+GRAFIAS = {"ópen, ei, ái": "OpenAI", "yéison": "JSON", "Báic": "Bike"}  # BAIC se escribe "Báic" (baicenter-analisis)
 
 
 def env(name):

@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Atentina · Propuesta para BAIC Center / Grupo Signature</title>
+<link rel="stylesheet" href="../../../../plantilla/base.css">
+<style>
+  /* Ajustes locales de este documento (no tocan base.css) */
+  .opps { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3mm; margin: 2mm 0 3mm; }
+  .opp { border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 3mm; padding: 2.6mm 4mm; background: #fff; }
+  .opp .k { font-family: "Plex Mono"; font-size: 6.9pt; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 1mm; }
+  .opp b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 12.5pt; color: var(--ink); line-height: 1.12; margin-bottom: 1.2mm; }
+  .opp p { font-size: 8.9pt; margin: 0; }
+  .opp .to { font-size: 8.5pt; color: var(--accent2); margin-top: 1.6mm; padding-top: 1.6mm; border-top: 1px solid var(--line); }
+  .opp .to strong { color: var(--accent2); }
+  .pull { border-left: 3px solid var(--accent); padding: 1mm 0 1mm 4mm; margin: 0 0 5mm; }
+  .pull q { font-family: "Bricolage"; font-weight: 700; font-size: 13pt; color: var(--ink); quotes: "“" "”"; }
+  .pull span { display: block; font-size: 8.2pt; color: var(--muted); margin-top: 1mm; }
+  .good { display: grid; grid-template-columns: 40mm 1fr; gap: 5mm; align-items: center; border: 1px solid #bfe6cf; background: var(--ok-soft); border-radius: 3.5mm; padding: 3mm 4.5mm; margin: 0 0 5mm; }
+  .good b { font-family: "Bricolage"; font-weight: 800; font-size: 11.5pt; color: var(--ok); }
+  .good p { margin: 0; font-size: 9pt; }
+  .good q { quotes: "“" "”"; font-style: italic; color: var(--ink); }
+  .src-line { font-size: 7.8pt; color: var(--muted); }
+
+  .quotes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3.5mm; margin: 2.5mm 0 5mm; }
+  .quote { border: 1px solid var(--line); border-radius: 3.5mm; padding: 3.2mm 3.8mm; background: var(--bg2); }
+  .quote h3 { font-size: 10.2pt; margin-bottom: 1.6mm; }
+  .quote q { display: block; font-style: italic; font-size: 9.6pt; color: var(--ink); quotes: "“" "”"; margin-bottom: 1.4mm; }
+  .quote p { font-size: 8.8pt; margin: 0 0 1.4mm; }
+  .quote .when { font-family: "Plex Mono"; font-size: 6.9pt; letter-spacing: .04em; color: var(--muted); text-transform: uppercase; }
+  .quote.sum { background: var(--accent-soft); border-color: #c9d7ff; }
+  .quote.sum p { font-size: 8.9pt; margin: 0; }
+  .adds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3.5mm; margin: 2mm 0 5mm; }
+  .add { border-top: 2px solid var(--accent); padding: 2mm 0 0; font-size: 8.9pt; }
+  .add b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 11pt; color: var(--ink); margin-bottom: .8mm; line-height: 1.15; }
+
+  .flow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; margin: 2mm 0 3mm; }
+  .flow .card { padding: 3mm 3.6mm; }
+  .flow .card .num { width: 6.5mm; height: 6.5mm; font-size: 9pt; margin-bottom: 1.6mm; }
+  .flow .card h3 { font-size: 10.4pt; }
+  .flow .card p { font-size: 8.6pt; margin: 0; }
+  .ficha { display: grid; grid-template-columns: 44mm 1fr; gap: 5mm; align-items: center; border: 1.5px solid var(--accent); border-radius: 4mm; padding: 3mm 5mm; background: linear-gradient(180deg, var(--accent-soft), #fff 85%); margin-bottom: 1mm; }
+  .ficha h2 { margin: 0; font-size: 12pt; }
+  .ficha p { margin: 0; font-size: 8.9pt; }
+  .ficha .msg { font-family: "Plex Mono"; font-size: 8.2pt; color: var(--ink); background: #fff; border: 1px solid #c9d7ff; border-radius: 2mm; padding: 1.6mm 2.4mm; margin-top: 1.4mm; display: inline-block; }
+
+  .panel { border: 1px solid var(--line2); border-radius: 4mm; overflow: hidden; margin: 2.5mm 0 1.5mm; background: #fff; }
+  .panel .bar { background: var(--ink); color: var(--cta-ink); font-family: "Plex Mono"; font-size: 7.2pt; letter-spacing: .05em; padding: 2mm 4mm; display: flex; justify-content: space-between; }
+  .panel .bar span { color: var(--cta-muted); }
+  .panel .body { padding: 3.5mm 4mm 3mm; background: var(--bg2); }
+  .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2.5mm; margin-bottom: 3mm; }
+  .kpi { background: #fff; border: 1px solid var(--line); border-radius: 2.5mm; padding: 2.2mm 2.8mm; }
+  .kpi b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 14pt; color: var(--accent); line-height: 1.1; }
+  .kpi span { font-size: 7.4pt; color: var(--ink2); line-height: 1.25; display: block; }
+  .pgrid { display: grid; grid-template-columns: 1fr 1fr 1.45fr; gap: 2.5mm; }
+  .pbox { background: #fff; border: 1px solid var(--line); border-radius: 2.5mm; padding: 2.4mm 3mm; }
+  .pbox .t { font-family: "Plex Mono"; font-size: 6.8pt; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 1.6mm; }
+  .hb { display: grid; grid-template-columns: 19mm 1fr 8mm; align-items: center; gap: 1.5mm; font-size: 7.6pt; margin-bottom: 1.1mm; }
+  .hb i { display: block; height: 2.6mm; border-radius: 1.3mm; background: var(--accent); }
+  .hb em { font-style: normal; text-align: right; color: var(--ink); font-weight: 600; }
+  table.pt { width: 100%; border-collapse: collapse; font-size: 7.6pt; }
+  table.pt th { text-align: left; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--line); padding: 0 1mm 1mm 0; }
+  table.pt td { padding: 1mm 1mm 1mm 0; border-bottom: 1px solid var(--line); color: var(--ink2); }
+  table.pt td.n, table.pt th.n { text-align: right; }
+  table.pt tr:last-child td { border-bottom: none; }
+
+  table.map { width: 100%; border-collapse: collapse; font-size: 8.7pt; margin: 2mm 0 0; }
+  table.map th { font-family: "Plex Mono"; font-weight: 500; font-size: 7pt; letter-spacing: .06em; text-transform: uppercase; text-align: left; padding: 0 3mm 1.6mm 0; color: var(--muted); }
+  table.map th:last-child { color: var(--accent); }
+  table.map td { padding: 1.35mm 3mm 1.35mm 0; border-top: 1px solid var(--line); vertical-align: top; }
+  table.map td:first-child { width: 40%; color: var(--ink); }
+  table.map td:last-child { color: var(--ink2); }
+
+  .pilot { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; margin: 2.5mm 0 4mm; }
+  .pilot div { background: var(--bg2); border-radius: 3mm; padding: 2.8mm 3.5mm; font-size: 8.8pt; }
+  .pilot b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 11.5pt; color: var(--accent); line-height: 1.15; margin-bottom: .6mm; }
+  .steps.six { grid-template-columns: repeat(3, 1fr); margin-bottom: 3.5mm; }
+  .steps.six .step { padding: 2.8mm 3.2mm; font-size: 8.5pt; }
+  .steps.six .step::before { font-size: 13pt; margin-bottom: 1mm; }
+  .ops.tight li { font-size: 8.8pt; margin-bottom: .7mm; }
+  .phases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 2mm 0 3.5mm; }
+  .phase { border-left: 2px solid var(--accent); padding: .5mm 0 .5mm 3mm; font-size: 8.5pt; }
+  .phase b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 10pt; color: var(--ink); margin-bottom: .6mm; }
+  .phase q { quotes: "“" "”"; font-style: italic; }
+</style>
+</head>
+<body>
+
+<!-- ========== HOJA 1: quiénes son y las áreas a mejorar ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA · BAIC CENTER / GRUPO SIGNATURE<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero">
+    <div class="eyebrow">Un asesor de guardia 24/7 en sus WhatsApp y su línea</div>
+    <h1>El cliente primero, <span class="accent">también en el primer minuto.</span></h1>
+    <p class="lead">
+      Edgardo: gracias por recibirnos. Acá va lo que vimos desde afuera, en sus sitios y en lo que cuentan sus clientes,
+      y una propuesta concreta: <strong>un asesor con IA que contesta cada consulta en segundos, a toda hora</strong>,
+      llama al interesado en menos de un minuto, agenda el test drive y le pasa a su vendedor una ficha lista para cerrar.
+      Y para usted, <strong>cada consulta medida en un panel</strong>.
+    </p>
+  </div>
+
+  <h2>Lo que ya hacen bien</h2>
+  <div class="stats" style="margin:2mm 0 4.5mm">
+    <div class="stat"><b>9 años</b><span>de BAIC Center en Córdoba, dentro de un grupo que nació en 2017</span></div>
+    <div class="stat"><b>4 marcas</b><span>BAIC, Arcfox, Mitsubishi y Foton, con ventas, posventa, repuestos y usados</span></div>
+    <div class="stat"><b>3.300 m²</b><span>entre el showroom de Av. Colón (800 m²) y la Sucursal Norte de Foton (2.500 m²)</span></div>
+    <div class="stat"><b>7 años</b><span>de garantía BAIC, o 100.000 km, y flotas como la de EPEC</span></div>
+  </div>
+
+  <div class="pull" style="margin-bottom:4mm">
+    <q>El cliente primero.</q>
+    <span>El lema de la casa. Y se ve: usted contesta en persona las reseñas de Google, trajo el primer Prius y el primer
+      eléctrico homologado, y ya atiende por WhatsApp desde sus cuatro sitios.</span>
+  </div>
+
+  <h2>Áreas a mejorar</h2>
+  <p style="max-width:172mm">No hablan de los autos ni del servicio del taller: hablan de <strong>cómo llega una
+    consulta</strong> y de lo que pasa en los primeros minutos. Cada una es una oportunidad de vender más con el mismo equipo.</p>
+  <div class="opps">
+    <div class="opp">
+      <div class="k">Canales</div>
+      <b>Dos WhatsApp y un fijo para todo el grupo</b>
+      <p>Por los mismos números entran las cuatro marcas, los dos locales, ventas, plan de ahorro, posventa, repuestos y flotas.</p>
+      <div class="to"><strong>Oportunidad:</strong> que cada consulta llegue clasificada a la marca y al vendedor que corresponde.</div>
+    </div>
+    <div class="opp">
+      <div class="k">Horario</div>
+      <b>109 de las 168 horas de la semana, el showroom cerrado</b>
+      <p>Abre de lunes a viernes de 9 a 20 y los sábados hasta las 13. La noche y el domingo son cuando muchos miran autos.</p>
+      <div class="to"><strong>Oportunidad:</strong> que esas consultas tengan respuesta en el momento y un turno para el lunes.</div>
+    </div>
+    <div class="opp">
+      <div class="k">Plan de ahorro</div>
+      <b>84 cuotas traen muchas consultas parecidas</b>
+      <p>Cuánto es la cuota, qué modelos entran, qué se necesita, cuándo se adjudica. Son las mismas preguntas, todos los días.</p>
+      <div class="to"><strong>Oportunidad:</strong> responderlas al instante y que el vendedor reciba solo a los interesados.</div>
+    </div>
+    <div class="opp">
+      <div class="k">Mercado</div>
+      <b>Dos concesionarios BAIC en Córdoba</b>
+      <p>Desde 2025 el mismo cliente puede consultar en dos lugares por el mismo auto, y Arcfox recién llega.</p>
+      <div class="to"><strong>Oportunidad:</strong> ser el que contesta primero y mejor: la primera respuesta suele decidir la visita.</div>
+    </div>
+  </div>
+
+  <p class="src-line">Fuentes: sus cuatro sitios, Google Maps y LinkedIn, leídos el 20-oct-2026; prensa de Córdoba (2023 y 2026).</p>
+
+  <div class="pagefoot"><span>Atentina · BAIC Center / Grupo Signature</span><span>1 / 5</span></div>
+</section>
+
+<!-- ========== HOJA 2: lo que piden sus clientes ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA · BAIC CENTER / GRUPO SIGNATURE<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin-bottom:3mm">
+    <div class="eyebrow">Lo que piden sus clientes</div>
+    <h2 style="font-size:17pt">Lo que piden no es otro auto: <span class="accent">es una respuesta rápida y un próximo paso.</span></h2>
+    <p class="lead" style="font-size:10pt">
+      Leímos las reseñas de BAIC Center en Google. La mayoría son buenas, con 4,0 de promedio;
+      las pocas que piden algo más hablan de lo mismo: <strong>el tiempo de respuesta y el seguimiento</strong>. Citamos dos,
+      textuales y sin nombres.
+    </p>
+  </div>
+
+  <div class="quotes">
+    <div class="quote">
+      <h3>La primera respuesta</h3>
+      <q>5 días esperando respuesta</q>
+      <p>Por WhatsApp, con el contacto “en línea”.</p>
+      <div class="when">Google Maps · hace unos 6 meses</div>
+    </div>
+    <div class="quote">
+      <h3>Después de la visita</h3>
+      <q>tomaron el número y me despacharon</q>
+      <p>Al día siguiente le llegaron los precios, pero nadie le habló de la forma de pago.</p>
+      <div class="when">Google Maps · hace alrededor de un año</div>
+    </div>
+    <div class="quote sum">
+      <h3>Lo que tienen en común</h3>
+      <p>Son <strong>clientes con ganas de comprar</strong> que quedaron esperando el paso siguiente: una respuesta, una
+        llamada, una propuesta de pago. Un cliente así, bien atendido en el primer minuto, es una venta.</p>
+    </div>
+  </div>
+
+  <div class="good">
+    <b>Lo que también se ve</b>
+    <p>Hay compradores de X35, X55 y BJ30 que cuentan su experiencia. Y usted contesta
+      las reseñas en persona, también las difíciles: <q>sirve para mejorar nuestros procesos de atención</q>. Esa es la
+      actitud de mejora continua que esta propuesta quiere acompañar.</p>
+  </div>
+
+  <h2>Lo que se puede sumar</h2>
+  <div class="adds">
+    <div class="add"><b>Test drive y turno, que se agenden solos</b>Desde la web o el WhatsApp, a cualquier hora: el
+      cliente elige el día y el vendedor o el taller lo reciben confirmado.</div>
+    <div class="add"><b>Seguimiento después de la visita</b>A las 24 y a las 72 horas, con la pregunta que falta: forma
+      de pago, permuta o test drive. Ningún interesado queda sin un próximo paso.</div>
+    <div class="add"><b>Lo prometido, enviado en el momento</b>La ficha del modelo, la cuota de referencia del plan o
+      la ubicación del local, en la misma conversación y con registro de qué se mandó.</div>
+  </div>
+
+  <h2>Por qué ahora</h2>
+  <div class="two">
+    <ul>
+      <li><strong>El plan de ahorro suma volumen</strong>: es cerca del 30 % de las operaciones del sector, y el
+        suscriptor sigue consultando durante los 84 meses.</li>
+      <li><strong>Arcfox es una marca premium y nueva</strong>: quien consulta por un eléctrico espera una experiencia a
+        la altura del auto.</li>
+    </ul>
+    <ul>
+      <li><strong>Crecer sin sumar gente para lo repetido</strong>: el equipo comercial se dedica a cerrar, no a
+        contestar la misma pregunta.</li>
+      <li><strong>Sin un registro de cada consulta</strong>, es difícil saber cuántas entran, cuántas fuera de horario
+        y cuánto tarda cada una, hasta que aparece una reseña.</li>
+    </ul>
+  </div>
+
+  <div class="note" style="margin-top:4mm">
+    <strong>En síntesis:</strong> ustedes ya hicieron lo difícil: las marcas, los locales, el taller, la garantía y un
+    WhatsApp que sus clientes usan. La oportunidad es que <strong>cada consulta tenga respuesta en el primer minuto,
+    llegue calificada al vendedor y quede registrada</strong>. Eso es lo que propone Atentina.
+  </div>
+
+  <p class="src-line" style="margin-top:3mm">Fuentes: reseñas públicas de la ficha de Google Maps de BAIC Center (4,0
+    con 77 reseñas), leídas el 20-oct-2026, con fechas relativas a ese día; Punto a Punto (junio de 2026) para el peso
+    del plan de ahorro.</p>
+
+  <div class="pagefoot"><span>Atentina · BAIC Center / Grupo Signature</span><span>2 / 5</span></div>
+</section>
+
+<!-- ========== HOJA 3: la solución ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA · BAIC CENTER / GRUPO SIGNATURE<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin-bottom:3mm">
+    <div class="eyebrow">La solución propuesta</div>
+    <h2 style="font-size:17pt">Un asesor de guardia, <span class="accent">en sus mismos números.</span></h2>
+    <p class="lead" style="font-size:10pt">
+      Un agente con IA, con nombre propio (por ejemplo, “Sofía, de BAIC Center”) y <strong>voz con acento
+      argentino</strong>, atiende sus dos WhatsApp y el fijo las 24 horas. Hace lo que hace un buen vendedor en el primer
+      contacto y <strong>le deja a su equipo lo que mejor sabe hacer: cerrar</strong>.
+    </p>
+  </div>
+
+  <div class="flow cards">
+    <div class="card"><div class="num">1</div><h3>Responde en segundos</h3>
+      <p>Por texto o nota de voz, según cómo escriba el cliente, de día, de noche y el domingo.</p></div>
+    <div class="card"><div class="num">2</div><h3>Califica</h3>
+      <p>Modelo, para qué lo usa, forma de pago (contado, plan, crédito o leasing), permuta y plazo de compra.</p></div>
+    <div class="card"><div class="num">3</div><h3>Llama en menos de un minuto</h3>
+      <p>Si el cliente acepta, lo llama desde la concesionaria: “Te llamo de BAIC Center por la BJ30 que consultaste”.</p></div>
+    <div class="card"><div class="num">4</div><h3>Agenda</h3>
+      <p>El test drive o el turno de taller, y lo confirma por WhatsApp.</p></div>
+    <div class="card"><div class="num">5</div><h3>Pasa la ficha al vendedor</h3>
+      <p>De la marca que corresponde, con todo lo hablado: no hay que volver a preguntar.</p></div>
+    <div class="card"><div class="num">6</div><h3>Hace seguimiento</h3>
+      <p>A las 24 y a las 72 horas a quien no cerró, con la pregunta que falta.</p></div>
+  </div>
+
+  <div class="ficha" style="margin-top:0">
+    <h2>La ficha que recibe el vendedor</h2>
+    <p>Una línea con lo importante, y la conversación completa a un clic.<br>
+      <span class="msg">Caliente · BJ30 híbrida · plan de ahorro · permuta Gol 2015, 120.000 km · test drive sábado 10 h</span></p>
+  </div>
+
+  <div class="diagram" style="margin-top:3mm;padding-top:3.5mm">
+    <div class="eyebrow">Cómo funciona</div>
+    <svg viewBox="0 0 720 330" xmlns="http://www.w3.org/2000/svg" font-family="Figtree, sans-serif">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#2456e6"/>
+        </marker>
+        <marker id="arg" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#94a3b8"/>
+        </marker>
+      </defs>
+
+      <!-- Sus clientes -->
+      <rect x="4" y="62" width="112" height="118" rx="14" fill="#fff" stroke="#cbd5e1"/>
+      <g fill="#64748b">
+        <circle cx="44" cy="94" r="9"/><path d="M28 122 a16 14 0 0 1 32 0z"/>
+        <circle cx="78" cy="94" r="9" opacity=".55"/><path d="M62 122 a16 14 0 0 1 32 0z" opacity=".55"/>
+      </g>
+      <text x="60" y="146" text-anchor="middle" font-family="Bricolage, sans-serif" font-weight="800" font-size="14" fill="#0b1220">Sus clientes</text>
+      <text x="60" y="162" text-anchor="middle" font-size="10" fill="#64748b">particulares</text>
+      <text x="60" y="174" text-anchor="middle" font-size="10" fill="#64748b">y empresas</text>
+
+      <!-- Flechas a los canales -->
+      <path d="M116 100 C 132 100, 132 44, 148 44" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#arg)"/>
+      <path d="M116 121 L148 121" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#arg)"/>
+      <path d="M116 142 C 132 142, 132 198, 148 198" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#arg)"/>
+
+      <!-- Canales -->
+      <g font-size="12" font-weight="700" fill="#1740b8">
+        <rect x="150" y="26" width="120" height="36" rx="18" fill="#eaf0ff" stroke="#2456e6"/><text x="210" y="49" text-anchor="middle">WhatsApp 1</text>
+        <rect x="150" y="103" width="120" height="36" rx="18" fill="#eaf0ff" stroke="#2456e6"/><text x="210" y="126" text-anchor="middle">WhatsApp 2</text>
+        <rect x="150" y="180" width="120" height="36" rx="18" fill="#eaf0ff" stroke="#2456e6"/><text x="210" y="203" text-anchor="middle">Teléfono fijo</text>
+      </g>
+      <path d="M270 44 C 284 44, 284 100, 298 100" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#ar)"/>
+      <path d="M270 121 L298 121" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#ar)"/>
+      <path d="M270 198 C 284 198, 284 142, 298 142" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#ar)"/>
+
+      <!-- Llamada de vuelta -->
+      <path d="M330 228 C 330 300, 60 300, 60 184" fill="none" stroke="#2456e6" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+      <text x="196" y="292" text-anchor="middle" font-size="10.5" font-weight="700" fill="#2456e6" stroke="#fff" stroke-width="4" paint-order="stroke">lo llama en menos de un minuto</text>
+
+      <!-- Agente -->
+      <rect x="300" y="14" width="200" height="214" rx="14" fill="#fff" stroke="#2456e6" stroke-width="1.8"/>
+      <text x="316" y="38" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#2456e6">ATENTINA · 24/7</text>
+      <text x="316" y="60" font-family="Bricolage, sans-serif" font-weight="800" font-size="17" fill="#0b1220">El asesor de guardia</text>
+      <text x="316" y="77" font-size="10.5" fill="#33415c">Responde, califica, agenda</text>
+      <text x="316" y="91" font-size="10.5" fill="#33415c">y clasifica por marca y tema:</text>
+      <g font-size="10.5" fill="#1740b8">
+        <rect x="316" y="102" width="80" height="22" rx="11" fill="#eaf0ff"/><text x="356" y="117" text-anchor="middle">0 km</text>
+        <rect x="402" y="102" width="88" height="22" rx="11" fill="#eaf0ff"/><text x="446" y="117" text-anchor="middle">Plan de ahorro</text>
+        <rect x="316" y="130" width="80" height="22" rx="11" fill="#eaf0ff"/><text x="356" y="145" text-anchor="middle">Permuta</text>
+        <rect x="402" y="130" width="88" height="22" rx="11" fill="#eaf0ff"/><text x="446" y="145" text-anchor="middle">Posventa</text>
+        <rect x="316" y="158" width="80" height="22" rx="11" fill="#eaf0ff"/><text x="356" y="173" text-anchor="middle">Repuestos</text>
+        <rect x="402" y="158" width="88" height="22" rx="11" fill="#eaf0ff"/><text x="446" y="173" text-anchor="middle">Flotas</text>
+      </g>
+      <text x="316" y="203" font-size="10.5" fill="#33415c">Lo que necesita una persona</text>
+      <text x="316" y="217" font-size="10.5" fill="#33415c">lo pasa con la ficha completa.</text>
+
+      <!-- Derivación -->
+      <path d="M500 121 L556 121" fill="none" stroke="#2456e6" stroke-width="2.2" marker-end="url(#ar)"/>
+      <text x="528" y="108" text-anchor="middle" font-size="10" font-weight="700" fill="#2456e6" stroke="#fff" stroke-width="4" paint-order="stroke">ficha</text>
+
+      <!-- Su equipo -->
+      <rect x="558" y="14" width="158" height="214" rx="14" fill="#fbfcfe" stroke="#cbd5e1"/>
+      <text x="574" y="38" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#64748b">GRUPO SIGNATURE</text>
+      <text x="574" y="60" font-family="Bricolage, sans-serif" font-weight="800" font-size="17" fill="#0b1220">Su equipo</text>
+      <g font-size="11" fill="#33415c">
+        <rect x="574" y="74" width="126" height="26" rx="13" fill="#f1f4f9"/><text x="637" y="91" text-anchor="middle">BAIC y Arcfox</text>
+        <rect x="574" y="106" width="126" height="26" rx="13" fill="#f1f4f9"/><text x="637" y="123" text-anchor="middle">Mitsubishi</text>
+        <rect x="574" y="138" width="126" height="26" rx="13" fill="#f1f4f9"/><text x="637" y="155" text-anchor="middle">Foton y flotas</text>
+        <rect x="574" y="170" width="126" height="26" rx="13" fill="#f1f4f9"/><text x="637" y="187" text-anchor="middle">Posventa y taller</text>
+      </g>
+      <text x="637" y="214" text-anchor="middle" font-size="10" fill="#64748b">recibe al cliente listo</text>
+
+      <!-- Al panel -->
+      <path d="M440 228 V262" fill="none" stroke="#2456e6" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+      <path d="M637 228 V262" fill="none" stroke="#2456e6" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+
+      <!-- Panel -->
+      <rect x="380" y="264" width="336" height="60" rx="14" fill="#eaf0ff" stroke="#2456e6" stroke-width="1.6"/>
+      <text x="396" y="285" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#2456e6">PARA EL DUEÑO</text>
+      <text x="396" y="308" font-family="Bricolage, sans-serif" font-weight="800" font-size="17" fill="#0b1220">El panel</text>
+      <text x="506" y="294" font-size="10.5" fill="#1740b8">Cada consulta, por marca y tema,</text>
+      <text x="506" y="309" font-size="10.5" fill="#1740b8">cuánto tardó y quién la tomó.</text>
+    </svg>
+    <div class="caption">Sus clientes escriben o llaman como hoy. El asesor contesta al instante, los llama si quieren
+      hablar, agenda y pasa cada consulta al vendedor de la marca con la ficha completa. Todo queda en un solo panel.</div>
+  </div>
+
+  <div class="pagefoot"><span>Atentina · BAIC Center / Grupo Signature</span><span>3 / 5</span></div>
+</section>
+
+<!-- ========== HOJA 4: el panel y qué resuelve cada cosa ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA · BAIC CENTER / GRUPO SIGNATURE<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin-bottom:2mm">
+    <div class="eyebrow">Mejora continua, con números</div>
+    <h2 style="font-size:17pt">Lo que no se mide no se mejora. <span class="accent">El panel lo mide cada día.</span></h2>
+    <p class="lead" style="font-size:10pt">
+      Cada WhatsApp y cada llamada queda registrado con lo que se dijo y cómo terminó, también lo que tomó un vendedor.
+      Usted ve <strong>cuántas consultas entran, de qué marca y tema, cuántas fuera de horario, cuánto tardó la primera
+      respuesta y qué hizo cada vendedor</strong> con las que recibió, sin pedirle un informe a nadie.
+    </p>
+  </div>
+
+  <div class="panel">
+    <div class="bar"><b>PANEL · BAIC CENTER / GRUPO SIGNATURE</b><span>EJEMPLO CON DATOS ILUSTRATIVOS · UNA SEMANA</span></div>
+    <div class="body">
+      <div class="kpis">
+        <div class="kpi"><b>540</b><span>consultas en los dos WhatsApp y el fijo</span></div>
+        <div class="kpi"><b>5 s</b><span>hasta la primera respuesta (mediana)</span></div>
+        <div class="kpi"><b>41 %</b><span>llegaron con el showroom cerrado</span></div>
+        <div class="kpi"><b>48 s</b><span>hasta la llamada al interesado (mediana)</span></div>
+        <div class="kpi"><b>63</b><span>test drives y 38 turnos de taller agendados</span></div>
+      </div>
+      <div class="pgrid">
+        <div class="pbox">
+          <div class="t">Por marca</div>
+          <div class="hb">BAIC<i style="width:100%"></i><em>262</em></div>
+          <div class="hb">Arcfox<i style="width:36%"></i><em>94</em></div>
+          <div class="hb">Foton<i style="width:40%"></i><em>104</em></div>
+          <div class="hb">Mitsubishi<i style="width:31%"></i><em>80</em></div>
+        </div>
+        <div class="pbox">
+          <div class="t">Por tipo de consulta</div>
+          <div class="hb">0 km<i style="width:100%"></i><em>188</em></div>
+          <div class="hb">Plan de ahorro<i style="width:70%"></i><em>132</em></div>
+          <div class="hb">Posventa<i style="width:47%"></i><em>88</em></div>
+          <div class="hb">Permuta<i style="width:32%"></i><em>61</em></div>
+          <div class="hb">Repuestos<i style="width:22%"></i><em>42</em></div>
+          <div class="hb">Flotas<i style="width:15%"></i><em>29</em></div>
+        </div>
+        <div class="pbox">
+          <div class="t">Por vendedor (mediana)</div>
+          <table class="pt">
+            <tr><th>Quién</th><th class="n">Fichas</th><th class="n">Calientes</th><th class="n">La tomó en</th><th class="n">Sin tomar</th></tr>
+            <tr><td>BAIC 1</td><td class="n">71</td><td class="n">18</td><td class="n">7 min</td><td class="n">0</td></tr>
+            <tr><td>BAIC 2</td><td class="n">64</td><td class="n">15</td><td class="n">22 min</td><td class="n">4</td></tr>
+            <tr><td>Arcfox</td><td class="n">38</td><td class="n">11</td><td class="n">9 min</td><td class="n">1</td></tr>
+            <tr><td>Mitsubishi</td><td class="n">33</td><td class="n">7</td><td class="n">14 min</td><td class="n">2</td></tr>
+            <tr><td>Foton</td><td class="n">19</td><td class="n">6</td><td class="n">11 min</td><td class="n">0</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="src-line" style="margin-bottom:4mm">Las cifras del ejemplo son ilustrativas: muestran qué se mide, no un
+    resultado. Cada conversación se abre con su transcripción, su resumen y su resultado, y se filtra por marca, tema,
+    vendedor y horario.</p>
+
+  <h2>Cada área a mejorar, y qué la resuelve</h2>
+  <table class="map">
+    <tr><th>Área a mejorar</th><th>Qué la resuelve</th></tr>
+    <tr><td><strong>Consultas que esperan</strong> la primera respuesta</td><td>Respuesta en segundos, 24/7, en los dos WhatsApp y el fijo.</td></tr>
+    <tr><td><strong>Dos WhatsApp y un fijo</strong> para todo el grupo</td><td>Clasifica por marca y tema, y deriva al vendedor o al área que corresponde.</td></tr>
+    <tr><td><strong>Showroom cerrado</strong> 109 horas por semana</td><td>Atiende de noche y el domingo; el test drive queda agendado para el día hábil.</td></tr>
+    <tr><td><strong>Preguntas repetidas</strong> del plan de ahorro</td><td>Explica el plan y la cuota de referencia, y toma los datos; el vendedor cierra.</td></tr>
+    <tr><td><strong>Dos concesionarios BAIC</strong> en la ciudad</td><td>Llama al interesado en menos de un minuto, cuando todavía está eligiendo.</td></tr>
+    <tr><td><strong>Test drive y turno</strong> que se piden por mensaje</td><td>Los agenda en la conversación y los confirma por WhatsApp.</td></tr>
+    <tr><td><strong>Interesados sin un próximo paso</strong> después de la visita</td><td>Seguimiento a las 24 y a las 72 horas con la pregunta que falta.</td></tr>
+    <tr><td><strong>Sin datos de la atención</strong> hasta la reseña</td><td>El panel: cada consulta, cada ficha y cada demora, todos los días.</td></tr>
+  </table>
+
+  <div class="pagefoot"><span>Atentina · BAIC Center / Grupo Signature</span><span>4 / 5</span></div>
+</section>
+
+<!-- ========== HOJA 5: cómo se pone en marcha ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA · BAIC CENTER / GRUPO SIGNATURE<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin-bottom:2mm">
+    <div class="eyebrow">Cómo se pone en marcha</div>
+    <h2 style="font-size:17pt">Un piloto de 30 días <span class="accent">con BAIC y Arcfox.</span></h2>
+  </div>
+
+  <div class="pilot">
+    <div><b>30 días</b>Suficiente para ver la diferencia en el tiempo de respuesta y en los test drives agendados.</div>
+    <div><b>BAIC y Arcfox</b>Un WhatsApp y el fijo para empezar; las otras marcas se suman por fases.</div>
+    <div><b>Decisión con números</b>Al cierre se comparan los datos del panel con la línea de base que miden ustedes.</div>
+  </div>
+
+  <h2>Los pasos</h2>
+  <div class="steps six">
+    <div class="step"><b>Relevamiento</b>Modelos, lista de precios y cuotas vigentes, condiciones del plan, horarios y qué vendedor recibe cada ficha.</div>
+    <div class="step"><b>Línea de base</b>Ustedes miden antes cuántas consultas entran, cuántas fuera de horario y cuánto tarda la primera respuesta.</div>
+    <div class="step"><b>Configuración y pruebas</b>Armamos el asesor con su criterio; usted y sus vendedores lo prueban hasta que suene a la casa.</div>
+    <div class="step"><b>Salida en vivo</b>El WhatsApp y el fijo atienden a clientes reales, con las fichas llegando a los vendedores.</div>
+    <div class="step"><b>Revisión semanal</b>Media hora con el panel: qué se consultó, qué se agendó y qué ajustar.</div>
+    <div class="step"><b>Cierre y decisión</b>A los 30 días, los números contra la línea de base. Si sirve, se sigue; si no, se termina.</div>
+  </div>
+
+  <div class="ops tight" style="margin-bottom:3.5mm">
+    <div class="ours">
+      <div class="eyebrow" style="margin-bottom:1.5mm">Atentina hace</div>
+      <ul>
+        <li>Configura el asesor, su nombre, su voz y sus respuestas</li>
+        <li>Conecta el WhatsApp y el fijo que ustedes elijan</li>
+        <li>Arma las fichas, el seguimiento y el panel con sus accesos</li>
+        <li>Ajusta cada semana y da soporte durante el piloto</li>
+      </ul>
+    </div>
+    <div class="theirs">
+      <div class="eyebrow" style="margin-bottom:1.5mm;color:var(--ok)">Necesitamos de ustedes</div>
+      <ul>
+        <li>La lista de precios y cuotas vigente, y cada cambio</li>
+        <li>Las condiciones del plan de ahorro, la garantía y la financiación</li>
+        <li>Qué vendedor recibe cada ficha, en qué horario y número</li>
+        <li>Un responsable del piloto y la línea de base antes de empezar</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Después del piloto</h2>
+  <div class="phases">
+    <div class="phase"><b>Plan de ahorro</b>Consultas de suscriptores (cuota, adjudicación, licitación) y avisos por campaña.</div>
+    <div class="phase"><b>Posventa</b>Turnos de taller y recordatorios de service, para cuidar la garantía de 7 años.</div>
+    <div class="phase"><b>Foton y flotas</b>Consultas de empresas, repuestos y turnos de camiones en la Sucursal Norte.</div>
+    <div class="phase"><b>Su base de clientes</b>Recompra, con su idea: <q>cambiás tu X35 por X55</q>, y encuesta después de la entrega.</div>
+  </div>
+
+  <div class="note">
+    <strong>Precio.</strong> El del piloto se acuerda en la reunión de relevamiento, según los canales y el volumen que
+    definamos juntos. Ahí también elegimos con qué número de WhatsApp arrancamos.
+  </div>
+
+  <footer class="contact">
+    <img src="../../../../plantilla/marca/atentina-logo-blanco.svg" alt="Atentina">
+    <div><div class="tag">El cliente primero,<br><span>desde el primer minuto.</span></div><div class="who">Contacto: Laureano Arcanio</div></div>
+    <div class="data">
+      <b>0800-220-1233</b><br>
+      <a href="https://atentina.com.ar">atentina.com.ar</a> · <a href="mailto:hola@atentina.com.ar">hola@atentina.com.ar</a><br>
+      WhatsApp +54 9 351 700-2592
+    </div>
+  </footer>
+</section>
+</body>
+</html>

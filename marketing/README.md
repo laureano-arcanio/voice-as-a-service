@@ -18,6 +18,8 @@ Piezas de comunicación de Atentina, una carpeta por proyecto y una carpeta por 
 | [`goldman-analisis`](videos/proyectos/goldman-analisis/README.md) | Video, ~60 s | Isaías Goldman SA (el PDF en video: lo que hacen bien, lo que observamos, la propuesta) | v2, borrador |
 | [`yoizen-propuesta`](documentos/proyectos/yoizen-propuesta/README.md) | PDF, 2 hojas | Yoizen (revisión interna) | v1, borrador |
 | [`goldman-propuesta`](documentos/proyectos/goldman-propuesta/README.md) | PDF, 5 hojas | Isaías Goldman SA (Isaías, Jonatan y Carolina) | v1, borrador |
+| [`baicenter-analisis`](videos/proyectos/baicenter-analisis/README.md) | Video, ~65 s | BAIC Center / Grupo Signature (el PDF en video: lo que hacen bien, áreas a mejorar, la propuesta) | v1, borrador |
+| [`baicenter-propuesta`](documentos/proyectos/baicenter-propuesta/README.md) | PDF, 5 hojas | BAIC Center / Grupo Signature (Edgardo Fernández Favaron) | v2, borrador |
 | [`propuesta-atentina`](documentos/proyectos/propuesta-atentina/README.md) | PDF, 3 hojas | Genérico (cualquier prospecto) | v1, borrador |
 
 ## Convención

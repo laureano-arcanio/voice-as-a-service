@@ -26,7 +26,9 @@ marketing/videos/
 Proyectos hoy: [`general`](../marketing/videos/proyectos/general/README.md) (el video de Atentina para empresas),
 [`yoizen`](../marketing/videos/proyectos/yoizen/README.md) (técnico, para integradores),
 [`transcripcion`](../marketing/videos/proyectos/transcripcion/README.md) (transcripción y voz para call centers) y
-[`goldman`](../marketing/videos/proyectos/goldman/README.md) (propuesta para un prospecto: Isaías Goldman SA).
+[`goldman`](../marketing/videos/proyectos/goldman/README.md) y
+[`goldman-analisis`](../marketing/videos/proyectos/goldman-analisis/README.md) (propuesta para un prospecto: Isaías Goldman SA) y
+[`baicenter-analisis`](../marketing/videos/proyectos/baicenter-analisis/README.md) (BAIC Center / Grupo Signature, con el formato de su PDF).
 
 ## Comandos
 
@@ -131,6 +133,7 @@ El TTS es `vllm-tts` (Qwen3-TTS con 41 voces argentinas, [`TTS_FINETUNE.md`](TTS
 | Números y horas | en palabras | "a las diez", no "10:00" |
 | clasifica | `clasifíca` | Pedido del usuario (goldman v3) |
 | Goldman | `Goldman` | Sin tilde: con `Góldman` el STT oyó "Colman" en una de dos tomas |
+| BAIC ("báic") | `Báic` | Escrito `BAIC`, el TTS dijo "Bic", "Big" o "Vice" en la frase; con `Báic`, 4 de 4 tomas bien (baicenter-analisis) |
 | Pausas | con puntuación | Comas y puntos marcan las pausas ("Actualmente, un solo número…") |
 
 - **El STT no distingue "voz" de "vos":** esa diferencia en la transcripción no es un error de la toma.

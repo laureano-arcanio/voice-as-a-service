@@ -1,0 +1,61 @@
+{
+  "nota": "v1: formato y reglas de goldman-analisis v3. Narrador lucas a 1x, ortografía normal (única grafía: «Báic» por BAIC; escrito BAIC el TTS dijo «Bic», «Big» o «Vice» en la frase; con «Báic», 4 de 4 tomas el STT oye «Bike»). Las áreas a mejorar van en cuatro líneas (a4a a a4d), una por tarjeta, con un respiro entre cada una. La competencia no se nombra. Sin plan de ahorro (corrección del usuario, 22-oct-2026: BAIC Center no lo ofrece); en su lugar, la financiación verificada: cuatro bancos y crédito propio. Números en palabras; pausas con puntuación.",
+  "musica_segundos": 70,
+  "lineas": [
+    {
+      "id": "a1",
+      "voz": "lucas",
+      "texto": "El cliente primero, también en el primer minuto."
+    },
+    {
+      "id": "a2",
+      "voz": "lucas",
+      "texto": "En Báic Center ya hicieron lo difícil. Nueve años, cuatro marcas, y flotas como la de EPEC."
+    },
+    {
+      "id": "a3",
+      "voz": "lucas",
+      "texto": "Y lo resume el lema de la casa: el cliente primero."
+    },
+    {
+      "id": "a4a",
+      "voz": "lucas",
+      "texto": "Dónde podríamos mejorar con Atentina. Dos WhatsApp y un fijo, para todo el grupo."
+    },
+    {
+      "id": "a4b",
+      "voz": "lucas",
+      "texto": "Ciento nueve horas por semana, el showroom cerrado."
+    },
+    {
+      "id": "a4c",
+      "voz": "lucas",
+      "texto": "Cuatro bancos y crédito propio: muchas preguntas antes de venir."
+    },
+    {
+      "id": "a4d",
+      "voz": "lucas",
+      "texto": "Y con dos concesionarios en Córdoba, la primera respuesta decide."
+    },
+    {
+      "id": "a5",
+      "voz": "lucas",
+      "texto": "La mayoría de las reseñas son buenas. Las que piden algo más, piden una respuesta rápida, y un próximo paso."
+    },
+    {
+      "id": "a6a",
+      "voz": "lucas",
+      "texto": "Un asesor de guardia, en sus mismos números. Responde en segundos, califica, llama en menos de un minuto, agenda el test drive, y le pasa la ficha al vendedor."
+    },
+    {
+      "id": "a6b",
+      "voz": "lucas",
+      "texto": "Lo que no se mide, no se mejora. En el panel ven cada consulta, cuánto tardó, y quién la tomó."
+    },
+    {
+      "id": "a7",
+      "voz": "lucas",
+      "texto": "¿Agendamos una reunión personalmente?"
+    }
+  ]
+}
