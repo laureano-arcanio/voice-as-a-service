@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Atentina · Propuesta para Isaías Goldman SA</title>
+<link rel="stylesheet" href="../../../../plantilla/base.css">
+<style>
+  /* Ajustes locales de este documento (no tocan base.css) */
+  .facts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3.5mm; margin: 2.5mm 0 5mm; }
+  .fact { border: 1px solid var(--line); border-left: 3px solid #c2410c; border-radius: 3mm; padding: 3mm 4mm; background: #fff; }
+  .fact b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 14pt; color: var(--ink); line-height: 1.1; margin-bottom: 1mm; }
+  .fact p { font-size: 8.9pt; margin: 0; }
+  .fact .src { font-size: 7.6pt; color: var(--muted); margin-top: 1.4mm; }
+  .pull { border-left: 3px solid var(--accent); padding: 1mm 0 1mm 4mm; margin: 0 0 5mm; }
+  .pull q { font-family: "Bricolage"; font-weight: 700; font-size: 13pt; color: var(--ink); quotes: "“" "”"; }
+  .pull span { display: block; font-size: 8.2pt; color: var(--muted); margin-top: 1mm; }
+  .good { display: grid; grid-template-columns: 40mm 1fr; gap: 5mm; align-items: center; border: 1px solid #bfe6cf; background: var(--ok-soft); border-radius: 3.5mm; padding: 3mm 4.5mm; margin: 0 0 5mm; }
+  .good b { font-family: "Bricolage"; font-weight: 800; font-size: 11.5pt; color: var(--ok); }
+  .good p { margin: 0; font-size: 9pt; }
+  .good q { quotes: "“" "”"; font-style: italic; color: var(--ink); }
+  .src-line { font-size: 7.8pt; color: var(--muted); }
+
+  .quotes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3.5mm; margin: 2.5mm 0 5mm; }
+  .quote { border: 1px solid var(--line); border-radius: 3.5mm; padding: 3.2mm 3.8mm; background: var(--bg2); }
+  .quote h3 { font-size: 10.2pt; margin-bottom: 1.6mm; }
+  .quote q { display: block; font-style: italic; font-size: 9pt; color: var(--ink); quotes: "“" "”"; margin-bottom: 1.4mm; }
+  .quote .when { font-family: "Plex Mono"; font-size: 6.9pt; letter-spacing: .04em; color: var(--muted); text-transform: uppercase; }
+  .quote.sum { background: var(--accent-soft); border-color: #c9d7ff; }
+  .quote.sum p { font-size: 8.9pt; margin: 0; }
+
+  .channels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3.5mm; margin: 2.5mm 0 4mm; }
+  .channels .card p { margin-bottom: 1.4mm; }
+  .channels .card .ej b { color: var(--ink2); }
+  .single { display: grid; grid-template-columns: 50mm 1fr; gap: 5mm; align-items: center; border: 1.5px solid var(--accent); border-radius: 4mm; padding: 3.5mm 5mm; background: linear-gradient(180deg, var(--accent-soft), #fff 85%); margin-bottom: 1mm; }
+  .single h2 { margin: 0; font-size: 12.5pt; }
+  .single p { margin: 0; font-size: 8.9pt; }
+
+  .panel { border: 1px solid var(--line2); border-radius: 4mm; overflow: hidden; margin: 2.5mm 0 1.5mm; background: #fff; }
+  .panel .bar { background: var(--ink); color: var(--cta-ink); font-family: "Plex Mono"; font-size: 7.2pt; letter-spacing: .05em; padding: 2mm 4mm; display: flex; justify-content: space-between; }
+  .panel .bar span { color: var(--cta-muted); }
+  .panel .body { padding: 3.5mm 4mm 3mm; background: var(--bg2); }
+  .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2.5mm; margin-bottom: 3mm; }
+  .kpi { background: #fff; border: 1px solid var(--line); border-radius: 2.5mm; padding: 2.2mm 2.8mm; }
+  .kpi b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 14pt; color: var(--accent); line-height: 1.1; }
+  .kpi span { font-size: 7.4pt; color: var(--ink2); line-height: 1.25; display: block; }
+  .pgrid { display: grid; grid-template-columns: 1fr 1fr 1.35fr; gap: 2.5mm; }
+  .pbox { background: #fff; border: 1px solid var(--line); border-radius: 2.5mm; padding: 2.4mm 3mm; }
+  .pbox .t { font-family: "Plex Mono"; font-size: 6.8pt; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 1.6mm; }
+  .hb { display: grid; grid-template-columns: 19mm 1fr 8mm; align-items: center; gap: 1.5mm; font-size: 7.6pt; margin-bottom: 1.1mm; }
+  .hb i { display: block; height: 2.6mm; border-radius: 1.3mm; background: var(--accent); }
+  .hb em { font-style: normal; text-align: right; color: var(--ink); font-weight: 600; }
+  table.pt { width: 100%; border-collapse: collapse; font-size: 7.6pt; }
+  table.pt th { text-align: left; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--line); padding: 0 1mm 1mm 0; }
+  table.pt td { padding: 1mm 1mm 1mm 0; border-bottom: 1px solid var(--line); color: var(--ink2); }
+  table.pt td.n, table.pt th.n { text-align: right; }
+  table.pt tr:last-child td { border-bottom: none; }
+
+  table.map { width: 100%; border-collapse: collapse; font-size: 8.7pt; margin: 2mm 0 0; }
+  table.map th { font-family: "Plex Mono"; font-weight: 500; font-size: 7pt; letter-spacing: .06em; text-transform: uppercase; text-align: left; padding: 0 3mm 1.6mm 0; }
+  table.map th:first-child { color: #c2410c; }
+  table.map th:last-child { color: var(--accent); }
+  table.map td { padding: 1.35mm 3mm 1.35mm 0; border-top: 1px solid var(--line); vertical-align: top; }
+  table.map td:first-child { width: 38%; color: var(--ink); }
+  table.map td:last-child { color: var(--ink2); }
+
+  .pilot { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; margin: 2.5mm 0 4mm; }
+  .pilot div { background: var(--bg2); border-radius: 3mm; padding: 2.8mm 3.5mm; font-size: 8.8pt; }
+  .pilot b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 11.5pt; color: var(--accent); line-height: 1.15; margin-bottom: .6mm; }
+  .steps.six { grid-template-columns: repeat(3, 1fr); margin-bottom: 3.5mm; }
+  .steps.six .step { padding: 2.8mm 3.2mm; font-size: 8.5pt; }
+  .steps.six .step::before { font-size: 13pt; margin-bottom: 1mm; }
+  .ops.tight li { font-size: 8.8pt; margin-bottom: .7mm; }
+  .phases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 2mm 0 3.5mm; }
+  .phase { border-left: 2px solid var(--accent); padding: .5mm 0 .5mm 3mm; font-size: 8.5pt; }
+  .phase b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 10pt; color: var(--ink); margin-bottom: .6mm; }
+</style>
+</head>
+<body>
+
+<!-- ========== HOJA 1: quiénes son y lo que observamos ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA · ISAÍAS GOLDMAN SA<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero">
+    <div class="eyebrow">Atención 24/7 por teléfono, WhatsApp y web, con todo a la vista</div>
+    <h1>Que cada consulta tenga respuesta, <span class="accent">y que ustedes las vean todas.</span></h1>
+    <p class="lead">
+      Isaías: gracias por la charla. Para usted, Jonatan y Carolina, acá va lo que observamos desde afuera, en su sitio
+      y en lo que cuentan sus clientes en Google, y una propuesta concreta para la temporada que empieza:
+      <strong>un agente con IA que atiende el teléfono, el WhatsApp y la web a toda hora</strong>, pasa a su equipo lo
+      que necesita una persona y deja <strong>cada conversación medida en un panel</strong> para el dueño.
+    </p>
+  </div>
+
+  <h2>Lo que ya hacen bien</h2>
+  <div class="stats" style="margin-top:2mm">
+    <div class="stat"><b>30 años</b><span>en el rubro desde los 90, con tres generaciones de oficio en la familia</span></div>
+    <div class="stat"><b>4.500 m²</b><span>de casa en Bv. Bulnes y Pringles, con unas 50 personas</span></div>
+    <div class="stat"><b>1.671</b><span>reseñas en Google, con 4,2 de promedio</span></div>
+    <div class="stat"><b>Empresas</b><span>como Arcor, Georgalos y Mostaza, además del público y los instaladores</span></div>
+  </div>
+
+  <div class="pull">
+    <q>Nos gusta hacer cosas donde podemos responder.</q>
+    <span>Isaías Goldman, InfoNegocios (2018). Y Jonatan, en 2021: “Nuestro fuerte es el postventa”.</span>
+  </div>
+
+  <h2>Lo que observamos</h2>
+  <p style="max-width:172mm">Son hechos que cualquier cliente ve hoy. No hablan de los productos ni del oficio: hablan de
+    <strong>cómo se llega a ustedes</strong>, justo antes del pico del año.</p>
+  <div class="facts">
+    <div class="fact">
+      <b>Un solo número para todo</b>
+      <p>El 351 386 2886 es el teléfono y el WhatsApp del sitio, de Google, de Facebook y del Linktree. Por ahí entran
+        ventas al público, instaladores, empresas, turnos de instalación, service, reclamos y cursos.</p>
+      <div class="src">Su sitio, Google Maps y redes</div>
+    </div>
+    <div class="fact">
+      <b>266 productos, ninguno con precio</b>
+      <p>Cada ficha termina en “Consultar precio”, que abre un formulario por email. Quien quiere saber cuánto sale un
+        aire tiene que escribir y esperar.</p>
+      <div class="src">isaiasgoldmansa.com, sitemap y fichas</div>
+    </div>
+    <div class="fact">
+      <b>121 de las 168 horas de la semana, cerrado</b>
+      <p>Lunes a viernes de 8:30 a 13 y de 14:30 a 18:30; sábados hasta las 13. El mediodía, la noche y el fin de semana
+        son cuando muchos clientes e instaladores tienen tiempo de consultar.</p>
+      <div class="src">Horario publicado en Google Maps</div>
+    </div>
+    <div class="fact">
+      <b>La temporada arranca en noviembre</b>
+      <p>De noviembre a febrero se juntan las consultas, las instalaciones y los reclamos. Polar, La Valva, las cadenas y
+        Mercado Libre están a un clic, y algunos ya muestran el precio en su tienda.</p>
+      <div class="src">Google Maps y sitios de la competencia</div>
+    </div>
+  </div>
+
+  <p class="src-line">Fuentes: su sitio, su ficha de Google Maps y sus redes, leídos el 21-oct-2026; InfoNegocios (2015 a 2021).</p>
+
+  <div class="pagefoot"><span>Atentina · Isaías Goldman SA</span><span>1 / 5</span></div>
+</section>
+
+<!-- ========== HOJA 2: lo que dicen sus clientes ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA · ISAÍAS GOLDMAN SA<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin-bottom:3mm">
+    <div class="eyebrow">Lo que dicen sus clientes</div>
+    <h2 style="font-size:17pt">Lo que se repite no es el producto: <span class="accent">es poder comunicarse.</span></h2>
+    <p class="lead" style="font-size:10pt">
+      Leímos las reseñas de Google de menor puntaje y las más recientes. Se repiten los mismos cinco momentos, y todos
+      son de atención: el llamado, el presupuesto, el precio, la visita y el mostrador. Las citamos textuales y sin
+      nombres, como las escribieron.
+    </p>
+  </div>
+
+  <div class="quotes">
+    <div class="quote">
+      <h3>El llamado</h3>
+      <q>marque al num que figura, nunca atienden</q>
+      <q>siempre te dicen que te vuelven a llamar, y no lo hacen</q>
+      <div class="when">Google Maps · hace un año</div>
+    </div>
+    <div class="quote">
+      <h3>El presupuesto</h3>
+      <q>La debilidad es la atencion telefónica y via mail para pedir presupuestos, tardan mucho tiempo.</q>
+      <div class="when">Google Maps · 4 estrellas · hace 3 años</div>
+    </div>
+    <div class="quote">
+      <h3>El precio</h3>
+      <q>me pasaron un precio por Whatsapp y al llegar a la sucursal me dieron otro</q>
+      <div class="when">Google Maps · hace un año</div>
+    </div>
+    <div class="quote">
+      <h3>La visita técnica</h3>
+      <q>esperé toda la tarde que venga el técnico que nunca llegó ni tampoco avisaron</q>
+      <div class="when">Google Maps · hace un año</div>
+    </div>
+    <div class="quote">
+      <h3>El mostrador</h3>
+      <q>Se tarda muchísimo para atender.</q>
+      <div class="when">Google Maps · hace 10 meses</div>
+    </div>
+    <div class="quote sum">
+      <h3>Lo que tienen en común</h3>
+      <p>Cada uno es <strong>una consulta que quedó esperando</strong>: un llamado sin devolver, un precio que cambió
+        entre canales, un aviso que no llegó. Y hoy no hay forma de saber cuántas son hasta que aparecen en Google.</p>
+    </div>
+  </div>
+
+  <div class="good">
+    <b>Lo que también dicen</b>
+    <p>Muchas reseñas de 5 estrellas del último año hablan de <q>Excelente atención</q> en el local y destacan el curso y
+      su profesor. Y ustedes contestan las reseñas, también las malas: se nota que les importa lo que dice el cliente.</p>
+  </div>
+
+  <h2>Por qué importa ahora</h2>
+  <div class="two">
+    <ul class="warn">
+      <li><strong>En temporada, la consulta que no se contesta en minutos se va</strong>: el equipo está a un clic en
+        Mercado Libre, en una cadena o en otra casa de Córdoba.</li>
+      <li><strong>Los precios cambian seguido antes del verano</strong>: un precio dado por WhatsApp envejece rápido si
+        no lleva fecha y validez.</li>
+    </ul>
+    <ul class="warn">
+      <li><strong>El mismo número recibe a públicos muy distintos</strong>: el que compra su primer split, el instalador
+        que necesita un repuesto y la empresa con una obra.</li>
+      <li><strong>Sin un registro de cada consulta</strong>, las reseñas terminan siendo la medida de la atención, y
+        llegan tarde, cuando el cliente ya se fue.</li>
+    </ul>
+  </div>
+
+  <div class="note" style="margin-top:4mm">
+    <strong>En síntesis:</strong> ustedes ya hicieron lo difícil. Tienen el stock, el oficio, los técnicos, la marca y un
+    canal de WhatsApp que sus clientes usan. Lo que falta es que <strong>cada consulta tenga una respuesta en el
+    momento y quede registrada</strong>. Eso es lo que propone Atentina.
+  </div>
+
+  <p class="src-line" style="margin-top:3mm">Fuente: reseñas públicas de su ficha de Google Maps, ordenadas por menor
+    valoración y por más recientes, leídas el 21-oct-2026. Fechas relativas a ese día.</p>
+
+  <div class="pagefoot"><span>Atentina · Isaías Goldman SA</span><span>2 / 5</span></div>
+</section>
+
+<!-- ========== HOJA 3: la solución ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA · ISAÍAS GOLDMAN SA<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin-bottom:3mm">
+    <div class="eyebrow">La solución propuesta</div>
+    <h2 style="font-size:17pt">El especialista de guardia, <span class="accent">en los tres canales.</span></h2>
+    <p class="lead" style="font-size:10pt">
+      Un agente con IA, con el nombre que ustedes elijan y <strong>voz con acento argentino</strong>, atiende las 24
+      horas. Pregunta lo que pregunta un buen vendedor (ambiente, metros, frío solo o frío/calor), responde lo general,
+      clasifica cada consulta y <strong>la pasa a la persona que corresponde con todo lo hablado</strong>. Su equipo
+      sigue vendiendo e instalando; deja de atender lo repetido.
+    </p>
+  </div>
+
+  <div class="channels cards">
+    <div class="card">
+      <div class="num">1</div>
+      <h3>Línea 0800 / 0810</h3>
+      <p>Atiende cada llamada, también varias a la vez, al mediodía y de noche. Clasifica: ventas, instalaciones,
+        productos, precios o posventa.</p>
+      <div class="ej"><b>Pasa a una persona:</b> transfiere la llamada al vendedor o al área, que recibe el resumen de
+        lo hablado.</div>
+    </div>
+    <div class="card">
+      <div class="num">2</div>
+      <h3>WhatsApp</h3>
+      <p>El mismo agente, por texto y notas de voz: contesta en segundos, cotiza con su lista vigente, toma el turno o el
+        reclamo.</p>
+      <div class="ej"><b>Pasa a una persona:</b> deriva al WhatsApp de un vendedor o de soporte, y la conversación
+        queda registrada.</div>
+    </div>
+    <div class="card">
+      <div class="num">3</div>
+      <h3>Chat en su web</h3>
+      <p>Sabe en qué producto o página está el cliente y responde ahí mismo, en lugar de “Consultar precio” y esperar un
+        email.</p>
+      <div class="ej"><b>Pasa a una persona:</b> por el mismo chat o, si no hay nadie conectado, por WhatsApp.</div>
+    </div>
+  </div>
+
+  <div class="single">
+    <h2>Un solo precio y un solo criterio</h2>
+    <p>Los tres canales usan la <strong>misma lista de precios, con fecha y validez</strong> (“precio al 3/11, válido
+      por 5 días”), y las mismas políticas de instalación, garantía y pago. Lo que se dice por WhatsApp es lo que se
+      cobra en el mostrador.</p>
+  </div>
+
+  <div class="diagram">
+    <div class="eyebrow">Cómo funciona</div>
+    <svg viewBox="0 0 720 330" xmlns="http://www.w3.org/2000/svg" font-family="Figtree, sans-serif">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#2456e6"/>
+        </marker>
+        <marker id="arg" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#94a3b8"/>
+        </marker>
+      </defs>
+
+      <!-- Sus clientes -->
+      <rect x="4" y="62" width="112" height="118" rx="14" fill="#fff" stroke="#cbd5e1"/>
+      <g fill="#64748b">
+        <circle cx="44" cy="94" r="9"/><path d="M28 122 a16 14 0 0 1 32 0z"/>
+        <circle cx="78" cy="94" r="9" opacity=".55"/><path d="M62 122 a16 14 0 0 1 32 0z" opacity=".55"/>
+      </g>
+      <text x="60" y="146" text-anchor="middle" font-family="Bricolage, sans-serif" font-weight="800" font-size="14" fill="#0b1220">Sus clientes</text>
+      <text x="60" y="162" text-anchor="middle" font-size="10" fill="#64748b">público, instaladores</text>
+      <text x="60" y="174" text-anchor="middle" font-size="10" fill="#64748b">y empresas</text>
+
+      <!-- Flechas a los canales -->
+      <path d="M116 100 C 132 100, 132 44, 148 44" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#arg)"/>
+      <path d="M116 121 L148 121" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#arg)"/>
+      <path d="M116 142 C 132 142, 132 198, 148 198" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#arg)"/>
+
+      <!-- Canales -->
+      <g font-size="12" font-weight="700" fill="#1740b8">
+        <rect x="150" y="26" width="120" height="36" rx="18" fill="#eaf0ff" stroke="#2456e6"/><text x="210" y="49" text-anchor="middle">Línea 0800/0810</text>
+        <rect x="150" y="103" width="120" height="36" rx="18" fill="#eaf0ff" stroke="#2456e6"/><text x="210" y="126" text-anchor="middle">WhatsApp</text>
+        <rect x="150" y="180" width="120" height="36" rx="18" fill="#eaf0ff" stroke="#2456e6"/><text x="210" y="203" text-anchor="middle">Chat en la web</text>
+      </g>
+      <path d="M270 44 C 284 44, 284 100, 298 100" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#ar)"/>
+      <path d="M270 121 L298 121" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#ar)"/>
+      <path d="M270 198 C 284 198, 284 142, 298 142" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#ar)"/>
+
+      <!-- Agente -->
+      <rect x="300" y="14" width="200" height="214" rx="14" fill="#fff" stroke="#2456e6" stroke-width="1.8"/>
+      <text x="316" y="38" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#2456e6">ATENTINA · 24/7</text>
+      <text x="316" y="60" font-family="Bricolage, sans-serif" font-weight="800" font-size="17" fill="#0b1220">El agente</text>
+      <text x="316" y="77" font-size="10.5" fill="#33415c">Entiende, responde con su lista</text>
+      <text x="316" y="91" font-size="10.5" fill="#33415c">y sus políticas, y clasifica:</text>
+      <g font-size="10.5" fill="#1740b8">
+        <rect x="316" y="102" width="74" height="22" rx="11" fill="#eaf0ff"/><text x="353" y="117" text-anchor="middle">Ventas</text>
+        <rect x="396" y="102" width="88" height="22" rx="11" fill="#eaf0ff"/><text x="440" y="117" text-anchor="middle">Instalaciones</text>
+        <rect x="316" y="130" width="74" height="22" rx="11" fill="#eaf0ff"/><text x="353" y="145" text-anchor="middle">Productos</text>
+        <rect x="396" y="130" width="88" height="22" rx="11" fill="#eaf0ff"/><text x="440" y="145" text-anchor="middle">Precios</text>
+        <rect x="316" y="158" width="74" height="22" rx="11" fill="#eaf0ff"/><text x="353" y="173" text-anchor="middle">Posventa</text>
+        <rect x="396" y="158" width="88" height="22" rx="11" fill="#eaf0ff"/><text x="440" y="173" text-anchor="middle">Otros</text>
+      </g>
+      <text x="316" y="203" font-size="10.5" fill="#33415c">Resuelve lo general; lo demás</text>
+      <text x="316" y="217" font-size="10.5" fill="#33415c">lo pasa con la ficha completa.</text>
+
+      <!-- Derivación -->
+      <path d="M500 121 L556 121" fill="none" stroke="#2456e6" stroke-width="2.2" marker-end="url(#ar)"/>
+      <text x="528" y="108" text-anchor="middle" font-size="10" font-weight="700" fill="#2456e6" stroke="#fff" stroke-width="4" paint-order="stroke">deriva</text>
+
+      <!-- Su equipo -->
+      <rect x="558" y="14" width="158" height="214" rx="14" fill="#fbfcfe" stroke="#cbd5e1"/>
+      <text x="574" y="38" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#64748b">GOLDMAN</text>
+      <text x="574" y="60" font-family="Bricolage, sans-serif" font-weight="800" font-size="17" fill="#0b1220">Su equipo</text>
+      <g font-size="11" fill="#33415c">
+        <rect x="574" y="74" width="126" height="26" rx="13" fill="#f1f4f9"/><text x="637" y="91" text-anchor="middle">Vendedores</text>
+        <rect x="574" y="106" width="126" height="26" rx="13" fill="#f1f4f9"/><text x="637" y="123" text-anchor="middle">Instalaciones</text>
+        <rect x="574" y="138" width="126" height="26" rx="13" fill="#f1f4f9"/><text x="637" y="155" text-anchor="middle">Service y posventa</text>
+        <rect x="574" y="170" width="126" height="26" rx="13" fill="#f1f4f9"/><text x="637" y="187" text-anchor="middle">Empresas y obras</text>
+      </g>
+      <text x="637" y="214" text-anchor="middle" font-size="10" fill="#64748b">toma la llamada o el chat</text>
+
+      <!-- Al panel -->
+      <path d="M400 228 V262" fill="none" stroke="#2456e6" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+      <path d="M637 228 V262" fill="none" stroke="#2456e6" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+      <path d="M210 216 V262" fill="none" stroke="#2456e6" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+
+      <!-- Panel -->
+      <rect x="150" y="264" width="566" height="60" rx="14" fill="#eaf0ff" stroke="#2456e6" stroke-width="1.6"/>
+      <text x="168" y="287" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#2456e6">PARA EL DUEÑO</text>
+      <text x="168" y="310" font-family="Bricolage, sans-serif" font-weight="800" font-size="17" fill="#0b1220">El panel</text>
+      <text x="258" y="295" font-size="11" fill="#1740b8">Todas las conversaciones de los tres canales, con lo que se dijo,</text>
+      <text x="258" y="311" font-size="11" fill="#1740b8">a quién se derivó, cuánto tardó y cómo terminó.</text>
+    </svg>
+    <div class="caption">Sus clientes escriben o llaman como hoy. El agente contesta al instante, resuelve lo general y
+      pasa el resto a su equipo con la ficha completa. Todo, lo del agente y lo de su equipo, queda en un solo panel.</div>
+  </div>
+
+  <div class="pagefoot"><span>Atentina · Isaías Goldman SA</span><span>3 / 5</span></div>
+</section>
+
+<!-- ========== HOJA 4: el panel y qué resuelve cada cosa ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA · ISAÍAS GOLDMAN SA<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin-bottom:2mm">
+    <div class="eyebrow">El centro de la propuesta: ver la atención</div>
+    <h2 style="font-size:17pt">Hoy se mide en reseñas. <span class="accent">Con el panel, cada día.</span></h2>
+    <p class="lead" style="font-size:10pt">
+      Cada llamada, WhatsApp y chat queda registrado con lo que se dijo y cómo terminó, también lo que atendió una
+      persona. El dueño ve <strong>cuántas consultas entran, de qué son, cuánto tardan en responderse y quién las
+      tomó</strong>, sin pedirle un informe a nadie.
+    </p>
+  </div>
+
+  <div class="panel">
+    <div class="bar"><b>PANEL · ISAÍAS GOLDMAN SA</b><span>EJEMPLO CON DATOS ILUSTRATIVOS · UNA SEMANA DE NOVIEMBRE</span></div>
+    <div class="body">
+      <div class="kpis">
+        <div class="kpi"><b>812</b><span>consultas en los tres canales</span></div>
+        <div class="kpi"><b>4 s</b><span>hasta la primera respuesta (mediana)</span></div>
+        <div class="kpi"><b>37 %</b><span>llegaron con el local cerrado</span></div>
+        <div class="kpi"><b>61 %</b><span>resueltas por el agente; el resto, derivadas</span></div>
+        <div class="kpi"><b>143</b><span>presupuestos enviados · 58 turnos · 41 reclamos con caso</span></div>
+      </div>
+      <div class="pgrid">
+        <div class="pbox">
+          <div class="t">Por canal</div>
+          <div class="hb">WhatsApp<i style="width:100%"></i><em>498</em></div>
+          <div class="hb">Línea 0800<i style="width:47%"></i><em>236</em></div>
+          <div class="hb">Chat web<i style="width:16%"></i><em>78</em></div>
+        </div>
+        <div class="pbox">
+          <div class="t">Por tipo de consulta</div>
+          <div class="hb">Ventas<i style="width:100%"></i><em>312</em></div>
+          <div class="hb">Precios<i style="width:53%"></i><em>164</em></div>
+          <div class="hb">Instalaciones<i style="width:39%"></i><em>121</em></div>
+          <div class="hb">Posventa<i style="width:31%"></i><em>96</em></div>
+          <div class="hb">Productos<i style="width:27%"></i><em>84</em></div>
+          <div class="hb">Otros<i style="width:11%"></i><em>35</em></div>
+        </div>
+        <div class="pbox">
+          <div class="t">Derivaciones por persona (mediana)</div>
+          <table class="pt">
+            <tr><th>Quién</th><th class="n">Recibió</th><th class="n">La tomó en</th><th class="n">Sin tomar</th></tr>
+            <tr><td>Vendedor 1</td><td class="n">74</td><td class="n">6 min</td><td class="n">0</td></tr>
+            <tr><td>Vendedor 2</td><td class="n">61</td><td class="n">18 min</td><td class="n">5</td></tr>
+            <tr><td>Instalaciones</td><td class="n">52</td><td class="n">11 min</td><td class="n">2</td></tr>
+            <tr><td>Posventa</td><td class="n">47</td><td class="n">25 min</td><td class="n">4</td></tr>
+            <tr><td>Empresas</td><td class="n">23</td><td class="n">9 min</td><td class="n">1</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="src-line" style="margin-bottom:4mm">Las cifras del ejemplo son ilustrativas: muestran qué se mide, no un
+    resultado. Cada conversación se abre con su transcripción, su resumen y su resultado, y se filtra por canal, tipo,
+    persona y horario.</p>
+
+  <h2>Cada cosa observada, y qué la resuelve</h2>
+  <table class="map">
+    <tr><th>Lo que observamos</th><th>Qué lo resuelve</th></tr>
+    <tr><td><strong>Llamadas sin atender</strong> o sin devolver</td><td>Atiende siempre, varias a la vez; si deriva, transfiere o deja la ficha con día y franja.</td></tr>
+    <tr><td><strong>Presupuestos lentos</strong> y “Consultar precio” por email</td><td>Cotiza en el momento con su lista (equipo, kit e instalación), por escrito.</td></tr>
+    <tr><td><strong>Un precio por WhatsApp y otro en el local</strong></td><td>Una sola lista con fecha y validez, y registro de qué se cotizó a quién.</td></tr>
+    <tr><td><strong>Un solo número</strong> para todos los temas</td><td>Clasifica y deriva al área: ventas, instalaciones, posventa, empresas.</td></tr>
+    <tr><td><strong>Local cerrado</strong> 121 horas por semana</td><td>Atiende 24/7; lo que necesita una persona queda listo para el primer turno.</td></tr>
+    <tr><td><strong>Técnicos que no llegan</strong> y nadie avisa</td><td>Agenda la visita, la confirma el día anterior y avisa si hay un cambio.</td></tr>
+    <tr><td><strong>Reclamos de posventa</strong></td><td>Número de caso, modelo, fecha de compra y fotos, y pase a posventa con todo.</td></tr>
+    <tr><td><strong>Esperas en el mostrador</strong></td><td>Pedido de repuestos por WhatsApp y aviso de “listo para retirar” (fase posterior).</td></tr>
+    <tr><td><strong>Sin datos de la atención</strong> hasta la reseña</td><td>El panel: cada consulta, cada derivación y cada demora, todos los días.</td></tr>
+  </table>
+
+  <div class="pagefoot"><span>Atentina · Isaías Goldman SA</span><span>4 / 5</span></div>
+</section>
+
+<!-- ========== HOJA 5: cómo se pone en marcha ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA · ISAÍAS GOLDMAN SA<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin-bottom:2mm">
+    <div class="eyebrow">Cómo se pone en marcha</div>
+    <h2 style="font-size:17pt">Un piloto de 30 días, <span class="accent">con la temporada.</span></h2>
+  </div>
+
+  <div class="pilot">
+    <div><b>30 días, desde noviembre</b>Arranca con el pico de consultas, cuando la diferencia se nota y se mide.</div>
+    <div><b>Aires hogar y posventa</b>Un alcance acotado para empezar; el resto se suma por fases.</div>
+    <div><b>Decisión con números</b>Al cierre se comparan los datos del panel con la línea de base que miden ustedes.</div>
+  </div>
+
+  <h2>Los pasos</h2>
+  <div class="steps six">
+    <div class="step"><b>Relevamiento</b>Catálogo de aires hogar, lista de precios vigente, políticas, horarios y quién recibe cada derivación.</div>
+    <div class="step"><b>Línea de base</b>Ustedes miden antes cuántas consultas entran, cuántas quedan sin respuesta y cuánto tarda un presupuesto.</div>
+    <div class="step"><b>Configuración y pruebas</b>Armamos el agente con su criterio; ustedes y sus vendedores lo prueban hasta que suene a la casa.</div>
+    <div class="step"><b>Salida en vivo</b>La línea y el WhatsApp atienden a clientes reales; el chat se suma cuando su web esté lista.</div>
+    <div class="step"><b>Revisión semanal</b>Media hora con el panel: qué se consultó, qué se derivó y qué ajustar.</div>
+    <div class="step"><b>Cierre y decisión</b>A los 30 días, los números contra la línea de base. Si sirve, se sigue; si no, se termina.</div>
+  </div>
+
+  <div class="ops tight" style="margin-bottom:3.5mm">
+    <div class="ours">
+      <div class="eyebrow" style="margin-bottom:1.5mm">Atentina hace</div>
+      <ul>
+        <li>Configura el agente, su voz y sus respuestas</li>
+        <li>Da la línea 0800 o 0810 y conecta el WhatsApp</li>
+        <li>Arma las derivaciones y el panel con sus accesos</li>
+        <li>Ajusta cada semana y da soporte durante el piloto</li>
+      </ul>
+    </div>
+    <div class="theirs">
+      <div class="eyebrow" style="margin-bottom:1.5mm;color:var(--ok)">Necesitamos de ustedes</div>
+      <ul>
+        <li>La lista de precios vigente (y cada cambio) y los más consultados</li>
+        <li>Las políticas por escrito: instalación, garantía, pagos y envíos</li>
+        <li>Quién recibe cada derivación, en qué horario y número</li>
+        <li>Un responsable del piloto y la línea de base antes de empezar</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Después del piloto</h2>
+  <div class="phases">
+    <div class="phase"><b>Instaladores y repuestos</b>Pedidos por WhatsApp y aviso de “listo para retirar”.</div>
+    <div class="phase"><b>Cursos</b>Fechas, matrícula, seña y temario, e inscripción con recordatorio.</div>
+    <div class="phase"><b>Mantenimiento</b>Campañas a su base de clientes antes del verano y del invierno.</div>
+    <div class="phase"><b>Integración</b>Catálogo, stock y precios desde su sistema o su tienda Tiendanube.</div>
+  </div>
+
+  <div class="note">
+    <strong>Precio.</strong> El del piloto se acuerda en la reunión de relevamiento, según los canales y el volumen que
+    definamos juntos. Ahí también elegimos con qué número de WhatsApp se atiende.
+  </div>
+
+  <footer class="contact">
+    <img src="../../../../plantilla/marca/atentina-logo-blanco.svg" alt="Atentina">
+    <div><div class="tag">Cada consulta con respuesta,<br><span>y todas a la vista.</span></div><div class="who">Contacto: Laureano Arcanio</div></div>
+    <div class="data">
+      <b>0800-220-1233</b><br>
+      <a href="https://atentina.com.ar">atentina.com.ar</a> · <a href="mailto:hola@atentina.com.ar">hola@atentina.com.ar</a><br>
+      WhatsApp +54 9 351 700-2592
+    </div>
+  </footer>
+</section>
+</body>
+</html>

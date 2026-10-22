@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Atentina · Propuesta comercial</title>
+<link rel="stylesheet" href="../../../../plantilla/base.css">
+<style>
+  /* Ajustes locales de este documento (no tocan base.css) */
+  .cards.six { grid-template-columns: repeat(3, 1fr); gap: 3.5mm; margin: 2mm 0 3.5mm; }
+  .cards.six .card { padding: 3.2mm 3.8mm; }
+  .cards.six .card p { font-size: 8.7pt; margin-bottom: 0; }
+  .cards.six .card .ej { margin-top: 2mm; padding-top: 1.6mm; }
+  .soon { display: inline-block; font-family: "Plex Mono", monospace; font-weight: 500; font-size: 6.6pt; letter-spacing: .06em; text-transform: uppercase; color: #9a3412; background: #fff1e6; border-radius: 2mm; padding: .3mm 1.6mm; vertical-align: 1px; }
+  .uses { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 2mm 0 4mm; }
+  .use { border-left: 2px solid var(--accent); padding: .5mm 0 .5mm 3mm; font-size: 8.6pt; }
+  .use b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 10pt; color: var(--ink); margin-bottom: .6mm; }
+  .private { display: grid; grid-template-columns: 52mm 1fr; gap: 6mm; align-items: center; border: 1.5px solid var(--accent); border-radius: 4mm; padding: 4.5mm 5mm; background: linear-gradient(180deg, var(--accent-soft), #fff 85%); }
+  .private h2 { margin-bottom: 1.5mm; }
+  .private p { font-size: 8.8pt; margin: 0; }
+  .private ul li { margin-bottom: 1.3mm; }
+  .plans { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 2mm 0 2mm; }
+  .plan { border: 1px solid var(--line); border-radius: 3.5mm; padding: 3.2mm 3.5mm 2.6mm; background: #fff; }
+  .plan.featured { border: 1.5px solid var(--accent); }
+  .plan h3 { font-size: 11pt; margin-bottom: .4mm; }
+  .plan .for { font-size: 7.8pt; color: var(--muted); min-height: 7mm; line-height: 1.3; }
+  .plan .price { font-family: "Bricolage"; font-weight: 800; font-size: 15pt; color: var(--accent); line-height: 1.1; margin: 1.6mm 0 0; }
+  .plan .per { font-size: 7.6pt; color: var(--muted); margin-bottom: 1.6mm; }
+  .plan ul li { font-size: 8.2pt; margin-bottom: .8mm; }
+  .plans-foot { font-size: 7.8pt; color: var(--muted); margin-bottom: 4.5mm; }
+</style>
+</head>
+<body>
+
+<!-- ========== HOJA 1: overview ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA COMERCIAL<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero">
+    <div class="eyebrow">Agentes con inteligencia artificial, con voz argentina</div>
+    <h1>Un agente que atiende a tus clientes <span class="accent">por teléfono y por WhatsApp.</span></h1>
+    <p class="lead">
+      Atentina pone un agente con IA a atender tus llamadas y tus mensajes: entiende lo que le dicen, responde con
+      las reglas de tu negocio, <strong>habla con acento argentino</strong> y deja los datos de cada conversación
+      ordenados en un panel. Telefonía, inteligencia artificial y voces vienen en <strong>un solo servicio, con un
+      precio por mes en pesos</strong>, en servidores propios en Argentina.
+    </p>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><b>0,9 s</b><span>tiempo de respuesta del agente en llamadas reales (mediana)</span></div>
+    <div class="stat"><b>41 voces</b><span>con acento argentino: 28 femeninas y 13 masculinas</span></div>
+    <div class="stat"><b>4 en 1</b><span>telefonía, reconocimiento de voz, modelo de lenguaje y síntesis de voz</span></div>
+    <div class="stat"><b>$ 0</b><span>para empezar: plan Free con panel, llamadas web y API</span></div>
+  </div>
+
+  <div class="two">
+    <div>
+      <h2>Lo que pasa hoy</h2>
+      <ul class="warn">
+        <li><strong>Llamadas sin atender</strong>: en los picos, fuera de horario y los fines de semana, el cliente cuelga o no vuelve.</li>
+        <li><strong>WhatsApp que se acumula</strong>: mensajes y notas de voz que alguien tiene que leer, escuchar y contestar uno por uno.</li>
+        <li><strong>Datos que se pierden</strong>: lo que dijo cada cliente queda en un papel, en la memoria de alguien o en ningún lado.</li>
+        <li><strong>Armarlo es caro</strong>: telefonía, transcripción, modelo y voz, con varios proveedores que cobran en dólares.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Qué aporta Atentina</h2>
+      <ul>
+        <li><strong>Atiende siempre</strong>: varias conversaciones a la vez, todos los días, sin menús de opciones.</li>
+        <li><strong>Un agente, todos los canales</strong>: el mismo atiende el teléfono, el WhatsApp y un link para llamar desde el navegador.</li>
+        <li><strong>Datos ordenados</strong>: transcripción, datos tomados y resultado de cada conversación, en el panel y por API.</li>
+        <li><strong>Rápido y natural</strong>: 9 de cada 10 respuestas llegan en menos de 1,5 segundos, con voces argentinas.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="eyebrow">Cómo funciona</div>
+    <svg viewBox="0 0 720 250" xmlns="http://www.w3.org/2000/svg" font-family="Figtree, sans-serif">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#2456e6"/>
+        </marker>
+      </defs>
+
+      <!-- Canales: lo del cliente final, neutro -->
+      <text x="4" y="12" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#64748b">TUS CLIENTES ESCRIBEN O LLAMAN</text>
+      <g>
+        <rect x="4" y="24" width="160" height="62" rx="12" fill="#fff" stroke="#cbd5e1"/>
+        <text x="20" y="50" font-family="Bricolage, sans-serif" font-weight="800" font-size="14" fill="#0b1220">Teléfono</text>
+        <text x="20" y="68" font-size="10.5" fill="#64748b">0800, 0810 y regionales</text>
+        <rect x="4" y="98" width="160" height="62" rx="12" fill="#fff" stroke="#cbd5e1"/>
+        <text x="20" y="124" font-family="Bricolage, sans-serif" font-weight="800" font-size="14" fill="#0b1220">WhatsApp</text>
+        <text x="20" y="142" font-size="10.5" fill="#64748b">mensajes, audios y llamadas</text>
+        <rect x="4" y="172" width="160" height="62" rx="12" fill="#fff" stroke="#cbd5e1"/>
+        <text x="20" y="198" font-family="Bricolage, sans-serif" font-weight="800" font-size="14" fill="#0b1220">Link para llamar</text>
+        <text x="20" y="216" font-size="10.5" fill="#64748b">desde el navegador, sin app</text>
+      </g>
+      <g fill="none" stroke="#2456e6" stroke-width="2">
+        <path d="M166 55 C 190 55, 190 100, 214 100" marker-start="url(#ar)" marker-end="url(#ar)"/>
+        <path d="M166 129 H 214" marker-start="url(#ar)" marker-end="url(#ar)"/>
+        <path d="M166 203 C 190 203, 190 158, 214 158" marker-start="url(#ar)" marker-end="url(#ar)"/>
+      </g>
+
+      <!-- Atentina -->
+      <rect x="216" y="24" width="250" height="210" rx="14" fill="#fff" stroke="#2456e6" stroke-width="1.6"/>
+      <text x="234" y="48" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#2456e6">SERVIDORES PROPIOS EN ARGENTINA</text>
+      <text x="234" y="72" font-family="Bricolage, sans-serif" font-weight="800" font-size="19" fill="#0b1220">Agente de Atentina</text>
+      <g font-size="11.5" fill="#1740b8">
+        <rect x="234" y="86" width="214" height="28" rx="14" fill="#eaf0ff"/><text x="341" y="104" text-anchor="middle">Entiende lo que le dicen</text>
+        <rect x="234" y="120" width="214" height="28" rx="14" fill="#eaf0ff"/><text x="341" y="138" text-anchor="middle">Responde con tus reglas</text>
+        <rect x="234" y="154" width="214" height="28" rx="14" fill="#eaf0ff"/><text x="341" y="172" text-anchor="middle">Habla con voz argentina</text>
+        <rect x="234" y="188" width="214" height="28" rx="14" fill="#eaf0ff"/><text x="341" y="206" text-anchor="middle">Toma los datos y deja el resultado</text>
+      </g>
+
+      <!-- Conexión con la empresa -->
+      <g fill="none" stroke="#2456e6" stroke-width="2">
+        <path d="M468 104 H 520" marker-end="url(#ar)"/>
+        <path d="M520 158 H 468" marker-end="url(#ar)"/>
+      </g>
+      <g font-size="10" font-weight="700" fill="#1740b8" text-anchor="middle" stroke="#fff" stroke-width="4" paint-order="stroke">
+        <text x="494" y="96">datos</text>
+        <text x="494" y="174">reglas</text>
+      </g>
+
+      <!-- Tu empresa: neutro -->
+      <rect x="522" y="24" width="194" height="210" rx="14" fill="#fbfcfe" stroke="#cbd5e1"/>
+      <text x="538" y="48" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#64748b">TU EMPRESA</text>
+      <text x="538" y="72" font-family="Bricolage, sans-serif" font-weight="800" font-size="19" fill="#0b1220">Tu equipo</text>
+      <g font-size="11" fill="#33415c">
+        <rect x="538" y="86" width="162" height="28" rx="14" fill="#f1f4f9"/><text x="619" y="104" text-anchor="middle">Panel de conversaciones</text>
+        <rect x="538" y="120" width="162" height="28" rx="14" fill="#f1f4f9"/><text x="619" y="138" text-anchor="middle">Resumen por email</text>
+        <rect x="538" y="154" width="162" height="28" rx="14" fill="#f1f4f9"/><text x="619" y="172" text-anchor="middle">Tus sistemas, por API</text>
+        <rect x="538" y="188" width="162" height="28" rx="14" fill="#f1f4f9"/><text x="619" y="206" text-anchor="middle">Tu app a medida</text>
+      </g>
+    </svg>
+    <div class="caption">Definís una vez qué tiene que hacer el agente. Atiende por todos los canales con las mismas reglas y la misma voz, y el resultado de cada conversación llega a tu equipo.</div>
+  </div>
+
+  <div class="pagefoot"><span>Atentina · Propuesta comercial</span><span>1 / 3</span></div>
+</section>
+
+<!-- ========== HOJA 2: qué incluye ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA COMERCIAL<br>OCTUBRE 2026</div>
+  </header>
+
+  <h2 style="margin-top:5mm">Qué incluye</h2>
+  <p class="muted" style="max-width:170mm">Se contrata por partes: podés empezar por un canal y sumar los demás con el mismo agente.</p>
+  <div class="cards six">
+    <div class="card">
+      <div class="num">1</div>
+      <h3>Teléfono</h3>
+      <p>Números argentinos, 0800 y 0810, con la telefonía incluida. El agente atiende las entrantes y también llama: confirma, recuerda o avisa.</p>
+      <div class="ej">Ejemplo: da un turno, toma nombre, DNI y obra social, y lo confirma.</div>
+    </div>
+    <div class="card">
+      <div class="num">2</div>
+      <h3>WhatsApp</h3>
+      <p>El mismo agente contesta mensajes, entiende notas de voz y responde con audio, y atiende las llamadas de WhatsApp. Campañas de mensajes con plantillas aprobadas por Meta.</p>
+      <div class="ej">Ejemplo: clientes habituales y nuevos, cada uno con su agente, desde el mismo número.</div>
+    </div>
+    <div class="card">
+      <div class="num">3</div>
+      <h3>Link para llamar</h3>
+      <p>Una dirección web por agente: quien la abre habla con él desde el navegador del celular o la computadora, sin marcar ni instalar nada.</p>
+      <div class="ej">Ejemplo: el link en la web, en la firma del mail o en un QR del local.</div>
+    </div>
+    <div class="card">
+      <div class="num">4</div>
+      <h3>Apps e integraciones</h3>
+      <p>Armamos una app con lo propio de tu negocio (clientes, agenda, pagos) que el agente consulta y actualiza. El dueño la maneja por WhatsApp y ve sus datos en vistas web.</p>
+      <div class="ej">Ejemplo: un gimnasio registra pagos y consulta alumnos con un audio.</div>
+    </div>
+    <div class="card">
+      <div class="num">5</div>
+      <h3>Panel y API</h3>
+      <p>Agentes con versiones y prueba antes de publicar, conversaciones con transcripción y datos tomados, consumo del mes, usuarios y API keys. Todo, también por API.</p>
+      <div class="ej">Ejemplo: tu sistema lanza una llamada saliente y lee el resultado.</div>
+    </div>
+    <div class="card">
+      <div class="num">6</div>
+      <h3>Campañas de llamadas <span class="soon">Próximamente</span></h3>
+      <p>Una lista de contactos que el agente llama solo, en el horario que elijas, con reintentos y un reporte de lo que dijo cada uno.</p>
+      <div class="ej">Ejemplo: recordar a toda la cartera un vencimiento de la semana.</div>
+    </div>
+  </div>
+
+  <h2>Para qué se usa</h2>
+  <div class="uses">
+    <div class="use"><b>Turnos</b>Da turnos, confirma el día anterior y reprograma. Baja el ausentismo y libera la recepción.</div>
+    <div class="use"><b>Cobranzas</b>Avisa la deuda al titular, ofrece las opciones de pago que definís y registra la promesa.</div>
+    <div class="use"><b>Consultas y reclamos</b>Responde preguntas frecuentes y registra cada reclamo con categoría, dirección y contacto.</div>
+    <div class="use"><b>Ventas</b>Atiende al que pregunta, explica los planes y deja el contacto listo para el seguimiento.</div>
+  </div>
+
+  <div class="private">
+    <div>
+      <div class="eyebrow" style="margin-bottom:1.5mm">Inferencia propia</div>
+      <h2>Tus conversaciones no pasan por terceros de IA</h2>
+      <p>El reconocimiento de voz, el modelo de lenguaje y las voces corren en nuestros servidores, en Argentina.</p>
+    </div>
+    <ul>
+      <li><strong>Sin proveedores externos de IA</strong>: lo que dicen tus clientes no se manda a servicios de afuera para transcribirlo, responderlo ni ponerle voz.</li>
+      <li><strong>Lo que se guarda, a la vista</strong>: el panel guarda la transcripción y los datos de cada conversación, para tu equipo. Por la API de motores no guardamos los textos ni los audios, solo el consumo.</li>
+      <li><strong>Precio en pesos</strong>: al no depender de servicios que cobran en dólares por minuto o por palabra, el plan es un precio fijo por mes.</li>
+      <li><strong>Motores por API</strong>: transcripción, modelo de lenguaje y voces argentinas también se usan sueltos, compatibles con el SDK de OpenAI.</li>
+    </ul>
+  </div>
+
+  <div class="pagefoot"><span>Atentina · Propuesta comercial</span><span>2 / 3</span></div>
+</section>
+
+<!-- ========== HOJA 3: planes y cómo empezar ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA COMERCIAL<br>OCTUBRE 2026</div>
+  </header>
+
+  <h2 style="margin-top:5mm">Cómo trabajamos</h2>
+  <div class="ops" style="margin-top:2mm">
+    <div class="ours">
+      <div class="eyebrow" style="margin-bottom:1.5mm">Atentina opera</div>
+      <ul>
+        <li>Números, telefonía y WhatsApp</li>
+        <li>Servidores, modelos de IA y voces</li>
+        <li>Armado del agente con vos, monitoreo y soporte</li>
+      </ul>
+    </div>
+    <div class="theirs">
+      <div class="eyebrow" style="margin-bottom:1.5mm;color:var(--ok)">Tu empresa define</div>
+      <ul>
+        <li>Qué atiende el agente, sus reglas y su información</li>
+        <li>Los datos a tomar y la voz que lo representa</li>
+        <li>Quién recibe los resultados y en qué sistema</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Planes</h2>
+  <div class="plans">
+    <div class="plan">
+      <h3>Free</h3>
+      <div class="for">Para probar e integrar.</div>
+      <div class="price">$ 0</div><div class="per">por mes</div>
+      <ul><li><strong>20 minutos</strong> por mes</li><li>Llamadas web</li><li>Panel y API</li><li>Sin telefonía</li></ul>
+    </div>
+    <div class="plan">
+      <h3>Mostrador</h3>
+      <div class="for">Consultorios, estudios y locales con una línea.</div>
+      <div class="price">$ 29.000</div><div class="per">por mes · unos USD 19</div>
+      <ul><li>Telefonía incluida</li><li><strong>300 minutos</strong> por mes</li><li>1 llamada a la vez</li><li>1 número</li></ul>
+    </div>
+    <div class="plan featured">
+      <h3>Sucursal</h3>
+      <div class="for">Clínicas, comercios y servicios con varias líneas.</div>
+      <div class="price">$ 99.000</div><div class="per">por mes · unos USD 64</div>
+      <ul><li>Telefonía incluida</li><li><strong>1.200 minutos</strong> por mes</li><li>3 llamadas a la vez</li><li>3 números</li></ul>
+    </div>
+    <div class="plan">
+      <h3>Red</h3>
+      <div class="for">Organismos y empresas con mucho volumen.</div>
+      <div class="price">A medida</div><div class="per">según el volumen</div>
+      <ul><li><strong>Más de 5.000 minutos</strong> por mes</li><li>Las llamadas a la vez que necesites</li><li>Los números que necesites</li></ul>
+    </div>
+  </div>
+  <p class="plans-foot">Precios finales en pesos, vigentes en octubre de 2026. Sin permanencia: se paga con tarjeta (débito automático por
+    Mercado Pago) o por transferencia, y se cancela cuando quieras. Los minutos suman entrantes y salientes, por minuto iniciado.
+    Los mensajes de plantilla de WhatsApp los cobra Meta aparte.</p>
+
+  <h2>Cómo empezar</h2>
+  <div class="steps">
+    <div class="step"><b>Probalo hoy</b>Llamá al 0800-220-1233 o escribí al WhatsApp: te atiende nuestro propio agente.</div>
+    <div class="step"><b>Contanos el caso</b>Qué tiene que atender, con qué reglas y qué datos necesitás de cada conversación.</div>
+    <div class="step"><b>Armamos el agente</b>Lo definimos con vos, elegís la voz y lo probás desde el panel antes de publicarlo.</div>
+    <div class="step"><b>Empieza a atender</b>Se asigna a tu número o a tu WhatsApp, y ves cada conversación en el panel.</div>
+  </div>
+  <div class="note">
+    <strong>Hoy y próximamente.</strong> Las campañas de llamadas salientes, con agenda de contactos y reintentos, llegan
+    próximamente; hoy el agente ya hace llamadas salientes de a una, desde el panel o por API. Hoy los servidores, la telefonía y las voces están en Argentina: para
+    otros países, lo evaluamos con cada caso. Si ya tenés una central telefónica o un proveedor SIP, la conexión la
+    armamos con vos.
+  </div>
+
+  <footer class="contact">
+    <img src="../../../../plantilla/marca/atentina-logo-blanco.svg" alt="Atentina">
+    <div><div class="tag">Atención con IA,<br><span>con voz argentina.</span></div><div class="who">Contacto: Laureano Arcanio</div></div>
+    <div class="data">
+      <b>0800-220-1233</b><br>
+      <a href="https://atentina.com.ar">atentina.com.ar</a> · <a href="mailto:hola@atentina.com.ar">hola@atentina.com.ar</a><br>
+      WhatsApp +54 9 351 700-2592
+    </div>
+  </footer>
+</section>
+</body>
+</html>
