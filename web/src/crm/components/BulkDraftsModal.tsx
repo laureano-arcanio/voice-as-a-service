@@ -1,34 +1,34 @@
 import { Alert, Button, Group, List, Modal, Select, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 import { notifyError, notifySuccess } from '@/lib/notify';
-import { useBulkDrafts, useCampaigns, useTemplates } from '../api';
+import { useBulkDrafts, useCampaigns, useFollowUpDrafts, useTemplates } from '../api';
 import { MESSAGE_KIND_OPTIONS } from '../format';
 import type { BulkDraftResult, MessageKind } from '../types';
 
 /**
- * Borradores de una plantilla para varios leads. Con `byCampaign` (seguimientos de "Hoy") cada lead va
- * a su campaña y solo se elige la plantilla; si no, se elige campaña, plantilla y tipo.
+ * Borradores de una plantilla para varios leads. Con `followUps` (seguimientos de "Hoy") cada lead recibe
+ * el paso que le toca de la secuencia de su campaña, con la plantilla del paso salvo que se elija otra;
+ * si no, se elige campaña, plantilla y tipo.
  */
 export function BulkDraftsModal({
   opened,
   onClose,
   leadIds,
-  byCampaign,
-  defaultKind = 'first',
+  followUps = false,
   names,
 }: {
   opened: boolean;
   onClose: (done: boolean) => void;
   leadIds: number[];
-  byCampaign?: Record<number, number[]>;
-  defaultKind?: MessageKind;
+  followUps?: boolean;
   names?: Record<number, string>;
 }) {
   const campaigns = useCampaigns();
   const templates = useTemplates();
   const bulk = useBulkDrafts();
+  const followUpDrafts = useFollowUpDrafts();
   const [campaignId, setCampaignId] = useState<string | null>(null);
-  const [kind, setKind] = useState<MessageKind>(defaultKind);
+  const [kind, setKind] = useState<MessageKind>(followUps ? 'follow_up' : 'first');
   const [templateId, setTemplateId] = useState<string | null>(null);
   const [result, setResult] = useState<BulkDraftResult | null>(null);
   const [running, setRunning] = useState(false);
@@ -49,25 +49,19 @@ export function BulkDraftsModal({
   };
 
   const run = async () => {
-    if (!templateId) return;
-    const groups: [number, number[]][] = byCampaign
-      ? Object.entries(byCampaign).map(([c, ids]) => [Number(c), ids])
-      : campaignId
-        ? [[Number(campaignId), leadIds]]
-        : [];
     setRunning(true);
-    const acc: BulkDraftResult = { created: [], skipped: [] };
     try {
-      for (const [cid, ids] of groups) {
-        const r = await bulk.mutateAsync({
-          campaignId: cid,
-          lead_ids: ids,
-          template_id: Number(templateId),
-          kind,
-        });
-        acc.created.push(...r.created);
-        acc.skipped.push(...r.skipped);
-      }
+      const acc: BulkDraftResult = followUps
+        ? await followUpDrafts.mutateAsync({
+            lead_ids: leadIds,
+            template_id: templateId ? Number(templateId) : null,
+          })
+        : await bulk.mutateAsync({
+            campaignId: Number(campaignId),
+            lead_ids: leadIds,
+            template_id: Number(templateId),
+            kind,
+          });
       setResult(acc);
       if (acc.created.length) notifySuccess(`${acc.created.length} borradores listos para revisar en Hoy.`);
     } catch (e) {
@@ -81,7 +75,7 @@ export function BulkDraftsModal({
     <Modal
       opened={opened}
       onClose={close}
-      title={byCampaign ? 'Armar seguimientos' : 'Armar borradores'}
+      title={followUps ? 'Armar seguimientos' : 'Armar borradores'}
       size="lg"
     >
       {result ? (
@@ -109,7 +103,7 @@ export function BulkDraftsModal({
           <Text size="sm" c="dimmed">
             {leadIds.length} leads. Se crean borradores: no sale nada hasta que los apruebes.
           </Text>
-          {!byCampaign && (
+          {!followUps && (
             <>
               <Select
                 label="Campaña"
@@ -137,10 +131,17 @@ export function BulkDraftsModal({
             value={templateId}
             onChange={setTemplateId}
             searchable
-            placeholder={tplOptions.length ? 'Elegí una plantilla' : 'No hay plantillas de este tipo'}
+            clearable={followUps}
+            placeholder={
+              followUps
+                ? 'La del paso, en la secuencia de cada campaña'
+                : tplOptions.length
+                  ? 'Elegí una plantilla'
+                  : 'No hay plantillas de este tipo'
+            }
             description={
               kind === 'follow_up'
-                ? 'El seguimiento va en el hilo del primer mail: el asunto es "Re: …"'
+                ? 'El seguimiento va en el hilo del último mail: el asunto es "Re: …"'
                 : undefined
             }
           />
@@ -151,7 +152,7 @@ export function BulkDraftsModal({
             <Button
               onClick={() => void run()}
               loading={running}
-              disabled={!templateId || (!byCampaign && !campaignId)}
+              disabled={!followUps && (!templateId || !campaignId)}
             >
               Armar borradores
             </Button>

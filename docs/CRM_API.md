@@ -117,12 +117,22 @@ Un borrador suelto (texto propio): `POST /messages` con `lead_id`, `campaign_id`
 `template_id` o `subject` + `text`. Se edita con `PATCH /messages/{id}` mientras es borrador y se
 descarta con `POST /messages/{id}/cancel`.
 
-### 5. Seguimientos
+### 5. Seguimientos y secuencias
 
-`GET /today` → `follow_ups_due`: leads con el primer mail enviado hace 4 días hábiles o más, sin
-seguimiento ni respuesta. Para cada uno, un borrador `kind: "follow_up"` de la misma campaña: va
-**en el hilo** del primer mail (`Re: <asunto>`, `In-Reply-To`) y al mismo destinatario; el asunto de la
-plantilla se ignora. Un solo seguimiento por lead y campaña (el segundo da 409 o va a `skipped`).
+Cada campaña tiene una **secuencia** de seguimientos: `sequence: [{"days": 4, "template_id": 7},
+{"days": 5, "template_id": 8}]` (en `POST`/`PATCH /campaigns`). Cada paso toca `days` días hábiles
+después del **último** mail enviado al lead, si no respondió y no tiene nada pendiente de salir. Sin
+secuencia: un solo seguimiento a los 4 días hábiles, sin plantilla. Un lead en etapa `seguimiento` sin
+ninguno registrado cuenta como que ya tuvo uno (se mandó por fuera del CRM).
+
+`GET /today` → `follow_ups_due`: a quién le toca, con `step` (1, 2, ...) y `template_id` del paso.
+`POST /followups/drafts {"lead_ids": [...], "template_id": null}` arma el borrador del paso de cada uno
+(con la plantilla del paso, o la que se pase); los que no pueden van a `skipped`. El seguimiento va
+**en el hilo** del último mail (`Re: <asunto>`, `In-Reply-To`) y al mismo destinatario; el asunto de la
+plantilla se ignora. Cada mensaje lleva `step` (0 el primero).
+
+Si el paso tiene plantilla y la campaña está **activa**, el servidor arma solo el borrador (cada 10 min,
+`created_by: "sistema"`); igual queda en "Hoy" para aprobar.
 
 ### 6. Registrar lo que pasa
 
@@ -156,7 +166,8 @@ horario, próximo envío), `GET /ga/visits?unmatched=true` (visitas de GA sin le
 La cola manda un mail aprobado por ventana de `CRM_SEND_WINDOW_SECONDS` (120), en un momento al azar,
 con al menos 30 s entre dos, de lunes a viernes de 9 a 18 (hora argentina) y hasta `CRM_SEND_DAILY_MAX`
 (50) por día. Antes de cada uno vuelve a mirar blocklist, no contactar y si el lead respondió. Rebotes y
-quejas se leen de Resend cada 10 min: el email va a la blocklist.
+quejas se leen de Resend cada 10 min (o ya, con `POST /events/check`, el botón "Revisar entregas y
+rebotes" de "Hoy"; solo el usuario): el email va a la blocklist.
 
 ## Endpoints
 
@@ -174,6 +185,8 @@ quejas se leen de Resend cada 10 min: el email va a la blocklist.
 | `POST /leads/{id}/inbound` | Registrar una respuesta | sí |
 | `GET/POST /campaigns` · `GET/PATCH /campaigns/{id}` | Campañas | sí |
 | `POST /campaigns/{id}/drafts` | Borradores de una plantilla para varios leads | sí |
+| `POST /followups/drafts` | Borradores del seguimiento que le toca a cada lead | sí |
+| `POST /events/check` | Revisar ya entregas y rebotes en Resend (en segundo plano) | no |
 | `GET/POST /templates` · `PATCH /templates/{id}` · `POST /templates/{id}/preview` | Plantillas | sí |
 | `GET /messages` · `POST /messages` · `PATCH /messages/{id}` · `POST /messages/{id}/cancel` | Mensajes y borradores | sí |
 | `POST /messages/approve` | Aprobar borradores (a la cola) | **no** |

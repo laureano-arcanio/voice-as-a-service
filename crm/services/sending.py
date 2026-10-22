@@ -4,12 +4,16 @@ Cola: un mail `queued` por ventana (CRM_SEND_WINDOW_SECONDS), en un momento al a
 CRM_SEND_MIN_GAP_SECONDS entre dos, solo en horario habil y hasta CRM_SEND_DAILY_MAX por dia.
 Antes de cada uno vuelve a chequear blocklist, no contactar y si el lead respondio.
 
-Eventos: lee de Resend el ultimo evento de lo enviado en los ultimos CRM_EVENTS_DAYS dias.
+Eventos: lee de Resend el ultimo evento de lo enviado en los ultimos CRM_EVENTS_DAYS dias (cada
+CRM_EVENTS_INTERVAL_SECONDS o a pedido, con el boton de "Hoy"; nunca dos a la vez).
+
+Secuencias: en el mismo loop, arma los borradores de los seguimientos que tienen plantilla.
 """
 import asyncio
 import datetime
 import logging
 import random
+import threading
 import time
 import zoneinfo
 
@@ -25,6 +29,8 @@ from . import resend
 
 logger = logging.getLogger(__name__)
 NEXT_KEY = "send.next_at"
+EVENTS_KEY = "events.last"
+_events_lock = threading.Lock()
 
 
 def _local_now() -> datetime.datetime:
@@ -63,7 +69,8 @@ def status(s: Session) -> dict:
     return {"enabled": settings.send_enabled and bool(settings.resend_api_key), "queued": queued,
             "sent_today": sent_today(s), "daily_max": settings.send_daily_max, "in_hours": in_hours(),
             "hours": settings.send_hours, "window_seconds": settings.send_window_seconds,
-            "next_at": datetime.datetime.fromtimestamp(nxt, datetime.UTC).isoformat() if nxt else None}
+            "next_at": datetime.datetime.fromtimestamp(nxt, datetime.UTC).isoformat() if nxt else None,
+            "events_running": _events_lock.locked(), "events_last": (s.get(KV, EVENTS_KEY) or KV(value={})).value}
 
 
 def send_one(s: Session, m: Message) -> None:
@@ -110,7 +117,32 @@ def tick(s: Session, now: float | None = None) -> Message | None:
     return m
 
 
-def check_events(s: Session) -> int:
+def check_events(s: Session) -> int | None:
+    """Lee los eventos; None si ya hay una revision en curso."""
+    if not _events_lock.acquire(blocking=False):
+        return None
+    try:
+        n = _check_events(s)
+        kv = s.get(KV, EVENTS_KEY) or KV(key=EVENTS_KEY, value={})
+        kv.value = {"at": utcnow().isoformat() + "Z", "changed": n}
+        s.add(kv)
+        s.commit()
+        return n
+    finally:
+        _events_lock.release()
+
+
+def events_running() -> bool:
+    return _events_lock.locked()
+
+
+def check_events_now() -> None:
+    """Para el boton: corre en segundo plano con su propia sesion."""
+    with get_sessionmaker()() as s:
+        check_events(s)
+
+
+def _check_events(s: Session) -> int:
     # Un entregado puede rebotar despues (rebote asincronico), pero casi siempre en el dia: se
     # revisan los "sent" de CRM_EVENTS_DAYS y los "delivered" de los ultimos 3 dias. Resend limita
     # a 2 pedidos por segundo: una pausa entre cada uno.
@@ -158,4 +190,11 @@ async def events_loop() -> None:
                 await asyncio.to_thread(check_events, s)
         except Exception:
             logger.exception("crm: eventos de Resend")
+        try:
+            with get_sessionmaker()() as s:
+                n = await asyncio.to_thread(M.auto_followups, s)
+                if n:
+                    logger.info("crm: %s seguimientos armados para aprobar", n)
+        except Exception:
+            logger.exception("crm: seguimientos de las secuencias")
         await asyncio.sleep(settings.events_interval_seconds)

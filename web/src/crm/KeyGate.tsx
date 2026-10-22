@@ -48,5 +48,8 @@ export function KeyGate({ onSaved }: { onSaved: () => void }) {
 
 // Acepta la key pegada con el nombre de la variable o con espacios ("CRM_API_KEY=...").
 function cleanKey(raw: string): string {
-  return raw.trim().split(/\s+/)[0].replace(/^CRM_API_KEY=/, '');
+  return raw
+    .trim()
+    .split(/\s+/)[0]
+    .replace(/^CRM_API_KEY=/, '');
 }

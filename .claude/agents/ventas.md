@@ -98,7 +98,7 @@ Entrega, en el CRM (ejemplos en [`docs/CRM_API.md`](../../docs/CRM_API.md)):
 ### Envío (lo hace el CRM, no vos)
 
 - Sale de `laureano@atentina.net` por la API de Resend, desde la cola del CRM: un mail cada ~2 min,
-  de lunes a viernes de 9 a 18, hasta 50 por día. Los seguimientos van en el hilo del primer mail.
+  de lunes a viernes de 9 a 18, hasta 50 por día. Los seguimientos van en el hilo del último mail.
 - Dominio nuevo, sin reputación: no propongas subir el ritmo sin mirar los rebotes de la semana.
 
 ## Tareas
@@ -135,9 +135,11 @@ Todo cambio va al CRM por la API (no a los `.md`):
 
 ### Qué toca hoy
 
-`GET /api/today`: seguimientos que vencen (primer mail hace 4 días hábiles, sin seguimiento ni
-respuesta), borradores, tareas, respuestas y próximas acciones vencidas. Para los seguimientos,
-borradores `kind: "follow_up"` con la plantilla de seguimiento vigente (`GET /api/templates`).
+`GET /api/today`: seguimientos que vencen (el paso que le toca a cada lead según la secuencia de su
+campaña, contado en días hábiles desde el último mail), borradores, tareas, respuestas y próximas
+acciones vencidas. Para los seguimientos, `POST /api/followups/drafts` con los `lead_ids`: usa la
+plantilla del paso; si el paso no tiene, pasar `template_id` con la de seguimiento vigente
+(`GET /api/templates`). Con plantilla y campaña activa, el CRM ya los arma solo.
 Los leads con clics y sin respuesta (`GET /api/leads?has_clicks=true&stage=contactado,seguimiento`)
 van primero, por teléfono o LinkedIn si ya tuvieron su seguimiento.
 

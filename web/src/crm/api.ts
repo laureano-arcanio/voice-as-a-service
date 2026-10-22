@@ -155,7 +155,8 @@ export function useToday() {
   return useQuery({
     queryKey: ['crm', 'today'],
     queryFn: () => api<Today>('GET', '/today'),
-    refetchInterval: 60_000,
+    // Mientras se revisan los eventos en Resend, mas seguido: se ve cuando termina.
+    refetchInterval: (q) => (q.state.data?.queue.events_running ? 3_000 : 60_000),
   });
 }
 
@@ -301,6 +302,14 @@ export const useBulkDrafts = () =>
       kind: MessageKind;
     }) => api<BulkDraftResult>('POST', `/campaigns/${campaignId}/drafts`, b),
   );
+
+export const useFollowUpDrafts = () =>
+  useCrmMutation((b: { lead_ids: number[]; template_id?: number | null }) =>
+    api<BulkDraftResult>('POST', '/followups/drafts', b),
+  );
+
+export const useCheckEvents = () =>
+  useCrmMutation(() => api<{ started: boolean; running: boolean }>('POST', '/events/check'));
 
 export const useCreateTemplate = () =>
   useCrmMutation((b: TemplateIn) => api<Template>('POST', '/templates', b));

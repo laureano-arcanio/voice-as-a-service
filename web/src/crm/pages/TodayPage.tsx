@@ -17,8 +17,8 @@ import { Dash } from '@/components/Badges';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState, QueryState } from '@/components/QueryState';
 import { notifyError, notifySuccess } from '@/lib/notify';
-import { useApprove, usePatchActivity, useToday } from '../api';
-import { MESSAGE_KIND, fmtAgo, fmtDate, fmtDateTime, todayIso } from '../format';
+import { useApprove, useCheckEvents, usePatchActivity, useToday } from '../api';
+import { fmtAgo, fmtDate, fmtDateTime, messageLabel, todayIso } from '../format';
 import { BulkDraftsModal } from '../components/BulkDraftsModal';
 import { StageBadge } from '../components/Badges';
 import { MessageModal } from '../components/MessageModal';
@@ -31,19 +31,51 @@ function toggleIn(set: Set<number>, id: number): Set<number> {
   return next;
 }
 
+function EventsButton({ q }: { q: QueueStatus }) {
+  const check = useCheckEvents();
+  const last = q.events_last;
+  return (
+    <Group gap="xs" wrap="nowrap">
+      <Text size="xs" c="dimmed" visibleFrom="sm">
+        {q.events_running
+          ? 'Revisando en Resend…'
+          : last.at
+            ? `Entregas revisadas ${fmtDateTime(last.at)}${last.changed ? ` (${last.changed} cambios)` : ''}`
+            : ''}
+      </Text>
+      <Button
+        size="compact-sm"
+        variant="default"
+        loading={check.isPending || q.events_running}
+        onClick={() =>
+          check.mutate(undefined, {
+            onSuccess: () => notifySuccess('Revisando entregas y rebotes en Resend.'),
+            onError: (e) => notifyError(e),
+          })
+        }
+      >
+        Revisar entregas y rebotes
+      </Button>
+    </Group>
+  );
+}
+
 function QueueCard({ q }: { q: QueueStatus }) {
   const next = q.next_at ? new Date(q.next_at) : null;
   return (
     <Card withBorder>
       <Group justify="space-between" mb="xs">
-        <Title order={4}>Cola de envío</Title>
-        {q.enabled ? (
-          <Badge color={q.in_hours ? 'green' : 'gray'}>
-            {q.in_hours ? 'En horario' : 'Fuera de horario'}
-          </Badge>
-        ) : (
-          <Badge color="yellow">Apagada</Badge>
-        )}
+        <Group gap="xs">
+          <Title order={4}>Cola de envío</Title>
+          {q.enabled ? (
+            <Badge color={q.in_hours ? 'green' : 'gray'}>
+              {q.in_hours ? 'En horario' : 'Fuera de horario'}
+            </Badge>
+          ) : (
+            <Badge color="yellow">Apagada</Badge>
+          )}
+        </Group>
+        <EventsButton q={q} />
       </Group>
       <SimpleGrid cols={{ base: 2, sm: 4 }}>
         <Stack gap={0}>
@@ -88,14 +120,7 @@ function FollowUps({ data }: { data: Today }) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [open, setOpen] = useState(false);
   const due = data.follow_ups_due;
-  const withCampaign = due.filter((d) => d.campaign_id != null);
-  const all = withCampaign.length > 0 && withCampaign.every((d) => selected.has(d.lead.id));
-
-  const byCampaign: Record<number, number[]> = {};
-  for (const d of due) {
-    if (!selected.has(d.lead.id) || d.campaign_id == null) continue;
-    (byCampaign[d.campaign_id] ??= []).push(d.lead.id);
-  }
+  const all = due.length > 0 && due.every((d) => selected.has(d.lead.id));
   const names = Object.fromEntries(due.map((d) => [d.lead.id, d.lead.name]));
 
   return (
@@ -118,14 +143,13 @@ function FollowUps({ data }: { data: Today }) {
                     aria-label="Todos"
                     checked={all}
                     indeterminate={selected.size > 0 && !all}
-                    onChange={() =>
-                      setSelected(all ? new Set() : new Set(withCampaign.map((d) => d.lead.id)))
-                    }
+                    onChange={() => setSelected(all ? new Set() : new Set(due.map((d) => d.lead.id)))}
                   />
                 </Table.Th>
                 <Table.Th>Lead</Table.Th>
                 <Table.Th>Campaña</Table.Th>
-                <Table.Th>Primer mail</Table.Th>
+                <Table.Th>Toca</Table.Th>
+                <Table.Th>Último mail</Table.Th>
                 <Table.Th ta="right">Días hábiles</Table.Th>
                 <Table.Th ta="right">Clics</Table.Th>
               </Table.Tr>
@@ -137,7 +161,6 @@ function FollowUps({ data }: { data: Today }) {
                     <Checkbox
                       aria-label={`Elegir ${d.lead.name}`}
                       checked={selected.has(d.lead.id)}
-                      disabled={d.campaign_id == null}
                       onChange={() => setSelected((s) => toggleIn(s, d.lead.id))}
                     />
                   </Table.Td>
@@ -152,6 +175,12 @@ function FollowUps({ data }: { data: Today }) {
                   <Table.Td>
                     <Text size="sm" className="mono">
                       {d.campaign_slug ?? '–'}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="sm">Seguimiento {d.step}</Text>
+                    <Text size="xs" c="dimmed">
+                      {d.template_id ? 'con plantilla' : 'elegir plantilla'}
                     </Text>
                   </Table.Td>
                   <Table.Td>{fmtDate(d.sent_at)}</Table.Td>
@@ -174,8 +203,7 @@ function FollowUps({ data }: { data: Today }) {
           if (done) setSelected(new Set());
         }}
         leadIds={[...selected]}
-        byCampaign={byCampaign}
-        defaultKind="follow_up"
+        followUps
         names={names}
       />
     </Card>
@@ -244,7 +272,7 @@ function Drafts({ drafts }: { drafts: Message[] }) {
                   </Table.Td>
                   <Table.Td>{m.lead_name}</Table.Td>
                   <Table.Td>
-                    <Badge color="gray">{MESSAGE_KIND[m.kind]}</Badge>
+                    <Badge color="gray">{messageLabel(m)}</Badge>
                   </Table.Td>
                   <Table.Td className="mono">{m.to_addr}</Table.Td>
                   <Table.Td>

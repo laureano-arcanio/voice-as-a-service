@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useApprove, useCancelMessage, useEditDraft } from '../api';
-import { MESSAGE_KIND, fmtDateTime } from '../format';
+import { fmtDateTime, messageLabel } from '../format';
 import type { Message } from '../types';
 import { MessageStatusBadge } from './Badges';
 
@@ -23,7 +23,7 @@ function Meta({ label, children }: { label: string; children: React.ReactNode })
 /** Ver un mensaje; si es borrador, editarlo, aprobarlo o descartarlo. */
 export function MessageModal({ message, onClose }: { message: Message | null; onClose: () => void }) {
   return (
-    <Modal opened={!!message} onClose={onClose} title={message ? MESSAGE_KIND[message.kind] : ''} size="lg">
+    <Modal opened={!!message} onClose={onClose} title={message ? messageLabel(message) : ''} size="lg">
       {message && <MessageBody key={message.id} m={message} onClose={onClose} />}
     </Modal>
   );

@@ -173,7 +173,7 @@ def test_respuesta_cambia_etapa_y_cancela_la_cola(api, db, sent):
                  headers=AGENT)
     assert r.status_code == 201
     assert api.get(f"/api/leads/{a['id']}", headers=USER).json()["stage"] == "respondio"
-    assert api.get(f"/api/messages?status=canceled", headers=USER).json()["total"] == 1
+    assert api.get("/api/messages?status=canceled", headers=USER).json()["total"] == 1
     with db() as s:
         assert sending.tick(s, now=1e10) is None and sent == []
 
@@ -241,3 +241,100 @@ def test_hosts_compartidos_y_dominio_repetido(api):
     assert r.status_code == 409 and str(a["id"]) in r.json()["detail"]
     api.patch(f"/api/leads/{a['id']}", json={"stage": "charla_hecha"}, headers=USER)
     assert api.get("/api/stats", headers=USER).json()["replied"] == 1
+
+
+def _send_queued(db, now, sent_at, message_id):
+    with db() as s:
+        m = sending.tick(s, now=now)
+        assert m.status == "sent"
+        m.sent_at, m.message_id = sent_at, message_id
+        s.commit()
+        return m.id
+
+
+def test_secuencia_de_dos_seguimientos(api, db, sent, monkeypatch):
+    a = lead(api)
+    c, t, fu = campaign_and_template(api)
+    fu2 = api.post("/api/templates", json={"name": "ultimo", "kind": "follow_up", "subject": "x",
+                                           "body": "Hola:\n\nÚltimo mensaje, no insisto más."}, headers=USER).json()
+    r = api.patch(f"/api/campaigns/{c['id']}", json={"sequence": [
+        {"days": 4, "template_id": fu["id"]}, {"days": 5, "template_id": fu2["id"]}]}, headers=USER)
+    assert r.status_code == 200 and len(r.json()["sequence"]) == 2
+    r = api.patch(f"/api/campaigns/{c['id']}", json={"sequence": [{"days": 4, "template_id": t["id"]}]},
+                  headers=USER)
+    assert r.status_code == 422                       # plantilla de primer mail
+    d = api.post(f"/api/campaigns/{c['id']}/drafts", json={"lead_ids": [a["id"]], "template_id": t["id"]},
+                 headers=USER).json()["created"][0]
+    assert d["step"] == 0
+    api.post("/api/messages/approve", json={"ids": [d["id"]]}, headers=USER)
+    _send_queued(db, 1e10, datetime.datetime(2026, 10, 1, 12), "<orig@ses>")
+
+    def today(d):
+        monkeypatch.setattr(M, "local_today", lambda: d)
+
+    today(datetime.date(2026, 10, 6))
+    with db() as s:
+        assert M.auto_followups(s) == 0
+    today(datetime.date(2026, 10, 7))
+    with db() as s:
+        assert M.auto_followups(s) == 1 and M.auto_followups(s) == 0   # el segundo ya esta pendiente
+    f1 = api.get("/api/messages?status=draft", headers=USER).json()["items"][0]
+    assert f1["step"] == 1 and f1["created_by"] == "sistema" and f1["in_reply_to"] == "<orig@ses>"
+    api.post("/api/messages/approve", json={"ids": [f1["id"]]}, headers=USER)
+    _send_queued(db, 2e10, datetime.datetime(2026, 10, 8, 12), "<fu1@ses>")
+    assert api.get(f"/api/leads/{a['id']}", headers=USER).json()["stage"] == "seguimiento"
+
+    today(datetime.date(2026, 10, 14))                 # 4 dias habiles: el paso 2 pide 5
+    with db() as s:
+        assert M.followups_due(s) == []
+    today(datetime.date(2026, 10, 15))
+    due = api.get("/api/today", headers=USER).json()["follow_ups_due"]
+    assert [(x["step"], x["template_id"], x["business_days"]) for x in due] == [(2, fu2["id"], 5)]
+    r = api.post("/api/followups/drafts", json={"lead_ids": [a["id"]]}, headers=AGENT).json()
+    f2 = r["created"][0]
+    assert f2["step"] == 2 and f2["subject"] == "Re: Llamadas de voz para Empresa SA"
+    assert f2["in_reply_to"] == "<fu1@ses>" and "no insisto" in f2["text"]
+    api.post("/api/messages/approve", json={"ids": [f2["id"]]}, headers=USER)
+    _send_queued(db, 3e10, datetime.datetime(2026, 10, 15, 12), "<fu2@ses>")
+    today(datetime.date(2026, 11, 30))
+    with db() as s:
+        assert M.followups_due(s) == []                  # termino la secuencia
+
+
+def test_seguimiento_sin_plantilla_en_la_secuencia(api, db, sent, monkeypatch):
+    a = lead(api)
+    c, t, fu = campaign_and_template(api)
+    d = api.post(f"/api/campaigns/{c['id']}/drafts", json={"lead_ids": [a["id"]], "template_id": t["id"]},
+                 headers=USER).json()["created"][0]
+    api.post("/api/messages/approve", json={"ids": [d["id"]]}, headers=USER)
+    _send_queued(db, 1e10, datetime.datetime(2026, 10, 1, 12), "<orig@ses>")
+    monkeypatch.setattr(M, "local_today", lambda: datetime.date(2026, 10, 7))
+    with db() as s:
+        assert M.auto_followups(s) == 0                  # sin secuencia no se arma solo
+    r = api.post("/api/followups/drafts", json={"lead_ids": [a["id"]]}, headers=USER).json()
+    assert r["created"] == [] and "plantilla" in r["skipped"][0]["reason"]
+    r = api.post("/api/followups/drafts", json={"lead_ids": [a["id"]], "template_id": fu["id"]},
+                 headers=USER).json()
+    assert r["created"][0]["step"] == 1
+
+
+def test_boton_de_eventos(api, monkeypatch):
+    calls = []
+    monkeypatch.setattr(sending, "check_events_now", lambda: calls.append(1))
+    assert api.post("/api/events/check", headers=AGENT).status_code == 403
+    assert api.post("/api/events/check", headers=USER).json()["started"] is True and calls == [1]
+    q = api.get("/api/queue", headers=USER).json()
+    assert q["events_running"] is False and q["events_last"] == {}
+
+
+def test_etapa_seguimiento_cuenta_como_un_seguimiento(api, db, sent, monkeypatch):
+    a = lead(api)
+    c, t, _ = campaign_and_template(api)
+    d = api.post(f"/api/campaigns/{c['id']}/drafts", json={"lead_ids": [a["id"]], "template_id": t["id"]},
+                 headers=USER).json()["created"][0]
+    api.post("/api/messages/approve", json={"ids": [d["id"]]}, headers=USER)
+    _send_queued(db, 1e10, datetime.datetime(2026, 10, 1, 12), "<orig@ses>")
+    api.patch(f"/api/leads/{a['id']}", json={"stage": "seguimiento"}, headers=USER)   # mandado a mano
+    monkeypatch.setattr(M, "local_today", lambda: datetime.date(2026, 10, 20))
+    with db() as s:
+        assert M.followups_due(s) == []

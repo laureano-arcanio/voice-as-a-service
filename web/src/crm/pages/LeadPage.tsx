@@ -61,12 +61,12 @@ import {
   CONTACT_KIND,
   CONTACT_LABEL,
   LEAD_KIND_OPTIONS,
-  MESSAGE_KIND,
   MESSAGE_KIND_OPTIONS,
   STAGES,
   STAGE_OPTIONS,
   fmtDate,
   fmtDateTime,
+  messageLabel,
 } from '../format';
 import { MessageStatusBadge, StageBadge } from '../components/Badges';
 import { MessageModal } from '../components/MessageModal';
@@ -843,7 +843,7 @@ function TimelineEntry({ item, onOpen }: { item: TimelineItem; onOpen: (m: Messa
         <UnstyledButton onClick={() => onOpen(m)} w="100%">
           <Group gap={6} wrap="wrap">
             <Text size="sm" fw={600}>
-              {m.direction === 'in' ? 'Respuesta' : MESSAGE_KIND[m.kind]}
+              {messageLabel(m)}
             </Text>
             <MessageStatusBadge status={m.status} error={m.error} />
             {m.campaign_slug && (

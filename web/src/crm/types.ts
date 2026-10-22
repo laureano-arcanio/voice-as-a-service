@@ -159,8 +159,15 @@ export interface Campaign {
   status: 'draft' | 'active' | 'done';
   started_at: string | null;
   notes: string | null;
+  sequence: CampaignStep[];
   created_at: string;
   stats: Partial<CampaignStats>;
+}
+
+/** Un seguimiento de la secuencia: sale `days` días hábiles después del último mail enviado. */
+export interface CampaignStep {
+  days: number;
+  template_id: number | null;
 }
 
 export interface CampaignIn {
@@ -172,6 +179,7 @@ export interface CampaignIn {
   status?: 'draft' | 'active' | 'done';
   started_at?: string | null;
   notes?: string | null;
+  sequence?: CampaignStep[];
 }
 
 export interface Template {
@@ -208,6 +216,7 @@ export interface Message {
   lead_id: number;
   campaign_id: number | null;
   kind: MessageKind;
+  step: number | null;
   direction: 'out' | 'in';
   from_addr: string | null;
   to_addr: string;
@@ -274,13 +283,17 @@ export interface QueueStatus {
   hours: string;
   window_seconds: number;
   next_at: string | null;
+  events_running: boolean;
+  events_last: { at?: string; changed?: number };
 }
 
 export interface FollowUpDue {
   lead: LeadSummary;
   campaign_id: number | null;
   campaign_slug: string | null;
-  first_message_id: number;
+  step: number;
+  template_id: number | null;
+  last_message_id: number;
   sent_at: string;
   business_days: number;
 }

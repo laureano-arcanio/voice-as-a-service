@@ -186,6 +186,12 @@ class BlockOut(Out):
 
 # --- Campanas y plantillas ---
 
+class CampaignStep(BaseModel):
+    days: int = Field(ge=1, le=60, description="Dias habiles despues del ultimo mail enviado")
+    template_id: int | None = Field(None, description="Plantilla del paso. Con plantilla, el CRM arma "
+                                                      "el borrador solo (campaña activa); sin ella, se elige al armarlo")
+
+
 class CampaignIn(BaseModel):
     slug: str = Field(description="utm_campaign de los links, unico (ej. canales7)")
     name: str
@@ -195,6 +201,8 @@ class CampaignIn(BaseModel):
     status: Literal["draft", "active", "done"] = "active"
     started_at: datetime.date | None = None
     notes: str | None = None
+    sequence: list[CampaignStep] = Field([], description="Seguimientos despues del primer mail, en orden. "
+                                                         "Vacia: uno a los 4 dias habiles")
 
 
 class CampaignPatch(BaseModel):
@@ -204,6 +212,7 @@ class CampaignPatch(BaseModel):
     status: Literal["draft", "active", "done"] | None = None
     started_at: datetime.date | None = None
     notes: str | None = None
+    sequence: list[CampaignStep] | None = None
 
 
 class CampaignOut(Out):
@@ -216,6 +225,7 @@ class CampaignOut(Out):
     status: str
     started_at: datetime.date | None
     notes: str | None
+    sequence: list[CampaignStep]
     created_at: datetime.datetime
     stats: dict = {}
 
@@ -284,6 +294,11 @@ class BulkDraftIn(BaseModel):
     kind: MessageKind = "first"
 
 
+class FollowUpDraftIn(BaseModel):
+    lead_ids: list[int]
+    template_id: int | None = Field(None, description="Si falta, la del paso en la secuencia de la campaña")
+
+
 class Skipped(BaseModel):
     lead_id: int
     reason: str
@@ -294,6 +309,7 @@ class MessageOut(Out):
     lead_id: int
     campaign_id: int | None
     kind: str
+    step: int | None = None
     direction: str
     from_addr: str | None
     to_addr: str
@@ -419,6 +435,8 @@ class FollowUpDue(BaseModel):
     lead: LeadSummary
     campaign_id: int | None
     campaign_slug: str | None
-    first_message_id: int
-    sent_at: datetime.datetime
+    step: int = Field(description="Numero de seguimiento que toca (1, 2, ...)")
+    template_id: int | None = Field(description="Plantilla del paso en la secuencia")
+    last_message_id: int
+    sent_at: datetime.datetime = Field(description="Ultimo mail enviado")
     business_days: int

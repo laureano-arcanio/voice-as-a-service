@@ -2,7 +2,7 @@
 import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -28,7 +28,7 @@ from ..services import ga as GA
 from ..services import leads as L
 from ..services import messages as M
 from ..services import sending
-from ..services.errors import Conflict, CrmError
+from ..services.errors import Conflict, CrmError, Invalid
 from ..services.templates import check as check_template
 from ..services.templates import render
 from .leads import get_lead, one, summaries
@@ -82,8 +82,19 @@ def list_campaigns(s: DB, _: Who):
                                                                        Campaign.id.desc()))]
 
 
+def check_sequence(s: Session, steps: list[dict]) -> None:
+    for i, st in enumerate(steps, 1):
+        if st.get("template_id"):
+            t = s.get(Template, st["template_id"])
+            if not t:
+                raise Invalid(f"seguimiento {i}: no existe la plantilla {st['template_id']}", field="sequence")
+            if t.kind == "first":
+                raise Invalid(f"seguimiento {i}: la plantilla {t.name} es de primer mail", field="sequence")
+
+
 @router.post("/campaigns", response_model=S.CampaignOut, status_code=201, tags=["campañas"])
 def create_campaign(body: S.CampaignIn, s: DB, _: Who):
+    check_sequence(s, body.model_dump()["sequence"])
     c = Campaign(**body.model_dump())
     s.add(c)
     _commit_unique(s, f"campaña {body.slug}")
@@ -98,7 +109,12 @@ def get_campaign(cid: int, s: DB, _: Who):
 @router.patch("/campaigns/{cid}", response_model=S.CampaignOut, tags=["campañas"])
 def patch_campaign(cid: int, body: S.CampaignPatch, s: DB, _: Who):
     c = one(s, Campaign, cid, f"campaña {cid}")
-    for k, v in body.model_dump(exclude_unset=True).items():
+    data = body.model_dump(exclude_unset=True)
+    if data.get("sequence") is not None:
+        check_sequence(s, data["sequence"])
+    elif "sequence" in data:
+        data["sequence"] = []
+    for k, v in data.items():
         setattr(c, k, v)
     s.commit()
     return camp_out(s, c)
@@ -118,6 +134,27 @@ def bulk_drafts(cid: int, body: S.BulkDraftIn, s: DB, who: Who):
         try:
             with s.begin_nested():
                 created.append(M.create_draft(s, lead, campaign=c, kind=body.kind, by=who, template=t))
+        except CrmError as e:
+            skipped.append({"lead_id": lid, "reason": e.detail})
+    s.commit()
+    return {"created": [msg_out(m) for m in created], "skipped": skipped}
+
+
+@router.post("/followups/drafts", response_model=S.BulkDraftOut, tags=["campañas"],
+             summary="Borradores del seguimiento que le toca a cada lead (con la plantilla del paso o la elegida)")
+def followup_drafts(body: S.FollowUpDraftIn, s: DB, who: Who):
+    due = {d["lead"].id: d for d in M.followups_due(s)}
+    t = one(s, Template, body.template_id, f"plantilla {body.template_id}") if body.template_id else None
+    created, skipped = [], []
+    for lid in body.lead_ids:
+        d = due.get(lid)
+        if not d:
+            skipped.append({"lead_id": lid, "reason": "no le toca seguimiento"})
+            continue
+        try:
+            with s.begin_nested():
+                created.append(M.create_draft(s, d["lead"], campaign=d["campaign"], kind="follow_up", by=who,
+                                              template=t))
         except CrmError as e:
             skipped.append({"lead_id": lid, "reason": e.detail})
     s.commit()
@@ -248,6 +285,15 @@ def queue(s: DB, _: Who):
     return sending.status(s)
 
 
+@router.post("/events/check", tags=["mensajes"],
+             summary="Revisar ya en Resend entregas y rebotes de lo enviado (en segundo plano)")
+def events_check(tasks: BackgroundTasks, _: UserOnly):
+    if sending.events_running():
+        return {"started": False, "running": True}
+    tasks.add_task(sending.check_events_now)
+    return {"started": True, "running": True}
+
+
 # --- Blocklist ---
 
 @router.get("/blocklist", response_model=list[S.BlockOut], tags=["blocklist"])
@@ -313,9 +359,11 @@ def today(s: DB, _: Who):
                                            Lead.stage.notin_(CLOSED_STAGES)).order_by(Lead.next_action_at)).all()
     lead_sum = {x.id: x for x in summaries(s, [d["lead"] for d in due])}
     return {
-        "follow_ups_due": [S.FollowUpDue(lead=lead_sum[d["lead"].id], campaign_id=d["message"].campaign_id,
-                                         campaign_slug=d["message"].campaign.slug if d["message"].campaign else None,
-                                         first_message_id=d["message"].id, sent_at=d["message"].sent_at,
+        "follow_ups_due": [S.FollowUpDue(lead=lead_sum[d["lead"].id],
+                                         campaign_id=d["campaign"].id if d["campaign"] else None,
+                                         campaign_slug=d["campaign"].slug if d["campaign"] else None,
+                                         step=d["step"], template_id=d["template_id"],
+                                         last_message_id=d["message"].id, sent_at=d["message"].sent_at,
                                          business_days=d["business_days"]) for d in due],
         "drafts": [msg_out(m) for m in drafts],
         "tasks": [S.ActivityOut.model_validate(a) for a in tasks],

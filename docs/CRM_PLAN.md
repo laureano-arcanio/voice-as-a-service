@@ -38,7 +38,7 @@ automático de datos, editor visual de flujos, acceso desde internet.
 | Eventos de entrega | Polling de `GET /emails/{id}` cada 10 min: los "enviados" de los últimos 14 días y los entregados de los últimos 3 | Rebote, queja y entrega sin webhook. Con más volumen se pasa al webhook (`email.bounced`, `email.delivered`, `email.complained`), firmado por Svix |
 | GA | **Google Analytics Data API** (`runReport`), cuenta de servicio con rol Lector, una vez por día y a pedido | Reemplaza el copiado del reporte. Se cruza por `utm_content` (lead) y `utm_campaign` (campaña y paso) |
 | Plantillas | Texto con variables `{{saludo}}`, `{{nombre}}`, `{{empresa}}`, `{{link}}`; el mail guarda el texto final | Sin motor de plantillas: reemplazo simple y error si falta una variable. El link con UTM lo arma la app |
-| Workflow | **"Hoy"** lista los seguimientos que vencen (primer mail hace 4 días hábiles, sin seguimiento ni respuesta) y se arman en lote. Secuencias con pasos: después (10) | Cubre lo que hacemos (primer mail → seguimiento → llamada) sin un motor de flujos |
+| Workflow | **Secuencia por campaña** (desde el 21-oct-2026): pasos de seguimiento con días hábiles desde el último mail y plantilla opcional. **"Hoy"** lista a quién le toca qué paso; con plantilla y campaña activa, el borrador se arma solo y espera aprobación | Cubre lo que hacemos (primer mail → seguimientos → llamada) sin un motor de flujos |
 | Revisión | **Todo mail es borrador hasta que el usuario lo aprueba** (la key de agente no puede aprobar) | Igual que hoy: el usuario mira antes de mandar |
 | Importación | **Script de una sola vez** que lee los `.md`/`.csv`, la blacklist y el historial de Resend y carga todo por la API (9) | Después del corte, todo entra por la API o la UI |
 
@@ -220,8 +220,13 @@ estado de lo enviado (entregas, rebotes, quejas); GA por API y carga manual; seg
 | Después | Qué | Cuándo |
 |---|---|---|
 | Respuestas automáticas | Resend Receiving en un subdominio + polling (sección 6) | Cuando registrar respuestas a mano pese |
-| Secuencias | Pasos `email`/`tarea` con esperas, `auto`/`revisar` | Si "Hoy" + seguimientos no alcanza |
-| Webhook de Resend | En vez del polling de eventos | Con más volumen |
+| Pasos de tarea | Una tarea (llamar, LinkedIn) como paso de la secuencia | Si hace falta |
+| Webhook de Resend | En vez del polling de eventos (hoy hay botón para revisar ya) | Con más volumen |
+
+**Secuencias (21-oct-2026, migración 0003):** `campaigns.sequence` y `messages.step`; editor en la
+campaña, paso en "Hoy" y en los mensajes, borradores automáticos en el loop de eventos, y botón para
+revisar entregas y rebotes. Las campañas importadas quedaron como "Terminada": para que arme solos los
+borradores, pasarla a "Activa".
 
 Despliegue: `make crm-up` (crea la base `crm`, corre las migraciones y levanta el servicio sin tocar
 `app` ni `agent`). Variables `CRM_*` en `.env`; credenciales de GA en `secrets/ga.json`.

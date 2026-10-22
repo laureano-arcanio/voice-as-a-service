@@ -1,8 +1,10 @@
 import {
+  ActionIcon,
   Anchor,
   Button,
   Card,
   Group,
+  NumberInput,
   Select,
   SimpleGrid,
   Stack,
@@ -13,15 +15,16 @@ import {
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
-import { IconArrowLeft } from '@tabler/icons-react';
+import { IconArrowLeft, IconPlus, IconTrash } from '@tabler/icons-react';
+import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { PageHeader } from '@/components/PageHeader';
 import { QueryState } from '@/components/QueryState';
 import { notifyError, notifySuccess } from '@/lib/notify';
-import { useCampaign, usePatchCampaign } from '../api';
+import { useCampaign, usePatchCampaign, useTemplates } from '../api';
 import { MessagesTable } from '../components/MessagesTable';
 import { CAMPAIGN_STATUS_OPTIONS } from '../format';
-import type { Campaign } from '../types';
+import type { Campaign, CampaignStep } from '../types';
 
 const STATS: { key: keyof Campaign['stats']; label: string }[] = [
   { key: 'leads', label: 'Leads' },
@@ -94,6 +97,90 @@ function CampaignForm({ c }: { c: Campaign }) {
   );
 }
 
+function SequenceCard({ c }: { c: Campaign }) {
+  const patch = usePatchCampaign();
+  const templates = useTemplates();
+  const [steps, setSteps] = useState<CampaignStep[]>(c.sequence);
+  const dirty = JSON.stringify(steps) !== JSON.stringify(c.sequence);
+  const options = (templates.data ?? [])
+    .filter((t) => t.kind !== 'first')
+    .map((t) => ({ value: String(t.id), label: t.name }));
+  const set = (i: number, p: Partial<CampaignStep>) =>
+    setSteps((s) => s.map((x, j) => (j === i ? { ...x, ...p } : x)));
+
+  return (
+    <Card withBorder>
+      <Group justify="space-between" mb="xs">
+        <Title order={4}>Secuencia de seguimientos</Title>
+        <Button
+          size="compact-sm"
+          disabled={!dirty}
+          loading={patch.isPending}
+          onClick={() =>
+            patch.mutate(
+              { id: c.id, sequence: steps },
+              { onSuccess: () => notifySuccess('Secuencia guardada.'), onError: (e) => notifyError(e) },
+            )
+          }
+        >
+          Guardar
+        </Button>
+      </Group>
+      <Text size="sm" c="dimmed" mb="sm">
+        Cada seguimiento sale en el hilo, los días hábiles indicados después del último mail, si el lead no
+        respondió. Con plantilla, el CRM arma el borrador solo (campaña activa) y queda en Hoy para aprobar.
+        {steps.length === 0 &&
+          ' Sin secuencia: un seguimiento a los 4 días hábiles, con la plantilla que elijas al armarlo.'}
+      </Text>
+      <Stack gap="xs">
+        {steps.map((st, i) => (
+          <Group key={i} align="flex-end" gap="sm">
+            <Text size="sm" fw={600} w={110} pb={8}>
+              Seguimiento {i + 1}
+            </Text>
+            <NumberInput
+              label="Días hábiles"
+              min={1}
+              max={60}
+              w={110}
+              value={st.days}
+              onChange={(v) => set(i, { days: Number(v) || 1 })}
+            />
+            <Select
+              label="Plantilla"
+              data={options}
+              value={st.template_id ? String(st.template_id) : null}
+              onChange={(v) => set(i, { template_id: v ? Number(v) : null })}
+              clearable
+              placeholder="Elegirla al armarlo"
+              style={{ flex: 1, minWidth: 200 }}
+            />
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              mb={4}
+              aria-label={`Quitar el seguimiento ${i + 1}`}
+              onClick={() => setSteps((s) => s.filter((_, j) => j !== i))}
+            >
+              <IconTrash size={16} />
+            </ActionIcon>
+          </Group>
+        ))}
+        <Group>
+          <Button
+            size="compact-sm"
+            variant="default"
+            leftSection={<IconPlus size={14} />}
+            onClick={() => setSteps((s) => [...s, { days: s.length ? 5 : 4, template_id: null }])}
+          >
+            Agregar seguimiento
+          </Button>
+        </Group>
+      </Stack>
+    </Card>
+  );
+}
+
 export function CampaignPage() {
   const id = Number(useParams().id);
   const campaign = useCampaign(id);
@@ -124,6 +211,7 @@ export function CampaignPage() {
               ))}
             </SimpleGrid>
             <CampaignForm key={c.id} c={c} />
+            <SequenceCard key={`seq-${c.id}`} c={c} />
             <Title order={3}>Mensajes</Title>
             <MessagesTable campaignId={c.id} />
           </Stack>

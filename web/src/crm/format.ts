@@ -95,6 +95,13 @@ export const MESSAGE_KIND: Record<MessageKind, string> = {
   other: 'Otro',
 };
 
+/** "Primer mail", "Seguimiento 2", "Respuesta". */
+export function messageLabel(m: { kind: MessageKind; step?: number | null; direction?: string }): string {
+  if (m.direction === 'in') return 'Respuesta';
+  if (m.kind === 'follow_up' && m.step) return `Seguimiento ${m.step}`;
+  return MESSAGE_KIND[m.kind];
+}
+
 export const MESSAGE_KIND_OPTIONS = (Object.keys(MESSAGE_KIND) as MessageKind[]).map((v) => ({
   value: v,
   label: MESSAGE_KIND[v],

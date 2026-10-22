@@ -139,6 +139,10 @@ class Campaign(Base):
     status: Mapped[str] = mapped_column(String(20), default="active")  # draft, active, done
     started_at: Mapped[datetime.date | None] = mapped_column(Date)
     notes: Mapped[str | None] = mapped_column(Text)
+    # Seguimientos despues del primer mail: [{"days": 4, "template_id": 3}, ...]. Cada paso sale
+    # `days` dias habiles despues del ultimo mail enviado, si el lead no respondio. Vacia: uno
+    # solo a los CRM_FOLLOW_UP_BUSINESS_DAYS, sin plantilla (se elige al armarlo).
+    sequence: Mapped[list] = mapped_column(JSONDoc, default=list)
     created_at: Mapped[datetime.datetime] = _now_col()
 
 
@@ -166,6 +170,7 @@ class Message(Base):
                                                     index=True)
     template_id: Mapped[int | None] = mapped_column(ForeignKey("templates.id", ondelete="SET NULL"))
     kind: Mapped[str] = mapped_column(String(20), default="first")    # first, follow_up, other
+    step: Mapped[int | None] = mapped_column(Integer)                  # 0 el primero, 1.. seguimientos
     direction: Mapped[str] = mapped_column(String(3), default="out")  # out, in
     from_addr: Mapped[str | None] = mapped_column(String(200))
     to_addr: Mapped[str] = mapped_column(String(300), index=True)

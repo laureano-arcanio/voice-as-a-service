@@ -1,17 +1,19 @@
 """Mensajes: borradores, aprobacion, efectos de envio y rebote, respuestas y seguimientos que vencen."""
 import datetime
+import logging
 import re
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..config import local_today, settings
 from ..db import naive_utc, utcnow
 from ..models import SENT_STATUSES, Campaign, ContactPoint, Lead, Message, Template
 from . import leads as L
-from .errors import Conflict, Invalid
+from .errors import Conflict, CrmError, Invalid
 from .templates import render, utm_campaign
 
+logger = logging.getLogger(__name__)
 OPEN_STAGES_FOR_REPLY = ("nuevo", "contactado", "seguimiento", "sin_respuesta")
 
 
@@ -19,7 +21,8 @@ def _thread_parent(s: Session, lead: Lead, to: str | None, campaign: Campaign | 
     """El ultimo mail saliente al lead (de la campana, si hay), para responder en su hilo."""
     q = (select(Message).where(Message.lead_id == lead.id, Message.direction == "out",
                                Message.status.in_(SENT_STATUSES))
-         .order_by(Message.sent_at.desc()))
+         # Sin Message-ID (eventos todavia sin leer) no se puede responder en el hilo: va al final.
+         .order_by(Message.message_id.is_(None), Message.sent_at.desc()))
     if campaign:
         first = s.scalar(q.where(Message.campaign_id == campaign.id))
         if first:
@@ -29,6 +32,34 @@ def _thread_parent(s: Session, lead: Lead, to: str | None, campaign: Campaign | 
         if first:
             return first
     return s.scalar(q)
+
+
+def sequence(campaign: Campaign | None) -> list[dict]:
+    """Pasos de seguimiento de la campaña. Sin secuencia: uno, a los N dias habiles, sin plantilla."""
+    if campaign and campaign.sequence:
+        return campaign.sequence
+    return [{"days": settings.follow_up_business_days, "template_id": None}]
+
+
+def thread_state(msgs: list[Message]) -> tuple[Message | None, list[Message]]:
+    """(ultimo primer mail enviado, seguimientos enviados despues de el) entre los mensajes de un lead."""
+    sent = sorted((m for m in msgs if m.direction == "out" and m.status in SENT_STATUSES and m.sent_at),
+                  key=lambda m: m.sent_at)
+    first = next((m for m in reversed(sent) if m.kind == "first"), None)
+    if not first:
+        return None, []
+    return first, [m for m in sent if m.kind == "follow_up" and m.sent_at >= first.sent_at]
+
+
+def steps_done(lead: Lead, done: list[Message]) -> int:
+    """Seguimientos hechos. Un lead en etapa "seguimiento" sin ninguno registrado tuvo uno por fuera del
+    CRM (mandado a mano desde otro buzon, antes del CRM)."""
+    return max(len(done), 1 if lead.stage == "seguimiento" else 0)
+
+
+def _lead_messages(s: Session, lead: Lead) -> list[Message]:
+    return s.scalars(select(Message).where(Message.lead_id == lead.id,
+                                           Message.status.notin_(("canceled", "failed")))).all()
 
 
 def create_draft(s: Session, lead: Lead, *, campaign: Campaign | None, kind: str, by: str,
@@ -57,7 +88,22 @@ def create_draft(s: Session, lead: Lead, *, campaign: Campaign | None, kind: str
         raise Conflict(f"{to}: en la blocklist")
     if contact and contact.status != "ok":
         raise Conflict(f"{to}: {contact.status}")
-    if campaign:
+    step = 0 if kind == "first" else None
+    if kind == "follow_up":
+        msgs = _lead_messages(s, lead)
+        if any(m.direction == "out" and m.kind == "follow_up" and m.status in ("draft", "queued") for m in msgs):
+            raise Conflict(f"{lead.name}: ya tiene un seguimiento pendiente de salir")
+        _, done = thread_state(msgs)
+        step = steps_done(lead, done) + 1
+        seq = sequence(campaign) if campaign else None
+        if seq and step > len(seq):
+            raise Conflict(f"{lead.name}: ya tiene los {len(seq)} seguimientos de la campaña {campaign.slug}")
+        if not template and not text and seq and seq[step - 1].get("template_id"):
+            template = s.get(Template, seq[step - 1]["template_id"])
+        if not template and not text:
+            raise Invalid(f"{lead.name}: la campaña no tiene plantilla para el seguimiento {step}: elegí una",
+                          field="template_id")
+    elif campaign:
         dup = s.scalar(select(Message.id).where(
             Message.lead_id == lead.id, Message.campaign_id == campaign.id, Message.kind == kind,
             Message.direction == "out", Message.status.notin_(("canceled", "failed"))))
@@ -71,7 +117,7 @@ def create_draft(s: Session, lead: Lead, *, campaign: Campaign | None, kind: str
         base = parent.subject.removeprefix("Re: ").removeprefix("RE: ")
         subject = "Re: " + base
     m = Message(lead_id=lead.id, campaign_id=campaign.id if campaign else None,
-                template_id=template.id if template else None, kind=kind, direction="out",
+                template_id=template.id if template else None, kind=kind, step=step, direction="out",
                 from_addr=(campaign.from_addr if campaign and campaign.from_addr else settings.mail_from),
                 to_addr=to, subject=subject, text=text, status="draft",
                 in_reply_to=parent.message_id if parent else None,
@@ -164,25 +210,48 @@ def business_days_between(a: datetime.date, b: datetime.date) -> int:
 
 
 def followups_due(s: Session, today: datetime.date | None = None) -> list[dict]:
-    """Leads con primer mail enviado hace N dias habiles o mas, sin seguimiento ni respuesta."""
+    """Leads que esperan el proximo paso de la secuencia de su campaña: sin respuesta, sin nada
+    pendiente de salir y con el ultimo mail enviado hace los dias habiles del paso o mas."""
     today = today or local_today()
-    n = settings.follow_up_business_days
-    firsts = s.execute(
-        select(Message, Lead).join(Lead, Lead.id == Message.lead_id)
-        .where(Message.kind == "first", Message.direction == "out", Message.status.in_(("sent", "delivered")),
-               Lead.stage == "contactado", Lead.do_not_contact.is_(False))
-        .order_by(Message.sent_at)).all()
-    out, seen = [], set()
-    for m, lead in firsts:
-        if lead.id in seen:
+    leads = s.scalars(select(Lead).where(Lead.stage.in_(("contactado", "seguimiento")),
+                                         Lead.do_not_contact.is_(False))).all()
+    by_lead: dict[int, list[Message]] = {x.id: [] for x in leads}
+    if leads:
+        for m in s.scalars(select(Message).where(Message.lead_id.in_(by_lead),
+                                                 Message.status.notin_(("canceled", "failed")))):
+            by_lead[m.lead_id].append(m)
+    out = []
+    for lead in leads:
+        msgs = by_lead[lead.id]
+        if any(m.direction == "in" or m.status in ("draft", "queued") for m in msgs):
             continue
-        others = s.scalar(select(func.count(Message.id)).where(
-            Message.lead_id == lead.id, Message.status.notin_(("canceled", "failed")),
-            ((Message.direction == "in") | (Message.kind == "follow_up"))))
-        if others:
+        first, done = thread_state(msgs)
+        if not first or first.status == "bounced":
             continue
-        days = business_days_between(m.sent_at.date(), today)
-        if days >= n:
-            seen.add(lead.id)
-            out.append({"lead": lead, "message": m, "business_days": days})
+        seq, n = sequence(first.campaign), steps_done(lead, done)
+        if n >= len(seq):
+            continue
+        last = done[-1] if done else first
+        days = business_days_between(last.sent_at.date(), today)
+        if days >= seq[n]["days"]:
+            out.append({"lead": lead, "message": last, "campaign": first.campaign, "step": n + 1,
+                        "template_id": seq[n].get("template_id"), "business_days": days})
+    out.sort(key=lambda d: d["message"].sent_at)
     return out
+
+
+def auto_followups(s: Session) -> int:
+    """Borradores de los pasos que tienen plantilla, en campañas activas. Quedan para aprobar en Hoy."""
+    n = 0
+    for d in followups_due(s):
+        c = d["campaign"]
+        if not d["template_id"] or not c or c.status != "active":
+            continue
+        try:
+            with s.begin_nested():
+                create_draft(s, d["lead"], campaign=c, kind="follow_up", by="sistema")
+            n += 1
+        except CrmError as e:
+            logger.info("crm: seguimiento %s de %s: %s", d["step"], d["lead"].name, e.detail)
+    s.commit()
+    return n
