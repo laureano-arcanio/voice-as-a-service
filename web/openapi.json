@@ -88,6 +88,218 @@
       "HTTPBearer": []
      }
     ]
+   },
+   "patch": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Update Me",
+    "operationId": "update_me_api_v1_auth_me_patch",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ProfileIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MeOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/auth/me/password/code": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Password Code",
+    "description": "Manda al email del usuario un codigo para cambiar la clave.",
+    "operationId": "password_code_api_v1_auth_me_password_code_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AccountCodeOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Código incorrecto o vencido (code invalid_code)"
+     },
+     "429": {
+      "description": "Demasiados intentos o códigos pedidos"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/auth/me/password": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Change Password",
+    "description": "Cambia la clave con el codigo del mail. Cierra las demas sesiones; esta sigue abierta.",
+    "operationId": "change_password_api_v1_auth_me_password_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PasswordChangeIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MeOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Código incorrecto o vencido (code invalid_code)"
+     },
+     "429": {
+      "description": "Demasiados intentos o códigos pedidos"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/auth/me/email/code": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Email Code",
+    "description": "Manda al email ACTUAL del usuario un codigo para pasar al email nuevo.",
+    "operationId": "email_code_api_v1_auth_me_email_code_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/EmailCodeIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AccountCodeOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Código incorrecto o vencido (code invalid_code)"
+     },
+     "429": {
+      "description": "Demasiados intentos o códigos pedidos"
+     },
+     "409": {
+      "description": "El email ya tiene cuenta (code email_taken)"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/auth/me/email": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Change Email",
+    "description": "Pasa al email nuevo con el codigo del mail. Cierra las demas sesiones; esta sigue abierta.",
+    "operationId": "change_email_api_v1_auth_me_email_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AccountCodeIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MeOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Código incorrecto o vencido (code invalid_code)"
+     },
+     "429": {
+      "description": "Demasiados intentos o códigos pedidos"
+     },
+     "409": {
+      "description": "El email ya tiene cuenta (code email_taken)"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
    }
   },
   "/api/v1/auth/password-setup/check": {
@@ -9483,6 +9695,52 @@
  },
  "components": {
   "schemas": {
+   "AccountCodeIn": {
+    "properties": {
+     "challenge": {
+      "type": "string",
+      "maxLength": 4096,
+      "minLength": 10,
+      "title": "Challenge"
+     },
+     "code": {
+      "type": "string",
+      "pattern": "^\\d{6}$",
+      "title": "Code"
+     }
+    },
+    "type": "object",
+    "required": [
+     "challenge",
+     "code"
+    ],
+    "title": "AccountCodeIn"
+   },
+   "AccountCodeOut": {
+    "properties": {
+     "challenge": {
+      "type": "string",
+      "title": "Challenge"
+     },
+     "sent_to": {
+      "type": "string",
+      "title": "Sent To"
+     },
+     "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Expires At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "challenge",
+     "sent_to",
+     "expires_at"
+    ],
+    "title": "AccountCodeOut",
+    "description": "Desafio del codigo por mail: se manda de vuelta con el codigo."
+   },
    "AgentCreate": {
     "properties": {
      "client_id": {
@@ -14876,6 +15134,22 @@
     ],
     "title": "DemoTtsIn"
    },
+   "EmailCodeIn": {
+    "properties": {
+     "email": {
+      "type": "string",
+      "maxLength": 254,
+      "format": "email",
+      "title": "Email",
+      "description": "Email nuevo"
+     }
+    },
+    "type": "object",
+    "required": [
+     "email"
+    ],
+    "title": "EmailCodeIn"
+   },
    "FieldValue": {
     "properties": {
      "name": {
@@ -16295,6 +16569,34 @@
     ],
     "title": "OutcomeOut"
    },
+   "PasswordChangeIn": {
+    "properties": {
+     "challenge": {
+      "type": "string",
+      "maxLength": 4096,
+      "minLength": 10,
+      "title": "Challenge"
+     },
+     "code": {
+      "type": "string",
+      "pattern": "^\\d{6}$",
+      "title": "Code"
+     },
+     "password": {
+      "type": "string",
+      "maxLength": 256,
+      "minLength": 10,
+      "title": "Password"
+     }
+    },
+    "type": "object",
+    "required": [
+     "challenge",
+     "code",
+     "password"
+    ],
+    "title": "PasswordChangeIn"
+   },
    "PasswordResetIn": {
     "properties": {
      "email": {
@@ -16933,6 +17235,20 @@
     ],
     "title": "PlanOut",
     "description": "Un tier publico, como se ofrece en la pantalla Plan."
+   },
+   "ProfileIn": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "maxLength": 128,
+      "title": "Name"
+     }
+    },
+    "type": "object",
+    "required": [
+     "name"
+    ],
+    "title": "ProfileIn"
    },
    "PromptIn": {
     "properties": {

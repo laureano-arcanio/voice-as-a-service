@@ -57,6 +57,13 @@ def button(url: str, label: str) -> Safe:
         '</td></tr></table>')
 
 
+def code(value: str) -> Safe:
+    """Codigo de verificacion: grande, monoespaciado y facil de copiar."""
+    return Safe(f'<p style="margin:8px 0 24px;padding:14px 20px;display:inline-block;background:{BG_2};'
+                f'border:1px solid {LINE};border-radius:8px;font-family:ui-monospace,Menlo,Consolas,monospace;'
+                f'font-size:30px;font-weight:700;letter-spacing:0.2em;color:{INK};">{esc(value)}</p>')
+
+
 def steps(items: list[object]) -> Safe:
     rows = "".join(
         '<tr>'

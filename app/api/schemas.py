@@ -69,6 +69,30 @@ class MeOut(BaseModel):
     client_name: str | None
 
 
+class ProfileIn(BaseModel):
+    name: str = Field(max_length=128)
+
+
+class AccountCodeOut(BaseModel):
+    """Desafio del codigo por mail: se manda de vuelta con el codigo."""
+    challenge: str
+    sent_to: str
+    expires_at: datetime.datetime
+
+
+class EmailCodeIn(BaseModel):
+    email: EmailStr = Field(max_length=254, description="Email nuevo")
+
+
+class AccountCodeIn(BaseModel):
+    challenge: str = Field(min_length=10, max_length=4096)
+    code: str = Field(pattern=r"^\d{6}$")
+
+
+class PasswordChangeIn(AccountCodeIn):
+    password: str = Field(min_length=10, max_length=256)
+
+
 # ---------- tiers ----------
 
 class TierIn(BaseModel):

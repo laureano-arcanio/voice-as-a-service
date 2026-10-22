@@ -3,6 +3,7 @@ import type { components } from './schema';
 type S = components['schemas'];
 
 export type Me = S['MeOut'];
+export type AccountCode = S['AccountCodeOut'];
 export type Role = Me['role'];
 export type Tier = S['TierOut'];
 export type TierIn = S['TierIn'];

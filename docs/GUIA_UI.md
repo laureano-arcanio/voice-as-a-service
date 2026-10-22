@@ -514,6 +514,17 @@ Registro y cobro por transferencia ([`SUSCRIPCIONES_PLAN.md`](SUSCRIPCIONES_PLAN
 - **Cobros (`/billing`, admin):** planes pagos y pedidos abiertos, y pagos para facturar ("Marcar facturado").
 - **Olvidé mi clave:** link en el ingreso (`/forgot-password`); manda un link nuevo por mail.
 
+### Mi perfil (`/profile`, ambos roles)
+
+Ícono de usuario arriba a la derecha, al lado de "Salir".
+
+- **Tus datos:** el nombre (sale en los mails).
+- **Email de ingreso:** escribís el nuevo y "Mandar código"; el código de 6 dígitos llega al email **actual** y
+  con él se confirma el cambio.
+- **Clave:** "Mandar código", y con el código del mail elegís la nueva (al menos 10 caracteres).
+- El código vale 15 minutos y una sola vez. Al cambiar el email o la clave se cierran las otras sesiones
+  abiertas; la de esta pestaña sigue.
+
 ## Problemas frecuentes
 
 | Síntoma | Causa y solución |

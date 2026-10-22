@@ -56,6 +56,87 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
+        /** Update Me */
+        patch: operations["update_me_api_v1_auth_me_patch"];
+        trace?: never;
+    };
+    "/api/v1/auth/me/password/code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Password Code
+         * @description Manda al email del usuario un codigo para cambiar la clave.
+         */
+        post: operations["password_code_api_v1_auth_me_password_code_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/me/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change Password
+         * @description Cambia la clave con el codigo del mail. Cierra las demas sesiones; esta sigue abierta.
+         */
+        post: operations["change_password_api_v1_auth_me_password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/me/email/code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Email Code
+         * @description Manda al email ACTUAL del usuario un codigo para pasar al email nuevo.
+         */
+        post: operations["email_code_api_v1_auth_me_email_code_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/me/email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change Email
+         * @description Pasa al email nuevo con el codigo del mail. Cierra las demas sesiones; esta sigue abierta.
+         */
+        post: operations["change_email_api_v1_auth_me_email_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -2720,6 +2801,28 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AccountCodeIn */
+        AccountCodeIn: {
+            /** Challenge */
+            challenge: string;
+            /** Code */
+            code: string;
+        };
+        /**
+         * AccountCodeOut
+         * @description Desafio del codigo por mail: se manda de vuelta con el codigo.
+         */
+        AccountCodeOut: {
+            /** Challenge */
+            challenge: string;
+            /** Sent To */
+            sent_to: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
         /** AgentCreate */
         AgentCreate: {
             /**
@@ -4697,6 +4800,15 @@ export interface components {
              */
             format?: "wav" | "pcm";
         };
+        /** EmailCodeIn */
+        EmailCodeIn: {
+            /**
+             * Email
+             * Format: email
+             * @description Email nuevo
+             */
+            email: string;
+        };
         /** FieldValue */
         FieldValue: {
             /** Name */
@@ -5233,6 +5345,15 @@ export interface components {
             /** Goal */
             goal: boolean;
         };
+        /** PasswordChangeIn */
+        PasswordChangeIn: {
+            /** Challenge */
+            challenge: string;
+            /** Code */
+            code: string;
+            /** Password */
+            password: string;
+        };
         /** PasswordResetIn */
         PasswordResetIn: {
             /** Email */
@@ -5464,6 +5585,11 @@ export interface components {
              * @default false
              */
             campaign_followup?: boolean;
+        };
+        /** ProfileIn */
+        ProfileIn: {
+            /** Name */
+            name: string;
         };
         /** PromptIn */
         PromptIn: {
@@ -6899,6 +7025,201 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MeOut"];
                 };
+            };
+        };
+    };
+    update_me_api_v1_auth_me_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    password_code_api_v1_auth_me_password_code_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountCodeOut"];
+                };
+            };
+            /** @description Código incorrecto o vencido (code invalid_code) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Demasiados intentos o códigos pedidos */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    change_password_api_v1_auth_me_password_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordChangeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
+                };
+            };
+            /** @description Código incorrecto o vencido (code invalid_code) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Demasiados intentos o códigos pedidos */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    email_code_api_v1_auth_me_email_code_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailCodeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountCodeOut"];
+                };
+            };
+            /** @description El email ya tiene cuenta (code email_taken) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Código incorrecto o vencido (code invalid_code) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Demasiados intentos o códigos pedidos */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    change_email_api_v1_auth_me_email_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountCodeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
+                };
+            };
+            /** @description El email ya tiene cuenta (code email_taken) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Código incorrecto o vencido (code invalid_code) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Demasiados intentos o códigos pedidos */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

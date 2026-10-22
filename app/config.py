@@ -185,6 +185,11 @@ class Settings(BaseSettings):
     # "Olvidé mi clave" (POST /api/v1/auth/password-reset): por IP y por email.
     password_reset_ip_per_hour: int = 5
     password_reset_email_per_hour: int = 3
+    # Cambio de clave o de email desde el perfil (POST /api/v1/auth/me/...): codigo de 6 digitos al email
+    # actual, vigencia, mails por hora e intentos fallidos por cada 15 min, por usuario.
+    account_code_minutes: int = 15
+    account_code_sends_per_hour: int = 5
+    account_code_attempts_15m: int = 5
     # Datos para la transferencia, como se muestran al cliente (una linea por dato: titular, CUIT, CBU, alias).
     bank_transfer_info: str = ""
     # A quien avisar de un pedido de plan por transferencia (vacio: SUPPORT_EMAIL).

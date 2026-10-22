@@ -12,7 +12,7 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconLogout } from '@tabler/icons-react';
+import { IconLogout, IconUserCircle } from '@tabler/icons-react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import { useLogout, useMe } from '@/features/auth/api';
 import { notifyError } from '@/lib/notify';
@@ -79,6 +79,11 @@ export function AppLayout() {
                 {me.name || me.email}
               </Text>
             </Stack>
+            <Tooltip label="Mi perfil" withArrow>
+              <ActionIcon variant="default" size="lg" component={Link} to="/profile" aria-label="Mi perfil">
+                <IconUserCircle size={18} />
+              </ActionIcon>
+            </Tooltip>
             <Tooltip label="Salir" withArrow>
               <ActionIcon
                 variant="default"

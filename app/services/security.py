@@ -1,6 +1,7 @@
 """Claves (argon2), tokens de sesion (JWT HS256) y API keys (SHA-256)."""
 import datetime
 import hashlib
+import hmac
 import secrets
 from dataclasses import dataclass
 
@@ -9,7 +10,7 @@ from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerifyMismatchError
 
 from ..config import settings
-from ..models import Role
+from ..models import Role, User
 
 API_KEY_PREFIX = "vaas_"
 _hasher = PasswordHasher()
@@ -111,6 +112,46 @@ def decode_handoff_token(token: str) -> dict | None:
         return jwt.decode(token, _handoff_key(), algorithms=["HS256"], options={"require": ["sub", "exp", "sv"]})
     except jwt.PyJWTError:
         return None
+
+
+def _account_code_key() -> bytes:
+    return hashlib.sha256(f"{settings.auth_secret}|account-code".encode()).digest()
+
+
+def _code_mac(user_id: str, purpose: str, code: str) -> str:
+    # HMAC con la clave del server: el desafio viaja al navegador y un hash simple del codigo
+    # (6 digitos) se adivina en milisegundos.
+    return hmac.new(_account_code_key(), f"{user_id}|{purpose}|{code}".encode(), hashlib.sha256).hexdigest()
+
+
+def new_account_code() -> str:
+    return f"{secrets.randbelow(10**6):06d}"
+
+
+def create_account_code_token(user: User, purpose: str, code: str,
+                              new_email: str | None = None) -> tuple[str, datetime.datetime]:
+    """Desafio del codigo por mail para cambiar la clave (`password`) o el email (`email`) desde el perfil.
+    Lleva el HMAC del codigo, la huella de la clave y el email actuales: deja de valer cuando cualquiera de
+    los dos cambia (un solo uso) o a los `account_code_minutes`."""
+    now = datetime.datetime.now(datetime.UTC)
+    expires = now + datetime.timedelta(minutes=settings.account_code_minutes)
+    payload = {"sub": user.id, "pur": purpose, "mac": _code_mac(user.id, purpose, code),
+               "ph": _fingerprint(user.password_hash), "em": user.email, "new": new_email,
+               "exp": expires, "iat": now}
+    return jwt.encode(payload, _account_code_key(), algorithm="HS256"), expires
+
+
+def check_account_code(token: str, user: User, purpose: str, code: str) -> dict | None:
+    """El payload del desafio si vale para este usuario, este proposito y este codigo; None si no."""
+    try:
+        payload = jwt.decode(token, _account_code_key(), algorithms=["HS256"],
+                             options={"require": ["sub", "pur", "mac", "ph", "em", "exp"]})
+    except jwt.PyJWTError:
+        return None
+    ok = (payload["sub"] == user.id and payload["pur"] == purpose and payload["em"] == user.email
+          and secrets.compare_digest(payload["ph"], _fingerprint(user.password_hash))
+          and secrets.compare_digest(payload["mac"], _code_mac(user.id, purpose, code.strip())))
+    return payload if ok else None
 
 
 def unusable_password_hash() -> str:

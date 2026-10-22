@@ -4,7 +4,7 @@ from sqlalchemy import select
 from ...config import settings
 from ...db import utcnow
 from ...models import Client, User
-from ...services import signup
+from ...services import profile, signup
 from ...services.errors import Invalid, ServiceError
 from ...services.ratelimit import Limit, RateLimited, client_key
 from ...services.security import (
@@ -25,15 +25,21 @@ from ..deps import (
     client_ip,
     rate_limit,
     request_is_https,
+    require_user,
 )
 from ..schemas import (
+    AccountCodeIn,
+    AccountCodeOut,
+    EmailCodeIn,
+    HandoffIn,
     LoginIn,
     MeOut,
+    PasswordChangeIn,
+    PasswordResetIn,
     PasswordSetupCheckIn,
     PasswordSetupIn,
-    HandoffIn,
-    PasswordResetIn,
     PasswordSetupInfo,
+    ProfileIn,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -121,6 +127,56 @@ def me(p: CurrentPrincipal, db: DB):
         return MeOut(id=p.id, email="", name="API key", role=p.role, client_id=p.client_id,
                      client_name=client.name if client else None)
     return _me(db, db.get(User, p.id))
+
+
+# ---------- perfil: nombre, y clave o email con un codigo al email actual ----------
+
+def _session_user(db, p) -> User:
+    require_user(p)
+    return db.get(User, p.id)
+
+
+def _code_out(sent: profile.CodeSent) -> AccountCodeOut:
+    return AccountCodeOut(challenge=sent.challenge, sent_to=sent.sent_to, expires_at=sent.expires_at)
+
+
+_CODE_ERRORS = {422: {"description": "Código incorrecto o vencido (code invalid_code)"},
+                429: {"description": "Demasiados intentos o códigos pedidos"}}
+
+
+@router.patch("/me", response_model=MeOut)
+def update_me(body: ProfileIn, p: CurrentPrincipal, db: DB):
+    return _me(db, profile.update_name(db, _session_user(db, p), body.name))
+
+
+@router.post("/me/password/code", response_model=AccountCodeOut, responses=_CODE_ERRORS)
+def password_code(p: CurrentPrincipal, db: DB):
+    """Manda al email del usuario un codigo para cambiar la clave."""
+    return _code_out(profile.request_password_code(_session_user(db, p)))
+
+
+@router.post("/me/password", response_model=MeOut, responses=_CODE_ERRORS)
+def change_password(body: PasswordChangeIn, request: Request, response: Response, p: CurrentPrincipal, db: DB):
+    """Cambia la clave con el codigo del mail. Cierra las demas sesiones; esta sigue abierta."""
+    user = profile.change_password(db, _session_user(db, p), body.challenge, body.code, body.password)
+    _open_session(request, response, user)
+    return _me(db, user)
+
+
+@router.post("/me/email/code", response_model=AccountCodeOut,
+             responses={**_CODE_ERRORS, 409: {"description": "El email ya tiene cuenta (code email_taken)"}})
+def email_code(body: EmailCodeIn, p: CurrentPrincipal, db: DB):
+    """Manda al email ACTUAL del usuario un codigo para pasar al email nuevo."""
+    return _code_out(profile.request_email_code(db, _session_user(db, p), body.email))
+
+
+@router.post("/me/email", response_model=MeOut,
+             responses={**_CODE_ERRORS, 409: {"description": "El email ya tiene cuenta (code email_taken)"}})
+def change_email(body: AccountCodeIn, request: Request, response: Response, p: CurrentPrincipal, db: DB):
+    """Pasa al email nuevo con el codigo del mail. Cierra las demas sesiones; esta sigue abierta."""
+    user = profile.change_email(db, _session_user(db, p), body.challenge, body.code)
+    _open_session(request, response, user)
+    return _me(db, user)
 
 
 # ---------- crear la clave desde el link del mail de alta ----------

@@ -80,6 +80,7 @@ export const routes: RouteObject[] = [
         path: 'account',
         ...page(async () => (await import('@/features/clients/AccountPage')).AccountPage, 'client'),
       },
+      { path: 'profile', ...page(async () => (await import('@/features/auth/ProfilePage')).ProfilePage) },
       { path: 'plan', ...page(async () => (await import('@/features/billing/PlanPage')).PlanPage, 'client') },
       {
         path: 'plan/pagar',

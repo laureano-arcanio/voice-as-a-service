@@ -513,6 +513,15 @@ lo de esta sección es lo que lo protege.
   (`ph`): al crearla deja de valer, así que es de un solo uso sin tabla. `POST /auth/password-setup/check`
   y `POST /auth/password-setup` son públicos, con tope de 30 pedidos por hora por IP (429); el segundo
   guarda la clave, sube `session_version` y abre la sesión. Link vencido o usado: 422 `invalid_setup_token`.
+- **Perfil: cambio de clave o de email con código** (`app/services/profile.py`, pantalla `/profile`):
+  `POST /auth/me/password/code` o `POST /auth/me/email/code {email}` mandan un código de 6 dígitos al email
+  **actual** y devuelven un desafío (JWT con clave derivada de `AUTH_SECRET`) con el HMAC del código, la huella
+  de la clave y el email actuales; `POST /auth/me/password` o `POST /auth/me/email` lo mandan de vuelta con el
+  código. Sin tabla: deja de valer al cambiar la clave o el email (un solo uso) o a los `ACCOUNT_CODE_MINUTES`
+  (15). Topes por usuario, en memoria: `ACCOUNT_CODE_SENDS_PER_HOUR` (5) mails y `ACCOUNT_CODE_ATTEMPTS_15M`
+  (5) intentos, contados antes de verificar (429). Código mal o vencido: 422 `invalid_code`; email ocupado: 409
+  `email_taken`; Resend caído: 502 `mail_failed`. Al cambiar sube `session_version` y reabre la cookie de este
+  pedido. `PATCH /auth/me` cambia el nombre. Solo con sesión (no API key).
 - **Límites de login fallido** (en memoria del proceso, `services/ratelimit.py`): 5 por IP y email y 10
   por email en 15 min; 20 por IP en 15 min y 100 por día (`LOGIN_FAIL_*`). Se cuentan antes de verificar
   la clave, de forma atómica (pedidos en paralelo no pasan todos), y un login correcto se descuenta y

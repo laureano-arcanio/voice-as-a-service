@@ -146,6 +146,24 @@ def password_reset(*, email: str, name: str, setup_url: str, expires_at: datetim
         reason=f"Recibiste este email porque se pidió una clave para {email} en Atentina.")
 
 
+def account_code(*, email: str, name: str, code: str, expires_at: datetime.datetime,
+                 new_email: str | None = None) -> Mail:
+    """Codigo para cambiar la clave o (con new_email) el email de ingreso, desde el perfil."""
+    what = f"cambiar tu email de ingreso a {new_email}" if new_email else "cambiar tu clave"
+    subject = f"Tu código de Atentina: {code}"
+    until = f"Vale {settings.account_code_minutes} minutos (hasta el {_when(expires_at)}) y se usa una sola vez."
+    warning = "Si no lo pediste, no lo compartas con nadie y cambiá tu clave: alguien entró con tu cuenta."
+    html = L.render(
+        subject, f"Código para {what}.",
+        [L.heading("Tu código"), L.paragraph(_greeting(name)),
+         L.paragraph(f"Para {what}, ingresá este código en el dashboard:"), L.code(code),
+         L.paragraph(until, muted=True), L.paragraph(warning, muted=True)],
+        f"Recibiste este email porque se pidió un cambio en la cuenta {email} de Atentina.")
+    lines = [subject, "", _greeting(name), "", f"Para {what}, ingresá este código en el dashboard:", "", code, "",
+             until, "", warning, "", _footer()]
+    return Mail(email, subject, html, "\n".join(lines))
+
+
 def account_ready(*, email: str, name: str, client_name: str, tier_name: str | None = None) -> Mail:
     """Registro desde la landing: la cuenta ya esta creada (la clave la eligio en el formulario)."""
     dash = dashboard_url(email)

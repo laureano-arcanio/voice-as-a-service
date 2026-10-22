@@ -94,6 +94,45 @@ export function useLogout() {
   });
 }
 
+// ---------- perfil: nombre, y clave o email con un codigo al email actual ----------
+
+export function useUpdateProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { name: string }) => unwrap(api.PATCH('/api/v1/auth/me', { body })),
+    onSuccess: (me) => qc.setQueryData(meKey, me),
+  });
+}
+
+/** Manda el codigo al email actual; devuelve el desafio que va de vuelta con el codigo. */
+export function useRequestPasswordCode() {
+  return useMutation({ mutationFn: () => unwrap(api.POST('/api/v1/auth/me/password/code')) });
+}
+
+export function useChangePassword() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { challenge: string; code: string; password: string }) =>
+      unwrap(api.POST('/api/v1/auth/me/password', { body })),
+    onSuccess: (me) => qc.setQueryData(meKey, me),
+  });
+}
+
+export function useRequestEmailCode() {
+  return useMutation({
+    mutationFn: (email: string) => unwrap(api.POST('/api/v1/auth/me/email/code', { body: { email } })),
+  });
+}
+
+export function useChangeEmail() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { challenge: string; code: string }) =>
+      unwrap(api.POST('/api/v1/auth/me/email', { body })),
+    onSuccess: (me) => qc.setQueryData(meKey, me),
+  });
+}
+
 export function useIsAdmin(): boolean {
   const { data } = useMe();
   return data?.role === 'admin';
