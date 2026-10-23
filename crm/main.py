@@ -13,8 +13,8 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import DataError, IntegrityError
 
 from .config import settings
-from .routes import leads, outreach
-from .services import ga, inbound, sending
+from .routes import leads, outreach, reminders
+from .services import ga, gcal, inbound, sending
 from .services.errors import CrmError
 
 logger = logging.getLogger("crm")
@@ -30,7 +30,7 @@ def problem(status: int, title: str, detail: str, **extra) -> JSONResponse:
 async def lifespan(_: FastAPI):
     tasks = []
     if settings.loops:
-        loops = [sending.send_loop, sending.events_loop, ga.ga_loop]
+        loops = [sending.send_loop, sending.events_loop, ga.ga_loop, gcal.gcal_loop]
         if settings.inbound_enabled:
             loops.append(inbound.inbound_loop)
         tasks = [asyncio.create_task(f()) for f in loops]
@@ -70,6 +70,7 @@ def create_app() -> FastAPI:
 
     app.include_router(leads.router)
     app.include_router(outreach.router)
+    app.include_router(reminders.router)
 
     @app.get("/health", include_in_schema=False)
     def health():

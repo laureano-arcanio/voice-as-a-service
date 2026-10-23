@@ -6,6 +6,7 @@ import { EmptyState, QueryState } from '@/components/QueryState';
 import { useStats, useToday } from '../api';
 import { STAGES } from '../format';
 import { Inbox, NextActions, QueueCard, Replies, ReplyRates, Tasks } from '../components/Panels';
+import { AgendaCard } from '../components/Reminders';
 import type { Stage, Stats } from '../types';
 
 function Metric({ label, value, help }: { label: string; value: number; help?: string }) {
@@ -119,6 +120,7 @@ export function StatsPage() {
         description="Cola de envío, números del embudo y lo pendiente. Para elegir a quién mandar, Leads."
       />
       <Stack gap="md">
+        {today.data && <AgendaCard items={today.data.agenda} />}
         {today.data && <QueueCard q={today.data.queue} />}
         {today.data && <Inbox items={today.data.inbox} />}
         <QueryState query={stats}>

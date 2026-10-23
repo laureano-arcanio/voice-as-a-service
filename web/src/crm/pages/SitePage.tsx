@@ -61,7 +61,17 @@ function Delta({ now, before }: { now: number; before: number }) {
   );
 }
 
-function Metric({ label, value, k, r }: { label: string; value: string; k: keyof SiteTotals; r: SiteReport }) {
+function Metric({
+  label,
+  value,
+  k,
+  r,
+}: {
+  label: string;
+  value: string;
+  k: keyof SiteTotals;
+  r: SiteReport;
+}) {
   return (
     <Card withBorder p="md">
       <Text className="label">{label}</Text>
@@ -126,8 +136,18 @@ function Report({ r }: { r: SiteReport }) {
         <Metric label="Usuarios nuevos" value={int(t.new_users)} k="new_users" r={r} />
         <Metric label="Sesiones" value={int(t.sessions)} k="sessions" r={r} />
         <Metric label="Vistas de página" value={int(t.views)} k="views" r={r} />
-        <Metric label="Sesiones con interacción" value={pct(t.engagement_rate, 1)} k="engagement_rate" r={r} />
-        <Metric label="Duración media" value={duration(t.avg_session_seconds)} k="avg_session_seconds" r={r} />
+        <Metric
+          label="Sesiones con interacción"
+          value={pct(t.engagement_rate, 1)}
+          k="engagement_rate"
+          r={r}
+        />
+        <Metric
+          label="Duración media"
+          value={duration(t.avg_session_seconds)}
+          k="avg_session_seconds"
+          r={r}
+        />
       </SimpleGrid>
       <Section title="Por día" help="Hoy aparece incompleto: GA tarda unas horas en procesar.">
         {t.sessions ? (

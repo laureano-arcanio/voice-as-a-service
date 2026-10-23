@@ -318,7 +318,8 @@ export interface GaVisit {
 export type TimelineItem =
   | { type: 'message'; at: string; data: Message }
   | { type: 'activity'; at: string; data: Activity }
-  | { type: 'visit'; at: string; data: GaVisit };
+  | { type: 'visit'; at: string; data: GaVisit }
+  | { type: 'reminder'; at: string; data: Reminder };
 
 export interface QueueStatus {
   enabled: boolean;
@@ -352,7 +353,44 @@ export interface ReplyRate {
   rate: number;
 }
 
+export type ReminderKind = 'reminder' | 'meeting';
+export type ReminderStatus = 'pending' | 'done' | 'no_show' | 'canceled';
+
+/** Recordatorio ("llamame el lunes") o reunión; `starts_at` en UTC sin zona. */
+export interface Reminder {
+  id: number;
+  lead_id: number;
+  lead_name: string | null;
+  person_id: number | null;
+  kind: ReminderKind;
+  title: string;
+  notes: string;
+  location: string | null;
+  starts_at: string;
+  duration_min: number;
+  status: ReminderStatus;
+  outcome: string | null;
+  done_at: string | null;
+  /** ok, pending (subiendo), error (se reintenta solo) u off (sin calendario). */
+  gcal_state: 'ok' | 'pending' | 'error' | 'off';
+  gcal_error: string | null;
+  created_by: string;
+  created_at: string;
+}
+
+export interface ReminderIn {
+  kind?: ReminderKind;
+  /** "2026-10-27T11:00" en hora local, o "2026-10-27" (a las 10). */
+  starts_at: string;
+  title?: string | null;
+  duration_min?: number | null;
+  person_id?: number | null;
+  location?: string | null;
+  notes?: string;
+}
+
 export interface Today {
+  agenda: Reminder[];
   follow_ups_due: FollowUpDue[];
   drafts: Message[];
   tasks: Activity[];

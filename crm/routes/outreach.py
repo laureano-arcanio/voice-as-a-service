@@ -24,12 +24,14 @@ from ..models import (
     InboundEmail,
     Lead,
     Message,
+    Reminder,
     Template,
 )
 from ..services import ga as GA
 from ..services import inbound as INB
 from ..services import leads as L
 from ..services import messages as M
+from ..services import reminders as R
 from ..services import sending
 from ..services.errors import Conflict, CrmError, Invalid
 from ..services.templates import check as check_template
@@ -414,7 +416,12 @@ def today(s: DB, _: Who):
     week = utcnow() - datetime.timedelta(days=7)
     replies = s.scalars(select(Message).where(Message.direction == "in", Message.sent_at >= week)
                         .order_by(Message.sent_at.desc())).all()
-    actions = s.scalars(select(Lead).where(Lead.next_action_at <= local_today(),
+    # Agenda: recordatorios y reuniones pendientes, vencidos y de los proximos 7 dias
+    week_end = R.parse_when((local_today() + datetime.timedelta(days=8)).isoformat() + "T00:00")
+    agenda = s.scalars(select(Reminder).where(Reminder.status == "pending", Reminder.starts_at < week_end)
+                       .order_by(Reminder.starts_at)).all()
+    with_reminder = select(Reminder.lead_id).where(Reminder.status == "pending")
+    actions = s.scalars(select(Lead).where(Lead.next_action_at <= local_today(), Lead.id.notin_(with_reminder),
                                            Lead.stage.notin_(CLOSED_STAGES)).order_by(Lead.next_action_at)).all()
     lead_sum = {x.id: x for x in summaries(s, [d["lead"] for d in due])}
     return {
@@ -428,6 +435,7 @@ def today(s: DB, _: Who):
         "tasks": [S.ActivityOut.model_validate(a) for a in tasks],
         "replies": [msg_out(m) for m in replies],
         "next_actions": summaries(s, actions),
+        "agenda": [S.ReminderOut.model_validate(r).model_copy(update={"lead_name": r.lead.name}) for r in agenda],
         "queue": sending.status(s),
         "reply_rates": [S.ReplyRate(**r) for r in M.reply_rates(s)],
         "inbox": [S.InboundEmailOut.model_validate(x) for x in s.scalars(

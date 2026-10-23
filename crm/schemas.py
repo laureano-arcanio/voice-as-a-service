@@ -409,6 +409,51 @@ class ActivityIn(BaseModel):
     data: dict = {}
 
 
+class ReminderIn(BaseModel):
+    kind: Literal["reminder", "meeting"] = "reminder"
+    starts_at: str = Field(description="'2026-10-27T11:00' (hora de Argentina si no trae zona) o '2026-10-27' "
+                                       "(a las CRM_REMINDER_HOUR, 10)")
+    title: str | None = Field(None, description="Si falta: 'Llamar a <persona> (<lead>)' o 'Reunión: <lead>'")
+    duration_min: int | None = Field(None, ge=5, le=480, description="Por defecto 15 (recordatorio) o 30 (reunión)")
+    person_id: int | None = None
+    location: str | None = Field(None, description="Link de Meet o Zoom, teléfono o dirección")
+    notes: str = ""
+
+
+class ReminderPatch(BaseModel):
+    starts_at: str | None = None
+    title: str | None = None
+    duration_min: int | None = Field(None, ge=5, le=480)
+    person_id: int | None = None
+    location: str | None = None
+    notes: str | None = None
+
+
+class ReminderDoneIn(BaseModel):
+    outcome: str = Field("", description="Qué pasó: queda en la línea de tiempo")
+    no_show: bool = Field(False, description="Reunión a la que no se presentó")
+
+
+class ReminderOut(Out):
+    id: int
+    lead_id: int
+    lead_name: str | None = None
+    person_id: int | None
+    kind: str
+    title: str
+    notes: str
+    location: str | None
+    starts_at: datetime.datetime
+    duration_min: int
+    status: str
+    outcome: str | None
+    done_at: datetime.datetime | None
+    gcal_state: str
+    gcal_error: str | None
+    created_by: str
+    created_at: datetime.datetime
+
+
 class ActivityOut(Out):
     id: int
     lead_id: int
@@ -456,7 +501,7 @@ class GaVisitOut(Out):
 # --- Timeline y Hoy ---
 
 class TimelineItem(BaseModel):
-    type: Literal["message", "activity", "visit"]
+    type: Literal["message", "activity", "visit", "reminder"]
     at: datetime.datetime
     data: dict
 

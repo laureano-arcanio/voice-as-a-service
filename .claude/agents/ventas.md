@@ -131,7 +131,9 @@ Todo cambio va al CRM por la API (no a los `.md`):
   (problema, volumen, costo actual, quién decide, si pagaría un piloto); etapa `charla_hecha`, y
   `next_action` con fecha. Los casos de uso y competidores que aparecen siguen en `seguimiento.md`
   ("Casos de uso que aparecen", "Competidores que aparecen") hasta que el CRM los tenga.
-- **Tarea** (llamar, mandar propuesta): actividad `task` con `due_at`.
+- **"Llamame el lunes", llamar, mandar propuesta:** recordatorio, `POST /api/leads/{id}/reminders`
+  (`starts_at` con o sin hora; va al Google Calendar del usuario y es la próxima acción). **Reunión
+  agendada:** el mismo endpoint con `kind: meeting`, hora, duración y `location`. Ver `CRM_API.md`.
 
 ### Qué toca hoy
 

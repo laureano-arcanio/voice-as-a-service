@@ -10,7 +10,7 @@ from .. import schemas as S
 from ..auth import UserOnly, Who
 from ..config import local_today
 from ..db import get_session, naive_utc
-from ..models import Activity, ContactPoint, GaVisit, Lead, Message, Person
+from ..models import Activity, ContactPoint, GaVisit, Lead, Message, Person, Reminder
 from ..services import leads as L
 from ..services import messages as M
 from ..services.errors import Conflict, NotFound
@@ -225,7 +225,7 @@ def add_source(lead_id: int, body: S.SourceIn, s: DB, _: Who):
 
 
 @router.get("/leads/{lead_id}/timeline", response_model=list[S.TimelineItem],
-            summary="Mails, actividad y visitas de GA, del mas nuevo al mas viejo")
+            summary="Mails, actividad, recordatorios y visitas de GA, del mas nuevo al mas viejo")
 def timeline(lead_id: int, s: DB, _: Who):
     get_lead(s, lead_id)
     items = []
@@ -235,6 +235,9 @@ def timeline(lead_id: int, s: DB, _: Who):
         items.append({"type": "message", "at": m.sent_at or m.queued_at or m.created_at, "data": d})
     for a in s.scalars(select(Activity).where(Activity.lead_id == lead_id)):
         items.append({"type": "activity", "at": a.at, "data": S.ActivityOut.model_validate(a).model_dump(mode="json")})
+    for r in s.scalars(select(Reminder).where(Reminder.lead_id == lead_id, Reminder.status != "canceled")):
+        items.append({"type": "reminder", "at": r.done_at or r.starts_at,
+                      "data": S.ReminderOut.model_validate(r).model_dump(mode="json")})
     for v in s.scalars(select(GaVisit).where(GaVisit.lead_id == lead_id)):
         items.append({"type": "visit", "at": datetime.datetime.combine(v.date, datetime.time(12)),
                       "data": S.GaVisitOut.model_validate(v).model_dump(mode="json")})

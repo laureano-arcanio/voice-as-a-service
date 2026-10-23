@@ -43,6 +43,14 @@ class Settings(BaseSettings):
     ga_property_id: str = ""
     ga_credentials: str = ""          # ruta al JSON de la cuenta de servicio
     ga_interval_seconds: int = 86400
+    # Recordatorios y reuniones en Google Calendar: el calendario se comparte con la cuenta de servicio
+    # ("Hacer cambios en los eventos"). Vacio: quedan solo en el CRM.
+    gcal_calendar_id: str = ""
+    gcal_credentials: str = ""        # vacio: la de GA
+    gcal_interval_seconds: int = 60   # reintento de lo que no se pudo subir
+    reminder_hour: int = 10           # recordatorio con solo fecha: a esta hora
+    reminders_from_replies: bool = True   # "llamame el lunes" en una respuesta: recordatorio solo
+
     # Pagina Sitio web: solo este pais (nombre en ingles, como lo da GA); el resto es casi todo robots.
     ga_country: str = "Argentina"
 

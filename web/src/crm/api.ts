@@ -19,6 +19,8 @@ import type {
   PersonIn,
   Preview,
   QueueStatus,
+  Reminder,
+  ReminderIn,
   SiteReport,
   Stats,
   Template,
@@ -276,6 +278,31 @@ export interface ActivityIn {
   due_at?: string | null;
   done?: boolean;
 }
+
+export function useReminders(leadId: number) {
+  return useQuery({
+    queryKey: ['crm', 'reminders', leadId],
+    queryFn: () => api<Reminder[]>('GET', '/reminders', undefined, { lead_id: leadId }),
+  });
+}
+
+export const useCreateReminder = () =>
+  useCrmMutation(({ leadId, ...b }: ReminderIn & { leadId: number }) =>
+    api<Reminder>('POST', `/leads/${leadId}/reminders`, b),
+  );
+
+export const usePatchReminder = () =>
+  useCrmMutation(({ id, ...b }: Partial<ReminderIn> & { id: number }) =>
+    api<Reminder>('PATCH', `/reminders/${id}`, b),
+  );
+
+export const useReminderDone = () =>
+  useCrmMutation(({ id, ...b }: { id: number; outcome: string; no_show: boolean }) =>
+    api<Reminder>('POST', `/reminders/${id}/done`, b),
+  );
+
+export const useCancelReminder = () =>
+  useCrmMutation((id: number) => api<Reminder>('POST', `/reminders/${id}/cancel`));
 
 export const useAddActivity = () =>
   useCrmMutation(({ leadId, ...b }: ActivityIn & { leadId: number }) =>

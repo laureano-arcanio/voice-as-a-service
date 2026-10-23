@@ -157,6 +157,15 @@ curl -s -X POST -H "Authorization: Bearer $K" -H "Content-Type: application/json
   -d '{"kind": "meeting", "text": "Charla con Pablo: usan Twilio, quieren probar voz", "at": "2026-10-22T15:00:00-03:00"}'
 curl -s -X POST ... "$U/leads/12/activities" -d '{"kind": "task", "text": "Llamar a Pablo", "due_at": "2026-10-24"}'
 
+# Recordatorio ("llamame el lunes") o reunión: va al Google Calendar y pasa a ser la próxima acción.
+# starts_at sin zona = hora de Argentina; solo fecha = a las 10. Reunión: etapa -> charla_agendada.
+curl -s -X POST ... "$U/leads/12/reminders" -d '{"starts_at": "2026-10-27", "person_id": 5}'
+curl -s -X POST ... "$U/leads/12/reminders" \
+  -d '{"kind": "meeting", "starts_at": "2026-10-27T11:00", "duration_min": 30, "location": "https://meet.google.com/..."}'
+curl -s -X PATCH ... "$U/reminders/7" -d '{"starts_at": "2026-10-28T10:00"}'          # reprogramar
+curl -s -X POST ... "$U/reminders/7/done" -d '{"outcome": "Atendió: quiere la propuesta"}'   # o no_show: true
+curl -s -X POST ... "$U/reminders/7/cancel"                                           # borra el evento
+
 # Etapa y próxima acción
 curl -s -X PATCH -H "Authorization: Bearer $K" -H "Content-Type: application/json" "$U/leads/12" \
   -d '{"stage": "charla_hecha", "next_action": "Mandar propuesta de piloto", "next_action_at": "2026-10-24"}'
@@ -173,6 +182,17 @@ actualiza el lead solo ([`CRM_PLAN.md`](CRM_PLAN.md), 6). El mensaje entrante tr
 (`status`: `ok`, `low_confidence` o `error`; `intencion`, `resumen`, `applied`, `matched_by`). Las que no se
 pudieron asociar: `GET /inbox` (también en `/today` → `inbox`); `POST /inbox/{id}/assign {"lead_id": 12}`
 la procesa como las automáticas y `POST /inbox/{id}/ignore` la descarta.
+
+### Recordatorios y reuniones
+
+Cada uno es un evento en el calendario "Atentina" de Google (`CRM_GCAL_CALENDAR_ID`, compartido con la
+cuenta de servicio de GA), con aviso a la hora (recordatorio) o 30 min antes (reunión), y la ficha del lead
+en la descripción. La próxima acción del lead sigue al pendiente más cercano. `gcal_state`: `ok`,
+`pending`, `error` (se reintenta cada minuto; `POST /reminders/sync` lo fuerza) u `off` (sin calendario).
+Hecha una reunión, la etapa pasa a `charla_hecha`; lo que pasó queda en la línea de tiempo. Las respuestas
+por mail con próxima acción y fecha ("llamame el lunes") crean el recordatorio solas (`created_by:
+sistema`; se apaga con `CRM_REMINDERS_FROM_REPLIES=false`). `GET /reminders` (por defecto los pendientes;
+`lead_id`, `until`) y `/today` → `agenda` (vencidos y próximos 7 días).
 
 ### 7. Números
 
@@ -213,5 +233,6 @@ rebotes" del Tablero; solo el usuario): el email va a la blocklist.
 | `POST /messages/import` | Cargar historial | **no** |
 | `GET /queue` · `GET /today` · `GET /stats` | Cola, pendientes del día, números | sí |
 | `GET/POST /blocklist` · `DELETE /blocklist/{id}` | Blocklist (borrar: solo el usuario) | sí / no |
+| `POST /leads/{id}/reminders` · `GET /reminders` · `PATCH /reminders/{id}` · `POST /reminders/{id}/done` · `POST /reminders/{id}/cancel` | Recordatorios y reuniones, con su evento en Google Calendar | sí |
 | `GET /ga/site?days=28` | Tráfico del sitio en GA, solo de Argentina: totales y período anterior, por día, canales, páginas, fuentes, ciudades, dispositivos (cache 10 min, `refresh=true`) | sí |
 | `GET /ga/visits` · `POST /ga/sync` · `POST /ga/visits` | Visitas de GA; sincronizar y cargar a mano: solo el usuario | sí / no |

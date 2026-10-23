@@ -277,7 +277,7 @@ def test_importar_historial_y_hoy(api):
     assert api.post("/api/messages/import", json={"lead_id": a["id"], "to_addr": "x@y.com", "subject": "s",
                                                   "sent_at": "2026-10-05T10:00:00Z"}, headers=AGENT).status_code == 403
     today = api.get("/api/today", headers=USER).json()
-    assert set(today) == {"follow_ups_due", "drafts", "tasks", "replies", "next_actions", "queue", "reply_rates",
+    assert set(today) == {"follow_ups_due", "drafts", "tasks", "replies", "next_actions", "queue", "reply_rates", "agenda",
                          "inbox"}
     assert settings.send_daily_max == today["queue"]["daily_max"]
 

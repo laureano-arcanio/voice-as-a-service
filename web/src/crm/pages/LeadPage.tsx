@@ -72,6 +72,7 @@ import {
 } from '../format';
 import { MessageStatusBadge, StageBadge } from '../components/Badges';
 import { MessageModal } from '../components/MessageModal';
+import { LeadAgenda, ReminderEntry } from '../components/Reminders';
 import { IntentBadge } from '../components/Analysis';
 import type {
   ContactKind,
@@ -904,6 +905,13 @@ function TimelineEntry({ item, onOpen }: { item: TimelineItem; onOpen: (m: Messa
       </div>
     );
   }
+  if (item.type === 'reminder') {
+    return (
+      <div className="crm-timeline-item" style={{ ['--dot' as string]: DOT.activity }}>
+        <ReminderEntry r={item.data} />
+      </div>
+    );
+  }
   if (item.type === 'visit') {
     const v = item.data;
     return (
@@ -1053,6 +1061,7 @@ export function LeadPage() {
             </Grid.Col>
             <Grid.Col span={{ base: 12, lg: 5 }}>
               <Stack gap="md">
+                <LeadAgenda lead={l} />
                 <StageCard key={`${l.stage}-${l.next_action}-${l.next_action_at}`} lead={l} />
                 <ContactsCard lead={l} />
                 <PeopleCard lead={l} />

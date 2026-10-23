@@ -215,6 +215,34 @@ class Activity(Base):
     created_by: Mapped[str] = mapped_column(String(20), default="usuario")
 
 
+class Reminder(Base):
+    """Recordatorio ("llamame el lunes") o reunion de un lead, con su evento en Google Calendar."""
+    __tablename__ = "reminders"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    lead_id: Mapped[int] = mapped_column(ForeignKey("leads.id", ondelete="CASCADE"), index=True)
+    person_id: Mapped[int | None] = mapped_column(ForeignKey("people.id", ondelete="SET NULL"))
+    kind: Mapped[str] = mapped_column(String(20), default="reminder")      # reminder, meeting
+    title: Mapped[str] = mapped_column(String(300))
+    notes: Mapped[str] = mapped_column(Text, default="")
+    location: Mapped[str | None] = mapped_column(String(500))
+    starts_at: Mapped[datetime.datetime] = mapped_column(DateTime, index=True)
+    duration_min: Mapped[int] = mapped_column(Integer, default=15)
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)  # pending, done, no_show, canceled
+    outcome: Mapped[str | None] = mapped_column(Text)
+    done_at: Mapped[datetime.datetime | None] = mapped_column(DateTime)
+    # pending: falta subir el cambio; ok; error (se reintenta); off (sin calendario configurado)
+    gcal_event_id: Mapped[str | None] = mapped_column(String(200))
+    gcal_state: Mapped[str] = mapped_column(String(10), default="pending", index=True)
+    gcal_error: Mapped[str | None] = mapped_column(String(500))
+    created_by: Mapped[str] = mapped_column(String(20), default="usuario")
+    created_at: Mapped[datetime.datetime] = _now_col()
+    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+    lead: Mapped[Lead] = relationship()
+    person: Mapped["Person | None"] = relationship()
+
+
 class GaVisit(Base):
     """Fila del reporte de GA por dia, fuente/medio, campana y contenido."""
     __tablename__ = "ga_visits"

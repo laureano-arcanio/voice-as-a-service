@@ -25,6 +25,7 @@ from ..db import get_sessionmaker, naive_utc, utcnow
 from ..models import Activity, ContactPoint, InboundEmail, Lead, Message
 from . import leads as L
 from . import messages as M
+from . import reminders as R
 from . import resend
 
 logger = logging.getLogger(__name__)
@@ -167,6 +168,14 @@ def _date(value: str) -> datetime.date | None:
         return None
 
 
+def _has_time(value: str) -> bool:
+    """'2026-10-27T11:00' si; '2026-10-27' o medianoche (el LLM la pone cuando no dicen hora), no."""
+    try:
+        return len(value) > 10 and datetime.datetime.fromisoformat(value).time() != datetime.time(0)
+    except ValueError:
+        return False
+
+
 def apply(s: Session, lead: Lead, a: dict, from_email: str) -> list[str]:
     """Lo que la intencion cambia en el lead, ademas de lo que ya hizo record_inbound. Devuelve que se hizo."""
     done = []
@@ -192,10 +201,16 @@ def apply(s: Session, lead: Lead, a: dict, from_email: str) -> list[str]:
         if name and a["contacto_cargo"]:
             L.add_person(s, lead, {"name": name, "title": a["contacto_cargo"]})
     if a["proxima_accion"] and intent not in ("no_interesa", "baja"):
-        lead.next_action = a["proxima_accion"][:500]
-        lead.next_action_at = when or (local_today() + datetime.timedelta(days=90) if intent == "mas_adelante"
-                                       else local_today())
-        done.append(f"próxima acción: {lead.next_action} ({lead.next_action_at.isoformat()})")
+        day = when or (local_today() + datetime.timedelta(days=90) if intent == "mas_adelante" else local_today())
+        if settings.reminders_from_replies:
+            # Con hora ("el martes a las 11") a esa hora; si no, a la de CRM_REMINDER_HOUR
+            at = a["fecha"] if when and _has_time(a["fecha"]) else day.isoformat()
+            r = R.create(s, lead, {"starts_at": at, "title": a["proxima_accion"],
+                                   "notes": f"De la respuesta: {a['resumen']}"}, "sistema")
+            done.append(f"recordatorio: {r.title} ({at.replace('T', ' ')[:16]})")
+        else:
+            lead.next_action, lead.next_action_at = a["proxima_accion"][:500], day
+            done.append(f"próxima acción: {lead.next_action} ({day.isoformat()})")
     return done
 
 

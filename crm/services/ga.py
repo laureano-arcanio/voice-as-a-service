@@ -32,20 +32,25 @@ def configured() -> bool:
     return bool(settings.ga_property_id and settings.ga_credentials)
 
 
-def _token() -> str:
+def service_token(credentials: str, scope: str) -> str:
+    """Token de la cuenta de servicio (JSON en `credentials`) para `scope`. Lo usa tambien gcal."""
     try:
-        with open(settings.ga_credentials) as fh:
+        with open(credentials) as fh:
             sa = json.load(fh)
     except OSError as e:
-        raise GaError(f"no se pudo leer CRM_GA_CREDENTIALS: {e}") from e
+        raise GaError(f"no se pudo leer las credenciales de la cuenta de servicio: {e}") from e
     now = int(time.time())
-    assertion = jwt.encode({"iss": sa["client_email"], "scope": SCOPE, "aud": TOKEN_URL, "iat": now,
+    assertion = jwt.encode({"iss": sa["client_email"], "scope": scope, "aud": TOKEN_URL, "iat": now,
                             "exp": now + 3600}, sa["private_key"], algorithm="RS256")
     r = httpx.post(TOKEN_URL, data={"grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
                                     "assertion": assertion}, timeout=20)
     if r.status_code >= 400:
         raise GaError(f"token: {r.status_code} {r.text[:300]}")
     return r.json()["access_token"]
+
+
+def _token() -> str:
+    return service_token(settings.ga_credentials, SCOPE)
 
 
 def run_report(start: datetime.date, end: datetime.date) -> list[dict]:

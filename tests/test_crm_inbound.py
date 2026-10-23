@@ -74,6 +74,9 @@ def test_respuesta_por_el_hilo_se_clasifica_y_avisa(api, db, env, sent, monkeypa
     a = get_lead(api, env)
     assert a["stage"] == "respondio" and a["next_action"] == "Confirmar la charla"
     assert a["next_action_at"] == "2026-10-27"
+    rem = api.get(f"/api/reminders?lead_id={a['id']}", headers=USER).json()
+    assert [(r["title"], r["starts_at"], r["created_by"]) for r in rem] == [
+        ("Confirmar la charla", "2026-10-27T14:00:00", "sistema")]             # 11:00 en Argentina
     msgs = api.get(f"/api/messages?lead_id={a['id']}", headers=USER).json()["items"]
     inbound = next(m for m in msgs if m["direction"] == "in")
     assert inbound["analysis"]["intencion"] == "agendar" and inbound["analysis"]["matched_by"] == "hilo"

@@ -206,6 +206,17 @@ Cupo: los recibidos cuentan en el plan de Resend igual que los enviados ([`EMAIL
   fuente/medio, ciudades y dispositivos. El filtro hace falta: en 28 días al 23-oct, 122 usuarios de
   Argentina de 469 en total (271 de EE.UU., casi todo robots).
 
+## 7b. Recordatorios y reuniones (Google Calendar)
+
+Desde el 23-oct-2026. Tabla `reminders` (migración 0006): recordatorio o reunión de un lead, con fecha y
+hora, persona, lugar, notas, estado (`pending`, `done`, `no_show`, `canceled`) y su evento en Google
+Calendar. El calendario "Atentina" del usuario está compartido con la cuenta de servicio de GA ("Hacer
+cambios en los eventos"); sin Google Workspace no puede invitar al lead, así que el evento es solo del
+usuario. Cada cambio se sube al guardar y, si Calendar falla, `gcal_loop` lo reintenta cada minuto: el
+recordatorio vale igual en el CRM. Una respuesta por mail con próxima acción y fecha crea el
+recordatorio sola. En la UI: tarjeta Agenda en la ficha (Recordatorio, Agendar reunión, Hecho,
+Reprogramar, Cancelar) y en el Tablero (vencidos, hoy y 7 días). Contrato en `CRM_API.md`.
+
 ## 8. UI
 
 Interna, solo claro, con los componentes de `web/src/components/` y la guía de la app.
