@@ -200,6 +200,11 @@ Cupo: los recibidos cuentan en el plan de Resend igual que los enviados ([`EMAIL
   campaña `<x>`, paso de seguimiento. Lo que no matchea va a `GET /api/ga/unmatched` (hoy: `(not set)`).
 - En la ficha: visitas por día y por mail (primer mail o seguimiento). En la lista: filtro
   "hizo clic y no respondió", que es la prioridad de seguimiento que hoy se arma a mano.
+- **Página Sitio web** (desde el 23-oct-2026, `GET /api/ga/site?days=`): tráfico de todo el sitio,
+  solo del país `CRM_GA_COUNTRY` (Argentina), en vivo con `batchRunReports` y 10 min de cache
+  (`refresh=true` la saltea). Totales contra el período anterior, por día, canales, páginas,
+  fuente/medio, ciudades y dispositivos. El filtro hace falta: en 28 días al 23-oct, 122 usuarios de
+  Argentina de 469 en total (271 de EE.UU., casi todo robots).
 
 ## 8. UI
 

@@ -297,6 +297,16 @@ def approve(body: S.IdsIn, s: DB, _: UserOnly):
     return [msg_out(m) for m in out]
 
 
+@router.post("/messages/cancel", response_model=list[S.MessageOut], tags=["mensajes"],
+             summary="Descartar borradores o sacar de la cola varios a la vez (todos o ninguno)")
+def cancel_many(body: S.IdsIn, s: DB, _: Who):
+    out = list(s.scalars(select(Message).where(Message.id.in_(body.ids))))
+    for m in out:
+        M.cancel(s, m)
+    s.commit()
+    return [msg_out(m) for m in out]
+
+
 @router.post("/messages/{mid}/cancel", response_model=S.MessageOut, tags=["mensajes"])
 def cancel(mid: int, s: DB, _: Who):
     m = one(s, Message, mid, f"mensaje {mid}")
@@ -383,6 +393,14 @@ def ga_visits(s: DB, _: Who, lead_id: int | None = None, unmatched: bool = False
     if unmatched:
         q = q.where(GaVisit.lead_id.is_(None))
     return s.scalars(q.order_by(GaVisit.date.desc()).limit(limit)).all()
+
+
+@router.get("/ga/site", tags=["ga"], summary="Trafico del sitio en GA, solo del pais CRM_GA_COUNTRY (cache 10 min)")
+def ga_site(_: Who, days: Annotated[int, Query(ge=1, le=365)] = 28, refresh: bool = False):
+    try:
+        return GA.site_report(days, refresh)
+    except GA.GaError as e:
+        raise CrmError(str(e)) from e
 
 
 # --- Hoy y tablero ---

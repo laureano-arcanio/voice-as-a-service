@@ -116,7 +116,8 @@ curl -s -X POST -H "Authorization: Bearer $K" -H "Content-Type: application/json
 
 Un borrador suelto (texto propio): `POST /messages` con `lead_id`, `campaign_id`, `kind`, y
 `template_id` o `subject` + `text`. Se edita con `PATCH /messages/{id}` mientras es borrador y se
-descarta con `POST /messages/{id}/cancel`.
+descarta con `POST /messages/{id}/cancel`, o varios con `POST /messages/cancel {"ids": [...]}` (todos o
+ninguno; en la UI, Leads → "Descartar borradores").
 
 ### 5. Seguimientos y secuencias
 
@@ -177,7 +178,8 @@ la procesa como las automáticas y `POST /inbox/{id}/ignore` la descarta.
 
 `GET /stats` (por etapa, contactados, con seguimiento, respondieron, rebotes, con clics, enviados en 7
 días), `GET /campaigns` (cada una con `stats`), `GET /queue` (cola: en espera, enviados hoy, tope,
-horario, próximo envío), `GET /ga/visits?unmatched=true` (visitas de GA sin lead).
+horario, próximo envío), `GET /ga/visits?unmatched=true` (visitas de GA sin lead), `GET /ga/site` (tráfico
+del sitio, solo de Argentina).
 
 ## Envío (lo hace el servidor)
 
@@ -206,9 +208,10 @@ rebotes" del Tablero; solo el usuario): el email va a la blocklist.
 | `POST /followups/drafts` | Borradores del seguimiento que le toca a cada lead | sí |
 | `POST /events/check` | Revisar ya entregas y rebotes en Resend (en segundo plano) | no |
 | `GET/POST /templates` · `PATCH /templates/{id}` · `POST /templates/{id}/preview` | Plantillas | sí |
-| `GET /messages` · `POST /messages` · `PATCH /messages/{id}` · `POST /messages/{id}/cancel` | Mensajes y borradores | sí |
+| `GET /messages` · `POST /messages` · `PATCH /messages/{id}` · `POST /messages/{id}/cancel` · `POST /messages/cancel` | Mensajes y borradores | sí |
 | `POST /messages/approve` | Aprobar borradores (a la cola) | **no** |
 | `POST /messages/import` | Cargar historial | **no** |
 | `GET /queue` · `GET /today` · `GET /stats` | Cola, pendientes del día, números | sí |
 | `GET/POST /blocklist` · `DELETE /blocklist/{id}` | Blocklist (borrar: solo el usuario) | sí / no |
+| `GET /ga/site?days=28` | Tráfico del sitio en GA, solo de Argentina: totales y período anterior, por día, canales, páginas, fuentes, ciudades, dispositivos (cache 10 min, `refresh=true`) | sí |
 | `GET /ga/visits` · `POST /ga/sync` · `POST /ga/visits` | Visitas de GA; sincronizar y cargar a mano: solo el usuario | sí / no |

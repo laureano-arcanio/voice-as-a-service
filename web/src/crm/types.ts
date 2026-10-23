@@ -375,3 +375,31 @@ export interface Stats {
   sent_by_day: { day: string; first: number; follow_up: number }[];
   by_campaign: { slug: string; reached: number; replied: number; clicked: number }[];
 }
+
+export interface SiteTotals {
+  users: number;
+  new_users: number;
+  sessions: number;
+  views: number;
+  engagement_rate: number;
+  avg_session_seconds: number;
+}
+
+/** GET /ga/site: tráfico del sitio en GA, solo del país `country`. */
+export interface SiteReport {
+  country: string;
+  days: number;
+  start: string;
+  end: string;
+  updated_at: string;
+  totals: SiteTotals;
+  previous: SiteTotals;
+  /** Usuarios de todos los países, para ver cuánto se filtró. */
+  all_users: number;
+  by_day: { day: string; users: number; sessions: number; views: number }[];
+  channels: { channel: string; sessions: number; users: number }[];
+  pages: { path: string; views: number; users: number }[];
+  cities: { city: string; users: number }[];
+  sources: { source_medium: string; sessions: number; users: number }[];
+  devices: { device: string; users: number }[];
+}

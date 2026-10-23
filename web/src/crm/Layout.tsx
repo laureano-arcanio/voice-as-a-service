@@ -19,6 +19,7 @@ import {
   IconSpeakerphone,
   IconTemplate,
   IconUsers,
+  IconWorld,
 } from '@tabler/icons-react';
 import { Link, Outlet, useLocation } from 'react-router';
 import { setApiKey, useQueue } from './api';
@@ -29,6 +30,7 @@ const NAV = [
   { to: '/campanas', label: 'Campañas', icon: IconSpeakerphone },
   { to: '/plantillas', label: 'Plantillas', icon: IconTemplate },
   { to: '/mensajes', label: 'Mensajes', icon: IconMail },
+  { to: '/sitio', label: 'Sitio web', icon: IconWorld },
 ];
 
 function isActive(pathname: string, to: string): boolean {

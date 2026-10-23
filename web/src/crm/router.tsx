@@ -6,6 +6,7 @@ import { CampaignsPage } from './pages/CampaignsPage';
 import { LeadPage } from './pages/LeadPage';
 import { LeadsPage } from './pages/LeadsPage';
 import { MessagesPage } from './pages/MessagesPage';
+import { SitePage } from './pages/SitePage';
 import { StatsPage } from './pages/StatsPage';
 import { TemplatesPage } from './pages/TemplatesPage';
 
@@ -22,6 +23,7 @@ export const crmRouter = createHashRouter([
       { path: '/campanas/:id', element: <CampaignPage /> },
       { path: '/plantillas', element: <TemplatesPage /> },
       { path: '/mensajes', element: <MessagesPage /> },
+      { path: '/sitio', element: <SitePage /> },
       { path: '/tablero', element: <Navigate to="/" replace /> },
       { path: '*', element: <NotFound /> },
     ],

@@ -16,6 +16,7 @@ from crm import models
 from crm.config import settings
 from crm.db import Base, get_session
 from crm.main import create_app
+from crm.services import ga as GA
 from crm.services import messages as M
 from crm.services import resend, sending
 
@@ -200,6 +201,67 @@ def test_ga_cruza_por_utm(api):
     assert api.get("/api/leads?has_clicks=true", headers=USER).json()["total"] == 1
     v = api.get(f"/api/ga/visits?lead_id={a['id']}", headers=USER).json()
     assert sorted(x["follow_up"] for x in v) == [False, True] and all(x["campaign_id"] for x in v)
+
+
+def test_descartar_borradores_en_lote(api, db, sent):
+    a = lead(api)
+    c, t, fu = campaign_and_template(api)
+    d = api.post(f"/api/campaigns/{c['id']}/drafts", json={"lead_ids": [a["id"]], "template_id": t["id"]},
+                 headers=USER).json()["created"][0]
+    api.post("/api/messages/approve", json={"ids": [d["id"]]}, headers=USER)
+    _send_queued(db, 1e10, datetime.datetime(2026, 10, 1, 12), "<orig@ses>")  # noqa: DTZ001
+    f = api.post("/api/followups/drafts", json={"lead_ids": [a["id"]], "template_id": fu["id"]},
+                 headers=USER).json()["created"][0]
+    # Uno ya enviado: no se descarta ninguno
+    assert api.post("/api/messages/cancel", json={"ids": [f["id"], d["id"]]}, headers=USER).status_code == 409
+    r = api.post("/api/messages/cancel", json={"ids": [f["id"]]}, headers=USER)
+    assert [m["status"] for m in r.json()] == ["canceled"]
+    # Vuelve a tocarle el seguimiento, para armarlo con otra plantilla
+    assert api.get("/api/leads?pending=follow_up", headers=USER).json()["total"] == 1
+
+
+def test_ga_sitio_solo_argentina(api, monkeypatch):
+    calls = []
+
+    class R:
+        status_code = 200
+
+        def __init__(self, reports):
+            self.reports = reports
+
+        def json(self):
+            return {"reports": [{"rows": [{"dimensionValues": [{"value": v} for v in d],
+                                           "metricValues": [{"value": str(v)} for v in m]} for d, m in rows]}
+                                for rows in self.reports]}
+
+    def post(url, json, headers, timeout):
+        calls.append(json["requests"])
+        if len(json["requests"]) == 5:
+            return R([[(["actual"], [10, 8, 12, 30, 0.5, 90.5]), (["anterior"], [5, 5, 6, 10, 0.4, 60])],
+                      [(["20261022"], [4, 5, 9])], [(["Email"], [7, 6])], [(["/"], [20, 9])], [(["Cordoba"], [3])]])
+        return R([[(["email / (not set)"], [7, 6])], [(["desktop"], [7])], [([], [40])]])
+
+    monkeypatch.setattr(settings, "ga_property_id", "1")
+    monkeypatch.setattr(settings, "ga_credentials", "x.json")
+    monkeypatch.setattr(GA, "_token", lambda: "t")
+    monkeypatch.setattr(GA.httpx, "post", post)
+    monkeypatch.setattr(GA, "local_today", lambda: datetime.date(2026, 10, 23))
+    GA._site_cache.clear()
+    r = api.get("/api/ga/site?days=7", headers=USER).json()
+    assert r["totals"]["users"] == 10 and r["previous"]["views"] == 10 and r["all_users"] == 40
+    assert r["start"] == "2026-10-17" and len(r["by_day"]) == 7
+    assert r["by_day"][5] == {"day": "2026-10-22", "users": 4, "sessions": 5, "views": 9}
+    assert r["channels"] == [{"channel": "Email", "sessions": 7, "users": 6}]
+    # Todo filtrado por pais salvo el total de todos los paises, y con el periodo anterior de igual largo
+    flt = [q.get("dimensionFilter") for b in calls for q in b]
+    assert flt.count({"filter": {"fieldName": "country", "stringFilter": {"value": "Argentina"}}}) == 7
+    assert flt[-1] is None
+    assert calls[0][0]["dateRanges"][1] == {"startDate": "2026-10-10", "endDate": "2026-10-16", "name": "anterior"}
+    # Cache: el segundo pedido no consulta GA; refresh si
+    api.get("/api/ga/site?days=7", headers=USER)
+    assert len(calls) == 2
+    api.get("/api/ga/site?days=7&refresh=true", headers=USER)
+    assert len(calls) == 4
 
 
 def test_importar_historial_y_hoy(api):

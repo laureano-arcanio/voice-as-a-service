@@ -19,6 +19,7 @@ import type {
   PersonIn,
   Preview,
   QueueStatus,
+  SiteReport,
   Stats,
   Template,
   TemplateIn,
@@ -172,6 +173,23 @@ export function useQueue() {
 
 export function useStats() {
   return useQuery({ queryKey: ['crm', 'stats'], queryFn: () => api<Stats>('GET', '/stats') });
+}
+
+export function useSite(days: number) {
+  return useQuery({
+    queryKey: ['crm', 'site', days],
+    queryFn: () => api<SiteReport>('GET', '/ga/site', undefined, { days }),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** Vuelve a consultar GA salteando la cache de 10 minutos del servicio. */
+export function useRefreshSite(days: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api<SiteReport>('GET', '/ga/site', undefined, { days, refresh: true }),
+    onSuccess: (data) => qc.setQueryData(['crm', 'site', days], data),
+  });
 }
 
 export function useCampaigns() {
@@ -366,6 +384,9 @@ export const useIgnoreInbound = () => useCrmMutation((id: number) => api('POST',
 
 export const useApprove = () =>
   useCrmMutation((ids: number[]) => api<Message[]>('POST', '/messages/approve', { ids }));
+
+export const useCancelMessages = () =>
+  useCrmMutation((ids: number[]) => api<Message[]>('POST', '/messages/cancel', { ids }));
 
 export const useCancelMessage = () =>
   useCrmMutation((id: number) => api<Message>('POST', `/messages/${id}/cancel`));

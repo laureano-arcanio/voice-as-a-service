@@ -43,6 +43,8 @@ class Settings(BaseSettings):
     ga_property_id: str = ""
     ga_credentials: str = ""          # ruta al JSON de la cuenta de servicio
     ga_interval_seconds: int = 86400
+    # Pagina Sitio web: solo este pais (nombre en ingles, como lo da GA); el resto es casi todo robots.
+    ga_country: str = "Argentina"
 
     # Respuestas (docs/CRM_PLAN.md, 6): Resend Receiving en un subdominio, leido cada tanto (sin webhook).
     # Apagado hasta que el subdominio y el reenvio de la casilla esten andando.

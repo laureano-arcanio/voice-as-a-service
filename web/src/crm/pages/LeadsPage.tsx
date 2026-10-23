@@ -8,6 +8,7 @@ import {
   Modal,
   MultiSelect,
   Pagination,
+  Popover,
   Select,
   Stack,
   Table,
@@ -24,7 +25,16 @@ import { Dash } from '@/components/Badges';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState, QueryState } from '@/components/QueryState';
 import { notifyError, notifySuccess } from '@/lib/notify';
-import { LEADS_PAGE, api, useApprove, useCampaigns, useLeads, useMessages, useUpsertLead } from '../api';
+import {
+  LEADS_PAGE,
+  api,
+  useApprove,
+  useCampaigns,
+  useCancelMessages,
+  useLeads,
+  useMessages,
+  useUpsertLead,
+} from '../api';
 import { LEAD_KIND_OPTIONS, STAGE_OPTIONS, fmtAgo, fmtDate } from '../format';
 import { BulkDraftsModal } from '../components/BulkDraftsModal';
 import { StageBadge } from '../components/Badges';
@@ -216,6 +226,8 @@ export function LeadsPage() {
   const [preview, setPreview] = useState<Message | null>(null);
   const campaigns = useCampaigns();
   const approve = useApprove();
+  const discard = useCancelMessages();
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   // Los borradores, para verlos antes de aprobar (son pocos: los que esperan aprobacion)
   const drafts = useMessages({ status: 'draft', limit: 500 });
   const draftById = new Map((drafts.data?.items ?? []).map((m) => [m.id, m]));
@@ -273,6 +285,16 @@ export function LeadsPage() {
         setSelected(new Map());
       },
       onError: (e) => notifyError(e, 'No se pudo aprobar'),
+    });
+
+  const discardDrafts = () =>
+    discard.mutate(draftIds, {
+      onSuccess: (r) => {
+        notifySuccess(`${r.length} borradores descartados.`);
+        setConfirmDiscard(false);
+        setSelected(new Map());
+      },
+      onError: (e) => notifyError(e, 'No se pudieron descartar'),
     });
 
   return (
@@ -376,6 +398,35 @@ export function LeadsPage() {
           >
             Aprobar borradores ({draftIds.length})
           </Button>
+          <Popover opened={confirmDiscard} onChange={setConfirmDiscard} withArrow shadow="md">
+            <Popover.Target>
+              <Button
+                size="compact-sm"
+                variant="default"
+                color="red"
+                disabled={draftIds.length === 0}
+                onClick={() => setConfirmDiscard((o) => !o)}
+              >
+                Descartar borradores ({draftIds.length})
+              </Button>
+            </Popover.Target>
+            <Popover.Dropdown>
+              <Stack gap="xs" maw={260}>
+                <Text size="sm">
+                  Se descartan {draftIds.length} borradores. Si le toca seguimiento, el lead vuelve a aparecer
+                  para armarlo de nuevo.
+                </Text>
+                <Group justify="flex-end" gap="xs">
+                  <Button size="compact-sm" variant="default" onClick={() => setConfirmDiscard(false)}>
+                    Volver
+                  </Button>
+                  <Button size="compact-sm" color="red" loading={discard.isPending} onClick={discardDrafts}>
+                    Descartar
+                  </Button>
+                </Group>
+              </Stack>
+            </Popover.Dropdown>
+          </Popover>
           <Button
             size="compact-sm"
             variant="default"

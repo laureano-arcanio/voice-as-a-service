@@ -116,6 +116,89 @@ def rematch(s: Session) -> int:
     return store(s, rows)["matched"]
 
 
+# --- Reporte del sitio (pagina Sitio web del CRM) ---
+# Solo el pais de CRM_GA_COUNTRY: el resto es casi todo robots (28 dias al 23-oct-2026: 271 usuarios
+# de EE.UU. contra 122 de Argentina). Se consulta en vivo y se guarda SITE_TTL segundos.
+SITE_TTL = 600
+_site_cache: dict[tuple[int, datetime.date], tuple[float, dict]] = {}
+
+
+def _req(start: datetime.date, end: datetime.date, dims: list[str], mets: list[str], limit: int = 0,
+         country: bool = True, compare: datetime.date | None = None) -> dict:
+    ranges = [{"startDate": start.isoformat(), "endDate": end.isoformat(), "name": "actual"}]
+    if compare:
+        ranges.append({"startDate": (compare - (end - start)).isoformat(), "endDate": compare.isoformat(),
+                       "name": "anterior"})
+    r = {"dateRanges": ranges, "dimensions": [{"name": d} for d in dims],
+         "metrics": [{"name": m} for m in mets]}
+    if country:
+        r["dimensionFilter"] = {"filter": {"fieldName": "country", "stringFilter": {"value": settings.ga_country}}}
+    if limit:
+        r |= {"limit": limit, "orderBys": [{"metric": {"metricName": mets[0]}, "desc": True}]}
+    return r
+
+
+def _batch(token: str, requests: list[dict]) -> list[list[tuple[list[str], list[float]]]]:
+    url = f"https://analyticsdata.googleapis.com/v1beta/properties/{settings.ga_property_id}:batchRunReports"
+    r = httpx.post(url, json={"requests": requests}, headers={"Authorization": f"Bearer {token}"}, timeout=60)
+    if r.status_code >= 400:
+        raise GaError(f"batchRunReports: {r.status_code} {r.text[:300]}")
+    return [[([x["value"] for x in row.get("dimensionValues", [])], [float(x["value"]) for x in row["metricValues"]])
+             for row in rep.get("rows", [])] for rep in r.json()["reports"]]
+
+
+TOTALS = ("activeUsers", "newUsers", "sessions", "screenPageViews", "engagementRate", "averageSessionDuration")
+TOTAL_KEYS = ("users", "new_users", "sessions", "views", "engagement_rate", "avg_session_seconds")
+
+
+def site_report(days: int, refresh: bool = False) -> dict:
+    if not configured():
+        raise GaError("faltan CRM_GA_PROPERTY_ID y CRM_GA_CREDENTIALS")
+    end = local_today()
+    key = (days, end)
+    hit = _site_cache.get(key)
+    if hit and not refresh and time.monotonic() - hit[0] < SITE_TTL:
+        return hit[1]
+    start = end - datetime.timedelta(days=days - 1)
+    token = _token()
+    totals, by_day, channels, pages, cities = _batch(token, [
+        _req(start, end, [], list(TOTALS), compare=start - datetime.timedelta(days=1)),
+        _req(start, end, ["date"], ["activeUsers", "sessions", "screenPageViews"]),
+        _req(start, end, ["sessionDefaultChannelGroup"], ["sessions", "activeUsers"], limit=20),
+        _req(start, end, ["pagePath"], ["screenPageViews", "activeUsers"], limit=20),
+        _req(start, end, ["city"], ["activeUsers"], limit=10),
+    ])
+    sources, devices, everyone = _batch(token, [
+        _req(start, end, ["sessionSourceMedium"], ["sessions", "activeUsers"], limit=10),
+        _req(start, end, ["deviceCategory"], ["activeUsers"], limit=10),
+        _req(start, end, [], ["activeUsers"], country=False),
+    ])
+
+    def tot(name: str) -> dict:
+        # Con dos rangos GA agrega la dimension dateRange; sin filas (sin visitas), todo en 0.
+        m = next((m for d, m in totals if d and d[-1] == name), [0.0] * len(TOTALS))
+        return {k: (round(v, 4) if k in ("engagement_rate", "avg_session_seconds") else int(v))
+                for k, v in zip(TOTAL_KEYS, m, strict=True)}
+
+    daily = {d[0]: m for d, m in by_day}
+    out = {
+        "country": settings.ga_country, "days": days, "start": start.isoformat(), "end": end.isoformat(),
+        "updated_at": utcnow().isoformat(),
+        "totals": tot("actual"), "previous": tot("anterior"),
+        "all_users": int(everyone[0][1][0]) if everyone else 0,
+        "by_day": [{"day": d.isoformat(), "users": int(m[0]), "sessions": int(m[1]), "views": int(m[2])}
+                   for d in (start + datetime.timedelta(days=i) for i in range(days))
+                   for m in [daily.get(d.strftime("%Y%m%d"), [0, 0, 0])]],
+        "channels": [{"channel": d[0], "sessions": int(m[0]), "users": int(m[1])} for d, m in channels],
+        "pages": [{"path": d[0], "views": int(m[0]), "users": int(m[1])} for d, m in pages],
+        "cities": [{"city": d[0], "users": int(m[0])} for d, m in cities],
+        "sources": [{"source_medium": d[0], "sessions": int(m[0]), "users": int(m[1])} for d, m in sources],
+        "devices": [{"device": d[0], "users": int(m[0])} for d, m in devices],
+    }
+    _site_cache[key] = (time.monotonic(), out)
+    return out
+
+
 async def ga_loop() -> None:
     if not configured():
         logger.info("crm: GA sin configurar (CRM_GA_PROPERTY_ID, CRM_GA_CREDENTIALS)")

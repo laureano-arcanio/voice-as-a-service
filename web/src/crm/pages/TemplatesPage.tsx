@@ -284,8 +284,9 @@ export function TemplatesPage() {
             </Card>
           ) : (
             <Stack gap="md">
-              <Editor key={selected} template={current} onSaved={(t) => setSelected(t.id)} />
-              {current && <PreviewBox key={current.id} template={current} />}
+              {/* Keys distintas: con el mismo id, React no desmontaba el editor anterior y se apilaban. */}
+              <Editor key={`editor-${selected}`} template={current} onSaved={(t) => setSelected(t.id)} />
+              {current && <PreviewBox key={`preview-${current.id}`} template={current} />}
             </Stack>
           )}
         </Grid.Col>
