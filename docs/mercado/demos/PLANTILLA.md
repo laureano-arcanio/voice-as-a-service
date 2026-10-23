@@ -16,8 +16,9 @@ Lo que ya sé: <rubro, ciudad, lo que contó, links, redes>.
 ```
 
 Salida: `docs/mercado/demos/<slug>.md` (slug corto, sin guiones si es una palabra: `isaiasgoldman`, `baicenter`), copias
-crudas en `scratch/prospectos/<slug>/raw/` y el resumen al usuario. Después, si se pide, el PDF (agente `documentos`) y
-el video (agente `videos`) salen de esta base.
+crudas en `scratch/prospectos/<slug>/raw/` y el resumen al usuario. Para la base, el PDF y el video de una vez
+("investigá <empresa> y armá el video y el documento"), el skill
+[`propuesta-prospecto`](../../../.claude/skills/propuesta-prospecto/SKILL.md) encadena `ventas`, `documentos` y `videos`.
 
 ## Qué buscar (todo lo que se encuentre)
 

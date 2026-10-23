@@ -156,6 +156,9 @@ empresa, competencia), reglas y la estructura del documento `docs/mercado/demos/
   y cerrala al terminar. Sin sesión iniciada en redes salvo que el usuario lo pida.
 - Copias crudas en `scratch/prospectos/<slug>/raw/`. Reseñas citadas sin el nombre del autor.
 - Si es un trabajo largo, priorizá: sitio y contacto, reseñas, persona, competencia; después redes y videos.
+- Si el pedido incluye también el PDF y el video, vos hacés solo la base: el PDF y el video los coordina la sesión
+  principal con el skill [`propuesta-prospecto`](../skills/propuesta-prospecto/SKILL.md) (agentes `documentos` y
+  `videos`). Dejá en las partes 0, 5 y 7 las cifras con fuente y el caso de uso que van a usar.
 
 ### Preparar una charla o una propuesta
 
