@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Atentina · Propuesta técnica para CIMEPA S.A.</title>
+<link rel="stylesheet" href="../../../../plantilla/base.css">
+<style>
+  /* Ajustes locales de este documento (no tocan base.css) */
+  .asks { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3mm; margin: 2mm 0 4.5mm; }
+  .ask { border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 3mm; padding: 2.8mm 4mm; background: #fff; }
+  .ask .k { font-family: "Plex Mono"; font-size: 6.9pt; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 1mm; }
+  .ask q { display: block; font-style: italic; font-size: 9.2pt; color: var(--ink); quotes: "“" "”"; margin-bottom: 1.6mm; }
+  .ask .to { font-size: 8.8pt; color: var(--ink2); padding-top: 1.6mm; border-top: 1px solid var(--line); }
+  .ask .to strong { color: var(--accent2); }
+  .src-line { font-size: 7.8pt; color: var(--muted); }
+  .stats.c .stat b { font-size: 15pt; }
+
+  table.map { width: 100%; border-collapse: collapse; font-size: 8.7pt; margin: 1.5mm 0 0; }
+  table.map th { font-family: "Plex Mono"; font-weight: 500; font-size: 7pt; letter-spacing: .06em; text-transform: uppercase; text-align: left; padding: 0 3mm 1.6mm 0; color: var(--muted); }
+  table.map th:last-child { color: var(--accent); }
+  table.map td { padding: 1.45mm 3mm 1.45mm 0; border-top: 1px solid var(--line); vertical-align: top; }
+  table.map td:first-child { width: 34%; color: var(--ink); }
+  table.map td:last-child { color: var(--ink2); }
+  table.map tr.grp td { font-family: "Plex Mono"; font-size: 6.9pt; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); padding-top: 2.4mm; border-top: 1px solid var(--line2); }
+
+  .flows { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3mm; margin: 3.5mm 0 0; }
+  .flows .card { padding: 3mm 3.8mm; margin: 0; }
+  .flows .card .num { width: 6.5mm; height: 6.5mm; font-size: 9pt; margin-bottom: 1.4mm; }
+  .flows .card h3 { font-size: 10.4pt; }
+  .flows .card p { font-size: 8.7pt; margin: 0; }
+
+  .vias { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; margin: 2.5mm 0 3mm; }
+  .vias .card { padding: 3.2mm 3.8mm; margin: 0; display: flex; flex-direction: column; }
+  .vias .card h3 { font-size: 10.6pt; }
+  .vias .card p { font-size: 8.7pt; margin: 0 0 1.4mm; }
+  .vias .card .ej { margin-top: auto; }
+  .code { font-family: "Plex Mono"; font-size: 7.6pt; line-height: 1.5; color: var(--ink); background: var(--bg2); border: 1px solid var(--line); border-radius: 2.5mm; padding: 2.4mm 3.2mm; white-space: pre; margin: 1.5mm 0 0; }
+  .code .c { color: var(--muted); }
+  .code .a { color: var(--accent2); }
+  .gets { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; margin: 1mm 0 3mm; }
+  .gets h3 { font-size: 10.4pt; margin-bottom: 1.4mm; }
+  .gets li { font-size: 8.8pt; margin-bottom: 1.1mm; }
+
+  .steps.five { grid-template-columns: repeat(4, 1fr); margin-bottom: 3.5mm; }
+  .steps.five .step { padding: 2.8mm 3.2mm; font-size: 8.5pt; }
+  .steps.five .step::before { font-size: 13pt; margin-bottom: 1mm; }
+  .ops.tight li { font-size: 8.7pt; margin-bottom: .7mm; }
+  .phases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; margin: 2mm 0 3.5mm; }
+  .phase { border-left: 2px solid var(--accent); padding: .5mm 0 .5mm 3mm; font-size: 8.5pt; }
+  .phase b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 10pt; color: var(--ink); margin-bottom: .6mm; }
+  ol.qs { margin: 1mm 0 3.5mm; padding-left: 5mm; font-size: 8.8pt; columns: 2; column-gap: 7mm; }
+  ol.qs li { padding-left: 1mm; margin-bottom: 1.1mm; break-inside: avoid; }
+  ol.qs li::before { display: none; }
+</style>
+</head>
+<body>
+
+<!-- ========== HOJA 1: la promesa y lo que nos pidieron ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA TÉCNICA · CIMEPA S.A.<br>22 DE OCTUBRE DE 2026</div>
+  </header>
+
+  <div class="hero">
+    <div class="eyebrow">Telefonía con IA para un equipo remoto</div>
+    <h1>Un número de la empresa para su equipo y su IA, <span class="accent">todo grabado y transcripto.</span></h1>
+    <p class="lead">
+      Pablo: gracias por escribirnos. Acá va, por escrito y punto por punto, cómo resolvemos lo que nos pidieron:
+      <strong>números argentinos de la empresa</strong> desde los que llaman sus empleados y su asistente de IA,
+      <strong>transferencias entre la IA y las personas</strong>, y <strong>cada llamada grabada y transcripta,
+      disponible por API</strong>. Sin instalar nada y sin teléfonos de la empresa.
+    </p>
+  </div>
+
+  <div class="stats c" style="margin:1mm 0 5mm">
+    <div class="stat"><b>3 o más</b><span>números argentinos de la empresa, para entrantes y salientes</span></div>
+    <div class="stat"><b>3 o más</b><span>llamadas simultáneas, y se escala con el volumen</span></div>
+    <div class="stat"><b>Nada</b><span>que instalar: sus empleados llaman desde el navegador, en la compu o el celular</span></div>
+    <div class="stat"><b>Todas</b><span>las llamadas grabadas y transcriptas, también los tramos con personas</span></div>
+  </div>
+
+  <h2>Lo que nos pidieron, en sus palabras</h2>
+  <div class="asks">
+    <div class="ask">
+      <div class="k">1 · Su equipo</div>
+      <q>Que una persona haga y reciba llamadas desde su computadora o celular</q>
+      <div class="to"><strong>Cómo:</strong> llaman desde una app web con la agenda de contactos, con el número de la
+        empresa. Las llamadas que les deriva la IA les suenan en su propio celular.</div>
+    </div>
+    <div class="ask">
+      <div class="k">2 · Su asistente de IA</div>
+      <q>Conectar un asistente propio que gestione la conversación de voz en tiempo real</q>
+      <div class="to"><strong>Cómo:</strong> atiende las entrantes y hace salientes de seguimiento por API. La vía para
+        conectar el suyo la elegimos juntos en una charla técnica.</div>
+    </div>
+    <div class="ask">
+      <div class="k">3 · Transferencias</div>
+      <q>¿Permiten transferir llamadas tanto de IA a persona como de persona a IA?</q>
+      <div class="to"><strong>Sí, en los dos sentidos:</strong> la IA deriva al empleado con un resumen, y el empleado
+        puede devolverle la llamada a la IA con el contexto.</div>
+    </div>
+    <div class="ask">
+      <div class="k">4 · Registro</div>
+      <q>Que las conversaciones queden grabadas</q>
+      <div class="to"><strong>Cómo:</strong> toda la llamada, hable la IA o una persona, en un solo historial: audio,
+        transcripción y resultado, en el panel y por API.</div>
+    </div>
+  </div>
+
+  <h2>Por qué Atentina</h2>
+  <div class="two">
+    <ul>
+      <li><strong>Números y llamadas locales</strong>: numeración argentina, terminación local y factura en pesos.</li>
+      <li><strong>Un solo lugar para personas e IA</strong>: el mismo número, el mismo historial y la misma API.</li>
+    </ul>
+    <ul>
+      <li><strong>Inferencia propia en Argentina</strong>: la IA que escucha, piensa y habla corre en nuestros
+        servidores; los audios y las transcripciones no pasan por proveedores externos.</li>
+      <li><strong>Abierto a su agente</strong>: el suyo, el nuestro o una combinación.</li>
+    </ul>
+  </div>
+
+  <p class="src-line" style="margin-top:3mm">WhatsApp, que nos dijeron que viene más adelante, se suma sobre el mismo agente y el mismo historial (hoja 5).</p>
+
+  <div class="pagefoot"><span>Atentina · Propuesta técnica para CIMEPA S.A.</span><span>1 / 5</span></div>
+</section>
+
+<!-- ========== HOJA 2: requisito → solución ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA TÉCNICA · CIMEPA S.A.<br>22 DE OCTUBRE DE 2026</div>
+  </header>
+
+  <div class="hero" style="margin-bottom:2.5mm">
+    <div class="eyebrow">Sus preguntas, una por una</div>
+    <h2 style="font-size:17pt">Lo que nos pidieron <span class="accent">y cómo lo resolvemos.</span></h2>
+  </div>
+
+  <table class="map">
+    <tr><th>Pedido o pregunta</th><th>Cómo lo resolvemos</th></tr>
+
+    <tr class="grp"><td colspan="2">Números y llamadas</td></tr>
+    <tr><td><strong>Número argentino</strong></td><td>3 números argentinos o más para la empresa, para entrantes y salientes. Las salientes, de personas o de la IA, muestran el número de la empresa.</td></tr>
+    <tr><td><strong>Conservar una línea que ya tienen</strong></td><td>Lo revisamos caso por caso en la charla técnica: hoy no lo podemos asegurar.</td></tr>
+    <tr><td><strong>Llamadas simultáneas</strong></td><td>3 o más desde el inicio, y se amplían según el volumen.</td></tr>
+
+    <tr class="grp"><td colspan="2">Personas</td></tr>
+    <tr><td><strong>Empleados remotos sin teléfono</strong> que llaman</td><td>Una app web (compu o celular, sin instalar nada) con la agenda de contactos. Hacen click en llamar, la plataforma lanza la llamada y sale con el número de la empresa.</td></tr>
+    <tr><td><strong>Recibir llamadas</strong></td><td>Las entrantes las atiende la IA y, si hace falta una persona, se las pasa a su celular real, con un resumen. Si no atiende nadie, la IA vuelve a la llamada y toma el mensaje.</td></tr>
+    <tr><td><strong>Transferir de IA a persona</strong></td><td>La IA suma al empleado indicado a la llamada, le cuenta en una frase quién es y qué necesita, y se retira.</td></tr>
+    <tr><td><strong>Transferir de persona a IA</strong></td><td>El empleado devuelve la llamada a la IA, que sigue con todo lo hablado hasta ahí.</td></tr>
+
+    <tr class="grp"><td colspan="2">Su asistente de IA</td></tr>
+    <tr><td><strong>Un asistente propio</strong>, no solo contexto</td><td>Tres vías a evaluar juntos: unirse a la llamada en tiempo real, por SIP, o nuestro agente con sus reglas, sus herramientas y su modelo (hoja 4).</td></tr>
+    <tr><td><strong>Salientes de seguimiento</strong></td><td>Por API, una a una o en campañas programadas (horario, reintentos, en paralelo), con el contexto y las instrucciones que define su sistema.</td></tr>
+    <tr><td><strong>Cómo se integra el contexto</strong></td><td>Al pedir la llamada: el contacto de la agenda (cargada por API desde su CRM) y el motivo en texto libre. En la llamada, por herramientas que consultan su sistema.</td></tr>
+    <tr><td><strong>Cómo se reciben los resultados</strong></td><td>Por API (resultado, resumen, datos capturados, transcripción y audio) y por webhook firmado al terminar cada contacto de una campaña.</td></tr>
+
+    <tr class="grp"><td colspan="2">Grabación y datos</td></tr>
+    <tr><td><strong>Grabación y transcripción</strong></td><td>De toda la llamada, también los tramos con personas, en el panel y por API.</td></tr>
+    <tr><td><strong>Dónde se procesan y guardan</strong></td><td>En servidores propios en Argentina, con inferencia propia (reconocimiento de voz, modelo de lenguaje y voz). Si ustedes conectan su agente o su modelo, a ellos llega lo que les manden.</td></tr>
+    <tr><td><strong>Retención</strong></td><td>Configurable: el plazo lo acordamos con ustedes.</td></tr>
+    <tr><td><strong>Desactivar la grabación</strong></td><td>Sí, por línea o por agente. El aviso de grabación al que llama, con el texto que definan.</td></tr>
+
+    <tr class="grp"><td colspan="2">Comercial</td></tr>
+    <tr><td><strong>Abono, alta, minutos y costo de la IA</strong></td><td>Se acuerdan según el volumen, después de la charla técnica.</td></tr>
+    <tr><td><strong>Prueba</strong> con IA y personas en el mismo número</td><td>Una demo sin costo, con su contexto (hoja 5).</td></tr>
+    <tr><td><strong>Documentación técnica</strong></td><td>La API está documentada (OpenAPI); la compartimos con la charla técnica.</td></tr>
+  </table>
+
+  <div class="pagefoot"><span>Atentina · Propuesta técnica para CIMEPA S.A.</span><span>2 / 5</span></div>
+</section>
+
+<!-- ========== HOJA 3: arquitectura ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA TÉCNICA · CIMEPA S.A.<br>22 DE OCTUBRE DE 2026</div>
+  </header>
+
+  <div class="hero" style="margin-bottom:2.5mm">
+    <div class="eyebrow">Arquitectura</div>
+    <h2 style="font-size:17pt">Personas e IA en la misma llamada, <span class="accent">con un solo registro.</span></h2>
+    <p class="lead" style="font-size:10pt">
+      Cada llamada, entrante o saliente, pasa por la plataforma. Ahí se suman o se retiran la IA y las personas, y ahí
+      se graba y se transcribe. Por eso <strong>transferir no corta la llamada ni el registro</strong>: es sumar a
+      alguien a la conversación.
+    </p>
+  </div>
+
+  <div class="diagram" style="margin-top:2mm;padding-top:3.5mm">
+    <div class="eyebrow">Cómo funciona</div>
+    <svg viewBox="0 0 720 360" xmlns="http://www.w3.org/2000/svg" font-family="Figtree, sans-serif">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#2456e6"/>
+        </marker>
+        <marker id="arg" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#94a3b8"/>
+        </marker>
+      </defs>
+
+      <!-- Sus clientes -->
+      <rect x="4" y="92" width="104" height="112" rx="14" fill="#fff" stroke="#cbd5e1"/>
+      <g fill="#64748b">
+        <circle cx="42" cy="122" r="9"/><path d="M26 150 a16 14 0 0 1 32 0z"/>
+        <circle cx="74" cy="122" r="9" opacity=".55"/><path d="M58 150 a16 14 0 0 1 32 0z" opacity=".55"/>
+      </g>
+      <text x="56" y="174" text-anchor="middle" font-family="Bricolage, sans-serif" font-weight="800" font-size="14" fill="#0b1220">Sus clientes</text>
+      <text x="56" y="190" text-anchor="middle" font-size="10" fill="#64748b">cualquier teléfono</text>
+
+      <!-- Clientes ⇄ números -->
+      <path d="M108 128 L160 128" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#arg)"/>
+      <text x="134" y="120" text-anchor="middle" font-size="9.5" fill="#64748b">llaman</text>
+      <path d="M160 170 L108 170" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#ar)"/>
+      <text x="134" y="186" text-anchor="middle" font-size="9.5" fill="#2456e6">los llaman</text>
+
+      <!-- Plataforma -->
+      <rect x="162" y="8" width="360" height="300" rx="16" fill="#fff" stroke="#2456e6" stroke-width="1.8"/>
+      <text x="178" y="30" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#2456e6">ATENTINA · SERVIDORES EN ARGENTINA</text>
+
+      <!-- Números -->
+      <rect x="176" y="48" width="84" height="196" rx="12" fill="#eaf0ff" stroke="#2456e6"/>
+      <text x="218" y="118" text-anchor="middle" font-family="Bricolage, sans-serif" font-weight="800" font-size="13" fill="#0b1220">Números</text>
+      <text x="218" y="134" text-anchor="middle" font-family="Bricolage, sans-serif" font-weight="800" font-size="13" fill="#0b1220">de la</text>
+      <text x="218" y="150" text-anchor="middle" font-family="Bricolage, sans-serif" font-weight="800" font-size="13" fill="#0b1220">empresa</text>
+      <text x="218" y="170" text-anchor="middle" font-size="9.5" fill="#1740b8">3 o más,</text>
+      <text x="218" y="182" text-anchor="middle" font-size="9.5" fill="#1740b8">argentinos</text>
+
+      <!-- Números ⇄ IA / personas -->
+      <path d="M260 96 L284 96" fill="none" stroke="#2456e6" stroke-width="2" marker-start="url(#ar)" marker-end="url(#ar)"/>
+      <path d="M260 196 L284 196" fill="none" stroke="#2456e6" stroke-width="2" marker-start="url(#ar)" marker-end="url(#ar)"/>
+
+      <!-- Agente de IA -->
+      <rect x="286" y="48" width="222" height="96" rx="12" fill="#eaf0ff" stroke="#2456e6"/>
+      <text x="300" y="70" font-family="Bricolage, sans-serif" font-weight="800" font-size="14" fill="#0b1220">Asistente de IA</text>
+      <text x="300" y="87" font-size="10" fill="#1740b8">el suyo o el nuestro</text>
+      <text x="300" y="106" font-size="10" fill="#33415c">Atiende las entrantes, resuelve o deriva.</text>
+      <text x="300" y="121" font-size="10" fill="#33415c">Hace salientes de seguimiento con</text>
+      <text x="300" y="135" font-size="10" fill="#33415c">el contexto que manda su sistema.</text>
+
+      <!-- Llamadas de su equipo -->
+      <rect x="286" y="152" width="222" height="92" rx="12" fill="#eaf0ff" stroke="#2456e6"/>
+      <text x="300" y="174" font-family="Bricolage, sans-serif" font-weight="800" font-size="14" fill="#0b1220">Llamadas de su equipo</text>
+      <text x="300" y="194" font-size="10" fill="#33415c">Click en llamar en la app web: la</text>
+      <text x="300" y="208" font-size="10" fill="#33415c">plataforma marca con el número de</text>
+      <text x="300" y="222" font-size="10" fill="#33415c">la empresa. Derivaciones de la IA y</text>
+      <text x="300" y="236" font-size="10" fill="#33415c">vuelta a la IA, en la misma llamada.</text>
+
+      <!-- Grabación y transcripción -->
+      <rect x="176" y="254" width="332" height="44" rx="12" fill="#2456e6"/>
+      <text x="192" y="273" font-family="Bricolage, sans-serif" font-weight="800" font-size="13" fill="#fff">Grabación y transcripción de toda la llamada</text>
+      <text x="192" y="289" font-size="10" fill="#dbe5ff">IA y personas, en un solo historial: en el panel y por API</text>
+
+      <!-- Su equipo -->
+      <rect x="560" y="8" width="156" height="236" rx="14" fill="#fbfcfe" stroke="#cbd5e1"/>
+      <text x="574" y="30" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#64748b">CIMEPA</text>
+      <text x="574" y="50" font-family="Bricolage, sans-serif" font-weight="800" font-size="15" fill="#0b1220">Su equipo remoto</text>
+      <rect x="574" y="66" width="128" height="60" rx="10" fill="#f1f4f9"/>
+      <text x="638" y="88" text-anchor="middle" font-size="11" font-weight="700" fill="#0b1220">Su celular</text>
+      <text x="638" y="103" text-anchor="middle" font-size="9.5" fill="#64748b">recibe lo que deriva</text>
+      <text x="638" y="116" text-anchor="middle" font-size="9.5" fill="#64748b">la IA, con un resumen</text>
+      <rect x="574" y="166" width="128" height="62" rx="10" fill="#f1f4f9"/>
+      <text x="638" y="188" text-anchor="middle" font-size="11" font-weight="700" fill="#0b1220">La app web</text>
+      <text x="638" y="203" text-anchor="middle" font-size="9.5" fill="#64748b">en la compu o el celular,</text>
+      <text x="638" y="216" text-anchor="middle" font-size="9.5" fill="#64748b">con la agenda</text>
+
+      <!-- IA → celular ; app web → llamadas -->
+      <path d="M508 96 L572 96" fill="none" stroke="#2456e6" stroke-width="2.2" marker-end="url(#ar)"/>
+      <text x="540" y="88" text-anchor="middle" font-size="9.5" font-weight="700" fill="#2456e6" stroke="#fff" stroke-width="4" paint-order="stroke">deriva</text>
+      <path d="M572 197 L510 197" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#arg)"/>
+      <text x="540" y="189" text-anchor="middle" font-size="9.5" fill="#64748b" stroke="#fff" stroke-width="4" paint-order="stroke">llama</text>
+
+      <!-- Su sistema -->
+      <rect x="560" y="262" width="156" height="92" rx="14" fill="#fbfcfe" stroke="#cbd5e1"/>
+      <text x="574" y="284" font-family="Bricolage, sans-serif" font-weight="800" font-size="15" fill="#0b1220">Su sistema</text>
+      <text x="574" y="302" font-size="10" fill="#64748b">CRM, backend y,</text>
+      <text x="574" y="316" font-size="10" fill="#64748b">si lo conectan,</text>
+      <text x="574" y="330" font-size="10" fill="#64748b">su propio agente</text>
+
+      <!-- Plataforma ⇄ su sistema -->
+      <path d="M558 280 L524 280" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#arg)"/>
+      <path d="M524 300 L558 300" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#ar)"/>
+      <text x="548" y="330" text-anchor="end" font-size="9.5" fill="#64748b">Su sistema → la plataforma: contactos, contexto y salientes por API</text>
+      <text x="548" y="346" text-anchor="end" font-size="9.5" font-weight="700" fill="#2456e6">La plataforma → su sistema: resultados, transcripción y audio, por API y webhooks</text>
+    </svg>
+    <div class="caption">Lo azul es de Atentina; lo gris, de ustedes. Su sistema pide las salientes con el contexto y
+      recibe cada resultado; sus empleados llaman desde la app web y reciben en su celular lo que deriva la IA.</div>
+  </div>
+
+  <div class="flows">
+    <div class="card"><div class="num">1</div><h3>Entra una llamada</h3>
+      <p>Atiende la IA. Resuelve, o suma a la persona indicada en su celular, le pasa un resumen y se retira. Si no
+        atiende nadie, vuelve y toma el mensaje.</p></div>
+    <div class="card"><div class="num">2</div><h3>Llama un empleado</h3>
+      <p>Elige el contacto en la app web y hace click en llamar. El cliente ve el número de la empresa. Si hace falta,
+        le pasa la llamada a la IA con lo hablado.</p></div>
+    <div class="card"><div class="num">3</div><h3>Llama la IA</h3>
+      <p>Su sistema pide la llamada por API, con el contacto, el motivo y las instrucciones, o programa una campaña.
+        Si el cliente pide una persona, deriva como en el punto 1.</p></div>
+    <div class="card"><div class="num">4</div><h3>Queda registrado</h3>
+      <p>Audio, transcripción con quién habló en cada tramo, resumen y resultado: en el panel, por API y, en las
+        campañas, por webhook.</p></div>
+  </div>
+
+  <div class="pagefoot"><span>Atentina · Propuesta técnica para CIMEPA S.A.</span><span>3 / 5</span></div>
+</section>
+
+<!-- ========== HOJA 4: integración de su agente ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA TÉCNICA · CIMEPA S.A.<br>22 DE OCTUBRE DE 2026</div>
+  </header>
+
+  <div class="hero" style="margin-bottom:2mm">
+    <div class="eyebrow">Integración de su agente</div>
+    <h2 style="font-size:17pt">Su agente en la línea de la empresa: <span class="accent">la vía la elegimos juntos.</span></h2>
+    <p class="lead" style="font-size:10pt">
+      Depende de con qué esté hecho su asistente y de qué quieran manejar ustedes. Estas son las vías que proponemos
+      evaluar en la charla técnica. <strong>En las tres, la llamada pasa por la plataforma</strong>: el número, las
+      transferencias, la grabación y la transcripción funcionan igual, hable quien hable.
+    </p>
+  </div>
+
+  <div class="vias">
+    <div class="card"><div class="num">1</div><h3>En tiempo real, por WebRTC</h3>
+      <p>Su agente se une a la llamada como un participante más (estándar LiveKit), con un token por llamada: recibe
+        el audio y responde con el suyo, en streaming bidireccional.</p>
+      <div class="ej">Si el agente lo construyen ustedes (LiveKit Agents, Pipecat o propio).</div></div>
+    <div class="card"><div class="num">2</div><h3>Por SIP</h3>
+      <p>Las llamadas de la línea se enrutan a la dirección SIP de su plataforma, y sus salientes salen por la nuestra
+        con el número de la empresa.</p>
+      <div class="ej">Si su agente vive en una plataforma de voz que ya habla SIP.</div></div>
+    <div class="card"><div class="num">3</div><h3>Nuestro agente, con lo suyo</h3>
+      <p>Ustedes ponen el contexto, las reglas y las herramientas (webhooks a su sistema, en la llamada) y, si quieren,
+        su propio modelo de lenguaje con su API key.</p>
+      <div class="ej">Si todavía no tienen la voz resuelta o quieren arrancar rápido.</div></div>
+  </div>
+
+  <div class="note" style="margin-bottom:4mm">
+    <strong>Además, nuestros motores por API.</strong> Reconocimiento de voz, modelo de lenguaje y voz con acento
+    argentino, compatibles con la API de OpenAI, para usarlos desde su propio agente.
+  </div>
+
+  <h2>Qué recibe y qué manda su sistema</h2>
+  <div class="gets">
+    <div>
+      <h3>Lo que recibe, por cada llamada</h3>
+      <ul>
+        <li><strong>Transcripción</strong> turno por turno, con quién habló (IA o persona) y cuándo.</li>
+        <li><strong>Audio</strong> de la llamada, si la grabación está activa.</li>
+        <li><strong>Resumen, resultado y datos capturados</strong> (por ejemplo, “volver a llamar el jueves a las 15”).</li>
+        <li><strong>Datos de la llamada</strong>: números, duración, quién atendió, transferencias y motivo de cierre.</li>
+        <li><strong>Webhook firmado</strong> (HMAC-SHA256, con reintentos) al terminar cada contacto de una campaña.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Lo que manda</h3>
+      <ul>
+        <li><strong>La agenda de contactos</strong>, cargada por API desde su CRM.</li>
+        <li><strong>Una saliente</strong>: el contacto, el número de origen y el motivo.</li>
+        <li><strong>Una campaña</strong>: destinatarios, horario, días, reintentos y llamadas en paralelo.</li>
+        <li><strong>API keys por sistema</strong>, con el alcance justo y revocables al instante.</li>
+      </ul>
+      <div class="code"><span class="c"># una saliente de seguimiento</span>
+<span class="a">POST</span> /api/v1/calls
+{ "agent_id": "seguimiento",
+  "contact_id": "…",
+  "from_number_id": "…",
+  "context": "Seguimiento de la consulta del martes" }</div>
+    </div>
+  </div>
+
+  <h2>Lo que vamos a preguntar en la charla técnica</h2>
+  <ol class="qs">
+    <li>Para qué son las salientes y a quién llaman; cuántas por día y cuántas a la vez.</li>
+    <li>Si el agente ya existe: con qué está hecho y qué protocolo habla (WebRTC, SIP, WebSocket).</li>
+    <li>Cuántos empleados, y si el número de origen es uno de la empresa o uno por persona.</li>
+    <li>Qué CRM o sistema tiene los contactos y recibe los resultados.</li>
+    <li>Dónde tienen que quedar las grabaciones, por cuánto tiempo y con qué aviso.</li>
+    <li>Qué tiene que pasar en el piloto para seguir, y quién decide.</li>
+  </ol>
+
+  <div class="pagefoot"><span>Atentina · Propuesta técnica para CIMEPA S.A.</span><span>4 / 5</span></div>
+</section>
+
+<!-- ========== HOJA 5: puesta en marcha ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA TÉCNICA · CIMEPA S.A.<br>22 DE OCTUBRE DE 2026</div>
+  </header>
+
+  <div class="hero" style="margin-bottom:2mm">
+    <div class="eyebrow">Cómo se pone en marcha</div>
+    <h2 style="font-size:17pt">De una charla técnica <span class="accent">a un piloto con su número.</span></h2>
+  </div>
+
+  <h2>Los pasos</h2>
+  <div class="steps five">
+    <div class="step"><b>Charla técnica</b>Una hora con quien arma su agente: volumen, vía de integración, grabaciones y
+      retención. Salimos con el alcance del piloto.</div>
+    <div class="step"><b>Demo sin costo</b>Nuestro agente hace salientes de seguimiento con su contexto, y ven la
+      transcripción por API. Sus personas llaman desde la web con el número de la empresa.</div>
+    <div class="step"><b>Piloto</b>De 30 a 60 días, con 3 números y 3 llamadas simultáneas, su agente conectado y
+      métricas acordadas: llamadas, transferencias, contactados y resultados.</div>
+    <div class="step"><b>Decisión</b>Al cierre, los números del piloto. Si sirve, se amplía a más números, más
+      simultáneas y más gente; si no, se termina.</div>
+  </div>
+
+  <div class="ops tight" style="margin-bottom:3.5mm">
+    <div class="ours">
+      <div class="eyebrow" style="margin-bottom:1.5mm">Atentina hace</div>
+      <ul>
+        <li>Da de alta los números de la empresa y las llamadas simultáneas</li>
+        <li>Habilita la app web, la agenda y los usuarios de su equipo</li>
+        <li>Configura la IA, las derivaciones a cada celular y la vuelta a la IA</li>
+        <li>Conecta su agente por la vía elegida, y las API keys y los webhooks</li>
+        <li>Activa la grabación, la transcripción y la retención acordada</li>
+        <li>Da soporte técnico durante el piloto</li>
+      </ul>
+    </div>
+    <div class="theirs">
+      <div class="eyebrow" style="margin-bottom:1.5mm;color:var(--ok)">Necesitamos de ustedes</div>
+      <ul>
+        <li>El volumen: llamadas por día y cuántas a la vez</li>
+        <li>Cuántos empleados, con sus celulares y a quién derivar cada tema</li>
+        <li>El CRM o la fuente de los contactos</li>
+        <li>Cómo está hecho su agente, y alguien técnico de su lado</li>
+        <li>El aviso de grabación, la retención y el número de origen</li>
+        <li>Un responsable del piloto</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Después del piloto</h2>
+  <div class="phases">
+    <div class="phase"><b>Recibir en la web</b>Que su equipo también atienda desde la app web, además del celular.</div>
+    <div class="phase"><b>WhatsApp</b>Mensajes, notas de voz y llamadas de WhatsApp, con el mismo agente y el mismo historial.</div>
+    <div class="phase"><b>Más escala</b>Más números, más llamadas simultáneas y más agentes, según el volumen.</div>
+  </div>
+
+  <div class="note">
+    <strong>Precio.</strong> Esta propuesta no lleva precios: el abono, los minutos y el costo de la IA se acuerdan según
+    el volumen y la vía de integración, después de la charla técnica.
+  </div>
+
+  <footer class="contact">
+    <img src="../../../../plantilla/marca/atentina-logo-blanco.svg" alt="Atentina">
+    <div><div class="tag">Un número para su equipo<br><span>y su IA, todo registrado.</span></div><div class="who">Contacto: Laureano Arcanio</div></div>
+    <div class="data">
+      <b>0800-220-1233</b><br>
+      <a href="https://atentina.com.ar">atentina.com.ar</a> · <a href="mailto:hola@atentina.com.ar">hola@atentina.com.ar</a><br>
+      WhatsApp +54 9 351 700-2592
+    </div>
+  </footer>
+</section>
+</body>
+</html>

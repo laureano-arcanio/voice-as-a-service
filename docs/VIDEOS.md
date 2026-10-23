@@ -29,6 +29,9 @@ Proyectos hoy: [`general`](../marketing/videos/proyectos/general/README.md) (el 
 [`goldman`](../marketing/videos/proyectos/goldman/README.md) y
 [`goldman-analisis`](../marketing/videos/proyectos/goldman-analisis/README.md) (propuesta para un prospecto: Isaías Goldman SA) y
 [`baicenter-analisis`](../marketing/videos/proyectos/baicenter-analisis/README.md) (BAIC Center / Grupo Signature, con el formato de su PDF) y
+[`sqlamoblamientos-analisis`](../marketing/videos/proyectos/sqlamoblamientos-analisis/README.md) (SQL Amoblamientos, ídem) y
+[`cimepa-analisis`](../marketing/videos/proyectos/cimepa-analisis/README.md) (CIMEPA, propuesta técnica con el formato de su PDF) y
+[`axiomait-analisis`](../marketing/videos/proyectos/axiomait-analisis/README.md) (Axioma IT, propuesta técnica para un integrador con el formato de su PDF; paula y lucas) y
 [`zennonbi-analisis`](../marketing/videos/proyectos/zennonbi-analisis/README.md) (Zennon BI, propuesta de alianza para un partner de Dynamics 365 con el formato de su PDF; paula y lucas).
 
 ## Comandos
@@ -108,7 +111,9 @@ El TTS es `vllm-tts` (Qwen3-TTS con 41 voces argentinas, [`TTS_FINETUNE.md`](TTS
 
 | Papel | Voz | Por qué |
 |---|---|---|
-| Narrador | `lucas` | Hombre, WER 1,9 %, ritmo pausado (15,1 car/s) |
+| Narradora principal | `paula` | Mujer, WER 2,6 %, 17,1 car/s. Decisión del usuario, 22-oct-2026 (CIMEPA v2) |
+| Narrador secundario | `pablo` | Hombre, WER 2,8 %, 18,5 car/s. Para algunas líneas: contrapunto, ejemplos, la voz "del cliente" o un dato a destacar; no alternar línea por línea |
+| Narrador anterior | `lucas` | Hombre, WER 1,9 %, ritmo pausado (15,1 car/s); hasta CIMEPA v1 |
 | Asistente (Atentina) | `valentina` | La de más variación de tono entre 14 voces de mujer (±2,8 semitonos; `sofia`, ±1,9) |
 | Cliente | `carolina` | WER 1,8 %, distinta de la asistente |
 
@@ -121,6 +126,9 @@ El TTS es `vllm-tts` (Qwen3-TTS con 41 voces argentinas, [`TTS_FINETUNE.md`](TTS
   tildes forzadas en la sílaba tónica sonaban mal en general). Solo se fuerza una grafía puntual cuando el usuario
   la pide; esas van en la tabla. Para probar variantes, `scripts/candidatas.py` con un grupo propio y dos tomas por
   texto, y dejar las tomas para escuchar: el STT no distingue dónde cae el acento.
+- **Nivel:** `"ganancia_db": -2.2` en `guion.json` baja la locución (una voz más fuerte que `lucas` saca la mezcla
+  de −16 LUFS: con `laura`, −13,9 sin ajuste y −16,1 con −2,2 dB; sqlamoblamientos-analisis v4, voz descartada por
+  cómo suena: no se recomienda para videos). Con `lucas` no hace falta; con `paula` y `pablo`, medir el LUFS de la mezcla y ajustar si sale de −16 ± 1,5.
 - **Velocidad:** `"velocidad": 1.1` en `guion.json` acelera cada línea con `ffmpeg atempo` (no cambia el tono)
   después de elegir la toma; las duraciones y envolventes salen del audio acelerado. Sin el campo, 1,0.
 - **Grafías que funcionan:**
@@ -135,6 +143,9 @@ El TTS es `vllm-tts` (Qwen3-TTS con 41 voces argentinas, [`TTS_FINETUNE.md`](TTS
 | clasifica | `clasifíca` | Pedido del usuario (goldman v3) |
 | Goldman | `Goldman` | Sin tilde: con `Góldman` el STT oyó "Colman" en una de dos tomas |
 | BAIC ("báic") | `Báic` | Escrito `BAIC`, el TTS dijo "Bic", "Big" o "Vice" en la frase; con `Báic`, 4 de 4 tomas bien (baicenter-analisis) |
+| SQL ("ese-cu-ele", como lo dicen ellos) | `Ese Cu Ele` | Escrito `SQL`, una de dos tomas el STT oyó "Squell"; el STT no distingue las letras en español de las en inglés, así que se fuerzan (sqlamoblamientos-analisis, a confirmar de oído). Con `laura`, escrito `SQL` el STT oyó "esquel" y "Esquele" (2 de 2); con `Ese Cu Ele`, "ese cuele". **`laura` no se recomienda para videos:** el usuario la descartó por cómo suena (sqlamoblamientos-analisis v4 → v5). Con `paula`, escrito `SQL` el STT oyó "Esquivel" y "Esquel" (2 de 2); con `Ese Cu Ele`, "SQL" y "ese Q, el" (prueba de voz, v6) |
+| CIMEPA | `CIMEPA` | Escrito normal: 4 de 4 tomas el STT oye "Cimepa" (también con `Cimepa`); `Simepa` no hace falta (cimepa-analisis). Con `paula`, también "Cimepa" (6 de 6, v2) |
+| Axioma, Odoo, CRM, webhook, TodoTurnos | escritos normal | axiomait-analisis v1, con `paula` y `lucas`: el STT oye "Axioma" en las tomas elegidas, pero "Acción Maya" en 1 de 2 candidatas y "En Acción" en el video mezclado (a confirmar de oído); "Odoo" sale "Odoo", "Odo" u "odú"; "CRM" sale "CRM" o "cierreme" (ce-erre-eme); "webhook", bien en las tomas elegidas ("Workhook" en 1 de 2 candidatas) |
 | Zennon, Dynamics, Dataverse, Power Automate, Power BI, KickStart, Sales, Customer Service, Field Service, Customer Insights | escritos normal | zennonbi-analisis v1, con `paula` y `lucas`: el STT oye "Xenon" por "Zennon" en todas las tomas y una vez "Zenón" (a confirmar de oído cómo lo dicen ellos); "Dataverse" sale "Dataverses" o "Detaverses"; "KickStart", "Kickstart"; "Dynamics", bien (lucas, "Dynamic Sales" en 2 de 2 candidatas); "Power Automate" y "Power BI", bien salvo una candidata ("Paolo Automate", "Power B"). **"Journeys" con `lucas` salió "SORNAYS":** no se dice, va escrito |
 | Pausas | con puntuación | Comas y puntos marcan las pausas ("Actualmente, un solo número…") |
 

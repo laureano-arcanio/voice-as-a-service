@@ -1,0 +1,61 @@
+{
+  "nota": "v1: formato de goldman-analisis v3 y baicenter-analisis v1, con el contenido del PDF cimepa-propuesta v1 (propuesta técnica, sin datos del negocio). Narrador lucas a 1x, ortografía normal: «CIMEPA» se dice bien escrito así (4 de 4 tomas en scratch/videos/candidatas/cimepa/); única grafía de la tabla de VIDEOS.md: «ápi» por API. Los cuatro pedidos van en cuatro líneas (c2a a c2d), una por tarjeta, con ~0,7 s de respiro. Números en palabras; pausas con puntuación. Sin precios, sin Anura ni Asterisk.",
+  "musica_segundos": 70,
+  "lineas": [
+    {
+      "id": "c1",
+      "voz": "lucas",
+      "texto": "Un número de la empresa para su equipo y su IA, todo grabado y transcripto."
+    },
+    {
+      "id": "c2a",
+      "voz": "lucas",
+      "texto": "En CIMEPA nos pidieron que su equipo remoto llame sin teléfono."
+    },
+    {
+      "id": "c2b",
+      "voz": "lucas",
+      "texto": "Que su asistente de IA llame y atienda."
+    },
+    {
+      "id": "c2c",
+      "voz": "lucas",
+      "texto": "Transferir entre la IA y una persona."
+    },
+    {
+      "id": "c2d",
+      "voz": "lucas",
+      "texto": "Y todo grabado y transcripto, por ápi."
+    },
+    {
+      "id": "c3",
+      "voz": "lucas",
+      "texto": "Entra una llamada, y la atiende la IA. Resuelve, o la deriva al celular del empleado, con un resumen."
+    },
+    {
+      "id": "c4",
+      "voz": "lucas",
+      "texto": "Un empleado llama desde la app web, en la compu o el celular: elige el contacto, un clic, y sale con el número de la empresa."
+    },
+    {
+      "id": "c5",
+      "voz": "lucas",
+      "texto": "Llama la IA: seguimientos programados por ápi, con su contexto y sus instrucciones."
+    },
+    {
+      "id": "c6",
+      "voz": "lucas",
+      "texto": "Todo queda registrado: grabación y transcripción de toda la llamada, en el panel y por ápi. Inferencia propia, en Argentina."
+    },
+    {
+      "id": "c7",
+      "voz": "lucas",
+      "texto": "Su agente: tres vías, para definir en una charla técnica. En tiempo real, por SIP, o nuestro agente, con su contexto y su modelo."
+    },
+    {
+      "id": "c8",
+      "voz": "lucas",
+      "texto": "¿Agendamos la charla técnica?"
+    }
+  ]
+}

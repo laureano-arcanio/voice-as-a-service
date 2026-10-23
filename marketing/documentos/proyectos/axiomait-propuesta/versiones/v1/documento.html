@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Atentina · Propuesta técnica para Axioma IT Solutions</title>
+<link rel="stylesheet" href="../../../../plantilla/base.css">
+<style>
+  /* Ajustes locales de este documento (no tocan base.css) */
+  .src-line { font-size: 7.8pt; color: var(--muted); }
+  .pull { border-left: 3px solid var(--accent); padding: 1mm 0 1mm 4mm; margin: 0 0 4.5mm; }
+  .pull q { font-family: "Bricolage"; font-weight: 700; font-size: 13pt; color: var(--ink); quotes: "“" "”"; }
+  .pull span { display: block; font-size: 8.4pt; color: var(--muted); margin-top: 1mm; }
+
+  .opps { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3mm; margin: 2mm 0 3mm; }
+  .opp { border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 3mm; padding: 2.6mm 4mm; background: #fff; }
+  .opp .k { font-family: "Plex Mono"; font-size: 6.9pt; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 1mm; }
+  .opp b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 12pt; color: var(--ink); line-height: 1.12; margin-bottom: 1.2mm; }
+  .opp p { font-size: 8.8pt; margin: 0; }
+  .opp .to { font-size: 8.5pt; color: var(--accent2); margin-top: 1.6mm; padding-top: 1.6mm; border-top: 1px solid var(--line); }
+  .opp .to strong { color: var(--accent2); }
+
+  .order { display: grid; grid-template-columns: 1fr 1fr; gap: 3.5mm; margin: 2mm 0 3mm; }
+  .order div { border-radius: 3.5mm; padding: 3mm 4mm; font-size: 8.9pt; }
+  .order .first { border: 1.5px solid var(--accent); background: linear-gradient(180deg, var(--accent-soft), #fff 85%); }
+  .order .then { border: 1px solid var(--line2); background: #fbfcfe; }
+  .order .k { font-family: "Plex Mono"; font-size: 7pt; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); margin-bottom: .8mm; }
+  .order .then .k { color: var(--muted); }
+  .order b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 11.5pt; color: var(--ink); line-height: 1.15; margin-bottom: 1mm; }
+
+  table.spec { width: 100%; border-collapse: collapse; font-size: 8.6pt; margin: 2mm 0 0; }
+  table.spec th { font-family: "Plex Mono"; font-weight: 500; font-size: 7pt; letter-spacing: .06em; text-transform: uppercase; text-align: left; padding: 0 3mm 1.5mm 0; color: var(--muted); }
+  table.spec td { padding: 1.4mm 3mm 1.4mm 0; border-top: 1px solid var(--line); vertical-align: top; }
+  table.spec td:first-child { width: 31%; color: var(--ink); font-weight: 600; }
+  code { font-family: "Plex Mono"; font-size: 7.8pt; color: var(--accent2); background: var(--accent-soft); border-radius: 1mm; padding: 0 .8mm; }
+
+  .codes { display: grid; grid-template-columns: 1.08fr 1fr; gap: 3mm; margin: 2.5mm 0 1.5mm; }
+  .code { background: var(--ink); color: var(--cta-ink); border-radius: 3mm; padding: 2.6mm 3.4mm 3mm; font-family: "Plex Mono"; font-size: 6.75pt; line-height: 1.5; white-space: pre; overflow: hidden; }
+  .code .t { display: block; font-size: 6.4pt; letter-spacing: .06em; text-transform: uppercase; color: var(--on-dark); margin-bottom: 1.4mm; }
+  .code .c { color: var(--cta-muted); }
+  .code .s { color: #a5d8b8; }
+
+  .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 2mm 0 3mm; }
+  .flow .card { padding: 2.8mm 3.4mm; }
+  .flow .card .num { width: 6.5mm; height: 6.5mm; font-size: 9pt; margin-bottom: 1.5mm; }
+  .flow .card h3 { font-size: 10.2pt; }
+  .flow .card p { font-size: 8.5pt; margin: 0; }
+
+  .voices { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2mm; margin: 2mm 0 1.5mm; }
+  .voice { border: 1px solid var(--line); border-radius: 2.5mm; padding: 1.8mm 2.4mm; background: #fff; }
+  .voice b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 10pt; color: var(--ink); }
+  .voice span { font-size: 7.6pt; color: var(--ink2); line-height: 1.25; display: block; }
+  .voice i { font-style: normal; font-family: "Plex Mono"; font-size: 6.4pt; color: var(--muted); letter-spacing: .04em; }
+
+  .levers { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 2mm 0 4mm; }
+  .lever { border-top: 2px solid var(--accent); padding: 2mm 0 0; font-size: 8.6pt; }
+  .lever b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 10.6pt; color: var(--ink); margin-bottom: .8mm; line-height: 1.15; }
+
+  .trade { border: 1px solid var(--line); border-radius: 4mm; padding: 3.5mm 5mm 3.5mm; background: linear-gradient(180deg, var(--bg2), #fff 75%); margin: 2mm 0 4mm; }
+  .trade .ends { display: flex; justify-content: space-between; font-family: "Bricolage"; font-weight: 800; font-size: 11pt; color: var(--ink); }
+  .trade .bar { position: relative; height: 3mm; border-radius: 1.5mm; background: linear-gradient(90deg, #9db6ff, var(--accent)); margin: 2mm 0 2mm; }
+  .trade .bar i { position: absolute; top: -1.4mm; width: 5.8mm; height: 5.8mm; border-radius: 50%; background: #fff; border: 2px solid var(--accent2); }
+  .trade .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; font-size: 8.7pt; }
+  .trade .cols div:last-child { text-align: right; }
+
+  .meas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; margin: 2mm 0 1.5mm; }
+  .meas div { background: var(--bg2); border: 1px solid var(--line); border-radius: 3mm; padding: 2.4mm 3.4mm; font-size: 8.3pt; }
+  .meas b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 15pt; color: var(--accent); line-height: 1.1; }
+
+  .stance { display: grid; grid-template-columns: 38mm 1fr; gap: 5mm; align-items: center; border: 1px solid #bfe6cf; background: var(--ok-soft); border-radius: 3.5mm; padding: 3mm 4.5mm; }
+  .stance b { font-family: "Bricolage"; font-weight: 800; font-size: 11.5pt; color: var(--ok); }
+  .stance p { margin: 0; font-size: 8.9pt; }
+
+  .offer { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; margin: 2mm 0 3.5mm; }
+  .offer > div { border: 1px solid var(--line); border-radius: 3.5mm; padding: 2.8mm 3.5mm; font-size: 8.6pt; background: #fff; }
+  .offer > div.main { border: 1.5px solid var(--accent); background: linear-gradient(180deg, var(--accent-soft), #fff 85%); }
+  .offer .k { font-family: "Plex Mono"; font-size: 6.9pt; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: .6mm; }
+  .offer b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 11.5pt; color: var(--accent); line-height: 1.15; margin-bottom: .8mm; }
+  .steps.six { grid-template-columns: repeat(3, 1fr); margin-bottom: 3mm; gap: 2.5mm; }
+  .steps.six .step { padding: 2.5mm 3.2mm; font-size: 8.3pt; }
+  .steps.six .step::before { font-size: 12.5pt; margin-bottom: .8mm; }
+  .ops.tight li { font-size: 8.6pt; margin-bottom: .5mm; }
+  .phases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 2mm 0 3mm; }
+  .phase { border-left: 2px solid var(--accent); padding: .5mm 0 .5mm 3mm; font-size: 8.4pt; }
+  .phase b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 10pt; color: var(--ink); margin-bottom: .6mm; }
+</style>
+</head>
+<body>
+
+<!-- ========== HOJA 1: portada y quiénes son ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA TÉCNICA · AXIOMA IT SOLUTIONS<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero">
+    <div class="eyebrow">Voz con IA para un integrador, por API</div>
+    <h1>Sumen voz a lo que ya venden: <span class="accent">Odoo, agentes de IA y turnos.</span></h1>
+    <p class="lead">
+      Axel: gracias por probar la demo. Este documento responde lo que preguntaste: <strong>un agente que llama a los
+      leads del CRM en el momento que el CRM decide</strong>, cuántas voces hay y cómo hacer que suene más natural. Es
+      un overview técnico del producto, para que lo evalúen como integradores y lo prueben ustedes mismos.
+    </p>
+  </div>
+
+  <h2>Lo que ya hacen bien</h2>
+  <div class="stats" style="margin:2mm 0 4.5mm">
+    <div class="stat"><b>+100</b><span>proyectos entregados, con equipo de ingenieros de la UTN FRBA</span></div>
+    <div class="stat"><b>Silver</b><span>partner de Odoo: 30 referencias y 97 % de retención; partner de Microsoft</span></div>
+    <div class="stat"><b>5,0</b><span>de calificación en Google (17 reseñas) y en Clutch</span></div>
+    <div class="stat"><b>ISO 9001</b><span>en desarrollo de software a medida, certificada por Bureau Veritas</span></div>
+  </div>
+
+  <div class="pull">
+    <q>Quiero un agente que llame a ciertos leads del CRM, en momento determinado.</q>
+    <span>Axel, en la demo de voz de atentina.com.ar, el 22 de octubre. Y después: “me gustaría probarlo mejor [...]
+      antes de llamar a un asesor”. Por eso la propuesta empieza por un acceso para probar solos.</span>
+  </div>
+
+  <h2>Atentina, en cuatro datos</h2>
+  <div class="stats" style="margin:2mm 0 4mm">
+    <div class="stat"><b>41 voces</b><span>con acento argentino, 28 de mujer y 13 de hombre</span></div>
+    <div class="stat"><b>0,87 s</b><span>de respuesta promedio en la llamada de la demo de Axel, medida en el servidor</span></div>
+    <div class="stat"><b>4 en 1</b><span>número argentino, agente, voces y WhatsApp en un solo servicio</span></div>
+    <div class="stat"><b>1 API</b><span>para llamadas, campañas, contactos y los motores de voz y lenguaje</span></div>
+  </div>
+
+  <div class="two">
+    <ul>
+      <li><strong>Inferencia propia en Argentina:</strong> el reconocimiento de voz, el modelo de lenguaje y la voz
+        corren en servidores propios, sin depender de proveedores externos.</li>
+      <li><strong>Precio en pesos</strong>, con los minutos y la telefonía incluidos en el plan.</li>
+    </ul>
+    <ul>
+      <li><strong>Hecho para integrar:</strong> API REST con API keys por alcance, webhooks firmados y un panel para
+        cada cliente.</li>
+      <li><strong>Lo que ustedes ya saben hacer</strong> (Odoo, n8n, webhooks) alcanza para conectarlo.</li>
+    </ul>
+  </div>
+
+  <p class="src-line" style="margin-top:3mm">Fuentes: axiomait.com, ficha de partner en odoo.com, Clutch y Google Maps,
+    leídos el 22-oct-2026. Latencia: registro de la llamada del 22-oct-2026 (6 turnos).</p>
+
+  <div class="pagefoot"><span>Atentina · Axioma IT Solutions</span><span>1 / 6</span></div>
+</section>
+
+<!-- ========== HOJA 2: dónde encaja Atentina ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA TÉCNICA · AXIOMA IT SOLUTIONS<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin-bottom:3mm">
+    <div class="eyebrow">Dónde encaja Atentina</div>
+    <h2 style="font-size:17pt">Voz para cada línea que ya venden, <span class="accent">sin montar telefonía.</span></h2>
+    <p class="lead" style="font-size:10pt">
+      Axioma ya vende CRM, automatizaciones con IA, turnos y soporte. A todas les falta el mismo canal: <strong>el
+      teléfono</strong>. Atentina lo aporta como un componente más, por API, y Axioma lo integra con su método.
+    </p>
+  </div>
+
+  <div class="opps">
+    <div class="opp">
+      <div class="k">Odoo y CRM</div>
+      <b>Leads que entran por formularios, Meta Ads y el Kit 4.0</b>
+      <p>Varios formularios prometen respuesta en menos de 24 horas, y los cupos del Kit 4.0 van por orden de llegada.</p>
+      <div class="to"><strong>Oportunidad:</strong> el CRM dispara la llamada; el agente califica, agenda el diagnóstico y deja el resultado en la oportunidad.</div>
+    </div>
+    <div class="opp">
+      <div class="k">Soluciones IA y n8n</div>
+      <b>Agentes de IA a medida, en 4 a 8 semanas</b>
+      <p>Ya los diseñan para ventas, soporte y datos, e integran con n8n. La voz telefónica es el canal que se suma.</p>
+      <div class="to"><strong>Oportunidad:</strong> ofrecer el mismo agente también por teléfono y WhatsApp, con una API en lugar de armar telefonía y modelos.</div>
+    </div>
+    <div class="opp">
+      <div class="k">TodoTurnos</div>
+      <b>Recordatorios por WhatsApp que ya bajaron 70 % las ausencias</b>
+      <p>En Sanatorio Santa Rosa. En Badent, antes, los turnos se confirmaban llamando a mano.</p>
+      <div class="to"><strong>Oportunidad:</strong> una llamada de confirmación para quien no lee el WhatsApp, con reprogramación en la misma charla.</div>
+    </div>
+    <div class="opp">
+      <div class="k">Soporte Odoo</div>
+      <b>Planes con atención telefónica y guardia 24/7</b>
+      <p>Los tres planes de soporte incluyen teléfono y guardia pasiva, también los fines de semana.</p>
+      <div class="to"><strong>Oportunidad:</strong> un primer nivel que atiende a toda hora, toma el caso y lo deja cargado para el consultor.</div>
+    </div>
+  </div>
+
+  <h2>En este orden</h2>
+  <div class="order">
+    <div class="first">
+      <div class="k">Primero · sus propios leads</div>
+      <b>El llamador del CRM, en Axioma</b>
+      Lo que pidió Axel: los leads del Kit 4.0, la landing de Odoo y la pauta de Meta, llamados en el momento que define
+      el CRM. Se mide en 30 días con sus números y deja la integración probada.
+    </div>
+    <div class="then">
+      <div class="k">Después · sus clientes</div>
+      <b>Un módulo de voz para revender</b>
+      La misma integración, ofrecida a los clientes de Odoo y de TodoTurnos: confirmación de turnos, avisos de
+      vencimiento, primer nivel de soporte y cobranza temprana. Cada cliente, con su agente, su número y su panel.
+    </div>
+  </div>
+
+  <h2>Por qué para un integrador</h2>
+  <div class="two">
+    <ul>
+      <li><strong>Número argentino, voces argentinas y costo en pesos</strong>, con minutos incluidos: se cotiza al
+        cliente final sin telefonía del exterior ni tipo de cambio en el medio.</li>
+      <li><strong>Menos horas de proyecto</strong>: el agente se configura por formulario; el trabajo de Axioma es la
+        integración, que ya domina.</li>
+    </ul>
+    <ul>
+      <li><strong>Una sola API</strong> para la voz, el WhatsApp y los motores (transcripción, lenguaje y síntesis).</li>
+      <li><strong>Ustedes conservan al cliente</strong>: la relación, el diseño del agente y la integración con su
+        sistema son de Axioma.</li>
+      <li><strong>Encaja con su programa de partners</strong>: un componente con margen para revender, en un modelo de
+        canal a definir juntos.</li>
+    </ul>
+  </div>
+
+  <p class="src-line" style="margin-top:1mm">Fuentes: axiomait.com (landing de Odoo, Soluciones IA, Kit 4.0, soporte
+    Odoo, referidos y casos de Badent y Sanatorio Santa Rosa), leído el 22-oct-2026.</p>
+
+  <div class="pagefoot"><span>Atentina · Axioma IT Solutions</span><span>2 / 6</span></div>
+</section>
+
+<!-- ========== HOJA 3: overview técnico ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA TÉCNICA · AXIOMA IT SOLUTIONS<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin-bottom:2mm">
+    <div class="eyebrow">El producto por dentro</div>
+    <h2 style="font-size:17pt">Un agente, tres canales y una API. <span class="accent">La inferencia, en Argentina.</span></h2>
+    <p class="lead" style="font-size:10pt">
+      Cada conversación pasa por el mismo agente, sea una llamada, un WhatsApp o el navegador. El agente escucha,
+      decide y habla con modelos que corren en servidores propios; el resultado queda en el panel y sale por API.
+    </p>
+  </div>
+
+  <div class="diagram" style="margin-top:2mm;padding-top:3.5mm">
+    <div class="eyebrow">Arquitectura</div>
+    <svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg" font-family="Figtree, sans-serif">
+      <defs>
+        <marker id="a3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#2456e6"/>
+        </marker>
+        <marker id="g3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#94a3b8"/>
+        </marker>
+      </defs>
+
+      <!-- Personas -->
+      <rect x="4" y="80" width="100" height="112" rx="14" fill="#fff" stroke="#cbd5e1"/>
+      <g fill="#64748b">
+        <circle cx="40" cy="110" r="9"/><path d="M24 138 a16 14 0 0 1 32 0z"/>
+        <circle cx="72" cy="110" r="9" opacity=".55"/><path d="M56 138 a16 14 0 0 1 32 0z" opacity=".55"/>
+      </g>
+      <text x="54" y="160" text-anchor="middle" font-family="Bricolage, sans-serif" font-weight="800" font-size="13" fill="#0b1220">Leads y</text>
+      <text x="54" y="176" text-anchor="middle" font-family="Bricolage, sans-serif" font-weight="800" font-size="13" fill="#0b1220">clientes</text>
+
+      <path d="M104 116 C 112 116, 112 46, 122 46" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#g3)"/>
+      <path d="M104 128 C 114 128, 114 104, 122 104" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#g3)"/>
+      <path d="M104 144 C 114 144, 114 162, 122 162" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#g3)"/>
+
+      <!-- Canales -->
+      <g fill="#1740b8">
+        <rect x="124" y="24" width="136" height="44" rx="12" fill="#eaf0ff" stroke="#2456e6"/>
+        <text x="192" y="42" text-anchor="middle" font-size="11.5" font-weight="700">Línea telefónica</text>
+        <text x="192" y="57" text-anchor="middle" font-size="9.5">número argentino, 0800</text>
+        <rect x="124" y="82" width="136" height="44" rx="12" fill="#eaf0ff" stroke="#2456e6"/>
+        <text x="192" y="100" text-anchor="middle" font-size="11.5" font-weight="700">WhatsApp</text>
+        <text x="192" y="115" text-anchor="middle" font-size="9.5">mensajes, audios y llamadas</text>
+        <rect x="124" y="140" width="136" height="44" rx="12" fill="#eaf0ff" stroke="#2456e6"/>
+        <text x="192" y="158" text-anchor="middle" font-size="11.5" font-weight="700">Link y web</text>
+        <text x="192" y="173" text-anchor="middle" font-size="9.5">llamada desde el navegador</text>
+      </g>
+      <text x="192" y="206" text-anchor="middle" font-size="9.5" fill="#64748b">entrantes y salientes</text>
+
+      <path d="M260 46 C 272 46, 272 96, 284 96" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#a3)"/>
+      <path d="M260 104 L284 104" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#a3)"/>
+      <path d="M260 162 C 272 162, 272 112, 284 112" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#a3)"/>
+
+      <!-- Agente -->
+      <rect x="286" y="10" width="236" height="230" rx="14" fill="#fff" stroke="#2456e6" stroke-width="1.8"/>
+      <text x="302" y="32" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#2456e6">ATENTINA · EN ARGENTINA</text>
+      <text x="302" y="53" font-family="Bricolage, sans-serif" font-weight="800" font-size="16" fill="#0b1220">El agente</text>
+      <g>
+        <rect x="302" y="64" width="204" height="36" rx="10" fill="#eaf0ff"/>
+        <text x="314" y="80" font-size="11" font-weight="700" fill="#1740b8">Escucha</text>
+        <text x="314" y="93" font-size="9.5" fill="#33415c">reconocimiento de voz (STT)</text>
+        <rect x="302" y="108" width="204" height="36" rx="10" fill="#eaf0ff"/>
+        <text x="314" y="124" font-size="11" font-weight="700" fill="#1740b8">Decide</text>
+        <text x="314" y="137" font-size="9.5" fill="#33415c">modelo de lenguaje (LLM) con sus reglas</text>
+        <rect x="302" y="152" width="204" height="36" rx="10" fill="#eaf0ff"/>
+        <text x="314" y="168" font-size="11" font-weight="700" fill="#1740b8">Habla</text>
+        <text x="314" y="181" font-size="9.5" fill="#33415c">síntesis de voz (TTS), 41 voces</text>
+      </g>
+      <path d="M494 100 L494 108" stroke="#2456e6" stroke-width="1.6" marker-end="url(#a3)"/>
+      <path d="M494 144 L494 152" stroke="#2456e6" stroke-width="1.6" marker-end="url(#a3)"/>
+      <text x="302" y="208" font-size="9.8" fill="#33415c">Definición versionada: tono, reglas, datos</text>
+      <text x="302" y="222" font-size="9.8" fill="#33415c">a capturar, resultados y voz.</text>
+
+      <!-- Panel y API -->
+      <path d="M522 70 L552 70" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#a3)"/>
+      <path d="M522 170 L552 170" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#a3)"/>
+      <rect x="554" y="30" width="162" height="80" rx="12" fill="#eaf0ff" stroke="#2456e6" stroke-width="1.6"/>
+      <text x="568" y="50" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#2456e6">PANEL</text>
+      <text x="568" y="70" font-size="10.2" fill="#1740b8">Conversaciones, resultados,</text>
+      <text x="568" y="84" font-size="10.2" fill="#1740b8">latencia por turno y</text>
+      <text x="568" y="98" font-size="10.2" fill="#1740b8">consumo, por cliente</text>
+      <rect x="554" y="130" width="162" height="80" rx="12" fill="#eaf0ff" stroke="#2456e6" stroke-width="1.6"/>
+      <text x="568" y="150" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#2456e6">API /api/v1</text>
+      <text x="568" y="170" font-size="10.2" fill="#1740b8">Llamadas, campañas,</text>
+      <text x="568" y="184" font-size="10.2" fill="#1740b8">contactos, reportes</text>
+      <text x="568" y="198" font-size="10.2" fill="#1740b8">y webhooks firmados</text>
+
+      <path d="M635 210 L635 236" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#a3)"/>
+      <rect x="520" y="238" width="196" height="54" rx="12" fill="#f1f4f9" stroke="#cbd5e1"/>
+      <text x="536" y="259" font-family="Bricolage, sans-serif" font-weight="800" font-size="13" fill="#0b1220">Su sistema</text>
+      <text x="536" y="278" font-size="10" fill="#64748b">Odoo, n8n, TodoTurnos, otro CRM</text>
+      <path d="M520 268 C 420 268, 406 252, 404 242" fill="none" stroke="#94a3b8" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#g3)"/>
+      <text x="420" y="284" text-anchor="middle" font-size="9.8" font-weight="700" fill="#64748b" stroke="#fff" stroke-width="4" paint-order="stroke">dispara llamadas por API</text>
+    </svg>
+    <div class="caption">Los canales son de Atentina (la línea, con Anura). Su sistema dispara las llamadas por API y
+      recibe el resultado por webhook; el panel muestra cada conversación con su transcripción.</div>
+  </div>
+
+  <h2 style="margin-top:4.5mm">Las piezas</h2>
+  <table class="spec">
+    <tr><th>Pieza</th><th>Qué es</th></tr>
+    <tr><td>Agentes versionados</td><td>Cada agente es una definición (tono, reglas, datos a capturar, resultados posibles, voz
+      y apertura). Se edita por formulario; cada cambio es una versión nueva y cada conversación guarda con cuál se hizo.</td></tr>
+    <tr><td>Motores de conversación</td><td>Guion guiado para llamadas cortas y con objetivo, o asistente con herramientas que
+      consulta y actualiza un sistema durante la charla. El LLM es el propio; un cliente puede usar el suyo con su key.</td></tr>
+    <tr><td>API <code>/api/v1</code></td><td>REST con API keys por alcance (<code>calls</code>, <code>llm</code>,
+      <code>stt</code>, <code>tts</code>). Llamada saliente única, contactos, campañas programadas, estadísticas, reporte
+      CSV y webhooks con firma HMAC-SHA256.</td></tr>
+    <tr><td>Motores por API</td><td>Transcripción, lenguaje y síntesis con acento argentino sueltos, compatibles con el SDK de
+      OpenAI y con streaming, para los agentes que Axioma ya construye.</td></tr>
+    <tr><td>Multi-cliente</td><td>Cada cliente con su plan, sus agentes, sus números, sus usuarios y su consumo. Topes por
+      plan (minutos, llamadas a la vez, números) controlados en cada llamada.</td></tr>
+  </table>
+
+  <div class="pagefoot"><span>Atentina · Axioma IT Solutions</span><span>3 / 6</span></div>
+</section>
+
+<!-- ========== HOJA 4: el llamador del CRM ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA TÉCNICA · AXIOMA IT SOLUTIONS<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin-bottom:2mm">
+    <div class="eyebrow">El caso pedido</div>
+    <h2 style="font-size:17pt">El llamador del CRM: <span class="accent">el CRM decide cuándo, el agente llama y devuelve el resultado.</span></h2>
+  </div>
+
+  <div class="diagram" style="margin-top:1mm;padding-top:3.5mm">
+    <svg viewBox="0 0 720 206" xmlns="http://www.w3.org/2000/svg" font-family="Figtree, sans-serif">
+      <defs>
+        <marker id="a4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#2456e6"/>
+        </marker>
+        <marker id="g4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#94a3b8"/>
+        </marker>
+      </defs>
+
+      <!-- CRM -->
+      <rect x="4" y="14" width="150" height="110" rx="14" fill="#f1f4f9" stroke="#cbd5e1"/>
+      <text x="20" y="36" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#64748b">AXIOMA O SU CLIENTE</text>
+      <text x="20" y="58" font-family="Bricolage, sans-serif" font-weight="800" font-size="15" fill="#0b1220">Odoo / CRM</text>
+      <text x="20" y="78" font-size="10" fill="#33415c">Lead nuevo o etapa</text>
+      <text x="20" y="92" font-size="10" fill="#33415c">“llamar”: acción</text>
+      <text x="20" y="106" font-size="10" fill="#33415c">automatizada o n8n</text>
+
+      <path d="M154 60 L206 60" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#g4)"/>
+      <text x="180" y="50" text-anchor="middle" font-size="10" font-weight="700" fill="#64748b" stroke="#fff" stroke-width="4" paint-order="stroke">1 · POST</text>
+
+      <!-- API -->
+      <rect x="208" y="14" width="156" height="110" rx="14" fill="#eaf0ff" stroke="#2456e6" stroke-width="1.6"/>
+      <text x="224" y="36" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#2456e6">ATENTINA</text>
+      <text x="224" y="58" font-family="Bricolage, sans-serif" font-weight="800" font-size="15" fill="#0b1220">API</text>
+      <text x="224" y="78" font-size="10" fill="#1740b8">Contacto con sus datos</text>
+      <text x="224" y="92" font-size="10" fill="#1740b8">+ campaña de voz: hora,</text>
+      <text x="224" y="106" font-size="10" fill="#1740b8">horario, reintentos</text>
+
+      <path d="M364 60 L416 60" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#a4)"/>
+      <text x="390" y="50" text-anchor="middle" font-size="10" font-weight="700" fill="#2456e6" stroke="#fff" stroke-width="4" paint-order="stroke">2 · a la hora</text>
+
+      <!-- Agente -->
+      <rect x="418" y="14" width="156" height="110" rx="14" fill="#fff" stroke="#2456e6" stroke-width="1.8"/>
+      <text x="434" y="36" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#2456e6">ATENTINA</text>
+      <text x="434" y="58" font-family="Bricolage, sans-serif" font-weight="800" font-size="15" fill="#0b1220">El agente llama</text>
+      <text x="434" y="78" font-size="10" fill="#33415c">Saluda por el nombre,</text>
+      <text x="434" y="92" font-size="10" fill="#33415c">califica y agenda;</text>
+      <text x="434" y="106" font-size="10" fill="#33415c">reintenta si no atiende</text>
+
+      <path d="M574 60 L620 60" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#a4)"/>
+      <text x="597" y="50" text-anchor="middle" font-size="10" font-weight="700" fill="#2456e6" stroke="#fff" stroke-width="4" paint-order="stroke">3</text>
+
+      <!-- Lead -->
+      <rect x="622" y="14" width="94" height="110" rx="14" fill="#fff" stroke="#cbd5e1"/>
+      <g fill="#64748b"><circle cx="669" cy="46" r="10"/><path d="M651 76 a18 15 0 0 1 36 0z"/></g>
+      <text x="669" y="98" text-anchor="middle" font-family="Bricolage, sans-serif" font-weight="800" font-size="13" fill="#0b1220">El lead</text>
+      <text x="669" y="113" text-anchor="middle" font-size="9.5" fill="#64748b">en su celular</text>
+
+      <!-- Vuelta -->
+      <path d="M496 124 C 496 178, 79 178, 79 128" fill="none" stroke="#2456e6" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a4)"/>
+      <text x="288" y="186" text-anchor="middle" font-size="10.5" font-weight="700" fill="#2456e6" stroke="#fff" stroke-width="4" paint-order="stroke">4 · webhook firmado: resultado, datos capturados y link a la conversación</text>
+      <text x="288" y="202" text-anchor="middle" font-size="9.5" fill="#64748b">el CRM mueve la etapa, guarda la nota y le deja una actividad al vendedor</text>
+    </svg>
+  </div>
+
+  <div class="flow cards">
+    <div class="card"><div class="num">1</div><h3>El CRM dispara</h3>
+      <p>Una acción automatizada de Odoo o un flujo de n8n crea el contacto y la campaña, con la hora de inicio.</p></div>
+    <div class="card"><div class="num">2</div><h3>Se respeta la agenda</h3>
+      <p>Llama solo en el horario y los días definidos, con las llamadas a la vez que elijan.</p></div>
+    <div class="card"><div class="num">3</div><h3>Charla real</h3>
+      <p>Usa los datos del lead (nombre, empresa, origen), acepta interrupciones y captura lo que pidan.</p></div>
+    <div class="card"><div class="num">4</div><h3>Vuelta al CRM</h3>
+      <p>Webhook por cada contacto y al terminar la campaña; además, estadísticas y reporte CSV por API.</p></div>
+  </div>
+
+  <div class="codes">
+<div class="code"><span class="t">Crear la campaña · ilustrativo, abreviado</span><span class="c">POST /api/v1/campaigns
+Authorization: Bearer vaas_...</span>
+{
+  "channel": <span class="s">"voice"</span>,
+  "name": <span class="s">"Leads Kit 4.0"</span>,
+  "agent_id": <span class="s">"&lt;calificador&gt;"</span>,
+  "voice": <span class="s">"sofia"</span>,
+  "starts_at": <span class="s">"2026-11-03T10:00:00-03:00"</span>,
+  "window_start": 9, "window_end": 18,
+  "weekdays": [0, 1, 2, 3, 4],
+  "concurrency": 2, "max_attempts": 3,
+  "callback_url": <span class="s">"https://crm.ejemplo.com/hook"</span>,
+  "contacts": [{
+    "phone": <span class="s">"+54 9 11 5555-0000"</span>,
+    "name": <span class="s">"Laura"</span>,
+    "external_id": <span class="s">"crm.lead/4821"</span>,
+    "attributes": { "empresa": <span class="s">"Metalúrgica Sur"</span>,
+                    "origen": <span class="s">"Kit 4.0"</span> }
+  }],
+  "start": true
+}</div>
+<div class="code"><span class="t">Lo que vuelve al CRM · ilustrativo, abreviado</span><span class="c">POST https://crm.ejemplo.com/hook
+X-Atentina-Signature: sha256=...</span>
+{
+  "event": <span class="s">"contact.finished"</span>,
+  "campaign": { "name": <span class="s">"Leads Kit 4.0"</span> },
+  "contact": {
+    "external_id": <span class="s">"crm.lead/4821"</span>,
+    "resultado": <span class="s">"answered"</span>,
+    "intentos": 1,
+    "duracion_segundos": 94,
+    "outcome": <span class="s">"Diagnóstico agendado"</span>,
+    "objetivo": <span class="s">"si"</span>,
+    "campos": { "empleados": 25,
+                "mipyme": <span class="s">"si"</span>,
+                "dia": <span class="s">"jueves 11 h"</span> },
+    "link": <span class="s">"https://app.atentina.com.ar/calls/..."</span>
+  }
+}</div>
+  </div>
+  <p class="src-line">Ejemplos ilustrativos: el lead, la empresa y los datos son inventados, y se omiten campos. Los
+    resultados y los datos a capturar se definen en el agente; <code>external_id</code> vuelve tal cual para ubicar el
+    registro en el CRM.</p>
+
+  <div class="note" style="margin-top:3mm">
+    <strong>Una llamada suelta también va por API:</strong> <code>POST /api/v1/calls</code> con el teléfono y el agente,
+    para disparar desde el CRM sin armar una campaña. La campaña suma la agenda, los reintentos y el reporte.
+  </div>
+
+  <div class="pagefoot"><span>Atentina · Axioma IT Solutions</span><span>4 / 6</span></div>
+</section>
+
+<!-- ========== HOJA 5: voces y naturalidad ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA TÉCNICA · AXIOMA IT SOLUTIONS<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin-bottom:2mm">
+    <div class="eyebrow">Voces y naturalidad</div>
+    <h2 style="font-size:17pt">41 voces argentinas, <span class="accent">y una naturalidad que se configura.</span></h2>
+    <p class="lead" style="font-size:10pt">
+      Cada agente tiene su voz, y se puede cambiar en cada llamada o campaña. Que suene más o menos natural no depende
+      solo de la voz: depende de <strong>cómo está configurado el agente y de cuánta latencia se acepta</strong>.
+      Se ajusta caso por caso.
+    </p>
+  </div>
+
+  <div class="voices">
+    <div class="voice"><b>Sofía</b><span>Cálida, clara y cercana</span><i>MUJER</i></div>
+    <div class="voice"><b>Martín</b><span>Grave, sereno y confiable</span><i>HOMBRE</i></div>
+    <div class="voice"><b>Valentina</b><span>Joven, alegre y ágil</span><i>MUJER</i></div>
+    <div class="voice"><b>Lucas</b><span>Joven, cordial y dinámico</span><i>HOMBRE</i></div>
+    <div class="voice"><b>Carolina</b><span>Serena, pausada y formal</span><i>MUJER</i></div>
+    <div class="voice"><b>Tomás</b><span>Claro, formal y atento</span><i>HOMBRE</i></div>
+    <div class="voice"><b>Jimena</b><span>Firme, nítida y profesional</span><i>MUJER</i></div>
+    <div class="voice"><b>Diego</b><span>Cálido, pausado y cercano</span><i>HOMBRE</i></div>
+    <div class="voice"><b>Gabriela</b><span>Madura, segura y cordial</span><i>MUJER</i></div>
+    <div class="voice" style="background:var(--accent-soft);border-color:#c9d7ff"><b>+ 32</b><span>28 de mujer y 13 de hombre en total</span><i>SE ESCUCHAN EN EL PANEL</i></div>
+  </div>
+
+  <h2 style="margin-top:4mm">Qué la hace sonar más natural</h2>
+  <div class="levers">
+    <div class="lever"><b>La voz adecuada</b>Una voz pausada para turnos o soporte, una ágil para ventas. Se prueban
+      en el panel antes de elegir.</div>
+    <div class="lever"><b>El estilo del agente</b>Frases cortas, una pregunta por vez, voseo y el nombre de la empresa
+      en la apertura. Lo que se escribe es lo que se escucha.</div>
+    <div class="lever"><b>Apertura pregenerada</b>El saludo se sintetiza entero de antemano: la primera frase, la que
+      más se nota, sale sin cortes y sin espera.</div>
+    <div class="lever"><b>Voz a medida</b>Para un cliente que lo justifique, una voz entrenada con grabaciones propias,
+      con su tono y su forma de hablar.</div>
+  </div>
+
+  <h2>El compromiso con la latencia</h2>
+  <div class="trade">
+    <div class="ends"><span>Responde antes</span><span>Suena más fluida</span></div>
+    <div class="bar"><i style="left:38%"></i></div>
+    <div class="cols">
+      <div>Con <strong>menos margen</strong> antes de hablar, el agente empieza a responder apenas el otro termina y
+        habla por partes a medida que piensa. Ideal para charlas rápidas.</div>
+      <div>Con <strong>más margen</strong>, espera un poco más de silencio y arma frases más completas: la entonación
+        sale más pareja. Ideal para explicar o para quien habla pausado.</div>
+    </div>
+  </div>
+
+  <div class="meas">
+    <div><b>0,87 s</b>promedio desde que Axel terminó de hablar hasta que sonó la respuesta, en su llamada a la demo.</div>
+    <div><b>1,17 s</b>la respuesta más lenta de esa misma llamada, en 6 turnos, medida en el servidor.</div>
+    <div><b>0,4 a 1 s</b>de silencio que espera el agente, por defecto, para saber que terminó el turno; más si se está dictando un número.</div>
+  </div>
+  <p class="src-line" style="margin-bottom:4mm">El punto de equilibrio se elige por caso, en la prueba con números
+    propios, y se mide en cada conversación: el panel muestra la latencia de cada turno.</p>
+
+  <div class="stance">
+    <b>Natural, pero honesto</b>
+    <p>El agente suena como una persona y habla como la empresa, pero <strong>no niega ser una IA</strong>: se presenta
+      como asistente y, si le preguntan, lo dice. Es lo que protege a Axioma y a sus clientes frente a quien atiende, y
+      en la práctica no le resta: lo que molesta es una llamada lenta o confusa, no un asistente que resuelve.</p>
+  </div>
+
+  <div class="pagefoot"><span>Atentina · Axioma IT Solutions</span><span>5 / 6</span></div>
+</section>
+
+<!-- ========== HOJA 6: puesta en marcha ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA TÉCNICA · AXIOMA IT SOLUTIONS<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin-bottom:2mm">
+    <div class="eyebrow">Cómo se pone en marcha</div>
+    <h2 style="font-size:17pt">Primero lo prueban solos. <span class="accent">Después, 30 días con sus leads.</span></h2>
+  </div>
+
+  <div class="offer">
+    <div class="main"><div class="k">Hoy, sin hablar con nadie</div><b>Acceso para probar</b>Registro en
+      atentina.com.ar: panel, API keys, agentes, las 41 voces y llamadas desde el navegador, con 20 minutos por mes.</div>
+    <div><div class="k">Si la quieren</div><b>Demo técnica, 30 min</b>La API en vivo: se crea un lead de prueba, se
+      programa la campaña y suena el celular de Axel; después, el webhook y la conversación en el panel.</div>
+    <div><div class="k">Para decidir</div><b>Piloto de 30 días</b>El llamador del CRM con los leads de Axioma, con
+      telefonía, un número argentino y soporte directo de nuestro equipo.</div>
+  </div>
+
+  <h2>Los pasos del piloto</h2>
+  <div class="steps six">
+    <div class="step"><b>Credenciales y entorno de prueba</b>Cuenta con campañas de voz, API key con alcance
+      <code>calls</code> y un agente de prueba.</div>
+    <div class="step"><b>Conectar su CRM</b>Axioma arma la acción de Odoo o el flujo de n8n y el receptor del webhook.</div>
+    <div class="step"><b>Agente y voz</b>Definimos juntos el guion de calificación, los datos a capturar, los resultados y la voz.</div>
+    <div class="step"><b>Primeras llamadas</b>Con números propios del equipo, hasta que la charla y la latencia estén donde quieren.</div>
+    <div class="step"><b>Sus leads, en vivo</b>De lunes a viernes de 9 a 18, con revisión de cada semana sobre los números.</div>
+    <div class="step"><b>Decisión</b>Contactabilidad, tiempo hasta el primer contacto y diagnósticos agendados, contra la línea de base.</div>
+  </div>
+
+  <div class="ops tight" style="margin-bottom:3mm">
+    <div class="ours">
+      <div class="eyebrow" style="margin-bottom:1.5mm">Atentina hace</div>
+      <ul>
+        <li>Habilita la cuenta, el número y las campañas de voz</li>
+        <li>Acompaña el diseño del agente y la elección de la voz</li>
+        <li>Ajusta naturalidad y latencia con ustedes</li>
+        <li>Da soporte técnico directo durante el piloto</li>
+      </ul>
+    </div>
+    <div class="theirs">
+      <div class="eyebrow" style="margin-bottom:1.5mm;color:var(--ok)">Necesitamos de ustedes</div>
+      <ul>
+        <li>El CRM y el evento que dispara la llamada</li>
+        <li>Qué preguntar, qué capturar y cuándo agendar</li>
+        <li>La línea de base: leads por mes y demora de hoy</li>
+        <li>Un responsable técnico y uno comercial</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Después del piloto: revenderlo</h2>
+  <div class="phases">
+    <div class="phase"><b>TodoTurnos</b>Llamada de confirmación y reprogramación para quien no responde el WhatsApp.</div>
+    <div class="phase"><b>Soporte Odoo</b>Primer nivel 24/7 que toma el caso y lo deja como ticket.</div>
+    <div class="phase"><b>Clientes Odoo</b>Avisos de vencimiento, mantenimiento y cobranza temprana desde su CRM.</div>
+    <div class="phase"><b>Acuerdo de canal</b>Cuentas por cliente, documentación de la API y condiciones para revender.</div>
+  </div>
+
+  <div class="note">
+    <strong>Precio.</strong> El del piloto y las condiciones para revender se acuerdan después de la prueba, según el
+    volumen y los clientes que sumen. Probar el acceso no tiene costo.
+  </div>
+
+  <footer class="contact">
+    <img src="../../../../plantilla/marca/atentina-logo-blanco.svg" alt="Atentina">
+    <div><div class="tag">Voz con IA para integrar,<br><span>con acento argentino.</span></div><div class="who">Contacto: Laureano Arcanio</div></div>
+    <div class="data">
+      <b>0800-220-1233</b><br>
+      <a href="https://atentina.com.ar">atentina.com.ar</a> · <a href="mailto:hola@atentina.com.ar">hola@atentina.com.ar</a><br>
+      WhatsApp +54 9 351 700-2592
+    </div>
+  </footer>
+</section>
+</body>
+</html>

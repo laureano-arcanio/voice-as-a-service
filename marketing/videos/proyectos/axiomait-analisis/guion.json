@@ -1,0 +1,72 @@
+{
+  "nota": "v1 (22-oct-2026): narradora paula a 1× y lucas como voz secundaria en las cuatro líneas de Axioma (b1 a b4, un solo bloque, como pablo en cimepa-analisis v2; lucas por pedido del usuario). Textos y cifras del PDF axiomait-propuesta v1. Ortografía normal; única grafía, la de la tabla: «ápi» por API. «Odoo», «CRM», «webhook», «Axioma» y «TodoTurnos» escritos normal (probados con scripts/candidatas.py axiomait). Números en palabras; pausas con puntuación. Sin precios. Sin línea de narradora antes de las de lucas: el título de la escena la reemplaza (para no pasar de ~75 s).",
+  "ganancia_db": -1.5,
+  "musica_segundos": 82,
+  "lineas": [
+    {
+      "id": "a1",
+      "voz": "paula",
+      "texto": "Sumen voz a lo que ya venden: Odoo, agentes de IA y turnos."
+    },
+    {
+      "id": "a2",
+      "voz": "paula",
+      "texto": "En Axioma ya entregaron más de cien proyectos, con clientes que se quedan, y cinco estrellas en sus reseñas."
+    },
+    {
+      "id": "b1",
+      "voz": "lucas",
+      "texto": "Odoo y CRM: llamar a cada lead a tiempo."
+    },
+    {
+      "id": "b2",
+      "voz": "lucas",
+      "texto": "Agentes de IA: el mismo agente, también por teléfono."
+    },
+    {
+      "id": "b3",
+      "voz": "lucas",
+      "texto": "TodoTurnos: una llamada para confirmar el turno."
+    },
+    {
+      "id": "b4",
+      "voz": "lucas",
+      "texto": "Soporte Odoo: un primer nivel, a toda hora."
+    },
+    {
+      "id": "a4",
+      "voz": "paula",
+      "texto": "Por dentro: una llamada, un WhatsApp o el navegador llegan al mismo agente, que escucha, decide y habla, en Argentina. Todo queda en el panel y sale por ápi."
+    },
+    {
+      "id": "a5",
+      "voz": "paula",
+      "texto": "Lo que pidieron: el CRM crea la campaña por ápi, con la hora. El agente llama, califica y agenda, y un webhook devuelve el resultado."
+    },
+    {
+      "id": "a6",
+      "voz": "paula",
+      "texto": "Son cuarenta y una voces argentinas, y pueden sonar mejor: depende de la configuración y de la latencia que elijan."
+    },
+    {
+      "id": "a7",
+      "voz": "paula",
+      "texto": "Con menos espera, responde antes. Con más, suena más fluida."
+    },
+    {
+      "id": "a8",
+      "voz": "paula",
+      "texto": "Natural, pero honesto: el agente no niega ser una IA."
+    },
+    {
+      "id": "a9",
+      "voz": "paula",
+      "texto": "Pueden probarlo hoy, sin hablar con nadie. Después, una demo técnica y un piloto de treinta días con sus leads."
+    },
+    {
+      "id": "a10",
+      "voz": "paula",
+      "texto": "¿Agendamos una demo técnica?"
+    }
+  ]
+}

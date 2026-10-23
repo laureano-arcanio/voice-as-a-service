@@ -1,0 +1,61 @@
+{
+  "nota": "v1: formato y reglas de goldman-analisis v3 y baicenter-analisis v1. Narrador lucas a 1x, ortografía normal; única grafía: «Ese Cu Ele» por SQL (escrito «SQL», una de dos tomas salió «Squell»; ellos lo dicen ese-cu-ele). Lo que podríamos mejorar va en cuatro líneas (a4a a a4d), una por tarjeta, con ~0,7 s de respiro entre cada una. Sin el texto oculto del sitio ni la competencia. Números en palabras; pausas con puntuación.",
+  "musica_segundos": 68,
+  "lineas": [
+    {
+      "id": "a1",
+      "voz": "lucas",
+      "texto": "Cada consulta con respuesta, cada cliente al tanto de lo suyo."
+    },
+    {
+      "id": "a2",
+      "voz": "lucas",
+      "texto": "En Ese Cu Ele Amoblamientos ya hicieron lo difícil: veinte locales, en nueve provincias."
+    },
+    {
+      "id": "a3",
+      "voz": "lucas",
+      "texto": "En palabras de Jorge Urizar: cumplimos a rajatabla con los tiempos estipulados."
+    },
+    {
+      "id": "a4a",
+      "voz": "lucas",
+      "texto": "Dónde podríamos mejorar con Atentina. Mientras espera, el cliente pregunta cómo va lo suyo."
+    },
+    {
+      "id": "a4b",
+      "voz": "lucas",
+      "texto": "La posventa entra como un mensaje más."
+    },
+    {
+      "id": "a4c",
+      "voz": "lucas",
+      "texto": "Un solo WhatsApp, para consultas de todo el país."
+    },
+    {
+      "id": "a4d",
+      "voz": "lucas",
+      "texto": "Y una cocina se piensa de noche, con la casa cerrada."
+    },
+    {
+      "id": "a5",
+      "voz": "lucas",
+      "texto": "Sus clientes elogian a sus asesores, por su nombre. El asesor de guardia no los reemplaza: les pasa cada consulta lista."
+    },
+    {
+      "id": "a6a",
+      "voz": "lucas",
+      "texto": "Un asesor de guardia en su WhatsApp, su línea y su sitio. Clasifica cada consulta y la pasa a su equipo, sobre todo a Ventas: al asesor, o a la franquicia de la zona."
+    },
+    {
+      "id": "a6b",
+      "voz": "lucas",
+      "texto": "Y en el panel, ven todo lo que pasa: quién tomó cada consulta, y cuánto tardó."
+    },
+    {
+      "id": "a7",
+      "voz": "lucas",
+      "texto": "¿Agendamos una reunión personalmente?"
+    }
+  ]
+}

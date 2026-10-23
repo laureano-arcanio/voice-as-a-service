@@ -23,7 +23,8 @@ TTS_URL = os.environ.get("TTS_URL", "http://127.0.0.1:8103/v1")
 STT_URL = os.environ.get("STT_URL", "http://127.0.0.1:8102/v1")
 
 # Cómo se escribe para que el TTS lo pronuncie -> cómo lo escribe el STT (para medir la fidelidad)
-GRAFIAS = {"ópen, ei, ái": "OpenAI", "yéison": "JSON", "Báic": "Bike"}  # BAIC se escribe "Báic" (baicenter-analisis)
+GRAFIAS = {"ópen, ei, ái": "OpenAI", "yéison": "JSON", "Báic": "Bike",  # BAIC se escribe "Báic" (baicenter-analisis)
+           "Ese Cu Ele": "SQL"}  # SQL se escribe "Ese Cu Ele" (sqlamoblamientos-analisis)
 
 
 def env(name):
@@ -93,6 +94,8 @@ def main():
     datos = json.loads((RAIZ / "proyectos" / proyecto / "guion.json").read_text())
     guion = datos["lineas"]
     velocidad = float(datos.get("velocidad", 1))  # "velocidad": 1.1 acelera la locución sin cambiar el tono
+    # "ganancia_db": -2 baja el nivel de la locución (una voz más fuerte que lucas saca la mezcla de -16 LUFS)
+    ganancia = 10 ** (float(datos.get("ganancia_db", 0)) / 20)
     out = RAIZ / "public" / "proyectos" / proyecto / "vo"
     out.mkdir(parents=True, exist_ok=True)
     key, model = env("VLLM_API_KEY"), env("VLLM_TTS_MODEL")
@@ -109,6 +112,8 @@ def main():
                 mejor = (puntaje, oido, pcm)
         puntaje, oido, pcm = mejor
         pcm = acelerar(pcm, velocidad)
+        if ganancia != 1:
+            pcm = b"".join(struct.pack("<h", max(-32768, min(32767, round(v[0] * ganancia)))) for v in struct.iter_unpack("<h", pcm))
         (out / f"{id_}.wav").write_bytes(wav(pcm))
         print(f"{id_} {voz:9s} {len(pcm) / 2 / SR:5.2f} s  {texto}\n    {puntaje:.2f} -> {oido}")
 

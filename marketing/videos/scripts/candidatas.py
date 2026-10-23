@@ -69,6 +69,55 @@ GRUPOS = {
         "En Báic Center ya hicieron lo difícil. Nueve años, cuatro marcas, y flotas como la de EPEC.",
         "En Baik Center ya hicieron lo difícil. Nueve años, cuatro marcas, y flotas como la de EPEC.",
     ] for _ in range(2)],
+    # Video sqlamoblamientos-analisis v1: cómo dice "SQL" (ellos dicen "ese, cu, ele"), "Urizar" y "rajatabla"
+    "sqlamoblamientos": [("lucas", t) for t in [
+        "En SQL Amoblamientos ya hicieron lo difícil.",
+        "En S Q L Amoblamientos ya hicieron lo difícil.",
+        "En ese cu ele Amoblamientos ya hicieron lo difícil.",
+        "En Ese Cu Ele Amoblamientos ya hicieron lo difícil.",
+        "En palabras de Jorge Urizar: cumplimos a rajatabla con los tiempos estipulados.",
+    ] for _ in range(2)],
+    # sqlamoblamientos-analisis v6: prueba de la narradora paula
+    "sqlamoblamientos-paula": [("paula", t) for t in [
+        "En SQL Amoblamientos ya hicieron lo difícil.",
+        "En Ese Cu Ele Amoblamientos ya hicieron lo difícil.",
+        "Atiende con voz, en un cero ochocientos, o un cero ochocientos diez.",
+        "En palabras de Jorge Urizar: cumplimos a rajatabla con los tiempos estipulados.",
+    ] for _ in range(2)],
+    # sqlamoblamientos-analisis v4: lo mismo con la narradora laura, y "cero ochocientos"
+    "sqlamoblamientos-laura": [("laura", t) for t in [
+        "En SQL Amoblamientos ya hicieron lo difícil.",
+        "En Ese Cu Ele Amoblamientos ya hicieron lo difícil.",
+        "Atiende con voz, en un cero ochocientos, o un cero ochocientos diez.",
+    ] for _ in range(2)],
+    # Video cimepa-analisis v1: cómo dice "CIMEPA", "IA", "API", "SIP" y "clic" (dos tomas por texto)
+    "cimepa": [("lucas", t) for t in [
+        "En CIMEPA nos pidieron que su equipo remoto llame sin teléfono.",
+        "En Cimepa nos pidieron que su equipo remoto llame sin teléfono.",
+        "En Simepa nos pidieron que su equipo remoto llame sin teléfono.",
+        "Un número para su equipo y su IA, todo grabado y transcripto.",
+        "Seguimientos programados por API, con su contexto y sus instrucciones.",
+        "Seguimientos programados por ápi, con su contexto y sus instrucciones.",
+        "En tiempo real, por SIP, o nuestro agente con su contexto y su modelo.",
+        "Elige el contacto, un clic, y sale con el número de la empresa.",
+        "Elige el contacto, un click, y sale con el número de la empresa.",
+    ] for _ in range(2)],
+    # cimepa-analisis v2: "CIMEPA", "ápi" y "SIP" con paula (narradora) y "ápi" con pablo (dos tomas por texto)
+    "cimepa-v2": [(v, t) for v, t in [
+        ("paula", "En CIMEPA nos pidieron cuatro cosas."),
+        ("paula", "Seguimientos programados por ápi, con su contexto y sus instrucciones."),
+        ("paula", "Seguimientos programados por API, con su contexto y sus instrucciones."),
+        ("paula", "En tiempo real, por SIP, o nuestro agente, con su contexto y su modelo."),
+        ("pablo", "Y todo grabado y transcripto, por ápi."),
+        ("pablo", "Y todo grabado y transcripto, por API."),
+    ] for _ in range(2)],
+    # axiomait-analisis v1: "Axioma", "Odoo", "CRM", "webhook", "ápi" y "TodoTurnos" con paula y lucas (dos tomas)
+    "axiomait": [(v, t) for v, t in [
+        ("paula", "En Axioma ya entregaron más de cien proyectos."),
+        ("paula", "Odoo crea la campaña por ápi, y un webhook devuelve el resultado al CRM."),
+        ("lucas", "Odoo y CRM: llamar a cada lead a tiempo."),
+        ("lucas", "TodoTurnos: confirmar el turno por teléfono."),
+    ] for _ in range(2)],
     # zennonbi-analisis v1: "Zennon", "Dynamics", "Dataverse", "Power Automate", "Power BI", "KickStart" y "API"
     "zennonbi": [(v, t) for v, t in [
         ("paula", "En Zennon implementan Dynamics desde dos mil dieciocho."),

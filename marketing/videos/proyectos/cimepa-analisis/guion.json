@@ -1,0 +1,67 @@
+{
+  "nota": "v2: voces nuevas (decisión del usuario, 22-oct-2026; docs/VIDEOS.md, Voces): narradora paula y, como voz secundaria, pablo en los cuatro pedidos de CIMEPA (c2a a c2d, un solo bloque: la voz de lo que nos pidieron). Por eso c2a de v1 se partió en c2 (paula, «En CIMEPA nos pidieron cuatro cosas.») y c2a (pablo). Resto, textos de v1. Ortografía normal; única grafía de la tabla: «ápi» por API. Números en palabras; pausas con puntuación. Sin precios, sin Anura ni Asterisk. Pedido del coordinador (v2): la escena entra muestra también el panel y la transcripción (c3 suma «Y queda en el panel, con su transcripción.»), y c6 pasa a lo que recibe su sistema por API, para no repetir.",
+  "ganancia_db": -1.5,
+  "musica_segundos": 70,
+  "lineas": [
+    {
+      "id": "c1",
+      "voz": "paula",
+      "texto": "Un número de la empresa para su equipo y su IA, todo grabado y transcripto."
+    },
+    {
+      "id": "c2",
+      "voz": "paula",
+      "texto": "En CIMEPA nos pidieron cuatro cosas."
+    },
+    {
+      "id": "c2a",
+      "voz": "pablo",
+      "texto": "Que su equipo remoto llame sin teléfono."
+    },
+    {
+      "id": "c2b",
+      "voz": "pablo",
+      "texto": "Que su asistente de IA llame y atienda."
+    },
+    {
+      "id": "c2c",
+      "voz": "pablo",
+      "texto": "Transferir entre la IA y una persona."
+    },
+    {
+      "id": "c2d",
+      "voz": "pablo",
+      "texto": "Y todo grabado y transcripto, por ápi."
+    },
+    {
+      "id": "c3",
+      "voz": "paula",
+      "texto": "Entra una llamada, y la atiende la IA. Resuelve, o la deriva al celular del empleado, con un resumen. Y queda en el panel, con su transcripción."
+    },
+    {
+      "id": "c4",
+      "voz": "paula",
+      "texto": "Un empleado llama desde la app web, en la compu o el celular: elige el contacto, un clic, y sale con el número de la empresa."
+    },
+    {
+      "id": "c5",
+      "voz": "paula",
+      "texto": "Y la IA llama: seguimientos programados por ápi, con su contexto y sus instrucciones."
+    },
+    {
+      "id": "c6",
+      "voz": "paula",
+      "texto": "Y por ápi, su sistema recibe todo: el audio de la llamada, la transcripción, el resumen y el resultado. Inferencia propia, en Argentina."
+    },
+    {
+      "id": "c7",
+      "voz": "paula",
+      "texto": "Su agente: tres vías, para definir en una charla técnica. En tiempo real, por SIP, o nuestro agente, con su contexto y su modelo."
+    },
+    {
+      "id": "c8",
+      "voz": "paula",
+      "texto": "¿Agendamos la charla técnica?"
+    }
+  ]
+}

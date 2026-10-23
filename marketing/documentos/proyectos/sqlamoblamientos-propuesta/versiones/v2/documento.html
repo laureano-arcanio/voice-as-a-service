@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Atentina · Propuesta para SQL Amoblamientos</title>
+<link rel="stylesheet" href="../../../../plantilla/base.css">
+<style>
+  /* Ajustes locales de este documento (no tocan base.css); base: baicenter-propuesta v2 */
+  .opps { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2.6mm; margin: 2mm 0 3mm; }
+  .opp { border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 3mm; padding: 2.3mm 3.8mm; background: #fff; }
+  .opp .k { font-family: "Plex Mono"; font-size: 6.9pt; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: .8mm; }
+  .opp b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 11.5pt; color: var(--ink); line-height: 1.12; margin-bottom: 1mm; }
+  .opp p { font-size: 8.6pt; margin: 0; }
+  .opp .to { font-size: 8.3pt; color: var(--accent2); margin-top: 1.3mm; padding-top: 1.3mm; border-top: 1px solid var(--line); }
+  .opp .to strong { color: var(--accent2); }
+  .pull { border-left: 3px solid var(--accent); padding: 1mm 0 1mm 4mm; margin: 0 0 5mm; }
+  .pull q { font-family: "Bricolage"; font-weight: 700; font-size: 13pt; color: var(--ink); quotes: "“" "”"; }
+  .pull span { display: block; font-size: 8.4pt; color: var(--muted); margin-top: 1.2mm; }
+  .good { display: grid; grid-template-columns: 38mm 1fr; gap: 5mm; align-items: center; border: 1px solid #bfe6cf; background: var(--ok-soft); border-radius: 3.5mm; padding: 3mm 4.5mm; margin: 0 0 4mm; }
+  .good b { font-family: "Bricolage"; font-weight: 800; font-size: 11.5pt; color: var(--ok); }
+  .good p { margin: 0; font-size: 8.9pt; }
+  .good q { quotes: "“" "”"; font-style: italic; color: var(--ink); }
+  .src-line { font-size: 7.8pt; color: var(--muted); }
+
+  .quotes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3.5mm; margin: 2mm 0 4mm; }
+  .quote { border: 1px solid var(--line); border-radius: 3.5mm; padding: 3mm 3.6mm; background: var(--bg2); }
+  .quote h3 { font-size: 10pt; margin-bottom: 1.4mm; }
+  .quote q { display: block; font-style: italic; font-size: 9.4pt; color: var(--ink); quotes: "“" "”"; margin-bottom: 1.2mm; }
+  .quote p { font-size: 8.6pt; margin: 0 0 1.2mm; }
+  .quote .when { font-family: "Plex Mono"; font-size: 6.9pt; letter-spacing: .04em; color: var(--muted); text-transform: uppercase; }
+  .quote.sum { background: var(--accent-soft); border-color: #c9d7ff; }
+  .quote.sum p { font-size: 8.8pt; margin: 0; }
+
+  /* El camino del mueble a medida (hoja 1) */
+  .proc { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0; margin: 2.5mm 0 2mm; counter-reset: p; }
+  .proc div { position: relative; padding: 2.2mm 2mm 2mm; border-top: 3px solid var(--accent); font-size: 8pt; line-height: 1.3; color: var(--ink2); counter-increment: p; }
+  .proc div + div { border-left: 1px dashed var(--line2); }
+  .proc div::before { content: counter(p); display: block; font-family: "Bricolage"; font-weight: 800; font-size: 12pt; color: var(--accent); margin-bottom: .6mm; }
+  .proc b { display: block; color: var(--ink); font-weight: 700; font-size: 8.6pt; margin-bottom: .4mm; }
+  .proc .wait { background: var(--accent-soft); }
+
+  .flow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; margin: 2mm 0 3mm; }
+  .flow .card { padding: 3mm 3.6mm; }
+  .flow .card .num { width: 6.5mm; height: 6.5mm; font-size: 9pt; margin-bottom: 1.6mm; }
+  .flow .card h3 { font-size: 10.4pt; }
+  .flow .card p { font-size: 8.6pt; margin: 0; }
+  .ficha { display: grid; grid-template-columns: 44mm 1fr; gap: 5mm; align-items: center; border: 1.5px solid var(--accent); border-radius: 4mm; padding: 3mm 5mm; background: linear-gradient(180deg, var(--accent-soft), #fff 85%); margin-bottom: 1mm; }
+  .ficha h2 { margin: 0; font-size: 12pt; }
+  .ficha p { margin: 0; font-size: 8.9pt; }
+  .ficha .msg { font-family: "Plex Mono"; font-size: 8pt; color: var(--ink); background: #fff; border: 1px solid #c9d7ff; border-radius: 2mm; padding: 1.6mm 2.4mm; margin-top: 1.4mm; display: inline-block; }
+
+  .panel { border: 1px solid var(--line2); border-radius: 4mm; overflow: hidden; margin: 2.5mm 0 1.5mm; background: #fff; }
+  .panel .bar { background: var(--ink); color: var(--cta-ink); font-family: "Plex Mono"; font-size: 7.2pt; letter-spacing: .05em; padding: 2mm 4mm; display: flex; justify-content: space-between; }
+  .panel .bar span { color: var(--cta-muted); }
+  .panel .body { padding: 3.2mm 4mm 3mm; background: var(--bg2); }
+  .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2.5mm; margin-bottom: 2.5mm; }
+  .kpi { background: #fff; border: 1px solid var(--line); border-radius: 2.5mm; padding: 2mm 2.8mm; }
+  .kpi b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 14pt; color: var(--accent); line-height: 1.1; }
+  .kpi span { font-size: 7.4pt; color: var(--ink2); line-height: 1.25; display: block; }
+  .pgrid { display: grid; grid-template-columns: 1fr 1fr 1.45fr; gap: 2.5mm; }
+  .pgrid + .pgrid { margin-top: 2.5mm; }
+  .pbox { background: #fff; border: 1px solid var(--line); border-radius: 2.5mm; padding: 2.3mm 3mm; }
+  .pbox .t { font-family: "Plex Mono"; font-size: 6.8pt; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 1.5mm; }
+  .pbox.mkt { border-color: #c9d7ff; box-shadow: inset 0 0 0 1px #c9d7ff; }
+  .pbox.mkt .t { color: var(--accent); }
+  .hb { display: grid; grid-template-columns: 21mm 1fr 8mm; align-items: center; gap: 1.5mm; font-size: 7.5pt; margin-bottom: 1mm; }
+  .hb i { display: block; height: 2.6mm; border-radius: 1.3mm; background: var(--accent); }
+  .hb i.w { background: #f59e0b; }
+  .hb i.r { background: #e5484d; }
+  .hb em { font-style: normal; text-align: right; color: var(--ink); font-weight: 600; }
+  table.pt { width: 100%; border-collapse: collapse; font-size: 7.5pt; }
+  table.pt th { text-align: left; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--line); padding: 0 1mm 1mm 0; }
+  table.pt td { padding: .9mm 1mm .9mm 0; border-bottom: 1px solid var(--line); color: var(--ink2); }
+  table.pt td.n, table.pt th.n { text-align: right; }
+  table.pt tr:last-child td { border-bottom: none; }
+
+  table.map { width: 100%; border-collapse: collapse; font-size: 8.6pt; margin: 2mm 0 0; }
+  table.map th { font-family: "Plex Mono"; font-weight: 500; font-size: 7pt; letter-spacing: .06em; text-transform: uppercase; text-align: left; padding: 0 3mm 1.5mm 0; color: var(--muted); }
+  table.map th:last-child { color: var(--accent); }
+  table.map td { padding: 1.25mm 3mm 1.25mm 0; border-top: 1px solid var(--line); vertical-align: top; }
+  table.map td:first-child { width: 44%; color: var(--ink); }
+  table.map td:last-child { color: var(--ink2); }
+
+  .pilot { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; margin: 2.5mm 0 4mm; }
+  .pilot div { background: var(--bg2); border-radius: 3mm; padding: 2.8mm 3.5mm; font-size: 8.8pt; }
+  .pilot b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 11.5pt; color: var(--accent); line-height: 1.15; margin-bottom: .6mm; }
+  .steps.six { grid-template-columns: repeat(3, 1fr); margin-bottom: 3.5mm; }
+  .steps.six .step { padding: 2.8mm 3.2mm; font-size: 8.5pt; }
+  .steps.six .step::before { font-size: 13pt; margin-bottom: 1mm; }
+  .ops.tight li { font-size: 8.7pt; margin-bottom: .7mm; }
+  .phases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 2mm 0 3.5mm; }
+  .phase { border-left: 2px solid var(--accent); padding: .5mm 0 .5mm 3mm; font-size: 8.5pt; }
+  .phase b { display: block; font-family: "Bricolage"; font-weight: 800; font-size: 10pt; color: var(--ink); margin-bottom: .6mm; }
+</style>
+</head>
+<body>
+
+<!-- ========== HOJA 1: quiénes son ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA · SQL AMOBLAMIENTOS<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero">
+    <div class="eyebrow">Un asesor de guardia 24/7, al teléfono y en WhatsApp</div>
+    <h1>Cada consulta atendida. <span class="accent">Su cliente y ustedes, siempre al tanto de lo que pasa.</span></h1>
+    <p class="lead">
+      Pilar: les acercamos lo que vimos desde afuera, en su sitio, en la prensa y en lo que cuentan sus clientes, y una
+      propuesta concreta para SQL Amoblamientos: <strong>un asesor con IA que atiende cada llamada y cada WhatsApp en
+      segundos, a toda hora</strong>, con sus pedidos y su catálogo al día, y que <strong>pasa a una persona de su equipo
+      lo que hace falta</strong>, sin que el cliente repita nada. Y para Jorge y sus hijos, <strong>cada consulta medida
+      en un panel</strong>.
+    </p>
+  </div>
+
+  <h2>Lo que ya hacen muy bien</h2>
+  <div class="stats" style="margin:2mm 0 4.5mm">
+    <div class="stat"><b>Desde 1981</b><span>diseñando, fabricando e instalando muebles 100 % a medida en Córdoba</span></div>
+    <div class="stat"><b>4.000 m²</b><span>de planta propia en San Roque, con 10 máquinas computarizadas y 70 personas</span></div>
+    <div class="stat"><b>20 locales</b><span>de venta en 9 provincias, propios y franquicias, y un showroom nuevo de 400 m²</span></div>
+    <div class="stat"><b>183 reseñas</b><span>en Google de la casa central, con 4,3 de promedio y asesores elogiados por su nombre</span></div>
+  </div>
+
+  <div class="pull">
+    <q>Cumplimos a rajatabla con los tiempos estipulados y nos diferenciamos por hacer amoblamiento absolutamente a medida.</q>
+    <span>Jorge Urizar, en Punto a Punto (noviembre de 2021). Esta propuesta quiere ayudar a que el cliente vea esa
+      promesa día a día.</span>
+  </div>
+
+  <h2>El camino de un mueble a medida</h2>
+  <p style="max-width:172mm;margin-bottom:0">Así lo cuentan ustedes: cada venta empieza con un trabajo consultivo y
+    nada se fabrica sin vender antes. Es un proceso cuidado, y largo para quien espera su cocina. <strong>En los pasos
+    marcados, el cliente está esperando una noticia.</strong></p>
+  <div class="proc">
+    <div class="wait"><b>Consulta</b>WhatsApp, teléfono, local o la web</div>
+    <div><b>Medición</b>Visita a la obra o estudio de planos</div>
+    <div class="wait"><b>Diseño y presupuesto</b>Render y varias idas y vueltas</div>
+    <div><b>Seña</b>Arranca la producción</div>
+    <div class="wait"><b>Fabricación</b>De 90 a 100 días en su planta</div>
+    <div class="wait"><b>Instalación</b>Con equipo propio</div>
+    <div class="wait"><b>Posventa</b>Con 5 años de garantía</div>
+  </div>
+
+  <h2 style="margin-top:4.5mm">Por qué ahora</h2>
+  <div class="two">
+    <ul>
+      <li><strong>Ya invierten en atraer consultas</strong>: campañas, redes, Instagram con 12,6 mil seguidores y un
+        showroom pensado para captar clientes. Cada consulta que llega vale.</li>
+    </ul>
+    <ul>
+      <li><strong>Una compra grande se decide con tiempo</strong>: varias visitas y presupuestos antes de elegir. Quien
+        responde primero y acompaña mejor queda a la cabeza.</li>
+    </ul>
+  </div>
+
+  <p class="src-line" style="margin-top:3mm">Fuentes: sqlamoblamientos.com.ar, Instagram y Google Maps, leídos el 22-oct-2026;
+    InfoNegocios (abril y agosto de 2025), Punto a Punto (2021) y D&amp;F Muebles (2015).</p>
+
+  <div class="pagefoot"><span>Atentina · SQL Amoblamientos</span><span>1 / 5</span></div>
+</section>
+
+<!-- ========== HOJA 2: dónde podríamos mejorar ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA · SQL AMOBLAMIENTOS<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin-bottom:2mm">
+    <div class="eyebrow">Dónde podríamos mejorar con Atentina</div>
+    <h2 style="font-size:17pt">El mueble ya está resuelto. <span class="accent">La oportunidad está en la espera.</span></h2>
+    <p class="lead" style="font-size:10pt">
+      No hablamos del diseño ni de la fábrica: hablamos de <strong>cómo llega una consulta y de lo que sabe el cliente
+      mientras espera</strong>. Cada punto es una oportunidad de vender más y de cuidar la reputación con el mismo equipo.
+    </p>
+  </div>
+
+  <div class="opps">
+    <div class="opp">
+      <div class="k">Presupuestos</div>
+      <b>El presupuesto lleva su tiempo, y el cliente no siempre sabe cuánto</b>
+      <p>Con medidas, render e idas y vueltas, es lógico. Es el tema que más se repite en las reseñas.</p>
+      <div class="to"><strong>Oportunidad:</strong> que cada pedido tenga fecha, aviso al cliente y un recordatorio al asesor.</div>
+    </div>
+    <div class="opp">
+      <div class="k">Fabricación</div>
+      <b>De 90 a 100 días entre la seña y la instalación</b>
+      <p>Un plazo largo y razonable, en el que el cliente pregunta "¿cómo va lo mío?" por el mismo WhatsApp que las consultas nuevas.</p>
+      <div class="to"><strong>Oportunidad:</strong> responderle al instante, con el dato de su pedido, en qué etapa está.</div>
+    </div>
+    <div class="opp">
+      <div class="k">Posventa</div>
+      <b>Un ajuste después de instalar, sin un lugar donde dejarlo</b>
+      <p>Hoy un pedido de posventa entra como un mensaje más, o termina en una reseña pública.</p>
+      <div class="to"><strong>Oportunidad:</strong> cada reclamo con número de caso, fotos, responsable y plazo de respuesta.</div>
+    </div>
+    <div class="opp">
+      <div class="k">Canales</div>
+      <b>Un solo WhatsApp para todo lo digital</b>
+      <p>El del sitio, Instagram, el Linktree y el showroom: proyectos nuevos, presupuestos, pedidos, reclamos y franquicias.</p>
+      <div class="to"><strong>Oportunidad:</strong> que cada consulta llegue clasificada al asesor o al área que corresponde.</div>
+    </div>
+    <div class="opp">
+      <div class="k">Horario reducido</div>
+      <b>Atención en horario reducido: 44 de las 168 horas</b>
+      <p>La casa central atiende de lunes a viernes de 9 a 13 y de 14 a 18, y los sábados de 9 a 13.</p>
+      <div class="to"><strong>Oportunidad:</strong> responder también fuera de horario y dejar la visita o la medición agendada.</div>
+    </div>
+    <div class="opp">
+      <div class="k">Red</div>
+      <b>20 puntos de venta, cada uno con su contacto</b>
+      <p>Cada local y franquicia tiene su teléfono y su correo, y el WhatsApp del sitio recibe consultas de todo el país.</p>
+      <div class="to"><strong>Oportunidad:</strong> un número para todo el país que pase cada consulta al local de la zona, y toda la red en un lugar.</div>
+    </div>
+  </div>
+
+  <div class="quotes">
+    <div class="quote">
+      <h3>Esperando el presupuesto</h3>
+      <q>quedó en pasarlo el lunes... aún lo estoy esperando</q>
+      <div class="when">Google Maps · hace 10 meses</div>
+    </div>
+    <div class="quote">
+      <h3>Después de instalar</h3>
+      <q>me canse de escribirles durante meses para que me vengan a colocar zócalos</q>
+      <div class="when">Google Maps · hace un año</div>
+    </div>
+    <div class="quote sum">
+      <h3>Lo que tienen en común</h3>
+      <p>No hablan del mueble: hablan de <strong>quedar esperando una noticia</strong>. Es lo más fácil de resolver, y lo
+        que más se nota en una compra tan importante como una cocina.</p>
+    </div>
+  </div>
+
+  <div class="good">
+    <b>Lo que más se elogia: sus asesores</b>
+    <p>Las reseñas recientes nombran a Martín, Fernando, Micaela y la arquitecta Inés: <q>la atención de Martin antes,
+      durante y pos a la venta. Los plazos de entrega fueron los pactados</q>. La venta es personal y así tiene que
+      seguir: <strong>el asesor de guardia no los reemplaza</strong>, les pasa la consulta calificada y cuida que nadie
+      quede esperando.</p>
+  </div>
+
+  <p class="src-line">Fuentes: sitio y horarios de Google Maps, leídos el 22-oct-2026; InfoNegocios (abril de 2025) para el
+    proceso y los 90 a 100 días. Reseñas públicas de Google Maps de SQL Amoblamientos (casa central y Villa Carlos Paz),
+    textuales y sin nombres, con fechas relativas al 22-oct-2026.</p>
+
+  <div class="pagefoot"><span>Atentina · SQL Amoblamientos</span><span>2 / 5</span></div>
+</section>
+
+<!-- ========== HOJA 3: la solución ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA · SQL AMOBLAMIENTOS<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin-bottom:2.5mm">
+    <div class="eyebrow">La solución propuesta</div>
+    <h2 style="font-size:17pt">Un asesor de guardia, <span class="accent">y una persona cuando hace falta.</span></h2>
+    <p class="lead" style="font-size:10pt">
+      Un agente con IA, con nombre propio (por ejemplo, “Sofía, de SQL Amoblamientos”) y <strong>voz con acento
+      argentino</strong>, atiende las 24 horas <strong>las llamadas</strong> (un 0800 o 0810 para todo el país, la línea de
+      casa central y las llamadas de WhatsApp) y <strong>los mensajes y audios de WhatsApp</strong>. Resuelve lo que puede
+      y <strong>le deja a su equipo lo que mejor sabe hacer: asesorar, diseñar, fabricar e instalar</strong>.
+    </p>
+  </div>
+
+  <div class="flow cards" style="margin-bottom:2.5mm">
+    <div class="card"><div class="num">1</div><h3>Atiende y califica</h3>
+      <p>Con voz al teléfono, o por mensaje y audio: ciudad, ambiente, medidas, plazo y rango.</p></div>
+    <div class="card"><div class="num">2</div><h3>Conoce sus productos</h3>
+      <p>Líneas, materiales, terminaciones, tiempos y qué incluye cada servicio, siempre actualizados.</p></div>
+    <div class="card"><div class="num">3</div><h3>Sabe cómo va cada pedido</h3>
+      <p>Conectado a su sistema o planilla: presupuesto, etapa de fabricación y fecha de instalación.</p></div>
+    <div class="card"><div class="num">4</div><h3>Agenda y avisa</h3>
+      <p>La visita al showroom o la medición, y le avisa al cliente cuándo llega su presupuesto.</p></div>
+    <div class="card"><div class="num">5</div><h3>Toma los reclamos</h3>
+      <p>Con número de caso, fotos y plazo de respuesta, y los pasa a posventa.</p></div>
+    <div class="card" style="border-color:var(--accent);background:var(--accent-soft)"><div class="num">6</div><h3>Pasa a una persona</h3>
+      <p>Cuando hace falta o el cliente lo pide: la llamada o el chat, a quien corresponde.</p></div>
+  </div>
+
+  <div class="ficha" style="margin-top:0">
+    <h2>Una persona, a un paso</h2>
+    <p>El asesor, el local, la franquicia de la zona, posventa o administración reciben la conversación completa y una
+      ficha: <strong>el cliente no repite nada</strong>.<br>
+      <span class="msg">Proyecto nuevo · cocina en L 3,20 + 2,40 m · remodelación · Cerro · diciembre · medio-alto · vino por Instagram · showroom mar. 17 h</span></p>
+  </div>
+
+  <div class="diagram" style="margin-top:2.5mm;padding-top:3mm">
+    <div class="eyebrow">Cómo funciona</div>
+    <svg viewBox="0 0 720 322" xmlns="http://www.w3.org/2000/svg" font-family="Figtree, sans-serif">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#2456e6"/>
+        </marker>
+        <marker id="arg" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#94a3b8"/>
+        </marker>
+        <marker id="arb" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#2456e6"/>
+        </marker>
+      </defs>
+
+      <!-- Sus clientes -->
+      <rect x="4" y="60" width="112" height="118" rx="14" fill="#fff" stroke="#cbd5e1"/>
+      <g fill="#64748b">
+        <circle cx="44" cy="92" r="9"/><path d="M28 120 a16 14 0 0 1 32 0z"/>
+        <circle cx="78" cy="92" r="9" opacity=".55"/><path d="M62 120 a16 14 0 0 1 32 0z" opacity=".55"/>
+      </g>
+      <text x="60" y="144" text-anchor="middle" font-family="Bricolage, sans-serif" font-weight="800" font-size="14" fill="#0b1220">Sus clientes</text>
+      <text x="60" y="160" text-anchor="middle" font-size="10" fill="#64748b">de todo el país,</text>
+      <text x="60" y="172" text-anchor="middle" font-size="10" fill="#64748b">a cualquier hora</text>
+
+      <!-- Flechas a los canales -->
+      <path d="M116 90 C 128 90, 128 34, 138 34" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#arg)"/>
+      <path d="M116 108 C 128 108, 128 90, 138 90" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#arg)"/>
+      <path d="M116 128 C 128 128, 128 146, 138 146" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#arg)"/>
+      <path d="M116 146 C 128 146, 128 202, 138 202" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#arg)"/>
+
+      <!-- Canales -->
+      <g fill="#1740b8">
+        <rect x="140" y="14" width="124" height="40" rx="20" fill="#eaf0ff" stroke="#2456e6"/>
+        <text x="202" y="31" text-anchor="middle" font-size="12" font-weight="700">0800 / 0810</text>
+        <text x="202" y="45" text-anchor="middle" font-size="9" fill="#33415c">nuevo, para todo el país</text>
+        <rect x="140" y="70" width="124" height="40" rx="20" fill="#eaf0ff" stroke="#2456e6"/>
+        <text x="202" y="87" text-anchor="middle" font-size="12" font-weight="700">Línea de la casa</text>
+        <text x="202" y="101" text-anchor="middle" font-size="9" fill="#33415c">casa central</text>
+        <rect x="140" y="126" width="124" height="40" rx="20" fill="#eaf0ff" stroke="#2456e6"/>
+        <text x="202" y="143" text-anchor="middle" font-size="12" font-weight="700">WhatsApp</text>
+        <text x="202" y="157" text-anchor="middle" font-size="9" fill="#33415c">mensajes, audios y llamadas</text>
+        <rect x="140" y="182" width="124" height="40" rx="20" fill="#eaf0ff" stroke="#2456e6"/>
+        <text x="202" y="199" text-anchor="middle" font-size="12" font-weight="700">Su sitio web</text>
+        <text x="202" y="213" text-anchor="middle" font-size="9" fill="#33415c">llamar desde la página</text>
+      </g>
+      <path d="M264 34 C 278 34, 276 84, 288 84" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#ar)"/>
+      <path d="M264 90 C 276 90, 276 108, 288 108" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#ar)"/>
+      <path d="M264 146 C 276 146, 276 132, 288 132" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#ar)"/>
+      <path d="M264 202 C 278 202, 276 156, 288 156" fill="none" stroke="#2456e6" stroke-width="2" marker-end="url(#ar)"/>
+
+      <!-- Aviso de vuelta al cliente -->
+      <path d="M300 228 C 300 296, 60 296, 60 182" fill="none" stroke="#2456e6" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+      <text x="178" y="282" text-anchor="middle" font-size="10.5" font-weight="700" fill="#2456e6" stroke="#fff" stroke-width="4" paint-order="stroke">le avisa cómo va lo suyo</text>
+
+      <!-- Agente -->
+      <rect x="290" y="14" width="190" height="214" rx="14" fill="#fff" stroke="#2456e6" stroke-width="1.8"/>
+      <text x="304" y="36" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#2456e6">ATENTINA · 24/7</text>
+      <text x="304" y="57" font-family="Bricolage, sans-serif" font-weight="800" font-size="16.5" fill="#0b1220">El asesor de guardia</text>
+      <text x="304" y="74" font-size="10.5" fill="#33415c">Atiende con voz y por mensaje,</text>
+      <text x="304" y="88" font-size="10.5" fill="#33415c">con pedidos y catálogo al día:</text>
+      <g font-size="10.5" fill="#1740b8">
+        <rect x="304" y="98" width="76" height="22" rx="11" fill="#eaf0ff"/><text x="342" y="113" text-anchor="middle">Proyecto</text>
+        <rect x="386" y="98" width="82" height="22" rx="11" fill="#eaf0ff"/><text x="427" y="113" text-anchor="middle">Presupuesto</text>
+        <rect x="304" y="126" width="76" height="22" rx="11" fill="#eaf0ff"/><text x="342" y="141" text-anchor="middle">Pedido</text>
+        <rect x="386" y="126" width="82" height="22" rx="11" fill="#eaf0ff"/><text x="427" y="141" text-anchor="middle">Reclamo</text>
+        <rect x="304" y="154" width="76" height="22" rx="11" fill="#eaf0ff"/><text x="342" y="169" text-anchor="middle">Pagos</text>
+        <rect x="386" y="154" width="82" height="22" rx="11" fill="#eaf0ff"/><text x="427" y="169" text-anchor="middle">Otra zona</text>
+      </g>
+      <text x="304" y="198" font-size="10.5" fill="#33415c">Resuelve lo que puede; lo</text>
+      <text x="304" y="212" font-size="10.5" fill="#33415c">demás, a una persona.</text>
+
+      <!-- Pase a una persona -->
+      <path d="M480 121 L556 121" fill="none" stroke="#2456e6" stroke-width="3.2" marker-end="url(#arb)"/>
+      <text x="518" y="98" text-anchor="middle" font-size="10.5" font-weight="800" fill="#2456e6">pasa a una</text>
+      <text x="518" y="111" text-anchor="middle" font-size="10.5" font-weight="800" fill="#2456e6">persona</text>
+      <text x="518" y="138" text-anchor="middle" font-size="9.5" fill="#1740b8">con la charla</text>
+      <text x="518" y="150" text-anchor="middle" font-size="9.5" fill="#1740b8">y la ficha</text>
+
+      <!-- Su equipo -->
+      <rect x="558" y="14" width="158" height="214" rx="14" fill="#fbfcfe" stroke="#cbd5e1"/>
+      <text x="572" y="36" font-family="Plex Mono, monospace" font-size="9" letter-spacing="1" fill="#64748b">SQL AMOBLAMIENTOS</text>
+      <text x="572" y="57" font-family="Bricolage, sans-serif" font-weight="800" font-size="16.5" fill="#0b1220">Su equipo</text>
+      <g font-size="10.5" fill="#33415c">
+        <rect x="572" y="68" width="130" height="26" rx="13" fill="#f1f4f9"/><text x="637" y="85" text-anchor="middle">Asesores y locales</text>
+        <rect x="572" y="98" width="130" height="26" rx="13" fill="#f1f4f9"/><text x="637" y="115" text-anchor="middle">Franquicia de la zona</text>
+        <rect x="572" y="128" width="130" height="26" rx="13" fill="#f1f4f9"/><text x="637" y="145" text-anchor="middle">Producción</text>
+        <rect x="572" y="158" width="130" height="26" rx="13" fill="#f1f4f9"/><text x="637" y="175" text-anchor="middle">Administración</text>
+        <rect x="572" y="188" width="130" height="26" rx="13" fill="#f1f4f9"/><text x="637" y="205" text-anchor="middle">Posventa</text>
+      </g>
+
+      <!-- Sus datos -->
+      <rect x="326" y="256" width="124" height="60" rx="12" fill="#f1f4f9" stroke="#cbd5e1"/>
+      <text x="338" y="274" font-family="Plex Mono, monospace" font-size="8.5" letter-spacing="1" fill="#64748b">SUS DATOS</text>
+      <text x="338" y="292" font-family="Bricolage, sans-serif" font-weight="800" font-size="12" fill="#0b1220">Pedidos y catálogo</text>
+      <text x="338" y="307" font-size="9.5" fill="#64748b">de su sistema o planilla</text>
+      <path d="M388 256 V232" fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#arg)"/>
+
+      <!-- Al panel -->
+      <path d="M470 228 V254" fill="none" stroke="#2456e6" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+      <path d="M637 228 V254" fill="none" stroke="#2456e6" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+
+      <!-- Panel -->
+      <rect x="462" y="256" width="254" height="60" rx="14" fill="#eaf0ff" stroke="#2456e6" stroke-width="1.6"/>
+      <text x="476" y="276" font-family="Plex Mono, monospace" font-size="8.5" letter-spacing="1" fill="#2456e6">PARA LA DIRECCIÓN</text>
+      <text x="476" y="302" font-family="Bricolage, sans-serif" font-weight="800" font-size="17" fill="#0b1220">El panel</text>
+      <text x="566" y="288" font-size="10" fill="#1740b8">Resueltas y pasadas a una</text>
+      <text x="566" y="302" font-size="10" fill="#1740b8">persona: quién la tomó</text>
+      <text x="566" y="314" font-size="10" fill="#1740b8">y cuánto tardó.</text>
+    </svg>
+    <div class="caption">Sus clientes llaman o escriben como hoy. El asesor de guardia atiende al instante; lo que
+      necesita una persona lo pasa a quien corresponde, con toda la conversación. Todo queda en un panel.</div>
+  </div>
+
+  <div class="pagefoot"><span>Atentina · SQL Amoblamientos</span><span>3 / 5</span></div>
+</section>
+
+<!-- ========== HOJA 4: el panel ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA · SQL AMOBLAMIENTOS<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin-bottom:2mm">
+    <div class="eyebrow">El panel, para Jorge, sus hijos y marketing</div>
+    <h2 style="font-size:17pt">Toda la atención a la vista, <span class="accent">sin pedirle un informe a nadie.</span></h2>
+    <p class="lead" style="font-size:10pt">
+      Cada llamada y cada WhatsApp queda registrado. La dirección ve <strong>qué resolvió el asesor de guardia, qué pasó
+      a una persona, quién lo tomó y cuánto tardó</strong>, qué presupuestos esperan y qué pedidos se acercan al plazo;
+      marketing, de dónde viene cada consulta.
+    </p>
+  </div>
+
+  <div class="panel">
+    <div class="bar"><b>PANEL · SQL AMOBLAMIENTOS</b><span>EJEMPLO CON DATOS ILUSTRATIVOS · UNA SEMANA</span></div>
+    <div class="body">
+      <div class="kpis">
+        <div class="kpi"><b>310</b><span>consultas: llamadas, WhatsApp y web</span></div>
+        <div class="kpi"><b>6 s</b><span>hasta la primera respuesta (mediana)</span></div>
+        <div class="kpi"><b>52 %</b><span>llegaron con la casa central cerrada</span></div>
+        <div class="kpi"><b>189 · 121</b><span>resueltas solas · pasadas a una persona</span></div>
+        <div class="kpi"><b>38</b><span>visitas al showroom y mediciones agendadas</span></div>
+      </div>
+      <div class="pgrid">
+        <div class="pbox">
+          <div class="t">Por canal</div>
+          <div class="hb">WhatsApp chat<i style="width:100%"></i><em>151</em></div>
+          <div class="hb">0800 / 0810<i style="width:48%"></i><em>72</em></div>
+          <div class="hb">Línea<i style="width:27%"></i><em>41</em></div>
+          <div class="hb">Sitio web<i style="width:19%"></i><em>28</em></div>
+          <div class="hb">Llamada WA<i style="width:12%"></i><em>18</em></div>
+        </div>
+        <div class="pbox">
+          <div class="t">Por tipo de consulta</div>
+          <div class="hb">Proyecto nuevo<i style="width:100%"></i><em>126</em></div>
+          <div class="hb">Estado de pedido<i style="width:51%"></i><em>64</em></div>
+          <div class="hb">Presupuesto<i style="width:33%"></i><em>41</em></div>
+          <div class="hb">Posventa<i style="width:26%"></i><em>33</em></div>
+          <div class="hb">Otra zona<i style="width:23%"></i><em>29</em></div>
+          <div class="hb">Pagos<i style="width:13%"></i><em>17</em></div>
+        </div>
+        <div class="pbox">
+          <div class="t">Pasadas a una persona: quién y cuánto tardó</div>
+          <table class="pt">
+            <tr><th>Quién</th><th class="n">Pases</th><th class="n">Tomó en</th><th class="n">Presup.</th><th class="n">+7 d</th></tr>
+            <tr><td>Central 1</td><td class="n">34</td><td class="n">12 min</td><td class="n">9</td><td class="n">1</td></tr>
+            <tr><td>Central 2</td><td class="n">29</td><td class="n">25 min</td><td class="n">11</td><td class="n">4</td></tr>
+            <tr><td>Showroom</td><td class="n">31</td><td class="n">9 min</td><td class="n">7</td><td class="n">0</td></tr>
+            <tr><td>Carlos Paz</td><td class="n">12</td><td class="n">40 min</td><td class="n">5</td><td class="n">2</td></tr>
+            <tr><td>Franquicias</td><td class="n">15</td><td class="n">1 h 10</td><td class="n">6</td><td class="n">3</td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="pgrid" style="grid-template-columns: 1fr 1fr 1.45fr">
+        <div class="pbox">
+          <div class="t">Pedidos contra el plazo</div>
+          <div class="hb">En plazo<i style="width:100%"></i><em>79</em></div>
+          <div class="hb">Por vencer<i class="w" style="width:12%"></i><em>5</em></div>
+          <div class="hb">Vencidos<i class="r" style="width:5%"></i><em>2</em></div>
+        </div>
+        <div class="pbox">
+          <div class="t">Reclamos de posventa</div>
+          <div class="hb">Abiertos<i style="width:100%"></i><em>11</em></div>
+          <div class="hb">Cerrados<i style="width:82%"></i><em>9</em></div>
+          <div class="hb">Días a cerrar<i style="width:30%"></i><em>3</em></div>
+        </div>
+        <div class="pbox mkt">
+          <div class="t">Marketing: origen de la consulta</div>
+          <div class="hb">Instagram<i style="width:100%"></i><em>38 %</em></div>
+          <div class="hb">Anuncios<i style="width:58%"></i><em>22 %</em></div>
+          <div class="hb">Google<i style="width:45%"></i><em>17 %</em></div>
+          <div class="hb">Recomendación<i style="width:32%"></i><em>12 %</em></div>
+          <div class="hb">Showroom<i style="width:29%"></i><em>11 %</em></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="src-line" style="margin-bottom:3.5mm">Las cifras del ejemplo son ilustrativas: muestran qué se mide, no un
+    resultado. Cada conversación se abre con su transcripción, su resumen y su resultado, y se filtra por canal, tipo,
+    asesor, local y horario.</p>
+
+  <h2>Dónde podríamos mejorar con Atentina, y cómo</h2>
+  <table class="map">
+    <tr><th>Dónde</th><th>Qué lo resuelve</th></tr>
+    <tr><td><strong>Presupuestos</strong> que tardan en llegar</td><td>Fecha, aviso al cliente y recordatorio al asesor; los pendientes, por asesor.</td></tr>
+    <tr><td><strong>90 a 100 días</strong> de fabricación</td><td>Con el dato de su sistema, dice la etapa y la fecha de instalación.</td></tr>
+    <tr><td><strong>Posventa</strong> sin un lugar donde dejarla</td><td>Número de caso, fotos y plazo, derivado a posventa hasta cerrarlo.</td></tr>
+    <tr><td><strong>Un solo WhatsApp</strong> para todo lo digital</td><td>Resuelve lo que puede; lo demás, a una persona, con la charla y la ficha.</td></tr>
+    <tr><td><strong>Horario reducido:</strong> 44 de las 168 horas</td><td>Responde también fuera de horario y deja la visita o la medición agendada.</td></tr>
+    <tr><td><strong>20 puntos de venta</strong> con contactos propios</td><td>Un 0800 o 0810 para todo el país que pasa al local de la zona.</td></tr>
+    <tr><td><strong>Marketing</strong> sin saber qué trajo cada consulta</td><td>Registra el origen de cada una y si terminó en visita.</td></tr>
+  </table>
+
+  <div class="pagefoot"><span>Atentina · SQL Amoblamientos</span><span>4 / 5</span></div>
+</section>
+
+<!-- ========== HOJA 5: cómo se pone en marcha ========== -->
+<section class="page">
+  <header>
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="meta">PROPUESTA · SQL AMOBLAMIENTOS<br>OCTUBRE 2026</div>
+  </header>
+
+  <div class="hero" style="margin-bottom:2mm">
+    <div class="eyebrow">Cómo se pone en marcha</div>
+    <h2 style="font-size:17pt">Un piloto de 30 días <span class="accent">con la casa central.</span></h2>
+  </div>
+
+  <div class="pilot">
+    <div><b>30 días</b>Suficiente para ver la diferencia en el tiempo de respuesta y en las visitas y mediciones agendadas.</div>
+    <div><b>0800, WhatsApp y línea</b>Un 0800 o 0810 nuevo, el WhatsApp central (mensajes y llamadas) y la línea de casa central; los locales se suman por fases.</div>
+    <div><b>Decisión con números</b>Al cierre se comparan los datos del panel con la línea de base que miden ustedes.</div>
+  </div>
+
+  <h2>Los pasos</h2>
+  <div class="steps six">
+    <div class="step"><b>Relevamiento</b>Su proceso, catálogo, plazos, locales, dónde viven los pedidos y quién atiende cada pase a una persona.</div>
+    <div class="step"><b>Configuración y pruebas</b>Armamos el asesor de guardia con su criterio; ustedes lo prueban hasta que suene a SQL.</div>
+    <div class="step"><b>Línea de base</b>Ustedes miden antes cuántas consultas entran, cuántas fuera de horario y cuántos presupuestos esperan.</div>
+    <div class="step"><b>Salida en vivo</b>El 0800, el WhatsApp y la línea atienden a clientes reales, y pasan a su equipo lo que necesita una persona.</div>
+    <div class="step"><b>Revisión semanal</b>Media hora con el panel: qué se consultó, qué se agendó, qué se derivó y qué ajustar.</div>
+    <div class="step"><b>Decisión con números</b>A los 30 días, el panel contra la línea de base. Si sirve, se sigue; si no, se termina.</div>
+  </div>
+
+  <div class="ops tight" style="margin-bottom:3.5mm">
+    <div class="ours">
+      <div class="eyebrow" style="margin-bottom:1.5mm">Atentina hace</div>
+      <ul>
+        <li>Configura el asesor, su nombre, su voz y sus respuestas</li>
+        <li>Da de alta el 0800 o 0810 y conecta el WhatsApp y la línea</li>
+        <li>Lo conecta a sus pedidos y su catálogo</li>
+        <li>Arma los pases a una persona, los avisos y el panel</li>
+        <li>Ajusta cada semana y da soporte durante el piloto</li>
+      </ul>
+    </div>
+    <div class="theirs">
+      <div class="eyebrow" style="margin-bottom:1.5mm;color:var(--ok)">Necesitamos de ustedes</div>
+      <ul>
+        <li>Acceso a la fuente de sus pedidos (sistema o planilla) y el catálogo: líneas, materiales, tiempos</li>
+        <li>Quién atiende cada pase: asesor, local, franquicia, posventa, administración</li>
+        <li>El proceso, los plazos y la lista de locales con su contacto</li>
+        <li>Un responsable del piloto y la línea de base antes de empezar</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Después del piloto</h2>
+  <div class="phases">
+    <div class="phase"><b>Locales propios</b>Carlos Paz, Río Cuarto y el resto de Córdoba, cada uno con sus asesores y su panel.</div>
+    <div class="phase"><b>Franquicias</b>En las 9 provincias, el 0800 pasa cada consulta a la franquicia de su zona.</div>
+    <div class="phase"><b>Su sitio</b>Quien pide cotización en la web recibe un WhatsApp en minutos, y puede llamar desde el sitio.</div>
+    <div class="phase"><b>Después de instalar</b>Encuesta al terminar la obra y recordatorio de la garantía de 5 años.</div>
+  </div>
+
+  <div class="note">
+    <strong>Precio.</strong> El del piloto se acuerda en la reunión de relevamiento, según los canales y el volumen que
+    definamos juntos. Ahí también elegimos el 0800 o 0810, y con qué WhatsApp y qué línea arrancamos.
+  </div>
+
+  <footer class="contact">
+    <img src="../../../../plantilla/marca/atentina-logo-blanco.svg" alt="Atentina">
+    <div><div class="tag">Cada consulta atendida,<br><span>a toda hora.</span></div><div class="who">Contacto: Laureano Arcanio</div></div>
+    <div class="data">
+      <b>0800-220-1233</b><br>
+      <a href="https://atentina.com.ar">atentina.com.ar</a> · <a href="mailto:hola@atentina.com.ar">hola@atentina.com.ar</a><br>
+      WhatsApp +54 9 351 700-2592
+    </div>
+  </footer>
+</section>
+</body>
+</html>

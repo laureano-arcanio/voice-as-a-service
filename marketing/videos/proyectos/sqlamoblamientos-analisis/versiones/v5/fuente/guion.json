@@ -1,0 +1,66 @@
+{
+  "nota": "v5: vuelta a v3 (lucas; laura de v4 descartada por cómo suena, a juicio del usuario). v3: igual al PDF v2 (cero ochocientos, llamadas con voz, pedidos y catálogo, pase a una persona). v2 (cambios del usuario: a4d sobre la atención en horario reducido) sobre v1: formato y reglas de goldman-analisis v3 y baicenter-analisis v1. Narrador lucas a 1x, ortografía normal; única grafía: «Ese Cu Ele» por SQL (escrito «SQL», una de dos tomas salió «Squell»; ellos lo dicen ese-cu-ele). Lo que podríamos mejorar va en cuatro líneas (a4a a a4d), una por tarjeta, con ~0,7 s de respiro entre cada una. Sin el texto oculto del sitio ni la competencia. Números en palabras; pausas con puntuación.",
+  "musica_segundos": 68,
+  "lineas": [
+    {
+      "id": "a1",
+      "voz": "lucas",
+      "texto": "Cada consulta atendida. Su cliente y ustedes, siempre al tanto de lo que pasa."
+    },
+    {
+      "id": "a2",
+      "voz": "lucas",
+      "texto": "En Ese Cu Ele Amoblamientos ya hicieron lo difícil: veinte locales, en nueve provincias."
+    },
+    {
+      "id": "a3",
+      "voz": "lucas",
+      "texto": "En palabras de Jorge Urizar: cumplimos a rajatabla con los tiempos estipulados."
+    },
+    {
+      "id": "a4a",
+      "voz": "lucas",
+      "texto": "Dónde podríamos mejorar con Atentina. Mientras espera, el cliente pregunta cómo va lo suyo."
+    },
+    {
+      "id": "a4b",
+      "voz": "lucas",
+      "texto": "La posventa entra como un mensaje más."
+    },
+    {
+      "id": "a4c",
+      "voz": "lucas",
+      "texto": "Un solo WhatsApp, para consultas de todo el país."
+    },
+    {
+      "id": "a4d",
+      "voz": "lucas",
+      "texto": "Y la atención, en horario reducido."
+    },
+    {
+      "id": "a5",
+      "voz": "lucas",
+      "texto": "Sus clientes elogian a sus asesores, por su nombre. El asesor de guardia no los reemplaza: les pasa cada consulta lista."
+    },
+    {
+      "id": "a6a",
+      "voz": "lucas",
+      "texto": "Atiende con voz, en un cero ochocientos, su línea y su WhatsApp. Conoce sus productos, y sabe cómo va cada pedido."
+    },
+    {
+      "id": "a6c",
+      "voz": "lucas",
+      "texto": "Y cuando hace falta, pasa a una persona: al asesor, o a la franquicia de la zona, con la charla y la ficha."
+    },
+    {
+      "id": "a6b",
+      "voz": "lucas",
+      "texto": "Y en el panel, ven qué pasó a una persona, quién la tomó, y cuánto tardó."
+    },
+    {
+      "id": "a7",
+      "voz": "lucas",
+      "texto": "¿Agendamos una reunión personalmente?"
+    }
+  ]
+}
