@@ -10,8 +10,16 @@ from ..agents.templates import blank_definition, template_data
 from ..apps.tools import check_grants
 from ..conversation.models import ToolGrant, Workflow
 from ..db import utcnow
-from ..models import Agent, AgentVersion, Client, ConversationRow, LlmConnection, WaAccount, WaRoute
-from . import voices
+from ..models import (
+    Agent,
+    AgentVersion,
+    Client,
+    ConversationRow,
+    LlmConnection,
+    WaAccount,
+    WaRoute,
+)
+from . import handoff, voices
 from .errors import Conflict, Invalid, NotFound
 
 SLUG_RE = re.compile(r"[a-z0-9][a-z0-9_]{0,63}")
@@ -64,6 +72,12 @@ def _check_llm(s: Session, client_id: str, normalized: dict) -> None:
         raise Invalid("La definicion del agente no es valida", "invalid_definition", errors)
 
 
+def _check_handoff(s: Session, client_id: str, normalized: dict) -> None:
+    """workflow.handoff: las areas son del cliente del agente y el tema de espera existe."""
+    if errors := handoff.check_agent_handoff(s, client_id, normalized.get("handoff")):
+        raise Invalid("La definicion del agente no es valida", "invalid_definition", errors)
+
+
 def slugify(name: str) -> str:
     text = unicodedata.normalize("NFKD", name.lower()).encode("ascii", "ignore").decode()
     return re.sub(r"[^a-z0-9]+", "_", text).strip("_")[:64] or "agente"
@@ -93,6 +107,7 @@ def create_agent(s: Session, client: Client, name: str, slug: str | None, descri
     normalized = normalize_definition(definition, slug, 1)
     _check_tools(s, client.id, normalized)
     _check_llm(s, client.id, normalized)
+    _check_handoff(s, client.id, normalized)
     agent = Agent(client_id=client.id, name=name, slug=slug, description=description,
                   version=1, definition=normalized)
     s.add(agent)
@@ -109,6 +124,7 @@ def update_definition(s: Session, agent: Agent, definition: dict, user_id: str |
     normalized = normalize_definition(definition, agent.slug, agent.version + 1)
     _check_tools(s, agent.client_id, normalized)
     _check_llm(s, agent.client_id, normalized)
+    _check_handoff(s, agent.client_id, normalized)
     if {k: v for k, v in normalized.items() if k != "version"} == current:
         return agent
     agent.version += 1

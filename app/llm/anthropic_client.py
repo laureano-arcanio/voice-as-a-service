@@ -28,16 +28,14 @@ from app.conversation.models import (
 )
 
 from .client import (
-    MarkerFilter,
     MessageExtractor,
+    classic_marker,
     classic_turn,
     clean_json,
     extraction_schema,
     turn_schema,
 )
 from .prompt import (
-    END_MARKER,
-    OFF_TOPIC_MARKER,
     build_classic_messages,
     build_extraction_prompt,
     build_user_prompt,
@@ -185,7 +183,7 @@ class AnthropicClient:
 
     async def converse(self, workflow: Workflow, state: ConversationState, user_message: str,
                        on_message: Callable[[str], None] | None = None) -> AgentTurn:
-        marker = MarkerFilter(END_MARKER, OFF_TOPIC_MARKER)
+        marker = classic_marker(state)
 
         def feed(text: str) -> None:
             if said := marker.feed(text):

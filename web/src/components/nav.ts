@@ -18,6 +18,7 @@ import {
   IconSpeakerphone,
   IconStack2,
   IconUsers,
+  IconUsersGroup,
   IconBrandWhatsapp,
 } from '@tabler/icons-react';
 import type { ComponentType } from 'react';
@@ -40,6 +41,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/models', label: 'Modelos', icon: IconCpu, roles: ['client'] },
   { to: '/whatsapp', label: 'WhatsApp', icon: IconBrandWhatsapp, roles: ['admin', 'client'] },
   { to: '/contacts', label: 'Contactos', icon: IconAddressBook, roles: ['admin', 'client'] },
+  { to: '/team', label: 'Equipo', icon: IconUsersGroup, roles: ['admin', 'client'] },
   { to: '/campaigns', label: 'Campañas', icon: IconSpeakerphone, roles: ['admin', 'client'] },
   { to: '/apps', label: 'Apps', icon: IconApps, roles: ['admin', 'client'] },
   { to: '/usage', label: 'Consumos', icon: IconChartBar, roles: ['client'] },

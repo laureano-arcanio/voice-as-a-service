@@ -14,6 +14,7 @@ from .campaigns import (
 )
 from .contact import ContactRequest
 from .conversations import ConversationRow
+from .handoff import Event, HandoffArea, HandoffAreaMember, HandoffLeg, TeamMember
 from .llm import LlmConnection
 from .tenancy import (
     ApiKey,
@@ -59,10 +60,15 @@ __all__ = [
     "ContactOptout",
     "ContactRequest",
     "ConversationRow",
+    "Event",
+    "HandoffArea",
+    "HandoffAreaMember",
+    "HandoffLeg",
     "LlmConnection",
     "PhoneNumber",
     "Role",
     "Subscription",
+    "TeamMember",
     "Tier",
     "User",
     "WaAccount",

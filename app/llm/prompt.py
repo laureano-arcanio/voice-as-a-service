@@ -144,6 +144,8 @@ def render_conversation(state: ConversationState) -> str:
 
 
 def _speaker(message: Message, whatsapp: bool) -> str:
+    if message.person:
+        return f"{message.person} (persona del equipo)"
     if message.role == "assistant":
         return "agente"
     return "usuario (nota de voz)" if whatsapp and message.voice_note else "usuario"
@@ -222,6 +224,32 @@ END_MARKER = "[FIN]"
 # Igual, pero corta una conversacion que no tiene que ver con el objetivo (broma, burla, acoso, numero
 # equivocado): en la llamada 07381a4d el agente siguio 4 minutos con alguien que decia ser "un choro".
 OFF_TOPIC_MARKER = "[CORTAR]"
+# Pasa la llamada a un area del equipo: "[DERIVAR:Ventas]" (docs/DERIVACIONES_PLAN.md, 4.1). Lleva el nombre del
+# area hasta el "]"; el texto lo dice el sistema (mensaje del area), no el LLM.
+HANDOFF_MARKER = "[DERIVAR:"
+
+
+def handoff_enabled(state: ConversationState | None) -> bool:
+    """Si en esta conversacion el agente puede derivar: una llamada con areas (las fija el worker)."""
+    return bool(state and state.channel == "voice" and state.progress.handoff_areas)
+
+
+def handoff_block(state: ConversationState) -> str:
+    """Las areas a las que puede pasar la llamada, con su horario y si atienden ahora."""
+    # Aca y no arriba: services importa conversation, que importa este modulo.
+    from app.services.handoff import is_open
+
+    lines = []
+    for area in state.progress.handoff_areas:
+        when = " ".join((area.get("when") or "").split()).rstrip(".")
+        hours = area.get("schedule_text") or ""
+        now = "ahora atiende" if is_open(area.get("schedule")) else "ahora está cerrada"
+        lines.append(f"- {area['name']}{': ' + when if when else ''}. Atiende {hours} ({now}).")
+    example = state.progress.handoff_areas[0]["name"]
+    return f"""PASAR LA LLAMADA A UNA PERSONA:
+Podés pasar la llamada a una persona del equipo de estas áreas:
+{chr(10).join(lines)}
+Pasala cuando quien llama pide hablar con una persona, o cuando necesita algo de un área que vos no podés resolver. Para pasarla respondé solo con la marca {HANDOFF_MARKER}<área>], por ejemplo {HANDOFF_MARKER}{example}], sin ningún otro texto: el sistema le avisa y lo comunica. Si el área ahora está cerrada, no la pases: decile cuándo atiende y ofrecé tomarle el mensaje. Si ya intentaste pasarla y no se pudo, no lo vuelvas a intentar con esa área: tomale el mensaje (nombre, teléfono y qué necesita)."""
 
 
 def describe_condition(when: dict) -> str:
@@ -258,6 +286,7 @@ def build_classic_system(workflow: Workflow, channel: str = "voice", state: Conv
                 f"{' '.join(o.message.split())}" for o in workflow.completion.outcomes]
     rules = "\n".join(f"- {r}" for r in workflow.conversation.rules)
     campaign = f"\n\n{block}" if (block := prompt_block(state)) else ""
+    handoff = f"\n\n{handoff_block(state)}" if handoff_enabled(state) else ""
     # Sin el aviso del cierre, si el telefono no salio antes, cerraba sin pedirlo (10 de 10, 20-oct-2026).
     missing_phone = any(spec.type == "phone" and is_required(spec, {}) and not (state and state.fields.get(n))
                         for n, spec in workflow.fields.items())
@@ -284,7 +313,7 @@ BASE DE CONOCIMIENTO:
 CIERRE:
 La conversación termina cuando obtuviste los datos obligatorios o cuando el usuario no quiere seguir.{phone_close} En ese turno despedite usando como guía el mensaje que corresponda:
 {chr(10).join(outcomes)}
-Al final de ese último mensaje, y solo en ese, escribí {END_MARKER}. Si ya te despediste y el usuario solo responde el saludo o no trae nada nuevo, despedite en una frase corta y volvé a escribir {END_MARKER}.
+Al final de ese último mensaje, y solo en ese, escribí {END_MARKER}. Si ya te despediste y el usuario solo responde el saludo o no trae nada nuevo, despedite en una frase corta y volvé a escribir {END_MARKER}.{handoff}
 
 FUERA DE TEMA:
 Si {talk} no tiene nada que ver con el objetivo (una broma, alguien que se burla, insulta o acosa, un número equivocado, o alguien que después de dos intentos sigue sin hablar del tema), no insistas con los datos: despedite en una sola frase amable que diga para qué es {line} y al final escribí {OFF_TOPIC_MARKER} en vez de {END_MARKER}. Un mensaje que no se entiende o no tiene sentido no es fuera de tema (puede ser un error {garble}): pedí que lo repita. Si puede ser un interesado real, seguí la conversación.{extra}
@@ -297,8 +326,7 @@ def build_classic_messages(workflow: Workflow, state: ConversationState, user_me
     VOICE_NOTE_TAG (los del agente no) y, si la respuesta sale como nota de voz,
     el mensaje nuevo termina con VOICE_NOTE_REPLY."""
     whatsapp = state.channel == "whatsapp"
-    history = [{"role": m.role, "content": _classic_text(m.text, whatsapp and m.role == "user" and m.voice_note)}
-               for m in state.messages]
+    history = _classic_history(state.messages, whatsapp)
     media = state.media if whatsapp else None
     content = _classic_text(user_message, bool(media and media.user_voice_note))
     if media and media.reply_voice_note:
@@ -321,6 +349,34 @@ def _phone_missing(workflow: Workflow, state: ConversationState, user_texts: lis
     if not phone_fields or any(state.fields.get(n) for n in phone_fields):
         return False
     return not any(len(re.sub(r"\D", "", text)) >= 8 for text in user_texts)
+
+
+def _classic_history(messages: list[Message], whatsapp: bool) -> list[dict]:
+    """La conversacion como mensajes del chat. Lo que se hablo con una persona del equipo (llamada derivada) va
+    junto, como una transcripcion en un solo mensaje del usuario: asi el LLM sabe que paso y no imita a la persona."""
+    out: list[dict] = []
+    leg: str | None = None
+    for m in messages:
+        if m.handoff_leg:
+            line = f"{m.person if m.person else 'Quien llama'}: {_one_line(m.text)}"
+            if leg == m.handoff_leg:
+                out[-1]["content"] += "\n" + line
+            else:
+                name = next((x.person for x in messages if x.handoff_leg == m.handoff_leg and x.person), None)
+                head = f"[Nota del sistema: la llamada se pasó a {name or 'una persona del equipo'}. Lo que hablaron:]"
+                out.append({"role": "user", "content": f"{head}\n{line}"})
+            leg = m.handoff_leg
+            continue
+        leg = None
+        out.append({"role": m.role, "content": _classic_text(m.text, whatsapp and m.role == "user" and m.voice_note)})
+    # Dos mensajes seguidos del mismo rol (la transcripcion y el mensaje siguiente del usuario): se unen.
+    merged: list[dict] = []
+    for item in out:
+        if merged and merged[-1]["role"] == item["role"]:
+            merged[-1]["content"] += "\n" + item["content"]
+        else:
+            merged.append(dict(item))
+    return merged
 
 
 def _classic_text(text: str, voice_note: bool) -> str:

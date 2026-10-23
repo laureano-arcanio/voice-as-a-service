@@ -51,6 +51,7 @@ LIMIT_FIELDS = (
     "max_campaign_concurrency",
     "max_contacts",
     "max_call_links",
+    "max_team_members",
 )
 MODES = ("add", "set")
 
@@ -78,6 +79,8 @@ class Limits:
     max_contacts: int | None = None
     # Links publicos para llamar a un agente (docs/LINK_LLAMADA_PLAN.md). None = ilimitado, 0 = no incluido.
     max_call_links: int | None = None
+    # Personas del equipo para derivar (docs/DERIVACIONES_PLAN.md). None = ilimitado, 0 = no incluido.
+    max_team_members: int | None = None
     # No son numericos, asi que no se ajustan por cliente: salen del tier.
     campaign_channels: tuple[str, ...] = ()
     campaign_followup: bool = False

@@ -1,0 +1,124 @@
+# Prueba SIP de punta a punta, aislada (docs/DERIVACIONES_PLAN.md, sección 8): LiveKit, livekit-sip y
+# nuestro Asterisk (la misma imagen y los mismos templates que producción) contra un Anura falso
+# (tests/e2e_sip/fake-anura/) con destinos que atienden, dan ocupado, no atienden o son un buzón.
+#
+# Proyecto aparte (`name`), sin puertos del host y en una red interna sin salida: no toca el stack
+# vivo ni llama a nadie. Todos comparten la red del contenedor `net`, como `network_mode: host` en
+# producción (127.0.0.1 entre ellos, mismos puertos). `net` pone en su loopback 200.13.42.10 (el Anura
+# falso, una IP de las redes de Anura que reconoce el identify de pjsip.conf) y 200.13.42.20 (la
+# dirección "pública" de nuestro Asterisk).
+#
+# Uso: `make e2e-sip` (levanta, corre tests/e2e_sip/smoke.py y baja todo).
+name: atentina-e2e-sip
+
+networks:
+  e2e:
+    internal: true
+
+services:
+  net:
+    image: alpine:3.24
+    networks: [e2e]
+    cap_add: [NET_ADMIN]
+    command: ["sh", "-c", "ip addr add 200.13.42.10/32 dev lo && ip addr add 200.13.42.20/32 dev lo && exec sleep infinity"]
+
+  redis:
+    image: redis:7-alpine
+    network_mode: service:net
+    command: ["redis-server", "--bind", "127.0.0.1", "--port", "6380", "--save", "", "--appendonly", "no"]
+    depends_on: [net]
+
+  livekit:
+    image: livekit/livekit-server:v1.13.7
+    network_mode: service:net
+    command: ["--config", "/etc/livekit.yaml"]
+    environment:
+      LIVEKIT_KEYS: "e2ekey: e2e-secret-de-prueba-con-32-caracteres"
+      NODE_IP: 127.0.0.1
+    volumes:
+      - ./livekit/livekit.yaml:/etc/livekit.yaml:ro
+    depends_on: [redis]
+
+  livekit-sip:
+    image: livekit/sip:v1.17.0
+    network_mode: service:net
+    environment:
+      SIP_CONFIG_BODY: |
+        api_key: e2ekey
+        api_secret: e2e-secret-de-prueba-con-32-caracteres
+        ws_url: ws://127.0.0.1:7880
+        redis:
+          address: 127.0.0.1:6380
+        sip_port: 5060
+        rtp_port: 20000-20199
+        use_external_ip: false
+        logging:
+          level: info
+    depends_on: [livekit]
+
+  # Nuestro Asterisk, con los templates de producción y los datos de la troncal falsa.
+  asterisk:
+    build: ./asterisk
+    network_mode: service:net
+    environment:
+      TZ: America/Argentina/Buenos_Aires
+      ANURA_DOMAIN: 200.13.42.10
+      ANURA_USER: e2e-user
+      ANURA_PASSWORD: e2e-pass
+      ANURA_DID: "3510000000"
+      LIVEKIT_SIP_HOST: 127.0.0.1:5060
+      LIVEKIT_SIP_PASSWORD: e2e-livekit-pass
+      ASTERISK_PUBLIC_ADDRESS: 200.13.42.20
+    volumes:
+      - ./asterisk/conf:/etc/asterisk/templates:ro
+    depends_on: [net]
+
+  fake-anura:
+    build: ./asterisk
+    network_mode: service:net
+    entrypoint: ["asterisk", "-f", "-U", "asterisk", "-G", "asterisk"]
+    volumes:
+      - ./tests/e2e_sip/fake-anura/asterisk.conf:/etc/asterisk/asterisk.conf:ro
+      - ./tests/e2e_sip/fake-anura/modules.conf:/etc/asterisk/modules.conf:ro
+      - ./tests/e2e_sip/fake-anura/logger.conf:/etc/asterisk/logger.conf:ro
+      - ./tests/e2e_sip/fake-anura/pjsip.conf:/etc/asterisk/pjsip.conf:ro
+      - ./tests/e2e_sip/fake-anura/rtp.conf:/etc/asterisk/rtp.conf:ro
+      - ./tests/e2e_sip/fake-anura/extensions.conf:/etc/asterisk/extensions.conf:ro
+      - ./tests/e2e_sip/audio:/sounds/e2e:ro
+    depends_on: [net]
+
+  runner:
+    build:
+      context: ./tests/e2e_sip
+      dockerfile: runner.Dockerfile
+    network_mode: service:net
+    environment:
+      LIVEKIT_URL: ws://127.0.0.1:7880
+      LIVEKIT_API_KEY: e2ekey
+      LIVEKIT_API_SECRET: e2e-secret-de-prueba-con-32-caracteres
+      LIVEKIT_SIP_PASSWORD: e2e-livekit-pass
+    volumes:
+      - ./tests/e2e_sip:/e2e:ro
+    command: ["python", "smoke.py"]
+    depends_on: [livekit-sip, asterisk, fake-anura]
+    profiles: [run]
+
+  # La transferencia con el codigo real de app/voice/handoff.py (tests/e2e_sip/transfer.py): imagen del
+  # agente (`make up-agent` la construye) con el codigo del repo montado, base SQLite propia, sin inferencia.
+  runner-transfer:
+    image: voice-as-a-service-agent:latest
+    network_mode: service:net
+    working_dir: /app
+    environment:
+      LIVEKIT_URL: ws://127.0.0.1:7880
+      LIVEKIT_API_KEY: e2ekey
+      LIVEKIT_API_SECRET: e2e-secret-de-prueba-con-32-caracteres
+      LIVEKIT_SIP_PASSWORD: e2e-livekit-pass
+      PYTHONPATH: /app
+    volumes:
+      - ./app:/app/app:ro
+      - ./tests/e2e_sip:/e2e:ro
+    entrypoint: []
+    command: ["python", "/e2e/transfer.py"]
+    depends_on: [livekit-sip, asterisk, fake-anura]
+    profiles: [run]

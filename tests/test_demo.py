@@ -111,6 +111,7 @@ def test_start_call_and_result(landing):
     meta = landing.dispatched[-1]
     assert meta["max_duration_seconds"] == settings.demo_call_max_seconds
     assert meta["join_timeout_seconds"] == settings.demo_join_timeout_seconds and meta["phone"] is None
+    assert meta["handoff"] is settings.demo_handoff   # derivacion a personas solo con DEMO_HANDOFF
 
     url = f"{V1}/calls/{started['conversation_id']}"
     assert landing.client.get(url, headers=headers).status_code == 401

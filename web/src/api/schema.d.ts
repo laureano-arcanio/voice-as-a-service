@@ -2818,6 +2818,150 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/team": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Team */
+        get: operations["list_team_api_v1_team_get"];
+        put?: never;
+        /**
+         * Create Member
+         * @description Suma una persona al equipo. El teléfono (Argentina) sirve para transferirle llamadas; el WhatsApp,
+         *     para el puente de la bandeja. Cuenta para el tope del plan (`max_team_members`).
+         */
+        post: operations["create_member_api_v1_team_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/team/{member_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Member */
+        delete: operations["delete_member_api_v1_team__member_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Member */
+        patch: operations["update_member_api_v1_team__member_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/handoff-areas/defaults": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Area Defaults
+         * @description Los mensajes por defecto de un área y las variables que aceptan.
+         */
+        get: operations["area_defaults_api_v1_handoff_areas_defaults_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hold-music": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Hold Music
+         * @description Temas de música de espera para la derivación (`handoff.hold_music.track` del agente).
+         */
+        get: operations["hold_music_api_v1_hold_music_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/handoff-areas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Areas */
+        get: operations["list_areas_api_v1_handoff_areas_get"];
+        put?: never;
+        /**
+         * Create Area
+         * @description Crea un área de derivación: a quién se llama, en qué orden y horario, y qué dice el agente.
+         */
+        post: operations["create_area_api_v1_handoff_areas_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/handoff-areas/{area_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Area */
+        get: operations["get_area_api_v1_handoff_areas__area_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Area */
+        delete: operations["delete_area_api_v1_handoff_areas__area_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Area
+         * @description Cambia un área. `schedule: null` la deja atendiendo siempre; `member_ids` reemplaza la lista.
+         */
+        patch: operations["update_area_api_v1_handoff_areas__area_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Events
+         * @description Eventos en orden de llegada: llamadas (timbre, atención, fin), derivaciones y esperas. Para leer
+         *     lo nuevo, repetir con `after_id` = el último id recibido.
+         */
+        get: operations["list_events_api_v1_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4933,6 +5077,32 @@ export interface components {
              */
             email: string;
         };
+        /** EventOut */
+        EventOut: {
+            /** Id */
+            id: number;
+            /** Client Id */
+            client_id: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Type */
+            type: string;
+            /** Actor */
+            actor: string;
+            /** Conversation Id */
+            conversation_id: string | null;
+            /** Area Id */
+            area_id: string | null;
+            /** Team Member Id */
+            team_member_id: string | null;
+            /** Data */
+            data: {
+                [key: string]: unknown;
+            };
+        };
         /** FieldValue */
         FieldValue: {
             /** Name */
@@ -5022,10 +5192,190 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** HandoffAreaIn */
+        HandoffAreaIn: {
+            /** Name */
+            name: string;
+            /**
+             * Description
+             * @description Qué atiende: lo lee el agente para elegir el área
+             * @default
+             */
+            description?: string;
+            /**
+             * Active
+             * @default true
+             */
+            active?: boolean;
+            /**
+             * Member Ids
+             * @description Personas del equipo, en el orden en que se las llama
+             */
+            member_ids?: string[];
+            /**
+             * Strategy
+             * @default sequential
+             * @enum {string}
+             */
+            strategy?: "sequential" | "round_robin";
+            /**
+             * Ring Seconds
+             * @description Timbre por persona (el buzón de Claro atiende a los ~33 s)
+             * @default 20
+             */
+            ring_seconds?: number;
+            schedule?: components["schemas"]["HandoffSchedule"] | null;
+            /**
+             * Fallback
+             * @default take_message
+             * @constant
+             */
+            fallback?: "take_message";
+            /**
+             * On Person Hangup
+             * @description Si la persona corta: resume (el agente vuelve) o end (se despide y corta)
+             * @default resume
+             * @enum {string}
+             */
+            on_person_hangup?: "resume" | "end";
+            /**
+             * Return Digits
+             * @description Tecla de la persona para volver a la IA (sin *)
+             * @default 2
+             */
+            return_digits?: string;
+            /**
+             * Wa Reply Minutes
+             * @default 10
+             */
+            wa_reply_minutes?: number;
+            /**
+             * Messages
+             * @description Textos que cambian los de /handoff-areas/defaults
+             */
+            messages?: {
+                [key: string]: string;
+            };
+        };
+        /** HandoffAreaOut */
+        HandoffAreaOut: {
+            /** Id */
+            id: string;
+            /** Client Id */
+            client_id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string;
+            /** Active */
+            active: boolean;
+            /** Member Ids */
+            member_ids: string[];
+            /** Strategy */
+            strategy: string;
+            /** Ring Seconds */
+            ring_seconds: number;
+            schedule: components["schemas"]["HandoffSchedule"] | null;
+            /**
+             * Schedule Text
+             * @description El horario como lo dice el agente
+             */
+            schedule_text: string;
+            /** Open Now */
+            open_now: boolean;
+            /** Fallback */
+            fallback: string;
+            /** On Person Hangup */
+            on_person_hangup: string;
+            /** Return Digits */
+            return_digits: string;
+            /** Wa Reply Minutes */
+            wa_reply_minutes: number;
+            /**
+             * Messages
+             * @description Solo los que cambian el default
+             */
+            messages: {
+                [key: string]: string;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** HandoffAreaPatch */
+        HandoffAreaPatch: {
+            /** Name */
+            name?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Active */
+            active?: boolean | null;
+            /** Member Ids */
+            member_ids?: string[] | null;
+            /** Strategy */
+            strategy?: ("sequential" | "round_robin") | null;
+            /** Ring Seconds */
+            ring_seconds?: number | null;
+            schedule?: components["schemas"]["HandoffSchedule"] | null;
+            /** Fallback */
+            fallback?: "take_message" | null;
+            /** On Person Hangup */
+            on_person_hangup?: ("resume" | "end") | null;
+            /** Return Digits */
+            return_digits?: string | null;
+            /** Wa Reply Minutes */
+            wa_reply_minutes?: number | null;
+            /** Messages */
+            messages?: {
+                [key: string]: string;
+            } | null;
+        };
+        /** HandoffDefaultsOut */
+        HandoffDefaultsOut: {
+            /** Messages */
+            messages: {
+                [key: string]: string;
+            };
+            /** Variables */
+            variables: string[];
+        };
         /** HandoffIn */
         HandoffIn: {
             /** Token */
             token: string;
+        };
+        /**
+         * HandoffSchedule
+         * @description Horario semanal en la zona `tz`; `closed`: días sin atención (feriados). Sin horario = siempre.
+         */
+        HandoffSchedule: {
+            /**
+             * Tz
+             * @default America/Argentina/Buenos_Aires
+             */
+            tz?: string;
+            /**
+             * Week
+             * @description Por día, franjas "HH:MM" (ej. {"mon": [["09:00", "13:00"], ["16:00", "20:00"]]})
+             */
+            week?: {
+                [key: string]: [
+                    string,
+                    string
+                ][];
+            };
+            /** Closed */
+            closed?: string[];
+        };
+        /**
+         * HoldMusicOut
+         * @description Temas de musica de espera para workflow.handoff.hold_music.track.
+         */
+        HoldMusicOut: {
+            /** Tracks */
+            tracks: string[];
         };
         /** InferenceKeyUsageOut */
         InferenceKeyUsageOut: {
@@ -5141,7 +5491,7 @@ export interface components {
              * Field
              * @enum {string}
              */
-            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts" | "max_call_links";
+            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts" | "max_call_links" | "max_team_members";
             /**
              * Mode
              * @enum {string}
@@ -5171,7 +5521,7 @@ export interface components {
              * Field
              * @enum {string}
              */
-            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts" | "max_call_links";
+            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts" | "max_call_links" | "max_team_members";
             /**
              * Mode
              * @enum {string}
@@ -5204,7 +5554,7 @@ export interface components {
              * Field
              * @enum {string}
              */
-            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts" | "max_call_links";
+            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts" | "max_call_links" | "max_team_members";
             /**
              * Tier
              * @description Valor del tier (null = ilimitado)
@@ -5431,6 +5781,12 @@ export interface components {
             voice_note?: boolean;
             /** Recording */
             recording?: number | null;
+            /** At */
+            at?: string | null;
+            /** Handoff Leg */
+            handoff_leg?: string | null;
+            /** Person */
+            person?: string | null;
         };
         /** MeterOut */
         MeterOut: {
@@ -5704,6 +6060,8 @@ export interface components {
             max_contacts?: number | null;
             /** Max Call Links */
             max_call_links?: number | null;
+            /** Max Team Members */
+            max_team_members?: number | null;
             /**
              * Campaign Followup
              * @default false
@@ -5997,6 +6355,66 @@ export interface components {
             /** Client Name */
             client_name: string;
         };
+        /** TeamMemberIn */
+        TeamMemberIn: {
+            /** Name */
+            name: string;
+            /**
+             * Phone
+             * @description Para transferir llamadas (Argentina)
+             */
+            phone?: string | null;
+            /**
+             * Whatsapp
+             * @description Para el puente de WhatsApp; único por cliente
+             */
+            whatsapp?: string | null;
+            /**
+             * User Id
+             * @description Usuario del panel (softphone web)
+             */
+            user_id?: string | null;
+            /**
+             * Active
+             * @default true
+             */
+            active?: boolean;
+        };
+        /** TeamMemberOut */
+        TeamMemberOut: {
+            /** Id */
+            id: string;
+            /** Client Id */
+            client_id: string;
+            /** Name */
+            name: string;
+            /** Phone */
+            phone: string | null;
+            /** Whatsapp */
+            whatsapp: string | null;
+            /** User Id */
+            user_id: string | null;
+            /** Active */
+            active: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** TeamMemberPatch */
+        TeamMemberPatch: {
+            /** Name */
+            name?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /** Whatsapp */
+            whatsapp?: string | null;
+            /** User Id */
+            user_id?: string | null;
+            /** Active */
+            active?: boolean | null;
+        };
         /** TemplateOut */
         TemplateOut: {
             /** Id */
@@ -6120,6 +6538,11 @@ export interface components {
              */
             max_call_links?: number | null;
             /**
+             * Max Team Members
+             * @description Personas del equipo para derivar llamadas y WhatsApp
+             */
+            max_team_members?: number | null;
+            /**
              * Campaign Followup
              * @description Puede activar el seguimiento por WhatsApp de las campañas de voz
              * @default false
@@ -6187,6 +6610,8 @@ export interface components {
             max_contacts: number | null;
             /** Max Call Links */
             max_call_links: number | null;
+            /** Max Team Members */
+            max_team_members: number | null;
             /** Campaign Followup */
             campaign_followup: boolean;
             /** Price Ars */
@@ -6248,6 +6673,8 @@ export interface components {
             max_contacts?: number | null;
             /** Max Call Links */
             max_call_links?: number | null;
+            /** Max Team Members */
+            max_team_members?: number | null;
             /** Campaign Followup */
             campaign_followup?: boolean | null;
             /** Price Ars */
@@ -13081,6 +13508,376 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiRequestPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_team_api_v1_team_get: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMemberOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_member_api_v1_team_post: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamMemberIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMemberOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_member_api_v1_team__member_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                member_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_member_api_v1_team__member_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                member_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamMemberPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMemberOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    area_defaults_api_v1_handoff_areas_defaults_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandoffDefaultsOut"];
+                };
+            };
+        };
+    };
+    hold_music_api_v1_hold_music_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HoldMusicOut"];
+                };
+            };
+        };
+    };
+    list_areas_api_v1_handoff_areas_get: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandoffAreaOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_area_api_v1_handoff_areas_post: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandoffAreaIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandoffAreaOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_area_api_v1_handoff_areas__area_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                area_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandoffAreaOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_area_api_v1_handoff_areas__area_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                area_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_area_api_v1_handoff_areas__area_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                area_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandoffAreaPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandoffAreaOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_events_api_v1_events_get: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+                conversation_id?: string | null;
+                /** @description Tipos exactos o prefijos ("handoff.") */
+                type?: string[] | null;
+                since?: string | null;
+                until?: string | null;
+                /** @description Cursor: el último id leído */
+                after_id?: number | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventOut"][];
                 };
             };
             /** @description Validation Error */

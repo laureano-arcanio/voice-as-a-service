@@ -87,6 +87,9 @@ class Settings(BaseSettings):
     opening_audio_dir: Path = Field(default=BASE_DIR / "storage" / "openings")
     # Imagenes de los links para llamar (app/services/call_links.py): las sirve `app`, sin backup.
     call_link_images_dir: Path = Field(default=BASE_DIR / "storage" / "call-links")
+    # Musica de espera de las derivaciones (docs/DERIVACIONES_PLAN.md, 4.8): <tema>.ogg; "default" es la de
+    # LiveKit Agents.
+    hold_music_dir: Path = Field(default=BASE_DIR / "storage" / "hold-music")
 
     # --- Inferencia ---
     vllm_api_key: str = "not-needed"
@@ -120,6 +123,9 @@ class Settings(BaseSettings):
     demo_livekit_url: str = ""
     demo_session_minutes: int = 30
     demo_call_max_seconds: int = 180
+    # Derivacion a personas desde la demo (agentes con areas, hoy atentina_comercial): cualquiera de internet
+    # hace sonar al equipo y gasta minutos y canales de Anura; los topes por IP y diarios son los de la demo.
+    demo_handoff: bool = False
     demo_join_timeout_seconds: int = 60
     demo_daily_minutes: int = 120
     demo_ip_calls_per_hour: int = 4
@@ -262,6 +268,11 @@ class Settings(BaseSettings):
     call_campaign_max_concurrent: int = 8
     call_campaign_failure_streak: int = 10      # intentos seguidos fallidos que pausan la campaña (trunk o Anura caidos)
     call_ringing_timeout_seconds: int = 30      # cuanto suena antes de dar la llamada por no atendida
+    # Derivacion de llamadas (docs/DERIVACIONES_PLAN.md, 4.6): canales de la cuenta de Anura (rtp.conf). Una
+    # llamada por Anura ocupa uno y una derivada dos; sin canal libre la derivacion no se intenta.
+    anura_channels: int = 10
+    # Segundos para marcar 1 despues del whisper (sin el 1 no se conecta: un contestador termina aca).
+    handoff_confirm_seconds: int = 8
     # Feriados (fechas YYYY-MM-DD separadas por coma, hora local de billing_timezone): el dialer no marca esos
     # dias (plan, seccion 11). Las campañas de WhatsApp no los miran.
     campaign_holidays: str = ""

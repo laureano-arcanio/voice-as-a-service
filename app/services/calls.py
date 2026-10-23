@@ -26,7 +26,7 @@ from ..models import (
     WaMessage,
     WaThread,
 )
-from . import blocked_numbers, livekit, quota, voices, wa_routing
+from . import blocked_numbers, events, livekit, quota, voices, wa_routing
 from .campaigns import contact_vars
 from .contacts import is_opted_out
 from .errors import Conflict, Forbidden, Invalid, NotFound, QuotaExceeded, Upstream
@@ -63,6 +63,9 @@ class CallRequest:
     # sus agentes comparten cliente con el resto de Atentina, que no tiene limites).
     group_agent_ids: tuple[str, ...] = ()
     group_max_concurrent: int | None = None
+    # Derivacion a personas (app/voice/handoff.py) si el agente tiene areas. La demo la apaga salvo con
+    # DEMO_HANDOFF; el loadtest y las campañas no derivan nunca.
+    handoff: bool = True
     # Intento de una campaña de voz (app/campaigns/dialer.py): el contacto de la campaña, con los datos
     # (`vars`) que la conversacion usa en la apertura, en los campos precargados y en el prompt
     # (app/conversation/contact.py).
@@ -172,7 +175,10 @@ def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
     metadata = {"conversation_id": state.conversation_id, "phone": phone, "voice": voice, "loadtest": req.loadtest,
                 "max_duration_seconds": max_duration, "from_number": caller_id.e164 if caller_id else None,
                 "join_timeout_seconds": req.join_timeout_seconds, "campaign_contact_id": req.campaign_contact_id,
-                "call_link_id": req.call_link_id}
+                "call_link_id": req.call_link_id,
+                # Derivacion a personas (app/voice/handoff.py): no en el loadtest ni las campañas, y en la demo de
+                # la landing solo con DEMO_HANDOFF (docs/DERIVACIONES_PLAN.md, 4.3).
+                "handoff": req.handoff and not (req.loadtest or req.campaign_contact_id)}
     return CallStarted(conversation_id=state.conversation_id, room=room, mode=mode), metadata
 
 
@@ -261,6 +267,9 @@ def update_call(s: Session, conversation_id: str, **values) -> None:
     row = s.get(CallRow, conversation_id)
     if row is None:
         return
+    status = values.get("status")
+    if status is not None and status != row.status:
+        events.record_call_status(s, row, values)
     for k, v in values.items():
         setattr(row, k, v)
     s.commit()

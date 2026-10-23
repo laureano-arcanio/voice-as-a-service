@@ -36,8 +36,8 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
         sh psql health gpu \
         pbx-cli pbx-status livekit-sip livekit-sip-si-local \
         wa-calling-status wa-calling-enable wa-calling-disable wa-sip-password sip-cert \
-        migrate create-admin api-key dev-backend web-dev web-build web-check openapi landing-dev \
-        test eval-motor eval-llamadas eval-llm eval-llm-juez eval-llm-report loadtest-audio loadtest loadtest-report capacity capacity-monitor capacity-monitor-stop capacity-analyze gpubench stt-eval stt-corpus \
+        migrate migrate-test create-admin api-key dev-backend web-dev web-build web-check openapi landing-dev \
+        test e2e-sip e2e-sip-down eval-motor eval-llamadas eval-llm eval-llm-juez eval-llm-report loadtest-audio loadtest loadtest-report capacity capacity-monitor capacity-monitor-stop capacity-analyze gpubench stt-eval stt-corpus \
         video-setup video-studio video-voces video-musica video video-revisar video-cerrar doc doc-cerrar \
         backup backup-key backup-s3-setup backup-fetch backup-list cron-install \
         db-reset clean
@@ -174,6 +174,9 @@ livekit-sip-si-local:
 migrate: ## Migraciones de la base (alembic upgrade head) + seed idempotente (cliente atentina, agentes, admin)
 	$(COMPOSE) run --rm --build --no-deps migrate
 
+migrate-test: ## Prueba las migraciones pendientes contra una copia del último backup (PostgreSQL temporal, no toca la base)
+	scripts/ops/migrate-test.sh
+
 create-admin: ## Crea un admin o le cambia la clave (la pide). Ej: make create-admin EMAIL=vos@empresa.com
 	$(COMPOSE) run --rm --no-deps app python -m app.cli create-admin $(EMAIL)
 
@@ -264,6 +267,15 @@ openapi: ## Regenera web/openapi.json y los tipos de la UI (web/src/api/schema.d
 
 test: ## Tests del motor conversacional (los que usan el LLM se saltean si vllm-llm no responde)
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/tests:/app/tests -v $(CURDIR)/pytest.ini:/app/pytest.ini -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app:/app/app -v $(CURDIR)/crm:/app/crm -v $(CURDIR)/migrations:/app/migrations -v $(CURDIR)/alembic.ini:/app/alembic.ini app pytest -q $(ARGS)
+
+E2E_SIP := docker compose -f docker-compose.e2e-sip.yml
+
+e2e-sip: ## Prueba SIP de punta a punta aislada: señalización y la transferencia real (Anura falso, sin puertos del host ni llamadas reales)
+	$(E2E_SIP) up -d --build net redis livekit livekit-sip asterisk fake-anura
+	$(E2E_SIP) run --rm --build runner && $(E2E_SIP) run --rm runner-transfer; status=$$?; $(E2E_SIP) down -v; exit $$status
+
+e2e-sip-down: ## Baja el entorno de la prueba SIP si quedó levantado
+	$(E2E_SIP) down -v
 
 eval-motor: ## Escenarios de llamada contra el motor y el LLM real (scripts/replay_calls.py). Ej: make eval-motor N=3 S=si-pero
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts app python -m scripts.replay_calls $(or $(N),1) $(S)

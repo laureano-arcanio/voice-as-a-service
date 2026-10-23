@@ -371,6 +371,7 @@ export function DefinitionTab({ agent }: { agent: AgentDetail }) {
           voiceSeed={agent.id}
           showEngine={isAdmin}
           clientId={agent.client_id}
+          errors={[...saveErrors, ...errors]}
         />
       ) : (
         <Card>

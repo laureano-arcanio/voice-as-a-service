@@ -119,6 +119,7 @@ class TierIn(BaseModel):
     max_campaign_concurrency: int | None = Field(default=None, ge=0, description="Llamadas simultaneas de una campaña de voz")
     max_contacts: int | None = Field(default=None, ge=0, description="Contactos activos en la agenda (los archivados no cuentan)")
     max_call_links: int | None = Field(default=None, ge=0, description="Links publicos para llamar a un agente (uno por agente)")
+    max_team_members: int | None = Field(default=None, ge=0, description="Personas del equipo para derivar llamadas y WhatsApp")
     campaign_followup: bool = Field(default=False, description="Puede activar el seguimiento por WhatsApp de las campañas de voz")
     # Autoservicio (docs/SUSCRIPCIONES_PLAN.md).
     price_ars: int | None = Field(default=None, ge=0,
@@ -148,6 +149,7 @@ class TierUpdate(BaseModel):
     max_campaign_concurrency: int | None = Field(default=None, ge=0)
     max_contacts: int | None = Field(default=None, ge=0)
     max_call_links: int | None = Field(default=None, ge=0)
+    max_team_members: int | None = Field(default=None, ge=0)
     campaign_followup: bool | None = None
     price_ars: int | None = Field(default=None, ge=0)
     public: bool | None = None
@@ -176,6 +178,7 @@ class TierOut(ORM):
     max_campaign_concurrency: int | None
     max_contacts: int | None
     max_call_links: int | None
+    max_team_members: int | None
     campaign_followup: bool
     price_ars: int | None
     public: bool
@@ -242,7 +245,7 @@ LimitField = Literal[
     "inbound_minutes", "outbound_minutes", "max_phone_numbers",
     "api_llm_input_tokens", "api_llm_output_tokens", "api_tts_minutes", "api_stt_minutes", "api_rate_limit",
     "max_campaigns_per_month", "max_campaign_contacts", "max_campaign_concurrency", "max_contacts",
-    "max_call_links",
+    "max_call_links", "max_team_members",
 ]
 
 
@@ -949,6 +952,10 @@ class MessageOut(BaseModel):
     voice_note: bool = False
     # Llamada con agent.record_audio: numero de su WAV (/calls/{id}/recordings/{n}), uno por mensaje.
     recording: int | None = None
+    at: UTCDateTime | None = None
+    # Llamada derivada: lo hablado con la persona del equipo lleva el tramo; lo que dijo ella, su nombre.
+    handoff_leg: str | None = None
+    person: str | None = None
 
 
 class WhatsAppInfo(BaseModel):
@@ -1277,6 +1284,7 @@ class PlanOut(ORM):
     max_campaign_concurrency: int | None = None
     max_contacts: int | None = None
     max_call_links: int | None = None
+    max_team_members: int | None = None
     campaign_followup: bool = False
 
 
@@ -1956,3 +1964,113 @@ class ApiRequestPage(BaseModel):
     items: list[ApiRequestOut]
     total: int
     summary: ApiRequestsSummaryOut = Field(description="Totales de todo el filtro, no solo de la página")
+
+
+# ---------- equipo, areas de derivacion y eventos (docs/DERIVACIONES_PLAN.md) ----------
+
+class TeamMemberIn(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    phone: str | None = Field(default=None, max_length=32, description="Para transferir llamadas (Argentina)")
+    whatsapp: str | None = Field(default=None, max_length=32, description="Para el puente de WhatsApp; único por cliente")
+    user_id: str | None = Field(default=None, description="Usuario del panel (softphone web)")
+    active: bool = True
+
+
+class TeamMemberPatch(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    phone: str | None = Field(default=None, max_length=32)
+    whatsapp: str | None = Field(default=None, max_length=32)
+    user_id: str | None = None
+    active: bool | None = None
+
+
+class TeamMemberOut(ORM):
+    id: str
+    client_id: str
+    name: str
+    phone: str | None
+    whatsapp: str | None
+    user_id: str | None
+    active: bool
+    created_at: UTCDateTime
+
+
+class HandoffSchedule(BaseModel):
+    """Horario semanal en la zona `tz`; `closed`: días sin atención (feriados). Sin horario = siempre."""
+    tz: str = "America/Argentina/Buenos_Aires"
+    week: dict[Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"], list[tuple[str, str]]] = Field(
+        default_factory=dict, description='Por día, franjas "HH:MM" (ej. {"mon": [["09:00", "13:00"], ["16:00", "20:00"]]})')
+    closed: list[datetime.date] = Field(default_factory=list)
+
+
+class HandoffAreaIn(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    description: str = Field(default="", max_length=1000, description="Qué atiende: lo lee el agente para elegir el área")
+    active: bool = True
+    member_ids: list[str] = Field(default_factory=list, description="Personas del equipo, en el orden en que se las llama")
+    strategy: Literal["sequential", "round_robin"] = "sequential"
+    ring_seconds: int = Field(default=20, ge=5, le=60, description="Timbre por persona (el buzón de Claro atiende a los ~33 s)")
+    schedule: HandoffSchedule | None = None
+    fallback: Literal["take_message"] = "take_message"
+    on_person_hangup: Literal["resume", "end"] = Field(
+        default="resume", description="Si la persona corta: resume (el agente vuelve) o end (se despide y corta)")
+    return_digits: str = Field(default="2", max_length=4, description="Tecla de la persona para volver a la IA (sin *)")
+    wa_reply_minutes: int = Field(default=10, ge=1, le=1440)
+    messages: dict[str, str] = Field(default_factory=dict, description="Textos que cambian los de /handoff-areas/defaults")
+
+
+class HandoffAreaPatch(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=80)
+    description: str | None = Field(default=None, max_length=1000)
+    active: bool | None = None
+    member_ids: list[str] | None = None
+    strategy: Literal["sequential", "round_robin"] | None = None
+    ring_seconds: int | None = Field(default=None, ge=5, le=60)
+    schedule: HandoffSchedule | None = None
+    fallback: Literal["take_message"] | None = None
+    on_person_hangup: Literal["resume", "end"] | None = None
+    return_digits: str | None = Field(default=None, max_length=4)
+    wa_reply_minutes: int | None = Field(default=None, ge=1, le=1440)
+    messages: dict[str, str] | None = None
+
+
+class HandoffAreaOut(ORM):
+    id: str
+    client_id: str
+    name: str
+    description: str
+    active: bool
+    member_ids: list[str]
+    strategy: str
+    ring_seconds: int
+    schedule: HandoffSchedule | None
+    schedule_text: str = Field(description="El horario como lo dice el agente")
+    open_now: bool
+    fallback: str
+    on_person_hangup: str
+    return_digits: str
+    wa_reply_minutes: int
+    messages: dict[str, str] = Field(description="Solo los que cambian el default")
+    created_at: UTCDateTime
+
+
+class HoldMusicOut(BaseModel):
+    """Temas de musica de espera para workflow.handoff.hold_music.track."""
+    tracks: list[str]
+
+
+class HandoffDefaultsOut(BaseModel):
+    messages: dict[str, str]
+    variables: list[str]
+
+
+class EventOut(ORM):
+    id: int
+    client_id: str
+    at: UTCDateTime
+    type: str
+    actor: str
+    conversation_id: str | None
+    area_id: str | None
+    team_member_id: str | None
+    data: dict

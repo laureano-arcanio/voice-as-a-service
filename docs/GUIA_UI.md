@@ -6,8 +6,8 @@ puede hacer por la API (`/api/v1/docs`, solo con sesión de admin). La arquitect
 [`ARQUITECTURA.md`](ARQUITECTURA.md).
 
 Hay dos roles:
-- **Admin:** opera la plataforma y ve todo. Menú: Inicio, Conversaciones, Agentes, Voces, WhatsApp, Contactos, Campañas, Apps, Clientes, Números, Tiers, Cobros y Usuarios.
-- **Cliente:** usuario de un cliente, que solo ve lo suyo. Menú: Inicio, Conversaciones, Agentes, Voces, WhatsApp, Contactos, Campañas, Apps, Consumos, API, Uso de la API y Mi cuenta.
+- **Admin:** opera la plataforma y ve todo. Menú: Inicio, Conversaciones, Agentes, Voces, WhatsApp, Contactos, Equipo, Campañas, Apps, Clientes, Números, Tiers, Cobros y Usuarios.
+- **Cliente:** usuario de un cliente, que solo ve lo suyo. Menú: Inicio, Conversaciones, Agentes, Voces, WhatsApp, Contactos, Equipo, Campañas, Apps, Consumos, API, Uso de la API y Mi cuenta.
 
 ## Primer ingreso
 
@@ -41,6 +41,7 @@ Los de la API de inferencia (abajo) arrancan en 0 = el plan no los incluye.
 | Llamadas simultáneas por campaña | Tope de la concurrencia de una campaña de llamadas. |
 | Contactos en la agenda | Contactos activos del cliente (los archivados no cuentan). |
 | Seguimiento por WhatsApp | Si una campaña de llamadas puede escribirle por WhatsApp a quien no atendió. |
+| Personas del equipo | Personas a las que el agente puede derivar una llamada o un chat (Equipo). |
 
 - **Editar:** los cambios rigen en el acto, también para el mes en curso.
 - **Bajar el tope de números:** no se puede si algún cliente de ese tier ya tiene más asignados.
@@ -88,7 +89,13 @@ El detalle del agente tiene cuatro pestañas:
   (ver [Agentes (cliente)](#agentes-cliente)):
   - **Agente:** nombre, rol, idioma y **motor** (Clásico, Estructurado o Asistente, en tarjetas). La definición es la misma con los dos primeros: cambiarlo no toca nada más. **Asistente** (solo admin) es el asistente personal con las herramientas de las apps del cliente ([`APPS.md`](APPS.md)): oculta Datos a obtener y Resultados (lo que haya queda guardado) y muestra **Herramientas**.
   - **Herramientas** (motor Asistente): un switch por cada app del cliente, con **Todas** o **Elegir** herramientas una por una. Las que borran o envían se confirman con el usuario antes de usarlas.
-  - **Voz:** tarjetas con las voces (filtro por mujeres u hombres); al lado, la prueba con la voz elegida, con la apertura como texto (editable). **Grabar audio**: un WAV por mensaje de cada llamada (telefónica o de WhatsApp; el cliente y el agente por separado), localmente en el servidor. **Ventana de contexto en WhatsApp (minutos)**: minutos sin mensaje del contacto para que la próxima conversación arranque en limpio, sin el historial anterior; vacío usa el default del servidor (1440 min = 24 hs).
+  - **Voz:** tarjetas con las voces (filtro por mujeres u hombres); al lado, la prueba con la voz elegida, con la apertura como texto (editable). **Grabar audio**: un WAV por mensaje de cada llamada (telefónica o de WhatsApp; el cliente y el agente por separado), localmente en el servidor; con **Avisar que la llamada se graba**, el agente lo dice antes del saludo. **Ventana de contexto en WhatsApp (minutos)**: minutos sin mensaje del contacto para que la próxima conversación arranque en limpio, sin el historial anterior; vacío usa el default del servidor (1440 min = 24 hs).
+  - **Derivación a personas** (solo motor Clásico; con otro lo avisa y no se edita): las áreas del cliente (de
+    **Equipo**, con su horario; si no tiene, un link para crearlas). **Puede pasarle llamadas** habilita cada área
+    (hasta 10) y abre **Cuándo pasarla**, el criterio para el agente (vacío = la descripción del área). Un área
+    inactiva queda marcada, pero el agente no la ofrece. Con alguna área, **Música de espera** (prendida por
+    defecto): tema (**Música de espera estándar** o los que haya en el servidor) y volumen (5 a 100 %). Sin áreas
+    marcadas no se guarda nada de esto.
   - **Objetivo y apertura**, **Reglas** (una por regla) y **Base de conocimiento**.
   - **Datos a obtener:** cada dato con etiqueta, nombre interno, tipo (texto, número, sí o no, opción
     de una lista, email, email o teléfono), si es obligatorio (sí, no o según otro dato), descripción
@@ -277,7 +284,9 @@ Para que un dueño use su app: asignarla, crear un agente con motor **Asistente*
   rechazados. Los recién obtenidos se resaltan unos segundos.
 - **Conversación:** el chat. Con **Salida del LLM** se despliega lo que devolvió el LLM en cada turno
   (conversación y extracción, con su tiempo y razonamiento); si el agente tiene **Grabar audio**
-  prendido, cada mensaje trae el reproductor de su WAV.
+  prendido, cada mensaje trae el reproductor de su WAV. En una llamada derivada, el tramo con la persona del
+  equipo empieza con el separador "Llamada con <persona>", y lo que dijo ella va del lado del agente, en una
+  burbuja blanca con borde y su nombre ("Ana Pérez (equipo)").
 - **Latencia por turno:** E2E, EOU, STT, endpointing, LLM, TTS y audio, con promedios y máximos.
 - El cliente ve las dos cosas como **Detalle técnico**: el interruptor del chat y, al final, una
   tarjeta plegada con la latencia.
@@ -419,6 +428,23 @@ La agenda del cliente: de ahí salen los destinatarios de las campañas. Lo úni
 6. **Números bloqueados** (al final): sus llamadas entrantes, por la línea o por WhatsApp, se cortan sin
    atender y quedan como rechazadas (`blocked_number`). Se cargan acá (teléfono y motivo) o desde el detalle
    de una llamada (**Bloquear número**). No cambian las campañas: para no llamar a alguien están las bajas.
+
+### Equipo (`/team`, ambos roles)
+
+Las personas del cliente a las que el agente les pasa una llamada o un chat, agrupadas en áreas
+([`DERIVACIONES_PLAN.md`](DERIVACIONES_PLAN.md)). El admin elige primero el cliente. A qué áreas deriva cada
+agente se elige en su definición, **Derivación a personas**.
+
+1. **Personas:** nombre, teléfono (para transferirle llamadas; solo Argentina) y WhatsApp (para el puente de
+   WhatsApp; único por cliente). Hace falta uno de los dos. El tier limita cuántas.
+2. **Áreas:** nombre y qué atiende (lo lee el agente para elegir el área), personas en el orden en que se las
+   llama (**En orden** o **Rotativa**), timbre por persona (20 s por defecto: el buzón de Claro atiende a los
+   ~33 s), horario por día con días cerrados (o **Atiende siempre**), qué hace el agente si la persona corta
+   (vuelve con "¿Te puedo ayudar con algo más?" o se despide) y la tecla con la que la persona le devuelve la
+   llamada a la IA (2 por defecto; nunca con `*`, que la central de Anura toma como código).
+3. **Mensajes:** cada momento (antes de transferir, el aviso a la persona, no atiende, ocupado, fuera de
+   horario, vuelta y despedida) tiene un texto por defecto; se cambia por área, con `{{area}}`, `{{persona}}`,
+   `{{cliente}}`, `{{resumen}}` y `{{horario}}`.
 
 ### Campañas (`/campaigns`, ambos roles)
 

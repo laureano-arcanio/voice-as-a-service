@@ -9906,6 +9906,698 @@
      }
     }
    }
+  },
+  "/api/v1/team": {
+   "get": {
+    "tags": [
+     "handoff"
+    ],
+    "summary": "List Team",
+    "operationId": "list_team_api_v1_team_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/TeamMemberOut"
+         },
+         "title": "Response List Team Api V1 Team Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "handoff"
+    ],
+    "summary": "Create Member",
+    "description": "Suma una persona al equipo. El teléfono (Argentina) sirve para transferirle llamadas; el WhatsApp,\npara el puente de la bandeja. Cuenta para el tope del plan (`max_team_members`).",
+    "operationId": "create_member_api_v1_team_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TeamMemberIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TeamMemberOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/team/{member_id}": {
+   "patch": {
+    "tags": [
+     "handoff"
+    ],
+    "summary": "Update Member",
+    "operationId": "update_member_api_v1_team__member_id__patch",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "member_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Member Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TeamMemberPatch"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TeamMemberOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "handoff"
+    ],
+    "summary": "Delete Member",
+    "operationId": "delete_member_api_v1_team__member_id__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "member_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Member Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/handoff-areas/defaults": {
+   "get": {
+    "tags": [
+     "handoff"
+    ],
+    "summary": "Area Defaults",
+    "description": "Los mensajes por defecto de un área y las variables que aceptan.",
+    "operationId": "area_defaults_api_v1_handoff_areas_defaults_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HandoffDefaultsOut"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/hold-music": {
+   "get": {
+    "tags": [
+     "handoff"
+    ],
+    "summary": "Hold Music",
+    "description": "Temas de música de espera para la derivación (`handoff.hold_music.track` del agente).",
+    "operationId": "hold_music_api_v1_hold_music_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HoldMusicOut"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/handoff-areas": {
+   "get": {
+    "tags": [
+     "handoff"
+    ],
+    "summary": "List Areas",
+    "operationId": "list_areas_api_v1_handoff_areas_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/HandoffAreaOut"
+         },
+         "title": "Response List Areas Api V1 Handoff Areas Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "handoff"
+    ],
+    "summary": "Create Area",
+    "description": "Crea un área de derivación: a quién se llama, en qué orden y horario, y qué dice el agente.",
+    "operationId": "create_area_api_v1_handoff_areas_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/HandoffAreaIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HandoffAreaOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/handoff-areas/{area_id}": {
+   "get": {
+    "tags": [
+     "handoff"
+    ],
+    "summary": "Get Area",
+    "operationId": "get_area_api_v1_handoff_areas__area_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "area_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Area Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HandoffAreaOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "patch": {
+    "tags": [
+     "handoff"
+    ],
+    "summary": "Update Area",
+    "description": "Cambia un área. `schedule: null` la deja atendiendo siempre; `member_ids` reemplaza la lista.",
+    "operationId": "update_area_api_v1_handoff_areas__area_id__patch",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "area_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Area Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/HandoffAreaPatch"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HandoffAreaOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "handoff"
+    ],
+    "summary": "Delete Area",
+    "operationId": "delete_area_api_v1_handoff_areas__area_id__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "area_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Area Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/events": {
+   "get": {
+    "tags": [
+     "handoff"
+    ],
+    "summary": "List Events",
+    "description": "Eventos en orden de llegada: llamadas (timbre, atención, fin), derivaciones y esperas. Para leer\nlo nuevo, repetir con `after_id` = el último id recibido.",
+    "operationId": "list_events_api_v1_events_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     },
+     {
+      "name": "conversation_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Conversation Id"
+      }
+     },
+     {
+      "name": "type",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Tipos exactos o prefijos (\"handoff.\")",
+       "title": "Type"
+      },
+      "description": "Tipos exactos o prefijos (\"handoff.\")"
+     },
+     {
+      "name": "since",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date-time"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Since"
+      }
+     },
+     {
+      "name": "until",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date-time"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Until"
+      }
+     },
+     {
+      "name": "after_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Cursor: el último id leído",
+       "title": "After Id"
+      },
+      "description": "Cursor: el último id leído"
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 1000,
+       "minimum": 1,
+       "default": 100,
+       "title": "Limit"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/EventOut"
+         },
+         "title": "Response List Events Api V1 Events Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
   }
  },
  "components": {
@@ -15656,6 +16348,82 @@
     ],
     "title": "EmailCodeIn"
    },
+   "EventOut": {
+    "properties": {
+     "id": {
+      "type": "integer",
+      "title": "Id"
+     },
+     "client_id": {
+      "type": "string",
+      "title": "Client Id"
+     },
+     "at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "At"
+     },
+     "type": {
+      "type": "string",
+      "title": "Type"
+     },
+     "actor": {
+      "type": "string",
+      "title": "Actor"
+     },
+     "conversation_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Conversation Id"
+     },
+     "area_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Area Id"
+     },
+     "team_member_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Team Member Id"
+     },
+     "data": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Data"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "client_id",
+     "at",
+     "type",
+     "actor",
+     "conversation_id",
+     "area_id",
+     "team_member_id",
+     "data"
+    ],
+    "title": "EventOut"
+   },
    "FieldValue": {
     "properties": {
      "name": {
@@ -15845,6 +16613,398 @@
     "type": "object",
     "title": "HTTPValidationError"
    },
+   "HandoffAreaIn": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "title": "Description",
+      "description": "Qué atiende: lo lee el agente para elegir el área",
+      "default": ""
+     },
+     "active": {
+      "type": "boolean",
+      "title": "Active",
+      "default": true
+     },
+     "member_ids": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Member Ids",
+      "description": "Personas del equipo, en el orden en que se las llama"
+     },
+     "strategy": {
+      "type": "string",
+      "enum": [
+       "sequential",
+       "round_robin"
+      ],
+      "title": "Strategy",
+      "default": "sequential"
+     },
+     "ring_seconds": {
+      "type": "integer",
+      "maximum": 60.0,
+      "minimum": 5.0,
+      "title": "Ring Seconds",
+      "description": "Timbre por persona (el buzón de Claro atiende a los ~33 s)",
+      "default": 20
+     },
+     "schedule": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/HandoffSchedule"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "fallback": {
+      "type": "string",
+      "const": "take_message",
+      "title": "Fallback",
+      "default": "take_message"
+     },
+     "on_person_hangup": {
+      "type": "string",
+      "enum": [
+       "resume",
+       "end"
+      ],
+      "title": "On Person Hangup",
+      "description": "Si la persona corta: resume (el agente vuelve) o end (se despide y corta)",
+      "default": "resume"
+     },
+     "return_digits": {
+      "type": "string",
+      "maxLength": 4,
+      "title": "Return Digits",
+      "description": "Tecla de la persona para volver a la IA (sin *)",
+      "default": "2"
+     },
+     "wa_reply_minutes": {
+      "type": "integer",
+      "maximum": 1440.0,
+      "minimum": 1.0,
+      "title": "Wa Reply Minutes",
+      "default": 10
+     },
+     "messages": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "type": "object",
+      "title": "Messages",
+      "description": "Textos que cambian los de /handoff-areas/defaults"
+     }
+    },
+    "type": "object",
+    "required": [
+     "name"
+    ],
+    "title": "HandoffAreaIn"
+   },
+   "HandoffAreaOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "client_id": {
+      "type": "string",
+      "title": "Client Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "description": {
+      "type": "string",
+      "title": "Description"
+     },
+     "active": {
+      "type": "boolean",
+      "title": "Active"
+     },
+     "member_ids": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Member Ids"
+     },
+     "strategy": {
+      "type": "string",
+      "title": "Strategy"
+     },
+     "ring_seconds": {
+      "type": "integer",
+      "title": "Ring Seconds"
+     },
+     "schedule": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/HandoffSchedule"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "schedule_text": {
+      "type": "string",
+      "title": "Schedule Text",
+      "description": "El horario como lo dice el agente"
+     },
+     "open_now": {
+      "type": "boolean",
+      "title": "Open Now"
+     },
+     "fallback": {
+      "type": "string",
+      "title": "Fallback"
+     },
+     "on_person_hangup": {
+      "type": "string",
+      "title": "On Person Hangup"
+     },
+     "return_digits": {
+      "type": "string",
+      "title": "Return Digits"
+     },
+     "wa_reply_minutes": {
+      "type": "integer",
+      "title": "Wa Reply Minutes"
+     },
+     "messages": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "type": "object",
+      "title": "Messages",
+      "description": "Solo los que cambian el default"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "client_id",
+     "name",
+     "description",
+     "active",
+     "member_ids",
+     "strategy",
+     "ring_seconds",
+     "schedule",
+     "schedule_text",
+     "open_now",
+     "fallback",
+     "on_person_hangup",
+     "return_digits",
+     "wa_reply_minutes",
+     "messages",
+     "created_at"
+    ],
+    "title": "HandoffAreaOut"
+   },
+   "HandoffAreaPatch": {
+    "properties": {
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 80,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 1000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "active": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Active"
+     },
+     "member_ids": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Member Ids"
+     },
+     "strategy": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "sequential",
+         "round_robin"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Strategy"
+     },
+     "ring_seconds": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 60.0,
+        "minimum": 5.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ring Seconds"
+     },
+     "schedule": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/HandoffSchedule"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "fallback": {
+      "anyOf": [
+       {
+        "type": "string",
+        "const": "take_message"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Fallback"
+     },
+     "on_person_hangup": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "resume",
+         "end"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "On Person Hangup"
+     },
+     "return_digits": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 4
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Return Digits"
+     },
+     "wa_reply_minutes": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 1440.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Wa Reply Minutes"
+     },
+     "messages": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "type": "string"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Messages"
+     }
+    },
+    "type": "object",
+    "title": "HandoffAreaPatch"
+   },
+   "HandoffDefaultsOut": {
+    "properties": {
+     "messages": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "type": "object",
+      "title": "Messages"
+     },
+     "variables": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Variables"
+     }
+    },
+    "type": "object",
+    "required": [
+     "messages",
+     "variables"
+    ],
+    "title": "HandoffDefaultsOut"
+   },
    "HandoffIn": {
     "properties": {
      "token": {
@@ -15859,6 +17019,75 @@
      "token"
     ],
     "title": "HandoffIn"
+   },
+   "HandoffSchedule": {
+    "properties": {
+     "tz": {
+      "type": "string",
+      "title": "Tz",
+      "default": "America/Argentina/Buenos_Aires"
+     },
+     "week": {
+      "additionalProperties": {
+       "items": {
+        "prefixItems": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "string"
+         }
+        ],
+        "type": "array",
+        "maxItems": 2,
+        "minItems": 2
+       },
+       "type": "array"
+      },
+      "propertyNames": {
+       "enum": [
+        "mon",
+        "tue",
+        "wed",
+        "thu",
+        "fri",
+        "sat",
+        "sun"
+       ]
+      },
+      "type": "object",
+      "title": "Week",
+      "description": "Por día, franjas \"HH:MM\" (ej. {\"mon\": [[\"09:00\", \"13:00\"], [\"16:00\", \"20:00\"]]})"
+     },
+     "closed": {
+      "items": {
+       "type": "string",
+       "format": "date"
+      },
+      "type": "array",
+      "title": "Closed"
+     }
+    },
+    "type": "object",
+    "title": "HandoffSchedule",
+    "description": "Horario semanal en la zona `tz`; `closed`: días sin atención (feriados). Sin horario = siempre."
+   },
+   "HoldMusicOut": {
+    "properties": {
+     "tracks": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Tracks"
+     }
+    },
+    "type": "object",
+    "required": [
+     "tracks"
+    ],
+    "title": "HoldMusicOut",
+    "description": "Temas de musica de espera para workflow.handoff.hold_music.track."
    },
    "InferenceKeyUsageOut": {
     "properties": {
@@ -16121,7 +17350,8 @@
        "max_campaign_contacts",
        "max_campaign_concurrency",
        "max_contacts",
-       "max_call_links"
+       "max_call_links",
+       "max_team_members"
       ],
       "title": "Field"
      },
@@ -16211,7 +17441,8 @@
        "max_campaign_contacts",
        "max_campaign_concurrency",
        "max_contacts",
-       "max_call_links"
+       "max_call_links",
+       "max_team_members"
       ],
       "title": "Field"
      },
@@ -16323,7 +17554,8 @@
        "max_campaign_contacts",
        "max_campaign_concurrency",
        "max_contacts",
-       "max_call_links"
+       "max_call_links",
+       "max_team_members"
       ],
       "title": "Field"
      },
@@ -16943,6 +18175,40 @@
        }
       ],
       "title": "Recording"
+     },
+     "at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "At"
+     },
+     "handoff_leg": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Handoff Leg"
+     },
+     "person": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Person"
      }
     },
     "type": "object",
@@ -17721,6 +18987,17 @@
       ],
       "title": "Max Call Links"
      },
+     "max_team_members": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Team Members"
+     },
      "campaign_followup": {
       "type": "boolean",
       "title": "Campaign Followup",
@@ -18430,6 +19707,199 @@
     "title": "SubscriptionRowOut",
     "description": "Una suscripcion en la vista Cobros (admin)."
    },
+   "TeamMemberIn": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "phone": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 32
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Phone",
+      "description": "Para transferir llamadas (Argentina)"
+     },
+     "whatsapp": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 32
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Whatsapp",
+      "description": "Para el puente de WhatsApp; único por cliente"
+     },
+     "user_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "User Id",
+      "description": "Usuario del panel (softphone web)"
+     },
+     "active": {
+      "type": "boolean",
+      "title": "Active",
+      "default": true
+     }
+    },
+    "type": "object",
+    "required": [
+     "name"
+    ],
+    "title": "TeamMemberIn"
+   },
+   "TeamMemberOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "client_id": {
+      "type": "string",
+      "title": "Client Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "phone": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Phone"
+     },
+     "whatsapp": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Whatsapp"
+     },
+     "user_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "User Id"
+     },
+     "active": {
+      "type": "boolean",
+      "title": "Active"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "client_id",
+     "name",
+     "phone",
+     "whatsapp",
+     "user_id",
+     "active",
+     "created_at"
+    ],
+    "title": "TeamMemberOut"
+   },
+   "TeamMemberPatch": {
+    "properties": {
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 120,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "phone": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 32
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Phone"
+     },
+     "whatsapp": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 32
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Whatsapp"
+     },
+     "user_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "User Id"
+     },
+     "active": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Active"
+     }
+    },
+    "type": "object",
+    "title": "TeamMemberPatch"
+   },
    "TemplateOut": {
     "properties": {
      "id": {
@@ -18739,6 +20209,19 @@
       "title": "Max Call Links",
       "description": "Links publicos para llamar a un agente (uno por agente)"
      },
+     "max_team_members": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Team Members",
+      "description": "Personas del equipo para derivar llamadas y WhatsApp"
+     },
      "campaign_followup": {
       "type": "boolean",
       "title": "Campaign Followup",
@@ -18989,6 +20472,17 @@
       ],
       "title": "Max Call Links"
      },
+     "max_team_members": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Team Members"
+     },
      "campaign_followup": {
       "type": "boolean",
       "title": "Campaign Followup"
@@ -19046,6 +20540,7 @@
      "max_campaign_concurrency",
      "max_contacts",
      "max_call_links",
+     "max_team_members",
      "campaign_followup",
      "price_ars",
      "public",
@@ -19301,6 +20796,18 @@
        }
       ],
       "title": "Max Call Links"
+     },
+     "max_team_members": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Team Members"
      },
      "campaign_followup": {
       "anyOf": [

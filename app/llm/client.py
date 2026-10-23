@@ -16,11 +16,13 @@ from app.conversation.workflow import OFF_TOPIC_REASON
 
 from .prompt import (
     END_MARKER,
+    HANDOFF_MARKER,
     OFF_TOPIC_MARKER,
     build_classic_messages,
     build_extraction_prompt,
     build_user_prompt,
     extraction_prompt,
+    handoff_enabled,
     system_prompt,
 )
 
@@ -218,7 +220,7 @@ class LLMClient:
         lo marca END_MARKER (u OFF_TOPIC_MARKER), que se saca antes de decirlo."""
         request = dict(model=self.model, messages=build_classic_messages(workflow, state, user_message),
                        **self._limit(), **self.options)
-        marker = MarkerFilter(END_MARKER, OFF_TOPIC_MARKER)
+        marker = classic_marker(state)
         if on_message is None:
             message = (await self.client.chat.completions.create(**request)).choices[0].message
             content = message.content or ""
@@ -329,22 +331,46 @@ class MessageExtractor:
         return "".join(out)
 
 
+def classic_marker(state: ConversationState) -> "MarkerFilter":
+    """Las marcas del motor clasico; la de derivar, solo en una llamada con areas."""
+    return MarkerFilter(END_MARKER, OFF_TOPIC_MARKER, param=HANDOFF_MARKER if handoff_enabled(state) else None)
+
+
 def classic_turn(marker: "MarkerFilter", **extra) -> AgentTurn:
-    """El turno del motor clasico segun la marca que escribio el LLM (si escribio una)."""
-    return AgentTurn(assistant_message=marker.text.strip(), status="completed" if marker.found else "active",
-                     end_reason=OFF_TOPIC_REASON if marker.found == OFF_TOPIC_MARKER else None, **extra)
+    """El turno del motor clasico segun la marca que escribio el LLM (si escribio una). Derivar no termina la
+    conversacion: el worker pasa la llamada y, si no se puede, el agente sigue."""
+    if marker.found == HANDOFF_MARKER and marker.arg:
+        return AgentTurn(assistant_message=marker.text.strip(), handoff=marker.arg, **extra)
+    found = marker.found if marker.found != HANDOFF_MARKER else None
+    return AgentTurn(assistant_message=marker.text.strip(), status="completed" if found else "active",
+                     end_reason=OFF_TOPIC_REASON if found == OFF_TOPIC_MARKER else None, **extra)
 
 
 class MarkerFilter:
     """Saca las marcas de un texto que llega por partes. feed() devuelve lo que
     ya se puede decir: retiene el final si puede ser el principio de una marca.
-    found: la ultima marca que aparecio (None si ninguna)."""
+    found: la ultima marca que aparecio (None si ninguna).
 
-    def __init__(self, *markers: str):
+    param: una marca con argumento hasta el "]" ("[DERIVAR:" + "Ventas]"); el argumento queda en arg."""
+
+    def __init__(self, *markers: str, param: str | None = None):
         self.markers = markers
+        self.param = param
         self.pending = ""
         self.text = ""          # todo lo dicho, sin las marcas
         self.found: str | None = None
+        self.arg: str | None = None
+
+    def _take_param(self, final: bool = False) -> int | None:
+        """Saca la marca con argumento de pending. Devuelve desde donde retener si quedo abierta."""
+        while self.param and (i := self.pending.find(self.param)) >= 0:
+            j = self.pending.find("]", i + len(self.param))
+            if j < 0 and not final:
+                return i
+            end = len(self.pending) if j < 0 else j
+            self.found, self.arg = self.param, self.pending[i + len(self.param):end].strip()
+            self.pending = self.pending[:i] + self.pending[end + 1:]
+        return None
 
     def feed(self, chunk: str) -> str:
         self.pending += chunk
@@ -352,13 +378,20 @@ class MarkerFilter:
             if marker in self.pending:
                 self.found = marker
                 self.pending = self.pending.replace(marker, "")
-        keep = max((n for marker in self.markers for n in range(len(marker) - 1, 0, -1)
+        open_at = self._take_param()
+        if open_at is not None:
+            out, self.pending = self.pending[:open_at], self.pending[open_at:]
+            self.text += out
+            return out
+        prefixes = (*self.markers, self.param) if self.param else self.markers
+        keep = max((n for marker in prefixes for n in range(len(marker) - 1, 0, -1)
                     if self.pending.endswith(marker[:n])), default=0)
         out, self.pending = self.pending[:len(self.pending) - keep], self.pending[len(self.pending) - keep:]
         self.text += out
         return out
 
     def flush(self) -> str:
+        self._take_param(final=True)
         out, self.pending = self.pending, ""
         self.text += out
         return out

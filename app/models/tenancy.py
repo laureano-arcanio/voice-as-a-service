@@ -47,6 +47,7 @@ class Tier(IdMixin, TimestampMixin, Base):
                         name="ck_tiers_campaign_concurrency"),
         CheckConstraint("max_contacts IS NULL OR max_contacts >= 0", name="ck_tiers_contacts"),
         CheckConstraint("max_call_links IS NULL OR max_call_links >= 0", name="ck_tiers_call_links"),
+        CheckConstraint("max_team_members IS NULL OR max_team_members >= 0", name="ck_tiers_team_members"),
     )
     name: Mapped[str] = mapped_column(String(64), unique=True)
     description: Mapped[str] = mapped_column(Text, default="")
@@ -82,6 +83,9 @@ class Tier(IdMixin, TimestampMixin, Base):
     # Links publicos para llamar a un agente desde el navegador (docs/LINK_LLAMADA_PLAN.md). NULL = sin
     # limite, 0 = no incluido.
     max_call_links: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Personas del equipo para derivar llamadas y WhatsApp (docs/DERIVACIONES_PLAN.md). NULL = sin
+    # limite, 0 = no incluido.
+    max_team_members: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Autoservicio (docs/SUSCRIPCIONES_PLAN.md): precio mensual en pesos, lo que se cobra (NULL = no
     # se vende por el dashboard; 0 = gratis). `public`: se ofrece en el registro y en /plan. El tier
     # publico con precio 0 es el del registro.

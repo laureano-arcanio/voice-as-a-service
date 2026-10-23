@@ -84,7 +84,9 @@ def build(s: Session, definitions: DefinitionSource, call: CallRow, client: Clie
             truncated = True
             break
         used += len(text)
-        transcript.append((speaker if m.get("role") == "assistant" else "Contacto", text))
+        # En una llamada derivada, lo que dijo la persona del equipo va con su nombre.
+        who = (f"{m['person']} (equipo)" if m.get("person") else speaker) if m.get("role") == "assistant" else "Contacto"
+        transcript.append((who, text))
     return messages.call_summary(
         to="", client_name=client.name, agent_name=agent.name if agent else speaker, mode=call.mode,
         phone=phone, client_number=number.e164 if number else None,

@@ -1,6 +1,6 @@
 import { Text } from '@mantine/core';
-import { IconMicrophone } from '@tabler/icons-react';
-import { useEffect, useRef } from 'react';
+import { IconHeadset, IconMicrophone } from '@tabler/icons-react';
+import { Fragment, useEffect, useRef } from 'react';
 import { EmptyState } from '@/components/QueryState';
 import { prettyJson } from '@/lib/format';
 import type { ChatMessage, LlmCall } from '@/api/types';
@@ -54,7 +54,19 @@ function LlmTraces({ calls, open, title }: { calls: LlmCall[]; open: boolean; ti
   );
 }
 
-/** Burbujas agente / interesado; baja sola al llegar mensajes nuevos. */
+/** Persona del equipo del tramo que empieza en el mensaje i (derivacion), o null si no empieza uno. */
+function legStart(messages: ChatMessage[], i: number): string | null {
+  const leg = messages[i]?.handoff_leg;
+  if (!leg || messages[i - 1]?.handoff_leg === leg) return null;
+  return messages.find((m) => m.handoff_leg === leg && m.person)?.person ?? '';
+}
+
+/** Termino un tramo con la persona y sigue el agente. */
+const legEnd = (messages: ChatMessage[], i: number) =>
+  !!messages[i - 1]?.handoff_leg && !messages[i]?.handoff_leg;
+
+/** Burbujas agente / interesado; baja sola al llegar mensajes nuevos. Lo que habló una persona del equipo
+ * (llamada derivada) va con su nombre, y cada tramo con ella arranca con un separador. */
 export function ChatView({
   messages,
   showLlm = false,
@@ -86,27 +98,48 @@ export function ChatView({
   }
   return (
     <div className="chat" ref={ref} style={maxHeight ? { maxHeight } : undefined}>
-      {messages.map((m, i) => (
-        <div key={i} className={`bubble ${m.role === 'assistant' ? 'agent' : 'client'}`}>
-          <span className="who label">{m.role === 'assistant' ? agentLabel : userLabel}</span>
-          {m.voice_note && (
-            <span className="voice-note">
-              <IconMicrophone size={12} aria-hidden />
-              {m.role === 'assistant' ? 'Enviada como nota de voz' : 'Transcripción de nota de voz'}
-            </span>
-          )}
-          {m.text}
-          {conversationId && m.recording != null && (
-            <audio
-              controls
-              preload="none"
-              className="bubble-recording"
-              src={recordingUrl(conversationId, m.recording)}
-            />
-          )}
-          {m.llm && m.llm.length > 0 && <LlmTraces calls={m.llm} open={showLlm} title={llmTitle} />}
-        </div>
-      ))}
+      {messages.map((m, i) => {
+        const leg = legStart(messages, i);
+        const person = m.role === 'assistant' && m.person;
+        return (
+          <Fragment key={i}>
+            {leg !== null && (
+              <div className="chat-leg label" role="separator">
+                <IconHeadset size={16} aria-hidden />
+                {leg ? `Llamada con ${leg}` : 'Llamada con el equipo'}
+              </div>
+            )}
+            {legEnd(messages, i) && (
+              <div className="chat-leg label" role="separator">
+                Vuelve {agentLabel}
+              </div>
+            )}
+            <div
+              className={`bubble ${m.role === 'assistant' ? (person ? 'agent team' : 'agent') : 'client'}`}
+            >
+              <span className="who label">
+                {person ? `${m.person} (equipo)` : m.role === 'assistant' ? agentLabel : userLabel}
+              </span>
+              {m.voice_note && (
+                <span className="voice-note">
+                  <IconMicrophone size={12} aria-hidden />
+                  {m.role === 'assistant' ? 'Enviada como nota de voz' : 'Transcripción de nota de voz'}
+                </span>
+              )}
+              {m.text}
+              {conversationId && m.recording != null && (
+                <audio
+                  controls
+                  preload="none"
+                  className="bubble-recording"
+                  src={recordingUrl(conversationId, m.recording)}
+                />
+              )}
+              {m.llm && m.llm.length > 0 && <LlmTraces calls={m.llm} open={showLlm} title={llmTitle} />}
+            </div>
+          </Fragment>
+        );
+      })}
     </div>
   );
 }

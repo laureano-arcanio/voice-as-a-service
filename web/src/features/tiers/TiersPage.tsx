@@ -97,6 +97,7 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
     max_campaign_concurrency: Limit;
     max_contacts: Limit;
     max_call_links: Limit;
+    max_team_members: Limit;
     campaign_followup: boolean;
     price_ars: Limit;
     public: boolean;
@@ -125,6 +126,7 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
       max_campaign_concurrency: tier?.max_campaign_concurrency ?? '',
       max_contacts: tier?.max_contacts ?? '',
       max_call_links: tier?.max_call_links ?? '',
+      max_team_members: tier?.max_team_members ?? '',
       campaign_followup: tier?.campaign_followup ?? false,
       price_ars: tier?.price_ars ?? '',
       public: tier?.public ?? false,
@@ -165,6 +167,7 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
                 max_campaign_concurrency: toLimit(v.max_campaign_concurrency),
                 max_contacts: toLimit(v.max_contacts),
                 max_call_links: toLimit(v.max_call_links),
+                max_team_members: toLimit(v.max_team_members),
                 campaign_followup: v.campaign_followup,
                 price_ars: toLimit(v.price_ars),
                 public: v.public,
@@ -195,11 +198,16 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
             <LimitInput label="Por día" {...form.getInputProps('max_calls_per_day')} />
             <LimitInput label="Por mes" {...form.getInputProps('max_calls_per_month')} />
           </Section>
-          <Section title="Minutos por mes, números y links para llamar" cols={4}>
+          <Section title="Minutos por mes, números, links para llamar y equipo" cols={4}>
             <LimitInput label="Minutos entrantes" {...form.getInputProps('inbound_minutes')} />
             <LimitInput label="Minutos salientes" {...form.getInputProps('outbound_minutes')} />
             <LimitInput label="Números" {...form.getInputProps('max_phone_numbers')} />
             <LimitInput label="Links (uno por agente)" {...form.getInputProps('max_call_links')} />
+            <LimitInput
+              label="Personas del equipo"
+              description="Para derivarles llamadas y WhatsApp. 0: no incluye derivación."
+              {...form.getInputProps('max_team_members')}
+            />
           </Section>
           <Section
             title="API de inferencia por mes (solo uso por API key, no cuenta los agentes integrados)"

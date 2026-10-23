@@ -161,7 +161,7 @@ async def start_call(s: Session, engine: ConversationEngine, agent_slug: str, vo
     started = await calls.start_call(s, engine, principal, calls.CallRequest(
         agent_id=agent_id, voice=voice, max_duration_seconds=settings.demo_call_max_seconds,
         join_timeout_seconds=settings.demo_join_timeout_seconds, group_agent_ids=group,
-        group_max_concurrent=settings.demo_max_concurrent_calls))
+        group_max_concurrent=settings.demo_max_concurrent_calls, handoff=settings.demo_handoff))
     limiter.hit(key)
     ttl = datetime.timedelta(seconds=settings.demo_join_timeout_seconds + settings.demo_call_max_seconds
                              + TOKEN_MARGIN_SECONDS)

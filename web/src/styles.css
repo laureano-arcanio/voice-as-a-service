@@ -198,6 +198,27 @@ pre.code {
   background: var(--app-surface-2);
 }
 
+/* Persona del equipo (llamada derivada): del lado del agente, sobre superficie y con borde. */
+.bubble.agent.team {
+  background: var(--mantine-color-body);
+  border: 1px solid var(--mantine-color-gray-4);
+}
+
+/* Separador al empezar el tramo con la persona del equipo. */
+.chat-leg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 2px;
+}
+
+.chat-leg::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--app-line);
+}
+
 .bubble.client {
   align-self: flex-end;
   background: var(--mantine-color-blue-light);

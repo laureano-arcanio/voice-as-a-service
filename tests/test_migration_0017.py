@@ -66,8 +66,10 @@ def _diff(engine):
     with engine.connect() as conn:
         diff = compare_metadata(MigrationContext.configure(conn, opts={"compare_type": True}), Base.metadata)
     touched = NEW_TABLES | TIER_COLUMNS | {"call_logs"}
-    # Lo de la 0018 (link para llamar) y la 0020 (resumen por email) todavia no esta en este esquema.
-    later = ("call_link", "max_call_links", "ck_tiers_call_links", "summary_email")
+    # Lo de la 0018 (link para llamar), la 0020 (resumen por email), la 0021 (room) y la 0023 (equipo)
+    # todavia no esta en este esquema.
+    later = ("call_link", "max_call_links", "ck_tiers_call_links", "summary_email", "'room'",
+             "max_team_members", "ck_tiers_team_members")
     return [d for d in diff if any(t in repr(d) for t in touched) and not any(t in repr(d) for t in later)]
 
 

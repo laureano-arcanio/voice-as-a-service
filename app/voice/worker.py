@@ -17,6 +17,7 @@ from livekit.agents import (
 )
 from livekit.agents.voice.agent_activity import _SpeechHandleContextVar
 from livekit.plugins import openai, silero
+from sqlalchemy import select
 
 from livekit import api, rtc
 
@@ -24,15 +25,18 @@ from ..campaigns.voicemail import VoicemailDetector
 from ..config import settings
 from ..conversation import opening_audio, recordings
 from ..conversation.engine import ConversationEngine
-from ..conversation.models import Workflow
+from ..conversation.models import Message, Workflow
 from ..conversation.workflow import OFF_TOPIC_REASON
 from ..db import get_sessionmaker, utcnow
+from ..llm.prompt import render_conversation
 from ..mail import call_summary
-from ..models import CallMode, CallRow, CallStatus
+from ..models import CallMode, CallRow, CallStatus, PhoneNumber
 from ..runtime import get_conversation_engine
 from ..services import calls as call_service
 from ..services import campaign_calls, quota
+from ..services import handoff as handoff_service
 from ..services.errors import Forbidden, NotFound, QuotaExceeded
+from . import handoff as transfer
 from .latency import TurnLatencyTracker
 
 logger = logging.getLogger("agent")
@@ -75,6 +79,8 @@ RECORDING_SAMPLE_RATE = recordings.RECORDING_SAMPLE_RATE
 # de stt_node es continuo y sin esto cada archivo arrancaba con el playout del agente. El evento
 # de inicio de habla llega despues de la primera silaba (min_speech_duration): pre-roll.
 RECORDING_PREROLL_SECONDS = 0.3
+# Con record_audio y recording_notice, antes de la apertura (docs/DERIVACIONES_PLAN.md, 9).
+RECORDING_NOTICE = "Esta llamada está siendo grabada."
 
 
 class _MonoResampler:
@@ -109,12 +115,13 @@ async def _pcm_frames(pcm: bytes, sample_rate: int, frame_ms: int = 20):
 
 class WorkflowAgent(Agent):
     def __init__(self, engine: ConversationEngine, conversation_id: str, latency: TurnLatencyTracker, on_completed,
-                 record_dir: Path | None = None):
+                 record_dir: Path | None = None, on_handoff=None):
         super().__init__(instructions="")
         self.engine = engine
         self.conversation_id = conversation_id
         self.latency = latency
         self.on_completed = on_completed      # on_completed(reason): corta la llamada
+        self.on_handoff = on_handoff          # on_handoff(area, announced): pasa la llamada (app/voice/handoff.py)
         self.end_reason = "completed"           # o OFF_TOPIC_REASON: el agente corto una llamada fuera de tema
         self.dictation = False
         # Un turno a la vez: con preemptive generation LiveKit puede llamar a
@@ -228,6 +235,12 @@ class WorkflowAgent(Agent):
                     break
         self.engine.store.save(state)
 
+    def record_pcm(self, pcm16k: bytes) -> int | None:
+        """Un WAV suelto (lo hablado con la persona en una derivacion, a 16 kHz): su numero, o None sin grabacion."""
+        if self.record_dir is None:
+            return None
+        return self._commit_audio(pcm16k)
+
     def flush_recording(self) -> None:
         """Al cortar: confirma el ultimo turno si quedo pendiente y, si el cliente hablo
         despues sin que el agente respondiera, ese resto tambien queda en un archivo (sin
@@ -295,6 +308,13 @@ class WorkflowAgent(Agent):
             if turn.status == "completed":
                 self.end_reason = turn.end_reason or "completed"
                 speech.add_done_callback(self.on_final_reply_done)
+        if turn.handoff and self.on_handoff is not None:
+            # Despues de que suena lo que haya dicho el LLM (con la marca sola, nada).
+            announced = bool(turn.assistant_message.strip())
+            if speech is not None:
+                speech.add_done_callback(lambda _: self.on_handoff(turn.handoff, announced))
+            else:
+                self.on_handoff(turn.handoff, announced)
         self.set_dictation(self.engine.workflow(state), turn.next_objective)
         logger.info("turn %s answered=%s next=%s status=%s", self.conversation_id, turn.answered, turn.next_objective, turn.status)
 
@@ -465,12 +485,14 @@ async def entrypoint(ctx: JobContext):
     sessions = get_sessionmaker()
 
     conversation_id = metadata.get("conversation_id")
+    dialed = caller_number = None
     if conversation_id is None:
         # Entrante: la despacha la dispatch rule de LiveKit, sin metadata. Se rutea por
         # el numero marcado al agente de ese numero (y en WhatsApp, por la regla del
         # contacto que llama), con los limites de su cliente.
         caller = await ctx.wait_for_participant()
         dialed = caller.attributes.get("sip.trunkPhoneNumber")
+        caller_number = caller.attributes.get("sip.phoneNumber")
         try:
             with sessions() as s:
                 # En una llamada de WhatsApp, el inbound trunk mapea el header
@@ -500,6 +522,7 @@ async def entrypoint(ctx: JobContext):
     state = engine.store.get(conversation_id)
     opening = state.messages[0].text
     phone = metadata.get("phone")
+    caller_number = caller_number or phone or ""
 
     def update_call(**values) -> None:
         with sessions() as s:
@@ -510,15 +533,31 @@ async def entrypoint(ctx: JobContext):
     logger.info("llamada %s (%s): agente %s v%s, voz %s", conversation_id, mode, state.agent_id,
                 state.agent_version, voice)
     record_dir = settings.call_recordings_dir / conversation_id if workflow.record_audio else None
+    # Derivacion a personas (app/voice/handoff.py): las areas del agente quedan en la conversacion, como las ve
+    # el LLM. No en el loadtest, la demo ni las campañas (metadata "handoff").
+    handoff_cfg = workflow.handoff
+    areas: list[dict] = []
+    if handoff_cfg and handoff_cfg.areas and metadata.get("handoff", True) and state.client_id:
+        with sessions() as s:
+            areas = handoff_service.call_areas(s, state.client_id, handoff_cfg)
+        if areas:
+            state = engine.store.get(conversation_id)
+            state.progress.handoff_areas = areas
+            engine.store.save(state)
     session = build_session(voice)
     latency = TurnLatencyTracker()
     session.on("metrics_collected", lambda ev: latency.on_metrics(ev.metrics))
     started_at: float | None = None
     watchdogs: list[asyncio.Task] = []   # corte por minutos del tier y por duracion maxima
+    current: dict = {"transfer": None, "line": None, "attempts": 0}   # derivacion en curso y su lado de LiveKit
 
     async def finalize(reason: str = ""):
         for task in watchdogs:
             task.cancel()
+        if (tr := current["transfer"]) is not None:
+            tr.close()
+        if current["line"] is not None:
+            await current["line"].aclose()
         agent.flush_recording()
         # La extraccion del ultimo turno puede seguir corriendo (el resultado sale
         # de ahi); en el motor clasico, si corto el cliente, es la unica.
@@ -593,9 +632,98 @@ async def entrypoint(ctx: JobContext):
         on_completed = lambda reason: logger.info("loadtest %s: workflow completo, sigue la llamada", conversation_id)
     else:
         on_completed = lambda reason: asyncio.create_task(hang_up(reason))
-    agent = WorkflowAgent(engine, conversation_id, latency, on_completed=on_completed, record_dir=record_dir)
+    def customer_identity() -> str | None:
+        return next((p.identity for p in ctx.room.remote_participants.values()
+                     if not p.identity.startswith(transfer.PERSON_PREFIX)), None)
 
-    ctx.room.on("participant_disconnected", lambda _: ctx.shutdown(reason="customer_hangup"))
+    def company_number() -> str:
+        """Caller ID del tramo a la persona: el numero de la empresa por el que entro o salio la llamada; en
+        las de WhatsApp y web, el primero del cliente (plan 4.6). Asterisk igual pone un numero de la cuenta."""
+        if dialed or metadata.get("from_number"):
+            return dialed or metadata["from_number"]
+        with sessions() as s:
+            return s.scalar(select(PhoneNumber.e164).where(PhoneNumber.client_id == state.client_id)
+                            .order_by(PhoneNumber.created_at).limit(1)) or ""
+
+    def add_message(role: str, text: str, person: str | None = None, leg: str | None = None,
+                    pcm: bytes | None = None) -> None:
+        """Lo que dice el agente durante la derivacion y lo que se habla con la persona, en la conversacion.
+        Un aviso del agente seguido de otro va en el mismo mensaje."""
+        st = engine.store.get(conversation_id)
+        if st is None:
+            return
+        last = st.messages[-1] if st.messages else None
+        if role == "assistant" and not leg and last is not None and last.role == "assistant" and not last.handoff_leg:
+            last.text = f"{last.text} {text}".strip()
+        else:
+            st.messages.append(Message(role=role, text=text, person=person, handoff_leg=leg,
+                                       recording=agent.record_pcm(pcm) if pcm else None))
+        engine.store.save(st)
+
+    async def handoff_summary() -> str:
+        st = engine.store.get(conversation_id)
+        llm = engine.llms.for_turn(workflow, 1 + sum(m.role == "user" for m in st.messages), st.client_id)
+        return await transfer.summarize(llm, render_conversation(st))
+
+    async def run_transfer(area_name: str, announced: bool) -> None:
+        customer = customer_identity()
+        if current["transfer"] is not None or customer is None:
+            return
+        session.input.set_audio_enabled(False)   # el agente no le contesta al cliente mientras espera
+        tr = None
+        try:
+            if current["line"] is None:
+                current["line"] = transfer.RoomLine(
+                    ctx, session, customer=customer, trunk_id=await outbound_trunk_id(ctx.api),
+                    caller_id=company_number(), hold_music=handoff_cfg.hold_music,
+                    max_call_seconds=settings.call_max_duration_seconds)
+            line = current["line"]
+            tr = current["transfer"] = transfer.Transfer(
+                sessions=sessions, line=line, conversation_id=conversation_id, client_id=state.client_id,
+                areas=areas, customer=customer, caller=caller_number, summary=handoff_summary,
+                on_message=add_message, hang_up=hang_up, hold_music=handoff_cfg.hold_music.enabled,
+                first_attempt=current["attempts"])
+            await line.start()
+            outcome = await tr.run(area_name, announced=announced)
+            logger.info("llamada %s: derivacion a %r %s (%s)", conversation_id, area_name, outcome.status,
+                        outcome.ended or outcome.result)
+        except transfer.CustomerGone:
+            logger.info("llamada %s: el cliente corto durante la derivacion", conversation_id)
+        except Exception:
+            # Que el cliente no quede en silencio ni el tramo abierto (ocupa un canal).
+            logger.exception("llamada %s: fallo la derivacion a %r", conversation_id, area_name)
+            if tr is not None:
+                tr.close()
+            try:
+                if (line := current["line"]) is not None:
+                    await line.hold(False)
+                    await line.resume()
+                text = handoff_service.render(handoff_service.DEFAULT_MESSAGES["no_answer"], area=area_name)
+                add_message("assistant", text)
+                session.input.set_audio_enabled(True)
+                await session.say(text, add_to_chat_ctx=False).wait_for_playout()
+            except Exception:
+                logger.exception("llamada %s: no se pudo volver de la derivacion", conversation_id)
+        finally:
+            session.input.set_audio_enabled(True)
+            if tr is not None:
+                current["attempts"] = tr.attempt
+            current["transfer"] = None
+            # El turno de la marca no se deshace aunque el cliente hable encima (settle_last_reply).
+            agent.last_reply = None
+
+    agent = WorkflowAgent(engine, conversation_id, latency, on_completed=on_completed, record_dir=record_dir,
+                          on_handoff=(lambda area, announced: asyncio.create_task(run_transfer(area, announced)))
+                          if areas else None)
+
+    def on_participant_left(p) -> None:
+        if p.identity.startswith(transfer.PERSON_PREFIX):
+            return   # una persona de una derivacion: lo maneja app/voice/handoff.py
+        if current["transfer"] is not None:
+            asyncio.create_task(ctx.delete_room())   # que no quede la persona sola en la room
+        ctx.shutdown(reason="customer_hangup")
+
+    ctx.room.on("participant_disconnected", on_participant_left)
 
     # Campaña de voz: si lo primero que dice quien atiende suena a buzon, el intento queda `voicemail`
     # (se reintenta segun la campaña) y se corta (app/campaigns/voicemail.py).
@@ -662,6 +790,8 @@ async def entrypoint(ctx: JobContext):
     # se conecta el audio y se puede perder el principio.
     if delay_ms := workflow.conversation.opening_delay_ms:
         await asyncio.sleep(delay_ms / 1000)
+    if workflow.record_audio and workflow.recording_notice:
+        await session.say(RECORDING_NOTICE, add_to_chat_ctx=False)
     # Apertura pregenerada al guardar el agente (opening_audio), si coincide version, voz y texto.
     if (pcm := opening_audio.load_pcm(state.agent_id, workflow, voice, opening)) is not None:
         logger.info("llamada %s: apertura pregenerada (%.1f s)", conversation_id,

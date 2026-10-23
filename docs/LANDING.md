@@ -176,6 +176,7 @@ El `Cta` de cada página lleva un formulario (nombre, empresa, email o teléfono
 | Simultáneas | `DEMO_MAX_CONCURRENT_CALLS` (3) entre los agentes de la demo (el tier de Atentina no tiene tope) | `calls.prepare_call`, con el lock del cliente |
 | Minutos por día | `DEMO_DAILY_MINUTES` (120) entre las llamadas de los agentes de la demo | base (`call_logs`) |
 | Duración | `DEMO_CALL_MAX_SECONDS` (180): el agente avisa y corta | worker |
+| Derivación a personas | `DEMO_HANDOFF` (default `false`; `true` en producción desde el 23-oct-2026): los agentes de la demo con áreas (hoy `atentina_comercial` → Ventas) pasan la llamada al equipo. Hace sonar teléfonos reales y gasta minutos y canales de Anura; la charla con la persona entra en `DEMO_CALL_MAX_SECONDS`. Ver [`DERIVACIONES_PLAN.md`](DERIVACIONES_PLAN.md), 4.3 | `calls.start_call` (metadata `handoff`) y worker |
 | Conexión | `DEMO_JOIN_TIMEOUT_SECONDS` (60) para entrar a la room; token de LiveKit con vencimiento | worker, token |
 
 - La IP es la de `CF-Connecting-IP` (la pone el túnel); IPv6 se limita por /64. El puerto 8011 no

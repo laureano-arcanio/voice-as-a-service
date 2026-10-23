@@ -8,7 +8,10 @@ y minutos por mes. Son los efectivos (tier mas los ajustes del cliente, services
   las atendidas o falladas; no las rechazadas por el tier ni las de prueba o loadtest.
 - Minutos: entrantes y salientes por separado, por mes calendario en
   settings.billing_timezone. Una llamada cuenta en el mes en que empezo; la que esta
-  en curso cuenta lo que lleva. Las de prueba y loadtest no consumen minutos.
+  en curso cuenta lo que lleva. Las de prueba y loadtest no consumen minutos. El tramo a la
+  persona de una derivacion (handoff_legs) es saliente, desde que atiende, si se conecto.
+- Canales de Anura (globales, no por cliente): llamadas por Anura en curso mas tramos de
+  derivacion abiertos, contra settings.anura_channels (handoff_check).
 
 Corte duro: admit() rechaza la llamada nueva si no hay lugar o minutos, y devuelve
 cuantos segundos le quedan (tope de duracion). Durante la llamada el worker vuelve a
@@ -31,6 +34,7 @@ from ..models import (
     CallStatus,
     Client,
     ConversationRow,
+    HandoffLeg,
 )
 from . import limits as limits_service
 from .errors import QuotaExceeded
@@ -123,7 +127,54 @@ def used_seconds(s: Session, client_id: str, mode: str, start: datetime.datetime
     done = s.scalar(select(func.coalesce(func.sum(CallRow.duration_seconds), 0))
                     .where(*in_period, CallRow.status.notin_(ACTIVE_CALL_STATUSES))) or 0
     running = s.scalars(select(CallRow.started_at).where(*in_period, *_active_filter(client_id, now))).all()
-    return int(done) + sum(max(int((now - t).total_seconds()), 0) for t in running)
+    total = int(done) + sum(max(int((now - t).total_seconds()), 0) for t in running)
+    if MINUTE_MODES.get(mode) == "outbound" and agent_ids is None:
+        total += handoff_seconds(s, client_id, start, end, now)
+    return total
+
+
+def handoff_seconds(s: Session, client_id: str, start: datetime.datetime, end: datetime.datetime,
+                    now: datetime.datetime) -> int:
+    """Salientes de los tramos a personas (derivaciones) que empezaron en [start, end): los cerrados por lo
+    que se les desconto, los conectados en curso desde que atendieron."""
+    in_period = (HandoffLeg.client_id == client_id, HandoffLeg.created_at >= start, HandoffLeg.created_at < end)
+    done = s.scalar(select(func.coalesce(func.sum(HandoffLeg.billed_seconds), 0))
+                    .where(*in_period, HandoffLeg.ended_at.is_not(None))) or 0
+    stale = now - datetime.timedelta(seconds=settings.call_max_duration_seconds + STALE_MARGIN_SECONDS)
+    running = s.scalars(select(HandoffLeg.answered_at).where(
+        *in_period, HandoffLeg.ended_at.is_(None), HandoffLeg.connected_at.is_not(None),
+        HandoffLeg.created_at >= stale)).all()
+    return int(done) + sum(max(int((now - t).total_seconds()), 0) for t in running if t)
+
+
+# Las que van por Anura (las de WhatsApp tambien entran como entrante: se cuentan de mas, del lado seguro).
+ANURA_MODES = (CallMode.entrante, CallMode.saliente)
+
+
+def busy_channels(s: Session, now: datetime.datetime | None = None) -> int:
+    """Canales de Anura ocupados ahora, de todos los clientes: llamadas activas por Anura y tramos de
+    derivacion sin cerrar (sonando o conectados)."""
+    now = now or utcnow()
+    stale = now - datetime.timedelta(seconds=settings.call_max_duration_seconds + STALE_MARGIN_SECONDS)
+    calls = s.scalar(select(func.count()).select_from(CallRow).where(
+        CallRow.mode.in_(ANURA_MODES), CallRow.status.in_(ACTIVE_CALL_STATUSES), CallRow.created_at >= stale)) or 0
+    legs = s.scalar(select(func.count()).select_from(HandoffLeg).where(
+        HandoffLeg.ended_at.is_(None), HandoffLeg.created_at >= stale)) or 0
+    return calls + legs
+
+
+def handoff_check(s: Session, client_id: str) -> str | None:
+    """Si se puede intentar una derivacion ahora: None, o el motivo por el que no (sin minutos salientes en el
+    plan o sin canal libre en Anura). El tramo es saliente: con 0 salientes en el plan no se deriva."""
+    client = s.get(Client, client_id)
+    if client is None or not client.active:
+        return "client_inactive"
+    remaining = remaining_seconds(s, client, CallMode.saliente)
+    if remaining is not None and remaining <= 0:
+        return "outbound_minutes"
+    if busy_channels(s) >= settings.anura_channels:
+        return "no_channel"
+    return None
 
 
 def same_minutes(mode: str) -> list[str]:

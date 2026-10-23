@@ -1,3 +1,4 @@
+import datetime
 import re
 from itertools import pairwise
 from typing import Any, Literal
@@ -143,6 +144,27 @@ class LlmPlan(BaseModel):
         return next(st for st in reversed(self.stages) if st.from_turn <= max(turn, 1))
 
 
+class HandoffTarget(BaseModel):
+    """Un area del equipo del cliente (handoff_areas) a la que el agente puede pasar la llamada."""
+    area_id: str
+    # Cuando derivar, en lenguaje natural, para el LLM; vacio = la descripcion del area.
+    when: str = Field(default="", max_length=500)
+
+
+class HoldMusic(BaseModel):
+    """Musica mientras el cliente espera (llamando a la persona, durante el whisper)."""
+    enabled: bool = True
+    # storage/hold-music/<track>.ogg, o "default": la de LiveKit Agents (BuiltinAudioClip.HOLD_MUSIC).
+    track: str = Field(default="default", pattern=r"^[a-z0-9_-]{1,64}$")
+    volume: float = Field(default=0.3, ge=0.05, le=1)
+
+
+class HandoffConfig(BaseModel):
+    """Derivacion a personas (docs/DERIVACIONES_PLAN.md, 4): a que areas puede pasar la llamada el agente."""
+    areas: list[HandoffTarget] = Field(default_factory=list, max_length=10)
+    hold_music: HoldMusic = Field(default_factory=HoldMusic)
+
+
 class Workflow(BaseModel):
     """Definicion de un agente. Se guarda como JSON (agents.definition en la base,
     app/agents/templates/*.json las plantillas). id y version los fija la app: el
@@ -157,6 +179,8 @@ class Workflow(BaseModel):
     # Graba un WAV por mensaje/audio, localmente, con su numero en Message.recording:
     # llamadas y audios de WhatsApp (app/conversation/recordings.py).
     record_audio: bool = False
+    # Con record_audio, el agente dice "Esta llamada está siendo grabada." antes de la apertura.
+    recording_notice: bool = False
     # Llamadas: al terminar, Atentina le manda al cliente un email con el resumen (datos, resultado y
     # transcripcion; app/mail/call_summary.py). El cliente lo puede apagar para todos (clients.call_emails).
     call_summary_email: bool = False
@@ -175,6 +199,8 @@ class Workflow(BaseModel):
     fields: dict[str, FieldSpec] = Field(default_factory=dict)
     completion: Completion
     tools: list[ToolGrant] = Field(default_factory=list)
+    # Llamadas: areas del equipo a las que puede derivar (motor classic, marca [DERIVAR:<area>]).
+    handoff: HandoffConfig | None = None
 
     @model_validator(mode="after")
     def _consistent(self) -> "Workflow":
@@ -206,6 +232,12 @@ class Workflow(BaseModel):
                     raise ValueError(f"completion.outcomes.{o.id}.when: {dep} no es un campo")
         if self.generation is not None and not self.generation.params:
             self.generation = None
+        if self.handoff is not None and self.handoff.areas:
+            if self.engine != "classic":
+                raise ValueError("handoff: por ahora solo el motor classic deriva llamadas")
+            ids = [a.area_id for a in self.handoff.areas]
+            if len(set(ids)) != len(ids):
+                raise ValueError("handoff.areas: un area repetida")
         return self
 
 
@@ -223,6 +255,12 @@ class Message(BaseModel):
     # en WhatsApp de mensajeria, el audio entrante o la nota de voz saliente
     # (app/whatsapp/service.py). Se sirve en /calls/{id}/recordings/{n}.
     recording: int | None = None
+    # Hora del mensaje (UTC), para la linea de tiempo del panel. Los de antes del 23-oct-2026 no la tienen.
+    at: datetime.datetime | None = Field(default_factory=lambda: datetime.datetime.now(datetime.UTC))
+    # Llamada derivada: lo que se hablo con la persona del equipo (modo escucha, app/voice/handoff.py) lleva el
+    # tramo (handoff_legs.id); lo que dijo la persona va como assistant con su nombre en person.
+    handoff_leg: str | None = None
+    person: str | None = None
 
 
 class TurnMedia(BaseModel):
@@ -251,6 +289,9 @@ class Progress(BaseModel):
     # Llamada saliente suelta (pantalla Llamadas): el motivo, en texto libre (lo que el contacto dejo en la web, por
     # ejemplo). Va al prompt como "MOTIVO DEL LLAMADO" y no cambia en la conversacion.
     context: str | None = None
+    # Llamada con derivacion: las areas que puede usar el agente, como las ve el LLM ({id, name, when, schedule}).
+    # Las fija el worker al empezar (app/voice/handoff.py) y no cambian en la llamada.
+    handoff_areas: list[dict[str, Any]] = Field(default_factory=list)
 
 
 # Por donde se conversa: cambia las reglas del prompt (app/llm/prompt.py), no el agente.
@@ -283,6 +324,8 @@ class AgentTurn(BaseModel):
     # Con status completed: "off_topic" si el agente corta porque la conversacion no tiene que ver
     # con su objetivo (motor clasico, OFF_TOPIC_MARKER); None, el cierre normal.
     end_reason: Literal["off_topic"] | None = None
+    # El agente pasa la llamada a esa area (nombre como lo escribio el LLM en HANDOFF_MARKER); status sigue active.
+    handoff: str | None = None
     # Salida cruda del LLM y su razonamiento; no son parte del contrato.
     raw: str | None = Field(default=None, exclude=True)
     reasoning: str | None = Field(default=None, exclude=True)

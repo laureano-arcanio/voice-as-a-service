@@ -63,6 +63,7 @@ describe('TiersPage', () => {
     await userEvent.click(await screen.findByRole('button', { name: /Nuevo tier/ }));
     await userEvent.type(screen.getByLabelText(/Nombre/), 'Pro');
     await userEvent.type(screen.getByLabelText('Por hora'), '50');
+    await userEvent.type(screen.getByLabelText('Personas del equipo'), '3');
     await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
     await waitFor(() => expect(created).toHaveLength(1));
     expect(created[0]).toMatchObject({
@@ -73,6 +74,8 @@ describe('TiersPage', () => {
       max_concurrent_calls: null,
       api_llm_input_tokens: 0,
       api_rate_limit: 60,
+      max_team_members: 3,
+      max_call_links: null,
     });
   });
 

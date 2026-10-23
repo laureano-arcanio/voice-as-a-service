@@ -1,0 +1,96 @@
+import { Button, Group, Modal, Stack, Switch, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { ApiError } from '@/api/errors';
+import type { TeamMember } from '@/api/types';
+import { notifyError, notifySuccess } from '@/lib/notify';
+import { useSaveMember } from './api';
+
+/** Alta o edicion de una persona del equipo. clientId: el del alta (un admin lo elige antes). */
+export function MemberModal({
+  member,
+  clientId,
+  onClose,
+}: {
+  member: TeamMember | null;
+  clientId?: string;
+  onClose: () => void;
+}) {
+  const save = useSaveMember(clientId);
+  const form = useForm({
+    initialValues: {
+      name: member?.name ?? '',
+      phone: member?.phone ?? '',
+      whatsapp: member?.whatsapp ?? '',
+      active: member?.active ?? true,
+    },
+    validate: {
+      name: (v) => (v.trim() ? null : 'Poné un nombre'),
+      phone: (v, values) =>
+        v.trim() || values.whatsapp.trim() ? null : 'Cargá un teléfono, un WhatsApp o los dos',
+    },
+  });
+
+  return (
+    <Modal opened onClose={onClose} title={member ? `Editar a ${member.name}` : 'Nueva persona del equipo'}>
+      <form
+        onSubmit={form.onSubmit((v) =>
+          save.mutate(
+            {
+              id: member?.id,
+              body: {
+                name: v.name.trim(),
+                phone: v.phone.trim() || null,
+                whatsapp: v.whatsapp.trim() || null,
+                active: v.active,
+              },
+            },
+            {
+              onSuccess: (m) => {
+                notifySuccess(member ? 'Persona guardada.' : `${m.name} se sumó al equipo.`);
+                onClose();
+              },
+              onError: (e) => {
+                if (e instanceof ApiError && e.code === 'whatsapp_taken')
+                  form.setFieldError('whatsapp', e.message);
+                else if (e instanceof ApiError && e.code === 'team_members_limit')
+                  notifyError(e, 'Tope de personas del plan');
+                else notifyError(e, 'No se pudo guardar');
+              },
+            },
+          ),
+        )}
+      >
+        <Stack>
+          <TextInput label="Nombre" maxLength={120} data-autofocus {...form.getInputProps('name')} />
+          <TextInput
+            label="Teléfono"
+            description="Para pasarle llamadas. Por ahora, solo de Argentina."
+            placeholder="351 555-1234"
+            maxLength={32}
+            {...form.getInputProps('phone')}
+          />
+          <TextInput
+            label="WhatsApp"
+            description="Para pasarle conversaciones de WhatsApp. No se puede repetir en el equipo."
+            placeholder="+54 9 351 555-1234"
+            maxLength={32}
+            {...form.getInputProps('whatsapp')}
+          />
+          <Switch
+            label="Activa"
+            description="Una persona inactiva no recibe derivaciones, pero sigue en sus áreas."
+            {...form.getInputProps('active', { type: 'checkbox' })}
+          />
+          <Group justify="flex-end" mt="xs">
+            <Button variant="default" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="submit" loading={save.isPending}>
+              {member ? 'Guardar cambios' : 'Agregar persona'}
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+    </Modal>
+  );
+}

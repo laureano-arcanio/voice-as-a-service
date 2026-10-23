@@ -23,6 +23,7 @@ import {
 } from '@mantine/core';
 import { IconArrowDown, IconArrowUp, IconChevronDown, IconPlus, IconTrash } from '@tabler/icons-react';
 import type { ReactNode } from 'react';
+import type { FieldError } from '@/api/errors';
 import { VoiceSelect } from '@/features/voices/VoiceSelect';
 import {
   type ConditionDraft,
@@ -46,6 +47,7 @@ import {
   withPhoneField,
 } from './draft';
 import { EngineCards, EngineLabel } from './EngineCards';
+import { HandoffEditor } from './HandoffSection';
 import { LlmSection } from './LlmSection';
 import { ToolsEditor } from './ToolsSection';
 
@@ -567,6 +569,7 @@ export function DefinitionForm({
   voiceSeed,
   showEngine,
   clientId,
+  errors = [],
 }: {
   draft: Draft;
   update: (fn: (d: Draft) => Draft) => void;
@@ -579,6 +582,8 @@ export function DefinitionForm({
   showEngine: boolean;
   /** Cliente del agente: sus apps dan las herramientas del motor assistant. */
   clientId: string;
+  /** Errores del servidor con su ruta, para mostrarlos en el campo (por ahora, los de la derivación). */
+  errors?: FieldError[];
 }) {
   const set = (patch: Partial<Draft>) => update((d) => ({ ...d, ...patch }));
   const assistant = draft.engine === 'assistant';
@@ -654,6 +659,15 @@ export function DefinitionForm({
           checked={draft.recordAudio}
           onChange={(e) => set({ recordAudio: e.currentTarget.checked })}
         />
+        {draft.recordAudio && (
+          <Switch
+            ml="xl"
+            label="Avisar que la llamada se graba"
+            description="Antes del saludo, el agente dice: “Esta llamada está siendo grabada.”"
+            checked={draft.recordingNotice}
+            onChange={(e) => set({ recordingNotice: e.currentTarget.checked })}
+          />
+        )}
         <Switch
           label="Resumen por email después de cada llamada"
           description={
@@ -695,6 +709,14 @@ export function DefinitionForm({
           max={60 * 24 * 90}
           allowDecimal={false}
         />
+      </Section>
+
+      <Section
+        name="derivacion"
+        title="Derivación a personas"
+        description="A qué áreas del equipo puede pasar la llamada el agente, cuándo, y qué escucha el cliente mientras espera."
+      >
+        <HandoffEditor draft={draft} update={update} clientId={clientId} errors={errors} />
       </Section>
 
       <Section

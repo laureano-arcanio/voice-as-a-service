@@ -21,7 +21,8 @@ def test_0020_upgrade_downgrade_upgrade(tmp_path):
     assert {"summary_email", "summary_email_attempts"} <= _columns(engine, "call_logs")
     with engine.connect() as conn:
         diff = compare_metadata(MigrationContext.configure(conn, opts={"compare_type": True}), Base.metadata)
-    assert [d for d in diff if "'clients'" in repr(d) or "call_logs" in repr(d)] == []
+    # call_logs.room es de la 0021.
+    assert [d for d in diff if ("'clients'" in repr(d) or "call_logs" in repr(d)) and "'room'" not in repr(d)] == []
 
     _run(engine, command.downgrade, "0019")
     assert "call_emails" not in _columns(engine, "clients")

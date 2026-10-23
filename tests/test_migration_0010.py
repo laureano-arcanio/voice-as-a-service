@@ -17,7 +17,9 @@ LATER_TIER_COLUMNS = ("'price_ars'", "'public'", "'sort'", "ck_tiers_price", "'s
                       "'max_campaign_contacts'", "'max_campaign_concurrency'", "'max_contacts'",
                       "ck_tiers_campaign", "ck_tiers_contacts",
                       # 0018 (link para llamar).
-                      "'max_call_links'", "ck_tiers_call_links")
+                      "'max_call_links'", "ck_tiers_call_links",
+                      # 0022 (pedidos a la API de inferencia, con FK a api_keys) y 0023 (equipo).
+                      "'api_requests'", "'max_team_members'", "ck_tiers_team_members")
 
 
 def test_0010_upgrade_downgrade_upgrade(tmp_path):

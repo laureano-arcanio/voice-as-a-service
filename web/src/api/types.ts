@@ -128,5 +128,15 @@ export type WaOperator = S['WaOperatorOut'];
 export type WaOperatorIn = S['WaOperatorIn'];
 export type WaOperatorUpdate = S['WaOperatorUpdate'];
 
+// Equipo del cliente y areas de derivacion (docs/DERIVACIONES_PLAN.md).
+export type TeamMember = S['TeamMemberOut'];
+export type TeamMemberIn = S['TeamMemberIn'];
+export type TeamMemberPatch = S['TeamMemberPatch'];
+export type HandoffArea = S['HandoffAreaOut'];
+export type HandoffAreaIn = S['HandoffAreaIn'];
+export type HandoffAreaPatch = S['HandoffAreaPatch'];
+export type HandoffSchedule = S['HandoffSchedule'];
+export type HandoffDefaults = S['HandoffDefaultsOut'];
+
 /** Definicion de un agente: JSON libre para la API (ver GET /agents/schema). */
 export type Definition = Record<string, unknown>;

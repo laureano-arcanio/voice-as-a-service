@@ -91,6 +91,8 @@ export interface Draft {
   voice: string;
   /** Un WAV por turno (telefono o WhatsApp), localmente. */
   recordAudio: boolean;
+  /** Con recordAudio, el agente avisa que la llamada se graba antes de la apertura. */
+  recordingNotice: boolean;
   /** Llamadas: al terminar, Atentina le manda al cliente el resumen por email (el cliente lo apaga en Mi cuenta). */
   callSummaryEmail: boolean;
   /** WhatsApp: minutos sin mensaje del contacto para dar la conversacion por terminada y abrir
@@ -114,6 +116,54 @@ export interface Draft {
   /** LLM por etapa de la conversacion (conexiones BYOK, docs/BYOK_LLM_PLAN.md). null = siempre el
    * servidor propio (no va a la definicion). */
   llm: LlmDraft | null;
+  /** Derivacion a personas (docs/DERIVACIONES_PLAN.md): areas del equipo del cliente y musica de espera. */
+  handoff: HandoffDraft;
+}
+
+/** Un area del equipo a la que el agente puede pasar la llamada. */
+export interface HandoffAreaDraft {
+  areaId: string;
+  /** Cuando derivar, para el LLM; '' = la descripcion del area. */
+  when: string;
+}
+
+export interface HandoffDraft {
+  /** La definicion ya tenia handoff: se sigue mandando aunque no queden areas (guardar sin tocar nada no
+   * cambia la version). Sin handoff previo y sin areas, no va a la definicion. */
+  present: boolean;
+  areas: HandoffAreaDraft[];
+  holdMusic: { enabled: boolean; track: string; volume: number };
+}
+
+/** Defaults de HoldMusic (app/conversation/models.py). */
+export const HOLD_MUSIC = { enabled: true, track: 'default', volume: 0.3 };
+export const MAX_HANDOFF_AREAS = 10;
+
+function toHandoffDraft(raw: unknown): HandoffDraft {
+  const h = obj(raw);
+  const music = obj(h.hold_music);
+  return {
+    present: raw != null && typeof raw === 'object',
+    areas: (Array.isArray(h.areas) ? h.areas : []).map((r) => {
+      const a = obj(r);
+      return { areaId: str(a.area_id), when: str(a.when) };
+    }),
+    holdMusic: {
+      enabled: music.enabled !== false,
+      track: str(music.track) || HOLD_MUSIC.track,
+      volume: typeof music.volume === 'number' ? music.volume : HOLD_MUSIC.volume,
+    },
+  };
+}
+
+function fromHandoffDraft(h: HandoffDraft, engine: Engine): Record<string, unknown> | undefined {
+  // Solo el motor clasico deriva: con otro, las areas no van (el servidor las rechaza).
+  const areas = engine === 'classic' ? h.areas : [];
+  if (!areas.length && !h.present) return undefined;
+  return {
+    areas: areas.map((a) => ({ area_id: a.areaId, when: a.when.trim() })),
+    hold_music: { enabled: h.holdMusic.enabled, track: h.holdMusic.track, volume: h.holdMusic.volume },
+  };
 }
 
 export interface LlmStageDraft {
@@ -264,6 +314,7 @@ export function toDraft(d: Definition): Draft {
     language: str(agent.language),
     voice: str(agent.voice),
     recordAudio: d.record_audio === true,
+    recordingNotice: d.recording_notice === true,
     callSummaryEmail: d.call_summary_email === true,
     waSessionMinutes: typeof d.wa_session_minutes === 'number' ? d.wa_session_minutes : null,
     objective: str(obj(d.objective).description),
@@ -291,6 +342,7 @@ export function toDraft(d: Definition): Draft {
     }),
     generation: toParams(d.generation),
     llm: toLlmDraft(d.llm),
+    handoff: toHandoffDraft(d.handoff),
   };
 }
 
@@ -310,11 +362,13 @@ export function fromDraft(draft: Draft): Definition {
     };
   }
   const last = draft.outcomes.length - 1;
+  const handoff = fromHandoffDraft(draft.handoff, draft.engine);
   return {
     id: draft.id,
     ...(draft.version != null ? { version: draft.version } : {}),
     engine: draft.engine,
     ...(draft.recordAudio ? { record_audio: true } : {}),
+    ...(draft.recordAudio && draft.recordingNotice ? { recording_notice: true } : {}),
     ...(draft.callSummaryEmail ? { call_summary_email: true } : {}),
     ...(draft.waSessionMinutes != null ? { wa_session_minutes: draft.waSessionMinutes } : {}),
     ...(draft.generation.length ? { generation: fromParams(draft.generation) } : {}),
@@ -351,6 +405,7 @@ export function fromDraft(draft: Draft): Definition {
     ...(draft.engine === 'assistant'
       ? { tools: draft.tools.map((g) => ({ app: g.app, tools: g.tools })) }
       : {}),
+    ...(handoff ? { handoff } : {}),
   };
 }
 
@@ -457,7 +512,8 @@ export type ErrorTarget =
         | 'conocimiento'
         | 'datos'
         | 'resultados'
-        | 'herramientas';
+        | 'herramientas'
+        | 'derivacion';
     }
   | { section: 'dato'; key: string }
   | { section: 'resultado'; key: string };
@@ -471,7 +527,7 @@ function outcomeAt(draft: Draft, seg: string | undefined): OutcomeDraft | undefi
 export function errorTarget(draft: Draft, path: string): ErrorTarget | null {
   const [head, second, third] = path.split('.');
   if (head === 'engine') return { section: 'agente' };
-  if (head === 'record_audio' || head === 'call_summary_email' || head === 'wa_session_minutes')
+  if (head === 'record_audio' || head === 'recording_notice' || head === 'call_summary_email' || head === 'wa_session_minutes')
     return { section: 'voz' };
   if (head === 'agent') return { section: second === 'voice' ? 'voz' : 'agente' };
   if (head === 'objective') return { section: 'objetivo' };
@@ -479,6 +535,7 @@ export function errorTarget(draft: Draft, path: string): ErrorTarget | null {
   if (head === 'knowledge') return { section: 'conocimiento' };
   if (head === 'tools') return { section: 'herramientas' };
   if (head === 'llm' || head === 'generation') return { section: 'modelo' };
+  if (head === 'handoff') return { section: 'derivacion' };
   if (head === 'fields') {
     const f = draft.fields.find((x) => x.name === second);
     return f ? { section: 'dato', key: f.key } : { section: 'datos' };
@@ -497,6 +554,7 @@ const PATH_WORDS: Record<string, string> = {
   language: 'idioma',
   voice: 'voz',
   record_audio: 'grabar audio',
+  recording_notice: 'avisar que se graba',
   call_summary_email: 'resumen por email',
   wa_session_minutes: 'ventana de contexto de WhatsApp',
   engine: 'Motor',
@@ -534,6 +592,13 @@ const PATH_WORDS: Record<string, string> = {
   fallback_local: 'respaldo',
   generation: 'Parámetros',
   params: '',
+  handoff: 'Derivación a personas',
+  areas: 'áreas',
+  area_id: 'área',
+  hold_music: 'música de espera',
+  enabled: 'prendida',
+  track: 'tema',
+  volume: 'volumen',
 };
 
 /** "fields.contacto.question" -> "Datos › contacto › pregunta". */
@@ -547,6 +612,7 @@ export function pathLabel(draft: Draft, path: string): string {
       out.push(o?.label || o?.id || p);
     } else if (parts[i - 1] === 'rules' && /^\d+$/.test(p)) out.push(`regla ${Number(p) + 1}`);
     else if (parts[i - 1] === 'stages' && /^\d+$/.test(p)) out.push(`etapa ${Number(p) + 1}`);
+    else if (parts[i - 1] === 'areas' && /^\d+$/.test(p)) out.push(`área ${Number(p) + 1}`);
     else if (p === 'tools' && i > 0) out.push('herramientas');
     else if (parts[i - 1] === 'tools' && /^\d+$/.test(p))
       out.push(draft.tools[Number(p)]?.app || `app ${Number(p) + 1}`);

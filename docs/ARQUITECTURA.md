@@ -50,7 +50,8 @@ app/
     schemas.py       contratos pydantic (fuente del OpenAPI y de los tipos de la UI)
     errors.py        ServiceError -> JSON {detail, code, errors}; 500 JSON sin detalles internos
     routers/         auth, tiers, clients, phone_numbers, agents, users, api_keys, calls,
-                     conversations, voices, whatsapp (cuentas), inference, demo, contacts, campaigns
+                     conversations, voices, whatsapp (cuentas), inference, demo, contacts, campaigns,
+                     handoff (equipo, áreas, música de espera y eventos)
                      (más wa_campaigns: el alias de /whatsapp/campaigns y /whatsapp/optouts)
   services/          negocio sin HTTP (lo usan la API y el worker)
     quota.py         límites del tier: admisión con lock, consumo del mes, saldo en curso
@@ -67,6 +68,9 @@ app/
     campaign_calls.py resultado SIP de un intento de voz, reintentos, recuperación y baja por outcome
     campaign_reports.py report.csv y stats por campaña
     campaign_callbacks.py cola (outbox) y firma del webhook de campañas
+    handoff.py       equipo y áreas: horario, orden de llamado, mensajes, validación del agente y las áreas
+                     de una llamada (call_areas)
+    events.py        registro de eventos (tabla events, tipos en TYPES)
     security.py      argon2, JWT HS256, API keys (SHA-256), token de alta de clave
     api_usage.py     consumo y límites de la API de inferencia (cupos del mes, check/record, reporte)
     inference.py     gateway de la API de inferencia: reenvío a LLM, STT y TTS y medición del consumo
@@ -88,7 +92,8 @@ app/
   llm/               cliente y prompts del LLM
   campaigns/         loop único de campañas (loop.py: delega por canal), dialer de voz (dialer.py),
                      contestador por heurística (voicemail.py) y entrega del webhook (callbacks.py)
-  voice/             worker de LiveKit y latencia por turno
+  voice/             worker de LiveKit, latencia por turno y handoff.py (transferencia a una persona:
+                     Transfer es la lógica, RoomLine el lado de LiveKit)
   whatsapp/          webhook (firma), graph.py (Cloud API y media), store.py (tablas wa_*), service.py (turnos),
                      audio.py (notas de voz: STT, TTS y OGG/Opus con PyAV), signup.py (Embedded Signup,
                      registro, plantillas), crypto.py (tokens y PIN cifrados), campaigns.py y sender.py
@@ -96,7 +101,8 @@ app/
 migrations/          Alembic: 0001 esquema anterior (idempotente), 0002 tenencia, 0003 inventario de números,
                      0004 WhatsApp, 0005 Embedded Signup y session_version, …, 0008 campañas de WhatsApp,
                      …, 0013 apps por cliente y operadores de WhatsApp, 0015 ruteo por contacto de WhatsApp,
-                     0017 agenda y campañas unificadas (WhatsApp y voz)
+                     0017 agenda y campañas unificadas (WhatsApp y voz), …, 0023 equipo, áreas y eventos,
+                     0024 tramos de las derivaciones (handoff_legs)
 web/                 SPA React (ver "Frontend")
 tests/               pytest: API, límites, motor, campañas (test_campaigns, _dialer, _vars, _integration)
 ```
@@ -120,20 +126,23 @@ tiers 1───* clients 1───* agents 1───* agent_versions
                 ├───* contact_optouts (bajas por teléfono y canal)
                 ├───* campaigns (whatsapp | voice) 1───* campaign_contacts ───* call_logs (intentos de voz)
                 │                                  1───* campaign_callbacks (cola del webhook)
+                ├───* team_members ───* handoff_area_members *─── handoff_areas (equipo, CASCADE)
+                ├───* events (registro; conversation_id, CASCADE)
                 ├───* wa_accounts (agent_id, RESTRICT) 1───* wa_routes (ruteo por contacto)
                 │                                      1───* wa_threads
                 │                                      1───* wa_operators (client_id + agent_id propios)
                 └───* conversations 1───1 call_logs        (voz)
                          │          1───1 wa_threads       (whatsapp)
                          │          1───* wa_messages
+                         │          1───* handoff_legs     (tramos a personas)
                          └── agent_id + agent_version (la versión con que corrió)
 ```
 
 | Tabla | Claves y reglas |
 |---|---|
-| `tiers` | `max_concurrent_calls`, `max_calls_per_hour`, `max_calls_per_day`, `max_calls_per_month` (llamadas entrantes y salientes por hora, día y mes calendario), `inbound_minutes`, `outbound_minutes`, `max_phone_numbers`; NULL = ilimitado. Campañas: `campaign_channels` (`[]`, `["whatsapp"]`, `["voice"]` o los dos), `max_campaigns_per_month`, `max_campaign_contacts`, `max_campaign_concurrency`, `max_contacts` (contactos activos de la agenda; NULL = ilimitado, 0 = no incluido) y `campaign_followup`. API de inferencia: `api_llm_input_tokens`, `api_llm_output_tokens`, `api_tts_minutes`, `api_stt_minutes` (por mes) y `api_rate_limit` (pedidos por minuto); NULL = ilimitado, 0 = no incluido. |
+| `tiers` | `max_concurrent_calls`, `max_calls_per_hour`, `max_calls_per_day`, `max_calls_per_month` (llamadas entrantes y salientes por hora, día y mes calendario), `inbound_minutes`, `outbound_minutes`, `max_phone_numbers`; NULL = ilimitado. Campañas: `campaign_channels` (`[]`, `["whatsapp"]`, `["voice"]` o los dos), `max_campaigns_per_month`, `max_campaign_contacts`, `max_campaign_concurrency`, `max_contacts` (contactos activos de la agenda; NULL = ilimitado, 0 = no incluido) y `campaign_followup`. API de inferencia: `api_llm_input_tokens`, `api_llm_output_tokens`, `api_tts_minutes`, `api_stt_minutes` (por mes) y `api_rate_limit` (pedidos por minuto); NULL = ilimitado, 0 = no incluido. Equipo: `max_team_members` (personas para las derivaciones; NULL = ilimitado). |
 | `clients` | `slug` único, `tier_id` (RESTRICT: un tier en uso no se borra), `active`. |
-| `client_limit_adjustments` | Ajuste de un límite del tier para un cliente: `field` (uno de los 16 numéricos de `tiers`), `mode` (`add` suma, `set` reemplaza; `value` NULL = ilimitado solo con `set`), `starts_on`/`ends_on` (inclusive, en `BILLING_TIMEZONE`; sin fechas, permanente), `note`, `created_by`. Se resuelven en `services/limits.py`. |
+| `client_limit_adjustments` | Ajuste de un límite del tier para un cliente: `field` (uno de los 18 numéricos de `tiers`), `mode` (`add` suma, `set` reemplaza; `value` NULL = ilimitado solo con `set`), `starts_on`/`ends_on` (inclusive, en `BILLING_TIMEZONE`; sin fechas, permanente), `note`, `created_by`. Se resuelven en `services/limits.py`. |
 | `agents` | `(client_id, slug)` único; `version` y `definition` vigentes (copia de la última versión); `archived_at`. |
 | `agent_versions` | `(agent_id, version)`; inmutables, con `created_by`. |
 | `phone_numbers` | `e164` único; `client_id` NULL = libre; `agent_id` solo si hay cliente (CHECK); `provider`, `assigned_at`. |
@@ -156,6 +165,10 @@ tiers 1───* clients 1───* agents 1───* agent_versions
 | `apps` | App de un cliente (contenedor de atentina-apps, [`APPS_PLAN.md`](APPS_PLAN.md)): `slug` único, `client_id` (NULL = inventario), `base_url` (`http://app-<slug>:8000`), `token_enc` (APP_TOKEN cifrado con `WA_TOKEN_KEY`), `version`, `manifest` (copia del último válido: vistas y herramientas), `status` (`ok`, `down`, `invalid`), `last_error`, `last_health_at`. |
 | `app_links` | Link firmado a una vista: `token_hash` (SHA-256; el token no se guarda), `app_id`, `view`, `params`, `expires_at` (`APPS_LINK_TTL_DAYS`), `revoked_at`, `created_by` (`wa:<wa_id>`, `user:<id>`), `opens`. |
 | `wa_operators` | Dueño de un negocio que le habla a su asistente por un número compartido: `account_id` + `wa_id` únicos, `client_id` y `agent_id` propios (los del número no se usan), `name`, `active`. |
+| `team_members` | Persona del equipo del cliente: `name`, `phone` (E.164, al que se le pasa la llamada), `whatsapp` (único por cliente, para el puente de la fase 3), `user_id` opcional, `active`. Tope `tiers.max_team_members` (NULL = ilimitado). |
+| `handoff_areas` | Área del equipo (Ventas, Soporte): `description`, `active`, `strategy` (`sequential` o `round_robin`, con `last_member_id`), `ring_seconds` por miembro, `schedule` (NULL = siempre abierta), `fallback`, `on_person_hangup` (`resume` o `goodbye`), `return_digits` (default `2`, nunca `*`), `messages` (los textos que pisan los de `handoff.DEFAULT_MESSAGES`). Un área que usa un agente no se borra (409 `area_in_use`). Miembros y orden en `handoff_area_members` (`position`). |
+| `handoff_legs` | Un intento de pasarle la llamada a una persona: `area_id`, `team_member_id`, `phone`, `result` (`dialing`, `connected`, `no_answer`, `busy`, `machine`, `not_confirmed`, `failed`), `sip_status`, `answered_at`, `connected_at`, `ended_at` y `billed_seconds` (desde que atendió, solo si se conectó). Base de los minutos salientes de las derivaciones. |
+| `events` | Registro de lo que pasa (`id` incremental, `at`, `type` de `services/events.TYPES`, `actor`, `conversation_id`, `area_id`, `team_member_id`, `data`): `call.ringing`, `call.answered`, `call.ended` y los `handoff.*` y `hold.*`. Se lee por `GET /events` con cursor `after_id`. |
 | `wa_messages` | Uno por `wamid` (unique: dedupe de reenvíos de Meta), entrante o saliente, tipo (`text`, `audio`, ...), estado y error de Meta. Sin texto ni audio: el texto está en `conversations.messages`, donde `voice_note` marca la transcripción de una nota de voz o la respuesta enviada como nota de voz. |
 
 Las fechas se guardan en UTC sin zona; la API las devuelve con zona (`+00:00`/`Z`).
@@ -256,10 +269,19 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
     no hay WAV del agente. Un turno con varios audios del cliente los une en un solo WAV (van en un
     mismo mensaje del motor).
 
-  Sin backup todavía (`scripts/ops/backup.sh` no lo cubre). Se escucha desde el dashboard:
+  Con backup desde el 21-oct-2026 (`storage/` en `scripts/ops/backup.sh`). Se escucha desde el dashboard:
   `ChatView` (web/) muestra el reproductor en la burbuja de cada mensaje grabado, servido por
   `GET /api/v1/calls/{conversation_id}/recordings/{n}` con el mismo control de acceso que el
   resto del detalle (`CallDetail.recordings` sigue listando los archivos).
+- **`recording_notice`** (default `false`, desde el 23-oct-2026): con `record_audio`, el agente dice
+  "Esta llamada está siendo grabada." antes de la apertura (`RECORDING_NOTICE` en `app/voice/worker.py`), en
+  todas las llamadas del agente; no se agrega al contexto del LLM. Sin `record_audio` no hace nada (la UI
+  muestra el switch "Avisar que la llamada se graba" solo con la grabación prendida). En WhatsApp
+  (mensajería) no aplica.
+- **`handoff`** (desde el 23-oct-2026, solo el motor `classic`; con otro motor y áreas, 422): las áreas
+  (`area_id` y `when`, el cuándo en texto libre; vacío usa la descripción del área), hasta 10 y sin repetir, y la
+  música de espera (`hold_music`: `enabled`, `track` de `GET /hold-music`, `volume`). Al guardar se valida que
+  cada área sea del cliente del agente y que el tema exista. Ver "Derivación a una persona" en Flujos.
 - **Validación al guardar:**
   - nombres de campo en minúsculas;
   - `choice` con `options`;
@@ -449,6 +471,33 @@ pedidos simultáneos, por separado al STT y al TTS, y cada pedido tiene un tope 
 worker se rompen. Si se reinicia `app` con mensajes en la ventana, esos entrantes quedan `received`
 sin respuesta.
 
+### Derivación a una persona (`Workflow.handoff`)
+
+Transferencia atendida dentro de la misma room de LiveKit; diseño, mediciones y pruebas en
+[`DERIVACIONES_PLAN.md`](DERIVACIONES_PLAN.md) (secciones 4, 11 y 13).
+
+1. **Al empezar**, el worker guarda las áreas activas del agente en `Progress.handoff_areas`
+   (`handoff.call_areas`), salvo en el loadtest, las campañas y la demo sin `DEMO_HANDOFF` (metadata
+   `handoff`, de `calls.start_call`). Sin áreas no cambia nada.
+2. **Prompt (`classic`):** sección "PASAR LA LLAMADA A UNA PERSONA" con cada área, su horario y si atiende
+   ahora. Para derivar, el LLM responde `[DERIVAR:<área>]` (`MarkerFilter` la saca del texto que va al TTS);
+   el área se busca sin mayúsculas ni tildes.
+3. **Transferencia** (`app/voice/handoff.py`): revisa el área (activa, en horario, con miembros), los minutos
+   salientes y los canales (`quota.handoff_check`); pone música solo al cliente y apaga su entrada de audio;
+   llama a cada miembro (`create_sip_participant`, identidad `persona-<n>`, caller ID el número de la empresa)
+   con el timbre del área; al atender, detecta buzón por STT (3 s) y le dice el resumen (whisper, solo a la
+   persona); con el `1` en `HANDOFF_CONFIRM_SECONDS` (8) los conecta. Cada intento es un `handoff_legs`.
+   El aislamiento de audio es por suscripciones y permisos de pistas.
+4. **Modo escucha:** el worker transcribe a los dos (VAD + STT) en la conversación, con `Message.handoff_leg`
+   y `Message.person`; con `record_audio`, un WAV por frase. Termina con el código de vuelta del área
+   (`2`: vuelve la IA con "¿Te puedo ayudar con algo más?"), si la persona corta (`resume` o `goodbye`),
+   si corta el cliente (se borra la room) o sin minutos salientes.
+5. **Si nadie atiende**, el agente dice el mensaje del área (`no_answer` o `busy`) y el LLM sigue con el
+   mensaje en el contexto (toma el recado).
+
+Todo queda en `events` (`handoff.*`, `hold.*`). Los mensajes de cada paso son configurables por área
+(`GET /handoff-areas/defaults` trae los de fábrica).
+
 ### Durante la llamada
 
 - **Turnos:** el motor conversacional (ver README, "Motor conversacional").
@@ -468,6 +517,8 @@ sin respuesta.
 | Números | `phone_numbers.assign`, cambio de tier, cambio del tope | Números con `client_id` del cliente. Asignar toma el mismo lock del cliente y el del número. |
 | Campañas | `services/limits.py` (`check_campaign_*`), al crear, sumar contactos, iniciar y retomar | Canal habilitado (`campaign_channels`), campañas iniciadas en el mes (`started_at`; la primera vez que sale de borrador), contactos por campaña y `concurrency` de voz. Las llamadas de campaña también pasan por `quota.admit` (minutos, topes de llamadas, simultáneas). Al cambiar de tier o de canales, las campañas de un canal que ya no entra pasan a `paused`. |
 | Agenda | `services/contacts.py` | Contactos activos (`max_contacts`); los archivados no cuentan. |
+| Equipo | `services/handoff.py` | Personas del equipo (`max_team_members`). |
+| Derivaciones | `quota.handoff_check`, antes de cada intento y en el modo escucha | El tramo a la persona gasta **minutos salientes** (`quota.used_seconds` suma `billed_seconds` de `handoff_legs` y lo que llevan los conectados), sea cual sea el origen de la llamada. Canales: `quota.busy_channels` (entrantes y salientes activas más tramos abiertos) contra `ANURA_CHANNELS` (10); sin canal o sin minutos, no se intenta (`handoff.unavailable`). |
 
 **Ajustes por cliente** (`services/limits.py`): para darle a un cliente algo distinto de su tier (una línea más, 10 minutos
 más este mes, un tope propio) sin tocar el tier ni clonarlo. Toda la tabla anterior, la API de inferencia y el rate limit leen
@@ -610,6 +661,10 @@ lo de esta sección es lo que lo protege.
   (lista o CSV posicional), `POST /campaigns/{id}/start|pause|cancel`, `GET|POST /optouts` y
   `DELETE /optouts/{wa_id}`. Envío y reglas en [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md), 5.5 y
   [`LLAMADAS_SALIENTES_PLAN.md`](LLAMADAS_SALIENTES_PLAN.md).
+- **Equipo y derivaciones**: `GET|POST /team`, `PATCH|DELETE /team/{id}`, `GET|POST /handoff-areas`,
+  `GET|PATCH|DELETE /handoff-areas/{id}` (409 `area_in_use` si un agente la usa), `GET /handoff-areas/defaults`
+  (mensajes de fábrica), `GET /hold-music` (temas de espera) y `GET /events` (cursor `after_id`, filtro por
+  tipo o prefijo). Los admins pasan `client_id`. Detalle en [`DERIVACIONES_PLAN.md`](DERIVACIONES_PLAN.md).
 - **Mails** (Resend, `app/mail/`): `POST /clients` con `owner_email` crea el usuario y manda la bienvenida
   (respuesta con `invite.status`: `sent`, `failed` o `disabled`); `POST /users/{id}/invite` la reenvía.
   Al asignar un número (`POST /phone-numbers` con `client_id`, `POST /phone-numbers/{id}/assign`) sale
