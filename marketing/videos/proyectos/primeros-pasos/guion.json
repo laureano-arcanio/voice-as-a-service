@@ -1,0 +1,52 @@
+{
+  "nota": "Tutorial vertical 9:16 para clientes: crear un agente básico y probarlo con una llamada desde el navegador. Voz única: paula (narradora por defecto). Reescrito desde cero para la v2, sin reutilizar la v1.",
+  "musica_segundos": 62,
+  "lineas": [
+    {
+      "id": "t1",
+      "voz": "paula",
+      "texto": "Gracias por probar Atentina, te cuento cómo empezar."
+    },
+    {
+      "id": "t2",
+      "voz": "paula",
+      "texto": "Entrá al panel, abrí Agentes y tocá Nuevo agente."
+    },
+    {
+      "id": "t3",
+      "voz": "paula",
+      "texto": "Ponele un nombre, por ejemplo, Atención al cliente. Elegí Asistente básico y creá el agente."
+    },
+    {
+      "id": "t4",
+      "voz": "paula",
+      "texto": "Se abre la definición. Completá el rol, el objetivo y la apertura. La voz ya viene elegida y la podés cambiar."
+    },
+    {
+      "id": "t5",
+      "voz": "paula",
+      "texto": "Guardá. Cada cambio queda como una versión nueva."
+    },
+    {
+      "id": "t6",
+      "voz": "paula",
+      "texto": "Para probarlo, abrí la pestaña Probar y activá Modo prueba."
+    },
+    {
+      "id": "t7",
+      "voz": "paula",
+      "texto": "No hace falta un teléfono. Tocá Crear llamada de prueba y abrí el link que aparece."
+    },
+    {
+      "id": "t8",
+      "voz": "paula",
+      "texto": "Te conecta por el navegador. Hablá como si fueras un cliente: el agente te escucha y te responde con su voz."
+    },
+    {
+      "id": "t9",
+      "voz": "paula",
+      "texto": "Cuando esté listo, asignalo a tu número desde Mi cuenta. Gracias por probar Atentina."
+    }
+  ],
+  "ganancia_db": -1.5
+}

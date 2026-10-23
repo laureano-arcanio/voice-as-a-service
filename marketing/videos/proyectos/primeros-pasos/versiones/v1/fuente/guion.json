@@ -1,0 +1,62 @@
+{
+  "nota": "v1 (23-oct-2026): una sola voz, paula a 1× (narradora por defecto de VIDEOS.md; sin voz secundaria, por pedido). Tutorial para un cliente nuevo: crear un agente con el asistente básico y probarlo con una llamada de prueba por el navegador. Los nombres de botones, pestañas y campos son los de la vista de cliente de web/ (NewAgentModal, DefinitionForm, TestTab, NewCallForm). Ortografía normal, sin grafías; pausas con puntuación.",
+  "ganancia_db": -1.5,
+  "musica_segundos": 90,
+  "lineas": [
+    {
+      "id": "p1",
+      "voz": "paula",
+      "texto": "Gracias por probar Atentina, te cuento cómo empezar."
+    },
+    {
+      "id": "p2",
+      "voz": "paula",
+      "texto": "Entrá al panel, abrí el menú y tocá Agentes. Después, Nuevo agente."
+    },
+    {
+      "id": "p3",
+      "voz": "paula",
+      "texto": "Ponele un nombre, dejá el punto de partida en Asistente básico, y tocá Crear agente."
+    },
+    {
+      "id": "p4",
+      "voz": "paula",
+      "texto": "Se abre la definición de tu agente. Elegí con qué voz habla, y escuchala ahí mismo."
+    },
+    {
+      "id": "p5",
+      "voz": "paula",
+      "texto": "En Apertura, escribí lo primero que dice cuando atiende."
+    },
+    {
+      "id": "p6",
+      "voz": "paula",
+      "texto": "En la base de conocimiento, cargá lo que tiene que saber: horarios, dirección, preguntas frecuentes. Lo que no esté ahí, no lo responde."
+    },
+    {
+      "id": "p7",
+      "voz": "paula",
+      "texto": "Cuando termines, tocá Guardar versión nueva."
+    },
+    {
+      "id": "p8",
+      "voz": "paula",
+      "texto": "Para probarlo, andá a Probar, activá Modo prueba, y tocá Crear llamada de prueba."
+    },
+    {
+      "id": "p9",
+      "voz": "paula",
+      "texto": "Abrí el link que aparece, permití el micrófono, y hablale como si fueras un cliente."
+    },
+    {
+      "id": "p10",
+      "voz": "paula",
+      "texto": "La llamada queda en Conversaciones, con todo lo que se dijo."
+    },
+    {
+      "id": "p11",
+      "voz": "paula",
+      "texto": "Ajustalo y probalo las veces que quieras. Cada cambio queda guardado como una versión."
+    }
+  ]
+}

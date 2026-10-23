@@ -32,7 +32,9 @@ Proyectos hoy: [`general`](../marketing/videos/proyectos/general/README.md) (el 
 [`sqlamoblamientos-analisis`](../marketing/videos/proyectos/sqlamoblamientos-analisis/README.md) (SQL Amoblamientos, ídem) y
 [`cimepa-analisis`](../marketing/videos/proyectos/cimepa-analisis/README.md) (CIMEPA, propuesta técnica con el formato de su PDF) y
 [`axiomait-analisis`](../marketing/videos/proyectos/axiomait-analisis/README.md) (Axioma IT, propuesta técnica para un integrador con el formato de su PDF; paula y lucas) y
-[`zennonbi-analisis`](../marketing/videos/proyectos/zennonbi-analisis/README.md) (Zennon BI, propuesta de alianza para un partner de Dynamics 365 con el formato de su PDF; paula y lucas).
+[`zennonbi-analisis`](../marketing/videos/proyectos/zennonbi-analisis/README.md) (Zennon BI, propuesta de alianza para un partner de Dynamics 365 con el formato de su PDF; paula y lucas) y
+[`primeros-pasos`](../marketing/videos/proyectos/primeros-pasos/README.md) (tutorial vertical 9:16 para clientes: crear un agente y
+probarlo con una llamada desde el navegador; el panel recreado en un teléfono, zoom al escribir; solo paula).
 
 ## Comandos
 
