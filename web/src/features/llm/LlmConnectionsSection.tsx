@@ -203,7 +203,7 @@ function ConnectionModal({
           />
           <Alert color="yellow" icon={<IconShieldLock size={18} />} title="Las conversaciones salen del servidor">
             Los agentes que usen esta conexión mandan sus conversaciones a {KIND_LABEL[kind]}. Los tokens los
-            cobra tu proveedor, no Atentina. Si falla, el agente sigue con el servidor Atentina.
+            cobra tu proveedor, no Atentina. Si falla, el agente sigue con el modelo {LOCAL_LABEL}.
           </Alert>
           <Group justify="flex-end">
             <Button variant="default" onClick={onClose}>
@@ -246,7 +246,7 @@ export function LlmConnectionsSection({ clientId }: { clientId: string }) {
     const used = c.used_by ?? 0;
     const message =
       used > 0
-        ? `¿Dar de baja "${c.name}"? ${used === 1 ? 'Un agente la usa' : `${used} agentes la usan`} y pasa${used === 1 ? '' : 'n'} a contestar con el servidor Atentina.`
+        ? `¿Dar de baja "${c.name}"? ${used === 1 ? 'Un agente la usa' : `${used} agentes la usan`} y pasa${used === 1 ? '' : 'n'} a contestar con el modelo ${LOCAL_LABEL}.`
         : `¿Dar de baja "${c.name}"? La clave guardada se descarta.`;
     if (await confirmAction({ title: 'Dar de baja conexión', message, confirmLabel: 'Dar de baja', danger: true })) {
       remove.mutate(c.id, {
@@ -266,13 +266,13 @@ export function LlmConnectionsSection({ clientId }: { clientId: string }) {
       </Group>
       <Text size="xs" c="dimmed" mb="sm">
         Traé la clave de tu proveedor (Anthropic, OpenRouter o uno compatible con OpenAI) y elegí en cada
-        agente desde qué turno lo usa. El {LOCAL_LABEL} siempre está disponible y es el respaldo.
+        agente desde qué turno lo usa. El modelo {LOCAL_LABEL} siempre está disponible y es el respaldo.
       </Text>
       <QueryState query={list}>
         {(connections) =>
           connections.length === 0 ? (
             <EmptyState>
-              Sin conexiones: los agentes usan el {LOCAL_LABEL}. Cargá una para usar tu propio modelo.
+              Sin conexiones: los agentes usan el modelo {LOCAL_LABEL}. Cargá una para usar tu propio modelo.
             </EmptyState>
           ) : (
             <Table.ScrollContainer minWidth={760}>

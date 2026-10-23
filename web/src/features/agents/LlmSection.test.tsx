@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useEffect, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -86,32 +86,45 @@ function mockApi(connections: LlmConnection[]) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('LlmSection', () => {
-  it('sin plan: una etapa con el servidor Atentina y sin aviso de privacidad', async () => {
+  it('por defecto: el modelo de Atentina, sin etapas ni aviso de privacidad', async () => {
     mockApi([CONN]);
     renderWithProviders(<Harness initial={toDraft(DEF)} />, { me: ADMIN });
-    expect(await screen.findByText('Desde el turno')).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'Modelo de lenguaje' })).toHaveValue('Servidor Atentina');
-    expect(screen.queryByText(/salen del servidor/)).not.toBeInTheDocument();
+    expect(await screen.findByRole('radio', { name: 'Modelo atentina-conversational-v1' })).toBeChecked();
+    expect(screen.queryByText('Desde el turno')).not.toBeInTheDocument();
+    expect(screen.queryByText(/salen de Atentina/)).not.toBeInTheDocument();
     expect(fromDraft(latest.current)).not.toHaveProperty('llm');
   });
 
-  it('elegir una conexión propone su modelo, avisa y guarda la etapa', async () => {
+  it('sin claves cargadas: las etapas no se habilitan y se pide cargar una', async () => {
+    mockApi([]);
+    renderWithProviders(<Harness initial={toDraft(DEF)} />, { me: ADMIN });
+    expect(await screen.findByRole('link', { name: 'Cargar una clave' })).toHaveAttribute('href', '/clients/c-1?tab=modelos');
+    expect(screen.getByRole('radio', { name: 'Mis proveedores, por etapas' })).toBeDisabled();
+  });
+
+  it('con una clave: pasar a etapas propone la conexión y su modelo, avisa y guarda', async () => {
     mockApi([CONN]);
     renderWithProviders(<Harness initial={toDraft(DEF)} />, { me: ADMIN });
-    await userEvent.click(await screen.findByRole('textbox', { name: 'Modelo de lenguaje' }));
-    await userEvent.click(await screen.findByRole('option', { name: 'Claude · …zz99', hidden: true }));
+    const byok = await screen.findByRole('radio', { name: 'Mis proveedores, por etapas' });
+    await waitFor(() => expect(byok).toBeEnabled());
+    await userEvent.click(byok);
     expect(await screen.findByDisplayValue('claude-haiku-5-5')).toBeInTheDocument();
     expect(screen.getByText(/Desde el turno 1, este agente manda la conversación a Anthropic/)).toBeInTheDocument();
     expect(fromDraft(latest.current)).toMatchObject({
       llm: { stages: [{ from_turn: 1, connection: 'k-1', model: 'claude-haiku-5-5' }], fallback_local: true },
     });
+
+    // Volver al de Atentina pregunta y quita las etapas.
+    await userEvent.click(screen.getByRole('radio', { name: 'Modelo atentina-conversational-v1' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Volver' }));
+    await waitFor(() => expect(latest.current.llm).toBeNull());
   });
 
   it('agrega una etapa desde el turno 4 y el límite es de tres', async () => {
     mockApi([CONN]);
     const initial = toDraft({
       ...DEF,
-      llm: { stages: [{ from_turn: 1 }], fallback_local: true },
+      llm: { stages: [{ from_turn: 1, connection: 'k-1', model: 'm' }], fallback_local: true },
     });
     renderWithProviders(<Harness initial={initial} />, { me: ADMIN });
     const add = await screen.findByRole('button', { name: /Agregar etapa/ });
@@ -124,17 +137,24 @@ describe('LlmSection', () => {
     expect(latest.current.llm?.stages).toHaveLength(2);
   });
 
-  it('agrega un parámetro de generación con el default del proveedor, y lo quita', async () => {
+  it('muestra los defaults y cambiarlos pide confirmación', async () => {
     mockApi([CONN]);
     renderWithProviders(<Harness initial={toDraft(DEF)} />, { me: ADMIN });
-    const adds = await screen.findAllByRole('button', { name: /Agregar parámetro/ });
-    await userEvent.click(adds[0]!);
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'Temperatura' }));
-    // El default de la familia local (gemma) es 1.
-    expect(latest.current.generation).toEqual([{ key: expect.any(String), name: 'temperature', value: 1 }]);
-    expect(fromDraft(latest.current)).toMatchObject({ generation: { params: { temperature: 1 } } });
+    await userEvent.click(await screen.findByRole('button', { name: /Configurar parámetros del modelo/ }));
+    // El default de la familia local (gemma) es 1, y se ve sin tocar nada.
+    const temp = await screen.findByRole('textbox', { name: 'Temperatura' });
+    await waitFor(() => expect(temp).toHaveValue('1'));
+    expect(temp).toBeDisabled();
+    expect(screen.getByRole('textbox', { name: 'Top K' })).toHaveValue('64');
 
-    await userEvent.click(screen.getAllByRole('button', { name: 'Quitar parámetro' })[0]!);
+    await userEvent.click(screen.getByRole('button', { name: 'Cambiar valores' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Cambiar' }));
+    await waitFor(() => expect(temp).toBeEnabled());
+    await userEvent.clear(temp);
+    await userEvent.type(temp, '0.5');
+    expect(fromDraft(latest.current)).toMatchObject({ generation: { params: { temperature: 0.5 } } });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Volver al default: Temperatura' }));
     expect(fromDraft(latest.current)).not.toHaveProperty('generation');
   });
 

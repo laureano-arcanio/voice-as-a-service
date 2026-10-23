@@ -339,29 +339,32 @@ el motor Clásico; desde la UI lo cambia un admin. Por API el cliente hace lo mi
 
 ### Modelos (cliente) y Modelo de lenguaje de un agente
 
-Por defecto todos los agentes contestan con el servidor de Atentina. Con **BYOK** el cliente trae la
-clave de su proveedor y elige, por agente, desde qué turno lo usa
-([`BYOK_LLM_PLAN.md`](BYOK_LLM_PLAN.md)).
+Por defecto todos los agentes contestan con el modelo de Atentina, **atentina-conversational-v1** (el
+servidor propio: la conversación no sale). Con **BYOK** el cliente trae la clave de su proveedor y elige,
+por agente, desde qué turno lo usa ([`BYOK_LLM_PLAN.md`](BYOK_LLM_PLAN.md)).
 
 1. **Modelos > Nueva conexión** (el admin, en la ficha del cliente, pestaña **Modelos**): proveedor
    (Anthropic, OpenRouter u OpenAI compatible, con su URL base), nombre, API key y modelo por defecto.
    Al guardar se **prueba** sola: dice si la clave y el modelo andan, cuánto tardó y cómo pide el JSON
    ese proveedor. La clave se guarda cifrada y no se vuelve a mostrar (solo `…1234`).
 2. En la lista: **Probar** de nuevo, **Editar** (nombre, modelo, o rotar la clave) y **Dar de baja**.
-   La columna *Agentes* dice cuántos la usan: al darla de baja pasan al servidor Atentina.
-3. **Parámetros por defecto** (arriba de todo, en la misma sección): con **Agregar parámetro** se elige
-   uno del proveedor del motor (temperatura, `top_p`, `top_k`/`min_p`, razonamiento y su tope, máximo de
-   tokens…), con el valor recomendado ya puesto, y se puede quitar. Valen para toda la conversación y
-   rigen con cualquier proveedor: el que no los soporta los descarta (el editor lo dice). Sin ninguno,
-   valen los de siempre (muestreo por familia del modelo y los del motor).
-4. **Agente > Definición > Modelo de lenguaje:** una etapa por tramo de la conversación.
-   *Desde el turno* es el mensaje número N de la persona (la apertura no cuenta); la primera etapa
-   empieza siempre en 1 y hay hasta 3. Cada etapa elige el servidor Atentina o una conexión, su modelo
-   (la lista sale del proveedor; si no la da, se escribe) y sus propios **parámetros** (pisan los del
-   agente en ese tramo).
-5. **Usar el servidor Atentina si el proveedor falla** (activado por defecto): si el proveedor da error,
-   ese turno lo contesta el servidor propio. Apagado, el error corta el turno.
-6. Las conversaciones con una etapa externa **salen del servidor**: el editor lo avisa. En el detalle
+   La columna *Agentes* dice cuántos la usan: al darla de baja pasan a atentina-conversational-v1.
+3. **Agente > Definición > Modelo de lenguaje:** arriba se elige entre **Modelo atentina-conversational-v1**
+   (el default) y **Mis proveedores, por etapas**. La segunda opción se habilita cuando el cliente ya cargó
+   una conexión; sin ninguna, la sección lo explica con el botón **Cargar una clave**. Volver al modelo de
+   Atentina pide confirmación y quita las etapas.
+4. **Configurar parámetros del modelo** despliega todos los parámetros del modelo (temperatura, `top_p`,
+   `top_k`/`min_p`, razonamiento y su tope, máximo de tokens…) con su **valor por defecto**, el recomendado
+   para el modelo y el motor. Para cambiarlos: **Cambiar valores** y confirmar (se pregunta una vez por
+   edición). Solo los cambiados van a la definición, marcados como *Cambiado*, y se vuelven al default
+   con la flecha o con **Volver todo al default**. Sin default conocido (otro proveedor) dice *Automático*.
+5. **Por etapas:** una etapa por tramo de la conversación. *Desde el turno* es el mensaje número N de la
+   persona (la apertura no cuenta); la primera empieza siempre en 1 y hay hasta 3. Cada etapa elige quién
+   contesta (una conexión o atentina-conversational-v1), su modelo (la lista sale del proveedor; si no la
+   da, se escribe) y, en **Parámetros de esta etapa**, los suyos.
+6. **Usar atentina-conversational-v1 si el proveedor falla** (activado por defecto): si el proveedor da
+   error, ese turno lo contesta el servidor propio. Apagado, el error corta el turno.
+7. Las conversaciones con una etapa externa **salen de Atentina**: el editor lo avisa. En el detalle
    de una conversación, cada llamada al modelo muestra proveedor y modelo, y cuándo contestó el respaldo.
 
 ### Voces

@@ -1,45 +1,89 @@
-import { ActionIcon, Button, Group, Menu, NumberInput, Select, Stack, Switch, Text, Tooltip } from '@mantine/core';
-import { IconPlus, IconTrash } from '@tabler/icons-react';
+import { ActionIcon, Badge, Button, Collapse, Group, NumberInput, Select, Stack, Switch, Text, Tooltip } from '@mantine/core';
+import { IconAdjustmentsHorizontal, IconArrowBackUp, IconChevronDown, IconLock, IconTrash } from '@tabler/icons-react';
+import { useState } from 'react';
 import type { LlmParamSpec } from '@/api/types';
 import { blankParam, type ParamDraft } from './draft';
 
 export type LocalDefaults = Record<string, Record<string, unknown>>;
+export type ParamValue = string | number | boolean;
+
+/** Sin default conocido: lo decide el modelo o el proveedor. */
+const AUTO = 'Automático';
 
 interface Props {
-  /** Filas del borrador (lo que se manda). */
+  /** Los parametros cambiados (lo que se manda). Los que no estan usan el default. */
   rows: ParamDraft[];
-  /** Proveedor cuyos parametros se ofrecen para agregar. */
-  provider: string;
-  /** Motor: elige los defaults del LLM local (voz vs. assistant). */
-  engine: string;
-  /** El catalogo completo, por proveedor (GET /llm/params). */
-  providers: { kind: string; label: string; params: LlmParamSpec[] }[];
-  localDefaults: LocalDefaults;
+  /** Los parametros que se muestran, en orden. */
+  specs: LlmParamSpec[];
+  /** Todo el catalogo, para nombrar los cambiados que no aplican. */
+  allSpecs: Map<string, LlmParamSpec>;
+  /** Valor por defecto conocido de cada parametro (el del servidor propio o el de un nivel de arriba). */
+  defaults: Record<string, unknown>;
+  /** Editable: ya se confirmo el cambio. */
+  unlocked: boolean;
+  onUnlock: () => void;
   onChange: (rows: ParamDraft[]) => void;
-  compact?: boolean;
+  /** Texto del boton que despliega la lista. */
+  label: string;
+  /** Por que un parametro cambiado no aplica (p. ej. "No lo usa Anthropic: se descarta."). */
+  notApplies: string;
 }
 
-/** Valor con el que arranca un parametro nuevo: el del LLM local si es de los suyos, si no el default
- * tipico (primer choice o vacio). */
-function defaultFor(spec: LlmParamSpec, provider: string, engine: string, localDefaults: LocalDefaults) {
-  const local = provider === 'vllm' ? localDefaults[engine]?.[spec.name] : undefined;
-  if (typeof local === 'string' || typeof local === 'number' || typeof local === 'boolean') return local;
-  if (spec.type === 'bool') return false;
-  if (spec.type === 'choice') return spec.choices?.[0] ?? '';
-  return '';
+const isValue = (v: unknown): v is ParamValue =>
+  typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean';
+
+function show(v: ParamValue): string {
+  if (typeof v === 'boolean') return v ? 'Sí' : 'No';
+  return String(v);
 }
 
-const valueInput = (spec: LlmParamSpec, value: string | number | boolean, onChange: (v: string | number | boolean) => void) => {
+function ValueInput({
+  spec,
+  value,
+  fallback,
+  disabled,
+  onChange,
+}: {
+  spec: LlmParamSpec;
+  value: ParamValue | undefined;
+  fallback: ParamValue | undefined;
+  disabled: boolean;
+  onChange: (v: ParamValue | null) => void;
+}) {
+  const shown = value ?? fallback;
+  const aria = { 'aria-label': spec.label };
   if (spec.type === 'bool') {
-    return <Switch checked={value === true} onChange={(e) => onChange(e.currentTarget.checked)} />;
+    if (fallback !== undefined) {
+      return <Switch {...aria} checked={shown === true} disabled={disabled} onChange={(e) => onChange(e.currentTarget.checked)} />;
+    }
+    return (
+      <Select
+        {...aria}
+        data={[
+          { value: '', label: AUTO },
+          { value: 'true', label: 'Sí' },
+          { value: 'false', label: 'No' },
+        ]}
+        value={shown === undefined ? '' : String(shown)}
+        onChange={(v) => onChange(v === 'true' ? true : v === 'false' ? false : null)}
+        allowDeselect={false}
+        disabled={disabled}
+        w={150}
+        comboboxProps={{ withinPortal: true }}
+      />
+    );
   }
   if (spec.type === 'choice') {
     return (
       <Select
+        {...aria}
         data={spec.choices ?? []}
-        value={typeof value === 'string' ? value : null}
-        onChange={(v) => onChange(v ?? '')}
+        value={typeof shown === 'string' ? shown : null}
+        onChange={(v) => onChange(v)}
+        placeholder={AUTO}
+        clearable={fallback === undefined}
         allowDeselect={false}
+        disabled={disabled}
         w={150}
         comboboxProps={{ withinPortal: true }}
       />
@@ -47,70 +91,149 @@ const valueInput = (spec: LlmParamSpec, value: string | number | boolean, onChan
   }
   return (
     <NumberInput
-      value={value === '' ? '' : Number(value)}
-      onChange={(v) => onChange(v === '' || v === undefined ? '' : v)}
+      {...aria}
+      value={shown === undefined ? '' : Number(shown)}
+      onChange={(v) => onChange(v === '' || v === undefined ? null : v)}
       min={spec.minimum ?? undefined}
       max={spec.maximum ?? undefined}
       step={spec.type === 'number' ? 0.1 : 1}
       decimalScale={spec.type === 'number' ? 2 : 0}
       allowDecimal={spec.type === 'number'}
-      placeholder="valor"
+      placeholder={AUTO}
+      disabled={disabled}
       w={150}
     />
   );
-};
+}
 
-/** Editor de parametros de generacion: se agregan y quitan de la lista de los que se mandan. Cada
- * proveedor ofrece los suyos (top_k solo el local; effort solo Anthropic) con sus defaults. */
-export function GenerationEditor({ rows, provider, engine, providers, localDefaults, onChange, compact }: Props) {
-  const catalog = providers.find((p) => p.kind === provider)?.params ?? [];
-  const all = new Map(providers.flatMap((p) => p.params).map((s) => [s.name, s]));
-  const used = new Set(rows.map((r) => r.name));
-  const available = catalog.filter((s) => !used.has(s.name));
+/** Parametros de generacion: muestra todos los del proveedor con su valor por defecto y deja cambiarlos
+ * (despues de confirmar). Solo los cambiados van a la definicion; volver al default los saca. */
+export function GenerationEditor({ rows, specs, allSpecs, defaults, unlocked, onUnlock, onChange, label, notApplies }: Props) {
+  const [open, setOpen] = useState(rows.length > 0);
+  const byName = new Map(rows.map((r) => [r.name, r]));
+  const shownNames = new Set(specs.map((s) => s.name));
+  const orphans = rows.filter((r) => !shownNames.has(r.name));
 
-  const patch = (key: string, value: string | number | boolean) =>
-    onChange(rows.map((r) => (r.key === key ? { ...r, value } : r)));
-  const remove = (key: string) => onChange(rows.filter((r) => r.key !== key));
+  const set = (spec: LlmParamSpec, v: ParamValue | null) => {
+    const def = defaults[spec.name];
+    const rest = rows.filter((r) => r.name !== spec.name);
+    if (v === null || v === '' || v === def) return onChange(rest);
+    const prev = byName.get(spec.name);
+    onChange(prev ? rows.map((r) => (r.name === spec.name ? { ...r, value: v } : r)) : [...rows, blankParam(spec.name, v)]);
+  };
+  const remove = (name: string) => onChange(rows.filter((r) => r.name !== name));
 
   return (
     <Stack gap="xs">
-      {rows.map((row) => {
-        const spec = all.get(row.name);
-        const applies = catalog.some((s) => s.name === row.name);
-        return (
-          <Group key={row.key} align="flex-end" gap="sm" wrap="wrap">
-            <Stack gap={0} style={{ flex: '1 1 200px' }}>
-              <Text size="sm">{spec?.label ?? row.name}</Text>
-              {!compact && spec?.hint && <Text size="xs" c="dimmed">{spec.hint}</Text>}
-              {!applies && (
-                <Text size="xs" c="dimmed">No aplica a {provider}: se descarta.</Text>
-              )}
-            </Stack>
-            {spec ? valueInput(spec, row.value, (v) => patch(row.key, v)) : null}
-            <Tooltip label="Quitar parámetro" withArrow>
-              <ActionIcon color="red" variant="subtle" aria-label="Quitar parámetro" onClick={() => remove(row.key)}>
-                <IconTrash size={18} />
-              </ActionIcon>
-            </Tooltip>
+      <Group gap="xs">
+        <Button
+          variant="subtle"
+          size="xs"
+          px={4}
+          leftSection={<IconAdjustmentsHorizontal size={16} />}
+          rightSection={<IconChevronDown size={14} style={{ transform: open ? 'rotate(180deg)' : undefined }} />}
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+        >
+          {label}
+        </Button>
+        {rows.length > 0 && (
+          <Badge variant="light" color="orange" size="sm">
+            {rows.length === 1 ? '1 cambiado' : `${rows.length} cambiados`}
+          </Badge>
+        )}
+      </Group>
+
+      <Collapse in={open}>
+        <Stack gap="sm" className="def-item" style={{ padding: 'var(--mantine-spacing-sm)' }}>
+          <Group justify="space-between" gap="sm" wrap="wrap">
+            <Text size="xs" c="dimmed" style={{ flex: '1 1 260px' }}>
+              {unlocked
+                ? 'Lo que no cambies usa el valor por defecto. Volver al default saca el cambio.'
+                : 'Estos son los valores por defecto, los recomendados para este modelo.'}
+            </Text>
+            {!unlocked && (
+              <Button variant="default" size="xs" leftSection={<IconLock size={14} />} onClick={onUnlock}>
+                Cambiar valores
+              </Button>
+            )}
           </Group>
-        );
-      })}
-      {available.length > 0 && (
-        <Menu position="bottom-start" withinPortal>
-          <Menu.Target>
-            <Button variant="default" size="xs" leftSection={<IconPlus size={16} />} w="fit-content">
-              Agregar parámetro
+
+          {specs.map((spec) => {
+            const row = byName.get(spec.name);
+            const def = defaults[spec.name];
+            const fallback = isValue(def) ? def : undefined;
+            return (
+              <Group key={spec.name} align="center" gap="sm" wrap="wrap">
+                <Stack gap={0} style={{ flex: '1 1 220px' }}>
+                  <Group gap={6}>
+                    <Text size="sm">{spec.label}</Text>
+                    {row ? (
+                      <Badge variant="light" color="orange" size="xs">
+                        Cambiado
+                      </Badge>
+                    ) : null}
+                  </Group>
+                  {spec.hint && (
+                    <Text size="xs" c="dimmed">
+                      {spec.hint}
+                    </Text>
+                  )}
+                  {row && (
+                    <Text size="xs" c="dimmed">
+                      Por defecto: {fallback !== undefined ? show(fallback) : AUTO.toLowerCase()}
+                    </Text>
+                  )}
+                </Stack>
+                <Group w={150} justify="flex-end">
+                  <ValueInput
+                    spec={spec}
+                    value={row?.value}
+                    fallback={fallback}
+                    disabled={!unlocked}
+                    onChange={(v) => set(spec, v)}
+                  />
+                </Group>
+                <Tooltip label="Volver al valor por defecto" withArrow>
+                  <ActionIcon
+                    variant="subtle"
+                    color="gray"
+                    aria-label={`Volver al default: ${spec.label}`}
+                    onClick={() => remove(spec.name)}
+                    style={{ visibility: row ? 'visible' : 'hidden' }}
+                  >
+                    <IconArrowBackUp size={18} />
+                  </ActionIcon>
+                </Tooltip>
+              </Group>
+            );
+          })}
+
+          {orphans.map((row) => (
+            <Group key={row.key} align="center" gap="sm" wrap="wrap">
+              <Stack gap={0} style={{ flex: '1 1 220px' }}>
+                <Text size="sm">
+                  {allSpecs.get(row.name)?.label ?? row.name}: {show(row.value)}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  {notApplies}
+                </Text>
+              </Stack>
+              <Tooltip label="Quitar" withArrow>
+                <ActionIcon color="red" variant="subtle" aria-label={`Quitar ${row.name}`} onClick={() => remove(row.name)}>
+                  <IconTrash size={18} />
+                </ActionIcon>
+              </Tooltip>
+            </Group>
+          ))}
+
+          {unlocked && rows.length > 0 && (
+            <Button variant="subtle" color="gray" size="xs" w="fit-content" onClick={() => onChange([])}>
+              Volver todo al default
             </Button>
-          </Menu.Target>
-          <Menu.Dropdown>
-            {available.map((spec) => (
-              <Menu.Item key={spec.name} onClick={() => onChange([...rows, blankParam(spec.name, defaultFor(spec, provider, engine, localDefaults))])}>
-                {spec.label}
-              </Menu.Item>
-            ))}
-          </Menu.Dropdown>
-        </Menu>
-      )}
+          )}
+        </Stack>
+      </Collapse>
     </Stack>
   );
 }

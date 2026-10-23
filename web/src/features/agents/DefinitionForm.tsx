@@ -700,7 +700,7 @@ export function DefinitionForm({
       <Section
         name="modelo"
         title="Modelo de lenguaje"
-        description="Qué modelo contesta cada tramo de la conversación."
+        description="Qué modelo contesta y con qué parámetros."
       >
         <LlmSection draft={draft} update={update} clientId={clientId} />
       </Section>

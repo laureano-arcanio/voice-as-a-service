@@ -19,7 +19,8 @@ export const JSON_MODE_LABEL: Record<LlmConnection['json_mode'], string> = {
   prompt: 'Esquema en el prompt',
 };
 
-export const LOCAL_LABEL = 'Servidor Atentina';
+/** El modelo propio de Atentina (servidor local): el default de todos los agentes y el respaldo. */
+export const LOCAL_LABEL = 'atentina-conversational-v1';
 
 /** "Mi OpenRouter · …a91f", para elegir una conexion en un selector. */
 export const connectionLabel = (c: Pick<LlmConnection, 'name' | 'last4'>) =>

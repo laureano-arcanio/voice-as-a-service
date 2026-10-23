@@ -56,10 +56,10 @@ function mockApi(initial: LlmConnection[], tested?: Partial<LlmConnection>) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('LlmConnectionsSection', () => {
-  it('sin conexiones explica que se usa el servidor Atentina', async () => {
+  it('sin conexiones explica que se usa el modelo de Atentina', async () => {
     mockApi([]);
     renderWithProviders(<LlmConnectionsSection clientId="c-1" />, { me: CLIENT_USER });
-    expect(await screen.findByText(/Sin conexiones: los agentes usan el Servidor Atentina/)).toBeInTheDocument();
+    expect(await screen.findByText(/Sin conexiones: los agentes usan el modelo atentina-conversational-v1/)).toBeInTheDocument();
   });
 
   it('lista la conexión con su clave enmascarada, estado y agentes que la usan', async () => {
@@ -108,7 +108,7 @@ describe('LlmConnectionsSection', () => {
     const calls = mockApi([conn()]);
     renderWithProviders(<LlmConnectionsSection clientId="c-1" />, { me: CLIENT_USER });
     await userEvent.click(await screen.findByRole('button', { name: 'Dar de baja' }));
-    expect(await screen.findByText(/2 agentes la usan y pasan a contestar con el servidor Atentina/)).toBeInTheDocument();
+    expect(await screen.findByText(/2 agentes la usan y pasan a contestar con el modelo atentina-conversational-v1/)).toBeInTheDocument();
     const dialog = await screen.findByRole('dialog');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Dar de baja' }));
     await waitFor(() => expect(calls.some((c) => c.method === 'DELETE' && c.path === `${BASE}/k-1`)).toBe(true));

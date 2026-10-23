@@ -25,7 +25,7 @@ export function WorkflowSummary({ definition, clientId }: { definition: Definiti
   const isAdmin = useIsAdmin();
   const connections = useLlmConnections(clientId).data ?? [];
   const w = readWorkflow(definition);
-  // "Servidor Atentina" o "Servidor Atentina, desde el turno 4 Claude (claude-haiku-5-5)".
+  // "atentina-conversational-v1" o "atentina-conversational-v1, desde el turno 4 Claude (claude-haiku-5-5)".
   const model = w.llm.length
     ? w.llm
         .map((st, i) => {
