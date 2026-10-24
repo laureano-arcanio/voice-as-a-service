@@ -9,7 +9,7 @@ import Section from "./Section.astro";
   <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">Integración agéntica</span>
   <h2 class="mt-3">Tu agente de programación opera la plataforma</h2>
   <p class="mt-3 max-w-[62ch] text-[1.12rem] text-ink-2">
-    Por la API crea el agente, lanza las llamadas, descarga los resultados y arma el informe. Pedile en español lo que necesitás: tenemos skills para los agentes de programación más usados, para que no tengas que explicarle cómo funciona.
+    Por la API crea el agente, lanza las llamadas, descarga los resultados y arma el informe. Pedile en español lo que necesitás: tenemos skills para los agentes de programación más usados, para que no tengas que explicarle cómo funciona. O conectá Claude, ChatGPT o Cursor por MCP, con tu usuario.
   </p>
 
   <div class="mt-9 grid items-start gap-7 min-[901px]:grid-cols-2 min-[901px]:gap-12">
@@ -27,8 +27,9 @@ import Section from "./Section.astro";
           }
         </ul>
       </div>
-      <div>
+      <div class="flex flex-wrap gap-3">
         <Button href="/registro">Empezar gratis</Button>
+        <Button href="/desarrolladores/mcp" variant="ghost">Conectar por MCP</Button>
       </div>
     </div>
     <CheckList items={agenticFeatures} />

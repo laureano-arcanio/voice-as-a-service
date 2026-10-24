@@ -1,0 +1,137 @@
+---
+// Página de documentación (/desarrolladores/docs, /desarrolladores/mcp): encabezado, índice "En esta página" al
+// costado (arriba en móvil) y el contenido con los estilos de texto, listas, código y tablas (.docs).
+import Footer from "../components/Footer.astro";
+import Nav from "../components/Nav.astro";
+import Base from "./Base.astro";
+
+interface Props {
+  title: string;
+  description: string;
+  ogDescription?: string;
+  path: string;
+  schema?: object[];
+  eyebrow: string;
+  heading: string;
+  lead: string;
+  toc: { id: string; label: string }[];
+}
+
+const { title, description, ogDescription, path, schema, eyebrow, heading, lead, toc } = Astro.props;
+---
+
+<Base title={title} description={description} ogDescription={ogDescription} path={path} schema={schema}>
+  <Nav current="docs" />
+
+  <header class="border-b border-line bg-linear-to-b from-bg-2 to-bg pt-10 pb-10 min-[901px]:pt-[72px]">
+    <div class="mx-auto grid max-w-[1120px] gap-4 px-5">
+      <a class="w-fit text-[.9rem] font-semibold text-muted no-underline hover:text-ink" href="/desarrolladores">← Desarrolladores</a>
+      <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">{eyebrow}</span>
+      <h1>{heading}</h1>
+      <p class="max-w-[62ch] text-[1.12rem] text-ink-2">{lead}</p>
+      <slot name="header" />
+    </div>
+  </header>
+
+  <div class="mx-auto grid max-w-[1120px] gap-8 px-5 py-12 min-[901px]:grid-cols-[200px_minmax(0,1fr)] min-[901px]:gap-14 min-[901px]:py-[76px]">
+    <aside class="min-[901px]:sticky min-[901px]:top-[96px] min-[901px]:self-start">
+      <nav aria-label="En esta página">
+        <ul class="m-0 flex list-none flex-wrap gap-2 p-0 min-[901px]:grid min-[901px]:gap-1">
+          {
+            toc.map((t) => (
+              <li>
+                <a
+                  class="block rounded-full border border-line-2 bg-white px-3 py-1.5 text-[.9rem] font-semibold text-ink no-underline hover:border-accent hover:text-accent min-[901px]:rounded-lg min-[901px]:border-0 min-[901px]:bg-transparent min-[901px]:px-2 min-[901px]:py-1 min-[901px]:font-medium min-[901px]:text-ink-2"
+                  href={`#${t.id}`}
+                >
+                  {t.label}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </nav>
+    </aside>
+
+    <main class="docs grid min-w-0 gap-12 text-ink-2">
+      <slot />
+    </main>
+  </div>
+
+  <slot name="after" />
+  <Footer />
+</Base>
+
+<style>
+  /* Las secciones son ítems de grid: sin esto, un bloque de código o una tabla ancha las estira y la página
+     desborda en el celular (los bloques ya tienen su propio scroll horizontal). */
+  .docs :global(section),
+  .docs :global(section > *) {
+    min-width: 0;
+  }
+  .docs :global(h2) {
+    scroll-margin-top: 96px;
+  }
+  .docs :global(h3) {
+    margin-top: 0.75rem;
+    color: var(--color-ink);
+  }
+  .docs :global(ul),
+  .docs :global(ol) {
+    display: grid;
+    gap: 0.4rem;
+    padding-left: 1.2rem;
+  }
+  .docs :global(ul) {
+    list-style: disc;
+  }
+  .docs :global(ol) {
+    list-style: decimal;
+  }
+  .docs :global(a) {
+    color: var(--color-accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .docs :global(strong) {
+    color: var(--color-ink);
+  }
+  .docs :global(code) {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    color: var(--color-ink);
+  }
+  /* Las URL largas en línea se cortan donde haga falta en vez de estirar la página. */
+  .docs :global(:not(pre) > code) {
+    overflow-wrap: anywhere;
+  }
+  .docs :global(pre code) {
+    font-size: inherit;
+  }
+  .docs :global(.table-wrap) {
+    overflow-x: auto;
+    border: 1px solid var(--color-line);
+    border-radius: 0.75rem;
+  }
+  .docs :global(table) {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+  }
+  .docs :global(th),
+  .docs :global(td) {
+    padding: 0.55rem 0.8rem;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--color-line);
+  }
+  .docs :global(th) {
+    background: var(--color-surface-2);
+    color: var(--color-ink);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .docs :global(tr:last-child td) {
+    border-bottom: 0;
+  }
+</style>

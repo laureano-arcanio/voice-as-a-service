@@ -16,11 +16,11 @@ Generado desde `app/mcp/catalog.py` con `make mcp-docs`: no editar a mano. Dise�
 
 | Función | Qué es | Planes (hoy) |
 |---|---|---|
-| `outbound_calls` | Llamadas salientes | Mostrador, Sucursal y Central (con un número asignado) |
+| `outbound_calls` | Llamadas salientes (con un número asignado) | Mostrador, Sucursal y Central |
 | `whatsapp` | WhatsApp | Mostrador, Sucursal y Central |
 | `contacts` | Agenda de contactos | Mostrador (500), Sucursal (5.000) y Central (sin tope) |
 | `team` | Equipo y derivaciones | Mostrador (1 persona), Sucursal (2) y Central (sin tope) |
-| `call_links` | Link para llamar | Todos (Free: 1) |
+| `call_links` | Link para llamar | Free (1), Mostrador, Sucursal y Central |
 | `campaigns_whatsapp` | Campañas de WhatsApp | Sucursal y Central |
 | `campaigns_voice` | Campañas de llamadas | Sucursal (de a 1) y Central (hasta 3) |
 

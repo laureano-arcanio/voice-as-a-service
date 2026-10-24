@@ -76,6 +76,16 @@ import { contactEmail } from "../data/site";
     contrato con él y de informarlo a quienes atiende; el proveedor trata esos datos según sus propias condiciones.
     Si el proveedor no responde, la respuesta puede generarla nuestro modelo, según lo que haya configurado el cliente.
   </p>
+  <p id="agentes-conectados">
+    <strong>Excepción: agentes de IA que conecta el cliente.</strong> Un usuario del cliente puede conectar a su cuenta
+    un agente de inteligencia artificial de otra empresa (por ejemplo Claude, ChatGPT o Cursor) por nuestro servidor
+    MCP, autorizándolo con su usuario. Ese agente puede leer y cambiar lo mismo que el usuario en el panel, dentro de
+    su plan: lo que lee (por ejemplo, las transcripciones, los datos tomados en las conversaciones o la agenda de
+    contactos) pasa a esa empresa y a su proveedor de inteligencia artificial, que pueden estar fuera de Argentina.
+    Esa transferencia la decide el cliente, que es responsable de elegir el agente y de informarlo a quienes atiende;
+    esa empresa trata los datos según sus propias condiciones. El cliente puede desconectar el agente en cualquier
+    momento desde su panel.
+  </p>
   <p>Para funcionar usamos estos proveedores, que reciben solo lo necesario para su parte del servicio:</p>
   <ul>
     <li>Meta (WhatsApp Business Platform), para enviar y recibir mensajes de WhatsApp.</li>
@@ -84,6 +94,7 @@ import { contactEmail } from "../data/site";
       El proveedor de modelo de lenguaje que haya elegido el cliente, solo para los agentes en los que lo configuró
       (ver arriba).
     </li>
+    <li>Los agentes de IA que conecte el cliente por MCP, solo con lo que lean de su cuenta (ver arriba).</li>
     <li>Cloudflare, para la red, la conexión segura y la verificación anti-bots del sitio.</li>
     <li>Render, para alojar este sitio web.</li>
     <li>Google (Google Analytics), para medir las visitas a este sitio.</li>

@@ -7,10 +7,8 @@
 // "Tu propio LLM": de docs/BYOK_LLM_PLAN.md (al cambiarlo, revisar también /privacidad).
 import CodeBlock from "../../components/CodeBlock.astro";
 import Cta from "../../components/Cta.astro";
-import Footer from "../../components/Footer.astro";
-import Nav from "../../components/Nav.astro";
 import { endpoints } from "../../data/site";
-import Base from "../../layouts/Base.astro";
+import DocsPage from "../../layouts/DocsPage.astro";
 
 const BASE = "https://app.atentina.com.ar/api/v1/inference";
 const API = "https://app.atentina.com.ar/api/v1";
@@ -32,6 +30,7 @@ const toc = [
   { id: "webhook", label: "Webhook" },
   { id: "derivaciones", label: "Equipo y derivaciones" },
   { id: "eventos", label: "Eventos" },
+  { id: "mcp", label: "Agentes de IA (MCP)" },
 ];
 
 const sdk = `from openai import OpenAI
@@ -77,6 +76,7 @@ const scopes = [
   { scope: "stt", text: "POST /audio/transcriptions" },
   { scope: "tts", text: "POST /audio/speech y GET /voices" },
   { scope: "calls", text: "La API de llamadas, agentes y reportes (no usa los motores)" },
+  { scope: "mcp", text: "El servidor MCP, para conectar un agente de IA (ver /desarrolladores/mcp); también la API de llamadas" },
 ];
 
 const streamFormats = [
@@ -305,343 +305,317 @@ const campaignEndpoints = [
 ];
 ---
 
-<Base
+<DocsPage
   title="Documentación de la API: voz, llamadas y campañas | Atentina"
   description="Cómo usar la API de Atentina: LLM, transcripción y síntesis de voz, llamadas, contactos, campañas salientes programadas, derivación a tu equipo, eventos, reportes y webhook."
   ogDescription="Documentación de la API de LLM, transcripción y voz de Atentina."
   path="/desarrolladores/docs"
+  eyebrow="Documentación"
+  heading="API de Atentina"
+  lead="Cómo funciona la plataforma y cómo usarla desde tu sistema: los agentes, las llamadas, las campañas y las derivaciones, y los motores de LLM, transcripción y voz con acento argentino, por una API compatible con la de OpenAI."
+  toc={toc}
 >
-  <Nav current="docs" />
+    <section id="como-funciona" class="grid gap-4">
+      <h2>Cómo funciona</h2>
+      <p>Atentina es una plataforma para armar agentes con IA que atienden a tus clientes por teléfono, WhatsApp y la web. Vos definís el agente en el panel; la plataforma pone el número, los minutos y los motores de IA, y deja registrada cada conversación.</p>
+      <h3>Las piezas</h3>
+      <ul>
+        <li><strong>Cuenta y plan:</strong> el plan fija los minutos por mes, las llamadas a la vez, los números y qué funciones tenés (ver <a href="#planes">Qué incluye cada plan</a>).</li>
+        <li><strong>Agente:</strong> qué hace, cómo saluda, qué datos pide, sus reglas y su voz. Cada cambio es una versión nueva, y cada conversación guarda la versión con la que se hizo.</li>
+        <li><strong>Canales:</strong> tus números, entrantes y salientes, WhatsApp y el link para llamar desde el navegador. Cada número y cada cuenta de WhatsApp apunta a un agente.</li>
+        <li><strong>Conversaciones:</strong> la transcripción, los datos que tomó el agente y el resultado, en el panel y por API.</li>
+        <li><strong>Contactos y campañas:</strong> la agenda de tu cuenta y las llamadas o mensajes salientes programados a una lista.</li>
+        <li><strong>Equipo:</strong> las personas de tu negocio a las que el agente le pasa la llamada cuando hace falta.</li>
+      </ul>
+      <h3>Una llamada, paso a paso</h3>
+      <ol>
+        <li>Entra una llamada a tu número, o la hace el agente desde la API o una campaña. La plataforma busca el agente de ese número y lo conecta.</li>
+        <li>Mientras la persona habla, el reconocimiento de voz la transcribe. Cuando termina, el modelo de lenguaje arma la respuesta siguiendo la definición del agente, y la síntesis la dice con una voz argentina, frase por frase, sin esperar la respuesta completa. Así en cada turno.</li>
+        <li>Si la persona pide hablar con alguien, el agente transfiere la llamada a tu equipo.</li>
+        <li>Al cortar, la conversación queda en el panel. Los <a href="#eventos">eventos</a> y el <a href="#webhook">webhook</a> le avisan a tu sistema.</li>
+      </ol>
+      <p>Por WhatsApp atiende el mismo agente, por texto o por audio.</p>
+      <h3>Los motores</h3>
+      <p>El reconocimiento de voz, el modelo de lenguaje y la síntesis corren en nuestros servidores, no en proveedores externos. Los usa el agente en cada conversación, y también podés usarlos sueltos en tu sistema. Si preferís otro modelo de lenguaje, el agente puede usar <a href="#byok">tu propio proveedor</a> con tu API key; la voz y la transcripción siguen siendo nuestras.</p>
+      <h3>Dos APIs</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>API</th><th>Para qué</th><th>Key</th></tr></thead>
+        <tbody>
+          <tr><td><a href="#empezar">Inferencia</a></td><td>Usar los motores en tu sistema: chat, transcripción y síntesis, compatible con el SDK de OpenAI.</td><td><code>llm</code>, <code>stt</code>, <code>tts</code></td></tr>
+          <tr><td><a href="#agentes">Plataforma</a></td><td>Lo mismo que el panel: agentes, llamadas, contactos, campañas, derivaciones, eventos y reportes.</td><td><code>calls</code></td></tr>
+        </tbody>
+      </table></div>
+    </section>
 
-  <header class="border-b border-line bg-linear-to-b from-bg-2 to-bg pt-10 pb-10 min-[901px]:pt-[72px]">
-    <div class="mx-auto grid max-w-[1120px] gap-4 px-5">
-      <a class="w-fit text-[.9rem] font-semibold text-muted no-underline hover:text-ink" href="/desarrolladores">← Desarrolladores</a>
-      <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">Documentación</span>
-      <h1>API de Atentina</h1>
-      <p class="max-w-[62ch] text-[1.12rem] text-ink-2">
-        Cómo funciona la plataforma y cómo usarla desde tu sistema: los agentes, las llamadas, las campañas y las derivaciones, y los motores de LLM, transcripción y voz con acento argentino, por una API compatible con la de OpenAI.
-      </p>
-    </div>
-  </header>
+    <section id="empezar" class="grid gap-4">
+      <h2>Empezar</h2>
+      <ul>
+        <li><strong>URL base:</strong> <code>{BASE}</code></li>
+        <li><strong>Autenticación:</strong> <code>Authorization: Bearer vaas_...</code>, con una API key que tenga el alcance del motor.</li>
+        <li>
+          <strong>Compatible con el SDK de OpenAI:</strong> cambiás la <code>base_url</code> y la API key. El campo <code>model</code> es obligatorio en los SDK pero se ignora: el modelo lo fija la plataforma.
+        </li>
+      </ul>
+      <ol>
+        <li><a href="/registro">Creá tu cuenta</a> con el plan Free (20 minutos por mes, llamadas web, panel y API).</li>
+        <li>En el panel, entrá a <strong>API &gt; Nueva API key</strong>, elegí el alcance y copiala: se muestra una sola vez.</li>
+        <li>Hacé el primer pedido:</li>
+      </ol>
+      <CodeBlock label="Python" code={sdk} />
+    </section>
 
-  <div class="mx-auto grid max-w-[1120px] gap-8 px-5 py-12 min-[901px]:grid-cols-[200px_minmax(0,1fr)] min-[901px]:gap-14 min-[901px]:py-[76px]">
-    <aside class="min-[901px]:sticky min-[901px]:top-[96px] min-[901px]:self-start">
-      <nav aria-label="En esta página">
-        <ul class="m-0 flex list-none flex-wrap gap-2 p-0 min-[901px]:grid min-[901px]:gap-1">
-          {
-            toc.map((t) => (
-              <li>
-                <a
-                  class="block rounded-full border border-line-2 bg-white px-3 py-1.5 text-[.9rem] font-semibold text-ink no-underline hover:border-accent hover:text-accent min-[901px]:rounded-lg min-[901px]:border-0 min-[901px]:bg-transparent min-[901px]:px-2 min-[901px]:py-1 min-[901px]:font-medium min-[901px]:text-ink-2"
-                  href={`#${t.id}`}
-                >
-                  {t.label}
-                </a>
-              </li>
-            ))
-          }
-        </ul>
-      </nav>
-    </aside>
+    <section id="keys" class="grid gap-4">
+      <h2>API keys y alcances</h2>
+      <p>Cada key hace solo lo que le diste. Una key puede tener varios alcances; conviene una por sistema y con el mínimo necesario, porque se revoca en el acto si se filtra.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Alcance</th><th>Sirve para</th></tr></thead>
+        <tbody>
+          {scopes.map((s) => <tr><td><code>{s.scope}</code></td><td>{s.text}</td></tr>)}
+        </tbody>
+      </table></div>
+      <p>Las dos APIs no se cruzan: una key <code>llm</code> no administra agentes ni llamadas, y una key <code>calls</code> no usa los motores.</p>
+    </section>
 
-    <main class="docs grid min-w-0 gap-12 text-ink-2">
-      <section id="como-funciona" class="grid gap-4">
-        <h2>Cómo funciona</h2>
-        <p>Atentina es una plataforma para armar agentes con IA que atienden a tus clientes por teléfono, WhatsApp y la web. Vos definís el agente en el panel; la plataforma pone el número, los minutos y los motores de IA, y deja registrada cada conversación.</p>
-        <h3>Las piezas</h3>
-        <ul>
-          <li><strong>Cuenta y plan:</strong> el plan fija los minutos por mes, las llamadas a la vez, los números y qué funciones tenés (ver <a href="#planes">Qué incluye cada plan</a>).</li>
-          <li><strong>Agente:</strong> qué hace, cómo saluda, qué datos pide, sus reglas y su voz. Cada cambio es una versión nueva, y cada conversación guarda la versión con la que se hizo.</li>
-          <li><strong>Canales:</strong> tus números, entrantes y salientes, WhatsApp y el link para llamar desde el navegador. Cada número y cada cuenta de WhatsApp apunta a un agente.</li>
-          <li><strong>Conversaciones:</strong> la transcripción, los datos que tomó el agente y el resultado, en el panel y por API.</li>
-          <li><strong>Contactos y campañas:</strong> la agenda de tu cuenta y las llamadas o mensajes salientes programados a una lista.</li>
-          <li><strong>Equipo:</strong> las personas de tu negocio a las que el agente le pasa la llamada cuando hace falta.</li>
-        </ul>
-        <h3>Una llamada, paso a paso</h3>
-        <ol>
-          <li>Entra una llamada a tu número, o la hace el agente desde la API o una campaña. La plataforma busca el agente de ese número y lo conecta.</li>
-          <li>Mientras la persona habla, el reconocimiento de voz la transcribe. Cuando termina, el modelo de lenguaje arma la respuesta siguiendo la definición del agente, y la síntesis la dice con una voz argentina, frase por frase, sin esperar la respuesta completa. Así en cada turno.</li>
-          <li>Si la persona pide hablar con alguien, el agente transfiere la llamada a tu equipo.</li>
-          <li>Al cortar, la conversación queda en el panel. Los <a href="#eventos">eventos</a> y el <a href="#webhook">webhook</a> le avisan a tu sistema.</li>
-        </ol>
-        <p>Por WhatsApp atiende el mismo agente, por texto o por audio.</p>
-        <h3>Los motores</h3>
-        <p>El reconocimiento de voz, el modelo de lenguaje y la síntesis corren en nuestros servidores, no en proveedores externos. Los usa el agente en cada conversación, y también podés usarlos sueltos en tu sistema. Si preferís otro modelo de lenguaje, el agente puede usar <a href="#byok">tu propio proveedor</a> con tu API key; la voz y la transcripción siguen siendo nuestras.</p>
-        <h3>Dos APIs</h3>
-        <div class="table-wrap"><table>
-          <thead><tr><th>API</th><th>Para qué</th><th>Key</th></tr></thead>
-          <tbody>
-            <tr><td><a href="#empezar">Inferencia</a></td><td>Usar los motores en tu sistema: chat, transcripción y síntesis, compatible con el SDK de OpenAI.</td><td><code>llm</code>, <code>stt</code>, <code>tts</code></td></tr>
-            <tr><td><a href="#agentes">Plataforma</a></td><td>Lo mismo que el panel: agentes, llamadas, contactos, campañas, derivaciones, eventos y reportes.</td><td><code>calls</code></td></tr>
-          </tbody>
-        </table></div>
-      </section>
+    <section id="endpoints" class="grid gap-4">
+      <h2>Endpoints</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Endpoint</th><th>Alcance</th><th>Qué hace</th></tr></thead>
+        <tbody>
+          {endpoints.map((e) => <tr><td><code>{e.path}</code></td><td>{e.scope}</td><td>{e.text}</td></tr>)}
+        </tbody>
+      </table></div>
 
-      <section id="empezar" class="grid gap-4">
-        <h2>Empezar</h2>
-        <ul>
-          <li><strong>URL base:</strong> <code>{BASE}</code></li>
-          <li><strong>Autenticación:</strong> <code>Authorization: Bearer vaas_...</code>, con una API key que tenga el alcance del motor.</li>
-          <li>
-            <strong>Compatible con el SDK de OpenAI:</strong> cambiás la <code>base_url</code> y la API key. El campo <code>model</code> es obligatorio en los SDK pero se ignora: el modelo lo fija la plataforma.
-          </li>
-        </ul>
-        <ol>
-          <li><a href="/registro">Creá tu cuenta</a> con el plan Free (20 minutos por mes, llamadas web, panel y API).</li>
-          <li>En el panel, entrá a <strong>API &gt; Nueva API key</strong>, elegí el alcance y copiala: se muestra una sola vez.</li>
-          <li>Hacé el primer pedido:</li>
-        </ol>
-        <CodeBlock label="Python" code={sdk} />
-      </section>
+      <h3>LLM</h3>
+      <p>Acepta <code>messages</code>, <code>max_tokens</code>, <code>temperature</code>, <code>top_p</code>, <code>stop</code>, <code>seed</code>, <code>response_format</code>, <code>tools</code>, <code>tool_choice</code> y <code>stream</code>. La respuesta trae <code>usage</code> con los tokens de entrada y salida, que es lo que se descuenta.</p>
+      <CodeBlock label="curl" code={llm} />
 
-      <section id="keys" class="grid gap-4">
-        <h2>API keys y alcances</h2>
-        <p>Cada key hace solo lo que le diste. Una key puede tener varios alcances; conviene una por sistema y con el mínimo necesario, porque se revoca en el acto si se filtra.</p>
-        <div class="table-wrap"><table>
-          <thead><tr><th>Alcance</th><th>Sirve para</th></tr></thead>
-          <tbody>
-            {scopes.map((s) => <tr><td><code>{s.scope}</code></td><td>{s.text}</td></tr>)}
-          </tbody>
-        </table></div>
-        <p>Las dos APIs no se cruzan: una key <code>llm</code> no administra agentes ni llamadas, y una key <code>calls</code> no usa los motores.</p>
-      </section>
+      <h3>Transcripción</h3>
+      <p>Subís el archivo (wav, mp3, flac, ogg…; hasta 25 MB) y, si querés, <code>language</code>. Se descuentan los segundos de audio que informa <code>usage</code>.</p>
+      <CodeBlock label="curl" code={stt} />
 
-      <section id="endpoints" class="grid gap-4">
-        <h2>Endpoints</h2>
-        <div class="table-wrap"><table>
-          <thead><tr><th>Endpoint</th><th>Alcance</th><th>Qué hace</th></tr></thead>
-          <tbody>
-            {endpoints.map((e) => <tr><td><code>{e.path}</code></td><td>{e.scope}</td><td>{e.text}</td></tr>)}
-          </tbody>
-        </table></div>
+      <h3>Síntesis</h3>
+      <p><code>voice</code> es obligatoria y tiene que ser una de <code>GET /voices</code> (41 voces con nombres argentinos, como <code>sofia</code> o <code>martin</code>). <code>input</code> admite hasta 1.500 caracteres. Se descuentan los segundos de audio generado.</p>
+      <CodeBlock label="curl" code={tts} />
+    </section>
 
-        <h3>LLM</h3>
-        <p>Acepta <code>messages</code>, <code>max_tokens</code>, <code>temperature</code>, <code>top_p</code>, <code>stop</code>, <code>seed</code>, <code>response_format</code>, <code>tools</code>, <code>tool_choice</code> y <code>stream</code>. La respuesta trae <code>usage</code> con los tokens de entrada y salida, que es lo que se descuenta.</p>
-        <CodeBlock label="curl" code={llm} />
+    <section id="streaming" class="grid gap-4">
+      <h2>Streaming</h2>
+      <p>El LLM y la síntesis se pueden consumir sin esperar a que termine la respuesta.</p>
+      <p><strong>LLM:</strong> con <code>"stream": true</code> responde SSE como OpenAI: líneas <code>data: {"{chunk}"}</code>, un último chunk con <code>usage</code> y <code>data: [DONE]</code>.</p>
+      <CodeBlock label="curl" code={stream} />
+      <p><strong>Síntesis:</strong> tres formas de recibir el audio.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Pedido</th><th>Qué llega</th><th>Para qué</th></tr></thead>
+        <tbody>
+          {streamFormats.map((f) => <tr><td><code>{f.format}</code></td><td>{f.gets}</td><td>{f.use}</td></tr>)}
+        </tbody>
+      </table></div>
+      <CodeBlock label="curl + ffplay" code={ttsStream} />
+      <p>En una medición del 9 de octubre de 2026, el primer audio en <code>pcm</code> llegó a los 53 ms, contra 2,1 s del WAV completo; y el primer token del LLM con <code>stream</code>, a los 32 ms.</p>
+      <p>Un stream cuenta contra el cupo igual que un pedido normal. Si cortás antes de que termine, se cobra solo lo ya entregado.</p>
+    </section>
 
-        <h3>Transcripción</h3>
-        <p>Subís el archivo (wav, mp3, flac, ogg…; hasta 25 MB) y, si querés, <code>language</code>. Se descuentan los segundos de audio que informa <code>usage</code>.</p>
-        <CodeBlock label="curl" code={stt} />
+    <section id="limites" class="grid gap-4">
+      <h2>Límites y consumo</h2>
+      <p>Los fija tu plan y valen para todas las keys de tu cuenta juntas. Los cupos son por mes calendario (se renuevan el día 1 a las 00:00, hora de Argentina) y están separados por motor: agotar uno no afecta a los otros.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Límite</th><th>Qué mide</th></tr></thead>
+        <tbody>
+          {quotas.map((q) => <tr><td><code>{q.name}</code></td><td>{q.text}</td></tr>)}
+        </tbody>
+      </table></div>
+      <ul>
+        <li>Antes de cada pedido se verifica la key, su alcance, el tope por minuto y el cupo. Si no pasa, el pedido no llega al motor ni se cobra.</li>
+        <li>Un pedido que falla en el motor no se cobra.</li>
+        <li>En el chat, <code>max_tokens</code> se achica a lo que te queda de tokens de salida del mes.</li>
+        <li>La plataforma guarda cuánto consumiste, por key y por día, pero no los prompts, los audios ni los textos.</li>
+      </ul>
+      <p>Para ver tu consumo del mes contra el plan (no gasta cupo):</p>
+      <CodeBlock label="curl" code={usage} />
+    </section>
 
-        <h3>Síntesis</h3>
-        <p><code>voice</code> es obligatoria y tiene que ser una de <code>GET /voices</code> (41 voces con nombres argentinos, como <code>sofia</code> o <code>martin</code>). <code>input</code> admite hasta 1.500 caracteres. Se descuentan los segundos de audio generado.</p>
-        <CodeBlock label="curl" code={tts} />
-      </section>
+    <section id="errores" class="grid gap-4">
+      <h2>Errores</h2>
+      <p>El cuerpo siempre tiene la misma forma:</p>
+      <CodeBlock code={error} />
+      <div class="table-wrap"><table>
+        <thead><tr><th>HTTP</th><th><code>code</code></th><th>Cuándo</th></tr></thead>
+        <tbody>
+          {errors.map((e) => <tr><td>{e.http}</td><td>{e.code && <code>{e.code}</code>}</td><td>{e.text}</td></tr>)}
+        </tbody>
+      </table></div>
+      <p>Un 429 por cupo agotado no se arregla reintentando: hay que esperar al día 1 o ampliar el plan. Uno por <code>rate_limited</code> sí, después de los segundos de <code>Retry-After</code>.</p>
+    </section>
 
-      <section id="streaming" class="grid gap-4">
-        <h2>Streaming</h2>
-        <p>El LLM y la síntesis se pueden consumir sin esperar a que termine la respuesta.</p>
-        <p><strong>LLM:</strong> con <code>"stream": true</code> responde SSE como OpenAI: líneas <code>data: {"{chunk}"}</code>, un último chunk con <code>usage</code> y <code>data: [DONE]</code>.</p>
-        <CodeBlock label="curl" code={stream} />
-        <p><strong>Síntesis:</strong> tres formas de recibir el audio.</p>
-        <div class="table-wrap"><table>
-          <thead><tr><th>Pedido</th><th>Qué llega</th><th>Para qué</th></tr></thead>
-          <tbody>
-            {streamFormats.map((f) => <tr><td><code>{f.format}</code></td><td>{f.gets}</td><td>{f.use}</td></tr>)}
-          </tbody>
-        </table></div>
-        <CodeBlock label="curl + ffplay" code={ttsStream} />
-        <p>En una medición del 9 de octubre de 2026, el primer audio en <code>pcm</code> llegó a los 53 ms, contra 2,1 s del WAV completo; y el primer token del LLM con <code>stream</code>, a los 32 ms.</p>
-        <p>Un stream cuenta contra el cupo igual que un pedido normal. Si cortás antes de que termine, se cobra solo lo ya entregado.</p>
-      </section>
+    <section id="planes" class="grid gap-4">
+      <h2>Qué incluye cada plan</h2>
+      <p>La API de llamadas es la misma en todos los planes; lo que cambia es qué funciones están habilitadas y con qué tope. Si el plan no incluye algo, el pedido no hace nada y responde 429 con un <code>code</code> que dice qué falta.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Función</th><th>Free</th><th>Mostrador</th><th>Sucursal</th><th>Red</th></tr></thead>
+        <tbody>
+          {planFeatures.map((f) => <tr><td>{f.feature}</td><td>{f.free}</td><td>{f.mostrador}</td><td>{f.sucursal}</td><td>{f.red}</td></tr>)}
+        </tbody>
+      </table></div>
+      <p>Las llamadas salientes, las campañas de llamadas y las derivaciones usan los minutos salientes del plan y necesitan un número asignado a tu cuenta. Para saber qué tiene tu cuenta, con el motivo de lo que no:</p>
+      <CodeBlock label="curl" code={features} />
+      <CodeBlock label="Respuesta" code={featuresOut} />
+      <div class="table-wrap"><table>
+        <thead><tr><th>429 <code>code</code></th><th>Cuándo</th></tr></thead>
+        <tbody>
+          {planErrors.map((e) => <tr><td><code>{e.code}</code></td><td>{e.text}</td></tr>)}
+        </tbody>
+      </table></div>
+    </section>
 
-      <section id="limites" class="grid gap-4">
-        <h2>Límites y consumo</h2>
-        <p>Los fija tu plan y valen para todas las keys de tu cuenta juntas. Los cupos son por mes calendario (se renuevan el día 1 a las 00:00, hora de Argentina) y están separados por motor: agotar uno no afecta a los otros.</p>
-        <div class="table-wrap"><table>
-          <thead><tr><th>Límite</th><th>Qué mide</th></tr></thead>
-          <tbody>
-            {quotas.map((q) => <tr><td><code>{q.name}</code></td><td>{q.text}</td></tr>)}
-          </tbody>
-        </table></div>
-        <ul>
-          <li>Antes de cada pedido se verifica la key, su alcance, el tope por minuto y el cupo. Si no pasa, el pedido no llega al motor ni se cobra.</li>
-          <li>Un pedido que falla en el motor no se cobra.</li>
-          <li>En el chat, <code>max_tokens</code> se achica a lo que te queda de tokens de salida del mes.</li>
-          <li>La plataforma guarda cuánto consumiste, por key y por día, pero no los prompts, los audios ni los textos.</li>
-        </ul>
-        <p>Para ver tu consumo del mes contra el plan (no gasta cupo):</p>
-        <CodeBlock label="curl" code={usage} />
-      </section>
+    <section id="agentes" class="grid gap-4">
+      <h2>Agentes y llamadas</h2>
+      <p>Con una key <code>calls</code> administrás agentes, lanzás y cortás llamadas, cargás contactos, armás campañas, configurás las derivaciones a tu equipo, leés los eventos y descargás reportes, con la URL base <code>{API}</code>. También se puede hacer desde tu agente de programación, con las <a href="/desarrolladores#agentes">skills</a> para Claude Code, Cursor y Codex. La referencia completa de cada pedido y respuesta está en el panel, en <code>/api/v1/docs</code>.</p>
+      <h3>Una llamada</h3>
+      <p>El agente llama al número y la conversación queda en el panel. El teléfono va en formato internacional; <code>from_number_id</code> elige con qué número tuyo sale (sin él, el primero) y <code>voice</code> cambia la voz.</p>
+      <CodeBlock label="curl" code={call} />
+      <p>La respuesta trae el <code>conversation_id</code>. Con <code>GET /calls/{"{"}conversation_id{"}"}</code> ves el estado (<code>pendiente</code>, <code>sonando</code>, <code>en_curso</code>, <code>finalizada</code>, <code>fallida</code>), la duración, los datos que tomó el agente y el resultado. Para muchos números, usá una campaña.</p>
+    </section>
 
-      <section id="errores" class="grid gap-4">
-        <h2>Errores</h2>
-        <p>El cuerpo siempre tiene la misma forma:</p>
-        <CodeBlock code={error} />
-        <div class="table-wrap"><table>
-          <thead><tr><th>HTTP</th><th><code>code</code></th><th>Cuándo</th></tr></thead>
-          <tbody>
-            {errors.map((e) => <tr><td>{e.http}</td><td>{e.code && <code>{e.code}</code>}</td><td>{e.text}</td></tr>)}
-          </tbody>
-        </table></div>
-        <p>Un 429 por cupo agotado no se arregla reintentando: hay que esperar al día 1 o ampliar el plan. Uno por <code>rate_limited</code> sí, después de los segundos de <code>Retry-After</code>.</p>
-      </section>
+    <section id="byok" class="grid gap-4">
+      <h2>Tu propio LLM</h2>
+      <p>Por defecto, el agente piensa con nuestro modelo de lenguaje. Si querés otro, cargás la API key de tu proveedor y elegís desde qué turno de la conversación lo usa: por ejemplo, el nuestro para saludar y tomar los datos, y el tuyo desde el cuarto mensaje.</p>
+      <h3>Proveedores</h3>
+      <ul>
+        <li><strong>Compatible con OpenAI:</strong> OpenAI, Groq, Together, DeepSeek o cualquier API con el formato de OpenAI, con su URL (https y pública).</li>
+        <li><strong>OpenRouter</strong> y <strong>Anthropic</strong>, con su URL fija.</li>
+      </ul>
+      <h3>Cómo se configura</h3>
+      <ol>
+        <li><strong>La conexión.</strong> En el panel, <strong>Configuración &gt; Modelos &gt; Nueva conexión</strong>: el proveedor, tu API key y el modelo. Al guardarla se prueba sola: autentica y mide cuánto tarda en responder. La key queda cifrada y no se vuelve a mostrar; se ven sus últimos 4 caracteres.</li>
+        <li><strong>El agente.</strong> En su editor, sección <strong>Modelo de lenguaje</strong>, o por API en su definición (<code>PUT /agents/{"{"}id{"}"}/definition</code>, que guarda una versión nueva): hasta 3 etapas, cada una desde un turno. La etapa sin <code>connection</code> es nuestro modelo. Un turno es cada mensaje de la persona; el saludo del agente no cuenta.</li>
+      </ol>
+      <CodeBlock label="JSON" code={byokStages} />
+      <ul>
+        <li><strong>Respaldo:</strong> con <code>fallback_local</code>, si tu proveedor falla o tarda más de 20 segundos, ese turno lo contesta nuestro modelo y la conversación sigue. Sin respaldo, el turno falla.</li>
+        <li><strong>Costos:</strong> los tokens los pagás a tu proveedor. Los minutos del plan se cuentan igual.</li>
+        <li><strong>Latencia:</strong> se suma lo que tarda tu proveedor en empezar a responder. En el detalle de cada conversación se ve qué proveedor y modelo contestó cada turno.</li>
+        <li><strong>Privacidad:</strong> desde el turno en que lo usa, el texto de la conversación y las instrucciones del agente van a tu proveedor, bajo sus condiciones. El audio no sale: la voz y la transcripción siguen en nuestros servidores. Ver la <a href="/privacidad">política de privacidad</a>.</li>
+      </ul>
+      <p>La <a href="#endpoints">API de inferencia</a> sigue siendo solo nuestra: tu proveedor lo usa el agente, no esa API.</p>
+    </section>
 
-      <section id="planes" class="grid gap-4">
-        <h2>Qué incluye cada plan</h2>
-        <p>La API de llamadas es la misma en todos los planes; lo que cambia es qué funciones están habilitadas y con qué tope. Si el plan no incluye algo, el pedido no hace nada y responde 429 con un <code>code</code> que dice qué falta.</p>
-        <div class="table-wrap"><table>
-          <thead><tr><th>Función</th><th>Free</th><th>Mostrador</th><th>Sucursal</th><th>Red</th></tr></thead>
-          <tbody>
-            {planFeatures.map((f) => <tr><td>{f.feature}</td><td>{f.free}</td><td>{f.mostrador}</td><td>{f.sucursal}</td><td>{f.red}</td></tr>)}
-          </tbody>
-        </table></div>
-        <p>Las llamadas salientes, las campañas de llamadas y las derivaciones usan los minutos salientes del plan y necesitan un número asignado a tu cuenta. Para saber qué tiene tu cuenta, con el motivo de lo que no:</p>
-        <CodeBlock label="curl" code={features} />
-        <CodeBlock label="Respuesta" code={featuresOut} />
-        <div class="table-wrap"><table>
-          <thead><tr><th>429 <code>code</code></th><th>Cuándo</th></tr></thead>
-          <tbody>
-            {planErrors.map((e) => <tr><td><code>{e.code}</code></td><td>{e.text}</td></tr>)}
-          </tbody>
-        </table></div>
-      </section>
+    <section id="cortar" class="grid gap-4">
+      <h2>Cortar y bloquear</h2>
+      <p>Para terminar una llamada en curso desde tu sistema: cuelga a la otra punta y la llamada queda con <code>ended_reason</code> <code>hangup_by_user</code>. Si la llamada ya terminó, responde 409 <code>call_not_active</code>.</p>
+      <CodeBlock label="curl" code={hangup} />
+      <p>Para no volver a atender un número, bloquealo: sus llamadas entrantes, por tu línea o por WhatsApp, se cortan sin atender y quedan como <code>rechazada</code> con <code>ended_reason</code> <code>blocked_number</code>. <code>GET /blocked-numbers</code> los lista y <code>DELETE /blocked-numbers/{"{"}phone{"}"}</code> desbloquea uno. Si ya estaba bloqueado, se actualiza la nota.</p>
+      <CodeBlock label="curl" code={block} />
+    </section>
 
-      <section id="agentes" class="grid gap-4">
-        <h2>Agentes y llamadas</h2>
-        <p>Con una key <code>calls</code> administrás agentes, lanzás y cortás llamadas, cargás contactos, armás campañas, configurás las derivaciones a tu equipo, leés los eventos y descargás reportes, con la URL base <code>{API}</code>. También se puede hacer desde tu agente de programación, con las <a href="/desarrolladores#agentes">skills</a> para Claude Code, Cursor y Codex. La referencia completa de cada pedido y respuesta está en el panel, en <code>/api/v1/docs</code>.</p>
-        <h3>Una llamada</h3>
-        <p>El agente llama al número y la conversación queda en el panel. El teléfono va en formato internacional; <code>from_number_id</code> elige con qué número tuyo sale (sin él, el primero) y <code>voice</code> cambia la voz.</p>
-        <CodeBlock label="curl" code={call} />
-        <p>La respuesta trae el <code>conversation_id</code>. Con <code>GET /calls/{"{"}conversation_id{"}"}</code> ves el estado (<code>pendiente</code>, <code>sonando</code>, <code>en_curso</code>, <code>finalizada</code>, <code>fallida</code>), la duración, los datos que tomó el agente y el resultado. Para muchos números, usá una campaña.</p>
-      </section>
+    <section id="contactos" class="grid gap-4">
+      <h2>Contactos</h2>
+      <p>Cada cuenta tiene su agenda. El teléfono es lo único obligatorio y no se repite: cargar uno que ya está lo actualiza (los datos se suman, no se borran). El resto es opcional: <code>name</code>, <code>email</code>, <code>external_id</code> (el id en tu sistema, para cruzar el reporte), <code>attributes</code> (datos libres) y <code>tags</code> (para armar campañas por grupo).</p>
+      <CodeBlock label="curl" code={contactsUpsert} />
+      <p>Por CSV, con <code>POST /contacts/import</code>: una columna de teléfono (<code>telefono</code>, <code>celular</code>, <code>phone</code>…) y, si querés, <code>nombre</code>, <code>email</code>, <code>id</code> y <code>etiquetas</code>; el resto de las columnas pasan a <code>attributes</code>. La respuesta dice cuántos se crearon y actualizaron, y cuáles no entraron, con la fila y el motivo.</p>
+      <CodeBlock label="CSV" code={contactsCsv} />
+      <ul>
+        <li><strong>No se borran: se archivan</strong> (<code>POST /contacts/{"{"}id{"}"}/archive</code> o en lote por ids o etiquetas). Un archivado no entra en campañas nuevas y sale de las que están en curso. <code>GET /contacts?archived=true</code> los lista. Si lo volvés a cargar, se actualiza pero sigue archivado hasta que lo desarchives.</li>
+        <li><strong>No contactar:</strong> <code>/contacts/optouts</code> guarda los teléfonos que pidieron no ser contactados, por canal (<code>voice</code>, <code>whatsapp</code> o <code>all</code>). Ninguna campaña los llama ni les escribe. También se cargan solos: cuando alguien responde "baja" por WhatsApp, o lo pide en la llamada si el agente tiene un resultado marcado como "no contactar".</li>
+      </ul>
+    </section>
 
-      <section id="byok" class="grid gap-4">
-        <h2>Tu propio LLM</h2>
-        <p>Por defecto, el agente piensa con nuestro modelo de lenguaje. Si querés otro, cargás la API key de tu proveedor y elegís desde qué turno de la conversación lo usa: por ejemplo, el nuestro para saludar y tomar los datos, y el tuyo desde el cuarto mensaje.</p>
-        <h3>Proveedores</h3>
-        <ul>
-          <li><strong>Compatible con OpenAI:</strong> OpenAI, Groq, Together, DeepSeek o cualquier API con el formato de OpenAI, con su URL (https y pública).</li>
-          <li><strong>OpenRouter</strong> y <strong>Anthropic</strong>, con su URL fija.</li>
-        </ul>
-        <h3>Cómo se configura</h3>
-        <ol>
-          <li><strong>La conexión.</strong> En el panel, <strong>Configuración &gt; Modelos &gt; Nueva conexión</strong>: el proveedor, tu API key y el modelo. Al guardarla se prueba sola: autentica y mide cuánto tarda en responder. La key queda cifrada y no se vuelve a mostrar; se ven sus últimos 4 caracteres.</li>
-          <li><strong>El agente.</strong> En su editor, sección <strong>Modelo de lenguaje</strong>, o por API en su definición (<code>PUT /agents/{"{"}id{"}"}/definition</code>, que guarda una versión nueva): hasta 3 etapas, cada una desde un turno. La etapa sin <code>connection</code> es nuestro modelo. Un turno es cada mensaje de la persona; el saludo del agente no cuenta.</li>
-        </ol>
-        <CodeBlock label="JSON" code={byokStages} />
-        <ul>
-          <li><strong>Respaldo:</strong> con <code>fallback_local</code>, si tu proveedor falla o tarda más de 20 segundos, ese turno lo contesta nuestro modelo y la conversación sigue. Sin respaldo, el turno falla.</li>
-          <li><strong>Costos:</strong> los tokens los pagás a tu proveedor. Los minutos del plan se cuentan igual.</li>
-          <li><strong>Latencia:</strong> se suma lo que tarda tu proveedor en empezar a responder. En el detalle de cada conversación se ve qué proveedor y modelo contestó cada turno.</li>
-          <li><strong>Privacidad:</strong> desde el turno en que lo usa, el texto de la conversación y las instrucciones del agente van a tu proveedor, bajo sus condiciones. El audio no sale: la voz y la transcripción siguen en nuestros servidores. Ver la <a href="/privacidad">política de privacidad</a>.</li>
-        </ul>
-        <p>La <a href="#endpoints">API de inferencia</a> sigue siendo solo nuestra: tu proveedor lo usa el agente, no esa API.</p>
-      </section>
+    <section id="campanas" class="grid gap-4">
+      <h2>Campañas</h2>
+      <p>Una campaña llama (<code>"channel": "voice"</code>) o escribe por WhatsApp (<code>"channel": "whatsapp"</code>, con una plantilla aprobada) a una lista de contactos, sola, dentro del horario que le pongas. Este ejemplo llama a los contactos con la etiqueta <code>mora_30</code>, de a tres a la vez, de lunes a viernes de 9 a 20, desde el 3 de noviembre, con hasta tres intentos cada dos horas:</p>
+      <CodeBlock label="curl" code={campaign} />
+      <ul>
+        <li><strong>De a uno o en paralelo:</strong> <code>concurrency</code> en 1 llama de a un contacto; con N, hasta N a la vez (el tope lo pone tu plan). <code>rate_per_minute</code> limita cuántas llamadas empiezan por minuto.</li>
+        <li><strong>Programada:</strong> <code>starts_at</code> y <code>ends_at</code> (UTC), y el horario en la hora de Argentina con <code>window_start</code>, <code>window_end</code> y <code>weekdays</code> (0 es lunes).</li>
+        <li><strong>Reintentos:</strong> <code>max_attempts</code>, <code>retry_minutes</code> y <code>retry_on</code>, los resultados que se reintentan (por defecto no atendió, ocupado, contestador y falla).</li>
+        <li><strong>Datos del contacto:</strong> el saludo del agente puede usar <code>{"{{"}nombre{"}}"}</code> o cualquier atributo (<code>{"{{"}deuda{"}}"}</code>). Un atributo con el mismo nombre que un dato que el agente pide ya no se pregunta, y el resto lo recibe como contexto.</li>
+        <li><strong>Finalidad:</strong> <code>purpose</code> es <code>comercial</code>, <code>cobranza</code>, <code>turnos</code> o <code>aviso</code>. Una comercial se inicia con <code>"no_call_registry_checked": true</code>: confirmás que filtraste la lista contra el Registro Nacional No Llame (Ley 26.951).</li>
+        <li><strong>Seguimiento por WhatsApp:</strong> con <code>followup</code> (apagado por defecto), a quien no atendió después del último intento le llega una plantilla de WhatsApp; si responde, sigue la conversación con el agente.</li>
+      </ul>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Endpoint</th><th>Qué hace</th></tr></thead>
+        <tbody>
+          {campaignEndpoints.map((e) => <tr><td><code>{e.path}</code></td><td>{e.text}</td></tr>)}
+        </tbody>
+      </table></div>
 
-      <section id="cortar" class="grid gap-4">
-        <h2>Cortar y bloquear</h2>
-        <p>Para terminar una llamada en curso desde tu sistema: cuelga a la otra punta y la llamada queda con <code>ended_reason</code> <code>hangup_by_user</code>. Si la llamada ya terminó, responde 409 <code>call_not_active</code>.</p>
-        <CodeBlock label="curl" code={hangup} />
-        <p>Para no volver a atender un número, bloquealo: sus llamadas entrantes, por tu línea o por WhatsApp, se cortan sin atender y quedan como <code>rechazada</code> con <code>ended_reason</code> <code>blocked_number</code>. <code>GET /blocked-numbers</code> los lista y <code>DELETE /blocked-numbers/{"{"}phone{"}"}</code> desbloquea uno. Si ya estaba bloqueado, se actualiza la nota.</p>
-        <CodeBlock label="curl" code={block} />
-      </section>
+      <h3>Estado y avance</h3>
+      <p>Consultá <code>GET /campaigns/{"{"}id{"}"}</code> cada pocos segundos (el panel lo hace cada 5). <code>progress</code> cuenta los contactos por estado y <code>results</code>, por resultado de la llamada; <code>goal</code> son los que llegaron al objetivo del agente (por ejemplo, una promesa de pago), y <code>eta_minutes</code> estima cuánto falta al ritmo de los últimos 15 minutos. En WhatsApp, <code>results</code> trae enviados, entregados, leídos y respondidos.</p>
+      <CodeBlock label="curl" code={poll} />
+      <CodeBlock label="Respuesta" code={pollOut} />
+      <div class="table-wrap"><table>
+        <thead><tr><th>Estado</th><th>Qué significa</th></tr></thead>
+        <tbody>
+          {campaignStatuses.map((s) => <tr><td><code>{s.status}</code></td><td>{s.text}</td></tr>)}
+        </tbody>
+      </table></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Resultado</th><th>Qué pasó</th><th>Se reintenta</th></tr></thead>
+        <tbody>
+          {voiceResults.map((v) => <tr><td><code>{v.result}</code></td><td>{v.text}</td><td>{v.retry}</td></tr>)}
+        </tbody>
+      </table></div>
 
-      <section id="contactos" class="grid gap-4">
-        <h2>Contactos</h2>
-        <p>Cada cuenta tiene su agenda. El teléfono es lo único obligatorio y no se repite: cargar uno que ya está lo actualiza (los datos se suman, no se borran). El resto es opcional: <code>name</code>, <code>email</code>, <code>external_id</code> (el id en tu sistema, para cruzar el reporte), <code>attributes</code> (datos libres) y <code>tags</code> (para armar campañas por grupo).</p>
-        <CodeBlock label="curl" code={contactsUpsert} />
-        <p>Por CSV, con <code>POST /contacts/import</code>: una columna de teléfono (<code>telefono</code>, <code>celular</code>, <code>phone</code>…) y, si querés, <code>nombre</code>, <code>email</code>, <code>id</code> y <code>etiquetas</code>; el resto de las columnas pasan a <code>attributes</code>. La respuesta dice cuántos se crearon y actualizaron, y cuáles no entraron, con la fila y el motivo.</p>
-        <CodeBlock label="CSV" code={contactsCsv} />
-        <ul>
-          <li><strong>No se borran: se archivan</strong> (<code>POST /contacts/{"{"}id{"}"}/archive</code> o en lote por ids o etiquetas). Un archivado no entra en campañas nuevas y sale de las que están en curso. <code>GET /contacts?archived=true</code> los lista. Si lo volvés a cargar, se actualiza pero sigue archivado hasta que lo desarchives.</li>
-          <li><strong>No contactar:</strong> <code>/contacts/optouts</code> guarda los teléfonos que pidieron no ser contactados, por canal (<code>voice</code>, <code>whatsapp</code> o <code>all</code>). Ninguna campaña los llama ni les escribe. También se cargan solos: cuando alguien responde "baja" por WhatsApp, o lo pide en la llamada si el agente tiene un resultado marcado como "no contactar".</li>
-        </ul>
-      </section>
+      <h3>Reporte</h3>
+      <p>Una fila por contacto: <code>external_id</code>, teléfono, nombre, sus datos, estado, resultado, intentos, duración, resultado de la conversación, si llegó al objetivo, los datos que tomó el agente y el link a la conversación. Se abre en Excel con los acentos bien.</p>
+      <CodeBlock label="curl" code={report} />
 
-      <section id="campanas" class="grid gap-4">
-        <h2>Campañas</h2>
-        <p>Una campaña llama (<code>"channel": "voice"</code>) o escribe por WhatsApp (<code>"channel": "whatsapp"</code>, con una plantilla aprobada) a una lista de contactos, sola, dentro del horario que le pongas. Este ejemplo llama a los contactos con la etiqueta <code>mora_30</code>, de a tres a la vez, de lunes a viernes de 9 a 20, desde el 3 de noviembre, con hasta tres intentos cada dos horas:</p>
-        <CodeBlock label="curl" code={campaign} />
-        <ul>
-          <li><strong>De a uno o en paralelo:</strong> <code>concurrency</code> en 1 llama de a un contacto; con N, hasta N a la vez (el tope lo pone tu plan). <code>rate_per_minute</code> limita cuántas llamadas empiezan por minuto.</li>
-          <li><strong>Programada:</strong> <code>starts_at</code> y <code>ends_at</code> (UTC), y el horario en la hora de Argentina con <code>window_start</code>, <code>window_end</code> y <code>weekdays</code> (0 es lunes).</li>
-          <li><strong>Reintentos:</strong> <code>max_attempts</code>, <code>retry_minutes</code> y <code>retry_on</code>, los resultados que se reintentan (por defecto no atendió, ocupado, contestador y falla).</li>
-          <li><strong>Datos del contacto:</strong> el saludo del agente puede usar <code>{"{{"}nombre{"}}"}</code> o cualquier atributo (<code>{"{{"}deuda{"}}"}</code>). Un atributo con el mismo nombre que un dato que el agente pide ya no se pregunta, y el resto lo recibe como contexto.</li>
-          <li><strong>Finalidad:</strong> <code>purpose</code> es <code>comercial</code>, <code>cobranza</code>, <code>turnos</code> o <code>aviso</code>. Una comercial se inicia con <code>"no_call_registry_checked": true</code>: confirmás que filtraste la lista contra el Registro Nacional No Llame (Ley 26.951).</li>
-          <li><strong>Seguimiento por WhatsApp:</strong> con <code>followup</code> (apagado por defecto), a quien no atendió después del último intento le llega una plantilla de WhatsApp; si responde, sigue la conversación con el agente.</li>
-        </ul>
-        <div class="table-wrap"><table>
-          <thead><tr><th>Endpoint</th><th>Qué hace</th></tr></thead>
-          <tbody>
-            {campaignEndpoints.map((e) => <tr><td><code>{e.path}</code></td><td>{e.text}</td></tr>)}
-          </tbody>
-        </table></div>
+      <h3>Límites</h3>
+      <p>Las campañas son parte del plan: qué canales, cuántas campañas por mes, cuántos contactos por campaña, cuántas llamadas a la vez y el tamaño de la agenda (<code>GET /campaigns/plan</code>). Las llamadas de una campaña usan los minutos salientes del plan; si se acaban, la campaña se pausa sola y la retomás con <code>/resume</code> cuando haya minutos.</p>
+    </section>
 
-        <h3>Estado y avance</h3>
-        <p>Consultá <code>GET /campaigns/{"{"}id{"}"}</code> cada pocos segundos (el panel lo hace cada 5). <code>progress</code> cuenta los contactos por estado y <code>results</code>, por resultado de la llamada; <code>goal</code> son los que llegaron al objetivo del agente (por ejemplo, una promesa de pago), y <code>eta_minutes</code> estima cuánto falta al ritmo de los últimos 15 minutos. En WhatsApp, <code>results</code> trae enviados, entregados, leídos y respondidos.</p>
-        <CodeBlock label="curl" code={poll} />
-        <CodeBlock label="Respuesta" code={pollOut} />
-        <div class="table-wrap"><table>
-          <thead><tr><th>Estado</th><th>Qué significa</th></tr></thead>
-          <tbody>
-            {campaignStatuses.map((s) => <tr><td><code>{s.status}</code></td><td>{s.text}</td></tr>)}
-          </tbody>
-        </table></div>
-        <div class="table-wrap"><table>
-          <thead><tr><th>Resultado</th><th>Qué pasó</th><th>Se reintenta</th></tr></thead>
-          <tbody>
-            {voiceResults.map((v) => <tr><td><code>{v.result}</code></td><td>{v.text}</td><td>{v.retry}</td></tr>)}
-          </tbody>
-        </table></div>
+    <section id="webhook" class="grid gap-4">
+      <h2>Webhook</h2>
+      <p>En vez de consultar el estado, podés recibirlo: con <code>callback_url</code> (https), la campaña hace un POST a tu sistema por cada contacto que termina (<code>contact.finished</code>, con la misma fila del reporte), por cada seguimiento por WhatsApp (<code>contact.followup</code>) y uno al terminar (<code>campaign.finished</code>, con el avance y los indicadores).</p>
+      <ul>
+        <li><strong>Firma:</strong> cada POST trae <code>X-Atentina-Signature: sha256=&lt;hex&gt;</code>, el HMAC-SHA256 del cuerpo con tu <code>callback_secret</code>. Si no mandás uno al crear la campaña, se genera y se muestra una sola vez en la respuesta.</li>
+        <li><strong>Reintentos:</strong> se toma como recibido cualquier 2xx. Si no, se reintenta a los 30 s, 2 min, 10 min, 1 h y 6 h. <code>delivery_id</code> (también en <code>X-Atentina-Delivery</code>) es el mismo en los reintentos: usalo para no procesar dos veces el mismo evento.</li>
+      </ul>
+      <CodeBlock label="Python" code={verify} />
+    </section>
 
-        <h3>Reporte</h3>
-        <p>Una fila por contacto: <code>external_id</code>, teléfono, nombre, sus datos, estado, resultado, intentos, duración, resultado de la conversación, si llegó al objetivo, los datos que tomó el agente y el link a la conversación. Se abre en Excel con los acentos bien.</p>
-        <CodeBlock label="curl" code={report} />
+    <section id="derivaciones" class="grid gap-4">
+      <h2>Equipo y derivaciones</h2>
+      <p>El agente puede pasar una llamada a una persona de tu equipo. Mientras el cliente escucha música, llama a la persona, le cuenta en pocas palabras de qué se trata, y si marca 1 los conecta. La conversación con la persona también queda transcripta en el panel. Se arma en tres pasos.</p>
+      <p><strong>1. Las personas.</strong> Cada una con su teléfono de Argentina, al que se la llama. Cuántas podés cargar depende del plan.</p>
+      <CodeBlock label="curl" code={teamMember} />
+      <p><strong>2. Las áreas.</strong> Un área agrupa a las personas que atienden un tema. <code>description</code> es lo que lee el agente para elegirla. <code>strategy</code> en <code>sequential</code> las llama en el orden de <code>member_ids</code>, y en <code>round_robin</code> va rotando quién arranca. Cada una suena <code>ring_seconds</code>. Con <code>schedule</code> (hora de Argentina, franjas por día y feriados en <code>closed</code>), fuera de horario el agente no deriva y toma el mensaje; sin horario, atiende siempre.</p>
+      <CodeBlock label="curl" code={area} />
+      <p><strong>3. El agente.</strong> En su definición (<code>PUT /agents/{"{"}id{"}"}/definition</code>, que guarda una versión nueva) van las áreas a las que puede derivar y, en <code>when</code>, cuándo hacerlo en palabras (vacío: la descripción del área). Por ahora solo con el motor <code>classic</code>.</p>
+      <CodeBlock label="JSON" code={agentHandoff} />
+      <ul>
+        <li><strong>Si nadie atiende</strong> (no atiende, da ocupado, salta un contestador o no marca 1), el agente vuelve con el cliente y le toma el mensaje.</li>
+        <li><strong>Volver al agente:</strong> la persona marca <code>return_digits</code> (2 por defecto; nunca con <code>*</code>) y el agente retoma la llamada. Si la persona corta, <code>on_person_hangup</code> elige entre que el agente siga (<code>resume</code>) o se despida y corte (<code>end</code>).</li>
+        <li><strong>Minutos:</strong> el tramo con la persona gasta minutos salientes desde que atiende; los intentos sin atender no se cobran. Sin minutos salientes, no se deriva. La llamada transferida ocupa una sola de las llamadas a la vez de tu plan.</li>
+        <li><strong>Dónde no hay derivación:</strong> en las campañas y en los mensajes de WhatsApp. Sí en las entrantes por tu línea o por WhatsApp, y en las salientes que lanzás con <code>POST /calls</code>.</li>
+      </ul>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Endpoint</th><th>Qué hace</th></tr></thead>
+        <tbody>
+          {handoffEndpoints.map((e) => <tr><td><code>{e.path}</code></td><td>{e.text}</td></tr>)}
+        </tbody>
+      </table></div>
+    </section>
 
-        <h3>Límites</h3>
-        <p>Las campañas son parte del plan: qué canales, cuántas campañas por mes, cuántos contactos por campaña, cuántas llamadas a la vez y el tamaño de la agenda (<code>GET /campaigns/plan</code>). Las llamadas de una campaña usan los minutos salientes del plan; si se acaban, la campaña se pausa sola y la retomás con <code>/resume</code> cuando haya minutos.</p>
-      </section>
+    <section id="eventos" class="grid gap-4">
+      <h2>Eventos</h2>
+      <p>Cada llamada deja una línea de tiempo: cuándo sonó, cuándo la atendieron, cada intento de derivación y cómo terminó. <code>GET /events</code> la devuelve en orden de llegada, con filtros <code>conversation_id</code>, <code>type</code> (exacto o prefijo, como <code>handoff.</code>), <code>since</code> y <code>until</code>. Para leer solo lo nuevo, repetí el pedido con <code>after_id</code> igual al último <code>id</code> que recibiste (hasta 1.000 por pedido con <code>limit</code>).</p>
+      <CodeBlock label="curl" code={events} />
+      <CodeBlock label="Respuesta" code={eventsOut} />
+      <div class="table-wrap"><table>
+        <thead><tr><th>Tipo</th><th>Qué pasó</th></tr></thead>
+        <tbody>
+          {eventTypes.map((e) => <tr><td><code>{e.type}</code></td><td>{e.text}</td></tr>)}
+        </tbody>
+      </table></div>
+    </section>
 
-      <section id="webhook" class="grid gap-4">
-        <h2>Webhook</h2>
-        <p>En vez de consultar el estado, podés recibirlo: con <code>callback_url</code> (https), la campaña hace un POST a tu sistema por cada contacto que termina (<code>contact.finished</code>, con la misma fila del reporte), por cada seguimiento por WhatsApp (<code>contact.followup</code>) y uno al terminar (<code>campaign.finished</code>, con el avance y los indicadores).</p>
-        <ul>
-          <li><strong>Firma:</strong> cada POST trae <code>X-Atentina-Signature: sha256=&lt;hex&gt;</code>, el HMAC-SHA256 del cuerpo con tu <code>callback_secret</code>. Si no mandás uno al crear la campaña, se genera y se muestra una sola vez en la respuesta.</li>
-          <li><strong>Reintentos:</strong> se toma como recibido cualquier 2xx. Si no, se reintenta a los 30 s, 2 min, 10 min, 1 h y 6 h. <code>delivery_id</code> (también en <code>X-Atentina-Delivery</code>) es el mismo en los reintentos: usalo para no procesar dos veces el mismo evento.</li>
-        </ul>
-        <CodeBlock label="Python" code={verify} />
-      </section>
-
-      <section id="derivaciones" class="grid gap-4">
-        <h2>Equipo y derivaciones</h2>
-        <p>El agente puede pasar una llamada a una persona de tu equipo. Mientras el cliente escucha música, llama a la persona, le cuenta en pocas palabras de qué se trata, y si marca 1 los conecta. La conversación con la persona también queda transcripta en el panel. Se arma en tres pasos.</p>
-        <p><strong>1. Las personas.</strong> Cada una con su teléfono de Argentina, al que se la llama. Cuántas podés cargar depende del plan.</p>
-        <CodeBlock label="curl" code={teamMember} />
-        <p><strong>2. Las áreas.</strong> Un área agrupa a las personas que atienden un tema. <code>description</code> es lo que lee el agente para elegirla. <code>strategy</code> en <code>sequential</code> las llama en el orden de <code>member_ids</code>, y en <code>round_robin</code> va rotando quién arranca. Cada una suena <code>ring_seconds</code>. Con <code>schedule</code> (hora de Argentina, franjas por día y feriados en <code>closed</code>), fuera de horario el agente no deriva y toma el mensaje; sin horario, atiende siempre.</p>
-        <CodeBlock label="curl" code={area} />
-        <p><strong>3. El agente.</strong> En su definición (<code>PUT /agents/{"{"}id{"}"}/definition</code>, que guarda una versión nueva) van las áreas a las que puede derivar y, en <code>when</code>, cuándo hacerlo en palabras (vacío: la descripción del área). Por ahora solo con el motor <code>classic</code>.</p>
-        <CodeBlock label="JSON" code={agentHandoff} />
-        <ul>
-          <li><strong>Si nadie atiende</strong> (no atiende, da ocupado, salta un contestador o no marca 1), el agente vuelve con el cliente y le toma el mensaje.</li>
-          <li><strong>Volver al agente:</strong> la persona marca <code>return_digits</code> (2 por defecto; nunca con <code>*</code>) y el agente retoma la llamada. Si la persona corta, <code>on_person_hangup</code> elige entre que el agente siga (<code>resume</code>) o se despida y corte (<code>end</code>).</li>
-          <li><strong>Minutos:</strong> el tramo con la persona gasta minutos salientes desde que atiende; los intentos sin atender no se cobran. Sin minutos salientes, no se deriva. La llamada transferida ocupa una sola de las llamadas a la vez de tu plan.</li>
-          <li><strong>Dónde no hay derivación:</strong> en las campañas y en los mensajes de WhatsApp. Sí en las entrantes por tu línea o por WhatsApp, y en las salientes que lanzás con <code>POST /calls</code>.</li>
-        </ul>
-        <div class="table-wrap"><table>
-          <thead><tr><th>Endpoint</th><th>Qué hace</th></tr></thead>
-          <tbody>
-            {handoffEndpoints.map((e) => <tr><td><code>{e.path}</code></td><td>{e.text}</td></tr>)}
-          </tbody>
-        </table></div>
-      </section>
-
-      <section id="eventos" class="grid gap-4">
-        <h2>Eventos</h2>
-        <p>Cada llamada deja una línea de tiempo: cuándo sonó, cuándo la atendieron, cada intento de derivación y cómo terminó. <code>GET /events</code> la devuelve en orden de llegada, con filtros <code>conversation_id</code>, <code>type</code> (exacto o prefijo, como <code>handoff.</code>), <code>since</code> y <code>until</code>. Para leer solo lo nuevo, repetí el pedido con <code>after_id</code> igual al último <code>id</code> que recibiste (hasta 1.000 por pedido con <code>limit</code>).</p>
-        <CodeBlock label="curl" code={events} />
-        <CodeBlock label="Respuesta" code={eventsOut} />
-        <div class="table-wrap"><table>
-          <thead><tr><th>Tipo</th><th>Qué pasó</th></tr></thead>
-          <tbody>
-            {eventTypes.map((e) => <tr><td><code>{e.type}</code></td><td>{e.text}</td></tr>)}
-          </tbody>
-        </table></div>
-      </section>
-    </main>
-  </div>
+    <section id="mcp" class="grid gap-4">
+      <h2>Agentes de IA (MCP)</h2>
+      <p>Todo lo de esta documentación también se puede usar desde Claude, ChatGPT, Cursor u otro agente compatible con MCP, sin programar: el agente se conecta a <code>https://app.atentina.com.ar/mcp</code> con tu usuario y usa la plataforma con herramientas. Cómo conectarlo, qué herramientas hay y qué incluye cada plan: <a href="/desarrolladores/mcp">MCP para agentes de IA</a>.</p>
+    </section>
 
   <Cta
+    slot="after"
     eyebrow="Acceso"
     title="¿Algo no está claro? Escribinos"
     lead="Pedí acceso al plan Free, o contanos qué te falta en la documentación y lo sumamos."
@@ -650,69 +624,4 @@ const campaignEndpoints = [
     placeholder="Por ejemplo: necesito transcribir audios de WhatsApp"
     submit="Enviar consulta"
   />
-  <Footer />
-</Base>
-
-<style>
-  .docs :global(h2) {
-    scroll-margin-top: 96px;
-  }
-  .docs :global(h3) {
-    margin-top: 0.75rem;
-    color: var(--color-ink);
-  }
-  .docs :global(ul),
-  .docs :global(ol) {
-    display: grid;
-    gap: 0.4rem;
-    padding-left: 1.2rem;
-  }
-  .docs :global(ul) {
-    list-style: disc;
-  }
-  .docs :global(ol) {
-    list-style: decimal;
-  }
-  .docs :global(a) {
-    color: var(--color-accent);
-    text-decoration: underline;
-    text-underline-offset: 2px;
-  }
-  .docs :global(strong) {
-    color: var(--color-ink);
-  }
-  .docs :global(code) {
-    font-family: var(--font-mono);
-    font-size: 0.86em;
-    color: var(--color-ink);
-  }
-  .docs :global(pre code) {
-    font-size: inherit;
-  }
-  .docs :global(.table-wrap) {
-    overflow-x: auto;
-    border: 1px solid var(--color-line);
-    border-radius: 0.75rem;
-  }
-  .docs :global(table) {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.92rem;
-  }
-  .docs :global(th),
-  .docs :global(td) {
-    padding: 0.55rem 0.8rem;
-    text-align: left;
-    vertical-align: top;
-    border-bottom: 1px solid var(--color-line);
-  }
-  .docs :global(th) {
-    background: var(--color-surface-2);
-    color: var(--color-ink);
-    font-weight: 600;
-    white-space: nowrap;
-  }
-  .docs :global(tr:last-child td) {
-    border-bottom: 0;
-  }
-</style>
+</DocsPage>

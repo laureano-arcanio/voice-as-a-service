@@ -218,8 +218,14 @@ def test_catalog_matches_the_api(api):
 
 
 def test_tools_doc_is_up_to_date():
-    path = pathlib.Path(__file__).parents[1] / docs.DOC
-    assert path.read_text() == docs.render(), "docs/MCP_HERRAMIENTAS.md desactualizado: make mcp-docs"
+    root = pathlib.Path(__file__).parents[1]
+    assert (root / docs.DOC).read_text() == docs.render(), "docs/MCP_HERRAMIENTAS.md desactualizado: make mcp-docs"
+    assert (root / docs.LANDING_JSON).read_text() == docs.render_landing(), (
+        "landing/src/data/mcp-tools.json desactualizado: make mcp-docs")
+
+
+def test_plan_doc_matches_features():
+    assert set(docs.FEATURES) == set(features.TIER_HAS)
 
 
 # ---------- escritura (fase 2) ----------

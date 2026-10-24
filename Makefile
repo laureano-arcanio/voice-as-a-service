@@ -36,7 +36,7 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
         sh psql health gpu \
         pbx-cli pbx-status livekit-sip livekit-sip-si-local \
         wa-calling-status wa-calling-enable wa-calling-disable wa-sip-password sip-cert \
-        migrate migrate-test create-admin welcome-reset api-key dev-backend web-dev web-build web-check openapi mcp-docs landing-dev \
+        migrate migrate-test create-admin welcome-reset api-key dev-backend web-dev web-build web-check openapi mcp-docs mcp-registry-key mcp-registry-publish landing-dev \
         test e2e-sip e2e-sip-down eval-motor eval-llamadas eval-llm eval-llm-juez eval-llm-report loadtest-audio loadtest loadtest-report capacity capacity-monitor capacity-monitor-stop capacity-analyze gpubench stt-eval stt-corpus \
         video-setup video-studio video-voces video-musica video video-revisar video-cerrar doc doc-cerrar \
         backup backup-key backup-s3-setup backup-fetch backup-list cron-install \
@@ -268,8 +268,14 @@ openapi: ## Regenera web/openapi.json y los tipos de la UI (web/src/api/schema.d
 	$(COMPOSE) run --rm --no-deps -T -e AUTH_SECRET=openapi -v $(CURDIR)/app:/app/app app python -c "import json; from app.main import app; print(json.dumps(app.openapi(), ensure_ascii=False, indent=1))" > web/openapi.json
 	cd web && npm run gen:api
 
-mcp-docs: ## Regenera docs/MCP_HERRAMIENTAS.md (herramientas del servidor MCP por grupo y plan) desde app/mcp/catalog.py
-	$(COMPOSE) run --rm --no-deps -T -e AUTH_SECRET=mcp-docs -v $(CURDIR)/app:/app/app -v $(CURDIR)/docs:/app/docs app python -m app.mcp.docs
+mcp-docs: ## Regenera docs/MCP_HERRAMIENTAS.md y landing/src/data/mcp-tools.json (herramientas del MCP por grupo y plan) desde app/mcp/catalog.py
+	$(COMPOSE) run --rm --no-deps -T -e AUTH_SECRET=mcp-docs -v $(CURDIR)/app:/app/app -v $(CURDIR)/docs:/app/docs -v $(CURDIR)/landing/src/data:/app/landing/src/data app python -m app.mcp.docs
+
+mcp-registry-key: ## Llave del registro oficial de MCP (secrets/, una vez) e imprime el TXT para el DNS de atentina.com.ar
+	scripts/ops/mcp-registry.sh key
+
+mcp-registry-publish: ## Publica deploy/mcp/server.json en el registro oficial de MCP (requiere el TXT de mcp-registry-key)
+	scripts/ops/mcp-registry.sh publish
 
 # --- Tests ---------------------------------------------------------------
 

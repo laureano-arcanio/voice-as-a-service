@@ -5,8 +5,8 @@ de IA de un cliente (Claude, ChatGPT, Cursor, Claude Code, un agente propio) cre
 los pruebe, mire llamadas y transcripciones, cargue contactos, lance campañas y arme el equipo de
 derivación, todo sin abrir el panel. Cada herramienta respeta el plan del cliente, y una de ellas
 (`get_plan_tools`) le dice al agente qué puede usar y qué plan haría falta para el resto. Diseño del
-24-oct-2026; fases 0 a 3 (lectura, plan, API key `mcp`, escritura y OAuth) implementadas el 24-oct-2026,
-sin desplegar (sección 12). Catálogo vigente: [`MCP_HERRAMIENTAS.md`](MCP_HERRAMIENTAS.md), generado.
+24-oct-2026; fases 0 a 3 (lectura, plan, API key `mcp`, escritura y OAuth) en producción desde el 24-oct-2026;
+fase 4 (publicación) preparada, falta publicar (sección 12). Catálogo vigente: [`MCP_HERRAMIENTAS.md`](MCP_HERRAMIENTAS.md), generado.
 
 ## 1. Decisiones
 
@@ -262,8 +262,8 @@ Pasos de publicación:
 | 0. Spike | FastMCP montado en `/mcp`, 3 herramientas de lectura (`whoami`, `list_agents`, `get_call`) por ASGI interno, API key `calls` provisoria | Funciona desde Claude Code; medir el costo del pedido interno |
 | 1. Lectura + plan | Catálogo, scope `mcp` (UI de API keys), todas las de lectura, `get_plan_tools`, errores de plan, `make mcp-docs`, tests de catálogo y plan | Un cliente Free y uno Mostrador ven lo correcto |
 | 2. Escritura | Agentes, prueba por texto, contactos, campañas, equipo, WhatsApp, links, bloqueados; anotaciones; `toolsets`; resources y prompts | Crear y probar un agente y armar (sin lanzar) una campaña solo por MCP. **Hecho el 24-oct-2026** |
-| 3. OAuth | Servidor de autorización, consentimiento en `web/`, migración `oauth_*`, "Agentes conectados", ruta `mcp.` del túnel | Conector en Claude.ai con login y revocación. **Implementado el 24-oct-2026**, sin probar con Claude.ai (hace falta desplegar) |
-| 4. Publicación | Página `/desarrolladores/mcp`, botones de instalación, `server.json` en el registro, envío al directorio de Anthropic, privacidad actualizada | Instalación en un clic desde la landing |
+| 3. OAuth | Servidor de autorización, consentimiento en `web/`, migración `oauth_*`, "Agentes conectados", ruta `mcp.` del túnel | Conector en Claude.ai con login y revocación. **En producción desde el 24-oct-2026**; falta la primera conexión real |
+| 4. Publicación | Página `/desarrolladores/mcp`, botones de instalación, `server.json` en el registro, envío al directorio de Anthropic, privacidad actualizada | Instalación en un clic desde la landing. **Preparada el 24-oct-2026**: falta publicar (sección 12) |
 | 5. Extras | `inference` y `admin`; métricas de uso del MCP por herramienta | Según uso real |
 
 ## 11. Abierto
@@ -375,5 +375,35 @@ cambio es solo de `app`, pero el target es ese) y crear una key con el alcance M
 3. Probar: en Claude.ai, Configuración → Conectores → Agregar conector personalizado →
    `https://app.atentina.com.ar/mcp`; o `claude mcp add --transport http atentina https://app.atentina.com.ar/mcp`.
 
-**Sigue:** fase 4 (publicación: página `/desarrolladores/mcp` en la landing, botones de instalación, registro
-oficial de MCP y directorio de Anthropic) y la política de privacidad (sección 8).
+**Desplegado el 24-oct-2026:** `make migrate-test` (0024 → 0028 sobre la copia del backup, ida y vuelta),
+`make calls-active && make up-agent` (la base en vivo estaba en 0027 y quedó en 0028). Verificado por el túnel:
+metadata con emisor `https://app.atentina.com.ar`, 401 de `/mcp` con `resource_metadata` y `/oauth/consent`.
+Falta la primera conexión real desde Claude.ai o Claude Code (la hace el usuario con su login).
+
+**24-oct-2026: fase 4, publicación** (preparada; la landing y el registro esperan publicarse).
+
+- Landing: `/desarrolladores/mcp` (pasos para Claude, ChatGPT, Claude Code, Cursor y VS Code con botones de
+  instalación, `mcp-remote`, API key, funciones por plan, herramientas plegadas por grupo, seguridad, guías). Sale
+  de `landing/src/data/mcp-tools.json` (`make mcp-docs`; test de sincronía). Links desde el footer, "Integración
+  agéntica" de `/desarrolladores` y la sección nueva "Agentes de IA (MCP)" de la documentación (más el alcance
+  `mcp` en su tabla de keys). Layout compartido `DocsPage.astro` con `/desarrolladores/docs`; de paso se arregló el
+  desborde horizontal de 50 px que la documentación ya tenía en 375 px (una URL en `code`).
+- Privacidad (`/privacidad#agentes-conectados`): excepción por los agentes de IA que conecta el cliente, como la
+  del LLM propio, y en la lista de proveedores.
+- Registro oficial: `deploy/mcp/server.json` (`ar.com.atentina/atentina`, remoto `streamable-http`) y
+  `scripts/ops/mcp-registry.sh` con `make mcp-registry-key` y `make mcp-registry-publish`.
+
+**Publicar (lo hace el usuario):**
+
+1. Landing: push a la rama de Render (solo despliega `landing/`).
+2. Registro de MCP: `make mcp-registry-key` → cargar el TXT que imprime en el DNS de `atentina.com.ar`
+   (Cloudflare, nombre `@`) → `make mcp-registry-publish`. Al cambiar la versión del servidor, subir `version` en
+   `server.json` y volver a publicar. PulseMCP, Glama y otros directorios lo toman del registro.
+3. Directorio de conectores de Anthropic (formulario de envío): nombre Atentina; URL `https://app.atentina.com.ar/mcp`;
+   OAuth 2.1 con registro dinámico y metadata documents; docs `https://atentina.com.ar/desarrolladores/mcp`;
+   privacidad `https://atentina.com.ar/privacidad`; herramientas con `readOnlyHint`/`destructiveHint`. Piden una
+   cuenta de prueba para la revisión: crear un cliente de prueba con un tier con todo y un agente de ejemplo.
+4. ChatGPT: por ahora como conector propio de cada usuario (modo desarrollador); su directorio, si hay demanda.
+
+**Pendiente:** la ruta `mcp.` del túnel (opcional), CORS para clientes de navegador, `mcp:read` y el toolset `admin`
+(fase 5).

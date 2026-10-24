@@ -1,0 +1,225 @@
+---
+// Conectar agentes de IA (Claude, ChatGPT, Cursor...) a la plataforma por MCP. Diseño en docs/MCP_PLAN.md; las
+// herramientas, los grupos y las funciones por plan salen de data/mcp-tools.json, que genera `make mcp-docs`
+// desde app/mcp/catalog.py (no editarlo a mano). Al cambiar un tier, cambiar FEATURES en app/mcp/docs.py.
+import Button from "../../components/Button.astro";
+import CodeBlock from "../../components/CodeBlock.astro";
+import Cta from "../../components/Cta.astro";
+import mcp from "../../data/mcp-tools.json";
+import DocsPage from "../../layouts/DocsPage.astro";
+
+const URL_MCP = "https://app.atentina.com.ar/mcp";
+
+const toc = [
+  { id: "que-es", label: "Qué es" },
+  { id: "conectar", label: "Conectar tu agente" },
+  { id: "api-key", label: "Con una API key" },
+  { id: "planes", label: "Qué incluye cada plan" },
+  { id: "herramientas", label: "Herramientas" },
+  { id: "seguridad", label: "Seguridad y datos" },
+  { id: "guias", label: "Guías y prompts" },
+];
+
+const cursor = `cursor://anysphere.cursor-deeplink/mcp/install?name=atentina&config=${btoa(JSON.stringify({ url: URL_MCP }))}`;
+const vscode = `vscode:mcp/install?${encodeURIComponent(JSON.stringify({ name: "atentina", type: "http", url: URL_MCP }))}`;
+
+const claudeCode = `claude mcp add --transport http atentina ${URL_MCP}
+# Después, dentro de Claude Code: /mcp → atentina → Autenticar`;
+
+const mcpRemote = `{
+  "mcpServers": {
+    "atentina": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "${URL_MCP}"]
+    }
+  }
+}`;
+
+const withKey = `claude mcp add --transport http atentina ${URL_MCP} \\
+  --header "Authorization: Bearer vaas_..."`;
+
+const asks = [
+  "Armame un agente para la peluquería que dé turnos de martes a sábado, probalo y mostrame tres conversaciones.",
+  "¿Cómo salieron las llamadas de ayer? Resumime las que no terminaron bien y qué cambiarías en el agente.",
+  "Cargá estos 200 contactos del CSV con la etiqueta mora y dejá lista una campaña de llamadas para el lunes a las 10.",
+  "Sumá a Juan al equipo de ventas y que el agente le pase las llamadas de 9 a 18.",
+];
+
+const kinds: Record<string, string> = { lectura: "lectura", escritura: "escritura", confirmar: "confirmar" };
+const featureName = Object.fromEntries(mcp.features.map((f) => [f.id, f.name]));
+const toolsets = mcp.toolsets.map((ts) => ({ ...ts, tools: mcp.tools.filter((t) => t.toolset === ts.id) }));
+---
+
+<DocsPage
+  title="Conectá Claude, ChatGPT o Cursor a tu cuenta por MCP | Atentina"
+  description="Servidor MCP de Atentina: tu agente de IA arma y prueba agentes de voz y WhatsApp, revisa llamadas, carga contactos y lanza campañas, con tu usuario y dentro de tu plan."
+  ogDescription="Conectá tu agente de IA a Atentina por MCP."
+  path="/desarrolladores/mcp"
+  eyebrow="MCP"
+  heading="Tu agente de IA maneja tu cuenta"
+  lead="Conectá Claude, ChatGPT, Cursor u otro agente compatible con MCP y pedile en español lo que necesitás: armar y probar agentes, revisar las llamadas, cargar contactos, lanzar campañas o configurar tu equipo. Entra con tu usuario y respeta tu plan."
+  toc={toc}
+>
+  <div slot="header" class="flex flex-wrap items-center gap-3 pt-2">
+    <Button href="#conectar">Conectar mi agente</Button>
+    <Button href="/registro" variant="ghost">Crear cuenta gratis</Button>
+  </div>
+
+  <section id="que-es" class="grid gap-4">
+    <h2>Qué es</h2>
+    <p>
+      MCP (Model Context Protocol) es el estándar con el que los agentes de IA usan herramientas de otros servicios. El servidor MCP de Atentina le da a tu agente {mcp.tools.length} herramientas: las mismas cosas que hacés en el panel, para que se las pidas con tus palabras.
+    </p>
+    <ul>
+      {asks.map((a) => <li>"{a}"</li>)}
+    </ul>
+    <p>
+      El agente ve solo tu cuenta, con los permisos de tu usuario. Antes de llamar a alguien, mandar mensajes o borrar algo, tu agente te pide confirmación.
+    </p>
+  </section>
+
+  <section id="conectar" class="grid gap-4">
+    <h2>Conectar tu agente</h2>
+    <p>La dirección del servidor es siempre la misma. Al conectar, se abre el login de Atentina y aprobás el acceso; no hace falta copiar ninguna clave.</p>
+    <CodeBlock label="URL del servidor" code={URL_MCP} />
+
+    <h3>Claude (web y escritorio)</h3>
+    <ol>
+      <li>Configuración → Conectores → Agregar conector personalizado.</li>
+      <li>Nombre: Atentina. URL: <code>{URL_MCP}</code>.</li>
+      <li>Conectar: iniciá sesión con tu usuario de Atentina y tocá Permitir acceso.</li>
+    </ol>
+
+    <h3>ChatGPT</h3>
+    <ol>
+      <li>Configuración → Conectores, con el modo de desarrollador activado (en los planes que permiten conectores propios).</li>
+      <li>Crear un conector con la URL <code>{URL_MCP}</code> y autenticación OAuth.</li>
+      <li>Iniciá sesión con tu usuario de Atentina y permití el acceso.</li>
+    </ol>
+
+    <h3>Claude Code</h3>
+    <CodeBlock label="Terminal" code={claudeCode} />
+
+    <h3>Cursor y VS Code</h3>
+    <div class="flex flex-wrap gap-3">
+      <Button href={cursor} variant="ghost" size="sm">Agregar a Cursor</Button>
+      <Button href={vscode} variant="ghost" size="sm">Agregar a VS Code</Button>
+    </div>
+    <p>Los botones abren la app con el servidor ya cargado; al usarlo por primera vez te pide iniciar sesión.</p>
+
+    <h3>Otros agentes</h3>
+    <p>Los que solo aceptan servidores locales se conectan con el puente estándar <code>mcp-remote</code>:</p>
+    <CodeBlock label="Configuración" code={mcpRemote} />
+  </section>
+
+  <section id="api-key" class="grid gap-4">
+    <h2>Con una API key</h2>
+    <p>
+      Para un agente que corre sin una persona que inicie sesión (un script, un servidor), creá en el panel, en Desarrolladores, una API key con el alcance <strong>Agentes de IA (MCP)</strong> y mandala en el header:
+    </p>
+    <CodeBlock label="Claude Code" code={withKey} />
+    <p>
+      Con API key andan todas las herramientas salvo las de facturación, API keys y modelos propios, que necesitan un usuario: esas responden <code>needs_oauth</code>.
+    </p>
+  </section>
+
+  <section id="planes" class="grid gap-4">
+    <h2>Qué incluye cada plan</h2>
+    <p>
+      Las herramientas son las mismas en todos los planes; cada una hace lo que tu plan incluye. La herramienta <code>get_plan_tools</code> le dice a tu agente cuáles puede usar con tu plan, cuánto te queda del mes y qué plan haría falta para el resto. Si tu agente pide algo que tu plan no tiene, recibe el motivo y te lo explica.
+    </p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Función</th>{mcp.plans.map((p) => <th>{p}</th>)}</tr></thead>
+      <tbody>
+        <tr>
+          <td>Cuenta, agentes, prueba por texto, llamadas, transcripciones y estadísticas</td>
+          {mcp.plans.map(() => <td>✓</td>)}
+        </tr>
+        {
+          mcp.features.map((f) => (
+            <tr>
+              <td>{f.name}</td>
+              {mcp.plans.map((p) => {
+                const v = (f.plans as Record<string, string>)[p];
+                return <td class="whitespace-nowrap">{v === undefined ? "—" : v ? `✓ ${v}` : "✓"}</td>;
+              })}
+            </tr>
+          ))
+        }
+      </tbody>
+    </table></div>
+    <p>Los topes del plan (minutos, contactos, llamadas a la vez) valen igual que en el panel. Detalle de cada plan en <a href="/desarrolladores#precios">precios</a>.</p>
+  </section>
+
+  <section id="herramientas" class="grid gap-4">
+    <h2>Herramientas</h2>
+    <p>
+      Están en {toolsets.length} grupos. Sin indicar nada, el servidor ofrece los de cuenta, agentes y llamadas; para elegir otros, agregá <code>?toolsets=</code> a la URL, por ejemplo <code>{URL_MCP}?toolsets=all</code> o <code>?toolsets=agents,campaigns</code>. Tipo <strong>confirmar</strong>: llama, manda mensajes, corta o borra, y tu agente te pide confirmación antes.
+    </p>
+    {
+      toolsets.map((ts) => (
+        <details class="group rounded-xl border border-line bg-surface">
+          <summary class="flex cursor-pointer list-none flex-wrap items-baseline gap-x-2 gap-y-1 px-4 py-3 font-semibold text-ink hover:text-accent [&::-webkit-details-marker]:hidden">
+            <span aria-hidden="true" class="font-mono text-muted transition-transform duration-150 group-open:rotate-90 motion-reduce:transition-none">›</span>
+            {ts.title}
+            <code class="font-normal text-muted">{ts.id}</code>
+            <span class="font-mono text-[.8rem] font-normal text-muted tabular-nums">
+              {ts.tools.length} herramientas{ts.core && " · por defecto"}
+            </span>
+          </summary>
+          <div class="table-wrap m-3 mt-0"><table>
+            <thead><tr><th>Herramienta</th><th>Qué hace</th><th>Tipo</th><th>Plan</th></tr></thead>
+            <tbody>
+              {ts.tools.map((t) => (
+                <tr>
+                  <td><code>{t.name}</code></td>
+                  <td>{t.description}</td>
+                  <td class="font-mono text-[.8rem] whitespace-nowrap">{kinds[t.kind]}</td>
+                  <td>
+                    {t.features.length ? t.features.map((f) => featureName[f]).join(" o ") : "Todos"}
+                    {t.oauth && <span class="block text-[.8rem] text-muted">con usuario</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table></div>
+        </details>
+      ))
+    }
+  </section>
+
+  <section id="seguridad" class="grid gap-4">
+    <h2>Seguridad y datos</h2>
+    <ul>
+      <li><strong>Con tu usuario:</strong> el agente se conecta por OAuth, con el login de Atentina. El acceso vale solo para el servidor MCP: no sirve para entrar al panel ni a la API.</li>
+      <li><strong>Lo desconectás cuando quieras:</strong> en el panel, Desarrolladores → Agentes de IA (MCP) → Desconectar. Cambiar la clave o cerrar sesión también lo desconecta.</li>
+      <li><strong>Solo tu cuenta:</strong> el agente ve y cambia lo de tu empresa, nada más, y con los límites de tu plan.</li>
+      <li><strong>Te pregunta antes:</strong> llamar, lanzar una campaña, cortar o borrar llevan la marca para que tu agente te pida confirmación.</li>
+      <li><strong>Tus datos:</strong> lo que el agente lee (por ejemplo, las transcripciones de las llamadas) pasa a la app que conectaste y a su proveedor de IA, por decisión tuya. Ver la <a href="/privacidad#agentes-conectados">política de privacidad</a>.</li>
+    </ul>
+  </section>
+
+  <section id="guias" class="grid gap-4">
+    <h2>Guías y prompts</h2>
+    <p>El servidor trae guías cortas que tu agente puede leer y prompts listos para empezar:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Nombre</th><th>Qué es</th></tr></thead>
+      <tbody>
+        {mcp.resources.map((r) => <tr><td><code>{r.uri}</code></td><td>{r.title}</td></tr>)}
+        {mcp.prompts.map((p) => <tr><td>prompt <code>{p.name}</code></td><td>{p.description}</td></tr>)}
+      </tbody>
+    </table></div>
+    <p>La referencia de la API que hay detrás está en la <a href="/desarrolladores/docs">documentación</a>.</p>
+  </section>
+
+  <Cta
+    slot="after"
+    eyebrow="MCP"
+    title="¿Tu agente necesita algo más?"
+    lead="Contanos qué querés que haga tu agente de IA con Atentina y lo sumamos."
+    subject="Consulta sobre el servidor MCP de Atentina"
+    question="¿Qué querés que haga tu agente?"
+    placeholder="Por ejemplo: que me arme un informe semanal de las llamadas"
+    submit="Enviar consulta"
+  />
+</DocsPage>

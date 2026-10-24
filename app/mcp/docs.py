@@ -1,7 +1,9 @@
-"""docs/MCP_HERRAMIENTAS.md desde el catálogo (`make mcp-docs`). tests/test_mcp.py verifica que esté al día.
+"""docs/MCP_HERRAMIENTAS.md y landing/src/data/mcp-tools.json (la página /desarrolladores/mcp) desde el
+catálogo (`make mcp-docs`). tests/test_mcp.py verifica que estén al día.
 
-Uso: python -m app.mcp.docs  (escribe el archivo)
+Uso: python -m app.mcp.docs  (escribe los dos)
 """
+import json
 import pathlib
 
 from . import guides
@@ -9,17 +11,31 @@ from .catalog import CORE, TOOLS, TOOLSETS
 
 DOC = "docs/MCP_HERRAMIENTAS.md"
 
-# Qué es cada función del plan (services/features.TIER_HAS) y en qué planes está hoy
+LANDING_JSON = "landing/src/data/mcp-tools.json"
+PLANS = ("Free", "Mostrador", "Sucursal", "Central")
+# Central se llama Red en la landing (docs/FUNCIONES_POR_PLAN_PLAN.md, sección 6).
+LANDING_PLAN = {"Central": "Red"}
+
+# Qué es cada función del plan (services/features.TIER_HAS) y en qué planes está hoy, con el tope si lo hay
 # (docs/MCP_PLAN.md, sección 6; cambia con los tiers).
-FEATURES = {
-    "outbound_calls": ("Llamadas salientes", "Mostrador, Sucursal y Central (con un número asignado)"),
-    "whatsapp": ("WhatsApp", "Mostrador, Sucursal y Central"),
-    "contacts": ("Agenda de contactos", "Mostrador (500), Sucursal (5.000) y Central (sin tope)"),
-    "team": ("Equipo y derivaciones", "Mostrador (1 persona), Sucursal (2) y Central (sin tope)"),
-    "call_links": ("Link para llamar", "Todos (Free: 1)"),
-    "campaigns_whatsapp": ("Campañas de WhatsApp", "Sucursal y Central"),
-    "campaigns_voice": ("Campañas de llamadas", "Sucursal (de a 1) y Central (hasta 3)"),
+FEATURES: dict[str, tuple[str, dict[str, str]]] = {
+    "outbound_calls": ("Llamadas salientes (con un número asignado)", {"Mostrador": "", "Sucursal": "", "Central": ""}),
+    "whatsapp": ("WhatsApp", {"Mostrador": "", "Sucursal": "", "Central": ""}),
+    "contacts": ("Agenda de contactos", {"Mostrador": "500", "Sucursal": "5.000", "Central": "sin tope"}),
+    "team": ("Equipo y derivaciones", {"Mostrador": "1 persona", "Sucursal": "2", "Central": "sin tope"}),
+    "call_links": ("Link para llamar", {"Free": "1", "Mostrador": "", "Sucursal": "", "Central": ""}),
+    "campaigns_whatsapp": ("Campañas de WhatsApp", {"Sucursal": "", "Central": ""}),
+    "campaigns_voice": ("Campañas de llamadas", {"Sucursal": "de a 1", "Central": "hasta 3"}),
 }
+
+
+def _plans_text(plans: dict[str, str]) -> str:
+    parts = [f"{p} ({plans[p]})" if plans[p] else p for p in PLANS if p in plans]
+    return parts[0] if len(parts) == 1 else f"{', '.join(parts[:-1])} y {parts[-1]}"
+
+
+def _kind(t) -> str:
+    return "lectura" if t.reads else "confirmar" if t.destructive else "escritura"
 
 
 def render() -> str:
@@ -43,7 +59,7 @@ def render() -> str:
         "| Función | Qué es | Planes (hoy) |",
         "|---|---|---|",
     ]
-    lines += [f"| `{k}` | {name} | {plans} |" for k, (name, plans) in FEATURES.items()]
+    lines += [f"| `{k}` | {name} | {_plans_text(plans)} |" for k, (name, plans) in FEATURES.items()]
     for toolset, title in TOOLSETS.items():
         tools = [t for t in TOOLS if t.toolset == toolset]
         lines += ["", f"## `{toolset}`: {title}", "", "| Herramienta | Qué hace | Tipo | Plan | API |",
@@ -51,7 +67,7 @@ def render() -> str:
         for t in tools:
             plan = (" o ".join(f"`{f}`" for f in t.features) or "todos") + (" (solo OAuth)" if t.session else "")
             api = f"`{t.method} {t.path}`" if t.path else "—"
-            kind = "lectura" if t.reads else "**confirmar**" if t.destructive else "escritura"
+            kind = "**confirmar**" if t.destructive else _kind(t)
             lines.append(f"| `{t.name}` | {t.description.replace('|', '/')} | {kind} | {plan} | {api} |")
     lines += ["", "## Resources y prompts", "",
               "| URI o nombre | Qué es |", "|---|---|"]
@@ -62,7 +78,24 @@ def render() -> str:
     return "\n".join(lines) + "\n"
 
 
+def render_landing() -> str:
+    """Los datos de /desarrolladores/mcp: grupos, herramientas y funciones por plan (con los nombres de la
+    landing)."""
+    data = {
+        "toolsets": [{"id": k, "title": v, "core": k in CORE} for k, v in TOOLSETS.items()],
+        "plans": [LANDING_PLAN.get(p, p) for p in PLANS],
+        "features": [{"id": k, "name": name, "plans": {LANDING_PLAN.get(p, p): v for p, v in plans.items()}}
+                     for k, (name, plans) in FEATURES.items()],
+        "tools": [{"name": t.name, "toolset": t.toolset, "title": t.title, "description": t.description,
+                   "kind": _kind(t), "features": list(t.features), "oauth": t.session} for t in TOOLS],
+        "resources": guides.list_resources(),
+        "prompts": guides.list_prompts(),
+    }
+    return json.dumps(data, ensure_ascii=False, indent=1) + "\n"
+
+
 if __name__ == "__main__":
-    path = pathlib.Path(__file__).parents[2] / DOC
-    path.write_text(render())
-    print(f"{path}: {len(TOOLS)} herramientas")
+    root = pathlib.Path(__file__).parents[2]
+    (root / DOC).write_text(render())
+    (root / LANDING_JSON).write_text(render_landing())
+    print(f"{DOC} y {LANDING_JSON}: {len(TOOLS)} herramientas")
