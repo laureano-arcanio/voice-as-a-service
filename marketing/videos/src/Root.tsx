@@ -24,6 +24,8 @@ import { TOTAL as PRIMEROS_PASOS_TOTAL } from "../proyectos/primeros-pasos/src/t
 import { PrimerosPasosVideo } from "../proyectos/primeros-pasos/src/Video";
 import { TOTAL as DERIVACIONES_TOTAL } from "../proyectos/derivaciones/src/timeline";
 import { DerivacionesVideo } from "../proyectos/derivaciones/src/Video";
+import { TOTAL as TUTORIAL_AGENTE_FREE_MOBILE_TOTAL } from "../proyectos/tutorial-agente-free-mobile/src/timeline";
+import { TutorialAgenteFreeMobileVideo } from "../proyectos/tutorial-agente-free-mobile/src/Video";
 import { T as LANDING_AGENTE_T } from "../proyectos/landing-agente/src/timeline";
 import { LandingAgenteVideo } from "../proyectos/landing-agente/src/Video";
 
@@ -45,5 +47,6 @@ export const RemotionRoot: React.FC = () => (
     {/* Vertical (9:16), para el celular */}
     <Composition id="primeros-pasos" component={PrimerosPasosVideo} durationInFrames={f(PRIMEROS_PASOS_TOTAL)} fps={FPS} width={1080} height={1920} />
     <Composition id="derivaciones" component={DerivacionesVideo} durationInFrames={f(DERIVACIONES_TOTAL)} fps={FPS} width={1080} height={1920} />
+    <Composition id="tutorial-agente-free-mobile" component={TutorialAgenteFreeMobileVideo} durationInFrames={f(TUTORIAL_AGENTE_FREE_MOBILE_TOTAL)} fps={FPS} width={1080} height={1920} />
   </>
 );

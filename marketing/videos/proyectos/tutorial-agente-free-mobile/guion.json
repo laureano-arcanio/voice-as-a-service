@@ -1,0 +1,57 @@
+{
+  "nota": "Tutorial vertical 9:16 para un cliente con plan Free: crear un agente (una parrilla con precios), probarlo desde el navegador, compartir el link para llamar, ver la transcripción y qué traen los planes pagos. Capturas reales del panel a 390 px. Solo paula.",
+  "musica_segundos": 70,
+  "lineas": [
+    {
+      "id": "f1",
+      "voz": "paula",
+      "texto": "Con el plan Free, armás tu agente y lo probás desde el celular. Te muestro cómo."
+    },
+    {
+      "id": "f2",
+      "voz": "paula",
+      "texto": "Entrá a la aplicación, abrí el menú, Agentes, y tocá Nuevo agente."
+    },
+    {
+      "id": "f3",
+      "voz": "paula",
+      "texto": "Ponele un nombre, por ejemplo, para una parrilla, y creá el agente con el asistente básico."
+    },
+    {
+      "id": "f4",
+      "voz": "paula",
+      "texto": "Contale quién es, y en la base de conocimiento cargá el menú, los precios y los horarios. Después, guardá."
+    },
+    {
+      "id": "f5",
+      "voz": "paula",
+      "texto": "Para probarlo, abrí Probar y tocá Probar agente. Le hablás desde el navegador, como si fueras un cliente."
+    },
+    {
+      "id": "f6",
+      "voz": "paula",
+      "texto": "En Link para llamar, creá el link y copialo. Compartilo por donde quieras."
+    },
+    {
+      "id": "f7",
+      "voz": "paula",
+      "texto": "Quien lo abre, toca Llamar y habla con tu agente. No tiene que instalar nada ni registrarse."
+    },
+    {
+      "id": "f8",
+      "voz": "paula",
+      "texto": "Con eso, tu agente ya atiende. Cada llamada queda en Conversaciones, con su transcripción."
+    },
+    {
+      "id": "f9",
+      "voz": "paula",
+      "texto": "Para pasar llamadas a tu equipo, tener tu propio número o atender por WhatsApp, están los planes pagos: Mostrador, Sucursal y Central."
+    },
+    {
+      "id": "f10",
+      "voz": "paula",
+      "texto": "Creá tu primer agente hoy, gratis."
+    }
+  ],
+  "ganancia_db": -1.5
+}
