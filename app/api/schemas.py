@@ -752,14 +752,15 @@ class UserOut(ORM):
     last_login_at: UTCDateTime | None
 
 
-ApiScope = Literal["calls", "llm", "stt", "tts"]
+ApiScope = Literal["calls", "mcp", "llm", "stt", "tts"]
 
 
 class ApiKeyIn(BaseModel):
     name: str = Field(min_length=1, max_length=64)
     scopes: list[ApiScope] = Field(
         default=["calls"], min_length=1,
-        description="calls: API de llamadas, agentes y reportes. llm, stt, tts: motores de la API de inferencia")
+        description="calls: API de llamadas, agentes y reportes. mcp: servidor MCP (/mcp) para agentes de IA. "
+                                  "llm, stt, tts: motores de la API de inferencia")
 
 
 LlmConnectionKind = Literal["openai_compatible", "openrouter", "anthropic"]

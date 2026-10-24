@@ -30,8 +30,10 @@ from .errors import Forbidden, QuotaExceeded
 from .limits import Limits, effective_limits
 
 SCOPE_CALLS = "calls"
+# Servidor MCP (app/mcp/, docs/MCP_PLAN.md): las herramientas usan la API de llamadas con la misma key.
+SCOPE_MCP = "mcp"
 INFERENCE_SCOPES = ("llm", "stt", "tts")
-ALL_SCOPES = (SCOPE_CALLS, *INFERENCE_SCOPES)
+ALL_SCOPES = (SCOPE_CALLS, SCOPE_MCP, *INFERENCE_SCOPES)
 
 
 def parse_scopes(value: str | None) -> frozenset[str]:

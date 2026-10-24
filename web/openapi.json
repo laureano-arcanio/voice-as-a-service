@@ -11166,6 +11166,7 @@
        "type": "string",
        "enum": [
         "calls",
+        "mcp",
         "llm",
         "stt",
         "tts"
@@ -11236,6 +11237,7 @@
        "type": "string",
        "enum": [
         "calls",
+        "mcp",
         "llm",
         "stt",
         "tts"
@@ -11244,7 +11246,7 @@
       "type": "array",
       "minItems": 1,
       "title": "Scopes",
-      "description": "calls: API de llamadas, agentes y reportes. llm, stt, tts: motores de la API de inferencia",
+      "description": "calls: API de llamadas, agentes y reportes. mcp: servidor MCP (/mcp) para agentes de IA. llm, stt, tts: motores de la API de inferencia",
       "default": [
        "calls"
       ]
@@ -11279,6 +11281,7 @@
        "type": "string",
        "enum": [
         "calls",
+        "mcp",
         "llm",
         "stt",
         "tts"

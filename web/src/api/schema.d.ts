@@ -3199,7 +3199,7 @@ export interface components {
             /** Prefix */
             prefix: string;
             /** Scopes */
-            scopes: ("calls" | "llm" | "stt" | "tts")[];
+            scopes: ("calls" | "mcp" | "llm" | "stt" | "tts")[];
             /**
              * Created At
              * Format: date-time
@@ -3221,12 +3221,12 @@ export interface components {
             name: string;
             /**
              * Scopes
-             * @description calls: API de llamadas, agentes y reportes. llm, stt, tts: motores de la API de inferencia
+             * @description calls: API de llamadas, agentes y reportes. mcp: servidor MCP (/mcp) para agentes de IA. llm, stt, tts: motores de la API de inferencia
              * @default [
              *       "calls"
              *     ]
              */
-            scopes?: ("calls" | "llm" | "stt" | "tts")[];
+            scopes?: ("calls" | "mcp" | "llm" | "stt" | "tts")[];
         };
         /** ApiKeyOut */
         ApiKeyOut: {
@@ -3239,7 +3239,7 @@ export interface components {
             /** Prefix */
             prefix: string;
             /** Scopes */
-            scopes: ("calls" | "llm" | "stt" | "tts")[];
+            scopes: ("calls" | "mcp" | "llm" | "stt" | "tts")[];
             /**
              * Created At
              * Format: date-time

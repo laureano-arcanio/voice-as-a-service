@@ -60,6 +60,7 @@ from .campaigns.callbacks import callback_loop
 from .campaigns.loop import campaign_loop
 from .config import settings
 from .mail.call_summary import call_summary_loop
+from .mcp import server as mcp_server
 from .services.demo import allowed_origins
 from .whatsapp import webhook as wa_webhook
 from .whatsapp.service import sweep_loop
@@ -128,6 +129,8 @@ def create_app() -> FastAPI:
     app.include_router(mp_webhook.router)
     # Pagina publica del link para llamar a un agente (/llamar/<token>; en su host, /<token>).
     app.include_router(call_link_host.router)
+    # Servidor MCP para los agentes de IA de los clientes (docs/MCP_PLAN.md).
+    app.include_router(mcp_server.router)
 
     @app.get("/health", include_in_schema=False)
     def health():

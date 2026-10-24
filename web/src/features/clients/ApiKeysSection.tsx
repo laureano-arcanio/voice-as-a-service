@@ -24,14 +24,19 @@ import { formatDateTime } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useApiKeys, useCreateApiKey, useRevokeApiKey } from './api';
 import { EXAMPLE_LABELS, inferenceExample, type ExampleKind } from '@/features/developers/examples';
-import { curlExample } from './curl';
+import { curlExample, mcpExample } from './curl';
 
-/** Para que sirve cada alcance de una key. `calls`: la API de llamadas; el resto, la de inferencia. */
+/** Para que sirve cada alcance de una key. `calls`: la API de llamadas; `mcp`: el servidor MCP; el resto, la de inferencia. */
 const SCOPE_OPTIONS: { value: ApiScope; label: string; description: string }[] = [
   {
     value: 'calls',
     label: 'Llamadas y agentes',
     description: 'Lanzar llamadas, ver conversaciones y reportes.',
+  },
+  {
+    value: 'mcp',
+    label: 'Agentes de IA (MCP)',
+    description: 'Conectar Claude, ChatGPT, Cursor u otro agente a tu cuenta.',
   },
   { value: 'llm', label: 'LLM', description: 'Chat con nuestro modelo de lenguaje.' },
   { value: 'stt', label: 'Transcripción (STT)', description: 'Audio a texto.' },
@@ -43,7 +48,7 @@ function ScopeBadges({ scopes }: { scopes: ApiScope[] }) {
   return (
     <Group gap={4}>
       {scopes.map((s) => (
-        <Badge key={s} color={s === 'calls' ? 'blue' : 'gray'}>
+        <Badge key={s} color={s === 'calls' || s === 'mcp' ? 'blue' : 'gray'}>
           {s}
         </Badge>
       ))}
@@ -56,7 +61,9 @@ function KeyExamples({ created }: { created: ApiKeyCreated }) {
   const tabs = created.scopes.map((s) =>
     s === 'calls'
       ? { value: s, label: 'Lanzar una llamada', code: curlExample(location.origin, created.key) }
-      : {
+      : s === 'mcp'
+        ? { value: s, label: 'Conectar un agente', code: mcpExample(location.origin, created.key) }
+        : {
           value: s,
           label: EXAMPLE_LABELS[INFERENCE_EXAMPLES[s]],
           code: inferenceExample(INFERENCE_EXAMPLES[s], location.origin, created.key),

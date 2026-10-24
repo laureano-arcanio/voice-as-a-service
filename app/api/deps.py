@@ -80,7 +80,8 @@ def get_principal(request: Request, db: DB,
     if token.startswith(API_KEY_PREFIX):
         key = _api_key(db, token)
         scopes = api_usage.parse_scopes(key.scopes)
-        if api_usage.SCOPE_CALLS not in scopes:
+        # Una key `mcp` usa esta API por dentro (las herramientas de app/mcp/ son pedidos a /api/v1).
+        if not scopes & {api_usage.SCOPE_CALLS, api_usage.SCOPE_MCP}:
             # Una key de inferencia (llm/stt/tts) no administra agentes, llamadas ni numeros.
             raise Forbidden("Esta API key es de la API de inferencia: no tiene acceso a esta API", "scope_missing")
         return Principal("api_key", key.id, Role.client, key.client_id, scopes)
