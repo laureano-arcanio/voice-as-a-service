@@ -120,6 +120,14 @@ def for_agent(s: Session, agent_id: str) -> CallLink | None:
     return s.scalar(select(CallLink).where(CallLink.agent_id == agent_id, CallLink.revoked_at.is_(None)))
 
 
+def urls_by_agent(s: Session, agent_ids: list[str]) -> dict[str, str]:
+    """URL del link activo de cada agente que tiene uno (para la lista de agentes)."""
+    if not agent_ids:
+        return {}
+    links = s.scalars(select(CallLink).where(CallLink.agent_id.in_(agent_ids), CallLink.revoked_at.is_(None)))
+    return {link.agent_id: url(link) for link in links}
+
+
 def active_count(s: Session, client_id: str) -> int:
     return s.scalar(select(func.count()).select_from(CallLink).where(
         CallLink.client_id == client_id, CallLink.revoked_at.is_(None))) or 0

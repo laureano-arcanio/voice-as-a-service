@@ -26,7 +26,7 @@ from ..models import (
     WaMessage,
     WaThread,
 )
-from . import blocked_numbers, events, livekit, quota, voices, wa_routing
+from . import blocked_numbers, events, limits, livekit, quota, voices, wa_routing
 from .campaigns import contact_vars
 from .contacts import is_opted_out
 from .errors import Conflict, Forbidden, Invalid, NotFound, QuotaExceeded, Upstream
@@ -246,6 +246,8 @@ def start_inbound(s: Session, engine: ConversationEngine, dialed: str | None, ca
         if number.suspended_at is not None:
             # El plan del cliente bajo y este numero no entra (app/billing/service.py): no atiende.
             raise QuotaExceeded("El número está suspendido: el plan del cliente no lo incluye", "number_suspended")
+        if wa_id:
+            limits.check_whatsapp(s, number.client_id)
         quota.admit(s, number.client_id, CallMode.entrante)
     except (QuotaExceeded, Forbidden) as e:
         s.rollback()
@@ -273,6 +275,25 @@ def update_call(s: Session, conversation_id: str, **values) -> None:
     for k, v in values.items():
         setattr(row, k, v)
     s.commit()
+
+
+@dataclass
+class TestJoin:
+    livekit_url: str
+    token: str
+
+
+def join_test_call(s: Session, principal: Principal, conversation_id: str) -> TestJoin:
+    """Para conectarse desde el panel a una llamada de prueba en curso (la pagina /calls/<id>/hablar)."""
+    call = s.get(CallRow, conversation_id)
+    if call is None or not principal.can_access(call.client_id):
+        raise NotFound("Llamada inexistente")
+    if call.mode != CallMode.prueba:
+        raise Conflict("Solo las llamadas de prueba se atienden desde el panel", "not_a_test_call")
+    if call.status not in ACTIVE_CALL_STATUSES:
+        raise Conflict("La llamada no está en curso", "call_not_active")
+    room = call.room or f"call-{conversation_id}"
+    return TestJoin(livekit_url=livekit.public_url(), token=livekit.test_participant_token(room))
 
 
 async def hang_up(s: Session, principal: Principal, conversation_id: str) -> CallRow:

@@ -46,9 +46,19 @@ def participant_token(room_name: str, identity: str, name: str, ttl: datetime.ti
     return token.to_jwt()
 
 
+def public_url() -> str:
+    """La URL de LiveKit para navegadores (wss://rtc.), como la demo y el link: la de LiveKit propio es de la LAN."""
+    return settings.demo_livekit_url or settings.livekit_url
+
+
+def test_participant_token(room_name: str) -> str:
+    """Token de quien hace de interesado en una llamada de prueba (siempre la misma identidad: si entra
+    de nuevo, reemplaza a la conexion anterior)."""
+    return participant_token(room_name, f"tester-{room_name}", "Tester")
+
+
 def build_test_join_url(room_name: str) -> str:
-    token = participant_token(room_name, f"tester-{room_name}", "Tester")
-    query = urllib.parse.urlencode({"liveKitUrl": settings.livekit_url, "token": token})
+    query = urllib.parse.urlencode({"liveKitUrl": public_url(), "token": test_participant_token(room_name)})
     return f"https://meet.livekit.io/custom?{query}"
 
 

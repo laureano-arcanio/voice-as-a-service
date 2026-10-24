@@ -8,6 +8,7 @@ from ...conversation.models import ConversationState, Workflow
 from ...llm.prompt import build_classic_system, render_workflow, system_prompt
 from ...models import Agent, AgentVersion, User
 from ...services import agents as service
+from ...services import call_links
 from ...services.errors import Invalid, NotFound
 from ..deps import DB, AdminPrincipal, CurrentPrincipal, scoped_client_id
 from ..schemas import (
@@ -27,11 +28,12 @@ from .clients import get_client
 router = APIRouter(tags=["agents"])
 
 
-def _out(agent: Agent, detail: bool = False) -> AgentOut:
+def _out(agent: Agent, detail: bool = False, call_link_url: str | None = None) -> AgentOut:
     d = agent.definition
     data = {"id": agent.id, "client_id": agent.client_id, "name": agent.name, "slug": agent.slug,
             "description": agent.description, "version": agent.version, "archived": agent.archived_at is not None,
             "engine": d.get("engine", "structured"), "voice": (d.get("agent") or {}).get("voice"),
+            "objective": (d.get("objective") or {}).get("description") or "", "call_link_url": call_link_url,
             "created_at": agent.created_at, "updated_at": agent.updated_at}
     return AgentDetail(**data, definition=d) if detail else AgentOut(**data)
 
@@ -99,7 +101,9 @@ def list_agents(p: CurrentPrincipal, db: DB, client_id: str | None = None, inclu
         q = q.where(Agent.client_id == cid)
     if not include_archived:
         q = q.where(Agent.archived_at.is_(None))
-    return [_out(a) for a in db.scalars(q)]
+    agents = list(db.scalars(q))
+    links = call_links.urls_by_agent(db, [a.id for a in agents])
+    return [_out(a, call_link_url=links.get(a.id)) for a in agents]
 
 
 @router.post("/agents", response_model=AgentDetail, status_code=201)

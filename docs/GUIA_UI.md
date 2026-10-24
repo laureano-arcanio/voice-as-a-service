@@ -6,8 +6,18 @@ puede hacer por la API (`/api/v1/docs`, solo con sesión de admin). La arquitect
 [`ARQUITECTURA.md`](ARQUITECTURA.md).
 
 Hay dos roles:
-- **Admin:** opera la plataforma y ve todo. Menú: Inicio, Conversaciones, Agentes, Voces, WhatsApp, Contactos, Equipo, Campañas, Apps, Clientes, Números, Tiers, Cobros y Usuarios.
-- **Cliente:** usuario de un cliente, que solo ve lo suyo. Menú: Inicio, Conversaciones, Agentes, Voces, WhatsApp, Contactos, Equipo, Campañas, Apps, Consumos, API, Uso de la API y Mi cuenta.
+- **Cliente:** usuario de un cliente, que solo ve lo suyo. Menú (los grupos se despliegan con un click; arranca
+  abierto el de la pantalla actual):
+  - Inicio y Conversaciones, sueltos.
+  - **Agentes:** Mis agentes, Probar agentes y Voces.
+  - **Canales:** WhatsApp, Llamadas y Campañas.
+  - **Organización:** Contactos y Equipo.
+  - **Configuración:** Modelos y Apps.
+  - **Developers:** API keys y Uso de la API.
+  - **Cuenta:** Mi cuenta, Plan y Consumos.
+- **Admin:** opera la plataforma y ve todo. El mismo menú sin lo que es solo del cliente (Modelos, API keys y
+  Cuenta: las API keys de cada cliente están en su ficha), y al final, bajo "Administración": Clientes, Números,
+  Tiers, Cobros y Usuarios.
 
 ## Primer ingreso
 
@@ -113,11 +123,22 @@ El detalle del agente tiene cuatro pestañas:
   - Si salís con cambios sin guardar, avisa.
 - **Versiones:** historial con fecha y autor. Podés ver el JSON de cualquier versión, compararla con
   la vigente y **Restaurar**, que guarda esa definición como versión nueva.
-- **Probar:**
-  - **Nueva llamada** con este agente: de prueba por navegador o saliente.
+- **Probar:** lo mismo que la pantalla **Probar agentes** (abajo), con este agente fijo.
+  - **Probar por voz:** elegís la voz y **Probar agente** te lleva a la llamada en el navegador
+    (`/calls/<id>/hablar`). Si este agente ya tiene una prueba esperando que alguien se conecte, entra a esa
+    en vez de crear otra; si no, la crea. No marca teléfonos ni gasta minutos. Las salientes a un
+    teléfono, en **Llamadas**.
   - **Conversación por texto:** chateás con el agente sin voz. Con el motor estructurado ves los datos
     que va extrayendo y el próximo objetivo en cada turno; con el clásico (el de por defecto), los datos
     aparecen al terminar la conversación.
+  - **Link para llamar:** lo crea, o lo muestra para copiar o abrir; **Configurar** lleva a la pestaña
+    Link para llamar (nombre, imagen, límites, pausar, regenerar).
+
+**Agentes > Probar agentes** (`/probar`): elegís el agente en una tarjeta con su
+objetivo (sale de la definición; con más de 6, hay buscador; el admin filtra por cliente) y abajo lo
+probás igual que en la pestaña Probar. En la lista de Agentes, la columna **Probar** abre esa pantalla con
+el agente elegido, y la columna **Link para llamar** muestra la URL del link con el botón para copiarla, o
+**Crear link** si el agente todavía no tiene.
 
 Arriba, **Editar** (nombre y descripción), **Archivar/Desarchivar** y **Borrar**:
 - Un agente archivado no se puede usar en llamadas nuevas y queda en el historial.
@@ -210,7 +231,7 @@ Para que un dueño use su app: asignarla, crear un agente con motor **Asistente*
 
   Desde la tabla se editan el nombre, la clave y el estado activo, y se borra. Desactivar un usuario
   corta su sesión en el acto. Nadie puede desactivarse ni borrarse a sí mismo.
-- **API keys** (pestaña **API keys** de la ficha del cliente, o **API** en el menú del cliente) > **Nueva API key**
+- **API keys** (pestaña **API keys** de la ficha del cliente, o **Developers > API keys** en el menú del cliente) > **Nueva API key**
   (en la ficha del admin, el consumo de la API está en **Consumo y datos**):
   - Se elige el **acceso**: *Llamadas y agentes* (`calls`) y/o los motores de la API de inferencia: *LLM*, *Transcripción (STT)*
     y *Síntesis (TTS)*.
@@ -218,9 +239,9 @@ Para que un dueño use su app: asignarla, crear un agente con motor **Asistente*
   - Va en `Authorization: Bearer vaas_...`. Con `calls` da acceso a los agentes (también crearlos y editarlos),
     números y llamadas de ese cliente (sus sistemas disparan llamadas con `POST /api/v1/calls`). Con `llm`, `stt` o `tts`
     llama a los motores, dentro de los límites del tier ([`API_INFERENCIA.md`](API_INFERENCIA.md)).
-  - La pantalla **API** muestra además el consumo del mes contra el plan (tokens, minutos, pedidos por minuto, y por key),
+  - La pantalla **API keys** (título "API") muestra además el consumo del mes contra el plan (tokens, minutos, pedidos por minuto, y por key),
     la URL base y ejemplos.
-- **Uso de la API** (en el menú, admin y cliente): cada pedido a la API de inferencia, con fecha, key, tipo, estado,
+- **Developers > Uso de la API** (admin y cliente): cada pedido a la API de inferencia, con fecha, key, tipo, estado,
   duración y consumo, y los totales del filtro. Filtros: cliente (admin), API key, tipo, estado, streaming y período.
   Desde la tarjeta de consumo, **Ver los pedidos** abre esta pantalla filtrada por el cliente.
   - **Revocar** la anula en el acto.
@@ -235,7 +256,10 @@ Para que un dueño use su app: asignarla, crear un agente con motor **Asistente*
 - **Nueva llamada:**
   - **Agente:** los no archivados; el admin los ve agrupados por cliente.
   - **Teléfono** en E.164 para una saliente, o **Modo prueba**: sin teléfono, te conectás por el
-    navegador con el link "Conectate acá…", que se muestra una sola vez.
+    navegador con **Hablar con el agente** (pantalla `/calls/<id>/hablar`, también desde el detalle
+    mientras la llamada espera). Si el navegador no tiene permiso del micrófono, primero lo explica y lo
+    pide con un clic; si está bloqueado, muestra cómo habilitarlo. Entra con micrófono y audio prendidos
+    (si el navegador frena el audio, aparece "Activar el audio").
   - **Número de origen:** opcional, uno del cliente. Es el que ve el destinatario; tiene que ser un
     número de la cuenta de Anura. Sin número de origen, sale con el principal (`ANURA_DID`).
   - **Voz:** la del agente, u otra del catálogo con filtros de género, WER y car/s.
@@ -337,7 +361,8 @@ El usuario de un cliente crea y edita sus propios agentes; no ve ni puede tocar 
    conocimiento, datos a obtener y resultados. Se valida mientras editás y **Guardar** crea una
    versión nueva.
 3. **Versiones:** historial con autor; **Restaurar** guarda una anterior como versión nueva.
-4. **Probar:** conversación por texto o llamada de prueba, antes de ponerlo a atender.
+4. **Probar:** conversación por texto, llamada de prueba o link para llamar, antes de ponerlo a
+   atender. También desde **Agentes > Probar agentes** en el menú, o con **Probar** en la lista.
 5. Arriba, **Editar** (nombre y descripción), **Archivar/Desarchivar** y **Borrar** (solo si nunca
    tuvo conversaciones ni atiende un número de WhatsApp).
 6. Para que atienda: elegilo en **Mi cuenta > Números** o en **WhatsApp**.
@@ -541,6 +566,12 @@ Registro y cobro por transferencia ([`SUSCRIPCIONES_PLAN.md`](SUSCRIPCIONES_PLAN
 - **Plan (`/plan`, cliente):** datos para la factura y planes con precio. Se pagan con **tarjeta**
   (débito automático de Mercado Pago, se activa en el momento; con uno activo, cambiar de plan no pide la
   tarjeta) o por **transferencia** (ve los datos bancarios y manda el comprobante por email).
+- **Lo que el plan no incluye** ([`FUNCIONES_POR_PLAN_PLAN.md`](FUNCIONES_POR_PLAN_PLAN.md)): el cliente ve
+  un candado en la navegación (Llamadas, WhatsApp, Contactos, Equipo, Campañas) y, en esa pantalla, un aviso
+  con borde amarillo, en qué planes está ("Disponible en los planes Mostrador, Sucursal y Central") y "Mejorar mi plan"; lo de abajo queda atenuado y sin responder. Con plan gratis, "Free"
+  al lado de Plan. Sale de los campos del tier (minutos salientes y números, canales de campañas, contactos,
+  equipo, links y la casilla **WhatsApp**) y de los ajustes del cliente: un ajuste abre la función. Sin
+  salientes, "Nueva llamada" de Inicio y Probar del agente quedan fijos en modo prueba.
 - **Ficha del cliente, tarjeta "Plan pago" (admin):** "Registrar pago" activa o renueva el plan por un
   mes; "Rechazar pedido" o "Pasar al gratuito" lo corta.
 - **Cobros (`/billing`, admin):** planes pagos y pedidos abiertos, y pagos para facturar ("Marcar facturado").

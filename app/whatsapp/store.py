@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..db import utcnow
 from ..models import Agent, Client, WaAccount, WaMessage, WaOperator, WaThread
+from ..services import limits
 from ..services.errors import Conflict, Invalid, NotFound
 from . import crypto
 
@@ -62,6 +63,7 @@ def create_account(s: Session, *, client_id: str, agent_id: str, phone_number_id
     extra: columnas de la fase 2 (status, source, business_id, connected_by, ...)."""
     if s.get(Client, client_id) is None:
         raise NotFound("Cliente inexistente")
+    limits.check_whatsapp(s, client_id)
     check_agent(s, client_id, agent_id)
     phone_number_id = phone_number_id.strip()
     if not re.fullmatch(r"\d{1,32}", phone_number_id):

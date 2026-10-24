@@ -58,6 +58,17 @@ def finish_all(api):
 
 # ---------- del cliente ----------
 
+def test_agent_list_has_link_url_and_objective(links):
+    def row():
+        return next(a for a in links.user.get(f"{V1}/agents").json() if a["id"] == links.agent["id"])
+
+    assert row()["call_link_url"] is None and isinstance(row()["objective"], str)
+    link = create(links).json()
+    assert row()["call_link_url"] == link["url"]
+    links.user.delete(f"{V1}/agents/{links.agent['id']}/call-link")
+    assert row()["call_link_url"] is None
+
+
 def test_create_read_update_rotate_revoke(links):
     url = f"{V1}/agents/{links.agent['id']}/call-link"
     state = links.user.get(url).json()

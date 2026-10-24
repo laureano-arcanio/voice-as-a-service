@@ -1,5 +1,6 @@
 import {
   Alert,
+  Anchor,
   Avatar,
   Badge,
   Button,
@@ -15,6 +16,7 @@ import {
   Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { Link } from 'react-router';
 import {
   IconDots,
   IconExternalLink,
@@ -27,7 +29,7 @@ import {
   IconPhoto,
   IconTrash,
 } from '@tabler/icons-react';
-import type { AgentDetail, CallLink, CallLinkState } from '@/api/types';
+import type { Agent, CallLink, CallLinkState } from '@/api/types';
 import { confirmAction } from '@/components/confirm';
 import { CopyIcon } from '@/components/Copy';
 import { QueryState } from '@/components/QueryState';
@@ -100,9 +102,36 @@ function Preview({
   );
 }
 
+/** La URL del link, para copiarla o abrirla. */
+function LinkUrl({ link }: { link: CallLink }) {
+  return (
+    <Group gap="xs" wrap="nowrap">
+      <TextInput
+        readOnly
+        value={link.url}
+        aria-label="URL del link"
+        classNames={{ input: 'mono' }}
+        style={{ flex: 1 }}
+        onFocus={(e) => e.currentTarget.select()}
+        rightSection={<CopyIcon value={link.url} label="Copiar link" />}
+      />
+      <Button
+        component="a"
+        href={link.url}
+        target="_blank"
+        rel="noopener"
+        variant="default"
+        leftSection={<IconExternalLink size={16} />}
+      >
+        Abrir
+      </Button>
+    </Group>
+  );
+}
+
 const minutes = (v: number | string) => (v === '' ? null : Number(v));
 
-function LinkEditor({ agent, state, link }: { agent: AgentDetail; state: CallLinkState; link: CallLink }) {
+function LinkEditor({ agent, state, link }: { agent: Agent; state: CallLinkState; link: CallLink }) {
   const update = useUpdateCallLink(agent.id);
   const rotate = useRotateCallLink(agent.id);
   const del = useDeleteCallLink(agent.id);
@@ -230,27 +259,7 @@ function LinkEditor({ agent, state, link }: { agent: AgentDetail; state: CallLin
             </Menu>
           </Group>
         </Group>
-        <Group gap="xs" wrap="nowrap">
-          <TextInput
-            readOnly
-            value={link.url}
-            aria-label="URL del link"
-            classNames={{ input: 'mono' }}
-            style={{ flex: 1 }}
-            onFocus={(e) => e.currentTarget.select()}
-            rightSection={<CopyIcon value={link.url} label="Copiar link" />}
-          />
-          <Button
-            component="a"
-            href={link.url}
-            target="_blank"
-            rel="noopener"
-            variant="default"
-            leftSection={<IconExternalLink size={16} />}
-          >
-            Abrir
-          </Button>
-        </Group>
+        <LinkUrl link={link} />
         <Text size="sm" c="dimmed" mt="xs" className="mono">
           Hoy: {usage.calls_today} {usage.calls_today === 1 ? 'llamada' : 'llamadas'} ·{' '}
           {formatNumber(usage.seconds_today / 60)} min · Este mes: {formatNumber(usage.seconds_month / 60)}{' '}
@@ -384,7 +393,7 @@ function LinkEditor({ agent, state, link }: { agent: AgentDetail; state: CallLin
   );
 }
 
-function NoLink({ agent, state }: { agent: AgentDetail; state: CallLinkState }) {
+function NoLink({ agent, state }: { agent: Agent; state: CallLinkState }) {
   const create = useCreateCallLink(agent.id);
   const isAdmin = useIsAdmin();
   const { plan_max: max, plan_used: used } = state;
@@ -440,13 +449,48 @@ function NoLink({ agent, state }: { agent: AgentDetail; state: CallLinkState }) 
   );
 }
 
-export function CallLinkTab({ agent }: { agent: AgentDetail }) {
+export function CallLinkTab({ agent }: { agent: Agent }) {
   const query = useCallLink(agent.id);
   return (
     <QueryState query={query}>
       {(state) =>
         state.link ? (
           <LinkEditor key={state.link.id} agent={agent} state={state} link={state.link} />
+        ) : (
+          <NoLink agent={agent} state={state} />
+        )
+      }
+    </QueryState>
+  );
+}
+
+/**
+ * Version corta para "Probar": la URL para copiar o abrir (o el alta) y el link a la
+ * configuracion completa, en la pestaña "Link para llamar" del agente.
+ */
+export function CallLinkCard({ agent }: { agent: Agent }) {
+  const query = useCallLink(agent.id);
+  return (
+    <QueryState query={query}>
+      {(state) =>
+        state.link ? (
+          <Card>
+            <Group justify="space-between" align="flex-start" mb="sm" wrap="nowrap">
+              <div>
+                <Group gap="xs">
+                  <Title order={4}>Link para llamar</Title>
+                  {state.link.paused ? <Badge color="yellow">Pausado</Badge> : <Badge color="green">Activo</Badge>}
+                </Group>
+                <Text size="sm" c="dimmed">
+                  Abrilo para llamar al agente desde el navegador, como lo va a hacer tu cliente.
+                </Text>
+              </div>
+              <Anchor component={Link} to={`/agents/${agent.id}?tab=link`} size="sm" style={{ whiteSpace: 'nowrap' }}>
+                Configurar
+              </Anchor>
+            </Group>
+            <LinkUrl link={state.link} />
+          </Card>
         ) : (
           <NoLink agent={agent} state={state} />
         )

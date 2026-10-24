@@ -1,7 +1,9 @@
 ---
 // Documentación pública de la API. Inferencia: sale de docs/API_INFERENCIA.md, sin lo que es solo para quien opera el
-// server. Llamadas, contactos y campañas: de docs/LLAMADAS_SALIENTES_PLAN.md y app/api/schemas.py. La referencia
-// completa de pedidos y respuestas es el OpenAPI del panel (/api/v1/docs).
+// server. Llamadas, contactos y campañas: de docs/LLAMADAS_SALIENTES_PLAN.md y app/api/schemas.py. Equipo,
+// derivaciones y eventos: de docs/DERIVACIONES_PLAN.md. Qué incluye cada plan: los tiers de la migración 0026 (al
+// cambiar un tier, cambiar planFeatures y las tarjetas de data/site.ts). La referencia completa de pedidos y
+// respuestas es el OpenAPI del panel (/api/v1/docs).
 import CodeBlock from "../../components/CodeBlock.astro";
 import Cta from "../../components/Cta.astro";
 import Footer from "../../components/Footer.astro";
@@ -19,10 +21,14 @@ const toc = [
   { id: "streaming", label: "Streaming" },
   { id: "limites", label: "Límites y consumo" },
   { id: "errores", label: "Errores" },
+  { id: "planes", label: "Qué incluye cada plan" },
   { id: "agentes", label: "Agentes y llamadas" },
+  { id: "cortar", label: "Cortar y bloquear" },
   { id: "contactos", label: "Contactos" },
   { id: "campanas", label: "Campañas" },
   { id: "webhook", label: "Webhook" },
+  { id: "derivaciones", label: "Equipo y derivaciones" },
+  { id: "eventos", label: "Eventos" },
 ];
 
 const sdk = `from openai import OpenAI
@@ -142,6 +148,108 @@ const pollOut = `{
   "goal": 64, "minutes_used": 212.5
 }`;
 
+const planFeatures = [
+  { feature: "Llamadas salientes (POST /calls)", free: "No", mostrador: "Sí", sucursal: "Sí", red: "Sí" },
+  { feature: "WhatsApp", free: "No", mostrador: "Sí", sucursal: "Sí", red: "Sí" },
+  { feature: "Contactos activos", free: "No", mostrador: "500", sucursal: "5.000", red: "Sin tope" },
+  { feature: "Campañas de WhatsApp", free: "No", mostrador: "No", sucursal: "Sí", red: "Sí" },
+  { feature: "Campañas de llamadas", free: "No", mostrador: "No", sucursal: "Sí, de a 1 llamada", red: "Sí, hasta 3 a la vez" },
+  { feature: "Equipo para derivar llamadas", free: "No", mostrador: "1 persona", sucursal: "5 personas", red: "Sin tope" },
+];
+
+const planErrors = [
+  { code: "outbound_minutes", text: "Se acabaron los minutos salientes del mes (o el plan no tiene)" },
+  { code: "concurrency_limit", text: "Ya tenés todas las llamadas a la vez que permite el plan" },
+  { code: "whatsapp_not_in_plan", text: "El plan no incluye WhatsApp" },
+  { code: "contacts_limit", text: "La agenda está llena: archivá contactos para desarchivar otros. En una carga, los que no entran vuelven en invalid con el motivo" },
+  { code: "campaign_channel_not_in_plan", text: "El plan no incluye campañas por ese canal" },
+  { code: "campaign_concurrency", text: "concurrency pasa el tope del plan" },
+  { code: "campaign_contacts", text: "La campaña tiene más contactos de los que permite el plan" },
+  { code: "campaigns_per_month", text: "Ya iniciaste todas las campañas del mes" },
+  { code: "campaign_followup_not_in_plan", text: "El plan no incluye el seguimiento por WhatsApp" },
+  { code: "team_members_limit", text: "El equipo está completo, o el plan no incluye derivación" },
+];
+
+const features = `curl ${API}/plan/features -H "Authorization: Bearer $ATENTINA_KEY"`;
+
+const featuresOut = `{
+  "client_id": "…", "tier_name": "Sucursal", "free": false,
+  "features": {
+    "outbound_calls": {"enabled": true, "reason": null},
+    "campaigns_voice": {"enabled": true, "reason": null},
+    "campaigns_whatsapp": {"enabled": true, "reason": null},
+    "whatsapp": {"enabled": true, "reason": null},
+    "contacts": {"enabled": true, "reason": null},
+    "team": {"enabled": true, "reason": null},
+    "call_links": {"enabled": true, "reason": null}
+  }
+}`;
+
+const hangup = `curl -X POST ${API}/calls/<conversation_id>/hangup -H "Authorization: Bearer $ATENTINA_KEY"
+# {"status": "finalizada", "ended_reason": "hangup_by_user"}`;
+
+const block = `curl ${API}/blocked-numbers \\
+  -H "Authorization: Bearer $ATENTINA_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"phone": "+5493515551234", "note": "Llama para insultar"}'`;
+
+const teamMember = `curl ${API}/team \\
+  -H "Authorization: Bearer $ATENTINA_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name": "Laura Gómez", "phone": "351 555-4321"}'`;
+
+const area = `curl ${API}/handoff-areas \\
+  -H "Authorization: Bearer $ATENTINA_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "name": "Ventas",
+    "description": "Presupuestos, precios y compras",
+    "member_ids": ["<id de Laura>", "<id de otra persona>"],
+    "strategy": "sequential",
+    "ring_seconds": 20,
+    "schedule": {"week": {"mon": [["09:00", "13:00"], ["16:00", "20:00"]],
+                          "tue": [["09:00", "18:00"]]},
+                 "closed": ["2026-12-25"]}
+  }'`;
+
+const agentHandoff = `"handoff": {
+  "areas": [
+    {"area_id": "<id del área Ventas>", "when": "Quiere un presupuesto o pide hablar con un vendedor"}
+  ],
+  "hold_music": {"enabled": true, "track": "default", "volume": 0.3}
+}`;
+
+const handoffEndpoints = [
+  { path: "GET · POST /team", text: "Lista o suma personas: name, phone (para transferirle llamadas) y active" },
+  { path: "PATCH · DELETE /team/{id}", text: "Cambia o saca a una persona" },
+  { path: "GET · POST /handoff-areas", text: "Lista o crea áreas; cada una trae open_now y su horario en palabras (schedule_text)" },
+  { path: "GET · PATCH · DELETE /handoff-areas/{id}", text: "Un área. Si un agente la usa no se borra (409 area_in_use)" },
+  { path: "GET /handoff-areas/defaults", text: "Los textos que dice el agente al derivar, para cambiarlos por área en messages" },
+  { path: "GET /hold-music", text: "Los temas de espera para hold_music.track" },
+];
+
+const events = `curl "${API}/events?type=handoff.&after_id=1520" -H "Authorization: Bearer $ATENTINA_KEY"`;
+
+const eventsOut = `[
+  {"id": 1521, "at": "2026-11-03T14:02:11Z", "type": "handoff.requested", "actor": "agent",
+   "conversation_id": "…", "area_id": "…", "team_member_id": null, "data": {}},
+  {"id": 1522, "at": "2026-11-03T14:02:12Z", "type": "handoff.dialing", "actor": "system",
+   "conversation_id": "…", "area_id": "…", "team_member_id": "…", "data": {}},
+  {"id": 1525, "at": "2026-11-03T14:02:31Z", "type": "handoff.connected", "actor": "person",
+   "conversation_id": "…", "area_id": "…", "team_member_id": "…", "data": {}}
+]`;
+
+const eventTypes = [
+  { type: "call.ringing · call.answered · call.ended", text: "La llamada suena, la atienden y termina (call.ended trae el estado final y el motivo)" },
+  { type: "handoff.requested", text: "El agente decidió pasar la llamada a un área" },
+  { type: "handoff.dialing · answered · confirmed", text: "Se llama a una persona, atiende y marca 1 para tomar la llamada" },
+  { type: "handoff.no_answer · busy · failed · machine · not_confirmed", text: "Ese intento no salió: no atendió, ocupado, falla, contestador o no marcó 1" },
+  { type: "handoff.connected · ended", text: "La persona y el cliente hablan; ended trae los segundos" },
+  { type: "handoff.returned_to_ai · person_hung_up", text: "La persona devolvió la llamada al agente o cortó" },
+  { type: "handoff.unavailable", text: "No se pudo derivar: fuera de horario, sin personas, sin minutos o sin canal (data trae el motivo)" },
+  { type: "hold.started · hold.ended", text: "Empieza y termina la música de espera" },
+];
+
 const report = `curl ${API}/campaigns/<id>/report.csv -H "Authorization: Bearer $ATENTINA_KEY" -o reporte.csv`;
 
 const verify = `import hashlib, hmac
@@ -188,7 +296,7 @@ const campaignEndpoints = [
 
 <Base
   title="Documentación de la API: voz, llamadas y campañas | Atentina"
-  description="Cómo usar la API de Atentina: LLM, transcripción y síntesis de voz, llamadas, contactos, campañas salientes programadas, estado, reportes y webhook."
+  description="Cómo usar la API de Atentina: LLM, transcripción y síntesis de voz, llamadas, contactos, campañas salientes programadas, derivación a tu equipo, eventos, reportes y webhook."
   ogDescription="Documentación de la API de LLM, transcripción y voz de Atentina."
   path="/desarrolladores/docs"
 >
@@ -236,7 +344,7 @@ const campaignEndpoints = [
           </li>
         </ul>
         <ol>
-          <li><a href="#demo">Pedí acceso</a>: te creamos la cuenta con el plan Free (20 minutos por mes, llamadas web, panel y API).</li>
+          <li><a href="/registro">Creá tu cuenta</a> con el plan Free (20 minutos por mes, llamadas web, panel y API).</li>
           <li>En el panel, entrá a <strong>API &gt; Nueva API key</strong>, elegí el alcance y copiala: se muestra una sola vez.</li>
           <li>Hacé el primer pedido:</li>
         </ol>
@@ -326,13 +434,41 @@ const campaignEndpoints = [
         <p>Un 429 por cupo agotado no se arregla reintentando: hay que esperar al día 1 o ampliar el plan. Uno por <code>rate_limited</code> sí, después de los segundos de <code>Retry-After</code>.</p>
       </section>
 
+      <section id="planes" class="grid gap-4">
+        <h2>Qué incluye cada plan</h2>
+        <p>La API de llamadas es la misma en todos los planes; lo que cambia es qué funciones están habilitadas y con qué tope. Si el plan no incluye algo, el pedido no hace nada y responde 429 con un <code>code</code> que dice qué falta.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Función</th><th>Free</th><th>Mostrador</th><th>Sucursal</th><th>Red</th></tr></thead>
+          <tbody>
+            {planFeatures.map((f) => <tr><td>{f.feature}</td><td>{f.free}</td><td>{f.mostrador}</td><td>{f.sucursal}</td><td>{f.red}</td></tr>)}
+          </tbody>
+        </table></div>
+        <p>Las llamadas salientes, las campañas de llamadas y las derivaciones usan los minutos salientes del plan y necesitan un número asignado a tu cuenta. Para saber qué tiene tu cuenta, con el motivo de lo que no:</p>
+        <CodeBlock label="curl" code={features} />
+        <CodeBlock label="Respuesta" code={featuresOut} />
+        <div class="table-wrap"><table>
+          <thead><tr><th>429 <code>code</code></th><th>Cuándo</th></tr></thead>
+          <tbody>
+            {planErrors.map((e) => <tr><td><code>{e.code}</code></td><td>{e.text}</td></tr>)}
+          </tbody>
+        </table></div>
+      </section>
+
       <section id="agentes" class="grid gap-4">
         <h2>Agentes y llamadas</h2>
-        <p>Con una key <code>calls</code> administrás agentes, lanzás llamadas, cargás contactos, armás campañas y descargás reportes, con la URL base <code>{API}</code>. También se puede hacer desde tu agente de programación, con las <a href="/desarrolladores#agentes">skills</a> para Claude Code, Cursor y Codex. La referencia completa de cada pedido y respuesta está en el panel, en <code>/api/v1/docs</code>.</p>
+        <p>Con una key <code>calls</code> administrás agentes, lanzás y cortás llamadas, cargás contactos, armás campañas, configurás las derivaciones a tu equipo, leés los eventos y descargás reportes, con la URL base <code>{API}</code>. También se puede hacer desde tu agente de programación, con las <a href="/desarrolladores#agentes">skills</a> para Claude Code, Cursor y Codex. La referencia completa de cada pedido y respuesta está en el panel, en <code>/api/v1/docs</code>.</p>
         <h3>Una llamada</h3>
         <p>El agente llama al número y la conversación queda en el panel. El teléfono va en formato internacional; <code>from_number_id</code> elige con qué número tuyo sale (sin él, el primero) y <code>voice</code> cambia la voz.</p>
         <CodeBlock label="curl" code={call} />
         <p>La respuesta trae el <code>conversation_id</code>. Con <code>GET /calls/{"{"}conversation_id{"}"}</code> ves el estado (<code>pendiente</code>, <code>sonando</code>, <code>en_curso</code>, <code>finalizada</code>, <code>fallida</code>), la duración, los datos que tomó el agente y el resultado. Para muchos números, usá una campaña.</p>
+      </section>
+
+      <section id="cortar" class="grid gap-4">
+        <h2>Cortar y bloquear</h2>
+        <p>Para terminar una llamada en curso desde tu sistema: cuelga a la otra punta y la llamada queda con <code>ended_reason</code> <code>hangup_by_user</code>. Si la llamada ya terminó, responde 409 <code>call_not_active</code>.</p>
+        <CodeBlock label="curl" code={hangup} />
+        <p>Para no volver a atender un número, bloquealo: sus llamadas entrantes, por tu línea o por WhatsApp, se cortan sin atender y quedan como <code>rechazada</code> con <code>ended_reason</code> <code>blocked_number</code>. <code>GET /blocked-numbers</code> los lista y <code>DELETE /blocked-numbers/{"{"}phone{"}"}</code> desbloquea uno. Si ya estaba bloqueado, se actualiza la nota.</p>
+        <CodeBlock label="curl" code={block} />
       </section>
 
       <section id="contactos" class="grid gap-4">
@@ -399,6 +535,42 @@ const campaignEndpoints = [
           <li><strong>Reintentos:</strong> se toma como recibido cualquier 2xx. Si no, se reintenta a los 30 s, 2 min, 10 min, 1 h y 6 h. <code>delivery_id</code> (también en <code>X-Atentina-Delivery</code>) es el mismo en los reintentos: usalo para no procesar dos veces el mismo evento.</li>
         </ul>
         <CodeBlock label="Python" code={verify} />
+      </section>
+
+      <section id="derivaciones" class="grid gap-4">
+        <h2>Equipo y derivaciones</h2>
+        <p>El agente puede pasar una llamada a una persona de tu equipo. Mientras el cliente escucha música, llama a la persona, le cuenta en pocas palabras de qué se trata, y si marca 1 los conecta. La conversación con la persona también queda transcripta en el panel. Se arma en tres pasos.</p>
+        <p><strong>1. Las personas.</strong> Cada una con su teléfono de Argentina, al que se la llama. Cuántas podés cargar depende del plan.</p>
+        <CodeBlock label="curl" code={teamMember} />
+        <p><strong>2. Las áreas.</strong> Un área agrupa a las personas que atienden un tema. <code>description</code> es lo que lee el agente para elegirla. <code>strategy</code> en <code>sequential</code> las llama en el orden de <code>member_ids</code>, y en <code>round_robin</code> va rotando quién arranca. Cada una suena <code>ring_seconds</code>. Con <code>schedule</code> (hora de Argentina, franjas por día y feriados en <code>closed</code>), fuera de horario el agente no deriva y toma el mensaje; sin horario, atiende siempre.</p>
+        <CodeBlock label="curl" code={area} />
+        <p><strong>3. El agente.</strong> En su definición (<code>PUT /agents/{"{"}id{"}"}/definition</code>, que guarda una versión nueva) van las áreas a las que puede derivar y, en <code>when</code>, cuándo hacerlo en palabras (vacío: la descripción del área). Por ahora solo con el motor <code>classic</code>.</p>
+        <CodeBlock label="JSON" code={agentHandoff} />
+        <ul>
+          <li><strong>Si nadie atiende</strong> (no atiende, da ocupado, salta un contestador o no marca 1), el agente vuelve con el cliente y le toma el mensaje.</li>
+          <li><strong>Volver al agente:</strong> la persona marca <code>return_digits</code> (2 por defecto; nunca con <code>*</code>) y el agente retoma la llamada. Si la persona corta, <code>on_person_hangup</code> elige entre que el agente siga (<code>resume</code>) o se despida y corte (<code>end</code>).</li>
+          <li><strong>Minutos:</strong> el tramo con la persona gasta minutos salientes desde que atiende; los intentos sin atender no se cobran. Sin minutos salientes, no se deriva. La llamada transferida ocupa una sola de las llamadas a la vez de tu plan.</li>
+          <li><strong>Dónde no hay derivación:</strong> en las campañas y en los mensajes de WhatsApp. Sí en las entrantes por tu línea o por WhatsApp, y en las salientes que lanzás con <code>POST /calls</code>.</li>
+        </ul>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Endpoint</th><th>Qué hace</th></tr></thead>
+          <tbody>
+            {handoffEndpoints.map((e) => <tr><td><code>{e.path}</code></td><td>{e.text}</td></tr>)}
+          </tbody>
+        </table></div>
+      </section>
+
+      <section id="eventos" class="grid gap-4">
+        <h2>Eventos</h2>
+        <p>Cada llamada deja una línea de tiempo: cuándo sonó, cuándo la atendieron, cada intento de derivación y cómo terminó. <code>GET /events</code> la devuelve en orden de llegada, con filtros <code>conversation_id</code>, <code>type</code> (exacto o prefijo, como <code>handoff.</code>), <code>since</code> y <code>until</code>. Para leer solo lo nuevo, repetí el pedido con <code>after_id</code> igual al último <code>id</code> que recibiste (hasta 1.000 por pedido con <code>limit</code>).</p>
+        <CodeBlock label="curl" code={events} />
+        <CodeBlock label="Respuesta" code={eventsOut} />
+        <div class="table-wrap"><table>
+          <thead><tr><th>Tipo</th><th>Qué pasó</th></tr></thead>
+          <tbody>
+            {eventTypes.map((e) => <tr><td><code>{e.type}</code></td><td>{e.text}</td></tr>)}
+          </tbody>
+        </table></div>
       </section>
     </main>
   </div>

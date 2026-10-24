@@ -259,8 +259,8 @@ web-check: ## Lint, tipos y tests de la UI
 landing-dev: ## Landing en modo desarrollo (Astro, :4321; docs/LANDING.md). HOST=1 la abre en la red (para verla en el celular)
 	cd landing && npm install && npm run dev $(if $(HOST),-- --host)
 
-openapi: ## Regenera web/openapi.json y los tipos de la UI (web/src/api/schema.d.ts) desde la API
-	$(COMPOSE) run --rm --no-deps -T -e AUTH_SECRET=openapi app python -c "import json; from app.main import app; print(json.dumps(app.openapi(), ensure_ascii=False, indent=1))" > web/openapi.json
+openapi: ## Regenera web/openapi.json y los tipos de la UI (web/src/api/schema.d.ts) desde la API (el codigo del repo, no el de la imagen)
+	$(COMPOSE) run --rm --no-deps -T -e AUTH_SECRET=openapi -v $(CURDIR)/app:/app/app app python -c "import json; from app.main import app; print(json.dumps(app.openapi(), ensure_ascii=False, indent=1))" > web/openapi.json
 	cd web && npm run gen:api
 
 # --- Tests ---------------------------------------------------------------

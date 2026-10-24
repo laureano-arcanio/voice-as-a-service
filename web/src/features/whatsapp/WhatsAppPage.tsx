@@ -31,6 +31,8 @@ import { Link, useSearchParams } from 'react-router';
 import type { WaAccount } from '@/api/types';
 import { confirmAction } from '@/components/confirm';
 import { PageHeader } from '@/components/PageHeader';
+import { PlanAlert } from '@/components/PlanGate';
+import { useFeatureLock } from '@/features/billing/features';
 import { EmptyState, QueryState } from '@/components/QueryState';
 import { useAgents } from '@/features/agents/api';
 import { useCurrentUser } from '@/features/auth/api';
@@ -164,10 +166,13 @@ export function WhatsAppPage() {
     templatesFor && manageable.some((a) => a.id === templatesFor)
       ? templatesFor
       : (manageable[0]?.id ?? null);
-  const signupEnabled = !!config.data?.enabled;
-  const signupReason = config.isError
-    ? 'No se pudo leer la configuración de WhatsApp.'
-    : (config.data?.reason ?? 'Cargando…');
+  const waLock = useFeatureLock('whatsapp');
+  const signupEnabled = !!config.data?.enabled && !waLock.locked;
+  const signupReason = waLock.locked
+    ? `Tu plan ${waLock.tierName} no incluye WhatsApp.`
+    : config.isError
+      ? 'No se pudo leer la configuración de WhatsApp.'
+      : (config.data?.reason ?? 'Cargando…');
 
   const setClient = (v: string | null) =>
     setParams(
@@ -249,7 +254,8 @@ export function WhatsAppPage() {
           </>
         }
       />
-      {config.data && !config.data.enabled && (
+      <PlanAlert feature="whatsapp" what="WhatsApp" mb="md" />
+      {config.data && !config.data.enabled && !waLock.locked && (
         <Alert color="gray" icon={<IconAlertTriangle size={18} />} mb="md">
           La conexión de números propios no está disponible: {config.data.reason}
           {isAdmin ? '' : '. Avisanos y la habilitamos.'}

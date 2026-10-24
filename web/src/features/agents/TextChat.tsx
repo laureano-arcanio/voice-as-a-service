@@ -16,7 +16,7 @@ import { IconSend } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { errorMessage } from '@/api/errors';
-import type { AgentDetail, ChatMessage, ConversationState } from '@/api/types';
+import type { Agent, ChatMessage, ConversationState } from '@/api/types';
 import { useSendTurn, useStartConversation } from '@/features/calls/api';
 import { Dash } from '@/components/Badges';
 import { ChatView } from '@/features/calls/ChatView';
@@ -30,7 +30,7 @@ interface Session {
 }
 
 /** Conversacion por texto con el agente (sin llamada): POST /conversations y /turns. */
-export function TextChat({ agent }: { agent: AgentDetail }) {
+export function TextChat({ agent }: { agent: Agent }) {
   const start = useStartConversation();
   const turn = useSendTurn();
   const [session, setSession] = useState<Session | null>(null);

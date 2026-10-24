@@ -3008,6 +3008,57 @@
     }
    }
   },
+  "/api/v1/calls/{conversation_id}/join": {
+   "post": {
+    "tags": [
+     "calls"
+    ],
+    "summary": "Join Test Call",
+    "description": "URL de LiveKit y token para hacer de interesado en una llamada de prueba en curso, desde el\nnavegador (la pantalla /calls/{id}/hablar del panel).",
+    "operationId": "join_test_call_api_v1_calls__conversation_id__join_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "conversation_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Conversation Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CallJoinOut"
+        }
+       }
+      }
+     },
+     "409": {
+      "description": "No es una llamada de prueba o ya terminó"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/calls/{conversation_id}/hangup": {
    "post": {
     "tags": [
@@ -10598,6 +10649,61 @@
      }
     }
    }
+  },
+  "/api/v1/plan/features": {
+   "get": {
+    "tags": [
+     "plan"
+    ],
+    "summary": "Plan Features",
+    "description": "Cada funcion con `enabled` y, si no esta, `reason` (lo que hace falta). `free`: el plan es gratis.\nUn admin indica `client_id`.",
+    "operationId": "plan_features_api_v1_plan_features_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PlanFeaturesOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
   }
  },
  "components": {
@@ -10778,6 +10884,22 @@
       ],
       "title": "Voice"
      },
+     "objective": {
+      "type": "string",
+      "title": "Objective",
+      "default": ""
+     },
+     "call_link_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Call Link Url"
+     },
      "created_at": {
       "type": "string",
       "format": "date-time",
@@ -10855,6 +10977,22 @@
        }
       ],
       "title": "Voice"
+     },
+     "objective": {
+      "type": "string",
+      "title": "Objective",
+      "default": ""
+     },
+     "call_link_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Call Link Url"
      },
      "created_at": {
       "type": "string",
@@ -12532,6 +12670,25 @@
      "ended_at"
     ],
     "title": "CallInfo"
+   },
+   "CallJoinOut": {
+    "properties": {
+     "livekit_url": {
+      "type": "string",
+      "title": "Livekit Url"
+     },
+     "token": {
+      "type": "string",
+      "title": "Token"
+     }
+    },
+    "type": "object",
+    "required": [
+     "livekit_url",
+     "token"
+    ],
+    "title": "CallJoinOut",
+    "description": "Para conectarse a una llamada de prueba con el SDK de LiveKit (la pagina del panel)."
    },
    "CallLinkIn": {
     "properties": {
@@ -18847,6 +19004,75 @@
     "type": "object",
     "title": "PhoneNumberUpdate"
    },
+   "PlanFeatureOut": {
+    "properties": {
+     "enabled": {
+      "type": "boolean",
+      "title": "Enabled"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason",
+      "description": "Lo que hace falta para usarla (null si esta incluida)"
+     }
+    },
+    "type": "object",
+    "required": [
+     "enabled"
+    ],
+    "title": "PlanFeatureOut"
+   },
+   "PlanFeaturesOut": {
+    "properties": {
+     "client_id": {
+      "type": "string",
+      "title": "Client Id"
+     },
+     "tier_name": {
+      "type": "string",
+      "title": "Tier Name"
+     },
+     "free": {
+      "type": "boolean",
+      "title": "Free",
+      "description": "El plan es gratis (precio 0)"
+     },
+     "features": {
+      "additionalProperties": {
+       "$ref": "#/components/schemas/PlanFeatureOut"
+      },
+      "propertyNames": {
+       "enum": [
+        "outbound_calls",
+        "campaigns_voice",
+        "campaigns_whatsapp",
+        "whatsapp",
+        "contacts",
+        "team",
+        "call_links"
+       ]
+      },
+      "type": "object",
+      "title": "Features"
+     }
+    },
+    "type": "object",
+    "required": [
+     "client_id",
+     "tier_name",
+     "free",
+     "features"
+    ],
+    "title": "PlanFeaturesOut",
+    "description": "Que funciones incluye el plan del cliente (GET /plan/features)."
+   },
    "PlanOut": {
     "properties": {
      "id": {
@@ -20228,6 +20454,12 @@
       "description": "Puede activar el seguimiento por WhatsApp de las campañas de voz",
       "default": false
      },
+     "whatsapp": {
+      "type": "boolean",
+      "title": "Whatsapp",
+      "description": "Incluye WhatsApp: cuentas, mensajes y llamadas",
+      "default": true
+     },
      "price_ars": {
       "anyOf": [
        {
@@ -20487,6 +20719,10 @@
       "type": "boolean",
       "title": "Campaign Followup"
      },
+     "whatsapp": {
+      "type": "boolean",
+      "title": "Whatsapp"
+     },
      "price_ars": {
       "anyOf": [
        {
@@ -20542,6 +20778,7 @@
      "max_call_links",
      "max_team_members",
      "campaign_followup",
+     "whatsapp",
      "price_ars",
      "public",
      "sort",
@@ -20819,6 +21056,17 @@
        }
       ],
       "title": "Campaign Followup"
+     },
+     "whatsapp": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Whatsapp"
      },
      "price_ars": {
       "anyOf": [

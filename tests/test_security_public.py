@@ -251,6 +251,12 @@ def test_openapi_still_generated_for_make_openapi(api):
     assert "/api/v1/auth/login" in api.app.openapi()["paths"]
 
 
+def test_csp_lets_the_test_call_reach_livekit(api, monkeypatch):
+    monkeypatch.setattr(settings, "demo_livekit_url", "wss://rtc.example.com")
+    csp = api.client.get("/health").headers["content-security-policy"]
+    assert "wss://rtc.example.com https://rtc.example.com" in csp.split("connect-src")[1].split(";")[0]
+
+
 # ---------- CORS ----------
 
 def test_cors_landing_only_and_without_credentials(api):
@@ -279,7 +285,7 @@ def test_security_headers_and_csp(api, tmp_path, monkeypatch):
     assert h["x-frame-options"] == "DENY" and h["x-content-type-options"] == "nosniff"
     assert h["cross-origin-opener-policy"] == "same-origin-allow-popups"
     assert h["referrer-policy"] == "strict-origin-when-cross-origin"
-    assert "microphone=()" in h["permissions-policy"]
+    assert "microphone=(self)" in h["permissions-policy"] and "camera=()" in h["permissions-policy"]
     assert "strict-transport-security" not in h   # http://localhost
     https = peer_client(api).get("/health", headers={"X-Forwarded-Proto": "https"})
     assert https.headers["strict-transport-security"].startswith("max-age=31536000")

@@ -1,11 +1,16 @@
 import { Anchor, Card, Group, Stack, Title } from '@mantine/core';
 import { IconHistory } from '@tabler/icons-react';
 import { Link } from 'react-router';
-import type { AgentDetail } from '@/api/types';
-import { NewCallForm } from '@/features/calls/NewCallForm';
+import type { Agent } from '@/api/types';
+import { TestCallButton } from '@/features/calls/TestCallButton';
+import { CallLinkCard } from './CallLinkTab';
 import { TextChat } from './TextChat';
 
-export function TestTab({ agent }: { agent: AgentDetail }) {
+/**
+ * Probar un agente: por texto, con una llamada y con su link para llamar. Lo usan la
+ * pestaña Probar del agente y la pantalla "Probar agentes" (`/probar`).
+ */
+export function AgentTestPanel({ agent }: { agent: Agent }) {
   return (
     <Stack gap="md">
       <Group justify="flex-end">
@@ -19,10 +24,11 @@ export function TestTab({ agent }: { agent: AgentDetail }) {
       <TextChat agent={agent} />
       <Card>
         <Title order={4} mb="sm">
-          Llamada con este agente
+          Probar por voz
         </Title>
-        <NewCallForm fixedAgent={agent} />
+        <TestCallButton agent={agent} />
       </Card>
+      <CallLinkCard agent={agent} />
     </Stack>
   );
 }

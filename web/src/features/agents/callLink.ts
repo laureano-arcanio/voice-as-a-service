@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { unwrap } from '@/api/request';
 import type { CallLinkIn, CallLinkPatch } from '@/api/types';
+import { agentKeys } from './api';
 
 // Link publico para llamar al agente desde el navegador (docs/LINK_LLAMADA_PLAN.md).
 
@@ -17,7 +18,11 @@ export function useCallLink(agentId: string) {
 
 function useRefresh(agentId: string) {
   const qc = useQueryClient();
-  return () => void qc.invalidateQueries({ queryKey: key(agentId) });
+  return () => {
+    void qc.invalidateQueries({ queryKey: key(agentId) });
+    // La lista de agentes trae la URL del link (`call_link_url`).
+    void qc.invalidateQueries({ queryKey: [...agentKeys.all, 'list'] });
+  };
 }
 
 export function useCreateCallLink(agentId: string) {

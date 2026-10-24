@@ -99,6 +99,7 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
     max_call_links: Limit;
     max_team_members: Limit;
     campaign_followup: boolean;
+    whatsapp: boolean;
     price_ars: Limit;
     public: boolean;
     sort: number | '';
@@ -128,6 +129,7 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
       max_call_links: tier?.max_call_links ?? '',
       max_team_members: tier?.max_team_members ?? '',
       campaign_followup: tier?.campaign_followup ?? false,
+      whatsapp: tier?.whatsapp ?? true,
       price_ars: tier?.price_ars ?? '',
       public: tier?.public ?? false,
       sort: tier?.sort ?? 0,
@@ -169,6 +171,7 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
                 max_call_links: toLimit(v.max_call_links),
                 max_team_members: toLimit(v.max_team_members),
                 campaign_followup: v.campaign_followup,
+                whatsapp: v.whatsapp,
                 price_ars: toLimit(v.price_ars),
                 public: v.public,
                 sort: v.sort === '' ? 0 : v.sort,
@@ -247,6 +250,12 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
               description="A quien no atendió una llamada de campaña."
               mt="md"
               {...form.getInputProps('campaign_followup', { type: 'checkbox' })}
+            />
+            <Switch
+              label="WhatsApp"
+              description="Conectar números y que el agente atienda sus mensajes y llamadas."
+              mt="md"
+              {...form.getInputProps('whatsapp', { type: 'checkbox' })}
             />
           </Section>
           <Section title="Venta por el dashboard" cols={3}>
@@ -389,6 +398,11 @@ export function TiersPage() {
                           {t.campaign_followup && (
                             <Text size="xs" c="dimmed">
                               con seguimiento
+                            </Text>
+                          )}
+                          {!t.whatsapp && (
+                            <Text size="xs" c="dimmed">
+                              sin WhatsApp
                             </Text>
                           )}
                         </Table.Td>

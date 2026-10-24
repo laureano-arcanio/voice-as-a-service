@@ -1,5 +1,5 @@
 import { Alert, Anchor, Button, Grid, Group, Select, Stack, Switch, Text, TextInput } from '@mantine/core';
-import { IconAlertTriangle, IconCircleCheck, IconPhoneCall } from '@tabler/icons-react';
+import { IconAlertTriangle, IconCircleCheck, IconMicrophone, IconPhoneCall } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { ApiError, errorMessage } from '@/api/errors';
@@ -7,6 +7,7 @@ import type { Agent, CallStarted } from '@/api/types';
 import { agentOptions } from '@/features/agents/options';
 import { useIsAdmin } from '@/features/auth/api';
 import { useAgents } from '@/features/agents/api';
+import { useFeatureLock } from '@/features/billing/features';
 import { useClients } from '@/features/clients/api';
 import { usePhoneNumbers } from '@/features/numbers/api';
 import { VoicePicker } from '@/features/voices/VoicePicker';
@@ -18,7 +19,7 @@ import { useStartCall } from './api';
 const HINT_PHONE =
   'Llamada saliente: el agente marca el número (formato E.164, ej. +5491155551234). Las entrantes las atiende solo; todas quedan en Conversaciones.';
 const HINT_TEST =
-  'Se crea la llamada sin marcar ningún teléfono. Te aparece un link para conectarte por navegador (LiveKit Meet) y hablar con el agente.';
+  'Se crea la llamada sin marcar ningún teléfono. Con "Hablar con el agente" te conectás por el navegador, con tu micrófono.';
 
 export function CallError({ error }: { error: unknown }) {
   const quota = error instanceof ApiError && error.status === 429;
@@ -46,11 +47,17 @@ export function CallStartedAlert({ started }: { started: CallStarted }) {
       <Stack gap={4}>
         {started.join_url ? (
           <>
-            <Anchor href={started.join_url} target="_blank" rel="noopener noreferrer" fw={600}>
-              Conectate acá para hablar con el agente
-            </Anchor>
+            {/* En la misma pestaña: el clic habilita el audio del navegador. */}
+            <Button
+              component={Link}
+              to={`/calls/${started.conversation_id}/hablar`}
+              leftSection={<IconMicrophone size={18} />}
+              w="fit-content"
+            >
+              Hablar con el agente
+            </Button>
             <Text size="xs" c="dimmed">
-              Abrilo ahora: el link no se vuelve a mostrar.
+              El agente espera hasta 5 minutos a que te conectes.
             </Text>
           </>
         ) : (
@@ -73,7 +80,10 @@ export function NewCallForm({ fixedAgent }: { fixedAgent?: Agent }) {
   const agents = useAgents(undefined, false);
   const clients = useClients(isAdmin && !fixedAgent);
   const [agentId, setAgentId] = useState<string | null>(fixedAgent?.id ?? null);
-  const [testMode, setTestMode] = useState(false);
+  const [testModeChoice, setTestMode] = useState(false);
+  // Sin llamadas salientes en el plan, solo la prueba por navegador.
+  const outbound = useFeatureLock('outbound_calls');
+  const testMode = testModeChoice || outbound.locked;
   const [phone, setPhone] = useState('');
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [fromNumber, setFromNumber] = useState<string | null>(null);
@@ -131,8 +141,13 @@ export function NewCallForm({ fixedAgent }: { fixedAgent?: Agent }) {
             )}
             <Switch
               label="Modo prueba"
-              description="Sin teléfono real: te conectás por navegador y hacés de interesado."
+              description={
+                outbound.locked
+                  ? `Tu plan ${outbound.tierName} no incluye llamadas a teléfonos: te conectás por navegador y hacés de interesado.`
+                  : 'Sin teléfono real: te conectás por navegador y hacés de interesado.'
+              }
               checked={testMode}
+              disabled={outbound.locked}
               onChange={(e) => setTestMode(e.currentTarget.checked)}
             />
             <TextInput

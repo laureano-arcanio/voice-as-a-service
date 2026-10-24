@@ -7,7 +7,7 @@
 - HttpsRedirectMiddleware: por el tunel, un pedido por http:// va a https:// (308). Sin
   esto, si la zona no tiene "Always Use HTTPS", el login viajaria en claro hasta Cloudflare.
 - SecurityHeadersMiddleware: HSTS (solo por HTTPS), CSP con el hash de los <script>
-  inline de index.html, COOP, Referrer-Policy, Permissions-Policy, nosniff y XFO.
+  inline de index.html, COOP, Referrer-Policy, Permissions-Policy (microfono solo propio), nosniff y XFO.
 """
 import base64
 import hashlib
@@ -147,6 +147,17 @@ MP_HOSTS = ("https://*.mercadopago.com https://*.mercadopago.com.ar https://*.me
             "https://*.mercadolibre.com.ar https://*.mercadolivre.com https://*.mlstatic.com")
 
 
+def livekit_hosts() -> str:
+    """El LiveKit publico (wss://rtc.) para la llamada de prueba del panel (/calls/<id>/hablar): el SDK
+    abre el websocket y, si falla, valida por https en el mismo host."""
+    url = settings.demo_livekit_url or settings.livekit_url
+    m = re.match(r"(wss?|https?)://([^/]+)", url or "")
+    if not m:
+        return ""
+    secure = m.group(1) in ("wss", "https")
+    return f" {'wss' if secure else 'ws'}://{m.group(2)} {'https' if secure else 'http'}://{m.group(2)}"
+
+
 def content_security_policy(mercadopago: bool = False) -> str:
     """CSP de la UI: sus assets, los scripts inline de index.html (por hash; hoy no tiene) y el SDK de Facebook
     (Embedded Signup de WhatsApp: script en connect.facebook.net, popup e iframes en facebook.com). Con
@@ -160,7 +171,7 @@ def content_security_policy(mercadopago: bool = False) -> str:
         f"style-src 'self' 'unsafe-inline'{mp_hosts}",   # Mantine pone estilos inline
         f"img-src 'self' data: blob: https://*.facebook.com https://*.fbcdn.net https://*.fbsbx.com{mp_hosts}",
         f"font-src 'self' data:{mp_hosts}",
-        f"connect-src 'self' https://*.facebook.com https://*.facebook.net{mp_hosts}",
+        f"connect-src 'self' https://*.facebook.com https://*.facebook.net{livekit_hosts()}{mp_hosts}",
         f"frame-src https://*.facebook.com https://*.facebook.net{mp_hosts}",
         "media-src 'self' blob:",
         "worker-src 'self' blob:",
@@ -217,7 +228,8 @@ class SecurityHeadersMiddleware:
                 add("referrer-policy", "strict-origin-when-cross-origin")
                 # same-origin cortaria el postMessage del popup de Embedded Signup.
                 add("cross-origin-opener-policy", "same-origin-allow-popups")
-                add("permissions-policy", "camera=(), microphone=(), geolocation=(), payment=()")
+                # Microfono solo para el propio sitio: la llamada de prueba (/calls/<id>/hablar).
+                add("permissions-policy", "camera=(), microphone=(self), geolocation=(), payment=()")
                 if b"content-security-policy" not in present and b"content-security-policy-report-only" not in present:
                     name = "content-security-policy-report-only" if settings.csp_report_only \
                         else "content-security-policy"

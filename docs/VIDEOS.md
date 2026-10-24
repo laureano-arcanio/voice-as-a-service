@@ -37,6 +37,9 @@ Proyectos hoy: [`general`](../marketing/videos/proyectos/general/README.md) (el 
 probarlo con una llamada desde el navegador; el panel recreado en un teléfono, zoom al escribir; solo paula) y
 [`derivaciones`](../marketing/videos/proyectos/derivaciones/README.md) (tutorial vertical 9:16 para clientes: cómo
 funciona la transferencia de llamadas a personas y cómo se configura; capturas reales del panel en 390 px; paula y pablo) y
+[`tutorial-agente-free-mobile`](../marketing/videos/proyectos/tutorial-agente-free-mobile/README.md) (tutorial vertical 9:16
+para el plan Free: crear un agente, probarlo, compartir el link para llamar y ver la transcripción; capturas reales
+del panel en 390 px; solo paula) y
 [`landing-agente`](../marketing/videos/proyectos/landing-agente/README.md) (horizontal para la landing, sin locución y en
 loop: el agente con el aro de puntos resuelve las consultas y deriva solo lo importante a una persona del equipo).
 

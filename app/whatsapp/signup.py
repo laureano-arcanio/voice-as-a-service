@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..models import Client, WaAccount
+from ..services import limits
 from ..services.errors import Conflict, Invalid, NotFound, ServiceError
 from . import crypto, store
 from .graph import GraphClient, GraphError
@@ -89,6 +90,7 @@ async def connect(s: Session, *, client_id: str, agent_id: str, code: str, waba_
                   graph_factory: Callable[[str], GraphClient] | None = None) -> WaAccount:
     """Alta o reconexion de un numero del cliente. Hace commit."""
     factory = graph_factory or graph_for
+    limits.check_whatsapp(s, client_id)     # antes de canjear el codigo en Meta
     if event == "FINISH_ONLY_WABA":
         raise ServiceError("Falta el número: el alta terminó sin un número de WhatsApp. Volvé a "
                            "conectar y cargá el número", code="signup_no_phone")

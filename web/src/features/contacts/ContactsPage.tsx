@@ -30,6 +30,7 @@ import type { Contact } from '@/api/types';
 import { Dash } from '@/components/Badges';
 import { confirmAction } from '@/components/confirm';
 import { PageHeader } from '@/components/PageHeader';
+import { PlanAlert } from '@/components/PlanGate';
 import { EmptyState, QueryState } from '@/components/QueryState';
 import { useIsAdmin } from '@/features/auth/api';
 import { usePlan } from '@/features/campaigns/api';
@@ -201,6 +202,11 @@ export function ContactsPage() {
             </Tooltip>
           </>
         }
+      />
+      <PlanAlert
+        feature="contacts"
+        what="la agenda de contactos"
+        hint="Los números bloqueados, más abajo, sí: cortan las llamadas de quien no querés que llame."
       />
       <Card>
         <Group mb="md" gap="sm" align="flex-end">

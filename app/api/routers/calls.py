@@ -16,6 +16,7 @@ from ..schemas import (
     CallDetail,
     CallHangupOut,
     CallIn,
+    CallJoinOut,
     CallPage,
     CallStartedOut,
     DailyOut,
@@ -66,6 +67,14 @@ def get_call(conversation_id: str, p: CurrentPrincipal, db: DB, definitions: Def
     if detail is None or not p.can_access(detail["client_id"]):
         raise NotFound("Conversación inexistente")
     return detail
+
+
+@router.post("/calls/{conversation_id}/join", response_model=CallJoinOut,
+             responses={409: {"description": "No es una llamada de prueba o ya terminó"}})
+def join_test_call(conversation_id: str, p: CurrentPrincipal, db: DB):
+    """URL de LiveKit y token para hacer de interesado en una llamada de prueba en curso, desde el
+    navegador (la pantalla /calls/{id}/hablar del panel)."""
+    return CallJoinOut(**service.join_test_call(db, p, conversation_id).__dict__)
 
 
 @router.post("/calls/{conversation_id}/hangup", response_model=CallHangupOut,

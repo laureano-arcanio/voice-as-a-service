@@ -51,6 +51,10 @@ export const routes: RouteObject[] = [
         ...page(async () => (await import('@/features/calls/ConversationsPage')).ConversationsPage),
       },
       {
+        path: 'calls/:id/hablar',
+        ...page(async () => (await import('@/features/calls/TestCallPage')).TestCallPage),
+      },
+      {
         path: 'calls/:id',
         ...page(async () => (await import('@/features/calls/CallDetailPage')).CallDetailPage),
       },
@@ -59,6 +63,10 @@ export const routes: RouteObject[] = [
         ...page(async () => (await import('@/features/outbound/OutboundCallsPage')).OutboundCallsPage),
       },
       { path: 'agents', ...page(async () => (await import('@/features/agents/AgentsPage')).AgentsPage) },
+      {
+        path: 'probar',
+        ...page(async () => (await import('@/features/agents/TestAgentsPage')).TestAgentsPage),
+      },
       {
         path: 'agents/:id',
         ...page(async () => (await import('@/features/agents/AgentDetailPage')).AgentDetailPage),

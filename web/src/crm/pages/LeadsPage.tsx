@@ -1,4 +1,5 @@
 import {
+  Alert,
   Anchor,
   Badge,
   Button,
@@ -18,7 +19,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useDebouncedValue } from '@mantine/hooks';
-import { IconPlus, IconSearch } from '@tabler/icons-react';
+import { IconMailForward, IconPlus, IconSearch } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Dash } from '@/components/Badges';
@@ -231,6 +232,8 @@ export function LeadsPage() {
   // Los borradores, para verlos antes de aprobar (son pocos: los que esperan aprobacion)
   const drafts = useMessages({ status: 'draft', limit: 500 });
   const draftById = new Map((drafts.data?.items ?? []).map((m) => [m.id, m]));
+  const draftLeads = new Set((drafts.data?.items ?? []).map((m) => m.lead_id)).size;
+  const [loadingDrafts, setLoadingDrafts] = useState(false);
 
   const leads = useLeads({
     q: q || undefined,
@@ -278,6 +281,31 @@ export function LeadsPage() {
       return next;
     });
 
+  // Todos los leads con borrador, sin otros filtros y ya elegidos: listos para aprobar o descartar
+  const showDrafts = async () => {
+    setLoadingDrafts(true);
+    try {
+      const r = await api<{ items: LeadSummary[] }>('GET', '/leads', undefined, {
+        pending: 'draft',
+        limit: 500,
+      });
+      setSearch('');
+      setStages([]);
+      setTag('');
+      setIndustry('');
+      setKind(null);
+      setCampaign(null);
+      setClicks(null);
+      setPending('draft');
+      setPage(1);
+      setSelected(new Map(r.items.map((l) => [l.id, l])));
+    } catch (e) {
+      notifyError(e, 'No se pudieron cargar los borradores');
+    } finally {
+      setLoadingDrafts(false);
+    }
+  };
+
   const approveDrafts = () =>
     approve.mutate(draftIds, {
       onSuccess: (r) => {
@@ -308,6 +336,19 @@ export function LeadsPage() {
           </Button>
         }
       />
+      {(drafts.data?.total ?? 0) > 0 && (
+        <Alert color="blue" mb="md" icon={<IconMailForward size={18} />}>
+          <Group justify="space-between" gap="xs">
+            <Text size="sm">
+              {drafts.data!.total} borradores esperan aprobación, en {draftLeads} leads. No salen hasta
+              aprobarlos.
+            </Text>
+            <Button size="compact-sm" loading={loadingDrafts} onClick={() => void showDrafts()}>
+              Ver y enviar
+            </Button>
+          </Group>
+        </Alert>
+      )}
       <Card withBorder mb="md">
         <Group gap="xs" align="flex-end">
           <TextInput

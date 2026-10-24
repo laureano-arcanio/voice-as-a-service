@@ -374,3 +374,16 @@ details.llm summary {
 .mantine-Badge-label {
   overflow: visible;
 }
+
+/* Lo que el plan no incluye (PlanGate): aviso con borde amarillo, sin relleno. */
+.plan-alert {
+  border-color: var(--mantine-color-yellow-6);
+}
+
+/* Lo que el plan no incluye (PlanGate): se ve, atenuado, pero no responde. */
+.plan-locked {
+  min-width: 0;
+  opacity: 0.5;
+  pointer-events: none;
+  user-select: none;
+}

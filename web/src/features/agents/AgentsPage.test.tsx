@@ -104,4 +104,31 @@ describe('AgentsPage', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Crear agente' }));
     expect(await within(dialog).findByText('Elegí un cliente')).toBeInTheDocument();
   });
+
+  it('Probar y el link van en columnas aparte: la URL con copiar, o Crear link', async () => {
+    const withLink = { ...AGENT, id: 'ag-2', name: 'Ventas', call_link_url: 'https://llamar.x/abc' };
+    const calls = mockApi({
+      'GET /api/v1/agents': () => jsonResponse([AGENT, withLink]),
+      'POST /api/v1/agents/ag-1/call-link': () => jsonResponse({ url: 'https://llamar.x/new' }, 201),
+    });
+    renderWithProviders(<AgentsPage />, { me: CLIENT_USER });
+    const row = (name: string) => screen.getByRole('link', { name }).closest('tr') as HTMLElement;
+    await screen.findByRole('link', { name: 'Recepción' });
+
+    expect(within(row('Recepción')).getByRole('link', { name: 'Probar' })).toHaveAttribute(
+      'href',
+      '/probar?agent=ag-1',
+    );
+    expect(screen.getByRole('columnheader', { name: 'Link para llamar' })).toBeInTheDocument();
+    expect(within(row('Ventas')).getByRole('link', { name: /llamar\.x\/\s*abc/ })).toHaveAttribute(
+      'href',
+      'https://llamar.x/abc',
+    );
+    expect(within(row('Ventas')).getByRole('button', { name: 'Copiar link' })).toBeInTheDocument();
+    expect(within(row('Ventas')).queryByRole('button', { name: 'Crear link' })).not.toBeInTheDocument();
+    await userEvent.click(within(row('Recepción')).getByRole('button', { name: 'Crear link' }));
+    await waitFor(() =>
+      expect(calls.some((c) => c.method === 'POST' && c.path === '/api/v1/agents/ag-1/call-link')).toBe(true),
+    );
+  });
 });

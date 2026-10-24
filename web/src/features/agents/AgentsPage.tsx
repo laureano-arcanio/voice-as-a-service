@@ -1,6 +1,6 @@
 import { Anchor, Badge, Button, Card, Group, Select, Stack, Switch, Table, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconPlus } from '@tabler/icons-react';
+import { IconPlayerPlay, IconPlus } from '@tabler/icons-react';
 import { Link, useSearchParams } from 'react-router';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState, QueryState } from '@/components/QueryState';
@@ -9,6 +9,7 @@ import { useClients } from '@/features/clients/api';
 import { formatDateTime } from '@/lib/format';
 import { ENGINE } from '@/lib/labels';
 import { useAgents } from './api';
+import { CallLinkCell } from './CallLinkCell';
 import { NewAgentModal } from './NewAgentModal';
 
 export function AgentsPage() {
@@ -87,18 +88,19 @@ export function AgentsPage() {
                 </Stack>
               )
             ) : (
-              <Table.ScrollContainer minWidth={isAdmin ? 820 : 560}>
+              <Table.ScrollContainer minWidth={isAdmin ? 1080 : 900}>
                 <Table>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>Nombre</Table.Th>
-                      {isAdmin && <Table.Th>Slug</Table.Th>}
                       {isAdmin && <Table.Th>Cliente</Table.Th>}
                       {isAdmin && <Table.Th>Motor</Table.Th>}
                       <Table.Th>Voz</Table.Th>
                       <Table.Th>Versión</Table.Th>
                       <Table.Th>Estado</Table.Th>
                       <Table.Th>Actualizado</Table.Th>
+                      <Table.Th>Probar</Table.Th>
+                      <Table.Th>Link para llamar</Table.Th>
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
@@ -108,13 +110,18 @@ export function AgentsPage() {
                           <Anchor component={Link} to={`/agents/${a.id}`} fw={600} size="sm">
                             {a.name}
                           </Anchor>
+                          {/* El slug (interno) va debajo del nombre: deja lugar al link para llamar. */}
+                          {isAdmin && (
+                            <Text size="xs" c="dimmed" className="mono">
+                              {a.slug}
+                            </Text>
+                          )}
                           {a.description && (
                             <Text size="xs" c="dimmed" lineClamp={1}>
                               {a.description}
                             </Text>
                           )}
                         </Table.Td>
-                        {isAdmin && <Table.Td className="mono">{a.slug}</Table.Td>}
                         {isAdmin && <Table.Td>{clientName.get(a.client_id) ?? '–'}</Table.Td>}
                         {isAdmin && <Table.Td>{ENGINE[a.engine] ?? a.engine}</Table.Td>}
                         <Table.Td>{a.voice ?? '–'}</Table.Td>
@@ -127,6 +134,21 @@ export function AgentsPage() {
                           )}
                         </Table.Td>
                         <Table.Td style={{ whiteSpace: 'nowrap' }}>{formatDateTime(a.updated_at)}</Table.Td>
+                        <Table.Td>
+                          <Button
+                            component={Link}
+                            to={`/probar?agent=${a.id}`}
+                            variant="subtle"
+                            size="compact-sm"
+                            leftSection={<IconPlayerPlay size={14} />}
+                            disabled={a.archived}
+                          >
+                            Probar
+                          </Button>
+                        </Table.Td>
+                        <Table.Td>
+                          <CallLinkCell agent={a} />
+                        </Table.Td>
                       </Table.Tr>
                     ))}
                   </Table.Tbody>

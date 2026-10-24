@@ -1,6 +1,6 @@
 import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { navItemsFor } from '@/components/nav';
+import { isGroup, navFor, navItemsFor } from '@/components/nav';
 import { ADMIN, CLIENT_USER, renderWithProviders } from '@/test/render';
 import { RequireAuth, RequireRole } from './guards';
 
@@ -64,5 +64,25 @@ describe('navegación por rol', () => {
     expect(admin).toContain('Contactos');
     expect(admin).not.toContain('Mi cuenta');
     expect(admin).not.toContain('Consumos');
+  });
+
+  it('agrupa el menú y saca los grupos vacíos del rol', () => {
+    const shape = (role: 'admin' | 'client') =>
+      navFor(role).map((e) => (isGroup(e) ? `${e.label}: ${e.items.map((i) => i.label).join(', ')}` : e.label));
+    expect(shape('client')).toEqual([
+      'Inicio',
+      'Conversaciones',
+      'Agentes: Mis agentes, Probar agentes, Voces',
+      'Canales: WhatsApp, Llamadas, Campañas',
+      'Organización: Contactos, Equipo',
+      'Configuración: Modelos, Apps',
+      'Developers: API keys, Uso de la API',
+      'Cuenta: Mi cuenta, Plan, Consumos',
+    ]);
+    const admin = shape('admin');
+    expect(admin).toContain('Configuración: Apps');
+    expect(admin).toContain('Developers: Uso de la API');
+    expect(admin.some((e) => e.startsWith('Cuenta'))).toBe(false);
+    expect(admin.slice(-5)).toEqual(['Clientes', 'Números', 'Tiers', 'Cobros', 'Usuarios']);
   });
 });

@@ -121,6 +121,7 @@ class TierIn(BaseModel):
     max_call_links: int | None = Field(default=None, ge=0, description="Links publicos para llamar a un agente (uno por agente)")
     max_team_members: int | None = Field(default=None, ge=0, description="Personas del equipo para derivar llamadas y WhatsApp")
     campaign_followup: bool = Field(default=False, description="Puede activar el seguimiento por WhatsApp de las campañas de voz")
+    whatsapp: bool = Field(default=True, description="Incluye WhatsApp: cuentas, mensajes y llamadas")
     # Autoservicio (docs/SUSCRIPCIONES_PLAN.md).
     price_ars: int | None = Field(default=None, ge=0,
                                   description="Precio mensual en pesos, lo que se cobra. null: no se vende por el dashboard; 0: gratis")
@@ -151,6 +152,7 @@ class TierUpdate(BaseModel):
     max_call_links: int | None = Field(default=None, ge=0)
     max_team_members: int | None = Field(default=None, ge=0)
     campaign_followup: bool | None = None
+    whatsapp: bool | None = None
     price_ars: int | None = Field(default=None, ge=0)
     public: bool | None = None
     sort: int | None = None
@@ -180,6 +182,7 @@ class TierOut(ORM):
     max_call_links: int | None
     max_team_members: int | None
     campaign_followup: bool
+    whatsapp: bool
     price_ars: int | None
     public: bool
     sort: int
@@ -691,6 +694,10 @@ class AgentOut(ORM):
     archived: bool
     engine: str
     voice: str | None
+    # Objetivo de la definicion (`objective.description`), para elegir el agente en "Probar agentes".
+    objective: str = ""
+    # URL del link para llamar activo; solo en la lista (GET /agents).
+    call_link_url: str | None = None
     created_at: UTCDateTime
     updated_at: UTCDateTime
 
@@ -860,6 +867,12 @@ class CallStartedOut(BaseModel):
     room: str
     mode: str
     join_url: str | None = None
+
+
+class CallJoinOut(BaseModel):
+    """Para conectarse a una llamada de prueba con el SDK de LiveKit (la pagina del panel)."""
+    livekit_url: str
+    token: str
 
 
 class CallHangupOut(BaseModel):
@@ -1891,6 +1904,23 @@ class CampaignStatsOut(BaseModel):
     results: dict[str, int] = Field(description="Voz: contactos por resultado. WhatsApp: sent, delivered, read y replied")
     by_hour: list[CampaignHour] = Field(description="Las 24 horas del dia, para elegir el horario")
     timezone: str
+
+
+PlanFeatureKey = Literal["outbound_calls", "campaigns_voice", "campaigns_whatsapp", "whatsapp", "contacts",
+                         "team", "call_links"]
+
+
+class PlanFeatureOut(BaseModel):
+    enabled: bool
+    reason: str | None = Field(default=None, description="Lo que hace falta para usarla (null si esta incluida)")
+
+
+class PlanFeaturesOut(BaseModel):
+    """Que funciones incluye el plan del cliente (GET /plan/features)."""
+    client_id: str
+    tier_name: str
+    free: bool = Field(description="El plan es gratis (precio 0)")
+    features: dict[PlanFeatureKey, PlanFeatureOut]
 
 
 class CampaignPlanOut(BaseModel):

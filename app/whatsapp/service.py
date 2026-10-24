@@ -58,7 +58,7 @@ from ..conversation.store import ConversationStore
 from ..db import utcnow
 from ..llm.prompt import VOICE_NOTE_TAG
 from ..models import App, Client, ConversationRow, WaAccount, WaThread
-from ..services import wa_routing
+from ..services import limits, wa_routing
 from . import audio as audio_module
 from . import buttons, campaigns, store
 from .audio import AudioError, AudioTooLong
@@ -530,6 +530,8 @@ class WhatsAppService:
         if client is None or not client.active:
             # TODO: consumo por mensajes del tier (a definir en el plan); hoy solo se exige cliente activo.
             return "cliente inactivo"
+        if not limits.effective_limits(s, client).whatsapp:
+            return "plan sin WhatsApp"
         last = store.last_thread(s, account.id, wa_id)
         if last is not None and last.paused:
             return "conversacion pausada"

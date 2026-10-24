@@ -136,6 +136,9 @@ export const plans: Plan[] = [
       "<b>300 minutos</b> por mes",
       "1 llamada a la vez",
       "1 número",
+      "WhatsApp",
+      "500 contactos",
+      "Derivación a 1 persona",
     ],
     cta: "Empezar",
   },
@@ -151,7 +154,10 @@ export const plans: Plan[] = [
       "<b>1.200 minutos</b> por mes",
       "3 llamadas a la vez",
       "3 números",
-      "Llamadas programadas",
+      "WhatsApp",
+      "Campañas de llamadas y de WhatsApp",
+      "5.000 contactos",
+      "Derivación a 5 personas",
     ],
     cta: "Empezar",
     featured: true,
@@ -165,7 +171,8 @@ export const plans: Plan[] = [
       "<b>Más de 5.000 minutos</b> por mes",
       "Las llamadas a la vez que necesites",
       "Los números que necesites",
-      "Llamadas programadas",
+      "Campañas de llamadas y de WhatsApp",
+      "Contactos y equipo sin tope",
     ],
     cta: "Hablemos",
     signup: false,
@@ -1001,7 +1008,7 @@ texto = client.audio.transcriptions.create(
       {
         title: "Llamadas entrantes y salientes",
         paragraphs: [
-          "En las entrantes, el agente atiende, toma los datos y deja el resultado en el panel y en tu sistema. En las salientes, es el agente el que llama: para confirmar un turno, recordar un vencimiento o acordar un pago. Los planes Sucursal y Red suman llamadas programadas, y por API o webhook lanzás las llamadas que necesites y recibís el resultado de cada una.",
+          "En las entrantes, el agente atiende, toma los datos y deja el resultado en el panel y en tu sistema. En las salientes, es el agente el que llama: para confirmar un turno, recordar un vencimiento o acordar un pago. Los planes Sucursal y Red suman campañas de llamadas, y por API o webhook lanzás las llamadas que necesites y recibís el resultado de cada una.",
         ],
       },
       {
@@ -1039,7 +1046,7 @@ texto = client.audio.transcriptions.create(
       { title: "Entrantes y salientes", text: "El agente atiende y también llama." },
       { title: "Varias llamadas a la vez", text: "Una, tres o las que necesites, según el plan." },
       { title: "Minutos incluidos", text: "Por mes, entre las llamadas que entran y las que hace el agente." },
-      { title: "Llamadas programadas", text: "En los planes Sucursal y Red." },
+      { title: "Campañas de llamadas", text: "En los planes Sucursal y Red." },
       { title: "Tu línea o tu central", text: "Corre sobre SIP. Si tenés central o proveedor SIP propio, consultanos." },
       { title: "El resultado de cada llamada", text: "Transcripción y datos tomados, en el panel y en tu sistema." },
     ],
@@ -1056,7 +1063,7 @@ texto = client.audio.transcriptions.create(
       },
       {
         q: "¿El agente puede llamar a mis clientes?",
-        a: "Sí. Hace llamadas salientes para confirmar, recordar o cobrar. Los planes Sucursal y Red suman llamadas programadas.",
+        a: "Sí. Hace llamadas salientes para confirmar, recordar o cobrar. Los planes Sucursal y Red suman campañas de llamadas: a una lista de contactos, en el horario que elijas y con reintentos.",
       },
       {
         q: "¿Cómo se cuentan los minutos?",

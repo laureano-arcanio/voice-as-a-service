@@ -13,7 +13,7 @@ import {
   Text,
   Title,
 } from '@mantine/core';
-import { IconArrowLeft, IconBan, IconMessageOff, IconPhoneOff } from '@tabler/icons-react';
+import { IconArrowLeft, IconBan, IconMessageOff, IconMicrophone, IconPhoneOff } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { ApiError } from '@/api/errors';
@@ -336,9 +336,15 @@ function DetailActions({ c, live }: { c: CallDetail; live: boolean }) {
   const canHangUp = !!c.call && live;
   const canBlock = c.call?.mode === 'entrante' && !!c.call.phone;
   const canClose = !!c.whatsapp && !c.whatsapp.closed_at;
+  const canJoin = c.call?.mode === 'prueba' && live;
   if (!canHangUp && !canBlock && !canClose) return null;
   return (
     <Group gap="sm">
+      {canJoin && (
+        <Button component={Link} to={`/calls/${c.id}/hablar`} leftSection={<IconMicrophone size={18} />}>
+          Hablar con el agente
+        </Button>
+      )}
       {canBlock && <BlockCallerButton c={c} />}
       {canHangUp && <HangUpButton c={c} />}
       {canClose && <CloseWhatsAppButton c={c} />}

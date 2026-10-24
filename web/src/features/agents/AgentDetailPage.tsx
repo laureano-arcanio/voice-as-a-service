@@ -28,7 +28,7 @@ import { useAgent, useDeleteAgent, useUpdateAgent } from './api';
 import { CallLinkTab } from './CallLinkTab';
 import { DefinitionTab } from './DefinitionTab';
 import { EditAgentModal } from './EditAgentModal';
-import { TestTab } from './TestTab';
+import { AgentTestPanel } from './AgentTestPanel';
 import { VersionsTab } from './VersionsTab';
 import { WorkflowSummary } from './WorkflowSummary';
 
@@ -218,7 +218,7 @@ function AgentView({ agent }: { agent: AgentDetail }) {
           <VersionsTab agent={agent} />
         </Tabs.Panel>
         <Tabs.Panel value="probar">
-          <TestTab agent={agent} />
+          <AgentTestPanel agent={agent} />
         </Tabs.Panel>
         <Tabs.Panel value="link">
           <CallLinkTab agent={agent} />

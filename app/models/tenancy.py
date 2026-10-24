@@ -86,6 +86,8 @@ class Tier(IdMixin, TimestampMixin, Base):
     # Personas del equipo para derivar llamadas y WhatsApp (docs/DERIVACIONES_PLAN.md). NULL = sin
     # limite, 0 = no incluido.
     max_team_members: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # WhatsApp: cuentas, mensajes y llamadas (docs/FUNCIONES_POR_PLAN_PLAN.md).
+    whatsapp: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     # Autoservicio (docs/SUSCRIPCIONES_PLAN.md): precio mensual en pesos, lo que se cobra (NULL = no
     # se vende por el dashboard; 0 = gratis). `public`: se ofrece en el registro y en /plan. El tier
     # publico con precio 0 es el del registro.

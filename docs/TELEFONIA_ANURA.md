@@ -309,7 +309,7 @@ host. Motivo: en el plan gratuito de Cloud, el despacho del agente deja jobs en
 - **El tramo Asterisk ↔ LiveKit queda dentro del host.** No pasa por el router, así que no tiene el problema de NAT de la sección 1. Solo el tramo de Anura cruza el router.
 - **Turn detector local:** `turn-detector-v1-mini` de `livekit-local-inference`, fijado en `app/voice/worker.py`. Los pesos vienen en el wheel y predice en ~27 ms por CPU. No usa el gateway de Cloud.
 - **Sin dashboard de Cloud** (sesiones, observabilidad).
-- **El link de prueba en el navegador no anda:** `meet.livekit.io` necesita `wss://`. Hace falta TLS con un dominio delante de 7880.
+- **Navegadores:** necesitan `wss://`; entran por `DEMO_LIVEKIT_URL` (`wss://rtc.atentina.com.ar`, túnel). La llamada de prueba del panel (`/calls/<id>/hablar`) y el `join_url` de la API la usan desde el 24-oct-2026; antes el `join_url` llevaba `LIVEKIT_URL` (IP de la LAN) y desde afuera no conectaba.
 - **Loadtest desde otra PC:** copiar `LIVEKIT_URL`, `LIVEKIT_API_KEY` y `LIVEKIT_API_SECRET` de este `.env` al suyo (firma los tokens de los callers) y correr con `--base-url http://<NODE_IP>:8011`. No levantar su `agent`: se registraría en este LiveKit y recibiría llamadas. Todo va por la LAN, sin port forwarding.
 
 **Probado (2026-09-25):**

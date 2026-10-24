@@ -12,11 +12,13 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconLogout, IconUserCircle } from '@tabler/icons-react';
+import { useState } from 'react';
+import { IconLock, IconLogout, IconUserCircle } from '@tabler/icons-react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import { useLogout, useMe } from '@/features/auth/api';
+import { usePlanFeatures } from '@/features/billing/features';
 import { notifyError } from '@/lib/notify';
-import { isAdminOnly, navItemsFor, type NavItem } from './nav';
+import { isAdminOnly, isGroup, navFor, type NavEntry, type NavGroup, type NavItem } from './nav';
 
 function isActive(pathname: string, to: string): boolean {
   if (to === '/') return pathname === '/';
@@ -29,8 +31,40 @@ export function AppLayout() {
   const logout = useLogout();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const plan = usePlanFeatures().data;
+  // Grupos abiertos o cerrados a mano; sin tocar, abierto el que tiene la pantalla actual.
+  const [groupOpen, setGroupOpen] = useState<Record<string, boolean>>({});
 
   if (!me) return null;
+
+  // Sin la función en el plan: candado al lado del nombre (la pantalla explica por qué).
+  const locked = (item: NavItem) =>
+    !!plan &&
+    !!item.feature &&
+    (Array.isArray(item.feature) ? item.feature : [item.feature]).every(
+      (k) => plan.features?.[k]?.enabled === false,
+    );
+  const navLabel = (item: NavItem) => {
+    if (item.to === '/plan' && plan?.free)
+      return (
+        <Group gap={6} wrap="nowrap">
+          {item.label}
+          <Badge color="yellow" variant="filled">
+            Free
+          </Badge>
+        </Group>
+      );
+    if (locked(item))
+      return (
+        <Group gap={6} wrap="nowrap" justify="space-between">
+          {item.label}
+          <Tooltip label={`No incluido en tu plan ${plan?.tier_name ?? ''}`} withArrow position="right">
+            <IconLock size={14} color="var(--mantine-color-dimmed)" aria-label="No incluido en tu plan" />
+          </Tooltip>
+        </Group>
+      );
+    return item.label;
+  };
 
   const doLogout = () =>
     logout.mutate(undefined, {
@@ -38,20 +72,48 @@ export function AppLayout() {
       onError: (e) => notifyError(e, 'No se pudo cerrar la sesión'),
     });
 
-  const items = navItemsFor(me.role);
-  const adminItems = items.filter(isAdminOnly);
+  const entries = navFor(me.role);
+  const adminItems = entries.filter(isAdminOnly);
   const link = (item: NavItem) => (
     <NavLink
       key={item.to}
       component={Link}
       to={item.to}
-      label={item.label}
+      label={navLabel(item)}
       leftSection={<item.icon size={18} />}
       active={isActive(pathname, item.to)}
       onClick={close}
       variant="light"
     />
   );
+  const group = (g: NavGroup) => {
+    const current = g.items.some((i) => isActive(pathname, i.to));
+    return (
+      <NavLink
+        key={g.label}
+        label={
+          g.items.every(locked) ? (
+            <Group gap={6} wrap="nowrap" justify="space-between">
+              {g.label}
+              <IconLock size={14} color="var(--mantine-color-dimmed)" aria-label="No incluido en tu plan" />
+            </Group>
+          ) : (
+            g.label
+          )
+        }
+        leftSection={<g.icon size={18} />}
+        opened={groupOpen[g.label] ?? current}
+        onChange={(o) => setGroupOpen((prev) => ({ ...prev, [g.label]: o }))}
+        // Cerrado, marca que la pantalla actual está adentro.
+        active={current && !(groupOpen[g.label] ?? current)}
+        variant="light"
+        childrenOffset={18}
+      >
+        {g.items.map(link)}
+      </NavLink>
+    );
+  };
+  const entry = (e: NavEntry) => (isGroup(e) ? group(e) : link(e));
 
   return (
     <AppShell
@@ -102,13 +164,13 @@ export function AppLayout() {
       <AppShell.Navbar p="xs">
         <AppShell.Section grow>
           <Stack gap={2}>
-            {items.filter((i) => !isAdminOnly(i)).map(link)}
+            {entries.filter((e) => !isAdminOnly(e)).map(entry)}
             {adminItems.length > 0 && (
               <Text className="label" px="sm" pt="md" pb={4}>
                 Administración
               </Text>
             )}
-            {adminItems.map(link)}
+            {adminItems.map(entry)}
           </Stack>
         </AppShell.Section>
         <AppShell.Section>

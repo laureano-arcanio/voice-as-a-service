@@ -19,6 +19,7 @@ import { Link, useSearchParams } from 'react-router';
 import type { Campaign, CampaignChannel } from '@/api/types';
 import { Dash, LiveBadge } from '@/components/Badges';
 import { PageHeader } from '@/components/PageHeader';
+import { PlanAlert } from '@/components/PlanGate';
 import { EmptyState, QueryState } from '@/components/QueryState';
 import { useCurrentUser } from '@/features/auth/api';
 import { useClients } from '@/features/clients/api';
@@ -176,6 +177,7 @@ export function CampaignsPage() {
           )
         }
       />
+      <PlanAlert feature={['campaigns_voice', 'campaigns_whatsapp']} what="campañas" />
       <Card>
         <Group mb="md" gap="sm">
           {isAdmin && (

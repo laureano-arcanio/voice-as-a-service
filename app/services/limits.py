@@ -84,6 +84,7 @@ class Limits:
     # No son numericos, asi que no se ajustan por cliente: salen del tier.
     campaign_channels: tuple[str, ...] = ()
     campaign_followup: bool = False
+    whatsapp: bool = True
     tier_name: str = ""
     # Campos cuyo valor difiere del tier por un ajuste vigente.
     adjusted: frozenset[str] = field(default_factory=frozenset)
@@ -127,7 +128,8 @@ def apply(tier: Tier, adjustments: Iterable[ClientLimitAdjustment], day: datetim
             values[a.field] += a.value
     adjusted = frozenset(f for f, v in values.items() if v != getattr(tier, f))
     return Limits(**values, campaign_channels=tuple(tier.campaign_channels or ()),
-                  campaign_followup=bool(tier.campaign_followup), tier_name=tier.name, adjusted=adjusted)
+                  campaign_followup=bool(tier.campaign_followup), whatsapp=bool(tier.whatsapp),
+                  tier_name=tier.name, adjusted=adjusted)
 
 
 def effective_limits(s: Session, client: Client, now: datetime.datetime | None = None,
@@ -150,6 +152,13 @@ def adjustments(s: Session, client_id: str) -> list[ClientLimitAdjustment]:
     """Todos los ajustes del cliente (vigentes, futuros y vencidos), los mas nuevos primero."""
     return list(s.scalars(select(ClientLimitAdjustment).where(ClientLimitAdjustment.client_id == client_id)
                           .order_by(ClientLimitAdjustment.created_at.desc(), ClientLimitAdjustment.id)))
+
+
+def check_whatsapp(s: Session, client_id: str) -> None:
+    """WhatsApp (cuentas, mensajes y llamadas) solo si el plan del cliente lo incluye."""
+    client = s.get(Client, client_id)
+    if client is not None and not effective_limits(s, client).whatsapp:
+        raise QuotaExceeded("Tu plan no incluye WhatsApp.", "whatsapp_not_in_plan")
 
 
 # ---------- campañas y agenda (docs/LLAMADAS_SALIENTES_PLAN.md, 3.5) ----------

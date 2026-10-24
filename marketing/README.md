@@ -29,6 +29,7 @@ Piezas de comunicación de Atentina, una carpeta por proyecto y una carpeta por 
 | [`zennonbi-propuesta`](documentos/proyectos/zennonbi-propuesta/README.md) | PDF, 5 hojas | Zennon BI (Cristian Ventura; propuesta de alianza e integración con Dynamics 365 y Power Platform) | v1, borrador |
 | [`zennonbi-analisis`](videos/proyectos/zennonbi-analisis/README.md) | Video, ~76 s | Zennon BI (Cristian Ventura; el PDF de alianza en video: lo que hacen, dónde encaja la voz, la integración por Power Automate, el módulo en sus KickStart con el tablero ilustrativo y la puesta en marcha; paula y lucas) | v1, borrador |
 | [`derivaciones`](videos/proyectos/derivaciones/README.md) | Video vertical 9:16, ~80 s | Clientes (tutorial: transferencia de llamadas a personas; diagrama y capturas reales del panel en 390 px; paula y pablo) | v1, borrador |
+| [`tutorial-agente-free-mobile`](videos/proyectos/tutorial-agente-free-mobile/README.md) | Video vertical 9:16, ~63 s | Clientes Free (tutorial: crear un agente de una parrilla, probarlo, compartir el link, ver la transcripción y qué traen los planes pagos; capturas reales en 390 px; paula) | v1, borrador |
 | [`landing-agente`](videos/proyectos/landing-agente/README.md) | Video horizontal 16:9, 27,6 s, en loop y sin audio | Landing (el agente resuelve lo de todos los días y deriva solo lo importante a una persona del equipo; versiones livianas para web y póster) | v1, borrador |
 | [`propuesta-atentina`](documentos/proyectos/propuesta-atentina/README.md) | PDF, 3 hojas | Genérico (cualquier prospecto) | v1, borrador |
 

@@ -140,3 +140,5 @@ export type HandoffDefaults = S['HandoffDefaultsOut'];
 
 /** Definicion de un agente: JSON libre para la API (ver GET /agents/schema). */
 export type Definition = Record<string, unknown>;
+export type PlanFeatures = S['PlanFeaturesOut'];
+export type PlanFeatureKey = keyof PlanFeatures['features'];
