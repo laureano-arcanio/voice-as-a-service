@@ -54,7 +54,8 @@ class InvalidCredentials(ServiceError):
 def _me(db, user: User) -> MeOut:
     client = db.get(Client, user.client_id) if user.client_id else None
     return MeOut(id=user.id, email=user.email, name=user.name, role=user.role, client_id=user.client_id,
-                 client_name=client.name if client else None)
+                 client_name=client.name if client else None,
+                 welcome_pending=user.role == "client" and user.welcomed_at is None)
 
 
 def _login_limits(ip: str, email: str) -> tuple[list[tuple[str, list[Limit]]], str, list[Limit]]:
@@ -147,6 +148,16 @@ _CODE_ERRORS = {422: {"description": "Código incorrecto o vencido (code invalid
 @router.patch("/me", response_model=MeOut)
 def update_me(body: ProfileIn, p: CurrentPrincipal, db: DB):
     return _me(db, profile.update_name(db, _session_user(db, p), body.name))
+
+
+@router.post("/me/welcome", response_model=MeOut)
+def welcome_seen(p: CurrentPrincipal, db: DB):
+    """Marca visto el pop-up de bienvenida: no vuelve a aparecer en ningun dispositivo."""
+    user = _session_user(db, p)
+    if user.welcomed_at is None:
+        user.welcomed_at = utcnow()
+        db.commit()
+    return _me(db, user)
 
 
 @router.post("/me/password/code", response_model=AccountCodeOut, responses=_CODE_ERRORS)

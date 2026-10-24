@@ -16,6 +16,7 @@ import { useState } from 'react';
 import { IconLock, IconLogout, IconUserCircle } from '@tabler/icons-react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import { useLogout, useMe } from '@/features/auth/api';
+import { WelcomeModal } from '@/features/auth/WelcomeModal';
 import { usePlanFeatures } from '@/features/billing/features';
 import { notifyError } from '@/lib/notify';
 import { isAdminOnly, isGroup, navFor, type NavEntry, type NavGroup, type NavItem } from './nav';
@@ -184,6 +185,7 @@ export function AppLayout() {
         <Box maw={1440} mx="auto">
           <Outlet />
         </Box>
+        <WelcomeModal />
       </AppShell.Main>
     </AppShell>
   );

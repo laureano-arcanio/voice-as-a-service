@@ -131,3 +131,13 @@ def test_change_email_taken_meanwhile(ana, admin):  # noqa: F811
 def test_requires_session(ana):
     r = ana.client.post(f"{V1}/auth/me/password/code")
     assert r.status_code == 401
+
+
+def test_welcome_popup_once(ana):
+    assert ana.ana.get(f"{V1}/auth/me").json()["welcome_pending"] is True
+    r = ana.ana.post(f"{V1}/auth/me/welcome")
+    assert r.status_code == 200 and r.json()["welcome_pending"] is False
+    # Vale para todas las sesiones del usuario, no solo esta.
+    assert ana.login("ana@acme.com", "cliente-password-1").get(f"{V1}/auth/me").json()["welcome_pending"] is False
+    # El admin no lo ve.
+    assert ana.login(*ADMIN).get(f"{V1}/auth/me").json()["welcome_pending"] is False

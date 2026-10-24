@@ -60,6 +60,26 @@ export interface paths {
         patch: operations["update_me_api_v1_auth_me_patch"];
         trace?: never;
     };
+    "/api/v1/auth/me/welcome": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Welcome Seen
+         * @description Marca visto el pop-up de bienvenida: no vuelve a aparecer en ningun dispositivo.
+         */
+        post: operations["welcome_seen_api_v1_auth_me_welcome_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/me/password/code": {
         parameters: {
             query?: never;
@@ -5828,6 +5848,11 @@ export interface components {
             client_id: string | null;
             /** Client Name */
             client_name: string | null;
+            /**
+             * Welcome Pending
+             * @default false
+             */
+            welcome_pending?: boolean;
         };
         /** MessageOut */
         MessageOut: {
@@ -7713,6 +7738,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    welcome_seen_api_v1_auth_me_welcome_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
                 };
             };
         };

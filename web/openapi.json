@@ -134,6 +134,33 @@
     ]
    }
   },
+  "/api/v1/auth/me/welcome": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Welcome Seen",
+    "description": "Marca visto el pop-up de bienvenida: no vuelve a aparecer en ningun dispositivo.",
+    "operationId": "welcome_seen_api_v1_auth_me_welcome_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MeOut"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
   "/api/v1/auth/me/password/code": {
    "post": {
     "tags": [
@@ -18276,6 +18303,11 @@
        }
       ],
       "title": "Client Name"
+     },
+     "welcome_pending": {
+      "type": "boolean",
+      "title": "Welcome Pending",
+      "default": false
      }
     },
     "type": "object",

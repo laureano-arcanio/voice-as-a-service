@@ -67,6 +67,8 @@ class MeOut(BaseModel):
     role: Literal["admin", "client"]
     client_id: str | None
     client_name: str | None
+    # Usuario de cliente que todavia no cerro el pop-up de bienvenida.
+    welcome_pending: bool = False
 
 
 class ProfileIn(BaseModel):

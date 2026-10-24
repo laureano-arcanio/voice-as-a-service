@@ -189,6 +189,8 @@ class User(IdMixin, TimestampMixin, Base):
     # Va en el token (claim sv). Logout, cambio de clave o desactivacion lo suben: invalida
     # todas las sesiones abiertas del usuario.
     session_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # Cuando cerro el pop-up de bienvenida del panel (solo usuarios de cliente); None = mostrarlo.
+    welcomed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class ApiKey(IdMixin, Base):

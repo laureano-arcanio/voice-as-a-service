@@ -104,6 +104,15 @@ export function useUpdateProfile() {
   });
 }
 
+/** Cierra el pop-up de bienvenida para siempre (en todos los dispositivos). */
+export function useWelcomeSeen() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => unwrap(api.POST('/api/v1/auth/me/welcome')),
+    onSuccess: (me) => qc.setQueryData(meKey, me),
+  });
+}
+
 /** Manda el codigo al email actual; devuelve el desafio que va de vuelta con el codigo. */
 export function useRequestPasswordCode() {
   return useMutation({ mutationFn: () => unwrap(api.POST('/api/v1/auth/me/password/code')) });

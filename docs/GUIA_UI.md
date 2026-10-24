@@ -28,6 +28,10 @@ Hay dos roles:
    desde la IP con cualquier email), el login se bloquea un rato.
 3. Arriba a la derecha: Salir. **Salir cierra todas tus sesiones**, también las de otros navegadores;
    cambiar la clave también.
+4. Un usuario de cliente, la primera vez que entra, ve un pop-up de bienvenida: qué es la plataforma, los
+   pasos para empezar y links a los videos de YouTube ("Qué es Atentina" y "Cómo crear y probar agentes",
+   en `web/src/features/auth/WelcomeModal.tsx`). Al cerrarlo no vuelve a aparecer en ningún dispositivo
+   (`users.welcomed_at`, migración 0027; los que ya habían entrado antes quedan como vistos).
 
 ## Puesta en marcha de un cliente nuevo (admin)
 

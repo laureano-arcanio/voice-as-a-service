@@ -36,7 +36,7 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
         sh psql health gpu \
         pbx-cli pbx-status livekit-sip livekit-sip-si-local \
         wa-calling-status wa-calling-enable wa-calling-disable wa-sip-password sip-cert \
-        migrate migrate-test create-admin api-key dev-backend web-dev web-build web-check openapi landing-dev \
+        migrate migrate-test create-admin welcome-reset api-key dev-backend web-dev web-build web-check openapi landing-dev \
         test e2e-sip e2e-sip-down eval-motor eval-llamadas eval-llm eval-llm-juez eval-llm-report loadtest-audio loadtest loadtest-report capacity capacity-monitor capacity-monitor-stop capacity-analyze gpubench stt-eval stt-corpus \
         video-setup video-studio video-voces video-musica video video-revisar video-cerrar doc doc-cerrar \
         backup backup-key backup-s3-setup backup-fetch backup-list cron-install \
@@ -130,6 +130,11 @@ sh: ## Shell en un contenedor (default: agent). Ej: make sh S=app
 calls-active: ## Llamadas en curso (de la ultima hora). Falla si hay alguna: make calls-active && make up-agent
 	@n=$$($(COMPOSE) exec -T db sh -c 'psql -U "$$POSTGRES_USER" "$$POSTGRES_DB" -tAc "select count(*) from call_logs where status in ('"'"'pendiente'"'"','"'"'sonando'"'"','"'"'en_curso'"'"') and created_at > now() - interval '"'"'1 hour'"'"'"'); \
 		echo "Llamadas en curso: $$n"; [ "$$n" = 0 ] || { echo "Hay llamadas en curso: esperar (o FORCE=1 donde se acepte)"; exit 1; }
+
+welcome-reset: ## Vuelve a mostrar el pop-up de bienvenida a un usuario de cliente. Ej: make welcome-reset EMAIL=ana@acme.com
+	@[ -n "$(EMAIL)" ] || { echo "Falta EMAIL=..."; exit 1; }
+	@$(COMPOSE) exec -T db sh -c 'psql -U "$$POSTGRES_USER" "$$POSTGRES_DB" -v email="$(EMAIL)" -qtA' <<< "update users set welcomed_at = null where email = lower(:'email') and role = 'client' returning email;" | grep -q . \
+		&& echo "Listo: $(EMAIL) va a ver la bienvenida al recargar el panel." || { echo "No hay un usuario de cliente con $(EMAIL)"; exit 1; }
 
 psql: ## Cliente psql dentro de db, con las credenciales de .env
 	$(COMPOSE) exec db sh -c 'psql -U "$$POSTGRES_USER" "$$POSTGRES_DB"'
