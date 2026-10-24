@@ -22,6 +22,10 @@ import { TOTAL as ZENNONBI_ANALISIS_TOTAL } from "../proyectos/zennonbi-analisis
 import { ZennonbiAnalisisVideo } from "../proyectos/zennonbi-analisis/src/Video";
 import { TOTAL as PRIMEROS_PASOS_TOTAL } from "../proyectos/primeros-pasos/src/timeline";
 import { PrimerosPasosVideo } from "../proyectos/primeros-pasos/src/Video";
+import { TOTAL as DERIVACIONES_TOTAL } from "../proyectos/derivaciones/src/timeline";
+import { DerivacionesVideo } from "../proyectos/derivaciones/src/Video";
+import { T as LANDING_AGENTE_T } from "../proyectos/landing-agente/src/timeline";
+import { LandingAgenteVideo } from "../proyectos/landing-agente/src/Video";
 
 // Una composición por proyecto, con el id igual a la carpeta de proyectos/ (lo usa `make video P=<id>`)
 export const RemotionRoot: React.FC = () => (
@@ -36,7 +40,10 @@ export const RemotionRoot: React.FC = () => (
     <Composition id="cimepa-analisis" component={CimepaAnalisisVideo} durationInFrames={f(CIMEPA_ANALISIS_TOTAL)} fps={FPS} width={1920} height={1080} />
     <Composition id="axiomait-analisis" component={AxiomaitAnalisisVideo} durationInFrames={f(AXIOMAIT_ANALISIS_TOTAL)} fps={FPS} width={1920} height={1080} />
     <Composition id="zennonbi-analisis" component={ZennonbiAnalisisVideo} durationInFrames={f(ZENNONBI_ANALISIS_TOTAL)} fps={FPS} width={1920} height={1080} />
+    {/* Para la landing: sin locución, en loop */}
+    <Composition id="landing-agente" component={LandingAgenteVideo} durationInFrames={f(LANDING_AGENTE_T.fin)} fps={FPS} width={1920} height={1080} />
     {/* Vertical (9:16), para el celular */}
     <Composition id="primeros-pasos" component={PrimerosPasosVideo} durationInFrames={f(PRIMEROS_PASOS_TOTAL)} fps={FPS} width={1080} height={1920} />
+    <Composition id="derivaciones" component={DerivacionesVideo} durationInFrames={f(DERIVACIONES_TOTAL)} fps={FPS} width={1080} height={1920} />
   </>
 );

@@ -34,7 +34,11 @@ Proyectos hoy: [`general`](../marketing/videos/proyectos/general/README.md) (el 
 [`axiomait-analisis`](../marketing/videos/proyectos/axiomait-analisis/README.md) (Axioma IT, propuesta técnica para un integrador con el formato de su PDF; paula y lucas) y
 [`zennonbi-analisis`](../marketing/videos/proyectos/zennonbi-analisis/README.md) (Zennon BI, propuesta de alianza para un partner de Dynamics 365 con el formato de su PDF; paula y lucas) y
 [`primeros-pasos`](../marketing/videos/proyectos/primeros-pasos/README.md) (tutorial vertical 9:16 para clientes: crear un agente y
-probarlo con una llamada desde el navegador; el panel recreado en un teléfono, zoom al escribir; solo paula).
+probarlo con una llamada desde el navegador; el panel recreado en un teléfono, zoom al escribir; solo paula) y
+[`derivaciones`](../marketing/videos/proyectos/derivaciones/README.md) (tutorial vertical 9:16 para clientes: cómo
+funciona la transferencia de llamadas a personas y cómo se configura; capturas reales del panel en 390 px; paula y pablo) y
+[`landing-agente`](../marketing/videos/proyectos/landing-agente/README.md) (horizontal para la landing, sin locución y en
+loop: el agente con el aro de puntos resuelve las consultas y deriva solo lo importante a una persona del equipo).
 
 ## Comandos
 
@@ -114,7 +118,8 @@ El TTS es `vllm-tts` (Qwen3-TTS con 41 voces argentinas, [`TTS_FINETUNE.md`](TTS
 | Papel | Voz | Por qué |
 |---|---|---|
 | Narradora principal | `paula` | Mujer, WER 2,6 %, 17,1 car/s. Decisión del usuario, 22-oct-2026 (CIMEPA v2) |
-| Narrador secundario | `pablo` | Hombre, WER 2,8 %, 18,5 car/s. Para algunas líneas: contrapunto, ejemplos, la voz "del cliente" o un dato a destacar; no alternar línea por línea |
+| Narrador secundario | `gonzalo` | Hombre, WER 4,2 %, 16,7 car/s. Decisión del usuario, 23-oct-2026 (después de `derivaciones` v1). Para algunas líneas: contrapunto, ejemplos, la voz "del cliente" o un dato a destacar; no alternar línea por línea |
+| Secundario anterior | `pablo` | Hombre, WER 2,8 %, 18,5 car/s; de CIMEPA v2 a `derivaciones` v1 |
 | Narrador anterior | `lucas` | Hombre, WER 1,9 %, ritmo pausado (15,1 car/s); hasta CIMEPA v1 |
 | Asistente (Atentina) | `valentina` | La de más variación de tono entre 14 voces de mujer (±2,8 semitonos; `sofia`, ±1,9) |
 | Cliente | `carolina` | WER 1,8 %, distinta de la asistente |
@@ -130,7 +135,7 @@ El TTS es `vllm-tts` (Qwen3-TTS con 41 voces argentinas, [`TTS_FINETUNE.md`](TTS
   texto, y dejar las tomas para escuchar: el STT no distingue dónde cae el acento.
 - **Nivel:** `"ganancia_db": -2.2` en `guion.json` baja la locución (una voz más fuerte que `lucas` saca la mezcla
   de −16 LUFS: con `laura`, −13,9 sin ajuste y −16,1 con −2,2 dB; sqlamoblamientos-analisis v4, voz descartada por
-  cómo suena: no se recomienda para videos). Con `lucas` no hace falta; con `paula` y `pablo`, medir el LUFS de la mezcla y ajustar si sale de −16 ± 1,5.
+  cómo suena: no se recomienda para videos). Con `lucas` no hace falta; con `paula` y `gonzalo`, medir el LUFS de la mezcla y ajustar si sale de −16 ± 1,5.
 - **Velocidad:** `"velocidad": 1.1` en `guion.json` acelera cada línea con `ffmpeg atempo` (no cambia el tono)
   después de elegir la toma; las duraciones y envolventes salen del audio acelerado. Sin el campo, 1,0.
 - **Grafías que funcionan:**

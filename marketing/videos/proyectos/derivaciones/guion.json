@@ -1,0 +1,19 @@
+{
+  "nota": "Tutorial vertical 9:16 para clientes: cómo funciona la derivación de llamadas a personas (diagrama) y cómo se configura (Equipo, áreas y el agente), con capturas reales del panel en 390 px. Narradora paula; pablo en dos líneas (espera y guardado).",
+  "musica_segundos": 92,
+  "lineas": [
+    {"id": "d1", "voz": "paula", "texto": "Tu agente atiende las llamadas y, cuando hace falta, se las pasa a una persona de tu equipo. Te muestro cómo."},
+    {"id": "d2", "voz": "paula", "texto": "Llaman muchos clientes. El agente escucha, entiende y responde, en un ciclo, turno a turno."},
+    {"id": "d3", "voz": "paula", "texto": "Si alguien pide hablar con una persona, elige el área que corresponde y llama a su gente en orden, dentro del horario."},
+    {"id": "d4", "voz": "pablo", "texto": "Mientras suena, el cliente escucha música de espera. A la persona le cuenta de qué se trata, y la conecta cuando marca uno."},
+    {"id": "d5", "voz": "paula", "texto": "Si nadie atiende, o el área está fuera de horario, el agente vuelve y toma el mensaje."},
+    {"id": "d6", "voz": "paula", "texto": "Para configurarlo, abrí Equipo en el menú y agregá a cada persona con su teléfono."},
+    {"id": "d7", "voz": "paula", "texto": "Después, creá un área: el nombre, qué atiende, y las personas, en el orden en que se las llama."},
+    {"id": "d8", "voz": "paula", "texto": "Cargá su horario. Los mensajes, como el aviso a la persona, ya vienen escritos y los podés cambiar."},
+    {"id": "d9", "voz": "paula", "texto": "En tu agente, abrí Derivación a personas y marcá a qué áreas puede pasar la llamada. Si querés, aclarale cuándo."},
+    {"id": "d10", "voz": "pablo", "texto": "La música de espera viene prendida. Guardá, y queda como una versión nueva del agente."},
+    {"id": "d11", "voz": "paula", "texto": "En cada conversación vas a ver el tramo con la persona del equipo, con su nombre."},
+    {"id": "d12", "voz": "paula", "texto": "Tu agente resuelve lo que puede, y lo demás se lo pasa a tu equipo."}
+  ],
+  "ganancia_db": -1.5
+}
