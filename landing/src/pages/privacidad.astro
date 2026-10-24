@@ -25,8 +25,9 @@ import { contactEmail } from "../data/site";
   <ul>
     <li>
       <strong>Personas que hablan o escriben con un agente</strong> (por teléfono o WhatsApp): número de teléfono, el
-      contenido de la conversación (transcripción de lo que se dice o texto de los mensajes) y los datos que surgen de
-      ella, como un turno, un reclamo o un acuerdo de pago.
+      contenido de la conversación (transcripción de lo que se dice o texto de los mensajes), los datos que surgen de
+      ella, como un turno, un reclamo o un acuerdo de pago, y el audio si el cliente activó la grabación (ver
+      <a href="#grabaciones">Grabaciones</a>).
     </li>
     <li>
       <strong>Visitantes de este sitio que prueban la demo</strong>: el audio de la llamada de prueba, su transcripción,
@@ -55,7 +56,15 @@ import { contactEmail } from "../data/site";
   <p>
     El reconocimiento de voz, el modelo de lenguaje y la síntesis de voz corren en <strong>servidores propios en
     Argentina</strong>: por defecto, las conversaciones no se envían a proveedores externos de inteligencia artificial.
-    No guardamos grabaciones de audio de las llamadas; guardamos la transcripción.
+  </p>
+  <p id="grabaciones">
+    <strong>Grabaciones.</strong> Por defecto guardamos la transcripción, no el audio. Si el cliente activa la
+    grabación en uno de sus agentes, guardamos también el audio de cada mensaje de la conversación (lo que dice la
+    persona y lo que responde el agente, por teléfono o por WhatsApp) en nuestros servidores en Argentina, para que el
+    cliente lo escuche en su panel. La decisión de grabar es del cliente, que es responsable de informarlo a la persona
+    con la que habla el agente y de obtener su consentimiento cuando corresponda; el agente puede avisar al empezar la
+    llamada que se está grabando. Las grabaciones se conservan y se eliminan como el resto de los datos de la
+    conversación.
   </p>
   <p>
     <strong>Excepción: modelo de lenguaje del cliente.</strong> Un cliente puede configurar que uno de sus agentes use
