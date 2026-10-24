@@ -10731,6 +10731,177 @@
      }
     }
    }
+  },
+  "/api/v1/oauth/authorize": {
+   "get": {
+    "tags": [
+     "oauth"
+    ],
+    "summary": "Authorize Info",
+    "description": "Qué agente pide acceso, para la pantalla de consentimiento. 400 si el pedido no es válido.",
+    "operationId": "authorize_info_api_v1_oauth_authorize_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/OAuthAuthorizeOut"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   },
+   "post": {
+    "tags": [
+     "oauth"
+    ],
+    "summary": "Authorize Decide",
+    "description": "Aprueba o rechaza: devuelve la URL a la que vuelve el navegador (con `code` o con `error`).",
+    "operationId": "authorize_decide_api_v1_oauth_authorize_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/OAuthApproveIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/OAuthRedirectOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/oauth/grants": {
+   "get": {
+    "tags": [
+     "oauth"
+    ],
+    "summary": "List Grants",
+    "description": "Los agentes de IA conectados por OAuth al cliente. Un admin, todos o los de `client_id`.",
+    "operationId": "list_grants_api_v1_oauth_grants_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/OAuthGrantOut"
+         },
+         "title": "Response List Grants Api V1 Oauth Grants Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/oauth/grants/{grant_id}": {
+   "delete": {
+    "tags": [
+     "oauth"
+    ],
+    "summary": "Revoke Grant",
+    "operationId": "revoke_grant_api_v1_oauth_grants__grant_id__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "grant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Grant Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
   }
  },
  "components": {
@@ -18514,6 +18685,249 @@
      "limit"
     ],
     "title": "NumbersUsageOut"
+   },
+   "OAuthApproveIn": {
+    "properties": {
+     "params": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Params",
+      "description": "La query de /oauth/authorize, tal cual"
+     },
+     "approve": {
+      "type": "boolean",
+      "title": "Approve"
+     },
+     "client_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Id",
+      "description": "Admin: el cliente con el que va a actuar el agente"
+     }
+    },
+    "type": "object",
+    "required": [
+     "params",
+     "approve"
+    ],
+    "title": "OAuthApproveIn"
+   },
+   "OAuthAuthorizeOut": {
+    "properties": {
+     "valid": {
+      "type": "boolean",
+      "title": "Valid"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "error_description": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error Description"
+     },
+     "redirect_to": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Redirect To"
+     },
+     "client_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Name"
+     },
+     "client_uri": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Uri"
+     },
+     "verified": {
+      "type": "boolean",
+      "title": "Verified",
+      "default": false
+     },
+     "redirect_host": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Redirect Host"
+     },
+     "scope": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Scope"
+     },
+     "resource": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Resource"
+     },
+     "needs_client": {
+      "type": "boolean",
+      "title": "Needs Client",
+      "default": false
+     },
+     "client_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Id"
+     },
+     "client_name_tenant": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Name Tenant"
+     }
+    },
+    "type": "object",
+    "required": [
+     "valid"
+    ],
+    "title": "OAuthAuthorizeOut",
+    "description": "El pedido de un agente de IA para la pantalla de consentimiento. Con `valid` false, `redirect_to`\n(si viene) devuelve el error al agente; sin él, el pedido no se puede devolver."
+   },
+   "OAuthGrantOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "client_id": {
+      "type": "string",
+      "title": "Client Id"
+     },
+     "app_name": {
+      "type": "string",
+      "title": "App Name"
+     },
+     "app_uri": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "App Uri"
+     },
+     "verified": {
+      "type": "boolean",
+      "title": "Verified"
+     },
+     "user_email": {
+      "type": "string",
+      "title": "User Email"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "last_used_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Used At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "client_id",
+     "app_name",
+     "app_uri",
+     "verified",
+     "user_email",
+     "created_at",
+     "last_used_at"
+    ],
+    "title": "OAuthGrantOut"
+   },
+   "OAuthRedirectOut": {
+    "properties": {
+     "redirect_to": {
+      "type": "string",
+      "title": "Redirect To"
+     }
+    },
+    "type": "object",
+    "required": [
+     "redirect_to"
+    ],
+    "title": "OAuthRedirectOut"
    },
    "OutcomeOut": {
     "properties": {

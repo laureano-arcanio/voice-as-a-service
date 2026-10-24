@@ -39,6 +39,8 @@ class Principal:
     client_id: str | None   # None solo para admins
     # De una API key: lo que puede hacer (api_usage.ALL_SCOPES). Un usuario de sesion no se limita por esto.
     scopes: frozenset[str] = frozenset({"calls"})
+    # Un usuario por un token OAuth del servidor MCP (services/oauth.py): solo en los pedidos internos del MCP.
+    oauth: bool = False
 
     @property
     def is_admin(self) -> bool:

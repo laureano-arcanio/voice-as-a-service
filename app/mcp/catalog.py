@@ -49,6 +49,7 @@ class Tool:
     audio: bool = False                   # la respuesta es un WAV: va como contenido `audio`
     text: bool = False                    # la respuesta es texto (CSV): va como contenido `text`
     omit: tuple[str, ...] = ()            # campos del cuerpo que esta herramienta no expone
+    session: bool = False                 # la ruta exige un usuario (OAuth): con API key, `needs_oauth`
 
     @property
     def reads(self) -> bool:
@@ -292,6 +293,12 @@ _CONVERSATION = {"conversation_id": _s("ID de la conversación.")}
 # Fase 2: escritura, más las lecturas que acompañan a cada flujo.
 _WRITE: tuple[Tool, ...] = (
     # ---------- account ----------
+    Tool("get_billing", "account", "Plan y facturación",
+         "El plan contratado, su vencimiento, el medio de pago y los últimos pagos.",
+         path="/clients/{client_id}/billing", session=True),
+    Tool("list_api_keys", "account", "API keys",
+         "Las API keys del cliente (nombre, prefijo, alcances, último uso); nunca la clave.",
+         path="/clients/{client_id}/api-keys", session=True),
     Tool("update_call_emails", "account", "Configurar el resumen por email",
          "Prende o apaga el resumen por email de cada llamada para todos los agentes del cliente y elige a "
          "quién le llega (vacío: a los usuarios activos).", method="PUT", path="/clients/{client_id}/call-emails",
@@ -327,6 +334,13 @@ _WRITE: tuple[Tool, ...] = (
          "respuesta del agente y los datos que tomó.", method="POST",
          path="/conversations/{conversation_id}/turns", params=_CONVERSATION, required=("conversation_id",),
          body="TurnIn", read_only=True),
+    Tool("list_llm_params", "agents", "Parámetros del LLM",
+         "Los parámetros de generación (temperatura, razonamiento, max_tokens...) que acepta cada proveedor, con "
+         "los defaults del modelo propio, para `generation` en la definición del agente.", path="/llm/params",
+         session=True),
+    Tool("list_llm_connections", "agents", "Modelos propios (BYOK)",
+         "Las conexiones del cliente a su proveedor de LLM (sin la clave), para `llm` en la definición.",
+         path="/clients/{client_id}/llm-connections", session=True),
     Tool("get_test_conversation", "agents", "Conversación de prueba",
          "El estado de una conversación de prueba: mensajes, datos tomados y si terminó.",
          path="/conversations/{conversation_id}", params=_CONVERSATION, required=("conversation_id",)),

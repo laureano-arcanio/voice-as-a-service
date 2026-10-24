@@ -3024,6 +3024,67 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/oauth/authorize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Authorize Info
+         * @description Qué agente pide acceso, para la pantalla de consentimiento. 400 si el pedido no es válido.
+         */
+        get: operations["authorize_info_api_v1_oauth_authorize_get"];
+        put?: never;
+        /**
+         * Authorize Decide
+         * @description Aprueba o rechaza: devuelve la URL a la que vuelve el navegador (con `code` o con `error`).
+         */
+        post: operations["authorize_decide_api_v1_oauth_authorize_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/oauth/grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Grants
+         * @description Los agentes de IA conectados por OAuth al cliente. Un admin, todos o los de `client_id`.
+         */
+        get: operations["list_grants_api_v1_oauth_grants_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/oauth/grants/{grant_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Grant */
+        delete: operations["revoke_grant_api_v1_oauth_grants__grant_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -5908,6 +5969,89 @@ export interface components {
             used: number;
             /** Limit */
             limit: number | null;
+        };
+        /** OAuthApproveIn */
+        OAuthApproveIn: {
+            /**
+             * Params
+             * @description La query de /oauth/authorize, tal cual
+             */
+            params: {
+                [key: string]: unknown;
+            };
+            /** Approve */
+            approve: boolean;
+            /**
+             * Client Id
+             * @description Admin: el cliente con el que va a actuar el agente
+             */
+            client_id?: string | null;
+        };
+        /**
+         * OAuthAuthorizeOut
+         * @description El pedido de un agente de IA para la pantalla de consentimiento. Con `valid` false, `redirect_to`
+         *     (si viene) devuelve el error al agente; sin él, el pedido no se puede devolver.
+         */
+        OAuthAuthorizeOut: {
+            /** Valid */
+            valid: boolean;
+            /** Error */
+            error?: string | null;
+            /** Error Description */
+            error_description?: string | null;
+            /** Redirect To */
+            redirect_to?: string | null;
+            /** Client Name */
+            client_name?: string | null;
+            /** Client Uri */
+            client_uri?: string | null;
+            /**
+             * Verified
+             * @default false
+             */
+            verified?: boolean;
+            /** Redirect Host */
+            redirect_host?: string | null;
+            /** Scope */
+            scope?: string | null;
+            /** Resource */
+            resource?: string | null;
+            /**
+             * Needs Client
+             * @default false
+             */
+            needs_client?: boolean;
+            /** Client Id */
+            client_id?: string | null;
+            /** Client Name Tenant */
+            client_name_tenant?: string | null;
+        };
+        /** OAuthGrantOut */
+        OAuthGrantOut: {
+            /** Id */
+            id: string;
+            /** Client Id */
+            client_id: string;
+            /** App Name */
+            app_name: string;
+            /** App Uri */
+            app_uri: string | null;
+            /** Verified */
+            verified: boolean;
+            /** User Email */
+            user_email: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Last Used At */
+            last_used_at: string | null;
+        };
+        /** OAuthRedirectOut */
+        OAuthRedirectOut: {
+            /** Redirect To */
+            redirect_to: string;
         };
         /** OutcomeOut */
         OutcomeOut: {
@@ -14098,6 +14242,119 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PlanFeaturesOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    authorize_info_api_v1_oauth_authorize_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthAuthorizeOut"];
+                };
+            };
+        };
+    };
+    authorize_decide_api_v1_oauth_authorize_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OAuthApproveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthRedirectOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_grants_api_v1_oauth_grants_get: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthGrantOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_grant_api_v1_oauth_grants__grant_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                grant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

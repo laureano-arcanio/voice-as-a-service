@@ -16,6 +16,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 
 from .api import call_link_host, errors
+from .api import oauth as oauth_routes
 from .api.deps import _bearer, get_db, get_principal, require_admin
 from .api.http import (
     BodyLimitMiddleware,
@@ -122,6 +123,7 @@ def create_app() -> FastAPI:
                    whatsapp, wa_campaigns, campaigns, contacts, wa_operators, inference, demo, billing, apps, llm_connections,
                    llm_params, call_links, blocked_numbers, api_requests, handoff, plan):
         api.include_router(module.router)
+    api.include_router(oauth_routes.api_router)
     app.include_router(api)
     _mount_docs(app)
     # Fuera de /api/v1 y antes de _mount_spa (su catch-all es GET y tragaria /wa/webhook).
@@ -131,6 +133,7 @@ def create_app() -> FastAPI:
     app.include_router(call_link_host.router)
     # Servidor MCP para los agentes de IA de los clientes (docs/MCP_PLAN.md).
     app.include_router(mcp_server.router)
+    app.include_router(oauth_routes.router)
 
     @app.get("/health", include_in_schema=False)
     def health():

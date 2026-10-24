@@ -3,8 +3,10 @@
 Generado desde `app/mcp/catalog.py` con `make mcp-docs`: no editar a mano. Diseño en
 [`MCP_PLAN.md`](MCP_PLAN.md).
 
-- URL: `https://mcp.atentina.com.ar/mcp` (Streamable HTTP). Auth: `Authorization: Bearer vaas_...`,
-  una API key con el alcance `mcp` (panel → API keys).
+- URL: `https://app.atentina.com.ar/mcp` (Streamable HTTP; `mcp.atentina.com.ar` cuando esté su ruta).
+- Auth: OAuth 2.1 (el cliente MCP descubre el login solo, por el 401 con `resource_metadata`) o
+  `Authorization: Bearer vaas_...`, una API key con el alcance `mcp` (panel → Desarrolladores). Las marcadas
+  "solo OAuth" necesitan un usuario: con API key responden `needs_oauth`.
 - Grupos: `/mcp?toolsets=a,b` (`all` = todos). Sin el parámetro: `core` = `account`, `agents`, `calls`.
   `get_plan_tools` va siempre.
 - Una herramienta que el plan no incluye responde `feature_not_in_plan` con el motivo y los planes que la
@@ -31,6 +33,8 @@ Generado desde `app/mcp/catalog.py` con `make mcp-docs`: no editar a mano. Dise�
 | `get_plan_features` | Cada función del plan (llamadas salientes, WhatsApp, contactos, campañas, equipo, link para llamar) con `enabled` y, si no está, `reason`: lo que hace falta. | lectura | todos | `GET /plan/features` |
 | `get_usage` | Minutos entrantes y salientes, llamadas y demás consumo del mes contra los límites del plan. | lectura | todos | `GET /clients/{client_id}/usage` |
 | `get_call_emails` | Si el resumen por email de cada llamada está prendido para el cliente y a qué direcciones llega. | lectura | todos | `GET /clients/{client_id}/call-emails` |
+| `get_billing` | El plan contratado, su vencimiento, el medio de pago y los últimos pagos. | lectura | todos (solo OAuth) | `GET /clients/{client_id}/billing` |
+| `list_api_keys` | Las API keys del cliente (nombre, prefijo, alcances, último uso); nunca la clave. | lectura | todos (solo OAuth) | `GET /clients/{client_id}/api-keys` |
 | `update_call_emails` | Prende o apaga el resumen por email de cada llamada para todos los agentes del cliente y elige a quién le llega (vacío: a los usuarios activos). | escritura | todos | `PUT /clients/{client_id}/call-emails` |
 
 ## `agents`: Agentes, voces y plantillas
@@ -53,6 +57,8 @@ Generado desde `app/mcp/catalog.py` con `make mcp-docs`: no editar a mano. Dise�
 | `preview_voice` | Sintetiza un texto corto con una voz del TTS (ver list_voices) y devuelve el audio. | lectura | todos | `POST /tts/preview` |
 | `test_agent_start` | Empieza una conversación de prueba por texto con un agente (no llama a nadie ni gasta minutos). Devuelve la apertura; seguí con test_agent_turn. | lectura | todos | `POST /conversations` |
 | `test_agent_turn` | Manda un mensaje como si fuera el cliente final en una conversación de prueba y devuelve la respuesta del agente y los datos que tomó. | lectura | todos | `POST /conversations/{conversation_id}/turns` |
+| `list_llm_params` | Los parámetros de generación (temperatura, razonamiento, max_tokens...) que acepta cada proveedor, con los defaults del modelo propio, para `generation` en la definición del agente. | lectura | todos (solo OAuth) | `GET /llm/params` |
+| `list_llm_connections` | Las conexiones del cliente a su proveedor de LLM (sin la clave), para `llm` en la definición. | lectura | todos (solo OAuth) | `GET /clients/{client_id}/llm-connections` |
 | `get_test_conversation` | El estado de una conversación de prueba: mensajes, datos tomados y si terminó. | lectura | todos | `GET /conversations/{conversation_id}` |
 
 ## `calls`: Llamadas, transcripciones, estadísticas, números y bloqueados

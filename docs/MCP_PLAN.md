@@ -5,8 +5,8 @@ de IA de un cliente (Claude, ChatGPT, Cursor, Claude Code, un agente propio) cre
 los pruebe, mire llamadas y transcripciones, cargue contactos, lance campañas y arme el equipo de
 derivación, todo sin abrir el panel. Cada herramienta respeta el plan del cliente, y una de ellas
 (`get_plan_tools`) le dice al agente qué puede usar y qué plan haría falta para el resto. Diseño del
-24-oct-2026; fases 0 a 2 (lectura, plan, API key `mcp` y escritura) implementadas el 24-oct-2026, sin
-desplegar (sección 12). Catálogo vigente: [`MCP_HERRAMIENTAS.md`](MCP_HERRAMIENTAS.md), generado.
+24-oct-2026; fases 0 a 3 (lectura, plan, API key `mcp`, escritura y OAuth) implementadas el 24-oct-2026,
+sin desplegar (sección 12). Catálogo vigente: [`MCP_HERRAMIENTAS.md`](MCP_HERRAMIENTAS.md), generado.
 
 ## 1. Decisiones
 
@@ -262,7 +262,7 @@ Pasos de publicación:
 | 0. Spike | FastMCP montado en `/mcp`, 3 herramientas de lectura (`whoami`, `list_agents`, `get_call`) por ASGI interno, API key `calls` provisoria | Funciona desde Claude Code; medir el costo del pedido interno |
 | 1. Lectura + plan | Catálogo, scope `mcp` (UI de API keys), todas las de lectura, `get_plan_tools`, errores de plan, `make mcp-docs`, tests de catálogo y plan | Un cliente Free y uno Mostrador ven lo correcto |
 | 2. Escritura | Agentes, prueba por texto, contactos, campañas, equipo, WhatsApp, links, bloqueados; anotaciones; `toolsets`; resources y prompts | Crear y probar un agente y armar (sin lanzar) una campaña solo por MCP. **Hecho el 24-oct-2026** |
-| 3. OAuth | Servidor de autorización, consentimiento en `web/`, migración `oauth_*`, "Agentes conectados", ruta `mcp.` del túnel | Conector en Claude.ai con login y revocación |
+| 3. OAuth | Servidor de autorización, consentimiento en `web/`, migración `oauth_*`, "Agentes conectados", ruta `mcp.` del túnel | Conector en Claude.ai con login y revocación. **Implementado el 24-oct-2026**, sin probar con Claude.ai (hace falta desplegar) |
 | 4. Publicación | Página `/desarrolladores/mcp`, botones de instalación, `server.json` en el registro, envío al directorio de Anthropic, privacidad actualizada | Instalación en un clic desde la landing |
 | 5. Extras | `inference` y `admin`; métricas de uso del MCP por herramienta | Según uso real |
 
@@ -332,4 +332,48 @@ cambio es solo de `app`, pero el target es ese) y crear una key con el alcance M
 - `start_call` sin `phone` obligatorio: también llama al contacto de `contact_id`. Sin ninguno de los dos,
   la API crea una llamada de prueba por navegador (inútil desde un agente, pero sin costo).
 
-**Sigue:** fase 3 (OAuth 2.1 y la ruta `mcp.` del túnel), para los conectores de Claude.ai y ChatGPT.
+**24-oct-2026: fase 3, OAuth 2.1** (sin desplegar; migración 0028).
+
+- `app/services/oauth.py` (lógica) y `app/api/oauth.py` (rutas). Metadata `/.well-known/oauth-protected-resource[/mcp]`
+  y `/.well-known/oauth-authorization-server`; el 401 de `/mcp` lleva `WWW-Authenticate: Bearer
+  resource_metadata="…"`, así el cliente MCP descubre el login solo.
+- **Emisor = el mismo host que sirve `/mcp`** (hoy `app.atentina.com.ar`, mañana `mcp.`): login, consentimiento
+  y token en el mismo origen, sin configuración. El `resource` del token es `<host>/mcp` y se verifica.
+- Clientes: registro dinámico (RFC 7591; públicos con PKCE o confidenciales con `client_secret_basic`/`_post`)
+  y Client ID Metadata Documents (el `client_id` es una URL https; se lee con `resolve_public`, sin redirects,
+  hasta 16 KB, y se guarda un día). `redirect_uri`: https, http solo a loopback (cualquier puerto, RFC 8252)
+  o esquema propio (`cursor://`).
+- `/oauth/authorize` → `/oauth/consent` (SPA, con sesión; el login vuelve ahí). La pantalla muestra la app,
+  si está identificada (metadata document) o es un registro sin verificar, a dónde vuelve y qué va a poder
+  hacer. Un admin elige el cliente: el token actúa **con rol de cliente** en ese cliente, nunca como admin.
+- Código de 10 min y un solo uso (reusarlo revoca el permiso), PKCE S256 obligatorio, `iss` en la respuesta
+  (RFC 9207). Access 1 h, refresh 30 días con rotación (reusar uno rotado revoca el permiso). `/oauth/revoke`
+  (RFC 7009). Cambiar la clave o cerrar sesión (`session_version`) corta los agentes del usuario.
+- **El token OAuth no abre la API:** `deps.get_principal` lo acepta solo con el header interno que pone el MCP
+  (`x-atentina-mcp`, un secreto aleatorio por proceso que no sale de `app`). Las rutas de consentimiento y de
+  agentes conectados exigen sesión del panel (`SessionPrincipal`).
+- Con OAuth se suman `get_billing`, `list_api_keys`, `list_llm_params` y `list_llm_connections` (`session` en
+  el catálogo, 87 herramientas); con API key responden `needs_oauth` y `get_plan_tools` las lista aparte.
+- UI: tarjeta "Agentes de IA (MCP)" en Desarrolladores (y en el detalle del cliente para el admin): URL,
+  comando de Claude Code y "Agentes conectados" con "Desconectar".
+- Tests: `tests/test_oauth.py` (17), `tests/test_migration_0028.py`, `OAuthConsentPage.test.tsx` (3). De punta
+  a punta contra uvicorn real (`scratch/oauth_smoke.py`): 401 → metadata → registro → consentimiento → token →
+  herramientas (incluida `get_billing`); el mismo token contra `/api/v1` da 401.
+
+**Desvíos de la fase 3:**
+
+- Sin la ruta `mcp.` del túnel: con el emisor por host no hace falta para empezar. Si se crea, el conector
+  nuevo usa `https://mcp.atentina.com.ar/mcp` y sus tokens valen solo ahí.
+- Sin CORS en `/mcp` ni en `/oauth/*`: los clientes que hacen OAuth desde el navegador (el MCP Inspector en
+  modo directo) no andan; Claude.ai, ChatGPT, Claude Code y Cursor lo hacen del lado del servidor o de la app.
+- Un solo alcance (`mcp`): lectura y escritura. `mcp:read` queda abierto (sección 11).
+
+**Cómo desplegar:**
+
+1. `make migrate-test` (0028 contra una copia del backup).
+2. `make calls-active && make up-agent` (migra y recrea `app` y `agent`; corta llamadas en curso).
+3. Probar: en Claude.ai, Configuración → Conectores → Agregar conector personalizado →
+   `https://app.atentina.com.ar/mcp`; o `claude mcp add --transport http atentina https://app.atentina.com.ar/mcp`.
+
+**Sigue:** fase 4 (publicación: página `/desarrolladores/mcp` en la landing, botones de instalación, registro
+oficial de MCP y directorio de Anthropic) y la política de privacidad (sección 8).

@@ -12,6 +12,7 @@ par TCP es un proxy de confianza (settings.trusted_proxy_cidrs).
 """
 import datetime
 import ipaddress
+import secrets
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from functools import cache
@@ -28,7 +29,7 @@ from ..conversation.engine import ConversationEngine
 from ..db import get_sessionmaker, utcnow
 from ..models import ApiKey, Client, Role, User
 from ..runtime import get_conversation_engine
-from ..services import api_requests, api_usage, limits
+from ..services import api_requests, api_usage, limits, oauth
 from ..services.errors import Forbidden, QuotaExceeded, ServiceError
 from ..services.ratelimit import Limit, RateLimiter, client_key
 from ..services.security import (
@@ -72,6 +73,11 @@ def _api_key(db: Session, token: str) -> ApiKey:
     return key
 
 
+# Pedidos internos del servidor MCP (app/mcp/server.py): el secreto vive solo en memoria de este proceso.
+MCP_INTERNAL_HEADER = "x-atentina-mcp"
+MCP_INTERNAL_SECRET = secrets.token_urlsafe(32)
+
+
 def get_principal(request: Request, db: DB,
                   creds: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)]) -> Principal:
     token = creds.credentials if creds else request.cookies.get(SESSION_COOKIE)
@@ -85,6 +91,16 @@ def get_principal(request: Request, db: DB,
             # Una key de inferencia (llm/stt/tts) no administra agentes, llamadas ni numeros.
             raise Forbidden("Esta API key es de la API de inferencia: no tiene acceso a esta API", "scope_missing")
         return Principal("api_key", key.id, Role.client, key.client_id, scopes)
+    if token.startswith(oauth.ACCESS_PREFIX):
+        # Un token OAuth vale para el MCP (su `resource`), no para la API: solo lo aceptan los pedidos que
+        # hace el MCP por dentro, que llevan un secreto que no sale del proceso.
+        if not secrets.compare_digest(request.headers.get(MCP_INTERNAL_HEADER, ""), MCP_INTERNAL_SECRET):
+            raise _unauthorized("Este token es solo para el servidor MCP (/mcp)")
+        access = oauth.authenticate(db, token)
+        if access is None:
+            raise _unauthorized("Token OAuth inválido, vencido o revocado")
+        # Actúa como usuario del cliente del permiso, aunque sea un admin (que lo eligió al autorizar).
+        return Principal("user", access.user.id, Role.client, access.grant.client_id, oauth=True)
     payload = decode_session_token(token)
     user = db.get(User, payload["sub"]) if payload else None
     if user is None or not user.active or payload.get("sv", 0) != user.session_version:
@@ -107,8 +123,16 @@ def require_user(p: CurrentPrincipal) -> Principal:
     return p
 
 
+def require_session(p: CurrentPrincipal) -> Principal:
+    """Sesión del panel: ni API key ni token OAuth (autorizar agentes, por ejemplo)."""
+    if p.kind != "user" or p.oauth:
+        raise Forbidden("Requiere iniciar sesión en el panel")
+    return p
+
+
 AdminPrincipal = Annotated[Principal, Depends(require_admin)]
 UserPrincipal = Annotated[Principal, Depends(require_user)]
+SessionPrincipal = Annotated[Principal, Depends(require_session)]
 
 
 def scoped_client_id(p: Principal, client_id: str | None) -> str | None:

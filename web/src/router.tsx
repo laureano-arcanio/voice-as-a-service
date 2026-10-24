@@ -8,6 +8,7 @@ import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { SetPasswordPage } from '@/features/auth/SetPasswordPage';
 import { WelcomePage } from '@/features/auth/WelcomePage';
+import { OAuthConsentPage } from '@/features/oauth/OAuthConsentPage';
 
 /** Pagina cargada a demanda (code splitting por ruta), opcionalmente solo para un rol. */
 function page(load: () => Promise<ComponentType>, role?: Role): Pick<RouteObject, 'lazy'> {
@@ -32,6 +33,16 @@ export const routes: RouteObject[] = [
   { path: '/set-password', element: <SetPasswordPage />, errorElement: <RouteError /> },
   { path: '/forgot-password', element: <ForgotPasswordPage />, errorElement: <RouteError /> },
   { path: '/welcome', element: <WelcomePage />, errorElement: <RouteError /> },
+  // Consentimiento OAuth del servidor MCP: fuera del layout, con sesión (el login vuelve acá).
+  {
+    path: '/oauth/consent',
+    element: (
+      <RequireAuth>
+        <OAuthConsentPage />
+      </RequireAuth>
+    ),
+    errorElement: <RouteError />,
+  },
   {
     path: '/',
     element: (

@@ -2,6 +2,7 @@ import { Card, Code, Group, Stack, Table, Tabs, Text, Title } from '@mantine/cor
 import { useState } from 'react';
 import { CopyIcon } from '@/components/Copy';
 import { ApiKeysSection } from '@/features/clients/ApiKeysSection';
+import { McpAccess } from '@/features/oauth/McpAccess';
 import { recentMonths } from '@/lib/format';
 import { InferenceUsageCard } from './InferenceUsageCard';
 import { ENDPOINTS, EXAMPLE_LABELS, inferenceBaseUrl, inferenceExample, type ExampleKind } from './examples';
@@ -100,7 +101,8 @@ function ExamplesCard() {
 }
 
 /**
- * API de inferencia de un cliente: conexion y ejemplos, consumo contra el plan y API keys con su alcance.
+ * API de inferencia de un cliente: conexion y ejemplos, consumo contra el plan, API keys con su alcance y
+ * agentes de IA conectados por MCP.
  * showUsage=false cuando el consumo ya se muestra en otro lado (el detalle del cliente, para el admin).
  */
 export function ApiAccess({ clientId, showUsage = true }: { clientId: string; showUsage?: boolean }) {
@@ -109,6 +111,7 @@ export function ApiAccess({ clientId, showUsage = true }: { clientId: string; sh
     <Stack gap="md">
       {showUsage && <InferenceUsageCard clientId={clientId} month={month} onMonth={setMonth} />}
       <ApiKeysSection clientId={clientId} />
+      <McpAccess clientId={clientId} />
       <ConnectionCard />
       <ExamplesCard />
     </Stack>

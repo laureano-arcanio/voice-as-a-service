@@ -29,8 +29,10 @@ def render() -> str:
         "Generado desde `app/mcp/catalog.py` con `make mcp-docs`: no editar a mano. Diseño en",
         "[`MCP_PLAN.md`](MCP_PLAN.md).",
         "",
-        "- URL: `https://mcp.atentina.com.ar/mcp` (Streamable HTTP). Auth: `Authorization: Bearer vaas_...`,",
-        "  una API key con el alcance `mcp` (panel → API keys).",
+        "- URL: `https://app.atentina.com.ar/mcp` (Streamable HTTP; `mcp.atentina.com.ar` cuando esté su ruta).",
+        "- Auth: OAuth 2.1 (el cliente MCP descubre el login solo, por el 401 con `resource_metadata`) o",
+        "  `Authorization: Bearer vaas_...`, una API key con el alcance `mcp` (panel → Desarrolladores). Las marcadas",
+        "  \"solo OAuth\" necesitan un usuario: con API key responden `needs_oauth`.",
         f"- Grupos: `/mcp?toolsets=a,b` (`all` = todos). Sin el parámetro: `core` = {', '.join(f'`{c}`' for c in CORE)}.",
         "  `get_plan_tools` va siempre.",
         "- Una herramienta que el plan no incluye responde `feature_not_in_plan` con el motivo y los planes que la",
@@ -47,7 +49,7 @@ def render() -> str:
         lines += ["", f"## `{toolset}`: {title}", "", "| Herramienta | Qué hace | Tipo | Plan | API |",
                   "|---|---|---|---|---|"]
         for t in tools:
-            plan = " o ".join(f"`{f}`" for f in t.features) or "todos"
+            plan = (" o ".join(f"`{f}`" for f in t.features) or "todos") + (" (solo OAuth)" if t.session else "")
             api = f"`{t.method} {t.path}`" if t.path else "—"
             kind = "lectura" if t.reads else "**confirmar**" if t.destructive else "escritura"
             lines.append(f"| `{t.name}` | {t.description.replace('|', '/')} | {kind} | {plan} | {api} |")

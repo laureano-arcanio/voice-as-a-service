@@ -2107,3 +2107,44 @@ class EventOut(ORM):
     area_id: str | None
     team_member_id: str | None
     data: dict
+
+
+# ---------- OAuth del servidor MCP (app/api/oauth.py) ----------
+
+class OAuthAuthorizeOut(BaseModel):
+    """El pedido de un agente de IA para la pantalla de consentimiento. Con `valid` false, `redirect_to`
+    (si viene) devuelve el error al agente; sin él, el pedido no se puede devolver."""
+    valid: bool
+    error: str | None = None
+    error_description: str | None = None
+    redirect_to: str | None = None
+    client_name: str | None = None
+    client_uri: str | None = None
+    verified: bool = False          # el client_id es la URL de su documento (no un registro anónimo)
+    redirect_host: str | None = None
+    scope: str | None = None
+    resource: str | None = None
+    needs_client: bool = False      # admin: elegir el cliente con el que actúa el agente
+    client_id: str | None = None
+    client_name_tenant: str | None = None
+
+
+class OAuthApproveIn(BaseModel):
+    params: dict[str, Any] = Field(description="La query de /oauth/authorize, tal cual")
+    approve: bool
+    client_id: str | None = Field(None, description="Admin: el cliente con el que va a actuar el agente")
+
+
+class OAuthRedirectOut(BaseModel):
+    redirect_to: str
+
+
+class OAuthGrantOut(BaseModel):
+    id: str
+    client_id: str
+    app_name: str
+    app_uri: str | None
+    verified: bool
+    user_email: str
+    created_at: UTCDateTime
+    last_used_at: UTCDateTime | None

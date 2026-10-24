@@ -1,26 +1,27 @@
 """Servidor MCP de Atentina (docs/MCP_PLAN.md): POST /mcp, Streamable HTTP sin estado y con
 respuestas JSON (sin SSE), sin el SDK, como el cliente de app/apps/client.py.
 
-Auth: API key con el scope `mcp` (`Authorization: Bearer vaas_...`). Cada herramienta es un pedido a
-`/api/v1` en el mismo proceso (ASGI, sin red) con esa key: los permisos, los límites del plan y la
+Auth: API key con el scope `mcp` (`Authorization: Bearer vaas_...`) o token OAuth (app/api/oauth.py). Cada
+herramienta es un pedido a `/api/v1` en el mismo proceso (ASGI, sin red) con esa credencial: los permisos, los límites del plan y la
 quota los aplica la API, no este módulo. Acá solo se adelanta el chequeo del plan para devolver el
 motivo claro (`feature_not_in_plan`) antes de pedir.
 """
 import base64
 import json
 import logging
+from dataclasses import dataclass
 from typing import Annotated, Any
 from urllib.parse import quote
 
 import httpx
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 from fastapi.security import HTTPAuthorizationCredentials
 
-from ..api.deps import DB, _api_key, _bearer, _unauthorized
+from ..api import oauth as oauth_routes
+from ..api.deps import DB, MCP_INTERNAL_HEADER, MCP_INTERNAL_SECRET, _api_key, _bearer
 from ..config import settings
-from ..models import ApiKey
-from ..services import api_usage
+from ..services import api_usage, oauth
 from ..services.security import API_KEY_PREFIX
 from . import catalog, guides
 from .catalog import Tool
@@ -39,24 +40,54 @@ MAX_AUDIO_BYTES = 5 * 1024 * 1024
 UPGRADE_PATH = "/plan"
 
 
-def mcp_key(db: DB, creds: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)]) -> ApiKey:
-    """Solo API keys con el scope `mcp`: ni la cookie del panel ni una key `calls` abren el MCP."""
-    if creds is None or not creds.credentials.startswith(API_KEY_PREFIX):
-        raise _unauthorized("Falta la API key (Authorization: Bearer vaas_...) con el alcance mcp")
-    key = _api_key(db, creds.credentials)
+@dataclass(frozen=True)
+class Identity:
+    """Quien usa el MCP: una API key `mcp` o un token OAuth (un usuario en un cliente)."""
+    kind: str               # api_key | oauth
+    id: str                 # la key o el permiso (OAuthGrant)
+    client_id: str
+    token: str
+
+
+def _unauthorized_mcp(request: Request, detail: str) -> HTTPException:
+    # resource_metadata: por ahí descubre el cliente MCP el servidor de autorización (RFC 9728).
+    metadata = f"{oauth_routes.issuer(request)}/.well-known/oauth-protected-resource/mcp"
+    return HTTPException(401, detail, headers={"WWW-Authenticate": f'Bearer resource_metadata="{metadata}"'})
+
+
+def mcp_identity(request: Request, db: DB,
+                 creds: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)]) -> Identity:
+    """API key con el scope `mcp` o token OAuth para este recurso: ni la cookie del panel ni una key `calls`."""
+    token = creds.credentials if creds else ""
+    if token.startswith(oauth.ACCESS_PREFIX):
+        access = oauth.authenticate(db, token)
+        if access is None:
+            raise _unauthorized_mcp(request, "Token OAuth inválido, vencido o revocado")
+        if access.grant.resource.rstrip("/") != oauth_routes.resource(request):
+            raise _unauthorized_mcp(request, "Este token es para otro servidor MCP")
+        return Identity("oauth", access.grant.id, access.grant.client_id, token)
+    if not token.startswith(API_KEY_PREFIX):
+        raise _unauthorized_mcp(request, "Iniciá sesión (OAuth) o usá una API key con el alcance mcp "
+                                         "(Authorization: Bearer vaas_...)")
+    try:
+        key = _api_key(db, token)
+    except HTTPException:
+        raise _unauthorized_mcp(request, "API key inválida o revocada") from None
     if api_usage.SCOPE_MCP not in api_usage.parse_scopes(key.scopes):
-        raise _unauthorized("Esta API key no tiene el alcance mcp: creá una con ese alcance en el panel")
-    return key
+        raise _unauthorized_mcp(request, "Esta API key no tiene el alcance mcp: creá una con ese alcance en el panel")
+    return Identity("api_key", key.id, key.client_id, token)
 
 
 class Ctx:
-    """Un pedido MCP: la key y un cliente HTTP en proceso contra la misma app."""
+    """Un pedido MCP: quién lo hace y un cliente HTTP en proceso contra la misma app."""
 
-    def __init__(self, request: Request, key: ApiKey, token: str):
-        self.client_id = key.client_id
-        self.key_id = key.id
+    def __init__(self, request: Request, who: Identity):
+        self.who = who
+        self.client_id = who.client_id
+        # El header interno deja pasar el token OAuth a /api/v1 (deps.get_principal); desde afuera no se acepta.
         self.http = httpx.AsyncClient(transport=httpx.ASGITransport(app=request.app), base_url="http://mcp.internal",
-                                      headers={"Authorization": f"Bearer {token}"}, timeout=60)
+                                      headers={"Authorization": f"Bearer {who.token}",
+                                               MCP_INTERNAL_HEADER: MCP_INTERNAL_SECRET}, timeout=60)
 
     async def api(self, method: str, path: str, **kwargs) -> httpx.Response:
         return await self.http.request(method, API + path.replace("{client_id}", self.client_id), **kwargs)
@@ -84,8 +115,7 @@ def _origin_ok(request: Request) -> bool:
 
 
 @router.post("/mcp", include_in_schema=False)
-async def mcp(request: Request, key: Annotated[ApiKey, Depends(mcp_key)],
-              creds: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)]):
+async def mcp(request: Request, who: Annotated[Identity, Depends(mcp_identity)]):
     if not _origin_ok(request):
         return _error(None, -32600, "Origin no permitido", status=403)
     try:
@@ -117,12 +147,12 @@ async def mcp(request: Request, key: Annotated[ApiKey, Depends(mcp_key)],
         args = params.get("arguments") or {}
         if not isinstance(args, dict):
             return _error(msg_id, -32602, "`arguments` tiene que ser un objeto")
-        ctx = Ctx(request, key, creds.credentials)
+        ctx = Ctx(request, who)
         try:
             result = await _call(ctx, tool, args, request.app.openapi())
         finally:
             await ctx.http.aclose()
-        logger.info("mcp %s cliente=%s key=%s error=%s", tool.name, ctx.client_id, ctx.key_id,
+        logger.info("mcp %s cliente=%s %s=%s error=%s", tool.name, ctx.client_id, who.kind, who.id,
                     result.get("isError", False))
         return _result(msg_id, result)
     if method == "resources/list":
@@ -130,7 +160,7 @@ async def mcp(request: Request, key: Annotated[ApiKey, Depends(mcp_key)],
     if method == "resources/read":
         uri = params.get("uri")
         if uri == guides.SCHEMA_URI:
-            ctx = Ctx(request, key, creds.credentials)
+            ctx = Ctx(request, who)
             try:
                 r = await ctx.api("GET", "/agents/schema")
             finally:
@@ -235,6 +265,9 @@ async def _call(ctx: Ctx, tool: Tool, args: dict, openapi: dict) -> dict:
         return _fail("invalid_arguments", f"Argumentos inválidos ({what})")
     if tool.name == "get_plan_tools":
         return await _plan_tools(ctx)
+    if tool.session and ctx.who.kind == "api_key":
+        return _fail("needs_oauth", "Esta herramienta necesita conectar el agente iniciando sesión (OAuth), no con "
+                                    "una API key.")
     if tool.features:
         plan = await _plan(ctx)
         reason = _blocked(tool, plan)
@@ -267,15 +300,17 @@ async def _call(ctx: Ctx, tool: Tool, args: dict, openapi: dict) -> dict:
 async def _plan_tools(ctx: Ctx) -> dict:
     """Qué herramientas puede usar el agente con el plan del cliente (docs/MCP_PLAN.md, 6.1)."""
     plan = await _plan(ctx)
-    available, unavailable = [], []
+    available, unavailable, needs_oauth = [], [], []
     for t in catalog.TOOLS:
         reason = _blocked(t, plan)
-        if reason is None:
+        if t.session and ctx.who.kind == "api_key":
+            needs_oauth.append(t.name)
+        elif reason is None:
             available.append(t.name)
         else:
             unavailable.append({"name": t.name, "toolset": t.toolset, "feature": t.features[0], "reason": reason})
     r = await ctx.api("GET", "/clients/{client_id}/usage")
     return _ok({"plan": plan["tier_name"], "free": plan["free"],
-                "tools": {"available": available, "unavailable": unavailable},
+                "tools": {"available": available, "unavailable": unavailable, "needs_oauth": needs_oauth},
                 "toolsets": catalog.TOOLSETS, "usage": r.json() if r.status_code == 200 else None,
                 "upgrade_url": _upgrade_url()})
