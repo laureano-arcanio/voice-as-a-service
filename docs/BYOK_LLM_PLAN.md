@@ -11,6 +11,11 @@ simulado, **no con una key real**. **Fase 3 (UI) y los parámetros de generació
 desplegar** (reconstruir `web/dist` y recrear `app` y `agent`: la definición y el cliente del LLM
 tocan los dos). Fase 4 pendiente.
 
+Actualización (24-oct-2026): la fase 3 y los parámetros quedaron en producción con el build de `app` y
+`agent` del 24-oct-2026. La landing ya lo documenta (`/desarrolladores/docs#byok`) y la política de
+privacidad (`/privacidad`, "Dónde se procesan") tiene la excepción del LLM del cliente: el texto y las
+instrucciones van a su proveedor desde la etapa que elija, el audio no.
+
 ## Alcance
 
 - **Quién:** el cliente carga sus claves y elige modelo; el admin puede hacer lo mismo en cualquier cliente.
@@ -157,7 +162,7 @@ catalogo (nombre, tipo, rango) y `GET /api/v1/llm/params` devuelve el catalogo p
    conexión con prueba automática; el resumen del agente muestra el modelo y el detalle de la conversación,
    proveedor, modelo y respaldo. Tests: `LlmConnectionsSection.test.tsx`, `LlmSection.test.tsx`, `draft.test.ts`.
    Guía de uso en [`GUIA_UI.md`](GUIA_UI.md), "Modelos".
-4. **Cierre:** texto de privacidad, eval comparativa, `GUIA_UI.md`, `ARQUITECTURA.md`, flag de tier
+4. **Cierre:** texto de privacidad (hecho el 24-oct-2026), eval comparativa, `GUIA_UI.md`, `ARQUITECTURA.md`, flag de tier
    (`allow_byok_llm`) si se decide limitarlo a planes pagos.
 5. **Parametros de generacion (hecha, sin desplegar):** `Workflow.generation` + `LlmStage.generation`,
    catalogo y traduccion por proveedor (`app/llm/params.py`), `GET /api/v1/llm/params`, editor en
