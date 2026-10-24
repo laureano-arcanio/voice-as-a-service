@@ -5,8 +5,8 @@ de IA de un cliente (Claude, ChatGPT, Cursor, Claude Code, un agente propio) cre
 los pruebe, mire llamadas y transcripciones, cargue contactos, lance campañas y arme el equipo de
 derivación, todo sin abrir el panel. Cada herramienta respeta el plan del cliente, y una de ellas
 (`get_plan_tools`) le dice al agente qué puede usar y qué plan haría falta para el resto. Diseño del
-24-oct-2026; fases 0 y 1 (lectura, plan y API key `mcp`) implementadas el 24-oct-2026, sin desplegar
-(sección 12). Catálogo vigente: [`MCP_HERRAMIENTAS.md`](MCP_HERRAMIENTAS.md), generado.
+24-oct-2026; fases 0 a 2 (lectura, plan, API key `mcp` y escritura) implementadas el 24-oct-2026, sin
+desplegar (sección 12). Catálogo vigente: [`MCP_HERRAMIENTAS.md`](MCP_HERRAMIENTAS.md), generado.
 
 ## 1. Decisiones
 
@@ -261,7 +261,7 @@ Pasos de publicación:
 |---|---|---|
 | 0. Spike | FastMCP montado en `/mcp`, 3 herramientas de lectura (`whoami`, `list_agents`, `get_call`) por ASGI interno, API key `calls` provisoria | Funciona desde Claude Code; medir el costo del pedido interno |
 | 1. Lectura + plan | Catálogo, scope `mcp` (UI de API keys), todas las de lectura, `get_plan_tools`, errores de plan, `make mcp-docs`, tests de catálogo y plan | Un cliente Free y uno Mostrador ven lo correcto |
-| 2. Escritura | Agentes, prueba por texto, contactos, campañas, equipo, WhatsApp, links, bloqueados; anotaciones; `toolsets`; resources y prompts | Crear y probar un agente y armar (sin lanzar) una campaña solo por MCP |
+| 2. Escritura | Agentes, prueba por texto, contactos, campañas, equipo, WhatsApp, links, bloqueados; anotaciones; `toolsets`; resources y prompts | Crear y probar un agente y armar (sin lanzar) una campaña solo por MCP. **Hecho el 24-oct-2026** |
 | 3. OAuth | Servidor de autorización, consentimiento en `web/`, migración `oauth_*`, "Agentes conectados", ruta `mcp.` del túnel | Conector en Claude.ai con login y revocación |
 | 4. Publicación | Página `/desarrolladores/mcp`, botones de instalación, `server.json` en el registro, envío al directorio de Anthropic, privacidad actualizada | Instalación en un clic desde la landing |
 | 5. Extras | `inference` y `admin`; métricas de uso del MCP por herramienta | Según uso real |
@@ -305,4 +305,31 @@ Pasos de publicación:
 cambio es solo de `app`, pero el target es ese) y crear una key con el alcance MCP en el panel. Probar con
 `claude mcp add --transport http atentina https://app.atentina.com.ar/mcp --header "Authorization: Bearer vaas_..."`.
 
-**Sigue:** fase 2 (escritura: agentes, prueba por texto, contactos, campañas, equipo, WhatsApp, links).
+**24-oct-2026: fase 2** (sin desplegar).
+
+- 83 herramientas (35 en `core`): 44 de lectura y 39 de escritura, 13 de ellas para confirmar
+  (`destructiveHint`: borrar, cancelar, cortar, regenerar el link, `start_call`, `create_campaign` con
+  `start`, `start_campaign`, `resume_campaign`). Anotaciones `readOnlyHint`, `destructiveHint` e
+  `idempotentHint` (PUT y DELETE).
+- **Esquemas desde el OpenAPI:** cada herramienta de escritura nombra el modelo Pydantic del cuerpo
+  (`body`) y el `inputSchema` sale de `app.openapi()`, con los `$ref` en `$defs`; sin `client_id`,
+  `loadtest` ni `access_token`. Las que mandan una lista (`upsert_contacts`, `set_whatsapp_routes`) la
+  reciben en un argumento (`body_arg`). El test compara cada herramienta con su ruta y su cuerpo.
+- Prueba por texto (`test_agent_start`, `test_agent_turn`), `preview_voice` (audio), reporte de campaña
+  como CSV en texto.
+- Resources: `atentina://agents/schema` y tres guías (`agentes`, `campanas`, `derivaciones`). Prompts:
+  `crear_agente`, `revisar_llamadas`, `lanzar_campana` (`app/mcp/guides.py`; un test verifica que las
+  herramientas que nombran existan).
+- `tests/test_mcp.py` (19). Probado además con uvicorn real (puerto aparte y SQLite en `scratch/`): 10–17 ms
+  por herramienta con el pedido interno.
+
+**Desvíos de la fase 2:**
+
+- Sin `set_call_link_image` (la API la recibe como multipart) ni `get_whatsapp_signup_link` (el alta es
+  por el popup de Facebook, en el panel).
+- Sin `create_api_key`, cobros ni conexiones de LLM: la API los deja solo con sesión de usuario; llegan
+  con OAuth (fase 3).
+- `start_call` sin `phone` obligatorio: también llama al contacto de `contact_id`. Sin ninguno de los dos,
+  la API crea una llamada de prueba por navegador (inútil desde un agente, pero sin costo).
+
+**Sigue:** fase 3 (OAuth 2.1 y la ruta `mcp.` del túnel), para los conectores de Claude.ai y ChatGPT.

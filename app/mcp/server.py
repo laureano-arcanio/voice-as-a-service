@@ -22,7 +22,7 @@ from ..config import settings
 from ..models import ApiKey
 from ..services import api_usage
 from ..services.security import API_KEY_PREFIX
-from . import catalog
+from . import catalog, guides
 from .catalog import Tool
 
 logger = logging.getLogger(__name__)
@@ -101,13 +101,15 @@ async def mcp(request: Request, key: Annotated[ApiKey, Depends(mcp_key)],
     if method == "initialize":
         asked = params.get("protocolVersion")
         return _result(msg_id, {"protocolVersion": asked if asked in PROTOCOL_VERSIONS else PROTOCOL_VERSIONS[0],
-                                "capabilities": {"tools": {"listChanged": False}},
+                                "capabilities": {"tools": {"listChanged": False}, "resources": {},
+                                                 "prompts": {"listChanged": False}},
                                 "serverInfo": SERVER_INFO, "instructions": INSTRUCTIONS})
     if method == "ping":
         return _result(msg_id, {})
     toolsets = request.query_params.get("toolsets")
     if method == "tools/list":
-        return _result(msg_id, {"tools": [_describe(t) for t in _visible(toolsets)]})
+        openapi = request.app.openapi()
+        return _result(msg_id, {"tools": [_describe(t, openapi) for t in _visible(toolsets)]})
     if method == "tools/call":
         tool = catalog.BY_NAME.get(params.get("name"))
         if tool is None or tool not in _visible(toolsets):
@@ -117,14 +119,34 @@ async def mcp(request: Request, key: Annotated[ApiKey, Depends(mcp_key)],
             return _error(msg_id, -32602, "`arguments` tiene que ser un objeto")
         ctx = Ctx(request, key, creds.credentials)
         try:
-            result = await _call(ctx, tool, args)
+            result = await _call(ctx, tool, args, request.app.openapi())
         finally:
             await ctx.http.aclose()
         logger.info("mcp %s cliente=%s key=%s error=%s", tool.name, ctx.client_id, ctx.key_id,
                     result.get("isError", False))
         return _result(msg_id, result)
-    if method in ("resources/list", "prompts/list"):
-        return _result(msg_id, {method.split("/")[0]: []})
+    if method == "resources/list":
+        return _result(msg_id, {"resources": guides.list_resources()})
+    if method == "resources/read":
+        uri = params.get("uri")
+        if uri == guides.SCHEMA_URI:
+            ctx = Ctx(request, key, creds.credentials)
+            try:
+                r = await ctx.api("GET", "/agents/schema")
+            finally:
+                await ctx.http.aclose()
+            return _result(msg_id, {"contents": [{"uri": uri, "mimeType": "application/json", "text": r.text}]})
+        text = guides.read_resource(uri)
+        if text is None:
+            return _error(msg_id, -32002, f"Recurso desconocido: {uri}")
+        return _result(msg_id, {"contents": [{"uri": uri, "mimeType": "text/markdown", "text": text}]})
+    if method == "prompts/list":
+        return _result(msg_id, {"prompts": guides.list_prompts()})
+    if method == "prompts/get":
+        prompt = guides.get_prompt(params.get("name"), params.get("arguments") or {})
+        if prompt is None:
+            return _error(msg_id, -32602, f"Prompt desconocido: {params.get('name')}")
+        return _result(msg_id, prompt)
     return _error(msg_id, -32601, f"Método no soportado: {method}")
 
 
@@ -142,13 +164,16 @@ def _visible(toolsets: str | None) -> list[Tool]:
     return tools if plan_tools in tools else [plan_tools, *tools]
 
 
-def _describe(t: Tool) -> dict:
+def _describe(t: Tool, openapi: dict) -> dict:
     description = t.description
     if t.features:
         description += f" Requiere en el plan: {' o '.join(t.features)} (ver get_plan_tools)."
-    return {"name": t.name, "title": t.title, "description": description, "inputSchema": t.input_schema(),
-            "annotations": {"title": t.title, "readOnlyHint": t.read_only, "destructiveHint": t.destructive,
-                            "openWorldHint": False}}
+    annotations = {"title": t.title, "readOnlyHint": t.reads, "openWorldHint": False}
+    if not t.reads:
+        annotations["destructiveHint"] = t.destructive
+        annotations["idempotentHint"] = t.method in ("PUT", "DELETE")
+    return {"name": t.name, "title": t.title, "description": description, "inputSchema": t.input_schema(openapi),
+            "annotations": annotations}
 
 
 def _ok(data: Any) -> dict:
@@ -200,8 +225,8 @@ def _blocked(tool: Tool, plan: dict) -> str | None:
     return features.get(tool.features[0], {}).get("reason") or "Tu plan no incluye esta función."
 
 
-async def _call(ctx: Ctx, tool: Tool, args: dict) -> dict:
-    allowed = set(tool.params)
+async def _call(ctx: Ctx, tool: Tool, args: dict, openapi: dict) -> dict:
+    allowed = tool.arg_names(openapi)
     unknown = set(args) - allowed
     missing = [p for p in tool.required if args.get(p) in (None, "")]
     if unknown or missing:
@@ -220,7 +245,12 @@ async def _call(ctx: Ctx, tool: Tool, args: dict) -> dict:
     for name in list(rest):
         if "{" + name + "}" in path:
             path = path.replace("{" + name + "}", quote(str(rest.pop(name)), safe=""))
-    kwargs = {"params": rest} if tool.method == "GET" else {"json": rest}
+    if tool.query_args:
+        kwargs = {"params": rest}
+    elif tool.body_arg:
+        kwargs = {"json": rest.get(tool.body_arg)}
+    else:
+        kwargs = {"json": rest} if tool.body else {}
     r = await ctx.api(tool.method, path, **kwargs)
     if r.status_code >= 400:
         return _api_fail(r)
@@ -229,6 +259,8 @@ async def _call(ctx: Ctx, tool: Tool, args: dict) -> dict:
             return _fail("audio_too_large", f"El audio pesa más de {MAX_AUDIO_BYTES // 1024 // 1024} MB")
         return {"content": [{"type": "audio", "data": base64.b64encode(r.content).decode(),
                              "mimeType": r.headers.get("content-type", "audio/wav")}]}
+    if tool.text:
+        return {"content": [{"type": "text", "text": r.content.decode("utf-8-sig")}]}
     return _ok(r.json() if r.content else {})
 
 

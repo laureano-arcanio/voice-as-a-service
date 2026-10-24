@@ -4,6 +4,7 @@ Uso: python -m app.mcp.docs  (escribe el archivo)
 """
 import pathlib
 
+from . import guides
 from .catalog import CORE, TOOLS, TOOLSETS
 
 DOC = "docs/MCP_HERRAMIENTAS.md"
@@ -43,11 +44,19 @@ def render() -> str:
     lines += [f"| `{k}` | {name} | {plans} |" for k, (name, plans) in FEATURES.items()]
     for toolset, title in TOOLSETS.items():
         tools = [t for t in TOOLS if t.toolset == toolset]
-        lines += ["", f"## `{toolset}`: {title}", "", "| Herramienta | Qué hace | Plan | API |", "|---|---|---|---|"]
+        lines += ["", f"## `{toolset}`: {title}", "", "| Herramienta | Qué hace | Tipo | Plan | API |",
+                  "|---|---|---|---|---|"]
         for t in tools:
             plan = " o ".join(f"`{f}`" for f in t.features) or "todos"
             api = f"`{t.method} {t.path}`" if t.path else "—"
-            lines.append(f"| `{t.name}` | {t.description.replace('|', '/')} | {plan} | {api} |")
+            kind = "lectura" if t.reads else "**confirmar**" if t.destructive else "escritura"
+            lines.append(f"| `{t.name}` | {t.description.replace('|', '/')} | {kind} | {plan} | {api} |")
+    lines += ["", "## Resources y prompts", "",
+              "| URI o nombre | Qué es |", "|---|---|"]
+    lines += [f"| `{r['uri']}` | {r['title']} |" for r in guides.list_resources()]
+    lines += [f"| prompt `{p['name']}` | {p['description']} |" for p in guides.list_prompts()]
+    lines += ["", "Tipo **confirmar**: borra, cancela, corta, llama o manda mensajes (`destructiveHint`); el cliente",
+              "MCP le pide confirmación al usuario."]
     return "\n".join(lines) + "\n"
 
 
