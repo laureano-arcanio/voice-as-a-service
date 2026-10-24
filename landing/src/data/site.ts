@@ -157,7 +157,7 @@ export const plans: Plan[] = [
       "WhatsApp",
       "Campañas de llamadas y de WhatsApp",
       "5.000 contactos",
-      "Derivación a 5 personas",
+      "Derivación a 2 personas",
     ],
     cta: "Empezar",
     featured: true,

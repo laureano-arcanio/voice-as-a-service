@@ -163,7 +163,7 @@ Decisión del usuario, en la migración 0026 (por nombre, sin CAP con Gemma toda
 |---|---|---|---|---|
 | Free | — | — | 0 | 0 |
 | Mostrador | — | — | 500 | 1 |
-| Sucursal | WhatsApp y llamadas | 1 | 5.000 | 5 |
+| Sucursal | WhatsApp y llamadas | 1 | 5.000 | 2 (5 en la 0026; bajado a 2 por la API el 24-oct-2026) |
 | Central (Red en la landing) | WhatsApp y llamadas | 3 | sin tope | sin tope |
 | Interno | WhatsApp y llamadas | sin tope | sin tope | sin tope |
 
