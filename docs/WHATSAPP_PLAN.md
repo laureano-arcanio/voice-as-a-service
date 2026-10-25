@@ -860,7 +860,7 @@ Antes de implementar: elegir la variante con un cliente concreto, probar A con d
 - **Verificación del negocio enviada (1-oct-2026):** como *Sole Proprietorship* registrada, nombre legal
   ARCANIO LAUREANO MARTIN y nombre alternativo "Atentina". **Verificado** el mismo día.
 - **Verificación de acceso (Tech Provider) enviada (1-oct-2026):** Plataforma SaaS, un solo portafolio,
-  sitio atentina.com.ar. En revisión (~5 días hábiles); el 20-oct-2026 seguía en revisión, sin pedidos de Meta (ni alertas ni historial). Plazo de Meta para completarla: 19-dic-2026 (el panel dice "12/19/2026"; el 8-oct decía 7-dic), si no restringe la app.
+  sitio atentina.com.ar. En revisión (~5 días hábiles); el 20-oct-2026 y el 25-oct-2026 seguía en revisión, sin pedidos de Meta (las 2 alertas de la bandeja son del 1-oct). El App Review (`whatsapp_business_messaging`, `whatsapp_business_management`, `public_profile`) figura **No enviada** (25-oct-2026); el paquete para enviarlo (textos, guiones de video, bloqueos) está en [`META_APP_REVIEW.md`](META_APP_REVIEW.md). Plazo de Meta para completarla: 19-dic-2026 (el panel dice "12/19/2026"; el 8-oct decía 7-dic), si no restringe la app.
 - **Notas de voz de Meta:** para que se vea como nota de voz, OGG con Opus y mono, y `"voice": true` en
   el mensaje; hasta 16 MB, sin duración máxima documentada. Hasta 512 KB se muestra con play; con más,
   para descargar. El webhook trae `audio.voice` (nota grabada en WhatsApp) y, desde nov-2025 y no en
