@@ -6,6 +6,7 @@ import Button from "../../../components/Button.astro";
 import CodeBlock from "../../../components/CodeBlock.astro";
 import Cta from "../../../components/Cta.astro";
 import mcp from "../../../data/mcp-tools.json";
+import YouTube from "../../../components/YouTube.astro";
 import DocsPage from "../../../layouts/DocsPage.astro";
 
 const URL_MCP = "https://app.atentina.com.ar/mcp";
@@ -90,6 +91,7 @@ const toolsets = mcp.toolsets.map((ts) => ({ ...ts, tools: mcp.tools.filter((t) 
 
     <h3>Claude Code</h3>
     <CodeBlock label="Terminal" code={claudeCode} />
+    <YouTube id="uROA76sZ-Mc" title="Cómo conectar Atentina a Claude Code con MCP" />
 
     <h3>Cursor y VS Code</h3>
     <div class="flex flex-wrap gap-3">

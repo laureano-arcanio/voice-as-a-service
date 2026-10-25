@@ -1,0 +1,22 @@
+---
+// Video de YouTube embebido (canal @atentinaar): youtube-nocookie y carga diferida, para no pesar en la página.
+interface Props {
+  id: string;
+  title: string;
+}
+
+const { id, title } = Astro.props;
+---
+
+<figure class="m-0 overflow-hidden rounded-xl border border-line bg-surface-2">
+  <iframe
+    class="block aspect-video h-auto w-full"
+    src={`https://www.youtube-nocookie.com/embed/${id}?rel=0`}
+    title={title}
+    loading="lazy"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    referrerpolicy="strict-origin-when-cross-origin"
+    allowfullscreen
+  ></iframe>
+  <figcaption class="border-t border-line px-4 py-1.5 font-mono text-[.72rem] tracking-[.06em] text-muted uppercase">Video · {title}</figcaption>
+</figure>

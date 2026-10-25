@@ -8,6 +8,7 @@
 import CodeBlock from "../../../components/CodeBlock.astro";
 import Cta from "../../../components/Cta.astro";
 import { endpoints } from "../../../data/site";
+import YouTube from "../../../components/YouTube.astro";
 import DocsPage from "../../../layouts/DocsPage.astro";
 
 const BASE = "https://app.atentina.com.ar/api/v1/inference";
@@ -324,6 +325,8 @@ const campaignEndpoints = [
         <li>Hacé el primer pedido:</li>
       </ol>
       <CodeBlock label="Python" code={sdk} />
+      <p>El paso a paso en video, de la API key a la primera llamada:</p>
+      <YouTube id="HmdiVFv5jXA" title="API de Atentina: tu primera integración paso a paso" />
     </section>
 
     <section id="keys" class="grid gap-4">
