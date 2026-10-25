@@ -402,7 +402,7 @@ Falta la primera conexión real desde Claude.ai o Claude Code (la hace el usuari
    `server.json` y volver a publicar (repetir la misma versión da 400 `duplicate version`). PulseMCP, Glama y otros
    directorios lo toman del registro. **Hecho el 25-oct-2026:** `ar.com.atentina/atentina@1.0.0`, activo
    (`curl -s "https://registry.modelcontextprotocol.io/v0/servers?search=ar.com.atentina"`). `server.json` quedó en 1.0.1,
-   con `websiteUrl` en `/desarrolladores/docs/mcp`: publicarla con `make mcp-registry-publish` después de publicar la landing.
+   con `websiteUrl` en `/desarrolladores/docs/mcp`, publicada el 25-oct-2026 (es la `isLatest`).
 3. Directorio de conectores de Anthropic (formulario de envío): nombre Atentina; URL `https://app.atentina.com.ar/mcp`;
    OAuth 2.1 con registro dinámico y metadata documents; docs `https://atentina.com.ar/desarrolladores/docs/mcp`;
    privacidad `https://atentina.com.ar/privacidad`; herramientas con `readOnlyHint`/`destructiveHint`. Piden una
