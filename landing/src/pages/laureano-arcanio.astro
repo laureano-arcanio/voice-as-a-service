@@ -1,0 +1,93 @@
+---
+// Perfil de Laureano Arcanio (/laureano-arcanio). Sin foto por ahora: las iniciales en un círculo con el acento.
+// Person en JSON-LD para que el nombre quede asociado a Atentina en los buscadores. El contacto, de data/site.ts.
+import Button from "../components/Button.astro";
+import Footer from "../components/Footer.astro";
+import Nav from "../components/Nav.astro";
+import Section from "../components/Section.astro";
+import { ORG_ID, SITE } from "../data/schema";
+import { contactEmail, whatsappUrl } from "../data/site";
+import Base from "../layouts/Base.astro";
+
+const path = "/laureano-arcanio";
+
+const work = [
+  {
+    title: "Agentes que atienden",
+    text: "Agentes con IA que atienden y llaman por teléfono, WhatsApp y la web: toman datos, dan turnos, cobran, derivan a una persona y dejan registrada cada conversación.",
+  },
+  {
+    title: "Inferencia propia",
+    text: "El modelo de lenguaje, la transcripción y las voces argentinas corren en servidores propios en Argentina, sin depender de proveedores externos.",
+  },
+  {
+    title: "Para integrar",
+    text: "Una API compatible con la de OpenAI y un servidor MCP para que cualquier sistema o agente de IA use la plataforma completa.",
+  },
+];
+
+const person = {
+  "@context": "https://schema.org",
+  "@type": "Person",
+  name: "Laureano Arcanio",
+  jobTitle: "Fundador de Atentina",
+  url: `${SITE}${path}`,
+  worksFor: { "@id": ORG_ID },
+  nationality: { "@type": "Country", name: "Argentina" },
+  knowsAbout: ["Agentes de voz con IA", "Modelos de lenguaje", "Reconocimiento y síntesis de voz", "Telefonía IP"],
+};
+---
+
+<Base
+  title="Laureano Arcanio, fundador de Atentina"
+  description="Laureano Arcanio construye Atentina: agentes con IA que atienden por teléfono y WhatsApp, con voces argentinas y modelos en servidores propios en Argentina."
+  ogDescription="Laureano Arcanio, fundador de Atentina."
+  path={path}
+  schema={[person]}
+>
+  <Nav />
+
+  <main>
+    <header class="border-b border-line bg-linear-to-b from-bg-2 to-bg pt-10 pb-14 min-[901px]:pt-[72px]">
+      <div class="mx-auto grid max-w-[1120px] items-center gap-8 px-5 min-[701px]:grid-cols-[auto_1fr] min-[701px]:gap-12">
+        <div
+          aria-hidden="true"
+          class="grid size-28 place-items-center rounded-full bg-accent font-display text-[2.6rem] font-bold text-accent-ink min-[701px]:size-40 min-[701px]:text-[3.6rem]"
+        >
+          LA
+        </div>
+        <div class="grid gap-[18px]">
+          <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">Fundador de Atentina</span>
+          <h1>Laureano Arcanio</h1>
+          <p class="max-w-[62ch] text-[1.12rem] text-ink-2">
+            Construyo <a class="font-semibold text-accent no-underline hover:text-accent-2" href="/">Atentina</a>, una plataforma argentina de agentes con IA que atienden a tus clientes por teléfono, WhatsApp y la web, con voces argentinas y modelos que corren en servidores propios. Me ocupo del producto de punta a punta: la inferencia, la telefonía, la plataforma y la API.
+          </p>
+          <div class="flex flex-wrap items-center gap-3">
+            <Button href={`mailto:${contactEmail}`}>Escribime</Button>
+            <Button href={whatsappUrl} variant="ghost" target="_blank" rel="noopener">WhatsApp</Button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <Section>
+      <h2 class="mb-8">Qué hago en Atentina</h2>
+      <div class="grid gap-4 min-[801px]:grid-cols-3">
+        {
+          work.map((w) => (
+            <div class="grid content-start gap-3 rounded-2xl border border-line bg-surface p-6">
+              <h3>{w.title}</h3>
+              <p class="text-ink-2">{w.text}</p>
+            </div>
+          ))
+        }
+      </div>
+      <p class="mt-8 text-[1.02rem] text-ink-2">
+        <a class="font-semibold text-accent no-underline hover:text-accent-2" href="/casos-de-uso">Ver casos de uso →</a>
+        <span class="mx-2 text-muted">·</span>
+        <a class="font-semibold text-accent no-underline hover:text-accent-2" href="/desarrolladores">Para desarrolladores →</a>
+      </p>
+    </Section>
+  </main>
+  <Footer />
+</Base>

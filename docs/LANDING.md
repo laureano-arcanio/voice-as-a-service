@@ -27,6 +27,8 @@ Cloudflare Tunnel. No hay backend aparte ni base nueva: costo adicional cero.
       [`API_INFERENCIA.md`](API_INFERENCIA.md) sin lo que es solo para quien opera. Desde el 19-oct-2026 también llamadas, contactos, campañas (estado,
       resultados, reporte, límites) y webhook, de [`LLAMADAS_SALIENTES_PLAN.md`](LLAMADAS_SALIENTES_PLAN.md) y `app/api/schemas.py`; la referencia completa
       de pedidos y respuestas es el OpenAPI del panel. Al cambiar `API_INFERENCIA.md` o la API de campañas, actualizarla.
+  - `/laureano-arcanio` (desde el 25-oct-2026): perfil básico del fundador (iniciales en lugar de foto, qué hace en Atentina,
+    contacto de `site.ts`) con `Person` en JSON-LD. No está en la navegación; entra al sitemap.
   - `/casos-de-uso`, para quien tiene un problema de atención: hero y demo → rubros (con "¿Tu caso es otro?") → producto → cómo empieza →
     planes con telefonía (sin Free) → preguntas de negocio → demo con tu caso. Las verticales viven bajo `/casos-de-uso/<slug>`, con su tema de acento:
     `/casos-de-uso/turnos` (verde azulado), `/casos-de-uso/cobranzas` (violeta) y `/casos-de-uso/municipios` (ámbar), desde `src/pages/casos-de-uso/[vertical].astro` con los datos de
