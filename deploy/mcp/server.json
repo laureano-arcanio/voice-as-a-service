@@ -3,8 +3,8 @@
   "name": "ar.com.atentina/atentina",
   "title": "Atentina",
   "description": "Agentes con IA por teléfono y WhatsApp: armalos, probalos y revisá llamadas y campañas.",
-  "version": "1.0.0",
-  "websiteUrl": "https://atentina.com.ar/desarrolladores/mcp",
+  "version": "1.0.1",
+  "websiteUrl": "https://atentina.com.ar/desarrolladores/docs/mcp",
   "remotes": [
     {
       "type": "streamable-http",

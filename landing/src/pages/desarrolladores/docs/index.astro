@@ -1,0 +1,96 @@
+---
+// Portada de la documentación (/desarrolladores/docs): la introducción y la navegación (MCP arriba, API abajo,
+// en data/docs-nav.ts). "Cómo funciona": la plataforma vista de afuera (docs/ARQUITECTURA.md). Hasta el 25-oct-2026
+// la API estaba en esta URL: los links viejos con ancla (#byok, #campanas...) se mandan a /docs/api, y #mcp a /docs/mcp.
+import Button from "../../../components/Button.astro";
+import Cta from "../../../components/Cta.astro";
+import { docsGroup } from "../../../data/docs-nav";
+import DocsPage from "../../../layouts/DocsPage.astro";
+
+const mcp = docsGroup("mcp");
+const api = docsGroup("api");
+const apiIds = api.sections.map((s) => s.id);
+
+const ways = [
+  {
+    group: mcp,
+    eyebrow: "Sin programar",
+    text: "Conectá Claude, ChatGPT, Cursor u otro agente compatible con MCP y pedile en español que arme y pruebe agentes, revise las llamadas, cargue contactos o lance campañas. Entra con tu usuario y dentro de tu plan.",
+    cta: "Conectar tu agente",
+  },
+  {
+    group: api,
+    eyebrow: "Desde tu sistema",
+    text: "Lo mismo que el panel por HTTP: agentes, llamadas, contactos, campañas, derivaciones, eventos, reportes y webhook. Y los motores de LLM, transcripción y voz, compatibles con el SDK de OpenAI.",
+    cta: "Ver la API",
+  },
+];
+---
+
+<DocsPage
+  title="Documentación para desarrolladores: MCP y API | Atentina"
+  description="Documentación de Atentina: conectá tu agente de IA por MCP o integrá tu sistema por API (agentes, llamadas, campañas, derivaciones, eventos y motores de LLM, transcripción y voz)."
+  ogDescription="Documentación de Atentina: MCP para agentes de IA y API."
+  path="/desarrolladores/docs"
+  page="intro"
+  eyebrow="Documentación"
+  heading="Documentación de Atentina"
+  lead="Atentina se usa desde el panel, desde tu agente de IA por MCP o desde tu sistema por API. Las tres formas hacen lo mismo, con tu cuenta y dentro de tu plan."
+>
+  <section id="formas" class="grid gap-4">
+    <h2>MCP o API</h2>
+    <div class="grid gap-4 min-[701px]:grid-cols-2">
+      {
+        ways.map((w) => (
+          <div class="grid content-start gap-3 rounded-2xl border border-line bg-surface p-6">
+            <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">{w.eyebrow}</span>
+            <h3 style="margin-top:0">{w.group.title}</h3>
+            <p>{w.text}</p>
+            <div class="pt-1"><Button href={w.group.href} size="sm">{w.cta}</Button></div>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <section id="como-funciona" class="grid gap-4">
+    <h2>Cómo funciona</h2>
+    <p>Atentina es una plataforma para armar agentes con IA que atienden a tus clientes por teléfono, WhatsApp y la web. Vos definís el agente en el panel; la plataforma pone el número, los minutos y los motores de IA, y deja registrada cada conversación.</p>
+    <h3>Las piezas</h3>
+    <ul>
+      <li><strong>Cuenta y plan:</strong> el plan fija los minutos por mes, las llamadas a la vez, los números y qué funciones tenés (ver <a href="/desarrolladores/docs/api#planes">Qué incluye cada plan</a>).</li>
+      <li><strong>Agente:</strong> qué hace, cómo saluda, qué datos pide, sus reglas y su voz. Cada cambio es una versión nueva, y cada conversación guarda la versión con la que se hizo.</li>
+      <li><strong>Canales:</strong> tus números, entrantes y salientes, WhatsApp y el link para llamar desde el navegador. Cada número y cada cuenta de WhatsApp apunta a un agente.</li>
+      <li><strong>Conversaciones:</strong> la transcripción, los datos que tomó el agente y el resultado, en el panel y por API.</li>
+      <li><strong>Contactos y campañas:</strong> la agenda de tu cuenta y las llamadas o mensajes salientes programados a una lista.</li>
+      <li><strong>Equipo:</strong> las personas de tu negocio a las que el agente le pasa la llamada cuando hace falta.</li>
+    </ul>
+    <h3>Una llamada, paso a paso</h3>
+    <ol>
+      <li>Entra una llamada a tu número, o la hace el agente desde la API o una campaña. La plataforma busca el agente de ese número y lo conecta.</li>
+      <li>Mientras la persona habla, el reconocimiento de voz la transcribe. Cuando termina, el modelo de lenguaje arma la respuesta siguiendo la definición del agente, y la síntesis la dice con una voz argentina, frase por frase, sin esperar la respuesta completa. Así en cada turno.</li>
+      <li>Si la persona pide hablar con alguien, el agente transfiere la llamada a tu equipo.</li>
+      <li>Al cortar, la conversación queda en el panel. Los <a href="/desarrolladores/docs/api#eventos">eventos</a> y el <a href="/desarrolladores/docs/api#webhook">webhook</a> le avisan a tu sistema.</li>
+    </ol>
+    <p>Por WhatsApp atiende el mismo agente, por texto o por audio.</p>
+    <h3>Los motores</h3>
+    <p>El reconocimiento de voz, el modelo de lenguaje y la síntesis corren en nuestros servidores, no en proveedores externos. Los usa el agente en cada conversación, y también podés usarlos sueltos en tu sistema. Si preferís otro modelo de lenguaje, el agente puede usar <a href="/desarrolladores/docs/api#byok">tu propio proveedor</a> con tu API key; la voz y la transcripción siguen siendo nuestras.</p>
+  </section>
+
+  <Cta
+    slot="after"
+    eyebrow="Acceso"
+    title="¿Algo no está claro? Escribinos"
+    lead="Contanos qué querés construir o qué te falta en la documentación y lo sumamos."
+    subject="Consulta sobre la documentación de Atentina"
+    question="¿Qué querés construir o qué te falta?"
+    placeholder="Por ejemplo: conectar el agente con mi sistema de turnos"
+    submit="Enviar consulta"
+  />
+</DocsPage>
+
+<script is:inline define:vars={{ apiIds }}>
+  const id = decodeURIComponent(location.hash.slice(1));
+  if (id === "mcp") location.replace("/desarrolladores/docs/mcp");
+  else if (apiIds.includes(id)) location.replace("/desarrolladores/docs/api#" + id);
+</script>

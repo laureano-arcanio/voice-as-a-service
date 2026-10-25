@@ -32,6 +32,11 @@ services:
       - type: redirect
         source: /municipios
         destination: /casos-de-uso/municipios
+      # La documentación se dividió en /desarrolladores/docs/{mcp,api} (25-oct-2026); los links viejos con ancla
+      # a /desarrolladores/docs#<sección> los manda a /docs/api la portada.
+      - type: redirect
+        source: /desarrolladores/mcp
+        destination: /desarrolladores/docs/mcp
     headers:
       - path: /*
         name: X-Content-Type-Options

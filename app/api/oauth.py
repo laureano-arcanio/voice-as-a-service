@@ -50,7 +50,7 @@ def _error(e: oauth.OAuthError) -> JSONResponse:
 def protected_resource(request: Request):
     return {"resource": resource(request), "authorization_servers": [issuer(request)],
             "scopes_supported": list(oauth.SCOPES), "bearer_methods_supported": ["header"],
-            "resource_name": "Atentina", "resource_documentation": "https://atentina.com.ar/desarrolladores/mcp"}
+            "resource_name": "Atentina", "resource_documentation": "https://atentina.com.ar/desarrolladores/docs/mcp"}
 
 
 @router.get("/.well-known/oauth-authorization-server")

@@ -12,7 +12,7 @@ desplegar** (reconstruir `web/dist` y recrear `app` y `agent`: la definición y 
 tocan los dos). Fase 4 pendiente.
 
 Actualización (24-oct-2026): la fase 3 y los parámetros quedaron en producción con el build de `app` y
-`agent` del 24-oct-2026. La landing ya lo documenta (`/desarrolladores/docs#byok`) y la política de
+`agent` del 24-oct-2026. La landing ya lo documenta (`/desarrolladores/docs/api#byok`) y la política de
 privacidad (`/privacidad`, "Dónde se procesan") tiene la excepción del LLM del cliente: el texto y las
 instrucciones van a su proveedor desde la etapa que elija, el audio no.
 

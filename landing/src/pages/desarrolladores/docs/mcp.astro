@@ -1,24 +1,15 @@
 ---
-// Conectar agentes de IA (Claude, ChatGPT, Cursor...) a la plataforma por MCP. Diseño en docs/MCP_PLAN.md; las
+// /desarrolladores/docs/mcp (el índice, en data/docs-nav.ts). Conectar agentes de IA (Claude, ChatGPT, Cursor...) a la plataforma por MCP. Diseño en docs/MCP_PLAN.md; las
 // herramientas, los grupos y las funciones por plan salen de data/mcp-tools.json, que genera `make mcp-docs`
 // desde app/mcp/catalog.py (no editarlo a mano). Al cambiar un tier, cambiar FEATURES en app/mcp/docs.py.
-import Button from "../../components/Button.astro";
-import CodeBlock from "../../components/CodeBlock.astro";
-import Cta from "../../components/Cta.astro";
-import mcp from "../../data/mcp-tools.json";
-import DocsPage from "../../layouts/DocsPage.astro";
+import Button from "../../../components/Button.astro";
+import CodeBlock from "../../../components/CodeBlock.astro";
+import Cta from "../../../components/Cta.astro";
+import mcp from "../../../data/mcp-tools.json";
+import DocsPage from "../../../layouts/DocsPage.astro";
 
 const URL_MCP = "https://app.atentina.com.ar/mcp";
 
-const toc = [
-  { id: "que-es", label: "Qué es" },
-  { id: "conectar", label: "Conectar tu agente" },
-  { id: "api-key", label: "Con una API key" },
-  { id: "planes", label: "Qué incluye cada plan" },
-  { id: "herramientas", label: "Herramientas" },
-  { id: "seguridad", label: "Seguridad y datos" },
-  { id: "guias", label: "Guías y prompts" },
-];
 
 const cursor = `cursor://anysphere.cursor-deeplink/mcp/install?name=atentina&config=${btoa(JSON.stringify({ url: URL_MCP }))}`;
 const vscode = `vscode:mcp/install?${encodeURIComponent(JSON.stringify({ name: "atentina", type: "http", url: URL_MCP }))}`;
@@ -54,11 +45,11 @@ const toolsets = mcp.toolsets.map((ts) => ({ ...ts, tools: mcp.tools.filter((t) 
   title="Conectá Claude, ChatGPT o Cursor a tu cuenta por MCP | Atentina"
   description="Servidor MCP de Atentina: tu agente de IA arma y prueba agentes de voz y WhatsApp, revisa llamadas, carga contactos y lanza campañas, con tu usuario y dentro de tu plan."
   ogDescription="Conectá tu agente de IA a Atentina por MCP."
-  path="/desarrolladores/mcp"
+  path="/desarrolladores/docs/mcp"
+  page="mcp"
   eyebrow="MCP"
   heading="Tu agente de IA maneja tu cuenta"
   lead="Conectá Claude, ChatGPT, Cursor u otro agente compatible con MCP y pedile en español lo que necesitás: armar y probar agentes, revisar las llamadas, cargar contactos, lanzar campañas o configurar tu equipo. Entra con tu usuario y respeta tu plan."
-  toc={toc}
 >
   <div slot="header" class="flex flex-wrap items-center gap-3 pt-2">
     <Button href="#conectar">Conectar mi agente</Button>
@@ -209,7 +200,7 @@ const toolsets = mcp.toolsets.map((ts) => ({ ...ts, tools: mcp.tools.filter((t) 
         {mcp.prompts.map((p) => <tr><td>prompt <code>{p.name}</code></td><td>{p.description}</td></tr>)}
       </tbody>
     </table></div>
-    <p>La referencia de la API que hay detrás está en la <a href="/desarrolladores/docs">documentación</a>.</p>
+    <p>La referencia de la API que hay detrás está en la <a href="/desarrolladores/docs/api">documentación de la API</a>.</p>
   </section>
 
   <Cta

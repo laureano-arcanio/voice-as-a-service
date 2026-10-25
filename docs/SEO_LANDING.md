@@ -83,7 +83,8 @@ usan el acento por defecto (sin `data-theme`).
 - `/desarrolladores`: `title` "API de voz en Argentina: LLM, transcripción y síntesis compatible con OpenAI | Atentina".
   Reescribir la bajada del hero para desarrolladores (keys, SDK de OpenAI, streaming, servidores en Argentina), no
   la misma que la home.
-- `/desarrolladores/docs`: `title` "Documentación de la API compatible con OpenAI: LLM, transcripción y voz | Atentina".
+- `/desarrolladores/docs`: `title` "Documentación de la API compatible con OpenAI: LLM, transcripción y voz | Atentina". Desde el 25-oct-2026 la API está en
+  `/desarrolladores/docs/api` y `/desarrolladores/docs` es la portada (MCP y API).
 - `/casos-de-uso`: `title` "Agentes con IA que atienden por teléfono y WhatsApp | Atentina" (≤ 60).
 - Verticales: los `metaTitle` ya llevan "agente de voz"; agregar el rubro a la `metaDescription` donde falte.
 - `Voices.astro`: `h2` "Voces argentinas, con nuestro acento"; bajada "41 voces con acento argentino, 28 femeninas

@@ -1,0 +1,39 @@
+---
+// Navegación de la documentación (la arma DocsPage desde data/docs-nav.ts): cada grupo con su título y, si
+// corresponde, sus secciones.
+interface Props {
+  groups: { title: string; href: string; current: boolean; sections: { id: string; label: string }[]; link: (id: string) => string }[];
+}
+
+const { groups } = Astro.props;
+---
+
+<nav aria-label="Documentación" class="grid gap-4">
+  {
+    groups.map((g) => (
+      <div class="grid gap-1">
+        <a
+          class:list={[
+            "rounded-lg px-2 py-1 text-[.95rem] font-semibold no-underline hover:text-accent",
+            g.current ? "text-accent" : "text-ink",
+          ]}
+          href={g.href}
+          aria-current={g.current ? "page" : undefined}
+        >
+          {g.title}
+        </a>
+        {g.sections.length > 0 && (
+          <ul class="m-0 grid list-none gap-0.5 border-l border-line p-0 pl-2">
+            {g.sections.map((t) => (
+              <li>
+                <a class="block rounded-lg px-2 py-1 text-[.9rem] font-medium text-ink-2 no-underline hover:text-accent" href={g.link(t.id)}>
+                  {t.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    ))
+  }
+</nav>

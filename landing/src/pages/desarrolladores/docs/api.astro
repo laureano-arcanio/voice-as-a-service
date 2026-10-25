@@ -1,37 +1,18 @@
 ---
-// Documentación pública de la API. Inferencia: sale de docs/API_INFERENCIA.md, sin lo que es solo para quien opera el
+// Documentación pública de la API (/desarrolladores/docs/api; el índice, en data/docs-nav.ts). Inferencia: sale de docs/API_INFERENCIA.md, sin lo que es solo para quien opera el
 // server. Llamadas, contactos y campañas: de docs/LLAMADAS_SALIENTES_PLAN.md y app/api/schemas.py. Equipo,
 // derivaciones y eventos: de docs/DERIVACIONES_PLAN.md. Qué incluye cada plan: los tiers de la migración 0026 (al
 // cambiar un tier, cambiar planFeatures y las tarjetas de data/site.ts). La referencia completa de pedidos y
-// respuestas es el OpenAPI del panel (/api/v1/docs). "Cómo funciona": la plataforma vista de afuera (docs/ARQUITECTURA.md).
+// respuestas es el OpenAPI del panel (/api/v1/docs). "Cómo funciona" está en la portada (docs/index.astro).
 // "Tu propio LLM": de docs/BYOK_LLM_PLAN.md (al cambiarlo, revisar también /privacidad).
-import CodeBlock from "../../components/CodeBlock.astro";
-import Cta from "../../components/Cta.astro";
-import { endpoints } from "../../data/site";
-import DocsPage from "../../layouts/DocsPage.astro";
+import CodeBlock from "../../../components/CodeBlock.astro";
+import Cta from "../../../components/Cta.astro";
+import { endpoints } from "../../../data/site";
+import DocsPage from "../../../layouts/DocsPage.astro";
 
 const BASE = "https://app.atentina.com.ar/api/v1/inference";
 const API = "https://app.atentina.com.ar/api/v1";
 
-const toc = [
-  { id: "como-funciona", label: "Cómo funciona" },
-  { id: "empezar", label: "Empezar" },
-  { id: "keys", label: "API keys y alcances" },
-  { id: "endpoints", label: "Endpoints" },
-  { id: "streaming", label: "Streaming" },
-  { id: "limites", label: "Límites y consumo" },
-  { id: "errores", label: "Errores" },
-  { id: "planes", label: "Qué incluye cada plan" },
-  { id: "agentes", label: "Agentes y llamadas" },
-  { id: "byok", label: "Tu propio LLM" },
-  { id: "cortar", label: "Cortar y bloquear" },
-  { id: "contactos", label: "Contactos" },
-  { id: "campanas", label: "Campañas" },
-  { id: "webhook", label: "Webhook" },
-  { id: "derivaciones", label: "Equipo y derivaciones" },
-  { id: "eventos", label: "Eventos" },
-  { id: "mcp", label: "Agentes de IA (MCP)" },
-];
 
 const sdk = `from openai import OpenAI
 
@@ -76,7 +57,7 @@ const scopes = [
   { scope: "stt", text: "POST /audio/transcriptions" },
   { scope: "tts", text: "POST /audio/speech y GET /voices" },
   { scope: "calls", text: "La API de llamadas, agentes y reportes (no usa los motores)" },
-  { scope: "mcp", text: "El servidor MCP, para conectar un agente de IA (ver /desarrolladores/mcp); también la API de llamadas" },
+  { scope: "mcp", text: "El servidor MCP, para conectar un agente de IA (ver /desarrolladores/docs/mcp); también la API de llamadas" },
 ];
 
 const streamFormats = [
@@ -309,35 +290,15 @@ const campaignEndpoints = [
   title="Documentación de la API: voz, llamadas y campañas | Atentina"
   description="Cómo usar la API de Atentina: LLM, transcripción y síntesis de voz, llamadas, contactos, campañas salientes programadas, derivación a tu equipo, eventos, reportes y webhook."
   ogDescription="Documentación de la API de LLM, transcripción y voz de Atentina."
-  path="/desarrolladores/docs"
-  eyebrow="Documentación"
+  path="/desarrolladores/docs/api"
+  page="api"
+  eyebrow="API"
   heading="API de Atentina"
-  lead="Cómo funciona la plataforma y cómo usarla desde tu sistema: los agentes, las llamadas, las campañas y las derivaciones, y los motores de LLM, transcripción y voz con acento argentino, por una API compatible con la de OpenAI."
-  toc={toc}
+  lead="Cómo usar la plataforma desde tu sistema: los agentes, las llamadas, las campañas y las derivaciones, y los motores de LLM, transcripción y voz con acento argentino, por una API compatible con la de OpenAI."
 >
-    <section id="como-funciona" class="grid gap-4">
-      <h2>Cómo funciona</h2>
-      <p>Atentina es una plataforma para armar agentes con IA que atienden a tus clientes por teléfono, WhatsApp y la web. Vos definís el agente en el panel; la plataforma pone el número, los minutos y los motores de IA, y deja registrada cada conversación.</p>
-      <h3>Las piezas</h3>
-      <ul>
-        <li><strong>Cuenta y plan:</strong> el plan fija los minutos por mes, las llamadas a la vez, los números y qué funciones tenés (ver <a href="#planes">Qué incluye cada plan</a>).</li>
-        <li><strong>Agente:</strong> qué hace, cómo saluda, qué datos pide, sus reglas y su voz. Cada cambio es una versión nueva, y cada conversación guarda la versión con la que se hizo.</li>
-        <li><strong>Canales:</strong> tus números, entrantes y salientes, WhatsApp y el link para llamar desde el navegador. Cada número y cada cuenta de WhatsApp apunta a un agente.</li>
-        <li><strong>Conversaciones:</strong> la transcripción, los datos que tomó el agente y el resultado, en el panel y por API.</li>
-        <li><strong>Contactos y campañas:</strong> la agenda de tu cuenta y las llamadas o mensajes salientes programados a una lista.</li>
-        <li><strong>Equipo:</strong> las personas de tu negocio a las que el agente le pasa la llamada cuando hace falta.</li>
-      </ul>
-      <h3>Una llamada, paso a paso</h3>
-      <ol>
-        <li>Entra una llamada a tu número, o la hace el agente desde la API o una campaña. La plataforma busca el agente de ese número y lo conecta.</li>
-        <li>Mientras la persona habla, el reconocimiento de voz la transcribe. Cuando termina, el modelo de lenguaje arma la respuesta siguiendo la definición del agente, y la síntesis la dice con una voz argentina, frase por frase, sin esperar la respuesta completa. Así en cada turno.</li>
-        <li>Si la persona pide hablar con alguien, el agente transfiere la llamada a tu equipo.</li>
-        <li>Al cortar, la conversación queda en el panel. Los <a href="#eventos">eventos</a> y el <a href="#webhook">webhook</a> le avisan a tu sistema.</li>
-      </ol>
-      <p>Por WhatsApp atiende el mismo agente, por texto o por audio.</p>
-      <h3>Los motores</h3>
-      <p>El reconocimiento de voz, el modelo de lenguaje y la síntesis corren en nuestros servidores, no en proveedores externos. Los usa el agente en cada conversación, y también podés usarlos sueltos en tu sistema. Si preferís otro modelo de lenguaje, el agente puede usar <a href="#byok">tu propio proveedor</a> con tu API key; la voz y la transcripción siguen siendo nuestras.</p>
-      <h3>Dos APIs</h3>
+    <section id="dos-apis" class="grid gap-4">
+      <h2>Las dos APIs</h2>
+      <p>Cómo funciona la plataforma (agentes, canales, conversaciones y motores) está en la <a href="/desarrolladores/docs#como-funciona">introducción</a>.</p>
       <div class="table-wrap"><table>
         <thead><tr><th>API</th><th>Para qué</th><th>Key</th></tr></thead>
         <tbody>
@@ -345,6 +306,7 @@ const campaignEndpoints = [
           <tr><td><a href="#agentes">Plataforma</a></td><td>Lo mismo que el panel: agentes, llamadas, contactos, campañas, derivaciones, eventos y reportes.</td><td><code>calls</code></td></tr>
         </tbody>
       </table></div>
+      <p>Si preferís usar la plataforma desde un agente de IA, sin programar, mirá <a href="/desarrolladores/docs/mcp">MCP para agentes de IA</a>.</p>
     </section>
 
     <section id="empezar" class="grid gap-4">
@@ -607,11 +569,6 @@ const campaignEndpoints = [
           {eventTypes.map((e) => <tr><td><code>{e.type}</code></td><td>{e.text}</td></tr>)}
         </tbody>
       </table></div>
-    </section>
-
-    <section id="mcp" class="grid gap-4">
-      <h2>Agentes de IA (MCP)</h2>
-      <p>Todo lo de esta documentación también se puede usar desde Claude, ChatGPT, Cursor u otro agente compatible con MCP, sin programar: el agente se conecta a <code>https://app.atentina.com.ar/mcp</code> con tu usuario y usa la plataforma con herramientas. Cómo conectarlo, qué herramientas hay y qué incluye cada plan: <a href="/desarrolladores/mcp">MCP para agentes de IA</a>.</p>
     </section>
 
   <Cta

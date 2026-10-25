@@ -1,4 +1,4 @@
-"""docs/MCP_HERRAMIENTAS.md y landing/src/data/mcp-tools.json (la página /desarrolladores/mcp) desde el
+"""docs/MCP_HERRAMIENTAS.md y landing/src/data/mcp-tools.json (la página /desarrolladores/docs/mcp) desde el
 catálogo (`make mcp-docs`). tests/test_mcp.py verifica que estén al día.
 
 Uso: python -m app.mcp.docs  (escribe los dos)
@@ -79,7 +79,7 @@ def render() -> str:
 
 
 def render_landing() -> str:
-    """Los datos de /desarrolladores/mcp: grupos, herramientas y funciones por plan (con los nombres de la
+    """Los datos de /desarrolladores/docs/mcp: grupos, herramientas y funciones por plan (con los nombres de la
     landing)."""
     data = {
         "toolsets": [{"id": k, "title": v, "core": k in CORE} for k, v in TOOLSETS.items()],

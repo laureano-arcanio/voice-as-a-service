@@ -14,15 +14,19 @@ Cloudflare Tunnel. No hay backend aparte ni base nueva: costo adicional cero.
     Sin código ni endpoints.
   - `/desarrolladores`, para quien integra: hero con la animación del agente de programación (`AgentTerminal`) → tres formas de integrarlo →
     API compatible con OpenAI (`CodeTabs` con pedidos reales) → integración agéntica (skills y lo que puede hacer) → voces → **precios** (Free + planes con telefonía) → preguntas frecuentes de la API → pedir acceso.
-  - `/desarrolladores/docs`: documentación pública (URL base, keys y alcances, endpoints, streaming, límites, errores), de
-    [`API_INFERENCIA.md`](API_INFERENCIA.md) sin lo que es solo para quien opera. Desde el 19-oct-2026 también llamadas, contactos, campañas (estado,
-    resultados, reporte, límites) y webhook, de [`LLAMADAS_SALIENTES_PLAN.md`](LLAMADAS_SALIENTES_PLAN.md) y `app/api/schemas.py`; la referencia completa de
-    pedidos y respuestas es el OpenAPI del panel. Al cambiar `API_INFERENCIA.md` o la API de campañas, actualizarla.
-  - `/desarrolladores/mcp` (desde el 24-oct-2026, [`MCP_PLAN.md`](MCP_PLAN.md)): conectar Claude, ChatGPT, Cursor u otro agente de IA por MCP (pasos por
-    cliente, botones "Agregar a Cursor / VS Code", API key), qué incluye cada plan, las herramientas por grupo (plegadas), seguridad y guías. Las herramientas,
-    los grupos y las funciones por plan salen de `src/data/mcp-tools.json`, que genera `make mcp-docs` desde el catálogo del MCP: no editarlo a mano (un test
-    de `tests/test_mcp.py` falla si queda desactualizado). Se llega por el footer, la sección "Integración agéntica" de `/desarrolladores` y la sección "Agentes
-    de IA (MCP)" de la documentación. Las dos páginas de documentación usan el layout `DocsPage.astro`.
+  - **Documentación** (desde el 25-oct-2026 en tres páginas, con el layout `DocsPage.astro` y la navegación de `src/data/docs-nav.ts`: la portada,
+    MCP arriba y API abajo; al sumar o renombrar una sección, cambiarla ahí):
+    - `/desarrolladores/docs`: portada, con "MCP o API" y "Cómo funciona" (la plataforma vista de afuera). Hasta el 25-oct-2026 la API estaba en esta URL:
+      un script manda los links viejos con ancla (`#byok`, `#campanas`...) a `/docs/api` y `#mcp` a `/docs/mcp`.
+    - `/desarrolladores/docs/mcp` (desde el 24-oct-2026 en `/desarrolladores/mcp`, que redirige por `render.yaml`; [`MCP_PLAN.md`](MCP_PLAN.md)): conectar
+      Claude, ChatGPT, Cursor u otro agente de IA por MCP (pasos por cliente, botones "Agregar a Cursor / VS Code", API key), qué incluye cada plan, las
+      herramientas por grupo (plegadas), seguridad y guías. Las herramientas, los grupos y las funciones por plan salen de `src/data/mcp-tools.json`, que
+      genera `make mcp-docs` desde el catálogo del MCP: no editarlo a mano (un test de `tests/test_mcp.py` falla si queda desactualizado). Se llega por el
+      footer y la sección "Integración agéntica" de `/desarrolladores`.
+    - `/desarrolladores/docs/api`: las dos APIs, URL base, keys y alcances, endpoints, streaming, límites, errores, de
+      [`API_INFERENCIA.md`](API_INFERENCIA.md) sin lo que es solo para quien opera. Desde el 19-oct-2026 también llamadas, contactos, campañas (estado,
+      resultados, reporte, límites) y webhook, de [`LLAMADAS_SALIENTES_PLAN.md`](LLAMADAS_SALIENTES_PLAN.md) y `app/api/schemas.py`; la referencia completa
+      de pedidos y respuestas es el OpenAPI del panel. Al cambiar `API_INFERENCIA.md` o la API de campañas, actualizarla.
   - `/casos-de-uso`, para quien tiene un problema de atención: hero y demo → rubros (con "¿Tu caso es otro?") → producto → cómo empieza →
     planes con telefonía (sin Free) → preguntas de negocio → demo con tu caso. Las verticales viven bajo `/casos-de-uso/<slug>`, con su tema de acento:
     `/casos-de-uso/turnos` (verde azulado), `/casos-de-uso/cobranzas` (violeta) y `/casos-de-uso/municipios` (ámbar), desde `src/pages/casos-de-uso/[vertical].astro` con los datos de

@@ -1,8 +1,11 @@
 ---
-// Página de documentación (/desarrolladores/docs, /desarrolladores/mcp): encabezado, índice "En esta página" al
-// costado (arriba en móvil) y el contenido con los estilos de texto, listas, código y tablas (.docs).
+// Página de la documentación (/desarrolladores/docs, /docs/mcp y /docs/api): encabezado, la navegación de
+// data/docs-nav.ts al costado (en el celular, plegada arriba) y el contenido con los estilos de texto, listas, código
+// y tablas (.docs). En la portada se ven todas las secciones; en MCP y API, las de esa página y el título de las otras.
+import DocsNav from "../components/DocsNav.astro";
 import Footer from "../components/Footer.astro";
 import Nav from "../components/Nav.astro";
+import { docsNav, type DocsGroup } from "../data/docs-nav";
 import Base from "./Base.astro";
 
 interface Props {
@@ -11,13 +14,20 @@ interface Props {
   ogDescription?: string;
   path: string;
   schema?: object[];
+  page: DocsGroup["key"];
   eyebrow: string;
   heading: string;
   lead: string;
-  toc: { id: string; label: string }[];
 }
 
-const { title, description, ogDescription, path, schema, eyebrow, heading, lead, toc } = Astro.props;
+const { title, description, ogDescription, path, schema, page, eyebrow, heading, lead } = Astro.props;
+const hub = page === "intro";
+const groups = docsNav.map((g) => ({
+  ...g,
+  current: g.key === page,
+  sections: hub || g.key === page ? g.sections : [],
+  link: (id: string) => (g.key === page ? `#${id}` : `${g.href}#${id}`),
+}));
 ---
 
 <Base title={title} description={description} ogDescription={ogDescription} path={path} schema={schema}>
@@ -25,7 +35,9 @@ const { title, description, ogDescription, path, schema, eyebrow, heading, lead,
 
   <header class="border-b border-line bg-linear-to-b from-bg-2 to-bg pt-10 pb-10 min-[901px]:pt-[72px]">
     <div class="mx-auto grid max-w-[1120px] gap-4 px-5">
-      <a class="w-fit text-[.9rem] font-semibold text-muted no-underline hover:text-ink" href="/desarrolladores">← Desarrolladores</a>
+      <a class="w-fit text-[.9rem] font-semibold text-muted no-underline hover:text-ink" href={hub ? "/desarrolladores" : "/desarrolladores/docs"}>
+        ← {hub ? "Desarrolladores" : "Documentación"}
+      </a>
       <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">{eyebrow}</span>
       <h1>{heading}</h1>
       <p class="max-w-[62ch] text-[1.12rem] text-ink-2">{lead}</p>
@@ -33,24 +45,16 @@ const { title, description, ogDescription, path, schema, eyebrow, heading, lead,
     </div>
   </header>
 
-  <div class="mx-auto grid max-w-[1120px] gap-8 px-5 py-12 min-[901px]:grid-cols-[200px_minmax(0,1fr)] min-[901px]:gap-14 min-[901px]:py-[76px]">
-    <aside class="min-[901px]:sticky min-[901px]:top-[96px] min-[901px]:self-start">
-      <nav aria-label="En esta página">
-        <ul class="m-0 flex list-none flex-wrap gap-2 p-0 min-[901px]:grid min-[901px]:gap-1">
-          {
-            toc.map((t) => (
-              <li>
-                <a
-                  class="block rounded-full border border-line-2 bg-white px-3 py-1.5 text-[.9rem] font-semibold text-ink no-underline hover:border-accent hover:text-accent min-[901px]:rounded-lg min-[901px]:border-0 min-[901px]:bg-transparent min-[901px]:px-2 min-[901px]:py-1 min-[901px]:font-medium min-[901px]:text-ink-2"
-                  href={`#${t.id}`}
-                >
-                  {t.label}
-                </a>
-              </li>
-            ))
-          }
-        </ul>
-      </nav>
+  <div class="mx-auto grid max-w-[1120px] gap-8 px-5 py-12 min-[901px]:grid-cols-[220px_minmax(0,1fr)] min-[901px]:gap-14 min-[901px]:py-[76px]">
+    <aside class="min-[901px]:sticky min-[901px]:top-[96px] min-[901px]:max-h-[calc(100vh-120px)] min-[901px]:self-start min-[901px]:overflow-y-auto">
+      <div class="hidden min-[901px]:block"><DocsNav groups={groups} /></div>
+      <details class="group rounded-xl border border-line bg-surface min-[901px]:hidden" open={hub}>
+        <summary class="flex cursor-pointer list-none items-center gap-2 px-4 py-3 font-semibold text-ink [&::-webkit-details-marker]:hidden">
+          <span aria-hidden="true" class="font-mono text-muted transition-transform duration-150 group-open:rotate-90 motion-reduce:transition-none">›</span>
+          Índice de la documentación
+        </summary>
+        <div class="px-4 pb-4"><DocsNav groups={groups} /></div>
+      </details>
     </aside>
 
     <main class="docs grid min-w-0 gap-12 text-ink-2">
@@ -88,7 +92,8 @@ const { title, description, ogDescription, path, schema, eyebrow, heading, lead,
   .docs :global(ol) {
     list-style: decimal;
   }
-  .docs :global(a) {
+  /* Solo los links del texto: los botones (con clase) mantienen su estilo. */
+  .docs :global(a:not([class])) {
     color: var(--color-accent);
     text-decoration: underline;
     text-underline-offset: 2px;
