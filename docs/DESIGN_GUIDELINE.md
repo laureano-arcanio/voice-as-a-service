@@ -146,7 +146,7 @@ Usar el componente; no copiar sus clases a mano.
 
 | Componente | Para qué |
 |---|---|
-| `Button` | Toda acción. `primary` (una por bloque), `ghost` (secundaria), `light` (sobre fondo `ink`), `whatsapp` (verde `wa` con el logo, solo para abrir el chat). Tamaños `md` y `sm` (nav). Con `href` es un link. |
+| `Button` | Toda acción. `primary` (una por bloque), `ghost` (secundaria), `gray` (secundaria con relleno, al lado de un `primary` del mismo peso: MCP y API en la portada de la documentación), `light` (sobre fondo `ink`), `whatsapp` (verde `wa` con el logo, solo para abrir el chat). Tamaños `md` y `sm` (nav). Con `href` es un link. |
 | `Section` | Toda sección de página. |
 | `Icon` | Íconos (sección 9). |
 | `CheckList` | Lista de características: check en círculo `accent-soft`, título en semibold y texto en `muted`. |

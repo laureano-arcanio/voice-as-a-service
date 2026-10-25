@@ -4,27 +4,13 @@
 // la API estaba en esta URL: los links viejos con ancla (#byok, #campanas...) se mandan a /docs/api, y #mcp a /docs/mcp.
 import Button from "../../../components/Button.astro";
 import Cta from "../../../components/Cta.astro";
+import YouTube from "../../../components/YouTube.astro";
 import { docsGroup } from "../../../data/docs-nav";
 import DocsPage from "../../../layouts/DocsPage.astro";
 
 const mcp = docsGroup("mcp");
 const api = docsGroup("api");
 const apiIds = api.sections.map((s) => s.id);
-
-const ways = [
-  {
-    group: mcp,
-    eyebrow: "Sin programar",
-    text: "Conectá Claude, ChatGPT, Cursor u otro agente compatible con MCP y pedile en español que arme y pruebe agentes, revise las llamadas, cargue contactos o lance campañas. Entra con tu usuario y dentro de tu plan.",
-    cta: "Conectar tu agente",
-  },
-  {
-    group: api,
-    eyebrow: "Desde tu sistema",
-    text: "Lo mismo que el panel por HTTP: agentes, llamadas, contactos, campañas, derivaciones, eventos, reportes y webhook. Y los motores de LLM, transcripción y voz, compatibles con el SDK de OpenAI.",
-    cta: "Ver la API",
-  },
-];
 ---
 
 <DocsPage
@@ -39,17 +25,14 @@ const ways = [
 >
   <section id="formas" class="grid gap-4">
     <h2>MCP o API</h2>
+    <div class="flex flex-wrap gap-3">
+      <Button href={mcp.href}>MCP</Button>
+      <Button href={api.href} variant="gray">API</Button>
+    </div>
+    <YouTube id="CjHwklFYP0M" title="Atentina para desarrolladores: panel, MCP o API" />
     <div class="grid gap-4 min-[701px]:grid-cols-2">
-      {
-        ways.map((w) => (
-          <div class="grid content-start gap-3 rounded-2xl border border-line bg-surface p-6">
-            <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">{w.eyebrow}</span>
-            <h3 style="margin-top:0">{w.group.title}</h3>
-            <p>{w.text}</p>
-            <div class="pt-1"><Button href={w.group.href} size="sm">{w.cta}</Button></div>
-          </div>
-        ))
-      }
+      <YouTube id="uROA76sZ-Mc" title="Cómo conectar Atentina a Claude Code con MCP" />
+      <YouTube id="HmdiVFv5jXA" title="API de Atentina: tu primera integración paso a paso" />
     </div>
   </section>
 

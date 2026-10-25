@@ -7,7 +7,7 @@ type Props = Omit<HTMLAttributes<"button">, "type"> & {
   target?: "_blank" | "_self";
   rel?: string;
   type?: "button" | "submit";
-  variant?: "primary" | "ghost" | "light" | "whatsapp";
+  variant?: "primary" | "ghost" | "gray" | "light" | "whatsapp";
   size?: "md" | "sm";
 };
 
@@ -15,6 +15,7 @@ const { variant = "primary", size = "md", class: className, href, target, rel, t
 const variants = {
   primary: "border-transparent bg-accent text-accent-ink hover:bg-accent-2",
   ghost: "border-line-2 bg-transparent text-ink hover:border-ink",
+  gray: "border-line bg-surface-2 text-ink hover:border-line-2 hover:bg-line",
   light: "border-transparent bg-white text-[#111] hover:bg-[#e9eefa]",
   whatsapp: "border-transparent bg-wa text-white hover:bg-wa-2",
 };
