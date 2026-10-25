@@ -1,0 +1,13 @@
+{
+  "nota": "Resumen corto para la portada de la documentación (/desarrolladores/docs): las tres formas de usar Atentina (panel, MCP y API), que hacen lo mismo con tu cuenta y tu plan, e invitación a la documentación. Narradora paula; gonzalo en la línea de la API. 'M C P' con espacios, 'ápi' y 'ópen, ei, ái' (VIDEOS.md).",
+  "musica_segundos": 50,
+  "velocidad": 1.05,
+  "ganancia_db": -1.5,
+  "lineas": [
+    {"id": "d1", "voz": "paula", "texto": "Atentina se usa de tres formas: desde el panel, desde tu agente de IA, o desde tu sistema."},
+    {"id": "d2", "voz": "paula", "texto": "Las tres hacen lo mismo, con tu cuenta y dentro de tu plan."},
+    {"id": "d3", "voz": "paula", "texto": "Por M C P, conectás tu agente de IA y le pedís en español lo que necesitás: armar y probar agentes, revisar las llamadas o lanzar una campaña. Sin programar."},
+    {"id": "d4", "voz": "gonzalo", "texto": "Por ápi, tu sistema maneja agentes, llamadas y campañas, y usa los motores de lenguaje, transcripción y voz, compatibles con ópen, ei, ái."},
+    {"id": "d5", "voz": "paula", "texto": "Elegí la forma que te sirva. La documentación de cada una está en atentina punto com punto ar, barra desarrolladores."}
+  ]
+}

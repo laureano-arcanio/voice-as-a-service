@@ -46,7 +46,9 @@ loop: el agente con el aro de puntos resuelve las consultas y deriva solo lo imp
 YouTube y la documentación: el servidor MCP en Claude Code, instalación con OAuth y una demo con herramientas reales
 en una terminal simulada; paula, con subtítulos) y
 [`api-desarrolladores`](../marketing/videos/proyectos/api-desarrolladores/README.md) (técnico 16:9 para YouTube y la
-documentación: cómo integrar la API, con pedidos y respuestas reales, capturas del panel y subtítulos; paula y gonzalo).
+documentación: cómo integrar la API, con pedidos y respuestas reales, capturas del panel y subtítulos; paula y gonzalo) y
+[`docs-intro`](../marketing/videos/proyectos/docs-intro/README.md) (16:9, 45 s, para la portada de la documentación:
+las tres formas de usar Atentina, panel, MCP y API, y dónde está la documentación de cada una; paula y gonzalo, con subtítulos).
 
 ## Comandos
 

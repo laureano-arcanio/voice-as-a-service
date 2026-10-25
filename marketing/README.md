@@ -33,6 +33,7 @@ Piezas de comunicación de Atentina, una carpeta por proyecto y una carpeta por 
 | [`mcp-claude-code`](videos/proyectos/mcp-claude-code/README.md) | Video horizontal 16:9, ~92 s | Desarrolladores (tutorial: servidor MCP en Claude Code, instalación con OAuth y demo con herramientas reales; paula, con subtítulos) | v1, [en YouTube](https://www.youtube.com/watch?v=uROA76sZ-Mc) y en la documentación |
 | [`landing-agente`](videos/proyectos/landing-agente/README.md) | Video horizontal 16:9, 27,6 s, en loop y sin audio | Landing (el agente resuelve lo de todos los días y deriva solo lo importante a una persona del equipo; versiones livianas para web y póster) | v1, borrador |
 | [`api-desarrolladores`](videos/proyectos/api-desarrolladores/README.md) | Video horizontal 16:9, 108,6 s, con locución y subtítulos | YouTube y `/desarrolladores/docs` (cómo integrar la API de inferencia y la de plataforma, con pedidos reales) | v1, [en YouTube](https://www.youtube.com/watch?v=HmdiVFv5jXA) y en la documentación |
+| [`docs-intro`](videos/proyectos/docs-intro/README.md) | Video horizontal 16:9, 44,8 s, con locución y subtítulos | YouTube y la portada de `/desarrolladores/docs` (las tres formas de usar Atentina: panel, MCP y API; paula y gonzalo) | v1, [en YouTube](https://www.youtube.com/watch?v=CjHwklFYP0M) y en la documentación |
 | [`propuesta-atentina`](documentos/proyectos/propuesta-atentina/README.md) | PDF, 3 hojas | Genérico (cualquier prospecto) | v1, borrador |
 
 ## Convención

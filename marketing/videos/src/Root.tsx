@@ -30,6 +30,8 @@ import { TOTAL as MCP_CLAUDE_CODE_TOTAL } from "../proyectos/mcp-claude-code/src
 import { McpClaudeCodeVideo } from "../proyectos/mcp-claude-code/src/Video";
 import { TOTAL as API_DESARROLLADORES_TOTAL } from "../proyectos/api-desarrolladores/src/timeline";
 import { ApiDesarrolladoresVideo } from "../proyectos/api-desarrolladores/src/Video";
+import { TOTAL as DOCS_INTRO_TOTAL } from "../proyectos/docs-intro/src/timeline";
+import { DocsIntroVideo } from "../proyectos/docs-intro/src/Video";
 import { T as LANDING_AGENTE_T } from "../proyectos/landing-agente/src/timeline";
 import { LandingAgenteVideo } from "../proyectos/landing-agente/src/Video";
 
@@ -48,6 +50,7 @@ export const RemotionRoot: React.FC = () => (
     <Composition id="zennonbi-analisis" component={ZennonbiAnalisisVideo} durationInFrames={f(ZENNONBI_ANALISIS_TOTAL)} fps={FPS} width={1920} height={1080} />
     <Composition id="mcp-claude-code" component={McpClaudeCodeVideo} durationInFrames={f(MCP_CLAUDE_CODE_TOTAL)} fps={FPS} width={1920} height={1080} />
     <Composition id="api-desarrolladores" component={ApiDesarrolladoresVideo} durationInFrames={f(API_DESARROLLADORES_TOTAL)} fps={FPS} width={1920} height={1080} />
+    <Composition id="docs-intro" component={DocsIntroVideo} durationInFrames={f(DOCS_INTRO_TOTAL)} fps={FPS} width={1920} height={1080} />
     {/* Para la landing: sin locución, en loop */}
     <Composition id="landing-agente" component={LandingAgenteVideo} durationInFrames={f(LANDING_AGENTE_T.fin)} fps={FPS} width={1920} height={1080} />
     {/* Vertical (9:16), para el celular */}
