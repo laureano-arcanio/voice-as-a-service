@@ -12,7 +12,7 @@
 - **Mensaje:** con una API key y pocas líneas sumás agentes, telefonía y voz a tu aplicación.
 - **Formato:** 1920 × 1080, 30 fps, 108,6 s. Composición `api-desarrolladores` (`src/Video.tsx`). Subtítulos
   quemados (abajo al centro, con la grafía normal).
-- **Publicado (25-oct-2026):** https://www.youtube.com/watch?v=HmdiVFv5jXA, embebido en `/desarrolladores/docs/api` (Empezar).
+- **Publicado (25-oct-2026):** https://www.youtube.com/watch?v=HmdiVFv5jXA, embebido al principio de `/desarrolladores/docs/api`.
 - **Contexto:** pieza para YouTube y para `/desarrolladores/docs`. Complementa a [`yoizen`](../yoizen/README.md)
   (técnico para un integrador concreto).
 

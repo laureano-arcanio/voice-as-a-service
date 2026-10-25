@@ -35,7 +35,7 @@ demo con herramientas reales (cuenta, crear un agente, probarlo por texto, equip
 ## Público, mensaje y formato
 
 - **Público:** desarrolladores y usuarios técnicos (YouTube y `/desarrolladores/docs/mcp`).
-- **Publicado (25-oct-2026):** https://www.youtube.com/watch?v=uROA76sZ-Mc, embebido en `/desarrolladores/docs/mcp` (Conectar tu agente → Claude Code).
+- **Publicado (25-oct-2026):** https://www.youtube.com/watch?v=uROA76sZ-Mc, embebido al principio de `/desarrolladores/docs/mcp`.
 - **Mensaje:** con una sola integración, Claude Code consulta, crea, configura, prueba y administra Atentina en
   lenguaje natural.
 - **Formato:** 1920 × 1080, 30 fps, 91,6 s. Una voz (`paula`), música propia y subtítulos quemados.

@@ -18,7 +18,7 @@ tu agente de IA por MCP o desde tu sistema por API; las tres hacen lo mismo con 
 
 - **Público:** quien entra a la documentación (desarrolladores, usuarios técnicos y clientes que evalúan MCP o API).
 - **Mensaje:** tres formas de usar Atentina, con una sola cuenta: elegí la tuya y seguí con su documentación.
-- **Publicado (25-oct-2026):** https://www.youtube.com/watch?v=CjHwklFYP0M (público), embebido en la portada de `/desarrolladores/docs`, arriba de los videos de MCP y API.
+- **Publicado (25-oct-2026):** https://www.youtube.com/watch?v=CjHwklFYP0M (público), embebido en la portada de `/desarrolladores/docs`, abajo de los botones MCP y API.
 - **Formato:** 1920 × 1080, 30 fps, 44,8 s. Composición `docs-intro` (`src/Video.tsx`). Subtítulos quemados (abajo
   al centro, con la grafía normal) y música de `scripts/musica.py`.
 - **Contexto:** portada de la documentación, arriba de los dos videos largos
