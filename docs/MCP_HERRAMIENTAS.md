@@ -26,6 +26,7 @@ Generado desde `app/mcp/catalog.py` con `make mcp-docs`: no editar a mano. Dise�
 | `call_links` | Link para llamar | Free (1), Mostrador, Sucursal y Central |
 | `campaigns_whatsapp` | Campañas de WhatsApp | Sucursal y Central |
 | `campaigns_voice` | Campañas de llamadas | Sucursal (de a 1) y Central (hasta 3) |
+| `external_agent` | Agente propio (tu endpoint, nuestra voz) | Central |
 
 ## `account`: Cuenta, plan y uso
 
@@ -61,7 +62,9 @@ Generado desde `app/mcp/catalog.py` con `make mcp-docs`: no editar a mano. Dise�
 | `test_agent_start` | Empieza una conversación de prueba por texto con un agente (no llama a nadie ni gasta minutos). Devuelve la apertura; seguí con test_agent_turn. | lectura | todos | `POST /conversations` |
 | `test_agent_turn` | Manda un mensaje como si fuera el cliente final en una conversación de prueba y devuelve la respuesta del agente y los datos que tomó. | lectura | todos | `POST /conversations/{conversation_id}/turns` |
 | `list_llm_params` | Los parámetros de generación (temperatura, razonamiento, max_tokens...) que acepta cada proveedor, con los defaults del modelo propio, para `generation` en la definición del agente. | lectura | todos (solo OAuth) | `GET /llm/params` |
-| `list_llm_connections` | Las conexiones del cliente a su proveedor de LLM (sin la clave), para `llm` en la definición. | lectura | todos (solo OAuth) | `GET /clients/{client_id}/llm-connections` |
+| `list_llm_connections` | Las conexiones del cliente (sin la clave): su proveedor de LLM, para `llm` en la definición (BYOK), o el endpoint de su propio agente, para `external.connection` (motor `external`). | lectura | todos | `GET /clients/{client_id}/llm-connections` |
+| `create_llm_connection` | Guarda una conexión del cliente con su API key (cifrada; no se vuelve a mostrar): un proveedor de LLM (BYOK) o, con `kind` `openai_compatible` y `base_url` https pública, el endpoint de su propio agente (Tu propio agente). La API key pasa por esta conversación: confirmalo con la persona antes. | **confirmar** | todos | `POST /clients/{client_id}/llm-connections` |
+| `test_llm_connection` | Hace un pedido real a la conexión y guarda el resultado. `mode` `external`: como endpoint de Tu propio agente (un turno en streaming con `end_call`; mide el primer texto). `llm`: salida JSON (BYOK). | escritura | todos | `POST /clients/{client_id}/llm-connections/{connection_id}/test` |
 | `get_test_conversation` | El estado de una conversación de prueba: mensajes, datos tomados y si terminó. | lectura | todos | `GET /conversations/{conversation_id}` |
 
 ## `calls`: Llamadas, transcripciones, estadísticas, números y bloqueados

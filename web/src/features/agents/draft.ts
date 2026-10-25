@@ -15,7 +15,8 @@ export const FIELD_TYPES = [
 ] as const;
 
 export type FieldType = (typeof FIELD_TYPES)[number]['value'];
-export type Engine = 'classic' | 'structured' | 'assistant';
+export type Engine = 'classic' | 'structured' | 'assistant' | 'external';
+/** Los motores de la plataforma, que elige un admin. external (el agente del cliente) se prende aparte. */
 export const ENGINES: Engine[] = ['classic', 'structured', 'assistant'];
 
 export const ENGINE_HELP: Record<Engine, string> = {
@@ -25,7 +26,61 @@ export const ENGINE_HELP: Record<Engine, string> = {
     'En cada turno el LLM responde en JSON (mensaje, objetivo siguiente y estado) y otra llamada extrae los datos y lleva el estado de la conversación.',
   assistant:
     'Asistente con las herramientas de las apps del cliente (registrar, consultar, links a vistas). No tiene datos a obtener ni resultados: por WhatsApp, para el dueño del negocio.',
+  external:
+    'Cada turno lo contesta el agente del cliente, en su endpoint compatible con OpenAI. Atentina pone la voz, la telefonía y los minutos.',
 };
+
+/** Motor external (docs/AGENTE_EXTERNO_PLAN.md): el endpoint del cliente y que hacer si falla. */
+export interface ExternalDraft {
+  /** Id de una conexion openai_compatible del cliente; '' = sin elegir. */
+  connection: string;
+  /** '' = el modelo por defecto de la conexion. */
+  model: string;
+  /** Prompt de sistema que se antepone; '' = ninguno (el prompt es del cliente). */
+  system: string;
+  firstTokenTimeoutMs: number;
+  errorMessage: string;
+  maxErrors: number;
+  /** 'hang_up' o 'transfer:<area_id>'. */
+  onErrors: string;
+}
+
+/** Defaults de ExternalConfig (app/conversation/models.py). */
+export const EXTERNAL_DEFAULTS: Omit<ExternalDraft, 'connection'> = {
+  model: '',
+  system: '',
+  firstTokenTimeoutMs: 4000,
+  errorMessage: 'Disculpá, se me cortó. ¿Me lo repetís?',
+  maxErrors: 2,
+  onErrors: 'hang_up',
+};
+
+function toExternalDraft(raw: unknown): ExternalDraft | null {
+  if (raw == null || typeof raw !== 'object') return null;
+  const e = obj(raw);
+  const num = (x: unknown, d: number) => (typeof x === 'number' ? x : d);
+  return {
+    connection: str(e.connection),
+    model: str(e.model),
+    system: str(e.system),
+    firstTokenTimeoutMs: num(e.first_token_timeout_ms, EXTERNAL_DEFAULTS.firstTokenTimeoutMs),
+    errorMessage: str(e.error_message) || EXTERNAL_DEFAULTS.errorMessage,
+    maxErrors: num(e.max_errors, EXTERNAL_DEFAULTS.maxErrors),
+    onErrors: str(e.on_errors) || EXTERNAL_DEFAULTS.onErrors,
+  };
+}
+
+function fromExternalDraft(e: ExternalDraft): Record<string, unknown> {
+  return {
+    connection: e.connection,
+    ...(e.model.trim() ? { model: e.model.trim() } : {}),
+    ...(e.system.trim() ? { system: e.system } : {}),
+    first_token_timeout_ms: e.firstTokenTimeoutMs,
+    error_message: e.errorMessage,
+    max_errors: e.maxErrors,
+    on_errors: e.onErrors,
+  };
+}
 
 /** Herramientas de una app que usa el motor assistant: ["*"] = todas. */
 export interface ToolGrantDraft {
@@ -118,6 +173,8 @@ export interface Draft {
   llm: LlmDraft | null;
   /** Derivacion a personas (docs/DERIVACIONES_PLAN.md): areas del equipo del cliente y musica de espera. */
   handoff: HandoffDraft;
+  /** Motor external: el agente del cliente. Se conserva al apagarlo, pero solo va con engine external. */
+  external: ExternalDraft | null;
 }
 
 /** Un area del equipo a la que el agente puede pasar la llamada. */
@@ -157,8 +214,8 @@ function toHandoffDraft(raw: unknown): HandoffDraft {
 }
 
 function fromHandoffDraft(h: HandoffDraft, engine: Engine): Record<string, unknown> | undefined {
-  // Solo el motor clasico deriva: con otro, las areas no van (el servidor las rechaza).
-  const areas = engine === 'classic' ? h.areas : [];
+  // Derivan el clasico y el external: con otro, las areas no van (el servidor las rechaza).
+  const areas = engine === 'classic' || engine === 'external' ? h.areas : [];
   if (!areas.length && !h.present) return undefined;
   return {
     areas: areas.map((a) => ({ area_id: a.areaId, when: a.when.trim() })),
@@ -238,7 +295,8 @@ function toLlmDraft(raw: unknown): LlmDraft | null {
         // temperature suelta (definiciones viejas) se muestra como parametro.
         generation: (() => {
           const rows = toParams(st.generation);
-          if (!rows.length && typeof st.temperature === 'number') return [blankParam('temperature', st.temperature)];
+          if (!rows.length && typeof st.temperature === 'number')
+            return [blankParam('temperature', st.temperature)];
           return rows;
         })(),
       };
@@ -308,7 +366,8 @@ export function toDraft(d: Definition): Draft {
   return {
     id: str(d.id),
     version: typeof d.version === 'number' ? d.version : null,
-    engine: d.engine === 'structured' || d.engine === 'assistant' ? d.engine : 'classic',
+    engine:
+      d.engine === 'structured' || d.engine === 'assistant' || d.engine === 'external' ? d.engine : 'classic',
     name: str(agent.name),
     role: str(agent.role),
     language: str(agent.language),
@@ -343,6 +402,7 @@ export function toDraft(d: Definition): Draft {
     generation: toParams(d.generation),
     llm: toLlmDraft(d.llm),
     handoff: toHandoffDraft(d.handoff),
+    external: toExternalDraft(d.external),
   };
 }
 
@@ -363,6 +423,7 @@ export function fromDraft(draft: Draft): Definition {
   }
   const last = draft.outcomes.length - 1;
   const handoff = fromHandoffDraft(draft.handoff, draft.engine);
+  const external = draft.engine === 'external' && draft.external ? draft.external : null;
   return {
     id: draft.id,
     ...(draft.version != null ? { version: draft.version } : {}),
@@ -371,8 +432,10 @@ export function fromDraft(draft: Draft): Definition {
     ...(draft.recordAudio && draft.recordingNotice ? { recording_notice: true } : {}),
     ...(draft.callSummaryEmail ? { call_summary_email: true } : {}),
     ...(draft.waSessionMinutes != null ? { wa_session_minutes: draft.waSessionMinutes } : {}),
-    ...(draft.generation.length ? { generation: fromParams(draft.generation) } : {}),
-    ...(draft.llm && !isLocalOnly(draft.llm) ? { llm: fromLlmDraft(draft.llm) } : {}),
+    // Con el agente del cliente no hay LLM nuestro: ni etapas ni parametros.
+    ...(!external && draft.generation.length ? { generation: fromParams(draft.generation) } : {}),
+    ...(!external && draft.llm && !isLocalOnly(draft.llm) ? { llm: fromLlmDraft(draft.llm) } : {}),
+    ...(external ? { external: fromExternalDraft(external) } : {}),
     agent: {
       name: draft.name,
       role: draft.role,
@@ -454,7 +517,7 @@ export function hasPhoneField(draft: Draft): boolean {
 /** Prender el resumen por email: el email lleva el teléfono, así que el agente necesita un dato de tipo
  * phone (por el link no hay número y lo tiene que pedir). Si no lo tiene, se agrega al final. */
 export function withPhoneField(draft: Draft): Draft {
-  if (draft.engine === 'assistant' || hasPhoneField(draft)) return draft;
+  if (draft.engine === 'assistant' || draft.engine === 'external' || hasPhoneField(draft)) return draft;
   const names = new Set(draft.fields.map((f) => f.name));
   let name = 'telefono';
   for (let n = 2; names.has(name); n++) name = `telefono_${n}`;
@@ -473,7 +536,15 @@ export function newOutcome(outcomes: OutcomeDraft[]): OutcomeDraft {
   const ids = new Set(outcomes.map((o) => o.id));
   let n = outcomes.length;
   while (ids.has(`resultado_${n}`)) n++;
-  return { key: newKey(), id: `resultado_${n}`, label: '', goal: false, noContact: false, message: '', conditions: [] };
+  return {
+    key: newKey(),
+    id: `resultado_${n}`,
+    label: '',
+    goal: false,
+    noContact: false,
+    message: '',
+    conditions: [],
+  };
 }
 
 /** Renombra un dato y lo que lo nombra (condiciones de otros datos y de los resultados). */
@@ -513,7 +584,8 @@ export type ErrorTarget =
         | 'datos'
         | 'resultados'
         | 'herramientas'
-        | 'derivacion';
+        | 'derivacion'
+        | 'externo';
     }
   | { section: 'dato'; key: string }
   | { section: 'resultado'; key: string };
@@ -527,7 +599,12 @@ function outcomeAt(draft: Draft, seg: string | undefined): OutcomeDraft | undefi
 export function errorTarget(draft: Draft, path: string): ErrorTarget | null {
   const [head, second, third] = path.split('.');
   if (head === 'engine') return { section: 'agente' };
-  if (head === 'record_audio' || head === 'recording_notice' || head === 'call_summary_email' || head === 'wa_session_minutes')
+  if (
+    head === 'record_audio' ||
+    head === 'recording_notice' ||
+    head === 'call_summary_email' ||
+    head === 'wa_session_minutes'
+  )
     return { section: 'voz' };
   if (head === 'agent') return { section: second === 'voice' ? 'voz' : 'agente' };
   if (head === 'objective') return { section: 'objetivo' };
@@ -536,6 +613,7 @@ export function errorTarget(draft: Draft, path: string): ErrorTarget | null {
   if (head === 'tools') return { section: 'herramientas' };
   if (head === 'llm' || head === 'generation') return { section: 'modelo' };
   if (head === 'handoff') return { section: 'derivacion' };
+  if (head === 'external') return { section: 'externo' };
   if (head === 'fields') {
     const f = draft.fields.find((x) => x.name === second);
     return f ? { section: 'dato', key: f.key } : { section: 'datos' };
@@ -593,6 +671,12 @@ const PATH_WORDS: Record<string, string> = {
   generation: 'Parámetros',
   params: '',
   handoff: 'Derivación a personas',
+  external: 'Tu propio agente',
+  system: 'prompt de sistema',
+  first_token_timeout_ms: 'espera del primer texto',
+  error_message: 'mensaje de error',
+  max_errors: 'errores seguidos',
+  on_errors: 'después de los errores',
   areas: 'áreas',
   area_id: 'área',
   hold_music: 'música de espera',

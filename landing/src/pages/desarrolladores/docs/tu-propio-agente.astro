@@ -1,0 +1,258 @@
+---
+// /desarrolladores/docs/tu-propio-agente (el índice, en data/docs-nav.ts): el cliente pone su agente detrás de un
+// endpoint compatible con OpenAI y Atentina le pone la voz, el teléfono y WhatsApp ("custom LLM" en otros
+// proveedores). Diseño y contrato en docs/AGENTE_EXTERNO_PLAN.md (motor external, app/llm/external.py): al cambiar el
+// pedido, los headers, las herramientas o los errores, cambiar esta página. Al cambiar los tiers, la tabla de planes.
+import CodeBlock from "../../../components/CodeBlock.astro";
+import Cta from "../../../components/Cta.astro";
+import DocsPage from "../../../layouts/DocsPage.astro";
+
+const API = "https://app.atentina.com.ar/api/v1";
+
+const request = `POST https://tu-agente.com/v1/chat/completions
+Authorization: Bearer <la API key que cargaste en la conexión>
+X-Atentina-Conversation-Id: 6f1c2a9e-...
+X-Atentina-Channel: voice
+X-Atentina-Mode: entrante
+X-Atentina-From: +5493515551234
+X-Atentina-To: +541152630861
+X-Atentina-Agent: ventas
+X-Atentina-Turn: 2
+
+{
+  "model": "ventas",
+  "stream": true,
+  "user": "6f1c2a9e-...",
+  "messages": [
+    {"role": "assistant", "content": "Hola, soy Sofía de Acme. ¿En qué te ayudo?"},
+    {"role": "user", "content": "Quería saber si tienen turno el jueves."},
+    {"role": "assistant", "content": "Sí, el jueves tenemos a las diez y a las cuatro. ¿Cuál te queda mejor?"},
+    {"role": "user", "content": "A las cuatro. Nada más, gracias."}
+  ],
+  "tools": [
+    {"type": "function", "function": {"name": "end_call", "parameters": {"type": "object", "properties": {
+      "outcome": {"type": "string", "enum": ["turno_dado", "sin_turno"]}}}}}
+  ]
+}`;
+
+const response = `data: {"choices":[{"index":0,"delta":{"content":"Perfecto, te espero el jueves "}}]}
+
+data: {"choices":[{"index":0,"delta":{"content":"a las cuatro. ¡Que andes bien!"}}]}
+
+data: {"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"c1","type":"function",
+       "function":{"name":"end_call","arguments":"{\\"outcome\\": \\"turno_dado\\"}"}}]}}]}
+
+data: [DONE]`;
+
+const server = `# pip install fastapi uvicorn openai
+# uvicorn server:app --port 8200
+import os
+from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi.responses import StreamingResponse
+from openai import AsyncOpenAI
+
+PROMPT = """Sos Sofía, la recepcionista de Acme. Hablás por teléfono: respuestas cortas,
+sin listas ni emojis. Cuando la persona se despide, despedite y llamá a end_call."""
+
+app = FastAPI()
+llm = AsyncOpenAI()  # tu LLM: OpenAI o cualquiera compatible
+
+@app.post("/v1/chat/completions")
+async def chat(request: Request, authorization: str = Header(""), x_atentina_from: str = Header("")):
+    if authorization != f"Bearer {os.environ['AGENT_KEY']}":
+        raise HTTPException(401)
+    body = await request.json()
+    messages = [{"role": "system", "content": f"{PROMPT}\\nLlama: {x_atentina_from or 'desconocido'}."},
+                *body["messages"]]
+    stream = await llm.chat.completions.create(
+        model="gpt-4.1-mini", messages=messages, tools=body.get("tools"), stream=True)
+
+    async def events():
+        async for chunk in stream:
+            yield f"data: {chunk.model_dump_json(exclude_none=True)}\\n\\n"
+        yield "data: [DONE]\\n\\n"
+
+    return StreamingResponse(events(), media_type="text/event-stream")`;
+
+const createConnection = `curl ${API}/clients/<id de tu cuenta>/llm-connections \\
+  -H "Authorization: Bearer $ATENTINA_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name": "Mi agente", "kind": "openai_compatible",
+       "base_url": "https://tu-agente.com/v1", "api_key": "<la que espera tu endpoint>",
+       "default_model": "ventas"}'`;
+
+const testConnection = `curl ${API}/clients/<id de tu cuenta>/llm-connections/<id de la conexión>/test \\
+  -H "Authorization: Bearer $ATENTINA_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"mode": "external"}'
+# → "last_test_ok": true, "last_test_detail": "streaming · primer texto 420 ms · «Hola, ...»"`;
+
+const definition = `"engine": "external",
+"external": {
+  "connection": "<id de la conexión>",
+  "model": "ventas",
+  "first_token_timeout_ms": 4000,
+  "error_message": "Disculpá, se me cortó. ¿Me lo repetís?",
+  "max_errors": 2,
+  "on_errors": "hang_up"
+}`;
+
+const headers = [
+  { name: "X-Atentina-Conversation-Id", text: "La conversación: la misma en todos los turnos y en la API (GET /calls/{id})" },
+  { name: "X-Atentina-Channel", text: "voice (llamada, también la de WhatsApp) o whatsapp (mensajes)" },
+  { name: "X-Atentina-Mode", text: "entrante, saliente, web (link para llamar) o prueba" },
+  { name: "X-Atentina-From / -To", text: "Quién llama y a qué número, en formato internacional. Por WhatsApp, From es el número del contacto" },
+  { name: "X-Atentina-Agent", text: "El identificador del agente en Atentina" },
+  { name: "X-Atentina-Turn", text: "El número de mensaje de la persona: 1 es el primero" },
+  { name: "X-Atentina-Contact", text: "En una campaña, los datos del contacto (JSON)" },
+  { name: "X-Atentina-Context", text: "En una llamada saliente, el motivo que cargaste al lanzarla" },
+];
+
+const configs = [
+  { name: "connection", text: "La conexión con la URL y la API key de tu endpoint" },
+  { name: "model", text: "Lo que va en model de cada pedido. Vacío: el modelo por defecto de la conexión" },
+  { name: "system", text: "Un prompt de sistema que se antepone a la conversación (opcional)" },
+  { name: "first_token_timeout_ms", text: "Cuánto se espera el primer texto (500 a 20.000; 4000 por defecto)" },
+  { name: "error_message", text: "Lo que dice el agente si tu endpoint falla o no responde a tiempo" },
+  { name: "max_errors", text: "Errores seguidos tolerados (1 a 10; 2 por defecto)" },
+  { name: "on_errors", text: "Después de esos errores: hang_up (cortar) o transfer:<id del área> (pasar a tu equipo)" },
+];
+---
+
+<DocsPage
+  title="Tu propio agente con voz y teléfono (custom LLM) | Atentina"
+  description="Conectá tu agente de IA a Atentina con un endpoint compatible con OpenAI (custom LLM): nosotros ponemos el número, la voz argentina, la transcripción, WhatsApp y los minutos; tu agente decide qué responder."
+  ogDescription="Tu agente de IA, con la voz y el teléfono de Atentina."
+  path="/desarrolladores/docs/tu-propio-agente"
+  page="propio"
+  eyebrow="Tu propio agente · custom LLM"
+  heading="Tu agente, nuestra voz"
+  lead="Si ya tenés tu agente armado, con su prompt, sus herramientas y tus datos, no hace falta construir el pipeline de voz. Lo conectás con un endpoint compatible con OpenAI y atiende llamadas y WhatsApp con un número argentino."
+>
+  <section id="que-es" class="grid gap-4">
+    <h2>Qué es</h2>
+    <p>En otros proveedores se llama <em>custom LLM</em>. Atentina hace todo lo que es voz y canal, y en cada turno le pregunta a tu agente qué decir.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Pone Atentina</th><th>Pone tu agente</th></tr></thead>
+      <tbody>
+        <tr><td>El número, las llamadas entrantes y salientes, WhatsApp y el link para llamar desde la web</td><td>El prompt y la personalidad</td></tr>
+        <tr><td>La transcripción, la detección de turnos y las interrupciones</td><td>Las herramientas y la conexión con tus sistemas</td></tr>
+        <tr><td>La voz argentina, la grabación y el resumen por email</td><td>La memoria y el estado de la conversación</td></tr>
+        <tr><td>Los minutos, la derivación a tu equipo, los eventos y el registro en el panel</td><td>Qué responder en cada turno</td></tr>
+      </tbody>
+    </table></div>
+    <p>No es lo mismo que <a href="/desarrolladores/docs/api#byok">Tu propio LLM</a>: ahí cambiás solo el modelo y el agente sigue siendo el de Atentina. Acá el agente entero es tuyo.</p>
+  </section>
+
+  <section id="como-funciona" class="grid gap-4">
+    <h2>Cómo funciona</h2>
+    <ol>
+      <li>Entra una llamada al número del agente (o un WhatsApp, o la hace una campaña). El agente de Atentina dice la apertura que configuraste.</li>
+      <li>La persona habla. Cuando termina, Atentina le manda a tu endpoint toda la conversación, con los datos de la llamada en headers.</li>
+      <li>Tu endpoint contesta en streaming. Cada pedazo de texto pasa a voz apenas llega, sin esperar la respuesta completa.</li>
+      <li>Para cortar o pasar la llamada a una persona, tu agente usa las herramientas <code>end_call</code> y <code>transfer_call</code>.</li>
+      <li>Al terminar, la conversación queda en el panel y te avisan los <a href="/desarrolladores/docs/api#eventos">eventos</a> y el <a href="/desarrolladores/docs/api#webhook">webhook</a>.</li>
+    </ol>
+  </section>
+
+  <section id="pedido" class="grid gap-4">
+    <h2>El pedido</h2>
+    <p><code>POST {"{"}tu URL{"}"}/chat/completions</code>, el mismo formato que la API de OpenAI, con la API key que cargaste en la conexión.</p>
+    <CodeBlock label="HTTP" code={request} />
+    <ul>
+      <li><strong>Toda la conversación en cada turno.</strong> No hace falta guardar estado: el historial que mandamos es el que vale. La apertura va como el primer mensaje de <code>assistant</code>.</li>
+      <li><strong>Sin prompt nuestro.</strong> Solo los mensajes. Si querés, en <code>external.system</code> cargás uno que se antepone.</li>
+      <li><strong>El cuerpo lleva solo campos estándar</strong> (<code>model</code>, <code>messages</code>, <code>tools</code>, <code>stream</code>, <code>user</code>). Si tu endpoint se lo pasa tal cual a OpenAI, funciona.</li>
+      <li><strong>Varios agentes, un endpoint:</strong> cada agente de Atentina manda su <code>model</code>, y tu endpoint elige con ese valor (o con <code>X-Atentina-Agent</code>).</li>
+    </ul>
+    <h3>Headers</h3>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Header</th><th>Qué trae</th></tr></thead>
+      <tbody>{headers.map((h) => <tr><td><code>{h.name}</code></td><td>{h.text}</td></tr>)}</tbody>
+    </table></div>
+    <p>Los que no tienen valor no van. Los textos con tildes van con escapes JSON (<code>é</code>), porque un header solo admite ASCII.</p>
+  </section>
+
+  <section id="respuesta" class="grid gap-4">
+    <h2>La respuesta</h2>
+    <p>Eventos SSE de chat completions, como los de OpenAI con <code>stream: true</code>.</p>
+    <CodeBlock label="SSE" code={response} />
+    <ul>
+      <li><strong>El streaming es obligatorio.</strong> Una respuesta entera en JSON cuenta como error.</li>
+      <li><code>delta.content</code> se dice en voz alta. El razonamiento, si lo mandás, se descarta.</li>
+      <li>Una respuesta sin texto ni herramientas cuenta como error.</li>
+    </ul>
+  </section>
+
+  <section id="herramientas" class="grid gap-4">
+    <h2>end_call y transfer_call</h2>
+    <p>Las manda Atentina en <code>tools</code> y las ejecuta Atentina. Si tu agente las pasa a su LLM, el modelo decide cuándo usarlas.</p>
+    <ul>
+      <li><strong><code>end_call</code></strong>: corta cuando termina de decir lo que escribió en ese mensaje (la despedida). Con <code>outcome</code> elige el resultado de la conversación, entre los que definiste en el agente; sin él, vale el último.</li>
+      <li><strong><code>transfer_call</code></strong>: pasa la llamada a un área de tu equipo (<code>area</code>, una de las del agente). Llega solo si el agente tiene áreas de <a href="/desarrolladores/docs/api#derivaciones">derivación</a>. Mientras tanto, la persona escucha música; si nadie atiende, el agente retoma.</li>
+    </ul>
+    <p>Si tu agente las ignora, la llamada termina cuando corta la persona o al llegar a la duración máxima.</p>
+  </section>
+
+  <section id="configurar" class="grid gap-4">
+    <h2>Configurarlo</h2>
+    <p>Desde el panel, por <a href="/desarrolladores/docs/api">API</a> (una key con alcance <code>calls</code>) o desde tu agente de IA por <a href="/desarrolladores/docs/mcp">MCP</a> (<code>create_llm_connection</code>, <code>test_llm_connection</code> y <code>create_agent</code>).</p>
+    <p><strong>1. La conexión.</strong> La URL de tu endpoint (https y pública) y la API key que espera. En el panel: <strong>Configuración &gt; Modelos &gt; Nueva conexión</strong>, tipo <strong>Compatible con OpenAI</strong>. La key queda cifrada y no se vuelve a mostrar.</p>
+    <CodeBlock label="curl" code={createConnection} />
+    <p><strong>2. La prueba.</strong> Le manda a tu endpoint un turno como el de una llamada y mide cuánto tarda el primer texto. En el panel es el botón <strong>Probar el endpoint</strong> del agente.</p>
+    <CodeBlock label="curl" code={testConnection} />
+    <p><strong>3. El agente.</strong> En el panel, en la definición del agente, prendé <strong>Que conteste tu propio agente</strong>. Por API, en la definición (<code>POST /agents</code> o <code>PUT /agents/{"{"}id{"}"}/definition</code>, que guarda una versión nueva):</p>
+    <CodeBlock label="JSON" code={definition} />
+    <div class="table-wrap"><table>
+      <thead><tr><th>Campo</th><th>Qué es</th></tr></thead>
+      <tbody>{configs.map((c) => <tr><td><code>{c.name}</code></td><td>{c.text}</td></tr>)}</tbody>
+    </table></div>
+    <p>Del agente de Atentina siguen valiendo el nombre, la voz, la apertura, los resultados, las áreas de derivación, la grabación y el resumen por email. Después asignale un número o una cuenta de WhatsApp, como a cualquier agente.</p>
+  </section>
+
+  <section id="ejemplo" class="grid gap-4">
+    <h2>Un endpoint de ejemplo</h2>
+    <p>Un servidor mínimo en Python que agrega su prompt y le pasa la conversación y las herramientas a un LLM compatible con OpenAI. El resto es tuyo: tus herramientas, tu base de datos, tu framework (LangGraph, n8n, el que uses).</p>
+    <CodeBlock label="Python" code={server} />
+  </section>
+
+  <section id="latencia" class="grid gap-4">
+    <h2>Latencia y turnos</h2>
+    <ul>
+      <li><strong>El primer texto es lo que más pesa.</strong> Se cuenta desde que llega el pedido hasta el primer pedazo de texto. Si pasa de un segundo, la conversación se siente lenta. Mandá el texto apenas lo tengas y dejá las herramientas lentas para después de una frase corta ("Dame un segundo que me fijo").</li>
+      <li><strong>Turnos que se rehacen.</strong> Si la persona sigue hablando antes de escuchar la respuesta, ese turno se descarta y el siguiente pedido trae su mensaje completo. Si guardás estado propio, indexalo por <code>X-Atentina-Conversation-Id</code> y tolerá que un turno llegue de nuevo con otro texto.</li>
+      <li><strong>Interrupciones.</strong> Si la persona interrumpe, Atentina cierra el stream: tu endpoint ve la desconexión.</li>
+      <li><strong>WhatsApp.</strong> El mismo endpoint atiende los mensajes (<code>X-Atentina-Channel: whatsapp</code>); la respuesta sale como texto o como nota de voz.</li>
+    </ul>
+  </section>
+
+  <section id="errores" class="grid gap-4">
+    <h2>Errores</h2>
+    <p>Si tu endpoint da error, no manda texto en <code>first_token_timeout_ms</code> o responde vacío, el agente dice <code>error_message</code>. Con <code>max_errors</code> seguidos, aplica <code>on_errors</code>: corta (la llamada termina con <code>ended_reason</code> <code>external_error</code>) o la pasa a tu equipo. Un turno bueno vuelve el contador a cero.</p>
+    <ul>
+      <li><strong>No hay respaldo con nuestro modelo:</strong> no conoce tu prompt y respondería cualquier cosa.</li>
+      <li>Si el stream se corta después de empezar a hablar, queda lo que se dijo y no cuenta como error.</li>
+      <li>En el panel, en el detalle de cada conversación, el switch <strong>Detalle técnico</strong> muestra cada turno: el tiempo hasta el primer texto, lo que respondió tu endpoint y el error, si hubo.</li>
+    </ul>
+  </section>
+
+  <section id="planes" class="grid gap-4">
+    <h2>Planes, costos y datos</h2>
+    <ul>
+      <li><strong>Plan:</strong> por ahora, incluido en el plan Red. Con otro plan, el panel lo muestra bloqueado y la API responde 429 <code>external_agent_not_in_plan</code>.</li>
+      <li><strong>Minutos:</strong> las llamadas gastan los minutos del plan como cualquier otra. Los tokens de tu LLM los pagás a tu proveedor.</li>
+      <li><strong>Datos:</strong> el texto de la conversación y los datos de la llamada (números, campaña) van a tu endpoint en cada turno. El audio no: la voz y la transcripción siguen en nuestros servidores. Ver la <a href="/privacidad">política de privacidad</a>.</li>
+    </ul>
+  </section>
+
+  <Cta
+    slot="after"
+    eyebrow="Acceso"
+    title="¿Querés conectar tu agente?"
+    lead="Contanos qué agente tenés y en qué framework, y te ayudamos a dejarlo atendiendo llamadas."
+    subject="Tu propio agente en Atentina"
+    question="¿Qué agente querés conectar?"
+    placeholder="Por ejemplo: un agente en LangGraph que da turnos para mi clínica"
+    submit="Enviar consulta"
+  />
+</DocsPage>

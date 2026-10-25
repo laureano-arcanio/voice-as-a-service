@@ -353,9 +353,21 @@ _WRITE: tuple[Tool, ...] = (
          "Los parámetros de generación (temperatura, razonamiento, max_tokens...) que acepta cada proveedor, con "
          "los defaults del modelo propio, para `generation` en la definición del agente.", path="/llm/params",
          session=True),
-    Tool("list_llm_connections", "agents", "Modelos propios (BYOK)",
-         "Las conexiones del cliente a su proveedor de LLM (sin la clave), para `llm` en la definición.",
-         path="/clients/{client_id}/llm-connections", session=True),
+    Tool("list_llm_connections", "agents", "Conexiones de LLM y endpoints",
+         "Las conexiones del cliente (sin la clave): su proveedor de LLM, para `llm` en la definición (BYOK), o el "
+         "endpoint de su propio agente, para `external.connection` (motor `external`).",
+         path="/clients/{client_id}/llm-connections"),
+    Tool("create_llm_connection", "agents", "Cargar una conexión de LLM o un endpoint",
+         "Guarda una conexión del cliente con su API key (cifrada; no se vuelve a mostrar): un proveedor de LLM "
+         "(BYOK) o, con `kind` `openai_compatible` y `base_url` https pública, el endpoint de su propio agente "
+         "(Tu propio agente). La API key pasa por esta conversación: confirmalo con la persona antes.",
+         method="POST", path="/clients/{client_id}/llm-connections", body="LlmConnectionIn", destructive=True),
+    Tool("test_llm_connection", "agents", "Probar una conexión o un endpoint",
+         "Hace un pedido real a la conexión y guarda el resultado. `mode` `external`: como endpoint de Tu propio "
+         "agente (un turno en streaming con `end_call`; mide el primer texto). `llm`: salida JSON (BYOK).",
+         method="POST", path="/clients/{client_id}/llm-connections/{connection_id}/test",
+         params={"connection_id": _s("ID de la conexión (list_llm_connections).")}, required=("connection_id",),
+         body="LlmConnectionTestIn", read_only=False),
     Tool("get_test_conversation", "agents", "Conversación de prueba",
          "El estado de una conversación de prueba: mensajes, datos tomados y si terminó.",
          path="/conversations/{conversation_id}", params=_CONVERSATION, required=("conversation_id",)),

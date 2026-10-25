@@ -20,6 +20,7 @@ from ..models import (
     WaRoute,
 )
 from . import handoff, voices
+from . import limits as limits_service
 from .errors import Conflict, Invalid, NotFound
 
 SLUG_RE = re.compile(r"[a-z0-9][a-z0-9_]{0,63}")
@@ -72,6 +73,22 @@ def _check_llm(s: Session, client_id: str, normalized: dict) -> None:
         raise Invalid("La definicion del agente no es valida", "invalid_definition", errors)
 
 
+def _check_external(s: Session, client_id: str, normalized: dict) -> None:
+    """Motor external: el plan lo incluye y la conexion es del cliente, vigente y compatible con OpenAI."""
+    if not (external := normalized.get("external")):
+        return
+    limits_service.check_external_agent(s, client_id)
+    row = s.get(LlmConnection, external.get("connection"))
+    if row is None or row.client_id != client_id or row.revoked_at is not None:
+        message = "La conexion no existe, esta dada de baja o es de otro cliente"
+    elif row.kind != "openai_compatible":
+        message = "El agente externo necesita una conexion compatible con OpenAI (la URL de tu endpoint)"
+    else:
+        return
+    raise Invalid("La definicion del agente no es valida", "invalid_definition",
+                  [{"path": "external.connection", "message": message}])
+
+
 def _check_handoff(s: Session, client_id: str, normalized: dict) -> None:
     """workflow.handoff: las areas son del cliente del agente y el tema de espera existe."""
     if errors := handoff.check_agent_handoff(s, client_id, normalized.get("handoff")):
@@ -107,6 +124,7 @@ def create_agent(s: Session, client: Client, name: str, slug: str | None, descri
     normalized = normalize_definition(definition, slug, 1)
     _check_tools(s, client.id, normalized)
     _check_llm(s, client.id, normalized)
+    _check_external(s, client.id, normalized)
     _check_handoff(s, client.id, normalized)
     agent = Agent(client_id=client.id, name=name, slug=slug, description=description,
                   version=1, definition=normalized)
@@ -124,6 +142,7 @@ def update_definition(s: Session, agent: Agent, definition: dict, user_id: str |
     normalized = normalize_definition(definition, agent.slug, agent.version + 1)
     _check_tools(s, agent.client_id, normalized)
     _check_llm(s, agent.client_id, normalized)
+    _check_external(s, agent.client_id, normalized)
     _check_handoff(s, agent.client_id, normalized)
     if {k: v for k, v in normalized.items() if k != "version"} == current:
         return agent

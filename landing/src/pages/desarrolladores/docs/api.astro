@@ -4,7 +4,8 @@
 // derivaciones y eventos: de docs/DERIVACIONES_PLAN.md. Qué incluye cada plan: los tiers de la migración 0026 (al
 // cambiar un tier, cambiar planFeatures y las tarjetas de data/site.ts). La referencia completa de pedidos y
 // respuestas es el OpenAPI del panel (/api/v1/docs). "Cómo funciona" está en la portada (docs/index.astro).
-// "Tu propio LLM": de docs/BYOK_LLM_PLAN.md (al cambiarlo, revisar también /privacidad).
+// "Tu propio LLM": de docs/BYOK_LLM_PLAN.md (al cambiarlo, revisar también /privacidad). "Tu propio agente" tiene
+// su página (/desarrolladores/docs/tu-propio-agente, docs/AGENTE_EXTERNO_PLAN.md).
 import CodeBlock from "../../../components/CodeBlock.astro";
 import Cta from "../../../components/Cta.astro";
 import { endpoints } from "../../../data/site";
@@ -148,6 +149,7 @@ const planFeatures = [
   { feature: "Campañas de WhatsApp", free: "No", mostrador: "No", sucursal: "Sí", red: "Sí" },
   { feature: "Campañas de llamadas", free: "No", mostrador: "No", sucursal: "Sí, de a 1 llamada", red: "Sí, hasta 3 a la vez" },
   { feature: "Equipo para derivar llamadas", free: "No", mostrador: "1 persona", sucursal: "2 personas", red: "Sin tope" },
+  { feature: "Tu propio agente (motor external)", free: "No", mostrador: "No", sucursal: "No", red: "Sí" },
 ];
 
 const planErrors = [
@@ -462,6 +464,7 @@ const campaignEndpoints = [
         <li><strong>Privacidad:</strong> desde el turno en que lo usa, el texto de la conversación y las instrucciones del agente van a tu proveedor, bajo sus condiciones. El audio no sale: la voz y la transcripción siguen en nuestros servidores. Ver la <a href="/privacidad">política de privacidad</a>.</li>
       </ul>
       <p>La <a href="#endpoints">API de inferencia</a> sigue siendo solo nuestra: tu proveedor lo usa el agente, no esa API.</p>
+      <p>Esto cambia solo el modelo: el agente sigue siendo el de Atentina, con su prompt. Si el agente entero es tuyo, mirá <a href="/desarrolladores/docs/tu-propio-agente">Tu propio agente</a>.</p>
     </section>
 
     <section id="cortar" class="grid gap-4">
@@ -545,7 +548,7 @@ const campaignEndpoints = [
       <CodeBlock label="curl" code={teamMember} />
       <p><strong>2. Las áreas.</strong> Un área agrupa a las personas que atienden un tema. <code>description</code> es lo que lee el agente para elegirla. <code>strategy</code> en <code>sequential</code> las llama en el orden de <code>member_ids</code>, y en <code>round_robin</code> va rotando quién arranca. Cada una suena <code>ring_seconds</code>. Con <code>schedule</code> (hora de Argentina, franjas por día y feriados en <code>closed</code>), fuera de horario el agente no deriva y toma el mensaje; sin horario, atiende siempre.</p>
       <CodeBlock label="curl" code={area} />
-      <p><strong>3. El agente.</strong> En su definición (<code>PUT /agents/{"{"}id{"}"}/definition</code>, que guarda una versión nueva) van las áreas a las que puede derivar y, en <code>when</code>, cuándo hacerlo en palabras (vacío: la descripción del área). Por ahora solo con el motor <code>classic</code>.</p>
+      <p><strong>3. El agente.</strong> En su definición (<code>PUT /agents/{"{"}id{"}"}/definition</code>, que guarda una versión nueva) van las áreas a las que puede derivar y, en <code>when</code>, cuándo hacerlo en palabras (vacío: la descripción del área). Por ahora con el motor <code>classic</code> o con <a href="/desarrolladores/docs/tu-propio-agente#herramientas">tu propio agente</a>.</p>
       <CodeBlock label="JSON" code={agentHandoff} />
       <ul>
         <li><strong>Si nadie atiende</strong> (no atiende, da ocupado, salta un contestador o no marca 1), el agente vuelve con el cliente y le toma el mensaje.</li>

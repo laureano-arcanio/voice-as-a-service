@@ -69,6 +69,7 @@ class ConversationEngine:
         self.definitions = definitions or ReferenceDefinitions()
         self.extractions: dict[str, list[asyncio.Task]] = {}   # extracciones en curso por conversacion, en orden
         self.assistant = None   # motor assistant, al primer turno (app/conversation/assistant.py)
+        self.external = None    # motor external, al primer turno (app/llm/external.py)
 
     def workflow(self, state: ConversationState) -> Workflow:
         return self.definitions.get(state.agent_id, state.agent_version)
@@ -147,6 +148,8 @@ class ConversationEngine:
             raise KeyError(conversation_id)
         state.media = media
         workflow = self.workflow(state)
+        if workflow.engine == "external":
+            return await self._external_turn(workflow, state, user_message, media, on_message, actor)
         # Turno del usuario (1 = su primer mensaje): elige la etapa de workflow.llm.
         llm = self.llms.for_turn(workflow, 1 + sum(m.role == "user" for m in state.messages), state.client_id)
 
@@ -204,6 +207,50 @@ class ConversationEngine:
         if on_message is not None:
             on_message(result.assistant_message)
         return state, result
+
+    async def _external_turn(self, workflow: Workflow, state: ConversationState, user_message: str,
+                             media: TurnMedia, on_message: Callable[[str], None] | None, actor: str | None
+                             ) -> tuple[ConversationState, AgentTurn]:
+        """Motor external (app/llm/external.py): contesta el endpoint del cliente, sin extraccion. Si falla
+        sin haber hablado, el agente dice error_message; con max_errors seguidos (o sin el plan), corta o deriva
+        segun on_errors."""
+        from ..llm.external import ExternalAgents, ExternalError
+        if self.external is None:
+            self.external = ExternalAgents(self.store.sessions)
+        cfg = workflow.external
+        outcome = None
+        try:
+            result = await self.external.turn(workflow, state, user_message, on_message, actor)
+            turn, outcome, trace, errors = result.turn, result.outcome, result.trace, 0
+        except ExternalError as e:
+            errors = state.progress.external_errors + 1
+            trace = e.trace or {"kind": "turno", "input": user_message, "ms": 0, "provider": "external",
+                                "error": str(e)}
+            turn = AgentTurn(assistant_message=cfg.error_message)
+            if e.code == "external_agent_not_in_plan":
+                turn.status, turn.end_reason = "completed", "external_agent_not_in_plan"
+            elif errors >= cfg.max_errors:
+                area = cfg.on_errors.split(":", 1)[1] if cfg.on_errors.startswith("transfer:") else None
+                name = next((a["name"] for a in state.progress.handoff_areas if a["id"] == area), None)
+                if name:
+                    turn.handoff = name
+                else:
+                    turn.status, turn.end_reason = "completed", "external_error"
+            if on_message is not None:
+                on_message(turn.assistant_message)
+        state = self.store.get(state.conversation_id)
+        undo = state.model_dump(include={"status", "fields", "progress"}, exclude={"progress": {"undo"}})
+        undo["n_messages"] = len(state.messages)
+        state.progress.undo = undo
+        state.progress.external_errors = errors
+        state.status = turn.status
+        if turn.status == "completed" and turn.end_reason is None:
+            ids = [o.id for o in workflow.completion.outcomes]
+            state.progress.outcome = outcome if outcome in ids else ids[-1]
+        state.messages += [Message(role="user", text=user_message, voice_note=media.user_voice_note),
+                           Message(role="assistant", text=turn.assistant_message, llm=[trace])]
+        self.store.save(state)
+        return state, turn
 
     def mark_voice_note(self, conversation_id: str) -> bool:
         """Marca la ultima respuesta del agente como enviada en nota de voz

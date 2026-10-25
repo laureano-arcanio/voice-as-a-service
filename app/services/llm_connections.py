@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from ..db import utcnow
 from ..llm.anthropic_client import ANTHROPIC_URL, AnthropicClient
 from ..llm.client import JSON_MODES, LLMClient
+from ..llm.external import end_call_tool
 from ..llm.resolver import OPENROUTER_HEADERS, OPENROUTER_URL
 from ..models import Agent, LlmConnection
 from ..whatsapp import crypto
@@ -185,9 +186,48 @@ async def _probe(row: LlmConnection, model: str) -> tuple[bool, str, str]:
     return False, f"no devolvió JSON válido: {last}", row.json_mode
 
 
-def test(s: Session, row: LlmConnection, model: str | None) -> LlmConnection:
+async def _probe_external(row: LlmConnection, model: str) -> tuple[bool, str, str]:
+    """El endpoint de un agente propio (motor external): un turno en streaming con la herramienta end_call,
+    como los que manda la plataforma. Mide el primer texto; no toca json_mode."""
+    client = _client(row, model, row.json_mode).client
+    started, first = time.perf_counter(), None
+    text, tools = [], 0
+    try:
+        stream = await client.chat.completions.create(
+            model=model, stream=True, tools=[end_call_tool(["fin"])], user="atentina-test",
+            messages=[{"role": "assistant", "content": "Hola, ¿en qué te puedo ayudar?"},
+                      {"role": "user", "content": "Hola, es una prueba de Atentina. Respondé con una frase corta."}],
+            extra_headers={"X-Atentina-Conversation-Id": "test", "X-Atentina-Channel": "voice",
+                           "X-Atentina-Mode": "prueba", "X-Atentina-Turn": "1"})
+        async for chunk in stream:
+            delta = chunk.choices[0].delta if chunk.choices else None
+            if delta and (delta.content or delta.tool_calls) and first is None:
+                first = round((time.perf_counter() - started) * 1000)
+            if delta and delta.content:
+                text.append(delta.content)
+            tools += len(delta.tool_calls or []) if delta else 0
+    except _AUTH:
+        return False, "clave inválida o sin permiso", row.json_mode
+    except _NOT_FOUND:
+        return False, "URL incorrecta: no hay /chat/completions", row.json_mode
+    except _NETWORK as e:
+        return False, f"sin conexión con el endpoint: {type(e).__name__}", row.json_mode
+    except (openai.OpenAIError, ValueError) as e:
+        return False, f"el endpoint no respondió en streaming (SSE): {type(e).__name__}"[:255], row.json_mode
+    if first is None:
+        return False, "el endpoint no devolvió texto ni herramientas", row.json_mode
+    said = "".join(text).strip()
+    return True, f"streaming · primer texto {first} ms" + (f" · «{said[:80]}»" if said else " · end_call"), row.json_mode
+
+
+def test(s: Session, row: LlmConnection, model: str | None, mode: str = "llm") -> LlmConnection:
     """Prueba la conexion (sincrono: lo llama un handler de FastAPI en el threadpool) y guarda el
-    resultado y el modo de JSON que soporta."""
+    resultado y el modo de JSON que soporta. mode external: como endpoint de un agente propio."""
+    if mode == "external":
+        ok, detail, _ = asyncio.run(_probe_external(row, (model or row.default_model or "agent").strip()))
+        row.last_test_at, row.last_test_ok, row.last_test_detail = utcnow(), ok, detail[:255]
+        s.flush()
+        return row
     model = _model(row, model)
     ok, detail, mode = asyncio.run(_probe(row, model))
     row.last_test_at, row.last_test_ok, row.last_test_detail = utcnow(), ok, detail[:255]

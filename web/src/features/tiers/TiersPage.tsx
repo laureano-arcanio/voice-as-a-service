@@ -100,6 +100,7 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
     max_team_members: Limit;
     campaign_followup: boolean;
     whatsapp: boolean;
+    external_agent: boolean;
     price_ars: Limit;
     public: boolean;
     sort: number | '';
@@ -130,6 +131,7 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
       max_team_members: tier?.max_team_members ?? '',
       campaign_followup: tier?.campaign_followup ?? false,
       whatsapp: tier?.whatsapp ?? true,
+      external_agent: tier?.external_agent ?? false,
       price_ars: tier?.price_ars ?? '',
       public: tier?.public ?? false,
       sort: tier?.sort ?? 0,
@@ -172,6 +174,7 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
                 max_team_members: toLimit(v.max_team_members),
                 campaign_followup: v.campaign_followup,
                 whatsapp: v.whatsapp,
+                external_agent: v.external_agent,
                 price_ars: toLimit(v.price_ars),
                 public: v.public,
                 sort: v.sort === '' ? 0 : v.sort,
@@ -256,6 +259,12 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
               description="Conectar números y que el agente atienda sus mensajes y llamadas."
               mt="md"
               {...form.getInputProps('whatsapp', { type: 'checkbox' })}
+            />
+            <Switch
+              label="Agente propio"
+              description="Que el cliente conecte su agente (su endpoint) y Atentina le ponga la voz y el teléfono."
+              mt="md"
+              {...form.getInputProps('external_agent', { type: 'checkbox' })}
             />
           </Section>
           <Section title="Venta por el dashboard" cols={3}>
@@ -403,6 +412,11 @@ export function TiersPage() {
                           {!t.whatsapp && (
                             <Text size="xs" c="dimmed">
                               sin WhatsApp
+                            </Text>
+                          )}
+                          {t.external_agent && (
+                            <Text size="xs" c="dimmed">
+                              con agente propio
                             </Text>
                           )}
                         </Table.Td>

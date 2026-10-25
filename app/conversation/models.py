@@ -144,6 +144,29 @@ class LlmPlan(BaseModel):
         return next(st for st in reversed(self.stages) if st.from_turn <= max(turn, 1))
 
 
+class ExternalConfig(BaseModel):
+    """Motor external (docs/AGENTE_EXTERNO_PLAN.md): cada turno lo contesta el agente del cliente, un endpoint
+    compatible con OpenAI (chat completions en streaming) de una conexion suya (llm_connections). La plataforma
+    pone la voz, la telefonia y los minutos; el prompt y las herramientas son del cliente."""
+    connection: str = Field(min_length=1)
+    # Lo que va en `model` del pedido; vacio = el default_model de la conexion.
+    model: str | None = None
+    # Prompt de sistema que se antepone a la conversacion; sin el, solo los mensajes (el prompt es del cliente).
+    system: str | None = Field(default=None, max_length=20_000)
+    # Cuanto se espera el primer texto (o la primera herramienta) antes de dar el turno por fallido.
+    first_token_timeout_ms: int = Field(default=4000, ge=500, le=20_000)
+    # Lo que dice el agente si el endpoint falla o no contesta a tiempo.
+    error_message: str = Field(default="Disculpá, se me cortó. ¿Me lo repetís?", min_length=1, max_length=300)
+    # Errores seguidos hasta aplicar on_errors: hang_up (cortar) o transfer:<area_id> (derivar a esa area).
+    max_errors: int = Field(default=2, ge=1, le=10)
+    on_errors: str = Field(default="hang_up", pattern=r"^(hang_up|transfer:\S+)$")
+
+    @field_validator("model", "system")
+    @classmethod
+    def _blank(cls, v: str | None) -> str | None:
+        return v.strip() or None if v is not None else None
+
+
 class HandoffTarget(BaseModel):
     """Un area del equipo del cliente (handoff_areas) a la que el agente puede pasar la llamada."""
     area_id: str
@@ -174,8 +197,9 @@ class Workflow(BaseModel):
     # structured: por turno el LLM responde en JSON y otra llamada extrae los
     # datos, con estado. classic: prompt armado del YAML, conversacion
     # multiturno en texto y una sola extraccion al final. assistant: asistente
-    # con herramientas de las apps del cliente (sin datos a extraer).
-    engine: Literal["structured", "classic", "assistant"] = "structured"
+    # con herramientas de las apps del cliente (sin datos a extraer). external: el
+    # agente del cliente detras de un endpoint (ExternalConfig), sin datos a extraer.
+    engine: Literal["structured", "classic", "assistant", "external"] = "structured"
     # Graba un WAV por mensaje/audio, localmente, con su numero en Message.recording:
     # llamadas y audios de WhatsApp (app/conversation/recordings.py).
     record_audio: bool = False
@@ -201,11 +225,17 @@ class Workflow(BaseModel):
     tools: list[ToolGrant] = Field(default_factory=list)
     # Llamadas: areas del equipo a las que puede derivar (motor classic, marca [DERIVAR:<area>]).
     handoff: HandoffConfig | None = None
+    # Motor external: el endpoint del cliente que contesta cada turno.
+    external: ExternalConfig | None = None
 
     @model_validator(mode="after")
     def _consistent(self) -> "Workflow":
         """Lo que el motor da por sentado: las definiciones ahora se editan desde la UI."""
-        if not self.fields and self.engine != "assistant":
+        if self.engine == "external" and self.external is None:
+            raise ValueError("external: el motor external necesita la conexion del agente del cliente")
+        if self.external is not None and self.engine != "external":
+            raise ValueError("external: solo vale con el motor external")
+        if not self.fields and self.engine not in ("assistant", "external"):
             raise ValueError("fields: el agente necesita al menos un dato a obtener")
         if self.tools and self.engine != "assistant":
             raise ValueError("tools: solo el motor assistant usa herramientas")
@@ -233,11 +263,15 @@ class Workflow(BaseModel):
         if self.generation is not None and not self.generation.params:
             self.generation = None
         if self.handoff is not None and self.handoff.areas:
-            if self.engine != "classic":
-                raise ValueError("handoff: por ahora solo el motor classic deriva llamadas")
+            if self.engine not in ("classic", "external"):
+                raise ValueError("handoff: por ahora solo los motores classic y external derivan llamadas")
             ids = [a.area_id for a in self.handoff.areas]
             if len(set(ids)) != len(ids):
                 raise ValueError("handoff.areas: un area repetida")
+        if self.external and self.external.on_errors.startswith("transfer:"):
+            area = self.external.on_errors.split(":", 1)[1]
+            if area not in [a.area_id for a in (self.handoff.areas if self.handoff else [])]:
+                raise ValueError("external.on_errors: el area no esta entre las de handoff del agente")
         return self
 
 
@@ -292,6 +326,8 @@ class Progress(BaseModel):
     # Llamada con derivacion: las areas que puede usar el agente, como las ve el LLM ({id, name, when, schedule}).
     # Las fija el worker al empezar (app/voice/handoff.py) y no cambian en la llamada.
     handoff_areas: list[dict[str, Any]] = Field(default_factory=list)
+    # Motor external: errores seguidos del endpoint del cliente (vuelve a 0 con un turno bueno).
+    external_errors: int = 0
 
 
 # Por donde se conversa: cambia las reglas del prompt (app/llm/prompt.py), no el agente.
@@ -323,7 +359,9 @@ class AgentTurn(BaseModel):
     status: Literal["active", "completed"] = "active"
     # Con status completed: "off_topic" si el agente corta porque la conversacion no tiene que ver
     # con su objetivo (motor clasico, OFF_TOPIC_MARKER); None, el cierre normal.
-    end_reason: Literal["off_topic"] | None = None
+    # Motor external: "external_error" si corto despues de max_errors errores del endpoint, o
+    # "external_agent_not_in_plan" si el plan del cliente ya no incluye la funcion.
+    end_reason: Literal["off_topic", "external_error", "external_agent_not_in_plan"] | None = None
     # El agente pasa la llamada a esa area (nombre como lo escribio el LLM en HANDOFF_MARKER); status sigue active.
     handoff: str | None = None
     # Salida cruda del LLM y su razonamiento; no son parte del contrato.

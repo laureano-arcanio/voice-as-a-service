@@ -24,6 +24,7 @@ const apiIds = api.sections.map((s) => s.id);
   <section id="formas" class="grid gap-4">
     <h2>MCP o API</h2>
     <YouTube id="CjHwklFYP0M" title="Atentina para desarrolladores: panel, MCP o API" />
+    <p>¿Ya tenés tu propio agente de IA y le querés dar voz y teléfono? Mirá <a href="/desarrolladores/docs/tu-propio-agente">Tu propio agente</a>: lo conectás con un endpoint compatible con OpenAI y atiende llamadas y WhatsApp.</p>
   </section>
 
   <section id="como-funciona" class="grid gap-4">
@@ -41,13 +42,13 @@ const apiIds = api.sections.map((s) => s.id);
     <h3>Una llamada, paso a paso</h3>
     <ol>
       <li>Entra una llamada a tu número, o la hace el agente desde la API o una campaña. La plataforma busca el agente de ese número y lo conecta.</li>
-      <li>Mientras la persona habla, el reconocimiento de voz la transcribe. Cuando termina, el modelo de lenguaje arma la respuesta siguiendo la definición del agente, y la síntesis la dice con una voz argentina, frase por frase, sin esperar la respuesta completa. Así en cada turno.</li>
+      <li>Mientras la persona habla, el reconocimiento de voz la transcribe. Cuando termina, el modelo de lenguaje arma la respuesta siguiendo la definición del agente (o la arma <a href="/desarrolladores/docs/tu-propio-agente">tu propio agente</a>), y la síntesis la dice con una voz argentina, frase por frase, sin esperar la respuesta completa. Así en cada turno.</li>
       <li>Si la persona pide hablar con alguien, el agente transfiere la llamada a tu equipo.</li>
       <li>Al cortar, la conversación queda en el panel. Los <a href="/desarrolladores/docs/api#eventos">eventos</a> y el <a href="/desarrolladores/docs/api#webhook">webhook</a> le avisan a tu sistema.</li>
     </ol>
     <p>Por WhatsApp atiende el mismo agente, por texto o por audio.</p>
     <h3>Los motores</h3>
-    <p>El reconocimiento de voz, el modelo de lenguaje y la síntesis corren en nuestros servidores, no en proveedores externos. Los usa el agente en cada conversación, y también podés usarlos sueltos en tu sistema. Si preferís otro modelo de lenguaje, el agente puede usar <a href="/desarrolladores/docs/api#byok">tu propio proveedor</a> con tu API key; la voz y la transcripción siguen siendo nuestras.</p>
+    <p>El reconocimiento de voz, el modelo de lenguaje y la síntesis corren en nuestros servidores, no en proveedores externos. Los usa el agente en cada conversación, y también podés usarlos sueltos en tu sistema. Si preferís otro modelo de lenguaje, el agente puede usar <a href="/desarrolladores/docs/api#byok">tu propio proveedor</a> con tu API key; la voz y la transcripción siguen siendo nuestras. Y si el agente entero es tuyo, conectalo como <a href="/desarrolladores/docs/tu-propio-agente">tu propio agente</a>.</p>
   </section>
 
   <Cta

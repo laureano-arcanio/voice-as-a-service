@@ -37,6 +37,7 @@ TIER_HAS: dict[str, Callable[[Tier], bool]] = {
     "contacts": lambda t: t.max_contacts != 0,
     "team": lambda t: t.max_team_members != 0,
     "call_links": lambda t: t.max_call_links != 0,
+    "external_agent": lambda t: bool(t.external_agent),
 }
 
 
@@ -72,6 +73,7 @@ def plan_features(s: Session, client: Client) -> PlanFeatures:
         "contacts": lim.max_contacts != 0,
         "team": lim.max_team_members != 0,
         "call_links": lim.max_call_links != 0,
+        "external_agent": lim.external_agent,
     }
     tiers = _upgrade_tiers(s, client) if not all(enabled.values()) else []
     features = {}

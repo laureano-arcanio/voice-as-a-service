@@ -47,6 +47,7 @@ import {
   withPhoneField,
 } from './draft';
 import { EngineCards, EngineLabel } from './EngineCards';
+import { ExternalSection } from './ExternalSection';
 import { HandoffEditor } from './HandoffSection';
 import { LlmSection } from './LlmSection';
 import { ToolsEditor } from './ToolsSection';
@@ -456,6 +457,8 @@ function OutcomeEditor({
 }) {
   const last = draft.outcomes.length - 1;
   const isDefault = index === last;
+  // Con el agente del cliente no hay datos: el resultado lo elige su agente (end_call), no las condiciones.
+  const external = draft.engine === 'external';
   const set = (patch: Partial<OutcomeDraft>) =>
     update((d) => ({ ...d, outcomes: d.outcomes.map((o, i) => (i === index ? { ...o, ...patch } : o)) }));
   // El ultimo (por defecto) queda fijo al final.
@@ -477,10 +480,14 @@ function OutcomeEditor({
           {outcome.goal && <Badge color="green">Cumple el objetivo</Badge>}
           <Badge color="gray">
             {isDefault
-              ? 'En cualquier otro caso'
-              : outcome.conditions.length
-                ? `Si ${conditionsText(outcome.conditions, draft.fields)}`
-                : 'Sin condiciones'}
+              ? external
+                ? 'Si tu agente no elige otro'
+                : 'En cualquier otro caso'
+              : external
+                ? 'Lo elige tu agente'
+                : outcome.conditions.length
+                  ? `Si ${conditionsText(outcome.conditions, draft.fields)}`
+                  : 'Sin condiciones'}
           </Badge>
         </Group>
       }
@@ -542,7 +549,7 @@ function OutcomeEditor({
         value={outcome.message}
         onChange={(e) => set({ message: e.currentTarget.value })}
       />
-      {isDefault ? (
+      {external ? null : isDefault ? (
         <Text size="xs" c="dimmed">
           Es el resultado por defecto: aplica cuando no se cumple ningún otro. Va siempre último y sin
           condiciones.
@@ -587,13 +594,19 @@ export function DefinitionForm({
 }) {
   const set = (patch: Partial<Draft>) => update((d) => ({ ...d, ...patch }));
   const assistant = draft.engine === 'assistant';
+  // Con el agente del cliente, el prompt, el modelo y los datos son suyos: esas secciones no aplican.
+  const external = draft.engine === 'external';
 
   return (
     <Stack gap="md">
       <Section
         name="agente"
         title="Agente"
-        description="Quién es y cómo responde. El prompt se arma de estos campos."
+        description={
+          external
+            ? 'Quién es. Con tu propio agente, cómo responde lo decide tu agente.'
+            : 'Quién es y cómo responde. El prompt se arma de estos campos.'
+        }
       >
         <Stack gap="sm">
           <SimpleGrid cols={{ base: 1, sm: 3 }}>
@@ -619,7 +632,7 @@ export function DefinitionForm({
               onChange={(language) => set({ language })}
             />
           </SimpleGrid>
-          {showEngine && (
+          {showEngine && !external && (
             <Radio.Group
               label={<EngineLabel />}
               description="Clásico y estructurado usan la misma definición. El asistente usa herramientas de las apps del cliente en lugar de datos y resultados (los que haya quedan guardados)."
@@ -630,6 +643,14 @@ export function DefinitionForm({
             </Radio.Group>
           )}
         </Stack>
+      </Section>
+
+      <Section
+        name="externo"
+        title="Tu propio agente"
+        description="Si ya tenés tu agente armado, Atentina le pone la voz y el teléfono."
+      >
+        <ExternalSection draft={draft} update={update} clientId={clientId} errors={errors} />
       </Section>
 
       {assistant && (
@@ -680,10 +701,10 @@ export function DefinitionForm({
                   display="block"
                   size="xs"
                   mt={4}
-                  c={assistant || hasPhoneField(draft) ? 'dimmed' : 'orange.8'}
+                  c={assistant || external || hasPhoneField(draft) ? 'dimmed' : 'orange.8'}
                 >
-                  {assistant
-                    ? 'Con el motor Asistente no se piden datos: en las llamadas por el link el email va sin teléfono.'
+                  {assistant || external
+                    ? `${assistant ? 'Con el motor Asistente' : 'Con tu propio agente'} no se piden datos: en las llamadas por el link el email va sin teléfono.`
                     : hasPhoneField(draft)
                       ? 'El email lleva el teléfono: en las llamadas por teléfono es el número de quien llama (el agente no lo pregunta); por el link para llamar, lo pide (dato de tipo Teléfono).'
                       : 'Falta un dato de tipo Teléfono: en las llamadas por el link el email va a ir sin teléfono.'}
@@ -719,13 +740,15 @@ export function DefinitionForm({
         <HandoffEditor draft={draft} update={update} clientId={clientId} errors={errors} />
       </Section>
 
-      <Section
-        name="modelo"
-        title="Modelo de lenguaje"
-        description="Qué modelo contesta y con qué parámetros."
-      >
-        <LlmSection draft={draft} update={update} clientId={clientId} />
-      </Section>
+      {!external && (
+        <Section
+          name="modelo"
+          title="Modelo de lenguaje"
+          description="Qué modelo contesta y con qué parámetros."
+        >
+          <LlmSection draft={draft} update={update} clientId={clientId} />
+        </Section>
+      )}
 
       <Section name="objetivo" title="Objetivo y apertura">
         <Stack gap="sm">
@@ -766,67 +789,71 @@ export function DefinitionForm({
         </Stack>
       </Section>
 
-      <Section
-        name="reglas"
-        title="Reglas"
-        description="Tono, límites y formato de las respuestas, una por regla. Las de cada canal (voz o WhatsApp) se suman solas."
-      >
-        <Stack gap="xs">
-          {draft.rules.map((r, i) => (
-            <Group key={r.key} gap="xs" align="flex-start" wrap="nowrap">
-              <Text className="mono" c="dimmed" pt={8} w={20} ta="right">
-                {i + 1}
-              </Text>
-              <Textarea
-                aria-label={`Regla ${i + 1}`}
-                autosize
-                minRows={1}
-                maxRows={6}
-                style={{ flex: 1 }}
-                value={r.text}
-                onChange={(e) => {
-                  const text = e.currentTarget.value;
-                  update((d) => ({ ...d, rules: d.rules.map((x, j) => (j === i ? { ...x, text } : x)) }));
-                }}
-              />
-              <IconAction
-                label="Quitar regla"
-                color="red"
-                onClick={() => update((d) => ({ ...d, rules: d.rules.filter((_, j) => j !== i) }))}
-              >
-                <IconTrash size={18} />
-              </IconAction>
-            </Group>
-          ))}
-          <Button
-            variant="subtle"
-            size="compact-sm"
-            leftSection={<IconPlus size={16} />}
-            w="fit-content"
-            onClick={() => update((d) => ({ ...d, rules: [...d.rules, { key: newKey(), text: '' }] }))}
-          >
-            Agregar regla
-          </Button>
-        </Stack>
-      </Section>
+      {!external && (
+        <Section
+          name="reglas"
+          title="Reglas"
+          description="Tono, límites y formato de las respuestas, una por regla. Las de cada canal (voz o WhatsApp) se suman solas."
+        >
+          <Stack gap="xs">
+            {draft.rules.map((r, i) => (
+              <Group key={r.key} gap="xs" align="flex-start" wrap="nowrap">
+                <Text className="mono" c="dimmed" pt={8} w={20} ta="right">
+                  {i + 1}
+                </Text>
+                <Textarea
+                  aria-label={`Regla ${i + 1}`}
+                  autosize
+                  minRows={1}
+                  maxRows={6}
+                  style={{ flex: 1 }}
+                  value={r.text}
+                  onChange={(e) => {
+                    const text = e.currentTarget.value;
+                    update((d) => ({ ...d, rules: d.rules.map((x, j) => (j === i ? { ...x, text } : x)) }));
+                  }}
+                />
+                <IconAction
+                  label="Quitar regla"
+                  color="red"
+                  onClick={() => update((d) => ({ ...d, rules: d.rules.filter((_, j) => j !== i) }))}
+                >
+                  <IconTrash size={18} />
+                </IconAction>
+              </Group>
+            ))}
+            <Button
+              variant="subtle"
+              size="compact-sm"
+              leftSection={<IconPlus size={16} />}
+              w="fit-content"
+              onClick={() => update((d) => ({ ...d, rules: [...d.rules, { key: newKey(), text: '' }] }))}
+            >
+              Agregar regla
+            </Button>
+          </Stack>
+        </Section>
+      )}
 
-      <Section
-        name="conocimiento"
-        title="Base de conocimiento"
-        description="Lo único que el agente sabe del negocio: productos, precios, horarios, direcciones, preguntas frecuentes. Lo que no esté acá, no lo responde."
-      >
-        <Textarea
-          aria-label="Base de conocimiento"
-          autosize
-          minRows={6}
-          maxRows={24}
-          placeholder="- Horarios: de lunes a viernes de nueve a dieciocho."
-          value={draft.knowledge}
-          onChange={(e) => set({ knowledge: e.currentTarget.value })}
-        />
-      </Section>
+      {!external && (
+        <Section
+          name="conocimiento"
+          title="Base de conocimiento"
+          description="Lo único que el agente sabe del negocio: productos, precios, horarios, direcciones, preguntas frecuentes. Lo que no esté acá, no lo responde."
+        >
+          <Textarea
+            aria-label="Base de conocimiento"
+            autosize
+            minRows={6}
+            maxRows={24}
+            placeholder="- Horarios: de lunes a viernes de nueve a dieciocho."
+            value={draft.knowledge}
+            onChange={(e) => set({ knowledge: e.currentTarget.value })}
+          />
+        </Section>
+      )}
 
-      {!assistant && (
+      {!assistant && !external && (
         <Section
           name="datos"
           title="Datos a obtener"
@@ -866,7 +893,11 @@ export function DefinitionForm({
         <Section
           name="resultados"
           title="Resultados"
-          description="Clasifican la conversación al terminar: vale el primero cuyas condiciones se cumplen. El último es el de por defecto."
+          description={
+            external
+              ? 'Clasifican la conversación al terminar: tu agente elige uno al llamar a end_call (por su ID). Si no elige, vale el último.'
+              : 'Clasifican la conversación al terminar: vale el primero cuyas condiciones se cumplen. El último es el de por defecto.'
+          }
           actions={
             <Button
               variant="default"

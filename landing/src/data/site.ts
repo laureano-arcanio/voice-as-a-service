@@ -439,6 +439,13 @@ export const devCapabilities: Capability[] = [
       { href: "/plataforma/whatsapp", label: "WhatsApp con IA →" },
     ],
   },
+  {
+    title: "Tu agente, nuestra voz",
+    text: "¿Ya tenés tu agente de IA? Lo conectás con un endpoint compatible con OpenAI y atiende llamadas y WhatsApp con nuestra voz y nuestros números. Plan Red.",
+    status: "available",
+    href: "/desarrolladores/docs/tu-propio-agente",
+    link: "Conectar tu propio agente →",
+  },
 ];
 
 /** Home: lo que normalmente se contrata por separado, contra lo que incluye el plan. */

@@ -58,7 +58,7 @@ def _client(s: Session, slug: str) -> Client:
     tier = s.scalar(select(Tier).where(Tier.name == INTERNAL_TIER))
     if tier is None:
         tier = Tier(name=INTERNAL_TIER, description="Sin limites: Atentina (nosotros)",
-                    campaign_channels=["whatsapp", "voice"], campaign_followup=True)
+                    campaign_channels=["whatsapp", "voice"], campaign_followup=True, external_agent=True)
         s.add(tier)
         s.flush()
         _log(f"tier {INTERNAL_TIER} creado")

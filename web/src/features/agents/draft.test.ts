@@ -72,7 +72,10 @@ describe('toDraft / fromDraft', () => {
   });
 
   it('un tipo de dato que la UI no conoce se conserva (no pasa a string)', () => {
-    const d = { ...def, fields: { ...def.fields, x: { ...Object.values(def.fields)[0], type: 'tipo_nuevo' } } };
+    const d = {
+      ...def,
+      fields: { ...def.fields, x: { ...Object.values(def.fields)[0], type: 'tipo_nuevo' } },
+    };
     expect(fromDraft(toDraft(d)).fields).toMatchObject({ x: { type: 'tipo_nuevo' } });
   });
 
@@ -82,7 +85,9 @@ describe('toDraft / fromDraft', () => {
     expect(phone).toMatchObject({ name: 'telefono', type: 'phone', requirement: 'yes', label: 'Teléfono' });
     expect(withPhoneField(d).fields).toHaveLength(d.fields.length);
     expect(fromDraft(d).fields).toMatchObject({ telefono: { type: 'phone', required: true } });
-    expect(withPhoneField({ ...toDraft(def), engine: 'assistant' }).fields).toHaveLength(toDraft(def).fields.length);
+    expect(withPhoneField({ ...toDraft(def), engine: 'assistant' }).fields).toHaveLength(
+      toDraft(def).fields.length,
+    );
   });
 
   it('no_contact (baja por voz): sin marcar no va a la definicion; marcado, ida y vuelta', () => {
@@ -93,7 +98,14 @@ describe('toDraft / fromDraft', () => {
       completion: {
         ...def.completion,
         outcomes: [
-          { id: 'baja', label: 'Baja', when: { wants: false }, message: 'Listo', goal: false, no_contact: true },
+          {
+            id: 'baja',
+            label: 'Baja',
+            when: { wants: false },
+            message: 'Listo',
+            goal: false,
+            no_contact: true,
+          },
           ...def.completion.outcomes,
         ],
       },
@@ -115,14 +127,34 @@ describe('toDraft / fromDraft', () => {
     const llm = {
       stages: [
         { from_turn: 1 },
-        { from_turn: 4, connection: 'c1', model: 'vendor/model', generation: { params: { temperature: 0.3, top_p: 0.9 } } },
+        {
+          from_turn: 4,
+          connection: 'c1',
+          model: 'vendor/model',
+          generation: { params: { temperature: 0.3, top_p: 0.9 } },
+        },
       ],
       fallback_local: false,
     };
     const d = toDraft({ ...def, llm });
-    expect(d.llm?.stages.map((s) => [s.fromTurn, s.connection, s.model, s.generation.map((p) => [p.name, p.value])])).toEqual([
+    expect(
+      d.llm?.stages.map((s) => [
+        s.fromTurn,
+        s.connection,
+        s.model,
+        s.generation.map((p) => [p.name, p.value]),
+      ]),
+    ).toEqual([
       [1, null, '', []],
-      [4, 'c1', 'vendor/model', [['temperature', 0.3], ['top_p', 0.9]]],
+      [
+        4,
+        'c1',
+        'vendor/model',
+        [
+          ['temperature', 0.3],
+          ['top_p', 0.9],
+        ],
+      ],
     ]);
     expect(fromDraft(d)).toMatchObject({ llm });
     expect(fromDraft(toDraft(def))).not.toHaveProperty('llm');
@@ -141,7 +173,9 @@ describe('toDraft / fromDraft', () => {
       ['temperature', 0.4],
       ['enable_thinking', true],
     ]);
-    expect(fromDraft(d)).toMatchObject({ generation: { params: { temperature: 0.4, enable_thinking: true } } });
+    expect(fromDraft(d)).toMatchObject({
+      generation: { params: { temperature: 0.4, enable_thinking: true } },
+    });
     expect(fromDraft(toDraft(def))).not.toHaveProperty('generation');
   });
 
@@ -299,5 +333,57 @@ describe('setGrant', () => {
       { app: 'b', tools: ['x'] },
     ]);
     expect(setGrant(two, 'a', null)).toEqual([{ app: 'b', tools: ['x'] }]);
+  });
+});
+
+describe('motor external (agente propio)', () => {
+  const ext = {
+    ...def,
+    engine: 'external',
+    external: {
+      connection: 'c1',
+      model: 'ventas',
+      first_token_timeout_ms: 3000,
+      error_message: 'Perdón, ¿me repetís?',
+      max_errors: 3,
+      on_errors: 'transfer:a1',
+    },
+    handoff: {
+      areas: [{ area_id: 'a1', when: '' }],
+      hold_music: { enabled: true, track: 'default', volume: 0.3 },
+    },
+  };
+
+  it('ida y vuelta conserva el motor, la configuracion y la derivacion', () => {
+    expect(stableJson(fromDraft(toDraft(ext as never)))).toBe(stableJson(ext));
+  });
+
+  it('sin modelo ni prompt no los manda; los defaults si', () => {
+    const d = toDraft({ ...def, engine: 'external', external: { connection: 'c1' } } as never);
+    expect(fromDraft(d).external).toEqual({
+      connection: 'c1',
+      first_token_timeout_ms: 4000,
+      error_message: 'Disculpá, se me cortó. ¿Me lo repetís?',
+      max_errors: 2,
+      on_errors: 'hang_up',
+    });
+  });
+
+  it('apagado (otro motor) no manda external; con external no manda llm ni generation', () => {
+    const d = toDraft(ext as never);
+    expect(fromDraft({ ...d, engine: 'classic' }).external).toBeUndefined();
+    const withLlm = toDraft({ ...ext, generation: { params: { temperature: 0.2 } } } as never);
+    expect(fromDraft(withLlm).generation).toBeUndefined();
+  });
+
+  it('el resumen por email no agrega un dato de telefono', () => {
+    const d = toDraft({ ...ext, fields: {} } as never);
+    expect(withPhoneField(d).fields).toHaveLength(0);
+  });
+
+  it('los errores de external van a la seccion Tu propio agente', () => {
+    const d = toDraft(ext as never);
+    expect(errorTarget(d, 'external.connection')).toEqual({ section: 'externo' });
+    expect(pathLabel(d, 'external.on_errors')).toBe('Tu propio agente › después de los errores');
   });
 });

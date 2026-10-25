@@ -99,7 +99,7 @@ export function HandoffEditor({
   errors?: FieldError[];
 }) {
   const isAdmin = useIsAdmin();
-  const classic = draft.engine === 'classic';
+  const classic = draft.engine === 'classic' || draft.engine === 'external';
   const areas = useAreas(clientId);
   const tracks = useHoldMusic();
   const h = draft.handoff;
@@ -110,7 +110,7 @@ export function HandoffEditor({
   if (!classic)
     return (
       <Text size="sm" c="dimmed">
-        Por ahora solo los agentes con el motor clásico pasan llamadas a personas.
+        Por ahora solo los agentes con el motor clásico o con tu propio agente pasan llamadas a personas.
       </Text>
     );
 

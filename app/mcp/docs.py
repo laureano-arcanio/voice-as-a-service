@@ -26,6 +26,7 @@ FEATURES: dict[str, tuple[str, dict[str, str]]] = {
     "call_links": ("Link para llamar", {"Free": "1", "Mostrador": "", "Sucursal": "", "Central": ""}),
     "campaigns_whatsapp": ("Campañas de WhatsApp", {"Sucursal": "", "Central": ""}),
     "campaigns_voice": ("Campañas de llamadas", {"Sucursal": "de a 1", "Central": "hasta 3"}),
+    "external_agent": ("Agente propio (tu endpoint, nuestra voz)", {"Central": ""}),
 }
 
 

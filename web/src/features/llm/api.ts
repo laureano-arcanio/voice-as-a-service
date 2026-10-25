@@ -5,7 +5,8 @@ import type { LlmConnectionIn, LlmConnectionPatch } from '@/api/types';
 
 export const llmKeys = {
   list: (clientId: string) => ['llm-connections', clientId] as const,
-  models: (clientId: string, connectionId: string) => ['llm-connections', clientId, connectionId, 'models'] as const,
+  models: (clientId: string, connectionId: string) =>
+    ['llm-connections', clientId, connectionId, 'models'] as const,
   params: ['llm-params'] as const,
 };
 
@@ -52,15 +53,16 @@ export function useUpdateLlmConnection(clientId: string) {
   });
 }
 
-/** Pedido real al proveedor: detecta el modo de JSON y guarda el resultado en la conexion. */
+/** Pedido real al proveedor: detecta el modo de JSON y guarda el resultado en la conexion. mode external:
+ * la prueba como endpoint de un agente propio (un turno en streaming; docs/AGENTE_EXTERNO_PLAN.md). */
 export function useTestLlmConnection(clientId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, model }: { id: string; model?: string }) =>
+    mutationFn: ({ id, model, mode = 'llm' }: { id: string; model?: string; mode?: 'llm' | 'external' }) =>
       unwrap(
         api.POST(`${BASE}/{connection_id}/test`, {
           params: { path: { client_id: clientId, connection_id: id } },
-          body: { model: model || null },
+          body: { model: model || null, mode },
         }),
       ),
     onSuccess: () => void qc.invalidateQueries({ queryKey: llmKeys.list(clientId) }),

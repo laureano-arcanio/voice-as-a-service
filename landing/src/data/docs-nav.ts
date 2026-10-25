@@ -1,4 +1,4 @@
-// Índice de la documentación (/desarrolladores/docs): la portada, MCP arriba y API abajo. Cada página toma de acá
+// Índice de la documentación (/desarrolladores/docs): la portada, MCP, API y Tu propio agente. Cada página toma de acá
 // su "En esta página" y DocsPage arma con esto la navegación del costado; los ids son los de cada <section>.
 
 export interface DocsSection {
@@ -7,7 +7,7 @@ export interface DocsSection {
 }
 
 export interface DocsGroup {
-  key: "intro" | "mcp" | "api";
+  key: "intro" | "mcp" | "api" | "propio";
   title: string;
   href: string;
   sections: DocsSection[];
@@ -58,6 +58,23 @@ export const docsNav: DocsGroup[] = [
       { id: "webhook", label: "Webhook" },
       { id: "derivaciones", label: "Equipo y derivaciones" },
       { id: "eventos", label: "Eventos" },
+    ],
+  },
+  {
+    key: "propio",
+    title: "Tu propio agente",
+    href: "/desarrolladores/docs/tu-propio-agente",
+    sections: [
+      { id: "que-es", label: "Qué es" },
+      { id: "como-funciona", label: "Cómo funciona" },
+      { id: "pedido", label: "El pedido" },
+      { id: "respuesta", label: "La respuesta" },
+      { id: "herramientas", label: "end_call y transfer_call" },
+      { id: "configurar", label: "Configurarlo" },
+      { id: "ejemplo", label: "Un endpoint de ejemplo" },
+      { id: "latencia", label: "Latencia y turnos" },
+      { id: "errores", label: "Errores" },
+      { id: "planes", label: "Planes, costos y datos" },
     ],
   },
 ];

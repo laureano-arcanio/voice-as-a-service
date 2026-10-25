@@ -69,6 +69,9 @@ def preview_prompt(body: PromptIn, _: AdminPrincipal):
     w = Workflow.model_validate(service.normalize_definition(body.definition, body.definition.get("id") or "borrador", 1))
     if w.engine == "classic":
         return PromptOut(engine=w.engine, system=build_classic_system(w, body.channel))
+    if w.engine == "external":
+        # El prompt es del cliente: solo el de sistema opcional que se antepone a la conversacion.
+        return PromptOut(engine=w.engine, system=w.external.system or "")
     if w.engine == "assistant":
         # Sin las herramientas: dependen de las apps del cliente (se agregan en cada turno).
         state = ConversationState(conversation_id="borrador", agent_id=w.id, channel=body.channel, fields={})

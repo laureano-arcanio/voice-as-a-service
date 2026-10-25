@@ -124,6 +124,8 @@ class TierIn(BaseModel):
     max_team_members: int | None = Field(default=None, ge=0, description="Personas del equipo para derivar llamadas y WhatsApp")
     campaign_followup: bool = Field(default=False, description="Puede activar el seguimiento por WhatsApp de las campañas de voz")
     whatsapp: bool = Field(default=True, description="Incluye WhatsApp: cuentas, mensajes y llamadas")
+    external_agent: bool = Field(default=False, description="Incluye el motor external: el agente del cliente "
+                                                            "detras de su endpoint, con la voz de la plataforma")
     # Autoservicio (docs/SUSCRIPCIONES_PLAN.md).
     price_ars: int | None = Field(default=None, ge=0,
                                   description="Precio mensual en pesos, lo que se cobra. null: no se vende por el dashboard; 0: gratis")
@@ -155,6 +157,7 @@ class TierUpdate(BaseModel):
     max_team_members: int | None = Field(default=None, ge=0)
     campaign_followup: bool | None = None
     whatsapp: bool | None = None
+    external_agent: bool | None = None
     price_ars: int | None = Field(default=None, ge=0)
     public: bool | None = None
     sort: int | None = None
@@ -185,6 +188,7 @@ class TierOut(ORM):
     max_team_members: int | None
     campaign_followup: bool
     whatsapp: bool
+    external_agent: bool
     price_ars: int | None
     public: bool
     sort: int
@@ -655,9 +659,10 @@ class AgentCreate(BaseModel):
     # La definicion (workflow JSON), la plantilla de partida (GET /agent-templates) o ninguna: en blanco.
     definition: dict[str, Any] | None = None
     template_id: str | None = None
-    engine: Literal["classic", "structured", "assistant"] | None = Field(
+    engine: Literal["classic", "structured", "assistant", "external"] | None = Field(
         default=None, description="Motor; pisa el de la definicion o la plantilla (la definicion es la misma). "
-                                  "assistant: herramientas de las apps del cliente (docs/APPS_PLAN.md)")
+                                  "assistant: herramientas de las apps del cliente (docs/APPS_PLAN.md); "
+                                  "external: el agente del cliente en su endpoint (definition.external)")
 
 
 class AgentUpdate(BaseModel):
@@ -786,6 +791,9 @@ class LlmConnectionPatch(BaseModel):
 
 class LlmConnectionTestIn(BaseModel):
     model: str | None = Field(default=None, max_length=128, description="Sin modelo, el de la conexion")
+    mode: Literal["llm", "external"] = Field(
+        default="llm", description="llm: salida JSON (BYOK). external: el endpoint de un agente propio "
+                                   "(un turno en streaming con end_call; docs/AGENTE_EXTERNO_PLAN.md)")
 
 
 class LlmConnectionOut(ORM):
@@ -959,6 +967,9 @@ class LlmCall(BaseModel):
     model: str | None = None
     fallback_from: str | None = None
     fallback_reason: str | None = None
+    # Tu propio agente (motor external, docs/AGENTE_EXTERNO_PLAN.md): ms hasta el primer texto y el error del endpoint.
+    first_token_ms: int | None = None
+    error: str | None = None
 
 
 class MessageOut(BaseModel):
@@ -1911,7 +1922,7 @@ class CampaignStatsOut(BaseModel):
 
 
 PlanFeatureKey = Literal["outbound_calls", "campaigns_voice", "campaigns_whatsapp", "whatsapp", "contacts",
-                         "team", "call_links"]
+                         "team", "call_links", "external_agent"]
 
 
 class PlanFeatureOut(BaseModel):

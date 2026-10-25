@@ -34,6 +34,7 @@ export const ENGINE: Record<string, string> = {
   classic: 'Clásico',
   structured: 'Estructurado',
   assistant: 'Asistente',
+  external: 'Agente propio',
 };
 
 /** Estado de una app de cliente (docs/APPS_PLAN.md). */

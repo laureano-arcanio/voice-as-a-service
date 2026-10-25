@@ -21,6 +21,11 @@ function LlmTraces({ calls, open, title }: { calls: LlmCall[]; open: boolean; ti
             <Text span size="xs" c="dimmed" className="mono">
               {c.ms ?? '–'} ms
             </Text>
+            {c.first_token_ms != null && (
+              <Text span size="xs" c="dimmed" className="mono">
+                {' · '}primer texto {c.first_token_ms} ms
+              </Text>
+            )}
             {c.provider && (
               <Text span size="xs" c="dimmed" className="mono">
                 {' · '}
@@ -28,6 +33,11 @@ function LlmTraces({ calls, open, title }: { calls: LlmCall[]; open: boolean; ti
               </Text>
             )}
           </div>
+          {c.error && (
+            <Text size="xs" c="red.7">
+              Error: {c.error}
+            </Text>
+          )}
           {c.fallback_from && (
             <Text size="xs" c="yellow.7">
               Respaldo: {c.fallback_from} falló{c.fallback_reason ? ` (${c.fallback_reason})` : ''} y contestó

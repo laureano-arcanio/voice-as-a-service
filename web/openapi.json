@@ -11087,7 +11087,8 @@
         "enum": [
          "classic",
          "structured",
-         "assistant"
+         "assistant",
+         "external"
         ]
        },
        {
@@ -11095,7 +11096,7 @@
        }
       ],
       "title": "Engine",
-      "description": "Motor; pisa el de la definicion o la plantilla (la definicion es la misma). assistant: herramientas de las apps del cliente (docs/APPS_PLAN.md)"
+      "description": "Motor; pisa el de la definicion o la plantilla (la definicion es la misma). assistant: herramientas de las apps del cliente (docs/APPS_PLAN.md); external: el agente del cliente en su endpoint (definition.external)"
      }
     },
     "type": "object",
@@ -18106,6 +18107,28 @@
        }
       ],
       "title": "Fallback Reason"
+     },
+     "first_token_ms": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "First Token Ms"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
      }
     },
     "type": "object",
@@ -18350,6 +18373,16 @@
       ],
       "title": "Model",
       "description": "Sin modelo, el de la conexion"
+     },
+     "mode": {
+      "type": "string",
+      "enum": [
+       "llm",
+       "external"
+      ],
+      "title": "Mode",
+      "description": "llm: salida JSON (BYOK). external: el endpoint de un agente propio (un turno en streaming con end_call; docs/AGENTE_EXTERNO_PLAN.md)",
+      "default": "llm"
      }
     },
     "type": "object",
@@ -19660,7 +19693,8 @@
         "whatsapp",
         "contacts",
         "team",
-        "call_links"
+        "call_links",
+        "external_agent"
        ]
       },
       "type": "object",
@@ -21064,6 +21098,12 @@
       "description": "Incluye WhatsApp: cuentas, mensajes y llamadas",
       "default": true
      },
+     "external_agent": {
+      "type": "boolean",
+      "title": "External Agent",
+      "description": "Incluye el motor external: el agente del cliente detras de su endpoint, con la voz de la plataforma",
+      "default": false
+     },
      "price_ars": {
       "anyOf": [
        {
@@ -21327,6 +21367,10 @@
       "type": "boolean",
       "title": "Whatsapp"
      },
+     "external_agent": {
+      "type": "boolean",
+      "title": "External Agent"
+     },
      "price_ars": {
       "anyOf": [
        {
@@ -21383,6 +21427,7 @@
      "max_team_members",
      "campaign_followup",
      "whatsapp",
+     "external_agent",
      "price_ars",
      "public",
      "sort",
@@ -21671,6 +21716,17 @@
        }
       ],
       "title": "Whatsapp"
+     },
+     "external_agent": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "External Agent"
      },
      "price_ars": {
       "anyOf": [

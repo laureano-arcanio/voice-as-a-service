@@ -3158,9 +3158,9 @@ export interface components {
             template_id?: string | null;
             /**
              * Engine
-             * @description Motor; pisa el de la definicion o la plantilla (la definicion es la misma). assistant: herramientas de las apps del cliente (docs/APPS_PLAN.md)
+             * @description Motor; pisa el de la definicion o la plantilla (la definicion es la misma). assistant: herramientas de las apps del cliente (docs/APPS_PLAN.md); external: el agente del cliente en su endpoint (definition.external)
              */
-            engine?: ("classic" | "structured" | "assistant") | null;
+            engine?: ("classic" | "structured" | "assistant" | "external") | null;
         };
         /** AgentDetail */
         AgentDetail: {
@@ -5756,6 +5756,10 @@ export interface components {
             fallback_from?: string | null;
             /** Fallback Reason */
             fallback_reason?: string | null;
+            /** First Token Ms */
+            first_token_ms?: number | null;
+            /** Error */
+            error?: string | null;
         };
         /**
          * LlmConnectionIn
@@ -5847,6 +5851,13 @@ export interface components {
              * @description Sin modelo, el de la conexion
              */
             model?: string | null;
+            /**
+             * Mode
+             * @description llm: salida JSON (BYOK). external: el endpoint de un agente propio (un turno en streaming con end_call; docs/AGENTE_EXTERNO_PLAN.md)
+             * @default llm
+             * @enum {string}
+             */
+            mode?: "llm" | "external";
         };
         /**
          * LlmParamSpec
@@ -6880,6 +6891,12 @@ export interface components {
              */
             whatsapp?: boolean;
             /**
+             * External Agent
+             * @description Incluye el motor external: el agente del cliente detras de su endpoint, con la voz de la plataforma
+             * @default false
+             */
+            external_agent?: boolean;
+            /**
              * Price Ars
              * @description Precio mensual en pesos, lo que se cobra. null: no se vende por el dashboard; 0: gratis
              */
@@ -6947,6 +6964,8 @@ export interface components {
             campaign_followup: boolean;
             /** Whatsapp */
             whatsapp: boolean;
+            /** External Agent */
+            external_agent: boolean;
             /** Price Ars */
             price_ars: number | null;
             /** Public */
@@ -7012,6 +7031,8 @@ export interface components {
             campaign_followup?: boolean | null;
             /** Whatsapp */
             whatsapp?: boolean | null;
+            /** External Agent */
+            external_agent?: boolean | null;
             /** Price Ars */
             price_ars?: number | null;
             /** Public */

@@ -123,6 +123,13 @@
     "Sucursal": "de a 1",
     "Red": "hasta 3"
    }
+  },
+  {
+   "id": "external_agent",
+   "name": "Agente propio (tu endpoint, nuestra voz)",
+   "plans": {
+    "Red": ""
+   }
   }
  ],
  "tools": [
@@ -379,11 +386,31 @@
   {
    "name": "list_llm_connections",
    "toolset": "agents",
-   "title": "Modelos propios (BYOK)",
-   "description": "Las conexiones del cliente a su proveedor de LLM (sin la clave), para `llm` en la definición.",
+   "title": "Conexiones de LLM y endpoints",
+   "description": "Las conexiones del cliente (sin la clave): su proveedor de LLM, para `llm` en la definición (BYOK), o el endpoint de su propio agente, para `external.connection` (motor `external`).",
    "kind": "lectura",
    "features": [],
-   "oauth": true,
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "create_llm_connection",
+   "toolset": "agents",
+   "title": "Cargar una conexión de LLM o un endpoint",
+   "description": "Guarda una conexión del cliente con su API key (cifrada; no se vuelve a mostrar): un proveedor de LLM (BYOK) o, con `kind` `openai_compatible` y `base_url` https pública, el endpoint de su propio agente (Tu propio agente). La API key pasa por esta conversación: confirmalo con la persona antes.",
+   "kind": "confirmar",
+   "features": [],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "test_llm_connection",
+   "toolset": "agents",
+   "title": "Probar una conexión o un endpoint",
+   "description": "Hace un pedido real a la conexión y guarda el resultado. `mode` `external`: como endpoint de Tu propio agente (un turno en streaming con `end_call`; mide el primer texto). `llm`: salida JSON (BYOK).",
+   "kind": "escritura",
+   "features": [],
+   "oauth": false,
    "api_key": false
   },
   {

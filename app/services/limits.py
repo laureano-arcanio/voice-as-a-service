@@ -85,6 +85,7 @@ class Limits:
     campaign_channels: tuple[str, ...] = ()
     campaign_followup: bool = False
     whatsapp: bool = True
+    external_agent: bool = False
     tier_name: str = ""
     # Campos cuyo valor difiere del tier por un ajuste vigente.
     adjusted: frozenset[str] = field(default_factory=frozenset)
@@ -129,7 +130,7 @@ def apply(tier: Tier, adjustments: Iterable[ClientLimitAdjustment], day: datetim
     adjusted = frozenset(f for f, v in values.items() if v != getattr(tier, f))
     return Limits(**values, campaign_channels=tuple(tier.campaign_channels or ()),
                   campaign_followup=bool(tier.campaign_followup), whatsapp=bool(tier.whatsapp),
-                  tier_name=tier.name, adjusted=adjusted)
+                  external_agent=bool(tier.external_agent), tier_name=tier.name, adjusted=adjusted)
 
 
 def effective_limits(s: Session, client: Client, now: datetime.datetime | None = None,
@@ -159,6 +160,13 @@ def check_whatsapp(s: Session, client_id: str) -> None:
     client = s.get(Client, client_id)
     if client is not None and not effective_limits(s, client).whatsapp:
         raise QuotaExceeded("Tu plan no incluye WhatsApp.", "whatsapp_not_in_plan")
+
+
+def check_external_agent(s: Session, client_id: str) -> None:
+    """Motor external (el agente del cliente en su endpoint) solo si el plan lo incluye."""
+    client = s.get(Client, client_id)
+    if client is not None and not effective_limits(s, client).external_agent:
+        raise QuotaExceeded("Tu plan no incluye usar tu propio agente.", "external_agent_not_in_plan")
 
 
 # ---------- campañas y agenda (docs/LLAMADAS_SALIENTES_PLAN.md, 3.5) ----------
