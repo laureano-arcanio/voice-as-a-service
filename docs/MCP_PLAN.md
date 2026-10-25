@@ -16,7 +16,7 @@ fase 4 (publicación) preparada: el registro oficial, publicado el 25-oct-2026; 
 | Dónde corre | Dentro de `app` (FastAPI), en `POST /mcp`, **sin el SDK** (JSON-RPC propio, sin estado, respuestas JSON), como el cliente de `app/apps/client.py` | Comparte base, servicios, límites y auth; no suma un contenedor ni una dependencia con su propia versión de Starlette. El protocolo sin estado y sin SSE son ~150 líneas. Si se suman SSE, `resources` o `prompts` con estado, reconsiderar el SDK |
 | Cómo ejecuta | Cada herramienta llama a la **misma API `/api/v1`** en proceso (cliente `httpx` con `ASGITransport`, sin red), con el token de quien pide | El corte de verdad (tier, quota, `limits.check_*`, permisos por cliente) queda en un solo lugar. Un MCP que llame a los servicios por su cuenta terminaría divergiendo de la API. Costo: ~1 ms por llamada interna, a medir |
 | Catálogo | **Herramientas curadas** (~75, por dominio), no generadas de las 180 rutas del OpenAPI | Las generadas salen con nombres y esquemas pensados para HTTP (paths, `client_id`), y con 180 los modelos eligen mal. Se reusan los esquemas Pydantic de `app/api/schemas.py` |
-| Grupos | `toolsets` por URL (`/mcp?toolsets=agents,calls`); por defecto `core` | Cursor y otros clientes rinden peor (o cortan) con muchas herramientas. Como el MCP de GitHub |
+| Grupos | `toolsets` por URL (`/mcp?toolsets=agents,calls`); por defecto todas desde el 25-oct-2026 (antes `core`) | El directorio de conectores publica una sola URL, sin `?toolsets=`: con `core` no tendría contactos, campañas ni equipo. Las 87 ocupan ~72k caracteres (~18k tokens) contra ~21k (~5k) de `core`; quien ande justo de contexto pide `?toolsets=core` u otros grupos |
 | Auth | **OAuth 2.1** (PKCE, Client ID Metadata Documents y registro dinámico) para conectores, y **API key** con scope nuevo `mcp` para Claude Code, Cursor y scripts | Claude.ai y ChatGPT solo conectan servidores remotos con OAuth (o sin auth). La API key es lo que ya tienen los clientes |
 | Plan | Las herramientas del plan **se listan igual**, con el plan que las incluye en la descripción; al usarlas sin el plan devuelven `feature_not_in_plan` con el motivo de `features.plan_features` | El agente puede explicar qué falta y ofrecer "Mejorar mi plan". Ocultarlas no deja descubrirlas, y la lista cambiaría al pagar |
 | Admin | Las de admin (tiers, clientes, inventario de números, cobros, apps) **no se listan** a un cliente; a un admin, solo con `toolsets=admin` | Un cliente no las puede usar nunca: no es una cuestión de plan |
@@ -270,7 +270,7 @@ Pasos de publicación:
 
 - **Versión del SDK** `mcp` y de la especificación (2025-06-18 o la siguiente): fijarlas en el spike;
   la autorización cambió entre versiones (Client ID Metadata Documents).
-- **Cuántas herramientas en `core`:** ~35 hoy. Medir con Claude y Cursor si eligen bien antes de sumar.
+- **Cuántas herramientas por defecto:** las 87 desde el 25-oct-2026 (`core`, 39, con `?toolsets=core`). Medir con Claude y Cursor si eligen bien.
 - **Escritura con API key:** ¿un scope `mcp:read` aparte, para conectar un agente que solo mire?
 - **Herramientas de cliente final** (que un agente de un tercero llame a "turnos de X" por MCP): es otro
   producto (un MCP por agente, público), no este.

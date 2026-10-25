@@ -49,7 +49,7 @@ def render() -> str:
         "- Auth: OAuth 2.1 (el cliente MCP descubre el login solo, por el 401 con `resource_metadata`) o",
         "  `Authorization: Bearer vaas_...`, una API key con el alcance `mcp` (panel → Desarrolladores). Las marcadas",
         "  \"solo OAuth\" necesitan un usuario: con API key responden `needs_oauth`.",
-        f"- Grupos: `/mcp?toolsets=a,b` (`all` = todos). Sin el parámetro: `core` = {', '.join(f'`{c}`' for c in CORE)}.",
+        f"- Grupos: sin el parámetro, todos; `/mcp?toolsets=a,b` elige (`core` = {', '.join(f'`{c}`' for c in CORE)}).",
         "  `get_plan_tools` va siempre.",
         "- Una herramienta que el plan no incluye responde `feature_not_in_plan` con el motivo y los planes que la",
         "  tienen; `get_plan_tools` da la lista completa para el plan del cliente.",

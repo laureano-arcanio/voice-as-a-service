@@ -145,7 +145,7 @@ const toolsets = mcp.toolsets.map((ts) => ({ ...ts, tools: mcp.tools.filter((t) 
   <section id="herramientas" class="grid gap-4">
     <h2>Herramientas</h2>
     <p>
-      Están en {toolsets.length} grupos. Sin indicar nada, el servidor ofrece los de cuenta, agentes y llamadas; para elegir otros, agregá <code>?toolsets=</code> a la URL, por ejemplo <code>{URL_MCP}?toolsets=all</code> o <code>?toolsets=agents,campaigns</code>. Tipo <strong>confirmar</strong>: llama, manda mensajes, corta o borra, y tu agente te pide confirmación antes.
+      Están en {toolsets.length} grupos y el servidor ofrece todas. Si tu agente anda justo de contexto, elegí solo los grupos que usás agregando <code>?toolsets=</code> a la URL: por ejemplo <code>{URL_MCP}?toolsets=core</code> (cuenta, agentes y llamadas) o <code>?toolsets=agents,campaigns</code>. Tipo <strong>confirmar</strong>: llama, manda mensajes, corta o borra, y tu agente te pide confirmación antes.
     </p>
     {
       toolsets.map((ts) => (
@@ -155,7 +155,7 @@ const toolsets = mcp.toolsets.map((ts) => ({ ...ts, tools: mcp.tools.filter((t) 
             {ts.title}
             <code class="font-normal text-muted">{ts.id}</code>
             <span class="font-mono text-[.8rem] font-normal text-muted tabular-nums">
-              {ts.tools.length} herramientas{ts.core && " · por defecto"}
+              {ts.tools.length} herramientas
             </span>
           </summary>
           <div class="table-wrap m-3 mt-0"><table>

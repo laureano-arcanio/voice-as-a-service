@@ -233,6 +233,20 @@ def test_token_is_bound_to_its_resource(api, setup):
     assert r.status_code == 401
 
 
+def test_resource_with_toolsets_is_the_same_server(api, setup):
+    """El cliente puede mandar como resource la URL que le cargaron, con ?toolsets=; otro path no vale."""
+    _, _, user, app_client = setup
+    verifier, challenge = pkce()
+    code = code_of(authorize(user, auth_params(app_client["client_id"], challenge, resource=RESOURCE + "?toolsets=all")))
+    r = token(api, grant_type="authorization_code", code=code, redirect_uri=REDIRECT, client_id=app_client["client_id"],
+              code_verifier=verifier, resource=RESOURCE + "?toolsets=all")
+    assert r.status_code == 200, r.text
+    assert mcp(api, r.json()["access_token"], "tools/list").status_code == 200
+    _, challenge = pkce()
+    bad = authorize(user, auth_params(app_client["client_id"], challenge, resource=RESOURCE + "/otro"))
+    assert "invalid_target" in bad
+
+
 def test_other_clients_user_cannot_pick_a_client(api, admin, setup):
     _, _, user, app_client = setup
     other = make_client(admin, slug="otra")

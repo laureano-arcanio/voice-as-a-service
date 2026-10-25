@@ -196,6 +196,11 @@ class AuthorizeRequest:
     resource: str
 
 
+def same_resource(given: str, expected: str) -> bool:
+    """El `resource` que manda el cliente es la URL del servidor MCP: con `?toolsets=...` sigue siendo el mismo."""
+    return given.split("#")[0].split("?")[0].rstrip("/") == expected
+
+
 async def parse_authorize(s: Session, params: dict, expected_resource: str) -> AuthorizeRequest:
     """Valida el pedido de /authorize. Un error de cliente o de redirect_uri no se redirige (OAuthError con
     status 400); el resto también es OAuthError, pero se puede devolver al redirect_uri (`redirect_error`)."""
@@ -217,7 +222,7 @@ async def parse_authorize(s: Session, params: dict, expected_resource: str) -> A
     if not scopes <= set(SCOPES):
         raise RedirectError(req, "invalid_scope", f"Alcances soportados: {' '.join(SCOPES)}")
     resource = params.get("resource")
-    if resource and resource.rstrip("/") != expected_resource:
+    if resource and not same_resource(resource, expected_resource):
         raise RedirectError(req, "invalid_target", f"resource tiene que ser {expected_resource}")
     return req
 
@@ -316,7 +321,7 @@ def exchange_code(s: Session, client: OAuthClient, form: dict, expected_resource
     if not _pkce_ok(form.get("code_verifier") or "", row.code_challenge):
         raise OAuthError("invalid_grant", "code_verifier inválido")
     resource = form.get("resource")
-    if resource and resource.rstrip("/") != expected_resource:
+    if resource and not same_resource(resource, expected_resource):
         raise OAuthError("invalid_target", f"resource tiene que ser {expected_resource}")
     row.used_at = utcnow()
     if _grant_alive(s, grant) is None:

@@ -23,6 +23,8 @@ TOOLSETS = {
     "campaigns": "Campañas de WhatsApp y de llamadas",
     "team": "Equipo, áreas de derivación y eventos",
 }
+# `core`: el grupo chico para quien quiera menos contexto (`?toolsets=core`). Sin parámetro van todas
+# (25-oct-2026): el directorio de conectores publica una sola URL, sin `?toolsets=` (~18k tokens contra ~5k).
 CORE = ("account", "agents", "calls")
 
 
@@ -507,9 +509,9 @@ BY_NAME = {t.name: t for t in TOOLS}
 
 
 def select(toolsets: str | None) -> list[Tool]:
-    """Las herramientas de los grupos pedidos (`a,b`; `all` = todos; vacío = `core`). Un grupo que no
+    """Las herramientas de los grupos pedidos (`a,b`; `all` o vacío = todos; `core` = CORE). Un grupo que no
     existe se ignora."""
-    wanted = {p.strip() for p in (toolsets or "").split(",") if p.strip()} or set(CORE)
+    wanted = {p.strip() for p in (toolsets or "").split(",") if p.strip()} or {"all"}
     if "all" in wanted:
         wanted = set(TOOLSETS)
     if "core" in wanted:

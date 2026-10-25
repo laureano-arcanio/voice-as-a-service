@@ -95,12 +95,13 @@ def test_unknown_method_and_tool(api, full):
 
 # ---------- tools/list ----------
 
-def test_list_is_core_by_default_and_toolsets_pick(api, admin, full):
+def test_list_is_all_by_default_and_toolsets_pick(api, admin, full):
     c, _, mcp = full
-    core = mcp.tools()
-    assert {catalog.BY_NAME[n].toolset for n in core} == set(catalog.CORE)
-    every = Mcp(api, mcp.key, "all").tools()
+    every = mcp.tools()
     assert set(every) == set(catalog.BY_NAME)
+    assert set(Mcp(api, mcp.key, "all").tools()) == set(every)
+    core = Mcp(api, mcp.key, "core").tools()
+    assert {catalog.BY_NAME[n].toolset for n in core} == set(catalog.CORE)
     only = Mcp(api, mcp.key, "contacts").tools()
     # get_plan_tools va siempre.
     assert set(only) == {"get_plan_tools"} | {t.name for t in catalog.TOOLS if t.toolset == "contacts"}
