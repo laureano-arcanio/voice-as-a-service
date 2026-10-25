@@ -233,7 +233,6 @@ const configs = [
     <h2>Errores</h2>
     <p>Si tu endpoint da error, no manda texto en <code>first_token_timeout_ms</code> o responde vacío, el agente dice <code>error_message</code>. Con <code>max_errors</code> seguidos, aplica <code>on_errors</code>: corta (la llamada termina con <code>ended_reason</code> <code>external_error</code>) o la pasa a tu equipo. Un turno bueno vuelve el contador a cero.</p>
     <ul>
-      <li><strong>No hay respaldo con nuestro modelo:</strong> no conoce tu prompt y respondería cualquier cosa.</li>
       <li>Si el stream se corta después de empezar a hablar, queda lo que se dijo y no cuenta como error.</li>
       <li>En el panel, en el detalle de cada conversación, el switch <strong>Detalle técnico</strong> muestra cada turno: el tiempo hasta el primer texto, lo que respondió tu endpoint y el error, si hubo.</li>
     </ul>
