@@ -7,10 +7,11 @@ se conectan con el login del panel en vez de una API key.
   todos sus tokens: es lo que se ve en "Agentes conectados".
 - OAuthCode: el código de autorización, de un solo uso, atado a PKCE, al redirect_uri y al recurso.
 - OAuthToken: access (1 h) y refresh (30 días, con rotación). Se guarda el SHA-256, como las API keys.
+- McpToolUsage: uso del MCP por herramienta, cliente y día (fase 5): llamadas, errores y tiempo.
 """
 import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import BigInteger, Date, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..db import Base, JSONDoc, utcnow
@@ -37,8 +38,10 @@ class OAuthGrant(IdMixin, Base):
     oauth_client_id: Mapped[str] = mapped_column(String(512), ForeignKey("oauth_clients.id", ondelete="CASCADE"),
                                                  index=True)
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    # El cliente (empresa) en el que actúa: el del usuario, o el que eligió un admin.
-    client_id: Mapped[str] = mapped_column(String(36), ForeignKey("clients.id", ondelete="CASCADE"), index=True)
+    # El cliente (empresa) en el que actúa: el del usuario, o el que eligió un admin. None: un admin que
+    # autorizó "Toda la plataforma" (actúa como admin, con el toolset `admin`).
+    client_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("clients.id", ondelete="CASCADE"),
+                                                  index=True, nullable=True)
     scope: Mapped[str] = mapped_column(String(64), default="mcp")
     resource: Mapped[str] = mapped_column(String(512))           # la URL del MCP para la que vale
     # User.session_version al dar el permiso: cambiar la clave o cerrar todas las sesiones lo corta.
@@ -66,3 +69,17 @@ class OAuthToken(IdMixin, Base):
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
     expires_at: Mapped[datetime.datetime] = mapped_column(DateTime)
     revoked_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class McpToolUsage(IdMixin, Base):
+    """Una fila por día (en BILLING_TIMEZONE), cliente y herramienta. client_id None: un admin que actúa en
+    toda la plataforma. Sin argumentos ni respuestas: solo cuántas, cuántas fallaron y cuánto tardaron."""
+    __tablename__ = "mcp_tool_usage"
+    __table_args__ = (Index("ix_mcp_tool_usage_day_client", "day", "client_id"),)
+    day: Mapped[datetime.date] = mapped_column(Date)
+    client_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("clients.id", ondelete="CASCADE"),
+                                                  nullable=True)
+    tool: Mapped[str] = mapped_column(String(64))
+    calls: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    errors: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    total_ms: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")

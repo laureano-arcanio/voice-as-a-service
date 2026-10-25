@@ -272,6 +272,32 @@ def test_admin_picks_the_client_and_acts_as_it(api, admin, setup):
     assert ADMIN[0] in [g["user_email"] for g in admin.get(f"{V1}/oauth/grants").json()]
 
 
+def test_admin_platform_grant_sees_only_admin_tools(api, admin, setup):
+    """Fase 5: un admin que autoriza "Toda la plataforma" actúa como admin, con el toolset admin y nada de
+    cliente; un usuario de cliente no puede pedirlo."""
+    c, _, user, app_client = setup
+    _, challenge = pkce()
+    denied = user.post(f"{V1}/oauth/authorize", json={"params": auth_params(app_client["client_id"], challenge),
+                                                      "approve": True, "platform": True})
+    assert denied.status_code == 403
+    verifier, challenge = pkce()
+    code = code_of(authorize(admin, auth_params(app_client["client_id"], challenge), platform=True))
+    access = token(api, grant_type="authorization_code", code=code, redirect_uri=REDIRECT,
+                   client_id=app_client["client_id"], code_verifier=verifier).json()["access_token"]
+    names = {t["name"] for t in mcp(api, access, "tools/list").json()["result"]["tools"]}
+    assert "admin_list_clients" in names and "whoami" in names
+    assert "list_agents" not in names and "get_plan_tools" not in names
+    slugs = [x["slug"] for x in call(api, access, "admin_list_clients")["structuredContent"]["items"]]
+    assert c["slug"] in slugs
+    limits = call(api, access, "admin_get_client_limits", client_id=c["id"])
+    assert not limits.get("isError"), limits
+    # El uso queda anotado sin cliente (toda la plataforma) y lo ve el admin.
+    usage = call(api, access, "admin_get_mcp_usage")["structuredContent"]
+    assert {"admin_list_clients", "admin_get_client_limits"} <= {t["tool"] for t in usage["tools"]}
+    # Se ve en "Agentes conectados" sin cliente.
+    assert None in [g["client_id"] for g in admin.get(f"{V1}/oauth/grants").json()]
+
+
 def test_confidential_client_needs_its_secret(api, setup):
     _, _, user, _ = setup
     app_client = register(api, token_endpoint_auth_method="client_secret_basic")

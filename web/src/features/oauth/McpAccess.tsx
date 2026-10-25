@@ -6,7 +6,7 @@ import { EmptyState, QueryState } from '@/components/QueryState';
 import { formatDateTime } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import type { OAuthGrant } from '@/api/types';
-import { useOAuthGrants, useRevokeGrant } from './api';
+import { useMcpUsage, useOAuthGrants, useRevokeGrant } from './api';
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -20,7 +20,49 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Cómo conectar un agente de IA (Claude, ChatGPT, Cursor) por MCP y los que ya están conectados. */
+/** Cuántas veces usaron los agentes cada herramienta en los últimos 30 días. */
+function McpUsage({ clientId }: { clientId: string }) {
+  const usage = useMcpUsage(clientId);
+  return (
+    <QueryState query={usage}>
+      {(u) =>
+        u.tools.length === 0 ? (
+          <EmptyState>Todavía ningún agente usó el MCP en los últimos {u.days} días.</EmptyState>
+        ) : (
+          <>
+            <Text size="sm" c="dimmed" mb="xs">
+              {u.calls} usos en los últimos {u.days} días{u.errors ? `, ${u.errors} con error` : ''}.
+            </Text>
+            <Table.ScrollContainer minWidth={480}>
+              <Table>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Herramienta</Table.Th>
+                    <Table.Th ta="right">Usos</Table.Th>
+                    <Table.Th ta="right">Con error</Table.Th>
+                    <Table.Th ta="right">Tiempo medio</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {u.tools.map((t) => (
+                    <Table.Tr key={t.tool}>
+                      <Table.Td className="mono">{t.tool}</Table.Td>
+                      <Table.Td ta="right">{t.calls}</Table.Td>
+                      <Table.Td ta="right">{t.errors}</Table.Td>
+                      <Table.Td ta="right">{t.avg_ms} ms</Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
+          </>
+        )
+      }
+    </QueryState>
+  );
+}
+
+/** Cómo conectar un agente de IA (Claude, ChatGPT, Cursor) por MCP, los que ya están conectados y su uso. */
 export function McpAccess({ clientId }: { clientId: string }) {
   // El servidor MCP en este host (app.atentina.com.ar/mcp o mcp.atentina.com.ar/mcp).
   const url = `${location.origin}/mcp`;
@@ -59,7 +101,7 @@ export function McpAccess({ clientId }: { clientId: string }) {
         <Row label="Claude Code" value={`claude mcp add --transport http atentina ${url}`} />
       </Stack>
       <Text size="xs" c="dimmed" mb="md">
-        También anda con una API key con el alcance &quot;Agentes de IA (MCP)&quot; en{' '}
+        También anda con una API key con el alcance &quot;Agentes de IA (MCP)&quot; (o &quot;solo lectura&quot;) en{' '}
         <Code>Authorization: Bearer &lt;key&gt;</Code>, para agentes que no inician sesión.
       </Text>
       <Title order={5} mb="xs">
@@ -108,6 +150,10 @@ export function McpAccess({ clientId }: { clientId: string }) {
           )
         }
       </QueryState>
+      <Title order={5} mt="lg" mb="xs">
+        Uso por herramienta
+      </Title>
+      <McpUsage clientId={clientId} />
     </Card>
   );
 }

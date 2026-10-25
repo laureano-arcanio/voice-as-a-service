@@ -6,6 +6,7 @@ import { unwrap } from '@/api/request';
 export const oauthKeys = {
   authorize: (params: Record<string, string>) => ['oauth', 'authorize', params] as const,
   grants: (clientId: string) => ['oauth', 'grants', clientId] as const,
+  usage: (clientId: string) => ['mcp', 'usage', clientId] as const,
 };
 
 /** El pedido de un agente de IA (la query de /oauth/authorize), validado por la API. */
@@ -20,7 +21,12 @@ export function useAuthorizeInfo(params: Record<string, string>) {
 
 export function useAuthorizeDecision() {
   return useMutation({
-    mutationFn: (body: { params: Record<string, string>; approve: boolean; client_id?: string | null }) =>
+    mutationFn: (body: {
+      params: Record<string, string>;
+      approve: boolean;
+      client_id?: string | null;
+      platform?: boolean;
+    }) =>
       unwrap(api.POST('/api/v1/oauth/authorize', { body })),
   });
 }
@@ -38,5 +44,13 @@ export function useRevokeGrant(clientId: string) {
     mutationFn: (grantId: string) =>
       unwrap(api.DELETE('/api/v1/oauth/grants/{grant_id}', { params: { path: { grant_id: grantId } } })),
     onSuccess: () => void qc.invalidateQueries({ queryKey: oauthKeys.grants(clientId) }),
+  });
+}
+
+/** Uso del MCP por herramienta en los últimos 30 días (fase 5). */
+export function useMcpUsage(clientId: string) {
+  return useQuery({
+    queryKey: oauthKeys.usage(clientId),
+    queryFn: () => unwrap(api.GET('/api/v1/mcp/usage', { params: { query: { client_id: clientId, days: 30 } } })),
   });
 }

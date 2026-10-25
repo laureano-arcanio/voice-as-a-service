@@ -22,15 +22,20 @@ TOOLSETS = {
     "contacts": "Agenda de contactos y bajas",
     "campaigns": "Campañas de WhatsApp y de llamadas",
     "team": "Equipo, áreas de derivación y eventos",
+    "inference": "Motores sueltos: transcribir y sintetizar voz (con API key)",
+    "admin": "Administración de la plataforma (solo un admin que autorizó Toda la plataforma)",
 }
-# `core`: el grupo chico para quien quiera menos contexto (`?toolsets=core`). Sin parámetro van todas
-# (25-oct-2026): el directorio de conectores publica una sola URL, sin `?toolsets=` (~18k tokens contra ~5k).
+# `core`: el grupo chico para quien quiera menos contexto (`?toolsets=core`). Sin parámetro van todas las de
+# cliente menos `inference` (25-oct-2026): el directorio de conectores publica una sola URL, sin `?toolsets=`
+# (~18k tokens contra ~5k de core). `inference` se pide aparte (o con `all`); `admin` solo lo ve un admin.
 CORE = ("account", "agents", "calls")
+CLIENT_SETS = tuple(k for k in TOOLSETS if k != "admin")
+DEFAULT = tuple(k for k in CLIENT_SETS if k != "inference")
 
 
 # Campos del cuerpo que el MCP no expone: el cliente lo pone el token, y ni secretos ni el modo loadtest
-# pasan por el LLM.
-OMIT = frozenset({"client_id", "loadtest", "access_token"})
+# pasan por el LLM. Las de `admin` sí reciben `client_id` (actúan en cualquier cliente).
+OMIT = frozenset({"client_id", "loadtest", "access_token", "password"})
 
 
 @dataclass(frozen=True)
@@ -52,6 +57,8 @@ class Tool:
     text: bool = False                    # la respuesta es texto (CSV): va como contenido `text`
     omit: tuple[str, ...] = ()            # campos del cuerpo que esta herramienta no expone
     session: bool = False                 # la ruta exige un usuario (OAuth): con API key, `needs_oauth`
+    api_key_only: bool = False            # la ruta solo acepta API keys (inferencia): con OAuth, `needs_api_key`
+    upload: str | None = None             # multipart: este argumento (base64) va como el archivo `file`
 
     @property
     def reads(self) -> bool:
@@ -69,7 +76,7 @@ class Tool:
         if self.body_arg:
             return {self.body_arg: {"type": "array", "items": {"$ref": f"#/components/schemas/{self.body}"},
                                     "description": schema.get("description", "")}}, [self.body_arg]
-        omit = OMIT | set(self.omit)
+        omit = (OMIT - {"client_id"} if self.toolset == "admin" else OMIT) | set(self.omit)
         props = {k: v for k, v in schema.get("properties", {}).items() if k not in omit}
         return props, [r for r in schema.get("required", []) if r not in omit]
 
@@ -140,7 +147,8 @@ _READ: tuple[Tool, ...] = (
          "planes están, y el consumo del mes contra los límites. Llamala al empezar y antes de proponer algo "
          "que el plan quizás no incluya."),
     Tool("whoami", "account", "Quién soy",
-         "El cliente (empresa) al que pertenece la API key, con su plan.", path="/auth/me"),
+         "El usuario y el cliente (empresa) de esta conexión. Para lo que incluye el plan y lo que queda del mes, "
+         "usá get_plan_tools.", path="/auth/me"),
     Tool("get_plan_features", "account", "Funciones del plan",
          "Cada función del plan (llamadas salientes, WhatsApp, contactos, campañas, equipo, link para "
          "llamar) con `enabled` y, si no está, `reason`: lo que hace falta.", path="/plan/features"),
@@ -502,18 +510,143 @@ _WRITE: tuple[Tool, ...] = (
          required=("area_id",), features=("team",), destructive=True),
 )
 
+# Fase 5: los motores sueltos (la API de inferencia solo acepta API keys) y la administración.
+_INFERENCE: tuple[Tool, ...] = (
+    Tool("transcribe_audio", "inference", "Transcribir un audio",
+         "Transcribe un audio (wav, mp3, ogg...; hasta 25 MB) con el STT propio. `audio_base64`: el archivo en "
+         "base64. Gasta minutos de transcripción de la API de inferencia del plan.", method="POST",
+         path="/inference/audio/transcriptions",
+         params={"audio_base64": _s("El archivo de audio en base64."),
+                 "filename": _s("Nombre del archivo, con su extensión (ej. nota.ogg)."),
+                 "language": _s("Idioma (ej. es). Sin él, lo detecta.")},
+         required=("audio_base64", "filename"), read_only=True, upload="audio_base64", api_key_only=True),
+    Tool("synthesize_speech", "inference", "Sintetizar voz",
+         "Convierte un texto (hasta 1.500 caracteres) en audio con una voz argentina del TTS (ver list_voices) y "
+         "devuelve el WAV. Gasta minutos de síntesis de la API de inferencia del plan.", method="POST",
+         path="/inference/audio/speech", body="SpeechIn", omit=("model", "response_format", "stream_format"),
+         read_only=True, audio=True, api_key_only=True),
+    Tool("get_inference_usage", "inference", "Consumo de la API de inferencia",
+         "Tokens, minutos de transcripción y de síntesis y pedidos del mes contra los límites del plan.",
+         path="/clients/{client_id}/inference-usage",
+         params={"month": _s("Mes YYYY-MM (default: el actual).", pattern=r"^\d{4}-\d{2}$")}),
+)
+
+_CLIENT = {"client_id": _s("ID del cliente (ver admin_list_clients).")}
+_ADMIN: tuple[Tool, ...] = (
+    Tool("admin_list_clients", "admin", "Clientes", "Todos los clientes, con su plan y si están activos.",
+         path="/clients"),
+    Tool("admin_get_client", "admin", "Cliente", "Un cliente con su plan.", path="/clients/{client_id}",
+         params=_CLIENT, required=("client_id",)),
+    Tool("admin_get_client_limits", "admin", "Límites de un cliente",
+         "Los límites efectivos de un cliente: los del plan más los ajustes vigentes.",
+         path="/clients/{client_id}/limits", params=_CLIENT, required=("client_id",)),
+    Tool("admin_get_client_usage", "admin", "Consumo de un cliente",
+         "Minutos, llamadas y demás consumo del mes de un cliente contra sus límites.",
+         path="/clients/{client_id}/usage",
+         params={**_CLIENT, "month": _s("Mes YYYY-MM (default: el actual).", pattern=r"^\d{4}-\d{2}$")},
+         required=("client_id",)),
+    Tool("admin_get_client_billing", "admin", "Facturación de un cliente",
+         "El plan, el vencimiento, el medio de pago y los pagos de un cliente.", path="/clients/{client_id}/billing",
+         params=_CLIENT, required=("client_id",)),
+    Tool("admin_list_tiers", "admin", "Planes", "Los planes (tiers) con sus límites y precios.", path="/tiers"),
+    Tool("admin_get_tier", "admin", "Plan", "Un plan con todos sus límites.", path="/tiers/{tier_id}",
+         params={"tier_id": _s("ID del plan.")}, required=("tier_id",)),
+    Tool("admin_list_users", "admin", "Usuarios", "Los usuarios del panel, de todos los clientes o de uno.",
+         path="/users", params={"client_id": _s("Solo los de este cliente.")}),
+    Tool("admin_list_phone_numbers", "admin", "Inventario de números",
+         "Todos los números: libres y asignados, con su cliente y su agente.", path="/phone-numbers",
+         params={"client_id": _s("Solo los de este cliente."),
+                 "status": _s("free o assigned.", enum=["free", "assigned"])}),
+    Tool("admin_list_payments", "admin", "Pagos", "Los pagos registrados (tarjeta y transferencia).",
+         path="/billing/payments",
+         params={"client_id": _s("Solo los de este cliente."),
+                 "invoiced": {"type": "boolean", "description": "Solo facturados (true) o sin facturar (false)."},
+                 "limit": _i("Cuántos devolver como máximo.", minimum=1, maximum=500)}),
+    Tool("admin_list_subscriptions", "admin", "Suscripciones",
+         "Las suscripciones de pago con tarjeta (Mercado Pago) y su estado.", path="/billing/subscriptions"),
+    Tool("admin_list_wa_operators", "admin", "Operadores de WhatsApp",
+         "Los operadores de WhatsApp (dueños que hablan con su app por WhatsApp).", path="/wa-operators",
+         params={"client_id": _s("Solo los de este cliente.")}),
+    Tool("admin_list_agents", "admin", "Agentes de un cliente", "Los agentes de un cliente.", path="/agents",
+         params={**_CLIENT, "include_archived": {"type": "boolean", "description": "Incluir los archivados."}},
+         required=("client_id",)),
+    Tool("admin_list_calls", "admin", "Llamadas de un cliente",
+         "Las conversaciones de un cliente, de la más nueva a la más vieja." + _UNTRUSTED, path="/calls",
+         params={**_CLIENT, **_DATE_RANGE, "mode": _s("Solo este canal o tipo."), **_PAGE},
+         required=("client_id",)),
+    Tool("admin_list_api_requests", "admin", "Pedidos a la API de inferencia",
+         "Los pedidos a la API de inferencia, con su consumo y su estado.", path="/api-requests",
+         params={"client_id": _s("Solo los de este cliente."), "kind": _s("llm, stt o tts.", enum=["llm", "stt", "tts"]),
+                 "status": _s("ok, cut, error o rejected."), "date_from": _DATE_RANGE["date_from"],
+                 "date_to": _DATE_RANGE["date_to"], **_PAGE}),
+    Tool("admin_get_mcp_usage", "admin", "Uso del MCP",
+         "Cuántas veces se usó cada herramienta del MCP en los últimos días, con errores y tiempo medio, de un "
+         "cliente o de toda la plataforma.", path="/mcp/usage",
+         params={"client_id": _s("Solo los de este cliente."), "days": _i("Días hacia atrás (default 30).",
+                                                                            minimum=1, maximum=365)}),
+    Tool("admin_preview_agent_prompt", "admin", "Prompt de un agente",
+         "El prompt de sistema que arma la plataforma para una definición de agente, sin guardarla.",
+         method="POST", path="/agents/prompt", body="PromptIn", read_only=True),
+    Tool("admin_create_client", "admin", "Crear un cliente",
+         "Crea un cliente con su plan; con `owner_email` le crea el usuario dueño y le manda la invitación.",
+         method="POST", path="/clients", body="ClientIn"),
+    Tool("admin_update_client", "admin", "Editar un cliente",
+         "Cambia el nombre o el plan de un cliente, o lo desactiva (`active: false` corta su acceso). "
+         "Confirmalo con el usuario antes.", method="PATCH", path="/clients/{client_id}", params=_CLIENT,
+         required=("client_id",), body="ClientUpdate", destructive=True),
+    Tool("admin_add_limit_adjustment", "admin", "Ajustar un límite",
+         "Suma o fija un límite de un cliente (minutos, llamadas a la vez...) por un período, por encima del plan.",
+         method="POST", path="/clients/{client_id}/limit-adjustments", params=_CLIENT, required=("client_id",),
+         body="LimitAdjustmentIn"),
+    Tool("admin_update_user", "admin", "Editar un usuario",
+         "Cambia el nombre de un usuario o lo desactiva. La clave no se cambia por acá: desde el panel.",
+         method="PATCH", path="/users/{user_id}", params={"user_id": _s("ID del usuario.")},
+         required=("user_id",), body="UserUpdate"),
+    Tool("admin_invite_user", "admin", "Invitar a un usuario",
+         "Manda (o vuelve a mandar) el mail de invitación a un usuario para que elija su clave.", method="POST",
+         path="/users/{user_id}/invite", params={"user_id": _s("ID del usuario.")}, required=("user_id",),
+         destructive=True),
+    Tool("admin_add_phone_number", "admin", "Cargar un número",
+         "Carga un número al inventario (E.164), libre o ya asignado a un cliente y un agente. Actualiza los "
+         "trunks SIP.", method="POST", path="/phone-numbers", body="PhoneNumberIn"),
+    Tool("admin_assign_phone_number", "admin", "Asignar un número",
+         "Asigna un número libre del inventario a un cliente (respeta el tope de números de su plan).",
+         method="POST", path="/phone-numbers/{number_id}/assign", params={"number_id": _s("ID del número.")},
+         required=("number_id",), body="AssignIn"),
+    Tool("admin_release_phone_number", "admin", "Liberar un número",
+         "Saca un número de su cliente y lo devuelve al inventario: deja de atender sus llamadas.",
+         method="POST", path="/phone-numbers/{number_id}/release", params={"number_id": _s("ID del número.")},
+         required=("number_id",), destructive=True),
+    Tool("admin_record_payment", "admin", "Registrar un pago",
+         "Registra un pago por transferencia de un cliente: extiende su plan. Confirmalo con el usuario antes.",
+         method="POST", path="/clients/{client_id}/billing/payments", params=_CLIENT, required=("client_id",),
+         body="PaymentIn", destructive=True),
+    Tool("admin_create_wa_operator", "admin", "Crear un operador de WhatsApp",
+         "Da de alta a un operador: un WhatsApp que habla con el agente (la app del cliente) como dueño.",
+         method="POST", path="/wa-operators", body="WaOperatorIn"),
+    Tool("admin_update_wa_operator", "admin", "Editar un operador de WhatsApp",
+         "Cambia el agente o el nombre de un operador, o lo desactiva.", method="PATCH", path="/wa-operators/{op_id}",
+         params={"op_id": _s("ID del operador.")}, required=("op_id",), body="WaOperatorUpdate"),
+    Tool("admin_delete_wa_operator", "admin", "Borrar un operador de WhatsApp", "Borra un operador.",
+         method="DELETE", path="/wa-operators/{op_id}", params={"op_id": _s("ID del operador.")},
+         required=("op_id",), destructive=True),
+)
+
 # Por grupo, en el orden de TOOLSETS (y dentro de cada uno, lectura primero).
-TOOLS = tuple(sorted(_READ + _WRITE, key=lambda t: list(TOOLSETS).index(t.toolset)))
+TOOLS = tuple(sorted(_READ + _WRITE + _INFERENCE + _ADMIN, key=lambda t: list(TOOLSETS).index(t.toolset)))
 
 BY_NAME = {t.name: t for t in TOOLS}
 
 
-def select(toolsets: str | None) -> list[Tool]:
-    """Las herramientas de los grupos pedidos (`a,b`; `all` o vacío = todos; `core` = CORE). Un grupo que no
-    existe se ignora."""
-    wanted = {p.strip() for p in (toolsets or "").split(",") if p.strip()} or {"all"}
+def select(toolsets: str | None, admin: bool = False) -> list[Tool]:
+    """Las herramientas de los grupos pedidos (`a,b`; vacío = DEFAULT; `all` = las de cliente; `core` = CORE).
+    Un grupo que no existe se ignora. Un admin de toda la plataforma ve `admin` (y whoami), nada de cliente:
+    las de cliente necesitan el cliente del token."""
+    if admin:
+        return [t for t in TOOLS if t.toolset == "admin" or t.name == "whoami"]
+    wanted = {p.strip() for p in (toolsets or "").split(",") if p.strip()} or set(DEFAULT)
     if "all" in wanted:
-        wanted = set(TOOLSETS)
+        wanted = set(CLIENT_SETS)
     if "core" in wanted:
         wanted |= set(CORE)
-    return [t for t in TOOLS if t.toolset in wanted]
+    return [t for t in TOOLS if t.toolset in wanted and t.toolset != "admin"]

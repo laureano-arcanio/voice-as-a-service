@@ -243,8 +243,14 @@ def redirect_url(req: AuthorizeRequest, issuer: str, **params) -> str:
     return req.redirect_uri + sep + urlencode(query)
 
 
-def tenant_for(s: Session, user: User, client_id: str | None) -> Client:
-    """El cliente en el que va a actuar el agente: el del usuario, o el que elige un admin."""
+def tenant_for(s: Session, user: User, client_id: str | None, platform: bool = False) -> Client | None:
+    """El cliente en el que va a actuar el agente: el del usuario, o el que elige un admin. None: un admin
+    que eligió toda la plataforma (el agente actúa como admin, con el toolset `admin`)."""
+    if platform:
+        if user.role != Role.admin:
+            raise OAuthError("access_denied", "Solo un admin puede conectar un agente a toda la plataforma",
+                             status=403)
+        return None
     if user.role == Role.client:
         if client_id and client_id != user.client_id:
             raise OAuthError("access_denied", "Tu usuario no tiene acceso a ese cliente", status=403)
@@ -257,9 +263,10 @@ def tenant_for(s: Session, user: User, client_id: str | None) -> Client:
     return client
 
 
-def approve(s: Session, req: AuthorizeRequest, user: User, tenant: Client, issuer: str) -> str:
+def approve(s: Session, req: AuthorizeRequest, user: User, tenant: Client | None, issuer: str) -> str:
     """Crea el permiso y el código; devuelve la URL a la que vuelve el navegador."""
-    grant = OAuthGrant(oauth_client_id=req.client.id, user_id=user.id, client_id=tenant.id, scope=req.scope,
+    grant = OAuthGrant(oauth_client_id=req.client.id, user_id=user.id, client_id=tenant.id if tenant else None,
+                       scope=req.scope,
                        resource=req.resource, session_version=user.session_version)
     s.add(grant)
     s.flush()
@@ -296,9 +303,11 @@ def _grant_alive(s: Session, grant: OAuthGrant | None) -> User | None:
     if grant is None or grant.revoked_at is not None:
         return None
     user = s.get(User, grant.user_id)
-    client = s.get(Client, grant.client_id)
     if user is None or not user.active or user.session_version != grant.session_version:
         return None
+    if grant.client_id is None:     # toda la plataforma: vale mientras siga siendo admin
+        return user if user.role == Role.admin else None
+    client = s.get(Client, grant.client_id)
     if client is None or not client.active:
         return None
     return user

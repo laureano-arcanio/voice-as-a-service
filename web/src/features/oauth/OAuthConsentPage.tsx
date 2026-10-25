@@ -24,6 +24,9 @@ import { useClients } from '@/features/clients/api';
 import { notifyError } from '@/lib/notify';
 import { useAuthorizeDecision, useAuthorizeInfo } from './api';
 
+/** Valor del selector para un admin que conecta el agente a toda la plataforma (sin cliente). */
+const PLATFORM = '__platform__';
+
 /** Lo que puede hacer un agente conectado: lo mismo que el usuario en el panel, dentro del plan. */
 const CAN_DO = [
   'Ver y editar tus agentes, y probarlos por texto.',
@@ -59,11 +62,17 @@ export function OAuthConsentPage() {
   const me = useCurrentUser();
   const clients = useClients(me.role === 'admin');
   const [clientId, setClientId] = useState<string | null>(null);
+  const platform = clientId === PLATFORM;
   const [leaving, setLeaving] = useState(false);
 
   const submit = (approve: boolean) =>
     decide.mutate(
-      { params, approve, client_id: me.role === 'admin' ? clientId : undefined },
+      {
+        params,
+        approve,
+        client_id: me.role === 'admin' && !platform ? clientId : undefined,
+        platform: me.role === 'admin' && platform ? true : undefined,
+      },
       {
         onSuccess: ({ redirect_to }) => {
           setLeaving(true);
@@ -125,13 +134,22 @@ export function OAuthConsentPage() {
                 <Select
                   mb="md"
                   label="Cliente"
-                  description="Con qué cliente va a trabajar el agente (interno)."
+                  description="Con qué cliente va a trabajar el agente. Toda la plataforma: actúa como admin, con las herramientas de administración."
                   placeholder="Elegí un cliente"
                   searchable
-                  data={(clients.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
+                  data={[
+                    { value: PLATFORM, label: 'Toda la plataforma (admin)' },
+                    ...(clients.data ?? []).map((c) => ({ value: c.id, label: c.name })),
+                  ]}
                   value={clientId}
                   onChange={setClientId}
                 />
+              )}
+              {platform && (
+                <Alert color="yellow" icon={<IconAlertCircle size={18} />} mb="md">
+                  El agente va a actuar como admin en toda la plataforma: ver y cambiar clientes, planes, números,
+                  usuarios y pagos. Solo para agentes de confianza.
+                </Alert>
               )}
               {decide.isError && (
                 <Text c="red" size="sm" mb="sm">

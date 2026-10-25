@@ -36,7 +36,7 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
         sh psql health gpu \
         pbx-cli pbx-status livekit-sip livekit-sip-si-local \
         wa-calling-status wa-calling-enable wa-calling-disable wa-sip-password sip-cert \
-        migrate migrate-test create-admin welcome-reset api-key dev-backend web-dev web-build web-check openapi mcp-docs mcp-registry-key mcp-registry-publish landing-dev \
+        migrate migrate-test create-admin welcome-reset api-key dev-backend web-dev web-build web-check openapi mcp-docs mcp-eval mcp-registry-key mcp-registry-publish landing-dev \
         test e2e-sip e2e-sip-down eval-motor eval-llamadas eval-llm eval-llm-juez eval-llm-report loadtest-audio loadtest loadtest-report capacity capacity-monitor capacity-monitor-stop capacity-analyze gpubench stt-eval stt-corpus \
         video-setup video-studio video-voces video-musica video video-revisar video-cerrar doc doc-cerrar \
         backup backup-key backup-s3-setup backup-fetch backup-list cron-install \
@@ -270,6 +270,9 @@ openapi: ## Regenera web/openapi.json y los tipos de la UI (web/src/api/schema.d
 
 mcp-docs: ## Regenera docs/MCP_HERRAMIENTAS.md y landing/src/data/mcp-tools.json (herramientas del MCP por grupo y plan) desde app/mcp/catalog.py
 	$(COMPOSE) run --rm --no-deps -T -e AUTH_SECRET=mcp-docs -v $(CURDIR)/app:/app/app -v $(CURDIR)/docs:/app/docs -v $(CURDIR)/landing/src/data:/app/landing/src/data app python -m app.mcp.docs
+
+mcp-eval: ## Mide si Claude elige bien entre las herramientas del MCP (OpenRouter, gasta tokens). Ej: make mcp-eval [MODELS=anthropic/claude-sonnet-5.5]
+	$(COMPOSE) run --rm --no-deps -T -e AUTH_SECRET=mcp-eval -v $(CURDIR)/app:/app/app -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/scratch:/app/scratch app python -m scripts.mcp.eval_tools $(if $(MODELS),--models $(MODELS))
 
 mcp-registry-key: ## Llave del registro oficial de MCP (secrets/, una vez) e imprime el TXT para el DNS de atentina.com.ar
 	scripts/ops/mcp-registry.sh key

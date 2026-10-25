@@ -87,9 +87,15 @@ def get_principal(request: Request, db: DB,
         key = _api_key(db, token)
         scopes = api_usage.parse_scopes(key.scopes)
         # Una key `mcp` usa esta API por dentro (las herramientas de app/mcp/ son pedidos a /api/v1).
-        if not scopes & {api_usage.SCOPE_CALLS, api_usage.SCOPE_MCP}:
+        if not scopes & {api_usage.SCOPE_CALLS, api_usage.SCOPE_MCP, api_usage.SCOPE_MCP_READ}:
             # Una key de inferencia (llm/stt/tts) no administra agentes, llamadas ni numeros.
             raise Forbidden("Esta API key es de la API de inferencia: no tiene acceso a esta API", "scope_missing")
+        # Solo `mcp_read`: por fuera del MCP, solo lectura. Por dentro, el MCP ya filtró las de escritura (las
+        # de lectura que van por POST, como validar o probar un agente, pasan con el secreto interno).
+        internal = secrets.compare_digest(request.headers.get(MCP_INTERNAL_HEADER, ""), MCP_INTERNAL_SECRET)
+        if (not scopes & {api_usage.SCOPE_CALLS, api_usage.SCOPE_MCP} and request.method not in ("GET", "HEAD")
+                and not internal):
+            raise Forbidden("Esta API key es de solo lectura (mcp_read)", "scope_missing")
         return Principal("api_key", key.id, Role.client, key.client_id, scopes)
     if token.startswith(oauth.ACCESS_PREFIX):
         # Un token OAuth vale para el MCP (su `resource`), no para la API: solo lo aceptan los pedidos que
@@ -99,6 +105,8 @@ def get_principal(request: Request, db: DB,
         access = oauth.authenticate(db, token)
         if access is None:
             raise _unauthorized("Token OAuth inválido, vencido o revocado")
+        if access.grant.client_id is None:     # un admin que autorizó toda la plataforma
+            return Principal("user", access.user.id, Role.admin, None, oauth=True)
         # Actúa como usuario del cliente del permiso, aunque sea un admin (que lo eligió al autorizar).
         return Principal("user", access.user.id, Role.client, access.grant.client_id, oauth=True)
     payload = decode_session_token(token)

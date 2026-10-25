@@ -97,9 +97,13 @@ def test_unknown_method_and_tool(api, full):
 
 def test_list_is_all_by_default_and_toolsets_pick(api, admin, full):
     c, _, mcp = full
-    every = mcp.tools()
-    assert set(every) == set(catalog.BY_NAME)
-    assert set(Mcp(api, mcp.key, "all").tools()) == set(every)
+    default = mcp.tools()
+    every = Mcp(api, mcp.key, "all").tools()
+    client_tools = {t.name for t in catalog.TOOLS if t.toolset != "admin"}
+    assert set(every) == client_tools
+    # Sin parámetro: todas las de cliente menos inference; admin nunca para un cliente.
+    assert set(default) == {t.name for t in catalog.TOOLS if t.toolset in catalog.DEFAULT}
+    assert not any(n.startswith("admin_") for n in every)
     core = Mcp(api, mcp.key, "core").tools()
     assert {catalog.BY_NAME[n].toolset for n in core} == set(catalog.CORE)
     only = Mcp(api, mcp.key, "contacts").tools()
@@ -212,7 +216,11 @@ def test_catalog_matches_the_api(api):
         op = paths.get(V1 + t.path, {}).get(t.method.lower())
         assert op is not None, f"{t.name}: {t.method} {t.path} no existe"
         assert t.body == _body_ref(op), (t.name, t.body, _body_ref(op))
-        assert set(t.params) <= {p["name"] for p in op.get("parameters", [])}, t.name
+        names = {p["name"] for p in op.get("parameters", [])}
+        if t.upload:   # multipart: los argumentos son campos del formulario (el archivo va en base64)
+            form = op["requestBody"]["content"]["multipart/form-data"]["schema"]["$ref"].rsplit("/", 1)[1]
+            names |= set(openapi["components"]["schemas"][form]["properties"]) | {t.upload, "filename"}
+        assert set(t.params) <= names, t.name
         if t.method == "GET":
             assert t.reads, t.name
     assert len(catalog.BY_NAME) == len(catalog.TOOLS)
@@ -356,3 +364,51 @@ def test_resources_and_prompts(api, full):
     named = set(re.findall(r"\b((?:get|list|create|update|delete|start|pause|resume|cancel|test|validate|preview|"
                            r"route|upsert|import)_[a-z_]+)\b", " ".join(texts)))
     assert named and named <= set(catalog.BY_NAME), named - set(catalog.BY_NAME)
+
+
+# ---------- fase 5: mcp_read, uso por herramienta e inferencia ----------
+
+def test_mcp_read_key_only_sees_and_runs_read_tools(api, admin, full):
+    c, agent, _ = full
+    key = new_key(admin, c, scopes=["mcp_read"])
+    ro = Mcp(api, key)
+    tools = ro.tools()
+    assert "list_agents" in tools and "validate_agent_definition" in tools
+    assert not any(not catalog.BY_NAME[n].reads for n in tools)
+    r = api.client.post("/mcp", headers={"Authorization": f"Bearer {key}"},
+                        json={"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                              "params": {"name": "delete_agent", "arguments": {"agent_id": agent["id"]}}})
+    assert "error" in r.json()
+    # Las de lectura por POST (validar) pasan por el MCP; por fuera, la API solo deja GET con esta key.
+    assert not ro.call("list_agents").get("isError")
+    auth = {"Authorization": f"Bearer {key}"}
+    assert api.client.get(f"{V1}/agents", headers=auth).status_code == 200
+    assert api.client.delete(f"{V1}/agents/{agent['id']}", headers=auth).status_code == 403
+
+
+def test_tool_usage_is_recorded_per_client(api, admin, full):
+    c, _, mcp = full
+    mcp.call("list_agents")
+    mcp.call("list_agents")
+    mcp.call("get_agent", agent_id="no-existe")
+    other = make_client(admin, slug="otro")
+    Mcp(api, new_key(admin, other)).call("whoami")
+    usage = admin.get(f"{V1}/mcp/usage", params={"client_id": c["id"]}).json()
+    by_tool = {t["tool"]: t for t in usage["tools"]}
+    assert by_tool["list_agents"]["calls"] == 2 and by_tool["get_agent"]["errors"] == 1
+    assert "whoami" not in by_tool
+    # El cliente ve solo el suyo, con su key también.
+    own = api.client.get(f"{V1}/mcp/usage", headers={"Authorization": f"Bearer {mcp.key}"}).json()
+    assert {t["tool"] for t in own["tools"]} == set(by_tool)
+
+
+def test_inference_tools_are_opt_in_and_need_their_scopes(api, admin, full):
+    c, _, mcp = full
+    assert "synthesize_speech" not in mcp.tools()
+    inf = Mcp(api, mcp.key, "inference")
+    assert {"transcribe_audio", "synthesize_speech", "get_inference_usage"} <= set(inf.tools())
+    # La key solo tiene `mcp`: la API de inferencia la rechaza con el motivo.
+    out = inf.call("synthesize_speech", input="Hola", voice="sofia")
+    assert out["isError"] and out["structuredContent"]["http_status"] in (401, 403), out
+    bad = inf.call("transcribe_audio", audio_base64="no es base64!", filename="a.wav")
+    assert bad["structuredContent"]["code"] == "invalid_arguments"

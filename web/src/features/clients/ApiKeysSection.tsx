@@ -38,6 +38,11 @@ const SCOPE_OPTIONS: { value: ApiScope; label: string; description: string }[] =
     label: 'Agentes de IA (MCP)',
     description: 'Conectar Claude, ChatGPT, Cursor u otro agente a tu cuenta.',
   },
+  {
+    value: 'mcp_read',
+    label: 'Agentes de IA, solo lectura',
+    description: 'El mismo MCP, solo para consultar: no crea, cambia ni borra nada.',
+  },
   { value: 'llm', label: 'LLM', description: 'Chat con nuestro modelo de lenguaje.' },
   { value: 'stt', label: 'Transcripción (STT)', description: 'Audio a texto.' },
   { value: 'tts', label: 'Síntesis (TTS)', description: 'Texto a voz.' },
@@ -48,7 +53,7 @@ function ScopeBadges({ scopes }: { scopes: ApiScope[] }) {
   return (
     <Group gap={4}>
       {scopes.map((s) => (
-        <Badge key={s} color={s === 'calls' || s === 'mcp' ? 'blue' : 'gray'}>
+        <Badge key={s} color={s === 'calls' || s.startsWith('mcp') ? 'blue' : 'gray'}>
           {s}
         </Badge>
       ))}
@@ -61,7 +66,7 @@ function KeyExamples({ created }: { created: ApiKeyCreated }) {
   const tabs = created.scopes.map((s) =>
     s === 'calls'
       ? { value: s, label: 'Lanzar una llamada', code: curlExample(location.origin, created.key) }
-      : s === 'mcp'
+      : s === 'mcp' || s === 'mcp_read'
         ? { value: s, label: 'Conectar un agente', code: mcpExample(location.origin, created.key) }
         : {
           value: s,

@@ -752,7 +752,7 @@ class UserOut(ORM):
     last_login_at: UTCDateTime | None
 
 
-ApiScope = Literal["calls", "mcp", "llm", "stt", "tts"]
+ApiScope = Literal["calls", "mcp", "mcp_read", "llm", "stt", "tts"]
 
 
 class ApiKeyIn(BaseModel):
@@ -760,6 +760,7 @@ class ApiKeyIn(BaseModel):
     scopes: list[ApiScope] = Field(
         default=["calls"], min_length=1,
         description="calls: API de llamadas, agentes y reportes. mcp: servidor MCP (/mcp) para agentes de IA. "
+                    "mcp_read: el mismo MCP, solo con las herramientas de lectura. "
                                   "llm, stt, tts: motores de la API de inferencia")
 
 
@@ -2133,6 +2134,8 @@ class OAuthApproveIn(BaseModel):
     params: dict[str, Any] = Field(description="La query de /oauth/authorize, tal cual")
     approve: bool
     client_id: str | None = Field(None, description="Admin: el cliente con el que va a actuar el agente")
+    platform: bool = Field(False, description="Admin: el agente actúa como admin en toda la plataforma "
+                                              "(toolset `admin`), sin cliente")
 
 
 class OAuthRedirectOut(BaseModel):
@@ -2141,10 +2144,26 @@ class OAuthRedirectOut(BaseModel):
 
 class OAuthGrantOut(BaseModel):
     id: str
-    client_id: str
+    client_id: str | None = Field(description="None: un admin que autorizó toda la plataforma")
     app_name: str
     app_uri: str | None
     verified: bool
     user_email: str
     created_at: UTCDateTime
     last_used_at: UTCDateTime | None
+
+
+class McpToolUsageOut(BaseModel):
+    tool: str
+    calls: int
+    errors: int
+    avg_ms: int
+    last_day: datetime.date
+
+
+class McpUsageOut(BaseModel):
+    since: datetime.date
+    days: int
+    calls: int
+    errors: int
+    tools: list[McpToolUsageOut]

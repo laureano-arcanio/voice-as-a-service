@@ -17,7 +17,9 @@ def test_0028_upgrade_downgrade_upgrade(tmp_path):
     assert TABLES <= set(sa.inspect(engine).get_table_names())
     with engine.connect() as conn:
         diff = compare_metadata(MigrationContext.configure(conn, opts={"compare_type": True}), Base.metadata)
-    assert [d for d in diff if any(t in repr(d) for t in TABLES)] == []
+    # oauth_grants.client_id nullable lo hace la 0029.
+    later = "modify_nullable', None, 'oauth_grants', 'client_id'"
+    assert [d for d in diff if any(t in repr(d) for t in TABLES) and later not in repr(d)] == []
     _run(engine, command.downgrade, "0027")
     assert not (TABLES & set(sa.inspect(engine).get_table_names()))
     _run(engine, command.upgrade, "0028")

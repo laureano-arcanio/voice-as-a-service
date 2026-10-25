@@ -110,7 +110,10 @@ const toolsets = mcp.toolsets.map((ts) => ({ ...ts, tools: mcp.tools.filter((t) 
     </p>
     <CodeBlock label="Claude Code" code={withKey} />
     <p>
-      Con API key andan todas las herramientas salvo las de facturación, API keys y modelos propios, que necesitan un usuario: esas responden <code>needs_oauth</code>.
+      Con API key andan todas las herramientas salvo las de facturación, API keys y modelos propios, que necesitan un usuario: esas responden <code>needs_oauth</code>. Las de <code>inference</code> son al revés: solo con API key, que además tenga los alcances <code>stt</code> o <code>tts</code>.
+    </p>
+    <p>
+      Para un agente que solo tiene que mirar (reportes, revisar llamadas), usá el alcance <strong>Agentes de IA, solo lectura</strong>: ve únicamente las herramientas de lectura y no puede crear, cambiar ni borrar nada.
     </p>
   </section>
 
@@ -145,7 +148,7 @@ const toolsets = mcp.toolsets.map((ts) => ({ ...ts, tools: mcp.tools.filter((t) 
   <section id="herramientas" class="grid gap-4">
     <h2>Herramientas</h2>
     <p>
-      Están en {toolsets.length} grupos y el servidor ofrece todas. Si tu agente anda justo de contexto, elegí solo los grupos que usás agregando <code>?toolsets=</code> a la URL: por ejemplo <code>{URL_MCP}?toolsets=core</code> (cuenta, agentes y llamadas) o <code>?toolsets=agents,campaigns</code>. Tipo <strong>confirmar</strong>: llama, manda mensajes, corta o borra, y tu agente te pide confirmación antes.
+      Están en {toolsets.length} grupos y el servidor ofrece todos menos <code>inference</code> (los motores sueltos, que se piden aparte). Si tu agente anda justo de contexto, elegí solo los grupos que usás agregando <code>?toolsets=</code> a la URL: por ejemplo <code>{URL_MCP}?toolsets=core</code> (cuenta, agentes y llamadas) o <code>?toolsets=agents,campaigns</code>; <code>?toolsets=all</code> suma <code>inference</code>. Tipo <strong>confirmar</strong>: llama, manda mensajes, corta o borra, y tu agente te pide confirmación antes.
     </p>
     {
       toolsets.map((ts) => (
@@ -155,7 +158,7 @@ const toolsets = mcp.toolsets.map((ts) => ({ ...ts, tools: mcp.tools.filter((t) 
             {ts.title}
             <code class="font-normal text-muted">{ts.id}</code>
             <span class="font-mono text-[.8rem] font-normal text-muted tabular-nums">
-              {ts.tools.length} herramientas
+              {ts.tools.length} herramientas{!ts.default && " · se pide aparte"}
             </span>
           </summary>
           <div class="table-wrap m-3 mt-0"><table>
@@ -169,6 +172,7 @@ const toolsets = mcp.toolsets.map((ts) => ({ ...ts, tools: mcp.tools.filter((t) 
                   <td>
                     {t.features.length ? t.features.map((f) => featureName[f]).join(" o ") : "Todos"}
                     {t.oauth && <span class="block text-[.8rem] text-muted">con usuario</span>}
+                    {t.api_key && <span class="block text-[.8rem] text-muted">con API key</span>}
                   </td>
                 </tr>
               ))}

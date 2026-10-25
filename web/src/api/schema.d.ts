@@ -3024,6 +3024,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/mcp/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mcp Usage
+         * @description Cuántas veces se usó cada herramienta del MCP en los últimos `days` días, con errores y tiempo medio.
+         */
+        get: operations["mcp_usage_api_v1_mcp_usage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/oauth/authorize": {
         parameters: {
             query?: never;
@@ -3260,7 +3280,7 @@ export interface components {
             /** Prefix */
             prefix: string;
             /** Scopes */
-            scopes: ("calls" | "mcp" | "llm" | "stt" | "tts")[];
+            scopes: ("calls" | "mcp" | "mcp_read" | "llm" | "stt" | "tts")[];
             /**
              * Created At
              * Format: date-time
@@ -3282,12 +3302,12 @@ export interface components {
             name: string;
             /**
              * Scopes
-             * @description calls: API de llamadas, agentes y reportes. mcp: servidor MCP (/mcp) para agentes de IA. llm, stt, tts: motores de la API de inferencia
+             * @description calls: API de llamadas, agentes y reportes. mcp: servidor MCP (/mcp) para agentes de IA. mcp_read: el mismo MCP, solo con las herramientas de lectura. llm, stt, tts: motores de la API de inferencia
              * @default [
              *       "calls"
              *     ]
              */
-            scopes?: ("calls" | "mcp" | "llm" | "stt" | "tts")[];
+            scopes?: ("calls" | "mcp" | "mcp_read" | "llm" | "stt" | "tts")[];
         };
         /** ApiKeyOut */
         ApiKeyOut: {
@@ -3300,7 +3320,7 @@ export interface components {
             /** Prefix */
             prefix: string;
             /** Scopes */
-            scopes: ("calls" | "mcp" | "llm" | "stt" | "tts")[];
+            scopes: ("calls" | "mcp" | "mcp_read" | "llm" | "stt" | "tts")[];
             /**
              * Created At
              * Format: date-time
@@ -5892,6 +5912,38 @@ export interface components {
             /** Password */
             password: string;
         };
+        /** McpToolUsageOut */
+        McpToolUsageOut: {
+            /** Tool */
+            tool: string;
+            /** Calls */
+            calls: number;
+            /** Errors */
+            errors: number;
+            /** Avg Ms */
+            avg_ms: number;
+            /**
+             * Last Day
+             * Format: date
+             */
+            last_day: string;
+        };
+        /** McpUsageOut */
+        McpUsageOut: {
+            /**
+             * Since
+             * Format: date
+             */
+            since: string;
+            /** Days */
+            days: number;
+            /** Calls */
+            calls: number;
+            /** Errors */
+            errors: number;
+            /** Tools */
+            tools: components["schemas"]["McpToolUsageOut"][];
+        };
         /** MeOut */
         MeOut: {
             /** Id */
@@ -5986,6 +6038,12 @@ export interface components {
              * @description Admin: el cliente con el que va a actuar el agente
              */
             client_id?: string | null;
+            /**
+             * Platform
+             * @description Admin: el agente actúa como admin en toda la plataforma (toolset `admin`), sin cliente
+             * @default false
+             */
+            platform?: boolean;
         };
         /**
          * OAuthAuthorizeOut
@@ -6030,8 +6088,11 @@ export interface components {
         OAuthGrantOut: {
             /** Id */
             id: string;
-            /** Client Id */
-            client_id: string;
+            /**
+             * Client Id
+             * @description None: un admin que autorizó toda la plataforma
+             */
+            client_id: string | null;
             /** App Name */
             app_name: string;
             /** App Uri */
@@ -14241,6 +14302,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlanFeaturesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mcp_usage_api_v1_mcp_usage_get: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpUsageOut"];
                 };
             };
             /** @description Validation Error */

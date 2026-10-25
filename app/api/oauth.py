@@ -120,7 +120,7 @@ async def authorize_decide(body: OAuthApproveIn, request: Request, p: SessionPri
                                                                error_description="El usuario no dio acceso"))
     user = db.get(User, p.id)
     try:
-        tenant = oauth.tenant_for(db, user, body.client_id)
+        tenant = oauth.tenant_for(db, user, body.client_id, body.platform)
     except oauth.OAuthError as e:
         raise Forbidden(e.description, e.error) from None
     return OAuthRedirectOut(redirect_to=oauth.approve(db, req, user, tenant, issuer(request)))

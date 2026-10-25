@@ -7,8 +7,10 @@ quota los aplica la API, no este módulo. Acá solo se adelanta el chequeo del p
 motivo claro (`feature_not_in_plan`) antes de pedir.
 """
 import base64
+import binascii
 import json
 import logging
+import time
 from dataclasses import dataclass
 from typing import Annotated, Any
 from urllib.parse import quote
@@ -21,7 +23,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from ..api import oauth as oauth_routes
 from ..api.deps import DB, MCP_INTERNAL_HEADER, MCP_INTERNAL_SECRET, _api_key, _bearer
 from ..config import settings
-from ..services import api_usage, oauth
+from ..services import api_usage, mcp_usage, oauth
 from ..services.security import API_KEY_PREFIX
 from . import catalog, guides
 from .catalog import Tool
@@ -42,11 +44,14 @@ UPGRADE_PATH = "/plan"
 
 @dataclass(frozen=True)
 class Identity:
-    """Quien usa el MCP: una API key `mcp` o un token OAuth (un usuario en un cliente)."""
+    """Quien usa el MCP: una API key `mcp` (o `mcp_read`) o un token OAuth (un usuario en un cliente, o un
+    admin en toda la plataforma: client_id None y `admin`)."""
     kind: str               # api_key | oauth
     id: str                 # la key o el permiso (OAuthGrant)
-    client_id: str
+    client_id: str | None
     token: str
+    admin: bool = False     # toolset `admin` y nada de cliente
+    read_only: bool = False  # key `mcp_read`: solo las herramientas de lectura
 
 
 def _unauthorized_mcp(request: Request, detail: str) -> HTTPException:
@@ -65,7 +70,8 @@ def mcp_identity(request: Request, db: DB,
             raise _unauthorized_mcp(request, "Token OAuth inválido, vencido o revocado")
         if access.grant.resource.rstrip("/") != oauth_routes.resource(request):
             raise _unauthorized_mcp(request, "Este token es para otro servidor MCP")
-        return Identity("oauth", access.grant.id, access.grant.client_id, token)
+        return Identity("oauth", access.grant.id, access.grant.client_id, token,
+                        admin=access.grant.client_id is None)
     if not token.startswith(API_KEY_PREFIX):
         raise _unauthorized_mcp(request, "Iniciá sesión (OAuth) o usá una API key con el alcance mcp "
                                          "(Authorization: Bearer vaas_...)")
@@ -73,9 +79,10 @@ def mcp_identity(request: Request, db: DB,
         key = _api_key(db, token)
     except HTTPException:
         raise _unauthorized_mcp(request, "API key inválida o revocada") from None
-    if api_usage.SCOPE_MCP not in api_usage.parse_scopes(key.scopes):
+    scopes = api_usage.parse_scopes(key.scopes)
+    if not scopes & {api_usage.SCOPE_MCP, api_usage.SCOPE_MCP_READ}:
         raise _unauthorized_mcp(request, "Esta API key no tiene el alcance mcp: creá una con ese alcance en el panel")
-    return Identity("api_key", key.id, key.client_id, token)
+    return Identity("api_key", key.id, key.client_id, token, read_only=api_usage.SCOPE_MCP not in scopes)
 
 
 class Ctx:
@@ -90,7 +97,8 @@ class Ctx:
                                                MCP_INTERNAL_HEADER: MCP_INTERNAL_SECRET}, timeout=60)
 
     async def api(self, method: str, path: str, **kwargs) -> httpx.Response:
-        return await self.http.request(method, API + path.replace("{client_id}", self.client_id), **kwargs)
+        # Las de admin traen client_id como argumento (ya reemplazado); acá queda solo el del token.
+        return await self.http.request(method, API + path.replace("{client_id}", self.client_id or ""), **kwargs)
 
 
 # ---------- JSON-RPC ----------
@@ -115,7 +123,7 @@ def _origin_ok(request: Request) -> bool:
 
 
 @router.post("/mcp", include_in_schema=False)
-async def mcp(request: Request, who: Annotated[Identity, Depends(mcp_identity)]):
+async def mcp(request: Request, db: DB, who: Annotated[Identity, Depends(mcp_identity)]):
     if not _origin_ok(request):
         return _error(None, -32600, "Origin no permitido", status=403)
     try:
@@ -139,21 +147,27 @@ async def mcp(request: Request, who: Annotated[Identity, Depends(mcp_identity)])
     toolsets = request.query_params.get("toolsets")
     if method == "tools/list":
         openapi = request.app.openapi()
-        return _result(msg_id, {"tools": [_describe(t, openapi) for t in _visible(toolsets)]})
+        return _result(msg_id, {"tools": [_describe(t, openapi) for t in _visible(toolsets, who)]})
     if method == "tools/call":
         tool = catalog.BY_NAME.get(params.get("name"))
-        if tool is None or tool not in _visible(toolsets):
+        if tool is None or tool not in _visible(toolsets, who):
             return _error(msg_id, -32602, f"Herramienta desconocida: {params.get('name')}")
         args = params.get("arguments") or {}
         if not isinstance(args, dict):
             return _error(msg_id, -32602, "`arguments` tiene que ser un objeto")
         ctx = Ctx(request, who)
+        started = time.monotonic()
         try:
             result = await _call(ctx, tool, args, request.app.openapi())
         finally:
             await ctx.http.aclose()
-        logger.info("mcp %s cliente=%s %s=%s error=%s", tool.name, ctx.client_id, who.kind, who.id,
-                    result.get("isError", False))
+        error = bool(result.get("isError", False))
+        logger.info("mcp %s cliente=%s %s=%s error=%s", tool.name, ctx.client_id, who.kind, who.id, error)
+        try:
+            mcp_usage.record(db, who.client_id, tool.name, error, round((time.monotonic() - started) * 1000))
+        except Exception:   # la métrica no corta la respuesta
+            db.rollback()
+            logger.exception("mcp: no se pudo anotar el uso de %s", tool.name)
         return _result(msg_id, result)
     if method == "resources/list":
         return _result(msg_id, {"resources": guides.list_resources()})
@@ -188,10 +202,13 @@ def mcp_get():
 
 # ---------- herramientas ----------
 
-def _visible(toolsets: str | None) -> list[Tool]:
-    tools = catalog.select(toolsets)
+def _visible(toolsets: str | None, who: Identity) -> list[Tool]:
+    tools = catalog.select(toolsets, admin=who.admin)
+    if who.admin:
+        return tools
     plan_tools = catalog.BY_NAME["get_plan_tools"]
-    return tools if plan_tools in tools else [plan_tools, *tools]
+    tools = tools if plan_tools in tools else [plan_tools, *tools]
+    return [t for t in tools if t.reads] if who.read_only else tools
 
 
 def _describe(t: Tool, openapi: dict) -> dict:
@@ -268,6 +285,9 @@ async def _call(ctx: Ctx, tool: Tool, args: dict, openapi: dict) -> dict:
     if tool.session and ctx.who.kind == "api_key":
         return _fail("needs_oauth", "Esta herramienta necesita conectar el agente iniciando sesión (OAuth), no con "
                                     "una API key.")
+    if tool.api_key_only and ctx.who.kind != "api_key":
+        return _fail("needs_api_key", "Esta herramienta usa la API de inferencia, que funciona con una API key: "
+                                      "conectá el agente con una key que tenga los alcances mcp y stt o tts.")
     if tool.features:
         plan = await _plan(ctx)
         reason = _blocked(tool, plan)
@@ -278,7 +298,14 @@ async def _call(ctx: Ctx, tool: Tool, args: dict, openapi: dict) -> dict:
     for name in list(rest):
         if "{" + name + "}" in path:
             path = path.replace("{" + name + "}", quote(str(rest.pop(name)), safe=""))
-    if tool.query_args:
+    if tool.upload:
+        try:
+            data = base64.b64decode(rest.pop(tool.upload), validate=True)
+        except (binascii.Error, ValueError):
+            return _fail("invalid_arguments", f"`{tool.upload}` no es base64 válido")
+        kwargs = {"files": {"file": (rest.pop("filename", "audio"), data)},
+                  "data": {k: v for k, v in rest.items() if v is not None}}
+    elif tool.query_args:
         kwargs = {"params": rest}
     elif tool.body_arg:
         kwargs = {"json": rest.get(tool.body_arg)}
@@ -300,17 +327,22 @@ async def _call(ctx: Ctx, tool: Tool, args: dict, openapi: dict) -> dict:
 async def _plan_tools(ctx: Ctx) -> dict:
     """Qué herramientas puede usar el agente con el plan del cliente (docs/MCP_PLAN.md, 6.1)."""
     plan = await _plan(ctx)
-    available, unavailable, needs_oauth = [], [], []
-    for t in catalog.TOOLS:
+    available, unavailable, needs_oauth, needs_api_key = [], [], [], []
+    for t in catalog.select("all"):
+        if ctx.who.read_only and not t.reads:
+            continue
         reason = _blocked(t, plan)
         if t.session and ctx.who.kind == "api_key":
             needs_oauth.append(t.name)
+        elif t.api_key_only and ctx.who.kind != "api_key":
+            needs_api_key.append(t.name)
         elif reason is None:
             available.append(t.name)
         else:
             unavailable.append({"name": t.name, "toolset": t.toolset, "feature": t.features[0], "reason": reason})
     r = await ctx.api("GET", "/clients/{client_id}/usage")
     return _ok({"plan": plan["tier_name"], "free": plan["free"],
-                "tools": {"available": available, "unavailable": unavailable, "needs_oauth": needs_oauth},
-                "toolsets": catalog.TOOLSETS, "usage": r.json() if r.status_code == 200 else None,
+                "tools": {"available": available, "unavailable": unavailable, "needs_oauth": needs_oauth,
+                          "needs_api_key": needs_api_key},
+                "toolsets": {k: v for k, v in catalog.TOOLSETS.items() if k != "admin"}, "usage": r.json() if r.status_code == 200 else None,
                 "upgrade_url": _upgrade_url()})

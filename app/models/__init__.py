@@ -16,7 +16,7 @@ from .contact import ContactRequest
 from .conversations import ConversationRow
 from .handoff import Event, HandoffArea, HandoffAreaMember, HandoffLeg, TeamMember
 from .llm import LlmConnection
-from .oauth import OAuthClient, OAuthCode, OAuthGrant, OAuthToken
+from .oauth import McpToolUsage, OAuthClient, OAuthCode, OAuthGrant, OAuthToken
 from .tenancy import (
     ApiKey,
     ApiRequest,
@@ -68,6 +68,7 @@ __all__ = [
     "LlmConnection",
     "OAuthClient",
     "OAuthCode",
+    "McpToolUsage",
     "OAuthGrant",
     "OAuthToken",
     "PhoneNumber",

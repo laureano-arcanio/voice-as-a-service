@@ -264,14 +264,14 @@ Pasos de publicación:
 | 2. Escritura | Agentes, prueba por texto, contactos, campañas, equipo, WhatsApp, links, bloqueados; anotaciones; `toolsets`; resources y prompts | Crear y probar un agente y armar (sin lanzar) una campaña solo por MCP. **Hecho el 24-oct-2026** |
 | 3. OAuth | Servidor de autorización, consentimiento en `web/`, migración `oauth_*`, "Agentes conectados", ruta `mcp.` del túnel | Conector en Claude.ai con login y revocación. **En producción desde el 24-oct-2026**; falta la primera conexión real |
 | 4. Publicación | Página `/desarrolladores/mcp`, botones de instalación, `server.json` en el registro, envío al directorio de Anthropic, privacidad actualizada | Instalación en un clic desde la landing. **Preparada el 24-oct-2026**: falta publicar (sección 12) |
-| 5. Extras | `inference` y `admin`; métricas de uso del MCP por herramienta | Según uso real |
+| 5. Extras | `inference` y `admin`; métricas de uso del MCP por herramienta | Según uso real. **Hecho el 25-oct-2026** (sección 13), con `mcp_read` y la medición de elección de herramientas |
 
 ## 11. Abierto
 
 - **Versión del SDK** `mcp` y de la especificación (2025-06-18 o la siguiente): fijarlas en el spike;
   la autorización cambió entre versiones (Client ID Metadata Documents).
 - **Cuántas herramientas por defecto:** las 87 desde el 25-oct-2026 (`core`, 39, con `?toolsets=core`). Medir con Claude y Cursor si eligen bien.
-- **Escritura con API key:** ¿un scope `mcp:read` aparte, para conectar un agente que solo mire?
+- **Escritura con API key:** resuelto con el alcance `mcp_read` (sección 13).
 - **Herramientas de cliente final** (que un agente de un tercero llame a "turnos de X" por MCP): es otro
   producto (un MCP por agente, público), no este.
 
@@ -414,5 +414,49 @@ Falta la primera conexión real desde Claude.ai o Claude Code (la hace el usuari
    la campaña "Recordatorio de turnos (demo)" en borrador y el área Ventas. No borrarlo hasta que termine la revisión.
 4. ChatGPT: por ahora como conector propio de cada usuario (modo desarrollador); su directorio, si hay demanda.
 
-**Pendiente:** la ruta `mcp.` del túnel (opcional), CORS para clientes de navegador, `mcp:read` y el toolset `admin`
-(fase 5).
+**Pendiente:** CORS para clientes de navegador (sin pedido real: el `OPTIONS` que se vio era un chequeo de métodos,
+no un preflight). El resto, en la fase 5 (sección 13).
+
+## 13. Fase 5 (25-oct-2026)
+
+**Qué hay:**
+
+- **Toolset `admin`** (29 herramientas, `admin_*`): clientes, planes, límites y ajustes, consumo, facturación y
+  pagos, usuarios (editar e invitar; crear y cambiar claves, en el panel), inventario de números, operadores de
+  WhatsApp, agentes y llamadas de un cliente, pedidos de inferencia, uso del MCP y vista previa del prompt.
+  - Solo por OAuth: un admin elige **"Toda la plataforma (admin)"** en el consentimiento (aviso amarillo) y el
+    permiso queda sin cliente (`oauth_grants.client_id` nullable, migración 0029). El token actúa como admin
+    (`deps.get_principal`) y ve solo `admin` y `whoami`: las de cliente necesitan el cliente del token.
+  - Vale mientras el usuario siga siendo admin. Un usuario de cliente que lo pida recibe 403.
+  - Fuera, a propósito: borrar clientes, planes, apps y llamadas en masa, y crear usuarios o cambiar claves (la
+    clave pasaría por el LLM). Un agente que lee texto de terceros no debería poder borrar la plataforma.
+- **Alcance `mcp_read`** ("Agentes de IA, solo lectura" en las API keys): el servidor lista y deja usar solo las
+  de lectura. Por fuera del MCP, esa key solo hace `GET`; por dentro pasan las de lectura que van por `POST`
+  (validar o probar un agente), con el secreto interno.
+- **Toolset `inference`** (`transcribe_audio` en multipart con el audio en base64, `synthesize_speech` y
+  `get_inference_usage`): no va por defecto (`?toolsets=inference` o `all`). La API de inferencia solo acepta
+  API keys, así que con OAuth responden `needs_api_key`; la key necesita además `stt` o `tts`.
+- **Uso por herramienta:** tabla `mcp_tool_usage` (día, cliente, herramienta, llamadas, errores, ms), anotada
+  después de cada `tools/call` (si falla, no corta la respuesta). `GET /api/v1/mcp/usage` (el cliente, el suyo;
+  el admin, uno o todos), "Uso por herramienta" en Desarrolladores → Agentes de IA y `admin_get_mcp_usage`.
+- **Descartado: la ruta `mcp.` del túnel.** `app.atentina.com.ar/mcp` ya está en el registro y en el directorio, y
+  el login en otro host pide sumarlo a `APP_ORIGINS` (no se relaja sin medir).
+
+**Medición: ¿elige bien Claude entre las 87?** `make mcp-eval` (`scripts/mcp/eval_tools.py`, por OpenRouter):
+33 pedidos en español de todos los grupos, cada uno con las primeras llamadas que valen; si llama a
+`get_plan_tools` se le devuelve un plan con todo y cuenta la siguiente. 25-oct-2026, temperatura 0:
+
+| Modelo | 87 (default) | Los 23 casos que core puede empezar: con 87 | Con las 39 de core | Tokens de entrada por pedido (87 / 39) |
+|---|---|---|---|---|
+| Claude Sonnet 5.5 | 32/33 | 23/23 | 18/23 | ~26.000 / ~7.100 |
+| Claude Haiku 5.5 | 33/33 | 23/23 | 20/23 | ~26.200 / ~7.300 |
+
+- Con 87, el único error fue Sonnet con "sumá a Pedro al equipo": llamó antes a `list_team` (paso previo razonable).
+- Con core los errores son cuando falta la herramienta (contactos, campañas, links): consulta el plan y no sigue.
+  Más herramientas no confundieron al modelo: las 87 por defecto quedan.
+- La primera corrida mostró que "¿Qué incluye mi plan?" iba a `whoami` (su descripción decía "con su plan"); con la
+  descripción que deriva a `get_plan_tools`, acierta. Detalle de cada corrida en `scratch/mcp-eval/`.
+- Falta medir con Cursor (otro cliente, otro modelo) y con el uso real (`mcp_tool_usage`).
+
+**Cómo desplegar:** migración 0029 (`make migrate-test` contra la copia del backup), `make calls-active &&
+make up-agent` y publicar la landing (push). `make mcp-docs` ya regenera la doc y la página, sin `admin`.

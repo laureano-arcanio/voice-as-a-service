@@ -32,8 +32,11 @@ from .limits import Limits, effective_limits
 SCOPE_CALLS = "calls"
 # Servidor MCP (app/mcp/, docs/MCP_PLAN.md): las herramientas usan la API de llamadas con la misma key.
 SCOPE_MCP = "mcp"
+# MCP de solo lectura (fase 5): el servidor muestra solo las herramientas de lectura y la API, por fuera del
+# MCP, solo deja GET con esta key.
+SCOPE_MCP_READ = "mcp_read"
 INFERENCE_SCOPES = ("llm", "stt", "tts")
-ALL_SCOPES = (SCOPE_CALLS, SCOPE_MCP, *INFERENCE_SCOPES)
+ALL_SCOPES = (SCOPE_CALLS, SCOPE_MCP, SCOPE_MCP_READ, *INFERENCE_SCOPES)
 
 
 def parse_scopes(value: str | None) -> frozenset[str]:

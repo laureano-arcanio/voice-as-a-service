@@ -7,7 +7,7 @@ import json
 import pathlib
 
 from . import guides
-from .catalog import CORE, TOOLS, TOOLSETS
+from .catalog import CORE, DEFAULT, TOOLS, TOOLSETS
 
 DOC = "docs/MCP_HERRAMIENTAS.md"
 
@@ -45,12 +45,15 @@ def render() -> str:
         "Generado desde `app/mcp/catalog.py` con `make mcp-docs`: no editar a mano. Diseño en",
         "[`MCP_PLAN.md`](MCP_PLAN.md).",
         "",
-        "- URL: `https://app.atentina.com.ar/mcp` (Streamable HTTP; `mcp.atentina.com.ar` cuando esté su ruta).",
+        "- URL: `https://app.atentina.com.ar/mcp` (Streamable HTTP).",
         "- Auth: OAuth 2.1 (el cliente MCP descubre el login solo, por el 401 con `resource_metadata`) o",
-        "  `Authorization: Bearer vaas_...`, una API key con el alcance `mcp` (panel → Desarrolladores). Las marcadas",
-        "  \"solo OAuth\" necesitan un usuario: con API key responden `needs_oauth`.",
-        f"- Grupos: sin el parámetro, todos; `/mcp?toolsets=a,b` elige (`core` = {', '.join(f'`{c}`' for c in CORE)}).",
-        "  `get_plan_tools` va siempre.",
+        "  `Authorization: Bearer vaas_...`, una API key con el alcance `mcp` (o `mcp_read`: solo las de lectura;",
+        "  panel → Desarrolladores). Las marcadas \"solo OAuth\" necesitan un usuario: con API key responden",
+        "  `needs_oauth`; las \"solo API key\" (inferencia), con OAuth responden `needs_api_key`.",
+        f"- Grupos: sin el parámetro, todos menos `inference`; `/mcp?toolsets=a,b` elige (`all` = todos los de",
+        f"  cliente; `core` = {', '.join(f'`{c}`' for c in CORE)}). `get_plan_tools` va siempre.",
+        "- `admin`: solo para un admin que, al autorizar, eligió \"Toda la plataforma\"; ese token ve solo `admin`",
+        "  y `whoami`.",
         "- Una herramienta que el plan no incluye responde `feature_not_in_plan` con el motivo y los planes que la",
         "  tienen; `get_plan_tools` da la lista completa para el plan del cliente.",
         "",
@@ -65,7 +68,8 @@ def render() -> str:
         lines += ["", f"## `{toolset}`: {title}", "", "| Herramienta | Qué hace | Tipo | Plan | API |",
                   "|---|---|---|---|---|"]
         for t in tools:
-            plan = (" o ".join(f"`{f}`" for f in t.features) or "todos") + (" (solo OAuth)" if t.session else "")
+            plan = (" o ".join(f"`{f}`" for f in t.features) or ("admin" if toolset == "admin" else "todos")) + (
+                " (solo OAuth)" if t.session else "") + (" (solo API key)" if t.api_key_only else "")
             api = f"`{t.method} {t.path}`" if t.path else "—"
             kind = "**confirmar**" if t.destructive else _kind(t)
             lines.append(f"| `{t.name}` | {t.description.replace('|', '/')} | {kind} | {plan} | {api} |")
@@ -80,14 +84,17 @@ def render() -> str:
 
 def render_landing() -> str:
     """Los datos de /desarrolladores/docs/mcp: grupos, herramientas y funciones por plan (con los nombres de la
-    landing)."""
+    landing). Sin `admin`: es interno."""
+    public = [t for t in TOOLS if t.toolset != "admin"]
     data = {
-        "toolsets": [{"id": k, "title": v, "core": k in CORE} for k, v in TOOLSETS.items()],
+        "toolsets": [{"id": k, "title": v, "core": k in CORE, "default": k in DEFAULT}
+                     for k, v in TOOLSETS.items() if k != "admin"],
         "plans": [LANDING_PLAN.get(p, p) for p in PLANS],
         "features": [{"id": k, "name": name, "plans": {LANDING_PLAN.get(p, p): v for p, v in plans.items()}}
                      for k, (name, plans) in FEATURES.items()],
         "tools": [{"name": t.name, "toolset": t.toolset, "title": t.title, "description": t.description,
-                   "kind": _kind(t), "features": list(t.features), "oauth": t.session} for t in TOOLS],
+                   "kind": _kind(t), "features": list(t.features), "oauth": t.session, "api_key": t.api_key_only}
+                  for t in public],
         "resources": guides.list_resources(),
         "prompts": guides.list_prompts(),
     }

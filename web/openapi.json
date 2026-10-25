@@ -10732,6 +10732,73 @@
     }
    }
   },
+  "/api/v1/mcp/usage": {
+   "get": {
+    "tags": [
+     "mcp"
+    ],
+    "summary": "Mcp Usage",
+    "description": "Cuántas veces se usó cada herramienta del MCP en los últimos `days` días, con errores y tiempo medio.",
+    "operationId": "mcp_usage_api_v1_mcp_usage_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     },
+     {
+      "name": "days",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 365,
+       "minimum": 1,
+       "default": 30,
+       "title": "Days"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/McpUsageOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/oauth/authorize": {
    "get": {
     "tags": [
@@ -11338,6 +11405,7 @@
        "enum": [
         "calls",
         "mcp",
+        "mcp_read",
         "llm",
         "stt",
         "tts"
@@ -11409,6 +11477,7 @@
        "enum": [
         "calls",
         "mcp",
+        "mcp_read",
         "llm",
         "stt",
         "tts"
@@ -11417,7 +11486,7 @@
       "type": "array",
       "minItems": 1,
       "title": "Scopes",
-      "description": "calls: API de llamadas, agentes y reportes. mcp: servidor MCP (/mcp) para agentes de IA. llm, stt, tts: motores de la API de inferencia",
+      "description": "calls: API de llamadas, agentes y reportes. mcp: servidor MCP (/mcp) para agentes de IA. mcp_read: el mismo MCP, solo con las herramientas de lectura. llm, stt, tts: motores de la API de inferencia",
       "default": [
        "calls"
       ]
@@ -11453,6 +11522,7 @@
        "enum": [
         "calls",
         "mcp",
+        "mcp_read",
         "llm",
         "stt",
         "tts"
@@ -18434,6 +18504,77 @@
     ],
     "title": "LoginIn"
    },
+   "McpToolUsageOut": {
+    "properties": {
+     "tool": {
+      "type": "string",
+      "title": "Tool"
+     },
+     "calls": {
+      "type": "integer",
+      "title": "Calls"
+     },
+     "errors": {
+      "type": "integer",
+      "title": "Errors"
+     },
+     "avg_ms": {
+      "type": "integer",
+      "title": "Avg Ms"
+     },
+     "last_day": {
+      "type": "string",
+      "format": "date",
+      "title": "Last Day"
+     }
+    },
+    "type": "object",
+    "required": [
+     "tool",
+     "calls",
+     "errors",
+     "avg_ms",
+     "last_day"
+    ],
+    "title": "McpToolUsageOut"
+   },
+   "McpUsageOut": {
+    "properties": {
+     "since": {
+      "type": "string",
+      "format": "date",
+      "title": "Since"
+     },
+     "days": {
+      "type": "integer",
+      "title": "Days"
+     },
+     "calls": {
+      "type": "integer",
+      "title": "Calls"
+     },
+     "errors": {
+      "type": "integer",
+      "title": "Errors"
+     },
+     "tools": {
+      "items": {
+       "$ref": "#/components/schemas/McpToolUsageOut"
+      },
+      "type": "array",
+      "title": "Tools"
+     }
+    },
+    "type": "object",
+    "required": [
+     "since",
+     "days",
+     "calls",
+     "errors",
+     "tools"
+    ],
+    "title": "McpUsageOut"
+   },
    "MeOut": {
     "properties": {
      "id": {
@@ -18709,6 +18850,12 @@
       ],
       "title": "Client Id",
       "description": "Admin: el cliente con el que va a actuar el agente"
+     },
+     "platform": {
+      "type": "boolean",
+      "title": "Platform",
+      "description": "Admin: el agente actúa como admin en toda la plataforma (toolset `admin`), sin cliente",
+      "default": false
      }
     },
     "type": "object",
@@ -18859,8 +19006,16 @@
       "title": "Id"
      },
      "client_id": {
-      "type": "string",
-      "title": "Client Id"
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Id",
+      "description": "None: un admin que autorizó toda la plataforma"
      },
      "app_name": {
       "type": "string",
