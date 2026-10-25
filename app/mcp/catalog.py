@@ -61,6 +61,11 @@ class Tool:
     upload: str | None = None             # multipart: este argumento (base64) va como el archivo `file`
 
     @property
+    def client_scoped(self) -> bool:
+        """Actúa en un cliente: con un permiso de toda la plataforma, el admin lo pasa en `client_id`."""
+        return self.toolset != "admin" and self.name != "whoami"
+
+    @property
     def reads(self) -> bool:
         return self.method == "GET" if self.read_only is None else self.read_only
 
@@ -640,13 +645,11 @@ BY_NAME = {t.name: t for t in TOOLS}
 
 def select(toolsets: str | None, admin: bool = False) -> list[Tool]:
     """Las herramientas de los grupos pedidos (`a,b`; vacío = DEFAULT; `all` = las de cliente; `core` = CORE).
-    Un grupo que no existe se ignora. Un admin de toda la plataforma ve `admin` (y whoami), nada de cliente:
-    las de cliente necesitan el cliente del token."""
-    if admin:
-        return [t for t in TOOLS if t.toolset == "admin" or t.name == "whoami"]
+    Un grupo que no existe se ignora. Un admin de toda la plataforma ve además `admin`; en las de cliente
+    elige el cliente en cada llamada (`client_id`)."""
     wanted = {p.strip() for p in (toolsets or "").split(",") if p.strip()} or set(DEFAULT)
     if "all" in wanted:
         wanted = set(CLIENT_SETS)
     if "core" in wanted:
         wanted |= set(CORE)
-    return [t for t in TOOLS if t.toolset in wanted and t.toolset != "admin"]
+    return [t for t in TOOLS if (t.toolset in wanted and t.toolset != "admin") or (admin and t.toolset == "admin")]

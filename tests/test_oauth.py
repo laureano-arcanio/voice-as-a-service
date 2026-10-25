@@ -272,10 +272,10 @@ def test_admin_picks_the_client_and_acts_as_it(api, admin, setup):
     assert ADMIN[0] in [g["user_email"] for g in admin.get(f"{V1}/oauth/grants").json()]
 
 
-def test_admin_platform_grant_sees_only_admin_tools(api, admin, setup):
-    """Fase 5: un admin que autoriza "Toda la plataforma" actúa como admin, con el toolset admin y nada de
-    cliente; un usuario de cliente no puede pedirlo."""
-    c, _, user, app_client = setup
+def test_admin_platform_grant_sees_every_tool(api, admin, setup):
+    """Fase 5: un admin que autoriza "Toda la plataforma" actúa como admin, con el toolset admin y todas las
+    de cliente (elige el cliente en cada llamada); un usuario de cliente no puede pedirlo."""
+    c, agent, user, app_client = setup
     _, challenge = pkce()
     denied = user.post(f"{V1}/oauth/authorize", json={"params": auth_params(app_client["client_id"], challenge),
                                                       "approve": True, "platform": True})
@@ -284,9 +284,26 @@ def test_admin_platform_grant_sees_only_admin_tools(api, admin, setup):
     code = code_of(authorize(admin, auth_params(app_client["client_id"], challenge), platform=True))
     access = token(api, grant_type="authorization_code", code=code, redirect_uri=REDIRECT,
                    client_id=app_client["client_id"], code_verifier=verifier).json()["access_token"]
-    names = {t["name"] for t in mcp(api, access, "tools/list").json()["result"]["tools"]}
-    assert "admin_list_clients" in names and "whoami" in names
-    assert "list_agents" not in names and "get_plan_tools" not in names
+    tools = {t["name"]: t for t in mcp(api, access, "tools/list").json()["result"]["tools"]}
+    assert {"admin_list_clients", "whoami", "list_agents", "get_plan_tools"} <= set(tools)
+    # Las de cliente piden el cliente; whoami y las de admin, no (las de admin lo traen donde hace falta).
+    assert tools["list_agents"]["inputSchema"]["required"][0] == "client_id"
+    assert "client_id" not in tools["whoami"]["inputSchema"]["properties"]
+    assert "client_id" not in tools["admin_list_clients"]["inputSchema"]["properties"]
+    # Actúa en el cliente elegido: ve sus agentes y nada más.
+    other = make_client(admin, slug="otra")
+    make_agent(admin, other)
+    items = call(api, access, "list_agents", client_id=c["id"])["structuredContent"]["items"]
+    assert [a["id"] for a in items] == [agent["id"]]
+    assert not call(api, access, "get_plan_tools", client_id=c["id"]).get("isError")
+    missing = call(api, access, "list_agents")
+    assert missing["isError"] and missing["structuredContent"]["code"] == "invalid_arguments"
+    unknown = call(api, access, "list_agents", client_id="no-existe")
+    assert unknown["isError"] and unknown["structuredContent"]["http_status"] == 404
+    # Sin el secreto interno, el header del cliente no sirve desde afuera.
+    outside = api.client.get(f"{V1}/agents", headers={"Authorization": f"Bearer {access}",
+                                                      "x-atentina-mcp-client": c["id"]})
+    assert outside.status_code == 401
     slugs = [x["slug"] for x in call(api, access, "admin_list_clients")["structuredContent"]["items"]]
     assert c["slug"] in slugs
     limits = call(api, access, "admin_get_client_limits", client_id=c["id"])

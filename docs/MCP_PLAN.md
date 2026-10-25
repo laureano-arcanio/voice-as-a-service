@@ -426,7 +426,10 @@ no un preflight). El resto, en la fase 5 (sección 13).
   WhatsApp, agentes y llamadas de un cliente, pedidos de inferencia, uso del MCP y vista previa del prompt.
   - Solo por OAuth: un admin elige **"Toda la plataforma (admin)"** en el consentimiento (aviso amarillo) y el
     permiso queda sin cliente (`oauth_grants.client_id` nullable, migración 0029). El token actúa como admin
-    (`deps.get_principal`) y ve solo `admin` y `whoami`: las de cliente necesitan el cliente del token.
+    (`deps.get_principal`) y ve todas las herramientas (116 con los grupos por defecto): `admin` y las de
+    cliente. Desde el 25-oct-2026 las de cliente (todas salvo `whoami`) piden `client_id` en cada llamada: el
+    MCP hace el pedido interno con `x-atentina-mcp-client` (solo vale con el secreto interno) y la API lo trata
+    como un usuario de ese cliente, igual que un permiso con cliente; un cliente que no existe da 404.
   - Vale mientras el usuario siga siendo admin. Un usuario de cliente que lo pida recibe 403.
   - Fuera, a propósito: borrar clientes, planes, apps y llamadas en masa, y crear usuarios o cambiar claves (la
     clave pasaría por el LLM). Un agente que lee texto de terceros no debería poder borrar la plataforma.

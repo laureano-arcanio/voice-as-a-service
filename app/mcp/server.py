@@ -21,7 +21,7 @@ from fastapi.responses import JSONResponse, Response
 from fastapi.security import HTTPAuthorizationCredentials
 
 from ..api import oauth as oauth_routes
-from ..api.deps import DB, MCP_INTERNAL_HEADER, MCP_INTERNAL_SECRET, _api_key, _bearer
+from ..api.deps import DB, MCP_CLIENT_HEADER, MCP_INTERNAL_HEADER, MCP_INTERNAL_SECRET, _api_key, _bearer
 from ..config import settings
 from ..services import api_usage, mcp_usage, oauth
 from ..services.security import API_KEY_PREFIX
@@ -50,7 +50,7 @@ class Identity:
     id: str                 # la key o el permiso (OAuthGrant)
     client_id: str | None
     token: str
-    admin: bool = False     # toolset `admin` y nada de cliente
+    admin: bool = False     # toolset `admin`; en las de cliente elige el cliente en cada llamada
     read_only: bool = False  # key `mcp_read`: solo las herramientas de lectura
 
 
@@ -88,13 +88,15 @@ def mcp_identity(request: Request, db: DB,
 class Ctx:
     """Un pedido MCP: quién lo hace y un cliente HTTP en proceso contra la misma app."""
 
-    def __init__(self, request: Request, who: Identity):
+    def __init__(self, request: Request, who: Identity, acting_client_id: str | None = None):
         self.who = who
-        self.client_id = who.client_id
+        self.client_id = acting_client_id or who.client_id
         # El header interno deja pasar el token OAuth a /api/v1 (deps.get_principal); desde afuera no se acepta.
+        headers = {"Authorization": f"Bearer {who.token}", MCP_INTERNAL_HEADER: MCP_INTERNAL_SECRET}
+        if acting_client_id:   # admin de toda la plataforma en una herramienta de cliente
+            headers[MCP_CLIENT_HEADER] = acting_client_id
         self.http = httpx.AsyncClient(transport=httpx.ASGITransport(app=request.app), base_url="http://mcp.internal",
-                                      headers={"Authorization": f"Bearer {who.token}",
-                                               MCP_INTERNAL_HEADER: MCP_INTERNAL_SECRET}, timeout=60)
+                                      headers=headers, timeout=60)
 
     async def api(self, method: str, path: str, **kwargs) -> httpx.Response:
         # Las de admin traen client_id como argumento (ya reemplazado); acá queda solo el del token.
@@ -147,7 +149,7 @@ async def mcp(request: Request, db: DB, who: Annotated[Identity, Depends(mcp_ide
     toolsets = request.query_params.get("toolsets")
     if method == "tools/list":
         openapi = request.app.openapi()
-        return _result(msg_id, {"tools": [_describe(t, openapi) for t in _visible(toolsets, who)]})
+        return _result(msg_id, {"tools": [_describe(t, openapi, who) for t in _visible(toolsets, who)]})
     if method == "tools/call":
         tool = catalog.BY_NAME.get(params.get("name"))
         if tool is None or tool not in _visible(toolsets, who):
@@ -155,7 +157,13 @@ async def mcp(request: Request, db: DB, who: Annotated[Identity, Depends(mcp_ide
         args = params.get("arguments") or {}
         if not isinstance(args, dict):
             return _error(msg_id, -32602, "`arguments` tiene que ser un objeto")
-        ctx = Ctx(request, who)
+        acting = None
+        if who.admin and tool.client_scoped:
+            acting = args.pop("client_id", None)
+            if not isinstance(acting, str) or not acting:
+                return _result(msg_id, _fail("invalid_arguments", "Falta client_id: el cliente en el que actúa "
+                                                                  "(admin_list_clients)"))
+        ctx = Ctx(request, who, acting)
         started = time.monotonic()
         try:
             result = await _call(ctx, tool, args, request.app.openapi())
@@ -204,22 +212,27 @@ def mcp_get():
 
 def _visible(toolsets: str | None, who: Identity) -> list[Tool]:
     tools = catalog.select(toolsets, admin=who.admin)
-    if who.admin:
-        return tools
     plan_tools = catalog.BY_NAME["get_plan_tools"]
     tools = tools if plan_tools in tools else [plan_tools, *tools]
     return [t for t in tools if t.reads] if who.read_only else tools
 
 
-def _describe(t: Tool, openapi: dict) -> dict:
+CLIENT_ARG = {"type": "string", "description": "ID del cliente en el que actúa (admin_list_clients)."}
+
+
+def _describe(t: Tool, openapi: dict, who: Identity) -> dict:
     description = t.description
     if t.features:
         description += f" Requiere en el plan: {' o '.join(t.features)} (ver get_plan_tools)."
+    schema = t.input_schema(openapi)
+    if who.admin and t.client_scoped:   # toda la plataforma: el cliente va en cada llamada
+        schema = {**schema, "properties": {"client_id": CLIENT_ARG, **schema["properties"]},
+                  "required": ["client_id", *schema.get("required", [])]}
     annotations = {"title": t.title, "readOnlyHint": t.reads, "openWorldHint": False}
     if not t.reads:
         annotations["destructiveHint"] = t.destructive
         annotations["idempotentHint"] = t.method in ("PUT", "DELETE")
-    return {"name": t.name, "title": t.title, "description": description, "inputSchema": t.input_schema(openapi),
+    return {"name": t.name, "title": t.title, "description": description, "inputSchema": schema,
             "annotations": annotations}
 
 

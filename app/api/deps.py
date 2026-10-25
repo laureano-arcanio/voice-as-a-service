@@ -30,7 +30,7 @@ from ..db import get_sessionmaker, utcnow
 from ..models import ApiKey, Client, Role, User
 from ..runtime import get_conversation_engine
 from ..services import api_requests, api_usage, limits, oauth
-from ..services.errors import Forbidden, QuotaExceeded, ServiceError
+from ..services.errors import Forbidden, NotFound, QuotaExceeded, ServiceError
 from ..services.ratelimit import Limit, RateLimiter, client_key
 from ..services.security import (
     API_KEY_PREFIX,
@@ -76,6 +76,8 @@ def _api_key(db: Session, token: str) -> ApiKey:
 # Pedidos internos del servidor MCP (app/mcp/server.py): el secreto vive solo en memoria de este proceso.
 MCP_INTERNAL_HEADER = "x-atentina-mcp"
 MCP_INTERNAL_SECRET = secrets.token_urlsafe(32)
+# Con un permiso de toda la plataforma, el cliente en el que actúa una herramienta de cliente del MCP.
+MCP_CLIENT_HEADER = "x-atentina-mcp-client"
 
 
 def get_principal(request: Request, db: DB,
@@ -106,6 +108,11 @@ def get_principal(request: Request, db: DB,
         if access is None:
             raise _unauthorized("Token OAuth inválido, vencido o revocado")
         if access.grant.client_id is None:     # un admin que autorizó toda la plataforma
+            acting = request.headers.get(MCP_CLIENT_HEADER)
+            if acting:   # una herramienta de cliente: actúa como usuario del cliente que eligió en la llamada
+                if db.get(Client, acting) is None:
+                    raise NotFound("No existe ese cliente", "client_not_found")
+                return Principal("user", access.user.id, Role.client, acting, oauth=True)
             return Principal("user", access.user.id, Role.admin, None, oauth=True)
         # Actúa como usuario del cliente del permiso, aunque sea un admin (que lo eligió al autorizar).
         return Principal("user", access.user.id, Role.client, access.grant.client_id, oauth=True)

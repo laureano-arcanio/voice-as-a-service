@@ -134,7 +134,7 @@ export function OAuthConsentPage() {
                 <Select
                   mb="md"
                   label="Cliente"
-                  description="Con qué cliente va a trabajar el agente. Toda la plataforma: actúa como admin, con las herramientas de administración."
+                  description="Con qué cliente va a trabajar el agente. Toda la plataforma: actúa como admin, con todas las herramientas (elige el cliente en cada una)."
                   placeholder="Elegí un cliente"
                   searchable
                   data={[
