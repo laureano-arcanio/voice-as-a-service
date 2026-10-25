@@ -128,6 +128,18 @@ GRUPOS = {
         ("lucas", "Dynamics Sales: el agente llama al lead apenas entra."),
         ("lucas", "Customer Service: el número del cliente atiende a toda hora."),
     ] for _ in range(2)],
+    # mcp-claude-code v1: "MCP", "Claude Code" y el comando con paula (dos tomas por texto)
+    "mcp": [("paula", t) for t in [
+        "Con el servidor MCP de Atentina, administrás tu cuenta desde Claude Code.",
+        "Con el servidor eme ce pe de Atentina, administrás tu cuenta desde Clod Coud.",
+        "Se instala con un solo comando: claude mcp add, y la dirección del servidor.",
+        "Se instala con un solo comando: clod, eme ce pe, add, y la dirección del servidor.",
+    ] for _ in range(2)],
+    "mcp2": [("paula", t) for t in [
+        "Con el servidor eme, ce, pe, de Atentina, administrás tu cuenta desde Claude Code.",
+        "Con el servidor M C P de Atentina, administrás tu cuenta desde Claude Code.",
+        "Eme ce pe es el protocolo que conecta un agente de IA con otras plataformas.",
+    ] for _ in range(2)],
 }
 
 

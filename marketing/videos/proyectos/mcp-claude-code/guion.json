@@ -1,0 +1,15 @@
+{
+  "nota": "Tutorial técnico: el servidor MCP de Atentina en Claude Code. Narradora paula. 'M C P' con espacios (escrito MCP, el STT oyó 'MP' y 'MTF'); 'Claude Code' escrito normal (candidatas mcp y mcp2).",
+  "musica_segundos": 100,
+  "lineas": [
+    {"id": "m1", "voz": "paula", "texto": "M C P es el protocolo que conecta un agente de IA con otras plataformas. Con el servidor de Atentina, administrás tu cuenta desde Claude Code, en lenguaje natural."},
+    {"id": "m2", "voz": "paula", "texto": "Son ochenta y siete herramientas en ocho grupos: la cuenta y el plan, agentes, llamadas, links para llamar, WhatsApp, contactos, campañas, y el equipo con sus derivaciones."},
+    {"id": "m3", "voz": "paula", "texto": "Se instala con un solo comando, que agrega el servidor con su dirección."},
+    {"id": "m4", "voz": "paula", "texto": "Después, dentro de Claude Code, abrí el menú M C P, elegí Atentina y autenticá. Entrás con tu usuario del panel y permitís el acceso."},
+    {"id": "m5", "voz": "paula", "texto": "Probemos. Le preguntamos qué incluye el plan: Claude mira la cuenta, las herramientas disponibles y el consumo del mes."},
+    {"id": "m6", "voz": "paula", "texto": "Ahora, un agente de atención al cliente. Parte de la plantilla, completa la base de conocimiento, valida la definición y lo crea."},
+    {"id": "m7", "voz": "paula", "texto": "Y lo prueba por texto, como si fuera un cliente. Recibe la respuesta del agente y los datos que tomó, sin llamar a nadie ni gastar minutos."},
+    {"id": "m8", "voz": "paula", "texto": "Para derivar a una persona, suma a alguien al equipo y crea un área de ventas, con su horario. El agente transfiere ahí cuando hace falta."},
+    {"id": "m9", "voz": "paula", "texto": "En resumen: con una sola integración, Claude Code consulta, crea, configura, prueba y administra Atentina, en lenguaje natural. La guía completa está en la documentación."}
+  ]
+}

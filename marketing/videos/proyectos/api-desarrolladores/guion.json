@@ -1,0 +1,63 @@
+{
+  "nota": "Video técnico para desarrolladores: cómo integrar la API de Atentina (inferencia y plataforma) con pedidos reales. Narradora paula; gonzalo en dos líneas (auth y webhook). 'ápi' como en español; 'ópen, ei, ái' para OpenAI; 'ese de ká' para SDK (a confirmar de oído).",
+  "musica_segundos": 110,
+  "velocidad": 1.05,
+  "ganancia_db": -1.5,
+  "lineas": [
+    {
+      "id": "a1",
+      "voz": "paula",
+      "texto": "Con las ápis de Atentina sumás agentes de inteligencia artificial, llamadas, campañas y voz a cualquier aplicación. Y la ápi de inferencia es compatible con el ese de ká de ópen, ei, ái."
+    },
+    {
+      "id": "a2",
+      "voz": "paula",
+      "texto": "Son dos. La de plataforma hace lo mismo que el panel: agentes, llamadas, contactos, campañas, derivaciones y reportes. La de inferencia te da el modelo de lenguaje, la transcripción y la síntesis con voces argentinas, también en streaming."
+    },
+    {
+      "id": "a3",
+      "voz": "paula",
+      "texto": "Para empezar, en el panel entrá a ápi, nueva ápi key, y elegí qué puede hacer: llamadas, modelo de lenguaje, transcripción o síntesis. La key se muestra una sola vez."
+    },
+    {
+      "id": "a4",
+      "voz": "gonzalo",
+      "texto": "Cada pedido lleva la key en el encabezado de autorización, y listo."
+    },
+    {
+      "id": "a5",
+      "voz": "paula",
+      "texto": "Con el ese de ká de ópen, ei, ái, cambiás solo la dirección base y la key. El modelo lo fija la plataforma. Esta es la respuesta real."
+    },
+    {
+      "id": "a6",
+      "voz": "paula",
+      "texto": "Para pasarla a voz, mandás el texto a la síntesis con una de las cuarenta y una voces. Así suena."
+    },
+    {
+      "id": "a7",
+      "voz": "paula",
+      "texto": "Ahora, la ápi de plataforma, con la key de llamadas. Consultás un agente: su versión, su voz y los datos que toma en cada conversación."
+    },
+    {
+      "id": "a8",
+      "voz": "paula",
+      "texto": "Para lanzar una llamada, mandás el agente y el teléfono. Sin teléfono, es una llamada de prueba desde el navegador. La respuesta trae el identificador de la conversación."
+    },
+    {
+      "id": "a9",
+      "voz": "paula",
+      "texto": "Con ese identificador consultás el estado y el resultado: cuánto duró, cómo terminó y los datos que tomó el agente, listos para guardar en tu sistema."
+    },
+    {
+      "id": "a10",
+      "voz": "gonzalo",
+      "texto": "Y en las campañas no hace falta consultar: el resultado de cada contacto te llega por webhook, firmado."
+    },
+    {
+      "id": "a11",
+      "voz": "paula",
+      "texto": "Una key y pocas líneas: agentes, telefonía y voz en tu aplicación. La documentación está en atentina punto com punto ar, barra desarrolladores."
+    }
+  ]
+}

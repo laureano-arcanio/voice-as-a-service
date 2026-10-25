@@ -41,7 +41,12 @@ funciona la transferencia de llamadas a personas y cómo se configura; capturas 
 para el plan Free: crear un agente, probarlo, compartir el link para llamar y ver la transcripción; capturas reales
 del panel en 390 px; solo paula) y
 [`landing-agente`](../marketing/videos/proyectos/landing-agente/README.md) (horizontal para la landing, sin locución y en
-loop: el agente con el aro de puntos resuelve las consultas y deriva solo lo importante a una persona del equipo).
+loop: el agente con el aro de puntos resuelve las consultas y deriva solo lo importante a una persona del equipo) y
+[`mcp-claude-code`](../marketing/videos/proyectos/mcp-claude-code/README.md) (tutorial técnico horizontal, ~90 s, para
+YouTube y la documentación: el servidor MCP en Claude Code, instalación con OAuth y una demo con herramientas reales
+en una terminal simulada; paula, con subtítulos) y
+[`api-desarrolladores`](../marketing/videos/proyectos/api-desarrolladores/README.md) (técnico 16:9 para YouTube y la
+documentación: cómo integrar la API, con pedidos y respuestas reales, capturas del panel y subtítulos; paula y gonzalo).
 
 ## Comandos
 
@@ -157,6 +162,9 @@ El TTS es `vllm-tts` (Qwen3-TTS con 41 voces argentinas, [`TTS_FINETUNE.md`](TTS
 | CIMEPA | `CIMEPA` | Escrito normal: 4 de 4 tomas el STT oye "Cimepa" (también con `Cimepa`); `Simepa` no hace falta (cimepa-analisis). Con `paula`, también "Cimepa" (6 de 6, v2) |
 | Axioma, Odoo, CRM, webhook, TodoTurnos | escritos normal | axiomait-analisis v1, con `paula` y `lucas`: el STT oye "Axioma" en las tomas elegidas, pero "Acción Maya" en 1 de 2 candidatas y "En Acción" en el video mezclado (a confirmar de oído); "Odoo" sale "Odoo", "Odo" u "odú"; "CRM" sale "CRM" o "cierreme" (ce-erre-eme); "webhook", bien en las tomas elegidas ("Workhook" en 1 de 2 candidatas) |
 | Zennon, Dynamics, Dataverse, Power Automate, Power BI, KickStart, Sales, Customer Service, Field Service, Customer Insights | escritos normal | zennonbi-analisis v1, con `paula` y `lucas`: el STT oye "Xenon" por "Zennon" en todas las tomas y una vez "Zenón" (a confirmar de oído cómo lo dicen ellos); "Dataverse" sale "Dataverses" o "Detaverses"; "KickStart", "Kickstart"; "Dynamics", bien (lucas, "Dynamic Sales" en 2 de 2 candidatas); "Power Automate" y "Power BI", bien salvo una candidata ("Paolo Automate", "Power B"). **"Journeys" con `lucas` salió "SORNAYS":** no se dice, va escrito |
+| MCP ("eme ce pe") | `M C P` | Escrito `MCP`, con `paula` el STT oyó "MP" y "MTF"; con `M C P`, "MCP" en 2 de 2 (mcp-claude-code, a confirmar de oído) |
+| Claude Code | escrito normal | Con `paula`, el STT oye "Cloud Code" (y una vez "ClubeCode"): a confirmar de oído. Los nombres de las herramientas y el comando no se dicen: van en pantalla |
+| SDK ("ese de ká") | `ese de ká` | api-desarrolladores v1, con `paula`: el STT oye "SDK" en las tomas elegidas (una candidata, "S de K"); a confirmar de oído. Plural de API: `ápis` (el STT oye "APIs") |
 | Pausas | con puntuación | Comas y puntos marcan las pausas ("Actualmente, un solo número…") |
 
 - **El STT no distingue "voz" de "vos":** esa diferencia en la transcripción no es un error de la toma.
