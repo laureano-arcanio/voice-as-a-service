@@ -1,0 +1,18 @@
+{
+  "nota": "Tu propio agente (custom LLM): el agente del cliente detrás de un endpoint compatible con OpenAI, con la voz y el teléfono de Atentina. Narradora paula; gonzalo en las herramientas y en 'por API o MCP'. 'ápi', 'ópen, ei, ái' y 'M C P' (VIDEOS.md); 'endpoint' y 'streaming' escritos normal; los nombres end_call y transfer_call no se dicen: van en pantalla (como las herramientas en mcp-claude-code).",
+  "musica_segundos": 100,
+  "velocidad": 1.05,
+  "ganancia_db": -1.5,
+  "lineas": [
+    {"id": "t1", "voz": "paula", "texto": "¿Ya tenés tu agente de IA? Conectalo a Atentina, y atiende llamadas y WhatsApp con un número argentino, sin armar la parte de voz."},
+    {"id": "t2", "voz": "paula", "texto": "Atentina pone el número, los canales, la transcripción, los turnos, la voz y los minutos. Tu agente pone el prompt, las herramientas, la memoria, y qué responder."},
+    {"id": "t3", "voz": "paula", "texto": "En cada turno, Atentina le manda a tu endpoint toda la conversación, en el formato de ópen, ei, ái. Tu endpoint contesta en streaming, y cada pedazo de texto pasa a voz apenas llega."},
+    {"id": "t4", "voz": "gonzalo", "texto": "Para cortar o pasar la llamada a una persona, tu agente usa dos herramientas: una corta y elige el resultado, la otra transfiere a tu equipo."},
+    {"id": "t5", "voz": "paula", "texto": "Un endpoint mínimo agrega su prompt y le pasa todo a su modelo, en streaming. El resto es tuyo."},
+    {"id": "t6", "voz": "paula", "texto": "Se configura en tres pasos. Cargás la conexión, con la dirección de tu endpoint y su key. La probás. Y en el agente, prendés que conteste tu propio agente."},
+    {"id": "t7", "voz": "gonzalo", "texto": "También se hace por ápi, con una ápi key de llamadas, o desde tu agente de IA por M C P."},
+    {"id": "t8", "voz": "paula", "texto": "Lo que más pesa es el primer texto. Con el endpoint de ejemplo, después del primer pedido, llegó en menos de medio segundo."},
+    {"id": "t9", "voz": "paula", "texto": "Si tu endpoint falla, el agente avisa y corta, o pasa la llamada a tu equipo. No hay respaldo con nuestro modelo."},
+    {"id": "t10", "voz": "paula", "texto": "Tu agente, con nuestra voz y nuestro teléfono. Está en el plan Red, y la guía completa, en atentina punto com punto ar, barra desarrolladores."}
+  ]
+}

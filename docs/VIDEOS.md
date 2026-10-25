@@ -49,6 +49,9 @@ en una terminal simulada; paula, con subtítulos) y
 documentación: cómo integrar la API, con pedidos y respuestas reales, capturas del panel y subtítulos; paula y gonzalo) y
 [`docs-intro`](../marketing/videos/proyectos/docs-intro/README.md) (16:9, 45 s, para la portada de la documentación:
 las tres formas de usar Atentina, panel, MCP y API, y dónde está la documentación de cada una; paula y gonzalo, con subtítulos) y
+[`tu-propio-agente`](../marketing/videos/proyectos/tu-propio-agente/README.md) (16:9, 93 s, para YouTube y
+`/desarrolladores/docs/tu-propio-agente`: el agente del cliente detrás de un endpoint compatible con OpenAI, con la voz
+y el teléfono de Atentina; paula y gonzalo, con subtítulos) y
 [`meta-review-management`](../marketing/videos/proyectos/meta-review-management/README.md) (16:9, 80 s, para el App
 Review de Meta: el uso de `whatsapp_business_management` con capturas reales del panel, cursor y subtítulos en inglés;
 sin locución ni música).
@@ -170,6 +173,7 @@ El TTS es `vllm-tts` (Qwen3-TTS con 41 voces argentinas, [`TTS_FINETUNE.md`](TTS
 | MCP ("eme ce pe") | `M C P` | Escrito `MCP`, con `paula` el STT oyó "MP" y "MTF"; con `M C P`, "MCP" en 2 de 2 (mcp-claude-code, a confirmar de oído) |
 | Claude Code | escrito normal | Con `paula`, el STT oye "Cloud Code" (y una vez "ClubeCode"): a confirmar de oído. Los nombres de las herramientas y el comando no se dicen: van en pantalla |
 | SDK ("ese de ká") | `ese de ká` | api-desarrolladores v1, con `paula`: el STT oye "SDK" en las tomas elegidas (una candidata, "S de K"); a confirmar de oído. Plural de API: `ápis` (el STT oye "APIs") |
+| endpoint, streaming, key | escritos normal | tu-propio-agente v1, con `paula`: el STT oye "endpoint" y "streaming" en todas las tomas (a confirmar de oído). Con `gonzalo`, "una key de llamadas" salió "un aquí" y "la key", "la que": se dijo "una ápi key" (el STT oye "API Key"). `end_call` y `transfer_call` no se dicen: van en pantalla |
 | Pausas | con puntuación | Comas y puntos marcan las pausas ("Actualmente, un solo número…") |
 
 - **El STT no distingue "voz" de "vos":** esa diferencia en la transcripción no es un error de la toma.

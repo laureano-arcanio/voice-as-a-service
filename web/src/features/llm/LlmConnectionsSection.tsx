@@ -40,11 +40,7 @@ const MODEL_EXAMPLE: Record<LlmConnectionKind, string> = {
 
 function TestBadge({ c }: { c: LlmConnection }) {
   if (c.last_test_ok === null || c.last_test_ok === undefined) return <Badge color="gray">Sin probar</Badge>;
-  return c.last_test_ok ? (
-    <Badge color="green">Funciona</Badge>
-  ) : (
-    <Badge color="red">Falló la prueba</Badge>
-  );
+  return c.last_test_ok ? <Badge color="green">Funciona</Badge> : <Badge color="red">Falló la prueba</Badge>;
 }
 
 /** Alta y edicion de una conexion. La clave se manda una vez y no se vuelve a ver. */
@@ -201,9 +197,15 @@ function ConnectionModal({
             onChange={(e) => setModel(e.currentTarget.value)}
             maxLength={128}
           />
-          <Alert color="yellow" icon={<IconShieldLock size={18} />} title="Las conversaciones salen del servidor">
+          <Alert
+            color="yellow"
+            icon={<IconShieldLock size={18} />}
+            title="Las conversaciones salen del servidor"
+          >
             Los agentes que usen esta conexión mandan sus conversaciones a {KIND_LABEL[kind]}. Los tokens los
-            cobra tu proveedor, no Atentina. Si falla, el agente sigue con el modelo {LOCAL_LABEL}.
+            cobra tu proveedor, no Atentina. Si falla, un agente que la usa como modelo (por etapas) sigue con
+            el modelo
+            {LOCAL_LABEL}; uno con tu propio agente avisa y corta o deriva, sin respaldo.
           </Alert>
           <Group justify="flex-end">
             <Button variant="default" onClick={onClose}>
@@ -248,7 +250,14 @@ export function LlmConnectionsSection({ clientId }: { clientId: string }) {
       used > 0
         ? `¿Dar de baja "${c.name}"? ${used === 1 ? 'Un agente la usa' : `${used} agentes la usan`} y pasa${used === 1 ? '' : 'n'} a contestar con el modelo ${LOCAL_LABEL}.`
         : `¿Dar de baja "${c.name}"? La clave guardada se descarta.`;
-    if (await confirmAction({ title: 'Dar de baja conexión', message, confirmLabel: 'Dar de baja', danger: true })) {
+    if (
+      await confirmAction({
+        title: 'Dar de baja conexión',
+        message,
+        confirmLabel: 'Dar de baja',
+        danger: true,
+      })
+    ) {
       remove.mutate(c.id, {
         onSuccess: () => notifySuccess('Conexión dada de baja.'),
         onError: (e) => notifyError(e),
@@ -325,7 +334,11 @@ export function LlmConnectionsSection({ clientId }: { clientId: string }) {
                         >
                           Probar
                         </Button>
-                        <Button size="compact-sm" variant="subtle" onClick={() => setModal({ connection: c })}>
+                        <Button
+                          size="compact-sm"
+                          variant="subtle"
+                          onClick={() => setModal({ connection: c })}
+                        >
                           Editar
                         </Button>
                         <Button

@@ -81,8 +81,8 @@ export function ExternalSection({
               <Alert color="blue">
                 <Stack gap="xs" align="flex-start">
                   <Text size="sm">
-                    Cargá la URL de tu endpoint como una conexión <b>Compatible con OpenAI</b>, con la API key
-                    que tu endpoint espera, y elegila acá.
+                    Cargá la URL de tu endpoint como una conexión <b>OpenAI compatible</b>, con la API key que
+                    tu endpoint espera, y elegila acá.
                   </Text>
                   <Button component={Link} to={connectionsLink} size="xs" variant="light">
                     Cargar el endpoint

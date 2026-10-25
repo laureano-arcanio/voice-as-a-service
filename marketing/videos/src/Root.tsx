@@ -32,6 +32,8 @@ import { TOTAL as API_DESARROLLADORES_TOTAL } from "../proyectos/api-desarrollad
 import { ApiDesarrolladoresVideo } from "../proyectos/api-desarrolladores/src/Video";
 import { TOTAL as DOCS_INTRO_TOTAL } from "../proyectos/docs-intro/src/timeline";
 import { DocsIntroVideo } from "../proyectos/docs-intro/src/Video";
+import { TOTAL as TU_PROPIO_AGENTE_TOTAL } from "../proyectos/tu-propio-agente/src/timeline";
+import { TuPropioAgenteVideo } from "../proyectos/tu-propio-agente/src/Video";
 import { DURACION as META_REVIEW_MANAGEMENT_FRAMES, MetaReviewManagementVideo } from "../proyectos/meta-review-management/src/Video";
 import { T as LANDING_AGENTE_T } from "../proyectos/landing-agente/src/timeline";
 import { LandingAgenteVideo } from "../proyectos/landing-agente/src/Video";
@@ -52,6 +54,7 @@ export const RemotionRoot: React.FC = () => (
     <Composition id="mcp-claude-code" component={McpClaudeCodeVideo} durationInFrames={f(MCP_CLAUDE_CODE_TOTAL)} fps={FPS} width={1920} height={1080} />
     <Composition id="api-desarrolladores" component={ApiDesarrolladoresVideo} durationInFrames={f(API_DESARROLLADORES_TOTAL)} fps={FPS} width={1920} height={1080} />
     <Composition id="docs-intro" component={DocsIntroVideo} durationInFrames={f(DOCS_INTRO_TOTAL)} fps={FPS} width={1920} height={1080} />
+    <Composition id="tu-propio-agente" component={TuPropioAgenteVideo} durationInFrames={f(TU_PROPIO_AGENTE_TOTAL)} fps={FPS} width={1920} height={1080} />
     {/* Para la landing: sin locución, en loop */}
     <Composition id="landing-agente" component={LandingAgenteVideo} durationInFrames={f(LANDING_AGENTE_T.fin)} fps={FPS} width={1920} height={1080} />
     {/* App Review de Meta: capturas reales, subtítulos en inglés, sin locución */}
