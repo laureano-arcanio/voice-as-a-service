@@ -2,13 +2,11 @@
 // Portada de la documentación (/desarrolladores/docs): la introducción y la navegación (MCP arriba, API abajo,
 // en data/docs-nav.ts). "Cómo funciona": la plataforma vista de afuera (docs/ARQUITECTURA.md). Hasta el 25-oct-2026
 // la API estaba en esta URL: los links viejos con ancla (#byok, #campanas...) se mandan a /docs/api, y #mcp a /docs/mcp.
-import Button from "../../../components/Button.astro";
 import Cta from "../../../components/Cta.astro";
 import YouTube from "../../../components/YouTube.astro";
 import { docsGroup } from "../../../data/docs-nav";
 import DocsPage from "../../../layouts/DocsPage.astro";
 
-const mcp = docsGroup("mcp");
 const api = docsGroup("api");
 const apiIds = api.sections.map((s) => s.id);
 ---
@@ -25,10 +23,6 @@ const apiIds = api.sections.map((s) => s.id);
 >
   <section id="formas" class="grid gap-4">
     <h2>MCP o API</h2>
-    <div class="flex flex-wrap gap-3">
-      <Button href={mcp.href}>MCP</Button>
-      <Button href={api.href} variant="gray">API</Button>
-    </div>
     <YouTube id="CjHwklFYP0M" title="Atentina para desarrolladores: panel, MCP o API" />
   </section>
 
