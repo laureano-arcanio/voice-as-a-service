@@ -407,6 +407,11 @@ Falta la primera conexión real desde Claude.ai o Claude Code (la hace el usuari
    OAuth 2.1 con registro dinámico y metadata documents; docs `https://atentina.com.ar/desarrolladores/docs/mcp`;
    privacidad `https://atentina.com.ar/privacidad`; herramientas con `readOnlyHint`/`destructiveHint`. Piden una
    cuenta de prueba para la revisión: crear un cliente de prueba con un tier con todo y un agente de ejemplo.
+   **Enviado el 25-oct-2026** (en revisión; portal: claude.ai/directory/manage/atentina-mcp-server): nombre Atentina,
+   87 herramientas y 3 prompts sincronizados, docs `/desarrolladores/docs/mcp`, soporte `laureano@atentina.com.ar`.
+   Cuenta de los revisores: cliente `revision_anthropic` (plan Sucursal, sin número), usuario
+   `revision-anthropic@atentina.com.ar`, con el agente Peluquería Demo, conversaciones de prueba, 5 contactos `demo`,
+   la campaña "Recordatorio de turnos (demo)" en borrador y el área Ventas. No borrarlo hasta que termine la revisión.
 4. ChatGPT: por ahora como conector propio de cada usuario (modo desarrollador); su directorio, si hay demanda.
 
 **Pendiente:** la ruta `mcp.` del túnel (opcional), CORS para clientes de navegador, `mcp:read` y el toolset `admin`
