@@ -32,6 +32,7 @@ import { TOTAL as API_DESARROLLADORES_TOTAL } from "../proyectos/api-desarrollad
 import { ApiDesarrolladoresVideo } from "../proyectos/api-desarrolladores/src/Video";
 import { TOTAL as DOCS_INTRO_TOTAL } from "../proyectos/docs-intro/src/timeline";
 import { DocsIntroVideo } from "../proyectos/docs-intro/src/Video";
+import { DURACION as META_REVIEW_MANAGEMENT_FRAMES, MetaReviewManagementVideo } from "../proyectos/meta-review-management/src/Video";
 import { T as LANDING_AGENTE_T } from "../proyectos/landing-agente/src/timeline";
 import { LandingAgenteVideo } from "../proyectos/landing-agente/src/Video";
 
@@ -53,6 +54,8 @@ export const RemotionRoot: React.FC = () => (
     <Composition id="docs-intro" component={DocsIntroVideo} durationInFrames={f(DOCS_INTRO_TOTAL)} fps={FPS} width={1920} height={1080} />
     {/* Para la landing: sin locución, en loop */}
     <Composition id="landing-agente" component={LandingAgenteVideo} durationInFrames={f(LANDING_AGENTE_T.fin)} fps={FPS} width={1920} height={1080} />
+    {/* App Review de Meta: capturas reales, subtítulos en inglés, sin locución */}
+    <Composition id="meta-review-management" component={MetaReviewManagementVideo} durationInFrames={META_REVIEW_MANAGEMENT_FRAMES} fps={FPS} width={1920} height={1080} />
     {/* Vertical (9:16), para el celular */}
     <Composition id="primeros-pasos" component={PrimerosPasosVideo} durationInFrames={f(PRIMEROS_PASOS_TOTAL)} fps={FPS} width={1080} height={1920} />
     <Composition id="derivaciones" component={DerivacionesVideo} durationInFrames={f(DERIVACIONES_TOTAL)} fps={FPS} width={1080} height={1920} />

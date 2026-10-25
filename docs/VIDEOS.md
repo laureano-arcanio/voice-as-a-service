@@ -48,7 +48,10 @@ en una terminal simulada; paula, con subtítulos) y
 [`api-desarrolladores`](../marketing/videos/proyectos/api-desarrolladores/README.md) (técnico 16:9 para YouTube y la
 documentación: cómo integrar la API, con pedidos y respuestas reales, capturas del panel y subtítulos; paula y gonzalo) y
 [`docs-intro`](../marketing/videos/proyectos/docs-intro/README.md) (16:9, 45 s, para la portada de la documentación:
-las tres formas de usar Atentina, panel, MCP y API, y dónde está la documentación de cada una; paula y gonzalo, con subtítulos).
+las tres formas de usar Atentina, panel, MCP y API, y dónde está la documentación de cada una; paula y gonzalo, con subtítulos) y
+[`meta-review-management`](../marketing/videos/proyectos/meta-review-management/README.md) (16:9, 80 s, para el App
+Review de Meta: el uso de `whatsapp_business_management` con capturas reales del panel, cursor y subtítulos en inglés;
+sin locución ni música).
 
 ## Comandos
 

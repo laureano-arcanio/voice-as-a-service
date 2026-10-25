@@ -1,0 +1,5 @@
+{
+  "nota": "Sin locución ni música: es para el App Review de Meta (los revisores no leen español); los subtítulos en inglés están en src/timeline.ts (SUBS). La música no se usa (Video.tsx solo tiene una pista de silencio); musica_segundos está porque make video la genera si falta.",
+  "musica_segundos": 81,
+  "lineas": []
+}

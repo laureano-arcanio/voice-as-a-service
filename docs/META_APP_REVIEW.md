@@ -36,6 +36,35 @@ Asistente en developers.facebook.com → Revisar → Revisión de la app → sol
    y el popup de Meta, y el resto con nuestro número (plantillas, estado, calidad). Si Meta lo pide completo,
    reenviar cuando aprueben el Tech Provider.
 
+## 1b. Requisitos de los videos (Meta, consultado el 25-oct-2026)
+
+Fuentes: [guía de grabaciones de pantalla](https://developers.facebook.com/docs/app-review/submission-guide/screen-recordings/)
+y [App Review para WhatsApp](https://developers.facebook.com/docs/whatsapp/solution-providers/app-review/).
+
+**Obligatorios (si falta uno, rechazo):**
+
+1. **Grabación de pantalla real** ("you must submit a screen recording"): nada de capturas animadas ni cursor
+   simulado. La v1 de `meta-review-management` (capturas con cursor y clics simulados) **no sirve**.
+2. **Un video por permiso**: mezclar permisos en un video es motivo de rechazo.
+3. **`whatsapp_business_messaging`**: la app **mandando un mensaje** a un número de WhatsApp y el **cliente de
+   WhatsApp** (web o celular) **recibiéndolo y mostrándolo**.
+4. **`whatsapp_business_management`**: la app (o WhatsApp Manager) **creando una plantilla de mensaje**.
+5. **Login completo**, desde la sesión cerrada hasta adentro (con el usuario de revisores).
+6. **Autorización del permiso**: el botón de login de Meta ("Conectar WhatsApp"), el usuario dando el permiso y
+   después la función que lo usa. **Hoy no se puede**: el Embedded Signup falla hasta que Meta apruebe el Tech
+   Provider (ver 1.4).
+7. **Que se vea qué hace la app con los datos**: el resultado de cada acción (mensaje recibido, plantilla
+   creada con su estado).
+8. **UI en inglés o subtítulos** que expliquen cada paso y los botones no obvios: la nuestra está en español,
+   van subtítulos o anotaciones en inglés.
+
+**Recomendados por Meta (los cumplimos todos):** 1080p o más; pantalla de 1440 px de ancho o menos; grabar
+solo la ventana del navegador; mouse en vez de teclado; **cursor agrandado**; anotaciones que marquen dónde se
+usa el permiso; zoom en lo chico; **sin audio** ("reviewers won't listen").
+
+**Nuestros, además:** sin datos de terceros (ni la sección Operadores ni conversaciones de prospectos);
+grabar con el usuario de revisores (vista de cliente, sin el menú de Administración); solo acciones reales.
+
 ## 2. `whatsapp_business_messaging`
 
 **Descripción (campo "Describe cómo tu app usa este permiso"):**
@@ -64,17 +93,20 @@ Asistente en developers.facebook.com → Revisar → Revisión de la app → sol
 
 **Confirmación:** marcar "Si se aprueba, confirmo que cualquier información…".
 
-**Video (2–3 min), guion:**
+**Video (grabación real, 1–2 min, sin audio, subtítulos en inglés)**: pantalla partida o alternada entre el
+panel (Chrome, ventana de 1440 px) y **WhatsApp Web** de un número propio que no sea operador.
 
-| # | Pantalla | Subtítulo en inglés |
+| # | Qué se graba | Subtítulo en inglés |
 |---|---|---|
-| 1 | Navegador: `https://app.atentina.com.ar/login`, entrar con el usuario de revisores | "A business logs in to its Atentina dashboard." |
-| 2 | Menú WhatsApp: número de Atentina conectado, estado, calidad y agente asignado | "The business's WhatsApp number is connected and assigned to an AI assistant." |
-| 3 | Teléfono (o WhatsApp Web) de una persona: escribe al +54 9 351 700-2592 "Hola, quiero saber cómo funciona" | "An end user writes to the business on WhatsApp." |
-| 4 | La respuesta del agente llega al teléfono (texto); después una nota de voz y su respuesta | "The assistant replies through the WhatsApp Cloud API (text and voice notes)." |
-| 5 | Dashboard → Conversaciones: la conversación aparece con la transcripción | "The business sees the full conversation in its dashboard." |
-| 6 | Campañas (WhatsApp): elegir una plantilla aprobada y un contacto propio, enviar | "The business sends an approved template to a contact who opted in." |
-| 7 | El mensaje de plantilla llega al teléfono | "The template message is delivered." |
+| 1 | Sesión cerrada → `https://app.atentina.com.ar/login` → entrar con el usuario de revisores | "A business logs in to its Atentina dashboard." |
+| 2 | WhatsApp: el número conectado y su agente | "The business's WhatsApp number is connected to an AI assistant." |
+| 3 | WhatsApp Web: el número propio escribe al +54 9 351 700-2592 | "A customer writes to the business on WhatsApp." |
+| 4 | WhatsApp Web: llega la respuesta del agente (texto y, si se puede, nota de voz) | "Atentina sends the assistant's reply through the WhatsApp Cloud API; the WhatsApp client receives it." |
+| 5 | Panel → Conversaciones → esa conversación | "The business sees the conversation in its dashboard." |
+| 6 | Campañas → Nueva campaña de WhatsApp → plantilla aprobada → el número propio como único contacto → crear e iniciar | "The business sends an approved template to a contact who opted in." |
+| 7 | WhatsApp Web: llega el mensaje de la plantilla | "The WhatsApp client receives and displays the message." |
+
+El paso 6 manda un mensaje real (cobrado por Meta) a un número nuestro: confirmar antes de grabar.
 
 ## 3. `whatsapp_business_management`
 
@@ -101,16 +133,18 @@ Asistente en developers.facebook.com → Revisar → Revisión de la app → sol
 
 **Confirmación:** marcar la casilla.
 
-**Video (2–3 min), guion:**
+**Video (grabación real, 1–2 min, sin audio, subtítulos en inglés):**
 
-| # | Pantalla | Subtítulo en inglés |
+| # | Qué se graba | Subtítulo en inglés |
 |---|---|---|
-| 1 | Login en `app.atentina.com.ar` | "A business logs in to Atentina." |
-| 2 | WhatsApp → botón "Conectar WhatsApp" → abre el popup de Meta (Facebook Login for Business / Embedded Signup) | "The business connects its own WhatsApp Business Account with Embedded Signup." |
-| 3 | Mientras el Tech Provider no esté aprobado, cortar en el popup; con la aprobación, completar el alta con un número de prueba y mostrar la fila nueva | "After signup, the number appears in the dashboard and is subscribed to our webhooks." |
-| 4 | Tabla de números: estado, calidad, límite; acción "Releer de Meta" | "We read the number's status, quality rating and messaging limit from Meta." |
-| 5 | Sección Plantillas: lista con estado; "Nueva plantilla" de Utilidad con una variable y su ejemplo, enviar | "The business creates and manages its message templates." |
-| 6 | La plantilla aparece como pendiente / aprobada | "Template status is updated from Meta." |
+| 1 | Sesión cerrada → login con el usuario de revisores | "A business logs in to its Atentina dashboard." |
+| 2 | WhatsApp → "Conectar WhatsApp" → ventana de Meta → el usuario da el permiso y elige su cuenta y número → vuelve al panel con el número conectado | "The business connects its own WhatsApp Business Account with Embedded Signup and grants Atentina access." |
+| 3 | Tabla de números: estado, calidad y límite; "Releer de Meta" | "We read the number's status and quality from Meta." |
+| 4 | Plantillas → Nueva plantilla → completar (Utilidad, variables y ejemplos) → **Crear** | "The business creates a message template from Atentina." |
+| 5 | La plantilla nueva en la lista, "En revisión" (y "Aprobada" al releer, si Meta ya la aprobó) | "The template is submitted to Meta; its approval status is shown live." |
+
+El paso 2 solo se puede grabar completo cuando Meta apruebe el Tech Provider. El 4 crea una plantilla real en
+la WABA del número: confirmar el nombre y el texto antes de grabar.
 
 ## 4. `public_profile`
 
@@ -155,8 +189,8 @@ Son respuestas legales: las decide el usuario.
 - [ ] Plataforma Sitio web agregada (1.1).
 - [ ] Usuario de revisores creado y probado (1.2).
 - [ ] Privacidad con Resend y AWS, publicada en la landing (1.3).
-- [ ] Video de `whatsapp_business_messaging` grabado (MP4, subtítulos en inglés).
-- [ ] Video de `whatsapp_business_management` grabado.
+- [ ] Video de `whatsapp_business_messaging`: grabación real que cumpla 1b.
+- [ ] Video de `whatsapp_business_management`: grabación real que cumpla 1b (con el Embedded Signup completo).
 - [ ] Textos de las secciones 2, 3 y 5 pegados; casillas de confirmación.
 - [ ] Tratamiento de datos respondido (sección 6).
 - [ ] Revisión final con el usuario y **Enviar para revisión** (lo hace el usuario).
