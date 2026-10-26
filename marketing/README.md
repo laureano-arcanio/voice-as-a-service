@@ -37,6 +37,8 @@ Piezas de comunicación de Atentina, una carpeta por proyecto y una carpeta por 
 | [`tu-propio-agente`](videos/proyectos/tu-propio-agente/README.md) | Video horizontal 16:9, 93 s, con locución y subtítulos | YouTube y `/desarrolladores/docs/tu-propio-agente` (tu agente detrás de un endpoint compatible con OpenAI, con la voz y el teléfono de Atentina; paula y gonzalo) | v2, [en YouTube](https://www.youtube.com/watch?v=fJ1PAnvo9yc) y en la documentación |
 | [`meta-review-management`](videos/proyectos/meta-review-management/README.md) | Video horizontal 16:9, 80,0 s, sin locución, con subtítulos en inglés | App Review de Meta: cómo el panel usa `whatsapp_business_management` (capturas reales; textos del formulario en `docs/META_APP_REVIEW.md`, sección 3) | v1, borrador (sin enviar) |
 | [`propuesta-atentina`](documentos/proyectos/propuesta-atentina/README.md) | PDF, 3 hojas | Genérico (cualquier prospecto) | v1, borrador |
+| [`yoizen-tu-propio-agente`](documentos/proyectos/yoizen-tu-propio-agente/README.md) | Presentación 16:9, 12 diapositivas (HTML para presentar y PDF) | Yoizen (Juan Stamati, CTO y producto; demo en vivo de "Tu propio agente": sus bots detrás de un endpoint compatible con OpenAI, con la voz y el teléfono de Atentina) | v1, borrador |
+| [`yoizen-tu-propio-agente`](videos/proyectos/yoizen-tu-propio-agente/README.md) | Video horizontal 16:9, 113 s, con locución y subtítulos | Yoizen (las 12 diapositivas de la presentación con una voz por diapositiva, paula y gonzalo alternados; para mandar después de la demo o verlo sin Laureano) | v1, borrador |
 
 ## Convención
 

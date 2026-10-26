@@ -16,7 +16,9 @@ marketing/documentos/
     README.md              pedido, destinatario, estructura, afirmaciones y su fuente, tabla de versiones
     versiones/vN/          documento.html (fuente), documento.pdf, vista-N.png (una por hoja), NOTAS.md
                            y, al cerrarla, fuente/base.css
+    slides.css, slides.js  plantilla de presentaciones 16:9 (ver "Presentaciones")
   scripts/render.sh        HTML → PDF con Chrome + controles; scripts/cerrar.sh
+  scripts/render-slides.sh una presentación → PDF 16:9 + una PNG por diapositiva
 ```
 
 Proyecto de referencia: [`yoizen-propuesta`](../marketing/documentos/proyectos/yoizen-propuesta/README.md)
@@ -25,6 +27,8 @@ Proyecto de referencia: [`yoizen-propuesta`](../marketing/documentos/proyectos/y
 | Paso | Comando |
 |---|---|
 | Imprimir y controlar | `make doc P=<slug> V=<n> [HOJAS=<máximo>]` |
+| Presentación: imprimir y controlar | `make slides P=<slug> V=<n> [DIAPOS=<máximo>]` |
+| Presentación: abrir para presentar | `make slides-abrir P=<slug> V=<n>` |
 | Cerrar la versión | `make doc-cerrar P=<slug> V=<n>` |
 
 ## Cómo se hace un documento
@@ -78,6 +82,25 @@ Sigue [`DESIGN_GUIDELINE.md`](DESIGN_GUIDELINE.md), sección 10, adaptado a un d
 | `.note` | Aclaración o límite |
 | `footer.contact` (`.tag`, `.who`, `.data`) | Pie oscuro con logo blanco, frase, contacto y datos |
 | `.pagefoot` | Pie chico de las hojas sin `footer.contact` |
+
+## Presentaciones
+
+Para compartir pantalla en una videollamada (la primera: [`yoizen-tu-propio-agente`](../marketing/documentos/proyectos/yoizen-tu-propio-agente/README.md)).
+Mismo proyecto, README, versiones y controles que un documento; cambia la plantilla:
+- **`plantilla/slides.css` + `slides.js`:** una `section.slide` de 1920 × 1080 por diapositiva (`.top` con logo y rótulo,
+  `.body`, `.foot` con el contador `<span class="n" data-total="N">`), `.dark` para portada y cierre. En el navegador
+  muestra una por pantalla, escalada a la ventana (flechas, espacio, Home/End, F pantalla completa, `#n` en la URL);
+  impresa con Chrome, una página 16:9 por diapositiva (`@page 508mm 285.75mm`).
+- **Componentes:** `.cols.two/.three/.wide/.code`, `.card` (`.ours`, `.soft`, `.accent-bg`), `ul.check` (`.theirs`),
+  `.pill`, `pre.code` (código sobre `ink`, con `.k`, `.s`, `.c`, `.hl` y `.label`), `.diagram`, `.steps`, `.note`,
+  `.contact` y `.compact` para achicar una columna.
+- **Para una charla en vivo:** pocas palabras y tipografía grande (cuerpo 34 px, títulos 56 a 64 px), una idea por
+  diapositiva, el remate en el acento; quien presenta habla y la diapositiva acompaña. Las notas del presentador
+  (2 a 5 líneas por diapositiva, con las objeciones esperables) van en `NOTAS.md`, no impresas.
+- **Controles:** `make slides ... DIAPOS=<máximo>` falla si hay más diapositivas, si alguna página no es 16:9 (un
+  desborde agrega páginas) o si una fuente no es de la marca. Plex Mono latin no tiene "→" (U+2192): no usar flechas
+  en los rótulos en mono. Mirar las `vista-NN.png` (1920 × 1080) y una captura del modo pantalla.
+- Cerrar la versión guarda `slides.css` y `slides.js` en `fuente/`.
 
 ## Diagramas
 

@@ -38,7 +38,7 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
         wa-calling-status wa-calling-enable wa-calling-disable wa-sip-password sip-cert \
         migrate migrate-test create-admin welcome-reset api-key dev-backend web-dev web-build web-check openapi legal-sync mcp-docs mcp-eval mcp-registry-key mcp-registry-publish landing-dev \
         test e2e-sip e2e-sip-down eval-motor eval-llamadas eval-llm eval-llm-juez eval-llm-report loadtest-audio loadtest loadtest-report capacity capacity-monitor capacity-monitor-stop capacity-analyze gpubench stt-eval stt-corpus \
-        video-setup video-studio video-voces video-musica video video-revisar video-cerrar doc doc-cerrar \
+        video-setup video-studio video-voces video-musica video video-revisar video-cerrar doc doc-cerrar slides slides-abrir \
         backup backup-key backup-s3-setup backup-fetch backup-list cron-install \
         db-reset clean
 
@@ -410,6 +410,14 @@ doc-cerrar: ## Cierra una versión de un documento y la congela. Ej: make doc-ce
 doc: ## Imprime un documento a PDF y lo controla (no pisa uno cerrado). Ej: make doc P=yoizen-propuesta V=1 [HOJAS=2]
 	$(need-pv)
 	cd $(DOCS) && scripts/render.sh proyectos/$(P)/versiones/v$(V) $(HOJAS)
+
+slides: ## Imprime una presentación 16:9 (plantilla/slides.css) a PDF, una PNG por diapositiva, y la controla. Ej: make slides P=yoizen-tu-propio-agente V=1 [DIAPOS=12]
+	$(need-pv)
+	cd $(DOCS) && scripts/render-slides.sh proyectos/$(P)/versiones/v$(V) $(DIAPOS)
+
+slides-abrir: ## Abre una presentación en Chrome para presentarla (flechas, F = pantalla completa). Ej: make slides-abrir P=yoizen-tu-propio-agente V=1
+	$(need-pv)
+	google-chrome "file://$(CURDIR)/$(DOCS)/proyectos/$(P)/versiones/v$(V)/documento.html" >/dev/null 2>&1 &
 
 # --- Limpieza ------------------------------------------------------------
 

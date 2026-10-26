@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atentina × Yoizen · Tu propio agente</title>
+<!-- Presentación 16:9 (docs/DOCUMENTOS.md, "Presentaciones"): plantilla/slides.css. Para presentarla, abrir este
+     archivo en Chrome (make slides-abrir P=yoizen-tu-propio-agente V=1); para el PDF, make slides P=... V=1 DIAPOS=12. -->
+<link rel="stylesheet" href="../../../../plantilla/slides.css">
+<script src="../../../../plantilla/slides.js" defer></script>
+</head>
+<body class="no-js">
+<div class="deck">
+
+<!-- ========== 1 · Portada ========== -->
+<section class="slide dark">
+  <div class="top">
+    <img src="../../../../plantilla/marca/atentina-logo-blanco.svg" alt="Atentina">
+    <div class="eyebrow">Demo · Octubre 2026</div>
+  </div>
+  <div class="body">
+    <div class="eyebrow" style="color:var(--on-dark);margin-bottom:28px">Atentina × Yoizen</div>
+    <h1>Tu propio agente</h1>
+    <p class="lead" style="margin-top:40px;font-size:56px;max-width:none;font-family:'Bricolage',sans-serif;font-weight:700;color:var(--cta-ink)">Sus agentes, <span class="accent">nuestra voz.</span></p>
+    <p class="lead" style="margin-top:36px">Cómo los bots que Yoizen ya tiene atienden y hacen llamadas, con Atentina poniendo la voz y el teléfono.</p>
+  </div>
+  <div class="foot"><span>Atentina × Yoizen · Tu propio agente</span><span class="n" data-total="12"></span></div>
+</section>
+
+<!-- ========== 2 · El punto de partida ========== -->
+<section class="slide">
+  <div class="top">
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="eyebrow">El punto de partida</div>
+  </div>
+  <div class="body">
+    <div class="title">
+      <h2>Los bots de Yoizen ya saben qué decir. <span class="accent">Falta que atiendan el teléfono.</span></h2>
+    </div>
+    <div class="cols three">
+      <div class="card soft">
+        <h3>Hoy</h3>
+        <p>WhatsApp, web chat, bots sin código, IVR y ACD.</p>
+        <p class="muted" style="font-size:30px">Su orquestador decide qué responder.</p>
+      </div>
+      <div class="card soft">
+        <h3>Lo que falta</h3>
+        <p>Voz: llamadas entrantes y salientes.</p>
+        <p class="muted" style="font-size:30px">Con esos mismos bots, configurados por sus equipos.</p>
+      </div>
+      <div class="card ours">
+        <h3 class="accent">Lo nuevo</h3>
+        <p><strong>Tu propio agente.</strong> En cada turno, Atentina le pregunta a su orquestador qué decir.</p>
+        <p class="muted" style="font-size:30px">Y lo dice, con voz argentina, por teléfono y WhatsApp.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Atentina × Yoizen · Tu propio agente</span><span class="n" data-total="12"></span></div>
+</section>
+
+<!-- ========== 3 · Quién pone qué ========== -->
+<section class="slide">
+  <div class="top">
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="eyebrow">Quién pone qué</div>
+  </div>
+  <div class="body">
+    <div class="title">
+      <h2 style="font-size:58px">Atentina pone la voz y el teléfono. <span class="accent">Yoizen, las respuestas.</span></h2>
+    </div>
+    <div class="cols two compact">
+      <div class="card ours">
+        <div class="eyebrow" style="margin-bottom:20px">Pone Atentina</div>
+        <ul class="check">
+          <li>El número, las llamadas entrantes y salientes, WhatsApp y el link para llamar</li>
+          <li>La transcripción, los turnos y las interrupciones</li>
+          <li>La voz argentina, la grabación y el resumen por email</li>
+          <li>Los minutos, la derivación a personas, los eventos y el registro en el panel</li>
+        </ul>
+      </div>
+      <div class="card soft">
+        <div class="eyebrow" style="margin-bottom:20px;color:var(--ok)">Pone Yoizen</div>
+        <ul class="check theirs">
+          <li>El prompt y la personalidad de cada bot</li>
+          <li>Las herramientas y la conexión con sus sistemas</li>
+          <li>La memoria y el estado de la conversación</li>
+          <li>Qué responder en cada turno</li>
+        </ul>
+      </div>
+    </div>
+    <div class="note" style="margin-top:32px"><strong>No es cambiar el modelo.</strong> Acá el agente entero es de Yoizen: Atentina no pone ni prompt ni modelo de lenguaje.</div>
+  </div>
+  <div class="foot"><span>Atentina × Yoizen · Tu propio agente</span><span class="n" data-total="12"></span></div>
+</section>
+
+<!-- ========== 4 · Un turno ========== -->
+<section class="slide">
+  <div class="top">
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="eyebrow">Cómo funciona un turno</div>
+  </div>
+  <div class="body">
+    <div class="title">
+      <h2>La persona habla. Atentina transcribe, <span class="accent">pregunta a su endpoint</span> y dice la respuesta.</h2>
+    </div>
+    <div class="diagram">
+      <svg viewBox="0 0 1600 440" xmlns="http://www.w3.org/2000/svg" font-family="Figtree, sans-serif">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#2456e6"/></marker>
+          <marker id="arg" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#94a3b8"/></marker>
+        </defs>
+        <!-- Persona -->
+        <rect x="20" y="110" width="300" height="220" rx="28" fill="#fff" stroke="#cbd5e1" stroke-width="2"/>
+        <g fill="#2456e6" opacity=".9"><circle cx="170" cy="180" r="24"/><path d="M126 250 a44 38 0 0 1 88 0z"/></g>
+        <text x="170" y="300" text-anchor="middle" font-family="Bricolage, sans-serif" font-weight="800" font-size="34" fill="#0b1220">Persona</text>
+        <!-- Atentina -->
+        <rect x="520" y="60" width="560" height="320" rx="28" fill="#fff" stroke="#2456e6" stroke-width="3"/>
+        <text x="560" y="112" font-family="Plex Mono, monospace" font-size="22" letter-spacing="2" fill="#2456e6">VOZ Y TELÉFONO</text>
+        <text x="560" y="162" font-family="Bricolage, sans-serif" font-weight="800" font-size="40" fill="#0b1220">Atentina</text>
+        <g font-size="25" fill="#1740b8">
+          <rect x="560" y="196" width="238" height="52" rx="26" fill="#eaf0ff"/><text x="679" y="230" text-anchor="middle">Entiende lo que dicen</text>
+          <rect x="812" y="196" width="130" height="52" rx="26" fill="#eaf0ff"/><text x="877" y="230" text-anchor="middle">Habla</text>
+          <rect x="560" y="262" width="200" height="52" rx="26" fill="#eaf0ff"/><text x="660" y="296" text-anchor="middle">Turnos y cortes</text>
+          <rect x="774" y="262" width="276" height="52" rx="26" fill="#eaf0ff"/><text x="912" y="296" text-anchor="middle">Minutos, panel, derivación</text>
+        </g>
+        <!-- Yoizen -->
+        <rect x="1280" y="60" width="300" height="320" rx="28" fill="#fbfcfe" stroke="#cbd5e1" stroke-width="2"/>
+        <text x="1320" y="112" font-family="Plex Mono, monospace" font-size="22" letter-spacing="2" fill="#64748b">SU ENDPOINT</text>
+        <text x="1320" y="162" font-family="Bricolage, sans-serif" font-weight="800" font-size="40" fill="#0b1220">Yoizen</text>
+        <text x="1320" y="212" font-size="26" fill="#33415c">Su orquestador</text>
+        <text x="1320" y="248" font-size="26" fill="#33415c">y sus bots</text>
+        <text x="1320" y="306" font-family="Plex Mono, monospace" font-size="21" fill="#64748b">POST /chat/completions</text>
+        <text x="1320" y="340" font-family="Plex Mono, monospace" font-size="21" fill="#64748b">stream: true</text>
+        <!-- Flechas persona ⇄ Atentina -->
+        <path d="M322 170 H516" fill="none" stroke="#94a3b8" stroke-width="3" marker-end="url(#arg)"/>
+        <text x="420" y="152" text-anchor="middle" font-size="24" fill="#64748b" stroke="#fff" stroke-width="8" paint-order="stroke">voz</text>
+        <path d="M516 270 H322" fill="none" stroke="#2456e6" stroke-width="3.5" marker-end="url(#ar)"/>
+        <text x="420" y="312" text-anchor="middle" font-size="24" font-weight="700" fill="#2456e6" stroke="#fff" stroke-width="8" paint-order="stroke">la respuesta, en voz</text>
+        <!-- Flechas Atentina ⇄ Yoizen -->
+        <path d="M1082 170 H1276" fill="none" stroke="#2456e6" stroke-width="3.5" marker-end="url(#ar)"/>
+        <text x="1180" y="152" text-anchor="middle" font-size="24" font-weight="700" fill="#2456e6" stroke="#fff" stroke-width="8" paint-order="stroke">toda la conversación</text>
+        <path d="M1276 270 H1082" fill="none" stroke="#94a3b8" stroke-width="3" marker-end="url(#arg)"/>
+        <text x="1180" y="312" text-anchor="middle" font-size="24" fill="#64748b" stroke="#fff" stroke-width="8" paint-order="stroke">texto, en streaming</text>
+      </svg>
+      <div class="caption">Un pedido por cada turno de la persona, en el formato de la API de OpenAI. Cada pedazo de texto que devuelve el endpoint pasa a voz apenas llega, sin esperar la respuesta completa.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Atentina × Yoizen · Tu propio agente</span><span class="n" data-total="12"></span></div>
+</section>
+
+<!-- ========== 5 · El pedido ========== -->
+<section class="slide">
+  <div class="top">
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="eyebrow">El pedido · de Atentina al endpoint de Yoizen</div>
+  </div>
+  <div class="body">
+    <div class="title"><h2>Toda la conversación, <span class="accent">en cada turno.</span></h2></div>
+    <div class="cols code compact">
+      <div class="codewrap"><pre class="code" style="font-size:23px"><span class="label">HTTP</span><span class="k">POST</span> https://agente.yoizen.com/v1/chat/completions
+<span class="k">Authorization:</span> Bearer &lt;la key de la conexión&gt;
+<span class="k">X-Atentina-Conversation-Id:</span> 6f1c2a9e-…
+<span class="k">X-Atentina-Channel:</span> voice
+<span class="k">X-Atentina-Mode:</span> entrante
+<span class="k">X-Atentina-From:</span> +5493515551234
+<span class="k">X-Atentina-To:</span> +541152630861
+<span class="k">X-Atentina-Agent:</span> ventas
+<span class="k">X-Atentina-Turn:</span> 2
+
+{"model": <span class="s">"ventas"</span>, "stream": <span class="k">true</span>,
+ "messages": [
+  {"role": "assistant", "content": <span class="s">"Hola, soy Sofía. ¿Qué necesitás?"</span>},
+  {"role": "user", "content": <span class="s">"¿Tienen turno el jueves?"</span>},
+  {"role": "assistant", "content": <span class="s">"Sí, a las diez o a las cuatro."</span>},
+  {"role": "user", "content": <span class="s">"A las cuatro. Gracias."</span>}
+ ],
+ "tools": [{"type": "function", "function": {"name": <span class="s">"end_call"</span>, …}}]}</pre></div>
+      <ul>
+        <li><strong>Sin estado de su lado.</strong> El historial que mandamos es el que vale.</li>
+        <li><strong>Los datos de la llamada, en headers:</strong> quién llama, a qué número, canal, agente, turno.</li>
+        <li><strong>Solo campos estándar.</strong> Si lo reenvían tal cual a su modelo, funciona.</li>
+        <li><strong>Varios bots, un endpoint:</strong> cada agente manda su <code>model</code>.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot"><span>Atentina × Yoizen · Tu propio agente</span><span class="n" data-total="12"></span></div>
+</section>
+
+<!-- ========== 6 · La respuesta ========== -->
+<section class="slide">
+  <div class="top">
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="eyebrow">La respuesta · del endpoint de Yoizen a Atentina</div>
+  </div>
+  <div class="body">
+    <div class="title"><h2>En pedazos. <span class="accent">Cada uno pasa a voz apenas llega.</span></h2></div>
+    <div class="cols code compact">
+      <div class="codewrap"><pre class="code" style="font-size:22px"><span class="label">SSE</span><span class="k">data:</span> {"choices":[{"delta":{"content":<span class="s">"Perfecto, te espero el jueves "</span>}}]}
+
+<span class="k">data:</span> {"choices":[{"delta":{"content":<span class="s">"a las cuatro. Que andes bien."</span>}}]}
+
+<span class="k">data:</span> {"choices":[{"delta":{"tool_calls":[{"function":
+        {"name":<span class="s">"end_call"</span>,
+         "arguments":<span class="s">"{\"outcome\": \"turno_dado\"}"</span>}}]}}]}
+
+<span class="k">data:</span> [DONE]</pre></div>
+      <div>
+        <div class="card accent-bg" style="margin-bottom:28px;padding:28px 32px">
+          <div class="eyebrow" style="margin-bottom:10px;font-size:22px">Mientras llega el segundo pedazo</div>
+          <p style="font-family:'Bricolage',sans-serif;font-weight:700;font-size:34px;color:var(--ink);margin:0">«Perfecto, te espero el jueves…»</p>
+          <p class="muted" style="font-size:26px;margin:8px 0 0">ya está sonando en el teléfono.</p>
+        </div>
+        <ul>
+          <li><strong>Streaming obligatorio.</strong> Una respuesta entera en JSON cuenta como error.</li>
+          <li><code>delta.content</code> se dice; el razonamiento se descarta.</li>
+          <li>Sin texto ni herramientas, cuenta como error.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Atentina × Yoizen · Tu propio agente</span><span class="n" data-total="12"></span></div>
+</section>
+
+<!-- ========== 7 · Dos herramientas ========== -->
+<section class="slide">
+  <div class="top">
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="eyebrow">Herramientas de la plataforma</div>
+  </div>
+  <div class="body">
+    <div class="title"><h2 style="font-size:58px">Dos herramientas. <span class="accent">Las manda y las ejecuta Atentina.</span></h2></div>
+    <div class="cols two compact">
+      <div class="card">
+        <span class="pill accent mono" style="font-size:32px;padding:10px 26px">end_call</span>
+        <h3 style="margin-top:24px">Corta la llamada</h3>
+        <p>Cuando termina de decir la despedida de ese mensaje.</p>
+        <p>Con <code>outcome</code> elige el <strong>resultado de la conversación</strong>, entre los definidos en el agente.</p>
+        <div class="ej">Ejemplo: <code>turno_dado</code> o <code>sin_turno</code>. Queda en el panel, en el webhook y en el resumen por email.</div>
+      </div>
+      <div class="card">
+        <span class="pill accent mono" style="font-size:32px;padding:10px 26px">transfer_call</span>
+        <h3 style="margin-top:24px">Pasa la llamada a una persona</h3>
+        <p>A un <strong>área del equipo</strong> (<code>area</code>), de las que tiene el agente.</p>
+        <p>La persona escucha música mientras tanto; si nadie atiende, el agente retoma.</p>
+        <div class="ej">Llega solo si el agente tiene áreas de derivación configuradas.</div>
+      </div>
+    </div>
+    <div class="note" style="margin-top:32px">Si su bot las ignora, la llamada termina cuando corta la persona o al llegar a la duración máxima.</div>
+  </div>
+  <div class="foot"><span>Atentina × Yoizen · Tu propio agente</span><span class="n" data-total="12"></span></div>
+</section>
+
+<!-- ========== 8 · Un endpoint mínimo ========== -->
+<section class="slide">
+  <div class="top">
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="eyebrow">Un endpoint mínimo</div>
+  </div>
+  <div class="body">
+    <div class="title"><h2 style="font-size:56px">Veinte líneas: <span class="accent">su prompt, su modelo, en streaming.</span></h2></div>
+    <div class="cols code compact">
+      <div class="codewrap"><pre class="code" style="font-size:22px;line-height:1.4;padding:28px 36px"><span class="label">Python · FastAPI</span>app = FastAPI()
+llm = AsyncOpenAI()   <span class="c"># su LLM: cualquiera compatible con OpenAI</span>
+
+<span class="k">@app.post("/v1/chat/completions")</span>
+async def chat(request: Request, x_atentina_from: str = Header("")):
+    body = await request.json()
+    <span class="hl">messages = [{"role": "system",
+                 "content": f"{PROMPT}\nLlama: {x_atentina_from}."},
+                *body["messages"]]</span>
+    <span class="hl">stream = await llm.chat.completions.create(
+        model="gpt-4.1-mini", messages=messages,
+        tools=body.get("tools"), stream=True)</span>
+
+    async def events():
+        async for chunk in stream:
+            <span class="hl">yield f"data: {chunk.model_dump_json(exclude_none=True)}\n\n"</span>
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(events(), media_type="text/event-stream")</pre></div>
+      <ul>
+        <li><strong>Agrega su prompt</strong> y los datos de la llamada (headers).</li>
+        <li><strong>Le pasa la conversación y las herramientas</strong> a su modelo. Si llama a <code>end_call</code>, Atentina corta.</li>
+        <li><strong>Devuelve el stream tal cual.</strong></li>
+        <li class="muted">El resto es de Yoizen: su orquestador, sus flujos, sus datos.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot"><span>Atentina × Yoizen · Tu propio agente</span><span class="n" data-total="12"></span></div>
+</section>
+
+<!-- ========== 9 · Configurar ========== -->
+<section class="slide">
+  <div class="top">
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="eyebrow">Configurarlo</div>
+  </div>
+  <div class="body">
+    <div class="title"><h2>Tres pasos en el panel. <span class="accent">O por API y MCP.</span></h2></div>
+    <div class="steps">
+      <div class="step"><b>La conexión</b><p>Configuración › Modelos › Nueva conexión, tipo <strong>OpenAI compatible</strong>: la URL de su endpoint y la API key que espera.</p><p class="muted" style="font-size:26px">La key queda cifrada y no se vuelve a mostrar.</p></div>
+      <div class="step"><b>Probar el endpoint</b><p>Le manda un turno como el de una llamada y mide cuánto tarda el primer texto.</p><p class="mono" style="font-size:25px;color:var(--ok)">Tu agente respondió · streaming · «Hola, …»</p></div>
+      <div class="step"><b>El agente</b><p>Prender <strong>Que conteste tu propio agente</strong>: endpoint, modelo, mensaje de error y qué hacer si falla.</p><p class="muted" style="font-size:26px">Nombre, voz, apertura, áreas, grabación y número: como en cualquier agente.</p></div>
+    </div>
+    <div class="cols two" style="margin-top:36px">
+      <div class="note"><strong>Por API:</strong> <code>POST /clients/{id}/llm-connections</code>, <code>…/test</code> y <code>POST /agents</code>, con una key con alcance <code>calls</code>.</div>
+      <div class="note"><strong>Por MCP,</strong> desde su agente de IA: <code>create_llm_connection</code>, <code>test_llm_connection</code>, <code>create_agent</code>.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Atentina × Yoizen · Tu propio agente</span><span class="n" data-total="12"></span></div>
+</section>
+
+<!-- ========== 10 · Latencia ========== -->
+<section class="slide">
+  <div class="top">
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="eyebrow">Latencia</div>
+  </div>
+  <div class="body">
+    <div class="title"><h2>Lo que más pesa: <span class="accent">el tiempo hasta el primer texto.</span></h2></div>
+    <svg viewBox="0 0 1696 150" xmlns="http://www.w3.org/2000/svg" font-family="Figtree, sans-serif" style="width:100%;height:auto;display:block;margin-bottom:36px">
+      <line x1="40" y1="70" x2="1656" y2="70" stroke="#e3e8ef" stroke-width="6" stroke-linecap="round"/>
+      <line x1="40" y1="70" x2="980" y2="70" stroke="#2456e6" stroke-width="6" stroke-linecap="round"/>
+      <circle cx="40" cy="70" r="16" fill="#2456e6"/><circle cx="980" cy="70" r="16" fill="#2456e6"/><circle cx="1656" cy="70" r="16" fill="#fff" stroke="#cbd5e1" stroke-width="4"/>
+      <text x="40" y="26" font-size="26" font-weight="700" fill="#0b1220">Llega el pedido a su endpoint</text>
+      <text x="980" y="26" text-anchor="middle" font-size="26" font-weight="700" fill="#0b1220">Manda el primer pedazo de texto</text>
+      <text x="1656" y="26" text-anchor="end" font-size="26" fill="#64748b">Atentina ya lo está diciendo</text>
+      <text x="510" y="124" text-anchor="middle" font-family="Plex Mono, monospace" font-size="24" letter-spacing="2" fill="#2456e6">TIEMPO HASTA EL PRIMER TEXTO</text>
+      <text x="1318" y="124" text-anchor="middle" font-family="Plex Mono, monospace" font-size="24" letter-spacing="2" fill="#94a3b8">EL RESTO, MIENTRAS HABLA</text>
+    </svg>
+    <div class="cols three">
+      <div class="card soft">
+        <h3>Se nota en la llamada</h3>
+        <p>Su modelo, sus herramientas y su infraestructura.</p>
+        <p class="muted" style="font-size:28px">Desde Azure EE.UU. se suma la red: a medir en el piloto.</p>
+      </div>
+      <div class="card soft">
+        <h3>Más de un segundo</h3>
+        <p>Se siente lento, con silencios.</p>
+        <p class="muted" style="font-size:28px">Se ve por turno en el panel (Detalle técnico) y en Probar el endpoint.</p>
+      </div>
+      <div class="card accent-bg">
+        <h3>Texto primero, herramientas después</h3>
+        <p style="font-family:'Bricolage',sans-serif;font-weight:700;color:var(--ink);font-size:36px">«Dame un segundo que me fijo.»</p>
+        <p class="muted" style="font-size:28px">Una frase corta antes de la consulta lenta.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Atentina × Yoizen · Tu propio agente</span><span class="n" data-total="12"></span></div>
+</section>
+
+<!-- ========== 11 · Errores ========== -->
+<section class="slide">
+  <div class="top">
+    <img src="../../../../plantilla/marca/atentina-logo.svg" alt="Atentina">
+    <div class="eyebrow">Errores</div>
+  </div>
+  <div class="body">
+    <div class="title"><h2>Si su endpoint falla, <span class="accent">la llamada no se queda muda.</span></h2></div>
+    <div class="cols three" style="align-items:stretch">
+      <div class="card" style="border-color:var(--warn)">
+        <span class="pill warn">Falla</span>
+        <h3 style="margin-top:20px">Error, vacío o sin texto a tiempo</h3>
+        <p class="muted" style="font-size:28px">La espera del primer texto se configura (<code>first_token_timeout_ms</code>).</p>
+      </div>
+      <div class="card">
+        <span class="pill accent">El agente dice</span>
+        <h3 style="margin-top:20px">El mensaje configurado</h3>
+        <p style="font-family:'Bricolage',sans-serif;font-weight:700;color:var(--ink);font-size:34px">«Disculpá, se me cortó. ¿Me lo repetís?»</p>
+      </div>
+      <div class="card">
+        <span class="pill">Varios seguidos</span>
+        <h3 style="margin-top:20px">Corta o pasa a su equipo</h3>
+        <p class="muted" style="font-size:28px"><code>max_errors</code> y <code>on_errors</code>: <code>hang_up</code> o <code>transfer:&lt;área&gt;</code>.</p>
+      </div>
+    </div>
+    <div class="cols two" style="margin-top:36px">
+      <div class="note"><strong>Un turno bueno vuelve el contador a cero.</strong></div>
+      <div class="note">Si se corta después de empezar a hablar, queda lo dicho y no cuenta como error.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Atentina × Yoizen · Tu propio agente</span><span class="n" data-total="12"></span></div>
+</section>
+
+<!-- ========== 12 · Próximos pasos ========== -->
+<section class="slide dark">
+  <div class="top">
+    <img src="../../../../plantilla/marca/atentina-logo-blanco.svg" alt="Atentina">
+    <div class="eyebrow">Próximos pasos</div>
+  </div>
+  <div class="body">
+    <div class="title" style="margin-bottom:28px"><h2 style="font-size:54px">Un endpoint y un caso real. <span class="accent">El resto lo ponemos nosotros.</span></h2></div>
+    <div class="steps" style="grid-template-columns:repeat(4,1fr);gap:28px">
+      <div class="step compact"><b>Su endpoint</b><p>Uno de sus bots detrás de <code>/chat/completions</code>, https público, con streaming.</p></div>
+      <div class="step compact"><b>Conexión y prueba</b><p>Juntos, en el panel. Medimos el primer texto desde su infraestructura.</p></div>
+      <div class="step compact"><b>Llamadas de prueba</b><p>Con un número nuestro, por teléfono y WhatsApp, hasta ajustar prompt y tiempos.</p></div>
+      <div class="step compact"><b>Piloto con un caso real</b><p>Un cliente, un flujo. Calidad, capacidad y costos antes de ofrecerlo.</p></div>
+    </div>
+    <div class="note" style="margin-top:24px;font-size:25px;padding:20px 28px"><strong>Qué ponemos nosotros:</strong> número argentino, el agente configurado, panel con transcripciones y acompañamiento técnico. Incluido en el plan Red, a medida. La conexión SIP con su Asterisk sigue en evaluación. Guía: <span class="mono">atentina.com.ar/desarrolladores/docs/tu-propio-agente</span></div>
+    <footer class="contact">
+      <img src="../../../../plantilla/marca/atentina-logo-blanco.svg" alt="Atentina">
+      <div><div class="tag">Sus agentes, <span>nuestra voz y nuestro teléfono.</span></div><div class="who">Contacto: Laureano Arcanio</div></div>
+      <div class="data">
+        <b>0800-220-1233</b>
+        <a href="https://atentina.com.ar">atentina.com.ar</a> · <a href="mailto:hola@atentina.com.ar">hola@atentina.com.ar</a><br>
+        WhatsApp +54 9 351 700-2592
+      </div>
+    </footer>
+  </div>
+  <div class="foot"><span>Atentina × Yoizen · Tu propio agente</span><span class="n" data-total="12"></span></div>
+</section>
+
+</div>
+<div class="hint">← → para moverse · F pantalla completa</div>
+</body>
+</html>

@@ -16,7 +16,8 @@ if grep -qi '^Estado: cerrada' "$dir/NOTAS.md" 2>/dev/null; then
   echo "ERROR: $dir está cerrada: hacé una versión nueva" >&2; exit 1
 fi
 
-google-chrome --headless=new --no-sandbox --disable-gpu --no-pdf-header-footer \
+# Sin DISPLAY ni D-Bus: con la sesión gráfica del host, Chrome headless se cuelga sin imprimir (26-oct-2026).
+timeout 90 env -u DISPLAY -u WAYLAND_DISPLAY -u DBUS_SESSION_BUS_ADDRESS google-chrome --headless=new --no-sandbox --disable-gpu --no-pdf-header-footer \
   --print-to-pdf="$pdf" "file://$(realpath "$html")" 2>/dev/null
 
 hojas=$(pdfinfo "$pdf" | awk '/^Pages:/ {print $2}')

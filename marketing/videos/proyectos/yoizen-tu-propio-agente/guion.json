@@ -1,0 +1,20 @@
+{
+  "nota": "Presentación para Yoizen (Tu propio agente) con audio: las 12 diapositivas de documentos/proyectos/yoizen-tu-propio-agente v1, una voz por diapositiva alternando paula (impares) y gonzalo (pares). 'Yoizen' no se dice (el TTS lo pronunciaba mal): en la voz es 'ustedes' o 'su equipo'. Grafías de VIDEOS.md: 'ápi', 'ópen, ei, ái', 'M C P'; 'endpoint', 'streaming', 'headers' y 'key' escritos normal; end_call y transfer_call no se dicen. Sin cifras de latencia, sin 'sin respaldo', sin 'sin costo', sin llamadas simultáneas.",
+  "musica_segundos": 125,
+  "velocidad": 1.05,
+  "ganancia_db": -1.5,
+  "lineas": [
+    {"id": "s01", "voz": "paula", "texto": "Tu propio agente. Una sola función: los bots que ustedes ya tienen deciden qué decir, y Atentina pone la voz y el teléfono."},
+    {"id": "s02", "voz": "gonzalo", "texto": "Su omnicanal ya atiende WhatsApp y web chat, y su orquestador decide qué responder. Falta la voz: llamadas entrantes y salientes, con esos mismos bots."},
+    {"id": "s03", "voz": "paula", "texto": "Atentina pone el número, las llamadas, la transcripción, la voz y los minutos. Ustedes ponen el prompt, las herramientas, la memoria y qué responder."},
+    {"id": "s04", "voz": "gonzalo", "texto": "La persona habla. Atentina transcribe, le manda la conversación a su endpoint en el formato de ópen, ei, ái, y dice cada pedazo de la respuesta apenas llega."},
+    {"id": "s05", "voz": "paula", "texto": "Sin estado de su lado: el historial que mandamos es el que vale. Los datos de la llamada van en headers, y varios bots pueden compartir un endpoint."},
+    {"id": "s06", "voz": "gonzalo", "texto": "La respuesta vuelve en pedazos: el primero ya suena en el teléfono mientras llega el segundo. Streaming obligatorio: una respuesta entera cuenta como error."},
+    {"id": "s07", "voz": "paula", "texto": "Dos herramientas que ejecuta Atentina. Con una, su bot corta la llamada y elige el resultado. Con la otra, la pasa a una persona de su equipo."},
+    {"id": "s08", "voz": "gonzalo", "texto": "Un endpoint mínimo son veinte líneas: agrega su prompt, le pasa la conversación a su modelo y devuelve la respuesta tal cual. El resto ya lo tienen."},
+    {"id": "s09", "voz": "paula", "texto": "Tres pasos en el panel: la conexión, con la dirección de su endpoint y su key; probar el endpoint; y prender que conteste su propio agente. También por ápi y M C P."},
+    {"id": "s10", "voz": "gonzalo", "texto": "Lo que más pesa es el tiempo hasta el primer texto. Más de un segundo se siente lento, y su modelo y su infraestructura se notan. Texto primero, herramientas después."},
+    {"id": "s11", "voz": "paula", "texto": "Si su endpoint falla, la llamada no se queda muda: el agente dice el mensaje configurado. Con varios errores seguidos, corta o pasa la llamada a su equipo."},
+    {"id": "s12", "voz": "gonzalo", "texto": "Próximos pasos: un endpoint con uno de sus bots y un caso real. Lo conectamos, hacemos llamadas de prueba y vamos a un piloto, en el plan Red. El resto lo ponemos nosotros."}
+  ]
+}

@@ -1,0 +1,147 @@
+/* Plantilla de presentaciones de Atentina (docs/DOCUMENTOS.md, "Presentaciones").
+   Misma marca que base.css (tokens de landing/src/styles/global.css, tipografías de docs/DESIGN_GUIDELINE.md),
+   en 16:9: una section.slide de 1920 × 1080 px por diapositiva. Sirve para dos cosas:
+   - presentar en el navegador (una diapositiva por pantalla, escalada a la ventana, flechas y contador);
+   - imprimir a PDF 16:9 con Chrome (scripts/render-slides.sh), una página por diapositiva.
+   Pensada para una pantalla compartida: pocas palabras y tipografía grande. */
+@font-face { font-family: "Bricolage"; src: url(fonts/bricolage-grotesque-latin-wght-normal.woff2) format("woff2"); font-weight: 200 800; }
+@font-face { font-family: "Figtree"; src: url(fonts/figtree-latin-wght-normal.woff2) format("woff2"); font-weight: 300 900; }
+@font-face { font-family: "Plex Mono"; src: url(fonts/ibm-plex-mono-latin-400-normal.woff2) format("woff2"); font-weight: 400; }
+@font-face { font-family: "Plex Mono"; src: url(fonts/ibm-plex-mono-latin-500-normal.woff2) format("woff2"); font-weight: 500; }
+:root {
+  --bg2: #f6f8fb; --surface2: #f1f4f9; --ink: #0b1220; --ink2: #33415c; --muted: #64748b; --line: #e3e8ef; --line2: #cbd5e1;
+  --accent: #2456e6; --accent-soft: #eaf0ff; --accent2: #1740b8; --on-dark: #9db6ff; --ok: #1b9c5b; --ok-soft: #e3f6ec;
+  --warn: #b42318; --warn-soft: #fef3f2; --cta-ink: #f4f6fa; --cta-muted: #b8c2d6;
+  --w: 1920px; --h: 1080px;
+}
+/* 1920 × 1080 px a 96 dpi = 508 × 285,75 mm: así Chrome imprime cada diapositiva en una página 16:9 */
+@page { size: 508mm 285.75mm; margin: 0; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: #fff; }
+body { font-family: "Figtree", sans-serif; color: var(--ink2); font-size: 34px; line-height: 1.4; -webkit-print-color-adjust: exact; print-color-adjust: exact; counter-reset: slide; }
+h1, h2, h3 { font-family: "Bricolage", sans-serif; color: var(--ink); margin: 0; letter-spacing: -0.015em; line-height: 1.05; text-wrap: balance; }
+h1 { font-size: 112px; font-weight: 800; }
+h2 { font-size: 64px; font-weight: 800; }
+h3 { font-size: 40px; font-weight: 700; margin-bottom: 14px; }
+p { margin: 0 0 .5em; }
+.accent { color: var(--accent); }
+.muted { color: var(--muted); }
+strong { color: var(--ink); font-weight: 700; }
+code, .mono { font-family: "Plex Mono", monospace; }
+code { font-size: .9em; background: var(--surface2); border-radius: 8px; padding: 2px 10px; color: var(--ink); }
+.eyebrow { font-family: "Plex Mono", monospace; font-weight: 500; font-size: 26px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.lead { font-size: 42px; color: var(--ink2); max-width: 30ch; line-height: 1.3; }
+
+/* --- La diapositiva ----------------------------------------------------- */
+.slide { width: var(--w); height: var(--h); position: relative; overflow: hidden; padding: 84px 112px 120px; background: #fff; display: flex; flex-direction: column; counter-increment: slide; }
+.slide > .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 44px; }
+.slide > .top img { height: 48px; }
+.slide > .top .eyebrow { color: var(--muted); letter-spacing: .06em; }
+/* safe center: centrado vertical si el contenido entra, y alineado arriba si desborda (así se ve el desborde) */
+.slide > .body { flex: 1; display: flex; flex-direction: column; justify-content: safe center; min-height: 0; }
+.slide > .foot { position: absolute; left: 112px; right: 112px; bottom: 56px; display: flex; justify-content: space-between; font-family: "Plex Mono", monospace; font-size: 22px; color: var(--muted); letter-spacing: .04em; }
+/* El número lo pone slides.js (data-n): el contador CSS no cuenta las diapositivas ocultas en pantalla; sin JS, el contador */
+.slide > .foot .n::after { content: attr(data-n) " / " attr(data-total); }
+body.no-js .slide > .foot .n::after { content: counter(slide) " / " attr(data-total); }
+.slide .title { margin-bottom: 36px; }
+.slide .title h2 + p { margin-top: 18px; }
+.slide.dark { background: var(--ink); color: var(--cta-muted); }
+.slide.dark h1, .slide.dark h2, .slide.dark h3, .slide.dark strong { color: var(--cta-ink); }
+.slide.dark .accent { color: var(--on-dark); }
+.slide.dark .eyebrow, .slide.dark > .foot, .slide.dark > .top .eyebrow { color: var(--cta-muted); }
+.slide.dark code { background: rgba(255,255,255,.08); color: var(--cta-ink); }
+.slide.dark .lead { color: var(--cta-muted); }
+
+/* --- Componentes -------------------------------------------------------- */
+.cols { display: grid; gap: 40px; }
+.cols > * { min-width: 0; }
+.cols.two { grid-template-columns: 1fr 1fr; }
+.cols.three { grid-template-columns: repeat(3, 1fr); }
+.cols.wide { grid-template-columns: 3fr 2fr; }
+.cols.code { grid-template-columns: minmax(0, 1.35fr) minmax(0, .65fr); }
+ul { margin: 0; padding: 0; list-style: none; }
+li { position: relative; padding-left: 44px; margin-bottom: 18px; }
+li::before { content: ""; position: absolute; left: 0; top: .5em; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); }
+ul.warn li::before { background: var(--warn); }
+ul.check li::before { width: 20px; height: 11px; border-radius: 0; background: none; border-left: 4px solid var(--accent); border-bottom: 4px solid var(--accent); transform: rotate(-45deg); top: .36em; }
+ul.check.theirs li::before { border-color: var(--ok); }
+.dark li::before { background: var(--on-dark); }
+
+.card { border: 1.5px solid var(--line); border-radius: 24px; padding: 36px 40px; background: #fff; }
+.compact { font-size: 30px; }
+.compact li { margin-bottom: 14px; }
+.compact h3 { font-size: 36px; }
+.card.ours { border-color: var(--accent); }
+.card.soft { background: var(--bg2); border-color: var(--line); }
+.card.accent-bg { background: var(--accent-soft); border-color: var(--accent-soft); }
+.card .num { width: 60px; height: 60px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-family: "Bricolage", sans-serif; font-weight: 800; font-size: 32px; margin-bottom: 24px; }
+.card .ej { font-size: 28px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 20px; margin-top: 24px; }
+.dark .card { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.14); }
+.dark .card .ej { color: var(--cta-muted); border-color: rgba(255,255,255,.14); }
+
+.pill { display: inline-block; border-radius: 999px; padding: 8px 22px; font-size: 28px; font-weight: 600; background: var(--surface2); color: var(--ink2); margin: 0 8px 12px 0; }
+.pill.accent { background: var(--accent-soft); color: var(--accent2); }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.mono { font-family: "Plex Mono", monospace; font-weight: 500; font-size: 26px; }
+
+/* Código sobre fondo oscuro (contraste medido en la landing: cta-ink sobre ink) */
+pre.code { margin: 0; background: var(--ink); color: var(--cta-ink); border-radius: 24px; padding: 36px 44px; font-family: "Plex Mono", monospace; font-size: 26px; line-height: 1.42; overflow: hidden; white-space: pre; }
+pre.code .k { color: var(--on-dark); }        /* claves, headers, nombres */
+pre.code .s { color: #a6e3b8; }               /* strings de ejemplo (ok sobre ink) */
+pre.code .c { color: var(--cta-muted); }      /* comentarios */
+pre.code .hl { background: rgba(157,182,255,.16); border-radius: 6px; padding: 0 6px; margin: 0 -6px; }
+pre.code .label { position: absolute; top: 20px; right: 28px; font-size: 20px; letter-spacing: .08em; text-transform: uppercase; color: var(--cta-muted); }
+.codewrap { position: relative; }
+.slide.dark pre.code { background: rgba(255,255,255,.06); }
+
+.diagram { border: 1px solid var(--line); border-radius: 28px; padding: 40px 48px; background: linear-gradient(180deg, var(--bg2), #fff 70%); }
+.diagram svg { width: 100%; height: auto; display: block; }
+.caption { font-size: 28px; color: var(--muted); margin-top: 20px; }
+
+.steps { counter-reset: s; display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; }
+.step { background: var(--bg2); border-radius: 24px; padding: 40px 44px; }
+.step::before { counter-increment: s; content: counter(s); display: block; font-family: "Bricolage", sans-serif; font-weight: 800; font-size: 56px; color: var(--accent); line-height: 1; margin-bottom: 20px; }
+.step b { display: block; color: var(--ink); font-family: "Bricolage", sans-serif; font-size: 38px; font-weight: 700; margin-bottom: 12px; line-height: 1.15; }
+.step p { font-size: 30px; }
+.step.compact p { font-size: 26px; }
+.step.compact { padding: 30px 34px; }
+.step.compact::before { font-size: 48px; margin-bottom: 14px; }
+.step.compact b { font-size: 34px; }
+.dark .step { background: rgba(255,255,255,.05); }
+.dark .step b { color: var(--cta-ink); }
+.dark .step::before { color: var(--on-dark); }
+
+.note { font-size: 28px; color: var(--ink2); background: var(--accent-soft); border-radius: 20px; padding: 24px 32px; }
+.dark .note { background: rgba(255,255,255,.06); color: var(--cta-muted); }
+
+.contact { display: grid; grid-template-columns: auto 1fr auto; gap: 40px; align-items: center; border-top: 1px solid rgba(255,255,255,.14); padding-top: 26px; margin-top: 28px; }
+.contact img { height: 48px; }
+.contact .tag { font-family: "Bricolage", sans-serif; font-weight: 800; font-size: 36px; line-height: 1.15; color: var(--cta-ink); white-space: nowrap; }
+.contact .tag span { color: var(--on-dark); }
+.contact .who { font-size: 26px; color: var(--cta-muted); margin-top: 8px; }
+.contact .data { text-align: right; font-size: 24px; line-height: 1.5; color: var(--cta-muted); white-space: nowrap; }
+.contact .data b { display: block; color: #fff; font-family: "Bricolage", sans-serif; font-weight: 800; font-size: 40px; letter-spacing: .01em; }
+.contact a { color: var(--cta-ink); text-decoration: none; }
+
+/* --- Pantalla: una diapositiva por vez, escalada a la ventana ---------- */
+@media screen {
+  html, body { height: 100%; background: #0b1220; }
+  body { overflow: hidden; }
+  .deck { position: fixed; inset: 0; }
+  /* La diapositiva vigente, centrada en la ventana y escalada por slides.js (translate + scale) */
+  .slide { display: none; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); transform-origin: center center; box-shadow: 0 24px 80px rgba(0,0,0,.5); }
+  .slide.current { display: flex; }
+  .slide > .body { display: flex; }
+  .hint { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); font-family: "Plex Mono", monospace; font-size: 13px; color: var(--cta-muted); opacity: .7; transition: opacity .5s; }
+  .hint.off { opacity: 0; }
+  body.no-js .slide { display: flex; position: static; transform: none !important; box-shadow: none; }
+  body.no-js .deck { position: static; }
+  body.no-js .hint { display: none; }
+}
+@media print {
+  .deck { display: block; }
+  .slide { display: flex !important; transform: none !important; box-shadow: none; page-break-after: always; break-after: page; }
+  .slide:last-child { page-break-after: auto; break-after: auto; }
+  .hint { display: none; }
+}
