@@ -98,7 +98,8 @@ qué guardamos de la aceptación y de los pedidos de baja, seguridad e incidente
 
 ## 6. Estado
 
-25-oct-2026: fases 1 a 3 implementadas, **sin desplegar**. Tests: `tests/test_legal.py` (19),
+25-oct-2026: fases 1 a 3 implementadas. **Desplegado el 26-oct-2026**: landing (Render), `make migrate` (0031) y
+`app`/`agent` recreados; `GET /demo/legal` sirve las versiones 2026-10-25. Faltan los pasos 5 y 6 de la sección 7. Tests: `tests/test_legal.py` (19),
 `tests/test_migration_0031.py`, `web/src/features/auth/LegalModal.test.tsx`; la suite completa pasa (el fallo de
 `test_migration_0005` por `users.welcomed_at` es anterior a este plan).
 
