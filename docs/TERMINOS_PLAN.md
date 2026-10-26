@@ -91,11 +91,9 @@ qué guardamos de la aceptación y de los pedidos de baja, seguridad e incidente
 
 ## 5. Pendientes que decide el usuario
 
-- **Domicilio físico** del proveedor: la Res. 270 (art. 2) lo pide en el sitio; hoy solo dice "Córdoba".
-- **Horario de atención** declarado (Disp. 954/2025: ≥ 8 h en días hábiles). Las condiciones dicen lunes a viernes
-  de 9 a 18.
-- **Precios con o sin impuestos** (monotributo / IVA): las condiciones dicen que los publicados son finales.
-- Revisión de un abogado; si hay clientes con contrato propio, ese contrato prevalece (lo dicen las condiciones).
+- Cerrados el 26-oct-2026: domicilio (Gral. Bustos 776, Cofico, Córdoba: condiciones, privacidad y pie de la
+  landing), horario de atención (lunes a viernes hábiles, de 9 a 13 y de 14 a 18: 8 h) y revisión de un abogado.
+  Los precios publicados siguen siendo finales.
 - Vista del admin para los pedidos de baja (hoy: mail + API).
 
 ## 6. Estado

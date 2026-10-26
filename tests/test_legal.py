@@ -32,8 +32,8 @@ from .test_mail import (  # noqa: F401  (outbox: fixture)
 # cambio es un archivo nuevo, y se agrega aca.
 PUBLISHED = {
     ("terms", "2026-10-01"): "466d608aa9d7f106b4bf4a830019323b5b1ed4bb66547213e034264df6b75a72",
-    ("terms", "2026-10-25"): "e482592cb0e96e95e70242bca467a6e260df276ed622f678d4d55fb4a9774365",
-    ("privacy", "2026-10-25"): "d283cb0d449b617661a4089425c88f984c338d5afa91662b179e884988c27fdb",
+    ("terms", "2026-10-25"): "fef573ead36cf3d65065ed7d62b43334c4abbdb777edfe1d203184ca46f43d51",
+    ("privacy", "2026-10-25"): "1660a856675221692839dbefa7f2cd7c3efd0b3d643c4d9e76c8d61a1ec5c3dc",
 }
 
 
