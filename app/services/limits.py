@@ -86,6 +86,7 @@ class Limits:
     campaign_followup: bool = False
     whatsapp: bool = True
     external_agent: bool = False
+    white_label: bool = False
     tier_name: str = ""
     # Campos cuyo valor difiere del tier por un ajuste vigente.
     adjusted: frozenset[str] = field(default_factory=frozenset)
@@ -130,7 +131,8 @@ def apply(tier: Tier, adjustments: Iterable[ClientLimitAdjustment], day: datetim
     adjusted = frozenset(f for f, v in values.items() if v != getattr(tier, f))
     return Limits(**values, campaign_channels=tuple(tier.campaign_channels or ()),
                   campaign_followup=bool(tier.campaign_followup), whatsapp=bool(tier.whatsapp),
-                  external_agent=bool(tier.external_agent), tier_name=tier.name, adjusted=adjusted)
+                  external_agent=bool(tier.external_agent), white_label=bool(tier.white_label),
+                  tier_name=tier.name, adjusted=adjusted)
 
 
 def effective_limits(s: Session, client: Client, now: datetime.datetime | None = None,

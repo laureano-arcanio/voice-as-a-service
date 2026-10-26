@@ -4,7 +4,6 @@ import {
   Button,
   Card,
   Center,
-  Image,
   Loader,
   PasswordInput,
   Stack,
@@ -12,17 +11,18 @@ import {
   Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { useDocumentTitle } from '@mantine/hooks';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { ApiError, errorMessage } from '@/api/errors';
+import { AuthLogo } from '@/branding/BrandLogo';
+import { usePageTitle } from '@/branding/context';
 import { usePasswordSetup, usePasswordSetupInfo } from './api';
 
 const MIN_LENGTH = 10;
 
 /** Crear la clave desde el link del mail de alta (/set-password?token=...). Al guardar queda con sesion. */
 export function SetPasswordPage() {
-  useDocumentTitle('Crear clave · Atentina');
+  usePageTitle('Crear clave');
   const [params] = useSearchParams();
   const token = params.get('token') ?? '';
   // A donde ir despues (el registro con un plan elegido manda a /plan?tier=...). Solo rutas propias.
@@ -52,12 +52,7 @@ export function SetPasswordPage() {
   return (
     <Center mih="100vh" p="md">
       <Box w="100%" maw={400}>
-        <Stack align="center" mb="lg">
-          <Image src="/atentina-logo.svg" alt="Atentina" h={40} w="auto" />
-          <Text c="dimmed" size="sm">
-            Agentes de voz telefónicos
-          </Text>
-        </Stack>
+        <AuthLogo tagline="Agentes de voz telefónicos" />
         <Card>
           {linkError ? (
             <Stack>

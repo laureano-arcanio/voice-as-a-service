@@ -24,9 +24,9 @@ from .deps import SESSION_COOKIE, _peer_is_trusted, request_is_https
 
 UNSAFE_METHODS_EXEMPT = {"GET", "HEAD", "OPTIONS"}
 # Los pedidos de /api que suben archivos (el multipart agrega algo al tamaño): audio para transcribir
-# e imagen del link para llamar (app/services/call_links.py, IMAGE_MAX_BYTES).
+# e imagen del link para llamar (app/services/call_links.py, IMAGE_MAX_BYTES) y logo de la marca blanca.
 UPLOAD_PATH = "/api/v1/inference/audio/transcriptions"
-IMAGE_UPLOAD_PATH = re.compile(r"^/api/v1/agents/[^/]+/call-link/image$")
+IMAGE_UPLOAD_PATH = re.compile(r"^/api/v1/(agents/[^/]+/call-link/image|clients/[^/]+/branding/logo)$")
 IMAGE_MAX_BYTES = 5 * 1024 * 1024
 UPLOAD_OVERHEAD_BYTES = 64 * 1024
 

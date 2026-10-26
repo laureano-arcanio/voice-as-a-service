@@ -90,6 +90,8 @@ class Tier(IdMixin, TimestampMixin, Base):
     whatsapp: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     # Motor external: el agente del cliente detras de su endpoint (docs/AGENTE_EXTERNO_PLAN.md).
     external_agent: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # Marca blanca del panel: logo y colores del cliente en vez de los de Atentina (docs/MARCA_BLANCA_PLAN.md).
+    white_label: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     # Autoservicio (docs/SUSCRIPCIONES_PLAN.md): precio mensual en pesos, lo que se cobra (NULL = no
     # se vende por el dashboard; 0 = gratis). `public`: se ofrece en el registro y en /plan. El tier
     # publico con precio 0 es el del registro.
@@ -119,6 +121,28 @@ class Client(IdMixin, TimestampMixin, Base):
     call_emails_to: Mapped[list] = mapped_column(JSONDoc, default=list, server_default=text("'[]'"))
 
     tier: Mapped[Tier] = relationship(lazy="joined", innerjoin=True)
+
+
+class ClientBranding(Base):
+    """Marca blanca del panel (docs/MARCA_BLANCA_PLAN.md): el logo y los tres colores con los que los usuarios
+    del cliente ven el dashboard. 1:1 con el cliente (sin fila = sin marca); se aplica solo si `enabled` y el
+    tier incluye `white_label`. Lo configura un admin (services/branding.py)."""
+    __tablename__ = "client_branding"
+    client_id: Mapped[str] = mapped_column(String(36), ForeignKey("clients.id", ondelete="CASCADE"), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # Archivo en storage/branding/<client_id>/ (BRANDING_DIR); NULL = el nombre del cliente en texto.
+    logo: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    logo_ratio: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # #rrggbb en minuscula. Primario: la accion (botones, links, seleccion); encabezado: fondo de la barra;
+    # acento: segunda serie de los graficos.
+    color_primary: Mapped[str] = mapped_column(String(7), default="#2456e6", server_default="#2456e6")
+    color_header: Mapped[str] = mapped_column(String(7), default="#ffffff", server_default="#ffffff")
+    color_accent: Mapped[str] = mapped_column(String(7), default="#b45309", server_default="#b45309")
+    # "Con tecnologia de Atentina" al pie del menu.
+    powered_by: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+    updated_by: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
 
 class ClientLimitAdjustment(IdMixin, TimestampMixin, Base):

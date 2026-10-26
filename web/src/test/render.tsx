@@ -5,6 +5,7 @@ import { render } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { createMemoryRouter, RouterProvider, type RouteObject } from 'react-router';
 import type { Me } from '@/api/types';
+import { BrandingProvider } from '@/branding/Provider';
 import { meKey } from '@/features/auth/api';
 import { theme } from '@/theme';
 
@@ -39,9 +40,11 @@ export function renderWithProviders(
   const result = render(
     <MantineProvider theme={theme}>
       <QueryClientProvider client={queryClient}>
-        <ModalsProvider>
-          <RouterProvider router={router} />
-        </ModalsProvider>
+        <BrandingProvider>
+          <ModalsProvider>
+            <RouterProvider router={router} />
+          </ModalsProvider>
+        </BrandingProvider>
       </QueryClientProvider>
     </MantineProvider>,
   );

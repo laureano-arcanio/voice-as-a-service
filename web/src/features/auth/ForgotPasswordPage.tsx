@@ -1,14 +1,15 @@
-import { Alert, Box, Button, Card, Center, Image, Stack, Text, TextInput, Title } from '@mantine/core';
+import { Alert, Box, Button, Card, Center, Stack, Text, TextInput, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { useDocumentTitle } from '@mantine/hooks';
 import { IconAlertCircle, IconMailCheck } from '@tabler/icons-react';
 import { Link, useSearchParams } from 'react-router';
 import { ApiError, errorMessage } from '@/api/errors';
+import { AuthLogo } from '@/branding/BrandLogo';
+import { usePageTitle } from '@/branding/context';
 import { usePasswordReset } from './api';
 
 /** "Olvidé mi clave": manda el link para crear una nueva. La respuesta es la misma exista o no el email. */
 export function ForgotPasswordPage() {
-  useDocumentTitle('Recuperar la clave · Atentina');
+  usePageTitle('Recuperar la clave');
   const [params] = useSearchParams();
   const reset = usePasswordReset();
   const form = useForm({
@@ -19,9 +20,7 @@ export function ForgotPasswordPage() {
   return (
     <Center mih="100vh" p="md">
       <Box w="100%" maw={400}>
-        <Stack align="center" mb="lg">
-          <Image src="/atentina-logo.svg" alt="Atentina" h={40} w="auto" />
-        </Stack>
+        <AuthLogo />
         <Card>
           {reset.isSuccess ? (
             <Stack>

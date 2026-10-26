@@ -5,7 +5,6 @@ import {
   Button,
   Card,
   Center,
-  Image,
   PasswordInput,
   Stack,
   Text,
@@ -16,7 +15,8 @@ import { useForm } from '@mantine/form';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { Link, Navigate, useLocation, useNavigate, useSearchParams, type Location } from 'react-router';
 import { ApiError, errorMessage } from '@/api/errors';
-import { useDocumentTitle } from '@mantine/hooks';
+import { AuthLogo } from '@/branding/BrandLogo';
+import { useBranding, usePageTitle } from '@/branding/context';
 import { useLogin, useMe } from './api';
 
 // Registro autoservicio: en la landing (docs/SUSCRIPCIONES_PLAN.md).
@@ -35,7 +35,9 @@ export function LoginPage() {
   const login = useLogin();
   const navigate = useNavigate();
   const location = useLocation();
-  useDocumentTitle('Ingresar · Atentina');
+  usePageTitle('Ingresar');
+  // Con marca blanca el panel es "de" ese cliente: sin el link al registro de Atentina.
+  const branded = !!useBranding();
   // Los mails traen /login?email=...: el campo viene lleno y el foco va a la clave.
   const [params] = useSearchParams();
   const prefilled = params.get('email')?.trim() ?? '';
@@ -55,12 +57,7 @@ export function LoginPage() {
   return (
     <Center mih="100vh" p="md">
       <Box w="100%" maw={400}>
-        <Stack align="center" mb="lg">
-          <Image src="/atentina-logo.svg" alt="Atentina" h={40} w="auto" />
-          <Text c="dimmed" size="sm">
-            Agentes de voz telefónicos
-          </Text>
-        </Stack>
+        <AuthLogo tagline="Agentes de voz telefónicos" />
         <Card>
           <Title order={2} mb="md">
             Ingresá a tu cuenta
@@ -110,12 +107,14 @@ export function LoginPage() {
           <Anchor component={Link} to="/forgot-password" size="sm">
             Olvidé mi clave
           </Anchor>
-          <Text size="xs" c="dimmed">
-            ¿No tenés cuenta?{' '}
-            <Anchor href={SIGNUP_URL} size="xs">
-              Creá una gratis
-            </Anchor>
-          </Text>
+          {!branded && (
+            <Text size="xs" c="dimmed">
+              ¿No tenés cuenta?{' '}
+              <Anchor href={SIGNUP_URL} size="xs">
+                Creá una gratis
+              </Anchor>
+            </Text>
+          )}
         </Stack>
       </Box>
     </Center>

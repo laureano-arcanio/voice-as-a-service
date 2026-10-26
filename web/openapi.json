@@ -11038,6 +11038,284 @@
     }
    }
   },
+  "/api/v1/clients/{client_id}/branding": {
+   "get": {
+    "tags": [
+     "branding"
+    ],
+    "summary": "Read Branding",
+    "description": "La marca del cliente: lo guardado, si su plan la incluye (`available`) y si se esta mostrando (`active`).",
+    "operationId": "read_branding_api_v1_clients__client_id__branding_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BrandingOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "put": {
+    "tags": [
+     "branding"
+    ],
+    "summary": "Update Branding",
+    "description": "Colores, si se muestra y la linea \"Con tecnologia de Atentina\". El logo va aparte (`PUT .../logo`).",
+    "operationId": "update_branding_api_v1_clients__client_id__branding_put",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BrandingIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BrandingOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "color_format, o color_contrast (el primario no da 4,5:1 con blanco; `errors[0].suggested` trae uno que si)"
+     }
+    }
+   }
+  },
+  "/api/v1/clients/{client_id}/branding/logo": {
+   "put": {
+    "tags": [
+     "branding"
+    ],
+    "summary": "Put Logo",
+    "description": "El logo del header y del login. Las imagenes se achican a 480 × 120 y se recodifican; el SVG se guarda\ntal cual si no tiene scripts ni referencias externas.",
+    "operationId": "put_logo_api_v1_clients__client_id__branding_logo_put",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_put_logo_api_v1_clients__client_id__branding_logo_put"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BrandingOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "logo_format, logo_too_large, logo_invalid o logo_unsafe (SVG con scripts o referencias externas)"
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "branding"
+    ],
+    "summary": "Delete Logo",
+    "description": "Sin logo, el panel muestra el nombre del cliente en texto.",
+    "operationId": "delete_logo_api_v1_clients__client_id__branding_logo_delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BrandingOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/public/branding/{slug}": {
+   "get": {
+    "tags": [
+     "branding"
+    ],
+    "summary": "Public Branding",
+    "description": "Lo que muestra la pagina de login con `?c=<slug>`.",
+    "operationId": "public_branding_api_v1_public_branding__slug__get",
+    "parameters": [
+     {
+      "name": "slug",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Slug"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BrandingPublicOut"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "El cliente no existe, no tiene la marca activa o su plan no la incluye"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/public/branding/{slug}/logo": {
+   "get": {
+    "tags": [
+     "branding"
+    ],
+    "summary": "Public Logo",
+    "operationId": "public_logo_api_v1_public_branding__slug__logo_get",
+    "parameters": [
+     {
+      "name": "slug",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Slug"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response"
+     },
+     "404": {
+      "description": "El cliente no existe, no tiene la marca activa o su plan no la incluye"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/oauth/authorize": {
    "get": {
     "tags": [
@@ -12682,6 +12960,21 @@
     ],
     "title": "Body_put_image_api_v1_agents__agent_id__call_link_image_put"
    },
+   "Body_put_logo_api_v1_clients__client_id__branding_logo_put": {
+    "properties": {
+     "file": {
+      "type": "string",
+      "format": "binary",
+      "title": "File",
+      "description": "PNG, JPG, WebP (hasta 2 MB) o SVG (hasta 200 KB)"
+     }
+    },
+    "type": "object",
+    "required": [
+     "file"
+    ],
+    "title": "Body_put_logo_api_v1_clients__client_id__branding_logo_put"
+   },
    "Body_transcriptions_api_v1_inference_audio_transcriptions_post": {
     "properties": {
      "file": {
@@ -12724,6 +13017,200 @@
      "file"
     ],
     "title": "Body_transcriptions_api_v1_inference_audio_transcriptions_post"
+   },
+   "BrandingIn": {
+    "properties": {
+     "enabled": {
+      "type": "boolean",
+      "title": "Enabled",
+      "description": "Mostrar el panel con esta marca (si el plan la incluye)"
+     },
+     "color_primary": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$",
+      "title": "Color Primary",
+      "description": "#rrggbb; tiene que dar 4,5:1 con blanco"
+     },
+     "color_header": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$",
+      "title": "Color Header"
+     },
+     "color_accent": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$",
+      "title": "Color Accent"
+     },
+     "powered_by": {
+      "type": "boolean",
+      "title": "Powered By",
+      "default": true
+     }
+    },
+    "type": "object",
+    "required": [
+     "enabled",
+     "color_primary",
+     "color_header",
+     "color_accent"
+    ],
+    "title": "BrandingIn"
+   },
+   "BrandingOut": {
+    "properties": {
+     "enabled": {
+      "type": "boolean",
+      "title": "Enabled",
+      "description": "Mostrar el panel con esta marca (si el plan la incluye)"
+     },
+     "color_primary": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$",
+      "title": "Color Primary",
+      "description": "#rrggbb; tiene que dar 4,5:1 con blanco"
+     },
+     "color_header": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$",
+      "title": "Color Header"
+     },
+     "color_accent": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$",
+      "title": "Color Accent"
+     },
+     "powered_by": {
+      "type": "boolean",
+      "title": "Powered By",
+      "default": true
+     },
+     "logo_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Logo Url"
+     },
+     "logo_ratio": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Logo Ratio"
+     },
+     "header_fg": {
+      "type": "string",
+      "title": "Header Fg"
+     },
+     "available": {
+      "type": "boolean",
+      "title": "Available",
+      "description": "El plan del cliente incluye la marca blanca"
+     },
+     "active": {
+      "type": "boolean",
+      "title": "Active",
+      "description": "Se esta mostrando: enabled y el plan la incluye"
+     }
+    },
+    "type": "object",
+    "required": [
+     "enabled",
+     "color_primary",
+     "color_header",
+     "color_accent",
+     "logo_url",
+     "logo_ratio",
+     "header_fg",
+     "available",
+     "active"
+    ],
+    "title": "BrandingOut"
+   },
+   "BrandingPublicOut": {
+    "properties": {
+     "slug": {
+      "type": "string",
+      "title": "Slug",
+      "description": "El `c=` del login: el panel recuerda la ultima marca que mostro"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name",
+      "description": "Nombre del cliente: titulo de las pestañas y texto si no hay logo"
+     },
+     "logo_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Logo Url",
+      "description": "Ruta del logo (publica, cacheable); null = el nombre en texto"
+     },
+     "logo_ratio": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Logo Ratio",
+      "description": "Ancho / alto del logo, para reservar el lugar"
+     },
+     "color_primary": {
+      "type": "string",
+      "title": "Color Primary",
+      "description": "La accion: botones, links, seleccion, primera serie de los graficos"
+     },
+     "color_header": {
+      "type": "string",
+      "title": "Color Header",
+      "description": "Fondo de la barra superior"
+     },
+     "color_accent": {
+      "type": "string",
+      "title": "Color Accent",
+      "description": "Segunda serie de los graficos y detalles"
+     },
+     "header_fg": {
+      "type": "string",
+      "title": "Header Fg",
+      "description": "Texto e iconos de la barra: #ffffff o la tinta, segun el contraste"
+     },
+     "powered_by": {
+      "type": "boolean",
+      "title": "Powered By",
+      "description": "Mostrar \"Con tecnologia de Atentina\" al pie del menu"
+     }
+    },
+    "type": "object",
+    "required": [
+     "slug",
+     "name",
+     "logo_url",
+     "logo_ratio",
+     "color_primary",
+     "color_header",
+     "color_accent",
+     "header_fg",
+     "powered_by"
+    ],
+    "title": "BrandingPublicOut",
+    "description": "La marca con la que los usuarios de un cliente ven el panel (docs/MARCA_BLANCA_PLAN.md)."
    },
    "CallBulkDeleteIn": {
     "properties": {
@@ -19143,6 +19630,16 @@
       ],
       "title": "Client Name"
      },
+     "branding": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/BrandingPublicOut"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
      "welcome_pending": {
       "type": "boolean",
       "title": "Welcome Pending",
@@ -20193,7 +20690,8 @@
         "contacts",
         "team",
         "call_links",
-        "external_agent"
+        "external_agent",
+        "white_label"
        ]
       },
       "type": "object",
@@ -21620,6 +22118,12 @@
       "description": "Incluye el motor external: el agente del cliente detras de su endpoint, con la voz de la plataforma",
       "default": false
      },
+     "white_label": {
+      "type": "boolean",
+      "title": "White Label",
+      "description": "Marca blanca: el panel con el logo y los colores del cliente",
+      "default": false
+     },
      "price_ars": {
       "anyOf": [
        {
@@ -21887,6 +22391,10 @@
       "type": "boolean",
       "title": "External Agent"
      },
+     "white_label": {
+      "type": "boolean",
+      "title": "White Label"
+     },
      "price_ars": {
       "anyOf": [
        {
@@ -21944,6 +22452,7 @@
      "campaign_followup",
      "whatsapp",
      "external_agent",
+     "white_label",
      "price_ars",
      "public",
      "sort",
@@ -22243,6 +22752,17 @@
        }
       ],
       "title": "External Agent"
+     },
+     "white_label": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "White Label"
      },
      "price_ars": {
       "anyOf": [

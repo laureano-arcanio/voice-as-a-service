@@ -35,6 +35,7 @@ import { notifyError, notifySuccess } from '@/lib/notify';
 import { useClient, useDeleteClient, useUpdateClient } from './api';
 import { ApiAccess } from '@/features/developers/ApiAccess';
 import { SubscriptionCard } from '@/features/billing/SubscriptionCard';
+import { BrandingTab } from './BrandingTab';
 import { CallEmailsCard } from './CallEmailsCard';
 import { ClientUsage } from './ClientUsage';
 import { LlmConnectionsSection } from '@/features/llm/LlmConnectionsSection';
@@ -221,7 +222,7 @@ function ClientAgentsCard({ clientId }: { clientId: string }) {
   );
 }
 
-const TABS = ['resumen', 'numeros', 'agentes', 'usuarios', 'modelos', 'api-keys'] as const;
+const TABS = ['resumen', 'numeros', 'agentes', 'usuarios', 'modelos', 'api-keys', 'marca'] as const;
 type Tab = (typeof TABS)[number];
 
 function ClientView({ client }: { client: Client }) {
@@ -278,6 +279,7 @@ function ClientView({ client }: { client: Client }) {
           <Tabs.Tab value="usuarios">Usuarios</Tabs.Tab>
           <Tabs.Tab value="modelos">Modelos</Tabs.Tab>
           <Tabs.Tab value="api-keys">API keys</Tabs.Tab>
+          <Tabs.Tab value="marca">Marca blanca</Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="resumen">
           <Grid gutter="md">
@@ -318,6 +320,9 @@ function ClientView({ client }: { client: Client }) {
         </Tabs.Panel>
         <Tabs.Panel value="api-keys">
           <ApiAccess clientId={client.id} showUsage={false} />
+        </Tabs.Panel>
+        <Tabs.Panel value="marca">
+          <BrandingTab client={client} />
         </Tabs.Panel>
       </Tabs>
     </>

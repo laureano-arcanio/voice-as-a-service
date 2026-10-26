@@ -21,7 +21,7 @@ from urllib.parse import urlencode
 
 from sqlalchemy import delete, exists, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, object_session
 
 from .. import legal as legal_docs
 from ..billing import mp
@@ -32,7 +32,7 @@ from ..db import utcnow
 from ..mail import messages, notify
 from ..mail.sender import Mail
 from ..models import Client, ConversationRow, Role, Tier, User
-from . import legal
+from . import branding, legal
 from .agents import slugify
 from .demo import DemoUnavailable, verify_turnstile
 from .errors import Conflict, Forbidden, Invalid, ServiceError
@@ -90,7 +90,11 @@ def _unique_slug(s: Session, company: str) -> str:
 
 def _reset_mail(user: User) -> Mail:
     token, expires = create_password_setup_token(user.id, user.password_hash)
-    return messages.password_reset(email=user.email, name=user.name, setup_url=messages.password_setup_url(token),
+    s = object_session(user)
+    client = s.get(Client, user.client_id) if s is not None and user.client_id else None
+    slug = branding.login_slug(client, s) if client else None
+    return messages.password_reset(email=user.email, name=user.name,
+                                   setup_url=messages.password_setup_url(token, client_slug=slug),
                                    expires_at=expires)
 
 

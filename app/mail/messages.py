@@ -10,14 +10,18 @@ from . import layout as L
 from .sender import Mail
 
 
-def dashboard_url(email: str) -> str:
-    """Login con el email prellenado (si ya hay sesion, la pantalla va directo al inicio)."""
-    return f"{settings.app_url.rstrip('/')}/login?{urlencode({'email': email})}"
+def dashboard_url(email: str, client_slug: str | None = None) -> str:
+    """Login con el email prellenado (si ya hay sesion, la pantalla va directo al inicio). `client_slug`: el
+    cliente tiene marca blanca y el login se muestra con ella (`c=`)."""
+    query = {"email": email, **({"c": client_slug} if client_slug else {})}
+    return f"{settings.app_url.rstrip('/')}/login?{urlencode(query)}"
 
 
-def password_setup_url(token: str, next_path: str | None = None) -> str:
-    """next_path: ruta del dashboard a la que va despues de crear la clave (la UI solo acepta rutas propias)."""
-    query = {"token": token, **({"next": next_path} if next_path else {})}
+def password_setup_url(token: str, next_path: str | None = None, client_slug: str | None = None) -> str:
+    """next_path: ruta del dashboard a la que va despues de crear la clave (la UI solo acepta rutas propias).
+    client_slug: como en dashboard_url."""
+    query = {"token": token, **({"next": next_path} if next_path else {}),
+             **({"c": client_slug} if client_slug else {})}
     return f"{settings.app_url.rstrip('/')}/set-password?{urlencode(query)}"
 
 
@@ -46,9 +50,9 @@ def tier_rows(tier: Tier) -> list[tuple[str, str]]:
 
 
 def welcome(*, email: str, name: str, client_name: str, tier: Tier, setup_url: str,
-            expires_at: datetime.datetime) -> Mail:
+            expires_at: datetime.datetime, client_slug: str | None = None) -> Mail:
     """Cuenta nueva: link para crear la clave, plan contratado y link al dashboard."""
-    dash = dashboard_url(email)
+    dash = dashboard_url(email, client_slug)
     hours = settings.password_setup_hours
     subject = "Activá tu cuenta de Atentina"
     html = L.render(
@@ -334,9 +338,9 @@ def downgraded(*, email: str, name: str, client_name: str, old_tier: str, new_ti
 
 
 def number_assigned(*, email: str, name: str, client_name: str, number: str, label: str, agent_name: str | None,
-                    numbers_used: int, numbers_limit: int | None) -> Mail:
+                    numbers_used: int, numbers_limit: int | None, client_slug: str | None = None) -> Mail:
     """Numero asignado al cliente: el numero, quien lo atiende y cuanto del plan se usa."""
-    dash = dashboard_url(email)
+    dash = dashboard_url(email, client_slug)
     subject = f"Te asignamos el número {number}"
     usage = f"{numbers_used} de {_count(numbers_limit)}" if numbers_limit is not None else f"{numbers_used} (sin límite)"
     rows: list[tuple[str, object]] = [("Número", number)]

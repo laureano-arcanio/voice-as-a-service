@@ -87,6 +87,8 @@ class Settings(BaseSettings):
     opening_audio_dir: Path = Field(default=BASE_DIR / "storage" / "openings")
     # Imagenes de los links para llamar (app/services/call_links.py): las sirve `app`, sin backup.
     call_link_images_dir: Path = Field(default=BASE_DIR / "storage" / "call-links")
+    # Logos de la marca blanca (app/services/branding.py): <client_id>/<hash>.<ext>; en el backup.
+    branding_dir: Path = Field(default=BASE_DIR / "storage" / "branding")
     # Musica de espera de las derivaciones (docs/DERIVACIONES_PLAN.md, 4.8): <tema>.ogg; "default" es la de
     # LiveKit Agents.
     hold_music_dir: Path = Field(default=BASE_DIR / "storage" / "hold-music")

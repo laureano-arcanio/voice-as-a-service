@@ -1,6 +1,6 @@
 import { Group, Stack, Text, Title } from '@mantine/core';
-import { useDocumentTitle } from '@mantine/hooks';
 import type { ReactNode } from 'react';
+import { usePageTitle } from '@/branding/context';
 
 export function PageHeader({
   title,
@@ -17,7 +17,7 @@ export function PageHeader({
   above?: ReactNode;
 }) {
   const tabTitle = typeof title === 'string' ? title : docTitle;
-  useDocumentTitle(tabTitle ? `${tabTitle} · Atentina` : 'Atentina');
+  usePageTitle(tabTitle);
   return (
     <Stack gap={4} mb="md">
       {above}

@@ -262,7 +262,31 @@ Variables propias (`cssVariablesResolver`):
 - **Logos:** `web/public/atentina-logo.svg` y `atentina-mark.svg` son copia de `docs/brand/`.
 - No relajar la CSP por diseño (fuentes, imágenes o estilos externos): ver `AGENTS.md`, "Dashboard público".
 
-## 12. Antes de entregar
+## 12. Marca blanca
+
+Un cliente cuyo plan incluye `white_label` puede ver el panel con su logo y sus colores
+([`MARCA_BLANCA_PLAN.md`](MARCA_BLANCA_PLAN.md); desde el 26-oct-2026). Lo configura un admin en la ficha del
+cliente, pestaña "Marca blanca". Qué cambia y qué no:
+
+- **Primario:** reemplaza al azul. `web/src/branding/theme.ts` genera la escala de 10 tonos desde el hex del cliente
+  (`color.ts`, el hex en el tono 6) y la pone como `colors.blue`: `color="blue"`, `variant="light"` y
+  `--mantine-color-blue-*` siguen funcionando sin tocar ningún componente. El primario tiene que dar 4,5:1 con blanco
+  (la API lo exige).
+- **Encabezado:** el header toma `--app-header-bg`; texto e íconos, `--app-header-fg` (blanco o tinta, según contraste);
+  la línea, `--app-header-line`. Lo que vaya en el header no puede asumir fondo blanco: usar esas variables
+  (`styles.css`, `.app-header` y `.brand-header`).
+- **Acento:** solo `--chart-2` y decorativo. Nunca texto ni estados.
+- **No cambia:** verde, amarillo, rojo y gris (sección 3), tipografías, lienzo, bordes, radios, densidad y textos.
+- **Logo:** `BrandLogo` (header, 28 px) y `AuthLogo` (login, crear clave, bienvenida: 40 px sobre una pastilla del
+  color del encabezado, así un logotipo para header oscuro se ve sobre el lienzo claro). Sin logo, el nombre del
+  cliente en texto. Nunca `<Image src="/atentina-logo.svg">` directo en una pantalla del cliente.
+- **Títulos:** `usePageTitle('X')` → "X · <marca>" (`PageHeader` ya lo hace); no `useDocumentTitle` con "Atentina".
+- **Textos:** ningún componente nuevo nombra a Atentina en algo que ve el cliente, salvo para explicar dónde corre el
+  modelo o quién manda un mail. "Con tecnología de Atentina" al pie del menú lo decide el admin (`powered_by`).
+- **Admin:** siempre ve el panel de Atentina; "Ver el panel como el cliente" aplica la marca en otra pestaña
+  (`sessionStorage`), con el aviso "Vista previa de la marca" en el header.
+
+## 13. Antes de entregar
 
 - [ ] Solo `blue`, `green`, `yellow`, `red` y `gray`; sin hex ni `radius` o `shadow` a mano.
 - [ ] Una acción principal por pantalla o modal; lo destructivo pide confirmación.

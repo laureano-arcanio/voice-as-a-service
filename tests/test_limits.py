@@ -43,11 +43,11 @@ def resolve(tier_kwargs, *adjustments, day=DAY) -> limits.Limits:
 def test_limit_fields_are_the_numeric_limits_of_tier():
     numeric = {c.name for c in inspect(Tier).columns if c.name not in
                {"id", "name", "description", "created_at", "updated_at", "price_ars", "public", "sort",
-                "campaign_channels", "campaign_followup", "whatsapp", "external_agent"}}      # no son numericos: no se ajustan
+                "campaign_channels", "campaign_followup", "whatsapp", "external_agent", "white_label"}}      # no son numericos: no se ajustan
     assert set(limits.LIMIT_FIELDS) == numeric
     assert set(LimitField.__args__) == numeric
     assert ({f for f in limits.Limits.__dataclass_fields__}
-            - {"tier_name", "adjusted", "campaign_channels", "campaign_followup", "whatsapp", "external_agent"} == numeric)
+            - {"tier_name", "adjusted", "campaign_channels", "campaign_followup", "whatsapp", "external_agent", "white_label"} == numeric)
 
 
 def test_without_adjustments_it_is_the_tier():

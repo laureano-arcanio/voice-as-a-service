@@ -101,6 +101,7 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
     campaign_followup: boolean;
     whatsapp: boolean;
     external_agent: boolean;
+    white_label: boolean;
     price_ars: Limit;
     public: boolean;
     sort: number | '';
@@ -132,6 +133,7 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
       campaign_followup: tier?.campaign_followup ?? false,
       whatsapp: tier?.whatsapp ?? true,
       external_agent: tier?.external_agent ?? false,
+      white_label: tier?.white_label ?? false,
       price_ars: tier?.price_ars ?? '',
       public: tier?.public ?? false,
       sort: tier?.sort ?? 0,
@@ -175,6 +177,7 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
                 campaign_followup: v.campaign_followup,
                 whatsapp: v.whatsapp,
                 external_agent: v.external_agent,
+                white_label: v.white_label,
                 price_ars: toLimit(v.price_ars),
                 public: v.public,
                 sort: v.sort === '' ? 0 : v.sort,
@@ -265,6 +268,12 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
               description="Que el cliente conecte su agente (su endpoint) y Atentina le ponga la voz y el teléfono."
               mt="md"
               {...form.getInputProps('external_agent', { type: 'checkbox' })}
+            />
+            <Switch
+              label="Marca blanca"
+              description="El panel con el logo y los colores del cliente (se configuran en su ficha)."
+              mt="md"
+              {...form.getInputProps('white_label', { type: 'checkbox' })}
             />
           </Section>
           <Section title="Venta por el dashboard" cols={3}>
@@ -417,6 +426,11 @@ export function TiersPage() {
                           {t.external_agent && (
                             <Text size="xs" c="dimmed">
                               con agente propio
+                            </Text>
+                          )}
+                          {t.white_label && (
+                            <Text size="xs" c="dimmed">
+                              con marca blanca
                             </Text>
                           )}
                         </Table.Td>

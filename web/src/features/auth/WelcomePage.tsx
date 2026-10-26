@@ -1,9 +1,10 @@
-import { Alert, Box, Button, Card, Center, Image, Loader, Stack, Text, Title } from '@mantine/core';
-import { useDocumentTitle } from '@mantine/hooks';
+import { Alert, Box, Button, Card, Center, Loader, Stack, Text, Title } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { errorMessage } from '@/api/errors';
+import { AuthLogo } from '@/branding/BrandLogo';
+import { usePageTitle } from '@/branding/context';
 import { useHandoff } from './api';
 
 /** Ruta interna segura (sin otro host). */
@@ -14,7 +15,7 @@ function safeNext(next: string | null): string {
 /** Llegada desde el registro de la landing (/welcome?token=...&next=...): abre la sesion con el link de un
  * solo uso y sigue a `next`. El pago con tarjeta (/plan/pagar) se abre con navegacion completa por su CSP. */
 export function WelcomePage() {
-  useDocumentTitle('Bienvenido · Atentina');
+  usePageTitle('Bienvenido');
   const [params] = useSearchParams();
   const token = params.get('token') ?? '';
   const next = safeNext(params.get('next'));
@@ -37,9 +38,7 @@ export function WelcomePage() {
   return (
     <Center mih="100vh" p="md">
       <Box w="100%" maw={400}>
-        <Stack align="center" mb="lg">
-          <Image src="/atentina-logo.svg" alt="Atentina" h={40} w="auto" />
-        </Stack>
+        <AuthLogo />
         <Card>
           {failed ? (
             <Stack>

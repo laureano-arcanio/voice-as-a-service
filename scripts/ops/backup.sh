@@ -38,7 +38,7 @@ fi
 env_file="$DEST/env/env-$STAMP"
 cp "${OPS_ENV_FILE:-.env}" "$env_file"
 
-# storage/: grabaciones, aperturas pregeneradas e imágenes de los links para llamar.
+# storage/: grabaciones, aperturas pregeneradas, imágenes de los links para llamar y logos de la marca blanca.
 storage_file="$DEST/storage/storage-$STAMP.tar.gz"
 tar -czf "$storage_file" --warning=no-file-changed storage || [[ $? -eq 1 ]]
 

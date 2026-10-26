@@ -1,0 +1,27 @@
+{
+  "client_slug": "yoizen",
+  "client_name": "Yoizen",
+  "logo": "logo-claro.svg",
+  "branding": {
+    "enabled": true,
+    "color_primary": "#0068fd",
+    "color_header": "#272a35",
+    "color_accent": "#4d39c3",
+    "powered_by": true
+  },
+  "resolved": {
+    "header_fg": "#ffffff",
+    "primary_on_white": 4.77,
+    "white_on_header": 14.3,
+    "logo_ratio": 3.7129,
+    "blue_scale": [
+      "#e9f2ff", "#d9e9ff", "#c4dcff", "#afd0fe", "#98c2fe",
+      "#4591fe", "#0068fd", "#0051c5", "#0043a4", "#003582"
+    ]
+  },
+  "source": {
+    "site": "https://yoizen.com/",
+    "logo": "https://yoizen.com/wp-content/uploads/2026/07/logo-yoizen.svg",
+    "fetched": "2026-10-26"
+  }
+}

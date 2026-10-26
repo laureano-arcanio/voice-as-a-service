@@ -1,7 +1,8 @@
 import { Anchor, Button, Card, Group, List, Modal, SimpleGrid, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconBrandYoutube } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { useBranding } from '@/branding/context';
 import { useMe, useWelcomeSeen } from './api';
 
 // Links a YouTube (sin embeber: la CSP del panel no deja iframes ni imágenes de YouTube).
@@ -21,6 +22,12 @@ export function WelcomeModal() {
   const seen = useWelcomeSeen();
   const navigate = useNavigate();
   const [closed, setClosed] = useState(false);
+  // Con marca blanca no se muestra (habla de Atentina y sus videos); queda marcado como visto.
+  const branded = !!useBranding();
+  const pending = !!me?.welcome_pending && !me.legal_pending?.length;
+  useEffect(() => {
+    if (branded && pending && !seen.isPending && !seen.isSuccess) seen.mutate();
+  }, [branded, pending, seen]);
 
   const close = (to?: string) => {
     setClosed(true);
@@ -31,7 +38,7 @@ export function WelcomeModal() {
   return (
     <Modal
       // Después de aceptar las condiciones (LegalModal), no encima.
-      opened={!!me?.welcome_pending && !me.legal_pending?.length && !closed}
+      opened={pending && !closed && !branded}
       onClose={() => close()}
       size="lg"
       title="Te damos la bienvenida a Atentina"

@@ -68,6 +68,38 @@ class LegalVersionOut(BaseModel):
     url: str = Field(description="Link permanente a esa version")
 
 
+HEX_COLOR = r"^#[0-9a-fA-F]{6}$"
+
+
+class BrandingPublicOut(BaseModel):
+    """La marca con la que los usuarios de un cliente ven el panel (docs/MARCA_BLANCA_PLAN.md)."""
+    slug: str = Field(description="El `c=` del login: el panel recuerda la ultima marca que mostro")
+    name: str = Field(description="Nombre del cliente: titulo de las pestañas y texto si no hay logo")
+    logo_url: str | None = Field(description="Ruta del logo (publica, cacheable); null = el nombre en texto")
+    logo_ratio: float | None = Field(description="Ancho / alto del logo, para reservar el lugar")
+    color_primary: str = Field(description="La accion: botones, links, seleccion, primera serie de los graficos")
+    color_header: str = Field(description="Fondo de la barra superior")
+    color_accent: str = Field(description="Segunda serie de los graficos y detalles")
+    header_fg: str = Field(description="Texto e iconos de la barra: #ffffff o la tinta, segun el contraste")
+    powered_by: bool = Field(description='Mostrar "Con tecnologia de Atentina" al pie del menu')
+
+
+class BrandingIn(BaseModel):
+    enabled: bool = Field(description="Mostrar el panel con esta marca (si el plan la incluye)")
+    color_primary: str = Field(pattern=HEX_COLOR, description="#rrggbb; tiene que dar 4,5:1 con blanco")
+    color_header: str = Field(pattern=HEX_COLOR)
+    color_accent: str = Field(pattern=HEX_COLOR)
+    powered_by: bool = True
+
+
+class BrandingOut(BrandingIn):
+    logo_url: str | None
+    logo_ratio: float | None
+    header_fg: str
+    available: bool = Field(description="El plan del cliente incluye la marca blanca")
+    active: bool = Field(description="Se esta mostrando: enabled y el plan la incluye")
+
+
 class MeOut(BaseModel):
     id: str
     email: str
@@ -75,6 +107,8 @@ class MeOut(BaseModel):
     role: Literal["admin", "client"]
     client_id: str | None
     client_name: str | None
+    # Marca blanca resuelta del cliente del usuario (null: el panel de Atentina).
+    branding: BrandingPublicOut | None = None
     # Usuario de cliente que todavia no cerro el pop-up de bienvenida.
     welcome_pending: bool = False
     # Versiones vigentes de las condiciones y la politica que el usuario no acepto: el panel pide aceptarlas.
@@ -142,6 +176,7 @@ class TierIn(BaseModel):
     whatsapp: bool = Field(default=True, description="Incluye WhatsApp: cuentas, mensajes y llamadas")
     external_agent: bool = Field(default=False, description="Incluye el motor external: el agente del cliente "
                                                             "detras de su endpoint, con la voz de la plataforma")
+    white_label: bool = Field(default=False, description="Marca blanca: el panel con el logo y los colores del cliente")
     # Autoservicio (docs/SUSCRIPCIONES_PLAN.md).
     price_ars: int | None = Field(default=None, ge=0,
                                   description="Precio mensual en pesos, lo que se cobra. null: no se vende por el dashboard; 0: gratis")
@@ -174,6 +209,7 @@ class TierUpdate(BaseModel):
     campaign_followup: bool | None = None
     whatsapp: bool | None = None
     external_agent: bool | None = None
+    white_label: bool | None = None
     price_ars: int | None = Field(default=None, ge=0)
     public: bool | None = None
     sort: int | None = None
@@ -205,6 +241,7 @@ class TierOut(ORM):
     campaign_followup: bool
     whatsapp: bool
     external_agent: bool
+    white_label: bool
     price_ars: int | None
     public: bool
     sort: int
@@ -1987,7 +2024,7 @@ class CampaignStatsOut(BaseModel):
 
 
 PlanFeatureKey = Literal["outbound_calls", "campaigns_voice", "campaigns_whatsapp", "whatsapp", "contacts",
-                         "team", "call_links", "external_agent"]
+                         "team", "call_links", "external_agent", "white_label"]
 
 
 class PlanFeatureOut(BaseModel):

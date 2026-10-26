@@ -14,7 +14,7 @@ from ...models import (
     User,
     WaAccount,
 )
-from ...services import api_usage, limits, phone_numbers, quota
+from ...services import api_usage, branding, limits, phone_numbers, quota
 from ...services.errors import Conflict, Invalid, NotFound
 from ...services.security import unusable_password_hash
 from ..deps import DB, AdminPrincipal, CurrentPrincipal
@@ -133,6 +133,7 @@ def delete_client(client_id: str, p: AdminPrincipal, db: DB):
                        "client_in_use")
     db.delete(client)
     db.commit()
+    branding.drop_files(client_id)
 
 
 # ---------- resumen por email de cada llamada ----------

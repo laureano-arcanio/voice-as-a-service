@@ -27,6 +27,7 @@ Generado desde `app/mcp/catalog.py` con `make mcp-docs`: no editar a mano. Dise�
 | `campaigns_whatsapp` | Campañas de WhatsApp | Sucursal y Central |
 | `campaigns_voice` | Campañas de llamadas | Sucursal (de a 1) y Central (hasta 3) |
 | `external_agent` | Agente propio (tu endpoint, nuestra voz) | Central |
+| `white_label` | Panel con tu marca (logo y colores) | Central |
 
 ## `account`: Cuenta, plan y uso
 

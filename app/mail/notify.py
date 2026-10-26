@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..models import Agent, Client, PhoneNumber, Role, User
-from ..services import limits, phone_numbers
+from ..services import branding, limits, phone_numbers
 from ..services.security import create_password_setup_token
 from . import messages
 from .sender import Mail, SendResult, send
@@ -18,8 +18,10 @@ def invite(user: User, client: Client, next_path: str | None = None) -> SendResu
     """Mail con el link para crear la clave (de un solo uso, ver security.create_password_setup_token).
     next_path: a donde va el dashboard despues de crearla (el registro con un plan elegido: /plan)."""
     token, expires = create_password_setup_token(user.id, user.password_hash)
+    slug = branding.login_slug(client)
     mail = messages.welcome(email=user.email, name=user.name, client_name=client.name, tier=client.tier,
-                            setup_url=messages.password_setup_url(token, next_path), expires_at=expires)
+                            setup_url=messages.password_setup_url(token, next_path, slug), expires_at=expires,
+                            client_slug=slug)
     result = send(mail)
     if result.status == "sent":
         logger.info("alta de %s (%s): mail enviado, id %s", user.email, client.slug, result.id)
@@ -39,7 +41,8 @@ def number_assigned_mails(db: Session, number: PhoneNumber) -> list[Mail]:
     return [messages.number_assigned(email=u.email, name=u.name, client_name=client.name, number=number.e164,
                                      label=number.label, agent_name=agent.name if agent else None,
                                      numbers_used=used,
-                                     numbers_limit=limits.effective_limits(db, client).max_phone_numbers)
+                                     numbers_limit=limits.effective_limits(db, client).max_phone_numbers,
+                                     client_slug=branding.login_slug(client, db))
             for u in users]
 
 

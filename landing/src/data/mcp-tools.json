@@ -130,6 +130,13 @@
    "plans": {
     "Red": ""
    }
+  },
+  {
+   "id": "white_label",
+   "name": "Panel con tu marca (logo y colores)",
+   "plans": {
+    "Red": ""
+   }
   }
  ],
  "tools": [

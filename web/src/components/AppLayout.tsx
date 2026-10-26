@@ -5,8 +5,8 @@ import {
   Badge,
   Box,
   Burger,
+  Button,
   Group,
-  Image,
   NavLink,
   Stack,
   Text,
@@ -16,6 +16,8 @@ import { useDisclosure } from '@mantine/hooks';
 import { useState } from 'react';
 import { IconLock, IconLogout, IconUserCircle } from '@tabler/icons-react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
+import { BrandLogo } from '@/branding/BrandLogo';
+import { setPreview, useBranding, useBrandingPreview } from '@/branding/context';
 import { useLogout, useMe } from '@/features/auth/api';
 import { LegalModal } from '@/features/auth/LegalModal';
 import { WelcomeModal } from '@/features/auth/WelcomeModal';
@@ -42,10 +44,19 @@ export function AppLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const plan = usePlanFeatures().data;
+  // Marca blanca (docs/MARCA_BLANCA_PLAN.md): logo y colores del cliente en el header; con la vista previa de un
+  // admin, un aviso para salir.
+  const branding = useBranding();
+  const previewing = useBrandingPreview();
   // Grupos abiertos o cerrados a mano; sin tocar, abierto el que tiene la pantalla actual.
   const [groupOpen, setGroupOpen] = useState<Record<string, boolean>>({});
 
   if (!me) return null;
+
+  const exitPreview = () => {
+    setPreview(null);
+    window.location.reload();
+  };
 
   // Sin la función en el plan: candado al lado del nombre (la pantalla explica por qué).
   const locked = (item: NavItem) =>
@@ -131,23 +142,40 @@ export function AppLayout() {
       navbar={{ width: 232, breakpoint: 'sm', collapsed: { mobile: !opened } }}
       padding="md"
     >
-      <AppShell.Header>
+      <AppShell.Header className={branding ? 'app-header brand-header' : 'app-header'}>
         <Group h="100%" px="md" justify="space-between" wrap="nowrap">
           <Group gap="sm" wrap="nowrap">
-            <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" aria-label="Menú" />
+            <Burger
+              opened={opened}
+              onClick={toggle}
+              hiddenFrom="sm"
+              size="sm"
+              aria-label="Menú"
+              color="var(--app-header-fg)"
+            />
             <Link to="/" aria-label="Inicio" style={{ display: 'flex' }}>
-              <Image src="/atentina-logo.svg" alt="Atentina" h={28} w="auto" />
+              <BrandLogo h={28} />
             </Link>
+            {previewing && (
+              <Badge color="yellow" variant="filled" visibleFrom="sm">
+                Vista previa de la marca
+              </Badge>
+            )}
           </Group>
           <Group gap="sm" wrap="nowrap">
+            {previewing && (
+              <Button size="compact-xs" variant="default" onClick={exitPreview}>
+                Salir de la vista previa
+              </Button>
+            )}
             <Stack gap={0} align="flex-end" visibleFrom="xs">
               <Group gap={6} wrap="nowrap">
-                <Text size="sm" fw={600} lineClamp={1}>
+                <Text size="sm" fw={600} lineClamp={1} c="var(--app-header-fg)">
                   {me.role === 'admin' ? 'Administración' : (me.client_name ?? 'Cliente')}
                 </Text>
                 {me.role === 'admin' && <Badge color="gray">admin</Badge>}
               </Group>
-              <Text size="xs" c="dimmed" lineClamp={1}>
+              <Text size="xs" lineClamp={1} className="app-header-dim">
                 {me.name || me.email}
               </Text>
             </Stack>
@@ -187,6 +215,11 @@ export function AppLayout() {
           <Text size="xs" c="dimmed" px="sm" py="xs" truncate>
             {me.email}
           </Text>
+          {branding?.powered_by && (
+            <Text size="xs" c="dimmed" px="sm" pb={6} className="app-powered-by">
+              Con tecnología de Atentina
+            </Text>
+          )}
           {/* Botones de arrepentimiento y de baja (Disp. 954/2025): a la vista, también en el panel. */}
           <Group gap={8} px="sm" pb="xs">
             {LEGAL_LINKS.map(([label, path]) => (

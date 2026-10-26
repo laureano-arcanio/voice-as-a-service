@@ -5,7 +5,7 @@ from ... import legal as legal_docs
 from ...config import settings
 from ...db import utcnow
 from ...models import Client, User
-from ...services import legal, profile, signup
+from ...services import branding, legal, profile, signup
 from ...services.errors import Invalid, ServiceError
 from ...services.ratelimit import Limit, RateLimited, client_key
 from ...services.security import (
@@ -36,6 +36,7 @@ from ..schemas import (
     LegalAcceptIn,
     LegalVersionOut,
     LoginIn,
+    BrandingPublicOut,
     MeOut,
     PasswordChangeIn,
     PasswordResetIn,
@@ -58,10 +59,17 @@ def legal_out(v: legal_docs.Version) -> LegalVersionOut:
     return LegalVersionOut(document=v.doc.id, title=v.doc.title, version=v.version, sha256=v.sha256, url=v.url)
 
 
+def _branding_out(db, client: Client | None, user: User) -> BrandingPublicOut | None:
+    """La marca blanca con la que el usuario ve el panel (solo usuarios de cliente con la marca activa)."""
+    b = branding.for_client(db, client) if client is not None and user.role == "client" else None
+    return BrandingPublicOut(**b.__dict__) if b else None
+
+
 def _me(db, user: User) -> MeOut:
     client = db.get(Client, user.client_id) if user.client_id else None
     return MeOut(id=user.id, email=user.email, name=user.name, role=user.role, client_id=user.client_id,
                  client_name=client.name if client else None,
+                 branding=_branding_out(db, client, user),
                  welcome_pending=user.role == "client" and user.welcomed_at is None,
                  legal_pending=[legal_out(v) for v in legal.pending(db, user)])
 

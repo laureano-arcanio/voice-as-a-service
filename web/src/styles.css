@@ -387,3 +387,31 @@ details.llm summary {
   pointer-events: none;
   user-select: none;
 }
+
+/* Marca blanca (docs/MARCA_BLANCA_PLAN.md): el header toma el color del cliente; el texto lo elige la app. */
+.app-header {
+  background: var(--app-header-bg);
+  color: var(--app-header-fg);
+  border-bottom-color: var(--app-header-line);
+}
+
+.app-header-dim {
+  color: var(--app-header-fg);
+  opacity: 0.72;
+}
+
+.brand-header .mantine-ActionIcon-root[data-variant='default'],
+.brand-header .mantine-Button-root[data-variant='default'] {
+  background: transparent;
+  color: var(--app-header-fg);
+  border-color: var(--app-header-line);
+}
+
+.brand-header .mantine-ActionIcon-root[data-variant='default']:hover,
+.brand-header .mantine-Button-root[data-variant='default']:hover {
+  background: color-mix(in srgb, var(--app-header-fg) 10%, transparent);
+}
+
+.app-powered-by {
+  opacity: 0.8;
+}

@@ -3146,6 +3146,92 @@ export interface paths {
         patch: operations["resolve_api_v1_consumer_requests__request_id__patch"];
         trace?: never;
     };
+    "/api/v1/clients/{client_id}/branding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Branding
+         * @description La marca del cliente: lo guardado, si su plan la incluye (`available`) y si se esta mostrando (`active`).
+         */
+        get: operations["read_branding_api_v1_clients__client_id__branding_get"];
+        /**
+         * Update Branding
+         * @description Colores, si se muestra y la linea "Con tecnologia de Atentina". El logo va aparte (`PUT .../logo`).
+         */
+        put: operations["update_branding_api_v1_clients__client_id__branding_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clients/{client_id}/branding/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Logo
+         * @description El logo del header y del login. Las imagenes se achican a 480 × 120 y se recodifican; el SVG se guarda
+         *     tal cual si no tiene scripts ni referencias externas.
+         */
+        put: operations["put_logo_api_v1_clients__client_id__branding_logo_put"];
+        post?: never;
+        /**
+         * Delete Logo
+         * @description Sin logo, el panel muestra el nombre del cliente en texto.
+         */
+        delete: operations["delete_logo_api_v1_clients__client_id__branding_logo_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/branding/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public Branding
+         * @description Lo que muestra la pagina de login con `?c=<slug>`.
+         */
+        get: operations["public_branding_api_v1_public_branding__slug__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/branding/{slug}/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public Logo */
+        get: operations["public_logo_api_v1_public_branding__slug__logo_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/oauth/authorize": {
         parameters: {
             query?: never;
@@ -3769,6 +3855,15 @@ export interface components {
              */
             file: string;
         };
+        /** Body_put_logo_api_v1_clients__client_id__branding_logo_put */
+        Body_put_logo_api_v1_clients__client_id__branding_logo_put: {
+            /**
+             * File
+             * Format: binary
+             * @description PNG, JPG, WebP (hasta 2 MB) o SVG (hasta 200 KB)
+             */
+            file: string;
+        };
         /** Body_transcriptions_api_v1_inference_audio_transcriptions_post */
         Body_transcriptions_api_v1_inference_audio_transcriptions_post: {
             /**
@@ -3787,6 +3882,117 @@ export interface components {
              * @default json
              */
             response_format?: string;
+        };
+        /** BrandingIn */
+        BrandingIn: {
+            /**
+             * Enabled
+             * @description Mostrar el panel con esta marca (si el plan la incluye)
+             */
+            enabled: boolean;
+            /**
+             * Color Primary
+             * @description #rrggbb; tiene que dar 4,5:1 con blanco
+             */
+            color_primary: string;
+            /** Color Header */
+            color_header: string;
+            /** Color Accent */
+            color_accent: string;
+            /**
+             * Powered By
+             * @default true
+             */
+            powered_by?: boolean;
+        };
+        /** BrandingOut */
+        BrandingOut: {
+            /**
+             * Enabled
+             * @description Mostrar el panel con esta marca (si el plan la incluye)
+             */
+            enabled: boolean;
+            /**
+             * Color Primary
+             * @description #rrggbb; tiene que dar 4,5:1 con blanco
+             */
+            color_primary: string;
+            /** Color Header */
+            color_header: string;
+            /** Color Accent */
+            color_accent: string;
+            /**
+             * Powered By
+             * @default true
+             */
+            powered_by?: boolean;
+            /** Logo Url */
+            logo_url: string | null;
+            /** Logo Ratio */
+            logo_ratio: number | null;
+            /** Header Fg */
+            header_fg: string;
+            /**
+             * Available
+             * @description El plan del cliente incluye la marca blanca
+             */
+            available: boolean;
+            /**
+             * Active
+             * @description Se esta mostrando: enabled y el plan la incluye
+             */
+            active: boolean;
+        };
+        /**
+         * BrandingPublicOut
+         * @description La marca con la que los usuarios de un cliente ven el panel (docs/MARCA_BLANCA_PLAN.md).
+         */
+        BrandingPublicOut: {
+            /**
+             * Slug
+             * @description El `c=` del login: el panel recuerda la ultima marca que mostro
+             */
+            slug: string;
+            /**
+             * Name
+             * @description Nombre del cliente: titulo de las pestañas y texto si no hay logo
+             */
+            name: string;
+            /**
+             * Logo Url
+             * @description Ruta del logo (publica, cacheable); null = el nombre en texto
+             */
+            logo_url: string | null;
+            /**
+             * Logo Ratio
+             * @description Ancho / alto del logo, para reservar el lugar
+             */
+            logo_ratio: number | null;
+            /**
+             * Color Primary
+             * @description La accion: botones, links, seleccion, primera serie de los graficos
+             */
+            color_primary: string;
+            /**
+             * Color Header
+             * @description Fondo de la barra superior
+             */
+            color_header: string;
+            /**
+             * Color Accent
+             * @description Segunda serie de los graficos y detalles
+             */
+            color_accent: string;
+            /**
+             * Header Fg
+             * @description Texto e iconos de la barra: #ffffff o la tinta, segun el contraste
+             */
+            header_fg: string;
+            /**
+             * Powered By
+             * @description Mostrar "Con tecnologia de Atentina" al pie del menu
+             */
+            powered_by: boolean;
         };
         /** CallBulkDeleteIn */
         CallBulkDeleteIn: {
@@ -6210,6 +6416,7 @@ export interface components {
             client_id: string | null;
             /** Client Name */
             client_name: string | null;
+            branding?: components["schemas"]["BrandingPublicOut"] | null;
             /**
              * Welcome Pending
              * @default false
@@ -7155,6 +7362,12 @@ export interface components {
              */
             external_agent?: boolean;
             /**
+             * White Label
+             * @description Marca blanca: el panel con el logo y los colores del cliente
+             * @default false
+             */
+            white_label?: boolean;
+            /**
              * Price Ars
              * @description Precio mensual en pesos, lo que se cobra. null: no se vende por el dashboard; 0: gratis
              */
@@ -7224,6 +7437,8 @@ export interface components {
             whatsapp: boolean;
             /** External Agent */
             external_agent: boolean;
+            /** White Label */
+            white_label: boolean;
             /** Price Ars */
             price_ars: number | null;
             /** Public */
@@ -7291,6 +7506,8 @@ export interface components {
             whatsapp?: boolean | null;
             /** External Agent */
             external_agent?: boolean | null;
+            /** White Label */
+            white_label?: boolean | null;
             /** Price Ars */
             price_ars?: number | null;
             /** Public */
@@ -14785,6 +15002,208 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ConsumerRequestOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_branding_api_v1_clients__client_id__branding_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_branding_api_v1_clients__client_id__branding_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrandingIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandingOut"];
+                };
+            };
+            /** @description color_format, o color_contrast (el primario no da 4,5:1 con blanco; `errors[0].suggested` trae uno que si) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    put_logo_api_v1_clients__client_id__branding_logo_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_put_logo_api_v1_clients__client_id__branding_logo_put"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandingOut"];
+                };
+            };
+            /** @description logo_format, logo_too_large, logo_invalid o logo_unsafe (SVG con scripts o referencias externas) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    delete_logo_api_v1_clients__client_id__branding_logo_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_branding_api_v1_public_branding__slug__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandingPublicOut"];
+                };
+            };
+            /** @description El cliente no existe, no tiene la marca activa o su plan no la incluye */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_logo_api_v1_public_branding__slug__logo_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El cliente no existe, no tiene la marca activa o su plan no la incluye */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
