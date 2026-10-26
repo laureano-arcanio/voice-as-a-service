@@ -60,6 +60,14 @@ class PasswordResetIn(BaseModel):
     email: str = Field(min_length=3, max_length=254)
 
 
+class LegalVersionOut(BaseModel):
+    document: Literal["terms", "privacy"]
+    title: str
+    version: str = Field(description="Fecha de publicacion, AAAA-MM-DD")
+    sha256: str = Field(description="Huella del texto exacto de esa version")
+    url: str = Field(description="Link permanente a esa version")
+
+
 class MeOut(BaseModel):
     id: str
     email: str
@@ -69,6 +77,14 @@ class MeOut(BaseModel):
     client_name: str | None
     # Usuario de cliente que todavia no cerro el pop-up de bienvenida.
     welcome_pending: bool = False
+    # Versiones vigentes de las condiciones y la politica que el usuario no acepto: el panel pide aceptarlas.
+    legal_pending: list[LegalVersionOut] = []
+
+
+class LegalAcceptIn(BaseModel):
+    """Las versiones de `legal_pending`; la de un documento ya aceptado puede ir vacia."""
+    terms_version: str = Field(default="", max_length=16)
+    privacy_version: str = Field(default="", max_length=16)
 
 
 class ProfileIn(BaseModel):
@@ -1258,8 +1274,57 @@ class SignupIn(BaseModel):
     # Brick, paso 2 del formulario) y la cuenta se crea solo si MP aprueba la tarjeta.
     plan: str = Field(default="", max_length=64, pattern=r"^[\w .-]*$")
     card_token_id: str | None = Field(default=None, max_length=128)
+    # Casilla de las condiciones y las versiones que mostro el formulario (409 terms_outdated si ya no son las
+    # vigentes: GET /legal).
+    accept_terms: bool = False
+    terms_version: str = Field(default="", max_length=16)
+    privacy_version: str = Field(default="", max_length=16)
     # Trampa para bots, como en /contact.
     website: str = Field(default="", max_length=200)
+
+
+ConsumerRequestKind = Literal["revocation", "cancellation"]
+ConsumerRequestStatus = Literal["open", "done", "rejected"]
+
+
+class ConsumerRequestIn(BaseModel):
+    """Boton de arrepentimiento (`revocation`) o de baja (`cancellation`) de la landing, sin cuenta."""
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    kind: ConsumerRequestKind
+    name: str = Field(min_length=1, max_length=120)
+    email: EmailStr
+    company: str = Field(default="", max_length=120)
+    message: str = Field(default="", max_length=2000)
+    turnstile_token: str = Field(min_length=1, max_length=2048)
+    website: str = Field(default="", max_length=200)   # trampa para bots
+
+
+class ConsumerRequestCreated(BaseModel):
+    code: str = Field(description="Codigo de tramite, que tambien sale por mail")
+
+
+class ConsumerRequestOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    created_at: datetime.datetime
+    kind: ConsumerRequestKind
+    code: str
+    name: str
+    email: str
+    company: str
+    message: str
+    client_id: str | None
+    status: ConsumerRequestStatus
+    resolution: str
+    resolved_at: datetime.datetime | None
+    email_status: str
+
+
+class ConsumerRequestPatch(BaseModel):
+    status: ConsumerRequestStatus
+    resolution: str = Field(default="", max_length=2000, description="Que se hizo (baja, devolucion, motivo)")
 
 
 class SignupCheckIn(BaseModel):

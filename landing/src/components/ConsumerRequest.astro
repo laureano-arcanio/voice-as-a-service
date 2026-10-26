@@ -1,0 +1,89 @@
+---
+// Botón de arrepentimiento y botón de baja (Disp. 954/2025, docs/TERMINOS_PLAN.md): sin cuenta ni registro previo;
+// el código de trámite sale en el momento, en pantalla y por mail.
+import { contactEmail } from "../data/site";
+import Button from "./Button.astro";
+import Legal from "./Legal.astro";
+
+interface Props {
+  kind: "revocation" | "cancellation";
+}
+
+const { kind } = Astro.props;
+const revocation = kind === "revocation";
+const label = "grid gap-1.5 text-[.85rem] font-medium text-ink-2";
+const field =
+  "w-full rounded-xl border border-line bg-bg-2 px-3 py-2.5 font-body text-base text-ink hover:border-line-2 focus:border-accent focus:bg-surface focus:outline-none";
+---
+
+<Legal
+  title={revocation ? "Botón de arrepentimiento" : "Botón de baja"}
+  description={revocation
+    ? "Revocá la contratación de un plan de Atentina dentro de los 10 días corridos, sin costo."
+    : "Pedí la baja de tu plan de Atentina, sin entrar a tu cuenta."}
+  path={revocation ? "/arrepentimiento" : "/baja"}
+  updated="25 de octubre de 2026"
+>
+  {
+    revocation ? (
+      <p>
+        Tenés <strong>10 días corridos</strong> desde que contrataste un plan pago para arrepentirte, sin explicar el
+        motivo y sin costo (Ley 24.240, art. 34; Código Civil y Comercial, arts. 1110 y 1111). Te devolvemos lo pagado por
+        el mismo medio de pago.
+      </p>
+    ) : (
+      <p>
+        Pedí la baja de tu plan cuando quieras: no se renueva y sigue hasta el final del período pagado. Si tenés acceso
+        al panel, también la podés hacer al instante en la sección <strong>Plan</strong>.
+      </p>
+    )
+  }
+  <p>Completá el formulario con el email de tu cuenta. Te mostramos el código de trámite y te lo mandamos por mail.</p>
+
+  <div class="group/request mt-2 rounded-[18px] border border-line bg-surface p-5 shadow-card" data-request data-kind={kind} data-state="idle">
+    <form class="grid gap-3 group-data-[state=sent]/request:hidden" data-request-form>
+      <label class={label}>
+        Tu nombre
+        <input class={field} name="name" autocomplete="name" required maxlength="120" />
+      </label>
+      <label class={label}>
+        Email de la cuenta
+        <input class={field} name="email" type="email" autocomplete="email" required maxlength="254" />
+      </label>
+      <label class={label}>
+        Empresa
+        <input class={field} name="company" autocomplete="organization" maxlength="120" />
+      </label>
+      <label class={label}>
+        Comentario (opcional)
+        <textarea class={field} name="message" rows="3" maxlength="2000"></textarea>
+      </label>
+      <div class="hidden" aria-hidden="true">
+        <label>Sitio web <input name="website" tabindex="-1" autocomplete="off" /></label>
+      </div>
+      <Button type="submit" data-request-submit>
+        <span class="group-data-[state=sending]/request:hidden">{revocation ? "Me arrepiento" : "Pedir la baja"}</span>
+        <span class="hidden group-data-[state=sending]/request:inline">Un momento…</span>
+      </Button>
+      <p class="min-h-[1.3em] text-[.82rem] font-medium text-warn" data-request-error aria-live="polite"></p>
+    </form>
+    <div class="hidden gap-2 group-data-[state=sent]/request:grid" data-request-sent tabindex="-1">
+      <p class="text-[1.1rem] font-semibold text-ink">Recibimos tu pedido</p>
+      <p>
+        Tu código de trámite es <strong class="font-mono" data-request-code></strong>. También te lo mandamos por mail.
+        Te avisamos cuando esté resuelto.
+      </p>
+    </div>
+  </div>
+
+  <p>
+    También podés pedirlo por email a <a href={`mailto:${contactEmail}`}>{contactEmail}</a>. Ver las{" "}
+    <a href="/terminos">condiciones del servicio</a>, punto 8.
+  </p>
+</Legal>
+
+<script>
+  import { initConsumerRequestForm } from "../scripts/consumer-request";
+
+  document.querySelectorAll<HTMLElement>("[data-request]").forEach(initConsumerRequestForm);
+</script>

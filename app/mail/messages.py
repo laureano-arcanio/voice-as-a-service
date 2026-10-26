@@ -4,6 +4,7 @@ from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 
 from ..config import settings
+from ..legal import Version
 from ..models import Tier
 from . import layout as L
 from .sender import Mail
@@ -164,8 +165,72 @@ def account_code(*, email: str, name: str, code: str, expires_at: datetime.datet
     return Mail(email, subject, html, "\n".join(lines))
 
 
-def account_ready(*, email: str, name: str, client_name: str, tier_name: str | None = None) -> Mail:
-    """Registro desde la landing: la cuenta ya esta creada (la clave la eligio en el formulario)."""
+def _legal_moment(moment: datetime.datetime) -> str:
+    """'25/10/2026 15:30 (hora de Argentina)'. `moment` en UTC."""
+    local = moment.replace(tzinfo=moment.tzinfo or datetime.UTC).astimezone(ZoneInfo(settings.billing_timezone))
+    return f"{local:%d/%m/%Y %H:%M} (hora de Argentina)"
+
+
+def _legal_rows(accepted: list[Version], moment: datetime.datetime) -> list[tuple[str, object]]:
+    return [*((v.doc.title, f"versión {v.version}") for v in accepted), ("Fecha", _legal_moment(moment))]
+
+
+def _legal_after(accepted: list[Version]) -> list[str]:
+    """Links permanentes y huella de cada version: con eso se puede probar que texto se acepto."""
+    return [f"{v.doc.title}, versión {v.version}: {v.url} (huella SHA-256 {v.sha256})" for v in accepted]
+
+
+def legal_accepted(*, email: str, name: str, client_name: str, accepted: list[Version],
+                   accepted_at: datetime.datetime) -> Mail:
+    """Confirmacion de la aceptacion en el panel (CCyC art. 1108: confirmar por via electronica y sin demora)."""
+    return _simple(
+        to=email, subject="Aceptaste las condiciones de Atentina",
+        preheader="Confirmación de las versiones que aceptaste.", title="Confirmación de tu aceptación", name=name,
+        paragraphs=[f"Registramos que aceptaste, como usuario de {client_name}, estas versiones:"],
+        rows=_legal_rows(accepted, accepted_at), rows_title="Aceptación",
+        after=[*_legal_after(accepted),
+               "Guardá este mail: es tu constancia. Podés darte de baja o arrepentirte en "
+               f"{settings.site_url.rstrip('/')}/baja y {settings.site_url.rstrip('/')}/arrepentimiento."],
+        reason=f"Recibiste este email porque {email} aceptó las condiciones de Atentina.")
+
+
+CONSUMER_KINDS = {"revocation": "arrepentimiento", "cancellation": "baja"}
+
+
+def consumer_request_received(*, email: str, name: str, kind: str, code: str,
+                              created_at: datetime.datetime) -> Mail:
+    """Al que uso el boton de arrepentimiento o de baja: su codigo de tramite (Disp. 954/2025)."""
+    what = CONSUMER_KINDS[kind]
+    detail = ("Te devolvemos lo pagado por el mismo medio de pago y te avisamos cuando esté hecho."
+              if kind == "revocation" else
+              "Damos de baja el plan: no se renueva y te avisamos cuando esté hecho.")
+    return _simple(
+        to=email, subject=f"Recibimos tu pedido de {what}: {code}",
+        preheader=f"Tu código de trámite es {code}.", title=f"Pedido de {what} recibido", name=name,
+        paragraphs=[f"Recibimos tu pedido de {what}. {detail}"],
+        rows=[("Código de trámite", code), ("Fecha", _legal_moment(created_at))], rows_title="Tu pedido",
+        after=[f"Si tenés que agregar algo, respondé a {settings.support_email} con el código."],
+        reason=f"Recibiste este email porque se pidió el {what} del servicio de Atentina con {email}.")
+
+
+def consumer_request_admin(*, to: str, kind: str, code: str, name: str, email: str, company: str, message: str,
+                           client_url: str | None) -> Mail:
+    what = CONSUMER_KINDS[kind]
+    return _simple(
+        to=to, subject=f"Pedido de {what}: {company or name} ({code})",
+        preheader=f"{name} pidió el {what}.", title=f"Pedido de {what}", name=None,
+        paragraphs=[f"{name} ({email}) usó el botón de {what}. Resolvelo y marcá el pedido como hecho "
+                    "(PATCH /api/v1/consumer-requests/{id})."
+                    + (" Si es arrepentimiento, devolvé lo pagado." if kind == "revocation" else "")],
+        rows=[("Código", code), ("Empresa", company or "-"), ("Mensaje", message or "-")], rows_title="Pedido",
+        button=(client_url, "Abrir la ficha del cliente") if client_url else None,
+        reason="Aviso interno de Atentina.")
+
+
+def account_ready(*, email: str, name: str, client_name: str, tier_name: str | None = None,
+                  accepted: list[Version] = (), accepted_at: datetime.datetime | None = None) -> Mail:
+    """Registro desde la landing: la cuenta ya esta creada (la clave la eligio en el formulario). Con `accepted`,
+    lleva tambien la confirmacion de la aceptacion de las condiciones (CCyC art. 1108)."""
     dash = dashboard_url(email)
     plan = (f"en el plan {tier_name}" if tier_name and tier_name.lower() != "free" else "en el plan gratuito")
     later = ("" if tier_name and tier_name.lower() != "free"
@@ -177,8 +242,9 @@ def account_ready(*, email: str, name: str, client_name: str, tier_name: str | N
                     "Para empezar, armá tu agente o elegí uno de la plantilla y probalo con una llamada de prueba."
                     + later],
         button=(dash, "Ir al dashboard"),
+        rows=_legal_rows(list(accepted), accepted_at) if accepted else None, rows_title="Lo que aceptaste",
         after=[f"Ingresá siempre con este email ({email}) y la clave que elegiste. Si no la recordás, "
-               "usá «Olvidé mi clave» en el ingreso."],
+               "usá «Olvidé mi clave» en el ingreso.", *_legal_after(list(accepted))],
         reason=f"Recibiste este email porque se creó una cuenta en Atentina con {email}. "
                f"Si no fuiste vos, escribinos a {settings.support_email}.")
 

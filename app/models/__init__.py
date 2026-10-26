@@ -15,6 +15,7 @@ from .campaigns import (
 from .contact import ContactRequest
 from .conversations import ConversationRow
 from .handoff import Event, HandoffArea, HandoffAreaMember, HandoffLeg, TeamMember
+from .legal import ConsumerRequest, LegalAcceptance
 from .llm import LlmConnection
 from .oauth import McpToolUsage, OAuthClient, OAuthCode, OAuthGrant, OAuthToken
 from .tenancy import (
@@ -57,6 +58,7 @@ __all__ = [
     "CampaignContact",
     "Client",
     "ClientLimitAdjustment",
+    "ConsumerRequest",
     "Contact",
     "ContactOptout",
     "ContactRequest",
@@ -65,6 +67,7 @@ __all__ = [
     "HandoffArea",
     "HandoffAreaMember",
     "HandoffLeg",
+    "LegalAcceptance",
     "LlmConnection",
     "OAuthClient",
     "OAuthCode",

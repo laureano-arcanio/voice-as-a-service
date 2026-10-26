@@ -113,6 +113,30 @@ export interface SignupRequest {
   website: string;
   /** Plan pago con Mercado Pago: la tarjeta tokenizada. La cuenta se crea solo si MP la aprueba. */
   card_token_id?: string;
+  /** La casilla y las versiones que mostró: si ya no son las vigentes, 409 terms_outdated. */
+  accept_terms: boolean;
+  terms_version: string;
+  privacy_version: string;
+}
+
+export interface ConsumerRequest {
+  kind: "revocation" | "cancellation";
+  name: string;
+  email: string;
+  company: string;
+  message: string;
+  website: string;
+}
+
+/** Botón de arrepentimiento o de baja: sin cuenta, con su propio Turnstile. Devuelve el código de trámite. */
+export async function sendConsumerRequest(request: ConsumerRequest): Promise<string> {
+  const captcha = await turnstileToken();
+  const response = await send("/consumer-requests", {
+    method: "POST",
+    body: JSON.stringify({ ...request, turnstile_token: captcha }),
+  });
+  const body: { code: string } = await response.json();
+  return body.code;
 }
 
 export interface PublicPlans {

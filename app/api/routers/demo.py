@@ -4,13 +4,16 @@ from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from ... import legal as legal_docs
 from ...billing import mp
 from ...billing import service as billing
 from ...config import settings
-from ...services import contact, signup
+from ...services import contact, legal, signup
 from ...services import demo as service
 from ..deps import DB, Definitions, Engine, client_ip
 from ..schemas import (
+    ConsumerRequestCreated,
+    ConsumerRequestIn,
     DemoCallIn,
     DemoCallOut,
     DemoCallResult,
@@ -18,12 +21,14 @@ from ..schemas import (
     DemoSessionIn,
     DemoSessionOut,
     DemoTtsIn,
+    LegalVersionOut,
     PublicPlanOut,
     PublicPlansOut,
     SignupCheckIn,
     SignupIn,
     SignupOut,
 )
+from .auth import legal_out
 
 router = APIRouter(prefix="/demo", tags=["demo"])
 _bearer = HTTPBearer(auto_error=False, description="Token de la sesion de demo o de la llamada")
@@ -80,7 +85,9 @@ async def send_contact(body: DemoContactIn, request: Request, _: DemoSession, db
 
 
 @router.post("/signup", response_model=SignupOut, status_code=201,
-             responses={409: {"description": "El email ya tiene cuenta (email_taken)"},
+             responses={409: {"description": "El email ya tiene cuenta (email_taken) o las condiciones cambiaron "
+                                             "(terms_outdated)"},
+                        422: {"description": "Falta aceptar las condiciones (terms_required)"},
                         429: {"description": "Limite por IP"}, 503: {"description": "Registro apagado"}})
 async def create_account(body: SignupIn, request: Request, db: DB):
     """Registro desde la landing: crea el cliente en el plan gratuito con la clave elegida y devuelve el
@@ -89,7 +96,11 @@ async def create_account(body: SignupIn, request: Request, db: DB):
         return SignupOut(continue_url=settings.site_url)
     url = await signup.signup(db, signup.SignupData(company=body.company, name=body.name, email=str(body.email),
                                                     password=body.password, plan=body.plan,
-                                                    card_token_id=body.card_token_id),
+                                                    card_token_id=body.card_token_id,
+                                                    accept_terms=body.accept_terms,
+                                                    terms_version=body.terms_version,
+                                                    privacy_version=body.privacy_version, ip=client_ip(request),
+                                                    user_agent=request.headers.get("user-agent", "")),
                               body.turnstile_token, client_ip(request))
     return SignupOut(continue_url=url)
 
@@ -110,3 +121,22 @@ def public_plans(db: DB):
         mp_public_key=settings.mp_billing_public_key if mp.enabled() else None,
         plans=[PublicPlanOut(id=t.id, name=t.name, price_ars=t.price_ars)
                for t in billing.public_tiers(db) if t.price_ars])
+
+
+@router.get("/legal", response_model=list[LegalVersionOut])
+def legal_versions():
+    """Versiones vigentes de las condiciones y la politica de privacidad: las que manda el registro."""
+    return [legal_out(v) for v in legal_docs.current_all()]
+
+
+@router.post("/consumer-requests", response_model=ConsumerRequestCreated, status_code=201,
+             responses={403: {"description": "Turnstile invalido"}, 429: {"description": "Limite por IP"}})
+async def consumer_request(body: ConsumerRequestIn, request: Request, db: DB):
+    """Boton de arrepentimiento o de baja (Disp. 954/2025): sin cuenta. Devuelve el codigo de tramite y lo manda
+    por mail al email del pedido."""
+    if body.website:   # trampa para bots
+        return ConsumerRequestCreated(code=legal._new_code(body.kind))
+    row = await legal.submit_request(db, legal.RequestData(kind=body.kind, name=body.name, email=str(body.email),
+                                                           company=body.company, message=body.message),
+                                     body.turnstile_token, client_ip(request))
+    return ConsumerRequestCreated(code=row.code)

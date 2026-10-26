@@ -80,6 +80,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/me/legal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Legal
+         * @description Acepta las versiones vigentes de las condiciones y la politica de privacidad (las de `legal_pending`).
+         *     Queda registrado con IP y navegador, y le llega la confirmacion por mail.
+         */
+        post: operations["accept_legal_api_v1_auth_me_legal_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/me/password/code": {
         parameters: {
             query?: never;
@@ -2228,6 +2249,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/demo/legal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Legal Versions
+         * @description Versiones vigentes de las condiciones y la politica de privacidad: las que manda el registro.
+         */
+        get: operations["legal_versions_api_v1_demo_legal_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/demo/consumer-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Consumer Request
+         * @description Boton de arrepentimiento o de baja (Disp. 954/2025): sin cuenta. Devuelve el codigo de tramite y lo manda
+         *     por mail al email del pedido.
+         */
+        post: operations["consumer_request_api_v1_demo_consumer_requests_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clients/{client_id}/billing": {
         parameters: {
             query?: never;
@@ -3042,6 +3104,46 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/consumer-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Requests
+         * @description Los ultimos 100, los mas nuevos primero.
+         */
+        get: operations["list_requests_api_v1_consumer_requests_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/consumer-requests/{request_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Resolve
+         * @description Marca el pedido como hecho o rechazado, con lo que se hizo.
+         */
+        patch: operations["resolve_api_v1_consumer_requests__request_id__patch"];
         trace?: never;
     };
     "/api/v1/oauth/authorize": {
@@ -4822,6 +4924,101 @@ export interface components {
             /** Active */
             active?: boolean | null;
         };
+        /** ConsumerRequestCreated */
+        ConsumerRequestCreated: {
+            /**
+             * Code
+             * @description Codigo de tramite, que tambien sale por mail
+             */
+            code: string;
+        };
+        /**
+         * ConsumerRequestIn
+         * @description Boton de arrepentimiento (`revocation`) o de baja (`cancellation`) de la landing, sin cuenta.
+         */
+        ConsumerRequestIn: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "revocation" | "cancellation";
+            /** Name */
+            name: string;
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /**
+             * Company
+             * @default
+             */
+            company?: string;
+            /**
+             * Message
+             * @default
+             */
+            message?: string;
+            /** Turnstile Token */
+            turnstile_token: string;
+            /**
+             * Website
+             * @default
+             */
+            website?: string;
+        };
+        /** ConsumerRequestOut */
+        ConsumerRequestOut: {
+            /** Id */
+            id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "revocation" | "cancellation";
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /** Email */
+            email: string;
+            /** Company */
+            company: string;
+            /** Message */
+            message: string;
+            /** Client Id */
+            client_id: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "done" | "rejected";
+            /** Resolution */
+            resolution: string;
+            /** Resolved At */
+            resolved_at: string | null;
+            /** Email Status */
+            email_status: string;
+        };
+        /** ConsumerRequestPatch */
+        ConsumerRequestPatch: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "done" | "rejected";
+            /**
+             * Resolution
+             * @description Que se hizo (baja, devolucion, motivo)
+             * @default
+             */
+            resolution?: string;
+        };
         /**
          * ContactCampaignOut
          * @description Un contacto en una campaña, para su ficha (GET /contacts/{id}/campaigns).
@@ -5649,6 +5846,47 @@ export interface components {
             error?: string | null;
         };
         /**
+         * LegalAcceptIn
+         * @description Las versiones de `legal_pending`; la de un documento ya aceptado puede ir vacia.
+         */
+        LegalAcceptIn: {
+            /**
+             * Terms Version
+             * @default
+             */
+            terms_version?: string;
+            /**
+             * Privacy Version
+             * @default
+             */
+            privacy_version?: string;
+        };
+        /** LegalVersionOut */
+        LegalVersionOut: {
+            /**
+             * Document
+             * @enum {string}
+             */
+            document: "terms" | "privacy";
+            /** Title */
+            title: string;
+            /**
+             * Version
+             * @description Fecha de publicacion, AAAA-MM-DD
+             */
+            version: string;
+            /**
+             * Sha256
+             * @description Huella del texto exacto de esa version
+             */
+            sha256: string;
+            /**
+             * Url
+             * @description Link permanente a esa version
+             */
+            url: string;
+        };
+        /**
          * LimitAdjustmentIn
          * @description `add` suma `value` al limite del tier; `set` lo reemplaza (value null = ilimitado). Sin fechas
          *     es permanente; con ellas, vale entre `starts_on` y `ends_on`, ambos inclusive.
@@ -5977,6 +6215,11 @@ export interface components {
              * @default false
              */
             welcome_pending?: boolean;
+            /**
+             * Legal Pending
+             * @default []
+             */
+            legal_pending?: components["schemas"]["LegalVersionOut"][];
         };
         /** MessageOut */
         MessageOut: {
@@ -6521,6 +6764,21 @@ export interface components {
             plan?: string;
             /** Card Token Id */
             card_token_id?: string | null;
+            /**
+             * Accept Terms
+             * @default false
+             */
+            accept_terms?: boolean;
+            /**
+             * Terms Version
+             * @default
+             */
+            terms_version?: string;
+            /**
+             * Privacy Version
+             * @default
+             */
+            privacy_version?: string;
             /**
              * Website
              * @default
@@ -7984,6 +8242,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeOut"];
+                };
+            };
+        };
+    };
+    accept_legal_api_v1_auth_me_legal_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LegalAcceptIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
+                };
+            };
+            /** @description Hay una version mas nueva (code terms_outdated) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -12468,21 +12766,19 @@ export interface operations {
                     "application/json": components["schemas"]["SignupOut"];
                 };
             };
-            /** @description El email ya tiene cuenta (email_taken) */
+            /** @description El email ya tiene cuenta (email_taken) o las condiciones cambiaron (terms_outdated) */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Validation Error */
+            /** @description Falta aceptar las condiciones (terms_required) */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
+                content?: never;
             };
             /** @description Limite por IP */
             429: {
@@ -12560,6 +12856,73 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PublicPlansOut"];
                 };
+            };
+        };
+    };
+    legal_versions_api_v1_demo_legal_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegalVersionOut"][];
+                };
+            };
+        };
+    };
+    consumer_request_api_v1_demo_consumer_requests_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConsumerRequestIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsumerRequestCreated"];
+                };
+            };
+            /** @description Turnstile invalido */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Limite por IP */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -14355,6 +14718,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["McpUsageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_requests_api_v1_consumer_requests_get: {
+        parameters: {
+            query?: {
+                status?: ("open" | "done" | "rejected") | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsumerRequestOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_api_v1_consumer_requests__request_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConsumerRequestPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsumerRequestOut"];
                 };
             };
             /** @description Validation Error */

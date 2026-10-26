@@ -30,7 +30,8 @@ export function WelcomeModal() {
 
   return (
     <Modal
-      opened={!!me?.welcome_pending && !closed}
+      // Después de aceptar las condiciones (LegalModal), no encima.
+      opened={!!me?.welcome_pending && !me.legal_pending?.length && !closed}
       onClose={() => close()}
       size="lg"
       title="Te damos la bienvenida a Atentina"

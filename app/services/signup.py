@@ -23,6 +23,7 @@ from sqlalchemy import delete, exists, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from .. import legal as legal_docs
 from ..billing import mp
 from ..billing import service as billing
 from ..billing.service import free_tier, public_tiers
@@ -31,6 +32,7 @@ from ..db import utcnow
 from ..mail import messages, notify
 from ..mail.sender import Mail
 from ..models import Client, ConversationRow, Role, Tier, User
+from . import legal
 from .agents import slugify
 from .demo import DemoUnavailable, verify_turnstile
 from .errors import Conflict, Forbidden, Invalid, ServiceError
@@ -58,6 +60,12 @@ class SignupData:
     password: str
     plan: str = ""      # nombre del tier elegido en la landing
     card_token_id: str | None = None   # tarjeta tokenizada por el Card Payment Brick (plan pago con MP)
+    # Casilla de las condiciones: las versiones que mostro el formulario (tienen que ser las vigentes).
+    accept_terms: bool = False
+    terms_version: str = ""
+    privacy_version: str = ""
+    ip: str = ""
+    user_agent: str = ""
 
 
 class EmailTaken(Conflict):
@@ -115,6 +123,10 @@ def create_account(s: Session, data: SignupData) -> str:
     rechaza la tarjeta no se crea nada); devuelve el link de un solo uso al dashboard. Los mails salen
     despues del commit."""
     email = data.email.strip().lower()
+    if not data.accept_terms:
+        raise Invalid("Para crear la cuenta tenés que aceptar las condiciones y la política de privacidad.",
+                      "terms_required")
+    accepted = legal.check_versions(data.terms_version, data.privacy_version)
     _check_email(s, email)
     tier = paid_tier(s, data.plan)
     pay_now = tier is not None and mp.enabled()
@@ -132,6 +144,9 @@ def create_account(s: Session, data: SignupData) -> str:
     except IntegrityError:
         s.rollback()   # el mismo email en paralelo
         raise _taken() from None
+    accepted_at = legal.record(s, user, client, accepted, legal_docs.checkbox_text(data.terms_version,
+                                                                                  data.privacy_version),
+                               "signup", data.ip, data.user_agent)
     mails, sub = [], None
     if pay_now:
         try:
@@ -148,7 +163,8 @@ def create_account(s: Session, data: SignupData) -> str:
         raise
     logger.info("registro: cliente %s (%s)%s", client.slug, email, f", plan {tier.name}" if pay_now else "")
     notify.deliver([messages.account_ready(email=user.email, name=user.name, client_name=client.name,
-                                           tier_name=client.tier.name), *mails])
+                                           tier_name=client.tier.name, accepted=accepted,
+                                           accepted_at=accepted_at), *mails])
     token = create_handoff_token(user.id, user.session_version)
     next_path = f"/plan?{urlencode({'tier': tier.name})}" if tier is not None and not pay_now else "/"
     query = urlencode({"token": token, "next": next_path})

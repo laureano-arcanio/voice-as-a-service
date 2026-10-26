@@ -161,6 +161,56 @@
     ]
    }
   },
+  "/api/v1/auth/me/legal": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Accept Legal",
+    "description": "Acepta las versiones vigentes de las condiciones y la politica de privacidad (las de `legal_pending`).\nQueda registrado con IP y navegador, y le llega la confirmacion por mail.",
+    "operationId": "accept_legal_api_v1_auth_me_legal_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/LegalAcceptIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MeOut"
+        }
+       }
+      }
+     },
+     "409": {
+      "description": "Hay una version mas nueva (code terms_outdated)"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
   "/api/v1/auth/me/password/code": {
    "post": {
     "tags": [
@@ -7593,23 +7643,16 @@
       }
      },
      "409": {
-      "description": "El email ya tiene cuenta (email_taken)"
+      "description": "El email ya tiene cuenta (email_taken) o las condiciones cambiaron (terms_outdated)"
+     },
+     "422": {
+      "description": "Falta aceptar las condiciones (terms_required)"
      },
      "429": {
       "description": "Limite por IP"
      },
      "503": {
       "description": "Registro apagado"
-     },
-     "422": {
-      "description": "Validation Error",
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/HTTPValidationError"
-        }
-       }
-      }
      }
     }
    }
@@ -7663,6 +7706,80 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/PublicPlansOut"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/demo/legal": {
+   "get": {
+    "tags": [
+     "demo"
+    ],
+    "summary": "Legal Versions",
+    "description": "Versiones vigentes de las condiciones y la politica de privacidad: las que manda el registro.",
+    "operationId": "legal_versions_api_v1_demo_legal_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/LegalVersionOut"
+         },
+         "type": "array",
+         "title": "Response Legal Versions Api V1 Demo Legal Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/demo/consumer-requests": {
+   "post": {
+    "tags": [
+     "demo"
+    ],
+    "summary": "Consumer Request",
+    "description": "Boton de arrepentimiento o de baja (Disp. 954/2025): sin cuenta. Devuelve el codigo de tramite y lo manda\npor mail al email del pedido.",
+    "operationId": "consumer_request_api_v1_demo_consumer_requests_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ConsumerRequestIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ConsumerRequestCreated"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Turnstile invalido"
+     },
+     "429": {
+      "description": "Limite por IP"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
         }
        }
       }
@@ -10782,6 +10899,128 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/McpUsageOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/consumer-requests": {
+   "get": {
+    "tags": [
+     "consumer-requests"
+    ],
+    "summary": "List Requests",
+    "description": "Los ultimos 100, los mas nuevos primero.",
+    "operationId": "list_requests_api_v1_consumer_requests_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "status",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "open",
+          "done",
+          "rejected"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/ConsumerRequestOut"
+         },
+         "title": "Response List Requests Api V1 Consumer Requests Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/consumer-requests/{request_id}": {
+   "patch": {
+    "tags": [
+     "consumer-requests"
+    ],
+    "summary": "Resolve",
+    "description": "Marca el pedido como hecho o rechazado, con lo que se hizo.",
+    "operationId": "resolve_api_v1_consumer_requests__request_id__patch",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "request_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Request Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ConsumerRequestPatch"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ConsumerRequestOut"
         }
        }
       }
@@ -15655,6 +15894,199 @@
     "type": "object",
     "title": "ClientUpdate"
    },
+   "ConsumerRequestCreated": {
+    "properties": {
+     "code": {
+      "type": "string",
+      "title": "Code",
+      "description": "Codigo de tramite, que tambien sale por mail"
+     }
+    },
+    "type": "object",
+    "required": [
+     "code"
+    ],
+    "title": "ConsumerRequestCreated"
+   },
+   "ConsumerRequestIn": {
+    "properties": {
+     "kind": {
+      "type": "string",
+      "enum": [
+       "revocation",
+       "cancellation"
+      ],
+      "title": "Kind"
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "email": {
+      "type": "string",
+      "format": "email",
+      "title": "Email"
+     },
+     "company": {
+      "type": "string",
+      "maxLength": 120,
+      "title": "Company",
+      "default": ""
+     },
+     "message": {
+      "type": "string",
+      "maxLength": 2000,
+      "title": "Message",
+      "default": ""
+     },
+     "turnstile_token": {
+      "type": "string",
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Turnstile Token"
+     },
+     "website": {
+      "type": "string",
+      "maxLength": 200,
+      "title": "Website",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "kind",
+     "name",
+     "email",
+     "turnstile_token"
+    ],
+    "title": "ConsumerRequestIn",
+    "description": "Boton de arrepentimiento (`revocation`) o de baja (`cancellation`) de la landing, sin cuenta."
+   },
+   "ConsumerRequestOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "kind": {
+      "type": "string",
+      "enum": [
+       "revocation",
+       "cancellation"
+      ],
+      "title": "Kind"
+     },
+     "code": {
+      "type": "string",
+      "title": "Code"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "email": {
+      "type": "string",
+      "title": "Email"
+     },
+     "company": {
+      "type": "string",
+      "title": "Company"
+     },
+     "message": {
+      "type": "string",
+      "title": "Message"
+     },
+     "client_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Id"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "open",
+       "done",
+       "rejected"
+      ],
+      "title": "Status"
+     },
+     "resolution": {
+      "type": "string",
+      "title": "Resolution"
+     },
+     "resolved_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Resolved At"
+     },
+     "email_status": {
+      "type": "string",
+      "title": "Email Status"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "created_at",
+     "kind",
+     "code",
+     "name",
+     "email",
+     "company",
+     "message",
+     "client_id",
+     "status",
+     "resolution",
+     "resolved_at",
+     "email_status"
+    ],
+    "title": "ConsumerRequestOut"
+   },
+   "ConsumerRequestPatch": {
+    "properties": {
+     "status": {
+      "type": "string",
+      "enum": [
+       "open",
+       "done",
+       "rejected"
+      ],
+      "title": "Status"
+     },
+     "resolution": {
+      "type": "string",
+      "maxLength": 2000,
+      "title": "Resolution",
+      "description": "Que se hizo (baja, devolucion, motivo)",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "status"
+    ],
+    "title": "ConsumerRequestPatch"
+   },
    "ContactCampaignOut": {
     "properties": {
      "campaign_id": {
@@ -17758,6 +18190,65 @@
     "title": "InviteOut",
     "description": "Resultado del mail para crear la clave. disabled: el servidor no tiene RESEND_API_KEY."
    },
+   "LegalAcceptIn": {
+    "properties": {
+     "terms_version": {
+      "type": "string",
+      "maxLength": 16,
+      "title": "Terms Version",
+      "default": ""
+     },
+     "privacy_version": {
+      "type": "string",
+      "maxLength": 16,
+      "title": "Privacy Version",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "title": "LegalAcceptIn",
+    "description": "Las versiones de `legal_pending`; la de un documento ya aceptado puede ir vacia."
+   },
+   "LegalVersionOut": {
+    "properties": {
+     "document": {
+      "type": "string",
+      "enum": [
+       "terms",
+       "privacy"
+      ],
+      "title": "Document"
+     },
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "version": {
+      "type": "string",
+      "title": "Version",
+      "description": "Fecha de publicacion, AAAA-MM-DD"
+     },
+     "sha256": {
+      "type": "string",
+      "title": "Sha256",
+      "description": "Huella del texto exacto de esa version"
+     },
+     "url": {
+      "type": "string",
+      "title": "Url",
+      "description": "Link permanente a esa version"
+     }
+    },
+    "type": "object",
+    "required": [
+     "document",
+     "title",
+     "version",
+     "sha256",
+     "url"
+    ],
+    "title": "LegalVersionOut"
+   },
    "LimitAdjustmentIn": {
     "properties": {
      "field": {
@@ -18656,6 +19147,14 @@
       "type": "boolean",
       "title": "Welcome Pending",
       "default": false
+     },
+     "legal_pending": {
+      "items": {
+       "$ref": "#/components/schemas/LegalVersionOut"
+      },
+      "type": "array",
+      "title": "Legal Pending",
+      "default": []
      }
     },
     "type": "object",
@@ -20155,6 +20654,23 @@
        }
       ],
       "title": "Card Token Id"
+     },
+     "accept_terms": {
+      "type": "boolean",
+      "title": "Accept Terms",
+      "default": false
+     },
+     "terms_version": {
+      "type": "string",
+      "maxLength": 16,
+      "title": "Terms Version",
+      "default": ""
+     },
+     "privacy_version": {
+      "type": "string",
+      "maxLength": 16,
+      "title": "Privacy Version",
+      "default": ""
      },
      "website": {
       "type": "string",

@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy import select
 
+from ... import legal as legal_docs
 from ...config import settings
 from ...db import utcnow
 from ...models import Client, User
-from ...services import profile, signup
+from ...services import legal, profile, signup
 from ...services.errors import Invalid, ServiceError
 from ...services.ratelimit import Limit, RateLimited, client_key
 from ...services.security import (
@@ -32,6 +33,8 @@ from ..schemas import (
     AccountCodeOut,
     EmailCodeIn,
     HandoffIn,
+    LegalAcceptIn,
+    LegalVersionOut,
     LoginIn,
     MeOut,
     PasswordChangeIn,
@@ -51,11 +54,16 @@ class InvalidCredentials(ServiceError):
     status_code = 401
 
 
+def legal_out(v: legal_docs.Version) -> LegalVersionOut:
+    return LegalVersionOut(document=v.doc.id, title=v.doc.title, version=v.version, sha256=v.sha256, url=v.url)
+
+
 def _me(db, user: User) -> MeOut:
     client = db.get(Client, user.client_id) if user.client_id else None
     return MeOut(id=user.id, email=user.email, name=user.name, role=user.role, client_id=user.client_id,
                  client_name=client.name if client else None,
-                 welcome_pending=user.role == "client" and user.welcomed_at is None)
+                 welcome_pending=user.role == "client" and user.welcomed_at is None,
+                 legal_pending=[legal_out(v) for v in legal.pending(db, user)])
 
 
 def _login_limits(ip: str, email: str) -> tuple[list[tuple[str, list[Limit]]], str, list[Limit]]:
@@ -157,6 +165,17 @@ def welcome_seen(p: CurrentPrincipal, db: DB):
     if user.welcomed_at is None:
         user.welcomed_at = utcnow()
         db.commit()
+    return _me(db, user)
+
+
+@router.post("/me/legal", response_model=MeOut,
+             responses={409: {"description": "Hay una version mas nueva (code terms_outdated)"}})
+def accept_legal(body: LegalAcceptIn, request: Request, p: CurrentPrincipal, db: DB):
+    """Acepta las versiones vigentes de las condiciones y la politica de privacidad (las de `legal_pending`).
+    Queda registrado con IP y navegador, y le llega la confirmacion por mail."""
+    user = _session_user(db, p)
+    legal.accept(db, user, body.terms_version, body.privacy_version, client_ip(request),
+                 request.headers.get("user-agent", ""))
     return _me(db, user)
 
 

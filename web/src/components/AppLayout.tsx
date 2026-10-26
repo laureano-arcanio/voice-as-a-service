@@ -1,5 +1,6 @@
 import {
   ActionIcon,
+  Anchor,
   AppShell,
   Badge,
   Box,
@@ -16,10 +17,18 @@ import { useState } from 'react';
 import { IconLock, IconLogout, IconUserCircle } from '@tabler/icons-react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import { useLogout, useMe } from '@/features/auth/api';
+import { LegalModal } from '@/features/auth/LegalModal';
 import { WelcomeModal } from '@/features/auth/WelcomeModal';
 import { usePlanFeatures } from '@/features/billing/features';
 import { notifyError } from '@/lib/notify';
 import { isAdminOnly, isGroup, navFor, type NavEntry, type NavGroup, type NavItem } from './nav';
+
+const LEGAL_LINKS = [
+  ['Condiciones', '/terminos'],
+  ['Privacidad', '/privacidad'],
+  ['Arrepentimiento', '/arrepentimiento'],
+  ['Baja', '/baja'],
+] as const;
 
 function isActive(pathname: string, to: string): boolean {
   if (to === '/') return pathname === '/';
@@ -178,6 +187,21 @@ export function AppLayout() {
           <Text size="xs" c="dimmed" px="sm" py="xs" truncate>
             {me.email}
           </Text>
+          {/* Botones de arrepentimiento y de baja (Disp. 954/2025): a la vista, también en el panel. */}
+          <Group gap={8} px="sm" pb="xs">
+            {LEGAL_LINKS.map(([label, path]) => (
+              <Anchor
+                key={path}
+                href={`https://atentina.com.ar${path}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                size="xs"
+                c="dimmed"
+              >
+                {label}
+              </Anchor>
+            ))}
+          </Group>
         </AppShell.Section>
       </AppShell.Navbar>
 
@@ -185,6 +209,7 @@ export function AppLayout() {
         <Box maw={1440} mx="auto">
           <Outlet />
         </Box>
+        <LegalModal />
         <WelcomeModal />
       </AppShell.Main>
     </AppShell>

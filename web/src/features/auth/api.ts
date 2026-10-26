@@ -113,6 +113,16 @@ export function useWelcomeSeen() {
   });
 }
 
+/** Acepta las versiones vigentes de las condiciones y la politica (las de `legal_pending`). */
+export function useAcceptLegal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { terms_version: string; privacy_version: string }) =>
+      unwrap(api.POST('/api/v1/auth/me/legal', { body })),
+    onSuccess: (me) => qc.setQueryData(meKey, me),
+  });
+}
+
 /** Manda el codigo al email actual; devuelve el desafio que va de vuelta con el codigo. */
 export function useRequestPasswordCode() {
   return useMutation({ mutationFn: () => unwrap(api.POST('/api/v1/auth/me/password/code')) });

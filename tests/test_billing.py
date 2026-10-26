@@ -7,6 +7,7 @@ from urllib.parse import parse_qs, urlsplit
 import pytest
 from sqlalchemy import select
 
+from app import legal
 from app.billing import service as billing
 from app.config import settings
 from app.db import utcnow
@@ -19,7 +20,8 @@ from .test_api import V1, admin, make_agent, make_tier  # noqa: F401  (admin: fi
 from .test_mail import outbox, setup_token  # noqa: F401  (outbox: fixture)
 
 SIGNUP = {"company": "Panadería Doña Rosa", "name": "Rosa Gómez", "email": "Rosa@Example.com",
-          "password": "rosa-password-1", "turnstile_token": "ok"}
+          "password": "rosa-password-1", "turnstile_token": "ok", "accept_terms": True,
+          "terms_version": legal.current("terms").version, "privacy_version": legal.current("privacy").version}
 
 
 @pytest.fixture

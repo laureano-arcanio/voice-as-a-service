@@ -8,6 +8,7 @@ import CheckList from "../components/CheckList.astro";
 import Footer from "../components/Footer.astro";
 import Icon from "../components/Icon.astro";
 import Nav from "../components/Nav.astro";
+import { legal } from "../data/legal";
 import { plans } from "../data/site";
 import Base from "../layouts/Base.astro";
 
@@ -28,6 +29,9 @@ const included = [
 ];
 // Los planes que se contratan en el registro (los "A medida" van al contacto).
 const paid = plans.filter((p) => p.signup !== false);
+// Versiones vigentes que acepta la casilla: el registro las manda y la API las compara con las suyas.
+const terms = legal.terminos.current;
+const privacy = legal.privacidad.current;
 // Estados del panel (data-state): idle, checking, pay, paying, sending, sent.
 const onForm = "group-data-[state=pay]/signup:hidden group-data-[state=paying]/signup:hidden group-data-[state=sent]/signup:hidden";
 const onPay = "hidden group-data-[state=pay]/signup:grid group-data-[state=paying]/signup:grid";
@@ -75,7 +79,7 @@ const onPay = "hidden group-data-[state=pay]/signup:grid group-data-[state=payin
           data-signup
           data-state="idle"
         >
-          <form class:list={["grid gap-3 p-5", onForm]} data-signup-form>
+          <form class:list={["grid gap-3 p-5", onForm]} data-signup-form data-terms-version={terms} data-privacy-version={privacy}>
             <span class={step} data-step-one hidden>Paso 1 de 2 · Tus datos</span>
             <p class="rounded-xl bg-accent-soft px-3 py-2 text-[.92rem] text-ink-2" data-signup-plan hidden>
               Plan elegido: <b class="font-semibold text-accent"></b>. Después de crear la cuenta lo pagás desde el panel.
@@ -103,6 +107,19 @@ const onPay = "hidden group-data-[state=pay]/signup:grid group-data-[state=payin
               </label>
             </div>
             <p class="-mt-1 text-[.82rem] text-muted">Al menos 10 caracteres.</p>
+            <label class="flex items-start gap-2.5 text-[.88rem] text-ink-2">
+              <input class="mt-[3px] size-4 shrink-0 accent-(--color-accent)" type="checkbox" name="accept_terms" required />
+              <span>
+                Leí y acepto las <a class="text-accent" href={`/terminos/${terms}`} target="_blank">Condiciones del servicio</a>{" "}
+                (versión {terms}) y la <a class="text-accent" href={`/privacidad/${privacy}`} target="_blank">Política de privacidad</a>{" "}
+                (versión {privacy}).
+              </span>
+            </label>
+            <p class="text-[.8rem] text-muted">
+              En resumen: el agente es una IA y puede equivocarse, así que lo probás y lo revisás; vos respondés por tus
+              datos y tus contactos; los planes pagos se renuevan cada mes, te das de baja cuando quieras y tenés 10
+              días para arrepentirte.
+            </p>
             <div class="hidden" aria-hidden="true">
               <label>Sitio web <input name="website" tabindex="-1" autocomplete="off" /></label>
             </div>
@@ -111,8 +128,7 @@ const onPay = "hidden group-data-[state=pay]/signup:grid group-data-[state=payin
               <span class="hidden group-data-[state=sending]/signup:inline group-data-[state=checking]/signup:inline">Un momento…</span>
             </Button>
             <p class="text-[.85rem] text-muted">
-              Al crear la cuenta aceptás los <a class="text-ink-2" href="/terminos">términos</a> y la{" "}
-              <a class="text-ink-2" href="/privacidad">política de privacidad</a>. ¿Ya tenés cuenta?{" "}
+              ¿Ya tenés cuenta?{" "}
               <a class="font-semibold text-accent no-underline hover:text-accent-2" href="https://app.atentina.com.ar/login">Ingresá</a>.
             </p>
             <p class="min-h-[1.3em] text-[.82rem] font-medium text-warn" data-signup-error aria-live="polite"></p>

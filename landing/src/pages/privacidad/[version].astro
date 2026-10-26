@@ -1,0 +1,13 @@
+---
+// Cada versión publicada, con su link permanente (data/legal.ts).
+import LegalDoc from "../../components/LegalDoc.astro";
+import { legal } from "../../data/legal";
+
+export function getStaticPaths() {
+  return legal.privacidad.versions.map((v) => ({ params: { version: v.version } }));
+}
+
+const { version } = Astro.params;
+---
+
+<LegalDoc slug="privacidad" version={version} description={`${legal.privacidad.title}, versión ${version}.`} />

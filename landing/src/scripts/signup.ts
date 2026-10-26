@@ -52,6 +52,9 @@ export function initSignupForm(root: HTMLElement) {
       password: password.value,
       plan,
       website: value("website"),
+      accept_terms: data.get("accept_terms") === "on",
+      terms_version: form.dataset.termsVersion ?? "",
+      privacy_version: form.dataset.privacyVersion ?? "",
     };
   };
 
