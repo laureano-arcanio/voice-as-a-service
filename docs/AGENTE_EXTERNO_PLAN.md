@@ -10,6 +10,12 @@ y Retell.
 Estado (25-oct-2026): **fases 1 y 2 (UI) implementadas, sin desplegar** (migración 0030; secciones 10 y 11).
 Documentación de la landing (6.1) y gestión por API key y MCP hechas el 25-oct-2026 (sección 12), sin desplegar ni publicar.
 
+> **26-oct-2026:** ya no es un motor. Hay un solo motor y "Tu propio agente" es tener `external` en la definición
+> (una opción del agente, que se prende desde su sección); `engine` ya no existe y `AgentOut.engine` pasó a
+> `own_agent`. `end_call` y `transfer_call` son las herramientas de plataforma de todos los agentes. Donde este
+> plan dice "motor `external`", `engine: "external"` o compara con `classic`/`assistant`, es historia: ver la
+> sección 13 y [`LIMPIEZA_PLAN.md`](LIMPIEZA_PLAN.md).
+
 ## 1. Alcance
 
 - **Canales:** todos los que pasan por `ConversationEngine.process_turn`, sin trabajo extra: llamadas
@@ -95,7 +101,6 @@ Headers: `X-Atentina-Conversation-Id`, `-Channel` (`voice`, `whatsapp`), `-Mode`
 ## 4. Definición del agente
 
 ```json
-"engine": "external",
 "external": {
   "connection": "<id de llm_connections>",
   "model": "acme-agent",
@@ -107,11 +112,11 @@ Headers: `X-Atentina-Conversation-Id`, `-Channel` (`voice`, `whatsapp`), `-Mode`
 }
 ```
 
-- Como `assistant`, no exige `fields` ni extracción. `completion.outcomes` sigue teniendo un
+- No exige `fields` ni extracción (26-oct-2026: sin `engine`; tener `external` alcanza). `completion.outcomes` sigue teniendo un
   default, que es el que se usa si `end_call` no trae `outcome`.
 - La validación al guardar es la de BYOK: la conexión tiene que ser del cliente, estar vigente y ser
   `openai_compatible`. `on_errors: transfer:<área>` exige que el área esté en `handoff.areas`.
-- `handoff` vale con `classic` y con `external`.
+- `handoff` vale con y sin `external`.
 
 ## 5. Errores
 
@@ -245,3 +250,17 @@ Se publica con la fase 2, nunca antes de que el motor esté en producción. Todo
   en `/privacidad` (`#agente-propio`). Revisada con capturas a 1440 y 390 px, sin scroll horizontal.
 - **Desplegar:** `make calls-active && make up-agent` (sin migración nueva). Publicar la landing después.
 
+## 13. Un solo motor (26-oct-2026)
+
+Con la limpieza de [`LIMPIEZA_PLAN.md`](LIMPIEZA_PLAN.md), sin desplegar:
+
+- `engine` deja de existir en la definición (el de una definición vieja se ignora al leerla): "Tu propio agente" es
+  `external` en la definición. `ConversationEngine` despacha a `_external_turn` si está, y si no al turno con el
+  LLM de Atentina (o BYOK).
+- La UI no pregunta motor: el switch de la sección "Tu propio agente" agrega o quita `external`. La API devuelve
+  `AgentOut.own_agent` en lugar de `engine`, y `engine` salió de `AgentCreate`, `TemplateOut` y `PromptOut`.
+- `end_call` y `transfer_call` (`app/llm/platform_tools.py`) son las mismas herramientas para todos los agentes;
+  con tu propio agente, `end_call` lleva `outcome` (los ids de `completion.outcomes`) en lugar de `motivo`.
+- Un agente con `external` no lleva `tools` del cliente: las herramientas son las de su agente.
+- Desde el 26-oct-2026 `vllm-llm` corre con `--enable-auto-tool-choice --tool-call-parser=gemma4`: el LLM propio ya
+  acepta pedidos con `tools` (lo que en la sección 10 impedía usarlo detrás del ejemplo). Sin probar detrás del ejemplo.

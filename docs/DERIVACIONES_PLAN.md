@@ -6,6 +6,13 @@ queda en un registro de eventos que el cliente ve en el panel y recibe por webho
 fase 1 desplegada el 23-oct-2026 (sección 12); fase 2 (transferencia de llamadas) desplegada el 23-oct-2026
 (sección 13).
 
+> **26-oct-2026:** la marca `[DERIVAR:<área>]` (y `[CORTAR]`) ya no existe: el agente deriva con la herramienta de
+> plataforma `transfer_call` (`area`, un `enum` con los nombres; sin búsqueda aproximada) y corta con `end_call`
+> (`app/llm/platform_tools.py`), con cualquier agente. El motor `assistant`, los operadores de WhatsApp y las apps
+> se quitaron. Las frases de comportamiento del prompt ("no lo vuelvas a intentar derivar") pasaron a reglas de la
+> plantilla. Donde este plan habla de marcas, `classic` o `assistant`, es historia: ver 13.6 y
+> [`LIMPIEZA_PLAN.md`](LIMPIEZA_PLAN.md).
+
 Alcance decidido con Laureano (23-oct-2026):
 
 - **Transferencia atendida por LiveKit** (no la ciega por REFER), desde los tres orígenes: entrante de Anura,
@@ -40,9 +47,9 @@ la de **Goldman**: si no llega a noviembre, el piloto arranca con derivación po
 | Pieza | Estado |
 |---|---|
 | Saliente del worker por Anura (`create_sip_participant`, `app/voice/worker.py:622`), trunk `anura-asterisk-outbound`, solo números argentinos (`[from-livekit]`) | Hecho |
-| Cortar desde la API (`POST /calls/{id}/hangup`) y por marca `[CORTAR]` en `classic` | Hecho |
+| Cortar desde la API (`POST /calls/{id}/hangup`) y por marca `[CORTAR]` en `classic` (desde el 26-oct-2026, `end_call`) | Hecho |
 | Transferir, sumar un tercero a una llamada en curso, REFER, `Dial`/`Bridge` a un celular | **No** |
-| Ruteo de WhatsApp: operador > respuesta a campaña > `wa_routes` > agente por defecto | Hecho |
+| Ruteo de WhatsApp: operador > respuesta a campaña > `wa_routes` > agente por defecto (operadores quitados el 26-oct-2026) | Hecho |
 | `wa_threads.paused` | Existe, pero nada lo prende |
 | Derivación (`handoff`) o bandeja en WhatsApp | **No** |
 | `call_logs` (estado, `ended_reason`, `latency` por turno), `wa_messages` con estados, resumen por email | Hecho |
@@ -406,14 +413,16 @@ Desplegada el 23-oct-2026 (migración 0024, `app` y `agent`). Falta la prueba co
 
 - **Configuración en el agente** (versionada, `Workflow.handoff`): las áreas a las que puede pasar la llamada,
   cada una con "cuándo" en texto libre (vacío: la descripción del área), y la música de espera (prendida por
-  defecto, tema y volumen). Solo el motor `classic`; con otro motor y áreas, el guardado da 422. Al guardar se
+  defecto, tema y volumen). Solo el motor `classic`; con otro motor y áreas, el guardado da 422 (26-oct-2026: un
+  solo motor, vale para todos los agentes). Al guardar se
   valida que cada área sea del cliente del agente y que el tema exista. Temas: `GET /api/v1/hold-music`
   (`default`, el de LiveKit Agents, y los `.ogg` de `storage/hold-music/`; subir uno propio queda para después).
   Un área que usa un agente no se borra (409 `area_in_use`, con los nombres de los agentes). Si se borra un `.ogg`,
   la llamada usa el tema `default`, pero el agente no se puede guardar hasta cambiar el tema.
 - **Prompt (`classic`):** sección "PASAR LA LLAMADA A UNA PERSONA" con cada área, su horario y si atiende
   ahora. El LLM responde solo `[DERIVAR:<área>]`; el área se busca sin mayúsculas ni tildes. Fuera de horario,
-  el prompt le dice que no derive y tome el mensaje. Las áreas de la llamada quedan en
+  el prompt le dice que no derive y tome el mensaje. (26-oct-2026: reemplazado por la herramienta
+  `transfer_call`, ver 13.6.) Las áreas de la llamada quedan en
   `Progress.handoff_areas` al empezar.
 - **Cuándo no hay derivación:** loadtest, demo de la landing (salvo con `DEMO_HANDOFF`) y campañas (metadata `handoff`), WhatsApp de
   mensajería (fase 3) y los agentes sin áreas.
@@ -489,6 +498,7 @@ Desplegada el 23-oct-2026 (migración 0024, `app` y `agent`). Falta la prueba co
   Es lo único que prueba la `AgentSession` real: entrada de audio apagada en la espera, `say` durante la
   derivación, y los permisos de pistas con la pista de RoomIO.
 - **Eval del LLM:** que Gemma escriba la marca cuando corresponde y no cuando no (escenarios en `make eval-llm`).
+  Desde el 26-oct-2026, que llame a `transfer_call`.
 - **Fuera de esta fase:**
   - motor `assistant` (tool `derivar`) y `structured`;
   - derivación en campañas;
@@ -503,3 +513,17 @@ Desplegada el 23-oct-2026 (migración 0024, `app` y `agent`). Falta la prueba co
 `make migrate-test`, `make migrate` y `make calls-active && make up-agent` (recrea `app` y `agent`). Sin áreas
 en ningún agente no cambia nada para quien llama. El aviso de grabación es opcional (`recording_notice`).
 
+### 13.6 Con herramientas de plataforma (26-oct-2026)
+
+Sin desplegar ([`LIMPIEZA_PLAN.md`](LIMPIEZA_PLAN.md)):
+
+- El modelo ve `transfer_call` (function calling nativo) en una llamada con áreas: la descripción lleva cada área
+  con cuándo pasarla, su horario y si atiende ahora; el parámetro `area` es un `enum` con los nombres, así que no
+  hay búsqueda sin mayúsculas ni tildes. El worker dice lo que el modelo escribió en ese mensaje y después deriva.
+- Sin `MarkerFilter` ni marcas en el texto. Fuera de horario y "no volver a intentar con esa área" son reglas de la
+  plantilla (`GENERIC_RULES` en `app/agents/templates.py`), editables por el cliente, no frases del código.
+- Vale para todos los agentes, también con "Tu propio agente" (`external`).
+- En el historial, lo que dice la persona va como mensaje con su rol y su nombre; solo se juntan los mensajes seguidos
+  del mismo rol. El resumen del whisper queda con el respaldo "una consulta".
+- Necesita el parser de herramientas en `vllm-llm` (`--tool-call-parser=gemma4`, desplegado el 26-oct-2026).
+  Sin medir con `transfer_call`: el eval de derivación de `make eval-llm` hay que correrlo de nuevo.

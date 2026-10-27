@@ -2,7 +2,6 @@
 contra la ficha, resultado, cierre, loops, reglas de voz por regex, largo y
 latencia del LLM. Sin juez: deterministas y gratis.
 """
-import json
 import re
 import statistics
 import unicodedata
@@ -78,17 +77,6 @@ def reglas_rotas(texto: str, checks: dict) -> list[str]:
     return rotas
 
 
-def _next_objective(msg: dict) -> str | None:
-    """En el motor structured, la salida del turno es JSON con next_objective."""
-    for tr in msg.get("llm") or []:
-        if tr.get("kind") == "turno":
-            try:
-                return json.loads(tr.get("output") or "").get("next_objective")
-            except (ValueError, AttributeError):
-                return None
-    return None
-
-
 def _pct(xs: list[float], q: float) -> float | None:
     """Percentil con interpolacion lineal (p50 de [500, 700] = 600)."""
     if not xs:
@@ -112,7 +100,7 @@ def evaluar(escenario, fields: dict, outcome: str | None, status: str, mensajes:
     usuario = [m for m in mensajes if m.get("role") == "user"]
     # El primer mensaje es la apertura del YAML, no del LLM.
     respuestas = agente[1:]
-    reglas, repetidas, objetivos = [], 0, []
+    reglas, repetidas = [], 0
     anterior = plain(agente[0]["text"]) if agente else ""
     for i, m in enumerate(respuestas, 1):
         for regla in reglas_rotas(m.get("text") or "", checks):
@@ -120,11 +108,6 @@ def evaluar(escenario, fields: dict, outcome: str | None, status: str, mensajes:
         actual = plain(m.get("text") or "").strip()
         repetidas += bool(actual) and actual == anterior
         anterior = actual
-        objetivos.append(_next_objective(m))
-    racha = mejor = 0
-    for a, b in zip(objetivos, objetivos[1:]):
-        racha = racha + 1 if a and a == b else 0
-        mejor = max(mejor, racha)
 
     largos = [len(m.get("text") or "") for m in respuestas]
     ms_turno = [tr["ms"] for m in respuestas for tr in (m.get("llm") or []) if tr.get("kind") == "turno" and tr.get("ms") is not None]
@@ -146,7 +129,6 @@ def evaluar(escenario, fields: dict, outcome: str | None, status: str, mensajes:
         "termino": termino,
         "turnos": n_turnos,
         "repetidas": repetidas,
-        "mismo_objetivo": mejor,
         "reglas": reglas,
         "reglas_n": len(reglas),
         "reglas_por_10_turnos": round(10 * len(reglas) / n_turnos, 2) if n_turnos else 0,
@@ -167,4 +149,4 @@ def evaluar(escenario, fields: dict, outcome: str | None, status: str, mensajes:
 def puntaje_problemas(c: dict) -> int:
     """Para ordenar las peores conversaciones: cuanto mas alto, peor."""
     return (3 * c["datos_mal"] + c["datos_falta"] + 3 * (not c["outcome_ok"]) + 2 * (not c["termino"])
-            + 2 * c["repetidas"] + 2 * (c["mismo_objetivo"] >= 2) + c["reglas_n"] + 5 * bool(c.get("error")))
+            + 2 * c["repetidas"] + c["reglas_n"] + 5 * bool(c.get("error")))

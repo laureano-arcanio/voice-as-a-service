@@ -30,26 +30,10 @@ export const WORKFLOW_STATUS: Record<string, Label> = {
   completed: { label: 'Completo', color: 'green' },
 };
 
-export const ENGINE: Record<string, string> = {
-  classic: 'Clásico',
-  structured: 'Estructurado',
-  assistant: 'Asistente',
-  external: 'Agente propio',
-};
-
-/** Estado de una app de cliente (docs/APPS_PLAN.md). */
-export const APP_STATUS: Record<string, Label> = {
-  ok: { label: 'Responde', color: 'green' },
-  down: { label: 'No responde', color: 'red' },
-  invalid: { label: 'Manifest inválido', color: 'yellow' },
-};
-
-/** Tipo de herramienta: las que borran o envían a terceros se confirman antes. */
-export const TOOL_KIND: Record<string, Label> = {
-  read: { label: 'Consulta', color: 'gray' },
-  write: { label: 'Registra', color: 'blue' },
-  destructive: { label: 'Borra', color: 'red' },
-  send: { label: 'Envía', color: 'yellow' },
+/** Tipo de una herramienta del cliente (docs/TOOLS_PLAN.md). */
+export const CLIENT_TOOL_TYPE: Record<string, string> = {
+  http: 'API',
+  code: 'Código',
 };
 
 export const LIVE_STATUSES = ['pendiente', 'sonando', 'en_curso'];

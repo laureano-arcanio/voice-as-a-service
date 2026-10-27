@@ -8,7 +8,7 @@ Al terminar imprime el resumen (analyze.py) y, con --juez, califica con el juez.
 Uso: make eval-llm ARGS="--reps 3"                        # todo, cliente simulado
      make eval-llm ARGS="--humo"                           # 1 cooperativo por agente
      make eval-llm ARGS="--cliente guion"                  # sin API externa
-     make eval-llm ARGS="--agentes cobranza,datos --engine structured"
+     make eval-llm ARGS="--agentes cobranza,datos"
      make eval-llm ARGS="--llm-base-url https://api.deepseek.com/v1 --llm-model deepseek-chat --llm-api-key-env EVAL_LLM_API_KEY"
 """
 import argparse
@@ -138,8 +138,6 @@ def main() -> None:
     ap.add_argument("--cliente", choices=["simulado", "guion"], default="simulado")
     ap.add_argument("--canal", default="texto", help="texto, stt-sim, tts-stt[:tel8k_noise|tel8k_cuts]")
     ap.add_argument("--canal-voz", default="martin", help="voz del TTS para el canal tts-stt")
-    ap.add_argument("--engine", choices=["classic", "structured"], default=None,
-                    help="structured usa <agente>_structured; default: el del archivo de personas (classic)")
     ap.add_argument("--turnos-max", type=int, default=None)
     ap.add_argument("--paralelo", type=int, default=12, help="conversaciones a la vez")
     ap.add_argument("--llm-base-url", default=None, help="LLM del agente (default: VLLM_LLM_BASE_URL)")
@@ -158,7 +156,7 @@ def main() -> None:
     if args.humo:
         args.reps, args.personas = 1, "cooperativo"
     escs = escenarios(args.agentes.split(","), args.reps, args.seed,
-                      [p for p in args.personas.split(",") if p] or None, args.engine, args.turnos_max)
+                      [p for p in args.personas.split(",") if p] or None, args.turnos_max)
     if args.cliente == "guion":
         sin = [e.id for e in escs if not e.guion]
         if sin:
@@ -193,7 +191,7 @@ def main() -> None:
     rundir.mkdir(parents=True)
     run = {
         "fecha": datetime.datetime.now().isoformat(timespec="seconds"), "git": git_rev(), "notas": args.notas,
-        "agente_llm": ficha_llm, "engine": args.engine or "classic",
+        "agente_llm": ficha_llm, "engine": "classic",
         "simulador": {"base_url": args.sim_base_url, "model": args.sim_model, "temperature": args.sim_temperature,
                       "prompt_version": PROMPT_VERSION} if simulador else None,
         "cliente": args.cliente, "canal": args.canal, "seed": args.seed, "reps": args.reps,

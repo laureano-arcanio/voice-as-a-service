@@ -23,6 +23,7 @@ import httpx
 
 from ..config import settings
 from ..services import voices
+from ..voice.speech_text import to_speech
 
 logger = logging.getLogger(__name__)
 
@@ -215,7 +216,8 @@ async def synthesize_recording(text: str, voice: str) -> tuple[bytes, bytes]:
     graba (record_audio). AudioError si el TTS o la conversion fallan."""
     if voice.strip().lower() in ("", "default"):
         raise AudioError("voz vacia o 'default'")
-    body = {"model": settings.vllm_tts_model, "voice": voice, "input": text, "response_format": "wav"}
+    # El texto en palabras para la voz (numeros, horas, emails; app/voice/speech_text.py).
+    body = {"model": settings.vllm_tts_model, "voice": voice, "input": to_speech(text), "response_format": "wav"}
     started = time.perf_counter()
     try:
         async with asyncio.timeout(TTS_DEADLINE), _slot("tts"), httpx.AsyncClient(timeout=TTS_TIMEOUT) as client:

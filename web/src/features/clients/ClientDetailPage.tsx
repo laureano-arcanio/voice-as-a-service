@@ -30,7 +30,6 @@ import { numberErrorTitle } from '@/features/numbers/errors';
 import { useTiers } from '@/features/tiers/api';
 import { UsersTable } from '@/features/users/UsersTable';
 import { formatDate, formatDateTime, formatLimit, recentMonths } from '@/lib/format';
-import { ENGINE } from '@/lib/labels';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useClient, useDeleteClient, useUpdateClient } from './api';
 import { ApiAccess } from '@/features/developers/ApiAccess';
@@ -180,7 +179,6 @@ function ClientAgentsCard({ clientId }: { clientId: string }) {
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th>Nombre</Table.Th>
-                    <Table.Th>Motor</Table.Th>
                     <Table.Th>Voz</Table.Th>
                     <Table.Th>Versión</Table.Th>
                     <Table.Th>Actualizado</Table.Th>
@@ -193,13 +191,17 @@ function ClientAgentsCard({ clientId }: { clientId: string }) {
                         <Anchor component={Link} to={`/agents/${a.id}`} size="sm" fw={600}>
                           {a.name}
                         </Anchor>
+                        {a.own_agent && (
+                          <Badge color="gray" ml={6}>
+                            Tu propio agente
+                          </Badge>
+                        )}
                         {a.archived && (
                           <Badge color="gray" ml={6}>
                             Archivado
                           </Badge>
                         )}
                       </Table.Td>
-                      <Table.Td>{ENGINE[a.engine] ?? a.engine}</Table.Td>
                       <Table.Td>{a.voice ?? '–'}</Table.Td>
                       <Table.Td className="mono">v{a.version}</Table.Td>
                       <Table.Td style={{ whiteSpace: 'nowrap' }}>{formatDateTime(a.updated_at)}</Table.Td>

@@ -1,5 +1,5 @@
 """Cliente nativo de Anthropic (BYOK, docs/BYOK_LLM_PLAN.md, fase 2): mensajes, salida estructurada,
-streaming y compatibilidad entre modelos, contra un SDK simulado."""
+streaming, herramientas (tool_use) y compatibilidad entre modelos, contra un SDK simulado."""
 import asyncio
 import json
 from types import SimpleNamespace
@@ -19,15 +19,18 @@ from app.llm.anthropic_client import (
     supports_effort,
     to_messages,
 )
-from app.llm.prompt import END_MARKER
 from app.llm.resolver import LLMResolver, TurnLLM
 
 from .test_api import V1, admin, client_user, make_client  # noqa: F401
 from .test_llm_byok import agent_with_plan, new_connection
 
 
-def reply(text: str, stop_reason: str = "end_turn"):
-    return SimpleNamespace(stop_reason=stop_reason, content=[SimpleNamespace(type="text", text=text)])
+def reply(text: str, stop_reason: str = "end_turn", tools: list[tuple[str, dict]] = ()):
+    """Un mensaje con su texto y, si los hay, bloques tool_use (nombre, input)."""
+    content = [SimpleNamespace(type="text", text=text)] if text else []
+    content += [SimpleNamespace(type="tool_use", id=f"toolu_{i}", name=name, input=args)
+                for i, (name, args) in enumerate(tools)]
+    return SimpleNamespace(stop_reason="tool_use" if tools else stop_reason, content=content)
 
 
 class FakeStream:
@@ -70,7 +73,7 @@ class FakeMessages:
 
     def stream(self, **params):
         out = self._next(params)
-        text = out.content[0].text
+        text = "".join(b.text for b in out.content if b.type == "text")
         return FakeStream([text[i:i + 7] for i in range(0, len(text), 7)], out)
 
 
@@ -112,17 +115,15 @@ def test_model_compatibility_table():
         assert not accepts_sampling(model), model
 
 
-def test_process_turn_streams_the_message_and_sends_native_params(state):
+def test_converse_streams_the_message_and_sends_native_params(state):
     workflow = load_reference("sales_discovery")
-    payload = json.dumps({"assistant_message": "Hola Juan, ¿cómo estás?", "answered": False,
-                          "next_objective": None, "status": "active"}, ensure_ascii=False)
-    client, fake = client_with(reply(payload), temperature=0.4)
+    client, fake = client_with(reply("Hola Juan, ¿cómo estás?"), temperature=0.4)
     spoken = []
-    turn = asyncio.run(client.process_turn(workflow, state, "Hola, soy Juan", on_message=spoken.append))
-    assert "".join(spoken) == "Hola Juan, ¿cómo estás?" and len(spoken) > 1     # llegó por partes
+    turn = asyncio.run(client.converse(workflow, state, "Hola, soy Juan", on_message=spoken.append))
+    assert "".join(spoken) == "Hola Juan, ¿cómo estás?"
     assert turn.assistant_message == "Hola Juan, ¿cómo estás?" and turn.status == "active"
     params = fake.calls[0]
-    assert params["output_config"]["format"]["type"] == "json_schema"
+    assert "format" not in params["output_config"]
     assert params["output_config"]["effort"] == "low"
     assert "temperature" not in params and "thinking" not in params       # haiku 5.5 no lo acepta
     assert params["messages"][0]["role"] == "user" and "system" in params and params["max_tokens"] >= 2048
@@ -136,27 +137,23 @@ def test_older_models_get_temperature_and_no_effort(state):
     assert params["temperature"] == 0.4 and "effort" not in params.get("output_config", {})
 
 
-def test_root_anyof_schema_is_wrapped_and_unwrapped():
-    schema = {"anyOf": [{"type": "object", "properties": {"action": {"enum": ["reply"]}},
-                         "required": ["action"], "additionalProperties": False}]}
-    client, fake = client_with(reply('{"result": {"action": "reply"}}'))
+def test_structured_sends_the_schema_as_output_format():
+    schema = {"type": "object", "properties": {"a": {"type": "string"}}, "required": ["a"]}
+    client, fake = client_with(reply('{"a": "x"}'))
     raw, reasoning = asyncio.run(client.structured([{"role": "user", "content": "x"}], schema, "paso",
                                                    thinking=True, max_tokens=300))
-    assert json.loads(raw) == {"action": "reply"} and reasoning is None
+    assert json.loads(raw) == {"a": "x"} and reasoning is None
     sent = fake.calls[0]["output_config"]
-    assert sent["format"]["schema"]["properties"]["result"] == schema and sent["effort"] == "medium"
+    assert sent["format"] == {"type": "json_schema", "schema": schema} and sent["effort"] == "medium"
     assert fake.calls[0]["max_tokens"] == 2048          # el piso: el razonamiento cuenta contra max_tokens
 
 
-def test_rejected_schema_falls_back_to_prompt_mode_and_sticks():
-    client, fake = client_with(bad_request(), reply('```json\n{"a": "x"}\n```'), reply('{"a": "y"}'))
-    schema = {"type": "object", "properties": {"a": {"type": "string"}}, "required": ["a"]}
-    raw, _ = asyncio.run(client.structured([{"role": "user", "content": "x"}], schema, "t"))
-    assert json.loads(raw) == {"a": "x"}
-    assert "format" in fake.calls[0]["output_config"]
-    assert "format" not in fake.calls[1].get("output_config", {}) and "JSON Schema" in fake.calls[1]["system"]
-    asyncio.run(client.structured([{"role": "user", "content": "x"}], schema, "t"))
-    assert "JSON Schema" in fake.calls[2]["system"]        # no vuelve a probar el esquema
+def test_rejected_schema_is_an_error_without_prompt_fallback():
+    """Sin salida guiada no hay modo de respaldo: el error del proveedor llega tal cual."""
+    client, fake = client_with(bad_request())
+    with pytest.raises(anthropic.BadRequestError):
+        asyncio.run(client.structured([{"role": "user", "content": "x"}], {"type": "object"}, "t"))
+    assert len(fake.calls) == 1
 
 
 def test_refusal_raises_so_the_resolver_can_fall_back():
@@ -165,13 +162,35 @@ def test_refusal_raises_so_the_resolver_can_fall_back():
         asyncio.run(client.structured([{"role": "user", "content": "x"}], {"type": "object"}, "t"))
 
 
-def test_converse_hides_the_end_marker(state):
+def test_converse_sends_platform_tools_and_ends_with_end_call(state):
     workflow = load_reference("sales_discovery")
-    client, _ = client_with(reply(f"Chau, que andes bien. {END_MARKER}"))
+    client, fake = client_with(reply("Chau, que andes bien.", tools=[("end_call", {"motivo": "terminada"})]))
     spoken = []
     turn = asyncio.run(client.converse(workflow, state, "chau", on_message=spoken.append))
-    assert turn.status == "completed" and END_MARKER not in "".join(spoken)
-    assert turn.assistant_message == "Chau, que andes bien."
+    assert turn.status == "completed" and turn.end_reason is None
+    assert "".join(spoken) == "Chau, que andes bien." and turn.assistant_message == "Chau, que andes bien."
+    assert "end_call" in turn.raw
+    params = fake.calls[0]
+    assert [t["name"] for t in params["tools"]] == ["end_call"] and params["tool_choice"] == {"type": "auto"}
+    assert params["tools"][0]["input_schema"]["properties"]["motivo"]["enum"] == ["terminada", "fuera_de_tema"]
+    assert len(fake.calls) == 1             # una herramienta de la plataforma no pide otra vuelta
+
+
+def test_converse_end_call_off_topic(state):
+    workflow = load_reference("sales_discovery")
+    client, _ = client_with(reply("Esta línea es para consultas.", tools=[("end_call", {"motivo": "fuera_de_tema"})]))
+    turn = asyncio.run(client.converse(workflow, state, "soy un choro"))
+    assert turn.status == "completed" and turn.end_reason == "off_topic"
+
+
+def test_converse_transfer_call_with_areas(state):
+    workflow = load_reference("sales_discovery")
+    state.progress.handoff_areas = [{"id": "1", "name": "Ventas", "when": "", "schedule": None,
+                                     "schedule_text": "siempre"}]
+    client, fake = client_with(reply("Te paso con ventas.", tools=[("transfer_call", {"area": "Ventas"})]))
+    turn = asyncio.run(client.converse(workflow, state, "quiero hablar con alguien"))
+    assert (turn.status, turn.handoff) == ("active", "Ventas")
+    assert [t["name"] for t in fake.calls[0]["tools"]] == ["end_call", "transfer_call"]
 
 
 def test_extract_returns_fields(state):
@@ -214,8 +233,8 @@ def test_connection_test_uses_the_anthropic_client(api, admin, monkeypatch):
     fake = FakeMessages(reply('{"ok": true}'))
     original = svc._client
 
-    def build(row, model, mode):
-        client = original(row, model, mode)
+    def build(row, model):
+        client = original(row, model)
         assert isinstance(client, AnthropicClient) and client.model == "claude-haiku-5-5"
         client.client = SimpleNamespace(messages=fake)
         return client

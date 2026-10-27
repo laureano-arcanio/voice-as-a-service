@@ -21,8 +21,8 @@ import { connectionLabel } from '@/features/llm/labels';
 import { useAreas } from '@/features/team/api';
 import { type Draft, EXTERNAL_DEFAULTS, type ExternalDraft } from './draft';
 
-/** Motor external (docs/AGENTE_EXTERNO_PLAN.md): cada turno lo contesta el endpoint del cliente. Al apagarlo,
- * el agente vuelve al motor clasico y la configuracion queda en el borrador (no va a la definicion). */
+/** Tu propio agente (docs/AGENTE_EXTERNO_PLAN.md): cada turno lo contesta el endpoint del cliente. Prenderlo
+ * pone definition.external; apagarlo lo saca. */
 export function ExternalSection({
   draft,
   update,
@@ -38,7 +38,7 @@ export function ExternalSection({
   const connections = useLlmConnections(clientId);
   const test = useTestLlmConnection(clientId);
   const areas = useAreas(clientId);
-  const on = draft.engine === 'external';
+  const on = draft.external !== null;
   const ext = draft.external;
   const endpoints = (connections.data ?? []).filter((c) => c.kind === 'openai_compatible');
   const current = endpoints.find((c) => c.id === ext?.connection);
@@ -70,8 +70,9 @@ export function ExternalSection({
             const checked = e.currentTarget.checked;
             update((d) => ({
               ...d,
-              engine: checked ? 'external' : 'classic',
-              external: d.external ?? { connection: endpoints[0]?.id ?? '', ...EXTERNAL_DEFAULTS },
+              external: checked
+                ? (d.external ?? { connection: endpoints[0]?.id ?? '', ...EXTERNAL_DEFAULTS })
+                : null,
             }));
           }}
         />

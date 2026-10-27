@@ -77,8 +77,6 @@ class FakeGraph:
         self.fail_media: GraphError | None = None
         self.fail_upload: GraphError | None = None
         self.fail_audio: GraphError | None = None
-        self.ctas: list[tuple[str, str, str]] = []
-        self.fail_cta: GraphError | None = None
 
     async def get_media(self, media_id, phone_number_id=None):
         if self.fail_media:
@@ -111,12 +109,6 @@ class FakeGraph:
         self.sent.append((pnid, to, body))
         return {"messaging_product": "whatsapp", "contacts": [{"input": to, "wa_id": to}],
                 "messages": [{"id": f"wamid.out{len(self.sent)}"}]}
-
-    async def send_cta_url(self, pnid, to, body, label, url):
-        if self.fail_cta:
-            raise self.fail_cta
-        self.ctas.append((body, label, url))
-        return {"messaging_product": "whatsapp", "messages": [{"id": f"wamid.cta{len(self.ctas)}"}]}
 
     async def mark_read(self, pnid, wamid):
         self.read.append(wamid)
@@ -315,12 +307,12 @@ async def test_completed_conversation_then_new_one_after_the_session(sessions):
 async def test_closed_conversation_starts_a_new_one_with_the_current_version(sessions):
     # La conversacion corre con la version con que empezo: cerrarla desde el dashboard hace que el
     # proximo mensaje empiece otra, con la vigente (2-oct-2026: el agente paso a classic y el chat
-    # seguia structured).
+    # seguia con el motor viejo).
     w = make_wa(sessions, llm=FakeLLM(reply(), reply()))
     await send(w, text_payload("hola", "wamid.1"))
     with sessions() as s:
         agent = s.get(Agent, w.agent_id)
-        agent_service.update_definition(s, agent, {**agent.definition, "engine": "structured"}, None)
+        agent_service.update_definition(s, agent, {**agent.definition, "knowledge": "Otra base."}, None)
         store.close_thread(s, s.scalar(select(WaThread)))
         s.commit()
     await send(w, text_payload("hola de nuevo", "wamid.2"))
@@ -623,61 +615,3 @@ def test_recipient_quita_el_9_de_celulares_argentinos():
     assert recipient("543513962553") == "543513962553"
     assert recipient("15551456632") == "15551456632"
     assert recipient("549351") == "549351"
-
-
-# ---------- links a vistas como botón (cta_url, 16-oct-2026) ----------
-
-def _app_con_vistas(w):
-    from app.models import App
-
-    from .test_apps import MANIFEST, SLUG
-    manifest = {**MANIFEST, "views": [*MANIFEST["views"], {"name": "perfil", "title": "Perfil del alumno",
-                                                           "description": "El perfil.", "params": {}}]}
-    with w.sessions() as s:
-        s.add(App(slug=SLUG, name="Gym", client_id=w.client_id, base_url="http://app-gym:8000", token_enc="x",
-                  version="0.1.0", manifest=manifest))
-        s.commit()
-    return f"https://apps.test/acme/{SLUG}"
-
-
-async def test_link_a_una_vista_sale_como_boton(sessions, monkeypatch):
-    from app.config import settings
-    monkeypatch.setattr(settings, "apps_public_host", "apps.test")
-    w = make_wa(sessions, llm=FakeLLM(reply("x")))
-    base = _app_con_vistas(w)
-    url = f"{base}/perfil/?alumno_id=7&editar=1&k=abc_-1"
-    w.llm.turns = [reply(f"Registré a Olga. No tiene plan.\n{url}")]
-    await send(w, text_payload("vino olga", "wamid.in1"))
-    assert w.graph.ctas == [("Registré a Olga. No tiene plan.", "Perfil del alumno", url)] and w.graph.sent == []
-    (out,) = messages(sessions, direction="out")
-    assert (out.type, out.status, out.wamid) == ("interactive", "sent", "wamid.cta1")
-    # La conversación guarda el texto completo, con el link (el panel lo muestra igual que antes).
-    (conv,) = conversations(sessions)
-    assert url in conv.messages[-1]["text"]
-
-
-async def test_varios_links_texto_y_un_boton_por_link(sessions, monkeypatch):
-    from app.config import settings
-    monkeypatch.setattr(settings, "apps_public_host", "apps.test")
-    w = make_wa(sessions, llm=FakeLLM(reply("x")))
-    base = _app_con_vistas(w)
-    a, b = f"{base}/perfil/?alumno_id=1&k=a", f"{base}/minuta/?k=b"
-    w.llm.turns = [reply(f"Anoté a las dos:\n- Anahi: {a}\n- La minuta: {b}")]
-    await send(w, text_payload("vinieron", "wamid.in1"))
-    assert w.graph.sent == [(PNID, SEND_TO, "Anoté a las dos:")]
-    assert w.graph.ctas == [("Anahi", "Perfil del alumno", a), ("La minuta", "Minuta del día", b)]
-
-
-async def test_si_meta_rechaza_el_boton_va_el_texto(sessions, monkeypatch):
-    from app.config import settings
-    monkeypatch.setattr(settings, "apps_public_host", "apps.test")
-    w = make_wa(sessions, llm=FakeLLM(reply("x")))
-    base = _app_con_vistas(w)
-    url = f"{base}/perfil/?alumno_id=7&k=abc"
-    body = f"Registré a Olga.\n{url}"
-    w.llm.turns = [reply(body)]
-    w.graph.fail_cta = GraphError("interactive no permitido", code=131009)
-    await send(w, text_payload("vino olga", "wamid.in1"))
-    assert w.graph.sent == [(PNID, SEND_TO, body)]
-    assert [(m.type, m.status) for m in messages(sessions, direction="out")] == [("interactive", "failed"), ("text", "sent")]
-

@@ -128,7 +128,7 @@ def test_client_user_manages_its_own_agents(api, admin):
     r = user.post(f"{V1}/agents", json={"name": "Recepción", "template_id": "asistente"})
     assert r.status_code == 201, r.text
     agent = r.json()
-    assert agent["client_id"] == acme["id"] and agent["slug"] == "recepcion" and agent["engine"] == "classic"
+    assert agent["client_id"] == acme["id"] and agent["slug"] == "recepcion" and agent["own_agent"] is False
     blank = user.post(f"{V1}/agents", json={"client_id": acme["id"], "name": "En blanco"})
     assert blank.status_code == 201 and blank.json()["client_id"] == acme["id"]
     assert user.post(f"{V1}/agents", json={"name": "Recepción"}).status_code == 409
@@ -230,7 +230,7 @@ def test_client_with_conversations_cannot_be_deleted(api, admin):
 def test_agent_from_template_and_versions(api, admin):
     c = make_client(admin)
     agent = make_agent(admin, c, template="demo_booking")
-    assert agent["slug"] == "ventas" and agent["version"] == 1 and agent["engine"] == "structured"
+    assert agent["slug"] == "ventas" and agent["version"] == 1 and agent["own_agent"] is False
     assert agent["definition"]["id"] == "ventas" and agent["voice"] == "sofia"
 
     definition = agent["definition"]
@@ -290,20 +290,18 @@ def test_templates_and_schema(api, admin):
     assert "fields" in admin.get(f"{V1}/agents/schema").json()["properties"]
 
 
-def test_create_agent_blank_or_template_with_engine(api, admin):
+def test_create_agent_blank_or_template(api, admin):
     c = make_client(admin)
-    # Sin definicion ni plantilla: en blanco, valido, con el motor elegido.
+    # Sin definicion ni plantilla: en blanco, valido. Hay un solo motor: el motor que mande un cliente viejo
+    # se ignora y no queda en la definicion.
     blank = admin.post(f"{V1}/agents", json={"client_id": c["id"], "name": "Nuevo", "engine": "structured"})
     assert blank.status_code == 201, blank.text
-    assert blank.json()["engine"] == "structured" and list(blank.json()["definition"]["fields"]) == ["consulta"]
-    # La misma plantilla con los dos motores: la definicion solo cambia en engine.
-    a, b = (admin.post(f"{V1}/agents", json={"client_id": c["id"], "name": f"Asistente {e}", "template_id": "asistente",
-                                              "engine": e}).json() for e in ("classic", "structured"))
-    assert (a["engine"], b["engine"]) == ("classic", "structured")
-    strip = lambda d: {k: v for k, v in d.items() if k not in ("id", "engine")}
-    assert strip(a["definition"]) == strip(b["definition"])
+    assert blank.json()["own_agent"] is False and "engine" not in blank.json()["definition"]
+    template = admin.post(f"{V1}/agents", json={"client_id": c["id"], "name": "Asistente",
+                                                "template_id": "asistente"}).json()
+    assert template["own_agent"] is False and "engine" not in template["definition"]
     assert admin.post(f"{V1}/agents", json={"client_id": c["id"], "name": "x", "template_id": "asistente",
-                                            "definition": a["definition"]}).status_code == 422
+                                            "definition": template["definition"]}).status_code == 422
 
 
 def test_prompt_preview_comes_from_definition(api, admin):
@@ -311,11 +309,17 @@ def test_prompt_preview_comes_from_definition(api, admin):
     agent = make_agent(admin, c, template="demo_booking_classic")
     d = {**agent["definition"], "objective": {"description": "Objetivo de prueba."}}
     classic = admin.post(f"{V1}/agents/prompt", json={"definition": d}).json()
-    assert classic["engine"] == "classic" and "Objetivo de prueba." in classic["system"] and classic["workflow"] is None
-    structured = admin.post(f"{V1}/agents/prompt", json={"definition": {**d, "engine": "structured"},
-                                                          "channel": "whatsapp"}).json()
-    assert "Objetivo de prueba." in structured["workflow"] and "WhatsApp" in structured["system"]
-    bad = admin.post(f"{V1}/agents/prompt", json={"definition": {**d, "fields": {}}})
+    assert "Objetivo de prueba." in classic["system"] and set(classic) == {"system"}
+    whatsapp = admin.post(f"{V1}/agents/prompt", json={"definition": d, "channel": "whatsapp"}).json()
+    assert "Objetivo de prueba." in whatsapp["system"] and "WhatsApp" in whatsapp["system"]
+    # Una definicion vieja con motor (structured, assistant...) se lee igual: el motor se descarta.
+    legacy = admin.post(f"{V1}/agents/prompt", json={"definition": {**d, "engine": "structured"}}).json()
+    assert legacy["system"] == classic["system"]
+    # Tu propio agente: solo el prompt opcional que se antepone (el resto es del cliente).
+    own = admin.post(f"{V1}/agents/prompt", json={"definition": {
+        **d, "external": {"connection": "c", "system": "Sos el agente de Acme."}}}).json()
+    assert own["system"] == "Sos el agente de Acme."
+    bad = admin.post(f"{V1}/agents/prompt", json={"definition": {**d, "completion": {"outcomes": []}}})
     assert bad.status_code == 422 and bad.json()["code"] == "invalid_definition"
 
 
@@ -505,13 +509,13 @@ def test_client_api_key_starts_calls_for_its_agents_only(api, admin):
 def test_text_conversation(api, admin):
     c = make_client(admin)
     agent = make_agent(admin, c)
-    api.llm.turns = [AgentTurn(next_objective="company_name", assistant_message="¿En qué empresa trabajás?")]
+    api.llm.turns = [AgentTurn(assistant_message="Gracias, Juan.", status="completed")]
     api.llm.extractions = [{"contact_name": "Juan"}]
     started = admin.post(f"{V1}/conversations", json={"agent_id": agent["id"]}).json()
     assert started["state"]["agent_version"] == 1 and started["state"]["client_id"] == c["id"]
     body = admin.post(f"{V1}/conversations/{started['conversation_id']}/turns", json={"message": "Juan."}).json()
     assert body["state"]["fields"]["contact_name"] == "Juan"
-    assert body["next_objective"] == "company_name" and body["status"] == "active"
+    assert body["message"] == "Gracias, Juan." and body["status"] == "completed"
     assert admin.post(f"{V1}/conversations", json={"agent_id": "nope"}).status_code == 404
 
 

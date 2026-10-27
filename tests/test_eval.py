@@ -27,10 +27,9 @@ def _strings(obj):
 
 
 @pytest.mark.parametrize("wid", EVAL_WORKFLOWS)
-def test_eval_workflows_load_in_both_engines(wid):
-    assert load_reference(wid).engine == "classic"
-    s = load_reference(f"{wid}_structured")
-    assert s.engine == "structured" and s.fields == load_reference(wid).fields
+def test_eval_workflows_load(wid):
+    wf = load_reference(wid)
+    assert wf.external is None and wf.completion.outcomes
 
 
 def test_cobranza_outcomes():
@@ -63,11 +62,10 @@ def test_all_groups_have_filled_scenarios():
     assert generar(1, "datos", "cooperativo", 0)["email"] != generar(1, "datos", "cooperativo", 1)["email"]
 
 
-def test_structured_variant_and_filters():
-    escs = escenarios(["cobranza"], reps=1, seed=1, personas=["tercero"], engine="structured")
-    assert [e.agente for e in escs] == ["eval_cobranza_structured"]
+def test_filters():
+    escs = escenarios(["cobranza"], reps=1, seed=1, personas=["tercero"])
+    assert [e.agente for e in escs] == ["eval_cobranza"]
     assert any("revela" in p["motivo"] for p in escs[0].checks["prohibido"])       # el del grupo + el de la persona
-    assert escenarios(["demo_booking"], 1, 1, engine="structured")[0].agente == "demo_booking"
 
 
 def test_rellenar_keeps_unknown_braces():

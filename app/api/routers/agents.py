@@ -3,9 +3,8 @@ from sqlalchemy import select
 
 from ...agents.templates import template_data, template_ids
 from ...conversation import opening_audio
-from ...conversation.assistant import build_system as build_assistant_system
-from ...conversation.models import ConversationState, Workflow
-from ...llm.prompt import build_classic_system, render_workflow, system_prompt
+from ...conversation.models import Workflow
+from ...llm.prompt import build_classic_system
 from ...models import Agent, AgentVersion, User
 from ...services import agents as service
 from ...services import call_links
@@ -32,7 +31,7 @@ def _out(agent: Agent, detail: bool = False, call_link_url: str | None = None) -
     d = agent.definition
     data = {"id": agent.id, "client_id": agent.client_id, "name": agent.name, "slug": agent.slug,
             "description": agent.description, "version": agent.version, "archived": agent.archived_at is not None,
-            "engine": d.get("engine", "structured"), "voice": (d.get("agent") or {}).get("voice"),
+            "own_agent": bool(d.get("external")), "voice": (d.get("agent") or {}).get("voice"),
             "objective": (d.get("objective") or {}).get("description") or "", "call_link_url": call_link_url,
             "created_at": agent.created_at, "updated_at": agent.updated_at}
     return AgentDetail(**data, definition=d) if detail else AgentOut(**data)
@@ -63,20 +62,12 @@ def validate_definition(body: DefinitionIn, _: CurrentPrincipal):
 
 @router.post("/agents/prompt", response_model=PromptOut)
 def preview_prompt(body: PromptIn, _: AdminPrincipal):
-    """El prompt que arma el motor con esta definicion (sin guardarla): el system prompt sale
-    siempre de la definicion. classic: todo el agente en el prompt de sistema; structured: un
-    prompt de sistema fijo y la definicion en cada turno."""
+    """El prompt de sistema que arma el motor con esta definicion (sin guardarla). Con tu propio agente, solo el
+    opcional que se antepone a la conversacion (el prompt es del cliente)."""
     w = Workflow.model_validate(service.normalize_definition(body.definition, body.definition.get("id") or "borrador", 1))
-    if w.engine == "classic":
-        return PromptOut(engine=w.engine, system=build_classic_system(w, body.channel))
-    if w.engine == "external":
-        # El prompt es del cliente: solo el de sistema opcional que se antepone a la conversacion.
-        return PromptOut(engine=w.engine, system=w.external.system or "")
-    if w.engine == "assistant":
-        # Sin las herramientas: dependen de las apps del cliente (se agregan en cada turno).
-        state = ConversationState(conversation_id="borrador", agent_id=w.id, channel=body.channel, fields={})
-        return PromptOut(engine=w.engine, system=build_assistant_system(w, state, []))
-    return PromptOut(engine=w.engine, system=system_prompt(body.channel), workflow=render_workflow(w))
+    if w.external is not None:
+        return PromptOut(system=w.external.system or "")
+    return PromptOut(system=build_classic_system(w, body.channel))
 
 
 @router.get("/agent-templates", response_model=list[TemplateOut])
@@ -84,7 +75,7 @@ def list_templates(_: CurrentPrincipal):
     out = []
     for tid in template_ids():
         w = Workflow.model_validate(template_data(tid))
-        out.append(TemplateOut(id=tid, engine=w.engine, agent=f"{w.agent.name}, {w.agent.role}", voice=w.agent.voice,
+        out.append(TemplateOut(id=tid, agent=f"{w.agent.name}, {w.agent.role}", voice=w.agent.voice,
                                objective=w.objective.description.strip()))
     return out
 
@@ -118,7 +109,7 @@ def create_agent(body: AgentCreate, p: CurrentPrincipal, db: DB, background: Bac
         raise Invalid("Falta client_id")
     client = get_client(db, p, client_id)
     agent = service.create_agent(db, client, body.name, body.slug, body.description, body.definition,
-                                 body.template_id, p.id if p.kind == "user" else None, body.engine)
+                                 body.template_id, p.id if p.kind == "user" else None)
     db.commit()
     _pregenerate_opening(background, agent)
     return _out(agent, detail=True)

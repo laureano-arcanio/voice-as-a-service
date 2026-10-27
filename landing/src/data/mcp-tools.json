@@ -132,6 +132,21 @@
    }
   },
   {
+   "id": "custom_tools",
+   "name": "Herramientas: llamadas a tus APIs",
+   "plans": {
+    "Sucursal": "10",
+    "Red": "sin tope"
+   }
+  },
+  {
+   "id": "code_tools",
+   "name": "Herramientas en código (JavaScript)",
+   "plans": {
+    "Red": ""
+   }
+  },
+  {
    "id": "white_label",
    "name": "Panel con tu marca (logo y colores)",
    "plans": {
@@ -224,7 +239,7 @@
    "name": "list_agents",
    "toolset": "agents",
    "title": "Agentes",
-   "description": "Los agentes de voz y WhatsApp del cliente, con su motor, voz y versión vigente.",
+   "description": "Los agentes de voz y WhatsApp del cliente, con su voz, versión vigente y si es su propio agente.",
    "kind": "lectura",
    "features": [],
    "oauth": false,
@@ -267,6 +282,66 @@
    "description": "JSON Schema de la definición de un agente: todos los campos que se pueden configurar.",
    "kind": "lectura",
    "features": [],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "list_tools",
+   "toolset": "agents",
+   "title": "Herramientas del cliente",
+   "description": "Las herramientas que pueden usar los agentes: llamadas a una API (`http`) o funciones en JavaScript (`code`). Cada una con lo que ve el modelo (`llm_tool`), los secretos que pide y los agentes que la usan. Un agente las usa con `tools: [{\"tool\": \"<slug>\"}]` en su definición.",
+   "kind": "lectura",
+   "features": [
+    "custom_tools"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "get_tool",
+   "toolset": "agents",
+   "title": "Una herramienta",
+   "description": "Una herramienta con su definición completa.",
+   "kind": "lectura",
+   "features": [
+    "custom_tools"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "list_tool_versions",
+   "toolset": "agents",
+   "title": "Historial de una herramienta",
+   "description": "Cada revisión de una herramienta con su definición, la más nueva primero. La traza de una llamada dice con qué revisión corrió.",
+   "kind": "lectura",
+   "features": [
+    "custom_tools"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "get_tool_schema",
+   "toolset": "agents",
+   "title": "Formato de las herramientas",
+   "description": "JSON Schema de `definition` para cada tipo (`http` y `code`), y la función de ejemplo del tipo `code` en GET /tools/code-template. Leelo antes de crear una herramienta.",
+   "kind": "lectura",
+   "features": [
+    "custom_tools"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "list_agent_secrets",
+   "toolset": "agents",
+   "title": "Secretos de un agente",
+   "description": "Los secretos del agente (sin el valor: nombre, últimos 4 y qué herramientas lo usan) y los que piden sus herramientas y faltan (`missing`).",
+   "kind": "lectura",
+   "features": [
+    "custom_tools"
+   ],
    "oauth": false,
    "api_key": false
   },
@@ -394,7 +469,7 @@
    "name": "list_llm_connections",
    "toolset": "agents",
    "title": "Conexiones de LLM y endpoints",
-   "description": "Las conexiones del cliente (sin la clave): su proveedor de LLM, para `llm` en la definición (BYOK), o el endpoint de su propio agente, para `external.connection` (motor `external`).",
+   "description": "Las conexiones del cliente (sin la clave): su proveedor de LLM, para `llm` en la definición (BYOK), o el endpoint de su propio agente, para `external.connection` (Tu propio agente).",
    "kind": "lectura",
    "features": [],
    "oauth": false,
@@ -417,6 +492,78 @@
    "description": "Hace un pedido real a la conexión y guarda el resultado. `mode` `external`: como endpoint de Tu propio agente (un turno en streaming con `end_call`; mide el primer texto). `llm`: salida JSON (BYOK).",
    "kind": "escritura",
    "features": [],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "create_tool",
+   "toolset": "agents",
+   "title": "Crear una herramienta",
+   "description": "Crea una herramienta del cliente: `type` `http` (Atentina llama a su API: método, URL con {variables}, path, query, headers, body, auth con un secreto del agente) o `code` (una función `export default async function ({ args, secrets, call, vars })` en JavaScript). Cada parámetro lo completa el agente (con `description`) o es fijo (`value`, admite {{secrets.NOMBRE}} y {{call.from}}). Formato: get_tool_schema.",
+   "kind": "escritura",
+   "features": [
+    "custom_tools"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "update_tool",
+   "toolset": "agents",
+   "title": "Cambiar una herramienta",
+   "description": "Reemplaza la definición (sube `revision`). Rige desde ya en todos los agentes que la usan.",
+   "kind": "escritura",
+   "features": [
+    "custom_tools"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "delete_tool",
+   "toolset": "agents",
+   "title": "Borrar una herramienta",
+   "description": "Borra una herramienta que ningún agente usa.",
+   "kind": "confirmar",
+   "features": [
+    "custom_tools"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "test_tool",
+   "toolset": "agents",
+   "title": "Probar una herramienta",
+   "description": "La ejecuta de verdad con `args` (llama a la API o corre el código) y devuelve el pedido enviado, la respuesta y lo que recibiría el agente, con los secretos tachados. Usa los secretos de `agent_id`.",
+   "kind": "escritura",
+   "features": [
+    "custom_tools"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "set_agent_secret",
+   "toolset": "agents",
+   "title": "Cargar un secreto en un agente",
+   "description": "Guarda un secreto del agente (cifrado; no se vuelve a mostrar) para sus herramientas: un token, una API key, una clave. El valor pasa por esta conversación: confirmalo con la persona antes.",
+   "kind": "confirmar",
+   "features": [
+    "custom_tools"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "delete_agent_secret",
+   "toolset": "agents",
+   "title": "Borrar un secreto de un agente",
+   "description": "Borra un secreto que ninguna herramienta del agente usa.",
+   "kind": "confirmar",
+   "features": [
+    "custom_tools"
+   ],
    "oauth": false,
    "api_key": false
   },

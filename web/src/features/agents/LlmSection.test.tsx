@@ -27,7 +27,6 @@ const CONN: LlmConnection = {
 const DEF = {
   id: 'a',
   version: 1,
-  engine: 'classic',
   agent: { name: 'S', role: 'r', language: 'es-AR' },
   objective: { description: 'x' },
   conversation: { opening: 'Hola', rules: [] },
@@ -49,8 +48,7 @@ function Harness({ initial }: { initial: Draft }) {
 
 const PARAMS = {
   local_model: 'cyankiwi/gemma-4-26B',
-  local_family: 'gemma',
-  local_defaults: { classic: { temperature: 1, enable_thinking: false, top_k: 64 }, assistant: {} },
+  local_defaults: { temperature: 1, enable_thinking: false, top_k: 64 },
   providers: [
     {
       kind: 'vllm',

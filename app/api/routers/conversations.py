@@ -63,4 +63,4 @@ async def turn(conversation_id: str, body: TurnIn, p: CurrentPrincipal, engine: 
     # Por la API no hay audio que tape la extraccion: se espera y se devuelve el estado con los datos.
     await engine.wait_extraction(conversation_id)
     return {"message": result.assistant_message, "state": engine.store.get(conversation_id),
-            "next_objective": result.next_objective, "status": result.status}
+            "status": result.status}

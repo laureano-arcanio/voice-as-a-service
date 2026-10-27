@@ -15,22 +15,9 @@ export const FIELD_TYPES = [
 ] as const;
 
 export type FieldType = (typeof FIELD_TYPES)[number]['value'];
-export type Engine = 'classic' | 'structured' | 'assistant' | 'external';
-/** Los motores de la plataforma, que elige un admin. external (el agente del cliente) se prende aparte. */
-export const ENGINES: Engine[] = ['classic', 'structured', 'assistant'];
 
-export const ENGINE_HELP: Record<Engine, string> = {
-  classic:
-    'Conversa en texto con un prompt de sistema armado de esta definición y extrae los datos al final de la conversación. Es el motor por defecto.',
-  structured:
-    'En cada turno el LLM responde en JSON (mensaje, objetivo siguiente y estado) y otra llamada extrae los datos y lleva el estado de la conversación.',
-  assistant:
-    'Asistente con las herramientas de las apps del cliente (registrar, consultar, links a vistas). No tiene datos a obtener ni resultados: por WhatsApp, para el dueño del negocio.',
-  external:
-    'Cada turno lo contesta el agente del cliente, en su endpoint compatible con OpenAI. Atentina pone la voz, la telefonía y los minutos.',
-};
-
-/** Motor external (docs/AGENTE_EXTERNO_PLAN.md): el endpoint del cliente y que hacer si falla. */
+/** Tu propio agente (definition.external, docs/AGENTE_EXTERNO_PLAN.md): el endpoint del cliente y que hacer
+ * si falla. */
 export interface ExternalDraft {
   /** Id de una conexion openai_compatible del cliente; '' = sin elegir. */
   connection: string;
@@ -82,11 +69,15 @@ function fromExternalDraft(e: ExternalDraft): Record<string, unknown> {
   };
 }
 
-/** Herramientas de una app que usa el motor assistant: ["*"] = todas. */
-export interface ToolGrantDraft {
-  app: string;
-  tools: string[];
+/** Una herramienta del cliente (http o code, docs/TOOLS_PLAN.md) que usa el agente. */
+export interface ClientToolGrantDraft {
+  key: string;
+  /** Slug de la herramienta. */
+  tool: string;
 }
+
+/** Defaults de ToolSettings (app/conversation/models.py). */
+export const TOOL_SETTINGS = { maxCallsPerTurn: 3, limitMessage: 'Disculpá, no pude completar eso.' };
 
 /** id del elemento de una seccion del formulario (para llevar a un error). */
 export const sectionId = (name: string) => `def-${name}`;
@@ -138,7 +129,6 @@ export interface ParamDraft {
 export interface Draft {
   id: string;
   version: number | null;
-  engine: Engine;
   name: string;
   role: string;
   language: string;
@@ -164,8 +154,12 @@ export interface Draft {
   knowledge: string;
   fields: FieldDraft[];
   outcomes: OutcomeDraft[];
-  /** Solo con el motor assistant. */
-  tools: ToolGrantDraft[];
+  /** Herramientas del cliente (no con tu propio agente). */
+  clientTools: ClientToolGrantDraft[];
+  /** Tope de vueltas con herramientas por turno; null = el default del servidor (3). */
+  maxToolCallsPerTurn: number | null;
+  /** Lo que dice el agente al llegar al tope; '' = el default del servidor. */
+  toolLimitMessage: string;
   /** Parametros de generacion por defecto del agente (todo el flujo). */
   generation: ParamDraft[];
   /** LLM por etapa de la conversacion (conexiones BYOK, docs/BYOK_LLM_PLAN.md). null = siempre el
@@ -173,7 +167,7 @@ export interface Draft {
   llm: LlmDraft | null;
   /** Derivacion a personas (docs/DERIVACIONES_PLAN.md): areas del equipo del cliente y musica de espera. */
   handoff: HandoffDraft;
-  /** Motor external: el agente del cliente. Se conserva al apagarlo, pero solo va con engine external. */
+  /** Tu propio agente: prendido si no es null. */
   external: ExternalDraft | null;
 }
 
@@ -213,12 +207,10 @@ function toHandoffDraft(raw: unknown): HandoffDraft {
   };
 }
 
-function fromHandoffDraft(h: HandoffDraft, engine: Engine): Record<string, unknown> | undefined {
-  // Derivan el clasico y el external: con otro, las areas no van (el servidor las rechaza).
-  const areas = engine === 'classic' || engine === 'external' ? h.areas : [];
-  if (!areas.length && !h.present) return undefined;
+function fromHandoffDraft(h: HandoffDraft): Record<string, unknown> | undefined {
+  if (!h.areas.length && !h.present) return undefined;
   return {
-    areas: areas.map((a) => ({ area_id: a.areaId, when: a.when.trim() })),
+    areas: h.areas.map((a) => ({ area_id: a.areaId, when: a.when.trim() })),
     hold_music: { enabled: h.holdMusic.enabled, track: h.holdMusic.track, volume: h.holdMusic.volume },
   };
 }
@@ -366,8 +358,6 @@ export function toDraft(d: Definition): Draft {
   return {
     id: str(d.id),
     version: typeof d.version === 'number' ? d.version : null,
-    engine:
-      d.engine === 'structured' || d.engine === 'assistant' || d.engine === 'external' ? d.engine : 'classic',
     name: str(agent.name),
     role: str(agent.role),
     language: str(agent.language),
@@ -395,10 +385,15 @@ export function toDraft(d: Definition): Draft {
         conditions: toConditions(o.when),
       };
     }),
-    tools: (Array.isArray(d.tools) ? d.tools : []).map((raw) => {
-      const g = obj(raw);
-      return { app: str(g.app), tools: Array.isArray(g.tools) ? g.tools.map(str) : ['*'] };
-    }),
+    // Las entradas viejas de apps ({app, tools}) no tienen tool: se descartan, como en el servidor.
+    clientTools: (Array.isArray(d.tools) ? d.tools : [])
+      .filter((raw) => obj(raw).tool != null)
+      .map((raw) => ({ key: newKey(), tool: str(obj(raw).tool) })),
+    maxToolCallsPerTurn:
+      typeof obj(d.tool_settings).max_calls_per_turn === 'number'
+        ? (obj(d.tool_settings).max_calls_per_turn as number)
+        : null,
+    toolLimitMessage: str(obj(d.tool_settings).limit_message),
     generation: toParams(d.generation),
     llm: toLlmDraft(d.llm),
     handoff: toHandoffDraft(d.handoff),
@@ -422,12 +417,15 @@ export function fromDraft(draft: Draft): Definition {
     };
   }
   const last = draft.outcomes.length - 1;
-  const handoff = fromHandoffDraft(draft.handoff, draft.engine);
-  const external = draft.engine === 'external' && draft.external ? draft.external : null;
+  const handoff = fromHandoffDraft(draft.handoff);
+  const external = draft.external;
+  const toolSettings = {
+    ...(draft.maxToolCallsPerTurn != null ? { max_calls_per_turn: draft.maxToolCallsPerTurn } : {}),
+    ...(draft.toolLimitMessage.trim() ? { limit_message: draft.toolLimitMessage.trim() } : {}),
+  };
   return {
     id: draft.id,
     ...(draft.version != null ? { version: draft.version } : {}),
-    engine: draft.engine,
     ...(draft.recordAudio ? { record_audio: true } : {}),
     ...(draft.recordAudio && draft.recordingNotice ? { recording_notice: true } : {}),
     ...(draft.callSummaryEmail ? { call_summary_email: true } : {}),
@@ -464,12 +462,17 @@ export function fromDraft(draft: Draft): Definition {
         ...(o.noContact ? { no_contact: true } : {}),
       })),
     },
-    // Las herramientas solo valen con el motor assistant (el servidor rechaza tools con otro).
-    ...(draft.engine === 'assistant'
-      ? { tools: draft.tools.map((g) => ({ app: g.app, tools: g.tools })) }
-      : {}),
+    // Con tu propio agente, las herramientas son las suyas (el servidor rechaza tools con external).
+    ...(!external && draft.clientTools.length ? { tools: toolEntries(draft).map((e) => e.value) } : {}),
+    ...(!external && Object.keys(toolSettings).length ? { tool_settings: toolSettings } : {}),
     ...(handoff ? { handoff } : {}),
   };
+}
+
+/** Las entradas de tools de la definicion, en el orden en que se mandan, con un nombre para los errores. */
+export function toolEntries(draft: Draft): { name: string; value: Record<string, unknown> }[] {
+  if (draft.external) return [];
+  return draft.clientTools.map((g) => ({ name: g.tool, value: { tool: g.tool } }));
 }
 
 /** JSON con claves ordenadas: para comparar definiciones sin importar el orden. */
@@ -517,7 +520,7 @@ export function hasPhoneField(draft: Draft): boolean {
 /** Prender el resumen por email: el email lleva el teléfono, así que el agente necesita un dato de tipo
  * phone (por el link no hay número y lo tiene que pedir). Si no lo tiene, se agrega al final. */
 export function withPhoneField(draft: Draft): Draft {
-  if (draft.engine === 'assistant' || draft.engine === 'external' || hasPhoneField(draft)) return draft;
+  if (draft.external || hasPhoneField(draft)) return draft;
   const names = new Set(draft.fields.map((f) => f.name));
   let name = 'telefono';
   for (let n = 2; names.has(name); n++) name = `telefono_${n}`;
@@ -598,7 +601,6 @@ function outcomeAt(draft: Draft, seg: string | undefined): OutcomeDraft | undefi
 
 export function errorTarget(draft: Draft, path: string): ErrorTarget | null {
   const [head, second, third] = path.split('.');
-  if (head === 'engine') return { section: 'agente' };
   if (
     head === 'record_audio' ||
     head === 'recording_notice' ||
@@ -610,7 +612,7 @@ export function errorTarget(draft: Draft, path: string): ErrorTarget | null {
   if (head === 'objective') return { section: 'objetivo' };
   if (head === 'conversation') return { section: second === 'rules' ? 'reglas' : 'objetivo' };
   if (head === 'knowledge') return { section: 'conocimiento' };
-  if (head === 'tools') return { section: 'herramientas' };
+  if (head === 'tools' || head === 'tool_settings') return { section: 'herramientas' };
   if (head === 'llm' || head === 'generation') return { section: 'modelo' };
   if (head === 'handoff') return { section: 'derivacion' };
   if (head === 'external') return { section: 'externo' };
@@ -635,7 +637,6 @@ const PATH_WORDS: Record<string, string> = {
   recording_notice: 'avisar que se graba',
   call_summary_email: 'resumen por email',
   wa_session_minutes: 'ventana de contexto de WhatsApp',
-  engine: 'Motor',
   objective: 'Objetivo',
   conversation: 'Conversación',
   opening: 'apertura',
@@ -660,7 +661,10 @@ const PATH_WORDS: Record<string, string> = {
   goal: 'objetivo cumplido',
   no_contact: 'no volver a llamar',
   tools: 'Herramientas',
-  app: 'app',
+  tool: 'herramienta',
+  tool_settings: 'Herramientas',
+  max_calls_per_turn: 'vueltas con herramientas por turno',
+  limit_message: 'mensaje al llegar al tope',
   llm: 'Modelo de lenguaje',
   stages: '',
   from_turn: 'turno',
@@ -699,7 +703,7 @@ export function pathLabel(draft: Draft, path: string): string {
     else if (parts[i - 1] === 'areas' && /^\d+$/.test(p)) out.push(`área ${Number(p) + 1}`);
     else if (p === 'tools' && i > 0) out.push('herramientas');
     else if (parts[i - 1] === 'tools' && /^\d+$/.test(p))
-      out.push(draft.tools[Number(p)]?.app || `app ${Number(p) + 1}`);
+      out.push(toolEntries(draft)[Number(p)]?.name || `herramienta ${Number(p) + 1}`);
     else if (PATH_WORDS[p] !== '') out.push(PATH_WORDS[p] ?? p);
   });
   return out.join(' › ');

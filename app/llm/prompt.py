@@ -1,129 +1,40 @@
+"""Prompts del motor: la definicion del agente y el protocolo de la plataforma, nada mas.
+
+Sin reglas de comportamiento (como preguntar, cuando cortar, como decir los numeros): esas son reglas del agente,
+en su definicion, a la vista y editables (AGENTS.md, "Reglas de desarrollo"). El texto para la voz lo
+normaliza la plataforma antes del TTS (app/voice/speech_text.py); terminar y derivar son herramientas
+(app/llm/platform_tools.py)."""
+import datetime
 import json
-import re
+from zoneinfo import ZoneInfo
 
 import yaml
 
-from app.conversation.contact import prompt_block, render_contact, render_context
+from app.config import settings
+from app.conversation.contact import prompt_block
 from app.conversation.models import ConversationState, Message, Workflow
-from app.conversation.workflow import is_required, pending_fields
 
-SYSTEM_PROMPT = """Sos un agente conversacional telefónico que ejecuta un workflow.
+EXTRACTION_PROMPT = """Sos el extractor de datos de {where}. No hablás con nadie: leés la conversación entre el agente y el usuario y devolvés, para cada campo, el valor que dio el usuario, o null si no lo dio. Cada campo con su tipo y su descripción. KNOWN FIELDS son los datos ya guardados."""
 
-Los datos del usuario no los guardás vos: otro proceso los extrae de la conversación mientras hablás. Por eso known_fields puede no tener todavía lo que el usuario dijo en el mensaje nuevo o en el anterior: guiate por la conversación.
+# Marca de los mensajes del usuario que llegaron como audio (WhatsApp): son una transcripcion.
+VOICE_NOTE_TAG = "[nota de voz transcripta]"
 
-En cada turno:
-
-1. Leé la definición del workflow.
-2. Leé la conversación hasta ahora y el estado actual.
-3. Interpretá el nuevo mensaje del usuario, en el contexto de la conversación.
-4. Determiná qué objetivos siguen pendientes: los de pending_objectives, menos los que el usuario ya respondió en la conversación o en el mensaje nuevo.
-5. Elegí el siguiente objetivo conversacional apropiado.
-6. Generá una respuesta natural para continuar.
-
-Reglas:
-
-- Las preguntas de cada campo son sugerencias, no un guion rígido: reformulalas para que la conversación sea natural.
-- No vuelvas a preguntar lo que ya está en known_fields, en answered_without_data o lo que el usuario ya respondió en la conversación.
-- El usuario puede proporcionar varios datos espontáneamente.
-- Si una respuesta es ambigua, pedí aclaración.
-- Si el usuario hace una pregunta, respondela con la base de conocimiento y luego continuá naturalmente.
-- Nunca inventes datos del usuario ni información del producto.
-- Hacé normalmente una pregunta por turno.
-- Respetá el idioma y las reglas definidas en el workflow.
-- Las respuestas deben ser breves, naturales y apropiadas para una conversación de voz.
-- No menciones JSON, campos, workflow ni estados internos.
-- Si CURRENT STATE trae rejected_values, esos valores no se pudieron guardar (por ejemplo un email incompleto): pedí ese dato de nuevo.
-- La conversación termina cuando no quedan objetivos pendientes o cuando el usuario no quiere seguir. En ese turno despedite, usando como guía el mensaje del resultado que corresponda (completion.outcomes), y marcá completed.
-
-Respondé con:
-- assistant_message: lo que le decís al usuario.
-- answered: true si el nuevo mensaje del usuario responde lo que le preguntaste en tu último mensaje (last_asked_objective), aunque haya que interpretarlo; false si no lo responde, pide aclaración o habla de otra cosa.
-- next_objective: el campo que vas a intentar obtener con tu respuesta (puede ser el mismo si pedís aclaración), o null si no queda ninguno.
-- status: active o completed."""
-
-
-EXTRACTION_PROMPT = """Sos el extractor de datos de una llamada telefónica. No hablás con nadie: leés la conversación entre el agente y el usuario y devolvés, para cada campo, el valor que dio el usuario.
-
-Reglas:
-
-- Un campo lleva valor si el usuario lo dijo o lo confirmó en cualquier momento de la conversación; si no, null.
-- Si el usuario corrigió un dato o cambió de opinión, vale lo último que dijo.
-- Si el usuario acepta una opción concreta que le propuso el agente ("sí, esa", "dale"), el valor es esa opción. Las sugerencias del agente que el usuario no eligió no son datos.
-- Un campo sí o no (boolean) lleva valor solo si el usuario respondió esa pregunta o lo expresó claramente. Una negativa, un "ahora no" o un "lo pienso" es false.
-- No deduzcas datos de lo que dijo el agente, ni completes con valores de relleno como 0 o texto vacío.
-- El texto viene de un reconocimiento de voz y puede tener errores. Si una palabra mal transcripta corresponde claramente a algo que encaja en el campo, usá la forma correcta; si no está claro, null.
-- Respetá el tipo y la descripción de cada campo. Un email va escrito como dirección (juan@gmail.com) y un teléfono, en cifras.
-- known_fields son los datos ya guardados: repetilos si siguen valiendo, o corregilos si el usuario los cambió."""
-
-
-# ---------- canal ----------
-# El canal sale de la conversacion (state.channel), no del agente: la misma
-# definicion atiende llamadas y WhatsApp. Voz es el prompt de siempre; los
-# otros canales cambian frases puntuales y suman su bloque de reglas.
-
-CHANNEL_RULES: dict[str, str] = {
-    "voice": "",
-    "whatsapp": """CANAL: conversación escrita por WhatsApp. Estas reglas pisan las del workflow y la forma de la base de conocimiento pensadas para una llamada hablada (números o correos en palabras, escribir solo lo que se dice, cantidad de frases):
-- Números, montos, fechas, horarios y teléfonos en cifras (por ejemplo 23.500, 10/10 o 9:30), aunque la base de conocimiento los tenga en palabras.
-- Emails como dirección (hola@empresa.com) y links como se escriben.
-- Mensajes breves, de hasta unos 300 caracteres, con normalmente una sola pregunta.
-- Sin markdown salvo *negrita* con un asterisco; sin encabezados ni listas largas.
-- No podés ver imágenes. Los audios del usuario te llegan transcriptos automáticamente, marcados como nota de voz, y pueden tener errores de reconocimiento: si un dato clave no se entiende, pedí que lo repita.
-- Si en la conversación todavía no hay mensajes tuyos, saludá y presentate usando como guía la apertura del workflow (opening) y respondé lo que escribió el usuario.""",
+# El canal sale de la conversacion (state.channel), no del agente: la misma definicion atiende llamadas y
+# WhatsApp. Lo que cambia es el formato del medio.
+CHANNEL = {
+    "voice": "Estás en una llamada telefónica. Tu respuesta se dice en voz alta.",
+    "whatsapp": ("Estás conversando por WhatsApp. Tu respuesta se manda como mensaje de texto (formato de "
+                 "WhatsApp: *negrita* con un asterisco, sin otro markdown) o, si la persona mandó un audio, "
+                 "como nota de voz. Los audios de la persona te llegan transcriptos y marcados "
+                 f"{VOICE_NOTE_TAG}. No recibís imágenes."),
 }
 
-# Respuesta en nota de voz (WhatsApp, app/whatsapp/audio.py): el texto va al
-# TTS, asi que valen las reglas de una llamada. Va en el prompt de sistema
-# (estatico, para el prefix caching) y el turno avisa cuando aplica; when dice
-# como lo avisa cada motor.
-VOICE_NOTE_RULES = """NOTA DE VOZ: {when}, tu respuesta se envía como nota de voz: una voz sintética lee tu texto. En ese turno no valen las reglas de texto de WhatsApp de arriba sino las de una llamada:
-- Números, montos, fechas, horarios y teléfonos en palabras (por ejemplo veintitrés mil quinientos pesos, el diez de octubre, a las nueve y media).
-- Emails y links como se dicen (hola arroba empresa punto com).
-- Sin emojis, asteriscos, listas ni símbolos: solo lo que se dice.
-- Frases cortas, de unas tres oraciones, con normalmente una sola pregunta.
-- No menciones que es un audio ni que lo estás grabando."""
-
-# Marca de los mensajes del usuario que llegaron como audio (motor clasico).
-VOICE_NOTE_TAG = "[nota de voz transcripta]"
-VOICE_NOTE_REPLY = "\n\n[Tu respuesta se envía como nota de voz: seguí las reglas de NOTA DE VOZ.]"
-
-
-def _swap(text: str, *pairs: tuple[str, str]) -> str:
-    """Reemplazos del texto de voz; falla si una frase ya no esta (para que un
-    cambio en el prompt de voz no deje al canal con la frase vieja)."""
-    for old, new in pairs:
-        if old not in text:
-            raise ValueError(f"frase no encontrada en el prompt: {old!r}")
-        text = text.replace(old, new)
-    return text
-
-
-_WHATSAPP_SYSTEM = _swap(
-    SYSTEM_PROMPT,
-    ("Sos un agente conversacional telefónico", "Sos un agente conversacional por WhatsApp"),
-    ("apropiadas para una conversación de voz.", "apropiadas para un chat de WhatsApp."),
-    ("\n\nRespondé con:", f"\n\n{CHANNEL_RULES['whatsapp']}\n\n"
-                         f"{VOICE_NOTE_RULES.format(when='Si CURRENT STATE trae \"reply_format\": \"nota de voz\"')}"
-                         "\n\nRespondé con:"),
-    ("- assistant_message: lo que le decís al usuario.", "- assistant_message: el texto del mensaje que le mandás al usuario."),
-)
-
-_WHATSAPP_EXTRACTION = _swap(
-    EXTRACTION_PROMPT,
-    ("de una llamada telefónica.", "de una conversación escrita por WhatsApp."),
-    ("- El texto viene de un reconocimiento de voz y puede tener errores. Si una palabra mal transcripta",
-     "- El texto lo escribió el usuario: puede tener errores de tipeo o abreviaturas. Los mensajes marcados "
-     "(nota de voz) no: vienen de un reconocimiento de voz y pueden tener errores de transcripción. "
-     "Si una palabra mal escrita o mal transcripta"),
-)
-
-
-def system_prompt(channel: str = "voice") -> str:
-    return _WHATSAPP_SYSTEM if channel == "whatsapp" else SYSTEM_PROMPT
+WEEKDAYS = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
 
 
 def extraction_prompt(channel: str = "voice") -> str:
-    return _WHATSAPP_EXTRACTION if channel == "whatsapp" else EXTRACTION_PROMPT
+    return EXTRACTION_PROMPT.format(where="una conversación por WhatsApp" if channel == "whatsapp"
+                                    else "una llamada telefónica")
 
 
 def render_workflow(workflow: Workflow) -> str:
@@ -131,14 +42,8 @@ def render_workflow(workflow: Workflow) -> str:
 
 
 def render_conversation(state: ConversationState) -> str:
-    """Toda la conversacion: con solo el ultimo intercambio, el LLM no veia un
-    dato que no habia guardado y lo volvia a preguntar ("ya te dije antes").
-
-    Un mensaje por linea: los saltos de linea de un texto escrito (WhatsApp) se
-    aplanan con " / ", si no "\nagente: ..." inventaria turnos del agente.
-
-    Por WhatsApp, los mensajes del usuario que llegaron como audio van marcados
-    (es una transcripcion); los del agente no, para que el modelo no imite la marca."""
+    """Toda la conversacion, un mensaje por linea (los saltos de linea de un texto escrito se aplanan con " / ":
+    si no, "\\nagente: ..." pareceria otro turno). Para la extraccion y el resumen de una derivacion."""
     whatsapp = state.channel == "whatsapp"
     return "\n".join(f"{_speaker(m, whatsapp)}: {_one_line(m.text)}" for m in state.messages)
 
@@ -157,226 +62,102 @@ def _one_line(text: str) -> str:
     return " / ".join(line.strip() for line in text.splitlines() if line.strip())
 
 
-def build_user_prompt(workflow: Workflow, state: ConversationState, user_message: str) -> str:
-    answered_empty = state.progress.answered_empty
-    current = {
-        "status": state.status,
-        "known_fields": {k: v for k, v in state.fields.items() if v is not None},
-        "pending_objectives": [f for f in pending_fields(workflow, state) if f not in answered_empty],
-        "last_asked_objective": state.progress.asked,
-    }
-    if answered_empty:
-        current["answered_without_data"] = answered_empty
-    if state.progress.rejected:
-        current["rejected_values"] = state.progress.rejected
-    # Marcas del turno (solo WhatsApp): el mensaje es una transcripcion y/o la
-    # respuesta sale como nota de voz (reglas NOTA DE VOZ del prompt de sistema).
-    media = state.media if state.channel == "whatsapp" else None
-    if media and media.reply_voice_note:
-        current["reply_format"] = "nota de voz"
-    header = "NEW USER MESSAGE (nota de voz transcripta):" if media and media.user_voice_note else "NEW USER MESSAGE:"
-    # La conversacion va antes del estado: crece al final y el resto no cambia,
-    # asi vLLM reusa el prefijo (prefix caching) del turno anterior.
-    # Llamada de una campaña o suelta: los datos del contacto y el motivo, fijos en toda la conversacion, van antes.
-    fixed = [b for b in (render_contact(state.progress.contact), render_context(state.progress.context)) if b]
-    contact = "".join(f"{b}\n\n" for b in fixed)
-    return (
-        f"WORKFLOW:\n{render_workflow(workflow)}\n"
-        f"{contact}"
-        f"CONVERSATION:\n{render_conversation(state)}\n\n"
-        f"CURRENT STATE:\n{json.dumps(current, ensure_ascii=False, indent=2)}\n\n"
-        f"{header}\n{user_message}"
-    )
-
-
-def render_fields(workflow: Workflow, only: list[str] | None = None) -> str:
-    """Los campos tal como los define el workflow: la extraccion sale de la
-    configuracion del agente, no de un prompt por cliente."""
-    fields = {name: spec.model_dump(include={"type", "options", "description", "question"}, exclude_none=True)
-              for name, spec in sorted(workflow.fields.items(), key=lambda kv: kv[1].priority)
-              if only is None or name in only}
+def render_fields(workflow: Workflow) -> str:
+    """Los campos tal como los define el agente."""
+    fields = {name: spec.model_dump(include={"type", "options", "description"}, exclude_none=True)
+              for name, spec in sorted(workflow.fields.items(), key=lambda kv: kv[1].priority)}
     return yaml.safe_dump(fields, allow_unicode=True, sort_keys=False, width=1000)
 
 
-def build_extraction_prompt(workflow: Workflow, state: ConversationState, only: list[str] | None = None) -> str:
-    focus = f"Devolvé solo el campo {', '.join(only)}: el agente lo preguntó y el usuario lo respondió.\n\n" if only else ""
-    known = {k: v for k, v in state.fields.items() if v is not None and (only is None or k in only)}
-    objective = "OBJETIVO" if state.channel == "whatsapp" else "OBJETIVO DE LA LLAMADA"
-    # Llamada suelta: lo que el contacto escribio antes tambien es un dato (el modelo, el pedido).
-    motive = (f"MOTIVO DEL LLAMADO (escrito antes de la llamada; vale como dato si la conversación no lo "
-              f"contradice):\n{state.progress.context}\n\n" if state.progress.context else "")
+def build_extraction_prompt(workflow: Workflow, state: ConversationState) -> str:
+    known = {k: v for k, v in state.fields.items() if v is not None}
+    # Llamada suelta: lo que el contacto escribio antes de la llamada.
+    motive = f"MOTIVO DEL LLAMADO (escrito antes de la llamada):\n{state.progress.context}\n\n" \
+        if state.progress.context else ""
     return (
         f"AGENTE: {workflow.agent.name}, {workflow.agent.role}.\n"
-        f"{objective}: {workflow.objective.description.strip()}\n\n"
-        f"CAMPOS:\n{render_fields(workflow, only)}\n"
+        f"OBJETIVO: {workflow.objective.description.strip()}\n\n"
+        f"CAMPOS:\n{render_fields(workflow)}\n"
         f"{motive}"
         f"CONVERSATION:\n{render_conversation(state)}\n\n"
-        f"KNOWN FIELDS:\n{json.dumps(known, ensure_ascii=False)}\n\n"
-        f"{focus}Devolvé el valor de cada campo según la conversación."
+        f"KNOWN FIELDS:\n{json.dumps(known, ensure_ascii=False)}"
     )
 
 
-# ---------- motor clasico ----------
-
-# Marca de fin: el modelo la agrega al despedirse y no se dice (el texto va
-# directo al TTS, sin JSON donde poner un status).
-END_MARKER = "[FIN]"
-# Igual, pero corta una conversacion que no tiene que ver con el objetivo (broma, burla, acoso, numero
-# equivocado): en la llamada 07381a4d el agente siguio 4 minutos con alguien que decia ser "un choro".
-OFF_TOPIC_MARKER = "[CORTAR]"
-# Pasa la llamada a un area del equipo: "[DERIVAR:Ventas]" (docs/DERIVACIONES_PLAN.md, 4.1). Lleva el nombre del
-# area hasta el "]"; el texto lo dice el sistema (mensaje del area), no el LLM.
-HANDOFF_MARKER = "[DERIVAR:"
-
+# ---------- conversacion ----------
 
 def handoff_enabled(state: ConversationState | None) -> bool:
     """Si en esta conversacion el agente puede derivar: una llamada con areas (las fija el worker)."""
     return bool(state and state.channel == "voice" and state.progress.handoff_areas)
 
 
-def handoff_block(state: ConversationState) -> str:
-    """Las areas a las que puede pasar la llamada, con su horario y si atienden ahora."""
-    # Aca y no arriba: services importa conversation, que importa este modulo.
-    from app.services.handoff import is_open
-
-    lines = []
-    for area in state.progress.handoff_areas:
-        when = " ".join((area.get("when") or "").split()).rstrip(".")
-        hours = area.get("schedule_text") or ""
-        now = "ahora atiende" if is_open(area.get("schedule")) else "ahora está cerrada"
-        lines.append(f"- {area['name']}{': ' + when if when else ''}. Atiende {hours} ({now}).")
-    example = state.progress.handoff_areas[0]["name"]
-    return f"""PASAR LA LLAMADA A UNA PERSONA:
-Podés pasar la llamada a una persona del equipo de estas áreas:
-{chr(10).join(lines)}
-Pasala cuando quien llama pide hablar con una persona, o cuando necesita algo de un área que vos no podés resolver. Para pasarla respondé solo con la marca {HANDOFF_MARKER}<área>], por ejemplo {HANDOFF_MARKER}{example}], sin ningún otro texto: el sistema le avisa y lo comunica. Si el área ahora está cerrada, no la pases: decile cuándo atiende y ofrecé tomarle el mensaje. Si ya intentaste pasarla y no se pudo, no lo vuelvas a intentar con esa área: tomale el mensaje (nombre, teléfono y qué necesita)."""
-
-
 def describe_condition(when: dict) -> str:
     return " y ".join(f"{k} = {json.dumps(v, ensure_ascii=False)}" for k, v in when.items())
 
 
+def render_variables(text: str) -> str:
+    """{{today}} y {{now}} en las reglas, el objetivo y la base de conocimiento del agente (zona AGENT_TIMEZONE)."""
+    if "{{" not in text:
+        return text
+    now = datetime.datetime.now(ZoneInfo(settings.agent_timezone))
+    return (text.replace("{{today}}", f"{WEEKDAYS[now.weekday()]} {now:%Y-%m-%d}")
+            .replace("{{now}}", f"{WEEKDAYS[now.weekday()]} {now:%Y-%m-%d %H:%M}"))
+
+
 def build_classic_system(workflow: Workflow, channel: str = "voice", state: ConversationState | None = None) -> str:
-    """Todo el agente en un prompt de sistema, sacado del YAML. Con whatsapp
-    cambia el medio, suma las reglas del canal y el saludo: el usuario escribe
-    primero y no hay apertura en la conversacion. Con el estado de una llamada de campaña suma
-    los datos del contacto y los campos que ya vienen cargados (fijos en la conversacion)."""
+    """El agente en un prompt de sistema, sacado de su definicion: quien es, el canal, el objetivo, los datos,
+    sus reglas, la base de conocimiento y los cierres. Con el estado de una llamada de campaña suma los datos del
+    contacto y los campos que ya vienen cargados."""
     whatsapp = channel == "whatsapp"
-    where = "Estás conversando por WhatsApp (texto)" if whatsapp else "Estás en una llamada telefónica"
-    reply = "Respondé solo con el texto del mensaje." if whatsapp else "Respondé solo con lo que decís en voz alta."
-    extra = ""
-    if whatsapp:
-        when = f"Si el mensaje del usuario termina con el aviso \"{VOICE_NOTE_REPLY.strip()}\""
-        extra = (f"\n\nSALUDO (apertura del workflow: guía para tu primer mensaje):\n"
-                 f"{workflow.conversation.opening.strip()}\n\n{CHANNEL_RULES['whatsapp']}"
-                 f"\n\n{VOICE_NOTE_RULES.format(when=when)}")
     fields = []
     for name, spec in sorted(workflow.fields.items(), key=lambda kv: kv[1].priority):
         need = ("obligatorio" if spec.required else
                 f"obligatorio si {describe_condition(spec.required_if)}" if spec.required_if else "opcional")
         description = " ".join(spec.description.split()).rstrip(".") + "."
         options = f" Opciones: {', '.join(spec.options)}." if spec.options else ""
-        question = "" if "No se pregunta" in description else f" Pregunta sugerida: {spec.question.strip()}"
-        # "Estas en una llamada telefonica": el LLM daba por sabido el numero y no lo pedia (0 de 10, 20-oct-2026).
-        # Con numero, el dato viene precargado (DATOS YA CONOCIDOS); sin el (link para llamar), hay que pedirlo.
-        unknown = (" No lo tenés: en esta conversación no se ve el número de quien llama, así que preguntalo."
-                   if spec.type == "phone" and not (state and state.fields.get(name)) else "")
-        fields.append(f"- {name} ({need}): {description}{unknown}{options}{question}")
+        question = f" Pregunta sugerida: {spec.question.strip()}" if spec.question and spec.question.strip() else ""
+        fields.append(f"- {name} ({need}): {description}{options}{question}")
     outcomes = [f"- {o.label}{' (si ' + describe_condition(o.when) + ')' if o.when else ' (en cualquier otro caso)'}: "
                 f"{' '.join(o.message.split())}" for o in workflow.completion.outcomes]
-    rules = "\n".join(f"- {r}" for r in workflow.conversation.rules)
+    rules = "\n".join(f"- {render_variables(r)}" for r in workflow.conversation.rules)
     campaign = f"\n\n{block}" if (block := prompt_block(state)) else ""
-    handoff = f"\n\n{handoff_block(state)}" if handoff_enabled(state) else ""
-    # Sin el aviso del cierre, si el telefono no salio antes, cerraba sin pedirlo (10 de 10, 20-oct-2026).
-    missing_phone = any(spec.type == "phone" and is_required(spec, {}) and not (state and state.fields.get(n))
-                        for n, spec in workflow.fields.items())
-    phone_close = ("\nAntes de despedirte, si todavía no tenés el teléfono de quien llama, pedilo: sin eso nadie "
-                   "lo puede volver a contactar." if missing_phone else "")
-    line, talk, garble = (("este chat", "la conversación", "de tipeo o de la transcripción de un audio") if whatsapp
-                          else ("esta línea", "la llamada", "del reconocimiento de voz"))
-    return f"""Sos {workflow.agent.name}, {workflow.agent.role}. {where}; idioma: {workflow.agent.language}.
+    greeting = (f"\n\nAPERTURA (la persona escribe primero; guía para tu primer mensaje):\n"
+                f"{workflow.conversation.opening.strip()}" if whatsapp else "")
+    data = f"\n\nDATOS A OBTENER (los nombres son internos):\n{chr(10).join(fields)}" if fields else ""
+    return f"""Sos {workflow.agent.name}, {workflow.agent.role}. Idioma: {workflow.agent.language}. {CHANNEL[channel]}
 
 OBJETIVO:
-{workflow.objective.description.strip()}{campaign}
-
-DATOS A OBTENER, en este orden salvo que el usuario los dé antes. Los nombres son internos: nunca los digas. Las preguntas son sugerencias, reformulalas para que la conversación sea natural. No vuelvas a preguntar lo que el usuario ya respondió.
-{chr(10).join(fields)}
+{render_variables(workflow.objective.description.strip())}{campaign}{data}
 
 REGLAS:
 {rules}
-- Hacé normalmente una pregunta por turno.
-- Nunca inventes datos del usuario ni información del producto.
 
 BASE DE CONOCIMIENTO:
-{workflow.knowledge.strip()}
+{render_variables(workflow.knowledge.strip())}
 
-CIERRE:
-La conversación termina cuando obtuviste los datos obligatorios o cuando el usuario no quiere seguir.{phone_close} En ese turno despedite usando como guía el mensaje que corresponda:
-{chr(10).join(outcomes)}
-Al final de ese último mensaje, y solo en ese, escribí {END_MARKER}. Si ya te despediste y el usuario solo responde el saludo o no trae nada nuevo, despedite en una frase corta y volvé a escribir {END_MARKER}.{handoff}
-
-FUERA DE TEMA:
-Si {talk} no tiene nada que ver con el objetivo (una broma, alguien que se burla, insulta o acosa, un número equivocado, o alguien que después de dos intentos sigue sin hablar del tema), no insistas con los datos: despedite en una sola frase amable que diga para qué es {line} y al final escribí {OFF_TOPIC_MARKER} en vez de {END_MARKER}. Un mensaje que no se entiende o no tiene sentido no es fuera de tema (puede ser un error {garble}): pedí que lo repita. Si puede ser un interesado real, seguí la conversación.{extra}
-
-{reply}"""
+CIERRES (mensaje de despedida según el resultado):
+{chr(10).join(outcomes)}{greeting}"""
 
 
 def build_classic_messages(workflow: Workflow, state: ConversationState, user_message: str) -> list[dict]:
-    """Por WhatsApp, los mensajes del usuario que llegaron como audio llevan
-    VOICE_NOTE_TAG (los del agente no) y, si la respuesta sale como nota de voz,
-    el mensaje nuevo termina con VOICE_NOTE_REPLY."""
+    """Por WhatsApp, los mensajes del usuario que llegaron como audio llevan VOICE_NOTE_TAG."""
     whatsapp = state.channel == "whatsapp"
-    history = _classic_history(state.messages, whatsapp)
     media = state.media if whatsapp else None
     content = _classic_text(user_message, bool(media and media.user_voice_note))
-    if media and media.reply_voice_note:
-        content += VOICE_NOTE_REPLY
-    if _phone_missing(workflow, state, [*(m.text for m in state.messages if m.role == "user"), user_message]):
-        content += PHONE_REMINDER
-    return [{"role": "system", "content": build_classic_system(workflow, state.channel, state)}, *history,
-            {"role": "user", "content": content}]
+    return [{"role": "system", "content": build_classic_system(workflow, state.channel, state)},
+            *classic_history(state.messages, whatsapp), {"role": "user", "content": content}]
 
 
-# Motor clasico: el recordatorio del cierre en el prompt de sistema no alcanzaba al final de una llamada larga
-# (cerraba sin pedirlo 7 de 10); al lado del ultimo mensaje del usuario pesa mas. Mientras no haya un numero
-# en lo que dijo y el dato phone no venga de la llamada.
-PHONE_REMINDER = ("\n\n[Nota del sistema, no la leas: todavía no tenés el teléfono de quien llama. Si ya obtuviste el "
-                  "resto o vas a despedirte, primero pedile el número; si no lo quiere dar, no insistas.]")
-
-
-def _phone_missing(workflow: Workflow, state: ConversationState, user_texts: list[str]) -> bool:
-    phone_fields = [n for n, spec in workflow.fields.items() if spec.type == "phone" and is_required(spec, {})]
-    if not phone_fields or any(state.fields.get(n) for n in phone_fields):
-        return False
-    return not any(len(re.sub(r"\D", "", text)) >= 8 for text in user_texts)
-
-
-def _classic_history(messages: list[Message], whatsapp: bool) -> list[dict]:
-    """La conversacion como mensajes del chat. Lo que se hablo con una persona del equipo (llamada derivada) va
-    junto, como una transcripcion en un solo mensaje del usuario: asi el LLM sabe que paso y no imita a la persona."""
+def classic_history(messages: list[Message], whatsapp: bool) -> list[dict]:
+    """La conversacion como mensajes del chat. En una llamada derivada, lo que dijo la persona del equipo va como
+    assistant con su nombre (`name`), y lo que dijo quien llama, como user."""
     out: list[dict] = []
-    leg: str | None = None
     for m in messages:
-        if m.handoff_leg:
-            line = f"{m.person if m.person else 'Quien llama'}: {_one_line(m.text)}"
-            if leg == m.handoff_leg:
-                out[-1]["content"] += "\n" + line
-            else:
-                name = next((x.person for x in messages if x.handoff_leg == m.handoff_leg and x.person), None)
-                head = f"[Nota del sistema: la llamada se pasó a {name or 'una persona del equipo'}. Lo que hablaron:]"
-                out.append({"role": "user", "content": f"{head}\n{line}"})
-            leg = m.handoff_leg
-            continue
-        leg = None
-        out.append({"role": m.role, "content": _classic_text(m.text, whatsapp and m.role == "user" and m.voice_note)})
-    # Dos mensajes seguidos del mismo rol (la transcripcion y el mensaje siguiente del usuario): se unen.
-    merged: list[dict] = []
-    for item in out:
-        if merged and merged[-1]["role"] == item["role"]:
-            merged[-1]["content"] += "\n" + item["content"]
-        else:
-            merged.append(dict(item))
-    return merged
+        item = {"role": m.role, "content": _classic_text(m.text, whatsapp and m.role == "user" and m.voice_note)}
+        if m.person:
+            item["name"] = "".join(c if c.isalnum() else "_" for c in m.person)[:64]
+        out.append(item)
+    return out
 
 
 def _classic_text(text: str, voice_note: bool) -> str:

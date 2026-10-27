@@ -12,7 +12,8 @@ BASE = {
 
 class FakeLLM:
     """turns: salidas del LLM de conversacion; extractions: datos que devuelve
-    cada extraccion, en orden (sin mas, no encuentra nada)."""
+    cada extraccion, en orden (sin mas, no encuentra nada). extract_calls: cuantos
+    mensajes vio cada extraccion (ve toda la conversacion)."""
 
     def __init__(self, *turns: AgentTurn, extractions: list[dict] = ()):
         self.turns = list(turns)
@@ -20,17 +21,14 @@ class FakeLLM:
         self.calls = []
         self.extract_calls = []
 
-    async def process_turn(self, workflow, state, user_message, on_message=None):
+    async def converse(self, workflow, state, user_message, on_message=None, tools=None):
         self.calls.append((user_message, dict(state.progress.rejected)))
         turn = self.turns.pop(0)
         turn.raw = json.dumps(turn.model_dump(), ensure_ascii=False)
         return turn
 
-    async def converse(self, workflow, state, user_message, on_message=None):
-        return await self.process_turn(workflow, state, user_message, on_message)
-
-    async def extract(self, workflow, state, only=None):
-        self.extract_calls.append(only)
+    async def extract(self, workflow, state):
+        self.extract_calls.append(len(state.messages))
         fields = self.extractions.pop(0) if self.extractions else {}
         return Extraction(fields=fields, raw=json.dumps(fields, ensure_ascii=False))
 

@@ -3,7 +3,11 @@
 Diseño (2026-09-26). **Implementado (fases 0 a 2 y 4):** uso y estado en
 [`eval/README.md`](eval/README.md), código en `scripts/eval/`. **Todavía no hay runs registrados** (ningún
 `EVAL-NNN`): el evaluador existe, pero ningún modelo está validado con él. Donde este diseño no coincide
-con el código (sufijos de motor, `personas/`, modelo vigente), manda el código; está marcado abajo. Complementa al test de capacidad
+con el código (sufijos de motor, `personas/`, modelo vigente), manda el código; está marcado abajo.
+**26-oct-2026:** hay un solo motor (sin `structured` ni `assistant`; `engine` ya no está en la definición) y
+el agente termina con la herramienta `end_call`, no con `[FIN]`; las comparaciones `classic` contra
+`structured` de abajo quedan sin objeto. Los evals informan y no bloquean (`AGENTS.md`, "Reglas de
+desarrollo"); ver [`LIMPIEZA_PLAN.md`](LIMPIEZA_PLAN.md). Complementa al test de capacidad
 ([`CAPACITY_TEST_PLAN.md`](CAPACITY_TEST_PLAN.md)): aquel mide cuántas llamadas aguanta el pipeline,
 este mide **qué tan bien conversa el LLM**, en varios tipos de agente y con varios tipos de cliente,
 para comparar modelos. Responde:
@@ -80,14 +84,14 @@ degrada el audio:
 |---|---|---|
 | Datos ok / faltan / mal (inventados) | Campos extraídos contra la ficha, como `check()` de `replay_transcripts.py` | estado final |
 | Resultado correcto | `outcome` contra el esperado de la persona | estado final |
-| Terminó | El agente cerró (`[FIN]` o `completed`) antes del tope de turnos | traza |
+| Terminó | El agente cerró (`[FIN]` o `completed`; desde el 26-oct-2026, `end_call`) antes del tope de turnos | traza |
 | Turnos hasta cerrar | Eficiencia; también turnos después de tener todos los datos | traza |
 | Repreguntas | Veces que pide un dato que el cliente ya dio (en `structured`, por `next_objective`; en `classic`, el juez) | traza |
 | Loops | Respuestas iguales a la anterior; mismo objetivo 3+ turnos seguidos | traza |
 | Reglas de voz rotas | Regex: markdown, símbolos, dígitos, siglas no permitidas, "usted", más de una pregunta por turno, más de 2 frases, precios o montos donde no corresponde | texto del agente |
 | Largo de respuesta | Caracteres por turno → segundos de audio a ~17 car/s (`voces.tsv`): 200 caracteres son ~12 s de TTS | texto del agente |
 | Latencia LLM | ms por turno de conversación y de extracción, p50 / p95 | traza `llm` del mensaje |
-| Fallas de formato | JSON inválido (`structured`), `[FIN]` sin despedida, respuesta vacía | traza |
+| Fallas de formato | JSON inválido (`structured`), `[FIN]` sin despedida, respuesta vacía (los dos primeros, sin objeto desde el 26-oct-2026) | traza |
 
 ### Juez (LLM externo, rúbrica 1–5 con justificación, salida JSON)
 

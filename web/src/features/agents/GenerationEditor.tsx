@@ -4,7 +4,6 @@ import { useState } from 'react';
 import type { LlmParamSpec } from '@/api/types';
 import { blankParam, type ParamDraft } from './draft';
 
-export type LocalDefaults = Record<string, Record<string, unknown>>;
 export type ParamValue = string | number | boolean;
 
 /** Sin default conocido: lo decide el modelo o el proveedor. */

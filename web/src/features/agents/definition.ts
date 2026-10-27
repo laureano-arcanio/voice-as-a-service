@@ -24,7 +24,8 @@ export interface Outcome {
 export interface WorkflowView {
   id: string;
   version: number | null;
-  engine: string;
+  /** Tu propio agente (definition.external). */
+  external: boolean;
   agent: { name: string; role: string; language: string; voice: string | null };
   recordAudio: boolean;
   /** Llamadas: resumen por email al cliente al terminar. */
@@ -42,8 +43,8 @@ export interface WorkflowView {
   knowledge: string;
   fields: [string, FieldSpec][];
   outcomes: Outcome[];
-  /** Motor assistant: apps y herramientas (["*"] = todas). */
-  tools: { app: string; tools: string[] }[];
+  /** Herramientas del cliente (APIs y codigo), por slug. */
+  clientTools: { tool: string }[];
 }
 
 const obj = (x: unknown): Record<string, unknown> =>
@@ -85,7 +86,7 @@ export function readWorkflow(d: Definition): WorkflowView {
   return {
     id: str(d.id),
     version: typeof d.version === 'number' ? d.version : null,
-    engine: str(d.engine) || 'structured',
+    external: d.external != null && typeof d.external === 'object',
     agent: {
       name: str(agent.name),
       role: str(agent.role),
@@ -111,10 +112,9 @@ export function readWorkflow(d: Definition): WorkflowView {
     knowledge: str(d.knowledge).trim(),
     fields,
     outcomes,
-    tools: (Array.isArray(d.tools) ? d.tools : []).map((raw) => {
-      const g = obj(raw);
-      return { app: str(g.app), tools: Array.isArray(g.tools) ? g.tools.map(str) : ['*'] };
-    }),
+    clientTools: (Array.isArray(d.tools) ? d.tools : [])
+      .filter((raw) => obj(raw).tool != null)
+      .map((raw) => ({ tool: str(obj(raw).tool) })),
   };
 }
 

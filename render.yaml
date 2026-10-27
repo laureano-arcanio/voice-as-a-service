@@ -32,6 +32,10 @@ services:
       - type: redirect
         source: /municipios
         destination: /casos-de-uso/municipios
+      # El agente personal (/asistentes) se quitó con el motor assistant y las apps (26-oct-2026).
+      - type: redirect
+        source: /asistentes
+        destination: /
       # La documentación se dividió en /desarrolladores/docs/{mcp,api} (25-oct-2026); los links viejos con ancla
       # a /desarrolladores/docs#<sección> los manda a /docs/api la portada.
       - type: redirect

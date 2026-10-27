@@ -24,6 +24,7 @@ import httpx
 
 from ..config import settings
 from ..services.tts import SAMPLE_RATE, wav_from_pcm
+from ..voice.speech_text import to_speech
 from .models import Workflow
 
 logger = logging.getLogger(__name__)
@@ -58,7 +59,8 @@ async def generate(agent_id: str, workflow: Workflow) -> Path | None:
     if path.exists():
         return path
     body = {"model": settings.vllm_tts_model, "voice": voice,
-            "input": workflow.conversation.opening.strip(), "response_format": "pcm"}
+            "input": to_speech(workflow.conversation.opening.strip(), workflow.agent.language),
+            "response_format": "pcm"}
     try:
         async with httpx.AsyncClient(timeout=TTS_TIMEOUT) as client:
             r = await client.post(f"{settings.vllm_tts_base_url}/audio/speech", json=body,

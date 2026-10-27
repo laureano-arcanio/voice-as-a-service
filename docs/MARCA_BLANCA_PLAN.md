@@ -4,7 +4,7 @@ Que un cliente muestre el dashboard (`web/`, rol `client`) con **su logo y sus c
 Atentina, para que lo use su propia gente o sus propios clientes como si fuera suyo. Lo configura un
 admin desde la ficha del cliente: sube un logo y elige hasta **3 colores**. Nada más se personaliza.
 
-- **Estado (26-oct-2026):** fase 1 implementada (sección 6), **sin desplegar**; probada en el backend de desarrollo con el theme de [Yoizen](marca-blanca/yoizen/README.md) (login con `?c=yoizen`, panel del cliente y pestaña del admin). Código: migración 0032, `app/services/branding.py`, `app/api/routers/branding.py`, `web/src/branding/`, `web/src/features/clients/BrandingTab.tsx`; tests en `tests/test_branding.py`, `tests/test_migration_0032.py` y `web/src/branding/color.test.ts`. Lo que difiere de lo planeado está en la sección 11.
+- **Estado (26-oct-2026):** fase 1 implementada (sección 6), **sin desplegar**; probada en el backend de desarrollo con el theme de [Yoizen](marca-blanca/yoizen/README.md) (login con `?c=yoizen`, panel del cliente y pestaña del admin). Código: migración 0034, `app/services/branding.py`, `app/api/routers/branding.py`, `web/src/branding/`, `web/src/features/clients/BrandingTab.tsx`; tests en `tests/test_branding.py`, `tests/test_migration_0034.py` y `web/src/branding/color.test.ts`. Lo que difiere de lo planeado está en la sección 11.
 - **Guía de diseño:** [`DESIGN_GUIDELINE_APP.md`](DESIGN_GUIDELINE_APP.md); el tema vive en [`web/src/theme.ts`](../web/src/theme.ts). Al implementar, se le agrega a la guía una sección "Marca blanca" con lo de la sección 5 de acá.
 
 ## 1. Qué hay hoy
@@ -41,7 +41,7 @@ Medido en `web/src` (26-oct-2026):
 
 ## 3. Backend
 
-### 3.1 Modelo (migración 0032)
+### 3.1 Modelo (migración 0034)
 
 ```
 client_branding
@@ -190,7 +190,7 @@ Pestaña **"Marca blanca"** en la ficha del cliente (`ClientDetailPage`, junto a
 
 | Fase | Qué | Tamaño |
 |---|---|---|
-| **1** (hecha el 26-oct-2026) | Migración 0032, servicio y API (3.2 a 3.4), `me.branding`, endpoints públicos, provider y tema en `web/`, header, títulos, favicon, login por `?c=`, pestaña del admin con vista previa y "Ver el panel como el cliente", `white_label` en el editor de tiers, `c=` en los mails de alta, clave y número asignado, backup, tests | ~2 días |
+| **1** (hecha el 26-oct-2026) | Migración 0034, servicio y API (3.2 a 3.4), `me.branding`, endpoints públicos, provider y tema en `web/`, header, títulos, favicon, login por `?c=`, pestaña del admin con vista previa y "Ver el panel como el cliente", `white_label` en el editor de tiers, `c=` en los mails de alta, clave y número asignado, backup, tests | ~2 días |
 | 2 | Mails con la marca (`layout.py` con nombre, logo absoluto y primario; remitente "Panel de <Cliente>"), ícono cuadrado para el favicon, link para llamar con la marca del cliente, "Copiar la marca de otro cliente" (un partner con varios clientes), swatches sacadas del logo, MCP `admin_*_branding` | ~1,5 días |
 | 3 | El cliente edita su marca en Mi cuenta (mismos endpoints bajo `/plan`), dominio propio por cliente | a definir |
 
@@ -202,7 +202,7 @@ Pestaña **"Marca blanca"** en la ficha del cliente (`ClientDetailPage`, junto a
 
 ## 8. Cómo desplegar
 
-1. `make migrate-test` con la 0032 contra una copia del backup; `make migrate`.
+1. `make migrate-test` con la 0034 contra una copia del backup; `make migrate`.
 2. `make calls-active && make up-agent` (recrea `app` y `agent`).
 3. Verificar que `storage/branding/` quedó en `scripts/ops/backup.sh`.
 4. Prender `white_label` en los tiers que la incluyen (editor de tiers) y actualizar la landing (`/desarrolladores/docs/api`: qué incluye cada plan).

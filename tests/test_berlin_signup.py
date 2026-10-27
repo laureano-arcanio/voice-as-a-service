@@ -18,7 +18,9 @@ def wf():
 def test_types(wf):
     assert validate_updates(wf, {"wants_link": "true"}) == {"wants_link": True}
     assert validate_updates(wf, {"contact": "+54 9 351 555-1234"}) == {"contact": "+5493515551234"}
-    assert validate_updates(wf, {"contact": "ana arroba gmail punto com"}) == {"contact": "ana@gmail.com"}
+    assert validate_updates(wf, {"contact": "ana@gmail.com"}) == {"contact": "ana@gmail.com"}
+    # El email dictado no se convierte: lo que no es un email ni un telefono no se guarda.
+    assert validate_updates(wf, {"contact": "ana arroba gmail punto com"}) == {}
 
 
 def test_contact_only_if_other_number(wf):

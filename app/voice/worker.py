@@ -38,6 +38,7 @@ from ..services import handoff as handoff_service
 from ..services.errors import Forbidden, NotFound, QuotaExceeded
 from . import handoff as transfer
 from .latency import TurnLatencyTracker
+from .speech_text import speech_stream
 
 logger = logging.getLogger("agent")
 
@@ -46,20 +47,6 @@ if not (settings.vllm_tts_model and settings.vllm_tts_voice):
     raise RuntimeError("Faltan VLLM_TTS_MODEL y/o VLLM_TTS_VOICE en .env")
 openai.tts.AUDIO_STREAM_MODELS.add(settings.vllm_tts_model)
 
-# Espera de silencio antes de dar el turno por terminado. MIN_ENDPOINTING_DELAY
-# cuando el turn detector cree que la frase termino (0,3 por defecto dejaba
-# transcripts que llegan despues de cerrar el turno); MAX_ENDPOINTING_DELAY
-# cuando duda. Con 1 s, "me gustaria poder hacer un seguimiento" + pausa se
-# corto aunque el detector la vio incompleta (llamada c5fa81cd); con 2 s, en
-# 7 de 11 turnos de respuestas cortas ("Sí.", "Running") el detector dudo y se
-# espero el tope (llamadas b162596a y 7e78a3cc: ~2,3 s hasta que habla el
-# agente). Se vuelve a 1 s: si el cliente sigue hablando, CONTINUATION_WINDOW
-# une las dos partes. Mientras se pide un dato dictado (email) se estira mas
-# (llamada 2d0c771b).
-MIN_ENDPOINTING_DELAY = 0.4
-MAX_ENDPOINTING_DELAY = 1.0
-DICTATION_ENDPOINTING_DELAY = 2.5
-DICTATED_TYPES = {"email", "email_or_phone", "digits", "phone"}
 
 # Si el cliente vuelve a hablar cuando la respuesta sono menos que esto, sigue
 # con la misma frase: se deshace el turno aunque haya sonado un pedazo y el
@@ -123,7 +110,6 @@ class WorkflowAgent(Agent):
         self.on_completed = on_completed      # on_completed(reason): corta la llamada
         self.on_handoff = on_handoff          # on_handoff(area, announced): pasa la llamada (app/voice/handoff.py)
         self.end_reason = "completed"           # o OFF_TOPIC_REASON: el agente corto una llamada fuera de tema
-        self.dictation = False
         # Un turno a la vez: con preemptive generation LiveKit puede llamar a
         # llm_node antes de cerrar la respuesta anterior, y los dos turnos
         # pisaban el estado (en c5fa81cd quedo guardada una respuesta que no sono).
@@ -162,9 +148,17 @@ class WorkflowAgent(Agent):
         self._rec_customer.extend(data)
 
     def tts_node(self, text, model_settings):
-        if self.record_dir is None:
-            return super().tts_node(text, model_settings)
-        return self._tee_agent_audio(super().tts_node(text, model_settings))
+        """El texto del LLM pasa por el normalizador (numeros, horas, emails en palabras; app/voice/speech_text.py)
+        antes del TTS."""
+        audio = super().tts_node(speech_stream(text, self.language()), model_settings)
+        return audio if self.record_dir is None else self._tee_agent_audio(audio)
+
+    def language(self) -> str:
+        state = self.engine.store.get(self.conversation_id)
+        try:
+            return self.engine.workflow(state).agent.language if state else "es"
+        except KeyError:
+            return "es"
 
     def opening_frames(self, pcm: bytes):
         """La apertura pregenerada como frames para session.say(audio=...): no pasa por tts_node,
@@ -309,14 +303,13 @@ class WorkflowAgent(Agent):
                 self.end_reason = turn.end_reason or "completed"
                 speech.add_done_callback(self.on_final_reply_done)
         if turn.handoff and self.on_handoff is not None:
-            # Despues de que suena lo que haya dicho el LLM (con la marca sola, nada).
+            # Despues de que suena lo que haya dicho el LLM (si solo llamo a transfer_call, nada).
             announced = bool(turn.assistant_message.strip())
             if speech is not None:
                 speech.add_done_callback(lambda _: self.on_handoff(turn.handoff, announced))
             else:
                 self.on_handoff(turn.handoff, announced)
-        self.set_dictation(self.engine.workflow(state), turn.next_objective)
-        logger.info("turn %s answered=%s next=%s status=%s", self.conversation_id, turn.answered, turn.next_objective, turn.status)
+        logger.info("turn %s status=%s handoff=%s", self.conversation_id, turn.status, turn.handoff)
 
     async def run_turn(self, chat_ctx, speech, on_message):
         async with self.turn_lock:
@@ -373,14 +366,6 @@ class WorkflowAgent(Agent):
         if not speech.interrupted or self.end_reason == OFF_TOPIC_REASON:
             self.on_completed(self.end_reason)
 
-    def set_dictation(self, workflow: Workflow, objective: str | None) -> None:
-        spec = workflow.fields.get(objective) if objective else None
-        dictation = spec is not None and spec.type in DICTATED_TYPES
-        if dictation != self.dictation:
-            self.dictation = dictation
-            delay = DICTATION_ENDPOINTING_DELAY if dictation else MAX_ENDPOINTING_DELAY
-            self.session.update_options(endpointing_opts={"max_delay": delay})
-
 
 # Voces que sirve vllm-tts, cacheadas VOICES_TTL s: si cambia el checkpoint, el
 # worker se entera sin reiniciar.
@@ -428,7 +413,8 @@ def build_session(voice: str) -> AgentSession:
             # wheel, ~27 ms por prediccion en CPU). Sin fijarlo, en modo dev o en
             # LiveKit Cloud usa v1, que va al gateway de inferencia de Cloud.
             "turn_detection": inference.TurnDetector(version="v1-mini"),
-            "endpointing": {"min_delay": MIN_ENDPOINTING_DELAY, "max_delay": MAX_ENDPOINTING_DELAY},
+            "endpointing": {"min_delay": settings.voice_min_endpointing_delay,
+                            "max_delay": settings.voice_max_endpointing_delay},
         },
         stt=openai.STT(
             model=settings.vllm_stt_model,
@@ -709,7 +695,7 @@ async def entrypoint(ctx: JobContext):
             if tr is not None:
                 current["attempts"] = tr.attempt
             current["transfer"] = None
-            # El turno de la marca no se deshace aunque el cliente hable encima (settle_last_reply).
+            # El turno de la derivacion no se deshace aunque el cliente hable encima (settle_last_reply).
             agent.last_reply = None
 
     agent = WorkflowAgent(engine, conversation_id, latency, on_completed=on_completed, record_dir=record_dir,

@@ -6,9 +6,12 @@ propia (LLM, STT y TTS sobre GPUs locales). Cada cliente tiene sus números, sus
 asesora comercial de [Browix](https://browix.com) (`docs/Browix_Contexto_Agente.md`).
 
 La conversacion no es un guion: la **definición del agente (workflow JSON)** fija los datos a
-obtener (objetivos) y el LLM conversa a partir de ella. Hay dos motores: el **clásico** (por defecto)
-conversa en texto libre y extrae los datos una sola vez, al terminar; el **estructurado** extrae datos
-y elige el siguiente objetivo en cada turno. La app valida los datos y clasifica el resultado.
+obtener (objetivos) y el LLM conversa a partir de ella. Hay **un solo motor** (desde el 26-oct-2026,
+`docs/LIMPIEZA_PLAN.md`): conversa en texto libre, usa las herramientas del agente (APIs y código del
+cliente, `docs/TOOLS_PLAN.md`) y las de la plataforma (`end_call`, `transfer_call`), y extrae los datos una
+sola vez, al terminar. "Tu propio agente" es una opción del agente (`external` en la definición): contesta
+el endpoint del cliente. Los motores estructurado y `assistant` se quitaron el 26-oct-2026. La app valida los
+datos y clasifica el resultado.
 Detalle en "Motor conversacional" abajo; el diseño original esta en `docs/REFACTOR.md`.
 
 - Arquitectura y detalles técnicos: [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
@@ -20,11 +23,10 @@ Detalle en "Motor conversacional" abajo; el diseño original esta en `docs/REFAC
 | --- | --- |
 | Tier | Límites: llamadas simultáneas, cantidad de llamadas por hora, día y mes calendario, minutos entrantes y salientes por mes calendario (`BILLING_TIMEZONE`, default Buenos Aires) cantidad de números y de campañas (canales, campañas por mes, contactos y concurrencia). Vacío = ilimitado. |
 | Cliente | Tenant: un tier, sus números, agentes, usuarios y API keys. Inactivo: no llama ni atiende. |
-| Agente | Definición JSON del workflow (esquema: `GET /api/v1/agents/schema`), **versionada**: cada cambio es una versión nueva e inmutable y cada conversación guarda con cuál corrió. Se crea en blanco o desde el asistente básico (`app/agents/templates/asistente.json`), con el motor que se elija, y se edita por formulario. Los crea y edita un admin o el propio cliente (usuario o API key), cada uno solo en su cliente. |
+| Agente | Definición JSON del workflow (esquema: `GET /api/v1/agents/schema`), **versionada**: cada cambio es una versión nueva e inmutable y cada conversación guarda con cuál corrió. Se crea en blanco o desde el asistente básico (`app/agents/templates/asistente.json`), y se edita por formulario (la UI no pregunta motor). Los crea y edita un admin o el propio cliente (usuario o API key), cada uno solo en su cliente. |
 | Número | Inventario de los números que provee Anura (E.164, únicos). El admin los carga libres (UI > Números, o `POST /api/v1/phone-numbers/bulk`), los asigna a un cliente hasta el tope de su tier y se rutean a un agente del cliente (el admin o el propio cliente): las entrantes a ese número las atiende ese agente. Liberar lo devuelve al inventario. Bajar de tier o de tope con más números asignados da 409. Cargar o borrar los agrega o quita de los trunks SIP de LiveKit en caliente, sin reiniciar nada (`make livekit-sip` los rearma enteros). |
 | Contacto y campaña | Agenda por cliente (`/api/v1/contacts`, teléfono único, etiquetas y datos libres; se archiva, no se borra) y campañas de WhatsApp o de llamadas sobre ella (`/api/v1/campaigns`): programadas, de a uno o en paralelo, con reintentos, polling de progreso, `report.csv`, seguimiento por WhatsApp y webhook. El tier dice qué canales y topes tiene. Implementado el 19-oct-2026, sin desplegar: [`docs/LLAMADAS_SALIENTES_PLAN.md`](docs/LLAMADAS_SALIENTES_PLAN.md). |
 | Usuario | `admin` (opera la plataforma) o `client` (ve lo de su cliente, crea y edita sus agentes, llama y maneja sus API keys). |
-| App | Contenedor de un cliente (repo `atentina-apps`: SQLite, API, herramientas MCP y vistas) que usa un agente con motor `assistant`, el asistente personal del dueño por WhatsApp. Se registra con `make register`, el admin la asigna y el dueño escribe como operador del número. Ver [`docs/APPS.md`](docs/APPS.md). |
 
 **Límites (corte duro):** `POST /api/v1/calls` responde 429 (`concurrency_limit`,
 `calls_per_hour`, `calls_per_day`, `calls_per_month`, `outbound_minutes`, `inbound_minutes`,
@@ -79,7 +81,7 @@ apuntando `base_url` a cada contenedor en vez de a `api.openai.com`.
 
 | Rol | Modelo | Variable | Endpoint | Por que |
 | --- | --- | --- | --- | --- |
-| LLM del motor conversacional | `cyankiwi/gemma-4-26B-A4B-it-qat-AWQ-INT4` (Gemma 4 26B-A4B en 4 bits, override `docker-compose.gemma4-26b.yml`, desde el 6-oct-2026) | `VLLM_LLM_MODEL` | `/v1/chat/completions` | Structured output (JSON schema) y sin pensamiento por latencia (`LLM_THINKING`); el muestreo sigue siendo el recomendado por Qwen (`app/llm/client.py`). Sin eval ni CAP propios todavía. Antes, `RedHatAI/Qwen3.5-9B-quantized.w4a16`, que reemplazó al 4B en EXP-009 (8 de 8 demos con datos contra 4 de 8, p50 0,90 s por turno contra 1,00 s). |
+| LLM del motor conversacional | `cyankiwi/gemma-4-26B-A4B-it-qat-AWQ-INT4` (Gemma 4 26B-A4B en 4 bits, override `docker-compose.gemma4-26b.yml`, desde el 6-oct-2026) | `VLLM_LLM_MODEL` | `/v1/chat/completions` | Function calling (parser `gemma4`), salida JSON guiada para la extracción y sin pensamiento por latencia (`LLM_THINKING`); el muestreo es el recomendado por Google, en el override (`LLM_TEMPERATURE`, `LLM_TOP_P`, `LLM_TOP_K`, `LLM_MIN_P`), no en el código. Sin eval ni CAP propios todavía. Antes, `RedHatAI/Qwen3.5-9B-quantized.w4a16`, que reemplazó al 4B en EXP-009 (8 de 8 demos con datos contra 4 de 8, p50 0,90 s por turno contra 1,00 s). |
 | STT | `nvidia/parakeet-tdt-0.6b-v3` | `VLLM_STT_MODEL` | `/v1/audio/transcriptions` | Servidor propio (`stt/server.py`, transformers + batching dinamico): 1,6 GB y mejor que Qwen3-ASR y Whisper Turbo en audio telefonico (ver "Eval de STT"). Es REST por turno, sin transcript parcial mientras el cliente habla. |
 | TTS | Qwen3-TTS 1.7B-Base con fine-tuning (41 voces en un checkpoint) | `VLLM_TTS_MODEL`, `VLLM_TTS_VOICE` | `/v1/audio/speech` (streaming) | Servido con vLLM-Omni. Las voces estan dentro del checkpoint (ver "Voces del TTS" abajo). |
 
@@ -460,52 +462,47 @@ app/
     engine.py                ConversationEngine: start_conversation, process_turn
     store.py                 ConversationStore: tabla `conversations`
   llm/
-    client.py                LLMClient: chat completions con JSON schema del workflow
-    prompt.py                system prompt unico + WORKFLOW / CURRENT STATE / NEW USER MESSAGE
+    client.py                LLMClient: chat completions con tools nativos (OpenAI); anthropic_client.py, Anthropic
+    platform_tools.py        end_call y transfer_call, herramientas de la plataforma
+    external.py              tu propio agente: el endpoint del cliente por turno
+    prompt.py                prompt de sistema desde la definicion (sin reglas de comportamiento ni de voz)
+  voice/speech_text.py       normalizador del texto para el TTS (numeros, horas, fechas, plata, emails)
 migrations/                  Alembic (make migrate)
 web/                         UI (React + Vite)
-tests/                       API, limites, motor con LLM falso + escenarios contra el LLM real
+tests/                       API, limites y motor, solo con LLM falso
 ```
 
-**Un turno del motor estructurado (`engine: structured`):** llega el mensaje (por la API o transcripto por el STT en una llamada) →
-`ConversationEngine.process_turn` espera la extracción del turno anterior (hasta 1,5 s) → el LLM de
-conversación recibe workflow, conversación completa, estado (datos conocidos, objetivos pendientes,
-lo último que preguntó) y el mensaje nuevo, y devuelve `assistant_message`, `answered` (si el cliente
-respondió lo que le preguntó), `next_objective` y `status` → la app guarda la respuesta y lanza la
-**extracción** en segundo plano. Si terminó, la respuesta es el mensaje de cierre del workflow y el
-worker corta la llamada al terminar de decirlo.
-
 **Extracción:** otra llamada al LLM, con prompt y esquema armados desde los `fields` del workflow
-(tipo, opciones, descripción, pregunta) y la conversación completa. Corre mientras suena la
-respuesta y el cliente contesta, así que no suma latencia (p50 ~0,9 s; el turno de conversación
-bajó de 1,1 a 0,9 s al no generar los datos). Si `answered` es true y el dato no salió, reintenta
-solo ese campo; si tampoco sale, lo marca respondido sin dato (`answered_without_data`) y no se
-vuelve a preguntar. Al completar, el resultado se calcula con los datos extraídos; si el resultado
-sería el objetivo (`goal`) pero faltan datos obligatorios, es `incompleta`.
+(tipo, opciones, descripción, pregunta) y la conversación completa. Corre en segundo plano, al
+terminar. Al completar, el resultado se calcula con los datos extraídos; si el resultado sería el
+objetivo (`goal`) pero faltan datos obligatorios, es `incompleta`.
 
-**Motor clásico (`engine: classic`, el de por defecto):** sin estado por turno. El prompt de sistema se
+**Motor (uno solo desde el 26-oct-2026; antes `engine: classic`):** sin estado por turno. El prompt de sistema se
 arma de la definición (agente, objetivo, reglas, datos a obtener con su pregunta y condición, base de
 conocimiento y mensajes de cierre); la conversación va como mensajes multiturno y el LLM responde
-texto, que va directo al TTS. Al despedirse agrega `[FIN]` (no se dice) y ahí se hace la única
+texto, que pasa por el normalizador (`app/voice/speech_text.py`: números, horas, fechas, plata, emails,
+teléfonos y códigos en palabras) antes del TTS. Para terminar llama a la herramienta de plataforma `end_call`
+(`motivo` `terminada` o `fuera_de_tema`; hasta el 26-oct-2026 era la marca `[FIN]`) y ahí se hace la única
 extracción, con el mismo extractor; si el cliente corta antes, se extrae al cortar
-(`ConversationEngine.finish`). No hay `next_objective`, así que no se estira el endpointing al
-dictar un email. `berlin_signup_classic` es `berlin_signup` con `engine: classic`;
-el dashboard elige el agente por llamada. Con las 3 llamadas reales x5 (sep-2026): datos bien 88
-contra 87 de 95 del estructurado, inventados 1 contra 6 (la extracción por turno inventaba la
-actividad en 704b5d42), resultado correcto 13 contra 12 de 15; turno de conversación p50 0,58
-contra 0,99 s y la mitad de llamadas al LLM (una sola extracción).
+(`ConversationEngine.finish`). Con herramientas (`tools: [{"tool": "<slug>"}]`), function calling nativo:
+el modelo las pide, la plataforma las ejecuta (con una frase de voz mientras tanto) y le vuelve a
+preguntar con el resultado (`docs/TOOLS_PLAN.md`, 7); tope por turno en `tool_settings.max_calls_per_turn`.
+Con las 3 llamadas reales x5 (sep-2026, con la marca `[FIN]` y las reglas de prompt de entonces), contra el
+motor estructurado que se removió: datos bien 88 contra 87 de 95, inventados 1 contra 6, resultado
+correcto 13 contra 12 de 15; turno de conversación p50 0,58 contra 0,99 s y la mitad de llamadas al LLM.
 
-**Qué decide cada uno:** el LLM decide la respuesta, el objetivo siguiente y cuándo termina la
-conversación; lo que dice se pasa al TTS tal cual. La app solo valida los datos que extrae
-(campos inexistentes o con tipo inválido no se guardan, y se le informan en el turno siguiente
-como `rejected_values`), normaliza el email dictado ("juan punto perez arroba gmail punto com" →
-`juan.perez@gmail.com`, y solo si el cliente lo dijo) y guarda el estado. Al terminar clasifica la
+**Qué decide cada uno:** el LLM decide la respuesta, cuándo termina la conversación y si deriva
+(`transfer_call`); lo que dice pasa al TTS por el normalizador, sin otras correcciones. La app solo valida
+los datos que extrae (campos inexistentes o con tipo inválido no se guardan; lo demás se guarda como lo
+extrae el modelo, con el tipo del campo) y guarda el estado. Sin parches de modelo: ver "Reglas de
+desarrollo" en `AGENTS.md`. Al terminar clasifica la
 llamada con `completion.outcomes` para el dashboard. En el agente de voz: si el cliente sigue
 hablando y la respuesta no llegó a sonar o sonó menos de ~1 s (`CONTINUATION_WINDOW`), es la misma
 frase: se deshace el turno (`retract_last_turn`, que cancela su extracción) y el siguiente recibe todo junto. Los turnos se
 procesan de a uno, porque LiveKit genera la respuesta antes de confirmar el fin de turno
 (preemptive generation). El endpointing espera 0,4 s si el turn detector cree que la frase terminó
-y hasta 1 s si duda; mientras el LLM pide un dato dictado (email o teléfono), hasta 2,5 s.
+y hasta 1 s si duda (`VOICE_MIN_ENDPOINTING_DELAY`, `VOICE_MAX_ENDPOINTING_DELAY`); el modo dictado se quitó
+el 26-oct-2026.
 
 **Medir:** `make eval-motor [N=3] [S=escenario]` corre `scripts/replay_calls.py`: escenarios
 armados con llamadas reales (preguntas en medio del flujo, "sí, pero…", email cortado, rechazo,
@@ -520,19 +517,21 @@ inventados o equivocados 6 → 2, resultado correcto 10 → 15 de 15.
 motor por texto contra agentes de cobranza, relevamiento, toma de datos, turnos y venta (`app/agents/reference/eval_*.json`)
 con clientes cooperativos, apurados, confusos, hostiles, evasivos y fuera de guion, actuados por un LLM externo
 (DeepSeek, `EVAL_LLM_*`) o por guion fijo. Mide datos contra la ficha, cierre, reglas de voz, loops y latencia, y
-un juez califica la conversación. Sirve para comparar modelos LLM y motores (`--engine structured`).
+un juez califica la conversación. Sirve para comparar modelos LLM. Las herramientas se miden aparte con
+`make eval-tools` (LLM real, solo informa y termina en 0; `docs/TOOLS_PLAN.md`, 10); `make e2e-tools` las
+prueba con LLM falso y bloquea si se rompe el código.
 
 **Workflows:** `demo_booking` presenta Browix en ~15 s si el interesado
 acepta, pregunta a qué se dedica la empresa, conecta su necesidad con una función de Browix y
 busca agendar una demo (todo como guía en la definición; el LLM decide el orden) (nombre + mail o teléfono); si duda, ofrece llamarlo otro día.
 `sales_discovery` es el anterior, de calificación con 11 datos (lo usan los tests del motor).
-`demo_booking_classic` es el mismo con `engine: classic` y es el de `ANURA_DID` en el seed (`WORKFLOW_ID`): en el loadtest
+`demo_booking_classic` es el mismo (el sufijo `_classic` se acepta por compatibilidad) y es el de `ANURA_DID` en el seed (`WORKFLOW_ID`): en el loadtest
 (EXP-013) baja la espera del cliente ~0,5 s con 32 llamadas y ~0,8 s con 48, con la mitad de pedidos al LLM.
 
 **Nuevo agente:** en la UI (Agentes > Nuevo agente) o `POST /api/v1/agents` con `definition` (JSON),
 `template_id: "asistente"` (el asistente básico) o ninguno de los dos (en blanco: un dato y el resultado
-por defecto), y `engine` (`classic` o `structured`), que pisa el de la definición. La definición es la
-misma con los dos motores: solo cambia cómo se le pide la respuesta al LLM. `id` y `version` de la
+por defecto). `engine` ya no existe (26-oct-2026): el de una definición vieja se ignora; tu propio agente es
+`external` en la definición y la respuesta lo marca con `own_agent`. `id` y `version` de la
 definición los fija la app (slug y versión). El prompt de sistema sale siempre de la definición
 (`POST /api/v1/agents/prompt` lo muestra sin guardar). Por campo:
 - `type`: `string`, `integer`, `boolean`, `email`, `email_or_phone` o `choice` (con `options`).
@@ -561,9 +560,10 @@ Cada conversacion vive en `conversations` (datos y mensajes, los escribe el moto
 su cliente, agente y versión; `call_logs` agrega lo telefonico y es la base del consumo. Las
 conversaciones por texto aparecen como origen "API".
 
-**Tests:** `make test` (los escenarios contra el LLM se saltean si `vllm-llm` no responde).
+**Tests:** `make test`, solo con LLM falso (respuestas grabadas): no dependen de `vllm-llm` ni validan lo que
+contesta un modelo; eso es de los evals (desde el 26-oct-2026; `tests/test_llm.py` se quitó).
 
-Medido (2026-09-23, Qwen3.5-4B sin carga, motor estructurado): los 5 escenarios de extraccion
-pasan 25/25; una conversacion completa de 7 turnos tarda 1,1-1,7 s por turno de LLM. En una llamada
-la respuesta se streamea con los dos motores (`on_message` en `app/llm/client.py`): el TTS empieza
-con la primera frase, sin esperar el turno completo.
+Medido (2026-09-23, Qwen3.5-4B sin carga, motor estructurado, ya quitado): los 5 escenarios de extraccion
+pasaban 25/25; una conversacion completa de 7 turnos tardaba 1,1-1,7 s por turno de LLM. En una llamada
+la respuesta se streamea (`on_message` en `app/llm/client.py`): el TTS empieza con la primera frase, sin
+esperar el turno completo.

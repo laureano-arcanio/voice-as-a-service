@@ -14,8 +14,8 @@ from sqlalchemy.orm import Session
 
 from ..db import utcnow
 from ..llm.anthropic_client import ANTHROPIC_URL, AnthropicClient
-from ..llm.client import JSON_MODES, LLMClient
-from ..llm.external import end_call_tool
+from ..llm.client import LLMClient
+from ..llm.platform_tools import end_call_tool
 from ..llm.resolver import OPENROUTER_HEADERS, OPENROUTER_URL
 from ..models import Agent, LlmConnection
 from ..whatsapp import crypto
@@ -143,13 +143,12 @@ def revoke(s: Session, row: LlmConnection) -> int:
     return n
 
 
-def _client(row: LlmConnection, model: str, json_mode: str) -> LLMClient | AnthropicClient:
+def _client(row: LlmConnection, model: str) -> LLMClient | AnthropicClient:
     key = crypto.decrypt(row.api_key_enc) or ""
     if row.kind == "anthropic":
-        return AnthropicClient(key, model, json_mode=json_mode, timeout=TEST_TIMEOUT, base_url=row.base_url)
+        return AnthropicClient(key, model, timeout=TEST_TIMEOUT, base_url=row.base_url)
     headers = OPENROUTER_HEADERS if row.kind == "openrouter" else None
-    return LLMClient(row.base_url, key, model, profile=row.kind, json_mode=json_mode,
-                     default_headers=headers, timeout=TEST_TIMEOUT)
+    return LLMClient(row.base_url, key, model, profile=row.kind, default_headers=headers, timeout=TEST_TIMEOUT)
 
 
 def _model(row: LlmConnection, model: str | None) -> str:
@@ -160,36 +159,34 @@ def _model(row: LlmConnection, model: str | None) -> str:
 
 
 async def _probe(row: LlmConnection, model: str) -> tuple[bool, str, str]:
-    """(ok, detalle, json_mode). Prueba de mejor a peor salida guiada y se queda con la primera que anda."""
-    last = ""
-    for mode in JSON_MODES:
-        client = _client(row, model, mode)
-        started = time.perf_counter()
-        try:
-            raw, _ = await client.structured(
-                [{"role": "user", "content": "Devolvé un objeto JSON con la clave ok en true."}],
-                _TEST_SCHEMA, "test", max_tokens=32)
-            if json.loads(raw).get("ok") is True:
-                ms = round((time.perf_counter() - started) * 1000)
-                return True, f"{mode} · {ms} ms", mode
-            last = "la respuesta no cumplio el esquema"
-        except _AUTH:
-            return False, "clave inválida o sin permiso", row.json_mode
-        except _NOT_FOUND:
-            return False, f"modelo {model!r} inexistente o URL incorrecta", row.json_mode
-        except _RATE:
-            return False, "límite de uso del proveedor (429)", row.json_mode
-        except _NETWORK as e:
-            return False, f"sin conexión con el proveedor: {type(e).__name__}", row.json_mode
-        except _BAD_REQUEST as e:
-            last = str(e)[:160]      # este modo no lo soporta (o no devolvio JSON): se prueba el siguiente
-    return False, f"no devolvió JSON válido: {last}", row.json_mode
+    """(ok, detalle, json_mode). La plataforma exige salida JSON guiada (json_schema): un proveedor o modelo que
+    no la soporta no sirve para la extraccion de datos."""
+    client = _client(row, model)
+    started = time.perf_counter()
+    try:
+        raw, _ = await client.structured(
+            [{"role": "user", "content": "Devolvé un objeto JSON con la clave ok en true."}],
+            _TEST_SCHEMA, "test", max_tokens=32)
+        if json.loads(raw).get("ok") is True:
+            return True, f"json_schema · {round((time.perf_counter() - started) * 1000)} ms", "json_schema"
+        last = "la respuesta no cumplió el esquema"
+    except _AUTH:
+        return False, "clave inválida o sin permiso", row.json_mode
+    except _NOT_FOUND:
+        return False, f"modelo {model!r} inexistente o URL incorrecta", row.json_mode
+    except _RATE:
+        return False, "límite de uso del proveedor (429)", row.json_mode
+    except _NETWORK as e:
+        return False, f"sin conexión con el proveedor: {type(e).__name__}", row.json_mode
+    except _BAD_REQUEST as e:          # JSONDecodeError es un ValueError: esta en _BAD_REQUEST
+        last = str(e)[:160]
+    return False, f"no soporta salida JSON guiada (json_schema): {last}", row.json_mode
 
 
 async def _probe_external(row: LlmConnection, model: str) -> tuple[bool, str, str]:
-    """El endpoint de un agente propio (motor external): un turno en streaming con la herramienta end_call,
+    """El endpoint de tu propio agente (definition.external): un turno en streaming con la herramienta end_call,
     como los que manda la plataforma. Mide el primer texto; no toca json_mode."""
-    client = _client(row, model, row.json_mode).client
+    client = _client(row, model).client
     started, first = time.perf_counter(), None
     text, tools = [], 0
     try:
@@ -239,7 +236,7 @@ def test(s: Session, row: LlmConnection, model: str | None, mode: str = "llm") -
 
 def models(row: LlmConnection) -> list[str]:
     async def run() -> list[str]:
-        client = _client(row, row.default_model or "-", row.json_mode).client
+        client = _client(row, row.default_model or "-").client
         if row.kind == "anthropic":
             return sorted([m.id async for m in client.models.list(limit=100)])
         page = await client.models.list()

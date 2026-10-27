@@ -32,11 +32,11 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
 .DEFAULT_GOAL := help
 
 .PHONY: help setup env storage build \
-        apps-network up up-agent up-app up-inference up-stt up-nginx up-pbx down restart ps logs calls-active \
+        up up-agent up-app up-inference up-stt up-nginx up-pbx down restart ps logs calls-active \
         sh psql health gpu \
         pbx-cli pbx-status livekit-sip livekit-sip-si-local \
         wa-calling-status wa-calling-enable wa-calling-disable wa-sip-password sip-cert \
-        migrate migrate-test create-admin welcome-reset api-key dev-backend web-dev web-build web-check openapi legal-sync mcp-docs mcp-eval mcp-registry-key mcp-registry-publish landing-dev \
+        migrate migrate-test agent-rules create-admin welcome-reset api-key dev-backend web-dev web-build web-check openapi legal-sync up-tools tools-runner-token tools-runner-test tools-runner-test-down test-tools-code e2e-tools eval-tools mcp-docs mcp-eval mcp-registry-key mcp-registry-publish landing-dev \
         test e2e-sip e2e-sip-down eval-motor eval-llamadas eval-llm eval-llm-juez eval-llm-report loadtest-audio loadtest loadtest-report capacity capacity-monitor capacity-monitor-stop capacity-analyze gpubench stt-eval stt-corpus \
         video-setup video-studio video-voces video-musica video video-revisar video-cerrar doc doc-cerrar slides slides-abrir \
         backup backup-key backup-s3-setup backup-fetch backup-list cron-install \
@@ -66,19 +66,16 @@ build: storage ## Build de las imagenes propias (app/agent, stt-parakeet, asteri
 PUBLIC_URL_SH = host=$$(sed -n 's/^PUBLIC_HOST=//p' .env | tail -1); \
 	port=$$(sed -n 's/^PROXY_PORT=//p' .env | tail -1); url="http://$${host:-<PUBLIC_HOST>}:$${port:-8100}"
 
-apps-network: ## Crea la red interna atentina-apps (apps de los clientes, docs/APPS_PLAN.md) si no existe
-	@docker network inspect atentina-apps >/dev/null 2>&1 || docker network create --internal atentina-apps >/dev/null
-
-up: storage apps-network ## Levanta todo: agente + inferencia + proxy + asterisk (+ make livekit-sip si el LiveKit es propio)
+up: storage ## Levanta todo: agente + inferencia + proxy + asterisk (+ make livekit-sip si el LiveKit es propio)
 	$(COMPOSE) up -d --build
 	@$(MAKE) --no-print-directory livekit-sip-si-local
 
-up-agent: storage apps-network ## Solo db + app + agent, sin la inferencia (--no-deps; usa VLLM_*_BASE_URL del .env)
+up-agent: storage ## Solo db + app + agent, sin la inferencia (--no-deps; usa VLLM_*_BASE_URL del .env)
 	$(COMPOSE) up -d --build --wait --no-deps db
 	@$(MAKE) --no-print-directory migrate
 	$(COMPOSE) up -d --build --no-deps app agent
 
-up-app: apps-network ## Solo app (API + UI): build, migraciones y recreate, sin tocar agent (no corta llamadas en curso)
+up-app: ## Solo app (API + UI): build, migraciones y recreate, sin tocar agent (no corta llamadas en curso)
 	$(COMPOSE) build app
 	@$(MAKE) --no-print-directory migrate
 	$(COMPOSE) up -d --no-deps app
@@ -182,6 +179,9 @@ migrate: ## Migraciones de la base (alembic upgrade head) + seed idempotente (cl
 migrate-test: ## Prueba las migraciones pendientes contra una copia del último backup (PostgreSQL temporal, no toca la base)
 	scripts/ops/migrate-test.sh
 
+agent-rules: ## Suma las reglas generales (antes en el prompt del motor) a los agentes vigentes, como version nueva. APPLY=1 aplica; sin eso lista
+	$(COMPOSE) run --rm --no-deps app python -m app.cli agent-rules $(if $(APPLY),--apply)
+
 create-admin: ## Crea un admin o le cambia la clave (la pide). Ej: make create-admin EMAIL=vos@empresa.com
 	$(COMPOSE) run --rm --no-deps app python -m app.cli create-admin $(EMAIL)
 
@@ -271,6 +271,28 @@ openapi: ## Regenera web/openapi.json y los tipos de la UI (web/src/api/schema.d
 legal-sync: ## Copia las condiciones y la política de privacidad con versión (app/legal/texts/) a la landing (landing/src/data/legal/)
 	$(COMPOSE) run --rm --no-deps -T -e AUTH_SECRET=legal-sync -v $(CURDIR)/app:/app/app -v $(CURDIR)/landing/src/data:/app/landing/src/data app python -m app.legal.sync
 
+up-tools: ## Sandbox de las herramientas de codigo (tools-runner + proxy de salida, docs/TOOLS_PLAN.md). No corta llamadas
+	@grep -q '^TOOLS_RUNNER_TOKEN=.' .env || { echo "Falta TOOLS_RUNNER_TOKEN en .env: make tools-runner-token"; exit 1; }
+	$(COMPOSE) up -d --build --wait tools-runner tools-egress
+
+tools-runner-token: ## Agrega TOOLS_RUNNER_TOKEN (aleatorio) al .env si falta; despues: make up-tools y recrear app y agent
+	@grep -q '^TOOLS_RUNNER_TOKEN=.' .env && echo "TOOLS_RUNNER_TOKEN ya esta" || { echo "TOOLS_RUNNER_TOKEN=$$(openssl rand -hex 24)" >> .env; echo "TOOLS_RUNNER_TOKEN agregado al .env"; }
+
+tools-runner-test: ## Sandbox de codigo aislado para pruebas (no toca el compose) e imprime TOOLS_RUNNER_TEST_URL
+	scripts/tools/runner_test.sh
+
+tools-runner-test-down: ## Baja el sandbox de prueba
+	scripts/tools/runner_test.sh down
+
+test-tools-code: ## Tests de las herramientas de codigo contra el sandbox de prueba (lo levanta y lo baja)
+	@eval "$$(scripts/tools/runner_test.sh | sed 's/^/export /')"; .venv/bin/pytest -q tests/test_tools_code.py; s=$$?; scripts/tools/runner_test.sh down; exit $$s
+
+e2e-tools: ## Herramientas de punta a punta por API y MCP con LLM falso, la API falsa y el sandbox de prueba (bloquea si se rompe el codigo)
+	@eval "$$(scripts/tools/runner_test.sh | sed 's/^/export /')"; .venv/bin/pytest -q tests/test_tools_e2e.py; s=$$?; scripts/tools/runner_test.sh down; exit $$s
+
+eval-tools: ## Calidad de las llamadas a herramientas con un LLM real: solo informa (siempre termina en 0). Ej: make eval-tools LLM=openrouter REPS=3
+	@eval "$$(scripts/tools/runner_test.sh | sed 's/^/export /')"; .venv/bin/python -m scripts.tools.eval --reps $(or $(REPS),1) $(if $(LLM),--llm $(LLM)) $(ARGS); scripts/tools/runner_test.sh down
+
 mcp-docs: ## Regenera docs/MCP_HERRAMIENTAS.md y landing/src/data/mcp-tools.json (herramientas del MCP por grupo y plan) desde app/mcp/catalog.py
 	$(COMPOSE) run --rm --no-deps -T -e AUTH_SECRET=mcp-docs -v $(CURDIR)/app:/app/app -v $(CURDIR)/docs:/app/docs -v $(CURDIR)/landing/src/data:/app/landing/src/data app python -m app.mcp.docs
 
@@ -285,7 +307,7 @@ mcp-registry-publish: ## Publica deploy/mcp/server.json en el registro oficial d
 
 # --- Tests ---------------------------------------------------------------
 
-test: ## Tests del motor conversacional (los que usan el LLM se saltean si vllm-llm no responde)
+test: ## Tests (LLM falso, sin servicios reales; los del sandbox de codigo, con make test-tools-code)
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/tests:/app/tests -v $(CURDIR)/pytest.ini:/app/pytest.ini -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app:/app/app -v $(CURDIR)/crm:/app/crm -v $(CURDIR)/migrations:/app/migrations -v $(CURDIR)/alembic.ini:/app/alembic.ini -v $(CURDIR)/docs:/app/docs:ro -v $(CURDIR)/landing/src/data:/app/landing/src/data:ro app pytest -q $(ARGS)
 
 E2E_SIP := docker compose -f docker-compose.e2e-sip.yml

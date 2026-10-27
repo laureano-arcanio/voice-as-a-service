@@ -6,6 +6,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from ..llm.resolver import LLMResolver
+from ..tools.conversation import ConversationTools
 from . import contact as contact_data
 from .models import (
     AgentTurn,
@@ -21,7 +22,6 @@ from .workflow import (
     OFF_TOPIC,
     OFF_TOPIC_REASON,
     check_updates,
-    is_required,
     normalize_phone,
     outcome_for,
 )
@@ -45,15 +45,11 @@ EXTRACTION_WAIT = 1.5
 
 
 class ConversationEngine:
-    """El LLM de conversacion decide la respuesta, el objetivo siguiente y si
-    la conversacion termino. Los datos los saca otra llamada al LLM, la
-    extraccion, en segundo plano. La app valida los datos y guarda el estado.
-
-    Segun el engine del workflow: structured extrae en cada turno y le pasa el
-    estado al LLM (JSON con answered y next_objective); classic conversa en
-    texto con el prompt del workflow, sin estado, y extrae una sola vez al final.
-    El canal no cambia el trabajo del motor (los pedidos al LLM son los mismos por
-    llamada, WhatsApp o API): solo el formato que se pide en el prompt (app/llm/prompt.py).
+    """Un solo motor. El LLM conversa con el prompt armado de la definicion, usa las herramientas del agente y
+    las de la plataforma (terminar, derivar), y decide cuando termina. Los datos los saca otra llamada al LLM,
+    la extraccion, una vez al terminar. Con `external` en la definicion (tu propio agente) cada turno lo contesta
+    el endpoint del cliente, sin el prompt de la definicion ni extraccion (app/llm/external.py).
+    El canal no cambia el trabajo del motor: solo el formato que se pide en el prompt (app/llm/prompt.py).
 
     definitions: de donde salen los workflows (agentes de la base o de referencia;
     app/agents). Sin pasarla, los agentes de referencia del repo (eval y tests)."""
@@ -68,8 +64,9 @@ class ConversationEngine:
         self.store = store
         self.definitions = definitions or ReferenceDefinitions()
         self.extractions: dict[str, list[asyncio.Task]] = {}   # extracciones en curso por conversacion, en orden
-        self.assistant = None   # motor assistant, al primer turno (app/conversation/assistant.py)
-        self.external = None    # motor external, al primer turno (app/llm/external.py)
+        # Herramientas del cliente (http y code, docs/TOOLS_PLAN.md): las del agente y su contexto, por turno.
+        self.tools = ConversationTools(store.sessions)
+        self.external = None    # tu propio agente, al primer turno (app/llm/external.py)
 
     def workflow(self, state: ConversationState) -> Workflow:
         return self.definitions.get(state.agent_id, state.agent_version)
@@ -121,15 +118,11 @@ class ConversationEngine:
                     state.fields[name] = number
                     state.progress.preloaded.append(name)
         if opening is False:
-            # Sin apertura nadie pregunto nada: asked=None, o el LLM cree que ya pidio el primer dato.
             return state, ""
         text = workflow.conversation.opening if opening is True else opening
         if contact is not None:
             text = contact_data.render_template(text, contact)
         state.messages = [Message(role="assistant", text=text)]
-        # La apertura pregunta por el primer dato del workflow que falta (assistant: sin datos).
-        if unknown := [name for name in workflow.fields if state.fields[name] is None]:
-            state.progress.asked = min(unknown, key=lambda name: workflow.fields[name].priority)
         return state, text
 
     async def process_turn(self, conversation_id: str, user_message: str,
@@ -140,7 +133,7 @@ class ConversationEngine:
         (agente de voz). Devuelve sin esperar la extraccion de este turno.
         media: si el mensaje vino por audio y si la respuesta sale como nota de
         voz (WhatsApp); cambia el prompt del turno y no se guarda.
-        actor: quien escribe (wa:<wa_id>); el motor assistant se lo pasa a las apps."""
+        actor: quien escribe (wa:<wa_id>): el numero de {{call.from}} en las herramientas."""
         media = media or TurnMedia()
         await self.wait_extraction(conversation_id, EXTRACTION_WAIT)
         state = self.store.get(conversation_id)
@@ -148,64 +141,39 @@ class ConversationEngine:
             raise KeyError(conversation_id)
         state.media = media
         workflow = self.workflow(state)
-        if workflow.engine == "external":
+        if workflow.external is not None:
             return await self._external_turn(workflow, state, user_message, media, on_message, actor)
         # Turno del usuario (1 = su primer mensaje): elige la etapa de workflow.llm.
         llm = self.llms.for_turn(workflow, 1 + sum(m.role == "user" for m in state.messages), state.client_id)
 
-        if workflow.engine == "assistant":
-            return await self._assistant_turn(workflow, state, user_message, media, on_message,
-                                              actor or f"conversation:{conversation_id}", llm)
-        classic = workflow.engine == "classic"
+        turn_tools = self.tools.turn(workflow, state, actor)
         started = time.perf_counter()
-        llm_turn = llm.converse if classic else llm.process_turn
-        result = await llm_turn(workflow, state, user_message, on_message=on_message)
+        extra = {"tools": turn_tools} if turn_tools else {}
+        result = await llm.converse(workflow, state, user_message, on_message=on_message, **extra)
         trace = [{"kind": "turno", "input": user_message, "ms": round((time.perf_counter() - started) * 1000),
                   "reasoning": result.reasoning, "output": result.raw or result.model_dump_json(), **_llm_info(llm)}]
+        if turn_tools:
+            trace += turn_tools.trace
 
         # Una extraccion atrasada pudo guardar mientras el LLM respondia: se
         # relee el estado y el turno solo agrega lo suyo.
         state = self.store.get(conversation_id)
         undo = state.model_dump(include={"status", "fields", "progress"}, exclude={"progress": {"undo"}})
         undo["n_messages"] = len(state.messages)
-        asked = state.progress.asked
         state.status = result.status
-        state.progress.asked = result.next_objective
-        # Fuera de tema: el resultado lo decide el agente al cortar, no los datos (_extract no lo pisa).
+        # Fuera de tema (end_call): el resultado lo decide el agente al cortar, no los datos (_extract no lo pisa).
         state.progress.outcome = OFF_TOPIC.id if result.end_reason == OFF_TOPIC_REASON else None
         state.progress.undo = undo
+        if turn_tools:
+            state.progress.tool_vars = turn_tools.ctx.vars
         state.messages += [Message(role="user", text=user_message, voice_note=media.user_voice_note),
                            Message(role="assistant", text=result.assistant_message, llm=trace)]
         self.store.save(state)
 
-        # Igual en todos los canales: el clasico extrae al despedirse o al terminar la
-        # conversacion (finish: el corte de la llamada, o el cierre o vencimiento del chat).
-        if not classic or result.status == "completed":
-            self._launch_extraction(conversation_id, len(state.messages) - 1, asked if result.answered else None)
-        return state, result
-
-    async def _assistant_turn(self, workflow: Workflow, state: ConversationState, user_message: str,
-                              media: TurnMedia, on_message: Callable[[str], None] | None, actor: str, llm
-                              ) -> tuple[ConversationState, AgentTurn]:
-        """Motor assistant (app/conversation/assistant.py): herramientas, sin extraccion ni fin."""
-        if self.assistant is None:
-            from .assistant import Assistant
-            self.assistant = Assistant(self.llm, self.store.sessions)
-        result, trace, pending = await self.assistant.run(workflow, state, user_message, media, actor, llm=llm)
-        if info := _llm_info(llm):
-            for entry in trace:
-                if entry.get("kind") == "paso":
-                    entry.update(info)
-        state = self.store.get(state.conversation_id)
-        undo = state.model_dump(include={"status", "fields", "progress"}, exclude={"progress": {"undo"}})
-        undo["n_messages"] = len(state.messages)
-        state.progress.undo = undo
-        state.progress.pending = pending
-        state.messages += [Message(role="user", text=user_message, voice_note=media.user_voice_note),
-                           Message(role="assistant", text=result.assistant_message, llm=trace)]
-        self.store.save(state)
-        if on_message is not None:
-            on_message(result.assistant_message)
+        # Igual en todos los canales: se extrae al terminar (end_call) o al cortar la conversacion
+        # (finish: el corte de la llamada, o el cierre o vencimiento del chat).
+        if result.status == "completed" and workflow.fields:
+            self._launch_extraction(conversation_id, len(state.messages) - 1)
         return state, result
 
     async def _external_turn(self, workflow: Workflow, state: ConversationState, user_message: str,
@@ -280,24 +248,26 @@ class ConversationEngine:
                 return True
         return False
 
-    def _launch_extraction(self, conversation_id: str, reply: int, answered: str | None) -> asyncio.Task:
+    def _launch_extraction(self, conversation_id: str, reply: int) -> asyncio.Task:
         tasks = self.extractions.setdefault(conversation_id, [])
         previous = tasks[-1] if tasks else None
-        task = asyncio.create_task(self._extract(conversation_id, reply, answered, previous))
+        task = asyncio.create_task(self._extract(conversation_id, reply, previous))
         tasks.append(task)
         task.add_done_callback(lambda t: self._forget(conversation_id, t))
         return task
 
     async def finish(self, conversation_id: str, timeout: float = 10) -> None:
         """Al terminar la conversacion (corte de la llamada; cierre, tope o vencimiento de un
-        chat de WhatsApp): espera la extraccion en curso. En el clasico, si termino antes de
-        la despedida, hace ahora la extraccion final."""
+        chat de WhatsApp): espera la extraccion en curso y, si termino antes de la despedida,
+        hace ahora la extraccion final (sin datos a obtener o con tu propio agente, no hay)."""
         await self.wait_extraction(conversation_id, timeout)
         state = self.store.get(conversation_id)
-        if (state is None or state.status == "completed" or len(state.messages) < 2
-                or self.workflow(state).engine != "classic"):
+        if state is None or state.status == "completed" or len(state.messages) < 2:
             return
-        await asyncio.wait([self._launch_extraction(conversation_id, len(state.messages) - 1, None)], timeout=timeout)
+        workflow = self.workflow(state)
+        if workflow.external is not None or not workflow.fields:
+            return
+        await asyncio.wait([self._launch_extraction(conversation_id, len(state.messages) - 1)], timeout=timeout)
 
     def _forget(self, conversation_id: str, task: asyncio.Task) -> None:
         tasks = self.extractions.get(conversation_id, [])
@@ -313,27 +283,15 @@ class ConversationEngine:
             # wait no cancela la extraccion si se cumple el timeout.
             await asyncio.wait([tasks[-1]], timeout=timeout)
 
-    async def _extract(self, conversation_id: str, reply: int, answered: str | None,
-                       previous: asyncio.Task | None) -> None:
+    async def _extract(self, conversation_id: str, reply: int, previous: asyncio.Task | None) -> None:
         """Extrae los datos de toda la conversacion y los aplica. reply: indice
-        del mensaje del agente de este turno (ahi va la traza). answered: el
-        objetivo que el LLM de conversacion dio por respondido."""
+        del mensaje del agente de este turno (ahi va la traza)."""
         if previous is not None:
             await asyncio.wait([previous])      # en orden; y cancelar esta no cancela la anterior
         try:
             state = self.store.get(conversation_id)
             workflow = self.workflow(state)
             await self._run_extraction(workflow, state, reply, "extraccion")
-            state = self.store.get(conversation_id)
-            if (answered and state.fields.get(answered) is None and is_required(workflow.fields[answered], state.fields)
-                    and answered not in state.progress.rejected):
-                # El LLM de conversacion avanzo pero el dato no salio: se reintenta
-                # solo ese campo; si tampoco sale, no se vuelve a preguntar.
-                await self._run_extraction(workflow, state, reply, "extraccion (reintento)", only=[answered])
-                state = self.store.get(conversation_id)
-                if state.fields.get(answered) is None:
-                    state.progress.answered_empty.append(answered)
-                    self.store.save(state)
         except Exception:
             logger.exception("extraction failed %s", conversation_id)
         finally:
@@ -342,26 +300,19 @@ class ConversationEngine:
                 state.progress.outcome = outcome_for(self.workflow(state), state).id
                 self.store.save(state)
 
-    async def _run_extraction(self, workflow, state: ConversationState, reply: int, kind: str,
-                              only: list[str] | None = None) -> None:
-        # Hasta el mensaje del cliente: con la respuesta del agente a la vista, la
-        # extraccion "contestaba" su pregunta nueva (bf06c2d0: guardo wants_link y
-        # same_number cuando el cliente solo habia dicho actividad y zona).
-        seen = state.model_copy(update={"messages": state.messages[:reply]})
+    async def _run_extraction(self, workflow, state: ConversationState, reply: int, kind: str) -> None:
         started = time.perf_counter()
-        # La etapa del turno de esta extraccion: el usuario que habla en `reply - 1`.
-        llm = self.llms.for_turn(workflow, sum(m.role == "user" for m in seen.messages), state.client_id)
-        result: Extraction = await llm.extract(workflow, seen, only)
+        # La etapa del ultimo turno del usuario.
+        llm = self.llms.for_turn(workflow, sum(m.role == "user" for m in state.messages), state.client_id)
+        result: Extraction = await llm.extract(workflow, state)
         ms = round((time.perf_counter() - started) * 1000)
         # Sin await desde aca hasta guardar: nada se intercala.
         state = self.store.get(state.conversation_id)
-        user_text = " ".join(m.text for m in state.messages if m.role == "user")
-        # Solo validacion de datos: campos inexistentes o con tipo invalido no se
-        # guardan, y los invalidos se le informan al LLM de conversacion.
-        updates, rejected = check_updates(workflow, result.fields, user_text)
+        # Solo validacion de datos: campos inexistentes o con tipo invalido no se guardan (quedan en
+        # progress.rejected, para el panel).
+        updates, rejected = check_updates(workflow, result.fields)
         state.fields.update(updates)
         state.progress.rejected = rejected
-        state.progress.answered_empty = [f for f in state.progress.answered_empty if state.fields.get(f) is None]
         message = state.messages[reply]
         message.llm = (message.llm or []) + [{"kind": kind, "input": "conversación completa", "ms": ms,
                                               "reasoning": result.reasoning, "output": result.raw, **_llm_info(llm)}]

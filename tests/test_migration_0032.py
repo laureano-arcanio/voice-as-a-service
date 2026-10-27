@@ -1,5 +1,5 @@
-"""Migracion 0032 (marca blanca): ida y vuelta en SQLite, el esquema coincide con el modelo y solo Central e Interno
-incluyen la marca blanca."""
+"""Migracion 0032 (herramientas del cliente, docs/TOOLS_PLAN.md): ida y vuelta en SQLite, el esquema de tools,
+agent_secrets y tiers coincide con el modelo, y los defaults por plan."""
 import sqlalchemy as sa
 from alembic import command
 from alembic.autogenerate import compare_metadata
@@ -8,6 +8,8 @@ from alembic.migration import MigrationContext
 from app.db import Base
 
 from .test_migration_0005 import _run
+
+TABLES = ("tools", "agent_secrets", "tiers")
 
 
 def test_0032_upgrade_downgrade_upgrade(tmp_path):
@@ -19,11 +21,13 @@ def test_0032_upgrade_downgrade_upgrade(tmp_path):
                                  "VALUES (:n, :n, '', '[]', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"), {"n": name})
     _run(engine, command.upgrade, "0032")
     with engine.connect() as conn:
-        rows = dict(conn.execute(sa.text("SELECT name, white_label FROM tiers")).all())
+        rows = {r[0]: tuple(r[1:]) for r in conn.execute(sa.text("SELECT name, max_tools, code_tools FROM tiers"))}
         diff = compare_metadata(MigrationContext.configure(conn, opts={"compare_type": True}), Base.metadata)
-    assert [d for d in diff if "tiers" in repr(d) or "client_branding" in repr(d)] == []
-    assert rows == {"Free": 0, "Mostrador": 0, "Sucursal": 0, "Central": 1, "Interno": 1}
+    assert [d for d in diff if any(f"'{t}'" in repr(d) or f"table_name='{t}'" in repr(d) for t in TABLES)
+            and "'white_label'" not in repr(d)] == []      # 0034 (marca blanca)
+    assert rows == {"Free": (0, 0), "Mostrador": (0, 0), "Sucursal": (10, 0), "Central": (None, 1), "Interno": (None, 1)}
     _run(engine, command.downgrade, "0031")
-    assert "white_label" not in {c["name"] for c in sa.inspect(engine).get_columns("tiers")}
-    assert "client_branding" not in sa.inspect(engine).get_table_names()
+    inspector = sa.inspect(engine)
+    assert "tools" not in inspector.get_table_names() and "agent_secrets" not in inspector.get_table_names()
+    assert "max_tools" not in {c["name"] for c in inspector.get_columns("tiers")}
     _run(engine, command.upgrade, "0032")

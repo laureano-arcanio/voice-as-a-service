@@ -33,7 +33,6 @@ Todo corre en el contenedor `app` contra el `vllm-llm` del stack (o contra otro 
    ```bash
    make eval-llm ARGS="--reps 3 --juez"                 # ~90 conversaciones + juez, 10-15 min
    make eval-llm ARGS="--agentes cobranza,datos --personas hostil,evasivo --reps 5"
-   make eval-llm ARGS="--engine structured"             # el mismo agente con el motor estructurado
    make eval-llm ARGS="--canal stt-sim"                 # errores de STT simulados en el texto
    make eval-llm ARGS="--canal tts-stt --paralelo 4"    # TTS -> tel8k -> Parakeet reales (carga las GPUs)
    ```
@@ -57,8 +56,7 @@ fechas, puntajes); con la misma semilla, dos runs comparan los mismos escenarios
 ## Qué mide
 
 Por conversación (`checks.py`, deterministas): datos ok / faltan / mal contra la ficha (mal con
-esperado vacío = inventado), cierre correcto, si terminó, turnos, respuestas repetidas y mismo
-objetivo seguido (`structured`), reglas de voz rotas por regex (markdown, símbolos, dígitos,
+esperado vacío = inventado), cierre correcto, si terminó, turnos, respuestas repetidas, reglas de voz rotas por regex (markdown, símbolos, dígitos,
 siglas, usted, más de una pregunta, más de N frases, y las prohibidas de cada agente y persona),
 largo de la respuesta en caracteres y segundos de TTS, latencia del LLM por turno y de la
 extracción, errores. `problemas` las resume para ordenar las peores.
@@ -74,10 +72,13 @@ ejemplos de conversaciones), `summary.json` y `report.html` copiados del run. Su
 
 ## Trampas
 
-- **Emails con punto o cifras:** `app.conversation.workflow.said()` exige que la parte local del
-  email dictado esté en lo que dijo el cliente comparando solo letras y números, así que
-  "lucia punto fernandez arroba" no valida `lucia.fernandez`. Las fichas usan locales sin punto
-  ni cifras para medir el LLM y no esa trampa del motor.
+- **Emails con punto o cifras (hasta el 26-oct-2026):** `app.conversation.workflow.said()` exigía que la
+  parte local del email dictado estuviera en lo que dijo el cliente; se quitó en la limpieza
+  ([`../LIMPIEZA_PLAN.md`](../LIMPIEZA_PLAN.md)) y ahora se guarda lo que extrae el modelo. Las fichas
+  siguen con locales sin punto ni cifras.
+- **Dígitos en la respuesta (26-oct-2026):** el texto para el TTS lo normaliza
+  `app/voice/speech_text.py` y el prompt ya no pide escribir en palabras, así que la regla `digitos` de
+  `checks.py` cuenta como rota una respuesta que en voz sale bien.
 - **El simulador es un LLM:** es más paciente que una persona y no interrumpe. Con temperatura
   0,7 varía entre repeticiones; por eso ≥ 3 repeticiones y la misma semilla entre runs.
 - **Juez y agente distintos:** cuando el agente es DeepSeek, decidir con las métricas duras y el

@@ -7,7 +7,6 @@ import {
   Collapse,
   Group,
   NumberInput,
-  Radio,
   SegmentedControl,
   Select,
   SimpleGrid,
@@ -24,12 +23,13 @@ import {
 import { IconArrowDown, IconArrowUp, IconChevronDown, IconPlus, IconTrash } from '@tabler/icons-react';
 import type { ReactNode } from 'react';
 import type { FieldError } from '@/api/errors';
+import { PlanGate } from '@/components/PlanGate';
+import { useTools } from '@/features/tools/api';
 import { VoiceSelect } from '@/features/voices/VoiceSelect';
 import {
   type ConditionDraft,
   type ConditionValue,
   type Draft,
-  type Engine,
   FIELD_TYPES,
   type FieldDraft,
   hasPhoneField,
@@ -46,11 +46,12 @@ import {
   sectionId,
   withPhoneField,
 } from './draft';
-import { EngineCards, EngineLabel } from './EngineCards';
 import { ExternalSection } from './ExternalSection';
 import { HandoffEditor } from './HandoffSection';
 import { LlmSection } from './LlmSection';
-import { ToolsEditor } from './ToolsSection';
+import { SecretsSection } from './SecretsSection';
+import { neededSecrets } from './grants';
+import { ClientToolsEditor } from './ToolsSection';
 
 const LANGUAGES = ['es-AR', 'es-UY', 'es-CL', 'es-MX', 'es-ES', 'en-US', 'pt-BR'];
 const TYPE_LABEL: Record<string, string> = Object.fromEntries(FIELD_TYPES.map((t) => [t.value, t.label]));
@@ -458,7 +459,7 @@ function OutcomeEditor({
   const last = draft.outcomes.length - 1;
   const isDefault = index === last;
   // Con el agente del cliente no hay datos: el resultado lo elige su agente (end_call), no las condiciones.
-  const external = draft.engine === 'external';
+  const external = draft.external !== null;
   const set = (patch: Partial<OutcomeDraft>) =>
     update((d) => ({ ...d, outcomes: d.outcomes.map((o, i) => (i === index ? { ...o, ...patch } : o)) }));
   // El ultimo (por defecto) queda fijo al final.
@@ -574,9 +575,9 @@ export function DefinitionForm({
   opened,
   toggle,
   voiceSeed,
-  showEngine,
   clientId,
   errors = [],
+  agentId,
 }: {
   draft: Draft;
   update: (fn: (d: Draft) => Draft) => void;
@@ -585,17 +586,17 @@ export function DefinitionForm({
   toggle: (key: string, open?: boolean) => void;
   /** Para reiniciar el texto de la prueba de voz al cambiar de agente. */
   voiceSeed: string;
-  /** El motor es interno: solo lo elige un admin. El cliente conserva el que tiene el agente. */
-  showEngine: boolean;
-  /** Cliente del agente: sus apps dan las herramientas del motor assistant. */
+  /** Cliente del agente: sus herramientas, conexiones y áreas. */
   clientId: string;
   /** Errores del servidor con su ruta, para mostrarlos en el campo (por ahora, los de la derivación). */
   errors?: FieldError[];
+  /** El agente ya guardado: sus secretos se cargan aparte de la definición. */
+  agentId?: string;
 }) {
   const set = (patch: Partial<Draft>) => update((d) => ({ ...d, ...patch }));
-  const assistant = draft.engine === 'assistant';
   // Con el agente del cliente, el prompt, el modelo y los datos son suyos: esas secciones no aplican.
-  const external = draft.engine === 'external';
+  const external = draft.external !== null;
+  const clientTools = useTools(external ? undefined : clientId);
 
   return (
     <Stack gap="md">
@@ -632,16 +633,6 @@ export function DefinitionForm({
               onChange={(language) => set({ language })}
             />
           </SimpleGrid>
-          {showEngine && !external && (
-            <Radio.Group
-              label={<EngineLabel />}
-              description="Clásico y estructurado usan la misma definición. El asistente usa herramientas de las apps del cliente en lugar de datos y resultados (los que haya quedan guardados)."
-              value={draft.engine}
-              onChange={(v) => set({ engine: v as Engine })}
-            >
-              <EngineCards />
-            </Radio.Group>
-          )}
         </Stack>
       </Section>
 
@@ -653,13 +644,26 @@ export function DefinitionForm({
         <ExternalSection draft={draft} update={update} clientId={clientId} errors={errors} />
       </Section>
 
-      {assistant && (
+      {!external && (
         <Section
           name="herramientas"
           title="Herramientas"
-          description="De las apps del cliente: con ellas el asistente registra y consulta datos y manda links a las vistas. Las que borran o envían a terceros las confirma con la persona antes."
+          description="Lo que el agente puede hacer durante la conversación: consultar o registrar datos en tu sistema."
         >
-          <ToolsEditor draft={draft} update={update} clientId={clientId} />
+          <Stack gap="md">
+            <PlanGate feature="custom_tools" what="herramientas para tus agentes">
+              <Stack gap="md">
+                <ClientToolsEditor draft={draft} update={update} clientId={clientId} />
+                {agentId ? (
+                  <SecretsSection agentId={agentId} needed={neededSecrets(draft, clientTools.data)} />
+                ) : (
+                  <Text size="xs" c="dimmed">
+                    Los secretos de las herramientas se cargan después de crear el agente.
+                  </Text>
+                )}
+              </Stack>
+            </PlanGate>
+          </Stack>
         </Section>
       )}
 
@@ -701,10 +705,10 @@ export function DefinitionForm({
                   display="block"
                   size="xs"
                   mt={4}
-                  c={assistant || external || hasPhoneField(draft) ? 'dimmed' : 'orange.8'}
+                  c={external || hasPhoneField(draft) ? 'dimmed' : 'orange.8'}
                 >
-                  {assistant || external
-                    ? `${assistant ? 'Con el motor Asistente' : 'Con tu propio agente'} no se piden datos: en las llamadas por el link el email va sin teléfono.`
+                  {external
+                    ? 'Con tu propio agente no se piden datos: en las llamadas por el link el email va sin teléfono.'
                     : hasPhoneField(draft)
                       ? 'El email lleva el teléfono: en las llamadas por teléfono es el número de quien llama (el agente no lo pregunta); por el link para llamar, lo pide (dato de tipo Teléfono).'
                       : 'Falta un dato de tipo Teléfono: en las llamadas por el link el email va a ir sin teléfono.'}
@@ -853,7 +857,7 @@ export function DefinitionForm({
         </Section>
       )}
 
-      {!assistant && !external && (
+      {!external && (
         <Section
           name="datos"
           title="Datos a obtener"
@@ -889,46 +893,44 @@ export function DefinitionForm({
         </Section>
       )}
 
-      {!assistant && (
-        <Section
-          name="resultados"
-          title="Resultados"
-          description={
-            external
-              ? 'Clasifican la conversación al terminar: tu agente elige uno al llamar a end_call (por su ID). Si no elige, vale el último.'
-              : 'Clasifican la conversación al terminar: vale el primero cuyas condiciones se cumplen. El último es el de por defecto.'
-          }
-          actions={
-            <Button
-              variant="default"
-              size="xs"
-              leftSection={<IconPlus size={16} />}
-              onClick={() => {
-                const o = newOutcome(draft.outcomes);
-                // Antes del de por defecto, que queda ultimo.
-                update((d) => ({ ...d, outcomes: [...d.outcomes.slice(0, -1), o, ...d.outcomes.slice(-1)] }));
-                toggle(o.key, true);
-              }}
-            >
-              Agregar resultado
-            </Button>
-          }
-        >
-          <Stack gap="xs">
-            {draft.outcomes.map((o, i) => (
-              <OutcomeEditor
-                key={o.key}
-                outcome={o}
-                index={i}
-                draft={draft}
-                opened={opened.has(o.key)}
-                onToggle={() => toggle(o.key)}
-                update={update}
-              />
-            ))}
-          </Stack>
-        </Section>
-      )}
+      <Section
+        name="resultados"
+        title="Resultados"
+        description={
+          external
+            ? 'Clasifican la conversación al terminar: tu agente elige uno al llamar a end_call (por su ID). Si no elige, vale el último.'
+            : 'Clasifican la conversación al terminar: vale el primero cuyas condiciones se cumplen. El último es el de por defecto.'
+        }
+        actions={
+          <Button
+            variant="default"
+            size="xs"
+            leftSection={<IconPlus size={16} />}
+            onClick={() => {
+              const o = newOutcome(draft.outcomes);
+              // Antes del de por defecto, que queda ultimo.
+              update((d) => ({ ...d, outcomes: [...d.outcomes.slice(0, -1), o, ...d.outcomes.slice(-1)] }));
+              toggle(o.key, true);
+            }}
+          >
+            Agregar resultado
+          </Button>
+        }
+      >
+        <Stack gap="xs">
+          {draft.outcomes.map((o, i) => (
+            <OutcomeEditor
+              key={o.key}
+              outcome={o}
+              index={i}
+              draft={draft}
+              opened={opened.has(o.key)}
+              onToggle={() => toggle(o.key)}
+              update={update}
+            />
+          ))}
+        </Stack>
+      </Section>
     </Stack>
   );
 }

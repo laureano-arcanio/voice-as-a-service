@@ -15,7 +15,6 @@ const link = "hover:text-ink";
           <li><a class={link} href="/">Home</a></li>
           <li><a class={link} href="/casos-de-uso">Casos de uso</a></li>
           {verticals.map((v) => <li class="pl-3"><a class={link} href={`/casos-de-uso/${v.slug}`}>{v.title}</a></li>)}
-          <li><a class={link} href="/asistentes">Asistentes</a></li>
         </ul>
         <ul class={`m-0 list-none p-0 ${group}`}>
           <li><a class={link} href="/plataforma">Plataforma</a></li>

@@ -44,12 +44,9 @@ import time
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field, replace
 
-from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
-from ..apps import attachments
-from ..apps.registry import manifest_of
 from ..config import settings
 from ..conversation import recordings
 from ..conversation.engine import ConversationEngine
@@ -57,10 +54,10 @@ from ..conversation.models import ConversationState, TurnMedia
 from ..conversation.store import ConversationStore
 from ..db import utcnow
 from ..llm.prompt import VOICE_NOTE_TAG
-from ..models import App, Client, ConversationRow, WaAccount, WaThread
+from ..models import Client, ConversationRow, WaAccount, WaThread
 from ..services import limits, wa_routing
 from . import audio as audio_module
-from . import buttons, campaigns, store
+from . import campaigns, store
 from .audio import AudioError, AudioTooLong
 from .crypto import TokenKeyMissing
 from .graph import GraphClient, GraphError, MediaTooLarge
@@ -131,8 +128,6 @@ class AccountInfo:
     phone_number_id: str
     token: str
     own_token: bool = False     # token del cliente (Embedded Signup): si Meta lo rechaza, se desconecta
-    # El que escribe es un operador (wa_operators): client_id y agent_id son los suyos, no los del numero.
-    operator: bool = False
     # El agente sale de una regla de ruteo por contacto (wa_routes), no del agente por defecto:
     # un hilo abierto con otro agente se corta y sigue con el de la regla (como el operador).
     routed: bool = False
@@ -348,16 +343,7 @@ class WhatsAppService:
                 return
             info = AccountInfo(account.id, account.client_id, account.agent_id, pnid, token,
                                store.has_own_token(account))
-            if (op := store.operator_for(s, account.id, wa_id)) is not None:
-                client = s.get(Client, op.client_id)
-                if client is None or not client.active:
-                    store.set_inbound(s, [wamid], status="ignored")
-                    s.commit()
-                    logger.info("wa: entrante ignorado (cliente del operador inactivo) pnid=%s wamid=%s", pnid, wamid)
-                    return
-                info = AccountInfo(account.id, op.client_id, op.agent_id, pnid, token,
-                                   store.has_own_token(account), operator=True)
-            elif (routed := wa_routing.resolve_agent_id(s, account, wa_id)) not in (None, account.agent_id):
+            if (routed := wa_routing.resolve_agent_id(s, account, wa_id)) not in (None, account.agent_id):
                 # Ruteo por contacto: a este contacto lo atiende el agente de su regla.
                 info = replace(info, agent_id=routed, routed=True)
 
@@ -365,9 +351,6 @@ class WhatsAppService:
         inbox = self._inbox.setdefault(key, Inbox())
         if kind == "audio":
             await self._on_audio(info, wa_id, wamid, msg, contact_name, inbox)
-            return
-        if kind in ("image", "document") and self._is_assistant(info.agent_id):
-            await self._on_attachment(info, wa_id, wamid, msg, contact_name, inbox)
             return
         if text is None:
             body = None if kind in SILENT_TYPES else settings.wa_unsupported_reply
@@ -452,60 +435,12 @@ class WhatsAppService:
         inbox.contact_name = contact_name or inbox.contact_name
         self._arm(info, wa_id, inbox)
 
-    def _is_assistant(self, agent_id: str) -> bool:
-        try:
-            return self.engine.definitions.current(agent_id)[1].engine == "assistant"
-        except KeyError:
-            return False
-
     def _records(self, agent_id: str) -> bool:
         """Si el agente graba los audios (record_audio): la transcripcion devuelve el PCM."""
         try:
             return self.engine.definitions.current(agent_id)[1].record_audio
         except KeyError:
             return False
-
-    async def _on_attachment(self, info: AccountInfo, wa_id: str, wamid: str, msg: dict,
-                          contact_name: str | None, inbox: Inbox) -> None:
-        """Motor assistant (docs/APPS_PLAN.md, contrato v1.1): un archivo (imagen o PDF) se baja, se lee
-        con OCR en la CPU y entra al turno como texto con su sha256. Si falla: respuesta fija."""
-        if self._over_cap(info, wamid, inbox):
-            return
-        kind = msg.get("type")
-        media = msg.get(kind) if isinstance(msg.get(kind), dict) else {}
-        mime = str(media.get("mime_type") or "")
-        text, body = "", None
-        inbox.pending_audio += 1        # el turno espera a este archivo, como a un audio
-        try:
-            if not mime.startswith(("image/", "application/pdf")):
-                body = settings.wa_unsupported_reply
-            else:
-                if not media.get("id"):
-                    raise GraphError("archivo sin media id")
-                graph = self._graph(info.token)
-                meta = await graph.get_media(str(media["id"]))
-                size = _size(meta.get("file_size"))
-                if size is not None and size > attachments.MAX_BYTES:
-                    raise MediaTooLarge(f"media de {size} bytes")
-                data = await graph.download_media(str(meta["url"]), attachments.MAX_BYTES)
-                text = attachments.turn_text(data, await attachments.read(data, mime), media.get("caption"))
-                logger.info("wa: archivo leido pnid=%s wamid=%s bytes=%d", info.phone_number_id, wamid, len(data))
-        except (GraphError, MediaTooLarge, attachments.AttachmentError) as e:
-            if isinstance(e, GraphError):
-                self._auth_failed(info, e)
-            body = settings.wa_attachment_error_reply
-            logger.warning("wa: archivo sin leer pnid=%s wamid=%s error=%s", info.phone_number_id, wamid,
-                           type(e).__name__)
-        finally:
-            inbox.pending_audio -= 1
-        if body is not None:
-            await self._fixed_reply(info, wa_id, wamid, body, inbox)
-            if inbox.items:
-                self._arm(info, wa_id, inbox)
-            return
-        inbox.items.append(Item(_stamp(msg), text, wamid))
-        inbox.contact_name = contact_name or inbox.contact_name
-        self._arm(info, wa_id, inbox)
 
     def _optout(self, info: AccountInfo, wa_id: str) -> bool:
         """Baja pedida en respuesta a una campaña: solo si este numero le mando alguna y no hay
@@ -593,23 +528,14 @@ class WhatsAppService:
                          for item in items)[:self.max_turn_chars]
 
     @staticmethod
-    def _media(items: list[Item], text_only: bool = False) -> TurnMedia:
+    def _media(items: list[Item]) -> TurnMedia:
         """Modalidad del turno. user_voice_note: todo el mensaje es transcripcion (si se
         mezcla con texto, la marca va por linea en _text). La respuesta sale como nota de
-        voz en mirror si hubo algun audio. text_only: siempre en texto (motor assistant)."""
+        voz en mirror si hubo algun audio."""
         heard = any(item.voice_note for item in items)
         mode = settings.wa_audio_reply
         return TurnMedia(user_voice_note=bool(items) and all(item.voice_note for item in items),
-                         reply_voice_note=not text_only and (mode == "always" or (mode == "mirror" and heard)))
-
-    def _text_only(self, conversation_id: str) -> bool:
-        """El motor assistant responde siempre en texto: listados y links no van en una nota de voz
-        (12-oct-2026: por audio decia "aca tenes la lista" sin la lista)."""
-        state = self.engine.store.get(conversation_id)
-        try:
-            return state is not None and self.engine.workflow(state).engine == "assistant"
-        except KeyError:
-            return False
+                         reply_voice_note=mode == "always" or (mode == "mirror" and heard))
 
     def _record_incoming(self, state: ConversationState, items: list[Item]) -> None:
         """Graba el audio entrante del turno (record_audio) y lo asocia al mensaje del usuario,
@@ -633,12 +559,9 @@ class WhatsAppService:
 
     @staticmethod
     def _cuts_open_thread(s: Session, conversation_id: str, info: AccountInfo) -> bool:
-        """Con el hilo en curso de otro agente: el operador siempre lo corta (habla con su
-        asistente); una regla por contacto tambien, salvo que el hilo lo haya abierto una
-        campaña (esa conversacion termina con el agente de la campaña)."""
-        if not (info.operator or info.routed):
-            return False
-        return info.operator or not campaigns.is_campaign_conversation(s, conversation_id)
+        """Con el hilo en curso de otro agente: una regla por contacto lo corta, salvo que el hilo lo
+        haya abierto una campaña (esa conversacion termina con el agente de la campaña)."""
+        return info.routed and not campaigns.is_campaign_conversation(s, conversation_id)
 
     def _full(self, s: Session, conversation_id: str) -> bool:
         row = s.get(ConversationRow, conversation_id)
@@ -670,7 +593,7 @@ class WhatsAppService:
             else:
                 # El cliente escribe primero: sin apertura, su mensaje es el turno 1. Si responde a
                 # una campaña, la apertura es la plantilla que recibio, con el agente de la campaña.
-                target = None if info.operator else campaigns.reply_target(s, info.id, wa_id, now)
+                target = campaigns.reply_target(s, info.id, wa_id, now)
                 try:
                     state = self._new_conversation(s, info, target)
                 except KeyError:
@@ -695,9 +618,8 @@ class WhatsAppService:
 
         graph = self._graph(info.token)
         await self._mark_read(graph, info, wamids[-1])
-        text_only = self._text_only(conversation_id)
         try:
-            media = self._media(items, text_only)
+            media = self._media(items)
             state, turn = await self.engine.process_turn(conversation_id, self._text(items), media=media,
                                                          actor=f"wa:{wa_id}")
             if inbox.items:
@@ -710,7 +632,7 @@ class WhatsAppService:
                     store.set_inbound(s, wamids, status="received", conversation_id=conversation_id)
                     s.commit()
                 await self._mark_read(graph, info, wamids[-1])
-                media = self._media(items, text_only)
+                media = self._media(items)
                 state, turn = await self.engine.process_turn(conversation_id, self._text(items), media=media,
                                                              actor=f"wa:{wa_id}")
         except Exception:
@@ -778,43 +700,9 @@ class WhatsAppService:
     async def _send(self, graph: GraphClient, info: AccountInfo, wa_id: str,
                     conversation_id: str | None, body: str) -> bool:
         """Manda un texto y lo registra. Si Meta lo rechaza (ej. 131047, fuera de la
-        ventana de 24 h) se guarda el error y no se reintenta. Los links a vistas de apps salen como
-        botón (buttons.py): uno, en el mismo mensaje; varios, el texto y un botón por link. Si Meta
-        rechaza el botón, va el texto con la URL, como antes."""
-        to = recipient(wa_id)
-        text, links = buttons.extract(body, settings.apps_public_host)
-        if not links:
-            return await self._deliver(info, wa_id, conversation_id, "text",
-                                       graph.send_text(info.phone_number_id, to, body))
-        titles = self._view_titles(links)
-        if len(links) == 1 and text and len(text) <= buttons.BODY_MAX:
-            if await self._deliver(info, wa_id, conversation_id, "interactive", graph.send_cta_url(
-                    info.phone_number_id, to, text, titles[0], links[0].url)):
-                return True
-            return await self._deliver(info, wa_id, conversation_id, "text",
-                                       graph.send_text(info.phone_number_id, to, body))
-        if text and not await self._deliver(info, wa_id, conversation_id, "text",
-                                            graph.send_text(info.phone_number_id, to, text)):
-            return False
-        for link, title in zip(links, titles):
-            caption = link.line if link.line and len(links) > 1 else title
-            if not await self._deliver(info, wa_id, conversation_id, "interactive", graph.send_cta_url(
-                    info.phone_number_id, to, caption[:buttons.BODY_MAX], title, link.url)):
-                await self._deliver(info, wa_id, conversation_id, "text",
-                                    graph.send_text(info.phone_number_id, to, f"{caption}: {link.url}"))
-        return True
-
-    def _view_titles(self, links: list[buttons.AppLink]) -> list[str]:
-        """El rótulo de cada botón: el título de la vista en el manifest de su app."""
-        out = []
-        with self.sessions() as s:
-            for link in links:
-                app = s.scalar(select(App).join(Client, App.client_id == Client.id)
-                               .where(App.slug == link.app, Client.slug == link.client))
-                spec = next((v for v in manifest_of(app).views if v.name == link.view), None) if app else None
-                out.append(buttons.label(spec.title if spec else "Abrir"))
-        return out
-
+        ventana de 24 h) se guarda el error y no se reintenta."""
+        return await self._deliver(info, wa_id, conversation_id, "text",
+                                   graph.send_text(info.phone_number_id, recipient(wa_id), body))
     async def _deliver(self, info: AccountInfo, wa_id: str, conversation_id: str | None, kind: str,
                        request: Coroutine) -> bool:
         """Un envío a Meta, registrado en wa_messages (sent o failed, con el error)."""

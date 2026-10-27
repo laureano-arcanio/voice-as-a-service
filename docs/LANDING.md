@@ -33,10 +33,8 @@ Cloudflare Tunnel. No hay backend aparte ni base nueva: costo adicional cero.
     planes con telefonía (sin Free) → preguntas de negocio → demo con tu caso. Las verticales viven bajo `/casos-de-uso/<slug>`, con su tema de acento:
     `/casos-de-uso/turnos` (verde azulado), `/casos-de-uso/cobranzas` (violeta) y `/casos-de-uso/municipios` (ámbar), desde `src/pages/casos-de-uso/[vertical].astro` con los datos de
     `src/data/site.ts`, y un "← Casos de uso" arriba.
-  - `/asistentes` (**Asistentes** en el nav, desde el 13-oct-2026): el **agente personal**, otro producto que las otras páginas. Trabaja para el dueño y su equipo,
-    no atiende clientes: "un agente personal para todo el movimiento diario", su software controlado por voz. Opera el sistema que ya usan, una API o una app
-    a medida (el motor `assistant` con las apps por cliente, [`APPS.md`](APPS.md), sin nombrar a SUGYM). Hero con el chat de WhatsApp (`AssistantChat`) a la
-    derecha → con qué software habla (tres tarjetas) → qué hace (`CheckList`) → cómo empieza → contacto. Sin precios ni FAQ: todavía no tiene plan publicado.
+  - `/asistentes` (el **agente personal**, del 13-oct-2026): **quitada el 26-oct-2026** junto con el motor `assistant` y las apps por cliente
+    ([`LIMPIEZA_PLAN.md`](LIMPIEZA_PLAN.md)): sin la página, sin `AssistantChat` y sin el link en el nav y el footer. Historia en [`archive/APPS.md`](archive/APPS.md).
   - `/plataforma` y `/plataforma/<slug>` (desde el 15-oct-2026, [`SEO_LANDING.md`](SEO_LANDING.md)): una página por capacidad, para posicionar las búsquedas
     por término (voces, transcripción, WhatsApp, telefonía y SIP) y no solo por público. `/plataforma` es el índice (las cuatro tarjetas y las tres capas) y
     las cuatro salen de **una sola plantilla**, `src/pages/plataforma/[slug].astro`, con los datos de `capabilities` en `site.ts` (misma idea que las verticales):

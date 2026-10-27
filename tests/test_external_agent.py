@@ -61,7 +61,7 @@ def endpoint(monkeypatch):
 
 
 def external_definition(connection: str, **cfg) -> dict:
-    return {**reference_data("sales_discovery"), "engine": "external",
+    return {**reference_data("sales_discovery"),
             "external": {"connection": connection, "first_token_timeout_ms": 1500, **cfg}}
 
 
@@ -88,12 +88,15 @@ def setup(admin, *, plan: bool = True, kind: str = "openai_compatible", **cfg):
 
 def test_definition_validation():
     base = {**reference_data("sales_discovery"), "id": "x", "version": 1}
-    with pytest.raises(ValidationError, match="necesita la conexion"):
-        Workflow.model_validate({**base, "engine": "external"})
-    with pytest.raises(ValidationError, match="solo vale con el motor external"):
-        Workflow.model_validate({**base, "engine": "classic", "external": {"connection": "c"}})
+    # Un solo motor: "Tu propio agente" es tener `external`. Una definicion vieja con engine external y sin
+    # la conexion se lee como un agente comun.
+    assert Workflow.model_validate({**base, "engine": "external"}).external is None
+    with pytest.raises(ValidationError, match="external.connection"):
+        Workflow.model_validate({**base, "external": {}})
+    with pytest.raises(ValidationError, match="las herramientas son las de tu agente"):
+        Workflow.model_validate({**base, "tools": [{"tool": "consultar"}], "external": {"connection": "c"}})
     with pytest.raises(ValidationError, match="on_errors"):
-        Workflow.model_validate({**base, "engine": "external", "external": {"connection": "c", "on_errors": "transfer:a1"}})
+        Workflow.model_validate({**base, "external": {"connection": "c", "on_errors": "transfer:a1"}})
     w = Workflow.model_validate({**base, "engine": "external", "fields": {}, "completion": {"outcomes": [
         {"id": "fin", "label": "Fin", "message": ""}]}, "external": {"connection": "c", "model": " "}})
     assert w.fields == {} and w.external.model is None and w.external.on_errors == "hang_up"
@@ -106,6 +109,7 @@ def test_create_requires_plan_and_openai_compatible_connection(api, admin):
     assert r.status_code == 422 and r.json()["errors"][0]["path"] == "external.connection"
     acme, conn, r = setup(admin)
     assert r.status_code == 201, r.text
+    assert r.json()["own_agent"] is True and "engine" not in r.json()["definition"]
     features = admin.get(f"{V1}/plan/features", params={"client_id": acme["id"]})
     if features.status_code == 200:
         assert features.json()["features"]["external_agent"]["enabled"] is True

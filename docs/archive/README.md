@@ -9,6 +9,7 @@ motor `classic` salen de acá. **Para capacidad y latencia vigentes, ver
 |---|---|
 | [`experiments/`](experiments/README.md) | EXP-001 a 013: cada configuración medida, con índice comparativo y el procedimiento de registro del loadtest |
 | [`LOADTEST_CAPACITY.md`](LOADTEST_CAPACITY.md) | Conclusiones de capacidad y arquitectura candidata hasta EXP-013 |
+| [`APPS.md`](APPS.md) y [`APPS_PLAN.md`](APPS_PLAN.md) | Apps por cliente y motor `assistant` (SUGYM, 12 al 26-oct-2026): referencia, diseño e historia de las pruebas. Quitados el 26-oct-2026, ver [`../LIMPIEZA_PLAN.md`](../LIMPIEZA_PLAN.md) |
 
 ## Por qué se reemplazó
 

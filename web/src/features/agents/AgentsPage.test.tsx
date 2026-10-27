@@ -13,7 +13,6 @@ const AGENT: Agent = {
   description: '',
   version: 1,
   archived: false,
-  engine: 'classic',
   voice: 'sofia',
   created_at: '2026-10-01T12:00:00Z',
   updated_at: '2026-10-01T12:00:00Z',
@@ -21,7 +20,6 @@ const AGENT: Agent = {
 
 const TEMPLATE: AgentTemplate = {
   id: 'asistente',
-  engine: 'classic',
   agent: 'Asistente, asistente virtual',
   voice: 'sofia',
   objective: 'Atender y tomar el contacto.',
@@ -46,7 +44,7 @@ function mockApi(routes: Record<string, () => Response>) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('AgentsPage', () => {
-  it('cliente: crea un agente en su cuenta, sin elegir cliente, slug ni motor', async () => {
+  it('cliente: crea un agente en su cuenta, sin elegir cliente ni slug', async () => {
     const calls = mockApi({
       'GET /api/v1/agents': () => jsonResponse([]),
       'GET /api/v1/agent-templates': () => jsonResponse([TEMPLATE]),
@@ -71,7 +69,6 @@ describe('AgentsPage', () => {
       name: 'Recepción',
       slug: null,
       description: '',
-      engine: null,
       template_id: 'asistente',
     });
     // No pide la lista de clientes: no la necesita.
@@ -87,19 +84,20 @@ describe('AgentsPage', () => {
       expect(screen.queryByRole('columnheader', { name })).not.toBeInTheDocument();
   });
 
-  it('admin: el alta pide cliente y deja elegir slug y motor', async () => {
+  it('admin: el alta pide cliente y deja elegir slug; no hay motor', async () => {
     mockApi({
       'GET /api/v1/agents': () => jsonResponse([AGENT]),
       'GET /api/v1/clients': () => jsonResponse([]),
       'GET /api/v1/agent-templates': () => jsonResponse([TEMPLATE]),
     });
     renderWithProviders(<AgentsPage />, { me: ADMIN });
-    expect(await screen.findByRole('columnheader', { name: 'Motor' })).toBeInTheDocument();
+    expect(await screen.findByRole('columnheader', { name: 'Cliente' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Motor' })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Nuevo agente' }));
     const dialog = await screen.findByRole('dialog', { name: 'Nuevo agente' });
     expect(within(dialog).getByRole('textbox', { name: 'Cliente' })).toBeInTheDocument();
     expect(within(dialog).getByLabelText('Slug')).toBeInTheDocument();
-    expect(within(dialog).getByText('Motor')).toBeInTheDocument();
+    expect(within(dialog).queryByText('Motor')).not.toBeInTheDocument();
     await userEvent.type(within(dialog).getByLabelText('Nombre'), 'Ventas');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Crear agente' }));
     expect(await within(dialog).findByText('Elegí un cliente')).toBeInTheDocument();

@@ -22,7 +22,7 @@ import { useIsAdmin } from '@/features/auth/api';
 import { useLlmConnections, useLlmModels, useLlmParams } from '@/features/llm/api';
 import { connectionLabel, KIND_LABEL, LOCAL_LABEL } from '@/features/llm/labels';
 import { blankStage, type Draft, type LlmDraft, type LlmStageDraft, MAX_LLM_STAGES, type ParamDraft } from './draft';
-import { GenerationEditor, type LocalDefaults } from './GenerationEditor';
+import { GenerationEditor } from './GenerationEditor';
 
 const LOCAL = 'local';
 const ATENTINA = 'atentina';
@@ -175,7 +175,6 @@ export function LlmSection({
   const catalog = useLlmParams();
   const connections = list.data ?? [];
   const providers = catalog.data?.providers ?? [];
-  const localDefaults: LocalDefaults = catalog.data?.local_defaults ?? {};
   const allSpecs = new Map(providers.flatMap((p) => p.params).map((s) => [s.name, s]));
   const connectionsLink = isAdmin ? `/clients/${clientId}?tab=modelos` : '/models';
 
@@ -200,7 +199,8 @@ export function LlmSection({
     if (ok) setUnlocked(true);
   };
 
-  const local = localDefaults[draft.engine] ?? localDefaults.classic ?? {};
+  // Los defaults del LLM local (su configuracion; lo que no aparece lo decide el servidor).
+  const local: Record<string, unknown> = catalog.data?.local_defaults ?? {};
   const kinds = byok ? [...new Set(llm.stages.map((st) => stageProvider(st, connections)))] : ['vllm'];
   // Los del agente rigen en todas las etapas: se muestran los de los proveedores en uso, y el default del
   // servidor propio solo si es el unico.

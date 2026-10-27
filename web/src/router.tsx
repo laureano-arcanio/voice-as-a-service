@@ -87,6 +87,15 @@ export const routes: RouteObject[] = [
         path: 'models',
         ...page(async () => (await import('@/features/llm/ModelsPage')).ModelsPage, 'client'),
       },
+      { path: 'tools', ...page(async () => (await import('@/features/tools/ToolsPage')).ToolsPage) },
+      {
+        path: 'tools/new',
+        ...page(async () => (await import('@/features/tools/ToolEditorPage')).ToolEditorPage),
+      },
+      {
+        path: 'tools/:slug',
+        ...page(async () => (await import('@/features/tools/ToolEditorPage')).ToolEditorPage),
+      },
       {
         path: 'developers',
         ...page(async () => (await import('@/features/developers/DevelopersPage')).DevelopersPage, 'client'),
@@ -121,7 +130,6 @@ export const routes: RouteObject[] = [
         path: 'numbers',
         ...page(async () => (await import('@/features/numbers/NumbersPage')).NumbersPage, 'admin'),
       },
-      { path: 'apps', ...page(async () => (await import('@/features/apps/AppsPage')).AppsPage) },
       {
         path: 'contacts',
         ...page(async () => (await import('@/features/contacts/ContactsPage')).ContactsPage),

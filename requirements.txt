@@ -13,6 +13,7 @@ pillow==12.*  # imagen del link para llamar: recorte y recodificacion (app/servi
 python-dotenv==1.0.*
 cryptography==50.*  # Fernet: tokens y PIN de WhatsApp (app/whatsapp/crypto.py)
 pyyaml==6.0.*
+jsonschema==4.*  # argumentos de las herramientas del cliente contra su esquema (app/tools/schema.py)
 openai>=1.40
 anthropic==1.*  # BYOK de LLM con el SDK nativo (app/llm/anthropic_client.py)
 pytest==8.*

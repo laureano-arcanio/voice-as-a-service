@@ -11,6 +11,7 @@ export const LIMIT_META: Record<LimitField, { label: string; unit: string; group
   max_phone_numbers: { label: 'Números de teléfono', unit: '', group: 'Minutos y números' },
   max_call_links: { label: 'Links para llamar', unit: '', group: 'Minutos y números' },
   max_team_members: { label: 'Personas del equipo', unit: '', group: 'Minutos y números' },
+  max_tools: { label: 'Herramientas de los agentes', unit: '', group: 'Minutos y números' },
   api_llm_input_tokens: { label: 'Tokens de entrada del LLM por mes', unit: '', group: 'API de inferencia' },
   api_llm_output_tokens: { label: 'Tokens de salida del LLM por mes', unit: '', group: 'API de inferencia' },
   api_tts_minutes: { label: 'Minutos de síntesis (TTS) por mes', unit: ' min', group: 'API de inferencia' },

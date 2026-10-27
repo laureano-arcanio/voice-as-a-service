@@ -32,7 +32,7 @@ export function WaRoutesModal({ account, onClose }: { account: WaAccount; onClos
       <Stack>
         <Text size="sm" c="dimmed">
           Los contactos de cada lista los atiende ese agente en los mensajes y las llamadas de WhatsApp. Los
-          demás, {account.agent_name ?? 'el agente por defecto'}. Los operadores siguen como siempre.
+          demás, {account.agent_name ?? 'el agente por defecto'}.
         </Text>
         {rows.map((row, i) => (
           <Group key={i} align="flex-end" wrap="nowrap">

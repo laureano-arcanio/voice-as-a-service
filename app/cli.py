@@ -5,6 +5,7 @@
     python -m app.cli create-api-key CLIENTE_SLUG NOMBRE
     python -m app.cli wa-account PHONE_NUMBER_ID --waba WABA --display "+1 555 145 6632" \
         --client atentina --agent SLUG [--name ...]   # conecta un numero de WhatsApp (idempotente)
+    python -m app.cli agent-rules [--apply]      # suma las reglas generales a los agentes vigentes (idempotente)
 
 seed deja lo minimo para operar despues de migrar (todo idempotente: solo crea lo que falta):
 - tier "Interno" (sin limites) y cliente "atentina" (nosotros): loadtest, pruebas, la demo de la
@@ -59,7 +60,7 @@ def _client(s: Session, slug: str) -> Client:
     if tier is None:
         tier = Tier(name=INTERNAL_TIER, description="Sin limites: Atentina (nosotros)",
                     campaign_channels=["whatsapp", "voice"], campaign_followup=True, external_agent=True,
-                    white_label=True)
+                    code_tools=True, white_label=True)
         s.add(tier)
         s.flush()
         _log(f"tier {INTERNAL_TIER} creado")
@@ -172,6 +173,32 @@ def wa_account(s: Session, phone_number_id: str, waba_id: str, display: str, cli
     s.commit()
 
 
+def agent_rules(s: Session, apply: bool) -> None:
+    """Las reglas de comportamiento que hasta el 26-oct-2026 estaban en el prompt del motor (GENERIC_RULES) pasan a
+    ser reglas del agente (docs/LIMPIEZA_PLAN.md): se suman al final de las de cada agente vigente que no las tenga,
+    como version nueva. Sin --apply solo lista lo que haria. Tu propio agente no las usa: no se toca."""
+    from .agents.templates import GENERIC_RULES
+    from .services.errors import ServiceError
+    for agent in s.scalars(select(Agent).where(Agent.archived_at.is_(None)).order_by(Agent.client_id, Agent.slug)):
+        definition = agent.definition
+        if definition.get("external"):
+            continue
+        rules = list((definition.get("conversation") or {}).get("rules") or [])
+        missing = [r for r in GENERIC_RULES if r not in rules]
+        if not missing:
+            continue
+        _log(f"{agent.slug} (v{agent.version}): {len(missing)} reglas{'' if apply else ' (sin --apply)'}")
+        if apply:
+            new = {**definition, "conversation": {**definition["conversation"], "rules": rules + missing}}
+            try:
+                agent_service.update_definition(s, agent, new, None)
+            except ServiceError as e:
+                _log(f"  no se pudo: {e.message} {e.details}")
+                continue
+    if apply:
+        s.commit()
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="python -m app.cli")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -188,6 +215,8 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--client", default=INTERNAL_CLIENT, help="slug del cliente")
     p.add_argument("--agent", required=True, help="slug del agente que atiende")
     p.add_argument("--name", default=None)
+    p = sub.add_parser("agent-rules", help="suma las reglas generales a los agentes vigentes (idempotente)")
+    p.add_argument("--apply", action="store_true", help="sin esto solo lista")
     args = parser.parse_args(argv)
     with get_sessionmaker()() as s:
         if args.cmd == "seed":
@@ -199,6 +228,8 @@ def main(argv: list[str] | None = None) -> None:
             create_api_key(s, args.client_slug, args.name)
         elif args.cmd == "wa-account":
             wa_account(s, args.phone_number_id, args.waba, args.display, args.client, args.agent, args.name)
+        elif args.cmd == "agent-rules":
+            agent_rules(s, args.apply)
 
 
 if __name__ == "__main__":
