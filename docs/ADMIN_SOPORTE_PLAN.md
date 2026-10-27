@@ -74,3 +74,7 @@ Sin Tech Provider no hay Embedded Signup. El cliente usa su propia app de Meta:
 
 `make migrate` (0037 y 0038), `make calls-active && make up-agent` (recrea `app` y `agent`) y
 `make web-build` si la UI no se construye en la imagen.
+
+Desplegado el 27-oct-2026: `make migrate-test` (0034 → 0038 sobre el backup, ida y vuelta), `make up-agent`
+(base en 0038, Interno con `internal=true`) y `make reports-backfill` (36 conversaciones, por la 0036
+que entró en el mismo despliegue). Embedded Signup quedó apagado (sin `WA_EMBEDDED_SIGNUP` en `.env`).
