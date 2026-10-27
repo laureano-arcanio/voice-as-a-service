@@ -21,11 +21,13 @@ import { CallStatusBadge, Dash, OriginBadge, OutcomeBadge, WorkflowBadge } from 
 import { confirmAction } from '@/components/confirm';
 import { EmptyState, ErrorAlert } from '@/components/QueryState';
 import { useIsAdmin } from '@/features/auth/api';
+import { useFeatureLock } from '@/features/billing/features';
 import { useDeleteConversations } from '@/features/calls/api';
+import { useTeamPresence } from '@/features/phone/api';
 import { useSupportSwitch } from '@/features/support/api';
 import { useAreaPath } from '@/features/support/paths';
 import { formatDateTime, formatDuration, formatValue } from '@/lib/format';
-import { CALL_MODE, CALL_STATUS, isLiveStatus } from '@/lib/labels';
+import { ANSWERED_BY, CALL_MODE, CALL_STATUS, callPerson, isLiveStatus } from '@/lib/labels';
 import { notifyError, notifySuccess } from '@/lib/notify';
 
 export const PAGE_SIZE = 25;
@@ -39,6 +41,17 @@ const MODE_OPTIONS = [
   ...Object.entries(CALL_MODE).map(([value, l]) => ({ value, label: l.label })),
 ];
 
+const ANSWERED_OPTIONS = [
+  { value: '', label: 'Atendió: todas' },
+  ...Object.entries(ANSWERED_BY).map(([value, label]) => ({ value, label: `Atendió: ${label}` })),
+];
+
+/** Sin agente: quién habló, "Llamó: Ana" o "Atendió: Ana". */
+function PersonText({ c }: { c: CallSummary }) {
+  const who = callPerson(c);
+  return who ? `${who.verb}: ${who.name}` : '–';
+}
+
 export function CallsTable({
   items,
   total,
@@ -49,9 +62,14 @@ export function CallsTable({
   page,
   status,
   mode,
+  answered = null,
+  userId = null,
+  clientId = null,
   onPage,
   onStatus,
   onMode,
+  onAnswered,
+  onUser,
   selectable = false,
 }: {
   items: CallSummary[];
@@ -64,9 +82,17 @@ export function CallsTable({
   page: number;
   status: string | null;
   mode: string | null;
+  /** Quién atendió la entrante (llamadas directas): solo con `onAnswered`. */
+  answered?: 'agent' | 'team' | null;
+  /** Usuario que llamó o atendió (llamadas directas): solo con `onUser`. */
+  userId?: string | null;
+  /** El admin elige un cliente para listar sus usuarios. */
+  clientId?: string | null;
   onPage: (p: number) => void;
   onStatus: (s: string | null) => void;
   onMode: (m: string | null) => void;
+  onAnswered?: (a: 'agent' | 'team' | null) => void;
+  onUser?: (u: string | null) => void;
   /** Seleccion en bulk y borrado (estilo Gmail): solo admin. */
   selectable?: boolean;
 }) {
@@ -76,6 +102,11 @@ export function CallsTable({
   const areaPath = useAreaPath();
   const { enter, pending: entering } = useSupportSwitch();
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Los filtros de llamadas directas solo tienen sentido si el plan las incluye (el admin ve todo).
+  const direct = !useFeatureLock('direct_calls').locked;
+  const showAnswered = direct && !!onAnswered;
+  const showUser = direct && !!onUser && (!isAdmin || !!clientId);
+  const people = useTeamPresence(clientId ?? undefined, showUser);
 
   const pageIds = items.map((c) => c.id);
   const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
@@ -145,6 +176,32 @@ export function CallsTable({
             w={170}
             aria-label="Origen"
           />
+          {showAnswered && (
+            <Select
+              size="xs"
+              data={ANSWERED_OPTIONS}
+              value={answered ?? ''}
+              onChange={(v) => onAnswered(v ? (v as 'agent' | 'team') : null)}
+              allowDeselect={false}
+              w={170}
+              aria-label="Atendió"
+            />
+          )}
+          {showUser && (
+            <Select
+              size="xs"
+              data={[
+                { value: '', label: 'Todos los usuarios' },
+                ...(people.data ?? []).map((u) => ({ value: u.user_id, label: u.name })),
+              ]}
+              value={userId ?? ''}
+              onChange={(v) => onUser(v || null)}
+              allowDeselect={false}
+              searchable
+              w={190}
+              aria-label="Usuario"
+            />
+          )}
         </Group>
       </Group>
       {selectable && selected.size > 0 && (
@@ -234,7 +291,7 @@ export function CallsTable({
                         {c.agent_name ?? 'Agente'}
                       </Anchor>
                     ) : (
-                      (c.agent_name ?? '–')
+                      (c.agent_name ?? <PersonText c={c} />)
                     )}
                     {c.agent_version != null && (
                       <Text span c="dimmed" className="mono">
@@ -252,7 +309,7 @@ export function CallsTable({
                     )}
                   </Table.Td>
                   <Table.Td>
-                    <OriginBadge mode={c.mode} phone={c.phone} />
+                    <OriginBadge mode={c.mode} phone={c.phone} answeredBy={c.answered_by} />
                   </Table.Td>
                   <Table.Td>
                     <CallStatusBadge status={c.status} />
@@ -261,7 +318,7 @@ export function CallsTable({
                     {formatDuration(c.duration_seconds)}
                   </Table.Td>
                   <Table.Td ta="right" className="mono">
-                    {c.captured}/{c.required}
+                    {c.agent_id || c.required ? `${c.captured}/${c.required}` : '–'}
                   </Table.Td>
                   {showWorkflow && (
                     <Table.Td>

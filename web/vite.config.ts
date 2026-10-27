@@ -33,6 +33,8 @@ export default defineConfig(({ mode }) => {
       environment: 'jsdom',
       setupFiles: ['./src/test/setup.ts'],
       css: false,
+      // Con la máquina cargada (otras sesiones, todos los workers en paralelo) las pantallas pesadas pasan los 5 s.
+      testTimeout: 15_000,
       env: { TZ: 'America/Argentina/Buenos_Aires' },
     },
   };

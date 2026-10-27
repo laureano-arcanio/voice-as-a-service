@@ -103,6 +103,7 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
     campaign_followup: boolean;
     whatsapp: boolean;
     external_agent: boolean;
+    direct_calls: boolean;
     white_label: boolean;
     advanced_reports: boolean;
     internal: boolean;
@@ -140,6 +141,7 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
       campaign_followup: tier?.campaign_followup ?? false,
       whatsapp: tier?.whatsapp ?? true,
       external_agent: tier?.external_agent ?? false,
+      direct_calls: tier?.direct_calls ?? false,
       white_label: tier?.white_label ?? false,
       advanced_reports: tier?.advanced_reports ?? false,
       internal: tier?.internal ?? false,
@@ -188,6 +190,7 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
                 campaign_followup: v.campaign_followup,
                 whatsapp: v.whatsapp,
                 external_agent: v.external_agent,
+                direct_calls: v.direct_calls,
                 white_label: v.white_label,
                 advanced_reports: v.advanced_reports,
                 internal: v.internal,
@@ -281,6 +284,12 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
               description="Que el cliente conecte su agente (su endpoint) y Atentina le ponga la voz y el teléfono."
               mt="md"
               {...form.getInputProps('external_agent', { type: 'checkbox' })}
+            />
+            <Switch
+              label="Llamadas directas (teléfono del equipo)"
+              description="Que las personas llamen desde el panel y que el equipo atienda las entrantes de un número."
+              mt="md"
+              {...form.getInputProps('direct_calls', { type: 'checkbox' })}
             />
             <Switch
               label="Marca blanca"
@@ -464,6 +473,11 @@ export function TiersPage() {
                           {t.external_agent && (
                             <Text size="xs" c="dimmed">
                               con agente propio
+                            </Text>
+                          )}
+                          {t.direct_calls && (
+                            <Text size="xs" c="dimmed">
+                              con llamadas directas
                             </Text>
                           )}
                           {t.max_tools !== 0 && (

@@ -180,6 +180,14 @@ export const routes: RouteObject[] = [
       },
       { path: 'team', ...page(async () => (await import('@/features/team/TeamPage')).TeamPage) },
       {
+        path: 'telefono',
+        ...page(async () => (await import('@/features/phone/TelefonoPage')).TelefonoPage),
+      },
+      {
+        path: 'telefono/llamada/:id',
+        ...page(async () => (await import('@/features/phone/JoinCallPage')).JoinCallPage),
+      },
+      {
         path: 'campaigns',
         ...page(async () => (await import('@/features/campaigns/CampaignsPage')).CampaignsPage),
       },

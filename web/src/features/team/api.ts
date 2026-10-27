@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { unwrap } from '@/api/request';
+import { phoneKeys } from '@/features/phone/api';
 import type { HandoffAreaIn, HandoffAreaPatch, TeamMemberIn, TeamMemberPatch } from '@/api/types';
 
 // Equipo del cliente y areas de derivacion (docs/DERIVACIONES_PLAN.md, 3 y 4.7). Un admin pasa
@@ -12,10 +13,24 @@ export const teamKeys = {
   defaults: ['team', 'area-defaults'] as const,
 };
 
-export function useTeam(clientId?: string) {
+export function useTeam(clientId?: string, enabled = true) {
   return useQuery({
     queryKey: teamKeys.members(clientId),
     queryFn: () => unwrap(api.GET('/api/v1/team', { params: { query: { client_id: clientId } } })),
+    enabled,
+  });
+}
+
+/**
+ * Los usuarios del panel del cliente: quién está Disponible para atender y quién está en una llamada
+ * (GET /team/presence, cada 30 s). Sirve para el punto de cada persona y para elegir su usuario.
+ */
+export function useMemberPresence(enabled = true) {
+  return useQuery({
+    queryKey: phoneKeys.teamPresence(),
+    queryFn: () => unwrap(api.GET('/api/v1/team/presence', { params: { query: {} } })),
+    enabled,
+    refetchInterval: 30_000,
   });
 }
 

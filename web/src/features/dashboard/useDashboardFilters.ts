@@ -3,6 +3,7 @@ import { lastDays } from '@/lib/format';
 import type { CallFilters } from '@/features/calls/api';
 
 export type RangePreset = '7' | '30' | 'custom';
+export type AnsweredFilter = 'agent' | 'team';
 
 export interface DashboardFilters {
   client: string | null;
@@ -13,6 +14,10 @@ export interface DashboardFilters {
   to: string | null;
   status: string | null;
   mode: string | null;
+  /** Quién atendió las entrantes: `agent` o `team`. */
+  answered: AnsweredFilter | null;
+  /** Usuario del panel que llamó o atendió (llamadas directas). */
+  user: string | null;
   page: number;
 }
 
@@ -31,6 +36,10 @@ export function useDashboardFilters() {
     to: params.get('to'),
     status: params.get('status'),
     mode: params.get('mode'),
+    answered: ['agent', 'team'].includes(params.get('answered') ?? '')
+      ? (params.get('answered') as AnsweredFilter)
+      : null,
+    user: params.get('user'),
     page: Math.max(1, Number(params.get('page')) || 1),
   };
 
@@ -43,6 +52,8 @@ export function useDashboardFilters() {
             next.delete(k);
           else next.set(k, String(v));
         }
+        // Los usuarios son de un cliente: al cambiar de cliente, el filtro de usuario se borra.
+        if ('client' in patch && !('user' in patch)) next.delete('user');
         // Cambiar un filtro vuelve a la primera pagina.
         if (!('page' in patch)) next.delete('page');
         return next;

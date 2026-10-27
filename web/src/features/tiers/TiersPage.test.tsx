@@ -89,6 +89,28 @@ describe('TiersPage', () => {
     expect(screen.getByText('1.000')).toBeInTheDocument();
   });
 
+  it('llamadas directas: apagadas en un tier nuevo y se mandan al prenderlas', async () => {
+    const created = mockApi();
+    renderWithProviders(<TiersPage />, { me: ADMIN });
+    await userEvent.click(await screen.findByRole('button', { name: /Nuevo tier/ }));
+    await userEvent.type(screen.getByLabelText(/Nombre/), 'Pro');
+    const direct = screen.getByRole('switch', { name: /Llamadas directas \(teléfono del equipo\)/ });
+    expect(direct).not.toBeChecked();
+    await userEvent.click(direct);
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(created).toHaveLength(1));
+    expect(created[0]).toMatchObject({ direct_calls: true });
+  });
+
+  it('muestra "con llamadas directas" en el tier que las incluye', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse([{ ...TIER, direct_calls: true }])),
+    );
+    renderWithProviders(<TiersPage />, { me: ADMIN });
+    expect(await screen.findByText('con llamadas directas')).toBeInTheDocument();
+  });
+
   it('un tier nuevo no incluye campañas; se habilitan por canal con sus topes', async () => {
     const created = mockApi();
     renderWithProviders(<TiersPage />, { me: ADMIN });

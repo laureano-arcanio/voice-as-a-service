@@ -586,7 +586,10 @@ export interface paths {
         head?: never;
         /**
          * Update Number
-         * @description Etiqueta y agente que atiende las entrantes (un agente del mismo cliente).
+         * @description Etiqueta y quien atiende las entrantes: el agente (`answer_mode: agent`, un agente del mismo cliente)
+         *     o el equipo (`team`: `member_ids` en orden, `ring_first`, `ring_seconds`, `schedule` y el respaldo
+         *     `team_fallback`, que con `agent` usa el agente del numero). `member_ids` reemplaza la lista. El equipo
+         *     pide las condiciones vigentes aceptadas por el cliente (403 terms_pending).
          */
         patch: operations["update_number_api_v1_phone_numbers__number_id__patch"];
         trace?: never;
@@ -3549,6 +3552,175 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/direct-calls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Direct Call
+         * @description Llama a un contacto (o a un número) desde un número del cliente: habla una persona desde el navegador,
+         *     sin agente. Con la sesión del panel devuelve el token para entrar; por API key o MCP, `user_id` (quien va
+         *     a hablar) es obligatorio y la respuesta trae `join_url`, la página del panel que entra con su sesión. El
+         *     worker marca cuando el usuario entra a la room. Si el contacto pidió no recibir llamadas: 409 opted_out,
+         *     salvo `confirm_opted_out: true` (queda registrado en la llamada).
+         */
+        post: operations["start_direct_call_api_v1_direct_calls_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/direct-calls/{conversation_id}/join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Join Direct Call
+         * @description Token nuevo para volver a entrar a la llamada (recargó la página o la abre por el join_url): solo el
+         *     usuario de la llamada y mientras está activa.
+         */
+        post: operations["join_direct_call_api_v1_direct_calls__conversation_id__join_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/direct-calls/{conversation_id}/answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Answer Direct Call
+         * @description Atiende en el panel una entrante que le suena: el primero que atiende se queda con la llamada y a los
+         *     demás se les apaga (409 already_answered si ya la tomó otro).
+         */
+        post: operations["answer_direct_call_api_v1_direct_calls__conversation_id__answer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/direct-calls/{conversation_id}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decline Direct Call
+         * @description Rechaza el timbre propio; la llamada sigue sonando a los demás.
+         */
+        post: operations["decline_direct_call_api_v1_direct_calls__conversation_id__decline_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/presence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Presence
+         * @description Disponible en el panel para atender: el panel lo manda cada ~20 s mientras está prendido; sin pulso por
+         *     60 s deja de estar disponible. `available: false` lo apaga ya.
+         */
+        put: operations["set_presence_api_v1_me_presence_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/ringing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Ringing
+         * @description Las entrantes que le suenan ahora al usuario en el panel.
+         */
+        get: operations["my_ringing_api_v1_me_ringing_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/team/presence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Team Presence
+         * @description Los usuarios del cliente: si están Disponibles en el panel y si están en una llamada.
+         */
+        get: operations["team_presence_api_v1_team_presence_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clients/{client_id}/direct-call-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Settings */
+        get: operations["get_settings_api_v1_clients__client_id__direct_call_settings_get"];
+        /**
+         * Update Settings
+         * @description Aviso "Esta llamada está siendo grabada" al empezar las llamadas directas (siempre se graban; avisar y
+         *     tener el consentimiento es responsabilidad del cliente).
+         */
+        put: operations["update_settings_api_v1_clients__client_id__direct_call_settings_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/oauth/authorize": {
         parameters: {
             query?: never;
@@ -4370,6 +4542,17 @@ export interface components {
             started_at: string | null;
             /** Ended At */
             ended_at: string | null;
+            /** User Id */
+            user_id?: string | null;
+            /** User Name */
+            user_name?: string | null;
+            /** Answered By */
+            answered_by?: ("team" | "agent") | null;
+            /**
+             * Opted Out Confirmed
+             * @default false
+             */
+            opted_out_confirmed?: boolean;
         };
         /**
          * CallJoinOut
@@ -4573,6 +4756,17 @@ export interface components {
             ended_reason: string;
             /** Latency Avg */
             latency_avg: number | null;
+            /** User Id */
+            user_id?: string | null;
+            /** User Name */
+            user_name?: string | null;
+            /** Answered By */
+            answered_by?: ("team" | "agent") | null;
+            /**
+             * Opted Out Confirmed
+             * @default false
+             */
+            opted_out_confirmed?: boolean;
         };
         /** CallsUsageOut */
         CallsUsageOut: {
@@ -5996,6 +6190,71 @@ export interface components {
              */
             format?: "wav" | "pcm";
         };
+        /** DirectCallIn */
+        DirectCallIn: {
+            /**
+             * Contact Id
+             * @description Contacto de la agenda (marca su teléfono)
+             */
+            contact_id?: string | null;
+            /**
+             * Phone
+             * @description E.164, sin contacto
+             */
+            phone?: string | null;
+            /**
+             * From Number Id
+             * @description Número del cliente para el caller ID; sin él, el primero
+             */
+            from_number_id?: string | null;
+            /**
+             * Confirm Opted Out
+             * @description El contacto pidió no recibir llamadas y se llama igual (queda registrado); sin esto, 409 opted_out
+             * @default false
+             */
+            confirm_opted_out?: boolean;
+            /**
+             * User Id
+             * @description Por API key o MCP: el usuario del cliente que va a hablar (abre join_url con su sesión). Desde el panel, el de la sesión
+             */
+            user_id?: string | null;
+        };
+        /** DirectCallOut */
+        DirectCallOut: {
+            /** Conversation Id */
+            conversation_id: string;
+            /** Room */
+            room: string;
+            /** Status */
+            status: string;
+            /** Livekit Url */
+            livekit_url: string;
+            /**
+             * Token
+             * @description Con sesión: el token del usuario para entrar a la room
+             */
+            token?: string | null;
+            /**
+             * Join Url
+             * @description Por API key o MCP: la página del panel que entra a la llamada con la sesión del usuario
+             */
+            join_url?: string | null;
+        };
+        /** DirectCallSettings */
+        DirectCallSettings: {
+            /**
+             * Recording Notice
+             * @description Avisar "Esta llamada está siendo grabada" al empezar las llamadas directas (siempre se graban)
+             */
+            recording_notice: boolean;
+        };
+        /** DirectJoinOut */
+        DirectJoinOut: {
+            /** Livekit Url */
+            livekit_url: string;
+            /** Token */
+            token: string;
+        };
         /** EmailCodeIn */
         EmailCodeIn: {
             /**
@@ -7109,6 +7368,17 @@ export interface components {
              */
             agent_id?: string | null;
         };
+        /** PhoneNumberMemberOut */
+        PhoneNumberMemberOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Phone */
+            phone: string | null;
+            /** User Id */
+            user_id: string | null;
+        };
         /** PhoneNumberOut */
         PhoneNumberOut: {
             /** Id */
@@ -7134,6 +7404,31 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Answer Mode
+             * @enum {string}
+             */
+            answer_mode: "team" | "agent";
+            /**
+             * Ring First
+             * @enum {string}
+             */
+            ring_first: "phone" | "panel";
+            /** Ring Seconds */
+            ring_seconds: number;
+            schedule?: components["schemas"]["HandoffSchedule"] | null;
+            /**
+             * Team Fallback
+             * @enum {string}
+             */
+            team_fallback: "agent" | "voicemail" | "hangup";
+            /** Team Fallback Message */
+            team_fallback_message: string;
+            /**
+             * Members
+             * @description Las personas del número, en orden
+             */
+            members?: components["schemas"]["PhoneNumberMemberOut"][];
         };
         /** PhoneNumberUpdate */
         PhoneNumberUpdate: {
@@ -7141,6 +7436,35 @@ export interface components {
             label?: string | null;
             /** Agent Id */
             agent_id?: string | null;
+            /**
+             * Answer Mode
+             * @description team: las personas del número; agent: el agente (puede derivar con sus áreas)
+             */
+            answer_mode?: ("team" | "agent") | null;
+            /**
+             * Member Ids
+             * @description Personas del equipo, en el orden en que suenan; cada una con celular o usuario del panel
+             */
+            member_ids?: string[] | null;
+            /**
+             * Ring First
+             * @description Dónde suena primero: phone (el celular de cada uno, en orden) o panel (los Disponibles, a la vez); si nadie atiende, en el otro
+             */
+            ring_first?: ("phone" | "panel") | null;
+            /**
+             * Ring Seconds
+             * @description Timbre por persona
+             */
+            ring_seconds?: number | null;
+            /** @description Horario; null = siempre */
+            schedule?: components["schemas"]["HandoffSchedule"] | null;
+            /**
+             * Team Fallback
+             * @description Si nadie atiende o fuera de horario: el agente del número, mensaje y graba, o mensaje y corta
+             */
+            team_fallback?: ("agent" | "voicemail" | "hangup") | null;
+            /** Team Fallback Message */
+            team_fallback_message?: string | null;
         };
         /** PlanFeatureOut */
         PlanFeatureOut: {
@@ -7223,6 +7547,18 @@ export interface components {
              * @default false
              */
             campaign_followup?: boolean;
+        };
+        /** PresenceIn */
+        PresenceIn: {
+            /** Available */
+            available: boolean;
+        };
+        /** PresenceOut */
+        PresenceOut: {
+            /** Available */
+            available: boolean;
+            /** Last Seen */
+            last_seen: string | null;
         };
         /** ProfileIn */
         ProfileIn: {
@@ -7419,6 +7755,50 @@ export interface components {
             /** Web */
             web: number;
         };
+        /** ReportCallTypeOut */
+        ReportCallTypeOut: {
+            /**
+             * Type
+             * @description agent: la atiende o la hace el agente; direct: la hace una persona del equipo; team: entrante que atiende el equipo
+             * @enum {string}
+             */
+            type: "agent" | "direct" | "team";
+            /** Calls */
+            calls: number;
+            /** Minutes */
+            minutes: number;
+            /**
+             * Avg Duration
+             * @description Segundos, de las llamadas finalizadas
+             */
+            avg_duration: number | null;
+        };
+        /** ReportCallUserOut */
+        ReportCallUserOut: {
+            /** User Id */
+            user_id: string;
+            /** User Name */
+            user_name: string;
+            /**
+             * Direct
+             * @description Directas que hizo
+             */
+            direct: number;
+            /**
+             * Team
+             * @description Entrantes del equipo que atendió
+             */
+            team: number;
+            /** Calls */
+            calls: number;
+            /** Minutes */
+            minutes: number;
+            /**
+             * Avg Duration
+             * @description Segundos, de las llamadas finalizadas
+             */
+            avg_duration: number | null;
+        };
         /** ReportCallerOut */
         ReportCallerOut: {
             /** Count */
@@ -7480,6 +7860,8 @@ export interface components {
             entrante: number;
             /** Saliente */
             saliente: number;
+            /** Directa */
+            directa: number;
             /** Web */
             web: number;
             /** Prueba */
@@ -7495,6 +7877,16 @@ export interface components {
             by_line: components["schemas"]["ReportLineOut"][];
             /** By Agent */
             by_agent: components["schemas"]["ReportCallsAgentOut"][];
+            /**
+             * By Type
+             * @description Siempre los tres tipos, en el orden agent, direct, team
+             */
+            by_type: components["schemas"]["ReportCallTypeOut"][];
+            /**
+             * By User
+             * @description Usuarios del panel con directas hechas o entrantes del equipo atendidas
+             */
+            by_user: components["schemas"]["ReportCallUserOut"][];
             /**
              * Durations
              * @description Llamadas finalizadas por duración
@@ -8153,6 +8545,26 @@ export interface components {
             /** Reassigned */
             reassigned: number;
         };
+        /** RingingOut */
+        RingingOut: {
+            /** Conversation Id */
+            conversation_id: string;
+            /** Phone */
+            phone: string | null;
+            /** Contact Id */
+            contact_id?: string | null;
+            /** Contact Name */
+            contact_name?: string | null;
+            /** Number E164 */
+            number_e164: string | null;
+            /** Number Label */
+            number_label: string | null;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+        };
         /** SecretAgentRef */
         SecretAgentRef: {
             /** Id */
@@ -8446,6 +8858,25 @@ export interface components {
             /** Active */
             active?: boolean | null;
         };
+        /** TeamPresenceOut */
+        TeamPresenceOut: {
+            /** User Id */
+            user_id: string;
+            /** Team Member Id */
+            team_member_id?: string | null;
+            /** Name */
+            name: string;
+            /**
+             * Available
+             * @description Disponible en el panel para atender
+             */
+            available: boolean;
+            /**
+             * Busy
+             * @description En una llamada
+             */
+            busy: boolean;
+        };
         /** TemplateOut */
         TemplateOut: {
             /** Id */
@@ -8620,6 +9051,12 @@ export interface components {
              */
             internal?: boolean;
             /**
+             * Direct Calls
+             * @description Llamadas directas: el equipo llama y atiende desde el panel, sin el agente (la saliente pide ademas salientes)
+             * @default false
+             */
+            direct_calls?: boolean;
+            /**
              * Price Ars
              * @description Precio mensual en pesos, lo que se cobra. null: no se vende por el dashboard; 0: gratis
              */
@@ -8699,6 +9136,8 @@ export interface components {
             advanced_reports: boolean;
             /** Internal */
             internal: boolean;
+            /** Direct Calls */
+            direct_calls: boolean;
             /** Price Ars */
             price_ars: number | null;
             /** Public */
@@ -8776,6 +9215,8 @@ export interface components {
             advanced_reports?: boolean | null;
             /** Internal */
             internal?: boolean | null;
+            /** Direct Calls */
+            direct_calls?: boolean | null;
             /** Price Ars */
             price_ars?: number | null;
             /** Public */
@@ -11707,9 +12148,14 @@ export interface operations {
                 tz?: string | null;
                 /** @description Uno o varios (status=a&status=b) */
                 status?: string[] | null;
+                /** @description entrante, saliente, directa, web, prueba, whatsapp o api */
                 mode?: string | null;
                 /** @description Solo las llamadas y conversaciones de esa campaña */
                 campaign_id?: string | null;
+                /** @description Llamadas directas: las que hizo o atendió ese usuario */
+                user_id?: string | null;
+                /** @description Entrantes que atendió el agente o el equipo */
+                answered_by?: ("team" | "agent") | null;
                 limit?: number;
                 offset?: number;
             };
@@ -17436,6 +17882,385 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReportPlatformOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_direct_call_api_v1_direct_calls_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DirectCallIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectCallOut"];
+                };
+            };
+            /** @description Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones vigentes sin aceptar (terms_pending) u otro usuario */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Contacto dado de baja sin confirmar (opted_out), llamada terminada o ya atendida */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Plan sin llamadas directas, sin minutos salientes, al tope de llamadas o sin canales libres */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    join_direct_call_api_v1_direct_calls__conversation_id__join_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectJoinOut"];
+                };
+            };
+            /** @description Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones vigentes sin aceptar (terms_pending) u otro usuario */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Contacto dado de baja sin confirmar (opted_out), llamada terminada o ya atendida */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Plan sin llamadas directas, sin minutos salientes, al tope de llamadas o sin canales libres */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    answer_direct_call_api_v1_direct_calls__conversation_id__answer_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectJoinOut"];
+                };
+            };
+            /** @description Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones vigentes sin aceptar (terms_pending) u otro usuario */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Contacto dado de baja sin confirmar (opted_out), llamada terminada o ya atendida */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Plan sin llamadas directas, sin minutos salientes, al tope de llamadas o sin canales libres */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    decline_direct_call_api_v1_direct_calls__conversation_id__decline_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones vigentes sin aceptar (terms_pending) u otro usuario */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Contacto dado de baja sin confirmar (opted_out), llamada terminada o ya atendida */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Plan sin llamadas directas, sin minutos salientes, al tope de llamadas o sin canales libres */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    set_presence_api_v1_me_presence_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PresenceIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresenceOut"];
+                };
+            };
+            /** @description Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones vigentes sin aceptar (terms_pending) u otro usuario */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Contacto dado de baja sin confirmar (opted_out), llamada terminada o ya atendida */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Plan sin llamadas directas, sin minutos salientes, al tope de llamadas o sin canales libres */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    my_ringing_api_v1_me_ringing_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RingingOut"][];
+                };
+            };
+        };
+    };
+    team_presence_api_v1_team_presence_get: {
+        parameters: {
+            query?: {
+                client_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamPresenceOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_settings_api_v1_clients__client_id__direct_call_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectCallSettings"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_settings_api_v1_clients__client_id__direct_call_settings_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DirectCallSettings"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectCallSettings"];
                 };
             };
             /** @description Validation Error */

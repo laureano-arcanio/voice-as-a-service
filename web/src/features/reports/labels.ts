@@ -18,6 +18,13 @@ export const ENDED_REASON: Record<string, string> = {
   other: 'Otro',
 };
 
+/** Tipos de llamada (GET /reports/calls, `by_type`): quién habla. */
+export const CALL_TYPE: Record<string, string> = {
+  agent: 'Con el agente',
+  direct: 'Directas (las hace el equipo)',
+  team: 'Entrantes del equipo',
+};
+
 /** Motivos de no contacto de las campañas. */
 export const NO_CONTACT_REASON: Record<string, string> = {
   busy: 'Ocupado',

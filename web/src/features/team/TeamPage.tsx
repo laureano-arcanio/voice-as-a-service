@@ -1,4 +1,16 @@
-import { ActionIcon, Badge, Button, Card, Group, Stack, Table, Text, Title, Tooltip } from '@mantine/core';
+import {
+  ActionIcon,
+  Badge,
+  Button,
+  Card,
+  ColorSwatch,
+  Group,
+  Stack,
+  Table,
+  Text,
+  Title,
+  Tooltip,
+} from '@mantine/core';
 import { IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useState } from 'react';
 import type { TeamMember } from '@/api/types';
@@ -8,13 +20,33 @@ import { PageHeader } from '@/components/PageHeader';
 import { PlanGate } from '@/components/PlanGate';
 import { EmptyState, QueryState } from '@/components/QueryState';
 import { notifyError, notifySuccess } from '@/lib/notify';
-import { type AreaRow, useAreas, useDeleteArea, useDeleteMember, useTeam } from './api';
+import { usePlanFeatures } from '@/features/billing/features';
+import type { TeamPresence } from '@/features/phone/types';
+import { type AreaRow, useAreas, useDeleteArea, useDeleteMember, useMemberPresence, useTeam } from './api';
 import { AreaModal } from './AreaModal';
 import { areaStatus } from './labels';
 import { MemberModal } from './MemberModal';
 import { scheduleLabel } from './schedule';
 
 type Dialog = { kind: 'member'; member: TeamMember | null } | { kind: 'area'; area: AreaRow | null } | null;
+
+/** Punto de disponibilidad en el panel: verde Disponible, amarillo en una llamada, gris no. Sin usuario, raya. */
+function PresenceDot({ presence }: { presence: TeamPresence | undefined }) {
+  if (!presence) return <Dash />;
+  const state = presence.busy
+    ? { color: 'var(--mantine-color-yellow-6)', label: 'En una llamada' }
+    : presence.available
+      ? { color: 'var(--mantine-color-green-6)', label: 'Disponible' }
+      : { color: 'var(--mantine-color-gray-5)', label: 'No disponible' };
+  return (
+    <Group gap={6} wrap="nowrap">
+      <ColorSwatch color={state.color} size={10} withShadow={false} aria-hidden />
+      <Text size="sm" c="dimmed">
+        {state.label}
+      </Text>
+    </Group>
+  );
+}
 
 /** Equipo del cliente y areas de derivacion: a quien pasa el agente una llamada o un chat. */
 export function TeamPage() {
@@ -23,6 +55,10 @@ export function TeamPage() {
   const deleteMember = useDeleteMember();
   const deleteArea = useDeleteArea();
   const [dialog, setDialog] = useState<Dialog>(null);
+  // Quién está Disponible en el panel: solo cuenta con llamadas directas.
+  const directCalls = usePlanFeatures().data?.features?.direct_calls?.enabled === true;
+  const presence = useMemberPresence(directCalls);
+  const byUser = new Map((presence.data ?? []).map((p) => [p.user_id, p]));
 
   const members = team.data ?? [];
 
@@ -82,10 +118,11 @@ export function TeamPage() {
                 rows.length === 0 ? (
                   <EmptyState>
                     Todavía no hay personas en el equipo. Agregá a quienes atienden las derivaciones, con su
-                    teléfono para pasarles llamadas o su WhatsApp para pasarles chats.
+                    teléfono para pasarles llamadas, su WhatsApp para pasarles chats o su usuario del panel
+                    para que atiendan desde ahí.
                   </EmptyState>
                 ) : (
-                  <Table.ScrollContainer minWidth={580}>
+                  <Table.ScrollContainer minWidth={700}>
                     <Table>
                       <Table.Thead>
                         <Table.Tr>
@@ -93,6 +130,7 @@ export function TeamPage() {
                           <Table.Th>Teléfono</Table.Th>
                           <Table.Th>WhatsApp</Table.Th>
                           <Table.Th>Estado</Table.Th>
+                          {directCalls && <Table.Th>En el panel</Table.Th>}
                           <Table.Th />
                         </Table.Tr>
                       </Table.Thead>
@@ -111,6 +149,11 @@ export function TeamPage() {
                                 {m.active ? 'Activa' : 'Inactiva'}
                               </Badge>
                             </Table.Td>
+                            {directCalls && (
+                              <Table.Td>
+                                <PresenceDot presence={m.user_id ? byUser.get(m.user_id) : undefined} />
+                              </Table.Td>
+                            )}
                             <Table.Td>
                               <Group gap={4} justify="flex-end" wrap="nowrap">
                                 <Tooltip label="Editar" withArrow>

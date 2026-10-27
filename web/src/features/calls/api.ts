@@ -15,6 +15,9 @@ export interface CallFilters {
 export interface CallListParams extends CallFilters {
   status?: string[];
   mode?: string;
+  /** Llamadas directas: las entrantes que atendió el agente o el equipo, y las de ese usuario. */
+  answered_by?: 'agent' | 'team';
+  user_id?: string;
   limit: number;
   offset: number;
 }

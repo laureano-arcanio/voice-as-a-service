@@ -15,6 +15,8 @@ export function ConversationsPage() {
     ...apiFilters,
     status: filters.status ? [filters.status] : undefined,
     mode: filters.mode ?? undefined,
+    answered_by: filters.answered ?? undefined,
+    user_id: filters.user ?? undefined,
     limit: PAGE_SIZE,
     offset: (filters.page - 1) * PAGE_SIZE,
   });
@@ -39,9 +41,14 @@ export function ConversationsPage() {
         page={filters.page}
         status={filters.status}
         mode={filters.mode}
+        answered={filters.answered}
+        userId={filters.user}
+        clientId={filters.client}
         onPage={(page) => update({ page })}
         onStatus={(status) => update({ status })}
         onMode={(mode) => update({ mode })}
+        onAnswered={(answered) => update({ answered })}
+        onUser={(user) => update({ user })}
       />
     </Stack>
   );

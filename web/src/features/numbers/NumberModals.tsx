@@ -11,7 +11,6 @@ import {
   Textarea,
   TextInput,
 } from '@mantine/core';
-import { useForm } from '@mantine/form';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { useState } from 'react';
 import type { PhoneNumber } from '@/api/types';
@@ -181,7 +180,7 @@ export function AssignNumberModal({ number, onClose }: { number: PhoneNumber; on
             return onClose();
           }
           update.mutate(
-            { id: n.id, body: { agent_id: agentId } },
+            { id: n.id, body: { agent_id: agentId, answer_mode: 'agent' } },
             {
               onSuccess: (u) => {
                 notifySuccess(
@@ -235,65 +234,6 @@ export function AssignNumberModal({ number, onClose }: { number: PhoneNumber; on
           </Button>
         </Group>
       </Stack>
-    </Modal>
-  );
-}
-
-/** Etiqueta (y agente si esta asignado) de un numero. */
-export function EditNumberModal({ number, onClose }: { number: PhoneNumber; onClose: () => void }) {
-  const update = useUpdateNumber();
-  const agents = useAgents(number.client_id ?? undefined, false, !!number.client_id);
-  const form = useForm({
-    initialValues: { label: number.label, agent_id: number.agent_id ?? '' },
-    validate: { label: (v) => (v.length <= 64 ? null : 'Hasta 64 caracteres') },
-  });
-  const agentOptions = (agents.data ?? []).map((a) => ({ value: a.id, label: a.name }));
-  if (number.agent_id && !agentOptions.some((o) => o.value === number.agent_id)) {
-    agentOptions.push({ value: number.agent_id, label: `${number.agent_name ?? 'Agente'} (archivado)` });
-  }
-  return (
-    <Modal opened onClose={onClose} title={`Editar ${number.e164}`}>
-      <form
-        onSubmit={form.onSubmit((v) =>
-          update.mutate(
-            {
-              id: number.id,
-              body: number.client_id
-                ? { label: v.label.trim(), agent_id: v.agent_id || null }
-                : { label: v.label.trim() },
-            },
-            {
-              onSuccess: () => {
-                notifySuccess('Número actualizado.');
-                onClose();
-              },
-              onError: (e) => notifyError(e, numberErrorTitle(e)),
-            },
-          ),
-        )}
-      >
-        <Stack>
-          <TextInput label="Etiqueta" maxLength={64} data-autofocus {...form.getInputProps('label')} />
-          {number.client_id && (
-            <Select
-              label="Agente que atiende las entrantes"
-              placeholder="Ninguno"
-              data={agentOptions}
-              clearable
-              searchable
-              {...form.getInputProps('agent_id')}
-            />
-          )}
-          <Group justify="flex-end">
-            <Button variant="default" onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button type="submit" loading={update.isPending}>
-              Guardar
-            </Button>
-          </Group>
-        </Stack>
-      </form>
     </Modal>
   );
 }

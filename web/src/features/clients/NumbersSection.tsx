@@ -16,10 +16,10 @@ import { useState } from 'react';
 import type { PhoneNumber } from '@/api/types';
 import { confirmAction } from '@/components/confirm';
 import { EmptyState, QueryState } from '@/components/QueryState';
-import { NumberAgentSelect } from '@/features/numbers/AgentSelect';
+import { NumberAnswers } from '@/features/numbers/NumberAnswers';
 import { useAssignNumber, usePhoneNumbers, useReleaseNumber } from '@/features/numbers/api';
 import { numberErrorTitle } from '@/features/numbers/errors';
-import { EditNumberModal } from '@/features/numbers/NumberModals';
+import { EditNumberModal } from '@/features/numbers/EditNumberModal';
 import { formatDateTime } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
 
@@ -49,7 +49,7 @@ function AssignFromInventoryModal({ clientId, onClose }: { clientId: string; onC
           data-autofocus
         />
         <Text size="xs" c="dimmed">
-          Después elegí qué agente atiende las entrantes a ese número.
+          Después elegí quién atiende las entrantes a ese número: el equipo o un agente.
         </Text>
         <Group justify="flex-end">
           <Button variant="default" onClick={onClose}>
@@ -81,7 +81,7 @@ function AssignFromInventoryModal({ clientId, onClose }: { clientId: string; onC
 }
 
 /**
- * Numeros de un cliente: agente y etiqueta editables (admin y el propio cliente);
+ * Numeros de un cliente: quien atiende y etiqueta editables (admin y el propio cliente);
  * asignar desde el inventario y liberar, solo admin.
  */
 export function NumbersSection({ clientId, canAssign }: { clientId: string; canAssign: boolean }) {
@@ -121,7 +121,7 @@ export function NumbersSection({ clientId, canAssign }: { clientId: string; canA
           list.length === 0 ? (
             <EmptyState>Sin números asignados.</EmptyState>
           ) : (
-            <Table.ScrollContainer minWidth={640}>
+            <Table.ScrollContainer minWidth={760}>
               <Table>
                 <Table.Thead>
                   <Table.Tr>
@@ -144,7 +144,7 @@ export function NumbersSection({ clientId, canAssign }: { clientId: string; canA
                         )}
                       </Table.Td>
                       <Table.Td>
-                        <NumberAgentSelect number={n} />
+                        <NumberAnswers number={n} />
                       </Table.Td>
                       {canAssign && (
                         <Table.Td style={{ whiteSpace: 'nowrap' }}>
@@ -153,7 +153,7 @@ export function NumbersSection({ clientId, canAssign }: { clientId: string; canA
                       )}
                       <Table.Td>
                         <Group gap={4} justify="flex-end" wrap="nowrap">
-                          <Tooltip label="Editar etiqueta">
+                          <Tooltip label="Editar">
                             <ActionIcon
                               variant="subtle"
                               color="gray"

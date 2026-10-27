@@ -1638,7 +1638,7 @@
      "phone-numbers"
     ],
     "summary": "Update Number",
-    "description": "Etiqueta y agente que atiende las entrantes (un agente del mismo cliente).",
+    "description": "Etiqueta y quien atiende las entrantes: el agente (`answer_mode: agent`, un agente del mismo cliente)\no el equipo (`team`: `member_ids` en orden, `ring_first`, `ring_seconds`, `schedule` y el respaldo\n`team_fallback`, que con `agent` usa el agente del numero). `member_ids` reemplaza la lista. El equipo\npide las condiciones vigentes aceptadas por el cliente (403 terms_pending).",
     "operationId": "update_number_api_v1_phone_numbers__number_id__patch",
     "security": [
      {
@@ -2930,8 +2930,10 @@
          "type": "null"
         }
        ],
+       "description": "entrante, saliente, directa, web, prueba, whatsapp o api",
        "title": "Mode"
-      }
+      },
+      "description": "entrante, saliente, directa, web, prueba, whatsapp o api"
      },
      {
       "name": "campaign_id",
@@ -2950,6 +2952,46 @@
        "title": "Campaign Id"
       },
       "description": "Solo las llamadas y conversaciones de esa campaña"
+     },
+     {
+      "name": "user_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Llamadas directas: las que hizo o atendió ese usuario",
+       "title": "User Id"
+      },
+      "description": "Llamadas directas: las que hizo o atendió ese usuario"
+     },
+     {
+      "name": "answered_by",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "team",
+          "agent"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Entrantes que atendió el agente o el equipo",
+       "title": "Answered By"
+      },
+      "description": "Entrantes que atendió el agente o el equipo"
      },
      {
       "name": "limit",
@@ -13417,6 +13459,475 @@
     }
    }
   },
+  "/api/v1/direct-calls": {
+   "post": {
+    "tags": [
+     "direct-calls"
+    ],
+    "summary": "Start Direct Call",
+    "description": "Llama a un contacto (o a un número) desde un número del cliente: habla una persona desde el navegador,\nsin agente. Con la sesión del panel devuelve el token para entrar; por API key o MCP, `user_id` (quien va\na hablar) es obligatorio y la respuesta trae `join_url`, la página del panel que entra con su sesión. El\nworker marca cuando el usuario entra a la room. Si el contacto pidió no recibir llamadas: 409 opted_out,\nsalvo `confirm_opted_out: true` (queda registrado en la llamada).",
+    "operationId": "start_direct_call_api_v1_direct_calls_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DirectCallIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DirectCallOut"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones vigentes sin aceptar (terms_pending) u otro usuario"
+     },
+     "409": {
+      "description": "Contacto dado de baja sin confirmar (opted_out), llamada terminada o ya atendida"
+     },
+     "429": {
+      "description": "Plan sin llamadas directas, sin minutos salientes, al tope de llamadas o sin canales libres"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/direct-calls/{conversation_id}/join": {
+   "post": {
+    "tags": [
+     "direct-calls"
+    ],
+    "summary": "Join Direct Call",
+    "description": "Token nuevo para volver a entrar a la llamada (recargó la página o la abre por el join_url): solo el\nusuario de la llamada y mientras está activa.",
+    "operationId": "join_direct_call_api_v1_direct_calls__conversation_id__join_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "conversation_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Conversation Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DirectJoinOut"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones vigentes sin aceptar (terms_pending) u otro usuario"
+     },
+     "409": {
+      "description": "Contacto dado de baja sin confirmar (opted_out), llamada terminada o ya atendida"
+     },
+     "429": {
+      "description": "Plan sin llamadas directas, sin minutos salientes, al tope de llamadas o sin canales libres"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/direct-calls/{conversation_id}/answer": {
+   "post": {
+    "tags": [
+     "direct-calls"
+    ],
+    "summary": "Answer Direct Call",
+    "description": "Atiende en el panel una entrante que le suena: el primero que atiende se queda con la llamada y a los\ndemás se les apaga (409 already_answered si ya la tomó otro).",
+    "operationId": "answer_direct_call_api_v1_direct_calls__conversation_id__answer_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "conversation_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Conversation Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DirectJoinOut"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones vigentes sin aceptar (terms_pending) u otro usuario"
+     },
+     "409": {
+      "description": "Contacto dado de baja sin confirmar (opted_out), llamada terminada o ya atendida"
+     },
+     "429": {
+      "description": "Plan sin llamadas directas, sin minutos salientes, al tope de llamadas o sin canales libres"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/direct-calls/{conversation_id}/decline": {
+   "post": {
+    "tags": [
+     "direct-calls"
+    ],
+    "summary": "Decline Direct Call",
+    "description": "Rechaza el timbre propio; la llamada sigue sonando a los demás.",
+    "operationId": "decline_direct_call_api_v1_direct_calls__conversation_id__decline_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "conversation_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Conversation Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "403": {
+      "description": "Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones vigentes sin aceptar (terms_pending) u otro usuario"
+     },
+     "409": {
+      "description": "Contacto dado de baja sin confirmar (opted_out), llamada terminada o ya atendida"
+     },
+     "429": {
+      "description": "Plan sin llamadas directas, sin minutos salientes, al tope de llamadas o sin canales libres"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/me/presence": {
+   "put": {
+    "tags": [
+     "direct-calls"
+    ],
+    "summary": "Set Presence",
+    "description": "Disponible en el panel para atender: el panel lo manda cada ~20 s mientras está prendido; sin pulso por\n60 s deja de estar disponible. `available: false` lo apaga ya.",
+    "operationId": "set_presence_api_v1_me_presence_put",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PresenceIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PresenceOut"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones vigentes sin aceptar (terms_pending) u otro usuario"
+     },
+     "409": {
+      "description": "Contacto dado de baja sin confirmar (opted_out), llamada terminada o ya atendida"
+     },
+     "429": {
+      "description": "Plan sin llamadas directas, sin minutos salientes, al tope de llamadas o sin canales libres"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/me/ringing": {
+   "get": {
+    "tags": [
+     "direct-calls"
+    ],
+    "summary": "My Ringing",
+    "description": "Las entrantes que le suenan ahora al usuario en el panel.",
+    "operationId": "my_ringing_api_v1_me_ringing_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/RingingOut"
+         },
+         "type": "array",
+         "title": "Response My Ringing Api V1 Me Ringing Get"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/team/presence": {
+   "get": {
+    "tags": [
+     "direct-calls"
+    ],
+    "summary": "Team Presence",
+    "description": "Los usuarios del cliente: si están Disponibles en el panel y si están en una llamada.",
+    "operationId": "team_presence_api_v1_team_presence_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Client Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/TeamPresenceOut"
+         },
+         "title": "Response Team Presence Api V1 Team Presence Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/clients/{client_id}/direct-call-settings": {
+   "get": {
+    "tags": [
+     "direct-calls"
+    ],
+    "summary": "Get Settings",
+    "operationId": "get_settings_api_v1_clients__client_id__direct_call_settings_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DirectCallSettings"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "put": {
+    "tags": [
+     "direct-calls"
+    ],
+    "summary": "Update Settings",
+    "description": "Aviso \"Esta llamada está siendo grabada\" al empezar las llamadas directas (siempre se graban; avisar y\ntener el consentimiento es responsabilidad del cliente).",
+    "operationId": "update_settings_api_v1_clients__client_id__direct_call_settings_put",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DirectCallSettings"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DirectCallSettings"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/oauth/authorize": {
    "get": {
     "tags": [
@@ -15508,6 +16019,48 @@
        }
       ],
       "title": "Ended At"
+     },
+     "user_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "User Id"
+     },
+     "user_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "User Name"
+     },
+     "answered_by": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "team",
+         "agent"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Answered By"
+     },
+     "opted_out_confirmed": {
+      "type": "boolean",
+      "title": "Opted Out Confirmed",
+      "default": false
      }
     },
     "type": "object",
@@ -16088,6 +16641,48 @@
        }
       ],
       "title": "Latency Avg"
+     },
+     "user_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "User Id"
+     },
+     "user_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "User Name"
+     },
+     "answered_by": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "team",
+         "agent"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Answered By"
+     },
+     "opted_out_confirmed": {
+      "type": "boolean",
+      "title": "Opted Out Confirmed",
+      "default": false
      }
     },
     "type": "object",
@@ -19783,6 +20378,150 @@
     ],
     "title": "DemoTtsIn"
    },
+   "DirectCallIn": {
+    "properties": {
+     "contact_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Contact Id",
+      "description": "Contacto de la agenda (marca su teléfono)"
+     },
+     "phone": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Phone",
+      "description": "E.164, sin contacto"
+     },
+     "from_number_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "From Number Id",
+      "description": "Número del cliente para el caller ID; sin él, el primero"
+     },
+     "confirm_opted_out": {
+      "type": "boolean",
+      "title": "Confirm Opted Out",
+      "description": "El contacto pidió no recibir llamadas y se llama igual (queda registrado); sin esto, 409 opted_out",
+      "default": false
+     },
+     "user_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "User Id",
+      "description": "Por API key o MCP: el usuario del cliente que va a hablar (abre join_url con su sesión). Desde el panel, el de la sesión"
+     }
+    },
+    "type": "object",
+    "title": "DirectCallIn"
+   },
+   "DirectCallOut": {
+    "properties": {
+     "conversation_id": {
+      "type": "string",
+      "title": "Conversation Id"
+     },
+     "room": {
+      "type": "string",
+      "title": "Room"
+     },
+     "status": {
+      "type": "string",
+      "title": "Status"
+     },
+     "livekit_url": {
+      "type": "string",
+      "title": "Livekit Url"
+     },
+     "token": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Token",
+      "description": "Con sesión: el token del usuario para entrar a la room"
+     },
+     "join_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Join Url",
+      "description": "Por API key o MCP: la página del panel que entra a la llamada con la sesión del usuario"
+     }
+    },
+    "type": "object",
+    "required": [
+     "conversation_id",
+     "room",
+     "status",
+     "livekit_url"
+    ],
+    "title": "DirectCallOut"
+   },
+   "DirectCallSettings": {
+    "properties": {
+     "recording_notice": {
+      "type": "boolean",
+      "title": "Recording Notice",
+      "description": "Avisar \"Esta llamada está siendo grabada\" al empezar las llamadas directas (siempre se graban)"
+     }
+    },
+    "type": "object",
+    "required": [
+     "recording_notice"
+    ],
+    "title": "DirectCallSettings"
+   },
+   "DirectJoinOut": {
+    "properties": {
+     "livekit_url": {
+      "type": "string",
+      "title": "Livekit Url"
+     },
+     "token": {
+      "type": "string",
+      "title": "Token"
+     }
+    },
+    "type": "object",
+    "required": [
+     "livekit_url",
+     "token"
+    ],
+    "title": "DirectJoinOut"
+   },
    "EmailCodeIn": {
     "properties": {
      "email": {
@@ -22630,6 +23369,48 @@
     ],
     "title": "PhoneNumberIn"
    },
+   "PhoneNumberMemberOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "phone": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Phone"
+     },
+     "user_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "User Id"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "name",
+     "phone",
+     "user_id"
+    ],
+    "title": "PhoneNumberMemberOut"
+   },
    "PhoneNumberOut": {
     "properties": {
      "id": {
@@ -22708,6 +23489,57 @@
       "type": "string",
       "format": "date-time",
       "title": "Created At"
+     },
+     "answer_mode": {
+      "type": "string",
+      "enum": [
+       "team",
+       "agent"
+      ],
+      "title": "Answer Mode"
+     },
+     "ring_first": {
+      "type": "string",
+      "enum": [
+       "phone",
+       "panel"
+      ],
+      "title": "Ring First"
+     },
+     "ring_seconds": {
+      "type": "integer",
+      "title": "Ring Seconds"
+     },
+     "schedule": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/HandoffSchedule"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "team_fallback": {
+      "type": "string",
+      "enum": [
+       "agent",
+       "voicemail",
+       "hangup"
+      ],
+      "title": "Team Fallback"
+     },
+     "team_fallback_message": {
+      "type": "string",
+      "title": "Team Fallback Message"
+     },
+     "members": {
+      "items": {
+       "$ref": "#/components/schemas/PhoneNumberMemberOut"
+      },
+      "type": "array",
+      "title": "Members",
+      "description": "Las personas del número, en orden"
      }
     },
     "type": "object",
@@ -22719,7 +23551,12 @@
      "client_id",
      "agent_id",
      "assigned_at",
-     "created_at"
+     "created_at",
+     "answer_mode",
+     "ring_first",
+     "ring_seconds",
+     "team_fallback",
+     "team_fallback_message"
     ],
     "title": "PhoneNumberOut"
    },
@@ -22747,6 +23584,107 @@
        }
       ],
       "title": "Agent Id"
+     },
+     "answer_mode": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "team",
+         "agent"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Answer Mode",
+      "description": "team: las personas del número; agent: el agente (puede derivar con sus áreas)"
+     },
+     "member_ids": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Member Ids",
+      "description": "Personas del equipo, en el orden en que suenan; cada una con celular o usuario del panel"
+     },
+     "ring_first": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "phone",
+         "panel"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ring First",
+      "description": "Dónde suena primero: phone (el celular de cada uno, en orden) o panel (los Disponibles, a la vez); si nadie atiende, en el otro"
+     },
+     "ring_seconds": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 60.0,
+        "minimum": 5.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ring Seconds",
+      "description": "Timbre por persona"
+     },
+     "schedule": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/HandoffSchedule"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Horario; null = siempre"
+     },
+     "team_fallback": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "agent",
+         "voicemail",
+         "hangup"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Team Fallback",
+      "description": "Si nadie atiende o fuera de horario: el agente del número, mensaje y graba, o mensaje y corta"
+     },
+     "team_fallback_message": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 500
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Team Fallback Message"
      }
     },
     "type": "object",
@@ -22809,7 +23747,8 @@
         "custom_tools",
         "code_tools",
         "white_label",
-        "advanced_reports"
+        "advanced_reports",
+        "direct_calls"
        ]
       },
       "type": "object",
@@ -23013,6 +23952,45 @@
     ],
     "title": "PlanOut",
     "description": "Un tier publico, como se ofrece en la pantalla Plan."
+   },
+   "PresenceIn": {
+    "properties": {
+     "available": {
+      "type": "boolean",
+      "title": "Available"
+     }
+    },
+    "type": "object",
+    "required": [
+     "available"
+    ],
+    "title": "PresenceIn"
+   },
+   "PresenceOut": {
+    "properties": {
+     "available": {
+      "type": "boolean",
+      "title": "Available"
+     },
+     "last_seen": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Seen"
+     }
+    },
+    "type": "object",
+    "required": [
+     "available",
+     "last_seen"
+    ],
+    "title": "PresenceOut"
    },
    "ProfileIn": {
     "properties": {
@@ -23527,6 +24505,101 @@
     ],
     "title": "ReportByChannelOut"
    },
+   "ReportCallTypeOut": {
+    "properties": {
+     "type": {
+      "type": "string",
+      "enum": [
+       "agent",
+       "direct",
+       "team"
+      ],
+      "title": "Type",
+      "description": "agent: la atiende o la hace el agente; direct: la hace una persona del equipo; team: entrante que atiende el equipo"
+     },
+     "calls": {
+      "type": "integer",
+      "title": "Calls"
+     },
+     "minutes": {
+      "type": "number",
+      "title": "Minutes"
+     },
+     "avg_duration": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Avg Duration",
+      "description": "Segundos, de las llamadas finalizadas"
+     }
+    },
+    "type": "object",
+    "required": [
+     "type",
+     "calls",
+     "minutes",
+     "avg_duration"
+    ],
+    "title": "ReportCallTypeOut"
+   },
+   "ReportCallUserOut": {
+    "properties": {
+     "user_id": {
+      "type": "string",
+      "title": "User Id"
+     },
+     "user_name": {
+      "type": "string",
+      "title": "User Name"
+     },
+     "direct": {
+      "type": "integer",
+      "title": "Direct",
+      "description": "Directas que hizo"
+     },
+     "team": {
+      "type": "integer",
+      "title": "Team",
+      "description": "Entrantes del equipo que atendió"
+     },
+     "calls": {
+      "type": "integer",
+      "title": "Calls"
+     },
+     "minutes": {
+      "type": "number",
+      "title": "Minutes"
+     },
+     "avg_duration": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Avg Duration",
+      "description": "Segundos, de las llamadas finalizadas"
+     }
+    },
+    "type": "object",
+    "required": [
+     "user_id",
+     "user_name",
+     "direct",
+     "team",
+     "calls",
+     "minutes",
+     "avg_duration"
+    ],
+    "title": "ReportCallUserOut"
+   },
    "ReportCallerOut": {
     "properties": {
      "count": {
@@ -23660,6 +24733,10 @@
       "type": "integer",
       "title": "Saliente"
      },
+     "directa": {
+      "type": "integer",
+      "title": "Directa"
+     },
      "web": {
       "type": "integer",
       "title": "Web"
@@ -23674,6 +24751,7 @@
      "date",
      "entrante",
      "saliente",
+     "directa",
      "web",
      "prueba"
     ],
@@ -23709,6 +24787,22 @@
       "type": "array",
       "title": "By Agent"
      },
+     "by_type": {
+      "items": {
+       "$ref": "#/components/schemas/ReportCallTypeOut"
+      },
+      "type": "array",
+      "title": "By Type",
+      "description": "Siempre los tres tipos, en el orden agent, direct, team"
+     },
+     "by_user": {
+      "items": {
+       "$ref": "#/components/schemas/ReportCallUserOut"
+      },
+      "type": "array",
+      "title": "By User",
+      "description": "Usuarios del panel con directas hechas o entrantes del equipo atendidas"
+     },
      "durations": {
       "items": {
        "$ref": "#/components/schemas/ReportBucketOut"
@@ -23740,6 +24834,8 @@
      "heatmap",
      "by_line",
      "by_agent",
+     "by_type",
+     "by_user",
      "durations",
      "ended",
      "early_hangups",
@@ -25489,6 +26585,83 @@
     ],
     "title": "ReportWaHandoffOut"
    },
+   "RingingOut": {
+    "properties": {
+     "conversation_id": {
+      "type": "string",
+      "title": "Conversation Id"
+     },
+     "phone": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Phone"
+     },
+     "contact_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Contact Id"
+     },
+     "contact_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Contact Name"
+     },
+     "number_e164": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Number E164"
+     },
+     "number_label": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Number Label"
+     },
+     "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Started At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "conversation_id",
+     "phone",
+     "number_e164",
+     "number_label",
+     "started_at"
+    ],
+    "title": "RingingOut"
+   },
    "SecretAgentRef": {
     "properties": {
      "id": {
@@ -26211,6 +27384,47 @@
     "type": "object",
     "title": "TeamMemberPatch"
    },
+   "TeamPresenceOut": {
+    "properties": {
+     "user_id": {
+      "type": "string",
+      "title": "User Id"
+     },
+     "team_member_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Team Member Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "available": {
+      "type": "boolean",
+      "title": "Available",
+      "description": "Disponible en el panel para atender"
+     },
+     "busy": {
+      "type": "boolean",
+      "title": "Busy",
+      "description": "En una llamada"
+     }
+    },
+    "type": "object",
+    "required": [
+     "user_id",
+     "name",
+     "available",
+     "busy"
+    ],
+    "title": "TeamPresenceOut"
+   },
    "TemplateOut": {
     "properties": {
      "id": {
@@ -26584,6 +27798,12 @@
       "description": "Tier de Atentina: no se ofrece como plan ni cuenta en las estadisticas de la plataforma",
       "default": false
      },
+     "direct_calls": {
+      "type": "boolean",
+      "title": "Direct Calls",
+      "description": "Llamadas directas: el equipo llama y atiende desde el panel, sin el agente (la saliente pide ademas salientes)",
+      "default": false
+     },
      "price_ars": {
       "anyOf": [
        {
@@ -26878,6 +28098,10 @@
       "type": "boolean",
       "title": "Internal"
      },
+     "direct_calls": {
+      "type": "boolean",
+      "title": "Direct Calls"
+     },
      "price_ars": {
       "anyOf": [
        {
@@ -26940,6 +28164,7 @@
      "white_label",
      "advanced_reports",
      "internal",
+     "direct_calls",
      "price_ars",
      "public",
      "sort",
@@ -27295,6 +28520,17 @@
        }
       ],
       "title": "Internal"
+     },
+     "direct_calls": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Direct Calls"
      },
      "price_ars": {
       "anyOf": [

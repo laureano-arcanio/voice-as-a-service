@@ -18,12 +18,46 @@ export const CALL_STATUS: Record<string, Label> = {
 export const CALL_MODE: Record<string, Label> = {
   saliente: { label: 'Saliente', color: 'gray' },
   entrante: { label: 'Entrante', color: 'gray' },
+  directa: { label: 'Directa', color: 'gray' },
   prueba: { label: 'Prueba', color: 'gray' },
   web: { label: 'Link web', color: 'gray' },
   loadtest: { label: 'Loadtest', color: 'gray' },
   api: { label: 'API (texto)', color: 'gray' },
   whatsapp: { label: 'WhatsApp', color: 'gray' },
 };
+
+/** Quién atiende las entrantes (CallSummary.answered_by): el agente o el equipo (llamadas directas). */
+export const ANSWERED_BY: Record<string, string> = {
+  agent: 'Agente',
+  team: 'Equipo',
+};
+
+/** Una entrante que atendió el equipo, sin agente (docs/LLAMADAS_DIRECTAS_PLAN.md). */
+export function isTeamInbound(c: { mode?: string | null; answered_by?: string | null }): boolean {
+  return c.mode === 'entrante' && c.answered_by === 'team';
+}
+
+/** Llamada de una persona del equipo, sin agente: una directa o una entrante que atendió el equipo. */
+export function isPersonCall(c: { mode?: string | null; answered_by?: string | null }): boolean {
+  return c.mode === 'directa' || isTeamInbound(c);
+}
+
+/**
+ * Quién habló, en las llamadas sin agente: "Llamó: Ana" (directa) o "Atendió: Ana" (entrante del equipo); una
+ * entrante del equipo que terminó sin que nadie atienda, "Atendió: nadie". Null si no es una llamada de persona,
+ * o si la entrante todavía está sonando.
+ */
+export function callPerson(c: {
+  mode?: string | null;
+  answered_by?: string | null;
+  user_name?: string | null;
+  status?: string | null;
+}): { verb: 'Llamó' | 'Atendió'; name: string } | null {
+  if (c.mode === 'directa') return { verb: 'Llamó', name: c.user_name || 'alguien del equipo' };
+  if (!isTeamInbound(c)) return null;
+  if (c.user_name) return { verb: 'Atendió', name: c.user_name };
+  return c.status && !isLiveStatus(c.status) ? { verb: 'Atendió', name: 'nadie' } : null;
+}
 
 export const WORKFLOW_STATUS: Record<string, Label> = {
   active: { label: 'Incompleto', color: 'yellow' },

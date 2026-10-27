@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { useCurrentUser } from '@/features/auth/api';
 import { recentMonths } from '@/lib/format';
 import { CallEmailsCard } from './CallEmailsCard';
+import { DirectCallSettingsCard } from './DirectCallSettingsCard';
 import { NumbersSection } from './NumbersSection';
 import { UsageCard } from './UsageCard';
 
@@ -20,6 +21,7 @@ export function AccountPage() {
         <UsageCard clientId={me.client_id} month={month} onMonth={setMonth} limitsName="plan" />
         <NumbersSection clientId={me.client_id} canAssign={false} />
         <CallEmailsCard clientId={me.client_id} />
+        <DirectCallSettingsCard clientId={me.client_id} />
       </Stack>
     </>
   );

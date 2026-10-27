@@ -118,7 +118,7 @@ describe('navegación por área', () => {
       'Conversaciones',
       'Agentes: Mis agentes, Herramientas, Secretos, Modelos, Playground, Voces',
       'Canales: WhatsApp, Llamadas, Campañas',
-      'Organización: Contactos, Equipo',
+      'Organización: Contactos, Teléfono, Equipo',
       'Developers: API keys, Uso de la API',
       'Cuenta: Mi cuenta, Plan, Consumos',
     ]);

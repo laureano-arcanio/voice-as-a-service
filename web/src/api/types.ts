@@ -1,3 +1,4 @@
+import type { Readable } from 'openapi-typescript-helpers';
 import type { components } from './schema';
 
 type S = components['schemas'];
@@ -28,7 +29,8 @@ export type ApiRequest = S['ApiRequestOut'];
 export type ApiRequestPage = S['ApiRequestPage'];
 export type ApiScope = S['ApiKeyOut']['scopes'][number];
 export type MinutesUsage = S['MinutesUsageOut'];
-export type PhoneNumber = S['PhoneNumberOut'];
+// Como llega de openapi-fetch (Readable): el horario trae las franjas como listas, no tuplas.
+export type PhoneNumber = Readable<S['PhoneNumberOut']>;
 export type PhoneNumberIn = S['PhoneNumberIn'];
 export type PhoneNumberUpdate = S['PhoneNumberUpdate'];
 export type Agent = S['AgentOut'];

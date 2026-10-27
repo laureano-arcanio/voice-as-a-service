@@ -442,3 +442,17 @@ details.llm summary {
 .app-powered-by {
   opacity: 0.8;
 }
+
+/* Teléfono: fila de la agenda (hover en superficie 2; la elegida, con acento suave). */
+.phone-contact {
+  border-radius: var(--mantine-radius-md);
+  transition: background-color 150ms ease;
+}
+
+.phone-contact:hover {
+  background: var(--app-surface-2);
+}
+
+.phone-contact[data-active] {
+  background: var(--mantine-color-blue-light);
+}

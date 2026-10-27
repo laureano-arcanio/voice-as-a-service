@@ -42,6 +42,7 @@ import { useBlockNumber } from '@/features/contacts/api';
 import { useSupportSwitch } from '@/features/support/api';
 import { useAreaPath } from '@/features/support/paths';
 import { formatDateTimeLong, formatDuration, formatValue } from '@/lib/format';
+import { callPerson, isPersonCall } from '@/lib/labels';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { isCallLive, useCallDetail, useCloseWhatsApp, useHangUp } from './api';
 import { ChatView } from './ChatView';
@@ -147,6 +148,9 @@ function CallHeader({ c }: { c: CallDetail }) {
   const wa = c.whatsapp;
   const required = c.fields.filter((f) => f.required);
   const captured = required.filter((f) => f.value != null).length;
+  // Directa o entrante del equipo: no hay agente, ni datos que obtener, ni resultado.
+  const person = call ? callPerson(call) : null;
+  const agentless = isPersonOnly(c);
   return (
     <Card>
       <SimpleGrid cols={{ base: 2, sm: 3, lg: 6 }} spacing="md" verticalSpacing="md">
@@ -158,7 +162,12 @@ function CallHeader({ c }: { c: CallDetail }) {
           {wa ? (
             <OriginBadge mode="whatsapp" phone={wa.wa_id} wrap />
           ) : (
-            <OriginBadge mode={call ? call.mode : 'api'} phone={call?.phone} wrap />
+            <OriginBadge
+              mode={call ? call.mode : 'api'}
+              phone={call?.phone}
+              answeredBy={call?.answered_by}
+              wrap
+            />
           )}
         </Item>
         <Item label="Número del cliente">
@@ -193,40 +202,53 @@ function CallHeader({ c }: { c: CallDetail }) {
             <Item label="Fin de llamada">{call?.ended_reason || '–'}</Item>
           </>
         )}
-        <Item label="Datos obtenidos">
-          {captured} de {required.length}
-        </Item>
-        <Item label="Resultado">
-          {c.outcome ? <OutcomeBadge label={c.outcome.label} goal={c.outcome.goal} /> : '–'}
-        </Item>
-        <Item label="Agente">
-          {c.agent_id && isAdmin && c.client_id ? (
-            // El editor del agente es del panel del cliente: el admin entra como el cliente.
-            <Anchor
-              component="button"
-              type="button"
-              onClick={() => void enter(c.client_id!, `/agents/${c.agent_id}`)}
-              size="sm"
-              fw={600}
-            >
-              {c.agent_name ?? 'Agente'}
-            </Anchor>
-          ) : c.agent_id && !isAdmin ? (
-            <Anchor component={Link} to={`/agents/${c.agent_id}`} size="sm" fw={600}>
-              {c.agent_name ?? 'Agente'}
-            </Anchor>
-          ) : (
-            (c.agent_name ?? '–')
-          )}
-          {c.agent_version != null && (
-            <Text span c="dimmed" className="mono">
-              {' '}
-              v{c.agent_version}
-            </Text>
-          )}
-        </Item>
+        {!agentless && (
+          <>
+            <Item label="Datos obtenidos">
+              {captured} de {required.length}
+            </Item>
+            <Item label="Resultado">
+              {c.outcome ? <OutcomeBadge label={c.outcome.label} goal={c.outcome.goal} /> : '–'}
+            </Item>
+          </>
+        )}
+        {agentless ? (
+          <Item label={person?.verb ?? 'Atendió'}>{person?.name ?? '–'}</Item>
+        ) : (
+          <Item label="Agente">
+            {c.agent_id && isAdmin && c.client_id ? (
+              // El editor del agente es del panel del cliente: el admin entra como el cliente.
+              <Anchor
+                component="button"
+                type="button"
+                onClick={() => void enter(c.client_id!, `/agents/${c.agent_id}`)}
+                size="sm"
+                fw={600}
+              >
+                {c.agent_name ?? 'Agente'}
+              </Anchor>
+            ) : c.agent_id && !isAdmin ? (
+              <Anchor component={Link} to={`/agents/${c.agent_id}`} size="sm" fw={600}>
+                {c.agent_name ?? 'Agente'}
+              </Anchor>
+            ) : (
+              (c.agent_name ?? '–')
+            )}
+            {c.agent_version != null && (
+              <Text span c="dimmed" className="mono">
+                {' '}
+                v{c.agent_version}
+              </Text>
+            )}
+          </Item>
+        )}
         {isAdmin && c.client_name && <Item label="Cliente">{c.client_name}</Item>}
       </SimpleGrid>
+      {call?.opted_out_confirmed && (
+        <Alert color="yellow" mt="md" title="Contacto que pidió no recibir llamadas">
+          Se lo llamó igual{call.user_name ? `: lo confirmó ${call.user_name}` : ' con confirmación'}.
+        </Alert>
+      )}
       {call?.error && (
         <Alert color="red" mt="md" title="Error">
           {call.error}
@@ -239,6 +261,19 @@ function CallHeader({ c }: { c: CallDetail }) {
       )}
     </Card>
   );
+}
+
+/** Llamada de una persona del equipo sin agente (directa o entrante del equipo): no hay datos ni resultado. */
+function isPersonOnly(c: CallDetail): boolean {
+  return !c.agent_id && !!c.call && isPersonCall(c.call);
+}
+
+/** Directa o entrante del equipo: no hay agente ni interesado; el otro lado es el contacto o quien llamó. */
+function personLabels(c: CallDetail): { agentLabel?: string; userLabel?: string } {
+  if (c.agent_id || !c.call) return {};
+  if (c.call.mode === 'directa') return { agentLabel: 'Mensaje automático', userLabel: 'Contacto' };
+  if (isPersonCall(c.call)) return { agentLabel: 'Mensaje automático', userLabel: 'Quien llamó' };
+  return {};
 }
 
 function ChatCard({ c, live }: { c: CallDetail; live: boolean }) {
@@ -259,7 +294,13 @@ function ChatCard({ c, live }: { c: CallDetail; live: boolean }) {
           onChange={(e) => setShowLlm(e.currentTarget.checked)}
         />
       </Group>
-      <ChatView messages={c.messages} showLlm={showLlm} llmTitle={llmTitle} conversationId={c.id} />
+      <ChatView
+        messages={c.messages}
+        showLlm={showLlm}
+        llmTitle={llmTitle}
+        conversationId={c.id}
+        {...personLabels(c)}
+      />
     </Card>
   );
 }
@@ -427,7 +468,7 @@ export function CallDetailPage() {
         title={
           <Group gap="sm" component="span">
             Conversación
-            {query.data && <WorkflowBadge status={query.data.workflow_status} />}
+            {query.data && !isPersonOnly(query.data) && <WorkflowBadge status={query.data.workflow_status} />}
             {query.data?.whatsapp?.closed_at && <Badge color="gray">Cerrada</Badge>}
           </Group>
         }
@@ -437,17 +478,22 @@ export function CallDetailPage() {
         {(c) => (
           <Stack gap="md">
             <CallHeader c={c} />
-            <Grid gutter="md">
-              <Grid.Col span={{ base: 12, lg: 5 }}>
-                <Stack gap="md">
-                  {c.context && <ContextCard context={c.context} />}
-                  <FieldsCard c={c} />
-                </Stack>
-              </Grid.Col>
-              <Grid.Col span={{ base: 12, lg: 7 }}>
-                <ChatCard c={c} live={live} />
-              </Grid.Col>
-            </Grid>
+            {isPersonOnly(c) && !c.context ? (
+              // Sin agente no hay datos que obtener: la conversación ocupa todo el ancho.
+              <ChatCard c={c} live={live} />
+            ) : (
+              <Grid gutter="md">
+                <Grid.Col span={{ base: 12, lg: 5 }}>
+                  <Stack gap="md">
+                    {c.context && <ContextCard context={c.context} />}
+                    {!isPersonOnly(c) && <FieldsCard c={c} />}
+                  </Stack>
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, lg: 7 }}>
+                  <ChatCard c={c} live={live} />
+                </Grid.Col>
+              </Grid>
+            )}
             <LatencyCard latency={asLatency(c.call?.latency)} folded={!isAdmin} />
           </Stack>
         )}

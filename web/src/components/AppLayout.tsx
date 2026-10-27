@@ -23,6 +23,9 @@ import { LegalModal } from '@/features/auth/LegalModal';
 import { WelcomeModal } from '@/features/auth/WelcomeModal';
 import { usePlanFeatures } from '@/features/billing/features';
 import { notifyError } from '@/lib/notify';
+import { CallBar } from '@/features/phone/CallBar';
+import { CallProvider } from '@/features/phone/CallProvider';
+import { useCallBarHeight } from '@/features/phone/context';
 import { useSupportSwitch } from '@/features/support/api';
 import { isGroup, navFor, type NavEntry, type NavGroup, type NavItem } from './nav';
 
@@ -39,6 +42,20 @@ function isActive(pathname: string, to: string): boolean {
 }
 
 export function AppLayout() {
+  const { data: me } = useMe();
+  if (!me) return null;
+  // El teléfono del panel (llamadas directas, docs/LLAMADAS_DIRECTAS_PLAN.md): la llamada vive en el layout
+  // del cliente, con la barra fija abajo, para abrir otras pantallas sin cortar.
+  return me.role === 'client' ? (
+    <CallProvider>
+      <LayoutShell />
+    </CallProvider>
+  ) : (
+    <LayoutShell />
+  );
+}
+
+function LayoutShell() {
   const [opened, { toggle, close }] = useDisclosure();
   const { data: me } = useMe();
   const logout = useLogout();
@@ -52,6 +69,7 @@ export function AppLayout() {
   const support = useSupportSwitch();
   // Grupos abiertos o cerrados a mano; sin tocar, abierto el que tiene la pantalla actual.
   const [groupOpen, setGroupOpen] = useState<Record<string, boolean>>({});
+  const callBarHeight = useCallBarHeight();
 
   if (!me) return null;
 
@@ -143,6 +161,7 @@ export function AppLayout() {
     <AppShell
       header={{ height: 60 }}
       navbar={{ width: 232, breakpoint: 'sm', collapsed: { mobile: !opened } }}
+      footer={callBarHeight ? { height: callBarHeight } : undefined}
       padding="md"
     >
       <AppShell.Header className={branding ? 'app-header brand-header' : 'app-header'}>
@@ -261,6 +280,11 @@ export function AppLayout() {
         <LegalModal />
         <WelcomeModal />
       </AppShell.Main>
+      {callBarHeight && (
+        <AppShell.Footer>
+          <CallBar />
+        </AppShell.Footer>
+      )}
     </AppShell>
   );
 }

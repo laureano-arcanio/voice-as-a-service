@@ -1,17 +1,32 @@
-import { Anchor, Badge, Button, Card, Group, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
+import {
+  Alert,
+  Anchor,
+  Badge,
+  Button,
+  Card,
+  Group,
+  SimpleGrid,
+  Stack,
+  Table,
+  Text,
+  Title,
+} from '@mantine/core';
 import { IconArchive, IconArchiveOff, IconArrowLeft, IconPencil } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { ApiError } from '@/api/errors';
-import { Dash } from '@/components/Badges';
+import { CallStatusBadge, Dash } from '@/components/Badges';
 import { confirmAction } from '@/components/confirm';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState, ErrorAlert, QueryState } from '@/components/QueryState';
 import { CHANNEL, CONTACT_RESULT, CONTACT_STATUS, statusLabel } from '@/features/campaigns/labels';
-import { formatDate, formatDateTime } from '@/lib/format';
+import { useRecentCalls } from '@/features/phone/api';
+import { formatDate, formatDateTime, formatDuration } from '@/lib/format';
+import { callPerson, CALL_MODE } from '@/lib/labels';
 import { notifyError, notifySuccess } from '@/lib/notify';
-import { useArchiveContact, useContact, useContactCampaigns } from './api';
+import { useArchiveContact, useBlockedNumbers, useContact, useContactCampaigns, useOptouts } from './api';
 import { ContactModal } from './ContactModals';
+import { DirectCallButton } from './DirectCallButton';
 import { TagBadges } from './TagBadges';
 import { CONTACT_SOURCE } from './labels';
 
@@ -99,11 +114,88 @@ function CampaignsCard({ id }: { id: string }) {
   );
 }
 
+const HISTORY_ROWS = 10;
+
+/**
+ * Las llamadas con el contacto: las del agente y las directas, de las 200 conversaciones más nuevas del
+ * cliente (la API no filtra por teléfono). Las directas dicen quién llamó.
+ */
+function CallsCard({ phone }: { phone: string }) {
+  const recent = useRecentCalls();
+  return (
+    <Card>
+      <Title order={4} mb="md">
+        Historial de llamadas
+      </Title>
+      <QueryState query={recent}>
+        {(page) => {
+          const rows = page.items.filter((c) => c.phone === phone && c.mode !== 'whatsapp');
+          if (rows.length === 0) return <EmptyState>Todavía no hay llamadas con este contacto.</EmptyState>;
+          return (
+            <Table.ScrollContainer minWidth={640}>
+              <Table>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Fecha</Table.Th>
+                    <Table.Th>Tipo</Table.Th>
+                    <Table.Th>Quién</Table.Th>
+                    <Table.Th>Estado</Table.Th>
+                    <Table.Th style={{ textAlign: 'right' }}>Duración</Table.Th>
+                    <Table.Th />
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {rows.slice(0, HISTORY_ROWS).map((c) => {
+                    const who = callPerson(c);
+                    return (
+                      <Table.Tr key={c.id}>
+                        <Table.Td style={{ whiteSpace: 'nowrap' }}>{formatDateTime(c.created_at)}</Table.Td>
+                        <Table.Td>
+                          <Badge color="gray">
+                            {c.mode === 'entrante' && c.answered_by === 'team'
+                              ? 'Entrante del equipo'
+                              : (CALL_MODE[c.mode]?.label ?? c.mode)}
+                          </Badge>
+                        </Table.Td>
+                        <Table.Td>
+                          {who ? `${who.verb}: ${who.name}` : (c.agent_name ?? <Dash />)}
+                          {c.opted_out_confirmed && (
+                            <Text size="xs" c="dimmed">
+                              Había pedido no recibir llamadas
+                            </Text>
+                          )}
+                        </Table.Td>
+                        <Table.Td>
+                          <CallStatusBadge status={c.status} />
+                        </Table.Td>
+                        <Table.Td className="mono" ta="right">
+                          {formatDuration(c.duration_seconds)}
+                        </Table.Td>
+                        <Table.Td>
+                          <Anchor component={Link} to={`/calls/${c.id}`} size="sm">
+                            Ver conversación
+                          </Anchor>
+                        </Table.Td>
+                      </Table.Tr>
+                    );
+                  })}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
+          );
+        }}
+      </QueryState>
+    </Card>
+  );
+}
+
 /** La ficha de un contacto: sus datos y las campañas en las que estuvo. */
 export function ContactDetailPage() {
   const { id = '' } = useParams();
   const query = useContact(id);
   const archive = useArchiveContact();
+  const optouts = useOptouts();
+  const blockedNumbers = useBlockedNumbers();
   const [editing, setEditing] = useState(false);
 
   const back = (
@@ -132,6 +224,11 @@ export function ContactDetailPage() {
   return (
     <QueryState query={query}>
       {(c) => {
+        // Bajas de llamadas (voz o todos los canales) y bloqueados, por teléfono.
+        const optedOutSince =
+          (optouts.data ?? []).find((o) => o.phone === c.phone && o.channel !== 'whatsapp')?.created_at ??
+          null;
+        const isBlocked = (blockedNumbers.data ?? []).some((b) => b.phone === c.phone);
         const toggle = async () => {
           if (!c.archived_at) {
             const ok = await confirmAction({
@@ -166,6 +263,7 @@ export function ContactDetailPage() {
               description={c.name ? <span className="mono">{c.phone}</span> : undefined}
               actions={
                 <>
+                  <DirectCallButton contact={c} variant="button" />
                   <Button
                     variant="default"
                     leftSection={<IconPencil size={18} />}
@@ -185,6 +283,21 @@ export function ContactDetailPage() {
                 </>
               }
             />
+            {optedOutSince && (
+              <Alert color="yellow" p="xs">
+                <Text size="sm">
+                  Pidió no recibir llamadas ({formatDate(optedOutSince)}). Se puede llamar igual, con
+                  confirmación.
+                </Text>
+              </Alert>
+            )}
+            {isBlocked && (
+              <Alert color="red" p="xs">
+                <Text size="sm">
+                  Número bloqueado: no se puede llamar. Se desbloquea en Contactos, Números bloqueados.
+                </Text>
+              </Alert>
+            )}
             <Card>
               <SimpleGrid cols={{ base: 2, sm: 3, md: 5 }} spacing="md">
                 <Datum label="Email">{c.email ?? <Dash />}</Datum>
@@ -212,6 +325,7 @@ export function ContactDetailPage() {
                 </>
               )}
             </Card>
+            <CallsCard phone={c.phone} />
             <CampaignsCard id={c.id} />
             {editing && <ContactModal contact={c} onClose={() => setEditing(false)} />}
           </Stack>

@@ -62,6 +62,16 @@ afterEach(() => {
   delete window.FB;
 });
 
+/**
+ * Abre el menú de acciones de la cuenta y devuelve el ítem. En jsdom no hay layout: según cuándo calcula Floating UI
+ * la posición, el menú puede quedar con `display: none` (la cuenta da el botón por "oculto", hideDetached) aunque
+ * esté abierto, así que el ítem se busca también entre los ocultos.
+ */
+async function actionItem(user: { click: (el: Element) => Promise<void> }, item: RegExp) {
+  await user.click(await screen.findByRole('button', { name: /Acciones de \+54 351 555 0000/ }));
+  return screen.findByRole('menuitem', { name: item, hidden: true });
+}
+
 describe('WhatsAppPage', () => {
   it('cliente: sin alta manual ni Embedded Signup apagado (oculto); conectar con mi app de Meta', async () => {
     mockApi({
@@ -93,11 +103,12 @@ describe('WhatsAppPage', () => {
       'GET /api/v1/agents': () => jsonResponse([]),
     });
     renderWithProviders(<WhatsAppPage />, { me: CLIENT_USER });
-    await userEvent.click(await screen.findByRole('button', { name: /Acciones de \+54 351 555 0000/ }));
-    expect(await screen.findByRole('menuitem', { name: /Desactivar/ })).toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /Reintentar registro/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /Releer datos/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /Plantillas/ })).not.toBeInTheDocument();
+    expect(await actionItem(userEvent, /Desactivar/)).toBeInTheDocument();
+    expect(
+      screen.queryByRole('menuitem', { name: /Reintentar registro/, hidden: true }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /Releer datos/, hidden: true })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /Plantillas/, hidden: true })).not.toBeInTheDocument();
     expect(calls.some((c) => c.path.endsWith('/templates'))).toBe(false);
   });
 
@@ -331,8 +342,7 @@ describe('WhatsAppPage', () => {
     renderWithProviders(<WhatsAppPage />, { me: CLIENT_USER });
     expect(await screen.findByText('App propia')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /Acciones de \+54 351 555 0000/ }));
-    await user.click(await screen.findByRole('menuitem', { name: /Datos del webhook/ }));
+    await user.click(await actionItem(user, /Datos del webhook/));
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('verif-xyz')).toBeInTheDocument();
   });
@@ -355,8 +365,7 @@ describe('WhatsAppPage', () => {
     });
     const user = userEvent.setup();
     renderWithProviders(<WhatsAppPage />, { me: CLIENT_USER });
-    await user.click(await screen.findByRole('button', { name: /Acciones de \+54 351 555 0000/ }));
-    await user.click(await screen.findByRole('menuitem', { name: /Actualizar token/ }));
+    await user.click(await actionItem(user, /Actualizar token/));
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByRole('textbox', { name: /Identificador del número/ })).toHaveValue('111');
     expect(within(dialog).getByRole('textbox', { name: /Identificador de la cuenta/ })).toHaveValue('222');
@@ -389,8 +398,7 @@ describe('WhatsAppPage', () => {
     renderWithProviders(<WhatsAppPage />, { me: CLIENT_USER });
 
     expect(await screen.findByText('1 regla por contacto')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Acciones de \+54 351 555 0000/ }));
-    await user.click(await screen.findByRole('menuitem', { name: /Ruteo por contacto/ }));
+    await user.click(await actionItem(user, /Ruteo por contacto/));
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('5491155551234')).toBeInTheDocument();
     await user.type(

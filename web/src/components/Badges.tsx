@@ -1,7 +1,7 @@
 import { Badge, Group, Text } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import type { ReactNode } from 'react';
-import { CALL_MODE, CALL_STATUS, WORKFLOW_STATUS, type Label } from '@/lib/labels';
+import { CALL_MODE, CALL_STATUS, isTeamInbound, WORKFLOW_STATUS, type Label } from '@/lib/labels';
 
 /** Valor faltante: raya en dimmed. */
 export function Dash() {
@@ -41,15 +41,22 @@ export function WorkflowBadge({ status }: { status: string | null | undefined })
 export function OriginBadge({
   mode,
   phone,
+  answeredBy,
   wrap = false,
 }: {
   mode: string | null | undefined;
   phone?: string | null;
+  /** Quién atendió la entrante: con `team` es "Entrante del equipo". */
+  answeredBy?: string | null;
   wrap?: boolean;
 }) {
   return (
     <Group gap={6} wrap={wrap ? 'wrap' : 'nowrap'}>
-      <MappedBadge map={CALL_MODE} value={mode} />
+      {isTeamInbound({ mode, answered_by: answeredBy }) ? (
+        <Badge color="gray">Entrante del equipo</Badge>
+      ) : (
+        <MappedBadge map={CALL_MODE} value={mode} />
+      )}
       {phone && (
         <Text span c="dimmed" className="mono">
           {phone}

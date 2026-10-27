@@ -45,6 +45,7 @@ import {
   useUnarchiveMany,
 } from './api';
 import { BlockedNumbersCard } from './BlockedNumbersCard';
+import { DirectCallButton } from './DirectCallButton';
 import { ContactModal, ImportContactsModal } from './ContactModals';
 import { TagBadges } from './TagBadges';
 import { attributesText } from './labels';
@@ -342,6 +343,7 @@ export function ContactsPage() {
                           <Table.Td style={{ whiteSpace: 'nowrap' }}>{formatDate(c.created_at)}</Table.Td>
                           <Table.Td>
                             <Group gap={4} justify="flex-end" wrap="nowrap">
+                              <DirectCallButton contact={c} />
                               <Tooltip label="Editar" withArrow>
                                 <ActionIcon
                                   variant="subtle"

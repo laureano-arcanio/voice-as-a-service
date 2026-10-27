@@ -31,10 +31,11 @@ import { EmptyState, QueryState } from '@/components/QueryState';
 import { useClients } from '@/features/clients/api';
 import { formatDateTime } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
-import { NumberAgentSelect } from './AgentSelect';
+import { EditNumberModal } from './EditNumberModal';
 import { useDeleteNumber, usePhoneNumbers, useReleaseNumber, type NumberStatus } from './api';
 import { numberErrorTitle } from './errors';
-import { AssignNumberModal, BulkLoadModal, EditNumberModal } from './NumberModals';
+import { NumberAnswers } from './NumberAnswers';
+import { AssignNumberModal, BulkLoadModal } from './NumberModals';
 import { matchesNumber, plural } from './parse';
 
 type Dialog = { kind: 'bulk' } | { kind: 'assign' | 'edit'; number: PhoneNumber } | null;
@@ -101,7 +102,7 @@ export function NumbersPage() {
     <>
       <PageHeader
         title="Números"
-        description="Inventario de números: se cargan libres, se asignan a un cliente y se rutean a uno de sus agentes."
+        description="Inventario de números: se cargan libres, se asignan a un cliente y se eligen quiénes atienden: el equipo o un agente."
         actions={
           <Button leftSection={<IconPlus size={18} />} onClick={() => setDialog({ kind: 'bulk' })}>
             Cargar números
@@ -159,7 +160,7 @@ export function NumbersPage() {
                         <Table.Th>Etiqueta</Table.Th>
                         <Table.Th>Proveedor</Table.Th>
                         <Table.Th>Cliente</Table.Th>
-                        <Table.Th>Agente</Table.Th>
+                        <Table.Th>Atiende</Table.Th>
                         <Table.Th>Asignado el</Table.Th>
                         <Table.Th />
                       </Table.Tr>
@@ -178,7 +179,11 @@ export function NumbersPage() {
                           <Table.Td>{n.provider}</Table.Td>
                           <Table.Td>
                             {n.client_id ? (
-                              <Anchor component={Link} to={`/admin/clients/${n.client_id}?tab=numeros`} size="sm">
+                              <Anchor
+                                component={Link}
+                                to={`/admin/clients/${n.client_id}?tab=numeros`}
+                                size="sm"
+                              >
                                 {n.client_name ?? 'Cliente'}
                               </Anchor>
                             ) : (
@@ -186,13 +191,7 @@ export function NumbersPage() {
                             )}
                           </Table.Td>
                           <Table.Td>
-                            {n.client_id ? (
-                              <NumberAgentSelect number={n} />
-                            ) : (
-                              <Text span inherit c="dimmed">
-                                –
-                              </Text>
-                            )}
+                            <NumberAnswers number={n} />
                           </Table.Td>
                           <Table.Td style={{ whiteSpace: 'nowrap' }}>
                             {n.assigned_at ? formatDateTime(n.assigned_at) : '–'}
@@ -224,7 +223,7 @@ export function NumbersPage() {
                                     leftSection={<IconPencil size={16} />}
                                     onClick={() => setDialog({ kind: 'edit', number: n })}
                                   >
-                                    Editar etiqueta{n.client_id ? ' y agente' : ''}
+                                    Editar
                                   </Menu.Item>
                                   {n.client_id ? (
                                     <Menu.Item

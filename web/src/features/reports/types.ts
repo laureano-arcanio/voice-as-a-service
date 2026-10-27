@@ -70,7 +70,14 @@ export interface SummaryReport {
 // --- Llamadas ---
 
 export interface CallsReport {
-  daily: { date: string; entrante: number; saliente: number; web: number; prueba: number }[];
+  daily: {
+    date: string;
+    entrante: number;
+    saliente: number;
+    directa: number;
+    web: number;
+    prueba: number;
+  }[];
   heatmap: HeatCell[];
   by_line: {
     phone_number_id: string;
@@ -87,6 +94,22 @@ export interface CallsReport {
     avg_duration: number | null;
     conversion_pct: number | null;
     goal_pct: number | null;
+  }[];
+  /** Siempre los tres tipos, en este orden: agent, direct (la hace una persona) y team (entrante al equipo). */
+  by_type: {
+    type: 'agent' | 'direct' | 'team';
+    calls: number;
+    minutes: number;
+    avg_duration: number | null;
+  }[];
+  by_user: {
+    user_id: string;
+    user_name: string;
+    direct: number;
+    team: number;
+    calls: number;
+    minutes: number;
+    avg_duration: number | null;
   }[];
   durations: { bucket: string; count: number }[];
   ended: { reason: string; count: number }[];

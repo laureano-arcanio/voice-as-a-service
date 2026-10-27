@@ -5,7 +5,7 @@ import { EmptyState, QueryState } from '@/components/QueryState';
 import { formatDateTime, formatDayLabel, formatDuration, formatNumber } from '@/lib/format';
 import { useReport } from './api';
 import { pct } from './format';
-import { ENDED_REASON, label } from './labels';
+import { CALL_TYPE, ENDED_REASON, label } from './labels';
 import { KpiGrid, ReportCard, TableCard, type Column } from './parts';
 import type { CallsReport, ReportQuery } from './types';
 
@@ -13,14 +13,35 @@ type Daily = CallsReport['daily'][number];
 type Agent = CallsReport['by_agent'][number];
 type Line = CallsReport['by_line'][number];
 type Ended = CallsReport['ended'][number];
+type CallType = CallsReport['by_type'][number];
+type CallUser = CallsReport['by_user'][number];
 type Caller = CallsReport['callers']['top'][number];
 
 const DAILY_CSV: Column<Daily>[] = [
   { label: 'Fecha', value: 'date' },
   { label: 'Entrantes', value: 'entrante' },
   { label: 'Salientes', value: 'saliente' },
+  { label: 'Directas', value: 'directa' },
   { label: 'Web', value: 'web' },
   { label: 'Prueba', value: 'prueba' },
+];
+
+const duration = (r: { avg_duration: number | null }) => formatDuration(r.avg_duration);
+
+const TYPE_COLS: Column<CallType>[] = [
+  { label: 'Tipo', value: (r) => label(CALL_TYPE, r.type) },
+  { label: 'Llamadas', value: 'calls', num: true },
+  { label: 'Minutos', value: 'minutes', num: true },
+  { label: 'Duración media', value: 'avg_duration', num: true, render: duration },
+];
+
+const USER_COLS: Column<CallUser>[] = [
+  { label: 'Usuario', value: 'user_name' },
+  { label: 'Directas', value: 'direct', num: true },
+  { label: 'Entrantes atendidas', value: 'team', num: true },
+  { label: 'Llamadas', value: 'calls', num: true },
+  { label: 'Minutos', value: 'minutes', num: true },
+  { label: 'Duración media', value: 'avg_duration', num: true, render: duration },
 ];
 
 const AGENT_COLS: Column<Agent>[] = [
@@ -62,6 +83,12 @@ export function CallsTab({ query }: { query: ReportQuery }) {
       {(r) => {
         const total = r.durations.reduce((s, d) => s + d.count, 0);
         const withTests = r.daily.some((d) => d.prueba);
+        const withDirect = r.daily.some((d) => d.directa);
+        // Tres series de color (guía de la app): con directas, la web se junta con la prueba en gris.
+        const other = (d: Daily) => (withDirect ? d.web : 0) + d.prueba;
+        const withOther = r.daily.some((d) => other(d) > 0);
+        // Las directas y las del equipo no se muestran a quien nunca las usó.
+        const withPeople = r.by_type.some((t) => t.type !== 'agent' && t.calls > 0) || r.by_user.length > 0;
         return (
           <Stack gap="md">
             <KpiGrid
@@ -82,7 +109,7 @@ export function CallsTab({ query }: { query: ReportQuery }) {
               {total ? (
                 <BarChart
                   h={240}
-                  data={r.daily.map((d) => ({ ...d, day: formatDayLabel(d.date) }))}
+                  data={r.daily.map((d) => ({ ...d, other: other(d), day: formatDayLabel(d.date) }))}
                   dataKey="day"
                   type="stacked"
                   withLegend
@@ -91,8 +118,18 @@ export function CallsTab({ query }: { query: ReportQuery }) {
                   series={[
                     { name: 'entrante', label: 'Entrantes', color: 'var(--chart-1)' },
                     { name: 'saliente', label: 'Salientes', color: 'var(--chart-2)' },
-                    { name: 'web', label: 'Web', color: 'var(--chart-3)' },
-                    ...(withTests ? [{ name: 'prueba', label: 'Prueba', color: 'gray.5' }] : []),
+                    withDirect
+                      ? { name: 'directa', label: 'Directas', color: 'var(--chart-3)' }
+                      : { name: 'web', label: 'Web', color: 'var(--chart-3)' },
+                    ...(withOther
+                      ? [
+                          {
+                            name: withDirect ? 'other' : 'prueba',
+                            label: withDirect ? (withTests ? 'Web y prueba' : 'Web') : 'Prueba',
+                            color: 'gray.5',
+                          },
+                        ]
+                      : []),
                   ]}
                 />
               ) : (
@@ -117,6 +154,25 @@ export function CallsTab({ query }: { query: ReportQuery }) {
                 cells={r.heatmap.map((c) => ({ weekday: c.weekday, hour: c.hour, value: c.count }))}
               />
             </ReportCard>
+            {withPeople && (
+              <>
+                <TableCard
+                  title="Por tipo"
+                  description="Con el agente, directas que hace el equipo y entrantes que atiende el equipo. Las dos últimas no tienen conversión ni resultados."
+                  rows={r.by_type}
+                  columns={TYPE_COLS}
+                  rowKey={(x) => x.type}
+                />
+                <TableCard
+                  title="Por usuario"
+                  description="Las directas que hizo cada persona y las entrantes del equipo que atendió."
+                  rows={r.by_user}
+                  columns={USER_COLS}
+                  empty="Nadie del equipo llamó ni atendió en el período."
+                  rowKey={(x) => x.user_id}
+                />
+              </>
+            )}
             <TableCard title="Por agente" rows={r.by_agent} columns={AGENT_COLS} rowKey={(x) => x.agent_id} />
             <TableCard
               title="Por línea"

@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PlanFeatures } from '@/api/types';
 import { ADMIN, CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
@@ -148,7 +148,7 @@ describe('ReportsPage', () => {
 const FIXTURES: Record<string, [unknown, string]> = {
   calls: [
     {
-      daily: [{ date: '2026-10-27', entrante: 3, saliente: 1, web: 0, prueba: 0 }],
+      daily: [{ date: '2026-10-27', entrante: 3, saliente: 1, directa: 2, web: 0, prueba: 0 }],
       heatmap: [{ weekday: 0, hour: 10, count: 3 }],
       by_line: [
         { phone_number_id: 'n-1', number: '+541100000000', calls: 3, minutes: 5, conversion_pct: 50 },
@@ -162,6 +162,22 @@ const FIXTURES: Record<string, [unknown, string]> = {
           avg_duration: 90,
           conversion_pct: 50,
           goal_pct: 25,
+        },
+      ],
+      by_type: [
+        { type: 'agent', calls: 4, minutes: 6, avg_duration: 90 },
+        { type: 'direct', calls: 2, minutes: 8, avg_duration: 240 },
+        { type: 'team', calls: 1, minutes: 3, avg_duration: 180 },
+      ],
+      by_user: [
+        {
+          user_id: 'u-1',
+          user_name: 'Ana Gómez',
+          direct: 2,
+          team: 1,
+          calls: 3,
+          minutes: 11,
+          avg_duration: 220,
         },
       ],
       durations: [{ bucket: '1-3m', count: 4 }],
@@ -333,6 +349,65 @@ describe('ReportsPage, pestañas con datos', () => {
     renderWithProviders(<ReportsPage />, { me: ADMIN, path: `/reports?client=c-1&tab=${tab}` });
     expect(await screen.findByText(text)).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Descargar CSV' }).length).toBeGreaterThan(0);
+  });
+
+  it('llamadas: las directas y las del equipo van por tipo y por usuario, y salen en el CSV', async () => {
+    const [body] = FIXTURES.calls!;
+    mockApi({
+      '/api/v1/clients': [{ id: 'c-1', name: 'Acme' }],
+      '/api/v1/agents': [],
+      '/api/v1/reports/calls': body,
+    });
+    let blob: Blob | null = null;
+    Object.assign(URL, {
+      createObjectURL: (b: Blob) => {
+        blob = b;
+        return 'blob:csv';
+      },
+      revokeObjectURL: () => {},
+    });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    renderWithProviders(<ReportsPage />, { me: ADMIN, path: '/reports?client=c-1&tab=calls' });
+    await screen.findByText('Por tipo');
+    expect(screen.getByText('Directas (las hace el equipo)')).toBeInTheDocument();
+    expect(screen.getByText('Entrantes del equipo')).toBeInTheDocument();
+    expect(screen.getByText('Con el agente')).toBeInTheDocument();
+    expect(screen.getByText('Ana Gómez')).toBeInTheDocument();
+    // La duración media de las directas (240 s) sale en minutos y segundos.
+    expect(screen.getByText('4:00')).toBeInTheDocument();
+    // El CSV de "Llamadas por día" trae la columna de directas.
+    const card = screen.getByText('Llamadas por día').closest('.mantine-Card-root') as HTMLElement;
+    fireEvent.click(within(card).getByRole('button', { name: 'Descargar CSV' }));
+    expect(click).toHaveBeenCalled();
+    const text = await (blob as unknown as Blob).text();
+    expect(text).toContain('Fecha,Entrantes,Salientes,Directas,Web,Prueba');
+    expect(text).toContain('2026-10-27,3,1,2,0,0');
+    click.mockRestore();
+    delete (URL as Partial<typeof URL>).createObjectURL;
+    delete (URL as Partial<typeof URL>).revokeObjectURL;
+  });
+
+  it('llamadas: sin directas ni llamadas del equipo no aparecen los cortes por tipo y usuario', async () => {
+    const [body] = FIXTURES.calls!;
+    const none = {
+      ...(body as Record<string, unknown>),
+      daily: [{ date: '2026-10-27', entrante: 3, saliente: 1, directa: 0, web: 0, prueba: 0 }],
+      by_type: [
+        { type: 'agent', calls: 4, minutes: 6, avg_duration: 90 },
+        { type: 'direct', calls: 0, minutes: 0, avg_duration: null },
+        { type: 'team', calls: 0, minutes: 0, avg_duration: null },
+      ],
+      by_user: [],
+    };
+    mockApi({
+      '/api/v1/clients': [{ id: 'c-1', name: 'Acme' }],
+      '/api/v1/agents': [],
+      '/api/v1/reports/calls': none,
+    });
+    renderWithProviders(<ReportsPage />, { me: ADMIN, path: '/reports?client=c-1&tab=calls' });
+    await screen.findByText('Por agente');
+    expect(screen.queryByText('Por tipo')).not.toBeInTheDocument();
+    expect(screen.queryByText('Por usuario')).not.toBeInTheDocument();
   });
 
   it('plataforma: tabla de clientes y alertas', async () => {

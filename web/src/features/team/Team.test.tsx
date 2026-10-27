@@ -152,7 +152,68 @@ describe('equipo: horario', () => {
   });
 });
 
+const PRESENCE = [
+  { user_id: 'u-1', team_member_id: 'm1', name: 'Ana Pérez', available: true, busy: false },
+  { user_id: 'u-2', team_member_id: null, name: 'Marcos', available: false, busy: false },
+  { user_id: 'u-3', team_member_id: 'm2', name: 'Luis Gómez', available: true, busy: true },
+];
+
 describe('equipo: pantalla', () => {
+  it('muestra si cada persona con usuario del panel está disponible', async () => {
+    mockApi({
+      'GET /api/v1/plan/features': () =>
+        jsonResponse({
+          client_id: 'c-1',
+          tier_name: 'Sucursal',
+          free: false,
+          features: { team: { enabled: true }, direct_calls: { enabled: true } },
+        }),
+      'GET /api/v1/team': () =>
+        jsonResponse([
+          { ...ANA, user_id: 'u-1' },
+          { ...LUIS, user_id: 'u-3' },
+          { ...ANA, id: 'm3', name: 'Marta Ruiz', user_id: 'u-4' },
+          { ...ANA, id: 'm4', name: 'Sin Usuario', user_id: null },
+        ]),
+      'GET /api/v1/team/presence': () =>
+        jsonResponse([
+          ...PRESENCE,
+          { user_id: 'u-4', team_member_id: 'm3', name: 'Marta Ruiz', available: false, busy: false },
+        ]),
+    });
+    renderWithProviders(<TeamPage />, { me: CLIENT_USER });
+    const ana = await screen.findByRole('row', { name: /^Ana Pérez/ });
+    expect(await within(ana).findByText('Disponible')).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('row', { name: /^Luis Gómez/ })).getByText('En una llamada'),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('row', { name: /^Marta Ruiz/ })).getByText('No disponible'),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('row', { name: /^Sin Usuario/ })).queryByText(/Disponible/),
+    ).not.toBeInTheDocument();
+  });
+
+  it('sin llamadas directas en el plan no pide la presencia ni muestra la columna', async () => {
+    const calls = mockApi({
+      'GET /api/v1/plan/features': () =>
+        jsonResponse({
+          client_id: 'c-1',
+          tier_name: 'Free',
+          free: true,
+          features: {
+            team: { enabled: true, reason: null },
+            direct_calls: { enabled: false, reason: 'Está en los planes Mostrador, Sucursal y Red.' },
+          },
+        }),
+    });
+    renderWithProviders(<TeamPage />, { me: CLIENT_USER });
+    await screen.findByRole('row', { name: /^Ana Pérez/ });
+    expect(screen.queryByRole('columnheader', { name: 'En el panel' })).not.toBeInTheDocument();
+    expect(calls.some((c) => c.path === '/api/v1/team/presence')).toBe(false);
+  });
+
   it('cliente: personas y áreas con su horario y estado', async () => {
     mockApi();
     renderWithProviders(<TeamPage />, { me: CLIENT_USER });
@@ -189,7 +250,9 @@ describe('equipo: personas', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Nueva persona del equipo' });
     await userEvent.type(within(dialog).getByLabelText('Nombre'), 'Ana Pérez');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Agregar persona' }));
-    expect(await within(dialog).findByText('Cargá un teléfono, un WhatsApp o los dos')).toBeInTheDocument();
+    expect(
+      await within(dialog).findByText('Cargá un teléfono, un WhatsApp o un usuario del panel'),
+    ).toBeInTheDocument();
     await userEvent.type(within(dialog).getByLabelText('WhatsApp'), '351 555-1234');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Agregar persona' }));
     await waitFor(() => expect(sent(calls, 'POST', '/api/v1/team')).toBeDefined());
@@ -197,8 +260,51 @@ describe('equipo: personas', () => {
       name: 'Ana Pérez',
       phone: null,
       whatsapp: '351 555-1234',
+      user_id: null,
       active: true,
     });
+  });
+
+  it('acepta una persona con solo el usuario del panel y ofrece los usuarios libres', async () => {
+    const calls = mockApi({
+      'GET /api/v1/team/presence': () => jsonResponse(PRESENCE),
+      'POST /api/v1/team': () => jsonResponse({ ...ANA, user_id: 'u-2' }, 201),
+    });
+    renderWithProviders(<TeamPage />, { me: CLIENT_USER });
+    await userEvent.click(await screen.findByRole('button', { name: /Agregar persona/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Nueva persona del equipo' });
+    await userEvent.type(within(dialog).getByLabelText('Nombre'), 'Marcos');
+    const user = within(dialog).getByRole('textbox', { name: /Usuario del panel/ });
+    await userEvent.click(user);
+    // Ana ya es una persona del equipo: solo queda el usuario libre.
+    expect(screen.queryByRole('option', { name: 'Ana Pérez', hidden: true })).not.toBeInTheDocument();
+    await userEvent.click(await screen.findByRole('option', { name: 'Marcos', hidden: true }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Agregar persona' }));
+    await waitFor(() => expect(sent(calls, 'POST', '/api/v1/team')).toBeDefined());
+    expect(sent(calls, 'POST', '/api/v1/team')).toEqual({
+      name: 'Marcos',
+      phone: null,
+      whatsapp: null,
+      user_id: 'u-2',
+      active: true,
+    });
+  });
+
+  it('al editar, el usuario de la persona sigue elegido y se conserva', async () => {
+    const calls = mockApi({
+      'GET /api/v1/team': () => jsonResponse([{ ...ANA, user_id: 'u-1' }, LUIS]),
+      'GET /api/v1/team/presence': () => jsonResponse(PRESENCE),
+      'PATCH /api/v1/team/m1': () => jsonResponse(ANA),
+    });
+    renderWithProviders(<TeamPage />, { me: CLIENT_USER });
+    await userEvent.click(await screen.findByRole('button', { name: 'Editar a Ana Pérez' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Editar a Ana Pérez' });
+    await waitFor(() =>
+      expect(within(dialog).getByRole('textbox', { name: /Usuario del panel/ })).toHaveValue('Ana Pérez'),
+    );
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(sent(calls, 'PATCH', '/api/v1/team/m1')).toBeDefined());
+    expect(sent(calls, 'PATCH', '/api/v1/team/m1')).toMatchObject({ user_id: 'u-1' });
   });
 
   it('un WhatsApp repetido marca el campo', async () => {

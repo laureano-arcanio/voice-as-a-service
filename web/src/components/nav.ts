@@ -19,6 +19,7 @@ import {
   IconMessages,
   IconMicrophone,
   IconPhone,
+  IconPhoneCall,
   IconPhoneOutgoing,
   IconPlayerPlay,
   IconRobot,
@@ -88,6 +89,7 @@ export const CLIENT_NAV: NavEntry[] = [
     icon: IconSitemap,
     items: [
       { to: '/contacts', label: 'Contactos', icon: IconAddressBook, feature: 'contacts' },
+      { to: '/telefono', label: 'Teléfono', icon: IconPhoneCall, feature: 'direct_calls' },
       { to: '/team', label: 'Equipo', icon: IconUsersGroup, feature: 'team' },
     ],
   },
