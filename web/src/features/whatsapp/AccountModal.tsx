@@ -2,7 +2,6 @@ import { Button, Checkbox, Group, Modal, PasswordInput, Select, Stack, TextInput
 import { useForm } from '@mantine/form';
 import type { WaAccount, WaAccountPatch } from '@/api/types';
 import { useAgents } from '@/features/agents/api';
-import { useClients } from '@/features/clients/api';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useCreateWaAccount, useUpdateWaAccount } from './api';
 
@@ -18,13 +17,11 @@ function agentOptions(agents: { id: string; name: string }[] | undefined, curren
   return data;
 }
 
-/** Alta manual (admin): numeros de nuestro portafolio. Los IDs salen de Meta (WhatsApp → Configuración de la API). */
+/** Alta manual (soporte): numeros de nuestra WABA, en el cliente activo. Los IDs salen de Meta (WhatsApp → Configuración de la API). */
 export function NewWaAccountModal({ onClose }: { onClose: () => void }) {
-  const clients = useClients();
   const create = useCreateWaAccount();
   const form = useForm({
     initialValues: {
-      client_id: '',
       agent_id: '',
       phone_number_id: '',
       waba_id: '',
@@ -33,15 +30,13 @@ export function NewWaAccountModal({ onClose }: { onClose: () => void }) {
       access_token: '',
     },
     validate: {
-      client_id: (v) => (v ? null : 'Elegí el cliente'),
       agent_id: (v) => (v ? null : 'Elegí el agente'),
       phone_number_id: (v) => (/^\d{1,32}$/.test(v.trim()) ? null : 'Solo dígitos (el ID de Meta)'),
       waba_id: (v) => (v.trim() ? null : 'Requerido'),
       display_phone_number: (v) => (v.trim() ? null : 'Requerido'),
     },
   });
-  const clientId = form.values.client_id;
-  const agents = useAgents(clientId || undefined, false, !!clientId);
+  const agents = useAgents(undefined, false);
 
   return (
     <Modal opened onClose={onClose} title="Alta manual de un número de WhatsApp" size="lg">
@@ -49,7 +44,6 @@ export function NewWaAccountModal({ onClose }: { onClose: () => void }) {
         onSubmit={form.onSubmit((v) =>
           create.mutate(
             {
-              client_id: v.client_id,
               agent_id: v.agent_id,
               phone_number_id: v.phone_number_id.trim(),
               waba_id: v.waba_id.trim(),
@@ -68,30 +62,13 @@ export function NewWaAccountModal({ onClose }: { onClose: () => void }) {
         )}
       >
         <Stack>
-          <Group grow align="flex-start">
-            <Select
-              label="Cliente"
-              data={(clients.data ?? []).map((c) => ({
-                value: c.id,
-                label: c.active ? c.name : `${c.name} (inactivo)`,
-              }))}
-              searchable
-              data-autofocus
-              {...form.getInputProps('client_id')}
-              onChange={(v) => {
-                form.setFieldValue('client_id', v ?? '');
-                form.setFieldValue('agent_id', '');
-              }}
-            />
-            <Select
-              label="Agente que responde"
-              placeholder={clientId ? undefined : 'Elegí primero el cliente'}
-              data={agentOptions(agents.data)}
-              disabled={!clientId}
-              searchable
-              {...form.getInputProps('agent_id')}
-            />
-          </Group>
+          <Select
+            label="Agente que responde"
+            data={agentOptions(agents.data)}
+            searchable
+            data-autofocus
+            {...form.getInputProps('agent_id')}
+          />
           <Group grow align="flex-start">
             <TextInput
               label="Phone number ID"

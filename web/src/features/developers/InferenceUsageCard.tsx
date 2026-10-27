@@ -143,7 +143,7 @@ export function InferenceUsageCard({
         <Group gap="sm">
           <Anchor
             component={Link}
-            to={isAdmin ? `/inference-requests?client=${clientId}` : '/inference-requests'}
+            to={isAdmin ? `/admin/inference-requests?client=${clientId}` : '/inference-requests'}
             size="sm"
           >
             Ver los pedidos

@@ -24,6 +24,7 @@ export const WA_QUALITY: Record<string, Label> = {
 export const WA_SOURCE: Record<string, string> = {
   manual: 'Alta manual',
   embedded_signup: 'Conectado por el cliente',
+  own_app: 'App propia de Meta',
   coexistence: 'Coexistencia (app de WhatsApp Business)',
 };
 

@@ -24,7 +24,7 @@ def test_0025_upgrade_downgrade_upgrade(tmp_path):
             "SELECT name, whatsapp, campaign_channels, max_contacts, max_team_members, max_call_links FROM tiers"))}
         diff = compare_metadata(MigrationContext.configure(conn, opts={"compare_type": True}), Base.metadata)
     later = ("'external_agent'", "'max_tools'", "'code_tools'", "ck_tiers_tools", "'white_label'",
-             "'advanced_reports'")
+             "'advanced_reports'", "'internal'")      # ... 0036 y 0037
     assert [d for d in diff if "tiers" in repr(d) and not any(c in repr(d) for c in later)] == []
     assert tuple(rows["Free"])[1:] == (0, "[]", 0, 0, 1)
     assert tuple(rows["Mostrador"])[1:] == (1, "[]", None, None, None)

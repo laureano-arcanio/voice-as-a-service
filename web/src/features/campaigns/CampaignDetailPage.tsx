@@ -35,7 +35,6 @@ import { Dash, LiveBadge } from '@/components/Badges';
 import { confirmAction } from '@/components/confirm';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState, ErrorAlert, QueryState } from '@/components/QueryState';
-import { useIsAdmin } from '@/features/auth/api';
 import { TEMPLATE_CATEGORY } from '@/features/whatsapp/labels';
 import { formatDateTime, formatDuration, formatNumber } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
@@ -323,7 +322,6 @@ function contactFilters(channel: Campaign['channel']): (ContactsFilter & { label
 }
 
 function ContactsCard({ campaign }: { campaign: Campaign }) {
-  const isAdmin = useIsAdmin();
   const [key, setKey] = useState('');
   const [page, setPage] = useState(1);
   const filters = contactFilters(campaign.channel);
@@ -375,7 +373,7 @@ function ContactsCard({ campaign }: { campaign: Campaign }) {
                   </Table.Thead>
                   <Table.Tbody>
                     {data.items.map((r) => (
-                      <ContactRow key={r.id} r={r} campaign={campaign} isAdmin={isAdmin} />
+                      <ContactRow key={r.id} r={r} campaign={campaign} />
                     ))}
                   </Table.Tbody>
                 </Table>
@@ -397,7 +395,7 @@ function ContactsCard({ campaign }: { campaign: Campaign }) {
   );
 }
 
-function ContactRow({ r, campaign, isAdmin }: { r: CampaignContact; campaign: Campaign; isAdmin: boolean }) {
+function ContactRow({ r, campaign }: { r: CampaignContact; campaign: Campaign }) {
   const voice = campaign.channel === 'voice';
   const l = contactLabel(r);
   const error = recipientError(r.error);
@@ -430,12 +428,6 @@ function ContactRow({ r, campaign, isAdmin }: { r: CampaignContact; campaign: Ca
         {error && (
           <Text size="xs" c={bad ? 'red' : 'dimmed'} mt={2} maw={260}>
             {error}
-            {isAdmin && r.error?.code ? (
-              <Text span className="mono" inherit>
-                {' '}
-                ({String(r.error.code)})
-              </Text>
-            ) : null}
           </Text>
         )}
       </Table.Td>

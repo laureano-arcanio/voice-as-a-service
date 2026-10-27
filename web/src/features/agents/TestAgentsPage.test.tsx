@@ -32,7 +32,10 @@ describe('TestAgentsPage', () => {
         const path = new URL(req.url).pathname;
         paths.push(path);
         if (path === '/api/v1/agents')
-          return jsonResponse([agent('a1', 'Recepción', 'Atender consultas'), agent('a2', 'Turnos', 'Dar turnos')]);
+          return jsonResponse([
+            agent('a1', 'Recepción', 'Atender consultas'),
+            agent('a2', 'Turnos', 'Dar turnos'),
+          ]);
         return jsonResponse({ detail: 'no mock' }, 404);
       }),
     );

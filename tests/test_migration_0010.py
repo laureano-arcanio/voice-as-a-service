@@ -27,7 +27,9 @@ LATER_TIER_COLUMNS = ("'price_ars'", "'public'", "'sort'", "ck_tiers_price", "'s
                       # 0034 (marca blanca).
                       "'white_label'",
                       # 0036 (reportes).
-                      "'advanced_reports'")
+                      "'advanced_reports'",
+                      # 0037 (tier interno).
+                      "'internal'")
 
 
 def test_0010_upgrade_downgrade_upgrade(tmp_path):

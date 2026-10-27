@@ -1,4 +1,4 @@
-import { Anchor, Badge, Button, Group, Menu, Text } from '@mantine/core';
+import { Badge, Button, Group, Menu, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
   IconArchive,
@@ -14,8 +14,6 @@ import type { AgentDetail } from '@/api/types';
 import { confirmAction } from '@/components/confirm';
 import { PageHeader } from '@/components/PageHeader';
 import { QueryState } from '@/components/QueryState';
-import { useIsAdmin } from '@/features/auth/api';
-import { useClients } from '@/features/clients/api';
 import { formatDateTime } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useAgent, useDeleteAgent, useUpdateAgent } from './api';
@@ -98,10 +96,6 @@ function AgentActions({ agent }: { agent: AgentDetail }) {
 }
 
 function AgentView({ agent }: { agent: AgentDetail }) {
-  const isAdmin = useIsAdmin();
-  const clients = useClients(isAdmin);
-  const client = clients.data?.find((c) => c.id === agent.client_id);
-
   return (
     <>
       <PageHeader
@@ -130,25 +124,11 @@ function AgentView({ agent }: { agent: AgentDetail }) {
         }
         description={
           <>
-            {/* El slug es interno, como en la lista. */}
-            {isAdmin && (
-              <>
-                <Text span className="mono">
-                  {agent.slug}
-                </Text>
-                {' · '}
-              </>
-            )}
-            {isAdmin ? 'voz ' : 'Voz '}
+            <Text span className="mono">
+              {agent.slug}
+            </Text>
+            {' · voz '}
             {agent.voice ?? 'predeterminada'}
-            {client && (
-              <>
-                {' · '}
-                <Anchor component={Link} to={`/clients/${client.id}`} size="sm">
-                  {client.name}
-                </Anchor>
-              </>
-            )}
             {' · actualizado '}
             {formatDateTime(agent.updated_at)}
             {agent.description && (

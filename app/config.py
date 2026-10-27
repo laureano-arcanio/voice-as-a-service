@@ -232,7 +232,9 @@ class Settings(BaseSettings):
     wa_graph_version: str = "v25.0"
     # PIN de dos pasos de nuestros numeros (alta manual, sin token propio): retry_register.
     wa_registration_pin: str = ""
-    # Fase 2 (Embedded Signup): config de Facebook Login for Business.
+    # Fase 2 (Embedded Signup): config de Facebook Login for Business. Apagado hasta tener el Tech Provider: los
+    # clientes conectan su numero con su propia app de Meta (docs/ADMIN_SOPORTE_PLAN.md, seccion 4).
+    wa_embedded_signup: bool = False
     wa_config_id: str = ""
     # Claves Fernet separadas por coma (la primera cifra; las otras solo descifran, para rotar).
     wa_token_key: str = ""

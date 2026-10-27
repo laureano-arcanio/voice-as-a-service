@@ -26,17 +26,18 @@ from ..deps import (
     client_ip,
     rate_limit,
     request_is_https,
+    require_not_support,
     require_user,
 )
 from ..schemas import (
     AccountCodeIn,
     AccountCodeOut,
+    BrandingPublicOut,
     EmailCodeIn,
     HandoffIn,
     LegalAcceptIn,
     LegalVersionOut,
     LoginIn,
-    BrandingPublicOut,
     MeOut,
     PasswordChangeIn,
     PasswordResetIn,
@@ -139,6 +140,12 @@ def logout(request: Request, response: Response, db: DB):
 
 @router.get("/me", response_model=MeOut)
 def me(p: CurrentPrincipal, db: DB):
+    if p.support:
+        # Admin dentro de un cliente: el panel de ese cliente, con el nombre y el mail del admin.
+        user, client = db.get(User, p.id), db.get(Client, p.client_id)
+        b = branding.for_client(db, client)
+        return MeOut(id=user.id, email=user.email, name=user.name, role="client", client_id=client.id,
+                     client_name=client.name, branding=BrandingPublicOut(**b.__dict__) if b else None, support=True)
     if p.kind != "user":
         client = db.get(Client, p.client_id)
         return MeOut(id=p.id, email="", name="API key", role=p.role, client_id=p.client_id,
@@ -150,6 +157,7 @@ def me(p: CurrentPrincipal, db: DB):
 
 def _session_user(db, p) -> User:
     require_user(p)
+    require_not_support(p)
     return db.get(User, p.id)
 
 

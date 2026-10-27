@@ -1,11 +1,9 @@
-import { Anchor, Card, Group, Radio, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
+import { Anchor, Card, Group, Radio, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState, QueryState } from '@/components/QueryState';
-import { useIsAdmin } from '@/features/auth/api';
-import { useClients } from '@/features/clients/api';
 import { AgentTestPanel } from './AgentTestPanel';
 import { useAgents } from './api';
 
@@ -14,12 +12,8 @@ const SEARCH_FROM = 6;
 
 /** Playground (`/probar`): se elige el agente en una tarjeta y abajo se prueba. */
 export function TestAgentsPage() {
-  const isAdmin = useIsAdmin();
   const [params, setParams] = useSearchParams();
-  const clientId = params.get('client') ?? undefined;
-  const agents = useAgents(clientId);
-  const clients = useClients(isAdmin);
-  const clientName = new Map((clients.data ?? []).map((c) => [c.id, c.name]));
+  const agents = useAgents();
   const [search, setSearch] = useState('');
   const many = (agents.data?.length ?? 0) > SEARCH_FROM;
 
@@ -29,7 +23,6 @@ export function TestAgentsPage() {
         const next = new URLSearchParams(prev);
         if (v) next.set(k, v);
         else next.delete(k);
-        if (k === 'client') next.delete('agent');
         return next;
       },
       { replace: true },
@@ -41,32 +34,16 @@ export function TestAgentsPage() {
         title="Playground"
         description="Elegí un agente y probalo por texto, con una llamada o con su link para llamar."
       />
-      {(isAdmin || many) && (
+      {many && (
         <Group mb="md" align="flex-end">
-          {isAdmin && (
-            <Select
-              label="Cliente"
-              data={[
-                { value: '', label: 'Todos' },
-                ...(clients.data ?? []).map((c) => ({ value: c.id, label: c.name })),
-              ]}
-              value={clientId ?? ''}
-              onChange={(v) => set('client', v || null)}
-              allowDeselect={false}
-              searchable
-              w={220}
-            />
-          )}
-          {many && (
-            <TextInput
-              label="Buscar"
-              placeholder="Nombre u objetivo"
-              leftSection={<IconSearch size={16} />}
-              value={search}
-              onChange={(e) => setSearch(e.currentTarget.value)}
-              w={260}
-            />
-          )}
+          <TextInput
+            label="Buscar"
+            placeholder="Nombre u objetivo"
+            leftSection={<IconSearch size={16} />}
+            value={search}
+            onChange={(e) => setSearch(e.currentTarget.value)}
+            w={260}
+          />
         </Group>
       )}
       <QueryState query={agents}>
@@ -108,11 +85,6 @@ export function TestAgentsPage() {
                           <Text size="xs" c="dimmed" lineClamp={2}>
                             {a.objective || a.description || 'Sin objetivo en la definición.'}
                           </Text>
-                          {isAdmin && !clientId && (
-                            <Text size="xs" c="dimmed">
-                              {clientName.get(a.client_id) ?? ''}
-                            </Text>
-                          )}
                         </Stack>
                       </Group>
                     </Radio.Card>

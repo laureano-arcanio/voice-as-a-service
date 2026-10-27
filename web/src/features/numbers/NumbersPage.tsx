@@ -178,7 +178,7 @@ export function NumbersPage() {
                           <Table.Td>{n.provider}</Table.Td>
                           <Table.Td>
                             {n.client_id ? (
-                              <Anchor component={Link} to={`/clients/${n.client_id}?tab=numeros`} size="sm">
+                              <Anchor component={Link} to={`/admin/clients/${n.client_id}?tab=numeros`} size="sm">
                                 {n.client_name ?? 'Cliente'}
                               </Anchor>
                             ) : (

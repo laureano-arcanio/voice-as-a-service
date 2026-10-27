@@ -35,6 +35,14 @@ def test_free_plan_blocks_with_the_plans_that_have_it(api, admin):
     assert f["campaigns_voice"]["reason"] == "Escribinos y la sumamos a tu plan."
 
 
+def test_internal_tier_is_not_an_upgrade_by_mark_not_by_name(api, admin):
+    c = make_client(admin, tier=make_tier(admin, **FREE))
+    make_tier(admin, name="Casa", internal=True, price_ars=None, outbound_minutes=5000, max_phone_numbers=6)
+    make_tier(admin, name="Interno", outbound_minutes=5000, max_phone_numbers=6)     # sin la marca: se ofrece
+    f = features(client_user(api, admin, c))["features"]
+    assert f["outbound_calls"]["reason"] == "Disponible en el plan Interno, con números asignados."
+
+
 def test_paid_plan_without_numbers_has_no_outbound(api, admin):
     c = make_client(admin, outbound_minutes=300, campaign_channels=["voice"])
     f = features(admin, client_id=c["id"])["features"]

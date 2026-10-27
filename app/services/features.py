@@ -60,8 +60,7 @@ def _where(tiers: list[Tier], key: str) -> str:
 def _upgrade_tiers(s: Session, client: Client) -> list[Tier]:
     """Los planes a los que puede pasar: todos menos el suyo, los gratis y el interno; los que se venden
     por el dashboard primero, por su orden."""
-    from ..cli import INTERNAL_TIER     # cli importa servicios: aca, para no hacer un ciclo
-    tiers = s.scalars(select(Tier).where(Tier.id != client.tier_id, Tier.name != INTERNAL_TIER)).all()
+    tiers = s.scalars(select(Tier).where(Tier.id != client.tier_id, Tier.internal.is_(False))).all()
     tiers = [t for t in tiers if t.price_ars != 0]
     return sorted(tiers, key=lambda t: (t.price_ars is None, t.sort, t.price_ars or 0, t.name))
 

@@ -1,4 +1,5 @@
 import createClient, { type Middleware } from 'openapi-fetch';
+import { SUPPORT_HEADER, supportClientId } from '@/features/support/session';
 import type { paths } from './schema';
 
 // Mismo origen: la cookie de sesion (httpOnly, path /api) viaja sola. El front no ve tokens.
@@ -32,4 +33,16 @@ const unauthorized: Middleware = {
   },
 };
 
-api.use(unauthorized);
+// Admin dentro de un cliente (docs/ADMIN_SOPORTE_PLAN.md): todos los pedidos van como ese cliente,
+// salvo ingresar y salir.
+const support: Middleware = {
+  onRequest({ request }) {
+    const clientId = supportClientId();
+    if (clientId && !['/api/v1/auth/login', '/api/v1/auth/logout'].includes(new URL(request.url).pathname)) {
+      request.headers.set(SUPPORT_HEADER, clientId);
+    }
+    return request;
+  },
+};
+
+api.use(support, unauthorized);

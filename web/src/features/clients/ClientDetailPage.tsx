@@ -13,9 +13,9 @@ import {
   Text,
   TextInput,
   Title,
+  Tooltip,
 } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
-import { IconArrowLeft, IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconArrowLeft, IconLogin2, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { ApiError } from '@/api/errors';
@@ -25,8 +25,8 @@ import { confirmAction } from '@/components/confirm';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState, QueryState } from '@/components/QueryState';
 import { useAgents } from '@/features/agents/api';
-import { NewAgentModal } from '@/features/agents/NewAgentModal';
 import { numberErrorTitle } from '@/features/numbers/errors';
+import { useSupportSwitch } from '@/features/support/api';
 import { useTiers } from '@/features/tiers/api';
 import { UsersTable } from '@/features/users/UsersTable';
 import { formatDate, formatDateTime, formatLimit, recentMonths } from '@/lib/format';
@@ -84,7 +84,7 @@ function ClientDataCard({ client }: { client: Client }) {
     del.mutate(client.id, {
       onSuccess: () => {
         notifySuccess('Cliente borrado.');
-        void navigate('/clients', { replace: true });
+        void navigate('/admin/clients', { replace: true });
       },
       onError: (e) =>
         notifyError(
@@ -158,14 +158,20 @@ function ClientDataCard({ client }: { client: Client }) {
   );
 }
 
+/** Los agentes se editan en el panel del cliente: cada fila entra como el cliente a ese agente. */
 function ClientAgentsCard({ clientId }: { clientId: string }) {
   const agents = useAgents(clientId, true);
-  const [creating, create] = useDisclosure(false);
+  const { enter, pending } = useSupportSwitch();
   return (
     <Card>
       <Group justify="space-between" mb="sm">
         <Title order={4}>Agentes</Title>
-        <Button size="xs" leftSection={<IconPlus size={16} />} onClick={create.open}>
+        <Button
+          size="xs"
+          leftSection={<IconPlus size={16} />}
+          loading={pending}
+          onClick={() => void enter(clientId, '/agents')}
+        >
           Nuevo agente
         </Button>
       </Group>
@@ -188,7 +194,13 @@ function ClientAgentsCard({ clientId }: { clientId: string }) {
                   {list.map((a) => (
                     <Table.Tr key={a.id} style={a.archived ? { opacity: 0.6 } : undefined}>
                       <Table.Td>
-                        <Anchor component={Link} to={`/agents/${a.id}`} size="sm" fw={600}>
+                        <Anchor
+                          component="button"
+                          type="button"
+                          onClick={() => void enter(clientId, `/agents/${a.id}`)}
+                          size="sm"
+                          fw={600}
+                        >
                           {a.name}
                         </Anchor>
                         {a.own_agent && (
@@ -213,13 +225,6 @@ function ClientAgentsCard({ clientId }: { clientId: string }) {
           )
         }
       </QueryState>
-      <NewAgentModal
-        key={String(creating)}
-        opened={creating}
-        onClose={create.close}
-        clientId={clientId}
-        lockClient
-      />
     </Card>
   );
 }
@@ -231,6 +236,7 @@ function ClientView({ client }: { client: Client }) {
   const [params, setParams] = useSearchParams();
   const tab: Tab = TABS.includes(params.get('tab') as Tab) ? (params.get('tab') as Tab) : 'resumen';
   const month = params.get('month') ?? recentMonths(1)[0];
+  const { enter, pending } = useSupportSwitch();
   const setParam = (k: string, v: string | null) =>
     setParams(
       (prev) => {
@@ -248,7 +254,7 @@ function ClientView({ client }: { client: Client }) {
         above={
           <Button
             component={Link}
-            to="/clients"
+            to="/admin/clients"
             variant="subtle"
             size="compact-sm"
             leftSection={<IconArrowLeft size={16} />}
@@ -271,6 +277,17 @@ function ClientView({ client }: { client: Client }) {
             </Text>
             {` · tier ${client.tier.name}${client.adjustments_count ? ` (+${client.adjustments_count} ajustes)` : ''} · ${client.agents_count ?? 0} agentes · ${client.numbers_count ?? 0} números`}
           </>
+        }
+        actions={
+          <Tooltip label="Ver y operar su panel como lo ve el cliente" withArrow>
+            <Button
+              leftSection={<IconLogin2 size={18} />}
+              loading={pending}
+              onClick={() => void enter(client.id)}
+            >
+              Entrar como el cliente
+            </Button>
+          </Tooltip>
         }
       />
       <Tabs value={tab} onChange={(v) => setParam('tab', v === 'resumen' ? null : v)}>

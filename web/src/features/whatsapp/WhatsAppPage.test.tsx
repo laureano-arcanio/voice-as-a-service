@@ -1,8 +1,8 @@
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { WaAccount, WaConfig } from '@/api/types';
-import { ADMIN, CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
+import type { Me, WaAccount, WaConfig } from '@/api/types';
+import { CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
 import { WhatsAppPage } from './WhatsAppPage';
 
 const ACCOUNT: WaAccount = {
@@ -29,6 +29,8 @@ const ACCOUNT: WaAccount = {
   created_at: '2026-10-01T12:00:00Z',
   updated_at: '2026-10-01T12:00:00Z',
 };
+
+const SUPPORT: Me = { ...CLIENT_USER, support: true };
 
 const ENABLED: WaConfig = {
   enabled: true,
@@ -61,7 +63,7 @@ afterEach(() => {
 });
 
 describe('WhatsAppPage', () => {
-  it('cliente: sin columna de cliente ni alta manual; boton deshabilitado con el motivo', async () => {
+  it('cliente: sin alta manual ni Embedded Signup apagado (oculto); conectar con mi app de Meta', async () => {
     mockApi({
       'GET /api/v1/whatsapp/accounts': () => jsonResponse([ACCOUNT]),
       'GET /api/v1/whatsapp/config': () =>
@@ -71,11 +73,9 @@ describe('WhatsAppPage', () => {
     renderWithProviders(<WhatsAppPage />, { me: CLIENT_USER });
 
     expect(await screen.findByText('+54 351 555 0000')).toBeInTheDocument();
-    expect(await screen.findByText(/Falta configurar WA_CONFIG_ID/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Conectar WhatsApp/ })).toHaveAttribute(
-      'data-disabled',
-      'true',
-    );
+    expect(screen.getByRole('button', { name: /Conectar con mi app de Meta/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Conectar WhatsApp/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Falta configurar WA_CONFIG_ID/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Alta manual/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'Cliente' })).not.toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'Token' })).not.toBeInTheDocument();
@@ -101,11 +101,10 @@ describe('WhatsAppPage', () => {
     expect(calls.some((c) => c.path.endsWith('/templates'))).toBe(false);
   });
 
-  it('admin: ve cliente, token y alta manual', async () => {
+  it('soporte: ve token y alta manual, sin columna de cliente', async () => {
     mockApi({
       'GET /api/v1/whatsapp/accounts': () => jsonResponse([{ ...ACCOUNT, status: 'connected' }]),
       'GET /api/v1/whatsapp/config': () => jsonResponse(ENABLED),
-      'GET /api/v1/clients': () => jsonResponse([]),
       'GET /api/v1/agents': () => jsonResponse([]),
       'GET /api/v1/whatsapp/accounts/wa-1/templates': () =>
         jsonResponse([
@@ -120,8 +119,9 @@ describe('WhatsAppPage', () => {
           },
         ]),
     });
-    renderWithProviders(<WhatsAppPage />, { me: ADMIN });
-    expect(await screen.findByRole('columnheader', { name: 'Cliente' })).toBeInTheDocument();
+    renderWithProviders(<WhatsAppPage />, { me: SUPPORT });
+    expect(await screen.findByRole('columnheader', { name: 'Token' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Cliente' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Alta manual/ })).toBeInTheDocument();
     expect(screen.getByText('Propio')).toBeInTheDocument();
     expect(await screen.findByText('recordatorio_turno')).toBeInTheDocument();
@@ -231,6 +231,137 @@ describe('WhatsAppPage', () => {
     ).toBeInTheDocument();
     expect(calls.filter((c) => c.method === 'POST')).toHaveLength(0);
   });
+  it('app propia: guia, alta con los datos y paso final con el webhook', async () => {
+    const calls = mockApi({
+      'GET /api/v1/whatsapp/accounts': () => jsonResponse([]),
+      'GET /api/v1/whatsapp/config': () => jsonResponse({ ...ENABLED, enabled: false }),
+      'GET /api/v1/agents': () => jsonResponse([{ id: 'ag-1', name: 'Turnos' }]),
+      'POST /api/v1/whatsapp/accounts/own-app': () =>
+        jsonResponse(
+          {
+            ...ACCOUNT,
+            status: 'connected',
+            status_reason: null,
+            source: 'own_app',
+            webhook_url: 'https://wa.atentina.com.ar/wa/webhook/abc123',
+            verify_token: 'verif-xyz',
+          },
+          201,
+        ),
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<WhatsAppPage />, { me: CLIENT_USER });
+    await user.click(await screen.findByRole('button', { name: /Conectar con mi app de Meta/ }));
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      within(dialog).getByText(/crear una app de tipo Business|creá una app de tipo Business/),
+    ).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Conectar' }));
+    expect(within(dialog).getByText('Elegí el agente')).toBeInTheDocument();
+    expect(calls.filter((c) => c.method === 'POST')).toHaveLength(0);
+
+    await user.click(within(dialog).getByRole('textbox', { name: 'Agente que responde' }));
+    await user.click(await screen.findByRole('option', { name: 'Turnos', hidden: true }));
+    await user.type(within(dialog).getByRole('textbox', { name: /Identificador del número/ }), '111');
+    await user.type(within(dialog).getByRole('textbox', { name: /Identificador de la cuenta/ }), '222');
+    await user.type(within(dialog).getByLabelText(/Token permanente/), 'EAAtoken');
+    await user.type(within(dialog).getByLabelText(/Clave secreta de la app/), 'secreto');
+    await user.click(within(dialog).getByRole('button', { name: 'Conectar' }));
+
+    expect(await screen.findByText('Número conectado')).toBeInTheDocument();
+    expect(within(dialog).getByText('https://wa.atentina.com.ar/wa/webhook/abc123')).toBeInTheDocument();
+    expect(within(dialog).getByText('verif-xyz')).toBeInTheDocument();
+    expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
+      agent_id: 'ag-1',
+      phone_number_id: '111',
+      waba_id: '222',
+      access_token: 'EAAtoken',
+      app_secret: 'secreto',
+    });
+  });
+
+  it('app propia: el 409 y signup_mismatch se explican en el modal', async () => {
+    let n = 0;
+    mockApi({
+      'GET /api/v1/whatsapp/accounts': () => jsonResponse([]),
+      'GET /api/v1/whatsapp/config': () => jsonResponse({ ...ENABLED, enabled: false }),
+      'GET /api/v1/agents': () => jsonResponse([{ id: 'ag-1', name: 'Turnos' }]),
+      'POST /api/v1/whatsapp/accounts/own-app': () =>
+        n++ === 0
+          ? jsonResponse({ detail: 'ocupado' }, 409)
+          : jsonResponse({ detail: 'x', code: 'signup_mismatch' }, 400),
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<WhatsAppPage />, { me: CLIENT_USER });
+    await user.click(await screen.findByRole('button', { name: /Conectar con mi app de Meta/ }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('textbox', { name: 'Agente que responde' }));
+    await user.click(await screen.findByRole('option', { name: 'Turnos', hidden: true }));
+    await user.type(within(dialog).getByRole('textbox', { name: /Identificador del número/ }), '111');
+    await user.type(within(dialog).getByRole('textbox', { name: /Identificador de la cuenta/ }), '222');
+    await user.type(within(dialog).getByLabelText(/Token permanente/), 'EAAtoken');
+    await user.type(within(dialog).getByLabelText(/Clave secreta de la app/), 'secreto');
+    await user.click(within(dialog).getByRole('button', { name: 'Conectar' }));
+    expect(await within(dialog).findByText(/ya está conectado en otra cuenta/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Conectar' }));
+    expect(
+      await within(dialog).findByText(/no pertenece a esa cuenta de WhatsApp Business/),
+    ).toBeInTheDocument();
+  });
+
+  it('cuenta con app propia: badge, datos del webhook y actualizar token', async () => {
+    mockApi({
+      'GET /api/v1/whatsapp/accounts': () =>
+        jsonResponse([
+          {
+            ...ACCOUNT,
+            status: 'connected',
+            source: 'own_app',
+            has_app_secret: true,
+            webhook_url: 'https://wa.atentina.com.ar/wa/webhook/abc123',
+            verify_token: 'verif-xyz',
+          },
+        ]),
+      'GET /api/v1/whatsapp/config': () => jsonResponse({ ...ENABLED, enabled: false }),
+      'GET /api/v1/agents': () => jsonResponse([{ id: 'ag-1', name: 'Turnos' }]),
+      'GET /api/v1/whatsapp/accounts/wa-1/templates': () => jsonResponse([]),
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<WhatsAppPage />, { me: CLIENT_USER });
+    expect(await screen.findByText('App propia')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Acciones de \+54 351 555 0000/ }));
+    await user.click(await screen.findByRole('menuitem', { name: /Datos del webhook/ }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('verif-xyz')).toBeInTheDocument();
+  });
+
+  it('cuenta con app propia: actualizar token precarga los identificadores', async () => {
+    mockApi({
+      'GET /api/v1/whatsapp/accounts': () =>
+        jsonResponse([
+          {
+            ...ACCOUNT,
+            status: 'connected',
+            source: 'own_app',
+            webhook_url: 'https://wa.atentina.com.ar/wa/webhook/abc123',
+            verify_token: 'verif-xyz',
+          },
+        ]),
+      'GET /api/v1/whatsapp/config': () => jsonResponse({ ...ENABLED, enabled: false }),
+      'GET /api/v1/agents': () => jsonResponse([{ id: 'ag-1', name: 'Turnos' }]),
+      'GET /api/v1/whatsapp/accounts/wa-1/templates': () => jsonResponse([]),
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<WhatsAppPage />, { me: CLIENT_USER });
+    await user.click(await screen.findByRole('button', { name: /Acciones de \+54 351 555 0000/ }));
+    await user.click(await screen.findByRole('menuitem', { name: /Actualizar token/ }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByRole('textbox', { name: /Identificador del número/ })).toHaveValue('111');
+    expect(within(dialog).getByRole('textbox', { name: /Identificador de la cuenta/ })).toHaveValue('222');
+  });
+
   it('ruteo por contacto: muestra las reglas y guarda los cambios', async () => {
     const calls = mockApi({
       'GET /api/v1/whatsapp/accounts': () =>

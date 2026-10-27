@@ -100,6 +100,8 @@ class Tier(IdMixin, TimestampMixin, Base):
     # Reportes completos (docs/REPORTES_PLAN.md): Resultados, Mensajes, Transferencias y Campañas. Sin esto,
     # solo Resumen y Llamadas.
     advanced_reports: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # Tier de Atentina (nosotros): no se ofrece como plan ni cuenta en las estadisticas de la plataforma.
+    internal: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     # Autoservicio (docs/SUSCRIPCIONES_PLAN.md): precio mensual en pesos, lo que se cobra (NULL = no
     # se vende por el dashboard; 0 = gratis). `public`: se ofrece en el registro y en /plan. El tier
     # publico con precio 0 es el del registro.

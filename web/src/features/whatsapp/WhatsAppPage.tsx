@@ -1,6 +1,5 @@
 import {
   ActionIcon,
-  Alert,
   Anchor,
   Badge,
   Button,
@@ -14,9 +13,10 @@ import {
   Tooltip,
 } from '@mantine/core';
 import {
-  IconAlertTriangle,
   IconBrandWhatsapp,
   IconDots,
+  IconKey,
+  IconLink,
   IconPencil,
   IconPlayerPause,
   IconPlayerPlay,
@@ -27,7 +27,6 @@ import {
   IconTemplate,
 } from '@tabler/icons-react';
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
 import type { WaAccount } from '@/api/types';
 import { confirmAction } from '@/components/confirm';
 import { PageHeader } from '@/components/PageHeader';
@@ -36,7 +35,6 @@ import { useFeatureLock } from '@/features/billing/features';
 import { EmptyState, QueryState } from '@/components/QueryState';
 import { useAgents } from '@/features/agents/api';
 import { useCurrentUser } from '@/features/auth/api';
-import { useClients } from '@/features/clients/api';
 import { formatDate } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { EditWaAccountModal, NewWaAccountModal } from './AccountModal';
@@ -48,6 +46,7 @@ import {
   useWaConfig,
 } from './api';
 import { WA_MANAGER_URL, WA_QUALITY, WA_SOURCE, WA_STATUS, WA_STATUS_HELP } from './labels';
+import { OwnAppModal, WebhookDataModal } from './OwnAppModal';
 import { RegisterModal } from './RegisterModal';
 import { WaRoutesModal } from './RoutesModal';
 import { SignupModal } from './SignupModal';
@@ -56,6 +55,9 @@ import { TemplatesCard } from './Templates';
 type Dialog =
   | { kind: 'signup' }
   | { kind: 'manual' }
+  | { kind: 'own-app' }
+  | { kind: 'own-app-update'; account: WaAccount }
+  | { kind: 'webhook'; account: WaAccount }
   | { kind: 'edit'; account: WaAccount }
   | { kind: 'routes'; account: WaAccount }
   | { kind: 'register'; account: WaAccount }
@@ -97,7 +99,7 @@ function QualityCell({ account }: { account: WaAccount }) {
   );
 }
 
-/** Agente que atiende el numero, editable en la fila (admin o dueño). */
+/** Agente que atiende el numero, editable en la fila. */
 function WaAgentSelect({ account }: { account: WaAccount }) {
   const agents = useAgents(account.client_id, false);
   const update = useUpdateWaAccount();
@@ -143,11 +145,9 @@ function WaAgentSelect({ account }: { account: WaAccount }) {
 
 export function WhatsAppPage() {
   const me = useCurrentUser();
-  const isAdmin = me.role === 'admin';
-  const [params, setParams] = useSearchParams();
-  const clientId = isAdmin ? (params.get('client') ?? undefined) : undefined;
-  const accounts = useWaAccounts(clientId);
-  const clients = useClients(isAdmin);
+  // Un admin en soporte opera nuestra WABA compartida (alta manual, edicion, registro).
+  const support = !!me.support;
+  const accounts = useWaAccounts();
   const config = useWaConfig();
   const deactivate = useDeactivateWaAccount();
   const update = useUpdateWaAccount();
@@ -156,9 +156,9 @@ export function WhatsAppPage() {
   const [templatesFor, setTemplatesFor] = useState<string | null>(null);
 
   const list = accounts.data ?? [];
-  // Registro, datos de Meta y plantillas: un cliente solo en numeros con su propio token. Los de
-  // alta manual usan el token de nuestro portafolio (la API da 403).
-  const canManage = (a: WaAccount) => isAdmin || a.has_token;
+  // Registro, datos de Meta y plantillas: el cliente solo en numeros con su propio token. Los de
+  // alta manual usan el token de nuestro portafolio (la API da 403, salvo en soporte).
+  const canManage = (a: WaAccount) => support || a.has_token;
   const manageable = list.filter(canManage);
   // Sin elegir, las plantillas son las del primer numero.
   const templatesAccount =
@@ -166,23 +166,7 @@ export function WhatsAppPage() {
       ? templatesFor
       : (manageable[0]?.id ?? null);
   const waLock = useFeatureLock('whatsapp');
-  const signupEnabled = !!config.data?.enabled && !waLock.locked;
-  const signupReason = waLock.locked
-    ? `Tu plan ${waLock.tierName} no incluye WhatsApp.`
-    : config.isError
-      ? 'No se pudo leer la configuración de WhatsApp.'
-      : (config.data?.reason ?? 'Cargando…');
-
-  const setClient = (v: string | null) =>
-    setParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        if (v) next.set('client', v);
-        else next.delete('client');
-        return next;
-      },
-      { replace: true },
-    );
+  const planReason = waLock.locked ? `Tu plan ${waLock.tierName} no incluye WhatsApp.` : '';
 
   const doDeactivate = async (a: WaAccount) => {
     const ok = await confirmAction({
@@ -220,15 +204,16 @@ export function WhatsAppPage() {
     document.getElementById('wa-templates')?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const connectButton = (
-    <Tooltip label={signupReason} multiline w={260} withArrow disabled={signupEnabled}>
+  // Deshabilitado con data-disabled: un boton disabled no dispara el tooltip con el motivo.
+  const gated = (label: string, kind: 'signup' | 'own-app', primary: boolean) => (
+    <Tooltip label={planReason} multiline w={260} withArrow disabled={!waLock.locked}>
       <Button
+        variant={primary ? 'filled' : 'default'}
         leftSection={<IconBrandWhatsapp size={18} />}
-        // Deshabilitado con data-disabled: un boton disabled no dispara el tooltip con el motivo.
-        data-disabled={!signupEnabled || undefined}
-        onClick={(e) => (signupEnabled ? setDialog({ kind: 'signup' }) : e.preventDefault())}
+        data-disabled={waLock.locked || undefined}
+        onClick={(e) => (waLock.locked ? e.preventDefault() : setDialog({ kind }))}
       >
-        Conectar WhatsApp
+        {label}
       </Button>
     </Tooltip>
   );
@@ -240,7 +225,7 @@ export function WhatsAppPage() {
         description="Números de WhatsApp Business conectados por la Cloud API de Meta. Cada uno tiene un agente por defecto y reglas por contacto; responde texto y notas de voz."
         actions={
           <>
-            {isAdmin && (
+            {support && (
               <Button
                 variant="default"
                 leftSection={<IconPlus size={18} />}
@@ -249,51 +234,29 @@ export function WhatsAppPage() {
                 Alta manual
               </Button>
             )}
-            {connectButton}
+            {config.data?.enabled && gated('Conectar WhatsApp', 'signup', false)}
+            {gated('Conectar con mi app de Meta', 'own-app', true)}
           </>
         }
       />
       <PlanAlert feature="whatsapp" what="WhatsApp" mb="md" />
-      {config.data && !config.data.enabled && !waLock.locked && (
-        <Alert color="gray" icon={<IconAlertTriangle size={18} />} mb="md">
-          La conexión de números propios no está disponible: {config.data.reason}
-          {isAdmin ? '' : '. Avisanos y la habilitamos.'}
-        </Alert>
-      )}
       <Card>
-        {isAdmin && (
-          <Group mb="md" gap="sm">
-            <Select
-              placeholder="Todos los clientes"
-              data={(clients.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
-              value={clientId ?? null}
-              onChange={setClient}
-              clearable
-              searchable
-              w={220}
-              aria-label="Cliente"
-            />
-          </Group>
-        )}
         <QueryState query={accounts}>
           {(rows) =>
             rows.length === 0 ? (
               <EmptyState>
-                {clientId
-                  ? 'Este cliente no tiene números de WhatsApp.'
-                  : 'No hay números de WhatsApp. Usá "Conectar WhatsApp" para conectar uno propio.'}
+                No hay números de WhatsApp. Usá "Conectar con mi app de Meta" para conectar uno propio.
               </EmptyState>
             ) : (
-              <Table.ScrollContainer minWidth={isAdmin ? 1180 : 960}>
+              <Table.ScrollContainer minWidth={support ? 1080 : 960}>
                 <Table>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>Número</Table.Th>
-                      {isAdmin && <Table.Th>Cliente</Table.Th>}
                       <Table.Th>Agente</Table.Th>
                       <Table.Th>Estado</Table.Th>
                       <Table.Th>Calidad</Table.Th>
-                      {isAdmin && <Table.Th>Token</Table.Th>}
+                      {support && <Table.Th>Token</Table.Th>}
                       <Table.Th>Alta</Table.Th>
                       <Table.Th />
                     </Table.Tr>
@@ -306,32 +269,31 @@ export function WhatsAppPage() {
                             {a.display_phone_number}
                           </Text>
                           {a.name && <Text size="xs">{a.name}</Text>}
-                          {isAdmin && (
+                          {support && (
                             <Text size="xs" c="dimmed" className="mono">
                               ID {a.phone_number_id}
                             </Text>
                           )}
                         </Table.Td>
-                        {isAdmin && (
-                          <Table.Td>
-                            <Anchor component={Link} to={`/clients/${a.client_id}`} size="sm">
-                              {a.client_name ?? 'Cliente'}
-                            </Anchor>
-                          </Table.Td>
-                        )}
                         <Table.Td>
                           <WaAgentSelect account={a} />
                         </Table.Td>
                         <Table.Td>
                           <StatusCell account={a} />
-                          <Text size="xs" c="dimmed" mt={2}>
-                            {WA_SOURCE[a.source ?? 'manual'] ?? a.source}
-                          </Text>
+                          {a.source === 'own_app' ? (
+                            <Badge color="blue" variant="light" mt={4}>
+                              App propia
+                            </Badge>
+                          ) : (
+                            <Text size="xs" c="dimmed" mt={2}>
+                              {WA_SOURCE[a.source ?? 'manual'] ?? a.source}
+                            </Text>
+                          )}
                         </Table.Td>
                         <Table.Td>
                           <QualityCell account={a} />
                         </Table.Td>
-                        {isAdmin && (
+                        {support && (
                           <Table.Td>
                             <Badge color="gray">{a.has_token ? 'Propio' : 'Global'}</Badge>
                           </Table.Td>
@@ -357,6 +319,22 @@ export function WhatsAppPage() {
                                   Ruteo por contacto
                                 </Menu.Item>
                                 <Menu.Divider />
+                                {a.source === 'own_app' && (
+                                  <>
+                                    <Menu.Item
+                                      leftSection={<IconLink size={16} />}
+                                      onClick={() => setDialog({ kind: 'webhook', account: a })}
+                                    >
+                                      Datos del webhook
+                                    </Menu.Item>
+                                    <Menu.Item
+                                      leftSection={<IconKey size={16} />}
+                                      onClick={() => setDialog({ kind: 'own-app-update', account: a })}
+                                    >
+                                      Actualizar token
+                                    </Menu.Item>
+                                  </>
+                                )}
                                 {canManage(a) && (
                                   <>
                                     <Menu.Item
@@ -370,7 +348,9 @@ export function WhatsAppPage() {
                                       disabled={a.status === 'disconnected'}
                                       onClick={() => setDialog({ kind: 'register', account: a })}
                                     >
-                                      Reintentar registro
+                                      {a.source === 'own_app'
+                                        ? 'Reintentar suscripción'
+                                        : 'Reintentar registro'}
                                     </Menu.Item>
                                     <Menu.Item
                                       leftSection={<IconRefresh size={16} />}
@@ -381,7 +361,7 @@ export function WhatsAppPage() {
                                     </Menu.Item>
                                   </>
                                 )}
-                                {isAdmin && (
+                                {support && (
                                   <Menu.Item
                                     leftSection={<IconPencil size={16} />}
                                     onClick={() => setDialog({ kind: 'edit', account: a })}
@@ -431,6 +411,13 @@ export function WhatsAppPage() {
       )}
       {dialog?.kind === 'signup' && config.data && (
         <SignupModal config={config.data} onClose={() => setDialog(null)} />
+      )}
+      {dialog?.kind === 'own-app' && <OwnAppModal onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'own-app-update' && (
+        <OwnAppModal account={dialog.account} onClose={() => setDialog(null)} />
+      )}
+      {dialog?.kind === 'webhook' && (
+        <WebhookDataModal account={dialog.account} onClose={() => setDialog(null)} />
       )}
       {dialog?.kind === 'manual' && <NewWaAccountModal onClose={() => setDialog(null)} />}
       {dialog?.kind === 'edit' && (

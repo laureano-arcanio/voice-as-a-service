@@ -6,8 +6,9 @@ import { BrandingContext, LAST_KEY, readPreview, readStored, writeStored, type B
 
 /**
  * Marca blanca del panel (docs/MARCA_BLANCA_PLAN.md, 4.1). De dónde sale la marca, en orden:
- * 1. la vista previa de un admin (sessionStorage `branding:preview`, "Ver el panel como el cliente");
- * 2. la del usuario de cliente (`me.branding`);
+ * 1. la vista previa de un admin que entró como el cliente (sessionStorage `branding:preview`, el borrador de la
+ *    pestaña Marca blanca, docs/ADMIN_SOPORTE_PLAN.md);
+ * 2. la del cliente de la sesión (`me.branding`; la administración, sin marca);
  * 3. sin sesión: la pública de `/login?c=<slug>` o la última que mostró el panel (localStorage
  *    `branding:last`), así el login y la carga no parpadean con el azul de Atentina.
  */
@@ -46,13 +47,14 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
     };
   }, [me]);
 
-  // Con sesión de cliente, la suya queda recordada para el próximo login (o se olvida si ya no tiene).
+  // Con sesión de cliente, la suya queda recordada para el próximo login (o se olvida si ya no tiene). La de un
+  // cliente en el que entró un admin no: el próximo login sería el del admin.
   useEffect(() => {
-    if (me?.role === 'client') writeStored(window.localStorage, LAST_KEY, me.branding ?? null);
+    if (me?.role === 'client' && !me.support) writeStored(window.localStorage, LAST_KEY, me.branding ?? null);
   }, [me]);
 
   const value = useMemo<BrandingState>(() => {
-    if (me?.role === 'admin') return { branding: preview, preview: !!preview };
+    if (me?.support && preview) return { branding: preview, preview: true };
     if (me) return { branding: me.branding ?? null, preview: false };
     return { branding: fetched === undefined ? stored : fetched, preview: false };
   }, [me, preview, fetched, stored]);

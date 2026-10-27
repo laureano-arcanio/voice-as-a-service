@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Campaign, CampaignPlan, WaAccount } from '@/api/types';
-import { ADMIN, CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
+import { CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
 import { CampaignDetailPage } from './CampaignDetailPage';
 import { CampaignsPage } from './CampaignsPage';
 import { formatEta, formatWeekdays, csvHelp, renderTemplate } from './labels';
@@ -207,13 +207,6 @@ describe('campañas: lista', () => {
         true,
       ),
     );
-  });
-
-  it('admin: ve el cliente de cada campaña', async () => {
-    mockApi({ ...listRoutes([WA]), 'GET /api/v1/clients': () => jsonResponse([]) });
-    renderWithProviders(<CampaignsPage />, { me: ADMIN });
-    expect(await screen.findByRole('columnheader', { name: 'Cliente' })).toBeInTheDocument();
-    expect(screen.getByText('Acme')).toBeInTheDocument();
   });
 
   it('el plan sin un canal lo deshabilita con el motivo', async () => {

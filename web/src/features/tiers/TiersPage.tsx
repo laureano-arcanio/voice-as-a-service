@@ -105,6 +105,7 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
     external_agent: boolean;
     white_label: boolean;
     advanced_reports: boolean;
+    internal: boolean;
     price_ars: Limit;
     public: boolean;
     sort: number | '';
@@ -141,6 +142,7 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
       external_agent: tier?.external_agent ?? false,
       white_label: tier?.white_label ?? false,
       advanced_reports: tier?.advanced_reports ?? false,
+      internal: tier?.internal ?? false,
       price_ars: tier?.price_ars ?? '',
       public: tier?.public ?? false,
       sort: tier?.sort ?? 0,
@@ -188,6 +190,7 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
                 external_agent: v.external_agent,
                 white_label: v.white_label,
                 advanced_reports: v.advanced_reports,
+                internal: v.internal,
                 price_ars: toLimit(v.price_ars),
                 public: v.public,
                 sort: v.sort === '' ? 0 : v.sort,
@@ -327,6 +330,12 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
               description="Se ofrece en el registro y en la pantalla Plan."
               mt="md"
               {...form.getInputProps('public', { type: 'checkbox' })}
+            />
+            <Switch
+              label="Interno (Atentina)"
+              description="No se ofrece como plan ni cuenta en las estadísticas de la plataforma."
+              mt="md"
+              {...form.getInputProps('internal', { type: 'checkbox' })}
             />
           </Section>
           <Group justify="flex-end">

@@ -112,7 +112,7 @@ def test_client_and_admin_manage_connections_and_key_is_never_returned(api, admi
     assert [c["name"] for c in user.get(f"{V1}/clients/{acme['id']}/llm-connections").json()] == ["Segunda"]
 
 
-def test_base_url_blocks_private_networks_for_clients_but_not_admins(api, admin):
+def test_base_url_blocks_private_networks_for_everyone(api, admin):
     acme = make_client(admin, "acme")
     user = client_user(api, admin, acme)
     url = f"{V1}/clients/{acme['id']}/llm-connections"
@@ -122,7 +122,9 @@ def test_base_url_blocks_private_networks_for_clients_but_not_admins(api, admin)
         r = user.post(url, json={**body, "base_url": bad})
         assert r.status_code == 422 and r.json()["code"] == "invalid_base_url", bad
     assert user.post(url, json=body).status_code == 422          # falta base_url
-    assert admin.post(url, json={**body, "base_url": "http://vllm-llm:8000/v1"}).status_code == 201
+    # Tampoco el admin (sin excepcion desde el 27-oct-2026, docs/ADMIN_SOPORTE_PLAN.md).
+    r = admin.post(url, json={**body, "base_url": "http://vllm-llm:8000/v1"})
+    assert r.status_code == 422 and r.json()["code"] == "invalid_base_url"
     assert user.post(url, json={**body, "name": "publico", "base_url": "https://8.8.8.8/v1"}).status_code == 201
 
 

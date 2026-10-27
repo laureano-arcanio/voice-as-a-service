@@ -46,7 +46,7 @@ export function ClientsPage() {
                     {list.map((c) => (
                       <Table.Tr key={c.id}>
                         <Table.Td>
-                          <Anchor component={Link} to={`/clients/${c.id}`} fw={600} size="sm">
+                          <Anchor component={Link} to={`/admin/clients/${c.id}`} fw={600} size="sm">
                             {c.name}
                           </Anchor>
                         </Table.Td>

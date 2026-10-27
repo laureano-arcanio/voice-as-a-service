@@ -36,7 +36,6 @@ export interface NavItem {
   to: string;
   label: string;
   icon: ComponentType<{ size?: number; stroke?: number }>;
-  roles: Role[];
   /** La función del plan que necesita: sin ella, la navegación la marca con un candado. */
   feature?: PlanFeatureKey | PlanFeatureKey[];
 }
@@ -52,37 +51,34 @@ export type NavEntry = NavItem | NavGroup;
 
 export const isGroup = (e: NavEntry): e is NavGroup => 'items' in e;
 
-const BOTH: Role[] = ['admin', 'client'];
-
-// Orden del menú. Las pantallas solo de admin van sueltas al final, bajo el rótulo "Administración".
-export const NAV: NavEntry[] = [
-  { to: '/', label: 'Inicio', icon: IconHome, roles: BOTH },
-  { to: '/reports', label: 'Reportes', icon: IconChartHistogram, roles: BOTH },
-  { to: '/calls', label: 'Conversaciones', icon: IconMessages, roles: BOTH },
+// Menú del panel del cliente (también el de un admin que entró como el cliente).
+export const CLIENT_NAV: NavEntry[] = [
+  { to: '/', label: 'Inicio', icon: IconHome },
+  { to: '/reports', label: 'Reportes', icon: IconChartHistogram },
+  { to: '/calls', label: 'Conversaciones', icon: IconMessages },
   {
     label: 'Agentes',
     icon: IconRobot,
     items: [
-      { to: '/agents', label: 'Mis agentes', icon: IconList, roles: BOTH },
+      { to: '/agents', label: 'Mis agentes', icon: IconList },
       // Lo que un agente usa va junto a los agentes (como Vapi y ElevenLabs), no en un grupo aparte.
-      { to: '/tools', label: 'Herramientas', icon: IconTool, roles: BOTH, feature: 'custom_tools' },
-      { to: '/secrets', label: 'Secretos', icon: IconLockPassword, roles: BOTH, feature: 'custom_tools' },
-      { to: '/models', label: 'Modelos', icon: IconCpu, roles: ['client'] },
-      { to: '/probar', label: 'Playground', icon: IconPlayerPlay, roles: BOTH },
-      { to: '/voices', label: 'Voces', icon: IconMicrophone, roles: BOTH },
+      { to: '/tools', label: 'Herramientas', icon: IconTool, feature: 'custom_tools' },
+      { to: '/secrets', label: 'Secretos', icon: IconLockPassword, feature: 'custom_tools' },
+      { to: '/models', label: 'Modelos', icon: IconCpu },
+      { to: '/probar', label: 'Playground', icon: IconPlayerPlay },
+      { to: '/voices', label: 'Voces', icon: IconMicrophone },
     ],
   },
   {
     label: 'Canales',
     icon: IconBroadcast,
     items: [
-      { to: '/whatsapp', label: 'WhatsApp', icon: IconBrandWhatsapp, roles: BOTH, feature: 'whatsapp' },
-      { to: '/outbound', label: 'Llamadas', icon: IconPhoneOutgoing, roles: BOTH, feature: 'outbound_calls' },
+      { to: '/whatsapp', label: 'WhatsApp', icon: IconBrandWhatsapp, feature: 'whatsapp' },
+      { to: '/outbound', label: 'Llamadas', icon: IconPhoneOutgoing, feature: 'outbound_calls' },
       {
         to: '/campaigns',
         label: 'Campañas',
         icon: IconSpeakerphone,
-        roles: BOTH,
         feature: ['campaigns_voice', 'campaigns_whatsapp'],
       },
     ],
@@ -91,49 +87,50 @@ export const NAV: NavEntry[] = [
     label: 'Organización',
     icon: IconSitemap,
     items: [
-      { to: '/contacts', label: 'Contactos', icon: IconAddressBook, roles: BOTH, feature: 'contacts' },
-      { to: '/team', label: 'Equipo', icon: IconUsersGroup, roles: BOTH, feature: 'team' },
+      { to: '/contacts', label: 'Contactos', icon: IconAddressBook, feature: 'contacts' },
+      { to: '/team', label: 'Equipo', icon: IconUsersGroup, feature: 'team' },
     ],
   },
   {
-    // Las API keys del admin se gestionan por cliente, en su ficha: acá solo ve el uso.
     label: 'Developers',
     icon: IconCode,
     items: [
-      { to: '/developers', label: 'API keys', icon: IconKey, roles: ['client'] },
-      { to: '/inference-requests', label: 'Uso de la API', icon: IconApi, roles: BOTH },
+      { to: '/developers', label: 'API keys', icon: IconKey },
+      { to: '/inference-requests', label: 'Uso de la API', icon: IconApi },
     ],
   },
   {
     label: 'Cuenta',
     icon: IconUser,
     items: [
-      { to: '/account', label: 'Mi cuenta', icon: IconFileInvoice, roles: ['client'] },
-      { to: '/plan', label: 'Plan', icon: IconCreditCard, roles: ['client'] },
-      { to: '/usage', label: 'Consumos', icon: IconChartBar, roles: ['client'] },
+      { to: '/account', label: 'Mi cuenta', icon: IconFileInvoice },
+      { to: '/plan', label: 'Plan', icon: IconCreditCard },
+      { to: '/usage', label: 'Consumos', icon: IconChartBar },
     ],
   },
-  { to: '/clients', label: 'Clientes', icon: IconBuilding, roles: ['admin'] },
-  { to: '/numbers', label: 'Números', icon: IconPhone, roles: ['admin'] },
-  { to: '/tiers', label: 'Tiers', icon: IconStack2, roles: ['admin'] },
-  { to: '/billing', label: 'Cobros', icon: IconCash, roles: ['admin'] },
-  { to: '/users', label: 'Usuarios', icon: IconUsers, roles: ['admin'] },
 ];
 
-/** El menú del rol: sin las pantallas que no ve y sin los grupos que quedan vacíos. */
+// Administración (/admin, docs/ADMIN_SOPORTE_PLAN.md): la plataforma y las vistas de todos los clientes. El
+// resto se ve entrando como el cliente (ficha del cliente o link de una fila).
+export const ADMIN_NAV: NavEntry[] = [
+  { to: '/admin', label: 'Inicio', icon: IconHome },
+  { to: '/admin/reports', label: 'Reportes', icon: IconChartHistogram },
+  { to: '/admin/calls', label: 'Conversaciones', icon: IconMessages },
+  { to: '/admin/agents', label: 'Agentes', icon: IconRobot },
+  { to: '/admin/inference-requests', label: 'Uso de la API', icon: IconApi },
+  { to: '/admin/clients', label: 'Clientes', icon: IconBuilding },
+  { to: '/admin/numbers', label: 'Números', icon: IconPhone },
+  { to: '/admin/tiers', label: 'Tiers', icon: IconStack2 },
+  { to: '/admin/billing', label: 'Cobros', icon: IconCash },
+  { to: '/admin/users', label: 'Usuarios', icon: IconUsers },
+];
+
+/** El menú del área: la del cliente o la administración. */
 export function navFor(role: Role): NavEntry[] {
-  return NAV.flatMap((e): NavEntry[] => {
-    if (!isGroup(e)) return e.roles.includes(role) ? [e] : [];
-    const items = e.items.filter((i) => i.roles.includes(role));
-    return items.length ? [{ ...e, items }] : [];
-  });
+  return role === 'admin' ? ADMIN_NAV : CLIENT_NAV;
 }
 
-/** Las pantallas del rol, sin grupos. */
+/** Las pantallas del área, sin grupos. */
 export function navItemsFor(role: Role): NavItem[] {
   return navFor(role).flatMap((e) => (isGroup(e) ? e.items : [e]));
-}
-
-export function isAdminOnly(item: NavEntry): boolean {
-  return !isGroup(item) && item.roles.length === 1 && item.roles[0] === 'admin';
 }

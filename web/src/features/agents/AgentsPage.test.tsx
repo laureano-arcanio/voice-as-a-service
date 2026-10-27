@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Agent, AgentTemplate } from '@/api/types';
-import { ADMIN, CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
+import { CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
 import { AgentsPage } from './AgentsPage';
 
 const AGENT: Agent = {
@@ -44,7 +44,7 @@ function mockApi(routes: Record<string, () => Response>) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('AgentsPage', () => {
-  it('cliente: crea un agente en su cuenta, sin elegir cliente ni slug', async () => {
+  it('cliente: crea un agente en su cuenta, sin elegir cliente', async () => {
     const calls = mockApi({
       'GET /api/v1/agents': () => jsonResponse([]),
       'GET /api/v1/agent-templates': () => jsonResponse([TEMPLATE]),
@@ -58,7 +58,6 @@ describe('AgentsPage', () => {
 
     const dialog = await screen.findByRole('dialog', { name: 'Nuevo agente' });
     expect(within(dialog).queryByLabelText('Cliente')).not.toBeInTheDocument();
-    expect(within(dialog).queryByLabelText('Slug')).not.toBeInTheDocument();
     expect(within(dialog).queryByText('Motor')).not.toBeInTheDocument();
     await userEvent.type(within(dialog).getByLabelText('Nombre'), 'Recepción');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Crear agente' }));
@@ -75,32 +74,28 @@ describe('AgentsPage', () => {
     expect(calls.some((c) => c.path === '/api/v1/clients')).toBe(false);
   });
 
-  it('cliente: la lista no muestra columnas internas', async () => {
+  it('cliente: la lista no muestra la columna Cliente', async () => {
     mockApi({ 'GET /api/v1/agents': () => jsonResponse([AGENT]) });
     renderWithProviders(<AgentsPage />, { me: CLIENT_USER });
     expect(await screen.findByRole('link', { name: 'Recepción' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Nuevo agente' })).toBeInTheDocument();
-    for (const name of ['Slug', 'Cliente', 'Motor'])
+    for (const name of ['Cliente', 'Motor'])
       expect(screen.queryByRole('columnheader', { name })).not.toBeInTheDocument();
   });
 
-  it('admin: el alta pide cliente y deja elegir slug; no hay motor', async () => {
+  it('el alta pide slug y no hay selector de cliente ni motor', async () => {
     mockApi({
       'GET /api/v1/agents': () => jsonResponse([AGENT]),
-      'GET /api/v1/clients': () => jsonResponse([]),
       'GET /api/v1/agent-templates': () => jsonResponse([TEMPLATE]),
     });
-    renderWithProviders(<AgentsPage />, { me: ADMIN });
-    expect(await screen.findByRole('columnheader', { name: 'Cliente' })).toBeInTheDocument();
+    renderWithProviders(<AgentsPage />, { me: CLIENT_USER });
+    expect(await screen.findByRole('link', { name: 'Recepción' })).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'Motor' })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Nuevo agente' }));
     const dialog = await screen.findByRole('dialog', { name: 'Nuevo agente' });
-    expect(within(dialog).getByRole('textbox', { name: 'Cliente' })).toBeInTheDocument();
+    expect(within(dialog).queryByLabelText('Cliente')).not.toBeInTheDocument();
     expect(within(dialog).getByLabelText('Slug')).toBeInTheDocument();
     expect(within(dialog).queryByText('Motor')).not.toBeInTheDocument();
-    await userEvent.type(within(dialog).getByLabelText('Nombre'), 'Ventas');
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Crear agente' }));
-    expect(await within(dialog).findByText('Elegí un cliente')).toBeInTheDocument();
   });
 
   it('Probar y el link van en columnas aparte: la URL con copiar, o Crear link', async () => {

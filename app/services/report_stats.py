@@ -803,8 +803,6 @@ def _tools(s: Session, flt: ReportFilter) -> list[dict]:
 
 def platform(s: Session, flt: ReportFilter) -> dict:
     """Tabla por cliente con alertas, negocio (planes, altas, ingresos) y operacion (concurrencia, fallas)."""
-    # cli importa servicios: aca, para no hacer un ciclo.
-    from ..cli import INTERNAL_TIER
     flt = replace(flt, client_id=None)
     stats = {cid: vals for cid, *vals in s.execute(_convs(
         flt, ConversationRow.client_id, func.count(), func.coalesce(func.sum(CallRow.duration_seconds), 0),
@@ -830,7 +828,7 @@ def platform(s: Session, flt: ReportFilter) -> dict:
                         "minutes": round(secs / 60, 1), "quota_pct": quota_pct, "conversion_pct": _pct(complete, n),
                         "errors": errors, "last_activity_at": last_at,
                         "delta_pct": round(100 * (n - before) / before, 1) if before else None})
-        if not c.active or c.tier.name == INTERNAL_TIER:
+        if not c.active or c.tier.internal:
             continue
         if quota_pct is not None and quota_pct >= NEAR_QUOTA_PCT:
             alerts.append({"client_id": c.id, "name": c.name, "kind": "near_quota",

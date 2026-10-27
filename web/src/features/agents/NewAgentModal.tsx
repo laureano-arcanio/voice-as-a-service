@@ -1,20 +1,7 @@
-import {
-  Button,
-  Group,
-  Modal,
-  Radio,
-  Select,
-  SimpleGrid,
-  Stack,
-  Text,
-  Textarea,
-  TextInput,
-} from '@mantine/core';
+import { Button, Group, Modal, Radio, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router';
-import { useIsAdmin } from '@/features/auth/api';
-import { useClients } from '@/features/clients/api';
 import { SLUG_RE, slugify } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useAgentTemplates, useCreateAgent } from './api';
@@ -39,35 +26,19 @@ function Choice({ value, title, children }: { value: string; title: string; chil
   );
 }
 
-export function NewAgentModal({
-  opened,
-  onClose,
-  clientId,
-  lockClient = false,
-}: {
-  opened: boolean;
-  onClose: () => void;
-  /** Cliente elegido de entrada (admin). Un usuario de cliente crea siempre en el suyo. */
-  clientId?: string;
-  /** Sin poder cambiar el cliente (alta desde la ficha del cliente). */
-  lockClient?: boolean;
-}) {
-  // Cliente y slug son internos: el cliente crea en su cuenta.
-  const isAdmin = useIsAdmin();
-  const clients = useClients(opened && isAdmin);
+/** El agente se crea en el cliente de la sesión (el del usuario, o el que el admin tiene abierto en soporte). */
+export function NewAgentModal({ opened, onClose }: { opened: boolean; onClose: () => void }) {
   const templates = useAgentTemplates(opened);
   const create = useCreateAgent();
   const navigate = useNavigate();
   const form = useForm({
     initialValues: {
-      client_id: clientId ?? '',
       name: '',
       slug: '',
       description: '',
       template_id: 'asistente',
     },
     validate: {
-      client_id: (v) => (!isAdmin || v ? null : 'Elegí un cliente'),
       name: (v) => (v.trim() ? null : 'Poné un nombre'),
       slug: (v) => (!v || SLUG_RE.test(v) ? null : 'Minúsculas, números y _ (hasta 64)'),
     },
@@ -80,9 +51,9 @@ export function NewAgentModal({
         onSubmit={form.onSubmit((v) =>
           create.mutate(
             {
-              client_id: isAdmin ? v.client_id : null,
+              client_id: null,
               name: v.name.trim(),
-              slug: (isAdmin && v.slug) || null,
+              slug: v.slug || null,
               description: v.description.trim(),
               template_id: v.template_id === BLANK ? null : v.template_id,
             },
@@ -100,34 +71,23 @@ export function NewAgentModal({
       >
         <Stack>
           <SimpleGrid cols={{ base: 1, sm: 2 }}>
-            {isAdmin && (
-              <Select
-                label="Cliente"
-                data={(clients.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
-                searchable
-                disabled={lockClient}
-                {...form.getInputProps('client_id')}
-              />
-            )}
             <TextInput
               label="Nombre"
-              description={isAdmin ? undefined : 'Para reconocerlo en tus listas e informes.'}
+              description="Para reconocerlo en tus listas e informes."
               maxLength={128}
               data-autofocus
               {...form.getInputProps('name')}
             />
-            {isAdmin && (
-              <TextInput
-                label="Slug"
-                description={`Identificador del agente en el cliente. Queda: ${slugPreview}`}
-                placeholder={slugify(form.values.name) || 'se arma del nombre'}
-                {...form.getInputProps('slug')}
-                onChange={(e) => form.setFieldValue('slug', e.currentTarget.value.toLowerCase())}
-              />
-            )}
+            <TextInput
+              label="Slug"
+              description={`Identificador del agente en tu cuenta. Queda: ${slugPreview}`}
+              placeholder={slugify(form.values.name) || 'se arma del nombre'}
+              {...form.getInputProps('slug')}
+              onChange={(e) => form.setFieldValue('slug', e.currentTarget.value.toLowerCase())}
+            />
             <Textarea
               label="Descripción"
-              description={isAdmin ? undefined : 'Opcional: para qué lo usás.'}
+              description="Opcional: para qué lo usás."
               autosize
               minRows={1}
               {...form.getInputProps('description')}

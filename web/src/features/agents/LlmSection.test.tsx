@@ -32,7 +32,10 @@ const DEF = {
   conversation: { opening: 'Hola', rules: [] },
   knowledge: '',
   fields: {},
-  completion: { when: 'all_required_fields_completed', outcomes: [{ id: 'ok', label: 'ok', when: {}, message: 'm', goal: true }] },
+  completion: {
+    when: 'all_required_fields_completed',
+    outcomes: [{ id: 'ok', label: 'ok', when: {}, message: 'm', goal: true }],
+  },
 };
 
 /** El borrador vigente, para verificar lo que saldria a la definicion. */
@@ -54,7 +57,15 @@ const PARAMS = {
       kind: 'vllm',
       label: 'Servidor propio (local)',
       params: [
-        { name: 'temperature', label: 'Temperatura', type: 'number', minimum: 0, maximum: 2, choices: [], hint: '' },
+        {
+          name: 'temperature',
+          label: 'Temperatura',
+          type: 'number',
+          minimum: 0,
+          maximum: 2,
+          choices: [],
+          hint: '',
+        },
         { name: 'top_k', label: 'Top K', type: 'int', minimum: 0, choices: [], hint: '' },
         { name: 'enable_thinking', label: 'Razonamiento', type: 'bool', choices: [], hint: '' },
       ],
@@ -62,7 +73,9 @@ const PARAMS = {
     {
       kind: 'anthropic',
       label: 'Anthropic',
-      params: [{ name: 'effort', label: 'Esfuerzo', type: 'choice', choices: ['low', 'medium', 'high'], hint: '' }],
+      params: [
+        { name: 'effort', label: 'Esfuerzo', type: 'choice', choices: ['low', 'medium', 'high'], hint: '' },
+      ],
     },
   ],
 };
@@ -96,7 +109,10 @@ describe('LlmSection', () => {
   it('sin claves cargadas: las etapas no se habilitan y se pide cargar una', async () => {
     mockApi([]);
     renderWithProviders(<Harness initial={toDraft(DEF)} />, { me: ADMIN });
-    expect(await screen.findByRole('link', { name: 'Cargar una clave' })).toHaveAttribute('href', '/clients/c-1?tab=modelos');
+    expect(await screen.findByRole('link', { name: 'Cargar una clave' })).toHaveAttribute(
+      'href',
+      '/models',
+    );
     expect(screen.getByRole('radio', { name: 'Mis proveedores, por etapas' })).toBeDisabled();
   });
 
@@ -107,7 +123,9 @@ describe('LlmSection', () => {
     await waitFor(() => expect(byok).toBeEnabled());
     await userEvent.click(byok);
     expect(await screen.findByDisplayValue('claude-haiku-5-5')).toBeInTheDocument();
-    expect(screen.getByText(/Desde el turno 1, este agente manda la conversación a Anthropic/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Desde el turno 1, este agente manda la conversación a Anthropic/),
+    ).toBeInTheDocument();
     expect(fromDraft(latest.current)).toMatchObject({
       llm: { stages: [{ from_turn: 1, connection: 'k-1', model: 'claude-haiku-5-5' }], fallback_local: true },
     });

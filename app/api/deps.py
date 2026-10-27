@@ -78,6 +78,8 @@ MCP_INTERNAL_HEADER = "x-atentina-mcp"
 MCP_INTERNAL_SECRET = secrets.token_urlsafe(32)
 # Con un permiso de toda la plataforma, el cliente en el que actúa una herramienta de cliente del MCP.
 MCP_CLIENT_HEADER = "x-atentina-mcp-client"
+# Panel: el cliente en el que entró un admin ("ver como cliente", docs/ADMIN_SOPORTE_PLAN.md).
+SUPPORT_CLIENT_HEADER = "x-atentina-client"
 
 
 def get_principal(request: Request, db: DB,
@@ -120,6 +122,12 @@ def get_principal(request: Request, db: DB,
     user = db.get(User, payload["sub"]) if payload else None
     if user is None or not user.active or payload.get("sv", 0) != user.session_version:
         raise _unauthorized("Sesion invalida o vencida")
+    acting = request.headers.get(SUPPORT_CLIENT_HEADER)
+    if acting and user.role == Role.admin:
+        # Solo la sesión de un admin: una API key o un token OAuth no entran a otro cliente así.
+        if db.get(Client, acting) is None:
+            raise NotFound("No existe ese cliente", "client_not_found")
+        return Principal("user", user.id, Role.client, acting, support=True)
     return Principal("user", user.id, Role(user.role), user.client_id)
 
 
@@ -145,9 +153,17 @@ def require_session(p: CurrentPrincipal) -> Principal:
     return p
 
 
+def require_not_support(p: CurrentPrincipal) -> Principal:
+    """La cuenta y los cobros del cliente: un admin que entró como el cliente solo los ve."""
+    if p.support:
+        raise Forbidden("Entrando como el cliente, su cuenta y su plan son de solo lectura", "support_read_only")
+    return p
+
+
 AdminPrincipal = Annotated[Principal, Depends(require_admin)]
 UserPrincipal = Annotated[Principal, Depends(require_user)]
 SessionPrincipal = Annotated[Principal, Depends(require_session)]
+NotSupportPrincipal = Annotated[Principal, Depends(require_not_support)]
 
 
 def scoped_client_id(p: Principal, client_id: str | None) -> str | None:

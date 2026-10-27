@@ -84,6 +84,15 @@ describe('PlanPage', () => {
     });
   });
 
+  it('en soporte (admin como el cliente) el plan y los datos fiscales son de solo lectura', async () => {
+    mockApi(FREE);
+    renderWithProviders(<PlanPage />, { me: { ...CLIENT_USER, support: true } });
+    expect(await screen.findByText(/su plan y sus cobros son de solo lectura/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Elegir este plan' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Guardar datos' })).toBeDisabled();
+    expect(screen.getByLabelText('CUIT')).toBeDisabled();
+  });
+
   it('sin datos fiscales los pide antes del plan', async () => {
     mockApi({ ...FREE, fiscal: { legal_name: '', tax_id: '', tax_condition: '' } });
     renderWithProviders(<PlanPage />, { me: CLIENT_USER });

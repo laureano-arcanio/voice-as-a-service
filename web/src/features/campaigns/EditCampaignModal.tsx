@@ -16,7 +16,7 @@ export function EditCampaignModal({ campaign: c, onClose }: { campaign: Campaign
   const update = useUpdateCampaign(c.id);
   const agents = useAgents(c.client_id, false);
   const numbers = usePhoneNumbers({ clientId: c.client_id }, voice);
-  const plan = usePlan(c.client_id, voice);
+  const plan = usePlan(voice);
   const cap = plan.data?.max_campaign_concurrency ?? null;
   const form = useForm({
     initialValues: {

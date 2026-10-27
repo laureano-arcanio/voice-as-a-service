@@ -1,27 +1,12 @@
-import {
-  ActionIcon,
-  Badge,
-  Button,
-  Card,
-  Group,
-  Select,
-  Stack,
-  Table,
-  Text,
-  Title,
-  Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Badge, Button, Card, Group, Stack, Table, Text, Title, Tooltip } from '@mantine/core';
 import { IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useState } from 'react';
-import { useSearchParams } from 'react-router';
 import type { TeamMember } from '@/api/types';
 import { Dash } from '@/components/Badges';
 import { confirmAction } from '@/components/confirm';
 import { PageHeader } from '@/components/PageHeader';
 import { PlanGate } from '@/components/PlanGate';
 import { EmptyState, QueryState } from '@/components/QueryState';
-import { useIsAdmin } from '@/features/auth/api';
-import { useClients } from '@/features/clients/api';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { type AreaRow, useAreas, useDeleteArea, useDeleteMember, useTeam } from './api';
 import { AreaModal } from './AreaModal';
@@ -33,32 +18,13 @@ type Dialog = { kind: 'member'; member: TeamMember | null } | { kind: 'area'; ar
 
 /** Equipo del cliente y areas de derivacion: a quien pasa el agente una llamada o un chat. */
 export function TeamPage() {
-  const isAdmin = useIsAdmin();
-  const [params, setParams] = useSearchParams();
-  const clientId = isAdmin ? (params.get('client') ?? undefined) : undefined;
-  const clients = useClients(isAdmin);
-  const team = useTeam(clientId);
-  const areas = useAreas(clientId);
+  const team = useTeam();
+  const areas = useAreas();
   const deleteMember = useDeleteMember();
   const deleteArea = useDeleteArea();
   const [dialog, setDialog] = useState<Dialog>(null);
 
-  const canWrite = !isAdmin || !!clientId;
-  const allClients = isAdmin && !clientId;
   const members = team.data ?? [];
-  const clientName = (id: string) => (clients.data ?? []).find((c) => c.id === id)?.name;
-  const noClient = 'Elegí un cliente para cargar su equipo';
-
-  const setClient = (v: string | null) =>
-    setParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        if (v) next.set('client', v);
-        else next.delete('client');
-        return next;
-      },
-      { replace: true },
-    );
 
   const removeMember = async (m: TeamMember) => {
     const inAreas = (areas.data ?? []).filter((a) => a.member_ids.includes(m.id)).map((a) => a.name);
@@ -91,18 +57,10 @@ export function TeamPage() {
       });
   };
 
-  /** Boton de alta: con un admin sin cliente elegido queda deshabilitado, con la explicacion. */
   const addButton = (label: string, onClick: () => void, primary = false) => (
-    <Tooltip label={noClient} withArrow disabled={canWrite}>
-      <Button
-        variant={primary ? 'filled' : 'default'}
-        leftSection={<IconPlus size={18} />}
-        data-disabled={!canWrite || undefined}
-        onClick={(e) => (canWrite ? onClick() : e.preventDefault())}
-      >
-        {label}
-      </Button>
-    </Tooltip>
+    <Button variant={primary ? 'filled' : 'default'} leftSection={<IconPlus size={18} />} onClick={onClick}>
+      {label}
+    </Button>
   );
 
   return (
@@ -111,20 +69,6 @@ export function TeamPage() {
         title="Equipo"
         description="Las personas a las que el agente les pasa una llamada o un chat, agrupadas en áreas con su horario."
       />
-      {isAdmin && (
-        <Group>
-          <Select
-            label="Cliente"
-            placeholder="Todos los clientes"
-            data={(clients.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
-            value={clientId ?? null}
-            onChange={setClient}
-            clearable
-            searchable
-            w={260}
-          />
-        </Group>
-      )}
 
       <PlanGate feature="team" what="el equipo para derivar llamadas y chats">
         <Stack gap="md">
@@ -137,17 +81,15 @@ export function TeamPage() {
               {(rows) =>
                 rows.length === 0 ? (
                   <EmptyState>
-                    {allClients
-                      ? 'Ningún cliente cargó su equipo todavía.'
-                      : 'Todavía no hay personas en el equipo. Agregá a quienes atienden las derivaciones, con su teléfono para pasarles llamadas o su WhatsApp para pasarles chats.'}
+                    Todavía no hay personas en el equipo. Agregá a quienes atienden las derivaciones, con su
+                    teléfono para pasarles llamadas o su WhatsApp para pasarles chats.
                   </EmptyState>
                 ) : (
-                  <Table.ScrollContainer minWidth={allClients ? 720 : 580}>
+                  <Table.ScrollContainer minWidth={580}>
                     <Table>
                       <Table.Thead>
                         <Table.Tr>
                           <Table.Th>Nombre</Table.Th>
-                          {allClients && <Table.Th>Cliente</Table.Th>}
                           <Table.Th>Teléfono</Table.Th>
                           <Table.Th>WhatsApp</Table.Th>
                           <Table.Th>Estado</Table.Th>
@@ -158,7 +100,6 @@ export function TeamPage() {
                         {rows.map((m) => (
                           <Table.Tr key={m.id}>
                             <Table.Td fw={600}>{m.name}</Table.Td>
-                            {allClients && <Table.Td>{clientName(m.client_id) ?? <Dash />}</Table.Td>}
                             <Table.Td className="mono" style={{ whiteSpace: 'nowrap' }}>
                               {m.phone ?? <Dash />}
                             </Table.Td>
@@ -217,17 +158,15 @@ export function TeamPage() {
               {(rows) =>
                 rows.length === 0 ? (
                   <EmptyState>
-                    {allClients
-                      ? 'Ningún cliente tiene áreas todavía.'
-                      : 'Todavía no hay áreas. Creá una (por ejemplo, Ventas) con las personas que la atienden y su horario.'}
+                    Todavía no hay áreas. Creá una (por ejemplo, Ventas) con las personas que la atienden y su
+                    horario.
                   </EmptyState>
                 ) : (
-                  <Table.ScrollContainer minWidth={allClients ? 860 : 720}>
+                  <Table.ScrollContainer minWidth={720}>
                     <Table>
                       <Table.Thead>
                         <Table.Tr>
                           <Table.Th>Área</Table.Th>
-                          {allClients && <Table.Th>Cliente</Table.Th>}
                           <Table.Th>Personas</Table.Th>
                           <Table.Th>Horario</Table.Th>
                           <Table.Th>Estado</Table.Th>
@@ -252,7 +191,6 @@ export function TeamPage() {
                                   </Text>
                                 )}
                               </Table.Td>
-                              {allClients && <Table.Td>{clientName(a.client_id) ?? <Dash />}</Table.Td>}
                               <Table.Td>
                                 {names.length ? <Text size="sm">{names.join(', ')}</Text> : <Dash />}
                               </Table.Td>
@@ -305,7 +243,6 @@ export function TeamPage() {
         <MemberModal
           key={dialog.member?.id ?? 'new'}
           member={dialog.member}
-          clientId={clientId}
           onClose={() => setDialog(null)}
         />
       )}
@@ -313,8 +250,7 @@ export function TeamPage() {
         <AreaModal
           key={dialog.area?.id ?? 'new'}
           area={dialog.area}
-          clientId={clientId}
-          members={members.filter((m) => m.client_id === (dialog.area?.client_id ?? clientId ?? m.client_id))}
+          members={members}
           onClose={() => setDialog(null)}
         />
       )}

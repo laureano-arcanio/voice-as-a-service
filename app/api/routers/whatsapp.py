@@ -19,14 +19,13 @@ from fastapi import APIRouter, Depends
 from ...config import settings
 from ...models import Agent, Client, WaAccount, WaRoute, WaThread
 from ...services import wa_routing
-from ...services.errors import Forbidden, NotFound
+from ...services.errors import Forbidden, Invalid, NotFound
 from ...services.ratelimit import Limit
 from ...services.security import Principal
-from ...whatsapp import signup, store
+from ...whatsapp import own_app, signup, store
 from ...whatsapp.service import WhatsAppService, get_service
 from ..deps import (
     DB,
-    AdminPrincipal,
     CurrentPrincipal,
     UserPrincipal,
     rate_limit,
@@ -37,6 +36,7 @@ from ..schemas import (
     WaAccountOut,
     WaAccountPatch,
     WaConfigOut,
+    WaOwnAppIn,
     WaRegisterIn,
     WaRouteIn,
     WaRouteOut,
@@ -75,7 +75,8 @@ def _out(db, a: WaAccount) -> WaAccountOut:
         business_id=a.business_id, display_phone_number=a.display_phone_number, name=a.name,
         has_token=bool(a.access_token), has_pin=bool(a.pin_enc), active=a.active, status=a.status,
         status_reason=a.status_reason, status_changed_at=a.status_changed_at, quality_rating=a.quality_rating,
-        messaging_limit=a.messaging_limit, source=a.source,
+        messaging_limit=a.messaging_limit, source=a.source, webhook_url=own_app.webhook_url(a),
+        verify_token=own_app.verify_token_for(a) if a.webhook_key else None, has_app_secret=bool(a.app_secret),
         routes=[_route_out(db, r) for r in wa_routing.routes_for(db, a.id)],
         created_at=a.created_at, updated_at=a.updated_at)
 
@@ -90,9 +91,10 @@ def _get(db, account_id: str, p: Principal) -> WaAccount:
 
 def _get_managed(db, account_id: str, p: Principal) -> WaAccount:
     """Para registro, datos de Meta y plantillas. Sin token propio la cuenta usa
-    WA_ACCESS_TOKEN, el de nuestro portafolio (WABA compartida, PIN de .env): solo admin."""
+    WA_ACCESS_TOKEN, el de nuestro portafolio (WABA compartida, PIN de .env): solo admin (o un admin
+    que entró como el cliente)."""
     a = _get(db, account_id, p)
-    if not p.is_admin and not store.has_own_token(a):
+    if not (p.is_admin or p.support) and not store.has_own_token(a):
         raise Forbidden("Este número usa la cuenta de WhatsApp de la plataforma: lo administra un admin")
     return a
 
@@ -112,10 +114,16 @@ def list_accounts(p: CurrentPrincipal, db: DB, client_id: str | None = None):
 
 
 @router.post("/accounts", response_model=WaAccountOut, status_code=201)
-def create_account(body: WaAccountIn, _: AdminPrincipal, db: DB):
-    """Alta manual: 409 si el phone_number_id ya esta, 404 si el agente no es del cliente.
-    El token se guarda cifrado (503 sin WA_TOKEN_KEY)."""
-    a = store.create_account(db, **body.model_dump())
+def create_account(body: WaAccountIn, p: CurrentPrincipal, db: DB):
+    """Alta manual (un numero de nuestra WABA): admin, o un admin que entró como el cliente (va a ese cliente).
+    409 si el phone_number_id ya esta, 404 si el agente no es del cliente. El token se guarda cifrado (503 sin
+    WA_TOKEN_KEY)."""
+    if not (p.is_admin or p.support):
+        raise Forbidden("Requiere rol admin")
+    data = body.model_dump()
+    if p.support:
+        data["client_id"] = p.client_id
+    a = store.create_account(db, **data)
     db.commit()
     return _out(db, a)
 
@@ -126,7 +134,7 @@ def update_account(account_id: str, body: WaAccountPatch, p: CurrentPrincipal, d
     solo agent_id, name y active."""
     a = _get(db, account_id, p)
     changes = body.model_dump(exclude_unset=True)
-    if not p.is_admin and set(changes) - CLIENT_PATCH_FIELDS:
+    if not (p.is_admin or p.support) and set(changes) - CLIENT_PATCH_FIELDS:
         raise Forbidden("Solo un admin puede cambiar " + ", ".join(sorted(set(changes) - CLIENT_PATCH_FIELDS)))
     # Columnas NOT NULL: null es "sin cambio". El token si se puede borrar.
     changes = {k: v for k, v in changes.items() if v is not None or k == "access_token"}
@@ -153,6 +161,22 @@ def set_account_routes(account_id: str, body: list[WaRouteIn], p: CurrentPrincip
     routes = wa_routing.set_routes(db, a, [(r.agent_id, r.contacts) for r in body])
     db.commit()
     return [_route_out(db, r) for r in routes]
+
+
+@router.post("/accounts/own-app", response_model=WaAccountOut, status_code=201,
+             dependencies=[Depends(signup_limit)])
+async def connect_own_app(body: WaOwnAppIn, p: UserPrincipal, db: DB):
+    """Conecta un número con la app de Meta propia del cliente (docs/ADMIN_SOPORTE_PLAN.md, sección 4): valida
+    con Meta que el número sea de la WABA, suscribe su app a la WABA y devuelve la URL de webhook y el verify
+    token para pegar en su app. 201 también si quedó `pending` (falló la suscripción: ver status_reason).
+    409 si el número es de otra cuenta; 400 signup_mismatch si no es de esa WABA."""
+    client_id = scoped_client_id(p, body.client_id)
+    if not client_id:
+        raise Invalid("Falta client_id")
+    a = await own_app.connect(db, client_id=client_id, agent_id=body.agent_id, phone_number_id=body.phone_number_id,
+                              waba_id=body.waba_id, access_token=body.access_token, app_secret=body.app_secret,
+                              user_id=p.id)
+    return _out(db, a)
 
 
 @router.post("/signup", response_model=WaAccountOut, status_code=201, dependencies=[Depends(signup_limit)])

@@ -36,16 +36,14 @@ _TEST_SCHEMA = {"type": "object", "properties": {"ok": {"type": "boolean"}}, "re
                 "additionalProperties": False}
 
 
-def check_base_url(url: str, allow_private: bool) -> str:
-    """https y un host publico. Los admin pueden apuntar a un servidor propio (http o red interna)."""
+def check_base_url(url: str) -> str:
+    """https y un host publico, para todos (SSRF; sin excepcion del admin desde el 27-oct-2026)."""
     url = url.strip().rstrip("/")
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https") or not parsed.hostname:
         raise Invalid("base_url: tiene que ser una URL http(s) completa", "invalid_base_url")
     if parsed.username or parsed.password:
         raise Invalid("base_url: sin usuario ni clave en la URL", "invalid_base_url")
-    if allow_private:
-        return url
     if parsed.scheme != "https":
         raise Invalid("base_url: tiene que ser https", "invalid_base_url")
     try:
@@ -92,7 +90,7 @@ def _check_name(s: Session, client_id: str, name: str, ignore: str | None = None
     return name
 
 
-def _normalize(kind: str, base_url: str | None, allow_private: bool) -> str:
+def _normalize(kind: str, base_url: str | None) -> str:
     if kind not in KINDS:
         raise Invalid(f"kind: {', '.join(KINDS)}", "invalid_kind")
     if kind == "openrouter":
@@ -101,17 +99,17 @@ def _normalize(kind: str, base_url: str | None, allow_private: bool) -> str:
         return ANTHROPIC_URL
     if not base_url:
         raise Invalid("base_url: obligatoria en una conexion OpenAI compatible", "invalid_base_url")
-    return check_base_url(base_url, allow_private)
+    return check_base_url(base_url)
 
 
 def create(s: Session, client_id: str, *, name: str, kind: str, base_url: str | None, api_key: str,
-           default_model: str, user_id: str | None, allow_private: bool) -> LlmConnection:
+           default_model: str, user_id: str | None) -> LlmConnection:
     api_key = api_key.strip()
     if not api_key:
         raise Invalid("api_key: obligatoria")
     row = LlmConnection(
         client_id=client_id, name=_check_name(s, client_id, name), kind=kind,
-        base_url=_normalize(kind, base_url, allow_private), api_key_enc=crypto.encrypt(api_key),
+        base_url=_normalize(kind, base_url), api_key_enc=crypto.encrypt(api_key),
         last4=api_key[-4:], default_model=default_model.strip(), created_by=user_id)
     s.add(row)
     s.flush()
@@ -119,11 +117,11 @@ def create(s: Session, client_id: str, *, name: str, kind: str, base_url: str | 
 
 
 def update(s: Session, row: LlmConnection, *, name: str | None, base_url: str | None, api_key: str | None,
-           default_model: str | None, allow_private: bool) -> LlmConnection:
+           default_model: str | None) -> LlmConnection:
     if name is not None:
         row.name = _check_name(s, row.client_id, name, ignore=row.id)
     if base_url is not None and row.kind != "openrouter":
-        row.base_url = _normalize(row.kind, base_url, allow_private)
+        row.base_url = _normalize(row.kind, base_url)
     if default_model is not None:
         row.default_model = default_model.strip()
     if api_key is not None and api_key.strip():

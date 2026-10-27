@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Contact } from '@/api/types';
-import { ADMIN, CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
+import { CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
 import { ContactDetailPage } from './ContactDetailPage';
 import { ContactsPage } from './ContactsPage';
 import { parseRows, previewCsv } from './csv';
@@ -174,14 +174,6 @@ describe('contactos: lista', () => {
     await userEvent.click(await screen.findByRole('checkbox', { name: 'Seleccionar todos' }));
     await userEvent.click(screen.getByRole('button', { name: 'Desarchivar' }));
     await waitFor(() => expect(calls.filter((c) => c.path.endsWith('/unarchive')).length).toBe(2));
-  });
-
-  it('admin sin cliente: ve todos pero no puede cargar', async () => {
-    mockApi(routes());
-    renderWithProviders(<ContactsPage />, { me: ADMIN });
-    expect(await screen.findByRole('columnheader', { name: 'Cliente' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Nuevo contacto/ })).toHaveAttribute('data-disabled', 'true');
-    expect(screen.getByRole('button', { name: /Importar CSV/ })).toHaveAttribute('data-disabled', 'true');
   });
 
   it('vacío: explica cómo se llena', async () => {

@@ -19,7 +19,7 @@ export const campaignKeys = {
   stats: (id: string) => ['campaigns', 'detail', id, 'stats'] as const,
   contacts: (id: string, filter: ContactsFilter | null, offset: number) =>
     ['campaigns', 'detail', id, 'contacts', filter?.key ?? 'all', offset] as const,
-  plan: (clientId?: string) => ['campaigns', 'plan', clientId ?? 'own'] as const,
+  plan: () => ['campaigns', 'plan'] as const,
 };
 
 /** Mientras una campaña corre (o espera su hora), los numeros se refrescan solos: polling cada 5 s. */
@@ -56,10 +56,10 @@ export function useCampaignStats(id: string, live: boolean) {
 }
 
 /** Lo que el plan del cliente permite en campañas y agenda. Un admin necesita elegir cliente. */
-export function usePlan(clientId: string | undefined, enabled = true) {
+export function usePlan(enabled = true) {
   return useQuery({
-    queryKey: campaignKeys.plan(clientId),
-    queryFn: () => unwrap(api.GET('/api/v1/campaigns/plan', { params: { query: { client_id: clientId } } })),
+    queryKey: campaignKeys.plan(),
+    queryFn: () => unwrap(api.GET('/api/v1/campaigns/plan')),
     enabled,
   });
 }

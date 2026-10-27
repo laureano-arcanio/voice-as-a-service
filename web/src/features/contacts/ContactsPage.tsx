@@ -25,16 +25,14 @@ import {
   IconSearch,
 } from '@tabler/icons-react';
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link } from 'react-router';
 import type { Contact } from '@/api/types';
 import { Dash } from '@/components/Badges';
 import { confirmAction } from '@/components/confirm';
 import { PageHeader } from '@/components/PageHeader';
 import { PlanAlert } from '@/components/PlanGate';
 import { EmptyState, QueryState } from '@/components/QueryState';
-import { useIsAdmin } from '@/features/auth/api';
 import { usePlan } from '@/features/campaigns/api';
-import { useClients } from '@/features/clients/api';
 import { formatDate, formatNumber } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import {
@@ -58,10 +56,6 @@ const ARCHIVED_OPTIONS: { value: ArchivedFilter; label: string }[] = [
 ];
 
 export function ContactsPage() {
-  const isAdmin = useIsAdmin();
-  const [params, setParams] = useSearchParams();
-  const clientId = isAdmin ? (params.get('client') ?? undefined) : undefined;
-  const clients = useClients(isAdmin);
   const [search, setSearch] = useState('');
   const [q] = useDebouncedValue(search.trim(), 300);
   const [tag, setTag] = useState('');
@@ -70,11 +64,11 @@ export function ContactsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [dialog, setDialog] = useState<'new' | 'import' | Contact | null>(null);
 
-  const contacts = useContacts({ clientId, q, tag, archived, offset: (page - 1) * CONTACTS_PAGE });
-  const tags = useTagSuggestions(clientId);
-  const plan = usePlan(clientId, !isAdmin || !!clientId);
+  const contacts = useContacts({ q, tag, archived, offset: (page - 1) * CONTACTS_PAGE });
+  const tags = useTagSuggestions();
+  const plan = usePlan();
   const archiveOne = useArchiveContact();
-  const archiveMany = useArchiveMany(clientId);
+  const archiveMany = useArchiveMany();
   const unarchiveMany = useUnarchiveMany();
 
   // Otra pagina o filtro: la seleccion era de otra lista.
@@ -84,27 +78,11 @@ export function ContactsPage() {
     setSelected(new Set());
   };
 
-  const canWrite = !isAdmin || !!clientId;
   const noAgenda = plan.data?.max_contacts === 0;
-  const blocked = !canWrite
-    ? 'Elegí un cliente para cargar contactos'
-    : noAgenda
-      ? 'Tu plan no incluye la agenda de contactos'
-      : null;
+  const blocked = noAgenda ? 'Tu plan no incluye la agenda de contactos' : null;
   const items = contacts.data?.items ?? [];
   const total = contacts.data?.total ?? 0;
   const allChecked = items.length > 0 && items.every((c) => selected.has(c.id));
-
-  const setClient = (v: string | null) =>
-    setParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        if (v) next.set('client', v);
-        else next.delete('client');
-        return next;
-      },
-      { replace: true },
-    );
 
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -210,18 +188,6 @@ export function ContactsPage() {
       />
       <Card>
         <Group mb="md" gap="sm" align="flex-end">
-          {isAdmin && (
-            <Select
-              label="Cliente"
-              placeholder="Todos los clientes"
-              data={(clients.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
-              value={clientId ?? null}
-              onChange={(v) => restart(() => setClient(v))}
-              clearable
-              searchable
-              w={220}
-            />
-          )}
           <TextInput
             label="Buscar"
             placeholder="Nombre, teléfono, email o ID"
@@ -306,7 +272,7 @@ export function ContactsPage() {
               </EmptyState>
             ) : (
               <>
-                <Table.ScrollContainer minWidth={isAdmin && !clientId ? 980 : 860}>
+                <Table.ScrollContainer minWidth={860}>
                   <Table>
                     <Table.Thead>
                       <Table.Tr>
@@ -322,7 +288,6 @@ export function ContactsPage() {
                         </Table.Th>
                         <Table.Th>Teléfono</Table.Th>
                         <Table.Th>Nombre</Table.Th>
-                        {isAdmin && !clientId && <Table.Th>Cliente</Table.Th>}
                         <Table.Th>Etiquetas</Table.Th>
                         <Table.Th>Datos</Table.Th>
                         <Table.Th>Alta</Table.Th>
@@ -356,11 +321,6 @@ export function ContactsPage() {
                               {c.archived_at && <Badge color="gray">Archivado</Badge>}
                             </Group>
                           </Table.Td>
-                          {isAdmin && !clientId && (
-                            <Table.Td>
-                              {(clients.data ?? []).find((x) => x.id === c.client_id)?.name ?? <Dash />}
-                            </Table.Td>
-                          )}
                           <Table.Td>
                             <TagBadges tags={c.tags} />
                           </Table.Td>
@@ -441,11 +401,9 @@ export function ContactsPage() {
           }
         </QueryState>
       </Card>
-      <BlockedNumbersCard clientId={clientId} isAdmin={isAdmin} />
-      {dialog === 'new' && (
-        <ContactModal contact={null} clientId={clientId} onClose={() => setDialog(null)} />
-      )}
-      {dialog === 'import' && <ImportContactsModal clientId={clientId} onClose={() => setDialog(null)} />}
+      <BlockedNumbersCard />
+      {dialog === 'new' && <ContactModal contact={null} onClose={() => setDialog(null)} />}
+      {dialog === 'import' && <ImportContactsModal onClose={() => setDialog(null)} />}
       {dialog && typeof dialog === 'object' && (
         <ContactModal key={dialog.id} contact={dialog} onClose={() => setDialog(null)} />
       )}

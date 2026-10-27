@@ -335,6 +335,20 @@ def test_platform_report(api, data):
     assert {"date": "2026-10-05", "reason": "busy", "count": 1} in op["failures"]
 
 
+def test_platform_alerts_skip_internal_tier(api, data):
+    """El tier interno es una marca (tiers.internal), no el nombre: "Casa" sin actividad no alerta; un tier
+    llamado "Interno" sin la marca, si."""
+    admin = data["admin"]
+    casa = make_client(admin, "casa", tier=make_tier(admin, name="Casa", internal=True))
+    interno = make_client(admin, "interno", tier=make_tier(admin, name="Interno"))
+    with api.sessions() as s:
+        for c in (casa, interno):
+            s.get(Client, c["id"]).created_at = datetime.datetime(2026, 9, 1)
+        s.commit()
+    alerts = {a["name"] for a in report(admin, "platform")["alerts"]}
+    assert "Interno" in alerts and "Casa" not in alerts
+
+
 def test_period_defaults_and_limits(api, data):
     out = data["admin"].get(f"{V1}/reports/summary").json()
     start, end = (datetime.date.fromisoformat(out["period"][k]) for k in ("date_from", "date_to"))

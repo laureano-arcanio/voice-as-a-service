@@ -41,6 +41,9 @@ class Principal:
     scopes: frozenset[str] = frozenset({"calls"})
     # Un usuario por un token OAuth del servidor MCP (services/oauth.py): solo en los pedidos internos del MCP.
     oauth: bool = False
+    # Un admin que entró como este cliente desde el panel (header X-Atentina-Client): ve y hace lo del
+    # cliente, salvo su cuenta y sus cobros (docs/ADMIN_SOPORTE_PLAN.md). `id` sigue siendo el del admin.
+    support: bool = False
 
     @property
     def is_admin(self) -> bool:

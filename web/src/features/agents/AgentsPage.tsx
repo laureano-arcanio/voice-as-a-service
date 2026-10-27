@@ -1,25 +1,19 @@
-import { Anchor, Badge, Button, Card, Group, Select, Stack, Switch, Table, Text } from '@mantine/core';
+import { Anchor, Badge, Button, Card, Group, Stack, Switch, Table, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlayerPlay, IconPlus } from '@tabler/icons-react';
 import { Link, useSearchParams } from 'react-router';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState, QueryState } from '@/components/QueryState';
-import { useIsAdmin } from '@/features/auth/api';
-import { useClients } from '@/features/clients/api';
 import { formatDateTime } from '@/lib/format';
 import { useAgents } from './api';
 import { CallLinkCell } from './CallLinkCell';
 import { NewAgentModal } from './NewAgentModal';
 
 export function AgentsPage() {
-  const isAdmin = useIsAdmin();
   const [params, setParams] = useSearchParams();
-  const clientId = params.get('client') ?? undefined;
   const includeArchived = params.get('archived') === '1';
-  const agents = useAgents(clientId, includeArchived);
-  const clients = useClients(isAdmin);
+  const agents = useAgents(undefined, includeArchived);
   const [creating, create] = useDisclosure(false);
-  const clientName = new Map((clients.data ?? []).map((c) => [c.id, c.name]));
 
   const set = (k: string, v: string | null) =>
     setParams(
@@ -36,11 +30,7 @@ export function AgentsPage() {
     <>
       <PageHeader
         title="Agentes"
-        description={
-          isAdmin
-            ? 'Cada agente es un workflow versionado: qué datos pide, cómo habla y cómo cierra.'
-            : 'Cada agente define qué datos pide, cómo habla y cómo cierra la conversación.'
-        }
+        description="Cada agente define qué datos pide, cómo habla y cómo cierra la conversación."
         actions={
           <Button leftSection={<IconPlus size={18} />} onClick={create.open}>
             Nuevo agente
@@ -49,20 +39,6 @@ export function AgentsPage() {
       />
       <Card>
         <Group mb="md" gap="md" align="flex-end">
-          {isAdmin && (
-            <Select
-              label="Cliente"
-              data={[
-                { value: '', label: 'Todos' },
-                ...(clients.data ?? []).map((c) => ({ value: c.id, label: c.name })),
-              ]}
-              value={clientId ?? ''}
-              onChange={(v) => set('client', v || null)}
-              allowDeselect={false}
-              searchable
-              w={220}
-            />
-          )}
           <Switch
             label="Incluir archivados"
             checked={includeArchived}
@@ -73,26 +49,21 @@ export function AgentsPage() {
         <QueryState query={agents}>
           {(list) =>
             list.length === 0 ? (
-              isAdmin ? (
-                <EmptyState>No hay agentes. Creá uno desde una plantilla.</EmptyState>
-              ) : (
-                <Stack align="center" gap={0} pb="lg">
-                  <EmptyState>
-                    {includeArchived ? 'Todavía no tenés agentes.' : 'No tenés agentes activos.'} Creá uno y
-                    después elegí qué número atiende.
-                  </EmptyState>
-                  <Button variant="light" leftSection={<IconPlus size={18} />} onClick={create.open}>
-                    Crear agente
-                  </Button>
-                </Stack>
-              )
+              <Stack align="center" gap={0} pb="lg">
+                <EmptyState>
+                  {includeArchived ? 'Todavía no tenés agentes.' : 'No tenés agentes activos.'} Creá uno y
+                  después elegí qué número atiende.
+                </EmptyState>
+                <Button variant="light" leftSection={<IconPlus size={18} />} onClick={create.open}>
+                  Crear agente
+                </Button>
+              </Stack>
             ) : (
-              <Table.ScrollContainer minWidth={isAdmin ? 1000 : 900}>
+              <Table.ScrollContainer minWidth={900}>
                 <Table>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>Nombre</Table.Th>
-                      {isAdmin && <Table.Th>Cliente</Table.Th>}
                       <Table.Th>Voz</Table.Th>
                       <Table.Th>Versión</Table.Th>
                       <Table.Th>Estado</Table.Th>
@@ -109,11 +80,9 @@ export function AgentsPage() {
                             {a.name}
                           </Anchor>
                           {/* El slug (interno) va debajo del nombre: deja lugar al link para llamar. */}
-                          {isAdmin && (
-                            <Text size="xs" c="dimmed" className="mono">
-                              {a.slug}
-                            </Text>
-                          )}
+                          <Text size="xs" c="dimmed" className="mono">
+                            {a.slug}
+                          </Text>
                           {a.own_agent && (
                             <Badge color="gray" mt={2}>
                               Tu propio agente
@@ -125,7 +94,6 @@ export function AgentsPage() {
                             </Text>
                           )}
                         </Table.Td>
-                        {isAdmin && <Table.Td>{clientName.get(a.client_id) ?? '–'}</Table.Td>}
                         <Table.Td>{a.voice ?? '–'}</Table.Td>
                         <Table.Td className="mono">v{a.version}</Table.Td>
                         <Table.Td>
@@ -160,7 +128,7 @@ export function AgentsPage() {
           }
         </QueryState>
       </Card>
-      <NewAgentModal key={String(creating)} opened={creating} onClose={create.close} clientId={clientId} />
+      <NewAgentModal key={String(creating)} opened={creating} onClose={create.close} />
     </>
   );
 }

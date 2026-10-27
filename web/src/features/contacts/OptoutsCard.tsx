@@ -26,13 +26,12 @@ const CHANNEL_OPTIONS = (Object.keys(OPTOUT_CHANNEL) as OptoutChannel[]).map((va
 }));
 
 /** Numeros que pidieron no ser contactados (por WhatsApp, en una llamada o cargados a mano), por canal. */
-export function OptoutsCard({ clientId, isAdmin }: { clientId?: string; isAdmin: boolean }) {
-  const optouts = useOptouts(clientId);
-  const add = useAddOptout(clientId);
+export function OptoutsCard() {
+  const optouts = useOptouts();
+  const add = useAddOptout();
   const remove = useRemoveOptout();
   const [phone, setPhone] = useState('');
   const [channel, setChannel] = useState<OptoutChannel>('all');
-  const canAdd = !isAdmin || !!clientId;
 
   const doRemove = async (p: string, cid: string, ch: OptoutChannel) => {
     const ok = await confirmAction({
@@ -53,53 +52,44 @@ export function OptoutsCard({ clientId, isAdmin }: { clientId?: string; isAdmin:
     <Card>
       <Group justify="space-between" mb="sm" gap="sm">
         <Title order={4}>Bajas</Title>
-        <Tooltip label="Elegí un cliente para cargar bajas" disabled={canAdd} withArrow>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              add.mutate(
-                { phone, channel },
-                {
-                  onSuccess: (o) => {
-                    notifySuccess(
-                      `${o.phone} no va a ser contactado (${OPTOUT_CHANNEL[o.channel].toLowerCase()}).`,
-                    );
-                    setPhone('');
-                  },
-                  onError: (err) => notifyError(err, 'No se pudo cargar la baja'),
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            add.mutate(
+              { phone, channel },
+              {
+                onSuccess: (o) => {
+                  notifySuccess(
+                    `${o.phone} no va a ser contactado (${OPTOUT_CHANNEL[o.channel].toLowerCase()}).`,
+                  );
+                  setPhone('');
                 },
-              );
-            }}
-          >
-            <Group gap="xs">
-              <TextInput
-                placeholder="351 555-1234"
-                aria-label="Teléfono a dar de baja"
-                value={phone}
-                onChange={(e) => setPhone(e.currentTarget.value)}
-                disabled={!canAdd}
-                w={170}
-              />
-              <Select
-                aria-label="Canal de la baja"
-                data={CHANNEL_OPTIONS}
-                value={channel}
-                onChange={(v) => setChannel((v ?? 'all') as OptoutChannel)}
-                allowDeselect={false}
-                disabled={!canAdd}
-                w={170}
-              />
-              <Button
-                type="submit"
-                variant="default"
-                disabled={!canAdd || !phone.trim()}
-                loading={add.isPending}
-              >
-                Dar de baja
-              </Button>
-            </Group>
-          </form>
-        </Tooltip>
+                onError: (err) => notifyError(err, 'No se pudo cargar la baja'),
+              },
+            );
+          }}
+        >
+          <Group gap="xs">
+            <TextInput
+              placeholder="351 555-1234"
+              aria-label="Teléfono a dar de baja"
+              value={phone}
+              onChange={(e) => setPhone(e.currentTarget.value)}
+              w={170}
+            />
+            <Select
+              aria-label="Canal de la baja"
+              data={CHANNEL_OPTIONS}
+              value={channel}
+              onChange={(v) => setChannel((v ?? 'all') as OptoutChannel)}
+              allowDeselect={false}
+              w={170}
+            />
+            <Button type="submit" variant="default" disabled={!phone.trim()} loading={add.isPending}>
+              Dar de baja
+            </Button>
+          </Group>
+        </form>
       </Group>
       <Text size="sm" c="dimmed" mb="sm">
         Ninguna campaña de ese canal les escribe ni los llama. Se suman solos cuando alguien responde a una

@@ -1,11 +1,21 @@
-import { Badge, Button, Group, Select, Stack, Text, TextInput } from '@mantine/core';
+import { Alert, Badge, Button, Group, Select, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { IconLock } from '@tabler/icons-react';
 import type { Billing, Subscription, TaxCondition } from '@/api/types';
 import { CopyIcon } from '@/components/Copy';
 import { formatArs } from '@/lib/format';
 import { SUBSCRIPTION_STATUS, TAX_CONDITION } from '@/lib/labels';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useUpdateFiscal } from './api';
+import { useSupportReadOnly } from './features';
+
+export function SupportReadOnlyAlert() {
+  return (
+    <Alert color="yellow" icon={<IconLock size={18} />}>
+      Entraste como el cliente: su plan y sus cobros son de solo lectura.
+    </Alert>
+  );
+}
 
 export function SubscriptionBadge({ sub }: { sub: Subscription }) {
   if (sub.status === 'active' && sub.cancel_at_period_end) return <Badge color="gray">Dado de baja</Badge>;
@@ -62,6 +72,7 @@ export function FiscalForm({
   onSaved?: () => void;
 }) {
   const save = useUpdateFiscal(clientId);
+  const readOnly = useSupportReadOnly();
   const form = useForm<{ legal_name: string; tax_id: string; tax_condition: TaxCondition | '' }>({
     initialValues: {
       legal_name: billing.fiscal.legal_name,
@@ -95,16 +106,32 @@ export function FiscalForm({
       noValidate
     >
       <Stack gap="sm">
-        <TextInput label="Razón social o nombre" maxLength={128} {...form.getInputProps('legal_name')} />
-        <TextInput label="CUIT" placeholder="20-12345678-9" {...form.getInputProps('tax_id')} />
+        <TextInput
+          label="Razón social o nombre"
+          maxLength={128}
+          disabled={readOnly}
+          {...form.getInputProps('legal_name')}
+        />
+        <TextInput
+          label="CUIT"
+          placeholder="20-12345678-9"
+          disabled={readOnly}
+          {...form.getInputProps('tax_id')}
+        />
         <Select
           label="Condición frente al IVA"
           data={TAX_OPTIONS}
           allowDeselect={false}
+          disabled={readOnly}
           {...form.getInputProps('tax_condition')}
         />
         <Group justify="flex-end">
-          <Button type="submit" variant={onSaved ? 'filled' : 'default'} loading={save.isPending}>
+          <Button
+            type="submit"
+            variant={onSaved ? 'filled' : 'default'}
+            loading={save.isPending}
+            disabled={readOnly}
+          >
             {submitLabel}
           </Button>
         </Group>

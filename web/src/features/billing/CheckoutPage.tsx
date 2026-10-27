@@ -29,9 +29,10 @@ import { useCurrentUser } from '@/features/auth/api';
 import { formatArs } from '@/lib/format';
 import { notifySuccess } from '@/lib/notify';
 import { useBilling, useSubscribe } from './api';
+import { useSupportReadOnly } from './features';
 import { hasFiscal, planFeatures } from './format';
 import { type CardForm, type FieldName, mountCardForm } from './mercadopago';
-import { FiscalForm } from './parts';
+import { FiscalForm, SupportReadOnlyAlert } from './parts';
 
 const CONTAINERS: Record<FieldName, string> = {
   cardNumber: 'mp-card-number',
@@ -163,6 +164,7 @@ function CardFields({ billing, clientId, plan }: { billing: Billing; clientId: s
 }
 
 function CheckoutView({ billing, clientId, plan }: { billing: Billing; clientId: string; plan: Plan }) {
+  const readOnly = useSupportReadOnly();
   const sub = billing.subscription;
   if (!billing.mp_public_key || (sub && sub.status !== 'pending' && sub.method === 'mercadopago')) {
     return <Navigate to="/plan" replace />;
@@ -194,7 +196,9 @@ function CheckoutView({ billing, clientId, plan }: { billing: Billing; clientId:
       </Grid.Col>
       <Grid.Col span={{ base: 12, md: 7 }}>
         <Card>
-          {hasFiscal(billing) ? (
+          {readOnly ? (
+            <SupportReadOnlyAlert />
+          ) : hasFiscal(billing) ? (
             <>
               <Title order={4} mb="sm">
                 Datos de la tarjeta

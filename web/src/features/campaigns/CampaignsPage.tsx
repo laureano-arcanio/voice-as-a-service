@@ -7,7 +7,6 @@ import {
   Menu,
   Progress,
   SegmentedControl,
-  Select,
   Stack,
   Table,
   Text,
@@ -21,8 +20,6 @@ import { Dash, LiveBadge } from '@/components/Badges';
 import { PageHeader } from '@/components/PageHeader';
 import { PlanAlert } from '@/components/PlanGate';
 import { EmptyState, QueryState } from '@/components/QueryState';
-import { useCurrentUser } from '@/features/auth/api';
-import { useClients } from '@/features/clients/api';
 import { OptoutsCard } from '@/features/contacts/OptoutsCard';
 import { useWaAccounts } from '@/features/whatsapp/api';
 import { formatDate } from '@/lib/format';
@@ -92,26 +89,20 @@ function reached(c: Campaign): { value: number; of: number } {
 type ChannelFilter = 'all' | CampaignChannel;
 
 export function CampaignsPage() {
-  const me = useCurrentUser();
-  const isAdmin = me.role === 'admin';
   const [params, setParams] = useSearchParams();
-  const clientId = isAdmin ? (params.get('client') ?? undefined) : undefined;
   const channel = (
     ['whatsapp', 'voice'].includes(params.get('channel') ?? '') ? params.get('channel') : 'all'
   ) as ChannelFilter;
-  const campaigns = useCampaigns(clientId, channel === 'all' ? undefined : channel);
-  const accounts = useWaAccounts(clientId);
-  const clients = useClients(isAdmin);
-  const plan = usePlan(clientId, !isAdmin || !!clientId);
+  const campaigns = useCampaigns(undefined, channel === 'all' ? undefined : channel);
+  const accounts = useWaAccounts();
+  const plan = usePlan();
   const [creating, setCreating] = useState<CampaignChannel | null>(null);
 
-  // Mandan campañas los numeros conectados que el cliente administra (token propio); el admin, todos.
-  const senders = (accounts.data ?? []).filter(
-    (a) => a.active && a.status === 'connected' && (isAdmin || a.has_token),
-  );
+  // Mandan campañas los numeros conectados que el cliente administra (token propio).
+  const senders = (accounts.data ?? []).filter((a) => a.active && a.status === 'connected' && a.has_token);
   const noSender = accounts.isSuccess && senders.length === 0;
 
-  // Por que un canal no se puede usar (null = se puede). Sin plan cargado (admin sin cliente), se deja pasar.
+  // Por que un canal no se puede usar (null = se puede). Sin plan cargado, se deja pasar.
   const channels = plan.data?.channels;
   const blocked: Record<CampaignChannel, string | null> = {
     whatsapp:
@@ -180,18 +171,6 @@ export function CampaignsPage() {
       <PlanAlert feature={['campaigns_voice', 'campaigns_whatsapp']} what="campañas" />
       <Card>
         <Group mb="md" gap="sm">
-          {isAdmin && (
-            <Select
-              placeholder="Todos los clientes"
-              data={(clients.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
-              value={clientId ?? null}
-              onChange={(v) => setParam('client', v)}
-              clearable
-              searchable
-              w={220}
-              aria-label="Cliente"
-            />
-          )}
           <SegmentedControl
             aria-label="Canal"
             value={channel}
@@ -214,12 +193,11 @@ export function CampaignsPage() {
                     : 'No hay campañas. Usá "Nueva campaña" para mandar una plantilla o llamar a una lista de contactos.'}
               </EmptyState>
             ) : (
-              <Table.ScrollContainer minWidth={isAdmin ? 1160 : 1040}>
+              <Table.ScrollContainer minWidth={1040}>
                 <Table>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>Campaña</Table.Th>
-                      {isAdmin && <Table.Th>Cliente</Table.Th>}
                       <Table.Th>Canal</Table.Th>
                       <Table.Th>Estado</Table.Th>
                       <Table.Th>Avance</Table.Th>
@@ -246,7 +224,6 @@ export function CampaignsPage() {
                               {c.channel === 'whatsapp' ? c.template_name : `Agente ${c.agent_name ?? '–'}`}
                             </Text>
                           </Table.Td>
-                          {isAdmin && <Table.Td>{c.client_name ?? <Dash />}</Table.Td>}
                           <Table.Td>
                             <CampaignChannelBadge channel={c.channel} />
                           </Table.Td>
@@ -289,9 +266,9 @@ export function CampaignsPage() {
           }
         </QueryState>
       </Card>
-      <OptoutsCard clientId={clientId} isAdmin={isAdmin} />
+      <OptoutsCard />
       {creating === 'whatsapp' && <NewCampaignModal accounts={senders} onClose={() => setCreating(null)} />}
-      {creating === 'voice' && <VoiceCampaignModal clientId={clientId} onClose={() => setCreating(null)} />}
+      {creating === 'voice' && <VoiceCampaignModal onClose={() => setCreating(null)} />}
     </Stack>
   );
 }

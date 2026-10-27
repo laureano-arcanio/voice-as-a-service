@@ -8,13 +8,12 @@ import { notifyError, notifySuccess } from '@/lib/notify';
 import { useBlockedNumbers, useBlockNumber, useUnblockNumber } from './api';
 
 /** Numeros cuyas llamadas entrantes no se atienden (bromas, acoso). Las salientes no cambian: eso son las bajas. */
-export function BlockedNumbersCard({ clientId, isAdmin }: { clientId?: string; isAdmin: boolean }) {
-  const blocked = useBlockedNumbers(clientId);
+export function BlockedNumbersCard() {
+  const blocked = useBlockedNumbers();
   const block = useBlockNumber();
   const unblock = useUnblockNumber();
   const [phone, setPhone] = useState('');
   const [note, setNote] = useState('');
-  const canAdd = !isAdmin || !!clientId;
 
   const doUnblock = async (p: string, cid: string) => {
     const ok = await confirmAction({
@@ -34,51 +33,42 @@ export function BlockedNumbersCard({ clientId, isAdmin }: { clientId?: string; i
     <Card>
       <Group justify="space-between" mb="sm" gap="sm">
         <Title order={4}>Números bloqueados</Title>
-        <Tooltip label="Elegí un cliente para bloquear números" disabled={canAdd} withArrow>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              block.mutate(
-                { phone, note, clientId },
-                {
-                  onSuccess: (b) => {
-                    notifySuccess(`${b.phone} bloqueado: sus llamadas no se atienden.`);
-                    setPhone('');
-                    setNote('');
-                  },
-                  onError: (err) => notifyError(err, 'No se pudo bloquear'),
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            block.mutate(
+              { phone, note },
+              {
+                onSuccess: (b) => {
+                  notifySuccess(`${b.phone} bloqueado: sus llamadas no se atienden.`);
+                  setPhone('');
+                  setNote('');
                 },
-              );
-            }}
-          >
-            <Group gap="xs">
-              <TextInput
-                placeholder="351 555-1234"
-                aria-label="Teléfono a bloquear"
-                value={phone}
-                onChange={(e) => setPhone(e.currentTarget.value)}
-                disabled={!canAdd}
-                w={170}
-              />
-              <TextInput
-                placeholder="Motivo (opcional)"
-                aria-label="Motivo del bloqueo"
-                value={note}
-                onChange={(e) => setNote(e.currentTarget.value)}
-                disabled={!canAdd}
-                w={200}
-              />
-              <Button
-                type="submit"
-                variant="default"
-                disabled={!canAdd || !phone.trim()}
-                loading={block.isPending}
-              >
-                Bloquear
-              </Button>
-            </Group>
-          </form>
-        </Tooltip>
+                onError: (err) => notifyError(err, 'No se pudo bloquear'),
+              },
+            );
+          }}
+        >
+          <Group gap="xs">
+            <TextInput
+              placeholder="351 555-1234"
+              aria-label="Teléfono a bloquear"
+              value={phone}
+              onChange={(e) => setPhone(e.currentTarget.value)}
+              w={170}
+            />
+            <TextInput
+              placeholder="Motivo (opcional)"
+              aria-label="Motivo del bloqueo"
+              value={note}
+              onChange={(e) => setNote(e.currentTarget.value)}
+              w={200}
+            />
+            <Button type="submit" variant="default" disabled={!phone.trim()} loading={block.isPending}>
+              Bloquear
+            </Button>
+          </Group>
+        </form>
       </Group>
       <Text size="sm" c="dimmed" mb="sm">
         Sus llamadas entrantes, por la línea o por WhatsApp, se cortan sin atender y quedan como rechazadas.

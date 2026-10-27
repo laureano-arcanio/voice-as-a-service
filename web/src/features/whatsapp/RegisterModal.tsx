@@ -4,14 +4,20 @@ import type { WaAccount } from '@/api/types';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useRegisterWaAccount } from './api';
 
-/** Reintenta la suscripcion de la app y el registro del numero (cuenta pendiente). */
+/** Reintenta la suscripcion de la app y el registro del numero (cuenta pendiente). Con la app propia del
+ * cliente (own_app), solo la suscripcion: el numero lo registro el, sin PIN nuestro. */
 export function RegisterModal({ account, onClose }: { account: WaAccount; onClose: () => void }) {
+  const ownApp = account.source === 'own_app';
   const [pin, setPin] = useState('');
   const register = useRegisterWaAccount();
   const pinError = pin && !/^\d{6}$/.test(pin) ? 'Son 6 dígitos' : null;
 
   return (
-    <Modal opened onClose={onClose} title={`Reintentar registro de ${account.display_phone_number}`}>
+    <Modal
+      opened
+      onClose={onClose}
+      title={`Reintentar ${ownApp ? 'suscripción' : 'registro'} de ${account.display_phone_number}`}
+    >
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -35,24 +41,27 @@ export function RegisterModal({ account, onClose }: { account: WaAccount; onClos
             </Alert>
           )}
           <Text size="sm">
-            Vuelve a suscribir la app a la cuenta de WhatsApp Business y a registrar el número. No hace falta
-            repetir la ventana de Meta.
+            {ownApp
+              ? 'Vuelve a suscribir tu app de Meta a la cuenta de WhatsApp Business, con el token guardado.'
+              : 'Vuelve a suscribir la app a la cuenta de WhatsApp Business y a registrar el número. No hace falta repetir la ventana de Meta.'}
           </Text>
-          <PasswordInput
-            label="PIN de verificación en dos pasos (opcional)"
-            description={
-              account.has_pin
-                ? 'Vacío: el PIN guardado. Cargá otro solo si Meta dice que el PIN es incorrecto (133005).'
-                : 'Vacío: se genera uno nuevo.'
-            }
-            value={pin}
-            onChange={(e) => setPin(e.currentTarget.value.trim())}
-            error={pinError}
-            maxLength={6}
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            data-autofocus
-          />
+          {!ownApp && (
+            <PasswordInput
+              label="PIN de verificación en dos pasos (opcional)"
+              description={
+                account.has_pin
+                  ? 'Vacío: el PIN guardado. Cargá otro solo si Meta dice que el PIN es incorrecto (133005).'
+                  : 'Vacío: se genera uno nuevo.'
+              }
+              value={pin}
+              onChange={(e) => setPin(e.currentTarget.value.trim())}
+              error={pinError}
+              maxLength={6}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              data-autofocus
+            />
+          )}
           <Group justify="flex-end">
             <Button variant="default" onClick={onClose}>
               Cancelar

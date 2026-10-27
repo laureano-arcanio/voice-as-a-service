@@ -10,6 +10,7 @@ import { useBranding } from '@/branding/context';
 import { BrandingProvider } from '@/branding/Provider';
 import { brandCssVariables, brandTheme } from '@/branding/theme';
 import { meKey, resetSession } from '@/features/auth/api';
+import { setSupportClientId } from '@/features/support/session';
 import { createQueryClient } from '@/queryClient';
 import { router } from '@/router';
 
@@ -37,6 +38,7 @@ export function App() {
   useEffect(() => {
     setUnauthorizedHandler(() => {
       if (!queryClient.getQueryData(meKey)) return;
+      setSupportClientId(null);
       resetSession(queryClient, null);
       notifications.show({ id: 'session', color: 'yellow', message: 'Tu sesión venció. Ingresá de nuevo.' });
     });

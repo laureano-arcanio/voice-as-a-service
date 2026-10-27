@@ -12,8 +12,16 @@ import {
   Table,
   Text,
   Title,
+  Tooltip,
 } from '@mantine/core';
-import { IconArrowLeft, IconBan, IconMessageOff, IconMicrophone, IconPhoneOff } from '@tabler/icons-react';
+import {
+  IconArrowLeft,
+  IconBan,
+  IconLogin2,
+  IconMessageOff,
+  IconMicrophone,
+  IconPhoneOff,
+} from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { ApiError } from '@/api/errors';
@@ -31,6 +39,8 @@ import { PageHeader } from '@/components/PageHeader';
 import { ErrorAlert, QueryState } from '@/components/QueryState';
 import { useIsAdmin } from '@/features/auth/api';
 import { useBlockNumber } from '@/features/contacts/api';
+import { useSupportSwitch } from '@/features/support/api';
+import { useAreaPath } from '@/features/support/paths';
 import { formatDateTimeLong, formatDuration, formatValue } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { isCallLive, useCallDetail, useCloseWhatsApp, useHangUp } from './api';
@@ -132,6 +142,7 @@ function waErrorText(err: Record<string, unknown> | null | undefined): string {
 
 function CallHeader({ c }: { c: CallDetail }) {
   const isAdmin = useIsAdmin();
+  const { enter } = useSupportSwitch();
   const call = c.call;
   const wa = c.whatsapp;
   const required = c.fields.filter((f) => f.required);
@@ -189,7 +200,18 @@ function CallHeader({ c }: { c: CallDetail }) {
           {c.outcome ? <OutcomeBadge label={c.outcome.label} goal={c.outcome.goal} /> : '–'}
         </Item>
         <Item label="Agente">
-          {c.agent_id ? (
+          {c.agent_id && isAdmin && c.client_id ? (
+            // El editor del agente es del panel del cliente: el admin entra como el cliente.
+            <Anchor
+              component="button"
+              type="button"
+              onClick={() => void enter(c.client_id!, `/agents/${c.agent_id}`)}
+              size="sm"
+              fw={600}
+            >
+              {c.agent_name ?? 'Agente'}
+            </Anchor>
+          ) : c.agent_id && !isAdmin ? (
             <Anchor component={Link} to={`/agents/${c.agent_id}`} size="sm" fw={600}>
               {c.agent_name ?? 'Agente'}
             </Anchor>
@@ -333,13 +355,29 @@ function BlockCallerButton({ c }: { c: CallDetail }) {
 }
 
 function DetailActions({ c, live }: { c: CallDetail; live: boolean }) {
+  const isAdmin = useIsAdmin();
+  const { enter, pending } = useSupportSwitch();
+  const canView = isAdmin && !!c.client_id;
   const canHangUp = !!c.call && live;
   const canBlock = c.call?.mode === 'entrante' && !!c.call.phone;
   const canClose = !!c.whatsapp && !c.whatsapp.closed_at;
-  const canJoin = c.call?.mode === 'prueba' && live;
-  if (!canHangUp && !canBlock && !canClose) return null;
+  // La pantalla de hablar es del panel del cliente: el admin entra con "Ver como el cliente".
+  const canJoin = !isAdmin && c.call?.mode === 'prueba' && live;
+  if (!canView && !canHangUp && !canBlock && !canClose) return null;
   return (
     <Group gap="sm">
+      {canView && (
+        <Tooltip label="Abrir esta conversación en el panel del cliente" withArrow>
+          <Button
+            variant="default"
+            leftSection={<IconLogin2 size={18} />}
+            loading={pending}
+            onClick={() => void enter(c.client_id!, `/calls/${c.id}`)}
+          >
+            Ver como el cliente
+          </Button>
+        </Tooltip>
+      )}
       {canJoin && (
         <Button component={Link} to={`/calls/${c.id}/hablar`} leftSection={<IconMicrophone size={18} />}>
           Hablar con el agente
@@ -357,11 +395,12 @@ export function CallDetailPage() {
   const query = useCallDetail(id);
   const live = isCallLive(query.data);
   const isAdmin = useIsAdmin();
+  const areaPath = useAreaPath();
 
   const back = (
     <Button
       component={Link}
-      to="/calls"
+      to={areaPath('/calls')}
       variant="subtle"
       size="compact-sm"
       leftSection={<IconArrowLeft size={16} />}

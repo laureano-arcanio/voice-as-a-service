@@ -131,7 +131,7 @@ describe('HandoffEditor', () => {
     expect(await screen.findByText(/todavía no tiene áreas/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Crealas en Equipo' })).toHaveAttribute(
       'href',
-      '/team?client=c-1',
+      '/team',
     );
   });
 

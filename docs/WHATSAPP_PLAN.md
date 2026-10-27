@@ -809,6 +809,32 @@ Detalle de la variante A:
 Antes de implementar: elegir la variante con un cliente concreto, probar A con dos números propios
 (tiempos y cómo se ve el chat del vendedor) y anotar el resultado acá.
 
+### 5.9 Número con la app de Meta propia del cliente (27-oct-2026, sin desplegar)
+
+Sin el Tech Provider no hay Embedded Signup (5.3): se apaga con `WA_EMBEDDED_SIGNUP=false` (default) sin borrar
+código. Mientras tanto, un cliente que ya tiene su cuenta de WhatsApp Business conecta el número con **su propia
+app de Meta**, en el panel: WhatsApp → "Conectar con mi app de Meta" (guía paso a paso en el modal).
+
+- El cliente crea una app tipo Business con WhatsApp, la pasa a Live, crea un usuario de sistema con token
+  permanente (`whatsapp_business_messaging`, `whatsapp_business_management`) y carga en el panel
+  `phone_number_id`, `waba_id`, el token y el app secret.
+- La app valida con Graph (con su token) que el número sea de esa WABA y suscribe su app a la WABA
+  (`subscribed_apps`); si la suscripción falla, la cuenta queda `pending` con el motivo.
+- Le devuelve su **URL de webhook** (`WA_PUBLIC_URL/wa/webhook/<clave>`) y su **verify token**, que pega en su
+  app (WhatsApp → Configuración → Webhook) y suscribe `messages`.
+- `wa_accounts` (migración 0038): `app_secret` y `verify_token` cifrados con `WA_TOKEN_KEY`, `webhook_key` única,
+  `source = own_app`. `/wa/webhook/<clave>` valida la firma con el secret de esa cuenta y solo procesa los cambios
+  de su WABA y su número (`own_app.scoped_payload`): un cliente no puede hacer pasar mensajes de otro número.
+  `/wa/webhook` sigue para nuestra WABA. El túnel ya rutea `^/wa/webhook`.
+- Reenviar el alta con el mismo número cambia el token y el secret; la URL y el verify token no cambian.
+- Código: `app/whatsapp/own_app.py`, `app/whatsapp/webhook.py`, `POST /api/v1/whatsapp/accounts/own-app`,
+  `web/src/features/whatsapp/OwnAppModal.tsx`. Tests: `tests/test_whatsapp_own_app.py` (Meta simulado).
+- **Falta probar con un número real:** que una app en Live sin App Review reciba los webhooks de sus números, y
+  que un número que está en la app WhatsApp Business del celular no puede usarse por la API sin coexistencia
+  (necesita Embedded Signup, 5.7). Las llamadas de WhatsApp por SIP (5.4) siguen solo con el número de Atentina.
+- Desplegar: `make migrate` (0037 y 0038) y `make calls-active && make up-agent`. Antes, confirmar que
+  `WA_PUBLIC_URL` es `https://wa.atentina.com.ar`.
+
 ## 6. Riesgos y trampas
 
 - **Meta manda los tiempos:** verificación del negocio y App Review no tienen plazo garantizado.

@@ -151,9 +151,9 @@ export function UpsertResult({ result }: { result: ContactsUpsert }) {
   );
 }
 
-export function ImportContactsModal({ clientId, onClose }: { clientId?: string; onClose: () => void }) {
-  const imp = useImportContacts(clientId);
-  const suggestions = useTagSuggestions(clientId);
+export function ImportContactsModal({ onClose }: { onClose: () => void }) {
+  const imp = useImportContacts();
+  const suggestions = useTagSuggestions();
   const [csv, setCsv] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [result, setResult] = useState<ContactsUpsert | null>(null);
@@ -228,18 +228,10 @@ const toRows = (a: Record<string, unknown> | undefined): AttrRow[] =>
   }));
 
 /** Alta y edicion de un contacto. El telefono solo se carga al crear: otro telefono es otro contacto. */
-export function ContactModal({
-  contact,
-  clientId,
-  onClose,
-}: {
-  contact: Contact | null;
-  clientId?: string;
-  onClose: () => void;
-}) {
-  const create = useUpsertContacts(clientId);
+export function ContactModal({ contact, onClose }: { contact: Contact | null; onClose: () => void }) {
+  const create = useUpsertContacts();
   const update = useUpdateContact(contact?.id ?? '');
-  const suggestions = useTagSuggestions(contact?.client_id ?? clientId);
+  const suggestions = useTagSuggestions(contact?.client_id);
   const form = useForm({
     initialValues: {
       phone: contact?.phone ?? '',

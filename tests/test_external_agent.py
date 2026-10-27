@@ -14,13 +14,23 @@ from app.config import settings
 from app.conversation.models import Workflow
 from app.llm import client as client_module
 from app.llm import external as external_module
+from app.services import llm_connections as svc
 
 from .test_api import V1, admin, make_client, make_tier  # noqa: F401
+
+REAL_CHECK = svc.check_base_url
 
 
 @pytest.fixture(autouse=True)
 def token_key(monkeypatch):
     monkeypatch.setattr(settings, "wa_token_key", Fernet.generate_key().decode())
+
+
+@pytest.fixture(autouse=True)
+def fake_endpoint_url(monkeypatch):
+    """Los endpoints de prueba son http://agent.test (el servidor solo acepta https y hosts publicos, tambien
+    del admin desde el 27-oct-2026): sin DNS ni red, el chequeo de la URL se salta; su prueba usa REAL_CHECK."""
+    monkeypatch.setattr(svc, "check_base_url", lambda u: u)
 
 
 def sse(*chunks: dict) -> bytes:
@@ -230,7 +240,7 @@ def test_connection_test_as_agent_endpoint(api, admin, endpoint):
 
 # --- Todo por API key y por MCP -------------------------------------------------------------------
 
-def test_api_key_and_mcp_manage_the_endpoint(api, admin, endpoint):
+def test_api_key_and_mcp_manage_the_endpoint(api, admin, endpoint, monkeypatch):
     from .test_mcp import Mcp, new_key
 
     tier = make_tier(admin, name="tier-keys", external_agent=True)
@@ -239,35 +249,32 @@ def test_api_key_and_mcp_manage_the_endpoint(api, admin, endpoint):
     key = new_key(admin, acme, scopes=["calls"])
     auth = {"Authorization": f"Bearer {key}"}
     url = f"{V1}/clients/{acme['id']}/llm-connections"
-    # Una API key no puede apuntar a una red interna (solo un admin): el endpoint de prueba es publico.
+    # Nadie puede apuntar a una red interna ni a http: el endpoint de prueba es publico y https.
+    monkeypatch.setattr(svc, "check_base_url", REAL_CHECK)
     body = {"name": "Mi agente", "kind": "openai_compatible", "base_url": "http://agent.test/v1",
             "api_key": "sk-agent-1234", "default_model": "acme-agent"}
     assert calls.post(url, json=body, headers=auth).json()["code"] == "invalid_base_url"
-    from app.services import llm_connections as svc
-    svc_check = svc.check_base_url
-    try:
-        svc.check_base_url = lambda u, allow_private: u
-        r = calls.post(url, json=body, headers=auth)
-        assert r.status_code == 201 and r.json()["created_by"] is None, r.text
-        conn = r.json()
-        r = calls.post(f"{url}/{conn['id']}/test", json={"mode": "external"}, headers=auth)
-        assert r.status_code == 200 and r.json()["last_test_ok"] is True
-        r = calls.post(f"{V1}/agents", headers=auth, json={"name": "Externo", "definition": external_definition(conn["id"])})
-        assert r.status_code == 201, r.text
+    monkeypatch.setattr(svc, "check_base_url", lambda u: u)
+    r = calls.post(url, json=body, headers=auth)
+    assert r.status_code == 201 and r.json()["created_by"] is None, r.text
+    conn = r.json()
+    r = calls.post(f"{url}/{conn['id']}/test", json={"mode": "external"}, headers=auth)
+    assert r.status_code == 200 and r.json()["last_test_ok"] is True
+    r = calls.post(f"{V1}/agents", headers=auth, json={"name": "Externo", "definition": external_definition(conn["id"])})
+    assert r.status_code == 201, r.text
 
-        # mcp_read: lista pero no carga.
-        read = {"Authorization": f"Bearer {new_key(admin, acme, scopes=['mcp_read'])}"}
-        assert [c["id"] for c in calls.get(url, headers=read).json()] == [conn["id"]]
-        assert calls.post(url, json={**body, "name": "Otra"}, headers=read).status_code == 403
+    # mcp_read: lista pero no carga.
+    read = {"Authorization": f"Bearer {new_key(admin, acme, scopes=['mcp_read'])}"}
+    assert [c["id"] for c in calls.get(url, headers=read).json()] == [conn["id"]]
+    assert calls.post(url, json={**body, "name": "Otra"}, headers=read).status_code == 403
 
-        # MCP: cargar (destructiva: el cliente la confirma) y probar.
-        mcp = Mcp(api, new_key(admin, acme))
-        tools = mcp.tools()
-        assert tools["create_llm_connection"]["annotations"]["destructiveHint"] is True
-        out = mcp.call("create_llm_connection", **{**body, "name": "Por MCP"})
-        assert not out.get("isError"), out
-        new_id = out["structuredContent"]["id"]
-        out = mcp.call("test_llm_connection", connection_id=new_id, mode="external")
-        assert not out.get("isError") and out["structuredContent"]["last_test_ok"] is True
-    finally:
-        svc.check_base_url = svc_check
+    # MCP: cargar (destructiva: el cliente la confirma) y probar.
+    mcp = Mcp(api, new_key(admin, acme))
+    tools = mcp.tools()
+    assert tools["create_llm_connection"]["annotations"]["destructiveHint"] is True
+    out = mcp.call("create_llm_connection", **{**body, "name": "Por MCP"})
+    assert not out.get("isError"), out
+    new_id = out["structuredContent"]["id"]
+    out = mcp.call("test_llm_connection", connection_id=new_id, mode="external")
+    assert not out.get("isError") and out["structuredContent"]["last_test_ok"] is True
+

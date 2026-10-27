@@ -9,7 +9,7 @@ export const PREVIEW_KEY = 'branding:preview';
 
 export interface BrandingState {
   branding: Branding | null;
-  /** La marca viene de la vista previa de un admin ("Ver el panel como el cliente"). */
+  /** La marca viene de la vista previa de un admin (el borrador de la pestaña Marca blanca). */
   preview: boolean;
 }
 

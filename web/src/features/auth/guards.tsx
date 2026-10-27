@@ -1,7 +1,6 @@
 import { Center, Loader, Stack, Text, Title, Button } from '@mantine/core';
 import type { ReactNode } from 'react';
 import { Link, Navigate, useLocation } from 'react-router';
-import type { Role } from '@/api/types';
 import { errorMessage } from '@/api/errors';
 import { useMe } from './api';
 
@@ -44,9 +43,17 @@ export function Forbidden() {
   );
 }
 
-/** Solo para un rol; si no, aviso de sin acceso. */
-export function RequireRole({ role, children }: { role: Role; children: ReactNode }) {
+/** Panel del cliente: un admin que no entró a un cliente va a la administración. */
+export function RequireClientArea({ children }: { children: ReactNode }) {
   const { data } = useMe();
-  if (!data || data.role !== role) return <Forbidden />;
+  if (data?.role === 'admin') return <Navigate to="/admin" replace />;
+  return <>{children}</>;
+}
+
+/** Administración: solo admins. Un admin dentro de un cliente (me.role === 'client') también va al panel del
+ * cliente: se sale con "Volver a administración" (salir acá cortaría la entrada, que cambia `me` antes de navegar). */
+export function RequireAdminArea({ children }: { children: ReactNode }) {
+  const { data } = useMe();
+  if (data?.role !== 'admin') return <Navigate to="/" replace />;
   return <>{children}</>;
 }

@@ -24,8 +24,9 @@ import { useCurrentUser } from '@/features/auth/api';
 import { formatArs } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useBilling, useCancelPlan, useSubscribe } from './api';
+import { useSupportReadOnly } from './features';
 import { checkoutUrl, formatDay, hasFiscal, planFeatures } from './format';
-import { BankDetails, FiscalForm, SubscriptionBadge } from './parts';
+import { BankDetails, FiscalForm, SubscriptionBadge, SupportReadOnlyAlert } from './parts';
 
 type Step = 'fiscal' | 'method' | 'confirm' | 'done' | 'change';
 
@@ -156,6 +157,7 @@ function SubscribeModal({
 
 function CurrentPlanCard({ billing, clientId }: { billing: Billing; clientId: string }) {
   const cancel = useCancelPlan(clientId);
+  const readOnly = useSupportReadOnly();
   const sub = billing.subscription;
   const isPaid = sub && sub.status !== 'pending';
   const card = sub?.method === 'mercadopago';
@@ -243,7 +245,13 @@ function CurrentPlanCard({ billing, clientId }: { billing: Billing; clientId: st
       )}
       {sub && !(sub.status === 'active' && sub.cancel_at_period_end) && (
         <Group justify="flex-end" mt="md">
-          <Button variant="subtle" color="red" onClick={() => void doCancel()} loading={cancel.isPending}>
+          <Button
+            variant="subtle"
+            color="red"
+            onClick={() => void doCancel()}
+            loading={cancel.isPending}
+            disabled={readOnly}
+          >
             {sub.status === 'pending' ? 'Cancelar el pedido' : 'Dar de baja el plan'}
           </Button>
         </Group>
@@ -253,6 +261,7 @@ function CurrentPlanCard({ billing, clientId }: { billing: Billing; clientId: st
 }
 
 function PlansCard({ billing, onPick }: { billing: Billing; onPick: (p: Plan) => void }) {
+  const readOnly = useSupportReadOnly();
   const sub = billing.subscription;
   const current = sub && sub.status !== 'pending' ? sub.tier.id : billing.tier.id;
   const requested = sub?.status === 'pending' ? sub.tier.id : sub?.pending_tier?.id;
@@ -291,7 +300,7 @@ function PlansCard({ billing, onPick }: { billing: Billing; onPick: (p: Plan) =>
                 <Button
                   mt="auto"
                   variant={isCurrent || isRequested ? 'default' : 'filled'}
-                  disabled={isCurrent || isRequested}
+                  disabled={isCurrent || isRequested || readOnly}
                   onClick={() => onPick(p)}
                 >
                   {isCurrent ? 'Tu plan actual' : isRequested ? 'Pedido' : 'Elegir este plan'}
@@ -350,7 +359,8 @@ function PlanView({ billing, clientId }: { billing: Billing; clientId: string })
   const initial = wanted
     ? billing.plans.find((p) => p.name.toLowerCase() === wanted || p.id === wanted)
     : undefined;
-  const [picked, setPicked] = useState<Plan | null>(initial ?? null);
+  const readOnly = useSupportReadOnly();
+  const [picked, setPicked] = useState<Plan | null>(readOnly ? null : (initial ?? null));
   const close = () => {
     setPicked(null);
     if (params.has('tier')) setParams({}, { replace: true });
@@ -358,6 +368,7 @@ function PlanView({ billing, clientId }: { billing: Billing; clientId: string })
 
   return (
     <Stack gap="md">
+      {readOnly && <SupportReadOnlyAlert />}
       {billing.suspended_numbers.length > 0 && (
         <Alert color="yellow" icon={<IconAlertTriangle size={18} />} title="Números sin atender">
           Tu plan no incluye {billing.suspended_numbers.join(', ')}. Están reservados por un tiempo: elegí un

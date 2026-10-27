@@ -44,7 +44,7 @@ def test_limit_fields_are_the_numeric_limits_of_tier():
     numeric = {c.name for c in inspect(Tier).columns if c.name not in
                {"id", "name", "description", "created_at", "updated_at", "price_ars", "public", "sort",
                 "campaign_channels", "campaign_followup", "whatsapp", "external_agent", "code_tools", "white_label",
-                "advanced_reports"}}  # no son numericos
+                "advanced_reports", "internal"}}  # no son numericos
     assert set(limits.LIMIT_FIELDS) == numeric
     assert set(LimitField.__args__) == numeric
     assert ({f for f in limits.Limits.__dataclass_fields__}

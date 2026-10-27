@@ -39,7 +39,7 @@ function SubscriptionsCard() {
                   {list.map((s) => (
                     <Table.Tr key={s.id}>
                       <Table.Td>
-                        <Anchor component={Link} to={`/clients/${s.client_id}`} size="sm" fw={600}>
+                        <Anchor component={Link} to={`/admin/clients/${s.client_id}`} size="sm" fw={600}>
                           {s.client_name}
                         </Anchor>
                       </Table.Td>
@@ -114,7 +114,7 @@ function PaymentsCard() {
                     <Table.Tr key={p.id}>
                       <Table.Td style={{ whiteSpace: 'nowrap' }}>{formatDay(p.paid_on)}</Table.Td>
                       <Table.Td>
-                        <Anchor component={Link} to={`/clients/${p.client_id}`} size="sm">
+                        <Anchor component={Link} to={`/admin/clients/${p.client_id}`} size="sm">
                           {p.client_name}
                         </Anchor>
                       </Table.Td>

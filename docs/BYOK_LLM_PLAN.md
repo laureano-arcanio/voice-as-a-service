@@ -138,7 +138,8 @@ catalogo (nombre, tipo, rango) y `GET /api/v1/llm/params` devuelve el catalogo p
 
 - Key cifrada en reposo; nunca en respuestas, logs ni trazas.
 - `base_url` de `openai_compatible`: para un cliente exige https y rechaza hosts que resuelven a redes
-  privadas o internas (SSRF); el admin puede apuntar a un servidor propio. Se valida al crear, editar y probar.
+  privadas o internas (SSRF), para todos (la excepción del admin se quitó el 27-oct-2026, sin conexiones que la
+  usaran; ver `docs/ADMIN_SOPORTE_PLAN.md`). Se valida al crear, editar y probar.
   No cubre DNS rebinding después del alta.
 - Aislamiento: validación al guardar el agente y de nuevo al resolver en runtime.
 

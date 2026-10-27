@@ -34,8 +34,7 @@ def create_connection(client_id: str, body: LlmConnectionIn, p: CurrentPrincipal
     client = get_client(db, p, client_id)
     row = svc.create(db, client.id, name=body.name, kind=body.kind, base_url=body.base_url,
                      api_key=body.api_key, default_model=body.default_model,
-                     user_id=p.id if p.kind == "user" else None,
-                     allow_private=p.is_admin)
+                     user_id=p.id if p.kind == "user" else None)
     db.commit()
     return _out(row, {})
 
@@ -44,7 +43,7 @@ def create_connection(client_id: str, body: LlmConnectionIn, p: CurrentPrincipal
 def update_connection(client_id: str, connection_id: str, body: LlmConnectionPatch, p: CurrentPrincipal, db: DB):
     client = get_client(db, p, client_id)
     row = svc.update(db, svc.get(db, client.id, connection_id), name=body.name, base_url=body.base_url,
-                     api_key=body.api_key, default_model=body.default_model, allow_private=p.is_admin)
+                     api_key=body.api_key, default_model=body.default_model)
     db.commit()
     return _out(row, svc.used_by(db, client.id))
 

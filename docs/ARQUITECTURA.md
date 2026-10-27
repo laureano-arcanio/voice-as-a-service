@@ -580,6 +580,12 @@ lo de esta sección es lo que lo protege.
   (5) intentos, contados antes de verificar (429). Código mal o vencido: 422 `invalid_code`; email ocupado: 409
   `email_taken`; Resend caído: 502 `mail_failed`. Al cambiar sube `session_version` y reabre la cookie de este
   pedido. `PATCH /auth/me` cambia el nombre. Solo con sesión (no API key).
+- **Admin dentro de un cliente ("ver como cliente", `docs/ADMIN_SOPORTE_PLAN.md`):** con la sesión de un
+  `admin` y el header `X-Atentina-Client: <client_id>`, `get_principal` devuelve un `Principal` con rol
+  `client`, ese cliente y `support=True` (`id` sigue siendo el del admin). Una API key o un token OAuth no lo
+  pueden usar (el MCP tiene su propio `x-atentina-mcp-client`). `GET /auth/me` responde el cliente con
+  `support: true`. Su cuenta, su plan y sus cobros son de solo lectura (`require_not_support`: 403
+  `support_read_only`). La UI guarda el cliente por pestaña (`sessionStorage`) y vacía la caché al cambiar.
 - **Límites de login fallido** (en memoria del proceso, `services/ratelimit.py`): 5 por IP y email y 10
   por email en 15 min; 20 por IP en 15 min y 100 por día (`LOGIN_FAIL_*`). Se cuentan antes de verificar
   la clave, de forma atómica (pedidos en paralelo no pasan todos), y un login correcto se descuenta y

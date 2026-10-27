@@ -99,7 +99,7 @@ describe('ExternalSection', () => {
     });
     expect(await screen.findByRole('link', { name: 'Cargar el endpoint' })).toHaveAttribute(
       'href',
-      '/clients/c-1?tab=modelos',
+      '/models',
     );
   });
 

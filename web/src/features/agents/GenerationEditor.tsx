@@ -1,5 +1,23 @@
-import { ActionIcon, Badge, Button, Collapse, Group, NumberInput, Select, Stack, Switch, Text, Tooltip } from '@mantine/core';
-import { IconAdjustmentsHorizontal, IconArrowBackUp, IconChevronDown, IconLock, IconTrash } from '@tabler/icons-react';
+import {
+  ActionIcon,
+  Badge,
+  Button,
+  Collapse,
+  Group,
+  NumberInput,
+  Select,
+  Stack,
+  Switch,
+  Text,
+  Tooltip,
+} from '@mantine/core';
+import {
+  IconAdjustmentsHorizontal,
+  IconArrowBackUp,
+  IconChevronDown,
+  IconLock,
+  IconTrash,
+} from '@tabler/icons-react';
 import { useState } from 'react';
 import type { LlmParamSpec } from '@/api/types';
 import { blankParam, type ParamDraft } from './draft';
@@ -53,7 +71,14 @@ function ValueInput({
   const aria = { 'aria-label': spec.label };
   if (spec.type === 'bool') {
     if (fallback !== undefined) {
-      return <Switch {...aria} checked={shown === true} disabled={disabled} onChange={(e) => onChange(e.currentTarget.checked)} />;
+      return (
+        <Switch
+          {...aria}
+          checked={shown === true}
+          disabled={disabled}
+          onChange={(e) => onChange(e.currentTarget.checked)}
+        />
+      );
     }
     return (
       <Select
@@ -107,7 +132,17 @@ function ValueInput({
 
 /** Parametros de generacion: muestra todos los del proveedor con su valor por defecto y deja cambiarlos
  * (despues de confirmar). Solo los cambiados van a la definicion; volver al default los saca. */
-export function GenerationEditor({ rows, specs, allSpecs, defaults, unlocked, onUnlock, onChange, label, notApplies }: Props) {
+export function GenerationEditor({
+  rows,
+  specs,
+  allSpecs,
+  defaults,
+  unlocked,
+  onUnlock,
+  onChange,
+  label,
+  notApplies,
+}: Props) {
   const [open, setOpen] = useState(rows.length > 0);
   const byName = new Map(rows.map((r) => [r.name, r]));
   const shownNames = new Set(specs.map((s) => s.name));
@@ -118,7 +153,11 @@ export function GenerationEditor({ rows, specs, allSpecs, defaults, unlocked, on
     const rest = rows.filter((r) => r.name !== spec.name);
     if (v === null || v === '' || v === def) return onChange(rest);
     const prev = byName.get(spec.name);
-    onChange(prev ? rows.map((r) => (r.name === spec.name ? { ...r, value: v } : r)) : [...rows, blankParam(spec.name, v)]);
+    onChange(
+      prev
+        ? rows.map((r) => (r.name === spec.name ? { ...r, value: v } : r))
+        : [...rows, blankParam(spec.name, v)],
+    );
   };
   const remove = (name: string) => onChange(rows.filter((r) => r.name !== name));
 
@@ -130,7 +169,9 @@ export function GenerationEditor({ rows, specs, allSpecs, defaults, unlocked, on
           size="xs"
           px={4}
           leftSection={<IconAdjustmentsHorizontal size={16} />}
-          rightSection={<IconChevronDown size={14} style={{ transform: open ? 'rotate(180deg)' : undefined }} />}
+          rightSection={
+            <IconChevronDown size={14} style={{ transform: open ? 'rotate(180deg)' : undefined }} />
+          }
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
         >
@@ -219,7 +260,12 @@ export function GenerationEditor({ rows, specs, allSpecs, defaults, unlocked, on
                 </Text>
               </Stack>
               <Tooltip label="Quitar" withArrow>
-                <ActionIcon color="red" variant="subtle" aria-label={`Quitar ${row.name}`} onClick={() => remove(row.name)}>
+                <ActionIcon
+                  color="red"
+                  variant="subtle"
+                  aria-label={`Quitar ${row.name}`}
+                  onClick={() => remove(row.name)}
+                >
                   <IconTrash size={18} />
                 </ActionIcon>
               </Tooltip>

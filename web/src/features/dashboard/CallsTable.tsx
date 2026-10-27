@@ -13,14 +13,17 @@ import {
   Title,
   Tooltip,
 } from '@mantine/core';
-import { IconTrash } from '@tabler/icons-react';
+import { IconLogin2, IconTrash } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import type { CallSummary } from '@/api/types';
 import { CallStatusBadge, Dash, OriginBadge, OutcomeBadge, WorkflowBadge } from '@/components/Badges';
 import { confirmAction } from '@/components/confirm';
 import { EmptyState, ErrorAlert } from '@/components/QueryState';
+import { useIsAdmin } from '@/features/auth/api';
 import { useDeleteConversations } from '@/features/calls/api';
+import { useSupportSwitch } from '@/features/support/api';
+import { useAreaPath } from '@/features/support/paths';
 import { formatDateTime, formatDuration, formatValue } from '@/lib/format';
 import { CALL_MODE, CALL_STATUS, isLiveStatus } from '@/lib/labels';
 import { notifyError, notifySuccess } from '@/lib/notify';
@@ -69,6 +72,9 @@ export function CallsTable({
 }) {
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const del = useDeleteConversations();
+  const isAdmin = useIsAdmin();
+  const areaPath = useAreaPath();
+  const { enter, pending: entering } = useSupportSwitch();
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const pageIds = items.map((c) => c.id);
@@ -213,7 +219,17 @@ export function CallsTable({
                   <Table.Td>{formatDateTime(c.created_at)}</Table.Td>
                   {showClient && <Table.Td>{c.client_name ?? '–'}</Table.Td>}
                   <Table.Td>
-                    {c.agent_id ? (
+                    {c.agent_id && isAdmin && c.client_id ? (
+                      // El editor del agente es del panel del cliente: el admin entra como el cliente.
+                      <Anchor
+                        component="button"
+                        type="button"
+                        onClick={() => void enter(c.client_id!, `/agents/${c.agent_id}`)}
+                        size="sm"
+                      >
+                        {c.agent_name ?? 'Agente'}
+                      </Anchor>
+                    ) : c.agent_id && !isAdmin ? (
                       <Anchor component={Link} to={`/agents/${c.agent_id}`} size="sm">
                         {c.agent_name ?? 'Agente'}
                       </Anchor>
@@ -257,9 +273,26 @@ export function CallsTable({
                   </Table.Td>
                   <Table.Td ta="right">
                     <Group gap={4} justify="flex-end" wrap="nowrap">
-                      <Button component={Link} to={`/calls/${c.id}`} variant="subtle" size="compact-sm">
+                      <Button
+                        component={Link}
+                        to={areaPath(`/calls/${c.id}`)}
+                        variant="subtle"
+                        size="compact-sm"
+                      >
                         Ver detalle
                       </Button>
+                      {isAdmin && c.client_id && (
+                        <Tooltip label="Ver como el cliente">
+                          <ActionIcon
+                            variant="subtle"
+                            loading={entering}
+                            onClick={() => void enter(c.client_id!, `/calls/${c.id}`)}
+                            aria-label="Ver como el cliente"
+                          >
+                            <IconLogin2 size={16} />
+                          </ActionIcon>
+                        </Tooltip>
+                      )}
                       {selectable && (
                         <Tooltip
                           label={isLiveStatus(c.status) ? 'La llamada está en curso' : 'Borrar conversación'}

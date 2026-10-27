@@ -63,6 +63,8 @@ def graph_for(token: str) -> GraphClient:
 
 def config_problem() -> str | None:
     """Por que el alta no esta disponible (None si lo esta). La UI lo muestra."""
+    if not settings.wa_embedded_signup:
+        return "El alta con Meta (Embedded Signup) todavía no está disponible: conectá el número con tu app de Meta"
     missing = [name for name, value in (("WA_APP_ID", settings.wa_app_id), ("WA_APP_SECRET", settings.wa_app_secret),
                                         ("WA_CONFIG_ID", settings.wa_config_id)) if not value]
     if not settings.wa_token_key.strip():
@@ -224,12 +226,13 @@ def _disconnect_if_auth(s: Session, account: WaAccount, e: GraphError) -> None:
 async def retry_register(s: Session, account: WaAccount, pin: str | None = None,
                          graph_factory: Callable[[str], GraphClient] | None = None) -> WaAccount:
     """Reintenta la suscripcion y el registro de una cuenta pending (o los repite); en
-    coexistencia, la suscripcion y la sincronizacion. PIN: el pedido, el guardado o uno
-    nuevo. Sin token propio (numero de nuestro portafolio): el pedido o WA_REGISTRATION_PIN,
+    coexistencia, la suscripcion y la sincronizacion; con la app propia del cliente (own_app), solo la
+    suscripcion (el numero lo registro el). PIN: el pedido, el guardado o uno nuevo. Sin token propio (numero de nuestro portafolio): el pedido o WA_REGISTRATION_PIN,
     nunca uno al azar. Hace commit."""
     own = store.has_own_token(account)
     pin = pin or store.pin_for(account) or (crypto.new_pin() if own else settings.wa_registration_pin)
-    if account.source != "coexistence" and not re.fullmatch(r"\d{6}", pin or ""):
+    registers = account.source not in ("coexistence", "own_app")
+    if registers and not re.fullmatch(r"\d{6}", pin or ""):
         raise Invalid("Falta el PIN de 6 dígitos del número (WA_REGISTRATION_PIN o el del pedido)")
     graph = (graph_factory or graph_for)(store.token_for(account))
     step = "subscribed_apps"
@@ -241,7 +244,7 @@ async def retry_register(s: Session, account: WaAccount, pin: str | None = None,
                 store.mark_status(s, account, status, reason)
                 s.commit()
                 raise ServiceError(f"Meta rechazó la sincronización: {reason}", code="meta_error")
-        else:
+        elif registers:
             step = "register"
             await graph.register(account.phone_number_id, pin)
     except GraphError as e:
@@ -252,7 +255,7 @@ async def retry_register(s: Session, account: WaAccount, pin: str | None = None,
         raise MetaError(e) from None
     finally:
         await _close(graph)
-    if own and account.source != "coexistence":
+    if own and registers:
         account.pin_enc = crypto.encrypt(pin)
     store.mark_status(s, account, "connected")
     s.commit()

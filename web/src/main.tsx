@@ -11,6 +11,11 @@ import 'dayjs/locale/es';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { PREVIEW_KEY } from './branding/context';
+import { adoptSupportFromUrl } from './features/support/session';
+
+// Pestaña abierta con "ver como cliente" (antes del primer pedido a la API).
+adoptSupportFromUrl(PREVIEW_KEY);
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

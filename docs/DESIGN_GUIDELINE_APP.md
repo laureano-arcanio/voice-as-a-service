@@ -1,7 +1,7 @@
 # Guía de diseño de la app (dashboard interno y de clientes)
 
-Cómo se ve y cómo habla el dashboard (`web/`): las pantallas internas (rol `admin`), las del cliente
-(rol `client`) y el login. Es la adaptación de [`DESIGN_GUIDELINE.md`](DESIGN_GUIDELINE.md) (marca y
+Cómo se ve y cómo habla el dashboard (`web/`): las pantallas internas (área `/admin`, rol `admin`), las del
+cliente (área `/`, rol `client`, que el admin también ve al entrar como el cliente) y el login. Es la adaptación de [`DESIGN_GUIDELINE.md`](DESIGN_GUIDELINE.md) (marca y
 landing) a una aplicación de trabajo: misma paleta, mismas tipografías y misma voz, con más densidad
 y más estados. Leerla antes de agregar o cambiar una pantalla de `web/`.
 
@@ -26,7 +26,9 @@ y más estados. Leerla antes de agregar o cambiar una pantalla de `web/`.
 
 ## 2. Interno y cliente
 
-Es una sola app y un solo sistema visual. Cambia qué se muestra y cómo se dice:
+Es una sola app y un solo sistema visual, con dos áreas ([`ADMIN_SOPORTE_PLAN.md`](ADMIN_SOPORTE_PLAN.md), 27-oct-2026):
+la **administración** (`/admin/*`, mismo `AppLayout` con `ADMIN_NAV`) y el **panel del cliente** (`/`). Las diferencias son por área, no
+por pantalla. Cambia qué se muestra y cómo se dice:
 
 | | Cliente (`client`) | Interno (`admin`) |
 |---|---|---|
@@ -37,10 +39,19 @@ Es una sola app y un solo sistema visual. Cambia qué se muestra y cómo se dice
 | Estado vacío | Explica el próximo paso y ofrece la acción | Una línea |
 | Errores | Qué pasó y qué hacer, sin códigos | Puede sumar el código o el detalle en mono |
 
-- La columna "Cliente" y los filtros por cliente solo existen para `admin`.
-- En el menú, las pantallas solo de `admin` van juntas al final, bajo el rótulo "Administración".
-- Lo que solo ve un `admin` dentro de una pantalla compartida lleva una píldora gris "interno".
-- El rol se resuelve con `useIsAdmin()` y las guardas de `features/auth/`; no se duplica una pantalla por rol.
+- La columna "Cliente" y los filtros por cliente solo existen en `/admin`. Las pantallas del cliente no tienen
+  selector de cliente ni columnas o acciones "solo admin": lo que es técnico va plegado ("Detalle técnico") o en `/admin`.
+- Cada área tiene su menú en `components/nav.ts`: `ADMIN_NAV` (Inicio, Reportes, Conversaciones, Agentes de solo
+  lectura, Uso de la API, Clientes, Números, Tiers, Cobros, Usuarios) y `CLIENT_NAV`. Lo demás del admin se hace
+  **entrando como el cliente** (ficha del cliente, o "Abrir como el cliente" en Agentes y Conversaciones): ve el panel
+  del cliente tal cual, con la marca "soporte" y el botón "Volver a administración". Por eso no se escribe una
+  pantalla de admin para lo que ya existe en el panel del cliente.
+- En soporte `me.role` es `client` y `useIsAdmin()` es falso: una pantalla del cliente no ramifica por admin. Lo
+  que cambia en soporte es solo de solo lectura (Plan, pagos, datos fiscales, perfil: `useSupportReadOnly()`) o
+  una acción propia del soporte (`useMe().data.support`: p. ej. el alta manual de WhatsApp; entrar y salir con `useSupportSwitch()`).
+- Una pantalla compartida entre las dos áreas (Inicio, Reportes, Conversaciones, Uso de la API) puede mostrar más en
+  `/admin` (cliente, datos técnicos, borrar), y eso lleva una píldora gris "interno". Se resuelve con `useIsAdmin()`
+  y las guardas de `features/auth/` (`RequireAdminArea`, `RequireClientArea`); no se duplica una pantalla por rol.
 
 ## 3. Color
 
@@ -106,8 +117,8 @@ CSP del dashboard solo permite fuentes de `'self'`: no se pueden cargar de Googl
 - **Marco (`AppLayout`):** header de 60 px y menú lateral de 232 px, los dos sobre superficie y con borde;
   el contenido va sobre el lienzo. El menú agrupa las pantallas en `NavLink` desplegables (Agentes, Canales,
   Organización, Configuración, Developers, Cuenta; definidos en `components/nav.ts`): un click abre o cierra, arranca
-  abierto el grupo de la pantalla actual y, cerrado, se marca activo. Inicio, Reportes y Conversaciones van sueltos arriba y
-  las pantallas solo de admin, sueltas al final bajo "Administración". Logo `atentina-logo.svg` de 28 px de alto en el header. Debajo de `sm` el menú se pliega detrás del botón de menú.
+  abierto el grupo de la pantalla actual y, cerrado, se marca activo. Inicio, Reportes y Conversaciones van sueltos arriba.
+  El menú de `/admin` es plano (sin grupos). En soporte, el header lleva la marca "soporte" y "Volver a administración". Logo `atentina-logo.svg` de 28 px de alto en el header. Debajo de `sm` el menú se pliega detrás del botón de menú.
 - **Ancho:** el contenido ocupa hasta 1440 px. Formularios y texto de lectura, hasta 720 px.
 - **Orden de una pantalla:** `PageHeader` (título, descripción en una línea, acciones a la derecha y el
   link de volver arriba) → filtros → contenido en tarjetas.
@@ -285,8 +296,9 @@ cliente, pestaña "Marca blanca". Qué cambia y qué no:
 - **Títulos:** `usePageTitle('X')` → "X · <marca>" (`PageHeader` ya lo hace); no `useDocumentTitle` con "Atentina".
 - **Textos:** ningún componente nuevo nombra a Atentina en algo que ve el cliente, salvo para explicar dónde corre el
   modelo o quién manda un mail. "Con tecnología de Atentina" al pie del menú lo decide el admin (`powered_by`).
-- **Admin:** siempre ve el panel de Atentina; "Ver el panel como el cliente" aplica la marca en otra pestaña
-  (`sessionStorage`), con el aviso "Vista previa de la marca" en el header.
+- **Admin:** en `/admin` siempre ve el panel de Atentina. Entrando como el cliente (soporte) ve el panel con la marca
+  del cliente; la vista previa de la pestaña "Marca blanca" abre otra pestaña entrando como el cliente con el
+  borrador (`sessionStorage`, fragmento `#ver=<id>&marca=...`).
 
 ## 13. Antes de entregar
 
@@ -294,7 +306,7 @@ cliente, pestaña "Marca blanca". Qué cambia y qué no:
 - [ ] Una acción principal por pantalla o modal; lo destructivo pide confirmación.
 - [ ] Cada estado lleva texto o ícono, con el color de la sección 3 y la etiqueta de `lib/labels.ts`.
 - [ ] Carga, vacío y error resueltos con `QueryState`, `EmptyState` y `ErrorAlert`.
-- [ ] Probado con los dos roles: el cliente no ve vocabulario interno ni datos de otros clientes.
+- [ ] Probado en las dos áreas (`/admin` y el panel del cliente, también entrando como el cliente): el cliente no ve vocabulario interno ni datos de otros clientes.
 - [ ] Se ve bien en 360 px y en 1440 px.
 - [ ] Todo con teclado y con foco visible.
 - [ ] Textos con voseo y formatos de `lib/format.ts`.

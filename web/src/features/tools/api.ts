@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router';
 import { api } from '@/api/client';
 import { unwrap } from '@/api/request';
 import type {
@@ -43,14 +42,13 @@ function useInvalidateSecrets(clientId?: string) {
   };
 }
 
-/** El cliente de la pantalla: el del usuario, o el elegido por el admin (?client=). */
+/** El cliente de la pantalla: el del usuario (o el que el admin eligió al entrar como cliente). */
 export function useToolsClient(): string | undefined {
-  const me = useCurrentUser();
-  const [params] = useSearchParams();
-  return me.role === 'admin' ? (params.get('client') ?? undefined) : (me.client_id ?? undefined);
+  return useCurrentUser().client_id ?? undefined;
 }
 
-/** Link a una pantalla de herramientas, con el cliente elegido por el admin. */
+/** Link a una pantalla de herramientas. Solo lo usa features/agents/ (ahí `isAdmin` ya no se cumple en el
+ * panel del cliente); a borrar cuando esas pantallas pasen a rutas directas. */
 export function toolsHref(path: string, clientId: string | undefined, isAdmin: boolean): string {
   if (!isAdmin || !clientId) return path;
   return `${path}${path.includes('?') ? '&' : '?'}client=${encodeURIComponent(clientId)}`;

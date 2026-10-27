@@ -15,7 +15,6 @@ import {
 import { Link } from 'react-router';
 import type { FieldError } from '@/api/errors';
 import { QueryState } from '@/components/QueryState';
-import { useIsAdmin } from '@/features/auth/api';
 import { type AreaRow, useAreas, useHoldMusic } from '@/features/team/api';
 import { scheduleLabel } from '@/features/team/schedule';
 import { type Draft, type HandoffDraft, MAX_HANDOFF_AREAS } from './draft';
@@ -98,7 +97,6 @@ export function HandoffEditor({
   /** Errores del servidor (guardado), con su ruta: van en cada campo. */
   errors?: FieldError[];
 }) {
-  const isAdmin = useIsAdmin();
   const areas = useAreas(clientId);
   const tracks = useHoldMusic();
   const h = draft.handoff;
@@ -106,7 +104,7 @@ export function HandoffEditor({
   const setMusic = (patch: Partial<HandoffDraft['holdMusic']>) =>
     set((x) => ({ ...x, holdMusic: { ...x.holdMusic, ...patch } }));
 
-  const teamLink = isAdmin ? `/team?client=${clientId}` : '/team';
+  const teamLink = '/team';
   return (
     <QueryState query={areas}>
       {(list) => {

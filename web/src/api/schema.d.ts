@@ -1169,8 +1169,9 @@ export interface paths {
         put?: never;
         /**
          * Create Account
-         * @description Alta manual: 409 si el phone_number_id ya esta, 404 si el agente no es del cliente.
-         *     El token se guarda cifrado (503 sin WA_TOKEN_KEY).
+         * @description Alta manual (un numero de nuestra WABA): admin, o un admin que entró como el cliente (va a ese cliente).
+         *     409 si el phone_number_id ya esta, 404 si el agente no es del cliente. El token se guarda cifrado (503 sin
+         *     WA_TOKEN_KEY).
          */
         post: operations["create_account_api_v1_whatsapp_accounts_post"];
         delete?: never;
@@ -1236,6 +1237,29 @@ export interface paths {
          */
         put: operations["set_account_routes_api_v1_whatsapp_accounts__account_id__routes_put"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/whatsapp/accounts/own-app": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Connect Own App
+         * @description Conecta un número con la app de Meta propia del cliente (docs/ADMIN_SOPORTE_PLAN.md, sección 4): valida
+         *     con Meta que el número sea de la WABA, suscribe su app a la WABA y devuelve la URL de webhook y el verify
+         *     token para pegar en su app. 201 también si quedó `pending` (falló la suscripción: ver status_reason).
+         *     409 si el número es de otra cuenta; 400 signup_mismatch si no es de esa WABA.
+         */
+        post: operations["connect_own_app_api_v1_whatsapp_accounts_own_app_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6761,6 +6785,11 @@ export interface components {
              * @default []
              */
             legal_pending?: components["schemas"]["LegalVersionOut"][];
+            /**
+             * Support
+             * @default false
+             */
+            support?: boolean;
         };
         /** MessageOut */
         MessageOut: {
@@ -8585,6 +8614,12 @@ export interface components {
              */
             advanced_reports?: boolean;
             /**
+             * Internal
+             * @description Tier de Atentina: no se ofrece como plan ni cuenta en las estadisticas de la plataforma
+             * @default false
+             */
+            internal?: boolean;
+            /**
              * Price Ars
              * @description Precio mensual en pesos, lo que se cobra. null: no se vende por el dashboard; 0: gratis
              */
@@ -8662,6 +8697,8 @@ export interface components {
             white_label: boolean;
             /** Advanced Reports */
             advanced_reports: boolean;
+            /** Internal */
+            internal: boolean;
             /** Price Ars */
             price_ars: number | null;
             /** Public */
@@ -8737,6 +8774,8 @@ export interface components {
             white_label?: boolean | null;
             /** Advanced Reports */
             advanced_reports?: boolean | null;
+            /** Internal */
+            internal?: boolean | null;
             /** Price Ars */
             price_ars?: number | null;
             /** Public */
@@ -9121,8 +9160,12 @@ export interface components {
         };
         /** WaAccountIn */
         WaAccountIn: {
-            /** Client Id */
-            client_id: string;
+            /**
+             * Client Id
+             * @description Admin: el cliente. Un admin que entró como el cliente: se ignora
+             * @default
+             */
+            client_id?: string;
             /**
              * Agent Id
              * @description Agente del cliente que atiende los mensajes
@@ -9210,7 +9253,16 @@ export interface components {
              * @default manual
              * @enum {string}
              */
-            source?: "manual" | "embedded_signup" | "coexistence";
+            source?: "manual" | "embedded_signup" | "coexistence" | "own_app";
+            /** Webhook Url */
+            webhook_url?: string | null;
+            /** Verify Token */
+            verify_token?: string | null;
+            /**
+             * Has App Secret
+             * @default false
+             */
+            has_app_secret?: boolean;
             /**
              * Routes
              * @description Ruteo por contacto: pisa al agente por defecto en mensajes y llamadas de WhatsApp
@@ -9458,6 +9510,43 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /**
+         * WaOwnAppIn
+         * @description Alta con la app de Meta propia del cliente. Con el mismo phone_number_id de una cuenta own_app del
+         *     cliente, cambia el token y el secret (la URL de webhook y el verify token siguen iguales).
+         */
+        WaOwnAppIn: {
+            /**
+             * Agent Id
+             * @description Agente del cliente que atiende los mensajes
+             */
+            agent_id: string;
+            /**
+             * Phone Number Id
+             * @description Identificador del número de teléfono (Meta)
+             */
+            phone_number_id: string;
+            /**
+             * Waba Id
+             * @description Identificador de la cuenta de WhatsApp Business
+             */
+            waba_id: string;
+            /**
+             * Access Token
+             * @description Token permanente de un usuario de sistema con whatsapp_business_messaging y whatsapp_business_management sobre la WABA
+             */
+            access_token: string;
+            /**
+             * App Secret
+             * @description Clave secreta de la app (firma de los webhooks)
+             */
+            app_secret: string;
+            /**
+             * Client Id
+             * @description Solo admin; a un usuario de cliente se le fuerza el suyo
+             */
+            client_id?: string | null;
         };
         /** WaRecipientIn */
         WaRecipientIn: {
@@ -12320,6 +12409,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WaRouteOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    connect_own_app_api_v1_whatsapp_accounts_own_app_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaOwnAppIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaAccountOut"];
                 };
             };
             /** @description Validation Error */

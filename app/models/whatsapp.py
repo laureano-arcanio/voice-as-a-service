@@ -50,7 +50,12 @@ class WaAccount(IdMixin, TimestampMixin, Base):
     quality_rating: Mapped[str | None] = mapped_column(String(16), nullable=True)   # GREEN, YELLOW, RED...
     messaging_limit: Mapped[str | None] = mapped_column(String(32), nullable=True)  # current_limit de Meta
     business_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    source: Mapped[str] = mapped_column(String(16), default="manual", server_default="manual")  # manual, embedded_signup, coexistence
+    source: Mapped[str] = mapped_column(String(16), default="manual", server_default="manual")  # manual, embedded_signup, coexistence, own_app
+    # own_app (la app de Meta del cliente): firma de sus webhooks y challenge, cifrados, y la clave de su URL
+    # de webhook (/wa/webhook/<clave>). NULL en las demas: usan WA_APP_SECRET y WA_VERIFY_TOKEN.
+    app_secret: Mapped[str | None] = mapped_column(Text, nullable=True)
+    verify_token: Mapped[str | None] = mapped_column(Text, nullable=True)
+    webhook_key: Mapped[str | None] = mapped_column(String(48), unique=True, index=True, nullable=True)
     pin_enc: Mapped[str | None] = mapped_column(Text, nullable=True)   # PIN de dos pasos, cifrado
     connected_by: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("users.id", ondelete="SET NULL", name="fk_wa_accounts_connected_by_users"),

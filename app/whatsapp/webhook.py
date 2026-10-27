@@ -1,4 +1,7 @@
-"""Webhook de WhatsApp (Meta): challenge GET y eventos POST firmados."""
+"""Webhook de WhatsApp (Meta): challenge GET y eventos POST firmados.
+
+/wa/webhook: nuestra app (WA_APP_SECRET, WA_VERIFY_TOKEN). /wa/webhook/<clave>: la app de Meta propia de un
+cliente (cuenta own_app, docs/ADMIN_SOPORTE_PLAN.md seccion 4), con su secret y su verify token."""
 import hashlib
 import hmac
 import json
@@ -8,8 +11,13 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import PlainTextResponse, Response
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
+from ..api.deps import get_db
 from ..config import settings
+from ..models import WaAccount
+from . import own_app
 from .service import WhatsAppService, get_service
 
 logger = logging.getLogger(__name__)
@@ -42,22 +50,29 @@ def install_logging() -> None:
     log.setLevel(logging.INFO)
 
 
-@router.get("/webhook", include_in_schema=False)
-def verify(request: Request):
+def _challenge(request: Request, token: str | None):
     q = request.query_params
-    token = settings.wa_verify_token
     if (token and q.get("hub.mode") == "subscribe"
             and hmac.compare_digest(q.get("hub.verify_token", "").encode(), token.encode())):
         return PlainTextResponse(q.get("hub.challenge", ""))
     raise HTTPException(403)
 
 
-def _valid_signature(raw: bytes, header: str | None) -> bool:
-    secret = settings.wa_app_secret
+@router.get("/webhook", include_in_schema=False)
+def verify(request: Request):
+    return _challenge(request, settings.wa_verify_token)
+
+
+def _valid_signature(raw: bytes, header: str | None, secret: str | None = None) -> bool:
+    secret = settings.wa_app_secret if secret is None else secret
     if not secret or not header:
         return False
     expected = "sha256=" + hmac.new(secret.encode(), raw, hashlib.sha256).hexdigest()
     return hmac.compare_digest(header.encode(), expected.encode())
+
+
+def _own_account(db: Session, key: str) -> WaAccount | None:
+    return db.scalar(select(WaAccount).where(WaAccount.webhook_key == key))
 
 
 async def _read_body(request: Request) -> bytes:
@@ -98,15 +113,11 @@ def _summarize(payload) -> list[str]:
     return lines or [f"object={obj} sin messages ni statuses"]
 
 
-@router.post("/webhook", include_in_schema=False)
-async def receive(request: Request, service: Annotated[WhatsAppService, Depends(get_service)]):
-    """200 siempre (salvo firma invalida): Meta reintenta ante un 5xx. El turno corre en
-    segundo plano (service.handle_payload), sin esperar a la base ni al LLM."""
-    raw = await _read_body(request)
-    if not _valid_signature(raw, request.headers.get("X-Hub-Signature-256")):
-        raise HTTPException(403)
+def _schedule(raw: bytes, service: WhatsAppService, account: WaAccount | None = None) -> Response:
     try:
         payload = json.loads(raw)
+        if account is not None:
+            payload = own_app.scoped_payload(payload, account)
         for line in _summarize(payload):
             logger.info("wa webhook: %s", line)
     except Exception:  # payload raro
@@ -117,3 +128,31 @@ async def receive(request: Request, service: Annotated[WhatsAppService, Depends(
     except Exception:
         logger.exception("wa webhook: no se pudo agendar el payload")
     return Response(status_code=200)
+
+
+@router.post("/webhook", include_in_schema=False)
+async def receive(request: Request, service: Annotated[WhatsAppService, Depends(get_service)]):
+    """200 siempre (salvo firma invalida): Meta reintenta ante un 5xx. El turno corre en
+    segundo plano (service.handle_payload), sin esperar a la base ni al LLM."""
+    raw = await _read_body(request)
+    if not _valid_signature(raw, request.headers.get("X-Hub-Signature-256")):
+        raise HTTPException(403)
+    return _schedule(raw, service)
+
+
+@router.get("/webhook/{key}", include_in_schema=False)
+def verify_own(key: str, request: Request, db: Annotated[Session, Depends(get_db)]):
+    account = _own_account(db, key)
+    return _challenge(request, own_app.verify_token_for(account) if account else None)
+
+
+@router.post("/webhook/{key}", include_in_schema=False)
+async def receive_own(key: str, request: Request, db: Annotated[Session, Depends(get_db)],
+                      service: Annotated[WhatsAppService, Depends(get_service)]):
+    """Como /webhook, firmado con el app secret de esa cuenta, y solo con lo de su WABA y su numero."""
+    raw = await _read_body(request)
+    account = _own_account(db, key)
+    secret = own_app.app_secret_for(account) if account else None
+    if not secret or not _valid_signature(raw, request.headers.get("X-Hub-Signature-256"), secret):
+        raise HTTPException(403)
+    return _schedule(raw, service, account)

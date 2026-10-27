@@ -14,7 +14,6 @@ import {
 import { Link } from 'react-router';
 import type { FieldError } from '@/api/errors';
 import { PlanGate } from '@/components/PlanGate';
-import { useIsAdmin } from '@/features/auth/api';
 import { useLlmConnections, useTestLlmConnection } from '@/features/llm/api';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { connectionLabel } from '@/features/llm/labels';
@@ -34,7 +33,6 @@ export function ExternalSection({
   clientId: string;
   errors?: FieldError[];
 }) {
-  const isAdmin = useIsAdmin();
   const connections = useLlmConnections(clientId);
   const test = useTestLlmConnection(clientId);
   const areas = useAreas(clientId);
@@ -42,7 +40,7 @@ export function ExternalSection({
   const ext = draft.external;
   const endpoints = (connections.data ?? []).filter((c) => c.kind === 'openai_compatible');
   const current = endpoints.find((c) => c.id === ext?.connection);
-  const connectionsLink = isAdmin ? `/clients/${clientId}?tab=modelos` : '/models';
+  const connectionsLink = '/models';
   const errorOf = (field: string) => errors.find((e) => e.path === `external.${field}`)?.message;
   const set = (patch: Partial<ExternalDraft>) =>
     update((d) => ({

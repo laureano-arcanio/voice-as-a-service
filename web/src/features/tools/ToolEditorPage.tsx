@@ -30,8 +30,7 @@ import { confirmAction } from '@/components/confirm';
 import { JsonEditor } from '@/components/JsonEditor';
 import { PageHeader } from '@/components/PageHeader';
 import { PlanGate } from '@/components/PlanGate';
-import { EmptyState, QueryState } from '@/components/QueryState';
-import { useIsAdmin } from '@/features/auth/api';
+import { QueryState } from '@/components/QueryState';
 import { stableJson } from '@/features/agents/draft';
 import { CLIENT_TOOL_TYPE } from '@/lib/labels';
 import { notifyError, notifySuccess } from '@/lib/notify';
@@ -42,7 +41,6 @@ import {
   useCredentials,
   useDeleteTool,
   useTool,
-  toolsHref,
   useToolsClient,
   useToolsStatus,
   useUpdateTool,
@@ -83,7 +81,6 @@ function ToolEditor({
   /** La herramienta guardada; null si es nueva. */
   saved: ClientTool | null;
 }) {
-  const isAdmin = useIsAdmin();
   const navigate = useNavigate();
   const status = useToolsStatus();
   const create = useCreateTool(clientId);
@@ -146,7 +143,7 @@ function ToolEditor({
         {
           onSuccess: (t) => {
             notifySuccess('Herramienta creada. Elegila en cada agente que la use.');
-            void navigate(toolsHref(`/tools/${t.slug}`, clientId, isAdmin), { replace: true });
+            void navigate(`/tools/${t.slug}`, { replace: true });
           },
           onError: (e) => notifyError(e, 'No se pudo guardar'),
         },
@@ -188,7 +185,7 @@ function ToolEditor({
       remove.mutate(saved.slug, {
         onSuccess: () => {
           notifySuccess('Herramienta borrada.');
-          void navigate(toolsHref('/tools', clientId, isAdmin));
+          void navigate('/tools');
         },
         onError: (e) => notifyError(e, 'No se pudo borrar'),
       });
@@ -369,7 +366,7 @@ function ToolEditor({
                 {secrets.length > 0 && (
                   <Text size="xs" c="dimmed" mt={4}>
                     Se cargan una vez en{' '}
-                    <Anchor component={Link} to={toolsHref('/secrets', clientId, isAdmin)} inherit>
+                    <Anchor component={Link} to={'/secrets'} inherit>
                       Secretos
                     </Anchor>{' '}
                     y los usan todos los agentes. Si un agente necesita otro valor, se lo cargás en el agente.
@@ -485,7 +482,6 @@ function ExistingTool({ clientId, slug }: { clientId: string; slug: string }) {
 export function ToolEditorPage() {
   const { slug } = useParams();
   const [params] = useSearchParams();
-  const isAdmin = useIsAdmin();
   const clientId = useToolsClient();
   const type: ToolType = params.get('type') === 'code' ? 'code' : 'http';
   const isNew = !slug;
@@ -509,7 +505,7 @@ export function ToolEditorPage() {
               : undefined
         }
         above={
-          <Anchor component={Link} to={toolsHref('/tools', clientId, isAdmin)} size="sm">
+          <Anchor component={Link} to={'/tools'} size="sm">
             <Group gap={4} component="span">
               <IconArrowLeft size={16} />
               Herramientas
@@ -517,9 +513,7 @@ export function ToolEditorPage() {
           </Anchor>
         }
       />
-      {!clientId ? (
-        <EmptyState>Elegí un cliente en Herramientas.</EmptyState>
-      ) : (
+      {clientId && (
         <PlanGate feature="custom_tools" what="herramientas para tus agentes">
           {isNew ? (
             <NewTool clientId={clientId} type={type} />

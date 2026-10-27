@@ -18,7 +18,7 @@ import { useState } from 'react';
 import { ApiError } from '@/api/errors';
 import type { Branding, BrandingAdmin, Client } from '@/api/types';
 import { contrast, INK, isHex, MIN_CONTRAST, scale, textOn, WHITE } from '@/branding/color';
-import { setPreview } from '@/branding/context';
+import { supportUrl } from '@/features/support/session';
 import { QueryState } from '@/components/QueryState';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useClientBranding, useRemoveBrandingLogo, useSetBrandingLogo, useUpdateBranding } from './branding';
@@ -224,8 +224,8 @@ function BrandingForm({ client, data }: { client: Client; data: BrandingAdmin })
       header_fg: textOn(isHex(v.color_header) ? v.color_header : WHITE),
       powered_by: v.powered_by,
     };
-    setPreview(branding);
-    window.open('/', '_blank', 'noopener');
+    // Otra pestaña, como el cliente y con el borrador; esta sigue en /admin.
+    window.open(supportUrl(client.id, branding), '_blank', 'noopener');
   };
 
   const color = (field: 'color_primary' | 'color_header' | 'color_accent') => ({

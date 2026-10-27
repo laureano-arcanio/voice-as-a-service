@@ -33,7 +33,7 @@ import type { Agent, CallLink, CallLinkState } from '@/api/types';
 import { confirmAction } from '@/components/confirm';
 import { CopyIcon } from '@/components/Copy';
 import { QueryState } from '@/components/QueryState';
-import { useIsAdmin } from '@/features/auth/api';
+import { useMe } from '@/features/auth/api';
 import { formatNumber } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { initials } from '@/lib/initials';
@@ -395,7 +395,8 @@ function LinkEditor({ agent, state, link }: { agent: Agent; state: CallLinkState
 
 function NoLink({ agent, state }: { agent: Agent; state: CallLinkState }) {
   const create = useCreateCallLink(agent.id);
-  const isAdmin = useIsAdmin();
+  // Los avisos técnicos son del admin que entró como el cliente.
+  const support = !!useMe().data?.support;
   const { plan_max: max, plan_used: used } = state;
   const blocked = agent.archived
     ? 'El agente está archivado.'
@@ -419,7 +420,7 @@ function NoLink({ agent, state }: { agent: Agent; state: CallLinkState }) {
         {blocked && (
           <Text size="sm" c="yellow.7">
             {blocked}
-            {isAdmin &&
+            {support &&
               max != null &&
               !agent.archived &&
               ' Se cambia en el tier o con un ajuste del cliente.'}
@@ -438,7 +439,7 @@ function NoLink({ agent, state }: { agent: Agent; state: CallLinkState }) {
         >
           Crear link
         </Button>
-        {!state.enabled && isAdmin && (
+        {!state.enabled && support && (
           <Text size="xs" c="dimmed">
             Falta habilitar la página pública en el servidor: TURNSTILE_SITE_KEY, TURNSTILE_SECRET_KEY y la
             URL de LiveKit para navegadores (DEMO_LIVEKIT_URL).
@@ -479,13 +480,22 @@ export function CallLinkCard({ agent }: { agent: Agent }) {
               <div>
                 <Group gap="xs">
                   <Title order={4}>Link para llamar</Title>
-                  {state.link.paused ? <Badge color="yellow">Pausado</Badge> : <Badge color="green">Activo</Badge>}
+                  {state.link.paused ? (
+                    <Badge color="yellow">Pausado</Badge>
+                  ) : (
+                    <Badge color="green">Activo</Badge>
+                  )}
                 </Group>
                 <Text size="sm" c="dimmed">
                   Abrilo para llamar al agente desde el navegador, como lo va a hacer tu cliente.
                 </Text>
               </div>
-              <Anchor component={Link} to={`/agents/${agent.id}?tab=link`} size="sm" style={{ whiteSpace: 'nowrap' }}>
+              <Anchor
+                component={Link}
+                to={`/agents/${agent.id}?tab=link`}
+                size="sm"
+                style={{ whiteSpace: 'nowrap' }}
+              >
                 Configurar
               </Anchor>
             </Group>

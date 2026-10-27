@@ -4,14 +4,7 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { Dash } from '@/components/Badges';
 import { confirmAction } from '@/components/confirm';
-import { useIsAdmin } from '@/features/auth/api';
-import {
-  toolsHref,
-  useAgentSecrets,
-  useClientSecrets,
-  useDeleteSecret,
-  usePromoteSecret,
-} from '@/features/tools/api';
+import { useAgentSecrets, useClientSecrets, useDeleteSecret, usePromoteSecret } from '@/features/tools/api';
 import { type SecretDialog, SecretModal } from '@/features/tools/SecretModal';
 import { notifyError, notifySuccess } from '@/lib/notify';
 
@@ -39,7 +32,6 @@ export function SecretsSection({
   agentId?: string;
   needed: Map<string, string[]>;
 }) {
-  const isAdmin = useIsAdmin();
   const clientSecrets = useClientSecrets(clientId);
   const agentSecrets = useAgentSecrets(agentId);
   const remove = useDeleteSecret(agentId ?? '');
@@ -113,7 +105,7 @@ export function SecretsSection({
           </Text>
           <Text size="xs" c="dimmed">
             Los tokens y claves de las herramientas. Se cargan una vez en{' '}
-            <Anchor component={Link} to={toolsHref('/secrets', clientId, isAdmin)} inherit>
+            <Anchor component={Link} to={'/secrets'} inherit>
               Secretos
             </Anchor>{' '}
             y los usan todos los agentes; acá podés darle a este agente un valor propio. El agente nunca los

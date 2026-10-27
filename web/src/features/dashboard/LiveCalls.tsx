@@ -2,9 +2,11 @@ import { Button, Card, Group, Table, Text, Title } from '@mantine/core';
 import { Link } from 'react-router';
 import type { CallSummary } from '@/api/types';
 import { CallStatusBadge, LiveBadge, OriginBadge } from '@/components/Badges';
+import { useAreaPath } from '@/features/support/paths';
 import { formatDateTime, formatValue } from '@/lib/format';
 
 export function LiveCalls({ calls, showClient }: { calls: CallSummary[]; showClient: boolean }) {
+  const areaPath = useAreaPath();
   if (!calls.length) return null;
   return (
     <Card>
@@ -39,7 +41,7 @@ export function LiveCalls({ calls, showClient }: { calls: CallSummary[]; showCli
                   {c.captured}/{c.required} datos
                 </Table.Td>
                 <Table.Td ta="right">
-                  <Button component={Link} to={`/calls/${c.id}`} variant="subtle" size="compact-sm">
+                  <Button component={Link} to={areaPath(`/calls/${c.id}`)} variant="subtle" size="compact-sm">
                     Ver en vivo
                   </Button>
                 </Table.Td>

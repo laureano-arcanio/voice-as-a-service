@@ -31,3 +31,8 @@ export function useFeatureLock(keys: PlanFeatureKey | PlanFeatureKey[]): Feature
   const locked = list.every((f) => f && !f.enabled);
   return { locked, reason: locked ? (list[0]?.reason ?? null) : null, tierName: plan?.tier_name ?? '' };
 }
+
+/** Un admin que entró como el cliente (me.support): su plan y sus cobros son de solo lectura (el backend da 403). */
+export function useSupportReadOnly(): boolean {
+  return useMe().data?.support === true;
+}

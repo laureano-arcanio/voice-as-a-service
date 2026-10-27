@@ -51,18 +51,15 @@ interface AreaValues {
 /** Alta o edicion de un area: personas en orden, horario, timbre, vuelta a la IA y mensajes. */
 export function AreaModal({
   area,
-  clientId,
   members,
   onClose,
 }: {
   area: AreaRow | null;
-  /** El del alta (un admin lo elige antes); al editar, manda el del area. */
-  clientId?: string;
   /** Las personas del equipo del cliente del area. */
   members: TeamMember[];
   onClose: () => void;
 }) {
-  const save = useSaveArea(clientId);
+  const save = useSaveArea();
   const defaults = useAreaDefaults();
   const form = useForm<AreaValues>({
     initialValues: {

@@ -2,7 +2,9 @@ import { Anchor, Badge, SimpleGrid, Stack } from '@mantine/core';
 import { Link } from 'react-router';
 import { HourHeatmap } from '@/components/HourHeatmap';
 import { QueryState } from '@/components/QueryState';
+import { useIsAdmin } from '@/features/auth/api';
 import { CAMPAIGN_STATUS } from '@/features/campaigns/labels';
+import { useSupportSwitch } from '@/features/support/api';
 import { formatNumber } from '@/lib/format';
 import { useReport } from './api';
 import { CHANNEL_LABEL, NO_CONTACT_REASON, label } from './labels';
@@ -12,33 +14,45 @@ import type { CampaignsReport, Channel, ReportQuery } from './types';
 type Campaign = CampaignsReport['campaigns'][number];
 type NoContact = CampaignsReport['no_contact'][number];
 
-const CAMPAIGN_COLS: Column<Campaign>[] = [
-  {
-    label: 'Campaña',
-    value: 'name',
-    render: (r) => (
-      <Anchor component={Link} to={`/campaigns/${r.campaign_id}`} size="sm">
-        {r.name}
-      </Anchor>
-    ),
-  },
-  { label: 'Canal', value: (r) => CHANNEL_LABEL[r.channel as Channel] ?? r.channel },
-  {
-    label: 'Estado',
-    value: (r) => CAMPAIGN_STATUS[r.status]?.label ?? r.status,
-    render: (r) => {
-      const s = CAMPAIGN_STATUS[r.status] ?? { label: r.status, color: 'gray' };
-      return <Badge color={s.color}>{s.label}</Badge>;
+/** `open` abre la campaña en el panel del cliente (el admin entra como el cliente); sin él, el nombre va solo. */
+function campaignCols(open: ((c: Campaign) => void) | null, admin: boolean): Column<Campaign>[] {
+  return [
+    {
+      label: 'Campaña',
+      value: 'name',
+      render: (r) =>
+        admin ? (
+          open ? (
+            <Anchor component="button" type="button" onClick={() => open(r)} size="sm">
+              {r.name}
+            </Anchor>
+          ) : (
+            r.name
+          )
+        ) : (
+          <Anchor component={Link} to={`/campaigns/${r.campaign_id}`} size="sm">
+            {r.name}
+          </Anchor>
+        ),
     },
-  },
-  { label: 'Contactos', value: 'contacts', num: true },
-  { label: 'Intentos', value: 'attempts', num: true },
-  { label: 'Contactados', value: 'reached', num: true },
-  { label: 'Completas', value: 'complete', num: true },
-  { label: 'Objetivo', value: 'goal', num: true },
-  { label: 'Bajas', value: 'optouts', num: true },
-  { label: 'Minutos', value: 'minutes', num: true },
-];
+    { label: 'Canal', value: (r) => CHANNEL_LABEL[r.channel as Channel] ?? r.channel },
+    {
+      label: 'Estado',
+      value: (r) => CAMPAIGN_STATUS[r.status]?.label ?? r.status,
+      render: (r) => {
+        const s = CAMPAIGN_STATUS[r.status] ?? { label: r.status, color: 'gray' };
+        return <Badge color={s.color}>{s.label}</Badge>;
+      },
+    },
+    { label: 'Contactos', value: 'contacts', num: true },
+    { label: 'Intentos', value: 'attempts', num: true },
+    { label: 'Contactados', value: 'reached', num: true },
+    { label: 'Completas', value: 'complete', num: true },
+    { label: 'Objetivo', value: 'goal', num: true },
+    { label: 'Bajas', value: 'optouts', num: true },
+    { label: 'Minutos', value: 'minutes', num: true },
+  ];
+}
 
 const NO_CONTACT_COLS: Column<NoContact>[] = [
   { label: 'Motivo', value: (r) => label(NO_CONTACT_REASON, r.reason) },
@@ -47,6 +61,14 @@ const NO_CONTACT_COLS: Column<NoContact>[] = [
 
 export function CampaignsTab({ query }: { query: ReportQuery }) {
   const report = useReport('campaigns', query);
+  const isAdmin = useIsAdmin();
+  const { enter } = useSupportSwitch();
+  // Sin cliente elegido, un admin ve las de toda la plataforma y no sabe de quién es cada una.
+  const clientId = query.client_id;
+  const columns = campaignCols(
+    isAdmin && clientId ? (c) => void enter(clientId, `/campaigns/${c.campaign_id}`) : null,
+    isAdmin,
+  );
   return (
     <QueryState query={report}>
       {(r) => (
@@ -55,7 +77,7 @@ export function CampaignsTab({ query }: { query: ReportQuery }) {
             title="Campañas"
             description="Las campañas con actividad en el período."
             rows={r.campaigns}
-            columns={CAMPAIGN_COLS}
+            columns={columns}
             empty="Sin campañas en el período."
             sortable
             rowKey={(x) => x.campaign_id}

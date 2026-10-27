@@ -18,16 +18,22 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import type { LlmConnection, LlmParamSpec, LlmProviderSpec } from '@/api/types';
 import { confirmAction } from '@/components/confirm';
-import { useIsAdmin } from '@/features/auth/api';
 import { useLlmConnections, useLlmModels, useLlmParams } from '@/features/llm/api';
 import { connectionLabel, KIND_LABEL, LOCAL_LABEL } from '@/features/llm/labels';
-import { blankStage, type Draft, type LlmDraft, type LlmStageDraft, MAX_LLM_STAGES, type ParamDraft } from './draft';
+import {
+  blankStage,
+  type Draft,
+  type LlmDraft,
+  type LlmStageDraft,
+  MAX_LLM_STAGES,
+  type ParamDraft,
+} from './draft';
 import { GenerationEditor } from './GenerationEditor';
 
 const LOCAL = 'local';
 const ATENTINA = 'atentina';
 const BYOK = 'byok';
-const GAP = 3;     // turnos de diferencia que propone una etapa nueva
+const GAP = 3; // turnos de diferencia que propone una etapa nueva
 
 function stageProvider(stage: LlmStageDraft, connections: LlmConnection[]): string {
   if (!stage.connection) return 'vllm';
@@ -37,7 +43,8 @@ function stageProvider(stage: LlmStageDraft, connections: LlmConnection[]): stri
 const providerName = (kind: string, providers: LlmProviderSpec[]) =>
   kind === 'vllm' ? LOCAL_LABEL : (providers.find((p) => p.kind === kind)?.label ?? kind);
 
-const paramsOf = (kind: string, providers: LlmProviderSpec[]) => providers.find((p) => p.kind === kind)?.params ?? [];
+const paramsOf = (kind: string, providers: LlmProviderSpec[]) =>
+  providers.find((p) => p.kind === kind)?.params ?? [];
 
 /** Defaults efectivos: los del nivel de abajo pisados por los cambios de este. */
 const withRows = (base: Record<string, unknown>, rows: ParamDraft[]) => ({
@@ -169,14 +176,13 @@ export function LlmSection({
   update: (fn: (d: Draft) => Draft) => void;
   clientId: string;
 }) {
-  const isAdmin = useIsAdmin();
   const narrow = useMediaQuery('(max-width: 36em)');
   const list = useLlmConnections(clientId);
   const catalog = useLlmParams();
   const connections = list.data ?? [];
   const providers = catalog.data?.providers ?? [];
   const allSpecs = new Map(providers.flatMap((p) => p.params).map((s) => [s.name, s]));
-  const connectionsLink = isAdmin ? `/clients/${clientId}?tab=modelos` : '/models';
+  const connectionsLink = '/models';
 
   const byok = draft.llm !== null;
   const llm: LlmDraft = draft.llm ?? { stages: [blankStage(1)], fallbackLocal: true };
@@ -204,7 +210,9 @@ export function LlmSection({
   const kinds = byok ? [...new Set(llm.stages.map((st) => stageProvider(st, connections)))] : ['vllm'];
   // Los del agente rigen en todas las etapas: se muestran los de los proveedores en uso, y el default del
   // servidor propio solo si es el unico.
-  const globalSpecs = [...new Map(kinds.flatMap((k) => paramsOf(k, providers)).map((s) => [s.name, s])).values()];
+  const globalSpecs = [
+    ...new Map(kinds.flatMap((k) => paramsOf(k, providers)).map((s) => [s.name, s])).values(),
+  ];
   const globalDefaults = kinds.length === 1 && kinds[0] === 'vllm' ? local : {};
   const stageDefaults = (kind: string) => withRows(kind === 'vllm' ? local : {}, draft.generation);
 
@@ -214,13 +222,17 @@ export function LlmSection({
       if (!first) return;
       update((d) => ({
         ...d,
-        llm: { stages: [{ ...blankStage(1), connection: first.id, model: first.default_model ?? '' }], fallbackLocal: true },
+        llm: {
+          stages: [{ ...blankStage(1), connection: first.id, model: first.default_model ?? '' }],
+          fallbackLocal: true,
+        },
       }));
       return;
     }
     const ok = await confirmAction({
       title: `¿Volver a ${LOCAL_LABEL}?`,
-      message: 'Se quitan las etapas y sus parámetros: toda la conversación la contesta el modelo de Atentina.',
+      message:
+        'Se quitan las etapas y sus parámetros: toda la conversación la contesta el modelo de Atentina.',
       confirmLabel: 'Volver',
     });
     if (ok) update((d) => ({ ...d, llm: null }));
@@ -242,7 +254,11 @@ export function LlmSection({
           onChange={setMode}
           data={[
             { value: ATENTINA, label: `Modelo ${LOCAL_LABEL}` },
-            { value: BYOK, label: 'Mis proveedores, por etapas', disabled: !byok && connections.length === 0 },
+            {
+              value: BYOK,
+              label: 'Mis proveedores, por etapas',
+              disabled: !byok && connections.length === 0,
+            },
           ]}
           fullWidth
           orientation={narrow ? 'vertical' : 'horizontal'}
@@ -259,8 +275,8 @@ export function LlmSection({
         <Alert color="blue" variant="light" icon={<IconKey size={18} />} title="¿Querés usar otro modelo?">
           <Stack gap="xs" align="flex-start">
             <Text size="sm">
-              Cargá la clave de tu proveedor (OpenAI, Anthropic, OpenRouter u otro compatible) en Modelos. Después
-              vas a poder elegir qué modelo contesta cada etapa de la conversación.
+              Cargá la clave de tu proveedor (OpenAI, Anthropic, OpenRouter u otro compatible) en Modelos.
+              Después vas a poder elegir qué modelo contesta cada etapa de la conversación.
             </Text>
             <Button component={Link} to={connectionsLink} size="xs" variant="light">
               Cargar una clave
@@ -287,8 +303,8 @@ export function LlmSection({
       {byok && (
         <Stack gap="sm">
           <Text size="xs" c="dimmed">
-            El turno es el mensaje número N de la persona: la apertura del agente no cuenta. Ejemplo: Anthropic
-            del turno 1 al 3 y {LOCAL_LABEL} desde el 4. Hasta {MAX_LLM_STAGES} etapas.
+            El turno es el mensaje número N de la persona: la apertura del agente no cuenta. Ejemplo:
+            Anthropic del turno 1 al 3 y {LOCAL_LABEL} desde el 4. Hasta {MAX_LLM_STAGES} etapas.
           </Text>
           {llm.stages.map((st, i) => (
             <StageRow
@@ -304,7 +320,9 @@ export function LlmSection({
               onUnlock={unlock}
               onChange={(patch) => patchStage(st.key, patch)}
               onRemove={
-                i === 0 ? null : () => setLlm((l) => ({ ...l, stages: l.stages.filter((x) => x.key !== st.key) }))
+                i === 0
+                  ? null
+                  : () => setLlm((l) => ({ ...l, stages: l.stages.filter((x) => x.key !== st.key) }))
               }
             />
           ))}
@@ -337,7 +355,11 @@ export function LlmSection({
               setLlm((l) => ({ ...l, fallbackLocal }));
             }}
           />
-          <Alert color="yellow" icon={<IconShieldLock size={18} />} title="Las conversaciones salen de Atentina">
+          <Alert
+            color="yellow"
+            icon={<IconShieldLock size={18} />}
+            title="Las conversaciones salen de Atentina"
+          >
             {external.map((st) => (
               <div key={st.key}>
                 Desde el turno {st.fromTurn}, este agente manda la conversación a {where(st)}.

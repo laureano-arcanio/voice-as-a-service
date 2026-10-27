@@ -23,7 +23,8 @@ import { LegalModal } from '@/features/auth/LegalModal';
 import { WelcomeModal } from '@/features/auth/WelcomeModal';
 import { usePlanFeatures } from '@/features/billing/features';
 import { notifyError } from '@/lib/notify';
-import { isAdminOnly, isGroup, navFor, type NavEntry, type NavGroup, type NavItem } from './nav';
+import { useSupportSwitch } from '@/features/support/api';
+import { isGroup, navFor, type NavEntry, type NavGroup, type NavItem } from './nav';
 
 const LEGAL_LINKS = [
   ['Condiciones', '/terminos'],
@@ -33,7 +34,7 @@ const LEGAL_LINKS = [
 ] as const;
 
 function isActive(pathname: string, to: string): boolean {
-  if (to === '/') return pathname === '/';
+  if (to === '/' || to === '/admin') return pathname === to;
   return pathname === to || pathname.startsWith(`${to}/`);
 }
 
@@ -48,6 +49,7 @@ export function AppLayout() {
   // admin, un aviso para salir.
   const branding = useBranding();
   const previewing = useBrandingPreview();
+  const support = useSupportSwitch();
   // Grupos abiertos o cerrados a mano; sin tocar, abierto el que tiene la pantalla actual.
   const [groupOpen, setGroupOpen] = useState<Record<string, boolean>>({});
 
@@ -93,8 +95,9 @@ export function AppLayout() {
       onError: (e) => notifyError(e, 'No se pudo cerrar la sesión'),
     });
 
+  // Área: la administración (/admin) o el panel del cliente (también el de un admin que entró como el cliente).
   const entries = navFor(me.role);
-  const adminItems = entries.filter(isAdminOnly);
+  const home = me.role === 'admin' ? '/admin' : '/';
   const link = (item: NavItem) => (
     <NavLink
       key={item.to}
@@ -153,7 +156,7 @@ export function AppLayout() {
               aria-label="Menú"
               color="var(--app-header-fg)"
             />
-            <Link to="/" aria-label="Inicio" style={{ display: 'flex' }}>
+            <Link to={home} aria-label="Inicio" style={{ display: 'flex' }}>
               <BrandLogo h={28} />
             </Link>
             {previewing && (
@@ -163,6 +166,16 @@ export function AppLayout() {
             )}
           </Group>
           <Group gap="sm" wrap="nowrap">
+            {me.support && (
+              <Button
+                size="compact-sm"
+                variant="default"
+                loading={support.pending}
+                onClick={() => void support.exit(previewing ? '/admin/clients' : '/admin')}
+              >
+                Volver a administración
+              </Button>
+            )}
             {previewing && (
               <Button size="compact-xs" variant="default" onClick={exitPreview}>
                 Salir de la vista previa
@@ -174,16 +187,25 @@ export function AppLayout() {
                   {me.role === 'admin' ? 'Administración' : (me.client_name ?? 'Cliente')}
                 </Text>
                 {me.role === 'admin' && <Badge color="gray">admin</Badge>}
+                {me.support && <Badge color="yellow">soporte</Badge>}
               </Group>
               <Text size="xs" lineClamp={1} className="app-header-dim">
                 {me.name || me.email}
               </Text>
             </Stack>
-            <Tooltip label="Mi perfil" withArrow>
-              <ActionIcon variant="default" size="lg" component={Link} to="/profile" aria-label="Mi perfil">
-                <IconUserCircle size={18} />
-              </ActionIcon>
-            </Tooltip>
+            {!me.support && (
+              <Tooltip label="Mi perfil" withArrow>
+                <ActionIcon
+                  variant="default"
+                  size="lg"
+                  component={Link}
+                  to={me.role === 'admin' ? '/admin/profile' : '/profile'}
+                  aria-label="Mi perfil"
+                >
+                  <IconUserCircle size={18} />
+                </ActionIcon>
+              </Tooltip>
+            )}
             <Tooltip label="Salir" withArrow>
               <ActionIcon
                 variant="default"
@@ -202,13 +224,7 @@ export function AppLayout() {
       <AppShell.Navbar p="xs">
         <AppShell.Section grow>
           <Stack gap={2}>
-            {entries.filter((e) => !isAdminOnly(e)).map(entry)}
-            {adminItems.length > 0 && (
-              <Text className="label" px="sm" pt="md" pb={4}>
-                Administración
-              </Text>
-            )}
-            {adminItems.map(entry)}
+            {entries.map(entry)}
           </Stack>
         </AppShell.Section>
         <AppShell.Section>

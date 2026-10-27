@@ -100,6 +100,7 @@ def meta(monkeypatch):
     monkeypatch.setattr(settings, "wa_app_id", "2192489028351511")
     monkeypatch.setattr(settings, "wa_app_secret", APP_SECRET)
     monkeypatch.setattr(settings, "wa_config_id", "cfg-123")
+    monkeypatch.setattr(settings, "wa_embedded_signup", True)
     monkeypatch.setattr(settings, "wa_token_key", Fernet.generate_key().decode())
     deps.api_limiter.reset()
     yield m

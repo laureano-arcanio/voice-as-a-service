@@ -5,17 +5,9 @@ import type { TeamMember } from '@/api/types';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useSaveMember } from './api';
 
-/** Alta o edicion de una persona del equipo. clientId: el del alta (un admin lo elige antes). */
-export function MemberModal({
-  member,
-  clientId,
-  onClose,
-}: {
-  member: TeamMember | null;
-  clientId?: string;
-  onClose: () => void;
-}) {
-  const save = useSaveMember(clientId);
+/** Alta o edicion de una persona del equipo. */
+export function MemberModal({ member, onClose }: { member: TeamMember | null; onClose: () => void }) {
+  const save = useSaveMember();
   const form = useForm({
     initialValues: {
       name: member?.name ?? '',

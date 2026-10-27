@@ -113,6 +113,8 @@ class MeOut(BaseModel):
     welcome_pending: bool = False
     # Versiones vigentes de las condiciones y la politica que el usuario no acepto: el panel pide aceptarlas.
     legal_pending: list[LegalVersionOut] = []
+    # Un admin que entró como este cliente (header X-Atentina-Client): id, email y name son los del admin.
+    support: bool = False
 
 
 class LegalAcceptIn(BaseModel):
@@ -182,6 +184,8 @@ class TierIn(BaseModel):
     white_label: bool = Field(default=False, description="Marca blanca: el panel con el logo y los colores del cliente")
     advanced_reports: bool = Field(default=False, description="Reportes completos: Resultados, Mensajes, "
                                                               "Transferencias y Campañas (sin esto, Resumen y Llamadas)")
+    internal: bool = Field(default=False, description="Tier de Atentina: no se ofrece como plan ni cuenta en "
+                                                      "las estadisticas de la plataforma")
     # Autoservicio (docs/SUSCRIPCIONES_PLAN.md).
     price_ars: int | None = Field(default=None, ge=0,
                                   description="Precio mensual en pesos, lo que se cobra. null: no se vende por el dashboard; 0: gratis")
@@ -218,6 +222,7 @@ class TierUpdate(BaseModel):
     code_tools: bool | None = None
     white_label: bool | None = None
     advanced_reports: bool | None = None
+    internal: bool | None = None
     price_ars: int | None = Field(default=None, ge=0)
     public: bool | None = None
     sort: int | None = None
@@ -253,6 +258,7 @@ class TierOut(ORM):
     code_tools: bool
     white_label: bool
     advanced_reports: bool
+    internal: bool
     price_ars: int | None
     public: bool
     sort: int
@@ -461,7 +467,7 @@ class PhoneNumberBulkOut(BaseModel):
 # ---------- whatsapp ----------
 
 class WaAccountIn(BaseModel):
-    client_id: str
+    client_id: str = Field(default="", description="Admin: el cliente. Un admin que entró como el cliente: se ignora")
     agent_id: str = Field(description="Agente del cliente que atiende los mensajes")
     phone_number_id: str = Field(pattern=r"^\d{1,32}$", description="ID del numero en Meta")
     waba_id: str = Field(min_length=1, max_length=32)
@@ -515,11 +521,28 @@ class WaAccountOut(BaseModel):
     status_changed_at: UTCDateTime | None = None
     quality_rating: str | None = Field(default=None, description="GREEN, YELLOW, RED, NA o UNKNOWN (Meta)")
     messaging_limit: str | None = Field(default=None, description="current_limit de phone_number_quality_update")
-    source: Literal["manual", "embedded_signup", "coexistence"] = "manual"
+    source: Literal["manual", "embedded_signup", "coexistence", "own_app"] = "manual"
+    # own_app (la app de Meta del cliente): lo que pega en su app (Webhooks -> WhatsApp Business Account).
+    webhook_url: str | None = None
+    verify_token: str | None = None
+    has_app_secret: bool = False
     routes: list[WaRouteOut] = Field(description="Ruteo por contacto: pisa al agente por defecto en mensajes y "
                                                   "llamadas de WhatsApp")
     created_at: UTCDateTime
     updated_at: UTCDateTime
+
+
+class WaOwnAppIn(BaseModel):
+    """Alta con la app de Meta propia del cliente. Con el mismo phone_number_id de una cuenta own_app del
+    cliente, cambia el token y el secret (la URL de webhook y el verify token siguen iguales)."""
+    agent_id: str = Field(description="Agente del cliente que atiende los mensajes")
+    phone_number_id: str = Field(pattern=r"^\d{1,32}$", description="Identificador del número de teléfono (Meta)")
+    waba_id: str = Field(pattern=r"^\d{1,32}$", description="Identificador de la cuenta de WhatsApp Business")
+    access_token: str = Field(min_length=20, max_length=1024,
+                              description="Token permanente de un usuario de sistema con whatsapp_business_messaging "
+                                          "y whatsapp_business_management sobre la WABA")
+    app_secret: str = Field(min_length=16, max_length=128, description="Clave secreta de la app (firma de los webhooks)")
+    client_id: str | None = Field(default=None, description="Solo admin; a un usuario de cliente se le fuerza el suyo")
 
 
 class WaConfigOut(BaseModel):

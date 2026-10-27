@@ -1,22 +1,25 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { unwrap } from '@/api/request';
+import type { components } from '@/api/schema';
 import type { WaAccountIn, WaAccountPatch, WaRouteIn, WaSignupIn, WaTemplateIn } from '@/api/types';
+
+/** Cuerpo de la conexion con la app propia (aun no esta en `@/api/types`). */
+export type WaOwnAppIn = components['schemas']['WaOwnAppIn'];
 
 export const waKeys = {
   all: ['wa-accounts'] as const,
-  list: (clientId?: string) => ['wa-accounts', clientId ?? 'all'] as const,
+  list: ['wa-accounts', 'list'] as const,
   config: ['wa-config'] as const,
   templates: (accountId: string) => ['wa-templates', accountId] as const,
 };
 
-/** Numeros de WhatsApp: el admin ve todos; el usuario del cliente, los suyos. El token
- * y el PIN nunca vienen: solo has_token y has_pin. */
-export function useWaAccounts(clientId?: string) {
+/** Numeros de WhatsApp del cliente (o del cliente en soporte). El token, el PIN y el app secret
+ * nunca vienen: solo has_token, has_pin y has_app_secret. */
+export function useWaAccounts() {
   return useQuery({
-    queryKey: waKeys.list(clientId),
-    queryFn: () =>
-      unwrap(api.GET('/api/v1/whatsapp/accounts', { params: { query: { client_id: clientId } } })),
+    queryKey: waKeys.list,
+    queryFn: () => unwrap(api.GET('/api/v1/whatsapp/accounts')),
   });
 }
 
@@ -69,6 +72,16 @@ export function useSetWaRoutes() {
   return useMutation({
     mutationFn: ({ id, routes }: { id: string; routes: WaRouteIn[] }) =>
       unwrap(api.PUT('/api/v1/whatsapp/accounts/{account_id}/routes', { ...accountPath(id), body: routes })),
+    onSuccess: invalidate,
+  });
+}
+
+/** Conecta un numero con la app de Meta del cliente. Con el mismo phone_number_id actualiza el
+ * token y el secret (la URL del webhook y el verify token no cambian). */
+export function useConnectOwnApp() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (body: WaOwnAppIn) => unwrap(api.POST('/api/v1/whatsapp/accounts/own-app', { body })),
     onSuccess: invalidate,
   });
 }

@@ -39,7 +39,6 @@ import type { AgentDetail, Definition } from '@/api/types';
 import { confirmAction } from '@/components/confirm';
 import { JsonEditor } from '@/components/JsonEditor';
 import { QueryState } from '@/components/QueryState';
-import { useIsAdmin } from '@/features/auth/api';
 import { focusOffset } from '@/lib/editor';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { usePromptPreview, useSaveDefinition, validateDefinition } from './api';
@@ -80,12 +79,11 @@ const TAB_META: Record<Tab, { label: string; icon: ComponentType<{ size?: number
 const isPart = (t: Tab): t is Part => (PARTS as string[]).includes(t);
 const isEditing = (t: Tab) => isPart(t) || t === 'json';
 
-/** `?tab=`: `definicion` (la pestaña única de antes) abre Conversación; JSON es solo del admin. */
-function tabFromParams(params: URLSearchParams, isAdmin: boolean): Tab {
+/** `?tab=`: `definicion` (la pestaña única de antes) abre Conversación. */
+function tabFromParams(params: URLSearchParams): Tab {
   const raw = params.get('tab') ?? 'resumen';
   const t = (raw === 'definicion' ? 'conversacion' : raw) as Tab;
-  if (!TABS.includes(t)) return 'resumen';
-  return t === 'json' && !isAdmin ? 'resumen' : t;
+  return TABS.includes(t) ? t : 'resumen';
 }
 
 /** La definicion como la deja el formulario: para comparar sin importar el formato. */
@@ -198,10 +196,8 @@ function PromptModal({
 }
 
 export function AgentTabs({ agent }: { agent: AgentDetail }) {
-  // El cliente edita por formulario; JSON y prompt son internos (solo admin).
-  const isAdmin = useIsAdmin();
   const [params, setParams] = useSearchParams();
-  const tab = tabFromParams(params, isAdmin);
+  const tab = tabFromParams(params);
   const mode = tab === 'json' ? 'json' : 'form';
   const baseline = canonical(agent.definition);
   const [base, setBase] = useState(baseline);
@@ -332,14 +328,13 @@ export function AgentTabs({ agent }: { agent: AgentDetail }) {
   };
 
   const label = (path: string) => (mode === 'form' ? pathLabel(draft, path) : path);
-  const tabs = TABS.filter((t) => t !== 'json' || isAdmin);
 
   return (
     <Tabs value={tab} onChange={(v) => v && changeTab(v as Tab)} keepMounted>
       <UnsavedGuard dirty={dirty} />
-      {isAdmin && <PromptModal definition={current} opened={promptOpen} onClose={prompt.close} />}
+      <PromptModal definition={current} opened={promptOpen} onClose={prompt.close} />
       <Tabs.List mb="md">
-        {tabs.map((t) => {
+        {TABS.map((t) => {
           const Icon = TAB_META[t].icon;
           return (
             <Tabs.Tab key={t} value={t} leftSection={<Icon size={16} />}>
@@ -355,7 +350,7 @@ export function AgentTabs({ agent }: { agent: AgentDetail }) {
             <Group justify="space-between" wrap="wrap" gap="sm">
               <Group gap="xs">
                 <Text span c="dimmed" className="mono">
-                  {isAdmin ? `${agent.slug} · v${agent.version}` : `v${agent.version}`}
+                  {`${agent.slug} · v${agent.version}`}
                 </Text>
                 {dirty && <Badge color="yellow">Cambios sin guardar</Badge>}
                 {current === null ? (
@@ -369,16 +364,14 @@ export function AgentTabs({ agent }: { agent: AgentDetail }) {
                 ) : null}
               </Group>
               <Group gap="xs">
-                {isAdmin && (
-                  <Button
-                    variant="default"
-                    size="xs"
-                    leftSection={<IconFileText size={16} />}
-                    onClick={prompt.open}
-                  >
-                    Ver prompt
-                  </Button>
-                )}
+                <Button
+                  variant="default"
+                  size="xs"
+                  leftSection={<IconFileText size={16} />}
+                  onClick={prompt.open}
+                >
+                  Ver prompt
+                </Button>
                 <Button variant="default" size="xs" onClick={() => void discard()} disabled={!dirty}>
                   Descartar
                 </Button>

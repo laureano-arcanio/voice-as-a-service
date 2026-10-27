@@ -26,10 +26,8 @@ import { PlanGate } from '@/components/PlanGate';
 import { EmptyState, ErrorAlert } from '@/components/QueryState';
 import { agentOptions } from '@/features/agents/options';
 import { useAgents } from '@/features/agents/api';
-import { useIsAdmin } from '@/features/auth/api';
 import { useCalls, useStartCall } from '@/features/calls/api';
 import { CallError, CallStartedAlert } from '@/features/calls/NewCallForm';
-import { useClients } from '@/features/clients/api';
 import { useContacts } from '@/features/contacts/api';
 import { usePhoneNumbers } from '@/features/numbers/api';
 import { E164_RE, formatDateTime, formatDuration, formatValue } from '@/lib/format';
@@ -87,8 +85,8 @@ function ContactPicker({
   );
 }
 
-function RecentCalls({ clientId }: { clientId?: string }) {
-  const calls = useCalls({ client_id: clientId, mode: 'saliente', limit: RECENT, offset: 0 });
+function RecentCalls() {
+  const calls = useCalls({ mode: 'saliente', limit: RECENT, offset: 0 });
   const items = calls.data?.items ?? [];
   return (
     <Card>
@@ -162,9 +160,7 @@ function RecentCalls({ clientId }: { clientId?: string }) {
  * con el texto que se escribe acá, por ejemplo la consulta que dejó en la web.
  */
 export function OutboundCallsPage() {
-  const isAdmin = useIsAdmin();
-  const agents = useAgents(undefined, false);
-  const clients = useClients(isAdmin);
+  const agents = useAgents();
   const [agentId, setAgentId] = useState<string | null>(null);
   const [target, setTarget] = useState<Target>('contact');
   const [contact, setContact] = useState<Contact | null>(null);
@@ -179,7 +175,7 @@ export function OutboundCallsPage() {
   const list = agents.data ?? [];
   // Sin agente por defecto: llamar con uno que no se eligió es peor que pedir que se elija.
   const agent = list.find((a) => a.id === agentId);
-  const numbers = usePhoneNumbers({ clientId: agent?.client_id }, !!agent);
+  const numbers = usePhoneNumbers({}, !!agent);
   const clientNumbers = (numbers.data ?? []).filter((n) => n.client_id === agent?.client_id);
   const fromOptions = clientNumbers.map((n) => ({
     value: n.id,
@@ -239,7 +235,7 @@ export function OutboundCallsPage() {
                 <Select
                   label="Agente"
                   placeholder={agents.isPending ? 'Cargando…' : 'Elegí un agente'}
-                  data={agentOptions(list, clients.data, isAdmin)}
+                  data={agentOptions(list)}
                   value={agent?.id ?? null}
                   onChange={(v) => {
                     setAgentId(v);
@@ -350,7 +346,7 @@ export function OutboundCallsPage() {
           </Stack>
         </Card>
       </PlanGate>
-      <RecentCalls clientId={isAdmin ? agent?.client_id : undefined} />
+      <RecentCalls />
     </Stack>
   );
 }

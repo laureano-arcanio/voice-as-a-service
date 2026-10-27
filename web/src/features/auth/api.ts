@@ -3,6 +3,7 @@ import { api } from '@/api/client';
 import { toApiError } from '@/api/errors';
 import { unwrap } from '@/api/request';
 import type { Me } from '@/api/types';
+import { setSupportClientId } from '@/features/support/session';
 
 export const meKey = ['me'] as const;
 
@@ -15,7 +16,7 @@ export function resetSession(qc: QueryClient, me: Me | null) {
 }
 
 /** Usuario de la sesion, o null si no hay (401). */
-async function fetchMe(): Promise<Me | null> {
+export async function fetchMe(): Promise<Me | null> {
   const { data, error, response } = await api.GET('/api/v1/auth/me');
   if (response.status === 401) return null;
   if (!response.ok) throw toApiError(error, response.status);
@@ -39,6 +40,7 @@ export function useLogin() {
     mutationFn: (body: { email: string; password: string }) =>
       unwrap(api.POST('/api/v1/auth/login', { body })),
     onSuccess: (me) => {
+      setSupportClientId(null);
       resetSession(qc, me);
     },
   });
@@ -93,6 +95,7 @@ export function useLogout() {
   return useMutation({
     mutationFn: () => unwrap(api.POST('/api/v1/auth/logout')),
     onSettled: () => {
+      setSupportClientId(null);
       resetSession(qc, null);
     },
   });
@@ -156,6 +159,7 @@ export function useChangeEmail() {
   });
 }
 
+/** Admin en la administración (/admin). Un admin que entró como un cliente es `client` (`me.support`). */
 export function useIsAdmin(): boolean {
   const { data } = useMe();
   return data?.role === 'admin';

@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { useIsAdmin } from '@/features/auth/api';
 import { useDailyStats, useLiveCalls, useStats } from '@/features/calls/api';
 import { NewCallForm } from '@/features/calls/NewCallForm';
+import { useAreaPath } from '@/features/support/paths';
 import { formatDate } from '@/lib/format';
 import { DailyChart } from './DailyChart';
 import { DashboardFiltersBar } from './DashboardFiltersBar';
@@ -16,6 +17,7 @@ import { useDashboardFilters } from './useDashboardFilters';
 
 export function DashboardPage() {
   const isAdmin = useIsAdmin();
+  const areaPath = useAreaPath();
   const { filters, update, dates, apiFilters } = useDashboardFilters();
   const stats = useStats(apiFilters);
   const daily = useDailyStats({ ...apiFilters, date_from: dates.from, date_to: dates.to });
@@ -41,7 +43,7 @@ export function DashboardPage() {
           <>
             <Button
               component={Link}
-              to={`/reports${listParams ? `?${listParams}` : ''}`}
+              to={areaPath(`/reports${listParams ? `?${listParams}` : ''}`)}
               variant="default"
               leftSection={<IconChartHistogram size={18} />}
             >
@@ -49,7 +51,7 @@ export function DashboardPage() {
             </Button>
             <Button
               component={Link}
-              to={`/calls${listParams ? `?${listParams}` : ''}`}
+              to={areaPath(`/calls${listParams ? `?${listParams}` : ''}`)}
               variant="default"
               leftSection={<IconMessages size={18} />}
             >

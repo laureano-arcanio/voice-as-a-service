@@ -39,7 +39,7 @@ export function NewClientModal({ opened, onClose }: { opened: boolean; onClose: 
                 if (c.invite) notifyInvite(c.invite, `Cliente ${c.name} creado. `);
                 else notifySuccess(`Cliente ${c.name} creado.`);
                 onClose();
-                void navigate(`/clients/${c.id}`);
+                void navigate(`/admin/clients/${c.id}`);
               },
               onError: (e) => notifyError(e, 'No se pudo crear el cliente'),
             },

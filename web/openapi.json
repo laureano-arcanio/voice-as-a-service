@@ -3952,7 +3952,7 @@
      "whatsapp"
     ],
     "summary": "Create Account",
-    "description": "Alta manual: 409 si el phone_number_id ya esta, 404 si el agente no es del cliente.\nEl token se guarda cifrado (503 sin WA_TOKEN_KEY).",
+    "description": "Alta manual (un numero de nuestra WABA): admin, o un admin que entró como el cliente (va a ese cliente).\n409 si el phone_number_id ya esta, 404 si el agente no es del cliente. El token se guarda cifrado (503 sin\nWA_TOKEN_KEY).",
     "operationId": "create_account_api_v1_whatsapp_accounts_post",
     "security": [
      {
@@ -4163,6 +4163,53 @@
       }
      }
     }
+   }
+  },
+  "/api/v1/whatsapp/accounts/own-app": {
+   "post": {
+    "tags": [
+     "whatsapp"
+    ],
+    "summary": "Connect Own App",
+    "description": "Conecta un número con la app de Meta propia del cliente (docs/ADMIN_SOPORTE_PLAN.md, sección 4): valida\ncon Meta que el número sea de la WABA, suscribe su app a la WABA y devuelve la URL de webhook y el verify\ntoken para pegar en su app. 201 también si quedó `pending` (falló la suscripción: ver status_reason).\n409 si el número es de otra cuenta; 400 signup_mismatch si no es de esa WABA.",
+    "operationId": "connect_own_app_api_v1_whatsapp_accounts_own_app_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/WaOwnAppIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WaAccountOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
    }
   },
   "/api/v1/whatsapp/signup": {
@@ -21715,6 +21762,11 @@
       "type": "array",
       "title": "Legal Pending",
       "default": []
+     },
+     "support": {
+      "type": "boolean",
+      "title": "Support",
+      "default": false
      }
     },
     "type": "object",
@@ -26526,6 +26578,12 @@
       "description": "Reportes completos: Resultados, Mensajes, Transferencias y Campañas (sin esto, Resumen y Llamadas)",
       "default": false
      },
+     "internal": {
+      "type": "boolean",
+      "title": "Internal",
+      "description": "Tier de Atentina: no se ofrece como plan ni cuenta en las estadisticas de la plataforma",
+      "default": false
+     },
      "price_ars": {
       "anyOf": [
        {
@@ -26816,6 +26874,10 @@
       "type": "boolean",
       "title": "Advanced Reports"
      },
+     "internal": {
+      "type": "boolean",
+      "title": "Internal"
+     },
      "price_ars": {
       "anyOf": [
        {
@@ -26877,6 +26939,7 @@
      "code_tools",
      "white_label",
      "advanced_reports",
+     "internal",
      "price_ars",
      "public",
      "sort",
@@ -27221,6 +27284,17 @@
        }
       ],
       "title": "Advanced Reports"
+     },
+     "internal": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Internal"
      },
      "price_ars": {
       "anyOf": [
@@ -28122,7 +28196,9 @@
     "properties": {
      "client_id": {
       "type": "string",
-      "title": "Client Id"
+      "title": "Client Id",
+      "description": "Admin: el cliente. Un admin que entró como el cliente: se ignora",
+      "default": ""
      },
      "agent_id": {
       "type": "string",
@@ -28171,7 +28247,6 @@
     },
     "type": "object",
     "required": [
-     "client_id",
      "agent_id",
      "phone_number_id",
      "waba_id",
@@ -28317,10 +28392,38 @@
       "enum": [
        "manual",
        "embedded_signup",
-       "coexistence"
+       "coexistence",
+       "own_app"
       ],
       "title": "Source",
       "default": "manual"
+     },
+     "webhook_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Webhook Url"
+     },
+     "verify_token": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Verify Token"
+     },
+     "has_app_secret": {
+      "type": "boolean",
+      "title": "Has App Secret",
+      "default": false
      },
      "routes": {
       "items": {
@@ -28982,6 +29085,63 @@
      "created_at"
     ],
     "title": "WaOptoutOut"
+   },
+   "WaOwnAppIn": {
+    "properties": {
+     "agent_id": {
+      "type": "string",
+      "title": "Agent Id",
+      "description": "Agente del cliente que atiende los mensajes"
+     },
+     "phone_number_id": {
+      "type": "string",
+      "pattern": "^\\d{1,32}$",
+      "title": "Phone Number Id",
+      "description": "Identificador del número de teléfono (Meta)"
+     },
+     "waba_id": {
+      "type": "string",
+      "pattern": "^\\d{1,32}$",
+      "title": "Waba Id",
+      "description": "Identificador de la cuenta de WhatsApp Business"
+     },
+     "access_token": {
+      "type": "string",
+      "maxLength": 1024,
+      "minLength": 20,
+      "title": "Access Token",
+      "description": "Token permanente de un usuario de sistema con whatsapp_business_messaging y whatsapp_business_management sobre la WABA"
+     },
+     "app_secret": {
+      "type": "string",
+      "maxLength": 128,
+      "minLength": 16,
+      "title": "App Secret",
+      "description": "Clave secreta de la app (firma de los webhooks)"
+     },
+     "client_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client Id",
+      "description": "Solo admin; a un usuario de cliente se le fuerza el suyo"
+     }
+    },
+    "type": "object",
+    "required": [
+     "agent_id",
+     "phone_number_id",
+     "waba_id",
+     "access_token",
+     "app_secret"
+    ],
+    "title": "WaOwnAppIn",
+    "description": "Alta con la app de Meta propia del cliente. Con el mismo phone_number_id de una cuenta own_app del\ncliente, cambia el token y el secret (la URL de webhook y el verify token siguen iguales)."
    },
    "WaRecipientIn": {
     "properties": {

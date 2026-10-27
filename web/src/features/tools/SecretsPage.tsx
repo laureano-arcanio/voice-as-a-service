@@ -5,7 +5,6 @@ import {
   Button,
   Card,
   Group,
-  Select,
   Stack,
   Table,
   Text,
@@ -14,18 +13,15 @@ import {
 } from '@mantine/core';
 import { IconKey, IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link } from 'react-router';
 import type { ClientSecret, Credential } from '@/api/types';
 import { Dash } from '@/components/Badges';
 import { confirmAction } from '@/components/confirm';
 import { PageHeader } from '@/components/PageHeader';
 import { PlanGate } from '@/components/PlanGate';
 import { EmptyState, QueryState } from '@/components/QueryState';
-import { useIsAdmin } from '@/features/auth/api';
-import { useClients } from '@/features/clients/api';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import {
-  toolsHref,
   useClientSecrets,
   useCredentials,
   useDeleteClientSecret,
@@ -37,14 +33,14 @@ import { CREDENTIAL_TYPE_LABEL } from './credentials';
 import { type SecretDialog, SecretModal } from './SecretModal';
 
 /** Links a las herramientas, separados por coma. */
-function ToolLinks({ slugs, href }: { slugs: string[]; href: (p: string) => string }) {
+function ToolLinks({ slugs }: { slugs: string[] }) {
   if (!slugs.length) return <Dash />;
   return (
     <Text size="sm">
       {slugs.map((t, i) => (
         <span key={t}>
           {i > 0 && ', '}
-          <Anchor component={Link} to={href(`/tools/${t}`)} className="mono" inherit>
+          <Anchor component={Link} to={`/tools/${t}`} className="mono" inherit>
             {t}
           </Anchor>
         </span>
@@ -53,7 +49,7 @@ function ToolLinks({ slugs, href }: { slugs: string[]; href: (p: string) => stri
   );
 }
 
-function CredentialsCard({ clientId, href }: { clientId: string; href: (p: string) => string }) {
+function CredentialsCard({ clientId }: { clientId: string }) {
   const credentials = useCredentials(clientId);
   const remove = useDeleteCredential(clientId);
   const [modal, setModal] = useState<{ edit?: Credential } | null>(null);
@@ -129,7 +125,7 @@ function CredentialsCard({ clientId, href }: { clientId: string; href: (p: strin
                         </Group>
                       </Table.Td>
                       <Table.Td>
-                        <ToolLinks slugs={c.used_by} href={href} />
+                        <ToolLinks slugs={c.used_by} />
                       </Table.Td>
                       <Table.Td>
                         <Group gap={4} justify="flex-end" wrap="nowrap">
@@ -170,7 +166,7 @@ function CredentialsCard({ clientId, href }: { clientId: string; href: (p: strin
   );
 }
 
-function ClientSecretsCard({ clientId, href }: { clientId: string; href: (p: string) => string }) {
+function ClientSecretsCard({ clientId }: { clientId: string }) {
   const secrets = useClientSecrets(clientId);
   const remove = useDeleteClientSecret(clientId);
   const [dialog, setDialog] = useState<SecretDialog | null>(null);
@@ -247,7 +243,7 @@ function ClientSecretsCard({ clientId, href }: { clientId: string; href: (p: str
                       <Table.Td>
                         {s.used_by.length || s.credentials.length ? (
                           <Stack gap={0}>
-                            {s.used_by.length > 0 && <ToolLinks slugs={s.used_by} href={href} />}
+                            {s.used_by.length > 0 && <ToolLinks slugs={s.used_by} />}
                             {s.credentials.length > 0 && (
                               <Text size="xs" c="dimmed">
                                 Credencial {s.credentials.join(', ')}
@@ -329,22 +325,7 @@ function ClientSecretsCard({ clientId, href }: { clientId: string; href: (p: str
 
 /** Credenciales y secretos del cliente: lo que usan las herramientas para entrar a sus APIs. */
 export function SecretsPage() {
-  const isAdmin = useIsAdmin();
   const clientId = useToolsClient();
-  const [, setParams] = useSearchParams();
-  const clients = useClients(isAdmin);
-  const href = (path: string) => toolsHref(path, clientId, isAdmin);
-
-  const setClient = (v: string | null) =>
-    setParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        if (v) next.set('client', v);
-        else next.delete('client');
-        return next;
-      },
-      { replace: true },
-    );
 
   return (
     <Stack gap="md">
@@ -352,29 +333,11 @@ export function SecretsPage() {
         title="Secretos"
         description="Las credenciales y los tokens con los que tus herramientas entran a tus sistemas. Se cargan una vez y los usan todos los agentes."
       />
-      {isAdmin && (
-        <Group>
-          <Select
-            label="Cliente"
-            placeholder="Elegí un cliente"
-            data={(clients.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
-            value={clientId ?? null}
-            onChange={setClient}
-            clearable
-            searchable
-            w={260}
-          />
-        </Group>
-      )}
       <PlanGate feature="custom_tools" what="herramientas para tus agentes">
-        {!clientId ? (
-          <Card>
-            <EmptyState>Elegí un cliente para ver sus secretos.</EmptyState>
-          </Card>
-        ) : (
+        {clientId && (
           <Stack gap="md">
-            <CredentialsCard clientId={clientId} href={href} />
-            <ClientSecretsCard clientId={clientId} href={href} />
+            <CredentialsCard clientId={clientId} />
+            <ClientSecretsCard clientId={clientId} />
           </Stack>
         )}
       </PlanGate>

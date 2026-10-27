@@ -9,7 +9,7 @@ from ...models import Agent, AgentVersion, User
 from ...services import agents as service
 from ...services import call_links
 from ...services.errors import Invalid, NotFound
-from ..deps import DB, AdminPrincipal, CurrentPrincipal, scoped_client_id
+from ..deps import DB, CurrentPrincipal, scoped_client_id
 from ..schemas import (
     AgentCreate,
     AgentDetail,
@@ -61,7 +61,7 @@ def validate_definition(body: DefinitionIn, _: CurrentPrincipal):
 
 
 @router.post("/agents/prompt", response_model=PromptOut)
-def preview_prompt(body: PromptIn, _: AdminPrincipal):
+def preview_prompt(body: PromptIn, _: CurrentPrincipal):
     """El prompt de sistema que arma el motor con esta definicion (sin guardarla). Con tu propio agente, solo el
     opcional que se antepone a la conversacion (el prompt es del cliente)."""
     w = Workflow.model_validate(service.normalize_definition(body.definition, body.definition.get("id") or "borrador", 1))

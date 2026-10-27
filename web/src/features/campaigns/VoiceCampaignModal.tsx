@@ -20,8 +20,6 @@ import { useNavigate } from 'react-router';
 import type { CampaignCreated, CampaignIn } from '@/api/types';
 import { CopyIcon } from '@/components/Copy';
 import { useAgents } from '@/features/agents/api';
-import { useIsAdmin } from '@/features/auth/api';
-import { useClients } from '@/features/clients/api';
 import { RejectedTable } from '@/features/contacts/ContactModals';
 import { usePhoneNumbers } from '@/features/numbers/api';
 import { useVoices } from '@/features/voices/api';
@@ -86,16 +84,8 @@ function Created({ result, onClose }: { result: CampaignCreated; onClose: () => 
   );
 }
 
-export function VoiceCampaignModal({
-  clientId: initialClient,
-  onClose,
-}: {
-  clientId?: string;
-  onClose: () => void;
-}) {
-  const isAdmin = useIsAdmin();
+export function VoiceCampaignModal({ onClose }: { onClose: () => void }) {
   const create = useCreateCampaign();
-  const clients = useClients(isAdmin);
   const [created, setCreated] = useState<CampaignCreated | null>(null);
   const [recipients, setPickedRecipients] = useState<Recipients>(EMPTY_RECIPIENTS);
   const [noRecipients, setNoRecipients] = useState(false);
@@ -105,7 +95,6 @@ export function VoiceCampaignModal({
   };
   const form = useForm({
     initialValues: {
-      client_id: initialClient ?? '',
       name: '',
       agent_id: '',
       from_number_id: '',
@@ -124,7 +113,6 @@ export function VoiceCampaignModal({
       callback_secret: '',
     },
     validate: (values) => ({
-      ...(isAdmin && !values.client_id ? { client_id: 'Elegí un cliente' } : {}),
       ...(values.name.trim() ? {} : { name: 'Requerido' }),
       ...(values.agent_id ? {} : { agent_id: 'Elegí el agente que llama' }),
       ...(!values.callback_url.trim() || /^https:\/\//i.test(values.callback_url.trim())
@@ -135,14 +123,12 @@ export function VoiceCampaignModal({
   });
   const api = fieldApi(form);
   const v = form.values;
-  const client = isAdmin ? v.client_id || undefined : undefined;
-  const ready = !isAdmin || !!v.client_id;
 
-  const plan = usePlan(client, ready);
-  const agents = useAgents(client, false, ready);
-  const numbers = usePhoneNumbers({ clientId: client }, ready);
+  const plan = usePlan();
+  const agents = useAgents();
+  const numbers = usePhoneNumbers();
   const voices = useVoices();
-  const accounts = useWaAccounts(client);
+  const accounts = useWaAccounts();
   const connected = (accounts.data ?? []).filter((a) => a.active && a.status === 'connected');
   const account = connected.find((a) => a.id === v.f_account);
   const templates = useWaTemplates(account?.id);
@@ -186,7 +172,7 @@ export function VoiceCampaignModal({
       create.mutate(
         {
           channel: 'voice',
-          client_id: isAdmin ? values.client_id : null,
+          client_id: null,
           name: values.name.trim(),
           agent_id: values.agent_id,
           from_number_id: values.from_number_id || null,
@@ -227,7 +213,7 @@ export function VoiceCampaignModal({
     );
 
   const starting = v.starts_at ? 'Crear y programar' : 'Crear e iniciar';
-  const disabled = !ready || !hasVoice;
+  const disabled = !hasVoice;
 
   return (
     <Modal opened onClose={onClose} title="Nueva campaña de llamadas" size="xl">
@@ -238,21 +224,6 @@ export function VoiceCampaignModal({
               Tu plan ({p?.tier_name}) no incluye campañas por llamadas. Podés ver las opciones en la pantalla
               Plan.
             </Alert>
-          )}
-          {isAdmin && (
-            <Select
-              label="Cliente"
-              placeholder="Elegí un cliente"
-              data={(clients.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
-              searchable
-              {...form.getInputProps('client_id')}
-              onChange={(val) => {
-                form.setFieldValue('client_id', val ?? '');
-                for (const k of ['agent_id', 'from_number_id', 'f_account', 'f_template', 'f_agent'] as const)
-                  form.setFieldValue(k, '');
-                setRecipients(EMPTY_RECIPIENTS);
-              }}
-            />
           )}
           <TextInput
             label="Nombre"
@@ -276,9 +247,10 @@ export function VoiceCampaignModal({
               description="El que ve quien recibe la llamada."
               placeholder="El predeterminado"
               disabled={disabled}
-              data={(numbers.data ?? [])
-                .filter((n) => !isAdmin || n.client_id === client)
-                .map((n) => ({ value: n.id, label: n.label ? `${n.e164} · ${n.label}` : n.e164 }))}
+              data={(numbers.data ?? []).map((n) => ({
+                value: n.id,
+                label: n.label ? `${n.e164} · ${n.label}` : n.e164,
+              }))}
               clearable
               {...form.getInputProps('from_number_id')}
               onChange={(val) => form.setFieldValue('from_number_id', val ?? '')}
@@ -313,13 +285,7 @@ export function VoiceCampaignModal({
           )}
 
           <Divider label="Destinatarios" labelPosition="left" mt="xs" />
-          {ready ? (
-            <RecipientsPicker clientId={client} value={recipients} onChange={setRecipients} />
-          ) : (
-            <Text size="sm" c="dimmed">
-              Elegí un cliente para ver sus contactos.
-            </Text>
-          )}
+          <RecipientsPicker value={recipients} onChange={setRecipients} />
           {noRecipients && (
             <Text size="sm" c="red">
               Elegí a quién llamar: etiquetas, contactos o un CSV.

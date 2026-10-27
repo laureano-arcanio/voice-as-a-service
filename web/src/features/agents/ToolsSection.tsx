@@ -12,8 +12,7 @@ import {
 } from '@mantine/core';
 import { Link } from 'react-router';
 import { QueryState } from '@/components/QueryState';
-import { useIsAdmin } from '@/features/auth/api';
-import { toolsHref, useAgentSecrets, useClientSecrets, useTools } from '@/features/tools/api';
+import { useAgentSecrets, useClientSecrets, useTools } from '@/features/tools/api';
 import { CLIENT_TOOL_TYPE } from '@/lib/labels';
 import { type ClientToolGrantDraft, type Draft, newKey, TOOL_SETTINGS } from './draft';
 
@@ -30,7 +29,6 @@ export function ClientToolsEditor({
   /** El agente guardado: sus valores propios cuentan como cargados. */
   agentId?: string;
 }) {
-  const isAdmin = useIsAdmin();
   const tools = useTools(clientId);
   const clientSecrets = useClientSecrets(clientId);
   const agentSecrets = useAgentSecrets(agentId);
@@ -40,7 +38,7 @@ export function ClientToolsEditor({
     ...(agentSecrets.data ?? []).filter((s) => s.source === 'agent').map((s) => s.name),
   ]);
   const secretsLoaded = clientSecrets.isSuccess && (!agentId || agentSecrets.isSuccess);
-  const toolsLink = toolsHref('/tools', clientId, isAdmin);
+  const toolsLink = '/tools';
   const setGrants = (fn: (g: ClientToolGrantDraft[]) => ClientToolGrantDraft[]) =>
     update((d) => ({ ...d, clientTools: fn(d.clientTools) }));
 
@@ -101,7 +99,7 @@ export function ClientToolsEditor({
                         <Group gap={6}>
                           <Anchor
                             component={Link}
-                            to={toolsHref(`/tools/${t.slug}`, clientId, isAdmin)}
+                            to={`/tools/${t.slug}`}
                             className="mono"
                             size="sm"
                             fw={600}

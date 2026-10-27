@@ -15,8 +15,6 @@ import { useState } from 'react';
 import { errorMessage } from '@/api/errors';
 import type { WaAccount, WaConfig } from '@/api/types';
 import { useAgents } from '@/features/agents/api';
-import { useCurrentUser } from '@/features/auth/api';
-import { useClients } from '@/features/clients/api';
 import { useWaSignup } from './api';
 import { WA_MANAGER_URL } from './labels';
 import { SignupAbort, useEmbeddedSignup } from './useEmbeddedSignup';
@@ -73,17 +71,13 @@ function SignupDone({ account, onClose }: { account: WaAccount; onClose: () => v
  * y mandar a la API el código (vence a los 30 s) con los IDs del número.
  */
 export function SignupModal({ config, onClose }: { config: WaConfig; onClose: () => void }) {
-  const me = useCurrentUser();
-  const isAdmin = me.role === 'admin';
-  const clients = useClients(isAdmin);
-  const [clientId, setClientId] = useState<string | null>(isAdmin ? null : me.client_id);
   const [agentId, setAgentId] = useState<string | null>(null);
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
   const [phase, setPhase] = useState<Phase>('form');
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<WaAccount | null>(null);
-  const agents = useAgents(clientId ?? undefined, false, !!clientId);
+  const agents = useAgents(undefined, false);
   const signup = useWaSignup();
   const fb = useEmbeddedSignup(config);
   const insecure = typeof window !== 'undefined' && window.location.protocol !== 'https:';
@@ -91,7 +85,7 @@ export function SignupModal({ config, onClose }: { config: WaConfig; onClose: ()
   const busy = phase !== 'form';
 
   const start = () => {
-    if (!agentId || !clientId || pinError) return;
+    if (!agentId || pinError) return;
     setError(null);
     setPhase('popup');
     // launch() abre el popup en este mismo click (si no, el navegador lo bloquea).
@@ -106,7 +100,7 @@ export function SignupModal({ config, onClose }: { config: WaConfig; onClose: ()
             phone_number_id: r.phone_number_id,
             business_id: r.business_id,
             agent_id: agentId,
-            client_id: isAdmin ? clientId : null,
+            client_id: null,
             pin: pin || null,
           },
           {
@@ -149,31 +143,14 @@ export function SignupModal({ config, onClose }: { config: WaConfig; onClose: ()
               Desde esta dirección la ventana va a fallar.
             </Alert>
           )}
-          {isAdmin && (
-            <Select
-              label="Cliente"
-              placeholder="Elegí el cliente"
-              description="A qué cliente de Atentina pertenece el número. La cuenta de Facebook se pide después, en la ventana de Meta."
-              // Sin esto Chrome toma el modal (tiene el PIN) por un login y escribe el email del usuario acá.
-              autoComplete="off"
-              data={(clients.data ?? []).filter((c) => c.active).map((c) => ({ value: c.id, label: c.name }))}
-              value={clientId}
-              onChange={(v) => {
-                setClientId(v);
-                setAgentId(null);
-              }}
-              searchable
-              disabled={busy}
-            />
-          )}
           <Select
             label="Agente que responde"
-            placeholder={clientId ? 'Elegí el agente' : 'Elegí primero el cliente'}
+            placeholder="Elegí el agente"
             data={(agents.data ?? []).map((a) => ({ value: a.id, label: a.name }))}
             value={agentId}
             onChange={setAgentId}
             autoComplete="off"
-            disabled={!clientId || busy}
+            disabled={busy}
             searchable
             nothingFoundMessage="Sin agentes"
           />

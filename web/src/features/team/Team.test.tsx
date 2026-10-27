@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { HandoffArea, TeamMember } from '@/api/types';
-import { ADMIN, CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
+import { CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
 import { scheduleError, toDraft, toSchedule } from './schedule';
 import { TeamPage } from './TeamPage';
 
@@ -168,26 +168,6 @@ describe('equipo: pantalla', () => {
     expect(within(posventa).getByText('Atiende ahora')).toBeInTheDocument();
     expect(within(posventa).getByText('Todos los días a toda hora')).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'Cliente' })).not.toBeInTheDocument();
-  });
-
-  it('admin sin cliente: ve todos pero no puede cargar', async () => {
-    mockApi();
-    renderWithProviders(<TeamPage />, { me: ADMIN });
-    expect((await screen.findAllByRole('columnheader', { name: 'Cliente' })).length).toBe(2);
-    expect(screen.getByRole('button', { name: /Agregar persona/ })).toHaveAttribute('data-disabled', 'true');
-    expect(screen.getByRole('button', { name: /Crear área/ })).toHaveAttribute('data-disabled', 'true');
-  });
-
-  it('admin con cliente: el alta va con su client_id', async () => {
-    const calls = mockApi({ 'POST /api/v1/team': () => jsonResponse(ANA, 201) });
-    renderWithProviders(<TeamPage />, { me: ADMIN, path: '/team?client=c-1' });
-    await userEvent.click(await screen.findByRole('button', { name: /Agregar persona/ }));
-    const dialog = await screen.findByRole('dialog', { name: 'Nueva persona del equipo' });
-    await userEvent.type(within(dialog).getByLabelText('Nombre'), 'Ana');
-    await userEvent.type(within(dialog).getByLabelText('Teléfono'), '351 555-1234');
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Agregar persona' }));
-    await waitFor(() => expect(calls.some((c) => c.method === 'POST')).toBe(true));
-    expect(calls.find((c) => c.method === 'POST')?.search).toBe('?client_id=c-1');
   });
 
   it('vacío: explica qué cargar', async () => {
