@@ -19,17 +19,17 @@ Generado desde `app/mcp/catalog.py` con `make mcp-docs`: no editar a mano. Dise�
 
 | Función | Qué es | Planes (hoy) |
 |---|---|---|
-| `outbound_calls` | Llamadas salientes (con un número asignado) | Mostrador, Sucursal y Central |
-| `whatsapp` | WhatsApp | Mostrador, Sucursal y Central |
-| `contacts` | Agenda de contactos | Mostrador (500), Sucursal (5.000) y Central (sin tope) |
-| `team` | Equipo y derivaciones | Mostrador (1 persona), Sucursal (2) y Central (sin tope) |
-| `call_links` | Link para llamar | Free (1), Mostrador, Sucursal y Central |
-| `campaigns_whatsapp` | Campañas de WhatsApp | Sucursal y Central |
-| `campaigns_voice` | Campañas de llamadas | Sucursal (de a 1) y Central (hasta 3) |
-| `external_agent` | Agente propio (tu endpoint, nuestra voz) | Central |
-| `custom_tools` | Herramientas: llamadas a tus APIs | Sucursal (10) y Central (sin tope) |
-| `code_tools` | Herramientas en código (JavaScript) | Central |
-| `white_label` | Panel con tu marca (logo y colores) | Central |
+| `outbound_calls` | Llamadas salientes (con un número asignado) | Mostrador, Sucursal y Red |
+| `whatsapp` | WhatsApp | Mostrador, Sucursal y Red |
+| `contacts` | Agenda de contactos | Mostrador (500), Sucursal (5.000) y Red (sin tope) |
+| `team` | Equipo y derivaciones | Mostrador (1 persona), Sucursal (2) y Red (sin tope) |
+| `call_links` | Link para llamar | Free (1), Mostrador, Sucursal y Red |
+| `campaigns_whatsapp` | Campañas de WhatsApp | Sucursal y Red |
+| `campaigns_voice` | Campañas de llamadas | Sucursal (de a 1) y Red (a medida) |
+| `external_agent` | Agente propio (tu endpoint, nuestra voz) | Sucursal y Red |
+| `custom_tools` | Herramientas: llamadas a tus APIs | Sucursal (10) y Red (sin tope) |
+| `code_tools` | Herramientas en código (JavaScript) | Sucursal y Red |
+| `white_label` | Panel con tu marca (logo y colores) | Red |
 
 ## `account`: Cuenta, plan y uso
 

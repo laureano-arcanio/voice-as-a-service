@@ -85,7 +85,7 @@ def tools_for(toolsets: str | None) -> list[dict]:
             for t in (server._describe(x, openapi) for x in server._visible(toolsets, who))]
 
 
-PLAN_STUB = json.dumps({"plan": "Central", "free": False,
+PLAN_STUB = json.dumps({"plan": "Sucursal", "free": False,
                         "tools": {"available": sorted(catalog.BY_NAME), "unavailable": [], "needs_oauth": []}})
 
 

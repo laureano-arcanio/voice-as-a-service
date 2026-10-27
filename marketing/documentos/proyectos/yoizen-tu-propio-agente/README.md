@@ -69,8 +69,9 @@ registro. Primera presentación del proyecto de documentos (la plantilla 16:9 es
   `Tu agente respondió · streaming · «Hola, …»` reproduce el aviso del panel sin la cifra de ejemplo de la documentación (420 ms), para que no se tome por una medición.
 - **Latencia (10):** solo el concepto de la página. "Desde Azure EE.UU. se suma la red: a medir en el piloto" sale
   del README del video de Yoizen (20-oct).
-- **Plan Red (9 y 12):** sección "Planes" de la página; en la base el tier se llama **Central**
-  (`tiers.external_agent = true` en Central e Interno, consultado el 26-oct-2026). Precio "a medida"
+- **Plan Red (9 y 12):** sección "Planes" de la página; en la base el tier se llamaba **Central**
+  (`tiers.external_agent = true` en Central e Interno, consultado el 26-oct-2026; ese mismo día Central se borró:
+  Red es a medida, sin tier, y la función está en Sucursal e Interno). Precio "a medida"
   (`landing/src/data/site.ts`).
 - **"La conexión SIP con su Asterisk sigue en evaluación" (12):** como en la propuesta y el video del 20-oct.
 - **Contacto (12):** `landing/src/data/site.ts` (0800-220-1233, atentina.com.ar, hola@atentina.com.ar,

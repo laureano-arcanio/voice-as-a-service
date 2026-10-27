@@ -574,7 +574,7 @@ Registro y cobro por transferencia ([`SUSCRIPCIONES_PLAN.md`](SUSCRIPCIONES_PLAN
   tarjeta) o por **transferencia** (ve los datos bancarios y manda el comprobante por email).
 - **Lo que el plan no incluye** ([`FUNCIONES_POR_PLAN_PLAN.md`](FUNCIONES_POR_PLAN_PLAN.md)): el cliente ve
   un candado en la navegación (Llamadas, WhatsApp, Contactos, Equipo, Campañas) y, en esa pantalla, un aviso
-  con borde amarillo, en qué planes está ("Disponible en los planes Mostrador, Sucursal y Central") y "Mejorar mi plan"; lo de abajo queda atenuado y sin responder. Con plan gratis, "Free"
+  con borde amarillo, en qué planes está ("Disponible en los planes Mostrador y Sucursal") y "Mejorar mi plan"; lo de abajo queda atenuado y sin responder. Con plan gratis, "Free"
   al lado de Plan. Sale de los campos del tier (minutos salientes y números, canales de campañas, contactos,
   equipo, links y la casilla **WhatsApp**) y de los ajustes del cliente: un ajuste abre la función. Sin
   salientes, "Nueva llamada" de Inicio y Probar del agente quedan fijos en modo prueba.

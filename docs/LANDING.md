@@ -51,7 +51,8 @@ Cloudflare Tunnel. No hay backend aparte ni base nueva: costo adicional cero.
   formato que los demás planes): 20 minutos por mes, llamadas web, acceso a la plataforma web y acceso a la API. Mostrador y
   Sucursal arrancan con "Telefonía incluida" y "Todo lo que ofrece Free". Es contenido de la landing: el tier real se crea
   en Tiers (`max_phone_numbers` en 0; el tope de pedidos por minuto de la API, los cupos `api_*` y la cantidad de agentes
-  están por definir). Planes: Mostrador, Sucursal y Red (Central se quitó).
+  están por definir). Planes: Free, Mostrador, Sucursal y Red. Red es a medida (una instancia propia, la cotiza un asesor) y no
+  es un tier de la base; el tier Central se borró el 26-oct-2026.
 - **Registro (`/registro`):** "Empezar gratis" y los planes con precio llevan a `/registro` (los pagos, con
   `?plan=<nombre>`); "A medida" sigue yendo al contacto. Free: un paso (empresa, nombre, email, clave, Turnstile) y
   al panel. Plan pago con Mercado Pago: paso 1 los datos y paso 2 el pago con tarjeta (Card Payment Brick, sin

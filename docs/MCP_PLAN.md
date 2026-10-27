@@ -138,23 +138,26 @@ recortadas con `truncated: true`. Una respuesta grande gasta el contexto del age
 
 ## 6. Herramientas por plan
 
-Sale de `features.TIER_HAS` y de los valores de `tiers` (consultados el 24-oct-2026). Se genera con
-`make mcp-docs` y se publica en la landing; esta tabla es la foto de hoy.
+Sale de `features.TIER_HAS` y de los valores de `tiers` (consultados el 24-oct-2026; el 26-oct-2026 el tier
+Central se borró y Red, a medida, no es un tier: todo y sin tope). Se genera con `make mcp-docs` y se publica
+en la landing; esta tabla es la foto de hoy.
 
-| Grupo | Free | Mostrador | Sucursal | Central | Función del plan |
+| Grupo | Free | Mostrador | Sucursal | Red (a medida) | Función del plan |
 |---|---|---|---|---|---|
 | Cuenta, usuarios, plan, uso, resumen por email | ✓ | ✓ | ✓ | ✓ | — |
 | Agentes, voces, prueba por texto, LLM propio (BYOK) | ✓ | ✓ | ✓ | ✓ | — |
 | Llamadas: ver, transcripciones, grabaciones, cortar, estadísticas, bloquear | ✓ | ✓ | ✓ | ✓ | — |
-| Números: ver y rutear | — (0 números) | ✓ (1) | ✓ (3) | ✓ (6) | `max_phone_numbers` |
-| `start_call` (saliente) | — | ✓ (300 min) | ✓ (1.200 min) | ✓ (5.000 min) | `outbound_calls` |
+| Números: ver y rutear | — (0 números) | ✓ (1) | ✓ (3) | ✓ | `max_phone_numbers` |
+| `start_call` (saliente) | — | ✓ (300 min) | ✓ (1.200 min) | ✓ | `outbound_calls` |
 | Link para llamar | ✓ (1) | ✓ | ✓ | ✓ | `call_links` |
 | WhatsApp | — | ✓ | ✓ | ✓ | `whatsapp` |
 | Contactos | — | ✓ (500) | ✓ (5.000) | ✓ (sin tope) | `contacts` |
 | Equipo y derivaciones | — | ✓ (1 persona) | ✓ (2) | ✓ (sin tope) | `team` |
 | Campañas de WhatsApp | — | — | ✓ | ✓ | `campaigns_whatsapp` |
-| Campañas de llamadas | — | — | ✓ (de a 1) | ✓ (hasta 3) | `campaigns_voice` |
-| API de inferencia | ✓ (262k tokens) | ✓ | ✓ | ✓ (2M) | `inference` |
+| Campañas de llamadas | — | — | ✓ (de a 1) | ✓ | `campaigns_voice` |
+| Agente propio, herramientas (HTTP y código) | — | — | ✓ (10 herramientas) | ✓ | `external_agent`, `custom_tools`, `code_tools` |
+| Panel con tu marca | — | — | — | ✓ | `white_label` |
+| API de inferencia | ✓ (262k tokens) | ✓ | ✓ | ✓ | `inference` |
 | Admin | — | — | — | — | rol admin (Interno) |
 
 - Los números entre paréntesis son topes del tier: la herramienta está, pero corta al llegar
@@ -176,7 +179,7 @@ Sin parámetros (un admin puede pasar `client_id`). Lee `features.plan_features`
     "available": ["list_agents", "create_agent", "start_call", "list_contacts", "..."],
     "unavailable": [
       {"name": "create_campaign", "feature": "campaigns_voice",
-       "reason": "Disponible en los planes Sucursal y Central."}
+       "reason": "Disponible en el plan Sucursal."}
     ],
     "needs_oauth": ["create_api_key", "get_billing"]
   },
@@ -196,7 +199,7 @@ usuario) y `structuredContent`:
 
 ```json
 {"code": "feature_not_in_plan", "feature": "contacts",
- "message": "Tu plan Free no incluye contactos.", "reason": "Disponible en los planes Mostrador, Sucursal y Central.",
+ "message": "Tu plan Free no incluye contactos.", "reason": "Disponible en los planes Mostrador y Sucursal.",
  "upgrade_url": "https://app.atentina.com.ar/plan"}
 ```
 

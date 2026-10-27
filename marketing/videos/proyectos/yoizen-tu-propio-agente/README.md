@@ -64,7 +64,7 @@ Todo lo que se dice está en las diapositivas, y las diapositivas salen de la do
 - **Latencia (10):** solo el concepto de la página (tiempo hasta el primer texto; más de un segundo se siente lento;
   "texto primero, herramientas después"). **Sin cifras**: ni los 0,9 s del motor propio ni los ms del ejemplo.
 - **Errores (11):** sin "no hay respaldo con nuestro modelo".
-- **Próximos pasos (12):** los cuatro pasos de la diapositiva y "plan Red" (en la base el tier se llama Central).
+- **Próximos pasos (12):** los cuatro pasos de la diapositiva y "plan Red" (en la base el tier se llamaba Central; borrado el 26-oct-2026: Red es a medida, sin tier).
   **No se dice "sin costo"** ni se promete una cantidad de llamadas simultáneas (sin CAP con Gemma). "La conexión SIP
   con su Asterisk sigue en evaluación" queda escrito en la diapositiva, no en la voz.
 - **Ilustrativo (en pantalla, como en la presentación):** `agente.yoizen.com`, los números `+5493515551234` y

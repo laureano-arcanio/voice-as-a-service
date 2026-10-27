@@ -64,7 +64,7 @@ function mockApi(connections: LlmConnection[], externalInPlan = true) {
           features: {
             external_agent: externalInPlan
               ? { enabled: true, reason: null }
-              : { enabled: false, reason: 'Disponible en el plan Central.' },
+              : { enabled: false, reason: 'Disponible en el plan Sucursal.' },
           },
         });
       return jsonResponse({ detail: 'no mock' }, 404);

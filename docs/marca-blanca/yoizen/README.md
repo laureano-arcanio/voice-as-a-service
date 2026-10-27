@@ -23,4 +23,4 @@ Variante elegida: **encabezado oscuro con la versión clara del logotipo** (la A
 
 ## Cómo cargarlo
 
-Ficha del cliente → pestaña "Marca blanca" → subir `logo-claro.svg`, pegar los tres colores, prender "Mostrar el panel con la marca del cliente" y "Guardar". El plan del cliente tiene que incluir la marca blanca (Central o Interno). Probar el login con `https://app.atentina.com.ar/login?c=yoizen`. Por API: `scratch/marca-blanca/seed_yoizen.sh` lo hace contra el backend de desarrollo.
+Ficha del cliente → pestaña "Marca blanca" → subir `logo-claro.svg`, pegar los tres colores, prender "Mostrar el panel con la marca del cliente" y "Guardar". El plan del cliente tiene que incluir la marca blanca (Interno, o prenderla en su tier: Red es a medida). Probar el login con `https://app.atentina.com.ar/login?c=yoizen`. Por API: `scratch/marca-blanca/seed_yoizen.sh` lo hace contra el backend de desarrollo.

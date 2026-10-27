@@ -51,7 +51,7 @@ describe('ToolsPage', () => {
   it('lista las herramientas con tipo, agentes y última prueba; el código bloqueado por el plan', async () => {
     mockApi({
       custom_tools: { enabled: true, reason: null },
-      code_tools: { enabled: false, reason: 'Disponible en el plan Central' },
+      code_tools: { enabled: false, reason: 'Disponible en el plan Sucursal' },
     });
     renderWithProviders(<ToolsPage />, { me: CLIENT_USER });
     const row = (await screen.findByRole('link', { name: 'consultar_turnos' })).closest('tr')!;
@@ -68,8 +68,8 @@ describe('ToolsPage', () => {
 
   it('sin herramientas en el plan, el aviso de Mejorar mi plan', async () => {
     mockApi({
-      custom_tools: { enabled: false, reason: 'Disponible en el plan Central' },
-      code_tools: { enabled: false, reason: 'Disponible en el plan Central' },
+      custom_tools: { enabled: false, reason: 'Disponible en el plan Sucursal' },
+      code_tools: { enabled: false, reason: 'Disponible en el plan Sucursal' },
     });
     renderWithProviders(<ToolsPage />, { me: CLIENT_USER });
     expect(await screen.findByText(/no incluye herramientas para tus agentes/)).toBeInTheDocument();

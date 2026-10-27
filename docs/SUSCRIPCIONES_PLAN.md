@@ -195,7 +195,8 @@ prefijo no choca con las de `MERCADOPAGO_PLAN.md`).
 Hecha el 10-oct-2026:
 - Tiers públicos: **Free** ($ 0, 20 min entrantes, 1 llamada, 0 números, API con 10 pedidos/min),
   **Mostrador** ($ 29.000) y **Sucursal** ($ 99.000, 3 llamadas a la vez), con los límites de API del
-  Free. Central e Interno siguen sin precio (no se venden por el dashboard).
+  Free. Central e Interno siguen sin precio (no se venden por el dashboard). El 26-oct-2026 Central se borró:
+  Red (a medida, una instancia propia) no es un tier, lo cotiza un asesor.
 - Mindosoftware (en Free, con 1 número) tiene un ajuste permanente de +1 número para no perderlo.
 - `BANK_TRANSFER_INFO` con la cuenta de Mercado Pago (CVU y alias); backup del `.env` en
   `~/atentina-backups/env/`.

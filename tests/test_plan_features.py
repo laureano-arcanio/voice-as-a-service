@@ -17,7 +17,7 @@ def features(user, **params):
 
 def test_free_plan_blocks_with_the_plans_that_have_it(api, admin):
     c = make_client(admin, tier=make_tier(admin, **FREE))
-    make_tier(admin, name="Central", outbound_minutes=5000, max_phone_numbers=6, campaign_channels=["whatsapp"])
+    make_tier(admin, name="A medida", outbound_minutes=5000, max_phone_numbers=6, campaign_channels=["whatsapp"])
     make_tier(admin, name="Sucursal", price_ars=99000, public=True, sort=2, outbound_minutes=1200, max_phone_numbers=3,
               campaign_channels=["whatsapp"])
     make_tier(admin, name="Mostrador", price_ars=29000, public=True, sort=1, outbound_minutes=300, max_phone_numbers=1,
@@ -28,10 +28,10 @@ def test_free_plan_blocks_with_the_plans_that_have_it(api, admin):
     f = out["features"]
     assert {k for k, v in f.items() if v["enabled"]} == {"call_links"}
     # Los que se venden primero, por su orden; sin el suyo, los gratis ni los que no la tienen.
-    assert f["outbound_calls"]["reason"] == ("Disponible en los planes Mostrador, Sucursal y Central, "
+    assert f["outbound_calls"]["reason"] == ("Disponible en los planes Mostrador, Sucursal y A medida, "
                                              "con números asignados.")
-    assert f["campaigns_whatsapp"]["reason"] == "Disponible en los planes Sucursal y Central."
-    assert f["team"]["reason"] == "Disponible en los planes Sucursal y Central."
+    assert f["campaigns_whatsapp"]["reason"] == "Disponible en los planes Sucursal y A medida."
+    assert f["team"]["reason"] == "Disponible en los planes Sucursal y A medida."
     assert f["campaigns_voice"]["reason"] == "Escribinos y la sumamos a tu plan."
 
 

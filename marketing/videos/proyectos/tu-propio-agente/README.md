@@ -72,7 +72,7 @@ Voces: `paula` narradora y `gonzalo` en las herramientas y en "por API o MCP" (c
   llega el pedido hasta el primer pedazo; si pasa de un segundo, la conversación se siente lenta; el consejo "Dame un
   segundo que me fijo". Sin las cifras medidas (las de v1), por pedido del usuario. Errores: sección "Errores" de la
   página, sin mencionar el respaldo (pedido del usuario, v2).
-- **Plan Red:** sección "Planes" de la página. En la base el tier se llama **Central** (como en `api-desarrolladores`).
+- **Plan Red:** sección "Planes" de la página. En la base el tier se llamaba **Central** (como en `api-desarrolladores`); el 26-oct-2026 se borró: Red es a medida, sin tier, y el agente propio está también en Sucursal.
 - **Sin logos de terceros:** OpenAI, OpenRouter, DeepSeek, LangGraph y n8n van solo como texto.
 
 ## Versiones

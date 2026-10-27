@@ -49,7 +49,7 @@ def _names(names: list[str]) -> str:
 
 
 def _where(tiers: list[Tier], key: str) -> str:
-    """En que planes esta: "Disponible en los planes Mostrador, Sucursal y Central"."""
+    """En que planes esta: "Disponible en los planes Mostrador y Sucursal"."""
     names = [t.name for t in tiers if TIER_HAS[key](t)]
     if not names:
         return "Escribinos y la sumamos a tu plan"

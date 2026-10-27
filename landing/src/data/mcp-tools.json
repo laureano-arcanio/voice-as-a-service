@@ -121,13 +121,14 @@
    "name": "Campañas de llamadas",
    "plans": {
     "Sucursal": "de a 1",
-    "Red": "hasta 3"
+    "Red": "a medida"
    }
   },
   {
    "id": "external_agent",
    "name": "Agente propio (tu endpoint, nuestra voz)",
    "plans": {
+    "Sucursal": "",
     "Red": ""
    }
   },
@@ -143,6 +144,7 @@
    "id": "code_tools",
    "name": "Herramientas en código (JavaScript)",
    "plans": {
+    "Sucursal": "",
     "Red": ""
    }
   },

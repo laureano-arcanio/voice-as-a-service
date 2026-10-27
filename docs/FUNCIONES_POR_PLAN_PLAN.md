@@ -66,7 +66,7 @@ números se comporta igual.
 ### 3.2 Base: lo que falta en el tier (migración 0025)
 
 - `tiers.features` (JSON, lista de banderas sin número): `["whatsapp", "byok"]`. Default: todas
-  (no cambia nada para Mostrador, Sucursal, Central ni Interno).
+  (no cambia nada para Mostrador, Sucursal, Central ni Interno; Central se borró el 26-oct-2026).
 - Free: `features = []`, `campaign_channels = []`, `max_team_members = 0`, `max_contacts = 0` y
   `max_call_links` según la decisión 4.3.
 - Se edita en la pantalla Tiers (admin), con checkboxes.
@@ -87,7 +87,7 @@ números se comporta igual.
 - **`<PlanGate feature="outbound_calls">`** (`web/src/components/PlanGate.tsx`), el mecanismo de todas
   las pantallas:
   - **Arriba, un aviso compacto con borde amarillo**, sin relleno (24-oct-2026: el relleno era demasiado):
-    "**Tu plan Free no incluye llamadas salientes.** Disponible en los planes Mostrador, Sucursal y Central,
+    "**Tu plan Free no incluye llamadas salientes.** Disponible en los planes Mostrador y Sucursal,
     con números asignados." y el botón **Mejorar mi plan** → `/plan`. Los planes salen de los tiers que
     incluyen la función (todos menos el suyo, los gratis y el interno; los que se venden primero); si
     ninguno, "Escribinos y la sumamos a tu plan".
@@ -164,9 +164,13 @@ Decisión del usuario, en la migración 0026 (por nombre, sin CAP con Gemma toda
 | Free | — | — | 0 | 0 |
 | Mostrador | — | — | 500 | 1 |
 | Sucursal | WhatsApp y llamadas | 1 | 5.000 | 2 (5 en la 0026; bajado a 2 por la API el 24-oct-2026) |
-| Central (Red en la landing) | WhatsApp y llamadas | 3 | sin tope | sin tope |
 | Interno | WhatsApp y llamadas | sin tope | sin tope | sin tope |
 
+- **26-oct-2026: el tier Central (Red en la landing; 5.000 minutos, 10 llamadas, campañas hasta 3, contactos y
+  equipo sin tope) se borró de la base.** Quedan Free, Mostrador y Sucursal (públicos) e Interno. **Red** sigue
+  en la landing como plan a medida: una instancia propia que cotiza un asesor, sin tier (todo y sin tope en las
+  tablas de `/docs/api` y `/docs/mcp`). Sucursal pasó a incluir el agente propio y las herramientas (HTTP, 10,
+  y código); la marca blanca queda solo en Interno (y Red, a medida).
 - Las áreas de derivación no tienen tope por plan (decisión): sin personas en el equipo no se transfiere.
 - Landing: `/desarrolladores/docs` suma "Qué incluye cada plan" (con `GET /plan/features` y los 429),
   "Cortar y bloquear", "Equipo y derivaciones" y "Eventos"; las tarjetas de `landing/src/data/site.ts`

@@ -79,6 +79,8 @@ vivo ni se creó ninguna llamada (los `POST /calls` se responden o cortan en el 
 
 - **Voz única** `paula`, ortografía normal, sin grafías forzadas.
 - **Planes en la locución:** "Mostrador, Sucursal y Central" (lo que dice el panel), no "Mostrador y Central".
+- **26-oct-2026:** el tier Central se borró; el panel ahora dice "Mostrador y Sucursal". La locución y la
+  escena `planes` de la v1 quedaron viejas: corregirlas es una versión nueva.
 - **Sin "registro de pedidos y turnos":** no es una función de ningún tier (ver NOTAS, "A revisar").
 - **Toques y zoom:** círculo azul en cada toque; tres acercamientos suaves que vuelven (nombre, base de
   conocimiento, aviso de Equipo).

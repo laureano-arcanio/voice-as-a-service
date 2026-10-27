@@ -66,7 +66,7 @@ function mockApi(tools: ClientTool[] = []) {
       if (path === '/api/v1/agents/a-1/secrets') return jsonResponse([SECRET]);
       if (path === '/api/v1/clients/c-1/tools') return jsonResponse(tools);
       if (path === '/api/v1/plan/features')
-        return jsonResponse({ client_id: 'c-1', tier_name: 'Central', free: false, features: {} });
+        return jsonResponse({ client_id: 'c-1', tier_name: 'Sucursal', free: false, features: {} });
       return jsonResponse({ detail: 'no mock' }, 404);
     }),
   );

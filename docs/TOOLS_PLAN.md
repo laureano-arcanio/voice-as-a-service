@@ -565,7 +565,7 @@ respuesta y que la frase de inicio suene antes del silencio. Con tráfico, entra
 - **Plan, configurable por tier** (admin, UI y API de tiers, como `external_agent` en la 0030):
   `tiers.custom_tools` (HTTP), `tiers.code_tools` (código) y `tiers.max_tools` (por cliente;
   `null` = sin tope). Defaults de la migración: HTTP en Sucursal, Central e Interno; código en
-  Central e Interno.
+  Central e Interno. Desde el 26-oct-2026 (Central borrado): HTTP (10) y código en Sucursal; sin tope en Interno.
 - **Landing:** `/desarrolladores/docs/herramientas` con el formato, la función de ejemplo, la
   verificación de la firma y los límites; actualizar `/docs/api` y `/docs/mcp`.
 

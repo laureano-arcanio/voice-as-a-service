@@ -12,24 +12,24 @@ from .catalog import CORE, DEFAULT, TOOLS, TOOLSETS
 DOC = "docs/MCP_HERRAMIENTAS.md"
 
 LANDING_JSON = "landing/src/data/mcp-tools.json"
-PLANS = ("Free", "Mostrador", "Sucursal", "Central")
-# Central se llama Red en la landing (docs/FUNCIONES_POR_PLAN_PLAN.md, sección 6).
-LANDING_PLAN = {"Central": "Red"}
+PLANS = ("Free", "Mostrador", "Sucursal", "Red")
+# Red no es un tier: es a medida (una instancia propia, la cotiza un asesor), con todo y sin tope. El tier
+# Central se borró el 26-oct-2026 (docs/FUNCIONES_POR_PLAN_PLAN.md, sección 6).
 
 # Qué es cada función del plan (services/features.TIER_HAS) y en qué planes está hoy, con el tope si lo hay
 # (docs/MCP_PLAN.md, sección 6; cambia con los tiers).
 FEATURES: dict[str, tuple[str, dict[str, str]]] = {
-    "outbound_calls": ("Llamadas salientes (con un número asignado)", {"Mostrador": "", "Sucursal": "", "Central": ""}),
-    "whatsapp": ("WhatsApp", {"Mostrador": "", "Sucursal": "", "Central": ""}),
-    "contacts": ("Agenda de contactos", {"Mostrador": "500", "Sucursal": "5.000", "Central": "sin tope"}),
-    "team": ("Equipo y derivaciones", {"Mostrador": "1 persona", "Sucursal": "2", "Central": "sin tope"}),
-    "call_links": ("Link para llamar", {"Free": "1", "Mostrador": "", "Sucursal": "", "Central": ""}),
-    "campaigns_whatsapp": ("Campañas de WhatsApp", {"Sucursal": "", "Central": ""}),
-    "campaigns_voice": ("Campañas de llamadas", {"Sucursal": "de a 1", "Central": "hasta 3"}),
-    "external_agent": ("Agente propio (tu endpoint, nuestra voz)", {"Central": ""}),
-    "custom_tools": ("Herramientas: llamadas a tus APIs", {"Sucursal": "10", "Central": "sin tope"}),
-    "code_tools": ("Herramientas en código (JavaScript)", {"Central": ""}),
-    "white_label": ("Panel con tu marca (logo y colores)", {"Central": ""}),
+    "outbound_calls": ("Llamadas salientes (con un número asignado)", {"Mostrador": "", "Sucursal": "", "Red": ""}),
+    "whatsapp": ("WhatsApp", {"Mostrador": "", "Sucursal": "", "Red": ""}),
+    "contacts": ("Agenda de contactos", {"Mostrador": "500", "Sucursal": "5.000", "Red": "sin tope"}),
+    "team": ("Equipo y derivaciones", {"Mostrador": "1 persona", "Sucursal": "2", "Red": "sin tope"}),
+    "call_links": ("Link para llamar", {"Free": "1", "Mostrador": "", "Sucursal": "", "Red": ""}),
+    "campaigns_whatsapp": ("Campañas de WhatsApp", {"Sucursal": "", "Red": ""}),
+    "campaigns_voice": ("Campañas de llamadas", {"Sucursal": "de a 1", "Red": "a medida"}),
+    "external_agent": ("Agente propio (tu endpoint, nuestra voz)", {"Sucursal": "", "Red": ""}),
+    "custom_tools": ("Herramientas: llamadas a tus APIs", {"Sucursal": "10", "Red": "sin tope"}),
+    "code_tools": ("Herramientas en código (JavaScript)", {"Sucursal": "", "Red": ""}),
+    "white_label": ("Panel con tu marca (logo y colores)", {"Red": ""}),
 }
 
 
@@ -87,14 +87,14 @@ def render() -> str:
 
 
 def render_landing() -> str:
-    """Los datos de /desarrolladores/docs/mcp: grupos, herramientas y funciones por plan (con los nombres de la
-    landing). Sin `admin`: es interno."""
+    """Los datos de /desarrolladores/docs/mcp: grupos, herramientas y funciones por plan. Sin `admin`: es
+    interno."""
     public = [t for t in TOOLS if t.toolset != "admin"]
     data = {
         "toolsets": [{"id": k, "title": v, "core": k in CORE, "default": k in DEFAULT}
                      for k, v in TOOLSETS.items() if k != "admin"],
-        "plans": [LANDING_PLAN.get(p, p) for p in PLANS],
-        "features": [{"id": k, "name": name, "plans": {LANDING_PLAN.get(p, p): v for p, v in plans.items()}}
+        "plans": list(PLANS),
+        "features": [{"id": k, "name": name, "plans": dict(plans)}
                      for k, (name, plans) in FEATURES.items()],
         "tools": [{"name": t.name, "toolset": t.toolset, "title": t.title, "description": t.description,
                    "kind": _kind(t), "features": list(t.features), "oauth": t.session, "api_key": t.api_key_only}

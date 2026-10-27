@@ -100,8 +100,8 @@ argentinas y los datos en el país."
    Es lo que el comprador de cobranzas ya entiende y ningún revendedor de Vapi puede seguir.
 2. **Packs con base fija más minutos (recordatorios, turnos, entrante):** los de la
    [calculadora de costos](../calculadora-costos.html): Inicial, Pyme, Empresa, Corporativo. Son
-   escenarios de costos; los planes publicados son los de la landing (Mostrador, Sucursal, Central y Red,
-   `landing/src/data/site.ts`). La calculadora no está conectada a los tiers de la base.
+   escenarios de costos; los planes publicados son los de la landing (Free, Mostrador, Sucursal y Red,
+   `landing/src/data/site.ts`; Central se borró el 26-oct-2026). La calculadora no está conectada a los tiers de la base.
    En PyMEs la base fija pesa más que los minutos.
 3. **Mayorista para canales:** USD 0,10 por minuto o 20-30 % de comisión recurrente.
 

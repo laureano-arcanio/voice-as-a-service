@@ -59,7 +59,7 @@ Con la key `video-api-desarrolladores` del cliente `atentina` (alcances `calls,l
   y `start_call` en `app/api/routers/calls.py`. La página pública de la doc no lo menciona.
 - **Planes:** tabla "Qué incluye cada plan" de `api.astro` (Free sin llamadas telefónicas; campañas de llamadas en
   Sucursal y Red) y tiers de la base (Free con API: 262.144 tokens y 20 min de TTS/STT por mes). En la base el plan
-  "Red" se llama **Central**: en pantalla va "Red", como en la landing.
+  "Red" se llamaba **Central** (borrado el 26-oct-2026; Red es a medida, sin tier): en pantalla va "Red", como en la landing.
 - **Webhook:** solo en campañas (`callback_url`, `X-Atentina-Signature`, `contact.finished`); para llamadas sueltas,
   `GET /events` (`call.ended`). No hay webhook por llamada suelta.
 - **Ilustrativo:** `crm.guardar` y la tarjeta "Tu sistema · nuevo lead"; el cliente "Mi Empresa" y la usuaria "Ana"

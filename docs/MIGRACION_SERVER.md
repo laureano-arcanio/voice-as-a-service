@@ -243,7 +243,7 @@ Alternativa al dump: copiar el volumen entero con el viejo parado, conservando l
 
 **Sin backup:** el seed (`make migrate`) solo crea el tier Interno, el cliente `atentina`, los
 agentes de referencia y el número `ANURA_DID` ruteado a `WORKFLOW_ID` (`demo_booking_classic`, no
-`atentina_comercial` como hoy). Lo demás (tiers comerciales Mostrador/Sucursal/Central, cliente
+`atentina_comercial` como hoy). Lo demás (tiers comerciales Free/Mostrador/Sucursal, cliente
 `browix`, agentes editados, los otros números, cuentas de WhatsApp, usuarios) se recrea a mano por
 la UI o la API, y las ediciones de agentes posteriores a `app/agents/reference/*.json` se pierden.
 

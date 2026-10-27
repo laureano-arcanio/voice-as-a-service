@@ -138,7 +138,7 @@ Headers: `X-Atentina-Conversation-Id`, `-Channel` (`voice`, `whatsapp`), `-Mode`
 | `app/llm/external.py` (nuevo) | Arma el pedido (mensajes, metadata, headers y tools), lee el stream (texto y `tool_calls`), aplica el timeout del primer token y devuelve `AgentTurn`. Reutiliza el `AsyncOpenAI` de la conexión. |
 | `app/conversation/engine.py` | Rama `external` en `process_turn`: guarda los mensajes y la traza (`provider: external`, ms al primer token, error) y no extrae. Con `end_call`, `progress.outcome`. |
 | `app/services/agents.py` | Valida `external.connection` al guardar, igual que `llm.stages`, y que el plan incluya la función (429 `external_agent_not_in_plan`, como `whatsapp_not_in_plan`). |
-| Migración (`tiers.external_agent`) | Booleano por plan, como `tiers.whatsapp` (0025): `false` por defecto, y `true` en Central e Interno. Sale del tier, sin ajuste por cliente (los ajustes son solo numéricos). Entra en `limits.effective_limits`, en `features.TIER_HAS` y `plan_features` (`external_agent`), en `app/mcp/docs.FEATURES` y en el editor de tiers. |
+| Migración (`tiers.external_agent`) | Booleano por plan, como `tiers.whatsapp` (0025): `false` por defecto, y `true` en Central e Interno (desde el 26-oct-2026, con Central borrado: Sucursal e Interno). Sale del tier, sin ajuste por cliente (los ajustes son solo numéricos). Entra en `limits.effective_limits`, en `features.TIER_HAS` y `plan_features` (`external_agent`), en `app/mcp/docs.FEATURES` y en el editor de tiers. |
 | `web/src/features/agents/` | Motor "Agente externo" en el editor, con la sección Conexión: elegir o crear una, modelo, timeout, mensaje de error y qué hacer después. Cumple `docs/DESIGN_GUIDELINE_APP.md`. |
 | `POST /llm-connections/{id}/test` | Con `?mode=external`: chequea el streaming, mide el primer token y ve si entiende `tools`. |
 | `examples/agente-externo/` | Endpoint mínimo (FastAPI, ~60 líneas) que envuelve un LLM y usa `end_call`, para los integradores y para las pruebas. |
@@ -156,7 +156,7 @@ Se publica con la fase 2, nunca antes de que el motor esté en producción. Todo
 | `pages/desarrolladores/docs/agente-externo.astro` (nueva) | El contrato para integradores. Secciones: qué es, cómo funciona (un diagrama), pedido, respuesta, `end_call` y `transfer_call`, latencia y turnos deshechos, errores, configurar (panel y API), ejemplo (`examples/agente-externo/`), costos y privacidad. |
 | `data/docs-nav.ts` y `layouts/DocsPage.astro` | Grupo nuevo, "Tu propio agente": la `key` suma `"external"` en la unión de tipos. |
 | `pages/desarrolladores/docs/index.astro` | En "Cómo funciona", el paso 2 ("el modelo de lenguaje arma la respuesta") y "Los motores" nombran la opción y enlazan la página nueva. |
-| `pages/desarrolladores/docs/api.astro` | En `#byok`, una línea para distinguirlo: BYOK cambia el modelo, y el agente externo cambia todo el agente. En `#derivaciones`, "Por ahora solo con el motor `classic`" pasa a `classic` o `external`. En `planFeatures`, la fila "Tu propio agente": No, No, No, Sí (Central). Al cambiar los planes, actualizarla. |
+| `pages/desarrolladores/docs/api.astro` | En `#byok`, una línea para distinguirlo: BYOK cambia el modelo, y el agente externo cambia todo el agente. En `#derivaciones`, "Por ahora solo con el motor `classic`" pasa a `classic` o `external`. En `planFeatures`, la fila "Tu propio agente": No, No, No, Sí (Central; desde el 26-oct-2026, Sí en Sucursal y Red). Al cambiar los planes, actualizarla. |
 | `data/site.ts`, `devCapabilities` | Una cuarta tarjeta, "Tu agente, nuestra voz", y en `pages/desarrolladores/index.astro` el título pasa de "Tres formas de integrarlo" a "Cuatro formas". |
 | `data/mcp-tools.json` | Lo regenera `make mcp-docs`. No se edita a mano. |
 | Opcional | Una página en `pages/plataforma/` para buscadores ("Voz para tu agente de IA") y el video, con el agente `videos`. |
@@ -182,7 +182,8 @@ Se publica con la fase 2, nunca antes de que el motor esté en producción. Todo
   `CAP-001` no cambia.
 - **Costos y plan:** se cuentan los minutos del tier, como en cualquier llamada. Por ahora **solo en
   Central** (e Interno, para nuestras pruebas; decisión del 25-oct-2026). Después se prende o apaga por
-  plan desde el editor de tiers, sin código.
+  plan desde el editor de tiers, sin código. **26-oct-2026:** Central se borró; está en Sucursal e Interno,
+  y en Red (a medida).
 - **Corte:** sin la función en el plan, no se guarda un agente `external`. Si el plan la pierde después
   (baja de plan), ese agente atiende con `error_message` y corta (`ended_reason=external_agent_not_in_plan`),
   y el panel lo marca con el aviso de función bloqueada (`docs/FUNCIONES_POR_PLAN_PLAN.md`).
@@ -192,7 +193,8 @@ Se publica con la fase 2, nunca antes de que el motor esté en producción. Todo
 
 ## 9. Decisiones abiertas
 
-- **Planes:** solo Central por ahora (25-oct-2026); el resto se decide después.
+- **Planes:** solo Central por ahora (25-oct-2026); el resto se decide después. Resuelto el 26-oct-2026:
+  Sucursal y Red (Central se borró).
 - **Precio:** el cliente no gasta nuestro LLM. ¿Mismo precio por minuto o uno menor?
 - **Nombre en la UI y en la landing:** "Agente externo" o "Tu propio agente".
 
