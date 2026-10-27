@@ -4,7 +4,7 @@ Que un cliente muestre el dashboard (`web/`, rol `client`) con **su logo y sus c
 Atentina, para que lo use su propia gente o sus propios clientes como si fuera suyo. Lo configura un
 admin desde la ficha del cliente: sube un logo y elige hasta **3 colores**. Nada más se personaliza.
 
-- **Estado (26-oct-2026):** fase 1 implementada (sección 6), **sin desplegar**; probada en el backend de desarrollo con el theme de [Yoizen](marca-blanca/yoizen/README.md) (login con `?c=yoizen`, panel del cliente y pestaña del admin). Código: migración 0034, `app/services/branding.py`, `app/api/routers/branding.py`, `web/src/branding/`, `web/src/features/clients/BrandingTab.tsx`; tests en `tests/test_branding.py`, `tests/test_migration_0034.py` y `web/src/branding/color.test.ts`. Lo que difiere de lo planeado está en la sección 11.
+- **Estado (26-oct-2026):** fase 1 implementada (sección 6) y **desplegada el 26-oct-2026** (migración 0034, `app` y `agent`; `white_label` prendido en Central e Interno); antes, probada en el backend de desarrollo con el theme de [Yoizen](marca-blanca/yoizen/README.md) (login con `?c=yoizen`, panel del cliente y pestaña del admin). Código: migración 0034, `app/services/branding.py`, `app/api/routers/branding.py`, `web/src/branding/`, `web/src/features/clients/BrandingTab.tsx`; tests en `tests/test_branding.py`, `tests/test_migration_0034.py` y `web/src/branding/color.test.ts`. Lo que difiere de lo planeado está en la sección 11.
 - **Guía de diseño:** [`DESIGN_GUIDELINE_APP.md`](DESIGN_GUIDELINE_APP.md); el tema vive en [`web/src/theme.ts`](../web/src/theme.ts). Al implementar, se le agrega a la guía una sección "Marca blanca" con lo de la sección 5 de acá.
 
 ## 1. Qué hay hoy
