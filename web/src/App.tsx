@@ -9,7 +9,7 @@ import { setUnauthorizedHandler } from '@/api/client';
 import { useBranding } from '@/branding/context';
 import { BrandingProvider } from '@/branding/Provider';
 import { brandCssVariables, brandTheme } from '@/branding/theme';
-import { meKey } from '@/features/auth/api';
+import { meKey, resetSession } from '@/features/auth/api';
 import { createQueryClient } from '@/queryClient';
 import { router } from '@/router';
 
@@ -37,8 +37,7 @@ export function App() {
   useEffect(() => {
     setUnauthorizedHandler(() => {
       if (!queryClient.getQueryData(meKey)) return;
-      queryClient.clear();
-      queryClient.setQueryData(meKey, null);
+      resetSession(queryClient, null);
       notifications.show({ id: 'session', color: 'yellow', message: 'Tu sesión venció. Ingresá de nuevo.' });
     });
     return () => setUnauthorizedHandler(null);

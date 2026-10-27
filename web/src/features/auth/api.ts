@@ -1,10 +1,18 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { toApiError } from '@/api/errors';
 import { unwrap } from '@/api/request';
 import type { Me } from '@/api/types';
 
 export const meKey = ['me'] as const;
+
+/** Cambio de sesion (ingreso, salida, vencimiento): borra los datos del usuario anterior y deja `me`.
+ * No usa `clear()`: borraria tambien la consulta de `me`, y los que ya la observan (el provider de la
+ * marca, montado en la raiz) se quedarian con la vieja y no verian la sesion nueva hasta recargar. */
+export function resetSession(qc: QueryClient, me: Me | null) {
+  qc.removeQueries({ predicate: (q) => q.queryKey[0] !== meKey[0] });
+  qc.setQueryData(meKey, me);
+}
 
 /** Usuario de la sesion, o null si no hay (401). */
 async function fetchMe(): Promise<Me | null> {
@@ -31,8 +39,7 @@ export function useLogin() {
     mutationFn: (body: { email: string; password: string }) =>
       unwrap(api.POST('/api/v1/auth/login', { body })),
     onSuccess: (me) => {
-      qc.clear();
-      qc.setQueryData(meKey, me);
+      resetSession(qc, me);
     },
   });
 }
@@ -55,8 +62,7 @@ export function usePasswordSetup() {
     mutationFn: (body: { token: string; password: string }) =>
       unwrap(api.POST('/api/v1/auth/password-setup', { body })),
     onSuccess: (me) => {
-      qc.clear();
-      qc.setQueryData(meKey, me);
+      resetSession(qc, me);
     },
   });
 }
@@ -77,8 +83,7 @@ export function useHandoff() {
   return useMutation({
     mutationFn: (token: string) => unwrap(api.POST('/api/v1/auth/handoff', { body: { token } })),
     onSuccess: (me) => {
-      qc.clear();
-      qc.setQueryData(meKey, me);
+      resetSession(qc, me);
     },
   });
 }
@@ -88,8 +93,7 @@ export function useLogout() {
   return useMutation({
     mutationFn: () => unwrap(api.POST('/api/v1/auth/logout')),
     onSettled: () => {
-      qc.clear();
-      qc.setQueryData(meKey, null);
+      resetSession(qc, null);
     },
   });
 }
