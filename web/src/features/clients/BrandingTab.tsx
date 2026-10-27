@@ -253,7 +253,10 @@ function BrandingForm({ client, data }: { client: Client; data: BrandingAdmin })
               label="Mostrar el panel con la marca del cliente"
               description="Sus usuarios ven el logo y los colores de acá en vez de los de Atentina."
               checked={v.enabled}
-              onChange={(e) => setV((prev) => ({ ...prev, enabled: e.currentTarget.checked }))}
+              onChange={(e) => {
+                const on = e.currentTarget.checked;
+                setV((prev) => ({ ...prev, enabled: on }));
+              }}
             />
             <Stack gap={6}>
               <Text size="sm" fw={600}>
@@ -370,7 +373,10 @@ function BrandingForm({ client, data }: { client: Client; data: BrandingAdmin })
             <Switch
               label='Mostrar "Con tecnología de Atentina" al pie del menú'
               checked={v.powered_by}
-              onChange={(e) => setV((prev) => ({ ...prev, powered_by: e.currentTarget.checked }))}
+              onChange={(e) => {
+                const on = e.currentTarget.checked;
+                setV((prev) => ({ ...prev, powered_by: on }));
+              }}
             />
             <Group justify="space-between">
               <Button variant="default" size="xs" onClick={previewAsClient}>
