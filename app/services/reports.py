@@ -22,6 +22,7 @@ from ..models import (
     Client,
     ConversationRow,
     PhoneNumber,
+    User,
     WaAccount,
     WaMessage,
     WaThread,
@@ -48,6 +49,10 @@ class CallFilter:
     # Solo lo de una campaña: los intentos de voz (call_logs.campaign_contact_id) y las conversaciones
     # que abrio la respuesta de un contacto de WhatsApp (campaign_contacts.conversation_id).
     campaign_id: str | None = None
+    # Llamadas directas (docs/LLAMADAS_DIRECTAS_PLAN.md): las de un usuario (llamo o atendio) y las entrantes
+    # que atendio el agente o el equipo.
+    user_id: str | None = None
+    answered_by: str | None = None
     # Zona de las fechas: date_from/date_to y los dias del grafico son dias locales.
     tz: ZoneInfo = field(default_factory=lambda: ZoneInfo("UTC"))
 
@@ -81,6 +86,10 @@ class CallFilter:
             conds.append(CallRow.mode.is_(None) & (ConversationRow.channel == "voice"))
         elif self.mode:
             conds.append(CallRow.mode == self.mode)
+        if self.user_id:
+            conds.append(CallRow.user_id == self.user_id)
+        if self.answered_by:
+            conds.append(CallRow.answered_by == self.answered_by)
         return conds
 
 
@@ -146,6 +155,9 @@ class Reports:
             "duration_seconds": call.duration_seconds if call else 0,
             "ended_reason": call.ended_reason if call else "",
             "latency_avg": lat["avg"] if lat else None,
+            "user_id": call.user_id if call else None,
+            "answered_by": call.answered_by if call else None,
+            "opted_out_confirmed": bool(call.opted_out_confirmed) if call else False,
         }
 
     def page(self, flt: CallFilter, limit: int = 100, offset: int = 0) -> tuple[list[dict], int]:
@@ -154,7 +166,14 @@ class Reports:
                               .outerjoin(CallRow, CallRow.conversation_id == ConversationRow.id).where(*conds)) or 0
         rows = self.s.execute(_base_query().where(*conds).order_by(ConversationRow.created_at.desc())
                               .limit(limit).offset(offset)).all()
-        return [self.summary(*r) for r in rows], total
+        items = [self.summary(*r) for r in rows]
+        # Quien llamo o atendio (llamadas directas), con una sola consulta.
+        user_ids = {i["user_id"] for i in items if i["user_id"]}
+        users = self.s.scalars(select(User).where(User.id.in_(user_ids))) if user_ids else []
+        names = {u.id: u.name or u.email for u in users}
+        for i in items:
+            i["user_name"] = names.get(i["user_id"])
+        return items, total
 
     def _all(self, flt: CallFilter) -> list[dict]:
         return [self.summary(*r) for r in self.s.execute(_base_query().where(*flt.where())).all()]

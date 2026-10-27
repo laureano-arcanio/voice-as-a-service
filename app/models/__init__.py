@@ -3,7 +3,7 @@
 from .agents import Agent, AgentVersion
 from .billing import BillingPayment, Subscription
 from .call_links import CallLink
-from .calls import ACTIVE_CALL_STATUSES, BlockedNumber, CallMode, CallRow, CallStatus
+from .calls import ACTIVE_CALL_STATUSES, BlockedNumber, CallMode, CallRing, CallRow, CallStatus, UserPresence
 from .campaigns import (
     Campaign,
     CampaignCallback,
@@ -13,7 +13,7 @@ from .campaigns import (
 )
 from .contact import ContactRequest
 from .conversations import ConversationRow
-from .handoff import Event, HandoffArea, HandoffAreaMember, HandoffLeg, TeamMember
+from .handoff import Event, HandoffArea, HandoffAreaMember, HandoffLeg, PhoneNumberMember, TeamMember
 from .legal import ConsumerRequest, LegalAcceptance
 from .llm import LlmConnection
 from .oauth import McpToolUsage, OAuthClient, OAuthCode, OAuthGrant, OAuthToken
@@ -50,6 +50,7 @@ __all__ = [
     "BlockedNumber",
     "CallLink",
     "CallMode",
+    "CallRing",
     "CallRow",
     "CallStatus",
     "Campaign",
@@ -78,6 +79,7 @@ __all__ = [
     "OAuthGrant",
     "OAuthToken",
     "PhoneNumber",
+    "PhoneNumberMember",
     "Role",
     "Subscription",
     "TeamMember",
@@ -85,6 +87,7 @@ __all__ = [
     "ToolRun",
     "ToolVersion",
     "User",
+    "UserPresence",
     "WaAccount",
     "WaAccountStatusLog",
     "WaMessage",

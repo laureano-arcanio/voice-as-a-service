@@ -92,6 +92,9 @@ class Settings(BaseSettings):
     # Musica de espera de las derivaciones (docs/DERIVACIONES_PLAN.md, 4.8): <tema>.ogg; "default" es la de
     # LiveKit Agents.
     hold_music_dir: Path = Field(default=BASE_DIR / "storage" / "hold-music")
+    # Aviso "Esta llamada está siendo grabada" de las llamadas directas (app/voice/direct.py): <voz>.wav, lo
+    # sintetiza el worker la primera vez. Al cambiar el checkpoint del TTS, borrarlo como las aperturas.
+    notice_audio_dir: Path = Field(default=BASE_DIR / "storage" / "notices")
 
     # --- Inferencia ---
     vllm_api_key: str = "not-needed"

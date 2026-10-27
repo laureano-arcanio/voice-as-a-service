@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..db import utcnow
-from ..models import Agent, Client, HandoffArea, HandoffAreaMember, TeamMember, User
+from ..models import Agent, Client, HandoffArea, HandoffAreaMember, PhoneNumberMember, TeamMember, User
 from . import limits as limits_service
 from . import phones
 from .errors import Conflict, Invalid, NotFound, QuotaExceeded
@@ -63,8 +63,9 @@ def normalize_phone(raw: str | None, *, argentina: bool) -> str | None:
 
 
 def _check_member(s: Session, client_id: str, member: TeamMember) -> None:
-    if not member.phone and not member.whatsapp:
-        raise Invalid("Cargá un teléfono, un WhatsApp o los dos")
+    # Solo con usuario del panel tambien: le suenan las entrantes directas ahi (docs/LLAMADAS_DIRECTAS_PLAN.md, 5).
+    if not member.phone and not member.whatsapp and not member.user_id:
+        raise Invalid("Cargá un teléfono, un WhatsApp o un usuario del panel")
     if member.whatsapp:
         other = s.scalar(select(TeamMember.id).where(
             TeamMember.client_id == client_id, TeamMember.whatsapp == member.whatsapp, TeamMember.id != member.id))
@@ -132,9 +133,11 @@ def update_member(s: Session, member: TeamMember, **changes) -> TeamMember:
 
 
 def delete_member(s: Session, member: TeamMember) -> None:
-    # Sale de sus areas (a mano: SQLite no aplica las FK) y de su lugar en el round robin; los
+    # Sale de sus areas y sus numeros (a mano: SQLite no aplica las FK) y de su lugar en el round robin; los
     # eventos quedan sin team_member_id.
     for row in s.scalars(select(HandoffAreaMember).where(HandoffAreaMember.member_id == member.id)):
+        s.delete(row)
+    for row in s.scalars(select(PhoneNumberMember).where(PhoneNumberMember.member_id == member.id)):
         s.delete(row)
     for area in s.scalars(select(HandoffArea).where(HandoffArea.last_member_id == member.id)):
         area.last_member_id = None

@@ -31,6 +31,7 @@ from ..config import settings
 from ..db import utcnow
 from ..models import HandoffArea, HandoffLeg, TeamMember
 from ..services import campaign_calls, events, handoff, quota
+from .listen import Listener
 from .speech_text import to_speech
 
 logger = logging.getLogger("agent.handoff")
@@ -83,6 +84,18 @@ class Outcome:
     result: str = ""            # el del ultimo intento, o el motivo si no se intento
     ended: str = ""             # conectada: returned_to_ai, person_hung_up, customer_hung_up, quota
     legs: list[str] = field(default_factory=list)
+    member_id: str | None = None   # conectada: la persona que atendio
+
+
+@dataclass
+class TeamRing:
+    """Las personas de un numero en una entrante directa (app/voice/direct.py): como un area, sin agente detras
+    (sin codigo de vuelta a la IA ni mensajes de vuelta)."""
+    name: str
+    ring_seconds: int
+    id: str | None = None
+    return_digits: str = ""
+    on_person_hangup: str = "end"
 
 
 class Transfer:
@@ -91,7 +104,8 @@ class Transfer:
 
     def __init__(self, *, sessions, line: Line, conversation_id: str, client_id: str, areas: list[dict],
                  customer: str, caller: str = "", summary=None, on_message=None, hang_up=None,
-                 hold_music: bool = True, confirm_seconds: int | None = None, first_attempt: int = 0):
+                 hold_music: bool = True, confirm_seconds: int | None = None, first_attempt: int = 0,
+                 on_connected=None):
         self.sessions = sessions
         self.line = line
         self.conversation_id = conversation_id
@@ -102,6 +116,7 @@ class Transfer:
         self.summary = summary               # corrutina sin argumentos que devuelve el resumen, o None
         self.on_message = on_message or (lambda *a, **k: None)
         self.hang_up = hang_up
+        self.on_connected = on_connected     # on_connected(member): la persona quedo conectada con el cliente
         self.hold_music = hold_music
         self.confirm_seconds = settings.handoff_confirm_seconds if confirm_seconds is None else confirm_seconds
         # Intentos de la llamada (la identidad persona-<n> no se repite entre derivaciones de la misma llamada).
@@ -117,7 +132,7 @@ class Transfer:
                           area_id=area_id, team_member_id=member_id, **data)
             s.commit()
 
-    def _new_leg(self, area: HandoffArea, member: TeamMember) -> str:
+    def _new_leg(self, area: HandoffArea | TeamRing, member: TeamMember) -> str:
         with self.sessions() as s:
             leg = HandoffLeg(client_id=self.client_id, conversation_id=self.conversation_id, area_id=area.id,
                              team_member_id=member.id, phone=member.phone)
@@ -202,6 +217,36 @@ class Transfer:
         finally:
             summary.cancel()
 
+    async def run_team(self, team: TeamRing, members: list[TeamMember], whisper: str, values: dict) -> Outcome:
+        """Entrante directa: las personas en sus celulares, en orden, con el whisper `whisper` y el 1 para atender.
+        La musica de espera y lo que pasa si nadie atiende los maneja app/voice/direct.py; al conectar se corta la
+        musica. Conectada, termina cuando corta alguno (no hay agente al que volver)."""
+        with self.sessions() as s:
+            reason = quota.handoff_check(s, self.client_id)
+        if reason is None and self.attempt + len(members) > MAX_ATTEMPTS:
+            reason = "too_many_attempts"
+        if reason is not None:
+            logger.info("directa %s: no se llama a los celulares (%s)", self.conversation_id, reason)
+            self._event("handoff.unavailable", area=team.name, reason=reason)
+            return Outcome("unavailable", reason)
+        texts = handoff.DEFAULT_MESSAGES | {"whisper": whisper}
+        summary = asyncio.create_task(self._summary())
+        outcome = Outcome("failed")
+        try:
+            for member in members:
+                result, leg_id, identity = await self._attempt(team, member, texts, values, summary)
+                outcome.legs.append(leg_id)
+                outcome.result = result
+                if result == "confirmed":
+                    if self.hold_music:
+                        await self.line.hold(False)
+                    outcome.status, outcome.member_id = "connected", member.id
+                    outcome.ended = await self._connected(team, member, leg_id, identity, texts, values)
+                    return outcome
+            return outcome
+        finally:
+            summary.cancel()
+
     async def _stop_hold(self, area_id: str | None) -> None:
         if self.hold_music:
             await self.line.hold(False)
@@ -216,7 +261,7 @@ class Transfer:
             logger.exception("derivacion %s: sin resumen para el whisper", self.conversation_id)
             return FALLBACK_SUMMARY
 
-    async def _attempt(self, area: HandoffArea, member: TeamMember, texts: dict, values: dict,
+    async def _attempt(self, area: HandoffArea | TeamRing, member: TeamMember, texts: dict, values: dict,
                        summary: asyncio.Task) -> tuple[str, str, str]:
         """Un miembro: (resultado, tramo, identidad). confirmed, no_answer, busy, failed, machine o not_confirmed."""
         self.attempt += 1
@@ -308,17 +353,20 @@ class Transfer:
                 await self.line.stop_whisper()
                 whisper.cancel()
 
-    async def _connected(self, area: HandoffArea, member: TeamMember, leg_id: str, identity: str,
+    async def _connected(self, area: HandoffArea | TeamRing, member: TeamMember, leg_id: str, identity: str,
                          texts: dict, values: dict) -> str:
         """Modo escucha hasta que vuelve la IA o corta alguno. Devuelve como termino."""
         ids = {"area_id": area.id, "member_id": member.id}
         self._event("handoff.confirmed", **ids, actor="person")
         await self.line.connect(identity)
         self._update_leg(leg_id, result="connected", connected_at=utcnow())
-        with self.sessions() as s:
-            if (row := s.get(HandoffArea, area.id)) is not None:
-                row.last_member_id = member.id
-                s.commit()
+        if area.id is not None:
+            with self.sessions() as s:
+                if (row := s.get(HandoffArea, area.id)) is not None:
+                    row.last_member_id = member.id
+                    s.commit()
+        if self.on_connected is not None:
+            self.on_connected(member)
         self._event("handoff.connected", **ids, person=member.name)
         digits = ""
         ended = ""
@@ -338,7 +386,7 @@ class Transfer:
                     ended = "customer_hung_up"
                 elif kind == "left" and who == identity:
                     ended = "person_hung_up"
-                elif kind == "dtmf" and who == identity:
+                elif kind == "dtmf" and who == identity and area.return_digits:
                     digits = (digits + ev[2])[-len(area.return_digits):]
                     if digits == area.return_digits:
                         ended = "returned_to_ai"
@@ -357,6 +405,8 @@ class Transfer:
             self._event("handoff.returned_to_ai", **ids, actor="person")
         elif ended == "person_hung_up":
             self._event("handoff.person_hung_up", **ids, actor="person")
+        if area.id is None:     # entrante directa: no hay agente que vuelva ni se despida
+            return ended
         if ended == "person_hung_up" and area.on_person_hangup == "end":
             await self._back(texts["goodbye"], values)
             if self.hang_up is not None:
@@ -459,8 +509,12 @@ class RoomLine:
         self.events: asyncio.Queue = asyncio.Queue()
         self.persons: set[str] = set()
         self.tracks: dict[str, str] = {}          # identidad -> sid de su pista de audio
-        self.audio: dict[str, bytearray] = {}     # identidad -> audio a 16 kHz desde que se suscribio
-        self.listening: set[str] = set()
+        # Captura y transcripcion (app/voice/listen.py): cada frase es un evento "text". Guarda el audio de las
+        # personas (deteccion de contestador); el del cliente va solo al VAD.
+        self.listener = Listener(session.vad, session.stt,
+                                 lambda who, text, pcm: self.events.put_nowait(("text", who, text, pcm)))
+        self.audio = self.listener.audio          # identidad -> audio a 16 kHz desde que se suscribio
+        self.listening = self.listener.listening
         self.tasks: list[asyncio.Task] = []
         self.hold_speaker: Speaker | None = None
         self.whisper_speaker: Speaker | None = None
@@ -484,41 +538,13 @@ class RoomLine:
                 # La persona entra a la room al empezar a sonar: se aisla ya, no al atender (spike, plan 11.1).
                 self.tasks.append(asyncio.create_task(self._isolate(p.identity)))
 
+    def _on_joined(self, p) -> None:
+        self.events.put_nowait(("joined", p.identity))
+
     def _on_subscribed(self, track, pub, p) -> None:
-        if track.kind == rtc.TrackKind.KIND_AUDIO and (p.identity in self.persons or p.identity == self.customer):
-            self.tasks.append(asyncio.create_task(self._capture(track, p.identity)))
-
-    async def _capture(self, track, identity: str) -> None:
-        # Se guarda solo el audio de la persona (deteccion de contestador); el del cliente va solo al VAD.
-        buf = self.audio.setdefault(identity, bytearray()) if identity in self.persons else None
-        vad_stream = None
-        async for e in rtc.AudioStream(track, sample_rate=16000, num_channels=1):
-            if buf is not None:
-                buf.extend(bytes(e.frame.data))
-            if identity in self.listening:
-                if vad_stream is None:
-                    vad_stream = self.session.vad.stream()
-                    self.tasks.append(asyncio.create_task(self._transcribe(vad_stream, identity)))
-                vad_stream.push_frame(e.frame)
-
-    async def _transcribe(self, vad_stream, identity: str) -> None:
-        from livekit.agents import vad as agents_vad
-
-        async for ev in vad_stream:
-            if ev.type != agents_vad.VADEventType.END_OF_SPEECH or not ev.frames:
-                continue
-            try:
-                text = await self._stt(ev.frames)
-            except Exception:
-                logger.exception("derivacion: STT del modo escucha")
-                continue
-            if text:
-                pcm = b"".join(bytes(f.data) for f in ev.frames)
-                self.events.put_nowait(("text", identity, text, pcm))
-
-    async def _stt(self, frames) -> str:
-        result = await self.session.stt.recognize(frames, language="es")
-        return (result.alternatives[0].text if result.alternatives else "").strip()
+        # Todas las pistas de audio remotas: el cliente, las personas y, en las directas, el usuario del panel.
+        if track.kind == rtc.TrackKind.KIND_AUDIO:
+            self.listener.capture(track, p.identity)
 
     async def _subscribe(self, who: str, other: str, on: bool) -> None:
         if other in self.tracks:
@@ -547,6 +573,7 @@ class RoomLine:
         self._agent_tracks = [pub.sid for pub in self.room.local_participant.track_publications.values()]
         self.room.on("sip_dtmf_received", self._on_dtmf)
         self.room.on("participant_disconnected", self._on_left)
+        self.room.on("participant_connected", self._on_joined)
         self.room.on("track_published", self._on_published)
         self.room.on("track_subscribed", self._on_subscribed)
         # El audio del cliente ya estaba suscripto (lo escucha la sesion): se captura aparte para el modo escucha.
@@ -554,7 +581,7 @@ class RoomLine:
             if p.identity == self.customer:
                 for pub in p.track_publications.values():
                     if pub.track is not None and pub.kind == rtc.TrackKind.KIND_AUDIO:
-                        self.tasks.append(asyncio.create_task(self._capture(pub.track, p.identity)))
+                        self.listener.capture(pub.track, p.identity)
         self.hold_speaker = Speaker("espera", HOLD_SAMPLE_RATE)
         self.whisper_speaker = Speaker("whisper", self.session.tts.sample_rate)
         await self.hold_speaker.publish(self.room)
@@ -585,6 +612,7 @@ class RoomLine:
 
     async def dial(self, identity: str, phone: str, ring_seconds: int) -> DialResult:
         self.persons.add(identity)
+        self.listener.keep.add(identity)
         try:
             await self.ctx.api.sip.create_sip_participant(api.CreateSIPParticipantRequest(
                 room_name=self.room.name, sip_trunk_id=self.trunk_id, sip_call_to=phone,
@@ -608,11 +636,7 @@ class RoomLine:
     async def first_words(self, identity: str, seconds: float) -> str:
         start = len(self.audio.get(identity, b""))
         await asyncio.sleep(seconds)
-        pcm = bytes(self.audio.get(identity, b""))[start:]
-        if not pcm:
-            return ""
-        frame = rtc.AudioFrame(pcm, 16000, 1, len(pcm) // 2)
-        return await self._stt([frame])
+        return await self.listener.recognize_pcm(bytes(self.audio.get(identity, b""))[start:])
 
     async def whisper(self, identity: str, text: str) -> None:
         pcm = bytearray()
@@ -647,6 +671,7 @@ class RoomLine:
         self.session.input.set_audio_enabled(True)
 
     async def aclose(self) -> None:
+        self.listener.close()
         for task in self.tasks:
             task.cancel()
 

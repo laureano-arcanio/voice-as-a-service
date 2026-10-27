@@ -237,11 +237,11 @@ es una entrada de `app/mcp/catalog.py` que pide a `/api/v1` (el plan y los permi
 | Quién atiende un número (agente o equipo), área, respaldo y mensaje | Números | `PATCH /phone-numbers/{id}` | `calls`, `route_phone_number` (se amplía su body y su descripción) |
 | Personas del número, dónde suena primero, timbre y horario | Números | `PATCH /phone-numbers/{id}` | `calls`, `route_phone_number` (se amplía) |
 | Personas del equipo (celular y usuario del panel) | Equipo (existe) | `/team/*` (existe) | `team`, herramientas existentes |
-| Aviso de grabación en las directas | Mi cuenta | `PATCH /account` (`recording_notice_direct`) | `account`, `update_account` (se amplía) |
+| Aviso de grabación en las directas | Mi cuenta | `PUT /clients/{id}/direct-call-settings` (`recording_notice`) | `account`, `get_direct_call_settings` y `update_direct_call_settings` (nuevas) |
 | Disponible para atender en el panel | Barra de llamada | `PUT /me/presence` | — (es del navegador) |
 | Quién está disponible | Equipo (punto verde por persona) | `GET /team/presence` | `team`, `list_team_presence` (nueva) |
 | Atender una entrante en el panel | Timbre de la barra | `GET /me/ringing`, `POST /direct-calls/{id}/answer` | — (es del navegador) |
-| `direct_calls` del tier | Editor de tiers (admin) | `PATCH /tiers/{id}` | `admin`, `admin_update_tier` (se amplía) |
+| `direct_calls` del tier | Editor de tiers (admin) | `PATCH /tiers/{id}` | — (el catálogo no tiene herramientas de tiers) |
 | Qué incluye el plan | Plan, `PlanGate` | `GET /plan/features` | `get_plan_tools` (sale de `features`) |
 | Reporte de directas | Reportes > Llamadas (por tipo y usuario) | `/reports/calls` con el corte nuevo | `reports`, `get_report_calls` (se amplía) |
 
@@ -319,14 +319,17 @@ cambia acá y en el código a la vez.
   los últimos `PRESENCE_TTL_SECONDS` (60). Ocupado = tiene una llamada activa con su `user_id`.
 - `call_rings`: `id`, `conversation_id` (FK cascade), `user_id` (FK cascade), `status`
   (`ringing`/`answered`/`declined`/`cancelled`), `created_at`, `ended_at`. Un timbre por usuario y llamada
-  entrante al panel.
+  entrante al panel (único: `uq_call_rings_conversation_user`).
 - `tiers.direct_calls` (bool, default false; la migración lo pone en true en todos los tiers salvo el Free).
 - `clients.direct_recording_notice` (bool, default false).
 
 ### Permisos y plan
 
 - `features.TIER_HAS["direct_calls"] = bool(t.direct_calls)`. Sin la función: el error de plan que ya usan
-  las otras funciones.
+  las otras funciones (429 `direct_calls_not_in_plan`, `limits.check_direct_calls`). También al poner un número
+  en `answer_mode=team` (`PATCH /phone-numbers/{id}`); si el plan pierde la función, las entrantes de un número
+  del equipo van al agente del número (`start_inbound`).
+- Una persona del equipo puede tener solo usuario del panel (sin teléfono ni WhatsApp): le suena solo ahí.
 - Un admin en soporte: 403 `support_read_only` en llamar, atender, rechazar y presencia.
 - `quota`: `directa` en `MINUTE_MODES` (`outbound`) y en `ANURA_MODES`. Un tramo al celular de una persona
   del equipo en una entrante directa cuenta como hoy los de la derivación (`handoff_legs`).
@@ -335,9 +338,9 @@ cambia acá y en el código a la vez.
 
 | Método y ruta | Entrada | Salida y errores |
 |---|---|---|
-| `POST /direct-calls` | `DirectCallIn {contact_id?, phone?, from_number_id?, confirm_opted_out=false, user_id?}` (contacto o teléfono) | 201 `DirectCallOut {conversation_id, room, status, livekit_url, token?, join_url?}`. Con sesión: `token` del usuario. Con API key/MCP: `user_id` obligatorio (usuario activo del cliente), `token` nulo y `join_url` = `<APP_PUBLIC_URL>/telefono/llamada/<id>`. 409 `opted_out` (con `confirm_opted_out` en false), 403 `blocked_number`, 429 de cuota o sin canales |
-| `POST /direct-calls/{id}/join` | — | `{livekit_url, token}`; solo el `user_id` de la llamada y llamada activa |
-| `POST /direct-calls/{id}/answer` | — | `{livekit_url, token}`; toma la llamada si nadie la tomó (409 `already_answered`) |
+| `POST /direct-calls` | `DirectCallIn {contact_id?, phone?, from_number_id?, confirm_opted_out=false, user_id?}` (contacto o teléfono) | 201 `DirectCallOut {conversation_id, room, status, livekit_url, token?, join_url?}`. Con sesión: `token` del usuario. Con API key/MCP: `user_id` obligatorio (usuario activo del cliente), `token` nulo y `join_url` = `<APP_URL>/telefono/llamada/<id>` (la setting que ya arma los links del panel). 409 `opted_out` (con `confirm_opted_out` en false), 409 `no_phone_number` (el cliente sin números), 403 `blocked_number`, 422 `user_required`/`invalid_user`, 429 de cuota (`outbound_minutes`, `direct_calls_not_in_plan`...) o sin canales (`no_channel`) |
+| `POST /direct-calls/{id}/join` | — | `{livekit_url, token}`; solo el `user_id` de la llamada (403 `not_your_call`) y llamada activa (409 `call_not_active`) |
+| `POST /direct-calls/{id}/answer` | — | `{livekit_url, token}`; toma la llamada si nadie la tomó (409 `already_answered`; 409 `not_ringing` si la rechazó; 404 si no le suena) |
 | `POST /direct-calls/{id}/decline` | — | 204 |
 | `PUT /me/presence` | `{available: bool}` | `{available, last_seen}` (pulso: la UI lo manda cada 20 s mientras está Disponible; `available=false` borra) |
 | `GET /me/ringing` | — | `[RingingOut {conversation_id, phone, contact_id?, contact_name?, number_e164, number_label, started_at}]` |
@@ -350,25 +353,56 @@ cambia acá y en el código a la vez.
 
 ### Worker y LiveKit
 
-- Identidades en la room: el usuario del panel `user-<user_id>`; el contacto o el que llama `contact`; una
-  persona del equipo por celular `member-<member_id>`.
+- Identidades en la room: el usuario del panel `user-<user_id>`; el contacto de la saliente `contact`; el que
+  llama en la entrante, la que le pone livekit-sip (`sip_<número>`, como hoy); una persona del equipo por celular
+  `persona-<n>`, la de la derivación (`Transfer`: los permisos de las pistas se fijan por identidad antes de
+  marcar y el worker no corta cuando sale una).
 - Token del panel: `livekit.user_participant_token(room, identity, name)` (publica y escucha audio, publica
   datos).
 - Metadata de una saliente directa: `{"conversation_id", "direct": true, "phone", "from_number",
   "user_identity", "user_name", "max_duration_seconds", "join_timeout_seconds" (30 desde el panel, 120 por
   API/MCP), "recording_notice", "voice"}`.
-- Entrante con `answer_mode=team`: `start_inbound` devuelve el ruteo del equipo (personas en orden,
-  `ring_first`, `ring_seconds`, `schedule`, respaldo, mensaje, agente) y el worker toma la rama directa.
+- Entrante con `answer_mode=team`: `start_inbound` devuelve el ruteo del equipo en `InboundCall.team`
+  (`TeamRoute {members: [TeamPerson {member_id, name, phone, user_id}], ring_first, ring_seconds, schedule,
+  fallback, fallback_message, agent_id, number_e164, number_label}`; solo las personas activas con celular o
+  usuario) y el worker toma la rama directa. Sin personas, va al agente del número (`team` es None).
+- Timbre en el panel, para el worker (`services/direct_calls.py`): `ring_panel(s, conversation_id, user_ids)`
+  (a los Disponibles y no ocupados; devuelve a quiénes les suena), `cancel_rings(s, conversation_id)`,
+  `answered_user(s, conversation_id)`, `available_users(s, client_id, user_ids)` y `release_answer(s,
+  conversation_id)` (atendió en el panel y su navegador no entró en `PANEL_JOIN_GRACE_SECONDS`: la llamada
+  vuelve a quedar sin `user_id`). `answer` toma el timbre solo si sigue `ringing` (con un `UPDATE`
+  condicional): después de `cancel_rings` nadie más atiende, y el worker mira `answered_user` una vez más al
+  apagar los timbres.
+- Si el worker no puede ni empezar (sin trunk saliente, sin VAD), la llamada queda `fallida` con
+  `worker_error` y se borra la room.
 - Datos de la room para el panel (`publish_data`, JSON): tema `call_status` `{state: "joining" | "dialing" |
-  "ringing" | "active" | "ended", result?}` y tema `transcript` `{role: "user" | "assistant", person?,
-  text}`.
+  "ringing" | "active" | "ended", result?}` (solo la saliente: en la entrante el usuario entra ya atendida;
+  `result` en `ended`: `completed`, `no_answer`, `busy` o `failed`) y tema `transcript` `{role: "user" |
+  "assistant", person?, text}`.
+- Cómo termina (`call_logs`): atendida, `finalizada` con minutos desde que atiende el contacto (la saliente) o
+  desde que entra (la entrante) y `ended_reason` `customer_hangup` (cortó el contacto o el que llama),
+  `person_hangup` (el usuario o la persona), `max_duration`, `quota_exhausted` o `hangup_by_user` (desde la
+  API, gana); sin atender, la saliente queda `fallida` con `user_not_joined`, `no_answer`, `busy` o
+  `sip_call_failed` (y `sip_status`). La entrante sin nadie que atienda: `after_hours` o `team_no_answer`, con
+  el mensaje del respaldo y, en `voicemail`, lo que dejó grabado el que llama. Atendida en el celular, la
+  llamada queda con el `user_id` de la persona si tiene usuario.
+- Respaldo `agent`: `direct_calls.fallback_to_agent(s, engine, conversation_id, agent_id, phone)` pasa la
+  conversación al agente del número (agente, versión, campos y apertura) y la llamada a `answered_by=agent`; el
+  worker sigue con el agente en la misma room, con los minutos desde que entró. Si el agente está archivado,
+  toma el mensaje (`voicemail`).
+- Celulares en la entrante: `Transfer.run_team(TeamRing, personas, whisper, valores)` de la derivación (sin
+  área ni código de vuelta a la IA; tramos en `handoff_legs` con `area_id` nulo, mismos eventos `handoff.*`).
+  Whisper: "Llamada a {{linea}} de {{cliente}}. Marcá 1 para atender." (`linea`: la etiqueta del número).
 - Mensajes: lo del contacto o el que llama, `role="user"`; lo del usuario o la persona del equipo,
   `role="assistant"` con `person` = su nombre. Siempre con su WAV (`Message.recording`), sin mirar
   `record_audio`.
 - Código: `app/voice/listen.py` (captura y transcripción por VAD + STT, común con la derivación),
   `app/voice/direct.py` (saliente y entrante del equipo), rama al principio de `entrypoint` en
   `app/voice/worker.py`. El aviso de grabación es un WAV que el worker sintetiza la primera vez y guarda en
-  `storage/notices/<voz>.wav`.
+  `storage/notices/<voz>.wav` (`NOTICE_AUDIO_DIR`); en la entrante, si el cliente lo prendió, suena al que llama
+  antes de la espera. La entrante usa `VLLM_TTS_VOICE` (no hay voz por cliente).
+- Prueba SIP aislada: `tests/e2e_sip/direct.py` (servicio `runner-direct`, en `make e2e-sip`): saliente contra un
+  eco del Anura falso (`3510000008`) y entrante al equipo por celular.
 
 ### UI (`web/`)
 
@@ -383,6 +417,11 @@ cambia acá y en el código a la vez.
 
 - Nuevas: `start_direct_call` (`calls`, POST `/direct-calls`, body `DirectCallIn`, `features=("direct_calls",)`,
   destructiva), `list_team_presence` (`team`, GET `/team/presence`), `get_direct_call_settings` y
-  `update_direct_call_settings` (`account`).
+  `update_direct_call_settings` (`account`); las cuatro con `features=("direct_calls",)`. Con key o MCP,
+  `user_id` es obligatorio (422 `user_required`) y la respuesta trae `join_url`.
 - Ampliadas: `route_phone_number` (descripción: agente o equipo, personas, dónde suena primero, respaldo),
-  `list_calls` (filtros `mode`, `user_id`, `answered_by`), reportes de llamadas (corte por tipo y usuario).
+  `list_calls` (filtros `mode`, `user_id`, `answered_by`), `list_phone_numbers` (quién atiende) y `get_report_calls` (la
+  misma respuesta de `/reports/calls`: `daily.directa`, `by_type [{type: agent|direct|team, calls, minutes,
+  avg_duration}]` y `by_user [{user_id, user_name, direct, team, calls, minutes, avg_duration}]`). Las directas y
+  las entrantes del equipo no tienen agente: cuentan como llamadas y minutos, no en conversión ni embudo. No hay
+  herramientas de tiers en el catálogo: `direct_calls` del tier va por la UI o la API.

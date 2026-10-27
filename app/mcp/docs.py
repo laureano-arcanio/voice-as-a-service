@@ -32,6 +32,8 @@ FEATURES: dict[str, tuple[str, dict[str, str]]] = {
     "white_label": ("Panel con tu marca (logo y colores)", {"Red": ""}),
     "advanced_reports": ("Reportes completos (resultados, mensajes, transferencias y campañas)",
                          {"Mostrador": "", "Sucursal": "", "Red": ""}),
+    "direct_calls": ("Llamadas directas: tu equipo llama y atiende desde el panel, sin el agente",
+                     {"Mostrador": "", "Sucursal": "", "Red": ""}),
 }
 
 

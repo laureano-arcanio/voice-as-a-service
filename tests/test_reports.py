@@ -220,6 +220,45 @@ def test_calls_report(api, data):
     assert [(c["phone"], c["count"]) for c in callers["top"]] == [("5493510000001", 2)]
 
 
+def test_direct_calls_are_reported_apart(api, data):
+    """Las directas y las entrantes del equipo no tienen agente: cuentan como llamadas, no como conversion."""
+    ana = client_user(api, data["admin"], {"id": data["acme"]})
+    ana_id = ana.get(f"{V1}/auth/me").json()["id"]
+    before = {name: report(data["admin"], name, client_id=data["acme"])
+              for name in ("summary", "outcomes", "transfers", "technical")}
+    with api.sessions() as s:
+        conv(s, data["acme"], None, T(7, 10), mode="directa", duration=300, phone="+5493510000009", user_id=ana_id)
+        conv(s, data["acme"], None, T(7, 11), mode="entrante", duration=60, phone="+5493510000010",
+             answered_by="team", user_id=ana_id)
+        s.commit()
+    out = report(data["admin"], "calls", client_id=data["acme"])
+    day = next(d for d in out["daily"] if d["date"] == "2026-10-07")
+    assert (day["directa"], day["entrante"]) == (1, 1)
+    assert out["by_type"] == [{"type": "agent", "calls": 4, "minutes": 3.2, "avg_duration": 63},
+                              {"type": "direct", "calls": 1, "minutes": 5.0, "avg_duration": 300},
+                              {"type": "team", "calls": 1, "minutes": 1.0, "avg_duration": 60}]
+    assert out["by_user"] == [{"user_id": ana_id, "user_name": "ana@acme.com", "direct": 1, "team": 1, "calls": 2,
+                               "minutes": 6.0, "avg_duration": 180}]
+    # Sin agente no entran en los de agente, ni el mapa de la hora en que llaman las directas.
+    assert [a["agent_id"] for a in out["by_agent"]] == [data["agent_a"]] and out["by_agent"][0]["calls"] == 4
+    assert {"weekday": datetime.date(2026, 10, 7).weekday(), "hour": 10, "count": 1} not in out["heatmap"]
+    # Los demas reportes cuentan las llamadas y los minutos, pero la conversion y el embudo siguen siendo del agente.
+    k = report(data["admin"], "summary", client_id=data["acme"])["kpis"]
+    assert k["conversations"] == 7 and k["by_channel"]["voice"] == 5 and k["minutes"] == 9.2
+    assert (k["conversion_pct"], k["goal_pct"], k["transfer_pct"]) == (40.0, 20.0, 40.0)
+    after = report(data["admin"], "outcomes", client_id=data["acme"])
+    assert after["funnel"] == before["outcomes"]["funnel"]
+    assert after["conversion_daily"] == before["outcomes"]["conversion_daily"]
+    assert report(data["admin"], "transfers", client_id=data["acme"]) == before["transfers"]
+    assert report(data["admin"], "technical", client_id=data["acme"])["turns_avg"] == before["technical"]["turns_avg"]
+    # Por tipo de canal: son llamadas de voz.
+    assert report(data["admin"], "summary", client_id=data["acme"], channel="voice")["kpis"]["conversations"] == 5
+    report(data["admin"], "platform")
+    # Sin llamadas directas, los tres tipos igual estan.
+    empty = report(data["admin"], "calls", client_id=data["zeta"])
+    assert [t["type"] for t in empty["by_type"]] == ["agent", "direct", "team"] and empty["by_user"] == []
+
+
 def test_days_and_hours_in_the_local_zone(api, data):
     out = report(data["admin"], "calls", client_id=data["acme"], tz="America/Argentina/Buenos_Aires")
     friday = datetime.date(2026, 10, 2).weekday()

@@ -181,6 +181,10 @@ _READ: tuple[Tool, ...] = (
     Tool("get_call_emails", "account", "Resumen por email",
          "Si el resumen por email de cada llamada está prendido para el cliente y a qué direcciones llega.",
          path="/clients/{client_id}/call-emails"),
+    Tool("get_direct_call_settings", "account", "Aviso de grabación de las llamadas directas",
+         "Si las llamadas directas (las que hace o atiende una persona del equipo) avisan \"Esta llamada está "
+         "siendo grabada\" al empezar. Se graban siempre.", path="/clients/{client_id}/direct-call-settings",
+         features=("direct_calls",)),
 
     # ---------- agents ----------
     Tool("list_agents", "agents", "Agentes",
@@ -244,7 +248,10 @@ _READ: tuple[Tool, ...] = (
          params={**_DATE_RANGE,
                  "status": {"type": "array", "items": {"type": "string"},
                             "description": "Solo estos estados (ej. completada, abandonada, rechazada)."},
-                 "mode": _s("Solo este canal o tipo (ej. inbound, outbound, whatsapp, web, prueba)."),
+                 "mode": _s("Solo este canal o tipo (ej. entrante, saliente, directa, web, prueba, whatsapp). "
+                            "`directa`: las que hizo una persona del equipo, sin agente."),
+                 "user_id": _s("Llamadas directas: las que hizo o atendió este usuario del panel."),
+                 "answered_by": _s("Entrantes: las que atendió el agente o el equipo.", enum=["agent", "team"]),
                  **_PAGE}),
     Tool("get_call", "calls", "Llamada",
          "Una conversación con su transcripción, los datos que tomó el agente, el resultado y la grabación "
@@ -262,7 +269,8 @@ _READ: tuple[Tool, ...] = (
          "Conversaciones por día y % con workflow completo y con objetivo cumplido.", path="/stats/daily",
          params=_DATE_RANGE, required=("date_from", "date_to")),
     Tool("list_phone_numbers", "calls", "Números",
-         "Los números de teléfono del cliente y a qué agente va cada uno.", path="/phone-numbers"),
+         "Los números de teléfono del cliente, quién atiende cada uno (el agente o el equipo) y, si es el equipo, "
+         "sus personas, dónde suena primero, el horario y el respaldo.", path="/phone-numbers"),
     Tool("list_blocked_numbers", "calls", "Números bloqueados",
          "Los números bloqueados: sus llamadas y mensajes entrantes se cortan sin atender.",
          path="/blocked-numbers"),
@@ -277,8 +285,9 @@ _READ: tuple[Tool, ...] = (
          "nos fue?\" o \"¿alcanza el plan?\"." + _REPORTS_NOTE, path="/reports/summary", params=_REPORT),
     Tool("get_report_calls", "reports", "Reporte: llamadas",
          "Las llamadas del período: por día y modo (entrantes, salientes, web), cuándo llaman (mapa de calor por "
-         "día de la semana y hora, para elegir horarios de áreas y campañas), por línea y por agente (volumen, "
-         "minutos, conversión), distribución de la duración, cómo terminan (cortó el cliente, terminó el agente, "
+         "día de la semana y hora, para elegir horarios de áreas y campañas), por tipo (atendidas por el agente, "
+         "directas salientes de una persona y entrantes al equipo) y, en las directas, por persona, por línea y "
+         "por agente (volumen, minutos, conversión), distribución de la duración, cómo terminan (cortó el cliente, terminó el agente, "
          "fuera de tema, cortada desde el panel, bloqueada), cortes tempranos y quién llama (nuevos, que vuelven y "
          "los que más vuelven).", path="/reports/calls", params=_REPORT),
     Tool("get_report_outcomes", "reports", "Reporte: resultados y conversión",
@@ -372,6 +381,10 @@ _READ: tuple[Tool, ...] = (
     Tool("get_handoff_area", "team", "Área de derivación", "Un área de derivación con su configuración.",
          path="/handoff-areas/{area_id}", params={"area_id": _s("ID del área.")}, required=("area_id",),
          features=("team",)),
+    Tool("list_team_presence", "team", "Quién está disponible",
+         "Los usuarios del panel del cliente: quién está Disponible para atender llamadas en el navegador y quién "
+         "está en una llamada. Sirve para elegir `user_id` en start_direct_call.", path="/team/presence",
+         features=("direct_calls",)),
     Tool("list_events", "team", "Eventos",
          "Eventos en orden de llegada: llamadas (timbre, atención, fin), derivaciones y esperas. Para seguir "
          "nuevos, pasar `after_id` con el último visto.", path="/events",
@@ -401,6 +414,11 @@ _WRITE: tuple[Tool, ...] = (
          "Prende o apaga el resumen por email de cada llamada para todos los agentes del cliente y elige a "
          "quién le llega (vacío: a los usuarios activos).", method="PUT", path="/clients/{client_id}/call-emails",
          body="CallEmailsIn"),
+    Tool("update_direct_call_settings", "account", "Configurar el aviso de grabación de las directas",
+         "Prende o apaga el aviso \"Esta llamada está siendo grabada\" al empezar las llamadas directas. Las "
+         "directas se graban siempre: avisar y tener el consentimiento es responsabilidad del cliente.",
+         method="PUT", path="/clients/{client_id}/direct-call-settings", body="DirectCallSettings",
+         features=("direct_calls",)),
 
     # ---------- agents ----------
     Tool("create_agent", "agents", "Crear un agente",
@@ -517,12 +535,27 @@ _WRITE: tuple[Tool, ...] = (
          "al de un contacto de la agenda (`contact_id`). Llama a una persona real y gasta minutos salientes: "
          "confirmalo con el usuario antes.", method="POST", path="/calls", body="CallIn",
          features=("outbound_calls",), destructive=True),
+    Tool("start_direct_call", "calls", "Llamar con una persona del equipo",
+         "Crea una llamada directa: la hace una PERSONA del equipo, no el agente (para que llame el agente, "
+         "start_call). Llama al teléfono indicado (`phone`, E.164) o al de un contacto (`contact_id`) con el número "
+         "de la empresa y devuelve `join_url`: la página del panel que la persona abre, con su sesión, para hablar "
+         "desde el navegador. Hay que pasar `user_id` (el usuario que va a hablar; list_team_presence muestra quién "
+         "está disponible) y la persona tiene 2 minutos para abrir el link. Llama a una persona real y gasta "
+         "minutos salientes: confirmalo con el usuario antes. Se graba siempre. Si el contacto pidió la baja, "
+         "responde `opted_out`; solo se repite con `confirm_opted_out` si el usuario lo confirma.",
+         method="POST", path="/direct-calls", body="DirectCallIn", features=("direct_calls",), destructive=True),
     Tool("hangup_call", "calls", "Cortar una llamada",
          "Corta una llamada en curso (termina con `hangup_by_user`).", method="POST",
          path="/calls/{conversation_id}/hangup", params=_CONVERSATION, required=("conversation_id",),
          destructive=True),
     Tool("route_phone_number", "calls", "Rutear un número",
-         "Elige qué agente atiende las llamadas entrantes de un número del cliente, o le cambia la etiqueta.",
+         "Elige quién atiende las llamadas entrantes de un número del cliente y cómo, o le cambia la etiqueta. "
+         "`answer_mode`: `agent` (lo atiende el agente `agent_id`, que puede derivar con sus áreas) o `team` (suena "
+         "a las personas del equipo `member_ids`, en ese orden; cada una con celular o usuario del panel). Con "
+         "`team`: `ring_first` (`phone`: el celular de cada una, en orden; `panel`: a los Disponibles en el panel, "
+         "a la vez; si nadie atiende, en el otro), `ring_seconds` de timbre por persona, `schedule` (horario; "
+         "null = siempre) y `team_fallback` si nadie atiende o fuera de horario (`agent`: el agente del número; "
+         "`voicemail`: mensaje y graba; `hangup`: mensaje y corta) con su `team_fallback_message`.",
          method="PATCH", path="/phone-numbers/{number_id}", params={"number_id": _s("ID del número.")},
          required=("number_id",), body="PhoneNumberUpdate"),
     Tool("block_number", "calls", "Bloquear un número",

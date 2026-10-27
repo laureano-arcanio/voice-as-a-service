@@ -93,6 +93,8 @@ class Limits:
     white_label: bool = False
     # Reportes completos (docs/REPORTES_PLAN.md): Resultados, Mensajes, Transferencias y Campañas.
     advanced_reports: bool = False
+    # Llamadas directas del equipo, sin agente (docs/LLAMADAS_DIRECTAS_PLAN.md).
+    direct_calls: bool = False
     tier_name: str = ""
     # Campos cuyo valor difiere del tier por un ajuste vigente.
     adjusted: frozenset[str] = field(default_factory=frozenset)
@@ -139,7 +141,7 @@ def apply(tier: Tier, adjustments: Iterable[ClientLimitAdjustment], day: datetim
                   campaign_followup=bool(tier.campaign_followup), whatsapp=bool(tier.whatsapp),
                   external_agent=bool(tier.external_agent), code_tools=bool(tier.code_tools),
                   white_label=bool(tier.white_label), advanced_reports=bool(tier.advanced_reports),
-                  tier_name=tier.name, adjusted=adjusted)
+                  direct_calls=bool(tier.direct_calls), tier_name=tier.name, adjusted=adjusted)
 
 
 def effective_limits(s: Session, client: Client, now: datetime.datetime | None = None,
@@ -169,6 +171,13 @@ def check_whatsapp(s: Session, client_id: str) -> None:
     client = s.get(Client, client_id)
     if client is not None and not effective_limits(s, client).whatsapp:
         raise QuotaExceeded("Tu plan no incluye WhatsApp.", "whatsapp_not_in_plan")
+
+
+def check_direct_calls(s: Session, client_id: str) -> None:
+    """Llamadas directas (llamar y atender sin el agente) solo si el plan las incluye."""
+    client = s.get(Client, client_id)
+    if client is not None and not effective_limits(s, client).direct_calls:
+        raise QuotaExceeded("Tu plan no incluye llamadas directas.", "direct_calls_not_in_plan")
 
 
 def check_external_agent(s: Session, client_id: str) -> None:

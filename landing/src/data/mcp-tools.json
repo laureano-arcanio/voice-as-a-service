@@ -169,6 +169,15 @@
     "Sucursal": "",
     "Red": ""
    }
+  },
+  {
+   "id": "direct_calls",
+   "name": "Llamadas directas: tu equipo llama y atiende desde el panel, sin el agente",
+   "plans": {
+    "Mostrador": "",
+    "Sucursal": "",
+    "Red": ""
+   }
   }
  ],
  "tools": [
@@ -223,6 +232,18 @@
    "api_key": false
   },
   {
+   "name": "get_direct_call_settings",
+   "toolset": "account",
+   "title": "Aviso de grabación de las llamadas directas",
+   "description": "Si las llamadas directas (las que hace o atiende una persona del equipo) avisan \"Esta llamada está siendo grabada\" al empezar. Se graban siempre.",
+   "kind": "lectura",
+   "features": [
+    "direct_calls"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
    "name": "get_billing",
    "toolset": "account",
    "title": "Plan y facturación",
@@ -249,6 +270,18 @@
    "description": "Prende o apaga el resumen por email de cada llamada para todos los agentes del cliente y elige a quién le llega (vacío: a los usuarios activos).",
    "kind": "escritura",
    "features": [],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "update_direct_call_settings",
+   "toolset": "account",
+   "title": "Configurar el aviso de grabación de las directas",
+   "description": "Prende o apaga el aviso \"Esta llamada está siendo grabada\" al empezar las llamadas directas. Las directas se graban siempre: avisar y tener el consentimiento es responsabilidad del cliente.",
+   "kind": "escritura",
+   "features": [
+    "direct_calls"
+   ],
    "oauth": false,
    "api_key": false
   },
@@ -732,7 +765,7 @@
    "name": "list_phone_numbers",
    "toolset": "calls",
    "title": "Números",
-   "description": "Los números de teléfono del cliente y a qué agente va cada uno.",
+   "description": "Los números de teléfono del cliente, quién atiende cada uno (el agente o el equipo) y, si es el equipo, sus personas, dónde suena primero, el horario y el respaldo.",
    "kind": "lectura",
    "features": [],
    "oauth": false,
@@ -761,6 +794,18 @@
    "api_key": false
   },
   {
+   "name": "start_direct_call",
+   "toolset": "calls",
+   "title": "Llamar con una persona del equipo",
+   "description": "Crea una llamada directa: la hace una PERSONA del equipo, no el agente (para que llame el agente, start_call). Llama al teléfono indicado (`phone`, E.164) o al de un contacto (`contact_id`) con el número de la empresa y devuelve `join_url`: la página del panel que la persona abre, con su sesión, para hablar desde el navegador. Hay que pasar `user_id` (el usuario que va a hablar; list_team_presence muestra quién está disponible) y la persona tiene 2 minutos para abrir el link. Llama a una persona real y gasta minutos salientes: confirmalo con el usuario antes. Se graba siempre. Si el contacto pidió la baja, responde `opted_out`; solo se repite con `confirm_opted_out` si el usuario lo confirma.",
+   "kind": "confirmar",
+   "features": [
+    "direct_calls"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
    "name": "hangup_call",
    "toolset": "calls",
    "title": "Cortar una llamada",
@@ -774,7 +819,7 @@
    "name": "route_phone_number",
    "toolset": "calls",
    "title": "Rutear un número",
-   "description": "Elige qué agente atiende las llamadas entrantes de un número del cliente, o le cambia la etiqueta.",
+   "description": "Elige quién atiende las llamadas entrantes de un número del cliente y cómo, o le cambia la etiqueta. `answer_mode`: `agent` (lo atiende el agente `agent_id`, que puede derivar con sus áreas) o `team` (suena a las personas del equipo `member_ids`, en ese orden; cada una con celular o usuario del panel). Con `team`: `ring_first` (`phone`: el celular de cada una, en orden; `panel`: a los Disponibles en el panel, a la vez; si nadie atiende, en el otro), `ring_seconds` de timbre por persona, `schedule` (horario; null = siempre) y `team_fallback` si nadie atiende o fuera de horario (`agent`: el agente del número; `voicemail`: mensaje y graba; `hangup`: mensaje y corta) con su `team_fallback_message`.",
    "kind": "escritura",
    "features": [],
    "oauth": false,
@@ -814,7 +859,7 @@
    "name": "get_report_calls",
    "toolset": "reports",
    "title": "Reporte: llamadas",
-   "description": "Las llamadas del período: por día y modo (entrantes, salientes, web), cuándo llaman (mapa de calor por día de la semana y hora, para elegir horarios de áreas y campañas), por línea y por agente (volumen, minutos, conversión), distribución de la duración, cómo terminan (cortó el cliente, terminó el agente, fuera de tema, cortada desde el panel, bloqueada), cortes tempranos y quién llama (nuevos, que vuelven y los que más vuelven).",
+   "description": "Las llamadas del período: por día y modo (entrantes, salientes, web), cuándo llaman (mapa de calor por día de la semana y hora, para elegir horarios de áreas y campañas), por tipo (atendidas por el agente, directas salientes de una persona y entrantes al equipo) y, en las directas, por persona, por línea y por agente (volumen, minutos, conversión), distribución de la duración, cómo terminan (cortó el cliente, terminó el agente, fuera de tema, cortada desde el panel, bloqueada), cortes tempranos y quién llama (nuevos, que vuelven y los que más vuelven).",
    "kind": "lectura",
    "features": [],
    "oauth": false,
@@ -1346,6 +1391,18 @@
    "kind": "lectura",
    "features": [
     "team"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "list_team_presence",
+   "toolset": "team",
+   "title": "Quién está disponible",
+   "description": "Los usuarios del panel del cliente: quién está Disponible para atender llamadas en el navegador y quién está en una llamada. Sirve para elegir `user_id` en start_direct_call.",
+   "kind": "lectura",
+   "features": [
+    "direct_calls"
    ],
    "oauth": false,
    "api_key": false

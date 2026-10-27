@@ -69,7 +69,9 @@ def _diff(engine):
     # Lo de la 0018 (link para llamar), la 0020 (resumen por email), la 0021 (room) y la 0023 (equipo)
     # todavia no esta en este esquema.
     later = ("call_link", "max_call_links", "ck_tiers_call_links", "summary_email", "'room'",
-             "max_team_members", "ck_tiers_team_members")
+             "max_team_members", "ck_tiers_team_members",
+             # 0039 (llamadas directas).
+             "'user_id'", "'answered_by'", "'opted_out_confirmed'", "ix_call_logs_user_id", "'direct_calls'")
     return [d for d in diff if any(t in repr(d) for t in touched) and not any(t in repr(d) for t in later)]
 
 

@@ -9,7 +9,8 @@ y minutos por mes. Son los efectivos (tier mas los ajustes del cliente, services
 - Minutos: entrantes y salientes por separado, por mes calendario en
   settings.billing_timezone. Una llamada cuenta en el mes en que empezo; la que esta
   en curso cuenta lo que lleva. Las de prueba y loadtest no consumen minutos. El tramo a la
-  persona de una derivacion (handoff_legs) es saliente, desde que atiende, si se conecto.
+  persona de una derivacion (handoff_legs) es saliente, desde que atiende, si se conecto. La saliente
+  directa (una persona del equipo, sin agente) cuenta como saliente.
 - Canales de Anura (globales, no por cliente): llamadas por Anura en curso mas tramos de
   derivacion abiertos, contra settings.anura_channels (handoff_check).
 
@@ -40,8 +41,10 @@ from . import limits as limits_service
 from .errors import QuotaExceeded
 from .limits import Limits
 
-# La llamada por el link publico de un agente (web) es una entrante mas: consume esos minutos.
-MINUTE_MODES = {CallMode.entrante: "inbound", CallMode.web: "inbound", CallMode.saliente: "outbound"}
+# La llamada por el link publico de un agente (web) es una entrante mas: consume esos minutos. La saliente
+# directa de una persona del equipo (docs/LLAMADAS_DIRECTAS_PLAN.md), una saliente mas.
+MINUTE_MODES = {CallMode.entrante: "inbound", CallMode.web: "inbound", CallMode.saliente: "outbound",
+                CallMode.directa: "outbound"}
 # Una llamada "activa" mas vieja que esto quedo colgada (se cayo el worker sin
 # cerrarla): no ocupa lugar. Cubre la espera de la de prueba (5 min) + la duracion maxima.
 STALE_MARGIN_SECONDS = 600
@@ -148,7 +151,7 @@ def handoff_seconds(s: Session, client_id: str, start: datetime.datetime, end: d
 
 
 # Las que van por Anura (las de WhatsApp tambien entran como entrante: se cuentan de mas, del lado seguro).
-ANURA_MODES = (CallMode.entrante, CallMode.saliente)
+ANURA_MODES = (CallMode.entrante, CallMode.saliente, CallMode.directa)
 
 
 def busy_channels(s: Session, now: datetime.datetime | None = None) -> int:

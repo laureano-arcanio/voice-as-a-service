@@ -20,8 +20,8 @@ def test_0023_upgrade_downgrade_upgrade(tmp_path):
     assert "max_team_members" in {c["name"] for c in inspector.get_columns("tiers")}
     with engine.connect() as conn:
         diff = compare_metadata(MigrationContext.configure(conn, opts={"compare_type": True}), Base.metadata)
-    # handoff_legs (0024) referencia a estas tablas: no es parte de la 0023.
-    diff = [d for d in diff if "handoff_legs" not in repr(d)]
+    # handoff_legs (0024) y phone_number_members (0039) referencian a estas tablas: no son parte de la 0023.
+    diff = [d for d in diff if "handoff_legs" not in repr(d) and "phone_number_members" not in repr(d)]
     assert [d for d in diff if any(t in repr(d) for t in TABLES) or "max_team_members" in repr(d)] == []
 
     _run(engine, command.downgrade, "0022")

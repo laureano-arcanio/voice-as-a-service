@@ -40,6 +40,7 @@ from .api.routers import (
     contacts,
     conversations,
     demo,
+    direct_calls,
     handoff,
     inference,
     llm_connections,
@@ -114,7 +115,7 @@ def create_app() -> FastAPI:
     for module in (auth, tiers, clients, phone_numbers, agents, users, api_keys, calls, conversations, voices,
                    whatsapp, wa_campaigns, campaigns, contacts, inference, demo, billing, llm_connections,
                    llm_params, call_links, blocked_numbers, api_requests, handoff, plan, mcp_usage, consumer_requests,
-                   tools, branding, reports):
+                   tools, branding, reports, direct_calls):
         api.include_router(module.router)
     api.include_router(oauth_routes.api_router)
     app.include_router(api)

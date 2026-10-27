@@ -33,9 +33,10 @@ from ..mail import call_summary
 from ..models import CallMode, CallRow, CallStatus, PhoneNumber
 from ..runtime import get_conversation_engine
 from ..services import calls as call_service
-from ..services import campaign_calls, quota
+from ..services import campaign_calls, direct_calls, quota
 from ..services import handoff as handoff_service
 from ..services.errors import Forbidden, NotFound, QuotaExceeded
+from . import direct
 from . import handoff as transfer
 from .latency import TurnLatencyTracker
 from .speech_text import speech_stream
@@ -66,8 +67,9 @@ RECORDING_SAMPLE_RATE = recordings.RECORDING_SAMPLE_RATE
 # de stt_node es continuo y sin esto cada archivo arrancaba con el playout del agente. El evento
 # de inicio de habla llega despues de la primera silaba (min_speech_duration): pre-roll.
 RECORDING_PREROLL_SECONDS = 0.3
-# Con record_audio y recording_notice, antes de la apertura (docs/DERIVACIONES_PLAN.md, 9).
-RECORDING_NOTICE = "Esta llamada está siendo grabada."
+# Con record_audio y recording_notice, antes de la apertura (docs/DERIVACIONES_PLAN.md, 9). El mismo de las
+# llamadas directas.
+RECORDING_NOTICE = direct.RECORDING_NOTICE
 
 
 class _MonoResampler:
@@ -406,6 +408,7 @@ async def resolve_voice(workflow: Workflow, override: str | None = None) -> str:
 
 def build_session(voice: str) -> AgentSession:
     vad = silero.VAD.load(min_silence_duration=0.3, min_speech_duration=0.2)
+    # STT y TTS: los mismos clientes que las llamadas directas (app/voice/direct.py).
     return AgentSession(
         vad=vad,
         turn_handling={
@@ -416,22 +419,9 @@ def build_session(voice: str) -> AgentSession:
             "endpointing": {"min_delay": settings.voice_min_endpointing_delay,
                             "max_delay": settings.voice_max_endpointing_delay},
         },
-        stt=openai.STT(
-            model=settings.vllm_stt_model,
-            language="es",
-            base_url=settings.vllm_stt_base_url,
-            api_key=settings.vllm_api_key,
-            use_realtime=False,
-            vad=vad,
-        ),
+        stt=direct.stt_client(vad),
         llm=openai.LLM(model=settings.vllm_llm_model, base_url=settings.vllm_llm_base_url, api_key=settings.vllm_api_key),
-        tts=openai.TTS(
-            model=settings.vllm_tts_model,
-            voice=voice,
-            base_url=settings.vllm_tts_base_url,
-            api_key=settings.vllm_api_key,
-            response_format="pcm",
-        ),
+        tts=direct.tts_client(voice),
     )
 
 
@@ -469,9 +459,15 @@ async def entrypoint(ctx: JobContext):
     metadata = json.loads(ctx.job.metadata or "{}")
     engine = get_conversation_engine()
     sessions = get_sessionmaker()
+    if metadata.get("direct"):
+        # Saliente directa de una persona del equipo (docs/LLAMADAS_DIRECTAS_PLAN.md): sin agente ni AgentSession.
+        await direct.run_outbound(ctx, metadata, sessions=sessions, store=engine.store,
+                                  trunk_id=lambda: outbound_trunk_id(ctx.api))
+        return
 
     conversation_id = metadata.get("conversation_id")
     dialed = caller_number = None
+    team_started: float | None = None   # entrante al equipo que paso al agente: los minutos corren desde ahi
     if conversation_id is None:
         # Entrante: la despacha la dispatch rule de LiveKit, sin metadata. Se rutea por
         # el numero marcado al agente de ese numero (y en WhatsApp, por la regla del
@@ -501,12 +497,30 @@ async def entrypoint(ctx: JobContext):
             await say_and_hang_up(ctx, settings.quota_reject_message, settings.vllm_tts_voice, e.code)
             return
         conversation_id, mode = inbound.conversation_id, CallMode.entrante
+        if inbound.team is not None:
+            # Numero que atiende el equipo (app/voice/direct.py). Si nadie atiende y el respaldo es el agente del
+            # numero, la conversacion pasa a el y sigue aca, en la misma room.
+            def to_agent() -> bool:
+                with sessions() as s:
+                    team_opening = direct_calls.fallback_to_agent(s, engine, inbound.conversation_id,
+                                                                  inbound.team.agent_id, caller_number)
+                fallback["opening"] = team_opening
+                return team_opening is not None
+
+            fallback: dict = {}
+
+            team_started = await direct.run_inbound_team(
+                ctx, inbound, customer=caller.identity, caller=caller_number or "", dialed=dialed or "",
+                sessions=sessions, store=engine.store, to_agent=to_agent, trunk_id=lambda: outbound_trunk_id(ctx.api))
+            if team_started is None:
+                return
     else:
         mode = (CallMode.saliente if metadata.get("phone")
                 else CallMode.loadtest if metadata.get("loadtest")
                 else CallMode.web if metadata.get("call_link_id") else CallMode.prueba)
     state = engine.store.get(conversation_id)
-    opening = state.messages[0].text
+    # Con el respaldo del equipo, la apertura del agente va despues de lo que se hablo en la espera.
+    opening = fallback["opening"] if team_started is not None else state.messages[0].text
     phone = metadata.get("phone")
     caller_number = caller_number or phone or ""
 
@@ -733,7 +747,8 @@ async def entrypoint(ctx: JobContext):
     await session.start(agent=agent, room=ctx.room)
 
     # La room queda en la llamada: con ella se corta desde la API (call_service.hang_up).
-    update_call(status=CallStatus.sonando, room=ctx.room.name)
+    if team_started is None:
+        update_call(status=CallStatus.sonando, room=ctx.room.name)
     if phone:
         max_duration = metadata.get("max_duration_seconds") or settings.call_max_duration_seconds
         try:
@@ -765,8 +780,11 @@ async def entrypoint(ctx: JobContext):
             fail(f"Nadie se conecto a la room de prueba ({join_timeout} s)", "test_mode_timeout")
             return
 
-    started_at = time.time()
-    update_call(status=CallStatus.en_curso, started_at=utcnow())
+    if team_started is not None:
+        started_at = team_started     # ya en curso desde que entro al equipo
+    else:
+        started_at = time.time()
+        update_call(status=CallStatus.en_curso, started_at=utcnow())
     if mode in quota.MINUTE_MODES:
         watchdogs.append(asyncio.create_task(quota_watchdog()))
     if not phone and metadata.get("max_duration_seconds"):

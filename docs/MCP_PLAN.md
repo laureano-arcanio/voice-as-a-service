@@ -488,3 +488,15 @@ no un preflight). El resto, en la fase 5 (sección 13).
 
 **Cómo desplegar:** migración 0029 (`make migrate-test` contra la copia del backup), `make calls-active &&
 make up-agent` y publicar la landing (push). `make mcp-docs` ya regenera la doc y la página, sin `admin`.
+
+## 14. Llamadas directas (27-oct-2026)
+
+Herramientas nuevas, todas con `features=("direct_calls",)` ([`LLAMADAS_DIRECTAS_PLAN.md`](LLAMADAS_DIRECTAS_PLAN.md), 9):
+`start_direct_call` (`calls`, `POST /direct-calls`, destructiva: la hace una persona, devuelve `join_url`; `user_id`
+obligatorio con la key), `list_team_presence` (`team`), `get_direct_call_settings` y `update_direct_call_settings`
+(`account`, el aviso de grabación). Ampliadas, sin `features` (la API corta el plan): `route_phone_number` (agente
+o equipo, personas en orden, dónde suena primero, horario y respaldo), `list_calls` (`mode`, `user_id`,
+`answered_by`), `list_phone_numbers` y `get_report_calls` (corte por tipo y usuario). `admin_update_tier` no existe
+en el catálogo: `direct_calls` del tier se edita por la UI o la API. Catálogo en 147 herramientas
+(`make mcp-docs`); falta `make mcp-eval` (que elija `start_direct_call` cuando habla la persona y `start_call`
+cuando llama el agente) y subir la versión de `deploy/mcp/server.json`.

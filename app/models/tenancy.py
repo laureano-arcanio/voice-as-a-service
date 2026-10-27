@@ -102,6 +102,9 @@ class Tier(IdMixin, TimestampMixin, Base):
     advanced_reports: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     # Tier de Atentina (nosotros): no se ofrece como plan ni cuenta en las estadisticas de la plataforma.
     internal: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # Llamadas directas: el equipo llama y atiende desde el panel sin el agente (docs/LLAMADAS_DIRECTAS_PLAN.md).
+    # La saliente pide ademas outbound_calls.
+    direct_calls: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     # Autoservicio (docs/SUSCRIPCIONES_PLAN.md): precio mensual en pesos, lo que se cobra (NULL = no
     # se vende por el dashboard; 0 = gratis). `public`: se ofrece en el registro y en /plan. El tier
     # publico con precio 0 es el del registro.
@@ -129,6 +132,8 @@ class Client(IdMixin, TimestampMixin, Base):
     # call_emails_to: destinos; vacio = los usuarios activos del cliente.
     call_emails: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     call_emails_to: Mapped[list] = mapped_column(JSONDoc, default=list, server_default=text("'[]'"))
+    # Aviso "Esta llamada está siendo grabada" en las llamadas directas (siempre se graban).
+    direct_recording_notice: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
 
     tier: Mapped[Tier] = relationship(lazy="joined", innerjoin=True)
 
@@ -183,7 +188,8 @@ class ClientLimitAdjustment(IdMixin, TimestampMixin, Base):
 class PhoneNumber(IdMixin, TimestampMixin, Base):
     """Numero del inventario (los que provee Anura). Libre (sin cliente) o asignado a
     un cliente, hasta el tope de su tier. Las entrantes a este numero las atiende
-    `agent`, un agente del cliente; las salientes pueden usarlo como caller ID."""
+    `agent`, un agente del cliente, o el equipo (answer_mode, docs/LLAMADAS_DIRECTAS_PLAN.md);
+    las salientes pueden usarlo como caller ID."""
     __tablename__ = "phone_numbers"
     __table_args__ = (
         CheckConstraint("agent_id IS NULL OR client_id IS NOT NULL", name="ck_phone_numbers_agent_needs_client"),
@@ -201,6 +207,17 @@ class PhoneNumber(IdMixin, TimestampMixin, Base):
     # Suspendido: el cliente bajo a un plan con menos numeros por falta de pago. Sigue asignado
     # pero no atiende; a los BILLING_NUMBER_HOLD_DAYS vuelve al inventario (app/billing/service.py).
     suspended_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    # Quien atiende las entrantes: team (las personas del numero, phone_number_members) o agent. Los numeros
+    # anteriores a la 0039 quedaron en agent.
+    answer_mode: Mapped[str] = mapped_column(String(8), default="team", server_default="team")
+    # Con team: donde suena primero (phone: el celular de cada uno en orden; panel: a los Disponibles a la vez)
+    # y, si nadie atiende, en el otro. Timbre por persona y horario (el formato de handoff_areas.schedule).
+    ring_first: Mapped[str] = mapped_column(String(8), default="phone", server_default="phone")
+    ring_seconds: Mapped[int] = mapped_column(Integer, default=20, server_default="20")
+    schedule: Mapped[dict | None] = mapped_column(JSONDoc, nullable=True)
+    # Si nadie atiende o fuera de horario: agent (el agente del numero), voicemail (mensaje y graba) o hangup.
+    team_fallback: Mapped[str] = mapped_column(String(16), default="voicemail", server_default="voicemail")
+    team_fallback_message: Mapped[str] = mapped_column(Text, default="", server_default="")
 
 
 class Role(enum.StrEnum):

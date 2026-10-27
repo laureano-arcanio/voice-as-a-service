@@ -6,9 +6,9 @@ import pytest
 from app.conversation.models import AgentTurn
 
 from app.mcp import catalog, docs
-from app.services import features
+from app.services import features, livekit
 
-from .test_api import V1, admin, make_agent, make_client, make_tier  # noqa: F401  (admin: fixture)
+from .test_api import V1, admin, client_user, make_agent, make_client, make_tier  # noqa: F401  (admin: fixture)
 from .test_plan_features import FREE
 
 
@@ -41,7 +41,8 @@ class Mcp:
 @pytest.fixture
 def full(api, admin):
     """Un cliente con todo el plan (un número para las salientes) y su MCP."""
-    c = make_client(admin, slug="acme", outbound_minutes=300, campaign_channels=["whatsapp", "voice"])
+    c = make_client(admin, slug="acme", outbound_minutes=300, campaign_channels=["whatsapp", "voice"],
+                    direct_calls=True)
     admin.post(f"{V1}/phone-numbers", json={"client_id": c["id"], "e164": "+541152630861"}).raise_for_status()
     agent = make_agent(admin, c)
     return c, agent, Mcp(api, new_key(admin, c))
@@ -280,6 +281,74 @@ def test_outbound_call_and_routing(api, full):
     ok(mcp.call("unblock_number", phone="+5491155559999"))
     assert ok(mcp.call("list_blocked_numbers"))["items"] == []
     ok(Mcp(api, mcp.key, "account").call("update_call_emails", enabled=False))
+
+
+def test_direct_calls_tools(api, admin, full, monkeypatch):
+    """Llamadas directas (docs/LLAMADAS_DIRECTAS_PLAN.md, 9): las hace una persona; el MCP devuelve el link."""
+    c, agent, mcp = full
+    every = Mcp(api, mcp.key, "all")
+    tools = every.tools()
+    start = tools["start_direct_call"]
+    assert start["annotations"]["destructiveHint"] is True
+    assert "PERSONA" in start["description"] and "start_call" in start["description"]
+    assert set(start["inputSchema"]["properties"]) == {"contact_id", "phone", "from_number_id", "confirm_opted_out",
+                                                       "user_id"}
+    assert {"mode", "user_id", "answered_by"} <= set(tools["list_calls"]["inputSchema"]["properties"])
+    assert {"answer_mode", "member_ids", "ring_first", "team_fallback"} <= set(
+        tools["route_phone_number"]["inputSchema"]["properties"])
+    for name, toolset in (("start_direct_call", "calls"), ("list_team_presence", "team"),
+                          ("get_direct_call_settings", "account"), ("update_direct_call_settings", "account")):
+        assert catalog.BY_NAME[name].toolset == toolset and catalog.BY_NAME[name].features == ("direct_calls",)
+
+    user = client_user(api, admin, c)
+    user_id = user.get(f"{V1}/auth/me").json()["id"]
+    # Con la key, el usuario que habla es obligatorio y la respuesta trae el link para abrir en el panel.
+    out = every.call("start_direct_call", phone="+54 9 351 677-5617")
+    assert out["isError"] and out["structuredContent"]["code"] == "user_required"
+    started = ok(every.call("start_direct_call", phone="+54 9 351 677-5617", user_id=user_id))
+    assert started["token"] is None and started["join_url"].endswith(f"/telefono/llamada/{started['conversation_id']}")
+    assert api.dispatched[-1]["direct"] is True and api.dispatched[-1]["join_timeout_seconds"] == 120
+    mine = ok(every.call("list_calls", mode="directa", user_id=user_id))
+    assert [i["id"] for i in mine["items"]] == [started["conversation_id"]]
+    assert ok(every.call("list_calls", answered_by="team"))["items"] == []
+    # En la llamada, la persona figura ocupada (el worker la cierra de verdad).
+    presence = ok(every.call("list_team_presence"))
+    assert [(p["user_id"], p["available"], p["busy"]) for p in presence["items"]] == [(user_id, False, True)]
+
+    async def delete_room(room):
+        return True
+    monkeypatch.setattr(livekit, "delete_room", delete_room)
+    assert ok(every.call("hangup_call", conversation_id=started["conversation_id"]))["ended_reason"] == "hangup_by_user"
+
+    assert ok(every.call("get_direct_call_settings")) == {"recording_notice": False}
+    assert ok(every.call("update_direct_call_settings", recording_notice=True)) == {"recording_notice": True}
+    assert ok(every.call("get_direct_call_settings")) == {"recording_notice": True}
+
+    # El número lo atiende el equipo: personas en orden, dónde suena primero y el respaldo.
+    member = ok(every.call("create_team_member", name="Ana", user_id=user_id))
+    number = ok(every.call("list_phone_numbers"))["items"][0]
+    routed = ok(every.call("route_phone_number", number_id=number["id"], answer_mode="team", member_ids=[member["id"]],
+                           ring_first="panel", ring_seconds=15, team_fallback="agent", agent_id=agent["id"]))
+    assert (routed["answer_mode"], routed["ring_first"], routed["ring_seconds"]) == ("team", "panel", 15)
+    assert [m["id"] for m in routed["members"]] == [member["id"]]
+
+
+def test_direct_calls_tools_need_the_plan(api, admin):
+    c = make_client(admin, slug="sin", outbound_minutes=300)
+    mcp = Mcp(api, new_key(admin, c), "all")
+    blocked = {t["name"] for t in mcp.call("get_plan_tools")["structuredContent"]["tools"]["unavailable"]}
+    assert {"start_direct_call", "list_team_presence", "get_direct_call_settings",
+            "update_direct_call_settings"} <= blocked
+    err = mcp.call("start_direct_call", phone="+5493516775617", user_id="x")
+    assert err["isError"] and err["structuredContent"]["code"] == "feature_not_in_plan"
+    assert err["structuredContent"]["feature"] == "direct_calls"
+
+
+def test_report_calls_tool_exposes_the_split(api, full):
+    _, _, mcp = full
+    out = ok(Mcp(api, mcp.key, "reports").call("get_report_calls"))
+    assert [t["type"] for t in out["by_type"]] == ["agent", "direct", "team"] and out["by_user"] == []
+    assert "directas" in catalog.BY_NAME["get_report_calls"].description
 
 
 def test_contacts_and_a_campaign_draft(api, full):

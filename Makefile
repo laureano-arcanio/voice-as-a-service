@@ -315,9 +315,9 @@ test: ## Tests (LLM falso, sin servicios reales; los del sandbox de codigo, con 
 
 E2E_SIP := docker compose -f docker-compose.e2e-sip.yml
 
-e2e-sip: ## Prueba SIP de punta a punta aislada: señalización y la transferencia real (Anura falso, sin puertos del host ni llamadas reales)
+e2e-sip: ## Prueba SIP de punta a punta aislada: señalización, la transferencia y las llamadas directas reales (Anura falso, sin puertos del host ni llamadas reales)
 	$(E2E_SIP) up -d --build net redis livekit livekit-sip asterisk fake-anura
-	$(E2E_SIP) run --rm --build runner && $(E2E_SIP) run --rm runner-transfer; status=$$?; $(E2E_SIP) down -v; exit $$status
+	$(E2E_SIP) run --rm --build runner && $(E2E_SIP) run --rm runner-transfer && $(E2E_SIP) run --rm runner-direct; status=$$?; $(E2E_SIP) down -v; exit $$status
 
 e2e-sip-down: ## Baja el entorno de la prueba SIP si quedó levantado
 	$(E2E_SIP) down -v

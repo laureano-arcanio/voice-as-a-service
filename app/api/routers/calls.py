@@ -1,5 +1,5 @@
 import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Query
@@ -30,13 +30,15 @@ TzQuery = Annotated[str | None, Query(description="Zona IANA de las fechas (ej. 
 CampaignQuery = Annotated[str | None, Query(description="Solo las llamadas y conversaciones de esa campaña")]
 
 
-def _filter(p, client_id, agent_id, date_from, date_to, tz, status=None, mode=None, campaign_id=None) -> CallFilter:
+def _filter(p, client_id, agent_id, date_from, date_to, tz, status=None, mode=None, campaign_id=None,
+            user_id=None, answered_by=None) -> CallFilter:
     try:
         zone = ZoneInfo(tz or settings.billing_timezone)
     except (ZoneInfoNotFoundError, ValueError):
         raise Invalid(f"Zona horaria inexistente: {tz}") from None
     return CallFilter(client_id=scoped_client_id(p, client_id), agent_id=agent_id, date_from=date_from,
-                      date_to=date_to, status=status or [], mode=mode, campaign_id=campaign_id, tz=zone)
+                      date_to=date_to, status=status or [], mode=mode, campaign_id=campaign_id, user_id=user_id,
+                      answered_by=answered_by, tz=zone)
 
 
 @router.post("/calls", response_model=CallStartedOut, status_code=201,
@@ -53,11 +55,18 @@ def list_calls(p: CurrentPrincipal, db: DB, definitions: Definitions,
                client_id: str | None = None, agent_id: str | None = None,
                date_from: datetime.date | None = None, date_to: datetime.date | None = None, tz: TzQuery = None,
                status: Annotated[list[str] | None, Query(description="Uno o varios (status=a&status=b)")] = None,
-               mode: str | None = None, campaign_id: CampaignQuery = None,
+               mode: Annotated[str | None, Query(description="entrante, saliente, directa, web, prueba, whatsapp "
+                                                             "o api")] = None,
+               campaign_id: CampaignQuery = None,
+               user_id: Annotated[str | None, Query(description="Llamadas directas: las que hizo o atendió ese "
+                                                                "usuario")] = None,
+               answered_by: Annotated[Literal["agent", "team"] | None, Query(
+                   description="Entrantes que atendió el agente o el equipo")] = None,
                limit: int = Query(default=100, ge=1, le=500), offset: int = Query(default=0, ge=0)):
     """Conversaciones con su llamada, de la mas nueva a la mas vieja."""
     items, total = Reports(db, definitions).page(
-        _filter(p, client_id, agent_id, date_from, date_to, tz, status, mode, campaign_id), limit, offset)
+        _filter(p, client_id, agent_id, date_from, date_to, tz, status, mode, campaign_id, user_id, answered_by),
+        limit, offset)
     return CallPage(items=items, total=total)
 
 

@@ -49,7 +49,7 @@ class ConversationStore:
             s.commit()
 
     def workflow(self, state: ConversationState, s: Session | None = None) -> Workflow | None:
-        if self.definitions is None:
+        if self.definitions is None or not state.agent_id:     # sin agente: una llamada directa
             return None
         try:
             return self.definitions.get(state.agent_id, state.agent_version, s)
@@ -65,10 +65,11 @@ class ConversationStore:
         data = state.model_dump(mode="json")
         row = s.get(ConversationRow, state.conversation_id)
         if row is None:
-            # Agente, version, cliente y canal se fijan al crearla y no cambian.
-            row = ConversationRow(id=state.conversation_id, agent_id=state.agent_id,
-                                  agent_version=state.agent_version, client_id=state.client_id,
-                                  channel=state.channel)
+            # Agente, version, cliente y canal se fijan al crearla y no cambian. Sin agente (agent_id ""): una
+            # llamada directa del equipo (services/direct_calls.py).
+            row = ConversationRow(id=state.conversation_id, agent_id=state.agent_id or None,
+                                  agent_version=state.agent_version if state.agent_id else None,
+                                  client_id=state.client_id, channel=state.channel)
         row.status = state.status
         row.fields = data["fields"]
         row.messages = data["messages"]

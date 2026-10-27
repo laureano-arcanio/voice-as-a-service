@@ -57,6 +57,19 @@ def test_participant_token(room_name: str) -> str:
     return participant_token(room_name, f"tester-{room_name}", "Tester")
 
 
+def user_participant_token(room_name: str, identity: str, name: str) -> str:
+    """Token de un usuario del panel en una llamada directa (docs/LLAMADAS_DIRECTAS_PLAN.md): publica y escucha
+    audio y publica datos (DTMF). Identidad `user-<user_id>`: si entra de nuevo, reemplaza a la conexion anterior."""
+    return (
+        api.AccessToken(settings.livekit_api_key, settings.livekit_api_secret)
+        .with_identity(identity)
+        .with_name(name)
+        .with_grants(api.VideoGrants(room_join=True, room=room_name, can_publish=True, can_subscribe=True,
+                                     can_publish_data=True))
+        .to_jwt()
+    )
+
+
 def build_test_join_url(room_name: str) -> str:
     query = urllib.parse.urlencode({"liveKitUrl": public_url(), "token": test_participant_token(room_name)})
     return f"https://meet.livekit.io/custom?{query}"

@@ -4,18 +4,21 @@ import asyncio
 import logging
 import re
 import shutil
-from dataclasses import dataclass
+import uuid
+from dataclasses import dataclass, field
 
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..conversation.engine import ConversationEngine
+from ..conversation.models import ConversationState
 from ..db import utcnow
 from ..models import (
     ACTIVE_CALL_STATUSES,
     Agent,
     CallMode,
+    CallRing,
     CallRow,
     CallStatus,
     CampaignContact,
@@ -23,6 +26,8 @@ from ..models import (
     Contact,
     ConversationRow,
     PhoneNumber,
+    PhoneNumberMember,
+    TeamMember,
     WaMessage,
     WaThread,
 )
@@ -204,10 +209,56 @@ async def start_call(s: Session, engine: ConversationEngine, principal: Principa
 # ---------- entrantes (worker de voz) ----------
 
 @dataclass
+class TeamPerson:
+    """Una persona del numero: suena en su celular (`phone`) y/o en el panel (`user_id`)."""
+    member_id: str
+    name: str
+    phone: str | None
+    user_id: str | None
+
+
+@dataclass
+class TeamRoute:
+    """Entrante al equipo (answer_mode=team, docs/LLAMADAS_DIRECTAS_PLAN.md, 5): a quien hacer sonar, en orden,
+    donde primero (phone/panel), timbre, horario y que hacer si nadie atiende o esta fuera de horario
+    (fallback: agent, voicemail o hangup; agent_id es el agente del numero, para el respaldo)."""
+    members: list[TeamPerson]
+    ring_first: str
+    ring_seconds: int
+    schedule: dict | None
+    fallback: str
+    fallback_message: str
+    agent_id: str | None
+    number_e164: str = ""
+    number_label: str = ""
+
+
+@dataclass
 class InboundCall:
     conversation_id: str
     client_id: str
     opening: str
+    # Con answer_mode=team: la conversacion va sin agente y el worker toma la rama directa (app/voice/direct.py).
+    team: TeamRoute | None = field(default=None)
+
+
+def number_people(s: Session, number_id: str, *, usable: bool = False) -> list[TeamMember]:
+    """Las personas del numero, en orden. usable: solo las activas con celular o usuario del panel."""
+    rows = s.scalars(select(TeamMember).join(PhoneNumberMember, PhoneNumberMember.member_id == TeamMember.id)
+                     .where(PhoneNumberMember.phone_number_id == number_id)
+                     .order_by(PhoneNumberMember.position)).all()
+    if usable:
+        rows = [m for m in rows if m.active and (m.phone or m.user_id)]
+    return list(rows)
+
+
+def team_route(s: Session, number: PhoneNumber) -> TeamRoute:
+    return TeamRoute(
+        members=[TeamPerson(member_id=m.id, name=m.name, phone=m.phone, user_id=m.user_id)
+                 for m in number_people(s, number.id, usable=True)],
+        ring_first=number.ring_first, ring_seconds=number.ring_seconds, schedule=number.schedule,
+        fallback=number.team_fallback, fallback_message=number.team_fallback_message, agent_id=number.agent_id,
+        number_e164=number.e164, number_label=number.label)
 
 
 def dialed_e164(raw: str | None) -> str | None:
@@ -218,28 +269,39 @@ def dialed_e164(raw: str | None) -> str | None:
 
 def start_inbound(s: Session, engine: ConversationEngine, dialed: str | None, caller: str | None,
                   wa_id: str | None = None) -> InboundCall:
-    """Rutea la entrante por el numero marcado al agente de ese numero y la admite
-    con los limites del cliente. En una llamada de WhatsApp (wa_id del llamante), manda
-    la regla de ruteo por contacto de la cuenta, si hay. Si el tier no la deja, queda
-    registrada como rechazada y se levanta QuotaExceeded (el worker avisa y corta). Si el que
+    """Rutea la entrante por el numero marcado y la admite con los limites del cliente. Con
+    answer_mode=team va al equipo (conversacion sin agente, `team` con el ruteo); con agent, o un numero
+    del equipo sin personas, al agente del numero. En una llamada de WhatsApp (wa_id del llamante), manda
+    la regla de ruteo por contacto de la cuenta, si hay (tambien sobre el equipo). Si el tier no la deja,
+    queda registrada como rechazada y se levanta QuotaExceeded (el worker avisa y corta). Si el que
     llama esta bloqueado por el cliente, igual pero con Forbidden (el worker corta sin atender)."""
     number = s.scalar(select(PhoneNumber).where(PhoneNumber.e164 == dialed_e164(dialed)))
     if number is None or number.client_id is None:
         raise NotFound(f"El número {dialed!r} no tiene cliente o agente asignado", "number_without_agent")
-    agent_id = number.agent_id
+    agent_id, by_rule = number.agent_id, False
     if wa_id:
         # WhatsApp: la regla por contacto de la cuenta pisa al agente por defecto del numero.
         account = wa_routing.account_for_number(s, number.e164)
         if account is not None:
             agent_id = wa_routing.resolve_agent_id(s, account, wa_id) or number.agent_id
-    if agent_id is None:
+            route = wa_routing.route_of(s, account.id, wa_id)
+            by_rule = route is not None and agent_id == route.agent_id
+    team = team_route(s, number) if number.answer_mode == "team" and not by_rule else None
+    if team is not None and not (team.members and
+                                 limits.effective_limits(s, s.get(Client, number.client_id)).direct_calls):
+        team = None     # sin personas, o el plan ya no tiene llamadas directas: al agente del numero, si tiene
+    if team is None and agent_id is None:
         raise NotFound(f"El número {dialed!r} no tiene cliente o agente asignado", "number_without_agent")
-    try:
-        state, opening = engine.new_conversation(agent_id, client_id=number.client_id, session=s, phone=caller)
-    except KeyError:
-        raise NotFound(f"El agente del número {dialed!r} está archivado", "number_without_agent") from None
+    if team is not None:
+        state, opening = ConversationState(conversation_id=str(uuid.uuid4()), agent_id="",
+                                           client_id=number.client_id, channel="voice", fields={}), ""
+    else:
+        try:
+            state, opening = engine.new_conversation(agent_id, client_id=number.client_id, session=s, phone=caller)
+        except KeyError:
+            raise NotFound(f"El agente del número {dialed!r} está archivado", "number_without_agent") from None
     call = CallRow(conversation_id=state.conversation_id, client_id=number.client_id, mode=CallMode.entrante,
-                   phone=caller, phone_number_id=number.id)
+                   phone=caller, phone_number_id=number.id, answered_by="team" if team else "agent")
     try:
         if blocked_numbers.is_blocked(s, number.client_id, caller, wa_id):
             raise Forbidden("El número que llama está bloqueado", "blocked_number")
@@ -262,7 +324,7 @@ def start_inbound(s: Session, engine: ConversationEngine, dialed: str | None, ca
     s.flush()
     s.add(call)
     s.commit()
-    return InboundCall(conversation_id=state.conversation_id, client_id=number.client_id, opening=opening)
+    return InboundCall(conversation_id=state.conversation_id, client_id=number.client_id, opening=opening, team=team)
 
 
 def update_call(s: Session, conversation_id: str, **values) -> None:
@@ -361,6 +423,7 @@ def delete_conversations(s: Session, ids: list[str]) -> int:
               .values(conversation_id=None))
     s.execute(delete(WaMessage).where(WaMessage.conversation_id.in_(found)))
     s.execute(delete(WaThread).where(WaThread.conversation_id.in_(found)))
+    s.execute(delete(CallRing).where(CallRing.conversation_id.in_(found)))
     s.execute(delete(CallRow).where(CallRow.conversation_id.in_(found)))
     s.execute(delete(ConversationRow).where(ConversationRow.id.in_(found)))
     s.commit()

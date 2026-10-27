@@ -2,7 +2,8 @@
 el tope del tier y ruteo a un agente del cliente.
 
 - Admin: carga, asigna, libera, borra y rutea.
-- Cliente (usuario o API key): ve sus numeros y elige que agente atiende cada uno.
+- Cliente (usuario o API key): ve sus numeros y elige quien atiende cada uno: un agente o el
+  equipo (docs/LLAMADAS_DIRECTAS_PLAN.md, 5).
 Al cargar o borrar numeros se agregan o quitan de los trunks SIP de LiveKit en caliente
 (services/livekit.py), sin reiniciar livekit-sip. `make livekit-sip` los rearma enteros.
 """
@@ -23,6 +24,7 @@ from ..schemas import (
     PhoneNumberBulkIn,
     PhoneNumberBulkOut,
     PhoneNumberIn,
+    PhoneNumberMemberOut,
     PhoneNumberOut,
     PhoneNumberUpdate,
 )
@@ -34,8 +36,11 @@ router = APIRouter(prefix="/phone-numbers", tags=["phone-numbers"])
 def _out(db, n: PhoneNumber) -> PhoneNumberOut:
     agent = db.get(Agent, n.agent_id) if n.agent_id else None
     client = db.get(Client, n.client_id) if n.client_id else None
+    members = [PhoneNumberMemberOut(id=m.id, name=m.name, phone=m.phone, user_id=m.user_id)
+               for m in service.members(db, n.id)]
     return PhoneNumberOut.model_validate(n).model_copy(
-        update={"agent_name": agent.name if agent else None, "client_name": client.name if client else None})
+        update={"agent_name": agent.name if agent else None, "client_name": client.name if client else None,
+                "members": members})
 
 
 def _get(db, p, number_id: str) -> PhoneNumber:
@@ -115,11 +120,14 @@ def release_number(number_id: str, p: AdminPrincipal, db: DB):
 
 @router.patch("/{number_id}", response_model=PhoneNumberOut)
 def update_number(number_id: str, body: PhoneNumberUpdate, p: CurrentPrincipal, db: DB):
-    """Etiqueta y agente que atiende las entrantes (un agente del mismo cliente)."""
+    """Etiqueta y quien atiende las entrantes: el agente (`answer_mode: agent`, un agente del mismo cliente)
+    o el equipo (`team`: `member_ids` en orden, `ring_first`, `ring_seconds`, `schedule` y el respaldo
+    `team_fallback`, que con `agent` usa el agente del numero). `member_ids` reemplaza la lista."""
     n = _get(db, p, number_id)
-    data = body.model_dump(exclude_unset=True)
+    data = body.model_dump(mode="json", exclude_unset=True)
     if "agent_id" in data:
         service.set_agent(db, n, data["agent_id"])
+    service.set_answering(db, n, data)
     if data.get("label") is not None:
         n.label = data["label"]
     db.commit()

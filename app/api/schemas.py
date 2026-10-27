@@ -186,6 +186,8 @@ class TierIn(BaseModel):
                                                               "Transferencias y Campañas (sin esto, Resumen y Llamadas)")
     internal: bool = Field(default=False, description="Tier de Atentina: no se ofrece como plan ni cuenta en "
                                                       "las estadisticas de la plataforma")
+    direct_calls: bool = Field(default=False, description="Llamadas directas: el equipo llama y atiende desde el "
+                                                          "panel, sin el agente (la saliente pide ademas salientes)")
     # Autoservicio (docs/SUSCRIPCIONES_PLAN.md).
     price_ars: int | None = Field(default=None, ge=0,
                                   description="Precio mensual en pesos, lo que se cobra. null: no se vende por el dashboard; 0: gratis")
@@ -223,6 +225,7 @@ class TierUpdate(BaseModel):
     white_label: bool | None = None
     advanced_reports: bool | None = None
     internal: bool | None = None
+    direct_calls: bool | None = None
     price_ars: int | None = Field(default=None, ge=0)
     public: bool | None = None
     sort: int | None = None
@@ -259,6 +262,7 @@ class TierOut(ORM):
     white_label: bool
     advanced_reports: bool
     internal: bool
+    direct_calls: bool
     price_ars: int | None
     public: bool
     sort: int
@@ -435,10 +439,31 @@ class PhoneNumberBulkIn(BaseModel):
 class PhoneNumberUpdate(BaseModel):
     label: str | None = Field(default=None, max_length=64)
     agent_id: str | None = None
+    # Quien atiende las entrantes (docs/LLAMADAS_DIRECTAS_PLAN.md, 5).
+    answer_mode: Literal["team", "agent"] | None = Field(
+        default=None, description="team: las personas del número; agent: el agente (puede derivar con sus áreas)")
+    member_ids: list[str] | None = Field(default=None, description="Personas del equipo, en el orden en que suenan; "
+                                                                    "cada una con celular o usuario del panel")
+    ring_first: Literal["phone", "panel"] | None = Field(
+        default=None, description="Dónde suena primero: phone (el celular de cada uno, en orden) o panel (los "
+                                  "Disponibles, a la vez); si nadie atiende, en el otro")
+    ring_seconds: int | None = Field(default=None, ge=5, le=60, description="Timbre por persona")
+    schedule: "HandoffSchedule | None" = Field(default=None, description="Horario; null = siempre")
+    team_fallback: Literal["agent", "voicemail", "hangup"] | None = Field(
+        default=None, description="Si nadie atiende o fuera de horario: el agente del número, mensaje y graba, o "
+                                  "mensaje y corta")
+    team_fallback_message: str | None = Field(default=None, max_length=500)
 
 
 class AssignIn(BaseModel):
     client_id: str
+
+
+class PhoneNumberMemberOut(BaseModel):
+    id: str
+    name: str
+    phone: str | None
+    user_id: str | None
 
 
 class PhoneNumberOut(ORM):
@@ -452,6 +477,13 @@ class PhoneNumberOut(ORM):
     agent_name: str | None = None
     assigned_at: UTCDateTime | None
     created_at: UTCDateTime
+    answer_mode: Literal["team", "agent"]
+    ring_first: Literal["phone", "panel"]
+    ring_seconds: int
+    schedule: "HandoffSchedule | None" = None
+    team_fallback: Literal["agent", "voicemail", "hangup"]
+    team_fallback_message: str
+    members: list[PhoneNumberMemberOut] = Field(default_factory=list, description="Las personas del número, en orden")
 
 
 class SkippedNumber(BaseModel):
@@ -1137,6 +1169,73 @@ class CallHangupOut(BaseModel):
     ended_reason: str
 
 
+# ---------- llamadas directas (docs/LLAMADAS_DIRECTAS_PLAN.md) ----------
+
+class DirectCallIn(BaseModel):
+    contact_id: str | None = Field(default=None, description="Contacto de la agenda (marca su teléfono)")
+    phone: str | None = Field(default=None, description="E.164, sin contacto")
+    from_number_id: str | None = Field(default=None, description="Número del cliente para el caller ID; sin él, "
+                                                                  "el primero")
+    confirm_opted_out: bool = Field(default=False, description="El contacto pidió no recibir llamadas y se llama "
+                                                               "igual (queda registrado); sin esto, 409 opted_out")
+    user_id: str | None = Field(default=None, description="Por API key o MCP: el usuario del cliente que va a "
+                                                          "hablar (abre join_url con su sesión). Desde el panel, "
+                                                          "el de la sesión")
+
+    @model_validator(mode="after")
+    def _contact_or_phone(self):
+        if not self.contact_id and not self.phone:
+            raise ValueError("Indicá contact_id o phone")
+        return self
+
+
+class DirectCallOut(BaseModel):
+    conversation_id: str
+    room: str
+    status: str
+    livekit_url: str
+    token: str | None = Field(default=None, description="Con sesión: el token del usuario para entrar a la room")
+    join_url: str | None = Field(default=None, description="Por API key o MCP: la página del panel que entra a "
+                                                           "la llamada con la sesión del usuario")
+
+
+class DirectJoinOut(BaseModel):
+    livekit_url: str
+    token: str
+
+
+class PresenceIn(BaseModel):
+    available: bool
+
+
+class PresenceOut(BaseModel):
+    available: bool
+    last_seen: UTCDateTime | None
+
+
+class RingingOut(BaseModel):
+    conversation_id: str
+    phone: str | None
+    contact_id: str | None = None
+    contact_name: str | None = None
+    number_e164: str | None
+    number_label: str | None
+    started_at: UTCDateTime
+
+
+class TeamPresenceOut(BaseModel):
+    user_id: str
+    team_member_id: str | None = None
+    name: str
+    available: bool = Field(description="Disponible en el panel para atender")
+    busy: bool = Field(description="En una llamada")
+
+
+class DirectCallSettings(BaseModel):
+    recording_notice: bool = Field(description="Avisar \"Esta llamada está siendo grabada\" al empezar las "
+                                               "llamadas directas (siempre se graban)")
+
+
 class CallSummary(BaseModel):
     id: str
     client_id: str | None
@@ -1158,6 +1257,12 @@ class CallSummary(BaseModel):
     duration_seconds: int
     ended_reason: str
     latency_avg: float | None
+    # Llamadas directas (docs/LLAMADAS_DIRECTAS_PLAN.md): quien llamo o atendio, quien atiende la entrante y si se
+    # llamo a un contacto dado de baja con confirmacion.
+    user_id: str | None = None
+    user_name: str | None = None
+    answered_by: Literal["agent", "team"] | None = None
+    opted_out_confirmed: bool = False
 
 
 class CallPage(BaseModel):
@@ -2125,7 +2230,7 @@ class CampaignStatsOut(BaseModel):
 
 PlanFeatureKey = Literal["outbound_calls", "campaigns_voice", "campaigns_whatsapp", "whatsapp", "contacts",
                          "team", "call_links", "external_agent", "custom_tools", "code_tools", "white_label",
-                         "advanced_reports"]
+                         "advanced_reports", "direct_calls"]
 
 
 class PlanFeatureOut(BaseModel):
@@ -2447,6 +2552,7 @@ class ReportCallsDayOut(BaseModel):
     date: datetime.date
     entrante: int
     saliente: int
+    directa: int
     web: int
     prueba: int
 
@@ -2467,6 +2573,25 @@ class ReportCallsAgentOut(BaseModel):
     avg_duration: int | None
     conversion_pct: float | None
     goal_pct: float | None
+
+
+class ReportCallTypeOut(BaseModel):
+    type: Literal["agent", "direct", "team"] = Field(
+        description="agent: la atiende o la hace el agente; direct: la hace una persona del equipo; team: "
+                    "entrante que atiende el equipo")
+    calls: int
+    minutes: float
+    avg_duration: int | None = Field(description="Segundos, de las llamadas finalizadas")
+
+
+class ReportCallUserOut(BaseModel):
+    user_id: str
+    user_name: str
+    direct: int = Field(description="Directas que hizo")
+    team: int = Field(description="Entrantes del equipo que atendió")
+    calls: int
+    minutes: float
+    avg_duration: int | None = Field(description="Segundos, de las llamadas finalizadas")
 
 
 class ReportCountOut(BaseModel):
@@ -2497,6 +2622,9 @@ class ReportCallsOut(BaseModel):
     heatmap: list[ReportHeatCellOut]
     by_line: list[ReportLineOut]
     by_agent: list[ReportCallsAgentOut]
+    by_type: list[ReportCallTypeOut] = Field(description="Siempre los tres tipos, en el orden agent, direct, team")
+    by_user: list[ReportCallUserOut] = Field(description="Usuarios del panel con directas hechas o entrantes "
+                                                         "del equipo atendidas")
     durations: list[ReportBucketOut] = Field(description="Llamadas finalizadas por duración")
     ended: list[ReportReasonOut] = Field(description="customer_hangup, agent_end, off_topic, hangup_by_user, "
                                                      "blocked_number, rejected, failed, other")

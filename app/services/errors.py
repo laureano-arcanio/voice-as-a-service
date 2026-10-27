@@ -38,7 +38,7 @@ class QuotaExceeded(ServiceError):
     inbound_minutes, outbound_minutes, client_inactive o number_suspended. Campañas y agenda:
     campaign_channel_not_in_plan, campaigns_per_month, campaign_contacts, campaign_concurrency,
     campaign_followup_not_in_plan y contacts_limit. WhatsApp: whatsapp_not_in_plan. Agente externo:
-    external_agent_not_in_plan."""
+    external_agent_not_in_plan. Llamadas directas: direct_calls_not_in_plan."""
     status_code = 429
     default_code = "quota_exceeded"
 

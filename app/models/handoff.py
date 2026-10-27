@@ -77,6 +77,16 @@ class HandoffAreaMember(Base):
     position: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
 
+class PhoneNumberMember(Base):
+    """Las personas que atienden un numero con answer_mode=team, en orden (docs/LLAMADAS_DIRECTAS_PLAN.md)."""
+    __tablename__ = "phone_number_members"
+    phone_number_id: Mapped[str] = mapped_column(String(36), ForeignKey("phone_numbers.id", ondelete="CASCADE"),
+                                                 primary_key=True)
+    member_id: Mapped[str] = mapped_column(String(36), ForeignKey("team_members.id", ondelete="CASCADE"),
+                                           primary_key=True, index=True)
+    position: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
+
 class HandoffLeg(IdMixin, Base):
     """Un intento de derivacion: la llamada a una persona del area desde una llamada en curso."""
     __tablename__ = "handoff_legs"

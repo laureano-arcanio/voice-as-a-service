@@ -219,13 +219,16 @@ Consultas en SQL agregadas (nada de cargar conversación por conversación). Fec
 la base; los días y horas se agrupan en `tz`.
 
 "Consulta" = una conversación de cliente (llamada atendida o no, o conversación de WhatsApp).
+Las llamadas directas ([`LLAMADAS_DIRECTAS_PLAN.md`](LLAMADAS_DIRECTAS_PLAN.md)) y las entrantes que atiende el equipo
+no tienen agente: cuentan como consultas, llamadas y minutos, pero la conversión, el objetivo, la transferencia
+(`%`), el embudo y los turnos por conversación se calculan solo sobre las conversaciones con agente.
 "Transferencia" = conversación con al menos un evento `handoff.requested` (voz) o
 `wa.handoff.assigned` (WhatsApp); "atendida" = con `handoff.connected` o `wa.handoff.first_reply`.
 
 | Endpoint | Plan | Devuelve |
 |---|---|---|
 | `GET /reports/summary` | todos | `period {date_from, date_to}`, `kpis` y `previous` (mismo período anterior, misma forma): `conversations`, `by_channel {voice, whatsapp, web}`, `conversion_pct`, `goal_pct`, `transfers`, `transfers_answered`, `transfer_pct`, `minutes`, `avg_duration` (s), `rejected_by_limit`, `wa_messages`; `plan` (null con `client_id` vacío): `inbound_minutes_used`, `inbound_minutes_quota` (null = sin límite), `outbound_minutes_used`, `outbound_minutes_quota`, `projected_inbound_minutes` (al ritmo del mes en curso), `period_start`, `period_end`; `daily: [{date, voice, whatsapp, web, transfers, transfers_answered}]` |
-| `GET /reports/calls` | todos | `daily: [{date, entrante, saliente, web, prueba}]`, `heatmap: [{weekday 0=lunes, hour, count}]`, `by_line: [{phone_number_id, number, calls, minutes, conversion_pct}]`, `by_agent: [{agent_id, agent_name, calls, minutes, avg_duration, conversion_pct, goal_pct}]`, `durations: [{bucket: "0-15s"\|"15-60s"\|"1-3m"\|"3-5m"\|"5-10m"\|"10m+", count}]`, `ended: [{reason, count}]` (`customer_hangup`, `agent_end`, `off_topic`, `hangup_by_user`, `blocked_number`, `rejected`, `failed`, `other`), `early_hangups`, `callers {new, returning, top: [{phone, count, last_at}]}` |
+| `GET /reports/calls` | todos | `daily: [{date, entrante, saliente, directa, web, prueba}]`, `heatmap: [{weekday 0=lunes, hour, count}]` (sin las directas), `by_line: [{phone_number_id, number, calls, minutes, conversion_pct}]`, `by_agent: [{agent_id, agent_name, calls, minutes, avg_duration, conversion_pct, goal_pct}]`, `by_type: [{type: "agent"\|"direct"\|"team", calls, minutes, avg_duration}]` (siempre los tres: el agente, la directa saliente de una persona y la entrante que atiende el equipo), `by_user: [{user_id, user_name, direct, team, calls, minutes, avg_duration}]` (directas hechas y entrantes del equipo atendidas), `durations: [{bucket: "0-15s"\|"15-60s"\|"1-3m"\|"3-5m"\|"5-10m"\|"10m+", count}]`, `ended: [{reason, count}]` (`customer_hangup`, `agent_end`, `off_topic`, `hangup_by_user`, `blocked_number`, `rejected`, `failed`, `other`), `early_hangups`, `callers {new, returning, top: [{phone, count, last_at}]}` |
 | `GET /reports/outcomes` | `advanced_reports` | `conversion_daily: [{date, complete, partial, empty}]`, `by_agent: [{agent_id, agent_name, total, complete, partial, empty, goal}]`, `outcomes: [{agent_id, agent_name, outcome, label, goal, count}]`, `funnel {conversations, with_data, complete, goal}`, `fields: [{agent_id, agent_name, field, label, captured, total, pct}]` (los datos requeridos de la versión vigente del agente), `by_version: [{agent_id, agent_name, version, total, conversion_pct, goal_pct}]` |
 | `GET /reports/messages` | `advanced_reports` | `daily: [{date, inbound, outbound, inbound_audio, outbound_audio, conversations}]`, `heatmap` (entrantes), `delivery {sent, delivered, read, failed}`, `failures: [{code, message, count}]`, `per_conversation_avg`, `conversion {complete, partial, empty}`, `accounts: [{account_id, display_phone_number, status, quality_rating, messaging_limit, history: [{at, status, quality_rating, messaging_limit}]}]` |
 | `GET /reports/transfers` | `advanced_reports` | `kpis {requested, answered, not_answered, unavailable, answer_pct, avg_answer_seconds, minutes}`, `daily: [{date, requested, answered}]`, `by_area: [{area_id, name, requested, answered, not_answered, unavailable}]`, `by_member: [{team_member_id, name, attempts, answered, not_answered, avg_answer_seconds, minutes}]`, `whatsapp {assigned, first_reply, avg_first_reply_seconds, reassigned}` |
@@ -250,6 +253,7 @@ con "Todos", Plataforma. Las del plan, con el aviso de "Mejorar mi plan". Inicio
 Una herramienta por reporte del cliente (`get_report_summary`, `get_report_calls`,
 `get_report_outcomes`, `get_report_messages`, `get_report_transfers`, `get_report_campaigns`) en
 `app/mcp/catalog.py`, con `features` según el plan; `technical` y `platform` en el toolset `admin`.
+`get_report_calls` expone el corte por tipo y por usuario de las directas (`by_type`, `by_user`).
 
 ## 10. Cómo desplegar y qué falta
 

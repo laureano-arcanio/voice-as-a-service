@@ -5,10 +5,11 @@ ConversationRow; esta tabla la complementa y es la base del consumo por tier.
 import datetime
 import enum
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, false
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..db import Base, JSONDoc, utcnow
+from ._common import IdMixin
 
 
 class CallStatus(enum.StrEnum):
@@ -29,6 +30,7 @@ class CallMode(enum.StrEnum):
     prueba = "prueba"       # navegador (LiveKit Meet)
     web = "web"             # navegador, por el link publico de un agente (call_links); consume minutos entrantes
     loadtest = "loadtest"   # scripts/loadtest y scripts/capacity
+    directa = "directa"     # saliente de una persona del cliente, sin agente (docs/LLAMADAS_DIRECTAS_PLAN.md)
 
 
 class CallRow(Base):
@@ -71,6 +73,13 @@ class CallRow(Base):
     summary_email_attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     # Room de LiveKit (la deja el worker): para cortar la llamada desde la API (services/calls.hang_up).
     room: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    # Llamadas directas (docs/LLAMADAS_DIRECTAS_PLAN.md): el usuario que llamo o atendio (en el panel o en su
+    # celular, por TeamMember.user_id), quien atiende una entrante (agent o team) y si se llamo a un contacto
+    # dado de baja con confirmacion.
+    user_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    answered_by: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    opted_out_confirmed: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
 
 
@@ -84,3 +93,27 @@ class BlockedNumber(Base):
     created_by: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class UserPresence(Base):
+    """Disponible en el panel para atender entrantes directas: el pulso (PUT /me/presence) de los ultimos
+    PRESENCE_TTL_SECONDS (services/direct_calls.py). Sin fila, no disponible."""
+    __tablename__ = "user_presence"
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    client_id: Mapped[str] = mapped_column(String(36), ForeignKey("clients.id", ondelete="CASCADE"), index=True)
+    last_seen: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class CallRing(IdMixin, Base):
+    """El timbre de una entrante directa en el panel de un usuario: ringing, answered (la tomo), declined o
+    cancelled (la tomo otro, se corto o paso al celular). Uno por usuario y llamada."""
+    __tablename__ = "call_rings"
+    __table_args__ = (
+        UniqueConstraint("conversation_id", "user_id", name="uq_call_rings_conversation_user"),
+        Index("ix_call_rings_user_status", "user_id", "status"),
+    )
+    conversation_id: Mapped[str] = mapped_column(String(36), ForeignKey("conversations.id", ondelete="CASCADE"))
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
+    status: Mapped[str] = mapped_column(String(16), default="ringing", server_default="ringing")
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
+    ended_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)

@@ -8,7 +8,7 @@
 # falso, una IP de las redes de Anura que reconoce el identify de pjsip.conf) y 200.13.42.20 (la
 # dirección "pública" de nuestro Asterisk).
 #
-# Uso: `make e2e-sip` (levanta, corre tests/e2e_sip/smoke.py y baja todo).
+# Uso: `make e2e-sip` (levanta, corre tests/e2e_sip/smoke.py, transfer.py y direct.py y baja todo).
 name: atentina-e2e-sip
 
 networks:
@@ -120,5 +120,24 @@ services:
       - ./tests/e2e_sip:/e2e:ro
     entrypoint: []
     command: ["python", "/e2e/transfer.py"]
+    depends_on: [livekit-sip, asterisk, fake-anura]
+    profiles: [run]
+
+  # Las llamadas directas con el codigo real de app/voice/direct.py (tests/e2e_sip/direct.py): como runner-transfer.
+  runner-direct:
+    image: voice-as-a-service-agent:latest
+    network_mode: service:net
+    working_dir: /app
+    environment:
+      LIVEKIT_URL: ws://127.0.0.1:7880
+      LIVEKIT_API_KEY: e2ekey
+      LIVEKIT_API_SECRET: e2e-secret-de-prueba-con-32-caracteres
+      LIVEKIT_SIP_PASSWORD: e2e-livekit-pass
+      PYTHONPATH: /app
+    volumes:
+      - ./app:/app/app:ro
+      - ./tests/e2e_sip:/e2e:ro
+    entrypoint: []
+    command: ["python", "/e2e/direct.py"]
     depends_on: [livekit-sip, asterisk, fake-anura]
     profiles: [run]

@@ -22,7 +22,7 @@ def test_0030_upgrade_downgrade_upgrade(tmp_path):
         rows = dict(conn.execute(sa.text("SELECT name, external_agent FROM tiers")).all())
         diff = compare_metadata(MigrationContext.configure(conn, opts={"compare_type": True}), Base.metadata)
     later = ("'max_tools'", "'code_tools'", "ck_tiers_tools", "'white_label'",
-             "'advanced_reports'", "'internal'")      # 0032, 0034, 0036 y 0037
+             "'advanced_reports'", "'internal'", "'direct_calls'")      # 0032, 0034, 0036, 0037 y 0039
     assert [d for d in diff if "tiers" in repr(d) and not any(c in repr(d) for c in later)] == []
     assert rows == {"Free": 0, "Mostrador": 0, "Sucursal": 0, "Central": 1, "Interno": 1}
     _run(engine, command.downgrade, "0029")
