@@ -92,39 +92,48 @@ una sola vez). Si el aviso dice que no se pudo mandar, o el link venció, **Usua
 **Agentes > Nuevo agente**: cliente, nombre, slug (opcional), descripción y **punto de partida** (no se
 elige motor: hay uno solo desde el 26-oct-2026): el **asistente básico** (atiende, responde con la
 base de conocimiento y, si no puede, toma nombre y contacto) o **en blanco** (un dato y el resultado
-por defecto). Te lleva a la pestaña **Definición** para completarlo.
+por defecto). Te lleva a la pestaña **Conversación** para completarlo.
 
-El detalle del agente tiene cuatro pestañas:
+El detalle del agente tiene pestañas. Cinco de ellas (Conversación, Datos, Herramientas, Voz y canales y
+Modelo) editan la misma definición: comparten el borrador y la barra de arriba (versión, estado de la
+validación, **Descartar** y **Guardar versión nueva**), así que cambiar de pestaña no pierde nada y guardar
+lleva lo de todas. Cada una responde una pregunta: qué dice, qué obtiene, qué puede hacer, cómo suena y
+quién piensa. El cliente ve las mismas, sin **Ver prompt** ni **JSON** (ver [Agentes (cliente)](#agentes-cliente)).
 
 - **Resumen:** la definición en limpio: agente, idioma, versión, objetivo, apertura, reglas, base de
   conocimiento, datos a obtener (orden, tipo, obligatorio, pregunta sugerida) y resultados.
-- **Definición:** un formulario por partes. El cliente ve el mismo, sin **Ver prompt** ni JSON
-  (ver [Agentes (cliente)](#agentes-cliente)):
+- **Conversación:** qué dice y cómo. Es lo que arma el prompt.
   - **Agente:** nombre, rol e idioma.
-  - **Tu propio agente:** prendido, contesta el agente del cliente (su endpoint compatible con OpenAI, por una conexión de **Modelos**) y Atentina pone la voz y el teléfono; se ocultan **Herramientas** y **Modelo de lenguaje** ([`AGENTE_EXTERNO_PLAN.md`](AGENTE_EXTERNO_PLAN.md)). Es una opción del agente, no un motor aparte.
+  - **Objetivo y apertura**, **Reglas** (una por regla) y **Base de conocimiento**. La plantilla trae reglas genéricas de comportamiento (una pregunta por turno, no inventar, cuándo cortar), editables. La fecha no se le pasa sola al agente: `{{today}}` y `{{now}}` se pueden usar en el objetivo, las reglas y la base de conocimiento.
+  - **Ver prompt** (admin, en la barra): el prompt que arma el motor con lo que está en pantalla, por llamada o por
+    WhatsApp. No hay un prompt aparte para editar: sale de la definición.
+- **Datos:** qué obtiene.
+  - **Datos a obtener:** cada dato con etiqueta, nombre interno, tipo (texto, número, sí o no, opción
+    de una lista, email, email o teléfono), si es obligatorio (sí, no o según otro dato), descripción
+    y pregunta sugerida. Se ordenan con las flechas. Al renombrar uno, se actualizan las condiciones que lo usan.
+  - **Resultados:** etiqueta, ID, si cumple el objetivo, mensaje de cierre y condiciones. Vale el
+    primero que se cumple; el último es el de por defecto.
+- **Herramientas:** qué puede hacer además de hablar.
   - **Herramientas:** las herramientas del cliente (las de **Herramientas**: llamadas a una API o código), las **vueltas con herramientas por turno** (vacío: 3) con el **mensaje al llegar al tope**, y los **Secretos** del agente (tokens y claves que usan sus herramientas; se escriben una vez y no se vuelven a mostrar; **Falta** marca los que pide una herramienta y no están cargados). **Confirmar antes de ejecutarla** es de cada herramienta: solo agrega a su descripción que pida confirmación; el modelo decide (la plataforma no confirma desde el 26-oct-2026).
-  - **Voz:** tarjetas con las voces (filtro por mujeres u hombres); al lado, la prueba con la voz elegida, con la apertura como texto (editable). **Grabar audio**: un WAV por mensaje de cada llamada (telefónica o de WhatsApp; el cliente y el agente por separado), localmente en el servidor; con **Avisar que la llamada se graba**, el agente lo dice antes del saludo. **Ventana de contexto en WhatsApp (minutos)**: minutos sin mensaje del contacto para que la próxima conversación arranque en limpio, sin el historial anterior; vacío usa el default del servidor (1440 min = 24 hs).
   - **Derivación a personas:** las áreas del cliente (de
     **Equipo**, con su horario; si no tiene, un link para crearlas). **Puede pasarle llamadas** habilita cada área
     (hasta 10) y abre **Cuándo pasarla**, el criterio para el agente (vacío = la descripción del área). Un área
     inactiva queda marcada, pero el agente no la ofrece. Con alguna área, **Música de espera** (prendida por
     defecto): tema (**Música de espera estándar** o los que haya en el servidor) y volumen (5 a 100 %). Sin áreas
     marcadas no se guarda nada de esto.
-  - **Objetivo y apertura**, **Reglas** (una por regla) y **Base de conocimiento**. La plantilla trae reglas genéricas de comportamiento (una pregunta por turno, no inventar, cuándo cortar), editables. La fecha no se le pasa sola al agente: `{{today}}` y `{{now}}` se pueden usar en el objetivo, las reglas y la base de conocimiento.
-  - **Datos a obtener:** cada dato con etiqueta, nombre interno, tipo (texto, número, sí o no, opción
-    de una lista, email, email o teléfono), si es obligatorio (sí, no o según otro dato), descripción
-    y pregunta sugerida. Se ordenan con las flechas. Al renombrar uno, se actualizan las condiciones que lo usan.
-  - **Resultados:** etiqueta, ID, si cumple el objetivo, mensaje de cierre y condiciones. Vale el
-    primero que se cumple; el último es el de por defecto.
-  - **Ver prompt:** el prompt que arma el motor con lo que está en pantalla, por llamada o por
-    WhatsApp. No hay un prompt aparte para editar: sale de la definición.
-  - **Formulario / JSON:** la misma definición en JSON (formato en [`ARQUITECTURA.md`](ARQUITECTURA.md#definición-de-un-agente)), para pegar o editar a mano.
+- **Voz y canales:** cómo suena y por dónde atiende.
+  - **Voz:** tarjetas con las voces (filtro por mujeres u hombres); al lado, la prueba con la voz elegida, con la apertura como texto (editable). **Pregenerar el audio de la apertura** y **Espera antes de la apertura (ms)**: cómo arranca la llamada. **Grabar audio**: un WAV por mensaje de cada llamada (telefónica o de WhatsApp; el cliente y el agente por separado), localmente en el servidor; con **Avisar que la llamada se graba**, el agente lo dice antes del saludo. **Ventana de contexto en WhatsApp (minutos)**: minutos sin mensaje del contacto para que la próxima conversación arranque en limpio, sin el historial anterior; vacío usa el default del servidor (1440 min = 24 hs).
+- **Modelo:** quién piensa.
+  - **Tu propio agente:** prendido, contesta el agente del cliente (su endpoint compatible con OpenAI, por una conexión de **Modelos**) y Atentina pone la voz y el teléfono; se ocultan **Herramientas**, **Modelo de lenguaje**, reglas, base de conocimiento y datos ([`AGENTE_EXTERNO_PLAN.md`](AGENTE_EXTERNO_PLAN.md)). Es una opción del agente, no un motor aparte.
+  - **Modelo de lenguaje:** el de Atentina o los proveedores del cliente por etapas, con sus parámetros.
+- **JSON** (solo admin): la misma definición en JSON (formato en [`ARQUITECTURA.md`](ARQUITECTURA.md#definición-de-un-agente)), para pegar o editar a mano. Para salir de la pestaña el JSON tiene que parsear: lo escrito pasa al formulario.
+- En las cinco pestañas de edición y en JSON:
   - **Validación:** se valida mientras editás; los errores aparecen arriba y, al hacerles click, te
-    llevan al campo (o a esa parte del JSON).
+    llevan a la pestaña y al campo (o a esa parte del JSON).
   - **Guardar:** crea una **versión nueva**, o avisa "Sin cambios" si no cambió nada. Las llamadas en
     curso siguen con la versión con que empezaron.
   - `id` y `version` los pone la app (el slug y el número de versión): no hace falta tocarlos.
-  - Si salís con cambios sin guardar, avisa.
+  - Si salís del agente con cambios sin guardar, avisa.
 - **Versiones:** historial con fecha y autor. Podés ver el JSON de cualquier versión, compararla con
   la vigente y **Restaurar**, que guarda esa definición como versión nueva.
 - **Probar:** lo mismo que la pantalla **Playground** (abajo), con este agente fijo.
@@ -338,10 +347,11 @@ Motivos de fin frecuentes (`ended_reason`):
 El usuario de un cliente crea y edita sus propios agentes; no ve ni puede tocar los de otro cliente.
 
 1. **Agentes > Nuevo agente:** nombre, descripción (opcional) y punto de partida (asistente básico o
-   en blanco). Te lleva a la pestaña **Definición**.
-2. **Definición:** agente (nombre, rol, idioma), voz, objetivo y apertura, reglas, base de
-   conocimiento, datos a obtener y resultados. Se valida mientras editás y **Guardar** crea una
-   versión nueva.
+   en blanco). Te lleva a la pestaña **Conversación**.
+2. **Conversación**, **Datos**, **Herramientas**, **Voz y canales** y **Modelo:** las cinco editan la misma
+   definición (agente, objetivo y apertura, reglas, base de conocimiento; datos a obtener y resultados;
+   herramientas, secretos y derivación; voz, grabación y resumen por email; modelo). Se valida mientras editás y
+   **Guardar** crea una versión nueva con lo de todas.
 3. **Versiones:** historial con autor; **Restaurar** guarda una anterior como versión nueva.
 4. **Probar:** conversación por texto, llamada de prueba o link para llamar, antes de ponerlo a
    atender. También desde **Agentes > Playground** en el menú, o con **Probar** en la lista.
@@ -365,7 +375,7 @@ por agente, desde qué turno lo usa ([`BYOK_LLM_PLAN.md`](BYOK_LLM_PLAN.md)).
    ese proveedor. La clave se guarda cifrada y no se vuelve a mostrar (solo `…1234`).
 2. En la lista: **Probar** de nuevo, **Editar** (nombre, modelo, o rotar la clave) y **Dar de baja**.
    La columna *Agentes* dice cuántos la usan: al darla de baja pasan a atentina-conversational-v1.
-3. **Agente > Definición > Modelo de lenguaje:** arriba se elige entre **Modelo atentina-conversational-v1**
+3. **Agente > Modelo > Modelo de lenguaje:** arriba se elige entre **Modelo atentina-conversational-v1**
    (el default) y **Mis proveedores, por etapas**. La segunda opción se habilita cuando el cliente ya cargó
    una conexión; sin ninguna, la sección lo explica con el botón **Cargar una clave**. Volver al modelo de
    Atentina pide confirmación y quita las etapas.
@@ -402,7 +412,7 @@ herramientas (`max_tools`); las de código, si incluye `code_tools`.
 - **Probar** (los dos tipos): los argumentos como los mandaría el agente, los secretos de un agente o
   valores solo para la prueba (no se guardan), y el resultado: el pedido enviado (con los secretos
   tachados), la respuesta, lo que recibe el agente y los logs del código. Llama de verdad a la API.
-- Para que un agente la use: en el agente, **Definición > Herramientas**, elegirla y cargar sus
+- Para que un agente la use: en el agente, **Herramientas** (la pestaña del agente), elegirla y cargar sus
   **Secretos** (primero los secretos: sin ellos el agente no se guarda). Cambiar una herramienta rige en
   todos los agentes que la usan; no se puede borrar mientras un agente la use.
 

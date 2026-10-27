@@ -81,6 +81,25 @@ export const TOOL_SETTINGS = { maxCallsPerTurn: 3, limitMessage: 'Disculpá, no 
 
 /** id del elemento de una seccion del formulario (para llevar a un error). */
 export const sectionId = (name: string) => `def-${name}`;
+
+/** Pestañas de edicion del agente: cada seccion del formulario vive en una. */
+export type Part = 'conversacion' | 'datos' | 'herramientas' | 'voz' | 'modelo';
+export const PARTS: Part[] = ['conversacion', 'datos', 'herramientas', 'voz', 'modelo'];
+export const SECTION_PART: Record<string, Part> = {
+  agente: 'conversacion',
+  objetivo: 'conversacion',
+  reglas: 'conversacion',
+  conocimiento: 'conversacion',
+  datos: 'datos',
+  dato: 'datos',
+  resultados: 'datos',
+  resultado: 'datos',
+  herramientas: 'herramientas',
+  derivacion: 'herramientas',
+  voz: 'voz',
+  externo: 'modelo',
+  modelo: 'modelo',
+};
 export type Requirement = 'yes' | 'no' | 'if';
 export type ConditionValue = string | number | boolean;
 
@@ -610,7 +629,12 @@ export function errorTarget(draft: Draft, path: string): ErrorTarget | null {
     return { section: 'voz' };
   if (head === 'agent') return { section: second === 'voice' ? 'voz' : 'agente' };
   if (head === 'objective') return { section: 'objetivo' };
-  if (head === 'conversation') return { section: second === 'rules' ? 'reglas' : 'objetivo' };
+  if (head === 'conversation') {
+    if (second === 'rules') return { section: 'reglas' };
+    // La apertura pregenerada y la espera son de la voz, no del prompt.
+    if (second === 'opening_audio' || second === 'opening_delay_ms') return { section: 'voz' };
+    return { section: 'objetivo' };
+  }
   if (head === 'knowledge') return { section: 'conocimiento' };
   if (head === 'tools' || head === 'tool_settings') return { section: 'herramientas' };
   if (head === 'llm' || head === 'generation') return { section: 'modelo' };

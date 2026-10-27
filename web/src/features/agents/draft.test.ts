@@ -255,6 +255,8 @@ describe('errores', () => {
       key: d.outcomes[0]!.key,
     });
     expect(errorTarget(d, 'agent.voice')).toEqual({ section: 'voz' });
+    expect(errorTarget(d, 'conversation.opening_delay_ms')).toEqual({ section: 'voz' });
+    expect(errorTarget(d, 'conversation.opening')).toEqual({ section: 'objetivo' });
     expect(errorTarget(d, '')).toBeNull();
     expect(pathLabel(d, 'fields.zone.question')).toBe('Datos › zone › pregunta');
     expect(pathLabel(d, 'completion.outcomes.0.message')).toBe('Resultados › Agendado › mensaje');

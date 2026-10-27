@@ -91,7 +91,7 @@ export function NewAgentModal({
                 notifySuccess(`Agente ${agent.name} creado.`);
                 onClose();
                 form.reset();
-                void navigate(`/agents/${agent.id}?tab=definicion`);
+                void navigate(`/agents/${agent.id}?tab=conversacion`);
               },
               onError: (e) => notifyError(e, 'No se pudo crear el agente'),
             },

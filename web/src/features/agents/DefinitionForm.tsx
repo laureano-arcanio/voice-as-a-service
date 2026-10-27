@@ -21,7 +21,7 @@ import {
   UnstyledButton,
 } from '@mantine/core';
 import { IconArrowDown, IconArrowUp, IconChevronDown, IconPlus, IconTrash } from '@tabler/icons-react';
-import type { ReactNode } from 'react';
+import { createContext, type ReactNode, useContext } from 'react';
 import type { FieldError } from '@/api/errors';
 import { PlanGate } from '@/components/PlanGate';
 import { useTools } from '@/features/tools/api';
@@ -40,9 +40,11 @@ import {
   newOutcome,
   OPENING_DELAY_MS,
   type OutcomeDraft,
+  type Part,
   renameField,
   renumber,
   type Requirement,
+  SECTION_PART,
   sectionId,
   withPhoneField,
 } from './draft';
@@ -61,6 +63,9 @@ const REQUIREMENT_LABEL: Record<Requirement, string> = {
   if: 'Condicional',
 };
 
+/** La pestaña que se esta editando: cada seccion se muestra solo en la suya (SECTION_PART). */
+const PartContext = createContext<Part>('conversacion');
+
 function Section({
   name,
   title,
@@ -74,6 +79,8 @@ function Section({
   actions?: ReactNode;
   children: ReactNode;
 }) {
+  const part = useContext(PartContext);
+  if (SECTION_PART[name] !== part) return null;
   return (
     <Card id={sectionId(name)} style={{ scrollMarginTop: 140 }}>
       <Group justify="space-between" align="flex-start" mb={description ? 4 : 'sm'} wrap="nowrap">
@@ -570,6 +577,7 @@ function OutcomeEditor({
 // ---------- formulario ----------
 
 export function DefinitionForm({
+  part,
   draft,
   update,
   opened,
@@ -579,6 +587,8 @@ export function DefinitionForm({
   errors = [],
   agentId,
 }: {
+  /** La pestaña de edicion: solo se muestran sus secciones. */
+  part: Part;
   draft: Draft;
   update: (fn: (d: Draft) => Draft) => void;
   /** Claves de los datos y resultados desplegados. */
@@ -599,338 +609,344 @@ export function DefinitionForm({
   const clientTools = useTools(external ? undefined : clientId);
 
   return (
-    <Stack gap="md">
-      <Section
-        name="agente"
-        title="Agente"
-        description={
-          external
-            ? 'Quién es. Con tu propio agente, cómo responde lo decide tu agente.'
-            : 'Quién es y cómo responde. El prompt se arma de estos campos.'
-        }
-      >
-        <Stack gap="sm">
-          <SimpleGrid cols={{ base: 1, sm: 3 }}>
-            <TextInput
-              label="Nombre"
-              description="Cómo se presenta."
-              placeholder="Sofía"
-              value={draft.name}
-              onChange={(e) => set({ name: e.currentTarget.value })}
-            />
-            <TextInput
-              label="Rol"
-              description="Quién es y para quién trabaja."
-              placeholder="recepcionista virtual de la Clínica del Sol"
-              value={draft.role}
-              onChange={(e) => set({ role: e.currentTarget.value })}
-            />
-            <Autocomplete
-              label="Idioma"
-              description="Código, como es-AR."
-              data={LANGUAGES}
-              value={draft.language}
-              onChange={(language) => set({ language })}
-            />
-          </SimpleGrid>
-        </Stack>
-      </Section>
-
-      <Section
-        name="externo"
-        title="Tu propio agente"
-        description="Si ya tenés tu agente armado, Atentina le pone la voz y el teléfono."
-      >
-        <ExternalSection draft={draft} update={update} clientId={clientId} errors={errors} />
-      </Section>
-
-      {!external && (
+    <PartContext.Provider value={part}>
+      <Stack gap="md">
         <Section
-          name="herramientas"
-          title="Herramientas"
-          description="Lo que el agente puede hacer durante la conversación: consultar o registrar datos en tu sistema."
-        >
-          <Stack gap="md">
-            <PlanGate feature="custom_tools" what="herramientas para tus agentes">
-              <Stack gap="md">
-                <ClientToolsEditor draft={draft} update={update} clientId={clientId} />
-                {agentId ? (
-                  <SecretsSection agentId={agentId} needed={neededSecrets(draft, clientTools.data)} />
-                ) : (
-                  <Text size="xs" c="dimmed">
-                    Los secretos de las herramientas se cargan después de crear el agente.
-                  </Text>
-                )}
-              </Stack>
-            </PlanGate>
-          </Stack>
-        </Section>
-      )}
-
-      <Section
-        name="voz"
-        title="Voz"
-        description="Con la que habla en las llamadas y las notas de voz. Elegila y escuchala acá mismo."
-      >
-        <VoiceSelect
-          key={voiceSeed}
-          value={draft.voice}
-          onChange={(voice) => set({ voice })}
-          previewText={draft.opening}
-        />
-        <Switch
-          label="Grabar audio"
-          description="Un archivo por turno (la llamada completa, telefónica o de WhatsApp), localmente en el servidor."
-          checked={draft.recordAudio}
-          onChange={(e) => set({ recordAudio: e.currentTarget.checked })}
-        />
-        {draft.recordAudio && (
-          <Switch
-            ml="xl"
-            label="Avisar que la llamada se graba"
-            description="Antes del saludo, el agente dice: “Esta llamada está siendo grabada.”"
-            checked={draft.recordingNotice}
-            onChange={(e) => set({ recordingNotice: e.currentTarget.checked })}
-          />
-        )}
-        <Switch
-          label="Resumen por email después de cada llamada"
+          name="agente"
+          title="Agente"
           description={
-            <>
-              Al cortar, Atentina le manda al cliente los datos, el resultado y la conversación. El cliente lo
-              apaga o elige a quién le llega en Mi cuenta.
-              {draft.callSummaryEmail && (
-                <Text
-                  component="span"
-                  display="block"
-                  size="xs"
-                  mt={4}
-                  c={external || hasPhoneField(draft) ? 'dimmed' : 'orange.8'}
-                >
-                  {external
-                    ? 'Con tu propio agente no se piden datos: en las llamadas por el link el email va sin teléfono.'
-                    : hasPhoneField(draft)
-                      ? 'El email lleva el teléfono: en las llamadas por teléfono es el número de quien llama (el agente no lo pregunta); por el link para llamar, lo pide (dato de tipo Teléfono).'
-                      : 'Falta un dato de tipo Teléfono: en las llamadas por el link el email va a ir sin teléfono.'}
-                </Text>
-              )}
-            </>
+            external
+              ? 'Quién es. Con tu propio agente, cómo responde lo decide tu agente.'
+              : 'Quién es y cómo responde. El prompt se arma de estos campos.'
           }
-          checked={draft.callSummaryEmail}
-          onChange={(e) => {
-            const on = e.currentTarget.checked;
-            update((d) =>
-              on ? withPhoneField({ ...d, callSummaryEmail: true }) : { ...d, callSummaryEmail: false },
-            );
-          }}
-        />
-        <NumberInput
-          label="Ventana de contexto en WhatsApp (minutos)"
-          description="Minutos sin mensaje del contacto para dar la conversación por terminada: la siguiente arranca de cero, sin el historial anterior. Vacío = el default del servidor (1440 min = 24 hs)."
-          placeholder="1440"
-          value={draft.waSessionMinutes ?? ''}
-          onChange={(v) => set({ waSessionMinutes: typeof v === 'number' ? v : null })}
-          min={1}
-          max={60 * 24 * 90}
-          allowDecimal={false}
-        />
-      </Section>
-
-      <Section
-        name="derivacion"
-        title="Derivación a personas"
-        description="A qué áreas del equipo puede pasar la llamada el agente, cuándo, y qué escucha el cliente mientras espera."
-      >
-        <HandoffEditor draft={draft} update={update} clientId={clientId} errors={errors} />
-      </Section>
-
-      {!external && (
-        <Section
-          name="modelo"
-          title="Modelo de lenguaje"
-          description="Qué modelo contesta y con qué parámetros."
         >
-          <LlmSection draft={draft} update={update} clientId={clientId} />
-        </Section>
-      )}
-
-      <Section name="objetivo" title="Objetivo y apertura">
-        <Stack gap="sm">
-          <Textarea
-            label="Objetivo"
-            description="Qué tiene que lograr en la conversación."
-            autosize
-            minRows={2}
-            maxRows={8}
-            value={draft.objective}
-            onChange={(e) => set({ objective: e.currentTarget.value })}
-          />
-          <Textarea
-            label="Apertura"
-            description="Lo primero que dice al atender o al llamar. Por WhatsApp es la guía del saludo."
-            autosize
-            minRows={2}
-            maxRows={6}
-            value={draft.opening}
-            onChange={(e) => set({ opening: e.currentTarget.value })}
-          />
-          <Switch
-            label="Pregenerar el audio de la apertura"
-            description="En las llamadas, la apertura se sintetiza entera al guardar (suena más natural que frase por frase) y se reproduce ese audio. Se regenera en cada guardado. No aplica si la apertura tiene {{variables}} o la llamada usa otra voz."
-            checked={draft.openingAudio}
-            onChange={(e) => set({ openingAudio: e.currentTarget.checked })}
-          />
-          <NumberInput
-            label="Espera antes de la apertura (ms)"
-            description="En las llamadas, cuánto espera desde que se conecta hasta que empieza a hablar."
-            value={draft.openingDelayMs}
-            onChange={(v) => set({ openingDelayMs: typeof v === 'number' ? v : OPENING_DELAY_MS })}
-            min={0}
-            max={10_000}
-            step={100}
-            allowDecimal={false}
-          />
-        </Stack>
-      </Section>
-
-      {!external && (
-        <Section
-          name="reglas"
-          title="Reglas"
-          description="Tono, límites y formato de las respuestas, una por regla. Las de cada canal (voz o WhatsApp) se suman solas."
-        >
-          <Stack gap="xs">
-            {draft.rules.map((r, i) => (
-              <Group key={r.key} gap="xs" align="flex-start" wrap="nowrap">
-                <Text className="mono" c="dimmed" pt={8} w={20} ta="right">
-                  {i + 1}
-                </Text>
-                <Textarea
-                  aria-label={`Regla ${i + 1}`}
-                  autosize
-                  minRows={1}
-                  maxRows={6}
-                  style={{ flex: 1 }}
-                  value={r.text}
-                  onChange={(e) => {
-                    const text = e.currentTarget.value;
-                    update((d) => ({ ...d, rules: d.rules.map((x, j) => (j === i ? { ...x, text } : x)) }));
-                  }}
-                />
-                <IconAction
-                  label="Quitar regla"
-                  color="red"
-                  onClick={() => update((d) => ({ ...d, rules: d.rules.filter((_, j) => j !== i) }))}
-                >
-                  <IconTrash size={18} />
-                </IconAction>
-              </Group>
-            ))}
-            <Button
-              variant="subtle"
-              size="compact-sm"
-              leftSection={<IconPlus size={16} />}
-              w="fit-content"
-              onClick={() => update((d) => ({ ...d, rules: [...d.rules, { key: newKey(), text: '' }] }))}
-            >
-              Agregar regla
-            </Button>
+          <Stack gap="sm">
+            <SimpleGrid cols={{ base: 1, sm: 3 }}>
+              <TextInput
+                label="Nombre"
+                description="Cómo se presenta."
+                placeholder="Sofía"
+                value={draft.name}
+                onChange={(e) => set({ name: e.currentTarget.value })}
+              />
+              <TextInput
+                label="Rol"
+                description="Quién es y para quién trabaja."
+                placeholder="recepcionista virtual de la Clínica del Sol"
+                value={draft.role}
+                onChange={(e) => set({ role: e.currentTarget.value })}
+              />
+              <Autocomplete
+                label="Idioma"
+                description="Código, como es-AR."
+                data={LANGUAGES}
+                value={draft.language}
+                onChange={(language) => set({ language })}
+              />
+            </SimpleGrid>
           </Stack>
         </Section>
-      )}
 
-      {!external && (
         <Section
-          name="conocimiento"
-          title="Base de conocimiento"
-          description="Lo único que el agente sabe del negocio: productos, precios, horarios, direcciones, preguntas frecuentes. Lo que no esté acá, no lo responde."
+          name="externo"
+          title="Tu propio agente"
+          description="Si ya tenés tu agente armado, Atentina le pone la voz y el teléfono."
         >
-          <Textarea
-            aria-label="Base de conocimiento"
-            autosize
-            minRows={6}
-            maxRows={24}
-            placeholder="- Horarios: de lunes a viernes de nueve a dieciocho."
-            value={draft.knowledge}
-            onChange={(e) => set({ knowledge: e.currentTarget.value })}
-          />
+          <ExternalSection draft={draft} update={update} clientId={clientId} errors={errors} />
         </Section>
-      )}
 
-      {!external && (
+        {!external && (
+          <Section
+            name="herramientas"
+            title="Herramientas"
+            description="Lo que el agente puede hacer durante la conversación: consultar o registrar datos en tu sistema."
+          >
+            <Stack gap="md">
+              <PlanGate feature="custom_tools" what="herramientas para tus agentes">
+                <Stack gap="md">
+                  <ClientToolsEditor draft={draft} update={update} clientId={clientId} />
+                  {agentId ? (
+                    <SecretsSection agentId={agentId} needed={neededSecrets(draft, clientTools.data)} />
+                  ) : (
+                    <Text size="xs" c="dimmed">
+                      Los secretos de las herramientas se cargan después de crear el agente.
+                    </Text>
+                  )}
+                </Stack>
+              </PlanGate>
+            </Stack>
+          </Section>
+        )}
+
         <Section
-          name="datos"
-          title="Datos a obtener"
-          description="Lo que el agente pregunta, en este orden salvo que la persona los dé antes. La conversación termina cuando tiene los obligatorios."
+          name="voz"
+          title="Voz"
+          description="Con la que habla en las llamadas y las notas de voz. Elegila y escuchala acá mismo. Abajo, cómo arranca y qué guarda de cada conversación."
+        >
+          <Stack gap="sm">
+            <VoiceSelect
+              key={voiceSeed}
+              value={draft.voice}
+              onChange={(voice) => set({ voice })}
+              previewText={draft.opening}
+            />
+            <Switch
+              label="Pregenerar el audio de la apertura"
+              description="En las llamadas, la apertura se sintetiza entera al guardar (suena más natural que frase por frase) y se reproduce ese audio. Se regenera en cada guardado. No aplica si la apertura tiene {{variables}} o la llamada usa otra voz."
+              checked={draft.openingAudio}
+              onChange={(e) => set({ openingAudio: e.currentTarget.checked })}
+            />
+            <NumberInput
+              label="Espera antes de la apertura (ms)"
+              description="En las llamadas, cuánto espera desde que se conecta hasta que empieza a hablar."
+              value={draft.openingDelayMs}
+              onChange={(v) => set({ openingDelayMs: typeof v === 'number' ? v : OPENING_DELAY_MS })}
+              min={0}
+              max={10_000}
+              step={100}
+              allowDecimal={false}
+              maw={260}
+            />
+            <Switch
+              label="Grabar audio"
+              description="Un archivo por turno (la llamada completa, telefónica o de WhatsApp), localmente en el servidor."
+              checked={draft.recordAudio}
+              onChange={(e) => set({ recordAudio: e.currentTarget.checked })}
+            />
+            {draft.recordAudio && (
+              <Switch
+                ml="xl"
+                label="Avisar que la llamada se graba"
+                description="Antes del saludo, el agente dice: “Esta llamada está siendo grabada.”"
+                checked={draft.recordingNotice}
+                onChange={(e) => set({ recordingNotice: e.currentTarget.checked })}
+              />
+            )}
+            <Switch
+              label="Resumen por email después de cada llamada"
+              description={
+                <>
+                  Al cortar, Atentina le manda al cliente los datos, el resultado y la conversación. El
+                  cliente lo apaga o elige a quién le llega en Mi cuenta.
+                  {draft.callSummaryEmail && (
+                    <Text
+                      component="span"
+                      display="block"
+                      size="xs"
+                      mt={4}
+                      c={external || hasPhoneField(draft) ? 'dimmed' : 'orange.8'}
+                    >
+                      {external
+                        ? 'Con tu propio agente no se piden datos: en las llamadas por el link el email va sin teléfono.'
+                        : hasPhoneField(draft)
+                          ? 'El email lleva el teléfono: en las llamadas por teléfono es el número de quien llama (el agente no lo pregunta); por el link para llamar, lo pide (dato de tipo Teléfono).'
+                          : 'Falta un dato de tipo Teléfono: en las llamadas por el link el email va a ir sin teléfono.'}
+                    </Text>
+                  )}
+                </>
+              }
+              checked={draft.callSummaryEmail}
+              onChange={(e) => {
+                const on = e.currentTarget.checked;
+                update((d) =>
+                  on ? withPhoneField({ ...d, callSummaryEmail: true }) : { ...d, callSummaryEmail: false },
+                );
+              }}
+            />
+            <NumberInput
+              label="Ventana de contexto en WhatsApp (minutos)"
+              description="Minutos sin mensaje del contacto para dar la conversación por terminada: la siguiente arranca de cero, sin el historial anterior. Vacío = el default del servidor (1440 min = 24 hs)."
+              placeholder="1440"
+              value={draft.waSessionMinutes ?? ''}
+              onChange={(v) => set({ waSessionMinutes: typeof v === 'number' ? v : null })}
+              min={1}
+              max={60 * 24 * 90}
+              allowDecimal={false}
+              maw={260}
+            />
+          </Stack>
+        </Section>
+
+        <Section
+          name="derivacion"
+          title="Derivación a personas"
+          description="A qué áreas del equipo puede pasar la llamada el agente, cuándo, y qué escucha el cliente mientras espera."
+        >
+          <HandoffEditor draft={draft} update={update} clientId={clientId} errors={errors} />
+        </Section>
+
+        {!external && (
+          <Section
+            name="modelo"
+            title="Modelo de lenguaje"
+            description="Qué modelo contesta y con qué parámetros."
+          >
+            <LlmSection draft={draft} update={update} clientId={clientId} />
+          </Section>
+        )}
+
+        <Section name="objetivo" title="Objetivo y apertura">
+          <Stack gap="sm">
+            <Textarea
+              label="Objetivo"
+              description="Qué tiene que lograr en la conversación."
+              autosize
+              minRows={2}
+              maxRows={8}
+              value={draft.objective}
+              onChange={(e) => set({ objective: e.currentTarget.value })}
+            />
+            <Textarea
+              label="Apertura"
+              description="Lo primero que dice al atender o al llamar. Por WhatsApp es la guía del saludo."
+              autosize
+              minRows={2}
+              maxRows={6}
+              value={draft.opening}
+              onChange={(e) => set({ opening: e.currentTarget.value })}
+            />
+          </Stack>
+        </Section>
+
+        {!external && (
+          <Section
+            name="reglas"
+            title="Reglas"
+            description="Tono, límites y formato de las respuestas, una por regla. Las de cada canal (voz o WhatsApp) se suman solas."
+          >
+            <Stack gap="xs">
+              {draft.rules.map((r, i) => (
+                <Group key={r.key} gap="xs" align="flex-start" wrap="nowrap">
+                  <Text className="mono" c="dimmed" pt={8} w={20} ta="right">
+                    {i + 1}
+                  </Text>
+                  <Textarea
+                    aria-label={`Regla ${i + 1}`}
+                    autosize
+                    minRows={1}
+                    maxRows={6}
+                    style={{ flex: 1 }}
+                    value={r.text}
+                    onChange={(e) => {
+                      const text = e.currentTarget.value;
+                      update((d) => ({ ...d, rules: d.rules.map((x, j) => (j === i ? { ...x, text } : x)) }));
+                    }}
+                  />
+                  <IconAction
+                    label="Quitar regla"
+                    color="red"
+                    onClick={() => update((d) => ({ ...d, rules: d.rules.filter((_, j) => j !== i) }))}
+                  >
+                    <IconTrash size={18} />
+                  </IconAction>
+                </Group>
+              ))}
+              <Button
+                variant="subtle"
+                size="compact-sm"
+                leftSection={<IconPlus size={16} />}
+                w="fit-content"
+                onClick={() => update((d) => ({ ...d, rules: [...d.rules, { key: newKey(), text: '' }] }))}
+              >
+                Agregar regla
+              </Button>
+            </Stack>
+          </Section>
+        )}
+
+        {!external && (
+          <Section
+            name="conocimiento"
+            title="Base de conocimiento"
+            description="Lo único que el agente sabe del negocio: productos, precios, horarios, direcciones, preguntas frecuentes. Lo que no esté acá, no lo responde."
+          >
+            <Textarea
+              aria-label="Base de conocimiento"
+              autosize
+              minRows={6}
+              maxRows={24}
+              placeholder="- Horarios: de lunes a viernes de nueve a dieciocho."
+              value={draft.knowledge}
+              onChange={(e) => set({ knowledge: e.currentTarget.value })}
+            />
+          </Section>
+        )}
+
+        {!external && (
+          <Section
+            name="datos"
+            title="Datos a obtener"
+            description="Lo que el agente pregunta, en este orden salvo que la persona los dé antes. La conversación termina cuando tiene los obligatorios."
+            actions={
+              <Button
+                variant="default"
+                size="xs"
+                leftSection={<IconPlus size={16} />}
+                onClick={() => {
+                  const f = newField(draft.fields);
+                  update((d) => ({ ...d, fields: [...d.fields, f] }));
+                  toggle(f.key, true);
+                }}
+              >
+                Agregar dato
+              </Button>
+            }
+          >
+            <Stack gap="xs">
+              {draft.fields.map((f, i) => (
+                <FieldEditor
+                  key={f.key}
+                  field={f}
+                  index={i}
+                  draft={draft}
+                  opened={opened.has(f.key)}
+                  onToggle={() => toggle(f.key)}
+                  update={update}
+                />
+              ))}
+            </Stack>
+          </Section>
+        )}
+
+        <Section
+          name="resultados"
+          title="Resultados"
+          description={
+            external
+              ? 'Clasifican la conversación al terminar: tu agente elige uno al llamar a end_call (por su ID). Si no elige, vale el último.'
+              : 'Clasifican la conversación al terminar: vale el primero cuyas condiciones se cumplen. El último es el de por defecto.'
+          }
           actions={
             <Button
               variant="default"
               size="xs"
               leftSection={<IconPlus size={16} />}
               onClick={() => {
-                const f = newField(draft.fields);
-                update((d) => ({ ...d, fields: [...d.fields, f] }));
-                toggle(f.key, true);
+                const o = newOutcome(draft.outcomes);
+                // Antes del de por defecto, que queda ultimo.
+                update((d) => ({ ...d, outcomes: [...d.outcomes.slice(0, -1), o, ...d.outcomes.slice(-1)] }));
+                toggle(o.key, true);
               }}
             >
-              Agregar dato
+              Agregar resultado
             </Button>
           }
         >
           <Stack gap="xs">
-            {draft.fields.map((f, i) => (
-              <FieldEditor
-                key={f.key}
-                field={f}
+            {draft.outcomes.map((o, i) => (
+              <OutcomeEditor
+                key={o.key}
+                outcome={o}
                 index={i}
                 draft={draft}
-                opened={opened.has(f.key)}
-                onToggle={() => toggle(f.key)}
+                opened={opened.has(o.key)}
+                onToggle={() => toggle(o.key)}
                 update={update}
               />
             ))}
           </Stack>
         </Section>
-      )}
-
-      <Section
-        name="resultados"
-        title="Resultados"
-        description={
-          external
-            ? 'Clasifican la conversación al terminar: tu agente elige uno al llamar a end_call (por su ID). Si no elige, vale el último.'
-            : 'Clasifican la conversación al terminar: vale el primero cuyas condiciones se cumplen. El último es el de por defecto.'
-        }
-        actions={
-          <Button
-            variant="default"
-            size="xs"
-            leftSection={<IconPlus size={16} />}
-            onClick={() => {
-              const o = newOutcome(draft.outcomes);
-              // Antes del de por defecto, que queda ultimo.
-              update((d) => ({ ...d, outcomes: [...d.outcomes.slice(0, -1), o, ...d.outcomes.slice(-1)] }));
-              toggle(o.key, true);
-            }}
-          >
-            Agregar resultado
-          </Button>
-        }
-      >
-        <Stack gap="xs">
-          {draft.outcomes.map((o, i) => (
-            <OutcomeEditor
-              key={o.key}
-              outcome={o}
-              index={i}
-              draft={draft}
-              opened={opened.has(o.key)}
-              onToggle={() => toggle(o.key)}
-              update={update}
-            />
-          ))}
-        </Stack>
-      </Section>
-    </Stack>
+      </Stack>
+    </PartContext.Provider>
   );
 }

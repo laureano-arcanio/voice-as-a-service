@@ -9,15 +9,31 @@ import {
   Modal,
   SegmentedControl,
   Stack,
+  Tabs,
   Text,
   Title,
 } from '@mantine/core';
 import { useDebouncedValue, useDisclosure, useWindowEvent } from '@mantine/hooks';
-import { IconAlertCircle, IconDeviceFloppy, IconFileText } from '@tabler/icons-react';
+import {
+  IconAlertCircle,
+  IconCpu,
+  IconDeviceFloppy,
+  IconFileCode,
+  IconFileText,
+  IconHistory,
+  IconInfoCircle,
+  IconLink,
+  IconListDetails,
+  IconMessage,
+  IconMicrophone,
+  IconPlayerPlay,
+  IconTool,
+} from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import type { ReactCodeMirrorRef } from '@uiw/react-codemirror';
+import type { ComponentType } from 'react';
 import { useRef, useState } from 'react';
-import { useBlocker } from 'react-router';
+import { useBlocker, useSearchParams } from 'react-router';
 import { ApiError, errorMessage, type FieldError } from '@/api/errors';
 import type { AgentDetail, Definition } from '@/api/types';
 import { confirmAction } from '@/components/confirm';
@@ -27,11 +43,50 @@ import { useIsAdmin } from '@/features/auth/api';
 import { focusOffset } from '@/lib/editor';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { usePromptPreview, useSaveDefinition, validateDefinition } from './api';
+import { AgentTestPanel } from './AgentTestPanel';
+import { CallLinkTab } from './CallLinkTab';
 import { findPathOffset, parseDefinition, toJsonText } from './definition';
 import { DefinitionForm } from './DefinitionForm';
-import { type Draft, errorTarget, fromDraft, pathLabel, sectionId, stableJson, toDraft } from './draft';
+import {
+  type Draft,
+  errorTarget,
+  fromDraft,
+  type Part,
+  PARTS,
+  pathLabel,
+  SECTION_PART,
+  sectionId,
+  stableJson,
+  toDraft,
+} from './draft';
+import { VersionsTab } from './VersionsTab';
+import { WorkflowSummary } from './WorkflowSummary';
 
-type Mode = 'form' | 'json';
+/** Las pestañas del agente. Las de edicion (PARTS y json) comparten un borrador y una barra de guardado. */
+type Tab = 'resumen' | Part | 'json' | 'versiones' | 'probar' | 'link';
+const TABS: Tab[] = ['resumen', ...PARTS, 'json', 'versiones', 'probar', 'link'];
+const TAB_META: Record<Tab, { label: string; icon: ComponentType<{ size?: number }> }> = {
+  resumen: { label: 'Resumen', icon: IconInfoCircle },
+  conversacion: { label: 'Conversación', icon: IconMessage },
+  datos: { label: 'Datos', icon: IconListDetails },
+  herramientas: { label: 'Herramientas', icon: IconTool },
+  voz: { label: 'Voz y canales', icon: IconMicrophone },
+  modelo: { label: 'Modelo', icon: IconCpu },
+  json: { label: 'JSON', icon: IconFileCode },
+  versiones: { label: 'Versiones', icon: IconHistory },
+  probar: { label: 'Probar', icon: IconPlayerPlay },
+  link: { label: 'Link para llamar', icon: IconLink },
+};
+const isPart = (t: Tab): t is Part => (PARTS as string[]).includes(t);
+const isEditing = (t: Tab) => isPart(t) || t === 'json';
+
+/** `?tab=`: `definicion` (la pestaña única de antes) abre Conversación; JSON es solo del admin. */
+function tabFromParams(params: URLSearchParams, isAdmin: boolean): Tab {
+  const raw = params.get('tab') ?? 'resumen';
+  const t = (raw === 'definicion' ? 'conversacion' : raw) as Tab;
+  if (!TABS.includes(t)) return 'resumen';
+  return t === 'json' && !isAdmin ? 'resumen' : t;
+}
 
 /** La definicion como la deja el formulario: para comparar sin importar el formato. */
 const canonical = (d: Definition) => stableJson(fromDraft(toDraft(d)));
@@ -142,14 +197,16 @@ function PromptModal({
   );
 }
 
-export function DefinitionTab({ agent }: { agent: AgentDetail }) {
+export function AgentTabs({ agent }: { agent: AgentDetail }) {
   // El cliente edita por formulario; JSON y prompt son internos (solo admin).
   const isAdmin = useIsAdmin();
+  const [params, setParams] = useSearchParams();
+  const tab = tabFromParams(params, isAdmin);
+  const mode = tab === 'json' ? 'json' : 'form';
   const baseline = canonical(agent.definition);
   const [base, setBase] = useState(baseline);
   const [draft, setDraft] = useState<Draft>(() => toDraft(agent.definition));
-  const [mode, setMode] = useState<Mode>('form');
-  const [jsonText, setJsonText] = useState('');
+  const [jsonText, setJsonText] = useState(() => toJsonText(agent.definition));
   const [opened, setOpened] = useState<Set<string>>(() => new Set());
   const [promptOpen, prompt] = useDisclosure(false);
   const editorRef = useRef<ReactCodeMirrorRef>(null);
@@ -192,6 +249,30 @@ export function DefinitionTab({ agent }: { agent: AgentDetail }) {
       return next;
     });
 
+  const goTo = (next: Tab) =>
+    setParams(
+      (prev) => {
+        const p = new URLSearchParams(prev);
+        if (next === 'resumen') p.delete('tab');
+        else p.set('tab', next);
+        return p;
+      },
+      { replace: true },
+    );
+
+  // Cambiar de pestaña conserva el borrador. Al salir de JSON, lo que esta escrito pasa al formulario:
+  // si no parsea, no se sale (se perderia).
+  const changeTab = (next: Tab) => {
+    if (next === tab) return;
+    if (tab === 'json') {
+      const p = parseDefinition(jsonText);
+      if (!p.ok) return notifyError(new Error(p.error), 'Corregí el JSON para salir de esta pestaña');
+      setDraft(toDraft(p.value));
+    } else if (next === 'json') setJsonText(toJsonText(fromDraft(draft)));
+    goTo(next);
+  };
+
+  // Lleva al campo de un error: en JSON, al offset; en el formulario, a la pestaña y la seccion.
   const reveal = (path: string) => {
     if (mode === 'json') return focusOffset(editorRef.current, findPathOffset(jsonText, path));
     const target = errorTarget(draft, path);
@@ -201,24 +282,13 @@ export function DefinitionTab({ agent }: { agent: AgentDetail }) {
       toggle(target.key, true);
       id = sectionId(`${target.section}-${target.key}`);
     } else id = sectionId(target.section);
-    // Despues de desplegar el bloque.
+    const part = SECTION_PART[target.section];
+    if (part && part !== tab) goTo(part);
+    // Despues de cambiar de pestaña y desplegar el bloque.
     setTimeout(
       () => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
       220,
     );
-  };
-
-  const switchMode = (next: Mode) => {
-    if (next === mode) return;
-    if (next === 'json') {
-      setJsonText(toJsonText(fromDraft(draft)));
-      setMode('json');
-      return;
-    }
-    const p = parseDefinition(jsonText);
-    if (!p.ok) return notifyError(new Error(p.error), 'Corregí el JSON para volver al formulario');
-    setDraft(toDraft(p.value));
-    setMode('form');
   };
 
   const doSave = () => {
@@ -262,113 +332,133 @@ export function DefinitionTab({ agent }: { agent: AgentDetail }) {
   };
 
   const label = (path: string) => (mode === 'form' ? pathLabel(draft, path) : path);
+  const tabs = TABS.filter((t) => t !== 'json' || isAdmin);
 
   return (
-    <Stack gap="md">
+    <Tabs value={tab} onChange={(v) => v && changeTab(v as Tab)} keepMounted>
       <UnsavedGuard dirty={dirty} />
       {isAdmin && <PromptModal definition={current} opened={promptOpen} onClose={prompt.close} />}
-      <Card py="sm" className="def-toolbar">
-        <Group justify="space-between" wrap="wrap" gap="sm">
-          <Group gap="xs">
-            <Text span c="dimmed" className="mono">
-              {isAdmin ? `${agent.slug} · v${agent.version}` : `v${agent.version}`}
-            </Text>
-            {dirty && <Badge color="yellow">Cambios sin guardar</Badge>}
-            {current === null ? (
-              <Badge color="red">JSON inválido</Badge>
-            ) : stale ? (
-              <Badge color="gray">Validando…</Badge>
-            ) : errors.length ? (
-              <Badge color="red">{errors.length === 1 ? '1 error' : `${errors.length} errores`}</Badge>
-            ) : validation.data?.valid ? (
-              <Badge color="green">Válida</Badge>
-            ) : null}
-          </Group>
-          <Group gap="xs">
-            {isAdmin && (
-              <>
-                <SegmentedControl
-                  size="xs"
-                  data={[
-                    { value: 'form', label: 'Formulario' },
-                    { value: 'json', label: 'JSON' },
-                  ]}
-                  value={mode}
-                  onChange={(v) => switchMode(v as Mode)}
-                />
-                <Button
-                  variant="default"
-                  size="xs"
-                  leftSection={<IconFileText size={16} />}
-                  onClick={prompt.open}
-                >
-                  Ver prompt
+      <Tabs.List mb="md">
+        {tabs.map((t) => {
+          const Icon = TAB_META[t].icon;
+          return (
+            <Tabs.Tab key={t} value={t} leftSection={<Icon size={16} />}>
+              {TAB_META[t].label}
+            </Tabs.Tab>
+          );
+        })}
+      </Tabs.List>
+
+      {isEditing(tab) && (
+        <Stack gap="md">
+          <Card py="sm" className="def-toolbar">
+            <Group justify="space-between" wrap="wrap" gap="sm">
+              <Group gap="xs">
+                <Text span c="dimmed" className="mono">
+                  {isAdmin ? `${agent.slug} · v${agent.version}` : `v${agent.version}`}
+                </Text>
+                {dirty && <Badge color="yellow">Cambios sin guardar</Badge>}
+                {current === null ? (
+                  <Badge color="red">JSON inválido</Badge>
+                ) : stale ? (
+                  <Badge color="gray">Validando…</Badge>
+                ) : errors.length ? (
+                  <Badge color="red">{errors.length === 1 ? '1 error' : `${errors.length} errores`}</Badge>
+                ) : validation.data?.valid ? (
+                  <Badge color="green">Válida</Badge>
+                ) : null}
+              </Group>
+              <Group gap="xs">
+                {isAdmin && (
+                  <Button
+                    variant="default"
+                    size="xs"
+                    leftSection={<IconFileText size={16} />}
+                    onClick={prompt.open}
+                  >
+                    Ver prompt
+                  </Button>
+                )}
+                <Button variant="default" size="xs" onClick={() => void discard()} disabled={!dirty}>
+                  Descartar
                 </Button>
-              </>
-            )}
-            <Button variant="default" size="xs" onClick={() => void discard()} disabled={!dirty}>
-              Descartar
-            </Button>
-            <Button
-              size="xs"
-              leftSection={<IconDeviceFloppy size={16} />}
-              onClick={doSave}
-              loading={save.isPending}
-              disabled={!dirty}
-            >
-              Guardar versión nueva
-            </Button>
-          </Group>
-        </Group>
-      </Card>
+                <Button
+                  size="xs"
+                  leftSection={<IconDeviceFloppy size={16} />}
+                  onClick={doSave}
+                  loading={save.isPending}
+                  disabled={!dirty}
+                >
+                  Guardar versión nueva
+                </Button>
+              </Group>
+            </Group>
+          </Card>
 
-      {parsedJson && !parsedJson.ok && (
-        <Alert color="red" icon={<IconAlertCircle size={18} />}>
-          {parsedJson.error}
-        </Alert>
-      )}
-      {validation.isError && (
-        <Alert color="red" icon={<IconAlertCircle size={18} />}>
-          No se pudo validar: {errorMessage(validation.error)}
-        </Alert>
-      )}
-      {errors.length > 0 && !stale && (
-        <Alert color="red" icon={<IconAlertCircle size={18} />} title="La definición no es válida">
-          <ErrorList errors={errors} label={label} onPick={reveal} />
-        </Alert>
-      )}
-      {saveErrors.length > 0 && (
-        <Alert color="red" title="No se guardó">
-          <ErrorList errors={saveErrors} label={label} onPick={reveal} />
-        </Alert>
-      )}
+          {parsedJson && !parsedJson.ok && (
+            <Alert color="red" icon={<IconAlertCircle size={18} />}>
+              {parsedJson.error}
+            </Alert>
+          )}
+          {validation.isError && (
+            <Alert color="red" icon={<IconAlertCircle size={18} />}>
+              No se pudo validar: {errorMessage(validation.error)}
+            </Alert>
+          )}
+          {errors.length > 0 && !stale && (
+            <Alert color="red" icon={<IconAlertCircle size={18} />} title="La definición no es válida">
+              <ErrorList errors={errors} label={label} onPick={reveal} />
+            </Alert>
+          )}
+          {saveErrors.length > 0 && (
+            <Alert color="red" title="No se guardó">
+              <ErrorList errors={saveErrors} label={label} onPick={reveal} />
+            </Alert>
+          )}
 
-      {mode === 'form' ? (
-        <DefinitionForm
-          draft={draft}
-          update={update}
-          opened={opened}
-          toggle={toggle}
-          voiceSeed={agent.id}
-          clientId={agent.client_id}
-          agentId={agent.id}
-          errors={[...saveErrors, ...errors]}
-        />
-      ) : (
-        <Card>
-          <Title order={4} mb={4}>
-            Definición en JSON
-          </Title>
-          <Text size="xs" c="dimmed" mb="sm">
-            La misma definición que arma el formulario. <b>id</b> y <b>version</b> los fija el servidor (el
-            slug del agente y la versión siguiente): si los cambiás acá, se ignoran.
+          {isPart(tab) ? (
+            <DefinitionForm
+              part={tab}
+              draft={draft}
+              update={update}
+              opened={opened}
+              toggle={toggle}
+              voiceSeed={agent.id}
+              clientId={agent.client_id}
+              agentId={agent.id}
+              errors={[...saveErrors, ...errors]}
+            />
+          ) : (
+            <Card>
+              <Title order={4} mb={4}>
+                Definición en JSON
+              </Title>
+              <Text size="xs" c="dimmed" mb="sm">
+                La misma definición que arman las otras pestañas. <b>id</b> y <b>version</b> los fija el
+                servidor (el slug del agente y la versión siguiente): si los cambiás acá, se ignoran.
+              </Text>
+              <JsonEditor value={jsonText} onChange={setJsonText} editorRef={editorRef} />
+            </Card>
+          )}
+          <Text size="xs" c="dimmed">
+            Guardar crea una versión nueva con lo de todas las pestañas; las llamadas en curso siguen con la
+            suya.
           </Text>
-          <JsonEditor value={jsonText} onChange={setJsonText} editorRef={editorRef} />
-        </Card>
+        </Stack>
       )}
-      <Text size="xs" c="dimmed">
-        Guardar crea una versión nueva; las llamadas en curso siguen con la suya.
-      </Text>
-    </Stack>
+
+      <Tabs.Panel value="resumen">
+        <WorkflowSummary definition={agent.definition} clientId={agent.client_id} />
+      </Tabs.Panel>
+      <Tabs.Panel value="versiones">
+        <VersionsTab agent={agent} />
+      </Tabs.Panel>
+      <Tabs.Panel value="probar">
+        <AgentTestPanel agent={agent} />
+      </Tabs.Panel>
+      <Tabs.Panel value="link">
+        <CallLinkTab agent={agent} />
+      </Tabs.Panel>
+    </Tabs>
   );
 }

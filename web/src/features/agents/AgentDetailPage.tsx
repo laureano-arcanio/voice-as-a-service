@@ -1,19 +1,14 @@
-import { Anchor, Badge, Button, Group, Menu, Tabs, Text } from '@mantine/core';
+import { Anchor, Badge, Button, Group, Menu, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
   IconArchive,
   IconArrowLeft,
   IconDots,
-  IconFileCode,
-  IconHistory,
-  IconInfoCircle,
-  IconLink,
   IconPencil,
-  IconPlayerPlay,
   IconRestore,
   IconTrash,
 } from '@tabler/icons-react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import { ApiError } from '@/api/errors';
 import type { AgentDetail } from '@/api/types';
 import { confirmAction } from '@/components/confirm';
@@ -24,15 +19,8 @@ import { useClients } from '@/features/clients/api';
 import { formatDateTime } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useAgent, useDeleteAgent, useUpdateAgent } from './api';
-import { CallLinkTab } from './CallLinkTab';
-import { DefinitionTab } from './DefinitionTab';
+import { AgentTabs } from './AgentTabs';
 import { EditAgentModal } from './EditAgentModal';
-import { AgentTestPanel } from './AgentTestPanel';
-import { VersionsTab } from './VersionsTab';
-import { WorkflowSummary } from './WorkflowSummary';
-
-const TABS = ['resumen', 'definicion', 'versiones', 'probar', 'link'] as const;
-type Tab = (typeof TABS)[number];
 
 function AgentActions({ agent }: { agent: AgentDetail }) {
   const [editing, edit] = useDisclosure(false);
@@ -112,8 +100,6 @@ function AgentActions({ agent }: { agent: AgentDetail }) {
 function AgentView({ agent }: { agent: AgentDetail }) {
   const isAdmin = useIsAdmin();
   const clients = useClients(isAdmin);
-  const [params, setParams] = useSearchParams();
-  const tab: Tab = TABS.includes(params.get('tab') as Tab) ? (params.get('tab') as Tab) : 'resumen';
   const client = clients.data?.find((c) => c.id === agent.client_id);
 
   return (
@@ -174,54 +160,7 @@ function AgentView({ agent }: { agent: AgentDetail }) {
         }
         actions={<AgentActions agent={agent} />}
       />
-      <Tabs
-        value={tab}
-        onChange={(v) =>
-          setParams(
-            (prev) => {
-              const next = new URLSearchParams(prev);
-              if (!v || v === 'resumen') next.delete('tab');
-              else next.set('tab', v);
-              return next;
-            },
-            { replace: true },
-          )
-        }
-        keepMounted
-      >
-        <Tabs.List mb="md">
-          <Tabs.Tab value="resumen" leftSection={<IconInfoCircle size={16} />}>
-            Resumen
-          </Tabs.Tab>
-          <Tabs.Tab value="definicion" leftSection={<IconFileCode size={16} />}>
-            Definición
-          </Tabs.Tab>
-          <Tabs.Tab value="versiones" leftSection={<IconHistory size={16} />}>
-            Versiones
-          </Tabs.Tab>
-          <Tabs.Tab value="probar" leftSection={<IconPlayerPlay size={16} />}>
-            Probar
-          </Tabs.Tab>
-          <Tabs.Tab value="link" leftSection={<IconLink size={16} />}>
-            Link para llamar
-          </Tabs.Tab>
-        </Tabs.List>
-        <Tabs.Panel value="resumen">
-          <WorkflowSummary definition={agent.definition} clientId={agent.client_id} />
-        </Tabs.Panel>
-        <Tabs.Panel value="definicion">
-          <DefinitionTab agent={agent} />
-        </Tabs.Panel>
-        <Tabs.Panel value="versiones">
-          <VersionsTab agent={agent} />
-        </Tabs.Panel>
-        <Tabs.Panel value="probar">
-          <AgentTestPanel agent={agent} />
-        </Tabs.Panel>
-        <Tabs.Panel value="link">
-          <CallLinkTab agent={agent} />
-        </Tabs.Panel>
-      </Tabs>
+      <AgentTabs agent={agent} />
     </>
   );
 }
