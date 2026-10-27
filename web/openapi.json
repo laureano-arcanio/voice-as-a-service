@@ -10683,7 +10683,7 @@
      "tools"
     ],
     "summary": "Test Tool",
-    "description": "La ejecuta de verdad (llama a la API o corre el codigo) con los secretos del agente o los del pedido.\nNo pide confirmacion. Deja el resultado en la ficha.",
+    "description": "La ejecuta de verdad (llama a la API o corre el codigo) con los secretos del cliente, pisados por los del\nagente (agent_id) y los del pedido. No pide confirmacion. Deja el resultado en la ficha.",
     "operationId": "test_tool_api_v1_clients__client_id__tools__slug__test_post",
     "security": [
      {
@@ -10802,13 +10802,512 @@
     }
    }
   },
+  "/api/v1/clients/{client_id}/secrets": {
+   "get": {
+    "tags": [
+     "tools"
+    ],
+    "summary": "List Client Secrets",
+    "description": "Sin valores, para todos los agentes del cliente. Con quien los usa y los que faltan (missing: true).",
+    "operationId": "list_client_secrets_api_v1_clients__client_id__secrets_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/ClientSecretOut"
+         },
+         "title": "Response List Client Secrets Api V1 Clients  Client Id  Secrets Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "tools"
+    ],
+    "summary": "Create Client Secret",
+    "operationId": "create_client_secret_api_v1_clients__client_id__secrets_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AgentSecretIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ClientSecretOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/clients/{client_id}/secrets/{name}": {
+   "patch": {
+    "tags": [
+     "tools"
+    ],
+    "summary": "Update Client Secret",
+    "description": "Reemplaza el valor o la descripcion. Rige en todos los agentes que no tienen su propio valor.",
+    "operationId": "update_client_secret_api_v1_clients__client_id__secrets__name__patch",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     },
+     {
+      "name": "name",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Name"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AgentSecretPatch"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ClientSecretOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "tools"
+    ],
+    "summary": "Delete Client Secret",
+    "description": "409 (secret_in_use) si lo usa una credencial o una herramienta de un agente sin su propio valor.",
+    "operationId": "delete_client_secret_api_v1_clients__client_id__secrets__name__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     },
+     {
+      "name": "name",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Name"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/clients/{client_id}/credentials": {
+   "get": {
+    "tags": [
+     "tools"
+    ],
+    "summary": "List Credentials",
+    "description": "La autenticacion de las APIs del cliente, sin valores, con las herramientas que la usan.",
+    "operationId": "list_credentials_api_v1_clients__client_id__credentials_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/CredentialOut"
+         },
+         "title": "Response List Credentials Api V1 Clients  Client Id  Credentials Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "tools"
+    ],
+    "summary": "Create Credential",
+    "description": "Con `value`, el valor se guarda en el secreto del cliente `auth.secret`.",
+    "operationId": "create_credential_api_v1_clients__client_id__credentials_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CredentialIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CredentialOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/clients/{client_id}/credentials/{slug}": {
+   "get": {
+    "tags": [
+     "tools"
+    ],
+    "summary": "Get Credential",
+    "operationId": "get_credential_api_v1_clients__client_id__credentials__slug__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     },
+     {
+      "name": "slug",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Slug"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CredentialOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "put": {
+    "tags": [
+     "tools"
+    ],
+    "summary": "Update Credential",
+    "description": "Rige desde ya en todas las herramientas que la usan.",
+    "operationId": "update_credential_api_v1_clients__client_id__credentials__slug__put",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     },
+     {
+      "name": "slug",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Slug"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CredentialUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CredentialOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "tools"
+    ],
+    "summary": "Delete Credential",
+    "description": "409 (credential_in_use) si una herramienta la usa. El secreto con el valor queda.",
+    "operationId": "delete_credential_api_v1_clients__client_id__credentials__slug__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Client Id"
+      }
+     },
+     {
+      "name": "slug",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Slug"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/agents/{agent_id}/secrets": {
    "get": {
     "tags": [
      "tools"
     ],
     "summary": "List Secrets",
-    "description": "Sin valores. Incluye los que piden sus herramientas y faltan (missing: true).",
+    "description": "Sin valores. Los propios del agente (pisan a los del cliente), los del cliente que usan sus herramientas\n(source: client) y los que faltan (missing: true).",
     "operationId": "list_secrets_api_v1_agents__agent_id__secrets_get",
     "security": [
      {
@@ -10980,7 +11479,7 @@
      "tools"
     ],
     "summary": "Delete Secret",
-    "description": "409 (secret_in_use) si una herramienta del agente lo usa.",
+    "description": "Sin el propio, el agente usa el del cliente. 409 (secret_in_use) si una herramienta del agente lo usa y el\ncliente no lo tiene.",
     "operationId": "delete_secret_api_v1_agents__agent_id__secrets__name__delete",
     "security": [
      {
@@ -11010,6 +11509,63 @@
     "responses": {
      "204": {
       "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/agents/{agent_id}/secrets/{name}/promote": {
+   "post": {
+    "tags": [
+     "tools"
+    ],
+    "summary": "Promote Secret",
+    "description": "Pasa el secreto al cliente (para todos los agentes) y borra el propio de este agente y de los otros que\ntienen el mismo valor. 409 (secret_name_taken) si el cliente ya tiene uno con otro valor.",
+    "operationId": "promote_secret_api_v1_agents__agent_id__secrets__name__promote_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "agent_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Agent Id"
+      }
+     },
+     {
+      "name": "name",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Name"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SecretPromoteOut"
+        }
+       }
+      }
      },
      "422": {
       "description": "Validation Error",
@@ -11857,7 +12413,28 @@
      "missing": {
       "type": "boolean",
       "title": "Missing",
-      "description": "Lo pide una herramienta del agente y no esta cargado"
+      "description": "Lo pide una herramienta del agente y no esta ni en el agente ni en el cliente"
+     },
+     "source": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "agent",
+         "client"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source",
+      "description": "agent: propio del agente; client: lo usa del cliente; null: falta"
+     },
+     "overrides": {
+      "type": "boolean",
+      "title": "Overrides",
+      "description": "Es propio del agente y pisa uno del cliente con el mismo nombre"
      },
      "created_at": {
       "anyOf": [
@@ -11891,6 +12468,8 @@
      "last4",
      "used_by",
      "missing",
+     "source",
+     "overrides",
      "created_at",
      "updated_at"
     ],
@@ -16087,6 +16666,89 @@
     ],
     "title": "ClientOut"
    },
+   "ClientSecretOut": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "description": {
+      "type": "string",
+      "title": "Description"
+     },
+     "last4": {
+      "type": "string",
+      "title": "Last4",
+      "description": "Ultimos 4 caracteres (vacio si el valor es corto)"
+     },
+     "missing": {
+      "type": "boolean",
+      "title": "Missing",
+      "description": "Lo pide una herramienta o una credencial y no esta cargado"
+     },
+     "used_by": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Used By",
+      "description": "Herramientas que lo piden"
+     },
+     "credentials": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Credentials",
+      "description": "Credenciales que guardan su valor en este secreto"
+     },
+     "agents": {
+      "items": {
+       "$ref": "#/components/schemas/SecretAgentRef"
+      },
+      "type": "array",
+      "title": "Agents",
+      "description": "Agentes con su propio valor (pisa al del cliente)"
+     },
+     "created_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created At"
+     },
+     "updated_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Updated At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "name",
+     "description",
+     "last4",
+     "missing",
+     "used_by",
+     "credentials",
+     "agents",
+     "created_at",
+     "updated_at"
+    ],
+    "title": "ClientSecretOut"
+   },
    "ClientUpdate": {
     "properties": {
      "name": {
@@ -17038,6 +17700,169 @@
      "messages"
     ],
     "title": "ConversationStateOut"
+   },
+   "CredentialIn": {
+    "properties": {
+     "slug": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{1,63}$",
+      "title": "Slug",
+      "description": "Con el que la usa una herramienta (auth.credential)"
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Name",
+      "description": "Para reconocerla (ej. API del CRM)"
+     },
+     "description": {
+      "type": "string",
+      "maxLength": 255,
+      "title": "Description",
+      "default": ""
+     },
+     "auth": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Auth",
+      "description": "Tipo (bearer, api_key, basic, oauth2_client_credentials) y sus datos, como `auth` de una herramienta (get_tool_schema); `secret` es el nombre del secreto del cliente con el valor"
+     },
+     "value": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 10000,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Value",
+      "description": "El token, la key, la clave o el client secret: se guarda en el secreto `auth.secret` del cliente (lo crea o lo reemplaza). Sin value, el secreto ya tiene que existir. No se devuelve nunca"
+     }
+    },
+    "type": "object",
+    "required": [
+     "slug",
+     "name",
+     "auth"
+    ],
+    "title": "CredentialIn"
+   },
+   "CredentialOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "slug": {
+      "type": "string",
+      "title": "Slug"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "description": {
+      "type": "string",
+      "title": "Description"
+     },
+     "type": {
+      "type": "string",
+      "title": "Type"
+     },
+     "auth": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Auth",
+      "description": "Sin valores: `secret` es el nombre del secreto"
+     },
+     "secret": {
+      "type": "string",
+      "title": "Secret"
+     },
+     "secret_set": {
+      "type": "boolean",
+      "title": "Secret Set",
+      "description": "El cliente tiene cargado el secreto"
+     },
+     "used_by": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Used By",
+      "description": "Herramientas que la usan"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Updated At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "slug",
+     "name",
+     "description",
+     "type",
+     "auth",
+     "secret",
+     "secret_set",
+     "used_by",
+     "created_at",
+     "updated_at"
+    ],
+    "title": "CredentialOut"
+   },
+   "CredentialUpdate": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "description": {
+      "type": "string",
+      "maxLength": 255,
+      "title": "Description",
+      "default": ""
+     },
+     "auth": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Auth"
+     },
+     "value": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 10000,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Value",
+      "description": "Para reemplazar el valor; sin value queda el que esta"
+     }
+    },
+    "type": "object",
+    "required": [
+     "name",
+     "auth"
+    ],
+    "title": "CredentialUpdate"
    },
    "DailyOut": {
     "properties": {
@@ -20843,6 +21668,38 @@
     "title": "PublicPlansOut",
     "description": "Planes con precio que se contratan en el registro. `mp_public_key`: si viene, los pagos se pagan con\ntarjeta en el registro (Card Payment Brick)."
    },
+   "SecretAgentRef": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "name"
+    ],
+    "title": "SecretAgentRef"
+   },
+   "SecretPromoteOut": {
+    "properties": {
+     "moved": {
+      "type": "integer",
+      "title": "Moved",
+      "description": "Agentes que dejaron de tener su propio valor (tenian el mismo)"
+     }
+    },
+    "type": "object",
+    "required": [
+     "moved"
+    ],
+    "title": "SecretPromoteOut"
+   },
    "SignupCheckIn": {
     "properties": {
      "email": {
@@ -22653,7 +23510,7 @@
        }
       ],
       "title": "Agent Id",
-      "description": "Usa los secretos de ese agente"
+      "description": "Usa los secretos propios de ese agente (sin agente, los del cliente)"
      },
      "secrets": {
       "anyOf": [
@@ -22668,7 +23525,7 @@
        }
       ],
       "title": "Secrets",
-      "description": "Secretos para esta prueba (no se guardan; pisan los del agente)"
+      "description": "Secretos para esta prueba (no se guardan; pisan los del cliente y los del agente)"
      },
      "call": {
       "anyOf": [
@@ -22769,7 +23626,7 @@
       },
       "type": "array",
       "title": "Secrets",
-      "description": "Secretos que tiene que tener cada agente que la use"
+      "description": "Secretos que usa (con su credencial): del cliente o de cada agente que la use"
      },
      "llm_tool": {
       "anyOf": [
@@ -22884,7 +23741,7 @@
        }
       ],
       "title": "Agent Id",
-      "description": "Usa los secretos de ese agente"
+      "description": "Usa los secretos propios de ese agente (sin agente, los del cliente)"
      },
      "secrets": {
       "anyOf": [
@@ -22899,7 +23756,7 @@
        }
       ],
       "title": "Secrets",
-      "description": "Secretos para esta prueba (no se guardan; pisan los del agente)"
+      "description": "Secretos para esta prueba (no se guardan; pisan los del cliente y los del agente)"
      },
      "call": {
       "anyOf": [

@@ -900,7 +900,8 @@ class ToolOut(BaseModel):
     type: ToolType
     definition: dict[str, Any]
     revision: int
-    secrets: list[str] = Field(description="Secretos que tiene que tener cada agente que la use")
+    secrets: list[str] = Field(description="Secretos que usa (con su credencial): del cliente o de cada agente que "
+                                           "la use")
     llm_tool: dict[str, Any] | None = Field(description="Lo que ve el modelo (formato de function calling de OpenAI)")
     used_by: list[ToolAgentRef]
     last_test_at: UTCDateTime | None
@@ -920,9 +921,10 @@ class ToolVersionOut(ORM):
 
 class ToolTestIn(BaseModel):
     args: dict[str, Any] = Field(default_factory=dict, description="Los argumentos, como los mandaria el agente")
-    agent_id: str | None = Field(default=None, description="Usa los secretos de ese agente")
+    agent_id: str | None = Field(default=None, description="Usa los secretos propios de ese agente (sin agente, los "
+                                                           "del cliente)")
     secrets: dict[str, str] | None = Field(default=None, description="Secretos para esta prueba (no se guardan; "
-                                                                     "pisan los del agente)")
+                                                                     "pisan los del cliente y los del agente)")
     call: dict[str, Any] | None = Field(default=None, description="Datos de llamada de ejemplo: id, channel, mode, "
                                                                   "from, to")
 
@@ -965,9 +967,69 @@ class AgentSecretOut(BaseModel):
     description: str
     last4: str = Field(description="Ultimos 4 caracteres (vacio si el valor es corto)")
     used_by: list[str] = Field(description="Herramientas del agente que lo piden")
-    missing: bool = Field(description="Lo pide una herramienta del agente y no esta cargado")
+    missing: bool = Field(description="Lo pide una herramienta del agente y no esta ni en el agente ni en el cliente")
+    source: Literal["agent", "client"] | None = Field(
+        description="agent: propio del agente; client: lo usa del cliente; null: falta")
+    overrides: bool = Field(description="Es propio del agente y pisa uno del cliente con el mismo nombre")
     created_at: UTCDateTime | None
     updated_at: UTCDateTime | None
+
+
+class SecretPromoteOut(BaseModel):
+    moved: int = Field(description="Agentes que dejaron de tener su propio valor (tenian el mismo)")
+
+
+class SecretAgentRef(BaseModel):
+    id: str
+    name: str
+
+
+class ClientSecretOut(BaseModel):
+    name: str
+    description: str
+    last4: str = Field(description="Ultimos 4 caracteres (vacio si el valor es corto)")
+    missing: bool = Field(description="Lo pide una herramienta o una credencial y no esta cargado")
+    used_by: list[str] = Field(description="Herramientas que lo piden")
+    credentials: list[str] = Field(description="Credenciales que guardan su valor en este secreto")
+    agents: list[SecretAgentRef] = Field(description="Agentes con su propio valor (pisa al del cliente)")
+    created_at: UTCDateTime | None
+    updated_at: UTCDateTime | None
+
+
+class CredentialIn(BaseModel):
+    slug: str = Field(pattern=r"^[a-z][a-z0-9_]{1,63}$", description="Con el que la usa una herramienta "
+                                                                       "(auth.credential)")
+    name: str = Field(min_length=1, max_length=120, description="Para reconocerla (ej. API del CRM)")
+    description: str = Field(default="", max_length=255)
+    auth: dict[str, Any] = Field(description="Tipo (bearer, api_key, basic, oauth2_client_credentials) y sus datos, "
+                                             "como `auth` de una herramienta (get_tool_schema); `secret` es el nombre "
+                                             "del secreto del cliente con el valor")
+    value: str | None = Field(default=None, min_length=1, max_length=10000,
+                              description="El token, la key, la clave o el client secret: se guarda en el secreto "
+                                          "`auth.secret` del cliente (lo crea o lo reemplaza). Sin value, el secreto "
+                                          "ya tiene que existir. No se devuelve nunca")
+
+
+class CredentialUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    description: str = Field(default="", max_length=255)
+    auth: dict[str, Any]
+    value: str | None = Field(default=None, min_length=1, max_length=10000,
+                              description="Para reemplazar el valor; sin value queda el que esta")
+
+
+class CredentialOut(BaseModel):
+    id: str
+    slug: str
+    name: str
+    description: str
+    type: str
+    auth: dict[str, Any] = Field(description="Sin valores: `secret` es el nombre del secreto")
+    secret: str
+    secret_set: bool = Field(description="El cliente tiene cargado el secreto")
+    used_by: list[str] = Field(description="Herramientas que la usan")
+    created_at: UTCDateTime
+    updated_at: UTCDateTime
 
 
 class LlmParamSpec(BaseModel):

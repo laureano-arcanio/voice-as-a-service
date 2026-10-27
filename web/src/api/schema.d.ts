@@ -3060,8 +3060,8 @@ export interface paths {
         put?: never;
         /**
          * Test Tool
-         * @description La ejecuta de verdad (llama a la API o corre el codigo) con los secretos del agente o los del pedido.
-         *     No pide confirmacion. Deja el resultado en la ficha.
+         * @description La ejecuta de verdad (llama a la API o corre el codigo) con los secretos del cliente, pisados por los del
+         *     agente (agent_id) y los del pedido. No pide confirmacion. Deja el resultado en la ficha.
          */
         post: operations["test_tool_api_v1_clients__client_id__tools__slug__test_post"];
         delete?: never;
@@ -3090,6 +3090,100 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clients/{client_id}/secrets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Client Secrets
+         * @description Sin valores, para todos los agentes del cliente. Con quien los usa y los que faltan (missing: true).
+         */
+        get: operations["list_client_secrets_api_v1_clients__client_id__secrets_get"];
+        put?: never;
+        /** Create Client Secret */
+        post: operations["create_client_secret_api_v1_clients__client_id__secrets_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clients/{client_id}/secrets/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Client Secret
+         * @description 409 (secret_in_use) si lo usa una credencial o una herramienta de un agente sin su propio valor.
+         */
+        delete: operations["delete_client_secret_api_v1_clients__client_id__secrets__name__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Client Secret
+         * @description Reemplaza el valor o la descripcion. Rige en todos los agentes que no tienen su propio valor.
+         */
+        patch: operations["update_client_secret_api_v1_clients__client_id__secrets__name__patch"];
+        trace?: never;
+    };
+    "/api/v1/clients/{client_id}/credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Credentials
+         * @description La autenticacion de las APIs del cliente, sin valores, con las herramientas que la usan.
+         */
+        get: operations["list_credentials_api_v1_clients__client_id__credentials_get"];
+        put?: never;
+        /**
+         * Create Credential
+         * @description Con `value`, el valor se guarda en el secreto del cliente `auth.secret`.
+         */
+        post: operations["create_credential_api_v1_clients__client_id__credentials_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clients/{client_id}/credentials/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Credential */
+        get: operations["get_credential_api_v1_clients__client_id__credentials__slug__get"];
+        /**
+         * Update Credential
+         * @description Rige desde ya en todas las herramientas que la usan.
+         */
+        put: operations["update_credential_api_v1_clients__client_id__credentials__slug__put"];
+        post?: never;
+        /**
+         * Delete Credential
+         * @description 409 (credential_in_use) si una herramienta la usa. El secreto con el valor queda.
+         */
+        delete: operations["delete_credential_api_v1_clients__client_id__credentials__slug__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/agents/{agent_id}/secrets": {
         parameters: {
             query?: never;
@@ -3099,7 +3193,8 @@ export interface paths {
         };
         /**
          * List Secrets
-         * @description Sin valores. Incluye los que piden sus herramientas y faltan (missing: true).
+         * @description Sin valores. Los propios del agente (pisan a los del cliente), los del cliente que usan sus herramientas
+         *     (source: client) y los que faltan (missing: true).
          */
         get: operations["list_secrets_api_v1_agents__agent_id__secrets_get"];
         put?: never;
@@ -3123,7 +3218,8 @@ export interface paths {
         post?: never;
         /**
          * Delete Secret
-         * @description 409 (secret_in_use) si una herramienta del agente lo usa.
+         * @description Sin el propio, el agente usa el del cliente. 409 (secret_in_use) si una herramienta del agente lo usa y el
+         *     cliente no lo tiene.
          */
         delete: operations["delete_secret_api_v1_agents__agent_id__secrets__name__delete"];
         options?: never;
@@ -3133,6 +3229,27 @@ export interface paths {
          * @description Reemplaza el valor o la descripcion. No crea version del agente.
          */
         patch: operations["update_secret_api_v1_agents__agent_id__secrets__name__patch"];
+        trace?: never;
+    };
+    "/api/v1/agents/{agent_id}/secrets/{name}/promote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Promote Secret
+         * @description Pasa el secreto al cliente (para todos los agentes) y borra el propio de este agente y de los otros que
+         *     tienen el mismo valor. 409 (secret_name_taken) si el cliente ya tiene uno con otro valor.
+         */
+        post: operations["promote_secret_api_v1_agents__agent_id__secrets__name__promote_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/tools/status": {
@@ -3475,9 +3592,19 @@ export interface components {
             used_by: string[];
             /**
              * Missing
-             * @description Lo pide una herramienta del agente y no esta cargado
+             * @description Lo pide una herramienta del agente y no esta ni en el agente ni en el cliente
              */
             missing: boolean;
+            /**
+             * Source
+             * @description agent: propio del agente; client: lo usa del cliente; null: falta
+             */
+            source: ("agent" | "client") | null;
+            /**
+             * Overrides
+             * @description Es propio del agente y pisa uno del cliente con el mismo nombre
+             */
+            overrides: boolean;
             /** Created At */
             created_at: string | null;
             /** Updated At */
@@ -5031,6 +5158,42 @@ export interface components {
              */
             adjustments_count?: number;
         };
+        /** ClientSecretOut */
+        ClientSecretOut: {
+            /** Name */
+            name: string;
+            /** Description */
+            description: string;
+            /**
+             * Last4
+             * @description Ultimos 4 caracteres (vacio si el valor es corto)
+             */
+            last4: string;
+            /**
+             * Missing
+             * @description Lo pide una herramienta o una credencial y no esta cargado
+             */
+            missing: boolean;
+            /**
+             * Used By
+             * @description Herramientas que lo piden
+             */
+            used_by: string[];
+            /**
+             * Credentials
+             * @description Credenciales que guardan su valor en este secreto
+             */
+            credentials: string[];
+            /**
+             * Agents
+             * @description Agentes con su propio valor (pisa al del cliente)
+             */
+            agents: components["schemas"]["SecretAgentRef"][];
+            /** Created At */
+            created_at: string | null;
+            /** Updated At */
+            updated_at: string | null;
+        };
         /** ClientUpdate */
         ClientUpdate: {
             /** Name */
@@ -5401,6 +5564,97 @@ export interface components {
             };
             /** Messages */
             messages: components["schemas"]["MessageOut"][];
+        };
+        /** CredentialIn */
+        CredentialIn: {
+            /**
+             * Slug
+             * @description Con el que la usa una herramienta (auth.credential)
+             */
+            slug: string;
+            /**
+             * Name
+             * @description Para reconocerla (ej. API del CRM)
+             */
+            name: string;
+            /**
+             * Description
+             * @default
+             */
+            description?: string;
+            /**
+             * Auth
+             * @description Tipo (bearer, api_key, basic, oauth2_client_credentials) y sus datos, como `auth` de una herramienta (get_tool_schema); `secret` es el nombre del secreto del cliente con el valor
+             */
+            auth: {
+                [key: string]: unknown;
+            };
+            /**
+             * Value
+             * @description El token, la key, la clave o el client secret: se guarda en el secreto `auth.secret` del cliente (lo crea o lo reemplaza). Sin value, el secreto ya tiene que existir. No se devuelve nunca
+             */
+            value?: string | null;
+        };
+        /** CredentialOut */
+        CredentialOut: {
+            /** Id */
+            id: string;
+            /** Slug */
+            slug: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string;
+            /** Type */
+            type: string;
+            /**
+             * Auth
+             * @description Sin valores: `secret` es el nombre del secreto
+             */
+            auth: {
+                [key: string]: unknown;
+            };
+            /** Secret */
+            secret: string;
+            /**
+             * Secret Set
+             * @description El cliente tiene cargado el secreto
+             */
+            secret_set: boolean;
+            /**
+             * Used By
+             * @description Herramientas que la usan
+             */
+            used_by: string[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** CredentialUpdate */
+        CredentialUpdate: {
+            /** Name */
+            name: string;
+            /**
+             * Description
+             * @default
+             */
+            description?: string;
+            /** Auth */
+            auth: {
+                [key: string]: unknown;
+            };
+            /**
+             * Value
+             * @description Para reemplazar el valor; sin value queda el que esta
+             */
+            value?: string | null;
         };
         /** DailyOut */
         DailyOut: {
@@ -6848,6 +7102,21 @@ export interface components {
             /** Plans */
             plans: components["schemas"]["PublicPlanOut"][];
         };
+        /** SecretAgentRef */
+        SecretAgentRef: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** SecretPromoteOut */
+        SecretPromoteOut: {
+            /**
+             * Moved
+             * @description Agentes que dejaron de tener su propio valor (tenian el mismo)
+             */
+            moved: number;
+        };
         /** SignupCheckIn */
         SignupCheckIn: {
             /**
@@ -7463,12 +7732,12 @@ export interface components {
             };
             /**
              * Agent Id
-             * @description Usa los secretos de ese agente
+             * @description Usa los secretos propios de ese agente (sin agente, los del cliente)
              */
             agent_id?: string | null;
             /**
              * Secrets
-             * @description Secretos para esta prueba (no se guardan; pisan los del agente)
+             * @description Secretos para esta prueba (no se guardan; pisan los del cliente y los del agente)
              */
             secrets?: {
                 [key: string]: string;
@@ -7533,7 +7802,7 @@ export interface components {
             revision: number;
             /**
              * Secrets
-             * @description Secretos que tiene que tener cada agente que la use
+             * @description Secretos que usa (con su credencial): del cliente o de cada agente que la use
              */
             secrets: string[];
             /**
@@ -7582,12 +7851,12 @@ export interface components {
             };
             /**
              * Agent Id
-             * @description Usa los secretos de ese agente
+             * @description Usa los secretos propios de ese agente (sin agente, los del cliente)
              */
             agent_id?: string | null;
             /**
              * Secrets
-             * @description Secretos para esta prueba (no se guardan; pisan los del agente)
+             * @description Secretos para esta prueba (no se guardan; pisan los del cliente y los del agente)
              */
             secrets?: {
                 [key: string]: string;
@@ -14946,6 +15215,302 @@ export interface operations {
             };
         };
     };
+    list_client_secrets_api_v1_clients__client_id__secrets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientSecretOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_client_secret_api_v1_clients__client_id__secrets_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentSecretIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientSecretOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_client_secret_api_v1_clients__client_id__secrets__name__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_client_secret_api_v1_clients__client_id__secrets__name__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentSecretPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientSecretOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_credentials_api_v1_clients__client_id__credentials_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CredentialOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_credential_api_v1_clients__client_id__credentials_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CredentialIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CredentialOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_credential_api_v1_clients__client_id__credentials__slug__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CredentialOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_credential_api_v1_clients__client_id__credentials__slug__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CredentialUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CredentialOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_credential_api_v1_clients__client_id__credentials__slug__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_secrets_api_v1_agents__agent_id__secrets_get: {
         parameters: {
             query?: never;
@@ -15065,6 +15630,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgentSecretOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    promote_secret_api_v1_agents__agent_id__secrets__name__promote_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecretPromoteOut"];
                 };
             };
             /** @description Validation Error */

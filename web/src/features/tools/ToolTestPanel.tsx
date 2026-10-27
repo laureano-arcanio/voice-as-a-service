@@ -240,9 +240,12 @@ export function ToolTestPanel({
         )}
         {secrets.length > 0 && (
           <>
+            <Text size="xs" c="dimmed">
+              Usa los secretos cargados en Secretos (los del cliente).
+            </Text>
             <Select
-              label="Secretos de un agente"
-              description="Usa los valores cargados en ese agente."
+              label="Con los valores propios de un agente (opcional)"
+              description="Si un agente usa otro valor para algún secreto, elegilo para probar con ese."
               placeholder="Ninguno"
               data={(agents.data ?? []).map((a) => ({ value: a.id, label: a.name }))}
               value={agentId}
@@ -251,7 +254,7 @@ export function ToolTestPanel({
               searchable
             />
             <Text size="xs" c="dimmed">
-              O escribí los valores para esta prueba (no se guardan; pisan los del agente):
+              O escribí valores solo para esta prueba (no se guardan; pisan a los cargados):
             </Text>
             {secrets.map((s) => (
               <PasswordInput

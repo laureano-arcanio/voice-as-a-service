@@ -6,7 +6,8 @@ import type { ToolType } from '@/api/types';
 export type Json = Record<string, unknown>;
 export type ParamType = 'string' | 'integer' | 'number' | 'boolean' | 'array';
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-export type AuthType = 'none' | 'bearer' | 'api_key' | 'basic' | 'oauth2_client_credentials';
+export type AuthType = 'none' | 'credential' | 'bearer' | 'api_key' | 'basic' | 'oauth2_client_credentials';
+export type CredentialType = Exclude<AuthType, 'none' | 'credential'>;
 
 export const PARAM_TYPES: { value: ParamType; label: string }[] = [
   { value: 'string', label: 'Texto' },
@@ -18,8 +19,8 @@ export const PARAM_TYPES: { value: ParamType; label: string }[] = [
 
 export const METHODS: HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 
-export const AUTH_TYPES: { value: AuthType; label: string }[] = [
-  { value: 'none', label: 'Sin autenticación' },
+/** Los tipos de una credencial (y de la autenticacion configurada en la herramienta). */
+export const AUTH_TYPES: { value: CredentialType; label: string }[] = [
   { value: 'bearer', label: 'Bearer token' },
   { value: 'api_key', label: 'API key' },
   { value: 'basic', label: 'Usuario y clave (Basic)' },
@@ -382,6 +383,7 @@ export function toToolDraft(type: ToolType, d: Json): ToolDraft {
 /** Solo las claves de auth que usa su tipo (el resto el servidor las rechaza o las ignora). */
 const AUTH_KEYS: Record<AuthType, string[]> = {
   none: [],
+  credential: ['credential'],
   bearer: ['secret', 'header', 'prefix'],
   api_key: ['secret', 'name', 'in'],
   basic: ['secret', 'username'],
@@ -528,8 +530,14 @@ function secretsIn(text: unknown, out: Set<string>) {
   for (const m of text.matchAll(TEMPLATE_RE)) if (m[1] === 'secrets' && m[2]) out.add(m[2]);
 }
 
-/** Los secretos que tiene que tener el agente para usar la herramienta. */
-export function requiredSecrets(type: ToolType, d: Json): string[] {
+/** Lo que hace falta de una credencial para saber sus secretos. */
+export type CredentialRef = { slug: string; auth: Json };
+
+/**
+ * Los secretos que usa la herramienta (del cliente o del agente). Con una credencial, los de su auth
+ * (credentials: las del cliente).
+ */
+export function requiredSecrets(type: ToolType, d: Json, credentials: CredentialRef[] = []): string[] {
   const out = new Set<string>();
   if (type === 'code') {
     for (const s of Array.isArray(d.secrets) ? d.secrets : []) out.add(str(s));
@@ -537,7 +545,8 @@ export function requiredSecrets(type: ToolType, d: Json): string[] {
   }
   const h = obj(d.http);
   secretsIn(h.url, out);
-  const auth = obj(h.auth);
+  let auth = obj(h.auth);
+  if (auth.type === 'credential') auth = obj(credentials.find((c) => c.slug === auth.credential)?.auth);
   if (auth.type && auth.type !== 'none' && typeof auth.secret === 'string' && auth.secret)
     out.add(auth.secret);
   secretsIn(auth.username, out);

@@ -664,14 +664,12 @@ export function DefinitionForm({
             <Stack gap="md">
               <PlanGate feature="custom_tools" what="herramientas para tus agentes">
                 <Stack gap="md">
-                  <ClientToolsEditor draft={draft} update={update} clientId={clientId} />
-                  {agentId ? (
-                    <SecretsSection agentId={agentId} needed={neededSecrets(draft, clientTools.data)} />
-                  ) : (
-                    <Text size="xs" c="dimmed">
-                      Los secretos de las herramientas se cargan después de crear el agente.
-                    </Text>
-                  )}
+                  <ClientToolsEditor draft={draft} update={update} clientId={clientId} agentId={agentId} />
+                  <SecretsSection
+                    clientId={clientId}
+                    agentId={agentId}
+                    needed={neededSecrets(draft, clientTools.data)}
+                  />
                 </Stack>
               </PlanGate>
             </Stack>

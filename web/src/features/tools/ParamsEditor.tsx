@@ -25,7 +25,6 @@ export function ParamsEditor({
   allowFixed = true,
   showRequired = true,
   fixedNames = false,
-  secrets = [],
   addLabel = 'Agregar parámetro',
   empty,
   label = 'Parámetro',
@@ -38,8 +37,6 @@ export function ParamsEditor({
   showRequired?: boolean;
   /** Los nombres salen de otro lado (las {variables} de la URL): no se agregan, renombran ni quitan. */
   fixedNames?: boolean;
-  /** Secretos para el menu de variables de los valores fijos. */
-  secrets?: string[];
   addLabel?: string;
   empty?: string;
   /** Para los aria-label: "Parámetro", "Campo". */
@@ -128,7 +125,6 @@ export function ParamsEditor({
                 placeholder="{{call.from}}"
                 value={r.value}
                 onChange={(value) => set(r.key, { value })}
-                secrets={secrets}
               />
             ) : (
               <Group mt="xs" gap="xs" align="flex-start" wrap="wrap">

@@ -29,7 +29,7 @@ from .tenancy import (
     Tier,
     User,
 )
-from .tools import AgentSecret, ClientTool, ToolVersion
+from .tools import AgentSecret, ClientSecret, ClientTool, Credential, ToolVersion
 from .whatsapp import (
     WaAccount,
     WaMessage,
@@ -55,7 +55,9 @@ __all__ = [
     "CampaignCallback",
     "CampaignContact",
     "Client",
+    "ClientSecret",
     "ClientTool",
+    "Credential",
     "ClientBranding",
     "ClientLimitAdjustment",
     "ConsumerRequest",

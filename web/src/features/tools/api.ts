@@ -2,7 +2,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router';
 import { api } from '@/api/client';
 import { unwrap } from '@/api/request';
-import type { AgentSecretIn, AgentSecretPatch, ToolDraftTestIn, ToolIn } from '@/api/types';
+import type {
+  AgentSecretIn,
+  AgentSecretPatch,
+  CredentialIn,
+  CredentialUpdate,
+  ToolDraftTestIn,
+  ToolIn,
+} from '@/api/types';
 import { useCurrentUser } from '@/features/auth/api';
 
 export const toolKeys = {
@@ -12,7 +19,29 @@ export const toolKeys = {
   template: ['tools-code-template'] as const,
   status: ['tools-status'] as const,
   secrets: (agentId: string) => ['agent-secrets', agentId] as const,
+  agentSecrets: ['agent-secrets'] as const,
+  clientSecrets: (clientId: string) => ['client-secrets', clientId] as const,
+  credentials: (clientId: string) => ['credentials', clientId] as const,
 };
+
+/**
+ * Lo que cambia al tocar un secreto o una credencial: los del cliente, los de los agentes (heredan del
+ * cliente), las credenciales (dicen si su secreto esta) y las herramientas (los secretos que piden).
+ */
+function useInvalidateSecrets(clientId?: string) {
+  const qc = useQueryClient();
+  return () => {
+    void qc.invalidateQueries({ queryKey: toolKeys.agentSecrets });
+    if (!clientId) {
+      void qc.invalidateQueries({ queryKey: ['client-secrets'] });
+      void qc.invalidateQueries({ queryKey: ['credentials'] });
+      return;
+    }
+    void qc.invalidateQueries({ queryKey: toolKeys.clientSecrets(clientId) });
+    void qc.invalidateQueries({ queryKey: toolKeys.credentials(clientId) });
+    void qc.invalidateQueries({ queryKey: toolKeys.list(clientId) });
+  };
+}
 
 /** El cliente de la pantalla: el del usuario, o el elegido por el admin (?client=). */
 export function useToolsClient(): string | undefined {
@@ -99,7 +128,7 @@ export function useTestToolDraft(clientId: string) {
   });
 }
 
-// ---------- secretos de un agente ----------
+// ---------- secretos de un agente (pisan a los del cliente) ----------
 
 const SECRETS = '/api/v1/agents/{agent_id}/secrets';
 
@@ -112,29 +141,119 @@ export function useAgentSecrets(agentId: string | undefined) {
 }
 
 export function useCreateSecret(agentId: string) {
-  const qc = useQueryClient();
+  const done = useInvalidateSecrets();
   return useMutation({
     mutationFn: (body: AgentSecretIn) =>
       unwrap(api.POST(SECRETS, { params: { path: { agent_id: agentId } }, body })),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: toolKeys.secrets(agentId) }),
+    onSuccess: done,
   });
 }
 
 export function useUpdateSecret(agentId: string) {
-  const qc = useQueryClient();
+  const done = useInvalidateSecrets();
   return useMutation({
     mutationFn: ({ name, body }: { name: string; body: AgentSecretPatch }) =>
       unwrap(api.PATCH(`${SECRETS}/{name}`, { params: { path: { agent_id: agentId, name } }, body })),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: toolKeys.secrets(agentId) }),
+    onSuccess: done,
   });
 }
 
 export function useDeleteSecret(agentId: string) {
-  const qc = useQueryClient();
+  const done = useInvalidateSecrets();
   return useMutation({
     mutationFn: (name: string) =>
       unwrap(api.DELETE(`${SECRETS}/{name}`, { params: { path: { agent_id: agentId, name } } })),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: toolKeys.secrets(agentId) }),
+    onSuccess: done,
+  });
+}
+
+/** Pasa un secreto del agente al cliente (para todos los agentes). */
+export function usePromoteSecret(agentId: string) {
+  const done = useInvalidateSecrets();
+  return useMutation({
+    mutationFn: (name: string) =>
+      unwrap(api.POST(`${SECRETS}/{name}/promote`, { params: { path: { agent_id: agentId, name } } })),
+    onSuccess: done,
+  });
+}
+
+// ---------- secretos del cliente (para todos sus agentes) ----------
+
+const CLIENT_SECRETS = '/api/v1/clients/{client_id}/secrets';
+
+export function useClientSecrets(clientId: string | undefined) {
+  return useQuery({
+    queryKey: toolKeys.clientSecrets(clientId ?? ''),
+    queryFn: () => unwrap(api.GET(CLIENT_SECRETS, { params: { path: { client_id: clientId! } } })),
+    enabled: !!clientId,
+  });
+}
+
+export function useCreateClientSecret(clientId: string) {
+  const done = useInvalidateSecrets(clientId);
+  return useMutation({
+    mutationFn: (body: AgentSecretIn) =>
+      unwrap(api.POST(CLIENT_SECRETS, { params: { path: { client_id: clientId } }, body })),
+    onSuccess: done,
+  });
+}
+
+export function useUpdateClientSecret(clientId: string) {
+  const done = useInvalidateSecrets(clientId);
+  return useMutation({
+    mutationFn: ({ name, body }: { name: string; body: AgentSecretPatch }) =>
+      unwrap(
+        api.PATCH(`${CLIENT_SECRETS}/{name}`, { params: { path: { client_id: clientId, name } }, body }),
+      ),
+    onSuccess: done,
+  });
+}
+
+export function useDeleteClientSecret(clientId: string) {
+  const done = useInvalidateSecrets(clientId);
+  return useMutation({
+    mutationFn: (name: string) =>
+      unwrap(api.DELETE(`${CLIENT_SECRETS}/{name}`, { params: { path: { client_id: clientId, name } } })),
+    onSuccess: done,
+  });
+}
+
+// ---------- credenciales ----------
+
+const CREDENTIALS = '/api/v1/clients/{client_id}/credentials';
+
+export function useCredentials(clientId: string | undefined) {
+  return useQuery({
+    queryKey: toolKeys.credentials(clientId ?? ''),
+    queryFn: () => unwrap(api.GET(CREDENTIALS, { params: { path: { client_id: clientId! } } })),
+    enabled: !!clientId,
+  });
+}
+
+export function useCreateCredential(clientId: string) {
+  const done = useInvalidateSecrets(clientId);
+  return useMutation({
+    mutationFn: (body: CredentialIn) =>
+      unwrap(api.POST(CREDENTIALS, { params: { path: { client_id: clientId } }, body })),
+    onSuccess: done,
+  });
+}
+
+export function useUpdateCredential(clientId: string) {
+  const done = useInvalidateSecrets(clientId);
+  return useMutation({
+    mutationFn: ({ slug, body }: { slug: string; body: CredentialUpdate }) =>
+      unwrap(api.PUT(`${CREDENTIALS}/{slug}`, { params: { path: { client_id: clientId, slug } }, body })),
+    onSuccess: done,
+  });
+}
+
+export function useDeleteCredential(clientId: string) {
+  const done = useInvalidateSecrets(clientId);
+  return useMutation({
+    mutationFn: (slug: string) =>
+      unwrap(api.DELETE(`${CREDENTIALS}/{slug}`, { params: { path: { client_id: clientId, slug } } })),
+    onSuccess: done,
   });
 }
 

@@ -1,6 +1,7 @@
 import {
   IconBroadcast,
   IconKey,
+  IconLockPassword,
   IconList,
   IconSitemap,
   IconUser,
@@ -63,6 +64,7 @@ export const NAV: NavEntry[] = [
       { to: '/agents', label: 'Mis agentes', icon: IconList, roles: BOTH },
       // Lo que un agente usa va junto a los agentes (como Vapi y ElevenLabs), no en un grupo aparte.
       { to: '/tools', label: 'Herramientas', icon: IconTool, roles: BOTH, feature: 'custom_tools' },
+      { to: '/secrets', label: 'Secretos', icon: IconLockPassword, roles: BOTH, feature: 'custom_tools' },
       { to: '/models', label: 'Modelos', icon: IconCpu, roles: ['client'] },
       { to: '/probar', label: 'Playground', icon: IconPlayerPlay, roles: BOTH },
       { to: '/voices', label: 'Voces', icon: IconMicrophone, roles: BOTH },

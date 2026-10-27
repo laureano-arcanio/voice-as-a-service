@@ -133,9 +133,15 @@ class Assign(BaseModel):
     hide: bool = False
 
 
+AUTH_TYPES = ("bearer", "api_key", "basic", "oauth2_client_credentials")
+
+
 class Auth(BaseModel):
-    type: Literal["none", "bearer", "api_key", "basic", "oauth2_client_credentials"] = "none"
-    # El secreto del agente que se usa: token, key, clave o client secret.
+    """La autenticacion de una herramienta HTTP: ninguna, una credencial del cliente (`credential`, la que arma la
+    UI) o configurada en la herramienta. Una credencial guarda un Auth de los otros tipos (Credential)."""
+    type: Literal["none", "credential", "bearer", "api_key", "basic", "oauth2_client_credentials"] = "none"
+    credential: str | None = None      # credential: slug de la credencial del cliente
+    # El secreto (del cliente o del agente) que se usa: token, key, clave o client secret.
     secret: str | None = None
     header: str | None = None          # bearer y api_key en header
     prefix: str | None = None          # bearer: "Bearer " por default
@@ -154,8 +160,16 @@ class Auth(BaseModel):
     def _consistent(self) -> "Auth":
         if self.type == "none":
             return self
+        if self.type == "credential":
+            if not self.credential or not SLUG_RE.fullmatch(self.credential):
+                raise ValueError("auth.credential: el slug de una credencial del cliente (ej. api_crm)")
+            if self.model_dump(exclude={"type", "credential", "client_auth"}, exclude_none=True):
+                raise ValueError("auth: con una credencial va solo su slug (el resto está en la credencial)")
+            return self
+        if self.credential:
+            raise ValueError("auth.credential: solo con type credential")
         if not self.secret or not SECRET_RE.fullmatch(self.secret):
-            raise ValueError("auth.secret: el nombre del secreto del agente (ej. CRM_TOKEN)")
+            raise ValueError("auth.secret: el nombre del secreto (ej. CRM_TOKEN)")
         if self.type == "api_key":
             if not self.name or not (HEADER_RE.fullmatch(self.name) if (self.in_ or "header") == "header"
                                      else PARAM_RE.fullmatch(self.name)):
@@ -191,6 +205,31 @@ class Auth(BaseModel):
             if text:
                 out |= secrets_in(text)
         return out
+
+
+def credential_auth(data: dict) -> Auth:
+    """El Auth de una credencial: uno de AUTH_TYPES (ValueError si no)."""
+    auth = Auth.model_validate(data)
+    if auth.type not in AUTH_TYPES:
+        raise ValueError("auth.type: bearer, api_key, basic o oauth2_client_credentials")
+    return auth
+
+
+def resolve(tool: "HttpTool | CodeTool", credentials: dict[str, Auth]) -> "HttpTool | CodeTool":
+    """La herramienta con la credencial reemplazada por su Auth. Si la credencial no existe queda como esta: la
+    ejecucion falla con missing_credential."""
+    if not isinstance(tool, HttpTool) or tool.http.auth.type != "credential":
+        return tool
+    auth = credentials.get(tool.http.auth.credential or "")
+    if auth is None:
+        return tool
+    return tool.model_copy(update={"http": tool.http.model_copy(update={"auth": auth})})
+
+
+def credential_of(tool: "HttpTool | CodeTool") -> str | None:
+    if isinstance(tool, HttpTool) and tool.http.auth.type == "credential":
+        return tool.http.auth.credential
+    return None
 
 
 def check_url(url: str, where: str, *, allow_templates: bool = True) -> None:
@@ -388,7 +427,7 @@ def check_slug(slug: str) -> str:
 
 
 def required_secrets(tool: HttpTool | CodeTool) -> set[str]:
-    """Los secretos que tiene que tener el agente para usar la herramienta."""
+    """Los secretos que usa la herramienta (del cliente o del agente). Con una credencial, despues de resolve."""
     if isinstance(tool, CodeTool):
         return set(tool.secrets)
     h = tool.http

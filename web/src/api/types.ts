@@ -150,3 +150,7 @@ export type ToolDraftTestIn = S['ToolDraftTestIn'];
 export type AgentSecret = S['AgentSecretOut'];
 export type AgentSecretIn = S['AgentSecretIn'];
 export type AgentSecretPatch = S['AgentSecretPatch'];
+export type ClientSecret = S['ClientSecretOut'];
+export type Credential = S['CredentialOut'];
+export type CredentialIn = S['CredentialIn'];
+export type CredentialUpdate = S['CredentialUpdate'];

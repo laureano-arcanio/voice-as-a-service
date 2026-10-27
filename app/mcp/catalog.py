@@ -201,9 +201,18 @@ _READ: tuple[Tool, ...] = (
          "en GET /tools/code-template. Leelo antes de crear una herramienta.", path="/tools/schema",
          features=("custom_tools",)),
     Tool("list_agent_secrets", "agents", "Secretos de un agente",
-         "Los secretos del agente (sin el valor: nombre, últimos 4 y qué herramientas lo usan) y los que piden "
-         "sus herramientas y faltan (`missing`).", path="/agents/{agent_id}/secrets", params=_AGENT_ID,
-         required=("agent_id",), features=("custom_tools",)),
+         "Los secretos que usa el agente (sin el valor: nombre, últimos 4 y qué herramientas lo usan): los propios "
+         "(`source` agent, pisan a los del cliente), los del cliente (`source` client) y los que faltan (`missing`).",
+         path="/agents/{agent_id}/secrets", params=_AGENT_ID, required=("agent_id",), features=("custom_tools",)),
+    Tool("list_client_secrets", "agents", "Secretos del cliente",
+         "Los secretos para todos los agentes (sin el valor: nombre, últimos 4, herramientas y credenciales que lo "
+         "usan y agentes con su propio valor) y los que faltan (`missing`).", path="/clients/{client_id}/secrets",
+         features=("custom_tools",)),
+    Tool("list_credentials", "agents", "Credenciales",
+         "La autenticación de las APIs del cliente (Bearer, API key, Basic u OAuth2), sin valores, con el secreto "
+         "que guarda el valor y las herramientas que la usan. Una herramienta la usa con "
+         "`auth: {\"type\": \"credential\", \"credential\": \"<slug>\"}`.", path="/clients/{client_id}/credentials",
+         features=("custom_tools",)),
     Tool("list_agent_templates", "agents", "Plantillas de agente",
          "Las plantillas desde las que se puede crear un agente.", path="/agent-templates"),
     Tool("get_agent_template", "agents", "Plantilla de agente",
@@ -392,7 +401,7 @@ _WRITE: tuple[Tool, ...] = (
          body="LlmConnectionTestIn", read_only=False),
     Tool("create_tool", "agents", "Crear una herramienta",
          "Crea una herramienta del cliente: `type` `http` (Atentina llama a su API: método, URL con {variables}, "
-         "path, query, headers, body, auth con un secreto del agente) o `code` (una función `export default async "
+         "path, query, headers, body, auth con una credencial o un secreto) o `code` (una función `export default async "
          "function ({ args, secrets, call, vars })` en JavaScript). Cada parámetro lo completa el agente (con "
          "`description`) o es fijo (`value`, admite {{secrets.NOMBRE}} y {{call.from}}). Formato: get_tool_schema.",
          method="POST", path="/clients/{client_id}/tools", body="ToolIn", features=("custom_tools",)),
@@ -406,16 +415,44 @@ _WRITE: tuple[Tool, ...] = (
          features=("custom_tools",)),
     Tool("test_tool", "agents", "Probar una herramienta",
          "La ejecuta de verdad con `args` (llama a la API o corre el código) y devuelve el pedido enviado, la "
-         "respuesta y lo que recibiría el agente, con los secretos tachados. Usa los secretos de `agent_id`.",
+         "respuesta y lo que recibiría el agente, con los secretos tachados. Usa los secretos del cliente, pisados "
+         "por los propios de `agent_id`.",
          method="POST", path="/clients/{client_id}/tools/{slug}/test", params={"slug": _s("Slug de la herramienta.")},
          required=("slug",), body="ToolTestIn", omit=("secrets",), read_only=False, features=("custom_tools",)),
     Tool("set_agent_secret", "agents", "Cargar un secreto en un agente",
-         "Guarda un secreto del agente (cifrado; no se vuelve a mostrar) para sus herramientas: un token, una API "
-         "key, una clave. El valor pasa por esta conversación: confirmalo con la persona antes.", method="POST",
+         "Guarda un valor propio del agente (cifrado; no se vuelve a mostrar) que pisa al secreto del cliente con "
+         "el mismo nombre: para cuando un agente usa otro token. Para todos los agentes, set_client_secret. El "
+         "valor pasa por esta conversación: confirmalo con la persona antes.", method="POST",
          path="/agents/{agent_id}/secrets", params=_AGENT_ID, required=("agent_id",), body="AgentSecretIn",
          destructive=True, features=("custom_tools",)),
+    Tool("set_client_secret", "agents", "Cargar un secreto del cliente",
+         "Guarda un secreto para todos los agentes (cifrado; no se vuelve a mostrar): un token, una API key, una "
+         "clave. Un agente puede pisarlo con su propio valor (set_agent_secret). El valor pasa por esta "
+         "conversación: confirmalo con la persona antes.", method="POST", path="/clients/{client_id}/secrets",
+         body="AgentSecretIn", destructive=True, features=("custom_tools",)),
+    Tool("delete_client_secret", "agents", "Borrar un secreto del cliente",
+         "Borra un secreto del cliente que no usa ninguna credencial ni herramienta de un agente sin su propio "
+         "valor.", method="DELETE", path="/clients/{client_id}/secrets/{name}",
+         params={"name": _s("Nombre del secreto.")}, required=("name",), destructive=True,
+         features=("custom_tools",)),
+    Tool("create_credential", "agents", "Crear una credencial",
+         "La autenticación de una API para usar en varias herramientas: `auth` con `type` (bearer, api_key, "
+         "basic, oauth2_client_credentials), sus datos y `secret` (el nombre del secreto del cliente). Con "
+         "`value`, el valor se guarda en ese secreto. El valor pasa por esta conversación: confirmalo con la "
+         "persona antes.", method="POST", path="/clients/{client_id}/credentials", body="CredentialIn",
+         destructive=True, features=("custom_tools",)),
+    Tool("update_credential", "agents", "Cambiar una credencial",
+         "Reemplaza el nombre, la descripción y `auth` (y el valor, con `value`). Rige desde ya en las "
+         "herramientas que la usan.", method="PUT", path="/clients/{client_id}/credentials/{slug}",
+         params={"slug": _s("Slug de la credencial (list_credentials).")}, required=("slug",),
+         body="CredentialUpdate", destructive=True, features=("custom_tools",)),
+    Tool("delete_credential", "agents", "Borrar una credencial",
+         "Borra una credencial que ninguna herramienta usa. El secreto con el valor queda.", method="DELETE",
+         path="/clients/{client_id}/credentials/{slug}", params={"slug": _s("Slug de la credencial.")},
+         required=("slug",), destructive=True, features=("custom_tools",)),
     Tool("delete_agent_secret", "agents", "Borrar un secreto de un agente",
-         "Borra un secreto que ninguna herramienta del agente usa.", method="DELETE",
+         "Borra el valor propio del agente (vuelve a usar el del cliente, si lo hay). Falla si una herramienta del "
+         "agente lo usa y el cliente no lo tiene.", method="DELETE",
          path="/agents/{agent_id}/secrets/{name}", params={**_AGENT_ID, "name": _s("Nombre del secreto.")},
          required=("agent_id", "name"), destructive=True, features=("custom_tools",)),
     Tool("get_test_conversation", "agents", "Conversación de prueba",

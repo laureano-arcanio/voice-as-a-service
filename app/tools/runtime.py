@@ -101,7 +101,7 @@ class ToolFailure(Exception):
 def _lookup(ctx: ToolContext, ns: str, key: str | None) -> Any:
     if ns == "secrets":
         if key not in ctx.secrets:
-            raise ToolFailure("missing_secret", f"El agente no tiene el secreto {key}")
+            raise ToolFailure("missing_secret", f"Falta el secreto {key} (cargalo en Secretos del cliente o del agente)")
         return ctx.secrets[key]
     if ns == "call":
         return ctx.call().get(key)
@@ -432,6 +432,8 @@ async def build_request(tool: S.HttpTool, args: dict, ctx: ToolContext, client: 
     for name, value in h.headers.items():
         headers[name] = render(value, ctx)
     auth = h.auth
+    if auth.type == "credential":
+        raise ToolFailure("missing_credential", f"No existe la credencial {auth.credential}")
     if auth.type == "bearer":
         prefix = "Bearer " if auth.prefix is None else auth.prefix
         headers[auth.header or "Authorization"] = prefix + _lookup(ctx, "secrets", auth.secret)

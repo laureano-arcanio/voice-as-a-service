@@ -73,7 +73,9 @@ Lo que tienen en común y vamos a copiar:
 - **Recursos nuevos:** `tools`, por cliente (un agente las referencia por slug; así una herramienta
   se prueba sola y se reutiliza en varios agentes, como en Vapi y ElevenLabs con `toolIds`), y
   **secretos por agente**: cada agente guarda los suyos, y una herramienta usada por dos agentes
-  toma en cada uno los valores de ese agente (como las variables de entorno de un deploy).
+  toma en cada uno los valores de ese agente (como las variables de entorno de un deploy). *Desde el
+  27-oct-2026 los secretos son del cliente, con valor propio opcional por agente, y hay credenciales:
+  ver la sección 16.*
 - **Todo por UI, API (`/api/v1`) y MCP.**
 - **Fuera de alcance (por ahora):** OAuth2 authorization code (el cliente autoriza con su usuario),
   herramientas asíncronas (fire-and-forget), paquetes npm en el código, Python.
@@ -212,6 +214,7 @@ Una variable sin valor se manda vacía. Si es de `path` o es obligatoria, la her
 | `type` | Campos | Qué manda |
 |---|---|---|
 | `none` | | |
+| `credential` | `credential` (slug de una credencial del cliente, sección 16) | lo de la credencial |
 | `bearer` | `secret`, `header` (default `Authorization`), `prefix` (default `Bearer `) | `Authorization: Bearer <secreto>` |
 | `api_key` | `secret`, `in` (`header` o `query`), `name` (`X-API-Key`, `key`…) | header o parámetro |
 | `basic` | `username` (literal o `{{secrets.X}}`), `secret` (la clave) | `Authorization: Basic …` |
@@ -739,4 +742,75 @@ recreados sin llamadas en curso y los dos alcanzan `tools-runner`. El paso 5 que
 - La política de privacidad y las condiciones: los datos de la conversación salen a los endpoints del
   cliente (versión nueva en `app/legal/texts/`).
 - UI: aviso de cambios sin guardar en el editor de herramientas.
+
+## 16. Secretos del cliente y credenciales (27-oct-2026)
+
+Por qué: con los secretos por agente, un token del CRM usado por tres agentes se cargaba y se rotaba tres
+veces, no había un lugar para ver los secretos del cliente y la Autenticación de una herramienta pedía
+tipear el nombre de un secreto. Vapi (credenciales de la organización, `credentialId`), ElevenLabs (secretos
+del workspace y *auth connections*) y Bland (vault de la cuenta) los guardan en la cuenta, no en el agente.
+
+### Modelo (migración 0035)
+
+- `client_secrets`: como `agent_secrets` pero del cliente (`client_id`, `name` único por cliente, valor
+  cifrado, `last4`, descripción). Tope: 100 por cliente.
+- `agent_secrets` queda como **valor propio** del agente: pisa al del cliente con el mismo nombre (una
+  sucursal con otro token). Los valores de una conversación son los del cliente pisados por los del
+  agente (`services/tools.secret_values`).
+- `credentials`: la autenticación de una API del cliente (`slug`, `name`, `description`, `auth`: un
+  `Auth` de tipo `bearer`, `api_key`, `basic` u `oauth2_client_credentials`, sin el valor). `auth.secret`
+  es el nombre del secreto que tiene el valor. Tope: 50 por cliente.
+- Una herramienta la usa con `auth: {"type": "credential", "credential": "<slug>"}`. Se resuelve al
+  ejecutar, al probar, al guardar el agente y al describir la herramienta (`schema.resolve`): los secretos
+  que pide son los de la credencial. Cambiar una credencial rige desde ya en todas las herramientas que la
+  usan, sin subir su `revision` (como rotar un secreto). Sin la credencial, la ejecución falla con
+  `missing_credential`. La autenticación configurada en la herramienta (los otros tipos) sigue andando.
+
+### Reglas
+
+- Guardar un agente: cada secreto que piden sus herramientas tiene que estar en el cliente o en el agente.
+- Guardar una herramienta: la credencial existe y su header no choca con los de la herramienta.
+- Cambiar una credencial o una herramienta para que pida un secreto nuevo: cada agente que la usa lo
+  tiene (propio o del cliente), o 422 `missing_secret`.
+- Borrar un secreto del cliente: 409 si lo usa una credencial o una herramienta de un agente sin valor
+  propio. Borrar el valor propio de un agente: el agente vuelve al del cliente; 409 solo si el cliente no
+  lo tiene y una herramienta del agente lo usa. Borrar una credencial: 409 si una herramienta la usa (el
+  secreto queda).
+- **Pasar al cliente** (`POST /agents/{id}/secrets/{name}/promote`): crea el secreto del cliente con el
+  valor del agente y borra el propio de todos los agentes con el mismo valor; 409 si el cliente ya tiene
+  uno con otro valor.
+- Probar una herramienta usa los secretos del cliente; `agent_id` suma los propios de ese agente y
+  `secrets` los de la prueba.
+
+### API y MCP
+
+`GET/POST /clients/{id}/secrets`, `PATCH/DELETE /clients/{id}/secrets/{name}`;
+`GET/POST /clients/{id}/credentials`, `GET/PUT/DELETE /clients/{id}/credentials/{slug}` (con `value`, el
+valor va al secreto `auth.secret`: lo crea o lo reemplaza); `POST /agents/{id}/secrets/{name}/promote`.
+`GET /agents/{id}/secrets` dice de dónde sale cada uno (`source`: `agent` o `client`; `overrides`). MCP:
+`list_client_secrets`, `set_client_secret`, `delete_client_secret`, `list_credentials`,
+`create_credential`, `update_credential` y `delete_credential`.
+
+### UI
+
+- **Agentes > Secretos** (`/secrets`): Credenciales (nombre, tipo, secreto con el valor, herramientas) y
+  Secretos del cliente (valor `••••last4`, quién los usa, agentes con otro valor; **Falta** para los que
+  piden las herramientas y no están).
+- Herramienta, **Autenticación**: desplegable **Credencial** (sin autenticación, las del cliente o
+  "Configurada en esta herramienta (avanzado)"), **Nueva credencial** y **Editar credencial** en un modal
+  (nombre, tipo, sus datos y el valor; el secreto se nombra solo, `<SLUG>_TOKEN`, o se elige uno cargado).
+- Botón **Variables**: los secretos del cliente y los que ya usa la herramienta, y **Nuevo secreto** (lo
+  crea en el cliente y lo inserta).
+- **Secretos que pide**: cada uno con **Cargado** o **Falta** y **Cargar valor**.
+- Agente, **Herramientas**: cada herramienta avisa **Falta X**; la tabla de Secretos dice **Del cliente**,
+  **Propio** o **Falta**, con **Cargar valor** (para todos los agentes o solo este), **Usar otro valor
+  acá**, **Pasar al cliente** y **Volver al del cliente**. También en un agente nuevo (se cargan en el
+  cliente).
+- **Probar**: sin elegir agente usa los del cliente.
+
+### Cómo desplegar
+
+1. `make migrate-test` (la 0035 contra una copia del backup) y `make migrate`.
+2. `make calls-active && make up-agent`: `app` (API y UI) y `agent` (lee los secretos del cliente en las
+   conversaciones). Corta las llamadas en curso.
 

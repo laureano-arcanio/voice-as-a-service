@@ -339,7 +339,31 @@
    "name": "list_agent_secrets",
    "toolset": "agents",
    "title": "Secretos de un agente",
-   "description": "Los secretos del agente (sin el valor: nombre, últimos 4 y qué herramientas lo usan) y los que piden sus herramientas y faltan (`missing`).",
+   "description": "Los secretos que usa el agente (sin el valor: nombre, últimos 4 y qué herramientas lo usan): los propios (`source` agent, pisan a los del cliente), los del cliente (`source` client) y los que faltan (`missing`).",
+   "kind": "lectura",
+   "features": [
+    "custom_tools"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "list_client_secrets",
+   "toolset": "agents",
+   "title": "Secretos del cliente",
+   "description": "Los secretos para todos los agentes (sin el valor: nombre, últimos 4, herramientas y credenciales que lo usan y agentes con su propio valor) y los que faltan (`missing`).",
+   "kind": "lectura",
+   "features": [
+    "custom_tools"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "list_credentials",
+   "toolset": "agents",
+   "title": "Credenciales",
+   "description": "La autenticación de las APIs del cliente (Bearer, API key, Basic u OAuth2), sin valores, con el secreto que guarda el valor y las herramientas que la usan. Una herramienta la usa con `auth: {\"type\": \"credential\", \"credential\": \"<slug>\"}`.",
    "kind": "lectura",
    "features": [
     "custom_tools"
@@ -501,7 +525,7 @@
    "name": "create_tool",
    "toolset": "agents",
    "title": "Crear una herramienta",
-   "description": "Crea una herramienta del cliente: `type` `http` (Atentina llama a su API: método, URL con {variables}, path, query, headers, body, auth con un secreto del agente) o `code` (una función `export default async function ({ args, secrets, call, vars })` en JavaScript). Cada parámetro lo completa el agente (con `description`) o es fijo (`value`, admite {{secrets.NOMBRE}} y {{call.from}}). Formato: get_tool_schema.",
+   "description": "Crea una herramienta del cliente: `type` `http` (Atentina llama a su API: método, URL con {variables}, path, query, headers, body, auth con una credencial o un secreto) o `code` (una función `export default async function ({ args, secrets, call, vars })` en JavaScript). Cada parámetro lo completa el agente (con `description`) o es fijo (`value`, admite {{secrets.NOMBRE}} y {{call.from}}). Formato: get_tool_schema.",
    "kind": "escritura",
    "features": [
     "custom_tools"
@@ -537,7 +561,7 @@
    "name": "test_tool",
    "toolset": "agents",
    "title": "Probar una herramienta",
-   "description": "La ejecuta de verdad con `args` (llama a la API o corre el código) y devuelve el pedido enviado, la respuesta y lo que recibiría el agente, con los secretos tachados. Usa los secretos de `agent_id`.",
+   "description": "La ejecuta de verdad con `args` (llama a la API o corre el código) y devuelve el pedido enviado, la respuesta y lo que recibiría el agente, con los secretos tachados. Usa los secretos del cliente, pisados por los propios de `agent_id`.",
    "kind": "escritura",
    "features": [
     "custom_tools"
@@ -549,7 +573,67 @@
    "name": "set_agent_secret",
    "toolset": "agents",
    "title": "Cargar un secreto en un agente",
-   "description": "Guarda un secreto del agente (cifrado; no se vuelve a mostrar) para sus herramientas: un token, una API key, una clave. El valor pasa por esta conversación: confirmalo con la persona antes.",
+   "description": "Guarda un valor propio del agente (cifrado; no se vuelve a mostrar) que pisa al secreto del cliente con el mismo nombre: para cuando un agente usa otro token. Para todos los agentes, set_client_secret. El valor pasa por esta conversación: confirmalo con la persona antes.",
+   "kind": "confirmar",
+   "features": [
+    "custom_tools"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "set_client_secret",
+   "toolset": "agents",
+   "title": "Cargar un secreto del cliente",
+   "description": "Guarda un secreto para todos los agentes (cifrado; no se vuelve a mostrar): un token, una API key, una clave. Un agente puede pisarlo con su propio valor (set_agent_secret). El valor pasa por esta conversación: confirmalo con la persona antes.",
+   "kind": "confirmar",
+   "features": [
+    "custom_tools"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "delete_client_secret",
+   "toolset": "agents",
+   "title": "Borrar un secreto del cliente",
+   "description": "Borra un secreto del cliente que no usa ninguna credencial ni herramienta de un agente sin su propio valor.",
+   "kind": "confirmar",
+   "features": [
+    "custom_tools"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "create_credential",
+   "toolset": "agents",
+   "title": "Crear una credencial",
+   "description": "La autenticación de una API para usar en varias herramientas: `auth` con `type` (bearer, api_key, basic, oauth2_client_credentials), sus datos y `secret` (el nombre del secreto del cliente). Con `value`, el valor se guarda en ese secreto. El valor pasa por esta conversación: confirmalo con la persona antes.",
+   "kind": "confirmar",
+   "features": [
+    "custom_tools"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "update_credential",
+   "toolset": "agents",
+   "title": "Cambiar una credencial",
+   "description": "Reemplaza el nombre, la descripción y `auth` (y el valor, con `value`). Rige desde ya en las herramientas que la usan.",
+   "kind": "confirmar",
+   "features": [
+    "custom_tools"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "delete_credential",
+   "toolset": "agents",
+   "title": "Borrar una credencial",
+   "description": "Borra una credencial que ninguna herramienta usa. El secreto con el valor queda.",
    "kind": "confirmar",
    "features": [
     "custom_tools"
@@ -561,7 +645,7 @@
    "name": "delete_agent_secret",
    "toolset": "agents",
    "title": "Borrar un secreto de un agente",
-   "description": "Borra un secreto que ninguna herramienta del agente usa.",
+   "description": "Borra el valor propio del agente (vuelve a usar el del cliente, si lo hay). Falla si una herramienta del agente lo usa y el cliente no lo tiene.",
    "kind": "confirmar",
    "features": [
     "custom_tools"

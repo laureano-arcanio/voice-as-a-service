@@ -166,6 +166,19 @@ describe('lo que ve el modelo y los secretos', () => {
     expect(requiredSecrets('http', HTTP)).toEqual(['ATENTINA_SIGNING_SECRET', 'CRM_TOKEN', 'OTRO_TOKEN']);
     expect(requiredSecrets('code', CODE)).toEqual(['CRM_TOKEN']);
   });
+
+  it('requiredSecrets: con una credencial, el secreto que la guarda', () => {
+    const withCred = {
+      ...HTTP,
+      http: { ...HTTP.http, sign: false, auth: { type: 'credential', credential: 'crm' } },
+    };
+    const creds = [{ slug: 'crm', auth: { type: 'bearer', secret: 'CRM_API_TOKEN' } }];
+    expect(requiredSecrets('http', withCred, creds)).toContain('CRM_API_TOKEN');
+    expect(requiredSecrets('http', withCred, [])).not.toContain('CRM_API_TOKEN');
+    expect(fromToolDraft(toToolDraft('http', withCred)).http).toMatchObject({
+      auth: { type: 'credential', credential: 'crm' },
+    });
+  });
 });
 
 describe('errores del servidor', () => {

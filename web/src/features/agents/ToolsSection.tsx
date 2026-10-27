@@ -13,7 +13,7 @@ import {
 import { Link } from 'react-router';
 import { QueryState } from '@/components/QueryState';
 import { useIsAdmin } from '@/features/auth/api';
-import { toolsHref, useTools } from '@/features/tools/api';
+import { toolsHref, useAgentSecrets, useClientSecrets, useTools } from '@/features/tools/api';
 import { CLIENT_TOOL_TYPE } from '@/lib/labels';
 import { type ClientToolGrantDraft, type Draft, newKey, TOOL_SETTINGS } from './draft';
 
@@ -22,13 +22,24 @@ export function ClientToolsEditor({
   draft,
   update,
   clientId,
+  agentId,
 }: {
   draft: Draft;
   update: (fn: (d: Draft) => Draft) => void;
   clientId: string;
+  /** El agente guardado: sus valores propios cuentan como cargados. */
+  agentId?: string;
 }) {
   const isAdmin = useIsAdmin();
   const tools = useTools(clientId);
+  const clientSecrets = useClientSecrets(clientId);
+  const agentSecrets = useAgentSecrets(agentId);
+  // Los secretos que tiene el agente: los del cliente y los propios.
+  const have = new Set([
+    ...(clientSecrets.data ?? []).filter((s) => !s.missing).map((s) => s.name),
+    ...(agentSecrets.data ?? []).filter((s) => s.source === 'agent').map((s) => s.name),
+  ]);
+  const secretsLoaded = clientSecrets.isSuccess && (!agentId || agentSecrets.isSuccess);
   const toolsLink = toolsHref('/tools', clientId, isAdmin);
   const setGrants = (fn: (g: ClientToolGrantDraft[]) => ClientToolGrantDraft[]) =>
     update((d) => ({ ...d, clientTools: fn(d.clientTools) }));
@@ -82,6 +93,7 @@ export function ClientToolsEditor({
               .map((g) => {
                 const t = bySlug.get(g.tool)!;
                 const confirm = t.definition.confirm === true;
+                const lacking = secretsLoaded ? t.secrets.filter((x) => !have.has(x)) : [];
                 return (
                   <div key={g.key} className="def-item" style={{ padding: 'var(--mantine-spacing-sm)' }}>
                     <Group justify="space-between" gap="sm" wrap="wrap">
@@ -98,6 +110,11 @@ export function ClientToolsEditor({
                           </Anchor>
                           <Badge color="gray">{CLIENT_TOOL_TYPE[t.type] ?? t.type}</Badge>
                           {confirm && <Badge color="blue">Pide confirmación</Badge>}
+                          {lacking.length > 0 && (
+                            <Badge color="yellow" title="Cargalo abajo, en Secretos">
+                              Falta {lacking.join(', ')}
+                            </Badge>
+                          )}
                         </Group>
                         <Text size="xs" c="dimmed" lineClamp={2}>
                           {String(t.definition.description ?? '')}

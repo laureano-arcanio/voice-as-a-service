@@ -114,7 +114,7 @@ quién piensa. El cliente ve las mismas, sin **Ver prompt** ni **JSON** (ver [Ag
   - **Resultados:** etiqueta, ID, si cumple el objetivo, mensaje de cierre y condiciones. Vale el
     primero que se cumple; el último es el de por defecto.
 - **Herramientas:** qué puede hacer además de hablar.
-  - **Herramientas:** las herramientas del cliente (las de **Herramientas**: llamadas a una API o código), las **vueltas con herramientas por turno** (vacío: 3) con el **mensaje al llegar al tope**, y los **Secretos** del agente (tokens y claves que usan sus herramientas; se escriben una vez y no se vuelven a mostrar; **Falta** marca los que pide una herramienta y no están cargados). **Confirmar antes de ejecutarla** es de cada herramienta: solo agrega a su descripción que pida confirmación; el modelo decide (la plataforma no confirma desde el 26-oct-2026).
+  - **Herramientas:** las herramientas del cliente (las de **Herramientas**: llamadas a una API o código), las **vueltas con herramientas por turno** (vacío: 3) con el **mensaje al llegar al tope**, y los **Secretos** que usan sus herramientas: **Del cliente** (cargados en Agentes > Secretos), **Propio** (un valor solo de este agente, que pisa al del cliente) o **Falta** (con **Cargar valor**). **Confirmar antes de ejecutarla** es de cada herramienta: solo agrega a su descripción que pida confirmación; el modelo decide (la plataforma no confirma desde el 26-oct-2026).
   - **Derivación a personas:** las áreas del cliente (de
     **Equipo**, con su horario; si no tiene, un link para crearlas). **Puede pasarle llamadas** habilita cada área
     (hasta 10) y abre **Cuándo pasarla**, el criterio para el agente (vacío = la descripción del área). Un área
@@ -402,19 +402,37 @@ herramientas (`max_tools`); las de código, si incluye `code_tools`.
 - **Nueva herramienta > Llamar a una API:** método y URL (con `{variables}` de la ruta) y pestañas
   **Ruta**, **Query**, **Headers**, **Body**, **Autenticación**, **Respuesta** y **Mientras se espera**. Cada parámetro
   lo completa **el agente** (con una descripción: qué dato es) o es un **valor fijo** (puede llevar
-  `{{secrets.NOMBRE}}`, `{{call.from}}` y otras variables, del menú `{ }`). El agente solo ve los que
-  completa. Autenticación: Bearer, API key (header o query), Basic u OAuth2 client credentials, con un
-  secreto del agente. **Lo que ve el agente** muestra la función tal como le llega al modelo.
+  `{{secrets.NOMBRE}}`, `{{call.from}}` y otras variables, del botón **Variables**, que también crea un
+  secreto nuevo). El agente solo ve los que completa. **Autenticación:** elegir una **Credencial** del
+  cliente o crearla ahí (**Nueva credencial**: Bearer, API key en header o query, Basic u OAuth2 client
+  credentials, con su valor); "Configurada en esta herramienta" es la opción avanzada. **Lo que ve el
+  agente** muestra la función tal como le llega al modelo, y **Secretos que pide** marca **Cargado** o
+  **Falta** (con **Cargar valor**).
 - **Nueva herramienta > Escribir código:** una función en JavaScript (`export default async function
   ({ args, secrets, call, vars })`) que arranca con un ejemplo. Al lado: **Parámetros**, **Secretos que
   usa** (llegan en `secrets`), **Hosts permitidos** (la función solo puede llamar a esos dominios) y el
   tiempo máximo.
-- **Probar** (los dos tipos): los argumentos como los mandaría el agente, los secretos de un agente o
-  valores solo para la prueba (no se guardan), y el resultado: el pedido enviado (con los secretos
+- **Probar** (los dos tipos): los argumentos como los mandaría el agente; usa los secretos del cliente,
+  los valores propios de un agente si se elige uno, o valores solo para la prueba (no se guardan), y el resultado: el pedido enviado (con los secretos
   tachados), la respuesta, lo que recibe el agente y los logs del código. Llama de verdad a la API.
-- Para que un agente la use: en el agente, **Herramientas** (la pestaña del agente), elegirla y cargar sus
-  **Secretos** (primero los secretos: sin ellos el agente no se guarda). Cambiar una herramienta rige en
-  todos los agentes que la usan; no se puede borrar mientras un agente la use.
+- Para que un agente la use: en el agente, **Herramientas** (la pestaña del agente), elegirla; si le falta
+  un secreto, la herramienta dice **Falta X** y se carga ahí (**Cargar valor**: para todos los agentes o
+  solo este). Sin sus secretos el agente no se guarda. Cambiar una herramienta rige en todos los agentes
+  que la usan; no se puede borrar mientras un agente la use.
+
+### Secretos
+
+**Agentes > Secretos**: lo que usan las herramientas para entrar a los sistemas del cliente. El admin elige
+el cliente arriba.
+
+- **Credenciales:** la autenticación de cada API (nombre, tipo y sus datos, y el valor, que se guarda en un
+  secreto). Se crean acá o desde la herramienta; **Editar** cambia todas las herramientas que la usan. No se
+  borra mientras una herramienta la use.
+- **Secretos:** tokens y claves para todos los agentes, `{{secrets.NOMBRE}}` en una herramienta. Se
+  escriben una vez y no se vuelven a mostrar (`••••` y los últimos 4); **Reemplazar valor** los rota en
+  todos los agentes. **Falta** marca los que piden las herramientas y no están. **Agentes con otro valor:**
+  los que tienen uno propio (se carga en el agente, **Usar otro valor acá**; **Pasar al cliente** lo sube
+  para todos).
 
 ### Voces
 

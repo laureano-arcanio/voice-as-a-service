@@ -1,7 +1,8 @@
 import { Button, Menu, TextInput, type TextInputProps } from '@mantine/core';
-import { IconChevronDown, IconVariable } from '@tabler/icons-react';
-import { useRef } from 'react';
+import { IconChevronDown, IconPlus, IconVariable } from '@tabler/icons-react';
+import { useContext, useRef } from 'react';
 import { SECRET_RE, TEMPLATE_VARS } from './draft';
+import { ToolSecretsContext } from './ToolSecretsContext';
 
 /** Ancho del boton "Variables" dentro del campo (rightSection). */
 const MENU_WIDTH = 118;
@@ -11,14 +12,13 @@ const MENU_WIDTH = 118;
  * donde esta el cursor; sin onVar (campo que lleva solo el nombre de un secreto) lista solo los secretos.
  */
 export function VariablesMenu({
-  secrets,
   onSecret,
   onVar,
 }: {
-  secrets: string[];
   onSecret: (name: string) => void;
   onVar?: (v: string) => void;
 }) {
+  const { names: secrets, newSecret } = useContext(ToolSecretsContext);
   return (
     <Menu position="bottom-end" withinPortal>
       <Menu.Target>
@@ -33,16 +33,17 @@ export function VariablesMenu({
         </Button>
       </Menu.Target>
       <Menu.Dropdown mah={360} style={{ overflowY: 'auto' }}>
-        <Menu.Label>Secretos del agente</Menu.Label>
+        <Menu.Label>Secretos</Menu.Label>
+        {secrets.length === 0 && <Menu.Label>Todavía no cargaste secretos.</Menu.Label>}
         {secrets.map((s) => (
           <Menu.Item key={s} className="mono" onClick={() => onSecret(s)}>
             {onVar ? `{{secrets.${s}}}` : s}
           </Menu.Item>
         ))}
-        {onVar ? (
-          <Menu.Item onClick={() => onVar('{{secrets.NOMBRE}}')}>Otro secreto…</Menu.Item>
-        ) : (
-          <Menu.Label>{secrets.length ? 'Para uno nuevo, escribí su nombre.' : 'Escribí el nombre del secreto.'}</Menu.Label>
+        {newSecret && (
+          <Menu.Item leftSection={<IconPlus size={14} />} onClick={() => newSecret(onSecret)}>
+            Nuevo secreto
+          </Menu.Item>
         )}
         {onVar &&
           TEMPLATE_VARS.map((g) => (
@@ -69,12 +70,10 @@ export function VariablesMenu({
 export function TemplateInput({
   value,
   onChange,
-  secrets,
   ...props
 }: Omit<TextInputProps, 'value' | 'onChange'> & {
   value: string;
   onChange: (v: string) => void;
-  secrets: string[];
 }) {
   const ref = useRef<HTMLInputElement>(null);
   const insert = (v: string) => {
@@ -96,9 +95,7 @@ export function TemplateInput({
       onChange={(e) => onChange(e.currentTarget.value)}
       rightSectionWidth={MENU_WIDTH}
       rightSectionPointerEvents="all"
-      rightSection={
-        <VariablesMenu secrets={secrets} onSecret={(s) => insert(`{{secrets.${s}}}`)} onVar={insert} />
-      }
+      rightSection={<VariablesMenu onSecret={(s) => insert(`{{secrets.${s}}}`)} onVar={insert} />}
     />
   );
 }
@@ -107,12 +104,10 @@ export function TemplateInput({
 export function SecretInput({
   value,
   onChange,
-  secrets,
   ...props
 }: Omit<TextInputProps, 'value' | 'onChange'> & {
   value: string;
   onChange: (v: string) => void;
-  secrets: string[];
 }) {
   return (
     <TextInput
@@ -120,11 +115,13 @@ export function SecretInput({
       classNames={{ input: 'mono' }}
       value={value}
       // Si pegan {{secrets.X}}, queda X.
-      onChange={(e) => onChange(e.currentTarget.value.replace(/^\{\{\s*secrets\.|\s*\}\}$/g, '').toUpperCase())}
+      onChange={(e) =>
+        onChange(e.currentTarget.value.replace(/^\{\{\s*secrets\.|\s*\}\}$/g, '').toUpperCase())
+      }
       error={value && !SECRET_RE.test(value) ? 'Mayúsculas, números y _ (ej. CRM_TOKEN)' : undefined}
       rightSectionWidth={MENU_WIDTH}
       rightSectionPointerEvents="all"
-      rightSection={<VariablesMenu secrets={secrets} onSecret={onChange} />}
+      rightSection={<VariablesMenu onSecret={onChange} />}
     />
   );
 }

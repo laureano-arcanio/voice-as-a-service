@@ -2,6 +2,7 @@ import { javascript } from '@codemirror/lang-javascript';
 import {
   ActionIcon,
   Alert,
+  Badge,
   Button,
   Card,
   Checkbox,
@@ -22,14 +23,20 @@ import {
 } from '@mantine/core';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import CodeMirror from '@uiw/react-codemirror';
-import type { ReactNode } from 'react';
+import { type ReactNode, useContext, useState } from 'react';
+import type { Credential } from '@/api/types';
+import { useCredentials } from './api';
+import { CredentialModal } from './CredentialModal';
+import { CREDENTIAL_TYPE_LABEL, CREDENTIAL_VALUE } from './credentials';
 import {
   AUTH_TYPES,
   type AuthType,
   type CodeDraft,
+  type CredentialType,
   DELAYED_MS,
   type HttpDraft,
   type HttpMethod,
+  type Json,
   METHODS,
   newKey,
   SECRET_RE,
@@ -39,6 +46,7 @@ import {
 } from './draft';
 import { ParamsEditor } from './ParamsEditor';
 import { SecretInput, TemplateInput } from './TemplateInput';
+import { ToolSecretsContext } from './ToolSecretsContext';
 
 type Update = (fn: (d: ToolDraft) => ToolDraft) => void;
 
@@ -257,21 +265,13 @@ function VoiceFields({ draft, update }: { draft: ToolDraft; update: Update }) {
   );
 }
 
-function HeadersEditor({
-  http,
-  setHttp,
-  secrets,
-}: {
-  http: HttpDraft;
-  setHttp: (patch: Partial<HttpDraft>) => void;
-  secrets: string[];
-}) {
+function HeadersEditor({ http, setHttp }: { http: HttpDraft; setHttp: (patch: Partial<HttpDraft>) => void }) {
   const rows = http.headers;
   return (
     <Stack gap="xs">
       {rows.length === 0 && (
         <Text size="sm" c="dimmed">
-          Sin headers propios. La autenticación va en su pestaña.
+          Sin headers propios. El token de acceso va en Autenticación.
         </Text>
       )}
       {rows.map((r, i) => (
@@ -295,7 +295,6 @@ function HeadersEditor({
             onChange={(value) =>
               setHttp({ headers: rows.map((x) => (x.key === r.key ? { ...x, value } : x)) })
             }
-            secrets={secrets}
           />
           <Tooltip label="Quitar" withArrow>
             <ActionIcon
@@ -323,20 +322,10 @@ function HeadersEditor({
   );
 }
 
-function AuthEditor({
-  http,
-  setHttp,
-  secrets,
-}: {
-  http: HttpDraft;
-  setHttp: (patch: Partial<HttpDraft>) => void;
-  secrets: string[];
-}) {
-  const auth = http.auth;
-  const type = (auth.type as AuthType) || 'none';
+/** La autenticacion configurada en la herramienta (sin credencial): la de las herramientas hechas por API. */
+function InlineAuth({ auth, set }: { auth: Json; set: (k: string, value: string) => void }) {
+  const type = (auth.type as CredentialType) || 'bearer';
   const v = (k: string) => (typeof auth[k] === 'string' ? (auth[k] as string) : '');
-  const set = (k: string, value: string) => setHttp({ auth: { ...auth, [k]: value } });
-  const secret = v('secret');
   return (
     <Stack gap="sm">
       <Select
@@ -344,26 +333,17 @@ function AuthEditor({
         data={AUTH_TYPES}
         value={type}
         allowDeselect={false}
-        onChange={(t) => t && setHttp({ auth: { ...auth, type: t } })}
+        onChange={(t) => t && set('type', t)}
         maw={320}
       />
-      {type !== 'none' && (
-        <SecretInput
-          label={
-            type === 'oauth2_client_credentials'
-              ? 'Secreto con el client secret'
-              : type === 'basic'
-                ? 'Secreto con la clave'
-                : 'Secreto con el token'
-          }
-          description="El nombre del secreto, no el valor: el valor se carga en cada agente (sección Herramientas, Secretos)."
-          placeholder="CRM_TOKEN"
-          value={secret}
-          onChange={(x) => set('secret', x)}
-          secrets={secrets}
-          maw={420}
-        />
-      )}
+      <SecretInput
+        label={`Secreto con ${CREDENTIAL_VALUE[type].label.toLowerCase()}`}
+        description="El nombre del secreto, no el valor: el valor se carga en Secretos."
+        placeholder="CRM_TOKEN"
+        value={v('secret')}
+        onChange={(x) => set('secret', x)}
+        maw={420}
+      />
       {type === 'bearer' && (
         <SimpleGrid cols={{ base: 1, sm: 2 }}>
           <TextInput
@@ -408,7 +388,6 @@ function AuthEditor({
           placeholder="atentina"
           value={v('username')}
           onChange={(x) => set('username', x)}
-          secrets={secrets}
           maw={320}
         />
       )}
@@ -420,12 +399,7 @@ function AuthEditor({
             value={v('token_url')}
             onChange={(e) => set('token_url', e.currentTarget.value)}
           />
-          <TemplateInput
-            label="Client ID"
-            value={v('client_id')}
-            onChange={(x) => set('client_id', x)}
-            secrets={secrets}
-          />
+          <TemplateInput label="Client ID" value={v('client_id')} onChange={(x) => set('client_id', x)} />
           <TextInput label="Scope" value={v('scope')} onChange={(e) => set('scope', e.currentTarget.value)} />
           <TextInput
             label="Audience"
@@ -444,27 +418,131 @@ function AuthEditor({
           />
         </SimpleGrid>
       )}
+    </Stack>
+  );
+}
+
+const INLINE = '__inline';
+
+function AuthEditor({
+  http,
+  setHttp,
+  clientId,
+}: {
+  http: HttpDraft;
+  setHttp: (patch: Partial<HttpDraft>) => void;
+  clientId: string;
+}) {
+  const credentials = useCredentials(clientId);
+  const [modal, setModal] = useState<{ edit?: Credential } | null>(null);
+  const auth = http.auth;
+  const type = (auth.type as AuthType) || 'none';
+  const list = credentials.data ?? [];
+  const chosen = type === 'credential' ? list.find((c) => c.slug === auth.credential) : undefined;
+  const value = type === 'none' ? 'none' : type === 'credential' ? `c:${String(auth.credential)}` : INLINE;
+  const data = [
+    { value: 'none', label: 'Sin autenticación' },
+    ...list.map((c) => ({
+      value: `c:${c.slug}`,
+      label: `${c.name} · ${CREDENTIAL_TYPE_LABEL[c.type] ?? c.type}`,
+    })),
+    ...(type === 'credential' && !chosen && !credentials.isLoading
+      ? [{ value, label: `${String(auth.credential)} (no existe)` }]
+      : []),
+    { value: INLINE, label: 'Configurada en esta herramienta (avanzado)' },
+  ];
+  const choose = (x: string | null) => {
+    if (!x) return;
+    if (x === 'none') setHttp({ auth: { type: 'none' } });
+    else if (x === INLINE) setHttp({ auth: { type: 'bearer' } });
+    else setHttp({ auth: { type: 'credential', credential: x.slice(2) } });
+  };
+
+  return (
+    <Stack gap="sm">
+      <Group gap="xs" align="flex-end" wrap="wrap">
+        <Select
+          label="Credencial"
+          description="La forma de entrar a tu API, guardada una vez y usada por todas las herramientas que la llaman."
+          data={data}
+          value={value}
+          allowDeselect={false}
+          onChange={choose}
+          style={{ flex: 1, minWidth: 260, maxWidth: 480 }}
+        />
+        <Button variant="light" leftSection={<IconPlus size={16} />} onClick={() => setModal({})}>
+          Nueva credencial
+        </Button>
+      </Group>
+      {type === 'credential' && chosen && (
+        <div className="def-item" style={{ padding: 'var(--mantine-spacing-sm)' }}>
+          <Group justify="space-between" gap="sm" wrap="wrap">
+            <Stack gap={2}>
+              <Group gap={6}>
+                <Text size="sm" fw={600}>
+                  {chosen.name}
+                </Text>
+                <Badge color="gray">{CREDENTIAL_TYPE_LABEL[chosen.type] ?? chosen.type}</Badge>
+                {chosen.secret_set ? (
+                  <Badge color="green">Valor cargado</Badge>
+                ) : (
+                  <Badge color="yellow">Falta el valor</Badge>
+                )}
+              </Group>
+              <Text size="xs" c="dimmed">
+                {credentialSummary(chosen)} El valor está en el secreto{' '}
+                <span className="mono">{chosen.secret}</span>.
+              </Text>
+            </Stack>
+            <Button size="compact-sm" variant="subtle" onClick={() => setModal({ edit: chosen })}>
+              Editar credencial
+            </Button>
+          </Group>
+        </div>
+      )}
+      {type === 'credential' && !chosen && !credentials.isLoading && (
+        <Alert color="yellow">La credencial {String(auth.credential)} no existe. Elegí otra o creala.</Alert>
+      )}
+      {value === INLINE && <InlineAuth auth={auth} set={(k, x) => setHttp({ auth: { ...auth, [k]: x } })} />}
       <Switch
         label="Firmar el pedido"
-        description={`Header X-Atentina-Signature (HMAC-SHA256 del body) con el secreto ${SIGNING_SECRET} del agente, para que tu API verifique que viene de Atentina.`}
+        description={`Header X-Atentina-Signature (HMAC-SHA256 del body) con el secreto ${SIGNING_SECRET}, para que tu API verifique que viene de Atentina.`}
         checked={http.sign}
         onChange={(e) => setHttp({ sign: e.currentTarget.checked })}
       />
+      {modal && (
+        <CredentialModal
+          clientId={clientId}
+          credential={modal.edit}
+          onClose={() => setModal(null)}
+          onSaved={(slug) => setHttp({ auth: { type: 'credential', credential: slug } })}
+        />
+      )}
     </Stack>
   );
+}
+
+/** "Header Authorization: Bearer …" o "Header X-API-Key", para reconocer la credencial. */
+function credentialSummary(c: Credential): string {
+  const a = c.auth;
+  const s = (k: string) => (typeof a[k] === 'string' ? (a[k] as string) : '');
+  if (c.type === 'bearer') return `Header ${s('header') || 'Authorization'}: ${s('prefix') || 'Bearer '}…`;
+  if (c.type === 'api_key') return `${s('in') === 'query' ? 'Parámetro' : 'Header'} ${s('name')}.`;
+  if (c.type === 'basic') return `Usuario ${s('username')}.`;
+  return `Token de ${s('token_url')}.`;
 }
 
 export function HttpForm({
   draft,
   update,
-  secrets,
+  clientId,
   tab,
   onTab,
   errorTabs,
 }: {
   draft: ToolDraft;
   update: Update;
-  secrets: string[];
+  clientId: string;
   tab: string;
   onTab: (t: string) => void;
   errorTabs: Set<string>;
@@ -501,7 +579,6 @@ export function HttpForm({
               onChange={(url) =>
                 update((d) => ({ ...d, http: { ...d.http, url, path: syncPathRows(d.http.path, url) } }))
               }
-              secrets={secrets}
             />
           </Group>
           <SimpleGrid cols={{ base: 2, sm: 3 }}>
@@ -554,31 +631,42 @@ export function HttpForm({
             </Tabs.Tab>
           </Tabs.List>
           <Tabs.Panel value="ruta">
-            <SectionIntro>{'Las partes de la URL entre llaves, como {dni} en …/clientes/{dni}. Elegí si cada una la completa el agente con lo que dijo la persona o lleva un valor fijo.'}</SectionIntro>
+            <SectionIntro>
+              {
+                'Las partes de la URL entre llaves, como {dni} en …/clientes/{dni}. Elegí si cada una la completa el agente con lo que dijo la persona o lleva un valor fijo.'
+              }
+            </SectionIntro>
             <ParamsEditor
               rows={http.path}
               onChange={(path) => setHttp({ path })}
               fixedNames
               showRequired={false}
-              secrets={secrets}
               empty="La URL no tiene {variables} en la ruta. Agregalas en la URL (…/clientes/{dni}) y aparecen acá."
             />
           </Tabs.Panel>
           <Tabs.Panel value="query">
-            <SectionIntro>Los parámetros que van después del ? en la URL (?fecha=2026-10-27). Cada uno lo completa el agente o lleva un valor fijo, que puede tener variables.</SectionIntro>
+            <SectionIntro>
+              Los parámetros que van después del ? en la URL (?fecha=2026-10-27). Cada uno lo completa el
+              agente o lleva un valor fijo, que puede tener variables.
+            </SectionIntro>
             <ParamsEditor
               rows={http.query}
               onChange={(query) => setHttp({ query })}
-              secrets={secrets}
               empty="Sin parámetros de query (?fecha=…)."
             />
           </Tabs.Panel>
           <Tabs.Panel value="headers">
-            <SectionIntro>Encabezados extra del pedido, como X-Sucursal. El valor puede llevar variables o secretos; el token de acceso va en Autenticación.</SectionIntro>
-            <HeadersEditor http={http} setHttp={setHttp} secrets={secrets} />
+            <SectionIntro>
+              Encabezados extra del pedido, como X-Sucursal. El valor puede llevar variables o secretos; el
+              token de acceso va en Autenticación.
+            </SectionIntro>
+            <HeadersEditor http={http} setHttp={setHttp} />
           </Tabs.Panel>
           <Tabs.Panel value="body">
-            <SectionIntro>Los datos que se mandan en un POST, PUT o PATCH, en JSON o como formulario. Cada campo lo completa el agente o lleva un valor fijo.</SectionIntro>
+            <SectionIntro>
+              Los datos que se mandan en un POST, PUT o PATCH, en JSON o como formulario. Cada campo lo
+              completa el agente o lleva un valor fijo.
+            </SectionIntro>
             <Stack gap="sm">
               <Group gap="sm" wrap="wrap">
                 <Switch
@@ -603,7 +691,6 @@ export function HttpForm({
                 <ParamsEditor
                   rows={http.body}
                   onChange={(body) => setHttp({ body })}
-                  secrets={secrets}
                   label="Campo"
                   addLabel="Agregar campo"
                   empty="Sin campos. Los que completa el agente y los fijos van juntos en el JSON."
@@ -612,15 +699,23 @@ export function HttpForm({
             </Stack>
           </Tabs.Panel>
           <Tabs.Panel value="auth">
-            <SectionIntro>Cómo se identifica Atentina ante tu API. Elegí el tipo y el secreto que guarda la credencial: el valor se carga en cada agente y nunca lo ve el modelo.</SectionIntro>
-            <AuthEditor http={http} setHttp={setHttp} secrets={secrets} />
+            <SectionIntro>
+              Cómo se identifica Atentina ante tu API. Elegí una credencial (o creá una acá): se carga una
+              vez, la usan todas las herramientas que llaman a esa API y el agente nunca ve el valor.
+            </SectionIntro>
+            <AuthEditor http={http} setHttp={setHttp} clientId={clientId} />
           </Tabs.Panel>
           <Tabs.Panel value="respuesta">
-            <SectionIntro>Qué parte del resultado lee el agente y qué valores se guardan para usar en otras herramientas.</SectionIntro>
+            <SectionIntro>
+              Qué parte del resultado lee el agente y qué valores se guardan para usar en otras herramientas.
+            </SectionIntro>
             <ResponseFields draft={draft} update={update} />
           </Tabs.Panel>
           <Tabs.Panel value="voz">
-            <SectionIntro>Lo que dice el agente en una llamada mientras espera la respuesta, para que no haya silencio. Vacío: no dice nada.</SectionIntro>
+            <SectionIntro>
+              Lo que dice el agente en una llamada mientras espera la respuesta, para que no haya silencio.
+              Vacío: no dice nada.
+            </SectionIntro>
             <VoiceFields draft={draft} update={update} />
           </Tabs.Panel>
         </Tabs>
@@ -642,6 +737,7 @@ export function CodeForm({
   const code = draft.code;
   const setCode = (patch: Partial<CodeDraft>) => update((d) => ({ ...d, code: { ...d.code, ...patch } }));
   const badSecrets = code.secrets.filter((s) => !SECRET_RE.test(s));
+  const secretNames = useContext(ToolSecretsContext).names;
   return (
     <Stack gap="md">
       {runnerDown && (
@@ -698,9 +794,10 @@ export function CodeForm({
         <Stack gap="sm">
           <TagsInput
             label="Secretos que usa"
-            description="Nombres en mayúsculas (CRM_TOKEN). Llegan en secrets; el valor se carga en cada agente."
+            description="Elegí de los que cargaste o escribí uno nuevo (CRM_TOKEN). Llegan en secrets; el valor se carga en Secretos."
             placeholder="Enter para agregar"
             classNames={{ input: 'mono' }}
+            data={secretNames}
             value={code.secrets}
             onChange={(v) => setCode({ secrets: v.map((s) => s.trim().toUpperCase()) })}
             error={badSecrets.length ? `Mayúsculas, números y _: ${badSecrets.join(', ')}` : undefined}
@@ -729,14 +826,19 @@ export function CodeForm({
         <Title order={4} mb="sm">
           Respuesta
         </Title>
-        <SectionIntro>Qué parte del resultado lee el agente y qué valores se guardan para usar en otras herramientas.</SectionIntro>
+        <SectionIntro>
+          Qué parte del resultado lee el agente y qué valores se guardan para usar en otras herramientas.
+        </SectionIntro>
         <ResponseFields draft={draft} update={update} />
       </Card>
       <Card>
         <Title order={4} mb="sm">
           Mientras se espera
         </Title>
-        <SectionIntro>Lo que dice el agente en una llamada mientras espera la respuesta, para que no haya silencio. Vacío: no dice nada.</SectionIntro>
+        <SectionIntro>
+          Lo que dice el agente en una llamada mientras espera la respuesta, para que no haya silencio. Vacío:
+          no dice nada.
+        </SectionIntro>
         <VoiceFields draft={draft} update={update} />
       </Card>
     </Stack>

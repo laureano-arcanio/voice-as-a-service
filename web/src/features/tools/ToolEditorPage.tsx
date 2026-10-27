@@ -19,6 +19,7 @@ import {
   IconArrowLeft,
   IconDeviceFloppy,
   IconHistory,
+  IconKey,
   IconTrash,
 } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
@@ -35,8 +36,10 @@ import { stableJson } from '@/features/agents/draft';
 import { CLIENT_TOOL_TYPE } from '@/lib/labels';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import {
+  useClientSecrets,
   useCodeTemplate,
   useCreateTool,
+  useCredentials,
   useDeleteTool,
   useTool,
   toolsHref,
@@ -57,6 +60,8 @@ import {
   toolPathLabel,
   toToolDraft,
 } from './draft';
+import { SecretModal } from './SecretModal';
+import { ToolSecretsContext } from './ToolSecretsContext';
 import { CodeForm, HttpForm } from './ToolForms';
 import { ToolHistory } from './ToolHistory';
 import { ToolTestPanel } from './ToolTestPanel';
@@ -103,7 +108,16 @@ function ToolEditor({
   }, [mode, draft, jsonText]);
   const definition = parsed ?? fromToolDraft(draft);
   const dirty = !saved || (parsed !== null && canonical(type, parsed) !== base);
-  const secrets = requiredSecrets(type, definition);
+  const clientSecrets = useClientSecrets(clientId);
+  const credentials = useCredentials(clientId);
+  const secrets = requiredSecrets(type, definition, credentials.data ?? []);
+  // Los cargados en el cliente (para todos los agentes) y los que ya usa la herramienta.
+  const loaded = new Set((clientSecrets.data ?? []).filter((x) => !x.missing).map((x) => x.name));
+  const secretNames = [...new Set([...loaded, ...secrets])].sort();
+  const [secretDialog, setSecretDialog] = useState<{ name?: string; onCreated?: (n: string) => void } | null>(
+    null,
+  );
+  const newSecret = (onCreated: (name: string) => void) => setSecretDialog({ onCreated });
   const saveError = (saved ? update.error : create.error) as unknown;
   const errors = saveError instanceof ApiError ? saveError.errors : [];
   const errorTabs = new Set(errors.map((e) => errorTab(e.path, e.message)).filter((t): t is string => !!t));
@@ -181,196 +195,227 @@ function ToolEditor({
   };
 
   return (
-    <Stack gap="md">
-      {saved && (
-        <ToolHistory
-          clientId={clientId}
-          slug={saved.slug}
-          current={saved.revision}
-          opened={historyOpen}
-          onClose={history.close}
-        />
-      )}
-      <Card py="sm" className="def-toolbar">
-        <Group justify="space-between" wrap="wrap" gap="sm">
-          <Group gap="xs">
-            <Badge color="gray">{CLIENT_TOOL_TYPE[type]}</Badge>
-            {saved && (
-              <Text span c="dimmed" className="mono">
-                revisión {saved.revision}
-              </Text>
-            )}
-            {saved && dirty && <Badge color="yellow">Cambios sin guardar</Badge>}
-            {parsed === null && <Badge color="red">JSON inválido</Badge>}
-          </Group>
-          <Group gap="xs">
-            <SegmentedControl
-              size="xs"
-              data={[
-                { value: 'form', label: 'Formulario' },
-                { value: 'json', label: 'JSON' },
-              ]}
-              value={mode}
-              onChange={(v) => switchMode(v as Mode)}
-              aria-label="Modo del editor"
-            />
-            {saved && (
-              <Button
-                variant="default"
+    <ToolSecretsContext.Provider value={{ names: secretNames, newSecret }}>
+      <Stack gap="md">
+        {saved && (
+          <ToolHistory
+            clientId={clientId}
+            slug={saved.slug}
+            current={saved.revision}
+            opened={historyOpen}
+            onClose={history.close}
+          />
+        )}
+        <Card py="sm" className="def-toolbar">
+          <Group justify="space-between" wrap="wrap" gap="sm">
+            <Group gap="xs">
+              <Badge color="gray">{CLIENT_TOOL_TYPE[type]}</Badge>
+              {saved && (
+                <Text span c="dimmed" className="mono">
+                  revisión {saved.revision}
+                </Text>
+              )}
+              {saved && dirty && <Badge color="yellow">Cambios sin guardar</Badge>}
+              {parsed === null && <Badge color="red">JSON inválido</Badge>}
+            </Group>
+            <Group gap="xs">
+              <SegmentedControl
                 size="xs"
-                leftSection={<IconHistory size={16} />}
-                onClick={history.open}
-              >
-                Historial
-              </Button>
-            )}
-            {saved && (
+                data={[
+                  { value: 'form', label: 'Formulario' },
+                  { value: 'json', label: 'JSON' },
+                ]}
+                value={mode}
+                onChange={(v) => switchMode(v as Mode)}
+                aria-label="Modo del editor"
+              />
+              {saved && (
+                <Button
+                  variant="default"
+                  size="xs"
+                  leftSection={<IconHistory size={16} />}
+                  onClick={history.open}
+                >
+                  Historial
+                </Button>
+              )}
+              {saved && (
+                <Button
+                  variant="subtle"
+                  color="red"
+                  size="xs"
+                  leftSection={<IconTrash size={16} />}
+                  onClick={() => void del()}
+                >
+                  Borrar
+                </Button>
+              )}
               <Button
-                variant="subtle"
-                color="red"
                 size="xs"
-                leftSection={<IconTrash size={16} />}
-                onClick={() => void del()}
+                leftSection={<IconDeviceFloppy size={16} />}
+                onClick={save}
+                loading={create.isPending || update.isPending}
+                disabled={!dirty}
               >
-                Borrar
+                {saved ? 'Guardar cambios' : 'Crear herramienta'}
               </Button>
-            )}
-            <Button
-              size="xs"
-              leftSection={<IconDeviceFloppy size={16} />}
-              onClick={save}
-              loading={create.isPending || update.isPending}
-              disabled={!dirty}
-            >
-              {saved ? 'Guardar cambios' : 'Crear herramienta'}
-            </Button>
+            </Group>
           </Group>
-        </Group>
-      </Card>
+        </Card>
 
-      {errors.length > 0 && (
-        <Alert color="red" icon={<IconAlertCircle size={18} />} title="No se guardó">
-          <List size="sm" spacing={4}>
-            {errors.map((e, i) => (
-              <List.Item key={i}>
-                <Text span size="sm" fw={600}>
-                  {toolPathLabel(e.path)}:
-                </Text>{' '}
-                {e.message}
-              </List.Item>
-            ))}
-          </List>
-        </Alert>
-      )}
+        {errors.length > 0 && (
+          <Alert color="red" icon={<IconAlertCircle size={18} />} title="No se guardó">
+            <List size="sm" spacing={4}>
+              {errors.map((e, i) => (
+                <List.Item key={i}>
+                  <Text span size="sm" fw={600}>
+                    {toolPathLabel(e.path)}:
+                  </Text>{' '}
+                  {e.message}
+                </List.Item>
+              ))}
+            </List>
+          </Alert>
+        )}
 
-      <Grid gutter="md">
-        <Grid.Col span={{ base: 12, lg: 7 }}>
-          <Stack gap="md">
-            {!saved && (
-              <Card>
-                <TextInput
-                  label="Nombre"
-                  description="Con este nombre la ve el agente y la elegís en cada agente. No se puede cambiar después."
-                  placeholder="consultar_turnos"
-                  classNames={{ input: 'mono' }}
-                  value={slug}
-                  onChange={(e) => setSlug(e.currentTarget.value.toLowerCase().replace(/[\s-]+/g, '_'))}
-                  error={slugError ?? errors.find((e) => e.path === 'slug')?.message}
-                  maw={360}
-                  data-autofocus
+        <Grid gutter="md">
+          <Grid.Col span={{ base: 12, lg: 7 }}>
+            <Stack gap="md">
+              {!saved && (
+                <Card>
+                  <TextInput
+                    label="Nombre"
+                    description="Con este nombre la ve el agente y la elegís en cada agente. No se puede cambiar después."
+                    placeholder="consultar_turnos"
+                    classNames={{ input: 'mono' }}
+                    value={slug}
+                    onChange={(e) => setSlug(e.currentTarget.value.toLowerCase().replace(/[\s-]+/g, '_'))}
+                    error={slugError ?? errors.find((e) => e.path === 'slug')?.message}
+                    maw={360}
+                    data-autofocus
+                  />
+                </Card>
+              )}
+              {mode === 'json' ? (
+                <Card>
+                  <Title order={4} mb={4}>
+                    Definición en JSON
+                  </Title>
+                  <Text size="xs" c="dimmed" mb="sm">
+                    La misma que arma el formulario (formato en docs/TOOLS_PLAN.md).
+                  </Text>
+                  <JsonEditor value={jsonText} onChange={setJsonText} />
+                </Card>
+              ) : type === 'http' ? (
+                <HttpForm
+                  draft={draft}
+                  update={setDraft}
+                  clientId={clientId}
+                  tab={tab}
+                  onTab={setTab}
+                  errorTabs={errorTabs}
                 />
-              </Card>
-            )}
-            {mode === 'json' ? (
+              ) : (
+                <CodeForm draft={draft} update={setDraft} runnerDown={runnerDown} />
+              )}
+            </Stack>
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, lg: 5 }}>
+            <Stack gap="md">
               <Card>
                 <Title order={4} mb={4}>
-                  Definición en JSON
+                  Lo que ve el agente
                 </Title>
                 <Text size="xs" c="dimmed" mb="sm">
-                  La misma que arma el formulario (formato en docs/TOOLS_PLAN.md).
+                  El nombre, la descripción y los parámetros que completa. Los valores fijos y los secretos no
+                  los ve.
                 </Text>
-                <JsonEditor value={jsonText} onChange={setJsonText} />
+                <pre className="code" style={{ margin: 0, maxHeight: 360, overflow: 'auto' }}>
+                  {JSON.stringify(llmTool(slug || saved?.slug || '', type, definition), null, 2)}
+                </pre>
+                <Text size="sm" fw={600} mt="sm">
+                  Secretos que pide
+                </Text>
+                {secrets.length ? (
+                  <Stack gap={4} mt={4}>
+                    {secrets.map((s) => (
+                      <Group key={s} gap={6} wrap="nowrap">
+                        <Text span size="sm" className="mono">
+                          {s}
+                        </Text>
+                        {loaded.has(s) ? (
+                          <Badge color="green">Cargado</Badge>
+                        ) : (
+                          <>
+                            <Badge color="yellow">Falta</Badge>
+                            <Button
+                              size="compact-xs"
+                              variant="subtle"
+                              leftSection={<IconKey size={14} />}
+                              onClick={() => setSecretDialog({ name: s })}
+                            >
+                              Cargar valor
+                            </Button>
+                          </>
+                        )}
+                      </Group>
+                    ))}
+                  </Stack>
+                ) : (
+                  <Text size="sm" c="dimmed">
+                    Ninguno.
+                  </Text>
+                )}
+                {secrets.length > 0 && (
+                  <Text size="xs" c="dimmed" mt={4}>
+                    Se cargan una vez en{' '}
+                    <Anchor component={Link} to={toolsHref('/secrets', clientId, isAdmin)} inherit>
+                      Secretos
+                    </Anchor>{' '}
+                    y los usan todos los agentes. Si un agente necesita otro valor, se lo cargás en el agente.
+                  </Text>
+                )}
+                {saved && saved.used_by.length > 0 && (
+                  <Text size="xs" c="dimmed" mt="sm">
+                    La usan{' '}
+                    {saved.used_by.map((a, i) => (
+                      <span key={a.id}>
+                        {i > 0 && ', '}
+                        <Anchor component={Link} to={`/agents/${a.id}`} inherit>
+                          {a.name}
+                        </Anchor>
+                      </span>
+                    ))}
+                    : los cambios rigen desde ya en sus conversaciones.
+                  </Text>
+                )}
               </Card>
-            ) : type === 'http' ? (
-              <HttpForm
-                draft={draft}
-                update={setDraft}
+              <ToolTestPanel
+                clientId={clientId}
+                type={type}
+                definition={definition}
                 secrets={secrets}
-                tab={tab}
-                onTab={setTab}
-                errorTabs={errorTabs}
+                disabled={
+                  runnerDown
+                    ? 'El sandbox de código no está disponible.'
+                    : parsed === null
+                      ? 'Corregí el JSON.'
+                      : undefined
+                }
               />
-            ) : (
-              <CodeForm draft={draft} update={setDraft} runnerDown={runnerDown} />
-            )}
-          </Stack>
-        </Grid.Col>
-        <Grid.Col span={{ base: 12, lg: 5 }}>
-          <Stack gap="md">
-            <Card>
-              <Title order={4} mb={4}>
-                Lo que ve el agente
-              </Title>
-              <Text size="xs" c="dimmed" mb="sm">
-                El nombre, la descripción y los parámetros que completa. Los valores fijos y los secretos no
-                los ve.
-              </Text>
-              <pre className="code" style={{ margin: 0, maxHeight: 360, overflow: 'auto' }}>
-                {JSON.stringify(llmTool(slug || saved?.slug || '', type, definition), null, 2)}
-              </pre>
-              <Text size="sm" fw={600} mt="sm">
-                Secretos que pide
-              </Text>
-              {secrets.length ? (
-                <Group gap={6} mt={4}>
-                  {secrets.map((s) => (
-                    <Badge key={s} color="gray" className="mono">
-                      {s}
-                    </Badge>
-                  ))}
-                </Group>
-              ) : (
-                <Text size="sm" c="dimmed">
-                  Ninguno.
-                </Text>
-              )}
-              {secrets.length > 0 && (
-                <Text size="xs" c="dimmed" mt={4}>
-                  Cada agente que la use tiene que tenerlos cargados (en el agente, sección Herramientas).
-                </Text>
-              )}
-              {saved && saved.used_by.length > 0 && (
-                <Text size="xs" c="dimmed" mt="sm">
-                  La usan{' '}
-                  {saved.used_by.map((a, i) => (
-                    <span key={a.id}>
-                      {i > 0 && ', '}
-                      <Anchor component={Link} to={`/agents/${a.id}`} inherit>
-                        {a.name}
-                      </Anchor>
-                    </span>
-                  ))}
-                  : los cambios rigen desde ya en sus conversaciones.
-                </Text>
-              )}
-            </Card>
-            <ToolTestPanel
-              clientId={clientId}
-              type={type}
-              definition={definition}
-              secrets={secrets}
-              disabled={
-                runnerDown
-                  ? 'El sandbox de código no está disponible.'
-                  : parsed === null
-                    ? 'Corregí el JSON.'
-                    : undefined
-              }
-            />
-          </Stack>
-        </Grid.Col>
-      </Grid>
-    </Stack>
+            </Stack>
+          </Grid.Col>
+        </Grid>
+      </Stack>
+      {secretDialog && (
+        <SecretModal
+          clientId={clientId}
+          dialog={{ name: secretDialog.name, scope: 'client' }}
+          onClose={() => setSecretDialog(null)}
+          onSaved={secretDialog.onCreated}
+        />
+      )}
+    </ToolSecretsContext.Provider>
   );
 }
 
