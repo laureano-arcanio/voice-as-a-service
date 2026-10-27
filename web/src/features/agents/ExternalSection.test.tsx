@@ -27,7 +27,6 @@ const conn = (id: string, kind: LlmConnection['kind'], name: string): LlmConnect
 const DEF = {
   id: 'a',
   version: 1,
-  engine: 'classic',
   agent: { name: 'S', role: 'r', language: 'es-AR' },
   objective: { description: 'x' },
   conversation: { opening: 'Hola', rules: [] },
@@ -76,31 +75,28 @@ function mockApi(connections: LlmConnection[], externalInPlan = true) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('ExternalSection', () => {
-  it('prenderlo pasa al motor external con el primer endpoint compatible con OpenAI; apagarlo vuelve al clásico', async () => {
+  it('prenderlo pone external con el primer endpoint compatible con OpenAI; apagarlo lo saca', async () => {
     mockApi([conn('k-anthropic', 'anthropic', 'Claude'), conn('k-ep', 'openai_compatible', 'Mi agente')]);
     renderWithProviders(<Harness initial={toDraft(DEF)} />, { me: ADMIN });
     await waitFor(() => expect(fetch).toHaveBeenCalled());
     await userEvent.click(screen.getByRole('switch', { name: /^Que conteste tu propio agente/ }));
-    await waitFor(() => expect(latest.current.engine).toBe('external'));
+    await waitFor(() => expect(latest.current.external).not.toBeNull());
+    expect(fromDraft(latest.current)).not.toHaveProperty('engine');
     expect(fromDraft(latest.current)).toMatchObject({
-      engine: 'external',
       external: { connection: 'k-ep', on_errors: 'hang_up' },
     });
     expect(await screen.findByRole('button', { name: 'Probar el endpoint' })).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('switch', { name: /^Que conteste tu propio agente/ }));
-    expect(latest.current.engine).toBe('classic');
+    expect(latest.current.external).toBeNull();
     expect(fromDraft(latest.current)).not.toHaveProperty('external');
   });
 
   it('sin endpoint cargado pide cargar uno', async () => {
     mockApi([conn('k-anthropic', 'anthropic', 'Claude')]);
-    renderWithProviders(
-      <Harness initial={toDraft({ ...DEF, engine: 'external', external: { connection: '' } })} />,
-      {
-        me: ADMIN,
-      },
-    );
+    renderWithProviders(<Harness initial={toDraft({ ...DEF, external: { connection: '' } })} />, {
+      me: ADMIN,
+    });
     expect(await screen.findByRole('link', { name: 'Cargar el endpoint' })).toHaveAttribute(
       'href',
       '/clients/c-1?tab=modelos',

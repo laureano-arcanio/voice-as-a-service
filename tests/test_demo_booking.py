@@ -18,7 +18,9 @@ def test_types(wf):
     assert validate_updates(wf, {"demo_answer": "Sí"}) == {"demo_answer": "si"}
     assert validate_updates(wf, {"demo_answer": "tal vez"}) == {}
     assert validate_updates(wf, {"contact": "+54 9 351 555-1234"}) == {"contact": "+5493515551234"}
-    assert validate_updates(wf, {"contact": "juan arroba acme punto com"}) == {"contact": "juan@acme.com"}
+    assert validate_updates(wf, {"contact": "juan@acme.com"}) == {"contact": "juan@acme.com"}
+    # El email dictado no se convierte: lo que no es un email ni un telefono no se guarda.
+    assert validate_updates(wf, {"contact": "juan arroba acme punto com"}) == {}
     assert validate_updates(wf, {"contact": "no sé"}) == {}
 
 

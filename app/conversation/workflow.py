@@ -4,13 +4,7 @@ from typing import Any
 
 from .models import ConversationState, FieldSpec, Outcome, Workflow
 
-EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[a-z]{2,}$")
-# Un email dictado llega como se dice ("juan punto perez arroba gmail punto com").
-SPOKEN_EMAIL = [
-    (r"\bguion bajo\b", "_"), (r"\bguion medio\b", "-"), (r"\bguion\b", "-"),
-    (r"\barroba\b", "@"), (r"\bpunto\b", "."),
-]
-EMAIL_SEARCH = re.compile(r"[a-z0-9_+-]+(?:\.[a-z0-9_+-]+)*@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}")
+EMAIL_RE = re.compile(r"^[a-z0-9_+-]+(?:\.[a-z0-9_+-]+)*@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}$")
 
 
 def is_required(spec: FieldSpec, fields: dict[str, Any]) -> bool:
@@ -58,14 +52,9 @@ def coerce_value(spec: FieldSpec, value: Any) -> Any:
 
 
 def normalize_email(value: str) -> str | None:
-    """Email escrito o dictado -> direccion, o None. Del texto dictado se queda
-    con la direccion: "escribime a juan arroba acme punto com" -> juan@acme.com."""
-    text = unicodedata.normalize("NFKD", value.lower()).encode("ascii", "ignore").decode()
-    for spoken, written in SPOKEN_EMAIL:
-        text = re.sub(spoken, f" {written} ", text)
-    text = re.sub(r"\s*([@._-])\s*", r"\1", text.strip())
-    match = EMAIL_SEARCH.search(text)
-    return match.group(0) if match and EMAIL_RE.match(match.group(0)) else None
+    """Una direccion de email valida (en minusculas), o None."""
+    text = value.strip().lower()
+    return text if EMAIL_RE.match(text) else None
 
 
 def plain(text: str) -> str:
@@ -74,33 +63,22 @@ def plain(text: str) -> str:
 
 
 def normalize_phone(value: str) -> str | None:
-    """Telefono con 8 a 15 digitos (el LLM pasa a cifras lo dictado en palabras)."""
+    """Telefono con 8 a 15 digitos (los separadores no cuentan)."""
     digits = re.sub(r"\D", "", value)
     if not 8 <= len(digits) <= 15:
         return None
     return ("+" if value.strip().startswith("+") else "") + digits
 
 
-def said(value: str, user_message: str) -> bool:
-    """El email sale de lo que dijo el usuario: su parte antes de la @ esta en
-    el mensaje (comparando solo letras y numeros, asi vale tambien deletreado).
-    Con "Escribime a" cortado, el LLM completaba con el correo de la empresa."""
-    return plain(value.split("@")[0]) in plain(user_message)
-
-
-def check_updates(workflow: Workflow, updates: dict[str, Any], user_message: str | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
-    """(validos, rechazados). Los campos inexistentes se descartan sin mas; los
-    rechazados son valores de campos reales con tipo invalido (o un email que el
-    usuario no dijo), para avisarle al LLM."""
+def check_updates(workflow: Workflow, updates: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    """(validos, rechazados). Los campos inexistentes se descartan sin mas; los rechazados son valores de campos
+    reales con tipo invalido (quedan en progress.rejected, para el panel)."""
     valid, rejected = {}, {}
     for name, value in updates.items():
         spec = workflow.fields.get(name)
         if spec is None or value is None:
             continue
         coerced = coerce_value(spec, value)
-        if (coerced is not None and spec.type in ("email", "email_or_phone") and "@" in str(coerced)
-                and user_message is not None and not said(coerced, user_message)):
-            coerced = None
         if coerced is None:
             rejected[name] = value
         else:

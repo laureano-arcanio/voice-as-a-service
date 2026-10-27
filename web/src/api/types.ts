@@ -121,14 +121,6 @@ export type Payment = S['PaymentOut'];
 export type PaymentIn = S['PaymentIn'];
 export type FiscalIn = S['FiscalIn'];
 export type TaxCondition = FiscalIn['tax_condition'];
-export type App = S['AppOut'];
-export type AppTool = S['AppToolOut'];
-export type AppView = S['AppViewOut'];
-export type AppLink = S['AppLinkOut'];
-export type AppLinkIn = S['AppLinkIn'];
-export type WaOperator = S['WaOperatorOut'];
-export type WaOperatorIn = S['WaOperatorIn'];
-export type WaOperatorUpdate = S['WaOperatorUpdate'];
 
 // Equipo del cliente y areas de derivacion (docs/DERIVACIONES_PLAN.md).
 export type TeamMember = S['TeamMemberOut'];
@@ -144,3 +136,14 @@ export type HandoffDefaults = S['HandoffDefaultsOut'];
 export type Definition = Record<string, unknown>;
 export type PlanFeatures = S['PlanFeaturesOut'];
 export type PlanFeatureKey = keyof PlanFeatures['features'];
+
+// Herramientas del cliente y secretos de los agentes (docs/TOOLS_PLAN.md).
+export type ClientTool = S['ToolOut'];
+export type ToolIn = S['ToolIn'];
+export type ToolType = ToolIn['type'];
+export type ToolVersion = S['ToolVersionOut'];
+export type ToolTestResult = S['ToolTestOut'];
+export type ToolDraftTestIn = S['ToolDraftTestIn'];
+export type AgentSecret = S['AgentSecretOut'];
+export type AgentSecretIn = S['AgentSecretIn'];
+export type AgentSecretPatch = S['AgentSecretPatch'];

@@ -59,7 +59,7 @@ def agregar(convs: list[dict]) -> dict:
         "outcome_ok_pct": _r(100 * sum(c["outcome_ok"] for c in ch) / n),
         "termino_pct": _r(100 * sum(c["termino"] for c in ch) / n),
         "turnos_medio": _r(turnos / n), "turnos_total": turnos,
-        "repetidas": sum(c["repetidas"] for c in ch), "loops": sum(c["mismo_objetivo"] >= 2 for c in ch),
+        "repetidas": sum(c["repetidas"] for c in ch), "loops": sum(c.get("mismo_objetivo", 0) >= 2 for c in ch),
         "reglas_n": sum(c["reglas_n"] for c in ch),
         "reglas_por_10_turnos": _r(10 * sum(c["reglas_n"] for c in ch) / turnos, 2) if turnos else None,
         "por_regla": dict(sorted(por_regla.items(), key=lambda kv: -kv[1])),

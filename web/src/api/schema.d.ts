@@ -642,9 +642,8 @@ export interface paths {
         put?: never;
         /**
          * Preview Prompt
-         * @description El prompt que arma el motor con esta definicion (sin guardarla): el system prompt sale
-         *     siempre de la definicion. classic: todo el agente en el prompt de sistema; structured: un
-         *     prompt de sistema fijo y la definicion en cada turno.
+         * @description El prompt de sistema que arma el motor con esta definicion (sin guardarla). Con tu propio agente, solo el
+         *     opcional que se antepone a la conversacion (el prompt es del cliente).
          */
         post: operations["preview_prompt_api_v1_agents_prompt_post"];
         delete?: never;
@@ -1926,42 +1925,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/wa-operators": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Operators */
-        get: operations["list_operators_api_v1_wa_operators_get"];
-        put?: never;
-        /** Create Operator */
-        post: operations["create_operator_api_v1_wa_operators_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/wa-operators/{op_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Delete Operator */
-        delete: operations["delete_operator_api_v1_wa_operators__op_id__delete"];
-        options?: never;
-        head?: never;
-        /** Update Operator */
-        patch: operations["update_operator_api_v1_wa_operators__op_id__patch"];
-        trace?: never;
-    };
     "/api/v1/inference/chat/completions": {
         parameters: {
             query?: never;
@@ -2471,169 +2434,6 @@ export interface paths {
         patch: operations["update_payment_api_v1_billing_payments__payment_id__patch"];
         trace?: never;
     };
-    "/api/v1/apps": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Apps
-         * @description Admin: todas (client_id: las de ese cliente). Cliente: las suyas.
-         */
-        get: operations["list_apps_api_v1_apps_get"];
-        put?: never;
-        /**
-         * Register App
-         * @description Alta o version nueva (la llama `make register` de atentina-apps). Atentina pide /health y
-         *     /manifest con el token; 422 si no responde o el manifest no cumple el contrato.
-         */
-        post: operations["register_app_api_v1_apps_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/apps/{app_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get App */
-        get: operations["get_app_api_v1_apps__app_id__get"];
-        put?: never;
-        post?: never;
-        /**
-         * Delete App
-         * @description Solo del inventario. No toca el contenedor (eso es `make down` en atentina-apps).
-         */
-        delete: operations["delete_app_api_v1_apps__app_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/apps/{app_id}/refresh": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Refresh App
-         * @description Relee /health y /manifest (por ejemplo, despues de levantar una version nueva).
-         */
-        post: operations["refresh_app_api_v1_apps__app_id__refresh_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/apps/{app_id}/assign": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Assign App */
-        post: operations["assign_app_api_v1_apps__app_id__assign_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/apps/{app_id}/release": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Release App
-         * @description La devuelve al inventario. Sus links dejan de abrir y los agentes del cliente pierden
-         *     sus herramientas (las definiciones no cambian: al guardarlas de nuevo, la validacion avisa).
-         */
-        post: operations["release_app_api_v1_apps__app_id__release_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/apps/{app_id}/jobs/{job}/run": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Run Job
-         * @description Corre un aviso programado ahora (prueba): llama a la app y le manda el aviso a los
-         *     operadores del cliente, en APPS_OUTBOX_MODE. No cuenta como la corrida del dia.
-         */
-        post: operations["run_job_api_v1_apps__app_id__jobs__job__run_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/apps/{app_id}/links": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Links */
-        get: operations["list_links_api_v1_apps__app_id__links_get"];
-        put?: never;
-        /**
-         * Create Link
-         * @description Un link a una vista (el mismo que arma el asistente). La URL solo se ve en esta respuesta.
-         */
-        post: operations["create_link_api_v1_apps__app_id__links_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/apps/{app_id}/links/{link_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Revoke Link */
-        delete: operations["revoke_link_api_v1_apps__app_id__links__link_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/clients/{client_id}/llm-connections": {
         parameters: {
             query?: never;
@@ -2723,7 +2523,7 @@ export interface paths {
         };
         /**
          * Llm Params
-         * @description El catalogo, por proveedor, con los defaults del LLM local por motor. Solo lectura.
+         * @description El catalogo, por proveedor, con los defaults del LLM local. Solo lectura.
          */
         get: operations["llm_params_api_v1_llm_params_get"];
         put?: never;
@@ -3146,6 +2946,212 @@ export interface paths {
         patch: operations["resolve_api_v1_consumer_requests__request_id__patch"];
         trace?: never;
     };
+    "/api/v1/tools/schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tools Schema
+         * @description JSON Schema de `definition` por tipo (http y code), para validar o armar una herramienta.
+         */
+        get: operations["tools_schema_api_v1_tools_schema_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tools/code-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Code Template
+         * @description La funcion de ejemplo con la que arranca una herramienta de codigo.
+         */
+        get: operations["code_template_api_v1_tools_code_template_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clients/{client_id}/tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Tools */
+        get: operations["list_tools_api_v1_clients__client_id__tools_get"];
+        put?: never;
+        /** Create Tool */
+        post: operations["create_tool_api_v1_clients__client_id__tools_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clients/{client_id}/tools/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Tool */
+        get: operations["get_tool_api_v1_clients__client_id__tools__slug__get"];
+        /**
+         * Update Tool
+         * @description Reemplaza la definicion; si cambio, sube `revision`. Rige desde ya para todos los agentes que la usan.
+         */
+        put: operations["update_tool_api_v1_clients__client_id__tools__slug__put"];
+        post?: never;
+        /**
+         * Delete Tool
+         * @description 409 (tool_in_use) si un agente vigente la usa.
+         */
+        delete: operations["delete_tool_api_v1_clients__client_id__tools__slug__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clients/{client_id}/tools/{slug}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tool Versions
+         * @description Cada revision con su definicion, la mas nueva primero (la traza de una llamada dice con cual corrio).
+         */
+        get: operations["tool_versions_api_v1_clients__client_id__tools__slug__versions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clients/{client_id}/tools/{slug}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Tool
+         * @description La ejecuta de verdad (llama a la API o corre el codigo) con los secretos del agente o los del pedido.
+         *     No pide confirmacion. Deja el resultado en la ficha.
+         */
+        post: operations["test_tool_api_v1_clients__client_id__tools__slug__test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clients/{client_id}/tools/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Draft
+         * @description Lo mismo con una definicion sin guardar (el boton Probar del editor).
+         */
+        post: operations["test_draft_api_v1_clients__client_id__tools_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/{agent_id}/secrets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Secrets
+         * @description Sin valores. Incluye los que piden sus herramientas y faltan (missing: true).
+         */
+        get: operations["list_secrets_api_v1_agents__agent_id__secrets_get"];
+        put?: never;
+        /** Create Secret */
+        post: operations["create_secret_api_v1_agents__agent_id__secrets_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/{agent_id}/secrets/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Secret
+         * @description 409 (secret_in_use) si una herramienta del agente lo usa.
+         */
+        delete: operations["delete_secret_api_v1_agents__agent_id__secrets__name__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Secret
+         * @description Reemplaza el valor o la descripcion. No crea version del agente.
+         */
+        patch: operations["update_secret_api_v1_agents__agent_id__secrets__name__patch"];
+        trace?: never;
+    };
+    "/api/v1/tools/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tools Status */
+        get: operations["tools_status_api_v1_tools_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/oauth/authorize": {
         parameters: {
             query?: never;
@@ -3258,11 +3264,6 @@ export interface components {
             } | null;
             /** Template Id */
             template_id?: string | null;
-            /**
-             * Engine
-             * @description Motor; pisa el de la definicion o la plantilla (la definicion es la misma). assistant: herramientas de las apps del cliente (docs/APPS_PLAN.md); external: el agente del cliente en su endpoint (definition.external)
-             */
-            engine?: ("classic" | "structured" | "assistant" | "external") | null;
         };
         /** AgentDetail */
         AgentDetail: {
@@ -3280,8 +3281,12 @@ export interface components {
             version: number;
             /** Archived */
             archived: boolean;
-            /** Engine */
-            engine: string;
+            /**
+             * Own Agent
+             * @description Tu propio agente: contesta el endpoint del cliente (definition.external)
+             * @default false
+             */
+            own_agent?: boolean;
             /** Voice */
             voice: string | null;
             /**
@@ -3322,8 +3327,12 @@ export interface components {
             version: number;
             /** Archived */
             archived: boolean;
-            /** Engine */
-            engine: string;
+            /**
+             * Own Agent
+             * @description Tu propio agente: contesta el endpoint del cliente (definition.external)
+             * @default false
+             */
+            own_agent?: boolean;
             /** Voice */
             voice: string | null;
             /**
@@ -3343,6 +3352,60 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** AgentSecretIn */
+        AgentSecretIn: {
+            /**
+             * Name
+             * @description Mayusculas, numeros y _ (ej. CRM_TOKEN)
+             */
+            name: string;
+            /**
+             * Value
+             * @description No se devuelve nunca
+             */
+            value: string;
+            /**
+             * Description
+             * @default
+             */
+            description?: string;
+        };
+        /** AgentSecretOut */
+        AgentSecretOut: {
+            /** Name */
+            name: string;
+            /** Description */
+            description: string;
+            /**
+             * Last4
+             * @description Ultimos 4 caracteres (vacio si el valor es corto)
+             */
+            last4: string;
+            /**
+             * Used By
+             * @description Herramientas del agente que lo piden
+             */
+            used_by: string[];
+            /**
+             * Missing
+             * @description Lo pide una herramienta del agente y no esta cargado
+             */
+            missing: boolean;
+            /** Created At */
+            created_at: string | null;
+            /** Updated At */
+            updated_at: string | null;
+        };
+        /** AgentSecretPatch */
+        AgentSecretPatch: {
+            /**
+             * Value
+             * @description Para reemplazarlo
+             */
+            value?: string | null;
+            /** Description */
+            description?: string | null;
         };
         /** AgentUpdate */
         AgentUpdate: {
@@ -3535,159 +3598,6 @@ export interface components {
              * @description De los pedidos ok
              */
             avg_duration_ms: number | null;
-        };
-        /** AppJobOut */
-        AppJobOut: {
-            /** Name */
-            name: string;
-            /**
-             * Title
-             * @default
-             */
-            title?: string;
-            /** Hora */
-            hora: string;
-            /**
-             * Dias
-             * @default []
-             */
-            dias?: number[];
-        };
-        /** AppJobRunOut */
-        AppJobRunOut: {
-            /** Message */
-            message: string | null;
-            /** Url */
-            url: string | null;
-            /** Entregas */
-            entregas: {
-                [key: string]: string;
-            }[];
-        };
-        /** AppLinkIn */
-        AppLinkIn: {
-            /** View */
-            view: string;
-            /**
-             * Params
-             * @default {}
-             */
-            params?: {
-                [key: string]: string | number;
-            };
-        };
-        /** AppLinkOut */
-        AppLinkOut: {
-            /** Id */
-            id: string;
-            /** View */
-            view: string;
-            /** Params */
-            params: {
-                [key: string]: unknown;
-            };
-            /** Created By */
-            created_by: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Expires At
-             * Format: date-time
-             */
-            expires_at: string;
-            /** Revoked At */
-            revoked_at: string | null;
-            /** Opens */
-            opens: number;
-            /** Last Opened At */
-            last_opened_at: string | null;
-            /**
-             * Url
-             * @description Solo al crearlo: el token no se guarda
-             */
-            url?: string | null;
-        };
-        /** AppOut */
-        AppOut: {
-            /** Id */
-            id: string;
-            /** Slug */
-            slug: string;
-            /** Name */
-            name: string;
-            /** Client Id */
-            client_id: string | null;
-            /** Client Name */
-            client_name?: string | null;
-            /** Base Url */
-            base_url: string;
-            /** Version */
-            version: string;
-            /** Status */
-            status: string;
-            /** Last Error */
-            last_error: string | null;
-            /** Last Health At */
-            last_health_at: string | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Views
-             * @default []
-             */
-            views?: components["schemas"]["AppViewOut"][];
-            /**
-             * Tools
-             * @default []
-             */
-            tools?: components["schemas"]["AppToolOut"][];
-            /**
-             * Jobs
-             * @default []
-             */
-            jobs?: components["schemas"]["AppJobOut"][];
-        };
-        /** AppRegisterIn */
-        AppRegisterIn: {
-            /** Slug */
-            slug: string;
-            /**
-             * Base Url
-             * @description http://app-<slug>:8000 (red interna atentina-apps)
-             */
-            base_url: string;
-            /**
-             * Token
-             * @description APP_TOKEN de la app; se guarda cifrado
-             */
-            token: string;
-        };
-        /** AppToolOut */
-        AppToolOut: {
-            /** Name */
-            name: string;
-            /** Kind */
-            kind: string;
-            /** Description */
-            description: string;
-        };
-        /** AppViewOut */
-        AppViewOut: {
-            /** Name */
-            name: string;
-            /** Title */
-            title: string;
-            /**
-             * Description
-             * @default
-             */
-            description?: string;
         };
         /** AssignIn */
         AssignIn: {
@@ -5896,7 +5806,7 @@ export interface components {
              * Field
              * @enum {string}
              */
-            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts" | "max_call_links" | "max_team_members";
+            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts" | "max_call_links" | "max_team_members" | "max_tools";
             /**
              * Mode
              * @enum {string}
@@ -5926,7 +5836,7 @@ export interface components {
              * Field
              * @enum {string}
              */
-            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts" | "max_call_links" | "max_team_members";
+            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts" | "max_call_links" | "max_team_members" | "max_tools";
             /**
              * Mode
              * @enum {string}
@@ -5959,7 +5869,7 @@ export interface components {
              * Field
              * @enum {string}
              */
-            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts" | "max_call_links" | "max_team_members";
+            field: "max_concurrent_calls" | "max_calls_per_hour" | "max_calls_per_day" | "max_calls_per_month" | "inbound_minutes" | "outbound_minutes" | "max_phone_numbers" | "api_llm_input_tokens" | "api_llm_output_tokens" | "api_tts_minutes" | "api_stt_minutes" | "api_rate_limit" | "max_campaigns_per_month" | "max_campaign_contacts" | "max_campaign_concurrency" | "max_contacts" | "max_call_links" | "max_team_members" | "max_tools";
             /**
              * Tier
              * @description Valor del tier (null = ilimitado)
@@ -5998,6 +5908,10 @@ export interface components {
             first_token_ms?: number | null;
             /** Error */
             error?: string | null;
+            /** Tool */
+            tool?: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * LlmConnectionIn
@@ -6128,19 +6042,15 @@ export interface components {
         };
         /**
          * LlmParamsOut
-         * @description Catalogo de parametros para el editor del agente: el de cada proveedor y los del LLM local
-         *     (que dependen de la familia del modelo y del motor).
+         * @description Catalogo de parametros para el editor del agente: el de cada proveedor y los del LLM local (su
+         *     configuracion; lo que no aparece lo decide el servidor).
          */
         LlmParamsOut: {
             /** Local Model */
             local_model: string;
-            /** Local Family */
-            local_family: string;
             /** Local Defaults */
             local_defaults: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
+                [key: string]: unknown;
             };
             /** Providers */
             providers: components["schemas"]["LlmProviderSpec"][];
@@ -6641,6 +6551,13 @@ export interface components {
             max_call_links?: number | null;
             /** Max Team Members */
             max_team_members?: number | null;
+            /** Max Tools */
+            max_tools?: number | null;
+            /**
+             * Code Tools
+             * @default false
+             */
+            code_tools?: boolean;
             /**
              * Campaign Followup
              * @default false
@@ -6667,18 +6584,11 @@ export interface components {
         };
         /** PromptOut */
         PromptOut: {
-            /** Engine */
-            engine: string;
             /**
              * System
              * @description Prompt de sistema
              */
             system: string;
-            /**
-             * Workflow
-             * @description structured: la definicion que va en cada turno
-             */
-            workflow?: string | null;
         };
         /** PublicLinkCallIn */
         PublicLinkCallIn: {
@@ -7013,8 +6923,6 @@ export interface components {
         TemplateOut: {
             /** Id */
             id: string;
-            /** Engine */
-            engine: string;
             /** Agent */
             agent: string;
             /** Voice */
@@ -7150,10 +7058,22 @@ export interface components {
             whatsapp?: boolean;
             /**
              * External Agent
-             * @description Incluye el motor external: el agente del cliente detras de su endpoint, con la voz de la plataforma
+             * @description Incluye tu propio agente: el agente del cliente detras de su endpoint, con la voz de la plataforma
              * @default false
              */
             external_agent?: boolean;
+            /**
+             * Max Tools
+             * @description Herramientas del cliente (APIs y codigo). null: sin tope; 0: no incluido
+             * @default 0
+             */
+            max_tools?: number | null;
+            /**
+             * Code Tools
+             * @description Las herramientas pueden ser codigo (JavaScript)
+             * @default false
+             */
+            code_tools?: boolean;
             /**
              * Price Ars
              * @description Precio mensual en pesos, lo que se cobra. null: no se vende por el dashboard; 0: gratis
@@ -7224,6 +7144,10 @@ export interface components {
             whatsapp: boolean;
             /** External Agent */
             external_agent: boolean;
+            /** Max Tools */
+            max_tools: number | null;
+            /** Code Tools */
+            code_tools: boolean;
             /** Price Ars */
             price_ars: number | null;
             /** Public */
@@ -7291,12 +7215,246 @@ export interface components {
             whatsapp?: boolean | null;
             /** External Agent */
             external_agent?: boolean | null;
+            /** Max Tools */
+            max_tools?: number | null;
+            /** Code Tools */
+            code_tools?: boolean | null;
             /** Price Ars */
             price_ars?: number | null;
             /** Public */
             public?: boolean | null;
             /** Sort */
             sort?: number | null;
+        };
+        /** ToolAgentRef */
+        ToolAgentRef: {
+            /** Id */
+            id: string;
+            /** Slug */
+            slug: string;
+            /** Name */
+            name: string;
+        };
+        /** ToolDraftTestIn */
+        ToolDraftTestIn: {
+            /**
+             * Args
+             * @description Los argumentos, como los mandaria el agente
+             */
+            args?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Agent Id
+             * @description Usa los secretos de ese agente
+             */
+            agent_id?: string | null;
+            /**
+             * Secrets
+             * @description Secretos para esta prueba (no se guardan; pisan los del agente)
+             */
+            secrets?: {
+                [key: string]: string;
+            } | null;
+            /**
+             * Call
+             * @description Datos de llamada de ejemplo: id, channel, mode, from, to
+             */
+            call?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "http" | "code";
+            /** Definition */
+            definition: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * ToolIn
+         * @description Una herramienta del cliente. El formato de `definition` segun `type` esta en GET /tools/schema y en
+         *     docs/TOOLS_PLAN.md (http: secciones 4; code: 5).
+         */
+        ToolIn: {
+            /**
+             * Slug
+             * @description Nombre con el que la ve el agente y la referencia la definicion (tools[].tool)
+             */
+            slug: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "http" | "code";
+            /**
+             * Definition
+             * @description description, confirm, messages, response, assign y, segun el tipo, http {method, url, path, query, headers, body, auth, ...} o parameters, code, secrets, allowed_hosts, timeout_ms
+             */
+            definition: {
+                [key: string]: unknown;
+            };
+        };
+        /** ToolOut */
+        ToolOut: {
+            /** Id */
+            id: string;
+            /** Slug */
+            slug: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "http" | "code";
+            /** Definition */
+            definition: {
+                [key: string]: unknown;
+            };
+            /** Revision */
+            revision: number;
+            /**
+             * Secrets
+             * @description Secretos que tiene que tener cada agente que la use
+             */
+            secrets: string[];
+            /**
+             * Llm Tool
+             * @description Lo que ve el modelo (formato de function calling de OpenAI)
+             */
+            llm_tool: {
+                [key: string]: unknown;
+            } | null;
+            /** Used By */
+            used_by: components["schemas"]["ToolAgentRef"][];
+            /** Last Test At */
+            last_test_at: string | null;
+            /** Last Test Ok */
+            last_test_ok: boolean | null;
+            /** Last Test Detail */
+            last_test_detail: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** ToolTemplateOut */
+        ToolTemplateOut: {
+            /** Code */
+            code: string;
+            /** Parameters */
+            parameters: {
+                [key: string]: unknown;
+            };
+        };
+        /** ToolTestIn */
+        ToolTestIn: {
+            /**
+             * Args
+             * @description Los argumentos, como los mandaria el agente
+             */
+            args?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Agent Id
+             * @description Usa los secretos de ese agente
+             */
+            agent_id?: string | null;
+            /**
+             * Secrets
+             * @description Secretos para esta prueba (no se guardan; pisan los del agente)
+             */
+            secrets?: {
+                [key: string]: string;
+            } | null;
+            /**
+             * Call
+             * @description Datos de llamada de ejemplo: id, channel, mode, from, to
+             */
+            call?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** ToolTestOut */
+        ToolTestOut: {
+            /** Ok */
+            ok: boolean;
+            /**
+             * Status
+             * @description HTTP de la API (herramientas http)
+             */
+            status: number | null;
+            /** Ms */
+            ms: number;
+            /**
+             * Data
+             * @description El resultado, con los secretos tachados
+             */
+            data: unknown;
+            /** Error */
+            error: string | null;
+            /**
+             * Llm
+             * @description Lo que recibe el agente
+             */
+            llm: string;
+            /**
+             * Request
+             * @description El pedido enviado, con los secretos tachados
+             */
+            request: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Logs
+             * @description console.log del codigo
+             */
+            logs: string[];
+            /** Assigned */
+            assigned: {
+                [key: string]: unknown;
+            };
+        };
+        /** ToolUpdate */
+        ToolUpdate: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "http" | "code";
+            /** Definition */
+            definition: {
+                [key: string]: unknown;
+            };
+        };
+        /** ToolVersionOut */
+        ToolVersionOut: {
+            /** Revision */
+            revision: number;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "http" | "code";
+            /** Definition */
+            definition: {
+                [key: string]: unknown;
+            };
+            /** Created By */
+            created_by: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** TtsPreviewIn */
         TtsPreviewIn: {
@@ -7322,8 +7480,6 @@ export interface components {
             /** Message */
             message: string;
             state: components["schemas"]["ConversationStateOut"];
-            /** Next Objective */
-            next_objective: string | null;
             /**
              * Status
              * @enum {string}
@@ -7757,62 +7913,6 @@ export interface components {
             graph_version: string;
             /** Sdk Locale */
             sdk_locale: string;
-        };
-        /** WaOperatorIn */
-        WaOperatorIn: {
-            /** Account Id */
-            account_id: string;
-            /**
-             * Wa Id
-             * @description Como lo manda Meta, sin + (549351...)
-             */
-            wa_id: string;
-            /** Client Id */
-            client_id: string;
-            /** Agent Id */
-            agent_id: string;
-            /**
-             * Name
-             * @default
-             */
-            name?: string;
-        };
-        /** WaOperatorOut */
-        WaOperatorOut: {
-            /** Id */
-            id: string;
-            /** Account Id */
-            account_id: string;
-            /** Account Number */
-            account_number?: string | null;
-            /** Wa Id */
-            wa_id: string;
-            /** Client Id */
-            client_id: string;
-            /** Client Name */
-            client_name?: string | null;
-            /** Agent Id */
-            agent_id: string;
-            /** Agent Name */
-            agent_name?: string | null;
-            /** Name */
-            name: string;
-            /** Active */
-            active: boolean;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-        };
-        /** WaOperatorUpdate */
-        WaOperatorUpdate: {
-            /** Agent Id */
-            agent_id?: string | null;
-            /** Name */
-            name?: string | null;
-            /** Active */
-            active?: boolean | null;
         };
         /** WaOptoutIn */
         WaOptoutIn: {
@@ -12190,134 +12290,6 @@ export interface operations {
             };
         };
     };
-    list_operators_api_v1_wa_operators_get: {
-        parameters: {
-            query?: {
-                client_id?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WaOperatorOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_operator_api_v1_wa_operators_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WaOperatorIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WaOperatorOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_operator_api_v1_wa_operators__op_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                op_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_operator_api_v1_wa_operators__op_id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                op_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WaOperatorUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WaOperatorOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     chat_completions_api_v1_inference_chat_completions_post: {
         parameters: {
             query?: never;
@@ -13201,355 +13173,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PaymentOut"];
                 };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_apps_api_v1_apps_get: {
-        parameters: {
-            query?: {
-                client_id?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AppOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    register_app_api_v1_apps_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AppRegisterIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AppOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_app_api_v1_apps__app_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                app_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AppOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_app_api_v1_apps__app_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                app_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    refresh_app_api_v1_apps__app_id__refresh_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                app_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AppOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    assign_app_api_v1_apps__app_id__assign_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                app_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AssignIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AppOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    release_app_api_v1_apps__app_id__release_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                app_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AppOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    run_job_api_v1_apps__app_id__jobs__job__run_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                app_id: string;
-                job: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AppJobRunOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_links_api_v1_apps__app_id__links_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                app_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AppLinkOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_link_api_v1_apps__app_id__links_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                app_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AppLinkIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AppLinkOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    revoke_link_api_v1_apps__app_id__links__link_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                app_id: string;
-                link_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -14793,6 +14416,469 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    tools_schema_api_v1_tools_schema_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    code_template_api_v1_tools_code_template_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolTemplateOut"];
+                };
+            };
+        };
+    };
+    list_tools_api_v1_clients__client_id__tools_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_tool_api_v1_clients__client_id__tools_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_tool_api_v1_clients__client_id__tools__slug__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_tool_api_v1_clients__client_id__tools__slug__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_tool_api_v1_clients__client_id__tools__slug__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    tool_versions_api_v1_clients__client_id__tools__slug__versions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolVersionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_tool_api_v1_clients__client_id__tools__slug__test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolTestIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolTestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_draft_api_v1_clients__client_id__tools_test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolDraftTestIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolTestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_secrets_api_v1_agents__agent_id__secrets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentSecretOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_secret_api_v1_agents__agent_id__secrets_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentSecretIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentSecretOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_secret_api_v1_agents__agent_id__secrets__name__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_secret_api_v1_agents__agent_id__secrets__name__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentSecretPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentSecretOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    tools_status_api_v1_tools_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };

@@ -26,7 +26,6 @@ import { WORKFLOW_STATUS } from '@/lib/labels';
 interface Session {
   id: string;
   state: ConversationState;
-  nextObjective: string | null;
 }
 
 /** Conversacion por texto con el agente (sin llamada): POST /conversations y /turns. */
@@ -41,7 +40,7 @@ export function TextChat({ agent }: { agent: Agent }) {
     start.mutate(agent.id, {
       onSuccess: (r) => {
         turn.reset();
-        setSession({ id: r.conversation_id, state: r.state, nextObjective: null });
+        setSession({ id: r.conversation_id, state: r.state });
       },
     });
 
@@ -53,7 +52,7 @@ export function TextChat({ agent }: { agent: Agent }) {
     turn.mutate(
       { conversationId: session.id, message: msg },
       {
-        onSuccess: (r) => setSession({ id: session.id, state: r.state, nextObjective: r.next_objective }),
+        onSuccess: (r) => setSession({ id: session.id, state: r.state }),
         onError: () => setText(msg),
         onSettled: () => setPending(null),
       },
@@ -146,12 +145,6 @@ export function TextChat({ agent }: { agent: Agent }) {
                   {WORKFLOW_STATUS[session.state.status]?.label ?? session.state.status}
                 </Badge>
               </Group>
-              <Text size="sm">
-                <Text span c="dimmed">
-                  Próximo objetivo:{' '}
-                </Text>
-                <b className="mono">{session.nextObjective ?? '–'}</b>
-              </Text>
               <Table>
                 <Table.Thead>
                   <Table.Tr>

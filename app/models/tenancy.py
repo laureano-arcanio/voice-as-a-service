@@ -48,6 +48,7 @@ class Tier(IdMixin, TimestampMixin, Base):
         CheckConstraint("max_contacts IS NULL OR max_contacts >= 0", name="ck_tiers_contacts"),
         CheckConstraint("max_call_links IS NULL OR max_call_links >= 0", name="ck_tiers_call_links"),
         CheckConstraint("max_team_members IS NULL OR max_team_members >= 0", name="ck_tiers_team_members"),
+        CheckConstraint("max_tools IS NULL OR max_tools >= 0", name="ck_tiers_tools"),
     )
     name: Mapped[str] = mapped_column(String(64), unique=True)
     description: Mapped[str] = mapped_column(Text, default="")
@@ -90,6 +91,10 @@ class Tier(IdMixin, TimestampMixin, Base):
     whatsapp: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     # Motor external: el agente del cliente detras de su endpoint (docs/AGENTE_EXTERNO_PLAN.md).
     external_agent: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # Herramientas del cliente (docs/TOOLS_PLAN.md): cuantas puede tener (NULL = sin limite, 0 = no
+    # incluido) y si pueden ser codigo (JavaScript en el sandbox).
+    max_tools: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    code_tools: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     # Autoservicio (docs/SUSCRIPCIONES_PLAN.md): precio mensual en pesos, lo que se cobra (NULL = no
     # se vende por el dashboard; 0 = gratis). `public`: se ofrece en el registro y en /plan. El tier
     # publico con precio 0 es el del registro.

@@ -140,8 +140,11 @@ class TierIn(BaseModel):
     max_team_members: int | None = Field(default=None, ge=0, description="Personas del equipo para derivar llamadas y WhatsApp")
     campaign_followup: bool = Field(default=False, description="Puede activar el seguimiento por WhatsApp de las campañas de voz")
     whatsapp: bool = Field(default=True, description="Incluye WhatsApp: cuentas, mensajes y llamadas")
-    external_agent: bool = Field(default=False, description="Incluye el motor external: el agente del cliente "
+    external_agent: bool = Field(default=False, description="Incluye tu propio agente: el agente del cliente "
                                                             "detras de su endpoint, con la voz de la plataforma")
+    max_tools: int | None = Field(default=0, ge=0, description="Herramientas del cliente (APIs y codigo). "
+                                                               "null: sin tope; 0: no incluido")
+    code_tools: bool = Field(default=False, description="Las herramientas pueden ser codigo (JavaScript)")
     # Autoservicio (docs/SUSCRIPCIONES_PLAN.md).
     price_ars: int | None = Field(default=None, ge=0,
                                   description="Precio mensual en pesos, lo que se cobra. null: no se vende por el dashboard; 0: gratis")
@@ -174,6 +177,8 @@ class TierUpdate(BaseModel):
     campaign_followup: bool | None = None
     whatsapp: bool | None = None
     external_agent: bool | None = None
+    max_tools: int | None = Field(default=None, ge=0)
+    code_tools: bool | None = None
     price_ars: int | None = Field(default=None, ge=0)
     public: bool | None = None
     sort: int | None = None
@@ -205,6 +210,8 @@ class TierOut(ORM):
     campaign_followup: bool
     whatsapp: bool
     external_agent: bool
+    max_tools: int | None
+    code_tools: bool
     price_ars: int | None
     public: bool
     sort: int
@@ -270,7 +277,7 @@ LimitField = Literal[
     "inbound_minutes", "outbound_minutes", "max_phone_numbers",
     "api_llm_input_tokens", "api_llm_output_tokens", "api_tts_minutes", "api_stt_minutes", "api_rate_limit",
     "max_campaigns_per_month", "max_campaign_contacts", "max_campaign_concurrency", "max_contacts",
-    "max_call_links", "max_team_members",
+    "max_call_links", "max_team_members", "max_tools",
 ]
 
 
@@ -675,10 +682,6 @@ class AgentCreate(BaseModel):
     # La definicion (workflow JSON), la plantilla de partida (GET /agent-templates) o ninguna: en blanco.
     definition: dict[str, Any] | None = None
     template_id: str | None = None
-    engine: Literal["classic", "structured", "assistant", "external"] | None = Field(
-        default=None, description="Motor; pisa el de la definicion o la plantilla (la definicion es la misma). "
-                                  "assistant: herramientas de las apps del cliente (docs/APPS_PLAN.md); "
-                                  "external: el agente del cliente en su endpoint (definition.external)")
 
 
 class AgentUpdate(BaseModel):
@@ -702,9 +705,7 @@ class PromptIn(BaseModel):
 
 
 class PromptOut(BaseModel):
-    engine: str
     system: str = Field(description="Prompt de sistema")
-    workflow: str | None = Field(default=None, description="structured: la definicion que va en cada turno")
 
 
 class AgentOut(ORM):
@@ -715,7 +716,8 @@ class AgentOut(ORM):
     description: str
     version: int
     archived: bool
-    engine: str
+    own_agent: bool = Field(default=False, description="Tu propio agente: contesta el endpoint del cliente "
+                                                       "(definition.external)")
     voice: str | None
     # Objetivo de la definicion (`objective.description`), para elegir el agente en "Probar agentes".
     objective: str = ""
@@ -739,7 +741,6 @@ class AgentVersionOut(ORM):
 
 class TemplateOut(BaseModel):
     id: str
-    engine: str
     agent: str
     voice: str | None
     objective: str
@@ -829,6 +830,109 @@ class LlmConnectionOut(ORM):
     used_by: int = Field(default=0, description="Agentes vigentes que la usan")
 
 
+# ---------- herramientas del cliente y secretos de los agentes (docs/TOOLS_PLAN.md) ----------
+
+ToolType = Literal["http", "code"]
+
+
+class ToolIn(BaseModel):
+    """Una herramienta del cliente. El formato de `definition` segun `type` esta en GET /tools/schema y en
+    docs/TOOLS_PLAN.md (http: secciones 4; code: 5)."""
+    slug: str = Field(pattern=r"^[a-z][a-z0-9_]{1,63}$",
+                      description="Nombre con el que la ve el agente y la referencia la definicion (tools[].tool)")
+    type: ToolType
+    definition: dict[str, Any] = Field(description="description, confirm, messages, response, assign y, segun el "
+                                                   "tipo, http {method, url, path, query, headers, body, auth, ...} o "
+                                                   "parameters, code, secrets, allowed_hosts, timeout_ms")
+
+
+class ToolUpdate(BaseModel):
+    type: ToolType
+    definition: dict[str, Any]
+
+
+class ToolAgentRef(BaseModel):
+    id: str
+    slug: str
+    name: str
+
+
+class ToolOut(BaseModel):
+    id: str
+    slug: str
+    type: ToolType
+    definition: dict[str, Any]
+    revision: int
+    secrets: list[str] = Field(description="Secretos que tiene que tener cada agente que la use")
+    llm_tool: dict[str, Any] | None = Field(description="Lo que ve el modelo (formato de function calling de OpenAI)")
+    used_by: list[ToolAgentRef]
+    last_test_at: UTCDateTime | None
+    last_test_ok: bool | None
+    last_test_detail: str
+    created_at: UTCDateTime
+    updated_at: UTCDateTime
+
+
+class ToolVersionOut(ORM):
+    revision: int
+    type: ToolType
+    definition: dict[str, Any]
+    created_by: str | None
+    created_at: UTCDateTime
+
+
+class ToolTestIn(BaseModel):
+    args: dict[str, Any] = Field(default_factory=dict, description="Los argumentos, como los mandaria el agente")
+    agent_id: str | None = Field(default=None, description="Usa los secretos de ese agente")
+    secrets: dict[str, str] | None = Field(default=None, description="Secretos para esta prueba (no se guardan; "
+                                                                     "pisan los del agente)")
+    call: dict[str, Any] | None = Field(default=None, description="Datos de llamada de ejemplo: id, channel, mode, "
+                                                                  "from, to")
+
+
+class ToolDraftTestIn(ToolTestIn):
+    type: ToolType
+    definition: dict[str, Any]
+
+
+class ToolTestOut(BaseModel):
+    ok: bool
+    status: int | None = Field(description="HTTP de la API (herramientas http)")
+    ms: int
+    data: Any = Field(description="El resultado, con los secretos tachados")
+    error: str | None
+    llm: str = Field(description="Lo que recibe el agente")
+    request: dict[str, Any] | None = Field(description="El pedido enviado, con los secretos tachados")
+    logs: list[str] = Field(description="console.log del codigo")
+    assigned: dict[str, Any]
+
+
+class ToolTemplateOut(BaseModel):
+    code: str
+    parameters: dict[str, Any]
+
+
+class AgentSecretIn(BaseModel):
+    name: str = Field(pattern=r"^[A-Z][A-Z0-9_]{1,63}$", description="Mayusculas, numeros y _ (ej. CRM_TOKEN)")
+    value: str = Field(min_length=1, max_length=10000, description="No se devuelve nunca")
+    description: str = Field(default="", max_length=255)
+
+
+class AgentSecretPatch(BaseModel):
+    value: str | None = Field(default=None, min_length=1, max_length=10000, description="Para reemplazarlo")
+    description: str | None = Field(default=None, max_length=255)
+
+
+class AgentSecretOut(BaseModel):
+    name: str
+    description: str
+    last4: str = Field(description="Ultimos 4 caracteres (vacio si el valor es corto)")
+    used_by: list[str] = Field(description="Herramientas del agente que lo piden")
+    missing: bool = Field(description="Lo pide una herramienta del agente y no esta cargado")
+    created_at: UTCDateTime | None
+    updated_at: UTCDateTime | None
+
+
 class LlmParamSpec(BaseModel):
     """Un parametro de generacion que ofrece un proveedor (app/llm/params.py)."""
     name: str
@@ -847,11 +951,10 @@ class LlmProviderSpec(BaseModel):
 
 
 class LlmParamsOut(BaseModel):
-    """Catalogo de parametros para el editor del agente: el de cada proveedor y los del LLM local
-    (que dependen de la familia del modelo y del motor)."""
+    """Catalogo de parametros para el editor del agente: el de cada proveedor y los del LLM local (su
+    configuracion; lo que no aparece lo decide el servidor)."""
     local_model: str
-    local_family: str
-    local_defaults: dict[str, dict[str, Any]]
+    local_defaults: dict[str, Any]
     providers: list[LlmProviderSpec]
 
 
@@ -983,9 +1086,12 @@ class LlmCall(BaseModel):
     model: str | None = None
     fallback_from: str | None = None
     fallback_reason: str | None = None
-    # Tu propio agente (motor external, docs/AGENTE_EXTERNO_PLAN.md): ms hasta el primer texto y el error del endpoint.
+    # Tu propio agente (definition.external, docs/AGENTE_EXTERNO_PLAN.md): ms hasta el primer texto y el error del endpoint.
     first_token_ms: int | None = None
     error: str | None = None
+    # Herramienta del cliente (docs/TOOLS_PLAN.md): slug, type, revision, ok, status, ms y, si hubo, el pedido
+    # (con los secretos tachados) y los logs del codigo.
+    tool: dict[str, Any] | None = None
 
 
 class MessageOut(BaseModel):
@@ -1086,7 +1192,6 @@ class ConversationStartOut(BaseModel):
 class TurnOut(BaseModel):
     message: str
     state: ConversationStateOut
-    next_objective: str | None
     status: Literal["active", "completed"]
 
 
@@ -1378,6 +1483,8 @@ class PlanOut(ORM):
     max_contacts: int | None = None
     max_call_links: int | None = None
     max_team_members: int | None = None
+    max_tools: int | None = None
+    code_tools: bool = False
     campaign_followup: bool = False
 
 
@@ -1559,102 +1666,6 @@ class InferenceUsageOut(BaseModel):
     stt_minutes: MeterOut
     requests: InferenceRequestsOut
     keys: list[InferenceKeyUsageOut]
-
-
-# --- Apps por cliente (docs/APPS_PLAN.md) ---
-
-class AppRegisterIn(BaseModel):
-    slug: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{0,63}$")
-    base_url: str = Field(max_length=255, description="http://app-<slug>:8000 (red interna atentina-apps)")
-    token: str = Field(min_length=16, max_length=256, description="APP_TOKEN de la app; se guarda cifrado")
-
-
-class AppViewOut(BaseModel):
-    name: str
-    title: str
-    description: str = ""
-
-
-class AppToolOut(BaseModel):
-    name: str
-    kind: str
-    description: str
-
-
-class AppJobOut(BaseModel):
-    name: str
-    title: str = ""
-    hora: str
-    dias: list[int] = []
-
-
-class AppJobRunOut(BaseModel):
-    message: str | None
-    url: str | None
-    entregas: list[dict[str, str]]
-
-
-class AppOut(ORM):
-    id: str
-    slug: str
-    name: str
-    client_id: str | None
-    client_name: str | None = None
-    base_url: str
-    version: str
-    status: str
-    last_error: str | None
-    last_health_at: UTCDateTime | None
-    created_at: UTCDateTime
-    views: list[AppViewOut] = []
-    tools: list[AppToolOut] = []
-    jobs: list[AppJobOut] = []
-
-
-class AppLinkIn(BaseModel):
-    view: str
-    params: dict[str, str | int] = {}
-
-
-class AppLinkOut(ORM):
-    id: str
-    view: str
-    params: dict[str, Any]
-    created_by: str
-    created_at: UTCDateTime
-    expires_at: UTCDateTime
-    revoked_at: UTCDateTime | None
-    opens: int
-    last_opened_at: UTCDateTime | None
-    url: str | None = Field(default=None, description="Solo al crearlo: el token no se guarda")
-
-
-class WaOperatorIn(BaseModel):
-    account_id: str
-    wa_id: str = Field(pattern=r"^\d{8,15}$", description="Como lo manda Meta, sin + (549351...)")
-    client_id: str
-    agent_id: str
-    name: str = Field(default="", max_length=128)
-
-
-class WaOperatorUpdate(BaseModel):
-    agent_id: str | None = None
-    name: str | None = Field(default=None, max_length=128)
-    active: bool | None = None
-
-
-class WaOperatorOut(ORM):
-    id: str
-    account_id: str
-    account_number: str | None = None
-    wa_id: str
-    client_id: str
-    client_name: str | None = None
-    agent_id: str
-    agent_name: str | None = None
-    name: str
-    active: bool
-    created_at: UTCDateTime
 
 
 # ---------- contactos (agenda del cliente, docs/LLAMADAS_SALIENTES_PLAN.md) ----------
@@ -1987,7 +1998,7 @@ class CampaignStatsOut(BaseModel):
 
 
 PlanFeatureKey = Literal["outbound_calls", "campaigns_voice", "campaigns_whatsapp", "whatsapp", "contacts",
-                         "team", "call_links", "external_agent"]
+                         "team", "call_links", "external_agent", "custom_tools", "code_tools"]
 
 
 class PlanFeatureOut(BaseModel):

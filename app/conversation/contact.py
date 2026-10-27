@@ -110,8 +110,7 @@ def render_context(context: str | None) -> str:
 
 
 def render_known(state: ConversationState) -> str:
-    """Los campos ya cargados al empezar (la campaña o el telefono de la llamada), para los motores que no
-    ven el estado (classic y assistant)."""
+    """Los campos ya cargados al empezar (la campaña o el telefono de la llamada), para el prompt."""
     known = {n: state.fields[n] for n in state.progress.preloaded if state.fields.get(n) is not None}
     lines = _lines(known)
     if not lines:

@@ -28,6 +28,10 @@ services:
       - "--api-key=${VLLM_API_KEY:-not-needed}"
       - "--max-model-len=16384"
       - "--reasoning-parser=gemma4"
+      # Function calling nativo para las herramientas del cliente del motor classic (docs/TOOLS_PLAN.md, 7):
+      # sin estos dos, un pedido con `tools` da 400. El parser viene en la imagen (26-oct-2026).
+      - "--enable-auto-tool-choice"
+      - "--tool-call-parser=gemma4"
       - "--gpu-memory-utilization=0.90"
       - "--max-num-seqs=32"
       - "--max-cudagraph-capture-size=32"
@@ -36,10 +40,15 @@ services:
     volumes:
       - /home/laureano/Models:/models:ro
 
+  # Muestreo recomendado por Google para Gemma 4 (model card, "Best practices"): 1.0 / 0.95 / 64. Es
+  # configuracion de este modelo, no del codigo (AGENTS.md, "Reglas de desarrollo").
   app:
-    environment:
+    environment: &gemma_env
       VLLM_LLM_MODEL: cyankiwi/gemma-4-26B-A4B-it-qat-AWQ-INT4
+      LLM_TEMPERATURE: "1.0"
+      LLM_TOP_P: "0.95"
+      LLM_TOP_K: "64"
+      LLM_MIN_P: "0.0"
 
   agent:
-    environment:
-      VLLM_LLM_MODEL: cyankiwi/gemma-4-26B-A4B-it-qat-AWQ-INT4
+    environment: *gemma_env

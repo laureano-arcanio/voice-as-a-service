@@ -40,7 +40,6 @@ const ADMINISTRACION: HandoffArea = {
 const DEF = {
   id: 'a',
   version: 1,
-  engine: 'classic',
   agent: { name: 'S', role: 'r', language: 'es-AR' },
   objective: { description: 'x' },
   conversation: { opening: 'Hola', rules: [] },
@@ -93,14 +92,6 @@ describe('draft: handoff', () => {
     };
     expect(stableJson(fromDraft(toDraft(empty)))).toBe(stableJson({ ...empty, version: 1 }));
   });
-
-  it('con otro motor no manda las áreas', () => {
-    const d = toDraft({ ...DEF, handoff: { areas: [{ area_id: 'a1', when: '' }] } });
-    expect(fromDraft({ ...d, engine: 'structured' }).handoff).toEqual({
-      areas: [],
-      hold_music: { enabled: true, track: 'default', volume: 0.3 },
-    });
-  });
 });
 
 describe('HandoffEditor', () => {
@@ -134,19 +125,14 @@ describe('HandoffEditor', () => {
     expect(fromDraft(latest.current)).not.toHaveProperty('handoff');
   });
 
-  it('sin áreas lleva a Equipo; con otro motor solo avisa', async () => {
+  it('sin áreas lleva a Equipo', async () => {
     mockApi([]);
-    const { unmount } = renderWithProviders(<Harness initial={toDraft(DEF)} />, { me: ADMIN });
+    renderWithProviders(<Harness initial={toDraft(DEF)} />, { me: ADMIN });
     expect(await screen.findByText(/todavía no tiene áreas/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Crealas en Equipo' })).toHaveAttribute(
       'href',
       '/team?client=c-1',
     );
-    unmount();
-
-    renderWithProviders(<Harness initial={toDraft({ ...DEF, engine: 'structured' })} />, { me: ADMIN });
-    expect(screen.getByText(/solo los agentes con el motor clásico/)).toBeInTheDocument();
-    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
   });
 
   it('muestra los errores del guardado en su campo y el área borrada', async () => {

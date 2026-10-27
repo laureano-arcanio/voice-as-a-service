@@ -8,12 +8,17 @@ derivación, todo sin abrir el panel. Cada herramienta respeta el plan del clien
 24-oct-2026; fases 0 a 3 (lectura, plan, API key `mcp`, escritura y OAuth) en producción desde el 24-oct-2026;
 fase 4 (publicación) preparada: el registro oficial, publicado el 25-oct-2026; falta la landing (sección 12). Catálogo vigente: [`MCP_HERRAMIENTAS.md`](MCP_HERRAMIENTAS.md), generado.
 
+**26-oct-2026 ([`LIMPIEZA_PLAN.md`](LIMPIEZA_PLAN.md), sin desplegar):** salen las apps por cliente y los operadores de WhatsApp: el
+toolset `admin` pierde `admin_*_wa_operator` (queda en 25) y ya no hay cliente MCP hacia las apps
+(`app/apps/client.py`). Entran las herramientas del cliente en `agents` ([`TOOLS_PLAN.md`](TOOLS_PLAN.md)),
+con `list_tool_versions`. Los agentes no llevan `engine`. Hay que regenerar el catálogo (`make mcp-docs`).
+
 ## 1. Decisiones
 
 | Tema | Decisión | Por qué |
 |---|---|---|
 | Transporte | **Servidor remoto** Streamable HTTP en `https://mcp.atentina.com.ar/mcp`, sin estado y con respuestas JSON | No se instala nada: el cliente pega una URL. Es lo que aceptan los conectores de Claude.ai/Desktop y ChatGPT; Claude Code, Cursor y VS Code también. Un paquete local (npm/PyPI) sería otra cosa a versionar y dejaría la key en texto plano en un archivo de config |
-| Dónde corre | Dentro de `app` (FastAPI), en `POST /mcp`, **sin el SDK** (JSON-RPC propio, sin estado, respuestas JSON), como el cliente de `app/apps/client.py` | Comparte base, servicios, límites y auth; no suma un contenedor ni una dependencia con su propia versión de Starlette. El protocolo sin estado y sin SSE son ~150 líneas. Si se suman SSE, `resources` o `prompts` con estado, reconsiderar el SDK |
+| Dónde corre | Dentro de `app` (FastAPI), en `POST /mcp`, **sin el SDK** (JSON-RPC propio, sin estado, respuestas JSON), como el cliente de `app/apps/client.py` (quitado el 26-oct-2026) | Comparte base, servicios, límites y auth; no suma un contenedor ni una dependencia con su propia versión de Starlette. El protocolo sin estado y sin SSE son ~150 líneas. Si se suman SSE, `resources` o `prompts` con estado, reconsiderar el SDK |
 | Cómo ejecuta | Cada herramienta llama a la **misma API `/api/v1`** en proceso (cliente `httpx` con `ASGITransport`, sin red), con el token de quien pide | El corte de verdad (tier, quota, `limits.check_*`, permisos por cliente) queda en un solo lugar. Un MCP que llame a los servicios por su cuenta terminaría divergiendo de la API. Costo: ~1 ms por llamada interna, a medir |
 | Catálogo | **Herramientas curadas** (~75, por dominio), no generadas de las 180 rutas del OpenAPI | Las generadas salen con nombres y esquemas pensados para HTTP (paths, `client_id`), y con 180 los modelos eligen mal. Se reusan los esquemas Pydantic de `app/api/schemas.py` |
 | Grupos | `toolsets` por URL (`/mcp?toolsets=agents,calls`); por defecto todas desde el 25-oct-2026 (antes `core`) | El directorio de conectores publica una sola URL, sin `?toolsets=`: con `core` no tendría contactos, campañas ni equipo. Las 87 ocupan ~72k caracteres (~18k tokens) contra ~21k (~5k) de `core`; quien ande justo de contexto pide `?toolsets=core` u otros grupos |
@@ -34,7 +39,7 @@ fase 4 (publicación) preparada: el registro oficial, publicado el 25-oct-2026; 
   lo tienen) y `GET /plan/features`; límites efectivos (tier + ajustes) en `limits.effective_limits`.
 - **Errores con código** (`app/services/errors.py`): `campaign_channel_not_in_plan`, `scope_missing`, cuotas.
 - **MCP ya lo hablamos** como cliente con las apps (`app/apps/client.py`, protocolo 2025-06-18): el
-  servidor sería el primero.
+  servidor sería el primero. *El cliente se quitó con las apps el 26-oct-2026.*
 - **Túnel** de Cloudflare con rutas por host, y el login del panel (`app.atentina.com.ar`) para el OAuth.
 
 ## 3. Arquitectura
@@ -119,7 +124,7 @@ Toolset `core` = `account` + `agents` + `calls`. Columna Plan: la función de `f
 | `campaigns` | `get_campaign_plan`, `list_campaigns`, `get_campaign`, `create_campaign`, `update_campaign`, `delete_campaign`, `add_campaign_contacts`, `list_campaign_contacts`, `start_campaign`, `pause_campaign`, `resume_campaign`, `cancel_campaign`, `get_campaign_stats`, `get_campaign_report` (CSV) | `campaigns_voice` / `campaigns_whatsapp` según el canal | `/campaigns` |
 | `team` | `list_team`, `create_team_member`, `update_team_member`, `delete_team_member`, `list_handoff_areas`, `get_handoff_area_defaults`, `create_handoff_area`, `update_handoff_area`, `delete_handoff_area`, `list_hold_music`, `list_events` | `team` | `/team`, `/handoff-areas`, `/hold-music`, `/events` |
 | `inference` | `chat`, `transcribe_audio`, `synthesize_speech`, `get_inference_usage` | `inference` (nuevo: tokens o minutos de API ≠ 0) | `/inference/*` |
-| `admin` | tiers, clientes, ajustes de límites, inventario y asignación de números, cobros y pagos, apps, operadores | rol admin | `/tiers`, `/clients`, `/phone-numbers`, `/billing`, `/apps` |
+| `admin` | tiers, clientes, ajustes de límites, inventario y asignación de números, cobros y pagos (apps y operadores, quitados el 26-oct-2026) | rol admin | `/tiers`, `/clients`, `/phone-numbers`, `/billing` |
 
 **Fuera del MCP** (con link al panel, por diseño): pagar con tarjeta, Embedded Signup de WhatsApp (popup
 de Facebook), atender una llamada de prueba con micrófono (`/calls/{id}/join`) y la demo pública.
@@ -421,7 +426,7 @@ no un preflight). El resto, en la fase 5 (sección 13).
 
 **Qué hay:**
 
-- **Toolset `admin`** (29 herramientas, `admin_*`): clientes, planes, límites y ajustes, consumo, facturación y
+- **Toolset `admin`** (29 herramientas, `admin_*`; 25 desde el 26-oct-2026, sin las de operadores): clientes, planes, límites y ajustes, consumo, facturación y
   pagos, usuarios (editar e invitar; crear y cambiar claves, en el panel), inventario de números, operadores de
   WhatsApp, agentes y llamadas de un cliente, pedidos de inferencia, uso del MCP y vista previa del prompt.
   - Solo por OAuth: un admin elige **"Toda la plataforma (admin)"** en el consentimiento (aviso amarillo) y el

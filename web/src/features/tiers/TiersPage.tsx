@@ -98,6 +98,8 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
     max_contacts: Limit;
     max_call_links: Limit;
     max_team_members: Limit;
+    max_tools: Limit;
+    code_tools: boolean;
     campaign_followup: boolean;
     whatsapp: boolean;
     external_agent: boolean;
@@ -129,6 +131,9 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
       max_contacts: tier?.max_contacts ?? '',
       max_call_links: tier?.max_call_links ?? '',
       max_team_members: tier?.max_team_members ?? '',
+      // Un tier nuevo no incluye herramientas (como en la API).
+      max_tools: tier ? (tier.max_tools ?? '') : 0,
+      code_tools: tier?.code_tools ?? false,
       campaign_followup: tier?.campaign_followup ?? false,
       whatsapp: tier?.whatsapp ?? true,
       external_agent: tier?.external_agent ?? false,
@@ -172,6 +177,8 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
                 max_contacts: toLimit(v.max_contacts),
                 max_call_links: toLimit(v.max_call_links),
                 max_team_members: toLimit(v.max_team_members),
+                max_tools: toLimit(v.max_tools),
+                code_tools: v.code_tools,
                 campaign_followup: v.campaign_followup,
                 whatsapp: v.whatsapp,
                 external_agent: v.external_agent,
@@ -265,6 +272,19 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
               description="Que el cliente conecte su agente (su endpoint) y Atentina le ponga la voz y el teléfono."
               mt="md"
               {...form.getInputProps('external_agent', { type: 'checkbox' })}
+            />
+          </Section>
+          <Section title="Herramientas de los agentes" cols={3}>
+            <LimitInput
+              label="Herramientas"
+              description="APIs y funciones que llaman los agentes. 0: no incluye."
+              {...form.getInputProps('max_tools')}
+            />
+            <Switch
+              label="Herramientas de código"
+              description="Además de llamar a una API, escribir una función en JavaScript."
+              mt="md"
+              {...form.getInputProps('code_tools', { type: 'checkbox' })}
             />
           </Section>
           <Section title="Venta por el dashboard" cols={3}>
@@ -417,6 +437,14 @@ export function TiersPage() {
                           {t.external_agent && (
                             <Text size="xs" c="dimmed">
                               con agente propio
+                            </Text>
+                          )}
+                          {t.max_tools !== 0 && (
+                            <Text size="xs" c="dimmed">
+                              {t.max_tools == null
+                                ? 'herramientas sin tope'
+                                : `hasta ${t.max_tools} herramientas`}
+                              {t.code_tools ? ', con código' : ''}
                             </Text>
                           )}
                         </Table.Td>

@@ -85,7 +85,7 @@ function AreaItem({
 }
 
 /** Derivacion a personas (docs/DERIVACIONES_PLAN.md): a que areas del equipo puede pasar la llamada el
- * agente y la musica mientras el cliente espera. Solo el motor clasico deriva. */
+ * agente y la musica mientras el cliente espera. */
 export function HandoffEditor({
   draft,
   update,
@@ -99,20 +99,12 @@ export function HandoffEditor({
   errors?: FieldError[];
 }) {
   const isAdmin = useIsAdmin();
-  const classic = draft.engine === 'classic' || draft.engine === 'external';
   const areas = useAreas(clientId);
   const tracks = useHoldMusic();
   const h = draft.handoff;
   const set = (fn: (h: HandoffDraft) => HandoffDraft) => update((d) => ({ ...d, handoff: fn(d.handoff) }));
   const setMusic = (patch: Partial<HandoffDraft['holdMusic']>) =>
     set((x) => ({ ...x, holdMusic: { ...x.holdMusic, ...patch } }));
-
-  if (!classic)
-    return (
-      <Text size="sm" c="dimmed">
-        Por ahora solo los agentes con el motor clásico o con tu propio agente pasan llamadas a personas.
-      </Text>
-    );
 
   const teamLink = isAdmin ? `/team?client=${clientId}` : '/team';
   return (

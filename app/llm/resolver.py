@@ -113,16 +113,15 @@ class TurnLLM:
         except Exception as e:
             self.breaker.failed(self.key)
             logger.warning("llm %s fallo (%s): %s", self.label, method, e)
-            if not self.fallback or spoke:
+            # Si ya hablo o ya ejecuto una herramienta del cliente, el respaldo la repetiria.
+            tools = kwargs.get("tools")
+            if not self.fallback or spoke or (tools is not None and tools.calls):
                 raise
             self.fell_back = True
             self.reason = type(e).__name__
             return await fallback(*args, **kwargs)
         self.breaker.ok(self.key)
         return result
-
-    async def process_turn(self, *args, **kwargs):
-        return await self._run("process_turn", *args, **kwargs)
 
     async def converse(self, *args, **kwargs):
         return await self._run("converse", *args, **kwargs)
@@ -134,12 +133,8 @@ class TurnLLM:
         return await self._run("structured", *args, **kwargs)
 
 
-def engine_defaults(engine: str) -> dict:
-    """Los parametros de plataforma por motor, cuando el agente no los pisa. Voz: sin razonamiento.
-    Assistant: con razonamiento y tope por paso (app/config.py)."""
-    if engine == "assistant":
-        return {"thinking": settings.assistant_thinking, "thinking_budget": settings.assistant_thinking_budget,
-                "max_tokens": settings.assistant_max_step_tokens}
+def platform_defaults() -> dict:
+    """Los parametros de plataforma cuando el agente no los pisa (LLM_THINKING y su tope, app/config.py)."""
     return {"thinking": settings.llm_thinking, "thinking_budget": settings.llm_thinking_budget, "max_tokens": None}
 
 
@@ -162,7 +157,7 @@ class LLMResolver:
 
     def for_turn(self, workflow: Workflow, turn: int, client_id: str | None):
         """El LLM del turno `turn` (1 = el primer mensaje del usuario) del agente."""
-        defaults = engine_defaults(workflow.engine)
+        defaults = platform_defaults()
         plan = workflow.llm
         if plan is None:
             return self._local(effective_generation(workflow, None), defaults)
@@ -239,14 +234,14 @@ class LLMResolver:
                     self._clients.clear()
                 gen = Generation(params=generation)
                 if data.kind == "anthropic":
-                    client = AnthropicClient(data.api_key, stage.model or "", json_mode=data.json_mode,
+                    client = AnthropicClient(data.api_key, stage.model or "",
                                              timeout=EXTERNAL_TIMEOUT, base_url=data.base_url, generation=gen,
                                              max_tokens=defaults["max_tokens"])
                 else:
                     headers = OPENROUTER_HEADERS if data.kind == "openrouter" else None
-                    # temperature=None: un externo solo usa la de generation (LLM_TEMPERATURE es del propio).
-                    client = LLMClient(data.base_url, data.api_key, stage.model or "", temperature=None,
-                                       profile=data.kind, json_mode=data.json_mode, default_headers=headers,
+                    # Un externo solo usa los parametros de generation (los LLM_* son del propio).
+                    client = LLMClient(data.base_url, data.api_key, stage.model or "",
+                                       profile=data.kind, default_headers=headers,
                                        timeout=EXTERNAL_TIMEOUT, generation=gen, max_tokens=defaults["max_tokens"])
                 self._clients[cache_key] = client
         return client

@@ -1,5 +1,5 @@
 """Servidor MCP de Atentina (docs/MCP_PLAN.md): POST /mcp, Streamable HTTP sin estado y con
-respuestas JSON (sin SSE), sin el SDK, como el cliente de app/apps/client.py.
+respuestas JSON (sin SSE), sin el SDK.
 
 Auth: API key con el scope `mcp` (`Authorization: Bearer vaas_...`) o token OAuth (app/api/oauth.py). Cada
 herramienta es un pedido a `/api/v1` en el mismo proceso (ASGI, sin red) con esa credencial: los permisos, los límites del plan y la

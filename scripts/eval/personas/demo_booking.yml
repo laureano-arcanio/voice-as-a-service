@@ -1,7 +1,6 @@
 # Personas para demo_booking_classic (el agente de venta vigente). Salen de las
 # llamadas reales de scripts/replay_calls.py mas los arquetipos del plan.
 agente: demo_booking_classic
-agente_structured: demo_booking
 
 checks:
   siglas: [GPS, PIN, PDF, API, Excel]

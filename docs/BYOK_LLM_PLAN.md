@@ -11,6 +11,11 @@ simulado, **no con una key real**. **Fase 3 (UI) y los parámetros de generació
 desplegar** (reconstruir `web/dist` y recrear `app` y `agent`: la definición y el cliente del LLM
 tocan los dos). Fase 4 pendiente.
 
+**26-oct-2026 ([`LIMPIEZA_PLAN.md`](LIMPIEZA_PLAN.md), sin desplegar):** un solo motor (sin `assistant`); el proveedor tiene que soportar
+`tools` y salida JSON guiada (`json_schema`): una conexión sin ella se rechaza al probarla y ya no hay
+respaldo con el esquema en el prompt; el muestreo por familia salió del código (`LLM_TEMPERATURE`,
+`LLM_TOP_P`, `LLM_TOP_K`, `LLM_MIN_P` en el override del modelo).
+
 Actualización (24-oct-2026): la fase 3 y los parámetros quedaron en producción con el build de `app` y
 `agent` del 24-oct-2026. La landing ya lo documenta (`/desarrolladores/docs/api#byok`) y la política de
 privacidad (`/privacidad`, "Dónde se procesan") tiene la excepción del LLM del cliente: el texto y las
@@ -30,7 +35,7 @@ instrucciones van a su proveedor desde la etapa que elija, el audio no.
 ### Datos
 
 - `llm_connections` (migración 0016): `client_id`, `name`, `kind`, `base_url`, `api_key_enc` (Fernet con
-  `WA_TOKEN_KEY`, como los tokens de apps y WhatsApp), `last4`, `default_model`, `json_mode`, `created_by`,
+  `WA_TOKEN_KEY`, como los tokens de WhatsApp), `last4`, `default_model`, `json_mode`, `created_by`,
   resultado del último test y `revoked_at`.
 - `Workflow.llm` (en la definición versionada del agente):
 
@@ -56,12 +61,13 @@ instrucciones van a su proveedor desde la etapa que elija, el audio no.
 
 - `app/llm/resolver.py`: `LLMResolver.for_turn(workflow, turn, client_id)` devuelve el `LLMClient` propio
   (sin plan o etapa local) o un `TurnLLM` (etapa externa). El motor lo pide por turno y por extracción;
-  el motor `assistant` recibe el LLM del turno en `run(..., llm=)`.
+  el motor `assistant` recibe el LLM del turno en `run(..., llm=)` (quitado el 26-oct-2026).
 - `LLMClient` tiene dos perfiles: `vllm` (igual que siempre) y `generic` (proveedor externo: solo
   temperatura, sin `top_k`/`min_p`/`chat_template_kwargs` que el proveedor rechazaría;
   `max_completion_tokens` en api.openai.com).
 - **Salida JSON** (`json_mode`, lo detecta el test de la conexión): `json_schema` estricto, `json_object`
   con el esquema en el prompt, o `prompt` (esquema en el prompt y se limpian los ``` de la respuesta).
+  *26-oct-2026: solo `json_schema`; los otros dos modos se quitaron y la prueba de la conexión falla sin él.*
 - **Fallback** (`fallback_local`): si el proveedor falla, ese turno lo contesta el servidor propio y la
   traza lo marca (`provider: local`, `fallback_from`, `fallback_reason`). No hay fallback si el proveedor
   ya había empezado a hablar (en voz sonaría la frase dos veces): el error sube.
@@ -78,10 +84,11 @@ Mismos cuatro métodos que `LLMClient`, sobre la Messages API (no el shim OpenAI
   una línea de arranque).
 - Salida estructurada con `output_config.format` (`json_schema`). El schema del motor `assistant` no tiene
   `type: object` en la raíz (`anyOf`): se envuelve en `{result: …}` y se desenvuelve. Si el proveedor rechaza
-  un esquema (400), pasa a pedirlo en el prompt y queda así para esa conexión.
+  un esquema (400), pasa a pedirlo en el prompt y queda así para esa conexión. *26-oct-2026: sin el
+  `assistant` y sin respaldo en el prompt; solo `json_schema`.*
 - Streaming con `messages.stream`; el primer mensaje sale a medida que llega, igual que con vLLM.
 - No manda `thinking` (algunos modelos no admiten apagarlo). `output_config.effort` solo en los 4.6+ y 5.x:
-  `low` en voz, `medium` si el motor `assistant` pide razonar. `temperature` solo en los modelos que la
+  `low` en voz, `medium` si se pide razonar (antes, el motor `assistant`). `temperature` solo en los modelos que la
   aceptan (los 4.7+ y 5.x la rechazan: se descarta). `max_tokens` mínimo de 2048, porque el razonamiento
   adaptativo cuenta contra él.
 - Un `refusal` del proveedor es un error del turno: lo toma el fallback al servidor propio.
@@ -105,6 +112,8 @@ override por etapa, y el proveedor activo manda solo los que soporta:
   `max_completion_tokens` en api.openai.com; Anthropic, `temperature`/`top_p` (si el modelo las
   acepta), `effort` y `max_tokens` con piso de 2048. Lo que el proveedor no soporta se descarta con
   log. Sin `generation`, todo igual que antes (muestreo por familia y razonamiento por motor).
+  *26-oct-2026: sin `generation` rigen `LLM_THINKING`/`LLM_THINKING_BUDGET` y `LLM_TEMPERATURE`/`LLM_TOP_P`/
+  `LLM_TOP_K`/`LLM_MIN_P` (los de Gemma, en su override); `LLM_SAMPLING` y `ASSISTANT_*` ya no existen.*
 - El resolver cachea un `LLMClient` local por combinacion de parametros (`LLMClient.derive`), porque
   las options se hornean al construirlo y el cliente base es unico por proceso.
 
@@ -140,7 +149,7 @@ catalogo (nombre, tipo, rango) y `GET /api/v1/llm/params` devuelve el catalogo p
   sección antes de habilitarlo con clientes** (local por defecto; externo solo si el cliente lo configura).
   Lo mismo en `docs/DESIGN_GUIDELINE.md` si cita la frase.
 - **Calidad:** los prompts se afinaron con Qwen y Gemma. Medir con `make eval-llm` antes de recomendar un
-  modelo externo, sobre todo en el motor `assistant`.
+  modelo externo.
 - **Latencia:** se suma el RTT y el TTFT del proveedor; la `LatencyCard` y la traza (`provider`, `model`)
   lo muestran por llamada.
 - **Capacidad:** un agente en BYOK no carga la GPU 0. No cambia ningún CAP.

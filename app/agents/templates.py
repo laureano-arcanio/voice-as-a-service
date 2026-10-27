@@ -5,8 +5,8 @@
   crearlo: la definicion es la misma con los dos.
 - Agentes de referencia (app/agents/reference/<id>.json): los que siembra el seed (Atentina, la demo
   de la landing y el del test de capacidad), el eval y los tests, que corren sin base. No se ofrecen
-  en la UI. El sufijo _classic o _structured del id elige el motor: demo_booking_classic es
-  demo_booking.json con el motor classic.
+  en la UI. El sufijo _classic del id se acepta por compatibilidad (demo_booking_classic es
+  demo_booking.json; el motor structured se removio el 26-oct-2026).
 """
 import json
 import re
@@ -17,7 +17,17 @@ from ..conversation.models import Workflow
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 REFERENCE_DIR = Path(__file__).resolve().parent / "reference"
-ENGINES = ("classic", "structured")
+# Reglas de comportamiento de un agente de atencion, a la vista y editables (antes estaban en el prompt del motor;
+# AGENTS.md, "Reglas de desarrollo"). Las trae la plantilla y un agente en blanco.
+GENERIC_RULES = (
+    "Pedir los datos a obtener en orden, salvo que la persona los dé antes; las preguntas sugeridas se reformulan para que la conversación sea natural.",
+    "No volver a preguntar lo que la persona ya respondió.",
+    "Hacer normalmente una pregunta por turno.",
+    "Nunca inventar datos de la persona ni información del producto.",
+    "Con los datos obligatorios, o si la persona no quiere seguir, despedirse con el mensaje del cierre que corresponda y terminar la conversación.",
+    "Si la conversación no tiene nada que ver con el objetivo (una broma, alguien que se burla, insulta o acosa, un número equivocado, o alguien que después de dos intentos sigue sin hablar del tema), despedirse en una frase amable que diga para qué es esta línea y terminar con el motivo fuera de tema. Un mensaje que no se entiende no es fuera de tema: pedir que lo repita.",
+    "Pasar la llamada a un área del equipo cuando la persona pide hablar con alguien o necesita algo que no se puede resolver; si el área está cerrada, decir cuándo atiende y tomar el mensaje. Si ya se intentó pasarla y no se pudo, no volver a intentarlo con esa área: tomar nombre, teléfono y qué necesita.",
+)
 ID_RE = re.compile(r"[a-z0-9_]+")
 
 
@@ -42,10 +52,9 @@ def blank_definition(client_name: str) -> dict:
     """Agente en blanco: lo minimo para que la definicion sea valida (un dato y el resultado
     por defecto). Se completa desde el formulario de la UI."""
     return {
-        "engine": "classic",
         "agent": {"name": "Asistente", "role": f"asistente virtual de {client_name}", "language": "es-AR"},
         "objective": {"description": ""},
-        "conversation": {"opening": "Hola, ¿en qué te puedo ayudar?", "rules": []},
+        "conversation": {"opening": "Hola, ¿en qué te puedo ayudar?", "rules": list(GENERIC_RULES)},
         "knowledge": "",
         "fields": {"consulta": {"priority": 10, "label": "Consulta", "description": "Qué necesita la persona.",
                                 "type": "string", "required": True, "question": "¿En qué te puedo ayudar?"}},
@@ -62,15 +71,15 @@ def reference_ids() -> list[str]:
 
 
 def reference_data(agent_id: str) -> dict:
-    """La definicion de agent_id; con sufijo _classic o _structured, la del archivo sin el
-    sufijo y ese motor. id queda en agent_id."""
+    """La definicion de agent_id; con sufijo _classic, la del archivo sin el sufijo y ese motor.
+    id queda en agent_id."""
     try:
         data = _read(REFERENCE_DIR, agent_id)
     except KeyError:
-        base, _, engine = agent_id.rpartition("_")
-        if engine not in ENGINES or not base:
+        base, _, suffix = agent_id.rpartition("_")
+        if suffix != "classic" or not base:
             raise
-        data = {**_read(REFERENCE_DIR, base), "engine": engine}
+        data = _read(REFERENCE_DIR, base)
     return {**data, "id": agent_id}
 
 

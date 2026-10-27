@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   errorTarget,
+  EXTERNAL_DEFAULTS,
   fromDraft,
   move,
   newField,
@@ -16,7 +17,6 @@ import {
 const def = {
   id: 'demo',
   version: 3,
-  engine: 'classic',
   agent: { name: 'Sofía', role: 'asesora', language: 'es-AR', voice: 'sofia' },
   objective: { description: 'Agendar una demo\n' },
   conversation: { opening: 'Hola', rules: ['Breve'] },
@@ -85,9 +85,6 @@ describe('toDraft / fromDraft', () => {
     expect(phone).toMatchObject({ name: 'telefono', type: 'phone', requirement: 'yes', label: 'Teléfono' });
     expect(withPhoneField(d).fields).toHaveLength(d.fields.length);
     expect(fromDraft(d).fields).toMatchObject({ telefono: { type: 'phone', required: true } });
-    expect(withPhoneField({ ...toDraft(def), engine: 'assistant' }).fields).toHaveLength(
-      toDraft(def).fields.length,
-    );
   });
 
   it('no_contact (baja por voz): sin marcar no va a la definicion; marcado, ida y vuelta', () => {
@@ -193,13 +190,6 @@ describe('toDraft / fromDraft', () => {
     expect(d.fields[1]!.conditions[0]).toMatchObject({ field: 'wants', value: true });
   });
 
-  it('el mismo borrador con el otro motor solo cambia engine', () => {
-    const d = toDraft(def);
-    const a = fromDraft(d);
-    const b = fromDraft({ ...d, engine: 'structured' });
-    expect({ ...a, engine: null }).toEqual({ ...b, engine: null });
-  });
-
   it('sin voz, sin etiqueta y sin opciones fuera de choice: no van', () => {
     const d = toDraft(def);
     d.voice = '';
@@ -276,70 +266,56 @@ describe('errores', () => {
   });
 });
 
-describe('motor assistant', () => {
-  // Como la devuelve el servidor: sin datos y con las herramientas de una app.
-  const assistant = {
-    id: 'asistente',
-    version: 2,
-    engine: 'assistant',
-    agent: { name: 'Asis', role: 'asistente del gym', language: 'es-AR' },
-    objective: { description: 'Ayudar al dueño' },
-    conversation: { opening: 'Hola', rules: [] },
-    knowledge: '',
-    fields: {},
-    completion: {
-      when: 'all_required_fields_completed',
-      outcomes: [{ id: 'default', label: 'Conversación', when: {}, message: 'Chau', goal: false }],
-    },
-    tools: [
-      { app: 'sugym-gestion', tools: ['*'] },
-      { app: 'sugym-turnos', tools: ['buscar_turno', 'reservar'] },
-    ],
+describe('herramientas del cliente', () => {
+  const withTools = {
+    ...def,
+    tools: [{ tool: 'consultar_turnos' }, { tool: 'reservar' }],
+    tool_settings: { max_calls_per_turn: 2, limit_message: 'No pude.' },
   };
 
-  it('ida y vuelta conserva el motor y las herramientas', () => {
-    const d = toDraft(assistant);
-    expect(d.engine).toBe('assistant');
-    expect(d.tools).toEqual(assistant.tools);
-    expect(stableJson(fromDraft(d))).toBe(stableJson(assistant));
+  it('ida y vuelta de {tool} y tool_settings; nunca manda engine', () => {
+    const d = toDraft(withTools);
+    expect(d.clientTools.map((g) => g.tool)).toEqual(['consultar_turnos', 'reservar']);
+    expect(d.maxToolCallsPerTurn).toBe(2);
+    expect(d.toolLimitMessage).toBe('No pude.');
+    const out = fromDraft(d);
+    expect(stableJson(out)).toBe(stableJson(withTools));
+    expect(out).not.toHaveProperty('engine');
   });
 
-  it('con otro motor no manda tools (el servidor las rechaza)', () => {
-    const out = fromDraft({ ...toDraft(assistant), engine: 'classic' });
-    expect(out).not.toHaveProperty('tools');
-    expect(out.engine).toBe('classic');
+  it('una definicion vieja (engine, apps, confirm por agente) se lee sin eso', () => {
+    const d = toDraft({
+      ...def,
+      engine: 'assistant',
+      tools: [
+        { app: 'gestion', tools: ['*'] },
+        { tool: 'reservar', confirm: true },
+      ],
+    });
+    const out = fromDraft(d);
+    expect(out.tools).toEqual([{ tool: 'reservar' }]);
+    expect(out).not.toHaveProperty('engine');
   });
 
-  it('un motor desconocido queda en classic', () => {
-    expect(toDraft({ ...assistant, engine: 'otro' }).engine).toBe('classic');
+  it('con tu propio agente no manda tools ni tool_settings', () => {
+    const d = toDraft(withTools);
+    const ext = fromDraft({ ...d, external: { connection: 'c1', ...EXTERNAL_DEFAULTS } });
+    expect(ext).not.toHaveProperty('tools');
+    expect(ext).not.toHaveProperty('tool_settings');
   });
 
-  it('errores de tools van a la seccion Herramientas', () => {
-    const d = toDraft(assistant);
-    expect(errorTarget(d, 'tools.1.tools')).toEqual({ section: 'herramientas' });
-    expect(pathLabel(d, 'tools.1.tools')).toBe('Herramientas › sugym-turnos › herramientas');
-    expect(pathLabel(d, 'tools.0.app')).toBe('Herramientas › sugym-gestion › app');
+  it('el error tools.N.tool nombra la herramienta', () => {
+    const d = toDraft(withTools);
+    expect(errorTarget(d, 'tools.1.tool')).toEqual({ section: 'herramientas' });
+    expect(pathLabel(d, 'tools.1.tool')).toBe('Herramientas › reservar › herramienta');
+    expect(errorTarget(d, 'tool_settings.limit_message')).toEqual({ section: 'herramientas' });
+    expect(pathLabel(d, 'tool_settings.limit_message')).toBe('Herramientas › mensaje al llegar al tope');
   });
 });
 
-describe('setGrant', () => {
-  it('agrega, cambia y saca la app', async () => {
-    const { setGrant } = await import('./grants');
-    const one = setGrant([], 'a', ['*']);
-    expect(one).toEqual([{ app: 'a', tools: ['*'] }]);
-    const two = setGrant(setGrant(one, 'b', ['x']), 'a', ['y', 'z']);
-    expect(two).toEqual([
-      { app: 'a', tools: ['y', 'z'] },
-      { app: 'b', tools: ['x'] },
-    ]);
-    expect(setGrant(two, 'a', null)).toEqual([{ app: 'b', tools: ['x'] }]);
-  });
-});
-
-describe('motor external (agente propio)', () => {
+describe('tu propio agente (external)', () => {
   const ext = {
     ...def,
-    engine: 'external',
     external: {
       connection: 'c1',
       model: 'ventas',
@@ -354,12 +330,12 @@ describe('motor external (agente propio)', () => {
     },
   };
 
-  it('ida y vuelta conserva el motor, la configuracion y la derivacion', () => {
+  it('ida y vuelta conserva la configuracion y la derivacion', () => {
     expect(stableJson(fromDraft(toDraft(ext as never)))).toBe(stableJson(ext));
   });
 
   it('sin modelo ni prompt no los manda; los defaults si', () => {
-    const d = toDraft({ ...def, engine: 'external', external: { connection: 'c1' } } as never);
+    const d = toDraft({ ...def, external: { connection: 'c1' } } as never);
     expect(fromDraft(d).external).toEqual({
       connection: 'c1',
       first_token_timeout_ms: 4000,
@@ -369,9 +345,9 @@ describe('motor external (agente propio)', () => {
     });
   });
 
-  it('apagado (otro motor) no manda external; con external no manda llm ni generation', () => {
+  it('apagado no manda external; con external no manda llm ni generation', () => {
     const d = toDraft(ext as never);
-    expect(fromDraft({ ...d, engine: 'classic' }).external).toBeUndefined();
+    expect(fromDraft({ ...d, external: null }).external).toBeUndefined();
     const withLlm = toDraft({ ...ext, generation: { params: { temperature: 0.2 } } } as never);
     expect(fromDraft(withLlm).generation).toBeUndefined();
   });

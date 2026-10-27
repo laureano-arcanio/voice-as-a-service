@@ -65,15 +65,16 @@ services:
     environment:
       # DB_DSN armado con las POSTGRES_* del .env, contra el servicio `db`.
       DB_DSN: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      # Sandbox de las herramientas de codigo (docs/TOOLS_PLAN.md); el token va en el .env.
+      TOOLS_RUNNER_URL: http://tools-runner:8080
     ports:
       - "8011:8011"
     volumes:
       - ./storage:/app/storage
     networks:
       - default
-      # Apps de los clientes (atentina-apps, docs/APPS_PLAN.md): red interna, sin salida a
-      # internet; app les habla por http://app-<slug>:8000. La crea `make apps-network`.
-      - apps
+      # Sandbox de las herramientas de codigo (la prueba de una herramienta corre en app).
+      - tools
 
   crm:
     # CRM de ventas (docs/CRM_PLAN.md): API y UI locales, solo en 127.0.0.1. Base `crm` en el
@@ -127,6 +128,11 @@ services:
       - .env
     environment:
       DB_DSN: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      TOOLS_RUNNER_URL: http://tools-runner:8080
+    networks:
+      - default
+      # Las herramientas de codigo de un agente corren en tools-runner (docs/TOOLS_PLAN.md).
+      - tools
     volumes:
       # Grabaciones (record_audio): CALL_RECORDINGS_DIR, storage/recordings. Tambien en `app`
       # (audios de WhatsApp): mismo directorio, mismo numero por conversacion.
@@ -147,6 +153,47 @@ services:
       nofile:
         soft: 65536
         hard: 65536
+
+  # --- Herramientas de codigo de los clientes (docs/TOOLS_PLAN.md, 5) --------
+  # tools-runner corre cada funcion en un proceso Deno nuevo, sin permisos salvo la red a los
+  # allowed_hosts de la herramienta. Esta solo en la red interna `tools` (sin salida): lo unico
+  # que alcanza es tools-egress, el proxy (Smokescreen) que sale a internet y niega IPs privadas,
+  # loopback y metadata. Medido el 26-oct-2026 (scratch/tools-runner/cases.py): una funcion
+  # simple ~25 ms; bucle infinito cortado en el timeout; 64 MB de heap por funcion.
+  tools-runner:
+    build: ./tools-runner
+    restart: unless-stopped
+    environment:
+      TOOLS_RUNNER_TOKEN: ${TOOLS_RUNNER_TOKEN:-}
+      TOOLS_RUNNER_CONCURRENCY: ${TOOLS_RUNNER_CONCURRENCY:-8}
+      TOOLS_EGRESS_PROXY: http://tools-egress:4750
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    # 8 funciones a la vez x (64 MB de heap + el runtime) entran en 1 GB.
+    mem_limit: 1g
+    cpus: 2
+    pids_limit: 256
+    networks:
+      - tools
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  tools-egress:
+    build: ./tools-runner/egress
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 256m
+    networks:
+      - tools
+      - default
 
   # --- Inferencia local, GPU-only ----------------------------------------
   # LLM, STT y TTS con API compatible con OpenAI. `app` y `agent` les hablan con
@@ -422,9 +469,10 @@ services:
       start_period: 10s
 
 networks:
-  apps:
-    name: atentina-apps
-    external: true
+  # Herramientas de codigo: interna, sin salida a internet (salvo por tools-egress).
+  tools:
+    name: atentina-tools
+    internal: true
 
 volumes:
   postgres_data:

@@ -3,7 +3,7 @@ las variables de la ficha ya rellenadas (fichas.py).
 
 Los archivos de personas (scripts/eval/personas/<grupo>.yml) tienen:
 
-  agente: <workflow id>            # y opcional agente_structured: <workflow id>
+  agente: <workflow id>
   checks: {siglas: [...], frases_max: N, prohibido: [{regex, motivo}]}
   personas:
     <nombre>:
@@ -71,15 +71,11 @@ def _rellenar(obj: Any, variables: dict) -> Any:
 
 
 def escenarios(grupos: list[str], reps: int, seed: int, personas: list[str] | None = None,
-               engine: str | None = None, turnos_max: int | None = None) -> list[Escenario]:
-    """engine: None deja el agente del archivo (classic); "structured" usa
-    agente_structured o <agente>_structured."""
+               turnos_max: int | None = None) -> list[Escenario]:
     out = []
     for grupo in grupos:
         data = cargar_grupo(grupo)
         agente = data["agente"]
-        if engine == "structured":
-            agente = data.get("agente_structured") or f"{agente}_structured"
         checks_grupo = data.get("checks") or {}
         for nombre, p in (data.get("personas") or {}).items():
             if personas and nombre not in personas:

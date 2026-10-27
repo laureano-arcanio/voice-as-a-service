@@ -11,14 +11,12 @@ from sqlalchemy import select
 from app.agents.definitions import DbDefinitions
 from app.agents.templates import load_reference, reference_data
 from app.conversation import contact as contact_data
-from app.conversation.assistant import build_system
 from app.conversation.engine import ConversationEngine
 from app.conversation.models import ConversationState
 from app.db import utcnow
 from app.llm.prompt import (
     build_classic_messages,
     build_classic_system,
-    build_user_prompt,
 )
 from app.models import CallRow, Campaign, CampaignContact
 from app.services import campaign_reports
@@ -86,11 +84,9 @@ def test_new_conversation_with_contact(store):
     assert text == wf["conversation"]["opening"] == state.messages[0].text      # sin variables: igual
     assert state.fields["titular"] is True and state.progress.preloaded == ["titular"]
     assert state.progress.contact == {"nombre": "Ana", "deuda": 100}
-    # La apertura pregunta por el primer dato que falta: titular ya viene cargado.
-    assert state.progress.asked == "mejor_momento"
     # Sin contact (llamada entrante o de prueba) nada cambia.
     state, _ = engine.new_conversation("eval_cobranza")
-    assert state.progress.contact == {} and state.progress.preloaded == [] and state.progress.asked == "titular"
+    assert state.progress.contact == {} and state.progress.preloaded == []
     assert all(v is None for v in state.fields.values())
 
 
@@ -130,26 +126,6 @@ def test_classic_prompt_has_the_contact_data_only_when_there_is():
     assert "DATOS DEL CONTACTO" in system and "- nombre: Ana" in system and "- deuda: 15000" in system
     assert "DATOS YA CONOCIDOS" in system and "- cuotas: 3" in system
     assert build_classic_messages(wf, state, "Hola")[0]["content"] == system
-
-
-def test_structured_prompt_has_the_contact_data():
-    wf = load_reference("eval_cobranza")
-    state = _state(wf)
-    assert "DATOS DEL CONTACTO" not in build_user_prompt(wf, state, "Hola")
-    state.progress.contact = {"nombre": "Ana"}
-    state.fields["cuotas"], state.progress.preloaded = 3, ["cuotas"]
-    prompt = build_user_prompt(wf, state, "Hola")
-    # Va antes de la conversacion (prefix caching); lo precargado ya esta en known_fields.
-    assert prompt.index("- nombre: Ana") < prompt.index("CONVERSATION:")
-    assert '"cuotas": 3' in prompt and "cuotas" not in prompt.split("pending_objectives")[1].split("]")[0]
-
-
-def test_assistant_prompt_has_the_contact_data():
-    wf = load_reference("eval_cobranza")
-    state = _state(wf)
-    assert "DATOS DEL CONTACTO" not in build_system(wf, state, [])
-    state.progress.contact = {"nombre": "Ana"}
-    assert "- nombre: Ana" in build_system(wf, state, [])
 
 
 # ---------- la llamada de una campaña ----------

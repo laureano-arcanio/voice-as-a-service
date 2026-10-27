@@ -280,9 +280,9 @@ class MediaLLM(FakeLLM):
         super().__init__(*turns, **kw)
         self.media: list[TurnMedia] = []
 
-    async def process_turn(self, workflow, state, user_message, on_message=None):
+    async def converse(self, workflow, state, user_message, on_message=None):
         self.media.append(state.media.model_copy())
-        return await super().process_turn(workflow, state, user_message, on_message)
+        return await super().converse(workflow, state, user_message, on_message)
 
 
 def audio_payload(wamid: str = "wamid.voz1", ts: int | None = None, name: str = "audio.json") -> dict:

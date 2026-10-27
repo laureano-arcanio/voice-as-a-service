@@ -8,8 +8,8 @@ from pydantic import ValidationError
 
 from app.agents.templates import reference_data
 from app.config import settings
-from app.conversation.models import AgentTurn, LlmPlan, LlmStage
-from app.llm.client import LLMClient, clean_json
+from app.conversation.models import AgentTurn, Generation, LlmPlan, LlmStage
+from app.llm.client import LLMClient
 from app.llm.resolver import BREAKER_FAILS, LLMResolver
 from app.services import llm_connections as svc
 
@@ -23,7 +23,7 @@ def token_key(monkeypatch):
 
 
 def turn(text: str) -> AgentTurn:
-    return AgentTurn(assistant_message=text, answered=False, next_objective=None, status="active")
+    return AgentTurn(assistant_message=text, status="active")
 
 
 class External(FakeLLM):
@@ -35,15 +35,15 @@ class External(FakeLLM):
         super().__init__(*turns, **kw)
         self.error = error
 
-    async def process_turn(self, workflow, state, user_message, on_message=None):
+    async def converse(self, workflow, state, user_message, on_message=None):
         if self.error:
             raise self.error
-        return await super().process_turn(workflow, state, user_message, on_message)
+        return await super().converse(workflow, state, user_message, on_message)
 
-    async def extract(self, workflow, state, only=None):
+    async def extract(self, workflow, state):
         if self.error:
             raise self.error
-        return await super().extract(workflow, state, only)
+        return await super().extract(workflow, state)
 
 
 def new_connection(admin, client, name="Mi OpenRouter", **extra):
@@ -132,18 +132,18 @@ def test_test_endpoint_stores_result_and_json_mode(api, admin, monkeypatch):
 
     async def probe(row, model):
         assert model == "vendor/model"
-        return True, "json_object · 312 ms", "json_object"
+        return True, "json_schema · 312 ms", "json_schema"
     monkeypatch.setattr(svc, "_probe", probe)
     r = admin.post(f"{V1}/clients/{acme['id']}/llm-connections/{conn['id']}/test", json={})
     assert r.status_code == 200
     out = r.json()
-    assert out["last_test_ok"] is True and out["json_mode"] == "json_object" and "312" in out["last_test_detail"]
+    assert out["last_test_ok"] is True and out["json_mode"] == "json_schema" and "312" in out["last_test_detail"]
 
     async def failing(row, model):
         return False, "clave inválida o sin permiso", row.json_mode
     monkeypatch.setattr(svc, "_probe", failing)
     out = admin.post(f"{V1}/clients/{acme['id']}/llm-connections/{conn['id']}/test", json={"model": "x"}).json()
-    assert out["last_test_ok"] is False and out["json_mode"] == "json_object"      # no pisa el modo anterior
+    assert out["last_test_ok"] is False and out["json_mode"] == "json_schema"      # no pisa el modo anterior
 
 
 def test_agent_can_only_use_connections_of_its_client(api, admin):
@@ -195,8 +195,9 @@ def test_stage_switches_at_the_configured_turn(api, admin, monkeypatch):
     replies = [m for m in state.messages if m.role == "assistant"][1:]
     assert [m.llm[0].get("provider") for m in replies] == [None, None, "openrouter", "openrouter"]
     assert replies[2].llm[0]["model"] == "vendor/model"
-    # La extraccion de un turno usa la etapa de ese turno.
-    assert len(api.llm.extract_calls) == 2 and len(external.extract_calls) == 2
+    # La extraccion (al terminar) usa la etapa del ultimo turno.
+    asyncio.run(api.engine.finish(cid))
+    assert len(api.llm.extract_calls) == 0 and len(external.extract_calls) == 1
 
 
 def test_provider_error_falls_back_to_local(api, admin, monkeypatch):
@@ -219,7 +220,7 @@ def test_without_fallback_the_error_surfaces_and_after_speaking_too(api, admin, 
 
     # Con fallback, pero el proveedor ya habia empezado a hablar: no se repite la frase con el otro.
     class Spoke(External):
-        async def process_turn(self, workflow, state, user_message, on_message=None):
+        async def converse(self, workflow, state, user_message, on_message=None):
             on_message("Hola, ")
             raise RuntimeError("cortado")
 
@@ -246,12 +247,12 @@ def test_breaker_skips_a_failing_provider(api, admin, monkeypatch):
     api.llm.turns = [turn(f"local {i}") for i in range(BREAKER_FAILS + 2)]
     cid, _ = setup_agent(api, admin, monkeypatch, external, from_turn=1)
     calls = []
-    original = external.process_turn
+    original = external.converse
 
     async def counting(*a, **kw):
         calls.append(1)
         return await original(*a, **kw)
-    external.process_turn = counting
+    external.converse = counting
 
     async def run():
         for i in range(BREAKER_FAILS + 2):
@@ -303,29 +304,34 @@ def test_connection_of_another_client_is_not_used_at_runtime(api, admin, monkeyp
 
 # --- Cliente OpenAI compatible ---------------------------------------------------------------
 
-def test_generic_profile_sends_no_vllm_extras_and_guides_by_mode():
+def test_generic_profile_sends_no_vllm_extras_and_always_guides_with_json_schema():
     schema = {"type": "object", "properties": {"a": {"type": "string"}}}
-    messages = [{"role": "system", "content": "sys"}, {"role": "user", "content": "hola"}]
-
-    strict = LLMClient("https://api.openai.com/v1", "k", "gpt", profile="openai_compatible", temperature=0.3)
+    strict = LLMClient("https://api.openai.com/v1", "k", "gpt", profile="openai_compatible",
+                       generation=Generation(params={"temperature": 0.3}))
     assert strict.options == {"temperature": 0.3} and strict._tokens_param == "max_completion_tokens"
-    msgs, extra = strict._guided(messages, "x", schema)
-    assert msgs == messages and extra["response_format"]["json_schema"]["strict"] is True
-
-    as_object = LLMClient("https://x.example/v1", "k", "m", profile="openrouter", json_mode="json_object")
-    msgs, extra = as_object._guided(messages, "x", schema)
-    assert extra == {"response_format": {"type": "json_object"}} and "JSON Schema" in msgs[0]["content"]
-    assert msgs[0]["content"].startswith("sys") and as_object._tokens_param == "max_tokens"
-
-    as_prompt = LLMClient("https://x.example/v1", "k", "m", profile="openrouter", json_mode="prompt")
-    msgs, extra = as_prompt._guided([{"role": "user", "content": "hola"}], "x", schema)
-    assert extra == {} and msgs[0]["role"] == "system"
+    extra = strict._guided("x", schema)
+    assert extra["response_format"]["type"] == "json_schema"
+    assert extra["response_format"]["json_schema"]["strict"] is True
+    other = LLMClient("https://x.example/v1", "k", "m", profile="openrouter")
+    assert other.options == {} and other._tokens_param == "max_tokens"
 
     local = LLMClient("http://vllm-llm:8000/v1", "k", "gemma-x")
     assert "extra_body" in local.options and local.label == "local"
     assert "extra_body" not in strict.options
 
 
-def test_clean_json_strips_fences():
-    assert clean_json('```json\n{"a": 1}\n```') == '{"a": 1}'
-    assert clean_json('  {"a": 1}  ') == '{"a": 1}'
+def test_connection_without_guided_json_is_rejected(api, admin, monkeypatch):
+    """La prueba de la conexion solo acepta json_schema: un 400 del proveedor la deja en error."""
+    import httpx
+    import openai
+
+    acme = make_client(admin, "acme")
+    conn = new_connection(admin, acme)
+
+    async def structured(self, *a, **kw):
+        request = httpx.Request("POST", "https://x.example/v1/chat/completions")
+        raise openai.BadRequestError("response_format json_schema not supported",
+                                     response=httpx.Response(400, request=request), body=None)
+    monkeypatch.setattr(LLMClient, "structured", structured)
+    out = admin.post(f"{V1}/clients/{acme['id']}/llm-connections/{conn['id']}/test", json={}).json()
+    assert out["last_test_ok"] is False and "json_schema" in out["last_test_detail"]

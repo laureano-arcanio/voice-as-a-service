@@ -22,7 +22,6 @@ import { QueryState } from '@/components/QueryState';
 import { useIsAdmin } from '@/features/auth/api';
 import { useClients } from '@/features/clients/api';
 import { formatDateTime } from '@/lib/format';
-import { ENGINE } from '@/lib/labels';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useAgent, useDeleteAgent, useUpdateAgent } from './api';
 import { CallLinkTab } from './CallLinkTab';
@@ -139,19 +138,18 @@ function AgentView({ agent }: { agent: AgentDetail }) {
             <Text span c="dimmed" className="mono">
               v{agent.version}
             </Text>
+            {agent.own_agent && <Badge color="gray">Tu propio agente</Badge>}
             {agent.archived && <Badge color="gray">Archivado</Badge>}
           </Group>
         }
         description={
           <>
-            {/* Slug y motor son internos, como en la lista. */}
+            {/* El slug es interno, como en la lista. */}
             {isAdmin && (
               <>
                 <Text span className="mono">
                   {agent.slug}
                 </Text>
-                {' · '}
-                {ENGINE[agent.engine] ?? agent.engine}
                 {' · '}
               </>
             )}

@@ -1,6 +1,6 @@
 """Transferencia atendida de una llamada a una persona del equipo (docs/DERIVACIONES_PLAN.md, 4).
 
-El agente escribe la marca [DERIVAR:<area>] (motor classic) y el worker:
+El agente llama a la herramienta transfer_call con el area (app/llm/platform_tools.py) y el worker:
 
 1. Revisa el area (activa, en horario, con miembros), los minutos salientes del plan y los canales de Anura.
 2. Le avisa al cliente (mensaje "transfer" del area, si el LLM no dijo nada) y lo deja en espera con musica.
@@ -31,6 +31,7 @@ from ..config import settings
 from ..db import utcnow
 from ..models import HandoffArea, HandoffLeg, TeamMember
 from ..services import campaign_calls, events, handoff, quota
+from .speech_text import to_speech
 
 logger = logging.getLogger("agent.handoff")
 
@@ -615,7 +616,7 @@ class RoomLine:
 
     async def whisper(self, identity: str, text: str) -> None:
         pcm = bytearray()
-        async with self.session.tts.synthesize(text) as stream:
+        async with self.session.tts.synthesize(to_speech(text)) as stream:
             async for chunk in stream:
                 pcm.extend(chunk.frame.data)
         await (await self.whisper_speaker.play(bytes(pcm)))
@@ -654,7 +655,7 @@ def summary_messages(conversation: str) -> list[dict]:
     """Pedido al LLM del resumen para el whisper: quien llama y que necesita, en una frase."""
     return [{"role": "system", "content": (
                 "Resumí la llamada para la persona del equipo que la va a atender, en una sola frase de hasta 15 "
-                "palabras: quién llama (si dijo su nombre) y qué necesita. Sin saludos ni datos inventados. "
+                "palabras: quién llama (si dijo su nombre) y qué necesita. "
                 'Respondé en JSON: {"resumen": "..."}')},
             {"role": "user", "content": conversation}]
 

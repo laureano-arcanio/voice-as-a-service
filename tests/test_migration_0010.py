@@ -21,7 +21,9 @@ LATER_TIER_COLUMNS = ("'price_ars'", "'public'", "'sort'", "ck_tiers_price", "'s
                       # 0022 (pedidos a la API de inferencia, con FK a api_keys) y 0023 (equipo).
                       "'api_requests'", "'max_team_members'", "ck_tiers_team_members",
                       # 0025 (WhatsApp por plan) y 0030 (agente externo por plan).
-                      "'whatsapp'", "'external_agent'")
+                      "'whatsapp'", "'external_agent'",
+                      # 0032 (herramientas del cliente por plan).
+                      "'max_tools'", "'code_tools'", "ck_tiers_tools")
 
 
 def test_0010_upgrade_downgrade_upgrade(tmp_path):

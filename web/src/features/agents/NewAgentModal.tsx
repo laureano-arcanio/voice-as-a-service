@@ -18,8 +18,6 @@ import { useClients } from '@/features/clients/api';
 import { SLUG_RE, slugify } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useAgentTemplates, useCreateAgent } from './api';
-import type { Engine } from './draft';
-import { EngineCards, EngineLabel } from './EngineCards';
 
 const BLANK = '';
 
@@ -54,7 +52,7 @@ export function NewAgentModal({
   /** Sin poder cambiar el cliente (alta desde la ficha del cliente). */
   lockClient?: boolean;
 }) {
-  // Cliente, slug y motor son internos: el cliente crea en su cuenta, con el motor por defecto.
+  // Cliente y slug son internos: el cliente crea en su cuenta.
   const isAdmin = useIsAdmin();
   const clients = useClients(opened && isAdmin);
   const templates = useAgentTemplates(opened);
@@ -66,7 +64,6 @@ export function NewAgentModal({
       name: '',
       slug: '',
       description: '',
-      engine: 'classic' as Engine,
       template_id: 'asistente',
     },
     validate: {
@@ -87,7 +84,6 @@ export function NewAgentModal({
               name: v.name.trim(),
               slug: (isAdmin && v.slug) || null,
               description: v.description.trim(),
-              engine: isAdmin ? v.engine : null,
               template_id: v.template_id === BLANK ? null : v.template_id,
             },
             {
@@ -137,15 +133,6 @@ export function NewAgentModal({
               {...form.getInputProps('description')}
             />
           </SimpleGrid>
-          {isAdmin && (
-            <Radio.Group
-              label={<EngineLabel />}
-              description="La definición es la misma con los dos: se puede cambiar después."
-              {...form.getInputProps('engine')}
-            >
-              <EngineCards />
-            </Radio.Group>
-          )}
           <Radio.Group
             label="Punto de partida"
             description="Después completás cada parte en el formulario de la definición."

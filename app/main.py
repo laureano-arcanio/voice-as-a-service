@@ -28,7 +28,6 @@ from .api.routers import (
     agents,
     api_keys,
     api_requests,
-    apps,
     auth,
     billing,
     blocked_numbers,
@@ -48,15 +47,12 @@ from .api.routers import (
     phone_numbers,
     plan,
     tiers,
+    tools,
     users,
     voices,
     wa_campaigns,
-    wa_operators,
     whatsapp,
 )
-from .apps.gateway import AppsHostMiddleware
-from .apps.jobs import jobs_loop as apps_jobs_loop
-from .apps.registry import health_loop as apps_health_loop
 from .billing import webhook as mp_webhook
 from .billing.loop import billing_loop
 from .campaigns.callbacks import callback_loop
@@ -82,10 +78,6 @@ async def lifespan(app: FastAPI):
     webhooks = asyncio.create_task(callback_loop())
     # Vencimientos de los planes pagos y registros sin activar (app/billing/loop.py).
     billing_sweep = asyncio.create_task(billing_loop(settings.billing_tick_seconds))
-    # Salud de las apps de los clientes (app/apps/registry.py).
-    apps_health = asyncio.create_task(apps_health_loop())
-    # Avisos programados de las apps (app/apps/jobs.py).
-    apps_jobs = asyncio.create_task(apps_jobs_loop())
     # Resumen por email de cada llamada, para el cliente (app/mail/call_summary.py).
     call_summaries = asyncio.create_task(call_summary_loop())
     yield
@@ -93,8 +85,6 @@ async def lifespan(app: FastAPI):
     sending.cancel()
     webhooks.cancel()
     billing_sweep.cancel()
-    apps_health.cancel()
-    apps_jobs.cancel()
     call_summaries.cancel()
 
 
@@ -116,14 +106,13 @@ def create_app() -> FastAPI:
     app.add_middleware(CORSMiddleware, allow_origins=allowed_origins(), allow_methods=["GET", "POST"],
                        allow_headers=["Authorization", "Content-Type"], expose_headers=["Retry-After"], max_age=600)
     app.add_middleware(SecurityHeadersMiddleware)
-    # Host de las vistas de las apps (APPS_PUBLIC_HOST): solo el gateway, con sus propios headers.
-    app.add_middleware(AppsHostMiddleware)
     app.add_middleware(HttpsRedirectMiddleware)
 
     api = APIRouter(prefix=API_PREFIX)
     for module in (auth, tiers, clients, phone_numbers, agents, users, api_keys, calls, conversations, voices,
-                   whatsapp, wa_campaigns, campaigns, contacts, wa_operators, inference, demo, billing, apps, llm_connections,
-                   llm_params, call_links, blocked_numbers, api_requests, handoff, plan, mcp_usage, consumer_requests):
+                   whatsapp, wa_campaigns, campaigns, contacts, inference, demo, billing, llm_connections,
+                   llm_params, call_links, blocked_numbers, api_requests, handoff, plan, mcp_usage, consumer_requests,
+                   tools):
         api.include_router(module.router)
     api.include_router(oauth_routes.api_router)
     app.include_router(api)

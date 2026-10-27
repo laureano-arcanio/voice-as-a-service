@@ -52,6 +52,7 @@ LIMIT_FIELDS = (
     "max_contacts",
     "max_call_links",
     "max_team_members",
+    "max_tools",
 )
 MODES = ("add", "set")
 
@@ -81,11 +82,14 @@ class Limits:
     max_call_links: int | None = None
     # Personas del equipo para derivar (docs/DERIVACIONES_PLAN.md). None = ilimitado, 0 = no incluido.
     max_team_members: int | None = None
+    # Herramientas del cliente (docs/TOOLS_PLAN.md). None = ilimitado, 0 = no incluido.
+    max_tools: int | None = None
     # No son numericos, asi que no se ajustan por cliente: salen del tier.
     campaign_channels: tuple[str, ...] = ()
     campaign_followup: bool = False
     whatsapp: bool = True
     external_agent: bool = False
+    code_tools: bool = False
     tier_name: str = ""
     # Campos cuyo valor difiere del tier por un ajuste vigente.
     adjusted: frozenset[str] = field(default_factory=frozenset)
@@ -130,7 +134,8 @@ def apply(tier: Tier, adjustments: Iterable[ClientLimitAdjustment], day: datetim
     adjusted = frozenset(f for f, v in values.items() if v != getattr(tier, f))
     return Limits(**values, campaign_channels=tuple(tier.campaign_channels or ()),
                   campaign_followup=bool(tier.campaign_followup), whatsapp=bool(tier.whatsapp),
-                  external_agent=bool(tier.external_agent), tier_name=tier.name, adjusted=adjusted)
+                  external_agent=bool(tier.external_agent), code_tools=bool(tier.code_tools),
+                  tier_name=tier.name, adjusted=adjusted)
 
 
 def effective_limits(s: Session, client: Client, now: datetime.datetime | None = None,

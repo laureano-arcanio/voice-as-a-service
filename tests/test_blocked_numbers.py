@@ -4,15 +4,20 @@ import pytest
 
 from app.conversation.engine import ConversationEngine
 from app.conversation.models import AgentTurn
-from app.llm.client import MarkerFilter, classic_turn
-from app.llm.prompt import END_MARKER, OFF_TOPIC_MARKER, build_classic_system
+from app.llm import platform_tools
 from app.models import CallRow, CallStatus
 from app.services import calls as call_service
 from app.services import livekit
 from app.services.errors import Forbidden
 
 from .helpers import FakeLLM, turn_and_extract
-from .test_api import V1, admin, client_user, make_agent, make_client  # noqa: F401  (admin: fixture)
+from .test_api import (  # noqa: F401  (admin: fixture)
+    V1,
+    admin,
+    client_user,
+    make_agent,
+    make_client,
+)
 
 DID = "+541152630861"
 
@@ -111,23 +116,25 @@ def test_hang_up_without_room_closes_the_stale_call(api, admin, rooms):
 
 # ---------- corte del agente: fuera de tema ----------
 
-def test_off_topic_marker_is_not_said_and_ends_the_turn():
-    marker = MarkerFilter(END_MARKER, OFF_TOPIC_MARKER)
-    said = "".join(marker.feed(c) for c in ["Esta línea es para consultas. ", "¡Chau! [COR", "TAR]"]) + marker.flush()
-    assert said == "Esta línea es para consultas. ¡Chau! "
-    turn = classic_turn(marker)
+def test_end_call_off_topic_ends_the_turn():
+    """end_call con motivo fuera_de_tema: termina y marca off_topic; con terminada, solo termina."""
+    from app.conversation.models import ConversationState
+
+    state = ConversationState(conversation_id="c", agent_id="a", fields={})
+    turn = AgentTurn(assistant_message="Esta línea es para consultas. ¡Chau!")
+    platform_tools.apply(turn, [{"name": "end_call", "arguments": '{"motivo": "fuera_de_tema"}'}], state)
     assert turn.status == "completed" and turn.end_reason == "off_topic"
-    normal = MarkerFilter(END_MARKER, OFF_TOPIC_MARKER)
-    normal.feed("¡Gracias! [FIN]")
-    assert classic_turn(normal).end_reason is None and classic_turn(normal).status == "completed"
+    normal = AgentTurn(assistant_message="¡Gracias!")
+    platform_tools.apply(normal, [{"name": "end_call", "arguments": '{"motivo": "terminada"}'}], state)
+    assert normal.status == "completed" and normal.end_reason is None
 
 
-def test_classic_prompt_explains_both_markers():
-    from app.agents.templates import load_reference
+def test_end_call_offers_off_topic_reason():
+    from app.conversation.models import ConversationState
 
-    system = build_classic_system(load_reference("berlin_signup_classic"))
-    assert END_MARKER in system and OFF_TOPIC_MARKER in system and "esta línea" in system
-    assert "este chat" in build_classic_system(load_reference("berlin_signup_classic"), channel="whatsapp")
+    tool = platform_tools.tools_for(ConversationState(conversation_id="c", agent_id="a", fields={}))[0]
+    assert tool["function"]["name"] == "end_call"
+    assert tool["function"]["parameters"]["properties"]["motivo"]["enum"] == ["terminada", "fuera_de_tema"]
 
 
 async def test_off_topic_outcome_survives_extraction(store):
@@ -135,7 +142,7 @@ async def test_off_topic_outcome_survives_extraction(store):
                             end_reason="off_topic"),
                   extractions=[{"contact_name": "Joel"}])
     engine = ConversationEngine(llm, store)
-    state, _ = engine.start_conversation("berlin_signup_classic")
+    state, _ = engine.start_conversation("berlin_signup")
     state, _ = await turn_and_extract(engine, state.conversation_id, "Soy un choro, me llamo Joel.")
     assert state.status == "completed" and state.progress.outcome == "fuera_de_tema"
     assert state.fields["contact_name"] == "Joel"

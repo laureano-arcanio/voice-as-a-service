@@ -95,15 +95,19 @@ class Settings(BaseSettings):
     vllm_api_key: str = "not-needed"
     vllm_llm_base_url: str = "http://vllm-llm:8000/v1"
     vllm_llm_model: str = "RedHatAI/Qwen3.5-9B-quantized.w4a16"
-    # Pensamiento del LLM en cada turno, con tope de tokens (vLLM corta el razonamiento
-    # ahi y sigue con el JSON). Sin tope llegaba a ~4000 tokens y 50 s; con 128, ~2,3 s
-    # por turno contra ~1,5 s sin pensar (Qwen3.5-4B, sin carga).
+    # Configuracion del modelo propio (la de cada modelo va en su override o en el .env, no en el codigo):
+    # razonamiento (chat_template_kwargs.enable_thinking) con su tope de tokens, y muestreo. Sin definir, rige
+    # el del servidor (vLLM toma el generation_config del modelo).
     llm_thinking: bool = False
     llm_thinking_budget: int = 128
-    # Muestreo: el recomendado por la familia del modelo (app/llm/client.py, SAMPLING), segun
-    # VLLM_LLM_MODEL (auto) o forzado. LLM_TEMPERATURE pisa la temperatura si se define.
-    llm_sampling: Literal["auto", "gemma", "qwen"] = "auto"
     llm_temperature: float | None = None
+    llm_top_p: float | None = None
+    llm_top_k: int | None = None
+    llm_min_p: float | None = None
+    # Voz: espera de silencio para dar el turno por terminado, con el turn detector seguro (min) o dudando
+    # (max). Es configuracion del detector de turno (modelo), no del codigo.
+    voice_min_endpointing_delay: float = 0.4
+    voice_max_endpointing_delay: float = 1.0
     vllm_stt_base_url: str = "http://stt-parakeet:8000/v1"
     vllm_stt_model: str = "nvidia/parakeet-tdt-0.6b-v3"
     vllm_tts_base_url: str = "http://vllm-tts:8000/v1"
@@ -254,8 +258,6 @@ class Settings(BaseSettings):
     wa_audio_too_long_reply: str = "Ese audio es muy largo para mí. ¿Me mandás uno más corto o me lo escribís?"
     wa_audio_empty_reply: str = "No te escuché bien, ¿me lo repetís?"
     wa_audio_error_reply: str = "No pude escuchar el audio. ¿Me lo escribís?"
-    # Motor assistant: archivo (imagen o PDF) que no se pudo bajar o leer (app/apps/attachments.py).
-    wa_attachment_error_reply: str = "No pude leer el archivo. ¿Me escribís los datos que necesitás?"
     # Campañas salientes (app/whatsapp/campaigns.py y sender.py).
     wa_campaign_tick_seconds: float = 5.0   # cada cuanto el sender manda lo que toca segun el ritmo
     wa_campaign_reply_days: int = 7         # una respuesta dentro de estos dias abre la conversacion con la plantilla
@@ -284,29 +286,12 @@ class Settings(BaseSettings):
     campaign_callback_max_attempts: int = 6
     campaign_callback_allow_private: bool = False
 
-    # --- Apps por cliente (docs/APPS_PLAN.md) ---
-    # Host publico de las vistas (gateway): con ese Host, app atiende solo el gateway. Vacio = apagado.
-    apps_public_host: str = ""
-    apps_public_scheme: str = "https"
-    apps_link_ttl_days: int = 7
-    # Token del deploy de atentina-apps (make register): solo registra y relee apps. Vacio = solo un admin.
-    apps_deploy_token: str = ""
-    apps_http_timeout: float = 15.0      # por pedido a una app (herramienta, vista, manifest)
-    apps_health_seconds: float = 60.0    # chequeo de salud de las apps registradas
-    # Mensajes de las apps (outbox y avisos de jobs): simulate no manda nada; whatsapp, por el numero del chat.
-    apps_outbox_mode: Literal["simulate", "whatsapp"] = "simulate"
-    apps_jobs_seconds: float = 60.0      # cada cuanto se miran los jobs que tocan
-    # Motor assistant: pasos (llamadas al LLM) por turno y mensajes previos que van al prompt.
-    assistant_max_steps: int = 6
-    assistant_history_messages: int = 16
-    assistant_timezone: str = "America/Argentina/Buenos_Aires"
-    # Razonamiento del LLM en cada paso del motor assistant (WhatsApp tolera la latencia; la voz no:
-    # esa usa LLM_THINKING). Gemma 4, 12-oct-2026: ~300 tokens y de 0,5 a ~2,2 s por paso.
-    assistant_thinking: bool = True
-    assistant_thinking_budget: int = 512
-    # Tope de tokens por paso (razonamiento + JSON): un paso tardó 92 s una vez (casos de uso, 12-oct-2026);
-    # los normales usan ~100-800. Pasado el tope, el JSON queda cortado y el paso se reintenta una vez.
-    assistant_max_step_tokens: int = 2048
+    # Herramientas del cliente (docs/TOOLS_PLAN.md). Sandbox de codigo (servicio tools-runner, red interna);
+    # vacio = sin herramientas de codigo.
+    tools_runner_url: str = ""
+    tools_runner_token: str = ""
+    # Zona de {{today}} y {{now}} en la definicion de un agente y en las herramientas.
+    agent_timezone: str = "America/Argentina/Buenos_Aires"
 
     # --- Frontend ---
     # Build de la SPA (web/, `npm run build`). Si no existe, la API funciona sin UI.

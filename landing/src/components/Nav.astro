@@ -3,8 +3,8 @@ import Button from "./Button.astro";
 import Logo from "./Logo.astro";
 
 interface Props {
-  /** Donde estamos: define que links son del mismo documento y cual queda marcado. home: `/`. dev: `/desarrolladores`. docs: su documentacion. casos: `/casos-de-uso`. sector: una vertical. asist: `/asistentes`. platform: `/plataforma` y sus capacidades. other: legales. */
-  current?: "home" | "dev" | "docs" | "casos" | "sector" | "asist" | "platform" | "other";
+  /** Donde estamos: define que links son del mismo documento y cual queda marcado. home: `/`. dev: `/desarrolladores`. docs: su documentacion. casos: `/casos-de-uso`. sector: una vertical. platform: `/plataforma` y sus capacidades. other: legales. */
+  current?: "home" | "dev" | "docs" | "casos" | "sector" | "platform" | "other";
 }
 
 const { current = "other" } = Astro.props;
@@ -15,7 +15,6 @@ const local: Record<NonNullable<Props["current"]>, string[]> = {
   docs: ["demo"],
   casos: ["precios", "demo"],
   sector: ["precios", "demo"],
-  asist: ["demo"],
   platform: ["precios", "demo"],
   other: [],
 };
@@ -26,7 +25,6 @@ const links = [
   { href: "/", label: "Home", short: "Home", active: current === "home" },
   { href: "/desarrolladores", label: "Desarrolladores", short: "Desarrolladores", active: current === "dev" },
   { href: "/casos-de-uso", label: "Casos de uso", short: "Casos", active: current === "casos" || current === "sector" },
-  { href: "/asistentes", label: "Asistentes", short: "Asistentes", active: current === "asist" },
   { href: anchor("precios"), label: "Precios", short: "Precios" },
   { href: "/desarrolladores/docs", label: "Docs", short: "Docs", active: current === "docs" },
   { href: anchor("demo"), label: "Contacto", short: "Contacto" },

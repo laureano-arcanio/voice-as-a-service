@@ -1,5 +1,5 @@
 """Parametros de generacion por agente y etapa (docs/BYOK_LLM_PLAN.md, app/llm/params.py):
-catalogo, validacion, defaults por motor y traduccion por proveedor."""
+catalogo, validacion, defaults de la plataforma y traduccion por proveedor."""
 import pytest
 from pydantic import ValidationError
 
@@ -9,7 +9,7 @@ from app.conversation.models import Generation, LlmPlan, LlmStage, Workflow
 from app.llm.anthropic_client import AnthropicClient
 from app.llm.client import LLMClient
 from app.llm.params import for_provider, validate_params
-from app.llm.resolver import LLMResolver, effective_generation, engine_defaults
+from app.llm.resolver import LLMResolver, effective_generation, platform_defaults
 
 from .test_api import V1, admin, make_client  # noqa: F401
 
@@ -66,12 +66,10 @@ def test_stage_folds_deprecated_temperature_and_allows_local_generation():
 
 # --- Defaults y merge ------------------------------------------------------------------------
 
-def test_engine_defaults_and_effective_generation(monkeypatch):
+def test_platform_defaults_and_effective_generation(monkeypatch):
     monkeypatch.setattr(settings, "llm_thinking", False)
-    monkeypatch.setattr(settings, "assistant_thinking", True)
-    monkeypatch.setattr(settings, "assistant_max_step_tokens", 2048)
-    assert engine_defaults("classic")["thinking"] is False and engine_defaults("classic")["max_tokens"] is None
-    assert engine_defaults("assistant")["thinking"] is True and engine_defaults("assistant")["max_tokens"] == 2048
+    monkeypatch.setattr(settings, "llm_thinking_budget", 77)
+    assert platform_defaults() == {"thinking": False, "thinking_budget": 77, "max_tokens": None}
 
     wf = workflow(generation={"params": {"temperature": 0.25, "top_p": 0.5}},
                   llm={"stages": [{"from_turn": 1},
@@ -85,7 +83,7 @@ def test_engine_defaults_and_effective_generation(monkeypatch):
 # --- Cliente local (vLLM) --------------------------------------------------------------------
 
 def test_local_client_applies_generation(monkeypatch):
-    monkeypatch.setattr(settings, "llm_sampling", "auto")
+    monkeypatch.setattr(settings, "llm_temperature", 0.7)
     gen = Generation(params={"temperature": 0.2, "top_p": 0.5, "top_k": 5, "min_p": 0.1,
                              "enable_thinking": True, "thinking_token_budget": 300, "max_tokens": 123})
     c = LLMClient("http://vllm-llm:8000/v1", "k", "cyankiwi/gemma-4-26B-A4B", generation=gen)
@@ -96,11 +94,20 @@ def test_local_client_applies_generation(monkeypatch):
     assert c._limit() == {"max_tokens": 123}
 
 
-def test_local_client_without_generation_keeps_family_sampling():
-    c = LLMClient("http://vllm-llm:8000/v1", "k", "cyankiwi/gemma-4-26B-A4B")
+def test_local_client_without_generation_uses_the_configured_sampling(monkeypatch):
+    """El muestreo sale de la configuracion (LLM_TEMPERATURE, ...), no del nombre del modelo; lo no definido no
+    se manda."""
+    for name, value in (("llm_temperature", 1.0), ("llm_top_p", 0.95), ("llm_top_k", 64), ("llm_min_p", None)):
+        monkeypatch.setattr(settings, name, value)
+    c = LLMClient("http://vllm-llm:8000/v1", "k", "cualquier/modelo", thinking=False)
     assert (c.options["temperature"], c.options["top_p"], c.options["extra_body"]["top_k"]) == (1.0, 0.95, 64)
+    assert "min_p" not in c.options["extra_body"]
     assert c.options["extra_body"]["chat_template_kwargs"] == {"enable_thinking": False}
     assert c._limit() == {}
+    for name in ("llm_temperature", "llm_top_p", "llm_top_k"):
+        monkeypatch.setattr(settings, name, None)
+    bare = LLMClient("http://vllm-llm:8000/v1", "k", "m", thinking=False)
+    assert bare.options == {"extra_body": {"chat_template_kwargs": {"enable_thinking": False}}}
 
 
 # --- Proveedores externos --------------------------------------------------------------------
@@ -152,15 +159,16 @@ def test_resolver_builds_and_caches_local_clients(monkeypatch):
 
 def test_llm_params_endpoint(api, admin):  # noqa: F811
     out = admin.get(f"{V1}/llm/params").json()
-    assert out["local_family"] in ("gemma", "qwen")
+    assert "local_family" not in out
     kinds = {p["kind"] for p in out["providers"]}
     assert kinds == {"vllm", "openai_compatible", "openrouter", "anthropic"}
     vllm = {q["name"] for p in out["providers"] if p["kind"] == "vllm" for q in p["params"]}
     assert {"temperature", "top_p", "top_k", "min_p", "max_tokens", "enable_thinking",
             "thinking_token_budget"} <= vllm
-    classic = out["local_defaults"]["classic"]
-    assert set(classic) >= {"temperature", "top_p", "top_k", "min_p", "enable_thinking"}
-    assert out["local_defaults"]["assistant"]["max_tokens"] == settings.assistant_max_step_tokens
+    defaults = out["local_defaults"]
+    assert defaults["enable_thinking"] == settings.llm_thinking
+    assert defaults["thinking_token_budget"] == settings.llm_thinking_budget
+    assert "classic" not in defaults and "assistant" not in defaults
 
 
 def test_agent_accepts_generation_and_rejects_bad_params(api, admin):  # noqa: F811

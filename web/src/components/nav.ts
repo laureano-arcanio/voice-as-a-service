@@ -7,7 +7,6 @@ import {
   IconUser,
   IconAddressBook,
   IconApi,
-  IconApps,
   IconBuilding,
   IconCash,
   IconChartBar,
@@ -24,6 +23,7 @@ import {
   IconRobot,
   IconSpeakerphone,
   IconStack2,
+  IconTool,
   IconUsers,
   IconUsersGroup,
   IconBrandWhatsapp,
@@ -94,7 +94,7 @@ export const NAV: NavEntry[] = [
     icon: IconSettings,
     items: [
       { to: '/models', label: 'Modelos', icon: IconCpu, roles: ['client'] },
-      { to: '/apps', label: 'Apps', icon: IconApps, roles: BOTH },
+      { to: '/tools', label: 'Herramientas', icon: IconTool, roles: BOTH, feature: 'custom_tools' },
     ],
   },
   {

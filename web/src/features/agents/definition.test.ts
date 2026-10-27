@@ -40,7 +40,7 @@ describe('readWorkflow', () => {
   it('tolera definiciones incompletas', () => {
     const w = readWorkflow({});
     expect(w.fields).toEqual([]);
-    expect(w.engine).toBe('structured');
+    expect(w.external).toBe(false);
   });
 });
 

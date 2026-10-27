@@ -3,100 +3,22 @@ import {
   Anchor,
   Badge,
   Button,
-  Checkbox,
   Group,
-  SegmentedControl,
+  MultiSelect,
+  NumberInput,
   Stack,
-  Switch,
   Text,
+  TextInput,
 } from '@mantine/core';
 import { Link } from 'react-router';
-import type { App } from '@/api/types';
 import { QueryState } from '@/components/QueryState';
-import { useApps } from '@/features/apps/api';
 import { useIsAdmin } from '@/features/auth/api';
-import { TOOL_KIND } from '@/lib/labels';
-import type { Draft, ToolGrantDraft } from './draft';
-import { setGrant } from './grants';
+import { toolsHref, useTools } from '@/features/tools/api';
+import { CLIENT_TOOL_TYPE } from '@/lib/labels';
+import { type ClientToolGrantDraft, type Draft, newKey, TOOL_SETTINGS } from './draft';
 
-const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-
-function AppGrant({
-  app,
-  grant,
-  onChange,
-}: {
-  app: App;
-  grant: ToolGrantDraft | undefined;
-  onChange: (tools: string[] | null) => void;
-}) {
-  const tools = app.tools ?? [];
-  const all = grant?.tools.includes('*') ?? false;
-  return (
-    <div className="def-item" style={{ padding: 'var(--mantine-spacing-sm)' }}>
-      <Group justify="space-between" wrap="wrap" gap="sm">
-        <Switch
-          checked={!!grant}
-          onChange={(e) => onChange(e.currentTarget.checked ? ['*'] : null)}
-          label={
-            <Text size="sm" fw={600} span>
-              {app.name}{' '}
-              <Text span size="xs" c="dimmed" className="mono">
-                {app.slug}
-              </Text>
-            </Text>
-          }
-        />
-        {grant && (
-          <SegmentedControl
-            size="xs"
-            value={all ? 'all' : 'some'}
-            onChange={(v) => onChange(v === 'all' ? ['*'] : tools.map((t) => t.name))}
-            data={[
-              { value: 'all', label: 'Todas' },
-              { value: 'some', label: 'Elegir' },
-            ]}
-            aria-label={`Herramientas de ${app.name}`}
-          />
-        )}
-      </Group>
-      {grant && !all && (
-        <Checkbox.Group value={grant.tools} onChange={(v) => onChange(v)} mt="sm">
-          <Stack gap={6}>
-            {tools.map((t) => {
-              const k = TOOL_KIND[t.kind] ?? { label: t.kind, color: 'gray' };
-              return (
-                <Checkbox
-                  key={t.name}
-                  value={t.name}
-                  label={
-                    <Group gap={6} wrap="nowrap" component="span">
-                      <Text span className="mono" size="sm">
-                        {t.name}
-                      </Text>
-                      <Badge color={k.color}>{k.label}</Badge>
-                    </Group>
-                  }
-                  description={t.description}
-                />
-              );
-            })}
-          </Stack>
-        </Checkbox.Group>
-      )}
-      {grant && all && (
-        <Text size="xs" c="dimmed" mt={6}>
-          {count(tools.length, 'herramienta', 'herramientas')} y{' '}
-          {count(app.views?.length ?? 0, 'vista', 'vistas')}, incluidas las que se agreguen en versiones
-          nuevas de la app.
-        </Text>
-      )}
-    </div>
-  );
-}
-
-/** Herramientas del motor assistant: las de las apps del cliente del agente. */
-export function ToolsEditor({
+/** Herramientas del cliente (APIs y codigo, docs/TOOLS_PLAN.md): todos los agentes menos tu propio agente. */
+export function ClientToolsEditor({
   draft,
   update,
   clientId,
@@ -106,55 +28,128 @@ export function ToolsEditor({
   clientId: string;
 }) {
   const isAdmin = useIsAdmin();
-  const apps = useApps(clientId);
-  const change = (app: string, next: string[] | null) =>
-    update((d) => ({ ...d, tools: setGrant(d.tools, app, next) }));
+  const tools = useTools(clientId);
+  const toolsLink = toolsHref('/tools', clientId, isAdmin);
+  const setGrants = (fn: (g: ClientToolGrantDraft[]) => ClientToolGrantDraft[]) =>
+    update((d) => ({ ...d, clientTools: fn(d.clientTools) }));
 
   return (
-    <QueryState query={apps}>
+    <QueryState query={tools}>
       {(list) => {
-        const known = new Set(list.map((a) => a.slug));
-        const missing = draft.tools.filter((g) => !known.has(g.app));
+        const bySlug = new Map(list.map((t) => [t.slug, t]));
+        const missing = draft.clientTools.filter((g) => !bySlug.has(g.tool));
+        if (!list.length && !draft.clientTools.length)
+          return (
+            <Text size="sm" c="dimmed">
+              Todavía no hay herramientas.{' '}
+              <Anchor component={Link} to={toolsLink} inherit>
+                Creá una en Herramientas
+              </Anchor>{' '}
+              (una API de tu sistema o una función) y elegila acá.
+            </Text>
+          );
         return (
           <Stack gap="xs">
-            {list.length === 0 && (
-              <Text size="sm" c="dimmed">
-                Este cliente no tiene apps.{' '}
-                {isAdmin ? (
-                  <>
-                    Asignale una en{' '}
-                    <Anchor component={Link} to="/apps" inherit>
-                      Apps
-                    </Anchor>
-                    .
-                  </>
-                ) : (
-                  'Escribinos para armar la de tu negocio.'
-                )}
-              </Text>
-            )}
-            {list.map((a) => (
-              <AppGrant
-                key={a.id}
-                app={a}
-                grant={draft.tools.find((g) => g.app === a.slug)}
-                onChange={(next) => change(a.slug, next)}
-              />
-            ))}
+            <MultiSelect
+              label="Herramientas"
+              description={
+                <>
+                  Las que puede usar este agente.{' '}
+                  <Anchor component={Link} to={toolsLink} inherit>
+                    Ver todas
+                  </Anchor>
+                </>
+              }
+              placeholder={draft.clientTools.length ? undefined : 'Elegí herramientas'}
+              data={list.map((t) => ({
+                value: t.slug,
+                label: `${t.slug} · ${CLIENT_TOOL_TYPE[t.type] ?? t.type}`,
+              }))}
+              value={draft.clientTools.filter((g) => bySlug.has(g.tool)).map((g) => g.tool)}
+              onChange={(slugs) =>
+                setGrants((grants) => [
+                  ...grants.filter((g) => slugs.includes(g.tool) || !bySlug.has(g.tool)),
+                  ...slugs
+                    .filter((s) => !grants.some((g) => g.tool === s))
+                    .map((tool) => ({ key: newKey(), tool })),
+                ])
+              }
+              searchable
+              classNames={{ pill: 'mono' }}
+            />
+            {draft.clientTools
+              .filter((g) => bySlug.has(g.tool))
+              .map((g) => {
+                const t = bySlug.get(g.tool)!;
+                const confirm = t.definition.confirm === true;
+                return (
+                  <div key={g.key} className="def-item" style={{ padding: 'var(--mantine-spacing-sm)' }}>
+                    <Group justify="space-between" gap="sm" wrap="wrap">
+                      <div style={{ flex: 1, minWidth: 200 }}>
+                        <Group gap={6}>
+                          <Anchor
+                            component={Link}
+                            to={toolsHref(`/tools/${t.slug}`, clientId, isAdmin)}
+                            className="mono"
+                            size="sm"
+                            fw={600}
+                          >
+                            {t.slug}
+                          </Anchor>
+                          <Badge color="gray">{CLIENT_TOOL_TYPE[t.type] ?? t.type}</Badge>
+                          {confirm && <Badge color="blue">Pide confirmación</Badge>}
+                        </Group>
+                        <Text size="xs" c="dimmed" lineClamp={2}>
+                          {String(t.definition.description ?? '')}
+                        </Text>
+                      </div>
+                    </Group>
+                  </div>
+                );
+              })}
             {missing.map((g) => (
-              <Alert key={g.app} color="yellow" title={`La app ${g.app} ya no es de este cliente`}>
+              <Alert key={g.key} color="yellow" title={`La herramienta ${g.tool} ya no existe`}>
                 <Group justify="space-between" gap="xs">
                   <Text size="sm">Sacala para poder guardar.</Text>
-                  <Button size="compact-sm" variant="subtle" color="red" onClick={() => change(g.app, null)}>
+                  <Button
+                    size="compact-sm"
+                    variant="subtle"
+                    color="red"
+                    onClick={() => setGrants((grants) => grants.filter((x) => x.key !== g.key))}
+                  >
                     Sacar
                   </Button>
                 </Group>
               </Alert>
             ))}
-            {list.length > 0 && draft.tools.length === 0 && (
-              <Text size="xs" c="dimmed">
-                Sin herramientas, el asistente no puede ver ni registrar datos.
-              </Text>
+            {draft.clientTools.length > 0 && (
+              <Group gap="sm" align="flex-start" wrap="wrap">
+                <NumberInput
+                  label="Vueltas con herramientas por turno"
+                  description={`Al llegar al tope, el turno termina con el mensaje de al lado. Vacío: ${TOOL_SETTINGS.maxCallsPerTurn}.`}
+                  placeholder={String(TOOL_SETTINGS.maxCallsPerTurn)}
+                  min={1}
+                  max={10}
+                  allowDecimal={false}
+                  value={draft.maxToolCallsPerTurn ?? ''}
+                  onChange={(v) =>
+                    update((d) => ({ ...d, maxToolCallsPerTurn: typeof v === 'number' ? v : null }))
+                  }
+                  w={260}
+                />
+                <TextInput
+                  label="Mensaje al llegar al tope"
+                  description="Lo dice el agente en lugar de la respuesta. Vacío: el de la plataforma."
+                  placeholder={TOOL_SETTINGS.limitMessage}
+                  maxLength={300}
+                  value={draft.toolLimitMessage}
+                  onChange={(e) => {
+                    const v = e.currentTarget.value;
+                    update((d) => ({ ...d, toolLimitMessage: v }));
+                  }}
+                  style={{ flex: 1, minWidth: 240 }}
+                />
+              </Group>
             )}
           </Stack>
         );

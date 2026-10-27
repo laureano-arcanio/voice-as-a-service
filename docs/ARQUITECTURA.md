@@ -84,16 +84,17 @@ app/
     reference/*.json agentes de referencia (seed, eval, tests)
     definitions.py   DbDefinitions: versiones de la base, cacheadas (son inmutables)
     templates.py     plantilla, agente en blanco y ReferenceDefinitions (agentes de referencia)
-  conversation/      motor: engine, models (Workflow = definición), workflow (validación), store,
-                     assistant.py (motor assistant: pasos con herramientas, confirmación y controles)
-  apps/              apps por cliente (docs/APPS_PLAN.md): client.py (HTTP y MCP mínimo), registry.py
-                     (registro, contrato, salud), tools.py (herramientas de un agente), links.py
-                     (links firmados) y gateway.py (vistas por APPS_PUBLIC_HOST)
-  llm/               cliente y prompts del LLM
+  conversation/      motor (uno solo desde el 26-oct-2026): engine, models (Workflow = definición),
+                     workflow (validación), store
+  llm/               cliente y prompts del LLM; platform_tools.py (end_call y transfer_call, herramientas
+                     de la plataforma) y external.py (tu propio agente)
+  tools/             herramientas del cliente (docs/TOOLS_PLAN.md): schema, runtime (http, code, SSRF) y
+                     conversation (el turno con herramientas)
   campaigns/         loop único de campañas (loop.py: delega por canal), dialer de voz (dialer.py),
                      contestador por heurística (voicemail.py) y entrega del webhook (callbacks.py)
-  voice/             worker de LiveKit, latencia por turno y handoff.py (transferencia a una persona:
-                     Transfer es la lógica, RoomLine el lado de LiveKit)
+  voice/             worker de LiveKit, latencia por turno, speech_text.py (texto del LLM a palabras para el
+                     TTS: números, horas, fechas, plata, emails, teléfonos, códigos; es-AR) y handoff.py
+                     (transferencia a una persona: Transfer es la lógica, RoomLine el lado de LiveKit)
   whatsapp/          webhook (firma), graph.py (Cloud API y media), store.py (tablas wa_*), service.py (turnos),
                      audio.py (notas de voz: STT, TTS y OGG/Opus con PyAV), signup.py (Embedded Signup,
                      registro, plantillas), crypto.py (tokens y PIN cifrados), campaigns.py y sender.py
@@ -102,7 +103,8 @@ migrations/          Alembic: 0001 esquema anterior (idempotente), 0002 tenencia
                      0004 WhatsApp, 0005 Embedded Signup y session_version, …, 0008 campañas de WhatsApp,
                      …, 0013 apps por cliente y operadores de WhatsApp, 0015 ruteo por contacto de WhatsApp,
                      0017 agenda y campañas unificadas (WhatsApp y voz), …, 0023 equipo, áreas y eventos,
-                     0024 tramos de las derivaciones (handoff_legs)
+                     0024 tramos de las derivaciones (handoff_legs), …, 0032 herramientas del cliente,
+                     0033 un solo motor (borra apps, app_links, app_job_runs y wa_operators; tool_versions)
 web/                 SPA React (ver "Frontend")
 tests/               pytest: API, límites, motor, campañas (test_campaigns, _dialer, _vars, _integration)
 ```
@@ -121,16 +123,15 @@ tiers 1───* clients 1───* agents 1───* agent_versions
                 ├───* users (rol client)            users (rol admin: sin cliente)
                 ├───* api_keys
                 ├───* client_limit_adjustments (ajustes de límites del tier, CASCADE)
-                ├───* apps (client_id, SET NULL: vuelve al inventario) 1───* app_links
                 ├───* contacts (agenda, archivable) 1───* campaign_contacts
                 ├───* contact_optouts (bajas por teléfono y canal)
                 ├───* campaigns (whatsapp | voice) 1───* campaign_contacts ───* call_logs (intentos de voz)
                 │                                  1───* campaign_callbacks (cola del webhook)
                 ├───* team_members ───* handoff_area_members *─── handoff_areas (equipo, CASCADE)
                 ├───* events (registro; conversation_id, CASCADE)
+                ├───* tools (herramientas del cliente) 1───* tool_versions
                 ├───* wa_accounts (agent_id, RESTRICT) 1───* wa_routes (ruteo por contacto)
                 │                                      1───* wa_threads
-                │                                      1───* wa_operators (client_id + agent_id propios)
                 └───* conversations 1───1 call_logs        (voz)
                          │          1───1 wa_threads       (whatsapp)
                          │          1───* wa_messages
@@ -162,9 +163,8 @@ tiers 1───* clients 1───* agents 1───* agent_versions
 | `campaign_contacts` | Un contacto en una campaña (`campaign_id` + `contact_id` únicos): `vars` (copia de sus datos al agregarlo; WhatsApp guarda los parámetros en `vars["params"]`), `status` (`pending`, `in_progress`, `retry`, `done`, `failed`, `skipped`), `result` (WhatsApp: `sent`; voz: `answered`, `no_answer`, `busy`, `voicemail`, `invalid`, `rejected`, `failed`), `error`, `conversation_id`, y según el canal `wamid`/`sent_at`/`replied_at` o `attempts`/`next_attempt_at`/`last_attempt_at` y el seguimiento (`followup_status`, `followup_wamid`, `followup_sent_at`, `followup_error`, `followup_conversation_id`). Entregado y leído salen de `wa_messages`. Reemplaza a `wa_campaign_recipients`. |
 | `campaign_callbacks` | Cola del webhook (outbox): `campaign_id`, `event` (`contact.finished`, `contact.followup`, `campaign.finished`), cuerpo, `status` (`pending`, `sent`, `failed`), intentos y próximo intento. Se escribe en la misma transacción que el evento. |
 | `contact_requests` | Pedidos del formulario de contacto de la landing (`POST /api/v1/demo/contact`), con `email_status` (`sent`, `failed`, `disabled`) y `email_error`; se guardan aunque Resend falle ([`LANDING.md`](LANDING.md)). |
-| `apps` | App de un cliente (contenedor de atentina-apps, [`APPS_PLAN.md`](APPS_PLAN.md)): `slug` único, `client_id` (NULL = inventario), `base_url` (`http://app-<slug>:8000`), `token_enc` (APP_TOKEN cifrado con `WA_TOKEN_KEY`), `version`, `manifest` (copia del último válido: vistas y herramientas), `status` (`ok`, `down`, `invalid`), `last_error`, `last_health_at`. |
-| `app_links` | Link firmado a una vista: `token_hash` (SHA-256; el token no se guarda), `app_id`, `view`, `params`, `expires_at` (`APPS_LINK_TTL_DAYS`), `revoked_at`, `created_by` (`wa:<wa_id>`, `user:<id>`), `opens`. |
-| `wa_operators` | Dueño de un negocio que le habla a su asistente por un número compartido: `account_id` + `wa_id` únicos, `client_id` y `agent_id` propios (los del número no se usan), `name`, `active`. |
+| `tools` | Herramienta del cliente ([`TOOLS_PLAN.md`](TOOLS_PLAN.md)): `client_id` + `slug` únicos, `type` (`http` o `code`), `definition`, `revision` y el resultado de la última prueba (`last_test_*`). Cada revisión queda en `tool_versions` (migración 0033; `GET /clients/{id}/tools/{slug}/versions`). |
+| `agent_secrets` | Secretos de un agente para sus herramientas: `agent_id` + `name` únicos, `value_enc` (cifrado), `last4`, `description`. |
 | `team_members` | Persona del equipo del cliente: `name`, `phone` (E.164, al que se le pasa la llamada), `whatsapp` (único por cliente, para el puente de la fase 3), `user_id` opcional, `active`. Tope `tiers.max_team_members` (NULL = ilimitado). |
 | `handoff_areas` | Área del equipo (Ventas, Soporte): `description`, `active`, `strategy` (`sequential` o `round_robin`, con `last_member_id`), `ring_seconds` por miembro, `schedule` (NULL = siempre abierta), `fallback`, `on_person_hangup` (`resume` o `goodbye`), `return_digits` (default `2`, nunca `*`), `messages` (los textos que pisan los de `handoff.DEFAULT_MESSAGES`). Un área que usa un agente no se borra (409 `area_in_use`). Miembros y orden en `handoff_area_members` (`position`). |
 | `handoff_legs` | Un intento de pasarle la llamada a una persona: `area_id`, `team_member_id`, `phone`, `result` (`dialing`, `connected`, `no_answer`, `busy`, `machine`, `not_confirmed`, `failed`), `sip_status`, `answered_at`, `connected_at`, `ended_at` y `billed_seconds` (desde que atendió, solo si se conectó). Base de los minutos salientes de las derivaciones. |
@@ -185,7 +185,7 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
 
 ```json
 {
-  "id": "ventas", "version": 3, "engine": "classic", "record_audio": false,
+  "id": "ventas", "version": 3, "record_audio": false,
   "generation": {"params": {"temperature": 0.5, "enable_thinking": false}},
   "agent": {"name": "Sofía", "role": "asesora comercial", "language": "es-AR", "voice": "sofia"},
   "objective": {"description": "…"},
@@ -210,12 +210,24 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
   (`Workflow.generation`) y override por etapa (`LlmStage.generation`). Son las claves del catálogo
   (`app/llm/params.py`): el proveedor activo manda solo las que soporta y descarta el resto
   (`enable_thinking`/`top_k` solo el servidor propio, `effort` solo Anthropic, `reasoning_effort`
-  OpenAI/OpenRouter). Sin `generation`, rigen los defaults de la plataforma (muestreo por familia
-  del modelo y `LLM_THINKING`/`ASSISTANT_*`). El editor los agrega y quita, con los defaults del
+  OpenAI/OpenRouter). Sin `generation`, rigen los defaults de la configuración
+  (`LLM_THINKING`/`LLM_THINKING_BUDGET` y `LLM_TEMPERATURE`/`LLM_TOP_P`/`LLM_TOP_K`/`LLM_MIN_P`; los de
+  Gemma, en su override de compose; desde el 26-oct-2026 no hay muestreo por familia en el código). El editor los agrega y quita, con los defaults del
   proveedor (`GET /api/v1/llm/params`). Ver [`BYOK_LLM_PLAN.md`](BYOK_LLM_PLAN.md).
-- **Motor `assistant`** ([`APPS.md`](APPS.md)): sin datos a extraer (`fields` puede ir vacío)
-  y con `tools: [{"app": "<slug>", "tools": ["*"]}]`, las herramientas de las apps del cliente. Al
-  guardar se valida que cada app sea del cliente y tenga esas herramientas.
+- **Un solo motor** (26-oct-2026, [`LIMPIEZA_PLAN.md`](LIMPIEZA_PLAN.md)): `engine` ya no existe; el de
+  una definición vieja (`classic`, `structured`, `assistant`, `external`) se ignora al leerla, igual que las
+  herramientas de apps (`{app, tools}`). Los motores `structured` y `assistant` se quitaron ese día.
+- **`tools`** y **`tool_settings`**: las herramientas del cliente por slug (`[{"tool": "<slug>"}]`,
+  [`TOOLS_PLAN.md`](TOOLS_PLAN.md)) y, opcional, `max_calls_per_turn` (default 3, hasta 10) y
+  `limit_message`: al llegar al tope, el turno termina con ese mensaje sin volver al modelo. No van con
+  `external`.
+- **`external`** (opcional): "Tu propio agente" ([`AGENTE_EXTERNO_PLAN.md`](AGENTE_EXTERNO_PLAN.md)). Cada
+  turno lo contesta el endpoint del cliente (`connection`, `model`, `system`, `first_token_timeout_ms`,
+  `error_message`, `max_errors`, `on_errors` `hang_up` o `transfer:<area_id>`), sin el prompt de la
+  definición ni extracción. Es una opción del agente, no un motor; solo en los planes con
+  `tiers.external_agent`.
+- **Variables `{{today}}` y `{{now}}`**: la fecha no se inyecta en el prompt; el agente la tiene si sus
+  reglas, su base de conocimiento o su objetivo usan esas variables.
 - `fields.<campo>.label` (opcional): nombre del dato para mostrarlo (resultado de la demo de la
   landing). No va al prompt.
 - **`conversation.opening_audio`** (default `false`) y **`conversation.opening_delay_ms`**
@@ -241,11 +253,9 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
   dato de tipo `phone`. Ese tipo se precarga con el número de la otra punta en las entrantes y salientes
   (`engine.new_conversation(phone=...)`, va a `progress.preloaded`) y el agente no lo pregunta; por el link
   queda vacío y lo pide. Al prender el resumen en el editor se agrega el dato `telefono` si el agente no
-  tiene uno (no con el motor `assistant`, que no pide datos). En el motor `classic` el LLM daba por sabido el
-  número ("estás en una llamada telefónica") y no lo pedía (0 de 10 con Gemma 4 26B, 20-oct-2026): el prompt
-  dice que no lo tiene y, mientras no haya un número en lo que dijo el usuario, su último mensaje lleva una nota
-  para pedirlo antes de despedirse (`PHONE_REMINDER` en `app/llm/prompt.py`). Medido: lo pide 8 de 10 después del
-  dato anterior y 9 de 10 al cierre en vez de cerrar (antes 0 y cerraba 10 de 10); si ya lo dio, no lo repite (10 de 10).
+  tiene uno. Sin recordatorio oculto desde el 26-oct-2026: el teléfono es un dato más del agente. Con el
+  recordatorio (`PHONE_REMINDER`, quitado) Gemma 4 26B lo pedía 9 de 10 al cierre; sin él, 0 de 10
+  (20-oct-2026); sin medir con las reglas genéricas de la plantilla.
 - **`record_audio`** (default `false`): graba el audio, un WAV mono de 16 kHz por mensaje,
   localmente (`CALL_RECORDINGS_DIR`, default `storage/recordings/<conversation_id>/NNN.wav`;
   `storage/` montado en `agent`, no versionado). Lo escribe `app/conversation/recordings.py`
@@ -278,10 +288,11 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
   todas las llamadas del agente; no se agrega al contexto del LLM. Sin `record_audio` no hace nada (la UI
   muestra el switch "Avisar que la llamada se graba" solo con la grabación prendida). En WhatsApp
   (mensajería) no aplica.
-- **`handoff`** (desde el 23-oct-2026, solo el motor `classic`; con otro motor y áreas, 422): las áreas
+- **`handoff`** (desde el 23-oct-2026): las áreas
   (`area_id` y `when`, el cuándo en texto libre; vacío usa la descripción del área), hasta 10 y sin repetir, y la
   música de espera (`hold_music`: `enabled`, `track` de `GET /hold-music`, `volume`). Al guardar se valida que
-  cada área sea del cliente del agente y que el tema exista. Ver "Derivación a una persona" en Flujos.
+  cada área sea del cliente del agente y que el tema exista. El modelo deriva con la herramienta de
+  plataforma `transfer_call` (también con `external`). Ver "Derivación a una persona" en Flujos.
 - **Validación al guardar:**
   - nombres de campo en minúsculas;
   - `choice` con `options`;
@@ -294,21 +305,20 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
   (`DbDefinitions`, cacheada por `(agent_id, version)`). Editar un agente no afecta las llamadas en
   curso ni el historial.
 - **Alta:** en blanco (`blank_definition`: un dato y el resultado por defecto) o desde la única
-  plantilla, `app/agents/templates/asistente.json`, con el motor elegido (`engine` pisa el de la
-  definición). La definición es la misma con los dos motores: solo cambia cómo se le pide la
-  respuesta al LLM. El prompt de sistema sale siempre de la definición; `POST /agents/prompt` lo
-  devuelve sin guardar (classic: el prompt entero; structured: el fijo y la definición en YAML que va
-  en cada turno). La UI la edita por formulario (`web/src/features/agents/DefinitionForm.tsx`,
+  plantilla, `app/agents/templates/asistente.json`, con las reglas genéricas de comportamiento
+  (`GENERIC_RULES` en `app/agents/templates.py`: una pregunta por turno, no inventar, cuándo cortar o derivar),
+  editables como cualquier regla. El prompt de sistema sale siempre de la definición y del protocolo
+  (herramientas y su resultado), sin frases de comportamiento en el código; `POST /agents/prompt` lo devuelve sin guardar. La UI la edita por formulario (`web/src/features/agents/DefinitionForm.tsx`,
   `draft.ts`), con el JSON como alternativa.
 - **Quién los crea:** un admin, en el cliente de `client_id`; un usuario o API key de un cliente, en
   el suyo (`client_id` se omite; el de otro cliente da 404). Todo pedido sobre un agente pasa por
   `get_agent` (`app/api/routers/agents.py`): el de otro cliente responde 404 y no cambia. En la UI el
-  cliente usa el mismo formulario, sin cliente, slug, motor, JSON ni prompt, que son internos: sus
-  agentes nacen con el motor de la plantilla (`classic`). La API no restringe `engine` al cliente: no
-  es un permiso, solo no se muestra. `POST /agents/prompt` sigue solo para admin.
+  cliente usa el mismo formulario, sin cliente, slug, JSON ni prompt, que son internos. La UI no
+  pregunta motor; `AgentOut.own_agent` dice si el agente usa "Tu propio agente". `POST /agents/prompt`
+  sigue solo para admin.
 - **Agentes de referencia:** `app/agents/reference/<id>.json`, para el seed, el eval y los tests (sin
-  base); no se ofrecen en la UI. El sufijo `_classic` o `_structured` elige el motor sobre el mismo
-  archivo (`demo_booking_classic` es `demo_booking.json` con `engine: classic`). El seed solo crea, en
+  base); no se ofrecen en la UI. El sufijo `_classic` se acepta por compatibilidad
+  (`demo_booking_classic` es `demo_booking.json`). El seed solo crea, en
   el cliente `atentina`, `atentina_comercial`, `demo_booking_classic` (test de capacidad) y las
   `landing_*` (demo).
 
@@ -323,7 +333,7 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
    como los `vars` de una campaña. Un teléfono en las bajas de voz del cliente da 409 (`opted_out`), salvo en
    campañas, que filtran antes.
 2. `engine.new_conversation(session=s)` arma el estado con la versión vigente, sin guardarlo. `context` (el
-   motivo, hasta 2000 caracteres) queda en `Progress.context` y va al prompt de los tres motores y al de
+   motivo, hasta 2000 caracteres) queda en `Progress.context` y va al prompt y al de
    extracción como "MOTIVO DEL LLAMADO" (`conversation/contact.py`); se ve en el detalle y en el resumen por email.
 3. `quota.admit(s, client, mode)` toma el lock del cliente (`SELECT … FOR NO KEY UPDATE OF clients`).
    Verifica que el cliente esté activo, que haya lugar en el tope de simultáneas, que no se hayan
@@ -419,8 +429,8 @@ El formulario de contacto de la landing (`POST /demo/contact`, misma sesión) gu
    que abrió el hilo si la definió (en minutos), o si no el default global `WA_SESSION_HOURS`
    (1440 min = 24 hs, `WhatsAppService._session_minutes`): pasados esos minutos sin mensaje del
    contacto, el siguiente mensaje abre otra conversación, sin el historial anterior. Se edita por
-   agente en la UI (sección "Voz" del editor, en minutos) o en su `definition`. Que el motor haya
-   dado la conversación por completada (`[FIN]`) **no**
+   agente en la UI (sección "Voz" del editor, en minutos) o en su `definition`. Que el agente haya
+   dado la conversación por completada (`end_call`) **no**
    cierra el hilo: un mensaje después del cierre la retoma con el historial y la misma versión del
    agente. Un hilo nuevo usa la versión vigente del agente del número, o la del agente de la campaña
    si el contacto responde a una (ver [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md), 5.5).
@@ -429,38 +439,35 @@ El formulario de contacto de la landing (`POST /demo/contact`, misma sesión) gu
    de contexto (barrido cada 5 min en el lifespan de `app`, `WhatsAppService.sweep`: mira todos los
    hilos abiertos y cierra el que venció según el agente que lo abrió). Los
    tres cierran el hilo (`wa_threads.closed_at`) y llaman a `engine.finish`, la extracción final.
-   Si el turno tuvo audio (`WA_AUDIO_REPLY=mirror`), `process_turn` recibe `TurnMedia` (el prompt pide
-   formato para escuchar) y la respuesta sale como nota de voz: `vllm-tts` → OGG/Opus → subida →
+   Si el turno tuvo audio (`WA_AUDIO_REPLY=mirror`), `process_turn` recibe `TurnMedia` (el mensaje del usuario va marcado como
+   nota de voz) y la respuesta sale como nota de voz: normalizador de texto (`app/voice/speech_text.py`) →
+   `vllm-tts` → OGG/Opus → subida →
    mensaje `audio`. Si algo falla, va en texto.
 4. Los statuses actualizan `wa_messages`. No se crea `call_logs` ni se pasa por `quota.admit`.
 
-**Operadores:** si el `wa_id` está en `wa_operators` para ese número (activo), la conversación es del
-cliente y del agente del operador, no de los del número, y no se mira la campaña. Así un número de
-Atentina atiende a los dueños de varios negocios, cada uno con su asistente. Un hilo abierto con otro
-agente (lo hicieron operador a mitad de un chat) empieza una conversación nueva.
-
-**Ruteo por contacto (`wa_routes`):** debajo de operadores y campañas, si el `wa_id` está en la regla
+**Ruteo por contacto (`wa_routes`):** debajo de las campañas, si el `wa_id` está en la regla
 de un agente de esa cuenta, lo atiende ese agente, en los mensajes y las llamadas de WhatsApp. Un
-hilo abierto con otro agente se corta y sigue en una conversación nueva, como con los operadores; uno
-abierto por una campaña no se pisa. Un agente archivado se saltea y vuelve el de la cuenta.
+hilo abierto con otro agente se corta y sigue en una conversación nueva; uno
+abierto por una campaña no se pisa. Un agente archivado se saltea y vuelve el de la cuenta. Los operadores
+de WhatsApp (`wa_operators`), que ganaban sobre todo esto, se quitaron el 26-oct-2026 con las apps.
 
-### Motor assistant y apps
+### Herramientas del cliente
 
-Referencia completa: [`APPS.md`](APPS.md). En corto:
+Diseño, formato y mediciones en [`TOOLS_PLAN.md`](TOOLS_PLAN.md); lo que se quitó el 26-oct-2026 (motor
+`assistant` y apps por cliente, con su historia en [`archive/APPS.md`](archive/APPS.md)), en
+[`LIMPIEZA_PLAN.md`](LIMPIEZA_PLAN.md). En corto:
 
-- Un agente `assistant` usa las herramientas de las apps del cliente (contenedores de
-  `atentina-apps`, por MCP en la red interna `atentina-apps`), más `abrir_vista` (link firmado).
-- `app/conversation/assistant.py` corre hasta 6 pasos por turno con JSON guiado (`reply`, `call`,
-  `confirm`, `cancel`), con razonamiento (`ASSISTANT_THINKING`). La respuesta sale siempre en texto.
-- Las herramientas `destructive` y `send` se confirman. Un sí o un no claros los resuelve la
-  plataforma.
-- Controles de la plataforma: ids que salen de un resultado, nada escribe después de una búsqueda
-  ambigua, nombres de campo como valor, links (marcas `[[linkN]]`), repeticiones y JSON inválido.
-- Operadores (`wa_operators`): por un número compartido, el dueño habla con su asistente.
-- Archivos (OCR), outbox (mensajes a terceros; simulado por defecto) y jobs (avisos diarios):
-  `app/apps/`.
-- Gateway: con `Host: APPS_PUBLIC_HOST`, `app` atiende solo las vistas de las apps, con su propia
-  CSP.
+- El modelo ve, por function calling nativo, las herramientas del cliente (`http` y `code`, `app/tools/`) y
+  las de la plataforma (`end_call` y, en una llamada con áreas, `transfer_call`; `app/llm/platform_tools.py`).
+- La plataforma no confirma ni interpreta: `confirm` solo agrega a la descripción que se pida confirmación;
+  el resultado (`ok`, `error`) vuelve al modelo. `messages.failed` lo dice la plataforma por el TTS.
+- Tope de rondas por turno (`tool_settings.max_calls_per_turn`): al llegar, el turno termina con
+  `limit_message`. Las duplicadas las protege el `Idempotency-Key`.
+- Seguridad: SSRF con un backend de red propio en un `httpcore.AsyncConnectionPool` (API pública de
+  httpcore): resuelve y conecta a una IP global ya validada, sin redirects ni proxies del entorno.
+  `runtime.PRIVATE_HOSTS` deja pasar hosts internos solo en los tests y el e2e (`TOOLS_PRIVATE_HOSTS` ya
+  no es configuración). Secretos cifrados por agente y el sandbox `tools-runner` con salida por
+  `tools-egress`.
 
 **Capacidad:** un turno de texto carga solo el LLM (3090); uno con audio usa además el STT y el TTS,
 y la síntesis va a la 5060 Ti, el cuello de CAP-002. `WA_AUDIO_CONCURRENCY` (4, sin medir) limita los
@@ -479,9 +486,9 @@ Transferencia atendida dentro de la misma room de LiveKit; diseño, mediciones y
 1. **Al empezar**, el worker guarda las áreas activas del agente en `Progress.handoff_areas`
    (`handoff.call_areas`), salvo en el loadtest, las campañas y la demo sin `DEMO_HANDOFF` (metadata
    `handoff`, de `calls.start_call`). Sin áreas no cambia nada.
-2. **Prompt (`classic`):** sección "PASAR LA LLAMADA A UNA PERSONA" con cada área, su horario y si atiende
-   ahora. Para derivar, el LLM responde `[DERIVAR:<área>]` (`MarkerFilter` la saca del texto que va al TTS);
-   el área se busca sin mayúsculas ni tildes.
+2. **Herramienta `transfer_call`:** el modelo la ve con cada área (cuándo pasarla, su horario y si atiende
+   ahora) y la llama con `area` (un `enum` con los nombres; sin búsqueda aproximada). El worker dice lo que el
+   modelo escribió en ese mensaje y después deriva. Hasta el 26-oct-2026 era la marca `[DERIVAR:<área>]`.
 3. **Transferencia** (`app/voice/handoff.py`): revisa el área (activa, en horario, con miembros), los minutos
    salientes y los canales (`quota.handoff_check`); pone música solo al cliente y apaga su entrada de audio;
    llama a cada miembro (`create_sip_participant`, identidad `persona-<n>`, caller ID el número de la empresa)
@@ -720,7 +727,7 @@ lo de esta sección es lo que lo protege.
 
 | Qué | Comando | Cubre |
 |---|---|---|
-| Backend | `make test` (o `.venv/bin/pytest`) | API (auth, permisos, tiers, clientes, mails y alta de clave (`test_mail.py`), agentes y versiones, inventario de números, llamadas y límites, fechas por zona, cuentas, conversaciones y alta de WhatsApp, plantillas, ruteo por contacto), seguridad del dashboard público (`test_security_public.py`), migración 0005 de ida y vuelta, cuotas, motor con LLM falso, WhatsApp (webhook, service con payloads de Meta y Graph simulado) y escenarios contra el LLM real (se saltean si no responde). |
+| Backend | `make test` (o `.venv/bin/pytest`) | API (auth, permisos, tiers, clientes, mails y alta de clave (`test_mail.py`), agentes y versiones, inventario de números, llamadas y límites, fechas por zona, cuentas, conversaciones y alta de WhatsApp, plantillas, ruteo por contacto), seguridad del dashboard público (`test_security_public.py`), migración 0005 de ida y vuelta, cuotas, motor con LLM falso, herramientas (`make e2e-tools`: API, MCP, sandbox de prueba y API falsa, con LLM grabado) y WhatsApp (webhook, service con payloads de Meta y Graph simulado). Solo LLM falso desde el 26-oct-2026 (`tests/test_llm.py` salió): lo que mide al modelo real son los evals (`make eval-llm`, `make eval-tools`), que informan y no bloquean. |
 | Frontend | `make web-check` | ESLint, tipos y Vitest (formatos, parseo de números, errores de API, guardas por rol, consumo, WhatsApp: origen y mensajes de Embedded Signup, alta con el SDK simulado, plantillas, ruteo por contacto). |
 | Migraciones | `alembic upgrade head` / `downgrade` / `check` | Ida y vuelta en PostgreSQL y SQLite. |
 

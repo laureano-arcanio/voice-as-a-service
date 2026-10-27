@@ -7,7 +7,6 @@ import { EmptyState, QueryState } from '@/components/QueryState';
 import { useIsAdmin } from '@/features/auth/api';
 import { useClients } from '@/features/clients/api';
 import { formatDateTime } from '@/lib/format';
-import { ENGINE } from '@/lib/labels';
 import { useAgents } from './api';
 import { CallLinkCell } from './CallLinkCell';
 import { NewAgentModal } from './NewAgentModal';
@@ -88,13 +87,12 @@ export function AgentsPage() {
                 </Stack>
               )
             ) : (
-              <Table.ScrollContainer minWidth={isAdmin ? 1080 : 900}>
+              <Table.ScrollContainer minWidth={isAdmin ? 1000 : 900}>
                 <Table>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>Nombre</Table.Th>
                       {isAdmin && <Table.Th>Cliente</Table.Th>}
-                      {isAdmin && <Table.Th>Motor</Table.Th>}
                       <Table.Th>Voz</Table.Th>
                       <Table.Th>Versión</Table.Th>
                       <Table.Th>Estado</Table.Th>
@@ -116,6 +114,11 @@ export function AgentsPage() {
                               {a.slug}
                             </Text>
                           )}
+                          {a.own_agent && (
+                            <Badge color="gray" mt={2}>
+                              Tu propio agente
+                            </Badge>
+                          )}
                           {a.description && (
                             <Text size="xs" c="dimmed" lineClamp={1}>
                               {a.description}
@@ -123,7 +126,6 @@ export function AgentsPage() {
                           )}
                         </Table.Td>
                         {isAdmin && <Table.Td>{clientName.get(a.client_id) ?? '–'}</Table.Td>}
-                        {isAdmin && <Table.Td>{ENGINE[a.engine] ?? a.engine}</Table.Td>}
                         <Table.Td>{a.voice ?? '–'}</Table.Td>
                         <Table.Td className="mono">v{a.version}</Table.Td>
                         <Table.Td>

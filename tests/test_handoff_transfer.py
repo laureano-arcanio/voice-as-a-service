@@ -1,14 +1,14 @@
 """Transferencia de una llamada a una persona (docs/DERIVACIONES_PLAN.md, fase 2): la logica de
-app/voice/handoff.py con un telefono falso, la marca [DERIVAR:<area>], el prompt y los minutos salientes."""
+app/voice/handoff.py con un telefono falso, la herramienta transfer_call, el prompt y los minutos salientes."""
 import asyncio
 import datetime
 
 from sqlalchemy import select
 
-from app.conversation.models import ConversationState, Message
+from app.conversation.models import AgentTurn, ConversationState, Message
 from app.db import utcnow
-from app.llm.client import MarkerFilter, classic_marker, classic_turn
-from app.llm.prompt import HANDOFF_MARKER, build_classic_messages, build_classic_system
+from app.llm import platform_tools
+from app.llm.prompt import build_classic_messages, build_classic_system
 from app.models import CallMode, CallRow, CallStatus, Event, HandoffArea, HandoffLeg
 from app.services import calls as call_service
 from app.services import handoff, quota
@@ -93,7 +93,7 @@ def setup_call(api, admin, *, outbound_minutes=100, **area):
     return c, conv, areas
 
 
-def run(api, conv, client, areas, line, area="ventas", **kw):
+def run(api, conv, client, areas, line, area="Ventas", **kw):
     said: list[tuple] = []
     tr = transfer.Transfer(sessions=api.sessions, line=line, conversation_id=conv, client_id=client["id"],
                            areas=areas, customer=CUSTOMER, caller="+5493513962553", confirm_seconds=0.3,
@@ -223,24 +223,31 @@ def test_person_leg_counts_as_outbound_minutes_and_channels(api, admin, monkeypa
         assert quota.handoff_check(s, c["id"]) == "no_channel"
 
 
-# ---------- marca y prompt ----------
+# ---------- herramienta transfer_call y prompt ----------
 
-def test_marker_with_area_streams_and_flushes():
-    m = MarkerFilter("[FIN]", "[CORTAR]", param=HANDOFF_MARKER)
-    out = "".join(m.feed(x) for x in ["Te paso", " con ventas. [DERI", "VAR: Ven", "tas]"]) + m.flush()
-    assert out == "Te paso con ventas. " and (m.found, m.arg) == (HANDOFF_MARKER, "Ventas")
-    turn = classic_turn(m)
-    assert (turn.status, turn.handoff) == ("active", "Ventas")
-    m = MarkerFilter("[FIN]", param=HANDOFF_MARKER)
-    m.feed("[DERIVAR:Posventa")
-    m.flush()
-    assert m.arg == "Posventa" and m.text == ""
-    # Sin areas en la llamada la marca no se filtra (no hay a donde derivar).
+AREAS = [{"id": "1", "name": "Ventas", "when": "Precios y visitas", "schedule": None,
+          "schedule_text": "todos los días a toda hora"}]
+
+
+def test_transfer_call_sets_the_handoff():
     state = ConversationState(conversation_id="x", agent_id="a", fields={})
-    assert classic_marker(state).param is None
+    state.progress.handoff_areas = AREAS
+    turn = AgentTurn(assistant_message="Te paso con ventas.")
+    platform_tools.apply(turn, [{"name": "transfer_call", "arguments": '{"area": "Ventas"}'}], state)
+    assert (turn.status, turn.handoff) == ("active", "Ventas")
+    # Cortar gana: no se deriva una conversacion terminada.
+    both = AgentTurn(assistant_message="Chau.")
+    platform_tools.apply(both, [{"name": "transfer_call", "arguments": '{"area": "Ventas"}'},
+                                {"name": "end_call", "arguments": "{}"}], state)
+    assert (both.status, both.handoff) == ("completed", None)
+    # Sin areas en la llamada no hay a donde derivar.
+    state.progress.handoff_areas = []
+    none = AgentTurn(assistant_message="Te paso.")
+    platform_tools.apply(none, [{"name": "transfer_call", "arguments": '{"area": "Ventas"}'}], state)
+    assert none.handoff is None
 
 
-def test_classic_prompt_lists_areas_and_groups_human_leg(api, admin):
+def test_transfer_call_lists_areas_and_history_keeps_the_person(api, admin):
     from app.agents.templates import ReferenceDefinitions
 
     workflow = ReferenceDefinitions().get("sales_discovery_classic", 1)
@@ -250,16 +257,19 @@ def test_classic_prompt_lists_areas_and_groups_human_leg(api, admin):
         Message(role="assistant", text="Hola, soy Juan", person="Juan", handoff_leg="L1"),
         Message(role="user", text="Quiero un presupuesto", handoff_leg="L1"),
         Message(role="assistant", text="¿Te puedo ayudar con algo más?")])
-    assert "PASAR LA LLAMADA" not in build_classic_system(workflow, "voice", state)
-    state.progress.handoff_areas = [{"id": "1", "name": "Ventas", "when": "Precios y visitas", "schedule": None,
-                                     "schedule_text": "todos los días a toda hora"}]
-    system = build_classic_system(workflow, "voice", state)
-    assert "- Ventas: Precios y visitas. Atiende todos los días a toda hora (ahora atiende)." in system
-    assert "[DERIVAR:Ventas]" in system
+    assert [t["function"]["name"] for t in platform_tools.tools_for(state)] == ["end_call"]
+    state.progress.handoff_areas = AREAS
+    tools = platform_tools.tools_for(state)
+    assert [t["function"]["name"] for t in tools] == ["end_call", "transfer_call"]
+    transfer = tools[1]["function"]
+    assert "Ventas (Precios y visitas): todos los días a toda hora, atiende ahora" in transfer["description"]
+    assert transfer["parameters"]["properties"]["area"]["enum"] == ["Ventas"]
+    # El prompt no lleva las areas: van en la herramienta.
+    assert "Precios y visitas" not in build_classic_system(workflow, "voice", state)
     history = build_classic_messages(workflow, state, "No, gracias")[1:]
-    assert [m["role"] for m in history] == ["assistant", "user", "assistant", "user", "assistant", "user"]
-    assert history[3]["content"].startswith("[Nota del sistema: la llamada se pasó a Juan.")
-    assert "Juan: Hola, soy Juan\nQuien llama: Quiero un presupuesto" in history[3]["content"]
+    assert [m["role"] for m in history] == ["assistant", "user", "assistant", "assistant", "user", "assistant", "user"]
+    assert history[3] == {"role": "assistant", "content": "Hola, soy Juan", "name": "Juan"}
+    assert "name" not in history[4]
 
 
 def test_agent_handoff_areas_are_validated(api, admin):
@@ -282,7 +292,7 @@ def test_agent_handoff_areas_are_validated(api, admin):
         from app.conversation.models import Workflow
         snap = handoff.call_areas(s, c["id"], Workflow.model_validate(r.json()["definition"]).handoff)
     assert [(a["name"], a["when"]) for a in snap] == [("Ventas", "Para comprar")]
-    assert handoff.find_area(snap, "VENTAS ") is snap[0]
+    assert handoff.find_area(snap, "Ventas") is snap[0] and handoff.find_area(snap, "VENTAS ") is None
 
 
 def test_area_used_by_an_agent_is_not_deleted(api, admin):

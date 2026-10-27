@@ -5,6 +5,9 @@ la propuesta en orden de impacto. Las reglas de texto siguen siendo las de [`DES
 sección 10: voseo, sin superlativos, categoría "agentes con IA que atienden a tus clientes" ("agente de voz" solo
 en `metaTitle`, porque es lo que se busca).
 
+> 26-oct-2026: `/asistentes` y `AssistantChat` se quitaron con el motor `assistant` y las apps por cliente
+> ([`LIMPIEZA_PLAN.md`](LIMPIEZA_PLAN.md)). Lo que sigue los nombra como estaban el 15-oct-2026.
+
 ## 1. Diagnóstico
 
 Lo que ya está bien: un `h1` por página, `title` y `description` propios, canónica absoluta, `lang="es-AR"`,

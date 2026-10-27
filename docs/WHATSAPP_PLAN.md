@@ -17,6 +17,12 @@ WhatsApp texto en el mes 5 y Calling en el 6: es donde el cliente de cobranzas s
 y el canal que Vapi no tiene y Botmaker sí
 ([`competencia/`](competencia/botmaker/botmaker-canales-integracion.md)).
 
+> **26-oct-2026** ([`LIMPIEZA_PLAN.md`](LIMPIEZA_PLAN.md), sin desplegar): un solo motor; el fin es la
+> herramienta de plataforma `end_call` (ya no la marca `[FIN]`); se quitaron los operadores de WhatsApp
+> (`wa_operators`), los botones con links de apps y el motor `assistant`; el texto de una nota de voz saliente pasa
+> por el normalizador `app/voice/speech_text.py` en lugar de reglas de prompt. Donde este plan dice otra cosa, es
+> historia.
+
 **Fase 1 en vivo (1-oct-2026):** el agente responde texto por WhatsApp con el mismo motor. Detalle en
 [5.1](#51-fase-1-lo-implementado).
 
@@ -75,7 +81,8 @@ si el cliente manda tres mensajes seguidos en 2 s, se juntan en un turno (el equ
 **Fin de conversación.** El motor trabaja igual que en una llamada: el clásico extrae al despedirse
 (`[FIN]`) o al terminar la conversación, nunca en cada turno. El fin de un chat (cerrado desde el
 dashboard, tope de turnos o 24 h sin mensajes, que detecta un barrido cada 5 min) cierra el hilo y
-llama a `engine.finish`, como el corte de una llamada. Por WhatsApp el `[FIN]` solo marca `completed`. El chat sigue en la misma conversación (con el
+llama a `engine.finish`, como el corte de una llamada. Por WhatsApp el `[FIN]` solo marca `completed`
+(26-oct-2026: `end_call` en lugar de `[FIN]`). El chat sigue en la misma conversación (con el
 historial) mientras haya mensajes dentro de las 24 h; tras 24 h sin actividad, el siguiente abre otra.
 La conversación corre con la versión del agente con que empezó: para que un contacto pase a la versión
 vigente sin esperar 24 h, **Cerrar conversación** en el detalle (`POST /api/v1/whatsapp/threads/{id}/close`,
@@ -421,7 +428,9 @@ service y graph, con Graph, STT y TTS simulados. Sin migración: `wa_messages.ty
   el prefix caching). El turno marca el mensaje transcripto (`[nota de voz transcripta]` en classic,
   `NEW USER MESSAGE (nota de voz transcripta)` en structured) y, si la respuesta sale en audio, pide
   formato para escuchar (números en palabras, sin emojis ni asteriscos, frases cortas). La voz
-  telefónica no cambia: verificado byte a byte.
+  telefónica no cambia: verificado byte a byte. (26-oct-2026: el pedido de formato y el bloque de reglas de voz
+  salieron del prompt; queda la marca `[nota de voz transcripta]` y el texto pasa por el normalizador
+  `app/voice/speech_text.py` antes del TTS.)
 - **Registro:** `Message.voice_note` en `conversations.messages`, para el mensaje transcripto y para
   la respuesta enviada como nota de voz; el detalle de la UI lo muestra con un rótulo. `wa_messages`
   guarda el tipo `audio`, sin el audio ni el texto. Logs con `stt_ms`, `tts_ms`, bytes y segundos, sin
@@ -708,7 +717,7 @@ contactos por agente. Los contactos de una regla los atiende ese agente; los dem
 - **Alcance:** mensajes y llamadas de WhatsApp. La voz de Anura no cambia (sigue el agente del número).
   Una llamada de un contacto de una regla va a su agente; un número sin agente por defecto pero con una
   regla que aplica atiende igual.
-- **Prioridad:** operador (`wa_operators`) y respuesta a campaña ganan; debajo va la regla y después el
+- **Prioridad:** operador (`wa_operators`, quitado el 26-oct-2026) y respuesta a campaña ganan; debajo va la regla y después el
   agente por defecto. Un contacto de una regla con un hilo abierto con otro agente pasa a una conversación
   nueva con el de la regla (como al hacer operador); una conversación abierta por una campaña no se pisa.
   Un agente de regla archivado se saltea: lo atiende el agente por defecto.

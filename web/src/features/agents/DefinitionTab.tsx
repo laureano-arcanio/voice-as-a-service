@@ -25,7 +25,6 @@ import { JsonEditor } from '@/components/JsonEditor';
 import { QueryState } from '@/components/QueryState';
 import { useIsAdmin } from '@/features/auth/api';
 import { focusOffset } from '@/lib/editor';
-import { ENGINE } from '@/lib/labels';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { usePromptPreview, useSaveDefinition, validateDefinition } from './api';
 import { findPathOffset, parseDefinition, toJsonText } from './definition';
@@ -90,7 +89,7 @@ function UnsavedGuard({ dirty }: { dirty: boolean }) {
   );
 }
 
-/** El prompt que arma el motor con la definicion en edicion (sin guardarla). */
+/** El prompt que arma la plataforma con la definicion en edicion (sin guardarla). */
 function PromptModal({
   definition,
   opened,
@@ -127,26 +126,13 @@ function PromptModal({
               <Stack gap="sm">
                 <Text size="sm" fw={600}>
                   Prompt de sistema{' '}
-                  <Text span size="xs" c="dimmed" fw={400}>
-                    {p.engine === 'classic'
-                      ? '· motor clásico: todo el agente va acá'
-                      : p.engine === 'assistant'
-                        ? '· motor asistente: en cada turno se suman la fecha y las herramientas de las apps del cliente'
-                        : '· motor estructurado: es igual para todos los agentes'}
-                  </Text>
+                  {definition?.external ? (
+                    <Text span size="xs" c="dimmed" fw={400}>
+                      · tu propio agente: el prompt de sistema opcional que va antes de la conversación
+                    </Text>
+                  ) : null}
                 </Text>
                 <pre className="code">{p.system}</pre>
-                {p.workflow && (
-                  <>
-                    <Text size="sm" fw={600}>
-                      Definición{' '}
-                      <Text span size="xs" c="dimmed" fw={400}>
-                        · va en cada turno, junto con la conversación y el estado
-                      </Text>
-                    </Text>
-                    <pre className="code">{p.workflow}</pre>
-                  </>
-                )}
               </Stack>
             )}
           </QueryState>
@@ -157,7 +143,7 @@ function PromptModal({
 }
 
 export function DefinitionTab({ agent }: { agent: AgentDetail }) {
-  // El cliente edita por formulario; motor, JSON y prompt son internos (solo admin).
+  // El cliente edita por formulario; JSON y prompt son internos (solo admin).
   const isAdmin = useIsAdmin();
   const baseline = canonical(agent.definition);
   const [base, setBase] = useState(baseline);
@@ -287,11 +273,6 @@ export function DefinitionTab({ agent }: { agent: AgentDetail }) {
             <Text span c="dimmed" className="mono">
               {isAdmin ? `${agent.slug} · v${agent.version}` : `v${agent.version}`}
             </Text>
-            {isAdmin && (
-              <Badge color="gray">
-                {ENGINE[mode === 'form' ? draft.engine : String(current?.engine)] ?? '–'}
-              </Badge>
-            )}
             {dirty && <Badge color="yellow">Cambios sin guardar</Badge>}
             {current === null ? (
               <Badge color="red">JSON inválido</Badge>
@@ -369,8 +350,8 @@ export function DefinitionTab({ agent }: { agent: AgentDetail }) {
           opened={opened}
           toggle={toggle}
           voiceSeed={agent.id}
-          showEngine={isAdmin}
           clientId={agent.client_id}
+          agentId={agent.id}
           errors={[...saveErrors, ...errors]}
         />
       ) : (

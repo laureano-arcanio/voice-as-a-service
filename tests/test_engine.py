@@ -1,5 +1,5 @@
-"""El motor: el LLM de conversacion decide la respuesta, el objetivo y el fin; la
-extraccion saca los datos en segundo plano; la app valida y guarda."""
+"""El motor: el LLM de conversacion decide la respuesta y el fin; la extraccion saca los
+datos en segundo plano al terminar (classic); la app valida y guarda."""
 import asyncio
 
 from app.conversation.engine import ConversationEngine
@@ -15,15 +15,14 @@ async def test_start_conversation(store, workflow):
     assert set(state.fields) == set(workflow.fields)
     assert all(v is None for v in state.fields.values())
     assert store.get(state.conversation_id).messages[0].text == opening
-    assert state.progress.asked == "contact_name"   # la apertura pregunta el primer dato
 
 
 async def test_start_without_opening(store):
-    """WhatsApp entrante: el cliente escribe primero, sin apertura ni dato preguntado."""
-    engine = ConversationEngine(FakeLLM(AgentTurn(next_objective="company_name", assistant_message="¡Hola! ¿Empresa?")),
+    """WhatsApp entrante: el cliente escribe primero, sin apertura."""
+    engine = ConversationEngine(FakeLLM(AgentTurn(assistant_message="¡Hola! ¿Empresa?")),
                                 store)
     state, opening = engine.start_conversation("sales_discovery", channel="whatsapp", opening=False)
-    assert opening == "" and state.messages == [] and state.progress.asked is None
+    assert opening == "" and state.messages == []
     saved = store.get(state.conversation_id)
     assert saved.channel == "whatsapp" and saved.messages == []
     state, _ = await engine.process_turn(state.conversation_id, "Hola, soy Juan")
@@ -35,94 +34,66 @@ async def test_start_with_given_opening(store):
     engine = ConversationEngine(FakeLLM(), store)
     state, opening = engine.start_conversation("sales_discovery", opening="Hola Juan, te escribo por tu cuota.")
     assert opening == state.messages[0].text == "Hola Juan, te escribo por tu cuota."
-    assert state.channel == "voice" and state.progress.asked == "contact_name"
+    assert state.channel == "voice"
 
 
 async def test_data_comes_from_the_extraction(store):
-    llm = FakeLLM(AgentTurn(next_objective="workforce_location", assistant_message="¿Dónde trabaja el personal?"),
+    llm = FakeLLM(AgentTurn(assistant_message="Gracias, te escribimos.", status="completed"),
                   extractions=[{"contact_name": "Juan", "company_name": "Acme", "company_activity": "Logística",
                                 "employee_count": 80}])
     engine = ConversationEngine(llm, store)
     cid = start_with(engine)
     state, turn = await turn_and_extract(engine, cid, "Soy Juan de Acme, hacemos logística y somos unas 80 personas.")
-    assert turn.next_objective == "workforce_location"
+    assert turn.status == "completed"
     assert state.fields["employee_count"] == 80
     assert [m.role for m in state.messages] == ["assistant", "user", "assistant"]
 
 
 async def test_the_turn_returns_before_the_extraction(store):
-    """La respuesta sale sin esperar los datos; el turno siguiente si los espera."""
+    """La respuesta sale sin esperar los datos; solo se extrae al terminar."""
     gate = asyncio.Event()
 
     class SlowExtraction(FakeLLM):
-        async def extract(self, workflow, state, only=None):
+        async def extract(self, workflow, state):
             await gate.wait()
-            return await super().extract(workflow, state, only)
+            return await super().extract(workflow, state)
 
-    llm = SlowExtraction(AgentTurn(next_objective="company_name", assistant_message="¿Empresa?"),
-                         AgentTurn(next_objective="company_activity", assistant_message="¿Rubro?"),
-                         extractions=[{"contact_name": "Juan"}, {"company_name": "Acme"}])
+    llm = SlowExtraction(AgentTurn(assistant_message="¿Empresa?"),
+                         AgentTurn(assistant_message="Gracias.", status="completed"),
+                         extractions=[{"contact_name": "Juan", "company_name": "Acme"}])
     engine = ConversationEngine(llm, store)
     cid = start_with(engine)
-    state, _ = await engine.process_turn(cid, "Juan.")
+    await engine.process_turn(cid, "Juan.")
+    assert llm.extract_calls == [] and cid not in engine.extractions
+    state, _ = await engine.process_turn(cid, "Acme.")
     assert state.fields["contact_name"] is None
     gate.set()
-    state, _ = await turn_and_extract(engine, cid, "Acme.")
+    await engine.wait_extraction(cid)
+    state = store.get(cid)
     assert state.fields["contact_name"] == "Juan" and state.fields["company_name"] == "Acme"
 
 
 async def test_the_llm_message_is_said_as_is(store):
     message = "Entendido, Juan. ¿Dónde trabaja el personal?"
-    engine = ConversationEngine(FakeLLM(AgentTurn(next_objective="workforce_location", assistant_message=message)), store)
+    engine = ConversationEngine(FakeLLM(AgentTurn(assistant_message=message)), store)
     cid = start_with(engine)
     _, turn = await engine.process_turn(cid, "Hola.")
     assert turn.assistant_message == message
 
 
 async def test_invented_and_invalid_fields_are_dropped_and_reported(store):
-    llm = FakeLLM(
-        AgentTurn(next_objective="employee_count", assistant_message="¿Tenés una cantidad aproximada?"),
-        AgentTurn(next_objective="employee_count", assistant_message="¿Cuántos son?"),
-        extractions=[{"random_field": "foo", "employee_count": "bastantes"}],
-    )
+    llm = FakeLLM(AgentTurn(assistant_message="Gracias.", status="completed"),
+                  extractions=[{"random_field": "foo", "employee_count": "bastantes"}])
     engine = ConversationEngine(llm, store)
     cid = start_with(engine, contact_name="Juan", company_name="Acme", company_activity="Logística")
     state, _ = await turn_and_extract(engine, cid, "Somos bastantes.")
     assert "random_field" not in state.fields and state.fields["employee_count"] is None
     assert state.progress.rejected == {"employee_count": "bastantes"}
-    await engine.process_turn(cid, "No sé.")
-    assert llm.calls[-1][1] == {"employee_count": "bastantes"}  # el LLM se entera
-
-
-async def test_answered_without_data_is_retried_then_not_asked_again(store):
-    """4a89e965: dijo "sí, pasame el link", la extraccion no lo guardo y el agente lo volvio a preguntar."""
-    llm = FakeLLM(AgentTurn(answered=True, next_objective="company_activity", assistant_message="¿A qué se dedican?"),
-                  extractions=[{}, {}])
-    engine = ConversationEngine(llm, store)
-    cid = start_with(engine, contact_name="Juan")
-    state = store.get(cid)
-    state.progress.asked = "company_name"
-    store.save(state)
-    state, _ = await turn_and_extract(engine, cid, "Acme.")
-    assert llm.extract_calls == [None, ["company_name"]]    # extraccion completa y reintento del campo
-    assert state.progress.answered_empty == ["company_name"]
-
-
-async def test_answered_field_found_on_retry(store):
-    llm = FakeLLM(AgentTurn(answered=True, next_objective="company_activity", assistant_message="¿A qué se dedican?"),
-                  extractions=[{}, {"company_name": "Acme"}])
-    engine = ConversationEngine(llm, store)
-    cid = start_with(engine, contact_name="Juan")
-    state = store.get(cid)
-    state.progress.asked = "company_name"
-    store.save(state)
-    state, _ = await turn_and_extract(engine, cid, "Acme.")
-    assert state.fields["company_name"] == "Acme" and state.progress.answered_empty == []
 
 
 async def test_the_llm_decides_when_it_ends(store):
     """Aunque falten datos: la app no pisa la decision (el dashboard muestra lo que falta)."""
-    llm = FakeLLM(AgentTurn(next_objective=None, assistant_message="Chau.", status="completed"),
+    llm = FakeLLM(AgentTurn(assistant_message="Chau.", status="completed"),
                   extractions=[{"contact_name": "Juan"}])
     engine = ConversationEngine(llm, store)
     cid = start_with(engine)
@@ -133,7 +104,7 @@ async def test_the_llm_decides_when_it_ends(store):
 
 
 async def test_outcome_is_recorded_after_the_extraction(store):
-    llm = FakeLLM(AgentTurn(next_objective=None, assistant_message="Listo.", status="completed"),
+    llm = FakeLLM(AgentTurn(assistant_message="Listo.", status="completed"),
                   extractions=[{"wants_demo": True, "email": "juan@acme.com"}])
     engine = ConversationEngine(llm, store)
     cid = start_with(engine, **BASE)
@@ -143,7 +114,7 @@ async def test_outcome_is_recorded_after_the_extraction(store):
 
 async def test_goal_with_missing_data_is_incomplete(store):
     """80ac0e22: pidio el link y corto sin dar el resto; contaba como objetivo cumplido."""
-    llm = FakeLLM(AgentTurn(next_objective=None, assistant_message="Chau.", status="completed"),
+    llm = FakeLLM(AgentTurn(assistant_message="Chau.", status="completed"),
                   extractions=[{"wants_demo": True}])
     engine = ConversationEngine(llm, store)
     cid = start_with(engine, **BASE)
@@ -151,17 +122,25 @@ async def test_goal_with_missing_data_is_incomplete(store):
     assert state.progress.outcome == "incompleta"
 
 
-async def test_email_the_user_did_not_say_is_rejected(store):
-    llm = FakeLLM(AgentTurn(next_objective="email", assistant_message="¿Tu correo?"),
+async def test_extracted_email_is_stored_if_valid(store):
+    """Se guarda lo que extrae el modelo, validado solo por el tipo del campo: no se revisa si el usuario lo
+    dijo (eso lo mide un eval, no la plataforma)."""
+    llm = FakeLLM(AgentTurn(assistant_message="Gracias.", status="completed"),
                   extractions=[{"email": "info@browix.com"}])
     engine = ConversationEngine(llm, store)
     cid = start_with(engine, **BASE, wants_demo=True)
     state, _ = await turn_and_extract(engine, cid, "Escribime a")
-    assert state.fields["email"] is None and state.progress.rejected == {"email": "info@browix.com"}
+    assert state.fields["email"] == "info@browix.com" and state.progress.rejected == {}
+    llm = FakeLLM(AgentTurn(assistant_message="Gracias.", status="completed"),
+                  extractions=[{"email": "info arroba browix punto com"}])
+    engine = ConversationEngine(llm, store)
+    cid = start_with(engine, **BASE, wants_demo=True)
+    state, _ = await turn_and_extract(engine, cid, "info arroba browix punto com")
+    assert state.fields["email"] is None and state.progress.rejected == {"email": "info arroba browix punto com"}
 
 
 async def test_llm_output_is_stored_per_turn(store):
-    llm = FakeLLM(AgentTurn(next_objective="company_name", assistant_message="¿Empresa?"),
+    llm = FakeLLM(AgentTurn(assistant_message="Gracias.", status="completed"),
                   extractions=[{"contact_name": "Juan"}])
     engine = ConversationEngine(llm, store)
     cid = start_with(engine)
@@ -171,22 +150,22 @@ async def test_llm_output_is_stored_per_turn(store):
     assert reply.llm[0]["input"] == "Juan." and '"contact_name": "Juan"' in reply.llm[1]["output"]
 
 
-async def test_the_extraction_does_not_see_the_new_reply(store):
-    """Si ve la pregunta nueva del agente, la extraccion la contesta sola (bf06c2d0)."""
+async def test_the_extraction_sees_the_whole_conversation(store):
+    """La extraccion ve toda la conversacion, la despedida del agente incluida."""
     class Spy(FakeLLM):
-        async def extract(self, workflow, state, only=None):
+        async def extract(self, workflow, state):
             self.seen = [m.text for m in state.messages]
-            return await super().extract(workflow, state, only)
+            return await super().extract(workflow, state)
 
-    llm = Spy(AgentTurn(next_objective="company_name", assistant_message="¿Querés una demo?"))
+    llm = Spy(AgentTurn(assistant_message="Chau.", status="completed"))
     engine = ConversationEngine(llm, store)
     cid = start_with(engine)
     await turn_and_extract(engine, cid, "Juan.")
-    assert llm.seen[-1] == "Juan."
+    assert llm.seen[-2:] == ["Juan.", "Chau."]
 
 
 async def test_retract_last_turn(store):
-    llm = FakeLLM(AgentTurn(next_objective="main_problem", assistant_message="¿Qué te gustaría mejorar?"),
+    llm = FakeLLM(AgentTurn(assistant_message="Gracias.", status="completed"),
                   extractions=[{"attendance_process": "sin control"}])
     engine = ConversationEngine(llm, store)
     cid = start_with(engine, contact_name="Juan")
@@ -202,11 +181,11 @@ async def test_retract_cancels_the_pending_extraction(store):
     gate = asyncio.Event()
 
     class SlowExtraction(FakeLLM):
-        async def extract(self, workflow, state, only=None):
+        async def extract(self, workflow, state):
             await gate.wait()
-            return await super().extract(workflow, state, only)
+            return await super().extract(workflow, state)
 
-    llm = SlowExtraction(AgentTurn(next_objective="main_problem", assistant_message="¿Qué te gustaría mejorar?"),
+    llm = SlowExtraction(AgentTurn(assistant_message="Gracias.", status="completed"),
                          extractions=[{"attendance_process": "sin control"}])
     engine = ConversationEngine(llm, store)
     cid = start_with(engine, contact_name="Juan")
@@ -225,12 +204,12 @@ async def test_voice_note_turn_reaches_the_llm_and_is_not_saved(store):
     seen = []
 
     class Spy(FakeLLM):
-        async def process_turn(self, workflow, state, user_message, on_message=None):
+        async def converse(self, workflow, state, user_message, on_message=None):
             seen.append(state.media)
-            return await super().process_turn(workflow, state, user_message, on_message)
+            return await super().converse(workflow, state, user_message, on_message)
 
-    llm = Spy(AgentTurn(next_objective="company_name", assistant_message="¿Empresa?"),
-              AgentTurn(next_objective="company_activity", assistant_message="¿Rubro?"))
+    llm = Spy(AgentTurn(assistant_message="¿Empresa?"),
+              AgentTurn(assistant_message="¿Rubro?"))
     engine = ConversationEngine(llm, store)
     state, _ = engine.start_conversation("sales_discovery", channel="whatsapp", opening=False)
     cid = state.conversation_id
@@ -245,7 +224,7 @@ async def test_voice_note_turn_reaches_the_llm_and_is_not_saved(store):
 
 
 async def test_mark_voice_note_marks_the_last_reply(store):
-    llm = FakeLLM(AgentTurn(next_objective="company_name", assistant_message="¿Empresa?"))
+    llm = FakeLLM(AgentTurn(assistant_message="¿Empresa?"))
     engine = ConversationEngine(llm, store)
     cid = start_with(engine)
     await engine.process_turn(cid, "Juan.")

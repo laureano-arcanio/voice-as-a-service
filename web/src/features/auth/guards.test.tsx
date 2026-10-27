@@ -68,19 +68,21 @@ describe('navegación por rol', () => {
 
   it('agrupa el menú y saca los grupos vacíos del rol', () => {
     const shape = (role: 'admin' | 'client') =>
-      navFor(role).map((e) => (isGroup(e) ? `${e.label}: ${e.items.map((i) => i.label).join(', ')}` : e.label));
+      navFor(role).map((e) =>
+        isGroup(e) ? `${e.label}: ${e.items.map((i) => i.label).join(', ')}` : e.label,
+      );
     expect(shape('client')).toEqual([
       'Inicio',
       'Conversaciones',
       'Agentes: Mis agentes, Probar agentes, Voces',
       'Canales: WhatsApp, Llamadas, Campañas',
       'Organización: Contactos, Equipo',
-      'Configuración: Modelos, Apps',
+      'Configuración: Modelos, Herramientas',
       'Developers: API keys, Uso de la API',
       'Cuenta: Mi cuenta, Plan, Consumos',
     ]);
     const admin = shape('admin');
-    expect(admin).toContain('Configuración: Apps');
+    expect(admin).toContain('Configuración: Herramientas');
     expect(admin).toContain('Developers: Uso de la API');
     expect(admin.some((e) => e.startsWith('Cuenta'))).toBe(false);
     expect(admin.slice(-5)).toEqual(['Clientes', 'Números', 'Tiers', 'Cobros', 'Usuarios']);

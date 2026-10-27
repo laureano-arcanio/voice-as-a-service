@@ -27,6 +27,7 @@ from ..conversation.models import AgentTurn, ConversationState, Workflow
 from ..models import CallRow, Client, LlmConnection, PhoneNumber
 from ..services import limits as limits_service
 from ..whatsapp import crypto
+from . import platform_tools
 
 logger = logging.getLogger(__name__)
 
@@ -57,29 +58,6 @@ class ExternalResult:
     turn: AgentTurn
     outcome: str | None         # el de end_call, si vino
     trace: dict
-
-
-def end_call_tool(outcomes: list[str]) -> dict:
-    """outcomes: los ids de completion.outcomes del agente."""
-    return {"type": "function", "function": {
-        "name": "end_call",
-        "description": "Termina la conversacion despues de decir lo que escribiste en este mensaje (la despedida).",
-        "parameters": {"type": "object", "properties": {
-            "outcome": {"type": "string", "enum": outcomes,
-                        "description": "Resultado de la conversacion; sin el, el resultado por defecto del agente."},
-        }, "required": []},
-    }}
-
-
-def transfer_call_tool(areas: list[dict]) -> dict:
-    names = [a["name"] for a in areas]
-    detail = "; ".join(f"{a['name']}: {a.get('when') or ''}".strip() for a in areas)
-    return {"type": "function", "function": {
-        "name": "transfer_call",
-        "description": f"Pasa la llamada a una persona del equipo, despues de decir lo que escribiste. Areas: {detail}",
-        "parameters": {"type": "object", "properties": {"area": {"type": "string", "enum": names}},
-                       "required": ["area"]},
-    }}
 
 
 def build_messages(workflow: Workflow, state: ConversationState, user_message: str) -> list[dict]:
@@ -196,9 +174,7 @@ class ExternalAgents:
         """El turno del agente del cliente. ExternalError si no contesta (nada se dijo todavia); si se corta
         despues de empezar a hablar, queda lo dicho y el error en la traza."""
         target = self.target(workflow, state.client_id)
-        tools = [end_call_tool([o.id for o in workflow.completion.outcomes])]
-        if state.progress.handoff_areas:
-            tools.append(transfer_call_tool(state.progress.handoff_areas))
+        tools = platform_tools.tools_for(state, [o.id for o in workflow.completion.outcomes])
         request = dict(model=target.model, messages=build_messages(workflow, state, user_message), tools=tools,
                        stream=True, user=state.conversation_id,
                        extra_headers=self.headers(workflow, state, actor))
@@ -272,19 +248,5 @@ class ExternalAgents:
     @staticmethod
     def _result(text: str, tools_used: list[dict], state: ConversationState, trace: dict) -> ExternalResult:
         turn = AgentTurn(assistant_message=text)
-        outcome = None
-        for call in tools_used:
-            try:
-                args = json.loads(call["arguments"] or "{}")
-            except json.JSONDecodeError:
-                args = {}
-            if not isinstance(args, dict):
-                args = {}
-            if call["name"] == "end_call":
-                turn.status = "completed"
-                outcome = args.get("outcome") if isinstance(args.get("outcome"), str) else None
-            elif call["name"] == "transfer_call" and isinstance(args.get("area"), str) and state.progress.handoff_areas:
-                turn.handoff = args["area"]
-        if turn.status == "completed":
-            turn.handoff = None     # cortar gana: no se deriva una conversacion terminada
+        outcome = platform_tools.apply(turn, tools_used, state)
         return ExternalResult(turn=turn, outcome=outcome, trace=trace)

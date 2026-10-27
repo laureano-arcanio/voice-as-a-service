@@ -9,7 +9,6 @@
 """
 import datetime
 import re
-import unicodedata
 from itertools import pairwise
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -410,13 +409,8 @@ def call_areas(s: Session, client_id: str, handoff) -> list[dict]:
 
 
 def find_area(areas: list[dict], name: str) -> dict | None:
-    """El area que nombro el LLM en la marca, sin importar mayusculas ni tildes."""
-    def key(text: str) -> str:
-        return re.sub(r"[^a-z0-9]", "", unicodedata.normalize("NFKD", text.lower()).encode("ascii", "ignore")
-                      .decode())
-    wanted = key(name)
-    return next((a for a in areas if key(a["name"]) == wanted), None)
-
+    """El area que eligio el agente en transfer_call (uno de los nombres del enum de la herramienta)."""
+    return next((a for a in areas if a["name"] == name), None)
 
 def candidates(s: Session, area: HandoffArea, now: datetime.datetime | None = None) -> list[TeamMember]:
     """A quien llamar ahora, en orden: los miembros activos con telefono, si el area esta activa y en

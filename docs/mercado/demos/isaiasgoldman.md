@@ -335,7 +335,7 @@ Revisado contra el código el 21-oct-2026:
 | Resumen por email de cada llamada | Desplegado el 20-oct-2026 |
 | Llamada saliente individual (API o pantalla Llamadas) | Disponible; la pantalla Llamadas está sin desplegar. Disparo manual en la demo |
 | Confirmación de turnos y avisos (D5) | Campañas de WhatsApp: desplegadas. Campañas de llamadas: implementadas, **sin desplegar** ([`../../LLAMADAS_SALIENTES_PLAN.md`](../../LLAMADAS_SALIENTES_PLAN.md)) |
-| Lista de precios en el agente | Para la demo y un piloto chico, en la definición del agente (texto). Para 266 productos con stock y precios que cambian cada mes: **falta** una app por cliente con herramientas ([`../../APPS.md`](../../APPS.md)) que lea la lista, el stock de Tiendanube (tiene API) o su sistema de gestión |
+| Lista de precios en el agente | Para la demo y un piloto chico, en la definición del agente (texto). Para 266 productos con stock y precios que cambian cada mes: **falta** una app por cliente con herramientas ([`../../archive/APPS.md`](../../archive/APPS.md)) que lea la lista, el stock de Tiendanube (tiene API) o su sistema de gestión |
 | Agenda real de técnicos | **Falta:** app por cliente o integración con lo que usen hoy |
 | Número de caso de reclamo y seguimiento | Hoy queda como resultado de la conversación en el panel. Un registro de casos con estado es parte de una app por cliente |
 | Ficha al vendedor por WhatsApp | A definir; hoy está en el panel y en el resumen por email |

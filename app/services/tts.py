@@ -12,6 +12,7 @@ from collections.abc import AsyncIterator
 import httpx
 
 from ..config import settings
+from ..voice.speech_text import to_speech
 from . import voices
 from .errors import Invalid, Upstream
 
@@ -57,7 +58,9 @@ async def _open(voice: str, text: str, response_format: str, stream: bool) -> tu
         raise Invalid("Texto vacio")
     if len(text) > MAX_PREVIEW_CHARS:
         raise Invalid(f"Texto de mas de {MAX_PREVIEW_CHARS} caracteres")
-    body = {"model": settings.vllm_tts_model, "voice": voice, "input": text, "response_format": response_format}
+    # El texto en palabras para la voz (numeros, horas, emails; app/voice/speech_text.py).
+    body = {"model": settings.vllm_tts_model, "voice": voice, "input": to_speech(text),
+            "response_format": response_format}
     if stream:
         body["stream"] = True
     client = httpx.AsyncClient(timeout=httpx.Timeout(60, connect=5))

@@ -41,7 +41,7 @@ Clonar el repo no alcanza. Lo que está fuera de git:
 | Pesos de Hugging Face | volumen `voice-as-a-service_hf_cache` (80 GB, casi todo de modelos descartados) | Parakeet ~1,2 GB; el Qwen3.5-9B (~12 GB) solo para volver a él | no | se bajan solos en el primer arranque (ningún modelo es *gated*: `HF_TOKEN` no hace falta). Opcional: copiarlos (paso 4.4) |
 | Imágenes de Docker | `/var/lib/docker` | ~62 GB | no | `docker pull` y `make build` (paso 5.1) |
 | `storage/` (grabaciones por mensaje, aperturas pregeneradas, imágenes de los links para llamar) | `./storage` montado en `app` y `agent` | 42 MB (21-oct-2026) | sí (desde el 21-oct-2026): `storage/storage-*.tar.gz` | `tar -xzf` en la raíz del repo (las aperturas se regeneran solas al guardar el agente) |
-| Apps de clientes (`app-sugym-gestion`, SQLite en su volumen) | repo `atentina-apps` | KB | no, a propósito | no se usan: se regeneran con `make deploy` de ese repo |
+| Apps de clientes (`app-sugym-gestion`, SQLite en su volumen) | repo `atentina-apps` | KB | no, a propósito | no se llevan: la plataforma ya no las usa desde el 26-oct-2026 ([`LIMPIEZA_PLAN.md`](LIMPIEZA_PLAN.md)); ni la red `atentina-apps` ni la ruta `apps.` del túnel |
 | Crontab del usuario | `crontab -l` | — | versionado en `deploy/crontab` | `make cron-install` (paso 8.2) |
 | Unidades de systemd | `/etc/systemd/system/atentina-*.service` | — | — | `sudo deploy/install.sh` (paso 8.1), desde la plantilla `deploy/systemd/` |
 

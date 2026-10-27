@@ -15,7 +15,6 @@ const agent = (id: string, name: string, objective: string): Agent => ({
   call_link_url: null,
   version: 1,
   archived: false,
-  engine: 'classic',
   voice: 'sofia',
   created_at: '2026-10-01T12:00:00Z',
   updated_at: '2026-10-01T12:00:00Z',

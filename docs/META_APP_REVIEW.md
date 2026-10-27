@@ -62,7 +62,7 @@ y [App Review para WhatsApp](https://developers.facebook.com/docs/whatsapp/solut
 solo la ventana del navegador; mouse en vez de teclado; **cursor agrandado**; anotaciones que marquen dónde se
 usa el permiso; zoom en lo chico; **sin audio** ("reviewers won't listen").
 
-**Nuestros, además:** sin datos de terceros (ni la sección Operadores ni conversaciones de prospectos);
+**Nuestros, además:** sin datos de terceros (ni conversaciones de prospectos; la sección Operadores ya no existe desde el 26-oct-2026);
 grabar con el usuario de revisores (vista de cliente, sin el menú de Administración); solo acciones reales.
 
 ## 2. `whatsapp_business_messaging`
@@ -94,7 +94,7 @@ grabar con el usuario de revisores (vista de cliente, sin el menú de Administra
 **Confirmación:** marcar "Si se aprueba, confirmo que cualquier información…".
 
 **Video (grabación real, 1–2 min, sin audio, subtítulos en inglés)**: pantalla partida o alternada entre el
-panel (Chrome, ventana de 1440 px) y **WhatsApp Web** de un número propio que no sea operador.
+panel (Chrome, ventana de 1440 px) y **WhatsApp Web** de un número propio.
 
 | # | Qué se graba | Subtítulo en inglés |
 |---|---|---|

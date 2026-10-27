@@ -12,7 +12,7 @@ Hay dos roles:
   - **Agentes:** Mis agentes, Probar agentes y Voces.
   - **Canales:** WhatsApp, Llamadas y Campañas.
   - **Organización:** Contactos y Equipo.
-  - **Configuración:** Modelos y Apps.
+  - **Configuración:** Modelos.
   - **Developers:** API keys y Uso de la API.
   - **Cuenta:** Mi cuenta, Plan y Consumos.
 - **Admin:** opera la plataforma y ve todo. El mismo menú sin lo que es solo del cliente (Modelos, API keys y
@@ -90,8 +90,8 @@ una sola vez). Si el aviso dice que no se pudo mandar, o el link venció, **Usua
 
 ### 3. Crear el agente (Agentes)
 
-**Agentes > Nuevo agente**: cliente, nombre, slug (opcional), descripción, **motor** (Clásico, el de
-por defecto, o Estructurado; lleva la píldora "interno") y **punto de partida**: el **asistente básico** (atiende, responde con la
+**Agentes > Nuevo agente**: cliente, nombre, slug (opcional), descripción y **punto de partida** (no se
+elige motor: hay uno solo desde el 26-oct-2026): el **asistente básico** (atiende, responde con la
 base de conocimiento y, si no puede, toma nombre y contacto) o **en blanco** (un dato y el resultado
 por defecto). Te lleva a la pestaña **Definición** para completarlo.
 
@@ -99,18 +99,19 @@ El detalle del agente tiene cuatro pestañas:
 
 - **Resumen:** la definición en limpio: agente, idioma, versión, objetivo, apertura, reglas, base de
   conocimiento, datos a obtener (orden, tipo, obligatorio, pregunta sugerida) y resultados.
-- **Definición:** un formulario por partes. El cliente ve el mismo, sin motor, **Ver prompt** ni JSON
+- **Definición:** un formulario por partes. El cliente ve el mismo, sin **Ver prompt** ni JSON
   (ver [Agentes (cliente)](#agentes-cliente)):
-  - **Agente:** nombre, rol, idioma y **motor** (Clásico, Estructurado o Asistente, en tarjetas). La definición es la misma con los dos primeros: cambiarlo no toca nada más. **Asistente** (solo admin) es el asistente personal con las herramientas de las apps del cliente ([`APPS.md`](APPS.md)): oculta Datos a obtener y Resultados (lo que haya queda guardado) y muestra **Herramientas**.
-  - **Herramientas** (motor Asistente): un switch por cada app del cliente, con **Todas** o **Elegir** herramientas una por una. Las que borran o envían se confirman con el usuario antes de usarlas.
+  - **Agente:** nombre, rol e idioma.
+  - **Tu propio agente:** prendido, contesta el agente del cliente (su endpoint compatible con OpenAI, por una conexión de **Modelos**) y Atentina pone la voz y el teléfono; se ocultan **Herramientas** y **Modelo de lenguaje** ([`AGENTE_EXTERNO_PLAN.md`](AGENTE_EXTERNO_PLAN.md)). Es una opción del agente, no un motor aparte.
+  - **Herramientas:** las herramientas del cliente (las de **Herramientas**: llamadas a una API o código), las **vueltas con herramientas por turno** (vacío: 3) con el **mensaje al llegar al tope**, y los **Secretos** del agente (tokens y claves que usan sus herramientas; se escriben una vez y no se vuelven a mostrar; **Falta** marca los que pide una herramienta y no están cargados). **Confirmar antes de ejecutarla** es de cada herramienta: solo agrega a su descripción que pida confirmación; el modelo decide (la plataforma no confirma desde el 26-oct-2026).
   - **Voz:** tarjetas con las voces (filtro por mujeres u hombres); al lado, la prueba con la voz elegida, con la apertura como texto (editable). **Grabar audio**: un WAV por mensaje de cada llamada (telefónica o de WhatsApp; el cliente y el agente por separado), localmente en el servidor; con **Avisar que la llamada se graba**, el agente lo dice antes del saludo. **Ventana de contexto en WhatsApp (minutos)**: minutos sin mensaje del contacto para que la próxima conversación arranque en limpio, sin el historial anterior; vacío usa el default del servidor (1440 min = 24 hs).
-  - **Derivación a personas** (solo motor Clásico; con otro lo avisa y no se edita): las áreas del cliente (de
+  - **Derivación a personas:** las áreas del cliente (de
     **Equipo**, con su horario; si no tiene, un link para crearlas). **Puede pasarle llamadas** habilita cada área
     (hasta 10) y abre **Cuándo pasarla**, el criterio para el agente (vacío = la descripción del área). Un área
     inactiva queda marcada, pero el agente no la ofrece. Con alguna área, **Música de espera** (prendida por
     defecto): tema (**Música de espera estándar** o los que haya en el servidor) y volumen (5 a 100 %). Sin áreas
     marcadas no se guarda nada de esto.
-  - **Objetivo y apertura**, **Reglas** (una por regla) y **Base de conocimiento**.
+  - **Objetivo y apertura**, **Reglas** (una por regla) y **Base de conocimiento**. La plantilla trae reglas genéricas de comportamiento (una pregunta por turno, no inventar, cuándo cortar), editables. La fecha no se le pasa sola al agente: `{{today}}` y `{{now}}` se pueden usar en el objetivo, las reglas y la base de conocimiento.
   - **Datos a obtener:** cada dato con etiqueta, nombre interno, tipo (texto, número, sí o no, opción
     de una lista, email, email o teléfono), si es obligatorio (sí, no o según otro dato), descripción
     y pregunta sugerida. Se ordenan con las flechas. Al renombrar uno, se actualizan las condiciones que lo usan.
@@ -132,9 +133,9 @@ El detalle del agente tiene cuatro pestañas:
     (`/calls/<id>/hablar`). Si este agente ya tiene una prueba esperando que alguien se conecte, entra a esa
     en vez de crear otra; si no, la crea. No marca teléfonos ni gasta minutos. Las salientes a un
     teléfono, en **Llamadas**.
-  - **Conversación por texto:** chateás con el agente sin voz. Con el motor estructurado ves los datos
-    que va extrayendo y el próximo objetivo en cada turno; con el clásico (el de por defecto), los datos
-    aparecen al terminar la conversación.
+  - **Conversación por texto:** chateás con el agente sin voz. Los datos aparecen al terminar la
+    conversación; las llamadas a herramientas se ven en la traza de cada respuesta (argumentos, estado,
+    tiempo y resultado).
   - **Link para llamar:** lo crea, o lo muestra para copiar o abrir; **Configurar** lleva a la pestaña
     Link para llamar (nombre, imagen, límites, pausar, regenerar).
 
@@ -197,34 +198,12 @@ contacto manda un audio, el agente lo transcribe y contesta con una nota de voz 
 4. **Ruteo por contacto** (menú de la fila): agrega uno o más agentes y, a cada uno, la lista de
    contactos que atiende (el WhatsApp con código de país, ej. `5493511234567`; Enter después de cada
    uno). Esos contactos los atiende ese agente en los mensajes y las llamadas de WhatsApp; los demás,
-   el agente por defecto. Los operadores siguen por encima. Se ve debajo del agente ("N reglas por
+   el agente por defecto. Se ve debajo del agente ("N reglas por
    contacto").
 5. **Desactivar:** los mensajes a ese número dejan de responderse. No hay borrado: las conversaciones
    lo referencian. **Activar** lo vuelve a habilitar.
 
 Si el cliente está desactivado, sus números de WhatsApp tampoco responden.
-
-**Operadores** (en WhatsApp, solo admin): el dueño de un negocio que le habla a su asistente por un
-número compartido. Se carga el número, el contacto (`wa_id`, sin +, como `5493511234567`), el
-cliente y un agente de ese cliente. Los mensajes de ese contacto a ese número los atiende el agente
-del operador; los demás contactos siguen con el agente del número. Se puede cambiar el agente,
-desactivar o borrar.
-
-### 4c. Apps del cliente (Apps)
-
-Las apps son los contenedores de `atentina-apps` ([`APPS.md`](APPS.md)): aparecen solas cuando se
-registran con `make register` desde ese repo.
-
-- **Admin:** ve todas y filtra por cliente. Por cada app: versión, estado (Responde, No responde o
-  Inválida, con el motivo), cliente, vistas y herramientas (las que borran o envían, resaltadas) y
-  último chequeo. Acciones: **Asignar** a un cliente, **Liberar** (vuelve al inventario y revoca sus
-  links), **Releer** el manifest (después de una versión nueva) y **Borrar** (solo del inventario).
-- **Ambos roles:** **Link a una vista** (elegir la vista y, si hace falta, parámetros como
-  `fecha=2026-10-12`): muestra la URL una sola vez, con botón de copiar. **Ver links:** quién los
-  creó, cuándo vencen, cuántas veces se abrieron, y revocar.
-
-Para que un dueño use su app: asignarla, crear un agente con motor **Asistente** y la app en
-**Herramientas**, y cargarlo como **Operador** del número.
 
 ### 5. Usuarios y API keys del cliente
 
@@ -371,9 +350,9 @@ El usuario de un cliente crea y edita sus propios agentes; no ve ni puede tocar 
    tuvo conversaciones ni atiende un número de WhatsApp).
 6. Para que atienda: elegilo en **Mi cuenta > Números** o en **WhatsApp**.
 
-No se muestran el cliente, el slug, el motor, el JSON ni el prompt: son internos. El agente nace con
-el motor Clásico; desde la UI lo cambia un admin. Por API el cliente hace lo mismo con su API key
-(`POST /api/v1/agents` sin `client_id`); ahí `engine` es un campo más de la definición.
+No se muestran el cliente, el slug, el JSON ni el prompt: son internos. Por API el cliente hace lo
+mismo con su API key (`POST /api/v1/agents` sin `client_id`); `engine` ya no existe en la definición
+(el de una definición vieja se ignora) y tu propio agente es `external`.
 
 ### Modelos (cliente) y Modelo de lenguaje de un agente
 
@@ -393,7 +372,7 @@ por agente, desde qué turno lo usa ([`BYOK_LLM_PLAN.md`](BYOK_LLM_PLAN.md)).
    Atentina pide confirmación y quita las etapas.
 4. **Configurar parámetros del modelo** despliega todos los parámetros del modelo (temperatura, `top_p`,
    `top_k`/`min_p`, razonamiento y su tope, máximo de tokens…) con su **valor por defecto**, el recomendado
-   para el modelo y el motor. Para cambiarlos: **Cambiar valores** y confirmar (se pregunta una vez por
+   para el modelo. Para cambiarlos: **Cambiar valores** y confirmar (se pregunta una vez por
    edición). Solo los cambiados van a la definición, marcados como *Cambiado*, y se vuelven al default
    con la flecha o con **Volver todo al default**. Sin default conocido (otro proveedor) dice *Automático*.
 5. **Por etapas:** una etapa por tramo de la conversación. *Desde el turno* es el mensaje número N de la
@@ -404,6 +383,29 @@ por agente, desde qué turno lo usa ([`BYOK_LLM_PLAN.md`](BYOK_LLM_PLAN.md)).
    error, ese turno lo contesta el servidor propio. Apagado, el error corta el turno.
 7. Las conversaciones con una etapa externa **salen de Atentina**: el editor lo avisa. En el detalle
    de una conversación, cada llamada al modelo muestra proveedor y modelo, y cuándo contestó el respaldo.
+
+### Herramientas (`/tools`, ambos roles)
+
+Lo que el agente puede hacer durante una conversación ([`TOOLS_PLAN.md`](TOOLS_PLAN.md)): consultar un turno,
+crear una reserva, buscar una deuda. El admin elige el cliente arriba. Está si el plan incluye
+herramientas (`max_tools`); las de código, si incluye `code_tools`.
+
+- **Nueva herramienta > Llamar a una API:** método y URL (con `{variables}` de la ruta) y pestañas
+  **Ruta**, **Query**, **Headers**, **Body**, **Autenticación**, **Respuesta** y **Voz**. Cada parámetro
+  lo completa **el agente** (con una descripción: qué dato es) o es un **valor fijo** (puede llevar
+  `{{secrets.NOMBRE}}`, `{{call.from}}` y otras variables, del menú `{ }`). El agente solo ve los que
+  completa. Autenticación: Bearer, API key (header o query), Basic u OAuth2 client credentials, con un
+  secreto del agente. **Lo que ve el agente** muestra la función tal como le llega al modelo.
+- **Nueva herramienta > Escribir código:** una función en JavaScript (`export default async function
+  ({ args, secrets, call, vars })`) que arranca con un ejemplo. Al lado: **Parámetros**, **Secretos que
+  usa** (llegan en `secrets`), **Hosts permitidos** (la función solo puede llamar a esos dominios) y el
+  tiempo máximo.
+- **Probar** (los dos tipos): los argumentos como los mandaría el agente, los secretos de un agente o
+  valores solo para la prueba (no se guardan), y el resultado: el pedido enviado (con los secretos
+  tachados), la respuesta, lo que recibe el agente y los logs del código. Llama de verdad a la API.
+- Para que un agente la use: en el agente, **Definición > Herramientas**, elegirla y cargar sus
+  **Secretos** (primero los secretos: sin ellos el agente no se guarda). Cambiar una herramienta rige en
+  todos los agentes que la usan; no se puede borrar mientras un agente la use.
 
 ### Voces
 

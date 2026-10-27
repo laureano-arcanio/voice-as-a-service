@@ -74,10 +74,16 @@ class Completion(BaseModel):
 
 
 class ToolGrant(BaseModel):
-    """Herramientas de una app (docs/APPS_PLAN.md) que puede usar un agente con motor assistant.
-    tools: nombres del manifest de la app, o ["*"] para todas."""
-    app: str
-    tools: list[str] = Field(default_factory=lambda: ["*"])
+    """Una herramienta del cliente que puede usar el agente: el slug de una herramienta http o code
+    (docs/TOOLS_PLAN.md)."""
+    tool: str = Field(pattern=r"^[a-z][a-z0-9_]{1,63}$")
+
+
+class ToolSettings(BaseModel):
+    """Limite de recursos del bucle de herramientas (docs/TOOLS_PLAN.md, 7): vueltas al LLM con herramientas por
+    turno. Al llegar, el turno termina con limit_message (no se fuerza al modelo a responder)."""
+    max_calls_per_turn: int = Field(default=3, ge=1, le=10)
+    limit_message: str = Field(default="Disculpá, no pude completar eso.", min_length=1, max_length=300)
 
 
 class Generation(BaseModel):
@@ -145,7 +151,7 @@ class LlmPlan(BaseModel):
 
 
 class ExternalConfig(BaseModel):
-    """Motor external (docs/AGENTE_EXTERNO_PLAN.md): cada turno lo contesta el agente del cliente, un endpoint
+    """Tu propio agente (docs/AGENTE_EXTERNO_PLAN.md): cada turno lo contesta el agente del cliente, un endpoint
     compatible con OpenAI (chat completions en streaming) de una conexion suya (llm_connections). La plataforma
     pone la voz, la telefonia y los minutos; el prompt y las herramientas son del cliente."""
     connection: str = Field(min_length=1)
@@ -194,12 +200,6 @@ class Workflow(BaseModel):
     slug del agente y su version."""
     id: str
     version: int
-    # structured: por turno el LLM responde en JSON y otra llamada extrae los
-    # datos, con estado. classic: prompt armado del YAML, conversacion
-    # multiturno en texto y una sola extraccion al final. assistant: asistente
-    # con herramientas de las apps del cliente (sin datos a extraer). external: el
-    # agente del cliente detras de un endpoint (ExternalConfig), sin datos a extraer.
-    engine: Literal["structured", "classic", "assistant", "external"] = "structured"
     # Graba un WAV por mensaje/audio, localmente, con su numero en Message.recording:
     # llamadas y audios de WhatsApp (app/conversation/recordings.py).
     record_audio: bool = False
@@ -222,26 +222,36 @@ class Workflow(BaseModel):
     knowledge: str = ""
     fields: dict[str, FieldSpec] = Field(default_factory=dict)
     completion: Completion
+    # Herramientas del cliente que usa el agente (no con external: las tiene su propio agente).
     tools: list[ToolGrant] = Field(default_factory=list)
-    # Llamadas: areas del equipo a las que puede derivar (motor classic, marca [DERIVAR:<area>]).
+    # None: los defaults de ToolSettings (no se guarda, asi una definicion sin herramientas no cambia).
+    tool_settings: ToolSettings | None = None
+    # Llamadas: areas del equipo a las que puede derivar (herramienta transfer_call).
     handoff: HandoffConfig | None = None
-    # Motor external: el endpoint del cliente que contesta cada turno.
+    # Tu propio agente: el endpoint del cliente contesta cada turno (sin el prompt de la definicion ni extraccion).
     external: ExternalConfig | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _legacy(cls, data: Any) -> Any:
+        """Definiciones viejas: `engine` (classic, structured, assistant o external; desde el 26-oct-2026 hay un
+        solo motor y external es tener `external`) y herramientas de apps ({app, tools}, quitadas el 26-oct-2026)
+        se ignoran, asi las conversaciones guardadas se siguen leyendo."""
+        if not isinstance(data, dict):
+            return data
+        data = {k: v for k, v in data.items() if k != "engine"}
+        if isinstance(data.get("tools"), list):
+            data["tools"] = [{"tool": g["tool"]} for g in data["tools"] if isinstance(g, dict) and g.get("tool")]
+        return data
 
     @model_validator(mode="after")
     def _consistent(self) -> "Workflow":
         """Lo que el motor da por sentado: las definiciones ahora se editan desde la UI."""
-        if self.engine == "external" and self.external is None:
-            raise ValueError("external: el motor external necesita la conexion del agente del cliente")
-        if self.external is not None and self.engine != "external":
-            raise ValueError("external: solo vale con el motor external")
-        if not self.fields and self.engine not in ("assistant", "external"):
-            raise ValueError("fields: el agente necesita al menos un dato a obtener")
-        if self.tools and self.engine != "assistant":
-            raise ValueError("tools: solo el motor assistant usa herramientas")
-        apps = [g.app for g in self.tools]
-        if len(set(apps)) != len(apps):
-            raise ValueError("tools: una app repetida")
+        if self.tools and self.external is not None:
+            raise ValueError("tools: con tu propio agente, las herramientas son las de tu agente")
+        slugs = [g.tool for g in self.tools]
+        if len(set(slugs)) != len(slugs):
+            raise ValueError("tools: una herramienta repetida")
         for name, spec in self.fields.items():
             if not re.fullmatch(r"[a-z][a-z0-9_]*", name):
                 raise ValueError(f"fields.{name}: usar minusculas, numeros y _ (ej. contact_name)")
@@ -263,8 +273,6 @@ class Workflow(BaseModel):
         if self.generation is not None and not self.generation.params:
             self.generation = None
         if self.handoff is not None and self.handoff.areas:
-            if self.engine not in ("classic", "external"):
-                raise ValueError("handoff: por ahora solo los motores classic y external derivan llamadas")
             ids = [a.area_id for a in self.handoff.areas]
             if len(set(ids)) != len(ids):
                 raise ValueError("handoff.areas: un area repetida")
@@ -306,16 +314,11 @@ class TurnMedia(BaseModel):
 
 class Progress(BaseModel):
     """Registro de la app; no decide el flujo."""
-    rejected: dict[str, Any] = Field(default_factory=dict)   # valores invalidos de la ultima extraccion (se le informan al LLM)
+    rejected: dict[str, Any] = Field(default_factory=dict)   # valores invalidos de la ultima extraccion (para el panel)
     outcome: str | None = None                               # Outcome.id al completar (para el dashboard)
     undo: dict[str, Any] | None = None                       # estado previo al ultimo turno (retract_last_turn)
-    asked: str | None = None                                 # objetivo que pregunto el ultimo mensaje del agente
-    # Objetivos que el LLM dio por respondidos pero la extraccion no encontro:
-    # no se vuelven a preguntar, y sin el dato el workflow queda incompleto.
-    answered_empty: list[str] = Field(default_factory=list)
-    # Motor assistant: accion destructiva o de envio esperando el si del usuario
-    # ({tool, arguments, summary}); vale solo para el turno siguiente.
-    pending: dict[str, Any] | None = None
+    # Valores que guardaron las herramientas del cliente (assign) para las siguientes ({{vars.x}}).
+    tool_vars: dict[str, Any] = Field(default_factory=dict)
     # Llamada de una campaña de voz (app/conversation/contact.py): los datos del contacto que van al prompt
     # y los campos que la campaña ya cargo en `fields` (el agente no los pregunta). No cambian en la conversacion.
     contact: dict[str, Any] = Field(default_factory=dict)
@@ -326,7 +329,7 @@ class Progress(BaseModel):
     # Llamada con derivacion: las areas que puede usar el agente, como las ve el LLM ({id, name, when, schedule}).
     # Las fija el worker al empezar (app/voice/handoff.py) y no cambian en la llamada.
     handoff_areas: list[dict[str, Any]] = Field(default_factory=list)
-    # Motor external: errores seguidos del endpoint del cliente (vuelve a 0 con un turno bueno).
+    # Tu propio agente: errores seguidos del endpoint del cliente (vuelve a 0 con un turno bueno).
     external_errors: int = 0
 
 
@@ -353,16 +356,13 @@ class ConversationState(BaseModel):
 class AgentTurn(BaseModel):
     """Salida del LLM de conversacion. Los datos no van aca: los saca la
     extraccion, que corre aparte mientras suena la respuesta."""
-    answered: bool = False          # el usuario respondio lo que pregunto el mensaje anterior
-    next_objective: str | None = None
     assistant_message: str
     status: Literal["active", "completed"] = "active"
-    # Con status completed: "off_topic" si el agente corta porque la conversacion no tiene que ver
-    # con su objetivo (motor clasico, OFF_TOPIC_MARKER); None, el cierre normal.
-    # Motor external: "external_error" si corto despues de max_errors errores del endpoint, o
-    # "external_agent_not_in_plan" si el plan del cliente ya no incluye la funcion.
+    # Con status completed: "off_topic" si el agente corta porque la conversacion no tiene que ver con su
+    # objetivo (end_call con motivo fuera_de_tema); None, el cierre normal. Tu propio agente:
+    # "external_error" si corto despues de max_errors errores del endpoint, o "external_agent_not_in_plan".
     end_reason: Literal["off_topic", "external_error", "external_agent_not_in_plan"] | None = None
-    # El agente pasa la llamada a esa area (nombre como lo escribio el LLM en HANDOFF_MARKER); status sigue active.
+    # El agente pasa la llamada a esa area (transfer_call); status sigue active.
     handoff: str | None = None
     # Salida cruda del LLM y su razonamiento; no son parte del contrato.
     raw: str | None = Field(default=None, exclude=True)

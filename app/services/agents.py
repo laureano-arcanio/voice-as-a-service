@@ -7,8 +7,7 @@ from sqlalchemy import exists, func, select
 from sqlalchemy.orm import Session
 
 from ..agents.templates import blank_definition, template_data
-from ..apps.tools import check_grants
-from ..conversation.models import ToolGrant, Workflow
+from ..conversation.models import Workflow
 from ..db import utcnow
 from ..models import (
     Agent,
@@ -21,6 +20,7 @@ from ..models import (
 )
 from . import handoff, voices
 from . import limits as limits_service
+from . import tools as tools_service
 from .errors import Conflict, Invalid, NotFound
 
 SLUG_RE = re.compile(r"[a-z0-9][a-z0-9_]{0,63}")
@@ -53,10 +53,9 @@ def normalize_definition(raw: dict, slug: str, version: int) -> dict:
     return workflow.model_dump(mode="json", exclude_none=True)
 
 
-def _check_tools(s: Session, client_id: str, normalized: dict) -> None:
-    """Motor assistant: las apps de tools son del cliente y tienen esas herramientas."""
-    if grants := [ToolGrant.model_validate(g) for g in normalized.get("tools") or []]:
-        check_grants(s, client_id, grants)
+def _check_tools(s: Session, client_id: str, normalized: dict, agent_id: str | None = None) -> None:
+    """Las herramientas del cliente existen, el plan las incluye y el agente tiene sus secretos (services/tools.py)."""
+    tools_service.check_agent_tools(s, client_id, agent_id, normalized)
 
 
 def _check_llm(s: Session, client_id: str, normalized: dict) -> None:
@@ -101,10 +100,8 @@ def slugify(name: str) -> str:
 
 
 def create_agent(s: Session, client: Client, name: str, slug: str | None, description: str,
-                 definition: dict | None, template_id: str | None, user_id: str | None,
-                 engine: str | None = None) -> Agent:
-    """definition, o template_id (la plantilla de la UI), o ninguno: en blanco. engine pisa
-    el de la definicion (es la misma con los dos motores)."""
+                 definition: dict | None, template_id: str | None, user_id: str | None) -> Agent:
+    """definition, o template_id (la plantilla de la UI), o ninguno: en blanco."""
     if definition is not None and template_id is not None:
         raise Invalid("Pasar definition o template_id, no los dos")
     if template_id is not None:
@@ -114,8 +111,6 @@ def create_agent(s: Session, client: Client, name: str, slug: str | None, descri
             raise NotFound(f"Plantilla inexistente: {template_id}") from None
     elif definition is None:
         definition = blank_definition(client.name)
-    if engine is not None:
-        definition = {**definition, "engine": engine}
     slug = slug or slugify(name)
     if not SLUG_RE.fullmatch(slug):
         raise Invalid("slug: minusculas, numeros y _ (hasta 64)")
@@ -140,7 +135,7 @@ def update_definition(s: Session, agent: Agent, definition: dict, user_id: str |
     s.refresh(agent, with_for_update=True)
     current = {k: v for k, v in agent.definition.items() if k != "version"}
     normalized = normalize_definition(definition, agent.slug, agent.version + 1)
-    _check_tools(s, agent.client_id, normalized)
+    _check_tools(s, agent.client_id, normalized, agent.id)
     _check_llm(s, agent.client_id, normalized)
     _check_external(s, agent.client_id, normalized)
     _check_handoff(s, agent.client_id, normalized)
