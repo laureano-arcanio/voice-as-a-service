@@ -263,6 +263,35 @@ Si el cliente está desactivado, sus números de WhatsApp tampoco responden.
   cliente los ve como "Completas" y "Tiempo de respuesta".
 - **Conversaciones por día** (barras) y **Resultado por día** (líneas: % con workflow completo y %
   con objetivo cumplido).
+- Para ver más (conversión, mapa de calor por hora, transferencias, campañas), **Reportes** (más abajo).
+### Reportes (`/reports`, ambos roles)
+
+Estadísticas del negocio para decidir: cuánto te consultan, cuántas consultas terminan bien y si el plan
+alcanza. En la navegación, debajo de Inicio.
+
+- **Filtros (arriba):** período (últimos 30 días por defecto; los KPIs se comparan con el período anterior),
+  agente, canal (llamadas, WhatsApp o web), línea y **Incluir pruebas** (apagado: las llamadas de prueba y del
+  Playground quedan fuera). El admin suma el selector de cliente, con **Todos**.
+- **Pestañas:**
+  - **Resumen:** consultas por día (llamadas y WhatsApp apiladas) con cuántas terminaron en una
+    transferencia, KPIs (conversaciones, % de conversión, % derivadas, minutos, duración media) y el
+    consumo de minutos del plan con la proyección a fin de mes.
+  - **Llamadas:** por día y modo, mapa de calor por día y hora, por línea y por agente, duración, cómo
+    terminaron y llamantes nuevos o que vuelven.
+  - **Resultados:** conversión (completa, parcial o sin datos), resultados por agente, embudo, datos
+    capturados por campo y comparación por versión del agente.
+  - **Mensajes:** WhatsApp por día y hora, texto o nota de voz, entrega y estado de la cuenta.
+  - **Transferencias:** pedidas, atendidas y no atendidas, por área y por persona del equipo.
+  - **Campañas:** comparativo, embudo, motivos de no contacto y mejor horario.
+  - **Técnico** y **Plataforma** (solo admin; Plataforma, con cliente en Todos): latencia, herramientas,
+    errores y tokens; clientes con alertas ("cerca del cupo" y "inactivo"), negocio y operación.
+- **Plan:** Resumen y Llamadas están en todos los planes. Resultados, Mensajes, Transferencias y Campañas son
+  de los planes con reportes completos: en el Free se ve el aviso con **Mejorar mi plan** y el panel
+  atenuado. El admin las ve siempre.
+- **Descargar CSV:** cada tabla o gráfico tiene su botón, con los datos tal como se ven con los filtros
+  elegidos.
+- El cliente no ve nada técnico (latencia, herramientas, errores internos): eso es de las pestañas del admin.
+
 ### Conversaciones (`/calls`)
 
 - Todas las conversaciones (llamadas, API y WhatsApp), con los mismos filtros que el inicio (cliente,

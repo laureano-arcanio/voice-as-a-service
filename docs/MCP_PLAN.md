@@ -118,6 +118,7 @@ Toolset `core` = `account` + `agents` + `calls`. Columna Plan: la función de `f
 | `calls` | `start_call` (saliente a un número) | `outbound_calls` | `POST /calls` |
 | `calls` | `list_phone_numbers`, `route_phone_number` (a qué agente va) | — | `/phone-numbers` |
 | `calls` | `list_blocked_numbers`, `block_number`, `unblock_number` | — | `/blocked-numbers` |
+| `reports` | `get_report_summary`, `get_report_calls` (todos los planes); `get_report_outcomes`, `get_report_messages`, `get_report_transfers`, `get_report_campaigns` | `advanced_reports` (las cuatro últimas) | `/reports/*` |
 | `call_links` | `get_call_link`, `create_call_link`, `update_call_link`, `rotate_call_link`, `delete_call_link`, `set_call_link_image` | `call_links` | `/agents/{id}/call-link` |
 | `whatsapp` | `list_whatsapp_accounts`, `update_whatsapp_account`, `set_whatsapp_routes`, `list_whatsapp_templates`, `create_whatsapp_template`, `close_whatsapp_thread`, `list_wa_operators`, `create_wa_operator`, `update_wa_operator`, `delete_wa_operator`, `get_whatsapp_signup_link` | `whatsapp` | `/whatsapp/*`, `/wa-operators` |
 | `contacts` | `list_contacts`, `get_contact`, `upsert_contacts`, `import_contacts` (CSV en texto), `update_contact`, `archive_contacts`, `unarchive_contact`, `list_optouts`, `add_optout`, `remove_optout` | `contacts` | `/contacts` |
@@ -424,6 +425,22 @@ Falta la primera conexión real desde Claude.ai o Claude Code (la hace el usuari
 
 **Pendiente:** CORS para clientes de navegador (sin pedido real: el `OPTIONS` que se vio era un chequeo de métodos,
 no un preflight). El resto, en la fase 5 (sección 13).
+
+**27-oct-2026: reportes** ([`REPORTES_PLAN.md`](REPORTES_PLAN.md), 9.4; sin desplegar).
+
+- Grupo nuevo `reports` (por defecto; fuera de `core`) con 6 herramientas de lectura que piden a `GET /api/v1/reports/*`
+  con los mismos filtros de la API (`date_from`, `date_to`, `tz`, `agent_id`, `channel`, `phone_number_id`,
+  `include_tests`): `get_report_summary` y `get_report_calls` en todos los planes; `get_report_outcomes`,
+  `get_report_messages`, `get_report_transfers` y `get_report_campaigns` con la función `advanced_reports`
+  (Mostrador, Sucursal y Red; Free recibe `feature_not_in_plan`). Sirven también con la key `mcp_read`.
+- Toolset `admin`: `get_report_technical` (latencia, proveedores del LLM, herramientas, errores y tokens; con
+  `client_id` opcional) y `get_report_platform` (clientes con alertas, negocio y operación; sin `client_id`). El
+  cliente no las ve ni puede pedirlas (lo técnico es del admin).
+- Total: 143 herramientas en el catálogo (113 de cliente por defecto, 3 de `inference`, 27 de `admin`); eran 137.
+  Las cifras de 87 y 116 de arriba son las de la fecha de cada fase.
+- `tests/test_mcp.py` (3 pruebas nuevas: catálogo, mismo resultado que la API y plan) y `tests/test_oauth.py` (admin
+  con toda la plataforma). `make mcp-docs` regeneró `MCP_HERRAMIENTAS.md` y la página `/desarrolladores/docs/mcp`.
+  Falta medir con `make mcp-eval` si el modelo elige bien entre `get_stats` y `get_report_summary` (gasta tokens).
 
 ## 13. Fase 5 (25-oct-2026)
 

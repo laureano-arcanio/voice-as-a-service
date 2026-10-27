@@ -704,6 +704,28 @@ lo de esta sección es lo que lo protege.
 - **Filtros de fecha** (`/calls`, `/stats`, `/stats/daily`): toman días locales de `tz` (zona IANA,
   default `BILLING_TIMEZONE`). `status` se puede repetir.
 
+## Reportes (`/api/v1/reports`)
+
+Contrato completo en [`REPORTES_PLAN.md`](REPORTES_PLAN.md), sección 9.
+
+- **Datos:** consultas SQL agregadas en `app/services/report_stats.py` (nada de cargar conversación por
+  conversación). `conversations` guarda al terminar `outcome`, `goal`, `conversion` (`complete`, `partial` o
+  `empty`) y `llm_input_tokens`/`llm_output_tokens`; `tool_runs` tiene una fila por ejecución de una
+  herramienta del cliente, y `wa_account_status_log` cada cambio de estado, calidad o límite de una cuenta de
+  WhatsApp (migración 0036; `make reports-backfill` completa las conversaciones anteriores). Las fechas
+  están en UTC naive y los días y horas se agrupan en la zona `tz` (default `BILLING_TIMEZONE`).
+- **Endpoints** (`app/api/routers/reports.py`): `summary`, `calls`, `outcomes`, `messages`, `transfers`,
+  `campaigns`, `technical` y `platform`. Filtros comunes: `client_id`, `agent_id`, `channel` (`voice`,
+  `whatsapp` o `web`), `phone_number_id`, `date_from`/`date_to` (últimos 30 días por defecto), `tz` e
+  `include_tests` (las pruebas fuera por defecto; el `loadtest`, siempre).
+- **Alcance por rol:** el cliente ve solo lo suyo (`scoped_client_id`) y nada técnico. Un admin elige el
+  cliente o deja `client_id` vacío (todos); `technical` y `platform` son solo del admin.
+- **Alcance por plan:** `summary` y `calls` van en todos los planes; `outcomes`, `messages`, `transfers` y
+  `campaigns` piden `tiers.advanced_reports` (clave `advanced_reports` de `services/features.TIER_HAS`) y sin
+  él dan 403 `advanced_reports_not_in_plan`.
+- **UI y MCP:** `web/src/features/reports/` (CSV armado en el navegador) y una herramienta `get_report_*`
+  por reporte del cliente en `app/mcp/catalog.py`.
+
 ## Frontend (`web/`)
 
 - **Stack:** React 19 + TypeScript strict + Vite, React Router 7 (rutas con carga diferida por

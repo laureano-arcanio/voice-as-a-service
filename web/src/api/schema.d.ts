@@ -3355,6 +3355,176 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Summary
+         * @description Resumen: consultas por día y canal con las transferencias, KPIs contra el período anterior
+         *     (conversaciones, % de conversión y de objetivo, derivadas, minutos, duración media, rechazadas por el
+         *     plan, mensajes de WhatsApp) y consumo del plan del mes con su proyección. Todos los planes.
+         */
+        get: operations["summary_api_v1_reports_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/calls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Calls
+         * @description Llamadas: por día y modo, mapa de calor por día de la semana y hora, por línea y por agente,
+         *     duración, cómo terminan, cortes tempranos y quién llama (nuevos, que vuelven, los que más vuelven).
+         *     Todos los planes.
+         */
+        get: operations["calls_api_v1_reports_calls_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/outcomes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Outcomes
+         * @description Resultados: conversión (completa, parcial, sin datos) por día y agente, resultados por agente,
+         *     embudo, datos obligatorios capturados y comparación por versión del agente. Plan con reportes completos.
+         */
+        get: operations["outcomes_api_v1_reports_outcomes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Messages
+         * @description Mensajes de WhatsApp: entrantes y salientes (texto y audio) por día, mapa de calor, entrega,
+         *     fallas, mensajes por conversación, conversión y estado de las cuentas. Plan con reportes completos.
+         */
+        get: operations["messages_api_v1_reports_messages_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/transfers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Transfers
+         * @description Transferencias a personas: pedidas, atendidas, no atendidas y sin disponibilidad, por día, área y
+         *     persona (tiempo hasta atender, minutos), y el puente de WhatsApp. Plan con reportes completos.
+         */
+        get: operations["transfers_api_v1_reports_transfers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/campaigns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Campaigns
+         * @description Campañas que corrieron en el período: contactos, intentos, alcanzados, conversión, bajas y minutos;
+         *     motivos de no contacto y mejores horarios. Plan con reportes completos.
+         */
+        get: operations["campaigns_api_v1_reports_campaigns_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/technical": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Technical
+         * @description Técnico (admin): latencia p50/p95 por día y por etapa, turnos por proveedor del LLM, herramientas
+         *     (usos, errores, tiempos), errores de llamadas, mails de resumen fallidos y tokens.
+         */
+        get: operations["technical_api_v1_reports_technical_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/platform": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Platform
+         * @description Plataforma (admin, todos los clientes): tabla por cliente con alertas (cerca del cupo, inactivo),
+         *     negocio (planes, altas, ingresos) y operación (pico de llamadas simultáneas, fallas, rechazos).
+         */
+        get: operations["platform_api_v1_reports_platform_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/oauth/authorize": {
         parameters: {
             query?: never;
@@ -7102,6 +7272,858 @@ export interface components {
             /** Plans */
             plans: components["schemas"]["PublicPlanOut"][];
         };
+        /** ReportAccountOut */
+        ReportAccountOut: {
+            /** Account Id */
+            account_id: string;
+            /** Display Phone Number */
+            display_phone_number: string | null;
+            /** Status */
+            status: string | null;
+            /** Quality Rating */
+            quality_rating: string | null;
+            /** Messaging Limit */
+            messaging_limit: string | null;
+            /**
+             * History
+             * @description Cambios dentro del período
+             */
+            history: components["schemas"]["ReportAccountStatusOut"][];
+        };
+        /** ReportAccountStatusOut */
+        ReportAccountStatusOut: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Status */
+            status: string | null;
+            /** Quality Rating */
+            quality_rating: string | null;
+            /** Messaging Limit */
+            messaging_limit: string | null;
+        };
+        /** ReportAlertOut */
+        ReportAlertOut: {
+            /** Client Id */
+            client_id: string;
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "near_quota" | "inactive";
+            /** Detail */
+            detail: string;
+        };
+        /** ReportAreaOut */
+        ReportAreaOut: {
+            /** Area Id */
+            area_id: string | null;
+            /** Name */
+            name: string;
+            /** Requested */
+            requested: number;
+            /** Answered */
+            answered: number;
+            /** Not Answered */
+            not_answered: number;
+            /** Unavailable */
+            unavailable: number;
+        };
+        /** ReportBestHourOut */
+        ReportBestHourOut: {
+            /**
+             * Weekday
+             * @description 0 = lunes
+             */
+            weekday: number;
+            /** Hour */
+            hour: number;
+            /** Attempts */
+            attempts: number;
+            /** Reached */
+            reached: number;
+        };
+        /** ReportBucketOut */
+        ReportBucketOut: {
+            /** Count */
+            count: number;
+            /**
+             * Bucket
+             * @enum {string}
+             */
+            bucket: "0-15s" | "15-60s" | "1-3m" | "3-5m" | "5-10m" | "10m+";
+        };
+        /** ReportBusinessOut */
+        ReportBusinessOut: {
+            /** Clients By Tier */
+            clients_by_tier: components["schemas"]["ReportTierCountOut"][];
+            /** Signups */
+            signups: components["schemas"]["ReportDayCountOut"][];
+            /**
+             * Mrr Ars
+             * @description Suscripciones activas o vencidas en gracia por el precio de su plan
+             */
+            mrr_ars: number;
+            /**
+             * Payments Month Ars
+             * @description Pagos aprobados del mes en curso
+             */
+            payments_month_ars: number;
+            /** Past Due */
+            past_due: number;
+            /**
+             * Free To Paid
+             * @description Clientes del registro con su primer pago en el período
+             */
+            free_to_paid: number;
+        };
+        /** ReportByChannelOut */
+        ReportByChannelOut: {
+            /** Voice */
+            voice: number;
+            /** Whatsapp */
+            whatsapp: number;
+            /** Web */
+            web: number;
+        };
+        /** ReportCallerOut */
+        ReportCallerOut: {
+            /** Count */
+            count: number;
+            /**
+             * Phone
+             * @description Teléfono o wa_id, sin el +
+             */
+            phone: string;
+            /**
+             * Last At
+             * Format: date-time
+             */
+            last_at: string;
+        };
+        /** ReportCallersOut */
+        ReportCallersOut: {
+            /**
+             * New
+             * @description Su primer contacto es del período
+             */
+            new: number;
+            /**
+             * Returning
+             * @description Ya había llamado o escrito antes del período
+             */
+            returning: number;
+            /**
+             * Top
+             * @description Los que más volvieron en el período
+             */
+            top: components["schemas"]["ReportCallerOut"][];
+        };
+        /** ReportCallsAgentOut */
+        ReportCallsAgentOut: {
+            /** Agent Id */
+            agent_id: string;
+            /** Agent Name */
+            agent_name: string;
+            /** Calls */
+            calls: number;
+            /** Minutes */
+            minutes: number;
+            /** Avg Duration */
+            avg_duration: number | null;
+            /** Conversion Pct */
+            conversion_pct: number | null;
+            /** Goal Pct */
+            goal_pct: number | null;
+        };
+        /** ReportCallsDayOut */
+        ReportCallsDayOut: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Entrante */
+            entrante: number;
+            /** Saliente */
+            saliente: number;
+            /** Web */
+            web: number;
+            /** Prueba */
+            prueba: number;
+        };
+        /** ReportCallsOut */
+        ReportCallsOut: {
+            /** Daily */
+            daily: components["schemas"]["ReportCallsDayOut"][];
+            /** Heatmap */
+            heatmap: components["schemas"]["ReportHeatCellOut"][];
+            /** By Line */
+            by_line: components["schemas"]["ReportLineOut"][];
+            /** By Agent */
+            by_agent: components["schemas"]["ReportCallsAgentOut"][];
+            /**
+             * Durations
+             * @description Llamadas finalizadas por duración
+             */
+            durations: components["schemas"]["ReportBucketOut"][];
+            /**
+             * Ended
+             * @description customer_hangup, agent_end, off_topic, hangup_by_user, blocked_number, rejected, failed, other
+             */
+            ended: components["schemas"]["ReportReasonOut"][];
+            /**
+             * Early Hangups
+             * @description Finalizadas en menos de 15 s
+             */
+            early_hangups: number;
+            callers: components["schemas"]["ReportCallersOut"];
+        };
+        /** ReportCampaignOut */
+        ReportCampaignOut: {
+            /** Campaign Id */
+            campaign_id: string;
+            /** Name */
+            name: string;
+            /**
+             * Channel
+             * @enum {string}
+             */
+            channel: "whatsapp" | "voice";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "scheduled" | "running" | "paused" | "done" | "cancelled";
+            /** Contacts */
+            contacts: number;
+            /**
+             * Attempts
+             * @description Voz: llamadas; WhatsApp: plantillas enviadas
+             */
+            attempts: number;
+            /**
+             * Reached
+             * @description Voz: atendidas; WhatsApp: respondidas
+             */
+            reached: number;
+            /** Complete */
+            complete: number;
+            /** Goal */
+            goal: number;
+            /** Optouts */
+            optouts: number;
+            /** Minutes */
+            minutes: number;
+        };
+        /** ReportCampaignsOut */
+        ReportCampaignsOut: {
+            /** Campaigns */
+            campaigns: components["schemas"]["ReportCampaignOut"][];
+            /**
+             * No Contact
+             * @description busy, no_answer, voicemail, invalid, failed, other
+             */
+            no_contact: components["schemas"]["ReportReasonOut"][];
+            /** Best Hours */
+            best_hours: components["schemas"]["ReportBestHourOut"][];
+        };
+        /** ReportClientRowOut */
+        ReportClientRowOut: {
+            /** Client Id */
+            client_id: string;
+            /** Name */
+            name: string;
+            /** Tier */
+            tier: string | null;
+            /** Conversations */
+            conversations: number;
+            /** Minutes */
+            minutes: number;
+            /**
+             * Quota Pct
+             * @description % de los minutos entrantes del mes en curso; None sin límite
+             */
+            quota_pct: number | null;
+            /** Conversion Pct */
+            conversion_pct: number | null;
+            /** Errors */
+            errors: number;
+            /** Last Activity At */
+            last_activity_at: string | null;
+            /**
+             * Delta Pct
+             * @description Conversaciones contra el período anterior
+             */
+            delta_pct: number | null;
+        };
+        /** ReportConversionDayOut */
+        ReportConversionDayOut: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Complete */
+            complete: number;
+            /** Partial */
+            partial: number;
+            /** Empty */
+            empty: number;
+        };
+        /** ReportConversionOut */
+        ReportConversionOut: {
+            /** Complete */
+            complete: number;
+            /** Partial */
+            partial: number;
+            /** Empty */
+            empty: number;
+        };
+        /** ReportDayCountOut */
+        ReportDayCountOut: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Count */
+            count: number;
+        };
+        /** ReportDayReasonOut */
+        ReportDayReasonOut: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Reason */
+            reason: string;
+            /** Count */
+            count: number;
+        };
+        /** ReportDeliveryOut */
+        ReportDeliveryOut: {
+            /**
+             * Sent
+             * @description Salientes aceptados por Meta (incluye entregados y leídos)
+             */
+            sent: number;
+            /**
+             * Delivered
+             * @description Entregados (incluye leídos)
+             */
+            delivered: number;
+            /** Read */
+            read: number;
+            /** Failed */
+            failed: number;
+        };
+        /** ReportFailureOut */
+        ReportFailureOut: {
+            /** Code */
+            code: string | null;
+            /** Message */
+            message: string | null;
+            /** Count */
+            count: number;
+        };
+        /** ReportFieldOut */
+        ReportFieldOut: {
+            /** Agent Id */
+            agent_id: string;
+            /** Agent Name */
+            agent_name: string;
+            /** Field */
+            field: string;
+            /** Label */
+            label: string;
+            /** Captured */
+            captured: number;
+            /** Total */
+            total: number;
+            /** Pct */
+            pct: number | null;
+        };
+        /** ReportFunnelOut */
+        ReportFunnelOut: {
+            /** Conversations */
+            conversations: number;
+            /** With Data */
+            with_data: number;
+            /** Complete */
+            complete: number;
+            /** Goal */
+            goal: number;
+        };
+        /** ReportHeatCellOut */
+        ReportHeatCellOut: {
+            /**
+             * Weekday
+             * @description 0 = lunes
+             */
+            weekday: number;
+            /** Hour */
+            hour: number;
+            /** Count */
+            count: number;
+        };
+        /** ReportKpisOut */
+        ReportKpisOut: {
+            /**
+             * Conversations
+             * @description Consultas: llamadas (atendidas o no) y conversaciones de WhatsApp
+             */
+            conversations: number;
+            by_channel: components["schemas"]["ReportByChannelOut"];
+            /**
+             * Conversion Pct
+             * @description % con todos los datos requeridos (conversion complete)
+             */
+            conversion_pct: number | null;
+            /**
+             * Goal Pct
+             * @description % con un resultado que cumple el objetivo
+             */
+            goal_pct: number | null;
+            /**
+             * Transfers
+             * @description Conversaciones con un pedido de derivación a una persona
+             */
+            transfers: number;
+            /**
+             * Transfers Answered
+             * @description Derivaciones atendidas por una persona
+             */
+            transfers_answered: number;
+            /** Transfer Pct */
+            transfer_pct: number | null;
+            /** Minutes */
+            minutes: number;
+            /**
+             * Avg Duration
+             * @description Segundos, de las llamadas finalizadas
+             */
+            avg_duration: number | null;
+            /**
+             * Rejected By Limit
+             * @description Llamadas rechazadas por el plan (concurrencia, cantidad o minutos)
+             */
+            rejected_by_limit: number;
+            /** Wa Messages */
+            wa_messages: number;
+        };
+        /** ReportLatencyDayOut */
+        ReportLatencyDayOut: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /**
+             * P50
+             * @description Segundos, del fin del habla del cliente al primer audio (total)
+             */
+            p50: number | null;
+            /** P95 */
+            p95: number | null;
+            /** Stt P50 */
+            stt_p50: number | null;
+            /** Eou P50 */
+            eou_p50: number | null;
+            /** Llm P50 */
+            llm_p50: number | null;
+            /** Tts P50 */
+            tts_p50: number | null;
+        };
+        /** ReportLineOut */
+        ReportLineOut: {
+            /** Phone Number Id */
+            phone_number_id: string;
+            /** Number */
+            number: string;
+            /** Calls */
+            calls: number;
+            /** Minutes */
+            minutes: number;
+            /** Conversion Pct */
+            conversion_pct: number | null;
+        };
+        /** ReportMemberOut */
+        ReportMemberOut: {
+            /** Team Member Id */
+            team_member_id: string;
+            /** Name */
+            name: string;
+            /** Attempts */
+            attempts: number;
+            /** Answered */
+            answered: number;
+            /** Not Answered */
+            not_answered: number;
+            /** Avg Answer Seconds */
+            avg_answer_seconds: number | null;
+            /** Minutes */
+            minutes: number;
+        };
+        /** ReportMessagesDayOut */
+        ReportMessagesDayOut: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Inbound */
+            inbound: number;
+            /** Outbound */
+            outbound: number;
+            /** Inbound Audio */
+            inbound_audio: number;
+            /** Outbound Audio */
+            outbound_audio: number;
+            /** Conversations */
+            conversations: number;
+        };
+        /** ReportMessagesOut */
+        ReportMessagesOut: {
+            /** Daily */
+            daily: components["schemas"]["ReportMessagesDayOut"][];
+            /**
+             * Heatmap
+             * @description Mensajes entrantes
+             */
+            heatmap: components["schemas"]["ReportHeatCellOut"][];
+            delivery: components["schemas"]["ReportDeliveryOut"];
+            /** Failures */
+            failures: components["schemas"]["ReportFailureOut"][];
+            /** Per Conversation Avg */
+            per_conversation_avg: number | null;
+            conversion: components["schemas"]["ReportConversionOut"];
+            /** Accounts */
+            accounts: components["schemas"]["ReportAccountOut"][];
+        };
+        /** ReportOperationOut */
+        ReportOperationOut: {
+            /** Peak Concurrency */
+            peak_concurrency: components["schemas"]["ReportPeakOut"][];
+            /** Failures */
+            failures: components["schemas"]["ReportDayReasonOut"][];
+            /** Rejected */
+            rejected: components["schemas"]["ReportReasonOut"][];
+        };
+        /** ReportOutcomeOut */
+        ReportOutcomeOut: {
+            /** Agent Id */
+            agent_id: string;
+            /** Agent Name */
+            agent_name: string;
+            /** Outcome */
+            outcome: string;
+            /** Label */
+            label: string;
+            /** Goal */
+            goal: boolean;
+            /** Count */
+            count: number;
+        };
+        /** ReportOutcomesAgentOut */
+        ReportOutcomesAgentOut: {
+            /** Agent Id */
+            agent_id: string;
+            /** Agent Name */
+            agent_name: string;
+            /** Total */
+            total: number;
+            /** Complete */
+            complete: number;
+            /** Partial */
+            partial: number;
+            /** Empty */
+            empty: number;
+            /** Goal */
+            goal: number;
+        };
+        /** ReportOutcomesOut */
+        ReportOutcomesOut: {
+            /** Conversion Daily */
+            conversion_daily: components["schemas"]["ReportConversionDayOut"][];
+            /** By Agent */
+            by_agent: components["schemas"]["ReportOutcomesAgentOut"][];
+            /** Outcomes */
+            outcomes: components["schemas"]["ReportOutcomeOut"][];
+            funnel: components["schemas"]["ReportFunnelOut"];
+            /**
+             * Fields
+             * @description Datos obligatorios de la versión vigente de cada agente
+             */
+            fields: components["schemas"]["ReportFieldOut"][];
+            /** By Version */
+            by_version: components["schemas"]["ReportVersionOut"][];
+        };
+        /** ReportPeakOut */
+        ReportPeakOut: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Hour */
+            hour: number;
+            /** Peak */
+            peak: number;
+        };
+        /** ReportPeriodOut */
+        ReportPeriodOut: {
+            /**
+             * Date From
+             * Format: date
+             */
+            date_from: string;
+            /**
+             * Date To
+             * Format: date
+             */
+            date_to: string;
+        };
+        /** ReportPlanOut */
+        ReportPlanOut: {
+            /** Inbound Minutes Used */
+            inbound_minutes_used: number;
+            /**
+             * Inbound Minutes Quota
+             * @description None: sin límite
+             */
+            inbound_minutes_quota: number | null;
+            /** Outbound Minutes Used */
+            outbound_minutes_used: number;
+            /** Outbound Minutes Quota */
+            outbound_minutes_quota: number | null;
+            /**
+             * Projected Inbound Minutes
+             * @description A fin de mes, al ritmo del mes en curso
+             */
+            projected_inbound_minutes: number | null;
+            /**
+             * Period Start
+             * Format: date-time
+             */
+            period_start: string;
+            /**
+             * Period End
+             * Format: date-time
+             */
+            period_end: string;
+        };
+        /** ReportPlatformOut */
+        ReportPlatformOut: {
+            /** Clients */
+            clients: components["schemas"]["ReportClientRowOut"][];
+            /** Alerts */
+            alerts: components["schemas"]["ReportAlertOut"][];
+            business: components["schemas"]["ReportBusinessOut"];
+            operation: components["schemas"]["ReportOperationOut"];
+        };
+        /** ReportProviderOut */
+        ReportProviderOut: {
+            /** Provider */
+            provider: string;
+            /** Model */
+            model: string | null;
+            /** Turns */
+            turns: number;
+            /** Avg Ms */
+            avg_ms: number | null;
+            /** Errors */
+            errors: number;
+        };
+        /** ReportReasonOut */
+        ReportReasonOut: {
+            /** Count */
+            count: number;
+            /** Reason */
+            reason: string;
+        };
+        /** ReportSummaryDayOut */
+        ReportSummaryDayOut: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Voice */
+            voice: number;
+            /** Whatsapp */
+            whatsapp: number;
+            /** Web */
+            web: number;
+            /** Transfers */
+            transfers: number;
+            /** Transfers Answered */
+            transfers_answered: number;
+        };
+        /** ReportSummaryOut */
+        ReportSummaryOut: {
+            period: components["schemas"]["ReportPeriodOut"];
+            kpis: components["schemas"]["ReportKpisOut"];
+            /** @description El mismo largo, inmediatamente antes */
+            previous: components["schemas"]["ReportKpisOut"];
+            /** @description Consumo del mes en curso; None con todos los clientes */
+            plan: components["schemas"]["ReportPlanOut"] | null;
+            /** Daily */
+            daily: components["schemas"]["ReportSummaryDayOut"][];
+        };
+        /** ReportTechnicalOut */
+        ReportTechnicalOut: {
+            /** Latency Daily */
+            latency_daily: components["schemas"]["ReportLatencyDayOut"][];
+            /** By Provider */
+            by_provider: components["schemas"]["ReportProviderOut"][];
+            /** Tools */
+            tools: components["schemas"]["ReportToolOut"][];
+            /**
+             * Turns Avg
+             * @description Mensajes del cliente por conversación
+             */
+            turns_avg: number | null;
+            /**
+             * Errors
+             * @description Llamadas fallidas por motivo
+             */
+            errors: components["schemas"]["ReportReasonOut"][];
+            /** Failed Summary Emails */
+            failed_summary_emails: number;
+            tokens: components["schemas"]["ReportTokensOut"];
+        };
+        /** ReportTierCountOut */
+        ReportTierCountOut: {
+            /** Tier */
+            tier: string;
+            /** Count */
+            count: number;
+        };
+        /** ReportTokensDayOut */
+        ReportTokensDayOut: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Input */
+            input: number;
+            /** Output */
+            output: number;
+        };
+        /** ReportTokensOut */
+        ReportTokensOut: {
+            /** Input */
+            input: number;
+            /** Output */
+            output: number;
+            /** By Day */
+            by_day: components["schemas"]["ReportTokensDayOut"][];
+        };
+        /** ReportToolOut */
+        ReportToolOut: {
+            /** Tool Id */
+            tool_id: string | null;
+            /** Slug */
+            slug: string;
+            /** Type */
+            type: string;
+            /** Runs */
+            runs: number;
+            /** Errors */
+            errors: number;
+            /** Error Pct */
+            error_pct: number | null;
+            /** P50 Ms */
+            p50_ms: number | null;
+            /** P95 Ms */
+            p95_ms: number | null;
+            /** Last Error */
+            last_error: string | null;
+            /** Last Error At */
+            last_error_at: string | null;
+        };
+        /** ReportTransfersDayOut */
+        ReportTransfersDayOut: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Requested */
+            requested: number;
+            /** Answered */
+            answered: number;
+        };
+        /** ReportTransfersKpisOut */
+        ReportTransfersKpisOut: {
+            /** Requested */
+            requested: number;
+            /** Answered */
+            answered: number;
+            /** Not Answered */
+            not_answered: number;
+            /**
+             * Unavailable
+             * @description Fuera de horario, sin miembros, sin canal o sin minutos
+             */
+            unavailable: number;
+            /** Answer Pct */
+            answer_pct: number | null;
+            /**
+             * Avg Answer Seconds
+             * @description Del timbre a que atiende la persona
+             */
+            avg_answer_seconds: number | null;
+            /**
+             * Minutes
+             * @description Minutos salientes de los tramos a personas
+             */
+            minutes: number;
+        };
+        /** ReportTransfersOut */
+        ReportTransfersOut: {
+            kpis: components["schemas"]["ReportTransfersKpisOut"];
+            /** Daily */
+            daily: components["schemas"]["ReportTransfersDayOut"][];
+            /** By Area */
+            by_area: components["schemas"]["ReportAreaOut"][];
+            /** By Member */
+            by_member: components["schemas"]["ReportMemberOut"][];
+            whatsapp: components["schemas"]["ReportWaHandoffOut"];
+        };
+        /** ReportVersionOut */
+        ReportVersionOut: {
+            /** Agent Id */
+            agent_id: string;
+            /** Agent Name */
+            agent_name: string;
+            /** Version */
+            version: number;
+            /** Total */
+            total: number;
+            /** Conversion Pct */
+            conversion_pct: number | null;
+            /** Goal Pct */
+            goal_pct: number | null;
+        };
+        /** ReportWaHandoffOut */
+        ReportWaHandoffOut: {
+            /** Assigned */
+            assigned: number;
+            /** First Reply */
+            first_reply: number;
+            /** Avg First Reply Seconds */
+            avg_first_reply_seconds: number | null;
+            /** Reassigned */
+            reassigned: number;
+        };
         /** SecretAgentRef */
         SecretAgentRef: {
             /** Id */
@@ -7557,6 +8579,12 @@ export interface components {
              */
             white_label?: boolean;
             /**
+             * Advanced Reports
+             * @description Reportes completos: Resultados, Mensajes, Transferencias y Campañas (sin esto, Resumen y Llamadas)
+             * @default false
+             */
+            advanced_reports?: boolean;
+            /**
              * Price Ars
              * @description Precio mensual en pesos, lo que se cobra. null: no se vende por el dashboard; 0: gratis
              */
@@ -7632,6 +8660,8 @@ export interface components {
             code_tools: boolean;
             /** White Label */
             white_label: boolean;
+            /** Advanced Reports */
+            advanced_reports: boolean;
             /** Price Ars */
             price_ars: number | null;
             /** Public */
@@ -7705,6 +8735,8 @@ export interface components {
             code_tools?: boolean | null;
             /** White Label */
             white_label?: boolean | null;
+            /** Advanced Reports */
+            advanced_reports?: boolean | null;
             /** Price Ars */
             price_ars?: number | null;
             /** Public */
@@ -15887,6 +16919,402 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    summary_api_v1_reports_summary_get: {
+        parameters: {
+            query?: {
+                /** @description Admin: un cliente (vacío = todos). Cliente: el suyo */
+                client_id?: string | null;
+                /** @description Solo las conversaciones de ese agente */
+                agent_id?: string | null;
+                /** @description voice (teléfono), whatsapp o web (link para llamar) */
+                channel?: ("voice" | "whatsapp" | "web") | null;
+                /** @description Solo las llamadas de esa línea */
+                phone_number_id?: string | null;
+                /** @description Día local, inclusive; default: hace 29 días */
+                date_from?: string | null;
+                /** @description Día local, inclusive; default: hoy. Hasta 366 días */
+                date_to?: string | null;
+                /** @description Zona IANA de los días y horas; default BILLING_TIMEZONE */
+                tz?: string | null;
+                /** @description Con las llamadas de prueba y las conversaciones por API (el loadtest nunca) */
+                include_tests?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportSummaryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calls_api_v1_reports_calls_get: {
+        parameters: {
+            query?: {
+                /** @description Admin: un cliente (vacío = todos). Cliente: el suyo */
+                client_id?: string | null;
+                /** @description Solo las conversaciones de ese agente */
+                agent_id?: string | null;
+                /** @description voice (teléfono), whatsapp o web (link para llamar) */
+                channel?: ("voice" | "whatsapp" | "web") | null;
+                /** @description Solo las llamadas de esa línea */
+                phone_number_id?: string | null;
+                /** @description Día local, inclusive; default: hace 29 días */
+                date_from?: string | null;
+                /** @description Día local, inclusive; default: hoy. Hasta 366 días */
+                date_to?: string | null;
+                /** @description Zona IANA de los días y horas; default BILLING_TIMEZONE */
+                tz?: string | null;
+                /** @description Con las llamadas de prueba y las conversaciones por API (el loadtest nunca) */
+                include_tests?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportCallsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    outcomes_api_v1_reports_outcomes_get: {
+        parameters: {
+            query?: {
+                /** @description Admin: un cliente (vacío = todos). Cliente: el suyo */
+                client_id?: string | null;
+                /** @description Solo las conversaciones de ese agente */
+                agent_id?: string | null;
+                /** @description voice (teléfono), whatsapp o web (link para llamar) */
+                channel?: ("voice" | "whatsapp" | "web") | null;
+                /** @description Solo las llamadas de esa línea */
+                phone_number_id?: string | null;
+                /** @description Día local, inclusive; default: hace 29 días */
+                date_from?: string | null;
+                /** @description Día local, inclusive; default: hoy. Hasta 366 días */
+                date_to?: string | null;
+                /** @description Zona IANA de los días y horas; default BILLING_TIMEZONE */
+                tz?: string | null;
+                /** @description Con las llamadas de prueba y las conversaciones por API (el loadtest nunca) */
+                include_tests?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportOutcomesOut"];
+                };
+            };
+            /** @description El plan no incluye los reportes completos (advanced_reports_not_in_plan) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    messages_api_v1_reports_messages_get: {
+        parameters: {
+            query?: {
+                /** @description Admin: un cliente (vacío = todos). Cliente: el suyo */
+                client_id?: string | null;
+                /** @description Solo las conversaciones de ese agente */
+                agent_id?: string | null;
+                /** @description voice (teléfono), whatsapp o web (link para llamar) */
+                channel?: ("voice" | "whatsapp" | "web") | null;
+                /** @description Solo las llamadas de esa línea */
+                phone_number_id?: string | null;
+                /** @description Día local, inclusive; default: hace 29 días */
+                date_from?: string | null;
+                /** @description Día local, inclusive; default: hoy. Hasta 366 días */
+                date_to?: string | null;
+                /** @description Zona IANA de los días y horas; default BILLING_TIMEZONE */
+                tz?: string | null;
+                /** @description Con las llamadas de prueba y las conversaciones por API (el loadtest nunca) */
+                include_tests?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportMessagesOut"];
+                };
+            };
+            /** @description El plan no incluye los reportes completos (advanced_reports_not_in_plan) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transfers_api_v1_reports_transfers_get: {
+        parameters: {
+            query?: {
+                /** @description Admin: un cliente (vacío = todos). Cliente: el suyo */
+                client_id?: string | null;
+                /** @description Solo las conversaciones de ese agente */
+                agent_id?: string | null;
+                /** @description voice (teléfono), whatsapp o web (link para llamar) */
+                channel?: ("voice" | "whatsapp" | "web") | null;
+                /** @description Solo las llamadas de esa línea */
+                phone_number_id?: string | null;
+                /** @description Día local, inclusive; default: hace 29 días */
+                date_from?: string | null;
+                /** @description Día local, inclusive; default: hoy. Hasta 366 días */
+                date_to?: string | null;
+                /** @description Zona IANA de los días y horas; default BILLING_TIMEZONE */
+                tz?: string | null;
+                /** @description Con las llamadas de prueba y las conversaciones por API (el loadtest nunca) */
+                include_tests?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportTransfersOut"];
+                };
+            };
+            /** @description El plan no incluye los reportes completos (advanced_reports_not_in_plan) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    campaigns_api_v1_reports_campaigns_get: {
+        parameters: {
+            query?: {
+                /** @description Admin: un cliente (vacío = todos). Cliente: el suyo */
+                client_id?: string | null;
+                /** @description Solo las conversaciones de ese agente */
+                agent_id?: string | null;
+                /** @description voice (teléfono), whatsapp o web (link para llamar) */
+                channel?: ("voice" | "whatsapp" | "web") | null;
+                /** @description Solo las llamadas de esa línea */
+                phone_number_id?: string | null;
+                /** @description Día local, inclusive; default: hace 29 días */
+                date_from?: string | null;
+                /** @description Día local, inclusive; default: hoy. Hasta 366 días */
+                date_to?: string | null;
+                /** @description Zona IANA de los días y horas; default BILLING_TIMEZONE */
+                tz?: string | null;
+                /** @description Con las llamadas de prueba y las conversaciones por API (el loadtest nunca) */
+                include_tests?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportCampaignsOut"];
+                };
+            };
+            /** @description El plan no incluye los reportes completos (advanced_reports_not_in_plan) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    technical_api_v1_reports_technical_get: {
+        parameters: {
+            query?: {
+                /** @description Admin: un cliente (vacío = todos). Cliente: el suyo */
+                client_id?: string | null;
+                /** @description Solo las conversaciones de ese agente */
+                agent_id?: string | null;
+                /** @description voice (teléfono), whatsapp o web (link para llamar) */
+                channel?: ("voice" | "whatsapp" | "web") | null;
+                /** @description Solo las llamadas de esa línea */
+                phone_number_id?: string | null;
+                /** @description Día local, inclusive; default: hace 29 días */
+                date_from?: string | null;
+                /** @description Día local, inclusive; default: hoy. Hasta 366 días */
+                date_to?: string | null;
+                /** @description Zona IANA de los días y horas; default BILLING_TIMEZONE */
+                tz?: string | null;
+                /** @description Con las llamadas de prueba y las conversaciones por API (el loadtest nunca) */
+                include_tests?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportTechnicalOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    platform_api_v1_reports_platform_get: {
+        parameters: {
+            query?: {
+                /** @description Admin: un cliente (vacío = todos). Cliente: el suyo */
+                client_id?: string | null;
+                /** @description Solo las conversaciones de ese agente */
+                agent_id?: string | null;
+                /** @description voice (teléfono), whatsapp o web (link para llamar) */
+                channel?: ("voice" | "whatsapp" | "web") | null;
+                /** @description Solo las llamadas de esa línea */
+                phone_number_id?: string | null;
+                /** @description Día local, inclusive; default: hace 29 días */
+                date_from?: string | null;
+                /** @description Día local, inclusive; default: hoy. Hasta 366 días */
+                date_to?: string | null;
+                /** @description Zona IANA de los días y horas; default BILLING_TIMEZONE */
+                tz?: string | null;
+                /** @description Con las llamadas de prueba y las conversaciones por API (el loadtest nunca) */
+                include_tests?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportPlatformOut"];
+                };
             };
             /** @description Validation Error */
             422: {

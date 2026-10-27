@@ -63,6 +63,7 @@ class ToolSpec:
     type: str
     revision: int
     tool: S.HttpTool | S.CodeTool
+    tool_id: str | None = None          # tools.id (para tool_runs); None en la prueba sin guardar
 
     @property
     def messages(self) -> S.Messages:

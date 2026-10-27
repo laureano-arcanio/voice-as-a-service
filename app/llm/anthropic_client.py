@@ -67,6 +67,17 @@ def to_messages(messages: list[dict]) -> tuple[str, list[dict]]:
     return system, rest
 
 
+def usage_of(message) -> tuple[int, int]:
+    """(entrada, salida) del usage del mensaje final (en streaming, el de message_start y message_delta, que
+    junta el SDK). La entrada cuenta tambien la cache."""
+    usage = getattr(message, "usage", None)
+    if usage is None:
+        return 0, 0
+    tokens_in = sum(int(getattr(usage, k, 0) or 0)
+                    for k in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"))
+    return tokens_in, int(getattr(usage, "output_tokens", 0) or 0)
+
+
 def _anthropic_tool(t: dict) -> dict:
     f = t["function"]
     return {"name": f["name"], "description": f["description"], "input_schema": f["parameters"]}
@@ -125,9 +136,13 @@ class AnthropicClient:
                     effort: str = "low") -> str:
         """El JSON de una respuesta guiada por `schema` (salida estructurada; si el modelo no la soporta, el
         error del proveedor llega tal cual)."""
+        return (await self._json_message(messages, schema, max_tokens=max_tokens, effort=effort))[0]
+
+    async def _json_message(self, messages: list[dict], schema: dict, *, max_tokens: int | None = None,
+                            effort: str = "low"):
         params = self._params(messages, max_tokens, effort)
         params["output_config"] = {**params.get("output_config", {}), "format": {"type": "json_schema", "schema": schema}}
-        return (await self._message(params, None))[0]
+        return await self._message(params, None)
 
     async def converse(self, workflow: Workflow, state: ConversationState, user_message: str,
                        on_message: Callable[[str], None] | None = None, tools=None) -> AgentTurn:
@@ -141,6 +156,9 @@ class AnthropicClient:
         rounds = 0
         while True:
             content, message = await self._message(params, on_message)
+            tokens_in, tokens_out = usage_of(message)
+            turn.input_tokens += tokens_in
+            turn.output_tokens += tokens_out
             said.append(content)
             raw.append(content)
             uses = [b for b in message.content if b.type == "tool_use"]
@@ -174,10 +192,11 @@ class AnthropicClient:
         return turn
 
     async def extract(self, workflow: Workflow, state: ConversationState) -> Extraction:
-        content = await self._json(
+        content, message = await self._json_message(
             [{"role": "system", "content": extraction_prompt(state.channel)},
              {"role": "user", "content": build_extraction_prompt(workflow, state)}], extraction_schema(workflow))
-        return Extraction(fields=json.loads(content), raw=content)
+        tokens_in, tokens_out = usage_of(message)
+        return Extraction(fields=json.loads(content), raw=content, input_tokens=tokens_in, output_tokens=tokens_out)
 
     async def structured(self, messages: list[dict], schema: dict, name: str = "step",
                          thinking: bool | None = None, budget: int | None = None,

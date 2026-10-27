@@ -104,6 +104,7 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
     whatsapp: boolean;
     external_agent: boolean;
     white_label: boolean;
+    advanced_reports: boolean;
     price_ars: Limit;
     public: boolean;
     sort: number | '';
@@ -139,6 +140,7 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
       whatsapp: tier?.whatsapp ?? true,
       external_agent: tier?.external_agent ?? false,
       white_label: tier?.white_label ?? false,
+      advanced_reports: tier?.advanced_reports ?? false,
       price_ars: tier?.price_ars ?? '',
       public: tier?.public ?? false,
       sort: tier?.sort ?? 0,
@@ -185,6 +187,7 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
                 whatsapp: v.whatsapp,
                 external_agent: v.external_agent,
                 white_label: v.white_label,
+                advanced_reports: v.advanced_reports,
                 price_ars: toLimit(v.price_ars),
                 public: v.public,
                 sort: v.sort === '' ? 0 : v.sort,
@@ -281,6 +284,12 @@ function TierModal({ tier, onClose }: { tier: Tier | null; onClose: () => void }
               description="El panel con el logo y los colores del cliente (se configuran en su ficha)."
               mt="md"
               {...form.getInputProps('white_label', { type: 'checkbox' })}
+            />
+            <Switch
+              label="Reportes completos"
+              description="Resultados, Mensajes, Transferencias y Campañas en Reportes. Sin esto, solo Resumen y Llamadas."
+              mt="md"
+              {...form.getInputProps('advanced_reports', { type: 'checkbox' })}
             />
           </Section>
           <Section title="Herramientas de los agentes" cols={3}>
@@ -459,6 +468,11 @@ export function TiersPage() {
                           {t.white_label && (
                             <Text size="xs" c="dimmed">
                               con marca blanca
+                            </Text>
+                          )}
+                          {t.advanced_reports && (
+                            <Text size="xs" c="dimmed">
+                              con reportes completos
                             </Text>
                           )}
                         </Table.Td>

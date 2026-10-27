@@ -1,7 +1,7 @@
 ---
 // Documentación pública de la API (/desarrolladores/docs/api; el índice, en data/docs-nav.ts). Inferencia: sale de docs/API_INFERENCIA.md, sin lo que es solo para quien opera el
 // server. Llamadas, contactos y campañas: de docs/LLAMADAS_SALIENTES_PLAN.md y app/api/schemas.py. Equipo,
-// derivaciones y eventos: de docs/DERIVACIONES_PLAN.md. Qué incluye cada plan: los tiers de la migración 0026 (al
+// derivaciones y eventos: de docs/DERIVACIONES_PLAN.md. Reportes: de docs/REPORTES_PLAN.md (9.2) y app/api/routers/reports.py. Qué incluye cada plan: los tiers de la migración 0026 (al
 // cambiar un tier, cambiar planFeatures y las tarjetas de data/site.ts). La referencia completa de pedidos y
 // respuestas es el OpenAPI del panel (/api/v1/docs). "Cómo funciona" está en la portada (docs/index.astro).
 // "Tu propio LLM": de docs/BYOK_LLM_PLAN.md (al cambiarlo, revisar también /privacidad). "Tu propio agente" tiene
@@ -152,6 +152,7 @@ const planFeatures = [
   { feature: "Tu propio agente", free: "No", mostrador: "No", sucursal: "Sí", red: "Sí" },
   { feature: "Herramientas: llamadas a tus APIs", free: "No", mostrador: "No", sucursal: "10", red: "Sin tope" },
   { feature: "Herramientas en código (JavaScript)", free: "No", mostrador: "No", sucursal: "Sí", red: "Sí" },
+  { feature: "Reportes", free: "Básicos", mostrador: "Completos", sucursal: "Completos", red: "Completos" },
   { feature: "Panel con tu marca", free: "No", mostrador: "No", sucursal: "No", red: "Sí" },
 ];
 
@@ -167,6 +168,42 @@ const planErrors = [
   { code: "campaign_followup_not_in_plan", text: "El plan no incluye el seguimiento por WhatsApp" },
   { code: "team_members_limit", text: "El equipo está completo, o el plan no incluye derivación" },
 ];
+
+const reportEndpoints = [
+  { path: "GET /reports/summary", plan: "Todos", text: "Consultas por día y canal con cuántas terminaron en una transferencia, indicadores contra el período anterior y consumo de minutos del plan con la proyección a fin de mes" },
+  { path: "GET /reports/calls", plan: "Todos", text: "Llamadas por día y modo, mapa de calor por día y hora, por línea y por agente, duración, cómo terminaron y llamantes nuevos o que vuelven" },
+  { path: "GET /reports/outcomes", plan: "Completos", text: "Conversión (completa, parcial o sin datos), resultados por agente, embudo, datos capturados por campo y comparación por versión del agente" },
+  { path: "GET /reports/messages", plan: "Completos", text: "WhatsApp: mensajes por día y hora, texto o nota de voz, entrega (enviados, entregados, leídos, fallidos) y estado de las cuentas" },
+  { path: "GET /reports/transfers", plan: "Completos", text: "Transferencias pedidas, atendidas y no atendidas, por área y por persona del equipo, y respuesta del vendedor en WhatsApp" },
+  { path: "GET /reports/campaigns", plan: "Completos", text: "Comparativo de campañas, embudo, motivos de no contacto y mejor horario para llamar" },
+];
+
+const reportFilters = [
+  { param: "agent_id", text: "Solo un agente" },
+  { param: "channel", text: "voice, whatsapp o web" },
+  { param: "phone_number_id", text: "Solo una de tus líneas" },
+  { param: "date_from, date_to", text: "Período en días locales, ambos inclusive (AAAA-MM-DD). Por defecto, los últimos 30 días hasta hoy" },
+  { param: "tz", text: "Zona horaria con la que se agrupan días y horas (por defecto, hora de Argentina)" },
+  { param: "include_tests", text: "true suma las llamadas de prueba y las del Playground (por defecto quedan fuera)" },
+];
+
+const reportCurl = `curl "${API}/reports/summary?date_from=2026-10-01&date_to=2026-10-27&channel=voice" \\
+  -H "Authorization: Bearer $ATENTINA_KEY"`;
+
+const reportOut = `{
+  "period": {"date_from": "2026-10-01", "date_to": "2026-10-27"},
+  "kpis": {
+    "conversations": 412, "by_channel": {"voice": 412, "whatsapp": 0, "web": 0},
+    "conversion_pct": 61.4, "goal_pct": 38.1,
+    "transfers": 57, "transfers_answered": 44, "transfer_pct": 13.8,
+    "minutes": 903.5, "avg_duration": 131, "rejected_by_limit": 3
+  },
+  "previous": {"conversations": 355, "conversion_pct": 57.0, "goal_pct": 35.2},
+  "plan": {"inbound_minutes_used": 903.5, "inbound_minutes_quota": 1200, "projected_inbound_minutes": 1038},
+  "daily": [
+    {"date": "2026-10-26", "voice": 21, "whatsapp": 0, "web": 0, "transfers": 3, "transfers_answered": 2}
+  ]
+}`;
 
 const features = `curl ${API}/plan/features -H "Authorization: Bearer $ATENTINA_KEY"`;
 
@@ -578,6 +615,33 @@ const campaignEndpoints = [
           {eventTypes.map((e) => <tr><td><code>{e.type}</code></td><td>{e.text}</td></tr>)}
         </tbody>
       </table></div>
+    </section>
+
+    <section id="reportes" class="grid gap-4">
+      <h2>Reportes</h2>
+      <p>Las mismas estadísticas del panel, por API: cuántas consultas te llegan por día, cuántas terminan en una transferencia a una persona, cuántas se completan y cuánto llevás gastado del plan. Se piden con una API key con alcance <code>calls</code> y devuelven solo lo de tu cuenta. En el panel, cada tabla también se baja en CSV.</p>
+      <CodeBlock label="curl" code={reportCurl} />
+      <CodeBlock label="Respuesta (resumida)" code={reportOut} />
+      <p>Una <strong>consulta</strong> es una conversación de un cliente tuyo: una llamada, atendida o no, o una conversación de WhatsApp. Una <strong>transferencia</strong> es una consulta en la que el agente pasó a una persona de tu equipo, y se cuenta como atendida cuando esa persona respondió. <code>kpis</code> y <code>previous</code> tienen la misma forma: <code>previous</code> es el período anterior de igual largo, para ver si subís o bajás.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Endpoint</th><th>Plan</th><th>Qué devuelve</th></tr></thead>
+        <tbody>
+          {reportEndpoints.map((e) => <tr><td><code>{e.path}</code></td><td>{e.plan}</td><td>{e.text}</td></tr>)}
+        </tbody>
+      </table></div>
+      <h3>Filtros</h3>
+      <p>Todos los endpoints aceptan los mismos filtros, en la URL:</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Parámetro</th><th>Qué hace</th></tr></thead>
+        <tbody>
+          {reportFilters.map((f) => <tr><td><code>{f.param}</code></td><td>{f.text}</td></tr>)}
+        </tbody>
+      </table></div>
+      <ul>
+        <li><strong>Qué plan los incluye:</strong> los reportes básicos (<code>summary</code> y <code>calls</code>, con el gráfico de consultas y transferencias) están en todos los planes, también en el Free. Los completos (<code>outcomes</code>, <code>messages</code>, <code>transfers</code> y <code>campaigns</code>) están en Mostrador, Sucursal y Red. Si tu plan no los incluye, el pedido responde 403 con <code>code</code> <code>advanced_reports_not_in_plan</code>; <code>GET /plan/features</code> dice si los tenés (clave <code>advanced_reports</code>).</li>
+        <li><strong>Qué no incluyen:</strong> son datos de tu negocio. Los tiempos internos de respuesta y el detalle técnico de la plataforma no forman parte de los reportes.</li>
+        <li><strong>Desde tu agente de IA:</strong> el <a href="/desarrolladores/docs/mcp">MCP</a> tiene una herramienta por reporte, con los mismos planes.</li>
+      </ul>
     </section>
 
   <Cta

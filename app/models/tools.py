@@ -6,7 +6,7 @@ autenticacion de una API (tipo y datos, con el nombre del secreto que tiene el v
 herramientas."""
 import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..db import Base, JSONDoc, utcnow
@@ -86,4 +86,27 @@ class ToolVersion(IdMixin, Base):
     definition: Mapped[dict] = mapped_column(JSONDoc)
     created_by: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class ToolRun(IdMixin, Base):
+    """Una ejecucion de una herramienta del cliente en una conversacion (app/tools/conversation.py), para los
+    reportes del admin (docs/REPORTES_PLAN.md): usos, errores y tiempos por herramienta. La traza completa
+    sigue en conversations.messages[].llm."""
+    __tablename__ = "tool_runs"
+    __table_args__ = (Index("ix_tool_runs_client_created", "client_id", "created_at"),)
+
+    client_id: Mapped[str] = mapped_column(String(36), ForeignKey("clients.id", ondelete="CASCADE"))
+    tool_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("tools.id", ondelete="SET NULL"),
+                                                nullable=True, index=True)
+    conversation_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("conversations.id", ondelete="CASCADE"), nullable=True, index=True)
+    agent_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("agents.id", ondelete="SET NULL"),
+                                                 nullable=True)
+    slug: Mapped[str] = mapped_column(String(64))
+    type: Mapped[str] = mapped_column(String(8))            # http | code
+    ok: Mapped[bool] = mapped_column(Boolean)
+    status_code: Mapped[int | None] = mapped_column(Integer, nullable=True)    # HTTP de la API del cliente
+    ms: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str] = mapped_column(String(255), default="")
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)

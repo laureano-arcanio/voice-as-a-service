@@ -6,13 +6,14 @@ salvo record_inbound (el dedupe necesita el commit para valer).
 import datetime
 import re
 
-from sqlalchemy import select
+from sqlalchemy import event, inspect, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..db import utcnow
-from ..models import Agent, Client, WaAccount, WaMessage, WaThread
+from ..models import Agent, Client, WaAccount, WaAccountStatusLog, WaMessage, WaThread
+from ..models._common import new_id
 from ..services import limits
 from ..services.errors import Conflict, Invalid, NotFound
 from . import crypto
@@ -24,6 +25,27 @@ ACCOUNT_STATUSES = ("connected", "pending", "disconnected")
 
 
 # --- Cuentas ---
+
+STATUS_LOG_FIELDS = ("status", "quality_rating", "messaging_limit")
+
+
+@event.listens_for(Session, "before_flush")
+def _log_account_status(s: Session, _ctx, _instances) -> None:
+    """Historial de estado, calidad y limite de las cuentas (wa_account_status_log, docs/REPORTES_PLAN.md): una
+    fila al crear la cuenta y otra cada vez que cambia alguno de los tres, venga de donde venga (webhook de Meta,
+    chequeo, conexion o la API)."""
+    for obj in [*s.new, *s.dirty]:
+        if not isinstance(obj, WaAccount):
+            continue
+        if obj in s.new:
+            obj.id = obj.id or new_id()
+        else:
+            state = inspect(obj)
+            if not any(state.attrs[f].history.has_changes() for f in STATUS_LOG_FIELDS):
+                continue
+        s.add(WaAccountStatusLog(account_id=obj.id, status=obj.status or "connected",
+                                 quality_rating=obj.quality_rating, messaging_limit=obj.messaging_limit, at=utcnow()))
+
 
 def list_accounts(s: Session, client_id: str | None = None) -> list[WaAccount]:
     q = select(WaAccount).order_by(WaAccount.created_at)

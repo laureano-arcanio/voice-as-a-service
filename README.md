@@ -49,6 +49,12 @@ curl -X POST http://<host>:8011/api/v1/calls -H "Authorization: Bearer $VAAS_API
   -H 'Content-Type: application/json' -d '{"agent_id": "<id>", "phone": "+5491155551234"}'
 ```
 
+**Reportes** (`/api/v1/reports/*`, sección Reportes del panel): `summary`, `calls`, `outcomes`, `messages`,
+`transfers` y `campaigns` para el cliente (consultas por día y transferencias, conversión, mapa de calor por hora,
+campañas, consumo del plan; CSV desde la UI) y `technical` y `platform` para el admin (latencia, herramientas,
+clientes y alertas). Resumen y Llamadas en todos los planes; el resto con `tiers.advanced_reports`. Implementado
+el 27-oct-2026, sin desplegar: [`docs/REPORTES_PLAN.md`](docs/REPORTES_PLAN.md).
+
 **Demo de la landing** (`/api/v1/demo`, sin usuario): la landing llama a los agentes de `DEMO_AGENTS`
 (`atentina_comercial`, `turnos`, `cobranzas`, `reclamos`) del cliente `DEMO_CLIENT` (`atentina`) desde el navegador y sintetiza texto, con Turnstile y límites por IP y por día. Ver
 [`docs/LANDING.md`](docs/LANDING.md).
@@ -56,8 +62,8 @@ curl -X POST http://<host>:8011/api/v1/calls -H "Authorization: Bearer $VAAS_API
 **UI** (`web/`, React + Vite, compilada dentro de la imagen de `app`): dashboard con filtros por
 cliente/agente/fecha, lanzador de llamadas y prueba de voz, detalle en vivo de cada llamada,
 clientes (consumo del mes, números, usuarios, API keys), tiers, agentes (editor JSON con
-validación, versiones, prueba por texto), contactos (agenda del cliente), campañas (WhatsApp y llamadas)
-y usuarios. Desarrollo: `make web-dev` (Vite en :5173
+validación, versiones, prueba por texto), contactos (agenda del cliente), campañas (WhatsApp y llamadas),
+usuarios y reportes. Desarrollo: `make web-dev` (Vite en :5173
 contra la API de :8011); ver `web/README.md`.
 
 ## Stack

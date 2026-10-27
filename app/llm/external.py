@@ -182,9 +182,12 @@ class ExternalAgents:
         first = asyncio.Event()
         parts: list[str] = []
         calls: dict[int, dict] = {}
+        usage = [0, 0]      # si el endpoint manda usage (no se le pide: el cuerpo lleva solo lo estandar)
 
         async def consume() -> None:
             async for chunk in await target.client.chat.completions.create(**request):
+                if (u := getattr(chunk, "usage", None)) is not None:
+                    usage[:] = [int(getattr(u, "prompt_tokens", 0) or 0), int(getattr(u, "completion_tokens", 0) or 0)]
                 if not chunk.choices:
                     continue
                 delta = chunk.choices[0].delta
@@ -243,7 +246,9 @@ class ExternalAgents:
             error = ExternalError("empty_response", "el endpoint no devolvio texto ni herramientas")
             error.trace = {**trace, "error": str(error)}
             raise error
-        return self._result(text, tools_used, state, trace)
+        result = self._result(text, tools_used, state, trace)
+        result.turn.input_tokens, result.turn.output_tokens = usage
+        return result
 
     @staticmethod
     def _result(text: str, tools_used: list[dict], state: ConversationState, trace: dict) -> ExternalResult:

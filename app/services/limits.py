@@ -91,6 +91,8 @@ class Limits:
     external_agent: bool = False
     code_tools: bool = False
     white_label: bool = False
+    # Reportes completos (docs/REPORTES_PLAN.md): Resultados, Mensajes, Transferencias y Campañas.
+    advanced_reports: bool = False
     tier_name: str = ""
     # Campos cuyo valor difiere del tier por un ajuste vigente.
     adjusted: frozenset[str] = field(default_factory=frozenset)
@@ -136,7 +138,7 @@ def apply(tier: Tier, adjustments: Iterable[ClientLimitAdjustment], day: datetim
     return Limits(**values, campaign_channels=tuple(tier.campaign_channels or ()),
                   campaign_followup=bool(tier.campaign_followup), whatsapp=bool(tier.whatsapp),
                   external_agent=bool(tier.external_agent), code_tools=bool(tier.code_tools),
-                  white_label=bool(tier.white_label),
+                  white_label=bool(tier.white_label), advanced_reports=bool(tier.advanced_reports),
                   tier_name=tier.name, adjusted=adjusted)
 
 

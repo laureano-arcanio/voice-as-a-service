@@ -19,6 +19,12 @@
    "default": true
   },
   {
+   "id": "reports",
+   "title": "Reportes: consultas, llamadas, resultados, mensajes, transferencias y campañas",
+   "core": false,
+   "default": true
+  },
+  {
    "id": "call_links",
    "title": "Link para llamar desde el navegador",
    "core": false,
@@ -152,6 +158,15 @@
    "id": "white_label",
    "name": "Panel con tu marca (logo y colores)",
    "plans": {
+    "Red": ""
+   }
+  },
+  {
+   "id": "advanced_reports",
+   "name": "Reportes completos (resultados, mensajes, transferencias y campañas)",
+   "plans": {
+    "Mostrador": "",
+    "Sucursal": "",
     "Red": ""
    }
   }
@@ -782,6 +797,74 @@
    "description": "Saca un teléfono de los bloqueados.",
    "kind": "escritura",
    "features": [],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "get_report_summary",
+   "toolset": "reports",
+   "title": "Reporte: resumen",
+   "description": "Resumen del período contra el anterior: consultas (llamadas y conversaciones de WhatsApp) por canal, % de conversión (datos completos) y de objetivo cumplido, cuántas terminaron en una transferencia a una persona (pedidas, atendidas y % de las consultas), minutos, duración media, llamadas rechazadas por el límite del plan y mensajes de WhatsApp; el consumo de minutos del mes con su proyección a fin de mes; y la serie diaria de consultas por canal con las transferencias. Es lo primero a consultar para \"¿cómo nos fue?\" o \"¿alcanza el plan?\". Para solo los totales, sin desglose, get_stats.",
+   "kind": "lectura",
+   "features": [],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "get_report_calls",
+   "toolset": "reports",
+   "title": "Reporte: llamadas",
+   "description": "Las llamadas del período: por día y modo (entrantes, salientes, web), cuándo llaman (mapa de calor por día de la semana y hora, para elegir horarios de áreas y campañas), por línea y por agente (volumen, minutos, conversión), distribución de la duración, cómo terminan (cortó el cliente, terminó el agente, fuera de tema, cortada desde el panel, bloqueada), cortes tempranos y quién llama (nuevos, que vuelven y los que más vuelven).",
+   "kind": "lectura",
+   "features": [],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "get_report_outcomes",
+   "toolset": "reports",
+   "title": "Reporte: resultados y conversión",
+   "description": "Qué resultado tuvo cada conversación: conversión completa, parcial (algún dato) o sin datos, por día y por agente; los resultados que define cada agente con los de objetivo marcados; el embudo (atendidas, con algún dato, completas, objetivo); en qué % se obtuvo cada dato requerido (muestra qué pregunta se pierde) y la comparación por versión del agente (antes y después de un cambio).",
+   "kind": "lectura",
+   "features": [
+    "advanced_reports"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "get_report_messages",
+   "toolset": "reports",
+   "title": "Reporte: mensajes de WhatsApp",
+   "description": "Los mensajes de WhatsApp del período: entrantes y salientes (texto y nota de voz) por día, mapa de calor por hora, entrega (enviados, entregados, leídos, fallidos) con los errores de Meta, mensajes por conversación, conversión y el estado de las cuentas (calidad y límite de mensajería, con su historial).",
+   "kind": "lectura",
+   "features": [
+    "advanced_reports"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "get_report_transfers",
+   "toolset": "reports",
+   "title": "Reporte: transferencias",
+   "description": "Las transferencias a personas del equipo: pedidas, atendidas, no atendidas y sin disponibilidad (fuera de horario, ocupado, contestador), % atendidas y tiempo hasta atender, por día, por área y por persona; en WhatsApp, el tiempo hasta la primera respuesta del vendedor y las reasignaciones. Sirve para ver si el equipo responde y si los horarios del área están bien.",
+   "kind": "lectura",
+   "features": [
+    "advanced_reports"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "get_report_campaigns",
+   "toolset": "reports",
+   "title": "Reporte: campañas",
+   "description": "Las campañas que corrieron en el período, comparadas: contactos, intentos, alcanzados, conversión, objetivo, bajas y minutos; los motivos de no contacto (ocupado, no atiende, contestador, número inválido) y en qué horarios se atiende más. Para el detalle de una sola campaña, get_campaign_stats.",
+   "kind": "lectura",
+   "features": [
+    "advanced_reports"
+   ],
    "oauth": false,
    "api_key": false
   },

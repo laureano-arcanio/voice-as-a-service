@@ -1,13 +1,25 @@
+import logging
+from typing import TYPE_CHECKING
+
 from sqlalchemy.orm import Session, sessionmaker
 
 from ..db import create_schema, make_engine, make_sessions
 from ..models import ConversationRow
-from .models import ConversationState, Progress
+from .models import ConversationState, Progress, Workflow
+from .workflow import conversion, outcome_goal
+
+if TYPE_CHECKING:
+    from ..agents.definitions import DefinitionSource
+
+logger = logging.getLogger(__name__)
 
 
 class ConversationStore:
     def __init__(self, sessions: sessionmaker[Session]):
         self.sessions = sessions
+        # De donde sale la definicion del agente para las columnas de los reportes (conversion, goal); la fija el
+        # motor (ConversationEngine). Sin ella, la conversion sale solo del resultado y goal no cambia.
+        self.definitions: "DefinitionSource | None" = None
 
     @classmethod
     def for_dsn(cls, dsn: str) -> "ConversationStore":
@@ -28,17 +40,28 @@ class ConversationStore:
                 channel=row.channel or "voice", status=row.status,
                 fields=row.fields, messages=row.messages,
                 progress=Progress.model_validate(row.progress or {}),
+                llm_input_tokens=row.llm_input_tokens or 0, llm_output_tokens=row.llm_output_tokens or 0,
             )
 
     def save(self, state: ConversationState) -> None:
         with self.sessions() as s:
-            self.add(s, state)
+            self.add(s, state, self.workflow(state, s))
             s.commit()
 
+    def workflow(self, state: ConversationState, s: Session | None = None) -> Workflow | None:
+        if self.definitions is None:
+            return None
+        try:
+            return self.definitions.get(state.agent_id, state.agent_version, s)
+        except Exception:       # un agente borrado no impide guardar la conversacion
+            logger.warning("store: sin definicion de %s v%s", state.agent_id, state.agent_version)
+            return None
+
     @staticmethod
-    def add(s: Session, state: ConversationState) -> None:
+    def add(s: Session, state: ConversationState, workflow: Workflow | None = None) -> None:
         """Agrega o actualiza la conversacion en la sesion `s`, sin commit (quien llama
-        la guarda junto con lo suyo, ej. la llamada)."""
+        la guarda junto con lo suyo, ej. la llamada). workflow: la definicion, para las columnas de los
+        reportes (conversion y goal)."""
         data = state.model_dump(mode="json")
         row = s.get(ConversationRow, state.conversation_id)
         if row is None:
@@ -50,4 +73,14 @@ class ConversationStore:
         row.fields = data["fields"]
         row.messages = data["messages"]
         row.progress = data["progress"]
+        # Reportes (docs/REPORTES_PLAN.md, 9.1): el resultado al completarse, si cumple el objetivo y la conversion.
+        outcome = state.progress.outcome if state.status == "completed" else None
+        if workflow is not None:
+            row.goal = outcome_goal(workflow, outcome)
+        elif outcome != row.outcome:
+            row.goal = None
+        row.outcome = outcome
+        row.conversion = conversion(workflow, state)
+        row.llm_input_tokens = state.llm_input_tokens
+        row.llm_output_tokens = state.llm_output_tokens
         s.add(row)

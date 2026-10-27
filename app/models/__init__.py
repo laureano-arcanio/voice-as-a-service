@@ -29,9 +29,10 @@ from .tenancy import (
     Tier,
     User,
 )
-from .tools import AgentSecret, ClientSecret, ClientTool, Credential, ToolVersion
+from .tools import AgentSecret, ClientSecret, ClientTool, Credential, ToolRun, ToolVersion
 from .whatsapp import (
     WaAccount,
+    WaAccountStatusLog,
     WaMessage,
     WaRoute,
     WaThread,
@@ -81,9 +82,11 @@ __all__ = [
     "Subscription",
     "TeamMember",
     "Tier",
+    "ToolRun",
     "ToolVersion",
     "User",
     "WaAccount",
+    "WaAccountStatusLog",
     "WaMessage",
     "WaRoute",
     "WaThread",

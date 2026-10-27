@@ -74,3 +74,18 @@ def test_messages_ignored_when_plan_drops_whatsapp(api, admin):
     admin.patch(f"{V1}/tiers/{tier['id']}", json={"whatsapp": False}).raise_for_status()
     with api.sessions() as s:
         assert WhatsAppService._why_ignore(None, s, s.get(WaAccount, account_id), "5493510000000") == "plan sin WhatsApp"
+
+
+def test_advanced_reports_by_plan(api, admin):
+    """Reportes completos (docs/REPORTES_PLAN.md): Free no; el plan con advanced_reports, si."""
+    free = make_client(admin, tier=make_tier(admin, **FREE))
+    make_tier(admin, name="Mostrador", price_ars=29000, public=True, sort=1, advanced_reports=True)
+    f = features(admin, client_id=free["id"])["features"]["advanced_reports"]
+    assert f == {"enabled": False, "reason": "Disponible en el plan Mostrador."}
+    paid = make_tier(admin, name="Sucursal", price_ars=99000, advanced_reports=True)
+    assert paid["advanced_reports"] is True
+    c = make_client(admin, slug="pago", tier=paid)
+    assert features(admin, client_id=c["id"])["features"]["advanced_reports"]["enabled"]
+    r = admin.patch(f"{V1}/tiers/{paid['id']}", json={"advanced_reports": False})
+    assert r.status_code == 200 and r.json()["advanced_reports"] is False
+    assert not features(admin, client_id=c["id"])["features"]["advanced_reports"]["enabled"]

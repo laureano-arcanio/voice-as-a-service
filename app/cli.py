@@ -6,6 +6,7 @@
     python -m app.cli wa-account PHONE_NUMBER_ID --waba WABA --display "+1 555 145 6632" \
         --client atentina --agent SLUG [--name ...]   # conecta un numero de WhatsApp (idempotente)
     python -m app.cli agent-rules [--apply]      # suma las reglas generales a los agentes vigentes (idempotente)
+    python -m app.cli reports-backfill [--batch N]  # resultado y conversion de las conversaciones anteriores (idempotente)
 
 seed deja lo minimo para operar despues de migrar (todo idempotente: solo crea lo que falta):
 - tier "Interno" (sin limites) y cliente "atentina" (nosotros): loadtest, pruebas, la demo de la
@@ -60,7 +61,7 @@ def _client(s: Session, slug: str) -> Client:
     if tier is None:
         tier = Tier(name=INTERNAL_TIER, description="Sin limites: Atentina (nosotros)",
                     campaign_channels=["whatsapp", "voice"], campaign_followup=True, external_agent=True,
-                    code_tools=True, white_label=True)
+                    code_tools=True, white_label=True, advanced_reports=True)
         s.add(tier)
         s.flush()
         _log(f"tier {INTERNAL_TIER} creado")
@@ -199,6 +200,44 @@ def agent_rules(s: Session, apply: bool) -> None:
         s.commit()
 
 
+def reports_backfill(s: Session, batch: int = 500, definitions=None) -> int:
+    """Completa outcome, goal y conversion (docs/REPORTES_PLAN.md, 9.1) de las conversaciones que no los tienen
+    (las anteriores a la migracion 0036), con la definicion de la version con que corrieron. Idempotente: solo
+    toca las que tienen conversion NULL; en lotes, con un commit por lote. No cambia updated_at. Devuelve cuantas."""
+    from sqlalchemy import update
+
+    from .agents.definitions import DbDefinitions
+    from .conversation.models import ConversationState, Progress
+    from .conversation.workflow import conversion
+    from .models import ConversationRow
+    from .services.reports import Reports
+
+    reports = Reports(s, definitions or DbDefinitions(get_sessionmaker()))
+    done, last = 0, ""
+    while True:
+        rows = list(s.scalars(select(ConversationRow).where(ConversationRow.conversion.is_(None),
+                                                            ConversationRow.id > last)
+                              .order_by(ConversationRow.id).limit(batch)))
+        if not rows:
+            break
+        for conv in rows:
+            workflow = reports.workflow(conv)
+            outcome = reports.outcome(workflow, conv)
+            progress = Progress.model_validate(conv.progress or {})
+            progress.outcome = outcome.id if outcome else None
+            state = ConversationState(conversation_id=conv.id, agent_id=conv.agent_id or "",
+                                      status=conv.status if conv.status in ("active", "completed") else "active",
+                                      fields=conv.fields or {}, progress=progress)
+            s.execute(update(ConversationRow).where(ConversationRow.id == conv.id).values(
+                outcome=outcome.id if outcome else None, goal=outcome.goal if outcome else None,
+                conversion=conversion(workflow, state), updated_at=ConversationRow.updated_at))
+        s.commit()
+        done += len(rows)
+        last = rows[-1].id
+        _log(f"reports-backfill: {done} conversaciones")
+    return done
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="python -m app.cli")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -217,6 +256,8 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--name", default=None)
     p = sub.add_parser("agent-rules", help="suma las reglas generales a los agentes vigentes (idempotente)")
     p.add_argument("--apply", action="store_true", help="sin esto solo lista")
+    p = sub.add_parser("reports-backfill", help="resultado y conversion de las conversaciones anteriores (idempotente)")
+    p.add_argument("--batch", type=int, default=500)
     args = parser.parse_args(argv)
     with get_sessionmaker()() as s:
         if args.cmd == "seed":
@@ -230,6 +271,8 @@ def main(argv: list[str] | None = None) -> None:
             wa_account(s, args.phone_number_id, args.waba, args.display, args.client, args.agent, args.name)
         elif args.cmd == "agent-rules":
             agent_rules(s, args.apply)
+        elif args.cmd == "reports-backfill":
+            reports_backfill(s, args.batch)
 
 
 if __name__ == "__main__":

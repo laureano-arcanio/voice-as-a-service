@@ -2,7 +2,7 @@ import json
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, BadRequestError
 
 from app.config import settings
 from app.conversation.models import (
@@ -43,6 +43,17 @@ def extraction_schema(workflow: Workflow) -> dict:
         "required": names,
         "additionalProperties": False,
     }
+
+
+# Servidores (base_url) que rechazaron stream_options: se les pide sin usage (los tokens quedan en 0).
+_NO_STREAM_USAGE: set[str] = set()
+
+
+def usage_of(usage) -> tuple[int, int]:
+    """(entrada, salida) del `usage` de una respuesta; (0, 0) si el proveedor no lo da."""
+    if usage is None:
+        return 0, 0
+    return int(getattr(usage, "prompt_tokens", 0) or 0), int(getattr(usage, "completion_tokens", 0) or 0)
 
 
 def local_sampling() -> dict:
@@ -129,7 +140,9 @@ class LLMClient:
         while True:
             request = dict(model=self.model, messages=messages, tools=definitions, tool_choice="auto",
                            **self._limit(), **self.options)
-            content, thought, calls = await self._converse_once(request, on_message)
+            content, thought, calls, (tokens_in, tokens_out) = await self._converse_once(request, on_message)
+            turn.input_tokens += tokens_in
+            turn.output_tokens += tokens_out
             said.append(content)
             raw.append(content)
             if thought:
@@ -161,19 +174,36 @@ class LLMClient:
         turn.reasoning = "".join(reasoning) or None
         return turn
 
-    async def _converse_once(self, request: dict,
-                             on_message: Callable[[str], None] | None) -> tuple[str, str | None, list[dict]]:
-        """Un pedido: el texto (ya pasado al TTS en streaming), el razonamiento y las herramientas que pidio el
-        modelo [{id, name, arguments}]."""
+    async def _stream(self, request: dict):
+        """El pedido en streaming, con el usage en el ultimo chunk (stream_options) si el servidor lo acepta."""
+        if self._base_url in _NO_STREAM_USAGE:
+            return await self.client.chat.completions.create(**request, stream=True)
+        try:
+            return await self.client.chat.completions.create(**request, stream=True,
+                                                             stream_options={"include_usage": True})
+        except BadRequestError as e:
+            if "stream_options" not in str(e):
+                raise
+            _NO_STREAM_USAGE.add(self._base_url)
+            return await self.client.chat.completions.create(**request, stream=True)
+
+    async def _converse_once(self, request: dict, on_message: Callable[[str], None] | None
+                             ) -> tuple[str, str | None, list[dict], tuple[int, int]]:
+        """Un pedido: el texto (ya pasado al TTS en streaming), el razonamiento, las herramientas que pidio el
+        modelo [{id, name, arguments}] y los tokens (entrada, salida)."""
         if on_message is None:
-            message = (await self.client.chat.completions.create(**request)).choices[0].message
+            response = await self.client.chat.completions.create(**request)
+            message = response.choices[0].message
             reasoning = getattr(message, "reasoning_content", None) or getattr(message, "reasoning", None)
             calls = [{"id": c.id or f"call_{i}", "name": c.function.name, "arguments": c.function.arguments or "{}"}
                      for i, c in enumerate(getattr(message, "tool_calls", None) or [])]
-            return message.content or "", reasoning, calls
+            return message.content or "", reasoning, calls, usage_of(getattr(response, "usage", None))
         parts, reasoning_parts = [], []
         pending: dict[int, dict] = {}
-        async for chunk in await self.client.chat.completions.create(**request, stream=True):
+        usage = (0, 0)
+        async for chunk in await self._stream(request):
+            if getattr(chunk, "usage", None) is not None:
+                usage = usage_of(chunk.usage)
             if not chunk.choices:
                 continue
             delta = chunk.choices[0].delta
@@ -192,19 +222,21 @@ class LLMClient:
                     slot["arguments"] += tc.function.arguments or ""
         calls = [{**c, "id": c["id"] or f"call_{i}", "arguments": c["arguments"] or "{}"}
                  for i, c in sorted(pending.items()) if c["name"]]
-        return "".join(parts), "".join(reasoning_parts) or None, calls
+        return "".join(parts), "".join(reasoning_parts) or None, calls, usage
 
     async def extract(self, workflow: Workflow, state: ConversationState) -> Extraction:
         """Los datos del usuario segun toda la conversacion."""
-        message = (await self.client.chat.completions.create(
+        response = await self.client.chat.completions.create(
             model=self.model,
             messages=[{"role": "system", "content": extraction_prompt(state.channel)},
                       {"role": "user", "content": build_extraction_prompt(workflow, state)}],
             **self._guided("extraction", extraction_schema(workflow)), **self._limit(), **self.options)
-        ).choices[0].message
+        message = response.choices[0].message
         reasoning = getattr(message, "reasoning_content", None) or getattr(message, "reasoning", None)
         content = message.content or ""
-        return Extraction(fields=json.loads(content), raw=content, reasoning=reasoning)
+        tokens_in, tokens_out = usage_of(getattr(response, "usage", None))
+        return Extraction(fields=json.loads(content), raw=content, reasoning=reasoning,
+                          input_tokens=tokens_in, output_tokens=tokens_out)
 
     async def structured(self, messages: list[dict], schema: dict, name: str = "step",
                          thinking: bool | None = None, budget: int | None = None,

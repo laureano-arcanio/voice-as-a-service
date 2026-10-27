@@ -308,6 +308,13 @@ def test_admin_platform_grant_sees_every_tool(api, admin, setup):
     assert c["slug"] in slugs
     limits = call(api, access, "admin_get_client_limits", client_id=c["id"])
     assert not limits.get("isError"), limits
+    # Reportes: técnico de un cliente (o de todos) y plataforma; los de cliente piden el cliente.
+    assert {"get_report_technical", "get_report_platform", "get_report_summary"} <= set(tools)
+    assert "client_id" in tools["get_report_technical"]["inputSchema"]["properties"]
+    assert "client_id" not in tools["get_report_platform"]["inputSchema"]["properties"]
+    assert "kpis" in call(api, access, "get_report_summary", client_id=c["id"])["structuredContent"]
+    assert "latency_daily" in call(api, access, "get_report_technical", client_id=c["id"])["structuredContent"]
+    assert "clients" in call(api, access, "get_report_platform")["structuredContent"]
     # El uso queda anotado sin cliente (toda la plataforma) y lo ve el admin.
     usage = call(api, access, "admin_get_mcp_usage")["structuredContent"]
     assert {"admin_list_clients", "admin_get_client_limits"} <= {t["tool"] for t in usage["tools"]}

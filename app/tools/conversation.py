@@ -15,6 +15,7 @@ from sqlalchemy import select
 
 from ..config import settings
 from ..conversation.models import ConversationState, ToolSettings, Workflow
+from ..db import utcnow
 from . import schema as S
 from .runtime import ToolContext, ToolResult, ToolSpec, run
 
@@ -89,7 +90,8 @@ class ConversationTools:
         if not specs:
             return None
         return TurnTools(specs=specs, ctx=self.context(workflow, state, actor),
-                         settings=workflow.tool_settings or ToolSettings(), voice=state.channel == "voice")
+                         settings=workflow.tool_settings or ToolSettings(), voice=state.channel == "voice",
+                         sessions=self.sessions, client_id=state.client_id, agent_id=state.agent_id)
 
 
 @dataclass
@@ -101,6 +103,10 @@ class TurnTools:
     voice: bool = True
     trace: list[dict] = field(default_factory=list)
     calls: int = 0              # herramientas ejecutadas en el turno (el respaldo de BYOK no repite el turno)
+    # Para registrar cada ejecucion en tool_runs (reportes del admin, docs/REPORTES_PLAN.md).
+    sessions: object = None
+    client_id: str | None = None
+    agent_id: str | None = None
 
     @property
     def by_name(self) -> dict[str, ToolSpec]:
@@ -125,13 +131,31 @@ class TurnTools:
         except ValueError:
             args = raw_args
         result: ToolResult = await run(spec, args, self.ctx, call_id)
+        ms = round((time.perf_counter() - started) * 1000)
         if not result.ok and spec.messages.failed and on_message is not None and self.voice:
             on_message(spec.messages.failed)
         self.trace.append({"kind": "herramienta", "input": f"{spec.slug} {json.dumps(args, ensure_ascii=False)}",
-                           "ms": round((time.perf_counter() - started) * 1000), "output": result.llm,
+                           "ms": ms, "output": result.llm,
                            "tool": {"slug": spec.slug, "type": spec.type, "revision": spec.revision,
                                     **result.trace()}})
+        self._record(spec, result, ms)
         return result.llm
+
+    def _record(self, spec: ToolSpec, result: ToolResult, ms: int) -> None:
+        """Una fila en tool_runs. Si falla (la base, una FK), se loguea y la llamada sigue."""
+        if self.sessions is None or not self.client_id:
+            return
+        from ..models import ToolRun
+        try:
+            with self.sessions() as s:
+                s.add(ToolRun(client_id=self.client_id, tool_id=spec.tool_id,
+                              conversation_id=self.ctx.conversation_id or None, agent_id=self.agent_id,
+                              slug=spec.slug[:64], type=spec.type[:8], ok=bool(result.ok),
+                              status_code=result.status if spec.type == "http" else None, ms=result.ms or ms,
+                              error=("" if result.ok else str(result.error or ""))[:255], created_at=utcnow()))
+                s.commit()
+        except Exception:
+            logger.exception("tools: no se pudo registrar la ejecucion de %s", spec.slug)
 
     async def execute(self, calls: list[dict], on_message: Callable[[str], None] | None,
                       spoke: bool) -> list[tuple[str, str]]:

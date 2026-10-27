@@ -177,3 +177,21 @@ Decisión del usuario, en la migración 0026 (por nombre, sin CAP con Gemma toda
   listan WhatsApp, campañas, contactos y derivación. Al cambiar un tier, cambiar las dos.
 - Desplegar: `make migrate-test`, `make migrate` (solo datos: no hace falta recrear servicios) y publicar
   la landing.
+
+## 7. Reportes completos por plan (27-oct-2026)
+
+Clave **`advanced_reports`** (`services/features.TIER_HAS`; columna `tiers.advanced_reports`, migración 0036;
+`GET /plan/features`). Decide qué reportes ve el cliente ([`REPORTES_PLAN.md`](REPORTES_PLAN.md)):
+
+| Plan | Reportes |
+|---|---|
+| Free | Básicos: Resumen (con consultas por día y transferencias) y Llamadas |
+| Mostrador, Sucursal e Interno | Completos: además Resultados, Mensajes, Transferencias y Campañas |
+| Red (a medida) | Completos |
+
+- La migración la prende en los tiers con precio o a medida (`price_ars` mayor que 0 o `NULL`); el Free no.
+  Se edita en Tiers (admin) como las demás funciones.
+- Corte: `GET /reports/{outcomes,messages,transfers,campaigns}` da 403 `advanced_reports_not_in_plan`. En la UI,
+  la pestaña muestra el aviso "Mejorar mi plan" con los planes que la incluyen. El admin las ve siempre.
+- Landing: la tabla de `/desarrolladores/docs/api` (`planFeatures`) y las tarjetas de `landing/src/data/site.ts`.
+  Al cambiar el tier, cambiar las dos.

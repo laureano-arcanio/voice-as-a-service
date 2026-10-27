@@ -374,6 +374,7 @@ def test_mcp_read_key_only_sees_and_runs_read_tools(api, admin, full):
     ro = Mcp(api, key)
     tools = ro.tools()
     assert "list_agents" in tools and "validate_agent_definition" in tools
+    assert {"get_report_summary", "get_report_outcomes"} <= set(tools)
     assert not any(not catalog.BY_NAME[n].reads for n in tools)
     r = api.client.post("/mcp", headers={"Authorization": f"Bearer {key}"},
                         json={"jsonrpc": "2.0", "id": 1, "method": "tools/call",
@@ -412,3 +413,57 @@ def test_inference_tools_are_opt_in_and_need_their_scopes(api, admin, full):
     assert out["isError"] and out["structuredContent"]["http_status"] in (401, 403), out
     bad = inf.call("transcribe_audio", audio_base64="no es base64!", filename="a.wav")
     assert bad["structuredContent"]["code"] == "invalid_arguments"
+
+
+# ---------- reportes (docs/REPORTES_PLAN.md, 9.4) ----------
+
+REPORT_TOOLS = {"get_report_summary": "/reports/summary", "get_report_calls": "/reports/calls",
+                "get_report_outcomes": "/reports/outcomes", "get_report_messages": "/reports/messages",
+                "get_report_transfers": "/reports/transfers", "get_report_campaigns": "/reports/campaigns"}
+PERIOD = {"date_from": "2026-10-01", "date_to": "2026-10-24"}
+
+
+def test_report_tools_are_in_the_catalog():
+    for name, path in REPORT_TOOLS.items():
+        t = catalog.BY_NAME[name]
+        assert (t.toolset, t.method, t.path, t.reads) == ("reports", "GET", path, True), name
+        assert t.features == (() if name in ("get_report_summary", "get_report_calls") else ("advanced_reports",)), name
+    # Lo técnico y la plataforma son del admin: un cliente no los ve, ni con `all`.
+    assert catalog.BY_NAME["get_report_technical"].toolset == catalog.BY_NAME["get_report_platform"].toolset == "admin"
+    assert "reports" in catalog.DEFAULT and "reports" not in catalog.CORE
+
+
+def test_report_tools_read_the_reports_api(api, admin):
+    c = make_client(admin, slug="rep", advanced_reports=True)
+    key = new_key(admin, c)
+    mcp = Mcp(api, key, "reports")
+    assert {"get_plan_tools", *REPORT_TOOLS} == set(mcp.tools())
+    auth = {"Authorization": f"Bearer {key}"}
+    for name, path in REPORT_TOOLS.items():
+        out = mcp.call(name, **PERIOD)
+        direct = api.client.get(f"{V1}{path}", params=PERIOD, headers=auth)
+        assert direct.status_code == 200, (name, direct.text)
+        assert ok(out) == direct.json(), name
+    assert "kpis" in ok(mcp.call("get_report_summary", channel="voice", include_tests=True, **PERIOD))
+    # Los filtros se validan antes de pedir; el cliente no elige otro cliente ni ve lo técnico.
+    out = mcp.call("get_report_summary", client_id="otro")
+    assert out["isError"] and "client_id" in out["structuredContent"]["message"]
+    r = api.client.post("/mcp", headers=auth, json={"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                                                     "params": {"name": "get_report_technical", "arguments": {}}})
+    assert r.json()["error"]["code"] == -32602
+    assert api.client.get(f"{V1}/reports/technical", headers=auth).status_code == 403
+
+
+def test_report_tools_respect_the_plan(api, admin):
+    c = make_client(admin, slug="gratis", tier=make_tier(admin, **FREE))
+    mcp = Mcp(api, new_key(admin, c), "reports")
+    assert "kpis" in ok(mcp.call("get_report_summary", **PERIOD))
+    assert "daily" in ok(mcp.call("get_report_calls", **PERIOD))
+    plan = mcp.call("get_plan_tools")["structuredContent"]
+    blocked = {t["name"] for t in plan["tools"]["unavailable"]}
+    assert {"get_report_outcomes", "get_report_messages", "get_report_transfers", "get_report_campaigns"} <= blocked
+    assert not {"get_report_summary", "get_report_calls"} & blocked
+    for name in ("get_report_outcomes", "get_report_messages", "get_report_transfers", "get_report_campaigns"):
+        out = mcp.call(name, **PERIOD)
+        assert out["isError"] and out["structuredContent"]["code"] == "feature_not_in_plan", (name, out)
+        assert out["structuredContent"]["feature"] == "advanced_reports"

@@ -349,6 +349,9 @@ class ConversationState(BaseModel):
     fields: dict[str, Any]
     messages: list[Message] = Field(default_factory=list)
     progress: Progress = Field(default_factory=Progress)
+    # Tokens del LLM sumados de todos los turnos y extracciones (conversations.llm_input_tokens/llm_output_tokens).
+    llm_input_tokens: int = 0
+    llm_output_tokens: int = 0
     # Solo el turno en curso: lo fija process_turn y no se guarda (exclude).
     media: TurnMedia = Field(default_factory=TurnMedia, exclude=True)
 
@@ -367,6 +370,9 @@ class AgentTurn(BaseModel):
     # Salida cruda del LLM y su razonamiento; no son parte del contrato.
     raw: str | None = Field(default=None, exclude=True)
     reasoning: str | None = Field(default=None, exclude=True)
+    # Tokens del turno (el usage de las respuestas del proveedor; 0 si no lo da).
+    input_tokens: int = Field(default=0, exclude=True)
+    output_tokens: int = Field(default=0, exclude=True)
 
 
 class Extraction(BaseModel):
@@ -374,3 +380,6 @@ class Extraction(BaseModel):
     fields: dict[str, Any]
     raw: str | None = None
     reasoning: str | None = None
+    # Tokens del pedido (el usage del proveedor; 0 si no lo da).
+    input_tokens: int = 0
+    output_tokens: int = 0

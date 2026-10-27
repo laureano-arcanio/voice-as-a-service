@@ -1,6 +1,6 @@
 import { Button, Card, Stack } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { IconMessages, IconPhonePlus } from '@tabler/icons-react';
+import { IconChartHistogram, IconMessages, IconPhonePlus } from '@tabler/icons-react';
 import { Link, useSearchParams } from 'react-router';
 import { CollapsibleCard } from '@/components/CollapsibleCard';
 import { PageHeader } from '@/components/PageHeader';
@@ -20,7 +20,7 @@ export function DashboardPage() {
   const stats = useStats(apiFilters);
   const daily = useDailyStats({ ...apiFilters, date_from: dates.from, date_to: dates.to });
   const live = useLiveCalls({ client_id: apiFilters.client_id, agent_id: apiFilters.agent_id });
-  // El listado vive en /calls: el link lleva los mismos filtros (cliente, agente y periodo).
+  // El listado (/calls) y Reportes (/reports): los links llevan los mismos filtros (cliente, agente y periodo).
   const [params] = useSearchParams();
   const listParams = new URLSearchParams(
     [...params].filter(([k]) => ['client', 'agent', 'range', 'from', 'to'].includes(k)),
@@ -38,14 +38,24 @@ export function DashboardPage() {
         title="Inicio"
         description={`Conversaciones del ${formatDate(`${dates.from}T00:00:00`)} al ${formatDate(`${dates.to}T00:00:00`)}`}
         actions={
-          <Button
-            component={Link}
-            to={`/calls${listParams ? `?${listParams}` : ''}`}
-            variant="default"
-            leftSection={<IconMessages size={18} />}
-          >
-            Ver conversaciones
-          </Button>
+          <>
+            <Button
+              component={Link}
+              to={`/reports${listParams ? `?${listParams}` : ''}`}
+              variant="default"
+              leftSection={<IconChartHistogram size={18} />}
+            >
+              Ver reportes
+            </Button>
+            <Button
+              component={Link}
+              to={`/calls${listParams ? `?${listParams}` : ''}`}
+              variant="default"
+              leftSection={<IconMessages size={18} />}
+            >
+              Ver conversaciones
+            </Button>
+          </>
         }
       />
       <Card>

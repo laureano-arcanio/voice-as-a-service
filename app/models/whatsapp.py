@@ -112,3 +112,15 @@ class WaMessage(IdMixin, Base):
     meta_ts: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class WaAccountStatusLog(IdMixin, Base):
+    """Historial del estado, la calidad y el limite de mensajeria de una cuenta (lo que llega de Meta o del
+    chequeo), para los reportes (docs/REPORTES_PLAN.md). Una fila por cambio, no por chequeo."""
+    __tablename__ = "wa_account_status_log"
+
+    account_id: Mapped[str] = mapped_column(String(36), ForeignKey("wa_accounts.id", ondelete="CASCADE"), index=True)
+    status: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    quality_rating: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    messaging_limit: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)

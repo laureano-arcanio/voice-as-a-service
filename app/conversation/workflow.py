@@ -108,3 +108,26 @@ def outcome_for(workflow: Workflow, state: ConversationState) -> Outcome:
     if outcome.goal and not is_workflow_complete(workflow, state):
         return INCOMPLETE
     return outcome
+
+
+def conversion(workflow: Workflow | None, state: ConversationState) -> str:
+    """Para los reportes (docs/REPORTES_PLAN.md, 9.1). complete: termino con un resultado que no es incompleta ni
+    fuera de tema y sin datos obligatorios pendientes; partial: algun dato capturado; empty: ninguno. Los
+    precargados (el telefono de la llamada, los datos de la campaña) no cuentan como capturados. Sin la
+    definicion (workflow None), solo el resultado."""
+    outcome = state.progress.outcome
+    if (state.status == "completed" and outcome and outcome not in (INCOMPLETE.id, OFF_TOPIC.id)
+            and (workflow is None or is_workflow_complete(workflow, state))):
+        return "complete"
+    preloaded = set(state.progress.preloaded)
+    names = workflow.fields if workflow is not None else state.fields
+    if any(state.fields.get(n) not in (None, "") for n in names if n not in preloaded):
+        return "partial"
+    return "empty"
+
+
+def outcome_goal(workflow: Workflow, outcome_id: str | None) -> bool | None:
+    """Si el resultado cumple el objetivo del agente (None sin resultado; incompleta y fuera de tema, no)."""
+    if outcome_id is None:
+        return None
+    return any(o.goal for o in workflow.completion.outcomes if o.id == outcome_id)

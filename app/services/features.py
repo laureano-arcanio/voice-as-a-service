@@ -41,6 +41,7 @@ TIER_HAS: dict[str, Callable[[Tier], bool]] = {
     "custom_tools": lambda t: t.max_tools != 0,
     "code_tools": lambda t: t.max_tools != 0 and bool(t.code_tools),
     "white_label": lambda t: bool(t.white_label),
+    "advanced_reports": lambda t: bool(t.advanced_reports),
 }
 
 
@@ -80,6 +81,7 @@ def plan_features(s: Session, client: Client) -> PlanFeatures:
         "custom_tools": lim.max_tools != 0,
         "code_tools": lim.max_tools != 0 and lim.code_tools,
         "white_label": lim.white_label,
+        "advanced_reports": lim.advanced_reports,
     }
     tiers = _upgrade_tiers(s, client) if not all(enabled.values()) else []
     features = {}

@@ -97,7 +97,7 @@ def parse(tool_type: str, definition: dict) -> S.HttpTool | S.CodeTool:
 def spec_of(row: ClientTool, credentials: dict[str, S.Auth] | None = None) -> ToolSpec:
     """La herramienta lista para correr, con su credencial resuelta."""
     tool = S.resolve(S.parse(row.type, row.definition), credentials or {})
-    return ToolSpec(slug=row.slug, type=row.type, revision=row.revision, tool=tool)
+    return ToolSpec(slug=row.slug, type=row.type, revision=row.revision, tool=tool, tool_id=row.id)
 
 
 # ---------- herramientas ----------

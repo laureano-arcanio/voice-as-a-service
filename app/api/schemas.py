@@ -180,6 +180,8 @@ class TierIn(BaseModel):
                                                                "null: sin tope; 0: no incluido")
     code_tools: bool = Field(default=False, description="Las herramientas pueden ser codigo (JavaScript)")
     white_label: bool = Field(default=False, description="Marca blanca: el panel con el logo y los colores del cliente")
+    advanced_reports: bool = Field(default=False, description="Reportes completos: Resultados, Mensajes, "
+                                                              "Transferencias y Campañas (sin esto, Resumen y Llamadas)")
     # Autoservicio (docs/SUSCRIPCIONES_PLAN.md).
     price_ars: int | None = Field(default=None, ge=0,
                                   description="Precio mensual en pesos, lo que se cobra. null: no se vende por el dashboard; 0: gratis")
@@ -215,6 +217,7 @@ class TierUpdate(BaseModel):
     max_tools: int | None = Field(default=None, ge=0)
     code_tools: bool | None = None
     white_label: bool | None = None
+    advanced_reports: bool | None = None
     price_ars: int | None = Field(default=None, ge=0)
     public: bool | None = None
     sort: int | None = None
@@ -249,6 +252,7 @@ class TierOut(ORM):
     max_tools: int | None
     code_tools: bool
     white_label: bool
+    advanced_reports: bool
     price_ars: int | None
     public: bool
     sort: int
@@ -2097,7 +2101,8 @@ class CampaignStatsOut(BaseModel):
 
 
 PlanFeatureKey = Literal["outbound_calls", "campaigns_voice", "campaigns_whatsapp", "whatsapp", "contacts",
-                         "team", "call_links", "external_agent", "custom_tools", "code_tools", "white_label"]
+                         "team", "call_links", "external_agent", "custom_tools", "code_tools", "white_label",
+                         "advanced_reports"]
 
 
 class PlanFeatureOut(BaseModel):
@@ -2353,3 +2358,433 @@ class McpUsageOut(BaseModel):
     calls: int
     errors: int
     tools: list[McpToolUsageOut]
+
+
+# ---------- reportes (docs/REPORTES_PLAN.md, 9.2) ----------
+
+class ReportPeriodOut(BaseModel):
+    date_from: datetime.date
+    date_to: datetime.date
+
+
+class ReportByChannelOut(BaseModel):
+    voice: int
+    whatsapp: int
+    web: int
+
+
+class ReportKpisOut(BaseModel):
+    conversations: int = Field(description="Consultas: llamadas (atendidas o no) y conversaciones de WhatsApp")
+    by_channel: ReportByChannelOut
+    conversion_pct: float | None = Field(description="% con todos los datos requeridos (conversion complete)")
+    goal_pct: float | None = Field(description="% con un resultado que cumple el objetivo")
+    transfers: int = Field(description="Conversaciones con un pedido de derivación a una persona")
+    transfers_answered: int = Field(description="Derivaciones atendidas por una persona")
+    transfer_pct: float | None
+    minutes: float
+    avg_duration: int | None = Field(description="Segundos, de las llamadas finalizadas")
+    rejected_by_limit: int = Field(description="Llamadas rechazadas por el plan (concurrencia, cantidad o minutos)")
+    wa_messages: int
+
+
+class ReportPlanOut(BaseModel):
+    inbound_minutes_used: float
+    inbound_minutes_quota: int | None = Field(description="None: sin límite")
+    outbound_minutes_used: float
+    outbound_minutes_quota: int | None
+    projected_inbound_minutes: float | None = Field(description="A fin de mes, al ritmo del mes en curso")
+    period_start: UTCDateTime
+    period_end: UTCDateTime
+
+
+class ReportSummaryDayOut(BaseModel):
+    date: datetime.date
+    voice: int
+    whatsapp: int
+    web: int
+    transfers: int
+    transfers_answered: int
+
+
+class ReportSummaryOut(BaseModel):
+    period: ReportPeriodOut
+    kpis: ReportKpisOut
+    previous: ReportKpisOut = Field(description="El mismo largo, inmediatamente antes")
+    plan: ReportPlanOut | None = Field(description="Consumo del mes en curso; None con todos los clientes")
+    daily: list[ReportSummaryDayOut]
+
+
+class ReportHeatCellOut(BaseModel):
+    weekday: int = Field(description="0 = lunes")
+    hour: int
+    count: int
+
+
+class ReportCallsDayOut(BaseModel):
+    date: datetime.date
+    entrante: int
+    saliente: int
+    web: int
+    prueba: int
+
+
+class ReportLineOut(BaseModel):
+    phone_number_id: str
+    number: str
+    calls: int
+    minutes: float
+    conversion_pct: float | None
+
+
+class ReportCallsAgentOut(BaseModel):
+    agent_id: str
+    agent_name: str
+    calls: int
+    minutes: float
+    avg_duration: int | None
+    conversion_pct: float | None
+    goal_pct: float | None
+
+
+class ReportCountOut(BaseModel):
+    count: int
+
+
+class ReportBucketOut(ReportCountOut):
+    bucket: Literal["0-15s", "15-60s", "1-3m", "3-5m", "5-10m", "10m+"]
+
+
+class ReportReasonOut(ReportCountOut):
+    reason: str
+
+
+class ReportCallerOut(ReportCountOut):
+    phone: str = Field(description="Teléfono o wa_id, sin el +")
+    last_at: UTCDateTime
+
+
+class ReportCallersOut(BaseModel):
+    new: int = Field(description="Su primer contacto es del período")
+    returning: int = Field(description="Ya había llamado o escrito antes del período")
+    top: list[ReportCallerOut] = Field(description="Los que más volvieron en el período")
+
+
+class ReportCallsOut(BaseModel):
+    daily: list[ReportCallsDayOut]
+    heatmap: list[ReportHeatCellOut]
+    by_line: list[ReportLineOut]
+    by_agent: list[ReportCallsAgentOut]
+    durations: list[ReportBucketOut] = Field(description="Llamadas finalizadas por duración")
+    ended: list[ReportReasonOut] = Field(description="customer_hangup, agent_end, off_topic, hangup_by_user, "
+                                                     "blocked_number, rejected, failed, other")
+    early_hangups: int = Field(description="Finalizadas en menos de 15 s")
+    callers: ReportCallersOut
+
+
+class ReportConversionDayOut(BaseModel):
+    date: datetime.date
+    complete: int
+    partial: int
+    empty: int
+
+
+class ReportOutcomesAgentOut(BaseModel):
+    agent_id: str
+    agent_name: str
+    total: int
+    complete: int
+    partial: int
+    empty: int
+    goal: int
+
+
+class ReportOutcomeOut(BaseModel):
+    agent_id: str
+    agent_name: str
+    outcome: str
+    label: str
+    goal: bool
+    count: int
+
+
+class ReportFunnelOut(BaseModel):
+    conversations: int
+    with_data: int
+    complete: int
+    goal: int
+
+
+class ReportFieldOut(BaseModel):
+    agent_id: str
+    agent_name: str
+    field: str
+    label: str
+    captured: int
+    total: int
+    pct: float | None
+
+
+class ReportVersionOut(BaseModel):
+    agent_id: str
+    agent_name: str
+    version: int
+    total: int
+    conversion_pct: float | None
+    goal_pct: float | None
+
+
+class ReportOutcomesOut(BaseModel):
+    conversion_daily: list[ReportConversionDayOut]
+    by_agent: list[ReportOutcomesAgentOut]
+    outcomes: list[ReportOutcomeOut]
+    funnel: ReportFunnelOut
+    fields: list[ReportFieldOut] = Field(description="Datos obligatorios de la versión vigente de cada agente")
+    by_version: list[ReportVersionOut]
+
+
+class ReportMessagesDayOut(BaseModel):
+    date: datetime.date
+    inbound: int
+    outbound: int
+    inbound_audio: int
+    outbound_audio: int
+    conversations: int
+
+
+class ReportDeliveryOut(BaseModel):
+    sent: int = Field(description="Salientes aceptados por Meta (incluye entregados y leídos)")
+    delivered: int = Field(description="Entregados (incluye leídos)")
+    read: int
+    failed: int
+
+
+class ReportFailureOut(BaseModel):
+    code: str | None
+    message: str | None
+    count: int
+
+
+class ReportConversionOut(BaseModel):
+    complete: int
+    partial: int
+    empty: int
+
+
+class ReportAccountStatusOut(BaseModel):
+    at: UTCDateTime
+    status: str | None
+    quality_rating: str | None
+    messaging_limit: str | None
+
+
+class ReportAccountOut(BaseModel):
+    account_id: str
+    display_phone_number: str | None
+    status: str | None
+    quality_rating: str | None
+    messaging_limit: str | None
+    history: list[ReportAccountStatusOut] = Field(description="Cambios dentro del período")
+
+
+class ReportMessagesOut(BaseModel):
+    daily: list[ReportMessagesDayOut]
+    heatmap: list[ReportHeatCellOut] = Field(description="Mensajes entrantes")
+    delivery: ReportDeliveryOut
+    failures: list[ReportFailureOut]
+    per_conversation_avg: float | None
+    conversion: ReportConversionOut
+    accounts: list[ReportAccountOut]
+
+
+class ReportTransfersKpisOut(BaseModel):
+    requested: int
+    answered: int
+    not_answered: int
+    unavailable: int = Field(description="Fuera de horario, sin miembros, sin canal o sin minutos")
+    answer_pct: float | None
+    avg_answer_seconds: float | None = Field(description="Del timbre a que atiende la persona")
+    minutes: float = Field(description="Minutos salientes de los tramos a personas")
+
+
+class ReportTransfersDayOut(BaseModel):
+    date: datetime.date
+    requested: int
+    answered: int
+
+
+class ReportAreaOut(BaseModel):
+    area_id: str | None
+    name: str
+    requested: int
+    answered: int
+    not_answered: int
+    unavailable: int
+
+
+class ReportMemberOut(BaseModel):
+    team_member_id: str
+    name: str
+    attempts: int
+    answered: int
+    not_answered: int
+    avg_answer_seconds: float | None
+    minutes: float
+
+
+class ReportWaHandoffOut(BaseModel):
+    assigned: int
+    first_reply: int
+    avg_first_reply_seconds: float | None
+    reassigned: int
+
+
+class ReportTransfersOut(BaseModel):
+    kpis: ReportTransfersKpisOut
+    daily: list[ReportTransfersDayOut]
+    by_area: list[ReportAreaOut]
+    by_member: list[ReportMemberOut]
+    whatsapp: ReportWaHandoffOut
+
+
+class ReportCampaignOut(BaseModel):
+    campaign_id: str
+    name: str
+    channel: CampaignChannel
+    status: CampaignStatus
+    contacts: int
+    attempts: int = Field(description="Voz: llamadas; WhatsApp: plantillas enviadas")
+    reached: int = Field(description="Voz: atendidas; WhatsApp: respondidas")
+    complete: int
+    goal: int
+    optouts: int
+    minutes: float
+
+
+class ReportBestHourOut(BaseModel):
+    weekday: int = Field(description="0 = lunes")
+    hour: int
+    attempts: int
+    reached: int
+
+
+class ReportCampaignsOut(BaseModel):
+    campaigns: list[ReportCampaignOut]
+    no_contact: list[ReportReasonOut] = Field(description="busy, no_answer, voicemail, invalid, failed, other")
+    best_hours: list[ReportBestHourOut]
+
+
+class ReportLatencyDayOut(BaseModel):
+    date: datetime.date
+    p50: float | None = Field(description="Segundos, del fin del habla del cliente al primer audio (total)")
+    p95: float | None
+    stt_p50: float | None
+    eou_p50: float | None
+    llm_p50: float | None
+    tts_p50: float | None
+
+
+class ReportProviderOut(BaseModel):
+    provider: str
+    model: str | None
+    turns: int
+    avg_ms: int | None
+    errors: int
+
+
+class ReportToolOut(BaseModel):
+    tool_id: str | None
+    slug: str
+    type: str
+    runs: int
+    errors: int
+    error_pct: float | None
+    p50_ms: float | None
+    p95_ms: float | None
+    last_error: str | None
+    last_error_at: UTCDateTime | None
+
+
+class ReportTokensDayOut(BaseModel):
+    date: datetime.date
+    input: int
+    output: int
+
+
+class ReportTokensOut(BaseModel):
+    input: int
+    output: int
+    by_day: list[ReportTokensDayOut]
+
+
+class ReportTechnicalOut(BaseModel):
+    latency_daily: list[ReportLatencyDayOut]
+    by_provider: list[ReportProviderOut]
+    tools: list[ReportToolOut]
+    turns_avg: float | None = Field(description="Mensajes del cliente por conversación")
+    errors: list[ReportReasonOut] = Field(description="Llamadas fallidas por motivo")
+    failed_summary_emails: int
+    tokens: ReportTokensOut
+
+
+class ReportClientRowOut(BaseModel):
+    client_id: str
+    name: str
+    tier: str | None
+    conversations: int
+    minutes: float
+    quota_pct: float | None = Field(description="% de los minutos entrantes del mes en curso; None sin límite")
+    conversion_pct: float | None
+    errors: int
+    last_activity_at: UTCDateTime | None
+    delta_pct: float | None = Field(description="Conversaciones contra el período anterior")
+
+
+class ReportAlertOut(BaseModel):
+    client_id: str
+    name: str
+    kind: Literal["near_quota", "inactive"]
+    detail: str
+
+
+class ReportTierCountOut(BaseModel):
+    tier: str
+    count: int
+
+
+class ReportDayCountOut(BaseModel):
+    date: datetime.date
+    count: int
+
+
+class ReportBusinessOut(BaseModel):
+    clients_by_tier: list[ReportTierCountOut]
+    signups: list[ReportDayCountOut]
+    mrr_ars: int = Field(description="Suscripciones activas o vencidas en gracia por el precio de su plan")
+    payments_month_ars: int = Field(description="Pagos aprobados del mes en curso")
+    past_due: int
+    free_to_paid: int = Field(description="Clientes del registro con su primer pago en el período")
+
+
+class ReportPeakOut(BaseModel):
+    date: datetime.date
+    hour: int
+    peak: int
+
+
+class ReportDayReasonOut(BaseModel):
+    date: datetime.date
+    reason: str
+    count: int
+
+
+class ReportOperationOut(BaseModel):
+    peak_concurrency: list[ReportPeakOut]
+    failures: list[ReportDayReasonOut]
+    rejected: list[ReportReasonOut]
+
+
+class ReportPlatformOut(BaseModel):
+    clients: list[ReportClientRowOut]
+    alerts: list[ReportAlertOut]
+    business: ReportBusinessOut
+    operation: ReportOperationOut

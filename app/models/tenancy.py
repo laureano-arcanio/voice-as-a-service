@@ -97,6 +97,9 @@ class Tier(IdMixin, TimestampMixin, Base):
     code_tools: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     # Marca blanca del panel: logo y colores del cliente en vez de los de Atentina (docs/MARCA_BLANCA_PLAN.md).
     white_label: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # Reportes completos (docs/REPORTES_PLAN.md): Resultados, Mensajes, Transferencias y Campañas. Sin esto,
+    # solo Resumen y Llamadas.
+    advanced_reports: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     # Autoservicio (docs/SUSCRIPCIONES_PLAN.md): precio mensual en pesos, lo que se cobra (NULL = no
     # se vende por el dashboard; 0 = gratis). `public`: se ofrece en el registro y en /plan. El tier
     # publico con precio 0 es el del registro.

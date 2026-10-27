@@ -21,7 +21,8 @@ def test_0034_upgrade_downgrade_upgrade(tmp_path):
     with engine.connect() as conn:
         rows = dict(conn.execute(sa.text("SELECT name, white_label FROM tiers")).all())
         diff = compare_metadata(MigrationContext.configure(conn, opts={"compare_type": True}), Base.metadata)
-    assert [d for d in diff if "tiers" in repr(d) or "client_branding" in repr(d)] == []
+    assert [d for d in diff if ("tiers" in repr(d) or "client_branding" in repr(d))
+            and "'advanced_reports'" not in repr(d)] == []      # 0036 (reportes)
     assert rows == {"Free": 0, "Mostrador": 0, "Sucursal": 0, "Central": 1, "Interno": 1}
     _run(engine, command.downgrade, "0033")
     assert "white_label" not in {c["name"] for c in sa.inspect(engine).get_columns("tiers")}

@@ -23,6 +23,7 @@ Cloudflare Tunnel. No hay backend aparte ni base nueva: costo adicional cero.
       herramientas por grupo (plegadas), seguridad y guías. Las herramientas, los grupos y las funciones por plan salen de `src/data/mcp-tools.json`, que
       genera `make mcp-docs` desde el catálogo del MCP: no editarlo a mano (un test de `tests/test_mcp.py` falla si queda desactualizado). Se llega por el
       footer y la sección "Integración agéntica" de `/desarrolladores`.
+    - `/desarrolladores/docs/api` suma desde el 27-oct-2026 la sección "Reportes" (`/api/v1/reports/*`, filtros, ejemplo y planes; [`REPORTES_PLAN.md`](REPORTES_PLAN.md), 9.2) y la fila "Reportes" de la tabla de planes; las tarjetas de `site.ts` listan "Reportes básicos" (Free) y "Reportes completos" (planes pagos). Al cambiar `advanced_reports` en un tier, cambiar las dos.
     - `/desarrolladores/docs/api`: las dos APIs, URL base, keys y alcances, endpoints, streaming, límites, errores, de
       [`API_INFERENCIA.md`](API_INFERENCIA.md) sin lo que es solo para quien opera. Desde el 19-oct-2026 también llamadas, contactos, campañas (estado,
       resultados, reporte, límites) y webhook, de [`LLAMADAS_SALIENTES_PLAN.md`](LLAMADAS_SALIENTES_PLAN.md) y `app/api/schemas.py`; la referencia completa

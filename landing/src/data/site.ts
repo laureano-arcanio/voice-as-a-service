@@ -139,6 +139,7 @@ export const plans: Plan[] = [
       "WhatsApp",
       "500 contactos",
       "Derivación a 1 persona",
+      "Reportes completos: resultados, conversiones, transferencias, WhatsApp y campañas, con CSV",
     ],
     cta: "Empezar",
   },
@@ -158,6 +159,7 @@ export const plans: Plan[] = [
       "Campañas de llamadas y de WhatsApp",
       "5.000 contactos",
       "Derivación a 2 personas",
+      "Reportes completos: resultados, conversiones, transferencias, WhatsApp y campañas, con CSV",
     ],
     cta: "Empezar",
     featured: true,
@@ -173,6 +175,7 @@ export const plans: Plan[] = [
       "Los números que necesites",
       "Campañas de llamadas y de WhatsApp",
       "Contactos y equipo sin tope",
+      "Reportes completos: resultados, conversiones, transferencias, WhatsApp y campañas, con CSV",
     ],
     cta: "Hablemos",
     signup: false,
@@ -360,7 +363,7 @@ export const freePlan: Plan = {
   price: "$ 0",
   per: "por mes",
   usd: "Sin costo",
-  items: ["<b>20 minutos</b> por mes", "Llamadas web", "Acceso plataforma web", "Acceso a la API"],
+  items: ["<b>20 minutos</b> por mes", "Llamadas web", "Acceso plataforma web", "Acceso a la API", "Reportes básicos: consultas, llamadas y consumo"],
   cta: "Empezar gratis",
 };
 
@@ -390,7 +393,7 @@ export const platform: Capability[] = [
   },
   {
     title: "Agentes",
-    text: "Definís el agente (datos a tomar, reglas y voz) y lo operamos nosotros. Se versiona, se prueba desde el panel y deja datos ordenados de cada conversación.",
+    text: "Definís el agente (datos a tomar, reglas y voz) y lo operamos nosotros. Se versiona, se prueba desde el panel y deja datos ordenados de cada conversación. En Reportes ves cuántas consultas recibís por día, cuántas terminan bien y cuántas pasan a una persona.",
     status: "available",
     href: "/casos-de-uso",
     link: "Ver casos de uso →",
@@ -498,7 +501,7 @@ export interface Qa {
 
 const faqFree: Qa = {
   q: "¿Qué incluye el plan Free?",
-  a: "20 minutos por mes, llamadas web, acceso a la plataforma web y acceso a la API. No incluye telefonía: ni números ni llamadas por teléfono. Cuando la necesites, pasás a un plan con telefonía.",
+  a: "20 minutos por mes, llamadas web, acceso a la plataforma web, acceso a la API y reportes básicos (consultas, llamadas y consumo). No incluye telefonía: ni números ni llamadas por teléfono. Cuando la necesites, pasás a un plan con telefonía.",
 };
 const faqNumbers: Qa = { q: "¿Qué numeración tienen?", a: "Numeración regional argentina, 0800 y 0810." };
 const faqMinutes: Qa = {

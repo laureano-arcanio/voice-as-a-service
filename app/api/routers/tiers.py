@@ -54,7 +54,7 @@ def update_tier(tier_id: str, body: TierUpdate, _: AdminPrincipal, db: DB):
     changes = body.model_dump(exclude_unset=True)
     for k, v in changes.items():
         if v is None and k in ("name", "description", "campaign_channels", "campaign_followup", "whatsapp",
-                             "external_agent", "code_tools", "white_label"):
+                             "external_agent", "code_tools", "white_label", "advanced_reports"):
             continue    # no son nulables: null = no cambiar
         if k == "campaign_channels":
             v = list(dict.fromkeys(v))

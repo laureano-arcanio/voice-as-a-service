@@ -11886,6 +11886,1490 @@
     }
    }
   },
+  "/api/v1/reports/summary": {
+   "get": {
+    "tags": [
+     "reports"
+    ],
+    "summary": "Summary",
+    "description": "Resumen: consultas por día y canal con las transferencias, KPIs contra el período anterior\n(conversaciones, % de conversión y de objetivo, derivadas, minutos, duración media, rechazadas por el\nplan, mensajes de WhatsApp) y consumo del plan del mes con su proyección. Todos los planes.",
+    "operationId": "summary_api_v1_reports_summary_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Admin: un cliente (vacío = todos). Cliente: el suyo",
+       "title": "Client Id"
+      },
+      "description": "Admin: un cliente (vacío = todos). Cliente: el suyo"
+     },
+     {
+      "name": "agent_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las conversaciones de ese agente",
+       "title": "Agent Id"
+      },
+      "description": "Solo las conversaciones de ese agente"
+     },
+     {
+      "name": "channel",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "voice",
+          "whatsapp",
+          "web"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "voice (teléfono), whatsapp o web (link para llamar)",
+       "title": "Channel"
+      },
+      "description": "voice (teléfono), whatsapp o web (link para llamar)"
+     },
+     {
+      "name": "phone_number_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas de esa línea",
+       "title": "Phone Number Id"
+      },
+      "description": "Solo las llamadas de esa línea"
+     },
+     {
+      "name": "date_from",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Día local, inclusive; default: hace 29 días",
+       "title": "Date From"
+      },
+      "description": "Día local, inclusive; default: hace 29 días"
+     },
+     {
+      "name": "date_to",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Día local, inclusive; default: hoy. Hasta 366 días",
+       "title": "Date To"
+      },
+      "description": "Día local, inclusive; default: hoy. Hasta 366 días"
+     },
+     {
+      "name": "tz",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Zona IANA de los días y horas; default BILLING_TIMEZONE",
+       "title": "Tz"
+      },
+      "description": "Zona IANA de los días y horas; default BILLING_TIMEZONE"
+     },
+     {
+      "name": "include_tests",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "description": "Con las llamadas de prueba y las conversaciones por API (el loadtest nunca)",
+       "default": false,
+       "title": "Include Tests"
+      },
+      "description": "Con las llamadas de prueba y las conversaciones por API (el loadtest nunca)"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReportSummaryOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/reports/calls": {
+   "get": {
+    "tags": [
+     "reports"
+    ],
+    "summary": "Calls",
+    "description": "Llamadas: por día y modo, mapa de calor por día de la semana y hora, por línea y por agente,\nduración, cómo terminan, cortes tempranos y quién llama (nuevos, que vuelven, los que más vuelven).\nTodos los planes.",
+    "operationId": "calls_api_v1_reports_calls_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Admin: un cliente (vacío = todos). Cliente: el suyo",
+       "title": "Client Id"
+      },
+      "description": "Admin: un cliente (vacío = todos). Cliente: el suyo"
+     },
+     {
+      "name": "agent_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las conversaciones de ese agente",
+       "title": "Agent Id"
+      },
+      "description": "Solo las conversaciones de ese agente"
+     },
+     {
+      "name": "channel",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "voice",
+          "whatsapp",
+          "web"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "voice (teléfono), whatsapp o web (link para llamar)",
+       "title": "Channel"
+      },
+      "description": "voice (teléfono), whatsapp o web (link para llamar)"
+     },
+     {
+      "name": "phone_number_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas de esa línea",
+       "title": "Phone Number Id"
+      },
+      "description": "Solo las llamadas de esa línea"
+     },
+     {
+      "name": "date_from",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Día local, inclusive; default: hace 29 días",
+       "title": "Date From"
+      },
+      "description": "Día local, inclusive; default: hace 29 días"
+     },
+     {
+      "name": "date_to",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Día local, inclusive; default: hoy. Hasta 366 días",
+       "title": "Date To"
+      },
+      "description": "Día local, inclusive; default: hoy. Hasta 366 días"
+     },
+     {
+      "name": "tz",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Zona IANA de los días y horas; default BILLING_TIMEZONE",
+       "title": "Tz"
+      },
+      "description": "Zona IANA de los días y horas; default BILLING_TIMEZONE"
+     },
+     {
+      "name": "include_tests",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "description": "Con las llamadas de prueba y las conversaciones por API (el loadtest nunca)",
+       "default": false,
+       "title": "Include Tests"
+      },
+      "description": "Con las llamadas de prueba y las conversaciones por API (el loadtest nunca)"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReportCallsOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/reports/outcomes": {
+   "get": {
+    "tags": [
+     "reports"
+    ],
+    "summary": "Outcomes",
+    "description": "Resultados: conversión (completa, parcial, sin datos) por día y agente, resultados por agente,\nembudo, datos obligatorios capturados y comparación por versión del agente. Plan con reportes completos.",
+    "operationId": "outcomes_api_v1_reports_outcomes_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Admin: un cliente (vacío = todos). Cliente: el suyo",
+       "title": "Client Id"
+      },
+      "description": "Admin: un cliente (vacío = todos). Cliente: el suyo"
+     },
+     {
+      "name": "agent_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las conversaciones de ese agente",
+       "title": "Agent Id"
+      },
+      "description": "Solo las conversaciones de ese agente"
+     },
+     {
+      "name": "channel",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "voice",
+          "whatsapp",
+          "web"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "voice (teléfono), whatsapp o web (link para llamar)",
+       "title": "Channel"
+      },
+      "description": "voice (teléfono), whatsapp o web (link para llamar)"
+     },
+     {
+      "name": "phone_number_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas de esa línea",
+       "title": "Phone Number Id"
+      },
+      "description": "Solo las llamadas de esa línea"
+     },
+     {
+      "name": "date_from",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Día local, inclusive; default: hace 29 días",
+       "title": "Date From"
+      },
+      "description": "Día local, inclusive; default: hace 29 días"
+     },
+     {
+      "name": "date_to",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Día local, inclusive; default: hoy. Hasta 366 días",
+       "title": "Date To"
+      },
+      "description": "Día local, inclusive; default: hoy. Hasta 366 días"
+     },
+     {
+      "name": "tz",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Zona IANA de los días y horas; default BILLING_TIMEZONE",
+       "title": "Tz"
+      },
+      "description": "Zona IANA de los días y horas; default BILLING_TIMEZONE"
+     },
+     {
+      "name": "include_tests",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "description": "Con las llamadas de prueba y las conversaciones por API (el loadtest nunca)",
+       "default": false,
+       "title": "Include Tests"
+      },
+      "description": "Con las llamadas de prueba y las conversaciones por API (el loadtest nunca)"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReportOutcomesOut"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "El plan no incluye los reportes completos (advanced_reports_not_in_plan)"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/reports/messages": {
+   "get": {
+    "tags": [
+     "reports"
+    ],
+    "summary": "Messages",
+    "description": "Mensajes de WhatsApp: entrantes y salientes (texto y audio) por día, mapa de calor, entrega,\nfallas, mensajes por conversación, conversión y estado de las cuentas. Plan con reportes completos.",
+    "operationId": "messages_api_v1_reports_messages_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Admin: un cliente (vacío = todos). Cliente: el suyo",
+       "title": "Client Id"
+      },
+      "description": "Admin: un cliente (vacío = todos). Cliente: el suyo"
+     },
+     {
+      "name": "agent_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las conversaciones de ese agente",
+       "title": "Agent Id"
+      },
+      "description": "Solo las conversaciones de ese agente"
+     },
+     {
+      "name": "channel",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "voice",
+          "whatsapp",
+          "web"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "voice (teléfono), whatsapp o web (link para llamar)",
+       "title": "Channel"
+      },
+      "description": "voice (teléfono), whatsapp o web (link para llamar)"
+     },
+     {
+      "name": "phone_number_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas de esa línea",
+       "title": "Phone Number Id"
+      },
+      "description": "Solo las llamadas de esa línea"
+     },
+     {
+      "name": "date_from",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Día local, inclusive; default: hace 29 días",
+       "title": "Date From"
+      },
+      "description": "Día local, inclusive; default: hace 29 días"
+     },
+     {
+      "name": "date_to",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Día local, inclusive; default: hoy. Hasta 366 días",
+       "title": "Date To"
+      },
+      "description": "Día local, inclusive; default: hoy. Hasta 366 días"
+     },
+     {
+      "name": "tz",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Zona IANA de los días y horas; default BILLING_TIMEZONE",
+       "title": "Tz"
+      },
+      "description": "Zona IANA de los días y horas; default BILLING_TIMEZONE"
+     },
+     {
+      "name": "include_tests",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "description": "Con las llamadas de prueba y las conversaciones por API (el loadtest nunca)",
+       "default": false,
+       "title": "Include Tests"
+      },
+      "description": "Con las llamadas de prueba y las conversaciones por API (el loadtest nunca)"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReportMessagesOut"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "El plan no incluye los reportes completos (advanced_reports_not_in_plan)"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/reports/transfers": {
+   "get": {
+    "tags": [
+     "reports"
+    ],
+    "summary": "Transfers",
+    "description": "Transferencias a personas: pedidas, atendidas, no atendidas y sin disponibilidad, por día, área y\npersona (tiempo hasta atender, minutos), y el puente de WhatsApp. Plan con reportes completos.",
+    "operationId": "transfers_api_v1_reports_transfers_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Admin: un cliente (vacío = todos). Cliente: el suyo",
+       "title": "Client Id"
+      },
+      "description": "Admin: un cliente (vacío = todos). Cliente: el suyo"
+     },
+     {
+      "name": "agent_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las conversaciones de ese agente",
+       "title": "Agent Id"
+      },
+      "description": "Solo las conversaciones de ese agente"
+     },
+     {
+      "name": "channel",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "voice",
+          "whatsapp",
+          "web"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "voice (teléfono), whatsapp o web (link para llamar)",
+       "title": "Channel"
+      },
+      "description": "voice (teléfono), whatsapp o web (link para llamar)"
+     },
+     {
+      "name": "phone_number_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas de esa línea",
+       "title": "Phone Number Id"
+      },
+      "description": "Solo las llamadas de esa línea"
+     },
+     {
+      "name": "date_from",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Día local, inclusive; default: hace 29 días",
+       "title": "Date From"
+      },
+      "description": "Día local, inclusive; default: hace 29 días"
+     },
+     {
+      "name": "date_to",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Día local, inclusive; default: hoy. Hasta 366 días",
+       "title": "Date To"
+      },
+      "description": "Día local, inclusive; default: hoy. Hasta 366 días"
+     },
+     {
+      "name": "tz",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Zona IANA de los días y horas; default BILLING_TIMEZONE",
+       "title": "Tz"
+      },
+      "description": "Zona IANA de los días y horas; default BILLING_TIMEZONE"
+     },
+     {
+      "name": "include_tests",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "description": "Con las llamadas de prueba y las conversaciones por API (el loadtest nunca)",
+       "default": false,
+       "title": "Include Tests"
+      },
+      "description": "Con las llamadas de prueba y las conversaciones por API (el loadtest nunca)"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReportTransfersOut"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "El plan no incluye los reportes completos (advanced_reports_not_in_plan)"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/reports/campaigns": {
+   "get": {
+    "tags": [
+     "reports"
+    ],
+    "summary": "Campaigns",
+    "description": "Campañas que corrieron en el período: contactos, intentos, alcanzados, conversión, bajas y minutos;\nmotivos de no contacto y mejores horarios. Plan con reportes completos.",
+    "operationId": "campaigns_api_v1_reports_campaigns_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Admin: un cliente (vacío = todos). Cliente: el suyo",
+       "title": "Client Id"
+      },
+      "description": "Admin: un cliente (vacío = todos). Cliente: el suyo"
+     },
+     {
+      "name": "agent_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las conversaciones de ese agente",
+       "title": "Agent Id"
+      },
+      "description": "Solo las conversaciones de ese agente"
+     },
+     {
+      "name": "channel",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "voice",
+          "whatsapp",
+          "web"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "voice (teléfono), whatsapp o web (link para llamar)",
+       "title": "Channel"
+      },
+      "description": "voice (teléfono), whatsapp o web (link para llamar)"
+     },
+     {
+      "name": "phone_number_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas de esa línea",
+       "title": "Phone Number Id"
+      },
+      "description": "Solo las llamadas de esa línea"
+     },
+     {
+      "name": "date_from",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Día local, inclusive; default: hace 29 días",
+       "title": "Date From"
+      },
+      "description": "Día local, inclusive; default: hace 29 días"
+     },
+     {
+      "name": "date_to",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Día local, inclusive; default: hoy. Hasta 366 días",
+       "title": "Date To"
+      },
+      "description": "Día local, inclusive; default: hoy. Hasta 366 días"
+     },
+     {
+      "name": "tz",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Zona IANA de los días y horas; default BILLING_TIMEZONE",
+       "title": "Tz"
+      },
+      "description": "Zona IANA de los días y horas; default BILLING_TIMEZONE"
+     },
+     {
+      "name": "include_tests",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "description": "Con las llamadas de prueba y las conversaciones por API (el loadtest nunca)",
+       "default": false,
+       "title": "Include Tests"
+      },
+      "description": "Con las llamadas de prueba y las conversaciones por API (el loadtest nunca)"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReportCampaignsOut"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "El plan no incluye los reportes completos (advanced_reports_not_in_plan)"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/reports/technical": {
+   "get": {
+    "tags": [
+     "reports"
+    ],
+    "summary": "Technical",
+    "description": "Técnico (admin): latencia p50/p95 por día y por etapa, turnos por proveedor del LLM, herramientas\n(usos, errores, tiempos), errores de llamadas, mails de resumen fallidos y tokens.",
+    "operationId": "technical_api_v1_reports_technical_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Admin: un cliente (vacío = todos). Cliente: el suyo",
+       "title": "Client Id"
+      },
+      "description": "Admin: un cliente (vacío = todos). Cliente: el suyo"
+     },
+     {
+      "name": "agent_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las conversaciones de ese agente",
+       "title": "Agent Id"
+      },
+      "description": "Solo las conversaciones de ese agente"
+     },
+     {
+      "name": "channel",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "voice",
+          "whatsapp",
+          "web"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "voice (teléfono), whatsapp o web (link para llamar)",
+       "title": "Channel"
+      },
+      "description": "voice (teléfono), whatsapp o web (link para llamar)"
+     },
+     {
+      "name": "phone_number_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas de esa línea",
+       "title": "Phone Number Id"
+      },
+      "description": "Solo las llamadas de esa línea"
+     },
+     {
+      "name": "date_from",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Día local, inclusive; default: hace 29 días",
+       "title": "Date From"
+      },
+      "description": "Día local, inclusive; default: hace 29 días"
+     },
+     {
+      "name": "date_to",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Día local, inclusive; default: hoy. Hasta 366 días",
+       "title": "Date To"
+      },
+      "description": "Día local, inclusive; default: hoy. Hasta 366 días"
+     },
+     {
+      "name": "tz",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Zona IANA de los días y horas; default BILLING_TIMEZONE",
+       "title": "Tz"
+      },
+      "description": "Zona IANA de los días y horas; default BILLING_TIMEZONE"
+     },
+     {
+      "name": "include_tests",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "description": "Con las llamadas de prueba y las conversaciones por API (el loadtest nunca)",
+       "default": false,
+       "title": "Include Tests"
+      },
+      "description": "Con las llamadas de prueba y las conversaciones por API (el loadtest nunca)"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReportTechnicalOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/reports/platform": {
+   "get": {
+    "tags": [
+     "reports"
+    ],
+    "summary": "Platform",
+    "description": "Plataforma (admin, todos los clientes): tabla por cliente con alertas (cerca del cupo, inactivo),\nnegocio (planes, altas, ingresos) y operación (pico de llamadas simultáneas, fallas, rechazos).",
+    "operationId": "platform_api_v1_reports_platform_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "client_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Admin: un cliente (vacío = todos). Cliente: el suyo",
+       "title": "Client Id"
+      },
+      "description": "Admin: un cliente (vacío = todos). Cliente: el suyo"
+     },
+     {
+      "name": "agent_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las conversaciones de ese agente",
+       "title": "Agent Id"
+      },
+      "description": "Solo las conversaciones de ese agente"
+     },
+     {
+      "name": "channel",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "voice",
+          "whatsapp",
+          "web"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "voice (teléfono), whatsapp o web (link para llamar)",
+       "title": "Channel"
+      },
+      "description": "voice (teléfono), whatsapp o web (link para llamar)"
+     },
+     {
+      "name": "phone_number_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Solo las llamadas de esa línea",
+       "title": "Phone Number Id"
+      },
+      "description": "Solo las llamadas de esa línea"
+     },
+     {
+      "name": "date_from",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Día local, inclusive; default: hace 29 días",
+       "title": "Date From"
+      },
+      "description": "Día local, inclusive; default: hace 29 días"
+     },
+     {
+      "name": "date_to",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Día local, inclusive; default: hoy. Hasta 366 días",
+       "title": "Date To"
+      },
+      "description": "Día local, inclusive; default: hoy. Hasta 366 días"
+     },
+     {
+      "name": "tz",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Zona IANA de los días y horas; default BILLING_TIMEZONE",
+       "title": "Tz"
+      },
+      "description": "Zona IANA de los días y horas; default BILLING_TIMEZONE"
+     },
+     {
+      "name": "include_tests",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "description": "Con las llamadas de prueba y las conversaciones por API (el loadtest nunca)",
+       "default": false,
+       "title": "Include Tests"
+      },
+      "description": "Con las llamadas de prueba y las conversaciones por API (el loadtest nunca)"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReportPlatformOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/oauth/authorize": {
    "get": {
     "tags": [
@@ -21272,7 +22756,8 @@
         "external_agent",
         "custom_tools",
         "code_tools",
-        "white_label"
+        "white_label",
+        "advanced_reports"
        ]
       },
       "type": "object",
@@ -21667,6 +23152,2290 @@
     ],
     "title": "PublicPlansOut",
     "description": "Planes con precio que se contratan en el registro. `mp_public_key`: si viene, los pagos se pagan con\ntarjeta en el registro (Card Payment Brick)."
+   },
+   "ReportAccountOut": {
+    "properties": {
+     "account_id": {
+      "type": "string",
+      "title": "Account Id"
+     },
+     "display_phone_number": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Display Phone Number"
+     },
+     "status": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status"
+     },
+     "quality_rating": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Quality Rating"
+     },
+     "messaging_limit": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Messaging Limit"
+     },
+     "history": {
+      "items": {
+       "$ref": "#/components/schemas/ReportAccountStatusOut"
+      },
+      "type": "array",
+      "title": "History",
+      "description": "Cambios dentro del período"
+     }
+    },
+    "type": "object",
+    "required": [
+     "account_id",
+     "display_phone_number",
+     "status",
+     "quality_rating",
+     "messaging_limit",
+     "history"
+    ],
+    "title": "ReportAccountOut"
+   },
+   "ReportAccountStatusOut": {
+    "properties": {
+     "at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "At"
+     },
+     "status": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status"
+     },
+     "quality_rating": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Quality Rating"
+     },
+     "messaging_limit": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Messaging Limit"
+     }
+    },
+    "type": "object",
+    "required": [
+     "at",
+     "status",
+     "quality_rating",
+     "messaging_limit"
+    ],
+    "title": "ReportAccountStatusOut"
+   },
+   "ReportAlertOut": {
+    "properties": {
+     "client_id": {
+      "type": "string",
+      "title": "Client Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "kind": {
+      "type": "string",
+      "enum": [
+       "near_quota",
+       "inactive"
+      ],
+      "title": "Kind"
+     },
+     "detail": {
+      "type": "string",
+      "title": "Detail"
+     }
+    },
+    "type": "object",
+    "required": [
+     "client_id",
+     "name",
+     "kind",
+     "detail"
+    ],
+    "title": "ReportAlertOut"
+   },
+   "ReportAreaOut": {
+    "properties": {
+     "area_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Area Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "requested": {
+      "type": "integer",
+      "title": "Requested"
+     },
+     "answered": {
+      "type": "integer",
+      "title": "Answered"
+     },
+     "not_answered": {
+      "type": "integer",
+      "title": "Not Answered"
+     },
+     "unavailable": {
+      "type": "integer",
+      "title": "Unavailable"
+     }
+    },
+    "type": "object",
+    "required": [
+     "area_id",
+     "name",
+     "requested",
+     "answered",
+     "not_answered",
+     "unavailable"
+    ],
+    "title": "ReportAreaOut"
+   },
+   "ReportBestHourOut": {
+    "properties": {
+     "weekday": {
+      "type": "integer",
+      "title": "Weekday",
+      "description": "0 = lunes"
+     },
+     "hour": {
+      "type": "integer",
+      "title": "Hour"
+     },
+     "attempts": {
+      "type": "integer",
+      "title": "Attempts"
+     },
+     "reached": {
+      "type": "integer",
+      "title": "Reached"
+     }
+    },
+    "type": "object",
+    "required": [
+     "weekday",
+     "hour",
+     "attempts",
+     "reached"
+    ],
+    "title": "ReportBestHourOut"
+   },
+   "ReportBucketOut": {
+    "properties": {
+     "count": {
+      "type": "integer",
+      "title": "Count"
+     },
+     "bucket": {
+      "type": "string",
+      "enum": [
+       "0-15s",
+       "15-60s",
+       "1-3m",
+       "3-5m",
+       "5-10m",
+       "10m+"
+      ],
+      "title": "Bucket"
+     }
+    },
+    "type": "object",
+    "required": [
+     "count",
+     "bucket"
+    ],
+    "title": "ReportBucketOut"
+   },
+   "ReportBusinessOut": {
+    "properties": {
+     "clients_by_tier": {
+      "items": {
+       "$ref": "#/components/schemas/ReportTierCountOut"
+      },
+      "type": "array",
+      "title": "Clients By Tier"
+     },
+     "signups": {
+      "items": {
+       "$ref": "#/components/schemas/ReportDayCountOut"
+      },
+      "type": "array",
+      "title": "Signups"
+     },
+     "mrr_ars": {
+      "type": "integer",
+      "title": "Mrr Ars",
+      "description": "Suscripciones activas o vencidas en gracia por el precio de su plan"
+     },
+     "payments_month_ars": {
+      "type": "integer",
+      "title": "Payments Month Ars",
+      "description": "Pagos aprobados del mes en curso"
+     },
+     "past_due": {
+      "type": "integer",
+      "title": "Past Due"
+     },
+     "free_to_paid": {
+      "type": "integer",
+      "title": "Free To Paid",
+      "description": "Clientes del registro con su primer pago en el período"
+     }
+    },
+    "type": "object",
+    "required": [
+     "clients_by_tier",
+     "signups",
+     "mrr_ars",
+     "payments_month_ars",
+     "past_due",
+     "free_to_paid"
+    ],
+    "title": "ReportBusinessOut"
+   },
+   "ReportByChannelOut": {
+    "properties": {
+     "voice": {
+      "type": "integer",
+      "title": "Voice"
+     },
+     "whatsapp": {
+      "type": "integer",
+      "title": "Whatsapp"
+     },
+     "web": {
+      "type": "integer",
+      "title": "Web"
+     }
+    },
+    "type": "object",
+    "required": [
+     "voice",
+     "whatsapp",
+     "web"
+    ],
+    "title": "ReportByChannelOut"
+   },
+   "ReportCallerOut": {
+    "properties": {
+     "count": {
+      "type": "integer",
+      "title": "Count"
+     },
+     "phone": {
+      "type": "string",
+      "title": "Phone",
+      "description": "Teléfono o wa_id, sin el +"
+     },
+     "last_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Last At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "count",
+     "phone",
+     "last_at"
+    ],
+    "title": "ReportCallerOut"
+   },
+   "ReportCallersOut": {
+    "properties": {
+     "new": {
+      "type": "integer",
+      "title": "New",
+      "description": "Su primer contacto es del período"
+     },
+     "returning": {
+      "type": "integer",
+      "title": "Returning",
+      "description": "Ya había llamado o escrito antes del período"
+     },
+     "top": {
+      "items": {
+       "$ref": "#/components/schemas/ReportCallerOut"
+      },
+      "type": "array",
+      "title": "Top",
+      "description": "Los que más volvieron en el período"
+     }
+    },
+    "type": "object",
+    "required": [
+     "new",
+     "returning",
+     "top"
+    ],
+    "title": "ReportCallersOut"
+   },
+   "ReportCallsAgentOut": {
+    "properties": {
+     "agent_id": {
+      "type": "string",
+      "title": "Agent Id"
+     },
+     "agent_name": {
+      "type": "string",
+      "title": "Agent Name"
+     },
+     "calls": {
+      "type": "integer",
+      "title": "Calls"
+     },
+     "minutes": {
+      "type": "number",
+      "title": "Minutes"
+     },
+     "avg_duration": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Avg Duration"
+     },
+     "conversion_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Conversion Pct"
+     },
+     "goal_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Goal Pct"
+     }
+    },
+    "type": "object",
+    "required": [
+     "agent_id",
+     "agent_name",
+     "calls",
+     "minutes",
+     "avg_duration",
+     "conversion_pct",
+     "goal_pct"
+    ],
+    "title": "ReportCallsAgentOut"
+   },
+   "ReportCallsDayOut": {
+    "properties": {
+     "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date"
+     },
+     "entrante": {
+      "type": "integer",
+      "title": "Entrante"
+     },
+     "saliente": {
+      "type": "integer",
+      "title": "Saliente"
+     },
+     "web": {
+      "type": "integer",
+      "title": "Web"
+     },
+     "prueba": {
+      "type": "integer",
+      "title": "Prueba"
+     }
+    },
+    "type": "object",
+    "required": [
+     "date",
+     "entrante",
+     "saliente",
+     "web",
+     "prueba"
+    ],
+    "title": "ReportCallsDayOut"
+   },
+   "ReportCallsOut": {
+    "properties": {
+     "daily": {
+      "items": {
+       "$ref": "#/components/schemas/ReportCallsDayOut"
+      },
+      "type": "array",
+      "title": "Daily"
+     },
+     "heatmap": {
+      "items": {
+       "$ref": "#/components/schemas/ReportHeatCellOut"
+      },
+      "type": "array",
+      "title": "Heatmap"
+     },
+     "by_line": {
+      "items": {
+       "$ref": "#/components/schemas/ReportLineOut"
+      },
+      "type": "array",
+      "title": "By Line"
+     },
+     "by_agent": {
+      "items": {
+       "$ref": "#/components/schemas/ReportCallsAgentOut"
+      },
+      "type": "array",
+      "title": "By Agent"
+     },
+     "durations": {
+      "items": {
+       "$ref": "#/components/schemas/ReportBucketOut"
+      },
+      "type": "array",
+      "title": "Durations",
+      "description": "Llamadas finalizadas por duración"
+     },
+     "ended": {
+      "items": {
+       "$ref": "#/components/schemas/ReportReasonOut"
+      },
+      "type": "array",
+      "title": "Ended",
+      "description": "customer_hangup, agent_end, off_topic, hangup_by_user, blocked_number, rejected, failed, other"
+     },
+     "early_hangups": {
+      "type": "integer",
+      "title": "Early Hangups",
+      "description": "Finalizadas en menos de 15 s"
+     },
+     "callers": {
+      "$ref": "#/components/schemas/ReportCallersOut"
+     }
+    },
+    "type": "object",
+    "required": [
+     "daily",
+     "heatmap",
+     "by_line",
+     "by_agent",
+     "durations",
+     "ended",
+     "early_hangups",
+     "callers"
+    ],
+    "title": "ReportCallsOut"
+   },
+   "ReportCampaignOut": {
+    "properties": {
+     "campaign_id": {
+      "type": "string",
+      "title": "Campaign Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "channel": {
+      "type": "string",
+      "enum": [
+       "whatsapp",
+       "voice"
+      ],
+      "title": "Channel"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "draft",
+       "scheduled",
+       "running",
+       "paused",
+       "done",
+       "cancelled"
+      ],
+      "title": "Status"
+     },
+     "contacts": {
+      "type": "integer",
+      "title": "Contacts"
+     },
+     "attempts": {
+      "type": "integer",
+      "title": "Attempts",
+      "description": "Voz: llamadas; WhatsApp: plantillas enviadas"
+     },
+     "reached": {
+      "type": "integer",
+      "title": "Reached",
+      "description": "Voz: atendidas; WhatsApp: respondidas"
+     },
+     "complete": {
+      "type": "integer",
+      "title": "Complete"
+     },
+     "goal": {
+      "type": "integer",
+      "title": "Goal"
+     },
+     "optouts": {
+      "type": "integer",
+      "title": "Optouts"
+     },
+     "minutes": {
+      "type": "number",
+      "title": "Minutes"
+     }
+    },
+    "type": "object",
+    "required": [
+     "campaign_id",
+     "name",
+     "channel",
+     "status",
+     "contacts",
+     "attempts",
+     "reached",
+     "complete",
+     "goal",
+     "optouts",
+     "minutes"
+    ],
+    "title": "ReportCampaignOut"
+   },
+   "ReportCampaignsOut": {
+    "properties": {
+     "campaigns": {
+      "items": {
+       "$ref": "#/components/schemas/ReportCampaignOut"
+      },
+      "type": "array",
+      "title": "Campaigns"
+     },
+     "no_contact": {
+      "items": {
+       "$ref": "#/components/schemas/ReportReasonOut"
+      },
+      "type": "array",
+      "title": "No Contact",
+      "description": "busy, no_answer, voicemail, invalid, failed, other"
+     },
+     "best_hours": {
+      "items": {
+       "$ref": "#/components/schemas/ReportBestHourOut"
+      },
+      "type": "array",
+      "title": "Best Hours"
+     }
+    },
+    "type": "object",
+    "required": [
+     "campaigns",
+     "no_contact",
+     "best_hours"
+    ],
+    "title": "ReportCampaignsOut"
+   },
+   "ReportClientRowOut": {
+    "properties": {
+     "client_id": {
+      "type": "string",
+      "title": "Client Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "tier": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tier"
+     },
+     "conversations": {
+      "type": "integer",
+      "title": "Conversations"
+     },
+     "minutes": {
+      "type": "number",
+      "title": "Minutes"
+     },
+     "quota_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Quota Pct",
+      "description": "% de los minutos entrantes del mes en curso; None sin límite"
+     },
+     "conversion_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Conversion Pct"
+     },
+     "errors": {
+      "type": "integer",
+      "title": "Errors"
+     },
+     "last_activity_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Activity At"
+     },
+     "delta_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Delta Pct",
+      "description": "Conversaciones contra el período anterior"
+     }
+    },
+    "type": "object",
+    "required": [
+     "client_id",
+     "name",
+     "tier",
+     "conversations",
+     "minutes",
+     "quota_pct",
+     "conversion_pct",
+     "errors",
+     "last_activity_at",
+     "delta_pct"
+    ],
+    "title": "ReportClientRowOut"
+   },
+   "ReportConversionDayOut": {
+    "properties": {
+     "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date"
+     },
+     "complete": {
+      "type": "integer",
+      "title": "Complete"
+     },
+     "partial": {
+      "type": "integer",
+      "title": "Partial"
+     },
+     "empty": {
+      "type": "integer",
+      "title": "Empty"
+     }
+    },
+    "type": "object",
+    "required": [
+     "date",
+     "complete",
+     "partial",
+     "empty"
+    ],
+    "title": "ReportConversionDayOut"
+   },
+   "ReportConversionOut": {
+    "properties": {
+     "complete": {
+      "type": "integer",
+      "title": "Complete"
+     },
+     "partial": {
+      "type": "integer",
+      "title": "Partial"
+     },
+     "empty": {
+      "type": "integer",
+      "title": "Empty"
+     }
+    },
+    "type": "object",
+    "required": [
+     "complete",
+     "partial",
+     "empty"
+    ],
+    "title": "ReportConversionOut"
+   },
+   "ReportDayCountOut": {
+    "properties": {
+     "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date"
+     },
+     "count": {
+      "type": "integer",
+      "title": "Count"
+     }
+    },
+    "type": "object",
+    "required": [
+     "date",
+     "count"
+    ],
+    "title": "ReportDayCountOut"
+   },
+   "ReportDayReasonOut": {
+    "properties": {
+     "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date"
+     },
+     "reason": {
+      "type": "string",
+      "title": "Reason"
+     },
+     "count": {
+      "type": "integer",
+      "title": "Count"
+     }
+    },
+    "type": "object",
+    "required": [
+     "date",
+     "reason",
+     "count"
+    ],
+    "title": "ReportDayReasonOut"
+   },
+   "ReportDeliveryOut": {
+    "properties": {
+     "sent": {
+      "type": "integer",
+      "title": "Sent",
+      "description": "Salientes aceptados por Meta (incluye entregados y leídos)"
+     },
+     "delivered": {
+      "type": "integer",
+      "title": "Delivered",
+      "description": "Entregados (incluye leídos)"
+     },
+     "read": {
+      "type": "integer",
+      "title": "Read"
+     },
+     "failed": {
+      "type": "integer",
+      "title": "Failed"
+     }
+    },
+    "type": "object",
+    "required": [
+     "sent",
+     "delivered",
+     "read",
+     "failed"
+    ],
+    "title": "ReportDeliveryOut"
+   },
+   "ReportFailureOut": {
+    "properties": {
+     "code": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Code"
+     },
+     "message": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Message"
+     },
+     "count": {
+      "type": "integer",
+      "title": "Count"
+     }
+    },
+    "type": "object",
+    "required": [
+     "code",
+     "message",
+     "count"
+    ],
+    "title": "ReportFailureOut"
+   },
+   "ReportFieldOut": {
+    "properties": {
+     "agent_id": {
+      "type": "string",
+      "title": "Agent Id"
+     },
+     "agent_name": {
+      "type": "string",
+      "title": "Agent Name"
+     },
+     "field": {
+      "type": "string",
+      "title": "Field"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "captured": {
+      "type": "integer",
+      "title": "Captured"
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     },
+     "pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Pct"
+     }
+    },
+    "type": "object",
+    "required": [
+     "agent_id",
+     "agent_name",
+     "field",
+     "label",
+     "captured",
+     "total",
+     "pct"
+    ],
+    "title": "ReportFieldOut"
+   },
+   "ReportFunnelOut": {
+    "properties": {
+     "conversations": {
+      "type": "integer",
+      "title": "Conversations"
+     },
+     "with_data": {
+      "type": "integer",
+      "title": "With Data"
+     },
+     "complete": {
+      "type": "integer",
+      "title": "Complete"
+     },
+     "goal": {
+      "type": "integer",
+      "title": "Goal"
+     }
+    },
+    "type": "object",
+    "required": [
+     "conversations",
+     "with_data",
+     "complete",
+     "goal"
+    ],
+    "title": "ReportFunnelOut"
+   },
+   "ReportHeatCellOut": {
+    "properties": {
+     "weekday": {
+      "type": "integer",
+      "title": "Weekday",
+      "description": "0 = lunes"
+     },
+     "hour": {
+      "type": "integer",
+      "title": "Hour"
+     },
+     "count": {
+      "type": "integer",
+      "title": "Count"
+     }
+    },
+    "type": "object",
+    "required": [
+     "weekday",
+     "hour",
+     "count"
+    ],
+    "title": "ReportHeatCellOut"
+   },
+   "ReportKpisOut": {
+    "properties": {
+     "conversations": {
+      "type": "integer",
+      "title": "Conversations",
+      "description": "Consultas: llamadas (atendidas o no) y conversaciones de WhatsApp"
+     },
+     "by_channel": {
+      "$ref": "#/components/schemas/ReportByChannelOut"
+     },
+     "conversion_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Conversion Pct",
+      "description": "% con todos los datos requeridos (conversion complete)"
+     },
+     "goal_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Goal Pct",
+      "description": "% con un resultado que cumple el objetivo"
+     },
+     "transfers": {
+      "type": "integer",
+      "title": "Transfers",
+      "description": "Conversaciones con un pedido de derivación a una persona"
+     },
+     "transfers_answered": {
+      "type": "integer",
+      "title": "Transfers Answered",
+      "description": "Derivaciones atendidas por una persona"
+     },
+     "transfer_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Transfer Pct"
+     },
+     "minutes": {
+      "type": "number",
+      "title": "Minutes"
+     },
+     "avg_duration": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Avg Duration",
+      "description": "Segundos, de las llamadas finalizadas"
+     },
+     "rejected_by_limit": {
+      "type": "integer",
+      "title": "Rejected By Limit",
+      "description": "Llamadas rechazadas por el plan (concurrencia, cantidad o minutos)"
+     },
+     "wa_messages": {
+      "type": "integer",
+      "title": "Wa Messages"
+     }
+    },
+    "type": "object",
+    "required": [
+     "conversations",
+     "by_channel",
+     "conversion_pct",
+     "goal_pct",
+     "transfers",
+     "transfers_answered",
+     "transfer_pct",
+     "minutes",
+     "avg_duration",
+     "rejected_by_limit",
+     "wa_messages"
+    ],
+    "title": "ReportKpisOut"
+   },
+   "ReportLatencyDayOut": {
+    "properties": {
+     "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date"
+     },
+     "p50": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "P50",
+      "description": "Segundos, del fin del habla del cliente al primer audio (total)"
+     },
+     "p95": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "P95"
+     },
+     "stt_p50": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Stt P50"
+     },
+     "eou_p50": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Eou P50"
+     },
+     "llm_p50": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Llm P50"
+     },
+     "tts_p50": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tts P50"
+     }
+    },
+    "type": "object",
+    "required": [
+     "date",
+     "p50",
+     "p95",
+     "stt_p50",
+     "eou_p50",
+     "llm_p50",
+     "tts_p50"
+    ],
+    "title": "ReportLatencyDayOut"
+   },
+   "ReportLineOut": {
+    "properties": {
+     "phone_number_id": {
+      "type": "string",
+      "title": "Phone Number Id"
+     },
+     "number": {
+      "type": "string",
+      "title": "Number"
+     },
+     "calls": {
+      "type": "integer",
+      "title": "Calls"
+     },
+     "minutes": {
+      "type": "number",
+      "title": "Minutes"
+     },
+     "conversion_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Conversion Pct"
+     }
+    },
+    "type": "object",
+    "required": [
+     "phone_number_id",
+     "number",
+     "calls",
+     "minutes",
+     "conversion_pct"
+    ],
+    "title": "ReportLineOut"
+   },
+   "ReportMemberOut": {
+    "properties": {
+     "team_member_id": {
+      "type": "string",
+      "title": "Team Member Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "attempts": {
+      "type": "integer",
+      "title": "Attempts"
+     },
+     "answered": {
+      "type": "integer",
+      "title": "Answered"
+     },
+     "not_answered": {
+      "type": "integer",
+      "title": "Not Answered"
+     },
+     "avg_answer_seconds": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Avg Answer Seconds"
+     },
+     "minutes": {
+      "type": "number",
+      "title": "Minutes"
+     }
+    },
+    "type": "object",
+    "required": [
+     "team_member_id",
+     "name",
+     "attempts",
+     "answered",
+     "not_answered",
+     "avg_answer_seconds",
+     "minutes"
+    ],
+    "title": "ReportMemberOut"
+   },
+   "ReportMessagesDayOut": {
+    "properties": {
+     "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date"
+     },
+     "inbound": {
+      "type": "integer",
+      "title": "Inbound"
+     },
+     "outbound": {
+      "type": "integer",
+      "title": "Outbound"
+     },
+     "inbound_audio": {
+      "type": "integer",
+      "title": "Inbound Audio"
+     },
+     "outbound_audio": {
+      "type": "integer",
+      "title": "Outbound Audio"
+     },
+     "conversations": {
+      "type": "integer",
+      "title": "Conversations"
+     }
+    },
+    "type": "object",
+    "required": [
+     "date",
+     "inbound",
+     "outbound",
+     "inbound_audio",
+     "outbound_audio",
+     "conversations"
+    ],
+    "title": "ReportMessagesDayOut"
+   },
+   "ReportMessagesOut": {
+    "properties": {
+     "daily": {
+      "items": {
+       "$ref": "#/components/schemas/ReportMessagesDayOut"
+      },
+      "type": "array",
+      "title": "Daily"
+     },
+     "heatmap": {
+      "items": {
+       "$ref": "#/components/schemas/ReportHeatCellOut"
+      },
+      "type": "array",
+      "title": "Heatmap",
+      "description": "Mensajes entrantes"
+     },
+     "delivery": {
+      "$ref": "#/components/schemas/ReportDeliveryOut"
+     },
+     "failures": {
+      "items": {
+       "$ref": "#/components/schemas/ReportFailureOut"
+      },
+      "type": "array",
+      "title": "Failures"
+     },
+     "per_conversation_avg": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Per Conversation Avg"
+     },
+     "conversion": {
+      "$ref": "#/components/schemas/ReportConversionOut"
+     },
+     "accounts": {
+      "items": {
+       "$ref": "#/components/schemas/ReportAccountOut"
+      },
+      "type": "array",
+      "title": "Accounts"
+     }
+    },
+    "type": "object",
+    "required": [
+     "daily",
+     "heatmap",
+     "delivery",
+     "failures",
+     "per_conversation_avg",
+     "conversion",
+     "accounts"
+    ],
+    "title": "ReportMessagesOut"
+   },
+   "ReportOperationOut": {
+    "properties": {
+     "peak_concurrency": {
+      "items": {
+       "$ref": "#/components/schemas/ReportPeakOut"
+      },
+      "type": "array",
+      "title": "Peak Concurrency"
+     },
+     "failures": {
+      "items": {
+       "$ref": "#/components/schemas/ReportDayReasonOut"
+      },
+      "type": "array",
+      "title": "Failures"
+     },
+     "rejected": {
+      "items": {
+       "$ref": "#/components/schemas/ReportReasonOut"
+      },
+      "type": "array",
+      "title": "Rejected"
+     }
+    },
+    "type": "object",
+    "required": [
+     "peak_concurrency",
+     "failures",
+     "rejected"
+    ],
+    "title": "ReportOperationOut"
+   },
+   "ReportOutcomeOut": {
+    "properties": {
+     "agent_id": {
+      "type": "string",
+      "title": "Agent Id"
+     },
+     "agent_name": {
+      "type": "string",
+      "title": "Agent Name"
+     },
+     "outcome": {
+      "type": "string",
+      "title": "Outcome"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "goal": {
+      "type": "boolean",
+      "title": "Goal"
+     },
+     "count": {
+      "type": "integer",
+      "title": "Count"
+     }
+    },
+    "type": "object",
+    "required": [
+     "agent_id",
+     "agent_name",
+     "outcome",
+     "label",
+     "goal",
+     "count"
+    ],
+    "title": "ReportOutcomeOut"
+   },
+   "ReportOutcomesAgentOut": {
+    "properties": {
+     "agent_id": {
+      "type": "string",
+      "title": "Agent Id"
+     },
+     "agent_name": {
+      "type": "string",
+      "title": "Agent Name"
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     },
+     "complete": {
+      "type": "integer",
+      "title": "Complete"
+     },
+     "partial": {
+      "type": "integer",
+      "title": "Partial"
+     },
+     "empty": {
+      "type": "integer",
+      "title": "Empty"
+     },
+     "goal": {
+      "type": "integer",
+      "title": "Goal"
+     }
+    },
+    "type": "object",
+    "required": [
+     "agent_id",
+     "agent_name",
+     "total",
+     "complete",
+     "partial",
+     "empty",
+     "goal"
+    ],
+    "title": "ReportOutcomesAgentOut"
+   },
+   "ReportOutcomesOut": {
+    "properties": {
+     "conversion_daily": {
+      "items": {
+       "$ref": "#/components/schemas/ReportConversionDayOut"
+      },
+      "type": "array",
+      "title": "Conversion Daily"
+     },
+     "by_agent": {
+      "items": {
+       "$ref": "#/components/schemas/ReportOutcomesAgentOut"
+      },
+      "type": "array",
+      "title": "By Agent"
+     },
+     "outcomes": {
+      "items": {
+       "$ref": "#/components/schemas/ReportOutcomeOut"
+      },
+      "type": "array",
+      "title": "Outcomes"
+     },
+     "funnel": {
+      "$ref": "#/components/schemas/ReportFunnelOut"
+     },
+     "fields": {
+      "items": {
+       "$ref": "#/components/schemas/ReportFieldOut"
+      },
+      "type": "array",
+      "title": "Fields",
+      "description": "Datos obligatorios de la versión vigente de cada agente"
+     },
+     "by_version": {
+      "items": {
+       "$ref": "#/components/schemas/ReportVersionOut"
+      },
+      "type": "array",
+      "title": "By Version"
+     }
+    },
+    "type": "object",
+    "required": [
+     "conversion_daily",
+     "by_agent",
+     "outcomes",
+     "funnel",
+     "fields",
+     "by_version"
+    ],
+    "title": "ReportOutcomesOut"
+   },
+   "ReportPeakOut": {
+    "properties": {
+     "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date"
+     },
+     "hour": {
+      "type": "integer",
+      "title": "Hour"
+     },
+     "peak": {
+      "type": "integer",
+      "title": "Peak"
+     }
+    },
+    "type": "object",
+    "required": [
+     "date",
+     "hour",
+     "peak"
+    ],
+    "title": "ReportPeakOut"
+   },
+   "ReportPeriodOut": {
+    "properties": {
+     "date_from": {
+      "type": "string",
+      "format": "date",
+      "title": "Date From"
+     },
+     "date_to": {
+      "type": "string",
+      "format": "date",
+      "title": "Date To"
+     }
+    },
+    "type": "object",
+    "required": [
+     "date_from",
+     "date_to"
+    ],
+    "title": "ReportPeriodOut"
+   },
+   "ReportPlanOut": {
+    "properties": {
+     "inbound_minutes_used": {
+      "type": "number",
+      "title": "Inbound Minutes Used"
+     },
+     "inbound_minutes_quota": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Inbound Minutes Quota",
+      "description": "None: sin límite"
+     },
+     "outbound_minutes_used": {
+      "type": "number",
+      "title": "Outbound Minutes Used"
+     },
+     "outbound_minutes_quota": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Outbound Minutes Quota"
+     },
+     "projected_inbound_minutes": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Projected Inbound Minutes",
+      "description": "A fin de mes, al ritmo del mes en curso"
+     },
+     "period_start": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Period Start"
+     },
+     "period_end": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Period End"
+     }
+    },
+    "type": "object",
+    "required": [
+     "inbound_minutes_used",
+     "inbound_minutes_quota",
+     "outbound_minutes_used",
+     "outbound_minutes_quota",
+     "projected_inbound_minutes",
+     "period_start",
+     "period_end"
+    ],
+    "title": "ReportPlanOut"
+   },
+   "ReportPlatformOut": {
+    "properties": {
+     "clients": {
+      "items": {
+       "$ref": "#/components/schemas/ReportClientRowOut"
+      },
+      "type": "array",
+      "title": "Clients"
+     },
+     "alerts": {
+      "items": {
+       "$ref": "#/components/schemas/ReportAlertOut"
+      },
+      "type": "array",
+      "title": "Alerts"
+     },
+     "business": {
+      "$ref": "#/components/schemas/ReportBusinessOut"
+     },
+     "operation": {
+      "$ref": "#/components/schemas/ReportOperationOut"
+     }
+    },
+    "type": "object",
+    "required": [
+     "clients",
+     "alerts",
+     "business",
+     "operation"
+    ],
+    "title": "ReportPlatformOut"
+   },
+   "ReportProviderOut": {
+    "properties": {
+     "provider": {
+      "type": "string",
+      "title": "Provider"
+     },
+     "model": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Model"
+     },
+     "turns": {
+      "type": "integer",
+      "title": "Turns"
+     },
+     "avg_ms": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Avg Ms"
+     },
+     "errors": {
+      "type": "integer",
+      "title": "Errors"
+     }
+    },
+    "type": "object",
+    "required": [
+     "provider",
+     "model",
+     "turns",
+     "avg_ms",
+     "errors"
+    ],
+    "title": "ReportProviderOut"
+   },
+   "ReportReasonOut": {
+    "properties": {
+     "count": {
+      "type": "integer",
+      "title": "Count"
+     },
+     "reason": {
+      "type": "string",
+      "title": "Reason"
+     }
+    },
+    "type": "object",
+    "required": [
+     "count",
+     "reason"
+    ],
+    "title": "ReportReasonOut"
+   },
+   "ReportSummaryDayOut": {
+    "properties": {
+     "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date"
+     },
+     "voice": {
+      "type": "integer",
+      "title": "Voice"
+     },
+     "whatsapp": {
+      "type": "integer",
+      "title": "Whatsapp"
+     },
+     "web": {
+      "type": "integer",
+      "title": "Web"
+     },
+     "transfers": {
+      "type": "integer",
+      "title": "Transfers"
+     },
+     "transfers_answered": {
+      "type": "integer",
+      "title": "Transfers Answered"
+     }
+    },
+    "type": "object",
+    "required": [
+     "date",
+     "voice",
+     "whatsapp",
+     "web",
+     "transfers",
+     "transfers_answered"
+    ],
+    "title": "ReportSummaryDayOut"
+   },
+   "ReportSummaryOut": {
+    "properties": {
+     "period": {
+      "$ref": "#/components/schemas/ReportPeriodOut"
+     },
+     "kpis": {
+      "$ref": "#/components/schemas/ReportKpisOut"
+     },
+     "previous": {
+      "$ref": "#/components/schemas/ReportKpisOut",
+      "description": "El mismo largo, inmediatamente antes"
+     },
+     "plan": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ReportPlanOut"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Consumo del mes en curso; None con todos los clientes"
+     },
+     "daily": {
+      "items": {
+       "$ref": "#/components/schemas/ReportSummaryDayOut"
+      },
+      "type": "array",
+      "title": "Daily"
+     }
+    },
+    "type": "object",
+    "required": [
+     "period",
+     "kpis",
+     "previous",
+     "plan",
+     "daily"
+    ],
+    "title": "ReportSummaryOut"
+   },
+   "ReportTechnicalOut": {
+    "properties": {
+     "latency_daily": {
+      "items": {
+       "$ref": "#/components/schemas/ReportLatencyDayOut"
+      },
+      "type": "array",
+      "title": "Latency Daily"
+     },
+     "by_provider": {
+      "items": {
+       "$ref": "#/components/schemas/ReportProviderOut"
+      },
+      "type": "array",
+      "title": "By Provider"
+     },
+     "tools": {
+      "items": {
+       "$ref": "#/components/schemas/ReportToolOut"
+      },
+      "type": "array",
+      "title": "Tools"
+     },
+     "turns_avg": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Turns Avg",
+      "description": "Mensajes del cliente por conversación"
+     },
+     "errors": {
+      "items": {
+       "$ref": "#/components/schemas/ReportReasonOut"
+      },
+      "type": "array",
+      "title": "Errors",
+      "description": "Llamadas fallidas por motivo"
+     },
+     "failed_summary_emails": {
+      "type": "integer",
+      "title": "Failed Summary Emails"
+     },
+     "tokens": {
+      "$ref": "#/components/schemas/ReportTokensOut"
+     }
+    },
+    "type": "object",
+    "required": [
+     "latency_daily",
+     "by_provider",
+     "tools",
+     "turns_avg",
+     "errors",
+     "failed_summary_emails",
+     "tokens"
+    ],
+    "title": "ReportTechnicalOut"
+   },
+   "ReportTierCountOut": {
+    "properties": {
+     "tier": {
+      "type": "string",
+      "title": "Tier"
+     },
+     "count": {
+      "type": "integer",
+      "title": "Count"
+     }
+    },
+    "type": "object",
+    "required": [
+     "tier",
+     "count"
+    ],
+    "title": "ReportTierCountOut"
+   },
+   "ReportTokensDayOut": {
+    "properties": {
+     "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date"
+     },
+     "input": {
+      "type": "integer",
+      "title": "Input"
+     },
+     "output": {
+      "type": "integer",
+      "title": "Output"
+     }
+    },
+    "type": "object",
+    "required": [
+     "date",
+     "input",
+     "output"
+    ],
+    "title": "ReportTokensDayOut"
+   },
+   "ReportTokensOut": {
+    "properties": {
+     "input": {
+      "type": "integer",
+      "title": "Input"
+     },
+     "output": {
+      "type": "integer",
+      "title": "Output"
+     },
+     "by_day": {
+      "items": {
+       "$ref": "#/components/schemas/ReportTokensDayOut"
+      },
+      "type": "array",
+      "title": "By Day"
+     }
+    },
+    "type": "object",
+    "required": [
+     "input",
+     "output",
+     "by_day"
+    ],
+    "title": "ReportTokensOut"
+   },
+   "ReportToolOut": {
+    "properties": {
+     "tool_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tool Id"
+     },
+     "slug": {
+      "type": "string",
+      "title": "Slug"
+     },
+     "type": {
+      "type": "string",
+      "title": "Type"
+     },
+     "runs": {
+      "type": "integer",
+      "title": "Runs"
+     },
+     "errors": {
+      "type": "integer",
+      "title": "Errors"
+     },
+     "error_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error Pct"
+     },
+     "p50_ms": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "P50 Ms"
+     },
+     "p95_ms": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "P95 Ms"
+     },
+     "last_error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Error"
+     },
+     "last_error_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Error At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "tool_id",
+     "slug",
+     "type",
+     "runs",
+     "errors",
+     "error_pct",
+     "p50_ms",
+     "p95_ms",
+     "last_error",
+     "last_error_at"
+    ],
+    "title": "ReportToolOut"
+   },
+   "ReportTransfersDayOut": {
+    "properties": {
+     "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date"
+     },
+     "requested": {
+      "type": "integer",
+      "title": "Requested"
+     },
+     "answered": {
+      "type": "integer",
+      "title": "Answered"
+     }
+    },
+    "type": "object",
+    "required": [
+     "date",
+     "requested",
+     "answered"
+    ],
+    "title": "ReportTransfersDayOut"
+   },
+   "ReportTransfersKpisOut": {
+    "properties": {
+     "requested": {
+      "type": "integer",
+      "title": "Requested"
+     },
+     "answered": {
+      "type": "integer",
+      "title": "Answered"
+     },
+     "not_answered": {
+      "type": "integer",
+      "title": "Not Answered"
+     },
+     "unavailable": {
+      "type": "integer",
+      "title": "Unavailable",
+      "description": "Fuera de horario, sin miembros, sin canal o sin minutos"
+     },
+     "answer_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Answer Pct"
+     },
+     "avg_answer_seconds": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Avg Answer Seconds",
+      "description": "Del timbre a que atiende la persona"
+     },
+     "minutes": {
+      "type": "number",
+      "title": "Minutes",
+      "description": "Minutos salientes de los tramos a personas"
+     }
+    },
+    "type": "object",
+    "required": [
+     "requested",
+     "answered",
+     "not_answered",
+     "unavailable",
+     "answer_pct",
+     "avg_answer_seconds",
+     "minutes"
+    ],
+    "title": "ReportTransfersKpisOut"
+   },
+   "ReportTransfersOut": {
+    "properties": {
+     "kpis": {
+      "$ref": "#/components/schemas/ReportTransfersKpisOut"
+     },
+     "daily": {
+      "items": {
+       "$ref": "#/components/schemas/ReportTransfersDayOut"
+      },
+      "type": "array",
+      "title": "Daily"
+     },
+     "by_area": {
+      "items": {
+       "$ref": "#/components/schemas/ReportAreaOut"
+      },
+      "type": "array",
+      "title": "By Area"
+     },
+     "by_member": {
+      "items": {
+       "$ref": "#/components/schemas/ReportMemberOut"
+      },
+      "type": "array",
+      "title": "By Member"
+     },
+     "whatsapp": {
+      "$ref": "#/components/schemas/ReportWaHandoffOut"
+     }
+    },
+    "type": "object",
+    "required": [
+     "kpis",
+     "daily",
+     "by_area",
+     "by_member",
+     "whatsapp"
+    ],
+    "title": "ReportTransfersOut"
+   },
+   "ReportVersionOut": {
+    "properties": {
+     "agent_id": {
+      "type": "string",
+      "title": "Agent Id"
+     },
+     "agent_name": {
+      "type": "string",
+      "title": "Agent Name"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version"
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     },
+     "conversion_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Conversion Pct"
+     },
+     "goal_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Goal Pct"
+     }
+    },
+    "type": "object",
+    "required": [
+     "agent_id",
+     "agent_name",
+     "version",
+     "total",
+     "conversion_pct",
+     "goal_pct"
+    ],
+    "title": "ReportVersionOut"
+   },
+   "ReportWaHandoffOut": {
+    "properties": {
+     "assigned": {
+      "type": "integer",
+      "title": "Assigned"
+     },
+     "first_reply": {
+      "type": "integer",
+      "title": "First Reply"
+     },
+     "avg_first_reply_seconds": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Avg First Reply Seconds"
+     },
+     "reassigned": {
+      "type": "integer",
+      "title": "Reassigned"
+     }
+    },
+    "type": "object",
+    "required": [
+     "assigned",
+     "first_reply",
+     "avg_first_reply_seconds",
+     "reassigned"
+    ],
+    "title": "ReportWaHandoffOut"
    },
    "SecretAgentRef": {
     "properties": {
@@ -22751,6 +26520,12 @@
       "description": "Marca blanca: el panel con el logo y los colores del cliente",
       "default": false
      },
+     "advanced_reports": {
+      "type": "boolean",
+      "title": "Advanced Reports",
+      "description": "Reportes completos: Resultados, Mensajes, Transferencias y Campañas (sin esto, Resumen y Llamadas)",
+      "default": false
+     },
      "price_ars": {
       "anyOf": [
        {
@@ -23037,6 +26812,10 @@
       "type": "boolean",
       "title": "White Label"
      },
+     "advanced_reports": {
+      "type": "boolean",
+      "title": "Advanced Reports"
+     },
      "price_ars": {
       "anyOf": [
        {
@@ -23097,6 +26876,7 @@
      "max_tools",
      "code_tools",
      "white_label",
+     "advanced_reports",
      "price_ars",
      "public",
      "sort",
@@ -23430,6 +27210,17 @@
        }
       ],
       "title": "White Label"
+     },
+     "advanced_reports": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Advanced Reports"
      },
      "price_ars": {
       "anyOf": [

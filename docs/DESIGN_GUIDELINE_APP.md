@@ -106,7 +106,7 @@ CSP del dashboard solo permite fuentes de `'self'`: no se pueden cargar de Googl
 - **Marco (`AppLayout`):** header de 60 px y menú lateral de 232 px, los dos sobre superficie y con borde;
   el contenido va sobre el lienzo. El menú agrupa las pantallas en `NavLink` desplegables (Agentes, Canales,
   Organización, Configuración, Developers, Cuenta; definidos en `components/nav.ts`): un click abre o cierra, arranca
-  abierto el grupo de la pantalla actual y, cerrado, se marca activo. Inicio y Conversaciones van sueltos arriba y
+  abierto el grupo de la pantalla actual y, cerrado, se marca activo. Inicio, Reportes y Conversaciones van sueltos arriba y
   las pantallas solo de admin, sueltas al final bajo "Administración". Logo `atentina-logo.svg` de 28 px de alto en el header. Debajo de `sm` el menú se pliega detrás del botón de menú.
 - **Ancho:** el contenido ocupa hasta 1440 px. Formularios y texto de lectura, hasta 720 px.
 - **Orden de una pantalla:** `PageHeader` (título, descripción en una línea, acciones a la derecha y el
@@ -164,6 +164,8 @@ CSP del dashboard solo permite fuentes de `'self'`: no se pueden cargar de Googl
 | Función que el plan no incluye | `PlanGate` / `PlanAlert` (`components/PlanGate.tsx`) | `Paper` compacto con borde amarillo (`.plan-alert`), sin relleno: candado amarillo, "Tu plan X no incluye …" en negrita, en qué planes está y "Mejorar mi plan" (`xs`, `light`) y el contenido en `.plan-locked` (atenuado, sin eventos). En la navegación, candado gris a la derecha del ítem y `Badge` amarillo relleno "Free" al lado de Plan. La función sale de `useFeatureLock` (`GET /plan/features`), nunca del nombre del plan. |
 | Opción de plan (pantalla Plan) | `.plan-option`: bloque interno de 12 px con borde; el plan actual, con borde azul y acento suave | Nombre, precio en `.metric`, lo que incluye en `List` con check y el botón abajo. El estado del plan pago sale de `SUBSCRIPTION_STATUS` (`lib/labels.ts`): esperando el pago en amarillo, activo en verde, vencido en rojo. |
 | Campo de tarjeta (Mercado Pago, `/plan/pagar`) | `.mp-secure` dentro de `Input.Wrapper` | El iframe de MP con el aspecto de un input de Mantine; `data-focused` pinta el borde azul |
+| Exportar lo que se ve | `CsvButton` (`components/CsvButton.tsx`, `lib/csv.ts`) | "Descargar CSV" (`subtle`, `compact-sm`) a la derecha del título de la tarjeta; exporta las filas que muestra la tabla o el gráfico, con los valores crudos (punto decimal). Sin filas, deshabilitado. |
+| Cuándo pasa algo (día × hora) | `HourHeatmap` (`components/HourHeatmap.tsx`) | Tabla 7 × 24 con la intensidad del primario (0 en superficie 2); cada celda con su valor en `aria-label` y tooltip, leyenda "Menos / Más". |
 | Código y JSON | `pre.code`, `Code`, `JsonEditor` | Mono 12 px sobre superficie 2, borde, radio de 12 px. En el editor, claves en azul y valores en neutro: el rojo queda para los errores. |
 
 Gráficos (`@mantine/charts`):

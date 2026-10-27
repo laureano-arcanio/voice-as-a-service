@@ -10,6 +10,7 @@ import {
   IconBuilding,
   IconCash,
   IconChartBar,
+  IconChartHistogram,
   IconCode,
   IconCpu,
   IconCreditCard,
@@ -56,6 +57,7 @@ const BOTH: Role[] = ['admin', 'client'];
 // Orden del menú. Las pantallas solo de admin van sueltas al final, bajo el rótulo "Administración".
 export const NAV: NavEntry[] = [
   { to: '/', label: 'Inicio', icon: IconHome, roles: BOTH },
+  { to: '/reports', label: 'Reportes', icon: IconChartHistogram, roles: BOTH },
   { to: '/calls', label: 'Conversaciones', icon: IconMessages, roles: BOTH },
   {
     label: 'Agentes',

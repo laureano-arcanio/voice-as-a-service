@@ -38,6 +38,19 @@ def _llm_info(llm) -> dict:
     return info() if callable(info) else {}
 
 
+def _usage(result) -> dict:
+    """Tokens de una respuesta del LLM (AgentTurn o Extraction), para la traza; 0 si el proveedor no los da."""
+    return {"input_tokens": getattr(result, "input_tokens", 0) or 0,
+            "output_tokens": getattr(result, "output_tokens", 0) or 0}
+
+
+def _add_usage(state: ConversationState, result) -> None:
+    """Suma los tokens de la respuesta a los de la conversacion (conversations.llm_*_tokens, reportes)."""
+    usage = _usage(result)
+    state.llm_input_tokens += usage["input_tokens"]
+    state.llm_output_tokens += usage["output_tokens"]
+
+
 # Cuanto espera un turno a la extraccion del anterior. Corre mientras suena la
 # respuesta y el cliente contesta (varios segundos), asi que casi nunca espera;
 # si se pasa, el turno sigue con el estado viejo y la conversacion completa.
@@ -63,6 +76,8 @@ class ConversationEngine:
         self.llms = LLMResolver(llm, store.sessions)
         self.store = store
         self.definitions = definitions or ReferenceDefinitions()
+        # El store completa con la definicion las columnas de los reportes (conversion, goal).
+        store.definitions = self.definitions
         self.extractions: dict[str, list[asyncio.Task]] = {}   # extracciones en curso por conversacion, en orden
         # Herramientas del cliente (http y code, docs/TOOLS_PLAN.md): las del agente y su contexto, por turno.
         self.tools = ConversationTools(store.sessions)
@@ -151,7 +166,8 @@ class ConversationEngine:
         extra = {"tools": turn_tools} if turn_tools else {}
         result = await llm.converse(workflow, state, user_message, on_message=on_message, **extra)
         trace = [{"kind": "turno", "input": user_message, "ms": round((time.perf_counter() - started) * 1000),
-                  "reasoning": result.reasoning, "output": result.raw or result.model_dump_json(), **_llm_info(llm)}]
+                  "reasoning": result.reasoning, "output": result.raw or result.model_dump_json(),
+                  **_usage(result), **_llm_info(llm)}]
         if turn_tools:
             trace += turn_tools.trace
 
@@ -161,6 +177,7 @@ class ConversationEngine:
         undo = state.model_dump(include={"status", "fields", "progress"}, exclude={"progress": {"undo"}})
         undo["n_messages"] = len(state.messages)
         state.status = result.status
+        _add_usage(state, result)
         # Fuera de tema (end_call): el resultado lo decide el agente al cortar, no los datos (_extract no lo pisa).
         state.progress.outcome = OFF_TOPIC.id if result.end_reason == OFF_TOPIC_REASON else None
         state.progress.undo = undo
@@ -190,6 +207,7 @@ class ConversationEngine:
         try:
             result = await self.external.turn(workflow, state, user_message, on_message, actor)
             turn, outcome, trace, errors = result.turn, result.outcome, result.trace, 0
+            trace = {**trace, **_usage(turn)}
         except ExternalError as e:
             errors = state.progress.external_errors + 1
             trace = e.trace or {"kind": "turno", "input": user_message, "ms": 0, "provider": "external",
@@ -212,6 +230,7 @@ class ConversationEngine:
         state.progress.undo = undo
         state.progress.external_errors = errors
         state.status = turn.status
+        _add_usage(state, turn)
         if turn.status == "completed" and turn.end_reason is None:
             ids = [o.id for o in workflow.completion.outcomes]
             state.progress.outcome = outcome if outcome in ids else ids[-1]
@@ -313,9 +332,11 @@ class ConversationEngine:
         updates, rejected = check_updates(workflow, result.fields)
         state.fields.update(updates)
         state.progress.rejected = rejected
+        _add_usage(state, result)
         message = state.messages[reply]
         message.llm = (message.llm or []) + [{"kind": kind, "input": "conversación completa", "ms": ms,
-                                              "reasoning": result.reasoning, "output": result.raw, **_llm_info(llm)}]
+                                              "reasoning": result.reasoning, "output": result.raw,
+                                              **_usage(result), **_llm_info(llm)}]
         self.store.save(state)
 
     def retract_last_turn(self, conversation_id: str) -> bool:

@@ -73,6 +73,7 @@ describe('navegación por rol', () => {
       );
     expect(shape('client')).toEqual([
       'Inicio',
+      'Reportes',
       'Conversaciones',
       'Agentes: Mis agentes, Herramientas, Secretos, Modelos, Playground, Voces',
       'Canales: WhatsApp, Llamadas, Campañas',
@@ -81,6 +82,7 @@ describe('navegación por rol', () => {
       'Cuenta: Mi cuenta, Plan, Consumos',
     ]);
     const admin = shape('admin');
+    expect(admin.slice(0, 2)).toEqual(['Inicio', 'Reportes']);
     expect(admin).toContain('Agentes: Mis agentes, Herramientas, Secretos, Playground, Voces');
     expect(admin.some((e) => e.startsWith('Configuración'))).toBe(false);
     expect(admin).toContain('Developers: Uso de la API');
