@@ -38,7 +38,7 @@ import {
   type ToolDraft,
 } from './draft';
 import { ParamsEditor } from './ParamsEditor';
-import { TemplateInput } from './TemplateInput';
+import { SecretInput, TemplateInput } from './TemplateInput';
 
 type Update = (fn: (d: ToolDraft) => ToolDraft) => void;
 
@@ -86,6 +86,15 @@ export function HeaderFields({ draft, update }: { draft: ToolDraft; update: Upda
         }}
       />
     </Stack>
+  );
+}
+
+/** Parrafo corto al principio de cada seccion: que es y como se usa. */
+function SectionIntro({ children }: { children: ReactNode }) {
+  return (
+    <Text size="xs" c="dimmed" mb="sm">
+      {children}
+    </Text>
   );
 }
 
@@ -198,9 +207,6 @@ function ResponseFields({ draft, update }: { draft: ToolDraft; update: Update })
 function VoiceFields({ draft, update }: { draft: ToolDraft; update: Update }) {
   return (
     <Stack gap="sm">
-      <Text size="xs" c="dimmed">
-        Lo que dice el agente en una llamada mientras usa la herramienta. Vacío: no dice nada.
-      </Text>
       <TextInput
         label="Al empezar"
         placeholder="Dame un segundo que lo busco."
@@ -342,7 +348,7 @@ function AuthEditor({
         maw={320}
       />
       {type !== 'none' && (
-        <TextInput
+        <SecretInput
           label={
             type === 'oauth2_client_credentials'
               ? 'Secreto con el client secret'
@@ -352,11 +358,10 @@ function AuthEditor({
           }
           description="El nombre del secreto, no el valor: el valor se carga en cada agente (sección Herramientas, Secretos)."
           placeholder="CRM_TOKEN"
-          classNames={{ input: 'mono' }}
           value={secret}
-          onChange={(e) => set('secret', e.currentTarget.value.toUpperCase())}
-          error={secret && !SECRET_RE.test(secret) ? 'Mayúsculas, números y _ (ej. CRM_TOKEN)' : undefined}
-          maw={320}
+          onChange={(x) => set('secret', x)}
+          secrets={secrets}
+          maw={420}
         />
       )}
       {type === 'bearer' && (
@@ -549,6 +554,7 @@ export function HttpForm({
             </Tabs.Tab>
           </Tabs.List>
           <Tabs.Panel value="ruta">
+            <SectionIntro>{'Las partes de la URL entre llaves, como {dni} en …/clientes/{dni}. Elegí si cada una la completa el agente con lo que dijo la persona o lleva un valor fijo.'}</SectionIntro>
             <ParamsEditor
               rows={http.path}
               onChange={(path) => setHttp({ path })}
@@ -559,6 +565,7 @@ export function HttpForm({
             />
           </Tabs.Panel>
           <Tabs.Panel value="query">
+            <SectionIntro>Los parámetros que van después del ? en la URL (?fecha=2026-10-27). Cada uno lo completa el agente o lleva un valor fijo, que puede tener variables.</SectionIntro>
             <ParamsEditor
               rows={http.query}
               onChange={(query) => setHttp({ query })}
@@ -567,9 +574,11 @@ export function HttpForm({
             />
           </Tabs.Panel>
           <Tabs.Panel value="headers">
+            <SectionIntro>Encabezados extra del pedido, como X-Sucursal. El valor puede llevar variables o secretos; el token de acceso va en Autenticación.</SectionIntro>
             <HeadersEditor http={http} setHttp={setHttp} secrets={secrets} />
           </Tabs.Panel>
           <Tabs.Panel value="body">
+            <SectionIntro>Los datos que se mandan en un POST, PUT o PATCH, en JSON o como formulario. Cada campo lo completa el agente o lleva un valor fijo.</SectionIntro>
             <Stack gap="sm">
               <Group gap="sm" wrap="wrap">
                 <Switch
@@ -603,12 +612,15 @@ export function HttpForm({
             </Stack>
           </Tabs.Panel>
           <Tabs.Panel value="auth">
+            <SectionIntro>Cómo se identifica Atentina ante tu API. Elegí el tipo y el secreto que guarda la credencial: el valor se carga en cada agente y nunca lo ve el modelo.</SectionIntro>
             <AuthEditor http={http} setHttp={setHttp} secrets={secrets} />
           </Tabs.Panel>
           <Tabs.Panel value="respuesta">
+            <SectionIntro>Qué parte del resultado lee el agente y qué valores se guardan para usar en otras herramientas.</SectionIntro>
             <ResponseFields draft={draft} update={update} />
           </Tabs.Panel>
           <Tabs.Panel value="voz">
+            <SectionIntro>Lo que dice el agente en una llamada mientras espera la respuesta, para que no haya silencio. Vacío: no dice nada.</SectionIntro>
             <VoiceFields draft={draft} update={update} />
           </Tabs.Panel>
         </Tabs>
@@ -717,12 +729,14 @@ export function CodeForm({
         <Title order={4} mb="sm">
           Respuesta
         </Title>
+        <SectionIntro>Qué parte del resultado lee el agente y qué valores se guardan para usar en otras herramientas.</SectionIntro>
         <ResponseFields draft={draft} update={update} />
       </Card>
       <Card>
         <Title order={4} mb="sm">
           Mientras se espera
         </Title>
+        <SectionIntro>Lo que dice el agente en una llamada mientras espera la respuesta, para que no haya silencio. Vacío: no dice nada.</SectionIntro>
         <VoiceFields draft={draft} update={update} />
       </Card>
     </Stack>
