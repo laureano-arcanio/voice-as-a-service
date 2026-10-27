@@ -9,6 +9,7 @@ from app.mcp import catalog, docs
 from app.services import features, livekit
 
 from .test_api import V1, admin, client_user, make_agent, make_client, make_tier  # noqa: F401  (admin: fixture)
+from .test_direct_calls import accept_terms
 from .test_plan_features import FREE
 
 
@@ -302,6 +303,10 @@ def test_direct_calls_tools(api, admin, full, monkeypatch):
 
     user = client_user(api, admin, c)
     user_id = user.get(f"{V1}/auth/me").json()["id"]
+    # Hasta que el cliente acepta las condiciones vigentes (graban siempre), no se llama.
+    out = every.call("start_direct_call", phone="+54 9 351 677-5617", user_id=user_id)
+    assert out["isError"] and out["structuredContent"]["code"] == "terms_pending"
+    accept_terms(user)
     # Con la key, el usuario que habla es obligatorio y la respuesta trae el link para abrir en el panel.
     out = every.call("start_direct_call", phone="+54 9 351 677-5617")
     assert out["isError"] and out["structuredContent"]["code"] == "user_required"

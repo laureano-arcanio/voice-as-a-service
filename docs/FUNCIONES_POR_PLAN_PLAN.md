@@ -195,3 +195,23 @@ Clave **`advanced_reports`** (`services/features.TIER_HAS`; columna `tiers.advan
   la pestaña muestra el aviso "Mejorar mi plan" con los planes que la incluyen. El admin las ve siempre.
 - Landing: la tabla de `/desarrolladores/docs/api` (`planFeatures`) y las tarjetas de `landing/src/data/site.ts`.
   Al cambiar el tier, cambiar las dos.
+
+## 8. Llamadas directas por plan (28-oct-2026)
+
+Clave **`direct_calls`** (`services/features.TIER_HAS`; columna `tiers.direct_calls`, migración 0039;
+`GET /plan/features`; en el editor de tiers). Decide si el equipo del cliente puede llamar desde el panel y
+atender las entrantes sin el agente ([`LLAMADAS_DIRECTAS_PLAN.md`](LLAMADAS_DIRECTAS_PLAN.md)):
+
+| Plan | Llamadas directas |
+|---|---|
+| Free | No |
+| Mostrador, Sucursal e Interno | Sí |
+| Red (a medida) | Sí |
+
+- La migración la prende en los tiers con precio o a medida (`price_ars` mayor que 0 o `NULL`); el Free no, como
+  `advanced_reports`. La saliente además necesita minutos salientes (`outbound_minutes`, `outbound_calls`).
+- Corte: `POST /direct-calls` y poner un número en `answer_mode=team` (`PATCH /phone-numbers/{id}`) dan 429
+  `direct_calls_not_in_plan`. Si un cliente baja de plan, las entrantes de sus números del equipo van al agente del
+  número (`start_inbound`). En la UI, `PlanGate` con `direct_calls` en Teléfono y en la opción "el equipo" de Números.
+- Landing: la tabla de `/desarrolladores/docs/api` (`planFeatures`) y las tarjetas de `landing/src/data/site.ts`.
+  Al cambiar el tier, cambiar las dos (hechas en la rama `llamadas-directas`, sin publicar).

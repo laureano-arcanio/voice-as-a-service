@@ -4,6 +4,7 @@ import datetime
 
 import pytest
 
+from app import legal
 from app.db import utcnow
 from app.models import (
     CallMode,
@@ -26,11 +27,23 @@ DID = "+541152630861"
 HDR = "X-Atentina-Client"
 
 
-def setup(api, admin, **tier):
-    """Un cliente con llamadas directas, un numero y una usuaria (Ana) con sesion."""
+def accept_terms(user):
+    """El usuario acepta las condiciones y la politica vigentes (el modal del panel): sin eso el cliente no llama
+    ni atiende (403 terms_pending)."""
+    body = {"terms_version": legal.current("terms").version, "privacy_version": legal.current("privacy").version}
+    r = user.post(f"{V1}/auth/me/legal", json=body)
+    assert r.status_code == 200 and r.json()["legal_pending"] == [], r.text
+    return user
+
+
+def setup(api, admin, accept=True, **tier):
+    """Un cliente con llamadas directas, un numero y una usuaria (Ana) con sesion, que acepto las condiciones
+    vigentes (accept=False: no)."""
     c = make_client(admin, direct_calls=tier.pop("direct_calls", True), **tier)
     n = admin.post(f"{V1}/phone-numbers", json={"client_id": c["id"], "e164": DID}).json()
     ana = client_user(api, admin, c)
+    if accept:
+        accept_terms(ana)
     return c, n, ana, ana.get(f"{V1}/auth/me").json()["id"]
 
 
@@ -77,7 +90,11 @@ def test_outbound_from_the_panel(api, admin, monkeypatch):
     items = ana.get(f"{V1}/calls", params={"mode": "directa", "user_id": ana_id}).json()["items"]
     assert [(i["id"], i["user_name"], i["agent_id"]) for i in items] == [(cid, "ana@acme.com", None)]
     assert ana.get(f"{V1}/calls", params={"answered_by": "team"}).json()["items"] == []
-    assert ana.get(f"{V1}/calls/{cid}").status_code == 200
+    detail = ana.get(f"{V1}/calls/{cid}")
+    assert detail.status_code == 200
+    info = detail.json()["call"]
+    assert (info["user_id"], info["user_name"], info["answered_by"]) == (ana_id, "ana@acme.com", None)
+    assert info["opted_out_confirmed"] is False
     # Con un numero suelto tambien, y el aviso de grabacion del cliente viaja en la metadata.
     assert ana.put(f"{V1}/clients/{c['id']}/direct-call-settings",
                    json={"recording_notice": True}).json() == {"recording_notice": True}
@@ -148,7 +165,7 @@ def test_blocked_plan_support_and_validation(api, admin):
     assert r.status_code == 429 and r.json()["code"] == "direct_calls_not_in_plan"
     # Sin numero asignado.
     bare = make_client(admin, slug="bare", direct_calls=True)
-    user = client_user(api, admin, bare, email="u@bare.com")
+    user = accept_terms(client_user(api, admin, bare, email="u@bare.com"))
     r = user.post(f"{V1}/direct-calls", json={"phone": "+5493511112222"})
     assert r.status_code == 409 and r.json()["code"] == "no_phone_number"
 
@@ -419,3 +436,52 @@ def test_team_answering_needs_the_plan(api, admin):
         inbound = call_service.start_inbound(s, api.engine, DID, "+5493516775617")
         assert inbound.team is None and inbound.opening
         assert s.get(CallRow, inbound.conversation_id).answered_by == "agent"
+
+
+# ---------- condiciones: sin aceptar las vigentes no se llama ni se atiende ----------
+
+def test_direct_calls_need_the_current_terms(api, admin, monkeypatch):
+    """Plan, seccion 7: la funcion no se habilita hasta que el cliente acepta la version que la cubre (graba
+    siempre). Alcanza con que la acepte un usuario del cliente: vale para todos, tambien por API key."""
+    c, n, ana, ana_id = setup(api, admin, accept=False)
+    agent = make_agent(admin, c)
+    person = member(admin, c["id"], name="Ana", user_id=ana_id, whatsapp="3510000000")
+    url = f"{V1}/phone-numbers/{n['id']}"
+    msg = "Aceptá las condiciones nuevas para usar el teléfono del equipo"
+    r = ana.post(f"{V1}/direct-calls", json={"phone": "+5493511112222"})
+    assert r.status_code == 403 and r.json()["code"] == "terms_pending" and r.json()["detail"] == msg
+    r = api.client.post(f"{V1}/direct-calls", json={"phone": "+5493511112222", "user_id": ana_id},
+                        headers=api_key(api, admin, c))
+    assert r.status_code == 403 and r.json()["code"] == "terms_pending"
+    # Elegir el equipo tampoco (ni el admin); el agente si.
+    for who in (ana, admin):
+        r = who.patch(url, json={"answer_mode": "team", "member_ids": [person["id"]], "agent_id": agent["id"]})
+        assert r.status_code == 403 and r.json()["code"] == "terms_pending"
+    assert ana.patch(url, json={"agent_id": agent["id"], "answer_mode": "agent"}).status_code == 200
+    # Acepta Pedro (otro usuario del cliente): vale para el cliente.
+    accept_terms(client_user(api, admin, c, email="pedro@acme.com"))
+    assert ana.patch(url, json={"answer_mode": "team", "member_ids": [person["id"]]}).status_code == 200
+    assert ana.post(f"{V1}/direct-calls", json={"phone": "+5493511112222"}).status_code == 201
+    with api.sessions() as s:
+        cid = call_service.start_inbound(s, api.engine, DID, "+5493516775617").conversation_id
+        assert direct_calls.ring_panel(s, cid, [ana_id]) == []      # ocupada con la saliente
+        s.add(CallRing(conversation_id=cid, user_id=ana_id, status="ringing"))
+        s.commit()
+
+    # Sale una version nueva: hasta aceptarla, la saliente y atender dan 403 y las entrantes van al agente.
+    original = legal.versions
+    old = original("terms")
+    newer = legal.Version(old[-1].doc, "2099-01-01", "f" * 64, "texto nuevo")
+    monkeypatch.setattr(legal, "versions", lambda doc_id: (*old, newer) if doc_id == "terms" else original(doc_id))
+    r = ana.post(f"{V1}/direct-calls", json={"phone": "+5493511112223"})
+    assert r.status_code == 403 and r.json()["code"] == "terms_pending"
+    r = ana.post(f"{V1}/direct-calls/{cid}/answer")
+    assert r.status_code == 403 and r.json()["code"] == "terms_pending"
+    with api.sessions() as s:
+        inbound = call_service.start_inbound(s, api.engine, DID, "+5493516775618")
+        assert inbound.team is None and inbound.opening
+        assert s.get(CallRow, inbound.conversation_id).answered_by == "agent"
+    accept_terms(ana)     # la nueva de las condiciones y la politica que habia aceptado Pedro
+    assert ana.post(f"{V1}/direct-calls/{cid}/answer").status_code == 200
+    with api.sessions() as s:
+        assert call_service.start_inbound(s, api.engine, DID, "+5493516775619").team is not None

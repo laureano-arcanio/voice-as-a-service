@@ -1,5 +1,5 @@
 ---
-// Índice de `/plataforma`: las tres capas y las cuatro capacidades (docs/SEO_LANDING.md).
+// Índice de `/plataforma`: las tres capas y las cinco capacidades (docs/SEO_LANDING.md).
 import Button from "../../components/Button.astro";
 import Cta from "../../components/Cta.astro";
 import Footer from "../../components/Footer.astro";
@@ -11,7 +11,7 @@ import { capabilities } from "../../data/site";
 import Base from "../../layouts/Base.astro";
 
 const description =
-  "La plataforma de Atentina: voces argentinas, transcripción de audio, WhatsApp y telefonía con agentes de IA, en servidores en Argentina y con un precio en pesos.";
+  "La plataforma de Atentina: voces argentinas, transcripción de audio, WhatsApp, telefonía y teléfono del equipo con agentes de IA, en servidores en Argentina y con un precio en pesos.";
 ---
 
 <Base
@@ -39,10 +39,10 @@ const description =
       <div class="mx-auto grid max-w-[1120px] gap-[22px] px-5">
         <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">Plataforma</span>
         <h1>
-          Voces, transcripción, WhatsApp y telefonía <span class="text-accent">en una sola plataforma</span>
+          Voces, transcripción, WhatsApp, telefonía y teléfono del equipo <span class="text-accent">en una sola plataforma</span>
         </h1>
         <p class="max-w-[62ch] text-[1.12rem] text-ink-2">
-          Cuatro capacidades propias, en servidores en Argentina. Las usás sueltas, por API, o armadas en agentes con IA que atienden a tus clientes por teléfono y por WhatsApp.
+          Cinco capacidades propias, en servidores en Argentina. Las usás sueltas, por API, o armadas en agentes con IA que atienden a tus clientes por teléfono y por WhatsApp. Y tu equipo también llama y atiende desde el panel.
         </p>
         <div class="flex flex-wrap items-center gap-3">
           <Button href="/registro">Empezar gratis</Button>
@@ -52,7 +52,7 @@ const description =
     </header>
 
     <Section id="capacidades">
-      <h2>Cuatro capacidades</h2>
+      <h2>Cinco capacidades</h2>
       <div class="mt-9 grid gap-4 min-[801px]:grid-cols-2">
         {
           capabilities.map((c) => (

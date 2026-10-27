@@ -1298,6 +1298,11 @@ class CallInfo(BaseModel):
     created_at: str | None
     started_at: str | None
     ended_at: str | None
+    # Llamadas directas (docs/LLAMADAS_DIRECTAS_PLAN.md): como en CallSummary.
+    user_id: str | None = None
+    user_name: str | None = None
+    answered_by: Literal["agent", "team"] | None = None
+    opted_out_confirmed: bool = False
 
 
 class OutcomeOut(BaseModel):

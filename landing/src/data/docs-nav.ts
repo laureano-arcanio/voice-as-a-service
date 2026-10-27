@@ -57,6 +57,7 @@ export const docsNav: DocsGroup[] = [
       { id: "campanas", label: "Campañas" },
       { id: "webhook", label: "Webhook" },
       { id: "derivaciones", label: "Equipo y derivaciones" },
+      { id: "directas", label: "Llamadas directas" },
       { id: "eventos", label: "Eventos" },
       { id: "reportes", label: "Reportes" },
     ],

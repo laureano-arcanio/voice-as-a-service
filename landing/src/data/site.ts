@@ -139,6 +139,7 @@ export const plans: Plan[] = [
       "WhatsApp",
       "500 contactos",
       "Derivación a 1 persona",
+      "Teléfono del equipo: llamar y atender desde el panel",
       "Reportes completos: resultados, conversiones, transferencias, WhatsApp y campañas, con CSV",
     ],
     cta: "Empezar",
@@ -159,6 +160,7 @@ export const plans: Plan[] = [
       "Campañas de llamadas y de WhatsApp",
       "5.000 contactos",
       "Derivación a 2 personas",
+      "Teléfono del equipo: llamar y atender desde el panel",
       "Reportes completos: resultados, conversiones, transferencias, WhatsApp y campañas, con CSV",
     ],
     cta: "Empezar",
@@ -175,6 +177,7 @@ export const plans: Plan[] = [
       "Los números que necesites",
       "Campañas de llamadas y de WhatsApp",
       "Contactos y equipo sin tope",
+      "Teléfono del equipo: llamar y atender desde el panel",
       "Reportes completos: resultados, conversiones, transferencias, WhatsApp y campañas, con CSV",
     ],
     cta: "Hablemos",
@@ -400,12 +403,13 @@ export const platform: Capability[] = [
   },
   {
     title: "Telefonía y WhatsApp",
-    text: "Números argentinos, llamadas entrantes y salientes, y WhatsApp para el mismo agente. Todo en un solo servicio, por la app o por API.",
+    text: "Números argentinos, llamadas entrantes y salientes, y WhatsApp para el mismo agente. Tu equipo también llama y atiende desde el panel. Todo en un solo servicio, por la app o por API.",
     status: "available",
     href: "#precios",
     link: "Ver planes →",
     more: [
       { href: "/plataforma/telefonia", label: "Telefonía y SIP →" },
+      { href: "/plataforma/telefono-del-equipo", label: "Teléfono del equipo →" },
       { href: "/plataforma/whatsapp", label: "WhatsApp con IA →" },
     ],
   },
@@ -433,12 +437,13 @@ export const devCapabilities: Capability[] = [
   },
   {
     title: "Telefonía incluida",
-    text: "Números argentinos, entrantes y salientes, y WhatsApp. No contratás telefonía aparte: los minutos van en el plan.",
+    text: "Números argentinos, entrantes y salientes, y WhatsApp. Tu equipo también llama y atiende desde el panel. No contratás telefonía aparte: los minutos van en el plan.",
     status: "available",
     href: "#precios",
     link: "Ver planes →",
     more: [
       { href: "/plataforma/telefonia", label: "Telefonía y SIP →" },
+      { href: "/plataforma/telefono-del-equipo", label: "Teléfono del equipo →" },
       { href: "/plataforma/whatsapp", label: "WhatsApp con IA →" },
     ],
   },
@@ -590,7 +595,7 @@ export interface TextSection {
 }
 
 export interface CapabilityPage {
-  slug: "voces-argentinas" | "transcripcion" | "whatsapp" | "telefonia";
+  slug: "voces-argentinas" | "transcripcion" | "whatsapp" | "telefonia" | "telefono-del-equipo";
   /** Nombre corto: tarjetas, migas de pan y footer. */
   title: string;
   /** Texto de la tarjeta en `/plataforma`. */
@@ -606,7 +611,7 @@ export interface CapabilityPage {
   /** Datos en mono debajo de los botones del hero. */
   facts: string[];
   /** Qué hay a la derecha del hero: un pedido a la API, la llamada de la demo o el botón a WhatsApp. */
-  hero: "code" | "call" | "whatsapp";
+  hero: "code" | "call" | "whatsapp" | "phone";
   heroCode?: CodeExample;
   /** Suma la demo de voces (`Voices`) debajo del hero, con otro título y bajada. */
   voices?: { title: string; lead: string; all?: boolean };
@@ -991,7 +996,7 @@ texto = client.audio.transcriptions.create(
   {
     slug: "telefonia",
     title: "Telefonía",
-    summary: "Números argentinos, 0800 y 0810, entrantes y salientes, con los minutos incluidos en el plan.",
+    summary: "Números argentinos, 0800 y 0810, entrantes y salientes, con los minutos incluidos en el plan. El equipo también llama y atiende desde el panel.",
     metaTitle: "Telefonía en Argentina: números, 0800 y SIP con IA | Atentina",
     metaDescription:
       "Números regionales, 0800 y 0810, llamadas entrantes y salientes con agentes de IA y minutos incluidos. Si tenés central o proveedor SIP propio, consultanos.",
@@ -1019,6 +1024,7 @@ texto = client.audio.transcriptions.create(
         title: "Llamadas entrantes y salientes",
         paragraphs: [
           "En las entrantes, el agente atiende, toma los datos y deja el resultado en el panel y en tu sistema. En las salientes, es el agente el que llama: para confirmar un turno, recordar un vencimiento o acordar un pago. Los planes Sucursal y Red suman campañas de llamadas, y por API o webhook lanzás las llamadas que necesites y recibís el resultado de cada una.",
+          "Tu equipo también llama y atiende: desde el panel, con el número de la empresa y sin agente, y cada número se configura para que lo atienda el equipo o el agente. Las llamadas del equipo quedan grabadas y transcriptas en el mismo historial.",
         ],
       },
       {
@@ -1054,8 +1060,9 @@ texto = client.audio.transcriptions.create(
     features: [
       { title: "Numeración argentina", text: "Regional, 0800 y 0810." },
       { title: "Entrantes y salientes", text: "El agente atiende y también llama." },
+      { title: "El equipo también llama y atiende", text: "Desde el panel, con el número de la empresa, y todo grabado.", href: "/plataforma/telefono-del-equipo", link: "Ver el teléfono del equipo" },
       { title: "Varias llamadas a la vez", text: "Una, tres o las que necesites, según el plan." },
-      { title: "Minutos incluidos", text: "Por mes, entre las llamadas que entran y las que hace el agente." },
+      { title: "Minutos incluidos", text: "Por mes, entre las llamadas que entran y las que hacen el agente o tu equipo." },
       { title: "Campañas de llamadas", text: "En los planes Sucursal y Red." },
       { title: "Tu línea o tu central", text: "Corre sobre SIP. Si tenés central o proveedor SIP propio, consultanos." },
       { title: "El resultado de cada llamada", text: "Transcripción y datos tomados, en el panel y en tu sistema." },
@@ -1089,6 +1096,113 @@ texto = client.audio.transcriptions.create(
       subject: "Consulta sobre la telefonía de Atentina",
       question: "¿Qué línea o central tenés hoy?",
       placeholder: "Por ejemplo: un 0800 y una central con proveedor SIP propio",
+    },
+  },
+  {
+    slug: "telefono-del-equipo",
+    title: "Teléfono del equipo",
+    summary: "Tu equipo llama y atiende desde el navegador con el número de la empresa. Todo grabado y transcripto junto con las llamadas del agente.",
+    metaTitle: "Teléfono del equipo: llamá y atendé desde el navegador | Atentina",
+    metaDescription:
+      "Tu equipo llama a los contactos y atiende las entrantes desde el panel, con el número de la empresa. Cada número lo atiende el equipo o el agente, y las llamadas del equipo quedan grabadas y transcriptas.",
+    ogDescription: "Tu equipo llama y atiende desde el navegador, con el número de la empresa.",
+    eyebrow: "Teléfono del equipo",
+    headline: "Tu equipo llama y atiende con el número de la empresa",
+    highlight: "con el número de la empresa",
+    lead: "Las personas de tu equipo llaman a tus contactos y atienden las entrantes desde el navegador, sin agente de por medio. Cada número lo atiende el equipo o el agente, y las llamadas del equipo quedan grabadas y transcriptas en el mismo historial que las del agente.",
+    facts: ["Desde el navegador", "Atiende el equipo o el agente", "Todo grabado y transcripto", "Planes Mostrador, Sucursal y Red"],
+    hero: "phone",
+    sections: [
+      {
+        title: "Llamar desde el panel",
+        paragraphs: [
+          "En la pantalla Teléfono elegís un contacto de tu agenda, o marcás un número, y apretás Llamar. Hablás desde el navegador, con el micrófono y el parlante de tu computadora, y quien recibe la llamada ve el número de tu empresa. El panel muestra cómo va: llamando, sonando, en curso. Mientras hablás podés seguir navegando el panel, y si recargás la página volvés a entrar a la llamada.",
+          "Si tenés varios números, elegís desde cuál sale cada llamada. Si el contacto pidió no recibir llamadas, el panel te lo avisa y tenés que confirmar que querés llamarlo; queda registrado en la llamada. Los números bloqueados no se pueden llamar.",
+        ],
+      },
+      {
+        title: "Entrantes: el equipo o el agente, número por número",
+        paragraphs: [
+          "Cada número de tu cuenta se configura para que lo atienda el equipo o el agente. Con el equipo, suena a las personas que asignaste a ese número, sin agente. Con el agente, atiende como siempre y puede pasar la llamada a una persona cuando hace falta. Así podés dejar el 0800 de reclamos con el agente y la línea de ventas con tu gente.",
+        ],
+      },
+      {
+        title: "A quién le suena, en qué orden y qué pasa si nadie atiende",
+        paragraphs: [
+          "Elegís las personas y el orden en que suenan, cuántos segundos suena cada una y el horario de atención. Elegís también dónde suena primero: en el celular de cada persona (por defecto) o en el panel, y si nadie atiende, pasa al otro. En el celular, la persona escucha de qué línea es la llamada y marca 1 para atender.",
+          "Si nadie atiende o es fuera de horario, decidís el respaldo: que siga el agente del número, que quien llama deje un mensaje (queda grabado y transcripto) o que escuche un aviso y se corte.",
+        ],
+      },
+      {
+        title: "Disponible para atender",
+        paragraphs: [
+          "Cada persona tiene un interruptor Disponible en el panel. Mientras está prendido y el panel está abierto, le suenan las entrantes del número con los botones Atender y Rechazar, el número que llama y el contacto si está en tu agenda. La primera persona que atiende se queda con la llamada y a las demás se les corta el timbre. Atender en el panel no gasta minutos salientes.",
+        ],
+      },
+      {
+        title: "Todo grabado y transcripto",
+        paragraphs: [
+          "Las llamadas del equipo se graban y se transcriben siempre. Quedan en Conversaciones junto a las del agente, con la transcripción, el audio de cada mensaje, la duración, el resultado y quién llamó o atendió. Los reportes las cuentan aparte, por tipo y por persona. Por API las filtrás de la misma forma, y también las lanzás, por ejemplo desde tu CRM.",
+          "Podés prender un aviso automático, «Esta llamada está siendo grabada», al empezar las llamadas. Informar a quien habla y tener su consentimiento es responsabilidad de tu empresa, como dicen las condiciones del servicio.",
+        ],
+      },
+      {
+        title: "Qué esperar",
+        paragraphs: [
+          "No hay una app de celular: para llamar o atender desde el panel, la pestaña tiene que estar abierta en el navegador, de la computadora o del celular. Para atender sin el panel, la llamada suena en el celular de cada persona, como una llamada común. Las llamadas del equipo gastan los minutos del plan y ocupan una de las llamadas a la vez, igual que las del agente.",
+        ],
+      },
+    ],
+    steps: [
+      { title: "Cargás a tu equipo", text: "Cada persona con su celular, su usuario del panel o los dos." },
+      { title: "Elegís quién atiende cada número", text: "El equipo o el agente, el orden, el horario y el respaldo." },
+      { title: "Llaman y atienden", text: "Desde el navegador, con el número de la empresa. Todo queda grabado y transcripto en el panel." },
+    ],
+    features: [
+      { title: "Llamar desde el navegador", text: "Con el micrófono y el parlante de tu computadora, desde el número de la empresa." },
+      { title: "Tu agenda de contactos", text: "Elegís a quién llamar, con aviso si pidió no recibir llamadas." },
+      { title: "El equipo o el agente, por número", text: "Cada número lo atiende quien vos elijas." },
+      { title: "Orden, celular o panel primero, horario y respaldo", text: "El agente, un mensaje o cortar si nadie atiende." },
+      { title: "Disponible para atender", text: "Atender o rechazar desde el panel; la primera persona que atiende se queda con la llamada." },
+      { title: "Grabada y transcripta", text: "En el mismo historial que las llamadas del agente, con el audio de cada mensaje." },
+      { title: "En todos los planes pagos", text: "Mostrador, Sucursal y Red. El plan Free no la incluye." },
+    ],
+    pricingFree: false,
+    faq: [
+      {
+        q: "¿Necesito instalar una app o comprar teléfonos?",
+        a: "No. Se llama y se atiende desde el panel, en el navegador. No hay una app de celular: la pestaña tiene que estar abierta. Si preferís atender en el celular, la llamada suena en el celular de cada persona.",
+      },
+      {
+        q: "¿Se graban las llamadas del equipo?",
+        a: "Sí, siempre, y se transcriben. Quedan en Conversaciones con el audio de cada mensaje. Podés prender un aviso que dice «Esta llamada está siendo grabada»; informar y tener el consentimiento de quien habla es responsabilidad de tu empresa.",
+      },
+      {
+        q: "¿Qué pasa si nadie del equipo atiende?",
+        a: "Elegís el respaldo para cada número: que siga el agente, que quien llama deje un mensaje o que escuche un aviso y se corte. Lo mismo vale fuera del horario que definas.",
+      },
+      {
+        q: "¿Puedo llamar a alguien que pidió que no lo llamen?",
+        a: "El panel te avisa y tenés que confirmarlo. Queda registrado en la llamada. Cumplir con el Registro Nacional No Llame y con quien pidió la baja es responsabilidad de tu empresa.",
+      },
+      {
+        q: "¿Cuánto cuesta?",
+        a: "Viene en los planes Mostrador, Sucursal y Red, sin costo aparte. Las llamadas gastan los minutos del plan, igual que las del agente. El plan Free no la incluye.",
+      },
+      {
+        q: "¿Se puede lanzar una llamada desde mi CRM?",
+        a: "Sí, por API: indicás el contacto y la persona que va a hablar, y te devuelve un link que esa persona abre para entrar a la llamada con su sesión. También lo puede hacer tu agente de IA por MCP.",
+      },
+      {
+        q: "¿El agente y el equipo pueden convivir?",
+        a: "Sí. Elegís por número quién atiende. Un número con agente puede pasar la llamada a una persona (derivación), y uno con el equipo puede pasar al agente si nadie atiende.",
+      },
+    ],
+    serviceType: "Teléfono para equipos de atención, con grabación y transcripción",
+    cta: {
+      subject: "Consulta sobre el teléfono del equipo de Atentina",
+      question: "¿Quiénes atenderían y desde qué números?",
+      placeholder: "Por ejemplo: tres vendedoras que atienden la línea de ventas y llaman a sus clientes",
     },
   },
 ];

@@ -1,7 +1,33 @@
 # Llamadas directas: el equipo del cliente llama y atiende sin el agente
 
-27-oct-2026. Propuesta, sin código. Parte de la opción C de `docs/mercado/demos/cimepa-telefonia.md` y del
-"softphone web" de [`DERIVACIONES_PLAN.md`](DERIVACIONES_PLAN.md), 4.5.
+27-oct-2026. Parte de la opción C de `docs/mercado/demos/cimepa-telefonia.md` y del "softphone web" de
+[`DERIVACIONES_PLAN.md`](DERIVACIONES_PLAN.md), 4.5.
+
+**Estado (28-oct-2026): implementado en la rama `llamadas-directas`, sin desplegar.**
+
+| Parte | Estado |
+|---|---|
+| Backend (fases 1, 3 y 3b): migración 0039, API, presencia y timbre, rama del worker, respaldos | Hecho, con tests (`tests/test_direct_calls.py`, `tests/test_direct_voice.py`, `tests/test_migration_0039.py`) |
+| MCP (fase 4): 4 herramientas nuevas y 4 ampliadas, 147 en total | Hecho; falta `make mcp-eval` |
+| Prueba SIP aislada | `make e2e-sip` (`tests/e2e_sip/direct.py`): saliente contra un eco del Anura falso y entrante al equipo por celular. El timbre en el panel está solo en los tests con LiveKit falso |
+| UI (fase 2), `web/src/features/phone/` | En otra tarea |
+| Documentación (fase 5) | Esta sección y las de `AGENTS.md`, `ARQUITECTURA.md`, `DERIVACIONES_PLAN.md`, `FUNCIONES_POR_PLAN_PLAN.md`, `README.md` y `LLAMADAS_SALIENTES_PLAN.md`; falta `GUIA_UI.md` (después de la UI) |
+| Landing (sección 10) | `/desarrolladores/docs/api#directas` (con `terms_pending`), `/plataforma/telefono-del-equipo`, menciones en telefonía y home, y "Teléfono del equipo" en los tres planes pagos; `npm run build` en verde, sin publicar |
+| Condiciones y privacidad (fase 6) | Texto `2026-10-28` en `app/legal/texts/` y corte por aceptación (`app/services/legal_gate.py`, 403 `terms_pending`); falta el abogado y el aviso por mail |
+| Prueba real y despliegue (fase 7) | Sin hacer: "Cómo desplegar" en la sección 14 |
+
+Dónde el código se aparta del texto de abajo (el contrato de la sección 13 sigue siendo el nombre fijo):
+
+- Por OAuth del MCP, sin `user_id`, llama el usuario que autorizó al agente; con API key sigue siendo obligatorio
+  (422 `user_required`).
+- Atender, rechazar, volver a entrar y la presencia piden la sesión del panel (403 `panel_user_required` con una
+  API key o un admin sin cliente).
+- La migración prende `tiers.direct_calls` en los tiers con precio o a medida (`price_ars` mayor que 0 o `NULL`),
+  igual que `advanced_reports`; el Free queda apagado.
+- Hasta que el cliente acepta las condiciones vigentes, no llama, no atiende ni pone un número en `team` (403
+  `terms_pending`); su entrante a un número del equipo va al agente del número (`start_inbound`), como sin el plan.
+- Poner un número en `answer_mode=team` pide el plan (429 `direct_calls_not_in_plan`) y al menos una persona (422
+  `members_required`); con respaldo `agent`, un agente en el número (422 `agent_required`).
 
 ## 1. Qué es
 
@@ -170,6 +196,15 @@ Atiende:  (•) El equipo   Personas: [ Ana ✕ ] [ Pedro ✕ ] [+ Agregar]   (e
 - Es un cambio importante: se acepta de nuevo en el modal del panel y va el aviso por mail con 30 días. La
   función no se habilita para un cliente hasta que acepte la versión nueva.
 - Revisión del abogado, como la versión anterior.
+- **Hecho el 27-oct-2026** (sin desplegar; detalle en [`TERMINOS_PLAN.md`](TERMINOS_PLAN.md), sección 8): versión
+  `2026-10-28` de las condiciones (resumen y puntos 3, 6, 7 y 10, sin renumerar) y de la privacidad (Grabaciones,
+  datos, AWS y conservación), copiadas a la landing. Ninguna otra página de la landing decía que no se graba: lo
+  decía el texto de privacidad que muestra `privacidad.astro` ("por defecto guardamos la transcripción, no el
+  audio"). Corte en `app/services/legal_gate.py`: sin
+  las versiones vigentes aceptadas por algún usuario del cliente, llamar, atender y poner un número en el equipo dan
+  403 `terms_pending` ("Aceptá las condiciones nuevas para usar el teléfono del equipo") y las entrantes de un
+  número del equipo van a su agente. La UI tiene que mostrar ese error con un link al modal (o recargar
+  `/auth/me`, que trae `legal_pending`).
 
 ## 8. UI (`web/`)
 
@@ -425,3 +460,66 @@ cambia acá y en el código a la vez.
   avg_duration}]` y `by_user [{user_id, user_name, direct, team, calls, minutes, avg_duration}]`). Las directas y
   las entrantes del equipo no tienen agente: cuentan como llamadas y minutos, no en conversión ni embudo. No hay
   herramientas de tiers en el catálogo: `direct_calls` del tier va por la UI o la API.
+
+## 14. Cómo desplegar
+
+Nada de esto se hizo todavía. En este orden, con el stack en vivo (confirmar cada paso que corta llamadas):
+
+1. **Condiciones y privacidad primero.** La migración enciende `direct_calls` en los planes pagos; el código corta
+   a quien no aceptó (403 `terms_pending`), pero el texto tiene que estar publicado antes. Revisión del abogado del texto `2026-10-28` (sección 7),
+   `make legal-sync`, aviso por mail a los clientes con 30 días ([`TERMINOS_PLAN.md`](TERMINOS_PLAN.md)); el modal del panel
+   pide la versión nueva. Sin aceptar, la función no anda para ese cliente (sección 7).
+2. `make migrate-test` (la 0039 contra una copia del backup en PostgreSQL: los números existentes quedan en
+   `answer_mode=agent`, los tiers pagos con `direct_calls`).
+3. `make migrate` y, sin llamadas en curso, `make calls-active && make up-agent` (recrea `app` y `agent`; la UI
+   de `web/` se compila en la imagen de `app`). Los números ya ruteados a un agente siguen igual.
+4. Publicar la landing: `/desarrolladores/docs/api` (`POST /direct-calls`, `join_url`, campos nuevos, errores),
+   `/plataforma`, planes (`landing/src/data/site.ts`), `/terminos` y `/privacidad` (sección 10).
+5. **MCP:** `make mcp-docs` (ya regenerado; repetir si cambia el catálogo), `tests/test_mcp.py`, `make mcp-eval`
+   (gasta tokens de OpenRouter), subir `version` en `deploy/mcp/server.json` y `make mcp-registry-publish`.
+6. **Prueba real, con números propios** (no con clientes), cada caso se revisa en Conversaciones (transcripción, WAV por
+   frase, duración, resultado y minutos):
+   - Saliente desde el panel: atiende, no atiende, ocupado, número inválido, corta cada lado, recargar la página
+     y **Volver a entrar**, cerrar la pestaña, sin minutos salientes, sin canales libres, contacto dado de baja
+     (con y sin confirmar), número bloqueado, con y sin aviso de grabación.
+   - Entrante al equipo: una persona atiende en su celular (marcando 1), no atiende, ocupado; fuera de horario; los
+     tres respaldos (agente, buzón de voz, corte); celular primero y panel primero, cada uno con el paso al otro;
+     atender en el panel con dos usuarios Disponibles (el segundo ve 409 y se le apaga) y rechazar; sin nadie
+     Disponible; el WhatsApp del mismo DID.
+   - Por API y por MCP: `POST /direct-calls` con `user_id` y `join_url`; abrirlo con la sesión de ese usuario y con
+     la de otro (403).
+   - El plan: Free (429 `direct_calls_not_in_plan`) y un admin en "ver como cliente" (403 `support_read_only`).
+   - `make e2e-sip` en verde antes de empezar.
+7. **CAP corto mezclado** con llamadas del agente (sección 6, "Capacidad"): directas y del agente a la vez hasta los
+   10 canales de Anura, para ver el STT por frase y el corte por canales. Se registra en `docs/capacity/`.
+8. Cuando está estable, avisar a los clientes de pago y, de a uno, ponerles el número en `team` desde Números (o
+   desde la API / el MCP, `route_phone_number`).
+
+Volver atrás: la 0039 tiene `downgrade` (probado de ida y vuelta en `tests/test_migration_0039.py`; no hay target
+de `make`, se agrega al `Makefile` si hace falta), que borra las columnas y tablas nuevas sin tocar lo que ya había;
+después recrear `app` y `agent` con la imagen anterior. Las directas ya hechas se conservan como llamadas sin
+`user_id` ni `answered_by`, con sus WAV en `storage/recordings/`.
+
+## 15. Pendientes
+
+- **UI** (`web/src/features/phone/`): fase 2 y 3b. Después, `docs/GUIA_UI.md` (Teléfono, barra de llamada, Números,
+  Mi cuenta, filtros de Conversaciones).
+- **Condiciones y privacidad:** revisión del abogado y aviso por mail con 30 días (sección 7). Es lo que bloquea el
+  despliegue. La entrante del equipo de un cliente que no aceptó va al agente del número: probarlo en el paso 6.
+- **Landing:** hecha en la rama (ver el estado al principio), sin publicar: se publica con las condiciones (paso 1 y 4
+  de la sección 14). La página del teléfono describe la UI de la sección 8: revisarla contra `web/` cuando cierre.
+- **Corte por aceptación:** exige la versión **vigente**; cualquier versión nueva de las condiciones o de la
+  privacidad, aunque no toque las directas, vuelve a apagar el teléfono del equipo de cada cliente (y sus entrantes
+  van al agente) hasta que alguien la acepte. Si no se quiere, cambiar `legal_gate` a "versión ≥ 2026-10-28".
+- **Medir:** `make mcp-eval` con las herramientas nuevas; CAP corto de directas mezcladas con agente (hoy no hay
+  números con Gemma ni con directas); la prueba real del paso 6, en particular el panel en el celular (con la pantalla
+  bloqueada iOS puede cortar el micrófono) y el eco sin auriculares.
+- **Códigos SIP de Anura:** los de una saliente directa a un contacto (no atiende, ocupado, inexistente) salen de
+  `classify_error` y, como en las campañas, no están verificados con llamadas reales. El celular de una persona con
+  buzón de voz lo resuelve el detector por STT de la derivación (`DERIVACIONES_PLAN.md`, 11): con Claro, "ocupado"
+  no se ve nunca.
+- **Después** (de la sección 11): grabación estéreo de la llamada entera, número por usuario, "Pasarle a la IA" y
+  retención de grabaciones. Cada directa pesa ~1,9 MB por minuto de habla en `storage/`; sin retención, el disco
+  crece con el uso.
+- **Reportes:** las directas y las entrantes del equipo cuentan como llamadas y minutos, no en conversión ni
+  embudo ([`REPORTES_PLAN.md`](REPORTES_PLAN.md)).

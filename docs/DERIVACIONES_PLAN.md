@@ -133,6 +133,15 @@ Hay que medir cuánto ocupa (CPU y STT) en el test de capacidad.
 
 ### 4.5 Softphone web (fase posterior, CIMEPA)
 
+> **28-oct-2026:** el softphone pasó a [`LLAMADAS_DIRECTAS_PLAN.md`](LLAMADAS_DIRECTAS_PLAN.md) (backend
+> implementado en la rama `llamadas-directas`, sin desplegar): la pantalla Teléfono para llamar desde el navegador
+> con el número de la empresa, la presencia ("Disponible") y el timbre en el panel, y los números que atiende el
+> equipo sin agente. `Transfer` acepta **personas además de áreas**: `TeamRing` hace de área sin agente detrás y
+> `Transfer.run_team` hace sonar a las personas de un número en sus celulares, en orden (sin código de vuelta a la IA;
+> tramos en `handoff_legs` con `area_id` nulo y los mismos eventos `handoff.*`); la captura y la transcripción del
+> modo escucha pasaron a `app/voice/listen.py`, común con las directas. Sigue pendiente de acá "Persona → IA"
+> (el botón "Pasarle a la IA") y que el destino de una derivación sea el panel de la persona en línea.
+
 Es el diseño de `docs/mercado/demos/cimepa-telefonia.md` ("todo en nuestra webapp"):
 
 - Página del panel, logueada, con la agenda `contacts`.
@@ -325,7 +334,7 @@ Estimaciones a mano, sin medir.
 | 3. Puente de WhatsApp (1 semana) | Hilo en `handoff`, reenvío y cita, comandos, timeout y reasignación, plantilla | Goldman, SQL, BAIC |
 | 4. Panel (4-5 días) | Línea de tiempo, Derivaciones por persona y área, resumen por canal y fuera de horario | Goldman, BAIC, SQL |
 | 5. Webhook, API y CSV (3 días) | `client_webhooks`, outbox, `/events` | CIMEPA, Axioma, Zennon |
-| 6. Persona → IA y softphone web (2-3 semanas) | `2` y `#ia`, web client logueado para salientes del empleado, presencia | CIMEPA |
+| 6. Persona → IA y softphone web (2-3 semanas) | `2` y `#ia`, web client logueado para salientes del empleado, presencia (el softphone, presencia y timbre: [`LLAMADAS_DIRECTAS_PLAN.md`](LLAMADAS_DIRECTAS_PLAN.md)) | CIMEPA |
 
 Con Goldman como primer piloto, las fases 0 a 4 son el camino corto (unas 4 semanas). Si no llega a
 noviembre, el piloto arranca con ficha (fallback de la fase 2 sin transferencia) y se suma la transferencia

@@ -2,7 +2,7 @@
  "terminos": {
   "id": "terms",
   "title": "Condiciones del servicio",
-  "current": "2026-10-25",
+  "current": "2026-10-28",
   "versions": [
    {
     "version": "2026-10-01",
@@ -11,17 +11,25 @@
    {
     "version": "2026-10-25",
     "sha256": "fef573ead36cf3d65065ed7d62b43334c4abbdb777edfe1d203184ca46f43d51"
+   },
+   {
+    "version": "2026-10-28",
+    "sha256": "09f34dd56ed32fbb799be59c915dd2fbbdb1163251d3f8de8b2f350678b68f65"
    }
   ]
  },
  "privacidad": {
   "id": "privacy",
   "title": "Política de privacidad",
-  "current": "2026-10-25",
+  "current": "2026-10-28",
   "versions": [
    {
     "version": "2026-10-25",
     "sha256": "1660a856675221692839dbefa7f2cd7c3efd0b3d643c4d9e76c8d61a1ec5c3dc"
+   },
+   {
+    "version": "2026-10-28",
+    "sha256": "563d800a0b95561d236bfff2a7a49deb7c442069c1bd16c7376056111683a213"
    }
   ]
  }

@@ -1,6 +1,6 @@
 ---
-// Una página por capacidad de la plataforma (docs/SEO_LANDING.md): voces, transcripción, WhatsApp y telefonía.
-// Los datos salen de `capabilities` en `src/data/site.ts`; la plantilla es la misma para las cuatro.
+// Una página por capacidad de la plataforma (docs/SEO_LANDING.md): voces, transcripción, WhatsApp, telefonía y teléfono del equipo.
+// Los datos salen de `capabilities` en `src/data/site.ts`; la plantilla es la misma para todas.
 import Button from "../../components/Button.astro";
 import CallWidget from "../../components/CallWidget.astro";
 import CheckList from "../../components/CheckList.astro";
@@ -66,6 +66,42 @@ const columns = page.hero === "code" ? "min-[901px]:grid-cols-[1fr_minmax(0,540p
         </div>
         {page.hero === "code" && page.heroCode && <CodeBlock code={page.heroCode.code} label={page.heroCode.label} />}
         {page.hero === "call" && <CallWidget agents={[atentinaAgent]} title="Llamá al agente ahora" />}
+        {
+          page.hero === "phone" && (
+            <div class="overflow-hidden rounded-[18px] border border-line bg-surface shadow-card" role="img" aria-label="Ejemplo del teléfono del panel: un contacto de la agenda y una llamada en curso">
+              <div class="flex items-center justify-between gap-3 border-b border-line bg-surface-2 px-4 py-3">
+                <strong class="font-display text-[1.05rem]">Teléfono</strong>
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-ok-soft px-2.5 py-1 font-mono text-[.72rem] tracking-[.04em] text-ok">
+                  <span class="size-1.5 rounded-full bg-ok"></span>
+                  disponible
+                </span>
+              </div>
+              <div class="grid gap-4 p-5">
+                <p class="font-mono text-[.76rem] tracking-[.03em] text-muted">Sale desde +54 11 5555-0000</p>
+                <ul class="m-0 grid list-none gap-2 p-0">
+                  {[["Juan Pérez", "+54 9 11 4444-1234"], ["María Gómez", "+54 9 351 555-6789"], ["Ferretería Sur", "+54 11 4777-0000"]].map(([name, phone], i) => (
+                    <li class:list={["flex items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5", i === 0 ? "border-accent bg-accent-soft" : "border-line"]}>
+                      <span class="grid">
+                        <b class="text-[.98rem] font-semibold">{name}</b>
+                        <span class="font-mono text-[.76rem] tabular-nums text-muted">{phone}</span>
+                      </span>
+                      <span class="grid size-8 place-items-center rounded-full bg-accent text-accent-ink">
+                        <Icon name="phone" class="size-4" />
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <div class="flex items-center justify-between gap-3 rounded-xl bg-ink px-4 py-3 text-cta-ink">
+                  <span class="grid">
+                    <b class="text-[.95rem] font-semibold">En curso · Juan Pérez</b>
+                    <span class="font-mono text-[.74rem] text-cta-muted">grabando y transcribiendo</span>
+                  </span>
+                  <span class="font-mono text-[.95rem] tabular-nums">02:31</span>
+                </div>
+              </div>
+            </div>
+          )
+        }
         {
           page.hero === "whatsapp" && (
             <div class="overflow-hidden rounded-[18px] border border-line bg-surface shadow-card">

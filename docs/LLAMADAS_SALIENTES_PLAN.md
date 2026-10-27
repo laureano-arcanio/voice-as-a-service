@@ -18,6 +18,9 @@ estado por fase, desvíos y cómo desplegar, en la [sección 14](#14-avance).
 
 ## 2. Qué hay hoy
 
+- **Saliente de una persona del equipo (sin agente):** no es de este plan ni de las campañas: son las llamadas
+  directas, `POST /api/v1/direct-calls` ([`LLAMADAS_DIRECTAS_PLAN.md`](LLAMADAS_DIRECTAS_PLAN.md)). Descuentan minutos
+  salientes y canales de Anura como las de acá.
 - **Saliente individual:** `POST /api/v1/calls {agent_id, phone, from_number_id, voice}`
   (`app/services/calls.py`). `prepare_call` admite con el tier (`quota.admit`, lock de fila del cliente),
   crea conversación + `CallRow(mode=saliente)` y despacha el worker a una room de LiveKit.

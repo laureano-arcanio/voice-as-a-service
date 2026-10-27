@@ -27,7 +27,7 @@ capacidad) está en [`AGENTS.md`](../AGENTS.md) y el uso de la UI en [`GUIA_UI.m
 |---|---|---|
 | `migrate` | `migrations/`, `app/cli.py` | Una vez antes de `app` y `agent`: `alembic upgrade head` y el seed idempotente. |
 | `app` | `app/main.py`, `app/api/` | API REST `/api/v1` y la SPA. Crea conversaciones y llamadas, admite por tier y despacha el worker a una room de LiveKit. Recibe el webhook de WhatsApp (`/wa/webhook`) y responde los mensajes en segundo plano. |
-| `agent` | `app/voice/worker.py` | Worker de LiveKit Agents: STT → motor conversacional → TTS. Atiende salientes (con metadata del despacho) y entrantes (por dispatch rule, sin metadata). |
+| `agent` | `app/voice/worker.py` | Worker de LiveKit Agents: STT → motor conversacional → TTS. Atiende salientes (con metadata del despacho) y entrantes (por dispatch rule, sin metadata). Las llamadas directas del equipo (sin agente) toman otra rama, `app/voice/direct.py`. |
 | `db` | `app/models/` | PostgreSQL 16. Estado de todo: tenencia, agentes, conversaciones y llamadas. |
 
 `app` y `agent` son la misma imagen (`Dockerfile`, multi-etapa: Node compila la SPA y Python la
@@ -51,7 +51,8 @@ app/
     errors.py        ServiceError -> JSON {detail, code, errors}; 500 JSON sin detalles internos
     routers/         auth, tiers, clients, phone_numbers, agents, users, api_keys, calls,
                      conversations, voices, whatsapp (cuentas), inference, demo, contacts, campaigns,
-                     handoff (equipo, áreas, música de espera y eventos)
+                     handoff (equipo, áreas, música de espera y eventos), direct_calls (llamadas directas,
+                     presencia y timbre del panel)
                      (más wa_campaigns: el alias de /whatsapp/campaigns y /whatsapp/optouts)
   services/          negocio sin HTTP (lo usan la API y el worker)
     quota.py         límites del tier: admisión con lock, consumo del mes, saldo en curso
@@ -71,6 +72,9 @@ app/
     handoff.py       equipo y áreas: horario, orden de llamado, mensajes, validación del agente y las áreas
                      de una llamada (call_areas)
     events.py        registro de eventos (tabla events, tipos en TYPES)
+    direct_calls.py  llamadas directas del equipo (docs/LLAMADAS_DIRECTAS_PLAN.md): saliente desde el panel o
+                     por API (token o join_url), presencia, timbre y atender/rechazar en el panel, respaldo al
+                     agente y aviso de grabación
     security.py      argon2, JWT HS256, API keys (SHA-256), token de alta de clave
     api_usage.py     consumo y límites de la API de inferencia (cupos del mes, check/record, reporte)
     inference.py     gateway de la API de inferencia: reenvío a LLM, STT y TTS y medición del consumo
@@ -94,7 +98,10 @@ app/
                      contestador por heurística (voicemail.py) y entrega del webhook (callbacks.py)
   voice/             worker de LiveKit, latencia por turno, speech_text.py (texto del LLM a palabras para el
                      TTS: números, horas, fechas, plata, emails, teléfonos, códigos; es-AR) y handoff.py
-                     (transferencia a una persona: Transfer es la lógica, RoomLine el lado de LiveKit)
+                     (transferencia a una persona: Transfer es la lógica, RoomLine el lado de LiveKit),
+                     listen.py (captura y transcripción por frase, VAD + STT, común a la derivación y las
+                     directas) y direct.py (llamadas directas: saliente del equipo y entrante a un número
+                     que atiende el equipo, sin AgentSession ni LLM)
   whatsapp/          webhook (firma), graph.py (Cloud API y media), store.py (tablas wa_*), service.py (turnos),
                      audio.py (notas de voz: STT, TTS y OGG/Opus con PyAV), signup.py (Embedded Signup,
                      registro, plantillas), crypto.py (tokens y PIN cifrados), campaigns.py y sender.py
@@ -104,7 +111,8 @@ migrations/          Alembic: 0001 esquema anterior (idempotente), 0002 tenencia
                      …, 0013 apps por cliente y operadores de WhatsApp, 0015 ruteo por contacto de WhatsApp,
                      0017 agenda y campañas unificadas (WhatsApp y voz), …, 0023 equipo, áreas y eventos,
                      0024 tramos de las derivaciones (handoff_legs), …, 0032 herramientas del cliente,
-                     0033 un solo motor (borra apps, app_links, app_job_runs y wa_operators; tool_versions)
+                     0033 un solo motor (borra apps, app_links, app_job_runs y wa_operators; tool_versions),
+                     …, 0039 llamadas directas (personas por número, presencia, timbres, tiers.direct_calls)
 web/                 SPA React (ver "Frontend")
 tests/               pytest: API, límites, motor, campañas (test_campaigns, _dialer, _vars, _integration)
 ```
@@ -128,6 +136,8 @@ tiers 1───* clients 1───* agents 1───* agent_versions
                 ├───* campaigns (whatsapp | voice) 1───* campaign_contacts ───* call_logs (intentos de voz)
                 │                                  1───* campaign_callbacks (cola del webhook)
                 ├───* team_members ───* handoff_area_members *─── handoff_areas (equipo, CASCADE)
+                │          └──────* phone_number_members *─── phone_numbers (quién atiende un número, CASCADE)
+                ├───* user_presence (Disponible en el panel, 1 por usuario)
                 ├───* events (registro; conversation_id, CASCADE)
                 ├───* tools (herramientas del cliente) 1───* tool_versions
                 ├───* wa_accounts (agent_id, RESTRICT) 1───* wa_routes (ruteo por contacto)
@@ -136,22 +146,23 @@ tiers 1───* clients 1───* agents 1───* agent_versions
                          │          1───1 wa_threads       (whatsapp)
                          │          1───* wa_messages
                          │          1───* handoff_legs     (tramos a personas)
+                         │          1───* call_rings       (timbre en el panel, directas entrantes)
                          └── agent_id + agent_version (la versión con que corrió)
 ```
 
 | Tabla | Claves y reglas |
 |---|---|
-| `tiers` | `max_concurrent_calls`, `max_calls_per_hour`, `max_calls_per_day`, `max_calls_per_month` (llamadas entrantes y salientes por hora, día y mes calendario), `inbound_minutes`, `outbound_minutes`, `max_phone_numbers`; NULL = ilimitado. Campañas: `campaign_channels` (`[]`, `["whatsapp"]`, `["voice"]` o los dos), `max_campaigns_per_month`, `max_campaign_contacts`, `max_campaign_concurrency`, `max_contacts` (contactos activos de la agenda; NULL = ilimitado, 0 = no incluido) y `campaign_followup`. API de inferencia: `api_llm_input_tokens`, `api_llm_output_tokens`, `api_tts_minutes`, `api_stt_minutes` (por mes) y `api_rate_limit` (pedidos por minuto); NULL = ilimitado, 0 = no incluido. Equipo: `max_team_members` (personas para las derivaciones; NULL = ilimitado). |
-| `clients` | `slug` único, `tier_id` (RESTRICT: un tier en uso no se borra), `active`. |
+| `tiers` | `max_concurrent_calls`, `max_calls_per_hour`, `max_calls_per_day`, `max_calls_per_month` (llamadas entrantes y salientes por hora, día y mes calendario), `inbound_minutes`, `outbound_minutes`, `max_phone_numbers`; NULL = ilimitado. Campañas: `campaign_channels` (`[]`, `["whatsapp"]`, `["voice"]` o los dos), `max_campaigns_per_month`, `max_campaign_contacts`, `max_campaign_concurrency`, `max_contacts` (contactos activos de la agenda; NULL = ilimitado, 0 = no incluido) y `campaign_followup`. API de inferencia: `api_llm_input_tokens`, `api_llm_output_tokens`, `api_tts_minutes`, `api_stt_minutes` (por mes) y `api_rate_limit` (pedidos por minuto); NULL = ilimitado, 0 = no incluido. Equipo: `max_team_members` (personas para las derivaciones; NULL = ilimitado). `direct_calls` (llamadas directas: llamar y atender sin agente; migración 0039, en los planes con precio y a medida, no en el Free). |
+| `clients` | `slug` único, `tier_id` (RESTRICT: un tier en uso no se borra), `active`, `direct_recording_notice` (aviso "Esta llamada está siendo grabada" en las directas; apagado). |
 | `client_limit_adjustments` | Ajuste de un límite del tier para un cliente: `field` (uno de los 18 numéricos de `tiers`), `mode` (`add` suma, `set` reemplaza; `value` NULL = ilimitado solo con `set`), `starts_on`/`ends_on` (inclusive, en `BILLING_TIMEZONE`; sin fechas, permanente), `note`, `created_by`. Se resuelven en `services/limits.py`. |
 | `agents` | `(client_id, slug)` único; `version` y `definition` vigentes (copia de la última versión); `archived_at`. |
 | `agent_versions` | `(agent_id, version)`; inmutables, con `created_by`. |
-| `phone_numbers` | `e164` único; `client_id` NULL = libre; `agent_id` solo si hay cliente (CHECK); `provider`, `assigned_at`. |
+| `phone_numbers` | `e164` único; `client_id` NULL = libre; `agent_id` solo si hay cliente (CHECK); `provider`, `assigned_at`. Quién atiende las entrantes (migración 0039): `answer_mode` (`team` o `agent`; los números que ya existían quedaron en `agent`, los nuevos y los liberados arrancan en `team`), y para `team`: `ring_first` (`phone` o `panel`, dónde suena primero), `ring_seconds` (timbre por persona, 5 a 60, default 20), `schedule` (NULL = siempre; el mismo formato que las áreas), `team_fallback` (`agent`, `voicemail` o `hangup`: qué pasa si nadie atiende o está fuera de horario) y `team_fallback_message`. Las personas, en `phone_number_members`. |
 | `users` | `email` único; `role` admin o client (CHECK: client ⇔ `client_id`); hash argon2. |
 | `api_keys` | SHA-256 de la clave (`key_hash` único), `prefix` visible, `revoked_at`, `scopes` (`calls`, `llm`, `stt`, `tts`, separados por coma: una key de inferencia no usa la API de llamadas ni al revés). |
 | `api_usage_daily` | Consumo de la API de inferencia por `(client_id, api_key_id, day)` (día en `BILLING_TIMEZONE`): pedidos, tokens de entrada y salida del LLM y segundos de TTS y STT. Se suma con un UPDATE que incrementa. Sin contenido de los pedidos. |
 | `conversations` | Estado del motor (datos, mensajes, progreso), `client_id`, `agent_id` + `agent_version` (RESTRICT: un cliente o agente con historial no se borra). `legacy_workflow_id` para las anteriores a los agentes. |
-| `call_logs` | Una por conversación: modo, estado, teléfono del otro lado, `phone_number_id` del cliente, inicio, fin, duración, latencia. Base del consumo. `campaign_contact_id` ata el intento de una campaña de voz; `sip_status`, el código SIP de una saliente fallida. `room`, la room de LiveKit (la deja el worker): con ella `POST /calls/{id}/hangup` corta la llamada (`ended_reason=hangup_by_user`, que `finalize` no pisa). |
+| `call_logs` | Una por conversación: modo, estado, teléfono del otro lado, `phone_number_id` del cliente, inicio, fin, duración, latencia. Base del consumo. `campaign_contact_id` ata el intento de una campaña de voz; `sip_status`, el código SIP de una saliente fallida. `room`, la room de LiveKit (la deja el worker): con ella `POST /calls/{id}/hangup` corta la llamada (`ended_reason=hangup_by_user`, que `finalize` no pisa). Directas (0039): `user_id` (quién llamó o atendió, FK `users`, SET NULL), `answered_by` (`agent` o `team` en las entrantes) y `opted_out_confirmed` (se llamó a un contacto dado de baja con confirmación); `mode=directa` es la saliente de una persona del equipo. |
 | `conversations.channel` | `voice` o `whatsapp`; se fija al crearla. Cambia el prompt (reglas por canal), no el agente. |
 | `wa_accounts` | Un número de WhatsApp: `phone_number_id` único (ID de Meta), `waba_id`, número visible, `client_id`, `agent_id`, `access_token` (NULL = `WA_ACCESS_TOKEN`; cifrado con `WA_TOKEN_KEY`, prefijo `fernet:`), `pin_enc`, `active`, `status` (`connected`, `pending`, `disconnected`) con motivo, `quality_rating`, `messaging_limit`, `source` (`manual`, `embedded_signup`, `coexistence`), `connected_by`. Sin borrado: se desactiva. |
 | `wa_routes` | Ruteo por contacto de una cuenta (`account_id` + `agent_id` únicos): `contacts` (wa_id como los manda Meta) que atiende ese agente en los mensajes y las llamadas de WhatsApp, en vez del agente por defecto. Un contacto está en una sola regla; el agente es del cliente de la cuenta y no archivado. Se resuelve en `services/wa_routing.py`. |
@@ -168,6 +179,9 @@ tiers 1───* clients 1───* agents 1───* agent_versions
 | `team_members` | Persona del equipo del cliente: `name`, `phone` (E.164, al que se le pasa la llamada), `whatsapp` (único por cliente, para el puente de la fase 3), `user_id` opcional, `active`. Tope `tiers.max_team_members` (NULL = ilimitado). |
 | `handoff_areas` | Área del equipo (Ventas, Soporte): `description`, `active`, `strategy` (`sequential` o `round_robin`, con `last_member_id`), `ring_seconds` por miembro, `schedule` (NULL = siempre abierta), `fallback`, `on_person_hangup` (`resume` o `goodbye`), `return_digits` (default `2`, nunca `*`), `messages` (los textos que pisan los de `handoff.DEFAULT_MESSAGES`). Un área que usa un agente no se borra (409 `area_in_use`). Miembros y orden en `handoff_area_members` (`position`). |
 | `handoff_legs` | Un intento de pasarle la llamada a una persona: `area_id`, `team_member_id`, `phone`, `result` (`dialing`, `connected`, `no_answer`, `busy`, `machine`, `not_confirmed`, `failed`), `sip_status`, `answered_at`, `connected_at`, `ended_at` y `billed_seconds` (desde que atendió, solo si se conectó). Base de los minutos salientes de las derivaciones. |
+| `phone_number_members` | Las personas que atienden un número con `answer_mode=team`: `(phone_number_id, member_id)` y `position` (el orden en que suenan). Solo del equipo del mismo cliente y con celular o usuario del panel; liberar el número las borra. |
+| `user_presence` | Disponible en el panel para atender: `user_id` (PK), `client_id` y `last_seen`, el último pulso (`PUT /me/presence`, cada ~20 s). Disponible = pulso en los últimos `PRESENCE_TTL_SECONDS` (60); ocupado = tiene una llamada activa con su `user_id`. |
+| `call_rings` | El timbre en el panel de una entrante al equipo: `conversation_id`, `user_id`, `status` (`ringing`, `answered`, `declined`, `cancelled`), `created_at` y `ended_at`; uno por usuario y llamada (`uq_call_rings_conversation_user`). El primero que atiende (`UPDATE` condicional sobre `ringing`) se queda con la llamada. |
 | `events` | Registro de lo que pasa (`id` incremental, `at`, `type` de `services/events.TYPES`, `actor`, `conversation_id`, `area_id`, `team_member_id`, `data`): `call.ringing`, `call.answered`, `call.ended` y los `handoff.*` y `hold.*`. Se lee por `GET /events` con cursor `after_id`. |
 | `wa_messages` | Uno por `wamid` (unique: dedupe de reenvíos de Meta), entrante o saliente, tipo (`text`, `audio`, ...), estado y error de Meta. Sin texto ni audio: el texto está en `conversations.messages`, donde `voice_note` marca la transcripción de una nota de voz o la respuesta enviada como nota de voz. |
 
@@ -402,11 +416,15 @@ El formulario de contacto de la landing (`POST /demo/contact`, misma sesión) gu
    despacha el worker sin metadata.
 2. El worker espera al participante SIP y lee el número marcado (`sip.trunkPhoneNumber`).
    `calls.start_inbound` lo busca en `phone_numbers`:
-   - **libre o sin agente:** se corta (`number_without_agent`);
+   - **libre, o sin agente y sin equipo que atienda:** se corta (`number_without_agent`);
    - **el que llama está bloqueado por el cliente** (`blocked_numbers`, por el caller o el `wa.wacid`,
      normalizados): se corta sin atender y queda `rechazada` (`blocked_number`);
    - **sin lugar o sin minutos:** queda `rechazada` y el que llama escucha `QUOTA_REJECT_MESSAGE`;
-   - **si no:** conversación con el agente del número y llamada `entrante`.
+   - **número con `answer_mode=team`** (y personas, plan con `direct_calls` y condiciones vigentes aceptadas): conversación **sin agente**
+     (`answered_by=team`), `InboundCall.team` con el ruteo y el worker toma la rama de las llamadas directas
+     (ver "Llamadas directas"). Sin personas, si el plan perdió la función o el cliente no aceptó las condiciones vigentes (`legal_gate`), va al agente del número; una
+     regla de `wa_routes` que elige agente gana sobre el equipo;
+   - **si no:** conversación con el agente del número y llamada `entrante` (`answered_by=agent`).
    En una llamada de WhatsApp el inbound trunk mapea el header `X-WA-Meta-Wacid` al atributo `wa.wacid`
    (lo agrega el predial de Asterisk) y, si el llamante tiene regla de ruteo en la cuenta de ese número,
    la atiende el agente de la regla; sin regla, el del número (ver "Mensaje de WhatsApp").
@@ -505,6 +523,76 @@ Transferencia atendida dentro de la misma room de LiveKit; diseño, mediciones y
 Todo queda en `events` (`handoff.*`, `hold.*`). Los mensajes de cada paso son configurables por área
 (`GET /handoff-areas/defaults` trae los de fábrica).
 
+### Llamadas directas (el equipo llama y atiende, sin agente)
+
+Diseño, decisiones y contrato en [`LLAMADAS_DIRECTAS_PLAN.md`](LLAMADAS_DIRECTAS_PLAN.md) (secciones 4, 5 y 13).
+No hay `AgentSession` ni LLM: el worker hace VAD y STT por frase (`app/voice/listen.py`, el `Listener` que usa
+también el modo escucha de la derivación) y el TTS solo para avisos y mensajes. Pasan por `quota.admit` como
+cualquier llamada. Las dos graban **siempre** (un WAV de 16 kHz por frase, `Message.recording`, sin mirar
+`record_audio`) y quedan en Conversaciones con transcripción, duración, resultado y minutos.
+
+**Saliente** (`POST /api/v1/direct-calls`, `app/services/direct_calls.py`):
+
+1. Valida plan (`direct_calls`, 429 `direct_calls_not_in_plan`; además `outbound_calls`), que el cliente haya aceptado las
+   condiciones vigentes (que cubren la grabación siempre; 403 `terms_pending`, `app/services/legal_gate.py`), contacto del cliente,
+   bloqueado (403 `blocked_number`) y baja de voz (409 `opted_out`, salvo `confirm_opted_out: true`, que queda
+   en `call_logs.opted_out_confirmed`). Admite como `CallMode.directa` (minutos **salientes** y un canal de
+   Anura), crea la conversación con `agent_id` nulo y la `call_logs` con `user_id`, y despacha el worker con
+   metadata `direct`.
+2. Quién llama es un usuario del cliente. Con la sesión del panel, la respuesta trae el token de LiveKit
+   (`livekit.user_participant_token`, identidad `user-<user_id>`). Con API key o MCP va `user_id` (422
+   `user_required` / `invalid_user`; por OAuth del MCP, sin `user_id`, el usuario que autorizó), `token` es nulo y `join_url` es la página del panel
+   (`/telefono/llamada/<id>`) que entra con la sesión de ese usuario (otro usuario: 403 `not_your_call`). Volver a
+   entrar tras recargar: `POST /direct-calls/{id}/join` (409 `call_not_active`). Cortar: `POST /calls/{id}/hangup`.
+3. `direct.run_outbound` espera al usuario en la room (`join_timeout_seconds`: 30 s desde el panel, 120 s por
+   API o MCP; si no, `fallida` con `user_not_joined`) y marca al contacto con `wait_until_answered=False`. El
+   panel sigue el estado por datos de la room (tema `call_status`: `joining`, `dialing`, `ringing`, `active`,
+   `ended`) y la transcripción en vivo (tema `transcript`).
+4. Al atender el contacto: `en_curso`, minutos desde ahí y, si el cliente lo prendió, el aviso de grabación
+   (WAV sintetizado la primera vez y guardado en `storage/notices/<voz>.wav`, `NOTICE_AUDIO_DIR`). Cada frase
+   es un mensaje: el contacto como `user`, el usuario como `assistant` con `person`. Termina por `customer_hangup`,
+   `person_hangup`, `max_duration`, `quota_exhausted` o `hangup_by_user`; sin atender, `fallida` con
+   `no_answer`, `busy` o `sip_call_failed` (`campaign_calls.classify_error`).
+
+**Entrante al equipo** (`phone_numbers.answer_mode=team`, `app/voice/direct.py`, `TeamCall`):
+
+1. Si hay aviso de grabación, suena al que llama; fuera de horario (`schedule`), va directo al respaldo
+   (`after_hours`). Si no, música de espera (la de la derivación) y suenan las personas del número en el orden
+   de `ring_first`:
+   - **`phone`:** a cada persona en su celular (`TeamMember.phone`), en orden, con `Transfer.run_team`
+     de la derivación: `TeamRing` hace de área, sin agente detrás (sin código de vuelta a la IA ni mensajes de
+     vuelta), whisper "Llamada a {{linea}} de {{cliente}}. Marcá 1 para atender." y los tramos en
+     `handoff_legs` con `area_id` nulo y los mismos eventos `handoff.*`. Después, el panel.
+   - **`panel`:** `direct_calls.ring_panel` crea un `call_rings` a cada usuario Disponible y no ocupado; en el
+     panel, `GET /me/ringing` (cada ~2 s) muestra **Atender** / **Rechazar** (`POST /direct-calls/{id}/answer` y
+     `/decline`). El primero que atiende se queda con la llamada (409 `already_answered` al resto), `cancel_rings`
+     apaga los demás y entra a la room (`PANEL_JOIN_GRACE_SECONDS`: si su navegador no entra, la llamada vuelve a
+     quedar sin `user_id`). Después, los celulares.
+2. Atiende alguien: se conectan, transcripción y grabación como en la saliente, y la llamada queda con el
+   `user_id` de la persona (si tiene usuario). Los minutos corren desde que entra la llamada, y el tramo al
+   celular además cuenta como los de la derivación (`handoff_legs`, 2 canales de Anura; en el panel, 1 y sin
+   minutos propios de ese tramo). Corta la persona o el que llama y termina la llamada (no hay agente al que volver).
+3. Nadie atiende: respaldo del número (`team_no_answer`). `agent`: `direct_calls.fallback_to_agent` pasa la
+   conversación al agente del número (`answered_by=agent`) y el worker sigue con el agente en la misma room,
+   con la apertura y el contexto "nadie del equipo atendió" (si el agente se archivó, toma el mensaje).
+   `voicemail`: mensaje por TTS y graba lo que dice el que llama (hasta `VOICEMAIL_SECONDS`, 120 s), con
+   transcripción. `hangup`: mensaje y corta.
+
+**Identidades de la room:** el usuario del panel, `user-<user_id>`; el contacto de la saliente, `contact`; el que
+llama en la entrante, la que le pone livekit-sip (`sip_<número>`); la persona atendida por celular, `persona-<n>`
+(los permisos de las pistas se fijan por identidad antes de marcar, como en la derivación).
+
+**Presencia:** `PUT /me/presence` (pulso cada ~20 s mientras el switch Disponible está prendido; sin pulso por
+60 s deja de estar disponible) y `GET /team/presence` (quién está Disponible y quién ocupado). Un admin en
+"ver como cliente" no llama, atiende ni cambia presencia (403 `support_read_only`).
+
+**Mensajes de datos de la room** (`publish_data`): tema `call_status` `{state, result?}` (solo la saliente; en la
+entrante el usuario entra ya atendida) y tema `transcript` `{role, person?, text}`.
+
+**Capacidad:** sin LLM, una directa carga solo el STT por frase. Limitan los 10 canales de Anura
+(`ANURA_MODES` incluye `directa`) y los minutos. Sin canal libre: 429 `no_channel` en la saliente y el respaldo
+en la entrante. Sin CAP todavía mezclada con llamadas del agente.
+
 ### Durante la llamada
 
 - **Turnos:** el motor conversacional (ver README, "Motor conversacional").
@@ -525,6 +613,7 @@ Todo queda en `events` (`handoff.*`, `hold.*`). Los mensajes de cada paso son co
 | Campañas | `services/limits.py` (`check_campaign_*`), al crear, sumar contactos, iniciar y retomar | Canal habilitado (`campaign_channels`), campañas iniciadas en el mes (`started_at`; la primera vez que sale de borrador), contactos por campaña y `concurrency` de voz. Las llamadas de campaña también pasan por `quota.admit` (minutos, topes de llamadas, simultáneas). Al cambiar de tier o de canales, las campañas de un canal que ya no entra pasan a `paused`. |
 | Agenda | `services/contacts.py` | Contactos activos (`max_contacts`); los archivados no cuentan. |
 | Equipo | `services/handoff.py` | Personas del equipo (`max_team_members`). |
+| Llamadas directas | `limits.check_direct_calls` (`tiers.direct_calls`), `quota.admit` | La saliente directa y poner un número en `answer_mode=team` piden el plan (429 `direct_calls_not_in_plan`). La saliente cuenta como saliente (`MINUTE_MODES`, minutos desde que atiende el contacto) y ocupa 1 canal de Anura (`ANURA_MODES`); la entrante del equipo, como entrante. |
 | Derivaciones | `quota.handoff_check`, antes de cada intento y en el modo escucha | El tramo a la persona gasta **minutos salientes** (`quota.used_seconds` suma `billed_seconds` de `handoff_legs` y lo que llevan los conectados), sea cual sea el origen de la llamada. Canales: `quota.busy_channels` (entrantes y salientes activas más tramos abiertos) contra `ANURA_CHANNELS` (10); sin canal o sin minutos, no se intenta (`handoff.unavailable`). |
 
 **Ajustes por cliente** (`services/limits.py`): para darle a un cliente algo distinto de su tier (una línea más, 10 minutos
@@ -631,6 +720,8 @@ lo de esta sección es lo que lo protege.
 | WhatsApp: ver, pausar y cancelar campañas; bajas | Todo | Lo suyo | Lo suyo |
 | Campañas de llamadas y contactos (crear, iniciar, archivar, bajas, reportes) | Todo | Lo suyo, si el plan incluye el canal | Ídem |
 | Llamadas, conversaciones, consumo, voces | Todo | Lo suyo | Lo suyo |
+| Llamadas directas: llamar, atender, presencia | No (en soporte, 403 `support_read_only`) | Sí, con el plan | Llamar con `user_id` y `join_url`; atender, rechazar y presencia piden la sesión del panel (403 `panel_user_required`) |
+| Números: quién atiende (agente o equipo, personas, respaldo) | Sí | Los suyos | Los suyos |
 | Conversaciones: borrar (una o en bulk) | Sí | No | No |
 | API keys | Sí | Las suyas | No |
 
@@ -674,6 +765,7 @@ lo de esta sección es lo que lo protege.
   (lista o CSV posicional), `POST /campaigns/{id}/start|pause|cancel`, `GET|POST /optouts` y
   `DELETE /optouts/{wa_id}`. Envío y reglas en [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md), 5.5 y
   [`LLAMADAS_SALIENTES_PLAN.md`](LLAMADAS_SALIENTES_PLAN.md).
+- **Llamadas directas** (`app/api/routers/direct_calls.py`): `POST /direct-calls` (`contact_id` o `phone`, `from_number_id`, `confirm_opted_out`, `user_id` con API key), `POST /direct-calls/{id}/join|answer|decline`, `PUT /me/presence`, `GET /me/ringing`, `GET /team/presence` y `GET|PUT /clients/{id}/direct-call-settings` (`recording_notice`). `PATCH /phone-numbers/{id}` suma `answer_mode`, `member_ids` (en orden), `ring_first`, `ring_seconds`, `schedule`, `team_fallback` y `team_fallback_message`; `GET /calls` filtra por `mode`, `user_id` y `answered_by`. Errores: `opted_out`, `blocked_number`, `no_channel`, `already_answered`, `terms_pending`, `members_required`, `agent_required`, `direct_calls_not_in_plan`. Detalle en [`LLAMADAS_DIRECTAS_PLAN.md`](LLAMADAS_DIRECTAS_PLAN.md), 13.
 - **Equipo y derivaciones**: `GET|POST /team`, `PATCH|DELETE /team/{id}`, `GET|POST /handoff-areas`,
   `GET|PATCH|DELETE /handoff-areas/{id}` (409 `area_in_use` si un agente la usa), `GET /handoff-areas/defaults`
   (mensajes de fábrica), `GET /hold-music` (temas de espera) y `GET /events` (cursor `after_id`, filtro por

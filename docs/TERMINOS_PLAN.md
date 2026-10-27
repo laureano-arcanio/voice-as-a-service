@@ -133,3 +133,31 @@ Desvíos del diseño:
 
 Una versión nueva más adelante: archivo nuevo `app/legal/texts/<slug>/<AAAA-MM-DD>.md`, su hash en `PUBLISHED`,
 `make legal-sync`, aviso por mail con 30 días (punto 17 de las condiciones) y desplegar landing y `app` el día que rige.
+
+## 8. Versión 2026-10-28: llamadas directas
+
+27-oct-2026, sin desplegar ([`LLAMADAS_DIRECTAS_PLAN.md`](LLAMADAS_DIRECTAS_PLAN.md), sección 7). Archivos nuevos
+`terminos/2026-10-28.md` y `privacidad/2026-10-28.md`; las de `2026-10-25` quedan como estaban.
+
+- **Condiciones:** dos puntos nuevos en el resumen; en el 3, las llamadas del equipo (saliente desde el panel y
+  entrantes que atiende el equipo sin el agente) se graban y transcriben siempre; en el 6, avisar la grabación y
+  tener el consentimiento (el aviso automático no exime), los contactos dados de baja y el No Llame (Ley 26.951), y
+  el uso que hagan sus usuarios de grabaciones y transcripciones; en el 7, cómo se descuentan los minutos (salientes
+  y tramos al celular, desde que atienden; entrantes); en el 10, grabaciones y transcripciones son datos del
+  cliente. Sin renumerar: las referencias entre puntos siguen valiendo.
+- **Privacidad:** la versión anterior decía "por defecto guardamos la transcripción, no el audio". Ahora: las del
+  equipo se graban siempre y las del agente si el cliente lo activa; el cliente es responsable y Atentina encargada
+  (art. 25); servidores propios en Argentina con copia cifrada (AWS respalda también las grabaciones: `storage/` va
+  en el backup a S3); se conservan mientras el cliente las conserve o tenga la cuenta, salvo que pida borrarlas.
+  Las páginas de la landing ya no decían que no se graba (lo único es "no guardamos los audios de la API", que
+  sigue siendo cierto).
+- **Corte por aceptación** (`app/services/legal_gate.py`): sin las versiones vigentes aceptadas, `POST
+  /direct-calls`, `POST /direct-calls/{id}/answer` y poner un número en `answer_mode=team` dan 403
+  `terms_pending` ("Aceptá las condiciones nuevas para usar el teléfono del equipo"), y `start_inbound` manda las
+  entrantes de un número del equipo al agente, como sin la función. Criterio: alcanza con que **algún usuario del
+  cliente** haya aceptado cada documento vigente (`legal_acceptances.client_id`): la aceptación es en nombre de la
+  empresa, la entrante no tiene usuario y las API keys no ven el modal. El modal del panel sigue pidiéndosela a cada
+  usuario. Cualquier versión nueva posterior vuelve a cortar hasta que la acepten.
+- Tests: `tests/test_legal.py` (hashes), `tests/test_direct_calls.py::test_direct_calls_need_the_current_terms`,
+  y los de directas y MCP aceptan con `accept_terms`.
+- Falta: revisión del abogado, aviso por mail con 30 días (punto 17) y desplegar landing y `app` el día que rige.

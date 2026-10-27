@@ -10,6 +10,8 @@
 - Presencia: Disponible = un pulso (PUT /me/presence) en los ultimos PRESENCE_TTL_SECONDS; ocupado = tiene
   una llamada activa con su user_id.
 - Un admin en "ver como cliente" no llama, no atiende ni se pone Disponible (403 support_read_only).
+- Hasta que el cliente acepta las condiciones vigentes (las que cubren la grabacion siempre), no llama ni
+  atiende: 403 terms_pending (services/legal_gate.check_client_accepted; plan, seccion 7).
 """
 import asyncio
 import datetime
@@ -39,7 +41,7 @@ from ..models import (
     User,
     UserPresence,
 )
-from . import blocked_numbers, calls, livekit, quota
+from . import blocked_numbers, calls, legal_gate, livekit, quota
 from . import limits as limits_service
 from .contacts import is_opted_out
 from .errors import Conflict, Forbidden, Invalid, NotFound, QuotaExceeded, Upstream
@@ -133,6 +135,7 @@ def prepare_direct_call(s: Session, p: Principal, req: DirectCallRequest) -> tup
         raise Forbidden("Las llamadas directas las hace un usuario del cliente", "client_required")
     client_id = p.client_id
     limits_service.check_direct_calls(s, client_id)
+    legal_gate.check_client_accepted(s, client_id)
     user, by_api = _caller(s, p, req.user_id)
     raw = req.phone
     if req.contact_id:
@@ -241,6 +244,7 @@ def answer(s: Session, p: Principal, conversation_id: str) -> DirectJoin:
     queda answered; los demas, cancelled. Si ya la tomo otro, 409 already_answered."""
     user = _panel_user(s, p)
     call = _active_call(s, p, conversation_id)
+    legal_gate.check_client_accepted(s, call.client_id)
     ring = s.scalar(select(CallRing).where(CallRing.conversation_id == conversation_id, CallRing.user_id == user.id))
     if ring is None:
         raise NotFound("Esa llamada no te está sonando", "not_ringing")

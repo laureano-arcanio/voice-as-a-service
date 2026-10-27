@@ -31,7 +31,16 @@ from ..models import (
     WaMessage,
     WaThread,
 )
-from . import blocked_numbers, events, limits, livekit, quota, voices, wa_routing
+from . import (
+    blocked_numbers,
+    events,
+    legal_gate,
+    limits,
+    livekit,
+    quota,
+    voices,
+    wa_routing,
+)
 from .campaigns import contact_vars
 from .contacts import is_opted_out
 from .errors import Conflict, Forbidden, Invalid, NotFound, QuotaExceeded, Upstream
@@ -271,7 +280,8 @@ def start_inbound(s: Session, engine: ConversationEngine, dialed: str | None, ca
                   wa_id: str | None = None) -> InboundCall:
     """Rutea la entrante por el numero marcado y la admite con los limites del cliente. Con
     answer_mode=team va al equipo (conversacion sin agente, `team` con el ruteo); con agent, o un numero
-    del equipo sin personas, al agente del numero. En una llamada de WhatsApp (wa_id del llamante), manda
+    del equipo sin personas, sin la funcion en el plan o con las condiciones vigentes sin aceptar, al agente
+    del numero. En una llamada de WhatsApp (wa_id del llamante), manda
     la regla de ruteo por contacto de la cuenta, si hay (tambien sobre el equipo). Si el tier no la deja,
     queda registrada como rechazada y se levanta QuotaExceeded (el worker avisa y corta). Si el que
     llama esta bloqueado por el cliente, igual pero con Forbidden (el worker corta sin atender)."""
@@ -288,8 +298,11 @@ def start_inbound(s: Session, engine: ConversationEngine, dialed: str | None, ca
             by_rule = route is not None and agent_id == route.agent_id
     team = team_route(s, number) if number.answer_mode == "team" and not by_rule else None
     if team is not None and not (team.members and
-                                 limits.effective_limits(s, s.get(Client, number.client_id)).direct_calls):
-        team = None     # sin personas, o el plan ya no tiene llamadas directas: al agente del numero, si tiene
+                                 limits.effective_limits(s, s.get(Client, number.client_id)).direct_calls and
+                                 legal_gate.client_accepted_current(s, number.client_id)):
+        # Sin personas, el plan ya no tiene llamadas directas o el cliente no acepto las condiciones vigentes
+        # (graban siempre): al agente del numero, si tiene, como si no tuviera la funcion.
+        team = None
     if team is None and agent_id is None:
         raise NotFound(f"El número {dialed!r} no tiene cliente o agente asignado", "number_without_agent")
     if team is not None:

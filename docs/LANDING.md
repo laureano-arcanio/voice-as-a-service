@@ -24,6 +24,7 @@ Cloudflare Tunnel. No hay backend aparte ni base nueva: costo adicional cero.
       genera `make mcp-docs` desde el catálogo del MCP: no editarlo a mano (un test de `tests/test_mcp.py` falla si queda desactualizado). Se llega por el
       footer y la sección "Integración agéntica" de `/desarrolladores`.
     - `/desarrolladores/docs/api` suma desde el 27-oct-2026 la sección "Reportes" (`/api/v1/reports/*`, filtros, ejemplo y planes; [`REPORTES_PLAN.md`](REPORTES_PLAN.md), 9.2) y la fila "Reportes" de la tabla de planes; las tarjetas de `site.ts` listan "Reportes básicos" (Free) y "Reportes completos" (planes pagos). Al cambiar `advanced_reports` en un tier, cambiar las dos.
+    - `/desarrolladores/docs/api` suma desde el 28-oct-2026 la sección "Llamadas directas" (`#directas`: `POST /direct-calls` con `join_url`, entrantes al equipo o al agente por número en `PATCH /phone-numbers`, presencia y timbre, filtros de `/calls`, errores y planes; [`LLAMADAS_DIRECTAS_PLAN.md`](LLAMADAS_DIRECTAS_PLAN.md), 13), la fila "Llamadas directas" de la tabla de planes y `by_type`/`by_user` en Reportes. "Teléfono del equipo" va en los tres planes con precio de `site.ts`.
     - `/desarrolladores/docs/api`: las dos APIs, URL base, keys y alcances, endpoints, streaming, límites, errores, de
       [`API_INFERENCIA.md`](API_INFERENCIA.md) sin lo que es solo para quien opera. Desde el 19-oct-2026 también llamadas, contactos, campañas (estado,
       resultados, reporte, límites) y webhook, de [`LLAMADAS_SALIENTES_PLAN.md`](LLAMADAS_SALIENTES_PLAN.md) y `app/api/schemas.py`; la referencia completa
@@ -37,8 +38,8 @@ Cloudflare Tunnel. No hay backend aparte ni base nueva: costo adicional cero.
   - `/asistentes` (el **agente personal**, del 13-oct-2026): **quitada el 26-oct-2026** junto con el motor `assistant` y las apps por cliente
     ([`LIMPIEZA_PLAN.md`](LIMPIEZA_PLAN.md)): sin la página, sin `AssistantChat` y sin el link en el nav y el footer. Historia en [`archive/APPS.md`](archive/APPS.md).
   - `/plataforma` y `/plataforma/<slug>` (desde el 15-oct-2026, [`SEO_LANDING.md`](SEO_LANDING.md)): una página por capacidad, para posicionar las búsquedas
-    por término (voces, transcripción, WhatsApp, telefonía y SIP) y no solo por público. `/plataforma` es el índice (las cuatro tarjetas y las tres capas) y
-    las cuatro salen de **una sola plantilla**, `src/pages/plataforma/[slug].astro`, con los datos de `capabilities` en `site.ts` (misma idea que las verticales):
+    por término (voces, transcripción, WhatsApp, telefonía y SIP, y desde el 28-oct-2026 `/plataforma/telefono-del-equipo`: el equipo llama y atiende desde el panel, con el hero `phone`, un panel de ejemplo) y no solo por público. `/plataforma` es el índice (las cinco tarjetas y las tres capas) y
+    las cinco salen de **una sola plantilla**, `src/pages/plataforma/[slug].astro`, con los datos de `capabilities` en `site.ts` (misma idea que las verticales):
     `/plataforma/voces-argentinas` (las 41 voces, con la demo de `Voices` y el catálogo por nombre), `/plataforma/transcripcion` (`POST /audio/transcriptions`, también con
     `Voices`: no hay demo de transcripción), `/plataforma/whatsapp` (botón al WhatsApp de Atentina) y `/plataforma/telefonia` (`CallWidget`; SIP se cuenta como "corre sobre SIP,
     consultanos si tenés central o proveedor propio", nunca como trunk autoservicio). Cada una: hero con `facts`, algo para probar o un pedido real a la API, "Cómo funciona",

@@ -1,7 +1,7 @@
 ---
 // Documentación pública de la API (/desarrolladores/docs/api; el índice, en data/docs-nav.ts). Inferencia: sale de docs/API_INFERENCIA.md, sin lo que es solo para quien opera el
 // server. Llamadas, contactos y campañas: de docs/LLAMADAS_SALIENTES_PLAN.md y app/api/schemas.py. Equipo,
-// derivaciones y eventos: de docs/DERIVACIONES_PLAN.md. Reportes: de docs/REPORTES_PLAN.md (9.2) y app/api/routers/reports.py. Qué incluye cada plan: los tiers de la migración 0026 (al
+// derivaciones y eventos: de docs/DERIVACIONES_PLAN.md. Llamadas directas: de docs/LLAMADAS_DIRECTAS_PLAN.md (13) y app/api/schemas.py. Reportes: de docs/REPORTES_PLAN.md (9.2) y app/api/routers/reports.py. Qué incluye cada plan: los tiers de la migración 0026 (al
 // cambiar un tier, cambiar planFeatures y las tarjetas de data/site.ts). La referencia completa de pedidos y
 // respuestas es el OpenAPI del panel (/api/v1/docs). "Cómo funciona" está en la portada (docs/index.astro).
 // "Tu propio LLM": de docs/BYOK_LLM_PLAN.md (al cambiarlo, revisar también /privacidad). "Tu propio agente" tiene
@@ -149,6 +149,7 @@ const planFeatures = [
   { feature: "Campañas de WhatsApp", free: "No", mostrador: "No", sucursal: "Sí", red: "Sí" },
   { feature: "Campañas de llamadas", free: "No", mostrador: "No", sucursal: "Sí, de a 1 llamada", red: "Sí, a medida" },
   { feature: "Equipo para derivar llamadas", free: "No", mostrador: "1 persona", sucursal: "2 personas", red: "Sin tope" },
+  { feature: "Llamadas directas (el equipo llama y atiende)", free: "No", mostrador: "Sí", sucursal: "Sí", red: "Sí" },
   { feature: "Tu propio agente", free: "No", mostrador: "No", sucursal: "Sí", red: "Sí" },
   { feature: "Herramientas: llamadas a tus APIs", free: "No", mostrador: "No", sucursal: "10", red: "Sin tope" },
   { feature: "Herramientas en código (JavaScript)", free: "No", mostrador: "No", sucursal: "Sí", red: "Sí" },
@@ -167,11 +168,12 @@ const planErrors = [
   { code: "campaigns_per_month", text: "Ya iniciaste todas las campañas del mes" },
   { code: "campaign_followup_not_in_plan", text: "El plan no incluye el seguimiento por WhatsApp" },
   { code: "team_members_limit", text: "El equipo está completo, o el plan no incluye derivación" },
+  { code: "direct_calls_not_in_plan", text: "El plan no incluye llamadas directas (Free); tampoco se puede poner un número en answer_mode team" },
 ];
 
 const reportEndpoints = [
   { path: "GET /reports/summary", plan: "Todos", text: "Consultas por día y canal con cuántas terminaron en una transferencia, indicadores contra el período anterior y consumo de minutos del plan con la proyección a fin de mes" },
-  { path: "GET /reports/calls", plan: "Todos", text: "Llamadas por día y modo, mapa de calor por día y hora, por línea y por agente, duración, cómo terminaron y llamantes nuevos o que vuelven" },
+  { path: "GET /reports/calls", plan: "Todos", text: "Llamadas por día y modo, mapa de calor por día y hora, por línea, por agente, por tipo (agente, directas y entrantes del equipo) y por usuario, duración, cómo terminaron y llamantes nuevos o que vuelven" },
   { path: "GET /reports/outcomes", plan: "Completos", text: "Conversión (completa, parcial o sin datos), resultados por agente, embudo, datos capturados por campo y comparación por versión del agente" },
   { path: "GET /reports/messages", plan: "Completos", text: "WhatsApp: mensajes por día y hora, texto o nota de voz, entrega (enviados, entregados, leídos, fallidos) y estado de las cuentas" },
   { path: "GET /reports/transfers", plan: "Completos", text: "Transferencias pedidas, atendidas y no atendidas, por área y por persona del equipo, y respuesta del vendedor en WhatsApp" },
@@ -216,6 +218,7 @@ const featuresOut = `{
     "whatsapp": {"enabled": true, "reason": null},
     "contacts": {"enabled": true, "reason": null},
     "team": {"enabled": true, "reason": null},
+    "direct_calls": {"enabled": true, "reason": null},
     "call_links": {"enabled": true, "reason": null}
   }
 }`;
@@ -285,6 +288,82 @@ const eventTypes = [
   { type: "hold.started · hold.ended", text: "Empieza y termina la música de espera" },
 ];
 
+const directCall = `curl ${API}/direct-calls \\
+  -H "Authorization: Bearer $ATENTINA_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"contact_id": "<id del contacto>", "user_id": "<id del usuario que va a hablar>"}'`;
+
+const directCallOut = `{
+  "conversation_id": "…", "room": "call-…", "status": "pendiente",
+  "livekit_url": "wss://…", "token": null,
+  "join_url": "https://app.atentina.com.ar/telefono/llamada/…"
+}`;
+
+const directBody = [
+  { field: "contact_id o phone", text: "A quién se llama: un contacto de tu agenda, o un teléfono en E.164. Hace falta uno de los dos" },
+  { field: "from_number_id", text: "Con qué número tuyo sale (el que ve el contacto). Sin él, el primero" },
+  { field: "user_id", text: "Con API key es obligatorio: el usuario activo de tu cuenta que va a hablar. Con OAuth, por defecto el que autorizó. Desde el panel es el de la sesión" },
+  { field: "confirm_opted_out", text: "true para llamar a un contacto que pidió no recibir llamadas. Sin esto, 409 opted_out; con esto, la llamada queda marcada (opted_out_confirmed)" },
+];
+
+const directOut = [
+  { field: "conversation_id, room, status", text: "La llamada creada; se consulta con GET /calls/{conversation_id}" },
+  { field: "livekit_url, token", text: "Con la sesión del panel, para entrar a la llamada desde el navegador. Con API key u OAuth, token es null" },
+  { field: "join_url", text: "Con API key u OAuth: la página del panel que entra a la llamada con la sesión de user_id" },
+];
+
+const directErrors = [
+  { http: "403", code: "support_read_only", text: "Un admin entrando como el cliente no llama ni atiende" },
+  { http: "403", code: "blocked_number", text: "El teléfono está en los números bloqueados" },
+  { http: "403", code: "panel_user_required", text: "En /join, /answer, /decline, /me/presence y /me/ringing: piden la sesión de un usuario del panel, no una API key" },
+  { http: "403", code: "not_your_call", text: "En /join: la llamada es de otro usuario" },
+  { http: "403", code: "terms_pending", text: "Tu cuenta no aceptó la versión vigente de las condiciones y la política de privacidad (las llamadas del equipo se graban siempre). Alcanza con que la acepte un usuario en el panel. También al poner un número en answer_mode team" },
+  { http: "409", code: "opted_out", text: "El contacto pidió no recibir llamadas: repetí con confirm_opted_out solo si la persona lo confirma" },
+  { http: "409", code: "no_phone_number", text: "Tu cuenta no tiene números asignados" },
+  { http: "409", code: "call_not_active · already_answered · not_ringing", text: "La llamada ya terminó, ya la tomó otra persona o ya no te suena" },
+  { http: "422", code: "user_required · invalid_user", text: "Falta user_id, o no es un usuario activo de tu cuenta" },
+  { http: "429", code: "direct_calls_not_in_plan", text: "El plan no incluye llamadas directas" },
+  { http: "429", code: "outbound_minutes · concurrency_limit", text: "Se acabaron los minutos salientes del mes, o ya tenés todas las llamadas a la vez del plan" },
+  { http: "429", code: "no_channel", text: "Todas las líneas de salida están ocupadas: probá en unos minutos" },
+];
+
+const phoneNumberTeam = `curl -X PATCH ${API}/phone-numbers/<id del número> \\
+  -H "Authorization: Bearer $ATENTINA_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "answer_mode": "team",
+    "member_ids": ["<id de Laura>", "<id de otra persona>"],
+    "ring_first": "phone",
+    "ring_seconds": 20,
+    "schedule": {"week": {"mon": [["09:00", "18:00"]], "tue": [["09:00", "18:00"]]}},
+    "team_fallback": "voicemail",
+    "team_fallback_message": "Ahora no podemos atenderte. Dejá tu mensaje después de la señal."
+  }'`;
+
+const phoneNumberFields = [
+  { field: "answer_mode", text: "team: atiende el equipo, sin agente. agent: atiende el agente del número, que puede derivar con sus áreas. Los números que ya tenían agente siguen en agent" },
+  { field: "member_ids", text: "Las personas de GET /team, en el orden en que suenan. Cada una con celular o con usuario del panel; con team hace falta al menos una" },
+  { field: "ring_first", text: "phone (por defecto): suena primero en el celular de cada una, en orden, y después en el panel de las que estén Disponibles. panel: primero en el panel de las Disponibles, a todas a la vez, y después en los celulares" },
+  { field: "ring_seconds", text: "Cuánto suena por persona, de 5 a 60 segundos (20 por defecto)" },
+  { field: "schedule", text: "Horario de atención, con el mismo formato que las áreas (tz, week y closed). null: siempre" },
+  { field: "team_fallback", text: "Si nadie atiende o es fuera de horario: voicemail (un mensaje y graba lo que dice quien llama), hangup (un mensaje y corta) o agent (sigue el agente del número, que sabe que nadie del equipo atendió)" },
+  { field: "team_fallback_message", text: "El mensaje que escucha quien llama en voicemail y hangup (hasta 500 caracteres)" },
+];
+
+const directEndpoints = [
+  { path: "POST /direct-calls", text: "Crea la llamada saliente de una persona" },
+  { path: "POST /direct-calls/{id}/join", text: "Token nuevo para volver a entrar a la llamada (recargó la página): solo el usuario de la llamada, mientras está activa" },
+  { path: "POST /direct-calls/{id}/answer · /decline", text: "Atiende o rechaza una entrante que le suena al usuario en el panel. El primero que atiende se queda con la llamada" },
+  { path: "PUT /me/presence", text: "{\"available\": true}: Disponible para atender en el panel. Mandalo cada ~20 s; sin pulso por 60 s deja de estar Disponible. false lo apaga ya" },
+  { path: "GET /me/ringing", text: "Las entrantes que le suenan ahora al usuario: el número que llama, el contacto si está en la agenda y la línea" },
+  { path: "GET /team/presence", text: "Los usuarios de tu cuenta: user_id, name, available (Disponible en el panel) y busy (en una llamada)" },
+  { path: "GET · PUT /clients/{id}/direct-call-settings", text: "recording_notice: avisar \"Esta llamada está siendo grabada\" al empezar las llamadas directas (apagado por defecto)" },
+  { path: "POST /calls/{id}/hangup", text: "Corta la llamada, como cualquier otra" },
+];
+
+const directFilters = `curl "${API}/calls?mode=directa&user_id=<id del usuario>" -H "Authorization: Bearer $ATENTINA_KEY"
+curl "${API}/calls?mode=entrante&answered_by=team" -H "Authorization: Bearer $ATENTINA_KEY"`;
+
 const report = `curl ${API}/campaigns/<id>/report.csv -H "Authorization: Bearer $ATENTINA_KEY" -o reporte.csv`;
 
 const verify = `import hashlib, hmac
@@ -331,7 +410,7 @@ const campaignEndpoints = [
 
 <DocsPage
   title="Documentación de la API: voz, llamadas y campañas | Atentina"
-  description="Cómo usar la API de Atentina: LLM, transcripción y síntesis de voz, llamadas, contactos, campañas salientes programadas, derivación a tu equipo, eventos, reportes y webhook."
+  description="Cómo usar la API de Atentina: LLM, transcripción y síntesis de voz, llamadas, contactos, campañas salientes programadas, derivación a tu equipo, llamadas directas del equipo, eventos, reportes y webhook."
   ogDescription="Documentación de la API de LLM, transcripción y voz de Atentina."
   path="/desarrolladores/docs/api"
   page="api"
@@ -348,7 +427,7 @@ const campaignEndpoints = [
         <thead><tr><th>API</th><th>Para qué</th><th>Key</th></tr></thead>
         <tbody>
           <tr><td><a href="#empezar">Inferencia</a></td><td>Usar los motores en tu sistema: chat, transcripción y síntesis, compatible con el SDK de OpenAI.</td><td><code>llm</code>, <code>stt</code>, <code>tts</code></td></tr>
-          <tr><td><a href="#agentes">Plataforma</a></td><td>Lo mismo que el panel: agentes, llamadas, contactos, campañas, derivaciones, eventos y reportes.</td><td><code>calls</code></td></tr>
+          <tr><td><a href="#agentes">Plataforma</a></td><td>Lo mismo que el panel: agentes, llamadas, contactos, campañas, derivaciones, llamadas directas, eventos y reportes.</td><td><code>calls</code></td></tr>
         </tbody>
       </table></div>
       <p>Si preferís usar la plataforma desde un agente de IA, sin programar, mirá <a href="/desarrolladores/docs/mcp">MCP para agentes de IA</a>.</p>
@@ -604,6 +683,71 @@ const campaignEndpoints = [
       </table></div>
     </section>
 
+    <section id="directas" class="grid gap-4">
+      <h2>Llamadas directas</h2>
+      <p>El equipo de tu cuenta también llama y atiende, sin agente: habla una persona, desde el navegador, con el número de tu empresa. Sirve para el «click to call» desde tu CRM y para que un agente de IA arme la llamada y la tome una persona. Están en todos los planes pagos (Mostrador, Sucursal y Red); el Free no las incluye (<code>direct_calls_not_in_plan</code>). <strong>Todas se graban y se transcriben</strong>, y quedan en Conversaciones junto a las del agente, con la transcripción y el audio de cada mensaje. Avisar a quien habla y tener su consentimiento es responsabilidad de tu empresa, como dicen las <a href="/terminos">condiciones</a>.</p>
+
+      <h3>Llamar</h3>
+      <p>Una persona de tu cuenta llama a un contacto o a un teléfono. Desde el panel lo hace con su sesión. Por API key, <code>user_id</code> es obligatorio (422 <code>user_required</code>): dice quién va a hablar. Por OAuth, sin <code>user_id</code> llama el usuario que autorizó al agente de IA. La respuesta trae <code>join_url</code>: la página del panel que esa persona abre, con su sesión, para entrar a la llamada con el micrófono. Si la abre otro usuario, responde 403 <code>not_your_call</code>.</p>
+      <CodeBlock label="curl" code={directCall} />
+      <CodeBlock label="Respuesta" code={directCallOut} />
+      <div class="table-wrap"><table>
+        <thead><tr><th>Campo del pedido</th><th>Qué hace</th></tr></thead>
+        <tbody>
+          {directBody.map((f) => <tr><td><code>{f.field}</code></td><td>{f.text}</td></tr>)}
+        </tbody>
+      </table></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Campo de la respuesta</th><th>Qué es</th></tr></thead>
+        <tbody>
+          {directOut.map((f) => <tr><td><code>{f.field}</code></td><td>{f.text}</td></tr>)}
+        </tbody>
+      </table></div>
+      <ul>
+        <li><strong>Cuándo marca:</strong> el contacto recibe la llamada cuando la persona entra a la llamada. Espera hasta 2 minutos si la creaste por API u OAuth (30 segundos si fue desde el panel); si no entra, la llamada queda <code>fallida</code> con <code>ended_reason</code> <code>user_not_joined</code>.</li>
+        <li><strong>Minutos y líneas:</strong> gasta minutos salientes desde que el contacto atiende y ocupa una de las llamadas a la vez del plan y una línea de salida.</li>
+        <li><strong>Contactos que pidieron la baja:</strong> se pueden llamar, pero hay que confirmarlo (<code>confirm_opted_out</code>). Queda registrado en la llamada. Los números bloqueados no se pueden llamar.</li>
+        <li><strong>Cómo termina:</strong> corta la persona, corta el contacto, <code>POST /calls/{"{"}id{"}"}/hangup</code> o se acaban los minutos. <code>ended_reason</code> es <code>person_hangup</code>, <code>customer_hangup</code>, <code>hangup_by_user</code>, <code>max_duration</code> o <code>quota_exhausted</code>; sin atender, <code>no_answer</code>, <code>busy</code> o <code>sip_call_failed</code>.</li>
+      </ul>
+      <div class="table-wrap"><table>
+        <thead><tr><th>HTTP</th><th><code>code</code></th><th>Cuándo</th></tr></thead>
+        <tbody>
+          {directErrors.map((e) => <tr><td>{e.http}</td><td><code>{e.code}</code></td><td>{e.text}</td></tr>)}
+        </tbody>
+      </table></div>
+
+      <h3>Entrantes: el equipo o el agente</h3>
+      <p>Cada número de tu cuenta se configura para que lo atienda el equipo o el agente, con <code>PATCH /phone-numbers/{"{"}id{"}"}</code>. Con <code>team</code>, suena a las personas asignadas al número, sin agente, y si nadie atiende pasa al respaldo que elijas. Los números que ya tenían un agente siguen con el agente. Este ejemplo hace sonar a dos personas en su celular, de lunes a martes en horario de oficina, y deja un mensaje si nadie atiende:</p>
+      <CodeBlock label="curl" code={phoneNumberTeam} />
+      <div class="table-wrap"><table>
+        <thead><tr><th>Campo</th><th>Qué hace</th></tr></thead>
+        <tbody>
+          {phoneNumberFields.map((f) => <tr><td><code>{f.field}</code></td><td>{f.text}</td></tr>)}
+        </tbody>
+      </table></div>
+      <p>La respuesta (y <code>GET /phone-numbers</code>) trae esos campos y <code>members</code>, con <code>id</code>, <code>name</code>, <code>phone</code> y <code>user_id</code> de cada persona. Poner un número en <code>team</code> pide el plan (429 <code>direct_calls_not_in_plan</code>), las condiciones vigentes aceptadas (403 <code>terms_pending</code>) y al menos una persona (422 <code>members_required</code>); con <code>team_fallback</code> <code>agent</code>, un agente en el número (422 <code>agent_required</code>). Si el plan deja de incluir las llamadas directas, o sale una versión nueva de las condiciones y tu cuenta todavía no la aceptó, las entrantes de un número del equipo van al agente del número.</p>
+      <ul>
+        <li><strong>En el celular</strong>, la persona escucha de qué línea es la llamada y marca 1 para atender, como en una derivación. Gasta minutos salientes desde que atiende.</li>
+        <li><strong>En el panel</strong> suena a quienes están Disponibles y pueden atender o rechazar. No gasta minutos salientes ni una línea extra.</li>
+        <li><strong>La primera persona que atiende</strong> se queda con la llamada y a las demás se les corta el timbre. Si corta la persona, la llamada termina.</li>
+        <li><strong>WhatsApp:</strong> las llamadas de WhatsApp al mismo número siguen este ruteo. Una regla por contacto que elige un agente sigue mandando.</li>
+      </ul>
+
+      <h3>Presencia y timbre en el panel</h3>
+      <p>Una persona está <strong>Disponible</strong> mientras su panel manda el pulso de <code>PUT /me/presence</code>. Atender, rechazar, volver a entrar y la presencia son del panel: piden la sesión de un usuario (con una API key, 403 <code>panel_user_required</code>).</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Endpoint</th><th>Qué hace</th></tr></thead>
+        <tbody>
+          {directEndpoints.map((e) => <tr><td><code>{e.path}</code></td><td>{e.text}</td></tr>)}
+        </tbody>
+      </table></div>
+
+      <h3>Listar y filtrar</h3>
+      <p><code>GET /calls</code> suma tres filtros: <code>mode</code> (<code>directa</code> para las que hizo una persona; también <code>entrante</code>, <code>saliente</code>, <code>web</code> y los demás), <code>user_id</code> (las que hizo o atendió ese usuario) y <code>answered_by</code> (<code>agent</code> o <code>team</code>, para las entrantes). Cada llamada trae <code>user_id</code>, <code>user_name</code>, <code>answered_by</code> y <code>opted_out_confirmed</code>. Las directas y las entrantes del equipo no tienen agente: <code>agent_id</code> viene en <code>null</code>.</p>
+      <CodeBlock label="curl" code={directFilters} />
+      <p>Para quien llama o atiende en el celular, el <code>user_id</code> es el de la persona del equipo, si tiene usuario del panel. Los reportes las cuentan aparte (ver <a href="#reportes">Reportes</a>). Desde tu agente de IA, el <a href="/desarrolladores/docs/mcp">MCP</a> tiene <code>start_direct_call</code>, <code>list_team_presence</code> y los ajustes de la cuenta, con el mismo plan.</p>
+    </section>
+
     <section id="eventos" class="grid gap-4">
       <h2>Eventos</h2>
       <p>Cada llamada deja una línea de tiempo: cuándo sonó, cuándo la atendieron, cada intento de derivación y cómo terminó. <code>GET /events</code> la devuelve en orden de llegada, con filtros <code>conversation_id</code>, <code>type</code> (exacto o prefijo, como <code>handoff.</code>), <code>since</code> y <code>until</code>. Para leer solo lo nuevo, repetí el pedido con <code>after_id</code> igual al último <code>id</code> que recibiste (hasta 1.000 por pedido con <code>limit</code>).</p>
@@ -639,6 +783,7 @@ const campaignEndpoints = [
       </table></div>
       <ul>
         <li><strong>Qué plan los incluye:</strong> los reportes básicos (<code>summary</code> y <code>calls</code>, con el gráfico de consultas y transferencias) están en todos los planes, también en el Free. Los completos (<code>outcomes</code>, <code>messages</code>, <code>transfers</code> y <code>campaigns</code>) están en Mostrador, Sucursal y Red. Si tu plan no los incluye, el pedido responde 403 con <code>code</code> <code>advanced_reports_not_in_plan</code>; <code>GET /plan/features</code> dice si los tenés (clave <code>advanced_reports</code>).</li>
+        <li><strong>Llamadas directas:</strong> <code>GET /reports/calls</code> las cuenta aparte. <code>daily</code> suma <code>directa</code> a cada día; <code>by_type</code> trae siempre tres filas (<code>agent</code>, <code>direct</code> y <code>team</code>, las entrantes que atiende el equipo) con <code>calls</code>, <code>minutes</code> y <code>avg_duration</code>; y <code>by_user</code> trae, por usuario, <code>direct</code> (las que hizo), <code>team</code> (las que atendió), <code>calls</code>, <code>minutes</code> y <code>avg_duration</code>. Cuentan como llamadas y minutos, no en conversión ni en embudo.</li>
         <li><strong>Qué no incluyen:</strong> son datos de tu negocio. Los tiempos internos de respuesta y el detalle técnico de la plataforma no forman parte de los reportes.</li>
         <li><strong>Desde tu agente de IA:</strong> el <a href="/desarrolladores/docs/mcp">MCP</a> tiene una herramienta por reporte, con los mismos planes.</li>
       </ul>

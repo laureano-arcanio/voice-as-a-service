@@ -213,9 +213,16 @@ class Reports:
                 "duration_seconds": call.duration_seconds, "latency": call.latency,
                 "created_at": iso(call.created_at), "started_at": iso(call.started_at),
                 "ended_at": iso(call.ended_at),
+                # Llamadas directas: quien llamo o atendio, quien atendio la entrante y la baja confirmada.
+                "user_id": call.user_id, "user_name": self._user_name(call.user_id),
+                "answered_by": call.answered_by, "opted_out_confirmed": bool(call.opted_out_confirmed),
             },
             "whatsapp": self._whatsapp(conv, thread, business_number),
         }
+
+    def _user_name(self, user_id: str | None) -> str | None:
+        user = self.s.get(User, user_id) if user_id else None
+        return (user.name or user.email) if user else None
 
     def _whatsapp(self, conv: ConversationRow, thread: WaThread | None, business_number: str | None) -> dict | None:
         if conv.channel != "whatsapp" or thread is None:
