@@ -9,10 +9,9 @@ Hay dos roles:
 - **Cliente:** usuario de un cliente, que solo ve lo suyo. Menú (los grupos se despliegan con un click; arranca
   abierto el de la pantalla actual):
   - Inicio y Conversaciones, sueltos.
-  - **Agentes:** Mis agentes, Probar agentes y Voces.
+  - **Agentes:** Mis agentes, Herramientas, Modelos, Playground y Voces.
   - **Canales:** WhatsApp, Llamadas y Campañas.
   - **Organización:** Contactos y Equipo.
-  - **Configuración:** Modelos.
   - **Developers:** API keys y Uso de la API.
   - **Cuenta:** Mi cuenta, Plan y Consumos.
 - **Admin:** opera la plataforma y ve todo. El mismo menú sin lo que es solo del cliente (Modelos, API keys y
@@ -128,7 +127,7 @@ El detalle del agente tiene cuatro pestañas:
   - Si salís con cambios sin guardar, avisa.
 - **Versiones:** historial con fecha y autor. Podés ver el JSON de cualquier versión, compararla con
   la vigente y **Restaurar**, que guarda esa definición como versión nueva.
-- **Probar:** lo mismo que la pantalla **Probar agentes** (abajo), con este agente fijo.
+- **Probar:** lo mismo que la pantalla **Playground** (abajo), con este agente fijo.
   - **Probar por voz:** elegís la voz y **Probar agente** te lleva a la llamada en el navegador
     (`/calls/<id>/hablar`). Si este agente ya tiene una prueba esperando que alguien se conecte, entra a esa
     en vez de crear otra; si no, la crea. No marca teléfonos ni gasta minutos. Las salientes a un
@@ -139,7 +138,7 @@ El detalle del agente tiene cuatro pestañas:
   - **Link para llamar:** lo crea, o lo muestra para copiar o abrir; **Configurar** lleva a la pestaña
     Link para llamar (nombre, imagen, límites, pausar, regenerar).
 
-**Agentes > Probar agentes** (`/probar`): elegís el agente en una tarjeta con su
+**Agentes > Playground** (`/probar`): elegís el agente en una tarjeta con su
 objetivo (sale de la definición; con más de 6, hay buscador; el admin filtra por cliente) y abajo lo
 probás igual que en la pestaña Probar. En la lista de Agentes, la columna **Probar** abre esa pantalla con
 el agente elegido, y la columna **Link para llamar** muestra la URL del link con el botón para copiarla, o
@@ -345,7 +344,7 @@ El usuario de un cliente crea y edita sus propios agentes; no ve ni puede tocar 
    versión nueva.
 3. **Versiones:** historial con autor; **Restaurar** guarda una anterior como versión nueva.
 4. **Probar:** conversación por texto, llamada de prueba o link para llamar, antes de ponerlo a
-   atender. También desde **Agentes > Probar agentes** en el menú, o con **Probar** en la lista.
+   atender. También desde **Agentes > Playground** en el menú, o con **Probar** en la lista.
 5. Arriba, **Editar** (nombre y descripción), **Archivar/Desarchivar** y **Borrar** (solo si nunca
    tuvo conversaciones ni atiende un número de WhatsApp).
 6. Para que atienda: elegilo en **Mi cuenta > Números** o en **WhatsApp**.
@@ -391,7 +390,7 @@ crear una reserva, buscar una deuda. El admin elige el cliente arriba. Está si 
 herramientas (`max_tools`); las de código, si incluye `code_tools`.
 
 - **Nueva herramienta > Llamar a una API:** método y URL (con `{variables}` de la ruta) y pestañas
-  **Ruta**, **Query**, **Headers**, **Body**, **Autenticación**, **Respuesta** y **Voz**. Cada parámetro
+  **Ruta**, **Query**, **Headers**, **Body**, **Autenticación**, **Respuesta** y **Mientras se espera**. Cada parámetro
   lo completa **el agente** (con una descripción: qué dato es) o es un **valor fijo** (puede llevar
   `{{secrets.NOMBRE}}`, `{{call.from}}` y otras variables, del menú `{ }`). El agente solo ve los que
   completa. Autenticación: Bearer, API key (header o query), Basic u OAuth2 client credentials, con un

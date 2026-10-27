@@ -157,7 +157,7 @@ export function TestResult({ result }: { result: ToolTestResult }) {
           {result.error}
         </Text>
       )}
-      {result.request && <Block title="Pedido enviado">{prettyJson(result.request)}</Block>}
+      {result.request && <Block title="Request enviado">{prettyJson(result.request)}</Block>}
       {result.data !== undefined && result.data !== null && (
         <Block title="Respuesta">{prettyJson(result.data)}</Block>
       )}

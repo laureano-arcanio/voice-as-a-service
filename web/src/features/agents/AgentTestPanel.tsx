@@ -8,7 +8,7 @@ import { TextChat } from './TextChat';
 
 /**
  * Probar un agente: por texto, con una llamada y con su link para llamar. Lo usan la
- * pestaña Probar del agente y la pantalla "Probar agentes" (`/probar`).
+ * pestaña Probar del agente y la pantalla Playground (`/probar`).
  */
 export function AgentTestPanel({ agent }: { agent: Agent }) {
   return (

@@ -472,7 +472,7 @@ export function HttpForm({
     <Stack gap="md">
       <Card>
         <Title order={4} mb="sm">
-          Pedido
+          Request
         </Title>
         <Stack gap="sm">
           <HeaderFields draft={draft} update={update} />
@@ -489,6 +489,7 @@ export function HttpForm({
             <TemplateInput
               label="URL"
               description="Con {variables} en la ruta para los parámetros (https://api.ejemplo.com/clientes/{dni})."
+              inputWrapperOrder={['label', 'input', 'description', 'error']}
               placeholder="https://api.ejemplo.com/turnos"
               style={{ flex: 1, minWidth: 0 }}
               value={http.url}
@@ -511,6 +512,7 @@ export function HttpForm({
             <NumberInput
               label="Reintentos"
               description="Si falla la conexión o da 5xx."
+              inputWrapperOrder={['label', 'input', 'description', 'error']}
               min={0}
               max={2}
               allowDecimal={false}
@@ -543,7 +545,7 @@ export function HttpForm({
               <TabLabel error={errorTabs.has('respuesta')}>Respuesta</TabLabel>
             </Tabs.Tab>
             <Tabs.Tab value="voz">
-              <TabLabel error={errorTabs.has('voz')}>Voz</TabLabel>
+              <TabLabel error={errorTabs.has('voz')}>Mientras se espera</TabLabel>
             </Tabs.Tab>
           </Tabs.List>
           <Tabs.Panel value="ruta">
@@ -719,7 +721,7 @@ export function CodeForm({
       </Card>
       <Card>
         <Title order={4} mb="sm">
-          Voz
+          Mientras se espera
         </Title>
         <VoiceFields draft={draft} update={update} />
       </Card>

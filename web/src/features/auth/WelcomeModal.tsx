@@ -53,7 +53,7 @@ export function WelcomeModal() {
             <b>Creá tu agente</b> en Agentes › Mis agentes: qué hace, cómo habla y qué datos pide.
           </List.Item>
           <List.Item>
-            <b>Probalo</b> en Probar agentes: le hablás desde el navegador, antes de que atienda a nadie.
+            <b>Probalo</b> en el Playground: le hablás desde el navegador, antes de que atienda a nadie.
           </List.Item>
           <List.Item>
             <b>Conectalo</b> a tu línea, a WhatsApp o a un link para llamar, según tu plan.

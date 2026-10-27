@@ -12,7 +12,7 @@ import { useAgents } from './api';
 // Con más agentes que estos, aparece el buscador.
 const SEARCH_FROM = 6;
 
-/** Probar agentes (`/probar`): se elige el agente en una tarjeta y abajo se prueba. */
+/** Playground (`/probar`): se elige el agente en una tarjeta y abajo se prueba. */
 export function TestAgentsPage() {
   const isAdmin = useIsAdmin();
   const [params, setParams] = useSearchParams();
@@ -38,7 +38,7 @@ export function TestAgentsPage() {
   return (
     <>
       <PageHeader
-        title="Probar agentes"
+        title="Playground"
         description="Elegí un agente y probalo por texto, con una llamada o con su link para llamar."
       />
       {(isAdmin || many) && (
