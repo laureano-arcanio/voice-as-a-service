@@ -198,8 +198,8 @@ const configs = [
 
   <section id="configurar" class="grid gap-4">
     <h2>Configurarlo</h2>
-    <p>Desde el panel, por <a href="/desarrolladores/docs/api">API</a> (una key con alcance <code>calls</code>) o desde tu agente de IA por <a href="/desarrolladores/docs/mcp">MCP</a> (<code>create_llm_connection</code>, <code>test_llm_connection</code> y <code>create_agent</code>).</p>
-    <p><strong>1. La conexión.</strong> La URL de tu endpoint (https y pública) y la API key que espera. En el panel: <strong>Configuración &gt; Modelos &gt; Nueva conexión</strong>, tipo <strong>OpenAI compatible</strong>. La key queda cifrada y no se vuelve a mostrar.</p>
+    <p>Desde el panel, por <a href="/desarrolladores/docs/api">API</a> (una key con alcance <code>calls</code>) o desde tu agente de IA por <a href="/desarrolladores/docs/mcp">MCP</a> (<code>create_llm_connection</code>, <code>test_llm_connection</code>, <code>update_llm_connection</code> y <code>create_agent</code>).</p>
+    <p><strong>1. La conexión.</strong> La URL de tu endpoint (https y pública) y la API key que espera. En el panel: <strong>Agentes &gt; Modelos &gt; Nueva conexión</strong>, tipo <strong>OpenAI compatible</strong>. La key queda cifrada y no se vuelve a mostrar; para rotarla o cambiar la URL, <code>PATCH /clients/{"{"}id{"}"}/llm-connections/{"{"}conexión{"}"}</code> (por MCP, <code>update_llm_connection</code>).</p>
     <CodeBlock label="curl" code={createConnection} />
     <p><strong>2. La prueba.</strong> Le manda a tu endpoint un turno como el de una llamada y mide cuánto tarda el primer texto. En el panel es el botón <strong>Probar el endpoint</strong> del agente.</p>
     <CodeBlock label="curl" code={testConnection} />

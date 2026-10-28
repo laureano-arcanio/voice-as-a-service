@@ -52,6 +52,7 @@ export const docsNav: DocsGroup[] = [
       { id: "planes", label: "Qué incluye cada plan" },
       { id: "agentes", label: "Agentes y llamadas" },
       { id: "byok", label: "Tu propio LLM" },
+      { id: "herramientas", label: "Herramientas y secretos" },
       { id: "cortar", label: "Cortar y bloquear" },
       { id: "contactos", label: "Contactos" },
       { id: "campanas", label: "Campañas" },

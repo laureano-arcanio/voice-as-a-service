@@ -570,6 +570,36 @@
    "api_key": false
   },
   {
+   "name": "list_llm_connection_models",
+   "toolset": "agents",
+   "title": "Modelos de una conexión",
+   "description": "Los modelos que ofrece el proveedor de la conexión (pide la lista con su clave), para `default_model` o `llm.model` en la definición.",
+   "kind": "lectura",
+   "features": [],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "update_llm_connection",
+   "toolset": "agents",
+   "title": "Cambiar una conexión o un endpoint",
+   "description": "Cambia el nombre, `base_url`, el modelo por defecto o la API key (para rotarla; cifrada, no se vuelve a mostrar). Rige desde ya en los agentes que la usan; conviene probarla después (test_llm_connection). La API key pasa por esta conversación: confirmalo con la persona antes.",
+   "kind": "confirmar",
+   "features": [],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "delete_llm_connection",
+   "toolset": "agents",
+   "title": "Borrar una conexión o un endpoint",
+   "description": "Borra la conexión y su clave. Los agentes que la usan como LLM siguen con el servidor propio (si tienen `fallback_local`); un agente con Tu propio agente en esa conexión deja de atender.",
+   "kind": "confirmar",
+   "features": [],
+   "oauth": false,
+   "api_key": false
+  },
+  {
    "name": "create_tool",
    "toolset": "agents",
    "title": "Crear una herramienta",
@@ -618,6 +648,18 @@
    "api_key": false
   },
   {
+   "name": "test_tool_draft",
+   "toolset": "agents",
+   "title": "Probar una herramienta sin guardarla",
+   "description": "Como test_tool, con una definición que todavía no se guardó (`type` y `definition`, el formato de create_tool sin nombre ni slug): la ejecuta de verdad con `args` y no deja nada guardado. Para ajustarla antes de create_tool o update_tool.",
+   "kind": "escritura",
+   "features": [
+    "custom_tools"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
    "name": "set_agent_secret",
    "toolset": "agents",
    "title": "Cargar un secreto en un agente",
@@ -634,6 +676,18 @@
    "toolset": "agents",
    "title": "Cargar un secreto del cliente",
    "description": "Guarda un secreto para todos los agentes (cifrado; no se vuelve a mostrar): un token, una API key, una clave. Un agente puede pisarlo con su propio valor (set_agent_secret). El valor pasa por esta conversación: confirmalo con la persona antes.",
+   "kind": "confirmar",
+   "features": [
+    "custom_tools"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "update_client_secret",
+   "toolset": "agents",
+   "title": "Cambiar un secreto del cliente",
+   "description": "Reemplaza el valor (rotar un token; cifrado, no se vuelve a mostrar) o la descripción. Rige desde ya en todos los agentes que no tienen su propio valor. El valor pasa por esta conversación: confirmalo con la persona antes.",
    "kind": "confirmar",
    "features": [
     "custom_tools"
@@ -683,6 +737,30 @@
    "title": "Borrar una credencial",
    "description": "Borra una credencial que ninguna herramienta usa. El secreto con el valor queda.",
    "kind": "confirmar",
+   "features": [
+    "custom_tools"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "update_agent_secret",
+   "toolset": "agents",
+   "title": "Cambiar un secreto de un agente",
+   "description": "Reemplaza el valor propio del agente (cifrado; no se vuelve a mostrar) o la descripción. No crea versión del agente. El valor pasa por esta conversación: confirmalo con la persona antes.",
+   "kind": "confirmar",
+   "features": [
+    "custom_tools"
+   ],
+   "oauth": false,
+   "api_key": false
+  },
+  {
+   "name": "promote_agent_secret",
+   "toolset": "agents",
+   "title": "Pasar un secreto del agente al cliente",
+   "description": "Pasa el valor propio del agente a un secreto del cliente (para todos los agentes) y borra el propio de este agente y de los otros que tienen el mismo valor. Devuelve `moved` (los agentes que lo tenían). Falla (secret_name_taken) si el cliente ya tiene uno con ese nombre y otro valor.",
+   "kind": "escritura",
    "features": [
     "custom_tools"
    ],

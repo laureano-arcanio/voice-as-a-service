@@ -500,3 +500,21 @@ o equipo, personas en orden, dónde suena primero, horario y respaldo), `list_ca
 en el catálogo: `direct_calls` del tier se edita por la UI o la API. Catálogo en 147 herramientas
 (`make mcp-docs`); falta `make mcp-eval` (que elija `start_direct_call` cuando habla la persona y `start_call`
 cuando llama el agente) y subir la versión de `deploy/mcp/server.json`.
+
+## 15. Paridad con el panel del cliente (28-oct-2026)
+
+Revisión antes del lanzamiento: los 175 endpoints que usa la UI (`web/src`) existen en la API pública, y 108 tienen
+herramienta. Se sumaron 7 que el panel tenía y el MCP no (catálogo en 154):
+
+- Secretos: `update_client_secret`, `update_agent_secret` (rotar un token sin borrarlo; borrar uno en uso da 409
+  `secret_in_use`) y `promote_agent_secret`.
+- Conexiones de LLM y endpoints de Tu propio agente: `update_llm_connection` (rotar la key, destructiva como la
+  alta), `delete_llm_connection` y `list_llm_connection_models`.
+- `test_tool_draft`: probar una herramienta sin guardarla (`POST /clients/{id}/tools/test`).
+
+Quedan solo en el panel, a propósito: login, perfil, clave y condiciones; cobros y plan; crear o borrar API keys y
+permisos OAuth; atender, rechazar y entrar a llamadas directas y la presencia (WebRTC en el navegador); la imagen del
+link para llamar (archivo); el alta y la gestión de la cuenta de WhatsApp (tokens de Meta y Embedded Signup); y lo
+del admin. Pruebas en `tests/test_tools_e2e.py` y `tests/test_external_agent.py`; landing: sección "Herramientas y
+secretos" y la tabla de conexiones en `/desarrolladores/docs/api`. Falta `make mcp-eval` con las 154 y subir la
+versión de `deploy/mcp/server.json`.

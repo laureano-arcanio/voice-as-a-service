@@ -28,7 +28,7 @@ GUIDES = {
 # Cómo lanzar una campaña
 
 1. `get_campaign_plan`: canales habilitados, topes y lo usado este mes.
-2. Contactos: `upsert_contacts` o `import_contacts` (CSV), con etiquetas para elegirlos después.
+2. Contactos: `upsert_contacts` o `import_contacts` (CSV); `list_contacts` para elegirlos después.
 3. `create_campaign` en borrador (sin `start`): canal `voice` (llamadas, con un agente y un número) o
    `whatsapp` (con una plantilla aprobada: `list_whatsapp_templates`).
 4. Revisar con `get_campaign` y `list_campaign_contacts`, y **confirmar con el usuario** antes de

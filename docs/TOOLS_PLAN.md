@@ -789,7 +789,10 @@ del workspace y *auth connections*) y Bland (vault de la cuenta) los guardan en 
 valor va al secreto `auth.secret`: lo crea o lo reemplaza); `POST /agents/{id}/secrets/{name}/promote`.
 `GET /agents/{id}/secrets` dice de dónde sale cada uno (`source`: `agent` o `client`; `overrides`). MCP:
 `list_client_secrets`, `set_client_secret`, `delete_client_secret`, `list_credentials`,
-`create_credential`, `update_credential` y `delete_credential`.
+`create_credential`, `update_credential` y `delete_credential`. Desde el 28-oct-2026 también
+`update_client_secret`, `update_agent_secret` (rotar un valor: borrar y volver a crear daba 409
+`secret_in_use` si una herramienta lo usaba), `promote_agent_secret` y `test_tool_draft` (`POST
+/clients/{id}/tools/test`, el Probar del editor sin guardar), como en el panel.
 
 ### UI
 

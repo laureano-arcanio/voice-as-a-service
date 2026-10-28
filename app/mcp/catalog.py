@@ -468,6 +468,23 @@ _WRITE: tuple[Tool, ...] = (
          method="POST", path="/clients/{client_id}/llm-connections/{connection_id}/test",
          params={"connection_id": _s("ID de la conexión (list_llm_connections).")}, required=("connection_id",),
          body="LlmConnectionTestIn", read_only=False),
+    Tool("list_llm_connection_models", "agents", "Modelos de una conexión",
+         "Los modelos que ofrece el proveedor de la conexión (pide la lista con su clave), para `default_model` o "
+         "`llm.model` en la definición.", path="/clients/{client_id}/llm-connections/{connection_id}/models",
+         params={"connection_id": _s("ID de la conexión (list_llm_connections).")}, required=("connection_id",)),
+    Tool("update_llm_connection", "agents", "Cambiar una conexión o un endpoint",
+         "Cambia el nombre, `base_url`, el modelo por defecto o la API key (para rotarla; cifrada, no se vuelve a "
+         "mostrar). Rige desde ya en los agentes que la usan; conviene probarla después (test_llm_connection). La "
+         "API key pasa por esta conversación: confirmalo con la persona antes.",
+         method="PATCH", path="/clients/{client_id}/llm-connections/{connection_id}",
+         params={"connection_id": _s("ID de la conexión (list_llm_connections).")}, required=("connection_id",),
+         body="LlmConnectionPatch", destructive=True),
+    Tool("delete_llm_connection", "agents", "Borrar una conexión o un endpoint",
+         "Borra la conexión y su clave. Los agentes que la usan como LLM siguen con el servidor propio (si tienen "
+         "`fallback_local`); un agente con Tu propio agente en esa conexión deja de atender.",
+         method="DELETE", path="/clients/{client_id}/llm-connections/{connection_id}",
+         params={"connection_id": _s("ID de la conexión (list_llm_connections).")}, required=("connection_id",),
+         destructive=True),
     Tool("create_tool", "agents", "Crear una herramienta",
          "Crea una herramienta del cliente: `type` `http` (Atentina llama a su API: método, URL con {variables}, "
          "path, query, headers, body, auth con una credencial o un secreto) o `code` (una función `export default async "
@@ -488,6 +505,12 @@ _WRITE: tuple[Tool, ...] = (
          "por los propios de `agent_id`.",
          method="POST", path="/clients/{client_id}/tools/{slug}/test", params={"slug": _s("Slug de la herramienta.")},
          required=("slug",), body="ToolTestIn", omit=("secrets",), read_only=False, features=("custom_tools",)),
+    Tool("test_tool_draft", "agents", "Probar una herramienta sin guardarla",
+         "Como test_tool, con una definición que todavía no se guardó (`type` y `definition`, el formato de "
+         "create_tool sin nombre ni slug): la ejecuta de verdad con `args` y no deja nada guardado. Para "
+         "ajustarla antes de create_tool o update_tool.",
+         method="POST", path="/clients/{client_id}/tools/test", body="ToolDraftTestIn", omit=("secrets",),
+         read_only=False, features=("custom_tools",)),
     Tool("set_agent_secret", "agents", "Cargar un secreto en un agente",
          "Guarda un valor propio del agente (cifrado; no se vuelve a mostrar) que pisa al secreto del cliente con "
          "el mismo nombre: para cuando un agente usa otro token. Para todos los agentes, set_client_secret. El "
@@ -499,6 +522,12 @@ _WRITE: tuple[Tool, ...] = (
          "clave. Un agente puede pisarlo con su propio valor (set_agent_secret). El valor pasa por esta "
          "conversación: confirmalo con la persona antes.", method="POST", path="/clients/{client_id}/secrets",
          body="AgentSecretIn", destructive=True, features=("custom_tools",)),
+    Tool("update_client_secret", "agents", "Cambiar un secreto del cliente",
+         "Reemplaza el valor (rotar un token; cifrado, no se vuelve a mostrar) o la descripción. Rige desde ya en "
+         "todos los agentes que no tienen su propio valor. El valor pasa por esta conversación: confirmalo con la "
+         "persona antes.", method="PATCH", path="/clients/{client_id}/secrets/{name}",
+         params={"name": _s("Nombre del secreto (list_client_secrets).")}, required=("name",),
+         body="AgentSecretPatch", destructive=True, features=("custom_tools",)),
     Tool("delete_client_secret", "agents", "Borrar un secreto del cliente",
          "Borra un secreto del cliente que no usa ninguna credencial ni herramienta de un agente sin su propio "
          "valor.", method="DELETE", path="/clients/{client_id}/secrets/{name}",
@@ -519,6 +548,17 @@ _WRITE: tuple[Tool, ...] = (
          "Borra una credencial que ninguna herramienta usa. El secreto con el valor queda.", method="DELETE",
          path="/clients/{client_id}/credentials/{slug}", params={"slug": _s("Slug de la credencial.")},
          required=("slug",), destructive=True, features=("custom_tools",)),
+    Tool("update_agent_secret", "agents", "Cambiar un secreto de un agente",
+         "Reemplaza el valor propio del agente (cifrado; no se vuelve a mostrar) o la descripción. No crea versión "
+         "del agente. El valor pasa por esta conversación: confirmalo con la persona antes.", method="PATCH",
+         path="/agents/{agent_id}/secrets/{name}", params={**_AGENT_ID, "name": _s("Nombre del secreto.")},
+         required=("agent_id", "name"), body="AgentSecretPatch", destructive=True, features=("custom_tools",)),
+    Tool("promote_agent_secret", "agents", "Pasar un secreto del agente al cliente",
+         "Pasa el valor propio del agente a un secreto del cliente (para todos los agentes) y borra el propio de "
+         "este agente y de los otros que tienen el mismo valor. Devuelve `moved` (los agentes que lo tenían). "
+         "Falla (secret_name_taken) si el cliente ya tiene uno con ese nombre y otro valor.", method="POST",
+         path="/agents/{agent_id}/secrets/{name}/promote", params={**_AGENT_ID, "name": _s("Nombre del secreto.")},
+         required=("agent_id", "name"), features=("custom_tools",)),
     Tool("delete_agent_secret", "agents", "Borrar un secreto de un agente",
          "Borra el valor propio del agente (vuelve a usar el del cliente, si lo hay). Falla si una herramienta del "
          "agente lo usa y el cliente no lo tiene.", method="DELETE",

@@ -185,6 +185,23 @@ def test_tools_by_mcp(world):
     probe = call("test_tool", slug="consultar_turnos", agent_id=agent["id"], args={"sucursal": "centro",
                                                                                    "fecha": "2026-11-06"})
     assert probe["ok"] and probe["data"]["turnos"] == ["09:00"]
+    # Sin guardar: la misma definición con el secreto del agente.
+    draft = call("test_tool_draft", type="http", definition=tools[0]["definition"], agent_id=agent["id"],
+                 args={"sucursal": "centro", "fecha": "2026-11-06"})
+    assert draft["ok"] and draft["data"]["turnos"] == ["09:00"] and not leaked(json.dumps(draft))
+    # Rotar: un valor que la API rechaza falla, y el bueno vuelve a andar; después pasa al cliente.
+    call("update_agent_secret", agent_id=agent["id"], name="MOCK_TOKEN", value="otro-token")
+    bad = call("test_tool", slug="consultar_turnos", agent_id=agent["id"], args={"sucursal": "centro",
+                                                                                 "fecha": "2026-11-06"})
+    assert not bad["ok"]
+    call("update_agent_secret", agent_id=agent["id"], name="MOCK_TOKEN", value=SECRETS["MOCK_TOKEN"],
+         description="Token de la API de turnos")
+    assert call("promote_agent_secret", agent_id=agent["id"], name="MOCK_TOKEN")["moved"]
+    secret = next(x for x in call("list_client_secrets")["items"] if x["name"] == "MOCK_TOKEN")
+    assert secret["description"] == "Token de la API de turnos"
+    call("update_client_secret", name="MOCK_TOKEN", description="Token rotado")
+    probe = call("test_tool", slug="consultar_turnos", args={"sucursal": "centro", "fecha": "2026-11-06"})
+    assert probe["ok"]
     call("update_agent_definition", agent_id=agent["id"], definition={**agent["definition"],
                                                                       "tools": definition["tools"]})
     assert [v["revision"] for v in call("list_tool_versions", slug="consultar_turnos")["items"]] == [1]

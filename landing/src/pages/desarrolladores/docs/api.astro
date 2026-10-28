@@ -4,6 +4,7 @@
 // derivaciones y eventos: de docs/DERIVACIONES_PLAN.md. Llamadas directas: de docs/LLAMADAS_DIRECTAS_PLAN.md (13) y app/api/schemas.py. Reportes: de docs/REPORTES_PLAN.md (9.2) y app/api/routers/reports.py. Qué incluye cada plan: los tiers de la migración 0026 (al
 // cambiar un tier, cambiar planFeatures y las tarjetas de data/site.ts). La referencia completa de pedidos y
 // respuestas es el OpenAPI del panel (/api/v1/docs). "Cómo funciona" está en la portada (docs/index.astro).
+// "Herramientas y secretos": de docs/TOOLS_PLAN.md y app/api/routers/tools.py.
 // "Tu propio LLM": de docs/BYOK_LLM_PLAN.md (al cambiarlo, revisar también /privacidad). "Tu propio agente" tiene
 // su página (/desarrolladores/docs/tu-propio-agente, docs/AGENTE_EXTERNO_PLAN.md).
 import CodeBlock from "../../../components/CodeBlock.astro";
@@ -403,6 +404,34 @@ const voiceResults = [
   { result: "failed", text: "Falló la llamada por otro motivo", retry: "Sí" },
 ];
 
+const connectionEndpoints = [
+  { path: "GET /clients/{id}/llm-connections", text: "Tus conexiones, sin la key (sus últimos 4 caracteres) y cuántos agentes usan cada una" },
+  { path: "POST /clients/{id}/llm-connections/{conn}/test", text: "La prueba: un pedido real a tu proveedor (mode llm, o external para tu propio agente)" },
+  { path: "GET /clients/{id}/llm-connections/{conn}/models", text: "Los modelos que ofrece tu proveedor con esa key" },
+  { path: "PATCH /clients/{id}/llm-connections/{conn}", text: "Cambia el nombre, la URL, el modelo por defecto o la key (para rotarla); rige desde ya en los agentes que la usan" },
+  { path: "DELETE /clients/{id}/llm-connections/{conn}", text: "La borra con su key: los agentes que la usan siguen con nuestro modelo si tienen fallback_local" },
+];
+
+const toolEndpoints = [
+  { path: "GET /tools/schema", text: "El formato de la definición de cada tipo (http y code)" },
+  { path: "POST /clients/{id}/tools/test", text: "Prueba una definición sin guardarla: la ejecuta de verdad con args y no deja nada" },
+  { path: "POST /clients/{id}/tools", text: "Crea la herramienta (slug, type y definition)" },
+  { path: "PUT /clients/{id}/tools/{slug}", text: "La reemplaza (sube revision); rige desde ya en los agentes que la usan" },
+  { path: "POST /clients/{id}/tools/{slug}/test", text: "Prueba la guardada, con los secretos de la cuenta o de un agente (agent_id)" },
+  { path: "GET /clients/{id}/tools · /{slug} · /{slug}/versions", text: "Lista, detalle e historial" },
+  { path: "DELETE /clients/{id}/tools/{slug}", text: "La borra si ningún agente la usa" },
+];
+
+const secretEndpoints = [
+  { path: "POST /clients/{id}/secrets", text: "Un secreto de la cuenta, para todos los agentes: name, value y description" },
+  { path: "PATCH /clients/{id}/secrets/{name}", text: "Cambia el valor (rotar un token) o la descripción; rige desde ya" },
+  { path: "POST /agents/{id}/secrets", text: "Un valor propio del agente, que pisa al de la cuenta con el mismo nombre" },
+  { path: "PATCH /agents/{id}/secrets/{name}", text: "Cambia el valor propio del agente o su descripción (no crea versión del agente)" },
+  { path: "POST /agents/{id}/secrets/{name}/promote", text: "Pasa el valor del agente a la cuenta y borra las copias iguales de los agentes" },
+  { path: "GET /clients/{id}/secrets · /agents/{id}/secrets", text: "Sin los valores: nombre, últimos 4 caracteres, quién lo usa y cuáles faltan" },
+  { path: "DELETE /clients/{id}/secrets/{name} · /agents/{id}/secrets/{name}", text: "Lo borra; 409 secret_in_use si lo usa una herramienta o una credencial" },
+];
+
 const campaignEndpoints = [
   { path: "POST /campaigns", text: "Crea la campaña (en draft) con sus contactos; con \"start\": true la inicia en el mismo pedido" },
   { path: "POST /campaigns/{id}/contacts", text: "Suma contactos: contact_ids, contacts (lista) o csv" },
@@ -582,7 +611,7 @@ const campaignEndpoints = [
       </ul>
       <h3>Cómo se configura</h3>
       <ol>
-        <li><strong>La conexión.</strong> En el panel, <strong>Configuración &gt; Modelos &gt; Nueva conexión</strong>: el proveedor, tu API key y el modelo. Al guardarla se prueba sola: autentica y mide cuánto tarda en responder. La key queda cifrada y no se vuelve a mostrar; se ven sus últimos 4 caracteres.</li>
+        <li><strong>La conexión.</strong> En el panel, <strong>Agentes &gt; Modelos &gt; Nueva conexión</strong>: el proveedor, tu API key y el modelo. Al guardarla se prueba sola: autentica y mide cuánto tarda en responder. La key queda cifrada y no se vuelve a mostrar; se ven sus últimos 4 caracteres.</li>
         <li><strong>El agente.</strong> En su editor, sección <strong>Modelo de lenguaje</strong>, o por API en su definición (<code>PUT /agents/{"{"}id{"}"}/definition</code>, que guarda una versión nueva): hasta 3 etapas, cada una desde un turno. La etapa sin <code>connection</code> es nuestro modelo. Un turno es cada mensaje de la persona; el saludo del agente no cuenta.</li>
       </ol>
       <CodeBlock label="JSON" code={byokStages} />
@@ -592,8 +621,29 @@ const campaignEndpoints = [
         <li><strong>Latencia:</strong> se suma lo que tarda tu proveedor en empezar a responder. En el detalle de cada conversación se ve qué proveedor y modelo contestó cada turno.</li>
         <li><strong>Privacidad:</strong> desde el turno en que lo usa, el texto de la conversación y las instrucciones del agente van a tu proveedor, bajo sus condiciones. El audio no sale: la voz y la transcripción siguen en nuestros servidores. Ver la <a href="/privacidad">política de privacidad</a>.</li>
       </ul>
+      <h3>Cambiar o borrar una conexión</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Endpoint</th><th>Qué hace</th></tr></thead>
+        <tbody>{connectionEndpoints.map((e) => <tr><td><code>{e.path}</code></td><td>{e.text}</td></tr>)}</tbody>
+      </table></div>
       <p>La <a href="#endpoints">API de inferencia</a> sigue siendo solo nuestra: tu proveedor lo usa el agente, no esa API.</p>
       <p>Esto cambia solo el modelo: el agente sigue siendo el de Atentina, con su prompt. Si el agente entero es tuyo, mirá <a href="/desarrolladores/docs/tu-propio-agente">Tu propio agente</a>.</p>
+    </section>
+
+    <section id="herramientas" class="grid gap-4">
+      <h2>Herramientas y secretos</h2>
+      <p>Una herramienta deja que el agente haga algo en tu sistema durante la conversación: consultar turnos, reservar, ver una deuda. Hay dos tipos: <code>http</code> (Atentina llama a tu API, con su ruta, query, headers, body y autenticación) y <code>code</code> (una función en JavaScript que corre aislada). Se agregan al agente por su <code>slug</code> en <code>tools</code> de la definición. En el panel están en <strong>Agentes &gt; Herramientas</strong> y <strong>Agentes &gt; Secretos</strong>; por MCP, con las mismas herramientas (<code>create_tool</code>, <code>test_tool_draft</code>, <code>update_client_secret</code>…).</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Endpoint</th><th>Qué hace</th></tr></thead>
+        <tbody>{toolEndpoints.map((e) => <tr><td><code>{e.path}</code></td><td>{e.text}</td></tr>)}</tbody>
+      </table></div>
+      <h3>Secretos</h3>
+      <p>Los tokens y claves que usan las herramientas (<code>{"{{"}secrets.NOMBRE{"}}"}</code>) se guardan cifrados y no se vuelven a mostrar. Son de la cuenta y valen en todos los agentes; un agente puede tener su propio valor con el mismo nombre. Para rotar un token, cambiá el valor: no hace falta borrarlo ni tocar las herramientas.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Endpoint</th><th>Qué hace</th></tr></thead>
+        <tbody>{secretEndpoints.map((e) => <tr><td><code>{e.path}</code></td><td>{e.text}</td></tr>)}</tbody>
+      </table></div>
+      <p>Las herramientas van en los planes que las incluyen (ver <a href="#planes">Qué incluye cada plan</a>); si no, la API responde con el motivo (<code>tools_not_in_plan</code>, <code>code_tools_not_in_plan</code> o <code>tools_limit</code>).</p>
     </section>
 
     <section id="cortar" class="grid gap-4">

@@ -277,4 +277,11 @@ def test_api_key_and_mcp_manage_the_endpoint(api, admin, endpoint, monkeypatch):
     new_id = out["structuredContent"]["id"]
     out = mcp.call("test_llm_connection", connection_id=new_id, mode="external")
     assert not out.get("isError") and out["structuredContent"]["last_test_ok"] is True
+    # Cambiar (rotar la clave) y borrar, también destructivas.
+    assert tools["update_llm_connection"]["annotations"]["destructiveHint"] is True
+    out = mcp.call("update_llm_connection", connection_id=new_id, name="Renombrada", api_key="sk-agent-5678")
+    assert not out.get("isError") and out["structuredContent"]["name"] == "Renombrada", out
+    out = mcp.call("delete_llm_connection", connection_id=new_id)
+    assert not out.get("isError"), out
+    assert new_id not in [c["id"] for c in calls.get(url, headers=auth).json()]
 

@@ -489,9 +489,9 @@ monitoring-down: ## Baja el monitoreo (conserva el historial de métricas)
 	$(MONITORING) rm -f prometheus node-exporter blackbox alertmanager
 
 monitoring-status: ## Qué lee Prometheus (targets caídos) y qué alertas están activas
-	@curl -sf http://127.0.0.1:9090/api/v1/targets | python3 -c 'import json,sys; t=json.load(sys.stdin)["data"]["activeTargets"]; bad=[x for x in t if x["health"]!="up"]; print(f"Targets: {len(t)-len(bad)} de {len(t)} arriba"); [print("  caido:", x["labels"].get("job"), x["labels"].get("probe", x["scrapeUrl"]), x["lastError"]) for x in bad]' \
+	@curl -sf http://127.0.0.1:9090/api/v1/targets | python3 -c 'import json,sys; t=json.load(sys.stdin)["data"]["activeTargets"]; bad=[x for x in t if x["health"]=="down"]; wait=[x for x in t if x["health"]=="unknown"]; print(f"Targets: {len(t)-len(bad)-len(wait)} de {len(t)} arriba" + (f", {len(wait)} sin leer todavía" if wait else "")); [print("  caido:", x["labels"].get("job"), x["labels"].get("probe", x["scrapeUrl"]), x["lastError"]) for x in bad]' \
 		|| { echo "Prometheus no responde en 127.0.0.1:9090 (make up-monitoring)"; exit 1; }
-	@curl -sf http://127.0.0.1:9090/api/v1/alerts | python3 -c 'import json,sys; a=json.load(sys.stdin)["data"]["alerts"]; print(f"Alertas activas: {len(a)}"); [print(f"  {x[\"state\"]:8} {x[\"labels\"][\"severity\"]:8} {x[\"annotations\"][\"summary\"]}") for x in a]'
+	@curl -sf http://127.0.0.1:9090/api/v1/alerts | python3 -c 'import json,sys; a=json.load(sys.stdin)["data"]["alerts"]; print(f"Alertas activas: {len(a)}"); [print("  %-8s %-8s %s" % (x["state"], x["labels"].get("severity", ""), x["annotations"].get("summary", ""))) for x in a]'
 
 monitoring-test-alert: ## Manda una alerta de prueba por Alertmanager a ntfy. SEV=critical suena (default warning, sin sonido)
 	$(MONITORING) exec alertmanager amtool alert add PruebaDeAlerta severity=$(or $(SEV),warning) \
