@@ -35,7 +35,7 @@ Proyecto de referencia: [`yoizen-propuesta`](../marketing/documentos/proyectos/y
 
 1. **Pedido → README del proyecto** (`proyectos/<slug>/README.md`): el pedido textual, el destinatario y qué tiene
    que lograr el documento (que lo lleven a una reunión interna, que pidan un piloto, que entiendan el precio), el
-   formato (hojas máximas) y el contexto (reunión, prospecto en [`mercado/`](mercado/plan-salida-al-mercado.md)).
+   formato (hojas máximas) y el contexto (reunión, prospecto en [`mercado/`](../comercial/plan-salida-al-mercado.md)).
 2. **Copiar la plantilla** a `versiones/v1/documento.html` (las rutas `../../../../plantilla/` funcionan desde ahí) y
    borrar los bloques que no se usen.
 3. **Escribir:** primero el mensaje en una frase (el `h1`), después el resto.
@@ -46,7 +46,7 @@ Proyecto de referencia: [`yoizen-propuesta`](../marketing/documentos/proyectos/y
 
 ## Tono
 
-Sigue [`DESIGN_GUIDELINE.md`](DESIGN_GUIDELINE.md), sección 10, adaptado a un documento de negocios:
+Sigue [`DESIGN_GUIDELINE.md`](../docs/DESIGN_GUIDELINE.md), sección 10, adaptado a un documento de negocios:
 - **Orientado a negocio:** qué gana el destinatario, qué tiene que hacer y qué cuesta, antes que cómo funciona por
   dentro. Lo técnico, solo si el pedido lo pide o en una línea ("por API").
 - **Directo y concreto:** frases cortas, una idea por punto, con el énfasis en negrita al principio

@@ -13,7 +13,7 @@
   qué está construido. **Sin el texto oculto del sitio** (parte 2.3 de la base) ni la competencia.
 - **Contexto:** prospecto SQL Amoblamientos (Córdoba, muebles a medida). Es el PDF
   [`sqlamoblamientos-propuesta`](../../../documentos/proyectos/sqlamoblamientos-propuesta/README.md) v1 en ~65 s: misma
-  estructura, textos, cifras y estética. Base: [`docs/mercado/demos/sqlamoblamientos.md`](../../../../docs/mercado/demos/sqlamoblamientos.md).
+  estructura, textos, cifras y estética. Base: [`comercial/demos/sqlamoblamientos.md`](../../../../comercial/demos/sqlamoblamientos.md).
 - **Público:** Pilar Conte (asistente de marketing, primer contacto), Jorge Urizar y sus hijos. Va con el PDF, en frío
   (lead 364 del CRM, sin llamada previa).
 - **Mensaje:** el mueble ya está resuelto; la oportunidad está en la espera: que cada consulta tenga respuesta y cada

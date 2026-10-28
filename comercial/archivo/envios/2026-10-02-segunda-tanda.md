@@ -537,4 +537,4 @@ Laureano
 
 - **Sanatorio El Carmen:** el sitio es `sanatorioelcarmen.ar` y el email publicado usa `sanatorioelcarmen.com.ar` (ese dominio redirige al sitio).
 - **Unisem:** la página de contacto escribe la casilla de administración con tilde ("administración@"); el enlace de mail usa `administracion@unisem.com.ar`, que es la que va.
-- **WhatsApp:** al 1-oct-2026 el agente responde por WhatsApp en el número de prueba; conectar el número de un cliente depende de la aprobación de Meta ([`../../WHATSAPP_PLAN.md`](../../WHATSAPP_PLAN.md), fase 2). Tenerlo presente si preguntan.
+- **WhatsApp:** al 1-oct-2026 el agente responde por WhatsApp en el número de prueba; conectar el número de un cliente depende de la aprobación de Meta ([`../../WHATSAPP_PLAN.md`](../../../docs/WHATSAPP_PLAN.md), fase 2). Tenerlo presente si preguntan.

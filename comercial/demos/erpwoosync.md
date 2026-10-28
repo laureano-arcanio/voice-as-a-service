@@ -1,6 +1,6 @@
 # Erpwoosync: base de conocimiento para la demo del 0810
 
-Contacto #269 de [`../seguimiento.md`](../seguimiento.md): Gabriel. La demo se acordó el 19-oct-2026. Es un agente que atiende
+Contacto #269 de [`../seguimiento.md`](../archivo/seguimiento.md): Gabriel. La demo se acordó el 19-oct-2026. Es un agente que atiende
 llamadas telefónicas por un 0810, hace el triage de cada consulta y separa a los que el equipo tiene que llamar personalmente.
 
 - **Fuente:** https://www.erpwoosync.com/ completo, leído el 19-oct-2026. Son las 31 páginas del sitemap; `robots.txt` permite

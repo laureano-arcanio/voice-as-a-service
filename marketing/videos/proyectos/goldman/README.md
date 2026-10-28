@@ -4,7 +4,7 @@
   que le damos. Simple, elegante y con target a este cliente. 40 segundos máximo."
 - **Contexto:** Isaías Goldman SA (Córdoba): aires acondicionados y climatización, venta a público, instaladores y
   empresas, instalación, service y cursos. El usuario habló por teléfono con el dueño, Isaías Goldman, que pidió la
-  oferta. Base de conocimiento: [`docs/mercado/demos/isaiasgoldman.md`](../../../../docs/mercado/demos/isaiasgoldman.md)
+  oferta. Base de conocimiento: [`comercial/demos/isaiasgoldman.md`](../../../../comercial/demos/isaiasgoldman.md)
   (partes 0, 2.2, 5 y 7).
 - **Público:** Isaías Goldman (dueño) y sus hijos (dirección comercial). Lo manda Atentina después de la charla.
 - **Mensaje:** en temporada, la consulta que no se contesta en minutos se va; un agente atiende 24/7 el 0800, el

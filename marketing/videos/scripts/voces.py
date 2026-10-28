@@ -1,4 +1,4 @@
-"""Locución de un proyecto de video con el TTS propio (vllm-tts local, docs/VIDEOS.md).
+"""Locución de un proyecto de video con el TTS propio (vllm-tts local, marketing/VIDEOS.md).
 
 Lee proyectos/<proyecto>/guion.json ({"lineas": [{"id", "voz", "texto"}]}) y escribe en
 public/proyectos/<proyecto>/vo/: <id>.wav, duraciones.json y envolventes.json (nivel por frame a 30 fps,

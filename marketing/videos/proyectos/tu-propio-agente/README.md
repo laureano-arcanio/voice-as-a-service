@@ -5,7 +5,7 @@ detrás de un endpoint compatible con OpenAI, y Atentina le pone el número, los
 
 ## Pedido
 
-> (25-oct-2026, resumido fiel) Video nuevo, proyecto `tu-propio-agente`, v1, siguiendo docs/VIDEOS.md. Es el video
+> (25-oct-2026, resumido fiel) Video nuevo, proyecto `tu-propio-agente`, v1, siguiendo marketing/VIDEOS.md. Es el video
 > de la página de documentación `/desarrolladores/docs/tu-propio-agente`, hermano de `mcp-claude-code`,
 > `api-desarrolladores` y `docs-intro`: mismo estilo, formato y tono, horizontal 16:9, con locución del TTS propio
 > y subtítulos, paula narradora y gonzalo en alguna línea secundaria. 60 a 100 s. Qué es la función: el agente

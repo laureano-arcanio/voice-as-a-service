@@ -12,10 +12,10 @@ Diseño (2026-09-28). **Estado al 8-oct-2026:**
 | Derivación a humano, modo verificación (`verify.py`), consumo por tier | no | — | — | — |
 
 Las secciones 1 a 3 son el diseño original; donde no coincide con lo implementado, lo dicen. El plan de salida al mercado
-([`mercado/plan-salida-al-mercado.md`](mercado/plan-salida-al-mercado.md), secciones 4 y 7) pone
+([`mercado/plan-salida-al-mercado.md`](../comercial/plan-salida-al-mercado.md), secciones 4 y 7) pone
 WhatsApp texto en el mes 5 y Calling en el 6: es donde el cliente de cobranzas sigue la conversación
 y el canal que Vapi no tiene y Botmaker sí
-([`competencia/`](competencia/botmaker/botmaker-canales-integracion.md)).
+([`competencia/`](../comercial/competencia/botmaker/botmaker-canales-integracion.md)).
 
 > **26-oct-2026** ([`LIMPIEZA_PLAN.md`](LIMPIEZA_PLAN.md), sin desplegar): un solo motor; el fin es la
 > herramienta de plataforma `end_call` (ya no la marca `[FIN]`); se quitaron los operadores de WhatsApp
@@ -329,7 +329,7 @@ mensaje, a confirmar contra el rate card de Meta al armar la calculadora:
 Con estos números, una gestión de cobranza por WhatsApp (1 plantilla + ~6 respuestas) cuesta
 ~USD 0,08 de Meta desde octubre, contra ~3 minutos de llamada por Anura. **Sin medio de pago cargado
 antes del 30-sep-2026 Meta deja de entregar los mensajes de servicio el 1-oct.** Va en la calculadora
-de costos ([`calculadora-costos.html`](calculadora-costos.html)) como canal aparte.
+de costos ([`calculadora-costos.html`](../comercial/calculadora-costos.html)) como canal aparte.
 
 **Calling API** (llamadas de voz por WhatsApp, fase 5): las que inicia el usuario son gratis; las
 que inicia el negocio se cobran por minuto en pulsos de 6 s, por país y con escalones por volumen

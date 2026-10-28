@@ -1,9 +1,9 @@
 # Seguimiento comercial
 
-> **Congelado el 21-oct-2026.** El registro vigente es el CRM (`http://127.0.0.1:8030`, `make crm-up`; API en [`../CRM_API.md`](../CRM_API.md)), cargado desde este archivo, los `envios/` y el historial de Resend. No editar: lo nuevo va al CRM.
+> **Congelado el 21-oct-2026.** El registro vigente es el CRM (`http://127.0.0.1:8030`, `make crm-up`; API en [`../CRM_API.md`](../../docs/CRM_API.md)), cargado desde este archivo, los `envios/` y el historial de Resend. No editar: lo nuevo va al CRM.
 
 Registro de cada contacto: qué se envió, cuándo, si hubo seguimiento y qué contestó. Es la fuente
-de verdad de la etapa de exploración ([`plan-salida-al-mercado.md`](plan-salida-al-mercado.md),
+de verdad de la etapa de exploración ([`plan-salida-al-mercado.md`](../plan-salida-al-mercado.md),
 sección 0). Los textos exactos de cada envío están en [`envios/`](envios/).
 
 Actualizado: 21-oct-2026.
@@ -590,7 +590,7 @@ Link con UTM: `https://atentina.com.ar?utm_source=linkedin&utm_campaign=linkedin
 Desde la segunda tanda, el link de cada mail lleva `?utm_source=email&utm_campaign=<tanda>&utm_content=<empresa>`.
 En Google Analytics: Informes → Adquisición → Adquisición de tráfico, con la dimensión secundaria
 "Contenido del anuncio de la sesión manual" (`utm_content`) o "Campaña de la sesión" (`utm_campaign`).
-Mide visitas al sitio y, con los eventos de [`../LANDING.md`](../LANDING.md), si probaron la demo; no mide aperturas.
+Mide visitas al sitio y, con los eventos de [`../LANDING.md`](../../docs/LANDING.md), si probaron la demo; no mide aperturas.
 El primer envío a los contactos 1 a 11 (2-oct) salió sin UTM; el segundo lleva `utm_campaign=tanda1b`.
 
 **Seguimientos (desde el 14-oct-2026):** el link lleva `utm_campaign=follow_up_<campaña original con "_" antes del número>`

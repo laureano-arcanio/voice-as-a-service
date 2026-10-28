@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Imprime una presentación (plantilla/slides.css, 16:9) a PDF con Chrome y la controla (docs/DOCUMENTOS.md,
+# Imprime una presentación (plantilla/slides.css, 16:9) a PDF con Chrome y la controla (marketing/DOCUMENTOS.md,
 # "Presentaciones"). Hermano de render.sh, que es para documentos A4.
 # Uso: scripts/render-slides.sh <carpeta de la versión> [diapositivas máximas]
 #   Lee <carpeta>/documento.html y escribe <carpeta>/documento.pdf (una página 1920 × 1080 por diapositiva) y

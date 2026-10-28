@@ -12,8 +12,8 @@
   Escribe técnico y formal, quiere las respuestas por escrito. Trato: saludo a Pablo y "ustedes" para la empresa.
 - **Contexto:** escribió el 22-oct-2026 por el WhatsApp de Atentina (lead #365 del CRM), habló con el agente comercial
   y después con Laureano, que quedó en mandar "info de cómo sería la propuesta y la demo". Base:
-  [`docs/mercado/demos/cimepa.md`](../../../../docs/mercado/demos/cimepa.md) (partes 0, 2.4, 5 y 7) y la solución en
-  [`docs/mercado/demos/cimepa-telefonia.md`](../../../../docs/mercado/demos/cimepa-telefonia.md) ("Diseño elegido" y
+  [`comercial/demos/cimepa.md`](../../../../comercial/demos/cimepa.md) (partes 0, 2.4, 5 y 7) y la solución en
+  [`comercial/demos/cimepa-telefonia.md`](../../../../comercial/demos/cimepa-telefonia.md) ("Diseño elegido" y
   "Decidido con Laureano"; las opciones A-D de antes no van). Formato y estética de
   [`goldman-propuesta`](../goldman-propuesta/README.md) y [`baicenter-propuesta`](../baicenter-propuesta/README.md).
 - **Objetivo:** que acepten la charla técnica y la demo, y de ahí un piloto.

@@ -1,6 +1,6 @@
 ---
 name: videos
-description: Editor y creador visual de Atentina. Hace videos animados (Remotion) con personajes, diagramas animados y locución de nuestro propio TTS, con la marca, el tono y las voces del proyecto, en una carpeta por proyecto con versiones y notas. Usar cuando el usuario pide un video, una animación, un explicativo o un demo animado (para empresas, integradores, un prospecto, redes o la landing), cambiar un video existente (texto, voz, escenas, duración), una versión vertical o más corta, o elegir voces para un video. Sigue docs/VIDEOS.md.
+description: Editor y creador visual de Atentina. Hace videos animados (Remotion) con personajes, diagramas animados y locución de nuestro propio TTS, con la marca, el tono y las voces del proyecto, en una carpeta por proyecto con versiones y notas. Usar cuando el usuario pide un video, una animación, un explicativo o un demo animado (para empresas, integradores, un prospecto, redes o la landing), cambiar un video existente (texto, voz, escenas, duración), una versión vertical o más corta, o elegir voces para un video. Sigue marketing/VIDEOS.md.
 tools: Bash, Read, Write, Edit, Grep, Glob
 ---
 
@@ -10,7 +10,7 @@ en `marketing/videos/proyectos/<slug>/`.
 
 ## Antes de cualquier cosa
 
-1. Leé completo [`docs/VIDEOS.md`](../../docs/VIDEOS.md): estructura, tono, estilo, voces, grafías, afirmaciones,
+1. Leé completo [`marketing/VIDEOS.md`](../../marketing/VIDEOS.md): estructura, tono, estilo, voces, grafías, afirmaciones,
    controles y versiones. Manda sobre esto; si algo choca, seguí el doc y avisá.
 2. Mirá los proyectos existentes (`marketing/videos/proyectos/*/README.md` y su `src/`): reutilizá escenas y
    componentes en vez de empezar de cero. `general` es el video para empresas y `yoizen`, el técnico.
@@ -29,10 +29,10 @@ en `marketing/videos/proyectos/<slug>/`.
 | API para mostrar código | `app/api/routers/`, `app/api/schemas.py`, [`docs/API_INFERENCIA.md`](../../docs/API_INFERENCIA.md) |
 | Canales y funciones (y si están desplegadas) | [`AGENTS.md`](../../AGENTS.md), [`docs/WHATSAPP_PLAN.md`](../../docs/WHATSAPP_PLAN.md), [`docs/LLAMADAS_SALIENTES_PLAN.md`](../../docs/LLAMADAS_SALIENTES_PLAN.md), [`docs/LINK_LLAMADA_PLAN.md`](../../docs/LINK_LLAMADA_PLAN.md), [`docs/BYOK_LLM_PLAN.md`](../../docs/BYOK_LLM_PLAN.md), [`docs/APPS.md`](../../docs/APPS.md) |
 | Mensaje comercial, precios, contacto | `landing/src/pages/`, `landing/src/data/site.ts`, [`docs/LANDING.md`](../../docs/LANDING.md), [`docs/SUSCRIPCIONES_PLAN.md`](../../docs/SUSCRIPCIONES_PLAN.md) |
-| Mercado, prospectos y reuniones | [`docs/mercado/plan-salida-al-mercado.md`](../../docs/mercado/plan-salida-al-mercado.md), [`docs/mercado/demanda-y-mercado-local.md`](../../docs/mercado/demanda-y-mercado-local.md), [`docs/mercado/seguimiento.md`](../../docs/mercado/seguimiento.md), `docs/mercado/demos/` |
+| Mercado, prospectos y reuniones | [`comercial/plan-salida-al-mercado.md`](../../comercial/plan-salida-al-mercado.md), [`comercial/demanda-y-mercado-local.md`](../../comercial/demanda-y-mercado-local.md), [`comercial/archivo/seguimiento.md`](../../comercial/archivo/seguimiento.md), `comercial/demos/` |
 | Cifras de rendimiento | [`docs/capacity/README.md`](../../docs/capacity/README.md) y la consulta de latencia de VIDEOS.md |
 | Voces | `tts/finetune/voces.tsv`, [`docs/TTS_FINETUNE.md`](../../docs/TTS_FINETUNE.md) |
-| Documento que acompaña al video | `marketing/documentos/proyectos/` ([`docs/DOCUMENTOS.md`](../../docs/DOCUMENTOS.md)) |
+| Documento que acompaña al video | `marketing/documentos/proyectos/` ([`marketing/DOCUMENTOS.md`](../../marketing/DOCUMENTOS.md)) |
 
 ## Cómo trabajás
 

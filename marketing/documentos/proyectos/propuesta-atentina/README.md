@@ -20,7 +20,7 @@
 ## Afirmaciones y de dónde salen
 
 - **0,9 s y "9 de cada 10 respuestas en menos de 1,5 s":** 65 turnos de llamadas reales desde el 7-oct-2026
-  (`call_logs.latency`, consulta de `docs/VIDEOS.md`, leída el 21-oct-2026): mediana 0,93 s, 52 % < 1 s,
+  (`call_logs.latency`, consulta de `marketing/VIDEOS.md`, leída el 21-oct-2026): mediana 0,93 s, 52 % < 1 s,
   95 % < 1,5 s, 100 % < 2 s.
 - **41 voces, 28 femeninas y 13 masculinas:** `landing/src/data/site.ts` y `tts/finetune/voces.tsv`.
 - **"4 en 1"**, no "100 % propio": la telefonía es de Anura; WhatsApp pasa por Meta.

@@ -103,7 +103,7 @@ Cada una es espejo de una cláusula de Anura; si no se traslada, la absorbemos n
      que ya tiene un número conocido.
   3. **Troncal SIP del cliente** (empresas con PBX): el cliente entra por SIP a nuestro LiveKit;
      Anura no participa; sin costo de telefonía nuestro. Es el modelo BYO de Vapi
-     (`docs/competencia/vapi/vapi-canales-integracion.md`). Hoy Asterisk solo está preparado para
+     (`comercial/competencia/vapi/vapi-canales-integracion.md`). Hoy Asterisk solo está preparado para
      Anura; habría que abrir un troncal por cliente.
 - **Entrantes y salientes son productos distintos.**
   - Entrante: costo casi solo inferencia (si Anura confirma entrante gratis), sin riesgo de abuso,
@@ -116,12 +116,12 @@ Cada una es espejo de una cláusula de Anura; si no se traslada, la absorbemos n
   adelantado por débito automático, precio revisable mes a mes. Los competidores (Botmaker, Vapi)
   facturan en dólares y por mes.
 - **Precio del minuto:** cargar el redondeo de 16 en el costo de la calculadora
-  (`docs/calculadora-costos.html`): el costo de Anura por minuto vendido no es `$/min`,
+  (`comercial/calculadora-costos.html`): el costo de Anura por minuto vendido no es `$/min`,
   es `$/min × (1 + 0,5/D)`. Y agregar el costo del DID por cliente a la base fija del plan.
 - **Un DID por cliente** para rutear la entrante al workflow. El costo mensual del número marca el
   piso de la base fija del plan más chico. Averiguar si hay descuento por volumen de DIDs.
 - **Segundo proveedor** antes de tener más de un puñado de clientes con número nuestro: Asterisk
-  ya abstrae la troncal. Candidatos a relevar en `docs/proveedores/`.
+  ya abstrae la troncal. Candidatos a relevar en `comercial/proveedores/`.
 - **Contrato con el cliente:** "el número puede cambiar por causas del operador" no es opcional.
   Sin esa cláusula, una rescisión de Anura (31) se convierte en incumplimiento nuestro.
 

@@ -7,7 +7,7 @@
   Saludo a Cristian en la entrada; "Zennon" en tercera persona para la empresa.
 - **Contexto:** llegamos en frío. Mail de la tanda `canales4` el 15-oct-2026 (con clic); el 19-oct Laureano llamó, atendió
   Cristian, se interesó y quedó una reunión para la semana del 26-oct-2026 (fecha a confirmar). Lead #228 del CRM.
-  Base de conocimiento: [`docs/mercado/demos/zennonbi.md`](../../../../docs/mercado/demos/zennonbi.md) (partes 0, 1,
+  Base de conocimiento: [`comercial/demos/zennonbi.md`](../../../../comercial/demos/zennonbi.md) (partes 0, 1,
   2, 4, 5 y 7; la 7.4 para lo desplegado). Formato y estética copiados de
   [`axiomait-propuesta`](../axiomait-propuesta/README.md); panel y tabla "hoy / con Atentina" de
   [`baicenter-propuesta`](../baicenter-propuesta/README.md). Video relacionado: lo arma el agente de videos a partir de

@@ -18,7 +18,7 @@
   video." Retoque del borrador v1 (no se había entregado): rótulo de la escena, índice de la intro y a4a.
 - **Contexto:** prospecto BAIC Center / Grupo Signature (Córdoba; BAIC, Arcfox, Mitsubishi y Foton). Es el PDF
   [`baicenter-propuesta`](../../../documentos/proyectos/baicenter-propuesta/README.md) en ~65 s: misma estructura, textos,
-  cifras y estética. Base: [`docs/mercado/demos/baicenter.md`](../../../../docs/mercado/demos/baicenter.md).
+  cifras y estética. Base: [`comercial/demos/baicenter.md`](../../../../comercial/demos/baicenter.md).
 - **Público:** Edgardo Fernández Favaron (presidente de Signature SA) y su equipo. Lo manda Atentina después de la
   reunión del 20-oct-2026, con el PDF.
 - **Mensaje:** ya hicieron lo difícil y su lema es "el cliente primero"; la oportunidad es que eso valga también en el

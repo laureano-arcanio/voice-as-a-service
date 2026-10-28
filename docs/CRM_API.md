@@ -71,7 +71,7 @@ curl -s -X POST -H "Authorization: Bearer $K" -H "Content-Type: application/json
 ```
 
 - `label`: `persona` (de alguien con nombre), `area` (`comercial@`, `gerencia@`), `atencion` (`info@`).
-- `is_primary` marca el ★: el destinatario. Criterio en [`mercado/envios/README.md`](mercado/envios/README.md).
+- `is_primary` marca el ★: el destinatario. Criterio en [`mercado/envios/README.md`](../comercial/archivo/envios/README.md).
 - `slug` (el `utm_content`) sale del nombre si no se pasa.
 - Un email que está en la blocklist se guarda con `status: "bounced"` y no se usa para enviar.
 

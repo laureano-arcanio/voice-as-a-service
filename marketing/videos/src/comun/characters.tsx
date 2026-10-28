@@ -138,7 +138,7 @@ export const Person: React.FC<PersonProps> = ({
 /**
  * El agente de Atentina: el logo (aro + tres barras) en un círculo blanco. Las barras se mueven con la voz
  * (`talk`, 0..1) y en reposo quedan como en la marca. Desde el 21-oct-2026 el agente se representa así, no con
- * la mascota (docs/VIDEOS.md, "Estilo visual").
+ * la mascota (marketing/VIDEOS.md, "Estilo visual").
  */
 export const AgenteLogo: React.FC<{ size: number; talk?: number; style?: React.CSSProperties }> = ({ size, talk = 0, style }) => {
   const frame = useCurrentFrame();

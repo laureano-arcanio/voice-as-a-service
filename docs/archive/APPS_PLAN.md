@@ -9,7 +9,7 @@
 
 Diseño (12-oct-2026). **Estado (12-oct-2026): MVP desplegado. SUGYM completo (contrato v1.1)
 probado con los casos de uso, 38/38; falta desplegar la v1.1 en `app`** (sección 11). Primer caso: SUGYM (gimnasio, #270 de
-[`mercado/seguimiento.md`](../mercado/seguimiento.md)): alumnos y asistencias; cuotas y pagos después.
+[`mercado/seguimiento.md`](../../comercial/archivo/seguimiento.md)): alumnos y asistencias; cuotas y pagos después.
 **15-oct-2026: datos reales en producción.** Se borró la seed de `app-sugym-gestion` (backup previo en
 `~/atentina-backups/apps/sugym-gestion/app-20261015-170828.db`) y se cargó la planilla de alumnos del
 dueño: 2.616 alumnos (de 2.636 filas: 4 de gastos y 16 nombres repetidos unidos), todos activos, sin

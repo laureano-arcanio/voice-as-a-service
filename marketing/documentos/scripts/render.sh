@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Imprime un documento HTML a PDF con Chrome y lo controla (docs/DOCUMENTOS.md, "Controles").
+# Imprime un documento HTML a PDF con Chrome y lo controla (marketing/DOCUMENTOS.md, "Controles").
 # Uso: scripts/render.sh <carpeta de la versión> [hojas máximas]
 #   Lee <carpeta>/documento.html y escribe <carpeta>/documento.pdf y <carpeta>/vista-N.png (una por hoja).
 #   Falla si la versión está cerrada (NOTAS.md: "Estado: cerrada"), si el PDF tiene más hojas que el
@@ -11,7 +11,7 @@ max="${2:-}"
 html="$dir/documento.html"
 pdf="$dir/documento.pdf"
 [ -f "$html" ] || { echo "no existe $html" >&2; exit 1; }
-# Una versión cerrada no se vuelve a generar: su PDF es el registro (docs/DOCUMENTOS.md)
+# Una versión cerrada no se vuelve a generar: su PDF es el registro (marketing/DOCUMENTOS.md)
 if grep -qi '^Estado: cerrada' "$dir/NOTAS.md" 2>/dev/null; then
   echo "ERROR: $dir está cerrada: hacé una versión nueva" >&2; exit 1
 fi

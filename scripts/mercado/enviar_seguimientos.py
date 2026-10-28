@@ -1,4 +1,4 @@
-"""Manda por Resend los mails de una tanda de docs/mercado/envios/, de a uno, con pausas irregulares.
+"""Manda por Resend los mails de una tanda de comercial/archivo/envios/, de a uno, con pausas irregulares.
 
 Lee las secciones `## N.` o `### N.` con Para / Asunto / Texto (formato en envios/README.md) y manda
 los primeros `--cantidad` que no salieron todavía. Uno por ventana de `--ventana` segundos (120), en
@@ -9,10 +9,10 @@ reputación y una ráfaga parece spam.
   dirección con el mismo asunto, manda `In-Reply-To` y `References` con su message_id.
 - Retoma: lo enviado queda en `<tanda>.enviados.jsonl` (en scratch/envios/); al volver a correr se
   saltea. Un error no corta la tanda: queda en el log y se reintenta en la próxima corrida.
-- Antes de cada mail busca la dirección en docs/mercado/blacklist.md.
+- Antes de cada mail busca la dirección en comercial/archivo/blacklist.md.
 - Sin `--enviar` solo muestra qué mandaría (prueba en seco).
 
-Uso: python3 scripts/mercado/enviar_seguimientos.py docs/mercado/envios/<tanda>.md [--cantidad 50] [--enviar]
+Uso: python3 scripts/mercado/enviar_seguimientos.py comercial/archivo/envios/<tanda>.md [--cantidad 50] [--enviar]
 """
 
 import argparse
@@ -122,7 +122,7 @@ def main():
             r = json.loads(line)
             if r.get("estado") == "enviado":
                 sent.add(r["to"].lower())
-    blacklist = set(EMAIL.findall((ROOT / "docs/mercado/blacklist.md").read_text().lower()))
+    blacklist = set(EMAIL.findall((ROOT / "comercial/archivo/blacklist.md").read_text().lower()))
     hilos = threads(args.hilos)
 
     mails = [m for m in parse(args.tanda) if m["to"].lower() not in sent]

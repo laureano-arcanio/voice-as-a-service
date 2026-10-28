@@ -78,7 +78,7 @@ con ~140 W menos. Con este reparto, el límite de GPU es la 5060 Ti y el de CPU 
 
 ## Calculadora de costos
 
-[`calculadora-costos.html`](../calculadora-costos.html) (HTML autocontenido, se abre en el navegador): con la capacidad medida por tipo de server y los precios de cada componente, fijos y energía, calcula cuántos servers hacen falta (N+1), el costo por canal y por minuto, y el precio de cada paquete con margen. Todos los valores son editables.
+[`calculadora-costos.html`](../../comercial/calculadora-costos.html) (HTML autocontenido, se abre en el navegador): con la capacidad medida por tipo de server y los precios de cada componente, fijos y energía, calcula cuántos servers hacen falta (N+1), el costo por canal y por minuto, y el precio de cada paquete con margen. Todos los valores son editables.
 
 ## Cómo correrlo
 

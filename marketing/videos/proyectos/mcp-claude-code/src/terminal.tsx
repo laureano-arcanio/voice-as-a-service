@@ -5,7 +5,7 @@ import { C, CLAMP, EASE, F } from "../../../src/comun/theme";
 /**
  * Terminal con Claude Code, simulada: el formato de texto de la sesión (prompt `>`, llamadas a herramientas MCP
  * `● atentina - <tool> (MCP)(args)` con su resultado `⎿`, respuestas con `●`), sin el logo ni los colores de
- * marca de Claude Code (docs/VIDEOS.md: nada de interfaces de terceros imitadas). La ventana es la de la marca.
+ * marca de Claude Code (marketing/VIDEOS.md: nada de interfaces de terceros imitadas). La ventana es la de la marca.
  */
 
 const DIM = "#8b97ad";

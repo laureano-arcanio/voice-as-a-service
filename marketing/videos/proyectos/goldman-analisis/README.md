@@ -9,7 +9,7 @@
 - **Contexto:** prospecto Isaías Goldman SA (Córdoba, climatización). Es el PDF
   [`goldman-propuesta`](../../../documentos/proyectos/goldman-propuesta/README.md) v1 en 60 s: misma estructura, textos,
   cifras y estética (tarjetas de datos con borde verde y naranja, citas, maqueta del panel, pie de página). Base:
-  [`docs/mercado/demos/isaiasgoldman.md`](../../../../docs/mercado/demos/isaiasgoldman.md). El video corto de 40 s es
+  [`comercial/demos/isaiasgoldman.md`](../../../../comercial/demos/isaiasgoldman.md). El video corto de 40 s es
   [`goldman`](../goldman/README.md).
 - **Público:** Isaías Goldman y sus hijos Jonatan y Carolina. Lo manda Atentina después de la charla, con el PDF.
 - **Mensaje:** ya hicieron lo difícil; lo que falta es que cada consulta tenga respuesta y quede a la vista. Piloto en

@@ -122,7 +122,7 @@ prepara la charla técnica y la propuesta (PDF y video). La solución está en
   - Sucursal: $99.000 por mes, 1.200 min, 3 llamadas a la vez, 3 números;
   - Red: a medida.
   - El pedido de CIMEPA (3 números o más, 3 simultáneas o más, humanos, agente externo) cae en Red.
-- **Mercado** (`docs/mercado/demanda-y-mercado-local.md`):
+- **Mercado** (`comercial/demanda-y-mercado-local.md`):
   - Twilio a celular argentino, USD 0,353/min; DID, USD 6-8 por mes;
   - plataformas BYOK: Vapi USD 0,05/min, Retell 0,07 y Twilio ConversationRelay 0,07, sin telefonía.
 
@@ -310,6 +310,6 @@ Leídas el 22-oct-2026:
   - https://www.modaes.com/empresas/el-dueno-de-la-argentina-dexter-ficha-al-ex-director-de-netshoes-como-gerente-general
   - https://www.lanacion.com.ar/economia/dexter-debuta-en-el-futbol-con-lotto-nid342136
 - **Homónimo sin relación:** https://cimepa.com
-- **Internos:** [`cimepa-telefonia.md`](cimepa-telefonia.md), `docs/proveedores/anura-terminos-2026.md`,
-  `docs/mercado/demanda-y-mercado-local.md`, `landing/src/data/site.ts`, `docs/LLAMADAS_SALIENTES_PLAN.md`,
+- **Internos:** [`cimepa-telefonia.md`](cimepa-telefonia.md), `comercial/proveedores/anura-terminos-2026.md`,
+  `comercial/demanda-y-mercado-local.md`, `landing/src/data/site.ts`, `docs/LLAMADAS_SALIENTES_PLAN.md`,
   `docs/BYOK_LLM_PLAN.md`

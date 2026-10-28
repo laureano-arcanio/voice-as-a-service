@@ -1,6 +1,6 @@
 # Llamadas directas: el equipo del cliente llama y atiende sin el agente
 
-27-oct-2026. Parte de la opción C de `docs/mercado/demos/cimepa-telefonia.md` y del "softphone web" de
+27-oct-2026. Parte de la opción C de `comercial/demos/cimepa-telefonia.md` y del "softphone web" de
 [`DERIVACIONES_PLAN.md`](DERIVACIONES_PLAN.md), 4.5.
 
 **Estado: desplegado el 27-oct-2026** (migración 0039, `app` y `agent`, landing con las condiciones `2026-10-28`), a pedido, **sin la revisión del abogado ni el aviso por mail con 30 días**. Falta la prueba real (paso 6 de la 14), `make mcp-eval` y el registro del MCP, y el CAP.

@@ -90,7 +90,7 @@ Los cuadros de prueba, hojas de revisión y tomas candidatas van a `scratch/vide
 
 ## Mensaje y tono
 
-Sigue [`DESIGN_GUIDELINE.md`](DESIGN_GUIDELINE.md), sección 10:
+Sigue [`DESIGN_GUIDELINE.md`](../docs/DESIGN_GUIDELINE.md), sección 10:
 - **Español rioplatense con voseo** para empresas ("atiende por vos", "programás la campaña"); con un destinatario
   plural concreto, "ustedes" (video de Yoizen).
 - **Categoría:** agentes con IA que atienden a tus clientes. La voz y los canales son la prueba, no la categoría.
@@ -130,7 +130,7 @@ Sigue [`DESIGN_GUIDELINE.md`](DESIGN_GUIDELINE.md), sección 10:
 
 ## Voces y pronunciación
 
-El TTS es `vllm-tts` (Qwen3-TTS con 41 voces argentinas, [`TTS_FINETUNE.md`](TTS_FINETUNE.md); catálogo en
+El TTS es `vllm-tts` (Qwen3-TTS con 41 voces argentinas, [`TTS_FINETUNE.md`](../docs/TTS_FINETUNE.md); catálogo en
 `tts/finetune/voces.tsv`). Se usa en vivo: pocos pedidos, sin reiniciarlo, y siempre con una voz del checkpoint
 (sin `voice` se cae el engine).
 
@@ -202,9 +202,9 @@ Lo que se dice o se muestra tiene que ser verdad hoy. Antes de poner una cifra o
   ```
 
   `total` = fin de la frase + LLM + TTS (`app/voice/latency.py`). No incluye la consulta a un CRM o herramienta.
-- **Capacidad:** solo lo medido en [`capacity/`](capacity/README.md) con la configuración vigente. Con Gemma no hay
+- **Capacidad:** solo lo medido en [`capacity/`](../docs/capacity/README.md) con la configuración vigente. Con Gemma no hay
   CAP: no poner "N llamadas simultáneas".
-- **Tiempos de STT y TTS:** los de [`API_INFERENCIA.md`](API_INFERENCIA.md) y AGENTS.md son en el servidor; desde
+- **Tiempos de STT y TTS:** los de [`API_INFERENCIA.md`](../docs/API_INFERENCIA.md) y AGENTS.md son en el servidor; desde
   otra red se suma la ida y vuelta.
 - **Rutas, campos y código** de la API: copiarlos de `app/api/` y `app/api/schemas.py`, recortados pero reales.
 - **Ilustrativo** (números del panel, contactos, ids): se permite y se anota en el README. Nunca logos de terceros

@@ -38,7 +38,7 @@ Alcance decidido con Laureano (23-oct-2026):
 | Grabación de la llamada entera, también el tramo humano | CIMEPA | — |
 | Persona → IA y softphone web | CIMEPA | — |
 
-Fuentes: `docs/mercado/demos/*.md` y `marketing/documentos/proyectos/*-propuesta/`. La fecha que aprieta es
+Fuentes: `comercial/demos/*.md` y `marketing/documentos/proyectos/*-propuesta/`. La fecha que aprieta es
 la de **Goldman**: si no llega a noviembre, el piloto arranca con derivación por ficha
 (`isaiasgoldman.md:349`).
 
@@ -142,7 +142,7 @@ Hay que medir cuánto ocupa (CPU y STT) en el test de capacidad.
 > modo escucha pasaron a `app/voice/listen.py`, común con las directas. Sigue pendiente de acá "Persona → IA"
 > (el botón "Pasarle a la IA") y que el destino de una derivación sea el panel de la persona en línea.
 
-Es el diseño de `docs/mercado/demos/cimepa-telefonia.md` ("todo en nuestra webapp"):
+Es el diseño de `comercial/demos/cimepa-telefonia.md` ("todo en nuestra webapp"):
 
 - Página del panel, logueada, con la agenda `contacts`.
 - "Llamar" crea la room, suma al empleado por WebRTC y marca al contacto desde el número de la empresa.
@@ -275,7 +275,7 @@ Es lo que prometen las propuestas de Goldman, BAIC y SQL. Sigue `docs/DESIGN_GUI
 
 | Concepto | Dato | Fuente |
 |---|---|---|
-| Minuto saliente de Anura (tramo al destino) | $25, facturado por minuto entero | `docs/calculadora-costos.html:182`, `anura-terminos-2026.md` |
+| Minuto saliente de Anura (tramo al destino) | $25, facturado por minuto entero | `comercial/calculadora-costos.html:182`, `anura-terminos-2026.md` |
 | Minuto entrante de Anura | $0 | ídem |
 | Canales de Anura | 10. Abono: $102.000 por paquete de 5 según la calculadora, $140.000 según `troncal-propia-operador.md`: **confirmar** | `rtp.conf`, `MIGRACION_SERVER.md:501` |
 | GPU durante el tramo humano | Sin LLM ni TTS; STT si se transcribe | — |

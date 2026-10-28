@@ -1,9 +1,9 @@
 # Plan de puesta en marcha y adquisición de clientes
 
 Versión del 2-oct-2026 (la primera, del 26-sep, cerraba el foco en salientes). Se apoya en [`demanda-y-mercado-local.md`](demanda-y-mercado-local.md)
-(mercado y competencia), [`../competencia/`](../competencia/) (Botmaker, Vapi),
-[`../proveedores/anura-terminos-2026.md`](../proveedores/anura-terminos-2026.md) (telefonía) y la
-capacidad medida en [`../capacity/`](../capacity/README.md). Cifras en USD al mayorista de
+(mercado y competencia), [`../competencia/`](competencia/) (Botmaker, Vapi),
+[`../proveedores/anura-terminos-2026.md`](proveedores/anura-terminos-2026.md) (telefonía) y la
+capacidad medida en [`../capacity/`](../docs/capacity/README.md). Cifras en USD al mayorista de
 ARS 1.525.
 
 ## 0. Etapa actual: exploración (desde el 2-oct-2026)
@@ -11,8 +11,8 @@ ARS 1.525.
 El MVP está terminado (voz entrante y saliente, agentes por cliente, demo en la landing). **WhatsApp
 (8-oct-2026), adelantado respecto de la hoja de ruta de abajo:** texto, notas de voz, campañas de
 plantillas y llamadas por SIP en producción con el número de Atentina; que un cliente conecte su propio
-número espera la aprobación de Meta (estado por parte en [`../WHATSAPP_PLAN.md`](../WHATSAPP_PLAN.md)).
-Campañas salientes **de voz**, derivación a humano y grabación de llamadas: no implementadas. Esta etapa es un **piloto comercial para descubrir quién paga y por
+número espera la aprobación de Meta (estado por parte en [`../WHATSAPP_PLAN.md`](../docs/WHATSAPP_PLAN.md)).
+Desde el 28-oct-2026 también están en producción las campañas salientes de voz, la derivación a una persona del cliente, las llamadas directas del equipo, la grabación y los reportes (detalle en `docs/features/`). Esta etapa es un **piloto comercial para descubrir quién paga y por
 qué**, no para ejecutar un foco ya elegido.
 
 - Los casos de uso de las secciones 2 y 3 son **hipótesis de partida**, no un límite. Se habla con
@@ -99,7 +99,7 @@ argentinas y los datos en el país."
 1. **Por resultado (cobranzas):** por llamada atendida o por promesa de pago, con tope mensual.
    Es lo que el comprador de cobranzas ya entiende y ningún revendedor de Vapi puede seguir.
 2. **Packs con base fija más minutos (recordatorios, turnos, entrante):** los de la
-   [calculadora de costos](../calculadora-costos.html): Inicial, Pyme, Empresa, Corporativo. Son
+   [calculadora de costos](calculadora-costos.html): Inicial, Pyme, Empresa, Corporativo. Son
    escenarios de costos; los planes publicados son los de la landing (Free, Mostrador, Sucursal y Red,
    `landing/src/data/site.ts`; Central se borró el 26-oct-2026). La calculadora no está conectada a los tiers de la base.
    En PyMEs la base fija pesa más que los minutos.
@@ -111,10 +111,10 @@ Solo lo que necesita el caso de uso; el resto se posterga.
 
 | Bloque | Qué hace falta | Estado |
 |---|---|---|
-| Campañas salientes | Carga por CSV o API, ventana horaria por provincia, reintentos, detección de contestador, prioridad | A construir sobre `POST /api/v1/calls` (ya con API keys por cliente y límites por tier) |
+| Campañas salientes | Carga por CSV o API, ventana horaria por provincia, reintentos, detección de contestador, prioridad | Hecho (campañas por UI, API y MCP; contestador por frases, sin medir) |
 | Workflow | Identificación, guion por variante, captura de promesa o confirmación, derivación a humano, cierre | Base en `app/agents/reference/` |
-| Cumplimiento | Presentación como asistente virtual, aviso de grabación, horarios, registro de contactos por deudor (1 por día, 2 por semana en CABA) | A construir |
-| Reportes | Por campaña: contactados, resultado, promesas, minutos, costo por gestión; export CSV | A construir |
+| Cumplimiento | Presentación como asistente virtual, aviso de grabación, horarios, registro de contactos por deudor (1 por día, 2 por semana en CABA) | Parcial: aviso de grabación, horario de campaña y bloqueo de números; falta el tope por deudor |
+| Reportes | Por campaña: contactados, resultado, promesas, minutos, costo por gestión; export CSV | Hecho, salvo el costo por gestión |
 | Integración | Webhook de resultado y API para que el software del cliente cargue y lea | Parcial |
 | Telefonía | Números de Anura a nuestro nombre, minutos de agente (no reventa de telefonía) | Listo; ver términos de Anura |
 | Capacidad | Medida con el LLM anterior (Qwen3.5-9B): 22 llamadas simultáneas en CAP-002, ~32 en CAP-001 (~163.000 minutos por mes en horario comercial con 22). Con Gemma 4 26B, el LLM vigente desde el 6-oct-2026: **sin medir**, y va a ser menos | A medir |
@@ -250,5 +250,5 @@ CAP-002 vendiendo el 30 % de su capacidad. El cuello es comercial, no de hardwar
 
 - Precio por resultado: definir el valor por llamada atendida y por promesa para cada variante.
 - Marca y posicionamiento público (nombre, sitio, caso de uso en la portada).
-- Hardware de producción y ubicación: propuesta en [`../PRODUCCION.md`](../PRODUCCION.md) (este server, con redundancia al primer cliente); falta quién opera el servicio 24×7.
+- Hardware de producción y ubicación: propuesta en [`../PRODUCCION.md`](../docs/PRODUCCION.md) (este server, con redundancia al primer cliente); falta quién opera el servicio 24×7.
 - Términos de canal (comisión, exclusividad por vertical, marca blanca).

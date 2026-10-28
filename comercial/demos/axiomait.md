@@ -185,7 +185,7 @@ costo de nuestros planes ($ 29.000 y $ 99.000) entra holgado como componente rev
 
 - **Consultoras vecinas** (Maps, "otras personas también buscan"): DirMOD 4,9 (11), Voolkia 4,7 (53), Agnostic IT 4,2 (13).
   Ninguna se revisó a fondo.
-- **Cómo armaría voz hoy un integrador** (de `docs/competencia/` y `demanda-y-mercado-local.md`):
+- **Cómo armaría voz hoy un integrador** (de `comercial/competencia/` y `demanda-y-mercado-local.md`):
 
 | Opción | Precio | Para Axioma |
 |---|---|---|
@@ -400,5 +400,5 @@ Leídas el 22-oct-2026.
   https://www.instagram.com/axiomaitsolutions (no leída) · https://www.facebook.com/AxiomaITSolutionsSRL (no leída)
 - **Conversación:** base de la app, `conversations.id = e0e4e64d-0ad8-4e25-ac4d-1f717be51985` (copia en `raw/`).
 - **Atentina:** `README.md`, `docs/ARQUITECTURA.md`, `docs/LLAMADAS_SALIENTES_PLAN.md` (14), `docs/API_INFERENCIA.md`,
-  `tts/finetune/voces.tsv`, `landing/src/data/site.ts`, `docs/capacity/README.md`, `docs/competencia/`,
-  `docs/mercado/demanda-y-mercado-local.md`.
+  `tts/finetune/voces.tsv`, `landing/src/data/site.ts`, `docs/capacity/README.md`, `comercial/competencia/`,
+  `comercial/demanda-y-mercado-local.md`.

@@ -1,7 +1,7 @@
 # Plan: CRM de ventas propio (leads, campañas, envíos y seguimiento)
 
 Diseño (21-oct-2026). **Estado: primera versión implementada el 21-oct-2026** (sección 10): backend `crm/`, UI `web/src/crm/`, importación `scripts/mercado/crm_import.py`; contrato en [`CRM_API.md`](CRM_API.md). Reemplaza el seguimiento en Markdown
-(`docs/mercado/seguimiento.md`, `envios/*.md|csv`, `blacklist.md`) por una app local con base de
+(`comercial/archivo/seguimiento.md`, `envios/*.md|csv`, `blacklist.md`) por una app local con base de
 datos, API para agentes y envío y recepción por Resend, cruzada con Google Analytics.
 
 ## 0. Qué resuelve y qué no

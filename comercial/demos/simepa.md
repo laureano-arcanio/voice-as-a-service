@@ -143,7 +143,7 @@ sirve para preparar la propuesta y la demo que Laureano quedó en mandarle.
 ## 3. Productos y precios de referencia
 
 - **Simepa:** no publica cuotas. La reseña de hace un mes menciona un cobro de $401.510 en un mes (una afiliada mayor).
-- **Lo que pidió Pablo es telefonía.** Referencias de mercado (de `docs/mercado/demanda-y-mercado-local.md`):
+- **Lo que pidió Pablo es telefonía.** Referencias de mercado (de `comercial/demanda-y-mercado-local.md`):
   - Twilio a celular argentino, USD 0,353/min; DID, USD 6-8 por mes;
   - plataformas BYOK: Vapi USD 0,05/min, Retell 0,07 y Twilio ConversationRelay 0,07, sin telefonía ni modelos.
 - **Nuestros planes publicados** (`landing/src/data/site.ts`):
@@ -236,7 +236,7 @@ Dos caminos, para elegir con él:
 | Pedido | Estado | Fuente |
 |---|---|---|
 | Número argentino | Sí, número de Atentina (Anura) | `docs/TELEFONIA_ANURA.md` |
-| Portar su línea | **No**: el número es nuestro y Anura prohíbe cederlo (cl. 26). La alternativa es desviar su línea a nuestro número | `docs/proveedores/anura-terminos-2026.md` |
+| Portar su línea | **No**: el número es nuestro y Anura prohíbe cederlo (cl. 26). La alternativa es desviar su línea a nuestro número | `comercial/proveedores/anura-terminos-2026.md` |
 | Varios números | Sí, según el tier (Sucursal: 3; Red: a medida) | `landing/src/data/site.ts` |
 | Saliente por API | Sí: `POST /api/v1/calls` con `phone` | `README.md` |
 | Campañas de voz (lista, reintentos, webhook) | Implementadas el 19-oct, **sin desplegar**; capacidad con Gemma sin medir | `docs/LLAMADAS_SALIENTES_PLAN.md` |
@@ -321,5 +321,5 @@ Leídas el 22-oct-2026:
   - https://www.modaes.com/empresas/el-dueno-de-la-argentina-dexter-ficha-al-ex-director-de-netshoes-como-gerente-general
   - https://www.lanacion.com.ar/economia/dexter-debuta-en-el-futbol-con-lotto-nid342136
 - **Homónimo sin relación:** https://cimepa.com (pádel, México)
-- **Internos:** `docs/proveedores/anura-terminos-2026.md`, `docs/mercado/demanda-y-mercado-local.md`,
+- **Internos:** `comercial/proveedores/anura-terminos-2026.md`, `comercial/demanda-y-mercado-local.md`,
   `landing/src/data/site.ts`, `docs/LLAMADAS_SALIENTES_PLAN.md`, `docs/BYOK_LLM_PLAN.md`

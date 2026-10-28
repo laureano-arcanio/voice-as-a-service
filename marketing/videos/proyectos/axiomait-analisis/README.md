@@ -2,7 +2,7 @@
 
 - **Pedido (22-oct-2026, agente principal por Laureano, textual):** "Hacé un video nuevo (proyecto axiomait-analisis, v1)
   para Axioma IT siguiendo el formato y contenido del PDF ya hecho: marketing/documentos/proyectos/axiomait-propuesta/versiones/v1/documento.html
-  (leelo completo: es la fuente de textos, cifras y tono) y docs/mercado/demos/axiomait.md. [...] Pedido del usuario:
+  (leelo completo: es la fuente de textos, cifras y tono) y comercial/demos/axiomait.md. [...] Pedido del usuario:
   'Propuesta de demo para un integrador, más bien técnica y overview del producto. Voces paula y lucas.' Además:
   'Explicá que las voces pueden sonar mejor, dependiendo de la configuración y ajustando la latencia deseada.'"
   Con escenas de ~60–75 s: intro oscura (2 s antes de la voz), lo que ya hacen bien, dónde encaja Atentina (una
@@ -17,7 +17,7 @@
   la landing el 22-oct-2026 y pidió un agente que llame a leads del CRM en un momento determinado, más voces y que
   suene menos robot; quiere probarlo solo. Es el PDF
   [`axiomait-propuesta`](../../../documentos/proyectos/axiomait-propuesta/README.md) v1 en ~77 s. Base:
-  [`docs/mercado/demos/axiomait.md`](../../../../docs/mercado/demos/axiomait.md) (lead #218).
+  [`comercial/demos/axiomait.md`](../../../../comercial/demos/axiomait.md) (lead #218).
 - **Público:** Axel y su equipo técnico: integradores que ya venden Odoo, agentes de IA con n8n y turnos. Trato de
   "ustedes", como el PDF.
 - **Mensaje:** sumen voz a lo que ya venden, por API; el llamador del CRM es el primer caso y la naturalidad se

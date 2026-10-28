@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cierra una versión de un video (docs/VIDEOS.md, "Versiones"): copia el código, el guion y la locución a
+# Cierra una versión de un video (marketing/VIDEOS.md, "Versiones"): copia el código, el guion y la locución a
 # versiones/v<V>/fuente/ y marca NOTAS.md como "Estado: cerrada (fecha)". Una versión cerrada no se vuelve a
 # renderizar; un cambio es una versión nueva. Para reproducirla: copiar fuente/ de vuelta al proyecto.
 # Uso: scripts/cerrar.sh <proyecto> <V>

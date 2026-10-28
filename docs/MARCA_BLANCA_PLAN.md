@@ -4,7 +4,7 @@ Que un cliente muestre el dashboard (`web/`, rol `client`) con **su logo y sus c
 Atentina, para que lo use su propia gente o sus propios clientes como si fuera suyo. Lo configura un
 admin desde la ficha del cliente: sube un logo y elige hasta **3 colores**. Nada más se personaliza.
 
-- **Estado (26-oct-2026):** fase 1 implementada (sección 6) y **desplegada el 26-oct-2026** (migración 0034, `app` y `agent`; `white_label` prendido en Central e Interno; Central se borró el 26-oct-2026, queda en Interno, y Red es a medida); antes, probada en el backend de desarrollo con el theme de [Yoizen](marca-blanca/yoizen/README.md) (login con `?c=yoizen`, panel del cliente y pestaña del admin). Código: migración 0034, `app/services/branding.py`, `app/api/routers/branding.py`, `web/src/branding/`, `web/src/features/clients/BrandingTab.tsx`; tests en `tests/test_branding.py`, `tests/test_migration_0034.py` y `web/src/branding/color.test.ts`. Lo que difiere de lo planeado está en la sección 11.
+- **Estado (26-oct-2026):** fase 1 implementada (sección 6) y **desplegada el 26-oct-2026** (migración 0034, `app` y `agent`; `white_label` prendido en Central e Interno; Central se borró el 26-oct-2026, queda en Interno, y Red es a medida); antes, probada en el backend de desarrollo con el theme de [Yoizen](../comercial/marca-blanca/yoizen/README.md) (login con `?c=yoizen`, panel del cliente y pestaña del admin). Código: migración 0034, `app/services/branding.py`, `app/api/routers/branding.py`, `web/src/branding/`, `web/src/features/clients/BrandingTab.tsx`; tests en `tests/test_branding.py`, `tests/test_migration_0034.py` y `web/src/branding/color.test.ts`. Lo que difiere de lo planeado está en la sección 11.
 - **Guía de diseño:** [`DESIGN_GUIDELINE_APP.md`](DESIGN_GUIDELINE_APP.md); el tema vive en [`web/src/theme.ts`](../web/src/theme.ts). Al implementar, se le agrega a la guía una sección "Marca blanca" con lo de la sección 5 de acá.
 
 ## 1. Qué hay hoy
@@ -210,7 +210,7 @@ Pestaña **"Marca blanca"** en la ficha del cliente (`ClientDetailPage`, junto a
 
 ## 9. Primer theme: Yoizen
 
-[`docs/marca-blanca/yoizen/`](marca-blanca/yoizen/README.md): `theme.json` (el cuerpo del `PUT .../branding`), `logo-claro.svg` (el logotipo de su sitio con la tinta en blanco, el que se sube; pasa el filtro de 3.2) y `preview.html` (el panel con esa marca, estático). Primario `#0068fd` (4,77:1 sobre blanco), encabezado `#272a35` (la tinta de su logotipo, texto blanco a 14,3:1) y acento `#4d39c3` (el violeta del logo). El naranja `#fd6421` del logo no se usa: no contrasta con blanco y se confunde con el amarillo de "atención". Cargado y probado en el backend de desarrollo (`scratch/marca-blanca/seed_yoizen.sh`); en producción se carga desde la ficha del cliente.
+[`comercial/marca-blanca/yoizen/`](../comercial/marca-blanca/yoizen/README.md): `theme.json` (el cuerpo del `PUT .../branding`), `logo-claro.svg` (el logotipo de su sitio con la tinta en blanco, el que se sube; pasa el filtro de 3.2) y `preview.html` (el panel con esa marca, estático). Primario `#0068fd` (4,77:1 sobre blanco), encabezado `#272a35` (la tinta de su logotipo, texto blanco a 14,3:1) y acento `#4d39c3` (el violeta del logo). El naranja `#fd6421` del logo no se usa: no contrasta con blanco y se confunde con el amarillo de "atención". Cargado y probado en el backend de desarrollo (`scratch/marca-blanca/seed_yoizen.sh`); en producción se carga desde la ficha del cliente.
 
 ## 10. Pendientes y riesgos
 

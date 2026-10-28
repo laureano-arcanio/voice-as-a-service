@@ -3,7 +3,7 @@
 - **Pedido (22-oct-2026, agente principal por Laureano, textual):** "Hacé un video nuevo (proyecto zennonbi-analisis, v1)
   para Zennon BI siguiendo el formato y contenido del PDF ya hecho:
   marketing/documentos/proyectos/zennonbi-propuesta/versiones/v1/documento.html (leelo completo: es la fuente de textos,
-  cifras y tono) y docs/mercado/demos/zennonbi.md. [...] Pedido del usuario, textual: 'Investiga la empresa zennonbi,
+  cifras y tono) y comercial/demos/zennonbi.md. [...] Pedido del usuario, textual: 'Investiga la empresa zennonbi,
   identifica posibles alianzas o integraciones a sus productos. Arma un pdf y un video diseñado para ellos, utiliza 2
   voces como hicimos en axiom.'" Con escenas de ~60–75 s: intro oscura (2 s antes de la voz), lo que ya hacen bien, la
   cita de Cristian, dónde encaja Atentina (una tarjeta por línea destacada, dichas por lucas con ~0,7 s de respiro), la
@@ -17,7 +17,7 @@
 - **Contexto:** Zennon S.A.S. ("Zennon BI") es partner de Microsoft Dynamics 365 / Power Platform / Power BI; CEO,
   Cristian Ventura. Llamada de Laureano el 19-oct; reunión la semana del 26-oct-2026 (fecha a confirmar). Lead #228 del
   CRM. Es el PDF [`zennonbi-propuesta`](../../../documentos/proyectos/zennonbi-propuesta/README.md) v1 en ~76 s. Base:
-  [`docs/mercado/demos/zennonbi.md`](../../../../docs/mercado/demos/zennonbi.md).
+  [`comercial/demos/zennonbi.md`](../../../../comercial/demos/zennonbi.md).
 - **Público:** Cristian y su equipo (técnico y comercial). Trato de "ustedes" implícito; "Zennon" en tercera persona,
   como el PDF.
 - **Mensaje:** Atentina es la línea de voz argentina (y el WhatsApp) de los proyectos Dynamics que Zennon implementa,

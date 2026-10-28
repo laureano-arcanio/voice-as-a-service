@@ -4,8 +4,8 @@ Piezas de comunicación de Atentina, una carpeta por proyecto y una carpeta por 
 
 | Qué | Dónde | Cómo se hace | Agente |
 |---|---|---|---|
-| Videos animados con locución del TTS propio | [`videos/`](videos/) | [`docs/VIDEOS.md`](../docs/VIDEOS.md) | [`videos`](../.claude/agents/videos.md) |
-| Documentos (propuestas, overviews, fichas) en PDF | [`documentos/`](documentos/) | [`docs/DOCUMENTOS.md`](../docs/DOCUMENTOS.md) | [`documentos`](../.claude/agents/documentos.md) |
+| Videos animados con locución del TTS propio | [`videos/`](videos/) | [`marketing/VIDEOS.md`](../marketing/VIDEOS.md) | [`videos`](../.claude/agents/videos.md) |
+| Documentos (propuestas, overviews, fichas) en PDF | [`documentos/`](documentos/) | [`marketing/DOCUMENTOS.md`](../marketing/DOCUMENTOS.md) | [`documentos`](../.claude/agents/documentos.md) |
 
 ## Proyectos
 

@@ -1,6 +1,6 @@
 ---
 name: documentos
-description: Creador de documentos profesionales de Atentina (propuestas comerciales y de integración, overviews, one-pagers, fichas de producto, casos, presentaciones para reuniones) en HTML con la plantilla de la marca, impresos a PDF con Chrome, con diagramas SVG e imágenes, en una carpeta por proyecto con versiones y notas. Usar cuando el usuario pide un PDF, una propuesta, un documento para un prospecto o cliente, un resumen comercial, una ficha, una pieza gráfica o una imagen con la marca, o cambiar uno existente. Sigue docs/DOCUMENTOS.md.
+description: Creador de documentos profesionales de Atentina (propuestas comerciales y de integración, overviews, one-pagers, fichas de producto, casos, presentaciones para reuniones) en HTML con la plantilla de la marca, impresos a PDF con Chrome, con diagramas SVG e imágenes, en una carpeta por proyecto con versiones y notas. Usar cuando el usuario pide un PDF, una propuesta, un documento para un prospecto o cliente, un resumen comercial, una ficha, una pieza gráfica o una imagen con la marca, o cambiar uno existente. Sigue marketing/DOCUMENTOS.md.
 tools: Bash, Read, Write, Edit, Grep, Glob, WebSearch, WebFetch
 ---
 
@@ -10,7 +10,7 @@ en un documento claro, orientado a negocio y con la marca, impreso a PDF y versi
 
 ## Antes de cualquier cosa
 
-1. Leé completo [`docs/DOCUMENTOS.md`](../../docs/DOCUMENTOS.md): plantilla, tono, estructura, componentes,
+1. Leé completo [`marketing/DOCUMENTOS.md`](../../marketing/DOCUMENTOS.md): plantilla, tono, estructura, componentes,
    diagramas, afirmaciones, contacto, controles y versiones. Manda sobre esto; si algo choca, seguí el doc y avisá.
 2. Mirá el proyecto de referencia, `marketing/documentos/proyectos/yoizen-propuesta/` (README, `documento.html` y
    las vistas), y `marketing/documentos/plantilla/`.
@@ -28,8 +28,8 @@ en un documento claro, orientado a negocio y con la marca, impreso a PDF y versi
 | Canales y funciones (y si están desplegadas) | [`AGENTS.md`](../../AGENTS.md), [`docs/WHATSAPP_PLAN.md`](../../docs/WHATSAPP_PLAN.md), [`docs/LLAMADAS_SALIENTES_PLAN.md`](../../docs/LLAMADAS_SALIENTES_PLAN.md), [`docs/LINK_LLAMADA_PLAN.md`](../../docs/LINK_LLAMADA_PLAN.md), [`docs/BYOK_LLM_PLAN.md`](../../docs/BYOK_LLM_PLAN.md), [`docs/APPS.md`](../../docs/APPS.md), [`docs/EMAIL_PLAN.md`](../../docs/EMAIL_PLAN.md), [`docs/MERCADOPAGO_PLAN.md`](../../docs/MERCADOPAGO_PLAN.md) |
 | Integraciones y API | [`docs/API_INFERENCIA.md`](../../docs/API_INFERENCIA.md), `app/api/routers/`, `app/api/schemas.py` |
 | Infraestructura (si el pedido es técnico) | [`docs/PRODUCCION.md`](../../docs/PRODUCCION.md), [`docs/TELEFONIA_ANURA.md`](../../docs/TELEFONIA_ANURA.md), [`docs/capacity/README.md`](../../docs/capacity/README.md) |
-| Mercado, prospectos, reuniones y envíos | [`docs/mercado/plan-salida-al-mercado.md`](../../docs/mercado/plan-salida-al-mercado.md), [`docs/mercado/demanda-y-mercado-local.md`](../../docs/mercado/demanda-y-mercado-local.md), [`docs/mercado/seguimiento.md`](../../docs/mercado/seguimiento.md), `docs/mercado/demos/`, `docs/mercado/envios/` |
-| Video que acompaña al documento | `marketing/videos/proyectos/` ([`docs/VIDEOS.md`](../../docs/VIDEOS.md)) |
+| Mercado, prospectos, reuniones y envíos | [`comercial/plan-salida-al-mercado.md`](../../comercial/plan-salida-al-mercado.md), [`comercial/demanda-y-mercado-local.md`](../../comercial/demanda-y-mercado-local.md), [`comercial/archivo/seguimiento.md`](../../comercial/archivo/seguimiento.md), `comercial/demos/`, `comercial/archivo/envios/` |
+| Video que acompaña al documento | `marketing/videos/proyectos/` ([`marketing/VIDEOS.md`](../../marketing/VIDEOS.md)) |
 | Datos públicos de un prospecto | Su sitio y fuentes públicas (WebFetch/WebSearch), con la fecha de lectura en el README |
 
 ## Cómo trabajás

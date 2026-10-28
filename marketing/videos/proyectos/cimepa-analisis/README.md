@@ -2,7 +2,7 @@
 
 - **Pedido (22-oct-2026, agente principal por Laureano, textual):** "Hacé un video nuevo (proyecto cimepa-analisis, v1)
   para CIMEPA siguiendo el formato y contenido del PDF ya hecho: marketing/documentos/proyectos/cimepa-propuesta/versiones/v1/documento.html
-  (leelo completo: es la fuente de textos, cifras y tono) y docs/mercado/demos/cimepa.md. [...] Esta propuesta es técnica,
+  (leelo completo: es la fuente de textos, cifras y tono) y comercial/demos/cimepa.md. [...] Esta propuesta es técnica,
   no del tipo 'qué hacen bien / dónde mejorar': no hay datos del negocio de CIMEPA. Le hablamos a Pablo, que evalúa
   proveedores de telefonía con IA." Con ocho escenas (~60 s, hasta ~65): intro oscura, lo que nos pidieron (cuatro
   tarjetas con ~0,7 s de respiro), entra una llamada, llama un empleado, llama la IA, todo queda registrado, su agente
@@ -13,7 +13,7 @@
   cifras que el PDF.
 - **Contexto:** Pablo escribió el 22-oct-2026 por el WhatsApp de Atentina (lead #365 del CRM). Es el PDF
   [`cimepa-propuesta`](../../../documentos/proyectos/cimepa-propuesta/README.md) v1 en ~65 s. Base:
-  [`docs/mercado/demos/cimepa.md`](../../../../docs/mercado/demos/cimepa.md).
+  [`comercial/demos/cimepa.md`](../../../../comercial/demos/cimepa.md).
 - **Público:** Pablo, de CIMEPA S.A. (CABA), técnico, que compara proveedores (Twilio, Vapi, centrales virtuales).
   Trato de "ustedes" / "su", como el PDF.
 - **Mensaje:** un número de la empresa para su equipo y su IA, todo grabado y transcripto; la integración de su agente

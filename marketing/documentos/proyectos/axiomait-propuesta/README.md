@@ -9,7 +9,7 @@
 - **Contexto:** Axel probó la demo de voz de la landing el 22-oct-2026 (conversación `e0e4e64d`, 111 s): pidió "un
   agente que llame a ciertos leads del CRM, en momento determinado", preguntó por más voces y por "que suene menos
   robot", y quiere probarlo él antes de hablar con un asesor. Base de conocimiento:
-  [`docs/mercado/demos/axiomait.md`](../../../../docs/mercado/demos/axiomait.md) (partes 0, 1, 2, 4, 5 y 7). Lead #218
+  [`comercial/demos/axiomait.md`](../../../../comercial/demos/axiomait.md) (partes 0, 1, 2, 4, 5 y 7). Lead #218
   del CRM. Formato y estética copiados de [`goldman-propuesta`](../goldman-propuesta/README.md) y
   [`baicenter-propuesta`](../baicenter-propuesta/README.md).
 - **Objetivo:** que se registren y prueben solos, y que pidan la demo técnica o el piloto de integración de 30 días.

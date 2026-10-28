@@ -9,8 +9,8 @@ Versión del 2-oct-2026. **Decisión propuesta:**
 Se apoya en:
 - la capacidad medida ([`capacity/`](capacity/README.md): CAP-001, 002 y 004);
 - el hardware ([`SERVER_HARDWARE.md`](SERVER_HARDWARE.md));
-- el plan comercial ([`mercado/plan-salida-al-mercado.md`](mercado/plan-salida-al-mercado.md));
-- la [calculadora de costos](calculadora-costos.html).
+- el plan comercial ([`mercado/plan-salida-al-mercado.md`](../comercial/plan-salida-al-mercado.md));
+- la [calculadora de costos](../comercial/calculadora-costos.html).
 
 ## 1. Validación: ¿tiene sentido?
 

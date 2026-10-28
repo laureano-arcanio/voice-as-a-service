@@ -2,7 +2,7 @@
 
 Procedimiento y estructura para investigar a fondo un prospecto antes de una charla o una propuesta. Sale de lo que se
 hizo con BAIC Center ([`baicenter.md`](baicenter.md), 20-oct-2026) e Isaías Goldman ([`isaiasgoldman.md`](isaiasgoldman.md),
-21-oct-2026), que son los ejemplos a imitar en estilo y profundidad. Lo hace el agente [`ventas`](../../../.claude/agents/ventas.md).
+21-oct-2026), que son los ejemplos a imitar en estilo y profundidad. Lo hace el agente [`ventas`](../../.claude/agents/ventas.md).
 
 ## Cómo se pide
 
@@ -15,10 +15,10 @@ Objetivo: <propuesta / preparar la reunión / decidir si vale la pena>.
 Lo que ya sé: <rubro, ciudad, lo que contó, links, redes>.
 ```
 
-Salida: `docs/mercado/demos/<slug>.md` (slug corto, sin guiones si es una palabra: `isaiasgoldman`, `baicenter`), copias
+Salida: `comercial/demos/<slug>.md` (slug corto, sin guiones si es una palabra: `isaiasgoldman`, `baicenter`), copias
 crudas en `scratch/prospectos/<slug>/raw/` y el resumen al usuario. Para la base, el PDF y el video de una vez
 ("investigá <empresa> y armá el video y el documento"), el skill
-[`propuesta-prospecto`](../../../.claude/skills/propuesta-prospecto/SKILL.md) encadena `ventas`, `documentos` y `videos`.
+[`propuesta-prospecto`](../../.claude/skills/propuesta-prospecto/SKILL.md) encadena `ventas`, `documentos` y `videos`.
 
 ## Qué buscar (todo lo que se encuentre)
 
@@ -116,7 +116,7 @@ recorre el sitio con `curl`/WebFetch: se usa solo lo que muestra el navegador co
 
 1. El documento y las copias en `raw/`.
 2. **CRM:** `GET /api/leads/check?domain=…`. Si no existe, `POST /api/leads` con las personas, todos los contactos
-   publicados encontrados (cada uno con `source_url`) y en `notes` el link a `docs/mercado/demos/<slug>.md`. Si existe,
+   publicados encontrados (cada uno con `source_url`) y en `notes` el link a `comercial/demos/<slug>.md`. Si existe,
    sumar los contactos nuevos y una actividad `note` con el link. Sin borradores ni mails salvo que se pidan.
 3. **Al usuario:** resumen de ~25 líneas (quién es, qué hace, 3 a 5 dolores con evidencia, competencia, caso de uso y
    oferta, lo que no se pudo verificar) y qué sigue (PDF, video, mail o reunión).

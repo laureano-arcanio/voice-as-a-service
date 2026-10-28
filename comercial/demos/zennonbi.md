@@ -223,8 +223,8 @@ números incluidos.
 |---|---|---|
 | Dynamics 365 Contact Center + Copilot Studio (voz) + ACS | todo dentro de Microsoft, transferencia a humano, Nuance | USD 110 + 95 por usuario; ACS en Argentina solo 0800 entrante y con facturación en el exterior; créditos por consumo; voces neutras, no argentinas |
 | Teams Phone / Direct Routing con un carrier local | número argentino real en Teams | es telefonía, no agente; armar el SBC y el agente aparte |
-| Vapi, Retell, ElevenLabs + Twilio | agente de voz por API | USD 0,05-0,24 por minuto en dólares, números de EE. UU.; integrar con Dynamics a mano (`docs/competencia/vapi/`) |
-| Botmaker | WhatsApp y callbots, conector con Teams | plataforma cerrada, foco en grandes cuentas (`docs/competencia/botmaker/`) |
+| Vapi, Retell, ElevenLabs + Twilio | agente de voz por API | USD 0,05-0,24 por minuto en dólares, números de EE. UU.; integrar con Dynamics a mano (`comercial/competencia/vapi/`) |
+| Botmaker | WhatsApp y callbots, conector con Teams | plataforma cerrada, foco en grandes cuentas (`comercial/competencia/botmaker/`) |
 | El contact center del cliente (Provincia NET, BPOs) | ya existe | humano o IVR de menú |
 
 - **Otros partners de Dynamics en Argentina:** varios aparecen como sus clientes o colegas (Artware, Nexer, Jonxsoft,
@@ -482,5 +482,5 @@ Leídas el 22-oct-2026.
   https://learn.microsoft.com/en-us/microsoft-copilot-studio/voice-overview
 - **CRM:** lead #228 (`zennon`), mails del 15-oct y 19-oct, actividades del 19 y 22-oct.
 - **Atentina:** `README.md`, `AGENTS.md`, `docs/ARQUITECTURA.md`, `docs/API_INFERENCIA.md`, `docs/LLAMADAS_SALIENTES_PLAN.md`
-  (14), `docs/LINK_LLAMADA_PLAN.md`, `docs/WHATSAPP_PLAN.md`, `landing/src/data/site.ts`, `docs/competencia/`,
-  `docs/mercado/plan-salida-al-mercado.md`, base de la app (tiers, campañas, `call_logs`; solo lectura).
+  (14), `docs/LINK_LLAMADA_PLAN.md`, `docs/WHATSAPP_PLAN.md`, `landing/src/data/site.ts`, `comercial/competencia/`,
+  `comercial/plan-salida-al-mercado.md`, base de la app (tiers, campañas, `call_logs`; solo lectura).

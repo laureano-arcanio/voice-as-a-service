@@ -531,7 +531,7 @@ laureano@atentina.com.ar
   calificarlo y agendarlo.
 - Gancho: ya tenemos el caso armado. Los agentes de referencia `sales_discovery` y `demo_booking`
   (`app/agents/reference/`) son la asesora de Browix, con su contexto en
-  [`../../Browix_Contexto_Agente.md`](../../Browix_Contexto_Agente.md). Sirve para mostrarles
+  [`../../Browix_Contexto_Agente.md`](../../../docs/Browix_Contexto_Agente.md). Sirve para mostrarles
   una llamada con su propio producto.
 
 Emails encontrados (verificados el 5-oct-2026):

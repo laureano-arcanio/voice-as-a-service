@@ -1,4 +1,4 @@
-/* Plantilla de documentos de Atentina (docs/DOCUMENTOS.md).
+/* Plantilla de documentos de Atentina (marketing/DOCUMENTOS.md).
    Marca: tokens de landing/src/styles/global.css y tipografías de docs/DESIGN_GUIDELINE.md.
    A4 vertical, márgenes propios por hoja (.page), pensado para imprimir con Chrome (scripts/render.sh). */
 @font-face { font-family: "Bricolage"; src: url(fonts/bricolage-grotesque-latin-wght-normal.woff2) format("woff2"); font-weight: 200 800; }

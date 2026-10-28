@@ -1,6 +1,6 @@
 ---
 name: propuesta-prospecto
-description: Investiga una empresa prospecto y arma su PDF de propuesta y su video de análisis, como se hizo con Isaías Goldman y BAIC Center. Coordina a los agentes ventas (base de conocimiento), documentos (PDF) y videos (video que sigue al PDF) pasándoles la información de la empresa. Usar cuando el usuario pide "investigá <empresa> y armá el video y el documento", "hacé la propuesta y el video para <empresa>", o el PDF y el video para un prospecto que ya tiene base en docs/mercado/demos/.
+description: Investiga una empresa prospecto y arma su PDF de propuesta y su video de análisis, como se hizo con Isaías Goldman y BAIC Center. Coordina a los agentes ventas (base de conocimiento), documentos (PDF) y videos (video que sigue al PDF) pasándoles la información de la empresa. Usar cuando el usuario pide "investigá <empresa> y armá el video y el documento", "hacé la propuesta y el video para <empresa>", o el PDF y el video para un prospecto que ya tiene base en comercial/demos/.
 ---
 
 # Propuesta de un prospecto: investigación, PDF y video
@@ -10,9 +10,9 @@ recibe lo que dejó el anterior. Las plantillas son los proyectos de Goldman y B
 
 | Paso | Agente | Sigue | Deja | Ejemplos |
 |---|---|---|---|---|
-| 1. Investigar | `ventas` | `docs/mercado/demos/PLANTILLA.md` | `docs/mercado/demos/<slug>.md` | `isaiasgoldman.md`, `baicenter.md` |
-| 2. PDF | `documentos` | `docs/DOCUMENTOS.md` | `marketing/documentos/proyectos/<slug>-propuesta/` | `goldman-propuesta`, `baicenter-propuesta` |
-| 3. Video | `videos` | `docs/VIDEOS.md` | `marketing/videos/proyectos/<slug>-analisis/` | `goldman-analisis` (v3), `baicenter-analisis` |
+| 1. Investigar | `ventas` | `comercial/demos/PLANTILLA.md` | `comercial/demos/<slug>.md` | `isaiasgoldman.md`, `baicenter.md` |
+| 2. PDF | `documentos` | `marketing/DOCUMENTOS.md` | `marketing/documentos/proyectos/<slug>-propuesta/` | `goldman-propuesta`, `baicenter-propuesta` |
+| 3. Video | `videos` | `marketing/VIDEOS.md` | `marketing/videos/proyectos/<slug>-analisis/` | `goldman-analisis` (v3), `baicenter-analisis` |
 
 El video va después del PDF porque copia su estructura, textos y cifras.
 
@@ -31,10 +31,10 @@ Mirá `git status` y si ya existen la base o los proyectos: si existen, se hace 
 
 ## 1. Investigar (agente `ventas`)
 
-Saltear si `docs/mercado/demos/<slug>.md` ya existe y el usuario no pidió actualizarla. Si no:
+Saltear si `comercial/demos/<slug>.md` ya existe y el usuario no pidió actualizarla. Si no:
 
 ```
-Investigá a fondo <empresa> (<sitio>) siguiendo docs/mercado/demos/PLANTILLA.md (tarea "Investigar una empresa").
+Investigá a fondo <empresa> (<sitio>) siguiendo comercial/demos/PLANTILLA.md (tarea "Investigar una empresa").
 Contacto: <nombre, cargo>. Contexto: <cómo llegamos>. Objetivo: <objetivo>. Lo que ya sabemos: <datos del usuario>.
 Slug: <slug>. Fecha de hoy: <fecha>. La base va a alimentar un PDF de propuesta y un video, así que en la parte 0 y la 5
 dejá cifras concretas con fuente (años, tamaño, reseñas y rating, canales de contacto, horario en horas abiertas por
@@ -50,8 +50,8 @@ que decidir (la empresa no es lo que se esperaba, no hay datos suficientes, el c
 
 ```
 Armá un PDF de propuesta (proyecto nuevo <slug>-propuesta, v1) para <empresa> (<rubro, ciudad>). Destinatario:
-<contacto y cargo; otros decisores de la base>. Lo manda Atentina después de <contexto>. Seguí docs/DOCUMENTOS.md.
-Base de conocimiento: docs/mercado/demos/<slug>.md (partes 0, 1, 2, 4, 5 y 7). Formato, estructura y estética: copiá
+<contacto y cargo; otros decisores de la base>. Lo manda Atentina después de <contexto>. Seguí marketing/DOCUMENTOS.md.
+Base de conocimiento: comercial/demos/<slug>.md (partes 0, 1, 2, 4, 5 y 7). Formato, estructura y estética: copiá
 marketing/documentos/proyectos/goldman-propuesta/ y baicenter-propuesta/ (README, NOTAS y documento.html).
 
 Pedido del usuario, textual: "<texto del usuario o: Un PDF con el análisis de su situación actual, fáctico pero con
@@ -75,7 +75,7 @@ Reglas: material de venta, todo se presenta como la oferta sin decir qué está 
 README, contra la parte 7.4 de la base). Sin precios nuestros: el del piloto se acuerda en la reunión. Documento de
 Atentina: el nombre de <empresa> escrito, sin su logo ni su marca. Cada afirmación con su fuente en el README.
 <Pedidos específicos del usuario.>
-Generá el PDF, revisalo con los controles de docs/DOCUMENTOS.md y devolveme la ruta, las hojas, la estructura y dudas.
+Generá el PDF, revisalo con los controles de marketing/DOCUMENTOS.md y devolveme la ruta, las hojas, la estructura y dudas.
 ```
 
 ## 3. Video (agente `videos`)
@@ -83,7 +83,7 @@ Generá el PDF, revisalo con los controles de docs/DOCUMENTOS.md y devolveme la 
 ```
 Hacé un video nuevo (proyecto <slug>-analisis, v1) para <empresa> siguiendo el formato y contenido del PDF ya hecho:
 marketing/documentos/proyectos/<slug>-propuesta/versiones/v<n>/documento.html (leelo completo: es la fuente de textos,
-cifras y tono) y docs/mercado/demos/<slug>.md. Seguí docs/VIDEOS.md. Plantilla: copiá la estructura de
+cifras y tono) y comercial/demos/<slug>.md. Seguí marketing/VIDEOS.md. Plantilla: copiá la estructura de
 marketing/videos/proyectos/goldman-analisis/ (v3) y baicenter-analisis/ (README, guion.json, src/, NOTAS).
 
 Pedido del usuario: "<texto del usuario o: el PDF en video, con la introducción, qué hacen bien y <qué observamos |
@@ -96,18 +96,18 @@ Atentina (AgenteLogo) → tipos de consulta → su equipo por área, con énfasi
 quién tomó cada consulta y cuánto tardó, rotulado "EJEMPLO CON DATOS ILUSTRATIVOS" · cierre oscuro solo con
 "¿Agendamos una reunión personalmente?" y el contacto de Atentina chico abajo.
 
-Reglas: narradora paula a 1× y pablo como voz secundaria en algunas líneas (docs/VIDEOS.md, Voces), ortografía normal (grafías especiales solo si una palabra sale mal en las tomas), pausas
+Reglas: narradora paula a 1× y pablo como voz secundaria en algunas líneas (marketing/VIDEOS.md, Voces), ortografía normal (grafías especiales solo si una palabra sale mal en las tomas), pausas
 con puntuación, "En <empresa>..." para nombrarla y probar cómo pronuncia el nombre; el agente es el logo de Atentina
 (sin robot); sin logo ni marca de <empresa>; material de venta, sin decir qué está construido. En archivos compartidos
 (src/Root.tsx, src/comun/*, marketing/README.md) solo agregá líneas y releé antes de editar.
 <Pedidos específicos del usuario.>
-Renderizá, revisá con los controles de docs/VIDEOS.md (tomas, transcripción, finales de frase, cuadros) y devolveme la
+Renderizá, revisá con los controles de marketing/VIDEOS.md (tomas, transcripción, finales de frase, cuadros) y devolveme la
 ruta del MP4, la duración, la locución por escena y dudas.
 ```
 
 ## 4. Al usuario
 
-- Rutas: base `docs/mercado/demos/<slug>.md`, PDF y MP4.
+- Rutas: base `comercial/demos/<slug>.md`, PDF y MP4.
 - Resumen de la empresa en 5 líneas y la propuesta en una.
 - **A validar antes de mandar**, juntando lo de los dos README: funciones ofrecidas que no están desplegadas, datos sin
   verificar, promesas comerciales (piloto, fechas) y pronunciaciones a escuchar.

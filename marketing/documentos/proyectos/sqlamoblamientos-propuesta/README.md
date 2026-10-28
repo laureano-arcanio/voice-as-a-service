@@ -7,7 +7,7 @@
   2015; según el usuario llevan la administración). El documento no les asigna cargos: dice "Jorge y sus hijos" y "la
   dirección". En "ustedes", con un saludo a Pilar.
 - **Contexto:** lead frío, primer acercamiento de Atentina, sin llamada previa (lead 364 en el CRM). Base de
-  conocimiento: [`docs/mercado/demos/sqlamoblamientos.md`](../../../../docs/mercado/demos/sqlamoblamientos.md) (partes
+  conocimiento: [`comercial/demos/sqlamoblamientos.md`](../../../../comercial/demos/sqlamoblamientos.md) (partes
   0, 1, 2, 4, 5 y 7), con copia local de las fuentes en `scratch/prospectos/sqlamoblamientos/raw/`. Formato, estructura
   y estética copiados de [`baicenter-propuesta`](../baicenter-propuesta/README.md) v2 y
   [`goldman-propuesta`](../goldman-propuesta/README.md).

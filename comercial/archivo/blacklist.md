@@ -1,6 +1,6 @@
 # Blacklist de emails
 
-> **Congelado el 21-oct-2026.** El registro vigente es el CRM (`http://127.0.0.1:8030`, `make crm-up`; API en [`../CRM_API.md`](../CRM_API.md)), cargado desde este archivo, los `envios/` y el historial de Resend. No editar: lo nuevo va al CRM.
+> **Congelado el 21-oct-2026.** El registro vigente es el CRM (`http://127.0.0.1:8030`, `make crm-up`; API en [`../CRM_API.md`](../../docs/CRM_API.md)), cargado desde este archivo, los `envios/` y el historial de Resend. No editar: lo nuevo va al CRM.
 
 Direcciones a las que **no se manda ningún mail más**: ni primer contacto, ni seguimiento, ni otra tanda. Antes de armar
 cualquier envío, cada destinatario se busca acá (también en minúsculas). La empresa puede seguir por otra casilla publicada,

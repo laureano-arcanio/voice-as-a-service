@@ -3,8 +3,8 @@
 Relevado el 26-sep-2026 con búsquedas web (cuatro barridos: mercado global, Argentina,
 oferta local y regulación/costos de canal). Notas crudas con todas las fuentes en
 `scratch/mercado/` (no versionado). Tipo de cambio: mayorista ARS 1.525/USD.
-Complementa [`../competencia/`](../competencia/) (Botmaker, Vapi) y
-[`../proveedores/anura-terminos-2026.md`](../proveedores/anura-terminos-2026.md).
+Complementa [`../competencia/`](competencia/) (Botmaker, Vapi) y
+[`../proveedores/anura-terminos-2026.md`](proveedores/anura-terminos-2026.md).
 
 Calidad de las fuentes: **A** primaria (Meta, SEC, Gartner, ENACOM, CACC, Ministerio de
 Trabajo), **B** prensa especializada, **C** consultoras de reportes en serie o blogs de
@@ -311,7 +311,7 @@ en las PyMEs.
     la exigiría. Conviene diseñar el agente para que se presente como asistente virtual.
   - Sin prefijo ni identificación obligatoria de llamadas automáticas (Chile 809, España 400).
   - Licencia TIC (Ley 27.078): operar agentes sobre líneas de un licenciatario no la exige;
-    revender minutos o números sí. Ver [`anura-terminos-2026.md`](../proveedores/anura-terminos-2026.md).
+    revender minutos o números sí. Ver [`anura-terminos-2026.md`](proveedores/anura-terminos-2026.md).
 - **Costos de canal:** la voz a celulares por proveedores globales (USD 0,35/min) es el costo que
   hace inviable el saliente con Twilio; la terminación local y WhatsApp Calling (~USD 0,011) lo
   resuelven. Meta empieza a cobrar los mensajes de servicio el 1-oct-2026 (1.000 gratis por

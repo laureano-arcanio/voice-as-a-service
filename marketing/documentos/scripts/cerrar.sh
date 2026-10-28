@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cierra una versión de un documento (docs/DOCUMENTOS.md, "Versiones"): copia la hoja de estilos de la
+# Cierra una versión de un documento (marketing/DOCUMENTOS.md, "Versiones"): copia la hoja de estilos de la
 # plantilla a fuente/ y marca NOTAS.md como "Estado: cerrada (fecha)". El PDF queda como registro y no se
 # vuelve a generar; un cambio es una versión nueva.
 # Uso: scripts/cerrar.sh <carpeta de la versión>

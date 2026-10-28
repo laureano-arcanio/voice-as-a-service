@@ -211,7 +211,7 @@ crm-logs: ## Logs del CRM
 crm-psql: ## psql contra la base del CRM
 	$(COMPOSE) exec db sh -c 'psql -U "$$POSTGRES_USER" crm'
 
-seguimientos-enviar: ## Manda una tanda de mails por Resend, 1 cada ~2 min (en seco sin ENVIAR=1). Ej: make seguimientos-enviar TANDA=docs/mercado/envios/2026-10-21-seguimientos-pendientes.md N=50 ENVIAR=1
+seguimientos-enviar: ## Manda una tanda de mails por Resend, 1 cada ~2 min (en seco sin ENVIAR=1). Ej: make seguimientos-enviar TANDA=comercial/archivo/envios/2026-10-21-seguimientos-pendientes.md N=50 ENVIAR=1
 	python3 scripts/mercado/enviar_seguimientos.py $(TANDA) --cantidad $(or $(N),50) $(if $(ENVIAR),--enviar)
 
 wa-send: ## Texto por WhatsApp con la Graph API. Ej: make wa-send TO=54351... TEXT="hola" [PHONE_NUMBER_ID=...]
@@ -392,7 +392,7 @@ stt-eval: ## WER + latencia de stt-parakeet sobre un corpus. Ej: make stt-eval A
 stt-corpus: ## Arma el corpus de eval de STT con voces argentinas (OpenSLR 61): limpio, telefonico, +ruido, +cortes
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts agent python -m scripts.stt_corpus.openslr61 $(ARGS)
 
-# --- Marketing: videos y documentos (docs/VIDEOS.md, docs/DOCUMENTOS.md) --
+# --- Marketing: videos y documentos (marketing/VIDEOS.md, marketing/DOCUMENTOS.md) --
 # Un proyecto por carpeta en marketing/{videos,documentos}/proyectos/<P>/, con versiones v<V>.
 # Una versión con "Estado: cerrada" en su NOTAS.md no se vuelve a generar: un cambio es una V nueva.
 VIDEOS := marketing/videos

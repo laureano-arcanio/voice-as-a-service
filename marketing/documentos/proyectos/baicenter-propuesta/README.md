@@ -7,7 +7,7 @@
   Trucks), Córdoba. Vendedor de toda la vida y early adopter (primer Prius, primer eléctrico homologado, Arcfox). En
   "usted" para él y "ustedes" para el grupo, con un saludo a Edgardo.
 - **Contexto:** reunión del 20-oct-2026 (demo). Base de conocimiento:
-  [`docs/mercado/demos/baicenter.md`](../../../../docs/mercado/demos/baicenter.md) (partes 0, 1, 2, 4, 5 y 7). Formato,
+  [`comercial/demos/baicenter.md`](../../../../comercial/demos/baicenter.md) (partes 0, 1, 2, 4, 5 y 7). Formato,
   estructura y estética copiados de [`goldman-propuesta`](../goldman-propuesta/README.md). Video relacionado: lo arma el
   agente de videos a partir de este documento.
 - **Objetivo:** que acepten una reunión de relevamiento y un piloto de 30 días con BAIC y Arcfox.

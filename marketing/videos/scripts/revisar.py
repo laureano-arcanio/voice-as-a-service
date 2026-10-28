@@ -1,4 +1,4 @@
-"""Revisión de un render (docs/VIDEOS.md, "Controles"): duración, volumen, locución transcrita por tramos
+"""Revisión de un render (marketing/VIDEOS.md, "Controles"): duración, volumen, locución transcrita por tramos
 y hojas de cuadros para mirar la composición sin ver el video entero.
 
 Uso: python3 scripts/revisar.py <video.mp4> [--cada S] [--tramos 0,6,16.4,...]

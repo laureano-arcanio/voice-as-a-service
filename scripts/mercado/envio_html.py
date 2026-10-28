@@ -1,10 +1,10 @@
 """Página local para copiar los mails de una tanda a Gmail con el link como texto.
 
-Lee un `.md` de docs/mercado/envios/ (formato en su README) y genera un HTML con, por empresa,
+Lee un `.md` de comercial/archivo/envios/ (formato en su README) y genera un HTML con, por empresa,
 botones para copiar destinatario, asunto y texto. El texto se copia con formato: el link largo
 con UTM queda como "atentina.com.ar" enlazado al pegarlo en Gmail.
 
-Uso: python3 scripts/mercado/envio_html.py docs/mercado/envios/<tanda>.md [...]
+Uso: python3 scripts/mercado/envio_html.py comercial/archivo/envios/<tanda>.md [...]
 Salida: scratch/envios/<tanda>.html (abrir en el navegador).
 """
 

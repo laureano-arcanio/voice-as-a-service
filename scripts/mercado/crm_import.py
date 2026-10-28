@@ -1,6 +1,6 @@
 """Importacion inicial del CRM (docs/CRM_PLAN.md, seccion 9): una sola vez, por la API.
 
-Lee el seguimiento en Markdown (docs/mercado/seguimiento.md, envios/*.csv y *.md, blacklist.md) y el
+Lee el seguimiento en Markdown (comercial/archivo/seguimiento.md, envios/*.csv y *.md, blacklist.md) y el
 historial de Resend, y lo carga en el CRM con la key del usuario. Idempotente: leads por dominio (o
 slug), mensajes por resend_id, campanas y plantillas por slug y nombre, actividades por texto.
 
@@ -27,7 +27,7 @@ from pathlib import Path
 import httpx
 
 ROOT = Path(__file__).resolve().parents[2]
-MERCADO = ROOT / "docs/mercado"
+MERCADO = ROOT / "comercial/archivo"
 ENVIOS = MERCADO / "envios"
 OUT = ROOT / "scratch/crm"
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")

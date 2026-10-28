@@ -6,7 +6,7 @@
   (directora). Isaías Miguel Goldman SA, Córdoba: aires, calefacción y refrigeración; venta a público, instaladores y
   empresas, instalación, service y cursos. En "ustedes" (empresa familiar), con un saludo a Isaías.
 - **Contexto:** Laureano habló por teléfono con Isaías y él pidió que le cuenten la oferta. Base de conocimiento:
-  [`docs/mercado/demos/isaiasgoldman.md`](../../../../docs/mercado/demos/isaiasgoldman.md) (partes 0, 2, 4, 5 y 7).
+  [`comercial/demos/isaiasgoldman.md`](../../../../comercial/demos/isaiasgoldman.md) (partes 0, 2, 4, 5 y 7).
   Video relacionado en curso: `marketing/videos/proyectos/goldman/`.
 - **Objetivo:** que acepten una reunión de relevamiento y un piloto de 30 días desde noviembre.
 - **Formato:** A4, 4 a 6 hojas (salió en 5). `make doc P=goldman-propuesta V=<n> HOJAS=6`.

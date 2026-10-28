@@ -84,6 +84,6 @@ Las tandas 2 y 3 llevan además el link con UTM (columna `utm_content` en la tab
 
 ## Envío desde Gmail
 
-`python3 scripts/mercado/envio_html.py docs/mercado/envios/<tanda>.md` genera `scratch/envios/<tanda>.html`:
+`python3 scripts/mercado/envio_html.py comercial/archivo/envios/<tanda>.md` genera `scratch/envios/<tanda>.html`:
 por empresa, botones para copiar destinatario, asunto y texto. El texto se pega en Gmail con formato y el
 link con UTM queda como "atentina.com.ar" enlazado. En el `.md` el link sigue completo, como registro.

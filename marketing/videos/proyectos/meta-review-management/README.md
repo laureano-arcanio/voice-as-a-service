@@ -8,7 +8,7 @@ formulario de Meta están en [`docs/META_APP_REVIEW.md`](../../../../docs/META_A
 
 ## Pedido
 
-> Hacé un video nuevo para el App Review de Meta: proyecto `meta-review-management` (v1), siguiendo docs/VIDEOS.md
+> Hacé un video nuevo para el App Review de Meta: proyecto `meta-review-management` (v1), siguiendo marketing/VIDEOS.md
 > (...). Contexto: Meta pide una "grabación de pantalla" que muestre cómo nuestra app (Atentina, dashboard en
 > https://app.atentina.com.ar) usa el permiso `whatsapp_business_management`. Los revisores de Meta no leen
 > español: el video lleva **subtítulos en inglés** grandes y legibles, **sin locución** (nuestras voces son en
