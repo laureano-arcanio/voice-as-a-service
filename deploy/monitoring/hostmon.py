@@ -54,6 +54,11 @@ def num(v):
         return None
 
 
+def fmt(v: float) -> str:
+    """Valor sin perder precisión: un timestamp (1793190178) con :g quedaba 1.79319e+09, redondeado a 500 s."""
+    return str(int(v)) if v.is_integer() else repr(v)
+
+
 def esc(v):
     return str(v).replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ")
 
@@ -79,7 +84,7 @@ class Metrics:
                 if n != name:
                     continue
                 lab = ",".join(f'{k}="{esc(x)}"' for k, x in sorted(labels.items()))
-                out.append(f"{n}{{{lab}}} {v:g}" if lab else f"{n} {v:g}")
+                out.append(f"{n}{{{lab}}} {fmt(v)}" if lab else f"{n} {fmt(v)}")
         return "\n".join(out) + "\n"
 
 

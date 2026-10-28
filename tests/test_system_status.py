@@ -209,13 +209,23 @@ def test_hostmon_parses_nvidia_smi_and_throttle():
     text = m.render()
     lab = 'bus="04:00.0",gpu="0",name="NVIDIA GeForce RTX 3090"'
     assert f"atentina_gpu_utilization_ratio{{{lab}}} 0.37" in text
-    assert f"atentina_gpu_memory_used_bytes{{{lab}}} {21000 * 1024 * 1024:g}" in text
+    assert f"atentina_gpu_memory_used_bytes{{{lab}}} {21000 * 1024 * 1024}" in text
     assert f'atentina_gpu_throttle{{{lab},reason="sw_thermal"}} 1' in text   # 0x20
     assert f'atentina_gpu_throttle{{{lab},reason="hw_thermal"}} 1' in text   # 0x40
     assert f'atentina_gpu_throttle{{{lab},reason="sw_power_cap"}} 0' in text
     assert "atentina_gpu_count 2" not in text and "atentina_gpu_count 1" in text
     assert text.count("# TYPE atentina_gpu_throttle gauge") == 1
     assert hostmon.throttle_reasons("[N/A]") == {}
+
+
+def test_hostmon_keeps_full_precision():
+    """Un timestamp con 6 cifras (1.79319e+09) quedaba hasta 500 s corrido y disparaba ColectorDelHostCaido."""
+    m = hostmon.Metrics()
+    m.add("atentina_hostmon_last_run_timestamp_seconds", 1793190178.521)
+    m.add("atentina_container_cpu_seconds_total", 1234567.25, {"service": "app"})
+    text = m.render()
+    assert "atentina_hostmon_last_run_timestamp_seconds 1793190178.521" in text
+    assert 'atentina_container_cpu_seconds_total{service="app"} 1234567.25' in text
 
 
 def test_hostmon_parses_sip_smart_and_xid():
