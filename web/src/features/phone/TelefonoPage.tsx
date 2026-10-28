@@ -16,7 +16,7 @@ import {
   UnstyledButton,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import { IconPhone, IconSearch } from '@tabler/icons-react';
+import { IconDeviceMobile, IconPhone, IconSearch } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import type { CallSummary, Contact, PhoneNumber } from '@/api/types';
@@ -25,9 +25,11 @@ import { PageHeader } from '@/components/PageHeader';
 import { PlanGate } from '@/components/PlanGate';
 import { EmptyState, ErrorAlert } from '@/components/QueryState';
 import { useCurrentUser } from '@/features/auth/api';
+import { useSwitchTo } from '@/features/auth/switch';
 import { useBlockedNumbers, useContacts, useOptouts } from '@/features/contacts/api';
 import { usePhoneNumbers } from '@/features/numbers/api';
 import { E164_RE, formatDate, formatDateTime, formatDuration, formatValue } from '@/lib/format';
+import { notifyError } from '@/lib/notify';
 import { useContactCalls, useMyCalls } from './api';
 import { type CallTarget, useDirectCall } from './context';
 import { PresenceSwitch } from './PresenceSwitch';
@@ -261,6 +263,29 @@ function MyCalls({ userId }: { userId: string }) {
   );
 }
 
+/** Abre la app del teléfono (telefono.atentina.com.ar) con la misma sesión; con una llamada, no (la cortaría). */
+function OpenPhoneApp() {
+  const c = useDirectCall();
+  const go = useSwitchTo();
+  const reason = c.disabledReason ?? (c.busy ? 'Terminá la llamada antes de abrir la aplicación.' : null);
+  return (
+    <Tooltip label={reason} withArrow disabled={!reason} multiline w={240}>
+      <Button
+        variant="default"
+        leftSection={<IconDeviceMobile size={18} />}
+        loading={go.isPending}
+        data-disabled={!!reason || undefined}
+        onClick={(e) => {
+          if (reason) return e.preventDefault();
+          go.mutate('phone', { onError: (err) => notifyError(err, 'No se pudo abrir la aplicación') });
+        }}
+      >
+        Abrir aplicación Teléfono
+      </Button>
+    </Tooltip>
+  );
+}
+
 /**
  * Teléfono (docs/LLAMADAS_DIRECTAS_PLAN.md, sección 8): el usuario llama a un contacto, o a un número
  * suelto, desde el navegador y desde un número de su cuenta. Habla él, sin agente; la llamada sigue en
@@ -318,7 +343,14 @@ export function TelefonoPage() {
       <PageHeader
         title="Teléfono del equipo"
         description="Llamá a tus contactos desde el navegador: hablás vos, sin agente. La llamada sigue abajo mientras usás el panel."
-        actions={c.enabled ? <PresenceSwitch /> : undefined}
+        actions={
+          c.enabled ? (
+            <Group gap="md">
+              <PresenceSwitch />
+              <OpenPhoneApp />
+            </Group>
+          ) : undefined
+        }
       />
       <PlanGate
         feature="direct_calls"

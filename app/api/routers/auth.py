@@ -1,11 +1,15 @@
+from typing import Literal
+from urllib.parse import urlparse
+
 from fastapi import APIRouter, Depends, Request, Response
+from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 
 from ... import legal as legal_docs
 from ...config import settings
 from ...db import utcnow
 from ...models import Client, User
-from ...services import branding, legal, profile, signup
+from ...services import branding, legal, profile, session_switch, signup
 from ...services.errors import Invalid, ServiceError
 from ...services.ratelimit import Limit, RateLimited, client_key
 from ...services.security import (
@@ -27,6 +31,7 @@ from ..deps import (
     rate_limit,
     request_is_https,
     require_not_support,
+    require_session,
     require_user,
 )
 from ..schemas import (
@@ -45,6 +50,9 @@ from ..schemas import (
     PasswordSetupIn,
     PasswordSetupInfo,
     ProfileIn,
+    SessionRedeemIn,
+    SessionSwitchIn,
+    SessionSwitchOut,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -291,3 +299,50 @@ def handoff(body: HandoffIn, request: Request, response: Response, db: DB):
     db.commit()
     _open_session(request, response, user)
     return _me(db, user)
+
+
+# ---------- una sola sesión para el panel y el teléfono (services/session_switch.py) ----------
+
+_switch_limit = Depends(rate_limit("session_switch", Limit(120, 3600), per="ip"))
+
+
+def _request_host(request: Request) -> str:
+    return request.headers.get("host", "").split(":")[0].lower()
+
+
+@router.post("/switch", response_model=SessionSwitchOut, dependencies=[Depends(require_session)])
+def session_switch_url(body: SessionSwitchIn, p: CurrentPrincipal, request: Request, db: DB):
+    """La URL para abrir el teléfono (o volver al panel) con la misma sesión: en otro host lleva un pase de un
+    solo uso (60 s) en el fragmento; en el mismo host, la ruta."""
+    return SessionSwitchOut(url=session_switch.target_url(db.get(User, p.id), body.target, _request_host(request)))
+
+
+@router.post("/switch/redeem", response_model=MeOut, dependencies=[_switch_limit],
+             responses={422: {"description": "Pase vencido, ya usado o de otro host (code invalid_switch)"}})
+def session_switch_redeem(body: SessionRedeemIn, request: Request, response: Response, db: DB):
+    """Abre la sesión en este host con el pase de /auth/switch (sin cerrar la del otro)."""
+    user = session_switch.redeem(body.token, _request_host(request), lambda uid: db.get(User, uid))
+    if user is None:
+        raise Invalid("El pase venció o ya se usó. Ingresá con tu email y tu clave.", "invalid_switch")
+    _open_session(request, response, user)
+    return _me(db, user)
+
+
+@router.get("/switch/start", include_in_schema=False, dependencies=[_switch_limit])
+def session_switch_start(request: Request, db: DB, target: Literal["phone"] = "phone"):
+    """Ingreso automático del teléfono con la sesión del panel: el teléfono sin sesión navega acá; en su host
+    rebota al del panel, y ahí, con sesión, vuelve con el pase (si no, con #sin_sesion y pide la clave). Solo
+    redirige a PHONE_APP_BASE_URL. Una navegación desde otro sitio no lleva la cookie (SameSite=Strict)."""
+    phone, panel = session_switch.phone_base(), session_switch.panel_base()
+    headers = {"Cache-Control": "no-store"}
+    if not phone:
+        return RedirectResponse(session_switch.PHONE_LOCAL_PATH, 302, headers=headers)
+    here = _request_host(request)
+    if panel and here != urlparse(panel).hostname:
+        return RedirectResponse(f"{panel}/api/v1/auth/switch/start?target={target}", 302, headers=headers)
+    token = request.cookies.get(SESSION_COOKIE)
+    payload = decode_session_token(token) if token else None
+    user = db.get(User, payload["sub"]) if payload else None
+    if user is None or not user.active or payload.get("sv", 0) != user.session_version:
+        return RedirectResponse(f"{phone}/#sin_sesion", 302, headers=headers)
+    return RedirectResponse(session_switch.target_url(user, "phone", here), 302, headers=headers)

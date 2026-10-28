@@ -12,13 +12,17 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { PREVIEW_KEY } from './branding/context';
+import { bootPanelSession } from './features/auth/switch';
 import { adoptSupportFromUrl } from './features/support/session';
 
 // Pestaña abierta con "ver como cliente" (antes del primer pedido a la API).
 adoptSupportFromUrl(PREVIEW_KEY);
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
+// Llega desde el teléfono con un pase de sesión (#sesion=): se abre antes de pedir `me`.
+void bootPanelSession().finally(() =>
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  ),
 );

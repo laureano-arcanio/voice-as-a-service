@@ -119,6 +119,27 @@ def decode_handoff_token(token: str) -> dict | None:
         return None
 
 
+def _switch_key() -> bytes:
+    return hashlib.sha256(f"{settings.auth_secret}|switch".encode()).digest()
+
+
+def create_switch_token(user_id: str, session_version: int, host: str, seconds: int = 60) -> str:
+    """Pase de la sesión a otro host propio (panel <-> telefono., services/session_switch.py): vale para ese
+    host (`aud`), una vez (`jti`) y 60 s. No sube session_version: las otras sesiones siguen abiertas."""
+    now = datetime.datetime.now(datetime.UTC)
+    payload = {"sub": user_id, "sv": session_version, "aud": host, "jti": secrets.token_urlsafe(16), "iat": now,
+               "exp": now + datetime.timedelta(seconds=seconds)}
+    return jwt.encode(payload, _switch_key(), algorithm="HS256")
+
+
+def decode_switch_token(token: str, host: str) -> dict | None:
+    try:
+        return jwt.decode(token, _switch_key(), algorithms=["HS256"], audience=host,
+                          options={"require": ["sub", "exp", "sv", "aud", "jti"]})
+    except jwt.PyJWTError:
+        return None
+
+
 def _account_code_key() -> bytes:
     return hashlib.sha256(f"{settings.auth_secret}|account-code".encode()).digest()
 

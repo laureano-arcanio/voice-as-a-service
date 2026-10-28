@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Contact } from '@/api/types';
 import { CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
+import { leave } from '@/features/auth/switch';
 import { CallProvider } from './CallProvider';
 import { TelefonoPage } from './TelefonoPage';
 import { FakeRoom, mockApi, PLAN_FREE, PLAN_OK, stubMediaDevices } from './testing';
@@ -202,6 +203,18 @@ describe('TelefonoPage', () => {
         expect.objectContaining({ contact_id: null, phone: '+5493515559999', from_number_id: 'n1' }),
       ),
     );
+  });
+
+  it('Abrir aplicación Teléfono lleva a la app con la misma sesión', async () => {
+    const assign = vi.spyOn(leave, 'assign').mockImplementation(() => undefined);
+    mockApi({
+      ...routes(),
+      'POST /api/v1/auth/switch': () => jsonResponse({ url: 'https://tel.test/#sesion=t' }),
+    });
+    renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Abrir aplicación Teléfono' }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('https://tel.test/#sesion=t'));
+    assign.mockRestore();
   });
 
   it('sin la función en el plan: el aviso y la pantalla bloqueada', async () => {

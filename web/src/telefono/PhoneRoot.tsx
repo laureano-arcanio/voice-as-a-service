@@ -11,6 +11,7 @@ import { useBranding } from '@/branding/context';
 import { BrandingProvider } from '@/branding/Provider';
 import { brandCssVariables, brandTheme } from '@/branding/theme';
 import { meKey, resetSession, useCurrentUser, useLogout } from '@/features/auth/api';
+import { useSwitchTo } from '@/features/auth/switch';
 import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage';
 import { RequireAuth } from '@/features/auth/guards';
 import { LoginPage } from '@/features/auth/LoginPage';
@@ -22,12 +23,16 @@ import { PhoneApp } from './PhoneApp';
 function ClientOnly({ children }: { children: ReactNode }) {
   const me = useCurrentUser();
   const logout = useLogout();
+  const panel = useSwitchTo();
   if (me.role === 'client') return <>{children}</>;
   return (
     <Center mih="100dvh" p="md">
       <Stack align="center" gap="xs" maw={360} ta="center">
         <Title order={3}>Teléfono del equipo</Title>
         <Text c="dimmed">Es para los usuarios de una empresa. Ingresá con tu usuario del equipo.</Text>
+        <Button onClick={() => panel.mutate('panel')} loading={panel.isPending}>
+          Ir al panel
+        </Button>
         <Button variant="default" onClick={() => logout.mutate()} loading={logout.isPending}>
           Cerrar sesión
         </Button>

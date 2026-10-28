@@ -522,6 +522,88 @@
     }
    }
   },
+  "/api/v1/auth/switch": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Session Switch Url",
+    "description": "La URL para abrir el teléfono (o volver al panel) con la misma sesión: en otro host lleva un pase de un\nsolo uso (60 s) en el fragmento; en el mismo host, la ruta.",
+    "operationId": "session_switch_url_api_v1_auth_switch_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SessionSwitchIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SessionSwitchOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/auth/switch/redeem": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Session Switch Redeem",
+    "description": "Abre la sesión en este host con el pase de /auth/switch (sin cerrar la del otro).",
+    "operationId": "session_switch_redeem_api_v1_auth_switch_redeem_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SessionRedeemIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MeOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Pase vencido, ya usado o de otro host (code invalid_switch)"
+     }
+    }
+   }
+  },
   "/api/v1/tiers": {
    "get": {
     "tags": [
@@ -26286,6 +26368,53 @@
      "moved"
     ],
     "title": "SecretPromoteOut"
+   },
+   "SessionRedeemIn": {
+    "properties": {
+     "token": {
+      "type": "string",
+      "maxLength": 2048,
+      "minLength": 10,
+      "title": "Token"
+     }
+    },
+    "type": "object",
+    "required": [
+     "token"
+    ],
+    "title": "SessionRedeemIn"
+   },
+   "SessionSwitchIn": {
+    "properties": {
+     "target": {
+      "type": "string",
+      "enum": [
+       "phone",
+       "panel"
+      ],
+      "title": "Target",
+      "description": "phone: la app del teléfono; panel: el Teléfono del equipo"
+     }
+    },
+    "type": "object",
+    "required": [
+     "target"
+    ],
+    "title": "SessionSwitchIn"
+   },
+   "SessionSwitchOut": {
+    "properties": {
+     "url": {
+      "type": "string",
+      "title": "Url",
+      "description": "A dónde ir: con el pase de sesión de un solo uso (#sesion=) si es otro host"
+     }
+    },
+    "type": "object",
+    "required": [
+     "url"
+    ],
+    "title": "SessionSwitchOut"
    },
    "SignupCheckIn": {
     "properties": {

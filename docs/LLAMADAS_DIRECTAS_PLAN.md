@@ -565,9 +565,15 @@ bajas y bloqueados).
   `web/public/telefono.webmanifest` (se puede agregar a la pantalla de inicio). Backend:
   `app/api/phone_app_host.py` (`GET /movil` en cualquier host; con el Host de `PHONE_APP_BASE_URL`, `/` es la página y
   solo pasan `/api/v1/` sin los docs, `/assets/` y los íconos; todo lo demás, 404) y `tests/test_phone_app_host.py`.
-- **Sesión:** la cookie no tiene `Domain`, así que se ingresa en `telefono.` con el mismo usuario y clave (login y
-  "Olvidé mi clave" del panel, en un router en memoria). El chequeo de `Origin` acepta el propio host. Un admin ve
-  "es para los usuarios de una empresa".
+- **Una sola sesión (28-oct-2026):** la cookie sigue sin `Domain` (no viaja a los demás subdominios, como la
+  landing en Render). Para pasar de un host al otro, `POST /auth/switch {target: phone|panel}` da la URL con un pase
+  de un solo uso (60 s, para el host destino, `jti` en memoria del único `app`, sin subir `session_version`) en el
+  fragmento (`#sesion=`); el destino lo cambia por su cookie (`POST /auth/switch/redeem`) antes de montar la app
+  (`web/src/features/auth/switch.ts`). Botones: **Abrir aplicación Teléfono** en el Teléfono del equipo del panel
+  (apagado con una llamada en curso) y **Volver al panel** en el menú de la app. Entrando directo a `telefono.` sin
+  sesión, la app prueba una vez por pestaña con la del panel (`GET /auth/switch/start`: rebota al host del panel y,
+  con sesión, vuelve con el pase; si no, con `#sin_sesion` y pide la clave). Cerrar sesión cierra solo la del host.
+  Código en `app/services/session_switch.py`; tests en `tests/test_phone_app_host.py`.
 - **Desplegar** (hecho; para repetirlo): `PHONE_APP_BASE_URL=https://telefono.atentina.com.ar` en `.env` (diff enmascarado antes), la ruta
   `telefono.atentina.com.ar` → `http://localhost:8011` en el túnel (la crea el usuario, como `llamar.`) y, sin
   llamadas en curso, `make calls-active && make up-agent` (la imagen de `app` compila `web/`). Antes de la ruta del

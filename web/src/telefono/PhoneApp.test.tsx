@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Contact } from '@/api/types';
+import { leave } from '@/features/auth/switch';
 import { CallProvider } from '@/features/phone/CallProvider';
 import { FakeRoom, mockApi, PLAN_FREE, PLAN_OK, stubMediaDevices } from '@/features/phone/testing';
 import { CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
@@ -207,6 +208,20 @@ describe('PhoneApp', () => {
       expect(screen.queryByRole('dialog', { name: 'Llamada entrante' })).not.toBeInTheDocument(),
     );
     expect(seen.some((s) => s.path === '/api/v1/direct-calls/conv-in/decline')).toBe(true);
+  });
+
+  it('Volver al panel abre el Teléfono del equipo con la misma sesión', async () => {
+    const assign = vi.spyOn(leave, 'assign').mockImplementation(() => undefined);
+    const seen = mockApi(
+      routes(PLAN_OK, {
+        'POST /api/v1/auth/switch': () => jsonResponse({ url: 'https://app.test/telefono#sesion=t' }),
+      }),
+    );
+    renderApp();
+    await userEvent.click(await screen.findByRole('button', { name: 'Tu cuenta' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Volver al panel' }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('https://app.test/telefono#sesion=t'));
+    expect(seen.find((s) => s.path === '/api/v1/auth/switch')?.body).toEqual({ target: 'panel' });
   });
 
   it('sin la función en el plan: la pantalla bloqueada', async () => {

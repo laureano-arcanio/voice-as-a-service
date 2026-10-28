@@ -8,10 +8,17 @@ import '../styles.css';
 import './telefono.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { bootPhoneSession } from '@/features/auth/switch';
 import { PhoneRoot } from './PhoneRoot';
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <PhoneRoot />
-  </StrictMode>,
-);
+// La sesión del panel: con el pase (#sesion=) o, sin sesión, probando una vez con la del panel.
+void bootPhoneSession()
+  .catch(() => true)
+  .then((stay) => {
+    if (!stay) return;
+    createRoot(document.getElementById('root')!).render(
+      <StrictMode>
+        <PhoneRoot />
+      </StrictMode>,
+    );
+  });

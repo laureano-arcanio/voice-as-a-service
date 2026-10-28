@@ -9,6 +9,7 @@ import {
   IconClock,
   IconCopy,
   IconDialpad,
+  IconLayoutDashboard,
   IconLogout,
   IconPhone,
   IconSearch,
@@ -22,6 +23,7 @@ import { type ReactNode, useMemo, useState } from 'react';
 import type { CallSummary, Contact, PhoneNumber } from '@/api/types';
 import { usePageTitle } from '@/branding/context';
 import { useCurrentUser, useLogout } from '@/features/auth/api';
+import { useSwitchTo } from '@/features/auth/switch';
 import { useFeatureLock, usePlanFeatures } from '@/features/billing/features';
 import { useBlockedNumbers, useContact, useContacts, useOptouts } from '@/features/contacts/api';
 import { usePhoneNumbers } from '@/features/numbers/api';
@@ -609,6 +611,7 @@ function Dialer({ ctx, onClose }: { ctx: PhoneCtx; onClose: () => void }) {
 function AccountMenu({ ctx }: { ctx: PhoneCtx }) {
   const presence = usePresence();
   const logout = useLogout();
+  const back = useSwitchTo();
   const me = ctx.me;
   return (
     <Menu position="bottom-end" width={280} shadow="md" closeOnItemClick={false}>
@@ -656,6 +659,13 @@ function AccountMenu({ ctx }: { ctx: PhoneCtx }) {
           </>
         )}
         <Menu.Divider />
+        <Menu.Item
+          leftSection={<IconLayoutDashboard size={16} />}
+          disabled={back.isPending}
+          onClick={() => back.mutate('panel', { onError: (e) => notifyError(e, 'No se pudo abrir el panel') })}
+        >
+          Volver al panel
+        </Menu.Item>
         <Menu.Item leftSection={<IconLogout size={16} />} onClick={() => logout.mutate()}>
           Cerrar sesión
         </Menu.Item>

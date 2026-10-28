@@ -1687,6 +1687,18 @@ class HandoffIn(BaseModel):
     token: str = Field(min_length=10, max_length=2048)
 
 
+class SessionSwitchIn(BaseModel):
+    target: Literal["phone", "panel"] = Field(description="phone: la app del teléfono; panel: el Teléfono del equipo")
+
+
+class SessionSwitchOut(BaseModel):
+    url: str = Field(description="A dónde ir: con el pase de sesión de un solo uso (#sesion=) si es otro host")
+
+
+class SessionRedeemIn(BaseModel):
+    token: str = Field(min_length=10, max_length=2048)
+
+
 # ---------- cobro de los planes (docs/SUSCRIPCIONES_PLAN.md) ----------
 
 TaxCondition = Literal["ri", "monotributo", "exento", "cf"]

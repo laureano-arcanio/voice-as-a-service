@@ -264,6 +264,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/switch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Session Switch Url
+         * @description La URL para abrir el teléfono (o volver al panel) con la misma sesión: en otro host lleva un pase de un
+         *     solo uso (60 s) en el fragmento; en el mismo host, la ruta.
+         */
+        post: operations["session_switch_url_api_v1_auth_switch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/switch/redeem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Session Switch Redeem
+         * @description Abre la sesión en este host con el pase de /auth/switch (sin cerrar la del otro).
+         */
+        post: operations["session_switch_redeem_api_v1_auth_switch_redeem_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tiers": {
         parameters: {
             query?: never;
@@ -8506,6 +8547,28 @@ export interface components {
              */
             moved: number;
         };
+        /** SessionRedeemIn */
+        SessionRedeemIn: {
+            /** Token */
+            token: string;
+        };
+        /** SessionSwitchIn */
+        SessionSwitchIn: {
+            /**
+             * Target
+             * @description phone: la app del teléfono; panel: el Teléfono del equipo
+             * @enum {string}
+             */
+            target: "phone" | "panel";
+        };
+        /** SessionSwitchOut */
+        SessionSwitchOut: {
+            /**
+             * Url
+             * @description A dónde ir: con el pase de sesión de un solo uso (#sesion=) si es otro host
+             */
+            url: string;
+        };
         /** SignupCheckIn */
         SignupCheckIn: {
             /**
@@ -10631,6 +10694,70 @@ export interface operations {
                 };
             };
             /** @description Link vencido o ya usado (code invalid_handoff) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    session_switch_url_api_v1_auth_switch_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionSwitchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionSwitchOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    session_switch_redeem_api_v1_auth_switch_redeem_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionRedeemIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
+                };
+            };
+            /** @description Pase vencido, ya usado o de otro host (code invalid_switch) */
             422: {
                 headers: {
                     [name: string]: unknown;
