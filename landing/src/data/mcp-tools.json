@@ -829,7 +829,7 @@
    "name": "get_report_summary",
    "toolset": "reports",
    "title": "Reporte: resumen",
-   "description": "Resumen del período contra el anterior: consultas (llamadas y conversaciones de WhatsApp) por canal, cuántas (y qué % de las atendidas por un agente) tienen los datos completos y cumplen el objetivo, cuántas terminaron en una transferencia a una persona (pedidas, atendidas y % de las consultas), minutos, llamadas finalizadas, fallidas y rechazadas por el límite del plan, duración media y mensajes de WhatsApp; el consumo de minutos del mes con su proyección a fin de mes; y la serie diaria de consultas por canal con las transferencias. Es lo primero a consultar para \"¿cómo nos fue?\" o \"¿alcanza el plan?\".",
+   "description": "Resumen del período contra el anterior: consultas (llamadas y conversaciones de WhatsApp) por canal (teléfono entrante, teléfono saliente, WhatsApp y web), cuántas (y qué % de las atendidas por un agente) tienen los datos completos y cumplen el objetivo, cuántas terminaron en una transferencia a una persona (pedidas, atendidas y % de las consultas), minutos, llamadas finalizadas, fallidas y rechazadas por el límite del plan, duración media y mensajes de WhatsApp; el consumo de minutos del mes con su proyección a fin de mes; y la serie diaria de consultas por canal con las transferencias. Es lo primero a consultar para \"¿cómo nos fue?\" o \"¿alcanza el plan?\".",
    "kind": "lectura",
    "features": [],
    "oauth": false,

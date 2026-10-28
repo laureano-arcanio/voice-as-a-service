@@ -2483,7 +2483,8 @@ class ReportPeriodOut(BaseModel):
 
 
 class ReportByChannelOut(BaseModel):
-    voice: int
+    voice_in: int = Field(description="Teléfono entrante (también las pruebas y las conversaciones por API)")
+    voice_out: int = Field(description="Teléfono saliente: del agente, de una campaña o directa de una persona")
     whatsapp: int
     web: int
 
@@ -2520,7 +2521,8 @@ class ReportPlanOut(BaseModel):
 
 class ReportSummaryDayOut(BaseModel):
     date: datetime.date
-    voice: int
+    voice_in: int
+    voice_out: int
     whatsapp: int
     web: int
     transfers: int

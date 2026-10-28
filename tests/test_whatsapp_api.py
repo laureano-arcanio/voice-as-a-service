@@ -170,7 +170,7 @@ def test_whatsapp_conversation_in_list_detail_and_stats(api, admin, setup):
     kpis = admin.get(f"{V1}/reports/summary", params={"client_id": c["id"]}).json()["kpis"]
     assert kpis["conversations"] == 1 and kpis["by_channel"]["whatsapp"] == 1
     kpis = admin.get(f"{V1}/reports/summary", params={"client_id": c["id"], "include_tests": True}).json()["kpis"]
-    assert kpis["conversations"] == 3 and kpis["by_channel"] == {"voice": 2, "whatsapp": 1, "web": 0}
+    assert kpis["conversations"] == 3 and kpis["by_channel"] == {"voice_in": 2, "voice_out": 0, "whatsapp": 1, "web": 0}
 
 
 def test_client_user_sees_its_whatsapp_conversations(api, admin, setup):

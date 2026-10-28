@@ -201,7 +201,10 @@ def _has_event(types) -> exists:
     return exists().where(Event.conversation_id == ConversationRow.id, Event.type.in_(types))
 
 
-KIND = case((ConversationRow.channel == "whatsapp", "whatsapp"), (CallRow.mode == "web", "web"), else_="voice")
+# Teléfono entrante o saliente: saliente es la que marca el agente (o una campaña) o una persona (directa); el resto
+# de las llamadas (entrantes, pruebas) y las conversaciones por API, entrante.
+KIND = case((ConversationRow.channel == "whatsapp", "whatsapp"), (CallRow.mode == "web", "web"),
+            (CallRow.mode.in_(("saliente", "directa")), "voice_out"), else_="voice_in")
 CONVERSION = func.coalesce(ConversationRow.conversion, "empty")
 
 
@@ -282,17 +285,18 @@ def _transfer(types):
 def _kpis(s: Session, flt: ReportFilter) -> dict:
     finished = CallRow.status == "finalizada"
     row = s.execute(_convs(
-        flt, func.count(), _count_if(ConversationRow.agent_id.is_not(None)), _count_if(KIND == "voice"), _count_if(KIND == "whatsapp"), _count_if(KIND == "web"),
+        flt, func.count(), _count_if(ConversationRow.agent_id.is_not(None)), _count_if(KIND == "voice_in"),
+        _count_if(KIND == "voice_out"), _count_if(KIND == "whatsapp"), _count_if(KIND == "web"),
         _count_if(ConversationRow.conversion == "complete"), _count_if(ConversationRow.goal.is_(True)),
         _count_if(_transfer(REQUEST_EVENTS)), _count_if(_transfer(ANSWER_EVENTS)),
         func.coalesce(func.sum(CallRow.duration_seconds), 0),
         func.coalesce(func.sum(case((finished, CallRow.duration_seconds), else_=0)), 0), _count_if(finished),
         _count_if(and_(CallRow.status == "rechazada", CallRow.ended_reason.in_(LIMIT_REASONS))),
         _count_if(CallRow.status == "fallida"))).one()
-    total, with_agent, voice, wa, web, complete, goal, transfers, answered, seconds, fin_seconds, fin, rejected, failed = (
+    total, with_agent, voice_in, voice_out, wa, web, complete, goal, transfers, answered, seconds, fin_seconds, fin, rejected, failed = (
         map(_n, row))
     return {
-        "conversations": total, "by_channel": {"voice": voice, "whatsapp": wa, "web": web},
+        "conversations": total, "by_channel": {"voice_in": voice_in, "voice_out": voice_out, "whatsapp": wa, "web": web},
         # Conversion, objetivo y transferencias son de las conversaciones con agente (no las directas).
         "with_agent": with_agent, "conversions": complete, "conversion_pct": _pct(complete, with_agent),
         "goals": goal, "goal_pct": _pct(goal, with_agent),
@@ -326,7 +330,7 @@ def summary(s: Session, flt: ReportFilter) -> dict:
     hour = _hour(s, ConversationRow.created_at)
     rows = s.execute(_convs(flt, hour, KIND, func.count(), _count_if(_transfer(REQUEST_EVENTS)),
                             _count_if(_transfer(ANSWER_EVENTS))).group_by(hour, KIND)).all()
-    daily = {d: {"date": d, "voice": 0, "whatsapp": 0, "web": 0, "transfers": 0, "transfers_answered": 0}
+    daily = {d: {"date": d, "voice_in": 0, "voice_out": 0, "whatsapp": 0, "web": 0, "transfers": 0, "transfers_answered": 0}
              for d in flt.days()}
     for local, kind, n, transfers, answered in _local_hours(flt, rows):
         day = daily[local.date()]

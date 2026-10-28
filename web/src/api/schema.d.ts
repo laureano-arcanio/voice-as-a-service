@@ -7660,8 +7660,16 @@ export interface components {
         };
         /** ReportByChannelOut */
         ReportByChannelOut: {
-            /** Voice */
-            voice: number;
+            /**
+             * Voice In
+             * @description Teléfono entrante (también las pruebas y las conversaciones por API)
+             */
+            voice_in: number;
+            /**
+             * Voice Out
+             * @description Teléfono saliente: del agente, de una campaña o directa de una persona
+             */
+            voice_out: number;
             /** Whatsapp */
             whatsapp: number;
             /** Web */
@@ -8317,8 +8325,10 @@ export interface components {
              * Format: date
              */
             date: string;
-            /** Voice */
-            voice: number;
+            /** Voice In */
+            voice_in: number;
+            /** Voice Out */
+            voice_out: number;
             /** Whatsapp */
             whatsapp: number;
             /** Web */

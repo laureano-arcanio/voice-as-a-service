@@ -168,7 +168,7 @@ def test_summary_kpis_daily_and_previous(api, data):
     out = report(data["admin"], "summary", client_id=data["acme"])
     k = out["kpis"]
     # Sin prueba, loadtest ni la conversación por API.
-    assert k["conversations"] == 5 and k["by_channel"] == {"voice": 3, "whatsapp": 1, "web": 1}
+    assert k["conversations"] == 5 and k["by_channel"] == {"voice_in": 3, "voice_out": 0, "whatsapp": 1, "web": 1}
     assert (k["conversion_pct"], k["goal_pct"]) == (40.0, 20.0)
     # Los absolutos de los porcentajes: 2 y 1 de las 5 atendidas por un agente; las 3 llamadas del agente terminaron.
     assert (k["with_agent"], k["conversions"], k["goals"], k["finished"], k["failed"]) == (5, 2, 1, 3, 0)
@@ -177,7 +177,7 @@ def test_summary_kpis_daily_and_previous(api, data):
     assert out["previous"]["conversations"] == 1 and out["previous"]["minutes"] == 0.5
     assert out["period"] == {"date_from": "2026-10-01", "date_to": "2026-10-10"}
     day = next(d for d in out["daily"] if d["date"] == "2026-10-02")
-    assert day == {"date": "2026-10-02", "voice": 2, "whatsapp": 0, "web": 0, "transfers": 2, "transfers_answered": 1}
+    assert day == {"date": "2026-10-02", "voice_in": 2, "voice_out": 0, "whatsapp": 0, "web": 0, "transfers": 2, "transfers_answered": 1}
     assert len(out["daily"]) == 10
     assert out["plan"]["inbound_minutes_quota"] == 100 and out["plan"]["outbound_minutes_quota"] is None
     # Con las pruebas: la de prueba y la de la API; el loadtest nunca.
@@ -193,6 +193,10 @@ def test_summary_counts_finished_and_failed_calls(api, data):
     # Una entrante y una saliente terminaron y una saliente falló; las dos terminadas convirtieron y cumplieron.
     assert (k["conversations"], k["with_agent"], k["conversions"], k["goals"]) == (3, 3, 2, 2)
     assert (k["finished"], k["failed"], k["conversion_pct"], k["goal_pct"]) == (2, 1, 66.7, 66.7)
+    # Una entrante y dos salientes (la de la campaña y la que falló), por día.
+    assert k["by_channel"] == {"voice_in": 1, "voice_out": 2, "whatsapp": 0, "web": 0}
+    out = report(data["admin"], "summary", client_id=data["beta"])["daily"]
+    assert [(d["voice_in"], d["voice_out"]) for d in out if d["date"] in ("2026-10-02", "2026-10-05")] == [(1, 0), (0, 2)]
 
 
 def test_scope_by_client(api, data):
@@ -258,7 +262,7 @@ def test_direct_calls_are_reported_apart(api, data):
     assert {"weekday": datetime.date(2026, 10, 7).weekday(), "hour": 10, "count": 1} not in out["heatmap"]
     # Los demas reportes cuentan las llamadas y los minutos, pero la conversion y el embudo siguen siendo del agente.
     k = report(data["admin"], "summary", client_id=data["acme"])["kpis"]
-    assert k["conversations"] == 7 and k["by_channel"]["voice"] == 5 and k["minutes"] == 9.2
+    assert k["conversations"] == 7 and (k["by_channel"]["voice_in"], k["by_channel"]["voice_out"]) == (4, 1) and k["minutes"] == 9.2
     assert (k["conversion_pct"], k["goal_pct"], k["transfer_pct"]) == (40.0, 20.0, 40.0)
     assert (k["transfers"], k["transfers_answered"]) == (2, 1)
     summary = report(data["admin"], "summary", client_id=data["acme"])

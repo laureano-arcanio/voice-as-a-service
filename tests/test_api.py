@@ -585,8 +585,8 @@ def test_date_filters_use_local_days_and_multiple_status(api, admin):
     assert admin.get(f"{V1}/calls", params={**q, "tz": "UTC"}).json()["total"] == 0
     # Los reportes cuentan el dia local igual (la de prueba entra con include_tests).
     summary = admin.get(f"{V1}/reports/summary", params={**q, "include_tests": True}).json()
-    assert [d["voice"] for d in summary["daily"]] == [1]
-    assert [d["voice"] for d in admin.get(f"{V1}/reports/summary", params={**q, "include_tests": True, "tz": "UTC"}
+    assert [d["voice_in"] for d in summary["daily"]] == [1]
+    assert [d["voice_in"] for d in admin.get(f"{V1}/reports/summary", params={**q, "include_tests": True, "tz": "UTC"}
                                           ).json()["daily"]] == [0]
     live = admin.get(f"{V1}/calls", params={"status": ["pendiente", "en_curso"]}).json()
     assert live["total"] == 1

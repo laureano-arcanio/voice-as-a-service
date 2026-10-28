@@ -18,7 +18,8 @@ import type { ReportQuery, SummaryDay, SummaryPlan, SummaryReport } from './type
 
 const DAILY_CSV = [
   { label: 'Fecha', value: 'date' as const },
-  { label: 'Teléfono', value: 'voice' as const },
+  { label: 'Teléfono entrante', value: 'voice_in' as const },
+  { label: 'Teléfono saliente', value: 'voice_out' as const },
   { label: 'WhatsApp', value: 'whatsapp' as const },
   { label: 'Web', value: 'web' as const },
   { label: 'Transferencias pedidas', value: 'transfers' as const },
@@ -29,7 +30,8 @@ function summaryKpis(r: SummaryReport): Kpi[] {
   const k = r.kpis;
   const p = r.previous;
   const channels = [
-    k.by_channel.voice && `${k.by_channel.voice} tel.`,
+    k.by_channel.voice_in && `${k.by_channel.voice_in} ent.`,
+    k.by_channel.voice_out && `${k.by_channel.voice_out} sal.`,
     k.by_channel.whatsapp && `${k.by_channel.whatsapp} WA`,
     k.by_channel.web && `${k.by_channel.web} web`,
   ].filter(Boolean);
@@ -89,7 +91,7 @@ function summaryKpis(r: SummaryReport): Kpi[] {
 /** Consultas por dia por canal (barras apiladas) con las transferencias en el mismo grafico. */
 export function ConsultasChart({ daily }: { daily: SummaryDay[] }) {
   const rows = daily.map((d) => ({ ...d, day: formatDayLabel(d.date) }));
-  const empty = daily.every((d) => !d.voice && !d.whatsapp && !d.web);
+  const empty = daily.every((d) => !d.voice_in && !d.voice_out && !d.whatsapp && !d.web);
   return (
     <ReportCard
       title="Consultas por día"
@@ -110,9 +112,10 @@ export function ConsultasChart({ daily }: { daily: SummaryDay[] }) {
           barProps={{ stackId: 'consultas' }}
           curveType="linear"
           series={[
-            { name: 'voice', label: 'Teléfono', color: 'var(--chart-1)', type: 'bar' },
-            { name: 'whatsapp', label: 'WhatsApp', color: 'var(--chart-2)', type: 'bar' },
-            { name: 'web', label: 'Web', color: 'var(--chart-3)', type: 'bar' },
+            { name: 'voice_in', label: 'Teléfono entrante', color: 'var(--chart-1)', type: 'bar' },
+            { name: 'voice_out', label: 'Teléfono saliente', color: 'var(--chart-2)', type: 'bar' },
+            { name: 'whatsapp', label: 'WhatsApp', color: 'var(--chart-3)', type: 'bar' },
+            { name: 'web', label: 'Web', color: 'gray.5', type: 'bar' },
             { name: 'transfers', label: 'Transferencias pedidas', color: 'gray.7', type: 'line' },
             { name: 'transfers_answered', label: 'Transferencias atendidas', color: 'green.6', type: 'line' },
           ]}

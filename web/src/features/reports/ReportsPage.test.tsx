@@ -7,7 +7,7 @@ import type { SummaryKpis, SummaryReport } from './types';
 
 const KPIS: SummaryKpis = {
   conversations: 12,
-  by_channel: { voice: 8, whatsapp: 4, web: 0 },
+  by_channel: { voice_in: 5, voice_out: 3, whatsapp: 4, web: 0 },
   with_agent: 12,
   conversions: 6,
   conversion_pct: 50,
@@ -38,8 +38,8 @@ const SUMMARY: SummaryReport = {
     period_end: '2026-11-01T03:00:00Z',
   },
   daily: [
-    { date: '2026-10-26', voice: 5, whatsapp: 1, web: 0, transfers: 2, transfers_answered: 1 },
-    { date: '2026-10-27', voice: 3, whatsapp: 3, web: 0, transfers: 1, transfers_answered: 1 },
+    { date: '2026-10-26', voice_in: 4, voice_out: 1, whatsapp: 1, web: 0, transfers: 2, transfers_answered: 1 },
+    { date: '2026-10-27', voice_in: 2, voice_out: 1, whatsapp: 3, web: 0, transfers: 1, transfers_answered: 1 },
   ],
 };
 
@@ -131,8 +131,8 @@ describe('ReportsPage', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Descargar CSV' })[0]!);
     expect(click).toHaveBeenCalled();
     const text = await (blob as unknown as Blob).text();
-    expect(text).toContain('Fecha,Teléfono,WhatsApp,Web,Transferencias pedidas,Transferencias atendidas');
-    expect(text).toContain('2026-10-26,5,1,0,2,1');
+    expect(text).toContain('Fecha,Teléfono entrante,Teléfono saliente,WhatsApp,Web,Transferencias pedidas,Transferencias atendidas');
+    expect(text).toContain('2026-10-26,4,1,1,0,2,1');
     click.mockRestore();
     delete (URL as Partial<typeof URL>).createObjectURL;
     delete (URL as Partial<typeof URL>).revokeObjectURL;

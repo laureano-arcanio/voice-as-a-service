@@ -24097,9 +24097,15 @@
    },
    "ReportByChannelOut": {
     "properties": {
-     "voice": {
+     "voice_in": {
       "type": "integer",
-      "title": "Voice"
+      "title": "Voice In",
+      "description": "Teléfono entrante (también las pruebas y las conversaciones por API)"
+     },
+     "voice_out": {
+      "type": "integer",
+      "title": "Voice Out",
+      "description": "Teléfono saliente: del agente, de una campaña o directa de una persona"
      },
      "whatsapp": {
       "type": "integer",
@@ -24112,7 +24118,8 @@
     },
     "type": "object",
     "required": [
-     "voice",
+     "voice_in",
+     "voice_out",
      "whatsapp",
      "web"
     ],
@@ -25718,9 +25725,13 @@
       "format": "date",
       "title": "Date"
      },
-     "voice": {
+     "voice_in": {
       "type": "integer",
-      "title": "Voice"
+      "title": "Voice In"
+     },
+     "voice_out": {
+      "type": "integer",
+      "title": "Voice Out"
      },
      "whatsapp": {
       "type": "integer",
@@ -25742,7 +25753,8 @@
     "type": "object",
     "required": [
      "date",
-     "voice",
+     "voice_in",
+     "voice_out",
      "whatsapp",
      "web",
      "transfers",

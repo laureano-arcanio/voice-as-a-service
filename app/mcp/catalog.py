@@ -273,7 +273,8 @@ _READ: tuple[Tool, ...] = (
 
     # ---------- reports ----------
     Tool("get_report_summary", "reports", "Reporte: resumen",
-         "Resumen del período contra el anterior: consultas (llamadas y conversaciones de WhatsApp) por canal, "
+         "Resumen del período contra el anterior: consultas (llamadas y conversaciones de WhatsApp) por canal (teléfono entrante, teléfono saliente, "
+         "WhatsApp y web), "
          "cuántas (y qué % de las atendidas por un agente) tienen los datos completos y cumplen el objetivo, "
          "cuántas terminaron en una transferencia a una persona (pedidas, atendidas y % de las consultas), minutos, "
          "llamadas finalizadas, fallidas y rechazadas por el límite del plan, duración media y mensajes de "

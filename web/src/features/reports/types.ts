@@ -28,7 +28,7 @@ export interface HeatCell {
 
 export interface SummaryKpis {
   conversations: number;
-  by_channel: { voice: number; whatsapp: number; web: number };
+  by_channel: { voice_in: number; voice_out: number; whatsapp: number; web: number };
   /** Atendidas por un agente: la base de los porcentajes. */
   with_agent: number;
   conversions: number;
@@ -58,7 +58,8 @@ export interface SummaryPlan {
 
 export interface SummaryDay {
   date: string;
-  voice: number;
+  voice_in: number;
+  voice_out: number;
   whatsapp: number;
   web: number;
   transfers: number;
