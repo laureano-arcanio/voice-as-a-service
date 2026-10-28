@@ -549,7 +549,7 @@ después recrear `app` y `agent` con la imagen anterior. Las directas ya hechas 
 
 ## 16. Teléfono tipo Android en `telefono.atentina.com.ar`
 
-28-oct-2026, **implementado, sin desplegar**. El mismo teléfono del panel (saliente, atender, presencia, timbre, volver
+28-oct-2026, **desplegado el 28-oct-2026** (ruta `telefono.` en el túnel `atentina-demo`, `PHONE_APP_BASE_URL` en `.env`, `app` y `agent` recreados), sin probar con llamadas reales. El mismo teléfono del panel (saliente, atender, presencia, timbre, volver
 a entrar, tonos, subtítulos, guardar contacto) en una página propia que imita la app de teléfono de Android, para usar
 desde el celular o en una pestaña aparte. No hay backend nuevo de llamadas: usa la API de siempre y el
 `CallProvider` de `web/src/features/phone/`, así que valen las mismas reglas (plan, `terms_pending`, soporte, canales,
@@ -568,7 +568,7 @@ bajas y bloqueados).
 - **Sesión:** la cookie no tiene `Domain`, así que se ingresa en `telefono.` con el mismo usuario y clave (login y
   "Olvidé mi clave" del panel, en un router en memoria). El chequeo de `Origin` acepta el propio host. Un admin ve
   "es para los usuarios de una empresa".
-- **Desplegar:** `PHONE_APP_BASE_URL=https://telefono.atentina.com.ar` en `.env` (diff enmascarado antes), la ruta
+- **Desplegar** (hecho; para repetirlo): `PHONE_APP_BASE_URL=https://telefono.atentina.com.ar` en `.env` (diff enmascarado antes), la ruta
   `telefono.atentina.com.ar` → `http://localhost:8011` en el túnel (la crea el usuario, como `llamar.`) y, sin
   llamadas en curso, `make calls-active && make up-agent` (la imagen de `app` compila `web/`). Antes de la ruta del
   túnel ya se puede probar en `app.atentina.com.ar/movil`. Se usa `telefono` sin tilde: un subdominio con "é" es un
