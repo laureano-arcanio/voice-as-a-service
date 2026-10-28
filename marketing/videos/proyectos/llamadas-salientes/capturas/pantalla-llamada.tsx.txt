@@ -1,0 +1,43 @@
+// TEMPORAL, no se versiona en web/: la pantalla de llamada del teléfono (InCallScreen) con un estado fijo, para capturarla sin
+// una llamada real (el backend aislado no tiene LiveKit). Se copiaba a web/src/zz-captura-tmp.tsx, con web/zz-captura-tmp.html
+// (un <div id="root"> y el script) y se abría con Vite en /zz-captura-tmp.html?phase=ringing|active. Se borraron al terminar.
+import '@fontsource-variable/figtree';
+import '@fontsource-variable/bricolage-grotesque';
+import '@fontsource/ibm-plex-mono/latin-400.css';
+import '@fontsource/ibm-plex-mono/latin-500.css';
+import '@mantine/core/styles.css';
+import '@mantine/notifications/styles.css';
+import './styles.css';
+import './telefono/telefono.css';
+import { MantineProvider } from '@mantine/core';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { createRoot } from 'react-dom/client';
+import { brandTheme } from '@/branding/theme';
+import { BrandingProvider } from '@/branding/Provider';
+import { DirectCallContext, type DirectCallValue } from '@/features/phone/context';
+import { createQueryClient } from '@/queryClient';
+import { InCallScreen } from './telefono/InCall';
+
+const q = new URLSearchParams(location.search);
+const phase = (q.get('phase') ?? 'active') as DirectCallValue['phase'];
+const noop = () => {};
+const value = {
+  phase, direction: 'outbound', conversationId: 'x', enabled: true, busy: true,
+  startedAt: phase === 'active' ? Date.now() - 41_000 : null, endedAt: null, result: null, error: null, muted: false,
+  audioBlocked: false, transcript: [], rejoinId: null, failedRingId: null, disabledReason: null,
+  target: { contactId: 'c1', phone: '+5493515550101', name: 'Juan Pérez', fromLabel: 'Ventas · +541152630862' },
+  call: async () => true, join: async () => ({ ok: true }), answer: async () => true, hangup: noop, toggleMute: noop, dtmf: noop,
+  startAudio: noop, dismiss: noop, dismissRejoin: noop,
+} as unknown as DirectCallValue;
+
+createRoot(document.getElementById('root')!).render(
+  <QueryClientProvider client={createQueryClient()}>
+    <BrandingProvider>
+      <MantineProvider theme={brandTheme(null as never)} forceColorScheme="light">
+        <DirectCallContext.Provider value={value}>
+          <div className="tel-app"><InCallScreen onRedial={noop} /></div>
+        </DirectCallContext.Provider>
+      </MantineProvider>
+    </BrandingProvider>
+  </QueryClientProvider>,
+);

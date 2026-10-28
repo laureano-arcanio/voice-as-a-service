@@ -1,0 +1,17 @@
+import { abrir, login, clickText, wait, base, out, inicio, sinSpell } from './ll_lib.mjs';
+const { browser, page } = await abrir();
+await inicio(page);
+await page.goto(`${base}/account`, { waitUntil: 'networkidle0' }); await wait(1000);
+await page.click('button[aria-label^="Editar"]'); await wait(900);
+const abrirSel = async () => { await page.evaluate(() => { const i = [...document.querySelectorAll('[role=dialog] input')].find((e) => e.placeholder === 'Agregar persona'); i.click(); }); await wait(500); };
+await abrirSel();
+await page.screenshot({ path: `${out}/x-num-add1.png` });
+console.log('ana', await clickText(page, 'Ana Ríos', '[role=option]')); await wait(500);
+await abrirSel();
+console.log('pedro', await clickText(page, 'Pedro Gómez', '[role=option]')); await wait(600);
+await sinSpell(page);
+await page.screenshot({ path: `${out}/06-numero-equipo.png` });
+console.log('guardar', await page.evaluate(() => { const b = [...document.querySelectorAll('[role=dialog] button')].filter((e) => /Guardar/.test(e.textContent)); b.at(-1)?.scrollIntoView(); b.at(-1)?.click(); return b.length; }));
+await wait(1500);
+await page.screenshot({ path: `${out}/06b-numero-guardado.png` });
+await browser.close();

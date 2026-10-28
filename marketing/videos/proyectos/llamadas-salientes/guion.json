@@ -1,0 +1,63 @@
+{
+  "nota": "Tutorial horizontal para YouTube: configurar el número, cargar el equipo y los contactos, y llamar desde el panel y desde la aplicación Teléfono. Narradora paula; gonzalo en dos líneas (grabación y requisitos). Ortografía normal.",
+  "musica_segundos": 95,
+  "velocidad": 1.05,
+  "ganancia_db": -1.5,
+  "lineas": [
+    {
+      "id": "l1",
+      "voz": "paula",
+      "texto": "En este video te mostramos cómo hacer llamadas salientes con tu equipo, desde el panel y desde la aplicación de teléfono. Son cuatro pasos: el número, el equipo, los contactos y el teléfono."
+    },
+    {
+      "id": "l2",
+      "voz": "paula",
+      "texto": "Primero, el número. El administrador lo asigna a tu cliente desde Números, y enseguida aparece en tu panel, en Cuenta, Números. Con ese número ya podés llamar."
+    },
+    {
+      "id": "l3",
+      "voz": "paula",
+      "texto": "Segundo, el equipo. En Agenda, Equipo, agregás a cada persona con su nombre, su teléfono y su usuario del panel. Después, en el número, elegís que lo atienda el equipo y sumás a esas personas, para que también reciban las llamadas entrantes."
+    },
+    {
+      "id": "l4",
+      "voz": "paula",
+      "texto": "Tercero, los contactos. En Agenda, Contactos, tocás Nuevo contacto y cargás el teléfono y el nombre. Si tenés muchos, los importás desde un archivo."
+    },
+    {
+      "id": "l5",
+      "voz": "paula",
+      "texto": "Cuarto, a llamar. En Canales, Teléfono del equipo, elegís un contacto y tocás Llamar. Hablás desde el navegador, mejor con auriculares, y tu contacto ve el número de tu empresa."
+    },
+    {
+      "id": "l6",
+      "voz": "gonzalo",
+      "texto": "Las llamadas del equipo se graban y se transcriben siempre. Las encontrás en Conversaciones."
+    },
+    {
+      "id": "l7",
+      "voz": "paula",
+      "texto": "Y si preferís, usá la aplicación Teléfono. Se abre desde el panel, con Abrir aplicación Teléfono, y está pensada para el celular. Elegís un contacto, tocás Llamar, y la llamada sigue en pantalla completa."
+    },
+    {
+      "id": "l8",
+      "voz": "paula",
+      "texto": "Mientras hablás, podés silenciar el micrófono, usar el teclado o ver los subtítulos."
+    },
+    {
+      "id": "l9",
+      "voz": "paula",
+      "texto": "Eso es todo: el número, el equipo, los contactos y el teléfono."
+    },
+    {
+      "id": "l10",
+      "voz": "gonzalo",
+      "texto": "Tené en cuenta que hace falta un plan pago y haber aceptado las condiciones nuevas."
+    },
+    {
+      "id": "l11",
+      "voz": "paula",
+      "texto": "La guía completa está en la documentación."
+    }
+  ]
+}
