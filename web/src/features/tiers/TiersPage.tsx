@@ -23,11 +23,10 @@ import { IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
 import { type ReactNode, useState } from 'react';
 import { ApiError } from '@/api/errors';
 import type { Tier } from '@/api/types';
-import { Dash } from '@/components/Badges';
 import { confirmAction } from '@/components/confirm';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState, QueryState } from '@/components/QueryState';
-import { formatApiLimit, formatArs, formatLimit } from '@/lib/format';
+import { formatArs, formatLimit } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { numberErrorTitle } from '@/features/numbers/errors';
 import { useDeleteTier, useSaveTier, useTiers } from './api';
@@ -38,14 +37,6 @@ const CHANNELS = [
   { value: 'whatsapp', label: 'WhatsApp' },
   { value: 'voice', label: 'Llamadas' },
 ];
-
-/** "WhatsApp y llamadas", "WhatsApp", o "No incluidas". */
-function channelsText(channels: string[] | undefined): string {
-  const names = CHANNELS.filter((c) => channels?.includes(c.value)).map((c, i) =>
-    i ? c.label.toLowerCase() : c.label,
-  );
-  return names.length ? names.join(' y ') : 'No incluidas';
-}
 
 const toLimit = (v: Limit): number | null => (v === '' ? null : v);
 
@@ -390,7 +381,7 @@ export function TiersPage() {
     <>
       <PageHeader
         title="Tiers"
-        description="Límites por cliente: llamadas simultáneas y por hora, día y mes, minutos entrantes y salientes por mes, números, cupos de la API de inferencia (LLM, TTS, STT) y campañas y agenda de contactos."
+        description="Planes y límites por cliente. El detalle de cada tier (llamadas, API de inferencia, campañas y funciones) está en Editar."
         actions={
           <Button leftSection={<IconPlus size={18} />} onClick={() => setEditing('new')}>
             Nuevo tier
@@ -403,23 +394,15 @@ export function TiersPage() {
             list.length === 0 ? (
               <EmptyState>No hay tiers.</EmptyState>
             ) : (
-              <Table.ScrollContainer minWidth={1560}>
+              <Table.ScrollContainer minWidth={760}>
                 <Table>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>Nombre</Table.Th>
                       <Table.Th ta="right">Precio/mes</Table.Th>
                       <Table.Th ta="right">Simultáneas</Table.Th>
-                      <Table.Th ta="right">Llamadas hora / día / mes</Table.Th>
-                      <Table.Th ta="right">Min. entrantes/mes</Table.Th>
-                      <Table.Th ta="right">Min. salientes/mes</Table.Th>
+                      <Table.Th ta="right">Minutos ent. / sal.</Table.Th>
                       <Table.Th ta="right">Números</Table.Th>
-                      <Table.Th ta="right">API: LLM ent./sal. (tokens)</Table.Th>
-                      <Table.Th ta="right">API: TTS / STT (min)</Table.Th>
-                      <Table.Th ta="right">API: pedidos/min</Table.Th>
-                      <Table.Th>Campañas</Table.Th>
-                      <Table.Th ta="right">Camp. mes / contactos / simult.</Table.Th>
-                      <Table.Th ta="right">Agenda</Table.Th>
                       <Table.Th ta="right">Clientes</Table.Th>
                       <Table.Th />
                     </Table.Tr>
@@ -433,6 +416,7 @@ export function TiersPage() {
                               {t.name}
                             </Text>
                             {t.public && <Badge color="gray">público</Badge>}
+                            {t.internal && <Badge color="gray">interno</Badge>}
                           </Group>
                           {t.description && (
                             <Text size="xs" c="dimmed">
@@ -445,72 +429,9 @@ export function TiersPage() {
                         </Table.Td>
                         <Table.Td ta="right">{formatLimit(t.max_concurrent_calls)}</Table.Td>
                         <Table.Td ta="right" style={{ whiteSpace: 'nowrap' }}>
-                          {formatLimit(t.max_calls_per_hour)} / {formatLimit(t.max_calls_per_day)} /{' '}
-                          {formatLimit(t.max_calls_per_month)}
+                          {formatLimit(t.inbound_minutes)} / {formatLimit(t.outbound_minutes)}
                         </Table.Td>
-                        <Table.Td ta="right">{formatLimit(t.inbound_minutes)}</Table.Td>
-                        <Table.Td ta="right">{formatLimit(t.outbound_minutes)}</Table.Td>
                         <Table.Td ta="right">{formatLimit(t.max_phone_numbers)}</Table.Td>
-                        <Table.Td ta="right" style={{ whiteSpace: 'nowrap' }}>
-                          {formatApiLimit(t.api_llm_input_tokens)} / {formatApiLimit(t.api_llm_output_tokens)}
-                        </Table.Td>
-                        <Table.Td ta="right" style={{ whiteSpace: 'nowrap' }}>
-                          {formatApiLimit(t.api_tts_minutes)} / {formatApiLimit(t.api_stt_minutes)}
-                        </Table.Td>
-                        <Table.Td ta="right">{formatApiLimit(t.api_rate_limit)}</Table.Td>
-                        <Table.Td>
-                          <Text size="sm">{channelsText(t.campaign_channels)}</Text>
-                          {t.campaign_followup && (
-                            <Text size="xs" c="dimmed">
-                              con seguimiento
-                            </Text>
-                          )}
-                          {!t.whatsapp && (
-                            <Text size="xs" c="dimmed">
-                              sin WhatsApp
-                            </Text>
-                          )}
-                          {t.external_agent && (
-                            <Text size="xs" c="dimmed">
-                              con agente propio
-                            </Text>
-                          )}
-                          {t.direct_calls && (
-                            <Text size="xs" c="dimmed">
-                              con llamadas directas
-                            </Text>
-                          )}
-                          {t.max_tools !== 0 && (
-                            <Text size="xs" c="dimmed">
-                              {t.max_tools == null
-                                ? 'herramientas sin tope'
-                                : `hasta ${t.max_tools} herramientas`}
-                              {t.code_tools ? ', con código' : ''}
-                            </Text>
-                          )}
-                          {t.white_label && (
-                            <Text size="xs" c="dimmed">
-                              con marca blanca
-                            </Text>
-                          )}
-                          {t.advanced_reports && (
-                            <Text size="xs" c="dimmed">
-                              con reportes completos
-                            </Text>
-                          )}
-                        </Table.Td>
-                        <Table.Td ta="right" style={{ whiteSpace: 'nowrap' }}>
-                          {t.campaign_channels?.length ? (
-                            <>
-                              {formatLimit(t.max_campaigns_per_month)} /{' '}
-                              {formatLimit(t.max_campaign_contacts)} /{' '}
-                              {formatLimit(t.max_campaign_concurrency)}
-                            </>
-                          ) : (
-                            <Dash />
-                          )}
-                        </Table.Td>
-                        <Table.Td ta="right">{formatLimit(t.max_contacts)}</Table.Td>
                         <Table.Td ta="right">{t.clients_count ?? 0}</Table.Td>
                         <Table.Td>
                           <Group gap={4} justify="flex-end" wrap="nowrap">

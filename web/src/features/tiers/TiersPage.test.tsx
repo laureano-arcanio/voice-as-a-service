@@ -50,11 +50,21 @@ function mockApi() {
 describe('TiersPage', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('lista los límites de llamadas por hora, día y mes', async () => {
+  it('lista solo lo básico de cada tier', async () => {
     mockApi();
     renderWithProviders(<TiersPage />, { me: ADMIN });
     expect(await screen.findByText('Free')).toBeInTheDocument();
-    expect(screen.getByText('20 / 20 / Ilimitado')).toBeInTheDocument();
+    expect(screen.getAllByRole('columnheader').map((h) => h.textContent)).toEqual([
+      'Nombre',
+      'Precio/mes',
+      'Simultáneas',
+      'Minutos ent. / sal.',
+      'Números',
+      'Clientes',
+      '',
+    ]);
+    expect(screen.getByText('Ilimitado / Ilimitado')).toBeInTheDocument();
+    expect(screen.queryByText('20 / 20 / Ilimitado')).not.toBeInTheDocument();
   });
 
   it('crea un tier con los límites de llamadas y los de la API por defecto', async () => {
@@ -79,16 +89,6 @@ describe('TiersPage', () => {
     });
   });
 
-  it('lista los canales de campañas, sus topes y la agenda', async () => {
-    mockApi();
-    renderWithProviders(<TiersPage />, { me: ADMIN });
-    await screen.findByText('Free');
-    expect(screen.getByText('WhatsApp y llamadas')).toBeInTheDocument();
-    expect(screen.getByText('con seguimiento')).toBeInTheDocument();
-    expect(screen.getByText('5 / 500 / Ilimitado')).toBeInTheDocument();
-    expect(screen.getByText('1.000')).toBeInTheDocument();
-  });
-
   it('llamadas directas: apagadas en un tier nuevo y se mandan al prenderlas', async () => {
     const created = mockApi();
     renderWithProviders(<TiersPage />, { me: ADMIN });
@@ -100,15 +100,6 @@ describe('TiersPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
     await waitFor(() => expect(created).toHaveLength(1));
     expect(created[0]).toMatchObject({ direct_calls: true });
-  });
-
-  it('muestra "con llamadas directas" en el tier que las incluye', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => jsonResponse([{ ...TIER, direct_calls: true }])),
-    );
-    renderWithProviders(<TiersPage />, { me: ADMIN });
-    expect(await screen.findByText('con llamadas directas')).toBeInTheDocument();
   });
 
   it('un tier nuevo no incluye campañas; se habilitan por canal con sus topes', async () => {
