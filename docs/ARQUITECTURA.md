@@ -651,6 +651,7 @@ configura el admin en la ficha del cliente, pestaña "Marca blanca" (`app/servic
 | `inference.py`, `api_requests.py` | `/inference/chat/completions`, `/audio/transcriptions`, `/audio/speech`, `/models`, `/voices`, `/usage`; `/api-requests` | [`API_INFERENCIA.md`](API_INFERENCIA.md) |
 | `mcp_usage.py` (y `app/api/oauth.py`) | `/mcp/usage`; `/oauth/authorize`, `/oauth/grants` | [`MCP.md`](features/MCP.md) |
 | `consumer_requests.py` | `/consumer-requests` (arrepentimiento y baja) | [`LEGAL.md`](features/LEGAL.md) |
+| `legal_versions.py` | `/legal/versions` (admin: cada versión de las condiciones y la privacidad) | [`LEGAL.md`](features/LEGAL.md) |
 | `demo.py` | `/demo`: `sessions`, `calls`, `tts`, `contact`, `signup`, `plans`, `legal`, `consumer-requests` | [`LANDING.md`](features/LANDING.md) |
 | `system.py` | `/system/now|history|events|peaks` (admin) | [`OBSERVABILIDAD.md`](OBSERVABILIDAD.md) |
 

@@ -2980,6 +2980,46 @@ export interface paths {
         patch: operations["resolve_api_v1_consumer_requests__request_id__patch"];
         trace?: never;
     };
+    "/api/v1/legal/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Versions
+         * @description Todas las versiones de cada documento, la mas nueva primero.
+         */
+        get: operations["list_versions_api_v1_legal_versions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/legal/versions/{document}/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Version
+         * @description Una version con su texto exacto.
+         */
+        get: operations["get_version_api_v1_legal_versions__document___version__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tools/schema": {
         parameters: {
             query?: never;
@@ -6715,6 +6755,41 @@ export interface components {
              */
             privacy_version?: string;
         };
+        /** LegalVersionAdminOut */
+        LegalVersionAdminOut: {
+            /**
+             * Document
+             * @enum {string}
+             */
+            document: "terms" | "privacy";
+            /** Title */
+            title: string;
+            /**
+             * Version
+             * @description Fecha de publicacion, AAAA-MM-DD
+             */
+            version: string;
+            /**
+             * Sha256
+             * @description Huella del texto exacto de esa version
+             */
+            sha256: string;
+            /**
+             * Url
+             * @description Link permanente a esa version
+             */
+            url: string;
+            /**
+             * Current
+             * @description Es la version vigente
+             */
+            current: boolean;
+            /**
+             * Acceptances
+             * @description Aceptaciones registradas de esta version (registro y panel)
+             */
+            acceptances: number;
+        };
         /** LegalVersionOut */
         LegalVersionOut: {
             /**
@@ -6739,6 +6814,46 @@ export interface components {
              * @description Link permanente a esa version
              */
             url: string;
+        };
+        /** LegalVersionTextOut */
+        LegalVersionTextOut: {
+            /**
+             * Document
+             * @enum {string}
+             */
+            document: "terms" | "privacy";
+            /** Title */
+            title: string;
+            /**
+             * Version
+             * @description Fecha de publicacion, AAAA-MM-DD
+             */
+            version: string;
+            /**
+             * Sha256
+             * @description Huella del texto exacto de esa version
+             */
+            sha256: string;
+            /**
+             * Url
+             * @description Link permanente a esa version
+             */
+            url: string;
+            /**
+             * Current
+             * @description Es la version vigente
+             */
+            current: boolean;
+            /**
+             * Acceptances
+             * @description Aceptaciones registradas de esta version (registro y panel)
+             */
+            acceptances: number;
+            /**
+             * Text
+             * @description Texto exacto de la version, en Markdown (el que da la huella)
+             */
+            text: string;
         };
         /**
          * LimitAdjustmentIn
@@ -16908,6 +17023,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConsumerRequestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_versions_api_v1_legal_versions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegalVersionAdminOut"][];
+                };
+            };
+        };
+    };
+    get_version_api_v1_legal_versions__document___version__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document: "terms" | "privacy";
+                version: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegalVersionTextOut"];
                 };
             };
             /** @description Validation Error */

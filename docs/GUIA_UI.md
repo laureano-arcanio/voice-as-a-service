@@ -16,7 +16,8 @@ Hay dos roles, y cada uno trabaja en su área ([`ARQUITECTURA.md`](ARQUITECTURA.
   - **Cuenta:** Números (`/account`) y Plan.
 - **Admin:** administra la plataforma en `/admin/*` (al iniciar sesión va siempre ahí). Su menú:
   Reportes, Conversaciones, Agentes (solo lectura, de todos los clientes), Uso de la API, Clientes, Números,
-  Tiers, Cobros, Usuarios y Sistema. Lo demás (agentes, herramientas, WhatsApp, contactos, campañas, equipo...) no está
+  Tiers, Cobros, Usuarios, Legales (cada versión de las condiciones y de la privacidad, con su texto, huella y
+  aceptaciones) y Sistema. Lo demás (agentes, herramientas, WhatsApp, contactos, campañas, equipo...) no está
   en su menú: para operarlo **entra como el cliente** y ve su panel tal cual (ver [Entrar como un cliente
   (soporte)](#entrar-como-un-cliente-soporte)).
 

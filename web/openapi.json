@@ -10236,6 +10236,98 @@
     }
    }
   },
+  "/api/v1/legal/versions": {
+   "get": {
+    "tags": [
+     "legal"
+    ],
+    "summary": "List Versions",
+    "description": "Todas las versiones de cada documento, la mas nueva primero.",
+    "operationId": "list_versions_api_v1_legal_versions_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/LegalVersionAdminOut"
+         },
+         "type": "array",
+         "title": "Response List Versions Api V1 Legal Versions Get"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/legal/versions/{document}/{version}": {
+   "get": {
+    "tags": [
+     "legal"
+    ],
+    "summary": "Get Version",
+    "description": "Una version con su texto exacto.",
+    "operationId": "get_version_api_v1_legal_versions__document___version__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "document",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "enum": [
+        "terms",
+        "privacy"
+       ],
+       "type": "string",
+       "title": "Document"
+      }
+     },
+     {
+      "name": "version",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Version"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/LegalVersionTextOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/tools/schema": {
    "get": {
     "tags": [
@@ -21443,6 +21535,58 @@
     "title": "LegalAcceptIn",
     "description": "Las versiones de `legal_pending`; la de un documento ya aceptado puede ir vacia."
    },
+   "LegalVersionAdminOut": {
+    "properties": {
+     "document": {
+      "type": "string",
+      "enum": [
+       "terms",
+       "privacy"
+      ],
+      "title": "Document"
+     },
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "version": {
+      "type": "string",
+      "title": "Version",
+      "description": "Fecha de publicacion, AAAA-MM-DD"
+     },
+     "sha256": {
+      "type": "string",
+      "title": "Sha256",
+      "description": "Huella del texto exacto de esa version"
+     },
+     "url": {
+      "type": "string",
+      "title": "Url",
+      "description": "Link permanente a esa version"
+     },
+     "current": {
+      "type": "boolean",
+      "title": "Current",
+      "description": "Es la version vigente"
+     },
+     "acceptances": {
+      "type": "integer",
+      "title": "Acceptances",
+      "description": "Aceptaciones registradas de esta version (registro y panel)"
+     }
+    },
+    "type": "object",
+    "required": [
+     "document",
+     "title",
+     "version",
+     "sha256",
+     "url",
+     "current",
+     "acceptances"
+    ],
+    "title": "LegalVersionAdminOut"
+   },
    "LegalVersionOut": {
     "properties": {
      "document": {
@@ -21482,6 +21626,64 @@
      "url"
     ],
     "title": "LegalVersionOut"
+   },
+   "LegalVersionTextOut": {
+    "properties": {
+     "document": {
+      "type": "string",
+      "enum": [
+       "terms",
+       "privacy"
+      ],
+      "title": "Document"
+     },
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "version": {
+      "type": "string",
+      "title": "Version",
+      "description": "Fecha de publicacion, AAAA-MM-DD"
+     },
+     "sha256": {
+      "type": "string",
+      "title": "Sha256",
+      "description": "Huella del texto exacto de esa version"
+     },
+     "url": {
+      "type": "string",
+      "title": "Url",
+      "description": "Link permanente a esa version"
+     },
+     "current": {
+      "type": "boolean",
+      "title": "Current",
+      "description": "Es la version vigente"
+     },
+     "acceptances": {
+      "type": "integer",
+      "title": "Acceptances",
+      "description": "Aceptaciones registradas de esta version (registro y panel)"
+     },
+     "text": {
+      "type": "string",
+      "title": "Text",
+      "description": "Texto exacto de la version, en Markdown (el que da la huella)"
+     }
+    },
+    "type": "object",
+    "required": [
+     "document",
+     "title",
+     "version",
+     "sha256",
+     "url",
+     "current",
+     "acceptances",
+     "text"
+    ],
+    "title": "LegalVersionTextOut"
    },
    "LimitAdjustmentIn": {
     "properties": {

@@ -221,6 +221,27 @@ def test_public_legal_versions(api):
     assert {(v["document"], v["version"]) for v in r.json()} == {(v.doc.id, v.version) for v in legal.current_all()}
 
 
+def test_admin_sees_every_version_with_text_and_acceptances(landing, admin):
+    assert register(landing).status_code == 201
+    rows = admin.get(f"{V1}/legal/versions").json()
+    assert [(r["document"], r["version"]) for r in rows] == [
+        (d.id, v.version) for d in legal.DOCS for v in reversed(legal.versions(d.id))]
+    current = {v.doc.id: v.version for v in legal.current_all()}
+    for r in rows:
+        assert r["current"] == (r["version"] == current[r["document"]])
+        assert r["acceptances"] == (1 if r["current"] else 0)
+    r = admin.get(f"{V1}/legal/versions/terms/2026-10-01")
+    assert r.status_code == 200
+    old = legal.versions("terms")[0]
+    assert (r.json()["text"], r.json()["sha256"], r.json()["current"]) == (old.text, old.sha256, False)
+    assert admin.get(f"{V1}/legal/versions/terms/1999-01-01").json()["code"] == "legal_version_not_found"
+
+
+def test_client_cannot_list_legal_versions(landing):
+    c = activate(landing, register(landing))
+    assert c.get(f"{V1}/legal/versions").status_code == 403
+
+
 def test_panel_accepts_only_the_pending_document(invited, monkeypatch):
     assert invited.post(f"{V1}/auth/me/legal", json=_accept_body()).status_code == 200
     original = legal.versions

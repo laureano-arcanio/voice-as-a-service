@@ -70,6 +70,15 @@ class LegalVersionOut(BaseModel):
     url: str = Field(description="Link permanente a esa version")
 
 
+class LegalVersionAdminOut(LegalVersionOut):
+    current: bool = Field(description="Es la version vigente")
+    acceptances: int = Field(description="Aceptaciones registradas de esta version (registro y panel)")
+
+
+class LegalVersionTextOut(LegalVersionAdminOut):
+    text: str = Field(description="Texto exacto de la version, en Markdown (el que da la huella)")
+
+
 HEX_COLOR = r"^#[0-9a-fA-F]{6}$"
 
 

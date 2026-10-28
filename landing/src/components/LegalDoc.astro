@@ -1,7 +1,8 @@
 ---
 // Una versión de las condiciones o de la política de privacidad (data/legal.ts). La vigente va en /<slug>; cada
 // versión, también la vigente, en /<slug>/<versión> (link permanente: es lo que se acepta en el registro).
-// Las versiones van con noindex y fuera del sitemap: en Google compiten con /<slug> (la vigente es un duplicado).
+// Las versiones van con noindex, fuera del sitemap y sin lista en la página: se llega por el link de los mails de
+// aceptación; el admin las ve todas en Legales del panel.
 import { type LegalSlug, legal, legalContent, versionDate } from "../data/legal";
 import Legal from "./Legal.astro";
 
@@ -17,7 +18,6 @@ const version = Astro.props.version ?? doc.current;
 const current = version === doc.current;
 const sha256 = doc.versions.find((v) => v.version === version)!.sha256;
 const Content = legalContent(slug, version);
-const others = [...doc.versions].reverse();
 ---
 
 <Legal
@@ -35,16 +35,5 @@ const others = [...doc.versions].reverse();
     )
   }
   <Content />
-  <h2>Versiones</h2>
-  <ul>
-    {
-      others.map((v) => (
-        <li>
-          <a href={`/${slug}/${v.version}`}>{versionDate(v.version)}</a>
-          {v.version === doc.current ? " (vigente)" : ""}
-        </li>
-      ))
-    }
-  </ul>
   <p class="font-mono text-[.72rem] break-all text-muted">Huella SHA-256 de esta versión: {sha256}</p>
 </Legal>

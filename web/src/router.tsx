@@ -85,6 +85,7 @@ export const routes: RouteObject[] = [
         ...page(async () => (await import('@/features/system/SystemPage')).SystemPage),
       },
       { path: 'users', ...page(async () => (await import('@/features/users/UsersPage')).UsersPage) },
+      { path: 'legal', ...page(async () => (await import('@/features/legal/LegalPage')).LegalPage) },
       { path: 'profile', ...page(async () => (await import('@/features/auth/ProfilePage')).ProfilePage) },
       { path: '*', element: <NotFound /> },
     ],

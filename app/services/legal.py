@@ -10,7 +10,7 @@ import datetime
 import secrets
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .. import legal
@@ -137,6 +137,20 @@ async def submit_request(s: Session, data: RequestData, turnstile_token: str, ip
         raise Forbidden("No pudimos verificar que seas una persona. Recargá la página.", "captcha_failed")
     limiter.hit(key)
     return await asyncio.to_thread(create_request, s, data, ip)
+
+
+def acceptance_counts(s: Session) -> dict[tuple[str, str], int]:
+    """Aceptaciones por (documento, version), para la pantalla Legales del admin."""
+    q = select(LegalAcceptance.document, LegalAcceptance.version, func.count()).group_by(
+        LegalAcceptance.document, LegalAcceptance.version)
+    return {(doc, version): n for doc, version, n in s.execute(q)}
+
+
+def find_version(doc_id: str, version: str) -> legal.Version:
+    v = next((v for v in legal.versions(doc_id) if v.version == version), None) if doc_id in legal.BY_ID else None
+    if v is None:
+        raise NotFound("Versión no encontrada", "legal_version_not_found")
+    return v
 
 
 def list_requests(s: Session, status: str | None = None, limit: int = 100) -> list[ConsumerRequest]:

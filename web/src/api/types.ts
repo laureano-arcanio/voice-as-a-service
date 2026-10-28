@@ -163,3 +163,6 @@ export type SystemHistory = S['SystemHistoryOut'];
 export type SystemSeries = S['SystemSeriesOut'];
 export type SystemEvent = S['SystemEventOut'];
 export type SystemPeak = S['SystemPeakOut'];
+export type LegalVersion = S['LegalVersionAdminOut'];
+export type LegalVersionText = S['LegalVersionTextOut'];
+export type LegalDocument = LegalVersion['document'];

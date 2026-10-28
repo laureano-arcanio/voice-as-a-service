@@ -31,7 +31,10 @@ No es asesoramiento legal: los textos los revisa un abogado (la versión `2026-1
 - `make legal-sync` (`app/legal/sync.py`) copia los textos a `landing/src/data/legal/` (con `index.json`: versiones y
   hashes), porque Render solo ve `landing/`. Un test falla si la copia quedó vieja.
 - Landing: `/terminos` y `/privacidad` muestran la vigente; `/terminos/<versión>` y `/privacidad/<versión>`, cada
-  una (`LegalDoc.astro`).
+  una (`LegalDoc.astro`), con `noindex`, fuera del sitemap y sin lista en la página: se llega por el link permanente
+  de los mails de aceptación (CCyC 1106-1108), que no se puede romper. Mostrar el historial no es obligatorio.
+- Panel del admin: **Legales** (`/admin/legal`, `web/src/features/legal/`) lista cada versión con su huella y sus
+  aceptaciones, y abre el texto exacto.
 
 ## Modelo de datos (migración 0031)
 
@@ -53,6 +56,8 @@ No es asesoramiento legal: los textos los revisa un abogado (la versión `2026-1
 | `POST /api/v1/auth/me/legal` | usuario | acepta los pendientes (409 `terms_outdated` si salió otra versión) |
 | `POST /api/v1/demo/consumer-requests` | público, Turnstile | crea el pedido de arrepentimiento o baja |
 | `GET /api/v1/consumer-requests`, `PATCH /api/v1/consumer-requests/{id}` | admin | lista y resuelve (`status`, `resolution`) |
+| `GET /api/v1/legal/versions` | admin | cada versión publicada, la más nueva primero: huella, link, `current` y `acceptances` |
+| `GET /api/v1/legal/versions/{document}/{version}` | admin | la versión con su `text` exacto (404 `legal_version_not_found`) |
 
 ## Flujo
 

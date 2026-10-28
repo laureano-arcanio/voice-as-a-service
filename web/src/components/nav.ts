@@ -12,6 +12,7 @@ import {
   IconCode,
   IconCpu,
   IconCreditCard,
+  IconGavel,
   IconMessages,
   IconMicrophone,
   IconNotebook,
@@ -120,6 +121,7 @@ export const ADMIN_NAV: NavEntry[] = [
   { to: '/admin/tiers', label: 'Tiers', icon: IconStack2 },
   { to: '/admin/billing', label: 'Cobros', icon: IconCash },
   { to: '/admin/users', label: 'Usuarios', icon: IconUsers },
+  { to: '/admin/legal', label: 'Legales', icon: IconGavel },
   { to: '/admin/system', label: 'Sistema', icon: IconServer },
 ];
 
