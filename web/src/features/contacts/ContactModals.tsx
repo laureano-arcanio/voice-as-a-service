@@ -167,7 +167,7 @@ export function ImportContactsModal({ onClose }: { onClose: () => void }) {
         <Stack>
           <Textarea
             label="Contactos (CSV)"
-            description="Una fila por contacto, con encabezado. Va una columna de teléfono (telefono, celular, phone, whatsapp); nombre, email, id_externo y notas son opcionales; las demás columnas se ignoran. Quien ya está en la agenda se actualiza."
+            description="Una fila por contacto, con encabezado. Va una columna de teléfono (telefono, celular, phone, whatsapp); nombre, email y notas son opcionales; las demás columnas se ignoran. Quien ya está en la agenda se actualiza."
             placeholder={'telefono,nombre,email\n351 555-1234,Ana Pérez,ana@empresa.com'}
             autosize
             minRows={5}
@@ -211,7 +211,6 @@ export function ContactModal({ contact, onClose }: { contact: Contact | null; on
       phone: contact?.phone ?? '',
       name: contact?.name ?? '',
       email: contact?.email ?? '',
-      external_id: contact?.external_id ?? '',
       notes: contact?.notes ?? '',
     },
     validate: {
@@ -223,7 +222,6 @@ export function ContactModal({ contact, onClose }: { contact: Contact | null; on
     const common = {
       name: v.name.trim() || null,
       email: v.email.trim() || null,
-      external_id: v.external_id.trim() || null,
       notes: v.notes.trim() || null,
     };
     if (contact)
@@ -270,11 +268,6 @@ export function ContactModal({ contact, onClose }: { contact: Contact | null; on
             <TextInput label="Nombre" placeholder="Ana Pérez" {...form.getInputProps('name')} />
             <TextInput label="Email" placeholder="ana@empresa.com" {...form.getInputProps('email')} />
           </Group>
-          <TextInput
-            label="ID externo"
-            description="El id de este contacto en tu sistema."
-            {...form.getInputProps('external_id')}
-          />
           <Textarea
             label="Notas"
             placeholder="Ej.: prefiere que lo llamen por la tarde"

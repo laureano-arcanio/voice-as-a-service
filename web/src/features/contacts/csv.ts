@@ -1,13 +1,12 @@
 // Vista previa del CSV de contactos en el navegador: las mismas reglas de columnas que la API
 // (app/services/contacts.py, parse_csv). La API es la que carga y valida; esto solo muestra que va a entender.
 
-export type ColumnRole = 'phone' | 'name' | 'email' | 'external_id' | 'notes' | 'ignored';
+export type ColumnRole = 'phone' | 'name' | 'email' | 'notes' | 'ignored';
 
 export const ROLE_LABEL: Record<ColumnRole, string> = {
   phone: 'Teléfono',
   name: 'Nombre',
   email: 'Email',
-  external_id: 'ID externo',
   notes: 'Nota',
   ignored: 'Se ignora',
 };
@@ -16,7 +15,6 @@ const ROLES: [Exclude<ColumnRole, 'ignored'>, string[]][] = [
   ['phone', ['telefono', 'phone', 'numero', 'celular', 'whatsapp', 'wa_id', 'movil']],
   ['name', ['nombre', 'name']],
   ['email', ['email', 'mail', 'correo']],
-  ['external_id', ['external_id', 'id_externo', 'idexterno', 'id']],
   ['notes', ['notas', 'nota', 'notes', 'note']],
 ];
 

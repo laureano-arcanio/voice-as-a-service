@@ -166,11 +166,11 @@ def clean_param(value: Any) -> str:
 
 
 def param_value(contact: Contact, name: str) -> str:
-    """El dato del contacto que se llama `name`: nombre, telefono, email o external_id
+    """El dato del contacto que se llama `name`: nombre, telefono o email
     (sin importar mayusculas ni acentos). Vacio si no lo tiene."""
     key = contacts_service.attribute_key(name)
     fixed = {"nombre": contact.name, "name": contact.name, "telefono": contact.phone, "phone": contact.phone,
-             "email": contact.email, "external_id": contact.external_id}
+             "email": contact.email}
     if key in fixed:
         return clean_param(fixed[key])
     return ""
@@ -205,11 +205,10 @@ def clean_param_names(names: list[str] | None, expected: int) -> list[str] | Non
 
 
 def contact_vars(contact: Contact, params: list[str] | None = None) -> dict:
-    """Copia de los datos del contacto para la campaña: nombre, telefono, email e id externo con
+    """Copia de los datos del contacto para la campaña: nombre, telefono y email con
     esos nombres, y `params` (valores de {{1}}..{{n}} de la plantilla)."""
     out: dict[str, Any] = {}
-    for key, value in (("nombre", contact.name), ("telefono", contact.phone), ("email", contact.email),
-                       ("external_id", contact.external_id)):
+    for key, value in (("nombre", contact.name), ("telefono", contact.phone), ("email", contact.email)):
         if value:
             out[key] = value
     if params is not None:

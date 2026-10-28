@@ -355,7 +355,7 @@ def campaign_stats(campaign_id: str, p: CurrentPrincipal, db: DB, definitions: D
 
 @router.get("/{campaign_id}/report.csv", response_class=Response, responses={200: {"content": {"text/csv": {}}}})
 def campaign_report(campaign_id: str, p: CurrentPrincipal, db: DB, definitions: Definitions):
-    """El reporte por contacto en CSV (UTF-8 con BOM): external_id, telefono, vars, intentos, resultado,
+    """El reporte por contacto en CSV (UTF-8 con BOM): telefono, vars, intentos, resultado,
     duracion, outcome, objetivo, campos capturados, seguimiento y link a la conversacion."""
     c = _get(db, campaign_id, p)
     return Response(campaign_reports.report_csv(db, c, definitions), media_type="text/csv; charset=utf-8",

@@ -42,7 +42,7 @@ estado por fase, desvíos y cómo desplegar, en la [sección 14](#14-avance).
 | Campo | Qué es |
 |---|---|
 | `client_id`, `phone` | E.164 (`+549…` celular, `+54…` fijo). **Único por cliente**. Lo único obligatorio |
-| `name`, `email`, `external_id` | Opcionales. `external_id`: id en el sistema del cliente, para cruzar reportes |
+| `name`, `email` | Opcionales. `external_id` (id en el sistema del cliente) se quitó el 27-oct-2026, migración 0041 |
 | `notes` | Nota libre (hasta 2000 caracteres), como la de un contacto del teléfono. Desde el 27-oct-2026, migración 0040, reemplaza a `attributes` (datos por contacto) y `tags` (etiquetas), que se quitaron: la migración pasó los datos a la nota como líneas `clave: valor` |
 | `source` | `manual`, `csv`, `api`, `campaign`, `inbound` |
 | `archived_at` | NULL = activo. Archivar no borra (sección 3.1.1) |
@@ -175,10 +175,10 @@ El loop `campaign_loop` pasa a ser uno solo y delega por canal:
   lista. Mismo criterio que `sender.py` con los errores de Meta.
 - **Recuperación al arrancar `app`:** los `in_progress` cuya `CallRow` ya no está activa vuelven a `retry`.
 - **Variables en la conversación:**
-  - La apertura del agente acepta `{{nombre}}`, `{{telefono}}`, `{{email}}` y `{{external_id}}`, etc., reemplazados con `vars`
+  - La apertura del agente acepta `{{nombre}}`, `{{telefono}}`, y `{{email}}`, etc., reemplazados con `vars`
     (`engine.new_conversation(..., opening=texto)` ya acepta un texto).
   - Los datos cuyo nombre coincide con un campo del workflow precargan `state.fields`: el agente
-    no los pregunta (desde el 27-oct-2026 los datos por contacto se quitaron: solo nombre, teléfono, email e id externo).
+    no los pregunta (desde el 27-oct-2026 los datos por contacto se quitaron: solo nombre, teléfono y email).
   - El resto va al prompt como "Datos del contacto".
   - En WhatsApp, `vars` alimenta los parámetros de la plantilla. Hoy son una lista posicional en el
     CSV; el mapeo pasa a ser por nombre: `{{1}}` = `nombre`.
@@ -300,7 +300,7 @@ Sigue `docs/DESIGN_GUIDELINE_APP.md`.
 
 ## 10. Reportes
 
-- **Por campaña** (`report.csv`): una fila por contacto con `external_id`, teléfono, `vars`, intentos,
+- **Por campaña** (`report.csv`): una fila por contacto con teléfono, `vars`, intentos,
   resultado, duración, `outcome`, objetivo, campos capturados, seguimiento y link.
 - **Indicadores:**
   - tasa de contacto (atendidas / llamadas);
@@ -411,7 +411,7 @@ Estado (19-oct-2026): fases 1 a 4 implementadas (backend y UI), sin desplegar; l
 - **Fase 1, lógica (19-oct-2026, sin desplegar):**
   - `services/campaigns.py`: estado, plan, variables y seguimiento comunes a los dos canales; `whatsapp/campaigns.py` y `sender.py` lo usan. El sender, además, activa las `scheduled` cuyo `starts_at` llegó y termina las que pasaron `ends_at` (`roll_schedule`; el dialer hará lo mismo con voz), y saltea (`contact_archived`) a quien se archivó después de cargarlo;
   - API `/api/v1/campaigns` (sección 7, sin `report.csv`): crear con `channel`, sumar contactos (`contact_ids`, `contacts`, `csv`, y `recipients` posicional en WhatsApp), `start`, `pause`, `resume`, `cancel`, lista, detalle de polling y contactos paginados. Las de voz se crean y validan (agente, número de origen, horario, concurrencia, reintentos), pero no se marcan hasta el dialer. `/whatsapp/campaigns` y `/whatsapp/optouts` siguen igual, sobre el mismo código;
-  - variables de la plantilla por dato del contacto (`nombre`, `telefono`, `email`, `external_id`; desde el 27-oct-2026 sin datos propios por contacto) (`template_param_names`, `param_names` al crear): `{{1}}` = el primero. `vars` guarda una copia de los datos del contacto (`nombre`, `telefono`, `email`, `external_id`) más `params`;
+  - variables de la plantilla por dato del contacto (`nombre`, `telefono`, `email`; desde el 27-oct-2026 sin datos propios por contacto) (`template_param_names`, `param_names` al crear): `{{1}}` = el primero. `vars` guarda una copia de los datos del contacto (`nombre`, `telefono`, `email`, `external_id`) más `params`;
   - plan: canal, `max_campaigns_per_month` (al iniciar, solo la primera vez), `max_campaign_contacts` (al sumar y al iniciar) y `max_campaign_concurrency`, también por el alias. Al cambiar el tier de un cliente, o los canales de un tier, las campañas de un canal que ya no incluye pasan a `paused` (`pause_campaigns_outside_plan`, desde `billing.fit_numbers` y los routers de tiers y clientes).
   - Sin hacer todavía: `goal` y `followup` del polling (vienen null), `report.csv`, `callback_*`, `purpose` y `followup` en el alta, y el dialer.
 - **Fase 2, campañas de voz (19-oct-2026, sin desplegar):**
@@ -426,7 +426,7 @@ Estado (19-oct-2026): fases 1 a 4 implementadas (backend y UI), sin desplegar; l
     - La apertura reemplaza `{{variable}}` (sin importar mayúsculas ni acentos). Una variable que el contacto no tiene queda **vacía** y el texto se acomoda ("Hola {{nombre}}, soy..." → "Hola, soy..."), para que no se lea "{{deuda}}" en voz alta. Solo se reemplaza en llamadas de campaña (`contact` distinto de `None`): en una entrante o una de prueba el texto no se toca.
     - Los datos que se llaman como un campo del workflow lo precargan en `state.fields` (el valor tiene que pasar la validación del tipo; si no, queda como dato del contacto) y la apertura pregunta por el primer campo que falta. El resto va al prompt como "Datos del contacto".
     - Los datos viajan con la conversación, sin columna nueva: `progress.contact` (el resto) y `progress.preloaded` (los campos cargados). **Classic**: bloques "DATOS DEL CONTACTO" y "DATOS YA CONOCIDOS" en el prompt de sistema (fijos en la conversación). **Structured**: el bloque va en el prompt del turno, antes de la conversación; lo precargado ya está en `known_fields`. **Assistant**: bloque en el prompt de sistema. (26-oct-2026: un solo motor; quedan los bloques del prompt de sistema, ver [`LIMPIEZA_PLAN.md`](LIMPIEZA_PLAN.md).)
-  - **`GET /campaigns/{id}/report.csv`**: una fila por contacto, para voz y WhatsApp (UTF-8 con BOM; las celdas que Excel tomaría por fórmula llevan `'` adelante). Columnas fijas: `external_id, telefono, nombre, vars, estado, resultado, intentos, ultimo_intento, duracion_segundos, outcome, objetivo, campos, seguimiento, error, conversation_id, link`; `vars` y `campos` (lo capturado) van como JSON en una celda. La duración es la del último intento (voz); el link es `APP_URL/calls/<id>`.
+  - **`GET /campaigns/{id}/report.csv`**: una fila por contacto, para voz y WhatsApp (UTF-8 con BOM; las celdas que Excel tomaría por fórmula llevan `'` adelante). Columnas fijas: `telefono, nombre, vars, estado, resultado, intentos, ultimo_intento, duracion_segundos, outcome, objetivo, campos, seguimiento, error, conversation_id, link`; `vars` y `campos` (lo capturado) van como JSON en una celda. La duración es la del último intento (voz); el link es `APP_URL/calls/<id>`.
   - **`GET /campaigns/{id}/stats`**: `attempts` (llamadas con reintentos, o envíos), `reached` (atendidas, o respondieron), `contact_rate`, `goal` y `goal_rate` (objetivo sobre atendidas), `avg_duration_seconds`, `minutes`, `results` y `by_hour` (las 24 horas locales con llamadas y atendidas). En WhatsApp no hay duración ni minutos.
   - **`campaign_id`** en `CallFilter` y en `GET /calls`, `/stats` y `/stats/daily`: los intentos de voz (`call_logs.campaign_contact_id`) y las conversaciones que abrió la respuesta de un contacto de WhatsApp (`campaign_contacts.conversation_id`).
   - **Desvíos:** las variables de las respuestas de WhatsApp a una campaña siguen yendo solo en los parámetros de la plantilla (la conversación no recibe los datos del contacto); falta la pantalla de Contactos y de reportes en `web/`.
@@ -440,7 +440,7 @@ Estado (19-oct-2026): fases 1 a 4 implementadas (backend y UI), sin desplegar; l
   - **Migración**: la `0017` suma `campaigns.no_call_confirmed_at`, `campaign_contacts.followup_{sent_at,error,conversation_id}` (con CHECK e índice de `followup_status`) y la tabla `campaign_callbacks`. Misma regla que antes: probada ida y vuelta en SQLite, falta una copia del backup en PostgreSQL.
   - **Falta**: regenerar OpenAPI y `web/src/api/schema.d.ts`; en la UI, el alta de campañas de voz (finalidad con la confirmación, seguimiento, webhook); limpiar la cola `campaign_callbacks` (los `sent` viejos); probar el contestador con llamadas reales (cuántos buzones atrapa y cuántos humanos confunde); apagar un webhook de una campaña ya terminada (hoy PATCH da 409).
 - **Fase 3, frontend (19-oct-2026, sin desplegar; falta `npm run build` para que `web/dist` lo sirva):**
-  - **Contactos** (`web/src/features/contacts/`, `/contacts` y `/contacts/:id`, en el menú de admin y de cliente): tabla con búsqueda y filtro Activos / Archivados / Todos; alta y edición con nombre, email, ID externo y nota; importar CSV con vista previa de columnas (las mismas reglas de `parse_csv`) y resultado (creados, actualizados, archivados e inválidos con fila y motivo); archivar y desarchivar uno o en lote (por selección), sin botón de borrar; ficha con sus campañas. El desarchivado en lote llama de a uno a `/contacts/{id}/unarchive`.
+  - **Contactos** (`web/src/features/contacts/`, `/contacts` y `/contacts/:id`, en el menú de admin y de cliente): tabla con búsqueda y filtro Activos / Archivados / Todos; alta y edición con nombre, email y nota; importar CSV con vista previa de columnas (las mismas reglas de `parse_csv`) y resultado (creados, actualizados, archivados e inválidos con fila y motivo); archivar y desarchivar uno o en lote (por selección), sin botón de borrar; ficha con sus campañas. El desarchivado en lote llama de a uno a `/contacts/{id}/unarchive`.
   - **Campañas** (`features/campaigns/`): ahora sobre `/api/v1/campaigns`. Lista con filtro por canal; "Nueva campaña" elige WhatsApp o llamadas y deshabilita con el motivo lo que el plan no incluye. Alta de llamadas (`VoiceCampaignModal`): agente, número de origen, voz, finalidad con la confirmación del Registro No Llame, destinatarios por etiquetas / contactos elegidos / CSV, horario, días e inicio y fin programados (en la hora de la campaña), modo de a una o en paralelo hasta el tope del plan, reintentos, seguimiento por WhatsApp y webhook (el secreto generado se muestra una vez). Detalle: barra de avance y ritmo, tarjetas por resultado, indicadores y atendidas por hora, seguimiento, tabla de contactos con filtro y link a la conversación, iniciar / retomar / pausar / cancelar, descarga de `report.csv` y polling cada 5 s mientras corre o espera su hora.
   - **Tiers**: canales, topes de campañas, contactos de la agenda y seguimiento en el formulario y en la tabla; los cuatro numéricos también en los ajustes por cliente (`LIMIT_META`). La pantalla Plan lista las campañas del plan.
   - **Conversaciones y Estadísticas**: filtro por campaña (`campaign_id`).

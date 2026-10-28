@@ -359,7 +359,7 @@ export function VoiceCampaignModal({ onClose }: { onClose: () => void }) {
                 <TextInput
                   key={n}
                   label={`Dato para {{${n}}}`}
-                  description="Dato del contacto que completa la variable: nombre, telefono, email o external_id."
+                  description="Dato del contacto que completa la variable: nombre, telefono o email."
                   placeholder={i === 0 ? 'nombre' : 'telefono'}
                   value={v.f_params[i] ?? ''}
                   onChange={(e) => {

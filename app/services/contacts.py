@@ -39,7 +39,6 @@ from .errors import Invalid, NotFound, QuotaExceeded
 PHONE_COLUMNS = {"telefono", "phone", "numero", "celular", "whatsapp", "wa_id", "movil"}
 NAME_COLUMNS = {"nombre", "name"}
 EMAIL_COLUMNS = {"email", "mail", "correo"}
-EXTERNAL_ID_COLUMNS = {"external_id", "id_externo", "idexterno", "id"}
 NOTES_COLUMNS = {"notas", "nota", "notes", "note"}
 MAX_NOTES = 2000
 CHUNK = 500
@@ -53,7 +52,6 @@ class ContactRow:
     phone: str
     name: str | None = None
     email: str | None = None
-    external_id: str | None = None
     notes: str | None = None
     line: int | None = None     # fila del CSV (1 = encabezado)
 
@@ -104,7 +102,6 @@ def _clean(row: ContactRow) -> tuple[str, dict]:
     """(telefono E.164, campos validados). ValueError con el motivo si la fila no sirve."""
     phone = phones.normalize_phone(row.phone)
     return phone, {"name": _text(row.name, 128, "nombre"), "email": _email(row.email),
-                   "external_id": _text(row.external_id, 128, "id externo"),
                    "notes": _text(row.notes, MAX_NOTES, "notas")}
 
 
@@ -118,9 +115,9 @@ def sniff_delimiter(text: str) -> str:
 
 
 def parse_csv(text: str) -> list[ContactRow]:
-    """CSV con encabezado: una columna de telefono (telefono, celular, phone...); nombre, email,
-    id externo (external_id) y notas opcionales; las demas columnas se ignoran. Separador coma, punto y coma o tab. Invalid si no hay columna
-    de telefono."""
+    """CSV con encabezado: una columna de telefono (telefono, celular, phone...); nombre, email
+    y notas opcionales; las demas columnas se ignoran. Separador coma, punto y coma o tab. Invalid si no hay
+    columna de telefono."""
     text = (text or "").lstrip("﻿")
     if not text.strip():
         return []
@@ -129,7 +126,7 @@ def parse_csv(text: str) -> list[ContactRow]:
     keys = [header_key(h) for h in header]
     roles = {}
     for role, names in (("phone", PHONE_COLUMNS), ("name", NAME_COLUMNS), ("email", EMAIL_COLUMNS),
-                        ("external_id", EXTERNAL_ID_COLUMNS), ("notes", NOTES_COLUMNS)):
+                        ("notes", NOTES_COLUMNS)):
         roles[role] = next((i for i, k in enumerate(keys) if k in names), None)
     if roles["phone"] is None:
         raise Invalid("El CSV necesita un encabezado con una columna telefono (o celular, phone, whatsapp)")
@@ -143,7 +140,7 @@ def parse_csv(text: str) -> list[ContactRow]:
 
         rows.append(ContactRow(
             phone=cell(roles["phone"]), name=cell(roles["name"]) or None, email=cell(roles["email"]) or None,
-            external_id=cell(roles["external_id"]) or None, notes=cell(roles["notes"]) or None, line=line))
+            notes=cell(roles["notes"]) or None, line=line))
     return rows
 
 
@@ -169,7 +166,7 @@ def room(s: Session, client_id: str) -> int | None:
 
 
 def _merge(contact: Contact, fields: dict) -> None:
-    for key in ("name", "email", "external_id", "notes"):
+    for key in ("name", "email", "notes"):
         if fields[key]:
             setattr(contact, key, fields[key])
 
@@ -228,7 +225,7 @@ def import_csv(s: Session, client_id: str, text: str) -> UpsertResult:
     return upsert(s, client_id, parse_csv(text), source="csv")
 
 
-EDITABLE = ("name", "email", "external_id", "notes")
+EDITABLE = ("name", "email", "notes")
 
 
 def update_contact(s: Session, contact: Contact, **changes) -> Contact:
@@ -267,7 +264,7 @@ def list_contacts(s: Session, client_id: str | None, *, q: str | None = None,
     if q and q.strip():
         like = "%" + q.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
         query = query.where(or_(*(col.ilike(like, escape="\\")
-                                  for col in (Contact.name, Contact.phone, Contact.email, Contact.external_id))))
+                                  for col in (Contact.name, Contact.phone, Contact.email))))
     total = s.scalar(select(func.count()).select_from(query.subquery())) or 0
     rows = s.scalars(query.order_by(Contact.created_at.desc(), Contact.id).offset(offset).limit(limit))
     return list(rows), total

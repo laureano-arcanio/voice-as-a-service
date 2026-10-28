@@ -376,7 +376,7 @@ def test_contacts_and_a_campaign_draft(api, full):
     ok(mcp.call("add_campaign_contacts", campaign_id=cid, contacts=[{"phone": "+5491155550004"}]))
     assert ok(mcp.call("get_campaign", campaign_id=cid))["name"] == "Cobranza octubre"
     report = mcp.call("get_campaign_report", campaign_id=cid)
-    assert not report.get("isError") and report["content"][0]["text"].startswith("external_id")
+    assert not report.get("isError") and report["content"][0]["text"].startswith("telefono")
     ok(mcp.call("delete_campaign", campaign_id=cid))
     ok(mcp.call("add_optout", phone="+5491155550002", channel="voice"))
     assert len(ok(mcp.call("list_optouts"))["items"]) == 1

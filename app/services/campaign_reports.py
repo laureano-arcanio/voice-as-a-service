@@ -26,7 +26,7 @@ from . import campaign_calls
 from . import campaigns as common
 from .reports import Reports, iso
 
-REPORT_COLUMNS = ["external_id", "telefono", "nombre", "vars", "estado", "resultado", "intentos", "ultimo_intento",
+REPORT_COLUMNS = ["telefono", "nombre", "vars", "estado", "resultado", "intentos", "ultimo_intento",
                   "duracion_segundos", "outcome", "objetivo", "campos", "seguimiento", "error", "conversation_id",
                   "link"]
 WA_RESULTS = ("sent", "delivered", "read", "replied")
@@ -179,7 +179,7 @@ def report_rows(s: Session, c: Campaign, definitions: DefinitionSource,
         out.append({
             "campaign_contact_id": r.id,
             "followup_conversation_id": r.followup_conversation_id,
-            "external_id": r.contact.external_id, "telefono": r.contact.phone, "nombre": r.contact.name,
+            "telefono": r.contact.phone, "nombre": r.contact.name,
             "vars": _json({k: v for k, v in (r.vars or {}).items() if k != "params"}),
             "estado": r.status,
             "resultado": wa.shown_result(r, message_status) if whatsapp else r.result,

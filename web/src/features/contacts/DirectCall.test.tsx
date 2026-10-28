@@ -19,7 +19,6 @@ const ANA: Contact = {
   phone: '+5493515551234',
   name: 'Ana Pérez',
   email: null,
-  external_id: null,
   notes: null,
   source: 'manual',
   archived_at: null,

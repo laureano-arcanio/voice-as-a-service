@@ -296,9 +296,6 @@ export function ContactDetailPage() {
             <Card>
               <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
                 <Datum label="Email">{c.email ?? <Dash />}</Datum>
-                <Datum label="ID externo">
-                  {c.external_id ? <span className="mono">{c.external_id}</span> : <Dash />}
-                </Datum>
                 <Datum label="Origen">{CONTACT_SOURCE[c.source] ?? c.source}</Datum>
                 <Datum label="Alta">{formatDate(c.created_at)}</Datum>
               </SimpleGrid>

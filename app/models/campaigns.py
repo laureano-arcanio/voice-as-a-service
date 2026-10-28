@@ -56,7 +56,6 @@ class Contact(IdMixin, TimestampMixin, Base):
     phone: Mapped[str] = mapped_column(String(20))      # E.164: +549351... (celular), +54... (fijo)
     name: Mapped[str | None] = mapped_column(String(128), nullable=True)
     email: Mapped[str | None] = mapped_column(String(254), nullable=True)
-    external_id: Mapped[str | None] = mapped_column(String(128), nullable=True)   # id en el sistema del cliente
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)     # nota libre, como la de un contacto del telefono
     source: Mapped[str] = mapped_column(String(16), default="manual", server_default="manual")
     # NULL: activo. Archivar no borra: se conservan el historial y los reportes.

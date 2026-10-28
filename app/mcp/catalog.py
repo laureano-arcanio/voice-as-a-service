@@ -334,9 +334,9 @@ _READ: tuple[Tool, ...] = (
 
     # ---------- contacts ----------
     Tool("list_contacts", "contacts", "Contactos",
-         "La agenda de contactos, con búsqueda por nombre, teléfono, email o ID externo." + _UNTRUSTED,
+         "La agenda de contactos, con búsqueda por nombre, teléfono o email." + _UNTRUSTED,
          path="/contacts",
-         params={"q": _s("Busca en nombre, teléfono, email e ID externo."),
+         params={"q": _s("Busca en nombre, teléfono y email."),
                  "archived": _s("false (default), true o all.", enum=["false", "true", "all"]), **_PAGE},
          features=("contacts",)),
     Tool("get_contact", "contacts", "Contacto", "Un contacto con sus datos y su nota." + _UNTRUSTED,
@@ -612,7 +612,7 @@ _WRITE: tuple[Tool, ...] = (
          "Carga uno o más contactos (por teléfono: los nuevos se crean y los que ya están se actualizan).",
          method="POST", path="/contacts", body="ContactIn", body_arg="contacts", features=("contacts",)),
     Tool("import_contacts", "contacts", "Importar un CSV de contactos",
-         "Carga contactos desde un CSV con encabezado (columna telefono; nombre, email, external_id y "
+         "Carga contactos desde un CSV con encabezado (columna telefono; nombre, email y "
          "notas opcionales). Devuelve creados, actualizados e inválidos con el motivo.", method="POST",
          path="/contacts/import", body="ContactImportIn", features=("contacts",)),
     Tool("update_contact", "contacts", "Editar un contacto",

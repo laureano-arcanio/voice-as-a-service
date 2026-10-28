@@ -73,7 +73,7 @@ def _diff(engine):
              # 0039 (llamadas directas).
              "'user_id'", "'answered_by'", "'opted_out_confirmed'", "ix_call_logs_user_id", "'direct_calls'",
              # 0040 (contactos con nota, sin etiquetas ni datos).
-             "'notes'", "'tags'", "'attributes'")
+             "'notes'", "'tags'", "'attributes'", "'external_id'")
     return [d for d in diff if any(t in repr(d) for t in touched) and not any(t in repr(d) for t in later)]
 
 

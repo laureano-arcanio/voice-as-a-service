@@ -34,7 +34,7 @@ def test_0040_upgrade_downgrade_upgrade(tmp_path):
         notes = dict(conn.execute(sa.text("SELECT id, notes FROM contacts")).all())
         diff = compare_metadata(MigrationContext.configure(conn, opts={"compare_type": True}), Base.metadata)
     assert notes == {"k1": "deuda: 15000\nvence: 2026-11-01", "k2": None}
-    assert [d for d in diff if "contacts" in repr(d)] == []
+    assert [d for d in diff if "contacts" in repr(d) and "external_id" not in repr(d)] == []     # la 0041 lo quita
     cols = {c["name"] for c in sa.inspect(engine).get_columns("contacts")}
     assert "notes" in cols and not cols & {"tags", "attributes"}
     _run(engine, command.downgrade, "0039")

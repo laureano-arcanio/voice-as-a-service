@@ -375,7 +375,7 @@ alcanza. En la navegación, debajo de Inicio.
   motivo ya dice.
 - **Formulario:** agente, destino (un contacto de la agenda, buscado por nombre o teléfono, o un número
   suelto en formato +549…), número de origen, motivo (hasta 2000 caracteres) y **Llamar**. Con un contacto,
-  su nombre, email e ID externo también le llegan al agente (como en una campaña: `{{nombre}}` en la apertura).
+  su nombre y email también le llegan al agente (como en una campaña: `{{nombre}}` en la apertura).
 - **Modo prueba:** no marca; te conectás por navegador y hacés de contacto. Usa solo el motivo.
 - Un número en la lista de bajas de voz del cliente (Contactos, Bajas) no se llama (409).
 - **Últimas llamadas:** las 10 salientes más nuevas, con estado, duración y resultado. El resultado sale
@@ -624,11 +624,11 @@ Signup) queda oculto mientras `WA_EMBEDDED_SIGNUP=false` (falta el Tech Provider
 ### Contactos (`/contacts`)
 
 La agenda del cliente: de ahí salen los destinatarios de las campañas. Lo único obligatorio es el teléfono
-(único por cliente, se normaliza a formato internacional); nombre, email, ID externo y una nota (texto libre, como la de un contacto del teléfono)
+(único por cliente, se normaliza a formato internacional); nombre, email y una nota (texto libre, como la de un contacto del teléfono)
 son opcionales.
 
-1. **Nuevo contacto** o **Importar CSV**: encabezado `telefono` (obligatorio), `nombre`, `email`, `id_externo`,
-   `notas`; las demás columnas se ignoran. La vista previa muestra las columnas; el resultado, los
+1. **Nuevo contacto** o **Importar CSV**: encabezado `telefono` (obligatorio), `nombre`, `email`
+   y `notas`; las demás columnas se ignoran. La vista previa muestra las columnas; el resultado, los
    creados, actualizados, archivados e inválidos (con fila y motivo). Un contacto que ya existe se actualiza:
    lo que no viene no se pisa; la nota solo cambia si viene con texto.
 2. **No se borran, se archivan.** El filtro Activos / Archivados / Todos muestra el resto. Se archiva uno

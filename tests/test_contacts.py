@@ -157,10 +157,10 @@ def test_archive_many_and_list_filters(sessions, client_id):
 def test_parse_csv():
     rows = contacts.parse_csv("﻿Nombre;Teléfono;Email;ID;Notas;Deuda;Fecha de vencimiento\n"
                               "Ana;351 555-1234;ana@x.com;C-1;Cliente desde 2020;15000;2026-11-01\n;;;;;;\nJuan;3515550000;;;;;\n")
-    # Las columnas que no son del contacto (deuda, fecha) se ignoran.
-    assert [(r.phone, r.name, r.email, r.external_id, r.notes, r.line) for r in rows] == [
-        ("351 555-1234", "Ana", "ana@x.com", "C-1", "Cliente desde 2020", 2),
-        ("3515550000", "Juan", None, None, None, 4)]
+    # Las columnas que no son del contacto (id, deuda, fecha) se ignoran.
+    assert [(r.phone, r.name, r.email, r.notes, r.line) for r in rows] == [
+        ("351 555-1234", "Ana", "ana@x.com", "Cliente desde 2020", 2),
+        ("3515550000", "Juan", None, None, 4)]
     with pytest.raises(Invalid):
         contacts.parse_csv("nombre,empresa\nAna,Acme\n")
     assert contacts.parse_csv("  ") == []

@@ -106,7 +106,7 @@ const byokStages = `"llm": {
 const contactsUpsert = `curl ${API}/contacts \\
   -H "Authorization: Bearer $ATENTINA_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '[{"phone": "351 555-1234", "name": "Ana Pérez", "external_id": "C-1032",
+  -d '[{"phone": "351 555-1234", "name": "Ana Pérez",
         "email": "ana@empresa.com", "notes": "Prefiere que la llamen por la tarde"},
        {"phone": "+54 9 11 5555-0000"}]'`;
 
@@ -607,9 +607,9 @@ const campaignEndpoints = [
 
     <section id="contactos" class="grid gap-4">
       <h2>Contactos</h2>
-      <p>Cada cuenta tiene su agenda. El teléfono es lo único obligatorio y no se repite: cargar uno que ya está lo actualiza (lo que no mandás no se pisa). El resto es opcional: <code>name</code>, <code>email</code>, <code>external_id</code> (el id en tu sistema, para cruzar el reporte) y <code>notes</code> (una nota libre, hasta 2000 caracteres).</p>
+      <p>Cada cuenta tiene su agenda. El teléfono es lo único obligatorio y no se repite: cargar uno que ya está lo actualiza (lo que no mandás no se pisa). El resto es opcional: <code>name</code>, <code>email</code> y <code>notes</code> (una nota libre, hasta 2000 caracteres).</p>
       <CodeBlock label="curl" code={contactsUpsert} />
-      <p>Por CSV, con <code>POST /contacts/import</code>: una columna de teléfono (<code>telefono</code>, <code>celular</code>, <code>phone</code>…) y, si querés, <code>nombre</code>, <code>email</code>, <code>id</code> y <code>notas</code>; el resto de las columnas se ignoran. La respuesta dice cuántos se crearon y actualizaron, y cuáles no entraron, con la fila y el motivo.</p>
+      <p>Por CSV, con <code>POST /contacts/import</code>: una columna de teléfono (<code>telefono</code>, <code>celular</code>, <code>phone</code>…) y, si querés, <code>nombre</code>, <code>email</code> y <code>notas</code>; el resto de las columnas se ignoran. La respuesta dice cuántos se crearon y actualizaron, y cuáles no entraron, con la fila y el motivo.</p>
       <CodeBlock label="CSV" code={contactsCsv} />
       <ul>
         <li><strong>No se borran: se archivan</strong> (<code>POST /contacts/{"{"}id{"}"}/archive</code> o en lote por ids). Un archivado no entra en campañas nuevas y sale de las que están en curso. <code>GET /contacts?archived=true</code> los lista. Si lo volvés a cargar, se actualiza pero sigue archivado hasta que lo desarchives.</li>
@@ -654,7 +654,7 @@ const campaignEndpoints = [
       </table></div>
 
       <h3>Reporte</h3>
-      <p>Una fila por contacto: <code>external_id</code>, teléfono, nombre, sus datos, estado, resultado, intentos, duración, resultado de la conversación, si llegó al objetivo, los datos que tomó el agente y el link a la conversación. Se abre en Excel con los acentos bien.</p>
+      <p>Una fila por contacto: teléfono, nombre, sus datos, estado, resultado, intentos, duración, resultado de la conversación, si llegó al objetivo, los datos que tomó el agente y el link a la conversación. Se abre en Excel con los acentos bien.</p>
       <CodeBlock label="curl" code={report} />
 
       <h3>Límites</h3>

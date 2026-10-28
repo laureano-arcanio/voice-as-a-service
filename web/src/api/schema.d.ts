@@ -1673,7 +1673,7 @@ export interface paths {
         };
         /**
          * Campaign Report
-         * @description El reporte por contacto en CSV (UTF-8 con BOM): external_id, telefono, vars, intentos, resultado,
+         * @description El reporte por contacto en CSV (UTF-8 con BOM): telefono, vars, intentos, resultado,
          *     duracion, outcome, objetivo, campos capturados, seguimiento y link a la conversacion.
          */
         get: operations["campaign_report_api_v1_campaigns__campaign_id__report_csv_get"];
@@ -5024,7 +5024,7 @@ export interface components {
             template_language?: string;
             /**
              * Param Names
-             * @description WhatsApp: dato del contacto (nombre, telefono, email o external_id) de cada variable de la plantilla
+             * @description WhatsApp: dato del contacto (nombre, telefono o email) de cada variable de la plantilla
              */
             param_names?: string[] | null;
             /**
@@ -5724,7 +5724,7 @@ export interface components {
         };
         /**
          * ContactImportIn
-         * @description CSV con encabezado: columna telefono (o celular, phone, whatsapp); nombre, email, external_id
+         * @description CSV con encabezado: columna telefono (o celular, phone, whatsapp); nombre, email
          *     y notas opcionales; las demas columnas se ignoran.
          */
         ContactImportIn: {
@@ -5746,11 +5746,6 @@ export interface components {
             name?: string | null;
             /** Email */
             email?: string | null;
-            /**
-             * External Id
-             * @description Id en el sistema del cliente
-             */
-            external_id?: string | null;
             /**
              * Notes
              * @description Nota libre sobre el contacto
@@ -5803,8 +5798,6 @@ export interface components {
             name: string | null;
             /** Email */
             email: string | null;
-            /** External Id */
-            external_id: string | null;
             /** Notes */
             notes: string | null;
             /**
@@ -5841,8 +5834,6 @@ export interface components {
             name?: string | null;
             /** Email */
             email?: string | null;
-            /** External Id */
-            external_id?: string | null;
             /** Notes */
             notes?: string | null;
         };

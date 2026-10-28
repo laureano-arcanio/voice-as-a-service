@@ -42,7 +42,7 @@ from .test_whatsapp_service import (
     text_payload,
 )
 
-CAMPAIGN_OPENING = "Hola {{nombre}}, te habla Valentina de Fibranet. ¿Hablo con {{Nombre}}, cliente {{external_id}}?"
+CAMPAIGN_OPENING = "Hola {{nombre}}, te habla Valentina de Fibranet. ¿Hablo con {{Nombre}}, al {{telefono}}?"
 OPENING = "Hola {{nombre}}, te habla Valentina de Fibranet. ¿Hablo con {{Nombre}} por la deuda de ${{deuda}}?"
 
 
@@ -149,7 +149,7 @@ def start_campaign(user, agent, rows, **extra) -> dict:
     return camp
 
 
-ROWS = [{"phone": "351 555-1001", "name": "Ana", "external_id": "A-1", "notes": "Prefiere la tarde"},
+ROWS = [{"phone": "351 555-1001", "name": "Ana", "email": "ana@x.com", "notes": "Prefiere la tarde"},
         {"phone": "351 555-1002"}]
 
 
@@ -159,12 +159,12 @@ async def test_the_call_carries_the_contact_data(api, cobranza):
     assert await dialer_for(api).tick() == 2
     ana, sin_datos = members(api, camp["id"])
     state = api.engine.store.get(ana.conversation_id)
-    assert state.messages[0].text == "Hola Ana, te habla Valentina de Fibranet. ¿Hablo con Ana, cliente A-1?"
+    assert state.messages[0].text == "Hola Ana, te habla Valentina de Fibranet. ¿Hablo con Ana, al +5493515551001?"
     # Los datos del contacto van al prompt; la nota no es una variable.
-    assert state.progress.contact == {"nombre": "Ana", "telefono": "+5493515551001", "external_id": "A-1"}
+    assert state.progress.contact == {"nombre": "Ana", "telefono": "+5493515551001", "email": "ana@x.com"}
     # Un contacto sin nombre: las variables quedan vacias y el texto, acomodado.
     other = api.engine.store.get(sin_datos.conversation_id)
-    assert other.messages[0].text == "Hola, te habla Valentina de Fibranet. ¿Hablo con, cliente?"
+    assert other.messages[0].text == "Hola, te habla Valentina de Fibranet. ¿Hablo con, al +5493515551002?"
     assert other.progress.preloaded == []
     assert other.progress.contact == {"telefono": "+5493515551002"}
 
@@ -202,14 +202,14 @@ async def test_report_csv_and_stats(api, cobranza):
     assert "attachment" in r.headers["content-disposition"]
     assert r.text.startswith("﻿")
     table = list(csv.DictReader(io.StringIO(r.text.lstrip("﻿"))))
-    assert list(table[0]) == campaign_reports.REPORT_COLUMNS and len(table) == 4
+    assert "external_id" not in campaign_reports.REPORT_COLUMNS and list(table[0]) == campaign_reports.REPORT_COLUMNS and len(table) == 4
     a, bb, cc, dd = table
-    assert (a["external_id"], a["telefono"], a["nombre"], a["estado"], a["resultado"], a["intentos"]) == (
-        "A-1", "+5493515551001", "Ana", "done", "answered", "1")
+    assert (a["telefono"], a["nombre"], a["estado"], a["resultado"], a["intentos"]) == (
+        "+5493515551001", "Ana", "done", "answered", "1")
     assert (a["duracion_segundos"], a["outcome"]) == ("120", "Compromiso de pago total")
     assert (bb["duracion_segundos"], bb["outcome"]) == ("60", "Dice que ya pagó")
     assert (a["objetivo"], bb["objetivo"]) == ("si", "no")
-    assert '"external_id":"A-1"' in a["vars"] and '"promesa":"paga_total"' in a["campos"]
+    assert '"email":"ana@x.com"' in a["vars"] and '"promesa":"paga_total"' in a["campos"]
     assert a["conversation_id"] == ana.conversation_id and a["link"].endswith(f"/calls/{ana.conversation_id}")
     assert (cc["estado"], cc["resultado"], cc["intentos"], cc["objetivo"]) == ("retry", "busy", "1", "")
     assert (dd["estado"], dd["resultado"], dd["error"]) == ("failed", "invalid", "Número inexistente")

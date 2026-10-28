@@ -1930,12 +1930,11 @@ class ContactIn(BaseModel):
     phone: str = Field(min_length=3, max_length=32, examples=["+54 9 351 555-1234", "3515551234"])
     name: str | None = Field(default=None, max_length=128)
     email: str | None = Field(default=None, max_length=254)
-    external_id: str | None = Field(default=None, max_length=128, description="Id en el sistema del cliente")
     notes: str | None = Field(default=None, max_length=2000, description="Nota libre sobre el contacto")
 
 
 class ContactImportIn(BaseModel):
-    """CSV con encabezado: columna telefono (o celular, phone, whatsapp); nombre, email, external_id
+    """CSV con encabezado: columna telefono (o celular, phone, whatsapp); nombre, email
     y notas opcionales; las demas columnas se ignoran."""
     csv: str = Field(min_length=1, max_length=900_000)
 
@@ -1944,7 +1943,6 @@ class ContactPatch(BaseModel):
     """Solo los campos enviados, que reemplazan a los anteriores; el telefono no se cambia."""
     name: str | None = Field(default=None, max_length=128)
     email: str | None = Field(default=None, max_length=254)
-    external_id: str | None = Field(default=None, max_length=128)
     notes: str | None = Field(default=None, max_length=2000)
 
 
@@ -1954,7 +1952,6 @@ class ContactOut(ORM):
     phone: str
     name: str | None
     email: str | None
-    external_id: str | None
     notes: str | None
     source: ContactSource
     archived_at: UTCDateTime | None
@@ -2083,7 +2080,7 @@ class CampaignIn(CampaignContactsIn):
     template_name: str | None = Field(default=None, pattern=r"^[a-z0-9_]{1,512}$", description="WhatsApp: plantilla aprobada de la WABA del numero")
     template_language: str = Field(default="es_AR", pattern=r"^[a-z]{2,3}(_[A-Z]{2})?$")
     param_names: list[Annotated[str, Field(min_length=1, max_length=64)]] | None = Field(
-        default=None, max_length=20, description="WhatsApp: dato del contacto (nombre, telefono, email o external_id) de cada variable de la plantilla")
+        default=None, max_length=20, description="WhatsApp: dato del contacto (nombre, telefono o email) de cada variable de la plantilla")
     # Voz.
     from_number_id: str | None = Field(default=None, description="Voz: numero del cliente que se muestra al llamar")
     voice: str | None = Field(default=None, max_length=64, description="Voz: voz del TTS; sin ella, la del agente")

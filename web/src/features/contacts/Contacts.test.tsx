@@ -14,7 +14,6 @@ const ANA: Contact = {
   phone: '+5493515551234',
   name: 'Ana Pérez',
   email: 'ana@acme.com',
-  external_id: 'A-1',
   notes: 'Prefiere que lo llamen por la tarde',
   source: 'csv',
   archived_at: null,
@@ -27,7 +26,6 @@ const LUIS: Contact = {
   phone: '+5493515550002',
   name: null,
   email: null,
-  external_id: null,
   notes: null,
   archived_at: '2026-10-10T12:00:00Z',
 };
@@ -195,7 +193,6 @@ describe('contactos: alta e importación', () => {
       phone: '351 555-1234',
       name: 'Ana',
       email: null,
-      external_id: null,
       notes: 'Prefiere la tarde',
     });
   });

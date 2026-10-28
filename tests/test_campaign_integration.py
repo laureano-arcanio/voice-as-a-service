@@ -919,7 +919,7 @@ async def test_delivery_is_signed_and_has_the_report_fields(api, voice, private_
     assert (contact["telefono"], contact["nombre"], contact["estado"], contact["resultado"], contact["intentos"]) == (
         "+5493515551001", "Ana1", "done", "busy", 1)
     assert contact["campaign_contact_id"] == a.id and contact["conversation_id"] == a.conversation_id
-    assert set(contact) >= {"external_id", "telefono", "nombre", "vars", "estado", "resultado", "intentos",
+    assert set(contact) >= {"telefono", "nombre", "vars", "estado", "resultado", "intentos",
                             "ultimo_intento", "duracion_segundos", "outcome", "objetivo", "campos", "seguimiento",
                             "error", "conversation_id", "link"}
     done = signed_ok(by_event["campaign.finished"])

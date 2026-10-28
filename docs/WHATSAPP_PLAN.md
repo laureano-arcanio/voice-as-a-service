@@ -665,7 +665,7 @@ dashboard (admin y cliente) y API `/api/v1/whatsapp/campaigns` (también con API
 `done` con `result='sent'`; `delivered`, `read` y `replied` se siguen sacando de `wa_messages` y `replied_at`;
 los parámetros de la plantilla, de `vars["params"]`. La conducta de abajo no cambió, y `/api/v1/whatsapp/campaigns`
 y `/whatsapp/optouts` siguen como alias de `/api/v1/campaigns` y `/contacts/optouts`. Lo que suma: contactos de
-la agenda (elegidos), variables por dato del contacto (`param_names`: `{{1}}` = el primero; `nombre`, `telefono`, `email` o `external_id`),
+la agenda (elegidos), variables por dato del contacto (`param_names`: `{{1}}` = el primero; `nombre`, `telefono` o `email`),
 programación (`starts_at` y `ends_at`, que el sender activa y cierra), días de la semana, la finalidad
 (`purpose`), tope por tier (canal, campañas por mes, contactos por campaña) y webhook. El sender también manda
 el **seguimiento por WhatsApp** de las campañas de voz. Diseño, API y despliegue en

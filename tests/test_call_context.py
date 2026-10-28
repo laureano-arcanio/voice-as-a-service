@@ -17,7 +17,7 @@ def _agent(admin, client, opening="Hola {{nombre}}, te llamo por tu consulta."):
 
 def _contact(admin, client, phone="+5493515551234", **kw) -> dict:
     out = admin.post(f"{V1}/contacts", params={"client_id": client["id"]},
-                     json={"phone": phone, "name": "Marcelo", "external_id": "V-77", **kw})
+                     json={"phone": phone, "name": "Marcelo", "email": "marcelo@x.com", **kw})
     assert out.status_code == 201, out.text
     return out.json()["contacts"][0]
 
@@ -31,7 +31,7 @@ def test_call_with_contact_and_context(api, admin):
     assert state.messages[0].text == "Hola Marcelo, te llamo por tu consulta."
     assert state.progress.context == MOTIVO
     block = prompt_block(state)
-    assert "MOTIVO DEL LLAMADO" in block and MOTIVO in block and "- external_id: V-77" in block
+    assert "MOTIVO DEL LLAMADO" in block and MOTIVO in block and "- email: marcelo@x.com" in block
     assert MOTIVO in build_extraction_prompt(api.engine.workflow(state), state)
     detail = admin.get(f"{V1}/calls/{state.conversation_id}").json()
     assert detail["context"] == MOTIVO and detail["call"]["phone"] == "+5493515551234"

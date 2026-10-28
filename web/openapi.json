@@ -5891,7 +5891,7 @@
      "campaigns"
     ],
     "summary": "Campaign Report",
-    "description": "El reporte por contacto en CSV (UTF-8 con BOM): external_id, telefono, vars, intentos, resultado,\nduracion, outcome, objetivo, campos capturados, seguimiento y link a la conversacion.",
+    "description": "El reporte por contacto en CSV (UTF-8 con BOM): telefono, vars, intentos, resultado,\nduracion, outcome, objetivo, campos capturados, seguimiento y link a la conversacion.",
     "operationId": "campaign_report_api_v1_campaigns__campaign_id__report_csv_get",
     "security": [
      {
@@ -17337,7 +17337,7 @@
        }
       ],
       "title": "Param Names",
-      "description": "WhatsApp: dato del contacto (nombre, telefono, email o external_id) de cada variable de la plantilla"
+      "description": "WhatsApp: dato del contacto (nombre, telefono o email) de cada variable de la plantilla"
      },
      "from_number_id": {
       "anyOf": [
@@ -19277,7 +19277,7 @@
      "csv"
     ],
     "title": "ContactImportIn",
-    "description": "CSV con encabezado: columna telefono (o celular, phone, whatsapp); nombre, email, external_id\ny notas opcionales; las demas columnas se ignoran."
+    "description": "CSV con encabezado: columna telefono (o celular, phone, whatsapp); nombre, email\ny notas opcionales; las demas columnas se ignoran."
    },
    "ContactIn": {
     "properties": {
@@ -19314,19 +19314,6 @@
        }
       ],
       "title": "Email"
-     },
-     "external_id": {
-      "anyOf": [
-       {
-        "type": "string",
-        "maxLength": 128
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "External Id",
-      "description": "Id en el sistema del cliente"
      },
      "notes": {
       "anyOf": [
@@ -19455,17 +19442,6 @@
       ],
       "title": "Email"
      },
-     "external_id": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "External Id"
-     },
      "notes": {
       "anyOf": [
        {
@@ -19518,7 +19494,6 @@
      "phone",
      "name",
      "email",
-     "external_id",
      "notes",
      "source",
      "archived_at",
@@ -19573,18 +19548,6 @@
        }
       ],
       "title": "Email"
-     },
-     "external_id": {
-      "anyOf": [
-       {
-        "type": "string",
-        "maxLength": 128
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "External Id"
      },
      "notes": {
       "anyOf": [

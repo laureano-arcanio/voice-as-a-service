@@ -451,7 +451,6 @@ describe('campañas: alta de llamadas', () => {
             phone: '+5493515551234',
             name: 'Ana',
             email: null,
-            external_id: null,
             notes: null,
             source: 'manual',
             archived_at: null,
