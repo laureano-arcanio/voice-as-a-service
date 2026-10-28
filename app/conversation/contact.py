@@ -1,11 +1,11 @@
 """Datos del contacto de una campaña de voz o de una llamada suelta en la conversación
 (docs/LLAMADAS_SALIENTES_PLAN.md, 4).
 
-`vars` es la copia de los datos del contacto que guarda la campaña (nombre, teléfono, atributos...).
+`vars` es la copia de los datos del contacto que guarda la campaña (nombre, teléfono, email, id externo).
 Llegan a la conversación de tres formas:
 - La apertura acepta `{{variable}}`: se reemplaza con su valor. Una variable que el contacto no tiene queda
   vacía (no se lee "{{deuda}}" en voz alta) y el texto se acomoda: "Hola {{nombre}}, soy..." -> "Hola, soy...".
-- Los atributos cuyo nombre coincide con un campo del workflow lo precargan (`state.fields`): el agente no
+- Los datos cuyo nombre coincide con un campo del workflow lo precargan (`state.fields`): el agente no
   los pregunta. Sirve el valor que el tipo del campo acepta; el que no, va con el resto.
 - El resto va al prompt como "Datos del contacto" (`Progress.contact`).
 
@@ -30,7 +30,7 @@ INTERNAL = ("params",)
 
 
 def key(name: str) -> str:
-    """Nombre de variable comparable: sin acentos ni mayusculas, con _ (igual que los atributos del contacto)."""
+    """Nombre de variable comparable: sin acentos ni mayusculas, con _ (igual que los datos del contacto)."""
     text = unicodedata.normalize("NFD", str(name or "")).encode("ascii", "ignore").decode()
     return re.sub(r"[^a-z0-9_]+", "_", text.lower()).strip("_")[:64]
 
@@ -74,7 +74,7 @@ def render_template(text: str, vars: dict | None) -> str:
 
 
 def preload(workflow: Workflow, vars: dict | None) -> tuple[dict[str, Any], dict[str, Any]]:
-    """(campos precargados, datos del contacto): los atributos que se llaman como un campo del workflow y
+    """(campos precargados, datos del contacto): los datos que se llaman como un campo del workflow y
     cuyo valor ese campo acepta van a `fields`; el resto, sin vacios, queda como dato del contacto."""
     clean = {k: v for k, v in (vars or {}).items() if k not in INTERNAL and fmt(v) != ""}
     candidates, used = {}, {}

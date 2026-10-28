@@ -1,24 +1,23 @@
 // Vista previa del CSV de contactos en el navegador: las mismas reglas de columnas que la API
 // (app/services/contacts.py, parse_csv). La API es la que carga y valida; esto solo muestra que va a entender.
 
-export type ColumnRole = 'phone' | 'name' | 'email' | 'external_id' | 'tags' | 'attribute' | 'ignored';
+export type ColumnRole = 'phone' | 'name' | 'email' | 'external_id' | 'notes' | 'ignored';
 
 export const ROLE_LABEL: Record<ColumnRole, string> = {
   phone: 'Teléfono',
   name: 'Nombre',
   email: 'Email',
   external_id: 'ID externo',
-  tags: 'Etiquetas',
-  attribute: 'Dato',
+  notes: 'Nota',
   ignored: 'Se ignora',
 };
 
-const ROLES: [Exclude<ColumnRole, 'attribute' | 'ignored'>, string[]][] = [
+const ROLES: [Exclude<ColumnRole, 'ignored'>, string[]][] = [
   ['phone', ['telefono', 'phone', 'numero', 'celular', 'whatsapp', 'wa_id', 'movil']],
   ['name', ['nombre', 'name']],
   ['email', ['email', 'mail', 'correo']],
   ['external_id', ['external_id', 'id_externo', 'idexterno', 'id']],
-  ['tags', ['tags', 'etiquetas', 'tag', 'etiqueta']],
+  ['notes', ['notas', 'nota', 'notes', 'note']],
 ];
 
 const strip = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -26,14 +25,6 @@ const headerKey = (h: string) =>
   strip(h)
     .toLowerCase()
     .replace(/[^a-z0-9_]/g, '');
-/** El nombre del atributo, como lo arma la API desde el encabezado. */
-export const attributeKey = (h: string) =>
-  strip(h)
-    .toLowerCase()
-    .replace(/[^a-z0-9_]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .slice(0, 64);
-
 function delimiter(text: string): string {
   const first = text.split(/\r?\n/, 1)[0] ?? '';
   const count = (d: string) => first.split(d).length - 1;
@@ -96,7 +87,7 @@ export function previewCsv(text: string): CsvPreview | null {
       used.add(found[0]);
       return { header: h, role: found[0] as ColumnRole };
     }
-    return { header: h, role: (attributeKey(h) ? 'attribute' : 'ignored') as ColumnRole };
+    return { header: h, role: 'ignored' as ColumnRole };
   });
   return {
     columns,

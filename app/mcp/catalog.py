@@ -334,12 +334,12 @@ _READ: tuple[Tool, ...] = (
 
     # ---------- contacts ----------
     Tool("list_contacts", "contacts", "Contactos",
-         "La agenda de contactos, con búsqueda por nombre o teléfono y por etiqueta." + _UNTRUSTED,
+         "La agenda de contactos, con búsqueda por nombre, teléfono, email o ID externo." + _UNTRUSTED,
          path="/contacts",
-         params={"q": _s("Busca en nombre y teléfono."), "tag": _s("Solo los que tienen esta etiqueta."),
+         params={"q": _s("Busca en nombre, teléfono, email e ID externo."),
                  "archived": _s("false (default), true o all.", enum=["false", "true", "all"]), **_PAGE},
          features=("contacts",)),
-    Tool("get_contact", "contacts", "Contacto", "Un contacto con sus datos y etiquetas." + _UNTRUSTED,
+    Tool("get_contact", "contacts", "Contacto", "Un contacto con sus datos y su nota." + _UNTRUSTED,
          path="/contacts/{contact_id}", params={"contact_id": _s("ID del contacto.")},
          required=("contact_id",), features=("contacts",)),
     Tool("get_contact_campaigns", "contacts", "Campañas de un contacto",
@@ -613,14 +613,14 @@ _WRITE: tuple[Tool, ...] = (
          method="POST", path="/contacts", body="ContactIn", body_arg="contacts", features=("contacts",)),
     Tool("import_contacts", "contacts", "Importar un CSV de contactos",
          "Carga contactos desde un CSV con encabezado (columna telefono; nombre, email, external_id y "
-         "etiquetas opcionales). Devuelve creados, actualizados e inválidos con el motivo.", method="POST",
+         "notas opcionales). Devuelve creados, actualizados e inválidos con el motivo.", method="POST",
          path="/contacts/import", body="ContactImportIn", features=("contacts",)),
     Tool("update_contact", "contacts", "Editar un contacto",
-         "Edita datos y etiquetas de un contacto (los atributos y las etiquetas reemplazan a los anteriores).",
+         "Edita los datos y la nota de un contacto (lo que viene reemplaza a lo anterior).",
          method="PATCH", path="/contacts/{contact_id}", params={"contact_id": _s("ID del contacto.")},
          required=("contact_id",), body="ContactPatch", features=("contacts",)),
     Tool("archive_contacts", "contacts", "Archivar contactos",
-         "Archiva contactos por ID o por etiqueta (no se borran). Sus intentos pendientes en campañas abiertas "
+         "Archiva contactos por ID (no se borran). Sus intentos pendientes en campañas abiertas "
          "se saltean.", method="POST", path="/contacts/archive", body="ContactsArchiveIn",
          features=("contacts",), destructive=True),
     Tool("unarchive_contact", "contacts", "Reactivar un contacto",
@@ -639,8 +639,8 @@ _WRITE: tuple[Tool, ...] = (
 
     # ---------- campaigns ----------
     Tool("create_campaign", "campaigns", "Crear una campaña",
-         "Crea una campaña de WhatsApp o de llamadas en borrador, con sus contactos (de la agenda, por "
-         "etiqueta, nuevos o en CSV). Con `start` la inicia en el acto: confirmalo con el usuario antes.",
+         "Crea una campaña de WhatsApp o de llamadas en borrador, con sus contactos (de la agenda, "
+         "nuevos o en CSV). Con `start` la inicia en el acto: confirmalo con el usuario antes.",
          method="POST", path="/campaigns", body="CampaignIn", features=_CAMPAIGNS, destructive=True),
     Tool("update_campaign", "campaigns", "Editar una campaña",
          "Cambia la configuración de una campaña en borrador o pausada.", method="PATCH",
@@ -651,7 +651,7 @@ _WRITE: tuple[Tool, ...] = (
          path="/campaigns/{campaign_id}", params=_CAMPAIGN, required=("campaign_id",), features=_CAMPAIGNS,
          destructive=True),
     Tool("add_campaign_contacts", "campaigns", "Sumar contactos a una campaña",
-         "Suma contactos a una campaña en borrador o pausada: de la agenda, por etiqueta, nuevos o en CSV.",
+         "Suma contactos a una campaña en borrador o pausada: de la agenda, nuevos o en CSV.",
          method="POST", path="/campaigns/{campaign_id}/contacts", params=_CAMPAIGN, required=("campaign_id",),
          body="CampaignContactsIn", features=_CAMPAIGNS),
     Tool("start_campaign", "campaigns", "Iniciar una campaña",

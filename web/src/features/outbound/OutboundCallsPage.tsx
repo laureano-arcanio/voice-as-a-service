@@ -59,7 +59,6 @@ function ContactPicker({
   const contacts = useContacts({
     clientId,
     q: value && search === contactLabel(value) ? '' : q,
-    tag: '',
     archived: 'false',
     offset: 0,
   });

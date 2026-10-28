@@ -71,7 +71,9 @@ def _diff(engine):
     later = ("call_link", "max_call_links", "ck_tiers_call_links", "summary_email", "'room'",
              "max_team_members", "ck_tiers_team_members",
              # 0039 (llamadas directas).
-             "'user_id'", "'answered_by'", "'opted_out_confirmed'", "ix_call_logs_user_id", "'direct_calls'")
+             "'user_id'", "'answered_by'", "'opted_out_confirmed'", "ix_call_logs_user_id", "'direct_calls'",
+             # 0040 (contactos con nota, sin etiquetas ni datos).
+             "'notes'", "'tags'", "'attributes'")
     return [d for d in diff if any(t in repr(d) for t in touched) and not any(t in repr(d) for t in later)]
 
 

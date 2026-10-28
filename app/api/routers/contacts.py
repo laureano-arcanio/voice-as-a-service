@@ -81,10 +81,9 @@ def _upsert_out(result: contacts.UpsertResult) -> ContactsUpsertOut:
 @router.get("", response_model=ContactPage)
 def list_contacts(p: CurrentPrincipal, db: DB, client_id: str | None = None,
                   q: str | None = Query(default=None, max_length=100, description="Busca en nombre, telefono, email e id externo"),
-                  tag: str | None = Query(default=None, max_length=32),
                   archived: Literal["false", "true", "all"] = Query(default="false", description="false: activos; true: archivados; all: todos"),
                   offset: int = Query(default=0, ge=0), limit: int = Query(default=50, ge=1, le=500)):
-    rows, total = contacts.list_contacts(db, scoped_client_id(p, client_id), q=q, tag=tag, archived=archived,
+    rows, total = contacts.list_contacts(db, scoped_client_id(p, client_id), q=q, archived=archived,
                                          offset=offset, limit=limit)
     return ContactPage(items=[ContactOut.model_validate(c) for c in rows], total=total)
 
@@ -93,7 +92,7 @@ def list_contacts(p: CurrentPrincipal, db: DB, client_id: str | None = None,
 def upsert_contacts(body: ContactIn | list[ContactIn], p: CurrentPrincipal, db: DB, response: Response,
                     client_id: str | None = None):
     """Carga un contacto o una lista (upsert por telefono): los nuevos se crean y los que ya
-    existen se actualizan, sumando atributos y etiquetas. Las filas invalidas o que no entran por
+    existen se actualizan, sumando la nota si viene. Las filas invalidas o que no entran por
     el tope del plan vuelven en `invalid`; con un solo contacto, eso es un error. Los archivados
     se actualizan pero siguen archivados (`archived`)."""
     cid = _client_id(db, p, client_id)
@@ -119,17 +118,17 @@ def import_contacts(body: ContactImportIn, p: CurrentPrincipal, db: DB, client_i
     """Carga un CSV (upsert por telefono). Devuelve creados, actualizados e invalidos con su fila y
     el motivo."""
     cid = _client_id(db, p, client_id)
-    result = contacts.import_csv(db, cid, body.csv, body.tags)
+    result = contacts.import_csv(db, cid, body.csv)
     _commit(db)
     return _upsert_out(result)
 
 
 @router.post("/archive", response_model=ContactsArchiveOut)
 def archive_contacts(body: ContactsArchiveIn, p: CurrentPrincipal, db: DB, client_id: str | None = None):
-    """Archiva en lote, por ids o por etiquetas. Sus intentos pendientes en campañas abiertas
+    """Archiva en lote, por ids. Sus intentos pendientes en campañas abiertas
     pasan a salteados."""
     cid = _client_id(db, p, client_id)
-    n = contacts.archive_many(db, cid, body.contact_ids, body.tags)
+    n = contacts.archive_many(db, cid, body.contact_ids)
     db.commit()
     return ContactsArchiveOut(archived=n)
 
@@ -187,7 +186,7 @@ def contact_campaigns(contact_id: str, p: CurrentPrincipal, db: DB):
 
 @router.patch("/{contact_id}", response_model=ContactOut)
 def update_contact(contact_id: str, body: ContactPatch, p: CurrentPrincipal, db: DB):
-    """Edita datos y etiquetas (los atributos y las etiquetas reemplazan a los anteriores). El
+    """Edita los datos (lo que viene reemplaza a lo anterior). El
     telefono no se cambia: otro telefono es otro contacto."""
     contact = _get(db, contact_id, p)
     contacts.update_contact(db, contact, **body.model_dump(exclude_unset=True))

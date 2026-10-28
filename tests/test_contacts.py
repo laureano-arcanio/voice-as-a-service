@@ -63,24 +63,25 @@ def row(phone, **kw):
 def test_upsert_creates_updates_and_merges(sessions, client_id):
     with sessions() as s:
         r = contacts.upsert(s, client_id, [
-            row("351 555-1234", name="Ana", attributes={"deuda": 100}, tags=["VIP", "cobranza"], line=2),
-            row("3515551234", email="ana@acme.com", attributes={"vence": "2026-11-01"}, tags=["vip"], line=3),
-            row("555", line=4), row("3515550000", email="sin-arroba", line=5), row("3515550001", tags=["con espacio!"])],
+            row("351 555-1234", name="Ana", notes="Prefiere la tarde", line=2),
+            row("3515551234", email="ana@acme.com", line=3),
+            row("555", line=4), row("3515550000", email="sin-arroba", line=5),
+            row("3515550001", notes="x" * 2001)],
             source="csv")
         s.commit()
         assert [c.phone for c in r.created] == ["+5493515551234"] and r.updated == []
         assert [(x.phone, x.line) for x in r.invalid] == [("555", 4), ("3515550000", 5), ("3515550001", None)]
-        assert "email" in r.invalid[1].reason and "etiqueta" in r.invalid[2].reason
+        assert "email" in r.invalid[1].reason and "notas" in r.invalid[2].reason
         ana = r.created[0]
-        assert (ana.name, ana.email, ana.source, ana.attributes, ana.tags) == (
-            "Ana", "ana@acme.com", "csv", {"deuda": 100, "vence": "2026-11-01"}, ["cobranza", "vip"])
+        assert (ana.name, ana.email, ana.source, ana.notes) == ("Ana", "ana@acme.com", "csv", "Prefiere la tarde")
 
-        # Otra carga: actualiza, no pisa lo que no viene y suma atributos y etiquetas.
-        r = contacts.upsert(s, client_id, [row("+54 9 351 555 1234", attributes={"deuda": 250}, tags=["nuevo"])])
+        # Otra carga: actualiza y no pisa lo que no viene (la nota vacia tampoco); con nota, la reemplaza.
+        r = contacts.upsert(s, client_id, [row("+54 9 351 555 1234", notes="  ")])
         s.commit()
         assert r.created == [] and [c.id for c in r.updated] == [ana.id] and r.archived == []
-        assert (ana.name, ana.attributes, ana.tags) == ("Ana", {"deuda": 250, "vence": "2026-11-01"},
-                                                        ["cobranza", "nuevo", "vip"])
+        assert (ana.name, ana.notes) == ("Ana", "Prefiere la tarde")
+        contacts.upsert(s, client_id, [row("3515551234", notes="Llamar después de las 18")])
+        assert ana.notes == "Llamar después de las 18"
         assert s.scalar(select(Contact.id).where(Contact.client_id == client_id).limit(2)) == ana.id
 
 
@@ -133,19 +134,20 @@ def test_archive_skips_pending_campaign_contacts(sessions, client_id):
             ("skipped", "contact_archived"), ("in_progress", None), ("pending", None)]
 
 
-def test_archive_many_by_tags_and_list_filters(sessions, client_id):
+def test_archive_many_and_list_filters(sessions, client_id):
     with sessions() as s:
-        contacts.upsert(s, client_id, [row("3515550001", name="Ana", tags=["vip"]), row("3515550002", name="Beto"),
-                                       row("3515550003", name="Cris", tags=["vip", "mora"], email="c@x.com")])
-        assert contacts.archive_many(s, client_id, tags=["VIP"]) == 2
+        _, _, cris = contacts.upsert(s, client_id, [row("3515550001", name="Ana"), row("3515550002", name="Beto"),
+                                                    row("3515550003", name="Cris", email="c@x.com")]).created
+        assert contacts.archive_many(s, client_id, contact_ids=["no-existe"]) == 0
+        ana_id = s.scalar(select(Contact.id).where(Contact.client_id == client_id, Contact.name == "Ana"))
+        assert contacts.archive_many(s, client_id, contact_ids=[ana_id, cris.id]) == 2
         with pytest.raises(Invalid):
-            contacts.archive_many(s, client_id)
+            contacts.archive_many(s, client_id, [])
         s.commit()
 
         def phones_of(**kw):
             return sorted(c.phone[-1] for c in contacts.list_contacts(s, client_id, **kw)[0])
         assert phones_of() == ["2"] and phones_of(archived="true") == ["1", "3"] and phones_of(archived="all") == ["1", "2", "3"]
-        assert phones_of(archived="all", tag="mora") == ["3"] and phones_of(archived="all", tag="v_p") == []
         assert phones_of(archived="all", q="cris") == ["3"] and phones_of(archived="all", q="555000") == ["1", "2", "3"]
         assert contacts.list_contacts(s, client_id, archived="all", limit=2)[1] == 3
         with pytest.raises(Invalid):
@@ -153,12 +155,12 @@ def test_archive_many_by_tags_and_list_filters(sessions, client_id):
 
 
 def test_parse_csv():
-    rows = contacts.parse_csv("﻿Nombre;Teléfono;Email;ID;Etiquetas;Deuda;Fecha de vencimiento\n"
-                              "Ana;351 555-1234;ana@x.com;C-1;vip|mora;15000;2026-11-01\n;;;;;;\nJuan;3515550000;;;;;\n")
-    assert [(r.phone, r.name, r.email, r.external_id, r.tags, r.attributes, r.line) for r in rows] == [
-        ("351 555-1234", "Ana", "ana@x.com", "C-1", ["vip", "mora"],
-         {"deuda": "15000", "fecha_de_vencimiento": "2026-11-01"}, 2),
-        ("3515550000", "Juan", None, None, [], {}, 4)]
+    rows = contacts.parse_csv("﻿Nombre;Teléfono;Email;ID;Notas;Deuda;Fecha de vencimiento\n"
+                              "Ana;351 555-1234;ana@x.com;C-1;Cliente desde 2020;15000;2026-11-01\n;;;;;;\nJuan;3515550000;;;;;\n")
+    # Las columnas que no son del contacto (deuda, fecha) se ignoran.
+    assert [(r.phone, r.name, r.email, r.external_id, r.notes, r.line) for r in rows] == [
+        ("351 555-1234", "Ana", "ana@x.com", "C-1", "Cliente desde 2020", 2),
+        ("3515550000", "Juan", None, None, None, 4)]
     with pytest.raises(Invalid):
         contacts.parse_csv("nombre,empresa\nAna,Acme\n")
     assert contacts.parse_csv("  ") == []
@@ -189,12 +191,14 @@ def test_optouts_by_channel(sessions, client_id):
 def test_api_upsert_list_patch_archive(api, admin):  # noqa: F811
     acme, other = make_client(admin, "acme"), make_client(admin, "otro")
     user = client_user(api, admin, acme)
-    r = user.post(f"{V1}/contacts", json={"phone": "351 555-1234", "name": "Ana", "tags": ["VIP"],
-                                          "attributes": {"deuda": 100}})
+    r = user.post(f"{V1}/contacts", json={"phone": "351 555-1234", "name": "Ana", "notes": "Prefiere WhatsApp",
+                                          "tags": ["VIP"], "attributes": {"deuda": 100}})
     assert r.status_code == 201, r.text
     ana = r.json()["contacts"][0]
-    assert (r.json()["created"], ana["phone"], ana["tags"], ana["source"], ana["client_id"]) == (
-        1, "+5493515551234", ["vip"], "api", acme["id"])
+    assert (r.json()["created"], ana["phone"], ana["notes"], ana["source"], ana["client_id"]) == (
+        1, "+5493515551234", "Prefiere WhatsApp", "api", acme["id"])
+    # Etiquetas y datos por contacto ya no existen: no se guardan ni se devuelven.
+    assert "tags" not in ana and "attributes" not in ana
     # Lista: uno nuevo, uno existente y uno invalido.
     r = user.post(f"{V1}/contacts", json=[{"phone": "3515551234", "email": "ana@x.com"}, {"phone": "3515550000"},
                                           {"phone": "nope"}])
@@ -207,13 +211,14 @@ def test_api_upsert_list_patch_archive(api, admin):  # noqa: F811
 
     page = user.get(f"{V1}/contacts", params={"q": "ana"}).json()
     assert page["total"] == 1 and page["items"][0]["email"] == "ana@x.com"
-    assert user.get(f"{V1}/contacts", params={"tag": "vip"}).json()["total"] == 1
     assert user.get(f"{V1}/contacts", params={"archived": "talvez"}).status_code == 422
 
-    r = user.patch(f"{V1}/contacts/{ana['id']}", json={"name": None, "tags": ["b2b"], "attributes": {"x": 1}})
-    assert r.status_code == 200 and (r.json()["name"], r.json()["tags"], r.json()["attributes"]) == (
-        None, ["b2b"], {"x": 1})
-    assert user.patch(f"{V1}/contacts/{ana['id']}", json={"tags": ["mal!"]}).status_code == 422
+    r = user.patch(f"{V1}/contacts/{ana['id']}", json={"name": None, "notes": "Nota nueva"})
+    assert r.status_code == 200 and (r.json()["name"], r.json()["notes"]) == (None, "Nota nueva")
+    # Solo cambia lo que viene; la nota se borra con null y tiene tope.
+    assert user.patch(f"{V1}/contacts/{ana['id']}", json={"email": "a@x.com"}).json()["notes"] == "Nota nueva"
+    assert user.patch(f"{V1}/contacts/{ana['id']}", json={"notes": "  "}).json()["notes"] is None
+    assert user.patch(f"{V1}/contacts/{ana['id']}", json={"notes": "x" * 2001}).status_code == 422
 
     r = user.post(f"{V1}/contacts/{ana['id']}/archive")
     assert r.status_code == 200 and r.json()["archived_at"]
@@ -227,9 +232,10 @@ def test_api_upsert_list_patch_archive(api, admin):  # noqa: F811
     assert r.status_code == 200 and r.json()["archived_at"] is None
     assert user.delete(f"{V1}/contacts/{ana['id']}").status_code == 405     # no se borra
 
-    # Lote por etiqueta.
-    assert user.post(f"{V1}/contacts/archive", json={"tags": ["b2b"]}).json() == {"archived": 1}
+    # Lote por ids.
+    assert user.post(f"{V1}/contacts/archive", json={"contact_ids": [ana["id"]]}).json() == {"archived": 1}
     assert user.post(f"{V1}/contacts/archive", json={}).status_code == 422
+    assert user.post(f"{V1}/contacts/archive", json={"tags": ["b2b"]}).status_code == 422
 
     # Otro cliente: no ve ni toca; un admin tiene que indicar el cliente.
     stranger = client_user(api, admin, other, email="otro@x.com")
@@ -245,16 +251,17 @@ def test_api_upsert_list_patch_archive(api, admin):  # noqa: F811
 
 def test_api_import_csv(api, admin):  # noqa: F811
     user = client_user(api, admin, make_client(admin, "acme"))
-    csv = "telefono,nombre,deuda\n351 555-1234,Ana,100\n555,Mal,1\n351 555-0000,Juan,\n3515551234,Ana de nuevo,200\n"
-    r = user.post(f"{V1}/contacts/import", json={"csv": csv, "tags": ["Octubre"]})
+    csv = ("telefono,nombre,deuda,notas\n351 555-1234,Ana,100,Primera\n555,Mal,1,\n351 555-0000,Juan,,\n"
+           "3515551234,Ana de nuevo,200,Segunda\n")
+    r = user.post(f"{V1}/contacts/import", json={"csv": csv})
     assert r.status_code == 200, r.text
     out = r.json()
     assert (out["created"], out["updated"]) == (2, 0)      # el repetido se suma al mismo contacto
     assert out["invalid"] == [{"phone": "555", "reason": "formato no reconocido: código de área + número sin el 15 "
                                                         "(351 555-1234), o +54 9 ...", "line": 3}]
     ana = next(c for c in out["contacts"] if c["phone"].endswith("1234"))
-    assert (ana["name"], ana["attributes"], ana["tags"], ana["source"]) == (
-        "Ana de nuevo", {"deuda": "200"}, ["octubre"], "csv")
+    assert (ana["name"], ana["notes"], ana["source"]) == ("Ana de nuevo", "Segunda", "csv")
+    assert "attributes" not in ana and "tags" not in ana
     assert user.post(f"{V1}/contacts/import", json={"csv": "nombre\nAna"}).status_code == 422
     # Reimportar actualiza.
     assert user.post(f"{V1}/contacts/import", json={"csv": "telefono,nombre\n3515550000,Juan P\n"}).json()["updated"] == 1

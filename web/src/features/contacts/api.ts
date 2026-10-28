@@ -8,7 +8,6 @@ export type ArchivedFilter = 'false' | 'true' | 'all';
 export interface ContactFilters {
   clientId?: string;
   q: string;
-  tag: string;
   archived: ArchivedFilter;
   offset: number;
 }
@@ -18,7 +17,6 @@ export const CONTACTS_PAGE = 50;
 export const contactKeys = {
   all: ['contacts'] as const,
   list: (f: ContactFilters) => ['contacts', 'list', f] as const,
-  tags: (clientId?: string) => ['contacts', 'tags', clientId ?? 'all'] as const,
   detail: (id: string) => ['contacts', 'detail', id] as const,
   campaigns: (id: string) => ['contacts', 'detail', id, 'campaigns'] as const,
   optouts: (clientId?: string) => ['contact-optouts', clientId ?? 'all'] as const,
@@ -35,7 +33,6 @@ export function useContacts(f: ContactFilters) {
             query: {
               client_id: f.clientId,
               q: f.q || undefined,
-              tag: f.tag || undefined,
               archived: f.archived,
               offset: f.offset,
               limit: CONTACTS_PAGE,
@@ -44,23 +41,6 @@ export function useContacts(f: ContactFilters) {
         }),
       ),
     placeholderData: keepPreviousData,
-  });
-}
-
-/** Etiquetas en uso, para sugerirlas: las de los primeros 500 contactos (la API no lista etiquetas). */
-export function useTagSuggestions(clientId?: string, enabled = true) {
-  return useQuery({
-    queryKey: contactKeys.tags(clientId),
-    queryFn: async () => {
-      const page = await unwrap(
-        api.GET('/api/v1/contacts', {
-          params: { query: { client_id: clientId, archived: 'all', limit: 500 } },
-        }),
-      );
-      return [...new Set(page.items.flatMap((c) => c.tags))].sort();
-    },
-    enabled,
-    staleTime: 60_000,
   });
 }
 
@@ -102,7 +82,7 @@ export function useUpsertContact(clientId?: string) {
 export function useImportContacts(clientId?: string) {
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: (body: { csv: string; tags: string[] }) =>
+    mutationFn: (body: { csv: string }) =>
       unwrap(api.POST('/api/v1/contacts/import', { params: { query: { client_id: clientId } }, body })),
     onSuccess: invalidate,
   });
@@ -130,11 +110,11 @@ export function useArchiveContact() {
   });
 }
 
-/** Archiva en lote, por ids o por etiquetas. */
+/** Archiva en lote, por ids. */
 export function useArchiveMany(clientId?: string) {
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: (body: { contact_ids?: string[]; tags?: string[] }) =>
+    mutationFn: (body: { contact_ids: string[] }) =>
       unwrap(api.POST('/api/v1/contacts/archive', { params: { query: { client_id: clientId } }, body })),
     onSuccess: invalidate,
   });

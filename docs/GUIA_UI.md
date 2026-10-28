@@ -375,7 +375,7 @@ alcanza. En la navegación, debajo de Inicio.
   motivo ya dice.
 - **Formulario:** agente, destino (un contacto de la agenda, buscado por nombre o teléfono, o un número
   suelto en formato +549…), número de origen, motivo (hasta 2000 caracteres) y **Llamar**. Con un contacto,
-  su nombre y sus atributos también le llegan al agente (como en una campaña: `{{nombre}}` en la apertura).
+  su nombre, email e ID externo también le llegan al agente (como en una campaña: `{{nombre}}` en la apertura).
 - **Modo prueba:** no marca; te conectás por navegador y hacés de contacto. Usa solo el motivo.
 - Un número en la lista de bajas de voz del cliente (Contactos, Bajas) no se llama (409).
 - **Últimas llamadas:** las 10 salientes más nuevas, con estado, duración y resultado. El resultado sale
@@ -395,9 +395,9 @@ está siendo grabada." es opcional (Mi cuenta). Entrando como el cliente (soport
 **Llamar**
 1. **Sale desde:** el número que ve el contacto. Aparece solo si tu cuenta tiene más de un número; se recuerda
    en este navegador. Sin ningún número asignado hay un aviso y no se puede llamar.
-2. Elegí un contacto de la agenda (buscador por nombre o teléfono y filtro de etiquetas) y tocá **Llamar**,
+2. Elegí un contacto de la agenda (buscador por nombre o teléfono) y tocá **Llamar**,
    o escribí un número en **O marcá un número** (formato internacional, `+5493515551234`) y **Llamar**.
-   A la derecha, el contacto elegido con sus etiquetas, su historial (**Últimas llamadas**, las del agente y las
+   A la derecha, el contacto elegido con su nota, su historial (**Últimas llamadas**, las del agente y las
    directas) y **Ver la ficha**. Abajo, **Mis últimas llamadas** (entrantes y salientes tuyas).
 3. El navegador pide el micrófono. Usá auriculares: sin ellos la voz del contacto vuelve como eco.
 4. **Contacto que pidió no recibir llamadas** (marca "No quiere llamadas"): se puede llamar igual, con una
@@ -624,25 +624,24 @@ Signup) queda oculto mientras `WA_EMBEDDED_SIGNUP=false` (falta el Tech Provider
 ### Contactos (`/contacts`)
 
 La agenda del cliente: de ahí salen los destinatarios de las campañas. Lo único obligatorio es el teléfono
-(único por cliente, se normaliza a formato internacional); nombre, email, ID externo, etiquetas y datos libres
-(`deuda`, `vence`…) son opcionales.
+(único por cliente, se normaliza a formato internacional); nombre, email, ID externo y una nota (texto libre, como la de un contacto del teléfono)
+son opcionales.
 
 1. **Nuevo contacto** o **Importar CSV**: encabezado `telefono` (obligatorio), `nombre`, `email`, `id_externo`,
-   `etiquetas` (separadas por `|` o `;`) y una columna más por cada dato libre. La vista previa muestra las columnas; el resultado, los
+   `notas`; las demás columnas se ignoran. La vista previa muestra las columnas; el resultado, los
    creados, actualizados, archivados e inválidos (con fila y motivo). Un contacto que ya existe se actualiza:
-   los datos y las etiquetas se suman, no se pisan.
-2. **Etiquetas:** sirven para armar campañas por segmento. Se escriben en minúsculas, sin acentos.
-3. **No se borran, se archivan.** El filtro Activos / Archivados / Todos muestra el resto. Se archiva uno,
-   varios seleccionados o una etiqueta entera. Un archivado no entra en campañas nuevas y se saltea en las
+   lo que no viene no se pisa; la nota solo cambia si viene con texto.
+2. **No se borran, se archivan.** El filtro Activos / Archivados / Todos muestra el resto. Se archiva uno
+   o varios seleccionados. Un archivado no entra en campañas nuevas y se saltea en las
    que tenía pendientes. Recargar su teléfono no lo desarchiva: **Desarchivar** es explícito.
-4. **Ficha** (clic en la fila): datos y campañas en que participó o participa.
-5. **Tope:** el tier limita los contactos activos de la agenda.
-6. **Llamar:** el ícono de teléfono de cada fila y el botón **Llamar** de la ficha hacen una llamada directa
+3. **Ficha** (clic en la fila): datos, nota y campañas en que participó o participa.
+4. **Tope:** el tier limita los contactos activos de la agenda.
+5. **Llamar:** el ícono de teléfono de cada fila y el botón **Llamar** de la ficha hacen una llamada directa
    (hablás vos, desde el navegador; ver [Teléfono](#teléfono-telefono)), saliendo del número que elegiste
    en Teléfono. Apagado, con el motivo en el tooltip, si el plan no la incluye, el número está bloqueado,
    ya estás en una llamada o no tenés número asignado. Que llame un **agente** es otra cosa: **Canales >
    Llamadas** o una campaña.
-7. **Números bloqueados** (al final): sus llamadas entrantes, por la línea o por WhatsApp, se cortan sin
+6. **Números bloqueados** (al final): sus llamadas entrantes, por la línea o por WhatsApp, se cortan sin
    atender y quedan como rechazadas (`blocked_number`). Se cargan acá (teléfono y motivo) o desde el detalle
    de una llamada (**Bloquear número**). No cambian las campañas: para no llamar a alguien están las bajas.
 
@@ -705,7 +704,7 @@ recibir mensajes: muchos bloqueos bajan la calidad del número y su límite de e
      (vacío: la del agente).
    - **Finalidad:** comercial, cobranza, turnos o aviso. Una **comercial** exige marcar "Confirmo que filtré la
      lista contra el Registro No Llame" (Ley 26.951; es responsabilidad del cliente).
-   - **Destinatarios:** por etiquetas, contactos elegidos de la agenda o un CSV (que también los carga en la agenda).
+   - **Destinatarios:** contactos elegidos de la agenda o un CSV (que también los carga en la agenda).
    - **Horario:** desde, hasta, días y, opcional, **Inicio programado** y **Termina como máximo**. Fuera de
      horario (o en un feriado de `CAMPAIGN_HOLIDAYS`) no llama.
    - **Llamadas:** de a una, o en paralelo hasta el tope del plan; intentos por contacto, minutos entre intentos

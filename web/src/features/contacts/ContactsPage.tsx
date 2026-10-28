@@ -8,7 +8,6 @@ import {
   Group,
   Pagination,
   SegmentedControl,
-  Select,
   Stack,
   Table,
   Text,
@@ -41,14 +40,11 @@ import {
   useArchiveContact,
   useArchiveMany,
   useContacts,
-  useTagSuggestions,
   useUnarchiveMany,
 } from './api';
 import { BlockedNumbersCard } from './BlockedNumbersCard';
 import { DirectCallButton } from './DirectCallButton';
 import { ContactModal, ImportContactsModal } from './ContactModals';
-import { TagBadges } from './TagBadges';
-import { attributesText } from './labels';
 
 const ARCHIVED_OPTIONS: { value: ArchivedFilter; label: string }[] = [
   { value: 'false', label: 'Activos' },
@@ -59,14 +55,12 @@ const ARCHIVED_OPTIONS: { value: ArchivedFilter; label: string }[] = [
 export function ContactsPage() {
   const [search, setSearch] = useState('');
   const [q] = useDebouncedValue(search.trim(), 300);
-  const [tag, setTag] = useState('');
   const [archived, setArchived] = useState<ArchivedFilter>('false');
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [dialog, setDialog] = useState<'new' | 'import' | Contact | null>(null);
 
-  const contacts = useContacts({ q, tag, archived, offset: (page - 1) * CONTACTS_PAGE });
-  const tags = useTagSuggestions();
+  const contacts = useContacts({ q, archived, offset: (page - 1) * CONTACTS_PAGE });
   const plan = usePlan();
   const archiveOne = useArchiveContact();
   const archiveMany = useArchiveMany();
@@ -117,7 +111,7 @@ export function ContactsPage() {
       },
     );
 
-  const bulkArchive = async (by: { contact_ids?: string[]; tags?: string[] }, what: string) => {
+  const bulkArchive = async (by: { contact_ids: string[] }, what: string) => {
     const ok = await confirmAction({
       title: `Archivar ${what}`,
       message:
@@ -197,17 +191,6 @@ export function ContactsPage() {
             onChange={(e) => restart(() => setSearch(e.currentTarget.value))}
             w={260}
           />
-          <Select
-            label="Etiqueta"
-            placeholder="Todas"
-            data={tags.data ?? []}
-            value={tag || null}
-            onChange={(v) => restart(() => setTag(v ?? ''))}
-            clearable
-            searchable
-            nothingFoundMessage="No hay etiquetas"
-            w={180}
-          />
           <SegmentedControl
             aria-label="Estado"
             data={ARCHIVED_OPTIONS}
@@ -249,27 +232,13 @@ export function ContactsPage() {
             </Button>
           </Group>
         )}
-        {tag && archived === 'false' && total > 0 && selected.size === 0 && (
-          <Group mb="sm">
-            <Button
-              variant="subtle"
-              color="red"
-              size="compact-sm"
-              leftSection={<IconArchive size={16} />}
-              loading={archiveMany.isPending}
-              onClick={() => void bulkArchive({ tags: [tag] }, `todos los de la etiqueta ${tag}`)}
-            >
-              Archivar la etiqueta {tag}
-            </Button>
-          </Group>
-        )}
         <QueryState query={contacts}>
           {() =>
             items.length === 0 ? (
               <EmptyState>
-                {q || tag || archived !== 'false'
+                {q || archived !== 'false'
                   ? 'No hay contactos con esos filtros.'
-                  : 'Todavía no hay contactos. Importá un CSV o agregá el primero: las campañas toman sus destinatarios de acá.'}
+                  : 'Todavía no hay contactos. Importá un CSV o agregá el primero.'}
               </EmptyState>
             ) : (
               <>
@@ -289,8 +258,7 @@ export function ContactsPage() {
                         </Table.Th>
                         <Table.Th>Teléfono</Table.Th>
                         <Table.Th>Nombre</Table.Th>
-                        <Table.Th>Etiquetas</Table.Th>
-                        <Table.Th>Datos</Table.Th>
+                        <Table.Th>Notas</Table.Th>
                         <Table.Th>Alta</Table.Th>
                         <Table.Th />
                       </Table.Tr>
@@ -323,18 +291,9 @@ export function ContactsPage() {
                             </Group>
                           </Table.Td>
                           <Table.Td>
-                            <TagBadges tags={c.tags} />
-                          </Table.Td>
-                          <Table.Td>
-                            {Object.keys(c.attributes).length ? (
-                              <Text
-                                size="xs"
-                                c="dimmed"
-                                lineClamp={1}
-                                maw={220}
-                                title={attributesText(c.attributes)}
-                              >
-                                {attributesText(c.attributes)}
+                            {c.notes ? (
+                              <Text size="xs" c="dimmed" lineClamp={1} maw={260} title={c.notes}>
+                                {c.notes}
                               </Text>
                             ) : (
                               <Dash />

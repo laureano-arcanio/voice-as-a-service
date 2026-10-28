@@ -22,16 +22,3 @@ export const OPTOUT_SOURCE: Record<string, string> = {
 };
 
 export const ARCHIVED: Label = { label: 'Archivado', color: 'gray' };
-
-/** Atributos de un contacto como texto: `deuda: 15000`. */
-export function attributesText(attributes: Record<string, unknown>): string {
-  return Object.entries(attributes)
-    .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : String(v)}`)
-    .join(' · ');
-}
-
-/** Valor de un campo de atributo (texto) a lo que guarda la API: numeros como numeros. */
-export function parseAttribute(text: string): string | number {
-  const t = text.trim();
-  return /^-?\d+(\.\d+)?$/.test(t) && t.length < 16 ? Number(t) : t;
-}

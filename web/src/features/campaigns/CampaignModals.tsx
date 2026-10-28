@@ -228,7 +228,6 @@ export function AddContactsModal({ campaign, onClose }: { campaign: Campaign; on
   const sendAgenda = () =>
     addContacts.mutate(
       {
-        tags: picked.tags,
         contact_ids: picked.contactIds,
         csv: picked.csv.trim() || null,
       },

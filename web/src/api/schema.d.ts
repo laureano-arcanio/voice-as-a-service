@@ -343,7 +343,8 @@ export interface paths {
         post?: never;
         /**
          * Delete Client
-         * @description Solo sin conversaciones; con historial, desactivarlo (active=false).
+         * @description Solo sin historial (conversaciones, llamadas, campañas, WhatsApp); con historial, desactivarlo
+         *     (active=false). Los contactos se borran con el cliente.
          */
         delete: operations["delete_client_api_v1_clients__client_id__delete"];
         options?: never;
@@ -1632,7 +1633,7 @@ export interface paths {
         put?: never;
         /**
          * Add Contacts
-         * @description Suma contactos a una campaña en borrador o pausada: de la agenda (`contact_ids`, `tags`) o nuevos
+         * @description Suma contactos a una campaña en borrador o pausada: de la agenda (`contact_ids`) o nuevos
          *     (`contacts`, `csv`: tambien entran en la agenda). Valida los topes del plan.
          */
         post: operations["add_contacts_api_v1_campaigns__campaign_id__contacts_post"];
@@ -1776,7 +1777,7 @@ export interface paths {
         /**
          * Upsert Contacts
          * @description Carga un contacto o una lista (upsert por telefono): los nuevos se crean y los que ya
-         *     existen se actualizan, sumando atributos y etiquetas. Las filas invalidas o que no entran por
+         *     existen se actualizan, sumando la nota si viene. Las filas invalidas o que no entran por
          *     el tope del plan vuelven en `invalid`; con un solo contacto, eso es un error. Los archivados
          *     se actualizan pero siguen archivados (`archived`).
          */
@@ -1819,7 +1820,7 @@ export interface paths {
         put?: never;
         /**
          * Archive Contacts
-         * @description Archiva en lote, por ids o por etiquetas. Sus intentos pendientes en campañas abiertas
+         * @description Archiva en lote, por ids. Sus intentos pendientes en campañas abiertas
          *     pasan a salteados.
          */
         post: operations["archive_contacts_api_v1_contacts_archive_post"];
@@ -1887,7 +1888,7 @@ export interface paths {
         head?: never;
         /**
          * Update Contact
-         * @description Edita datos y etiquetas (los atributos y las etiquetas reemplazan a los anteriores). El
+         * @description Edita los datos (lo que viene reemplaza a lo anterior). El
          *     telefono no se cambia: otro telefono es otro contacto.
          */
         patch: operations["update_contact_api_v1_contacts__contact_id__patch"];
@@ -4856,12 +4857,6 @@ export interface components {
              */
             contact_ids?: string[];
             /**
-             * Tags
-             * @description Los contactos activos con alguna de estas etiquetas
-             * @default []
-             */
-            tags?: string[];
-            /**
              * Contacts
              * @description Contactos nuevos o a actualizar
              * @default []
@@ -4918,12 +4913,6 @@ export interface components {
              * @default []
              */
             contact_ids?: string[];
-            /**
-             * Tags
-             * @description Los contactos activos con alguna de estas etiquetas
-             * @default []
-             */
-            tags?: string[];
             /**
              * Contacts
              * @description Contactos nuevos o a actualizar
@@ -5035,7 +5024,7 @@ export interface components {
             template_language?: string;
             /**
              * Param Names
-             * @description WhatsApp: atributo del contacto de cada variable de la plantilla
+             * @description WhatsApp: dato del contacto (nombre, telefono, email o external_id) de cada variable de la plantilla
              */
             param_names?: string[] | null;
             /**
@@ -5736,17 +5725,11 @@ export interface components {
         /**
          * ContactImportIn
          * @description CSV con encabezado: columna telefono (o celular, phone, whatsapp); nombre, email, external_id
-         *     y etiquetas (separadas por | o ;) opcionales; las demas columnas son atributos.
+         *     y notas opcionales; las demas columnas se ignoran.
          */
         ContactImportIn: {
             /** Csv */
             csv: string;
-            /**
-             * Tags
-             * @description Etiquetas que se suman a todos
-             * @default []
-             */
-            tags?: string[];
         };
         /**
          * ContactIn
@@ -5769,19 +5752,10 @@ export interface components {
              */
             external_id?: string | null;
             /**
-             * Attributes
-             * @description Datos libres: {"deuda": 15000}
-             * @default {}
+             * Notes
+             * @description Nota libre sobre el contacto
              */
-            attributes?: {
-                [key: string]: string | number | boolean | null;
-            };
-            /**
-             * Tags
-             * @description Etiquetas: letras, numeros y _ . : -
-             * @default []
-             */
-            tags?: string[];
+            notes?: string | null;
         };
         /** ContactOptoutIn */
         ContactOptoutIn: {
@@ -5831,12 +5805,8 @@ export interface components {
             email: string | null;
             /** External Id */
             external_id: string | null;
-            /** Attributes */
-            attributes: {
-                [key: string]: unknown;
-            };
-            /** Tags */
-            tags: string[];
+            /** Notes */
+            notes: string | null;
             /**
              * Source
              * @enum {string}
@@ -5864,7 +5834,7 @@ export interface components {
         };
         /**
          * ContactPatch
-         * @description Solo los campos enviados. attributes y tags reemplazan a los anteriores; el telefono no se cambia.
+         * @description Solo los campos enviados, que reemplazan a los anteriores; el telefono no se cambia.
          */
         ContactPatch: {
             /** Name */
@@ -5873,12 +5843,8 @@ export interface components {
             email?: string | null;
             /** External Id */
             external_id?: string | null;
-            /** Attributes */
-            attributes?: {
-                [key: string]: string | number | boolean | null;
-            } | null;
-            /** Tags */
-            tags?: string[] | null;
+            /** Notes */
+            notes?: string | null;
         };
         /** ContactRejected */
         ContactRejected: {
@@ -5894,17 +5860,8 @@ export interface components {
         };
         /** ContactsArchiveIn */
         ContactsArchiveIn: {
-            /**
-             * Contact Ids
-             * @default []
-             */
-            contact_ids?: string[];
-            /**
-             * Tags
-             * @description Archiva los que tengan alguna de estas etiquetas
-             * @default []
-             */
-            tags?: string[];
+            /** Contact Ids */
+            contact_ids: string[];
         };
         /** ContactsArchiveOut */
         ContactsArchiveOut: {
@@ -14019,7 +13976,6 @@ export interface operations {
                 client_id?: string | null;
                 /** @description Busca en nombre, telefono, email e id externo */
                 q?: string | null;
-                tag?: string | null;
                 /** @description false: activos; true: archivados; all: todos */
                 archived?: "false" | "true" | "all";
                 offset?: number;

@@ -24,7 +24,7 @@ from app.services import campaign_reports
 from .helpers import FakeLLM
 from .test_api import V1, client_user, make_agent, make_client
 from .test_campaign_dialer import close, dialer_for, members
-from .test_campaigns import load_contacts, voice_body
+from .test_campaigns import everyone, load_contacts, voice_body
 from .test_whatsapp_api import admin  # noqa: F401  (fixture)
 from .test_whatsapp_campaigns import (
     CampaignGraph,
@@ -42,6 +42,7 @@ from .test_whatsapp_service import (
     text_payload,
 )
 
+CAMPAIGN_OPENING = "Hola {{nombre}}, te habla Valentina de Fibranet. ¿Hablo con {{Nombre}}, cliente {{external_id}}?"
 OPENING = "Hola {{nombre}}, te habla Valentina de Fibranet. ¿Hablo con {{Nombre}} por la deuda de ${{deuda}}?"
 
 
@@ -135,22 +136,21 @@ def cobranza(api, admin):  # noqa: F811
     """Un cliente con campañas de voz y un agente de cobranza con {{variables}} en la apertura."""
     c = make_client(admin, slug="cobra", campaign_channels=["voice"])
     definition = reference_data("eval_cobranza")
-    definition["conversation"]["opening"] = OPENING
+    definition["conversation"]["opening"] = CAMPAIGN_OPENING
     agent = make_agent(admin, c, definition=definition)
     return client_user(api, admin, c, email="cobra@x.com"), agent, c
 
 
 def start_campaign(user, agent, rows, **extra) -> dict:
     load_contacts(user, rows)
-    body = voice_body(agent, tags=["mora"], window_start=0, window_end=24, rate_per_minute=600, **extra)
+    body = voice_body(agent, contact_ids=everyone(user), window_start=0, window_end=24, rate_per_minute=600, **extra)
     camp = user.post(f"{V1}/campaigns", json=body).json()["campaign"]
     assert user.post(f"{V1}/campaigns/{camp['id']}/start").status_code == 200
     return camp
 
 
-ROWS = [{"phone": "351 555-1001", "name": "Ana", "attributes": {"deuda": 15000, "cuotas": "3"}, "tags": ["mora"],
-         "external_id": "A-1"},
-        {"phone": "351 555-1002", "attributes": {}, "tags": ["mora"]}]
+ROWS = [{"phone": "351 555-1001", "name": "Ana", "external_id": "A-1", "notes": "Prefiere la tarde"},
+        {"phone": "351 555-1002"}]
 
 
 async def test_the_call_carries_the_contact_data(api, cobranza):
@@ -159,16 +159,13 @@ async def test_the_call_carries_the_contact_data(api, cobranza):
     assert await dialer_for(api).tick() == 2
     ana, sin_datos = members(api, camp["id"])
     state = api.engine.store.get(ana.conversation_id)
-    assert state.messages[0].text == ("Hola Ana, te habla Valentina de Fibranet. ¿Hablo con Ana por la deuda de "
-                                      "$15000?")
-    # `cuotas` es un campo del agente: viene cargado y el agente no lo pregunta. El resto va al prompt.
-    assert state.fields["cuotas"] == 3 and state.progress.preloaded == ["cuotas"]
-    assert state.progress.contact == {"nombre": "Ana", "telefono": "+5493515551001", "external_id": "A-1",
-                                      "deuda": 15000}
-    # Un contacto sin nombre ni deuda: las variables quedan vacias y el texto, acomodado.
+    assert state.messages[0].text == "Hola Ana, te habla Valentina de Fibranet. ¿Hablo con Ana, cliente A-1?"
+    # Los datos del contacto van al prompt; la nota no es una variable.
+    assert state.progress.contact == {"nombre": "Ana", "telefono": "+5493515551001", "external_id": "A-1"}
+    # Un contacto sin nombre: las variables quedan vacias y el texto, acomodado.
     other = api.engine.store.get(sin_datos.conversation_id)
-    assert other.messages[0].text == "Hola, te habla Valentina de Fibranet. ¿Hablo con por la deuda de $?"
-    assert other.fields["cuotas"] is None and other.progress.preloaded == []
+    assert other.messages[0].text == "Hola, te habla Valentina de Fibranet. ¿Hablo con, cliente?"
+    assert other.progress.preloaded == []
     assert other.progress.contact == {"telefono": "+5493515551002"}
 
 
@@ -191,7 +188,7 @@ def answer(api, member: CampaignContact, *, seconds=60, hour=14, promesa=None):
 
 async def test_report_csv_and_stats(api, cobranza):
     user, agent, _ = cobranza
-    rows = ROWS + [{"phone": "351 555-1003", "tags": ["mora"]}, {"phone": "351 555-1004", "tags": ["mora"]}]
+    rows = ROWS + [{"phone": "351 555-1003"}, {"phone": "351 555-1004"}]
     camp = start_campaign(user, agent, rows, concurrency=4)
     assert await dialer_for(api).tick() == 4
     ana, b, c, d = members(api, camp["id"])
@@ -212,7 +209,7 @@ async def test_report_csv_and_stats(api, cobranza):
     assert (a["duracion_segundos"], a["outcome"]) == ("120", "Compromiso de pago total")
     assert (bb["duracion_segundos"], bb["outcome"]) == ("60", "Dice que ya pagó")
     assert (a["objetivo"], bb["objetivo"]) == ("si", "no")
-    assert '"deuda":15000' in a["vars"] and '"promesa":"paga_total"' in a["campos"] and '"cuotas":3' in a["campos"]
+    assert '"external_id":"A-1"' in a["vars"] and '"promesa":"paga_total"' in a["campos"]
     assert a["conversation_id"] == ana.conversation_id and a["link"].endswith(f"/calls/{ana.conversation_id}")
     assert (cc["estado"], cc["resultado"], cc["intentos"], cc["objetivo"]) == ("retry", "busy", "1", "")
     assert (dd["estado"], dd["resultado"], dd["error"]) == ("failed", "invalid", "Número inexistente")

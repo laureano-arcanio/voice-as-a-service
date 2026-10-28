@@ -26,6 +26,7 @@ from app.services import livekit as livekit_service
 from .test_api import V1, make_agent, make_client
 from .test_campaigns import (  # noqa: F401  (fixtures)
     PHONES,
+    everyone,
     load_contacts,
     voice,
     voice_body,
@@ -56,9 +57,9 @@ def dialer_for(api, now=None, clock=None) -> Dialer:
 
 
 def make_voice(user, agent, *, start=True, n=3, **extra) -> dict:
-    """Una campaña de voz con n contactos (etiqueta mora, de a +5493515551001), abierta todo el dia."""
-    load_contacts(user, [{"phone": f"351 555-100{i}", "name": f"Ana{i}", "tags": ["mora"]} for i in range(1, n + 1)])
-    body = voice_body(agent, tags=["mora"], **{"window_start": 0, "window_end": 24, **extra})
+    """Una campaña de voz con n contactos (de a +5493515551001), abierta todo el dia."""
+    load_contacts(user, [{"phone": f"351 555-100{i}", "name": f"Ana{i}"} for i in range(1, n + 1)])
+    body = voice_body(agent, contact_ids=everyone(user), **{"window_start": 0, "window_end": 24, **extra})
     camp = user.post(f"{V1}/campaigns", json=body).json()["campaign"]
     if start:
         assert user.post(f"{V1}/campaigns/{camp['id']}/start").status_code == 200

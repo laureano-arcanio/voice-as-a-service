@@ -7,7 +7,6 @@ import {
   Grid,
   Group,
   Select,
-  SimpleGrid,
   Stack,
   Table,
   Text,
@@ -26,8 +25,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { PlanGate } from '@/components/PlanGate';
 import { EmptyState, ErrorAlert } from '@/components/QueryState';
 import { useCurrentUser } from '@/features/auth/api';
-import { useBlockedNumbers, useContacts, useOptouts, useTagSuggestions } from '@/features/contacts/api';
-import { TagBadges } from '@/features/contacts/TagBadges';
+import { useBlockedNumbers, useContacts, useOptouts } from '@/features/contacts/api';
 import { usePhoneNumbers } from '@/features/numbers/api';
 import { E164_RE, formatDate, formatDateTime, formatDuration, formatValue } from '@/lib/format';
 import { useContactCalls, useMyCalls } from './api';
@@ -197,7 +195,11 @@ function ContactPanel({
             variant="filled"
           />
         </Group>
-        {contact.tags.length > 0 && <TagBadges tags={contact.tags} max={8} />}
+        {contact.notes && (
+          <Text size="sm" c="dimmed" style={{ whiteSpace: 'pre-wrap' }}>
+            {contact.notes}
+          </Text>
+        )}
         {optedOutSince && (
           <Alert color="yellow" p="xs">
             <Text size="sm">
@@ -271,13 +273,11 @@ export function TelefonoPage() {
   const [chosenFrom, setChosenFrom] = useState<string | null>(() => storedFrom.get(me.id));
   const [search, setSearch] = useState('');
   const [q] = useDebouncedValue(search, 250);
-  const [tag, setTag] = useState<string | null>(null);
   const [selected, setSelected] = useState<Contact | null>(null);
   const [dial, setDial] = useState('');
   const [dialError, setDialError] = useState<string | null>(null);
 
-  const contacts = useContacts({ q, tag: tag ?? '', archived: 'false', offset: 0 });
-  const tags = useTagSuggestions();
+  const contacts = useContacts({ q, archived: 'false', offset: 0 });
   const optouts = useOptouts();
   const blockedNumbers = useBlockedNumbers();
 
@@ -356,31 +356,20 @@ export function TelefonoPage() {
             <Grid.Col span={{ base: 12, md: 6 }}>
               <Card h="100%">
                 <Stack gap="sm">
-                  <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="xs">
-                    <TextInput
-                      aria-label="Buscar contacto"
-                      placeholder="Buscar contacto…"
-                      leftSection={<IconSearch size={16} />}
-                      value={search}
-                      onChange={(e) => setSearch(e.currentTarget.value)}
-                    />
-                    <Select
-                      aria-label="Etiqueta"
-                      placeholder="Todas las etiquetas"
-                      data={tags.data ?? []}
-                      value={tag}
-                      onChange={setTag}
-                      clearable
-                      searchable
-                    />
-                  </SimpleGrid>
+                  <TextInput
+                    aria-label="Buscar contacto"
+                    placeholder="Buscar contacto…"
+                    leftSection={<IconSearch size={16} />}
+                    value={search}
+                    onChange={(e) => setSearch(e.currentTarget.value)}
+                  />
                   {contacts.isError ? (
                     <ErrorAlert error={contacts.error} onRetry={() => void contacts.refetch()} />
                   ) : !items.length ? (
                     <EmptyState>
                       {contacts.isPending ? (
                         'Cargando…'
-                      ) : q || tag ? (
+                      ) : q ? (
                         'Ningún contacto coincide con la búsqueda.'
                       ) : (
                         <>

@@ -126,7 +126,7 @@ export function useUpdateCampaign(id: string) {
   });
 }
 
-/** Suma contactos de la agenda (ids, etiquetas) o nuevos (lista, CSV con el formato de la agenda). */
+/** Suma contactos de la agenda (ids) o nuevos (lista, CSV con el formato de la agenda). */
 export function useAddContacts(id: string) {
   const invalidate = useInvalidate();
   return useMutation({

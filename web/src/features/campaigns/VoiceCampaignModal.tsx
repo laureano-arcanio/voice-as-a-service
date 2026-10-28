@@ -196,7 +196,6 @@ export function VoiceCampaignModal({ onClose }: { onClose: () => void }) {
             : null,
           callback_url: values.callback_url.trim() || null,
           callback_secret: values.callback_secret.trim() || null,
-          tags: recipients.tags,
           contact_ids: recipients.contactIds,
           csv: recipients.csv.trim() || null,
           start,
@@ -288,7 +287,7 @@ export function VoiceCampaignModal({ onClose }: { onClose: () => void }) {
           <RecipientsPicker value={recipients} onChange={setRecipients} />
           {noRecipients && (
             <Text size="sm" c="red">
-              Elegí a quién llamar: etiquetas, contactos o un CSV.
+              Elegí a quién llamar: contactos de la agenda o un CSV.
             </Text>
           )}
           {overContacts && (
@@ -360,8 +359,8 @@ export function VoiceCampaignModal({ onClose }: { onClose: () => void }) {
                 <TextInput
                   key={n}
                   label={`Dato para {{${n}}}`}
-                  description="El nombre del dato del contacto que completa la variable."
-                  placeholder={i === 0 ? 'nombre' : 'deuda'}
+                  description="Dato del contacto que completa la variable: nombre, telefono, email o external_id."
+                  placeholder={i === 0 ? 'nombre' : 'telefono'}
                   value={v.f_params[i] ?? ''}
                   onChange={(e) => {
                     const next = [...v.f_params];

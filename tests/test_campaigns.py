@@ -34,11 +34,16 @@ def iso(dt: datetime.datetime) -> str:
 
 def load_contacts(user, rows=None, **extra) -> list[dict]:
     """Contactos a la agenda (POST /contacts) y los devuelve."""
-    rows = rows or [{"phone": p, "name": f"Ana{i}", "attributes": {"deuda": 100 * i}, "tags": ["mora"]}
-                    for i, p in enumerate(PHONES, start=1)]
+    rows = rows or [{"phone": p, "name": f"Ana{i}"} for i, p in enumerate(PHONES, start=1)]
     r = user.post(f"{V1}/contacts", json=rows, **extra)
     assert r.status_code in (200, 201), r.text
     return r.json()["contacts"]
+
+
+def everyone(user) -> list[str]:
+    """Los ids de todos los contactos activos de la agenda, en orden de alta."""
+    items = user.get(f"{V1}/contacts", params={"limit": 500}).json()["items"]
+    return [c["id"] for c in reversed(items)]
 
 
 @pytest.fixture
@@ -62,20 +67,18 @@ def wa_body(acc, **extra):
 def test_whatsapp_campaign_from_agenda_with_param_names(api, account):  # noqa: F811
     user, acc, _ = account
     rows = load_contacts(user)
-    r = user.post(f"{V1}/campaigns", json=wa_body(acc, contact_ids=[rows[0]["id"], rows[1]["id"]],
-                                                  tags=["mora"], param_names=["nombre"]))
+    r = user.post(f"{V1}/campaigns", json=wa_body(acc, contact_ids=[x["id"] for x in rows], param_names=["nombre"]))
     assert r.status_code == 201, r.text
     out = r.json()
-    # El tercero entra por la etiqueta; los dos primeros ya estaban (repetidos) y no se cuentan dos veces.
-    assert out["added"] == 3 and [s["reason"] for s in out["skipped"]] == ["repetido", "repetido"]
+    assert out["added"] == 3 and out["skipped"] == []
     c = out["campaign"]
     assert (c["channel"], c["status"], c["param_names"], c["template_params"]) == ("whatsapp", "draft", ["nombre"], 1)
     assert c["total"] == 3 and c["progress"]["pending"] == 3 and c["percent"] == 0
     assert c["results"] == {"sent": 0, "delivered": 0, "read": 0, "replied": 0}
     page = user.get(f"{V1}/campaigns/{c['id']}/contacts").json()
-    assert [(i["phone"], i["vars"]["params"], i["vars"]["deuda"], i["status"]) for i in page["items"]] == [
-        ("+5493515551001", ["Ana1"], 100, "pending"), ("+5493515551002", ["Ana2"], 200, "pending"),
-        ("+5493515551003", ["Ana3"], 300, "pending")]
+    assert [(i["phone"], i["vars"]["params"], i["status"]) for i in page["items"]] == [
+        ("+5493515551001", ["Ana1"], "pending"), ("+5493515551002", ["Ana2"], "pending"),
+        ("+5493515551003", ["Ana3"], "pending")]
     assert page["items"][0]["vars"]["telefono"] == "+5493515551001"
 
 
@@ -84,12 +87,12 @@ def test_whatsapp_campaign_vars_are_a_copy(api, account):  # noqa: F811
     rows = load_contacts(user)
     cid = user.post(f"{V1}/campaigns", json=wa_body(acc, contact_ids=[rows[0]["id"]],
                                                     param_names=["nombre"])).json()["campaign"]["id"]
-    assert user.patch(f"{V1}/contacts/{rows[0]['id']}", json={"name": "Otro", "attributes": {"deuda": 1}}).status_code == 200
+    assert user.patch(f"{V1}/contacts/{rows[0]['id']}", json={"name": "Otro"}).status_code == 200
     item = user.get(f"{V1}/campaigns/{cid}/contacts").json()["items"][0]
-    assert item["name"] == "Otro" and item["vars"]["params"] == ["Ana1"] and item["vars"]["deuda"] == 100
+    assert item["name"] == "Otro" and item["vars"]["params"] == ["Ana1"] and item["vars"]["nombre"] == "Ana1"
 
 
-def test_whatsapp_param_names_need_attributes(api, account):  # noqa: F811
+def test_whatsapp_param_names_need_contact_data(api, account):  # noqa: F811
     user, acc, _ = account
     rows = load_contacts(user, [{"phone": PHONES[0]}, {"phone": PHONES[1], "name": "Eva"}])
     # Sin param_names no se sabe como completar {{1}} desde la agenda.
@@ -104,7 +107,7 @@ def test_whatsapp_param_names_need_attributes(api, account):  # noqa: F811
 
 def test_campaign_accepts_new_contacts_and_csv(api, account):  # noqa: F811
     user, acc, _ = account
-    csv = "telefono,nombre,deuda,tags\n351 555-2001,Eva,500,mora\n555,Mal,1,\n351 555-2002,,2,\n"
+    csv = "telefono,nombre,deuda,notas\n351 555-2001,Eva,500,Cliente nuevo\n555,Mal,1,\n351 555-2002,,2,\n"
     r = user.post(f"{V1}/campaigns", json=wa_body(
         acc, param_names=["nombre"], csv=csv, contacts=[{"phone": "351 555-2003", "name": "Juan"}],
         recipients=[{"phone": "351 555-2004", "params": ["Luz"]}]))
@@ -117,18 +120,17 @@ def test_campaign_accepts_new_contacts_and_csv(api, account):  # noqa: F811
     agenda = user.get(f"{V1}/contacts").json()
     assert {c["phone"] for c in agenda["items"]} >= {"+5493515552001", "+5493515552003", "+5493515552004"}
     eva = next(c for c in agenda["items"] if c["name"] == "Eva")
-    assert eva["attributes"] == {"deuda": "500"} and eva["tags"] == ["mora"] and eva["source"] == "csv"
+    assert eva["notes"] == "Cliente nuevo" and eva["source"] == "csv" and "attributes" not in eva
 
 
 def test_archived_contacts_are_not_added(api, account):  # noqa: F811
     user, acc, _ = account
     rows = load_contacts(user)
     assert user.post(f"{V1}/contacts/{rows[0]['id']}/archive").status_code == 200
-    out = user.post(f"{V1}/campaigns", json=wa_body(acc, contact_ids=[x["id"] for x in rows], tags=["mora"],
+    out = user.post(f"{V1}/campaigns", json=wa_body(acc, contact_ids=[x["id"] for x in rows],
                                                     param_names=["nombre"])).json()
     assert out["added"] == 2
-    assert [(s["phone"], s["reason"]) for s in out["skipped"]] == [
-        ("+5493515551001", "contacto archivado"), ("+5493515551002", "repetido"), ("+5493515551003", "repetido")]
+    assert [(s["phone"], s["reason"]) for s in out["skipped"]] == [("+5493515551001", "contacto archivado")]
     r = user.post(f"{V1}/campaigns/{out['campaign']['id']}/contacts", json={"contact_ids": ["no-existe"]})
     assert r.json()["skipped"] == [{"phone": "no-existe", "reason": "contacto inexistente", "line": None}]
 
@@ -208,7 +210,7 @@ def test_alias_param_names_and_scheduled_campaigns(api, account):  # noqa: F811
 def test_voice_campaign_create_and_validate(api, voice, admin):  # noqa: F811
     user, agent, c = voice
     load_contacts(user)
-    r = user.post(f"{V1}/campaigns", json=voice_body(agent, tags=["mora"], concurrency=3))
+    r = user.post(f"{V1}/campaigns", json=voice_body(agent, contact_ids=everyone(user), concurrency=3))
     assert r.status_code == 201, r.text
     out = r.json()
     assert out["added"] == 3 and out["skipped"] == []
@@ -239,7 +241,7 @@ def test_voice_campaign_create_and_validate(api, voice, admin):  # noqa: F811
 def test_voice_campaign_lifecycle(api, voice):
     user, agent, _ = voice
     load_contacts(user)
-    camp = user.post(f"{V1}/campaigns", json=voice_body(agent, tags=["mora"])).json()["campaign"]
+    camp = user.post(f"{V1}/campaigns", json=voice_body(agent, contact_ids=everyone(user))).json()["campaign"]
     url = f"{V1}/campaigns/{camp['id']}"
     assert user.post(f"{url}/resume").status_code == 409
     assert user.post(f"{url}/pause").status_code == 409
@@ -269,7 +271,7 @@ def test_voice_results_and_minutes(api, voice):
     from app.models import CallRow, ConversationRow
     user, agent, c = voice
     load_contacts(user)
-    camp = user.post(f"{V1}/campaigns", json=voice_body(agent, tags=["mora"])).json()["campaign"]
+    camp = user.post(f"{V1}/campaigns", json=voice_body(agent, contact_ids=everyone(user))).json()["campaign"]
     with api.sessions() as s:
         members = list(s.scalars(select(CampaignContact).where(CampaignContact.campaign_id == camp["id"])
                                  .order_by(CampaignContact.created_at, CampaignContact.id)))
@@ -295,7 +297,7 @@ def test_voice_results_and_minutes(api, voice):
 def test_voice_agent_archived_blocks_start(api, voice, admin):  # noqa: F811
     user, agent, _ = voice
     load_contacts(user)
-    camp = user.post(f"{V1}/campaigns", json=voice_body(agent, tags=["mora"])).json()["campaign"]
+    camp = user.post(f"{V1}/campaigns", json=voice_body(agent, contact_ids=everyone(user))).json()["campaign"]
     assert admin.patch(f"{V1}/agents/{agent['id']}", json={"archived": True}).status_code == 200
     r = user.post(f"{V1}/campaigns/{camp['id']}/start")
     assert r.status_code == 409 and "archivado" in r.json()["detail"]
@@ -304,7 +306,7 @@ def test_voice_agent_archived_blocks_start(api, voice, admin):  # noqa: F811
 def test_campaign_permissions_between_clients(api, voice, admin):  # noqa: F811
     user, agent, _ = voice
     load_contacts(user)
-    camp = user.post(f"{V1}/campaigns", json=voice_body(agent, tags=["mora"])).json()["campaign"]
+    camp = user.post(f"{V1}/campaigns", json=voice_body(agent, contact_ids=everyone(user))).json()["campaign"]
     other = client_user(api, admin, make_client(admin, slug="otro", campaign_channels=["voice"]), email="o@x.com")
     for verb, path in (("get", ""), ("post", "/start"), ("post", "/pause"), ("get", "/contacts")):
         assert getattr(other, verb)(f"{V1}/campaigns/{camp['id']}{path}").status_code == 404
@@ -335,7 +337,7 @@ def test_campaigns_per_month_counts_started(api, voice, admin):  # noqa: F811
     user, agent, c = voice
     admin.patch(f"{V1}/tiers/{c['tier']['id']}", json={"max_campaigns_per_month": 2})
     load_contacts(user)
-    ids = [user.post(f"{V1}/campaigns", json=voice_body(agent, name=f"C{i}", tags=["mora"])).json()["campaign"]["id"]
+    ids = [user.post(f"{V1}/campaigns", json=voice_body(agent, name=f"C{i}", contact_ids=everyone(user))).json()["campaign"]["id"]
            for i in range(3)]
     # Crear no gasta cupo; iniciar si.
     assert user.post(f"{V1}/campaigns/{ids[0]}/start").status_code == 200
@@ -356,7 +358,7 @@ def test_campaign_contacts_and_concurrency_caps(api, voice, admin):  # noqa: F81
     user, agent, c = voice
     admin.patch(f"{V1}/tiers/{c['tier']['id']}", json={"max_campaign_contacts": 2, "max_campaign_concurrency": 4})
     load_contacts(user)
-    out = user.post(f"{V1}/campaigns", json=voice_body(agent, tags=["mora"])).json()
+    out = user.post(f"{V1}/campaigns", json=voice_body(agent, contact_ids=everyone(user))).json()
     assert out["added"] == 2 and out["skipped"][0]["reason"] == "tope de 2 contactos por campaña"
     r = user.post(f"{V1}/campaigns", json=voice_body(agent, concurrency=5))
     assert r.status_code == 429 and r.json()["code"] == "campaign_concurrency"
@@ -366,13 +368,13 @@ def test_campaign_contacts_and_concurrency_caps(api, voice, admin):  # noqa: F81
     adj = admin.post(f"{V1}/clients/{c['id']}/limit-adjustments", json={
         "field": "max_campaign_contacts", "mode": "add", "value": 5})
     assert adj.status_code == 201, adj.text
-    assert user.post(f"{V1}/campaigns/{out['campaign']['id']}/contacts", json={"tags": ["mora"]}).json()["added"] == 1
+    assert user.post(f"{V1}/campaigns/{out['campaign']['id']}/contacts", json={"contact_ids": everyone(user)}).json()["added"] == 1
 
 
 def test_campaign_contacts_cap_is_rechecked_on_start(api, voice, admin):  # noqa: F811
     user, agent, c = voice
     load_contacts(user)
-    camp = user.post(f"{V1}/campaigns", json=voice_body(agent, tags=["mora"])).json()["campaign"]
+    camp = user.post(f"{V1}/campaigns", json=voice_body(agent, contact_ids=everyone(user))).json()["campaign"]
     admin.patch(f"{V1}/tiers/{c['tier']['id']}", json={"max_campaign_contacts": 1})     # el plan bajo
     r = user.post(f"{V1}/campaigns/{camp['id']}/start")
     assert r.status_code == 429 and r.json()["code"] == "campaign_contacts"
@@ -411,7 +413,7 @@ def test_scheduled_start_and_roll(api, voice):
     user, agent, _ = voice
     load_contacts(user)
     later = utcnow() + datetime.timedelta(hours=2)
-    camp = user.post(f"{V1}/campaigns", json=voice_body(agent, tags=["mora"], starts_at=iso(later),
+    camp = user.post(f"{V1}/campaigns", json=voice_body(agent, contact_ids=everyone(user), starts_at=iso(later),
                                                         ends_at=iso(later + datetime.timedelta(hours=4)),
                                                         start=True)).json()["campaign"]
     assert camp["status"] == "scheduled" and camp["started_at"]
@@ -433,7 +435,7 @@ def test_pause_a_scheduled_campaign(api, voice):
     user, agent, _ = voice
     load_contacts(user)
     later = iso(utcnow() + datetime.timedelta(hours=2))
-    camp = user.post(f"{V1}/campaigns", json=voice_body(agent, tags=["mora"], starts_at=later, start=True)).json()["campaign"]
+    camp = user.post(f"{V1}/campaigns", json=voice_body(agent, contact_ids=everyone(user), starts_at=later, start=True)).json()["campaign"]
     assert user.post(f"{V1}/campaigns/{camp['id']}/pause").json()["status"] == "paused"
     assert user.post(f"{V1}/campaigns/{camp['id']}/resume").json()["status"] == "scheduled"
 
@@ -442,7 +444,7 @@ def test_start_after_ends_at_is_rejected(api, voice):
     user, agent, _ = voice
     load_contacts(user)
     soon = utcnow() + datetime.timedelta(seconds=1)
-    camp = user.post(f"{V1}/campaigns", json=voice_body(agent, tags=["mora"], ends_at=iso(soon))).json()["campaign"]
+    camp = user.post(f"{V1}/campaigns", json=voice_body(agent, contact_ids=everyone(user), ends_at=iso(soon))).json()["campaign"]
     with api.sessions() as s:
         s.get(Campaign, camp["id"]).ends_at = utcnow() - datetime.timedelta(minutes=1)
         s.commit()
@@ -491,7 +493,7 @@ async def test_sender_skips_contacts_archived_after_loading(sessions):
 def test_archiving_a_contact_skips_its_pending_attempts_in_open_campaigns(api, voice):
     user, agent, _ = voice
     rows = load_contacts(user)
-    camp = user.post(f"{V1}/campaigns", json=voice_body(agent, tags=["mora"], start=True)).json()["campaign"]
+    camp = user.post(f"{V1}/campaigns", json=voice_body(agent, contact_ids=everyone(user), start=True)).json()["campaign"]
     assert user.post(f"{V1}/contacts/{rows[0]['id']}/archive").status_code == 200
     d = user.get(f"{V1}/campaigns/{camp['id']}").json()
     assert d["progress"]["skipped"] == 1 and d["progress"]["pending"] == 2

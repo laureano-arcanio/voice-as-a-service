@@ -57,8 +57,7 @@ class Contact(IdMixin, TimestampMixin, Base):
     name: Mapped[str | None] = mapped_column(String(128), nullable=True)
     email: Mapped[str | None] = mapped_column(String(254), nullable=True)
     external_id: Mapped[str | None] = mapped_column(String(128), nullable=True)   # id en el sistema del cliente
-    attributes: Mapped[dict] = mapped_column(JSONDoc, default=dict)    # {"deuda": 15000}: columnas extra del CSV
-    tags: Mapped[list] = mapped_column(JSONDoc, default=list)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)     # nota libre, como la de un contacto del telefono
     source: Mapped[str] = mapped_column(String(16), default="manual", server_default="manual")
     # NULL: activo. Archivar no borra: se conservan el historial y los reportes.
     archived_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)

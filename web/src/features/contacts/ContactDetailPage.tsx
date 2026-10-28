@@ -27,7 +27,6 @@ import { notifyError, notifySuccess } from '@/lib/notify';
 import { useArchiveContact, useBlockedNumbers, useContact, useContactCampaigns, useOptouts } from './api';
 import { ContactModal } from './ContactModals';
 import { DirectCallButton } from './DirectCallButton';
-import { TagBadges } from './TagBadges';
 import { CONTACT_SOURCE } from './labels';
 
 function Datum({ label, children }: { label: string; children: React.ReactNode }) {
@@ -295,29 +294,22 @@ export function ContactDetailPage() {
               </Alert>
             )}
             <Card>
-              <SimpleGrid cols={{ base: 2, sm: 3, md: 5 }} spacing="md">
+              <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
                 <Datum label="Email">{c.email ?? <Dash />}</Datum>
                 <Datum label="ID externo">
                   {c.external_id ? <span className="mono">{c.external_id}</span> : <Dash />}
                 </Datum>
                 <Datum label="Origen">{CONTACT_SOURCE[c.source] ?? c.source}</Datum>
                 <Datum label="Alta">{formatDate(c.created_at)}</Datum>
-                <Datum label="Etiquetas">
-                  <TagBadges tags={c.tags} max={8} />
-                </Datum>
               </SimpleGrid>
-              {Object.keys(c.attributes).length > 0 && (
+              {c.notes && (
                 <>
                   <Text className="label" mt="lg" mb={6}>
-                    Datos
+                    Notas
                   </Text>
-                  <SimpleGrid cols={{ base: 2, sm: 3, md: 5 }} spacing="md">
-                    {Object.entries(c.attributes).map(([k, v]) => (
-                      <Datum key={k} label={k}>
-                        <span className="mono">{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
-                      </Datum>
-                    ))}
-                  </SimpleGrid>
+                  <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
+                    {c.notes}
+                  </Text>
                 </>
               )}
             </Card>

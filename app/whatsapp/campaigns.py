@@ -14,7 +14,7 @@ una lista de contactos, por un numero conectado. El envio lo hace sender.py, de 
 - Baja: un contacto de una campaña que escribe "baja", "no me interesa" o toca el boton
   de ese texto queda en contact_optouts (canal whatsapp) del cliente y ninguna campaña le vuelve
   a escribir.
-- Variables: por nombre de atributo del contacto (template_param_names, {{1}} = nombre...) o
+- Variables: por dato del contacto (template_param_names, {{1}} = nombre...) o
   posicionales (vars["params"]).
 - Estado, plan y horario comunes a los dos canales: services/campaigns.py. Las tablas son las de todas las campañas (campaigns, campaign_contacts): aca solo las de
   channel 'whatsapp'. Estados de un contacto: pending, in_progress (en vuelo), done con result
@@ -259,7 +259,7 @@ def create(s: Session, *, account: WaAccount, name: str, template: TemplateInfo,
            param_names: list[str] | None = None, weekdays: list[int] | None = None,
            starts_at: datetime.datetime | None = None, ends_at: datetime.datetime | None = None,
            purpose: str | None = None) -> Campaign:
-    """Campaña en borrador. param_names: el atributo de cada contacto que completa {{1}}..{{n}}."""
+    """Campaña en borrador. param_names: el dato de cada contacto que completa {{1}}..{{n}}."""
     common.check_channel(s, account.client_id, CHANNEL)
     check_agent(s, account.client_id, agent_id)
     check_window(window_start, window_end)

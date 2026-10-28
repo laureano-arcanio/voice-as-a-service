@@ -7,7 +7,6 @@ import { CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
 import { ContactDetailPage } from './ContactDetailPage';
 import { ContactsPage } from './ContactsPage';
 import { parseRows, previewCsv } from './csv';
-import { attributesText, parseAttribute } from './labels';
 
 const ANA: Contact = {
   id: 'k1',
@@ -16,8 +15,7 @@ const ANA: Contact = {
   name: 'Ana Pérez',
   email: 'ana@acme.com',
   external_id: 'A-1',
-  attributes: { deuda: 15000 },
-  tags: ['mora', 'vip'],
+  notes: 'Prefiere que lo llamen por la tarde',
   source: 'csv',
   archived_at: null,
   created_at: '2026-10-01T12:00:00Z',
@@ -30,8 +28,7 @@ const LUIS: Contact = {
   name: null,
   email: null,
   external_id: null,
-  attributes: {},
-  tags: [],
+  notes: null,
   archived_at: '2026-10-10T12:00:00Z',
 };
 
@@ -92,11 +89,11 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('contactos: CSV', () => {
   it('entiende las columnas como la API', () => {
-    const p = previewCsv('Teléfono;Nombre;Deuda ($);Etiquetas\n351 555-1234;Ana;15000;mora|vip\n');
+    const p = previewCsv('Teléfono;Nombre;Edad;Notas\n351 555-1234;Ana;30;Llamar a la tarde\n');
     expect(p?.error).toBeNull();
-    expect(p?.columns.map((c) => c.role)).toEqual(['phone', 'name', 'attribute', 'tags']);
-    expect(p?.rows).toEqual([['351 555-1234', 'Ana', '15000', 'mora|vip']]);
-    expect(previewCsv('nombre,deuda\nAna,1')?.error).toMatch(/Falta la columna del teléfono/);
+    expect(p?.columns.map((c) => c.role)).toEqual(['phone', 'name', 'ignored', 'notes']);
+    expect(p?.rows).toEqual([['351 555-1234', 'Ana', '30', 'Llamar a la tarde']]);
+    expect(previewCsv('nombre,notas\nAna,1')?.error).toMatch(/Falta la columna del teléfono/);
     expect(previewCsv('')).toBeNull();
   });
 
@@ -107,16 +104,10 @@ describe('contactos: CSV', () => {
       ['1', '2'],
     ]);
   });
-
-  it('atributos: números como números y texto de resumen', () => {
-    expect(parseAttribute(' 15000 ')).toBe(15000);
-    expect(parseAttribute('2026-11-01')).toBe('2026-11-01');
-    expect(attributesText({ deuda: 15000, vence: '2026-11-01' })).toBe('deuda: 15000 · vence: 2026-11-01');
-  });
 });
 
 describe('contactos: lista', () => {
-  it('cliente: tabla con etiquetas, archivados marcados y uso del plan', async () => {
+  it('cliente: tabla con notas, archivados marcados y uso del plan', async () => {
     mockApi(routes());
     renderWithProviders(<ContactsPage />, { me: CLIENT_USER });
     expect(await screen.findByRole('link', { name: '+5493515551234' })).toHaveAttribute(
@@ -124,14 +115,13 @@ describe('contactos: lista', () => {
       '/contacts/k1',
     );
     const row = screen.getByRole('row', { name: /5493515551234/ });
-    expect(within(row).getByText('mora')).toBeInTheDocument();
-    expect(screen.getByText('deuda: 15000')).toBeInTheDocument();
+    expect(within(row).getByText('Prefiere que lo llamen por la tarde')).toBeInTheDocument();
     expect(screen.getByText('Archivado')).toBeInTheDocument();
     expect(await screen.findByText('40 de 100 contactos activos en tu plan.')).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'Cliente' })).not.toBeInTheDocument();
   });
 
-  it('busca y filtra por estado y por etiqueta', async () => {
+  it('busca y filtra por estado', async () => {
     const calls = mockApi(routes());
     renderWithProviders(<ContactsPage />, { me: CLIENT_USER });
     await screen.findByRole('link', { name: '+5493515551234' });
@@ -185,7 +175,7 @@ describe('contactos: lista', () => {
 });
 
 describe('contactos: alta e importación', () => {
-  it('crea uno con datos', async () => {
+  it('crea uno con una nota', async () => {
     const calls = mockApi({
       ...routes(),
       'POST /api/v1/contacts': () =>
@@ -195,9 +185,7 @@ describe('contactos: alta e importación', () => {
     await userEvent.click(await screen.findByRole('button', { name: /Nuevo contacto/ }));
     await userEvent.type(await screen.findByLabelText('Teléfono'), '351 555-1234');
     await userEvent.type(screen.getByLabelText('Nombre'), 'Ana');
-    await userEvent.click(screen.getByRole('button', { name: 'Agregar dato' }));
-    await userEvent.type(screen.getByLabelText('Nombre del dato 1'), 'deuda');
-    await userEvent.type(screen.getByLabelText('Valor del dato 1'), '15000');
+    await userEvent.type(screen.getByLabelText('Notas'), 'Prefiere la tarde');
     await userEvent.click(screen.getByRole('button', { name: 'Agregar contacto' }));
     await waitFor(() =>
       expect(calls.some((c) => c.method === 'POST' && c.path === '/api/v1/contacts')).toBe(true),
@@ -208,8 +196,7 @@ describe('contactos: alta e importación', () => {
       name: 'Ana',
       email: null,
       external_id: null,
-      tags: [],
-      attributes: { deuda: 15000 },
+      notes: 'Prefiere la tarde',
     });
   });
 
@@ -249,16 +236,17 @@ describe('contactos: alta e importación', () => {
     });
     renderWithProviders(<ContactsPage />, { me: CLIENT_USER });
     await userEvent.click(await screen.findByRole('button', { name: /Importar CSV/ }));
-    const csv = 'telefono,nombre,deuda\n351 555-1234,Ana,15000\n351 555-0002,Luis,0';
+    const csv = 'telefono,nombre,notas,edad\n351 555-1234,Ana,Llamar a la tarde,30\n351 555-0002,Luis,,40';
     await userEvent.click(await screen.findByLabelText('Contactos (CSV)'));
     await userEvent.paste(csv);
     expect(await screen.findByText(/para cargar/)).toBeInTheDocument();
     expect(screen.getByText('2', { selector: 'b' })).toBeInTheDocument();
-    expect(screen.getAllByText('Dato').length).toBe(1);
+    expect(screen.getAllByText('Nota').length).toBe(1);
+    expect(screen.getAllByText('Se ignora').length).toBe(1);
     await userEvent.click(screen.getByRole('button', { name: 'Importar' }));
     expect(await screen.findByText(/ya estaba archivado/)).toBeInTheDocument();
     expect(screen.getByText('teléfono inválido')).toBeInTheDocument();
-    expect(calls.find((c) => c.path === '/api/v1/contacts/import')?.body).toEqual({ csv, tags: [] });
+    expect(calls.find((c) => c.path === '/api/v1/contacts/import')?.body).toEqual({ csv });
   });
 
   it('un CSV sin teléfono no se puede importar', async () => {
@@ -266,7 +254,7 @@ describe('contactos: alta e importación', () => {
     renderWithProviders(<ContactsPage />, { me: CLIENT_USER });
     await userEvent.click(await screen.findByRole('button', { name: /Importar CSV/ }));
     await userEvent.click(await screen.findByLabelText('Contactos (CSV)'));
-    await userEvent.paste('nombre,deuda\nAna,1');
+    await userEvent.paste('nombre,notas\nAna,1');
     expect(await screen.findByText(/Falta la columna del teléfono/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Importar' })).toBeDisabled();
   });
@@ -298,7 +286,7 @@ describe('contactos: ficha', () => {
       routes: [{ path: '/contacts/:id', element: <ContactDetailPage /> }],
     });
     expect(await screen.findByText('Ana Pérez')).toBeInTheDocument();
-    expect(screen.getByText('15000')).toBeInTheDocument();
+    expect(screen.getByText('Prefiere que lo llamen por la tarde')).toBeInTheDocument();
     expect(screen.getByText('ana@acme.com')).toBeInTheDocument();
     expect(await screen.findByRole('link', { name: 'Mora octubre' })).toHaveAttribute(
       'href',

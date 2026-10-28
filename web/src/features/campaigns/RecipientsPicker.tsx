@@ -5,7 +5,6 @@ import {
   Stack,
   Table,
   Tabs,
-  TagsInput,
   Text,
   Textarea,
   TextInput,
@@ -15,9 +14,8 @@ import { IconSearch } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Dash } from '@/components/Badges';
 import { QueryState } from '@/components/QueryState';
-import { CONTACTS_PAGE, useContacts, useTagSuggestions } from '@/features/contacts/api';
+import { CONTACTS_PAGE, useContacts } from '@/features/contacts/api';
 import { CsvFileInput, CsvPreviewTable } from '@/features/contacts/ContactModals';
-import { TagBadges } from '@/features/contacts/TagBadges';
 import { type Recipients, recipientsCount, recipientsSummary } from './recipients';
 
 function ContactChooser({
@@ -35,7 +33,6 @@ function ContactChooser({
   const contacts = useContacts({
     clientId,
     q,
-    tag: '',
     archived: 'false',
     offset: (page - 1) * CONTACTS_PAGE,
   });
@@ -77,9 +74,6 @@ function ContactChooser({
                         </Table.Td>
                         <Table.Td className="mono">{c.phone}</Table.Td>
                         <Table.Td>{c.name ?? <Dash />}</Table.Td>
-                        <Table.Td>
-                          <TagBadges tags={c.tags} max={2} />
-                        </Table.Td>
                       </Table.Tr>
                     ))}
                   </Table.Tbody>
@@ -112,7 +106,6 @@ export function RecipientsPicker({
   value: Recipients;
   onChange: (next: Recipients) => void;
 }) {
-  const suggestions = useTagSuggestions(clientId);
   const n = recipientsCount(value);
   const badge = (count: number) => (count ? ` (${count})` : '');
 
@@ -121,22 +114,11 @@ export function RecipientsPicker({
       <Text size="sm" fw={500}>
         Destinatarios
       </Text>
-      <Tabs defaultValue="tags" keepMounted={false}>
+      <Tabs defaultValue="contacts" keepMounted={false}>
         <Tabs.List mb="sm">
-          <Tabs.Tab value="tags">Etiquetas{badge(n.tags)}</Tabs.Tab>
           <Tabs.Tab value="contacts">Elegir contactos{badge(n.ids)}</Tabs.Tab>
           <Tabs.Tab value="csv">CSV{badge(n.rows)}</Tabs.Tab>
         </Tabs.List>
-        <Tabs.Panel value="tags">
-          <TagsInput
-            aria-label="Etiquetas"
-            description="Todos los contactos activos con alguna de estas etiquetas."
-            placeholder="mora"
-            data={suggestions.data ?? []}
-            value={value.tags}
-            onChange={(tags) => onChange({ ...value, tags })}
-          />
-        </Tabs.Panel>
         <Tabs.Panel value="contacts">
           <ContactChooser
             clientId={clientId}
@@ -148,8 +130,8 @@ export function RecipientsPicker({
           <Stack gap="xs">
             <Textarea
               aria-label="Contactos (CSV)"
-              description="Con encabezado: telefono (obligatorio), nombre, email y las demás columnas como datos. Quienes no estén en la agenda se agregan."
-              placeholder={'telefono,nombre,deuda\n351 555-1234,Ana,15000'}
+              description="Con encabezado: telefono (obligatorio), nombre, email y notas. Quienes no estén en la agenda se agregan."
+              placeholder={'telefono,nombre,email\n351 555-1234,Ana Pérez,ana@empresa.com'}
               autosize
               minRows={4}
               maxRows={10}

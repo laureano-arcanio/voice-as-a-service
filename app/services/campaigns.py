@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..config import settings
@@ -166,19 +166,13 @@ def clean_param(value: Any) -> str:
 
 
 def param_value(contact: Contact, name: str) -> str:
-    """El dato del contacto que se llama `name`: nombre, telefono, email, external_id o un atributo
+    """El dato del contacto que se llama `name`: nombre, telefono, email o external_id
     (sin importar mayusculas ni acentos). Vacio si no lo tiene."""
     key = contacts_service.attribute_key(name)
     fixed = {"nombre": contact.name, "name": contact.name, "telefono": contact.phone, "phone": contact.phone,
              "email": contact.email, "external_id": contact.external_id}
     if key in fixed:
         return clean_param(fixed[key])
-    attributes = contact.attributes or {}
-    if name in attributes:
-        return clean_param(attributes[name])
-    for attr, value in attributes.items():
-        if contacts_service.attribute_key(str(attr)) == key:
-            return clean_param(value)
     return ""
 
 
@@ -199,7 +193,7 @@ def vars_values(vars_: dict, names: list[str]) -> list[str]:
 
 
 def clean_param_names(names: list[str] | None, expected: int) -> list[str] | None:
-    """Los nombres de atributo de {{1}}..{{n}}: tantos como variables tiene la plantilla."""
+    """Los datos del contacto de {{1}}..{{n}}: tantos como variables tiene la plantilla."""
     names = [str(n).strip() for n in names or []]
     if not names:
         return None
@@ -211,9 +205,9 @@ def clean_param_names(names: list[str] | None, expected: int) -> list[str] | Non
 
 
 def contact_vars(contact: Contact, params: list[str] | None = None) -> dict:
-    """Copia de los datos del contacto para la campaña: sus atributos, mas nombre, telefono, email
-    e id externo con esos nombres, y `params` (valores de {{1}}..{{n}} de la plantilla)."""
-    out: dict[str, Any] = {k: v for k, v in (contact.attributes or {}).items() if k != "params" and v not in (None, "")}
+    """Copia de los datos del contacto para la campaña: nombre, telefono, email e id externo con
+    esos nombres, y `params` (valores de {{1}}..{{n}} de la plantilla)."""
+    out: dict[str, Any] = {}
     for key, value in (("nombre", contact.name), ("telefono", contact.phone), ("email", contact.email),
                        ("external_id", contact.external_id)):
         if value:
@@ -387,7 +381,7 @@ def add_contacts(s: Session, campaign: Campaign, candidates: list[Candidate]) ->
     whatsapp = campaign.channel == "whatsapp"
     names = campaign.template_param_names
     if whatsapp and campaign.template_params and not names:
-        raise Invalid(f"La plantilla tiene {campaign.template_params} variables: indicá param_names (el atributo "
+        raise Invalid(f"La plantilla tiene {campaign.template_params} variables: indicá param_names (el dato "
                       f"de cada contacto que completa cada una) o cargá los valores con recipients")
     limits = effective(s, campaign.client_id)
     existing = set(s.scalars(select(CampaignContact.contact_id).where(CampaignContact.campaign_id == campaign.id)))
@@ -431,17 +425,6 @@ def contacts_by_ids(s: Session, client_id: str, ids: list[str]) -> list[Candidat
             found[c.id] = c
     return [Candidate(found[i], found[i].phone) if i in found else Skipped(i, "contacto inexistente")
             for i in unique]
-
-
-def contacts_by_tags(s: Session, client_id: str, tags: list[str]) -> list[Candidate]:
-    """Los contactos activos que tienen alguna de las etiquetas."""
-    try:
-        conditions = [contacts_service.tag_filter(t) for t in tags]
-    except ValueError as e:
-        raise Invalid(str(e)) from None
-    rows = s.scalars(select(Contact).where(Contact.client_id == client_id, Contact.archived_at.is_(None),
-                                           or_(*conditions)).order_by(Contact.created_at, Contact.id))
-    return [Candidate(c, c.phone) for c in rows]
 
 
 def contacts_from_rows(s: Session, client_id: str, rows: list[contacts_service.ContactRow],

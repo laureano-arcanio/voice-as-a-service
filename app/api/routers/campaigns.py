@@ -122,11 +122,11 @@ def _skipped(items: list[common.Skipped]) -> list[ContactRejected]:
 
 def _add(db, c: Campaign, body: CampaignContactsIn) -> tuple[int, list[common.Skipped]]:
     """Suma los contactos de todas las fuentes del pedido, en este orden: recipients (WhatsApp, con
-    sus variables), contact_ids, tags, contacts y csv (estos dos se cargan antes en la agenda)."""
+    sus variables), contact_ids, contacts y csv (estos dos se cargan antes en la agenda)."""
     added, skipped = 0, []
     if body.recipients:
         if c.channel != "whatsapp":
-            raise Invalid("recipients es solo de WhatsApp: en voz, usá contacts, contact_ids, tags o csv")
+            raise Invalid("recipients es solo de WhatsApp: en voz, usá contacts, contact_ids o csv")
         n, sk = wa.add_recipients(db, c, [wa.Row(phone=r.phone, name=r.name, params=list(r.params))
                                           for r in body.recipients])
         added, skipped = added + n, skipped + sk
@@ -136,8 +136,6 @@ def _add(db, c: Campaign, body: CampaignContactsIn) -> tuple[int, list[common.Sk
             skipped.append(item)
         else:
             candidates.append(item)
-    if body.tags:
-        candidates += common.contacts_by_tags(db, c.client_id, body.tags)
     for rows, source in (([contacts.ContactRow(**x.model_dump()) for x in body.contacts], "api"),
                          (contacts.parse_csv(body.csv) if body.csv else [], "csv")):
         if rows:
@@ -303,7 +301,7 @@ def delete_campaign(campaign_id: str, p: CurrentPrincipal, db: DB):
 
 @router.post("/{campaign_id}/contacts", response_model=CampaignContactsAdded)
 def add_contacts(campaign_id: str, body: CampaignContactsIn, p: CurrentPrincipal, db: DB):
-    """Suma contactos a una campaña en borrador o pausada: de la agenda (`contact_ids`, `tags`) o nuevos
+    """Suma contactos a una campaña en borrador o pausada: de la agenda (`contact_ids`) o nuevos
     (`contacts`, `csv`: tambien entran en la agenda). Valida los topes del plan."""
     c, _ = _get_editable(db, campaign_id, p)
     added, skipped = _add(db, c, body)

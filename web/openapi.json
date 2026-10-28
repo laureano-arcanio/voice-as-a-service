@@ -919,7 +919,7 @@
      "clients"
     ],
     "summary": "Delete Client",
-    "description": "Solo sin conversaciones; con historial, desactivarlo (active=false).",
+    "description": "Solo sin historial (conversaciones, llamadas, campañas, WhatsApp); con historial, desactivarlo\n(active=false). Los contactos se borran con el cliente.",
     "operationId": "delete_client_api_v1_clients__client_id__delete",
     "security": [
      {
@@ -5674,7 +5674,7 @@
      "campaigns"
     ],
     "summary": "Add Contacts",
-    "description": "Suma contactos a una campaña en borrador o pausada: de la agenda (`contact_ids`, `tags`) o nuevos\n(`contacts`, `csv`: tambien entran en la agenda). Valida los topes del plan.",
+    "description": "Suma contactos a una campaña en borrador o pausada: de la agenda (`contact_ids`) o nuevos\n(`contacts`, `csv`: tambien entran en la agenda). Valida los topes del plan.",
     "operationId": "add_contacts_api_v1_campaigns__campaign_id__contacts_post",
     "security": [
      {
@@ -6203,23 +6203,6 @@
       "description": "Busca en nombre, telefono, email e id externo"
      },
      {
-      "name": "tag",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "anyOf": [
-        {
-         "type": "string",
-         "maxLength": 32
-        },
-        {
-         "type": "null"
-        }
-       ],
-       "title": "Tag"
-      }
-     },
-     {
       "name": "archived",
       "in": "query",
       "required": false,
@@ -6288,7 +6271,7 @@
      "contacts"
     ],
     "summary": "Upsert Contacts",
-    "description": "Carga un contacto o una lista (upsert por telefono): los nuevos se crean y los que ya\nexisten se actualizan, sumando atributos y etiquetas. Las filas invalidas o que no entran por\nel tope del plan vuelven en `invalid`; con un solo contacto, eso es un error. Los archivados\nse actualizan pero siguen archivados (`archived`).",
+    "description": "Carga un contacto o una lista (upsert por telefono): los nuevos se crean y los que ya\nexisten se actualizan, sumando la nota si viene. Las filas invalidas o que no entran por\nel tope del plan vuelven en `invalid`; con un solo contacto, eso es un error. Los archivados\nse actualizan pero siguen archivados (`archived`).",
     "operationId": "upsert_contacts_api_v1_contacts_post",
     "security": [
      {
@@ -6429,7 +6412,7 @@
      "contacts"
     ],
     "summary": "Archive Contacts",
-    "description": "Archiva en lote, por ids o por etiquetas. Sus intentos pendientes en campañas abiertas\npasan a salteados.",
+    "description": "Archiva en lote, por ids. Sus intentos pendientes en campañas abiertas\npasan a salteados.",
     "operationId": "archive_contacts_api_v1_contacts_archive_post",
     "security": [
      {
@@ -6761,7 +6744,7 @@
      "contacts"
     ],
     "summary": "Update Contact",
-    "description": "Edita datos y etiquetas (los atributos y las etiquetas reemplazan a los anteriores). El\ntelefono no se cambia: otro telefono es otro contacto.",
+    "description": "Edita los datos (lo que viene reemplaza a lo anterior). El\ntelefono no se cambia: otro telefono es otro contacto.",
     "operationId": "update_contact_api_v1_contacts__contact_id__patch",
     "security": [
      {
@@ -17010,16 +16993,6 @@
       "description": "Contactos de la agenda",
       "default": []
      },
-     "tags": {
-      "items": {
-       "type": "string"
-      },
-      "type": "array",
-      "maxItems": 20,
-      "title": "Tags",
-      "description": "Los contactos activos con alguna de estas etiquetas",
-      "default": []
-     },
      "contacts": {
       "items": {
        "$ref": "#/components/schemas/ContactIn"
@@ -17121,16 +17094,6 @@
       "maxItems": 10000,
       "title": "Contact Ids",
       "description": "Contactos de la agenda",
-      "default": []
-     },
-     "tags": {
-      "items": {
-       "type": "string"
-      },
-      "type": "array",
-      "maxItems": 20,
-      "title": "Tags",
-      "description": "Los contactos activos con alguna de estas etiquetas",
       "default": []
      },
      "contacts": {
@@ -17374,7 +17337,7 @@
        }
       ],
       "title": "Param Names",
-      "description": "WhatsApp: atributo del contacto de cada variable de la plantilla"
+      "description": "WhatsApp: dato del contacto (nombre, telefono, email o external_id) de cada variable de la plantilla"
      },
      "from_number_id": {
       "anyOf": [
@@ -19307,16 +19270,6 @@
       "maxLength": 900000,
       "minLength": 1,
       "title": "Csv"
-     },
-     "tags": {
-      "items": {
-       "type": "string"
-      },
-      "type": "array",
-      "maxItems": 20,
-      "title": "Tags",
-      "description": "Etiquetas que se suman a todos",
-      "default": []
      }
     },
     "type": "object",
@@ -19324,7 +19277,7 @@
      "csv"
     ],
     "title": "ContactImportIn",
-    "description": "CSV con encabezado: columna telefono (o celular, phone, whatsapp); nombre, email, external_id\ny etiquetas (separadas por | o ;) opcionales; las demas columnas son atributos."
+    "description": "CSV con encabezado: columna telefono (o celular, phone, whatsapp); nombre, email, external_id\ny notas opcionales; las demas columnas se ignoran."
    },
    "ContactIn": {
     "properties": {
@@ -19375,40 +19328,18 @@
       "title": "External Id",
       "description": "Id en el sistema del cliente"
      },
-     "attributes": {
-      "additionalProperties": {
-       "anyOf": [
-        {
-         "type": "string"
-        },
-        {
-         "type": "integer"
-        },
-        {
-         "type": "number"
-        },
-        {
-         "type": "boolean"
-        },
-        {
-         "type": "null"
-        }
-       ]
-      },
-      "type": "object",
-      "title": "Attributes",
-      "description": "Datos libres: {\"deuda\": 15000}",
-      "default": {}
-     },
-     "tags": {
-      "items": {
-       "type": "string"
-      },
-      "type": "array",
-      "maxItems": 20,
-      "title": "Tags",
-      "description": "Etiquetas: letras, numeros y _ . : -",
-      "default": []
+     "notes": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 2000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Notes",
+      "description": "Nota libre sobre el contacto"
      }
     },
     "type": "object",
@@ -19535,17 +19466,16 @@
       ],
       "title": "External Id"
      },
-     "attributes": {
-      "additionalProperties": true,
-      "type": "object",
-      "title": "Attributes"
-     },
-     "tags": {
-      "items": {
-       "type": "string"
-      },
-      "type": "array",
-      "title": "Tags"
+     "notes": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Notes"
      },
      "source": {
       "type": "string",
@@ -19589,8 +19519,7 @@
      "name",
      "email",
      "external_id",
-     "attributes",
-     "tags",
+     "notes",
      "source",
      "archived_at",
      "created_at",
@@ -19657,55 +19586,22 @@
       ],
       "title": "External Id"
      },
-     "attributes": {
+     "notes": {
       "anyOf": [
        {
-        "additionalProperties": {
-         "anyOf": [
-          {
-           "type": "string"
-          },
-          {
-           "type": "integer"
-          },
-          {
-           "type": "number"
-          },
-          {
-           "type": "boolean"
-          },
-          {
-           "type": "null"
-          }
-         ]
-        },
-        "type": "object"
+        "type": "string",
+        "maxLength": 2000
        },
        {
         "type": "null"
        }
       ],
-      "title": "Attributes"
-     },
-     "tags": {
-      "anyOf": [
-       {
-        "items": {
-         "type": "string"
-        },
-        "type": "array",
-        "maxItems": 20
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Tags"
+      "title": "Notes"
      }
     },
     "type": "object",
     "title": "ContactPatch",
-    "description": "Solo los campos enviados. attributes y tags reemplazan a los anteriores; el telefono no se cambia."
+    "description": "Solo los campos enviados, que reemplazan a los anteriores; el telefono no se cambia."
    },
    "ContactRejected": {
     "properties": {
@@ -19745,21 +19641,14 @@
       },
       "type": "array",
       "maxItems": 10000,
-      "title": "Contact Ids",
-      "default": []
-     },
-     "tags": {
-      "items": {
-       "type": "string"
-      },
-      "type": "array",
-      "maxItems": 20,
-      "title": "Tags",
-      "description": "Archiva los que tengan alguna de estas etiquetas",
-      "default": []
+      "minItems": 1,
+      "title": "Contact Ids"
      }
     },
     "type": "object",
+    "required": [
+     "contact_ids"
+    ],
     "title": "ContactsArchiveIn"
    },
    "ContactsArchiveOut": {

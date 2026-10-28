@@ -1923,7 +1923,6 @@ class InferenceUsageOut(BaseModel):
 
 OptoutChannel = Literal["whatsapp", "voice", "all"]
 ContactSource = Literal["manual", "csv", "api", "campaign", "inbound"]
-ContactScalar = str | int | float | bool | None
 
 
 class ContactIn(BaseModel):
@@ -1932,24 +1931,21 @@ class ContactIn(BaseModel):
     name: str | None = Field(default=None, max_length=128)
     email: str | None = Field(default=None, max_length=254)
     external_id: str | None = Field(default=None, max_length=128, description="Id en el sistema del cliente")
-    attributes: dict[str, ContactScalar] = Field(default={}, description='Datos libres: {"deuda": 15000}')
-    tags: list[str] = Field(default=[], max_length=20, description="Etiquetas: letras, numeros y _ . : -")
+    notes: str | None = Field(default=None, max_length=2000, description="Nota libre sobre el contacto")
 
 
 class ContactImportIn(BaseModel):
     """CSV con encabezado: columna telefono (o celular, phone, whatsapp); nombre, email, external_id
-    y etiquetas (separadas por | o ;) opcionales; las demas columnas son atributos."""
+    y notas opcionales; las demas columnas se ignoran."""
     csv: str = Field(min_length=1, max_length=900_000)
-    tags: list[str] = Field(default=[], max_length=20, description="Etiquetas que se suman a todos")
 
 
 class ContactPatch(BaseModel):
-    """Solo los campos enviados. attributes y tags reemplazan a los anteriores; el telefono no se cambia."""
+    """Solo los campos enviados, que reemplazan a los anteriores; el telefono no se cambia."""
     name: str | None = Field(default=None, max_length=128)
     email: str | None = Field(default=None, max_length=254)
     external_id: str | None = Field(default=None, max_length=128)
-    attributes: dict[str, ContactScalar] | None = None
-    tags: list[str] | None = Field(default=None, max_length=20)
+    notes: str | None = Field(default=None, max_length=2000)
 
 
 class ContactOut(ORM):
@@ -1959,8 +1955,7 @@ class ContactOut(ORM):
     name: str | None
     email: str | None
     external_id: str | None
-    attributes: dict[str, Any]
-    tags: list[str]
+    notes: str | None
     source: ContactSource
     archived_at: UTCDateTime | None
     created_at: UTCDateTime
@@ -1987,8 +1982,7 @@ class ContactsUpsertOut(BaseModel):
 
 
 class ContactsArchiveIn(BaseModel):
-    contact_ids: list[str] = Field(default=[], max_length=10_000)
-    tags: list[str] = Field(default=[], max_length=20, description="Archiva los que tengan alguna de estas etiquetas")
+    contact_ids: list[str] = Field(min_length=1, max_length=10_000)
 
 
 class ContactsArchiveOut(BaseModel):
@@ -2055,7 +2049,6 @@ class CampaignContactsIn(BaseModel):
     se cargan en la agenda (upsert por telefono). Los archivados, repetidos y dados de baja no entran:
     vuelven en `skipped`."""
     contact_ids: list[str] = Field(default=[], max_length=10_000, description="Contactos de la agenda")
-    tags: list[str] = Field(default=[], max_length=20, description="Los contactos activos con alguna de estas etiquetas")
     contacts: list[ContactIn] = Field(default=[], max_length=10_000, description="Contactos nuevos o a actualizar")
     csv: str | None = Field(default=None, max_length=900_000, description="CSV de contactos: como /contacts/import")
     recipients: list[WaRecipientIn] = Field(
@@ -2090,7 +2083,7 @@ class CampaignIn(CampaignContactsIn):
     template_name: str | None = Field(default=None, pattern=r"^[a-z0-9_]{1,512}$", description="WhatsApp: plantilla aprobada de la WABA del numero")
     template_language: str = Field(default="es_AR", pattern=r"^[a-z]{2,3}(_[A-Z]{2})?$")
     param_names: list[Annotated[str, Field(min_length=1, max_length=64)]] | None = Field(
-        default=None, max_length=20, description="WhatsApp: atributo del contacto de cada variable de la plantilla")
+        default=None, max_length=20, description="WhatsApp: dato del contacto (nombre, telefono, email o external_id) de cada variable de la plantilla")
     # Voz.
     from_number_id: str | None = Field(default=None, description="Voz: numero del cliente que se muestra al llamar")
     voice: str | None = Field(default=None, max_length=64, description="Voz: voz del TTS; sin ella, la del agente")

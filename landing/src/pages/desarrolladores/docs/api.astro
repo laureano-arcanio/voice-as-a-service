@@ -107,12 +107,12 @@ const contactsUpsert = `curl ${API}/contacts \\
   -H "Authorization: Bearer $ATENTINA_KEY" \\
   -H "Content-Type: application/json" \\
   -d '[{"phone": "351 555-1234", "name": "Ana Pérez", "external_id": "C-1032",
-        "attributes": {"deuda": 15000, "vence": "10 de noviembre"}, "tags": ["mora_30"]},
+        "email": "ana@empresa.com", "notes": "Prefiere que la llamen por la tarde"},
        {"phone": "+54 9 11 5555-0000"}]'`;
 
-const contactsCsv = `telefono,nombre,deuda,vence
-351 555-1234,Ana Pérez,15000,10 de noviembre
-11 5555-0000,,8200,15 de noviembre`;
+const contactsCsv = `telefono,nombre,email,notas
+351 555-1234,Ana Pérez,ana@empresa.com,Prefiere que la llamen por la tarde
+11 5555-0000,,,`;
 
 const campaign = `curl ${API}/campaigns \\
   -H "Authorization: Bearer $ATENTINA_KEY" \\
@@ -122,7 +122,7 @@ const campaign = `curl ${API}/campaigns \\
     "name": "Mora 30 días - noviembre",
     "agent_id": "<id del agente>",
     "purpose": "cobranza",
-    "tags": ["mora_30"],
+    "contact_ids": ["<id de cada contacto de la agenda>"],
     "concurrency": 3,
     "window_start": 9, "window_end": 20, "weekdays": [0, 1, 2, 3, 4],
     "starts_at": "2026-11-03T12:00:00Z",
@@ -406,7 +406,7 @@ const voiceResults = [
 
 const campaignEndpoints = [
   { path: "POST /campaigns", text: "Crea la campaña (en draft) con sus contactos; con \"start\": true la inicia en el mismo pedido" },
-  { path: "POST /campaigns/{id}/contacts", text: "Suma contactos: contact_ids, tags, contacts (lista) o csv" },
+  { path: "POST /campaigns/{id}/contacts", text: "Suma contactos: contact_ids, contacts (lista) o csv" },
   { path: "POST /campaigns/{id}/start", text: "La inicia (o la programa, si tiene starts_at)" },
   { path: "POST /campaigns/{id}/pause · /resume · /cancel", text: "Las llamadas en curso terminan normalmente" },
   { path: "PATCH /campaigns/{id}", text: "Cambia horario, ritmo, reintentos o webhook de una campaña que no terminó" },
@@ -607,19 +607,19 @@ const campaignEndpoints = [
 
     <section id="contactos" class="grid gap-4">
       <h2>Contactos</h2>
-      <p>Cada cuenta tiene su agenda. El teléfono es lo único obligatorio y no se repite: cargar uno que ya está lo actualiza (los datos se suman, no se borran). El resto es opcional: <code>name</code>, <code>email</code>, <code>external_id</code> (el id en tu sistema, para cruzar el reporte), <code>attributes</code> (datos libres) y <code>tags</code> (para armar campañas por grupo).</p>
+      <p>Cada cuenta tiene su agenda. El teléfono es lo único obligatorio y no se repite: cargar uno que ya está lo actualiza (lo que no mandás no se pisa). El resto es opcional: <code>name</code>, <code>email</code>, <code>external_id</code> (el id en tu sistema, para cruzar el reporte) y <code>notes</code> (una nota libre, hasta 2000 caracteres).</p>
       <CodeBlock label="curl" code={contactsUpsert} />
-      <p>Por CSV, con <code>POST /contacts/import</code>: una columna de teléfono (<code>telefono</code>, <code>celular</code>, <code>phone</code>…) y, si querés, <code>nombre</code>, <code>email</code>, <code>id</code> y <code>etiquetas</code>; el resto de las columnas pasan a <code>attributes</code>. La respuesta dice cuántos se crearon y actualizaron, y cuáles no entraron, con la fila y el motivo.</p>
+      <p>Por CSV, con <code>POST /contacts/import</code>: una columna de teléfono (<code>telefono</code>, <code>celular</code>, <code>phone</code>…) y, si querés, <code>nombre</code>, <code>email</code>, <code>id</code> y <code>notas</code>; el resto de las columnas se ignoran. La respuesta dice cuántos se crearon y actualizaron, y cuáles no entraron, con la fila y el motivo.</p>
       <CodeBlock label="CSV" code={contactsCsv} />
       <ul>
-        <li><strong>No se borran: se archivan</strong> (<code>POST /contacts/{"{"}id{"}"}/archive</code> o en lote por ids o etiquetas). Un archivado no entra en campañas nuevas y sale de las que están en curso. <code>GET /contacts?archived=true</code> los lista. Si lo volvés a cargar, se actualiza pero sigue archivado hasta que lo desarchives.</li>
+        <li><strong>No se borran: se archivan</strong> (<code>POST /contacts/{"{"}id{"}"}/archive</code> o en lote por ids). Un archivado no entra en campañas nuevas y sale de las que están en curso. <code>GET /contacts?archived=true</code> los lista. Si lo volvés a cargar, se actualiza pero sigue archivado hasta que lo desarchives.</li>
         <li><strong>No contactar:</strong> <code>/contacts/optouts</code> guarda los teléfonos que pidieron no ser contactados, por canal (<code>voice</code>, <code>whatsapp</code> o <code>all</code>). Ninguna campaña los llama ni les escribe. También se cargan solos: cuando alguien responde "baja" por WhatsApp, o lo pide en la llamada si el agente tiene un resultado marcado como "no contactar".</li>
       </ul>
     </section>
 
     <section id="campanas" class="grid gap-4">
       <h2>Campañas</h2>
-      <p>Una campaña llama (<code>"channel": "voice"</code>) o escribe por WhatsApp (<code>"channel": "whatsapp"</code>, con una plantilla aprobada) a una lista de contactos, sola, dentro del horario que le pongas. Este ejemplo llama a los contactos con la etiqueta <code>mora_30</code>, de a tres a la vez, de lunes a viernes de 9 a 20, desde el 3 de noviembre, con hasta tres intentos cada dos horas:</p>
+      <p>Una campaña llama (<code>"channel": "voice"</code>) o escribe por WhatsApp (<code>"channel": "whatsapp"</code>, con una plantilla aprobada) a una lista de contactos, sola, dentro del horario que le pongas. Este ejemplo llama a los contactos de la agenda que elegís con <code>contact_ids</code>, de a tres a la vez, de lunes a viernes de 9 a 20, desde el 3 de noviembre, con hasta tres intentos cada dos horas:</p>
       <CodeBlock label="curl" code={campaign} />
       <ul>
         <li><strong>De a uno o en paralelo:</strong> <code>concurrency</code> en 1 llama de a un contacto; con N, hasta N a la vez (el tope lo pone tu plan). <code>rate_per_minute</code> limita cuántas llamadas empiezan por minuto.</li>

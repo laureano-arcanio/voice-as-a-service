@@ -40,6 +40,7 @@ from .test_campaign_dialer import (
     states,
 )
 from .test_campaigns import (  # noqa: F401  (fixtures)
+    everyone,
     load_contacts,
     voice,
     voice_body,
@@ -172,7 +173,7 @@ async def test_dialer_skips_holidays_only_for_voice(api, voice, monkeypatch):  #
 def test_commercial_campaign_needs_the_registry_confirmation(api, voice):  # noqa: F811
     user, agent, _ = voice
     load_contacts(user)
-    body = voice_body(agent, purpose="comercial", tags=["mora"])
+    body = voice_body(agent, purpose="comercial", contact_ids=everyone(user))
     camp = user.post(f"{V1}/campaigns", json=body).json()["campaign"]
     assert camp["purpose"] == "comercial" and camp["registry_confirmed"] is False
     r = user.post(f"{V1}/campaigns/{camp['id']}/start")
@@ -188,7 +189,7 @@ def test_commercial_campaign_needs_the_registry_confirmation(api, voice):  # noq
 def test_registry_confirmation_comes_with_start_on_create(api, voice):  # noqa: F811
     user, agent, _ = voice
     load_contacts(user)
-    body = voice_body(agent, purpose="comercial", tags=["mora"], start=True)
+    body = voice_body(agent, purpose="comercial", contact_ids=everyone(user), start=True)
     r = user.post(f"{V1}/campaigns", json=body)
     assert r.status_code == 422                                      # no queda nada creado
     assert user.get(f"{V1}/campaigns").json() == []
@@ -200,14 +201,14 @@ def test_registry_confirmation_comes_with_start_on_create(api, voice):  # noqa: 
 def test_other_purposes_start_without_confirmation(api, voice, purpose):  # noqa: F811
     user, agent, _ = voice
     load_contacts(user)
-    camp = user.post(f"{V1}/campaigns", json=voice_body(agent, purpose=purpose, tags=["mora"])).json()["campaign"]
+    camp = user.post(f"{V1}/campaigns", json=voice_body(agent, purpose=purpose, contact_ids=everyone(user))).json()["campaign"]
     assert user.post(f"{V1}/campaigns/{camp['id']}/start").json()["status"] == "running"
 
 
 def test_changing_the_purpose_asks_again(api, voice):  # noqa: F811
     user, agent, _ = voice
     load_contacts(user)
-    camp = user.post(f"{V1}/campaigns", json=voice_body(agent, purpose="cobranza", tags=["mora"])).json()["campaign"]
+    camp = user.post(f"{V1}/campaigns", json=voice_body(agent, purpose="cobranza", contact_ids=everyone(user))).json()["campaign"]
     url = f"{V1}/campaigns/{camp['id']}"
     assert user.post(f"{url}/start").status_code == 200
     # En curso no se cambia la finalidad (se saltearia la confirmacion).
@@ -286,7 +287,7 @@ async def test_no_contact_outcome_adds_a_voice_optout(api, voice):  # noqa: F811
         assert len(list(s.scalars(select(ContactOptout)))) == 1
     # No llamar es de voz: WhatsApp sigue habilitado. Y otra campaña de voz ya no lo marca.
     assert user.get(f"{V1}/contacts/optouts").json()[0]["channel"] == "voice"
-    other = user.post(f"{V1}/campaigns", json=voice_body(agent, name="Otra", tags=["mora"], window_start=0, window_end=24,
+    other = user.post(f"{V1}/campaigns", json=voice_body(agent, name="Otra", contact_ids=everyone(user), window_start=0, window_end=24,
                                                          concurrency=5, rate_per_minute=600)).json()
     assert other["added"] == 1 and other["skipped"][0]["reason"] == "pidió la baja"
 
@@ -324,8 +325,8 @@ def followup_cfg(acc, **extra):
 
 
 def voice_with_followup(user, acc, *, n=3, followup=True, **extra) -> dict:
-    load_contacts(user, [{"phone": f"351 555-100{i}", "name": f"Ana{i}", "tags": ["mora"]} for i in range(1, n + 1)])
-    body = {"channel": "voice", "name": "Mora", "agent_id": acc["agent_id"], "tags": ["mora"], "window_start": 0,
+    load_contacts(user, [{"phone": f"351 555-100{i}", "name": f"Ana{i}"} for i in range(1, n + 1)])
+    body = {"channel": "voice", "name": "Mora", "agent_id": acc["agent_id"], "contact_ids": everyone(user), "window_start": 0,
             "window_end": 24, "concurrency": 5, "rate_per_minute": 600, "max_attempts": 1,
             **({"followup": followup_cfg(acc)} if followup else {}), **extra}
     r = user.post(f"{V1}/campaigns", json=body)
@@ -683,8 +684,8 @@ def private_hooks(monkeypatch):
     monkeypatch.setattr(settings, "campaign_callback_allow_private", True)
 
 
-def hook_body(agent, **extra):
-    return voice_body(agent, **{"tags": ["mora"], "window_start": 0, "window_end": 24, "concurrency": 5,
+def hook_body(user, agent, **extra):
+    return voice_body(agent, **{"contact_ids": everyone(user), "window_start": 0, "window_end": 24, "concurrency": 5,
                                 "rate_per_minute": 600, "callback_url": "http://hooks.example.test/campanas",
                                 "callback_secret": SECRET, **extra})
 
@@ -777,8 +778,8 @@ def hook_env(api, voice_env, monkeypatch, n=2, **extra):
     from cryptography.fernet import Fernet
     monkeypatch.setattr(settings, "wa_token_key", Fernet.generate_key().decode())
     user, agent, _ = voice_env
-    load_contacts(user, [{"phone": f"351 555-100{i}", "name": f"Ana{i}", "tags": ["mora"]} for i in range(1, n + 1)])
-    camp = user.post(f"{V1}/campaigns", json=hook_body(agent, **extra)).json()["campaign"]
+    load_contacts(user, [{"phone": f"351 555-100{i}", "name": f"Ana{i}"} for i in range(1, n + 1)])
+    camp = user.post(f"{V1}/campaigns", json=hook_body(user, agent, **extra)).json()["campaign"]
     assert user.post(f"{V1}/campaigns/{camp['id']}/start").status_code == 200
     return user, camp
 

@@ -17,16 +17,15 @@ const base: Contact = {
   name: 'Ana Pérez',
   email: null,
   external_id: null,
-  attributes: {},
-  tags: ['vip'],
+  notes: null,
   source: 'manual',
   archived_at: null,
   created_at: '2026-10-01T12:00:00Z',
   updated_at: '2026-10-01T12:00:00Z',
 };
 const ANA = base;
-const LUIS: Contact = { ...base, id: 'k2', phone: '+5493515550002', name: 'Luis Gómez', tags: [] };
-const MARTA: Contact = { ...base, id: 'k3', phone: '+5493515550003', name: 'Marta Ruiz', tags: [] };
+const LUIS: Contact = { ...base, id: 'k2', phone: '+5493515550002', name: 'Luis Gómez' };
+const MARTA: Contact = { ...base, id: 'k3', phone: '+5493515550003', name: 'Marta Ruiz' };
 
 const NUMBER = (id: string, e164: string, label: string) => ({
   id,

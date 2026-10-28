@@ -452,8 +452,7 @@ describe('campañas: alta de llamadas', () => {
             name: 'Ana',
             email: null,
             external_id: null,
-            attributes: {},
-            tags: ['mora'],
+            notes: null,
             source: 'manual',
             archived_at: null,
             created_at: '2026-10-01T12:00:00Z',
@@ -469,10 +468,10 @@ describe('campañas: alta de llamadas', () => {
     await userEvent.type(await screen.findByLabelText('Nombre'), name);
     await userEvent.click(screen.getByRole('textbox', { name: 'Agente que llama' }));
     await userEvent.click(await screen.findByRole('option', { name: 'Cobranzas', hidden: true }));
-    await userEvent.type(screen.getByRole('textbox', { name: 'Etiquetas' }), 'mora{Enter}');
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Elegir Ana' }));
   }
 
-  it('crea el borrador con las etiquetas, el horario y los reintentos', async () => {
+  it('crea el borrador con los contactos elegidos, el horario y los reintentos', async () => {
     const calls = mockApi(routes());
     renderWithProviders(<VoiceCampaignModal onClose={() => {}} />, { me: CLIENT_USER });
     await fillBasics();
@@ -482,7 +481,7 @@ describe('campañas: alta de llamadas', () => {
       channel: 'voice',
       name: 'Mora octubre',
       agent_id: 'ag-2',
-      tags: ['mora'],
+      contact_ids: ['k1'],
       start: false,
       concurrency: 1,
       window_start: 9,
@@ -549,7 +548,7 @@ describe('campañas: alta de llamadas', () => {
     await userEvent.click(await screen.findByRole('option', { name: 'Cobranzas', hidden: true }));
     await userEvent.click(screen.getByRole('button', { name: 'Guardar borrador' }));
     expect(
-      await screen.findByText('Elegí a quién llamar: etiquetas, contactos o un CSV.'),
+      await screen.findByText('Elegí a quién llamar: contactos de la agenda o un CSV.'),
     ).toBeInTheDocument();
     expect(calls.some((c) => c.method === 'POST')).toBe(false);
   });

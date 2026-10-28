@@ -360,13 +360,16 @@ def test_report_calls_tool_exposes_the_split(api, full):
 def test_contacts_and_a_campaign_draft(api, full):
     _, agent, mcp = full
     mcp = Mcp(api, mcp.key, "all")
-    loaded = ok(mcp.call("upsert_contacts", contacts=[{"phone": "+5491155550001", "name": "Ana", "tags": ["mora"]},
+    loaded = ok(mcp.call("upsert_contacts", contacts=[{"phone": "+5491155550001", "name": "Ana", "notes": "Cliente de octubre"},
                                                        {"phone": "+5491155550002", "name": "Beto"}]))
     assert loaded
     ok(mcp.call("import_contacts", csv="telefono,nombre\n+5491155550003,Caro\n"))
     contacts = ok(mcp.call("list_contacts"))
     assert contacts["total"] == 3
-    created = ok(mcp.call("create_campaign", channel="voice", name="Cobranza", agent_id=agent["id"], tags=["mora"]))
+    ana = next(c for c in contacts["items"] if c["name"] == "Ana")
+    assert ana["notes"] == "Cliente de octubre" and "tags" not in ana
+    created = ok(mcp.call("create_campaign", channel="voice", name="Cobranza", agent_id=agent["id"],
+                          contact_ids=[ana["id"]]))
     cid = created["campaign"]["id"]
     assert created["added"] == 1 and created["campaign"]["status"] == "draft"
     ok(mcp.call("update_campaign", campaign_id=cid, name="Cobranza octubre"))
@@ -378,7 +381,7 @@ def test_contacts_and_a_campaign_draft(api, full):
     ok(mcp.call("add_optout", phone="+5491155550002", channel="voice"))
     assert len(ok(mcp.call("list_optouts"))["items"]) == 1
     ok(mcp.call("remove_optout", phone="+5491155550002"))
-    ok(mcp.call("archive_contacts", tags=["mora"]))
+    ok(mcp.call("archive_contacts", contact_ids=[ana["id"]]))
     # 4 cargados (uno por la campaña) y 1 archivado: archivar no borra.
     assert ok(mcp.call("list_contacts"))["total"] == 3
     assert ok(mcp.call("list_contacts", archived="true"))["total"] == 1
