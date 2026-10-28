@@ -264,6 +264,59 @@ def test_ga_sitio_solo_argentina(api, monkeypatch):
     assert len(calls) == 4
 
 
+
+def test_ga_desglose_cruza_empresa_y_campana(api, monkeypatch):
+    a = lead(api)
+    campaign_and_template(api)
+    calls = []
+
+    class R:
+        status_code = 200
+
+        def json(self):
+            row = lambda d, m: {"dimensionValues": [{"value": v} for v in d],  # noqa: E731
+                                "metricValues": [{"value": str(v)} for v in m]}
+            return {"reports": [{"rows": [
+                row(["20261020", "email / (not set)", "follow_up_canales_9", a["slug"], "/", "Cordoba", "mobile"],
+                    [2, 3, 40]),
+                row(["20261022", "email / (not set)", "canales9", a["slug"], "/", "Rosario", "desktop"], [1, 1, 5]),
+                # Link con "&amp;": GA no lo atribuye, sale de la URL de entrada
+                row(["20261021", "email / (not set)", "(not set)", "(not set)",
+                     "/?amp;utm_campaign=tanda2&amp;utm_content=otra", "(not set)", "desktop"], [1, 0, 0]),
+                row(["20261022", "chatgpt.com / ai-assistant", "(ai-assistant)", "", "/registro", "Salta", "mobile"],
+                    [1, 2, 9]),
+            ]}]}
+
+    def post(url, json, headers, timeout):
+        calls.append(json["requests"])
+        return R()
+
+    monkeypatch.setattr(settings, "ga_property_id", "1")
+    monkeypatch.setattr(settings, "ga_credentials", "x.json")
+    monkeypatch.setattr(GA, "_token", lambda: "t")
+    monkeypatch.setattr(GA.httpx, "post", post)
+    monkeypatch.setattr(GA, "local_today", lambda: datetime.date(2026, 10, 23))
+    GA._detail_cache.clear()
+    r = api.get("/api/ga/site/detail?kind=channel&value=Email&days=7", headers=USER).json()
+    # Filtro: pais y el item, y 7 dimensiones (el tope de GA es 9 contando las del filtro)
+    q = calls[0][0]
+    assert q["dimensionFilter"]["andGroup"]["expressions"][1] == {
+        "filter": {"fieldName": "sessionDefaultChannelGroup", "stringFilter": {"matchType": "EXACT", "value": "Email"}}}
+    assert len(q["dimensions"]) == 7
+    assert r["totals"] == {"sessions": 5, "views": 6, "engagement_seconds": 54}
+    emp = next(c for c in r["companies"] if c["lead_id"] == a["id"])
+    assert emp["lead_name"] == a["name"] and emp["sessions"] == 3 and emp["last_day"] == "2026-10-22"
+    assert emp["campaigns"] == [{"name": "Canales 9", "follow_up": False}, {"name": "Canales 9", "follow_up": True}]
+    assert emp["cities"] == ["Rosario", "Cordoba"]
+    otra = next(c for c in r["companies"] if c["utm_content"] == "otra")
+    assert otra["lead_id"] is None and otra["campaigns"] == [{"name": "tanda2", "follow_up": False}]
+    ia = next(v for v in r["visits"] if v["source_medium"].startswith("chatgpt"))
+    assert ia["utm_campaign"] is None and ia["utm_content"] is None and ia["landing_page"] == "/registro"
+    assert r["visits"][0]["day"] == "2026-10-22"
+    assert api.get("/api/ga/site/detail?kind=pais&value=x", headers=USER).status_code == 422
+    api.get("/api/ga/site/detail?kind=channel&value=Email&days=7", headers=USER)
+    assert len(calls) == 1
+
 def test_importar_historial_y_hoy(api):
     a = lead(api)
     c, _, _ = campaign_and_template(api)

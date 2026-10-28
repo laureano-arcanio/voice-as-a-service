@@ -21,6 +21,8 @@ import type {
   QueueStatus,
   Reminder,
   ReminderIn,
+  SiteDetail,
+  SiteDetailKind,
   SiteReport,
   Stats,
   Template,
@@ -191,6 +193,15 @@ export function useRefreshSite(days: number) {
   return useMutation({
     mutationFn: () => api<SiteReport>('GET', '/ga/site', undefined, { days, refresh: true }),
     onSuccess: (data) => qc.setQueryData(['crm', 'site', days], data),
+  });
+}
+
+/** Desglose de un ítem de Sitio web; sin ítem elegido, no consulta. */
+export function useSiteDetail(item: { kind: SiteDetailKind; value: string } | null, days: number) {
+  return useQuery({
+    queryKey: ['crm', 'site-detail', item, days],
+    queryFn: () => api<SiteDetail>('GET', '/ga/site/detail', undefined, { ...item!, days }),
+    enabled: !!item,
   });
 }
 

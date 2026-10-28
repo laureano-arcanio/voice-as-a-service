@@ -424,6 +424,56 @@ export interface SiteTotals {
 }
 
 /** GET /ga/site: tráfico del sitio en GA, solo del país `country`. */
+export type SiteDetailKind = 'channel' | 'source' | 'page' | 'city' | 'device';
+
+interface SiteSums {
+  sessions: number;
+  views: number;
+  engagement_seconds: number;
+}
+
+/** Sesiones por día y combinación; GA no da visitantes sueltos. */
+export interface SiteVisit extends SiteSums {
+  day: string;
+  source_medium: string;
+  utm_campaign: string | null;
+  campaign_name: string | null;
+  follow_up: boolean;
+  /** Slug del lead en los links de los mails. */
+  utm_content: string | null;
+  lead_id: number | null;
+  lead_name: string | null;
+  landing_page: string | null;
+  city: string | null;
+  device: string;
+}
+
+export interface SiteCompany extends SiteSums {
+  utm_content: string;
+  lead_id: number | null;
+  lead_name: string | null;
+  first_day: string;
+  last_day: string;
+  campaigns: { name: string; follow_up: boolean }[];
+  cities: string[];
+}
+
+export interface SiteDetail {
+  kind: SiteDetailKind;
+  value: string;
+  country: string;
+  days: number;
+  start: string;
+  end: string;
+  /** Llegó al tope de filas de GA: el detalle está incompleto. */
+  truncated: boolean;
+  totals: SiteSums;
+  companies: SiteCompany[];
+  sources: (SiteSums & { source_medium: string })[];
+  landing_pages: (SiteSums & { landing_page: string | null })[];
+  visits: SiteVisit[];
+}
+
 export interface SiteReport {
   country: string;
   days: number;

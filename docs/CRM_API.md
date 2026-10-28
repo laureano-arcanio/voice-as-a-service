@@ -235,4 +235,5 @@ rebotes" del Tablero; solo el usuario): el email va a la blocklist.
 | `GET/POST /blocklist` · `DELETE /blocklist/{id}` | Blocklist (borrar: solo el usuario) | sí / no |
 | `POST /leads/{id}/reminders` · `GET /reminders` · `PATCH /reminders/{id}` · `POST /reminders/{id}/done` · `POST /reminders/{id}/cancel` | Recordatorios y reuniones, con su evento en Google Calendar | sí |
 | `GET /ga/site?days=28` | Tráfico del sitio en GA, solo de Argentina: totales y período anterior, por día, canales, páginas, fuentes, ciudades, dispositivos (cache 10 min, `refresh=true`) | sí |
+| `GET /ga/site/detail?kind=&value=&days=28` | Desglose de un ítem de Sitio web (`kind`: `channel`, `source`, `page`, `city`, `device`; `value` tal como lo da `/ga/site`): sesiones por día, fuente/medio, campaña, `utm_content`, página de entrada, ciudad y dispositivo, con el lead y la campaña cruzados (`companies`), y totales por fuente y página de entrada (cache 10 min) | sí |
 | `GET /ga/visits` · `POST /ga/sync` · `POST /ga/visits` | Visitas de GA; sincronizar y cargar a mano: solo el usuario | sí / no |

@@ -16,7 +16,11 @@ import { useState, type ReactNode } from 'react';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState, QueryState } from '@/components/QueryState';
 import { useRefreshSite, useSite } from '../api';
-import type { SiteReport, SiteTotals } from '../types';
+import { SiteDetailDrawer } from '../components/SiteDetail';
+import { CHANNELS, DEVICES, dayLabel, duration, int } from '../site';
+import type { SiteDetailKind, SiteReport, SiteTotals } from '../types';
+
+type Pick = (kind: SiteDetailKind, value: string) => void;
 
 const RANGES = [
   { value: '7', label: '7 días' },
@@ -24,30 +28,7 @@ const RANGES = [
   { value: '90', label: '90 días' },
 ];
 
-// Nombres de GA (en inglés) a los de la guía; lo que no está, tal cual.
-const CHANNELS: Record<string, string> = {
-  Direct: 'Directo',
-  Email: 'Email',
-  'Organic Search': 'Búsqueda orgánica',
-  'Paid Search': 'Búsqueda paga',
-  'AI Assistant': 'Asistentes de IA',
-  'Organic Social': 'Redes',
-  'Paid Social': 'Redes pagas',
-  'Organic Video': 'Video',
-  Referral: 'Otros sitios',
-  Display: 'Display',
-  Unassigned: 'Sin asignar',
-};
-const DEVICES: Record<string, string> = { desktop: 'Computadora', mobile: 'Celular', tablet: 'Tablet' };
-
-const int = (n: number) => n.toLocaleString('es-AR');
 const pct = (a: number, b: number) => (b ? `${Math.round((100 * a) / b)} %` : '—');
-const dayLabel = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
-
-function duration(sec: number): string {
-  const s = Math.round(sec);
-  return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${s % 60} s`;
-}
 
 /** Variación contra el período anterior; sin datos antes, nada. */
 function Delta({ now, before }: { now: number; before: number }) {
@@ -97,7 +78,18 @@ function Section({ title, help, children }: { title: string; help?: string; chil
   );
 }
 
-function Rows<T>({ items, cols, row }: { items: T[]; cols: string[]; row: (x: T) => ReactNode[] }) {
+/** Tabla de un ítem por fila; con `onPick`, cada fila abre su desglose. */
+function Rows<T>({
+  items,
+  cols,
+  row,
+  onPick,
+}: {
+  items: T[];
+  cols: string[];
+  row: (x: T) => ReactNode[];
+  onPick?: (x: T) => void;
+}) {
   if (!items.length) return <EmptyState>Sin datos en el período.</EmptyState>;
   return (
     <Table>
@@ -112,7 +104,7 @@ function Rows<T>({ items, cols, row }: { items: T[]; cols: string[]; row: (x: T)
       </Table.Thead>
       <Table.Tbody>
         {items.map((x, n) => (
-          <Table.Tr key={n}>
+          <Table.Tr key={n} onClick={onPick && (() => onPick(x))} style={onPick && { cursor: 'pointer' }}>
             {row(x).map((v, i) => (
               <Table.Td key={i} ta={i ? 'right' : undefined} className={i ? 'mono' : undefined}>
                 {v}
@@ -125,10 +117,14 @@ function Rows<T>({ items, cols, row }: { items: T[]; cols: string[]; row: (x: T)
   );
 }
 
-function Report({ r }: { r: SiteReport }) {
+function Report({ r, pick }: { r: SiteReport; pick: Pick }) {
   const t = r.totals;
   const days = r.by_day.map((d) => ({ ...d, day: dayLabel(d.day) }));
-  const channels = r.channels.map((c) => ({ ...c, channel: CHANNELS[c.channel] ?? c.channel }));
+  const channels = r.channels.map((c) => ({
+    ...c,
+    raw: c.channel,
+    channel: CHANNELS[c.channel] ?? c.channel,
+  }));
   return (
     <Stack gap="md">
       <SimpleGrid cols={{ base: 2, sm: 3, lg: 6 }}>
@@ -171,7 +167,10 @@ function Report({ r }: { r: SiteReport }) {
         )}
       </Section>
       <SimpleGrid cols={{ base: 1, lg: 2 }}>
-        <Section title="Canales" help="De dónde llegó cada sesión, según la agrupación de GA.">
+        <Section
+          title="Canales"
+          help="De dónde llegó cada sesión, según la agrupación de GA. Clic en una barra para el desglose."
+        >
           {channels.length ? (
             <BarChart
               h={Math.max(160, channels.length * 44)}
@@ -183,6 +182,13 @@ function Report({ r }: { r: SiteReport }) {
               yAxisProps={{ width: 130 }}
               xAxisProps={{ allowDecimals: false }}
               maxBarWidth={28}
+              barChartProps={{
+                onClick: (e) => {
+                  const c = channels.find((x) => x.channel === e?.activeLabel);
+                  if (c) pick('channel', c.raw);
+                },
+                style: { cursor: 'pointer' },
+              }}
               series={[
                 { name: 'sessions', label: 'Sesiones', color: 'var(--chart-1)' },
                 { name: 'users', label: 'Usuarios', color: 'var(--chart-2)' },
@@ -197,6 +203,7 @@ function Report({ r }: { r: SiteReport }) {
             items={r.pages}
             cols={['Página', 'Vistas', 'Usuarios']}
             row={(p) => [<span className="mono">{p.path}</span>, int(p.views), int(p.users)]}
+            onPick={(p) => pick('page', p.path)}
           />
         </Section>
       </SimpleGrid>
@@ -206,6 +213,7 @@ function Report({ r }: { r: SiteReport }) {
             items={r.sources}
             cols={['Fuente', 'Sesiones', 'Usuarios']}
             row={(x) => [x.source_medium, int(x.sessions), int(x.users)]}
+            onPick={(x) => pick('source', x.source_medium)}
           />
         </Section>
         <Section title="Ciudades">
@@ -213,6 +221,7 @@ function Report({ r }: { r: SiteReport }) {
             items={r.cities}
             cols={['Ciudad', 'Usuarios']}
             row={(x) => [x.city === '(not set)' ? 'Sin dato' : x.city, int(x.users)]}
+            onPick={(x) => pick('city', x.city)}
           />
         </Section>
         <Section title="Dispositivos">
@@ -220,6 +229,7 @@ function Report({ r }: { r: SiteReport }) {
             items={r.devices}
             cols={['Dispositivo', 'Usuarios', '%']}
             row={(x) => [DEVICES[x.device] ?? x.device, int(x.users), pct(x.users, t.users)]}
+            onPick={(x) => pick('device', x.device)}
           />
         </Section>
       </SimpleGrid>
@@ -231,6 +241,7 @@ export function SitePage() {
   const [days, setDays] = useState('28');
   const site = useSite(Number(days));
   const refresh = useRefreshSite(Number(days));
+  const [item, setItem] = useState<{ kind: SiteDetailKind; value: string } | null>(null);
   const r = site.data;
   return (
     <>
@@ -238,7 +249,7 @@ export function SitePage() {
         title="Sitio web"
         description={
           r
-            ? `Google Analytics, solo visitas desde ${r.country}: ${int(r.totals.users)} de ${int(r.all_users)} usuarios en el período; el resto es casi todo robots. Del ${dayLabel(r.start)} al ${dayLabel(r.end)}.`
+            ? `Google Analytics, solo visitas desde ${r.country}: ${int(r.totals.users)} de ${int(r.all_users)} usuarios en el período; el resto es casi todo robots. Del ${dayLabel(r.start)} al ${dayLabel(r.end)}. Clic en un canal, fuente, página, ciudad o dispositivo para ver su desglose.`
             : 'Google Analytics, solo visitas desde Argentina: el resto es casi todo robots.'
         }
         actions={
@@ -258,7 +269,10 @@ export function SitePage() {
           </Group>
         }
       />
-      <QueryState query={site}>{(data) => <Report r={data} />}</QueryState>
+      <QueryState query={site}>
+        {(data) => <Report r={data} pick={(kind, value) => setItem({ kind, value })} />}
+      </QueryState>
+      <SiteDetailDrawer item={item} days={Number(days)} onClose={() => setItem(null)} />
     </>
   );
 }

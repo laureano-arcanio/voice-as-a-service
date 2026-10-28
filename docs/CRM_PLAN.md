@@ -205,6 +205,14 @@ Cupo: los recibidos cuentan en el plan de Resend igual que los enviados ([`EMAIL
   (`refresh=true` la saltea). Totales contra el período anterior, por día, canales, páginas,
   fuente/medio, ciudades y dispositivos. El filtro hace falta: en 28 días al 23-oct, 122 usuarios de
   Argentina de 469 en total (271 de EE.UU., casi todo robots).
+- **Desglose** (desde el 27-oct-2026, `GET /api/ga/site/detail`): clic en un canal, fuente/medio, página,
+  ciudad o dispositivo abre un panel con las empresas que entraron por un link de los mails
+  (`utm_content` → lead, `utm_campaign` → campaña y si fue seguimiento) y las sesiones por día con fuente,
+  página de entrada, ciudad y dispositivo. GA no da visitantes sueltos: es lo más fino, y entran 7
+  dimensiones (tope de 9 contando el filtro de país y el del ítem). Los links con `&amp;` (tanda 2, ej.
+  Unisem) GA no los atribuye: el lead y la campaña salen de la URL de entrada. En 28 días al 27-oct:
+  39 empresas por Email; Asistentes de IA, 16 sesiones (12 de chatgpt.com, 4 de gemini.google.com), sin
+  empresa (no traen UTM).
 
 ## 7b. Recordatorios y reuniones (Google Calendar)
 

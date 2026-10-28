@@ -204,6 +204,101 @@ def site_report(days: int, refresh: bool = False) -> dict:
     return out
 
 
+# --- Desglose de un item de la pagina Sitio web (canal, fuente/medio, pagina, ciudad o dispositivo) ---
+# GA no da visitantes sueltos: el detalle mas fino son las sesiones por dia y por combinacion de
+# fuente/medio, campana, utm_content, pagina de entrada, ciudad y dispositivo. Tope de GA: 9
+# dimensiones contando las del filtro (pais y el item), asi que entran 7.
+DETAIL_DIMS = {"channel": "sessionDefaultChannelGroup", "source": "sessionSourceMedium", "page": "pagePath",
+               "city": "city", "device": "deviceCategory"}
+DETAIL_FIELDS = ("date", "sessionSourceMedium", "sessionCampaignName", "sessionManualAdContent",
+                 "landingPagePlusQueryString", "city", "deviceCategory")
+DETAIL_LIMIT = 2000
+_detail_cache: dict[tuple, tuple[float, list]] = {}
+
+
+def _detail_rows(kind: str, value: str, days: int, refresh: bool) -> tuple[datetime.date, datetime.date, list]:
+    end = local_today()
+    start = end - datetime.timedelta(days=days - 1)
+    key = (kind, value, days, end)
+    hit = _detail_cache.get(key)
+    if hit and not refresh and time.monotonic() - hit[0] < SITE_TTL:
+        return start, end, hit[1]
+    req = _req(start, end, list(DETAIL_FIELDS), ["sessions", "screenPageViews", "userEngagementDuration"],
+               limit=DETAIL_LIMIT)
+    item = {"filter": {"fieldName": DETAIL_DIMS[kind], "stringFilter": {"matchType": "EXACT", "value": value}}}
+    req["dimensionFilter"] = {"andGroup": {"expressions": [req["dimensionFilter"], item]}}
+    rows = _batch(_token(), [req])[0]
+    _detail_cache[key] = (time.monotonic(), rows)
+    return start, end, rows
+
+
+def _blank(v: str) -> str | None:
+    """Vacios y marcadores de GA ("(not set)", "(direct)", "(ai-assistant)") a None."""
+    return None if not v or v.startswith("(") else v
+
+
+def _utm(page: str, name: str) -> str | None:
+    """utm_* de la URL de entrada. Recupera los links con "&amp;" (tanda 2), que GA no atribuye."""
+    m = re.search(rf"[?&;]{name}=([^&#]+)", page)
+    return m.group(1) if m else None
+
+
+def site_detail(s: Session, kind: str, value: str, days: int, refresh: bool = False) -> dict:
+    """Sesiones de un item, con el lead (utm_content) y la campana (utm_campaign) cruzados con el CRM."""
+    if not configured():
+        raise GaError("faltan CRM_GA_PROPERTY_ID y CRM_GA_CREDENTIALS")
+    start, end, rows = _detail_rows(kind, value, days, refresh)
+    leads = {slug: (lid, name) for lid, slug, name in s.execute(select(Lead.id, Lead.slug, Lead.name))}
+    camps = {slug: name for slug, name in s.execute(select(Campaign.slug, Campaign.name))}
+    visits = []
+    for d, m in rows:
+        content = _blank(d[3]) or _utm(d[4], "utm_content")
+        campaign = _blank(d[2]) or _utm(d[4], "utm_campaign")
+        lead = leads.get(content) if content else None
+        camp, follow_up = base_campaign(campaign) if campaign else (None, False)
+        visits.append({
+            "day": f"{d[0][:4]}-{d[0][4:6]}-{d[0][6:]}", "source_medium": d[1], "utm_campaign": campaign,
+            "campaign_name": camps.get(camp), "follow_up": follow_up, "utm_content": content,
+            "lead_id": lead[0] if lead else None, "lead_name": lead[1] if lead else None,
+            "landing_page": _blank(d[4]), "city": _blank(d[5]), "device": d[6],
+            "sessions": int(m[0]), "views": int(m[1]), "engagement_seconds": int(m[2])})
+    visits.sort(key=lambda v: (v["day"], v["sessions"]), reverse=True)
+
+    def group(field: str) -> list[dict]:
+        acc: dict = {}
+        for v in visits:
+            g = acc.setdefault(v[field], {field: v[field], "sessions": 0, "views": 0, "engagement_seconds": 0})
+            for k in ("sessions", "views", "engagement_seconds"):
+                g[k] += v[k]
+        return sorted(acc.values(), key=lambda g: g["sessions"], reverse=True)
+
+    # Empresas: por utm_content (las que vinieron de un link nuestro), con o sin lead en el CRM.
+    companies: dict = {}
+    for v in visits:
+        if not v["utm_content"]:
+            continue
+        c = companies.setdefault(v["utm_content"], {
+            "utm_content": v["utm_content"], "lead_id": v["lead_id"], "lead_name": v["lead_name"],
+            "sessions": 0, "views": 0, "engagement_seconds": 0, "first_day": v["day"], "last_day": v["day"],
+            "campaigns": [], "cities": []})
+        for k in ("sessions", "views", "engagement_seconds"):
+            c[k] += v[k]
+        c["first_day"] = min(c["first_day"], v["day"])
+        label = v["campaign_name"] or v["utm_campaign"]
+        if label and (label, v["follow_up"]) not in [(x["name"], x["follow_up"]) for x in c["campaigns"]]:
+            c["campaigns"].append({"name": label, "follow_up": v["follow_up"]})
+        if v["city"] and v["city"] not in c["cities"]:
+            c["cities"].append(v["city"])
+    return {
+        "kind": kind, "value": value, "country": settings.ga_country, "days": days,
+        "start": start.isoformat(), "end": end.isoformat(), "truncated": len(rows) >= DETAIL_LIMIT,
+        "totals": {k: sum(v[k] for v in visits) for k in ("sessions", "views", "engagement_seconds")},
+        "companies": sorted(companies.values(), key=lambda c: c["last_day"], reverse=True),
+        "sources": group("source_medium"), "landing_pages": group("landing_page"),
+        "visits": visits,
+    }
+
+
 async def ga_loop() -> None:
     if not configured():
         logger.info("crm: GA sin configurar (CRM_GA_PROPERTY_ID, CRM_GA_CREDENTIALS)")

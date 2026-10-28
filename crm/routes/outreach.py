@@ -1,7 +1,7 @@
 """Campanas, plantillas, mensajes y cola, blocklist, GA, /today y tablero."""
 import datetime
 import zoneinfo
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from sqlalchemy import func, select
@@ -404,6 +404,18 @@ def ga_site(_: Who, days: Annotated[int, Query(ge=1, le=365)] = 28, refresh: boo
     except GA.GaError as e:
         raise CrmError(str(e)) from e
 
+
+
+@router.get("/ga/site/detail", tags=["ga"],
+            summary="Desglose de un item de Sitio web: sesiones con fuente, campana, lead (utm_content), pagina de "
+                    "entrada, ciudad y dispositivo")
+def ga_site_detail(s: DB, _: Who, kind: Literal["channel", "source", "page", "city", "device"],
+                   value: Annotated[str, Query(min_length=1, max_length=500)],
+                   days: Annotated[int, Query(ge=1, le=365)] = 28, refresh: bool = False):
+    try:
+        return GA.site_detail(s, kind, value, days, refresh)
+    except GA.GaError as e:
+        raise CrmError(str(e)) from e
 
 # --- Hoy y tablero ---
 
