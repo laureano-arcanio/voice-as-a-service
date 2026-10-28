@@ -2,7 +2,7 @@ import { useSearchParams } from 'react-router';
 import { lastDays, toIsoDate } from '@/lib/format';
 import type { Channel, ReportQuery } from './types';
 
-// Mismos nombres que los filtros de Inicio (client, agent, range, from, to): el link entre las dos
+// Mismos nombres que los filtros de Conversaciones (client, agent, range, from, to): el link entre las dos
 // pantallas los conserva.
 export type ReportRange = '7' | '30' | '90' | 'month' | 'prev_month' | 'custom';
 

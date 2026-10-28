@@ -113,7 +113,6 @@ describe('navegación por área', () => {
       isGroup(e) ? `${e.label}: ${e.items.map((i) => i.label).join(', ')}` : e.label,
     );
     expect(shape).toEqual([
-      'Inicio',
       'Reportes',
       'Conversaciones',
       'Agentes: Mis agentes, Herramientas, Secretos, Modelos, Playground, Voces',
@@ -126,7 +125,6 @@ describe('navegación por área', () => {
 
   it('el menú de administración es plano y en orden', () => {
     expect(navFor('admin').map((e) => e.label)).toEqual([
-      'Inicio',
       'Reportes',
       'Conversaciones',
       'Agentes',

@@ -6,7 +6,7 @@ import { useCampaigns } from '@/features/campaigns/api';
 import { CHANNEL } from '@/features/campaigns/labels';
 import { useClients } from '@/features/clients/api';
 import { toIsoDate } from '@/lib/format';
-import type { DashboardFilters, RangePreset } from './useDashboardFilters';
+import type { CallFiltersState, RangePreset } from './useCallFilters';
 
 const RANGES = [
   { value: '7', label: 'Última semana' },
@@ -14,12 +14,12 @@ const RANGES = [
   { value: 'custom', label: 'Rango de fechas' },
 ];
 
-export function DashboardFiltersBar({
+export function CallFiltersBar({
   filters,
   update,
 }: {
-  filters: DashboardFilters;
-  update: (patch: Partial<DashboardFilters>) => void;
+  filters: CallFiltersState;
+  update: (patch: Partial<CallFiltersState>) => void;
 }) {
   const isAdmin = useIsAdmin();
   const clients = useClients(isAdmin);

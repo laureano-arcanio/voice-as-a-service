@@ -1,4 +1,4 @@
-"""POST /calls/{id}/join: el panel se conecta a su llamada de prueba (pagina /calls/<id>/hablar)."""
+"""POST /calls/{id}/join: el cliente se conecta a su llamada de prueba (la de join_url)."""
 import jwt
 
 from app.config import settings

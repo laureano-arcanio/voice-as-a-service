@@ -1,16 +1,16 @@
 import { Card, Stack } from '@mantine/core';
 import { PageHeader } from '@/components/PageHeader';
 import { useIsAdmin } from '@/features/auth/api';
-import { CallsTable, PAGE_SIZE } from '@/features/dashboard/CallsTable';
-import { DashboardFiltersBar } from '@/features/dashboard/DashboardFiltersBar';
-import { useDashboardFilters } from '@/features/dashboard/useDashboardFilters';
+import { CallsTable, PAGE_SIZE } from './CallsTable';
+import { CallFiltersBar } from './CallFiltersBar';
+import { useCallFilters } from './useCallFilters';
 import { formatDate } from '@/lib/format';
 import { useCalls } from './api';
 
-/** Todas las conversaciones (llamadas, API y WhatsApp), con los filtros del inicio en la URL. */
+/** Todas las conversaciones (llamadas, API y WhatsApp), con los filtros en la URL. */
 export function ConversationsPage() {
   const isAdmin = useIsAdmin();
-  const { filters, update, dates, apiFilters } = useDashboardFilters();
+  const { filters, update, dates, apiFilters } = useCallFilters();
   const calls = useCalls({
     ...apiFilters,
     status: filters.status ? [filters.status] : undefined,
@@ -28,7 +28,7 @@ export function ConversationsPage() {
         description={`Llamadas, chats de WhatsApp y conversaciones por API del ${formatDate(`${dates.from}T00:00:00`)} al ${formatDate(`${dates.to}T00:00:00`)}`}
       />
       <Card>
-        <DashboardFiltersBar filters={filters} update={update} />
+        <CallFiltersBar filters={filters} update={update} />
       </Card>
       <CallsTable
         items={calls.data?.items ?? []}

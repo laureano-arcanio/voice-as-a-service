@@ -10,7 +10,7 @@ entra como un cliente y ve exactamente su panel.
 | Tema | Decisión |
 |---|---|
 | Área del admin | `/admin/*`, con su layout y su menú. Un admin que inicia sesión va siempre a `/admin`. |
-| Vistas de todos los clientes en `/admin` | Inicio y Reportes de plataforma, Conversaciones, Uso de la API, Agentes (solo lectura), Clientes, Números, Tiers, Cobros, Usuarios. El resto (herramientas, contactos, WhatsApp, campañas, equipo...) se ve entrando como el cliente. |
+| Vistas de todos los clientes en `/admin` | Reportes de plataforma, Conversaciones, Uso de la API, Agentes (solo lectura), Clientes, Números, Tiers, Cobros, Usuarios. El resto (herramientas, contactos, WhatsApp, campañas, equipo...) se ve entrando como el cliente. |
 | Ver como cliente | El admin entra a un cliente sin loguearse con otro usuario. Puede hacer todo lo que hace el cliente, sin auditoría. |
 | Dónde vive el cliente activo | Por pestaña (`sessionStorage`): sobrevive a una recarga y cada pestaña puede estar en otro cliente. Las rutas de cliente no cambian. |
 | JSON, slug y prompt armado del agente | Para todos los clientes (el backend ya aceptaba la definición entera; `preview-prompt` se abre a los agentes propios). |

@@ -41,7 +41,7 @@ por pantalla. Cambia qué se muestra y cómo se dice:
 
 - La columna "Cliente" y los filtros por cliente solo existen en `/admin`. Las pantallas del cliente no tienen
   selector de cliente ni columnas o acciones "solo admin": lo que es técnico va plegado ("Detalle técnico") o en `/admin`.
-- Cada área tiene su menú en `components/nav.ts`: `ADMIN_NAV` (Inicio, Reportes, Conversaciones, Agentes de solo
+- Cada área tiene su menú en `components/nav.ts`: `ADMIN_NAV` (Reportes, Conversaciones, Agentes de solo
   lectura, Uso de la API, Clientes, Números, Tiers, Cobros, Usuarios) y `CLIENT_NAV`. Lo demás del admin se hace
   **entrando como el cliente** (ficha del cliente, o "Abrir como el cliente" en Agentes y Conversaciones): ve el panel
   del cliente tal cual, con la marca "soporte" y el botón "Volver a administración". Por eso no se escribe una
@@ -49,7 +49,7 @@ por pantalla. Cambia qué se muestra y cómo se dice:
 - En soporte `me.role` es `client` y `useIsAdmin()` es falso: una pantalla del cliente no ramifica por admin. Lo
   que cambia en soporte es solo de solo lectura (Plan, pagos, datos fiscales, perfil: `useSupportReadOnly()`) o
   una acción propia del soporte (`useMe().data.support`: p. ej. el alta manual de WhatsApp; entrar y salir con `useSupportSwitch()`).
-- Una pantalla compartida entre las dos áreas (Inicio, Reportes, Conversaciones, Uso de la API) puede mostrar más en
+- Una pantalla compartida entre las dos áreas (Reportes, Conversaciones, Uso de la API) puede mostrar más en
   `/admin` (cliente, datos técnicos, borrar), y eso lleva una píldora gris "interno". Se resuelve con `useIsAdmin()`
   y las guardas de `features/auth/` (`RequireAdminArea`, `RequireClientArea`); no se duplica una pantalla por rol.
 
@@ -109,7 +109,7 @@ CSP del dashboard solo permite fuentes de `'self'`: no se pueden cargar de Googl
 | Número destacado (métrica) | `.metric`: Bricolage 800, 28 px, `tabular-nums`, interlineado 1.1 |
 
 - Los títulos llevan interlineado 1.15 y `letter-spacing: -0.015em` desde el tema: no repetirlo.
-- Un solo título de página por pantalla. Títulos y labels en minúscula tipo oración ("Nueva llamada"), sin punto final.
+- Un solo título de página por pantalla. Títulos y labels en minúscula tipo oración ("Nueva campaña"), sin punto final.
 - Énfasis con peso 600, no con color ni cursiva.
 
 ## 5. Layout y espaciado
@@ -117,7 +117,7 @@ CSP del dashboard solo permite fuentes de `'self'`: no se pueden cargar de Googl
 - **Marco (`AppLayout`):** header de 60 px y menú lateral de 232 px, los dos sobre superficie y con borde;
   el contenido va sobre el lienzo. El menú agrupa las pantallas en `NavLink` desplegables (Agentes, Canales,
   Organización, Configuración, Developers, Cuenta; definidos en `components/nav.ts`): un click abre o cierra, arranca
-  abierto el grupo de la pantalla actual y, cerrado, se marca activo. Inicio, Reportes y Conversaciones van sueltos arriba.
+  abierto el grupo de la pantalla actual y, cerrado, se marca activo. Reportes y Conversaciones van sueltos arriba; `/` y `/admin` redirigen a Reportes.
   El menú de `/admin` es plano (sin grupos). En soporte, el header lleva la marca "soporte" y "Volver a administración". Logo `atentina-logo.svg` de 28 px de alto en el header. Debajo de `sm` el menú se pliega detrás del botón de menú.
 - **Ancho:** el contenido ocupa hasta 1440 px. Formularios y texto de lectura, hasta 720 px.
 - **Orden de una pantalla:** `PageHeader` (título, descripción en una línea, acciones a la derecha y el
@@ -156,7 +156,7 @@ CSP del dashboard solo permite fuentes de `'self'`: no se pueden cargar de Googl
 | Estado | `Badge` (`components/Badges.tsx`) | Siempre `light`, sin mayúsculas, con el color de la sección 3. Las etiquetas salen de `lib/labels.ts`. Sin `size`: el tema la deja en 12 px. |
 | En curso | `LiveBadge` (`components/Badges.tsx`) | Píldora azul con el punto `.live-dot`, que pulsa (sección 8). |
 | Contenedor | `Card` | Título con `Title order={4}`; acciones del bloque a la derecha del título. |
-| Contenedor plegable | `CollapsibleCard` | Se pliega desde el título ("Nueva llamada", "Detalle técnico"). No usar `Accordion`. |
+| Contenedor plegable | `CollapsibleCard` | Se pliega desde el título ("Detalle técnico"). No usar `Accordion`. |
 | Pestañas | `Tabs` | Sin `variant`: el tema las hace píldoras con acento suave. |
 | Tabla | `Table` | Encabezados en `.label`; filas separadas por borde, sin rayado; hover en superficie 2; números a la derecha; la acción de la fila, en la última columna. |
 | Lista de datos | Pares label y valor | Label en `xs dimmed`, valor en `sm` 600. |

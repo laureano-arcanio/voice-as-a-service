@@ -3170,7 +3170,7 @@
      "calls"
     ],
     "summary": "Join Test Call",
-    "description": "URL de LiveKit y token para hacer de interesado en una llamada de prueba en curso, desde el\nnavegador (la pantalla /calls/{id}/hablar del panel).",
+    "description": "URL de LiveKit y token para hacer de interesado en una llamada de prueba en curso, desde el\nnavegador (la que creó `POST /calls` sin teléfono).",
     "operationId": "join_test_call_api_v1_calls__conversation_id__join_post",
     "security": [
      {
@@ -3352,273 +3352,6 @@
       "content": {
        "application/json": {
         "schema": {}
-       }
-      }
-     },
-     "422": {
-      "description": "Validation Error",
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/HTTPValidationError"
-        }
-       }
-      }
-     }
-    }
-   }
-  },
-  "/api/v1/stats": {
-   "get": {
-    "tags": [
-     "calls"
-    ],
-    "summary": "Stats",
-    "operationId": "stats_api_v1_stats_get",
-    "security": [
-     {
-      "HTTPBearer": []
-     }
-    ],
-    "parameters": [
-     {
-      "name": "client_id",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "anyOf": [
-        {
-         "type": "string"
-        },
-        {
-         "type": "null"
-        }
-       ],
-       "title": "Client Id"
-      }
-     },
-     {
-      "name": "agent_id",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "anyOf": [
-        {
-         "type": "string"
-        },
-        {
-         "type": "null"
-        }
-       ],
-       "title": "Agent Id"
-      }
-     },
-     {
-      "name": "date_from",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "anyOf": [
-        {
-         "type": "string",
-         "format": "date"
-        },
-        {
-         "type": "null"
-        }
-       ],
-       "title": "Date From"
-      }
-     },
-     {
-      "name": "date_to",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "anyOf": [
-        {
-         "type": "string",
-         "format": "date"
-        },
-        {
-         "type": "null"
-        }
-       ],
-       "title": "Date To"
-      }
-     },
-     {
-      "name": "tz",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "anyOf": [
-        {
-         "type": "string"
-        },
-        {
-         "type": "null"
-        }
-       ],
-       "description": "Zona IANA de las fechas (ej. America/Argentina/Buenos_Aires); default BILLING_TIMEZONE",
-       "title": "Tz"
-      },
-      "description": "Zona IANA de las fechas (ej. America/Argentina/Buenos_Aires); default BILLING_TIMEZONE"
-     },
-     {
-      "name": "campaign_id",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "anyOf": [
-        {
-         "type": "string"
-        },
-        {
-         "type": "null"
-        }
-       ],
-       "description": "Solo las llamadas y conversaciones de esa campaña",
-       "title": "Campaign Id"
-      },
-      "description": "Solo las llamadas y conversaciones de esa campaña"
-     }
-    ],
-    "responses": {
-     "200": {
-      "description": "Successful Response",
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/StatsOut"
-        }
-       }
-      }
-     },
-     "422": {
-      "description": "Validation Error",
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/HTTPValidationError"
-        }
-       }
-      }
-     }
-    }
-   }
-  },
-  "/api/v1/stats/daily": {
-   "get": {
-    "tags": [
-     "calls"
-    ],
-    "summary": "Daily",
-    "description": "Conversaciones por dia local y % con workflow completo y con objetivo cumplido.",
-    "operationId": "daily_api_v1_stats_daily_get",
-    "security": [
-     {
-      "HTTPBearer": []
-     }
-    ],
-    "parameters": [
-     {
-      "name": "date_from",
-      "in": "query",
-      "required": true,
-      "schema": {
-       "type": "string",
-       "format": "date",
-       "title": "Date From"
-      }
-     },
-     {
-      "name": "date_to",
-      "in": "query",
-      "required": true,
-      "schema": {
-       "type": "string",
-       "format": "date",
-       "title": "Date To"
-      }
-     },
-     {
-      "name": "client_id",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "anyOf": [
-        {
-         "type": "string"
-        },
-        {
-         "type": "null"
-        }
-       ],
-       "title": "Client Id"
-      }
-     },
-     {
-      "name": "agent_id",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "anyOf": [
-        {
-         "type": "string"
-        },
-        {
-         "type": "null"
-        }
-       ],
-       "title": "Agent Id"
-      }
-     },
-     {
-      "name": "tz",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "anyOf": [
-        {
-         "type": "string"
-        },
-        {
-         "type": "null"
-        }
-       ],
-       "description": "Zona IANA de las fechas (ej. America/Argentina/Buenos_Aires); default BILLING_TIMEZONE",
-       "title": "Tz"
-      },
-      "description": "Zona IANA de las fechas (ej. America/Argentina/Buenos_Aires); default BILLING_TIMEZONE"
-     },
-     {
-      "name": "campaign_id",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "anyOf": [
-        {
-         "type": "string"
-        },
-        {
-         "type": "null"
-        }
-       ],
-       "description": "Solo las llamadas y conversaciones de esa campaña",
-       "title": "Campaign Id"
-      },
-      "description": "Solo las llamadas y conversaciones de esa campaña"
-     }
-    ],
-    "responses": {
-     "200": {
-      "description": "Successful Response",
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/DailyOut"
-        }
        }
       }
      },
@@ -19924,60 +19657,6 @@
     ],
     "title": "CredentialUpdate"
    },
-   "DailyOut": {
-    "properties": {
-     "labels": {
-      "items": {
-       "type": "string"
-      },
-      "type": "array",
-      "title": "Labels"
-     },
-     "totals": {
-      "items": {
-       "type": "integer"
-      },
-      "type": "array",
-      "title": "Totals"
-     },
-     "completed_pct": {
-      "items": {
-       "anyOf": [
-        {
-         "type": "number"
-        },
-        {
-         "type": "null"
-        }
-       ]
-      },
-      "type": "array",
-      "title": "Completed Pct"
-     },
-     "goal_pct": {
-      "items": {
-       "anyOf": [
-        {
-         "type": "number"
-        },
-        {
-         "type": "null"
-        }
-       ]
-      },
-      "type": "array",
-      "title": "Goal Pct"
-     }
-    },
-    "type": "object",
-    "required": [
-     "labels",
-     "totals",
-     "completed_pct",
-     "goal_pct"
-    ],
-    "title": "DailyOut"
-   },
    "DefinitionIn": {
     "properties": {
      "definition": {
@@ -25263,6 +24942,16 @@
      "by_channel": {
       "$ref": "#/components/schemas/ReportByChannelOut"
      },
+     "with_agent": {
+      "type": "integer",
+      "title": "With Agent",
+      "description": "Consultas atendidas por un agente: la base de los porcentajes (no cuenta las llamadas directas del equipo)"
+     },
+     "conversions": {
+      "type": "integer",
+      "title": "Conversions",
+      "description": "Las que tienen todos los datos requeridos (conversion complete)"
+     },
      "conversion_pct": {
       "anyOf": [
        {
@@ -25273,7 +24962,12 @@
        }
       ],
       "title": "Conversion Pct",
-      "description": "% con todos los datos requeridos (conversion complete)"
+      "description": "conversions / with_agent, en %"
+     },
+     "goals": {
+      "type": "integer",
+      "title": "Goals",
+      "description": "Las que tienen un resultado que cumple el objetivo"
      },
      "goal_pct": {
       "anyOf": [
@@ -25285,7 +24979,7 @@
        }
       ],
       "title": "Goal Pct",
-      "description": "% con un resultado que cumple el objetivo"
+      "description": "goals / with_agent, en %"
      },
      "transfers": {
       "type": "integer",
@@ -25311,6 +25005,16 @@
      "minutes": {
       "type": "number",
       "title": "Minutes"
+     },
+     "finished": {
+      "type": "integer",
+      "title": "Finished",
+      "description": "Llamadas finalizadas"
+     },
+     "failed": {
+      "type": "integer",
+      "title": "Failed",
+      "description": "Llamadas que fallaron (estado fallida)"
      },
      "avg_duration": {
       "anyOf": [
@@ -25338,12 +25042,17 @@
     "required": [
      "conversations",
      "by_channel",
+     "with_agent",
+     "conversions",
      "conversion_pct",
+     "goals",
      "goal_pct",
      "transfers",
      "transfers_answered",
      "transfer_pct",
      "minutes",
+     "finished",
+     "failed",
      "avg_duration",
      "rejected_by_limit",
      "wa_messages"
@@ -26822,86 +26531,6 @@
      "voice"
     ],
     "title": "SpeechIn"
-   },
-   "StatsOut": {
-    "properties": {
-     "total": {
-      "type": "integer",
-      "title": "Total"
-     },
-     "calls": {
-      "type": "integer",
-      "title": "Calls"
-     },
-     "finished": {
-      "type": "integer",
-      "title": "Finished"
-     },
-     "failed": {
-      "type": "integer",
-      "title": "Failed"
-     },
-     "rejected": {
-      "type": "integer",
-      "title": "Rejected"
-     },
-     "completed": {
-      "type": "integer",
-      "title": "Completed"
-     },
-     "completed_pct": {
-      "type": "number",
-      "title": "Completed Pct"
-     },
-     "goal": {
-      "type": "integer",
-      "title": "Goal"
-     },
-     "goal_pct": {
-      "type": "number",
-      "title": "Goal Pct"
-     },
-     "total_minutes": {
-      "type": "number",
-      "title": "Total Minutes"
-     },
-     "avg_duration": {
-      "type": "integer",
-      "title": "Avg Duration"
-     },
-     "latency_avg": {
-      "anyOf": [
-       {
-        "type": "number"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Latency Avg"
-     },
-     "whatsapp": {
-      "type": "integer",
-      "title": "Whatsapp",
-      "default": 0
-     }
-    },
-    "type": "object",
-    "required": [
-     "total",
-     "calls",
-     "finished",
-     "failed",
-     "rejected",
-     "completed",
-     "completed_pct",
-     "goal",
-     "goal_pct",
-     "total_minutes",
-     "avg_duration",
-     "latency_avg"
-    ],
-    "title": "StatsOut"
    },
    "SubscribeIn": {
     "properties": {

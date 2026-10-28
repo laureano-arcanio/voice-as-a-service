@@ -942,7 +942,7 @@ export interface paths {
         /**
          * Join Test Call
          * @description URL de LiveKit y token para hacer de interesado en una llamada de prueba en curso, desde el
-         *     navegador (la pantalla /calls/{id}/hablar del panel).
+         *     navegador (la que creó `POST /calls` sin teléfono).
          */
         post: operations["join_test_call_api_v1_calls__conversation_id__join_post"];
         delete?: never;
@@ -1005,43 +1005,6 @@ export interface paths {
          * @description El WAV de ese mensaje (agent.record_audio prendido): CALL_RECORDINGS_DIR/<id>/NNN.wav.
          */
         get: operations["get_recording_api_v1_calls__conversation_id__recordings__n__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/stats": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Stats */
-        get: operations["stats_api_v1_stats_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/stats/daily": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Daily
-         * @description Conversaciones por dia local y % con workflow completo y con objetivo cumplido.
-         */
-        get: operations["daily_api_v1_stats_daily_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6004,17 +5967,6 @@ export interface components {
              */
             value?: string | null;
         };
-        /** DailyOut */
-        DailyOut: {
-            /** Labels */
-            labels: string[];
-            /** Totals */
-            totals: number[];
-            /** Completed Pct */
-            completed_pct: (number | null)[];
-            /** Goal Pct */
-            goal_pct: (number | null)[];
-        };
         /** DefinitionIn */
         DefinitionIn: {
             /** Definition */
@@ -8067,13 +8019,28 @@ export interface components {
             conversations: number;
             by_channel: components["schemas"]["ReportByChannelOut"];
             /**
+             * With Agent
+             * @description Consultas atendidas por un agente: la base de los porcentajes (no cuenta las llamadas directas del equipo)
+             */
+            with_agent: number;
+            /**
+             * Conversions
+             * @description Las que tienen todos los datos requeridos (conversion complete)
+             */
+            conversions: number;
+            /**
              * Conversion Pct
-             * @description % con todos los datos requeridos (conversion complete)
+             * @description conversions / with_agent, en %
              */
             conversion_pct: number | null;
             /**
+             * Goals
+             * @description Las que tienen un resultado que cumple el objetivo
+             */
+            goals: number;
+            /**
              * Goal Pct
-             * @description % con un resultado que cumple el objetivo
+             * @description goals / with_agent, en %
              */
             goal_pct: number | null;
             /**
@@ -8090,6 +8057,16 @@ export interface components {
             transfer_pct: number | null;
             /** Minutes */
             minutes: number;
+            /**
+             * Finished
+             * @description Llamadas finalizadas
+             */
+            finished: number;
+            /**
+             * Failed
+             * @description Llamadas que fallaron (estado fallida)
+             */
+            failed: number;
             /**
              * Avg Duration
              * @description Segundos, de las llamadas finalizadas
@@ -8640,38 +8617,6 @@ export interface components {
              * @enum {string}
              */
             stream_format?: "audio" | "sse";
-        };
-        /** StatsOut */
-        StatsOut: {
-            /** Total */
-            total: number;
-            /** Calls */
-            calls: number;
-            /** Finished */
-            finished: number;
-            /** Failed */
-            failed: number;
-            /** Rejected */
-            rejected: number;
-            /** Completed */
-            completed: number;
-            /** Completed Pct */
-            completed_pct: number;
-            /** Goal */
-            goal: number;
-            /** Goal Pct */
-            goal_pct: number;
-            /** Total Minutes */
-            total_minutes: number;
-            /** Avg Duration */
-            avg_duration: number;
-            /** Latency Avg */
-            latency_avg: number | null;
-            /**
-             * Whatsapp
-             * @default 0
-             */
-            whatsapp?: number;
         };
         /**
          * SubscribeIn
@@ -12400,82 +12345,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    stats_api_v1_stats_get: {
-        parameters: {
-            query?: {
-                client_id?: string | null;
-                agent_id?: string | null;
-                date_from?: string | null;
-                date_to?: string | null;
-                /** @description Zona IANA de las fechas (ej. America/Argentina/Buenos_Aires); default BILLING_TIMEZONE */
-                tz?: string | null;
-                /** @description Solo las llamadas y conversaciones de esa campaña */
-                campaign_id?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StatsOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    daily_api_v1_stats_daily_get: {
-        parameters: {
-            query: {
-                date_from: string;
-                date_to: string;
-                client_id?: string | null;
-                agent_id?: string | null;
-                /** @description Zona IANA de las fechas (ej. America/Argentina/Buenos_Aires); default BILLING_TIMEZONE */
-                tz?: string | null;
-                /** @description Solo las llamadas y conversaciones de esa campaña */
-                campaign_id?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DailyOut"];
                 };
             };
             /** @description Validation Error */

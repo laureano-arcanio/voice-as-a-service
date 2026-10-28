@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import { createBrowserRouter, type RouteObject } from 'react-router';
+import { createBrowserRouter, Navigate, type RouteObject } from 'react-router';
 import { AppLayout } from '@/components/AppLayout';
 import { NotFound, RouteError } from '@/components/NotFound';
 import { FullPageLoader, RequireAdminArea, RequireAuth, RequireClientArea } from '@/features/auth/guards';
@@ -42,10 +42,7 @@ export const routes: RouteObject[] = [
     errorElement: <RouteError />,
     hydrateFallbackElement: <FullPageLoader />,
     children: [
-      {
-        index: true,
-        ...page(async () => (await import('@/features/dashboard/DashboardPage')).DashboardPage),
-      },
+      { index: true, element: <Navigate to="reports" replace /> },
       {
         path: 'reports',
         ...page(async () => (await import('@/features/reports/ReportsPage')).ReportsPage),
@@ -100,10 +97,7 @@ export const routes: RouteObject[] = [
     errorElement: <RouteError />,
     hydrateFallbackElement: <FullPageLoader />,
     children: [
-      {
-        index: true,
-        ...page(async () => (await import('@/features/dashboard/DashboardPage')).DashboardPage),
-      },
+      { index: true, element: <Navigate to="reports" replace /> },
       {
         path: 'reports',
         ...page(async () => (await import('@/features/reports/ReportsPage')).ReportsPage),
@@ -111,10 +105,6 @@ export const routes: RouteObject[] = [
       {
         path: 'calls',
         ...page(async () => (await import('@/features/calls/ConversationsPage')).ConversationsPage),
-      },
-      {
-        path: 'calls/:id/hablar',
-        ...page(async () => (await import('@/features/calls/TestCallPage')).TestCallPage),
       },
       {
         path: 'calls/:id',

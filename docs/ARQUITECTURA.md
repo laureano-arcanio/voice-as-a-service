@@ -760,7 +760,7 @@ lo de esta sección es lo que lo protege.
   `DELETE`, solo de borradores), `POST /{id}/contacts`, `GET /{id}/contacts` (`status`, `result`),
   `GET /{id}/stats`, `GET /{id}/report.csv` y `POST /{id}/start|resume|pause|cancel`. `start` y
   `resume` de una `comercial` piden `no_call_registry_checked: true` (422 `no_call_confirmation_required`).
-  `GET /calls`, `/stats` y `/stats/daily` filtran por `campaign_id`.
+  `GET /calls` filtra por `campaign_id`; los indicadores de la campaña son `GET /{id}/stats`.
 - **Campañas de WhatsApp** (`/whatsapp`, alias de las anteriores, sobre el mismo código; se borran en una
   versión): `GET|POST /campaigns`, `GET|PATCH|DELETE /campaigns/{id}`, `GET|POST /campaigns/{id}/recipients`
   (lista o CSV posicional), `POST /campaigns/{id}/start|pause|cancel`, `GET|POST /optouts` y
@@ -799,8 +799,8 @@ lo de esta sección es lo que lo protege.
   alguna tiene una llamada activa. Desde la UI: selección en bulk estilo Gmail en Conversaciones.
 - **WhatsApp en `/calls`:** `mode=whatsapp` (sin `call_logs`: `status` null, duración 0, `phone` = `wa_id`);
   `mode=api` son solo las de texto por la API. El detalle trae `whatsapp` en lugar de `call`, y
-  `/stats` no las cuenta como llamadas (`whatsapp` aparte).
-- **Filtros de fecha** (`/calls`, `/stats`, `/stats/daily`): toman días locales de `tz` (zona IANA,
+  los reportes las cuentan como consultas del canal `whatsapp`, no como llamadas.
+- **Filtros de fecha** (`/calls`): toman días locales de `tz` (zona IANA,
   default `BILLING_TIMEZONE`). `status` se puede repetir.
 
 ## Reportes (`/api/v1/reports`)

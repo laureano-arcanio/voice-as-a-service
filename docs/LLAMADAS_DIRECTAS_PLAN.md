@@ -70,7 +70,7 @@ resultado y minutos descontados.
 | Hacer sonar un área (orden, timbre, horario, "marcá 1 para atender", respaldo) | `Transfer` en `app/voice/handoff.py`, `HandoffArea`, `TeamMember`, `handoff_legs` | La entrante directa: es una derivación sin el tramo previo del agente |
 | Transcribir a una persona con VAD + STT | `RoomLine._capture` / `_transcribe` (modo escucha) | Transcripción de los dos lados |
 | Audio por mensaje y mensajes de una persona | `app/conversation/recordings.py`, `Message.recording`, `Message.person` | El chat del panel los muestra sin cambios ("Ana (equipo)") |
-| Entrar a una room desde el navegador | `TestCallPage.tsx` (`livekit-client`), `web/src/llamar/` | El teléfono del panel |
+| Entrar a una room desde el navegador | `web/src/llamar/` (`livekit-client`; la pantalla de prueba del panel `TestCallPage.tsx` se quitó el 28-oct-2026) | El teléfono del panel |
 | Admisión, minutos y canales | `quota.admit`, `MINUTE_MODES`, `busy_channels`/`ANURA_MODES` | Topes del tier y los 10 canales de Anura |
 | Errores SIP | `campaign_calls.classify_error` | Ocupado, no atiende, falló |
 | Bajas y bloqueados | `is_opted_out`, `blocked_numbers` | Aviso en la saliente; corte en la entrante (como hoy) |

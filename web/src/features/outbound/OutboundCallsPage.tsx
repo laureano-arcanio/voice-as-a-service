@@ -24,7 +24,7 @@ import { EmptyState, ErrorAlert } from '@/components/QueryState';
 import { agentOptions } from '@/features/agents/options';
 import { useAgents } from '@/features/agents/api';
 import { useCalls, useStartCall } from '@/features/calls/api';
-import { CallError, CallStartedAlert } from '@/features/calls/NewCallForm';
+import { CallError, CallStartedAlert } from '@/features/calls/CallAlerts';
 import { useContacts } from '@/features/contacts/api';
 import { usePhoneNumbers } from '@/features/numbers/api';
 import { E164_RE, formatDateTime, formatDuration, formatValue } from '@/lib/format';

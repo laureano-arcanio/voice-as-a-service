@@ -318,7 +318,7 @@ def test_validation_error_hides_input(api):
 @pytest.mark.parametrize("method,path", [
     ("GET", "/auth/me"), ("GET", "/tiers"), ("GET", "/clients"), ("GET", "/phone-numbers"),
     ("GET", "/agents"), ("GET", "/agents/schema"), ("GET", "/agent-templates"), ("GET", "/users"),
-    ("GET", "/calls"), ("GET", "/stats"), ("GET", "/voices"), ("GET", "/whatsapp/accounts"),
+    ("GET", "/calls"), ("GET", "/reports/summary"), ("GET", "/voices"), ("GET", "/whatsapp/accounts"),
     ("POST", "/calls"), ("POST", "/conversations"), ("POST", "/tts/preview"), ("POST", "/agents/validate"),
 ])
 def test_endpoints_require_auth(api, method, path):

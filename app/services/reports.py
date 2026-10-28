@@ -78,11 +78,8 @@ class CallFilter:
     # Las de esos telefonos (E.164; todos a la vez): la llamada con ese numero o el hilo de WhatsApp con su wa_id.
     # El filtro `phone` y el `contact_id` de GET /calls (el telefono del contacto).
     phones: list[str] = field(default_factory=list)
-    # Zona de las fechas: date_from/date_to y los dias del grafico son dias locales.
+    # Zona de las fechas: date_from/date_to son dias locales.
     tz: ZoneInfo = field(default_factory=lambda: ZoneInfo("UTC"))
-
-    def local_date(self, dt: datetime.datetime) -> datetime.date:
-        return dt.replace(tzinfo=datetime.UTC).astimezone(self.tz).date()
 
     def where(self) -> list:
         conds = []
@@ -222,9 +219,6 @@ class Reports:
                                                     Contact.archived_at.is_(None)))
         return {(c.client_id, c.phone): c for c in rows if (c.client_id, c.phone) in pairs}
 
-    def _all(self, flt: CallFilter) -> list[dict]:
-        return [self.summary(*r) for r in self.s.execute(_base_query().where(*flt.where())).all()]
-
     def detail(self, conversation_id: str) -> dict | None:
         row = self.s.execute(_base_query().where(ConversationRow.id == conversation_id)).first()
         if row is None:
@@ -305,41 +299,4 @@ class Reports:
             "account_id": thread.account_id, "last_user_at": iso(thread.last_user_at),
             "closed_at": iso(thread.closed_at),
             "failed_messages": len(failed), "last_error": failed[-1].error if failed else None,
-        }
-
-    def stats(self, flt: CallFilter) -> dict:
-        rows = self._all(flt)
-        phone_calls = [r for r in rows if r["mode"] not in ("api", "whatsapp")]
-        done = [r for r in phone_calls if r["status"] == "finalizada"]
-        completed = [r for r in rows if r["workflow_status"] == "completed"]
-        goal = [r for r in rows if r["goal"]]
-        latencies = [r["latency_avg"] for r in done if r["latency_avg"] is not None]
-        pct = lambda n, d: round(100 * n / d, 1) if d else 0
-        return {
-            "total": len(rows), "calls": len(phone_calls), "finished": len(done),
-            "failed": sum(r["status"] == "fallida" for r in phone_calls),
-            "rejected": sum(r["status"] == "rechazada" for r in phone_calls),
-            "completed": len(completed), "completed_pct": pct(len(completed), len(rows)),
-            "goal": len(goal), "goal_pct": pct(len(goal), len(rows)),
-            "total_minutes": round(sum(r["duration_seconds"] for r in done) / 60, 1),
-            "avg_duration": round(sum(r["duration_seconds"] for r in done) / len(done)) if done else 0,
-            "latency_avg": round(sum(latencies) / len(latencies), 2) if latencies else None,
-            "whatsapp": sum(r["mode"] == "whatsapp" for r in rows),
-        }
-
-    def daily(self, flt: CallFilter) -> dict:
-        """Conversaciones por dia + % con workflow completo y % que cumplen el objetivo."""
-        assert flt.date_from and flt.date_to
-        days = [flt.date_from + datetime.timedelta(d) for d in range((flt.date_to - flt.date_from).days + 1)]
-        buckets: dict[datetime.date, list[dict]] = {d: [] for d in days}
-        for r in self._all(flt):
-            day = flt.local_date(datetime.datetime.fromisoformat(r["created_at"].rstrip("Z")))
-            if day in buckets:
-                buckets[day].append(r)
-        pct = lambda rows, key: round(100 * sum(key(r) for r in rows) / len(rows), 1) if rows else None
-        return {
-            "labels": [d.isoformat() for d in days],
-            "totals": [len(buckets[d]) for d in days],
-            "completed_pct": [pct(buckets[d], lambda r: r["workflow_status"] == "completed") for d in days],
-            "goal_pct": [pct(buckets[d], lambda r: r["goal"]) for d in days],
         }

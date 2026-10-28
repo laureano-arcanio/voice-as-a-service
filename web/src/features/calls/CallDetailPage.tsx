@@ -19,7 +19,6 @@ import {
   IconBan,
   IconLogin2,
   IconMessageOff,
-  IconMicrophone,
   IconPhoneOff,
 } from '@tabler/icons-react';
 import { useState } from 'react';
@@ -431,8 +430,6 @@ function DetailActions({ c, live }: { c: CallDetail; live: boolean }) {
   const canHangUp = !!c.call && live;
   const canBlock = c.call?.mode === 'entrante' && !!c.call.phone;
   const canClose = !!c.whatsapp && !c.whatsapp.closed_at;
-  // La pantalla de hablar es del panel del cliente: el admin entra con "Ver como el cliente".
-  const canJoin = !isAdmin && c.call?.mode === 'prueba' && live;
   if (!canView && !canHangUp && !canBlock && !canClose) return null;
   return (
     <Group gap="sm">
@@ -447,11 +444,6 @@ function DetailActions({ c, live }: { c: CallDetail; live: boolean }) {
             Ver como el cliente
           </Button>
         </Tooltip>
-      )}
-      {canJoin && (
-        <Button component={Link} to={`/calls/${c.id}/hablar`} leftSection={<IconMicrophone size={18} />}>
-          Hablar con el agente
-        </Button>
       )}
       {canBlock && <BlockCallerButton c={c} />}
       {canHangUp && <HangUpButton c={c} />}

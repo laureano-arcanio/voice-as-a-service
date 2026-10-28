@@ -32,7 +32,7 @@ export function TestAgentsPage() {
     <>
       <PageHeader
         title="Playground"
-        description="Elegí un agente y probalo por texto, con una llamada o con su link para llamar."
+        description="Elegí un agente y probalo por texto o con su link para llamar."
       />
       {many && (
         <Group mb="md" align="flex-end">

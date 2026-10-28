@@ -359,7 +359,7 @@ class TestJoin:
 
 
 def join_test_call(s: Session, principal: Principal, conversation_id: str) -> TestJoin:
-    """Para conectarse desde el panel a una llamada de prueba en curso (la pagina /calls/<id>/hablar)."""
+    """Para conectarse desde el navegador a una llamada de prueba en curso (la creada por la API con join_url)."""
     call = s.get(CallRow, conversation_id)
     if call is None or not principal.can_access(call.client_id):
         raise NotFound("Llamada inexistente")

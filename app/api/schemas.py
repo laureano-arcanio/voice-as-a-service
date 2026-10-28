@@ -1391,29 +1391,6 @@ class CallDetail(BaseModel):
     whatsapp: WhatsAppInfo | None = None
 
 
-class StatsOut(BaseModel):
-    total: int
-    calls: int
-    finished: int
-    failed: int
-    rejected: int
-    completed: int
-    completed_pct: float
-    goal: int
-    goal_pct: float
-    total_minutes: float
-    avg_duration: int
-    latency_avg: float | None
-    whatsapp: int = 0
-
-
-class DailyOut(BaseModel):
-    labels: list[str]
-    totals: list[int]
-    completed_pct: list[float | None]
-    goal_pct: list[float | None]
-
-
 # ---------- conversaciones por texto ----------
 
 class ConversationIn(BaseModel):
@@ -2514,12 +2491,18 @@ class ReportByChannelOut(BaseModel):
 class ReportKpisOut(BaseModel):
     conversations: int = Field(description="Consultas: llamadas (atendidas o no) y conversaciones de WhatsApp")
     by_channel: ReportByChannelOut
-    conversion_pct: float | None = Field(description="% con todos los datos requeridos (conversion complete)")
-    goal_pct: float | None = Field(description="% con un resultado que cumple el objetivo")
+    with_agent: int = Field(description="Consultas atendidas por un agente: la base de los porcentajes (no cuenta las "
+                                        "llamadas directas del equipo)")
+    conversions: int = Field(description="Las que tienen todos los datos requeridos (conversion complete)")
+    conversion_pct: float | None = Field(description="conversions / with_agent, en %")
+    goals: int = Field(description="Las que tienen un resultado que cumple el objetivo")
+    goal_pct: float | None = Field(description="goals / with_agent, en %")
     transfers: int = Field(description="Conversaciones con un pedido de derivación a una persona")
     transfers_answered: int = Field(description="Derivaciones atendidas por una persona")
     transfer_pct: float | None
     minutes: float
+    finished: int = Field(description="Llamadas finalizadas")
+    failed: int = Field(description="Llamadas que fallaron (estado fallida)")
     avg_duration: int | None = Field(description="Segundos, de las llamadas finalizadas")
     rejected_by_limit: int = Field(description="Llamadas rechazadas por el plan (concurrencia, cantidad o minutos)")
     wa_messages: int

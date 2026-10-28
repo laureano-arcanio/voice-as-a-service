@@ -37,7 +37,6 @@ const LEGAL_LINKS = [
 ] as const;
 
 function isActive(pathname: string, to: string): boolean {
-  if (to === '/' || to === '/admin') return pathname === to;
   return pathname === to || pathname.startsWith(`${to}/`);
 }
 

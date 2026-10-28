@@ -8,13 +8,13 @@ puede hacer por la API (`/api/v1/docs`, solo con sesión de admin). La arquitect
 Hay dos roles, y cada uno trabaja en su área ([`ADMIN_SOPORTE_PLAN.md`](ADMIN_SOPORTE_PLAN.md)):
 - **Cliente:** usuario de un cliente, que solo ve lo suyo. Su panel (`/`) tiene este menú (los grupos se
   despliegan con un click; arranca abierto el de la pantalla actual):
-  - Inicio, Reportes y Conversaciones, sueltos.
+  - Reportes y Conversaciones, sueltos. Al entrar a `/` se abre Reportes.
   - **Agentes:** Mis agentes, Herramientas, Secretos, Modelos, Playground y Voces.
   - **Canales:** WhatsApp, Llamadas y Campañas.
   - **Organización:** Contactos, Teléfono y Equipo.
   - **Developers:** API keys y Uso de la API.
   - **Cuenta:** Mi cuenta, Plan y Consumos.
-- **Admin:** administra la plataforma en `/admin/*` (al iniciar sesión va siempre ahí). Su menú: Inicio,
+- **Admin:** administra la plataforma en `/admin/*` (al iniciar sesión va siempre ahí). Su menú:
   Reportes, Conversaciones, Agentes (solo lectura, de todos los clientes), Uso de la API, Clientes, Números,
   Tiers, Cobros y Usuarios. Lo demás (agentes, herramientas, WhatsApp, contactos, campañas, equipo...) no está
   en su menú: para operarlo **entra como el cliente** y ve su panel tal cual (ver [Entrar como un cliente
@@ -168,10 +168,6 @@ y fecha, con filtros por cliente y archivados); **Abrir como el cliente** lo abr
 - **Versiones:** historial con fecha y autor. Podés ver el JSON de cualquier versión, compararla con
   la vigente y **Restaurar**, que guarda esa definición como versión nueva.
 - **Probar:** lo mismo que la pantalla **Playground** (abajo), con este agente fijo.
-  - **Probar por voz:** elegís la voz y **Probar agente** te lleva a la llamada en el navegador
-    (`/calls/<id>/hablar`). Si este agente ya tiene una prueba esperando que alguien se conecte, entra a esa
-    en vez de crear otra; si no, la crea. No marca teléfonos ni gasta minutos. Las salientes a un
-    teléfono, en **Llamadas**.
   - **Conversación por texto:** chateás con el agente sin voz. Los datos aparecen al terminar la
     conversación; las llamadas a herramientas se ven en la traza de cada respuesta (argumentos, estado,
     tiempo y resultado).
@@ -290,37 +286,10 @@ Si el cliente está desactivado, sus números de WhatsApp tampoco responden.
 
 ## Operación diaria
 
-### Inicio (dashboard)
-
-`/` en el panel del cliente; `/admin` es el de toda la plataforma, con el filtro de cliente y la columna Cliente.
-
-- **Filtros:** cliente (solo en `/admin`), agente y período (última semana, último mes o fechas). Aplican a
-  los indicadores y al gráfico. Los días son del huso horario del navegador. **Ver conversaciones**
-  lleva al listado con los mismos filtros.
-- **Nueva llamada:**
-  - **Agente:** los no archivados.
-  - **Teléfono** en E.164 para una saliente, o **Modo prueba**: sin teléfono, te conectás por el
-    navegador con **Hablar con el agente** (pantalla `/calls/<id>/hablar`, también desde el detalle
-    mientras la llamada espera). Si el navegador no tiene permiso del micrófono, primero lo explica y lo
-    pide con un clic; si está bloqueado, muestra cómo habilitarlo. Entra con micrófono y audio prendidos
-    (si el navegador frena el audio, aparece "Activar el audio").
-  - **Número de origen:** opcional, uno del cliente. Es el que ve el destinatario; tiene que ser un
-    número de la cuenta de Anura. Sin número de origen, sale con el principal (`ANURA_DID`).
-  - **Voz:** la del agente, u otra del catálogo con filtros de género, WER y car/s.
-  - **Prueba de voz:** escuchás el texto con la voz elegida, directo contra el TTS, sin llamar. Suena a los ~0,5 s,
-    mientras se genera; al terminar queda guardada: repetirla o pausarla es instantáneo.
-  - Si el tier no deja (sin lugar o sin minutos), el error dice cuál límite.
-- **En vivo:** llamadas pendientes, sonando o en curso, con "Ver en vivo".
-- **Indicadores:** conversaciones (con cuántas por WhatsApp), llamadas finalizadas, workflow
-  completo, objetivo cumplido, fallidas, rechazadas (por límite), minutos y latencia por turno. El
-  panel del cliente los muestra como "Completas" y "Tiempo de respuesta".
-- **Conversaciones por día** (barras) y **Resultado por día** (líneas: % con workflow completo y %
-  con objetivo cumplido).
-- Para ver más (conversión, mapa de calor por hora, transferencias, campañas), **Reportes** (más abajo).
 ### Reportes (`/reports` del cliente y `/admin/reports`)
 
 Estadísticas del negocio para decidir: cuánto te consultan, cuántas consultas terminan bien y si el plan
-alcanza. En la navegación, debajo de Inicio.
+alcanza. En la navegación, arriba de todo.
 
 - **Filtros (arriba):** período (últimos 30 días por defecto; los KPIs se comparan con el período anterior),
   agente, canal (llamadas, WhatsApp o web), línea y **Incluir pruebas** (apagado: las llamadas de prueba y del
@@ -352,9 +321,9 @@ alcanza. En la navegación, debajo de Inicio.
 
 ### Conversaciones (`/calls` del cliente y `/admin/calls`)
 
-- Todas las conversaciones (llamadas, API y WhatsApp), con los mismos filtros que el inicio (agente y período; en
+- Todas las conversaciones (llamadas, API y WhatsApp), con filtros por agente y período (en
   `/admin/calls`, también cliente), en la URL.
-- Se puede filtrar por campaña (también en Inicio): los intentos de una campaña de llamadas y las
+- Se puede filtrar por campaña (también en Reportes): los intentos de una campaña de llamadas y las
   conversaciones que abrió la respuesta de un contacto.
 - Tabla paginada, filtrable además por estado y origen. Las de WhatsApp no tienen estado ni duración y
   muestran el teléfono del contacto. Cada fila lleva al detalle.
@@ -770,7 +739,7 @@ Registro y cobro por transferencia ([`SUSCRIPCIONES_PLAN.md`](SUSCRIPCIONES_PLAN
   con borde amarillo, en qué planes está ("Disponible en los planes Mostrador y Sucursal") y "Mejorar mi plan"; lo de abajo queda atenuado y sin responder. Con plan gratis, "Free"
   al lado de Plan. Sale de los campos del tier (minutos salientes y números, canales de campañas, contactos,
   equipo, links y la casilla **WhatsApp**) y de los ajustes del cliente: un ajuste abre la función. Sin
-  salientes, "Nueva llamada" de Inicio y Probar del agente quedan fijos en modo prueba.
+  salientes, la pantalla Llamadas queda bloqueada.
 - **Ficha del cliente, tarjeta "Plan pago" (admin):** "Registrar pago" activa o renueva el plan por un
   mes; "Rechazar pedido" o "Pasar al gratuito" lo corta.
 - **Cobros (`/admin/billing`, admin):** planes pagos y pedidos abiertos, y pagos para facturar ("Marcar facturado").
@@ -807,7 +776,7 @@ En soporte (entrando como un cliente) el perfil es de solo lectura: es el del cl
 | Una conexión de modelos "falló la prueba" | El detalle lo dice: clave inválida, modelo inexistente o URL incorrecta (OpenAI compatible), límite del proveedor o sin conexión. Corregí y volvé a **Probar**. |
 | Un agente con modelo propio contesta con el servidor Atentina | El proveedor falló y el agente tiene el respaldo activado: mirá en el detalle de la conversación el motivo (`fallback_reason`). Si la conexión se dio de baja, también. |
 | El navegador dice "El micrófono está bloqueado" al llamar o atender | No deja usar el micrófono en la página. Candado de la barra de direcciones, Micrófono, Permitir, y volvé a llamar. Si dice "No encontramos un micrófono" o "El micrófono está en uso", conectá uno o cerrá la otra aplicación que lo usa. |
-| "Todas las líneas están ocupadas" al llamar (`no_channel`) | No hay canales libres en la troncal de Anura para marcar. Probá en unos minutos; si es siempre, mirá las llamadas activas (Inicio, En vivo) y el tope de canales de la cuenta de Anura. |
+| "Todas las líneas están ocupadas" al llamar (`no_channel`) | No hay canales libres en la troncal de Anura para marcar. Probá en unos minutos; si es siempre, mirá las llamadas activas (Conversaciones, filtro En vivo) y el tope de canales de la cuenta de Anura. |
 | "Falta aceptar las condiciones nuevas" (`terms_pending`) | Las llamadas directas exigen la versión vigente de las condiciones y la política de privacidad, y el cliente todavía no la aceptó. Un usuario del cliente (no el admin en soporte) las acepta en el aviso **Condiciones del servicio** al entrar al panel. Mientras tanto no se llama, no se atiende y no se puede poner un número en el equipo; las entrantes de un número del equipo van a su agente. |
 | "Tu plan no incluye llamadas directas" | El tier no tiene **Llamadas directas** (el Free). **Mejorar mi plan**, o el admin lo prende en Tiers. La saliente además necesita minutos salientes. |
 | "No tenés un número para llamar" | El cliente no tiene números asignados: los asigna el admin (Números). |

@@ -8,12 +8,17 @@ import type { SummaryKpis, SummaryReport } from './types';
 const KPIS: SummaryKpis = {
   conversations: 12,
   by_channel: { voice: 8, whatsapp: 4, web: 0 },
+  with_agent: 12,
+  conversions: 6,
   conversion_pct: 50,
+  goals: 3,
   goal_pct: 25,
   transfers: 3,
   transfers_answered: 2,
   transfer_pct: 25,
   minutes: 40.5,
+  finished: 7,
+  failed: 1,
   avg_duration: 95,
   rejected_by_limit: 1,
   wa_messages: 30,
@@ -79,6 +84,10 @@ describe('ReportsPage', () => {
     expect(screen.getByText('Consumo del plan')).toBeInTheDocument();
     // 12 contra 6 del periodo anterior.
     expect(screen.getByText('+100 % vs. período anterior')).toBeInTheDocument();
+    // Los absolutos de los porcentajes y de los minutos.
+    expect(screen.getByText('6 de 12')).toBeInTheDocument();
+    expect(screen.getByText('3 de 12')).toBeInTheDocument();
+    expect(screen.getByText('7 finalizadas · 1 fallidas')).toBeInTheDocument();
     expect(screen.getByText(/vas a usar unos 120 minutos entrantes/)).toBeInTheDocument();
     // El cliente no ve las pestañas internas.
     expect(screen.queryByRole('tab', { name: /Técnico/ })).not.toBeInTheDocument();

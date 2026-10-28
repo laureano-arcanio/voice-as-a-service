@@ -287,15 +287,17 @@ def _kpis(s: Session, flt: ReportFilter) -> dict:
         _count_if(_transfer(REQUEST_EVENTS)), _count_if(_transfer(ANSWER_EVENTS)),
         func.coalesce(func.sum(CallRow.duration_seconds), 0),
         func.coalesce(func.sum(case((finished, CallRow.duration_seconds), else_=0)), 0), _count_if(finished),
-        _count_if(and_(CallRow.status == "rechazada", CallRow.ended_reason.in_(LIMIT_REASONS))))).one()
-    total, with_agent, voice, wa, web, complete, goal, transfers, answered, seconds, fin_seconds, fin, rejected = (
+        _count_if(and_(CallRow.status == "rechazada", CallRow.ended_reason.in_(LIMIT_REASONS))),
+        _count_if(CallRow.status == "fallida"))).one()
+    total, with_agent, voice, wa, web, complete, goal, transfers, answered, seconds, fin_seconds, fin, rejected, failed = (
         map(_n, row))
     return {
         "conversations": total, "by_channel": {"voice": voice, "whatsapp": wa, "web": web},
         # Conversion, objetivo y transferencias son de las conversaciones con agente (no las directas).
-        "conversion_pct": _pct(complete, with_agent), "goal_pct": _pct(goal, with_agent),
+        "with_agent": with_agent, "conversions": complete, "conversion_pct": _pct(complete, with_agent),
+        "goals": goal, "goal_pct": _pct(goal, with_agent),
         "transfers": transfers, "transfers_answered": answered, "transfer_pct": _pct(transfers, with_agent),
-        "minutes": round(seconds / 60, 1), "avg_duration": _avg(fin_seconds, fin),
+        "minutes": round(seconds / 60, 1), "finished": fin, "failed": failed, "avg_duration": _avg(fin_seconds, fin),
         "rejected_by_limit": rejected,
         "wa_messages": _n(s.scalar(_wa_messages(flt, func.count()))),
     }

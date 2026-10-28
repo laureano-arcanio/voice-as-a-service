@@ -134,15 +134,13 @@ def test_list_is_all_by_default_and_toolsets_pick(api, admin, full):
 def test_read_tools_work_with_the_key(api, full):
     c, agent, mcp = full
     for name in ("whoami", "get_plan_features", "get_usage", "get_call_emails", "list_agents",
-                 "get_agent_schema", "list_agent_templates", "list_voices", "list_calls", "get_stats",
+                 "get_agent_schema", "list_agent_templates", "list_voices", "list_calls", "get_report_summary",
                  "list_phone_numbers", "list_blocked_numbers", "list_whatsapp_accounts",
                  "list_contacts", "list_optouts", "get_campaign_plan", "list_campaigns",
                  "list_team", "list_handoff_areas", "list_events"):
         out = Mcp(api, mcp.key, "all").call(name)
         assert not out.get("isError"), (name, out)
         assert out["content"][0]["type"] == "text"
-    out = mcp.call("get_daily_stats", date_from="2026-10-01", date_to="2026-10-24")
-    assert not out.get("isError"), out
     out = mcp.call("get_agent", agent_id=agent["id"])
     assert not out.get("isError") and out["structuredContent"]["id"] == agent["id"]
     assert mcp.call("list_agents")["structuredContent"]["items"][0]["id"] == agent["id"]

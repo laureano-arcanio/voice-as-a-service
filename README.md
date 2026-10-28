@@ -560,7 +560,7 @@ curl -s -X POST localhost:8011/api/v1/conversations/<id>/turns -H "$H" -H 'Conte
 ```
 
 **Probar por voz:** `POST /api/v1/calls` con `{"agent_id"}` devuelve un `join_url` de LiveKit Meet
-(modo prueba; el panel usa su propia pantalla, `/calls/<id>/hablar`, con `POST /calls/{id}/join`); con `"phone": "+549..."` marca por la troncal saliente. Las entrantes crean su
+(modo prueba; `POST /calls/{id}/join` da el token para entrar desde un navegador); con `"phone": "+549..."` marca por la troncal saliente. Las entrantes crean su
 conversacion solas, con el agente del número marcado.
 
 Cada conversacion vive en `conversations` (datos y mensajes, los escribe el motor en cada turno) con

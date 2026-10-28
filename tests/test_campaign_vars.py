@@ -13,7 +13,6 @@ from app.agents.templates import load_reference, reference_data
 from app.conversation import contact as contact_data
 from app.conversation.engine import ConversationEngine
 from app.conversation.models import ConversationState
-from app.db import utcnow
 from app.llm.prompt import (
     build_classic_messages,
     build_classic_system,
@@ -258,13 +257,8 @@ async def test_calls_and_stats_filter_by_campaign(api, cobranza):
     page = user.get(f"{V1}/calls", params={"campaign_id": camp["id"]}).json()
     assert page["total"] == 2 and {i["id"] for i in page["items"]} >= {ana.conversation_id}
     assert other.json()["conversation_id"] not in {i["id"] for i in page["items"]}
-    stats = user.get(f"{V1}/stats", params={"campaign_id": camp["id"]}).json()
-    assert (stats["total"], stats["calls"], stats["goal"]) == (2, 2, 1)
+    assert sum(bool(i["goal"]) for i in page["items"]) == 1
     assert user.get(f"{V1}/calls", params={"campaign_id": "inexistente"}).json()["total"] == 0
-    day = utcnow().date()
-    daily = user.get(f"{V1}/stats/daily", params={"campaign_id": camp["id"], "date_from": str(day - datetime.timedelta(1)),
-                                                  "date_to": str(day + datetime.timedelta(1))}).json()
-    assert sum(daily["totals"]) == 2
 
 
 async def test_campaign_filter_does_not_cross_clients(api, admin, cobranza):  # noqa: F811
@@ -275,7 +269,6 @@ async def test_campaign_filter_does_not_cross_clients(api, admin, cobranza):  # 
     stranger = client_user(api, admin, other, email="ajeno@x.com")
     # Otro cliente no ve nada filtrando por la campaña de este; el admin si.
     assert stranger.get(f"{V1}/calls", params={"campaign_id": camp["id"]}).json()["total"] == 0
-    assert stranger.get(f"{V1}/stats", params={"campaign_id": camp["id"]}).json()["total"] == 0
     assert admin.get(f"{V1}/calls", params={"campaign_id": camp["id"]}).json()["total"] == 2
 
 

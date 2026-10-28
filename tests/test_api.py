@@ -357,7 +357,6 @@ def test_test_call_and_outbound_call(api, admin):
     assert page["total"] == 2 and {i["mode"] for i in page["items"]} == {"prueba", "saliente"}
     detail = admin.get(f"{V1}/calls/{out['conversation_id']}").json()
     assert detail["agent_name"] == "Ventas" and detail["call"]["client_number"] == number["e164"]
-    assert admin.get(f"{V1}/stats", params={"client_id": c["id"]}).json()["calls"] == 2
 
 
 def test_call_recordings(api, admin, monkeypatch, tmp_path):
@@ -432,7 +431,7 @@ def test_delete_conversations_cascade_and_consumption(api, admin, monkeypatch, t
     rec_dir = tmp_path / conversation_id
     rec_dir.mkdir()
     (rec_dir / "001.wav").write_bytes(b"RIFF....WAVEfmt ")
-    assert admin.get(f"{V1}/stats", params={"client_id": c["id"]}).json()["total_minutes"] == 1.0
+    assert admin.get(f"{V1}/reports/summary", params={"client_id": c["id"]}).json()["kpis"]["minutes"] == 1.0
 
     # En bloque: ids repetidos o inexistentes no fallan; devuelve cuantas habia.
     r = admin.post(f"{V1}/calls/bulk-delete", json={"ids": [conversation_id, conversation_id, "nope"]})
@@ -441,8 +440,8 @@ def test_delete_conversations_cascade_and_consumption(api, admin, monkeypatch, t
     assert not rec_dir.exists()
     assert admin.get(f"{V1}/calls", params={"client_id": c["id"]}).json()["total"] == 0
     # El consumo del mes tambien se va (la CallRow es la que cuenta minutos).
-    stats = admin.get(f"{V1}/stats", params={"client_id": c["id"]}).json()
-    assert stats["total"] == 0 and stats["total_minutes"] == 0
+    kpis = admin.get(f"{V1}/reports/summary", params={"client_id": c["id"]}).json()["kpis"]
+    assert kpis["conversations"] == 0 and kpis["minutes"] == 0
     assert admin.post(f"{V1}/calls/bulk-delete", json={"ids": ["nope"]}).json() == {"deleted": 0}
     assert admin.post(f"{V1}/calls/bulk-delete", json={"ids": []}).status_code == 422
     with api.sessions() as s:
@@ -584,7 +583,11 @@ def test_date_filters_use_local_days_and_multiple_status(api, admin):
     q = {"client_id": c["id"], "date_from": "2026-09-30", "date_to": "2026-09-30"}
     assert admin.get(f"{V1}/calls", params=q).json()["total"] == 1
     assert admin.get(f"{V1}/calls", params={**q, "tz": "UTC"}).json()["total"] == 0
-    assert admin.get(f"{V1}/stats/daily", params=q).json()["totals"] == [1]
+    # Los reportes cuentan el dia local igual (la de prueba entra con include_tests).
+    summary = admin.get(f"{V1}/reports/summary", params={**q, "include_tests": True}).json()
+    assert [d["voice"] for d in summary["daily"]] == [1]
+    assert [d["voice"] for d in admin.get(f"{V1}/reports/summary", params={**q, "include_tests": True, "tz": "UTC"}
+                                          ).json()["daily"]] == [0]
     live = admin.get(f"{V1}/calls", params={"status": ["pendiente", "en_curso"]}).json()
     assert live["total"] == 1
     assert admin.get(f"{V1}/calls", params={"tz": "Marte/Base"}).status_code == 422

@@ -29,12 +29,18 @@ export interface HeatCell {
 export interface SummaryKpis {
   conversations: number;
   by_channel: { voice: number; whatsapp: number; web: number };
+  /** Atendidas por un agente: la base de los porcentajes. */
+  with_agent: number;
+  conversions: number;
   conversion_pct: number | null;
+  goals: number;
   goal_pct: number | null;
   transfers: number;
   transfers_answered: number;
   transfer_pct: number | null;
   minutes: number;
+  finished: number;
+  failed: number;
   avg_duration: number | null;
   rejected_by_limit: number;
   wa_messages: number;

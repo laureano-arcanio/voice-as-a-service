@@ -114,7 +114,7 @@ Toolset `core` = `account` + `agents` + `calls`. Columna Plan: la función de `f
 | `agents` | `get_agent_schema`, `validate_agent_definition`, `preview_agent_prompt`, `list_agent_templates`, `list_voices`, `preview_voice` (audio), `list_llm_params` | — | `/agents/schema`, `/agents/validate`, `/agents/prompt`, `/voices`, `/tts/preview`, `/llm/params` |
 | `agents` | `test_agent_start`, `test_agent_turn`: conversación de prueba por texto con el agente | — | `/conversations` |
 | `agents` (OAuth) | `list_llm_connections`, `create_llm_connection`, `test_llm_connection`, `revoke_llm_connection` | — | `/clients/{id}/llm-connections` |
-| `calls` | `list_calls`, `get_call` (transcripción y datos tomados), `get_recording` (audio), `hangup_call`, `delete_calls`, `get_stats`, `get_daily_stats` | — | `/calls`, `/stats` |
+| `calls` | `list_calls`, `get_call` (transcripción y datos tomados), `get_recording` (audio), `hangup_call`, `delete_calls` | — | `/calls` |
 | `calls` | `start_call` (saliente a un número) | `outbound_calls` | `POST /calls` |
 | `calls` | `list_phone_numbers`, `route_phone_number` (a qué agente va) | — | `/phone-numbers` |
 | `calls` | `list_blocked_numbers`, `block_number`, `unblock_number` | — | `/blocked-numbers` |
@@ -440,7 +440,7 @@ no un preflight). El resto, en la fase 5 (sección 13).
   Las cifras de 87 y 116 de arriba son las de la fecha de cada fase.
 - `tests/test_mcp.py` (3 pruebas nuevas: catálogo, mismo resultado que la API y plan) y `tests/test_oauth.py` (admin
   con toda la plataforma). `make mcp-docs` regeneró `MCP_HERRAMIENTAS.md` y la página `/desarrolladores/docs/mcp`.
-  Falta medir con `make mcp-eval` si el modelo elige bien entre `get_stats` y `get_report_summary` (gasta tokens).
+  `get_stats` y `get_daily_stats` se quitaron el 28-oct-2026 (145 herramientas): `get_report_summary` trae sus totales.
 
 ## 13. Fase 5 (25-oct-2026)
 

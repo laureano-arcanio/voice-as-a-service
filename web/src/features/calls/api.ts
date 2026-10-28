@@ -1,7 +1,8 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { unwrap } from '@/api/request';
-import { isLiveStatus, LIVE_STATUSES } from '@/lib/labels';
+import { isLiveStatus } from '@/lib/labels';
+import { reportKeys } from '@/features/reports/api';
 import type { CallDetail, CallIn } from './types';
 
 export interface CallFilters {
@@ -28,10 +29,7 @@ export const BROWSER_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
 export const callKeys = {
   all: ['calls'] as const,
   list: (p: CallListParams) => ['calls', 'list', p] as const,
-  live: (p: CallFilters) => ['calls', 'live', p] as const,
   detail: (id: string) => ['calls', 'detail', id] as const,
-  stats: (p: CallFilters) => ['stats', p] as const,
-  daily: (p: CallFilters) => ['stats', 'daily', p] as const,
 };
 
 export function useCalls(p: CallListParams) {
@@ -39,49 +37,6 @@ export function useCalls(p: CallListParams) {
     queryKey: callKeys.list(p),
     queryFn: () => unwrap(api.GET('/api/v1/calls', { params: { query: { ...p, tz: BROWSER_TZ } } })),
     refetchInterval: 2000,
-    placeholderData: keepPreviousData,
-  });
-}
-
-/** Llamadas en curso (pendiente, sonando, en_curso) en un pedido, refresco cada 2 s. */
-export function useLiveCalls(p: CallFilters) {
-  return useQuery({
-    queryKey: callKeys.live(p),
-    queryFn: async () => {
-      const page = await unwrap(
-        api.GET('/api/v1/calls', {
-          params: {
-            query: {
-              client_id: p.client_id,
-              agent_id: p.agent_id,
-              campaign_id: p.campaign_id,
-              status: LIVE_STATUSES,
-              limit: 50,
-              tz: BROWSER_TZ,
-            },
-          },
-        }),
-      );
-      return page.items;
-    },
-    refetchInterval: 2000,
-  });
-}
-
-export function useStats(p: CallFilters) {
-  return useQuery({
-    queryKey: callKeys.stats(p),
-    queryFn: () => unwrap(api.GET('/api/v1/stats', { params: { query: { ...p, tz: BROWSER_TZ } } })),
-    refetchInterval: 5000,
-    placeholderData: keepPreviousData,
-  });
-}
-
-export function useDailyStats(p: CallFilters & { date_from: string; date_to: string }) {
-  return useQuery({
-    queryKey: callKeys.daily(p),
-    queryFn: () => unwrap(api.GET('/api/v1/stats/daily', { params: { query: { ...p, tz: BROWSER_TZ } } })),
-    refetchInterval: 30_000,
     placeholderData: keepPreviousData,
   });
 }
@@ -119,7 +74,7 @@ export function useStartCall() {
     mutationFn: (body: CallIn) => unwrap(api.POST('/api/v1/calls', { body })),
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: callKeys.all });
-      void qc.invalidateQueries({ queryKey: ['stats'] });
+      void qc.invalidateQueries({ queryKey: reportKeys.all });
       void qc.invalidateQueries({ queryKey: ['clients'] });
     },
   });
@@ -133,7 +88,7 @@ export function useDeleteConversations() {
     mutationFn: (ids: string[]) => unwrap(api.POST('/api/v1/calls/bulk-delete', { body: { ids } })),
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: callKeys.all });
-      void qc.invalidateQueries({ queryKey: ['stats'] });
+      void qc.invalidateQueries({ queryKey: reportKeys.all });
       void qc.invalidateQueries({ queryKey: ['clients'] });
     },
   });

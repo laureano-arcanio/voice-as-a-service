@@ -148,7 +148,7 @@ MP_HOSTS = ("https://*.mercadopago.com https://*.mercadopago.com.ar https://*.me
 
 
 def livekit_hosts() -> str:
-    """El LiveKit publico (wss://rtc.) para la llamada de prueba del panel (/calls/<id>/hablar): el SDK
+    """El LiveKit publico (wss://rtc.) para las llamadas desde el navegador (teléfono del panel): el SDK
     abre el websocket y, si falla, valida por https en el mismo host."""
     url = settings.demo_livekit_url or settings.livekit_url
     m = re.match(r"(wss?|https?)://([^/]+)", url or "")
@@ -228,7 +228,7 @@ class SecurityHeadersMiddleware:
                 add("referrer-policy", "strict-origin-when-cross-origin")
                 # same-origin cortaria el postMessage del popup de Embedded Signup.
                 add("cross-origin-opener-policy", "same-origin-allow-popups")
-                # Microfono solo para el propio sitio: la llamada de prueba (/calls/<id>/hablar).
+                # Microfono solo para el propio sitio: las llamadas del teléfono del panel.
                 add("permissions-policy", "camera=(), microphone=(self), geolocation=(), payment=()")
                 if b"content-security-policy" not in present and b"content-security-policy-report-only" not in present:
                     name = "content-security-policy-report-only" if settings.csp_report_only \

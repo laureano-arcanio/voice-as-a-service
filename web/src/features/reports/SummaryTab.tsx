@@ -43,16 +43,30 @@ function summaryKpis(r: SummaryReport): Kpi[] {
     {
       label: 'Completas',
       value: pct(k.conversion_pct),
+      sub: k.with_agent ? `${k.conversions} de ${k.with_agent}` : undefined,
       delta: deltaPoints(k.conversion_pct, p.conversion_pct),
     },
-    { label: 'Objetivo cumplido', value: pct(k.goal_pct), delta: deltaPoints(k.goal_pct, p.goal_pct) },
+    {
+      label: 'Objetivo cumplido',
+      value: pct(k.goal_pct),
+      sub: k.with_agent ? `${k.goals} de ${k.with_agent}` : undefined,
+      delta: deltaPoints(k.goal_pct, p.goal_pct),
+    },
     {
       label: 'Transferidas',
       value: formatNumber(k.transfers, 0),
       sub: k.transfers ? `${pct(k.transfer_pct)} · ${k.transfers_answered} atendidas` : undefined,
       delta: deltaPct(k.transfers, p.transfers),
     },
-    { label: 'Minutos', value: formatNumber(k.minutes), delta: deltaPct(k.minutes, p.minutes) },
+    {
+      label: 'Minutos',
+      value: formatNumber(k.minutes),
+      sub:
+        k.finished || k.failed
+          ? `${k.finished} finalizadas${k.failed ? ` · ${k.failed} fallidas` : ''}`
+          : undefined,
+      delta: deltaPct(k.minutes, p.minutes),
+    },
     {
       label: 'Duración media',
       value: formatDuration(k.avg_duration),

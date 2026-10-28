@@ -742,26 +742,6 @@
    "api_key": false
   },
   {
-   "name": "get_stats",
-   "toolset": "calls",
-   "title": "Estadísticas",
-   "description": "Totales del período: conversaciones, minutos, workflow completo y objetivo cumplido.",
-   "kind": "lectura",
-   "features": [],
-   "oauth": false,
-   "api_key": false
-  },
-  {
-   "name": "get_daily_stats",
-   "toolset": "calls",
-   "title": "Estadísticas por día",
-   "description": "Conversaciones por día y % con workflow completo y con objetivo cumplido.",
-   "kind": "lectura",
-   "features": [],
-   "oauth": false,
-   "api_key": false
-  },
-  {
    "name": "list_phone_numbers",
    "toolset": "calls",
    "title": "Números",
@@ -849,7 +829,7 @@
    "name": "get_report_summary",
    "toolset": "reports",
    "title": "Reporte: resumen",
-   "description": "Resumen del período contra el anterior: consultas (llamadas y conversaciones de WhatsApp) por canal, % de conversión (datos completos) y de objetivo cumplido, cuántas terminaron en una transferencia a una persona (pedidas, atendidas y % de las consultas), minutos, duración media, llamadas rechazadas por el límite del plan y mensajes de WhatsApp; el consumo de minutos del mes con su proyección a fin de mes; y la serie diaria de consultas por canal con las transferencias. Es lo primero a consultar para \"¿cómo nos fue?\" o \"¿alcanza el plan?\". Para solo los totales, sin desglose, get_stats.",
+   "description": "Resumen del período contra el anterior: consultas (llamadas y conversaciones de WhatsApp) por canal, cuántas (y qué % de las atendidas por un agente) tienen los datos completos y cumplen el objetivo, cuántas terminaron en una transferencia a una persona (pedidas, atendidas y % de las consultas), minutos, llamadas finalizadas, fallidas y rechazadas por el límite del plan, duración media y mensajes de WhatsApp; el consumo de minutos del mes con su proyección a fin de mes; y la serie diaria de consultas por canal con las transferencias. Es lo primero a consultar para \"¿cómo nos fue?\" o \"¿alcanza el plan?\".",
    "kind": "lectura",
    "features": [],
    "oauth": false,

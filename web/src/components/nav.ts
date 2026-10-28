@@ -15,7 +15,6 @@ import {
   IconCpu,
   IconCreditCard,
   IconFileInvoice,
-  IconHome,
   IconMessages,
   IconMicrophone,
   IconPhone,
@@ -54,7 +53,6 @@ export const isGroup = (e: NavEntry): e is NavGroup => 'items' in e;
 
 // Menú del panel del cliente (también el de un admin que entró como el cliente).
 export const CLIENT_NAV: NavEntry[] = [
-  { to: '/', label: 'Inicio', icon: IconHome },
   { to: '/reports', label: 'Reportes', icon: IconChartHistogram },
   { to: '/calls', label: 'Conversaciones', icon: IconMessages },
   {
@@ -115,7 +113,6 @@ export const CLIENT_NAV: NavEntry[] = [
 // Administración (/admin, docs/ADMIN_SOPORTE_PLAN.md): la plataforma y las vistas de todos los clientes. El
 // resto se ve entrando como el cliente (ficha del cliente o link de una fila).
 export const ADMIN_NAV: NavEntry[] = [
-  { to: '/admin', label: 'Inicio', icon: IconHome },
   { to: '/admin/reports', label: 'Reportes', icon: IconChartHistogram },
   { to: '/admin/calls', label: 'Conversaciones', icon: IconMessages },
   { to: '/admin/agents', label: 'Agentes', icon: IconRobot },

@@ -166,8 +166,11 @@ def test_whatsapp_conversation_in_list_detail_and_stats(api, admin, setup):
     assert detail["messages"][0]["role"] == "user"
     assert admin.get(f"{V1}/calls/{test_call}").json()["whatsapp"] is None
 
-    stats = admin.get(f"{V1}/stats", params={"client_id": c["id"]}).json()
-    assert stats["total"] == 3 and stats["calls"] == 1 and stats["whatsapp"] == 1
+    # Los reportes cuentan la de WhatsApp; la de prueba y la de la API, solo con include_tests.
+    kpis = admin.get(f"{V1}/reports/summary", params={"client_id": c["id"]}).json()["kpis"]
+    assert kpis["conversations"] == 1 and kpis["by_channel"]["whatsapp"] == 1
+    kpis = admin.get(f"{V1}/reports/summary", params={"client_id": c["id"], "include_tests": True}).json()["kpis"]
+    assert kpis["conversations"] == 3 and kpis["by_channel"] == {"voice": 2, "whatsapp": 1, "web": 0}
 
 
 def test_client_user_sees_its_whatsapp_conversations(api, admin, setup):

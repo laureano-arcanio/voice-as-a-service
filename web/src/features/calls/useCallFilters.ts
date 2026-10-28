@@ -5,7 +5,7 @@ import type { CallFilters } from '@/features/calls/api';
 export type RangePreset = '7' | '30' | 'custom';
 export type AnsweredFilter = 'agent' | 'team';
 
-export interface DashboardFilters {
+export interface CallFiltersState {
   client: string | null;
   agent: string | null;
   campaign: string | null;
@@ -21,13 +21,13 @@ export interface DashboardFilters {
   page: number;
 }
 
-/** Filtros del dashboard en la URL (se pueden compartir y sobreviven al refresco). */
-export function useDashboardFilters() {
+/** Filtros de las conversaciones en la URL (se pueden compartir y sobreviven al refresco). */
+export function useCallFilters() {
   const [params, setParams] = useSearchParams();
   const range = (
     ['7', '30', 'custom'].includes(params.get('range') ?? '') ? params.get('range') : '30'
   ) as RangePreset;
-  const filters: DashboardFilters = {
+  const filters: CallFiltersState = {
     client: params.get('client'),
     agent: params.get('agent'),
     campaign: params.get('campaign'),
@@ -43,7 +43,7 @@ export function useDashboardFilters() {
     page: Math.max(1, Number(params.get('page')) || 1),
   };
 
-  const update = (patch: Partial<DashboardFilters>) => {
+  const update = (patch: Partial<CallFiltersState>) => {
     setParams(
       (prev) => {
         const next = new URLSearchParams(prev);
