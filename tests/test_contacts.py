@@ -374,3 +374,18 @@ def test_tier_api_campaign_fields(api, admin):  # noqa: F811
         ["voice", "whatsapp"], True, 5)
     assert admin.patch(f"{V1}/tiers/{t['id']}", json={"campaign_channels": ["sms"]}).status_code == 422
     assert admin.post(f"{V1}/tiers", json={"name": "X", "max_contacts": -1}).status_code == 422
+
+
+def test_api_delete_client_with_contacts_or_campaign(api, admin, sessions):  # noqa: F811
+    # contacts y campaigns tienen client_id RESTRICT: en PostgreSQL, sin el chequeo, borrar daba 500.
+    acme, other = make_client(admin, "acme"), make_client(admin, "otro")
+    user = client_user(api, admin, acme)
+    assert user.post(f"{V1}/contacts", json={"phone": "351 555-1234"}).status_code == 201
+    assert admin.delete(f"{V1}/clients/{acme['id']}").status_code == 204
+    with sessions() as s:
+        assert s.scalars(select(Contact).where(Contact.client_id == acme["id"])).all() == []
+        s.add(Campaign(client_id=other["id"], channel="whatsapp", account_id="a", name="A", template_name="t",
+                       template_language="es_AR", status="draft"))
+        s.commit()
+    r = admin.delete(f"{V1}/clients/{other['id']}")
+    assert r.status_code == 409 and r.json()["code"] == "client_in_use", r.text

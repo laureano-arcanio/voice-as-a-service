@@ -1,18 +1,22 @@
 from fastapi import APIRouter, Query
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 
 from ...mail import notify
 from ...models import (
     Agent,
+    CallRow,
+    Campaign,
     Client,
     ClientLimitAdjustment,
+    Contact,
     ConversationRow,
     PhoneNumber,
     Role,
     Tier,
     User,
     WaAccount,
+    WaThread,
 )
 from ...services import api_usage, branding, limits, phone_numbers, quota
 from ...services.errors import Conflict, Invalid, NotFound
@@ -123,14 +127,22 @@ def update_client(client_id: str, body: ClientUpdate, p: AdminPrincipal, db: DB)
 
 @router.delete("/{client_id}", status_code=204)
 def delete_client(client_id: str, p: AdminPrincipal, db: DB):
-    """Solo sin conversaciones; con historial, desactivarlo (active=false)."""
+    """Solo sin historial (conversaciones, llamadas, campañas, WhatsApp); con historial, desactivarlo
+    (active=false). Los contactos se borran con el cliente."""
     client = get_client(db, p, client_id)
-    if db.scalar(select(func.count()).select_from(ConversationRow).where(ConversationRow.client_id == client.id)):
-        raise Conflict("El cliente tiene conversaciones: desactivalo en vez de borrarlo", "client_in_use")
-    # wa_accounts.client_id es RESTRICT: sin esto, IntegrityError (500) en PostgreSQL.
-    if db.scalar(select(func.count()).select_from(WaAccount).where(WaAccount.client_id == client.id)):
-        raise Conflict("El cliente tiene números de WhatsApp conectados: desactivalo en vez de borrarlo",
-                       "client_in_use")
+    # Tablas con client_id RESTRICT: sin estos chequeos, IntegrityError (500) en PostgreSQL.
+    in_use = (
+        (ConversationRow, "conversaciones"),
+        (CallRow, "llamadas"),
+        (WaThread, "conversaciones de WhatsApp"),
+        (Campaign, "campañas (las borradores se pueden borrar)"),
+        (WaAccount, "números de WhatsApp conectados"),
+    )
+    for model, what in in_use:
+        if db.scalar(select(func.count()).select_from(model).where(model.client_id == client.id)):
+            raise Conflict(f"El cliente tiene {what}: desactivalo en vez de borrarlo", "client_in_use")
+    # contacts.client_id tambien es RESTRICT, pero la agenda no es historial: sin campañas, nada la referencia.
+    db.execute(delete(Contact).where(Contact.client_id == client.id))
     db.delete(client)
     db.commit()
     branding.drop_files(client_id)
