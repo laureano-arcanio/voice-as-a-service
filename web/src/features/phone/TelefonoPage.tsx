@@ -133,7 +133,7 @@ function CallsTable({ items, showContact = true }: { items: CallSummary[]; showC
                 <Badge color="gray">{callKind(c)}</Badge>
               </Table.Td>
               <Table.Td>
-                <CallStatusBadge status={c.status} />
+                <CallStatusBadge status={c.status} endedReason={c.ended_reason} />
               </Table.Td>
               <Table.Td ta="right" className="mono">
                 {formatDuration(c.duration_seconds)}

@@ -370,15 +370,13 @@ alcanza. En la navegación, debajo de Inicio.
 
 ### Llamadas (`/outbound`)
 
-- El agente llama a un contacto **con un motivo**: por ejemplo, la consulta que la persona dejó en la web
-  ("quiero el precio de la BJ30 en plan de ahorro"). El agente arranca por ahí, sin preguntar lo que el
-  motivo ya dice.
+- El agente llama a un contacto o a un número.
 - **Formulario:** agente, destino (un contacto de la agenda, buscado por nombre o teléfono, o un número
-  suelto en formato +549…), número de origen, motivo (hasta 2000 caracteres) y **Llamar**. Con un contacto,
-  su nombre y email también le llegan al agente (como en una campaña: `{{nombre}}` en la apertura).
-- **Modo prueba:** no marca; te conectás por navegador y hacés de contacto. Usa solo el motivo.
+  suelto en formato +549…), número de origen y **Llamar**. Con un contacto, su nombre y email también le
+  llegan al agente (como en una campaña: `{{nombre}}` en la apertura). Sin motivo ni modo prueba desde el
+  27-oct-2026 (la API sigue aceptando `context`; para probar un agente, la pestaña Probar).
 - Un número en la lista de bajas de voz del cliente (Contactos, Bajas) no se llama (409).
-- **Últimas llamadas:** las 10 salientes más nuevas, con estado, duración y resultado. El resultado sale
+- **Últimas llamadas:** las 10 salientes más nuevas, con estado, duración y resultado. Si nadie atendió o estaba ocupado, la llamada queda igual en la lista (y en Conversaciones) con la marca **No atendida**. El resultado sale
   de la definición del agente (por ejemplo, área y urgencia). Si el agente tiene prendido el resumen por
   email, al cortar le llega al equipo, con el motivo.
 - El detalle de la llamada muestra el motivo en "Motivo del llamado".
@@ -485,6 +483,7 @@ Motivos de fin frecuentes (`ended_reason`):
 | `calls_per_hour`, `calls_per_day`, `calls_per_month` | Rechazada: el cliente llegó al tope de llamadas de la hora, el día o el mes. |
 | `inbound_minutes`, `outbound_minutes` | Rechazada: sin minutos del mes. |
 | `client_inactive` | Rechazada: el cliente está desactivado. |
+| `no_answer`, `busy` | La saliente sonó y nadie atendió, o estaba ocupado: la llamada queda como **No atendida**. |
 | `sip_call_failed` | La saliente no se pudo marcar (número, troncal o Anura). |
 | `dispatch_failed` | La app no pudo despachar el agente a LiveKit. |
 | `test_mode_timeout` | Nadie entró a la llamada de prueba en 5 minutos. |

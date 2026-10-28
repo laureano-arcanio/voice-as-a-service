@@ -774,7 +774,9 @@ async def entrypoint(ctx: JobContext):
         except Exception as e:
             result, sip_code = campaign_calls.classify_error(e)
             logger.exception("sip call failed %s (%s, SIP %s)", conversation_id, result, sip_code)
-            fail(str(e), "sip_call_failed", result, sip_code)
+            # Que no atendio o estaba ocupado queda como motivo de la llamada (la UI la marca "No atendida");
+            # el resto de los fallos de la saliente, como sip_call_failed.
+            fail(str(e), result if result in ("no_answer", "busy") else "sip_call_failed", result, sip_code)
             return
     elif mode in (CallMode.prueba, CallMode.loadtest, CallMode.web):
         join_timeout = metadata.get("join_timeout_seconds") or 300

@@ -312,7 +312,7 @@ export function CallsTable({
                     <OriginBadge mode={c.mode} phone={c.phone} answeredBy={c.answered_by} />
                   </Table.Td>
                   <Table.Td>
-                    <CallStatusBadge status={c.status} />
+                    <CallStatusBadge status={c.status} endedReason={c.ended_reason} />
                   </Table.Td>
                   <Table.Td ta="right" className="mono">
                     {formatDuration(c.duration_seconds)}

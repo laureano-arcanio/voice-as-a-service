@@ -15,6 +15,13 @@ export const CALL_STATUS: Record<string, Label> = {
   rechazada: { label: 'Rechazada', color: 'yellow' },
 };
 
+/** La saliente que nadie atendió o estaba ocupada: `fallida` con ended_reason no_answer o busy. */
+export const CALL_UNANSWERED: Label = { label: 'No atendida', color: 'yellow' };
+
+export function isUnanswered(c: { status?: string | null; ended_reason?: string | null }): boolean {
+  return c.status === 'fallida' && (c.ended_reason === 'no_answer' || c.ended_reason === 'busy');
+}
+
 export const CALL_MODE: Record<string, Label> = {
   saliente: { label: 'Saliente', color: 'gray' },
   entrante: { label: 'Entrante', color: 'gray' },

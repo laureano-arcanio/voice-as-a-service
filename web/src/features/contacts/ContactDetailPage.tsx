@@ -161,7 +161,7 @@ function CallsCard({ contactId }: { contactId: string }) {
                           )}
                         </Table.Td>
                         <Table.Td>
-                          <CallStatusBadge status={c.status} />
+                          <CallStatusBadge status={c.status} endedReason={c.ended_reason} />
                         </Table.Td>
                         <Table.Td className="mono" ta="right">
                           {formatDuration(c.duration_seconds)}

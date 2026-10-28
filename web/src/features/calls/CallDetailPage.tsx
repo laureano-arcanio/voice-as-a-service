@@ -220,7 +220,7 @@ function CallHeader({ c }: { c: CallDetail }) {
         ) : (
           <>
             <Item label="Estado">
-              <CallStatusBadge status={call?.status} />
+              <CallStatusBadge status={call?.status} endedReason={call?.ended_reason} />
             </Item>
             <Item label="Duración">
               <span className="mono">{formatDuration(call?.duration_seconds)}</span>

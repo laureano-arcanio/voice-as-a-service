@@ -2,15 +2,12 @@ import {
   Anchor,
   Button,
   Card,
-  Grid,
   Group,
   SegmentedControl,
   Select,
   Stack,
-  Switch,
   Table,
   Text,
-  Textarea,
   TextInput,
   Title,
 } from '@mantine/core';
@@ -32,8 +29,6 @@ import { useContacts } from '@/features/contacts/api';
 import { usePhoneNumbers } from '@/features/numbers/api';
 import { E164_RE, formatDateTime, formatDuration, formatValue } from '@/lib/format';
 
-// El tope de la API (CallIn.context).
-const MAX_CONTEXT = 2000;
 const RECENT = 10;
 
 type Target = 'contact' | 'phone';
@@ -131,7 +126,7 @@ function RecentCalls() {
                   </Table.Td>
                   <Table.Td>{c.agent_name ?? <Dash />}</Table.Td>
                   <Table.Td>
-                    <CallStatusBadge status={c.status} />
+                    <CallStatusBadge status={c.status} endedReason={c.ended_reason} />
                   </Table.Td>
                   <Table.Td ta="right" className="mono">
                     {formatDuration(c.duration_seconds)}
@@ -155,8 +150,8 @@ function RecentCalls() {
 }
 
 /**
- * Llamada saliente suelta con motivo: el agente llama a un contacto (de la agenda o un número)
- * con el texto que se escribe acá, por ejemplo la consulta que dejó en la web.
+ * Llamada saliente suelta: el agente llama a un contacto (de la agenda o un número). Las que nadie
+ * atiende quedan en la lista de abajo con la marca "No atendida".
  */
 export function OutboundCallsPage() {
   const agents = useAgents();
@@ -164,9 +159,7 @@ export function OutboundCallsPage() {
   const [target, setTarget] = useState<Target>('contact');
   const [contact, setContact] = useState<Contact | null>(null);
   const [phone, setPhone] = useState('');
-  const [context, setContext] = useState('');
   const [fromNumber, setFromNumber] = useState<string | null>(null);
-  const [testMode, setTestMode] = useState(false);
   const [targetError, setTargetError] = useState<string | null>(null);
   const [agentError, setAgentError] = useState<string | null>(null);
   const start = useStartCall();
@@ -186,26 +179,21 @@ export function OutboundCallsPage() {
   const submit = () => {
     if (!agent) return setAgentError('Elegí el agente que va a llamar.');
     const p = phone.trim().replace(/[\s-]/g, '');
-    if (!testMode) {
-      if (target === 'contact' && !contact)
-        return setTargetError('Elegí un contacto o activá el modo prueba.');
-      if (target === 'phone' && !E164_RE.test(p))
-        return setTargetError('Formato internacional: + y entre 8 y 15 dígitos (ej. +5493515551234).');
-    }
+    if (target === 'contact' && !contact) return setTargetError('Elegí un contacto.');
+    if (target === 'phone' && !E164_RE.test(p))
+      return setTargetError('Formato internacional: + y entre 8 y 15 dígitos (ej. +5493515551234).');
     setTargetError(null);
     start.mutate(
       {
         agent_id: agent.id,
-        // Con contacto, la API marca su teléfono: en modo prueba (sin marcar) va solo el motivo.
-        contact_id: !testMode && target === 'contact' ? (contact?.id ?? null) : null,
-        phone: !testMode && target === 'phone' ? p : null,
-        from_number_id: testMode ? null : from,
-        context: context.trim() || null,
+        // Con contacto, la API marca su teléfono.
+        contact_id: target === 'contact' ? (contact?.id ?? null) : null,
+        phone: target === 'phone' ? p : null,
+        from_number_id: from,
         loadtest: false,
       },
       {
         onSuccess: () => {
-          setContext('');
           setPhone('');
           setContact(null);
         },
@@ -217,7 +205,7 @@ export function OutboundCallsPage() {
     <Stack gap="md">
       <PageHeader
         title="Llamadas"
-        description="El agente llama a un contacto con el motivo que escribís, por ejemplo la consulta que dejó en tu web, y al cortar queda el resultado para que tu equipo siga."
+        description="El agente llama a un contacto y, al cortar, queda el resultado para que tu equipo siga. Si no atienden, la llamada queda igual en la lista, marcada como no atendida."
       />
       <PlanGate
         feature="outbound_calls"
@@ -228,103 +216,72 @@ export function OutboundCallsPage() {
           <Title order={4} mb="sm">
             Nueva llamada
           </Title>
-          <Grid gutter="md">
-            <Grid.Col span={{ base: 12, md: 6 }}>
-              <Stack gap="sm">
-                <Select
-                  label="Agente"
-                  placeholder={agents.isPending ? 'Cargando…' : 'Elegí un agente'}
-                  data={agentOptions(list)}
-                  value={agent?.id ?? null}
-                  onChange={(v) => {
-                    setAgentId(v);
-                    setAgentError(null);
-                    setContact(null);
-                    setFromNumber(null);
-                  }}
-                  searchable
-                  allowDeselect={false}
-                  nothingFoundMessage="Sin agentes"
-                  error={agentError ?? (agents.isError ? errorMessage(agents.error) : undefined)}
-                />
-                <SegmentedControl
-                  value={target}
-                  onChange={(v) => {
-                    setTarget(v as Target);
-                    setTargetError(null);
-                  }}
-                  data={[
-                    { value: 'contact', label: 'Contacto de la agenda' },
-                    { value: 'phone', label: 'Otro número' },
-                  ]}
-                />
-                {target === 'contact' ? (
-                  <ContactPicker
-                    clientId={agent?.client_id}
-                    value={contact}
-                    onChange={(c) => {
-                      setContact(c);
-                      setTargetError(null);
-                    }}
-                    error={targetError}
-                  />
-                ) : (
-                  <TextInput
-                    label="Teléfono"
-                    type="tel"
-                    placeholder="+5493515551234"
-                    value={phone}
-                    onChange={(e) => setPhone(e.currentTarget.value)}
-                    disabled={testMode}
-                    error={targetError}
-                    autoComplete="off"
-                  />
-                )}
-                {!testMode && (
-                  <Select
-                    label="Número de origen"
-                    description="Por defecto, el número que atiende el agente."
-                    placeholder={
-                      !agent
-                        ? 'Elegí primero el agente'
-                        : fromOptions.length
-                          ? 'El primero del cliente'
-                          : 'El cliente no tiene números'
-                    }
-                    data={fromOptions}
-                    value={from}
-                    onChange={setFromNumber}
-                    allowDeselect={false}
-                    disabled={!fromOptions.length}
-                  />
-                )}
-              </Stack>
-            </Grid.Col>
-            <Grid.Col span={{ base: 12, md: 6 }}>
-              <Stack gap="sm">
-                <Textarea
-                  label="Motivo del llamado"
-                  description="Lo que el contacto dejó escrito o lo que necesitás que resuelva. El agente lo usa para ir al punto, sin leerlo."
-                  placeholder="Dejó una consulta en la web: quiere precio y formas de pago, y pregunta si le toman el usado."
-                  autosize
-                  minRows={5}
-                  maxRows={12}
-                  maxLength={MAX_CONTEXT}
-                  value={context}
-                  onChange={(e) => setContext(e.currentTarget.value)}
-                />
-                <Text size="xs" c="dimmed" ta="right" className="mono">
-                  {context.length}/{MAX_CONTEXT}
-                </Text>
-                <Switch
-                  label="Modo prueba"
-                  description="No marca ningún teléfono: te conectás por navegador y hacés de contacto. Se usa solo el motivo."
-                  checked={testMode}
-                  onChange={(e) => setTestMode(e.currentTarget.checked)}
-                />
-              </Stack>
-            </Grid.Col>
-          </Grid>
+          <Stack gap="sm" maw={520}>
+            <Select
+              label="Agente"
+              placeholder={agents.isPending ? 'Cargando…' : 'Elegí un agente'}
+              data={agentOptions(list)}
+              value={agent?.id ?? null}
+              onChange={(v) => {
+                setAgentId(v);
+                setAgentError(null);
+                setContact(null);
+                setFromNumber(null);
+              }}
+              searchable
+              allowDeselect={false}
+              nothingFoundMessage="Sin agentes"
+              error={agentError ?? (agents.isError ? errorMessage(agents.error) : undefined)}
+            />
+            <SegmentedControl
+              value={target}
+              onChange={(v) => {
+                setTarget(v as Target);
+                setTargetError(null);
+              }}
+              data={[
+                { value: 'contact', label: 'Contacto de la agenda' },
+                { value: 'phone', label: 'Otro número' },
+              ]}
+            />
+            {target === 'contact' ? (
+              <ContactPicker
+                clientId={agent?.client_id}
+                value={contact}
+                onChange={(c) => {
+                  setContact(c);
+                  setTargetError(null);
+                }}
+                error={targetError}
+              />
+            ) : (
+              <TextInput
+                label="Teléfono"
+                type="tel"
+                placeholder="+5493515551234"
+                value={phone}
+                onChange={(e) => setPhone(e.currentTarget.value)}
+                error={targetError}
+                autoComplete="off"
+              />
+            )}
+            <Select
+              label="Número de origen"
+              description="Por defecto, el número que atiende el agente."
+              placeholder={
+                !agent
+                  ? 'Elegí primero el agente'
+                  : fromOptions.length
+                    ? 'El primero del cliente'
+                    : 'El cliente no tiene números'
+              }
+              data={fromOptions}
+              value={from}
+              onChange={setFromNumber}
+              allowDeselect={false}
+              disabled={!fromOptions.length}
+            />
+          </Stack>
           <Group gap="sm" align="center" mt="md">
             <Button
               leftSection={<IconPhoneCall size={18} />}
@@ -332,7 +289,7 @@ export function OutboundCallsPage() {
               loading={start.isPending}
               disabled={!agent}
             >
-              {testMode ? 'Crear llamada de prueba' : 'Llamar'}
+              Llamar
             </Button>
             <Text size="xs" c="dimmed" style={{ flex: 1, minWidth: 200 }}>
               Al cortar, el resultado (por ejemplo, a qué área pasa y con qué urgencia) queda en

@@ -1,7 +1,15 @@
 import { Badge, Group, Text } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import type { ReactNode } from 'react';
-import { CALL_MODE, CALL_STATUS, isTeamInbound, WORKFLOW_STATUS, type Label } from '@/lib/labels';
+import {
+  CALL_MODE,
+  CALL_STATUS,
+  CALL_UNANSWERED,
+  isTeamInbound,
+  isUnanswered,
+  WORKFLOW_STATUS,
+  type Label,
+} from '@/lib/labels';
 
 /** Valor faltante: raya en dimmed. */
 export function Dash() {
@@ -27,9 +35,18 @@ function MappedBadge({ map, value }: { map: Record<string, Label>; value: string
   return <Badge color={l.color}>{l.label}</Badge>;
 }
 
-export function CallStatusBadge({ status }: { status: string | null | undefined }) {
+export function CallStatusBadge({
+  status,
+  endedReason,
+}: {
+  status: string | null | undefined;
+  /** CallSummary.ended_reason: con `no_answer` o `busy` la fallida se muestra como "No atendida". */
+  endedReason?: string | null;
+}) {
   if (status === 'sonando' || status === 'en_curso')
     return <LiveBadge>{CALL_STATUS[status].label}</LiveBadge>;
+  if (isUnanswered({ status, ended_reason: endedReason }))
+    return <Badge color={CALL_UNANSWERED.color}>{CALL_UNANSWERED.label}</Badge>;
   return <MappedBadge map={CALL_STATUS} value={status} />;
 }
 
