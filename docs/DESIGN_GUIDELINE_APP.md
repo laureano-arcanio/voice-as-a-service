@@ -9,8 +9,8 @@ y más estados. Leerla antes de agregar o cambiar una pantalla de `web/`.
   otra librería de componentes.
 - **Fuente de verdad:** [`web/src/theme.ts`](../web/src/theme.ts) y [`web/src/styles.css`](../web/src/styles.css).
   Si esta guía y el código difieren, se corrige la guía en el mismo cambio.
-- **Estado (2-oct-2026):** `web/` ya usa el tema de la sección 11 (antes, navy y ámbar con Inter y modo
-  oscuro). Lo nuevo se escribe con colores por nombre, sin hex, así cambia solo si cambia el tema.
+- **Colores por nombre:** lo nuevo se escribe con colores por nombre (`blue`, `green`...), sin hex, así cambia
+  solo si cambia el tema (y la marca blanca, sección 12, funciona sin tocar la pantalla).
 - **Regla general:** el diseño se resuelve en el tema y en los componentes compartidos
   (`web/src/components/`), no pantalla por pantalla. Antes de dar estilo a mano, buscar el componente
   de Mantine o el compartido que ya lo hace.
@@ -26,7 +26,7 @@ y más estados. Leerla antes de agregar o cambiar una pantalla de `web/`.
 
 ## 2. Interno y cliente
 
-Es una sola app y un solo sistema visual, con dos áreas ([`ADMIN_SOPORTE_PLAN.md`](ADMIN_SOPORTE_PLAN.md), 27-oct-2026):
+Es una sola app y un solo sistema visual, con dos áreas ([`ARQUITECTURA.md`](ARQUITECTURA.md#soporte-del-admin)):
 la **administración** (`/admin/*`, mismo `AppLayout` con `ADMIN_NAV`) y el **panel del cliente** (`/`). Las diferencias son por área, no
 por pantalla. Cambia qué se muestra y cómo se dice:
 
@@ -42,7 +42,7 @@ por pantalla. Cambia qué se muestra y cómo se dice:
 - La columna "Cliente" y los filtros por cliente solo existen en `/admin`. Las pantallas del cliente no tienen
   selector de cliente ni columnas o acciones "solo admin": lo que es técnico va plegado ("Detalle técnico") o en `/admin`.
 - Cada área tiene su menú en `components/nav.ts`: `ADMIN_NAV` (Reportes, Conversaciones, Agentes de solo
-  lectura, Uso de la API, Clientes, Números, Tiers, Cobros, Usuarios) y `CLIENT_NAV`. Lo demás del admin se hace
+  lectura, Uso de la API, Clientes, Números, Tiers, Cobros, Usuarios y Sistema) y `CLIENT_NAV`. Lo demás del admin se hace
   **entrando como el cliente** (ficha del cliente, o "Abrir como el cliente" en Agentes y Conversaciones): ve el panel
   del cliente tal cual, con la marca "soporte" y el botón "Volver a administración". Por eso no se escribe una
   pantalla de admin para lo que ya existe en el panel del cliente.
@@ -278,13 +278,21 @@ Variables propias (`cssVariablesResolver`):
 ## 12. Marca blanca
 
 Un cliente cuyo plan incluye `white_label` puede ver el panel con su logo y sus colores
-([`MARCA_BLANCA_PLAN.md`](MARCA_BLANCA_PLAN.md); desde el 26-oct-2026). Lo configura un admin en la ficha del
+([`ARQUITECTURA.md`](ARQUITECTURA.md#marca-blanca)). Lo configura un admin en la ficha del
 cliente, pestaña "Marca blanca". Qué cambia y qué no:
 
-- **Primario:** reemplaza al azul. `web/src/branding/theme.ts` genera la escala de 10 tonos desde el hex del cliente
-  (`color.ts`, el hex en el tono 6) y la pone como `colors.blue`: `color="blue"`, `variant="light"` y
-  `--mantine-color-blue-*` siguen funcionando sin tocar ningún componente. El primario tiene que dar 4,5:1 con blanco
-  (la API lo exige).
+- **Primario:** reemplaza al azul. `brandTheme` (`web/src/branding/theme.ts`) hace
+  `createTheme({ ...theme, colors: { ...theme.colors, blue: scale(primary) } })` y `primaryColor` sigue siendo
+  `'blue'`: `color="blue"`, `variant="light"` y `--mantine-color-blue-*` funcionan sin tocar ningún componente.
+  `scale(hex)` (`color.ts`) arma 10 tonos: 0 a 5 mezclando hacia blanco (91,4, 85,2, 77, 68,8, 59,8 y 27 %), el 6 es
+  el color y 7 a 9 hacia negro (22,1, 35,3 y 48,8 %). Con `#2456e6` se desvía hasta 10 puntos por canal de la escala
+  `blue` del tema (la del tema no es una mezcla lineal); sin marca no se usa, así que el panel de Atentina no cambia.
+  El primario tiene que dar 4,5:1 con blanco (la API lo exige; `contrast()` en `color.ts` y en
+  `app/services/branding.py`, con tests de los dos lados).
+- **Variables:** `brandCssVariables` suma `--app-header-bg`, `--app-header-fg`, `--chart-1` (= primario),
+  `--chart-2` (= acento) y `--brand-accent`. `MantineProvider` recibe el tema del `BrandingProvider`
+  (`Provider.tsx`), que lee `me.branding` (o la pública en el login) y arranca con la última marca guardada en
+  `localStorage` (`branding:last`) para que no parpadee el azul de Atentina.
 - **Encabezado:** el header toma `--app-header-bg`; texto e íconos, `--app-header-fg` (blanco o tinta, según contraste);
   la línea, `--app-header-line`. Lo que vaya en el header no puede asumir fondo blanco: usar esas variables
   (`styles.css`, `.app-header` y `.brand-header`).

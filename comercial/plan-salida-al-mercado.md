@@ -11,7 +11,7 @@ ARS 1.525.
 El MVP está terminado (voz entrante y saliente, agentes por cliente, demo en la landing). **WhatsApp
 (8-oct-2026), adelantado respecto de la hoja de ruta de abajo:** texto, notas de voz, campañas de
 plantillas y llamadas por SIP en producción con el número de Atentina; que un cliente conecte su propio
-número espera la aprobación de Meta (estado por parte en [`../WHATSAPP_PLAN.md`](../docs/WHATSAPP_PLAN.md)).
+número espera la aprobación de Meta (estado por parte en [`features/WHATSAPP.md`](../docs/features/WHATSAPP.md)).
 Desde el 28-oct-2026 también están en producción las campañas salientes de voz, la derivación a una persona del cliente, las llamadas directas del equipo, la grabación y los reportes (detalle en `docs/features/`). Esta etapa es un **piloto comercial para descubrir quién paga y por
 qué**, no para ejecutar un foco ya elegido.
 
@@ -250,5 +250,5 @@ CAP-002 vendiendo el 30 % de su capacidad. El cuello es comercial, no de hardwar
 
 - Precio por resultado: definir el valor por llamada atendida y por promesa para cada variante.
 - Marca y posicionamiento público (nombre, sitio, caso de uso en la portada).
-- Hardware de producción y ubicación: propuesta en [`../PRODUCCION.md`](../docs/PRODUCCION.md) (este server, con redundancia al primer cliente); falta quién opera el servicio 24×7.
+- Hardware de producción y ubicación: propuesta en [`INFRA.md`](../docs/INFRA.md) (este server, con redundancia al primer cliente); falta quién opera el servicio 24×7.
 - Términos de canal (comisión, exclusividad por vertical, marca blanca).

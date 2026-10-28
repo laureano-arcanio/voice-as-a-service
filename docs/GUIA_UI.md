@@ -1,11 +1,11 @@
 # Guía de la UI
 
 Cómo hacer cada cosa desde la UI (`http://<host>:8011/`; en este server `http://192.168.1.99:8011/`;
-desde internet, `https://app.atentina.com.ar/` cuando se publique). Todo lo que hace la UI también se
+desde internet, `https://app.atentina.com.ar/`). Todo lo que hace la UI también se
 puede hacer por la API (`/api/v1/docs`, solo con sesión de admin). La arquitectura está en
 [`ARQUITECTURA.md`](ARQUITECTURA.md).
 
-Hay dos roles, y cada uno trabaja en su área ([`ADMIN_SOPORTE_PLAN.md`](ADMIN_SOPORTE_PLAN.md)):
+Hay dos roles, y cada uno trabaja en su área ([`ARQUITECTURA.md`](ARQUITECTURA.md#soporte-del-admin)):
 - **Cliente:** usuario de un cliente, que solo ve lo suyo. Su panel (`/`) tiene este menú (los grupos se
   despliegan con un click; arranca abierto el de la pantalla actual):
   - Reportes y Conversaciones, sueltos. Al entrar a `/` se abre Reportes.
@@ -13,10 +13,10 @@ Hay dos roles, y cada uno trabaja en su área ([`ADMIN_SOPORTE_PLAN.md`](ADMIN_S
   - **Canales:** WhatsApp, Llamadas del agente, Teléfono del equipo y Campañas.
   - **Agenda:** Contactos y Equipo.
   - **Developers:** API keys y Uso de la API.
-  - **Cuenta:** Números (antes Mi cuenta) y Plan.
+  - **Cuenta:** Números (`/account`) y Plan.
 - **Admin:** administra la plataforma en `/admin/*` (al iniciar sesión va siempre ahí). Su menú:
   Reportes, Conversaciones, Agentes (solo lectura, de todos los clientes), Uso de la API, Clientes, Números,
-  Tiers, Cobros y Usuarios. Lo demás (agentes, herramientas, WhatsApp, contactos, campañas, equipo...) no está
+  Tiers, Cobros, Usuarios y Sistema. Lo demás (agentes, herramientas, WhatsApp, contactos, campañas, equipo...) no está
   en su menú: para operarlo **entra como el cliente** y ve su panel tal cual (ver [Entrar como un cliente
   (soporte)](#entrar-como-un-cliente-soporte)).
 
@@ -63,24 +63,38 @@ en `/admin`; los agentes, las herramientas, WhatsApp y el resto, **entrando como
 
 ### 1. Crear o elegir un tier (Tiers)
 
-**Tiers > Nuevo tier**: nombre, descripción y límites. Un campo vacío significa ilimitado.
-Los de la API de inferencia (abajo) arrancan en 0 = el plan no los incluye.
+**Tiers > Nuevo tier**: nombre, descripción y límites, en secciones. Un campo numérico vacío significa
+ilimitado y 0, que el plan no lo incluye. La lista de tiers muestra solo nombre, precio, simultáneas, minutos
+entrantes y salientes, números y clientes; el resto se ve en **Editar**.
 
-| Campo | Qué limita |
-|---|---|
-| Llamadas simultáneas | Llamadas en curso a la vez, de cualquier modalidad (incluye pruebas y loadtest). |
-| Llamadas por hora, por día y por mes | Cantidad de llamadas (entrantes y salientes juntas) que se pueden empezar en la hora, el día o el mes calendario (hora de Buenos Aires): se renuevan al empezar la hora, a las 00:00 y el día 1. No cuentan las rechazadas por el tier ni las de prueba o loadtest. Son independientes: alcanza con agotar una. |
-| Minutos entrantes por mes | Minutos de llamadas recibidas, por mes calendario (hora de Buenos Aires). |
-| Minutos salientes por mes | Minutos de llamadas hechas por el agente. |
-| Números | Cantidad de números de teléfono que puede tener asignados el cliente. |
-| Canales de campañas | Qué campañas puede crear: WhatsApp, llamadas, las dos o ninguna. Los tiers que ya existían quedan con WhatsApp. |
-| Campañas por mes | Campañas que puede iniciar en el mes calendario (cuenta al pasar de borrador a programada o en curso; cancelar no devuelve el cupo). |
-| Contactos por campaña | Tope de destinatarios de una campaña. |
-| Llamadas simultáneas por campaña | Tope de la concurrencia de una campaña de llamadas. |
-| Contactos en la agenda | Contactos activos del cliente (los archivados no cuentan). |
-| Seguimiento por WhatsApp | Si una campaña de llamadas puede escribirle por WhatsApp a quien no atendió. |
-| Personas del equipo | Personas a las que el agente puede derivar una llamada o un chat (Equipo). |
-| Llamadas directas (teléfono del equipo) | Switch. Prendido, las personas llaman desde el panel (Teléfono del equipo) y el equipo puede atender las entrantes de un número, sin el agente. Apagado (el Free), esas pantallas muestran el aviso de plan y las entrantes de un número del equipo van a su agente. La saliente además necesita minutos salientes. En la lista de tiers aparece "con llamadas directas". |
+| Sección | Campo | Qué limita |
+|---|---|---|
+| Llamadas | Simultáneas | Llamadas en curso a la vez, de cualquier modalidad (incluye pruebas y loadtest). |
+| Llamadas | Por hora, por día, por mes | Llamadas (entrantes y salientes juntas) que se pueden empezar en la hora, el día o el mes calendario (hora de Buenos Aires). No cuentan las rechazadas ni las de prueba o loadtest. Son independientes: alcanza con agotar una. |
+| Minutos, números, links y equipo | Minutos entrantes / salientes | Minutos por mes calendario de llamadas recibidas / hechas (las salientes incluyen las derivaciones a personas y las llamadas directas). |
+| | Números | Números de teléfono asignados al cliente. |
+| | Links (uno por agente) | Links para llamar ([`features/LINK_LLAMADA.md`](features/LINK_LLAMADA.md)). |
+| | Personas del equipo | Personas a las que el agente puede derivar y que atienden el teléfono del equipo. |
+| API de inferencia por mes | Tokens de entrada / salida del LLM, minutos de TTS y de STT, pedidos por minuto | Solo el uso por API key ([`API_INFERENCIA.md`](API_INFERENCIA.md)), no los agentes. |
+| Campañas y agenda | Canales de campañas | WhatsApp, llamadas, las dos o ninguna. |
+| | Campañas por mes | Campañas que puede iniciar en el mes (cuenta al salir de borrador; cancelar no devuelve el cupo). |
+| | Contactos por campaña, Llamadas simultáneas por campaña | Destinatarios de una campaña y concurrencia de una de llamadas. |
+| | Contactos en la agenda | Contactos activos (los archivados no cuentan). |
+| | Seguimiento por WhatsApp | Escribirle por WhatsApp a quien no atendió una llamada de campaña. |
+| | WhatsApp | Conectar números y que el agente atienda sus mensajes y llamadas. |
+| | Agente propio | Que el cliente conecte su agente (su endpoint) y Atentina le ponga la voz y el teléfono. |
+| | Llamadas directas (teléfono del equipo) | Que las personas llamen desde el panel y el equipo atienda las entrantes de un número. Apagado (el Free), esas pantallas muestran el aviso de plan y las entrantes de un número del equipo van a su agente. La saliente además necesita minutos salientes. |
+| | Marca blanca | El panel con el logo y los colores del cliente (se configuran en su ficha). |
+| | Reportes completos | Resultados, Mensajes, Transferencias y Campañas; sin esto, solo Resumen y Llamadas. |
+| Herramientas de los agentes | Herramientas | Cuántas (0: no incluye). |
+| | Herramientas de código | Además de llamar a una API, una función en JavaScript. |
+| Venta por el dashboard | Precio por mes ($) | Vacío: no se vende por el dashboard; 0: gratis (el del registro). |
+| | Orden | Orden en la pantalla Plan (menor primero). |
+| | Público | Se ofrece en el registro y en la pantalla Plan. |
+| | Interno (Atentina) | Ver abajo. |
+
+Al cambiar lo que incluye un tier, actualizar la tabla de planes de la landing (`/desarrolladores/docs/api` y
+`/desarrolladores/docs/mcp`) y las tarjetas de `landing/src/data/site.ts`.
 
 - **Interno (Atentina):** switch para el tier de nuestras cuentas (`tiers.internal`): no se ofrece como plan
   (ni en el registro ni en Plan) y no cuenta en las estadísticas de la plataforma.
@@ -155,7 +169,7 @@ y fecha, con filtros por cliente y archivados); **Abrir como el cliente** lo abr
 - **Voz y canales:** cómo suena y por dónde atiende.
   - **Voz:** tarjetas con las voces (filtro por mujeres u hombres); al lado, la prueba con la voz elegida, con la apertura como texto (editable). **Pregenerar el audio de la apertura** y **Espera antes de la apertura (ms)**: cómo arranca la llamada. **Grabar audio**: un WAV por mensaje de cada llamada (telefónica o de WhatsApp; el cliente y el agente por separado), localmente en el servidor; con **Avisar que la llamada se graba**, el agente lo dice antes del saludo. **Ventana de contexto en WhatsApp (minutos)**: minutos sin mensaje del contacto para que la próxima conversación arranque en limpio, sin el historial anterior; vacío usa el default del servidor (1440 min = 24 hs).
 - **Modelo:** quién piensa.
-  - **Tu propio agente:** prendido, contesta el agente del cliente (su endpoint compatible con OpenAI, por una conexión de **Modelos**) y Atentina pone la voz y el teléfono; se ocultan **Herramientas**, **Modelo de lenguaje**, reglas, base de conocimiento y datos ([`AGENTE_EXTERNO_PLAN.md`](AGENTE_EXTERNO_PLAN.md)). Es una opción del agente, no un motor aparte.
+  - **Tu propio agente:** prendido, contesta el agente del cliente (su endpoint compatible con OpenAI, por una conexión de **Modelos**) y Atentina pone la voz y el teléfono; se ocultan **Herramientas**, **Modelo de lenguaje**, reglas, base de conocimiento y datos ([`LLM_CONEXIONES.md`](features/LLM_CONEXIONES.md)). Es una opción del agente, no un motor aparte.
   - **Modelo de lenguaje:** el de Atentina o los proveedores del cliente por etapas, con sus parámetros.
 - **JSON:** la misma definición en JSON (formato en [`ARQUITECTURA.md`](ARQUITECTURA.md#definición-de-un-agente)), para pegar o editar a mano. Para salir de la pestaña el JSON tiene que parsear: lo escrito pasa al formulario.
 - En las cinco pestañas de edición y en JSON:
@@ -244,7 +258,7 @@ aparecen en soporte. En soporte también se editan, registran y ven las plantill
 
 Conecta un número de WhatsApp Business a un agente del cliente. Responde texto y notas de voz: si el
 contacto manda un audio, el agente lo transcribe y contesta con una nota de voz con la voz del agente
-(ver [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md)).
+(ver [`WHATSAPP.md`](features/WHATSAPP.md)).
 
 1. **WhatsApp > Alta manual** (en soporte): agente que responde, **Phone number ID** y **WABA ID**
    (de Meta: WhatsApp → Configuración de la API; el ID, no el teléfono), número visible y nombre.
@@ -364,11 +378,11 @@ alcanza. En la navegación, arriba de todo.
 
 ### Teléfono del equipo (`/telefono`)
 
-Llamadas **sin agente** ([`LLAMADAS_DIRECTAS_PLAN.md`](LLAMADAS_DIRECTAS_PLAN.md)): hablás vos (o alguien de tu
+Llamadas **sin agente** ([`EQUIPO_TELEFONIA.md`](features/EQUIPO_TELEFONIA.md)): hablás vos (o alguien de tu
 equipo) desde el navegador, y el contacto ve el número de la empresa. Está en **Canales > Teléfono del equipo** en los
 planes con llamadas directas; en el Free la pantalla muestra el aviso de plan con **Mejorar mi plan** y queda
 atenuada. Toda llamada del equipo **se graba y se transcribe** (queda en Conversaciones); el aviso "Esta llamada
-está siendo grabada." es opcional (Mi cuenta). Entrando como el cliente (soporte) no se puede llamar ni atender.
+está siendo grabada." es opcional (**Cuenta > Números**). Entrando como el cliente (soporte) no se puede llamar ni atender.
 
 **Llamar**
 1. **Sale desde:** el número que ve el contacto. Aparece solo si tu cuenta tiene más de un número; se recuerda
@@ -497,7 +511,7 @@ mismo con su API key (`POST /api/v1/agents` sin `client_id`); `engine` ya no exi
 
 Por defecto todos los agentes contestan con el modelo de Atentina, **atentina-conversational-v1** (el
 servidor propio: la conversación no sale). Con **BYOK** el cliente trae la clave de su proveedor y elige,
-por agente, desde qué turno lo usa ([`BYOK_LLM_PLAN.md`](BYOK_LLM_PLAN.md)).
+por agente, desde qué turno lo usa ([`LLM_CONEXIONES.md`](features/LLM_CONEXIONES.md)).
 
 1. **Modelos > Nueva conexión** (el admin, en la ficha del cliente, pestaña **Modelos**, o entrando como él): proveedor
    (Anthropic, OpenRouter u OpenAI compatible, con su URL base), nombre, API key y modelo por defecto.
@@ -525,7 +539,7 @@ por agente, desde qué turno lo usa ([`BYOK_LLM_PLAN.md`](BYOK_LLM_PLAN.md)).
 
 ### Herramientas (`/tools`)
 
-Lo que el agente puede hacer durante una conversación ([`TOOLS_PLAN.md`](TOOLS_PLAN.md)): consultar un turno,
+Lo que el agente puede hacer durante una conversación ([`HERRAMIENTAS.md`](features/HERRAMIENTAS.md)): consultar un turno,
 crear una reserva, buscar una deuda. Está si el plan incluye
 herramientas (`max_tools`); las de código, si incluye `code_tools`.
 
@@ -571,7 +585,7 @@ La voz por defecto de un agente es `agent.voice` en su definición.
 ### WhatsApp (cliente)
 
 Conectá tu número de WhatsApp Business para que lo atienda uno de tus agentes, por texto y notas de voz. Se conecta
-con **tu propia app de Meta** ([`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md), 5.9); el registro con Facebook (Embedded
+con **tu propia app de Meta** ([`WHATSAPP.md`](features/WHATSAPP.md)); el registro con Facebook (Embedded
 Signup) queda oculto mientras `WA_EMBEDDED_SIGNUP=false` (falta el Tech Provider).
 
 1. **Conectar con mi app de Meta:** la ventana trae la guía (crear en tu Business Manager una app tipo Business con
@@ -627,7 +641,7 @@ son opcionales.
 ### Equipo (`/team`)
 
 Las personas del cliente a las que el agente les pasa una llamada o un chat, agrupadas en áreas
-([`DERIVACIONES_PLAN.md`](DERIVACIONES_PLAN.md)). A qué áreas deriva cada
+([`EQUIPO_TELEFONIA.md`](features/EQUIPO_TELEFONIA.md)). A qué áreas deriva cada
 agente se elige en su definición, **Derivación a personas**.
 
 1. **Personas:** nombre, teléfono (para transferirle llamadas; solo Argentina), WhatsApp (para el puente de
@@ -707,7 +721,7 @@ recibir mensajes: muchos bloqueos bajan la calidad del número y su límite de e
 
 El contestador se detecta por lo que dice (frases como "deje su mensaje"): puede equivocarse con un humano.
 
-### Números (cliente, antes Mi cuenta)
+### Números (cliente, `/account`)
 
 - **Consumo:** está en **Reportes > Consumo** (junto con la API de inferencia).
 - **Números:** editás la etiqueta y **quién atiende** cada número: un agente tuyo o el equipo, con sus personas,
@@ -727,7 +741,7 @@ El contestador se detecta por lo que dice (frases como "deje su mensaje"): puede
 
 ### Plan (cliente) y Cobros (admin)
 
-Registro y cobro por transferencia ([`SUSCRIPCIONES_PLAN.md`](SUSCRIPCIONES_PLAN.md)):
+Registro y cobro por transferencia ([`COBROS.md`](features/COBROS.md)):
 
 - **Registro:** el cliente se da de alta en `atentina.com.ar/registro` (con su clave) y entra directo al
   panel, en el tier Free (el público con precio 0, que tiene que existir en Tiers). Si eligió un plan pago,
@@ -737,7 +751,7 @@ Registro y cobro por transferencia ([`SUSCRIPCIONES_PLAN.md`](SUSCRIPCIONES_PLAN
 - **Plan (`/plan`, cliente):** datos para la factura y planes con precio. Entrando como el cliente es de solo lectura. Se pagan con **tarjeta**
   (débito automático de Mercado Pago, se activa en el momento; con uno activo, cambiar de plan no pide la
   tarjeta) o por **transferencia** (ve los datos bancarios y manda el comprobante por email).
-- **Lo que el plan no incluye** ([`FUNCIONES_POR_PLAN_PLAN.md`](FUNCIONES_POR_PLAN_PLAN.md)): el cliente ve
+- **Lo que el plan no incluye** ([`ARQUITECTURA.md`](ARQUITECTURA.md#funciones-por-plan)): el cliente ve
   un candado en la navegación (Llamadas del agente, WhatsApp, Contactos, Teléfono del equipo, Equipo, Campañas) y, en esa pantalla, un aviso
   con borde amarillo, en qué planes está ("Disponible en los planes Mostrador y Sucursal") y "Mejorar mi plan"; lo de abajo queda atenuado y sin responder. Con plan gratis, "Free"
   al lado de Plan. Sale de los campos del tier (minutos salientes y números, canales de campañas, contactos,

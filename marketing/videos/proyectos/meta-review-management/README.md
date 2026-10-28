@@ -4,7 +4,7 @@ Grabación de pantalla para el **App Review de Meta** (app Atentina): muestra c�
 (`https://app.atentina.com.ar`) usa el permiso `whatsapp_business_management`. Hecha **solo con capturas reales del
 panel**, con cámara suave, un cursor que va hasta cada botón antes del cambio de pantalla y **subtítulos en inglés**.
 **Sin locución** (nuestras voces son en español) y **sin música** (la pista de audio es silencio). Los textos para el
-formulario de Meta están en [`docs/META_APP_REVIEW.md`](../../../../docs/META_APP_REVIEW.md), sección 3.
+formulario de Meta están en [`docs/features/META_APP_REVIEW.md`](../../../../docs/features/META_APP_REVIEW.md).
 
 ## Pedido
 
@@ -63,13 +63,13 @@ Fundido de 0,4 s entre tomas. Subtítulos en Figtree 600 de 42 px sobre una caja
 
 - **Embedded Signup → token, WABA y números, suscripción a webhooks:** `app/whatsapp/signup.py` (`subscribed_apps`,
   líneas ~150 y ~235) y `app/whatsapp/graph.py` (`subscribed_apps`, `phone_numbers` con `quality_rating`).
-  Fase 2 de [`docs/WHATSAPP_PLAN.md`](../../../../docs/WHATSAPP_PLAN.md), 5.3: desplegada, **falta la aprobación de
+  Fase 2 de [`docs/features/WHATSAPP.md`](../../../../docs/features/WHATSAPP.md): desplegada, **falta la aprobación de
   acceso de Meta** (por eso este video).
 - **Estado, calidad y límite de mensajes del número:** `quality_rating` en `signup.py` y `messaging_limit` en
   `app/whatsapp/service.py` (~914).
 - **Plantillas leídas y creadas en Meta:** `graph.py` (`GET`/`POST /{waba_id}/message_templates`); categorías
   Utilidad y Marketing en `web/src/features/whatsapp/Templates.tsx`.
-- **Textos del formulario:** [`docs/META_APP_REVIEW.md`](../../../../docs/META_APP_REVIEW.md), sección 3.
+- **Textos del formulario:** [`docs/features/META_APP_REVIEW.md`](../../../../docs/features/META_APP_REVIEW.md).
 - **Sin pantallas inventadas:** todo lo que se ve son las capturas; lo único agregado son las placas, el cursor, los
   subtítulos y el desenfoque de Operadores.
 

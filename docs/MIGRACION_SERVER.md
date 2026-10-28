@@ -2,7 +2,7 @@
 
 Runbook para montar este entorno en un server nuevo (mismo tipo de hardware, disco vacío) y pasarle
 el tráfico. Está escrito para que lo siga un agente paso a paso; lo que solo puede hacer el usuario
-(paneles externos, router) está marcado **(usuario)**. Relevado el 6-oct-2026 en el server actual.
+(paneles externos, router) está marcado **(usuario)**. Infraestructura vigente en [`INFRA.md`](INFRA.md).
 
 Reglas del corte, que valen en todo el runbook:
 - **Nunca dos Asterisk registrados con la misma terminal de Anura** (las entrantes se reparten o se
@@ -33,28 +33,25 @@ Clonar el repo no alcanza. Lo que está fuera de git:
 |---|---|---|---|---|
 | `.env` (todos los secretos; `WA_TOKEN_KEY`) | `~/voice-as-a-service/.env` | — | sí: `~/atentina-backups/env/env-AAAAMMDD-HHMM` | copiar (paso 3.2) |
 | Base PostgreSQL (clientes, tiers, agentes y sus versiones, números y su ruteo, cuentas de WhatsApp, usuarios, conversaciones) | volumen `voice-as-a-service_postgres_data` | MB | sí: `~/atentina-backups/db/db-AAAAMMDD-HHMM.sql.gz` | paso 4.2 |
-| Checkpoint del TTS servido (41 voces; **perderlo es reentrenar**) | `tts/finetune/work/runs/multi41/lr2e-6/checkpoint-epoch-2` (`TTS_FT_CKPT`) | 4,3 GB | sí: `~/atentina-backups/tts/multi41/lr2e-6/checkpoint-epoch-2` (desde el 21-oct-2026; antes `tts/lr2e-6-checkpoint-epoch-2`) y en S3 `tts/…` sin cifrar | paso 4.1 |
+| Checkpoint del TTS servido (41 voces; **perderlo es reentrenar**) | `tts/finetune/work/runs/multi41/lr2e-6/checkpoint-epoch-2` (`TTS_FT_CKPT`) | 4,3 GB | sí: `~/atentina-backups/tts/multi41/lr2e-6/checkpoint-epoch-2` y en S3 `tts/…` sin cifrar | paso 4.1 |
 | Datos y runs de fine-tuning | `tts/finetune/work/` | 41 GB | no | solo para reentrenar: `rsync` del viejo, o regenerar ([`TTS_FINETUNE.md`](TTS_FINETUNE.md)) |
-| Certificado de `sip.atentina.com.ar` (llamadas de WhatsApp) | `asterisk/letsencrypt/` (de root) | KB | sí (desde el 21-oct-2026): `letsencrypt/letsencrypt-*.tar.gz` | restaurar el tar, o regenerar con `make sip-cert` (paso 4.3) |
+| Certificado de `sip.atentina.com.ar` (llamadas de WhatsApp) | `asterisk/letsencrypt/` (de root) | KB | sí: `letsencrypt/letsencrypt-*.tar.gz` | restaurar el tar, o regenerar con `make sip-cert` (paso 4.3) |
 | Trunks SIP y dispatch rule de LiveKit | Redis de LiveKit, sin persistencia | — | no | se regeneran: `make livekit-sip` (lo corre `make up`) |
-| Pesos del LLM vigente (Gemma 4 26B, desde el 6-oct-2026) | `/home/laureano/Models/gemma-4-26B-A4B-it-qat-AWQ-INT4`, **fuera del repo y del volumen de HF**: el override `docker-compose.gemma4-26b.yml` lo monta con esa ruta fija | 17 GB | no | **no se bajan solos:** descargarlos con la revisión fijada o copiarlos del viejo (paso 4.4) |
+| Pesos del LLM vigente (Gemma 4 26B) | `/home/laureano/Models/gemma-4-26B-A4B-it-qat-AWQ-INT4`, **fuera del repo y del volumen de HF**: el override `docker-compose.gemma4-26b.yml` lo monta con esa ruta fija | 17 GB | no | **no se bajan solos:** descargarlos con la revisión fijada o copiarlos del viejo (paso 4.4) |
 | Pesos de Hugging Face | volumen `voice-as-a-service_hf_cache` (80 GB, casi todo de modelos descartados) | Parakeet ~1,2 GB; el Qwen3.5-9B (~12 GB) solo para volver a él | no | se bajan solos en el primer arranque (ningún modelo es *gated*: `HF_TOKEN` no hace falta). Opcional: copiarlos (paso 4.4) |
 | Imágenes de Docker | `/var/lib/docker` | ~62 GB | no | `docker pull` y `make build` (paso 5.1) |
-| `storage/` (grabaciones por mensaje, aperturas pregeneradas, imágenes de los links para llamar) | `./storage` montado en `app` y `agent` | 42 MB (21-oct-2026) | sí (desde el 21-oct-2026): `storage/storage-*.tar.gz` | `tar -xzf` en la raíz del repo (las aperturas se regeneran solas al guardar el agente) |
-| Apps de clientes (`app-sugym-gestion`, SQLite en su volumen) | repo `atentina-apps` | KB | no, a propósito | no se llevan: la plataforma ya no las usa desde el 26-oct-2026 ([`LIMPIEZA_PLAN.md`](LIMPIEZA_PLAN.md)); ni la red `atentina-apps` ni la ruta `apps.` del túnel |
+| `storage/` (grabaciones por mensaje, aperturas pregeneradas, imágenes de los links para llamar) | `./storage` montado en `app` y `agent` | MB | sí: `storage/storage-*.tar.gz` | `tar -xzf` en la raíz del repo (las aperturas se regeneran solas al guardar el agente) |
 | Crontab del usuario | `crontab -l` | — | versionado en `deploy/crontab` | `make cron-install` (paso 8.2) |
 | Unidades de systemd | `/etc/systemd/system/atentina-*.service` | — | — | `sudo deploy/install.sh` (paso 8.1), desde la plantilla `deploy/systemd/` |
 
-**Antes de migrar, todo lo que usa el host tiene que estar commiteado y pusheado.** El 6-oct-2026 faltaban
-`scripts/ops/sip-cert-renew.sh` y `asterisk/conf/whatsapp/` (llamadas de WhatsApp y renovación del
-certificado); se versionaron ese día (`6a3f57a`). Repetir el chequeo antes del corte:
+**Antes de migrar, todo lo que usa el host tiene que estar commiteado y pusheado.** Chequeo antes del corte:
 
 ```bash
 git -C ~/voice-as-a-service status --short   # en el viejo: tiene que salir vacío (o copiar los cambios)
 git -C ~/voice-as-a-service log origin/main..HEAD --oneline   # vacío: todo pusheado
 ```
 
-**Copia externa a S3** (implementada el 21-oct-2026; **activa cuando estén el bucket y la llave**):
+**Copia externa a S3** (implementada; **no activa: falta crear el bucket y la llave**, `BACKUP_S3_BUCKET` no está en `.env`):
 `backup.sh` sube a `s3://$BACKUP_S3_BUCKET/daily/<STAMP>/` la base, `.env`, `storage/` y el
 certificado, cifrados con la llave pública `deploy/backup-key.asc`, y sincroniza el checkpoint en
 `tts/`; `latest` apunta al último backup completo. El usuario IAM del server (`make backup-s3-setup`)
@@ -76,19 +73,18 @@ esos archivos. Después, `gpg --delete-secret-keys` y borrar `scratch/restore/`.
 
 ## 2. Preparar el host
 
-Versiones probadas (server actual, 6-oct-2026):
+Versiones del server actual: anotarlas antes de migrar e instalar las mismas en el nuevo.
 
-| Pieza | Versión |
+| Pieza | Verificar con |
 |---|---|
-| SO | Ubuntu 24.04.3 LTS, kernel 7.0.0-34-generic, escritorio GNOME (`graphical.target`) |
-| Driver NVIDIA | `nvidia-driver-580-open` 580.178.04 (CUDA 13.0). Mínimo rama 580: las imágenes de vLLM traen torch 2.13.0+cu130 |
-| Docker | docker-ce 29.5.2, containerd.io 2.2.4, Compose v5.1.4 (plugin); data-root `/var/lib/docker` |
-| NVIDIA Container Toolkit | 1.20.0; `/etc/docker/daemon.json` solo con el runtime `nvidia` |
-| vLLM (LLM y base del STT) | `vllm/vllm-openai:latest` = vLLM 0.29.0, digest `sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1` (9-sep-2026) |
-| vLLM-Omni (TTS) | `vllm/vllm-omni:v0.28.0`, digest `sha256:6f8be103eaf0055448cf7578cfd621405fd669079d4361bd58896326b2bf722a` |
-| Asterisk | 22.9.0-r0 + asterisk-srtp 22.9.0-r0 sobre `alpine:3.24` (`apk` sin versión fija en el Dockerfile) |
-| LiveKit | `livekit-server:v1.13.7`, `livekit/sip:v1.17.0`, `redis:7-alpine`; CLI `lk` 2.18.6 |
-| cloudflared | `cloudflare/cloudflared:2026.9.0` |
+| SO y kernel (Ubuntu 24.04 LTS, escritorio GNOME) | `lsb_release -d; uname -r` |
+| Driver NVIDIA (rama 580 o posterior, `nvidia-driver-580-open`: las imágenes de vLLM traen torch cu130) | `nvidia-smi --query-gpu=driver_version --format=csv` |
+| Docker, containerd y Compose (plugin) | `docker version --format '{{.Server.Version}}'; docker compose version` |
+| NVIDIA Container Toolkit (`/etc/docker/daemon.json` solo con el runtime `nvidia`) | `nvidia-ctk --version` |
+| vLLM (LLM y base del STT): `vllm/vllm-openai:latest`, sin fijar | `docker image inspect vllm/vllm-openai:latest --format '{{index .RepoDigests 0}}'` |
+| vLLM-Omni (TTS): `vllm/vllm-omni:v0.28.0` | `docker image inspect vllm/vllm-omni:v0.28.0 --format '{{index .RepoDigests 0}}'` |
+| Asterisk + asterisk-srtp (`apk` sin versión fija) | `docker compose exec asterisk asterisk -V` |
+| LiveKit, SIP, Redis, cloudflared (fijados en los compose) | `grep -h 'image:' docker-compose.livekit.yml docker-compose.tunnel.yml`; CLI: `lk --version` |
 
 Pasos (como el usuario dueño del repo, con sudo):
 
@@ -168,8 +164,8 @@ Al editar, diff enmascarado contra el original antes de levantar nada:
 `diff <(sed -E 's/=(.{4}).*/=\1…/' env-viejo) <(sed -E 's/=(.{4}).*/=\1…/' .env)`.
 
 Sin backup (`.env` desde cero, `make setup`): completar cada secreto según esta tabla. Ojo: el
-`.env.example` trae LiveKit Cloud como default; para producción, el bloque de LiveKit propio
-([`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md), 7).
+`.env.example` trae LiveKit Cloud y el Qwen como default; para producción, el bloque de LiveKit propio
+([`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md), 3) y el LLM de [`INFRA.md`](INFRA.md).
 
 | Variable | De dónde sale | En una mudanza |
 |---|---|---|
@@ -185,14 +181,15 @@ Sin backup (`.env` desde cero, `make setup`): completar cada secreto según esta
 | `TURNSTILE_SECRET_KEY` | Cloudflare → Turnstile, sitio atentina.com.ar **(usuario)** | conservar |
 | `RESEND_API_KEY`, `CONTACT_TO` | panel de Resend (dominio en sa-east-1) **(usuario)** | conservar |
 | `WA_APP_ID`, `WA_APP_SECRET` | developers.facebook.com → app Atentina → Configuración → Básica **(usuario)** | conservar |
-| `WA_ACCESS_TOKEN` | token del system user del portafolio **(usuario)** | conservar (las 2 cuentas de WhatsApp lo usan: `access_token` NULL) |
+| `WA_ACCESS_TOKEN` | token del system user del portafolio **(usuario)** | conservar (lo usan las cuentas de WhatsApp con `access_token` NULL) |
 | `WA_VERIFY_TOKEN` | inventado; el mismo que en el panel de Meta | si cambia, cambiarlo en Meta |
 | `WA_TOKEN_KEY` | Fernet | **NO regenerar**: sin ella no se descifran `access_token` y `pin_enc` de `wa_accounts` |
-| `WA_CONFIG_ID`, `WA_PHONE_NUMBER_ID`, `WA_REGISTRATION_PIN` | [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md) | conservar |
+| `WA_CONFIG_ID`, `WA_PHONE_NUMBER_ID`, `WA_REGISTRATION_PIN` | [`features/WHATSAPP.md`](features/WHATSAPP.md) | conservar |
 | `WA_SIP_PASSWORD` | `make wa-sip-password` (la trae de Meta) | regenerable |
 | `HF_TOKEN` | opcional | — |
 | `BACKUP_S3_BUCKET/REGION/ACCESS_KEY_ID/SECRET_ACCESS_KEY` | `make backup-s3-setup` (sección 1) | conservar: el nuevo sigue subiendo al mismo bucket |
-| `ALERT_NTFY_TOPIC`, `HEALTHCHECKS_PING_URL` | pendientes (bloque "Operación" de `.env.example`) | — |
+| `ALERT_NTFY_TOPIC` | `make alert-ntfy-setup` (activo: alertas del chequeo y de Alertmanager) | conservar: el celular ya está suscripto al tema |
+| `HEALTHCHECKS_PING_URL` | healthchecks.io, pendiente | — |
 
 Variables del `.env` actual que el código no usa: `AGENT_NAME`, `COMPANY_NAME`, `VLLM_TTS_SPEED`. Se
 pueden omitir.
@@ -230,22 +227,21 @@ make build                                       # imágenes propias (también l
 docker compose up -d --wait --no-deps db         # volumen vacío: crea POSTGRES_DB del .env
 zcat <dump>.sql.gz | docker compose exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
 make migrate                                     # Alembic sigue desde la versión del dump; seed idempotente
-make psql   # verificar: select version_num from alembic_version;  (0008 al 8-oct-2026; la última de migrations/versions/)
+make psql   # verificar: select version_num from alembic_version;  (la última de migrations/versions/, hoy 0041)
 ```
 
-Referencia (6-oct-2026): 4 tiers, 2 clientes, 7 agentes, 3 números, 2 `wa_accounts`, 2 usuarios.
-Ruteo: `+543517002592` y `+548002201233` → `atentina_comercial`; `+543517003976` →
-`traductor_ingles_realtime`.
+Antes del corte, anotar en el viejo los conteos para comparar después de restaurar:
+`make psql` → `select count(*) from clients; select count(*) from agents; select e164, agent_id from phone_numbers; select count(*) from wa_accounts; select count(*) from users;`.
 
 Si el volumen ya se había inicializado (por ejemplo, se corrió `make up` antes): parar `app` y
 `agent`, `docker compose rm -sf db`, `docker volume rm voice-as-a-service_postgres_data` y repetir.
 Alternativa al dump: copiar el volumen entero con el viejo parado, conservando las mismas `POSTGRES_*`.
 
 **Sin backup:** el seed (`make migrate`) solo crea el tier Interno, el cliente `atentina`, los
-agentes de referencia y el número `ANURA_DID` ruteado a `WORKFLOW_ID` (`demo_booking_classic`, no
-`atentina_comercial` como hoy). Lo demás (tiers comerciales Free/Mostrador/Sucursal, cliente
-`browix`, agentes editados, los otros números, cuentas de WhatsApp, usuarios) se recrea a mano por
-la UI o la API, y las ediciones de agentes posteriores a `app/agents/reference/*.json` se pierden.
+agentes de referencia, el admin de `ADMIN_EMAIL` y el número `ANURA_DID` ruteado al agente `WORKFLOW_ID`
+del `.env` (no necesariamente el que lo atiende hoy). Lo demás (tiers comerciales, clientes, agentes
+editados, los otros números, cuentas de WhatsApp, usuarios) se recrea a mano por la UI o la API, y las
+ediciones de agentes posteriores a `app/agents/reference/*.json` se pierden.
 
 ### 4.3 Certificado SIP de WhatsApp
 
@@ -256,7 +252,7 @@ Asterisk arranca con "WhatsApp apagado". Alternativa: `sudo rsync -a viejo:~/voi
 ### 4.4 Pesos de los modelos
 
 **LLM Gemma (obligatorio).** No está en el volumen de HF: va a `~/Models` y el override lo monta. Descarga
-con la revisión que sirve el viejo (anotada el 8-oct-2026 de `.cache/huggingface/` del directorio):
+con la revisión que sirve el viejo (sale de `.cache/huggingface/` del directorio de pesos):
 
 ```bash
 mkdir -p ~/Models
@@ -352,7 +348,7 @@ y vigente; README, `.env.example` y otros docs remiten acá.
 | Puerto | Para qué | ¿Reenviar? |
 |---|---|---|
 | UDP 10000–10199 | RTP de Asterisk: audio de Anura y de WhatsApp (`ASTERISK_RTP_START/END`) | **sí** |
-| TCP 5061 | SIP/TLS de Meta, llamadas de WhatsApp (`WA_SIP_PORT`, desde el 6-oct-2026) | **sí** |
+| TCP 5061 | SIP/TLS de Meta, llamadas de WhatsApp (`WA_SIP_PORT`) | **sí** |
 | UDP 7882 | WebRTC de LiveKit: demo de la landing | **sí** |
 | TCP 7881 | WebRTC de LiveKit por TCP (respaldo) | **sí** |
 | UDP 5080 | SIP LiveKit ↔ Asterisk. Solo con LiveKit Cloud; abierto, permite fraude telefónico | no |
@@ -381,13 +377,14 @@ y vigente; README, `.env.example` y otros docs remiten acá.
 | Anura: terminal con la que se registra Asterisk | no: el registro es saliente. **Parar el Asterisk viejo antes** | confirmar si Anura tiene la IP habilitada o filtrada | usuario |
 | Render (landing), Turnstile, Resend, GA, Search Console | no dependen del server | no | — |
 | GitHub | clave SSH del host nuevo | — | usuario |
-| ntfy, healthchecks.io, R2/B2 (backup externo) | pendientes de alta | — | usuario |
+| ntfy (`ALERT_NTFY_TOPIC`) | activo; el tema va en el `.env` | no | — |
+| healthchecks.io, S3 (backup externo) | pendientes de alta | — | usuario |
 
 Si cambia la IP pública, además: `LIVEKIT_NODE_IP` y `PUBLIC_HOST` en `.env` (Asterisk la detecta
 solo si `ASTERISK_PUBLIC_ADDRESS` está vacío).
 
-Detalle de cada alta: [`LANDING.md`](LANDING.md) (Cloudflare, Render, Turnstile, Resend, túnel),
-[`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md) 5.3–5.4 (Meta, SIP), [`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md) 2 (Anura).
+Detalle de cada alta: [`features/LANDING.md`](features/LANDING.md) (Cloudflare, Render, Turnstile, Resend, túnel),
+[`features/WHATSAPP.md`](features/WHATSAPP.md) (Meta, SIP), [`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md) 4 (Anura).
 
 ## 8. systemd, cron y topes de GPU
 
@@ -448,8 +445,8 @@ Pruebas (todas tienen que dar lo esperado antes de dar el corte por bueno):
 | 3 | `make pbx-status` | `anura/sip:...:55090 Registered` |
 | 4 | `docker compose exec asterisk asterisk -rx 'pjsip show transports'` | `transport-anura` udp 5081, `transport-livekit` udp 5080, `transport-whatsapp` tls 5061 |
 | 5 | `make logs S=asterisk \| grep 'Asterisk: SIP'` | la IP pública correcta y `tls/5061 (WhatsApp, sip.atentina.com.ar)` |
-| 6 | `lk sip inbound list`, `lk sip dispatch list`, `lk sip outbound list` con `--url http://127.0.0.1:7880 --api-key … --api-secret …` (de `.env`) | `anura-asterisk-inbound` con los 3 números, `anura-asterisk-dispatch`, `anura-asterisk-outbound` → `127.0.0.1:5080` |
-| 7 | Entrante: llamar al 351 700-2592, al 0800-220-1233 y al 351 700-3976 desde un celular | `make logs S=asterisk`: "Entrante de Anura: … -> +54…"; atiende el agente de cada número |
+| 6 | `lk sip inbound list`, `lk sip dispatch list`, `lk sip outbound list` con `--url http://127.0.0.1:7880 --api-key … --api-secret …` (de `.env`) | `anura-asterisk-inbound` con los números de `phone_numbers`, `anura-asterisk-dispatch`, `anura-asterisk-outbound` → `127.0.0.1:5080` |
+| 7 | Entrante: llamar a cada número de `phone_numbers` desde un celular | `make logs S=asterisk`: "Entrante de Anura: … -> +54…"; atiende el agente de cada número |
 | 8 | Saliente desde la UI a un celular propio | "Saliente a Anura: <10 dígitos> (caller ID …)" y audio en los dos sentidos |
 | 9 | Durante una llamada: `make pbx-cli` → `pjsip show channelstats` | paquetes recibidos > 0 en las dos patas |
 | 10 | `curl -sI https://app.atentina.com.ar/health` | 200, con `strict-transport-security` y `content-security-policy` |
@@ -475,9 +472,8 @@ Dejar el viejo apagado (no borrado) al menos 30 días, con `atentina-stack` desh
 
 ## 10. Trampas conocidas
 
-- **Backup del checkpoint con otro nombre** (hasta el 20-oct-2026): los backups viejos lo tienen como
-  `tts/lr2e-6-checkpoint-epoch-2`, sin `multi41`; los nuevos, con la ruta desde `runs/`. Restaurarlo
-  en la ruta de `TTS_FT_CKPT` (4.1).
+- **Checkpoint en el backup:** restaurarlo en la ruta de `TTS_FT_CKPT` (4.1); un backup viejo puede
+  tenerlo como `tts/lr2e-6-checkpoint-epoch-2`, sin `multi41`.
 - **`vllm/vllm-openai:latest` sin fijar** (5.1). Con vllm-omni ya pasó que `latest` no arrancaba.
 - **Redis de LiveKit sin persistencia:** después de cada reinicio, `make livekit-sip` (lo hacen
   `make up` y `deploy/boot.sh`); si no, las entrantes dan 486 `flood`.
@@ -490,7 +486,7 @@ Dejar el viejo apagado (no borrado) al menos 30 días, con `atentina-stack` desh
 - [ ] `git status` limpio en el viejo y todo pusheado (sección 1)
 - [ ] Host: Ubuntu 24.04, zona horaria, driver 580, Docker + grupo, toolkit, paquetes (2)
 - [ ] Repo en `~/voice-as-a-service`; `.env` revisado con diff enmascarado (3)
-- [ ] Checkpoint y pesos de Gemma con sha256 correcto; base restaurada en 0008 o posterior; certificado SIP (4)
+- [ ] Checkpoint y pesos de Gemma con sha256 correcto; base restaurada en la última migración (0041); certificado SIP (4)
 - [ ] Imagen de vLLM por digest; topes de GPU en 280 W; inferencia con smoke test (5)
 - [ ] Router: reserva DHCP, 4 reenvíos, SIP ALG apagado (6)
 - [ ] Viejo: Asterisk y túnel parados, `atentina-stack` deshabilitado (9)
@@ -498,49 +494,43 @@ Dejar el viejo apagado (no borrado) al menos 30 días, con `atentina-stack` desh
 - [ ] Pruebas 1–17 en verde; CAP-NNN registrado (9)
 - [ ] Copia externa a S3 activa en el nuevo (mismas `BACKUP_S3_*` y `deploy/backup-key.asc`): `make backup` dice `externo: s3://…`
 
-## 12. PENDIENTE (usuario)
+## 12. Pendientes
 
-- **Copia externa del backup:** cuenta de AWS y nombre del bucket (`make backup-s3-setup`), y dónde
-  se guarda la llave privada de `make backup-key` (fuera del server). Mientras no exista, perder el
-  server es perder base, `.env` (con `WA_TOKEN_KEY`) y checkpoint.
-- **Router:** modelo, URL del panel, dónde están reserva DHCP y reenvíos, estado del SIP ALG.
-- **Anura:** cuenta dueña de los números y terminal que usa Asterisk; DIDs (3517002592, 3517003976,
-  0800-220-1233) con su plan de llamada y cómo llega el 0800 en la Request-URI; si Anura tiene
-  registrada o filtrada la IP 181.104.113.28; canales contratados (10, según `rtp.conf`); qué pasa
-  con dos registros de la misma terminal.
-- **Meta:** nombre y rol del system user, activos asignados, permisos y vencimiento de
-  `WA_ACCESS_TOKEN`; WABA de cada número (hoy 1106296902266123 para el 351 700-2592 y
-  1763082738667089 para el de prueba).
-- **Cloudflare:** email de la cuenta, modo SSL/TLS, lista de API tokens (nombre y permisos, sin el
-  valor), registrador y vencimiento de los dos dominios.
-- **Cuentas:** quién tiene acceso a cada panel (Cloudflare, Render y su rama, Meta, Resend, Anura,
-  GA, LiveKit Cloud de respaldo) y dónde están las credenciales.
-- **Decisión:** fijar `vllm/vllm-openai` por tag o digest en `docker-compose.yml` y `stt/Dockerfile`,
-  y el `apk` de Asterisk, como ya está `vllm-omni`.
+Lo que hace falta para que la migración sea posible sin el viejo, reproducible y re-desplegable.
+Datos del usuario **(usuario)** y cambios al repo, sin duplicados:
 
-## 13. Pendiente para que la migración sea reproducible y se pueda re-desplegar
-
-Relevado el 21-oct-2026; nada de esto está hecho todavía. En orden:
-
-1. **Versiones fijas.** `vllm/vllm-openai` por digest en `docker-compose.yml` y `stt/Dockerfile`
-   (5.1); `asterisk=22.9.0-r0 asterisk-srtp=22.9.0-r0` en el `apk` de `asterisk/Dockerfile`; tag menor
-   en `postgres`, `nginx` y `redis`; lock de las dependencias transitivas de Python (`openai>=1.40`
-   está abierta). Cambiar la versión de vLLM es un cambio de config: CAP.
-2. **Nada atado al host.** `name: voice-as-a-service` en el compose (hoy sale del nombre del
-   directorio, 3.1); `MODELS_DIR` en `.env` en lugar de `/home/laureano/Models` en el override de
-   Gemma; `docker compose exec` en lugar de `voice-as-a-service-<svc>-1` en los scripts que quedan
-   (`healthcheck.sh`, `sip-cert-renew.sh`, `make db-reset`).
-3. **Host en un script.** `deploy/host-setup.sh` idempotente con la sección 2 (driver, Docker y
-   grupo, toolkit, zona horaria, paquetes) y el chequeo de qué índice de GPU dibuja el escritorio.
-4. **Artefactos pesados.** `make fetch-models`: Gemma (revisión fijada) y Parakeet de Hugging Face,
-   checkpoint del TTS de S3 (`make backup-fetch TTS=1`) o del viejo por `rsync`, con el sha256 de 4.1 y 4.4.
-5. **Restauración en un comando.** `make restore DIR=scratch/restore/<STAMP>`: `db` vacío, dump,
-   `migrate`, `storage/`, certificado y `livekit-sip`, en el orden de 4.2 (el dump antes del seed).
-6. **Deploy por versión.** Release = tag de git pusheado; el server despliega tags, no el working
-   tree. `make deploy REF=<tag>`: árbol limpio, `make calls-active`, dump previo
-   (`db-…-pre<versión>.sql.gz`), build con el tag como versión de imagen, `make migrate`, recrear solo
-   lo que cambió, `make health` y un pedido al TTS con voz, y una línea en `~/atentina-ops/deploys.log`.
-   `make rollback`: la imagen del tag anterior (queda en disco) y, si la migración no vuelve, el dump previo.
-7. **CI.** GitHub Actions con `make test` (sin LLM) y `make web-check` en cada push y tag.
-8. **Ensayo.** Migración completa a una máquina o disco de prueba, desde S3, sin Asterisk ni túnel
-   (fases 2–5), cronometrada; anotar acá lo que falle.
+1. **Copia externa del backup (usuario):** cuenta de AWS y bucket (`make backup-s3-setup`), y dónde se
+   guarda la llave privada de `make backup-key` (fuera del server). Mientras no exista, perder el server
+   es perder base, `.env` (con `WA_TOKEN_KEY`) y checkpoint.
+2. **Router (usuario):** modelo (hoy "Huawei de Telecom"), URL del panel, dónde están la reserva DHCP y los
+   reenvíos, estado del SIP ALG, y si la IP fija es de plan residencial o de empresa.
+3. **Anura (usuario):** cuenta dueña de los números y terminal que usa Asterisk; DIDs con su plan de
+   llamada y cómo llega el 0800 en la Request-URI; si tiene registrada o filtrada la IP pública; canales
+   contratados (10); qué pasa con dos registros de la misma terminal.
+4. **Meta (usuario):** nombre y rol del system user, activos asignados, permisos y vencimiento de
+   `WA_ACCESS_TOKEN`; WABA de cada número.
+5. **Cloudflare (usuario):** email de la cuenta, modo SSL/TLS, lista de API tokens (nombre y permisos, sin el
+   valor), registrador y vencimiento de los dos dominios.
+6. **Cuentas (usuario):** quién tiene acceso a cada panel (Cloudflare, Render y su rama, Meta, Resend, Anura,
+   GA, LiveKit Cloud de respaldo) y dónde están las credenciales.
+7. **Versiones fijas.** `vllm/vllm-openai` por digest en `docker-compose.yml` y `stt/Dockerfile` (5.1);
+   `asterisk=… asterisk-srtp=…` en el `apk` de `asterisk/Dockerfile`; tag menor en `postgres`, `nginx` y
+   `redis`; lock de las dependencias transitivas de Python (`openai>=1.40` está abierta). Cambiar la
+   versión de vLLM es un cambio de config: CAP.
+8. **Nada atado al host.** `name: voice-as-a-service` en el compose (hoy sale del nombre del directorio,
+   3.1); `MODELS_DIR` en `.env` en lugar de `/home/laureano/Models` en el override de Gemma;
+   `docker compose exec` en lugar de `voice-as-a-service-<svc>-1` en `healthcheck.sh`,
+   `sip-cert-renew.sh` y `make db-reset`.
+9. **Host en un script.** `deploy/host-setup.sh` idempotente con la sección 2 (driver, Docker y grupo,
+   toolkit, zona horaria, paquetes) y el chequeo de qué índice de GPU dibuja el escritorio.
+10. **Artefactos pesados.** `make fetch-models`: Gemma (revisión fijada) y Parakeet de Hugging Face,
+    checkpoint del TTS de S3 (`make backup-fetch TTS=1`) o del viejo por `rsync`, con el sha256 de 4.1 y 4.4.
+11. **Restauración en un comando.** `make restore DIR=scratch/restore/<STAMP>`: `db` vacío, dump,
+    `migrate`, `storage/`, certificado y `livekit-sip`, en el orden de 4.2 (el dump antes del seed).
+12. **Deploy por versión.** Release = tag de git pusheado; `make deploy REF=<tag>` (árbol limpio,
+    `make calls-active`, dump previo, build con el tag, `make migrate`, recrear solo lo que cambió,
+    `make health`, un pedido al TTS con voz y una línea en `~/atentina-ops/deploys.log`) y `make rollback`
+    (imagen del tag anterior y, si la migración no vuelve, el dump previo).
+13. **CI.** GitHub Actions con `make test` (sin LLM) y `make web-check` en cada push y tag.
+14. **Ensayo.** Migración completa a una máquina o disco de prueba, desde S3, sin Asterisk ni túnel
+    (fases 2–5), cronometrada; anotar acá lo que falle.

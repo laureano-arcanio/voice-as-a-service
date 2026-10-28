@@ -311,5 +311,5 @@ Leídas el 22-oct-2026:
   - https://www.lanacion.com.ar/economia/dexter-debuta-en-el-futbol-con-lotto-nid342136
 - **Homónimo sin relación:** https://cimepa.com
 - **Internos:** [`cimepa-telefonia.md`](cimepa-telefonia.md), `comercial/proveedores/anura-terminos-2026.md`,
-  `comercial/demanda-y-mercado-local.md`, `landing/src/data/site.ts`, `docs/LLAMADAS_SALIENTES_PLAN.md`,
-  `docs/BYOK_LLM_PLAN.md`
+  `comercial/demanda-y-mercado-local.md`, `landing/src/data/site.ts`, `docs/features/CAMPANAS.md`,
+  `docs/features/LLM_CONEXIONES.md`

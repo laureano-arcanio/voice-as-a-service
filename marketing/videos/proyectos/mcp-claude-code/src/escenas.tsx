@@ -179,7 +179,7 @@ export const Grupos: React.FC = () => {
 
 // ---------- 3. instalar ----------
 
-// docs/MCP_HERRAMIENTAS.md y docs/MCP_PLAN.md (transporte, URL, auth)
+// docs/MCP_HERRAMIENTAS.md y docs/features/MCP.md (transporte, URL, auth)
 const DATOS_INSTALAR: [string, string, string][] = [
   ["Transporte", "Streamable HTTP", "servidor remoto: no se instala nada"],
   ["URL", "app.atentina.com.ar/mcp", "la misma para Claude, ChatGPT y Cursor"],

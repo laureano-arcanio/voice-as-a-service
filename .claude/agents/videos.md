@@ -27,9 +27,9 @@ en `marketing/videos/proyectos/<slug>/`.
 | Qué hace el producto y cómo se usa | [`README.md`](../../README.md), [`docs/ARQUITECTURA.md`](../../docs/ARQUITECTURA.md), [`docs/GUIA_UI.md`](../../docs/GUIA_UI.md) |
 | Pantallas del panel | [`docs/DESIGN_GUIDELINE_APP.md`](../../docs/DESIGN_GUIDELINE_APP.md), `web/src/features/` (columnas, rótulos y nombres reales) |
 | API para mostrar código | `app/api/routers/`, `app/api/schemas.py`, [`docs/API_INFERENCIA.md`](../../docs/API_INFERENCIA.md) |
-| Canales y funciones (y si están desplegadas) | [`AGENTS.md`](../../AGENTS.md), [`docs/WHATSAPP_PLAN.md`](../../docs/WHATSAPP_PLAN.md), [`docs/LLAMADAS_SALIENTES_PLAN.md`](../../docs/LLAMADAS_SALIENTES_PLAN.md), [`docs/LINK_LLAMADA_PLAN.md`](../../docs/LINK_LLAMADA_PLAN.md), [`docs/BYOK_LLM_PLAN.md`](../../docs/BYOK_LLM_PLAN.md), [`docs/APPS.md`](../../docs/APPS.md) |
-| Mensaje comercial, precios, contacto | `landing/src/pages/`, `landing/src/data/site.ts`, [`docs/LANDING.md`](../../docs/LANDING.md), [`docs/SUSCRIPCIONES_PLAN.md`](../../docs/SUSCRIPCIONES_PLAN.md) |
-| Mercado, prospectos y reuniones | [`comercial/plan-salida-al-mercado.md`](../../comercial/plan-salida-al-mercado.md), [`comercial/demanda-y-mercado-local.md`](../../comercial/demanda-y-mercado-local.md), [`comercial/archivo/seguimiento.md`](../../comercial/archivo/seguimiento.md), `comercial/demos/` |
+| Canales y funciones (estado y pendientes en cada doc) | [`docs/features/`](../../docs/features/) (WhatsApp, campañas, equipo y derivaciones, link para llamar, herramientas, BYOK y tu propio agente, MCP, reportes) |
+| Mensaje comercial, precios, contacto | `landing/src/pages/`, `landing/src/data/site.ts`, [`docs/features/LANDING.md`](../../docs/features/LANDING.md), [`docs/features/COBROS.md`](../../docs/features/COBROS.md) |
+| Mercado, prospectos y reuniones | [`comercial/plan-salida-al-mercado.md`](../../comercial/plan-salida-al-mercado.md), [`comercial/demanda-y-mercado-local.md`](../../comercial/demanda-y-mercado-local.md), `comercial/demos/` |
 | Cifras de rendimiento | [`docs/capacity/README.md`](../../docs/capacity/README.md) y la consulta de latencia de VIDEOS.md |
 | Voces | `tts/finetune/voces.tsv`, [`docs/TTS_FINETUNE.md`](../../docs/TTS_FINETUNE.md) |
 | Documento que acompaña al video | `marketing/documentos/proyectos/` ([`marketing/DOCUMENTOS.md`](../../marketing/DOCUMENTOS.md)) |

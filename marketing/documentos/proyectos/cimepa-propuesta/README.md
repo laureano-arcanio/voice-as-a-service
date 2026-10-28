@@ -48,17 +48,17 @@
   (`app/api/schemas.py`, `CallIn`, verificado el 22-oct-2026). El `agent_id` "seguimiento" del ejemplo es ilustrativo
   (en la API es un id).
 - **Campañas programadas (horario, días, reintentos, en paralelo) y webhook firmado HMAC-SHA256 con reintentos:**
-  `docs/LLAMADAS_SALIENTES_PLAN.md`, sección 14 (implementado, sin desplegar).
+  `docs/features/CAMPANAS.md (implementado, sin desplegar).
 - **API keys por sistema, con alcance y revocables; API de inferencia compatible con OpenAI (STT, LLM, TTS):**
   `docs/API_INFERENCIA.md`.
-- **Su propio modelo con su API key (BYOK):** `docs/BYOK_LLM_PLAN.md` (fases 1 y 2 desplegadas).
+- **Su propio modelo con su API key (BYOK):** `docs/features/LLM_CONEXIONES.md` (fases 1 y 2 desplegadas).
 - **Herramientas que consultan su sistema:** motor `assistant` con tools (`docs/APPS.md`); webhooks genéricos a un
   backend del cliente, a validar (ver abajo).
 - **Inferencia propia en servidores en Argentina; audios y transcripciones sin proveedores externos:** AGENTS.md
   (inferencia y base locales). Con BYOK o su agente conectado, lo que les manden sale: el documento lo dice.
 - **Numeración argentina, terminación local, factura en pesos:** `cimepa.md`, parte 4.2; `site.ts` (numeración).
 - **OpenAPI:** `/api/v1/docs` (hoy solo admin): compartir una copia o habilitarla.
-- **WhatsApp (mensajes, notas de voz y llamadas):** `docs/WHATSAPP_PLAN.md` (en producción).
+- **WhatsApp (mensajes, notas de voz y llamadas):** `docs/features/WHATSAPP.md` (en producción).
 - **Contacto:** `landing/src/data/site.ts`, verificado el 22-oct-2026.
 
 ## A validar antes de mandarlo

@@ -1,6 +1,6 @@
 # API del CRM (contrato para agentes)
 
-CRM de ventas de Atentina ([`CRM_PLAN.md`](CRM_PLAN.md)). Local: `http://127.0.0.1:8030`. OpenAPI
+CRM de ventas de Atentina ([`CRM.md`](CRM.md)). Local: `http://127.0.0.1:8030`. OpenAPI
 completo en `/api/docs` y `/api/openapi.json`; acá, lo que un agente necesita para trabajar.
 
 ## Reglas
@@ -71,7 +71,11 @@ curl -s -X POST -H "Authorization: Bearer $K" -H "Content-Type: application/json
 ```
 
 - `label`: `persona` (de alguien con nombre), `area` (`comercial@`, `gerencia@`), `atencion` (`info@`).
-- `is_primary` marca el ★: el destinatario. Criterio en [`mercado/envios/README.md`](../comercial/archivo/envios/README.md).
+- `is_primary` marca el ★: el destinatario. Se elige en este orden: (1) la persona que decide sobre lo que tocamos
+  (atención, cobranza, comercial, sistemas) o el número uno, con fuente de 2024 en adelante; (2) otra persona
+  directiva con fuente reciente, o la del punto 1 con fuente vieja; (3) una casilla de área de atención, cobranza o
+  comercial; (4) la de atención. Si el mail ya salió a otra dirección, el ★ es a quién sumar en el seguimiento
+  (mismo hilo). No se cargan emails de recursos humanos, búsquedas laborales ni sucursales sueltas.
 - `slug` (el `utm_content`) sale del nombre si no se pasa.
 - Un email que está en la blocklist se guarda con `status: "bounced"` y no se usa para enviar.
 
@@ -178,7 +182,7 @@ curl -s -X PATCH ... "$U/leads/12" -d '{"do_not_contact": true}'
 ### Respuestas recibidas por mail
 
 Con `CRM_INBOUND_ENABLED` el CRM lee las respuestas de Resend, las asocia, las clasifica con el LLM local y
-actualiza el lead solo ([`CRM_PLAN.md`](CRM_PLAN.md), 6). El mensaje entrante trae `analysis`
+actualiza el lead solo ([`CRM.md`](CRM.md), "Entrante"). El mensaje entrante trae `analysis`
 (`status`: `ok`, `low_confidence` o `error`; `intencion`, `resumen`, `applied`, `matched_by`). Las que no se
 pudieron asociar: `GET /inbox` (también en `/today` → `inbox`); `POST /inbox/{id}/assign {"lead_id": 12}`
 la procesa como las automáticas y `POST /inbox/{id}/ignore` la descarta.
@@ -234,6 +238,8 @@ rebotes" del Tablero; solo el usuario): el email va a la blocklist.
 | `GET /queue` · `GET /today` · `GET /stats` | Cola, pendientes del día, números | sí |
 | `GET/POST /blocklist` · `DELETE /blocklist/{id}` | Blocklist (borrar: solo el usuario) | sí / no |
 | `POST /leads/{id}/reminders` · `GET /reminders` · `PATCH /reminders/{id}` · `POST /reminders/{id}/done` · `POST /reminders/{id}/cancel` | Recordatorios y reuniones, con su evento en Google Calendar | sí |
+| `POST /reminders/sync` | Subir ya a Calendar lo pendiente o con error | **no** |
+| `GET /inbox` · `POST /inbox/{id}/assign` · `POST /inbox/{id}/ignore` | Respuestas recibidas sin asignar (`status`: `unassigned` por defecto, `assigned`, `ignored`): asignar a un lead o descartar | sí |
 | `GET /ga/site?days=28` | Tráfico del sitio en GA, solo de Argentina: totales y período anterior, por día, canales, páginas, fuentes, ciudades, dispositivos (cache 10 min, `refresh=true`) | sí |
 | `GET /ga/site/detail?kind=&value=&days=28` | Desglose de un ítem de Sitio web (`kind`: `channel`, `source`, `page`, `city`, `device`; `value` tal como lo da `/ga/site`): sesiones por día, fuente/medio, campaña, `utm_content`, página de entrada, ciudad y dispositivo, con el lead y la campaña cruzados (`companies`), y totales por fuente y página de entrada (cache 10 min) | sí |
 | `GET /ga/visits` · `POST /ga/sync` · `POST /ga/visits` | Visitas de GA; sincronizar y cargar a mano: solo el usuario | sí / no |

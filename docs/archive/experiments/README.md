@@ -4,8 +4,7 @@
 
 Cada experimento mide una configuración de inferencia (modelos, reparto de
 GPU, flags de vLLM) con el mismo loadtest, para definir el hardware de
-producción. Conclusiones vigentes: [`../LOADTEST_CAPACITY.md`](../LOADTEST_CAPACITY.md).
-Hardware: [`../SERVER_HARDWARE.md`](../../SERVER_HARDWARE.md).
+producción. Reglas de hardware: [`docs/gpubench/`](../../gpubench/README.md#reglas-de-hardware).
 
 ## Índice (32 sesiones)
 
@@ -107,7 +106,7 @@ el agente monitorea, analiza y registra.
    - **Conclusión** y siguiente paso.
 7. **Actualizar el resto:**
    - Agregar la fila al índice.
-   - Actualizar `LOADTEST_CAPACITY.md` si cambia una conclusión, y `AGENTS.md` si cambia la config vigente.
+   - Actualizar `AGENTS.md` si cambia la config vigente.
    - Pasarle al usuario el resumen y la ruta del registro.
 
 Los runs crudos (`scripts/loadtest/monitor/run_*`) no se versionan (`.gitignore`).

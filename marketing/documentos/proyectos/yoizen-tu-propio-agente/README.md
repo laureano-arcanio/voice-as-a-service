@@ -52,7 +52,7 @@ registro. Primera presentación del proyecto de documentos (la plantilla 16:9 es
 - **Qué pone cada uno, el turno, el pedido, la respuesta, los headers, las herramientas, los tres pasos, API y MCP,
   latencia, errores y plan:** `landing/src/pages/desarrolladores/docs/tu-propio-agente.astro` (publicada en
   atentina.com.ar/desarrolladores/docs/tu-propio-agente, leída el 26-oct-2026) y
-  [`docs/AGENTE_EXTERNO_PLAN.md`](../../../../docs/AGENTE_EXTERNO_PLAN.md), secciones 3, 4, 5, 10, 11 y 12.
+  [`docs/features/LLM_CONEXIONES.md`](../../../../docs/features/LLM_CONEXIONES.md).
 - **Esqueleto de 9 escenas y qué no se dice:** el guion v2 de
   [`videos/proyectos/tu-propio-agente`](../../../videos/proyectos/tu-propio-agente/README.md): latencia sin cifras
   medidas (ni los 1.672 / 482 ms del ejemplo con DeepSeek, ni los 0,9 s de la propuesta: esa mediana es del motor
@@ -82,7 +82,7 @@ registro. Primera presentación del proyecto de documentos (la plantilla 16:9 es
 
 - **Desplegado:** la base está en la migración 0031 (incluye la 0030, `tiers.external_agent`); la imagen de `app`
   del 26-oct trae `app/llm/external.py` (se recreó `app` y `agent` con el despliegue de Términos, commit `7dad845`);
-  Central e Interno tienen la función; la página de la landing está publicada. `docs/AGENTE_EXTERNO_PLAN.md` y
+  Central e Interno tienen la función; la página de la landing está publicada. `docs/features/LLM_CONEXIONES.md` y
   `AGENTS.md` todavía dicen "sin desplegar": quedaron desactualizados, no la función.
 - **Sin hacer:** la **llamada real de punta a punta** con un endpoint externo (fase 1: solo hay tests con un endpoint
   simulado y el `smoke.py` del ejemplo contra DeepSeek por OpenRouter) y la medición de latencia contra `classic`.

@@ -1,6 +1,6 @@
 # Theme Yoizen (marca blanca)
 
-Primer theme del plan [`MARCA_BLANCA_PLAN.md`](../../../docs/MARCA_BLANCA_PLAN.md). Armado el 26-oct-2026 a partir
+Primer theme del plan [`ARQUITECTURA.md`](../../../docs/ARQUITECTURA.md). Armado el 26-oct-2026 a partir
 de [yoizen.com](https://yoizen.com/) (Yoizen S.A., CABA: plataforma omnicanal y agentes de IA; lead #106 del CRM).
 Variante elegida: **encabezado oscuro con la versión clara del logotipo** (la A de la vista previa).
 

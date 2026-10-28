@@ -6,6 +6,27 @@ especificación. Sirve para comparar GPUs, slots y risers con números reproduci
 - Código: [`scripts/gpubench/`](../../scripts/gpubench/) (`gpubench.cu` + lanzador `gpubench.py`).
 - Requisitos: `nvcc` y `nvidia-smi` (nada de Python extra). Compila solo la primera vez, en `scratch/gpubench/`.
 
+## Reglas de hardware
+
+Para elegir placa, slots y risers de un server de inferencia (un modelo por GPU, una instancia de vLLM por modelo):
+
+- **Sin tensor parallel, el PCIe casi no importa.** Por el bus viajan IDs de tokens y audio (~1 MB/s con 32
+  llamadas); el ancho del slot solo cambia cuánto tarda en cargar el modelo (8 GB: ~8 s en Gen3 x1, < 1 s en Gen4
+  x16). Lo que pesa en el tiempo al primer token es la GPU (prefill y ancho de banda de memoria) y la CPU.
+- **Gen3 x4 alcanza:** en este server la GPU 0 (LLM) va en el slot del chipset, Gen3 x4, y llega a la latencia buscada. Un
+  riser x1 bien conectado rindió como x4 con el TTS ([CAP-004](../capacity/CAP-004-5060ti-riser-x1-recableado-classic/)).
+  Regla práctica: Gen4 xN = Gen3 x2N (Gen3 x4 ≈ 3,9 GB/s por sentido; Gen4 x16 ≈ 31,5).
+- **Topología B550:** un slot x16 de CPU (Gen4), un x4 del chipset (Gen3, cuyo enlace Gen3 x4 con la CPU comparten
+  todos sus dispositivos), slots x1 y un M.2 de CPU (con adaptador M.2 a PCIe x4, un slot x4 de CPU más). Leer en
+  el manual qué lanes se comparten y revisar en la BIOS que el slot principal no esté forzado a Gen3 (en la
+  B550M Pro SE venía así).
+- **Risers:** alimentación por PCIe de 6 pines, nunca por SATA (la GPU toma hasta 75 W del slot). Los de minería
+  por USB fallan a Gen4: forzar Gen3 en ese slot. Después de armar, chequear el enlace y los errores:
+  `nvidia-smi -q | grep -iE -A3 "link width|replay"` y `sudo dmesg | grep -iE 'aer|xid'`. Un riser mal enchufado
+  (46.804 replays PCIe) bajó la capacidad de ~21 a ~7 llamadas y tiró el TTS.
+- **Potencia:** dos 3090 sin tope apagaron el server por un pico; van a 280 W con relojes topeados (ver
+  [`../INFRA.md`](../INFRA.md)).
+
 ## Cómo correrlo
 
 1. **Dejar la GPU sin carga.** Ver `nvidia-smi`: si `vllm-*` o `stt-parakeet` la usan, los números salen bajos

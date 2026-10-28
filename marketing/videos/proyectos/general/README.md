@@ -30,7 +30,7 @@ Locución en [`guion.json`](guion.json): narrador `lucas`, la cliente `carolina`
   fin de la frase + LLM + TTS, 35 turnos; p90 1,49 s). No incluye una consulta a un CRM: en el video la consulta
   entra dentro de ese tiempo.
 - **"Inferencia propia · servidores en Argentina":** de la landing.
-- **Campañas salientes (escena `salientes`):** implementadas, **sin desplegar** (docs/LLAMADAS_SALIENTES_PLAN.md);
+- **Campañas salientes (escena `salientes`):** implementadas, **sin desplegar** (docs/features/CAMPANAS.md);
   "hasta 8 a la vez" es el tope provisorio `CALL_CAMPAIGN_MAX_CONCURRENT`, sin medir con Gemma.
 - **Ilustrativo:** los números del panel y de la campaña, los contactos y la herramienta `buscar_cliente`.
 - **Rutas y JSON:** reales (`POST /api/v1/agents`, `GET /api/v1/calls/{id}`, `POST /api/v1/campaigns`), recortados.

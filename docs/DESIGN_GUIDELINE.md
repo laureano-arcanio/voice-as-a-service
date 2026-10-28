@@ -1,7 +1,7 @@
 # Guía de diseño de Atentina
 
 Cómo se ve y cómo habla la marca. La base es la landing (`landing/`): plataforma `/`, `/desarrolladores`, `/casos-de-uso`, verticales
-`/casos-de-uso/turnos`, `/casos-de-uso/cobranzas`, `/casos-de-uso/municipios`, la plataforma (`/plataforma` y sus cuatro capacidades), el registro (`/registro`), el 404 y páginas legales. Leerla antes de agregar o cambiar
+`/casos-de-uso/turnos`, `/casos-de-uso/cobranzas`, `/casos-de-uso/municipios`, la plataforma (`/plataforma` y sus cinco capacidades de `capabilities` en `landing/src/data/site.ts`: `voces-argentinas`, `transcripcion`, `whatsapp`, `telefonia` y `telefono-del-equipo`), el registro (`/registro`), el 404 y páginas legales. Leerla antes de agregar o cambiar
 cualquier pantalla de la landing. El dashboard (`web/`) sigue
 [`DESIGN_GUIDELINE_APP.md`](DESIGN_GUIDELINE_APP.md), que adapta esta guía a la app.
 
@@ -28,7 +28,7 @@ cualquier pantalla de la landing. El dashboard (`web/`) sigue
   - Tamaño en el nav: isotipo de 26 px, palabra de 1.35rem, separación de 10 px.
   - No deformarlo, no cambiarle la tipografía, no ponerlo sobre el acento ni sobre fotos.
 - **Archivos:** `docs/brand/` (logo e isotipo), `landing/public/favicon.svg` (el isotipo) y
-  `landing/src/assets/og.png` (va con hash en la URL: al cambiarla, las vistas previas toman la nueva). Se generan con `scripts/brand/` (`build_atentina.py`, `og.html`; ver [`LANDING.md`](LANDING.md)).
+  `landing/src/assets/og.png` (va con hash en la URL: al cambiarla, las vistas previas toman la nueva). Se generan con `scripts/brand/` (`build_atentina.py`, `og.html`; ver [`LANDING.md`](features/LANDING.md)).
   - Sobre claro: anillo y palabra en `ink`, barras en `accent` (azul del hub).
   - Sobre fondo `ink` (archivos `-blanco`): anillo y palabra en `cta-ink`, barras en `accent-on-dark`.
   - `og.png` (1200 × 630): fondo del hero, logo, título en Bricolage 800 y rótulo en mono con el acento. Todo centrado y dentro del cuadrado central (630 × 630): las miniaturas cuadradas recortan por el centro.
@@ -150,11 +150,11 @@ Usar el componente; no copiar sus clases a mano.
 | `Section` | Toda sección de página. |
 | `Icon` | Íconos (sección 9). |
 | `CheckList` | Lista de características: check en círculo `accent-soft`, título en semibold y texto en `muted`. |
-| `Logo`, `Nav`, `Footer` | Marco de toda página. `Footer`: tres columnas (Producto, Desarrolladores, Legales) con todas las páginas, y debajo "Atentina · Hecho en Argentina", el mail y el teléfono como texto; las verticales y las capacidades salen de `site.ts`. `Nav current` (`home`, `dev`, `docs`, `casos`, `sector`, `platform`, `other`) marca la página y define qué anclas (`#precios`, `#demo`) son del mismo documento; el resto va a la home. Los tres links de página (Home, Desarrolladores, Casos de uso) son fijos (Asistentes salió el 26-oct-2026 con `/asistentes`). |
+| `Logo`, `Nav`, `Footer` | Marco de toda página. `Footer`: tres columnas (Producto, Desarrolladores, Legales) con todas las páginas, y debajo "Atentina · Hecho en Argentina", el mail y el teléfono como texto; las verticales y las capacidades salen de `site.ts`. `Nav current` (`home`, `dev`, `docs`, `casos`, `sector`, `platform`, `other`) marca la página y define qué anclas (`#precios`, `#demo`) son del mismo documento; el resto va a la home. Los tres links de página (Home, Desarrolladores, Casos de uso) son fijos. |
 | `Cta` | Cierre de toda página comercial: sección oscura con los botones de contacto. Textos configurables (`eyebrow`, `title`, `lead`, `question`, `submit`): cada página lo adapta (`/`, `/desarrolladores`, la documentación). |
 | `Solutions`, `Voices`, `Pricing` | Secciones compartidas. `Voices` acepta `title`, `lead` y `all` (lista las 41 voces en lugar de las 10 con descripción); sin `all` linkea a `/plataforma/voces-argentinas` ("Ver todas las voces →"). `Pricing free` suma el plan Free (API y panel web, sin telefonía) como primera tarjeta, con el mismo formato; solo en `/desarrolladores`: `/casos-de-uso` y las verticales muestran los planes con telefonía, y la home la escalera completa (`Pricing free`). Las columnas siguen la cantidad de planes (3 o 4). Acepta `class`. |
 | `Faq` | Preguntas frecuentes con `<details>` (contenido en `faqGeneral`, `faqBusiness` y `faqDev` de `site.ts`, una por página; el componente recibe `items`); debajo de los precios o de la API. Responder solo con lo que ya dice la landing o está confirmado. |
-| `AgentTerminal`, `AgenticSection` | Terminal animada del hero de `/desarrolladores` (`AgenticSection` queda debajo de la API, sin la terminal): dos escenas de un agente de programación operando la API (cobranza desde PDF y confirmación de turnos); `AgenticSection` lista las skills disponibles. El único lugar con colores fuera de los tokens (`--term-*`, locales): imita otra herramienta (también lo hacía `AssistantChat`, quitado el 26-oct-2026). Ver `LANDING.md`. |
+| `AgentTerminal`, `AgenticSection` | Terminal animada del hero de `/desarrolladores` (`AgenticSection` queda debajo de la API, sin la terminal): dos escenas de un agente de programación operando la API (cobranza desde PDF y confirmación de turnos); `AgenticSection` lista las skills disponibles. El único lugar con colores fuera de los tokens (`--term-*`, locales): imita otra herramienta. Ver [`LANDING.md`](features/LANDING.md). |
 | `Platform`, `Costs`, `ResultBridge` | Home de plataforma. `Platform` recibe `items` (tres capas en `/`, tres formas de integrar en `/desarrolladores`); cada tarjeta puede traer `more` (links de texto a las capacidades) y el componente, un `more` debajo de las tarjetas ("Ver toda la plataforma →"). `Costs`: lo que se contrata por separado contra lo que incluye el plan. `ResultBridge`: el resultado de una llamada, contado para el equipo (panel) y para el sistema. |
 | `ApiSection`, `CodeTabs`, `CodeBlock`, `Status` | `/desarrolladores` y su documentación. `CodeTabs`: pedidos reales a la API con su respuesta, en `ApiSection`; `CodeBlock`, un bloque de código de la documentación. `Status`: píldora `disponible` / `próximamente`: no prometer sin marcarlo. |
 | `CallWidget`, `SampleResult`, `TelDialog` | Demo de llamada, ejemplo de resultado y diálogo del teléfono. |
@@ -205,13 +205,13 @@ Patrones que se repiten; copiar estas clases al armar algo nuevo:
 
 - **Español rioplatense con voseo:** "Hacé una demo", "Escribinos", "lo contratás y empieza a atender".
 - **Categoría: agentes con IA que atienden a tus clientes**, no "agentes de voz". Los canales (teléfono, WhatsApp) son la prueba y la voz argentina es el diferencial, no la categoría. "Agente de voz" queda en los `metaTitle` de las verticales, porque es lo que se busca.
-- **`/asistentes` (agente personal), quitada el 26-oct-2026** ([`LIMPIEZA_PLAN.md`](LIMPIEZA_PLAN.md)): era la única excepción a la categoría. Hoy todas las páginas hablan de agentes que atienden a tus clientes.
+- Todas las páginas hablan de agentes que atienden a tus clientes: no hay una página de agente personal.
 - **Directo y concreto:** qué hace y cuánto cuesta, con frases cortas. Sin superlativos vacíos, sin signos de exclamación y sin anglicismos que tengan palabra en español.
 - **Botones:** verbo + objeto ("Iniciar llamada sin costo", "Ver más voces"). Los links de tarjeta terminan en "→".
 - **Números:** pesos como `$ 29.000` (espacio y punto de miles), dólares como `USD 19`, duración como `1:42`. Siempre con `tabular-nums`.
 - **Estados en mono y minúscula:** "listo", "terminada".
 - **Errores:** dicen qué pasó y qué hacer, en una línea.
-- `lang="es-AR"`. Cada página tiene su `title` y `description` (props de `Base.astro`). `ogDescription` es el texto de la tarjeta del link, de hasta ~70 caracteres: WhatsApp corta la descripción a las dos líneas. Hoy la tiene la home; sin ella va `description`. `noindex` (registro, 404) y `schema` (JSON-LD, `landing/src/data/schema.ts`) son los otros props de `Base`: ver [`LANDING.md`](LANDING.md), "SEO técnico".
+- `lang="es-AR"`. Cada página tiene su `title` y `description` (props de `Base.astro`). `ogDescription` es el texto de la tarjeta del link, de hasta ~70 caracteres: WhatsApp corta la descripción a las dos líneas. Hoy la tiene la home; sin ella va `description`. `noindex` (registro, 404) y `schema` (JSON-LD, `landing/src/data/schema.ts`) son los otros props de `Base`: ver [`LANDING.md`](features/LANDING.md), "SEO técnico".
 
 ## 11. Antes de entregar
 

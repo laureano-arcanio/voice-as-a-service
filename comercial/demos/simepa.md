@@ -239,18 +239,18 @@ Dos caminos, para elegir con él:
 | Portar su línea | **No**: el número es nuestro y Anura prohíbe cederlo (cl. 26). La alternativa es desviar su línea a nuestro número | `comercial/proveedores/anura-terminos-2026.md` |
 | Varios números | Sí, según el tier (Sucursal: 3; Red: a medida) | `landing/src/data/site.ts` |
 | Saliente por API | Sí: `POST /api/v1/calls` con `phone` | `README.md` |
-| Campañas de voz (lista, reintentos, webhook) | Implementadas el 19-oct, **sin desplegar**; capacidad con Gemma sin medir | `docs/LLAMADAS_SALIENTES_PLAN.md` |
+| Campañas de voz (lista, reintentos, webhook) | Implementadas el 19-oct, **sin desplegar**; capacidad con Gemma sin medir | `docs/features/CAMPANAS.md` |
 | Contexto de entrada | Definición del agente y `{{variables}}` | `docs/ARQUITECTURA.md` |
 | Resultados y transcripción por API | Sí: `GET /api/v1/calls` y `/calls/{id}`; resumen por email opcional | `README.md`, `AGENTS.md` |
 | Grabación, y apagarla | Sí, por agente (`record_audio`, apagada por default), un WAV por mensaje, en el server propio; `GET /calls/{id}/recordings/{n}` | `AGENTS.md` |
 | Retención | **Sin política escrita.** La privacidad de la landing dice que no se graba audio: corregir antes de activarla con un cliente | `AGENTS.md` |
 | Dónde se procesa | En Argentina, en GPUs propias (LLM, STT y TTS), salvo con BYOK de un proveedor externo | `AGENTS.md` |
-| Su propio LLM | Sí: BYOK (fases 1 y 2 desplegadas; la UI, fase 3, sin desplegar) | `docs/BYOK_LLM_PLAN.md` |
+| Su propio LLM | Sí: BYOK (fases 1 y 2 desplegadas; la UI, fase 3, sin desplegar) | `docs/features/LLM_CONEXIONES.md` |
 | Su agente completo por SIP o streaming | **No existe** | — |
 | Personas llamando o atendiendo desde la compu o el celular (softphone) | **No existe** | — |
 | Transferir IA ↔ persona | **No existe** (derivación a humano no implementada, plan sección 0) | `plan-salida-al-mercado.md` |
 | Llamadas simultáneas | Por tier; con Gemma **sin medir** (no citar los ~32 de CAP-001) | `AGENTS.md` |
-| Prueba | Tier Free por registro; la "demo gratis" que ofreció Laureano, a definir | `docs/SUSCRIPCIONES_PLAN.md` |
+| Prueba | Tier Free por registro; la "demo gratis" que ofreció Laureano, a definir | `docs/features/COBROS.md` |
 
 ### 7.5 Fases sugeridas
 
@@ -322,4 +322,4 @@ Leídas el 22-oct-2026:
   - https://www.lanacion.com.ar/economia/dexter-debuta-en-el-futbol-con-lotto-nid342136
 - **Homónimo sin relación:** https://cimepa.com (pádel, México)
 - **Internos:** `comercial/proveedores/anura-terminos-2026.md`, `comercial/demanda-y-mercado-local.md`,
-  `landing/src/data/site.ts`, `docs/LLAMADAS_SALIENTES_PLAN.md`, `docs/BYOK_LLM_PLAN.md`
+  `landing/src/data/site.ts`, `docs/features/CAMPANAS.md`, `docs/features/LLM_CONEXIONES.md`

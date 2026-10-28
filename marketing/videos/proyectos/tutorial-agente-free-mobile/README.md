@@ -41,7 +41,7 @@ Formato 1080 × 1920 (9:16), 62,5 s, una sola voz (`paula`) y música propia.
 
 - **Free (tabla `tiers` de producción, leída el 24-oct-2026):** 20 min entrantes, 0 salientes, 0 números, 1 link
   para llamar, sin equipo (`max_team_members=0`), sin WhatsApp, sin campañas ni contactos (migración 0025,
-  [`docs/FUNCIONES_POR_PLAN_PLAN.md`](../../../../docs/FUNCIONES_POR_PLAN_PLAN.md)).
+  [`docs/ARQUITECTURA.md`](../../../../docs/ARQUITECTURA.md)).
 - **Equipo/derivaciones, número propio y WhatsApp en Mostrador, Sucursal y Central:** los tres tienen
   `max_team_members` sin tope, `whatsapp=true` y 1, 3 y 6 números. Es el mismo texto del aviso del panel
   (`app/services/features.py`, `_where`). Central no se vende por el panel (`public=false`, sin precio) y no
@@ -49,7 +49,7 @@ Formato 1080 × 1920 (9:16), 62,5 s, una sola voz (`paula`) y música propia.
 - **Probar agente:** "Hablás con el agente desde el navegador… No marca ningún teléfono ni gasta minutos."
   (`web/src/features/calls/TestCallButton.tsx`).
 - **Link para llamar:** quien lo abre habla desde el navegador; usa minutos entrantes del plan
-  (`CallLinkTab.tsx`, [`docs/LINK_LLAMADA_PLAN.md`](../../../../docs/LINK_LLAMADA_PLAN.md), desplegado el
+  (`CallLinkTab.tsx`, [`docs/features/LINK_LLAMADA.md`](../../../../docs/features/LINK_LLAMADA.md), desplegado el
   19-oct-2026). "Sin instalar nada ni registrarse": la página pública es web, con Turnstile y el permiso del
   micrófono.
 - **Conversaciones con transcripción y datos obtenidos:** `CallDetailPage.tsx`, origen "Link web" (`labels.ts`).

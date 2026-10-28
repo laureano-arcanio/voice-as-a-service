@@ -133,7 +133,7 @@
    "diff": "hw_server.diff",
    "sin_versionar": [
     "docker-compose.llm-defaults.yml",
-    "docs/WHATSAPP_PLAN.md",
+    "docs/features/WHATSAPP.md",
     "docs/brand/oime-logo-blanco.svg",
     "docs/brand/oime-logo.svg",
     "docs/brand/oime-mark-blanco.svg",

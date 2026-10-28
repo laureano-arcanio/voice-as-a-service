@@ -211,8 +211,10 @@ VLLM_TTS_MODEL=qwen3-tts-ft      # nombre del modelo en la API; el agente lo man
 VLLM_TTS_VOICE=sofia             # voz de respaldo del agente; tiene que estar en el checkpoint
 ```
 
-Y desde la raíz: `make up-inference` (recrea `vllm-tts`) y `make up-agent` (el agente relee
-`VLLM_TTS_MODEL` y `VLLM_TTS_VOICE`).
+Y desde la raíz: `make up-inference` (levanta los tres servicios de inferencia, `vllm-llm`,
+`stt-parakeet` y `vllm-tts`, con `--build`: compose recrea los que cambiaron, que acá es `vllm-tts`, y
+`stt-parakeet` si cambió su imagen; espera a que estén sanos) y `make up-agent` (el agente relee
+`VLLM_TTS_MODEL` y `VLLM_TTS_VOICE`). Las dos cortan llamadas: antes, `make calls-active`.
 
 - El log de `vllm-tts` tiene que listar todas las voces: `Loaded 41 supported speakers: [...]`.
 - Si cambian los nombres de las voces: actualizar `VLLM_TTS_VOICE`, `tts/finetune/voces.tsv`
@@ -375,7 +377,7 @@ Medidas en arf_03034 (1 a 7), en `multi4` (8) y en `multi41` (9). No repetirlas.
 8. **Pedido sin `voice` o con `voice="default"` tira `vllm-tts`.** vLLM-Omni lo traduce a
    `vivian`, la voz de fábrica del CustomVoice. El checkpoint no la tiene, y el engine muere con
    `ValueError: Unsupported speaker: vivian`. Después todos los pedidos dan 500
-   (`EngineDead`, `Stage-0 has no live replica`) hasta `docker restart voice-as-a-service-vllm-tts-1`.
+   (`EngineDead`, `Stage-0 has no live replica`) hasta `make restart S=vllm-tts`.
    Pasa igual con una voz o con varias. Mandar siempre una voz del checkpoint.
 9. **`score.py` y los números dictados.** El texto "cuatro, siete, dos, nueve, cinco" a veces sale
    del ASR como "47295". Leído como número ("cuarenta y siete mil...") sumaba 6 errores y

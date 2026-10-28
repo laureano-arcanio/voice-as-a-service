@@ -62,7 +62,7 @@ subtítulos son la locución en tramos de una línea, con "MCP" y las cifras esc
 - **URL, transporte, auth, grupos y "87 herramientas":** [`docs/MCP_HERRAMIENTAS.md`](../../../../docs/MCP_HERRAMIENTAS.md)
   y `landing/src/data/mcp-tools.json` (90 herramientas de cliente; sin `?toolsets=` van todas menos las 3 de
   `inference` = 87, en 8 grupos: account 8, agents 19, calls 12, call_links 5, whatsapp 6, contacts 11,
-  campaigns 14, team 12). [`docs/MCP_PLAN.md`](../../../../docs/MCP_PLAN.md), secciones 1 y 13.
+  campaigns 14, team 12). [`docs/features/MCP.md`](../../../../docs/features/MCP.md).
 - **Comando y salida de `claude mcp add` / `claude mcp list`:** el comando sale de
   `landing/src/pages/desarrolladores/docs/mcp.astro`; la salida se capturó con Claude Code 2.1.310 en un HOME de
   prueba (`scratch/videos/mcp-cc/`), sin tocar la configuración del usuario. Las rutas `/home/dev/...` son

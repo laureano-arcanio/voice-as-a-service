@@ -17,7 +17,7 @@ detrás de un endpoint compatible con OpenAI, y Atentina le pone el número, los
 > el endpoint", switch "Que conteste tu propio agente". Panel, API (key `calls`) o MCP. Mensajes: no hace falta
 > construir el pipeline de voz; el primer texto es lo que más pesa (menos de un segundo); si el endpoint falla, el
 > agente avisa y corta o deriva (sin respaldo con nuestro modelo). Plan Red. Fuente de verdad:
-> `tu-propio-agente.astro` y `docs/AGENTE_EXTERNO_PLAN.md`; datos medidos: 1.672 ms en frío y 482 ms con el ejemplo
+> `tu-propio-agente.astro` y `docs/features/LLM_CONEXIONES.md`; datos medidos: 1.672 ms en frío y 482 ms con el ejemplo
 > y DeepSeek V4.1 Flash por OpenRouter. Cuidar las grafías. Entregar MP4, README, notas, fila en
 > `marketing/README.md` y título y descripción para YouTube. No subirlo ni tocar la landing; sin commit.
 
@@ -53,7 +53,7 @@ Voces: `paula` narradora y `gonzalo` en las herramientas y en "por API o MCP" (c
 
 - **Qué pone cada uno, cómo funciona, pedido y respuesta, headers, herramientas, configurar, errores, latencia y
   plan:** `landing/src/pages/desarrolladores/docs/tu-propio-agente.astro` (secciones que-es, como-funciona, pedido,
-  respuesta, herramientas, configurar, latencia, errores y planes) y [`docs/AGENTE_EXTERNO_PLAN.md`](../../../../docs/AGENTE_EXTERNO_PLAN.md).
+  respuesta, herramientas, configurar, latencia, errores y planes) y [`docs/features/LLM_CONEXIONES.md`](../../../../docs/features/LLM_CONEXIONES.md).
 - **Pedido y SSE en pantalla:** los ejemplos `request` y `response` de la página, recortados (ids, mensajes del
   medio y el final "¡Que andes bien!", que lleva signo de exclamación). Número `+5493515551234`, "Acme", "Sofía",
   "ventas" y `turno_dado`: ejemplos de la página.

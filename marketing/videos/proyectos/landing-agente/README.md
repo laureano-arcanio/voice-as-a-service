@@ -58,9 +58,9 @@ importantes a una persona del equipo, que le responde al cliente.
 ## Afirmaciones y fuentes
 
 - **Canales: teléfono, WhatsApp y la web** (link para llamar y la demo). Desplegados: [`AGENTS.md`](../../../../AGENTS.md),
-  [`docs/WHATSAPP_PLAN.md`](../../../../docs/WHATSAPP_PLAN.md), [`docs/LINK_LLAMADA_PLAN.md`](../../../../docs/LINK_LLAMADA_PLAN.md).
+  [`docs/features/WHATSAPP.md`](../../../../docs/features/WHATSAPP.md), [`docs/features/LINK_LLAMADA.md`](../../../../docs/features/LINK_LLAMADA.md).
 - **Derivación a una persona del equipo:** la transferencia de **llamadas** está desplegada desde el 23-oct-2026
-  (fases 1 y 2), **sin probar todavía con llamadas reales** ([`docs/DERIVACIONES_PLAN.md`](../../../../docs/DERIVACIONES_PLAN.md),
+  (fases 1 y 2), **sin probar todavía con llamadas reales** ([`docs/features/EQUIPO_TELEFONIA.md`](../../../../docs/features/EQUIPO_TELEFONIA.md),
   13.4). Por eso las dos derivadas son llamadas. La derivación de **WhatsApp** (puente por la bandeja, 5.8) no
   está implementada: ninguna consulta de WhatsApp se deriva en el video.
 - **La persona recibe de qué se trata antes de atender** (el aviso con el resumen, "Derivación de {{area}}:

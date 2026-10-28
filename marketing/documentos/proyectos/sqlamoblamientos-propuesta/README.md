@@ -97,7 +97,7 @@
     ruteo por zona hacia los locales: **sin verificar**. El documento lo ofrece como canal nuevo del piloto y de la
     fase de franquicias.
   - **Integración con su sistema de pedidos y catálogo** ("sabe cómo va cada pedido", "conoce sus productos",
-    "pedidos y catálogo al día"): necesita una app por cliente ([`docs/APPS.md`](../../../../docs/APPS.md)) que lea su
+    "pedidos y catálogo al día"): necesita una app por cliente (`docs/APPS.md` (quitado el 26-oct-2026)) que lea su
     sistema o planilla; no existe para SQL. El catálogo se puede cargar en la definición del agente; "siempre
     actualizado" depende de que ellos lo mantengan o de la integración.
   - **Pase a una persona:** la **transferencia de llamadas** a una persona no existe; el pase del chat al WhatsApp de

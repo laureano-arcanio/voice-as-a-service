@@ -481,6 +481,6 @@ Leídas el 22-oct-2026.
   https://learn.microsoft.com/en-us/azure/communication-services/concepts/numbers/phone-number-management-for-argentina ·
   https://learn.microsoft.com/en-us/microsoft-copilot-studio/voice-overview
 - **CRM:** lead #228 (`zennon`), mails del 15-oct y 19-oct, actividades del 19 y 22-oct.
-- **Atentina:** `README.md`, `AGENTS.md`, `docs/ARQUITECTURA.md`, `docs/API_INFERENCIA.md`, `docs/LLAMADAS_SALIENTES_PLAN.md`
-  (14), `docs/LINK_LLAMADA_PLAN.md`, `docs/WHATSAPP_PLAN.md`, `landing/src/data/site.ts`, `comercial/competencia/`,
+- **Atentina:** `README.md`, `AGENTS.md`, `docs/ARQUITECTURA.md`, `docs/API_INFERENCIA.md`, `docs/features/CAMPANAS.md`
+  (14), `docs/features/LINK_LLAMADA.md`, `docs/features/WHATSAPP.md`, `landing/src/data/site.ts`, `comercial/competencia/`,
   `comercial/plan-salida-al-mercado.md`, base de la app (tiers, campañas, `call_logs`; solo lectura).

@@ -302,8 +302,8 @@ y en el **fijo**:
 | WhatsApp: texto, notas de voz y llamadas de WhatsApp atendidas por el agente | En producción. El número del cliente se conecta por Embedded Signup, que espera la aprobación de Meta, o a mano |
 | Llamada saliente individual por API | En producción. Disparo manual en la demo |
 | Llamada automática a cada consulta nueva (speed-to-lead) | **Falta:** un disparador desde la conversación de WhatsApp o desde el formulario web hacia `POST /api/v1/calls` |
-| Seguimiento a las 24 y 72 horas y recompra a la base (X35 → X55) | Campañas de WhatsApp: desplegadas. Campañas de llamadas: implementadas, **sin desplegar** ([`../../LLAMADAS_SALIENTES_PLAN.md`](../../docs/LLAMADAS_SALIENTES_PLAN.md)) |
-| Agenda real de test drives y turnos, y stock | **Falta:** una app por cliente con herramientas ([`../../archive/APPS.md`](../../docs/archive/APPS.md)) o la integración con su CRM o su sistema de gestión, si tiene |
+| Seguimiento a las 24 y 72 horas y recompra a la base (X35 → X55) | Campañas de WhatsApp: desplegadas. Campañas de llamadas: implementadas, **sin desplegar** ([`features/CAMPANAS.md`](../../docs/features/CAMPANAS.md)) |
+| Agenda real de test drives y turnos, y stock | **Falta:** una app por cliente con herramientas (`../../archive/APPS.md` (quitado el 26-oct-2026)) o la integración con su CRM o su sistema de gestión, si tiene |
 | Ficha al vendedor | Hoy queda en el panel y en el resultado de la conversación. Mandarla al WhatsApp del vendedor es un paso a definir |
 | Grabación | Existe (`record_audio`), apagada. Antes de usarla con un cliente real hay que avisar a quien llama y corregir la política de privacidad de la landing |
 

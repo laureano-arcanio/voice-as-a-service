@@ -38,7 +38,7 @@ Formato 1080 × 1920 (9:16), ~80 s, narradora `paula` y `pablo` en dos líneas (
 ## Afirmaciones y fuentes
 
 - **Equipo, áreas y derivación en el agente; desplegado el 23-oct-2026 (fases 1 y 2), sin probar todavía con
-  llamadas reales.** [`docs/DERIVACIONES_PLAN.md`](../../../../docs/DERIVACIONES_PLAN.md), secciones 12 y 13
+  llamadas reales.** [`docs/features/EQUIPO_TELEFONIA.md`](../../../../docs/features/EQUIPO_TELEFONIA.md)
   (13.4 "Falta"). El video no dice que esté probado en producción.
 - **Personas con teléfono (solo Argentina); áreas con qué atiende, personas en orden (En orden o Rotativa),
   timbre por persona, horario por día, días cerrados, tecla de vuelta a la IA y mensajes por defecto.**

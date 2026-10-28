@@ -26,14 +26,14 @@
 - **"4 en 1"**, no "100 % propio": la telefonía es de Anura; WhatsApp pasa por Meta.
 - **Planes y precios:** `tiers.price_ars` (Free 0, Mostrador 29.000, Sucursal 99.000; leídos el 21-oct-2026) y
   `site.ts` (Red "a medida", USD aproximados, ítems). Pago con tarjeta por Mercado Pago o transferencia:
-  `docs/SUSCRIPCIONES_PLAN.md` (ambos en producción). Sin permanencia: FAQ de `site.ts`.
+  `docs/features/COBROS.md` (ambos en producción). Sin permanencia: FAQ de `site.ts`.
 - **WhatsApp (mensajes, notas de voz con respuesta en audio, llamadas, campañas de mensajes, ruteo por contacto):**
-  AGENTS.md y `docs/WHATSAPP_PLAN.md` (fases 1, 4, 5 y 5.6 en producción).
-- **Link para llamar:** `docs/LINK_LLAMADA_PLAN.md`, desplegado el 19-oct-2026.
+  AGENTS.md y `docs/features/WHATSAPP.md` (fases 1, 4, 5 y 5.6 en producción).
+- **Link para llamar:** `docs/features/LINK_LLAMADA.md`, desplegado el 19-oct-2026.
 - **Apps e integraciones:** `docs/APPS.md` (primer caso en producción desde el 12-oct-2026; el ejemplo del
   gimnasio no nombra al cliente).
 - **Resumen por email:** AGENTS.md, desplegado el 20-oct-2026.
-- **Saliente de a una por panel o API:** `POST /api/v1/calls` (`docs/LLAMADAS_SALIENTES_PLAN.md`, sección 2).
+- **Saliente de a una por panel o API:** `POST /api/v1/calls` (`docs/features/CAMPANAS.md).
 - **Privacidad:** inferencia propia (AGENTS.md); la API de motores no guarda textos ni audios (FAQ de `site.ts`).
 - **Omitido a propósito:** capacidad en llamadas simultáneas (no hay CAP con Gemma), grabación de audio (apagada y
   la privacidad de la landing dice que no se graba), BYOK de LLM (UI sin desplegar y contradice "sin terceros de

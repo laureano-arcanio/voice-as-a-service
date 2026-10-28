@@ -2,7 +2,7 @@
 NOTAS INTERNAS (borrar antes de enviar)
 - Borrador. Revisar con abogado comercial antes de firmar, en especial §10 (créditos) y §12 (limitación de responsabilidad).
 - Completar todos los campos entre [CORCHETES]: razón social, CUIT, horario hábil, teléfono de guardia y URL de la Página de Estado (hoy no existe; evaluar un status.atentina.com.ar).
-- Tiempos de soporte (§8) y RPO/RTO (§9): ajustar a lo que el equipo realmente puede cubrir, en particular la guardia 24/7 para Severidad 1 y la redundancia de dos sitios (hoy la plataforma corre en un solo server; ver docs/PRODUCCION.md).
+- Tiempos de soporte (§8) y RPO/RTO (§9): ajustar a lo que el equipo realmente puede cubrir, en particular la guardia 24/7 para Severidad 1 y la redundancia de dos sitios (hoy la plataforma corre en un solo server; ver docs/INFRA.md).
 - 99,8% mensual = ~86 min de indisponibilidad permitida en un mes de 30 días.
 -->
 

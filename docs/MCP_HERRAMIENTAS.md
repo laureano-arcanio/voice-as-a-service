@@ -1,7 +1,7 @@
 # Herramientas del servidor MCP
 
 Generado desde `app/mcp/catalog.py` con `make mcp-docs`: no editar a mano. Diseño en
-[`MCP_PLAN.md`](MCP_PLAN.md).
+[`MCP.md`](features/MCP.md).
 
 - URL: `https://app.atentina.com.ar/mcp` (Streamable HTTP).
 - Auth: OAuth 2.1 (el cliente MCP descubre el login solo, por el 401 con `resource_metadata`) o

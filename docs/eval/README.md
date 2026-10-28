@@ -1,86 +1,113 @@
-# Eval de calidad del LLM: resultados y registro
+# Evals de calidad
 
-Qué tan bien conversa cada modelo LLM en los agentes más comunes (cobranza, relevamiento, toma de
-datos, turnos, venta) con clientes cooperativos, apurados, confusos, hostiles, evasivos y fuera de
-guion. Diseño en [`../EVAL_LLM_PLAN.md`](../EVAL_LLM_PLAN.md), código en `scripts/eval/`. Es por
-texto: mide el LLM y el motor, no el STT ni el TTS (para eso, la capa de canal `tts-stt`).
+Qué tan bien conversa un LLM como agente: por tipo de agente, con clientes difíciles y, aparte, con
+herramientas y con el MCP. Complementa al test de capacidad ([`../capacity/`](../capacity/README.md)), que mide
+cuántas llamadas aguanta el pipeline.
 
-## Resultados vigentes
+**Los evals informan, no bloquean** (`AGENTS.md`, "Reglas de desarrollo"): miden y reportan qué falla y siempre
+terminan en 0. Los escenarios, personas y agentes `eval_*` no se ajustan para que pase un modelo; una
+expectativa se corrige solo si estaba mal escrita, y se anota por qué. Que el código ande lo prueba `make test`
+con LLM falso.
 
-Todavía no hay runs registrados. El primero (EVAL-001) es la línea base con el LLM vigente, Gemma 4 26B-A4B (desde el 6-oct-2026); el Qwen3.5-9B anterior, como referencia.
+## Targets
 
-## Índice
+| Target | Qué mide | LLM | Código |
+|---|---|---|---|
+| `make eval-llm` | Conversación por tipo de agente × persona (este doc) | `vllm-llm` o `--llm-base-url` | `scripts/eval/run.py` |
+| `make eval-llm-juez RUN=...` | Rúbrica del juez sobre un run; `--pareado <otro run>` | `EVAL_LLM_*` | `scripts/eval/juez.py` |
+| `make eval-llm-report RUN=...` | `summary.json` y `report.html`; `--comparar <otro run>` | - | `scripts/eval/analyze.py` |
+| `make eval-tools [LLM=openrouter] [REPS=3]` | Llamadas a herramientas: cuál, argumentos, de más, uso del resultado, latencia | `local` u `openrouter` | `scripts/tools/eval.py` (agente `eval_tools`, API falsa) |
+| `make mcp-eval [MODELS=...]` | Si el modelo elige bien entre las herramientas del MCP | OpenRouter (gasta tokens) | `scripts/mcp/eval_tools.py`, detalle en `scratch/mcp-eval/` |
+| `make eval-motor` / `make eval-llamadas` | Escenarios y llamadas reales repetidas contra el motor | `vllm-llm` | `scripts/replay_calls.py`, `scripts/replay_transcripts.py` (**rotos**, ver Pendientes) |
 
-| EVAL | Fecha | Agente LLM | Motor | Cliente / canal | Datos ok | Cierre ok | Reglas / 10 turnos | Juez | LLM p50 |
-|---|---|---|---|---|---|---|---|---|---|
+## Agentes y personas (`make eval-llm`)
+
+Por texto: corre el motor (`ConversationEngine` + `LLMClient`) con `ConversationStore("sqlite://")`, sin
+LiveKit, STT ni TTS, en el contenedor `app`. Un run completo (5 agentes × 6 personas × 3 repeticiones, ~90
+conversaciones) tarda 10–15 min. Corridas en `scripts/eval/runs/<fecha>_<nombre>/` (sin versionar).
+
+| Grupo (`personas/<grupo>.yml`) | Agente (`app/agents/reference/`) | Qué pone a prueba |
+|---|---|---|
+| `cobranza` | `eval_cobranza` | Firmeza sin intimidar, no revelar la deuda a un tercero, montos y fechas |
+| `relevamiento` | `eval_relevamiento` | Encuesta 0–10 y opciones: respuestas ambiguas, no inducir, no saltear |
+| `datos` | `eval_datos` | Dictado de email, teléfono, dirección y DNI; correcciones |
+| `turnos` | `eval_turnos` | Fechas relativas, no prometer horarios fuera de la base |
+| `demo_booking` | `demo_booking` | Venta: objeciones y preguntas fuera de la base |
+
+Personas por agente: **cooperativo** (piso), **apurado** (brevedad), **confuso** (reformular, volver al
+objetivo), **hostil** (tono, respetar "no me llamen más"), **evasivo** (alucinaciones, último valor dicho gana),
+**fuera de guion** (número equivocado, tercero, buzón). Cada una trae ficha (datos verdaderos, al azar por
+`--seed`) y esperado (campos, con `null` donde no hay que inventar, y `outcome` aceptables).
+
+- **Cliente** (`--cliente`): `simulado` (default; LLM externo con persona + ficha, `scripts/eval/simulador.py`,
+  `EVAL_LLM_BASE_URL`/`EVAL_LLM_API_KEY`/`EVAL_LLM_MODEL` en `.env`, DeepSeek por defecto) o `guion` (respuestas
+  fijas de `personas/*.yml`, sin API externa).
+- **Canal** (`--canal`): `texto`; `stt-sim` (errores de STT simulados en el texto); `tts-stt` (el turno pasa por
+  `vllm-tts` → tel8k → `stt-parakeet` reales: carga las GPUs del stack).
+
+## Métricas
+
+**Duras** (`checks.py`, deterministas): datos ok / faltan / mal contra la ficha (mal con esperado vacío =
+inventado), resultado correcto, si terminó (`end_call`), turnos, respuestas repetidas, reglas de voz rotas
+(markdown, símbolos, dígitos, siglas, usted, más de una pregunta, más de N frases y las prohibidas del agente),
+largo en caracteres y segundos de TTS (17 car/s), latencia del LLM por turno y de la extracción (p50/p95),
+errores. `problemas` las pondera para ordenar las peores conversaciones.
+
+**Juez** (`juez.py`, LLM externo): coherencia, adherencia (con lista de alucinaciones), manejo de la persona,
+naturalidad y cierre, de 1 a 5 con motivo, más repreguntas. El **pareado** (mismo escenario, dos runs, orden al
+azar) decide mejor que el puntaje absoluto.
+
+**Criterio de referencia** para decir que un modelo es apto (sobre todos los agentes y personas): datos ok ≥ 95 %,
+inventados ≤ 1 %, resultado correcto ≥ 90 %; 0 loops y ≤ 1 regla de voz rota cada 10 turnos; 0 revelaciones de
+deuda a terceros y 0 promesas fuera de la base; juez ≥ 4 por dimensión. Entre los aptos, gana el de menor latencia
+p50 por turno. Es un criterio para decidir, no una compuerta.
 
 ## Cómo correrlo
 
-Todo corre en el contenedor `app` contra el `vllm-llm` del stack (o contra otro LLM con
-`--llm-base-url`). Las conversaciones se guardan en `scripts/eval/runs/<fecha>_<nombre>/`
-(sin versionar).
+```bash
+make eval-llm ARGS="--humo --cliente guion"                  # 1 cooperativo por agente, sin API, ~1 min
+make eval-llm ARGS="--reps 3 --juez"                         # la medición: ~90 conversaciones + juez
+make eval-llm ARGS="--agentes cobranza,datos --personas hostil,evasivo --reps 5"
+make eval-llm ARGS="--canal tts-stt --paralelo 4"            # STT y TTS reales, con el stack libre
+make eval-llm ARGS="--llm-base-url https://api.deepseek.com/v1 --llm-model deepseek-chat --llm-api-key-env EVAL_LLM_API_KEY --nombre deepseek"
+make eval-llm-juez RUN=scripts/eval/runs/<A> ARGS="--pareado scripts/eval/runs/<B>"
+make eval-llm-report RUN=scripts/eval/runs/<A> ARGS="--comparar scripts/eval/runs/<B>"
+```
 
-1. **Sin API externa** (verificar el test, regresión de prompts): el cliente sigue los guiones fijos
-   de `scripts/eval/personas/*.yml`.
-   ```bash
-   make eval-llm ARGS="--humo --cliente guion"          # 1 cooperativo por agente, ~1 min
-   make eval-llm ARGS="--cliente guion --reps 3"        # todas las personas con guion
-   ```
-2. **Con cliente simulado** (la medición): `EVAL_LLM_API_KEY` en `.env` (DeepSeek directo por
-   defecto). Con OpenRouter: `EVAL_LLM_BASE_URL=https://openrouter.ai/api/v1` y el modelo con
-   prefijo de proveedor, por ejemplo `EVAL_LLM_MODEL=deepseek/deepseek-v3.2`. Cualquier endpoint
-   OpenAI-compatible sirve; el pensamiento de Qwen se apaga solo en los endpoints locales.
-   ```bash
-   make eval-llm ARGS="--reps 3 --juez"                 # ~90 conversaciones + juez, 10-15 min
-   make eval-llm ARGS="--agentes cobranza,datos --personas hostil,evasivo --reps 5"
-   make eval-llm ARGS="--canal stt-sim"                 # errores de STT simulados en el texto
-   make eval-llm ARGS="--canal tts-stt --paralelo 4"    # TTS -> tel8k -> Parakeet reales (carga las GPUs)
-   ```
-3. **Otro modelo local:** levantarlo con su override (por ejemplo `docker-compose.gemma4-e4b.yml`,
-   que recrea `vllm-llm`, `app` y `agent`), correr el mismo comando y volver con
-   `make up-inference && make up-agent`.
-4. **Un modelo por API como agente** (techo de referencia, solo motor `classic`):
-   ```bash
-   make eval-llm ARGS="--llm-base-url https://api.deepseek.com/v1 --llm-model deepseek-chat --llm-api-key-env EVAL_LLM_API_KEY --nombre deepseek"
-   ```
-5. **Juez y comparación:**
-   ```bash
-   make eval-llm-juez RUN=scripts/eval/runs/<run>                          # rúbrica 1-5 -> juez.jsonl
-   make eval-llm-juez RUN=scripts/eval/runs/<A> ARGS="--pareado scripts/eval/runs/<B>"   # cuál conversó mejor
-   make eval-llm-report RUN=scripts/eval/runs/<A> ARGS="--comparar scripts/eval/runs/<B>"
-   ```
+- `--lista` imprime los escenarios sin correr. Misma `--seed` entre runs = mismos escenarios.
+- **Otro modelo local:** levantarlo con su override (por ejemplo `docker-compose.gemma4-e4b.yml`; el nombre del
+  modelo tiene que coincidir en `vllm-llm`, `app` y `agent`), correr el mismo comando y volver con
+  `make up-inference && make up-agent` (confirmar antes: recrea servicios en vivo).
+- Con OpenRouter como simulador: `EVAL_LLM_BASE_URL=https://openrouter.ai/api/v1` y el modelo con prefijo de
+  proveedor (`deepseek/deepseek-v3.2`).
 
-`--lista` imprime los escenarios sin correr nada. `--seed` cambia las fichas (nombres, emails,
-fechas, puntajes); con la misma semilla, dos runs comparan los mismos escenarios.
+## Registro
 
-## Qué mide
+Todavía no hay ningún `EVAL-NNN`: ningún modelo está validado con el eval. El primero (EVAL-001) es la línea base
+con Gemma 4 26B-A4B (LLM vigente).
 
-Por conversación (`checks.py`, deterministas): datos ok / faltan / mal contra la ficha (mal con
-esperado vacío = inventado), cierre correcto, si terminó, turnos, respuestas repetidas, reglas de voz rotas por regex (markdown, símbolos, dígitos,
-siglas, usted, más de una pregunta, más de N frases, y las prohibidas de cada agente y persona),
-largo de la respuesta en caracteres y segundos de TTS, latencia del LLM por turno y de la
-extracción, errores. `problemas` las resume para ordenar las peores.
+Registrar un run: `docs/eval/EVAL-NNN-<slug>/` con `README.md` (modelo, config, comando, tabla del resumen,
+hallazgos con ejemplos), `summary.json` y `report.html` copiados del run; sumar la fila abajo y, si cambia la
+decisión de modelo, `AGENTS.md`.
 
-Con el juez (`juez.py`, LLM externo): coherencia, adherencia (con lista de alucinaciones), manejo
-de la persona, naturalidad y cierre, de 1 a 5 con motivo; y repreguntas. Pareado entre dos runs.
-
-## Registrar un run
-
-`EVAL-NNN-<slug>/` con `README.md` (modelo, config, comando, tabla del resumen, hallazgos con
-ejemplos de conversaciones), `summary.json` y `report.html` copiados del run. Sumar la fila al
-índice de arriba y, si cambia la decisión de modelo, `AGENTS.md`.
+| EVAL | Fecha | LLM del agente | Cliente / canal | Datos ok | Resultado ok | Reglas / 10 turnos | Juez | LLM p50 |
+|---|---|---|---|---|---|---|---|---|
 
 ## Trampas
 
-- **Emails con punto o cifras (hasta el 26-oct-2026):** `app.conversation.workflow.said()` exigía que la
-  parte local del email dictado estuviera en lo que dijo el cliente; se quitó en la limpieza
-  ([`../LIMPIEZA_PLAN.md`](../LIMPIEZA_PLAN.md)) y ahora se guarda lo que extrae el modelo. Las fichas
-  siguen con locales sin punto ni cifras.
-- **Dígitos en la respuesta (26-oct-2026):** el texto para el TTS lo normaliza
-  `app/voice/speech_text.py` y el prompt ya no pide escribir en palabras, así que la regla `digitos` de
-  `checks.py` cuenta como rota una respuesta que en voz sale bien.
-- **El simulador es un LLM:** es más paciente que una persona y no interrumpe. Con temperatura
-  0,7 varía entre repeticiones; por eso ≥ 3 repeticiones y la misma semilla entre runs.
-- **Juez y agente distintos:** cuando el agente es DeepSeek, decidir con las métricas duras y el
-  pareado, no con el puntaje absoluto.
-- **`tts-stt` usa las GPUs del stack:** correrlo con el stack libre y `--paralelo` bajo.
+- **Dígitos:** el texto para el TTS lo normaliza `app/voice/speech_text.py`, así que la regla `digitos` cuenta como
+  rota una respuesta que en voz sale bien.
+- **Emails:** se guarda lo que extrae el modelo; las fichas usan partes locales sin punto ni cifras.
+- **El simulador es un LLM:** más paciente que una persona, no interrumpe; varía con temperatura 0,7. Por eso ≥ 3
+  repeticiones y la misma semilla.
+- **Juez y agente distintos:** si el agente es el mismo modelo que el juez (DeepSeek), decidir con las métricas
+  duras y el pareado.
+- **Latencia:** es la del LLM con poca carga; la capacidad es tema de `CAP-NNN`.
+
+## Pendientes
+
+- EVAL-001 con Gemma 4 26B y calibrar el juez contra ~20 conversaciones calificadas a mano.
+- `make eval-motor` y `make eval-llamadas` están rotos: `scripts/replay_calls.py` y `scripts/replay_transcripts.py`
+  leen `turn.next_objective`, que ya no existe en `AgentTurn` (`app/conversation/models.py`).
+- `scripts/eval/run.py` todavía escribe `"engine": "classic"` en `run.json` (lo muestra `analyze.py`).
+- Sin eval de herramientas con el LLM propio todavía (`make eval-tools` con `LLM=local`).

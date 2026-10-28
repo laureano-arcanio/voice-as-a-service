@@ -378,12 +378,12 @@ Revisado contra los docs el 22-oct-2026 (mismo estado que en [`isaiasgoldman.md`
 | Pieza | Estado |
 |---|---|
 | Agente de voz entrante en un número de Anura | En producción. Su fijo 0351 465-4531 no se mueve: o desvían a un número nuestro (fuera de horario o si no atienden) o se usa un número nuevo. A definir con ellos |
-| WhatsApp: texto, notas de voz, llamadas de WhatsApp | En producción. Conectar su 351 617-5120 a la Cloud API tiene costo para ellos: el número deja la app común. La **coexistencia** (seguir usando la app de WhatsApp Business y que la plataforma registre todo) está a implementar ([`../../WHATSAPP_PLAN.md`](../../docs/WHATSAPP_PLAN.md), 5.7). El alta por Embedded Signup espera la aprobación de Meta |
+| WhatsApp: texto, notas de voz, llamadas de WhatsApp | En producción. Conectar su 351 617-5120 a la Cloud API tiene costo para ellos: el número deja la app común. La **coexistencia** (seguir usando la app de WhatsApp Business y que la plataforma registre todo) está a implementar ([`features/WHATSAPP.md`](../../docs/features/WHATSAPP.md)). El alta por Embedded Signup espera la aprobación de Meta |
 | **Fotos y planos por WhatsApp** | **Falta.** Hoy el agente contesta un mensaje fijo a imágenes y documentos (`WA_UNSUPPORTED_REPLY`). En este rubro los clientes mandan fotos y planos: hace falta guardarlos y pasarlos al asesor con la ficha. El OCR existe solo para operadores de las apps por cliente |
 | Triage por tipo de consulta | Hecho con los `outcomes` del agente (presupuesto nuevo, estado de pedido, posventa, franquicias, administración, fuera de tema) |
 | Derivación al asesor | **Parcial:** resumen por email de cada llamada (desplegado el 20-oct-2026). El relay al WhatsApp del vendedor (5.8) y la transferencia de llamadas **faltan** |
 | Derivación por zona a franquicias | Con la lista de puntos de venta en la definición del agente, el agente da el contacto al cliente. El aviso a la franquicia, hoy por email; con 5.8, por WhatsApp |
-| Seguimiento del presupuesto (D1) | **Falta** como función: requiere saber qué presupuestos están pendientes (una app por cliente, [`../../archive/APPS.md`](../../docs/archive/APPS.md), o una planilla que ellos carguen) y avisar al asesor y al cliente. Las campañas de WhatsApp (plantilla a una lista) existen y sirven para un aviso masivo, no para este seguimiento uno a uno |
+| Seguimiento del presupuesto (D1) | **Falta** como función: requiere saber qué presupuestos están pendientes (una app por cliente, `../../archive/APPS.md` (quitado el 26-oct-2026), o una planilla que ellos carguen) y avisar al asesor y al cliente. Las campañas de WhatsApp (plantilla a una lista) existen y sirven para un aviso masivo, no para este seguimiento uno a uno |
 | Estado del pedido y fecha de instalación (D2) | **Falta:** el dato vive en su sistema o planilla. App por cliente con herramientas que lo lean |
 | Reclamos con número de caso (D3, D4) | Hoy queda como resultado de la conversación en el panel; un registro con estado es parte de una app por cliente |
 | Panel | **Parcial:** conversaciones, completas, objetivo cumplido, minutos, tiempo de respuesta, gráfico diario, transcripción y resultado. Falta desglose por tipo (`outcome`), por canal, por sucursal destino, fuera de horario y las métricas de presupuestos y obras |
@@ -499,5 +499,5 @@ Todas leídas el 22-oct-2026.
   - Economix, 6-jun-2024: https://economixtv.com/programa/sql-la-cordobesa-que-te-hace-tu-cocina-o-placard-a-medida-y-que-ya-es-la-mas-grande-del-pais/
 - **Videos:** https://www.youtube.com/watch?v=FLvqUoo0JYM (2015) · https://www.youtube.com/watch?v=mwnJHAnpA9I (2020) ·
   https://www.youtube.com/watch?v=fqN0KkvlSvk (2024) · https://www.youtube.com/watch?v=Hxu5IDKBlRI (2025)
-- **Producto (interno):** `landing/src/data/site.ts`, [`../../WHATSAPP_PLAN.md`](../../docs/WHATSAPP_PLAN.md) (5.7, 5.8),
-  [`../../LLAMADAS_SALIENTES_PLAN.md`](../../docs/LLAMADAS_SALIENTES_PLAN.md), [`isaiasgoldman.md`](isaiasgoldman.md) (7.4).
+- **Producto (interno):** `landing/src/data/site.ts`, [`features/WHATSAPP.md`](../../docs/features/WHATSAPP.md) (5.7, 5.8),
+  [`features/CAMPANAS.md`](../../docs/features/CAMPANAS.md), [`isaiasgoldman.md`](isaiasgoldman.md) (7.4).

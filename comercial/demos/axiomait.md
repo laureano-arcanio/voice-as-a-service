@@ -399,6 +399,6 @@ Leídas el 22-oct-2026.
 - **Redes:** https://www.linkedin.com/company/axioma-it-solutions/ · https://www.youtube.com/watch?v=ADMS6Z3-hbg ·
   https://www.instagram.com/axiomaitsolutions (no leída) · https://www.facebook.com/AxiomaITSolutionsSRL (no leída)
 - **Conversación:** base de la app, `conversations.id = e0e4e64d-0ad8-4e25-ac4d-1f717be51985` (copia en `raw/`).
-- **Atentina:** `README.md`, `docs/ARQUITECTURA.md`, `docs/LLAMADAS_SALIENTES_PLAN.md` (14), `docs/API_INFERENCIA.md`,
+- **Atentina:** `README.md`, `docs/ARQUITECTURA.md`, `docs/features/CAMPANAS.md` (14), `docs/API_INFERENCIA.md`,
   `tts/finetune/voces.tsv`, `landing/src/data/site.ts`, `docs/capacity/README.md`, `comercial/competencia/`,
   `comercial/demanda-y-mercado-local.md`.

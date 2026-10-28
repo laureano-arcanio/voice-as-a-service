@@ -53,7 +53,7 @@ dicen (van en pantalla).
 
 Todo lo que se dice está en las diapositivas, y las diapositivas salen de la documentación publicada: ver
 "Afirmaciones y de dónde salen" en el [README de la presentación](../../../documentos/proyectos/yoizen-tu-propio-agente/README.md)
-(`landing/src/pages/desarrolladores/docs/tu-propio-agente.astro` y `docs/AGENTE_EXTERNO_PLAN.md`, secciones 3, 4, 5,
+(`landing/src/pages/desarrolladores/docs/tu-propio-agente.astro` y `docs/features/LLM_CONEXIONES.md,
 10, 11 y 12). En particular:
 
 - **Lo que ya tienen (2):** "omnicanal, WhatsApp, web chat, orquestador" y "Asterisk en camino", de la reunión del

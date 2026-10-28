@@ -57,7 +57,10 @@ Review de Meta: el uso de `whatsapp_business_management` con capturas reales del
 sin locución ni música) y
 [`yoizen-tu-propio-agente`](../marketing/videos/proyectos/yoizen-tu-propio-agente/README.md) (16:9, 113 s: las 12
 diapositivas de la presentación `documentos/proyectos/yoizen-tu-propio-agente` como PNG, con una locución por
-diapositiva alternando paula y gonzalo, subtítulos en la línea del pie y música).
+diapositiva alternando paula y gonzalo, subtítulos en la línea del pie y música) y
+[`llamadas-salientes`](../marketing/videos/proyectos/llamadas-salientes/README.md) (16:9, 89 s, tutorial para YouTube: configurar el número,
+cargar el equipo y los contactos y llamar desde el panel y desde la aplicación Teléfono, con capturas reales del panel,
+subtítulos y link a `/plataforma/telefono-del-equipo`; paula y gonzalo).
 
 ## Comandos
 

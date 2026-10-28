@@ -23,12 +23,12 @@ en un documento claro, orientado a negocio y con la marca, impreso a PDF y versi
 | Tema | Fuente |
 |---|---|
 | Marca, colores, tipografía, voz y texto | [`docs/DESIGN_GUIDELINE.md`](../../docs/DESIGN_GUIDELINE.md) (secciones 2, 3, 4 y 10), `landing/src/styles/global.css`, `docs/brand/` |
-| Mensaje comercial, verticales, precios, FAQ y contacto | `landing/src/pages/`, `landing/src/data/site.ts`, [`docs/LANDING.md`](../../docs/LANDING.md), [`docs/SUSCRIPCIONES_PLAN.md`](../../docs/SUSCRIPCIONES_PLAN.md) |
+| Mensaje comercial, verticales, precios, FAQ y contacto | `landing/src/pages/`, `landing/src/data/site.ts`, [`docs/features/LANDING.md`](../../docs/features/LANDING.md), [`docs/features/COBROS.md`](../../docs/features/COBROS.md) |
 | Producto y uso | [`README.md`](../../README.md), [`docs/GUIA_UI.md`](../../docs/GUIA_UI.md), [`docs/ARQUITECTURA.md`](../../docs/ARQUITECTURA.md) |
-| Canales y funciones (y si están desplegadas) | [`AGENTS.md`](../../AGENTS.md), [`docs/WHATSAPP_PLAN.md`](../../docs/WHATSAPP_PLAN.md), [`docs/LLAMADAS_SALIENTES_PLAN.md`](../../docs/LLAMADAS_SALIENTES_PLAN.md), [`docs/LINK_LLAMADA_PLAN.md`](../../docs/LINK_LLAMADA_PLAN.md), [`docs/BYOK_LLM_PLAN.md`](../../docs/BYOK_LLM_PLAN.md), [`docs/APPS.md`](../../docs/APPS.md), [`docs/EMAIL_PLAN.md`](../../docs/EMAIL_PLAN.md), [`docs/MERCADOPAGO_PLAN.md`](../../docs/MERCADOPAGO_PLAN.md) |
+| Canales y funciones (estado y pendientes en cada doc) | [`docs/features/`](../../docs/features/) (WhatsApp, campañas, equipo y derivaciones, link para llamar, herramientas, BYOK y tu propio agente, MCP, reportes) |
 | Integraciones y API | [`docs/API_INFERENCIA.md`](../../docs/API_INFERENCIA.md), `app/api/routers/`, `app/api/schemas.py` |
-| Infraestructura (si el pedido es técnico) | [`docs/PRODUCCION.md`](../../docs/PRODUCCION.md), [`docs/TELEFONIA_ANURA.md`](../../docs/TELEFONIA_ANURA.md), [`docs/capacity/README.md`](../../docs/capacity/README.md) |
-| Mercado, prospectos, reuniones y envíos | [`comercial/plan-salida-al-mercado.md`](../../comercial/plan-salida-al-mercado.md), [`comercial/demanda-y-mercado-local.md`](../../comercial/demanda-y-mercado-local.md), [`comercial/archivo/seguimiento.md`](../../comercial/archivo/seguimiento.md), `comercial/demos/`, `comercial/archivo/envios/` |
+| Infraestructura (si el pedido es técnico) | [`docs/INFRA.md`](../../docs/INFRA.md), [`docs/TELEFONIA_ANURA.md`](../../docs/TELEFONIA_ANURA.md), [`docs/capacity/README.md`](../../docs/capacity/README.md) |
+| Mercado, prospectos, reuniones y envíos | [`comercial/plan-salida-al-mercado.md`](../../comercial/plan-salida-al-mercado.md), [`comercial/demanda-y-mercado-local.md`](../../comercial/demanda-y-mercado-local.md), `comercial/demos/` |
 | Video que acompaña al documento | `marketing/videos/proyectos/` ([`marketing/VIDEOS.md`](../../marketing/VIDEOS.md)) |
 | Datos públicos de un prospecto | Su sitio y fuentes públicas (WebFetch/WebSearch), con la fecha de lectura en el README |
 
