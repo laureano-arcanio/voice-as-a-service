@@ -54,7 +54,16 @@ function reach(m: TeamMember | undefined) {
 }
 
 /** Etiqueta de un número y, asignado, quién atiende las entrantes: el equipo o el agente. */
-export function EditNumberModal({ number, onClose }: { number: PhoneNumber; onClose: () => void }) {
+export function EditNumberModal({
+  number,
+  startInTeam = false,
+  onClose,
+}: {
+  number: PhoneNumber;
+  /** Abre con el equipo elegido: el toggle de la fila lo usa para pasar a Equipo un número sin personas. */
+  startInTeam?: boolean;
+  onClose: () => void;
+}) {
   const update = useUpdateNumber();
   const assigned = !!number.client_id;
   const clientId = number.client_id ?? undefined;
@@ -63,7 +72,7 @@ export function EditNumberModal({ number, onClose }: { number: PhoneNumber; onCl
   const lock = useFeatureLock('direct_calls');
   const teamMode = (all: AnsweringDraft) => assigned && all.answer_mode === 'team';
   const form = useForm<AnsweringDraft>({
-    initialValues: toAnsweringDraft(number),
+    initialValues: { ...toAnsweringDraft(number), ...(startInTeam && { answer_mode: 'team' as const }) },
     validate: {
       label: (v) => (v.length <= 64 ? null : 'Hasta 64 caracteres'),
       ring_seconds: (v, all) =>

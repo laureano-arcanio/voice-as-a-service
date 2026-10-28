@@ -12,7 +12,7 @@ export function AccountPage() {
   if (!me.client_id) return null;
   return (
     <>
-      <PageHeader title="Mi cuenta" description={me.client_name ?? undefined} />
+      <PageHeader title="Números" description={me.client_name ?? undefined} />
       <Stack gap="md">
         <NumbersSection clientId={me.client_id} canAssign={false} />
         <CallEmailsCard clientId={me.client_id} />

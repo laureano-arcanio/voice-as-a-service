@@ -12,7 +12,6 @@ import {
   IconCode,
   IconCpu,
   IconCreditCard,
-  IconFileInvoice,
   IconMessages,
   IconMicrophone,
   IconNotebook,
@@ -102,7 +101,7 @@ export const CLIENT_NAV: NavEntry[] = [
     label: 'Cuenta',
     icon: IconUser,
     items: [
-      { to: '/account', label: 'Mi cuenta', icon: IconFileInvoice },
+      { to: '/account', label: 'Números', icon: IconPhone },
       { to: '/plan', label: 'Plan', icon: IconCreditCard },
     ],
   },

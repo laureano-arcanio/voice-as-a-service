@@ -127,7 +127,7 @@ export function NumbersSection({ clientId, canAssign }: { clientId: string; canA
                   <Table.Tr>
                     <Table.Th>Número</Table.Th>
                     <Table.Th>Etiqueta</Table.Th>
-                    <Table.Th>Atiende</Table.Th>
+                    <Table.Th>Quién atiende</Table.Th>
                     {canAssign && <Table.Th>Asignado el</Table.Th>}
                     <Table.Th />
                   </Table.Tr>

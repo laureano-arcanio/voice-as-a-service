@@ -13,7 +13,7 @@ Hay dos roles, y cada uno trabaja en su área ([`ADMIN_SOPORTE_PLAN.md`](ADMIN_S
   - **Canales:** WhatsApp, Llamadas del agente, Teléfono del equipo y Campañas.
   - **Agenda:** Contactos y Equipo.
   - **Developers:** API keys y Uso de la API.
-  - **Cuenta:** Mi cuenta y Plan.
+  - **Cuenta:** Números (antes Mi cuenta) y Plan.
 - **Admin:** administra la plataforma en `/admin/*` (al iniciar sesión va siempre ahí). Su menú:
   Reportes, Conversaciones, Agentes (solo lectura, de todos los clientes), Uso de la API, Clientes, Números,
   Tiers, Cobros y Usuarios. Lo demás (agentes, herramientas, WhatsApp, contactos, campañas, equipo...) no está
@@ -201,10 +201,13 @@ agente**.
    - Los clientes sin lugar en su tier aparecen deshabilitados.
    - Desde Números se puede elegir el agente en el mismo paso; desde la ficha del cliente se elige
      después, en la fila del número. Un número asignado arranca atendido por **el equipo, sin personas**
-     (columna **Atiende**: "Equipo sin personas"): hasta que se elija quién atiende, las entrantes van al
+     (columna **Quién atiende**: "Equipo sin personas"): hasta que se elija quién atiende, las entrantes van al
      agente del número, y sin agente no las atiende nadie. **No lo dejes sin agente ni sin personas.**
-3. **Quién atiende:** en la fila de cada número (lápiz de **Editar**, en Números, en la ficha del cliente o
-   en Mi cuenta), sección **Quién atiende las entrantes**. Lo puede cambiar el admin o el propio cliente.
+3. **Quién atiende:** en la columna **Quién atiende** de cada fila (Números, ficha del cliente o la
+   pantalla Números del cliente) hay un toggle **Agente / Equipo**. Con **Agente** aparece el desplegable con
+   los agentes del cliente; con **Equipo**, sus personas. Pasar a **Equipo** un número sin personas abre el
+   editor (lápiz de **Editar**, sección **Quién atiende las entrantes**) para elegirlas, y con un plan sin
+   llamadas directas el toggle no deja elegir Equipo. Lo puede cambiar el admin o el propio cliente.
    - **El agente:** elegís el agente del cliente que atiende las entrantes a ese número (el selector también
      está directo en la fila). El agente puede derivar al equipo con sus áreas, como siempre.
    - **El equipo** (planes con llamadas directas; en el Free queda deshabilitado y se explica por qué): atienden
@@ -484,7 +487,7 @@ otro cliente.
    atender. También desde **Agentes > Playground** en el menú, o con **Probar** en la lista.
 5. Arriba, **Editar** (nombre y descripción), **Archivar/Desarchivar** y **Borrar** (solo si nunca
    tuvo conversaciones ni atiende un número de WhatsApp).
-6. Para que atienda: elegilo en **Mi cuenta > Números** o en **WhatsApp**.
+6. Para que atienda: elegilo en **Números** o en **WhatsApp**.
 
 La pestaña **JSON**, el slug y **Ver prompt** los ve todo cliente, como el admin. Por API el cliente hace lo
 mismo con su API key (`POST /api/v1/agents` sin `client_id`); `engine` ya no existe en la definición
@@ -704,7 +707,7 @@ recibir mensajes: muchos bloqueos bajan la calidad del número y su límite de e
 
 El contestador se detecta por lo que dice (frases como "deje su mensaje"): puede equivocarse con un humano.
 
-### Mi cuenta (cliente)
+### Números (cliente, antes Mi cuenta)
 
 - **Consumo:** está en **Reportes > Consumo** (junto con la API de inferencia).
 - **Números:** editás la etiqueta y **quién atiende** cada número: un agente tuyo o el equipo, con sus personas,

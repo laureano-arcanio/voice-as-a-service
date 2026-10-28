@@ -254,6 +254,47 @@ describe('números: quién atiende', () => {
     expect(patched(calls, 'n3')).toEqual({ label: 'Cobranzas', answer_mode: 'agent', agent_id: 'ag1' });
   });
 
+  it('el toggle de la fila pasa del agente al equipo si ya tiene personas, y vuelve', async () => {
+    const withPeople = {
+      ...AGENT_NUMBER,
+      id: 'n6',
+      e164: '+541155550006',
+      members: TEAM_NUMBER.members,
+    } as PhoneNumber;
+    const calls = mockApi([withPeople, TEAM_NUMBER], {
+      'PATCH /api/v1/phone-numbers/n6': () => jsonResponse({ ...withPeople, answer_mode: 'team' }),
+      'PATCH /api/v1/phone-numbers/n1': () => jsonResponse({ ...TEAM_NUMBER, answer_mode: 'agent' }),
+    });
+    renderWithProviders(<NumbersSection clientId="c-1" canAssign={false} />, { me: CLIENT_USER });
+
+    const agentRow = await screen.findByRole('row', { name: /\+541155550006/ });
+    expect(within(agentRow).getByRole('radio', { name: 'Agente' })).toBeChecked();
+    await userEvent.click(within(agentRow).getByRole('radio', { name: 'Equipo' }));
+    await waitFor(() => expect(patched(calls, 'n6')).toEqual({ answer_mode: 'team' }));
+
+    const teamRow = screen.getByRole('row', { name: /\+541155550001/ });
+    expect(within(teamRow).getByRole('radio', { name: 'Equipo' })).toBeChecked();
+    await userEvent.click(within(teamRow).getByRole('radio', { name: 'Agente' }));
+    await waitFor(() => expect(patched(calls, 'n1')).toEqual({ answer_mode: 'agent' }));
+  });
+
+  it('el toggle pasa a Equipo un número sin personas abriendo el editor, sin tocar la API', async () => {
+    const calls = mockApi([AGENT_NUMBER]);
+    renderWithProviders(<NumbersSection clientId="c-1" canAssign={false} />, { me: CLIENT_USER });
+    const row = await screen.findByRole('row', { name: /\+541155550004/ });
+    await userEvent.click(within(row).getByRole('radio', { name: 'Equipo' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Editar +541155550004' });
+    expect(within(dialog).getByRole('radio', { name: /El equipo/ })).toBeChecked();
+    expect(patched(calls, 'n4')).toBeUndefined();
+  });
+
+  it('sin llamadas directas en el plan el toggle no deja elegir el equipo', async () => {
+    mockApi([AGENT_NUMBER], {}, false);
+    renderWithProviders(<NumbersSection clientId="c-1" canAssign={false} />, { me: CLIENT_USER });
+    const row = await screen.findByRole('row', { name: /\+541155550004/ });
+    await waitFor(() => expect(within(row).getByRole('radio', { name: 'Equipo' })).toBeDisabled());
+  });
+
   it('sin llamadas directas en el plan avisa y no deja elegir el equipo', async () => {
     mockApi([AGENT_NUMBER], {}, false);
     renderWithProviders(<NumbersSection clientId="c-1" canAssign={false} />, { me: CLIENT_USER });

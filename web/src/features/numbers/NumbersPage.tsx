@@ -160,7 +160,7 @@ export function NumbersPage() {
                         <Table.Th>Etiqueta</Table.Th>
                         <Table.Th>Proveedor</Table.Th>
                         <Table.Th>Cliente</Table.Th>
-                        <Table.Th>Atiende</Table.Th>
+                        <Table.Th>Quién atiende</Table.Th>
                         <Table.Th>Asignado el</Table.Th>
                         <Table.Th />
                       </Table.Tr>
