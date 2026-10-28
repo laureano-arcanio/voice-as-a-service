@@ -19,7 +19,7 @@ abierto a cualquiera y un comercio chico suele tratarse como consumidor: se cump
 | Ley 25.326 arts. 5, 6 y 25 | Aceptación de la política; Atentina como encargada del tratamiento de las conversaciones |
 | CCyC 2560 | Aceptaciones y pedidos se conservan al menos 5 años después del fin de la relación |
 
-No es asesoramiento legal: los textos los revisa un abogado.
+No es asesoramiento legal: los textos los revisa un abogado (la versión `2026-10-28`, revisada el 28-oct-2026, según el titular).
 
 ## Textos y versiones
 
@@ -100,7 +100,6 @@ No es asesoramiento legal: los textos los revisa un abogado.
 
 ## Pendientes
 
-- Revisión del abogado de la versión `2026-10-28`.
 - Aviso por mail a los clientes de la versión `2026-10-28`.
 - UI del admin para los pedidos de baja y arrepentimiento: no existe; hoy es mail + API.
 - La próxima versión de las condiciones tiene que sacar la mención a "las apps" (`terminos/2026-10-28.md`, sistemas

@@ -295,7 +295,7 @@ backend de llamadas propio: usa la API y el `CallProvider` de siempre, con las m
   y no cuando no. También `make mcp-eval` con `start_direct_call` contra `start_call`.
 - **CAP corto** de directas y derivaciones mezcladas con llamadas del agente hasta los 10 canales (workers en
   escucha y STT por frase).
-- **Condiciones `2026-10-28`:** publicadas sin la revisión del abogado ni el aviso por mail con 30 días
+- **Condiciones `2026-10-28`:** revisadas por el abogado (28-oct-2026); falta el aviso por mail con 30 días
   ([LEGAL.md](LEGAL.md)).
 - **Retención de grabaciones:** las directas graban siempre y sin retención el disco crece con el uso.
 - **Códigos SIP de Anura** (no atiende, ocupado, inexistente) sin verificar con llamadas reales; ocupado y buzón

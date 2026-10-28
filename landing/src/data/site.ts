@@ -1149,7 +1149,7 @@ texto = client.audio.transcriptions.create(
       {
         title: "Qué esperar",
         paragraphs: [
-          "No hay una app de celular: para llamar o atender desde el panel, la pestaña tiene que estar abierta en el navegador, de la computadora o del celular. Para atender sin el panel, la llamada suena en el celular de cada persona, como una llamada común. Las llamadas del equipo gastan los minutos del plan y ocupan una de las llamadas a la vez, igual que las del agente.",
+          "Podés llamar y atender desde el panel, en el navegador, o desde la aplicación Teléfono (telefono.atentina.com.ar), una página tipo app de teléfono pensada para el celular: no se instala desde una tienda, se abre en el navegador. En los dos casos la pestaña tiene que estar abierta para recibir llamadas. Para atender sin abrir nada, la llamada suena en el celular de cada persona, como una llamada común. Las llamadas del equipo gastan los minutos del plan y ocupan una de las llamadas a la vez, igual que las del agente.",
         ],
       },
     ],
@@ -1171,7 +1171,7 @@ texto = client.audio.transcriptions.create(
     faq: [
       {
         q: "¿Necesito instalar una app o comprar teléfonos?",
-        a: "No. Se llama y se atiende desde el panel, en el navegador. No hay una app de celular: la pestaña tiene que estar abierta. Si preferís atender en el celular, la llamada suena en el celular de cada persona.",
+        a: "No. Se llama y se atiende desde el panel o desde la aplicación Teléfono, que se abre en el navegador del celular (no hay nada que instalar desde una tienda). Para recibir llamadas ahí, la pestaña tiene que estar abierta. Si preferís atender sin abrir nada, la llamada suena en el celular de cada persona.",
       },
       {
         q: "¿Se graban las llamadas del equipo?",
