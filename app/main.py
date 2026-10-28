@@ -15,7 +15,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 
-from .api import call_link_host, errors
+from .api import call_link_host, errors, phone_app_host
 from .api import oauth as oauth_routes
 from .api.deps import _bearer, get_db, get_principal, require_admin
 from .api.http import (
@@ -102,7 +102,8 @@ def create_app() -> FastAPI:
     mp_webhook.install_logging()
     # Middlewares: el ultimo agregado es el de afuera. Orden de afuera hacia adentro:
     # http -> https por el tunel, headers (tambien en los 403/413), CORS (la demo de la
-    # landing, sin credenciales), tope de cuerpo, CSRF y el host del link para llamar.
+    # landing, sin credenciales), tope de cuerpo, CSRF, el host del link para llamar y el del teléfono.
+    app.add_middleware(phone_app_host.PhoneAppHostMiddleware)
     app.add_middleware(call_link_host.CallLinkHostMiddleware)
     app.add_middleware(CsrfMiddleware)
     app.add_middleware(BodyLimitMiddleware)
@@ -125,6 +126,8 @@ def create_app() -> FastAPI:
     app.include_router(mp_webhook.router)
     # Pagina publica del link para llamar a un agente (/llamar/<token>; en su host, /<token>).
     app.include_router(call_link_host.router)
+    # Teléfono del equipo, tipo app de Android (/movil; en su host, /).
+    app.include_router(phone_app_host.router)
     # Servidor MCP para los agentes de IA de los clientes (docs/MCP_PLAN.md).
     app.include_router(mcp_server.router)
     app.include_router(oauth_routes.router)

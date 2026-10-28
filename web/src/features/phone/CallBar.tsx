@@ -249,7 +249,7 @@ function LiveBar() {
   );
 }
 
-function SaveContactModal({ phone, onClose }: { phone: string; onClose: () => void }) {
+export function SaveContactModal({ phone, onClose }: { phone: string; onClose: () => void }) {
   const save = useUpsertContact();
   const [name, setName] = useState('');
   const submit = () =>

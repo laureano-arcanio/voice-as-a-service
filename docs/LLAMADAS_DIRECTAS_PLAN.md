@@ -546,3 +546,32 @@ después recrear `app` y `agent` con la imagen anterior. Las directas ya hechas 
   crece con el uso.
 - **Reportes:** las directas y las entrantes del equipo cuentan como llamadas y minutos, no en conversión ni
   embudo ([`REPORTES_PLAN.md`](REPORTES_PLAN.md)).
+
+## 16. Teléfono tipo Android en `telefono.atentina.com.ar`
+
+28-oct-2026, **implementado, sin desplegar**. El mismo teléfono del panel (saliente, atender, presencia, timbre, volver
+a entrar, tonos, subtítulos, guardar contacto) en una página propia que imita la app de teléfono de Android, para usar
+desde el celular o en una pestaña aparte. No hay backend nuevo de llamadas: usa la API de siempre y el
+`CallProvider` de `web/src/features/phone/`, así que valen las mismas reglas (plan, `terms_pending`, soporte, canales,
+bajas y bloqueados).
+
+- **Pantallas:** Favoritos (por usuario, en el navegador), Recientes (las del usuario, `GET /calls?user_id=`, por día,
+  con dirección y las que no se completaron en rojo; volver a llamar y guardar un número como contacto), Contactos
+  (por letra), búsqueda arriba (contactos, o "Llamar a" si es un E.164), ficha del contacto (llamar, favorito, copiar,
+  notas, baja o bloqueo y sus últimas 10 llamadas), teclado (`+` con tecla o manteniendo el 0; sugiere contactos) y el
+  menú de la cuenta (Disponible, número de salida, cerrar sesión). La llamada y la entrante van a pantalla completa.
+  Marcar pide formato internacional, como el panel; sin `*` (Anura).
+- **Código:** `web/telefono.html` (entrada aparte del build), `web/src/telefono/` (test en `PhoneApp.test.tsx`) y
+  `web/public/telefono.webmanifest` (se puede agregar a la pantalla de inicio). Backend:
+  `app/api/phone_app_host.py` (`GET /movil` en cualquier host; con el Host de `PHONE_APP_BASE_URL`, `/` es la página y
+  solo pasan `/api/v1/` sin los docs, `/assets/` y los íconos; todo lo demás, 404) y `tests/test_phone_app_host.py`.
+- **Sesión:** la cookie no tiene `Domain`, así que se ingresa en `telefono.` con el mismo usuario y clave (login y
+  "Olvidé mi clave" del panel, en un router en memoria). El chequeo de `Origin` acepta el propio host. Un admin ve
+  "es para los usuarios de una empresa".
+- **Desplegar:** `PHONE_APP_BASE_URL=https://telefono.atentina.com.ar` en `.env` (diff enmascarado antes), la ruta
+  `telefono.atentina.com.ar` → `http://localhost:8011` en el túnel (la crea el usuario, como `llamar.`) y, sin
+  llamadas en curso, `make calls-active && make up-agent` (la imagen de `app` compila `web/`). Antes de la ruta del
+  túnel ya se puede probar en `app.atentina.com.ar/movil`. Se usa `telefono` sin tilde: un subdominio con "é" es un
+  nombre internacionalizado (`xn--...`) y complica el certificado y escribirlo.
+- **Pendiente:** la prueba real con el celular (micrófono con la pantalla bloqueada, eco sin auriculares, el aviso de
+  salir al cambiar de app) y un link desde el Teléfono del panel.

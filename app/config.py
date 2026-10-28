@@ -150,6 +150,11 @@ class Settings(BaseSettings):
     # Site key publica de Turnstile (la misma de la landing); el widget tiene que permitir el host
     # del link. Sin ella o sin TURNSTILE_SECRET_KEY la pagina dice "no disponible".
     turnstile_site_key: str = ""
+
+    # --- Teléfono del equipo en su host (docs/LLAMADAS_DIRECTAS_PLAN.md, sección 16) ---
+    # Base (https://telefono.atentina.com.ar): con ese Host, app sirve en `/` la app del teléfono (web/telefono.html)
+    # y la API; nada más del panel (app/api/phone_app_host.py). Vacío: queda en <host del panel>/movil.
+    phone_app_base_url: str = ""
     call_link_default_seconds: int = 300
     call_link_join_timeout_seconds: int = 60
     call_link_ip_calls_per_hour: int = 4

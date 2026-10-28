@@ -1,0 +1,11 @@
+{
+  "name": "Teléfono del equipo",
+  "short_name": "Teléfono",
+  "lang": "es-AR",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [{ "src": "/atentina-mark.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

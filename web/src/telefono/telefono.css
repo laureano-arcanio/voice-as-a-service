@@ -1,0 +1,795 @@
+/* Teléfono del equipo, tipo app de teléfono de Android (Material 3) con los colores del tema de la app: azul para
+   lo seleccionado, verde para llamar y atender, rojo para cortar. En la compu, una columna del ancho de un celular. */
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--mantine-color-gray-1);
+  overscroll-behavior: none;
+}
+
+.tel-app {
+  position: relative;
+  height: 100dvh;
+  max-width: 440px;
+  margin: 0 auto;
+  background: var(--mantine-color-body);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 480px) {
+  .tel-app {
+    border-inline: 1px solid var(--mantine-color-gray-3);
+  }
+}
+
+.tel-screen {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.tel-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 96px;
+}
+
+.tel-loader {
+  display: block;
+  margin: 48px auto;
+}
+
+.tel-empty,
+.tel-muted {
+  color: var(--mantine-color-dimmed);
+  font-size: var(--mantine-font-size-sm);
+}
+
+.tel-empty {
+  padding: 32px 24px;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.tel-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--mantine-color-blue-7);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ---- Barra de arriba y búsqueda ---- */
+
+.tel-top {
+  padding: 12px 16px 8px;
+  padding-top: max(12px, env(safe-area-inset-top));
+}
+
+.tel-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 6px 0 14px;
+  border-radius: 26px;
+  background: var(--mantine-color-gray-1);
+  cursor: text;
+}
+
+.tel-search-icon {
+  color: var(--mantine-color-gray-7);
+  flex: none;
+}
+
+.tel-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 16px;
+  outline: none;
+  color: var(--mantine-color-text);
+}
+
+.tel-search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.tel-me {
+  position: relative;
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 50%;
+}
+
+.tel-me .tel-avatar {
+  width: 36px;
+  height: 36px;
+  font-size: 14px;
+}
+
+.tel-me-dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--mantine-color-green-6);
+  border: 2px solid var(--mantine-color-body);
+}
+
+.tel-menu-row {
+  padding: 8px 12px;
+}
+
+.tel-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px;
+  padding-top: max(8px, env(safe-area-inset-top));
+  min-height: 56px;
+}
+
+.tel-bar-title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--mantine-font-size-sm);
+  color: var(--mantine-color-dimmed);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tel-banners {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 16px;
+}
+
+.tel-banners:empty {
+  display: none;
+}
+
+.tel-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* ---- Listas ---- */
+
+.tel-section {
+  margin: 0;
+  padding: 16px 20px 6px;
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 600;
+  color: var(--mantine-color-gray-7);
+}
+
+.tel-letter {
+  padding-top: 12px;
+  color: var(--mantine-color-blue-7);
+}
+
+.tel-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 12px 0 0;
+}
+
+.tel-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 8px 10px 20px;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 0 28px 28px 0;
+}
+
+.tel-row-main:hover {
+  background: var(--mantine-color-gray-0);
+}
+
+.tel-row-static {
+  cursor: default;
+}
+
+.tel-row-static:hover {
+  background: none;
+}
+
+.tel-row-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tel-row-title {
+  font-size: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tel-row-title[data-missed] {
+  color: var(--mantine-color-red-7);
+}
+
+.tel-row-sub {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  font-size: var(--mantine-font-size-sm);
+  color: var(--mantine-color-dimmed);
+  font-variant-numeric: tabular-nums;
+}
+
+.tel-dir {
+  color: var(--mantine-color-gray-6);
+  flex: none;
+}
+
+.tel-dir[data-missed] {
+  color: var(--mantine-color-red-6);
+}
+
+.tel-tag {
+  font-size: 12px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--mantine-color-yellow-1);
+  color: var(--mantine-color-yellow-9);
+}
+
+.tel-tag[data-red] {
+  background: var(--mantine-color-red-1);
+  color: var(--mantine-color-red-8);
+}
+
+/* ---- Avatar ---- */
+
+.tel-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--mantine-color-blue-1);
+  color: var(--mantine-color-blue-8);
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.tel-avatar[data-size='lg'] {
+  width: 64px;
+  height: 64px;
+  font-size: 24px;
+}
+
+.tel-avatar[data-size='xl'] {
+  width: 112px;
+  height: 112px;
+  font-size: 42px;
+}
+
+.tel-avatar[data-ringing] {
+  animation: tel-pulse 1.6s ease-out infinite;
+}
+
+@keyframes tel-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--mantine-color-blue-5) 45%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 28px transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tel-avatar[data-ringing] {
+    animation: none;
+  }
+}
+
+/* ---- Favoritos ---- */
+
+.tel-favs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 16px 12px;
+}
+
+.tel-fav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.tel-fav-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 4px 4px;
+  border: 0;
+  border-radius: 16px;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.tel-fav-main:hover {
+  background: var(--mantine-color-gray-0);
+}
+
+.tel-fav-name {
+  max-width: 100%;
+  font-size: var(--mantine-font-size-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tel-fav .tel-link {
+  font-size: 12px;
+}
+
+/* ---- Navegación de abajo y botón del teclado ---- */
+
+.tel-nav {
+  position: absolute;
+  inset: auto 0 0 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding: 12px 0 max(12px, env(safe-area-inset-bottom));
+  background: var(--mantine-color-gray-0);
+  border-top: 1px solid var(--mantine-color-gray-2);
+}
+
+.tel-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--mantine-color-gray-7);
+  cursor: pointer;
+}
+
+.tel-nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 32px;
+  border-radius: 16px;
+}
+
+.tel-nav-item[aria-current='page'] {
+  color: var(--mantine-color-text);
+  font-weight: 700;
+}
+
+.tel-nav-item[aria-current='page'] .tel-nav-icon {
+  background: var(--mantine-color-blue-1);
+  color: var(--mantine-color-blue-8);
+}
+
+.tel-fab {
+  position: absolute;
+  right: 16px;
+  bottom: calc(96px + env(safe-area-inset-bottom));
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 18px;
+  background: var(--mantine-color-blue-1);
+  color: var(--mantine-color-blue-9);
+  box-shadow: var(--mantine-shadow-md);
+  cursor: pointer;
+}
+
+/* ---- Teclado ---- */
+
+.tel-sheet,
+.tel-call {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  background: var(--mantine-color-body);
+}
+
+.tel-dial-suggest {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.tel-dial {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 24px max(24px, env(safe-area-inset-bottom));
+}
+
+.tel-dial-display {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 64px;
+  gap: 4px;
+}
+
+.tel-dial-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  text-align: center;
+  font-size: 32px;
+  outline: none;
+  color: var(--mantine-color-text);
+}
+
+.tel-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 72px);
+  justify-content: center;
+  gap: 14px 28px;
+  margin: 8px 0 20px;
+}
+
+.tel-key {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--mantine-color-gray-1);
+  color: var(--mantine-color-text);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.tel-key:active {
+  background: var(--mantine-color-gray-3);
+}
+
+.tel-key:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.tel-key-digit {
+  font-size: 30px;
+  line-height: 1;
+}
+
+.tel-key-letters {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  min-height: 13px;
+  color: var(--mantine-color-gray-7);
+}
+
+/* ---- Llamada y entrante ---- */
+
+.tel-call {
+  z-index: 20;
+  align-items: stretch;
+  padding: max(32px, env(safe-area-inset-top)) 24px max(32px, env(safe-area-inset-bottom));
+  background: linear-gradient(var(--mantine-color-blue-0), var(--mantine-color-body) 60%);
+}
+
+.tel-call-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+}
+
+.tel-call-line {
+  margin: 0 0 16px;
+  font-size: var(--mantine-font-size-sm);
+  color: var(--mantine-color-gray-7);
+}
+
+.tel-call-name {
+  margin: 14px 0 0;
+  font-family: var(--mantine-font-family-headings);
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.tel-call-phone,
+.tel-call-status {
+  margin: 0;
+  color: var(--mantine-color-gray-7);
+}
+
+.tel-call-status {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tel-call-error {
+  margin: 4px 0 0;
+  max-width: 320px;
+  font-size: var(--mantine-font-size-sm);
+  color: var(--mantine-color-red-8);
+  text-align: center;
+}
+
+.tel-call-middle {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.tel-tones {
+  margin: 0;
+  min-height: 36px;
+  font-size: 26px;
+  letter-spacing: 0.1em;
+}
+
+.tel-captions {
+  width: 100%;
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: var(--mantine-color-gray-0);
+  font-size: var(--mantine-font-size-sm);
+}
+
+.tel-captions p {
+  margin: 0 0 6px;
+}
+
+.tel-captions p[data-mine] b {
+  color: var(--mantine-color-blue-8);
+}
+
+.tel-call-bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding-top: 16px;
+}
+
+.tel-controls {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+}
+
+.tel-control,
+.tel-contact-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 84px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--mantine-color-gray-8);
+  cursor: pointer;
+}
+
+.tel-control:disabled,
+.tel-contact-action[data-disabled] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.tel-control-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--mantine-color-gray-1);
+  color: var(--mantine-color-text);
+}
+
+.tel-control[data-active] .tel-control-icon {
+  background: var(--mantine-color-blue-6);
+  color: var(--mantine-color-white);
+}
+
+.tel-round {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  height: 76px;
+  border: 0;
+  border-radius: 50%;
+  color: var(--mantine-color-white);
+  cursor: pointer;
+}
+
+.tel-round:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.tel-hangup {
+  width: 96px;
+  height: 64px;
+  border-radius: 32px;
+  background: var(--mantine-color-red-6);
+}
+
+.tel-answer {
+  background: var(--mantine-color-green-6);
+}
+
+.tel-dial-call {
+  width: 96px;
+  height: 64px;
+  border-radius: 32px;
+}
+
+.tel-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 20px;
+  border: 1px solid var(--mantine-color-gray-4);
+  border-radius: 20px;
+  background: var(--mantine-color-body);
+  font: inherit;
+  font-weight: 600;
+  color: var(--mantine-color-text);
+  cursor: pointer;
+}
+
+.tel-pill-strong {
+  border-color: transparent;
+  background: var(--mantine-color-blue-6);
+  color: var(--mantine-color-white);
+}
+
+.tel-incoming-actions {
+  display: flex;
+  justify-content: space-around;
+  padding-bottom: 16px;
+}
+
+.tel-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.tel-incoming .tel-hangup {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+}
+
+/* ---- Ficha del contacto ---- */
+
+.tel-contact-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 24px 16px;
+  text-align: center;
+}
+
+.tel-contact-name {
+  margin: 10px 0 0;
+  font-family: var(--mantine-font-family-headings);
+  font-size: 28px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.tel-contact-head .tel-muted {
+  margin: 0;
+}
+
+.tel-contact-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  padding: 0 16px 16px;
+}
+
+.tel-contact-action .tel-control-icon {
+  background: var(--mantine-color-blue-1);
+  color: var(--mantine-color-blue-8);
+}
+
+.tel-notes {
+  margin: 0 16px 8px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: var(--mantine-color-gray-0);
+  font-size: var(--mantine-font-size-sm);
+  white-space: pre-wrap;
+}
+
+/* ---- Plan sin llamadas del equipo ---- */
+
+.tel-blocked {
+  margin: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  color: var(--mantine-color-gray-7);
+}
+
+.tel-blocked h1 {
+  font-size: 20px;
+  color: var(--mantine-color-text);
+}
