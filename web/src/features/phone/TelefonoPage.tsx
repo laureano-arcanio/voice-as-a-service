@@ -316,7 +316,7 @@ export function TelefonoPage() {
   return (
     <Stack gap="md">
       <PageHeader
-        title="Teléfono"
+        title="Teléfono del equipo"
         description="Llamá a tus contactos desde el navegador: hablás vos, sin agente. La llamada sigue abajo mientras usás el panel."
         actions={c.enabled ? <PresenceSwitch /> : undefined}
       />

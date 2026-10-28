@@ -10,8 +10,8 @@ Hay dos roles, y cada uno trabaja en su área ([`ADMIN_SOPORTE_PLAN.md`](ADMIN_S
   despliegan con un click; arranca abierto el de la pantalla actual):
   - Reportes y Conversaciones, sueltos. Al entrar a `/` se abre Reportes.
   - **Agentes:** Mis agentes, Herramientas, Secretos, Modelos, Playground y Voces.
-  - **Canales:** WhatsApp, Llamadas y Campañas.
-  - **Organización:** Contactos, Teléfono y Equipo.
+  - **Canales:** WhatsApp, Llamadas del agente, Teléfono del equipo y Campañas.
+  - **Agenda:** Contactos y Equipo.
   - **Developers:** API keys y Uso de la API.
   - **Cuenta:** Mi cuenta, Plan y Consumos.
 - **Admin:** administra la plataforma en `/admin/*` (al iniciar sesión va siempre ahí). Su menú:
@@ -80,7 +80,7 @@ Los de la API de inferencia (abajo) arrancan en 0 = el plan no los incluye.
 | Contactos en la agenda | Contactos activos del cliente (los archivados no cuentan). |
 | Seguimiento por WhatsApp | Si una campaña de llamadas puede escribirle por WhatsApp a quien no atendió. |
 | Personas del equipo | Personas a las que el agente puede derivar una llamada o un chat (Equipo). |
-| Llamadas directas (teléfono del equipo) | Switch. Prendido, las personas llaman desde el panel (Teléfono) y el equipo puede atender las entrantes de un número, sin el agente. Apagado (el Free), esas pantallas muestran el aviso de plan y las entrantes de un número del equipo van a su agente. La saliente además necesita minutos salientes. En la lista de tiers aparece "con llamadas directas". |
+| Llamadas directas (teléfono del equipo) | Switch. Prendido, las personas llaman desde el panel (Teléfono del equipo) y el equipo puede atender las entrantes de un número, sin el agente. Apagado (el Free), esas pantallas muestran el aviso de plan y las entrantes de un número del equipo van a su agente. La saliente además necesita minutos salientes. En la lista de tiers aparece "con llamadas directas". |
 
 - **Interno (Atentina):** switch para el tier de nuestras cuentas (`tiers.internal`): no se ofrece como plan
   (ni en el registro ni en Plan) y no cuenta en las estadísticas de la plataforma.
@@ -337,7 +337,7 @@ alcanza. En la navegación, arriba de todo.
   hay y las borra juntas). Siempre pide confirmación. Se borra la conversación con sus mensajes,
   grabaciones y su consumo del mes; las que tienen una llamada en curso no se pueden borrar.
 
-### Llamadas (`/outbound`)
+### Llamadas del agente (`/outbound`)
 
 - El agente llama a un contacto o a un número.
 - **Formulario:** agente, destino (un contacto de la agenda, buscado por nombre o teléfono, o un número
@@ -349,12 +349,12 @@ alcanza. En la navegación, arriba de todo.
   de la definición del agente (por ejemplo, área y urgencia). Si el agente tiene prendido el resumen por
   email, al cortar le llega al equipo, con el motivo.
 - El detalle de la llamada muestra el motivo en "Motivo del llamado".
-- Acá llama el agente. Para llamar vos, hablando desde el navegador, está **Teléfono** (abajo).
+- Acá llama el agente. Para llamar vos, hablando desde el navegador, está **Teléfono del equipo** (abajo).
 
-### Teléfono (`/telefono`)
+### Teléfono del equipo (`/telefono`)
 
 Llamadas **sin agente** ([`LLAMADAS_DIRECTAS_PLAN.md`](LLAMADAS_DIRECTAS_PLAN.md)): hablás vos (o alguien de tu
-equipo) desde el navegador, y el contacto ve el número de la empresa. Está en **Organización > Teléfono** en los
+equipo) desde el navegador, y el contacto ve el número de la empresa. Está en **Canales > Teléfono del equipo** en los
 planes con llamadas directas; en el Free la pantalla muestra el aviso de plan con **Mejorar mi plan** y queda
 atenuada. Toda llamada del equipo **se graba y se transcribe** (queda en Conversaciones); el aviso "Esta llamada
 está siendo grabada." es opcional (Mi cuenta). Entrando como el cliente (soporte) no se puede llamar ni atender.
@@ -380,10 +380,10 @@ está siendo grabada." es opcional (Mi cuenta). Entrando como el cliente (soport
 - **Cortar** termina la llamada. Al cerrar o recargar la pestaña el navegador avisa; si se recarga igual, la
   barra dice "Tenés una llamada en curso" con **Volver a entrar** (en esa pestaña).
 - Al terminar una llamada a un número que no está en la agenda, **Guardar como contacto**.
-- Sin llamada, la barra muestra el link a Teléfono y el switch **Disponible**.
+- Sin llamada, la barra muestra el link a Teléfono del equipo y el switch **Disponible**.
 
 **Recibir llamadas en el panel**
-- **Disponible** (switch en el encabezado de Teléfono y en la barra): mientras está prendido y el panel abierto,
+- **Disponible** (switch en el encabezado de Teléfono del equipo y en la barra): mientras está prendido y el panel abierto,
   te suenan las entrantes de los números atendidos por el equipo donde estés en la lista de personas (ver [Números
   de teléfono](#4-números-de-teléfono-números), **Quién atiende**). Hace falta que tu usuario esté asociado a una
   persona de Equipo.
@@ -605,8 +605,8 @@ son opcionales.
 3. **Ficha** (clic en la fila): datos, nota y campañas en que participó o participa.
 4. **Tope:** el tier limita los contactos activos de la agenda.
 5. **Llamar:** el ícono de teléfono de cada fila y el botón **Llamar** de la ficha hacen una llamada directa
-   (hablás vos, desde el navegador; ver [Teléfono](#teléfono-telefono)), saliendo del número que elegiste
-   en Teléfono. Apagado, con el motivo en el tooltip, si el plan no la incluye, el número está bloqueado,
+   (hablás vos, desde el navegador; ver [Teléfono del equipo](#teléfono-del-equipo-telefono)), saliendo del número que elegiste
+   en Teléfono del equipo. Apagado, con el motivo en el tooltip, si el plan no la incluye, el número está bloqueado,
    ya estás en una llamada o no tenés número asignado. Que llame un **agente** es otra cosa: **Canales >
    Llamadas** o una campaña.
 6. **Números bloqueados** (al final): sus llamadas entrantes, por la línea o por WhatsApp, se cortan sin
@@ -735,11 +735,11 @@ Registro y cobro por transferencia ([`SUSCRIPCIONES_PLAN.md`](SUSCRIPCIONES_PLAN
   (débito automático de Mercado Pago, se activa en el momento; con uno activo, cambiar de plan no pide la
   tarjeta) o por **transferencia** (ve los datos bancarios y manda el comprobante por email).
 - **Lo que el plan no incluye** ([`FUNCIONES_POR_PLAN_PLAN.md`](FUNCIONES_POR_PLAN_PLAN.md)): el cliente ve
-  un candado en la navegación (Llamadas, WhatsApp, Contactos, Teléfono, Equipo, Campañas) y, en esa pantalla, un aviso
+  un candado en la navegación (Llamadas del agente, WhatsApp, Contactos, Teléfono del equipo, Equipo, Campañas) y, en esa pantalla, un aviso
   con borde amarillo, en qué planes está ("Disponible en los planes Mostrador y Sucursal") y "Mejorar mi plan"; lo de abajo queda atenuado y sin responder. Con plan gratis, "Free"
   al lado de Plan. Sale de los campos del tier (minutos salientes y números, canales de campañas, contactos,
   equipo, links y la casilla **WhatsApp**) y de los ajustes del cliente: un ajuste abre la función. Sin
-  salientes, la pantalla Llamadas queda bloqueada.
+  salientes, la pantalla Llamadas del agente queda bloqueada.
 - **Ficha del cliente, tarjeta "Plan pago" (admin):** "Registrar pago" activa o renueva el plan por un
   mes; "Rechazar pedido" o "Pasar al gratuito" lo corta.
 - **Cobros (`/admin/billing`, admin):** planes pagos y pedidos abiertos, y pagos para facturar ("Marcar facturado").

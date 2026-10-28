@@ -204,7 +204,7 @@ export function OutboundCallsPage() {
   return (
     <Stack gap="md">
       <PageHeader
-        title="Llamadas"
+        title="Llamadas del agente"
         description="El agente llama a un contacto y, al cortar, queda el resultado para que tu equipo siga. Si no atienden, la llamada queda igual en la lista, marcada como no atendida."
       />
       <PlanGate

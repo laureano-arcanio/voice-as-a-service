@@ -1116,7 +1116,7 @@ texto = client.audio.transcriptions.create(
       {
         title: "Llamar desde el panel",
         paragraphs: [
-          "En la pantalla Teléfono elegís un contacto de tu agenda, o marcás un número, y apretás Llamar. Hablás desde el navegador, con el micrófono y el parlante de tu computadora, y quien recibe la llamada ve el número de tu empresa. El panel muestra cómo va: llamando, sonando, en curso. Mientras hablás podés seguir navegando el panel, y si recargás la página volvés a entrar a la llamada.",
+          "En la pantalla Teléfono del equipo elegís un contacto de tu agenda, o marcás un número, y apretás Llamar. Hablás desde el navegador, con el micrófono y el parlante de tu computadora, y quien recibe la llamada ve el número de tu empresa. El panel muestra cómo va: llamando, sonando, en curso. Mientras hablás podés seguir navegando el panel, y si recargás la página volvés a entrar a la llamada.",
           "Si tenés varios números, elegís desde cuál sale cada llamada. Si el contacto pidió no recibir llamadas, el panel te lo avisa y tenés que confirmar que querés llamarlo; queda registrado en la llamada. Los números bloqueados no se pueden llamar.",
         ],
       },

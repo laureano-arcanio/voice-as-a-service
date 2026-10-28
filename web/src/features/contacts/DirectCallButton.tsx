@@ -10,7 +10,7 @@ import { useBlockedNumbers } from './api';
 
 /**
  * Llamar a un contacto desde el navegador, sin agente (llamada directa): sale desde el número que el usuario
- * eligió en Teléfono (o el primero de su cuenta) y sigue en la barra de abajo. Apagado, con el motivo en un
+ * eligió en Teléfono del equipo (o el primero de su cuenta) y sigue en la barra de abajo. Apagado, con el motivo en un
  * tooltip, si el plan no la incluye, el número está bloqueado, ya hay otra llamada o un admin está en soporte.
  */
 export function DirectCallButton({

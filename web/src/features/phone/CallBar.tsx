@@ -446,7 +446,7 @@ function IdleBar() {
       <Anchor component={Link} to="/telefono" size="sm" c="dimmed">
         <Group gap={6} wrap="nowrap">
           <IconPhone size={16} />
-          Teléfono
+          Teléfono del equipo
         </Group>
       </Anchor>
       <PresenceSwitch size="xs" />

@@ -467,7 +467,7 @@ cambia acá y en el código a la vez.
 - `CallProvider` en el layout del cliente (`AppLayout`), con la barra de llamada fija abajo; hooks
   `useDirectCall()` (`call(contact|phone, fromNumberId, confirmOptedOut)`, `hangup`, `mute`, `dtmf`,
   estado y transcripción) y `usePresence()`.
-- Navegación: "Teléfono" debajo de Contactos, con `PlanGate` `direct_calls`.
+- Navegación: "Teléfono del equipo" en Canales (desde el 28-oct-2026; antes "Teléfono" en Organización), con `PlanGate` `direct_calls`.
 
 ### MCP (`app/mcp/catalog.py`)
 

@@ -3,7 +3,6 @@ import {
   IconKey,
   IconLockPassword,
   IconList,
-  IconSitemap,
   IconUser,
   IconAddressBook,
   IconApi,
@@ -17,6 +16,7 @@ import {
   IconFileInvoice,
   IconMessages,
   IconMicrophone,
+  IconNotebook,
   IconPhone,
   IconPhoneCall,
   IconPhoneOutgoing,
@@ -73,7 +73,8 @@ export const CLIENT_NAV: NavEntry[] = [
     icon: IconBroadcast,
     items: [
       { to: '/whatsapp', label: 'WhatsApp', icon: IconBrandWhatsapp, feature: 'whatsapp' },
-      { to: '/outbound', label: 'Llamadas', icon: IconPhoneOutgoing, feature: 'outbound_calls' },
+      { to: '/outbound', label: 'Llamadas del agente', icon: IconPhoneOutgoing, feature: 'outbound_calls' },
+      { to: '/telefono', label: 'Teléfono del equipo', icon: IconPhoneCall, feature: 'direct_calls' },
       {
         to: '/campaigns',
         label: 'Campañas',
@@ -83,11 +84,10 @@ export const CLIENT_NAV: NavEntry[] = [
     ],
   },
   {
-    label: 'Organización',
-    icon: IconSitemap,
+    label: 'Agenda',
+    icon: IconNotebook,
     items: [
       { to: '/contacts', label: 'Contactos', icon: IconAddressBook, feature: 'contacts' },
-      { to: '/telefono', label: 'Teléfono', icon: IconPhoneCall, feature: 'direct_calls' },
       { to: '/team', label: 'Equipo', icon: IconUsersGroup, feature: 'team' },
     ],
   },

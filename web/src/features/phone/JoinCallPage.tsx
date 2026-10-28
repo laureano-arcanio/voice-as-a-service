@@ -41,7 +41,7 @@ export function JoinCallPage() {
         description="Una llamada que pediste desde la API o tu agente de IA: entrás y hablás desde el navegador."
         above={
           <Anchor component={Link} to="/telefono" size="sm">
-            ← Teléfono
+            ← Teléfono del equipo
           </Anchor>
         }
       />

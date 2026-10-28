@@ -116,7 +116,7 @@ CSP del dashboard solo permite fuentes de `'self'`: no se pueden cargar de Googl
 
 - **Marco (`AppLayout`):** header de 60 px y menú lateral de 232 px, los dos sobre superficie y con borde;
   el contenido va sobre el lienzo. El menú agrupa las pantallas en `NavLink` desplegables (Agentes, Canales,
-  Organización, Configuración, Developers, Cuenta; definidos en `components/nav.ts`): un click abre o cierra, arranca
+  Agenda, Developers, Cuenta; definidos en `components/nav.ts`): un click abre o cierra, arranca
   abierto el grupo de la pantalla actual y, cerrado, se marca activo. Reportes y Conversaciones van sueltos arriba; `/` y `/admin` redirigen a Reportes.
   El menú de `/admin` es plano (sin grupos). En soporte, el header lleva la marca "soporte" y "Volver a administración". Logo `atentina-logo.svg` de 28 px de alto en el header. Debajo de `sm` el menú se pliega detrás del botón de menú.
 - **Ancho:** el contenido ocupa hasta 1440 px. Formularios y texto de lectura, hasta 720 px.
