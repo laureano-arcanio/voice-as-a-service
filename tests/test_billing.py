@@ -1,5 +1,5 @@
 """Registro autoservicio, "olvidé mi clave" y cobro de planes por transferencia
-(docs/SUSCRIPCIONES_PLAN.md): pedido, pago registrado por un admin, vencimiento, gracia, caída al
+(docs/features/COBROS.md): pedido, pago registrado por un admin, vencimiento, gracia, caída al
 Free con números suspendidos y vuelta al inventario."""
 import datetime
 from urllib.parse import parse_qs, urlsplit

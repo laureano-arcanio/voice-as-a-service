@@ -1,4 +1,4 @@
-"""Marca blanca del panel (docs/MARCA_BLANCA_PLAN.md): el logo y los tres colores con los que los usuarios de un
+"""Marca blanca del panel (docs/ARQUITECTURA.md): el logo y los tres colores con los que los usuarios de un
 cliente ven el dashboard.
 
 - Un admin la configura (`update`, `set_logo`, `remove_logo`); se aplica si `enabled` y el tier del cliente

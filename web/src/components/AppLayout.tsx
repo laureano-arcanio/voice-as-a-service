@@ -43,7 +43,7 @@ function isActive(pathname: string, to: string): boolean {
 export function AppLayout() {
   const { data: me } = useMe();
   if (!me) return null;
-  // El teléfono del panel (llamadas directas, docs/LLAMADAS_DIRECTAS_PLAN.md): la llamada vive en el layout
+  // El teléfono del panel (llamadas directas, docs/features/EQUIPO_TELEFONIA.md): la llamada vive en el layout
   // del cliente, con la barra fija abajo, para abrir otras pantallas sin cortar.
   return me.role === 'client' ? (
     <CallProvider>
@@ -61,7 +61,7 @@ function LayoutShell() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const plan = usePlanFeatures().data;
-  // Marca blanca (docs/MARCA_BLANCA_PLAN.md): logo y colores del cliente en el header; con la vista previa de un
+  // Marca blanca (docs/ARQUITECTURA.md): logo y colores del cliente en el header; con la vista previa de un
   // admin, un aviso para salir.
   const branding = useBranding();
   const previewing = useBrandingPreview();

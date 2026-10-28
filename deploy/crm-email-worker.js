@@ -1,4 +1,4 @@
-// Email Worker de Cloudflare para las casillas de prospección (docs/CRM_PLAN.md, 6).
+// Email Worker de Cloudflare para las casillas de prospección (docs/features/CRM.md).
 // Reenvía cada mail a Gmail, como la regla anterior, y una copia al CRM (Resend Receiving).
 // Las dos direcciones tienen que estar verificadas en Email Routing → Destination addresses.
 // Se asigna en Email Routing → Routing rules: laureano@atentina.net (y .com.ar) → "Send to a Worker".

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Topes de las RTX 3090 (docs/PRODUCCION.md, AGENTS.md "Límites de la 3090"). Sin tope, dos 3090
+# Topes de las RTX 3090 (docs/INFRA.md, AGENTS.md "Límites de la 3090"). Sin tope, dos 3090
 # apagaron el server por un pico de consumo (25-sep-2026). nvidia-smi no los guarda: los aplica la
 # unidad atentina-gpu-limits.service en cada arranque, antes de Docker. Requiere root.
 set -euo pipefail

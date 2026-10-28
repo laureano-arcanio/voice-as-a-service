@@ -69,7 +69,7 @@ export const ANSWERED_BY: Record<string, string> = {
   team: 'Equipo',
 };
 
-/** Una entrante que atendió el equipo, sin agente (docs/LLAMADAS_DIRECTAS_PLAN.md). */
+/** Una entrante que atendió el equipo, sin agente (docs/features/EQUIPO_TELEFONIA.md). */
 export function isTeamInbound(c: { mode?: string | null; answered_by?: string | null }): boolean {
   return c.mode === 'entrante' && c.answered_by === 'team';
 }
@@ -101,7 +101,7 @@ export const WORKFLOW_STATUS: Record<string, Label> = {
   completed: { label: 'Completo', color: 'green' },
 };
 
-/** Tipo de una herramienta del cliente (docs/TOOLS_PLAN.md). */
+/** Tipo de una herramienta del cliente (docs/features/HERRAMIENTAS.md). */
 export const CLIENT_TOOL_TYPE: Record<string, string> = {
   http: 'API',
   code: 'Código',

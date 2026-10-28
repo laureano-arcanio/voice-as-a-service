@@ -1,4 +1,4 @@
-"""Eval de calidad del LLM por tipo de agente y de cliente (docs/EVAL_LLM_PLAN.md).
+"""Eval de calidad del LLM por tipo de agente y de cliente (docs/eval/README.md).
 
 Corre agentes x personas x repeticiones contra el motor conversacional por texto
 (sin voz), con un cliente simulado por un LLM externo o por guion, y guarda cada

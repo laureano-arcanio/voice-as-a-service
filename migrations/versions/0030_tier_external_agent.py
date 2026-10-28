@@ -1,4 +1,4 @@
-"""Agente externo (docs/AGENTE_EXTERNO_PLAN.md): tiers.external_agent, si el plan incluye el motor external
+"""Agente externo (docs/features/LLM_CONEXIONES.md): tiers.external_agent, si el plan incluye el motor external
 (el agente del cliente detras de su endpoint). Solo Central e Interno, por ahora (25-oct-2026).
 
 Revision ID: 0030

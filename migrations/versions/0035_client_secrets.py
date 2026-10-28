@@ -1,4 +1,4 @@
-"""Secretos del cliente y credenciales (docs/TOOLS_PLAN.md, 16): client_secrets (para todos los agentes del
+"""Secretos del cliente y credenciales (docs/features/HERRAMIENTAS.md): client_secrets (para todos los agentes del
 cliente; agent_secrets pisa uno con el mismo nombre) y credentials (la autenticacion de una API, reutilizable
 entre herramientas).
 

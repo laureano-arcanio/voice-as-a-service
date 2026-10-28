@@ -1,4 +1,4 @@
-"""Tablas del CRM (docs/CRM_PLAN.md, seccion 3)."""
+"""Tablas del CRM (docs/features/CRM.md)."""
 import datetime
 
 from sqlalchemy import (

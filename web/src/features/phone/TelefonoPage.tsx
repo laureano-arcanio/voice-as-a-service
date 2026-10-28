@@ -287,7 +287,7 @@ function OpenPhoneApp() {
 }
 
 /**
- * Teléfono (docs/LLAMADAS_DIRECTAS_PLAN.md, sección 8): el usuario llama a un contacto, o a un número
+ * Teléfono (docs/features/EQUIPO_TELEFONIA.md): el usuario llama a un contacto, o a un número
  * suelto, desde el navegador y desde un número de su cuenta. Habla él, sin agente; la llamada sigue en
  * la barra de abajo mientras navega por el panel.
  */

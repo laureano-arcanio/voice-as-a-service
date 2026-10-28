@@ -5,9 +5,9 @@ import { useMe } from '@/features/auth/api';
 import { BrandingContext, LAST_KEY, readPreview, readStored, writeStored, type BrandingState } from './context';
 
 /**
- * Marca blanca del panel (docs/MARCA_BLANCA_PLAN.md, 4.1). De dónde sale la marca, en orden:
+ * Marca blanca del panel (docs/ARQUITECTURA.md). De dónde sale la marca, en orden:
  * 1. la vista previa de un admin que entró como el cliente (sessionStorage `branding:preview`, el borrador de la
- *    pestaña Marca blanca, docs/ADMIN_SOPORTE_PLAN.md);
+ *    pestaña Marca blanca, docs/ARQUITECTURA.md);
  * 2. la del cliente de la sesión (`me.branding`; la administración, sin marca);
  * 3. sin sesión: la pública de `/login?c=<slug>` o la última que mostró el panel (localStorage
  *    `branding:last`), así el login y la carga no parpadean con el azul de Atentina.

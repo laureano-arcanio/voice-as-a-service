@@ -1,4 +1,4 @@
-"""Motor external (docs/AGENTE_EXTERNO_PLAN.md): cada turno lo contesta el agente del cliente.
+"""Motor external (docs/features/LLM_CONEXIONES.md): cada turno lo contesta el agente del cliente.
 
 El endpoint es compatible con OpenAI (`POST /chat/completions`, `stream: true`) y sale de una conexion del
 cliente (llm_connections, `openai_compatible`). Se le manda la conversacion entera en cada turno (el historial

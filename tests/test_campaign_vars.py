@@ -1,4 +1,4 @@
-"""Campañas de voz, fase 3 (docs/LLAMADAS_SALIENTES_PLAN.md, 4 y 10): datos del contacto en la
+"""Campañas de voz, fase 3 (docs/features/CAMPANAS.md): datos del contacto en la
 conversacion (apertura con {{variable}}, campos precargados, prompt), el reporte por contacto
 (report.csv), los indicadores y el filtro por campaña de las llamadas."""
 import csv

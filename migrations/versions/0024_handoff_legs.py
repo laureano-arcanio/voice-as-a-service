@@ -1,4 +1,4 @@
-"""Tramos de una derivacion de llamada (docs/DERIVACIONES_PLAN.md, fase 2).
+"""Tramos de una derivacion de llamada (docs/features/EQUIPO_TELEFONIA.md, fase 2).
 
 - handoff_legs: cada llamada a una persona del area desde una llamada en curso, con su resultado, los
   tiempos y los segundos salientes que se descuentan del plan. Tambien la cuenta el tope de canales.

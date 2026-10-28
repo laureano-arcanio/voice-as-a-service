@@ -1,4 +1,4 @@
-"""Herramientas del cliente (docs/TOOLS_PLAN.md): tabla tools (http y code), agent_secrets (secretos
+"""Herramientas del cliente (docs/features/HERRAMIENTAS.md): tabla tools (http y code), agent_secrets (secretos
 cifrados por agente) y los campos del plan: tiers.max_tools (NULL = sin tope, 0 = no incluido) y
 tiers.code_tools (herramientas en JavaScript). Defaults del 26-oct-2026: HTTP en Sucursal (10), Central
 e Interno (sin tope); codigo en Central e Interno. El motor structured se removio: las definiciones

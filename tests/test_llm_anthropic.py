@@ -1,4 +1,4 @@
-"""Cliente nativo de Anthropic (BYOK, docs/BYOK_LLM_PLAN.md, fase 2): mensajes, salida estructurada,
+"""Cliente nativo de Anthropic (BYOK, docs/features/LLM_CONEXIONES.md, fase 2): mensajes, salida estructurada,
 streaming, herramientas (tool_use) y compatibilidad entre modelos, contra un SDK simulado."""
 import asyncio
 import json

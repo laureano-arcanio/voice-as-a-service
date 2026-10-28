@@ -1,4 +1,4 @@
-"""Reportes del panel (docs/REPORTES_PLAN.md, 9.2): agregados por cliente, agente, canal, linea y periodo.
+"""Reportes del panel (docs/features/REPORTES.md): agregados por cliente, agente, canal, linea y periodo.
 
 El cliente ve solo lo suyo; el admin elige el cliente o ve todos (client_id vacio). Resultados, Mensajes,
 Transferencias y Campañas piden el plan con `advanced_reports`; Tecnico y Plataforma son del admin."""

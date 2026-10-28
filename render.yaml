@@ -1,4 +1,4 @@
-# Render Blueprint: landing estática de Atentina (docs/LANDING.md).
+# Render Blueprint: landing estática de Atentina (docs/features/LANDING.md).
 # Astro + Tailwind compilados en el build de Render; la demo llama a la API de
 # este server por api.atentina.com.ar (Cloudflare Tunnel).
 services:

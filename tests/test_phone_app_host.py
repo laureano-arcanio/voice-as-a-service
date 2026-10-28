@@ -1,4 +1,4 @@
-"""Teléfono del equipo en su host (docs/LLAMADAS_DIRECTAS_PLAN.md, sección 16): `/` es la página, pasan la API
+"""Teléfono del equipo en su host (docs/features/EQUIPO_TELEFONIA.md): `/` es la página, pasan la API
 (con su propia sesión: la cookie es de cada host) y los assets, y nada más del panel."""
 import pytest
 from fastapi.testclient import TestClient

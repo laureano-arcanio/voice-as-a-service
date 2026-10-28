@@ -116,7 +116,7 @@ def test_client_user_cannot_administer(api, admin):
     user = client_user(api, admin, acme)
     assert user.get(f"{V1}/tiers").status_code == 403
     assert user.patch(f"{V1}/clients/{acme['id']}", json={"active": False}).status_code == 403
-    # El prompt que arma el motor es del cliente tambien (desde el 27-oct-2026, docs/ADMIN_SOPORTE_PLAN.md).
+    # El prompt que arma el motor es del cliente tambien (desde el 27-oct-2026, docs/ARQUITECTURA.md).
     agent = make_agent(admin, acme)
     assert user.post(f"{V1}/agents/prompt", json={"definition": agent["definition"]}).status_code == 200
 

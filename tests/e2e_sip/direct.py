@@ -1,4 +1,4 @@
-"""Llamadas directas de punta a punta contra el Anura falso (`make e2e-sip`, docs/LLAMADAS_DIRECTAS_PLAN.md).
+"""Llamadas directas de punta a punta contra el Anura falso (`make e2e-sip`, docs/features/EQUIPO_TELEFONIA.md).
 
 Corre el codigo real de app/voice/direct.py (Outbound/OutboundRoom y TeamCall/TeamRoom, con Transfer y RoomLine de
 la derivacion) sobre el LiveKit, livekit-sip y nuestro Asterisk aislados, con una base SQLite propia. Sin

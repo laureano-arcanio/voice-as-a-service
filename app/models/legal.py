@@ -1,4 +1,4 @@
-"""Aceptacion de las condiciones y pedidos de arrepentimiento o baja (docs/TERMINOS_PLAN.md).
+"""Aceptacion de las condiciones y pedidos de arrepentimiento o baja (docs/features/LEGAL.md).
 
 Las dos tablas son prueba: no tienen claves foraneas (sobreviven a que se borre el cliente o el usuario) y guardan
 el email y el nombre de la empresa de ese momento. Las aceptaciones solo se agregan, nunca se cambian.

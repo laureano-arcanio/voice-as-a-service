@@ -1,4 +1,4 @@
-"""Ruteo por contacto de un numero de WhatsApp (docs/WHATSAPP_PLAN.md): wa_routes guarda,
+"""Ruteo por contacto de un numero de WhatsApp (docs/features/WHATSAPP.md): wa_routes guarda,
 por cuenta, los contactos (wa_id) que atiende cada agente en lugar del agente por defecto
 del numero, en mensajes y llamadas de WhatsApp.
 

@@ -1,4 +1,4 @@
-"""Conexiones de LLM de un cliente (BYOK, docs/BYOK_LLM_PLAN.md): alta, rotacion de la key, prueba
+"""Conexiones de LLM de un cliente (BYOK, docs/features/LLM_CONEXIONES.md): alta, rotacion de la key, prueba
 y baja. La key se guarda cifrada (app/whatsapp/crypto.py) y no se devuelve nunca: solo los ultimos 4."""
 import asyncio
 import ipaddress

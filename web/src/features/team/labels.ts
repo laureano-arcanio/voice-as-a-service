@@ -1,7 +1,7 @@
 import type { HandoffArea } from '@/api/types';
 import type { Label } from '@/lib/labels';
 
-/** Los mensajes de un area (docs/DERIVACIONES_PLAN.md, 4.7), en el orden en que pasan. */
+/** Los mensajes de un area (docs/features/EQUIPO_TELEFONIA.md), en el orden en que pasan. */
 export const MESSAGE_FIELDS: { key: string; label: string; help: string }[] = [
   { key: 'transfer', label: 'Antes de transferir', help: 'Lo dice el agente al cliente antes de pasarlo.' },
   {

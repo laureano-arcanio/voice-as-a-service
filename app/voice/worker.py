@@ -67,7 +67,7 @@ RECORDING_SAMPLE_RATE = recordings.RECORDING_SAMPLE_RATE
 # de stt_node es continuo y sin esto cada archivo arrancaba con el playout del agente. El evento
 # de inicio de habla llega despues de la primera silaba (min_speech_duration): pre-roll.
 RECORDING_PREROLL_SECONDS = 0.3
-# Con record_audio y recording_notice, antes de la apertura (docs/DERIVACIONES_PLAN.md, 9). El mismo de las
+# Con record_audio y recording_notice, antes de la apertura (docs/features/EQUIPO_TELEFONIA.md). El mismo de las
 # llamadas directas.
 RECORDING_NOTICE = direct.RECORDING_NOTICE
 
@@ -460,7 +460,7 @@ async def entrypoint(ctx: JobContext):
     engine = get_conversation_engine()
     sessions = get_sessionmaker()
     if metadata.get("direct"):
-        # Saliente directa de una persona del equipo (docs/LLAMADAS_DIRECTAS_PLAN.md): sin agente ni AgentSession.
+        # Saliente directa de una persona del equipo (docs/features/EQUIPO_TELEFONIA.md): sin agente ni AgentSession.
         await direct.run_outbound(ctx, metadata, sessions=sessions, store=engine.store,
                                   trunk_id=lambda: outbound_trunk_id(ctx.api))
         return

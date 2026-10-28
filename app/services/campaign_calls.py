@@ -1,4 +1,4 @@
-"""Intentos de llamada de las campañas de voz (docs/LLAMADAS_SALIENTES_PLAN.md, secciones 4 y 5).
+"""Intentos de llamada de las campañas de voz (docs/features/CAMPANAS.md).
 
 Lo usan el dialer (app/campaigns/dialer.py) y el worker de voz (app/voice/worker.py) para cerrar un
 intento, asi la logica no vive en el worker:

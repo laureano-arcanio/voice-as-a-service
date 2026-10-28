@@ -1,4 +1,4 @@
-"""Conexiones de LLM por cliente (BYOK, docs/BYOK_LLM_PLAN.md): llm_connections guarda el proveedor
+"""Conexiones de LLM por cliente (BYOK, docs/features/LLM_CONEXIONES.md): llm_connections guarda el proveedor
 externo, su API key cifrada y el modelo por defecto. Los agentes la referencian desde su definicion.
 
 Revision ID: 0016

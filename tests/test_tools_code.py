@@ -1,4 +1,4 @@
-"""Herramientas de codigo (docs/TOOLS_PLAN.md, 5): formato, y contra el sandbox real (tools-runner) si
+"""Herramientas de codigo (docs/features/HERRAMIENTAS.md): formato, y contra el sandbox real (tools-runner) si
 TOOLS_RUNNER_TEST_URL apunta a uno (make tools-runner-test lo levanta aislado); si no, esos se saltean."""
 import os
 

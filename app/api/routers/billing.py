@@ -1,4 +1,4 @@
-"""Plan y cobro (docs/SUSCRIPCIONES_PLAN.md): la pantalla Plan del cliente, el registro de pagos por
+"""Plan y cobro (docs/features/COBROS.md): la pantalla Plan del cliente, el registro de pagos por
 transferencia (admin) y la vista Cobros."""
 from fastapi import APIRouter, Query
 from sqlalchemy import select

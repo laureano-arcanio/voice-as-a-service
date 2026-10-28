@@ -1,6 +1,6 @@
 """Cliente chico de la Graph API de Meta para WhatsApp Cloud API.
 
-Solo lo que usa el plan (docs/WHATSAPP_PLAN.md): enviar texto/plantillas/audio,
+Solo lo que usa el plan (docs/features/WHATSAPP.md): enviar texto/plantillas/audio,
 marcar leido, bajar y subir media, registrar un numero (request_code,
 verify_code, register) y, para Embedded Signup (fase 2), cambiar el codigo por el
 token del cliente, suscribir la app a su WABA, leer sus numeros y sus plantillas.
@@ -245,7 +245,7 @@ class GraphClient:
         })
 
     # --- Embedded Signup y administracion de la WABA del cliente (fase 2). Ver
-    # docs/WHATSAPP_PLAN.md 3.3: lo confirmado y lo no confirmado de cada respuesta. ---
+    # docs/features/WHATSAPP.md: lo confirmado y lo no confirmado de cada respuesta. ---
 
     async def exchange_code(self, app_id: str, app_secret: str, code: str) -> str:
         """Codigo del popup (vence a los 30 s) -> business token del cliente. Sin token

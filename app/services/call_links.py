@@ -1,4 +1,4 @@
-"""Link publico para llamar a un agente desde el navegador (docs/LINK_LLAMADA_PLAN.md).
+"""Link publico para llamar a un agente desde el navegador (docs/features/LINK_LLAMADA.md).
 
 - Del cliente: uno activo por agente, con el tope del tier (`max_call_links`); se pausa, se
   regenera (revoca y crea otro con la misma config) o se revoca.

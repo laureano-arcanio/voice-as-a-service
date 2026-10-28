@@ -65,7 +65,7 @@ services:
     environment:
       # DB_DSN armado con las POSTGRES_* del .env, contra el servicio `db`.
       DB_DSN: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      # Sandbox de las herramientas de codigo (docs/TOOLS_PLAN.md); el token va en el .env.
+      # Sandbox de las herramientas de codigo (docs/features/HERRAMIENTAS.md); el token va en el .env.
       TOOLS_RUNNER_URL: http://tools-runner:8080
     ports:
       - "8011:8011"
@@ -77,7 +77,7 @@ services:
       - tools
 
   crm:
-    # CRM de ventas (docs/CRM_PLAN.md): API y UI locales, solo en 127.0.0.1. Base `crm` en el
+    # CRM de ventas (docs/features/CRM.md): API y UI locales, solo en 127.0.0.1. Base `crm` en el
     # mismo db (make crm-db), con migraciones propias (crm/migrations, make crm-migrate).
     # Manda mails por Resend con una cola lenta (crm/services/sending.py).
     build:
@@ -131,7 +131,7 @@ services:
       TOOLS_RUNNER_URL: http://tools-runner:8080
     networks:
       - default
-      # Las herramientas de codigo de un agente corren en tools-runner (docs/TOOLS_PLAN.md).
+      # Las herramientas de codigo de un agente corren en tools-runner (docs/features/HERRAMIENTAS.md).
       - tools
     volumes:
       # Grabaciones (record_audio): CALL_RECORDINGS_DIR, storage/recordings. Tambien en `app`
@@ -154,7 +154,7 @@ services:
         soft: 65536
         hard: 65536
 
-  # --- Herramientas de codigo de los clientes (docs/TOOLS_PLAN.md, 5) --------
+  # --- Herramientas de codigo de los clientes (docs/features/HERRAMIENTAS.md) --------
   # tools-runner corre cada funcion en un proceso Deno nuevo, sin permisos salvo la red a los
   # allowed_hosts de la herramienta. Esta solo en la red interna `tools` (sin salida): lo unico
   # que alcanza es tools-egress, el proxy (Smokescreen) que sale a internet y niega IPs privadas,
@@ -450,7 +450,7 @@ services:
       ASTERISK_ANURA_SIP_PORT: ${ASTERISK_ANURA_SIP_PORT:-5081}
       ASTERISK_RTP_START: ${ASTERISK_RTP_START:-10000}
       ASTERISK_RTP_END: ${ASTERISK_RTP_END:-10199}
-      # Llamadas de WhatsApp por SIP/TLS (asterisk/conf/whatsapp/, docs/WHATSAPP_PLAN.md fase 5).
+      # Llamadas de WhatsApp por SIP/TLS (asterisk/conf/whatsapp/, docs/features/WHATSAPP.md fase 5).
       WA_SIP_HOST: ${WA_SIP_HOST:-sip.atentina.com.ar}
       WA_SIP_PORT: ${WA_SIP_PORT:-5061}
       WA_SIP_USER: ${WA_SIP_USER:-5493517002592}

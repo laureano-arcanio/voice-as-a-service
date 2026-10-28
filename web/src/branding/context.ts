@@ -2,7 +2,7 @@ import { useDocumentTitle } from '@mantine/hooks';
 import { createContext, useContext } from 'react';
 import type { Branding } from '@/api/types';
 
-/** Marca blanca del panel (docs/MARCA_BLANCA_PLAN.md): el contexto y sus hooks. El provider está en Provider.tsx. */
+/** Marca blanca del panel (docs/ARQUITECTURA.md): el contexto y sus hooks. El provider está en Provider.tsx. */
 
 export const LAST_KEY = 'branding:last';
 export const PREVIEW_KEY = 'branding:preview';

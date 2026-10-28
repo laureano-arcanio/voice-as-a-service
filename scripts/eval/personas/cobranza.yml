@@ -1,4 +1,4 @@
-# Personas para eval_cobranza (docs/EVAL_LLM_PLAN.md, seccion 3). Las variables
+# Personas para eval_cobranza (docs/eval/README.md). Las variables
 # entre llaves las genera scripts/eval/fichas.py por repeticion.
 agente: eval_cobranza
 

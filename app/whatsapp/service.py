@@ -1,4 +1,4 @@
-"""Del webhook al motor y de vuelta (docs/WHATSAPP_PLAN.md, seccion 2).
+"""Del webhook al motor y de vuelta (docs/features/WHATSAPP.md).
 
 El webhook responde 200 al instante y deja el payload aca: handle_payload solo
 parsea y agenda tareas en el loop de la app. Cada mensaje: dedupe por wamid

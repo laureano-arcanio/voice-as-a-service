@@ -4,7 +4,7 @@ import { unwrap } from '@/api/request';
 import type { CallLinkIn, CallLinkPatch } from '@/api/types';
 import { agentKeys } from './api';
 
-// Link publico para llamar al agente desde el navegador (docs/LINK_LLAMADA_PLAN.md).
+// Link publico para llamar al agente desde el navegador (docs/features/LINK_LLAMADA.md).
 
 const key = (agentId: string) => ['agents', 'call-link', agentId] as const;
 const path = (agentId: string) => ({ params: { path: { agent_id: agentId } } });

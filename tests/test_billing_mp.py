@@ -1,4 +1,4 @@
-"""Plan pago con tarjeta y debito automatico de Mercado Pago (docs/SUSCRIPCIONES_PLAN.md, fase 3), con un
+"""Plan pago con tarjeta y debito automatico de Mercado Pago (docs/features/COBROS.md, fase 3), con un
 MP falso que responde como el sandbox (6.2): alta con tarjeta, rechazo, cuotas, cambio de plan, baja,
 webhook firmado y conciliacion."""
 import datetime

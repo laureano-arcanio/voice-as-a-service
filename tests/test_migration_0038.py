@@ -1,4 +1,4 @@
-"""Migracion 0038 (WhatsApp con la app de Meta del cliente, docs/ADMIN_SOPORTE_PLAN.md seccion 4): ida y vuelta
+"""Migracion 0038 (WhatsApp con la app de Meta del cliente, docs/ARQUITECTURA.md): ida y vuelta
 en SQLite, el esquema de wa_accounts coincide con el modelo y la clave del webhook es unica."""
 import pytest
 import sqlalchemy as sa

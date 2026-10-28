@@ -1,4 +1,4 @@
-"""Llamadas directas (docs/LLAMADAS_DIRECTAS_PLAN.md): el equipo del cliente llama y atiende sin el agente.
+"""Llamadas directas (docs/features/EQUIPO_TELEFONIA.md): el equipo del cliente llama y atiende sin el agente.
 
 - Saliente: POST /direct-calls (desde el panel devuelve el token; por API key o MCP, `user_id` y `join_url`).
 - Volver a entrar, atender y rechazar: /direct-calls/{id}/join, /answer y /decline (sesion del panel).

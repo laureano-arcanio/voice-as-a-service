@@ -1,4 +1,4 @@
-"""Las herramientas del cliente en una conversacion (docs/TOOLS_PLAN.md, 7): que herramientas tiene el
+"""Las herramientas del cliente en una conversacion (docs/features/HERRAMIENTAS.md): que herramientas tiene el
 agente, el contexto de la llamada (numeros, modo, secretos del agente, vars) y la ejecucion de lo que pide el
 modelo en un turno, con las frases de voz de cada herramienta. El modelo decide que llamar y cuando; la
 plataforma ejecuta y le devuelve el resultado, sin interpretar lo que dijo la persona."""
@@ -103,7 +103,7 @@ class TurnTools:
     voice: bool = True
     trace: list[dict] = field(default_factory=list)
     calls: int = 0              # herramientas ejecutadas en el turno (el respaldo de BYOK no repite el turno)
-    # Para registrar cada ejecucion en tool_runs (reportes del admin, docs/REPORTES_PLAN.md).
+    # Para registrar cada ejecucion en tool_runs (reportes del admin, docs/features/REPORTES.md).
     sessions: object = None
     client_id: str | None = None
     agent_id: str | None = None

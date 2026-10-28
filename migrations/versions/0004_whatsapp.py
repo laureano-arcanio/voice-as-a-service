@@ -1,4 +1,4 @@
-"""WhatsApp, fase 1 (docs/WHATSAPP_PLAN.md): canal de la conversacion, numeros
+"""WhatsApp, fase 1 (docs/features/WHATSAPP.md): canal de la conversacion, numeros
 conectados (wa_accounts), hilo por conversacion (wa_threads) y mensajes por wamid
 (wa_messages: dedupe y estados de entrega).
 

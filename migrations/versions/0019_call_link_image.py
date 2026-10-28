@@ -1,4 +1,4 @@
-"""Link para llamar: imagen propia (docs/LINK_LLAMADA_PLAN.md).
+"""Link para llamar: imagen propia (docs/features/LINK_LLAMADA.md).
 
 - call_links.image: archivo en storage/call-links/ (NULL: la inicial de la empresa).
 

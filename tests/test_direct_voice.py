@@ -1,4 +1,4 @@
-"""Llamadas directas en el worker (app/voice/direct.py y app/voice/listen.py, docs/LLAMADAS_DIRECTAS_PLAN.md):
+"""Llamadas directas en el worker (app/voice/direct.py y app/voice/listen.py, docs/features/EQUIPO_TELEFONIA.md):
 la logica con lineas falsas, sin LiveKit ni inferencia. La API y el ruteo estan en tests/test_direct_calls.py."""
 import asyncio
 import wave

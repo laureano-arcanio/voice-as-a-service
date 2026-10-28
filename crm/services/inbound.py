@@ -1,4 +1,4 @@
-"""Respuestas por mail (docs/CRM_PLAN.md, 6).
+"""Respuestas por mail (docs/features/CRM.md).
 
 Cloudflare reenvia la casilla a Resend Receiving (subdominio); este loop lee los recibidos cada
 CRM_INBOUND_INTERVAL_SECONDS, los asocia a un lead (hilo, direccion, dominio), los clasifica con el LLM

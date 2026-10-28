@@ -1,4 +1,4 @@
-"""Marca blanca del panel (docs/MARCA_BLANCA_PLAN.md).
+"""Marca blanca del panel (docs/ARQUITECTURA.md).
 
 - `/clients/{client_id}/branding`: la configura un admin (colores, logo, prendida o no).
 - `/public/branding/{slug}`: lo que necesita la pagina de login (`/login?c=<slug>`), sin auth; 404 si la

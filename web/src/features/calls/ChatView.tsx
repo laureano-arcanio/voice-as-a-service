@@ -6,7 +6,7 @@ import { prettyJson } from '@/lib/format';
 import type { ChatMessage, LlmCall } from '@/api/types';
 import { recordingUrl } from './api';
 
-/** Detalle de una herramienta del cliente en la traza (docs/TOOLS_PLAN.md). */
+/** Detalle de una herramienta del cliente en la traza (docs/features/HERRAMIENTAS.md). */
 interface ToolTraceInfo {
   slug?: string;
   type?: string;

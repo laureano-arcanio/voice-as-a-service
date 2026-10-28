@@ -1,4 +1,4 @@
-"""Llamadas directas en el worker (docs/LLAMADAS_DIRECTAS_PLAN.md, 4, 5 y 13): el equipo habla, sin agente ni LLM.
+"""Llamadas directas en el worker (docs/features/EQUIPO_TELEFONIA.md): el equipo habla, sin agente ni LLM.
 
 - Saliente (`run_outbound`, metadata `direct`): espera a que el usuario del panel entre a la room
   (`user-<id>`), marca al contacto sin esperar a que atienda (para mostrar dialing/ringing/active en el panel

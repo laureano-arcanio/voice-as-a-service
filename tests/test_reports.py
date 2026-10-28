@@ -1,4 +1,4 @@
-"""Reportes (docs/REPORTES_PLAN.md, 9.2): /api/v1/reports/* con datos sembrados en la base."""
+"""Reportes (docs/features/REPORTES.md): /api/v1/reports/* con datos sembrados en la base."""
 import datetime
 import uuid
 

@@ -1,6 +1,6 @@
 """Formulario de contacto de la landing: guarda el pedido y avisa por mail con Resend.
 
-Usa la sesion de la demo (Turnstile) y su limitador por IP. Ver docs/LANDING.md.
+Usa la sesion de la demo (Turnstile) y su limitador por IP. Ver docs/features/LANDING.md.
 """
 import asyncio
 import logging

@@ -1,4 +1,4 @@
-// Llamadas directas (docs/LLAMADAS_DIRECTAS_PLAN.md, sección 13): llamar, volver a entrar, atender y
+// Llamadas directas (docs/features/EQUIPO_TELEFONIA.md): llamar, volver a entrar, atender y
 // rechazar, presencia y timbre, quién está disponible y el aviso de grabación del cliente.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';

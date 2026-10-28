@@ -1,4 +1,4 @@
-"""Webhook de las campañas (docs/LLAMADAS_SALIENTES_PLAN.md, seccion 8): configuracion, firma y cola.
+"""Webhook de las campañas (docs/features/CAMPANAS.md): configuracion, firma y cola.
 
 - `callback_url`: https y un host publico (sin eso, un cliente podria apuntar a la red interna del
   server: la base, los demas servicios). Con CAMPAIGN_CALLBACK_ALLOW_PRIVATE=true (desarrollo) se

@@ -1,4 +1,4 @@
-"""Marca blanca del panel (docs/MARCA_BLANCA_PLAN.md): colores con contraste, logo (imagen recodificada, SVG filtrado),
+"""Marca blanca del panel (docs/ARQUITECTURA.md): colores con contraste, logo (imagen recodificada, SVG filtrado),
 quien la ve (`/auth/me`), la API publica del login, el flag del tier y los links de los mails."""
 import io
 
@@ -43,7 +43,7 @@ def upload(api, client, data, name="logo.png", mime="image/png"):
 # ---------- colores ----------
 
 def test_contrast_table():
-    # La misma tabla que web/src/branding/color.test.ts (docs/MARCA_BLANCA_PLAN.md, 3.3).
+    # La misma tabla que web/src/branding/color.test.ts (docs/ARQUITECTURA.md).
     table = {"#2456e6": (5.92, 3.16), "#0068fd": (4.77, 3.92), "#272a35": (14.30, 1.31), "#4d39c3": (7.81, 2.40),
              "#fd6421": (2.99, 6.26)}
     for color, (on_white, on_ink) in table.items():

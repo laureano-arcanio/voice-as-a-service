@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Backup (cron, docs/PRODUCCION.md 3.E): base (pg_dump), .env, storage/, certificado SIP y checkpoint
+# Backup (cron, docs/INFRA.md.E): base (pg_dump), .env, storage/, certificado SIP y checkpoint
 # del TTS servido. Local en BACKUP_DIR (default ~/atentina-backups, en /home: otro disco que el de
 # Docker). Copia externa a S3 si BACKUP_S3_BUCKET está en .env: base, .env, storage/ y certificado
 # cifrados con la llave pública de deploy/backup-key.asc (la privada no está en el server), y el
@@ -27,7 +27,7 @@ db_file="$DEST/db/db-$STAMP.sql.gz"
 docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner' | gzip > "$db_file"
 [[ $(zcat "$db_file" | head -c 1000 | wc -c) -gt 100 ]] || { echo "backup de la base vacío" >&2; exit 1; }
 
-# Base del CRM de ventas (docs/CRM_PLAN.md), si existe.
+# Base del CRM de ventas (docs/features/CRM.md), si existe.
 crm_file=""
 if docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "select 1 from pg_database where datname = '"'"'crm'"'"'"' | grep -q 1; then
     crm_file="$DEST/db/crm-$STAMP.sql.gz"

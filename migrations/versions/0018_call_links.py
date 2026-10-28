@@ -1,4 +1,4 @@
-"""Link publico para llamar a un agente desde el navegador (docs/LINK_LLAMADA_PLAN.md).
+"""Link publico para llamar a un agente desde el navegador (docs/features/LINK_LLAMADA.md).
 
 - call_links nueva: un link activo por agente (indice unico parcial sobre revoked_at IS NULL).
 - tiers.max_call_links: los existentes quedan sin tope (NULL), como en la 0017.

@@ -30,7 +30,7 @@ from .errors import Forbidden, QuotaExceeded
 from .limits import Limits, effective_limits
 
 SCOPE_CALLS = "calls"
-# Servidor MCP (app/mcp/, docs/MCP_PLAN.md): las herramientas usan la API de llamadas con la misma key.
+# Servidor MCP (app/mcp/, docs/features/MCP.md): las herramientas usan la API de llamadas con la misma key.
 SCOPE_MCP = "mcp"
 # MCP de solo lectura (fase 5): el servidor muestra solo las herramientas de lectura y la API, por fuera del
 # MCP, solo deja GET con esta key.

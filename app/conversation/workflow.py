@@ -111,7 +111,7 @@ def outcome_for(workflow: Workflow, state: ConversationState) -> Outcome:
 
 
 def conversion(workflow: Workflow | None, state: ConversationState) -> str:
-    """Para los reportes (docs/REPORTES_PLAN.md, 9.1). complete: termino con un resultado que no es incompleta ni
+    """Para los reportes (docs/features/REPORTES.md). complete: termino con un resultado que no es incompleta ni
     fuera de tema y sin datos obligatorios pendientes; partial: algun dato capturado; empty: ninguno. Los
     precargados (el telefono de la llamada, los datos de la campaña) no cuentan como capturados. Sin la
     definicion (workflow None), solo el resultado."""

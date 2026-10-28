@@ -1,4 +1,4 @@
-// Condiciones y política de privacidad con versión (docs/TERMINOS_PLAN.md). Los textos son copia de
+// Condiciones y política de privacidad con versión (docs/features/LEGAL.md). Los textos son copia de
 // app/legal/texts/ (`make legal-sync`): no se editan acá.
 import type { AstroComponentFactory } from "astro/runtime/server/index.js";
 import index from "./legal/index.json";

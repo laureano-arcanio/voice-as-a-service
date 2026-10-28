@@ -1,5 +1,5 @@
 """Herramientas del cliente (llamadas a APIs y codigo), sus secretos (del cliente y de cada agente) y sus
-credenciales (docs/TOOLS_PLAN.md). Las gestiona el cliente (desde el panel, con una API key `calls` o por el MCP)
+credenciales (docs/features/HERRAMIENTAS.md). Las gestiona el cliente (desde el panel, con una API key `calls` o por el MCP)
 o un admin. Los secretos se guardan cifrados y nunca se devuelven."""
 from contextlib import nullcontext
 

@@ -1,4 +1,4 @@
-"""Pagina publica del link para llamar a un agente (docs/LINK_LLAMADA_PLAN.md).
+"""Pagina publica del link para llamar a un agente (docs/features/LINK_LLAMADA.md).
 
 - `GET /llamar/{token}`: web/dist/llamar.html (entrada aparte del build de web/) con el titulo, las
   metas de la vista previa (og:*) y los datos del link completados en el server. Tiene su propia CSP

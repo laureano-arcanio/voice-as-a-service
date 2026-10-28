@@ -16,7 +16,7 @@ import { useAgentSecrets, useClientSecrets, useTools } from '@/features/tools/ap
 import { CLIENT_TOOL_TYPE } from '@/lib/labels';
 import { type ClientToolGrantDraft, type Draft, newKey, TOOL_SETTINGS } from './draft';
 
-/** Herramientas del cliente (APIs y codigo, docs/TOOLS_PLAN.md): todos los agentes menos tu propio agente. */
+/** Herramientas del cliente (APIs y codigo, docs/features/HERRAMIENTAS.md): todos los agentes menos tu propio agente. */
 export function ClientToolsEditor({
   draft,
   update,

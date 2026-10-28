@@ -1,4 +1,4 @@
-"""WhatsApp fase 2 (Embedded Signup, docs/WHATSAPP_PLAN.md 3.3) y sesiones revocables.
+"""WhatsApp fase 2 (Embedded Signup, docs/features/WHATSAPP.md) y sesiones revocables.
 
 - users.session_version: el logout y el cambio de clave invalidan los JWT emitidos.
 - wa_accounts: estado de la conexion (connected, pending, disconnected), calidad y

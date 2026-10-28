@@ -1,4 +1,4 @@
-// El teléfono del panel (docs/LLAMADAS_DIRECTAS_PLAN.md, secciones 4, 5 y 8): una llamada a la vez que vive
+// El teléfono del panel (docs/features/EQUIPO_TELEFONIA.md): una llamada a la vez que vive
 // en el layout del cliente, para poder abrir otras pantallas sin cortar. Saliente (POST /direct-calls),
 // volver a entrar o abrir una creada por API (/join) y atender una entrante del timbre (/answer): las tres
 // entran a la room de LiveKit con el micrófono y escuchan los temas `call_status` y `transcript` del worker.

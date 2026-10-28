@@ -1,4 +1,4 @@
-"""Contestador automatico por heuristica (docs/LLAMADAS_SALIENTES_PLAN.md, seccion 5): en una llamada de
+"""Contestador automatico por heuristica (docs/features/CAMPANAS.md): en una llamada de
 campaña, si lo primero que transcribe el STT de quien atendio suena a buzon ("deje su mensaje despues de
 la señal", "el abonado no esta disponible"...), la llamada se da por `voicemail`: se corta y se reintenta
 como cualquier otro resultado. Sin deteccion, un buzon queda `answered`.

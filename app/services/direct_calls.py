@@ -1,4 +1,4 @@
-"""Llamadas directas (docs/LLAMADAS_DIRECTAS_PLAN.md): el equipo del cliente llama y atiende sin el agente.
+"""Llamadas directas (docs/features/EQUIPO_TELEFONIA.md): el equipo del cliente llama y atiende sin el agente.
 
 - Saliente: un usuario del cliente (el de la sesion o, por API key o MCP, `user_id`) llama a un contacto o a
   un numero desde un numero del cliente. Se admite como `directa` (minutos salientes y un canal de Anura), la

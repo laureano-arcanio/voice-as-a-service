@@ -1,5 +1,5 @@
-"""Conexiones de LLM del cliente (BYOK, docs/BYOK_LLM_PLAN.md; y el endpoint de "Tu propio agente",
-docs/AGENTE_EXTERNO_PLAN.md). Las gestiona el cliente (las suyas, desde el panel, con una API key `calls` o por
+"""Conexiones de LLM del cliente (BYOK, docs/features/LLM_CONEXIONES.md; y el endpoint de "Tu propio agente",
+docs/features/LLM_CONEXIONES.md). Las gestiona el cliente (las suyas, desde el panel, con una API key `calls` o por
 el MCP) o un admin (las de cualquier cliente). La API key se guarda cifrada y nunca se devuelve."""
 from fastapi import APIRouter
 

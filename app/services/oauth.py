@@ -1,4 +1,4 @@
-"""OAuth 2.1 del servidor MCP (docs/MCP_PLAN.md, 4.2): registro de clientes, autorización con PKCE,
+"""OAuth 2.1 del servidor MCP (docs/features/MCP.md): registro de clientes, autorización con PKCE,
 tokens con rotación y su validación. Las rutas HTTP están en app/api/oauth.py.
 
 El token actúa como un usuario del cliente del permiso (`OAuthGrant.client_id`): un admin elige el

@@ -1263,7 +1263,7 @@ export interface paths {
         put?: never;
         /**
          * Connect Own App
-         * @description Conecta un número con la app de Meta propia del cliente (docs/ADMIN_SOPORTE_PLAN.md, sección 4): valida
+         * @description Conecta un número con la app de Meta propia del cliente (docs/ARQUITECTURA.md): valida
          *     con Meta que el número sea de la WABA, suscribe su app a la WABA y devuelve la URL de webhook y el verify
          *     token para pegar en su app. 201 también si quedó `pending` (falló la suscripción: ver status_reason).
          *     409 si el número es de otra cuenta; 400 signup_mismatch si no es de esa WABA.
@@ -4434,7 +4434,7 @@ export interface components {
         };
         /**
          * BrandingPublicOut
-         * @description La marca con la que los usuarios de un cliente ven el panel (docs/MARCA_BLANCA_PLAN.md).
+         * @description La marca con la que los usuarios de un cliente ven el panel (docs/ARQUITECTURA.md).
          */
         BrandingPublicOut: {
             /**
@@ -6951,7 +6951,7 @@ export interface components {
             model?: string | null;
             /**
              * Mode
-             * @description llm: salida JSON (BYOK). external: el endpoint de un agente propio (un turno en streaming con end_call; docs/AGENTE_EXTERNO_PLAN.md)
+             * @description llm: salida JSON (BYOK). external: el endpoint de un agente propio (un turno en streaming con end_call; docs/features/LLM_CONEXIONES.md)
              * @default llm
              * @enum {string}
              */
@@ -9719,7 +9719,7 @@ export interface components {
         /**
          * ToolIn
          * @description Una herramienta del cliente. El formato de `definition` segun `type` esta en GET /tools/schema y en
-         *     docs/TOOLS_PLAN.md (http: secciones 4; code: 5).
+         *     docs/features/HERRAMIENTAS.md.
          */
         ToolIn: {
             /**

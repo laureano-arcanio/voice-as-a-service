@@ -1,4 +1,4 @@
-"""Formato de una herramienta del cliente (docs/TOOLS_PLAN.md, secciones 4 y 5).
+"""Formato de una herramienta del cliente (docs/features/HERRAMIENTAS.md).
 
 Dos tipos, con el mismo encabezado (descripcion, confirmacion, frases de voz y respuesta):
 - http: Atentina llama a una API. El pedido se separa en path, query, headers y body, y cada parametro

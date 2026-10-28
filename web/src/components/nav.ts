@@ -108,7 +108,7 @@ export const CLIENT_NAV: NavEntry[] = [
   },
 ];
 
-// Administración (/admin, docs/ADMIN_SOPORTE_PLAN.md): la plataforma y las vistas de todos los clientes. El
+// Administración (/admin, docs/ARQUITECTURA.md): la plataforma y las vistas de todos los clientes. El
 // resto se ve entrando como el cliente (ficha del cliente o link de una fila).
 export const ADMIN_NAV: NavEntry[] = [
   { to: '/admin/reports', label: 'Reportes', icon: IconChartHistogram },

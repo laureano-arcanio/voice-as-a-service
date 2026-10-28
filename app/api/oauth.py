@@ -1,4 +1,4 @@
-"""OAuth 2.1 del servidor MCP (docs/MCP_PLAN.md, 4.2; lógica en services/oauth.py).
+"""OAuth 2.1 del servidor MCP (docs/features/MCP.md; lógica en services/oauth.py).
 
 - Metadata: /.well-known/oauth-protected-resource[/mcp] (RFC 9728) y
   /.well-known/oauth-authorization-server (RFC 8414). El emisor es el mismo host que sirve /mcp

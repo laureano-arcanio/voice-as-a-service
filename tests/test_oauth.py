@@ -1,4 +1,4 @@
-"""OAuth 2.1 del servidor MCP (docs/MCP_PLAN.md, 4.2): metadata, registro, consentimiento, PKCE,
+"""OAuth 2.1 del servidor MCP (docs/features/MCP.md): metadata, registro, consentimiento, PKCE,
 tokens con rotación, revocación y el uso del token en /mcp (y solo ahí)."""
 import base64
 import hashlib

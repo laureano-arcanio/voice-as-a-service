@@ -1,4 +1,4 @@
-"""CRM: tablas iniciales (docs/CRM_PLAN.md)
+"""CRM: tablas iniciales (docs/features/CRM.md)
 
 Revision ID: 0001
 Revises: 

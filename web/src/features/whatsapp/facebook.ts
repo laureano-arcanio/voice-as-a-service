@@ -1,4 +1,4 @@
-// SDK de Facebook y mensajes de Embedded Signup v4 (docs/WHATSAPP_PLAN.md 3.3).
+// SDK de Facebook y mensajes de Embedded Signup v4 (docs/features/WHATSAPP.md).
 // El SDK se carga recien al abrir el alta: no va en index.html (CSP: connect.facebook.net).
 
 interface FbLoginResponse {

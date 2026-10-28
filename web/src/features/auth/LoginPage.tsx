@@ -19,7 +19,7 @@ import { AuthLogo } from '@/branding/BrandLogo';
 import { useBranding, usePageTitle } from '@/branding/context';
 import { useLogin, useMe } from './api';
 
-// Registro autoservicio: en la landing (docs/SUSCRIPCIONES_PLAN.md).
+// Registro autoservicio: en la landing (docs/features/COBROS.md).
 const SIGNUP_URL = 'https://atentina.com.ar/registro';
 
 function loginError(err: unknown): string {

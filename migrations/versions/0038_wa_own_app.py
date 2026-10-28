@@ -1,4 +1,4 @@
-"""WhatsApp con la app de Meta propia del cliente (docs/ADMIN_SOPORTE_PLAN.md, seccion 4): sin Tech Provider
+"""WhatsApp con la app de Meta propia del cliente (docs/ARQUITECTURA.md): sin Tech Provider
 no hay Embedded Signup, asi que el cliente conecta su numero con su app. La cuenta guarda el app secret
 (firma de sus webhooks) y el verify token cifrados, y una clave unica para su URL de webhook
 (/wa/webhook/<clave>). source = own_app.

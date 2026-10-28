@@ -72,7 +72,7 @@ class Tier(IdMixin, TimestampMixin, Base):
     api_stt_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)   # audio transcripto
     # Pedidos por minuto a la API de inferencia, sumando las tres y todas las keys del cliente.
     api_rate_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    # Campañas salientes y agenda de contactos (docs/LLAMADAS_SALIENTES_PLAN.md, 3.5). NULL = sin
+    # Campañas salientes y agenda de contactos (docs/features/CAMPANAS.md). NULL = sin
     # limite y 0 = no incluido, como el resto. campaign_channels: los canales habilitados ([],
     # ["whatsapp"], ["voice"] o los dos).
     campaign_channels: Mapped[list] = mapped_column(JSONDoc, default=list, server_default=text("'[]'"))
@@ -81,31 +81,31 @@ class Tier(IdMixin, TimestampMixin, Base):
     max_campaign_concurrency: Mapped[int | None] = mapped_column(Integer, nullable=True)  # llamadas simultaneas de una de voz
     max_contacts: Mapped[int | None] = mapped_column(Integer, nullable=True)              # contactos activos en la agenda
     campaign_followup: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())   # seguimiento por WhatsApp
-    # Links publicos para llamar a un agente desde el navegador (docs/LINK_LLAMADA_PLAN.md). NULL = sin
+    # Links publicos para llamar a un agente desde el navegador (docs/features/LINK_LLAMADA.md). NULL = sin
     # limite, 0 = no incluido.
     max_call_links: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    # Personas del equipo para derivar llamadas y WhatsApp (docs/DERIVACIONES_PLAN.md). NULL = sin
+    # Personas del equipo para derivar llamadas y WhatsApp (docs/features/EQUIPO_TELEFONIA.md). NULL = sin
     # limite, 0 = no incluido.
     max_team_members: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    # WhatsApp: cuentas, mensajes y llamadas (docs/FUNCIONES_POR_PLAN_PLAN.md).
+    # WhatsApp: cuentas, mensajes y llamadas (docs/ARQUITECTURA.md).
     whatsapp: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
-    # Motor external: el agente del cliente detras de su endpoint (docs/AGENTE_EXTERNO_PLAN.md).
+    # Motor external: el agente del cliente detras de su endpoint (docs/features/LLM_CONEXIONES.md).
     external_agent: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
-    # Herramientas del cliente (docs/TOOLS_PLAN.md): cuantas puede tener (NULL = sin limite, 0 = no
+    # Herramientas del cliente (docs/features/HERRAMIENTAS.md): cuantas puede tener (NULL = sin limite, 0 = no
     # incluido) y si pueden ser codigo (JavaScript en el sandbox).
     max_tools: Mapped[int | None] = mapped_column(Integer, nullable=True)
     code_tools: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
-    # Marca blanca del panel: logo y colores del cliente en vez de los de Atentina (docs/MARCA_BLANCA_PLAN.md).
+    # Marca blanca del panel: logo y colores del cliente en vez de los de Atentina (docs/ARQUITECTURA.md).
     white_label: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
-    # Reportes completos (docs/REPORTES_PLAN.md): Resultados, Mensajes, Transferencias y Campañas. Sin esto,
+    # Reportes completos (docs/features/REPORTES.md): Resultados, Mensajes, Transferencias y Campañas. Sin esto,
     # solo Resumen y Llamadas.
     advanced_reports: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     # Tier de Atentina (nosotros): no se ofrece como plan ni cuenta en las estadisticas de la plataforma.
     internal: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
-    # Llamadas directas: el equipo llama y atiende desde el panel sin el agente (docs/LLAMADAS_DIRECTAS_PLAN.md).
+    # Llamadas directas: el equipo llama y atiende desde el panel sin el agente (docs/features/EQUIPO_TELEFONIA.md).
     # La saliente pide ademas outbound_calls.
     direct_calls: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
-    # Autoservicio (docs/SUSCRIPCIONES_PLAN.md): precio mensual en pesos, lo que se cobra (NULL = no
+    # Autoservicio (docs/features/COBROS.md): precio mensual en pesos, lo que se cobra (NULL = no
     # se vende por el dashboard; 0 = gratis). `public`: se ofrece en el registro y en /plan. El tier
     # publico con precio 0 es el del registro.
     price_ars: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -139,7 +139,7 @@ class Client(IdMixin, TimestampMixin, Base):
 
 
 class ClientBranding(Base):
-    """Marca blanca del panel (docs/MARCA_BLANCA_PLAN.md): el logo y los tres colores con los que los usuarios
+    """Marca blanca del panel (docs/ARQUITECTURA.md): el logo y los tres colores con los que los usuarios
     del cliente ven el dashboard. 1:1 con el cliente (sin fila = sin marca); se aplica solo si `enabled` y el
     tier incluye `white_label`. Lo configura un admin (services/branding.py)."""
     __tablename__ = "client_branding"
@@ -188,7 +188,7 @@ class ClientLimitAdjustment(IdMixin, TimestampMixin, Base):
 class PhoneNumber(IdMixin, TimestampMixin, Base):
     """Numero del inventario (los que provee Anura). Libre (sin cliente) o asignado a
     un cliente, hasta el tope de su tier. Las entrantes a este numero las atiende
-    `agent`, un agente del cliente, o el equipo (answer_mode, docs/LLAMADAS_DIRECTAS_PLAN.md);
+    `agent`, un agente del cliente, o el equipo (answer_mode, docs/features/EQUIPO_TELEFONIA.md);
     las salientes pueden usarlo como caller ID."""
     __tablename__ = "phone_numbers"
     __table_args__ = (

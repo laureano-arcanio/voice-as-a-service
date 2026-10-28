@@ -25,7 +25,7 @@ interface TabDef {
   value: string;
   label: string;
   Component: ComponentType<{ query: ReportQuery }>;
-  /** Necesita la funcion `advanced_reports` del plan (docs/REPORTES_PLAN.md, 7). */
+  /** Necesita la funcion `advanced_reports` del plan (docs/features/REPORTES.md). */
   advanced?: boolean;
   /** Solo el admin (vocabulario y datos internos). */
   admin?: boolean;

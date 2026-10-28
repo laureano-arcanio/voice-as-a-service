@@ -1,4 +1,4 @@
-"""Campañas de voz, fase 4 (docs/LLAMADAS_SALIENTES_PLAN.md, secciones 4, 5, 6, 8 y 11): contestador por
+"""Campañas de voz, fase 4 (docs/features/CAMPANAS.md): contestador por
 heuristica, feriados, finalidad y Registro No Llame, baja por voz, seguimiento por WhatsApp y webhook."""
 import datetime
 import hashlib

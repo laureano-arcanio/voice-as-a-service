@@ -1,7 +1,7 @@
 """Inventario de numeros: se cargan libres (los provee Anura), se asignan a un
 cliente hasta el tope de su tier y el cliente elige quien atiende cada uno: un agente o
 el equipo (personas en orden, donde suena primero, timbre, horario y respaldo;
-docs/LLAMADAS_DIRECTAS_PLAN.md, 5)."""
+docs/features/EQUIPO_TELEFONIA.md)."""
 from dataclasses import dataclass
 
 from sqlalchemy import delete, func, select

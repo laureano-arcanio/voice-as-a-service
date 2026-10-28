@@ -1,4 +1,4 @@
-"""Entrega del webhook de las campañas (docs/LLAMADAS_SALIENTES_PLAN.md, seccion 8).
+"""Entrega del webhook de las campañas (docs/features/CAMPANAS.md).
 
 Una tarea aparte del loop de las campañas (main.py): un webhook lento o caido no frena el envio ni el
 marcado. Cada CAMPAIGN_CALLBACK_TICK_SECONDS toma los eventos pendientes de la cola (campaign_callbacks,

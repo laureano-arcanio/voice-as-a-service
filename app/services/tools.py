@@ -1,4 +1,4 @@
-"""Herramientas, secretos y credenciales del cliente (docs/TOOLS_PLAN.md).
+"""Herramientas, secretos y credenciales del cliente (docs/features/HERRAMIENTAS.md).
 
 - Herramientas: del cliente, por slug. El plan dice cuantas (`max_tools`) y si pueden ser codigo
   (`code_tools`). Cambiar una sube su `revision`; borrarla falla si un agente vigente la usa.

@@ -89,7 +89,7 @@ class Settings(BaseSettings):
     call_link_images_dir: Path = Field(default=BASE_DIR / "storage" / "call-links")
     # Logos de la marca blanca (app/services/branding.py): <client_id>/<hash>.<ext>; en el backup.
     branding_dir: Path = Field(default=BASE_DIR / "storage" / "branding")
-    # Musica de espera de las derivaciones (docs/DERIVACIONES_PLAN.md, 4.8): <tema>.ogg; "default" es la de
+    # Musica de espera de las derivaciones (docs/features/EQUIPO_TELEFONIA.md): <tema>.ogg; "default" es la de
     # LiveKit Agents.
     hold_music_dir: Path = Field(default=BASE_DIR / "storage" / "hold-music")
     # Aviso "Esta llamada está siendo grabada" de las llamadas directas (app/voice/direct.py): <voz>.wav, lo
@@ -120,7 +120,7 @@ class Settings(BaseSettings):
     vllm_tts_model: str = ""
     vllm_tts_voice: str = ""
 
-    # --- Demo de la landing (/api/v1/demo, docs/LANDING.md) ---
+    # --- Demo de la landing (/api/v1/demo, docs/features/LANDING.md) ---
     turnstile_secret_key: str = ""
     demo_allowed_origins: str = "https://atentina.com.ar,https://www.atentina.com.ar"
     # Cliente de los agentes de la demo (Atentina, el mismo del loadtest y del WhatsApp propio).
@@ -143,7 +143,7 @@ class Settings(BaseSettings):
     demo_ip_sessions_per_hour: int = 20
     demo_tts_max_chars: int = 300
 
-    # --- Link publico para llamar a un agente (docs/LINK_LLAMADA_PLAN.md) ---
+    # --- Link publico para llamar a un agente (docs/features/LINK_LLAMADA.md) ---
     # Base de las URLs (https://llamar.atentina.com.ar): con ese Host, app sirve solo la pagina del
     # link y su API (app/api/call_link_host.py). Vacio: la pagina queda en <host del panel>/llamar/<token>.
     call_link_base_url: str = ""
@@ -151,7 +151,7 @@ class Settings(BaseSettings):
     # del link. Sin ella o sin TURNSTILE_SECRET_KEY la pagina dice "no disponible".
     turnstile_site_key: str = ""
 
-    # --- Teléfono del equipo en su host (docs/LLAMADAS_DIRECTAS_PLAN.md, sección 16) ---
+    # --- Teléfono del equipo en su host (docs/features/EQUIPO_TELEFONIA.md) ---
     # Base (https://telefono.atentina.com.ar): con ese Host, app sirve en `/` la app del teléfono (web/telefono.html)
     # y la API; nada más del panel (app/api/phone_app_host.py). Vacío: queda en <host del panel>/movil.
     phone_app_base_url: str = ""
@@ -195,7 +195,7 @@ class Settings(BaseSettings):
     call_summary_tick_seconds: float = 15
     call_summary_transcript_chars: int = 8000
 
-    # --- Registro autoservicio y cobro de planes (docs/SUSCRIPCIONES_PLAN.md) ---
+    # --- Registro autoservicio y cobro de planes (docs/features/COBROS.md) ---
     # Registro desde la landing (POST /api/v1/demo/signup, con Turnstile). Va al tier publico con precio 0.
     signup_enabled: bool = True
     signup_ip_per_hour: int = 3
@@ -231,7 +231,7 @@ class Settings(BaseSettings):
     mp_billing_test_payer_email: str = ""
     mp_api_url: str = "https://api.mercadopago.com"
 
-    # --- WhatsApp (Cloud API de Meta, docs/WHATSAPP_PLAN.md) ---
+    # --- WhatsApp (Cloud API de Meta, docs/features/WHATSAPP.md) ---
     wa_app_id: str = ""
     wa_app_secret: str = ""  # firma X-Hub-Signature-256; vacio = el webhook rechaza todo
     wa_verify_token: str = ""  # challenge GET del webhook; vacio = lo rechaza
@@ -241,7 +241,7 @@ class Settings(BaseSettings):
     # PIN de dos pasos de nuestros numeros (alta manual, sin token propio): retry_register.
     wa_registration_pin: str = ""
     # Fase 2 (Embedded Signup): config de Facebook Login for Business. Apagado hasta tener el Tech Provider: los
-    # clientes conectan su numero con su propia app de Meta (docs/ADMIN_SOPORTE_PLAN.md, seccion 4).
+    # clientes conectan su numero con su propia app de Meta (docs/ARQUITECTURA.md).
     wa_embedded_signup: bool = False
     wa_config_id: str = ""
     # Claves Fernet separadas por coma (la primera cifra; las otras solo descifran, para rotar).
@@ -275,14 +275,14 @@ class Settings(BaseSettings):
     wa_campaign_reply_days: int = 7         # una respuesta dentro de estos dias abre la conversacion con la plantilla
     wa_campaign_max_recipients: int = 10_000  # por campaña
     wa_optout_reply: str = "Listo, no te vamos a escribir más. ¡Gracias!"
-    # Campañas de voz (app/campaigns/dialer.py, docs/LLAMADAS_SALIENTES_PLAN.md, secciones 4 y 5).
+    # Campañas de voz (app/campaigns/dialer.py, docs/features/CAMPANAS.md).
     call_campaign_tick_seconds: float = 2.0     # cada cuanto el dialer revisa que llamar
     # Llamadas de campaña a la vez entre todos los clientes: deja lugar a las entrantes y la demo. 8 hasta
     # medir la capacidad con Gemma (fase 5 del plan).
     call_campaign_max_concurrent: int = 8
     call_campaign_failure_streak: int = 10      # intentos seguidos fallidos que pausan la campaña (trunk o Anura caidos)
     call_ringing_timeout_seconds: int = 30      # cuanto suena antes de dar la llamada por no atendida
-    # Derivacion de llamadas (docs/DERIVACIONES_PLAN.md, 4.6): canales de la cuenta de Anura (rtp.conf). Una
+    # Derivacion de llamadas (docs/features/EQUIPO_TELEFONIA.md): canales de la cuenta de Anura (rtp.conf). Una
     # llamada por Anura ocupa uno y una derivada dos; sin canal libre la derivacion no se intenta.
     anura_channels: int = 10
 
@@ -304,7 +304,7 @@ class Settings(BaseSettings):
     campaign_callback_max_attempts: int = 6
     campaign_callback_allow_private: bool = False
 
-    # Herramientas del cliente (docs/TOOLS_PLAN.md). Sandbox de codigo (servicio tools-runner, red interna);
+    # Herramientas del cliente (docs/features/HERRAMIENTAS.md). Sandbox de codigo (servicio tools-runner, red interna);
     # vacio = sin herramientas de codigo.
     tools_runner_url: str = ""
     tools_runner_token: str = ""

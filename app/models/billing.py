@@ -1,4 +1,4 @@
-"""Cobro de los planes (docs/SUSCRIPCIONES_PLAN.md): la suscripcion de cada cliente y sus pagos.
+"""Cobro de los planes (docs/features/COBROS.md): la suscripcion de cada cliente y sus pagos.
 Las transiciones viven en app/billing/service.py; el tier vigente sigue siendo clients.tier_id."""
 import datetime
 

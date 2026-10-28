@@ -1,4 +1,4 @@
-"""Link publico para llamar a un agente desde el navegador (docs/LINK_LLAMADA_PLAN.md).
+"""Link publico para llamar a un agente desde el navegador (docs/features/LINK_LLAMADA.md).
 
 - `/agents/{agent_id}/call-link`: lo gestiona el cliente (o un admin), uno activo por agente.
 - `/public/call-links/{token}`: la usa la pagina publica (sin auth; Turnstile al llamar).

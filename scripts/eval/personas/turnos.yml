@@ -1,4 +1,4 @@
-# Personas para eval_turnos (docs/EVAL_LLM_PLAN.md, seccion 3). La paciente es
+# Personas para eval_turnos (docs/eval/README.md). La paciente es
 # Marta Suarez (fija en el workflow); el horario alternativo varia por repeticion.
 agente: eval_turnos
 

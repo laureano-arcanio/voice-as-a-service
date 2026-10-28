@@ -1,4 +1,4 @@
-/* Pagina publica del link para llamar (docs/LINK_LLAMADA_PLAN.md, seccion 6). La ve el cliente final:
+/* Pagina publica del link para llamar (docs/features/LINK_LLAMADA.md). La ve el cliente final:
    sigue la guia de la marca (docs/DESIGN_GUIDELINE.md), no la del panel. Tokens copiados de
    landing/src/styles/global.css; solo tema claro, como la marca. */
 :root {

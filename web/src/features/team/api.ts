@@ -4,7 +4,7 @@ import { unwrap } from '@/api/request';
 import { phoneKeys } from '@/features/phone/api';
 import type { HandoffAreaIn, HandoffAreaPatch, TeamMemberIn, TeamMemberPatch } from '@/api/types';
 
-// Equipo del cliente y areas de derivacion (docs/DERIVACIONES_PLAN.md, 3 y 4.7). Un admin pasa
+// Equipo del cliente y areas de derivacion (docs/features/EQUIPO_TELEFONIA.md). Un admin pasa
 // client_id; sin el, ve los de todos los clientes.
 
 export const teamKeys = {

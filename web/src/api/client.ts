@@ -33,7 +33,7 @@ const unauthorized: Middleware = {
   },
 };
 
-// Admin dentro de un cliente (docs/ADMIN_SOPORTE_PLAN.md): todos los pedidos van como ese cliente,
+// Admin dentro de un cliente (docs/ARQUITECTURA.md): todos los pedidos van como ese cliente,
 // salvo ingresar y salir.
 const support: Middleware = {
   onRequest({ request }) {

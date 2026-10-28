@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Renovacion del certificado de las llamadas de WhatsApp (cron diario, docs/WHATSAPP_PLAN.md 5.4).
+# Renovacion del certificado de las llamadas de WhatsApp (cron diario, docs/features/WHATSAPP.md).
 # `make sip-cert` no hace nada hasta que falten menos de 30 dias; cuando renueva, Asterisk sigue
 # sirviendo el viejo (lo copia al arrancar), asi que se reinicia el contenedor, solo sin llamadas
 # en curso: espera hasta 60 min y si no, reintenta al otro dia (quedan ~30 intentos).

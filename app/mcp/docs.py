@@ -14,10 +14,10 @@ DOC = "docs/MCP_HERRAMIENTAS.md"
 LANDING_JSON = "landing/src/data/mcp-tools.json"
 PLANS = ("Free", "Mostrador", "Sucursal", "Red")
 # Red no es un tier: es a medida (una instancia propia, la cotiza un asesor), con todo y sin tope. El tier
-# Central se borró el 26-oct-2026 (docs/FUNCIONES_POR_PLAN_PLAN.md, sección 6).
+# Central se borró el 26-oct-2026 (docs/ARQUITECTURA.md).
 
 # Qué es cada función del plan (services/features.TIER_HAS) y en qué planes está hoy, con el tope si lo hay
-# (docs/MCP_PLAN.md, sección 6; cambia con los tiers).
+# (docs/features/MCP.md; cambia con los tiers).
 FEATURES: dict[str, tuple[str, dict[str, str]]] = {
     "outbound_calls": ("Llamadas salientes (con un número asignado)", {"Mostrador": "", "Sucursal": "", "Red": ""}),
     "whatsapp": ("WhatsApp", {"Mostrador": "", "Sucursal": "", "Red": ""}),
@@ -51,7 +51,7 @@ def render() -> str:
         "# Herramientas del servidor MCP",
         "",
         "Generado desde `app/mcp/catalog.py` con `make mcp-docs`: no editar a mano. Diseño en",
-        "[`MCP_PLAN.md`](MCP_PLAN.md).",
+        "[`MCP.md`](features/MCP.md).",
         "",
         "- URL: `https://app.atentina.com.ar/mcp` (Streamable HTTP).",
         "- Auth: OAuth 2.1 (el cliente MCP descubre el login solo, por el 401 con `resource_metadata`) o",

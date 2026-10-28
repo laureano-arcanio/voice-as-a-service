@@ -1,7 +1,7 @@
 """Arma los SVG del logo de Atentina: isotipo y logotipo horizontal (sobre claro y sobre oscuro).
 Colores de docs/DESIGN_GUIDELINE.md: anillo y palabra en ink, barras en el acento.
 Mismo isotipo y fuente (Bricolage Grotesque 800, OFL) que el logo anterior (Oíme).
-Escribe en docs/brand/; después regenerar og.png con og.html (ver docs/LANDING.md).
+Escribe en docs/brand/; después regenerar og.png con og.html (ver docs/features/LANDING.md).
 Correr: python scripts/brand/build_atentina.py (necesita fonttools)."""
 import math
 from pathlib import Path

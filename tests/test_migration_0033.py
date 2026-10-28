@@ -1,4 +1,4 @@
-"""Migracion 0033 (un solo motor, docs/LIMPIEZA_PLAN.md): borra apps, app_links, app_job_runs y wa_operators,
+"""Migracion 0033 (un solo motor, AGENTS.md): borra apps, app_links, app_job_runs y wa_operators,
 archiva los agentes con motor assistant, crea tool_versions con la revision vigente de cada herramienta, y la
 ida y vuelta en SQLite. El esquema de tool_versions coincide con el modelo."""
 import json

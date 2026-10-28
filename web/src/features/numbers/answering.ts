@@ -1,7 +1,7 @@
 import type { PhoneNumber, PhoneNumberUpdate } from '@/api/types';
 import { type ScheduleDraft, toDraft, toSchedule } from '@/features/team/schedule';
 
-// Quién atiende las entrantes de un número (docs/LLAMADAS_DIRECTAS_PLAN.md, sección 5): el equipo (las
+// Quién atiende las entrantes de un número (docs/features/EQUIPO_TELEFONIA.md): el equipo (las
 // personas del número, en orden) o el agente.
 
 export type AnswerMode = 'team' | 'agent';

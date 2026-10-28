@@ -1,4 +1,4 @@
-"""El cliente de la llamada (docs/EVAL_LLM_PLAN.md, seccion 3).
+"""El cliente de la llamada (docs/eval/README.md).
 
   Simulador  un LLM externo (EVAL_LLM_*: DeepSeek u otro OpenAI-compatible) que
              actua la persona con su ficha. Ve la conversacion desde su lado: lo

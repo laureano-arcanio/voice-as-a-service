@@ -177,7 +177,7 @@ def wa_account(s: Session, phone_number_id: str, waba_id: str, display: str, cli
 
 def agent_rules(s: Session, apply: bool) -> None:
     """Las reglas de comportamiento que hasta el 26-oct-2026 estaban en el prompt del motor (GENERIC_RULES) pasan a
-    ser reglas del agente (docs/LIMPIEZA_PLAN.md): se suman al final de las de cada agente vigente que no las tenga,
+    ser reglas del agente (AGENTS.md): se suman al final de las de cada agente vigente que no las tenga,
     como version nueva. Sin --apply solo lista lo que haria. Tu propio agente no las usa: no se toca."""
     from .agents.templates import GENERIC_RULES
     from .services.errors import ServiceError
@@ -202,7 +202,7 @@ def agent_rules(s: Session, apply: bool) -> None:
 
 
 def reports_backfill(s: Session, batch: int = 500, definitions=None) -> int:
-    """Completa outcome, goal y conversion (docs/REPORTES_PLAN.md, 9.1) de las conversaciones que no los tienen
+    """Completa outcome, goal y conversion (docs/features/REPORTES.md) de las conversaciones que no los tienen
     (las anteriores a la migracion 0036), con la definicion de la version con que corrieron. Idempotente: solo
     toca las que tienen conversion NULL; en lotes, con un commit por lote. No cambia updated_at. Devuelve cuantas."""
     from sqlalchemy import update

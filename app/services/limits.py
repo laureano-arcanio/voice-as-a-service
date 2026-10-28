@@ -78,11 +78,11 @@ class Limits:
     max_campaign_contacts: int | None = None
     max_campaign_concurrency: int | None = None
     max_contacts: int | None = None
-    # Links publicos para llamar a un agente (docs/LINK_LLAMADA_PLAN.md). None = ilimitado, 0 = no incluido.
+    # Links publicos para llamar a un agente (docs/features/LINK_LLAMADA.md). None = ilimitado, 0 = no incluido.
     max_call_links: int | None = None
-    # Personas del equipo para derivar (docs/DERIVACIONES_PLAN.md). None = ilimitado, 0 = no incluido.
+    # Personas del equipo para derivar (docs/features/EQUIPO_TELEFONIA.md). None = ilimitado, 0 = no incluido.
     max_team_members: int | None = None
-    # Herramientas del cliente (docs/TOOLS_PLAN.md). None = ilimitado, 0 = no incluido.
+    # Herramientas del cliente (docs/features/HERRAMIENTAS.md). None = ilimitado, 0 = no incluido.
     max_tools: int | None = None
     # No son numericos, asi que no se ajustan por cliente: salen del tier.
     campaign_channels: tuple[str, ...] = ()
@@ -91,9 +91,9 @@ class Limits:
     external_agent: bool = False
     code_tools: bool = False
     white_label: bool = False
-    # Reportes completos (docs/REPORTES_PLAN.md): Resultados, Mensajes, Transferencias y Campañas.
+    # Reportes completos (docs/features/REPORTES.md): Resultados, Mensajes, Transferencias y Campañas.
     advanced_reports: bool = False
-    # Llamadas directas del equipo, sin agente (docs/LLAMADAS_DIRECTAS_PLAN.md).
+    # Llamadas directas del equipo, sin agente (docs/features/EQUIPO_TELEFONIA.md).
     direct_calls: bool = False
     tier_name: str = ""
     # Campos cuyo valor difiere del tier por un ajuste vigente.
@@ -187,7 +187,7 @@ def check_external_agent(s: Session, client_id: str) -> None:
         raise QuotaExceeded("Tu plan no incluye usar tu propio agente.", "external_agent_not_in_plan")
 
 
-# ---------- campañas y agenda (docs/LLAMADAS_SALIENTES_PLAN.md, 3.5) ----------
+# ---------- campañas y agenda (docs/features/CAMPANAS.md) ----------
 #
 # Las valida quien crea, completa o inicia una campaña y quien carga contactos. None = sin tope,
 # 0 = no incluido. Las llamadas de una campaña de voz cuentan ademas en los limites de siempre

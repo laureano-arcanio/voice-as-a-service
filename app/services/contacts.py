@@ -1,4 +1,4 @@
-"""Agenda de contactos del cliente y bajas (docs/LLAMADAS_SALIENTES_PLAN.md, 3.1 y 3.2).
+"""Agenda de contactos del cliente y bajas (docs/features/CAMPANAS.md y 3.2).
 
 - El telefono (E.164, services/phones.py) es unico por cliente y lo unico obligatorio.
 - Cargar es un upsert por telefono: el existente se actualiza (lo que no viene no se pisa) y uno

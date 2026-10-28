@@ -1,4 +1,4 @@
-"""CLI de la Graph API de WhatsApp (docs/WHATSAPP_PLAN.md, fase 0).
+"""CLI de la Graph API de WhatsApp (docs/features/WHATSAPP.md, fase 0).
 
   python -m scripts.wa send-text --to 54351... --text "hola" [--phone-number-id ID]
   python -m scripts.wa send-template --to ... --name NOMBRE [--language es] [--param X ...]
@@ -64,7 +64,7 @@ def _parser() -> argparse.ArgumentParser:
     return p
 
 
-# Llamadas de WhatsApp por SIP (docs/WHATSAPP_PLAN.md, fase 5): Meta -> TLS -> Asterisk.
+# Llamadas de WhatsApp por SIP (docs/features/WHATSAPP.md, fase 5): Meta -> TLS -> Asterisk.
 # PCMA para que Asterisk no transcodifique (Anura y LiveKit van en A-law); SDES porque
 # Asterisk lo hace sin ICE ni DTLS.
 def _calling_enabled(host: str, port: int) -> dict:

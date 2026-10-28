@@ -1,4 +1,4 @@
-"""Derivacion a personas del cliente (docs/DERIVACIONES_PLAN.md) y registro de eventos.
+"""Derivacion a personas del cliente (docs/features/EQUIPO_TELEFONIA.md) y registro de eventos.
 
 - team_members: el equipo del cliente (telefono para transferir llamadas, WhatsApp para el puente de la
   bandeja, usuario para el softphone web). Las mismas personas sirven para llamadas y WhatsApp.
@@ -78,7 +78,7 @@ class HandoffAreaMember(Base):
 
 
 class PhoneNumberMember(Base):
-    """Las personas que atienden un numero con answer_mode=team, en orden (docs/LLAMADAS_DIRECTAS_PLAN.md)."""
+    """Las personas que atienden un numero con answer_mode=team, en orden (docs/features/EQUIPO_TELEFONIA.md)."""
     __tablename__ = "phone_number_members"
     phone_number_id: Mapped[str] = mapped_column(String(36), ForeignKey("phone_numbers.id", ondelete="CASCADE"),
                                                  primary_key=True)

@@ -1,4 +1,4 @@
-"""Contrato de la API del CRM (docs/CRM_API.md). Lo que entra y sale por /api."""
+"""Contrato de la API del CRM (docs/features/CRM_API.md). Lo que entra y sale por /api."""
 import datetime
 from typing import Literal
 

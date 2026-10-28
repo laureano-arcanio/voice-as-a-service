@@ -31,7 +31,7 @@ class CallMode(enum.StrEnum):
     prueba = "prueba"       # navegador (LiveKit Meet)
     web = "web"             # navegador, por el link publico de un agente (call_links); consume minutos entrantes
     loadtest = "loadtest"   # scripts/loadtest y scripts/capacity
-    directa = "directa"     # saliente de una persona del cliente, sin agente (docs/LLAMADAS_DIRECTAS_PLAN.md)
+    directa = "directa"     # saliente de una persona del cliente, sin agente (docs/features/EQUIPO_TELEFONIA.md)
 
 
 class CallRow(Base):
@@ -74,7 +74,7 @@ class CallRow(Base):
     summary_email_attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     # Room de LiveKit (la deja el worker): para cortar la llamada desde la API (services/calls.hang_up).
     room: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    # Llamadas directas (docs/LLAMADAS_DIRECTAS_PLAN.md): el usuario que llamo o atendio (en el panel o en su
+    # Llamadas directas (docs/features/EQUIPO_TELEFONIA.md): el usuario que llamo o atendio (en el panel o en su
     # celular, por TeamMember.user_id), quien atiende una entrante (agent o team) y si se llamo a un contacto
     # dado de baja con confirmacion.
     user_id: Mapped[str | None] = mapped_column(

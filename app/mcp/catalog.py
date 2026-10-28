@@ -1,4 +1,4 @@
-"""Las herramientas del servidor MCP (docs/MCP_PLAN.md, sección 5): la fuente de `tools/list`,
+"""Las herramientas del servidor MCP (docs/features/MCP.md): la fuente de `tools/list`,
 `get_plan_tools` y docs/MCP_HERRAMIENTAS.md (`make mcp-docs`).
 
 Cada herramienta es un pedido a la API `/api/v1` (`method` + `path`) con los argumentos como

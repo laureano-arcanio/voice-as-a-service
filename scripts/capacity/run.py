@@ -1,4 +1,4 @@
-"""Test de capacidad con calidad percibida (docs/CAPACITY_TEST_PLAN.md).
+"""Test de capacidad con calidad percibida (docs/capacity/README.md).
 
 Corre en la PC cliente, dentro del contenedor `agent` (como `make loadtest`).
 Lee un perfil de scripts/capacity/perfiles/, genera llegadas Poisson por

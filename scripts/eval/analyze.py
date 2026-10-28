@@ -1,4 +1,4 @@
-"""Resumen de un run del eval (docs/EVAL_LLM_PLAN.md): summary.json, report.html y
+"""Resumen de un run del eval (docs/eval/README.md): summary.json, report.html y
 la tabla por consola. Junta conversaciones.jsonl con juez.jsonl si existe.
 
 Uso: make eval-llm-report RUN=scripts/eval/runs/<run> [ARGS="--comparar scripts/eval/runs/<otro>"]

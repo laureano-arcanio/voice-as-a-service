@@ -1,4 +1,4 @@
-"""Condiciones del servicio y politica de privacidad con version (docs/TERMINOS_PLAN.md).
+"""Condiciones del servicio y politica de privacidad con version (docs/features/LEGAL.md).
 
 Cada version es un archivo `texts/<slug>/<version>.md` (version = fecha de publicacion, AAAA-MM-DD) que **no se edita
 una vez publicado**: un cambio es un archivo nuevo, y la vigente es la de fecha mas alta. El SHA-256 del archivo queda

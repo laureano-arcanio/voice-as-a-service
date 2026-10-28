@@ -54,7 +54,7 @@ export function useUpdateLlmConnection(clientId: string) {
 }
 
 /** Pedido real al proveedor: detecta el modo de JSON y guarda el resultado en la conexion. mode external:
- * la prueba como endpoint de un agente propio (un turno en streaming; docs/AGENTE_EXTERNO_PLAN.md). */
+ * la prueba como endpoint de un agente propio (un turno en streaming; docs/features/LLM_CONEXIONES.md). */
 export function useTestLlmConnection(clientId: string) {
   const qc = useQueryClient();
   return useMutation({

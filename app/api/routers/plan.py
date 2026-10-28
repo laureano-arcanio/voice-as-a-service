@@ -1,5 +1,5 @@
 """Lo que incluye el plan del cliente, para que la UI bloquee con el motivo lo que no
-(docs/FUNCIONES_POR_PLAN_PLAN.md)."""
+(docs/ARQUITECTURA.md)."""
 from fastapi import APIRouter
 
 from ...models import Client

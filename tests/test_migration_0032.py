@@ -1,4 +1,4 @@
-"""Migracion 0032 (herramientas del cliente, docs/TOOLS_PLAN.md): ida y vuelta en SQLite, el esquema de tools,
+"""Migracion 0032 (herramientas del cliente, docs/features/HERRAMIENTAS.md): ida y vuelta en SQLite, el esquema de tools,
 agent_secrets y tiers coincide con el modelo, y los defaults por plan."""
 import sqlalchemy as sa
 from alembic import command

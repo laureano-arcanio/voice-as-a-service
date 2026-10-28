@@ -1,4 +1,4 @@
-"""Link publico para llamar a un agente desde el navegador (docs/LINK_LLAMADA_PLAN.md):
+"""Link publico para llamar a un agente desde el navegador (docs/features/LINK_LLAMADA.md):
 https://<CALL_LINK_HOST>/<token>. Como un numero de telefono: apunta a un agente del cliente,
 se pausa o se revoca, y las llamadas consumen minutos entrantes del tier (CallMode.web)."""
 import datetime

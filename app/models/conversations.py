@@ -31,7 +31,7 @@ class ConversationRow(Base):
     fields: Mapped[dict] = mapped_column(JSONDoc)
     messages: Mapped[list] = mapped_column(JSONDoc)
     progress: Mapped[dict | None] = mapped_column(JSONDoc, nullable=True)
-    # Para los reportes (docs/REPORTES_PLAN.md), sin cargar la definicion del agente: el resultado
+    # Para los reportes (docs/features/REPORTES.md), sin cargar la definicion del agente: el resultado
     # (Outcome.id, el mismo de progress.outcome) y si cumple el objetivo, al completarse; la conversion
     # (complete: todos los datos requeridos; partial: alguno; empty: ninguno), al guardar cada turno.
     outcome: Mapped[str | None] = mapped_column(String(64), nullable=True)

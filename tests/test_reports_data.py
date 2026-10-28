@@ -1,4 +1,4 @@
-"""Datos de los reportes (docs/REPORTES_PLAN.md, 9.1): resultado, objetivo y conversion de cada conversacion,
+"""Datos de los reportes (docs/features/REPORTES.md): resultado, objetivo y conversion de cada conversacion,
 tokens del LLM por turno, tool_runs, historial de las cuentas de WhatsApp y el backfill. LLM falso."""
 import datetime
 from types import SimpleNamespace

@@ -1,4 +1,4 @@
-"""Equipo del cliente, areas de derivacion y eventos (docs/DERIVACIONES_PLAN.md). El cliente ve y carga
+"""Equipo del cliente, areas de derivacion y eventos (docs/features/EQUIPO_TELEFONIA.md). El cliente ve y carga
 lo suyo; un admin indica `client_id`."""
 import datetime
 from typing import Annotated

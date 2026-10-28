@@ -1,4 +1,4 @@
-"""Alta de un numero con la app de Meta propia del cliente (docs/ADMIN_SOPORTE_PLAN.md, seccion 4).
+"""Alta de un numero con la app de Meta propia del cliente (docs/ARQUITECTURA.md).
 
 Sin Tech Provider no hay Embedded Signup: el cliente crea su app de Meta con WhatsApp, un token permanente de un
 usuario de sistema sobre su WABA, y nos pasa el token y el app secret. Validamos con Graph que el numero sea de

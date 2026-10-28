@@ -1,4 +1,4 @@
-"""OAuth 2.1 del servidor MCP (docs/MCP_PLAN.md, 4.2): oauth_clients, oauth_grants, oauth_codes y
+"""OAuth 2.1 del servidor MCP (docs/features/MCP.md): oauth_clients, oauth_grants, oauth_codes y
 oauth_tokens, nuevas. Sin datos que migrar.
 
 Revision ID: 0028

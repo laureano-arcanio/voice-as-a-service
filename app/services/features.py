@@ -1,4 +1,4 @@
-"""Que funciones incluye el plan de un cliente, con el motivo de las que no (docs/FUNCIONES_POR_PLAN_PLAN.md).
+"""Que funciones incluye el plan de un cliente, con el motivo de las que no (docs/ARQUITECTURA.md).
 
 La UI bloquea con esto cada pantalla (`GET /plan/features`); el corte de verdad lo hace cada servicio con
 los mismos campos del tier (quota, limits.check_*). Sale de los limites efectivos (tier + ajustes), nunca

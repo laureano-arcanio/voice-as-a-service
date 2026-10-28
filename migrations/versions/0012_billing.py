@@ -1,4 +1,4 @@
-"""Registro autoservicio y cobro de planes (docs/SUSCRIPCIONES_PLAN.md): precio y visibilidad de los
+"""Registro autoservicio y cobro de planes (docs/features/COBROS.md): precio y visibilidad de los
 tiers, origen y datos fiscales del cliente, numeros suspendidos, y las tablas subscriptions y
 billing_payments.
 

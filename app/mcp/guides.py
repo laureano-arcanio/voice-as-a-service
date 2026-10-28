@@ -1,4 +1,4 @@
-"""Resources y prompts del servidor MCP (docs/MCP_PLAN.md, sección 5): guías cortas para que el agente
+"""Resources y prompts del servidor MCP (docs/features/MCP.md): guías cortas para que el agente
 del cliente use las herramientas en orden, y el esquema de la definición de un agente."""
 
 SCHEMA_URI = "atentina://agents/schema"

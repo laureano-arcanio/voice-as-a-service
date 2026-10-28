@@ -1,4 +1,4 @@
-"""Equipo, areas de derivacion y eventos (docs/DERIVACIONES_PLAN.md, fase 1)."""
+"""Equipo, areas de derivacion y eventos (docs/features/EQUIPO_TELEFONIA.md, fase 1)."""
 import datetime
 
 from sqlalchemy import select

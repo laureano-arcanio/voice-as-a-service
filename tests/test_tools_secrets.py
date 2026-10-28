@@ -1,4 +1,4 @@
-"""Secretos del cliente y credenciales (docs/TOOLS_PLAN.md, 16): el agente usa los del cliente y los suyos los
+"""Secretos del cliente y credenciales (docs/features/HERRAMIENTAS.md): el agente usa los del cliente y los suyos los
 pisan, "pasar al cliente", credenciales reutilizables entre herramientas y la prueba sin elegir agente."""
 import pytest
 from cryptography.fernet import Fernet

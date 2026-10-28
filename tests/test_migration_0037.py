@@ -1,4 +1,4 @@
-"""Migracion 0037 (tiers.internal, docs/ADMIN_SOPORTE_PLAN.md): ida y vuelta en SQLite, el esquema coincide con el
+"""Migracion 0037 (tiers.internal, docs/ARQUITECTURA.md): ida y vuelta en SQLite, el esquema coincide con el
 modelo y solo el tier llamado Interno queda marcado."""
 import sqlalchemy as sa
 from alembic import command

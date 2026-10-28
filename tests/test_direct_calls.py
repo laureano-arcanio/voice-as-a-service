@@ -1,4 +1,4 @@
-"""Llamadas directas (docs/LLAMADAS_DIRECTAS_PLAN.md): saliente de una persona, timbre en el panel, presencia,
+"""Llamadas directas (docs/features/EQUIPO_TELEFONIA.md): saliente de una persona, timbre en el panel, presencia,
 configuracion de los numeros y ruteo de las entrantes al equipo. LiveKit simulado (fixture api)."""
 import datetime
 

@@ -1,4 +1,4 @@
-"""Campañas salientes de WhatsApp (docs/WHATSAPP_PLAN.md, 5.5): una plantilla aprobada a
+"""Campañas salientes de WhatsApp (docs/features/WHATSAPP.md): una plantilla aprobada a
 una lista de contactos, por un numero conectado. El envio lo hace sender.py, de a poco
 (ritmo por minuto) y dentro del horario de la campaña.
 

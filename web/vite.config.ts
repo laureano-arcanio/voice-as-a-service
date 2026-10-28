@@ -19,8 +19,8 @@ export default defineConfig(({ mode }) => {
       emptyOutDir: true,
       chunkSizeWarningLimit: 1500,
       // Cuatro paginas: el panel (index.html), la del link para llamar (llamar.html, sin React), el
-      // teléfono del equipo tipo Android (telefono.html; docs/LLAMADAS_DIRECTAS_PLAN.md, sección 16) y el
-      // CRM de ventas (crm.html, lo sirve el servicio crm; docs/CRM_PLAN.md).
+      // teléfono del equipo tipo Android (telefono.html; docs/features/EQUIPO_TELEFONIA.md) y el
+      // CRM de ventas (crm.html, lo sirve el servicio crm; docs/features/CRM.md).
       rollupOptions: {
         input: {
           main: fileURLToPath(new URL('./index.html', import.meta.url)),

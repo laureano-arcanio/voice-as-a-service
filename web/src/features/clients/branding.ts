@@ -4,7 +4,7 @@ import { unwrap } from '@/api/request';
 import type { BrandingIn } from '@/api/types';
 import { clientKeys } from './api';
 
-/** Marca blanca de un cliente, para el admin (docs/MARCA_BLANCA_PLAN.md). */
+/** Marca blanca de un cliente, para el admin (docs/ARQUITECTURA.md). */
 
 const key = (clientId: string) => [...clientKeys.detail(clientId), 'branding'] as const;
 const path = (clientId: string) => ({ params: { path: { client_id: clientId } } });

@@ -1,4 +1,4 @@
-"""Migracion 0035 (secretos del cliente y credenciales, docs/TOOLS_PLAN.md, 16): ida y vuelta en SQLite y el
+"""Migracion 0035 (secretos del cliente y credenciales, docs/features/HERRAMIENTAS.md): ida y vuelta en SQLite y el
 esquema de client_secrets y credentials coincide con el modelo."""
 import sqlalchemy as sa
 from alembic import command

@@ -1,4 +1,4 @@
-"""Agente externo minimo para Atentina (docs/AGENTE_EXTERNO_PLAN.md).
+"""Agente externo minimo para Atentina (docs/features/LLM_CONEXIONES.md).
 
 Atentina pone la voz y la telefonia; en cada turno le pide la respuesta a este endpoint, compatible con OpenAI
 (`POST /v1/chat/completions`, `stream: true`). Este ejemplo antepone su propio prompt y reenvia la conversacion

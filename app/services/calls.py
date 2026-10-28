@@ -191,7 +191,7 @@ def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
                 "join_timeout_seconds": req.join_timeout_seconds, "campaign_contact_id": req.campaign_contact_id,
                 "call_link_id": req.call_link_id,
                 # Derivacion a personas (app/voice/handoff.py): no en el loadtest ni las campañas, y en la demo de
-                # la landing solo con DEMO_HANDOFF (docs/DERIVACIONES_PLAN.md, 4.3).
+                # la landing solo con DEMO_HANDOFF (docs/features/EQUIPO_TELEFONIA.md).
                 "handoff": req.handoff and not (req.loadtest or req.campaign_contact_id)}
     return CallStarted(conversation_id=state.conversation_id, room=room, mode=mode), metadata
 
@@ -228,7 +228,7 @@ class TeamPerson:
 
 @dataclass
 class TeamRoute:
-    """Entrante al equipo (answer_mode=team, docs/LLAMADAS_DIRECTAS_PLAN.md, 5): a quien hacer sonar, en orden,
+    """Entrante al equipo (answer_mode=team, docs/features/EQUIPO_TELEFONIA.md): a quien hacer sonar, en orden,
     donde primero (phone/panel), timbre, horario y que hacer si nadie atiende o esta fuera de horario
     (fallback: agent, voicemail o hangup; agent_id es el agente del numero, para el respaldo)."""
     members: list[TeamPerson]

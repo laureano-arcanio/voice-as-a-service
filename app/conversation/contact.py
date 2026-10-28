@@ -1,5 +1,5 @@
 """Datos del contacto de una campaña de voz o de una llamada suelta en la conversación
-(docs/LLAMADAS_SALIENTES_PLAN.md, 4).
+(docs/features/CAMPANAS.md).
 
 `vars` es la copia de los datos del contacto que guarda la campaña (nombre, teléfono, email, id externo).
 Llegan a la conversación de tres formas:

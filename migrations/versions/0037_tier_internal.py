@@ -1,4 +1,4 @@
-"""Tier interno como marca (docs/ADMIN_SOPORTE_PLAN.md): tiers.internal reemplaza la comparacion con el nombre
+"""Tier interno como marca (docs/ARQUITECTURA.md): tiers.internal reemplaza la comparacion con el nombre
 "Interno" (no se ofrece como plan ni cuenta en las estadisticas de la plataforma). El tier llamado Interno,
 si existe, queda marcado.
 

@@ -20,7 +20,7 @@ import { connectionLabel } from '@/features/llm/labels';
 import { useAreas } from '@/features/team/api';
 import { type Draft, EXTERNAL_DEFAULTS, type ExternalDraft } from './draft';
 
-/** Tu propio agente (docs/AGENTE_EXTERNO_PLAN.md): cada turno lo contesta el endpoint del cliente. Prenderlo
+/** Tu propio agente (docs/features/LLM_CONEXIONES.md): cada turno lo contesta el endpoint del cliente. Prenderlo
  * pone definition.external; apagarlo lo saca. */
 export function ExternalSection({
   draft,

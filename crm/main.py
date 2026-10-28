@@ -1,4 +1,4 @@
-"""CRM de ventas (docs/CRM_PLAN.md): API en /api, UI en / (web/crm.html), loops de envio, eventos y GA.
+"""CRM de ventas (docs/features/CRM.md): API en /api, UI en / (web/crm.html), loops de envio, eventos y GA.
 
 Local: el puerto se publica solo en 127.0.0.1 (docker-compose.yml, servicio crm).
 """
@@ -44,7 +44,7 @@ def create_app() -> FastAPI:
         raise RuntimeError("falta CRM_API_KEY en .env")
     app = FastAPI(title="Atentina CRM", version="1", lifespan=lifespan, docs_url="/api/docs",
                   openapi_url="/api/openapi.json", redoc_url=None,
-                  description="CRM de ventas de Atentina. Contrato y ejemplos en docs/CRM_API.md. "
+                  description="CRM de ventas de Atentina. Contrato y ejemplos en docs/features/CRM_API.md. "
                               "Auth: `Authorization: Bearer <key>`. Errores en application/problem+json.")
 
     @app.exception_handler(CrmError)

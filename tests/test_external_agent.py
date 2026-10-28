@@ -1,4 +1,4 @@
-"""Agente externo (docs/AGENTE_EXTERNO_PLAN.md): el motor external le pide cada turno al endpoint del cliente
+"""Agente externo (docs/features/LLM_CONEXIONES.md): el motor external le pide cada turno al endpoint del cliente
 (compatible con OpenAI, en streaming), con las herramientas end_call y transfer_call; errores sin respaldo al LLM
 propio y solo en los planes que lo incluyen."""
 import asyncio

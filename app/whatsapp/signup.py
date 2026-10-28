@@ -1,4 +1,4 @@
-"""Embedded Signup v4 (docs/WHATSAPP_PLAN.md 3.3): el cliente conecta su numero desde
+"""Embedded Signup v4 (docs/features/WHATSAPP.md): el cliente conecta su numero desde
 el dashboard, y despues administra la cuenta (registro, datos del numero, plantillas).
 
 connect(), en orden:

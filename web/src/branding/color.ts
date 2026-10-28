@@ -1,6 +1,6 @@
 import type { MantineColorsTuple } from '@mantine/core';
 
-/** Color de la marca blanca (docs/MARCA_BLANCA_PLAN.md): contraste WCAG y la escala de 10 tonos que pisa a `blue`.
+/** Color de la marca blanca (docs/ARQUITECTURA.md): contraste WCAG y la escala de 10 tonos que pisa a `blue`.
  * La misma matemática que app/services/branding.py (un test de cada lado verifica la misma tabla). */
 
 export const INK = '#0b1220';

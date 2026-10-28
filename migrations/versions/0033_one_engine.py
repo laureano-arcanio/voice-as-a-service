@@ -1,4 +1,4 @@
-"""Un solo motor (docs/LIMPIEZA_PLAN.md, 26-oct-2026): se quitan el motor assistant y las apps por cliente
+"""Un solo motor (AGENTS.md, 26-oct-2026): se quitan el motor assistant y las apps por cliente
 (tablas apps, app_links, app_job_runs y wa_operators) y se archivan los agentes con motor assistant (no
 tienen con que correr). Historial de las herramientas del cliente: tabla tool_versions con cada revision.
 

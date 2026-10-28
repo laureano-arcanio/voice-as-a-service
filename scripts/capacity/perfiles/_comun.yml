@@ -1,5 +1,5 @@
 # Valores comunes a todos los perfiles (run.py los mezcla con el perfil; el
-# perfil pisa lo que defina). Ver docs/CAPACITY_TEST_PLAN.md.
+# perfil pisa lo que defina). Ver docs/capacity/README.md.
 workflow: demo_booking_classic
 voz: sofia
 # Turnos por llamada, sorteados uniforme entre min y max (hasta tener guiones,

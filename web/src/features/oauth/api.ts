@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { unwrap } from '@/api/request';
 
-/** OAuth del servidor MCP (docs/MCP_PLAN.md, 4.2): consentimiento y agentes conectados. */
+/** OAuth del servidor MCP (docs/features/MCP.md): consentimiento y agentes conectados. */
 export const oauthKeys = {
   authorize: (params: Record<string, string>) => ['oauth', 'authorize', params] as const,
   grants: (clientId: string) => ['oauth', 'grants', clientId] as const,

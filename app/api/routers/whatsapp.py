@@ -10,7 +10,7 @@
 No hay DELETE (las conversaciones le hacen RESTRICT): se desactiva.
 El token y el PIN nunca salen en una respuesta (solo has_token y has_pin).
 Flujo de mensajes: app/whatsapp/service.py; alta: app/whatsapp/signup.py; plan en
-docs/WHATSAPP_PLAN.md.
+docs/features/WHATSAPP.md.
 """
 from typing import Annotated
 
@@ -166,7 +166,7 @@ def set_account_routes(account_id: str, body: list[WaRouteIn], p: CurrentPrincip
 @router.post("/accounts/own-app", response_model=WaAccountOut, status_code=201,
              dependencies=[Depends(signup_limit)])
 async def connect_own_app(body: WaOwnAppIn, p: UserPrincipal, db: DB):
-    """Conecta un número con la app de Meta propia del cliente (docs/ADMIN_SOPORTE_PLAN.md, sección 4): valida
+    """Conecta un número con la app de Meta propia del cliente (docs/ARQUITECTURA.md): valida
     con Meta que el número sea de la WABA, suscribe su app a la WABA y devuelve la URL de webhook y el verify
     token para pegar en su app. 201 también si quedó `pending` (falló la suscripción: ver status_reason).
     409 si el número es de otra cuenta; 400 signup_mismatch si no es de esa WABA."""

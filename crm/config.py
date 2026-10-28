@@ -1,4 +1,4 @@
-"""Configuracion del CRM (docs/CRM_PLAN.md), con prefijo CRM_ en el .env."""
+"""Configuracion del CRM (docs/features/CRM.md), con prefijo CRM_ en el .env."""
 import datetime
 import zoneinfo
 from functools import cache
@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     # Pagina Sitio web: solo este pais (nombre en ingles, como lo da GA); el resto es casi todo robots.
     ga_country: str = "Argentina"
 
-    # Respuestas (docs/CRM_PLAN.md, 6): Resend Receiving en un subdominio, leido cada tanto (sin webhook).
+    # Respuestas (docs/features/CRM.md): Resend Receiving en un subdominio, leido cada tanto (sin webhook).
     # Apagado hasta que el subdominio y el reenvio de la casilla esten andando.
     inbound_enabled: bool = False
     inbound_interval_seconds: int = 120

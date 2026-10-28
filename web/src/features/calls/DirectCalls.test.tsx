@@ -6,7 +6,7 @@ import { CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
 import { CallDetailPage } from './CallDetailPage';
 import { ConversationsPage } from './ConversationsPage';
 
-// Conversaciones con llamadas directas (docs/LLAMADAS_DIRECTAS_PLAN.md, sección 8).
+// Conversaciones con llamadas directas (docs/features/EQUIPO_TELEFONIA.md).
 
 const BASE: CallSummary = {
   id: 'cv-1',

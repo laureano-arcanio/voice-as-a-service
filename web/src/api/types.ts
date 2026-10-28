@@ -125,7 +125,7 @@ export type PaymentIn = S['PaymentIn'];
 export type FiscalIn = S['FiscalIn'];
 export type TaxCondition = FiscalIn['tax_condition'];
 
-// Equipo del cliente y areas de derivacion (docs/DERIVACIONES_PLAN.md).
+// Equipo del cliente y areas de derivacion (docs/features/EQUIPO_TELEFONIA.md).
 export type TeamMember = S['TeamMemberOut'];
 export type TeamMemberIn = S['TeamMemberIn'];
 export type TeamMemberPatch = S['TeamMemberPatch'];
@@ -140,7 +140,7 @@ export type Definition = Record<string, unknown>;
 export type PlanFeatures = S['PlanFeaturesOut'];
 export type PlanFeatureKey = keyof PlanFeatures['features'];
 
-// Herramientas del cliente y secretos de los agentes (docs/TOOLS_PLAN.md).
+// Herramientas del cliente y secretos de los agentes (docs/features/HERRAMIENTAS.md).
 export type ClientTool = S['ToolOut'];
 export type ToolIn = S['ToolIn'];
 export type ToolType = ToolIn['type'];

@@ -78,7 +78,7 @@ MCP_INTERNAL_HEADER = "x-atentina-mcp"
 MCP_INTERNAL_SECRET = secrets.token_urlsafe(32)
 # Con un permiso de toda la plataforma, el cliente en el que actúa una herramienta de cliente del MCP.
 MCP_CLIENT_HEADER = "x-atentina-mcp-client"
-# Panel: el cliente en el que entró un admin ("ver como cliente", docs/ADMIN_SOPORTE_PLAN.md).
+# Panel: el cliente en el que entró un admin ("ver como cliente", docs/ARQUITECTURA.md).
 SUPPORT_CLIENT_HEADER = "x-atentina-client"
 
 

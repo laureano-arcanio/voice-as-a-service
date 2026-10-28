@@ -72,7 +72,7 @@ HEX_COLOR = r"^#[0-9a-fA-F]{6}$"
 
 
 class BrandingPublicOut(BaseModel):
-    """La marca con la que los usuarios de un cliente ven el panel (docs/MARCA_BLANCA_PLAN.md)."""
+    """La marca con la que los usuarios de un cliente ven el panel (docs/ARQUITECTURA.md)."""
     slug: str = Field(description="El `c=` del login: el panel recuerda la ultima marca que mostro")
     name: str = Field(description="Nombre del cliente: titulo de las pestañas y texto si no hay logo")
     logo_url: str | None = Field(description="Ruta del logo (publica, cacheable); null = el nombre en texto")
@@ -166,7 +166,7 @@ class TierIn(BaseModel):
     api_tts_minutes: int | None = Field(default=0, ge=0, description="Minutos de audio sintetizado por mes")
     api_stt_minutes: int | None = Field(default=0, ge=0, description="Minutos de audio transcripto por mes")
     api_rate_limit: int | None = Field(default=60, ge=0, description="Pedidos por minuto a la API de inferencia")
-    # Campañas y agenda de contactos (docs/LLAMADAS_SALIENTES_PLAN.md). None: ilimitado; 0: no incluido.
+    # Campañas y agenda de contactos (docs/features/CAMPANAS.md). None: ilimitado; 0: no incluido.
     campaign_channels: list[CampaignChannel] = Field(default=[], description="Canales de campañas del plan: whatsapp, voice")
     max_campaigns_per_month: int | None = Field(default=None, ge=0, description="Campañas iniciadas por mes calendario")
     max_campaign_contacts: int | None = Field(default=None, ge=0, description="Contactos por campaña")
@@ -188,7 +188,7 @@ class TierIn(BaseModel):
                                                       "las estadisticas de la plataforma")
     direct_calls: bool = Field(default=False, description="Llamadas directas: el equipo llama y atiende desde el "
                                                           "panel, sin el agente (la saliente pide ademas salientes)")
-    # Autoservicio (docs/SUSCRIPCIONES_PLAN.md).
+    # Autoservicio (docs/features/COBROS.md).
     price_ars: int | None = Field(default=None, ge=0,
                                   description="Precio mensual en pesos, lo que se cobra. null: no se vende por el dashboard; 0: gratis")
     public: bool = Field(default=False, description="Se ofrece en el registro y en la pantalla Plan")
@@ -441,7 +441,7 @@ class PhoneNumberBulkIn(BaseModel):
 class PhoneNumberUpdate(BaseModel):
     label: str | None = Field(default=None, max_length=64)
     agent_id: str | None = None
-    # Quien atiende las entrantes (docs/LLAMADAS_DIRECTAS_PLAN.md, 5).
+    # Quien atiende las entrantes (docs/features/EQUIPO_TELEFONIA.md).
     answer_mode: Literal["team", "agent"] | None = Field(
         default=None, description="team: las personas del número; agent: el agente (puede derivar con sus áreas)")
     member_ids: list[str] | None = Field(default=None, description="Personas del equipo, en el orden en que suenan; "
@@ -908,7 +908,7 @@ class LlmConnectionTestIn(BaseModel):
     model: str | None = Field(default=None, max_length=128, description="Sin modelo, el de la conexion")
     mode: Literal["llm", "external"] = Field(
         default="llm", description="llm: salida JSON (BYOK). external: el endpoint de un agente propio "
-                                   "(un turno en streaming con end_call; docs/AGENTE_EXTERNO_PLAN.md)")
+                                   "(un turno en streaming con end_call; docs/features/LLM_CONEXIONES.md)")
 
 
 class LlmConnectionOut(ORM):
@@ -928,14 +928,14 @@ class LlmConnectionOut(ORM):
     used_by: int = Field(default=0, description="Agentes vigentes que la usan")
 
 
-# ---------- herramientas del cliente y secretos de los agentes (docs/TOOLS_PLAN.md) ----------
+# ---------- herramientas del cliente y secretos de los agentes (docs/features/HERRAMIENTAS.md) ----------
 
 ToolType = Literal["http", "code"]
 
 
 class ToolIn(BaseModel):
     """Una herramienta del cliente. El formato de `definition` segun `type` esta en GET /tools/schema y en
-    docs/TOOLS_PLAN.md (http: secciones 4; code: 5)."""
+    docs/features/HERRAMIENTAS.md."""
     slug: str = Field(pattern=r"^[a-z][a-z0-9_]{1,63}$",
                       description="Nombre con el que la ve el agente y la referencia la definicion (tools[].tool)")
     type: ToolType
@@ -1171,7 +1171,7 @@ class CallHangupOut(BaseModel):
     ended_reason: str
 
 
-# ---------- llamadas directas (docs/LLAMADAS_DIRECTAS_PLAN.md) ----------
+# ---------- llamadas directas (docs/features/EQUIPO_TELEFONIA.md) ----------
 
 class DirectCallIn(BaseModel):
     contact_id: str | None = Field(default=None, description="Contacto de la agenda (marca su teléfono)")
@@ -1259,7 +1259,7 @@ class CallSummary(BaseModel):
     duration_seconds: int
     ended_reason: str
     latency_avg: float | None
-    # Llamadas directas (docs/LLAMADAS_DIRECTAS_PLAN.md): quien llamo o atendio, quien atiende la entrante y si se
+    # Llamadas directas (docs/features/EQUIPO_TELEFONIA.md): quien llamo o atendio, quien atiende la entrante y si se
     # llamo a un contacto dado de baja con confirmacion.
     user_id: str | None = None
     user_name: str | None = None
@@ -1310,7 +1310,7 @@ class CallInfo(BaseModel):
     created_at: str | None
     started_at: str | None
     ended_at: str | None
-    # Llamadas directas (docs/LLAMADAS_DIRECTAS_PLAN.md): como en CallSummary.
+    # Llamadas directas (docs/features/EQUIPO_TELEFONIA.md): como en CallSummary.
     user_id: str | None = None
     user_name: str | None = None
     answered_by: Literal["agent", "team"] | None = None
@@ -1334,15 +1334,15 @@ class LlmCall(BaseModel):
     ms: int | None = None
     reasoning: str | None = None
     output: str | None = None
-    # LLM externo (conexion BYOK) o el respaldo que contesto: docs/BYOK_LLM_PLAN.md.
+    # LLM externo (conexion BYOK) o el respaldo que contesto: docs/features/LLM_CONEXIONES.md.
     provider: str | None = None
     model: str | None = None
     fallback_from: str | None = None
     fallback_reason: str | None = None
-    # Tu propio agente (definition.external, docs/AGENTE_EXTERNO_PLAN.md): ms hasta el primer texto y el error del endpoint.
+    # Tu propio agente (definition.external, docs/features/LLM_CONEXIONES.md): ms hasta el primer texto y el error del endpoint.
     first_token_ms: int | None = None
     error: str | None = None
-    # Herramienta del cliente (docs/TOOLS_PLAN.md): slug, type, revision, ok, status, ms y, si hubo, el pedido
+    # Herramienta del cliente (docs/features/HERRAMIENTAS.md): slug, type, revision, ok, status, ms y, si hubo, el pedido
     # (con los secretos tachados) y los logs del codigo.
     tool: dict[str, Any] | None = None
 
@@ -1441,7 +1441,7 @@ class TtsPreviewIn(BaseModel):
         default="wav", description="wav: archivo completo. pcm: crudo (16 bits, mono, 24 kHz) mientras se sintetiza")
 
 
-# ---------- link para llamar a un agente (docs/LINK_LLAMADA_PLAN.md) ----------
+# ---------- link para llamar a un agente (docs/features/LINK_LLAMADA.md) ----------
 
 class CallLinkIn(BaseModel):
     """Textos vacios: el nombre del agente y el del cliente. Topes en null: sin tope propio."""
@@ -1699,7 +1699,7 @@ class SessionRedeemIn(BaseModel):
     token: str = Field(min_length=10, max_length=2048)
 
 
-# ---------- cobro de los planes (docs/SUSCRIPCIONES_PLAN.md) ----------
+# ---------- cobro de los planes (docs/features/COBROS.md) ----------
 
 TaxCondition = Literal["ri", "monotributo", "exento", "cf"]
 SubscriptionStatus = Literal["pending", "active", "past_due", "canceled"]
@@ -1910,7 +1910,7 @@ class InferenceUsageOut(BaseModel):
     keys: list[InferenceKeyUsageOut]
 
 
-# ---------- contactos (agenda del cliente, docs/LLAMADAS_SALIENTES_PLAN.md) ----------
+# ---------- contactos (agenda del cliente, docs/features/CAMPANAS.md) ----------
 
 OptoutChannel = Literal["whatsapp", "voice", "all"]
 ContactSource = Literal["manual", "csv", "api", "campaign", "inbound"]
@@ -2002,7 +2002,7 @@ class BlockedNumberOut(BaseModel):
     created_at: UTCDateTime
 
 
-# ---------- campañas (WhatsApp y voz, docs/LLAMADAS_SALIENTES_PLAN.md) ----------
+# ---------- campañas (WhatsApp y voz, docs/features/CAMPANAS.md) ----------
 
 CampaignContactStatus = Literal["pending", "in_progress", "retry", "done", "failed", "skipped"]
 VoiceResult = Literal["answered", "no_answer", "busy", "voicemail", "invalid", "rejected", "failed"]
@@ -2320,7 +2320,7 @@ class ApiRequestPage(BaseModel):
     summary: ApiRequestsSummaryOut = Field(description="Totales de todo el filtro, no solo de la página")
 
 
-# ---------- equipo, areas de derivacion y eventos (docs/DERIVACIONES_PLAN.md) ----------
+# ---------- equipo, areas de derivacion y eventos (docs/features/EQUIPO_TELEFONIA.md) ----------
 
 class TeamMemberIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)
@@ -2489,7 +2489,7 @@ class McpUsageOut(BaseModel):
     tools: list[McpToolUsageOut]
 
 
-# ---------- reportes (docs/REPORTES_PLAN.md, 9.2) ----------
+# ---------- reportes (docs/features/REPORTES.md) ----------
 
 class ReportPeriodOut(BaseModel):
     date_from: datetime.date

@@ -1,4 +1,4 @@
-// Corre UNA funcion del cliente (docs/TOOLS_PLAN.md, 5). Proceso Deno nuevo por ejecucion, sin permisos
+// Corre UNA funcion del cliente (docs/features/HERRAMIENTAS.md). Proceso Deno nuevo por ejecucion, sin permisos
 // salvo --allow-net a los allowed_hosts de la herramienta (y la salida por el proxy de egress).
 // Entrada por stdin: {marker, code, args, secrets, call, vars}. Salida: una linea "<marker><json>".
 const MAX_RESPONSE = 1_000_000;

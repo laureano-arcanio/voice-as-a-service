@@ -29,7 +29,7 @@ export const routes: RouteObject[] = [
     ),
     errorElement: <RouteError />,
   },
-  // Administración (docs/ADMIN_SOPORTE_PLAN.md): la plataforma y las vistas de todos los clientes.
+  // Administración (docs/ARQUITECTURA.md): la plataforma y las vistas de todos los clientes.
   {
     path: '/admin',
     element: (

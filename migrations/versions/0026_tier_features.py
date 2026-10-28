@@ -1,4 +1,4 @@
-"""Campañas de llamadas, contactos y equipo por plan (docs/FUNCIONES_POR_PLAN_PLAN.md).
+"""Campañas de llamadas, contactos y equipo por plan (docs/ARQUITECTURA.md).
 
 - Campañas de llamadas (voice): Sucursal (de a 1 llamada) y Central (hasta 3), sin CAP con Gemma todavia;
   Interno, sin tope. Mostrador sigue sin campañas.

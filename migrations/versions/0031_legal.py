@@ -1,4 +1,4 @@
-"""Terminos y condiciones (docs/TERMINOS_PLAN.md): legal_acceptances (prueba de la aceptacion de cada version de
+"""Terminos y condiciones (docs/features/LEGAL.md): legal_acceptances (prueba de la aceptacion de cada version de
 las condiciones y de la politica de privacidad) y consumer_requests (botones de arrepentimiento y de baja). Sin claves
 foraneas: la prueba sobrevive a que se borre el cliente.
 

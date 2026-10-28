@@ -1,4 +1,4 @@
-"""Parametros de generacion por agente y etapa (docs/BYOK_LLM_PLAN.md, app/llm/params.py):
+"""Parametros de generacion por agente y etapa (docs/features/LLM_CONEXIONES.md, app/llm/params.py):
 catalogo, validacion, defaults de la plataforma y traduccion por proveedor."""
 import pytest
 from pydantic import ValidationError

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Publicación del servidor MCP en el registro oficial (registry.modelcontextprotocol.io), con el namespace
-# del dominio (ar.com.atentina/*) verificado por DNS. docs/MCP_PLAN.md, sección 12 (fase 4).
+# del dominio (ar.com.atentina/*) verificado por DNS. docs/features/MCP.md (fase 4).
 #   key:     genera la llave Ed25519 en secrets/ (una vez) e imprime el registro TXT para Cloudflare.
 #   publish: baja mcp-publisher a scratch/, se autentica por DNS y publica deploy/mcp/server.json.
 set -euo pipefail

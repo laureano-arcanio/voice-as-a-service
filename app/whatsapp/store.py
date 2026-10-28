@@ -31,7 +31,7 @@ STATUS_LOG_FIELDS = ("status", "quality_rating", "messaging_limit")
 
 @event.listens_for(Session, "before_flush")
 def _log_account_status(s: Session, _ctx, _instances) -> None:
-    """Historial de estado, calidad y limite de las cuentas (wa_account_status_log, docs/REPORTES_PLAN.md): una
+    """Historial de estado, calidad y limite de las cuentas (wa_account_status_log, docs/features/REPORTES.md): una
     fila al crear la cuenta y otra cada vez que cambia alguno de los tres, venga de donde venga (webhook de Meta,
     chequeo, conexion o la API)."""
     for obj in [*s.new, *s.dirty]:

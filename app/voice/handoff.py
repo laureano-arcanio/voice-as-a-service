@@ -1,4 +1,4 @@
-"""Transferencia atendida de una llamada a una persona del equipo (docs/DERIVACIONES_PLAN.md, 4).
+"""Transferencia atendida de una llamada a una persona del equipo (docs/features/EQUIPO_TELEFONIA.md).
 
 El agente llama a la herramienta transfer_call con el area (app/llm/platform_tools.py) y el worker:
 

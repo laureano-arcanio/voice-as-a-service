@@ -1,4 +1,4 @@
-"""Aceptacion de las condiciones y botones de arrepentimiento y de baja (docs/TERMINOS_PLAN.md).
+"""Aceptacion de las condiciones y botones de arrepentimiento y de baja (docs/features/LEGAL.md).
 
 - `record`: una fila de legal_acceptances por documento, en la transaccion de quien la llama (el registro la
   guarda junto con la cuenta: sin aceptacion no hay cuenta).

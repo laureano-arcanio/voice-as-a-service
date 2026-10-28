@@ -1,4 +1,4 @@
-"""Reportes de una campaña (docs/LLAMADAS_SALIENTES_PLAN.md, seccion 10), para los dos canales:
+"""Reportes de una campaña (docs/features/CAMPANAS.md), para los dos canales:
 
 - `stats`: indicadores (tasa de contacto y de objetivo, duracion media, minutos, distribucion de
   resultados y atendidas por hora del dia).

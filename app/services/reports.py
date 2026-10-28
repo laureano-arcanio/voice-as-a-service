@@ -71,7 +71,7 @@ class CallFilter:
     # Solo lo de una campaña: los intentos de voz (call_logs.campaign_contact_id) y las conversaciones
     # que abrio la respuesta de un contacto de WhatsApp (campaign_contacts.conversation_id).
     campaign_id: str | None = None
-    # Llamadas directas (docs/LLAMADAS_DIRECTAS_PLAN.md): las de un usuario (llamo o atendio) y las entrantes
+    # Llamadas directas (docs/features/EQUIPO_TELEFONIA.md): las de un usuario (llamo o atendio) y las entrantes
     # que atendio el agente o el equipo.
     user_id: str | None = None
     answered_by: str | None = None

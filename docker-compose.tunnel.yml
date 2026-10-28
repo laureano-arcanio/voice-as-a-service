@@ -1,4 +1,4 @@
-# Entrada publica de la demo de la landing por Cloudflare Tunnel (docs/LANDING.md):
+# Entrada publica de la demo de la landing por Cloudflare Tunnel (docs/features/LANDING.md):
 # api.atentina.com.ar -> app (:8011, solo /api/v1/demo/*) y rtc.atentina.com.ar ->
 # senalizacion de LiveKit (:7880), y wa.atentina.com.ar -> app (:8011, solo ^/wa/webhook:
 # webhook de WhatsApp; si se quita, Meta deja de entregar eventos) y app.atentina.com.ar -> app

@@ -3,7 +3,7 @@ import { theme } from '@/theme';
 import { contrast, isHex, scale, textOn } from './color';
 
 describe('color', () => {
-  it('mide el contraste como el backend (docs/MARCA_BLANCA_PLAN.md, 3.3)', () => {
+  it('mide el contraste como el backend (docs/ARQUITECTURA.md)', () => {
     const table: Record<string, [number, number]> = {
       '#2456e6': [5.92, 3.16],
       '#0068fd': [4.77, 3.92],

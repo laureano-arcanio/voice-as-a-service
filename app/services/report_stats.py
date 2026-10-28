@@ -1,4 +1,4 @@
-"""Reportes del panel (docs/REPORTES_PLAN.md, 9.2): una funcion por reporte, con agregados en SQL.
+"""Reportes del panel (docs/features/REPORTES.md): una funcion por reporte, con agregados en SQL.
 
 Nada de cargar conversacion por conversacion: se agrupa en la base y, donde no hay SQL portable entre
 PostgreSQL y SQLite (dias en otra zona, percentiles), se trae solo lo agregado o columnas chicas.
@@ -70,7 +70,7 @@ CHANNELS = ("voice", "whatsapp", "web")
 MAX_DAYS = 366
 DEFAULT_DAYS = 30
 CALL_MODES = ("entrante", "saliente", "directa", "web", "prueba")
-# Llamadas directas (docs/LLAMADAS_DIRECTAS_PLAN.md): sin agente, no entran en conversion ni resultados.
+# Llamadas directas (docs/features/EQUIPO_TELEFONIA.md): sin agente, no entran en conversion ni resultados.
 CALL_TYPES = ("agent", "direct", "team")
 REQUEST_EVENTS = ("handoff.requested", "handoff.unavailable", "wa.handoff.assigned")
 ANSWER_EVENTS = ("handoff.connected", "wa.handoff.first_reply")

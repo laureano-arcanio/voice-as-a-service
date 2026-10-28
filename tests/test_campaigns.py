@@ -1,4 +1,4 @@
-"""Campañas unificadas (docs/LLAMADAS_SALIENTES_PLAN.md, fase 1): la API /campaigns para WhatsApp y
+"""Campañas unificadas (docs/features/CAMPANAS.md, fase 1): la API /campaigns para WhatsApp y
 voz, el plan del tier, los contactos de la agenda, la programacion y el alias /whatsapp/campaigns."""
 import datetime
 import uuid

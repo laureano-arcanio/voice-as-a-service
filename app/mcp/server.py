@@ -1,4 +1,4 @@
-"""Servidor MCP de Atentina (docs/MCP_PLAN.md): POST /mcp, Streamable HTTP sin estado y con
+"""Servidor MCP de Atentina (docs/features/MCP.md): POST /mcp, Streamable HTTP sin estado y con
 respuestas JSON (sin SSE), sin el SDK.
 
 Auth: API key con el scope `mcp` (`Authorization: Bearer vaas_...`) o token OAuth (app/api/oauth.py). Cada
@@ -338,7 +338,7 @@ async def _call(ctx: Ctx, tool: Tool, args: dict, openapi: dict) -> dict:
 
 
 async def _plan_tools(ctx: Ctx) -> dict:
-    """Qué herramientas puede usar el agente con el plan del cliente (docs/MCP_PLAN.md, 6.1)."""
+    """Qué herramientas puede usar el agente con el plan del cliente (docs/features/MCP.md)."""
     plan = await _plan(ctx)
     available, unavailable, needs_oauth, needs_api_key = [], [], [], []
     for t in catalog.select("all"):

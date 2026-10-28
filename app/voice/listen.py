@@ -1,7 +1,7 @@
 """Captura y transcripcion por frase de las pistas de una room (VAD + STT), sin AgentSession.
 
 Lo usan el modo escucha de la derivacion (RoomLine en app/voice/handoff.py) y las llamadas directas
-(app/voice/direct.py, docs/LLAMADAS_DIRECTAS_PLAN.md): por cada fin de habla del VAD de una identidad que se
+(app/voice/direct.py, docs/features/EQUIPO_TELEFONIA.md): por cada fin de habla del VAD de una identidad que se
 escucha, on_phrase(identidad, texto, pcm a 16 kHz). El audio de las identidades de `keep` se guarda entero
 (deteccion de contestador por STT de lo primero que se oye).
 """

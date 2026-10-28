@@ -1,4 +1,4 @@
-"""Campañas salientes por WhatsApp o voz (docs/LLAMADAS_SALIENTES_PLAN.md, seccion 7; la logica comun,
+"""Campañas salientes por WhatsApp o voz (docs/features/CAMPANAS.md; la logica comun,
 en services/campaigns.py; la de WhatsApp, en app/whatsapp/campaigns.py).
 
 - Ver: quien puede ver al cliente (admin, usuario o API key del cliente).

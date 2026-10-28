@@ -1,4 +1,4 @@
-"""MCP, fase 5 (docs/MCP_PLAN.md, sección 13): oauth_grants.client_id pasa a nullable (un admin que
+"""MCP, fase 5 (docs/features/MCP.md): oauth_grants.client_id pasa a nullable (un admin que
 autoriza "Toda la plataforma" no actúa en un cliente) y mcp_tool_usage, nueva (uso por herramienta y día).
 
 Revision ID: 0029

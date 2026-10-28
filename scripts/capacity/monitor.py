@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Monitor del lado server del test de capacidad (docs/CAPACITY_TEST_PLAN.md,
+"""Monitor del lado server del test de capacidad (docs/capacity/README.md,
 seccion 6.3), mas la memoria de cada parte del sistema para ver como escala
 con las llamadas.
 

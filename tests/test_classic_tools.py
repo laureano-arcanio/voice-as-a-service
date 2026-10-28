@@ -1,4 +1,4 @@
-"""Herramientas del cliente en el motor (docs/TOOLS_PLAN.md, 7): function calling nativo (streaming, vueltas,
+"""Herramientas del cliente en el motor (docs/features/HERRAMIENTAS.md): function calling nativo (streaming, vueltas,
 tope por turno, frases de voz, confirmacion en la descripcion, vars, traza). El LLM es un cliente OpenAI falso
 con respuestas grabadas; la herramienta llama de verdad a la API falsa."""
 import json

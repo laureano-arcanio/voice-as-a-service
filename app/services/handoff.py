@@ -1,4 +1,4 @@
-"""Equipo del cliente y areas de derivacion (docs/DERIVACIONES_PLAN.md, secciones 3 y 4.7).
+"""Equipo del cliente y areas de derivacion (docs/features/EQUIPO_TELEFONIA.md).
 
 - Miembros: nombre, telefono (para transferir una llamada; solo Argentina, porque Asterisk no marca
   otra cosa), WhatsApp (puente de la bandeja; unico por cliente) y usuario opcional. Tope del tier:
@@ -63,7 +63,7 @@ def normalize_phone(raw: str | None, *, argentina: bool) -> str | None:
 
 
 def _check_member(s: Session, client_id: str, member: TeamMember) -> None:
-    # Solo con usuario del panel tambien: le suenan las entrantes directas ahi (docs/LLAMADAS_DIRECTAS_PLAN.md, 5).
+    # Solo con usuario del panel tambien: le suenan las entrantes directas ahi (docs/features/EQUIPO_TELEFONIA.md).
     if not member.phone and not member.whatsapp and not member.user_id:
         raise Invalid("Cargá un teléfono, un WhatsApp o un usuario del panel")
     if member.whatsapp:

@@ -1,4 +1,4 @@
-"""Registro de eventos por conversacion (docs/DERIVACIONES_PLAN.md, 6.1): la linea de tiempo de una
+"""Registro de eventos por conversacion (docs/features/EQUIPO_TELEFONIA.md): la linea de tiempo de una
 llamada o un hilo de WhatsApp que ve el cliente en el panel y que sale por la API (y despues por
 webhook). Cada evento tiene hora, tipo, quien lo hizo y datos propios; los mensajes siguen en la
 conversacion (Message.at), aca no se repiten."""

@@ -8,7 +8,7 @@ import { CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
 import { ContactDetailPage } from './ContactDetailPage';
 import { ContactsPage } from './ContactsPage';
 
-// Llamar a un contacto desde la agenda y su ficha (docs/LLAMADAS_DIRECTAS_PLAN.md, sección 8).
+// Llamar a un contacto desde la agenda y su ficha (docs/features/EQUIPO_TELEFONIA.md).
 
 vi.mock('livekit-client', async () => (await import('@/features/phone/testing')).fakeLivekit());
 vi.mock('@/features/phone/ringtone', () => ({

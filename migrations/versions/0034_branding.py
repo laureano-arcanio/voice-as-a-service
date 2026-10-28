@@ -1,4 +1,4 @@
-"""Marca blanca del panel (docs/MARCA_BLANCA_PLAN.md): client_branding (logo y 3 colores por cliente, 1:1) y
+"""Marca blanca del panel (docs/ARQUITECTURA.md): client_branding (logo y 3 colores por cliente, 1:1) y
 tiers.white_label (si el plan la incluye; Central e Interno).
 
 Revision ID: 0034

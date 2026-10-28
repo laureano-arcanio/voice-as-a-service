@@ -1,4 +1,4 @@
-"""Campañas salientes, lo que es comun a WhatsApp y voz (docs/LLAMADAS_SALIENTES_PLAN.md, 3.3, 3.4 y 7).
+"""Campañas salientes, lo que es comun a WhatsApp y voz (docs/features/CAMPANAS.md).
 
 - Estado: draft -> scheduled o running (start) -> paused (pause, o sola por un problema) ->
   done (sin pendientes, o pasado ends_at) o cancelled. Iniciar valida el plan (services/limits.py).

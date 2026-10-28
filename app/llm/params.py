@@ -1,4 +1,4 @@
-"""Catalogo de parametros de generacion del LLM (docs/BYOK_LLM_PLAN.md, "Parametros de generacion").
+"""Catalogo de parametros de generacion del LLM (docs/features/LLM_CONEXIONES.md, "Parametros de generacion").
 
 Cada agente define un `generation` (Workflow.generation) con un mapa `parametro -> valor`, y cada
 etapa de `Workflow.llm` lo puede pisar (`LlmStage.generation`). Los parametros son los del

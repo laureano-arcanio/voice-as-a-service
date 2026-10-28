@@ -1,4 +1,4 @@
-// Tipos de la API del CRM (crm/schemas.py, docs/CRM_API.md). Escritos a mano: el CRM es otra API.
+// Tipos de la API del CRM (crm/schemas.py, docs/features/CRM_API.md). Escritos a mano: el CRM es otra API.
 // Las fechas con hora vienen en UTC sin zona ("2026-10-21T13:00:00"); las fechas solas, "2026-10-21".
 
 export type Stage =

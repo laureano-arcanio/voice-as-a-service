@@ -61,7 +61,7 @@ for tpl in /etc/asterisk/templates/*.conf; do
 	chmod 640 "$out"
 done
 
-# WhatsApp (Calling API por SIP, docs/WHATSAPP_PLAN.md fase 5): solo con la clave
+# WhatsApp (Calling API por SIP, docs/features/WHATSAPP.md fase 5): solo con la clave
 # SIP de Meta (make wa-sip-password) y el certificado de WA_SIP_HOST (make sip-cert,
 # montado en /etc/letsencrypt). La clave privada se copia legible para asterisk,
 # que es el usuario con el que carga el transporte TLS.

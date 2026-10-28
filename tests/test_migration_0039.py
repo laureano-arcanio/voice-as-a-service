@@ -1,4 +1,4 @@
-"""Migracion 0039 (llamadas directas, docs/LLAMADAS_DIRECTAS_PLAN.md): ida y vuelta en SQLite, el esquema
+"""Migracion 0039 (llamadas directas, docs/features/EQUIPO_TELEFONIA.md): ida y vuelta en SQLite, el esquema
 coincide con el modelo, los numeros existentes quedan con el agente y los tiers salvo el Free con
 direct_calls."""
 import sqlalchemy as sa

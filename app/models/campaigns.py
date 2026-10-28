@@ -1,5 +1,5 @@
 """Agenda de contactos del cliente y campañas salientes por WhatsApp o voz
-(docs/LLAMADAS_SALIENTES_PLAN.md, seccion 3).
+(docs/features/CAMPANAS.md).
 
 - `contacts`: la agenda; el telefono (E.164) es unico por cliente. No se borran: se archivan.
 - `contact_optouts`: no contactar, por telefono y canal. Aparte de `contacts` a proposito: la

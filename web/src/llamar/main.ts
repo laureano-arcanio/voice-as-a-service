@@ -1,4 +1,4 @@
-// Pagina publica del link para llamar a un agente (docs/LINK_LLAMADA_PLAN.md, seccion 6): una pantalla
+// Pagina publica del link para llamar a un agente (docs/features/LINK_LLAMADA.md): una pantalla
 // de llamada telefonica. Los datos del link vienen en #link-data (app/api/call_link_host.py) y la
 // llamada arranca con POST /api/v1/public/call-links/{token}/calls.
 import '@fontsource-variable/figtree';

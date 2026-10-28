@@ -1,4 +1,4 @@
-"""Importacion inicial del CRM (docs/CRM_PLAN.md, seccion 9): una sola vez, por la API.
+"""Importacion inicial del CRM (docs/features/CRM.md): una sola vez, por la API.
 
 Lee el seguimiento en Markdown (comercial/archivo/seguimiento.md, envios/*.csv y *.md, blacklist.md) y el
 historial de Resend, y lo carga en el CRM con la key del usuario. Idempotente: leads por dominio (o

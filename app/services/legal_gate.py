@@ -1,5 +1,5 @@
 """Corte por aceptacion de las condiciones: funciones que no se habilitan para un cliente hasta que acepta la
-version que las cubre (docs/TERMINOS_PLAN.md, 6; llamadas directas, docs/LLAMADAS_DIRECTAS_PLAN.md, 7).
+version que las cubre (docs/features/LEGAL.md; llamadas directas, docs/features/EQUIPO_TELEFONIA.md).
 
 Aparte de services/legal.py, que importa el mail y la demo: este lo usan calls, phone_numbers y direct_calls sin
 ciclos de import.
@@ -34,7 +34,7 @@ def client_accepted_direct_calls(s: Session, client_id: str) -> bool:
 
 
 def check_client_accepted(s: Session, client_id: str) -> None:
-    """Llamadas directas (docs/LLAMADAS_DIRECTAS_PLAN.md, 7): no se habilitan hasta que el cliente acepte la
+    """Llamadas directas (docs/features/EQUIPO_TELEFONIA.md): no se habilitan hasta que el cliente acepte la
     version que las cubre (grabacion siempre, No Llame) o una posterior. 403 terms_pending."""
     if not client_accepted_direct_calls(s, client_id):
         raise TermsPending("Aceptá las condiciones nuevas para usar el teléfono del equipo", "terms_pending")

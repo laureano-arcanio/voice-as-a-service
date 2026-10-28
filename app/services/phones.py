@@ -1,5 +1,5 @@
 """Telefonos: una sola normalizacion a E.164 (+549351..., con el +) para los dos canales
-(docs/LLAMADAS_SALIENTES_PLAN.md, 3.1). Contactos, campañas y bajas guardan este formato; el
+(docs/features/CAMPANAS.md). Contactos, campañas y bajas guardan este formato; el
 `wa_id` que manda Meta es el mismo numero sin el +.
 
 Argentina sin codigo de pais, o con 54 sin el 9, se toma como celular (+549...): un fijo

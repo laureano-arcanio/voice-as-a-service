@@ -1,4 +1,4 @@
-"""API de herramientas del cliente y secretos de los agentes (docs/TOOLS_PLAN.md, 3 y 8): plan, alta y
+"""API de herramientas del cliente y secretos de los agentes (docs/features/HERRAMIENTAS.md): plan, alta y
 cambio, validacion al guardar el agente, secretos que no se devuelven nunca, prueba y permisos."""
 import pytest
 from cryptography.fernet import Fernet

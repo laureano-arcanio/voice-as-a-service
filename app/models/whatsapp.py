@@ -1,4 +1,4 @@
-"""WhatsApp (Cloud API de Meta, docs/WHATSAPP_PLAN.md): numeros conectados, el hilo
+"""WhatsApp (Cloud API de Meta, docs/features/WHATSAPP.md): numeros conectados, el hilo
 de cada conversacion (lo que call_logs es a la telefonia) y los mensajes por wamid
 (dedupe y estados de entrega). El texto no se guarda aca: esta en conversations.messages.
 """
@@ -65,7 +65,7 @@ class WaAccount(IdMixin, TimestampMixin, Base):
 class WaRoute(IdMixin, TimestampMixin, Base):
     """Ruteo por contacto de un numero de WhatsApp: los contactos de `contacts` (como los
     manda Meta, 549351...) los atiende `agent` en vez del agente por defecto de la cuenta,
-    en los mensajes y las llamadas de WhatsApp (docs/WHATSAPP_PLAN.md)."""
+    en los mensajes y las llamadas de WhatsApp (docs/features/WHATSAPP.md)."""
     __tablename__ = "wa_routes"
     __table_args__ = (UniqueConstraint("account_id", "agent_id", name="uq_wa_routes_account_agent"),)
     account_id: Mapped[str] = mapped_column(
@@ -121,7 +121,7 @@ class WaMessage(IdMixin, Base):
 
 class WaAccountStatusLog(IdMixin, Base):
     """Historial del estado, la calidad y el limite de mensajeria de una cuenta (lo que llega de Meta o del
-    chequeo), para los reportes (docs/REPORTES_PLAN.md). Una fila por cambio, no por chequeo."""
+    chequeo), para los reportes (docs/features/REPORTES.md). Una fila por cambio, no por chequeo."""
     __tablename__ = "wa_account_status_log"
 
     account_id: Mapped[str] = mapped_column(String(36), ForeignKey("wa_accounts.id", ondelete="CASCADE"), index=True)

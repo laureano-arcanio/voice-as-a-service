@@ -1,4 +1,4 @@
-"""API falsa para probar las herramientas del cliente (tests y `make e2e-tools`, docs/TOOLS_PLAN.md 10).
+"""API falsa para probar las herramientas del cliente (tests y `make e2e-tools`, docs/features/HERRAMIENTAS.md).
 
 Un negocio de turnos y cobranzas: exige auth en cada ruta, verifica la firma X-Atentina-Signature
 cuando viene, y guarda cada pedido recibido en `RECEIVED` (y en GET /_received) para comprobar que

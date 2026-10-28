@@ -1,7 +1,7 @@
 """Webhook de WhatsApp (Meta): challenge GET y eventos POST firmados.
 
 /wa/webhook: nuestra app (WA_APP_SECRET, WA_VERIFY_TOKEN). /wa/webhook/<clave>: la app de Meta propia de un
-cliente (cuenta own_app, docs/ADMIN_SOPORTE_PLAN.md seccion 4), con su secret y su verify token."""
+cliente (cuenta own_app, docs/ARQUITECTURA.md), con su secret y su verify token."""
 import hashlib
 import hmac
 import json

@@ -1,4 +1,4 @@
-# Sandbox de las herramientas de codigo (docs/TOOLS_PLAN.md, 5). Deno fijado (2.8.3).
+# Sandbox de las herramientas de codigo (docs/features/HERRAMIENTAS.md). Deno fijado (2.8.3).
 FROM denoland/deno:alpine-2.8.3
 WORKDIR /app
 COPY server.ts runner.js ./

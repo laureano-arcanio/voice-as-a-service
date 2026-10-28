@@ -1,4 +1,4 @@
-# Personas para eval_datos (docs/EVAL_LLM_PLAN.md, seccion 3). La titular es
+# Personas para eval_datos (docs/eval/README.md). La titular es
 # Lucia Fernandez (fija en el workflow); los datos que dicta varian por repeticion.
 agente: eval_datos
 

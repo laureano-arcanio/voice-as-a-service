@@ -1,4 +1,4 @@
-"""Que LLM atiende cada turno (docs/BYOK_LLM_PLAN.md).
+"""Que LLM atiende cada turno (docs/features/LLM_CONEXIONES.md).
 
 `Workflow.llm` (LlmPlan) define etapas por turno del usuario; cada una usa el servidor propio o
 una conexion del cliente (llm_connections: proveedor externo, su key cifrada y el modelo). El

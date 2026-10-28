@@ -1,4 +1,4 @@
-"""Campañas de voz (docs/LLAMADAS_SALIENTES_PLAN.md, fase 2): el dialer, el cierre de cada intento
+"""Campañas de voz (docs/features/CAMPANAS.md, fase 2): el dialer, el cierre de cada intento
 (resultado SIP, reintentos, corte por fallas), la recuperacion y el polling. Con reloj falso, como el sender."""
 import asyncio
 import datetime

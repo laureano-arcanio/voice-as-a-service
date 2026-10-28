@@ -299,7 +299,7 @@ function ToolEditor({
                     Definición en JSON
                   </Title>
                   <Text size="xs" c="dimmed" mb="sm">
-                    La misma que arma el formulario (formato en docs/TOOLS_PLAN.md).
+                    La misma que arma el formulario (formato en docs/features/HERRAMIENTAS.md).
                   </Text>
                   <JsonEditor value={jsonText} onChange={setJsonText} />
                 </Card>

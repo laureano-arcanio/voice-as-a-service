@@ -1,4 +1,4 @@
-// Sandbox de las herramientas de codigo (docs/TOOLS_PLAN.md, 5). POST /run con Bearer TOOLS_RUNNER_TOKEN:
+// Sandbox de las herramientas de codigo (docs/features/HERRAMIENTAS.md). POST /run con Bearer TOOLS_RUNNER_TOKEN:
 // corre la funcion en un proceso Deno nuevo (runner.js), sin permisos salvo la red a allowed_hosts, con
 // tope de memoria y de tiempo. Solo en la red interna atentina-tools; la salida a internet es por el proxy
 // de egress (Smokescreen), que niega IPs privadas.

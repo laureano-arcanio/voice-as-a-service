@@ -1,4 +1,4 @@
-"""Capa de canal entre el cliente simulado y el motor (docs/EVAL_LLM_PLAN.md,
+"""Capa de canal entre el cliente simulado y el motor (docs/eval/README.md,
 seccion 3): lo que dice el cliente llega al agente como lo transcribiria el STT.
 
   texto     tal cual (default, gratis).

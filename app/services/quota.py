@@ -42,7 +42,7 @@ from .errors import QuotaExceeded
 from .limits import Limits
 
 # La llamada por el link publico de un agente (web) es una entrante mas: consume esos minutos. La saliente
-# directa de una persona del equipo (docs/LLAMADAS_DIRECTAS_PLAN.md), una saliente mas.
+# directa de una persona del equipo (docs/features/EQUIPO_TELEFONIA.md), una saliente mas.
 MINUTE_MODES = {CallMode.entrante: "inbound", CallMode.web: "inbound", CallMode.saliente: "outbound",
                 CallMode.directa: "outbound"}
 # Una llamada "activa" mas vieja que esto quedo colgada (se cayo el worker sin

@@ -3,7 +3,7 @@ el tope del tier y ruteo a un agente del cliente.
 
 - Admin: carga, asigna, libera, borra y rutea.
 - Cliente (usuario o API key): ve sus numeros y elige quien atiende cada uno: un agente o el
-  equipo (docs/LLAMADAS_DIRECTAS_PLAN.md, 5).
+  equipo (docs/features/EQUIPO_TELEFONIA.md).
 Al cargar o borrar numeros se agregan o quitan de los trunks SIP de LiveKit en caliente
 (services/livekit.py), sin reiniciar livekit-sip. `make livekit-sip` los rearma enteros.
 """

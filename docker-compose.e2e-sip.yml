@@ -1,4 +1,4 @@
-# Prueba SIP de punta a punta, aislada (docs/DERIVACIONES_PLAN.md, sección 8): LiveKit, livekit-sip y
+# Prueba SIP de punta a punta, aislada (docs/features/EQUIPO_TELEFONIA.md): LiveKit, livekit-sip y
 # nuestro Asterisk (la misma imagen y los mismos templates que producción) contra un Anura falso
 # (tests/e2e_sip/fake-anura/) con destinos que atienden, dan ocupado, no atienden o son un buzón.
 #

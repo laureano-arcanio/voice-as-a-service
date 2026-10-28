@@ -1,4 +1,4 @@
-"""Agenda de contactos del cliente y bajas (docs/LLAMADAS_SALIENTES_PLAN.md, secciones 3 y 7;
+"""Agenda de contactos del cliente y bajas (docs/features/CAMPANAS.md;
 la logica, en services/contacts.py).
 
 - El cliente ve y carga lo suyo (usuario o API key); un admin indica `client_id`.

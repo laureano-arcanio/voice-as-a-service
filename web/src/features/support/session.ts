@@ -1,5 +1,5 @@
 /**
- * "Ver como cliente" (docs/ADMIN_SOPORTE_PLAN.md): el cliente en el que entró un admin, por pestaña.
+ * "Ver como cliente" (docs/ARQUITECTURA.md): el cliente en el que entró un admin, por pestaña.
  * Mientras está, cada pedido a la API lleva el header X-Atentina-Client y el backend lo atiende como un
  * usuario de ese cliente (`me.role === 'client'`, `me.support`).
  */

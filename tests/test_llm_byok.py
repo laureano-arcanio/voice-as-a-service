@@ -1,4 +1,4 @@
-"""BYOK de LLM (docs/BYOK_LLM_PLAN.md): conexiones del cliente, etapas por turno, fallback al
+"""BYOK de LLM (docs/features/LLM_CONEXIONES.md): conexiones del cliente, etapas por turno, fallback al
 servidor propio y aislamiento entre clientes."""
 import asyncio
 
@@ -122,7 +122,7 @@ def test_base_url_blocks_private_networks_for_everyone(api, admin):
         r = user.post(url, json={**body, "base_url": bad})
         assert r.status_code == 422 and r.json()["code"] == "invalid_base_url", bad
     assert user.post(url, json=body).status_code == 422          # falta base_url
-    # Tampoco el admin (sin excepcion desde el 27-oct-2026, docs/ADMIN_SOPORTE_PLAN.md).
+    # Tampoco el admin (sin excepcion desde el 27-oct-2026, docs/ARQUITECTURA.md).
     r = admin.post(url, json={**body, "base_url": "http://vllm-llm:8000/v1"})
     assert r.status_code == 422 and r.json()["code"] == "invalid_base_url"
     assert user.post(url, json={**body, "name": "publico", "base_url": "https://8.8.8.8/v1"}).status_code == 201

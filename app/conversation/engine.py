@@ -79,7 +79,7 @@ class ConversationEngine:
         # El store completa con la definicion las columnas de los reportes (conversion, goal).
         store.definitions = self.definitions
         self.extractions: dict[str, list[asyncio.Task]] = {}   # extracciones en curso por conversacion, en orden
-        # Herramientas del cliente (http y code, docs/TOOLS_PLAN.md): las del agente y su contexto, por turno.
+        # Herramientas del cliente (http y code, docs/features/HERRAMIENTAS.md): las del agente y su contexto, por turno.
         self.tools = ConversationTools(store.sessions)
         self.external = None    # tu propio agente, al primer turno (app/llm/external.py)
 

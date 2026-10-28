@@ -1,4 +1,4 @@
-"""Link publico para llamar a un agente (docs/LINK_LLAMADA_PLAN.md): alta por agente con el tope del
+"""Link publico para llamar a un agente (docs/features/LINK_LLAMADA.md): alta por agente con el tope del
 plan, pausa, regenerar y revocar; la API publica (Turnstile, topes por IP y por link, errores sin
 hablar del plan); minutos entrantes del tier; la pagina con sus metas y el host propio."""
 import io

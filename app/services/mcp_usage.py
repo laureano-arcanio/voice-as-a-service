@@ -1,4 +1,4 @@
-"""Uso del servidor MCP por herramienta (docs/MCP_PLAN.md, sección 13): una fila por día, cliente y herramienta
+"""Uso del servidor MCP por herramienta (docs/features/MCP.md): una fila por día, cliente y herramienta
 en mcp_tool_usage. Lo anota app/mcp/server.py después de cada tools/call; lo leen el panel (Agentes de IA)
 y la herramienta admin_get_mcp_usage. Sin argumentos ni respuestas: solo cuántas, errores y tiempo."""
 import datetime

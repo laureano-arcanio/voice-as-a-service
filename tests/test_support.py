@@ -1,4 +1,4 @@
-"""Ver como cliente: un admin con X-Atentina-Client actua como ese cliente (docs/ADMIN_SOPORTE_PLAN.md)."""
+"""Ver como cliente: un admin con X-Atentina-Client actua como ese cliente (docs/ARQUITECTURA.md)."""
 from app.agents.templates import reference_data
 
 from .test_api import (  # noqa: F401 (admin: fixture)

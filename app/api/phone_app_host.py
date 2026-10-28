@@ -1,4 +1,4 @@
-"""Teléfono del equipo en su host (docs/LLAMADAS_DIRECTAS_PLAN.md, sección 16).
+"""Teléfono del equipo en su host (docs/features/EQUIPO_TELEFONIA.md).
 
 - `GET /movil`: web/dist/telefono.html, entrada aparte del build de web/ (React, la misma API y el mismo
   CallProvider que el teléfono del panel, con una UI tipo app de teléfono de Android). Con la sesión del panel.

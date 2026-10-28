@@ -1,4 +1,4 @@
-"""LLM de Anthropic con el SDK nativo (conexion BYOK kind="anthropic", docs/BYOK_LLM_PLAN.md).
+"""LLM de Anthropic con el SDK nativo (conexion BYOK kind="anthropic", docs/features/LLM_CONEXIONES.md).
 
 Mismos metodos que LLMClient (converse, extract, structured), sobre la Messages API: el system va aparte, las
 herramientas como tool_use/tool_result, la salida JSON de `output_config.format` y el streaming de

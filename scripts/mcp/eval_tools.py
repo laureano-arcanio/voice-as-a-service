@@ -1,4 +1,4 @@
-"""¿Elige bien Claude entre las herramientas del MCP? (docs/MCP_PLAN.md, sección 13).
+"""¿Elige bien Claude entre las herramientas del MCP? (docs/features/MCP.md).
 
 Le da a un modelo (por OpenRouter, API compatible con OpenAI) las herramientas tal como las lista el servidor
 (`server._describe`) y un pedido del usuario en español; mira cuál llama primero. Si llama a get_plan_tools

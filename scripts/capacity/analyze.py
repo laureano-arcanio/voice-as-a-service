@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Analisis del test de capacidad (docs/CAPACITY_TEST_PLAN.md, secciones 7 y 8).
+"""Analisis del test de capacidad (docs/capacity/README.md).
 
 Cruza el run del cliente (run.py: run.json, calls.csv, turns.csv, client.csv)
 con el monitor del server (monitor.py: sampler/, mem.csv, procmem.csv,

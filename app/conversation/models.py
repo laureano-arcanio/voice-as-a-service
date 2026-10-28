@@ -75,12 +75,12 @@ class Completion(BaseModel):
 
 class ToolGrant(BaseModel):
     """Una herramienta del cliente que puede usar el agente: el slug de una herramienta http o code
-    (docs/TOOLS_PLAN.md)."""
+    (docs/features/HERRAMIENTAS.md)."""
     tool: str = Field(pattern=r"^[a-z][a-z0-9_]{1,63}$")
 
 
 class ToolSettings(BaseModel):
-    """Limite de recursos del bucle de herramientas (docs/TOOLS_PLAN.md, 7): vueltas al LLM con herramientas por
+    """Limite de recursos del bucle de herramientas (docs/features/HERRAMIENTAS.md): vueltas al LLM con herramientas por
     turno. Al llegar, el turno termina con limit_message (no se fuerza al modelo a responder)."""
     max_calls_per_turn: int = Field(default=3, ge=1, le=10)
     limit_message: str = Field(default="Disculpá, no pude completar eso.", min_length=1, max_length=300)
@@ -131,7 +131,7 @@ MAX_LLM_STAGES = 3
 
 
 class LlmPlan(BaseModel):
-    """Que LLM atiende cada turno de la conversacion (docs/BYOK_LLM_PLAN.md). Sin plan, el servidor
+    """Que LLM atiende cada turno de la conversacion (docs/features/LLM_CONEXIONES.md). Sin plan, el servidor
     propio en todos los turnos."""
     stages: list[LlmStage] = Field(min_length=1, max_length=MAX_LLM_STAGES)
     # Si el proveedor externo falla, ese turno lo contesta el servidor propio.
@@ -151,7 +151,7 @@ class LlmPlan(BaseModel):
 
 
 class ExternalConfig(BaseModel):
-    """Tu propio agente (docs/AGENTE_EXTERNO_PLAN.md): cada turno lo contesta el agente del cliente, un endpoint
+    """Tu propio agente (docs/features/LLM_CONEXIONES.md): cada turno lo contesta el agente del cliente, un endpoint
     compatible con OpenAI (chat completions en streaming) de una conexion suya (llm_connections). La plataforma
     pone la voz, la telefonia y los minutos; el prompt y las herramientas son del cliente."""
     connection: str = Field(min_length=1)
@@ -189,7 +189,7 @@ class HoldMusic(BaseModel):
 
 
 class HandoffConfig(BaseModel):
-    """Derivacion a personas (docs/DERIVACIONES_PLAN.md, 4): a que areas puede pasar la llamada el agente."""
+    """Derivacion a personas (docs/features/EQUIPO_TELEFONIA.md): a que areas puede pasar la llamada el agente."""
     areas: list[HandoffTarget] = Field(default_factory=list, max_length=10)
     hold_music: HoldMusic = Field(default_factory=HoldMusic)
 

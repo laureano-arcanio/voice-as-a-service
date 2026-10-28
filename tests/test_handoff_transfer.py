@@ -1,4 +1,4 @@
-"""Transferencia de una llamada a una persona (docs/DERIVACIONES_PLAN.md, fase 2): la logica de
+"""Transferencia de una llamada a una persona (docs/features/EQUIPO_TELEFONIA.md, fase 2): la logica de
 app/voice/handoff.py con un telefono falso, la herramienta transfer_call, el prompt y los minutos salientes."""
 import asyncio
 import datetime

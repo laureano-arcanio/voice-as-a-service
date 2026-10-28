@@ -1,4 +1,4 @@
-"""Llamadas directas (docs/LLAMADAS_DIRECTAS_PLAN.md, seccion 13): el equipo del cliente llama y atiende sin
+"""Llamadas directas (docs/features/EQUIPO_TELEFONIA.md): el equipo del cliente llama y atiende sin
 el agente.
 
 - call_logs: user_id (quien llamo o atendio), answered_by (agent/team en las entrantes) y

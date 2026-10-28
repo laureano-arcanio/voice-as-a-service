@@ -1,4 +1,4 @@
-"""Ejecucion de una herramienta del cliente (docs/TOOLS_PLAN.md, 4 y 5): arma el pedido HTTP o le pasa
+"""Ejecucion de una herramienta del cliente (docs/features/HERRAMIENTAS.md): arma el pedido HTTP o le pasa
 la funcion al sandbox (tools-runner), y devuelve lo que ve el modelo, con los secretos tachados.
 
 Seguridad de red (SSRF): el host se resuelve y se conecta a una IP ya validada (publica), en el mismo

@@ -580,7 +580,7 @@ export const agenticFeatures: Feature[] = [
 /** Agentes de programación con skills. */
 export const skillTools = ["Claude Code", "Cursor", "Codex"];
 
-// ---- Páginas de capacidad (`/plataforma/<slug>`, docs/SEO_LANDING.md) ----
+// ---- Páginas de capacidad (`/plataforma/<slug>`, docs/features/LANDING.md) ----
 
 const API_BASE = "https://app.atentina.com.ar/api/v1/inference";
 

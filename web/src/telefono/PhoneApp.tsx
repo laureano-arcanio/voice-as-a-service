@@ -1,4 +1,4 @@
-// El teléfono del equipo como app de teléfono de Android (docs/LLAMADAS_DIRECTAS_PLAN.md, sección 16): favoritos,
+// El teléfono del equipo como app de teléfono de Android (docs/features/EQUIPO_TELEFONIA.md): favoritos,
 // recientes, contactos con su ficha, búsqueda y teclado para marcar, con la llamada y la entrante a pantalla
 // completa. Llama, atiende y vuelve a entrar con el CallProvider del panel: misma API y mismas reglas.
 import { ActionIcon, Alert, Loader, Menu, Switch, Text, Tooltip } from '@mantine/core';

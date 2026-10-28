@@ -1,4 +1,4 @@
-"""Reportes (docs/REPORTES_PLAN.md): resultado, conversion y tokens en conversations (para agregar sin cargar
+"""Reportes (docs/features/REPORTES.md): resultado, conversion y tokens en conversations (para agregar sin cargar
 la definicion del agente), tool_runs (ejecuciones de herramientas), wa_account_status_log (historial de calidad
 de las cuentas de WhatsApp) y tiers.advanced_reports (Resultados, Mensajes, Transferencias y Campañas: los planes
 pagos e Interno). El resultado y la conversion de las conversaciones anteriores los completa

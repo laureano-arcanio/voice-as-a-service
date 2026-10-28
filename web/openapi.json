@@ -4065,7 +4065,7 @@
      "whatsapp"
     ],
     "summary": "Connect Own App",
-    "description": "Conecta un número con la app de Meta propia del cliente (docs/ADMIN_SOPORTE_PLAN.md, sección 4): valida\ncon Meta que el número sea de la WABA, suscribe su app a la WABA y devuelve la URL de webhook y el verify\ntoken para pegar en su app. 201 también si quedó `pending` (falló la suscripción: ver status_reason).\n409 si el número es de otra cuenta; 400 signup_mismatch si no es de esa WABA.",
+    "description": "Conecta un número con la app de Meta propia del cliente (docs/ARQUITECTURA.md): valida\ncon Meta que el número sea de la WABA, suscribe su app a la WABA y devuelve la URL de webhook y el verify\ntoken para pegar en su app. 201 también si quedó `pending` (falló la suscripción: ver status_reason).\n409 si el número es de otra cuenta; 400 signup_mismatch si no es de esa WABA.",
     "operationId": "connect_own_app_api_v1_whatsapp_accounts_own_app_post",
     "requestBody": {
      "content": {
@@ -15609,7 +15609,7 @@
      "powered_by"
     ],
     "title": "BrandingPublicOut",
-    "description": "La marca con la que los usuarios de un cliente ven el panel (docs/MARCA_BLANCA_PLAN.md)."
+    "description": "La marca con la que los usuarios de un cliente ven el panel (docs/ARQUITECTURA.md)."
    },
    "CallBulkDeleteIn": {
     "properties": {
@@ -22107,7 +22107,7 @@
        "external"
       ],
       "title": "Mode",
-      "description": "llm: salida JSON (BYOK). external: el endpoint de un agente propio (un turno en streaming con end_call; docs/AGENTE_EXTERNO_PLAN.md)",
+      "description": "llm: salida JSON (BYOK). external: el endpoint de un agente propio (un turno en streaming con end_call; docs/features/LLM_CONEXIONES.md)",
       "default": "llm"
      }
     },
@@ -30060,7 +30060,7 @@
      "definition"
     ],
     "title": "ToolIn",
-    "description": "Una herramienta del cliente. El formato de `definition` segun `type` esta en GET /tools/schema y en\ndocs/TOOLS_PLAN.md (http: secciones 4; code: 5)."
+    "description": "Una herramienta del cliente. El formato de `definition` segun `type` esta en GET /tools/schema y en\ndocs/features/HERRAMIENTAS.md."
    },
    "ToolOut": {
     "properties": {

@@ -1,4 +1,4 @@
-"""Pedidos de contacto del formulario de la landing (docs/LANDING.md, "Formulario de contacto").
+"""Pedidos de contacto del formulario de la landing (docs/features/LANDING.md, "Formulario de contacto").
 
 Revision ID: 0006
 Revises: 0005

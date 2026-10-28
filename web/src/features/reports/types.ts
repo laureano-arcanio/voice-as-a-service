@@ -1,4 +1,4 @@
-// Respuestas de /api/v1/reports/* (docs/REPORTES_PLAN.md, 9.2). Iguales a los Report*Out de schema.d.ts
+// Respuestas de /api/v1/reports/* (docs/features/REPORTES.md). Iguales a los Report*Out de schema.d.ts
 // (make openapi); se escriben aca para nombrarlos por reporte (ReportByName).
 
 import type { components } from '@/api/schema';

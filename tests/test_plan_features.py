@@ -1,4 +1,4 @@
-"""Funciones por plan (docs/FUNCIONES_POR_PLAN_PLAN.md): GET /plan/features y el corte de WhatsApp."""
+"""Funciones por plan (docs/ARQUITECTURA.md): GET /plan/features y el corte de WhatsApp."""
 from app.models import WaAccount
 from app.whatsapp.service import WhatsAppService
 
@@ -85,7 +85,7 @@ def test_messages_ignored_when_plan_drops_whatsapp(api, admin):
 
 
 def test_advanced_reports_by_plan(api, admin):
-    """Reportes completos (docs/REPORTES_PLAN.md): Free no; el plan con advanced_reports, si."""
+    """Reportes completos (docs/features/REPORTES.md): Free no; el plan con advanced_reports, si."""
     free = make_client(admin, tier=make_tier(admin, **FREE))
     make_tier(admin, name="Mostrador", price_ars=29000, public=True, sort=1, advanced_reports=True)
     f = features(admin, client_id=free["id"])["features"]["advanced_reports"]

@@ -1,4 +1,4 @@
-# Personas para eval_relevamiento (docs/EVAL_LLM_PLAN.md, seccion 3).
+# Personas para eval_relevamiento (docs/eval/README.md).
 agente: eval_relevamiento
 
 checks:

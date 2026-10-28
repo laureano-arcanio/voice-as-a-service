@@ -6,7 +6,7 @@ import { notifyError } from '@/lib/notify';
 import { meKey, useAcceptLegal, useMe } from './api';
 
 /** Condiciones o política de privacidad vigentes que el usuario no aceptó (invitados por un admin, cuentas de antes
- * de la casilla del registro o una versión nueva): no se cierra hasta aceptarlas (docs/TERMINOS_PLAN.md). */
+ * de la casilla del registro o una versión nueva): no se cierra hasta aceptarlas (docs/features/LEGAL.md). */
 export function LegalModal() {
   const { data: me } = useMe();
   const accept = useAcceptLegal();

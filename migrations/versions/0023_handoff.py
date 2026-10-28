@@ -1,4 +1,4 @@
-"""Derivacion a personas y registro de eventos (docs/DERIVACIONES_PLAN.md, fase 1).
+"""Derivacion a personas y registro de eventos (docs/features/EQUIPO_TELEFONIA.md, fase 1).
 
 - team_members: el equipo del cliente (telefono, WhatsApp, usuario).
 - handoff_areas y handoff_area_members: areas con sus miembros en orden, horario y mensajes.

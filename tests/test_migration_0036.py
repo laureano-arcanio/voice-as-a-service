@@ -1,4 +1,4 @@
-"""Migracion 0036 (reportes, docs/REPORTES_PLAN.md, 9.1): ida y vuelta en SQLite, el esquema de tool_runs,
+"""Migracion 0036 (reportes, docs/features/REPORTES.md): ida y vuelta en SQLite, el esquema de tool_runs,
 wa_account_status_log y las columnas nuevas coincide con el modelo, y advanced_reports queda en los planes pagos
 e Interno (no en el Free)."""
 import sqlalchemy as sa

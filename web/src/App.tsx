@@ -14,7 +14,7 @@ import { setSupportClientId } from '@/features/support/session';
 import { createQueryClient } from '@/queryClient';
 import { router } from '@/router';
 
-/** Mantine con el tema de Atentina o, para un cliente con marca blanca, el suyo (docs/MARCA_BLANCA_PLAN.md). */
+/** Mantine con el tema de Atentina o, para un cliente con marca blanca, el suyo (docs/ARQUITECTURA.md). */
 function Themed() {
   const branding = useBranding();
   const theme = useMemo(() => brandTheme(branding), [branding]);

@@ -1,4 +1,4 @@
-"""Una sola sesión para el panel y el teléfono del equipo (docs/LLAMADAS_DIRECTAS_PLAN.md, sección 16).
+"""Una sola sesión para el panel y el teléfono del equipo (docs/features/EQUIPO_TELEFONIA.md).
 
 La cookie de sesión es de cada host (sin Domain, para no mandarla a los demás subdominios de atentina.com.ar). Para
 pasar de uno al otro sin volver a ingresar, el host de origen da un pase de un solo uso (60 s, para el host destino)

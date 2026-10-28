@@ -1,4 +1,4 @@
-"""Transferencia de punta a punta contra el Anura falso (`make e2e-sip`, docs/DERIVACIONES_PLAN.md, 8).
+"""Transferencia de punta a punta contra el Anura falso (`make e2e-sip`, docs/features/EQUIPO_TELEFONIA.md).
 
 Corre el codigo real de la derivacion (app/voice/handoff.py: Transfer y RoomLine) sobre el LiveKit, livekit-sip
 y nuestro Asterisk aislados, con una base SQLite propia. Sin inferencia: el TTS es un tono, el STT no devuelve

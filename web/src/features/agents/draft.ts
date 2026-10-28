@@ -16,7 +16,7 @@ export const FIELD_TYPES = [
 
 export type FieldType = (typeof FIELD_TYPES)[number]['value'];
 
-/** Tu propio agente (definition.external, docs/AGENTE_EXTERNO_PLAN.md): el endpoint del cliente y que hacer
+/** Tu propio agente (definition.external, docs/features/LLM_CONEXIONES.md): el endpoint del cliente y que hacer
  * si falla. */
 export interface ExternalDraft {
   /** Id de una conexion openai_compatible del cliente; '' = sin elegir. */
@@ -69,7 +69,7 @@ function fromExternalDraft(e: ExternalDraft): Record<string, unknown> {
   };
 }
 
-/** Una herramienta del cliente (http o code, docs/TOOLS_PLAN.md) que usa el agente. */
+/** Una herramienta del cliente (http o code, docs/features/HERRAMIENTAS.md) que usa el agente. */
 export interface ClientToolGrantDraft {
   key: string;
   /** Slug de la herramienta. */
@@ -181,10 +181,10 @@ export interface Draft {
   toolLimitMessage: string;
   /** Parametros de generacion por defecto del agente (todo el flujo). */
   generation: ParamDraft[];
-  /** LLM por etapa de la conversacion (conexiones BYOK, docs/BYOK_LLM_PLAN.md). null = siempre el
+  /** LLM por etapa de la conversacion (conexiones BYOK, docs/features/LLM_CONEXIONES.md). null = siempre el
    * servidor propio (no va a la definicion). */
   llm: LlmDraft | null;
-  /** Derivacion a personas (docs/DERIVACIONES_PLAN.md): areas del equipo del cliente y musica de espera. */
+  /** Derivacion a personas (docs/features/EQUIPO_TELEFONIA.md): areas del equipo del cliente y musica de espera. */
   handoff: HandoffDraft;
   /** Tu propio agente: prendido si no es null. */
   external: ExternalDraft | null;

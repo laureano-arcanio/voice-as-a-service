@@ -415,7 +415,7 @@ details.llm summary {
   user-select: none;
 }
 
-/* Marca blanca (docs/MARCA_BLANCA_PLAN.md): el header toma el color del cliente; el texto lo elige la app. */
+/* Marca blanca (docs/ARQUITECTURA.md): el header toma el color del cliente; el texto lo elige la app. */
 .app-header {
   background: var(--app-header-bg);
   color: var(--app-header-fg);

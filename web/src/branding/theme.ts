@@ -3,7 +3,7 @@ import type { Branding } from '@/api/types';
 import { cssVariablesResolver, theme } from '@/theme';
 import { INK, scale, WHITE } from './color';
 
-/** El tema de Atentina con la marca del cliente encima (docs/MARCA_BLANCA_PLAN.md, 4.1): la escala del primario
+/** El tema de Atentina con la marca del cliente encima (docs/ARQUITECTURA.md): la escala del primario
  * pisa a `blue`, así `color="blue"` y `--mantine-color-blue-*` siguen andando sin tocar ningún componente. */
 export function brandTheme(branding: Branding | null): MantineThemeOverride {
   if (!branding) return theme;

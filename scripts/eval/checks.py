@@ -1,4 +1,4 @@
-"""Metricas duras de una conversacion (docs/EVAL_LLM_PLAN.md, seccion 4): datos
+"""Metricas duras de una conversacion (docs/eval/README.md): datos
 contra la ficha, resultado, cierre, loops, reglas de voz por regex, largo y
 latencia del LLM. Sin juez: deterministas y gratis.
 """

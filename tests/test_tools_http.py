@@ -1,4 +1,4 @@
-"""Herramientas HTTP del cliente (docs/TOOLS_PLAN.md, 4): formato, armado del pedido por metodo, cada
+"""Herramientas HTTP del cliente (docs/features/HERRAMIENTAS.md): formato, armado del pedido por metodo, cada
 auth, firma, templates, respuesta, tachado de secretos, timeouts, reintentos y SSRF. Contra la API falsa
 de scripts/tools/mock_api.py, de verdad (sin mocks de httpx)."""
 import base64

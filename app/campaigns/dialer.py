@@ -1,4 +1,4 @@
-"""Dialer de las campañas de voz (docs/LLAMADAS_SALIENTES_PLAN.md, seccion 4): cada
+"""Dialer de las campañas de voz (docs/features/CAMPANAS.md): cada
 CALL_CAMPAIGN_TICK_SECONDS, por cada campaña `running`, marca los contactos que le tocan.
 
 Cada vuelta activa las programadas cuyo starts_at llego y termina las que pasaron ends_at

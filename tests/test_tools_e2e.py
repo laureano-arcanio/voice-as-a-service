@@ -1,4 +1,4 @@
-"""Herramientas de punta a punta (docs/TOOLS_PLAN.md, 10): todo armado por la API y despues por el MCP, como un
+"""Herramientas de punta a punta (docs/features/HERRAMIENTAS.md): todo armado por la API y despues por el MCP, como un
 cliente, contra la API falsa (scripts/tools/mock_api.py) y, si esta TOOLS_RUNNER_TEST_URL, el sandbox de codigo
 real (make e2e-tools lo levanta). El LLM es falso, con respuestas grabadas: prueba el codigo, no el modelo
 (AGENTS.md, "Reglas de desarrollo"). La calidad del modelo la mide make eval-tools."""

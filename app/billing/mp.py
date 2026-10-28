@@ -1,6 +1,6 @@
 """Cliente de la API de Mercado Pago para las suscripciones (preapproval) y la firma del webhook.
 
-Probado contra el sandbox el 10-oct-2026 (docs/SUSCRIPCIONES_PLAN.md, 6.2): una suscripcion
+Probado contra el sandbox el 10-oct-2026 (docs/features/COBROS.md): una suscripcion
 `authorized` con `card_token_id` cobra el primer mes en el momento; una tarjeta rechazada falla al
 crearla (400 CC_VAL_*); la cancelacion se escribe `cancelled` y es final.
 """

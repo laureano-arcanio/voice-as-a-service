@@ -1,7 +1,7 @@
 """Prueba SIP de punta a punta contra el Anura falso (docker-compose.e2e-sip.yml, `make e2e-sip`).
 
 Recorre LiveKit -> livekit-sip -> nuestro Asterisk (config de produccion) -> Anura falso con los casos de
-la derivacion (docs/DERIVACIONES_PLAN.md, 4.1 y 8): atiende y marca 1 y 2, ocupado, no atiende, buzon,
+la derivacion (docs/features/EQUIPO_TELEFONIA.md y 8): atiende y marca 1 y 2, ocupado, no atiende, buzon,
 congestion, atiende y no marca, atiende y corta, y dos tramos a la vez en la misma room aislados entre
 si. Sale con codigo 1 si falla algun caso. No usa la inferencia: valida senalizacion, DTMF y audio.
 """

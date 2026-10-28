@@ -83,7 +83,7 @@ function AreaItem({
   );
 }
 
-/** Derivacion a personas (docs/DERIVACIONES_PLAN.md): a que areas del equipo puede pasar la llamada el
+/** Derivacion a personas (docs/features/EQUIPO_TELEFONIA.md): a que areas del equipo puede pasar la llamada el
  * agente y la musica mientras el cliente espera. */
 export function HandoffEditor({
   draft,

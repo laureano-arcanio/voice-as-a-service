@@ -74,7 +74,7 @@ class ConversationStore:
         row.fields = data["fields"]
         row.messages = data["messages"]
         row.progress = data["progress"]
-        # Reportes (docs/REPORTES_PLAN.md, 9.1): el resultado al completarse, si cumple el objetivo y la conversion.
+        # Reportes (docs/features/REPORTES.md): el resultado al completarse, si cumple el objetivo y la conversion.
         outcome = state.progress.outcome if state.status == "completed" else None
         if workflow is not None:
             row.goal = outcome_goal(workflow, outcome)

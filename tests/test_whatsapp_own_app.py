@@ -1,4 +1,4 @@
-"""WhatsApp con la app de Meta propia del cliente (app/whatsapp/own_app.py, docs/ADMIN_SOPORTE_PLAN.md
+"""WhatsApp con la app de Meta propia del cliente (app/whatsapp/own_app.py, docs/ARQUITECTURA.md
 seccion 4): alta por la API, secretos cifrados, webhook por cuenta (/wa/webhook/<clave>) y Embedded Signup
 apagado por defecto. Meta simulado (FakeMeta de test_whatsapp_signup): sin red."""
 import json

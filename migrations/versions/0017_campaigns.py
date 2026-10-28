@@ -1,4 +1,4 @@
-"""Agenda de contactos y campañas unificadas (docs/LLAMADAS_SALIENTES_PLAN.md, fase 1).
+"""Agenda de contactos y campañas unificadas (docs/features/CAMPANAS.md, fase 1).
 
 - contacts, contact_optouts, campaigns y campaign_contacts nuevas.
 - Los datos de WhatsApp se copian a las nuevas y se borran las viejas (wa_campaigns,

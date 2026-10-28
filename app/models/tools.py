@@ -1,4 +1,4 @@
-"""Herramientas del cliente (docs/TOOLS_PLAN.md): una llamada a una API (http) o una funcion en
+"""Herramientas del cliente (docs/features/HERRAMIENTAS.md): una llamada a una API (http) o una funcion en
 JavaScript (code) que un agente puede usar en la conversacion. Son del cliente y los agentes las
 referencian por slug desde `Workflow.tools`. Los secretos que usan son del cliente (client_secrets) y un agente
 puede pisar uno con su propio valor (agent_secrets, mismo nombre). Las credenciales (credentials) guardan la
@@ -91,7 +91,7 @@ class ToolVersion(IdMixin, Base):
 
 class ToolRun(IdMixin, Base):
     """Una ejecucion de una herramienta del cliente en una conversacion (app/tools/conversation.py), para los
-    reportes del admin (docs/REPORTES_PLAN.md): usos, errores y tiempos por herramienta. La traza completa
+    reportes del admin (docs/features/REPORTES.md): usos, errores y tiempos por herramienta. La traza completa
     sigue en conversations.messages[].llm."""
     __tablename__ = "tool_runs"
     __table_args__ = (Index("ix_tool_runs_client_created", "client_id", "created_at"),)

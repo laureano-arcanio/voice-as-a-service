@@ -1,4 +1,4 @@
-"""OAuth 2.1 del servidor MCP (docs/MCP_PLAN.md, 4.2): los agentes de IA (Claude.ai, ChatGPT, Cursor...)
+"""OAuth 2.1 del servidor MCP (docs/features/MCP.md): los agentes de IA (Claude.ai, ChatGPT, Cursor...)
 se conectan con el login del panel en vez de una API key.
 
 - OAuthClient: la app que pide acceso. Por registro dinámico (RFC 7591) o por Client ID Metadata Document

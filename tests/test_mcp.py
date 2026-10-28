@@ -1,4 +1,4 @@
-"""Servidor MCP (docs/MCP_PLAN.md): protocolo, auth con el scope `mcp`, herramientas por plan y catálogo."""
+"""Servidor MCP (docs/features/MCP.md): protocolo, auth con el scope `mcp`, herramientas por plan y catálogo."""
 import pathlib
 
 import pytest
@@ -283,7 +283,7 @@ def test_outbound_call_and_routing(api, full):
 
 
 def test_direct_calls_tools(api, admin, full, monkeypatch):
-    """Llamadas directas (docs/LLAMADAS_DIRECTAS_PLAN.md, 9): las hace una persona; el MCP devuelve el link."""
+    """Llamadas directas (docs/features/EQUIPO_TELEFONIA.md): las hace una persona; el MCP devuelve el link."""
     c, agent, mcp = full
     every = Mcp(api, mcp.key, "all")
     tools = every.tools()
@@ -491,7 +491,7 @@ def test_inference_tools_are_opt_in_and_need_their_scopes(api, admin, full):
     assert bad["structuredContent"]["code"] == "invalid_arguments"
 
 
-# ---------- reportes (docs/REPORTES_PLAN.md, 9.4) ----------
+# ---------- reportes (docs/features/REPORTES.md) ----------
 
 REPORT_TOOLS = {"get_report_summary": "/reports/summary", "get_report_calls": "/reports/calls",
                 "get_report_outcomes": "/reports/outcomes", "get_report_messages": "/reports/messages",

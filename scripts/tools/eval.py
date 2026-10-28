@@ -1,4 +1,4 @@
-"""Calidad de las llamadas a herramientas con un LLM real (docs/TOOLS_PLAN.md, 10). Solo informa: siempre
+"""Calidad de las llamadas a herramientas con un LLM real (docs/features/HERRAMIENTAS.md). Solo informa: siempre
 termina en 0 (AGENTS.md, "Reglas de desarrollo"); que el codigo ande lo prueba make e2e-tools, con LLM falso.
 
 Arma todo por la API, como un cliente: tier y cliente, cuatro herramientas (tres http y una de codigo si hay

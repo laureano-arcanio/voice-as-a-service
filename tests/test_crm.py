@@ -1,4 +1,4 @@
-"""CRM de ventas (crm/, docs/CRM_PLAN.md): API, plantillas, cola de envio, eventos, GA y seguimientos."""
+"""CRM de ventas (crm/, docs/features/CRM.md): API, plantillas, cola de envio, eventos, GA y seguimientos."""
 import datetime
 import os
 

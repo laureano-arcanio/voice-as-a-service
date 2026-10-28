@@ -1,4 +1,4 @@
-"""WhatsApp por plan y lo que incluye el Free (docs/FUNCIONES_POR_PLAN_PLAN.md).
+"""WhatsApp por plan y lo que incluye el Free (docs/ARQUITECTURA.md).
 
 - tiers.whatsapp: si el plan incluye WhatsApp (cuentas, mensajes y llamadas). Los existentes quedan en true.
 - Free: sin WhatsApp, campañas, contactos ni equipo, y un link para llamar. Mostrador: sin campañas.

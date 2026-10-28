@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Ficha de hardware (y opcionalmente de config y codigo) de un host que
-participa en el test de capacidad (docs/CAPACITY_TEST_PLAN.md, 6.1 y 6.2).
+participa en el test de capacidad (docs/capacity/README.md y 6.2).
 
 Solo stdlib: corre en el host, fuera de contenedores, tambien en la PC cliente
 sin GPU. Lo que no se puede obtener queda en null/"" sin fallar (dmidecode solo

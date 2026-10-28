@@ -129,7 +129,7 @@ def create_app() -> FastAPI:
     app.include_router(call_link_host.router)
     # Teléfono del equipo, tipo app de Android (/movil; en su host, /).
     app.include_router(phone_app_host.router)
-    # Servidor MCP para los agentes de IA de los clientes (docs/MCP_PLAN.md).
+    # Servidor MCP para los agentes de IA de los clientes (docs/features/MCP.md).
     app.include_router(mcp_server.router)
     app.include_router(oauth_routes.router)
     # Metricas de la plataforma para Prometheus (docs/OBSERVABILIDAD.md), con MONITORING_TOKEN.

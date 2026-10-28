@@ -1,4 +1,4 @@
-"""Juez del eval (docs/EVAL_LLM_PLAN.md, seccion 4): un LLM externo califica cada
+"""Juez del eval (docs/eval/README.md): un LLM externo califica cada
 conversacion con una rubrica de 1 a 5 (absoluto) o elige entre dos runs la mejor
 conversacion del mismo escenario (pareado, con el orden al azar).
 

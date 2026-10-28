@@ -2,7 +2,7 @@ import type { components } from '@/api/schema';
 
 type S = components['schemas'];
 
-// Llamadas directas (docs/LLAMADAS_DIRECTAS_PLAN.md, sección 13).
+// Llamadas directas (docs/features/EQUIPO_TELEFONIA.md).
 export type DirectCallIn = S['DirectCallIn'];
 export type DirectCallOut = S['DirectCallOut'];
 export type DirectJoin = S['DirectJoinOut'];

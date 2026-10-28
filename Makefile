@@ -98,7 +98,7 @@ up-nginx: ## Solo el proxy publico (nginx en :PROXY_PORT) e imprime las URLs
 		echo "  VLLM_STT_BASE_URL=$$url/stt/v1"; \
 		echo "  VLLM_TTS_BASE_URL=$$url/tts/v1"
 
-up-tunnel: ## Solo el tunel de Cloudflare de la demo de la landing (docs/LANDING.md; requiere CLOUDFLARE_TUNNEL_TOKEN)
+up-tunnel: ## Solo el tunel de Cloudflare de la demo de la landing (docs/features/LANDING.md; requiere CLOUDFLARE_TUNNEL_TOKEN)
 	$(COMPOSE) -f docker-compose.tunnel.yml up -d tunnel
 
 up-pbx: ## Solo Asterisk; lo recrea para releer .env y asterisk/conf/ (corta llamadas en curso)
@@ -183,7 +183,7 @@ migrate-test: ## Prueba las migraciones pendientes contra una copia del último 
 agent-rules: ## Suma las reglas generales (antes en el prompt del motor) a los agentes vigentes, como version nueva. APPLY=1 aplica; sin eso lista
 	$(COMPOSE) run --rm --no-deps app python -m app.cli agent-rules $(if $(APPLY),--apply)
 
-reports-backfill: ## Completa resultado, objetivo y conversion de las conversaciones anteriores a los reportes (docs/REPORTES_PLAN.md; idempotente, despues de make migrate)
+reports-backfill: ## Completa resultado, objetivo y conversion de las conversaciones anteriores a los reportes (docs/features/REPORTES.md; idempotente, despues de make migrate)
 	$(COMPOSE) run --rm --no-deps app python -m app.cli reports-backfill
 
 create-admin: ## Crea un admin o le cambia la clave (la pide). Ej: make create-admin EMAIL=vos@empresa.com
@@ -192,7 +192,7 @@ create-admin: ## Crea un admin o le cambia la clave (la pide). Ej: make create-a
 api-key: ## API key de un cliente (se muestra una vez). Ej: make api-key CLIENT=atentina NAME=loadtest
 	$(COMPOSE) run --rm --no-deps app python -m app.cli create-api-key $(CLIENT) $(NAME)
 
-crm-db: ## Crea la base `crm` en db si no existe (CRM de ventas, docs/CRM_PLAN.md)
+crm-db: ## Crea la base `crm` en db si no existe (CRM de ventas, docs/features/CRM.md)
 	@$(COMPOSE) exec -T db sh -c 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -tAc "select 1 from pg_database where datname = '"'"'crm'"'"'" | grep -q 1 || createdb -U "$$POSTGRES_USER" crm && echo "base crm lista"'
 
 crm-migrate: crm-db ## Migraciones del CRM (alembic de crm/)
@@ -220,7 +220,7 @@ wa-send: ## Texto por WhatsApp con la Graph API. Ej: make wa-send TO=54351... TE
 wa-account: ## Conecta un numero de WhatsApp a un agente (idempotente). Ej: make wa-account PNID=1376760278849754 WABA=1763082738667089 NUMBER="+1 555 145 6632" AGENT=demo_booking_classic [CLIENT=atentina]
 	$(COMPOSE) run --rm --no-deps app python -m app.cli wa-account $(PNID) --waba $(WABA) --display "$(NUMBER)" --client $(or $(CLIENT),atentina) --agent $(AGENT) $(if $(NAME),--name "$(NAME)")
 
-# Llamadas de WhatsApp (Calling API por SIP -> Asterisk, docs/WHATSAPP_PLAN.md fase 5).
+# Llamadas de WhatsApp (Calling API por SIP -> Asterisk, docs/features/WHATSAPP.md fase 5).
 # Numero de Atentina por defecto (+54 9 351 700-2592); otro con PNID=...
 WA_CALLING_PNID ?= 1320624701139500
 WA_RUN := $(COMPOSE) run --rm --no-deps -T -v $(CURDIR)/scripts:/app/scripts app python -m scripts.wa --phone-number-id $(or $(PNID),$(WA_CALLING_PNID))
@@ -265,7 +265,7 @@ web-build: ## Build de la UI en web/dist (la imagen de app la compila sola en el
 web-check: ## Lint, tipos y tests de la UI
 	cd web && npm ci && npm run lint && npm run typecheck && npm test
 
-landing-dev: ## Landing en modo desarrollo (Astro, :4321; docs/LANDING.md). HOST=1 la abre en la red (para verla en el celular)
+landing-dev: ## Landing en modo desarrollo (Astro, :4321; docs/features/LANDING.md). HOST=1 la abre en la red (para verla en el celular)
 	cd landing && npm install && npm run dev $(if $(HOST),-- --host)
 
 openapi: ## Regenera web/openapi.json y los tipos de la UI (web/src/api/schema.d.ts) desde la API (el codigo del repo, no el de la imagen)
@@ -275,7 +275,7 @@ openapi: ## Regenera web/openapi.json y los tipos de la UI (web/src/api/schema.d
 legal-sync: ## Copia las condiciones y la política de privacidad con versión (app/legal/texts/) a la landing (landing/src/data/legal/)
 	$(COMPOSE) run --rm --no-deps -T -e AUTH_SECRET=legal-sync -v $(CURDIR)/app:/app/app -v $(CURDIR)/landing/src/data:/app/landing/src/data app python -m app.legal.sync
 
-up-tools: ## Sandbox de las herramientas de codigo (tools-runner + proxy de salida, docs/TOOLS_PLAN.md). No corta llamadas
+up-tools: ## Sandbox de las herramientas de codigo (tools-runner + proxy de salida, docs/features/HERRAMIENTAS.md). No corta llamadas
 	@grep -q '^TOOLS_RUNNER_TOKEN=.' .env || { echo "Falta TOOLS_RUNNER_TOKEN en .env: make tools-runner-token"; exit 1; }
 	$(COMPOSE) up -d --build --wait tools-runner tools-egress
 
@@ -329,7 +329,7 @@ eval-motor: ## Escenarios de llamada contra el motor y el LLM real (scripts/repl
 eval-llamadas: ## Llamadas reales de berlin_signup repetidas tal cual: datos, resultado y repreguntas (scripts/replay_transcripts.py). Ej: make eval-llamadas N=5 W=berlin_signup_classic
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts app python -m scripts.replay_transcripts $(or $(N),1) $(S) $(if $(W),-w=$(W))
 
-eval-llm: ## Eval de calidad del LLM por tipo de agente y de cliente (scripts/eval, docs/EVAL_LLM_PLAN.md). Ej: make eval-llm ARGS="--humo --cliente guion"
+eval-llm: ## Eval de calidad del LLM por tipo de agente y de cliente (scripts/eval, docs/eval/README.md). Ej: make eval-llm ARGS="--humo --cliente guion"
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app/agents:/app/app/agents -e GIT_REV=$$(git rev-parse --short HEAD) app python -m scripts.eval.run $(ARGS)
 
 eval-llm-juez: ## Califica un run con el juez (EVAL_LLM_*). Ej: make eval-llm-juez RUN=scripts/eval/runs/<run> [ARGS="--pareado <otro run>"]
@@ -359,7 +359,7 @@ loadtest-report: ## Sirve scripts/loadtest/ en :8099 y abre report.html (carga r
 		cd scripts/loadtest && python3 -m http.server 8099; \
 	fi
 
-# --- Test de capacidad (docs/CAPACITY_TEST_PLAN.md, scripts/capacity/) ---
+# --- Test de capacidad (docs/capacity/README.md, scripts/capacity/) ---
 # En el server: `make capacity-monitor PERFIL=rampa` (ficha + monitor), despues
 # en la PC cliente `make capacity PERFIL=rampa ARGS="--base-url http://<server>:8011"`,
 # al final `make capacity-monitor-stop` y `make capacity-analyze RUN=... MON=...`.
@@ -466,7 +466,7 @@ backup-list: ## Backups en S3 (ultimos 10) y el ultimo completo
 
 cron-install: ## Instala (o actualiza) las lineas de Atentina en el crontab del usuario desde deploy/crontab, sin tocar las demas
 	@mkdir -p $$HOME/atentina-ops $$HOME/atentina-backups && \
-	{ crontab -l 2>/dev/null | sed '/^# >>> atentina/,/^# <<< atentina/d' | grep -v 'voice-as-a-service/scripts/ops/' | grep -v '^# Atentina (docs/PRODUCCION.md)'; \
+	{ crontab -l 2>/dev/null | sed '/^# >>> atentina/,/^# <<< atentina/d' | grep -v 'voice-as-a-service/scripts/ops/' | grep -v '^# Atentina (docs/INFRA.md)'; \
 	  sed 's|@REPO@|$(CURDIR)|g' deploy/crontab; } | crontab - && crontab -l | sed -n '/^# >>> atentina/,/^# <<< atentina/p'
 
 # --- Observabilidad del hardware (docs/OBSERVABILIDAD.md) --------------------------

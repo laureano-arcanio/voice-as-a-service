@@ -1,4 +1,4 @@
-"""Conexiones de LLM de un cliente (BYOK, docs/BYOK_LLM_PLAN.md): proveedor externo, su API key
+"""Conexiones de LLM de un cliente (BYOK, docs/features/LLM_CONEXIONES.md): proveedor externo, su API key
 (cifrada con WA_TOKEN_KEY) y el modelo por defecto. Los agentes las referencian por id desde
 `Workflow.llm`."""
 import datetime
