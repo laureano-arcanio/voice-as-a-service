@@ -253,13 +253,16 @@ function SaveContactModal({ phone, onClose }: { phone: string; onClose: () => vo
   const save = useUpsertContact();
   const [name, setName] = useState('');
   const submit = () =>
-    save.mutate({ phone, name: name.trim() || null }, {
-      onSuccess: (r) => {
-        notifySuccess(r.created ? 'Contacto guardado.' : 'Ese teléfono ya estaba en la agenda.');
-        onClose();
+    save.mutate(
+      { phone, name: name.trim() || null },
+      {
+        onSuccess: (r) => {
+          notifySuccess(r.created ? 'Contacto guardado.' : 'Ese teléfono ya estaba en la agenda.');
+          onClose();
+        },
+        onError: (e) => notifyError(e, 'No se pudo guardar'),
       },
-      onError: (e) => notifyError(e, 'No se pudo guardar'),
-    });
+    );
   return (
     <Modal opened onClose={onClose} title="Guardar como contacto">
       <form

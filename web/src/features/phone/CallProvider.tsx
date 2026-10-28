@@ -46,7 +46,7 @@ import {
   startProblem,
   SUPPORT_REASON,
 } from './errors';
-import { playRingtone } from './ringtone';
+import { playRingback, playRingtone, RINGBACK_REPEAT_MS } from './ringtone';
 import { storedAvailable, storedCall } from './storage';
 import { every } from './ticker';
 import type { CallStatusData, DirectCallOut, Ringing, TranscriptData } from './types';
@@ -582,6 +582,15 @@ export function CallProvider({ children }: { children: ReactNode }) {
     const t = window.setInterval(playRingtone, RING_REPEAT_MS);
     return () => window.clearInterval(t);
   }, [ringKey]);
+
+  // La saliente (directa) que marca o suena del otro lado: el tono de llamada, hasta que atienden o se corta.
+  const dialing = direction === 'outbound' && (phase === 'dialing' || phase === 'ringing');
+  useEffect(() => {
+    if (!dialing) return;
+    playRingback();
+    const t = window.setInterval(playRingback, RINGBACK_REPEAT_MS);
+    return () => window.clearInterval(t);
+  }, [dialing]);
 
   const decline = useCallback((ring: Ringing) => {
     setDeclined((prev) => [...prev, ring.conversation_id]);

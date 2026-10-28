@@ -5,10 +5,15 @@ import { CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
 import { CallBar } from './CallBar';
 import { CallProvider } from './CallProvider';
 import { useDirectCall } from './context';
+import { playRingback } from './ringtone';
 import { FakeRoom, fakeMic, mockApi, PLAN_OK, stubMediaDevices } from './testing';
 
 vi.mock('livekit-client', async () => (await import('./testing')).fakeLivekit());
-vi.mock('./ringtone', () => ({ playRingtone: vi.fn() }));
+vi.mock('./ringtone', () => ({
+  playRingtone: vi.fn(),
+  playRingback: vi.fn(),
+  RINGBACK_REPEAT_MS: 5000,
+}));
 
 const STARTED = {
   conversation_id: 'conv-1',
@@ -99,10 +104,14 @@ describe('CallProvider', () => {
     expect(sessionStorage.getItem('atentina.phone.call')).toBe('conv-1');
     expect(screen.getByText('Ana Pérez')).toBeInTheDocument();
 
+    // Mientras marca y suena del otro lado se oye el tono de llamada; al atender, no suena más.
+    expect(playRingback).toHaveBeenCalled();
     act(() => room.data('call_status', { state: 'ringing' }));
     expect(await screen.findByText('Sonando')).toBeInTheDocument();
+    const tones = vi.mocked(playRingback).mock.calls.length;
     act(() => room.data('call_status', { state: 'active' }));
     expect(await screen.findByText('En curso')).toBeInTheDocument();
+    expect(vi.mocked(playRingback).mock.calls.length).toBe(tones);
     act(() => room.data('transcript', { role: 'user', text: 'Hola, ¿quién habla?' }));
     expect(await screen.findByText(/Hola, ¿quién habla\?/)).toBeInTheDocument();
 

@@ -8,7 +8,11 @@ import { JoinCallPage } from './JoinCallPage';
 import { FakeRoom, mockApi, PLAN_OK, stubMediaDevices } from './testing';
 
 vi.mock('livekit-client', async () => (await import('./testing')).fakeLivekit());
-vi.mock('./ringtone', () => ({ playRingtone: vi.fn() }));
+vi.mock('./ringtone', () => ({
+  playRingtone: vi.fn(),
+  playRingback: vi.fn(),
+  RINGBACK_REPEAT_MS: 5000,
+}));
 
 const DETAIL = {
   id: 'conv-api',

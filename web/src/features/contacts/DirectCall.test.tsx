@@ -11,7 +11,11 @@ import { ContactsPage } from './ContactsPage';
 // Llamar a un contacto desde la agenda y su ficha (docs/LLAMADAS_DIRECTAS_PLAN.md, sección 8).
 
 vi.mock('livekit-client', async () => (await import('@/features/phone/testing')).fakeLivekit());
-vi.mock('@/features/phone/ringtone', () => ({ playRingtone: vi.fn() }));
+vi.mock('@/features/phone/ringtone', () => ({
+  playRingtone: vi.fn(),
+  playRingback: vi.fn(),
+  RINGBACK_REPEAT_MS: 5000,
+}));
 
 const ANA: Contact = {
   id: 'k1',
