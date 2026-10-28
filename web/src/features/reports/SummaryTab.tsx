@@ -1,20 +1,11 @@
 import { CompositeChart } from '@mantine/charts';
-import { Group, Progress, SimpleGrid, Stack, Text } from '@mantine/core';
+import { Stack } from '@mantine/core';
 import { EmptyState, QueryState } from '@/components/QueryState';
-import {
-  formatDate,
-  formatDayLabel,
-  formatDuration,
-  formatLimit,
-  formatNumber,
-  formatPeriod,
-  usageColor,
-  usagePercent,
-} from '@/lib/format';
+import { formatDayLabel, formatDuration, formatNumber } from '@/lib/format';
 import { useReport } from './api';
 import { deltaPct, deltaPoints, pct, type Kpi } from './format';
 import { KpiGrid, ReportCard } from './parts';
-import type { ReportQuery, SummaryDay, SummaryPlan, SummaryReport } from './types';
+import type { ReportQuery, SummaryDay, SummaryReport } from './types';
 
 const DAILY_CSV = [
   { label: 'Fecha', value: 'date' as const },
@@ -125,63 +116,6 @@ export function ConsultasChart({ daily }: { daily: SummaryDay[] }) {
   );
 }
 
-function MinutesBar({ title, used, quota }: { title: string; used: number; quota: number | null }) {
-  const p = usagePercent(used, quota);
-  return (
-    <Stack gap={4}>
-      <Group justify="space-between" gap="xs">
-        <Text size="sm" fw={600}>
-          {title}
-        </Text>
-        <Text size="sm" className="mono">
-          {formatNumber(used)} de {formatLimit(quota)}
-          {quota != null ? ' min' : ''}
-        </Text>
-      </Group>
-      {p != null && (
-        <Progress
-          value={Math.min(100, p)}
-          color={usageColor(p)}
-          aria-label={`${title}: ${formatNumber(p)}%`}
-        />
-      )}
-    </Stack>
-  );
-}
-
-/** Consumo del plan en el mes de facturacion, con la proyeccion al ritmo actual. */
-export function PlanCard({ plan }: { plan: SummaryPlan }) {
-  const projected = plan.projected_inbound_minutes;
-  const over =
-    projected != null && plan.inbound_minutes_quota != null && projected > plan.inbound_minutes_quota;
-  return (
-    <ReportCard
-      title="Consumo del plan"
-      description={`Mes en curso: ${formatPeriod(plan.period_start, plan.period_end)}`}
-    >
-      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="lg">
-        <MinutesBar
-          title="Minutos entrantes"
-          used={plan.inbound_minutes_used}
-          quota={plan.inbound_minutes_quota}
-        />
-        <MinutesBar
-          title="Minutos salientes"
-          used={plan.outbound_minutes_used}
-          quota={plan.outbound_minutes_quota}
-        />
-      </SimpleGrid>
-      {projected != null && (
-        <Text size="sm" mt="md" c={over ? 'yellow' : undefined}>
-          Al ritmo actual, vas a usar unos {formatNumber(projected, 0)} minutos entrantes hasta el{' '}
-          {formatDate(new Date(new Date(plan.period_end).getTime() - 1).toISOString())}
-          {over ? ': más que los de tu plan.' : '.'}
-        </Text>
-      )}
-    </ReportCard>
-  );
-}
-
 export function SummaryTab({ query }: { query: ReportQuery }) {
   const report = useReport('summary', query);
   return (
@@ -190,7 +124,6 @@ export function SummaryTab({ query }: { query: ReportQuery }) {
         <Stack gap="md">
           <ConsultasChart daily={r.daily} />
           <KpiGrid kpis={summaryKpis(r)} />
-          {r.plan && <PlanCard plan={r.plan} />}
         </Stack>
       )}
     </QueryState>

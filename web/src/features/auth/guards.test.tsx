@@ -87,7 +87,7 @@ describe('navegación por área', () => {
   it('el cliente no ve Clientes, Tiers ni Usuarios', () => {
     const client = navItemsFor('client').map((i) => i.label);
     expect(client).toContain('Mi cuenta');
-    expect(client).toContain('Consumos');
+    expect(client).toContain('Plan');
     expect(client).toContain('Contactos');
     for (const l of ['Clientes', 'Tiers', 'Usuarios', 'Números', 'Cobros']) expect(client).not.toContain(l);
     expect(navItemsFor('client').every((i) => !i.to.startsWith('/admin'))).toBe(true);
@@ -100,7 +100,7 @@ describe('navegación por área', () => {
     expect(admin).toEqual(
       expect.arrayContaining(['Clientes', 'Números', 'Tiers', 'Cobros', 'Usuarios', 'Agentes']),
     );
-    for (const l of ['Mi cuenta', 'Consumos', 'Contactos', 'Equipo']) expect(admin).not.toContain(l);
+    for (const l of ['Mi cuenta', 'Contactos', 'Equipo']) expect(admin).not.toContain(l);
   });
 
   it('navFor devuelve el menú del área', () => {
@@ -119,7 +119,7 @@ describe('navegación por área', () => {
       'Canales: WhatsApp, Llamadas del agente, Teléfono del equipo, Campañas',
       'Agenda: Contactos, Equipo',
       'Developers: API keys, Uso de la API',
-      'Cuenta: Mi cuenta, Plan, Consumos',
+      'Cuenta: Mi cuenta, Plan',
     ]);
   });
 

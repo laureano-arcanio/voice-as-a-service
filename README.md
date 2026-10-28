@@ -52,8 +52,8 @@ curl -X POST http://<host>:8011/api/v1/calls -H "Authorization: Bearer $VAAS_API
 
 **Reportes** (`/api/v1/reports/*`, sección Reportes del panel): `summary`, `calls`, `outcomes`, `messages`,
 `transfers` y `campaigns` para el cliente (consultas por día y transferencias, conversión, mapa de calor por hora,
-campañas, consumo del plan; CSV desde la UI) y `technical` y `platform` para el admin (latencia, herramientas,
-clientes y alertas). Resumen y Llamadas en todos los planes; el resto con `tiers.advanced_reports`. Implementado
+campañas; CSV desde la UI) y `technical` y `platform` para el admin (latencia, herramientas,
+clientes y alertas). El consumo del plan (minutos con su proyección, llamadas, números y la API de inferencia) está en la pestaña Consumo, que usa `GET /clients/{id}/usage`. Resumen, Consumo y Llamadas en todos los planes; el resto con `tiers.advanced_reports`. Implementado
 el 27-oct-2026, sin desplegar: [`docs/REPORTES_PLAN.md`](docs/REPORTES_PLAN.md).
 
 **Demo de la landing** (`/api/v1/demo`, sin usuario): la landing llama a los agentes de `DEMO_AGENTS`

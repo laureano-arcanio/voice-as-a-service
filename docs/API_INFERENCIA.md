@@ -242,7 +242,7 @@ Cuerpo `{"detail": "texto para mostrar", "code": "codigo_estable", "errors": []}
 
 ## 4. Consumo
 
-- **Dashboard:** API > "Consumo de la API" (el admin, en la ficha del cliente > API keys): barras por
+- **Dashboard:** Reportes > Consumo (el admin, en la ficha del cliente > Consumo y datos): barras por
   cupo, pedidos del mes y desglose por key, con selector de mes.
 - **API:** `GET /api/v1/inference/usage` (con una key de inferencia) o
   `GET /api/v1/clients/{id}/inference-usage?month=YYYY-MM` (sesión de usuario, o key `calls`).

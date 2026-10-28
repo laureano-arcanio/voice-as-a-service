@@ -172,7 +172,7 @@ const planErrors = [
 ];
 
 const reportEndpoints = [
-  { path: "GET /reports/summary", plan: "Todos", text: "Consultas por día y canal con cuántas terminaron en una transferencia, indicadores contra el período anterior y consumo de minutos del plan con la proyección a fin de mes" },
+  { path: "GET /reports/summary", plan: "Todos", text: "Consultas por día y canal con cuántas terminaron en una transferencia, indicadores contra el período anterior (cantidades y porcentajes)" },
   { path: "GET /reports/calls", plan: "Todos", text: "Llamadas por día y modo, mapa de calor por día y hora, por línea, por agente, por tipo (agente, directas y entrantes del equipo) y por usuario, duración, cómo terminaron y llamantes nuevos o que vuelven" },
   { path: "GET /reports/outcomes", plan: "Completos", text: "Conversión (completa, parcial o sin datos), resultados por agente, embudo, datos capturados por campo y comparación por versión del agente" },
   { path: "GET /reports/messages", plan: "Completos", text: "WhatsApp: mensajes por día y hora, texto o nota de voz, entrega (enviados, entregados, leídos, fallidos) y estado de las cuentas" },
@@ -201,7 +201,6 @@ const reportOut = `{
     "minutes": 903.5, "finished": 395, "failed": 14, "avg_duration": 131, "rejected_by_limit": 3
   },
   "previous": {"conversations": 355, "conversion_pct": 57.0, "goal_pct": 35.2},
-  "plan": {"inbound_minutes_used": 903.5, "inbound_minutes_quota": 1200, "projected_inbound_minutes": 1038},
   "daily": [
     {"date": "2026-10-26", "voice_in": 17, "voice_out": 4, "whatsapp": 0, "web": 0, "transfers": 3, "transfers_answered": 2}
   ]

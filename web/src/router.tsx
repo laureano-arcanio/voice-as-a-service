@@ -147,10 +147,6 @@ export const routes: RouteObject[] = [
         ...page(async () => (await import('@/features/api-requests/ApiRequestsPage')).ApiRequestsPage),
       },
       {
-        path: 'usage',
-        ...page(async () => (await import('@/features/clients/UsagePage')).UsagePage),
-      },
-      {
         path: 'account',
         ...page(async () => (await import('@/features/clients/AccountPage')).AccountPage),
       },

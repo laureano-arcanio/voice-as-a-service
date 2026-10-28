@@ -174,7 +174,8 @@ _READ: tuple[Tool, ...] = (
          "Cada función del plan (llamadas salientes, WhatsApp, contactos, campañas, equipo, link para "
          "llamar) con `enabled` y, si no está, `reason`: lo que hace falta.", path="/plan/features"),
     Tool("get_usage", "account", "Consumo del mes",
-         "Minutos entrantes y salientes, llamadas y demás consumo del mes contra los límites del plan.",
+         "Minutos entrantes y salientes (con su proyección a fin de mes), llamadas y demás consumo del mes contra "
+         "los límites del plan. Es lo primero a consultar para \"¿alcanza el plan?\".",
          path="/clients/{client_id}/usage",
          params={"month": _s("Mes YYYY-MM (default: el actual).", pattern=r"^\d{4}-\d{2}$")}),
     Tool("get_call_emails", "account", "Resumen por email",
@@ -278,9 +279,8 @@ _READ: tuple[Tool, ...] = (
          "cuántas (y qué % de las atendidas por un agente) tienen los datos completos y cumplen el objetivo, "
          "cuántas terminaron en una transferencia a una persona (pedidas, atendidas y % de las consultas), minutos, "
          "llamadas finalizadas, fallidas y rechazadas por el límite del plan, duración media y mensajes de "
-         "WhatsApp; el consumo de minutos del mes con su proyección a fin de mes; y la serie diaria de consultas "
-         "por canal con las transferencias. Es lo primero a consultar para \"¿cómo nos fue?\" o \"¿alcanza el "
-         "plan?\".", path="/reports/summary", params=_REPORT),
+         "WhatsApp; y la serie diaria de consultas por canal con las transferencias. Es lo primero a consultar para "
+         "\"¿cómo nos fue?\". Para \"¿alcanza el plan?\", get_usage.", path="/reports/summary", params=_REPORT),
     Tool("get_report_calls", "reports", "Reporte: llamadas",
          "Las llamadas del período: por día y modo (entrantes, salientes, web), cuándo llaman (mapa de calor por "
          "día de la semana y hora, para elegir horarios de áreas y campañas), por tipo (atendidas por el agente, "

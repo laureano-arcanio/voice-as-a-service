@@ -307,26 +307,8 @@ def _kpis(s: Session, flt: ReportFilter) -> dict:
     }
 
 
-def _plan(s: Session, client_id: str) -> dict | None:
-    """Consumo del mes en curso (services/quota.usage: los mismos minutos que corta el plan)."""
-    client = s.get(Client, client_id)
-    if client is None:
-        return None
-    usage = quota.usage(s, client)
-    now = utcnow()
-    elapsed = (now - usage.period_start) / (usage.period_end - usage.period_start)
-    inbound = usage.inbound.used_seconds / 60
-    return {
-        "inbound_minutes_used": round(inbound, 1), "inbound_minutes_quota": usage.inbound.limit_minutes,
-        "outbound_minutes_used": round(usage.outbound.used_seconds / 60, 1),
-        "outbound_minutes_quota": usage.outbound.limit_minutes,
-        "projected_inbound_minutes": round(inbound / elapsed, 1) if elapsed > 0 else None,
-        "period_start": usage.period_start, "period_end": usage.period_end,
-    }
-
-
 def summary(s: Session, flt: ReportFilter) -> dict:
-    """Consultas por canal y transferencias por dia, KPIs contra el periodo anterior y consumo del plan."""
+    """Consultas por canal y transferencias por dia, y KPIs contra el periodo anterior."""
     hour = _hour(s, ConversationRow.created_at)
     rows = s.execute(_convs(flt, hour, KIND, func.count(), _count_if(_transfer(REQUEST_EVENTS)),
                             _count_if(_transfer(ANSWER_EVENTS))).group_by(hour, KIND)).all()
@@ -340,7 +322,6 @@ def summary(s: Session, flt: ReportFilter) -> dict:
     return {
         "period": {"date_from": flt.date_from, "date_to": flt.date_to},
         "kpis": _kpis(s, flt), "previous": _kpis(s, flt.previous()),
-        "plan": _plan(s, flt.client_id) if flt.client_id else None,
         "daily": list(daily.values()),
     }
 

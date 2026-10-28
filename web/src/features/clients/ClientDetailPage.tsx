@@ -338,7 +338,7 @@ function ClientView({ client }: { client: Client }) {
           <LlmConnectionsSection clientId={client.id} />
         </Tabs.Panel>
         <Tabs.Panel value="api-keys">
-          <ApiAccess clientId={client.id} showUsage={false} />
+          <ApiAccess clientId={client.id} />
         </Tabs.Panel>
         <Tabs.Panel value="marca">
           <BrandingTab client={client} />

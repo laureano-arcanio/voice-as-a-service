@@ -114,6 +114,17 @@ def test_call_count_limit_per_month_and_unlimited(sessions):
         assert quota.admit(s, free.id, CallMode.entrante) is None     # NULL = ilimitado
 
 
+def test_projected_seconds_only_for_the_current_period():
+    start, end = naive_utc(2026, 10, 1, 3), naive_utc(2026, 11, 1, 3)       # 31 dias
+    # Con el primer cuarto del mes consumido, 600 s, al mismo ritmo son 2400 al final.
+    now = start + (end - start) / 4
+    assert quota.projected_seconds(600, start, end, now) == pytest.approx(2400)
+    assert quota.projected_seconds(0, start, end, now) == 0
+    assert quota.projected_seconds(600, start, end, start) is None          # recien empieza: sin ritmo
+    assert quota.projected_seconds(600, start, end, end) is None            # un mes pasado
+    assert quota.projected_seconds(600, start, end, start - datetime.timedelta(days=1)) is None
+
+
 def test_usage_reports_call_counts(sessions):
     with sessions() as s:
         c = _client(s, max_calls_per_hour=20)

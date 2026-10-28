@@ -20,9 +20,12 @@ const RANGES: { value: ReportRange; label: string }[] = [
 export function ReportFiltersBar({
   filters,
   update,
+  clientOnly = false,
 }: {
   filters: ReportFilters;
   update: (patch: Partial<ReportFilters>) => void;
+  /** Solo el selector de cliente (la pestaña Consumo no depende del período ni de los demás filtros). */
+  clientOnly?: boolean;
 }) {
   const isAdmin = useIsAdmin();
   const clients = useClients(isAdmin);
@@ -44,60 +47,67 @@ export function ReportFiltersBar({
           w={200}
         />
       )}
-      <Select
-        label="Agente"
-        data={[
-          { value: '', label: 'Todos' },
-          ...(agents.data ?? []).map((a) => ({
-            value: a.id,
-            label: a.archived ? `${a.name} (archivado)` : a.name,
-          })),
-        ]}
-        value={filters.agent ?? ''}
-        onChange={(v) => update({ agent: v || null })}
-        allowDeselect={false}
-        searchable
-        w={220}
-      />
-      <Select
-        label="Canal"
-        data={[
-          { value: '', label: 'Todos' },
-          ...(Object.keys(CHANNEL_LABEL) as Channel[]).map((c) => ({ value: c, label: CHANNEL_LABEL[c] })),
-        ]}
-        value={filters.channel ?? ''}
-        onChange={(v) => update({ channel: (v || null) as Channel | null })}
-        allowDeselect={false}
-        w={150}
-      />
-      <Select
-        label="Período"
-        data={RANGES}
-        value={filters.range}
-        onChange={(v) => update({ range: (v ?? '30') as ReportRange })}
-        allowDeselect={false}
-        w={180}
-      />
-      {filters.range === 'custom' && (
-        <DatePickerInput
-          type="range"
-          label="Fechas"
-          placeholder="Desde – hasta"
-          value={[filters.from, filters.to]}
-          onChange={([from, to]) => update({ from, to })}
-          valueFormat="DD/MM/YYYY"
-          maxDate={toIsoDate(new Date())}
-          allowSingleDateInRange
-          clearable
-          w={240}
-        />
+      {!clientOnly && (
+        <>
+          <Select
+            label="Agente"
+            data={[
+              { value: '', label: 'Todos' },
+              ...(agents.data ?? []).map((a) => ({
+                value: a.id,
+                label: a.archived ? `${a.name} (archivado)` : a.name,
+              })),
+            ]}
+            value={filters.agent ?? ''}
+            onChange={(v) => update({ agent: v || null })}
+            allowDeselect={false}
+            searchable
+            w={220}
+          />
+          <Select
+            label="Canal"
+            data={[
+              { value: '', label: 'Todos' },
+              ...(Object.keys(CHANNEL_LABEL) as Channel[]).map((c) => ({
+                value: c,
+                label: CHANNEL_LABEL[c],
+              })),
+            ]}
+            value={filters.channel ?? ''}
+            onChange={(v) => update({ channel: (v || null) as Channel | null })}
+            allowDeselect={false}
+            w={150}
+          />
+          <Select
+            label="Período"
+            data={RANGES}
+            value={filters.range}
+            onChange={(v) => update({ range: (v ?? '30') as ReportRange })}
+            allowDeselect={false}
+            w={180}
+          />
+          {filters.range === 'custom' && (
+            <DatePickerInput
+              type="range"
+              label="Fechas"
+              placeholder="Desde – hasta"
+              value={[filters.from, filters.to]}
+              onChange={([from, to]) => update({ from, to })}
+              valueFormat="DD/MM/YYYY"
+              maxDate={toIsoDate(new Date())}
+              allowSingleDateInRange
+              clearable
+              w={240}
+            />
+          )}
+          <Switch
+            label="Incluir pruebas"
+            checked={filters.tests}
+            onChange={(e) => update({ tests: e.currentTarget.checked })}
+            mb={8}
+          />
+        </>
       )}
-      <Switch
-        label="Incluir pruebas"
-        checked={filters.tests}
-        onChange={(e) => update({ tests: e.currentTarget.checked })}
-        mb={8}
-      />
     </Group>
   );
 }

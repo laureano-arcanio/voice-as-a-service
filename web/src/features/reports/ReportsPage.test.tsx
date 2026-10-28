@@ -28,18 +28,25 @@ const SUMMARY: SummaryReport = {
   period: { date_from: '2026-09-28', date_to: '2026-10-27' },
   kpis: KPIS,
   previous: { ...KPIS, conversations: 6 },
-  plan: {
-    inbound_minutes_used: 40,
-    inbound_minutes_quota: 100,
-    outbound_minutes_used: 0,
-    outbound_minutes_quota: 0,
-    projected_inbound_minutes: 120,
-    period_start: '2026-10-01T03:00:00Z',
-    period_end: '2026-11-01T03:00:00Z',
-  },
   daily: [
-    { date: '2026-10-26', voice_in: 4, voice_out: 1, whatsapp: 1, web: 0, transfers: 2, transfers_answered: 1 },
-    { date: '2026-10-27', voice_in: 2, voice_out: 1, whatsapp: 3, web: 0, transfers: 1, transfers_answered: 1 },
+    {
+      date: '2026-10-26',
+      voice_in: 4,
+      voice_out: 1,
+      whatsapp: 1,
+      web: 0,
+      transfers: 2,
+      transfers_answered: 1,
+    },
+    {
+      date: '2026-10-27',
+      voice_in: 2,
+      voice_out: 1,
+      whatsapp: 3,
+      web: 0,
+      transfers: 1,
+      transfers_answered: 1,
+    },
   ],
 };
 
@@ -72,7 +79,7 @@ function mockApi(routes: Record<string, unknown>) {
 describe('ReportsPage', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('Resumen: consultas por día, KPIs con la variación y el consumo del plan', async () => {
+  it('Resumen: consultas por día y KPIs con la variación', async () => {
     const urls = mockApi({
       '/api/v1/plan/features': plan(true),
       '/api/v1/agents': [],
@@ -81,14 +88,14 @@ describe('ReportsPage', () => {
     renderWithProviders(<ReportsPage />, { me: CLIENT_USER, path: '/reports' });
     expect(await screen.findByRole('heading', { name: 'Reportes' })).toBeInTheDocument();
     expect(await screen.findByText('Consultas por día')).toBeInTheDocument();
-    expect(screen.getByText('Consumo del plan')).toBeInTheDocument();
     // 12 contra 6 del periodo anterior.
     expect(screen.getByText('+100 % vs. período anterior')).toBeInTheDocument();
     // Los absolutos de los porcentajes y de los minutos.
     expect(screen.getByText('6 de 12')).toBeInTheDocument();
     expect(screen.getByText('3 de 12')).toBeInTheDocument();
     expect(screen.getByText('7 finalizadas · 1 fallidas')).toBeInTheDocument();
-    expect(screen.getByText(/vas a usar unos 120 minutos entrantes/)).toBeInTheDocument();
+    // El consumo del plan ya no está en el Resumen: tiene su pestaña.
+    expect(screen.queryByText('Consumo del plan')).not.toBeInTheDocument();
     // El cliente no ve las pestañas internas.
     expect(screen.queryByRole('tab', { name: /Técnico/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: /Plataforma/ })).not.toBeInTheDocument();
@@ -131,7 +138,9 @@ describe('ReportsPage', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Descargar CSV' })[0]!);
     expect(click).toHaveBeenCalled();
     const text = await (blob as unknown as Blob).text();
-    expect(text).toContain('Fecha,Teléfono entrante,Teléfono saliente,WhatsApp,Web,Transferencias pedidas,Transferencias atendidas');
+    expect(text).toContain(
+      'Fecha,Teléfono entrante,Teléfono saliente,WhatsApp,Web,Transferencias pedidas,Transferencias atendidas',
+    );
     expect(text).toContain('2026-10-26,4,1,1,0,2,1');
     click.mockRestore();
     delete (URL as Partial<typeof URL>).createObjectURL;
@@ -466,5 +475,79 @@ describe('ReportsPage, pestañas con datos', () => {
     renderWithProviders(<ReportsPage />, { me: ADMIN, path: '/reports?tab=platform' });
     expect(await screen.findByText('Cerca del cupo')).toBeInTheDocument();
     expect(screen.getAllByText('$ 29.000', { selector: 'p' })).toHaveLength(2);
+  });
+});
+
+const CALLS_USAGE = {
+  month: '2026-10',
+  period_start: '2026-10-01T03:00:00Z',
+  period_end: '2026-11-01T03:00:00Z',
+  active_calls: 1,
+  max_concurrent_calls: 4,
+  inbound: {
+    used_seconds: 4800,
+    used_minutes: 80,
+    limit_minutes: 100,
+    remaining_minutes: 20,
+    projected_minutes: 120,
+  },
+  outbound: {
+    used_seconds: 0,
+    used_minutes: 0,
+    limit_minutes: null,
+    remaining_minutes: null,
+    projected_minutes: 0,
+  },
+  phone_numbers: { used: 1, limit: 2 },
+  calls_hour: { used: 0, limit: null },
+  calls_day: { used: 0, limit: null },
+  calls_month: { used: 0, limit: null },
+};
+const API_USAGE = {
+  month: '2026-10',
+  period_start: '2026-10-01',
+  period_end: '2026-11-01',
+  rate_limit: null,
+  llm_input_tokens: { used: 500, limit: 1000, remaining: 500 },
+  llm_output_tokens: { used: 0, limit: null, remaining: null },
+  tts_minutes: { used: 1.5, limit: 10, remaining: 8.5 },
+  stt_minutes: { used: 0, limit: 10, remaining: 10 },
+  requests: { llm: 2, stt: 0, tts: 1 },
+  keys: [],
+};
+
+describe('ReportsPage: Consumo', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('junta minutos, llamadas, números y la API del mes, con el estado general arriba', async () => {
+    const urls = mockApi({
+      '/api/v1/plan/features': plan(true),
+      '/api/v1/agents': [],
+      '/api/v1/clients/c-1/usage': CALLS_USAGE,
+      '/api/v1/clients/c-1/inference-usage': API_USAGE,
+    });
+    renderWithProviders(<ReportsPage />, { me: CLIENT_USER, path: '/reports?tab=usage' });
+    expect(await screen.findByText('Consumo del plan')).toBeInTheDocument();
+    // Minutos entrantes al 80 %: cerca del tope, y al ritmo actual lo pasa.
+    expect(await screen.findByText('Cerca de un tope')).toBeInTheDocument();
+    expect(screen.getByText(/Minutos entrantes \(80%\)/)).toBeInTheDocument();
+    expect(screen.getByText(/vas a pasar los minutos entrantes del mes/)).toBeInTheDocument();
+    expect(screen.getByText('Llamadas y minutos')).toBeInTheDocument();
+    expect(screen.getByText('Números')).toBeInTheDocument();
+    expect(await screen.findByText('LLM · tokens de entrada')).toBeInTheDocument();
+    expect(screen.getByText('Síntesis (TTS)')).toBeInTheDocument();
+    // No depende del período: sin la barra de filtros ni los reportes del período.
+    expect(screen.queryByLabelText('Período')).not.toBeInTheDocument();
+    expect(urls.some((u) => u.pathname.startsWith('/api/v1/reports/'))).toBe(false);
+  });
+
+  it('el admin elige un cliente para ver su consumo', async () => {
+    mockApi({
+      '/api/v1/plan/features': plan(true),
+      '/api/v1/agents': [],
+      '/api/v1/clients': [],
+    });
+    renderWithProviders(<ReportsPage />, { me: ADMIN, path: '/reports?tab=usage' });
+    expect(await screen.findByText('Elegí un cliente para ver el consumo de su plan.')).toBeInTheDocument();
   });
 });

@@ -1,20 +1,9 @@
-import { Anchor, Badge, Card, Group, Select, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
-import { Link } from 'react-router';
+import { Badge, Group, SimpleGrid, Stack, Table, Text } from '@mantine/core';
 import type { InferenceUsage } from '@/api/types';
-import { ErrorAlert } from '@/components/QueryState';
-import { useIsAdmin } from '@/features/auth/api';
-import { UsageMeter } from '@/features/clients/UsageCard';
-import { formatMonth, formatNumber, recentMonths } from '@/lib/format';
-import { useInferenceUsage } from './api';
+import { formatNumber } from '@/lib/format';
+import { UsageMeter } from './UsageMeters';
 
 type Meter = InferenceUsage['llm_input_tokens'];
-
-/** '01/10/2026 al 31/10/2026' desde fechas YYYY-MM-DD (el fin es exclusivo). Sin husos: son dias, no instantes. */
-function dayRange(start: string, endExclusive: string) {
-  const f = (d: string) => d.split('-').reverse().join('/');
-  const last = new Date(Date.parse(`${endExclusive}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
-  return `${f(start)} al ${f(last)}`;
-}
 
 /** Un cupo del plan: barra de consumo, o aviso si el plan no incluye ese motor (limite 0). */
 function ApiMeter({ label, meter, unit }: { label: string; meter: Meter; unit: string }) {
@@ -63,7 +52,8 @@ export function InferenceMeters({ usage }: { usage: InferenceUsage }) {
   );
 }
 
-function KeysTable({ usage }: { usage: InferenceUsage }) {
+/** Consumo de la API por key (LLM, STT y TTS). */
+export function KeysTable({ usage }: { usage: InferenceUsage }) {
   if (usage.keys.length === 0) return null;
   return (
     <Table.ScrollContainer minWidth={640}>
@@ -114,63 +104,5 @@ function KeysTable({ usage }: { usage: InferenceUsage }) {
         </Table.Tbody>
       </Table>
     </Table.ScrollContainer>
-  );
-}
-
-/** Consumo del mes de la API de inferencia (no incluye los agentes integrados), con selector de mes. */
-export function InferenceUsageCard({
-  clientId,
-  month,
-  onMonth,
-}: {
-  clientId: string;
-  month: string;
-  onMonth: (m: string) => void;
-}) {
-  const isAdmin = useIsAdmin();
-  const months = recentMonths(12);
-  const usage = useInferenceUsage(clientId, month, month === months[0] ? 10_000 : false);
-  return (
-    <Card>
-      <Group justify="space-between" mb="md" wrap="wrap">
-        <Stack gap={0}>
-          <Title order={4}>Consumo de la API</Title>
-          <Text size="xs" c="dimmed">
-            LLM, STT y TTS por API key. No cuenta los agentes integrados (llamadas y WhatsApp).
-            {usage.data && ` Período: ${dayRange(usage.data.period_start, usage.data.period_end)}`}
-          </Text>
-        </Stack>
-        <Group gap="sm">
-          <Anchor
-            component={Link}
-            to={isAdmin ? `/admin/inference-requests?client=${clientId}` : '/inference-requests'}
-            size="sm"
-          >
-            Ver los pedidos
-          </Anchor>
-          <Select
-            data={months.map((m) => ({ value: m, label: formatMonth(m) }))}
-            value={month}
-            onChange={(v) => onMonth(v ?? months[0])}
-            allowDeselect={false}
-            w={200}
-            size="xs"
-            aria-label="Mes"
-          />
-        </Group>
-      </Group>
-      {usage.isError ? (
-        <ErrorAlert error={usage.error} onRetry={usage.refetch} />
-      ) : usage.data ? (
-        <Stack gap="lg">
-          <InferenceMeters usage={usage.data} />
-          <KeysTable usage={usage.data} />
-        </Stack>
-      ) : (
-        <Text size="sm" c="dimmed">
-          Cargando…
-        </Text>
-      )}
-    </Card>
   );
 }

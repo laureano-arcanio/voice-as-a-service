@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { Usage } from '@/api/types';
 import { recentMonths } from '@/lib/format';
 import { theme } from '@/theme';
-import { UsageMeter, UsageMeters } from './UsageCard';
+import { UsageMeter, UsageMeters } from './UsageMeters';
 
 const wrap = (ui: React.ReactElement) => render(<MantineProvider theme={theme}>{ui}</MantineProvider>);
 
@@ -67,7 +67,7 @@ describe('UsageMeter', () => {
     expect(screen.getByRole('progressbar', { name: 'Llamadas esta hora: 75% usado' })).toBeInTheDocument();
     expect(screen.getByText('Quedan 5.')).toBeInTheDocument();
     expect(screen.getByRole('progressbar', { name: 'Llamadas hoy: 100% usado' })).toBeInTheDocument();
-    expect(screen.queryByText('Llamadas del mes')).not.toBeInTheDocument();   // sin tope mensual
+    expect(screen.queryByText('Llamadas del mes')).not.toBeInTheDocument(); // sin tope mensual
   });
 
   it('en un mes pasado no muestra la hora ni el día en curso', () => {
@@ -88,5 +88,42 @@ describe('UsageMeter', () => {
     expect(screen.queryByText('Llamadas esta hora')).not.toBeInTheDocument();
     expect(screen.queryByText('Llamadas hoy')).not.toBeInTheDocument();
     expect(screen.getByText('Llamadas del mes')).toBeInTheDocument();
+  });
+
+  it('en el mes en curso, a dónde llegan los minutos al ritmo actual', () => {
+    const usage: Usage = {
+      month: recentMonths(1)[0],
+      period_start: '2026-10-01T03:00:00Z',
+      period_end: '2026-11-01T03:00:00Z',
+      active_calls: 0,
+      max_concurrent_calls: null,
+      inbound: {
+        used_seconds: 3000,
+        used_minutes: 50,
+        limit_minutes: 100,
+        remaining_minutes: 50,
+        projected_minutes: 140,
+      },
+      outbound: {
+        used_seconds: 600,
+        used_minutes: 10,
+        limit_minutes: null,
+        remaining_minutes: null,
+        projected_minutes: 30,
+      },
+      phone_numbers: { used: 0, limit: null },
+      calls_hour: { used: 0, limit: null },
+      calls_day: { used: 0, limit: null },
+      calls_month: { used: 0, limit: null },
+    };
+    wrap(<UsageMeters usage={usage} limitsName="plan" />);
+    expect(
+      screen.getByText(
+        'Quedan 50 min. Al ritmo actual: 140 min a fin de mes, más de lo que incluye el plan.',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Sin límite en el plan. Al ritmo actual: 30 min a fin de mes.'),
+    ).toBeInTheDocument();
   });
 });

@@ -392,6 +392,8 @@ class MinutesUsageOut(BaseModel):
     used_minutes: float
     limit_minutes: int | None
     remaining_minutes: float | None
+    projected_minutes: float | None = Field(default=None, description="A fin de mes, al ritmo del mes en curso; "
+                                                                      "None en un mes pasado")
 
 
 class NumbersUsageOut(BaseModel):
@@ -2509,16 +2511,6 @@ class ReportKpisOut(BaseModel):
     wa_messages: int
 
 
-class ReportPlanOut(BaseModel):
-    inbound_minutes_used: float
-    inbound_minutes_quota: int | None = Field(description="None: sin límite")
-    outbound_minutes_used: float
-    outbound_minutes_quota: int | None
-    projected_inbound_minutes: float | None = Field(description="A fin de mes, al ritmo del mes en curso")
-    period_start: UTCDateTime
-    period_end: UTCDateTime
-
-
 class ReportSummaryDayOut(BaseModel):
     date: datetime.date
     voice_in: int
@@ -2533,7 +2525,6 @@ class ReportSummaryOut(BaseModel):
     period: ReportPeriodOut
     kpis: ReportKpisOut
     previous: ReportKpisOut = Field(description="El mismo largo, inmediatamente antes")
-    plan: ReportPlanOut | None = Field(description="Consumo del mes en curso; None con todos los clientes")
     daily: list[ReportSummaryDayOut]
 
 

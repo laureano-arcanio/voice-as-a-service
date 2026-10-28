@@ -57,14 +57,17 @@ describe('DevelopersPage', () => {
     expect(navItemsFor('admin').some((i) => i.to === '/developers')).toBe(false);
   });
 
-  it('muestra las keys con su alcance, el consumo y la conexión', async () => {
+  it('muestra las keys con su alcance, el link al consumo y la conexión', async () => {
     mockApi();
     renderWithProviders(<DevelopersPage />, { me: CLIENT_USER });
     expect(await screen.findByText('CRM')).toBeInTheDocument();
     const row = screen.getByText('CRM').closest('tr')!;
     expect(within(row).getByText('calls')).toBeInTheDocument();
     expect(within(row).getByText('llm')).toBeInTheDocument();
-    expect(await screen.findByText('Consumo de la API')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Reportes > Consumo' })).toHaveAttribute(
+      'href',
+      '/reports?tab=usage',
+    );
     expect(screen.getByText(`${location.origin}/api/v1/inference`)).toBeInTheDocument();
     expect(screen.getByText(/POST \/audio\/transcriptions/)).toBeInTheDocument();
   });

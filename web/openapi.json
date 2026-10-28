@@ -11734,7 +11734,7 @@
      "reports"
     ],
     "summary": "Summary",
-    "description": "Resumen: consultas por día y canal con las transferencias, KPIs contra el período anterior\n(conversaciones, % de conversión y de objetivo, derivadas, minutos, duración media, rechazadas por el\nplan, mensajes de WhatsApp) y consumo del plan del mes con su proyección. Todos los planes.",
+    "description": "Resumen: consultas por día y canal con las transferencias, KPIs contra el período anterior\n(conversaciones, % de conversión y de objetivo, derivadas, minutos, duración media, rechazadas por el\nplan, mensajes de WhatsApp). El consumo del plan está en `GET /clients/{id}/usage`. Todos los planes.",
     "operationId": "summary_api_v1_reports_summary_get",
     "security": [
      {
@@ -22287,6 +22287,18 @@
        }
       ],
       "title": "Remaining Minutes"
+     },
+     "projected_minutes": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Projected Minutes",
+      "description": "A fin de mes, al ritmo del mes en curso; None en un mes pasado"
      }
     },
     "type": "object",
@@ -25553,74 +25565,6 @@
     ],
     "title": "ReportPeriodOut"
    },
-   "ReportPlanOut": {
-    "properties": {
-     "inbound_minutes_used": {
-      "type": "number",
-      "title": "Inbound Minutes Used"
-     },
-     "inbound_minutes_quota": {
-      "anyOf": [
-       {
-        "type": "integer"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Inbound Minutes Quota",
-      "description": "None: sin límite"
-     },
-     "outbound_minutes_used": {
-      "type": "number",
-      "title": "Outbound Minutes Used"
-     },
-     "outbound_minutes_quota": {
-      "anyOf": [
-       {
-        "type": "integer"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Outbound Minutes Quota"
-     },
-     "projected_inbound_minutes": {
-      "anyOf": [
-       {
-        "type": "number"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Projected Inbound Minutes",
-      "description": "A fin de mes, al ritmo del mes en curso"
-     },
-     "period_start": {
-      "type": "string",
-      "format": "date-time",
-      "title": "Period Start"
-     },
-     "period_end": {
-      "type": "string",
-      "format": "date-time",
-      "title": "Period End"
-     }
-    },
-    "type": "object",
-    "required": [
-     "inbound_minutes_used",
-     "inbound_minutes_quota",
-     "outbound_minutes_used",
-     "outbound_minutes_quota",
-     "projected_inbound_minutes",
-     "period_start",
-     "period_end"
-    ],
-    "title": "ReportPlanOut"
-   },
    "ReportPlatformOut": {
     "properties": {
      "clients": {
@@ -25774,17 +25718,6 @@
       "$ref": "#/components/schemas/ReportKpisOut",
       "description": "El mismo largo, inmediatamente antes"
      },
-     "plan": {
-      "anyOf": [
-       {
-        "$ref": "#/components/schemas/ReportPlanOut"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "description": "Consumo del mes en curso; None con todos los clientes"
-     },
      "daily": {
       "items": {
        "$ref": "#/components/schemas/ReportSummaryDayOut"
@@ -25798,7 +25731,6 @@
      "period",
      "kpis",
      "previous",
-     "plan",
      "daily"
     ],
     "title": "ReportSummaryOut"

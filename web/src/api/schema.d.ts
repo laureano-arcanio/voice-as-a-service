@@ -3358,7 +3358,7 @@ export interface paths {
          * Summary
          * @description Resumen: consultas por día y canal con las transferencias, KPIs contra el período anterior
          *     (conversaciones, % de conversión y de objetivo, derivadas, minutos, duración media, rechazadas por el
-         *     plan, mensajes de WhatsApp) y consumo del plan del mes con su proyección. Todos los planes.
+         *     plan, mensajes de WhatsApp). El consumo del plan está en `GET /clients/{id}/usage`. Todos los planes.
          */
         get: operations["summary_api_v1_reports_summary_get"];
         put?: never;
@@ -7009,6 +7009,11 @@ export interface components {
             limit_minutes: number | null;
             /** Remaining Minutes */
             remaining_minutes: number | null;
+            /**
+             * Projected Minutes
+             * @description A fin de mes, al ritmo del mes en curso; None en un mes pasado
+             */
+            projected_minutes?: number | null;
         };
         /** NumbersUsageOut */
         NumbersUsageOut: {
@@ -8260,35 +8265,6 @@ export interface components {
              */
             date_to: string;
         };
-        /** ReportPlanOut */
-        ReportPlanOut: {
-            /** Inbound Minutes Used */
-            inbound_minutes_used: number;
-            /**
-             * Inbound Minutes Quota
-             * @description None: sin límite
-             */
-            inbound_minutes_quota: number | null;
-            /** Outbound Minutes Used */
-            outbound_minutes_used: number;
-            /** Outbound Minutes Quota */
-            outbound_minutes_quota: number | null;
-            /**
-             * Projected Inbound Minutes
-             * @description A fin de mes, al ritmo del mes en curso
-             */
-            projected_inbound_minutes: number | null;
-            /**
-             * Period Start
-             * Format: date-time
-             */
-            period_start: string;
-            /**
-             * Period End
-             * Format: date-time
-             */
-            period_end: string;
-        };
         /** ReportPlatformOut */
         ReportPlatformOut: {
             /** Clients */
@@ -8344,8 +8320,6 @@ export interface components {
             kpis: components["schemas"]["ReportKpisOut"];
             /** @description El mismo largo, inmediatamente antes */
             previous: components["schemas"]["ReportKpisOut"];
-            /** @description Consumo del mes en curso; None con todos los clientes */
-            plan: components["schemas"]["ReportPlanOut"] | null;
             /** Daily */
             daily: components["schemas"]["ReportSummaryDayOut"][];
         };

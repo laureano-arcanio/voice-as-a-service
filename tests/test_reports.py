@@ -179,7 +179,6 @@ def test_summary_kpis_daily_and_previous(api, data):
     day = next(d for d in out["daily"] if d["date"] == "2026-10-02")
     assert day == {"date": "2026-10-02", "voice_in": 2, "voice_out": 0, "whatsapp": 0, "web": 0, "transfers": 2, "transfers_answered": 1}
     assert len(out["daily"]) == 10
-    assert out["plan"]["inbound_minutes_quota"] == 100 and out["plan"]["outbound_minutes_quota"] is None
     # Con las pruebas: la de prueba y la de la API; el loadtest nunca.
     assert report(data["admin"], "summary", client_id=data["acme"], include_tests=True)["kpis"]["conversations"] == 7
     # Por linea y por canal.
@@ -205,9 +204,9 @@ def test_scope_by_client(api, data):
     assert report(user, "summary", client_id=data["acme"])["kpis"]["conversations"] == 5
     assert report(user, "summary", 403, client_id=data["beta"])
     assert report(user, "calls", 403, client_id=data["beta"])
-    # El admin sin cliente ve todos y no hay consumo del plan.
+    # El admin sin cliente ve todos.
     out = report(data["admin"], "summary")
-    assert out["kpis"]["conversations"] == 8 and out["plan"] is None
+    assert out["kpis"]["conversations"] == 8
 
 
 def test_calls_report(api, data):

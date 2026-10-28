@@ -1,8 +1,8 @@
 import { screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { InferenceUsage } from '@/api/types';
-import { CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
-import { InferenceMeters, InferenceUsageCard } from './InferenceUsageCard';
+import { renderWithProviders } from '@/test/render';
+import { InferenceMeters, KeysTable } from './InferenceUsage';
 
 const USAGE: InferenceUsage = {
   month: '2026-10',
@@ -58,25 +58,16 @@ describe('InferenceMeters', () => {
   });
 });
 
-describe('InferenceUsageCard', () => {
-  afterEach(() => vi.unstubAllGlobals());
-
-  it('pide el consumo del mes y lo muestra con el desglose por key', async () => {
-    const urls: string[] = [];
-    vi.stubGlobal(
-      'fetch',
-      vi.fn((input: RequestInfo | URL) => {
-        urls.push(new URL(input instanceof Request ? input.url : String(input)).pathname);
-        return Promise.resolve(jsonResponse(USAGE));
-      }),
-    );
-    renderWithProviders(<InferenceUsageCard clientId="c-1" month="2026-10" onMonth={() => {}} />, {
-      me: CLIENT_USER,
-    });
-    expect(await screen.findByText('Consumo de la API')).toBeInTheDocument();
-    expect(await screen.findByText(/Período: 01\/10\/2026 al 31\/10\/2026/)).toBeInTheDocument();
-    expect(await screen.findByText('CRM')).toBeInTheDocument();
+describe('KeysTable', () => {
+  it('desglosa el consumo por API key', () => {
+    renderWithProviders(<KeysTable usage={USAGE} />);
+    expect(screen.getByText('CRM')).toBeInTheDocument();
     expect(screen.getByText('900 / 10')).toBeInTheDocument();
-    expect(urls[0]).toBe('/api/v1/clients/c-1/inference-usage');
+    expect(screen.getByText('llm')).toBeInTheDocument();
+  });
+
+  it('sin keys no muestra la tabla', () => {
+    renderWithProviders(<KeysTable usage={{ ...USAGE, keys: [] }} />);
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 });

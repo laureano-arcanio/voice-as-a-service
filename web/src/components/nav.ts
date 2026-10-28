@@ -8,7 +8,6 @@ import {
   IconApi,
   IconBuilding,
   IconCash,
-  IconChartBar,
   IconChartHistogram,
   IconCode,
   IconCpu,
@@ -105,7 +104,6 @@ export const CLIENT_NAV: NavEntry[] = [
     items: [
       { to: '/account', label: 'Mi cuenta', icon: IconFileInvoice },
       { to: '/plan', label: 'Plan', icon: IconCreditCard },
-      { to: '/usage', label: 'Consumos', icon: IconChartBar },
     ],
   },
 ];

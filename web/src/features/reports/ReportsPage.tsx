@@ -18,6 +18,7 @@ import { SummaryTab } from './SummaryTab';
 import { TechnicalTab } from './TechnicalTab';
 import { TransfersTab } from './TransfersTab';
 import type { ReportQuery } from './types';
+import { UsageTab } from './UsageTab';
 import { useReportFilters } from './useReportFilters';
 
 interface TabDef {
@@ -32,6 +33,7 @@ interface TabDef {
 
 const TABS: TabDef[] = [
   { value: 'summary', label: 'Resumen', Component: SummaryTab },
+  { value: 'usage', label: 'Consumo', Component: UsageTab },
   { value: 'calls', label: 'Llamadas', Component: CallsTab },
   { value: 'outcomes', label: 'Resultados', Component: OutcomesTab, advanced: true },
   { value: 'messages', label: 'Mensajes', Component: MessagesTab, advanced: true },
@@ -55,11 +57,18 @@ export function ReportsPage() {
     <Stack gap="md">
       <PageHeader
         title="Reportes"
-        description={`Del ${formatDate(`${dates.from}T00:00:00`)} al ${formatDate(`${dates.to}T00:00:00`)}`}
+        description={
+          tab === 'usage'
+            ? 'Consumo de tu plan en el mes de facturación'
+            : `Del ${formatDate(`${dates.from}T00:00:00`)} al ${formatDate(`${dates.to}T00:00:00`)}`
+        }
       />
-      <Card>
-        <ReportFiltersBar filters={filters} update={update} />
-      </Card>
+      {/* El consumo es del mes de facturación: solo el admin elige a qué cliente, sin período, agente ni canal. */}
+      {(tab !== 'usage' || isAdmin) && (
+        <Card>
+          <ReportFiltersBar filters={filters} update={update} clientOnly={tab === 'usage'} />
+        </Card>
+      )}
       <ReportContext.Provider value={{ tab, from: dates.from, to: dates.to }}>
         <Tabs value={tab} onChange={(v) => update({ tab: v === 'summary' ? null : v })} keepMounted={false}>
           <Tabs.List mb="md">

@@ -46,16 +46,6 @@ export interface SummaryKpis {
   wa_messages: number;
 }
 
-export interface SummaryPlan {
-  inbound_minutes_used: number;
-  inbound_minutes_quota: number | null;
-  outbound_minutes_used: number;
-  outbound_minutes_quota: number | null;
-  projected_inbound_minutes: number | null;
-  period_start: string;
-  period_end: string;
-}
-
 export interface SummaryDay {
   date: string;
   voice_in: number;
@@ -70,7 +60,6 @@ export interface SummaryReport {
   period: { date_from: string; date_to: string };
   kpis: SummaryKpis;
   previous: SummaryKpis;
-  plan: SummaryPlan | null;
   daily: SummaryDay[];
 }
 

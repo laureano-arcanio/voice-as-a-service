@@ -1,10 +1,10 @@
-import { Card, Code, Group, Stack, Table, Tabs, Text, Title } from '@mantine/core';
-import { useState } from 'react';
+import { Anchor, Card, Code, Group, Stack, Table, Tabs, Text, Title } from '@mantine/core';
+import { Link } from 'react-router';
 import { CopyIcon } from '@/components/Copy';
 import { ApiKeysSection } from '@/features/clients/ApiKeysSection';
+import { useIsAdmin } from '@/features/auth/api';
 import { McpAccess } from '@/features/oauth/McpAccess';
-import { recentMonths } from '@/lib/format';
-import { InferenceUsageCard } from './InferenceUsageCard';
+import { useAreaPath } from '@/features/support/paths';
 import { ENDPOINTS, EXAMPLE_LABELS, inferenceBaseUrl, inferenceExample, type ExampleKind } from './examples';
 
 const KINDS: ExampleKind[] = ['llm', 'stt', 'tts', 'stream', 'python'];
@@ -101,15 +101,25 @@ function ExamplesCard() {
 }
 
 /**
- * API de inferencia de un cliente: conexion y ejemplos, consumo contra el plan, API keys con su alcance y
- * agentes de IA conectados por MCP.
- * showUsage=false cuando el consumo ya se muestra en otro lado (el detalle del cliente, para el admin).
+ * API de inferencia de un cliente: API keys con su alcance, agentes de IA conectados por MCP, conexion y ejemplos.
+ * El consumo contra el plan (y por key) esta en Reportes > Consumo.
  */
-export function ApiAccess({ clientId, showUsage = true }: { clientId: string; showUsage?: boolean }) {
-  const [month, setMonth] = useState(() => recentMonths(1)[0]);
+export function ApiAccess({ clientId }: { clientId: string }) {
+  const isAdmin = useIsAdmin();
+  const areaPath = useAreaPath();
   return (
     <Stack gap="md">
-      {showUsage && <InferenceUsageCard clientId={clientId} month={month} onMonth={setMonth} />}
+      <Text size="sm" c="dimmed">
+        El consumo de tus keys contra el plan está en{' '}
+        <Anchor
+          component={Link}
+          to={areaPath(`/reports?tab=usage${isAdmin ? `&client=${clientId}` : ''}`)}
+          inherit
+        >
+          Reportes &gt; Consumo
+        </Anchor>
+        .
+      </Text>
       <ApiKeysSection clientId={clientId} />
       <McpAccess clientId={clientId} />
       <ConnectionCard />

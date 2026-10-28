@@ -71,7 +71,7 @@ def _advanced(p, db) -> None:
 def summary(flt: Filter, db: DB):
     """Resumen: consultas por día y canal con las transferencias, KPIs contra el período anterior
     (conversaciones, % de conversión y de objetivo, derivadas, minutos, duración media, rechazadas por el
-    plan, mensajes de WhatsApp) y consumo del plan del mes con su proyección. Todos los planes."""
+    plan, mensajes de WhatsApp). El consumo del plan está en `GET /clients/{id}/usage`. Todos los planes."""
     return service.summary(db, flt)
 
 

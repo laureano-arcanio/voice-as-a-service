@@ -241,6 +241,8 @@ def admit(s: Session, client_id: str, mode: str) -> int | None:
 class MinutesUsage:
     used_seconds: int
     limit_minutes: int | None
+    # A fin de mes, al ritmo del mes en curso; None en un mes pasado o futuro.
+    projected_seconds: float | None = None
 
 
 @dataclass
@@ -264,6 +266,19 @@ class Usage:
     calls_month: CallsUsage
 
 
+def projected_seconds(used: int, start: datetime.datetime, end: datetime.datetime,
+                      now: datetime.datetime) -> float | None:
+    """Lo consumido hasta ahora llevado al fin del periodo, al mismo ritmo (solo para el periodo en curso)."""
+    if not start <= now < end:
+        return None
+    return used * (end - start) / (now - start) if now > start else None
+
+
+def _minutes_usage(used: int, limit: int | None, start: datetime.datetime, end: datetime.datetime,
+                   now: datetime.datetime) -> MinutesUsage:
+    return MinutesUsage(used, limit, projected_seconds(used, start, end, now))
+
+
 def usage(s: Session, client: Client, month: str | None = None) -> Usage:
     now = utcnow()
     limits = limits_service.effective_limits(s, client, now)
@@ -272,8 +287,10 @@ def usage(s: Session, client: Client, month: str | None = None) -> Usage:
     return Usage(
         month=f"{local.year:04d}-{local.month:02d}", period_start=start, period_end=end,
         active_calls=active_calls(s, client.id, now), max_concurrent_calls=limits.max_concurrent_calls,
-        inbound=MinutesUsage(used_seconds(s, client.id, CallMode.entrante, start, end, now), limits.inbound_minutes),
-        outbound=MinutesUsage(used_seconds(s, client.id, CallMode.saliente, start, end, now), limits.outbound_minutes),
+        inbound=_minutes_usage(used_seconds(s, client.id, CallMode.entrante, start, end, now),
+                               limits.inbound_minutes, start, end, now),
+        outbound=_minutes_usage(used_seconds(s, client.id, CallMode.saliente, start, end, now),
+                                limits.outbound_minutes, start, end, now),
         calls_hour=CallsUsage(calls_started(s, client.id, period_start("hour", now)), limits.max_calls_per_hour),
         calls_day=CallsUsage(calls_started(s, client.id, period_start("day", now)), limits.max_calls_per_day),
         calls_month=CallsUsage(calls_started(s, client.id, start, end), limits.max_calls_per_month),

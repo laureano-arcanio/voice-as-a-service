@@ -13,7 +13,7 @@ Hay dos roles, y cada uno trabaja en su área ([`ADMIN_SOPORTE_PLAN.md`](ADMIN_S
   - **Canales:** WhatsApp, Llamadas del agente, Teléfono del equipo y Campañas.
   - **Agenda:** Contactos y Equipo.
   - **Developers:** API keys y Uso de la API.
-  - **Cuenta:** Mi cuenta, Plan y Consumos.
+  - **Cuenta:** Mi cuenta y Plan.
 - **Admin:** administra la plataforma en `/admin/*` (al iniciar sesión va siempre ahí). Su menú:
   Reportes, Conversaciones, Agentes (solo lectura, de todos los clientes), Uso de la API, Clientes, Números,
   Tiers, Cobros y Usuarios. Lo demás (agentes, herramientas, WhatsApp, contactos, campañas, equipo...) no está
@@ -99,7 +99,7 @@ una sola vez). Si el aviso dice que no se pudo mandar, o el link venció, **Usua
 (el sobre de la fila). Te lleva a la ficha del cliente, con **Entrar como el cliente** arriba a la derecha y
 estas pestañas: Consumo y datos, Números, Agentes, Usuarios, Modelos, API keys y Marca blanca.
 
-- **Consumo y datos:** consumo del mes con selector de mes (llamadas activas contra el tope,
+- **Consumo y datos:** el mismo consumo que ve el cliente en Reportes > Consumo, con selector de mes (llamadas activas contra el tope,
   minutos entrantes y salientes, números usados, y las llamadas de la hora, el día y el mes si el tier tiene tope),
   el **consumo de la API** del mes contra el tier (tokens de
   entrada y salida del LLM, minutos de transcripción y de síntesis, pedidos por minuto y el desglose por key;
@@ -296,8 +296,16 @@ alcanza. En la navegación, arriba de todo.
   Playground quedan fuera). En `/admin/reports` se suma el selector de cliente, con **Todos**.
 - **Pestañas:**
   - **Resumen:** consultas por día (llamadas y WhatsApp apiladas) con cuántas terminaron en una
-    transferencia, KPIs (conversaciones, % de conversión, % derivadas, minutos, duración media) y el
-    consumo de minutos del plan con la proyección a fin de mes.
+    transferencia y KPIs (conversaciones, % de conversión y de objetivo con su "6 de 12", % derivadas,
+    minutos con las llamadas finalizadas y fallidas, duración media).
+  - **Consumo** (todos los planes): el estado de la cuenta en un solo lugar, del **mes de facturación** (con selector
+    de mes; no depende de los filtros de período, y el admin elige un cliente). Arriba, una línea de estado:
+    *Todo en orden*, *Cerca de un tope* (desde el 70 %) o *Llegaste a un tope*, y si los minutos van a pasar el
+    tope al ritmo actual. Abajo, las barras de **Llamadas y minutos** (minutos entrantes y salientes con la
+    proyección a fin de mes, llamadas simultáneas, por hora, por día y por mes, y números) y de la **API de
+    inferencia** (tokens de entrada y salida del LLM, minutos de transcripción y de síntesis, pedidos por
+    minuto, y el desglose por API key). La API no cuenta lo que consumen los agentes integrados (llamadas y
+    WhatsApp).
   - **Llamadas:** por día y modo (con las **Directas** como serie propia), mapa de calor por día y hora, por línea
     y por agente, duración, cómo terminaron y llamantes nuevos o que vuelven. Si el equipo usó el teléfono:
     **Por tipo** (con el agente, directas que hace el equipo y entrantes que atiende el equipo: llamadas,
@@ -696,17 +704,9 @@ recibir mensajes: muchos bloqueos bajan la calidad del número y su límite de e
 
 El contestador se detecta por lo que dice (frases como "deje su mensaje"): puede equivocarse con un humano.
 
-### Consumos (cliente)
-
-Consumo del mes con selector de mes, contra los límites del plan: llamadas simultáneas, números, minutos
-entrantes y salientes, y el consumo de la API de inferencia (tokens de entrada y salida del LLM, minutos de
-transcripción y de síntesis, pedidos por minuto y desglose por key). Es la misma información que ve el admin
-en la pestaña Consumo y datos de la ficha del cliente. La API no cuenta lo que consumen los agentes integrados (llamadas y WhatsApp).
-
 ### Mi cuenta (cliente)
 
-- **Consumo del mes:** llamadas activas, minutos entrantes y salientes, y números, cada uno contra
-  su tope.
+- **Consumo:** está en **Reportes > Consumo** (junto con la API de inferencia).
 - **Números:** editás la etiqueta y **quién atiende** cada número: un agente tuyo o el equipo, con sus personas,
   timbre, horario y respaldo (ver [Números de teléfono](#4-números-de-teléfono-números)). Asignar y liberar
   números lo hace el admin.
