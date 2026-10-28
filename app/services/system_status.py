@@ -147,7 +147,10 @@ NOW_QUERIES = {
     # Saturación
     "inf_running": 'vllm:num_requests_running{job=~"llm|stt|tts"}',
     "inf_waiting": 'vllm:num_requests_waiting{job=~"llm|stt|tts"}',
-    "kv_cache": 'vllm:kv_cache_usage_perc{job="llm"}',
+    # Del TTS, la etapa 0 (talker); la 1 (Code2Wav) no se muestra. El STT (Parakeet) no tiene KV cache.
+    "kv_cache": 'vllm:kv_cache_usage_perc{job=~"llm|tts",stage!="1"}',
+    # Total en tokens: va en una etiqueta. vllm-omni (TTS) no publica esta métrica.
+    "kv_config": 'vllm:cache_config_info{job=~"llm|tts"}',
     "calls_active": "sum by (host) (atentina_calls_active)",
     "anura_busy": "atentina_anura_channels_busy", "anura_total": "atentina_anura_channels_total",
     "turn_p95": "atentina_turn_latency_p95_seconds",
@@ -225,6 +228,13 @@ def _bool(v):
     return None if v is None else bool(v)
 
 
+def _float(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
 def _gpus(r, host) -> list[dict]:
     def get(key):
         return {k[1]: v for k, v in _by(r[key], "gpu").items() if k[0] == host}
@@ -289,10 +299,16 @@ def _probes(r, host) -> list[dict]:
 
 
 def _saturation(r, host) -> dict:
-    run, wait = _by(r["inf_running"], "job"), _by(r["inf_waiting"], "job")
-    inference = {job: {"running": run.get((host, job)), "waiting": wait.get((host, job))}
-                 for job in ("llm", "stt", "tts")}
-    return {"inference": inference, "llm_kv_cache_ratio": _one(r["kv_cache"]).get(host),
+    run, wait, kv = _by(r["inf_running"], "job"), _by(r["inf_waiting"], "job"), _by(r["kv_cache"], "job")
+    kv_total = {(s.labels.get("host", ""), s.labels.get("job")): num
+                for s in r["kv_config"] if (num := _float(s.labels.get("kv_cache_size_tokens"))) is not None}
+    inference = {}
+    for job in ("llm", "stt", "tts"):
+        ratio, total = kv.get((host, job)), kv_total.get((host, job))
+        inference[job] = {"running": run.get((host, job)), "waiting": wait.get((host, job)),
+                          "kv_cache_ratio": ratio, "kv_cache_tokens": total,
+                          "kv_cache_used_tokens": round(ratio * total) if ratio is not None and total else None}
+    return {"inference": inference, "llm_kv_cache_ratio": kv.get((host, "llm")),
             "calls_active": _one(r["calls_active"]).get(host),
             "anura_channels_busy": _one(r["anura_busy"]).get(host),
             "anura_channels_total": _one(r["anura_total"]).get(host),

@@ -411,32 +411,44 @@ function SaturationCard({ host: h }: { host: SystemHost }) {
     { name: 'STT', q: sat.inference.stt },
   ];
   return (
-    <Section title="Inferencia" description="Pedidos en curso y en cola: una cola que no baja es saturación.">
-      <Stack gap="sm">
-        <Meter label="KV cache del LLM" ratio={sat.llm_kv_cache_ratio} detail={pct(sat.llm_kv_cache_ratio)} />
-        <Table>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Motor</Table.Th>
-              <Table.Th ta="right">En curso</Table.Th>
-              <Table.Th ta="right">En cola</Table.Th>
+    <Section
+      title="Inferencia"
+      description="Pedidos en curso y en cola: una cola que no baja es saturación. KV cache en tokens (del TTS, el talker: no publica su total; el STT no tiene)."
+    >
+      <Table>
+        <Table.Thead>
+          <Table.Tr>
+            <Table.Th>Motor</Table.Th>
+            <Table.Th ta="right">En curso</Table.Th>
+            <Table.Th ta="right">En cola</Table.Th>
+            <Table.Th ta="right">KV en uso</Table.Th>
+            <Table.Th ta="right">KV total</Table.Th>
+          </Table.Tr>
+        </Table.Thead>
+        <Table.Tbody>
+          {rows.map(({ name, q }) => (
+            <Table.Tr key={name}>
+              <Table.Td>{name}</Table.Td>
+              <Table.Td ta="right" className="mono">
+                {formatNumber(q?.running, 0)}
+              </Table.Td>
+              <Table.Td ta="right" className="mono" c={(q?.waiting ?? 0) > 0 ? 'yellow' : undefined}>
+                {formatNumber(q?.waiting, 0)}
+              </Table.Td>
+              <Table.Td ta="right" className="mono" c={(q?.kv_cache_ratio ?? 0) > 0.9 ? 'yellow' : undefined}>
+                {q?.kv_cache_ratio == null
+                  ? formatNumber(null)
+                  : q.kv_cache_used_tokens == null
+                    ? pct(q.kv_cache_ratio)
+                    : `${formatNumber(q.kv_cache_used_tokens, 0)} (${pct(q.kv_cache_ratio)})`}
+              </Table.Td>
+              <Table.Td ta="right" className="mono">
+                {formatNumber(q?.kv_cache_tokens, 0)}
+              </Table.Td>
             </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {rows.map(({ name, q }) => (
-              <Table.Tr key={name}>
-                <Table.Td>{name}</Table.Td>
-                <Table.Td ta="right" className="mono">
-                  {formatNumber(q?.running, 0)}
-                </Table.Td>
-                <Table.Td ta="right" className="mono" c={(q?.waiting ?? 0) > 0 ? 'yellow' : undefined}>
-                  {formatNumber(q?.waiting, 0)}
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
-      </Stack>
+          ))}
+        </Table.Tbody>
+      </Table>
     </Section>
   );
 }

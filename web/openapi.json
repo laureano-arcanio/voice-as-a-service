@@ -28195,6 +28195,41 @@
        }
       ],
       "title": "Waiting"
+     },
+     "kv_cache_ratio": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Kv Cache Ratio",
+      "description": "KV cache en uso (del TTS, el talker); el STT no tiene"
+     },
+     "kv_cache_tokens": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Kv Cache Tokens",
+      "description": "KV cache total en tokens (el TTS no lo publica)"
+     },
+     "kv_cache_used_tokens": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Kv Cache Used Tokens"
      }
     },
     "type": "object",

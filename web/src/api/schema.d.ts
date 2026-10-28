@@ -9138,6 +9138,18 @@ export interface components {
             running: number | null;
             /** Waiting */
             waiting: number | null;
+            /**
+             * Kv Cache Ratio
+             * @description KV cache en uso (del TTS, el talker); el STT no tiene
+             */
+            kv_cache_ratio?: number | null;
+            /**
+             * Kv Cache Tokens
+             * @description KV cache total en tokens (el TTS no lo publica)
+             */
+            kv_cache_tokens?: number | null;
+            /** Kv Cache Used Tokens */
+            kv_cache_used_tokens?: number | null;
         };
         /** SystemSaturationOut */
         SystemSaturationOut: {

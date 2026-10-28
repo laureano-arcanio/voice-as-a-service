@@ -3067,6 +3067,9 @@ class SystemProbeOut(BaseModel):
 class SystemQueueOut(BaseModel):
     running: float | None
     waiting: float | None
+    kv_cache_ratio: float | None = Field(None, description="KV cache en uso (del TTS, el talker); el STT no tiene")
+    kv_cache_tokens: float | None = Field(None, description="KV cache total en tokens (el TTS no lo publica)")
+    kv_cache_used_tokens: float | None = None
 
 
 class SystemSaturationOut(BaseModel):

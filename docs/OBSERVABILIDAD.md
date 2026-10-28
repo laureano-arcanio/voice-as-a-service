@@ -35,7 +35,7 @@ chequeo sigue avisando por el mismo tema de ntfy.
 - **Uso:** CPU, RAM, cada GPU y su VRAM, disco libre, red.
 - **Saturación,** que dice si algo espera (más útil que el %):
   - presión de CPU, memoria e IO: % del tiempo con tareas esperando; 100 % de CPU con presión 0 está bien;
-  - LLM, TTS y STT: pedidos en curso y en cola; KV cache del LLM (con Gemma, 49.082 tokens para todas las llamadas: el techo más probable);
+  - LLM, TTS y STT: pedidos en curso y en cola; KV cache en uso y total, en tokens, por motor (con Gemma, 63.013 tokens para todas las llamadas desde el arranque del 28-oct-2026: el techo más probable). El total sale de la etiqueta `kv_cache_size_tokens` de `vllm:cache_config_info`; del TTS (talker) solo el %, porque vllm-omni no publica esa métrica; el STT (Parakeet) no tiene KV cache;
   - canales de Anura en uso de 10 y p95 por turno.
 - **Potencia y temperatura:** potencia de cada GPU contra su tope (sin tope, dos 3090 apagaron el
   server el 25-sep-2026), motivo de recorte del reloj (un recorte térmico o por hardware es la señal

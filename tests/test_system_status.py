@@ -51,7 +51,8 @@ NOW = {
     "svc_healthy": [({**H, "service": "app"}, 1)],
     "probe_ok": [({**H, "probe": "LLM", "kind": "interna", "instance": "http://vllm-llm:8000/health"}, 0)],
     "sip": [({**H, "registration": "anura"}, 1)],
-    "inf_waiting": [({**H, "job": "llm"}, 2)], "kv_cache": [({**H, "job": "llm"}, 0.4)],
+    "inf_waiting": [({**H, "job": "llm"}, 2)], "kv_cache": [({**H, "job": "llm"}, 0.4), ({**H, "job": "tts", "stage": "0"}, 0.1)],
+    "kv_config": [({**H, "job": "llm", "kv_cache_size_tokens": "63013"}, 1)],
     "calls_active": [(H, 7)], "anura_busy": [(H, 3)], "anura_total": [(H, 10)],
 }
 ALERTS = [
@@ -115,6 +116,11 @@ def test_now_groups_host_gpus_services_and_alerts(api, admin, prom):
     assert host["probes"][0]["ok"] is False and host["connectivity"]["sip"] == [{"registration": "anura", "ok": True}]
     sat = host["saturation"]
     assert sat["inference"]["llm"]["waiting"] == 2 and sat["llm_kv_cache_ratio"] == 0.4
+    # KV cache por motor: el total del LLM sale de la etiqueta; el TTS no lo publica y el STT no tiene
+    llm, tts, stt = (sat["inference"][j] for j in ("llm", "tts", "stt"))
+    assert (llm["kv_cache_tokens"], llm["kv_cache_used_tokens"]) == (63013, 25205)
+    assert (tts["kv_cache_ratio"], tts["kv_cache_tokens"], tts["kv_cache_used_tokens"]) == (0.1, None, None)
+    assert stt["kv_cache_ratio"] is None
     assert (sat["calls_active"], sat["anura_channels_busy"], sat["anura_channels_total"]) == (7, 3, 10)
     # Las críticas primero y sin la alerta de prueba
     assert [a["name"] for a in out["alerts"]] == ["ContenedorCaido", "InferenciaConCola"]

@@ -88,8 +88,14 @@ const HOST: SystemHost = {
   ],
   saturation: {
     inference: {
-      llm: { running: 3, waiting: 2 },
-      tts: { running: 1, waiting: 0 },
+      llm: {
+        running: 3,
+        waiting: 2,
+        kv_cache_ratio: 0.4,
+        kv_cache_tokens: 63013,
+        kv_cache_used_tokens: 25205,
+      },
+      tts: { running: 1, waiting: 0, kv_cache_ratio: 0.1 },
       stt: { running: 0, waiting: 0 },
     },
     llm_kv_cache_ratio: 0.4,
@@ -144,6 +150,8 @@ describe('SystemPage', () => {
     expect(screen.getByText('Caído')).toBeInTheDocument();
     expect(screen.getByText('Sin registro')).toBeInTheDocument();
     expect(screen.getByText('4 días')).toBeInTheDocument();
+    expect(screen.getByText('25.205 (40 %)')).toBeInTheDocument();
+    expect(screen.getByText('63.013')).toBeInTheDocument();
     expect(screen.getByText('encendido hace 3 d 4 h', { exact: false })).toBeInTheDocument();
   });
 
