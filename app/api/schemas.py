@@ -13,6 +13,8 @@ from pydantic import (
     model_validator,
 )
 
+from ..config import settings
+
 # La base guarda UTC sin zona; la API la explicita (2026-09-29T13:57:52+00:00) para
 # que el navegador no la tome como hora local.
 UTCDateTime = Annotated[datetime.datetime,
@@ -1436,7 +1438,7 @@ class VoiceOut(BaseModel):
 
 class TtsPreviewIn(BaseModel):
     voice: str
-    text: str = Field(max_length=600)
+    text: str = Field(max_length=settings.tts_preview_max_chars)
     format: Literal["wav", "pcm"] = Field(
         default="wav", description="wav: archivo completo. pcm: crudo (16 bits, mono, 24 kHz) mientras se sintetiza")
 
@@ -1573,7 +1575,7 @@ class DemoCallResult(BaseModel):
 
 class DemoTtsIn(BaseModel):
     voice: str = Field(max_length=32)
-    text: str = Field(min_length=1, max_length=600)
+    text: str = Field(min_length=1, max_length=settings.tts_preview_max_chars)
     format: Literal["wav", "pcm"] = Field(
         default="wav", description="wav: archivo completo. pcm: crudo (16 bits, mono, 24 kHz) mientras se sintetiza")
 
@@ -2291,6 +2293,9 @@ class ApiRequestOut(BaseModel):
     status: Literal["ok", "cut", "error", "rejected"] = Field(
         description="ok; cut: stream cortado (se cobra lo entregado); error: del motor o del pedido; "
                     "rejected: cupo del mes agotado o motor fuera del plan")
+    source: Literal["api", "voice_test_panel", "voice_test_api", "voice_test_landing"] = Field(
+        description="api: la API de inferencia. voice_test_*: prueba de voz del panel, por API key o MCP, o de "
+                    "la landing (en el cliente de la demo). Las pruebas no suman al cupo del plan")
     http_status: int
     error_code: str | None
     duration_ms: int = Field(description="Hasta el último byte (en un stream, hasta que terminó o se cortó)")

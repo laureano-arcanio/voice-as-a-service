@@ -1138,6 +1138,7 @@ export interface paths {
          * Tts Preview
          * @description Sintetiza el texto con la voz pedida, directo contra el TTS. `format=wav` (default): el WAV completo.
          *     `format=pcm`: audio crudo (16 bits, mono, 24 kHz) que se transmite mientras se sintetiza.
+         *     Queda en los pedidos de la API del cliente como prueba de voz; no suma al cupo de TTS del plan.
          */
         post: operations["tts_preview_api_v1_tts_preview_post"];
         delete?: never;
@@ -2742,8 +2743,8 @@ export interface paths {
         };
         /**
          * List Api Requests
-         * @description Pedidos a la API de inferencia (LLM, STT, TTS) del mas nuevo al mas viejo, con los totales del
-         *     filtro. Sin contenido: la plataforma no guarda prompts, audios ni textos.
+         * @description Pedidos a la API de inferencia (LLM, STT, TTS) y pruebas de voz, del mas nuevo al mas viejo, con los
+         *     totales del filtro. Sin contenido: la plataforma no guarda prompts, audios ni textos.
          */
         get: operations["list_api_requests_api_v1_api_requests_get"];
         put?: never;
@@ -4196,6 +4197,12 @@ export interface components {
              * @enum {string}
              */
             status: "ok" | "cut" | "error" | "rejected";
+            /**
+             * Source
+             * @description api: la API de inferencia. voice_test_*: prueba de voz del panel, por API key o MCP, o de la landing (en el cliente de la demo). Las pruebas no suman al cupo del plan
+             * @enum {string}
+             */
+            source: "api" | "voice_test_panel" | "voice_test_api" | "voice_test_landing";
             /** Http Status */
             http_status: number;
             /** Error Code */
@@ -16379,6 +16386,8 @@ export interface operations {
                 kind?: ("llm" | "stt" | "tts")[] | null;
                 /** @description Uno o varios */
                 status?: ("ok" | "cut" | "error" | "rejected")[] | null;
+                /** @description api (inferencia) o prueba de voz; uno o varios */
+                source?: ("api" | "voice_test_panel" | "voice_test_api" | "voice_test_landing")[] | null;
                 stream?: boolean | null;
                 date_from?: string | null;
                 date_to?: string | null;

@@ -503,7 +503,7 @@
    "name": "preview_voice",
    "toolset": "agents",
    "title": "Escuchar una voz",
-   "description": "Sintetiza un texto corto con una voz del TTS (ver list_voices) y devuelve el audio.",
+   "description": "Sintetiza un texto corto (hasta 200 caracteres) con una voz del TTS (ver list_voices) y devuelve el audio. Queda en el uso de la API como prueba de voz y no se descuenta del plan.",
    "kind": "lectura",
    "features": [],
    "oauth": false,

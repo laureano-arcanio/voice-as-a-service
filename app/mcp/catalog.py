@@ -437,7 +437,8 @@ _WRITE: tuple[Tool, ...] = (
          "Borra un agente. Para dejar de usarlo sin perderlo, mejor archivarlo con update_agent.",
          method="DELETE", path="/agents/{agent_id}", params=_AGENT, required=("agent_id",), destructive=True),
     Tool("preview_voice", "agents", "Escuchar una voz",
-         "Sintetiza un texto corto con una voz del TTS (ver list_voices) y devuelve el audio.", method="POST",
+         "Sintetiza un texto corto (hasta 200 caracteres) con una voz del TTS (ver list_voices) y devuelve el "
+         "audio. Queda en el uso de la API como prueba de voz y no se descuenta del plan.", method="POST",
          path="/tts/preview", body="TtsPreviewIn", omit=("format",), read_only=True, audio=True),
     Tool("test_agent_start", "agents", "Probar un agente por texto",
          "Empieza una conversación de prueba por texto con un agente (no llama a nadie ni gasta minutos). "
@@ -799,8 +800,10 @@ _ADMIN: tuple[Tool, ...] = (
          params={**_CLIENT, **_DATE_RANGE, "mode": _s("Solo este canal o tipo."), **_PAGE},
          required=("client_id",)),
     Tool("admin_list_api_requests", "admin", "Pedidos a la API de inferencia",
-         "Los pedidos a la API de inferencia, con su consumo y su estado.", path="/api-requests",
+         "Los pedidos a la API de inferencia y las pruebas de voz, con su consumo y su estado.", path="/api-requests",
          params={"client_id": _s("Solo los de este cliente."), "kind": _s("llm, stt o tts.", enum=["llm", "stt", "tts"]),
+                 "source": _s("api o una prueba de voz.", enum=["api", "voice_test_panel", "voice_test_api",
+                                                                 "voice_test_landing"]),
                  "status": _s("ok, cut, error o rejected."), "date_from": _DATE_RANGE["date_from"],
                  "date_to": _DATE_RANGE["date_to"], **_PAGE}),
     Tool("admin_get_mcp_usage", "admin", "Uso del MCP",

@@ -46,6 +46,8 @@ class Settings(BaseSettings):
     api_max_body_bytes: int = 1_048_576
     # Uso de GPU por usuario o API key, por hora.
     rate_tts_preview_per_hour: int = 60
+    # Prueba de voz (panel, MCP y landing): texto corto para escuchar una voz, no para generar audio gratis.
+    tts_preview_max_chars: int = 200
     rate_conversations_per_hour: int = 60
     rate_turns_per_hour: int = 600
     # Unico cliente (slug) que puede pedir llamadas de loadtest, ademas de los admins.
@@ -141,7 +143,6 @@ class Settings(BaseSettings):
     demo_ip_calls_per_day: int = 10
     demo_ip_tts_per_hour: int = 30
     demo_ip_sessions_per_hour: int = 20
-    demo_tts_max_chars: int = 300
 
     # --- Link publico para llamar a un agente (docs/features/LINK_LLAMADA.md) ---
     # Base de las URLs (https://llamar.atentina.com.ar): con ese Host, app sirve solo la pagina del
@@ -264,7 +265,7 @@ class Settings(BaseSettings):
     wa_audio_reply: Literal["mirror", "never", "always"] = "mirror"
     wa_audio_max_bytes: int = 4 * 1024 * 1024  # Meta acepta hasta 16 MB; 4 MB = mp3 de 128 kbps y 120 s, holgado
     wa_audio_max_seconds: float = 120.0
-    wa_audio_max_reply_chars: int = 600  # respuesta mas larga: sale en texto (MAX_PREVIEW_CHARS de la prueba de voz)
+    wa_audio_max_reply_chars: int = 600  # respuesta mas larga: sale en texto
     wa_audio_concurrency: int = 4  # pedidos simultaneos desde WhatsApp a cada uno (STT, TTS); guarda, sin medir
     wa_audio_voice_flag: bool = True  # "voice": true al enviar: se ve como nota de voz
     wa_audio_too_long_reply: str = "Ese audio es muy largo para mí. ¿Me mandás uno más corto o me lo escribís?"

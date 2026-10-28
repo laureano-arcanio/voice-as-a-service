@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.orm import sessionmaker
 
 from ... import legal as legal_docs
 from ...billing import mp
@@ -65,10 +66,11 @@ def call_result(conversation_id: str, creds: Bearer, db: DB, definitions: Defini
 
 @router.post("/tts", response_class=StreamingResponse,
              responses={200: {"content": {"audio/wav": {}, "audio/pcm": {}}}})
-async def synthesize(body: DemoTtsIn, request: Request, _: DemoSession):
+async def synthesize(body: DemoTtsIn, request: Request, _: DemoSession, db: DB):
     """`format=wav` (default): el archivo completo. `format=pcm`: audio crudo (16 bits, mono, 24 kHz) que se
     transmite mientras se sintetiza, para reproducirlo con Web Audio sin esperar."""
-    stream = await service.synthesize(body.voice, body.text, client_ip(request), body.format)
+    stream = await service.synthesize(sessionmaker(bind=db.get_bind()), body.voice, body.text, client_ip(request),
+                                      body.format)
     return StreamingResponse(stream, media_type="audio/pcm" if body.format == "pcm" else "audio/wav",
                              headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
 

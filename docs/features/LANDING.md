@@ -72,7 +72,7 @@ la demo responde 503.
 | `POST /api/v1/demo/sessions` | token de Turnstile | Valida con `siteverify` y devuelve una sesión JWT de `DEMO_SESSION_MINUTES` (30). |
 | `POST /api/v1/demo/calls` | sesión | `{agent, voice?}`: llamada `prueba` con un agente de `DEMO_AGENTS` del cliente `DEMO_CLIENT`. Devuelve `livekit_url`, token del participante y `result_token`. |
 | `GET /api/v1/demo/calls/{id}` | `result_token` | Estado, `outcome`, datos extraídos con su `label` y transcripción. |
-| `POST /api/v1/demo/tts` | sesión | `{voice, text, format}`, hasta `DEMO_TTS_MAX_CHARS` (300). `pcm` (lo que usa la landing): 16 bits mono 24 kHz en streaming; `wav` (default): archivo completo. |
+| `POST /api/v1/demo/tts` | sesión | `{voice, text, format}`, hasta `TTS_PREVIEW_MAX_CHARS` (200, el mismo de la prueba del dashboard). Lo que llega al motor queda en Uso de la API del cliente Atentina como `voice_test_landing`. `pcm` (lo que usa la landing): 16 bits mono 24 kHz en streaming; `wav` (default): archivo completo. |
 | `POST /api/v1/demo/contact` | sesión | Formulario de contacto. 204. |
 | `GET /api/v1/demo/plans` | — | Planes y precios públicos. |
 | `POST /api/v1/demo/signup/check`, `/signup` | Turnstile | Registro (ver arriba). |

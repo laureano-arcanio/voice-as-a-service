@@ -296,8 +296,9 @@ Si el cliente está desactivado, sus números de WhatsApp tampoco responden.
   - La pantalla **API keys** (título "API") muestra además el consumo del mes contra el plan (tokens, minutos, pedidos por minuto, y por key),
     la URL base y ejemplos.
 - **Uso de la API** (`Developers > Uso de la API` del cliente y `/admin/inference-requests` del admin): cada pedido a
-  la API de inferencia, con fecha, key, tipo, estado, duración y consumo, y los totales del filtro. Filtros: API
-  key, tipo, estado, streaming y período; la del admin suma la columna y el filtro de cliente y los datos técnicos.
+  la API de inferencia y cada prueba de voz (del panel, por API o MCP, y de la landing en el cliente Atentina),
+  con fecha, origen, key, tipo, estado, duración y consumo, y los totales del filtro. Las pruebas de voz no se
+  descuentan del plan. Filtros: API key, origen, tipo, estado, streaming y período; la del admin suma la columna y el filtro de cliente y los datos técnicos.
   Desde la tarjeta de consumo, **Ver los pedidos** abre esta pantalla filtrada por el cliente.
   - **Revocar** la anula en el acto.
 
@@ -579,7 +580,8 @@ herramientas (`max_tools`); las de código, si incluye `code_tools`.
 
 ### Voces
 
-Catálogo de las 41 voces del TTS, con género, WER y velocidad (car/s), filtrable, y la prueba de voz.
+Catálogo de las 41 voces del TTS, con género, WER y velocidad (car/s), filtrable, y la prueba de voz (hasta 200
+caracteres; queda en Uso de la API y no se descuenta del plan).
 La voz por defecto de un agente es `agent.voice` en su definición.
 
 ### WhatsApp (cliente)

@@ -156,6 +156,14 @@ export const API_KIND: Record<string, Label> = {
   tts: { label: 'Síntesis de voz', color: 'gray' },
 };
 
+// De dónde viene el pedido: la API de inferencia o una prueba de voz (no se descuenta del plan).
+export const API_SOURCE: Record<string, Label> = {
+  api: { label: 'API', color: 'gray' },
+  voice_test_panel: { label: 'Prueba de voz · panel', color: 'blue' },
+  voice_test_api: { label: 'Prueba de voz · API/MCP', color: 'blue' },
+  voice_test_landing: { label: 'Prueba de voz · landing', color: 'blue' },
+};
+
 // Sistema (/admin/system): gravedad de una alerta y motivos de recorte del reloj de una GPU.
 export const ALERT_SEVERITY: Record<string, Label> = {
   critical: { label: 'Crítica', color: 'red' },

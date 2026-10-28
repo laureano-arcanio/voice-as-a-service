@@ -25,6 +25,7 @@ const BASE: ApiRequest = {
   characters: null,
   voice: null,
   response_format: null,
+  source: 'api',
 };
 
 const PAGE: ApiRequestPage = {
@@ -57,8 +58,24 @@ const PAGE: ApiRequestPage = {
       input_tokens: null,
       output_tokens: null,
     },
+    {
+      ...BASE,
+      id: 'r4',
+      kind: 'tts',
+      source: 'voice_test_panel',
+      api_key_id: null,
+      api_key_name: null,
+      api_key_prefix: null,
+      voice: 'sofia',
+      duration_ms: 700,
+      ttfb_ms: 80,
+      input_tokens: null,
+      output_tokens: null,
+      audio_seconds: 3.1,
+      characters: 60,
+    },
   ],
-  total: 3,
+  total: 4,
   summary: {
     requests: 3,
     by_status: { ok: 2, cut: 0, error: 0, rejected: 1 },
@@ -95,6 +112,8 @@ describe('ApiRequestsPage', () => {
     expect(screen.getByText('824 ms')).toBeInTheDocument();
     expect(screen.getByText('10,2 s')).toBeInTheDocument();
     expect(screen.getByText('de audio · 194 caracteres')).toBeInTheDocument();
+    // La prueba de voz del panel, sin API key: el origen la aclara.
+    expect(within(screen.getByRole('table')).getByText('Prueba de voz · panel')).toBeInTheDocument();
     expect(within(screen.getByRole('table')).getByText('Rechazado por el plan')).toBeInTheDocument();
     expect(screen.queryByText('Primer byte')).not.toBeInTheDocument();
     expect(screen.queryByText('429 api_stt_minutes')).not.toBeInTheDocument();
@@ -105,13 +124,14 @@ describe('ApiRequestsPage', () => {
 
   it('el admin ve el cliente, el primer byte y el código de error, y filtra por la URL', async () => {
     const urls = stubApi();
-    renderWithProviders(<ApiRequestsPage />, { me: ADMIN, path: '/?kind=tts&status=error&range=1' });
+    renderWithProviders(<ApiRequestsPage />, { me: ADMIN, path: '/?kind=tts&status=error&source=voice_test_landing&range=1' });
     expect(await screen.findByText('429 api_stt_minutes')).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Cliente' })).toBeInTheDocument();
     expect(screen.getByText('32 ms')).toBeInTheDocument();
     const list = urls.find((u) => u.pathname === '/api/v1/api-requests')!;
     expect(list.searchParams.getAll('kind')).toEqual(['tts']);
     expect(list.searchParams.getAll('status')).toEqual(['error']);
+    expect(list.searchParams.getAll('source')).toEqual(['voice_test_landing']);
     expect(list.searchParams.get('date_from')).toBe(list.searchParams.get('date_to'));
   });
 });

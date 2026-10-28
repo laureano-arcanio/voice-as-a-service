@@ -7,10 +7,11 @@ import httpx
 import pytest
 
 from app.config import settings
+from app.models import ApiRequest, ApiUsageDaily, Client
 from app.services import tts
 
 from .test_api import V1 as API  # noqa: F401  (admin: fixture)
-from .test_api import admin
+from .test_api import admin, client_user, make_client
 from .test_demo import V1 as DEMO
 from .test_demo import landing, session  # noqa: F401  (landing: fixture)
 
@@ -124,6 +125,46 @@ def test_pcm_validates_voice_and_text_before_the_engine():
 
     from app.services.errors import Invalid
 
-    for voice, text in (("vivian", "Hola"), ("default", "Hola"), ("sofia", "  "), ("sofia", "a" * 601)):
+    for voice, text in (("vivian", "Hola"), ("default", "Hola"), ("sofia", "  "), ("sofia", "a" * (settings.tts_preview_max_chars + 1))):
         with pytest.raises(Invalid):
             asyncio.run(tts.preview_pcm(voice, text))
+
+
+def _voice_tests(api) -> list[ApiRequest]:
+    with api.sessions() as s:
+        return s.query(ApiRequest).order_by(ApiRequest.created_at).all()
+
+
+def test_dashboard_preview_is_logged_as_a_voice_test_without_using_the_plan(api, admin, engine):
+    """La prueba del panel queda en los pedidos de la API del cliente, pero no en el cupo (api_usage_daily)."""
+    client = make_client(admin)
+    ana = client_user(api, admin, client)
+    assert ana.post(f"{API}/tts/preview", json={"voice": "Sofia", "text": " Hola ", "format": "pcm"}).status_code == 200
+    [row] = _voice_tests(api)
+    assert (row.client_id, row.api_key_id, row.source, row.kind, row.status) == \
+        (client["id"], None, tts.SOURCE_PANEL, "tts", "ok")
+    assert row.voice == "sofia" and row.characters == 4 and row.stream is True
+    assert row.audio_seconds == round(len(b"".join(engine.chunks)) / tts.BYTES_PER_SECOND, 3)
+    with api.sessions() as s:
+        assert s.query(ApiUsageDaily).count() == 0
+    r = ana.get(f"{API}/api-requests", params={"source": tts.SOURCE_PANEL})
+    assert r.json()["total"] == 1 and r.json()["items"][0]["source"] == tts.SOURCE_PANEL
+    assert ana.get(f"{API}/api-requests", params={"source": "api"}).json()["total"] == 0
+
+
+def test_preview_text_is_capped(api, admin, engine):
+    r = admin.post(f"{API}/tts/preview", json={"voice": "sofia", "text": "a" * (settings.tts_preview_max_chars + 1)})
+    assert r.status_code == 422 and not engine and not _voice_tests(api)
+
+
+def test_landing_voice_test_is_logged_in_the_demo_client_once(landing, engine):
+    """Lo que llega al motor queda en el cliente de la demo como prueba de la landing; el cache no."""
+    headers = session(landing)
+    body = {"voice": "sofia", "text": "Hola, te llamo por tu turno.", "format": "pcm"}
+    for _ in range(2):
+        assert landing.client.post(f"{DEMO}/tts", json=body, headers=headers).status_code == 200
+    [row] = _voice_tests(landing)
+    with landing.sessions() as s:
+        demo_client = s.query(Client).filter_by(slug=settings.demo_client).one()
+    assert (row.client_id, row.source, row.characters, row.status) == \
+        (demo_client.id, tts.SOURCE_LANDING, len(body["text"]), "ok")

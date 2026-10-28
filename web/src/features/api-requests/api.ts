@@ -5,12 +5,14 @@ import { BROWSER_TZ } from '@/features/calls/api';
 
 export type ApiKind = 'llm' | 'stt' | 'tts';
 export type ApiRequestStatus = 'ok' | 'cut' | 'error' | 'rejected';
+export type ApiSource = 'api' | 'voice_test_panel' | 'voice_test_api' | 'voice_test_landing';
 
 export interface ApiRequestParams {
   client_id?: string;
   api_key_id?: string;
   kind?: ApiKind[];
   status?: ApiRequestStatus[];
+  source?: ApiSource[];
   stream?: boolean;
   date_from?: string;
   date_to?: string;

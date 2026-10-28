@@ -21,7 +21,8 @@ const {
 const ordered = [...(all ? allVoices : voices)].sort((a, b) => Number(b.id === selected) - Number(a.id === selected));
 const visible = ordered.map((v, i) => ({ ...v, more: i >= 6 }));
 const first = visible[0]!;
-const MAX_CHARS = 300;
+// TTS_PREVIEW_MAX_CHARS de la API (app/config.py).
+const MAX_CHARS = 200;
 ---
 
 <section class="border-b border-line py-12 min-[901px]:py-[76px]" id="voces">

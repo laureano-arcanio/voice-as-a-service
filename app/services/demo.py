@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 import httpx
 import jwt
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from ..agents.definitions import DefinitionSource
 from ..config import settings
@@ -208,11 +208,14 @@ def _cache_put(key: tuple[str, str, str], audio: bytes) -> None:
         _tts_cache.popitem(last=False)
 
 
-async def synthesize(voice: str, text: str, ip: str, audio_format: str = "wav") -> AsyncIterator[bytes]:
-    """wav: el archivo completo. pcm: crudo (16 bits, mono, 24 kHz) a medida que se sintetiza."""
+async def synthesize(sessions: sessionmaker[Session], voice: str, text: str, ip: str,
+                     audio_format: str = "wav") -> AsyncIterator[bytes]:
+    """wav: el archivo completo. pcm: crudo (16 bits, mono, 24 kHz) a medida que se sintetiza.
+    Lo que llega al motor queda en los pedidos de la API del cliente de la demo, como prueba de la landing;
+    lo que sale del cache no (no usa el motor)."""
     text = " ".join(text.split())
-    if len(text) > settings.demo_tts_max_chars:
-        raise Invalid(f"El texto puede tener hasta {settings.demo_tts_max_chars} caracteres")
+    if len(text) > settings.tts_preview_max_chars:
+        raise Invalid(f"El texto puede tener hasta {settings.tts_preview_max_chars} caracteres")
     key = (voice.strip().lower(), text, audio_format)
     limiter.consume(f"tts:{client_key(ip)}", [Limit(settings.demo_ip_tts_per_hour, HOUR)],
                     "Llegaste al límite de pruebas de voz. Probá más tarde.")
@@ -224,7 +227,14 @@ async def synthesize(voice: str, text: str, ip: str, audio_format: str = "wav") 
             yield cached
 
         return replay()
-    stream = await (tts.preview_pcm if audio_format == "pcm" else tts.preview)(key[0], key[1])
+    start = (tts.preview_pcm if audio_format == "pcm" else tts.preview)(key[0], key[1])
+    with sessions() as s:
+        client_id = s.scalar(select(Client.id).where(Client.slug == settings.demo_client))
+    if client_id is None:
+        stream = await start
+    else:
+        stream = await tts.tracked(start, sessions, client_id=client_id, key_id=None, source=tts.SOURCE_LANDING,
+                                   voice=key[0], characters=len(text), audio_format=audio_format)
 
     async def caching() -> AsyncIterator[bytes]:
         chunks = []

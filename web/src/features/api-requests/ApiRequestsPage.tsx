@@ -20,8 +20,8 @@ import { EmptyState, ErrorAlert } from '@/components/QueryState';
 import { useCurrentUser, useIsAdmin } from '@/features/auth/api';
 import { useApiKeys, useClients } from '@/features/clients/api';
 import { formatDate, formatDateTimeLong, formatMs, formatNumber, lastDays, toIsoDate } from '@/lib/format';
-import { API_KIND, API_REQUEST_STATUS } from '@/lib/labels';
-import { useApiRequests, type ApiKind, type ApiRequestStatus } from './api';
+import { API_KIND, API_REQUEST_STATUS, API_SOURCE } from '@/lib/labels';
+import { useApiRequests, type ApiKind, type ApiRequestStatus, type ApiSource } from './api';
 
 export const PAGE_SIZE = 50;
 
@@ -52,6 +52,7 @@ function useFilters() {
     key: params.get('key'),
     kind: params.get('kind') as ApiKind | null,
     status: params.get('status') as ApiRequestStatus | null,
+    source: params.get('source') as ApiSource | null,
     stream: params.get('stream'),
     range,
     from: params.get('from'),
@@ -123,7 +124,7 @@ function Summary({ summary }: { summary: ApiRequestPage['summary'] }) {
   );
 }
 
-/** Lo que se descontó del plan: tokens del LLM o segundos de audio. */
+/** Lo que se descontó del plan: tokens del LLM o segundos de audio (las pruebas de voz no se descuentan). */
 export function Consumption({ r }: { r: ApiRequest }) {
   if (r.kind === 'llm') {
     if (r.input_tokens == null && r.output_tokens == null) return <Dash />;
@@ -201,7 +202,7 @@ function RequestsTable({
               <Table.Tr>
                 <Table.Th>Fecha</Table.Th>
                 {showClient && <Table.Th>Cliente</Table.Th>}
-                <Table.Th>API key</Table.Th>
+                <Table.Th>Origen</Table.Th>
                 <Table.Th>Tipo</Table.Th>
                 <Table.Th>Estado</Table.Th>
                 <Table.Th ta="right">Duración</Table.Th>
@@ -217,7 +218,10 @@ function RequestsTable({
                   </Table.Td>
                   {showClient && <Table.Td>{r.client_name}</Table.Td>}
                   <Table.Td>
-                    {r.api_key_name ?? <Dash />}
+                    {r.source !== 'api' && (
+                      <Badge color={API_SOURCE[r.source].color}>{API_SOURCE[r.source].label}</Badge>
+                    )}
+                    {r.api_key_name ?? (r.source === 'api' && <Dash />)}
                     {r.api_key_prefix && (
                       <Text size="xs" c="dimmed" className="mono">
                         {r.api_key_prefix}…
@@ -263,8 +267,8 @@ function RequestsTable({
   );
 }
 
-/** Pedidos a la API de inferencia (LLM, STT y TTS por API key), uno por uno: el admin ve los de
- * todos los clientes; el cliente, los suyos. No incluye los agentes integrados. */
+/** Pedidos a la API de inferencia (LLM, STT y TTS por API key) y pruebas de voz, uno por uno: el admin ve
+ * los de todos los clientes; el cliente, los suyos. No incluye los agentes integrados. */
 export function ApiRequestsPage() {
   const isAdmin = useIsAdmin();
   const me = useCurrentUser();
@@ -278,6 +282,7 @@ export function ApiRequestsPage() {
     api_key_id: filters.key ?? undefined,
     kind: filters.kind ? [filters.kind] : undefined,
     status: filters.status ? [filters.status] : undefined,
+    source: filters.source ? [filters.source] : undefined,
     stream: filters.stream == null ? undefined : filters.stream === 'true',
     date_from: dates.from,
     date_to: dates.to,
@@ -289,7 +294,7 @@ export function ApiRequestsPage() {
     <Stack gap="md">
       <PageHeader
         title="Uso de la API"
-        description={`Cada pedido a la API de LLM, transcripción y síntesis de voz, con su duración y consumo, del ${formatDate(`${dates.from}T00:00:00`)} al ${formatDate(`${dates.to}T00:00:00`)}. No incluye las llamadas ni WhatsApp.`}
+        description={`Cada pedido a la API de LLM, transcripción y síntesis de voz, con su duración y consumo, del ${formatDate(`${dates.from}T00:00:00`)} al ${formatDate(`${dates.to}T00:00:00`)}. Incluye las pruebas de voz del panel y la landing, que no se descuentan del plan. No incluye las llamadas ni WhatsApp.`}
       />
       <Card>
         <Group gap="sm" align="flex-end" wrap="wrap">
@@ -330,6 +335,14 @@ export function ApiRequestsPage() {
             onChange={(v) => update({ kind: (v || null) as ApiKind | null })}
             allowDeselect={false}
             w={170}
+          />
+          <Select
+            label="Origen"
+            data={options(API_SOURCE, 'Todos')}
+            value={filters.source ?? ''}
+            onChange={(v) => update({ source: (v || null) as ApiSource | null })}
+            allowDeselect={false}
+            w={210}
           />
           <Select
             label="Estado"

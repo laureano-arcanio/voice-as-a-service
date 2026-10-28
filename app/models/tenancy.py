@@ -307,3 +307,6 @@ class ApiRequest(IdMixin, Base):
     characters: Mapped[int | None] = mapped_column(Integer, nullable=True)   # texto del TTS
     voice: Mapped[str | None] = mapped_column(String(64), nullable=True)
     response_format: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    # api (la de inferencia) o una prueba de voz: voice_test_panel, voice_test_api (key o MCP),
+    # voice_test_landing (en el cliente de la demo). Las pruebas no suman al cupo del plan.
+    source: Mapped[str] = mapped_column(String(24), default="api", server_default="api")

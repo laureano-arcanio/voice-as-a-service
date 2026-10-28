@@ -242,7 +242,7 @@ def test_tts_is_cached_and_limited(landing, monkeypatch):
         r = landing.client.post(f"{V1}/tts", json=body, headers=headers)
         assert r.status_code == 200 and r.content == b"RIFFdata"
     assert requests == [("sofia", "Hola, te llamo por tu turno.")]
-    long_text = {"voice": "sofia", "text": "a" * (settings.demo_tts_max_chars + 1)}
+    long_text = {"voice": "sofia", "text": "a" * (settings.tts_preview_max_chars + 1)}
     assert landing.client.post(f"{V1}/tts", json=long_text, headers=headers).status_code == 422
     assert landing.client.post(f"{V1}/tts", json=body, headers=headers).status_code == 200
     assert landing.client.post(f"{V1}/tts", json=body, headers=headers).status_code == 429

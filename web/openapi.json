@@ -3716,7 +3716,7 @@
      "voices"
     ],
     "summary": "Tts Preview",
-    "description": "Sintetiza el texto con la voz pedida, directo contra el TTS. `format=wav` (default): el WAV completo.\n`format=pcm`: audio crudo (16 bits, mono, 24 kHz) que se transmite mientras se sintetiza.",
+    "description": "Sintetiza el texto con la voz pedida, directo contra el TTS. `format=wav` (default): el WAV completo.\n`format=pcm`: audio crudo (16 bits, mono, 24 kHz) que se transmite mientras se sintetiza.\nQueda en los pedidos de la API del cliente como prueba de voz; no suma al cupo de TTS del plan.",
     "operationId": "tts_preview_api_v1_tts_preview_post",
     "requestBody": {
      "content": {
@@ -9064,7 +9064,7 @@
      "inference"
     ],
     "summary": "List Api Requests",
-    "description": "Pedidos a la API de inferencia (LLM, STT, TTS) del mas nuevo al mas viejo, con los totales del\nfiltro. Sin contenido: la plataforma no guarda prompts, audios ni textos.",
+    "description": "Pedidos a la API de inferencia (LLM, STT, TTS) y pruebas de voz, del mas nuevo al mas viejo, con los\ntotales del filtro. Sin contenido: la plataforma no guarda prompts, audios ni textos.",
     "operationId": "list_api_requests_api_v1_api_requests_get",
     "security": [
      {
@@ -9156,6 +9156,33 @@
        "title": "Status"
       },
       "description": "Uno o varios"
+     },
+     {
+      "name": "source",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "array",
+         "items": {
+          "enum": [
+           "api",
+           "voice_test_panel",
+           "voice_test_api",
+           "voice_test_landing"
+          ],
+          "type": "string"
+         }
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "api (inferencia) o prueba de voz; uno o varios",
+       "title": "Source"
+      },
+      "description": "api (inferencia) o prueba de voz; uno o varios"
      },
      {
       "name": "stream",
@@ -14945,6 +14972,17 @@
       "title": "Status",
       "description": "ok; cut: stream cortado (se cobra lo entregado); error: del motor o del pedido; rejected: cupo del mes agotado o motor fuera del plan"
      },
+     "source": {
+      "type": "string",
+      "enum": [
+       "api",
+       "voice_test_panel",
+       "voice_test_api",
+       "voice_test_landing"
+      ],
+      "title": "Source",
+      "description": "api: la API de inferencia. voice_test_*: prueba de voz del panel, por API key o MCP, o de la landing (en el cliente de la demo). Las pruebas no suman al cupo del plan"
+     },
      "http_status": {
       "type": "integer",
       "title": "Http Status"
@@ -15058,6 +15096,7 @@
      "kind",
      "stream",
      "status",
+     "source",
      "http_status",
      "error_code",
      "duration_ms",
@@ -20247,7 +20286,7 @@
      },
      "text": {
       "type": "string",
-      "maxLength": 600,
+      "maxLength": 200,
       "minLength": 1,
       "title": "Text"
      },
@@ -30303,7 +30342,7 @@
      },
      "text": {
       "type": "string",
-      "maxLength": 600,
+      "maxLength": 200,
       "title": "Text"
      },
      "format": {

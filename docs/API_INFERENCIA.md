@@ -261,16 +261,26 @@ Cuerpo `{"detail": "texto para mostrar", "code": "codigo_estable", "errors": []}
 ### Pedido por pedido
 
 - **Dashboard:** **Uso de la API** (`/inference-requests`): el cliente ve los suyos y el admin los de todos, con
-  filtros por cliente, API key, tipo (LLM, STT, TTS), estado, streaming y período, y totales del filtro
+  filtros por cliente, API key, origen, tipo (LLM, STT, TTS), estado, streaming y período, y totales del filtro
   (pedidos, tokens, minutos, duración promedio). El admin ve además el primer byte, el formato y el código de error.
 - **API:** `GET /api/v1/api-requests` (sesión de usuario o key `calls`; `client_id`, `api_key_id`, `kind`, `status`,
-  `stream`, `date_from`, `date_to`, `tz`, `limit`, `offset`).
+  `source`, `stream`, `date_from`, `date_to`, `tz`, `limit`, `offset`).
 - Cada fila (`api_requests`, migración 0022): tipo, key, duración hasta el último byte, primer byte (stream y TTS),
   tokens o segundos de audio, caracteres y voz del TTS, HTTP y `code`. Sin contenido, como el agregado.
 - **Estados:** `ok`; `cut` (stream cortado: se cobra lo entregado); `error` (del motor o del pedido: 400, 422, 502);
   `rejected` (cupo del mes agotado o motor fuera del plan).
 - **Qué no se anota:** los 401, `scope_missing`, `client_inactive`, `not_in_plan` de `api_rate_limit` en 0 y los
   `rate_limited`. Se rechazan antes del tope de pedidos por minuto: sin tope, un sistema en loop llenaría la tabla.
+- **Pruebas de voz** (`source`, migración 0043): además de `api`, la tabla anota cada prueba que llega al motor.
+  - `voice_test_panel` es la del dashboard (`POST /tts/preview` con sesión), `voice_test_api` la misma con una API
+    key o por el MCP (`preview_voice`), y `voice_test_landing` la de la landing (`POST /demo/tts`), que queda en el
+    cliente de la demo (`DEMO_CLIENT`, Atentina). Un admin sin cliente elegido también prueba en ese cliente.
+  - **No suman al cupo** (`api_usage_daily`): no gastan los minutos de TTS del plan y andan aunque el plan no
+    incluya TTS por API. Las frenan el texto, hasta `TTS_PREVIEW_MAX_CHARS` (200, unos 12–15 s de audio; el
+    dashboard y la landing tienen el mismo número fijo), y los topes por hora (`RATE_TTS_PREVIEW_PER_HOUR` por
+    usuario o key, `DEMO_IP_TTS_PER_HOUR` por IP).
+  - La landing no anota lo que sale de su cache (el mismo texto y voz no vuelven al motor), ni los rechazos
+    antes del motor (voz inexistente, texto vacío o largo).
 - La tabla crece una fila por pedido y todavía no tiene purga.
 
 ## 5. Para quien opera

@@ -8,9 +8,10 @@ import { streamTtsPreview } from './api';
 import { voiceName } from './names';
 
 export const DEFAULT_PREVIEW_TEXT =
-  'Hola, ¿qué tal? Te hablo de Voz Directa. Te llamo porque dejaste tus datos en nuestra web pidiendo una demo del asistente telefónico. Si te parece, coordinamos una videollamada de veinte minutos esta semana para mostrarte cómo funciona con tus clientes. Atiende las llamadas las veinticuatro horas, agenda turnos y responde las consultas más frecuentes, con una voz natural como esta. ¿Qué día y horario te queda cómodo?';
+  'Hola, ¿qué tal? Te hablo de Voz Directa. Te llamo porque pediste una demo del asistente telefónico. ¿Coordinamos una videollamada de veinte minutos esta semana?';
 
-const MAX_CHARS = 600;
+// TTS_PREVIEW_MAX_CHARS de la API (app/config.py).
+const MAX_CHARS = 200;
 
 /**
  * Prueba de voz: sintetiza el texto con la voz (POST /tts/preview, PCM en streaming) y lo reproduce mientras se genera:

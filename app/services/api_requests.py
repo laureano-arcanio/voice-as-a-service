@@ -17,6 +17,8 @@ from ..models import ApiKey, ApiRequest, Client
 
 KINDS = ("llm", "stt", "tts")
 STATUSES = ("ok", "cut", "error", "rejected")
+# api: la de inferencia. Las pruebas de voz (services/tts.py) se anotan aca pero no suman al cupo del plan.
+SOURCES = ("api", "voice_test_panel", "voice_test_api", "voice_test_landing")
 
 
 def log(s: Session, client_id: str, key_id: str | None, kind: str, status: str, **fields) -> None:
@@ -35,6 +37,7 @@ class RequestFilter:
     api_key_id: str | None = None
     kind: list[str] = field(default_factory=list)
     status: list[str] = field(default_factory=list)
+    source: list[str] = field(default_factory=list)
     stream: bool | None = None
     date_from: datetime.date | None = None
     date_to: datetime.date | None = None     # inclusive
@@ -50,6 +53,8 @@ class RequestFilter:
             conds.append(ApiRequest.kind.in_(self.kind))
         if self.status:
             conds.append(ApiRequest.status.in_(self.status))
+        if self.source:
+            conds.append(ApiRequest.source.in_(self.source))
         if self.stream is not None:
             conds.append(ApiRequest.stream.is_(self.stream))
         if self.date_from:
