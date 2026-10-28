@@ -19,7 +19,8 @@ router = APIRouter(include_in_schema=False)
 PAGE = "telefono.html"
 PAGE_PATH = "/movil"
 ALLOWED_PREFIXES = ("/api/v1/", "/assets/")
-ALLOWED_FILES = ("/favicon.svg", "/atentina-mark.svg", "/robots.txt", "/telefono.webmanifest")
+ALLOWED_FILES = ("/favicon.svg", "/atentina-mark.svg", "/atentina-logo.svg", "/panel-mark.svg", "/robots.txt",
+                 "/telefono.webmanifest")
 # Los docs de la API son del panel (solo admin): tampoco acá.
 BLOCKED_PREFIXES = ("/api/v1/docs", "/api/v1/openapi.json")
 

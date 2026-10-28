@@ -45,6 +45,14 @@ def test_phone_host_serves_page_and_api_only(phone):
         assert host.get(path).status_code == 404, path
 
 
+def test_phone_host_lets_logo_and_manifest_through(phone):
+    # Los sirve el build de la SPA (fuera de los tests puede no estar): basta con que el middleware no los corte.
+    host = TestClient(phone.app, base_url=f"https://{HOST}")
+    for path in ("/atentina-logo.svg", "/atentina-mark.svg", "/telefono.webmanifest"):
+        assert host.get(path).text != "No encontrado", path
+    assert host.get("/otro.svg").text == "No encontrado"
+
+
 def test_without_setting_other_hosts_unchanged(phone, monkeypatch):
     monkeypatch.setattr(settings, "phone_app_base_url", "")
     host = TestClient(phone.app, base_url=f"https://{HOST}")
