@@ -18,4 +18,25 @@ describe('CallStatusBadge', () => {
     expect(screen.getByText('Fallida')).toBeInTheDocument();
     expect(isUnanswered({ status: 'finalizada', ended_reason: 'no_answer' })).toBe(false);
   });
+
+  it('una finalizada dice quién cortó: el cliente, el equipo, el agente o el sistema', () => {
+    const cases = [
+      ['customer_hangup', 'Finalizada por el cliente'],
+      ['person_hangup', 'Finalizada por el equipo'],
+      ['hangup_by_user', 'Finalizada por el equipo'],
+      ['completed', 'Finalizada por el agente'],
+      ['off_topic', 'Finalizada por el agente'],
+      ['max_duration', 'Finalizada por el sistema'],
+    ] as const;
+    for (const [reason, label] of cases) {
+      const { unmount } = view(<CallStatusBadge status="finalizada" endedReason={reason} />);
+      expect(screen.getByText(label)).toBeInTheDocument();
+      unmount();
+    }
+  });
+
+  it('una finalizada sin motivo conocido (llamadas viejas) sigue siendo "Finalizada"', () => {
+    view(<CallStatusBadge status="finalizada" endedReason="" />);
+    expect(screen.getByText('Finalizada')).toBeInTheDocument();
+  });
 });

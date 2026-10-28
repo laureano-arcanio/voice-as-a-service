@@ -597,7 +597,19 @@ async def entrypoint(ctx: JobContext):
             s.commit()
         ctx.shutdown(reason=reason)
 
+    ending: dict = {"reason": None}   # quien corta primero: el agente (hang_up) o el cliente (on_participant_left)
+
     async def hang_up(reason: str = "completed"):
+        if ending["reason"]:
+            return
+        ending["reason"] = reason
+        # El motivo queda en la llamada antes de cerrar la room: al cerrarla, la salida del cliente o "room
+        # disconnected" ganan el shutdown y la llamada que cortó el agente quedaba como customer_hangup.
+        # finalize respeta un ended_reason ya puesto (igual que el corte desde la API).
+        with sessions() as s:
+            call = s.get(CallRow, conversation_id)
+            if call is not None and not call.ended_reason:
+                call_service.update_call(s, conversation_id, ended_reason=reason[:128])
         await ctx.delete_room()
         ctx.shutdown(reason=reason)
 
@@ -723,6 +735,9 @@ async def entrypoint(ctx: JobContext):
             return   # una persona de una derivacion: lo maneja app/voice/handoff.py
         if p.identity.startswith(direct_calls.USER_PREFIX):
             return   # un usuario del panel de la entrante al equipo (entro tarde y se lo saco): no es el cliente
+        if ending["reason"]:
+            return   # el agente ya esta cortando: la room se cierra y esta salida no es del cliente
+        ending["reason"] = "customer_hangup"
         if current["transfer"] is not None:
             asyncio.create_task(ctx.delete_room())   # que no quede la persona sola en la room
         ctx.shutdown(reason="customer_hangup")

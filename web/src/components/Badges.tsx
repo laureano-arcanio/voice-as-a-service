@@ -5,6 +5,7 @@ import {
   CALL_MODE,
   CALL_STATUS,
   CALL_UNANSWERED,
+  finishedLabel,
   isTeamInbound,
   isUnanswered,
   WORKFLOW_STATUS,
@@ -40,13 +41,15 @@ export function CallStatusBadge({
   endedReason,
 }: {
   status: string | null | undefined;
-  /** CallSummary.ended_reason: con `no_answer` o `busy` la fallida se muestra como "No atendida". */
+  /** CallSummary.ended_reason: con `no_answer` o `busy` la fallida es "No atendida"; la finalizada dice quién cortó. */
   endedReason?: string | null;
 }) {
   if (status === 'sonando' || status === 'en_curso')
     return <LiveBadge>{CALL_STATUS[status].label}</LiveBadge>;
   if (isUnanswered({ status, ended_reason: endedReason }))
     return <Badge color={CALL_UNANSWERED.color}>{CALL_UNANSWERED.label}</Badge>;
+  if (status === 'finalizada')
+    return <Badge color={CALL_STATUS.finalizada.color}>{finishedLabel(endedReason)}</Badge>;
   return <MappedBadge map={CALL_STATUS} value={status} />;
 }
 

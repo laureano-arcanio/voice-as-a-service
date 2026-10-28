@@ -23,6 +23,35 @@ export function isUnanswered(c: { status?: string | null; ended_reason?: string 
   return c.status === 'fallida' && (c.ended_reason === 'no_answer' || c.ended_reason === 'busy');
 }
 
+/**
+ * Quién cortó una llamada finalizada, por `ended_reason` (lo deja el worker de voz, nunca el LLM): el cliente que
+ * llamó o atendió, el equipo (una persona en la llamada o el botón Cortar llamada del panel), el agente (terminó
+ * la conversación, fuera de tema o contestador) o el sistema (tope de minutos o de duración, el worker se cayó).
+ * Sin motivo o con uno que no se conoce (llamadas viejas): null, queda "Finalizada" a secas.
+ */
+const ENDED_BY: Record<string, string> = {
+  customer_hangup: 'el cliente',
+  person_hangup: 'el equipo',
+  hangup_by_user: 'el equipo',
+  completed: 'el agente',
+  off_topic: 'el agente',
+  voicemail: 'el agente',
+  external_error: 'el agente',
+  external_agent_not_in_plan: 'el agente',
+  max_duration: 'el sistema',
+  quota_exhausted: 'el sistema',
+  worker_stopped: 'el sistema',
+  'parent process shutdown': 'el sistema',
+  'room disconnected': 'el sistema',
+  'job crashed': 'el sistema',
+};
+
+/** "Finalizada por el cliente / el equipo / el agente / el sistema"; "Finalizada" si no se sabe quién cortó. */
+export function finishedLabel(endedReason: string | null | undefined): string {
+  const by = endedReason ? ENDED_BY[endedReason] : undefined;
+  return by ? `${CALL_STATUS.finalizada.label} por ${by}` : CALL_STATUS.finalizada.label;
+}
+
 export const CALL_MODE: Record<string, Label> = {
   saliente: { label: 'Saliente', color: 'gray' },
   entrante: { label: 'Entrante', color: 'gray' },
