@@ -12,7 +12,7 @@ export const phoneKeys = {
   settings: (clientId: string) => ['phone', 'settings', clientId] as const,
   // Bajo 'calls': se refrescan con el resto de las llamadas (callKeys.all).
   myCalls: (userId: string) => ['calls', 'phone', 'mine', userId] as const,
-  recentCalls: ['calls', 'phone', 'recent'] as const,
+  contactCalls: (contactId: string) => ['calls', 'phone', 'contact', contactId] as const,
 };
 
 // ---- Pedidos sueltos (los usa el CallProvider dentro de su flujo) ----
@@ -88,14 +88,13 @@ export function useSetPresence() {
   return useMutation({ mutationFn: putPresence });
 }
 
-/** Entrantes que le suenan al usuario en el panel: cada 2 s mientras está Disponible y sin llamada. */
+/** Entrantes que le suenan al usuario en el panel, mientras está Disponible y sin llamada. El sondeo (cada 2 s)
+ * lo hace CallProvider por un Worker (ticker.ts): el refetchInterval se frena con la pestaña oculta. */
 export function useRinging(enabled: boolean) {
   return useQuery({
     queryKey: phoneKeys.ringing,
     queryFn: () => unwrap(api.GET('/api/v1/me/ringing')),
     enabled,
-    refetchInterval: enabled ? 2000 : false,
-    refetchIntervalInBackground: true,
   });
 }
 
@@ -147,14 +146,21 @@ export function useMyCalls(userId: string, limit = 10) {
 }
 
 /**
- * Las últimas llamadas del cliente, para el historial de un contacto: la API no filtra por teléfono,
- * así que se buscan en las 200 más nuevas (agente y directas).
+ * Las últimas llamadas con un contacto (por su teléfono: las del agente y las directas), para su historial. La
+ * API trae también sus conversaciones de WhatsApp: se pide un poco más y se dejan solo las llamadas.
  */
-export function useRecentCalls(enabled = true) {
+export function useContactCalls(contactId: string | null | undefined, rows: number) {
   return useQuery({
-    queryKey: phoneKeys.recentCalls,
-    queryFn: () => unwrap(api.GET('/api/v1/calls', { params: { query: { limit: 200, tz: BROWSER_TZ } } })),
-    enabled,
+    queryKey: [...phoneKeys.contactCalls(contactId ?? ''), rows],
+    queryFn: async () => {
+      const page = await unwrap(
+        api.GET('/api/v1/calls', {
+          params: { query: { contact_id: contactId!, limit: rows * 3, tz: BROWSER_TZ } },
+        }),
+      );
+      return page.items.filter((c) => c.mode !== 'whatsapp').slice(0, rows);
+    },
+    enabled: !!contactId,
     staleTime: 15_000,
   });
 }

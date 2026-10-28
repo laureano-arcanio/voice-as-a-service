@@ -299,9 +299,9 @@ def start_inbound(s: Session, engine: ConversationEngine, dialed: str | None, ca
     team = team_route(s, number) if number.answer_mode == "team" and not by_rule else None
     if team is not None and not (team.members and
                                  limits.effective_limits(s, s.get(Client, number.client_id)).direct_calls and
-                                 legal_gate.client_accepted_current(s, number.client_id)):
-        # Sin personas, el plan ya no tiene llamadas directas o el cliente no acepto las condiciones vigentes
-        # (graban siempre): al agente del numero, si tiene, como si no tuviera la funcion.
+                                 legal_gate.client_accepted_direct_calls(s, number.client_id)):
+        # Sin personas, el plan ya no tiene llamadas directas o el cliente no acepto las condiciones que las
+        # cubren (graban siempre): al agente del numero, si tiene, como si no tuviera la funcion.
         team = None
     if team is None and agent_id is None:
         raise NotFound(f"El número {dialed!r} no tiene cliente o agente asignado", "number_without_agent")

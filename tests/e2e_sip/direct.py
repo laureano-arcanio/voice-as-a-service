@@ -274,6 +274,8 @@ async def main() -> int:
     # Los WAV, fuera del codigo montado (solo lectura).
     settings.call_recordings_dir = Path("/tmp/e2e-direct/recordings")
     settings.notice_audio_dir = Path("/tmp/e2e-direct/notices")
+    # Corta el usuario del panel: sin los 30 s de espera a que vuelva a entrar (recargo la pagina).
+    direct.PANEL_REJOIN_GRACE_SECONDS = 1
     lk = api.LiveKitAPI(smoke.URL.replace("ws", "http", 1), smoke.KEY, smoke.SECRET)
     await smoke.wait_ready(lk)
     trunk_id = await smoke.trunk(lk)

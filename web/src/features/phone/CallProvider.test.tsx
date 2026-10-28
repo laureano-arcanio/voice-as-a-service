@@ -93,6 +93,8 @@ describe('CallProvider', () => {
     });
     const room = FakeRoom.last();
     expect(room.connect).toHaveBeenCalledWith('wss://lk.test', 'tok-1');
+    // LiveKit no corta solo al salir de la página (beforeunload se puede cancelar; freeze en el celular).
+    expect(room.options.disconnectOnPageLeave).toBe(false);
     expect(room.localParticipant.publishTrack).toHaveBeenCalled();
     expect(sessionStorage.getItem('atentina.phone.call')).toBe('conv-1');
     expect(screen.getByText('Ana Pérez')).toBeInTheDocument();
@@ -196,6 +198,37 @@ describe('CallProvider', () => {
     expect(seen.some((s) => s.path === '/api/v1/direct-calls')).toBe(false);
   });
 
+  it('al recargar o cerrar la pestaña sale de la room (pagehide), no al pedir confirmación', async () => {
+    mockApi({
+      'GET /api/v1/plan/features': () => jsonResponse(PLAN_OK),
+      'POST /api/v1/direct-calls': () => jsonResponse(STARTED, 201),
+    });
+    renderPhone();
+    await userEvent.click(await screen.findByRole('button', { name: 'llamar a Ana' }));
+    await screen.findByText('Llamando');
+    const room = FakeRoom.last();
+    act(() => void window.dispatchEvent(new Event('beforeunload')));
+    expect(room.disconnect).not.toHaveBeenCalled();
+    act(() => void window.dispatchEvent(new Event('pagehide')));
+    expect(room.disconnect).toHaveBeenCalled();
+  });
+
+  it('si no conecta con LiveKit: el motivo en la barra y corta la saliente', async () => {
+    const seen = mockApi({
+      'GET /api/v1/plan/features': () => jsonResponse(PLAN_OK),
+      'POST /api/v1/direct-calls': () => jsonResponse(STARTED, 201),
+      'POST /api/v1/calls/conv-1/hangup': () => jsonResponse({ hung_up: true }),
+    });
+    // Como livekit-client 2.22: emite Disconnected y después rechaza connect.
+    FakeRoom.connectError = new Error('could not establish pc connection');
+    renderPhone();
+    await userEvent.click(await screen.findByRole('button', { name: 'llamar a Ana' }));
+    expect(await screen.findByText('No pudimos conectar la llamada')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(seen.some((s) => s.method === 'POST' && s.path === '/api/v1/calls/conv-1/hangup')).toBe(true),
+    );
+  });
+
   it('al recargar con una llamada en curso ofrece volver a entrar', async () => {
     sessionStorage.setItem('atentina.phone.call', 'conv-1');
     const seen = mockApi({
@@ -285,6 +318,21 @@ describe('Timbre', () => {
     await waitFor(() =>
       expect(seen.filter((s) => s.method === 'PUT').map((s) => s.body)).toContainEqual({ available: false }),
     );
+  });
+
+  it('micrófono bloqueado al atender: el motivo en el timbre, que sigue sonando', async () => {
+    const lk = await import('livekit-client');
+    vi.mocked(lk.createLocalAudioTrack).mockRejectedValueOnce(new DOMException('no', 'NotAllowedError'));
+    const seen = mockApi({
+      'GET /api/v1/plan/features': () => jsonResponse(PLAN_OK),
+      'PUT /api/v1/me/presence': () => jsonResponse({ available: true, last_seen: null }),
+      'GET /api/v1/me/ringing': () => jsonResponse([RING]),
+    });
+    renderPhone();
+    await userEvent.click(await screen.findByRole('button', { name: 'Atender' }));
+    expect(await screen.findByText('El micrófono está bloqueado')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Atender' })).toBeInTheDocument();
+    expect(seen.some((s) => s.path === '/api/v1/direct-calls/conv-in/answer')).toBe(false);
   });
 
   it('si otro la atendió primero: "La atendió otra persona"', async () => {

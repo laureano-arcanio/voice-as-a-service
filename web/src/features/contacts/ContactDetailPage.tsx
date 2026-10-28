@@ -20,7 +20,7 @@ import { confirmAction } from '@/components/confirm';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState, ErrorAlert, QueryState } from '@/components/QueryState';
 import { CHANNEL, CONTACT_RESULT, CONTACT_STATUS, statusLabel } from '@/features/campaigns/labels';
-import { useRecentCalls } from '@/features/phone/api';
+import { useContactCalls } from '@/features/phone/api';
 import { formatDate, formatDateTime, formatDuration } from '@/lib/format';
 import { callPerson, CALL_MODE } from '@/lib/labels';
 import { notifyError, notifySuccess } from '@/lib/notify';
@@ -116,20 +116,16 @@ function CampaignsCard({ id }: { id: string }) {
 
 const HISTORY_ROWS = 10;
 
-/**
- * Las llamadas con el contacto: las del agente y las directas, de las 200 conversaciones más nuevas del
- * cliente (la API no filtra por teléfono). Las directas dicen quién llamó.
- */
-function CallsCard({ phone }: { phone: string }) {
-  const recent = useRecentCalls();
+/** Las llamadas con el contacto (por su teléfono): las del agente y las directas, que dicen quién llamó. */
+function CallsCard({ contactId }: { contactId: string }) {
+  const recent = useContactCalls(contactId, HISTORY_ROWS);
   return (
     <Card>
       <Title order={4} mb="md">
         Historial de llamadas
       </Title>
       <QueryState query={recent}>
-        {(page) => {
-          const rows = page.items.filter((c) => c.phone === phone && c.mode !== 'whatsapp');
+        {(rows) => {
           if (rows.length === 0) return <EmptyState>Todavía no hay llamadas con este contacto.</EmptyState>;
           return (
             <Table.ScrollContainer minWidth={640}>
@@ -145,7 +141,7 @@ function CallsCard({ phone }: { phone: string }) {
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                  {rows.slice(0, HISTORY_ROWS).map((c) => {
+                  {rows.map((c) => {
                     const who = callPerson(c);
                     return (
                       <Table.Tr key={c.id}>
@@ -325,7 +321,7 @@ export function ContactDetailPage() {
                 </>
               )}
             </Card>
-            <CallsCard phone={c.phone} />
+            <CallsCard contactId={c.id} />
             <CampaignsCard id={c.id} />
             {editing && <ContactModal contact={c} onClose={() => setEditing(false)} />}
           </Stack>

@@ -420,9 +420,9 @@ El formulario de contacto de la landing (`POST /demo/contact`, misma sesión) gu
    - **el que llama está bloqueado por el cliente** (`blocked_numbers`, por el caller o el `wa.wacid`,
      normalizados): se corta sin atender y queda `rechazada` (`blocked_number`);
    - **sin lugar o sin minutos:** queda `rechazada` y el que llama escucha `QUOTA_REJECT_MESSAGE`;
-   - **número con `answer_mode=team`** (y personas, plan con `direct_calls` y condiciones vigentes aceptadas): conversación **sin agente**
+   - **número con `answer_mode=team`** (y personas, plan con `direct_calls` y condiciones `2026-10-28` o posteriores aceptadas): conversación **sin agente**
      (`answered_by=team`), `InboundCall.team` con el ruteo y el worker toma la rama de las llamadas directas
-     (ver "Llamadas directas"). Sin personas, si el plan perdió la función o el cliente no aceptó las condiciones vigentes (`legal_gate`), va al agente del número; una
+     (ver "Llamadas directas"). Sin personas, si el plan perdió la función o el cliente no aceptó las condiciones `2026-10-28` o posteriores (`legal_gate`), va al agente del número; una
      regla de `wa_routes` que elige agente gana sobre el equipo;
    - **si no:** conversación con el agente del número y llamada `entrante` (`answered_by=agent`).
    En una llamada de WhatsApp el inbound trunk mapea el header `X-WA-Meta-Wacid` al atributo `wa.wacid`
@@ -534,7 +534,7 @@ cualquier llamada. Las dos graban **siempre** (un WAV de 16 kHz por frase, `Mess
 **Saliente** (`POST /api/v1/direct-calls`, `app/services/direct_calls.py`):
 
 1. Valida plan (`direct_calls`, 429 `direct_calls_not_in_plan`; además `outbound_calls`), que el cliente haya aceptado las
-   condiciones vigentes (que cubren la grabación siempre; 403 `terms_pending`, `app/services/legal_gate.py`), contacto del cliente,
+   condiciones `2026-10-28` o posteriores (las que cubren la grabación siempre; 403 `terms_pending`, `app/services/legal_gate.py`), contacto del cliente,
    bloqueado (403 `blocked_number`) y baja de voz (409 `opted_out`, salvo `confirm_opted_out: true`, que queda
    en `call_logs.opted_out_confirmed`). Admite como `CallMode.directa` (minutos **salientes** y un canal de
    Anura), crea la conversación con `agent_id` nulo y la `call_logs` con `user_id`, y despacha el worker con
@@ -765,7 +765,7 @@ lo de esta sección es lo que lo protege.
   (lista o CSV posicional), `POST /campaigns/{id}/start|pause|cancel`, `GET|POST /optouts` y
   `DELETE /optouts/{wa_id}`. Envío y reglas en [`WHATSAPP_PLAN.md`](WHATSAPP_PLAN.md), 5.5 y
   [`LLAMADAS_SALIENTES_PLAN.md`](LLAMADAS_SALIENTES_PLAN.md).
-- **Llamadas directas** (`app/api/routers/direct_calls.py`): `POST /direct-calls` (`contact_id` o `phone`, `from_number_id`, `confirm_opted_out`, `user_id` con API key), `POST /direct-calls/{id}/join|answer|decline`, `PUT /me/presence`, `GET /me/ringing`, `GET /team/presence` y `GET|PUT /clients/{id}/direct-call-settings` (`recording_notice`). `PATCH /phone-numbers/{id}` suma `answer_mode`, `member_ids` (en orden), `ring_first`, `ring_seconds`, `schedule`, `team_fallback` y `team_fallback_message`; `GET /calls` filtra por `mode`, `user_id` y `answered_by`. Errores: `opted_out`, `blocked_number`, `no_channel`, `already_answered`, `terms_pending`, `members_required`, `agent_required`, `direct_calls_not_in_plan`. Detalle en [`LLAMADAS_DIRECTAS_PLAN.md`](LLAMADAS_DIRECTAS_PLAN.md), 13.
+- **Llamadas directas** (`app/api/routers/direct_calls.py`): `POST /direct-calls` (`contact_id` o `phone`, `from_number_id`, `confirm_opted_out`, `user_id` con API key), `POST /direct-calls/{id}/join|answer|decline`, `PUT /me/presence`, `GET /me/ringing`, `GET /team/presence` y `GET|PUT /clients/{id}/direct-call-settings` (`recording_notice`). `PATCH /phone-numbers/{id}` suma `answer_mode`, `member_ids` (en orden), `ring_first`, `ring_seconds`, `schedule`, `team_fallback` y `team_fallback_message`; `GET /calls` filtra por `mode`, `user_id`, `answered_by`, `phone` (E.164 normalizado) y `contact_id`; el detalle trae `call.team` (entrante al equipo: si atendió alguien y el respaldo, evento `team.fallback`) y el contacto de la agenda. Errores: `opted_out`, `blocked_number`, `no_channel`, `already_answered`, `terms_pending`, `members_required`, `agent_required`, `direct_calls_not_in_plan`. Detalle en [`LLAMADAS_DIRECTAS_PLAN.md`](LLAMADAS_DIRECTAS_PLAN.md), 13.
 - **Equipo y derivaciones**: `GET|POST /team`, `PATCH|DELETE /team/{id}`, `GET|POST /handoff-areas`,
   `GET|PATCH|DELETE /handoff-areas/{id}` (409 `area_in_use` si un agente la usa), `GET /handoff-areas/defaults`
   (mensajes de fábrica), `GET /hold-music` (temas de espera) y `GET /events` (cursor `after_id`, filtro por

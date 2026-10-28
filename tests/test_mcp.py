@@ -294,7 +294,8 @@ def test_direct_calls_tools(api, admin, full, monkeypatch):
     assert "PERSONA" in start["description"] and "start_call" in start["description"]
     assert set(start["inputSchema"]["properties"]) == {"contact_id", "phone", "from_number_id", "confirm_opted_out",
                                                        "user_id"}
-    assert {"mode", "user_id", "answered_by"} <= set(tools["list_calls"]["inputSchema"]["properties"])
+    props = set(tools["list_calls"]["inputSchema"]["properties"])
+    assert {"mode", "user_id", "answered_by", "phone", "contact_id"} <= props
     assert {"answer_mode", "member_ids", "ring_first", "team_fallback"} <= set(
         tools["route_phone_number"]["inputSchema"]["properties"])
     for name, toolset in (("start_direct_call", "calls"), ("list_team_presence", "team"),

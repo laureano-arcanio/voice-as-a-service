@@ -52,6 +52,11 @@ RING_MARGIN_SECONDS = 10
 VOICEMAIL_SECONDS = 120
 # Atendio en el panel (answer) pero su navegador todavia no entro a la room: cuanto mas se lo espera.
 PANEL_JOIN_GRACE_SECONDS = 10
+# El usuario del panel salio de la room en medio de la llamada (recargo la pagina, se corto la red): cuanto se lo
+# espera a que vuelva a entrar ("Volver a entrar", POST /direct-calls/{id}/join) antes de cortar.
+PANEL_REJOIN_GRACE_SECONDS = 30
+# Salio el otro: cuanto se espera el STT de su ultima frase antes de cerrar.
+SETTLE_SECONDS = 3
 # Cada cuanto se mira la base mientras suena en el panel (atendio alguien, rechazaron todos).
 PANEL_POLL_SECONDS = 0.5
 END_SAY_TIMEOUT = 15
@@ -91,14 +96,33 @@ class CallLog:
             self.store.save(state)
 
 
+async def settle(line, log: CallLog, parties: dict[str, tuple[str, str | None, str]], who: str) -> None:
+    """Salio `who`: lo ultimo que dijo (la frase que el STT todavia transcribe) entra igual a la conversacion."""
+    try:
+        await line.settle(who, SETTLE_SECONDS)
+    except Exception:
+        logger.exception("ultima frase de %s", who)
+    while not line.events.empty():
+        ev = line.events.get_nowait()
+        if ev[0] == "text" and ev[1] in parties:
+            role, person, _ = parties[ev[1]]
+            log.add(role, ev[2], person=person, pcm=ev[3] if len(ev) > 3 else None)
+
+
 async def talk(line, log: CallLog, parties: dict[str, tuple[str, str | None, str]], *, sessions, conversation_id: str,
-               deadline: float) -> str:
+               deadline: float, rejoin: str | None = None, away_until: float | None = None) -> str:
     """Dos personas hablando: transcribe y graba hasta que sale alguna (su motivo, de `parties`: identidad ->
     (role, person, motivo al salir)), se cierra la room, se pasa el tope de duracion o el cliente se queda sin
-    minutos (quota_watchdog del worker). Al cortar por tope, avisa con QUOTA_END_MESSAGE."""
+    minutos (quota_watchdog del worker). Al cortar por tope, avisa con QUOTA_END_MESSAGE.
+
+    `rejoin`: el usuario del panel. Si sale, se lo espera PANEL_REJOIN_GRACE_SECONDS a que vuelva a entrar con la
+    misma identidad (recargo la pagina) y recien ahi se corta con su motivo; `away_until`, si ya habia salido."""
     next_check = time.monotonic() + settings.quota_check_seconds
     while True:
         now = time.monotonic()
+        if away_until is not None and now >= away_until:
+            logger.info("directa %s: el usuario del panel no volvio a entrar", conversation_id)
+            return parties[rejoin][2]
         if now >= deadline:
             reason = "max_duration"
         elif now >= next_check:
@@ -114,7 +138,8 @@ async def talk(line, log: CallLog, parties: dict[str, tuple[str, str | None, str
                 await asyncio.wait_for(line.say(settings.quota_end_message), END_SAY_TIMEOUT)
             return reason
         try:
-            ev = await asyncio.wait_for(line.events.get(), max(0.05, min(deadline, next_check) - now))
+            wake = min(deadline, next_check, away_until if away_until is not None else deadline)
+            ev = await asyncio.wait_for(line.events.get(), max(0.05, wake - now))
         except asyncio.TimeoutError:
             continue
         kind, who = ev[0], ev[1]
@@ -123,7 +148,11 @@ async def talk(line, log: CallLog, parties: dict[str, tuple[str, str | None, str
         if who not in parties:
             continue
         role, person, left_reason = parties[who]
+        if who == rejoin and kind in ("left", "joined"):
+            away_until = now + PANEL_REJOIN_GRACE_SECONDS if kind == "left" else None
+            continue
         if kind == "left":
+            await settle(line, log, parties, who)
             return left_reason
         if kind == "text":
             log.add(role, ev[2], person=person, pcm=ev[3] if len(ev) > 3 else None)
@@ -161,6 +190,7 @@ class OutboundLine(Protocol):
     async def notice(self) -> None: ...                            # aviso de grabacion, a los dos
     async def say(self, text: str) -> None: ...
     async def listen(self, identities: set[str]) -> None: ...
+    async def settle(self, identity: str, timeout: float) -> None: ...   # salio: espera su ultima frase
     async def remove(self, identity: str) -> None: ...
 
 
@@ -181,6 +211,7 @@ class Outbound:
         self.recording_notice = bool(metadata.get("recording_notice"))
         self.log = CallLog(store, self.conversation_id, line.send)
         self.started: float | None = None
+        self.away_until: float | None = None    # el usuario salio mientras sonaba: hasta cuando se lo espera
         self.done = False
 
     def _status(self, state: str, **extra) -> None:
@@ -233,16 +264,18 @@ class Outbound:
         self.started = time.time()
         _update_call(self.sessions, self.conversation_id, status=CallStatus.en_curso, started_at=utcnow())
         self._status("active")
+        # Antes del aviso: lo que dicen mientras suena tambien se graba y transcribe.
+        await self.line.listen({self.user, CONTACT})
         if self.recording_notice:
             try:
                 await self.line.notice()
             except Exception:
                 logger.exception("directa %s: no se pudo pasar el aviso de grabacion", self.conversation_id)
-        await self.line.listen({self.user, CONTACT})
         reason = await talk(self.line, self.log, {CONTACT: ("user", None, "customer_hangup"),
                                                   self.user: ("assistant", self.user_name, "person_hangup")},
                             sessions=self.sessions, conversation_id=self.conversation_id,
-                            deadline=time.monotonic() + self.max_seconds)
+                            deadline=time.monotonic() + self.max_seconds, rejoin=self.user,
+                            away_until=self.away_until)
         return self.finish(reason)
 
     async def _ringing(self) -> tuple[str, str] | None:
@@ -250,7 +283,10 @@ class Outbound:
         deadline = time.monotonic() + RING_SECONDS + RING_MARGIN_SECONDS
         rang = False
         while True:
-            timeout = deadline - time.monotonic()
+            now = time.monotonic()
+            if self.away_until is not None and now >= self.away_until:
+                return "no_answer", "person_hangup"      # el usuario salio y no volvio antes de que atiendan
+            timeout = min(deadline, self.away_until or deadline) - now
             if timeout <= 0:
                 return "no_answer", "no_answer"
             try:
@@ -260,8 +296,10 @@ class Outbound:
             kind, who = ev[0], ev[1]
             if kind == "closed":
                 return "no_answer", "room_closed"
-            if kind == "left" and who == self.user:
-                return "no_answer", "person_hangup"      # el usuario corto antes de que atiendan
+            if who == self.user and kind in ("left", "joined"):
+                # Recargo la pagina mientras suena: se lo espera a que vuelva a entrar.
+                self.away_until = now + PANEL_REJOIN_GRACE_SECONDS if kind == "left" else None
+                continue
             if who != CONTACT:
                 continue
             if kind == "sip" and ev[2] == "active":
@@ -294,10 +332,12 @@ class TeamCall:
         self.notice = notice
         self.to_agent = to_agent
         self.confirm_seconds = confirm_seconds
-        self.log = CallLog(store, conversation_id)
+        self.log = CallLog(store, conversation_id, line.send)     # transcript al panel del que atiende
         self.transfer: transfer.Transfer | None = None
         self.attempts = 0
         self.reason = ""
+        # El tope de duracion cuenta desde que entro la llamada (en_curso), no desde que atiende alguien.
+        self.deadline = time.monotonic() + settings.call_max_duration_seconds
 
     def _event(self, type: str, **data) -> None:
         with self.sessions() as s:
@@ -339,7 +379,8 @@ class TeamCall:
         tr = self.transfer = transfer.Transfer(
             sessions=self.sessions, line=self.line, conversation_id=self.conversation_id, client_id=self.client_id,
             areas=[], customer=self.customer, caller=self.caller, on_message=self.log.add,
-            confirm_seconds=self.confirm_seconds, first_attempt=self.attempts, on_connected=self._phone_connected)
+            confirm_seconds=self.confirm_seconds, first_attempt=self.attempts, on_connected=self._phone_connected,
+            limit=self._limit)
         try:
             outcome = await tr.run_team(transfer.TeamRing(name=self.route.number_label or "la línea",
                                                           ring_seconds=self.route.ring_seconds),
@@ -354,6 +395,15 @@ class TeamCall:
             return None
         return {"customer_hung_up": "customer_hangup", "person_hung_up": "person_hangup",
                 "quota": "quota_exhausted"}.get(outcome.ended, outcome.ended or "worker_stopped")
+
+    def _limit(self) -> str | None:
+        """Hablando por el celular: el corte por minutos entrantes y por duracion (en el panel lo hace talk; la
+        entrante al equipo no tiene el quota_watchdog del worker)."""
+        if time.monotonic() >= self.deadline:
+            return "max_duration"
+        with self.sessions() as s:
+            remaining = call_service.call_remaining_seconds(s, self.conversation_id)
+        return "quota" if remaining is not None and remaining <= 0 else None
 
     def _phone_connected(self, member) -> None:
         """Atendio en su celular: si tiene usuario del panel, la llamada queda a su nombre (y ocupado)."""
@@ -411,9 +461,11 @@ class TeamCall:
             identity = await self._wait_join(direct_calls.user_identity(answered), PANEL_JOIN_GRACE_SECONDS)
         if identity is None:
             if answered is not None:
-                # Atendio y su navegador no entro: la llamada no queda a su nombre (ni el ocupado).
+                # Atendio y su navegador no entro: la llamada no queda a su nombre (ni el ocupado), y si entra
+                # tarde con el token de answer, se lo saca (no escucha lo que sigue).
                 with self.sessions() as s:
                     direct_calls.release_answer(s, self.conversation_id)
+                await self.line.block(direct_calls.user_identity(answered))
             return None
         await self.line.hold(False)
         name = names[by_identity[identity]]
@@ -421,8 +473,8 @@ class TeamCall:
         await self.line.listen(identity)
         ended = await talk(self.line, self.log, {self.customer: ("user", None, "customer_hangup"),
                                                  identity: ("assistant", name, "person_hangup")},
-                           sessions=self.sessions, conversation_id=self.conversation_id,
-                           deadline=time.monotonic() + settings.call_max_duration_seconds)
+                           sessions=self.sessions, conversation_id=self.conversation_id, deadline=self.deadline,
+                           rejoin=identity)
         if ended != "person_hangup":
             await self.line.remove(identity)
         return ended
@@ -448,8 +500,10 @@ class TeamCall:
         if fallback == "agent":
             if self.to_agent is not None and self.to_agent():
                 self.reason = why
+                self._event("team.fallback", fallback="agent", reason=why)
                 return "agent"
             fallback = "voicemail"      # el agente del numero no esta (archivado): se toma el mensaje
+        self._event("team.fallback", fallback=fallback, reason=why)
         text = (self.route.fallback_message or "").strip() or FALLBACK_MESSAGES[fallback]
         await self.line.resume()
         self.log.add("assistant", text)
@@ -464,7 +518,10 @@ class TeamCall:
                 ev = await asyncio.wait_for(self.line.events.get(), timeout)
             except asyncio.TimeoutError:
                 break
-            if ev[0] == "closed" or (ev[0] == "left" and ev[1] == self.customer):
+            if ev[0] == "closed":
+                break
+            if ev[0] == "left" and ev[1] == self.customer:
+                await settle(self.line, self.log, {self.customer: ("user", None, "")}, self.customer)
                 break
             if ev[0] == "text" and ev[1] == self.customer:
                 self.log.add("user", ev[2], pcm=ev[3] if len(ev) > 3 else None)
@@ -640,7 +697,8 @@ class OutboundRoom:
     async def wait_for(self, identity: str, timeout: float) -> bool:
         deadline = time.monotonic() + timeout
         while identity not in self.room.remote_participants:
-            if time.monotonic() > deadline:
+            # Cortada antes de que entre (POST /calls/{id}/hangup borra la room): no se espera el resto.
+            if time.monotonic() > deadline or not self.room.isconnected():
                 return False
             await asyncio.sleep(0.2)
         return True
@@ -666,6 +724,9 @@ class OutboundRoom:
     async def listen(self, identities: set[str]) -> None:
         self.listener.listening |= identities
 
+    async def settle(self, identity: str, timeout: float) -> None:
+        await self.listener.settle(identity, timeout)
+
     async def remove(self, identity: str) -> None:
         if identity not in self.room.remote_participants:
             return
@@ -681,15 +742,44 @@ class OutboundRoom:
 
 
 class TeamRoom(transfer.RoomLine):
-    """La entrante al equipo: la RoomLine de la derivacion con la Voice como sesion, mas los datos al panel y el
-    cierre de la room como evento."""
+    """La entrante al equipo: la RoomLine de la derivacion con la Voice como sesion, mas los datos al panel (tema
+    `transcript`), el cierre de la room como evento y los usuarios del panel que ya no pueden entrar (block)."""
 
     def __init__(self, ctx, voice: Voice, *, customer: str, trunk_id: str, caller_id: str, voice_name: str):
         super().__init__(ctx, voice, customer=customer, trunk_id=trunk_id, caller_id=caller_id,
                          hold_music=SimpleNamespace(track="default", volume=0.3),
                          max_call_seconds=settings.call_max_duration_seconds)
         self.voice_name = voice_name
-        self.room.on("disconnected", lambda *_: self.events.put_nowait(("closed", "")))
+        self.data = _DataSender(self.room)
+        self.send = self.data.send
+        self.blocked: set[str] = set()
+        self._kicks: set[asyncio.Task] = set()
+        self.room.on("disconnected", self._on_closed)
+        # Sigue despues de aclose (respaldo al agente): un usuario soltado no entra en ningun momento.
+        self.room.on("participant_connected", self._on_blocked_join)
+
+    def _on_closed(self, *_) -> None:
+        self.events.put_nowait(("closed", ""))
+
+    def _on_blocked_join(self, p) -> None:
+        if p.identity in self.blocked:
+            task = asyncio.create_task(self._kick(p.identity))
+            self._kicks.add(task)
+            task.add_done_callback(self._kicks.discard)
+
+    async def _kick(self, identity: str) -> None:
+        if identity not in self.room.remote_participants:
+            return
+        try:
+            await self.ctx.api.room.remove_participant(api.RoomParticipantIdentity(room=self.room.name,
+                                                                                   identity=identity))
+        except Exception:  # noqa: BLE001 - ya se habia ido
+            logger.info("directa: %s ya no estaba en la room", identity)
+
+    async def block(self, identity: str) -> None:
+        """Atendio en el panel y no entro a tiempo: si esta (o entra despues con su token), se lo saca."""
+        self.blocked.add(identity)
+        await self._kick(identity)
 
     async def start(self) -> None:
         await self.session.publish(self.room)    # antes: RoomLine toma las pistas propias como las del "agente"
@@ -697,6 +787,10 @@ class TeamRoom(transfer.RoomLine):
 
     async def aclose(self) -> None:
         await super().aclose()
+        # Sin los handlers de la espera: con el respaldo al agente, la room sigue con el worker.
+        self.detach()
+        with contextlib.suppress(Exception):
+            self.room.off("disconnected", self._on_closed)
         await self.session.aclose()
 
 
@@ -746,9 +840,10 @@ async def run_outbound(ctx, metadata: dict, *, sessions, store, trunk_id) -> Non
 
 
 async def run_inbound_team(ctx, inbound, *, customer: str, caller: str, dialed: str, sessions, store,
-                           to_agent, trunk_id) -> float | None:
+                           to_agent, trunk_id) -> tuple[float, int] | None:
     """La entrante al equipo. Devuelve None si la llamada termino (ya cortada) o, con el respaldo agent, el momento
-    en que empezo (time.time(): los minutos cuentan desde ahi): el worker sigue con el agente en la misma room."""
+    en que empezo (time.time(): los minutos cuentan desde ahi) y los intentos a celulares (persona-<n> no se
+    repite en una derivacion del agente): el worker sigue con el agente en la misma room."""
     conversation_id = inbound.conversation_id
     route = inbound.team
     with sessions() as s:
@@ -798,7 +893,7 @@ async def run_inbound_team(ctx, inbound, *, customer: str, caller: str, dialed: 
             with contextlib.suppress(Exception):
                 await ctx.room.local_participant.unpublish_track(sid)
         logger.info("directa %s: nadie atendio, respaldo al agente", conversation_id)
-        return started
+        return started, team.attempts
     close("worker_error" if result == "failed" else "")
     await line.aclose()
     with contextlib.suppress(Exception):

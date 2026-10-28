@@ -4,6 +4,7 @@ import asyncio
 import wave
 from types import SimpleNamespace
 
+import pytest
 from livekit.agents import vad as agents_vad
 
 from app.config import settings
@@ -21,6 +22,12 @@ from .test_handoff import member
 from .test_handoff_transfer import CUSTOMER, FakeLine
 
 PCM = b"\x01\x00" * 1600     # 0,1 s a 16 kHz
+
+
+@pytest.fixture(autouse=True)
+def short_rejoin(monkeypatch):
+    """Que el usuario del panel salga y no vuelva no espera los 30 s de verdad."""
+    monkeypatch.setattr(direct, "PANEL_REJOIN_GRACE_SECONDS", 0.2)
 
 
 def messages(api, cid):
@@ -100,9 +107,10 @@ def test_recording_notice_is_synthesized_once(tmp_path, monkeypatch):
 class FakeOut:
     """El lado de LiveKit de la saliente: `dialed` son los eventos despues de marcar; `talk`, despues de conectar."""
 
-    def __init__(self, *, joins=True, dial="dialing", dialed=(), talk=()):
+    def __init__(self, *, joins=True, dial="dialing", dialed=(), talk=(), last_words=()):
         self.joins, self.dial_result = joins, dial
         self.dialed, self.talk = list(dialed), list(talk)
+        self.last_words = list(last_words)     # lo que el STT termina despues de que sale alguien (settle)
         self.events: asyncio.Queue = asyncio.Queue()
         self.sent: list[tuple] = []
         self.log: list[tuple] = []
@@ -130,6 +138,12 @@ class FakeOut:
         self.log.append(("listen", sorted(identities)))
         for ev in self.talk:
             self.events.put_nowait(ev)
+
+    async def settle(self, identity, timeout):
+        self.log.append(("settle", identity))
+        for ev in self.last_words:
+            self.events.put_nowait(ev)
+        self.last_words = []
 
     async def remove(self, identity):
         self.log.append(("remove", identity))
@@ -162,14 +176,19 @@ def test_outbound_answers_talks_and_contact_hangs_up(api, admin, monkeypatch, tm
                            ("sip", direct.CONTACT, "ringing"), ("sip", direct.CONTACT, "ringing"),
                            ("sip", direct.CONTACT, "active")],
                    talk=[("text", direct.CONTACT, "Hola", PCM), ("text", user, "Hola Juan, te llamo de Acme", PCM),
-                         ("text", "otro", "no cuenta", PCM), ("left", direct.CONTACT, "")])
+                         ("text", "otro", "no cuenta", PCM), ("left", direct.CONTACT, "")],
+                   # La ultima frase del contacto, que el STT termina despues de que corta.
+                   last_words=[("text", direct.CONTACT, "Chau", PCM)])
     assert run_out(api, meta, line) == "completed"
     assert line.states() == ["joining", "dialing", "ringing", "active", "ended:completed"]
-    assert line.log[:4] == [("wait_for", user, 30), ("dial", "contact", "+5493516775617", DID), ("notice",),
-                            ("listen", sorted([user, "contact"]))]
+    # Escucha antes del aviso de grabacion: lo que dicen mientras suena tambien queda.
+    assert line.log[:4] == [("wait_for", user, 30), ("dial", "contact", "+5493516775617", DID),
+                            ("listen", sorted([user, "contact"])), ("notice",)]
+    assert ("settle", direct.CONTACT) in line.log
     cid = meta["conversation_id"]
-    assert messages(api, cid) == [("user", "Hola", None, 1), ("assistant", "Hola Juan, te llamo de Acme", "ana@acme.com", 2)]
-    assert sorted(p.name for p in (tmp_path / cid).iterdir()) == ["001.wav", "002.wav"]
+    assert messages(api, cid) == [("user", "Hola", None, 1), ("assistant", "Hola Juan, te llamo de Acme", "ana@acme.com", 2),
+                                  ("user", "Chau", None, 3)]
+    assert sorted(p.name for p in (tmp_path / cid).iterdir()) == ["001.wav", "002.wav", "003.wav"]
     call = call_row(api, cid)
     assert (call.status, call.ended_reason) == (CallStatus.finalizada, "customer_hangup")
     assert call.started_at is not None and call.ended_at is not None
@@ -220,6 +239,32 @@ def test_outbound_user_hangs_up_and_hangup_from_the_api_wins(api, admin, monkeyp
     assert call_row(api, meta["conversation_id"]).ended_reason == call_service.HANGUP_REASON
 
 
+def test_outbound_user_reloads_and_comes_back(api, admin, monkeypatch, tmp_path):
+    # Recarga la pagina (sale de la room) y vuelve a entrar con "Volver a entrar": la llamada sigue.
+    meta, user, new = outbound(api, admin, monkeypatch, tmp_path)
+    monkeypatch.setattr(direct, "PANEL_REJOIN_GRACE_SECONDS", 5)
+    line = FakeOut(dialed=[("sip", direct.CONTACT, "active")],
+                   talk=[("left", user, ""), ("joined", user), ("text", user, "Perdón, se me cortó", PCM),
+                         ("left", direct.CONTACT, "")])
+    assert run_out(api, meta, line) == "completed"
+    assert call_row(api, meta["conversation_id"]).ended_reason == "customer_hangup"
+    assert [m[1] for m in messages(api, meta["conversation_id"])] == ["Perdón, se me cortó"]
+
+    # Tambien mientras suena: sale, vuelve y el contacto atiende.
+    meta = new()
+    line = FakeOut(dialed=[("left", user, ""), ("sip", direct.CONTACT, "ringing"), ("joined", user),
+                           ("sip", direct.CONTACT, "active")], talk=[("left", direct.CONTACT, "")])
+    assert run_out(api, meta, line) == "completed"
+    assert call_row(api, meta["conversation_id"]).ended_reason == "customer_hangup"
+
+    # Sale mientras suena y no vuelve: se corta sin esperar a que atiendan.
+    monkeypatch.setattr(direct, "PANEL_REJOIN_GRACE_SECONDS", 0.2)
+    meta = new()
+    line = FakeOut(dialed=[("left", user, ""), ("sip", direct.CONTACT, "ringing")])
+    assert run_out(api, meta, line) == "no_answer"
+    assert call_row(api, meta["conversation_id"]).ended_reason == "person_hangup"
+
+
 def test_outbound_max_duration(api, admin, monkeypatch, tmp_path):
     meta, _, _ = outbound(api, admin, monkeypatch, tmp_path, max_duration_seconds=0.3)
     line = FakeOut(dialed=[("sip", direct.CONTACT, "active")])
@@ -233,15 +278,29 @@ def test_outbound_max_duration(api, admin, monkeypatch, tmp_path):
 class TeamLine(FakeLine):
     """La linea de la derivacion (FakeLine) mas lo del equipo: `on_listen`, eventos al empezar a escuchar."""
 
-    def __init__(self, script=None, connected=(), on_listen=()):
+    def __init__(self, script=None, connected=(), on_listen=(), last_words=()):
         super().__init__(script or {}, connected)
         self.on_listen = list(on_listen)
+        self.last_words = list(last_words)
+        self.sent: list[tuple] = []
 
     async def listen(self, identity):
         self.log.append(("listen", identity))
         for ev in self.on_listen:
             self.events.put_nowait(ev)
         self.on_listen = []
+
+    def send(self, topic, data):
+        self.sent.append((topic, data))
+
+    async def settle(self, identity, timeout):
+        self.log.append(("settle", identity))
+        for ev in self.last_words:
+            self.events.put_nowait(ev)
+        self.last_words = []
+
+    async def block(self, identity):
+        self.log.append(("block", identity))
 
 
 def team_setup(api, admin, monkeypatch, tmp_path, *people, **number):
@@ -265,6 +324,11 @@ def team_setup(api, admin, monkeypatch, tmp_path, *people, **number):
         call_service.update_call(s, inbound.conversation_id, status=CallStatus.en_curso)
     inbound.team.ring_seconds = 1
     return c, inbound, users
+
+
+def team_outcome(admin, cid):
+    """El `team` del detalle de la llamada (GET /calls/{id})."""
+    return admin.get(f"{V1}/calls/{cid}").json()["call"]["team"]
 
 
 def team_call(api, c, inbound, line, **kw):
@@ -301,6 +365,9 @@ def test_team_phone_first_nobody_then_panel_answers(api, admin, monkeypatch, tmp
     assert [x for x in line.log if x[0] in ("dial", "hold", "listen")] == [
         ("hold", True), ("dial", "+5493511111111"), ("hold", False), ("listen", f"user-{ana_id}"), ("hold", False)]
     assert messages(api, cid) == [("user", "Hola, quería consultar", None, 1), ("assistant", "Sí, decime", "Ana", 2)]
+    # La transcripcion en vivo llega al panel de Ana (tema transcript), como en la saliente.
+    assert line.sent == [("transcript", {"role": "user", "person": None, "text": "Hola, quería consultar"}),
+                         ("transcript", {"role": "assistant", "person": "Ana", "text": "Sí, decime"})]
     with api.sessions() as s:
         assert s.get(CallRow, cid).user_id == ana_id
         assert [r.status for r in s.query(CallRing).filter_by(conversation_id=cid)] == ["answered"]
@@ -329,6 +396,7 @@ def test_team_panel_first_nobody_available_then_phone_confirms(api, admin, monke
                  .order_by(Event.id)]
     assert types == ["hold.started", "handoff.dialing", "handoff.answered", "handoff.confirmed",
                      "handoff.connected", "handoff.ended", "handoff.person_hung_up", "hold.ended"]
+    assert team_outcome(admin, cid) == {"answered": True, "person": "Pedro", "fallback": None}
 
 
 def test_team_panel_first_one_answers(api, admin, monkeypatch, tmp_path):
@@ -369,6 +437,8 @@ def test_team_after_hours_goes_to_the_agent_or_hangs_up(api, admin, monkeypatch,
     assert asyncio.run(team.run()) == "hangup" and team.reason == "after_hours"
     assert ("say", "Estamos cerrados.") in line.log and not [x for x in line.log if x[0] == "dial"]
     assert messages(api, inbound.conversation_id) == [("assistant", "Estamos cerrados.", None, None)]
+    # El detalle dice que nadie atendio y el respaldo (evento team.fallback).
+    assert team_outcome(admin, inbound.conversation_id) == {"answered": False, "person": None, "fallback": "hangup"}
 
     # Respaldo agent: la conversacion pasa al agente del numero, con su apertura.
     agent = make_agent(admin, c)
@@ -391,6 +461,7 @@ def test_team_after_hours_goes_to_the_agent_or_hangs_up(api, admin, monkeypatch,
     with api.sessions() as s:
         assert s.get(ConversationRow, cid).agent_id == agent["id"]
         assert s.get(CallRow, cid).answered_by == "agent"
+    assert team_outcome(admin, cid) == {"answered": False, "person": None, "fallback": "agent"}
 
 
 def test_team_nobody_answers_voicemail_records(api, admin, monkeypatch, tmp_path):
@@ -399,13 +470,17 @@ def test_team_nobody_answers_voicemail_records(api, admin, monkeypatch, tmp_path
     cid = inbound.conversation_id
     # Juan no atiende, Ana no esta Disponible: mensaje por defecto y se graba lo que dice el que llama.
     line = TeamLine({"+5493511111111": "no_answer"},
-                    on_listen=[("text", CUSTOMER, "Soy Laura, llamame al 351 555 1234", PCM), ("left", CUSTOMER)])
+                    on_listen=[("text", CUSTOMER, "Soy Laura, llamame al 351 555 1234", PCM), ("left", CUSTOMER)],
+                    # Lo ultimo que dijo antes de cortar, sin el silencio que cierra la frase: entra igual.
+                    last_words=[("text", CUSTOMER, "Gracias", PCM)])
     team = team_call(api, c, inbound, line)
     assert asyncio.run(team.run()) == "voicemail" and team.reason == "team_no_answer"
     assert ("say", direct.FALLBACK_MESSAGES["voicemail"]) in line.log and ("resume",) in line.log
+    assert ("settle", CUSTOMER) in line.log
     assert messages(api, cid) == [("assistant", direct.FALLBACK_MESSAGES["voicemail"], None, None),
-                                  ("user", "Soy Laura, llamame al 351 555 1234", None, 1)]
+                                  ("user", "Soy Laura, llamame al 351 555 1234", None, 1), ("user", "Gracias", None, 2)]
     assert (tmp_path / cid / "001.wav").is_file()
+    assert team_outcome(admin, cid) == {"answered": False, "person": None, "fallback": "voicemail"}
 
 
 def test_team_panel_answer_right_before_the_rings_go_off(api, admin, monkeypatch, tmp_path):
@@ -456,9 +531,150 @@ def test_team_panel_answer_without_joining_is_released(api, admin, monkeypatch, 
         return result
 
     assert asyncio.run(run()) == "voicemail" and team.reason == "team_no_answer"
+    # Si su navegador entra tarde con el token de answer, se lo saca de la room.
+    assert ("block", f"user-{pedro_id}") in line.log
     with api.sessions() as s:
         assert s.get(CallRow, cid).user_id is None
         assert [r.status for r in s.query(CallRing).filter_by(conversation_id=cid)] == ["cancelled"]
         assert direct_calls.busy_user_ids(s, c["id"]) == set()
     r = pedro.post(f"{V1}/direct-calls/{cid}/answer")
     assert r.status_code == 409 and r.json()["code"] == "not_ringing"
+
+
+def test_team_phone_connected_is_cut_by_duration_and_minutes(api, admin, monkeypatch, tmp_path):
+    # Atendio en el celular: sin el quota_watchdog del worker, el tope de duracion (desde que entro la llamada)
+    # y los minutos entrantes los controla el tramo (Transfer.limit).
+    monkeypatch.setattr(settings, "quota_check_seconds", 0.1)
+    c, inbound, _ = team_setup(api, admin, monkeypatch, tmp_path, ("Pedro", "3512222222", None))
+    team = team_call(api, c, inbound, TeamLine({"+5493512222222": "confirm"}))
+    team.deadline = 0       # ya paso el tope
+    assert asyncio.run(team.run()) == "answered" and team.reason == "max_duration"
+
+    with api.sessions() as s:
+        inbound = call_service.start_inbound(s, api.engine, DID, "+5493513962553")
+        call_service.update_call(s, inbound.conversation_id, status=CallStatus.en_curso)
+    inbound.team.ring_seconds = 1
+    monkeypatch.setattr(call_service, "call_remaining_seconds", lambda s, cid: 0)
+    team = team_call(api, c, inbound, TeamLine({"+5493512222222": "confirm"}))
+    assert asyncio.run(team.run()) == "answered" and team.reason == "quota_exhausted"
+
+
+# ---------- lado de LiveKit ----------
+
+class FakeRoom:
+    def __init__(self):
+        self.handlers: dict[str, list] = {}
+        self.remote_participants: dict = {}
+        self.name = "call-x"
+        self.connected = True
+        self.local_participant = SimpleNamespace(track_publications={})
+
+    def on(self, event, fn):
+        self.handlers.setdefault(event, []).append(fn)
+
+    def off(self, event, fn):
+        self.handlers[event].remove(fn)
+
+    def isconnected(self):
+        return self.connected
+
+    def emit(self, event, *args):
+        for fn in list(self.handlers.get(event, [])):
+            fn(*args)
+
+
+def fake_ctx(room, removed):
+    async def remove_participant(req):
+        removed.append(req.identity)
+    return SimpleNamespace(room=room, api=SimpleNamespace(room=SimpleNamespace(remove_participant=remove_participant)))
+
+
+def fake_voice():
+    async def aclose():
+        pass
+    return SimpleNamespace(vad=None, stt=None, tts=SimpleNamespace(sample_rate=24000), aclose=aclose)
+
+
+def test_outbound_room_stops_waiting_when_the_room_closes():
+    # Cortada por la API antes de que entre el usuario (se borra la room): no espera el join_timeout entero.
+    room = FakeRoom()
+    line = direct.OutboundRoom(SimpleNamespace(room=room), fake_voice(), trunk_id="t", voice_name="sofia")
+
+    async def run():
+        task = asyncio.create_task(line.wait_for("user-1", 60))
+        await asyncio.sleep(0.05)
+        room.connected = False
+        return await asyncio.wait_for(task, 2)
+
+    assert asyncio.run(run()) is False
+
+
+def test_team_room_kicks_a_released_user_and_lets_go_of_the_room():
+    async def run():
+        room, removed = FakeRoom(), []
+        line = direct.TeamRoom(fake_ctx(room, removed), fake_voice(), customer=CUSTOMER, trunk_id="t", caller_id="",
+                               voice_name="sofia")
+        # Lo que registra RoomLine.start (sin publicar pistas).
+        line._handlers = [("participant_connected", line._on_joined), ("track_subscribed", line._on_subscribed)]
+        for event, fn in line._handlers:
+            room.on(event, fn)
+        await line.block("user-ana")                     # todavia no entro: nada que sacar
+        await line.aclose()                              # respaldo al agente: la room sigue con el worker
+        assert room.handlers["participant_connected"] == [line._on_blocked_join]
+        assert room.handlers["track_subscribed"] == [] and room.handlers["disconnected"] == []
+        # Entra tarde con el token de answer: se lo saca; otro participante no.
+        for identity in ("user-ana", "persona-1"):
+            p = SimpleNamespace(identity=identity)
+            room.remote_participants[identity] = p
+            room.emit("participant_connected", p)
+        await asyncio.sleep(0.05)
+        return removed
+
+    assert asyncio.run(run()) == ["user-ana"]
+
+
+def test_listener_flushes_the_last_phrase_when_the_track_ends(monkeypatch):
+    # Corta en medio de una frase (sin los 0,3 s de silencio): al terminar la pista se le pasa silencio al VAD y
+    # se espera su STT; settle() espera a que llegue.
+    pushed: list[bytes] = []
+
+    class Stream:
+        def __init__(self):
+            self.queue: asyncio.Queue = asyncio.Queue()
+
+        def push_frame(self, frame):
+            pushed.append(bytes(frame.data))
+
+        def end_input(self):
+            speech = [rtc.AudioFrame(PCM, 16000, 1, len(PCM) // 2)]
+            self.queue.put_nowait(SimpleNamespace(type=agents_vad.VADEventType.END_OF_SPEECH, frames=speech))
+            self.queue.put_nowait(None)
+
+        def __aiter__(self):
+            return self
+
+        async def __anext__(self):
+            ev = await self.queue.get()
+            if ev is None:
+                raise StopAsyncIteration
+            return ev
+
+    async def frames(track, **_):
+        yield SimpleNamespace(frame=rtc.AudioFrame(PCM, 16000, 1, len(PCM) // 2))
+
+    async def recognize(frames, language=None):
+        return SimpleNamespace(alternatives=[SimpleNamespace(text="Chau")])
+
+    monkeypatch.setattr(rtc, "AudioStream", frames)
+    heard: list[tuple] = []
+    listener = Listener(SimpleNamespace(stream=Stream), SimpleNamespace(recognize=recognize),
+                        lambda who, text, pcm: heard.append((who, text)))
+    listener.listening.add("contact")
+
+    async def run():
+        listener.capture(None, "contact")
+        await listener.settle("contact", 2)
+
+    asyncio.run(run())
+    assert heard == [("contact", "Chau")]
+    assert pushed[0] == PCM and set(pushed[1:]) == {bytes(320)} and len(pushed) == 1 + 60

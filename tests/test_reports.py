@@ -211,8 +211,10 @@ def test_calls_report(api, data):
     durations = {d["bucket"]: d["count"] for d in out["durations"]}
     assert durations == {"0-15s": 1, "15-60s": 0, "1-3m": 2, "3-5m": 0, "5-10m": 0, "10m+": 0}
     ended = {e["reason"]: e["count"] for e in out["ended"]}
-    assert ended == {"customer_hangup": 1, "agent_end": 1, "off_topic": 0, "hangup_by_user": 0, "blocked_number": 0,
-                     "rejected": 1, "failed": 0, "other": 1}
+    assert {r: n for r, n in ended.items() if n} == {"customer_hangup": 1, "agent_end": 1, "rejected": 1, "other": 1}
+    assert list(ended) == list(report_stats.ENDED_REASONS)
+    # El total es el de by_type y ended (todas las llamadas), no solo las finalizadas de durations.
+    assert out["total"] == sum(ended.values()) == sum(t["calls"] for t in out["by_type"]) == 4
     assert out["early_hangups"] == 1
     callers = out["callers"]
     # 351...01 (dos llamadas) y el WhatsApp, nuevos; 351...03 ya había llamado en septiembre.
@@ -228,8 +230,11 @@ def test_direct_calls_are_reported_apart(api, data):
               for name in ("summary", "outcomes", "transfers", "technical")}
     with api.sessions() as s:
         conv(s, data["acme"], None, T(7, 10), mode="directa", duration=300, phone="+5493510000009", user_id=ana_id)
-        conv(s, data["acme"], None, T(7, 11), mode="entrante", duration=60, phone="+5493510000010",
-             answered_by="team", user_id=ana_id)
+        team = conv(s, data["acme"], None, T(7, 11), mode="entrante", duration=60, phone="+5493510000010",
+                    answered_by="team", user_id=ana_id)
+        # Sus celulares (Transfer.run_team) dejan handoff.*: no son derivaciones de un agente.
+        s.add_all([Event(client_id=data["acme"], type=t, conversation_id=team, at=T(7, 11, 1))
+                   for t in ("handoff.unavailable", "handoff.connected")])
         s.commit()
     out = report(data["admin"], "calls", client_id=data["acme"])
     day = next(d for d in out["daily"] if d["date"] == "2026-10-07")
@@ -246,6 +251,9 @@ def test_direct_calls_are_reported_apart(api, data):
     k = report(data["admin"], "summary", client_id=data["acme"])["kpis"]
     assert k["conversations"] == 7 and k["by_channel"]["voice"] == 5 and k["minutes"] == 9.2
     assert (k["conversion_pct"], k["goal_pct"], k["transfer_pct"]) == (40.0, 20.0, 40.0)
+    assert (k["transfers"], k["transfers_answered"]) == (2, 1)
+    summary = report(data["admin"], "summary", client_id=data["acme"])
+    assert next(d for d in summary["daily"] if d["date"] == "2026-10-07")["transfers_answered"] == 0
     after = report(data["admin"], "outcomes", client_id=data["acme"])
     assert after["funnel"] == before["outcomes"]["funnel"]
     assert after["conversion_daily"] == before["outcomes"]["conversion_daily"]
@@ -257,6 +265,25 @@ def test_direct_calls_are_reported_apart(api, data):
     # Sin llamadas directas, los tres tipos igual estan.
     empty = report(data["admin"], "calls", client_id=data["zeta"])
     assert [t["type"] for t in empty["by_type"]] == ["agent", "direct", "team"] and empty["by_user"] == []
+
+
+def test_direct_calls_end_reasons_and_total(api, data):
+    """Como terminan las directas, con su motivo y no "otro"; el total del KPI es el de by_type y ended."""
+    with api.sessions() as s:
+        for i, (mode, status, reason, team) in enumerate((
+                ("directa", "finalizada", "person_hangup", None), ("directa", "fallida", "user_not_joined", None),
+                ("directa", "fallida", "no_answer", None), ("directa", "fallida", "busy", None),
+                ("entrante", "finalizada", "team_no_answer", "team"), ("entrante", "finalizada", "after_hours", "team"),
+                ("entrante", "finalizada", "max_duration", "team"), ("entrante", "fallida", "worker_error", "team"))):
+            conv(s, data["zeta"], None, T(7, 10 + i), mode=mode, status=status, ended_reason=reason, duration=30,
+                 phone=f"+54935100001{i:02d}", answered_by=team)
+        s.commit()
+    out = report(data["admin"], "calls", client_id=data["zeta"])
+    ended = {e["reason"]: e["count"] for e in out["ended"] if e["count"]}
+    assert ended == {"person_hangup": 1, "user_not_joined": 1, "no_answer": 1, "busy": 1, "team_no_answer": 1,
+                     "after_hours": 1, "max_duration": 1, "worker_error": 1}
+    assert out["total"] == 8 == sum(t["calls"] for t in out["by_type"])
+    assert sum(d["count"] for d in out["durations"]) == 4      # las finalizadas
 
 
 def test_days_and_hours_in_the_local_zone(api, data):

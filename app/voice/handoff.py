@@ -15,6 +15,7 @@ El agente llama a la herramienta transfer_call con el area (app/llm/platform_too
 queda en handoff_legs (minutos salientes y canales) y en events (linea de tiempo).
 """
 import asyncio
+import contextlib
 import json
 import logging
 import time
@@ -105,7 +106,7 @@ class Transfer:
     def __init__(self, *, sessions, line: Line, conversation_id: str, client_id: str, areas: list[dict],
                  customer: str, caller: str = "", summary=None, on_message=None, hang_up=None,
                  hold_music: bool = True, confirm_seconds: int | None = None, first_attempt: int = 0,
-                 on_connected=None):
+                 on_connected=None, limit=None):
         self.sessions = sessions
         self.line = line
         self.conversation_id = conversation_id
@@ -118,6 +119,9 @@ class Transfer:
         self.hang_up = hang_up
         self.on_connected = on_connected     # on_connected(member): la persona quedo conectada con el cliente
         self.hold_music = hold_music
+        # limit() -> motivo de corte o None, con la persona conectada: la entrante directa no tiene el
+        # quota_watchdog del worker (minutos entrantes y duracion: app/voice/direct.py, TeamCall._limit).
+        self.limit = limit
         self.confirm_seconds = settings.handoff_confirm_seconds if confirm_seconds is None else confirm_seconds
         # Intentos de la llamada (la identidad persona-<n> no se repite entre derivaciones de la misma llamada).
         self.attempt = first_attempt
@@ -380,6 +384,8 @@ class Transfer:
                     with self.sessions() as s:
                         if quota.handoff_check(s, self.client_id) == "outbound_minutes":
                             ended = "quota"
+                    if not ended and self.limit is not None:
+                        ended = self.limit() or ""
                     continue
                 kind, who = ev[0], ev[1]
                 if kind == "left" and who == self.customer:
@@ -520,6 +526,7 @@ class RoomLine:
         self.whisper_speaker: Speaker | None = None
         self._hold_pcm: bytes | None = None
         self._agent_tracks: list[str] = []
+        self._handlers: list[tuple[str, object]] = []
         self._started = False
 
     # -- eventos de la room --
@@ -571,11 +578,11 @@ class RoomLine:
                 if pub.kind == rtc.TrackKind.KIND_AUDIO:
                     self.tracks[p.identity] = pub.sid
         self._agent_tracks = [pub.sid for pub in self.room.local_participant.track_publications.values()]
-        self.room.on("sip_dtmf_received", self._on_dtmf)
-        self.room.on("participant_disconnected", self._on_left)
-        self.room.on("participant_connected", self._on_joined)
-        self.room.on("track_published", self._on_published)
-        self.room.on("track_subscribed", self._on_subscribed)
+        self._handlers = [("sip_dtmf_received", self._on_dtmf), ("participant_disconnected", self._on_left),
+                          ("participant_connected", self._on_joined), ("track_published", self._on_published),
+                          ("track_subscribed", self._on_subscribed)]
+        for event, handler in self._handlers:
+            self.room.on(event, handler)
         # El audio del cliente ya estaba suscripto (lo escucha la sesion): se captura aparte para el modo escucha.
         for p in self.room.remote_participants.values():
             if p.identity == self.customer:
@@ -665,6 +672,17 @@ class RoomLine:
                 api.RoomParticipantIdentity(room=self.room.name, identity=identity))
         except Exception:  # noqa: BLE001 - ya se habia ido: no hay nada que sacar
             logger.info("derivacion: %s ya no estaba en la room", identity)
+
+    async def settle(self, identity: str, timeout: float) -> None:
+        """Salio `identity`: espera (hasta `timeout`) su ultima frase (evento "text")."""
+        await self.listener.settle(identity, timeout)
+
+    def detach(self) -> None:
+        """Deja de escuchar los eventos de la room (la entrante al equipo que sigue con el agente)."""
+        for event, handler in self._handlers:
+            with contextlib.suppress(Exception):   # ya no estaba
+                self.room.off(event, handler)
+        self._handlers = []
 
     async def resume(self) -> None:
         self.room.local_participant.set_track_subscription_permissions(allow_all_participants=True)

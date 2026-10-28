@@ -13,6 +13,8 @@ from livekit import rtc
 logger = logging.getLogger("agent.listen")
 
 SAMPLE_RATE = 16000
+# Al terminar una pista (salio de la room): silencio al VAD para que cierre la frase en curso (min_silence 0,3 s).
+FLUSH_SILENCE_SECONDS = 0.6
 
 
 class Listener:
@@ -25,22 +27,45 @@ class Listener:
         self.keep: set[str] = set()          # identidades cuyo audio se guarda en `audio`
         self.audio: dict[str, bytearray] = {}
         self.tasks: list[asyncio.Task] = []
+        self.capturing: dict[str, set[asyncio.Task]] = {}   # identidad -> sus capturas en curso
 
     def capture(self, track, identity: str) -> None:
         """Lee la pista: guarda el audio si la identidad esta en `keep` y lo pasa al VAD mientras se escucha."""
-        self.tasks.append(asyncio.create_task(self._capture(track, identity)))
+        task = asyncio.create_task(self._capture(track, identity))
+        self.tasks.append(task)
+        running = self.capturing.setdefault(identity, set())
+        running.add(task)
+        task.add_done_callback(running.discard)
 
     async def _capture(self, track, identity: str) -> None:
         buf = self.audio.setdefault(identity, bytearray()) if identity in self.keep else None
         vad_stream = None
+        transcribe = None
         async for e in rtc.AudioStream(track, sample_rate=SAMPLE_RATE, num_channels=1):
             if buf is not None:
                 buf.extend(bytes(e.frame.data))
             if identity in self.listening:
                 if vad_stream is None:
                     vad_stream = self.vad.stream()
-                    self.tasks.append(asyncio.create_task(self._transcribe(vad_stream, identity)))
+                    transcribe = asyncio.create_task(self._transcribe(vad_stream, identity))
+                    self.tasks.append(transcribe)
                 vad_stream.push_frame(e.frame)
+        if vad_stream is None:
+            return
+        # Termino la pista (corto): la frase que estaba diciendo, sin el silencio que la cierra, entra igual.
+        step = SAMPLE_RATE // 100
+        silence = rtc.AudioFrame(bytes(step * 2), SAMPLE_RATE, 1, step)
+        for _ in range(int(FLUSH_SILENCE_SECONDS * 100)):
+            vad_stream.push_frame(silence)
+        vad_stream.end_input()
+        await transcribe
+
+    async def settle(self, identity: str, timeout: float) -> None:
+        """Espera (hasta `timeout`) a que terminen las capturas de `identity` (salio de la room): su ultima frase
+        pasa por el STT y llega a on_phrase antes de cerrar."""
+        running = [t for t in self.capturing.get(identity, ()) if not t.done()]
+        if running:
+            await asyncio.wait(running, timeout=timeout)
 
     async def _transcribe(self, vad_stream, identity: str) -> None:
         from livekit.agents import vad as agents_vad

@@ -5,8 +5,8 @@
 - Presencia y timbre: PUT /me/presence (pulso cada ~20 s), GET /me/ringing y GET /team/presence.
 - Aviso de grabacion: /clients/{id}/direct-call-settings.
 Cortar es el POST /calls/{id}/hangup de siempre. Un admin en "ver como cliente" no llama ni atiende
-(403 support_read_only), y hasta que el cliente acepta las condiciones vigentes nadie llama ni atiende
-(403 terms_pending, services/legal_gate.py).
+(403 support_read_only), y hasta que el cliente acepta las condiciones 2026-10-28 (o posteriores) nadie llama
+ni atiende (403 terms_pending, services/legal_gate.py).
 """
 from fastapi import APIRouter
 
@@ -28,7 +28,7 @@ from .clients import get_client
 router = APIRouter(tags=["direct-calls"])
 
 ERRORS = {403: {"description": "Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones "
-                               "vigentes sin aceptar (terms_pending) u otro usuario"},
+                               "de las llamadas directas sin aceptar (terms_pending) u otro usuario"},
           409: {"description": "Contacto dado de baja sin confirmar (opted_out), llamada terminada o ya atendida"},
           429: {"description": "Plan sin llamadas directas, sin minutos salientes, al tope de llamadas o sin "
                                "canales libres"}}

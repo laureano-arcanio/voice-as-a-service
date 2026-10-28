@@ -6,7 +6,9 @@ from fastapi import APIRouter, Query
 from fastapi.responses import FileResponse
 
 from ...config import settings
+from ...models import Contact
 from ...services import calls as service
+from ...services import phones
 from ...services.errors import Invalid, NotFound
 from ...services.reports import CallFilter, Reports
 from ..deps import DB, AdminPrincipal, CurrentPrincipal, Definitions, Engine, scoped_client_id
@@ -31,14 +33,30 @@ CampaignQuery = Annotated[str | None, Query(description="Solo las llamadas y con
 
 
 def _filter(p, client_id, agent_id, date_from, date_to, tz, status=None, mode=None, campaign_id=None,
-            user_id=None, answered_by=None) -> CallFilter:
+            user_id=None, answered_by=None, phones_: list[str] | None = None) -> CallFilter:
     try:
         zone = ZoneInfo(tz or settings.billing_timezone)
     except (ZoneInfoNotFoundError, ValueError):
         raise Invalid(f"Zona horaria inexistente: {tz}") from None
     return CallFilter(client_id=scoped_client_id(p, client_id), agent_id=agent_id, date_from=date_from,
                       date_to=date_to, status=status or [], mode=mode, campaign_id=campaign_id, user_id=user_id,
-                      answered_by=answered_by, tz=zone)
+                      answered_by=answered_by, phones=phones_ or [], tz=zone)
+
+
+def _phones(p, db, phone: str | None, contact_id: str | None) -> list[str]:
+    """Los E.164 de los filtros `phone` y `contact_id` (el telefono del contacto)."""
+    out = []
+    if phone:
+        try:
+            out.append(phones.normalize_phone(phone))
+        except ValueError as e:
+            raise Invalid(f"Teléfono inválido: {e}", "invalid_phone") from None
+    if contact_id:
+        contact = db.get(Contact, contact_id)
+        if contact is None or not p.can_access(contact.client_id):
+            raise NotFound("Contacto inexistente")
+        out.append(contact.phone)
+    return out
 
 
 @router.post("/calls", response_model=CallStartedOut, status_code=201,
@@ -62,10 +80,17 @@ def list_calls(p: CurrentPrincipal, db: DB, definitions: Definitions,
                                                                 "usuario")] = None,
                answered_by: Annotated[Literal["agent", "team"] | None, Query(
                    description="Entrantes que atendió el agente o el equipo")] = None,
+               phone: Annotated[str | None, Query(max_length=32, description=(
+                   "Las llamadas con ese teléfono y las conversaciones de WhatsApp de ese número (se normaliza a "
+                   "E.164: +5493511234567, 351 123-4567)"))] = None,
+               contact_id: Annotated[str | None, Query(description="Las del teléfono de ese contacto de la "
+                                                                   "agenda")] = None,
                limit: int = Query(default=100, ge=1, le=500), offset: int = Query(default=0, ge=0)):
-    """Conversaciones con su llamada, de la mas nueva a la mas vieja."""
+    """Conversaciones con su llamada, de la mas nueva a la mas vieja. `phone` y `contact_id` juntos piden los
+    dos telefonos a la vez (si son distintos, no hay ninguna)."""
     items, total = Reports(db, definitions).page(
-        _filter(p, client_id, agent_id, date_from, date_to, tz, status, mode, campaign_id, user_id, answered_by),
+        _filter(p, client_id, agent_id, date_from, date_to, tz, status, mode, campaign_id, user_id, answered_by,
+                _phones(p, db, phone, contact_id)),
         limit, offset)
     return CallPage(items=items, total=total)
 

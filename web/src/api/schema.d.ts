@@ -589,7 +589,7 @@ export interface paths {
          * @description Etiqueta y quien atiende las entrantes: el agente (`answer_mode: agent`, un agente del mismo cliente)
          *     o el equipo (`team`: `member_ids` en orden, `ring_first`, `ring_seconds`, `schedule` y el respaldo
          *     `team_fallback`, que con `agent` usa el agente del numero). `member_ids` reemplaza la lista. El equipo
-         *     pide las condiciones vigentes aceptadas por el cliente (403 terms_pending).
+         *     pide las condiciones 2026-10-28 (o posteriores) aceptadas por el cliente (403 terms_pending).
          */
         patch: operations["update_number_api_v1_phone_numbers__number_id__patch"];
         trace?: never;
@@ -890,7 +890,8 @@ export interface paths {
         };
         /**
          * List Calls
-         * @description Conversaciones con su llamada, de la mas nueva a la mas vieja.
+         * @description Conversaciones con su llamada, de la mas nueva a la mas vieja. `phone` y `contact_id` juntos piden los
+         *     dos telefonos a la vez (si son distintos, no hay ninguna).
          */
         get: operations["list_calls_api_v1_calls_get"];
         put?: never;
@@ -4553,6 +4554,12 @@ export interface components {
              * @default false
              */
             opted_out_confirmed?: boolean;
+            /** Contact Id */
+            contact_id?: string | null;
+            /** Contact Name */
+            contact_name?: string | null;
+            /** @description Entrante al equipo: si atendió alguien y, si nadie, el respaldo usado */
+            team?: components["schemas"]["TeamOutcome"] | null;
         };
         /**
          * CallJoinOut
@@ -4767,6 +4774,11 @@ export interface components {
              * @default false
              */
             opted_out_confirmed?: boolean;
+            /**
+             * Contact Id
+             * @description El contacto de la agenda con ese teléfono, si hay (contact_name, si el agente no lo tomó, es el suyo)
+             */
+            contact_id?: string | null;
         };
         /** CallsUsageOut */
         CallsUsageOut: {
@@ -7893,8 +7905,13 @@ export interface components {
              */
             durations: components["schemas"]["ReportBucketOut"][];
             /**
+             * Total
+             * @description Llamadas del período, con cualquier estado: lo que suman by_type y ended
+             */
+            total: number;
+            /**
              * Ended
-             * @description customer_hangup, agent_end, off_topic, hangup_by_user, blocked_number, rejected, failed, other
+             * @description Siempre todos, en este orden: customer_hangup, agent_end, person_hangup (cortó la persona del equipo), off_topic, hangup_by_user, team_no_answer y after_hours (entrante al equipo que nadie atendió o fuera de horario), no_answer, busy, voicemail, user_not_joined (la persona no entró a su saliente), max_duration, quota_exhausted, blocked_number, rejected, worker_error, failed (otra falla) y other
              */
             ended: components["schemas"]["ReportReasonOut"][];
             /**
@@ -8857,6 +8874,24 @@ export interface components {
             user_id?: string | null;
             /** Active */
             active?: boolean | null;
+        };
+        /** TeamOutcome */
+        TeamOutcome: {
+            /**
+             * Answered
+             * @description Si atendió alguien del equipo; null mientras suena
+             */
+            answered: boolean | null;
+            /**
+             * Person
+             * @description Quien atendió en su celular (en el panel, user_name)
+             */
+            person?: string | null;
+            /**
+             * Fallback
+             * @description Nadie atendió: el respaldo (pasó al agente, tomó un mensaje o cortó con un aviso); null si no se sabe (llamadas de antes)
+             */
+            fallback?: ("agent" | "voicemail" | "hangup") | null;
         };
         /** TeamPresenceOut */
         TeamPresenceOut: {
@@ -12156,6 +12191,10 @@ export interface operations {
                 user_id?: string | null;
                 /** @description Entrantes que atendió el agente o el equipo */
                 answered_by?: ("team" | "agent") | null;
+                /** @description Las llamadas con ese teléfono y las conversaciones de WhatsApp de ese número (se normaliza a E.164: +5493511234567, 351 123-4567) */
+                phone?: string | null;
+                /** @description Las del teléfono de ese contacto de la agenda */
+                contact_id?: string | null;
                 limit?: number;
                 offset?: number;
             };
@@ -17917,7 +17956,7 @@ export interface operations {
                     "application/json": components["schemas"]["DirectCallOut"];
                 };
             };
-            /** @description Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones vigentes sin aceptar (terms_pending) u otro usuario */
+            /** @description Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones de las llamadas directas sin aceptar (terms_pending) u otro usuario */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -17969,7 +18008,7 @@ export interface operations {
                     "application/json": components["schemas"]["DirectJoinOut"];
                 };
             };
-            /** @description Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones vigentes sin aceptar (terms_pending) u otro usuario */
+            /** @description Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones de las llamadas directas sin aceptar (terms_pending) u otro usuario */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -18021,7 +18060,7 @@ export interface operations {
                     "application/json": components["schemas"]["DirectJoinOut"];
                 };
             };
-            /** @description Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones vigentes sin aceptar (terms_pending) u otro usuario */
+            /** @description Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones de las llamadas directas sin aceptar (terms_pending) u otro usuario */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -18071,7 +18110,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones vigentes sin aceptar (terms_pending) u otro usuario */
+            /** @description Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones de las llamadas directas sin aceptar (terms_pending) u otro usuario */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -18125,7 +18164,7 @@ export interface operations {
                     "application/json": components["schemas"]["PresenceOut"];
                 };
             };
-            /** @description Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones vigentes sin aceptar (terms_pending) u otro usuario */
+            /** @description Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones de las llamadas directas sin aceptar (terms_pending) u otro usuario */
             403: {
                 headers: {
                     [name: string]: unknown;

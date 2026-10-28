@@ -151,13 +151,17 @@ Una versión nueva más adelante: archivo nuevo `app/legal/texts/<slug>/<AAAA-MM
   en el backup a S3); se conservan mientras el cliente las conserve o tenga la cuenta, salvo que pida borrarlas.
   Las páginas de la landing ya no decían que no se graba (lo único es "no guardamos los audios de la API", que
   sigue siendo cierto).
-- **Corte por aceptación** (`app/services/legal_gate.py`): sin las versiones vigentes aceptadas, `POST
+- **Corte por aceptación** (`app/services/legal_gate.py`): sin la versión `2026-10-28` (o una posterior) aceptada, `POST
   /direct-calls`, `POST /direct-calls/{id}/answer` y poner un número en `answer_mode=team` dan 403
   `terms_pending` ("Aceptá las condiciones nuevas para usar el teléfono del equipo"), y `start_inbound` manda las
   entrantes de un número del equipo al agente, como sin la función. Criterio: alcanza con que **algún usuario del
-  cliente** haya aceptado cada documento vigente (`legal_acceptances.client_id`): la aceptación es en nombre de la
+  cliente** haya aceptado, de cada documento, la `2026-10-28` o una posterior (`legal_acceptances.client_id`,
+  `MIN_DIRECT_CALLS_VERSION`): la aceptación es en nombre de la
   empresa, la entrante no tiene usuario y las API keys no ven el modal. El modal del panel sigue pidiéndosela a cada
-  usuario. Cualquier versión nueva posterior vuelve a cortar hasta que la acepten.
-- Tests: `tests/test_legal.py` (hashes), `tests/test_direct_calls.py::test_direct_calls_need_the_current_terms`,
+  usuario. Una versión nueva posterior no corta el teléfono del equipo (si exigiera la vigente, cada cambio de las
+  condiciones lo apagaría hasta que alguien entre al panel); si una versión nueva cambia algo de las directas, subir
+  `MIN_DIRECT_CALLS_VERSION` a esa.
+- Tests: `tests/test_legal.py` (hashes), `tests/test_direct_calls.py::test_direct_calls_need_the_terms_that_cover_them` y
+  `test_direct_calls_need_the_2026_10_28_terms`,
   y los de directas y MCP aceptan con `accept_terms`.
 - Falta: revisión del abogado, aviso por mail con 30 días (punto 17) y desplegar landing y `app` el día que rige.

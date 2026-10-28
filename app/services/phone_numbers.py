@@ -175,7 +175,7 @@ def set_answering(s: Session, number: PhoneNumber, changes: dict) -> None:
         _set_members(s, number, list(changes["member_ids"]))
     if number.answer_mode == "team":
         check_direct_calls(s, number.client_id)     # que atienda el equipo es parte de las llamadas directas
-        legal_gate.check_client_accepted(s, number.client_id)    # y graba siempre: condiciones vigentes aceptadas
+        legal_gate.check_client_accepted(s, number.client_id)    # y graba siempre: condiciones 2026-10-28+ aceptadas
     if number.answer_mode == "team" and not member_ids(s, number.id):
         raise Invalid("Para que atienda el equipo, elegí al menos una persona", "members_required")
     _check_fallback(number)

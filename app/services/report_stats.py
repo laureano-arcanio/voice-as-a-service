@@ -77,8 +77,12 @@ ANSWER_EVENTS = ("handoff.connected", "wa.handoff.first_reply")
 # Rechazos por el plan (services/quota.admit): clientes que no se atendieron.
 LIMIT_REASONS = ("concurrency_limit", "calls_per_hour", "calls_per_day", "calls_per_month", "inbound_minutes",
                  "outbound_minutes")
-ENDED_REASONS = ("customer_hangup", "agent_end", "off_topic", "hangup_by_user", "blocked_number", "rejected",
-                 "failed", "other")
+# Como terminan: los de las llamadas con agente y, desde las llamadas directas, los de una persona del equipo
+# (person_hangup), la entrante que nadie atendio (team_no_answer, after_hours), la saliente que no llego a hablar
+# (no_answer, busy, voicemail, user_not_joined), los topes (max_duration, quota_exhausted) y worker_error.
+ENDED_REASONS = ("customer_hangup", "agent_end", "person_hangup", "off_topic", "hangup_by_user", "team_no_answer",
+                 "after_hours", "no_answer", "busy", "voicemail", "user_not_joined", "max_duration",
+                 "quota_exhausted", "blocked_number", "rejected", "worker_error", "failed", "other")
 DURATION_BUCKETS = (("0-15s", 15), ("15-60s", 60), ("1-3m", 180), ("3-5m", 300), ("5-10m", 600), ("10m+", None))
 EARLY_SECONDS = 15
 NO_CONTACT = {"busy": "busy", "no_answer": "no_answer", "voicemail": "voicemail", "invalid": "invalid",
@@ -270,12 +274,17 @@ def _wa_messages(flt: ReportFilter, *cols):
 
 # ---------- resumen ----------
 
+def _transfer(types):
+    """Derivo un agente: los eventos handoff.* de una entrante al equipo (sus celulares) no son derivaciones."""
+    return and_(ConversationRow.agent_id.is_not(None), _has_event(types))
+
+
 def _kpis(s: Session, flt: ReportFilter) -> dict:
     finished = CallRow.status == "finalizada"
     row = s.execute(_convs(
         flt, func.count(), _count_if(ConversationRow.agent_id.is_not(None)), _count_if(KIND == "voice"), _count_if(KIND == "whatsapp"), _count_if(KIND == "web"),
         _count_if(ConversationRow.conversion == "complete"), _count_if(ConversationRow.goal.is_(True)),
-        _count_if(_has_event(REQUEST_EVENTS)), _count_if(_has_event(ANSWER_EVENTS)),
+        _count_if(_transfer(REQUEST_EVENTS)), _count_if(_transfer(ANSWER_EVENTS)),
         func.coalesce(func.sum(CallRow.duration_seconds), 0),
         func.coalesce(func.sum(case((finished, CallRow.duration_seconds), else_=0)), 0), _count_if(finished),
         _count_if(and_(CallRow.status == "rechazada", CallRow.ended_reason.in_(LIMIT_REASONS))))).one()
@@ -313,8 +322,8 @@ def _plan(s: Session, client_id: str) -> dict | None:
 def summary(s: Session, flt: ReportFilter) -> dict:
     """Consultas por canal y transferencias por dia, KPIs contra el periodo anterior y consumo del plan."""
     hour = _hour(s, ConversationRow.created_at)
-    rows = s.execute(_convs(flt, hour, KIND, func.count(), _count_if(_has_event(REQUEST_EVENTS)),
-                            _count_if(_has_event(ANSWER_EVENTS))).group_by(hour, KIND)).all()
+    rows = s.execute(_convs(flt, hour, KIND, func.count(), _count_if(_transfer(REQUEST_EVENTS)),
+                            _count_if(_transfer(ANSWER_EVENTS))).group_by(hour, KIND)).all()
     daily = {d: {"date": d, "voice": 0, "whatsapp": 0, "web": 0, "transfers": 0, "transfers_answered": 0}
              for d in flt.days()}
     for local, kind, n, transfers, answered in _local_hours(flt, rows):
@@ -332,14 +341,17 @@ def summary(s: Session, flt: ReportFilter) -> dict:
 
 # ---------- llamadas ----------
 
+# ended_reason -> motivo del reporte (ENDED_REASONS), despues de los rechazos.
+_ENDED_AS = {"customer_hangup": "customer_hangup", "completed": "agent_end", "person_hangup": "person_hangup",
+             "off_topic": "off_topic", "hangup_by_user": "hangup_by_user", "team_no_answer": "team_no_answer",
+             "after_hours": "after_hours", "no_answer": "no_answer", "busy": "busy", "voicemail": "voicemail",
+             "user_not_joined": "user_not_joined", "max_duration": "max_duration",
+             "quota_exhausted": "quota_exhausted", "worker_error": "worker_error"}
 ENDED = case(
     (and_(CallRow.status == "rechazada", CallRow.ended_reason == "blocked_number"), "blocked_number"),
     (CallRow.status == "rechazada", "rejected"),
+    *((CallRow.ended_reason == reason, label) for reason, label in _ENDED_AS.items()),
     (CallRow.status == "fallida", "failed"),
-    (CallRow.ended_reason == "customer_hangup", "customer_hangup"),
-    (CallRow.ended_reason == "completed", "agent_end"),
-    (CallRow.ended_reason == "off_topic", "off_topic"),
-    (CallRow.ended_reason == "hangup_by_user", "hangup_by_user"),
     else_="other")
 
 
@@ -445,6 +457,8 @@ def calls(s: Session, flt: ReportFilter) -> dict:
     ended = dict(s.execute(_calls(flt, ENDED, func.count()).group_by(ENDED)).all())
     early = s.scalar(_calls(flt, func.count()).where(finished, CallRow.duration_seconds < EARLY_SECONDS))
     return {
+        # Las mismas llamadas que suman by_type y ended (todas, con cualquier estado); durations son las finalizadas.
+        "total": _n(s.scalar(_calls(flt, func.count()))),
         "daily": list(daily.values()),
         "heatmap": [{"weekday": w, "hour": h, "count": n} for (w, h), n in sorted(heat.items())],
         "by_line": by_line, "by_agent": by_agent, "by_type": _by_type(s, flt), "by_user": _by_user(s, flt),
@@ -611,11 +625,13 @@ def transfers(s: Session, flt: ReportFilter) -> dict:
     por area y por persona; WhatsApp aparte."""
     ids = _conv_ids(flt)
     flag = lambda types: func.max(case((Event.type.in_(types), 1), else_=0))
+    # Pedidas y atendidas, de un agente (como en el resumen); los tramos por persona incluyen los del equipo.
+    with_agent = _conv_ids(flt).where(ConversationRow.agent_id.is_not(None))
     pairs = s.execute(
         select(Event.conversation_id, Event.area_id,
                func.min(case((Event.type.in_(REQUEST_EVENTS), Event.at))),
                flag(REQUEST_EVENTS), flag(ANSWER_EVENTS), flag(("handoff.unavailable",)))
-        .where(Event.conversation_id.in_(ids), Event.type.in_(REQUEST_EVENTS + ANSWER_EVENTS))
+        .where(Event.conversation_id.in_(with_agent), Event.type.in_(REQUEST_EVENTS + ANSWER_EVENTS))
         .group_by(Event.conversation_id, Event.area_id)).all()
     daily = {d: {"date": d, "requested": 0, "answered": 0} for d in flt.days()}
     areas: dict[str | None, dict] = {}

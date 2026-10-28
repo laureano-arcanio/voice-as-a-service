@@ -234,6 +234,66 @@ describe('detalle de una llamada directa', () => {
     expect(screen.queryByText('Contacto que pidió no recibir llamadas')).not.toBeInTheDocument();
   });
 
+  it('entrante del equipo que nadie atendió: "Nadie atendió", el respaldo y el contacto de la agenda', async () => {
+    renderDetail({
+      ...DETAIL,
+      call: {
+        ...DETAIL.call!,
+        mode: 'entrante',
+        answered_by: 'team',
+        user_id: null,
+        user_name: null,
+        opted_out_confirmed: false,
+        ended_reason: 'team_no_answer',
+        contact_id: 'k2',
+        contact_name: 'Luis Gómez',
+        team: { answered: false, person: null, fallback: 'voicemail' },
+      },
+    });
+    expect(await screen.findByText('Nadie atendió')).toBeInTheDocument();
+    expect(screen.getByText('Tomó un mensaje')).toBeInTheDocument();
+    expect(screen.queryByText('Atendió')).not.toBeInTheDocument();
+    expect(screen.getByText('Luis Gómez')).toBeInTheDocument();
+  });
+
+  it('respaldo al agente: el agente y "Nadie atendió"', async () => {
+    renderDetail({
+      ...DETAIL,
+      agent_id: 'ag-1',
+      agent_name: 'Recepción',
+      agent_version: 2,
+      call: {
+        ...DETAIL.call!,
+        mode: 'entrante',
+        answered_by: 'agent',
+        user_id: null,
+        user_name: null,
+        opted_out_confirmed: false,
+        team: { answered: false, person: null, fallback: 'agent' },
+      },
+    });
+    expect(await screen.findByText('Nadie atendió')).toBeInTheDocument();
+    expect(screen.getByText('Pasó al agente')).toBeInTheDocument();
+    expect(screen.getByText('Recepción')).toBeInTheDocument();
+  });
+
+  it('entrante que atendió alguien en su celular sin usuario del panel', async () => {
+    renderDetail({
+      ...DETAIL,
+      call: {
+        ...DETAIL.call!,
+        mode: 'entrante',
+        answered_by: 'team',
+        user_id: null,
+        user_name: null,
+        opted_out_confirmed: false,
+        team: { answered: true, person: 'Juan', fallback: null },
+      },
+    });
+    expect(await screen.findByText('Atendió')).toBeInTheDocument();
+    expect(screen.getByText('Juan')).toBeInTheDocument();
+  });
+
   it('una llamada con agente sigue como antes', async () => {
     renderDetail({
       ...DETAIL,

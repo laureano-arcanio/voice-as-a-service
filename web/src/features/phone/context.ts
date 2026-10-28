@@ -61,6 +61,8 @@ export interface DirectCallValue {
   busy: boolean;
   /** Recargó con una llamada en curso: la que puede retomar con "Volver a entrar". */
   rejoinId: string | null;
+  /** El timbre que no se pudo atender (el micrófono): sigue sonando y la barra muestra el motivo (`error`). */
+  failedRingId: string | null;
   /** Por qué no puede llamar ni atender (admin en soporte); null si puede. */
   disabledReason: string | null;
   call: (target: CallTarget, fromNumberId?: string | null, confirmOptedOut?: boolean) => Promise<boolean>;

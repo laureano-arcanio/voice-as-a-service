@@ -360,6 +360,7 @@ function RingBar({ ring, more }: { ring: Ringing; more: number }) {
   const { decline } = usePresence();
   const [answering, setAnswering] = useState(false);
   const line = ring.number_label || ring.number_e164;
+  const failed = c.phase === 'error' && c.failedRingId === ring.conversation_id && !!c.error;
   return (
     <Bar>
       <Group gap="sm" wrap="nowrap" miw={0} style={FILL}>
@@ -379,6 +380,12 @@ function RingBar({ ring, more }: { ring: Ringing; more: number }) {
             {line && `a ${line}`}
             {more > 0 && ` · ${more} más sonando`}
           </Text>
+          {/* No pudo atender (el micrófono): el timbre sigue, con el motivo, para arreglarlo y volver a probar. */}
+          {failed && (
+            <Text size="xs" c="red.7" fw={600} role="alert" truncate>
+              {c.error?.title}
+            </Text>
+          )}
         </Stack>
       </Group>
       <Group gap="xs" wrap="nowrap">

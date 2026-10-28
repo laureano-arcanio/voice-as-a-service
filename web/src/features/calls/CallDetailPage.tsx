@@ -25,7 +25,7 @@ import {
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { ApiError } from '@/api/errors';
-import type { CallDetail, FieldValue } from '@/api/types';
+import type { CallDetail, CallInfo, FieldValue } from '@/api/types';
 import {
   CallStatusBadge,
   Dash,
@@ -60,6 +60,28 @@ function Item({ label, children }: { label: string; children: React.ReactNode })
         {children}
       </Text>
     </Stack>
+  );
+}
+
+/** Respaldo de una entrante al equipo que nadie atendió (`call.team.fallback`). */
+const TEAM_FALLBACK: Record<string, string> = {
+  agent: 'Pasó al agente',
+  voicemail: 'Tomó un mensaje',
+  hangup: 'Cortó con un aviso',
+};
+
+/** Entrante al equipo que terminó sin que nadie atienda: "Nadie atendió" y el respaldo, si se sabe. */
+function NobodyAnswered({ call }: { call: CallInfo }) {
+  const fallback = call.team?.fallback ? TEAM_FALLBACK[call.team.fallback] : null;
+  return (
+    <Item label="Equipo">
+      Nadie atendió
+      {fallback && (
+        <Text size="xs" c="dimmed" fw={400}>
+          {fallback}
+        </Text>
+      )}
+    </Item>
   );
 }
 
@@ -151,10 +173,14 @@ function CallHeader({ c }: { c: CallDetail }) {
   // Directa o entrante del equipo: no hay agente, ni datos que obtener, ni resultado.
   const person = call ? callPerson(call) : null;
   const agentless = isPersonOnly(c);
+  // Entrante al equipo sin atender: sin agente o con el respaldo al agente (que sigue mostrándose abajo).
+  const nobodyAnswered = call?.team?.answered === false;
   return (
     <Card>
       <SimpleGrid cols={{ base: 2, sm: 3, lg: 6 }} spacing="md" verticalSpacing="md">
-        <Item label="Contacto">{fieldValue(c, 'contact_name') || wa?.contact_name || '–'}</Item>
+        <Item label="Contacto">
+          {fieldValue(c, 'contact_name') || wa?.contact_name || call?.contact_name || '–'}
+        </Item>
         <Item label="Empresa">
           {fieldValue(c, 'company_name') || fieldValue(c, 'company_context') || '–'}
         </Item>
@@ -212,8 +238,11 @@ function CallHeader({ c }: { c: CallDetail }) {
             </Item>
           </>
         )}
+        {call && nobodyAnswered && <NobodyAnswered call={call} />}
         {agentless ? (
-          <Item label={person?.verb ?? 'Atendió'}>{person?.name ?? '–'}</Item>
+          !nobodyAnswered && (
+            <Item label={person?.verb ?? 'Atendió'}>{call?.team?.person ?? person?.name ?? '–'}</Item>
+          )
         ) : (
           <Item label="Agente">
             {c.agent_id && isAdmin && c.client_id ? (

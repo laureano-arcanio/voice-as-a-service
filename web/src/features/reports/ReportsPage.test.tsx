@@ -180,8 +180,14 @@ const FIXTURES: Record<string, [unknown, string]> = {
           avg_duration: 220,
         },
       ],
+      total: 7,
       durations: [{ bucket: '1-3m', count: 4 }],
-      ended: [{ reason: 'customer_hangup', count: 4 }],
+      ended: [
+        { reason: 'customer_hangup', count: 4 },
+        { reason: 'person_hangup', count: 2 },
+        { reason: 'team_no_answer', count: 1 },
+        { reason: 'other', count: 0 },
+      ],
       early_hangups: 1,
       callers: {
         new: 3,
@@ -375,6 +381,13 @@ describe('ReportsPage, pestañas con datos', () => {
     expect(screen.getByText('Ana Gómez')).toBeInTheDocument();
     // La duración media de las directas (240 s) sale en minutos y segundos.
     expect(screen.getByText('4:00')).toBeInTheDocument();
+    // El KPI cuenta todas las llamadas (7, como "Por tipo"), no solo las finalizadas (4).
+    expect(screen.getByText('7')).toBeInTheDocument();
+    // Cómo terminan: los motivos de las directas con su nombre, sin las filas en cero.
+    const ended = screen.getByText('Cómo terminan').closest('.mantine-Card-root') as HTMLElement;
+    expect(within(ended).getByText('Cortó la persona del equipo')).toBeInTheDocument();
+    expect(within(ended).getByText('Nadie del equipo atendió')).toBeInTheDocument();
+    expect(within(ended).queryByText('Otro')).not.toBeInTheDocument();
     // El CSV de "Llamadas por día" trae la columna de directas.
     const card = screen.getByText('Llamadas por día').closest('.mantine-Card-root') as HTMLElement;
     fireEvent.click(within(card).getByRole('button', { name: 'Descargar CSV' }));

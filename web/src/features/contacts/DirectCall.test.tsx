@@ -82,7 +82,7 @@ const AGENT_CALL = {
   user_name: null,
   opted_out_confirmed: false,
 };
-const OTHER_PHONE = { ...CALL, id: 'conv-7', phone: '+5493510000000' };
+const WHATSAPP = { ...CALL, id: 'conv-7', mode: 'whatsapp', phone: '5493516775617', user_id: null };
 
 function routes(plan = PLAN_OK) {
   return {
@@ -104,7 +104,8 @@ function routes(plan = PLAN_OK) {
       ]),
     'GET /api/v1/blocked-numbers': () =>
       jsonResponse([{ client_id: 'c-1', phone: MARTA.phone, note: '', created_at: '2026-10-12T12:00:00Z' }]),
-    'GET /api/v1/calls': () => jsonResponse({ items: [CALL, AGENT_CALL, OTHER_PHONE], total: 3 }),
+    // La API filtra por contact_id (llamadas y WhatsApp del contacto).
+    'GET /api/v1/calls': () => jsonResponse({ items: [CALL, WHATSAPP, AGENT_CALL], total: 3 }),
     'POST /api/v1/direct-calls': () =>
       jsonResponse(
         {
@@ -206,7 +207,7 @@ describe('ficha del contacto', () => {
     });
     expect(await screen.findByText(/Pidió no recibir llamadas/)).toBeInTheDocument();
 
-    // Historial: la directa dice quién llamó; la del agente, el agente; la de otro número no está.
+    // Historial: la directa dice quién llamó; la del agente, el agente; la de WhatsApp no está.
     const history = (await screen.findByText('Historial de llamadas')).closest(
       '.mantine-Card-root',
     ) as HTMLElement;
@@ -215,6 +216,7 @@ describe('ficha del contacto', () => {
     expect(within(history).getByText('Había pedido no recibir llamadas')).toBeInTheDocument();
     expect(within(history).getAllByRole('link', { name: 'Ver conversación' })).toHaveLength(2);
     expect(within(history).getByText('Directa')).toBeInTheDocument();
+    expect(seen.some((s) => s.path === '/api/v1/calls' && s.search.includes('contact_id=k2'))).toBe(true);
 
     const button = screen.getByRole('button', { name: 'Llamar a Luis Gómez' });
     await waitFor(() => expect(button).not.toHaveAttribute('data-disabled'));

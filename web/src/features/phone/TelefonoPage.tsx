@@ -30,7 +30,7 @@ import { useBlockedNumbers, useContacts, useOptouts, useTagSuggestions } from '@
 import { TagBadges } from '@/features/contacts/TagBadges';
 import { usePhoneNumbers } from '@/features/numbers/api';
 import { E164_RE, formatDate, formatDateTime, formatDuration, formatValue } from '@/lib/format';
-import { useMyCalls, useRecentCalls } from './api';
+import { useContactCalls, useMyCalls } from './api';
 import { type CallTarget, useDirectCall } from './context';
 import { PresenceSwitch } from './PresenceSwitch';
 import { storedFrom } from './storage';
@@ -172,16 +172,14 @@ function ContactPanel({
   fromId: string | null;
   fromLabel: string | null;
 }) {
-  const recent = useRecentCalls(!!contact);
+  const recent = useContactCalls(contact?.id, CONTACT_HISTORY);
   if (!contact)
     return (
       <Card h="100%">
         <EmptyState>Elegí un contacto de la lista para ver sus últimas llamadas y llamarlo.</EmptyState>
       </Card>
     );
-  const history = (recent.data?.items ?? [])
-    .filter((c) => c.phone === contact.phone)
-    .slice(0, CONTACT_HISTORY);
+  const history = recent.data ?? [];
   return (
     <Card h="100%">
       <Stack gap="sm">

@@ -240,6 +240,7 @@ Una fila por evento: `client_id`, `conversation_id`, `call_log_id`/`wa_thread_id
 | `handoff.dialing`, `handoff.answered`, `handoff.confirmed`, `handoff.no_answer`, `handoff.busy`, `handoff.machine`, `handoff.not_confirmed` | Por miembro, con el timbre y la demora de la confirmación medidos |
 | `handoff.connected`, `handoff.returned_to_ai`, `handoff.ended` | Tramo humano |
 | `hold.started`, `hold.ended` | Espera del cliente |
+| `team.fallback` | Entrante al equipo que nadie atendió: el respaldo usado (`agent`, `voicemail`, `hangup`) y el motivo (`team_no_answer`, `after_hours`); llamadas directas |
 | `wa.handoff.assigned`, `wa.handoff.first_reply`, `wa.handoff.reassigned`, `wa.handoff.closed` | Puente de WhatsApp |
 | `message.*` | Opcional: los mensajes ya viven en `conversations` |
 

@@ -1263,6 +1263,8 @@ class CallSummary(BaseModel):
     user_name: str | None = None
     answered_by: Literal["agent", "team"] | None = None
     opted_out_confirmed: bool = False
+    contact_id: str | None = Field(default=None, description="El contacto de la agenda con ese teléfono, si hay "
+                                                             "(contact_name, si el agente no lo tomó, es el suyo)")
 
 
 class CallPage(BaseModel):
@@ -1286,6 +1288,14 @@ class FieldValue(BaseModel):
     rejected: Any = None
 
 
+class TeamOutcome(BaseModel):
+    answered: bool | None = Field(description="Si atendió alguien del equipo; null mientras suena")
+    person: str | None = Field(default=None, description="Quien atendió en su celular (en el panel, user_name)")
+    fallback: Literal["agent", "voicemail", "hangup"] | None = Field(
+        default=None, description="Nadie atendió: el respaldo (pasó al agente, tomó un mensaje o cortó con un "
+                                  "aviso); null si no se sabe (llamadas de antes)")
+
+
 class CallInfo(BaseModel):
     mode: str
     phone: str | None
@@ -1303,6 +1313,11 @@ class CallInfo(BaseModel):
     user_name: str | None = None
     answered_by: Literal["agent", "team"] | None = None
     opted_out_confirmed: bool = False
+    # El contacto de la agenda con ese telefono, si hay.
+    contact_id: str | None = None
+    contact_name: str | None = None
+    team: TeamOutcome | None = Field(default=None, description="Entrante al equipo: si atendió alguien y, si "
+                                                                 "nadie, el respaldo usado")
 
 
 class OutcomeOut(BaseModel):
@@ -2631,8 +2646,12 @@ class ReportCallsOut(BaseModel):
     by_user: list[ReportCallUserOut] = Field(description="Usuarios del panel con directas hechas o entrantes "
                                                          "del equipo atendidas")
     durations: list[ReportBucketOut] = Field(description="Llamadas finalizadas por duración")
-    ended: list[ReportReasonOut] = Field(description="customer_hangup, agent_end, off_topic, hangup_by_user, "
-                                                     "blocked_number, rejected, failed, other")
+    total: int = Field(description="Llamadas del período, con cualquier estado: lo que suman by_type y ended")
+    ended: list[ReportReasonOut] = Field(description=(
+        "Siempre todos, en este orden: customer_hangup, agent_end, person_hangup (cortó la persona del equipo), "
+        "off_topic, hangup_by_user, team_no_answer y after_hours (entrante al equipo que nadie atendió o fuera de "
+        "horario), no_answer, busy, voicemail, user_not_joined (la persona no entró a su saliente), max_duration, "
+        "quota_exhausted, blocked_number, rejected, worker_error, failed (otra falla) y other"))
     early_hangups: int = Field(description="Finalizadas en menos de 15 s")
     callers: ReportCallersOut
 

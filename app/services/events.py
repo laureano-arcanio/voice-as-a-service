@@ -20,6 +20,9 @@ TYPES = frozenset({
     "handoff.connected", "handoff.returned_to_ai", "handoff.person_hung_up", "handoff.ended",
     "handoff.unavailable",   # fuera de horario, sin canal, sin minutos o sin miembros
     "hold.started", "hold.ended",
+    # Entrante al equipo (llamadas directas): nadie atendio y se uso el respaldo (agent, voicemail o hangup), con el
+    # motivo (team_no_answer o after_hours).
+    "team.fallback",
     # Puente de WhatsApp (fase 3).
     "wa.handoff.assigned", "wa.handoff.first_reply", "wa.handoff.reassigned", "wa.handoff.closed",
 })

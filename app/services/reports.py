@@ -16,21 +16,43 @@ from ..config import settings
 from ..conversation.models import ConversationState, Progress, Workflow
 from ..conversation.workflow import INCOMPLETE, OFF_TOPIC, is_required, outcome_for
 from ..models import (
+    ACTIVE_CALL_STATUSES,
     Agent,
+    CallMode,
     CallRow,
     CampaignContact,
     Client,
+    Contact,
     ConversationRow,
+    Event,
     PhoneNumber,
     User,
     WaAccount,
     WaMessage,
     WaThread,
 )
+from . import phones
 
 
 def iso(dt: datetime.datetime | None) -> str | None:
     return dt.isoformat() + "Z" if dt else None
+
+
+def phone_variants(e164: str) -> list[str]:
+    """Como puede estar guardado un E.164 en call_logs.phone: las salientes lo guardan normalizado, pero la entrante
+    guarda el caller como llega de Anura (con o sin +, y un celular argentino quizas sin el 9 o sin el 54)."""
+    out = {e164, e164.removeprefix("+")}
+    if e164.startswith(phones.ARGENTINA_MOBILE):
+        national = e164.removeprefix(phones.ARGENTINA_MOBILE)
+        out |= {phones.ARGENTINA + national, "54" + national, "549" + national, national, "0" + national}
+    return sorted(out)
+
+
+def _normalize(raw: str | None) -> str | None:
+    try:
+        return phones.normalize_phone(raw or "")
+    except ValueError:
+        return None
 
 
 def _utc(day: datetime.date, tz: ZoneInfo) -> datetime.datetime:
@@ -53,6 +75,9 @@ class CallFilter:
     # que atendio el agente o el equipo.
     user_id: str | None = None
     answered_by: str | None = None
+    # Las de esos telefonos (E.164; todos a la vez): la llamada con ese numero o el hilo de WhatsApp con su wa_id.
+    # El filtro `phone` y el `contact_id` de GET /calls (el telefono del contacto).
+    phones: list[str] = field(default_factory=list)
     # Zona de las fechas: date_from/date_to y los dias del grafico son dias locales.
     tz: ZoneInfo = field(default_factory=lambda: ZoneInfo("UTC"))
 
@@ -90,6 +115,9 @@ class CallFilter:
             conds.append(CallRow.user_id == self.user_id)
         if self.answered_by:
             conds.append(CallRow.answered_by == self.answered_by)
+        for e164 in self.phones:
+            threads = select(WaThread.conversation_id).where(WaThread.wa_id == phones.wa_id(e164))
+            conds.append(or_(CallRow.phone.in_(phone_variants(e164)), ConversationRow.id.in_(threads)))
         return conds
 
 
@@ -173,7 +201,26 @@ class Reports:
         names = {u.id: u.name or u.email for u in users}
         for i in items:
             i["user_name"] = names.get(i["user_id"])
+        # El contacto de la agenda por el telefono, tambien con una sola consulta: el nombre, si el agente no lo
+        # tomo (las directas y las entrantes del equipo no tienen campos).
+        keys = {i["id"]: (i["client_id"], _normalize(i["phone"])) for i in items if i["client_id"] and i["phone"]}
+        found = self._contacts(set(keys.values()))
+        for i in items:
+            contact = found.get(keys.get(i["id"]))
+            i["contact_id"] = contact.id if contact else None
+            if contact and not i["contact_name"]:
+                i["contact_name"] = contact.name
         return items, total
+
+    def _contacts(self, pairs: set[tuple[str, str | None]]) -> dict[tuple[str, str], Contact]:
+        """Los contactos de la agenda (no archivados) por (cliente, E.164)."""
+        pairs = {(c, p) for c, p in pairs if p}
+        if not pairs:
+            return {}
+        rows = self.s.scalars(select(Contact).where(Contact.client_id.in_({c for c, _ in pairs}),
+                                                    Contact.phone.in_({p for _, p in pairs}),
+                                                    Contact.archived_at.is_(None)))
+        return {(c.client_id, c.phone): c for c in rows if (c.client_id, c.phone) in pairs}
 
     def _all(self, flt: CallFilter) -> list[dict]:
         return [self.summary(*r) for r in self.s.execute(_base_query().where(*flt.where())).all()]
@@ -195,6 +242,8 @@ class Reports:
             f["rejected"] = progress.rejected.get(f["name"])
         outcome = self.outcome(workflow, conv)
         number = self.s.get(PhoneNumber, call.phone_number_id) if call and call.phone_number_id else None
+        key = (conv.client_id, _normalize(call.phone if call else None))
+        contact = self._contacts({key}).get(key) if conv.client_id else None
         rec_dir = settings.call_recordings_dir / conv.id
         recordings = sorted(int(p.stem) for p in rec_dir.glob("*.wav")) if rec_dir.is_dir() else []
         return {
@@ -216,9 +265,31 @@ class Reports:
                 # Llamadas directas: quien llamo o atendio, quien atendio la entrante y la baja confirmada.
                 "user_id": call.user_id, "user_name": self._user_name(call.user_id),
                 "answered_by": call.answered_by, "opted_out_confirmed": bool(call.opted_out_confirmed),
+                # El contacto de la agenda con ese telefono, si hay.
+                "contact_id": contact.id if contact else None, "contact_name": contact.name if contact else None,
+                "team": self._team(call),
             },
             "whatsapp": self._whatsapp(conv, thread, business_number),
         }
+
+    def _team(self, call: CallRow) -> dict | None:
+        """Entrante al equipo (llamadas directas): si atendio alguien (por el panel, user_id, o por el celular, el
+        evento handoff.connected) y, si nadie, el respaldo usado (evento team.fallback; con `agent` la llamada
+        queda answered_by=agent). None si no es una entrante al equipo."""
+        if call.mode != CallMode.entrante:
+            return None
+        rows = self.s.execute(select(Event.type, Event.data).where(
+            Event.conversation_id == call.conversation_id, Event.type.in_(("team.fallback", "handoff.connected")))
+            .order_by(Event.at)).all()
+        fallback = next(((data or {}).get("fallback") for type, data in reversed(rows) if type == "team.fallback"),
+                        None)
+        if call.answered_by != "team" and fallback is None:
+            return None
+        person = next(((data or {}).get("person") for type, data in rows if type == "handoff.connected"), None)
+        answered = bool(call.user_id or person)
+        if not answered and fallback is None and call.status in ACTIVE_CALL_STATUSES:
+            return {"answered": None, "person": None, "fallback": None}     # sonando: todavia no se sabe
+        return {"answered": answered, "person": person, "fallback": None if answered else fallback}
 
     def _user_name(self, user_id: str | None) -> str | None:
         user = self.s.get(User, user_id) if user_id else None

@@ -13,7 +13,7 @@
 | UI (fase 2), `web/src/features/phone/` | En otra tarea |
 | Documentación (fase 5) | Esta sección y las de `AGENTS.md`, `ARQUITECTURA.md`, `DERIVACIONES_PLAN.md`, `FUNCIONES_POR_PLAN_PLAN.md`, `README.md` y `LLAMADAS_SALIENTES_PLAN.md`; falta `GUIA_UI.md` (después de la UI) |
 | Landing (sección 10) | `/desarrolladores/docs/api#directas` (con `terms_pending`), `/plataforma/telefono-del-equipo`, menciones en telefonía y home, y "Teléfono del equipo" en los tres planes pagos; `npm run build` en verde, sin publicar |
-| Condiciones y privacidad (fase 6) | Texto `2026-10-28` en `app/legal/texts/` y corte por aceptación (`app/services/legal_gate.py`, 403 `terms_pending`); falta el abogado y el aviso por mail |
+| Condiciones y privacidad (fase 6) | Texto `2026-10-28` en `app/legal/texts/` y corte por aceptación de esa versión o una posterior (`app/services/legal_gate.py`, 403 `terms_pending`); falta el abogado y el aviso por mail |
 | Prueba real y despliegue (fase 7) | Sin hacer: "Cómo desplegar" en la sección 14 |
 
 Dónde el código se aparta del texto de abajo (el contrato de la sección 13 sigue siendo el nombre fijo):
@@ -24,10 +24,20 @@ Dónde el código se aparta del texto de abajo (el contrato de la sección 13 si
   API key o un admin sin cliente).
 - La migración prende `tiers.direct_calls` en los tiers con precio o a medida (`price_ars` mayor que 0 o `NULL`),
   igual que `advanced_reports`; el Free queda apagado.
-- Hasta que el cliente acepta las condiciones vigentes, no llama, no atiende ni pone un número en `team` (403
-  `terms_pending`); su entrante a un número del equipo va al agente del número (`start_inbound`), como sin el plan.
+- Hasta que el cliente acepta las condiciones `2026-10-28` (o una versión posterior), no llama, no atiende ni pone
+  un número en `team` (403 `terms_pending`); su entrante a un número del equipo va al agente del número
+  (`start_inbound`), como sin el plan. Una versión nueva de las condiciones no lo corta
+  (`legal_gate.MIN_DIRECT_CALLS_VERSION`).
 - Poner un número en `answer_mode=team` pide el plan (429 `direct_calls_not_in_plan`) y al menos una persona (422
   `members_required`); con respaldo `agent`, un agente en el número (422 `agent_required`).
+- `GET /calls` filtra también por `phone` (normalizado a E.164; llamadas y WhatsApp) y `contact_id` (el teléfono
+  del contacto): los usan el panel del contacto en Teléfono y el historial de su ficha. `contact_name` (si el agente
+  no lo tomó) y `contact_id` salen del contacto de la agenda con ese teléfono, también en el detalle.
+- El detalle de una entrante al equipo trae `call.team` (`answered`, `person` que atendió en su celular,
+  `fallback` si nadie atendió), del evento nuevo `team.fallback` (respaldo y motivo) y de `handoff.connected`.
+- `GET /reports/calls` suma `total` (todas las llamadas: lo que suman `by_type` y `ended`; el KPI "Llamadas") y
+  `ended` separa los motivos de las directas (`person_hangup`, `team_no_answer`, `after_hours`, `no_answer`,
+  `busy`, `voicemail`, `user_not_joined`, `max_duration`, `quota_exhausted`, `worker_error`).
 
 ## 1. Qué es
 
@@ -201,7 +211,7 @@ Atiende:  (•) El equipo   Personas: [ Ana ✕ ] [ Pedro ✕ ] [+ Agregar]   (e
   datos, AWS y conservación), copiadas a la landing. Ninguna otra página de la landing decía que no se graba: lo
   decía el texto de privacidad que muestra `privacidad.astro` ("por defecto guardamos la transcripción, no el
   audio"). Corte en `app/services/legal_gate.py`: sin
-  las versiones vigentes aceptadas por algún usuario del cliente, llamar, atender y poner un número en el equipo dan
+  la versión `2026-10-28` (o una posterior) de cada documento aceptada por algún usuario del cliente, llamar, atender y poner un número en el equipo dan
   403 `terms_pending` ("Aceptá las condiciones nuevas para usar el teléfono del equipo") y las entrantes de un
   número del equipo van a su agente. La UI tiene que mostrar ese error con un link al modal (o recargar
   `/auth/me`, que trae `legal_pending`).
@@ -382,7 +392,7 @@ cambia acá y en el código a la vez.
 | `GET /team/presence` | — | `[{user_id, team_member_id?, name, available, busy}]` |
 | `GET/PUT /clients/{client_id}/direct-call-settings` | `{recording_notice: bool}` | igual |
 | `PATCH /phone-numbers/{id}` | suma `answer_mode`, `member_ids` (ordenados), `ring_first`, `ring_seconds`, `schedule`, `team_fallback`, `team_fallback_message` | `PhoneNumberOut` con esos campos y `members [{id, name, phone, user_id}]` |
-| `GET /calls` | filtros nuevos `mode`, `user_id`, `answered_by` | `CallOut` suma `user_id`, `user_name`, `answered_by`, `opted_out_confirmed` |
+| `GET /calls` | filtros nuevos `mode`, `user_id`, `answered_by`, `phone`, `contact_id` | `CallOut` suma `user_id`, `user_name`, `answered_by`, `opted_out_confirmed`, `contact_id` |
 | Tiers | `direct_calls` en el modelo de entrada y salida | — |
 | Cortar | `POST /calls/{id}/hangup` (existe) | — |
 
@@ -405,9 +415,19 @@ cambia acá y en el código a la vez.
   (a los Disponibles y no ocupados; devuelve a quiénes les suena), `cancel_rings(s, conversation_id)`,
   `answered_user(s, conversation_id)`, `available_users(s, client_id, user_ids)` y `release_answer(s,
   conversation_id)` (atendió en el panel y su navegador no entró en `PANEL_JOIN_GRACE_SECONDS`: la llamada
-  vuelve a quedar sin `user_id`). `answer` toma el timbre solo si sigue `ringing` (con un `UPDATE`
-  condicional): después de `cancel_rings` nadie más atiende, y el worker mira `answered_user` una vez más al
-  apagar los timbres.
+  vuelve a quedar sin `user_id`, y si su navegador entra tarde el worker lo saca de la room: `block`).
+  `answer` toma el timbre solo si sigue `ringing` (con un `UPDATE` condicional): después de `cancel_rings`
+  nadie más atiende, y el worker mira `answered_user` una vez más al apagar los timbres. `answer`,
+  `ring_panel`, `cancel_rings` y `release_answer` bloquean primero la fila de la llamada (`FOR UPDATE`) y
+  después `call_rings`: mismo orden en todos, sin deadlock en PostgreSQL. Un timbre de más de
+  `RING_MAX_SECONDS` (90) o de una llamada colgada no suena ni se atiende (se cayó el worker).
+- Volver a entrar: si sale el usuario del panel (recarga, red), el worker lo espera
+  `PANEL_REJOIN_GRACE_SECONDS` (30) antes de cortar con `person_hangup`, también mientras suena. El panel no
+  usa `disconnectOnPageLeave` de LiveKit (cortaba en `beforeunload` aunque se cancelara y en `freeze` del
+  celular): sale en `pagehide`. El pulso de Disponible y el sondeo del timbre van por un Worker
+  (`web/src/features/phone/ticker.ts`): Chrome frena los timers de una pestaña oculta a uno por minuto.
+- Cuando sale alguien, el VAD recibe silencio para cerrar la frase en curso y se espera su STT
+  (`SETTLE_SECONDS`): la última frase (el "chau", el mensaje del buzón) queda en la conversación.
 - Si el worker no puede ni empezar (sin trunk saliente, sin VAD), la llamada queda `fallida` con
   `worker_error` y se borra la room.
 - Datos de la room para el panel (`publish_data`, JSON): tema `call_status` `{state: "joining" | "dialing" |
@@ -502,15 +522,17 @@ después recrear `app` y `agent` con la imagen anterior. Las directas ya hechas 
 
 ## 15. Pendientes
 
-- **UI** (`web/src/features/phone/`): fase 2 y 3b. Después, `docs/GUIA_UI.md` (Teléfono, barra de llamada, Números,
-  Mi cuenta, filtros de Conversaciones).
+- **Sin probar con LiveKit, Chrome y PostgreSQL reales** (en la prueba del paso 6): el orden de los locks
+  (`FOR UPDATE`) con dos que atienden a la vez; recargar la pestaña y "Volver a entrar" (se asume que LiveKit saca la
+  conexión vieja antes de sumar la nueva); que el silencio al VAD cierre la última frase al cortar; el pulso y el
+  timbre con la pestaña oculta más de 5 minutos (`ticker.ts`, sin Worker en jsdom). Si el usuario cierra la pestaña
+  sin cortar, el contacto queda hasta 30 s en silencio (`PANEL_REJOIN_GRACE_SECONDS`).
+- **Tests en PostgreSQL:** `TEST_DB_DSN` solo cambia el fixture `store`; los de directas (`sessions`/`api`) van
+  siempre a SQLite. Se corrieron una vez contra PostgreSQL 16 con un plugin en `scratch/` (39 pasados).
 - **Condiciones y privacidad:** revisión del abogado y aviso por mail con 30 días (sección 7). Es lo que bloquea el
   despliegue. La entrante del equipo de un cliente que no aceptó va al agente del número: probarlo en el paso 6.
 - **Landing:** hecha en la rama (ver el estado al principio), sin publicar: se publica con las condiciones (paso 1 y 4
   de la sección 14). La página del teléfono describe la UI de la sección 8: revisarla contra `web/` cuando cierre.
-- **Corte por aceptación:** exige la versión **vigente**; cualquier versión nueva de las condiciones o de la
-  privacidad, aunque no toque las directas, vuelve a apagar el teléfono del equipo de cada cliente (y sus entrantes
-  van al agente) hasta que alguien la acepte. Si no se quiere, cambiar `legal_gate` a "versión ≥ 2026-10-28".
 - **Medir:** `make mcp-eval` con las herramientas nuevas; CAP corto de directas mezcladas con agente (hoy no hay
   números con Gemma ni con directas); la prueba real del paso 6, en particular el panel en el celular (con la pantalla
   bloqueada iOS puede cortar el micrófono) y el eco sin auriculares.

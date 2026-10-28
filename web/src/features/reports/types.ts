@@ -70,6 +70,8 @@ export interface SummaryReport {
 // --- Llamadas ---
 
 export interface CallsReport {
+  /** Las llamadas del período, con cualquier estado: lo que suman `by_type` y `ended`. */
+  total: number;
   daily: {
     date: string;
     entrante: number;

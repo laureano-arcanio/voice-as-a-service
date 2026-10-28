@@ -123,7 +123,7 @@ def update_number(number_id: str, body: PhoneNumberUpdate, p: CurrentPrincipal, 
     """Etiqueta y quien atiende las entrantes: el agente (`answer_mode: agent`, un agente del mismo cliente)
     o el equipo (`team`: `member_ids` en orden, `ring_first`, `ring_seconds`, `schedule` y el respaldo
     `team_fallback`, que con `agent` usa el agente del numero). `member_ids` reemplaza la lista. El equipo
-    pide las condiciones vigentes aceptadas por el cliente (403 terms_pending)."""
+    pide las condiciones 2026-10-28 (o posteriores) aceptadas por el cliente (403 terms_pending)."""
     n = _get(db, p, number_id)
     data = body.model_dump(mode="json", exclude_unset=True)
     if "agent_id" in data:

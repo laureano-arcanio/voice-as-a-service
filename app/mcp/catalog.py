@@ -252,6 +252,9 @@ _READ: tuple[Tool, ...] = (
                             "`directa`: las que hizo una persona del equipo, sin agente."),
                  "user_id": _s("Llamadas directas: las que hizo o atendió este usuario del panel."),
                  "answered_by": _s("Entrantes: las que atendió el agente o el equipo.", enum=["agent", "team"]),
+                 "phone": _s("Solo las de este teléfono: llamadas y WhatsApp (se normaliza: +5493511234567 o "
+                             "351 123-4567)."),
+                 "contact_id": _s("Solo las del teléfono de este contacto de la agenda."),
                  **_PAGE}),
     Tool("get_call", "calls", "Llamada",
          "Una conversación con su transcripción, los datos que tomó el agente, el resultado y la grabación "
@@ -287,9 +290,10 @@ _READ: tuple[Tool, ...] = (
          "Las llamadas del período: por día y modo (entrantes, salientes, web), cuándo llaman (mapa de calor por "
          "día de la semana y hora, para elegir horarios de áreas y campañas), por tipo (atendidas por el agente, "
          "directas salientes de una persona y entrantes al equipo) y, en las directas, por persona, por línea y "
-         "por agente (volumen, minutos, conversión), distribución de la duración, cómo terminan (cortó el cliente, terminó el agente, "
-         "fuera de tema, cortada desde el panel, bloqueada), cortes tempranos y quién llama (nuevos, que vuelven y "
-         "los que más vuelven).", path="/reports/calls", params=_REPORT),
+         "por agente (volumen, minutos, conversión), el total, distribución de la duración, cómo terminan "
+         "(cortó el cliente, terminó el agente, cortó la persona del equipo, fuera de tema, cortada desde el "
+         "panel, nadie del equipo atendió, fuera de horario, no atendió, bloqueada...), cortes tempranos y "
+         "quién llama (nuevos, que vuelven y los que más vuelven).", path="/reports/calls", params=_REPORT),
     Tool("get_report_outcomes", "reports", "Reporte: resultados y conversión",
          "Qué resultado tuvo cada conversación: conversión completa, parcial (algún dato) o sin datos, por día y "
          "por agente; los resultados que define cada agente con los de objetivo marcados; el embudo (atendidas, con "

@@ -468,6 +468,7 @@ async def entrypoint(ctx: JobContext):
     conversation_id = metadata.get("conversation_id")
     dialed = caller_number = None
     team_started: float | None = None   # entrante al equipo que paso al agente: los minutos corren desde ahi
+    team_attempts = 0                    # sus intentos a celulares: la derivacion del agente sigue la numeracion
     if conversation_id is None:
         # Entrante: la despacha la dispatch rule de LiveKit, sin metadata. Se rutea por
         # el numero marcado al agente de ese numero (y en WhatsApp, por la regla del
@@ -509,11 +510,12 @@ async def entrypoint(ctx: JobContext):
 
             fallback: dict = {}
 
-            team_started = await direct.run_inbound_team(
+            team = await direct.run_inbound_team(
                 ctx, inbound, customer=caller.identity, caller=caller_number or "", dialed=dialed or "",
                 sessions=sessions, store=engine.store, to_agent=to_agent, trunk_id=lambda: outbound_trunk_id(ctx.api))
-            if team_started is None:
+            if team is None:
                 return
+            team_started, team_attempts = team
     else:
         mode = (CallMode.saliente if metadata.get("phone")
                 else CallMode.loadtest if metadata.get("loadtest")
@@ -549,7 +551,7 @@ async def entrypoint(ctx: JobContext):
     session.on("metrics_collected", lambda ev: latency.on_metrics(ev.metrics))
     started_at: float | None = None
     watchdogs: list[asyncio.Task] = []   # corte por minutos del tier y por duracion maxima
-    current: dict = {"transfer": None, "line": None, "attempts": 0}   # derivacion en curso y su lado de LiveKit
+    current: dict = {"transfer": None, "line": None, "attempts": team_attempts}   # derivacion en curso y su lado de LiveKit
 
     async def finalize(reason: str = ""):
         for task in watchdogs:
@@ -634,7 +636,7 @@ async def entrypoint(ctx: JobContext):
         on_completed = lambda reason: asyncio.create_task(hang_up(reason))
     def customer_identity() -> str | None:
         return next((p.identity for p in ctx.room.remote_participants.values()
-                     if not p.identity.startswith(transfer.PERSON_PREFIX)), None)
+                     if not p.identity.startswith((transfer.PERSON_PREFIX, direct_calls.USER_PREFIX))), None)
 
     def company_number() -> str:
         """Caller ID del tramo a la persona: el numero de la empresa por el que entro o salio la llamada; en
@@ -719,6 +721,8 @@ async def entrypoint(ctx: JobContext):
     def on_participant_left(p) -> None:
         if p.identity.startswith(transfer.PERSON_PREFIX):
             return   # una persona de una derivacion: lo maneja app/voice/handoff.py
+        if p.identity.startswith(direct_calls.USER_PREFIX):
+            return   # un usuario del panel de la entrante al equipo (entro tarde y se lo saco): no es el cliente
         if current["transfer"] is not None:
             asyncio.create_task(ctx.delete_room())   # que no quede la persona sola en la room
         ctx.shutdown(reason="customer_hangup")

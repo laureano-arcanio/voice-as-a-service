@@ -18,8 +18,21 @@ export class FakeRoom {
   disconnect = vi.fn(async () => undefined);
   startAudio = vi.fn(async () => undefined);
 
-  constructor() {
+  options: Record<string, unknown>;
+
+  /** La próxima room no conecta: emite Disconnected y rechaza connect (como livekit-client). */
+  static connectError: Error | null = null;
+
+  constructor(options: Record<string, unknown> = {}) {
+    this.options = options;
     FakeRoom.all.push(this);
+    const error = FakeRoom.connectError;
+    FakeRoom.connectError = null;
+    if (error)
+      this.connect = vi.fn(async () => {
+        this.emit('disconnected');
+        throw error;
+      });
   }
 
   on(event: string, fn: Handler) {

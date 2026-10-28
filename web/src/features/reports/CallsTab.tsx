@@ -81,7 +81,11 @@ export function CallsTab({ query }: { query: ReportQuery }) {
   return (
     <QueryState query={report}>
       {(r) => {
-        const total = r.durations.reduce((s, d) => s + d.count, 0);
+        // Llamadas: todas las del período, como suman "Por tipo" y "Cómo terminan"; la duración y los cortes
+        // tempranos son de las finalizadas.
+        const total = r.total;
+        const finished = r.durations.reduce((s, d) => s + d.count, 0);
+        const ended = r.ended.filter((e) => e.count > 0);
         const withTests = r.daily.some((d) => d.prueba);
         const withDirect = r.daily.some((d) => d.directa);
         // Tres series de color (guía de la app): con directas, la web se junta con la prueba en gris.
@@ -97,8 +101,8 @@ export function CallsTab({ query }: { query: ReportQuery }) {
                 {
                   label: 'Cortes tempranos',
                   value: formatNumber(r.early_hangups, 0),
-                  sub: total
-                    ? `${formatNumber((r.early_hangups / total) * 100)}% · menos de 15 s`
+                  sub: finished
+                    ? `${formatNumber((r.early_hangups / finished) * 100)}% de las finalizadas · menos de 15 s`
                     : undefined,
                 },
                 { label: 'Llamantes nuevos', value: formatNumber(r.callers.new, 0) },
@@ -184,6 +188,7 @@ export function CallsTab({ query }: { query: ReportQuery }) {
             <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
               <ReportCard
                 title="Duración"
+                description="Las llamadas finalizadas."
                 csv={{
                   rows: r.durations,
                   columns: [
@@ -192,7 +197,7 @@ export function CallsTab({ query }: { query: ReportQuery }) {
                   ],
                 }}
               >
-                {total ? (
+                {finished ? (
                   <BarChart
                     h={220}
                     data={r.durations}
@@ -201,10 +206,16 @@ export function CallsTab({ query }: { query: ReportQuery }) {
                     series={[{ name: 'count', label: 'Llamadas', color: 'var(--chart-1)' }]}
                   />
                 ) : (
-                  <EmptyState>Sin llamadas en el período.</EmptyState>
+                  <EmptyState>Sin llamadas finalizadas en el período.</EmptyState>
                 )}
               </ReportCard>
-              <TableCard title="Cómo terminan" rows={r.ended} columns={ENDED_COLS} rowKey={(x) => x.reason} />
+              <TableCard
+                title="Cómo terminan"
+                rows={ended}
+                columns={ENDED_COLS}
+                empty="Sin llamadas en el período."
+                rowKey={(x) => x.reason}
+              />
             </SimpleGrid>
             <TableCard
               title="Los que más vuelven"

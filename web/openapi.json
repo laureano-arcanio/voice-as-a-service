@@ -1638,7 +1638,7 @@
      "phone-numbers"
     ],
     "summary": "Update Number",
-    "description": "Etiqueta y quien atiende las entrantes: el agente (`answer_mode: agent`, un agente del mismo cliente)\no el equipo (`team`: `member_ids` en orden, `ring_first`, `ring_seconds`, `schedule` y el respaldo\n`team_fallback`, que con `agent` usa el agente del numero). `member_ids` reemplaza la lista. El equipo\npide las condiciones vigentes aceptadas por el cliente (403 terms_pending).",
+    "description": "Etiqueta y quien atiende las entrantes: el agente (`answer_mode: agent`, un agente del mismo cliente)\no el equipo (`team`: `member_ids` en orden, `ring_first`, `ring_seconds`, `schedule` y el respaldo\n`team_fallback`, que con `agent` usa el agente del numero). `member_ids` reemplaza la lista. El equipo\npide las condiciones 2026-10-28 (o posteriores) aceptadas por el cliente (403 terms_pending).",
     "operationId": "update_number_api_v1_phone_numbers__number_id__patch",
     "security": [
      {
@@ -2804,7 +2804,7 @@
      "calls"
     ],
     "summary": "List Calls",
-    "description": "Conversaciones con su llamada, de la mas nueva a la mas vieja.",
+    "description": "Conversaciones con su llamada, de la mas nueva a la mas vieja. `phone` y `contact_id` juntos piden los\ndos telefonos a la vez (si son distintos, no hay ninguna).",
     "operationId": "list_calls_api_v1_calls_get",
     "security": [
      {
@@ -2992,6 +2992,43 @@
        "title": "Answered By"
       },
       "description": "Entrantes que atendió el agente o el equipo"
+     },
+     {
+      "name": "phone",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 32
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Las llamadas con ese teléfono y las conversaciones de WhatsApp de ese número (se normaliza a E.164: +5493511234567, 351 123-4567)",
+       "title": "Phone"
+      },
+      "description": "Las llamadas con ese teléfono y las conversaciones de WhatsApp de ese número (se normaliza a E.164: +5493511234567, 351 123-4567)"
+     },
+     {
+      "name": "contact_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Las del teléfono de ese contacto de la agenda",
+       "title": "Contact Id"
+      },
+      "description": "Las del teléfono de ese contacto de la agenda"
      },
      {
       "name": "limit",
@@ -13489,7 +13526,7 @@
       }
      },
      "403": {
-      "description": "Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones vigentes sin aceptar (terms_pending) u otro usuario"
+      "description": "Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones de las llamadas directas sin aceptar (terms_pending) u otro usuario"
      },
      "409": {
       "description": "Contacto dado de baja sin confirmar (opted_out), llamada terminada o ya atendida"
@@ -13551,7 +13588,7 @@
       }
      },
      "403": {
-      "description": "Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones vigentes sin aceptar (terms_pending) u otro usuario"
+      "description": "Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones de las llamadas directas sin aceptar (terms_pending) u otro usuario"
      },
      "409": {
       "description": "Contacto dado de baja sin confirmar (opted_out), llamada terminada o ya atendida"
@@ -13608,7 +13645,7 @@
       }
      },
      "403": {
-      "description": "Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones vigentes sin aceptar (terms_pending) u otro usuario"
+      "description": "Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones de las llamadas directas sin aceptar (terms_pending) u otro usuario"
      },
      "409": {
       "description": "Contacto dado de baja sin confirmar (opted_out), llamada terminada o ya atendida"
@@ -13658,7 +13695,7 @@
       "description": "Successful Response"
      },
      "403": {
-      "description": "Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones vigentes sin aceptar (terms_pending) u otro usuario"
+      "description": "Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones de las llamadas directas sin aceptar (terms_pending) u otro usuario"
      },
      "409": {
       "description": "Contacto dado de baja sin confirmar (opted_out), llamada terminada o ya atendida"
@@ -13709,7 +13746,7 @@
       }
      },
      "403": {
-      "description": "Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones vigentes sin aceptar (terms_pending) u otro usuario"
+      "description": "Admin en soporte (support_read_only), número bloqueado (blocked_number), condiciones de las llamadas directas sin aceptar (terms_pending) u otro usuario"
      },
      "409": {
       "description": "Contacto dado de baja sin confirmar (opted_out), llamada terminada o ya atendida"
@@ -16061,6 +16098,39 @@
       "type": "boolean",
       "title": "Opted Out Confirmed",
       "default": false
+     },
+     "contact_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Contact Id"
+     },
+     "contact_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Contact Name"
+     },
+     "team": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/TeamOutcome"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Entrante al equipo: si atendió alguien y, si nadie, el respaldo usado"
      }
     },
     "type": "object",
@@ -16683,6 +16753,18 @@
       "type": "boolean",
       "title": "Opted Out Confirmed",
       "default": false
+     },
+     "contact_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Contact Id",
+      "description": "El contacto de la agenda con ese teléfono, si hay (contact_name, si el agente no lo tomó, es el suyo)"
      }
     },
     "type": "object",
@@ -24811,13 +24893,18 @@
       "title": "Durations",
       "description": "Llamadas finalizadas por duración"
      },
+     "total": {
+      "type": "integer",
+      "title": "Total",
+      "description": "Llamadas del período, con cualquier estado: lo que suman by_type y ended"
+     },
      "ended": {
       "items": {
        "$ref": "#/components/schemas/ReportReasonOut"
       },
       "type": "array",
       "title": "Ended",
-      "description": "customer_hangup, agent_end, off_topic, hangup_by_user, blocked_number, rejected, failed, other"
+      "description": "Siempre todos, en este orden: customer_hangup, agent_end, person_hangup (cortó la persona del equipo), off_topic, hangup_by_user, team_no_answer y after_hours (entrante al equipo que nadie atendió o fuera de horario), no_answer, busy, voicemail, user_not_joined (la persona no entró a su saliente), max_duration, quota_exhausted, blocked_number, rejected, worker_error, failed (otra falla) y other"
      },
      "early_hangups": {
       "type": "integer",
@@ -24837,6 +24924,7 @@
      "by_type",
      "by_user",
      "durations",
+     "total",
      "ended",
      "early_hangups",
      "callers"
@@ -27383,6 +27471,56 @@
     },
     "type": "object",
     "title": "TeamMemberPatch"
+   },
+   "TeamOutcome": {
+    "properties": {
+     "answered": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Answered",
+      "description": "Si atendió alguien del equipo; null mientras suena"
+     },
+     "person": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Person",
+      "description": "Quien atendió en su celular (en el panel, user_name)"
+     },
+     "fallback": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "agent",
+         "voicemail",
+         "hangup"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Fallback",
+      "description": "Nadie atendió: el respaldo (pasó al agente, tomó un mensaje o cortó con un aviso); null si no se sabe (llamadas de antes)"
+     }
+    },
+    "type": "object",
+    "required": [
+     "answered"
+    ],
+    "title": "TeamOutcome"
    },
    "TeamPresenceOut": {
     "properties": {

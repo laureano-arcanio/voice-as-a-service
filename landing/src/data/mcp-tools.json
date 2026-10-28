@@ -859,7 +859,7 @@
    "name": "get_report_calls",
    "toolset": "reports",
    "title": "Reporte: llamadas",
-   "description": "Las llamadas del período: por día y modo (entrantes, salientes, web), cuándo llaman (mapa de calor por día de la semana y hora, para elegir horarios de áreas y campañas), por tipo (atendidas por el agente, directas salientes de una persona y entrantes al equipo) y, en las directas, por persona, por línea y por agente (volumen, minutos, conversión), distribución de la duración, cómo terminan (cortó el cliente, terminó el agente, fuera de tema, cortada desde el panel, bloqueada), cortes tempranos y quién llama (nuevos, que vuelven y los que más vuelven).",
+   "description": "Las llamadas del período: por día y modo (entrantes, salientes, web), cuándo llaman (mapa de calor por día de la semana y hora, para elegir horarios de áreas y campañas), por tipo (atendidas por el agente, directas salientes de una persona y entrantes al equipo) y, en las directas, por persona, por línea y por agente (volumen, minutos, conversión), el total, distribución de la duración, cómo terminan (cortó el cliente, terminó el agente, cortó la persona del equipo, fuera de tema, cortada desde el panel, nadie del equipo atendió, fuera de horario, no atendió, bloqueada...), cortes tempranos y quién llama (nuevos, que vuelven y los que más vuelven).",
    "kind": "lectura",
    "features": [],
    "oauth": false,

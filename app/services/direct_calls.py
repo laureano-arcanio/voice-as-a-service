@@ -10,8 +10,8 @@
 - Presencia: Disponible = un pulso (PUT /me/presence) en los ultimos PRESENCE_TTL_SECONDS; ocupado = tiene
   una llamada activa con su user_id.
 - Un admin en "ver como cliente" no llama, no atiende ni se pone Disponible (403 support_read_only).
-- Hasta que el cliente acepta las condiciones vigentes (las que cubren la grabacion siempre), no llama ni
-  atiende: 403 terms_pending (services/legal_gate.check_client_accepted; plan, seccion 7).
+- Hasta que el cliente acepta las condiciones que cubren la grabacion siempre (2026-10-28 o posteriores), no
+  llama ni atiende: 403 terms_pending (services/legal_gate.check_client_accepted; plan, seccion 7).
 """
 import asyncio
 import datetime
@@ -41,7 +41,7 @@ from ..models import (
     User,
     UserPresence,
 )
-from . import blocked_numbers, calls, legal_gate, livekit, quota
+from . import blocked_numbers, calls, legal_gate, livekit, phones, quota
 from . import limits as limits_service
 from .contacts import is_opted_out
 from .errors import Conflict, Forbidden, Invalid, NotFound, QuotaExceeded, Upstream
@@ -50,6 +50,10 @@ from .security import Principal
 logger = logging.getLogger(__name__)
 
 PRESENCE_TTL_SECONDS = 60
+USER_PREFIX = "user-"     # identidad de un usuario del panel en la room
+# Un timbre del panel suena como mucho ring_seconds (60) mas la espera a que entre el navegador: uno mas viejo
+# es de un worker que se cayo sin apagarlo (no se muestra ni se atiende).
+RING_MAX_SECONDS = 90
 # Cuanto espera el worker a que el usuario entre antes de marcar: desde el panel ya esta entrando; por API o
 # MCP tiene que abrir el join_url.
 JOIN_TIMEOUT_PANEL = 30
@@ -58,7 +62,7 @@ JOIN_TIMEOUT_API = 120
 
 def user_identity(user_id: str) -> str:
     """Identidad de un usuario del panel en la room (la que espera el worker)."""
-    return f"user-{user_id}"
+    return f"{USER_PREFIX}{user_id}"
 
 
 def join_url(conversation_id: str) -> str:
@@ -217,6 +221,17 @@ def _active_call(s: Session, p: Principal, conversation_id: str) -> CallRow:
     return call
 
 
+def _lock_call(s: Session, conversation_id: str) -> CallRow | None:
+    """La llamada con su fila bloqueada (SELECT ... FOR UPDATE). Atender, apagar y soltar timbres la toman antes
+    de tocar call_rings: con el mismo orden en todos los caminos no hay deadlock en PostgreSQL."""
+    return s.scalar(select(CallRow).where(CallRow.conversation_id == conversation_id).with_for_update()
+                    .execution_options(populate_existing=True))
+
+
+def _ring_since(now: datetime.datetime) -> datetime.datetime:
+    return now - datetime.timedelta(seconds=RING_MAX_SECONDS)
+
+
 def _token(call: CallRow, user: User) -> DirectJoin:
     room = call.room or f"call-{call.conversation_id}"
     return DirectJoin(livekit_url=livekit.public_url(),
@@ -245,18 +260,27 @@ def answer(s: Session, p: Principal, conversation_id: str) -> DirectJoin:
     user = _panel_user(s, p)
     call = _active_call(s, p, conversation_id)
     legal_gate.check_client_accepted(s, call.client_id)
-    ring = s.scalar(select(CallRing).where(CallRing.conversation_id == conversation_id, CallRing.user_id == user.id))
+    # Serializa con los otros que atienden y con el worker (cancel_rings, release_answer): primero la llamada.
+    call = _lock_call(s, conversation_id)
+    now = utcnow()
+    if call is None or call.status not in ACTIVE_CALL_STATUSES or call.created_at < _stale_before(now):
+        s.rollback()
+        raise Conflict("La llamada no está en curso", "call_not_active")
+    ring = s.scalar(select(CallRing).where(CallRing.conversation_id == conversation_id, CallRing.user_id == user.id)
+                    .execution_options(populate_existing=True))
     if ring is None:
+        s.rollback()
         raise NotFound("Esa llamada no te está sonando", "not_ringing")
     if call.user_id == user.id:     # ya es suya (doble click): el mismo token
+        s.rollback()
         return _token(call, user)
     if call.user_id is not None:
+        s.rollback()
         raise Conflict("Otra persona ya atendió la llamada", "already_answered")
-    if ring.status != "ringing":
+    if ring.status != "ringing" or ring.created_at < _ring_since(now):
+        s.rollback()
         raise Conflict("La llamada ya no te está sonando", "not_ringing")
-    # El timbre, solo si sigue sonando: el worker pudo apagarlo (cancel_rings) entre la lectura y aca, y
-    # despues ya no mira quien atendio.
-    now = utcnow()
+    # El timbre, solo si sigue sonando (sin PostgreSQL no hay lock: la condicion lo cubre igual).
     still = s.execute(update(CallRing).where(CallRing.id == ring.id, CallRing.status == "ringing")
                       .values(status="answered", ended_at=now)).rowcount
     if not still:
@@ -299,22 +323,34 @@ class Ringing:
 
 
 def ringing(s: Session, p: Principal) -> list[Ringing]:
-    """Las entrantes que le suenan ahora al usuario en el panel (timbres ringing de llamadas activas)."""
+    """Las entrantes que le suenan ahora al usuario en el panel (timbres ringing de llamadas activas). Sin los
+    de una llamada colgada ni los timbres vencidos (se cayo el worker sin apagarlos)."""
     user = _panel_user(s, p)
+    now = utcnow()
     rows = s.execute(select(CallRing, CallRow).join(CallRow, CallRow.conversation_id == CallRing.conversation_id)
                      .where(CallRing.user_id == user.id, CallRing.status == "ringing",
+                            CallRing.created_at >= _ring_since(now), CallRow.created_at >= _stale_before(now),
                             CallRow.status.in_(ACTIVE_CALL_STATUSES), CallRow.client_id == user.client_id)
                      .order_by(CallRing.created_at)).all()
     out = []
     for ring, call in rows:
         number = s.get(PhoneNumber, call.phone_number_id) if call.phone_number_id else None
-        contact = s.scalar(select(Contact).where(Contact.client_id == call.client_id, Contact.phone == call.phone,
-                                                 Contact.archived_at.is_(None))) if call.phone else None
+        # El caller llega como lo manda Anura (sin + o sin el 9): la agenda esta en E.164 (como Reports).
+        phone = _e164(call.phone)
+        contact = s.scalar(select(Contact).where(Contact.client_id == call.client_id, Contact.phone == phone,
+                                                 Contact.archived_at.is_(None))) if phone else None
         out.append(Ringing(conversation_id=call.conversation_id, phone=call.phone,
                            contact_id=contact.id if contact else None, contact_name=contact.name if contact else None,
                            number_e164=number.e164 if number else None, number_label=number.label if number else None,
                            started_at=call.created_at))
     return out
+
+
+def _e164(raw: str | None) -> str | None:
+    try:
+        return phones.normalize_phone(raw or "")
+    except ValueError:
+        return None
 
 
 # ---------- presencia ----------
@@ -402,23 +438,26 @@ def team_presence(s: Session, client_id: str) -> list[TeamPresence]:
 def ring_panel(s: Session, conversation_id: str, user_ids: list[str]) -> list[str]:
     """Hace sonar la entrante en el panel de los usuarios de `user_ids` que esten Disponibles y no ocupados
     (crea o reabre su timbre). Devuelve a quienes les suena; vacio si no hay nadie o la llamada no existe."""
-    call = s.get(CallRow, conversation_id)
+    call = _lock_call(s, conversation_id)
     if call is None or call.client_id is None:
+        s.rollback()
         return []
     targets = available_users(s, call.client_id, user_ids)
     existing = {r.user_id: r for r in s.scalars(select(CallRing).where(CallRing.conversation_id == conversation_id))}
+    now = utcnow()
     for user_id in targets:
         ring = existing.get(user_id)
         if ring is None:
-            s.add(CallRing(conversation_id=conversation_id, user_id=user_id))
+            s.add(CallRing(conversation_id=conversation_id, user_id=user_id, created_at=now))
         elif ring.status != "answered":
-            ring.status, ring.ended_at = "ringing", None
+            ring.status, ring.ended_at, ring.created_at = "ringing", None, now
     s.commit()
     return targets
 
 
 def cancel_rings(s: Session, conversation_id: str) -> None:
     """Apaga los timbres que siguen sonando (nadie atendio, paso al celular, colgo el que llama)."""
+    _lock_call(s, conversation_id)
     s.execute(update(CallRing).where(CallRing.conversation_id == conversation_id, CallRing.status == "ringing")
               .values(status="cancelled", ended_at=utcnow()))
     s.commit()
@@ -450,6 +489,7 @@ def fallback_to_agent(s: Session, engine, conversation_id: str, agent_id: str | 
 def release_answer(s: Session, conversation_id: str) -> None:
     """Atendio en el panel pero no entro a la room a tiempo: la llamada vuelve a quedar sin usuario (no queda a
     su nombre ni ocupado) y su timbre, apagado."""
+    _lock_call(s, conversation_id)
     s.execute(update(CallRing).where(CallRing.conversation_id == conversation_id, CallRing.status == "answered")
               .values(status="cancelled", ended_at=utcnow()))
     s.execute(update(CallRow).where(CallRow.conversation_id == conversation_id).values(user_id=None))

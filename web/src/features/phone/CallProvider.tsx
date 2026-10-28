@@ -48,9 +48,11 @@ import {
 } from './errors';
 import { playRingtone } from './ringtone';
 import { storedAvailable, storedCall } from './storage';
+import { every } from './ticker';
 import type { CallStatusData, DirectCallOut, Ringing, TranscriptData } from './types';
 
 const PRESENCE_PULSE_MS = 20_000;
+const RING_POLL_MS = 2_000;
 const RING_REPEAT_MS = 3_000;
 const MAX_LINES = 300;
 const BUSY: CallProblem = {
@@ -81,6 +83,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const [audioBlocked, setAudioBlocked] = useState(false);
   const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
   const [rejoinId, setRejoinId] = useState<string | null>(null);
+  const [failedRingId, setFailedRingId] = useState<string | null>(null);
   // Timbres rechazados o que ya no se pueden atender: no se vuelven a mostrar.
   const [declined, setDeclined] = useState<string[]>([]);
 
@@ -125,6 +128,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     setAudioBlocked(false);
     setTranscript([]);
     setRejoinId(null);
+    setFailedRingId(null);
     return gen.current;
   }, []);
 
@@ -219,7 +223,10 @@ export function CallProvider({ children }: { children: ReactNode }) {
   /** Entra a la room con el token, publica el micrófono y reproduce lo que llega. */
   const connectRoom = useCallback(
     async (url: string, token: string) => {
-      const r = new Room({ adaptiveStream: false, dynacast: false });
+      // Sin disconnectOnPageLeave: LiveKit corta en beforeunload aunque se cancele el aviso de salir, y en
+      // `freeze` (cambiar de app en el celular). Sale en pagehide (abajo); si recarga, el worker lo espera
+      // unos segundos para "Volver a entrar".
+      const r = new Room({ adaptiveStream: false, dynacast: false, disconnectOnPageLeave: false });
       room.current = r;
       r.on(RoomEvent.TrackSubscribed, (track) => {
         if (track.kind !== Track.Kind.Audio) return;
@@ -242,9 +249,12 @@ export function CallProvider({ children }: { children: ReactNode }) {
         if (topic === 'call_status') applyStatus(msg as CallStatusData);
         else addLine(msg as TranscriptData);
       });
+      await r.connect(url, token);
+      // Después de conectar: si connect falla, livekit-client emite Disconnected antes de rechazar, y el aviso
+      // (connect_failed, que además corta la saliente) es el del catch de quien llama.
+      if (room.current !== r) return;
       // Se cerró la room (cortó el otro, el worker o la red): si estaba En curso, terminó bien.
       r.on(RoomEvent.Disconnected, () => finish(phaseRef.current === 'active' ? 'completed' : 'failed'));
-      await r.connect(url, token);
       if (mic.current) await r.localParticipant.publishTrack(mic.current);
       await r.startAudio().catch(() => undefined);
       setAudioBlocked(!r.canPlaybackAudio);
@@ -400,7 +410,11 @@ export function CallProvider({ children }: { children: ReactNode }) {
         name: ring.contact_name ?? null,
         fromLabel: ring.number_label || ring.number_e164,
       });
-      if (await openMic()) return false;
+      if (await openMic()) {
+        // El timbre sigue (no va a `declined`): la RingBar dice por qué no pudo atender.
+        setFailedRingId(ring.conversation_id);
+        return false;
+      }
       setPhase('connecting');
       let creds;
       try {
@@ -472,6 +486,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     setError(null);
     setResult(null);
     setTranscript([]);
+    setFailedRingId(null);
     setPhase('idle');
   }, [setPhase]);
 
@@ -506,8 +521,14 @@ export function CallProvider({ children }: { children: ReactNode }) {
       e.preventDefault();
       e.returnValue = '';
     };
+    // Se va de verdad (recarga o cierra): sale de la room ya, y el worker lo espera desde ahora.
+    const leave = () => void room.current?.disconnect();
     window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
+    window.addEventListener('pagehide', leave);
+    return () => {
+      window.removeEventListener('beforeunload', warn);
+      window.removeEventListener('pagehide', leave);
+    };
   }, [live]);
 
   useEffect(() => () => release(), [release]);
@@ -526,11 +547,13 @@ export function CallProvider({ children }: { children: ReactNode }) {
         notifyError(e, 'No pudimos dejarte Disponible');
       });
     void pulse();
-    const t = window.setInterval(() => void pulse(), PRESENCE_PULSE_MS);
+    // Con la pestaña oculta, Chrome agrupa los setInterval a uno por minuto: el pulso (TTL de 60 s) va por un
+    // Worker (ticker.ts), que no se frena.
+    const stop = every(PRESENCE_PULSE_MS, () => void pulse());
     // Al apagarlo, al perder el plan o al salir del panel (cerrar sesión): deja de estar Disponible ya,
     // sin esperar los 60 s sin pulso.
     return () => {
-      window.clearInterval(t);
+      stop();
       void putPresence(false).catch(() => undefined);
     };
   }, [presenceOn]);
@@ -540,7 +563,13 @@ export function CallProvider({ children }: { children: ReactNode }) {
     storedAvailable.set(on);
   }, []);
 
-  const ringing = useRinging(presenceOn && !live);
+  const ringOn = presenceOn && !live;
+  const ringing = useRinging(ringOn);
+  // El sondeo del timbre, también por el Worker: con la pestaña oculta tiene que ver la entrante en segundos.
+  useEffect(() => {
+    if (!ringOn) return;
+    return every(RING_POLL_MS, () => void qc.invalidateQueries({ queryKey: phoneKeys.ringing }));
+  }, [qc, ringOn]);
   const rings = useMemo(
     () =>
       presenceOn && !live ? (ringing.data ?? []).filter((r) => !declined.includes(r.conversation_id)) : [],
@@ -575,6 +604,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       transcript,
       busy: live,
       rejoinId,
+      failedRingId,
       disabledReason,
       call,
       join,
@@ -601,6 +631,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       transcript,
       live,
       rejoinId,
+      failedRingId,
       disabledReason,
       call,
       join,
