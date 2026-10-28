@@ -3727,6 +3727,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/system/now": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * System Now
+         * @description Foto actual de cada host: CPU, RAM, discos, red, GPUs, servicios, sondas, saturación y alertas activas.
+         */
+        get: operations["system_now_api_v1_system_now_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/system/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * System History
+         * @description Series de la ventana para los gráficos (lo que tiene picos, con el máximo de cada paso).
+         */
+        get: operations["system_history_api_v1_system_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/system/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * System Events
+         * @description Alertas que estuvieron disparadas en la ventana, con su inicio y fin.
+         */
+        get: operations["system_events_api_v1_system_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/system/peaks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * System Peaks
+         * @description Máximo de cada día (CPU, RAM, potencia y temperatura de GPU, KV cache, llamadas, alertas críticas).
+         */
+        get: operations["system_peaks_api_v1_system_peaks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/oauth/authorize": {
         parameters: {
             query?: never;
@@ -8754,6 +8834,384 @@ export interface components {
             client_id: string;
             /** Client Name */
             client_name: string;
+        };
+        /** SystemAlertOut */
+        SystemAlertOut: {
+            /** Name */
+            name: string;
+            /** Severity */
+            severity: string;
+            /**
+             * State
+             * @description firing o pending
+             */
+            state: string;
+            /** Summary */
+            summary: string;
+            /** Since */
+            since: string | null;
+            /** Host */
+            host: string;
+        };
+        /** SystemClockOut */
+        SystemClockOut: {
+            /** Offset S */
+            offset_s: number | null;
+            /** Synced */
+            synced: boolean | null;
+        };
+        /** SystemConnectivityOut */
+        SystemConnectivityOut: {
+            /** Internet Ok */
+            internet_ok: boolean | null;
+            /** Public Ip Ok */
+            public_ip_ok: boolean | null;
+            /** Sip */
+            sip: components["schemas"]["SystemSipOut"][];
+        };
+        /** SystemCpuOut */
+        SystemCpuOut: {
+            /** Util Ratio */
+            util_ratio: number | null;
+            /** Cores */
+            cores: number | null;
+            /** Load1 */
+            load1: number | null;
+            /** Load5 */
+            load5: number | null;
+            /** Load15 */
+            load15: number | null;
+            /**
+             * Pressure Ratio
+             * @description PSI: fracción del tiempo con tareas esperando CPU
+             */
+            pressure_ratio: number | null;
+            /** Temperature C */
+            temperature_c: number | null;
+            /**
+             * Power W
+             * @description Paquete de la CPU (RAPL)
+             */
+            power_w: number | null;
+        };
+        /** SystemDiskOut */
+        SystemDiskOut: {
+            /** Mountpoint */
+            mountpoint: string;
+            /** Device */
+            device: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Avail Bytes */
+            avail_bytes: number | null;
+            /** Used Ratio */
+            used_ratio: number | null;
+            /**
+             * Days To Full
+             * @description Al ritmo de las últimas 6 h; null si no se llena en un año
+             */
+            days_to_full: number | null;
+        };
+        /** SystemEventOut */
+        SystemEventOut: {
+            /** Name */
+            name: string;
+            /** Severity */
+            severity: string;
+            /** Host */
+            host: string;
+            /** Detail */
+            detail: string;
+            /** Start */
+            start: number;
+            /**
+             * End
+             * @description null: sigue activa
+             */
+            end: number | null;
+        };
+        /** SystemGpuOut */
+        SystemGpuOut: {
+            /** Index */
+            index: number | string;
+            /** Name */
+            name: string;
+            /** Bus */
+            bus: string;
+            /** Util Ratio */
+            util_ratio: number | null;
+            /** Memory Used Bytes */
+            memory_used_bytes: number | null;
+            /** Memory Total Bytes */
+            memory_total_bytes: number | null;
+            /** Power W */
+            power_w: number | null;
+            /** Power Limit W */
+            power_limit_w: number | null;
+            /** Temperature C */
+            temperature_c: number | null;
+            /** Fan Ratio */
+            fan_ratio: number | null;
+            /** Clock Sm Mhz */
+            clock_sm_mhz: number | null;
+            /** Clock Mem Mhz */
+            clock_mem_mhz: number | null;
+            pcie: components["schemas"]["SystemPcieOut"];
+            /**
+             * Throttle
+             * @description Motivos de recorte del reloj activos
+             */
+            throttle: string[];
+            /**
+             * Throttle Bad
+             * @description Recorte por temperatura o por hardware
+             */
+            throttle_bad: boolean;
+            /** Xid Errors 24H */
+            xid_errors_24h: number | null;
+            /** Processes */
+            processes: components["schemas"]["SystemGpuProcessOut"][];
+        };
+        /** SystemGpuProcessOut */
+        SystemGpuProcessOut: {
+            /** Service */
+            service: string | null;
+            /** Memory Bytes */
+            memory_bytes: number | null;
+        };
+        /** SystemHistoryOut */
+        SystemHistoryOut: {
+            /** Window */
+            window: string;
+            /** Step S */
+            step_s: number;
+            /** Start */
+            start: number;
+            /** End */
+            end: number;
+            /** Series */
+            series: {
+                [key: string]: components["schemas"]["SystemSeriesOut"][];
+            };
+        };
+        /** SystemHostOut */
+        SystemHostOut: {
+            /** Host */
+            host: string;
+            /**
+             * Collector Age S
+             * @description Segundos desde la última vuelta de atentina-hostmon
+             */
+            collector_age_s: number | null;
+            /** Uptime S */
+            uptime_s: number | null;
+            cpu: components["schemas"]["SystemCpuOut"];
+            memory: components["schemas"]["SystemMemoryOut"];
+            /** Io Pressure Ratio */
+            io_pressure_ratio: number | null;
+            /** Disks */
+            disks: components["schemas"]["SystemDiskOut"][];
+            /** Smart */
+            smart: components["schemas"]["SystemSmartOut"][];
+            /** Network */
+            network: components["schemas"]["SystemNetOut"][];
+            /** Udp Rcvbuf Errors S */
+            udp_rcvbuf_errors_s: number | null;
+            /** Gpus */
+            gpus: components["schemas"]["SystemGpuOut"][];
+            power: components["schemas"]["SystemPowerOut"];
+            clock: components["schemas"]["SystemClockOut"];
+            connectivity: components["schemas"]["SystemConnectivityOut"];
+            /** Services */
+            services: components["schemas"]["SystemServiceOut"][];
+            /** Probes */
+            probes: components["schemas"]["SystemProbeOut"][];
+            saturation: components["schemas"]["SystemSaturationOut"];
+        };
+        /** SystemMemoryOut */
+        SystemMemoryOut: {
+            /** Total Bytes */
+            total_bytes: number | null;
+            /** Available Bytes */
+            available_bytes: number | null;
+            /** Used Ratio */
+            used_ratio: number | null;
+            /** Swap Total Bytes */
+            swap_total_bytes: number | null;
+            /** Swap Used Bytes */
+            swap_used_bytes: number | null;
+            /** Pressure Ratio */
+            pressure_ratio: number | null;
+            /** Oom Kills 24H */
+            oom_kills_24h: number | null;
+        };
+        /** SystemNetOut */
+        SystemNetOut: {
+            /** Iface */
+            iface: string;
+            /** Rx Bytes S */
+            rx_bytes_s: number | null;
+            /** Tx Bytes S */
+            tx_bytes_s: number | null;
+            /** Errors S */
+            errors_s: number | null;
+            /** Drops S */
+            drops_s: number | null;
+        };
+        /** SystemNowOut */
+        SystemNowOut: {
+            /** Generated At */
+            generated_at: number;
+            /** Hosts */
+            hosts: components["schemas"]["SystemHostOut"][];
+            /** Alerts */
+            alerts: components["schemas"]["SystemAlertOut"][];
+        };
+        /** SystemPcieOut */
+        SystemPcieOut: {
+            /** Gen */
+            gen: number | null;
+            /** Gen Max */
+            gen_max: number | null;
+            /** Width */
+            width: number | null;
+            /** Width Max */
+            width_max: number | null;
+        };
+        /** SystemPeakOut */
+        SystemPeakOut: {
+            /** Host */
+            host: string;
+            /**
+             * Day End
+             * @description Medianoche local que cierra el día (epoch)
+             */
+            day_end: number;
+            /** Cpu Util Max */
+            cpu_util_max?: number | null;
+            /** Memory Used Max */
+            memory_used_max?: number | null;
+            /** Gpu Power Max W */
+            gpu_power_max_w?: number | null;
+            /** Gpu Temp Max C */
+            gpu_temp_max_c?: number | null;
+            /** Gpu Util Max */
+            gpu_util_max?: number | null;
+            /** Llm Kv Cache Max */
+            llm_kv_cache_max?: number | null;
+            /** Calls Active Max */
+            calls_active_max?: number | null;
+            /** Alerts Critical */
+            alerts_critical?: number | null;
+        };
+        /** SystemPowerOut */
+        SystemPowerOut: {
+            /** Gpus W */
+            gpus_w: number | null;
+            /** Cpu W */
+            cpu_w: number | null;
+            /**
+             * Estimated W
+             * @description GPUs + CPU; sin medidor de pared
+             */
+            estimated_w: number | null;
+        };
+        /** SystemProbeOut */
+        SystemProbeOut: {
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @description interna o externa
+             */
+            kind: string;
+            /** Target */
+            target: string;
+            /** Ok */
+            ok: boolean;
+            /** Duration S */
+            duration_s: number | null;
+        };
+        /** SystemQueueOut */
+        SystemQueueOut: {
+            /** Running */
+            running: number | null;
+            /** Waiting */
+            waiting: number | null;
+        };
+        /** SystemSaturationOut */
+        SystemSaturationOut: {
+            /** Inference */
+            inference: {
+                [key: string]: components["schemas"]["SystemQueueOut"];
+            };
+            /** Llm Kv Cache Ratio */
+            llm_kv_cache_ratio: number | null;
+            /** Calls Active */
+            calls_active: number | null;
+            /** Anura Channels Busy */
+            anura_channels_busy: number | null;
+            /** Anura Channels Total */
+            anura_channels_total: number | null;
+            /** Turn Latency P95 S */
+            turn_latency_p95_s: number | null;
+        };
+        /** SystemSeriesOut */
+        SystemSeriesOut: {
+            /** Host */
+            host: string;
+            /**
+             * Label
+             * @description GPU u otra etiqueta que separa las líneas; vacío si es una por host
+             */
+            label: string;
+            /**
+             * Points
+             * @description [[epoch, valor], ...]
+             */
+            points: (number | null)[][];
+        };
+        /** SystemServiceOut */
+        SystemServiceOut: {
+            /** Service */
+            service: string;
+            /** Up */
+            up: boolean;
+            /**
+             * Healthy
+             * @description 1 healthy, 0,5 starting, 0 unhealthy, null sin healthcheck
+             */
+            healthy: number | null;
+            /** Restarts */
+            restarts: number | null;
+            /** Cpu Cores */
+            cpu_cores: number | null;
+            /** Memory Bytes */
+            memory_bytes: number | null;
+        };
+        /** SystemSipOut */
+        SystemSipOut: {
+            /** Registration */
+            registration: string;
+            /** Ok */
+            ok: boolean;
+        };
+        /** SystemSmartOut */
+        SystemSmartOut: {
+            /** Device */
+            device: string;
+            /** Model */
+            model: string;
+            /** Ok */
+            ok: boolean;
+            /** Io Busy Ratio */
+            io_busy_ratio: number | null;
+            /** Wear Ratio */
+            wear_ratio: number | null;
+            /** Media Errors */
+            media_errors: number | null;
+            /** Temperature C */
+            temperature_c: number | null;
         };
         /** TeamMemberIn */
         TeamMemberIn: {
@@ -18227,6 +18685,119 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DirectCallSettings"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    system_now_api_v1_system_now_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemNowOut"];
+                };
+            };
+        };
+    };
+    system_history_api_v1_system_history_get: {
+        parameters: {
+            query?: {
+                window?: "1h" | "6h" | "24h" | "7d";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemHistoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    system_events_api_v1_system_events_get: {
+        parameters: {
+            query?: {
+                window?: "1h" | "6h" | "24h" | "7d";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemEventOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    system_peaks_api_v1_system_peaks_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemPeakOut"][];
                 };
             };
             /** @description Validation Error */

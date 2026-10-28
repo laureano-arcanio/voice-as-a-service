@@ -29,3 +29,6 @@ tts/finetune/work/
 asterisk/letsencrypt/
 # Credenciales locales (GA del CRM): no se versionan
 secrets/
+
+# Observabilidad del hardware: config generada por make monitoring-config (lleva el tema de ntfy)
+deploy/monitoring/generated/

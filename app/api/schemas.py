@@ -2941,3 +2941,209 @@ class ReportPlatformOut(BaseModel):
     alerts: list[ReportAlertOut]
     business: ReportBusinessOut
     operation: ReportOperationOut
+
+
+# --- Sistema: hardware y servicio (docs/OBSERVABILIDAD.md) ---
+
+class SystemCpuOut(BaseModel):
+    util_ratio: float | None
+    cores: float | None
+    load1: float | None
+    load5: float | None
+    load15: float | None
+    pressure_ratio: float | None = Field(description="PSI: fracción del tiempo con tareas esperando CPU")
+    temperature_c: float | None
+    power_w: float | None = Field(description="Paquete de la CPU (RAPL)")
+
+
+class SystemMemoryOut(BaseModel):
+    total_bytes: float | None
+    available_bytes: float | None
+    used_ratio: float | None
+    swap_total_bytes: float | None
+    swap_used_bytes: float | None
+    pressure_ratio: float | None
+    oom_kills_24h: float | None
+
+
+class SystemDiskOut(BaseModel):
+    mountpoint: str
+    device: str
+    size_bytes: float
+    avail_bytes: float | None
+    used_ratio: float | None
+    days_to_full: float | None = Field(description="Al ritmo de las últimas 6 h; null si no se llena en un año")
+
+
+class SystemSmartOut(BaseModel):
+    device: str
+    model: str
+    ok: bool
+    io_busy_ratio: float | None
+    wear_ratio: float | None
+    media_errors: float | None
+    temperature_c: float | None
+
+
+class SystemNetOut(BaseModel):
+    iface: str
+    rx_bytes_s: float | None
+    tx_bytes_s: float | None
+    errors_s: float | None
+    drops_s: float | None
+
+
+class SystemPcieOut(BaseModel):
+    gen: float | None
+    gen_max: float | None
+    width: float | None
+    width_max: float | None
+
+
+class SystemGpuProcessOut(BaseModel):
+    service: str | None
+    memory_bytes: float | None
+
+
+class SystemGpuOut(BaseModel):
+    index: int | str
+    name: str
+    bus: str
+    util_ratio: float | None
+    memory_used_bytes: float | None
+    memory_total_bytes: float | None
+    power_w: float | None
+    power_limit_w: float | None
+    temperature_c: float | None
+    fan_ratio: float | None
+    clock_sm_mhz: float | None
+    clock_mem_mhz: float | None
+    pcie: SystemPcieOut
+    throttle: list[str] = Field(description="Motivos de recorte del reloj activos")
+    throttle_bad: bool = Field(description="Recorte por temperatura o por hardware")
+    xid_errors_24h: float | None
+    processes: list[SystemGpuProcessOut]
+
+
+class SystemPowerOut(BaseModel):
+    gpus_w: float | None
+    cpu_w: float | None
+    estimated_w: float | None = Field(description="GPUs + CPU; sin medidor de pared")
+
+
+class SystemClockOut(BaseModel):
+    offset_s: float | None
+    synced: bool | None
+
+
+class SystemSipOut(BaseModel):
+    registration: str
+    ok: bool
+
+
+class SystemConnectivityOut(BaseModel):
+    internet_ok: bool | None
+    public_ip_ok: bool | None
+    sip: list[SystemSipOut]
+
+
+class SystemServiceOut(BaseModel):
+    service: str
+    up: bool
+    healthy: float | None = Field(description="1 healthy, 0,5 starting, 0 unhealthy, null sin healthcheck")
+    restarts: float | None
+    cpu_cores: float | None
+    memory_bytes: float | None
+
+
+class SystemProbeOut(BaseModel):
+    name: str
+    kind: str = Field(description="interna o externa")
+    target: str
+    ok: bool
+    duration_s: float | None
+
+
+class SystemQueueOut(BaseModel):
+    running: float | None
+    waiting: float | None
+
+
+class SystemSaturationOut(BaseModel):
+    inference: dict[str, SystemQueueOut]
+    llm_kv_cache_ratio: float | None
+    calls_active: float | None
+    anura_channels_busy: float | None
+    anura_channels_total: float | None
+    turn_latency_p95_s: float | None
+
+
+class SystemHostOut(BaseModel):
+    host: str
+    collector_age_s: float | None = Field(description="Segundos desde la última vuelta de atentina-hostmon")
+    uptime_s: float | None
+    cpu: SystemCpuOut
+    memory: SystemMemoryOut
+    io_pressure_ratio: float | None
+    disks: list[SystemDiskOut]
+    smart: list[SystemSmartOut]
+    network: list[SystemNetOut]
+    udp_rcvbuf_errors_s: float | None
+    gpus: list[SystemGpuOut]
+    power: SystemPowerOut
+    clock: SystemClockOut
+    connectivity: SystemConnectivityOut
+    services: list[SystemServiceOut]
+    probes: list[SystemProbeOut]
+    saturation: SystemSaturationOut
+
+
+class SystemAlertOut(BaseModel):
+    name: str
+    severity: str
+    state: str = Field(description="firing o pending")
+    summary: str
+    since: str | None
+    host: str
+
+
+class SystemNowOut(BaseModel):
+    generated_at: float
+    hosts: list[SystemHostOut]
+    alerts: list[SystemAlertOut]
+
+
+class SystemSeriesOut(BaseModel):
+    host: str
+    label: str = Field(description="GPU u otra etiqueta que separa las líneas; vacío si es una por host")
+    points: list[list[float | None]] = Field(description="[[epoch, valor], ...]")
+
+
+class SystemHistoryOut(BaseModel):
+    window: str
+    step_s: int
+    start: float
+    end: float
+    series: dict[str, list[SystemSeriesOut]]
+
+
+class SystemEventOut(BaseModel):
+    name: str
+    severity: str
+    host: str
+    detail: str
+    start: float
+    end: float | None = Field(description="null: sigue activa")
+
+
+class SystemPeakOut(BaseModel):
+    host: str
+    day_end: float = Field(description="Medianoche local que cierra el día (epoch)")
+    cpu_util_max: float | None = None
+    memory_used_max: float | None = None
+    gpu_power_max_w: float | None = None
+    gpu_temp_max_c: float | None = None
+    gpu_util_max: float | None = None
+    llm_kv_cache_max: float | None = None
+    calls_active_max: float | None = None
+    alerts_critical: float | None = None

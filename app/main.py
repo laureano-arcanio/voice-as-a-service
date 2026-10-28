@@ -15,7 +15,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 
-from .api import call_link_host, errors, phone_app_host
+from .api import call_link_host, errors, internal_metrics, phone_app_host
 from .api import oauth as oauth_routes
 from .api.deps import _bearer, get_db, get_principal, require_admin
 from .api.http import (
@@ -49,6 +49,7 @@ from .api.routers import (
     phone_numbers,
     plan,
     reports,
+    system,
     tiers,
     tools,
     users,
@@ -116,7 +117,7 @@ def create_app() -> FastAPI:
     for module in (auth, tiers, clients, phone_numbers, agents, users, api_keys, calls, conversations, voices,
                    whatsapp, wa_campaigns, campaigns, contacts, inference, demo, billing, llm_connections,
                    llm_params, call_links, blocked_numbers, api_requests, handoff, plan, mcp_usage, consumer_requests,
-                   tools, branding, reports, direct_calls):
+                   tools, branding, reports, direct_calls, system):
         api.include_router(module.router)
     api.include_router(oauth_routes.api_router)
     app.include_router(api)
@@ -131,6 +132,8 @@ def create_app() -> FastAPI:
     # Servidor MCP para los agentes de IA de los clientes (docs/MCP_PLAN.md).
     app.include_router(mcp_server.router)
     app.include_router(oauth_routes.router)
+    # Metricas de la plataforma para Prometheus (docs/OBSERVABILIDAD.md), con MONITORING_TOKEN.
+    app.include_router(internal_metrics.router)
 
     @app.get("/health", include_in_schema=False)
     def health():

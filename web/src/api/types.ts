@@ -154,3 +154,12 @@ export type ClientSecret = S['ClientSecretOut'];
 export type Credential = S['CredentialOut'];
 export type CredentialIn = S['CredentialIn'];
 export type CredentialUpdate = S['CredentialUpdate'];
+
+// Sistema: hardware y servicio (docs/OBSERVABILIDAD.md), solo admin.
+export type SystemNow = S['SystemNowOut'];
+export type SystemHost = S['SystemHostOut'];
+export type SystemGpu = S['SystemGpuOut'];
+export type SystemHistory = S['SystemHistoryOut'];
+export type SystemSeries = S['SystemSeriesOut'];
+export type SystemEvent = S['SystemEventOut'];
+export type SystemPeak = S['SystemPeakOut'];

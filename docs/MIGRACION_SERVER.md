@@ -399,6 +399,14 @@ construidas (`deploy/boot.sh` no hace build) y usuario en el grupo `docker`. Ins
 `atentina-gpu-limits` (topes en cada arranque) y `atentina-stack` (compose, túnel, trunks SIP y
 calentamiento del TTS en el arranque). Verificar: `systemctl is-enabled atentina-gpu-limits atentina-stack`.
 
+### 8.1.1 Monitoreo ([`OBSERVABILIDAD.md`](OBSERVABILIDAD.md), sección 5)
+
+`make monitoring-host-install` (sudo: `smartmontools`, `lm-sensors` y el colector `atentina-hostmon`)
+y `make up-monitoring`. Precondiciones: la subred `10.250.250.0/24` libre en el host nuevo (si no,
+cambiarla en `docker-compose.monitoring.yml` y en `deploy/monitoring/render.py`) y `ALERT_NTFY_TOPIC`
+en `.env`. Con los dos servers a la vez, `MONITORING_HOST` en `.env` distingue uno del otro en la
+pantalla Sistema. La historia de métricas no se migra (volumen `prometheus_data`).
+
 ### 8.2 Cron del usuario
 
 Instalarlo después del corte (antes, el chequeo marca falta de Asterisk y túnel, y el backup

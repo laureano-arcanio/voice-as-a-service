@@ -80,6 +80,10 @@ export const routes: RouteObject[] = [
         path: 'billing',
         ...page(async () => (await import('@/features/billing/BillingPage')).BillingPage),
       },
+      {
+        path: 'system',
+        ...page(async () => (await import('@/features/system/SystemPage')).SystemPage),
+      },
       { path: 'users', ...page(async () => (await import('@/features/users/UsersPage')).UsersPage) },
       { path: 'profile', ...page(async () => (await import('@/features/auth/ProfilePage')).ProfilePage) },
       { path: '*', element: <NotFound /> },

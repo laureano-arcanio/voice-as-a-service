@@ -285,6 +285,12 @@ class Settings(BaseSettings):
     # Derivacion de llamadas (docs/DERIVACIONES_PLAN.md, 4.6): canales de la cuenta de Anura (rtp.conf). Una
     # llamada por Anura ocupa uno y una derivada dos; sin canal libre la derivacion no se intenta.
     anura_channels: int = 10
+
+    # --- Observabilidad del hardware (docs/OBSERVABILIDAD.md) ---
+    # Prometheus de docker-compose.monitoring.yml; vacio = la pantalla Sistema responde 503 monitoring_off.
+    prometheus_url: str = "http://prometheus:9090"
+    # Token con el que Prometheus lee /internal/metrics (make monitoring-config lo crea); vacio = 404.
+    monitoring_token: str = ""
     # Segundos para marcar 1 despues del whisper (sin el 1 no se conecta: un contestador termina aca).
     handoff_confirm_seconds: int = 8
     # Feriados (fechas YYYY-MM-DD separadas por coma, hora local de billing_timezone): el dialer no marca esos

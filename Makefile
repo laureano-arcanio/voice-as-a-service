@@ -40,6 +40,7 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
         test e2e-sip e2e-sip-down eval-motor eval-llamadas eval-llm eval-llm-juez eval-llm-report loadtest-audio loadtest loadtest-report capacity capacity-monitor capacity-monitor-stop capacity-analyze gpubench stt-eval stt-corpus \
         video-setup video-studio video-voces video-musica video video-revisar video-cerrar doc doc-cerrar slides slides-abrir \
         backup backup-key backup-s3-setup backup-fetch backup-list cron-install \
+        monitoring-config monitoring-host-install up-monitoring monitoring-down monitoring-status monitoring-test-alert alert-ntfy-setup \
         db-reset clean
 
 help: ## Muestra esta ayuda
@@ -311,7 +312,7 @@ mcp-registry-publish: ## Publica deploy/mcp/server.json en el registro oficial d
 # --- Tests ---------------------------------------------------------------
 
 test: ## Tests (LLM falso, sin servicios reales; los del sandbox de codigo, con make test-tools-code)
-	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/tests:/app/tests -v $(CURDIR)/pytest.ini:/app/pytest.ini -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app:/app/app -v $(CURDIR)/crm:/app/crm -v $(CURDIR)/migrations:/app/migrations -v $(CURDIR)/alembic.ini:/app/alembic.ini -v $(CURDIR)/docs:/app/docs:ro -v $(CURDIR)/landing/src/data:/app/landing/src/data:ro app pytest -q $(ARGS)
+	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/tests:/app/tests -v $(CURDIR)/pytest.ini:/app/pytest.ini -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app:/app/app -v $(CURDIR)/crm:/app/crm -v $(CURDIR)/migrations:/app/migrations -v $(CURDIR)/alembic.ini:/app/alembic.ini -v $(CURDIR)/docs:/app/docs:ro -v $(CURDIR)/deploy:/app/deploy:ro -v $(CURDIR)/landing/src/data:/app/landing/src/data:ro app pytest -q $(ARGS)
 
 E2E_SIP := docker compose -f docker-compose.e2e-sip.yml
 
@@ -467,6 +468,43 @@ cron-install: ## Instala (o actualiza) las lineas de Atentina en el crontab del 
 	@mkdir -p $$HOME/atentina-ops $$HOME/atentina-backups && \
 	{ crontab -l 2>/dev/null | sed '/^# >>> atentina/,/^# <<< atentina/d' | grep -v 'voice-as-a-service/scripts/ops/' | grep -v '^# Atentina (docs/PRODUCCION.md)'; \
 	  sed 's|@REPO@|$(CURDIR)|g' deploy/crontab; } | crontab - && crontab -l | sed -n '/^# >>> atentina/,/^# <<< atentina/p'
+
+# --- Observabilidad del hardware (docs/OBSERVABILIDAD.md) --------------------------
+
+MONITORING := $(COMPOSE) -f docker-compose.monitoring.yml
+
+monitoring-config: ## Genera la config de Prometheus y Alertmanager desde .env (crea MONITORING_TOKEN si falta)
+	@python3 deploy/monitoring/render.py
+
+monitoring-host-install: ## Una vez, con sudo: smartmontools, lm-sensors y el colector atentina-hostmon (systemd). No reinicia nada
+	sudo deploy/monitoring/install-host.sh
+
+up-monitoring: monitoring-config ## Prometheus + node-exporter + blackbox + Alertmanager (solo 127.0.0.1). No toca el stack ni corta llamadas
+	@[ -s /var/lib/atentina-hostmon/atentina.prom ] || echo "Aviso: falta el colector del host (make monitoring-host-install): sin GPU ni contenedores"
+	$(MONITORING) up -d --force-recreate
+	@sleep 5 && $(MAKE) --no-print-directory monitoring-status
+
+monitoring-down: ## Baja el monitoreo (conserva el historial de métricas)
+	$(MONITORING) stop prometheus node-exporter blackbox alertmanager
+	$(MONITORING) rm -f prometheus node-exporter blackbox alertmanager
+
+monitoring-status: ## Qué lee Prometheus (targets caídos) y qué alertas están activas
+	@curl -sf http://127.0.0.1:9090/api/v1/targets | python3 -c 'import json,sys; t=json.load(sys.stdin)["data"]["activeTargets"]; bad=[x for x in t if x["health"]!="up"]; print(f"Targets: {len(t)-len(bad)} de {len(t)} arriba"); [print("  caido:", x["labels"].get("job"), x["labels"].get("probe", x["scrapeUrl"]), x["lastError"]) for x in bad]' \
+		|| { echo "Prometheus no responde en 127.0.0.1:9090 (make up-monitoring)"; exit 1; }
+	@curl -sf http://127.0.0.1:9090/api/v1/alerts | python3 -c 'import json,sys; a=json.load(sys.stdin)["data"]["alerts"]; print(f"Alertas activas: {len(a)}"); [print(f"  {x[\"state\"]:8} {x[\"labels\"][\"severity\"]:8} {x[\"annotations\"][\"summary\"]}") for x in a]'
+
+monitoring-test-alert: ## Manda una alerta de prueba por Alertmanager a ntfy. SEV=critical suena (default warning, sin sonido)
+	$(MONITORING) exec alertmanager amtool alert add PruebaDeAlerta severity=$(or $(SEV),warning) \
+		'--annotation=summary="Prueba de alerta de Atentina ($(or $(SEV),warning))"' --alertmanager.url=http://localhost:9093
+
+alert-ntfy-setup: ## Crea el tema secreto de ntfy (ALERT_NTFY_TOPIC en .env, si falta), manda un aviso de prueba e imprime cómo suscribirse
+	@t=$$(sed -n 's/^ALERT_NTFY_TOPIC=//p' .env | tail -1); \
+	if [ -z "$$t" ]; then t="atentina-$$(python3 -c 'import secrets; print(secrets.token_hex(12))')"; \
+		printf '\n# Tema secreto de ntfy para las alertas (make alert-ntfy-setup)\nALERT_NTFY_TOPIC=%s\n' "$$t" >> .env; \
+		echo "ALERT_NTFY_TOPIC agregado al final de .env"; fi; \
+	curl -s -o /dev/null -w "Aviso de prueba: HTTP %{http_code}\n" -H "Title: Atentina: prueba" -H "Priority: high" \
+		-d "Si ves esto, las alertas del server te llegan." "https://ntfy.sh/$$t"; \
+	echo "En el celular: app ntfy > + > tema: $$t (servidor ntfy.sh). Despues: make up-monitoring (regenera Alertmanager)"
 
 db-reset: ## PELIGRO: borra la base PostgreSQL (conversaciones) y la vuelve a crear. Conserva pesos y voces
 	$(COMPOSE) rm -sf $(AGENT_SERVICES)

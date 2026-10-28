@@ -1,0 +1,233 @@
+# Alertas (docs/OBSERVABILIDAD.md, sección 4). `severity`: critical (ntfy con
+# prioridad alta, suena) o warning (prioridad baja, sin sonido). `summary` es el texto del aviso.
+# Umbrales iniciales: calibrarlos con lo medido (fase 2) y anotar acá el porqué de cada cambio.
+groups:
+  - name: gpu
+    rules:
+      - alert: ColectorDelHostCaido
+        expr: (time() - atentina_hostmon_last_run_timestamp_seconds > 60) or absent(atentina_hostmon_last_run_timestamp_seconds)
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "El colector del host (atentina-hostmon) no corre: sin datos de GPU, contenedores ni SIP"
+      # Sin tope, dos 3090 apagaron el server (25-sep-2026). El tope lo pone atentina-gpu-limits.
+      - alert: GpuSinTope
+        expr: atentina_gpu_power_limit_watts{name=~".*3090.*"} > 280
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "GPU {{ $labels.gpu }} sin tope de potencia ({{ $value }} W): sudo systemctl start atentina-gpu-limits"
+      - alert: GpuRecortePorTemperaturaOHardware
+        expr: max by (gpu, reason) (atentina_gpu_throttle{reason=~"hw_slowdown|hw_thermal|sw_thermal|hw_power_brake"}) == 1
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "GPU {{ $labels.gpu }} recorta el reloj por {{ $labels.reason }}"
+      - alert: GpuCaliente
+        expr: atentina_gpu_temperature_celsius > 83
+        for: 5m
+        labels: {severity: critical}
+        annotations:
+          summary: "GPU {{ $labels.gpu }} a {{ $value }} °C"
+      - alert: GpuErrorXid
+        expr: increase(atentina_gpu_xid_errors_total[10m]) > 0
+        labels: {severity: critical}
+        annotations:
+          summary: "GPU {{ $labels.gpu }}: error XID {{ $labels.xid }} del driver (journalctl -k | grep Xid)"
+      - alert: GpuDesaparecio
+        expr: atentina_gpu_count < max_over_time(atentina_gpu_count[1d])
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "nvidia-smi ve {{ $value }} GPU, menos que en el último día"
+      # La GPU 0 va en x4 por el slot: se compara contra su propio máximo de la semana, no contra la placa.
+      - alert: GpuEnlacePcieDegradado
+        expr: atentina_gpu_pcie_width < max_over_time(atentina_gpu_pcie_width[7d]) and atentina_gpu_utilization_ratio > 0.3
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "GPU {{ $labels.gpu }}: enlace PCIe x{{ $value }} con carga, menos que en la semana"
+      # CAP-001: 559 W de pico entre las dos con ~32 llamadas.
+      - alert: PotenciaSostenidaAlta
+        expr: sum(atentina_gpu_power_watts) > 520
+        for: 1m
+        labels: {severity: warning}
+        annotations:
+          summary: "Las GPUs consumen {{ $value | printf \"%.0f\" }} W sostenidos"
+      # El LLM reserva su GPU entera a propósito (--gpu-memory-utilization): esa no cuenta.
+      - alert: VramLlena
+        expr: (atentina_gpu_memory_used_bytes / atentina_gpu_memory_total_bytes > 0.97) unless on (gpu) atentina_gpu_process_memory_bytes{service="vllm-llm"}
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "GPU {{ $labels.gpu }} con la VRAM al {{ $value | humanizePercentage }}"
+
+  - name: inferencia
+    rules:
+      # Con Gemma, 49.082 tokens de KV cache para todas las llamadas: el techo más probable.
+      - alert: KvCacheDelLlmAlto
+        expr: max(vllm:kv_cache_usage_perc{job="llm"}) > 0.9
+        for: 1m
+        labels: {severity: warning}
+        annotations:
+          summary: "KV cache del LLM al {{ $value | humanizePercentage }}"
+      - alert: InferenciaConCola
+        expr: max by (job) (vllm:num_requests_waiting{job=~"llm|stt|tts"}) > 0
+        for: 30s
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.job }}: {{ $value }} pedidos esperando"
+      # CAP-001: el codo de capacidad es p95 ≤ 3 s.
+      - alert: LatenciaPorTurnoAlta
+        expr: atentina_turn_latency_p95_seconds > 3
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "p95 por turno de {{ $value | printf \"%.1f\" }} s en los últimos 15 min"
+      - alert: CanalesDeAnuraCasiLlenos
+        expr: atentina_anura_channels_busy >= atentina_anura_channels_total - 1
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $value }} canales de Anura en uso"
+
+  - name: host
+    rules:
+      - alert: RamBaja
+        expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.10
+        for: 2m
+        labels: {severity: critical}
+        annotations:
+          summary: "RAM disponible al {{ $value | humanizePercentage }}"
+      - alert: SwapEnUso
+        expr: rate(node_vmstat_pswpout[5m]) > 100
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "El host manda {{ $value | printf \"%.0f\" }} páginas/s a swap"
+      - alert: ProcesoMatadoPorOom
+        expr: increase(node_vmstat_oom_kill[5m]) > 0
+        labels: {severity: critical}
+        annotations:
+          summary: "El kernel mató un proceso por falta de memoria (journalctl -k | grep -i oom)"
+      # PSI: % del tiempo con tareas esperando CPU. 100 % de CPU con PSI 0 está bien.
+      - alert: CpuSaturada
+        expr: rate(node_pressure_cpu_waiting_seconds_total[1m]) > 0.20
+        for: 2m
+        labels: {severity: warning}
+        annotations:
+          summary: "Tareas esperando CPU el {{ $value | humanizePercentage }} del tiempo"
+      - alert: DiscoSaturado
+        expr: rate(node_pressure_io_stalled_seconds_total[1m]) > 0.20
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "Todo el host esperando disco el {{ $value | humanizePercentage }} del tiempo"
+      - alert: CpuCaliente
+        expr: max by (host) (node_hwmon_temp_celsius * on (host, chip) group_left node_hwmon_chip_names{chip_name=~"k10temp|coretemp"}) > 90
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "CPU a {{ $value }} °C"
+      - alert: DiscoPorLlenarse
+        expr: node_filesystem_avail_bytes{fstype=~"ext4|xfs|btrfs"} / node_filesystem_size_bytes < 0.15
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.mountpoint }} con {{ $value | humanizePercentage }} libre"
+      - alert: DiscoCasiLleno
+        expr: node_filesystem_avail_bytes{fstype=~"ext4|xfs|btrfs"} / node_filesystem_size_bytes < 0.05
+        for: 2m
+        labels: {severity: critical}
+        annotations:
+          summary: "{{ $labels.mountpoint }} con {{ $value | humanizePercentage }} libre"
+      - alert: DiscoSeLlenaEnUnaSemana
+        # Recién con 6 h de datos (4.320 muestras a 5 s): con minutos la tendencia da cualquier cosa.
+        expr: predict_linear(node_filesystem_avail_bytes{fstype=~"ext4|xfs|btrfs"}[6h], 7 * 86400) < 0 and count_over_time(node_filesystem_avail_bytes{fstype=~"ext4|xfs|btrfs"}[6h]) > 4000
+        for: 1h
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.mountpoint }} se llena en menos de 7 días a este ritmo"
+      - alert: NvmeConFallas
+        expr: atentina_disk_smart_ok == 0 or atentina_disk_media_errors > 0
+        labels: {severity: critical}
+        annotations:
+          summary: "Disco {{ $labels.device }}: SMART con fallas o errores de medio"
+      - alert: NvmeGastado
+        expr: atentina_disk_wear_ratio > 0.8
+        labels: {severity: warning}
+        annotations:
+          summary: "Disco {{ $labels.device }} gastado al {{ $value | humanizePercentage }}"
+      - alert: RelojDesfasado
+        expr: abs(node_timex_offset_seconds) > 1 or node_timex_sync_status == 0
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "El reloj del host no está sincronizado (TLS y SIP fallan con la hora corrida)"
+      - alert: HostReiniciado
+        expr: changes(node_boot_time_seconds[30m]) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "El host se reinició en los últimos 30 min"
+      # Audio RTP perdido: el buffer UDP del kernel se llena.
+      - alert: PerdidaDeUdp
+        expr: rate(node_netstat_Udp_RcvbufErrors[5m]) > 0
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "El kernel descarta {{ $value | printf \"%.1f\" }} paquetes UDP/s (audio perdido)"
+
+  - name: servicios
+    rules:
+      - alert: ContenedorCaido
+        expr: atentina_container_up == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "Servicio {{ $labels.service }} sin correr"
+      - alert: ContenedorUnhealthy
+        expr: atentina_container_healthy == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "Servicio {{ $labels.service }} unhealthy"
+      # RestartCount solo sube cuando Docker lo reinicia (se cayó); recrearlo lo vuelve a 0 y no avisa.
+      - alert: ContenedorReiniciado
+        expr: atentina_container_restarts > (atentina_container_restarts offset 10m)
+        labels: {severity: critical}
+        annotations:
+          summary: "Servicio {{ $labels.service }} se cayó y Docker lo reinició"
+      - alert: ContenedorSinMemoria
+        expr: atentina_container_oom_killed == 1
+        labels: {severity: critical}
+        annotations:
+          summary: "Servicio {{ $labels.service }} terminó por falta de memoria"
+      - alert: SondaInternaFalla
+        expr: probe_success{kind="interna"} == 0
+        for: 30s
+        labels: {severity: critical}
+        annotations:
+          summary: "{{ $labels.probe }} no responde"
+      - alert: SondaExternaFalla
+        expr: probe_success{kind="externa"} == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "{{ $labels.probe }} no responde desde el server"
+      - alert: RegistroSipCaido
+        expr: atentina_sip_registered == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "Asterisk sin registro SIP en {{ $labels.registration }}: no entran llamadas"
+      - alert: IpPublicaCambio
+        expr: atentina_public_ip_ok == 0
+        for: 10m
+        labels: {severity: critical}
+        annotations:
+          summary: "La IP pública no es PUBLIC_HOST: Anura y el proxy apuntan a otra"
+      - alert: MetricasSinRaspar
+        expr: up == 0
+        for: 2m
+        labels: {severity: warning}
+        annotations:
+          summary: "Prometheus no lee {{ $labels.job }} ({{ $labels.instance }})"

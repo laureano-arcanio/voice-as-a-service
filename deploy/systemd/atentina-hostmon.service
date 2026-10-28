@@ -1,0 +1,16 @@
+# Colector del host para Prometheus: GPU, contenedores, SMART, SIP (docs/OBSERVABILIDAD.md).
+# Como root: smartctl, RAPL y el journal del kernel (errores XID) lo piden.
+[Unit]
+Description=Atentina: colector del host para Prometheus
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 @REPO@/deploy/monitoring/hostmon.py
+Restart=always
+RestartSec=5
+Nice=10
+
+[Install]
+WantedBy=multi-user.target

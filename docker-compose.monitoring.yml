@@ -1,0 +1,89 @@
+# Observabilidad del hardware y del servicio (docs/OBSERVABILIDAD.md). Se levanta con
+# `make up-monitoring` (aparte, como el túnel: mismo proyecto y misma red `default` que app, sin
+# recrear nada del stack). Nada se publica: Prometheus y Alertmanager solo en 127.0.0.1.
+#
+# - prometheus: raspa cada 5 s; retención MONITORING_RETENTION_DAYS (20). `app` le pide los datos
+#   de la pantalla Sistema (PROMETHEUS_URL=http://prometheus:9090).
+# - node-exporter: CPU, RAM, PSI, discos, red, temperaturas (hwmon), NTP y el textfile de hostmon
+#   (deploy/monitoring/hostmon.py, servicio de systemd en el host: GPU, contenedores, SMART, SIP).
+#   Va en la red del host para ver sus interfaces, escuchando solo en el gateway de la red
+#   `monitoring` (10.250.250.1), que no sale del host.
+# - blackbox: sondas de conectividad interna y externa.
+# - alertmanager: alertas a ntfy (ALERT_NTFY_TOPIC); config generada por `make monitoring-config`.
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${MONITORING_RETENTION_DAYS:-20}d
+      - --web.listen-address=:9090
+    volumes:
+      - ./deploy/monitoring/generated/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/monitoring/rules.yml:/etc/prometheus/rules.yml:ro
+      - ./deploy/monitoring/generated/app_token:/etc/prometheus/app_token:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    networks: [default, monitoring]
+    # Usa ~50 MB y 0,3 % de un núcleo (docs/OBSERVABILIDAD.md, sección 6); el tope evita que una consulta pesada se coma el host.
+    mem_limit: 1g
+    cpus: 1.0
+
+  node-exporter:
+    image: prom/node-exporter:v1.9.1
+    restart: unless-stopped
+    network_mode: host
+    pid: host
+    command:
+      - --web.listen-address=10.250.250.1:9100
+      - --path.rootfs=/host
+      - --collector.textfile.directory=/textfile
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run|var/lib/docker/.+|var/snap/.+|snap/.+)($$|/)
+      - --collector.netdev.device-exclude=^(veth.*|br-.*|docker.*|lo)$$
+      - --collector.vmstat.fields=^(oom_kill|pgpg.*|pswp.*|pgmajfault)$$
+      - --collector.pressure
+    volumes:
+      - /:/host:ro,rslave
+      - /var/lib/atentina-hostmon:/textfile:ro
+    mem_limit: 128m
+    depends_on: [prometheus]  # crea la red `monitoring` (y su gateway) antes de escuchar en ella
+
+  blackbox:
+    image: prom/blackbox-exporter:v0.27.0
+    restart: unless-stopped
+    command: ["--config.file=/etc/blackbox/blackbox.yml"]
+    volumes:
+      - ./deploy/monitoring/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    cap_add: [NET_RAW]  # ping (ICMP)
+    networks: [default, monitoring]
+    mem_limit: 64m
+
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    volumes:
+      - ./deploy/monitoring/generated/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    ports:
+      - "127.0.0.1:9093:9093"
+    networks: [default, monitoring]
+    mem_limit: 64m
+
+networks:
+  monitoring:
+    name: atentina-monitoring
+    ipam:
+      config:
+        # Subred fija: node-exporter (red del host) escucha en su gateway. Libre en este host (28-oct-2026).
+        - subnet: 10.250.250.0/24
+          gateway: 10.250.250.1
+
+volumes:
+  prometheus_data:
+  alertmanager_data:

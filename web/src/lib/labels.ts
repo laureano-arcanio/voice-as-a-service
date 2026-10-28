@@ -155,3 +155,18 @@ export const API_KIND: Record<string, Label> = {
   stt: { label: 'Transcripción', color: 'gray' },
   tts: { label: 'Síntesis de voz', color: 'gray' },
 };
+
+// Sistema (/admin/system): gravedad de una alerta y motivos de recorte del reloj de una GPU.
+export const ALERT_SEVERITY: Record<string, Label> = {
+  critical: { label: 'Crítica', color: 'red' },
+  warning: { label: 'Aviso', color: 'yellow' },
+};
+
+export const GPU_THROTTLE: Record<string, Label> = {
+  sw_power_cap: { label: 'Tope de potencia', color: 'gray' },
+  sync_boost: { label: 'Sincronizada', color: 'gray' },
+  hw_slowdown: { label: 'Recorte por hardware', color: 'red' },
+  sw_thermal: { label: 'Recorte térmico', color: 'red' },
+  hw_thermal: { label: 'Recorte térmico (hardware)', color: 'red' },
+  hw_power_brake: { label: 'Freno de potencia', color: 'red' },
+};

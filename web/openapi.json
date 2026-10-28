@@ -13763,6 +13763,202 @@
     }
    }
   },
+  "/api/v1/system/now": {
+   "get": {
+    "tags": [
+     "system"
+    ],
+    "summary": "System Now",
+    "description": "Foto actual de cada host: CPU, RAM, discos, red, GPUs, servicios, sondas, saturación y alertas activas.",
+    "operationId": "system_now_api_v1_system_now_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SystemNowOut"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/system/history": {
+   "get": {
+    "tags": [
+     "system"
+    ],
+    "summary": "System History",
+    "description": "Series de la ventana para los gráficos (lo que tiene picos, con el máximo de cada paso).",
+    "operationId": "system_history_api_v1_system_history_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "window",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "enum": [
+        "1h",
+        "6h",
+        "24h",
+        "7d"
+       ],
+       "type": "string",
+       "default": "24h",
+       "title": "Window"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SystemHistoryOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/system/events": {
+   "get": {
+    "tags": [
+     "system"
+    ],
+    "summary": "System Events",
+    "description": "Alertas que estuvieron disparadas en la ventana, con su inicio y fin.",
+    "operationId": "system_events_api_v1_system_events_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "window",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "enum": [
+        "1h",
+        "6h",
+        "24h",
+        "7d"
+       ],
+       "type": "string",
+       "default": "24h",
+       "title": "Window"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/SystemEventOut"
+         },
+         "title": "Response System Events Api V1 System Events Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/system/peaks": {
+   "get": {
+    "tags": [
+     "system"
+    ],
+    "summary": "System Peaks",
+    "description": "Máximo de cada día (CPU, RAM, potencia y temperatura de GPU, KV cache, llamadas, alertas críticas).",
+    "operationId": "system_peaks_api_v1_system_peaks_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "days",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 30,
+       "minimum": 1,
+       "default": 7,
+       "title": "Days"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/SystemPeakOut"
+         },
+         "title": "Response System Peaks Api V1 System Peaks Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/oauth/authorize": {
    "get": {
     "tags": [
@@ -26832,6 +27028,1451 @@
     ],
     "title": "SubscriptionRowOut",
     "description": "Una suscripcion en la vista Cobros (admin)."
+   },
+   "SystemAlertOut": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "severity": {
+      "type": "string",
+      "title": "Severity"
+     },
+     "state": {
+      "type": "string",
+      "title": "State",
+      "description": "firing o pending"
+     },
+     "summary": {
+      "type": "string",
+      "title": "Summary"
+     },
+     "since": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Since"
+     },
+     "host": {
+      "type": "string",
+      "title": "Host"
+     }
+    },
+    "type": "object",
+    "required": [
+     "name",
+     "severity",
+     "state",
+     "summary",
+     "since",
+     "host"
+    ],
+    "title": "SystemAlertOut"
+   },
+   "SystemClockOut": {
+    "properties": {
+     "offset_s": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Offset S"
+     },
+     "synced": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Synced"
+     }
+    },
+    "type": "object",
+    "required": [
+     "offset_s",
+     "synced"
+    ],
+    "title": "SystemClockOut"
+   },
+   "SystemConnectivityOut": {
+    "properties": {
+     "internet_ok": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Internet Ok"
+     },
+     "public_ip_ok": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Public Ip Ok"
+     },
+     "sip": {
+      "items": {
+       "$ref": "#/components/schemas/SystemSipOut"
+      },
+      "type": "array",
+      "title": "Sip"
+     }
+    },
+    "type": "object",
+    "required": [
+     "internet_ok",
+     "public_ip_ok",
+     "sip"
+    ],
+    "title": "SystemConnectivityOut"
+   },
+   "SystemCpuOut": {
+    "properties": {
+     "util_ratio": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Util Ratio"
+     },
+     "cores": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cores"
+     },
+     "load1": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Load1"
+     },
+     "load5": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Load5"
+     },
+     "load15": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Load15"
+     },
+     "pressure_ratio": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Pressure Ratio",
+      "description": "PSI: fracción del tiempo con tareas esperando CPU"
+     },
+     "temperature_c": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Temperature C"
+     },
+     "power_w": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Power W",
+      "description": "Paquete de la CPU (RAPL)"
+     }
+    },
+    "type": "object",
+    "required": [
+     "util_ratio",
+     "cores",
+     "load1",
+     "load5",
+     "load15",
+     "pressure_ratio",
+     "temperature_c",
+     "power_w"
+    ],
+    "title": "SystemCpuOut"
+   },
+   "SystemDiskOut": {
+    "properties": {
+     "mountpoint": {
+      "type": "string",
+      "title": "Mountpoint"
+     },
+     "device": {
+      "type": "string",
+      "title": "Device"
+     },
+     "size_bytes": {
+      "type": "number",
+      "title": "Size Bytes"
+     },
+     "avail_bytes": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Avail Bytes"
+     },
+     "used_ratio": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Used Ratio"
+     },
+     "days_to_full": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Days To Full",
+      "description": "Al ritmo de las últimas 6 h; null si no se llena en un año"
+     }
+    },
+    "type": "object",
+    "required": [
+     "mountpoint",
+     "device",
+     "size_bytes",
+     "avail_bytes",
+     "used_ratio",
+     "days_to_full"
+    ],
+    "title": "SystemDiskOut"
+   },
+   "SystemEventOut": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "severity": {
+      "type": "string",
+      "title": "Severity"
+     },
+     "host": {
+      "type": "string",
+      "title": "Host"
+     },
+     "detail": {
+      "type": "string",
+      "title": "Detail"
+     },
+     "start": {
+      "type": "number",
+      "title": "Start"
+     },
+     "end": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "End",
+      "description": "null: sigue activa"
+     }
+    },
+    "type": "object",
+    "required": [
+     "name",
+     "severity",
+     "host",
+     "detail",
+     "start",
+     "end"
+    ],
+    "title": "SystemEventOut"
+   },
+   "SystemGpuOut": {
+    "properties": {
+     "index": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Index"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "bus": {
+      "type": "string",
+      "title": "Bus"
+     },
+     "util_ratio": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Util Ratio"
+     },
+     "memory_used_bytes": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Memory Used Bytes"
+     },
+     "memory_total_bytes": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Memory Total Bytes"
+     },
+     "power_w": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Power W"
+     },
+     "power_limit_w": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Power Limit W"
+     },
+     "temperature_c": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Temperature C"
+     },
+     "fan_ratio": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Fan Ratio"
+     },
+     "clock_sm_mhz": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Clock Sm Mhz"
+     },
+     "clock_mem_mhz": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Clock Mem Mhz"
+     },
+     "pcie": {
+      "$ref": "#/components/schemas/SystemPcieOut"
+     },
+     "throttle": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Throttle",
+      "description": "Motivos de recorte del reloj activos"
+     },
+     "throttle_bad": {
+      "type": "boolean",
+      "title": "Throttle Bad",
+      "description": "Recorte por temperatura o por hardware"
+     },
+     "xid_errors_24h": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Xid Errors 24H"
+     },
+     "processes": {
+      "items": {
+       "$ref": "#/components/schemas/SystemGpuProcessOut"
+      },
+      "type": "array",
+      "title": "Processes"
+     }
+    },
+    "type": "object",
+    "required": [
+     "index",
+     "name",
+     "bus",
+     "util_ratio",
+     "memory_used_bytes",
+     "memory_total_bytes",
+     "power_w",
+     "power_limit_w",
+     "temperature_c",
+     "fan_ratio",
+     "clock_sm_mhz",
+     "clock_mem_mhz",
+     "pcie",
+     "throttle",
+     "throttle_bad",
+     "xid_errors_24h",
+     "processes"
+    ],
+    "title": "SystemGpuOut"
+   },
+   "SystemGpuProcessOut": {
+    "properties": {
+     "service": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Service"
+     },
+     "memory_bytes": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Memory Bytes"
+     }
+    },
+    "type": "object",
+    "required": [
+     "service",
+     "memory_bytes"
+    ],
+    "title": "SystemGpuProcessOut"
+   },
+   "SystemHistoryOut": {
+    "properties": {
+     "window": {
+      "type": "string",
+      "title": "Window"
+     },
+     "step_s": {
+      "type": "integer",
+      "title": "Step S"
+     },
+     "start": {
+      "type": "number",
+      "title": "Start"
+     },
+     "end": {
+      "type": "number",
+      "title": "End"
+     },
+     "series": {
+      "additionalProperties": {
+       "items": {
+        "$ref": "#/components/schemas/SystemSeriesOut"
+       },
+       "type": "array"
+      },
+      "type": "object",
+      "title": "Series"
+     }
+    },
+    "type": "object",
+    "required": [
+     "window",
+     "step_s",
+     "start",
+     "end",
+     "series"
+    ],
+    "title": "SystemHistoryOut"
+   },
+   "SystemHostOut": {
+    "properties": {
+     "host": {
+      "type": "string",
+      "title": "Host"
+     },
+     "collector_age_s": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Collector Age S",
+      "description": "Segundos desde la última vuelta de atentina-hostmon"
+     },
+     "uptime_s": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Uptime S"
+     },
+     "cpu": {
+      "$ref": "#/components/schemas/SystemCpuOut"
+     },
+     "memory": {
+      "$ref": "#/components/schemas/SystemMemoryOut"
+     },
+     "io_pressure_ratio": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Io Pressure Ratio"
+     },
+     "disks": {
+      "items": {
+       "$ref": "#/components/schemas/SystemDiskOut"
+      },
+      "type": "array",
+      "title": "Disks"
+     },
+     "smart": {
+      "items": {
+       "$ref": "#/components/schemas/SystemSmartOut"
+      },
+      "type": "array",
+      "title": "Smart"
+     },
+     "network": {
+      "items": {
+       "$ref": "#/components/schemas/SystemNetOut"
+      },
+      "type": "array",
+      "title": "Network"
+     },
+     "udp_rcvbuf_errors_s": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Udp Rcvbuf Errors S"
+     },
+     "gpus": {
+      "items": {
+       "$ref": "#/components/schemas/SystemGpuOut"
+      },
+      "type": "array",
+      "title": "Gpus"
+     },
+     "power": {
+      "$ref": "#/components/schemas/SystemPowerOut"
+     },
+     "clock": {
+      "$ref": "#/components/schemas/SystemClockOut"
+     },
+     "connectivity": {
+      "$ref": "#/components/schemas/SystemConnectivityOut"
+     },
+     "services": {
+      "items": {
+       "$ref": "#/components/schemas/SystemServiceOut"
+      },
+      "type": "array",
+      "title": "Services"
+     },
+     "probes": {
+      "items": {
+       "$ref": "#/components/schemas/SystemProbeOut"
+      },
+      "type": "array",
+      "title": "Probes"
+     },
+     "saturation": {
+      "$ref": "#/components/schemas/SystemSaturationOut"
+     }
+    },
+    "type": "object",
+    "required": [
+     "host",
+     "collector_age_s",
+     "uptime_s",
+     "cpu",
+     "memory",
+     "io_pressure_ratio",
+     "disks",
+     "smart",
+     "network",
+     "udp_rcvbuf_errors_s",
+     "gpus",
+     "power",
+     "clock",
+     "connectivity",
+     "services",
+     "probes",
+     "saturation"
+    ],
+    "title": "SystemHostOut"
+   },
+   "SystemMemoryOut": {
+    "properties": {
+     "total_bytes": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Total Bytes"
+     },
+     "available_bytes": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Available Bytes"
+     },
+     "used_ratio": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Used Ratio"
+     },
+     "swap_total_bytes": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Swap Total Bytes"
+     },
+     "swap_used_bytes": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Swap Used Bytes"
+     },
+     "pressure_ratio": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Pressure Ratio"
+     },
+     "oom_kills_24h": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Oom Kills 24H"
+     }
+    },
+    "type": "object",
+    "required": [
+     "total_bytes",
+     "available_bytes",
+     "used_ratio",
+     "swap_total_bytes",
+     "swap_used_bytes",
+     "pressure_ratio",
+     "oom_kills_24h"
+    ],
+    "title": "SystemMemoryOut"
+   },
+   "SystemNetOut": {
+    "properties": {
+     "iface": {
+      "type": "string",
+      "title": "Iface"
+     },
+     "rx_bytes_s": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rx Bytes S"
+     },
+     "tx_bytes_s": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tx Bytes S"
+     },
+     "errors_s": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Errors S"
+     },
+     "drops_s": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Drops S"
+     }
+    },
+    "type": "object",
+    "required": [
+     "iface",
+     "rx_bytes_s",
+     "tx_bytes_s",
+     "errors_s",
+     "drops_s"
+    ],
+    "title": "SystemNetOut"
+   },
+   "SystemNowOut": {
+    "properties": {
+     "generated_at": {
+      "type": "number",
+      "title": "Generated At"
+     },
+     "hosts": {
+      "items": {
+       "$ref": "#/components/schemas/SystemHostOut"
+      },
+      "type": "array",
+      "title": "Hosts"
+     },
+     "alerts": {
+      "items": {
+       "$ref": "#/components/schemas/SystemAlertOut"
+      },
+      "type": "array",
+      "title": "Alerts"
+     }
+    },
+    "type": "object",
+    "required": [
+     "generated_at",
+     "hosts",
+     "alerts"
+    ],
+    "title": "SystemNowOut"
+   },
+   "SystemPcieOut": {
+    "properties": {
+     "gen": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Gen"
+     },
+     "gen_max": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Gen Max"
+     },
+     "width": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Width"
+     },
+     "width_max": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Width Max"
+     }
+    },
+    "type": "object",
+    "required": [
+     "gen",
+     "gen_max",
+     "width",
+     "width_max"
+    ],
+    "title": "SystemPcieOut"
+   },
+   "SystemPeakOut": {
+    "properties": {
+     "host": {
+      "type": "string",
+      "title": "Host"
+     },
+     "day_end": {
+      "type": "number",
+      "title": "Day End",
+      "description": "Medianoche local que cierra el día (epoch)"
+     },
+     "cpu_util_max": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cpu Util Max"
+     },
+     "memory_used_max": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Memory Used Max"
+     },
+     "gpu_power_max_w": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Gpu Power Max W"
+     },
+     "gpu_temp_max_c": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Gpu Temp Max C"
+     },
+     "gpu_util_max": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Gpu Util Max"
+     },
+     "llm_kv_cache_max": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Llm Kv Cache Max"
+     },
+     "calls_active_max": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Calls Active Max"
+     },
+     "alerts_critical": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Alerts Critical"
+     }
+    },
+    "type": "object",
+    "required": [
+     "host",
+     "day_end"
+    ],
+    "title": "SystemPeakOut"
+   },
+   "SystemPowerOut": {
+    "properties": {
+     "gpus_w": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Gpus W"
+     },
+     "cpu_w": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cpu W"
+     },
+     "estimated_w": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Estimated W",
+      "description": "GPUs + CPU; sin medidor de pared"
+     }
+    },
+    "type": "object",
+    "required": [
+     "gpus_w",
+     "cpu_w",
+     "estimated_w"
+    ],
+    "title": "SystemPowerOut"
+   },
+   "SystemProbeOut": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "kind": {
+      "type": "string",
+      "title": "Kind",
+      "description": "interna o externa"
+     },
+     "target": {
+      "type": "string",
+      "title": "Target"
+     },
+     "ok": {
+      "type": "boolean",
+      "title": "Ok"
+     },
+     "duration_s": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Duration S"
+     }
+    },
+    "type": "object",
+    "required": [
+     "name",
+     "kind",
+     "target",
+     "ok",
+     "duration_s"
+    ],
+    "title": "SystemProbeOut"
+   },
+   "SystemQueueOut": {
+    "properties": {
+     "running": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Running"
+     },
+     "waiting": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Waiting"
+     }
+    },
+    "type": "object",
+    "required": [
+     "running",
+     "waiting"
+    ],
+    "title": "SystemQueueOut"
+   },
+   "SystemSaturationOut": {
+    "properties": {
+     "inference": {
+      "additionalProperties": {
+       "$ref": "#/components/schemas/SystemQueueOut"
+      },
+      "type": "object",
+      "title": "Inference"
+     },
+     "llm_kv_cache_ratio": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Llm Kv Cache Ratio"
+     },
+     "calls_active": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Calls Active"
+     },
+     "anura_channels_busy": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Anura Channels Busy"
+     },
+     "anura_channels_total": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Anura Channels Total"
+     },
+     "turn_latency_p95_s": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Turn Latency P95 S"
+     }
+    },
+    "type": "object",
+    "required": [
+     "inference",
+     "llm_kv_cache_ratio",
+     "calls_active",
+     "anura_channels_busy",
+     "anura_channels_total",
+     "turn_latency_p95_s"
+    ],
+    "title": "SystemSaturationOut"
+   },
+   "SystemSeriesOut": {
+    "properties": {
+     "host": {
+      "type": "string",
+      "title": "Host"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label",
+      "description": "GPU u otra etiqueta que separa las líneas; vacío si es una por host"
+     },
+     "points": {
+      "items": {
+       "items": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "type": "array"
+      },
+      "type": "array",
+      "title": "Points",
+      "description": "[[epoch, valor], ...]"
+     }
+    },
+    "type": "object",
+    "required": [
+     "host",
+     "label",
+     "points"
+    ],
+    "title": "SystemSeriesOut"
+   },
+   "SystemServiceOut": {
+    "properties": {
+     "service": {
+      "type": "string",
+      "title": "Service"
+     },
+     "up": {
+      "type": "boolean",
+      "title": "Up"
+     },
+     "healthy": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Healthy",
+      "description": "1 healthy, 0,5 starting, 0 unhealthy, null sin healthcheck"
+     },
+     "restarts": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Restarts"
+     },
+     "cpu_cores": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cpu Cores"
+     },
+     "memory_bytes": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Memory Bytes"
+     }
+    },
+    "type": "object",
+    "required": [
+     "service",
+     "up",
+     "healthy",
+     "restarts",
+     "cpu_cores",
+     "memory_bytes"
+    ],
+    "title": "SystemServiceOut"
+   },
+   "SystemSipOut": {
+    "properties": {
+     "registration": {
+      "type": "string",
+      "title": "Registration"
+     },
+     "ok": {
+      "type": "boolean",
+      "title": "Ok"
+     }
+    },
+    "type": "object",
+    "required": [
+     "registration",
+     "ok"
+    ],
+    "title": "SystemSipOut"
+   },
+   "SystemSmartOut": {
+    "properties": {
+     "device": {
+      "type": "string",
+      "title": "Device"
+     },
+     "model": {
+      "type": "string",
+      "title": "Model"
+     },
+     "ok": {
+      "type": "boolean",
+      "title": "Ok"
+     },
+     "io_busy_ratio": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Io Busy Ratio"
+     },
+     "wear_ratio": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Wear Ratio"
+     },
+     "media_errors": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Media Errors"
+     },
+     "temperature_c": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Temperature C"
+     }
+    },
+    "type": "object",
+    "required": [
+     "device",
+     "model",
+     "ok",
+     "io_busy_ratio",
+     "wear_ratio",
+     "media_errors",
+     "temperature_c"
+    ],
+    "title": "SystemSmartOut"
    },
    "TeamMemberIn": {
     "properties": {

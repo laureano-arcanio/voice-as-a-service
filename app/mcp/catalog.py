@@ -783,6 +783,17 @@ _ADMIN: tuple[Tool, ...] = (
          "recurrente, pagos del mes, vencidos) y operación (pico de llamadas simultáneas, fallas y rechazos por "
          "motivo). No recibe `client_id`: para un cliente, get_report_technical y los reportes de cliente.",
          path="/reports/platform", params=_REPORT_ADMIN),
+    Tool("get_system_status", "admin", "Estado del hardware y del servicio",
+         "Foto actual de cada server: CPU (uso, carga, presión, temperatura), "
+         "RAM y swap, discos (libre y días hasta llenarse, SMART), red, cada GPU (uso, VRAM y por servicio, "
+         "potencia y tope, temperatura, recortes del reloj, enlace PCIe, errores XID), consumo estimado, "
+         "servicios (arriba, healthcheck, reinicios, CPU y RAM), sondas de conectividad interna y externa, "
+         "registro SIP, saturación (cola y KV cache del LLM, TTS, STT, llamadas activas, canales de Anura, p95 "
+         "por turno) y las alertas activas.", path="/system/now"),
+    Tool("get_system_events", "admin", "Alertas del sistema en una ventana",
+         "Cuándo estuvo disparada cada alerta del hardware o del servicio (inicio, fin o activa) en la ventana, "
+         "para explicar un pico o una caída.", path="/system/events",
+         params={"window": _s("1h, 6h, 24h (default) o 7d.", enum=["1h", "6h", "24h", "7d"])}),
     Tool("admin_preview_agent_prompt", "admin", "Prompt de un agente",
          "El prompt de sistema que arma la plataforma para una definición de agente, sin guardarla.",
          method="POST", path="/agents/prompt", body="PromptIn", read_only=True),

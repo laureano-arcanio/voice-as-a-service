@@ -20,6 +20,7 @@ import {
   IconPhoneOutgoing,
   IconPlayerPlay,
   IconRobot,
+  IconServer,
   IconSpeakerphone,
   IconStack2,
   IconTool,
@@ -119,6 +120,7 @@ export const ADMIN_NAV: NavEntry[] = [
   { to: '/admin/tiers', label: 'Tiers', icon: IconStack2 },
   { to: '/admin/billing', label: 'Cobros', icon: IconCash },
   { to: '/admin/users', label: 'Usuarios', icon: IconUsers },
+  { to: '/admin/system', label: 'Sistema', icon: IconServer },
 ];
 
 /** El menú del área: la del cliente o la administración. */

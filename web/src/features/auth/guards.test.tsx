@@ -134,6 +134,7 @@ describe('navegación por área', () => {
       'Tiers',
       'Cobros',
       'Usuarios',
+      'Sistema',
     ]);
   });
 });
