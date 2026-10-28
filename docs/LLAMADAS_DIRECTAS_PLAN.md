@@ -3,15 +3,15 @@
 27-oct-2026. Parte de la opción C de `docs/mercado/demos/cimepa-telefonia.md` y del "softphone web" de
 [`DERIVACIONES_PLAN.md`](DERIVACIONES_PLAN.md), 4.5.
 
-**Estado (28-oct-2026): implementado en la rama `llamadas-directas`, sin desplegar.**
+**Estado: desplegado el 27-oct-2026** (migración 0039, `app` y `agent`, landing con las condiciones `2026-10-28`), a pedido, **sin la revisión del abogado ni el aviso por mail con 30 días**. Falta la prueba real (paso 6 de la 14), `make mcp-eval` y el registro del MCP, y el CAP.
 
 | Parte | Estado |
 |---|---|
 | Backend (fases 1, 3 y 3b): migración 0039, API, presencia y timbre, rama del worker, respaldos | Hecho, con tests (`tests/test_direct_calls.py`, `tests/test_direct_voice.py`, `tests/test_migration_0039.py`) |
 | MCP (fase 4): 4 herramientas nuevas y 4 ampliadas, 147 en total | Hecho; falta `make mcp-eval` |
 | Prueba SIP aislada | `make e2e-sip` (`tests/e2e_sip/direct.py`): saliente contra un eco del Anura falso y entrante al equipo por celular. El timbre en el panel está solo en los tests con LiveKit falso |
-| UI (fase 2), `web/src/features/phone/` | En otra tarea |
-| Documentación (fase 5) | Esta sección y las de `AGENTS.md`, `ARQUITECTURA.md`, `DERIVACIONES_PLAN.md`, `FUNCIONES_POR_PLAN_PLAN.md`, `README.md` y `LLAMADAS_SALIENTES_PLAN.md`; falta `GUIA_UI.md` (después de la UI) |
+| UI (fase 2), `web/src/features/phone/` | Hecho |
+| Documentación (fase 5) | Esta sección y las de `AGENTS.md`, `ARQUITECTURA.md`, `DERIVACIONES_PLAN.md`, `FUNCIONES_POR_PLAN_PLAN.md`, `README.md` y `LLAMADAS_SALIENTES_PLAN.md`; `GUIA_UI.md` también (después de la UI) |
 | Landing (sección 10) | `/desarrolladores/docs/api#directas` (con `terms_pending`), `/plataforma/telefono-del-equipo`, menciones en telefonía y home, y "Teléfono del equipo" en los tres planes pagos; `npm run build` en verde, sin publicar |
 | Condiciones y privacidad (fase 6) | Texto `2026-10-28` en `app/legal/texts/` y corte por aceptación de esa versión o una posterior (`app/services/legal_gate.py`, 403 `terms_pending`); falta el abogado y el aviso por mail |
 | Prueba real y despliegue (fase 7) | Sin hacer: "Cómo desplegar" en la sección 14 |
@@ -483,7 +483,7 @@ cambia acá y en el código a la vez.
 
 ## 14. Cómo desplegar
 
-Nada de esto se hizo todavía. En este orden, con el stack en vivo (confirmar cada paso que corta llamadas):
+Hechos el 27-oct-2026 los pasos 2, 3 y 4 (`make migrate-test` sobre el backup de las 03:30: 0034 → 0039 ida y vuelta; 0039 en la base: los 6 números en `agent`, `direct_calls` en Mostrador, Sucursal e Interno; landing por push a `main`). El 1 quedó a medias: texto publicado sin revisión del abogado ni aviso por mail. En este orden, con el stack en vivo (confirmar cada paso que corta llamadas):
 
 1. **Condiciones y privacidad primero.** La migración enciende `direct_calls` en los planes pagos; el código corta
    a quien no aceptó (403 `terms_pending`), pero el texto tiene que estar publicado antes. Revisión del abogado del texto `2026-10-28` (sección 7),
