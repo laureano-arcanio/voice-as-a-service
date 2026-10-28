@@ -2,7 +2,7 @@ import datetime
 
 import pytest
 
-from app.models import CallMode, CallRow, CallStatus, Client, ConversationRow, Tier
+from app.models import CallMode, CallRow, CallStatus, Client, ConversationRow, PhoneNumber, Tier
 from app.services import quota
 from app.services.errors import QuotaExceeded
 
@@ -29,12 +29,13 @@ def _client(s, slug="c", **limits) -> Client:
     return client
 
 
-def _call(s, client, mode, status, started_ago=None, duration=0, created_ago=0):
+def _call(s, client, mode, status, started_ago=None, duration=0, created_ago=0, number=None):
     now = datetime.datetime.now(UTC).replace(tzinfo=None)
     conv = ConversationRow(id=f"c{len(s.new) + s.query(ConversationRow).count()}", client_id=client.id,
                            status="active", fields={}, messages=[])
     s.add(conv)
     s.add(CallRow(conversation_id=conv.id, client_id=client.id, mode=mode, status=status, duration_seconds=duration,
+                  phone_number_id=number.id if number else None,
                   started_at=None if started_ago is None else now - datetime.timedelta(seconds=started_ago),
                   created_at=now - datetime.timedelta(seconds=created_ago)))
     s.flush()
@@ -50,6 +51,27 @@ def test_running_calls_count_elapsed_time(sessions):
         assert 600 - 240 - 125 <= remaining <= 600 - 240 - 120
         assert quota.remaining_seconds(s, c, CallMode.saliente) is None     # sin tope
         assert quota.remaining_seconds(s, c, CallMode.prueba) is None       # no consume minutos
+
+
+def test_toll_free_inbound_minutes_count_more(sessions):
+    with sessions() as s:
+        c = _client(s, inbound_minutes=100, outbound_minutes=100)
+        n0800, n0810, geo = (PhoneNumber(client_id=c.id, e164=e) for e in ("+548002201233", "+548105550000",
+                                                                             "+543515550000"))
+        s.add_all([n0800, n0810, geo])
+        s.flush()
+        _call(s, c, CallMode.entrante, CallStatus.finalizada, started_ago=500, duration=60, number=n0800)
+        _call(s, c, CallMode.entrante, CallStatus.finalizada, started_ago=500, duration=60, number=n0810)
+        _call(s, c, CallMode.entrante, CallStatus.finalizada, started_ago=500, duration=60, number=geo)
+        _call(s, c, CallMode.web, CallStatus.finalizada, started_ago=500, duration=60)
+        start, end = quota.month_bounds()
+        assert quota.used_seconds(s, c.id, CallMode.entrante, start, end) == 120 + 90 + 60 + 60
+        # En curso, tambien multiplicada.
+        _call(s, c, CallMode.entrante, CallStatus.en_curso, started_ago=30, number=n0800)
+        assert 330 + 60 <= quota.used_seconds(s, c.id, CallMode.entrante, start, end) <= 330 + 70
+        # La saliente con el 0800 de caller ID cuenta normal.
+        _call(s, c, CallMode.saliente, CallStatus.finalizada, started_ago=500, duration=60, number=n0800)
+        assert quota.used_seconds(s, c.id, CallMode.saliente, start, end) == 60
 
 
 def test_stale_active_calls_do_not_block(sessions):

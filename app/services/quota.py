@@ -8,7 +8,8 @@ y minutos por mes. Son los efectivos (tier mas los ajustes del cliente, services
   las atendidas o falladas; no las rechazadas por el tier ni las de prueba o loadtest.
 - Minutos: entrantes y salientes por separado, por mes calendario en
   settings.billing_timezone. Una llamada cuenta en el mes en que empezo; la que esta
-  en curso cuenta lo que lleva. Las de prueba y loadtest no consumen minutos. El tramo a la
+  en curso cuenta lo que lleva. La entrante a un 0800 descuenta el doble y a un 0810, una vez y media
+  (INBOUND_MINUTE_FACTORS, condiciones punto 7). Las de prueba y loadtest no consumen minutos. El tramo a la
   persona de una derivacion (handoff_legs) es saliente, desde que atiende, si se conecto. La saliente
   directa (una persona del equipo, sin agente) cuenta como saliente.
 - Canales de Anura (globales, no por cliente): llamadas por Anura en curso mas tramos de
@@ -23,7 +24,7 @@ from collections.abc import Collection
 from dataclasses import dataclass
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, case, func, select
 from sqlalchemy.orm import Session
 
 from ..config import settings
@@ -36,6 +37,7 @@ from ..models import (
     Client,
     ConversationRow,
     HandoffLeg,
+    PhoneNumber,
 )
 from . import limits as limits_service
 from .errors import QuotaExceeded
@@ -45,6 +47,9 @@ from .limits import Limits
 # directa de una persona del equipo (docs/features/EQUIPO_TELEFONIA.md), una saliente mas.
 MINUTE_MODES = {CallMode.entrante: "inbound", CallMode.web: "inbound", CallMode.saliente: "outbound",
                 CallMode.directa: "outbound"}
+# Entrantes a numeros de cobro revertido: el minuto lo paga el cliente y se descuenta multiplicado (condiciones,
+# punto 7). Prefijo del E.164 del numero marcado -> factor. La saliente con ese numero de caller ID cuenta normal.
+INBOUND_MINUTE_FACTORS = (("+54800", 2), ("+54810", 1.5))
 # Una llamada "activa" mas vieja que esto quedo colgada (se cayo el worker sin
 # cerrarla): no ocupa lugar. Cubre la espera de la de prueba (5 min) + la duracion maxima.
 STALE_MARGIN_SECONDS = 600
@@ -127,13 +132,23 @@ def used_seconds(s: Session, client_id: str, mode: str, start: datetime.datetime
     now = now or utcnow()
     in_period = (CallRow.client_id == client_id, CallRow.mode.in_(same_minutes(mode)),
                  CallRow.started_at >= start, CallRow.started_at < end, *_agents_filter(agent_ids))
-    done = s.scalar(select(func.coalesce(func.sum(CallRow.duration_seconds), 0))
+    factor = _minute_factor()
+    with_number = lambda q: q.outerjoin(PhoneNumber, PhoneNumber.id == CallRow.phone_number_id)
+    done = s.scalar(with_number(select(func.coalesce(func.sum(CallRow.duration_seconds * factor), 0))
+                                .select_from(CallRow))
                     .where(*in_period, CallRow.status.notin_(ACTIVE_CALL_STATUSES))) or 0
-    running = s.scalars(select(CallRow.started_at).where(*in_period, *_active_filter(client_id, now))).all()
-    total = int(done) + sum(max(int((now - t).total_seconds()), 0) for t in running)
+    running = s.execute(with_number(select(CallRow.started_at, factor).select_from(CallRow))
+                        .where(*in_period, *_active_filter(client_id, now))).all()
+    total = int(done) + int(sum(max((now - t).total_seconds(), 0) * float(f) for t, f in running))
     if MINUTE_MODES.get(mode) == "outbound" and agent_ids is None:
         total += handoff_seconds(s, client_id, start, end, now)
     return total
+
+
+def _minute_factor():
+    """Por cuanto se multiplica cada segundo de la llamada (INBOUND_MINUTE_FACTORS); necesita PhoneNumber unido."""
+    return case(*((and_(CallRow.mode == CallMode.entrante, PhoneNumber.e164.startswith(prefix)), factor)
+                  for prefix, factor in INBOUND_MINUTE_FACTORS), else_=1)
 
 
 def handoff_seconds(s: Session, client_id: str, start: datetime.datetime, end: datetime.datetime,

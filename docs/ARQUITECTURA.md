@@ -389,7 +389,8 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
 
 - **Turnos:** ver "Motor conversacional".
 - **Corte por minutos:** el worker mira `calls.call_remaining_seconds` cada `QUOTA_CHECK_SECONDS` (15 s): las
-  terminadas del mes más lo que llevan todas las en curso del cliente. En 0 (o cliente desactivado) dice
+  terminadas del mes más lo que llevan todas las en curso del cliente; las entrantes a un 0800 cuentan ×2 y a un
+  0810, ×1,5 (`quota.INBOUND_MINUTE_FACTORS`). En 0 (o cliente desactivado) dice
   `QUOTA_END_MESSAGE`, corta y deja `ended_reason=quota_exhausted`. La saliente además sale con
   `max_call_duration` = minutos que quedan al empezar. Las llamadas sin teléfono cortan en
   `max_duration_seconds` (`ended_reason=max_duration`).

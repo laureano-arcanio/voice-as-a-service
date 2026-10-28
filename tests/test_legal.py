@@ -35,7 +35,8 @@ PUBLISHED = {
     ("terms", "2026-10-25"): "fef573ead36cf3d65065ed7d62b43334c4abbdb777edfe1d203184ca46f43d51",
     ("privacy", "2026-10-25"): "1660a856675221692839dbefa7f2cd7c3efd0b3d643c4d9e76c8d61a1ec5c3dc",
     # Llamadas directas (docs/features/EQUIPO_TELEFONIA.md): grabacion siempre, No Llame, encargado del tratamiento.
-    ("terms", "2026-10-28"): "af61f21932a5926fcc2eb723cd07b7a36b3b30d5db52970b3e71c7158a3d4ad0",
+    # Entrantes a 0800 (x2) y 0810 (x1,5) en los minutos del plan (app/services/quota.py).
+    ("terms", "2026-10-28"): "b3b7680221daccb5d4557861033f6e51722410cf04e9238f9901e6c2f2f946dc",
     ("privacy", "2026-10-28"): "563d800a0b95561d236bfff2a7a49deb7c442069c1bd16c7376056111683a213",
 }
 
