@@ -361,7 +361,7 @@ La definición es un workflow en JSON (`app/conversation/models.py`, clase `Work
    (`dispatch_failed`) y la API responde 502.
 6. El worker marca por SIP (`create_sip_participant` con `max_call_duration` y `sip_number`) o, en
    prueba, espera al participante del navegador.
-7. Estados de la llamada: `sonando` → `en_curso` → `finalizada` (con duración y latencia) o `fallida`.
+7. Estados de la llamada: `sonando` → `en_curso` → `finalizada` (con duración y latencia) o `fallida`; la directa que el usuario corta antes de que atiendan queda `cancelada`.
 
 ### Campaña de llamadas (`/api/v1/campaigns`, `channel: voice`)
 
@@ -551,7 +551,8 @@ cualquier llamada. Las dos graban **siempre** (un WAV de 16 kHz por frase, `Mess
 4. Al atender el contacto: `en_curso`, minutos desde ahí y, si el cliente lo prendió, el aviso de grabación
    (WAV sintetizado la primera vez y guardado en `storage/notices/<voz>.wav`, `NOTICE_AUDIO_DIR`). Cada frase
    es un mensaje: el contacto como `user`, el usuario como `assistant` con `person`. Termina por `customer_hangup`,
-   `person_hangup`, `max_duration`, `quota_exhausted` o `hangup_by_user`; sin atender, `fallida` con
+   `person_hangup`, `max_duration`, `quota_exhausted` o `hangup_by_user`; si el usuario corta antes de que atiendan,
+   `cancelada` (`hangup_by_user` o `person_hangup`); sin atender, `fallida` con
    `no_answer`, `busy` o `sip_call_failed` (`campaign_calls.classify_error`).
 
 **Entrante al equipo** (`phone_numbers.answer_mode=team`, `app/voice/direct.py`, `TeamCall`):

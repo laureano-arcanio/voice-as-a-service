@@ -35,6 +35,7 @@ _CALL_STATUS_EVENTS = {
     CallStatus.finalizada: "call.ended",
     CallStatus.fallida: "call.ended",
     CallStatus.rechazada: "call.ended",
+    CallStatus.cancelada: "call.ended",
 }
 
 

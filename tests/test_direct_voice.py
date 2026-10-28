@@ -262,7 +262,18 @@ def test_outbound_user_reloads_and_comes_back(api, admin, monkeypatch, tmp_path)
     meta = new()
     line = FakeOut(dialed=[("left", user, ""), ("sip", direct.CONTACT, "ringing")])
     assert run_out(api, meta, line) == "no_answer"
-    assert call_row(api, meta["conversation_id"]).ended_reason == "person_hangup"
+    call = call_row(api, meta["conversation_id"])
+    assert (call.status, call.ended_reason) == (CallStatus.cancelada, "person_hangup")
+
+    # Corta desde el panel (POST /calls/{id}/hangup) mientras suena: cancelada, no fallida.
+    meta = new()
+    with api.sessions() as s:
+        s.get(CallRow, meta["conversation_id"]).ended_reason = call_service.HANGUP_REASON
+        s.commit()
+    line = FakeOut(dialed=[("sip", direct.CONTACT, "ringing"), ("closed", "")])
+    assert run_out(api, meta, line) == "no_answer"
+    call = call_row(api, meta["conversation_id"])
+    assert (call.status, call.ended_reason, call.started_at) == (CallStatus.cancelada, "hangup_by_user", None)
 
 
 def test_outbound_max_duration(api, admin, monkeypatch, tmp_path):

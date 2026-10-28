@@ -48,6 +48,8 @@ CONTACT = "contact"                 # identidad del contacto en la saliente (pla
 RING_SECONDS = 40
 # Margen sobre el timbre por si LiveKit no avisa que se vencio (el contacto nunca sale de la room).
 RING_MARGIN_SECONDS = 10
+# Motivos con que el usuario corta la saliente antes de que atiendan: la llamada queda cancelada, no fallida.
+CANCELLED_REASONS = ("hangup_by_user", "person_hangup")
 # El que llama a un numero del equipo y nadie atiende (respaldo voicemail): cuanto se graba como mucho.
 VOICEMAIL_SECONDS = 120
 # Atendio en el panel (answer) pero su navegador todavia no entro a la room: cuanto mas se lo espera.
@@ -218,12 +220,14 @@ class Outbound:
         self.line.send("call_status", {"state": state, **extra})
 
     def _fail(self, result: str, reason: str, error: str = "", sip_status: int | None = None) -> str:
-        """No llego a hablar: fallida, con el motivo (no_answer, busy, sip_call_failed, user_not_joined...)."""
+        """No llego a hablar: fallida, con el motivo (no_answer, busy, sip_call_failed, user_not_joined...). Si la
+        corto el usuario antes de que atiendan (hangup_by_user o person_hangup), queda cancelada: no fallo nada."""
         self.done = True
         with self.sessions() as s:
             call = s.get(CallRow, self.conversation_id)
             reason = (call.ended_reason if call is not None and call.ended_reason else reason)[:128]
-            call_service.update_call(s, self.conversation_id, status=CallStatus.fallida, ended_reason=reason,
+            status = CallStatus.cancelada if reason in CANCELLED_REASONS else CallStatus.fallida
+            call_service.update_call(s, self.conversation_id, status=status, ended_reason=reason,
                                      error=error[:2000], ended_at=utcnow(), sip_status=sip_status)
         self.log.close()
         self._status("ended", result=result)

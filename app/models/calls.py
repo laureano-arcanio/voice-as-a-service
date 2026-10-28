@@ -19,6 +19,7 @@ class CallStatus(enum.StrEnum):
     finalizada = "finalizada"
     fallida = "fallida"
     rechazada = "rechazada"     # limite del tier (concurrencia o minutos) o cliente inactivo
+    cancelada = "cancelada"     # la directa que el usuario corto antes de que atiendan (no es una falla)
 
 
 ACTIVE_CALL_STATUSES = (CallStatus.pendiente, CallStatus.sonando, CallStatus.en_curso)

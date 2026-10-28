@@ -437,7 +437,8 @@ cambia acá y en el código a la vez.
 - Cómo termina (`call_logs`): atendida, `finalizada` con minutos desde que atiende el contacto (la saliente) o
   desde que entra (la entrante) y `ended_reason` `customer_hangup` (cortó el contacto o el que llama),
   `person_hangup` (el usuario o la persona), `max_duration`, `quota_exhausted` o `hangup_by_user` (desde la
-  API, gana); sin atender, la saliente queda `fallida` con `user_not_joined`, `no_answer`, `busy` o
+  API, gana); si el usuario corta antes de que atiendan, la saliente queda `cancelada` (`hangup_by_user` o
+  `person_hangup`, no cuenta como falla); sin atender, queda `fallida` con `user_not_joined`, `no_answer`, `busy` o
   `sip_call_failed` (y `sip_status`). La entrante sin nadie que atienda: `after_hours` o `team_no_answer`, con
   el mensaje del respaldo y, en `voicemail`, lo que dejó grabado el que llama. Atendida en el celular, la
   llamada queda con el `user_id` de la persona si tiene usuario.

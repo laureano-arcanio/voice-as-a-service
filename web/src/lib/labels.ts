@@ -13,6 +13,7 @@ export const CALL_STATUS: Record<string, Label> = {
   finalizada: { label: 'Finalizada', color: 'green' },
   fallida: { label: 'Fallida', color: 'red' },
   rechazada: { label: 'Rechazada', color: 'yellow' },
+  cancelada: { label: 'Cancelada', color: 'gray' },
 };
 
 /** La saliente que nadie atendió o estaba ocupada: `fallida` con ended_reason no_answer o busy. */
