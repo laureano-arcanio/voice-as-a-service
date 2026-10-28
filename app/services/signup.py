@@ -59,7 +59,7 @@ class SignupData:
     email: str
     password: str
     plan: str = ""      # nombre del tier elegido en la landing
-    card_token_id: str | None = None   # tarjeta tokenizada por el Card Payment Brick (plan pago con MP)
+    card_token_id: str | None = None   # tarjeta tokenizada por los campos seguros de Mercado Pago (plan pago con MP)
     # Casilla de las condiciones: las versiones que mostro el formulario (tienen que ser las vigentes).
     accept_terms: bool = False
     terms_version: str = ""

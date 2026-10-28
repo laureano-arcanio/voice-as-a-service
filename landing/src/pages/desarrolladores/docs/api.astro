@@ -177,7 +177,7 @@ const reportEndpoints = [
   { path: "GET /reports/calls", plan: "Todos", text: "Llamadas por día y modo, mapa de calor por día y hora, por línea, por agente, por tipo (agente, directas y entrantes del equipo) y por usuario, duración, cómo terminaron y llamantes nuevos o que vuelven" },
   { path: "GET /reports/outcomes", plan: "Completos", text: "Conversión (completa, parcial o sin datos), resultados por agente, embudo, datos capturados por campo y comparación por versión del agente" },
   { path: "GET /reports/messages", plan: "Completos", text: "WhatsApp: mensajes por día y hora, texto o nota de voz, entrega (enviados, entregados, leídos, fallidos) y estado de las cuentas" },
-  { path: "GET /reports/transfers", plan: "Completos", text: "Transferencias pedidas, atendidas y no atendidas, por área y por persona del equipo, y respuesta del vendedor en WhatsApp" },
+  { path: "GET /reports/transfers", plan: "Completos", text: "Transferencias pedidas, atendidas y no atendidas, por área y por persona del equipo" },
   { path: "GET /reports/campaigns", plan: "Completos", text: "Comparativo de campañas, embudo, motivos de no contacto y mejor horario para llamar" },
 ];
 
@@ -594,7 +594,7 @@ const campaignEndpoints = [
 
     <section id="agentes" class="grid gap-4">
       <h2>Agentes y llamadas</h2>
-      <p>Con una key <code>calls</code> administrás agentes, lanzás y cortás llamadas, cargás contactos, armás campañas, configurás las derivaciones a tu equipo, leés los eventos y descargás reportes, con la URL base <code>{API}</code>. También se puede hacer desde tu agente de programación, con las <a href="/desarrolladores#agentes">skills</a> para Claude Code, Cursor y Codex. La referencia completa de cada pedido y respuesta está en el panel, en <code>/api/v1/docs</code>.</p>
+      <p>Con una key <code>calls</code> administrás agentes, lanzás y cortás llamadas, cargás contactos, armás campañas, configurás las derivaciones a tu equipo, leés los eventos y descargás reportes, con la URL base <code>{API}</code>. También se puede hacer desde tu agente de programación, conectado por <a href="/desarrolladores/docs/mcp">MCP</a>. La referencia completa de cada pedido y respuesta está en el panel, en <code>/api/v1/docs</code>.</p>
       <h3>Una llamada</h3>
       <p>El agente llama al número y la conversación queda en el panel. El teléfono va en formato internacional; <code>from_number_id</code> elige con qué número tuyo sale (sin él, el primero) y <code>voice</code> cambia la voz.</p>
       <CodeBlock label="curl" code={call} />

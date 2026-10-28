@@ -307,7 +307,7 @@ def out_rows(sessions) -> list[tuple[str, str, str | None]]:
 REPLY = "Perfecto, te anoto para el lunes a las diez."
 
 
-@pytest.mark.parametrize("template", ["demo_booking_classic", "demo_booking"])
+@pytest.mark.parametrize("template", ["demo_booking"])
 async def test_nota_de_voz_en_mirror_responde_con_nota_de_voz(sessions, template):
     a = FakeAudio("quiero un turno para el lunes")
     w = make_wa(sessions, template=template, llm=MediaLLM(reply(REPLY)), audio=a)

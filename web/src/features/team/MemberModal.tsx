@@ -13,16 +13,12 @@ export function MemberModal({ member, onClose }: { member: TeamMember | null; on
     initialValues: {
       name: member?.name ?? '',
       phone: member?.phone ?? '',
-      whatsapp: member?.whatsapp ?? '',
       user_id: member?.user_id ?? '',
       active: member?.active ?? true,
     },
     validate: {
       name: (v) => (v.trim() ? null : 'Poné un nombre'),
-      phone: (v, values) =>
-        v.trim() || values.whatsapp.trim() || values.user_id
-          ? null
-          : 'Cargá un teléfono, un WhatsApp o un usuario del panel',
+      phone: (v, values) => (v.trim() || values.user_id ? null : 'Cargá un teléfono o un usuario del panel'),
     },
   });
 
@@ -44,7 +40,6 @@ export function MemberModal({ member, onClose }: { member: TeamMember | null; on
               body: {
                 name: v.name.trim(),
                 phone: v.phone.trim() || null,
-                whatsapp: v.whatsapp.trim() || null,
                 user_id: v.user_id || null,
                 active: v.active,
               },
@@ -55,9 +50,7 @@ export function MemberModal({ member, onClose }: { member: TeamMember | null; on
                 onClose();
               },
               onError: (e) => {
-                if (e instanceof ApiError && e.code === 'whatsapp_taken')
-                  form.setFieldError('whatsapp', e.message);
-                else if (e instanceof ApiError && e.code === 'team_members_limit')
+                if (e instanceof ApiError && e.code === 'team_members_limit')
                   notifyError(e, 'Tope de personas del plan');
                 else notifyError(e, 'No se pudo guardar');
               },
@@ -73,13 +66,6 @@ export function MemberModal({ member, onClose }: { member: TeamMember | null; on
             placeholder="351 555-1234"
             maxLength={32}
             {...form.getInputProps('phone')}
-          />
-          <TextInput
-            label="WhatsApp"
-            description="Para pasarle conversaciones de WhatsApp. No se puede repetir en el equipo."
-            placeholder="+54 9 351 555-1234"
-            maxLength={32}
-            {...form.getInputProps('whatsapp')}
           />
           <Select
             label="Usuario del panel"

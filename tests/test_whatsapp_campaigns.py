@@ -397,7 +397,7 @@ async def test_reply_uses_the_campaign_agent(sessions):
     from app.services import agents as agent_service
     with sessions() as s:
         other = agent_service.create_agent(s, s.get(Client, w.client_id), name="Ventas", slug="ventas",
-                                           description="", definition=reference_data("demo_booking_classic"),
+                                           description="", definition=reference_data("demo_booking"),
                                            template_id=None, user_id=None)
         s.commit()
         other_id = other.id

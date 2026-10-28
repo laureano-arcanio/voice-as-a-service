@@ -27,7 +27,7 @@ from app.conversation.models import (
 
 from . import platform_tools
 from .client import extraction_schema
-from .prompt import build_classic_messages, build_extraction_prompt, extraction_prompt
+from .prompt import build_turn_messages, build_extraction_prompt, extraction_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -147,7 +147,7 @@ class AnthropicClient:
     async def converse(self, workflow: Workflow, state: ConversationState, user_message: str,
                        on_message: Callable[[str], None] | None = None, tools=None) -> AgentTurn:
         """Como LLMClient.converse: herramientas de la plataforma y del cliente con tool_use nativo."""
-        params = self._params(build_classic_messages(workflow, state, user_message), None)
+        params = self._params(build_turn_messages(workflow, state, user_message), None)
         params["tools"] = [_anthropic_tool(t) for t in
                            platform_tools.tools_for(state) + (tools.openai_tools() if tools else [])]
         params["tool_choice"] = {"type": "auto"}

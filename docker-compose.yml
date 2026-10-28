@@ -212,11 +212,10 @@ services:
   # bien por debajo de 1.0. Revisar con `nvidia-smi` si se agrega algo.
 
   vllm-llm:
-    # LLM del motor conversacional: Qwen3.5-9B en 4 bits (RedHatAI w4a16,
-    # compressed-tensors, kernels Marlin). Reemplazo a Qwen3.5-4B bf16 (EXP-009):
-    # en los escenarios de scripts/replay_calls.py cierra 8 de 8 demos con nombre y
-    # contacto (el 4B, 4 de 8) y es mas rapido por turno (p50 0,90 s contra 1,00 s):
-    # lee menos memoria por token que el 4B en bf16.
+    # LLM por defecto del compose: Qwen3.5-9B en 4 bits (RedHatAI w4a16). En produccion
+    # corre Gemma 4 26B por el override docker-compose.gemma4-26b.yml (COMPOSE_FILE en .env),
+    # que pisa modelo y flags. Qwen3.5-9B reemplazo al 4B bf16 (EXP-009): 8 de 8 demos con
+    # nombre y contacto contra 4 de 8, y p50 0,90 s contra 1,00 s por turno.
     image: vllm/vllm-openai:latest
     restart: unless-stopped
     ipc: host

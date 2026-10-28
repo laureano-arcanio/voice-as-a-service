@@ -150,7 +150,7 @@ def open_thread(s: Session, account_id: str, wa_id: str) -> WaThread | None:
     return s.scalar(
         select(WaThread)
         .where(WaThread.account_id == account_id, WaThread.wa_id == wa_id,
-               WaThread.paused.is_(False), WaThread.closed_at.is_(None))
+               WaThread.closed_at.is_(None))
         .order_by(WaThread.created_at.desc()).limit(1))
 
 
@@ -182,9 +182,8 @@ def close_thread(s: Session, thread: WaThread) -> None:
 
 def open_threads(s: Session) -> list[WaThread]:
     """Todos los hilos sin cerrar (sweep): el que llama decide cuales vencieron, agente por
-    agente. Los pausados no entran: los atiende una persona."""
-    return list(s.scalars(select(WaThread).where(
-        WaThread.closed_at.is_(None), WaThread.paused.is_(False))))
+    agente."""
+    return list(s.scalars(select(WaThread).where(WaThread.closed_at.is_(None))))
 
 
 def touch_thread(s: Session, conversation_id: str, at: datetime.datetime) -> None:

@@ -252,9 +252,6 @@ cd landing && cp .env.example .env && npm run check && npm run build
 
 ## Pendientes
 
-- **Skills publicadas:** `AgenticSection.astro` dice "tenemos skills para los agentes de programación más usados" y
-  lista `skillTools` (Claude Code, Cursor, Codex) sin "próximamente", pero no hay skills publicadas en el repo. Hay
-  que publicarlas o cambiar el texto.
 - **Link "Ingresar" al panel:** el nav (`Nav.astro`) no lo tiene. Tampoco resuelve `app.atentina.com` (falta
   sumarlo a la Redirect Rule hacia `app.atentina.com.ar`).
 - **Redes con UDP bloqueado:** sin TURN sobre TLS (443), el audio cae a TCP 7881; si también está bloqueado, la

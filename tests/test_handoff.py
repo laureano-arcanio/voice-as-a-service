@@ -28,16 +28,18 @@ def member(user, cid=None, **body):
 
 def test_team_normalizes_and_validates(api, admin):
     c = make_client(admin)
-    m = member(admin, c["id"], phone="351 677-5617", whatsapp="+54 9 351 396 2553")
-    assert m["phone"] == "+5493516775617" and m["whatsapp"] == "+5493513962553" and m["active"]
-    # Sin telefono ni WhatsApp, o un telefono de otro pais: no.
+    m = member(admin, c["id"], phone="351 677-5617")
+    assert m["phone"] == "+5493516775617" and m["active"] and "whatsapp" not in m
+    # Sin telefono ni usuario del panel, o un telefono de otro pais: no.
     assert admin.post(f"{V1}/team", params={"client_id": c["id"]}, json={"name": "X"}).status_code == 422
     r = admin.post(f"{V1}/team", params={"client_id": c["id"]}, json={"name": "X", "phone": "+34 600 123 456"})
     assert r.status_code == 422 and "Argentina" in r.json()["detail"]
-    # El WhatsApp es unico por cliente (el puente identifica al vendedor por su numero).
+    # Un campo que no existe (el viejo whatsapp) no alcanza.
     r = admin.post(f"{V1}/team", params={"client_id": c["id"]}, json={"name": "Ana", "whatsapp": "3513962553"})
-    assert r.status_code == 409
-    assert admin.patch(f"{V1}/team/{m['id']}", json={"active": False, "phone": None}).json()["phone"] is None
+    assert r.status_code == 422
+    # Sin telefono ni usuario del panel no queda.
+    assert admin.patch(f"{V1}/team/{m['id']}", json={"phone": None}).status_code == 422
+    assert admin.patch(f"{V1}/team/{m['id']}", json={"active": False}).json()["active"] is False
     assert admin.patch(f"{V1}/team/{m['id']}", json={"name": None}).status_code == 422
     assert admin.delete(f"{V1}/team/{m['id']}").status_code == 204
     assert admin.get(f"{V1}/team", params={"client_id": c["id"]}).json() == []
@@ -111,13 +113,15 @@ def test_schedule_open_hours_in_its_timezone():
 def test_candidates_order_round_robin_and_hours(api, admin):
     c = make_client(admin)
     ids = [member(admin, c["id"], name=n, phone=f"35100000{i:02d}")["id"] for i, n in enumerate("ABC")]
-    wa_only = member(admin, c["id"], name="D", whatsapp="3519999999")["id"]
+    user_id = admin.post(f"{V1}/users", json={"email": "d@acme.com", "password": "cliente-password-1",
+                                             "role": "client", "client_id": c["id"]}).json()["id"]
+    panel_only = member(admin, c["id"], name="D", user_id=user_id)["id"]
     area = admin.post(f"{V1}/handoff-areas", params={"client_id": c["id"]},
-                      json={"name": "Ventas", "member_ids": [*ids, wa_only], "strategy": "round_robin"}).json()
+                      json={"name": "Ventas", "member_ids": [*ids, panel_only], "strategy": "round_robin"}).json()
     admin.patch(f"{V1}/team/{ids[1]}", json={"active": False})
     with api.sessions() as s:
         row = s.get(HandoffArea, area["id"])
-        # Sin telefono (solo WhatsApp) o inactivo no se llama.
+        # Sin telefono (solo usuario del panel) o inactivo no se llama.
         assert [m.name for m in handoff.candidates(s, row)] == ["A", "C"]
         row.last_member_id = ids[0]
         assert [m.name for m in handoff.candidates(s, row)] == ["C", "A"]

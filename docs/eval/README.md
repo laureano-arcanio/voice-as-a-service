@@ -18,7 +18,6 @@ con LLM falso.
 | `make eval-llm-report RUN=...` | `summary.json` y `report.html`; `--comparar <otro run>` | - | `scripts/eval/analyze.py` |
 | `make eval-tools [LLM=openrouter] [REPS=3]` | Llamadas a herramientas: cuál, argumentos, de más, uso del resultado, latencia | `local` u `openrouter` | `scripts/tools/eval.py` (agente `eval_tools`, API falsa) |
 | `make mcp-eval [MODELS=...]` | Si el modelo elige bien entre las herramientas del MCP | OpenRouter (gasta tokens) | `scripts/mcp/eval_tools.py`, detalle en `scratch/mcp-eval/` |
-| `make eval-motor` / `make eval-llamadas` | Escenarios y llamadas reales repetidas contra el motor | `vllm-llm` | `scripts/replay_calls.py`, `scripts/replay_transcripts.py` (**rotos**, ver Pendientes) |
 
 ## Agentes y personas (`make eval-llm`)
 
@@ -107,7 +106,5 @@ decisión de modelo, `AGENTS.md`.
 ## Pendientes
 
 - EVAL-001 con Gemma 4 26B y calibrar el juez contra ~20 conversaciones calificadas a mano.
-- `make eval-motor` y `make eval-llamadas` están rotos: `scripts/replay_calls.py` y `scripts/replay_transcripts.py`
-  leen `turn.next_objective`, que ya no existe en `AgentTurn` (`app/conversation/models.py`).
 - `scripts/eval/run.py` todavía escribe `"engine": "classic"` en `run.json` (lo muestra `analyze.py`).
 - Sin eval de herramientas con el LLM propio todavía (`make eval-tools` con `LLM=local`).

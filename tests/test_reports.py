@@ -350,7 +350,7 @@ def test_transfers_report(api, data):
     assert (members["Pedro"]["attempts"], members["Pedro"]["not_answered"]) == (1, 1)
     assert next(d for d in out["daily"] if d["date"] == "2026-10-02") == {"date": "2026-10-02", "requested": 2,
                                                                           "answered": 1}
-    assert out["whatsapp"] == {"assigned": 0, "first_reply": 0, "avg_first_reply_seconds": None, "reassigned": 0}
+    assert "whatsapp" not in out
 
 
 def test_campaigns_report(api, data):

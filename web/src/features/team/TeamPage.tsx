@@ -118,8 +118,7 @@ export function TeamPage() {
                 rows.length === 0 ? (
                   <EmptyState>
                     Todavía no hay personas en el equipo. Agregá a quienes atienden las derivaciones, con su
-                    teléfono para pasarles llamadas, su WhatsApp para pasarles chats o su usuario del panel
-                    para que atiendan desde ahí.
+                    teléfono para pasarles llamadas o su usuario del panel para que atiendan desde ahí.
                   </EmptyState>
                 ) : (
                   <Table.ScrollContainer minWidth={700}>
@@ -128,7 +127,6 @@ export function TeamPage() {
                         <Table.Tr>
                           <Table.Th>Nombre</Table.Th>
                           <Table.Th>Teléfono</Table.Th>
-                          <Table.Th>WhatsApp</Table.Th>
                           <Table.Th>Estado</Table.Th>
                           {directCalls && <Table.Th>En el panel</Table.Th>}
                           <Table.Th />
@@ -140,9 +138,6 @@ export function TeamPage() {
                             <Table.Td fw={600}>{m.name}</Table.Td>
                             <Table.Td className="mono" style={{ whiteSpace: 'nowrap' }}>
                               {m.phone ?? <Dash />}
-                            </Table.Td>
-                            <Table.Td className="mono" style={{ whiteSpace: 'nowrap' }}>
-                              {m.whatsapp ?? <Dash />}
                             </Table.Td>
                             <Table.Td>
                               <Badge color={m.active ? 'green' : 'gray'}>

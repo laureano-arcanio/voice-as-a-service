@@ -14,7 +14,7 @@ saliente necesita además `outbound_calls`).
 
 | Tabla / columna | Qué es | Migración |
 |---|---|---|
-| `team_members` | Persona del cliente: `name`, `phone` (E.164 argentino), `whatsapp` (único por cliente), `user_id` (usuario del panel, opcional), `active`. Necesita al menos uno de los tres | 0023 |
+| `team_members` | Persona del cliente: `name`, `phone` (E.164 argentino), `user_id` (usuario del panel, opcional), `active`. Necesita teléfono o usuario | 0023, 0042 |
 | `handoff_areas` | Área ("Ventas"): `description`, `active`, `strategy` (`sequential`/`round_robin`, con `last_member_id`), `ring_seconds` (20), `schedule`, `fallback` (`take_message`), `on_person_hangup` (`resume`/`end`), `return_digits` (`2`), `messages` (JSON, pisa los default) | 0023 |
 | `handoff_area_members` | Personas del área, con `position` | 0023 |
 | `events` | Línea de tiempo: `client_id`, `at`, `type`, `actor`, `conversation_id`, `area_id`, `team_member_id`, `data` | 0023 |
@@ -272,7 +272,8 @@ backend de llamadas propio: usa la API y el `CallProvider` de siempre, con las m
 - App `telefono.`: `PHONE_APP_BASE_URL=https://telefono.atentina.com.ar` en `.env` (diff enmascarado), ruta
   `telefono.atentina.com.ar` → `http://localhost:8011` en el túnel (la crea el usuario) y recrear `app`. Sin la
   ruta, se prueba en `app.atentina.com.ar/movil`.
-- Volver atrás la 0039: tiene `downgrade` (probado en `tests/test_migration_0039.py`; sin target de `make`).
+- Volver atrás la 0039: tiene `downgrade` (probado en `tests/test_migration_0039.py`): `make migrate-down REV=0038`,
+  con la imagen que todavía tiene la 0039 y antes de volver el código.
 
 ## Pendientes
 
@@ -295,8 +296,6 @@ backend de llamadas propio: usa la API y el `CallProvider` de siempre, con las m
   y no cuando no. También `make mcp-eval` con `start_direct_call` contra `start_call`.
 - **CAP corto** de directas y derivaciones mezcladas con llamadas del agente hasta los 10 canales (workers en
   escucha y STT por frase).
-- **Condiciones `2026-10-28`:** revisadas por el abogado (28-oct-2026); falta el aviso por mail con 30 días
-  ([LEGAL.md](LEGAL.md)).
 - **Retención de grabaciones:** las directas graban siempre y sin retención el disco crece con el uso.
 - **Códigos SIP de Anura** (no atiende, ocupado, inexistente) sin verificar con llamadas reales; ocupado y buzón
   en otras operadoras (Personal, Movistar) sin medir. Anura no respondió qué códigos `*` interpreta.

@@ -1,5 +1,5 @@
-# Experimento: Gemma 4 26B-A4B (MoE, ~4B activos por token) en 4 bits en lugar de
-# Qwen3.5-9B w4a16, en la GPU 0 sola. Google no publica w4a16 del 26B (solo GGUF y
+# LLM vigente (desde el 6-oct-2026): Gemma 4 26B-A4B (MoE, ~4B activos por token) en
+# 4 bits en lugar de Qwen3.5-9B w4a16, en la GPU 0 sola. Google no publica w4a16 del 26B (solo GGUF y
 # bf16 "unquantized QAT"): se usa la AWQ-INT4 de cyankiwi, hecha sobre ese QAT
 # (compressed-tensors, 17,2 GB de pesos, Apache 2.0). Alternativas con el mismo
 # formato y tamano: cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit (sobre el bf16 comun) y
@@ -8,11 +8,10 @@
 # arranca con menos secuencias y contexto: si vLLM se queja de memoria, bajar
 # VLLM_LLM_MAX_NUM_SEQS o --max-model-len.
 #
-# Levantar (los tres juntos: el nombre del modelo tiene que coincidir):
-#   docker compose -f docker-compose.yml -f docker-compose.livekit.yml -f docker-compose.gemma4-26b.yml up -d vllm-llm app agent
-# Evaluar: el mismo -f en `docker compose run ... app` (docs/eval/README.md).
-# Es el LLM por defecto desde el 6-oct-2026: va en COMPOSE_FILE del .env (junto con
-# VLLM_LLM_MODEL=cyankiwi/gemma-4-26B-A4B-it-qat-AWQ-INT4, para los scripts que lo leen).
+# Va en COMPOSE_FILE del .env (junto con VLLM_LLM_MODEL=cyankiwi/gemma-4-26B-A4B-it-qat-AWQ-INT4,
+# para los scripts que lo leen), asi que `make up-inference` y `make up-agent` lo incluyen. Al
+# cambiarlo, recrear los tres (vllm-llm, app y agent): el nombre del modelo tiene que coincidir.
+# Evaluar: docs/eval/README.md.
 # Capacidad: seguir docs/capacity/README.md.
 # Volver al Qwen3.5-9B: sacarlo de COMPOSE_FILE, restaurar VLLM_LLM_MODEL=RedHatAI/Qwen3.5-9B-quantized.w4a16
 # y recrear vllm-llm, app y agent (make up-inference && make up-agent).
@@ -28,7 +27,7 @@ services:
       - "--api-key=${VLLM_API_KEY:-not-needed}"
       - "--max-model-len=16384"
       - "--reasoning-parser=gemma4"
-      # Function calling nativo para las herramientas del cliente del motor classic (docs/features/HERRAMIENTAS.md):
+      # Function calling nativo (herramientas del cliente y end_call/transfer_call; docs/features/HERRAMIENTAS.md):
       # sin estos dos, un pedido con `tools` da 400. El parser viene en la imagen (26-oct-2026).
       - "--enable-auto-tool-choice"
       - "--tool-call-parser=gemma4"

@@ -633,7 +633,7 @@ async def test_followup_reply_uses_the_followup_agent(sessions):
     w = make_wa(sessions, llm=FakeLLM(), graph=CampaignGraph())
     with sessions() as s:
         other = agent_service.create_agent(s, s.get(Client, w.client_id), name="Cobros", slug="cobros", description="",
-                                           definition=reference_data("demo_booking_classic"), template_id=None,
+                                           definition=reference_data("demo_booking"), template_id=None,
                                            user_id=None)
         s.commit()
         other_id = other.id

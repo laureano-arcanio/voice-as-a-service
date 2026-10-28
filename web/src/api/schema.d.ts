@@ -6465,11 +6465,6 @@ export interface components {
              */
             return_digits?: string;
             /**
-             * Wa Reply Minutes
-             * @default 10
-             */
-            wa_reply_minutes?: number;
-            /**
              * Messages
              * @description Textos que cambian los de /handoff-areas/defaults
              */
@@ -6509,8 +6504,6 @@ export interface components {
             on_person_hangup: string;
             /** Return Digits */
             return_digits: string;
-            /** Wa Reply Minutes */
-            wa_reply_minutes: number;
             /**
              * Messages
              * @description Solo los que cambian el default
@@ -6545,8 +6538,6 @@ export interface components {
             on_person_hangup?: ("resume" | "end") | null;
             /** Return Digits */
             return_digits?: string | null;
-            /** Wa Reply Minutes */
-            wa_reply_minutes?: number | null;
             /** Messages */
             messages?: {
                 [key: string]: string;
@@ -7667,7 +7658,7 @@ export interface components {
         /**
          * PublicPlansOut
          * @description Planes con precio que se contratan en el registro. `mp_public_key`: si viene, los pagos se pagan con
-         *     tarjeta en el registro (Card Payment Brick).
+         *     tarjeta en el registro (campos seguros de Mercado Pago).
          */
         PublicPlansOut: {
             /** Mp Public Key */
@@ -8564,7 +8555,6 @@ export interface components {
             by_area: components["schemas"]["ReportAreaOut"][];
             /** By Member */
             by_member: components["schemas"]["ReportMemberOut"][];
-            whatsapp: components["schemas"]["ReportWaHandoffOut"];
         };
         /** ReportVersionOut */
         ReportVersionOut: {
@@ -8580,17 +8570,6 @@ export interface components {
             conversion_pct: number | null;
             /** Goal Pct */
             goal_pct: number | null;
-        };
-        /** ReportWaHandoffOut */
-        ReportWaHandoffOut: {
-            /** Assigned */
-            assigned: number;
-            /** First Reply */
-            first_reply: number;
-            /** Avg First Reply Seconds */
-            avg_first_reply_seconds: number | null;
-            /** Reassigned */
-            reassigned: number;
         };
         /** RingingOut */
         RingingOut: {
@@ -8747,8 +8726,8 @@ export interface components {
         };
         /**
          * SubscribeIn
-         * @description transfer: queda pedido hasta el pago. mercadopago: sin plan pago, `card_token_id` (Card Payment Brick)
-         *     crea el debito automatico y cobra el primer mes; con uno activo, cambia el plan (sin tarjeta).
+         * @description transfer: queda pedido hasta el pago. mercadopago: sin plan pago, `card_token_id` (campos seguros de
+         *     Mercado Pago) crea el debito automatico y cobra el primer mes; con uno activo, cambia el plan (sin tarjeta).
          */
         SubscribeIn: {
             /** Tier Id */
@@ -9235,11 +9214,6 @@ export interface components {
              */
             phone?: string | null;
             /**
-             * Whatsapp
-             * @description Para el puente de WhatsApp; único por cliente
-             */
-            whatsapp?: string | null;
-            /**
              * User Id
              * @description Usuario del panel (softphone web)
              */
@@ -9260,8 +9234,6 @@ export interface components {
             name: string;
             /** Phone */
             phone: string | null;
-            /** Whatsapp */
-            whatsapp: string | null;
             /** User Id */
             user_id: string | null;
             /** Active */
@@ -9278,8 +9250,6 @@ export interface components {
             name?: string | null;
             /** Phone */
             phone?: string | null;
-            /** Whatsapp */
-            whatsapp?: string | null;
             /** User Id */
             user_id?: string | null;
             /** Active */
@@ -14415,7 +14385,7 @@ export interface operations {
         parameters: {
             query?: {
                 client_id?: string | null;
-                /** @description Busca en nombre, telefono, email e id externo */
+                /** @description Busca en nombre, telefono y email */
                 q?: string | null;
                 /** @description false: activos; true: archivados; all: todos */
                 archived?: "false" | "true" | "all";

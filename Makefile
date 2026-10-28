@@ -2,7 +2,8 @@
 #
 # Atajos sobre `docker compose`. Stack por defecto (docker-compose.yml):
 #   agente:     db + migrate + app (UI y API :8011) + agent (worker de LiveKit)
-#   inferencia: vllm-llm (Qwen3.5-9B w4a16) + stt-parakeet (Parakeet TDT 0.6B v3)
+#   inferencia: vllm-llm (Gemma 4 26B por docker-compose.gemma4-26b.yml en COMPOSE_FILE;
+#               sin el override, Qwen3.5-9B w4a16) + stt-parakeet (Parakeet TDT 0.6B v3)
 #               + vllm-tts (Qwen3-TTS 1.7B, 41 voces fine-tuneadas)
 #   proxy:      nginx en :PROXY_PORT, entrada publica a la inferencia (loadtest)
 #   asterisk:   puente SIP Anura <-> LiveKit (docs/TELEFONIA_ANURA.md)
@@ -32,12 +33,12 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
 .DEFAULT_GOAL := help
 
 .PHONY: help setup env storage build \
-        up up-agent up-app up-inference up-stt up-nginx up-pbx down restart ps logs calls-active \
+        up up-agent up-app up-inference up-stt up-nginx up-pbx down restart stop start recreate ps logs calls-active \
         sh psql health gpu \
         pbx-cli pbx-status livekit-sip livekit-sip-si-local \
         wa-calling-status wa-calling-enable wa-calling-disable wa-sip-password sip-cert \
-        migrate migrate-test agent-rules reports-backfill create-admin welcome-reset api-key dev-backend web-dev web-build web-check openapi legal-sync up-tools tools-runner-token tools-runner-test tools-runner-test-down test-tools-code e2e-tools eval-tools mcp-docs mcp-eval mcp-registry-key mcp-registry-publish landing-dev \
-        test e2e-sip e2e-sip-down eval-motor eval-llamadas eval-llm eval-llm-juez eval-llm-report loadtest-audio loadtest loadtest-report capacity capacity-monitor capacity-monitor-stop capacity-analyze gpubench stt-eval stt-corpus \
+        migrate migrate-down migrate-test agent-rules reports-backfill create-admin welcome-reset api-key dev-backend web-dev web-build web-check openapi legal-sync up-tools tools-runner-token tools-runner-test tools-runner-test-down test-tools-code e2e-tools eval-tools mcp-docs mcp-eval mcp-registry-key mcp-registry-publish landing-dev \
+        test e2e-sip e2e-sip-down eval-llm eval-llm-juez eval-llm-report loadtest-audio loadtest loadtest-report capacity capacity-monitor capacity-monitor-stop capacity-analyze gpubench stt-eval stt-corpus \
         video-setup video-studio video-voces video-musica video video-revisar video-cerrar doc doc-cerrar slides slides-abrir \
         backup backup-key backup-s3-setup backup-fetch backup-list cron-install \
         monitoring-config monitoring-host-install up-monitoring monitoring-down monitoring-status monitoring-test-alert alert-ntfy-setup \
@@ -114,6 +115,18 @@ down: ## Para y elimina los contenedores (conserva volumenes: PostgreSQL, pesos,
 restart: ## Reinicia servicios (no relee .env: para eso, make up). Ej: make restart S=agent
 	$(COMPOSE) restart $(S)
 
+stop: ## Para un servicio sin borrarlo ni recrearlo (lo vuelve a levantar make start). Ej: make stop S=vllm-tts
+	@[ -n "$(S)" ] || { echo "Falta S=<servicio>. Ej: make stop S=vllm-tts"; exit 1; }
+	$(COMPOSE) stop $(S)
+
+start: ## Arranca un servicio parado con make stop, sin recrearlo ni releer .env. Ej: make start S=vllm-tts
+	@[ -n "$(S)" ] || { echo "Falta S=<servicio>. Ej: make start S=vllm-tts"; exit 1; }
+	$(COMPOSE) start $(S)
+
+recreate: ## Recrea un servicio con la imagen actual, sin build ni dependencias (relee .env; corta llamadas si es agent). Ej: make recreate S=agent
+	@[ -n "$(S)" ] || { echo "Falta S=<servicio>. Ej: make recreate S=agent"; exit 1; }
+	$(COMPOSE) up -d --no-build --no-deps $(S)
+
 ps: ## Estado de los contenedores
 	$(COMPOSE) ps
 
@@ -177,6 +190,10 @@ livekit-sip-si-local:
 migrate: ## Migraciones de la base (alembic upgrade head) + seed idempotente (cliente atentina, agentes, admin)
 	$(COMPOSE) run --rm --build --no-deps migrate
 
+migrate-down: ## Vuelve la base a una revision (alembic downgrade, con la imagen del codigo actual: la que tiene la migracion a deshacer). Ej: make migrate-down REV=0038
+	@[ -n "$(REV)" ] || { echo "Falta REV=<revision> (la de destino; ver migrations/versions/). Ej: make migrate-down REV=0038"; exit 1; }
+	$(COMPOSE) run --rm --build --no-deps migrate alembic downgrade $(REV)
+
 migrate-test: ## Prueba las migraciones pendientes contra una copia del último backup (PostgreSQL temporal, no toca la base)
 	scripts/ops/migrate-test.sh
 
@@ -217,7 +234,7 @@ seguimientos-enviar: ## Manda una tanda de mails por Resend, 1 cada ~2 min (en s
 wa-send: ## Texto por WhatsApp con la Graph API. Ej: make wa-send TO=54351... TEXT="hola" [PHONE_NUMBER_ID=...]
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts app python -m scripts.wa $(if $(PHONE_NUMBER_ID),--phone-number-id $(PHONE_NUMBER_ID)) send-text --to "$(TO)" --text "$(TEXT)"
 
-wa-account: ## Conecta un numero de WhatsApp a un agente (idempotente). Ej: make wa-account PNID=1376760278849754 WABA=1763082738667089 NUMBER="+1 555 145 6632" AGENT=demo_booking_classic [CLIENT=atentina]
+wa-account: ## Conecta un numero de WhatsApp a un agente (idempotente). Ej: make wa-account PNID=1376760278849754 WABA=1763082738667089 NUMBER="+1 555 145 6632" AGENT=demo_booking [CLIENT=atentina]
 	$(COMPOSE) run --rm --no-deps app python -m app.cli wa-account $(PNID) --waba $(WABA) --display "$(NUMBER)" --client $(or $(CLIENT),atentina) --agent $(AGENT) $(if $(NAME),--name "$(NAME)")
 
 # Llamadas de WhatsApp (Calling API por SIP -> Asterisk, docs/features/WHATSAPP.md fase 5).
@@ -322,12 +339,6 @@ e2e-sip: ## Prueba SIP de punta a punta aislada: señalización, la transferenci
 
 e2e-sip-down: ## Baja el entorno de la prueba SIP si quedó levantado
 	$(E2E_SIP) down -v
-
-eval-motor: ## Escenarios de llamada contra el motor y el LLM real (scripts/replay_calls.py). Ej: make eval-motor N=3 S=si-pero
-	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts app python -m scripts.replay_calls $(or $(N),1) $(S)
-
-eval-llamadas: ## Llamadas reales de berlin_signup repetidas tal cual: datos, resultado y repreguntas (scripts/replay_transcripts.py). Ej: make eval-llamadas N=5 W=berlin_signup_classic
-	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts app python -m scripts.replay_transcripts $(or $(N),1) $(S) $(if $(W),-w=$(W))
 
 eval-llm: ## Eval de calidad del LLM por tipo de agente y de cliente (scripts/eval, docs/eval/README.md). Ej: make eval-llm ARGS="--humo --cliente guion"
 	$(COMPOSE) run --rm --no-deps -v $(CURDIR)/scripts:/app/scripts -v $(CURDIR)/app/agents:/app/app/agents -e GIT_REV=$$(git rev-parse --short HEAD) app python -m scripts.eval.run $(ARGS)

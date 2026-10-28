@@ -80,7 +80,7 @@ def _upsert_out(result: contacts.UpsertResult) -> ContactsUpsertOut:
 
 @router.get("", response_model=ContactPage)
 def list_contacts(p: CurrentPrincipal, db: DB, client_id: str | None = None,
-                  q: str | None = Query(default=None, max_length=100, description="Busca en nombre, telefono, email e id externo"),
+                  q: str | None = Query(default=None, max_length=100, description="Busca en nombre, telefono y email"),
                   archived: Literal["false", "true", "all"] = Query(default="false", description="false: activos; true: archivados; all: todos"),
                   offset: int = Query(default=0, ge=0), limit: int = Query(default=50, ge=1, le=500)):
     rows, total = contacts.list_contacts(db, scoped_client_id(p, client_id), q=q, archived=archived,

@@ -251,20 +251,12 @@ def servicios():
 
 def workflow_info(wid):
     """Agente de referencia (app/agents/reference/<id>.json; el seed crea el agente del
-    cliente interno desde ahi). El sufijo _classic o _structured elige el motor, como en
-    app/agents/templates.py. El sha1 cambio de formato dos veces aunque el workflow sea el
-    mismo: hasta sep-2026 era el YAML de app/workflows, y hasta oct-2026 el texto del JSON
-    (ahora, la definicion con su motor, en JSON con claves ordenadas)."""
+    cliente interno desde ahi). El sha1 es la definicion en JSON con claves ordenadas (los runs
+    anteriores al 28-oct-2026 lo calculaban con el motor del sufijo _classic)."""
     out = {"id": wid, "sha1": ""}
-    ref = os.path.join(REPO, "app", "agents", "reference")
-    txt, engine = rd(os.path.join(ref, f"{wid}.json")), None
-    if not txt and "_" in wid:
-        base, engine = wid.rsplit("_", 1)
-        txt = rd(os.path.join(ref, f"{base}.json")) if engine in ("classic", "structured") else ""
+    txt = rd(os.path.join(REPO, "app", "agents", "reference", f"{wid}.json"))
     if txt:
         data = json.loads(txt)
-        if engine:
-            data["engine"] = engine
         data["id"] = wid
         out["sha1"] = short_hash(json.dumps(data, ensure_ascii=False, sort_keys=True))
     return out

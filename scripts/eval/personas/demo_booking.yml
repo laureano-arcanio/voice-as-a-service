@@ -1,6 +1,6 @@
-# Personas para demo_booking_classic (el agente de venta vigente). Salen de las
-# llamadas reales de scripts/replay_calls.py mas los arquetipos del plan.
-agente: demo_booking_classic
+# Personas para demo_booking (el agente del numero de Anura). Salen de llamadas
+# reales mas los arquetipos del eval.
+agente: demo_booking
 
 checks:
   siglas: [GPS, PIN, PDF, API, Excel]

@@ -14,7 +14,6 @@ const ANA: TeamMember = {
   client_id: 'c-1',
   name: 'Ana Pérez',
   phone: '+5493515551234',
-  whatsapp: null,
   user_id: null,
   active: true,
   created_at: '2026-10-20T12:00:00Z',

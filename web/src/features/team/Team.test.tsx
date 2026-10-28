@@ -11,7 +11,6 @@ const ANA: TeamMember = {
   client_id: 'c-1',
   name: 'Ana Pérez',
   phone: '+5493515551234',
-  whatsapp: '+5493515551234',
   user_id: null,
   active: true,
   created_at: '2026-10-20T12:00:00Z',
@@ -21,7 +20,6 @@ const LUIS: TeamMember = {
   id: 'm2',
   name: 'Luis Gómez',
   phone: null,
-  whatsapp: '+5493515550002',
   active: false,
 };
 
@@ -40,7 +38,6 @@ const VENTAS: HandoffArea = {
   fallback: 'take_message',
   on_person_hangup: 'resume',
   return_digits: '2',
-  wa_reply_minutes: 10,
   messages: { transfer: 'Ya te paso con Ventas.' },
   created_at: '2026-10-20T12:00:00Z',
 };
@@ -243,23 +240,20 @@ describe('equipo: pantalla', () => {
 });
 
 describe('equipo: personas', () => {
-  it('pide teléfono o WhatsApp y crea', async () => {
+  it('pide teléfono o usuario del panel y crea', async () => {
     const calls = mockApi({ 'POST /api/v1/team': () => jsonResponse(ANA, 201) });
     renderWithProviders(<TeamPage />, { me: CLIENT_USER });
     await userEvent.click(await screen.findByRole('button', { name: /Agregar persona/ }));
     const dialog = await screen.findByRole('dialog', { name: 'Nueva persona del equipo' });
     await userEvent.type(within(dialog).getByLabelText('Nombre'), 'Ana Pérez');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Agregar persona' }));
-    expect(
-      await within(dialog).findByText('Cargá un teléfono, un WhatsApp o un usuario del panel'),
-    ).toBeInTheDocument();
-    await userEvent.type(within(dialog).getByLabelText('WhatsApp'), '351 555-1234');
+    expect(await within(dialog).findByText('Cargá un teléfono o un usuario del panel')).toBeInTheDocument();
+    await userEvent.type(within(dialog).getByLabelText('Teléfono'), '351 555-1234');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Agregar persona' }));
     await waitFor(() => expect(sent(calls, 'POST', '/api/v1/team')).toBeDefined());
     expect(sent(calls, 'POST', '/api/v1/team')).toEqual({
       name: 'Ana Pérez',
-      phone: null,
-      whatsapp: '351 555-1234',
+      phone: '351 555-1234',
       user_id: null,
       active: true,
     });
@@ -284,7 +278,6 @@ describe('equipo: personas', () => {
     expect(sent(calls, 'POST', '/api/v1/team')).toEqual({
       name: 'Marcos',
       phone: null,
-      whatsapp: null,
       user_id: 'u-2',
       active: true,
     });
@@ -305,23 +298,6 @@ describe('equipo: personas', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Guardar cambios' }));
     await waitFor(() => expect(sent(calls, 'PATCH', '/api/v1/team/m1')).toBeDefined());
     expect(sent(calls, 'PATCH', '/api/v1/team/m1')).toMatchObject({ user_id: 'u-1' });
-  });
-
-  it('un WhatsApp repetido marca el campo', async () => {
-    mockApi({
-      'PATCH /api/v1/team/m2': () =>
-        jsonResponse(
-          { detail: 'Ya hay otra persona del equipo con ese WhatsApp', code: 'whatsapp_taken' },
-          409,
-        ),
-    });
-    renderWithProviders(<TeamPage />, { me: CLIENT_USER });
-    await userEvent.click(await screen.findByRole('button', { name: 'Editar a Luis Gómez' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Editar a Luis Gómez' });
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Guardar cambios' }));
-    expect(
-      await within(dialog).findByText('Ya hay otra persona del equipo con ese WhatsApp'),
-    ).toBeInTheDocument();
   });
 
   it('borra con confirmación y avisa de qué áreas sale', async () => {

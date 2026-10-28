@@ -217,12 +217,6 @@ export interface TransfersReport {
     avg_answer_seconds: number | null;
     minutes: number;
   }[];
-  whatsapp: {
-    assigned: number;
-    first_reply: number;
-    avg_first_reply_seconds: number | null;
-    reassigned: number;
-  };
 }
 
 // --- Campañas ---

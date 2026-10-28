@@ -4,7 +4,7 @@ from sqlalchemy import select
 from ...agents.templates import template_data, template_ids
 from ...conversation import opening_audio
 from ...conversation.models import Workflow
-from ...llm.prompt import build_classic_system
+from ...llm.prompt import build_system_prompt
 from ...models import Agent, AgentVersion, User
 from ...services import agents as service
 from ...services import call_links
@@ -67,7 +67,7 @@ def preview_prompt(body: PromptIn, _: CurrentPrincipal):
     w = Workflow.model_validate(service.normalize_definition(body.definition, body.definition.get("id") or "borrador", 1))
     if w.external is not None:
         return PromptOut(system=w.external.system or "")
-    return PromptOut(system=build_classic_system(w, body.channel))
+    return PromptOut(system=build_system_prompt(w, body.channel))
 
 
 @router.get("/agent-templates", response_model=list[TemplateOut])

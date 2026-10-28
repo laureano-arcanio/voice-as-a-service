@@ -128,7 +128,7 @@ def tabla(filas: dict[str, dict], titulo: str) -> str:
 def imprimir(s: dict) -> None:
     run = s["run"]
     llm = run.get("agente_llm") or {}
-    print(f"\n=== {s['dir']}\nagente: {llm.get('model')}  engine: {run.get('engine')}  cliente: {run.get('cliente')}  "
+    print(f"\n=== {s['dir']}\nagente: {llm.get('model')}  cliente: {run.get('cliente')}  "
           f"canal: {run.get('canal')}  seed: {run.get('seed')}  git: {run.get('git')}")
     print(tabla({"TOTAL": s["total"]}, "Total"))
     print(tabla(s["por_agente"], "Por agente"))
@@ -227,7 +227,7 @@ def report_html(s: dict, convs: list[dict], comp: dict | None = None) -> str:
     llm = run.get("agente_llm") or {}
     ficha = "".join(f"<tr><td>{k}</td><td style='text-align:left'>{_td(v)}</td></tr>" for k, v in [
         ("fecha", run.get("fecha")), ("agente LLM", f"{llm.get('model')} @ {llm.get('base_url')}"),
-        ("thinking / temperatura", f"{llm.get('thinking')} / {llm.get('temperature')}"), ("engine", run.get("engine")),
+        ("thinking / temperatura", f"{llm.get('thinking')} / {llm.get('temperature')}"),
         ("cliente", f"{run.get('cliente')} {json.dumps(run.get('simulador'), ensure_ascii=False) if run.get('simulador') else ''}"),
         ("canal", run.get("canal")), ("seed / reps", f"{run.get('seed')} / {run.get('reps')}"),
         ("git", run.get("git")), ("workflows", json.dumps(run.get("workflows"), ensure_ascii=False)), ("notas", run.get("notas"))])

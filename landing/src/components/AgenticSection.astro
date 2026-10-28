@@ -1,5 +1,5 @@
 ---
-import { agenticFeatures, skillTools } from "../data/site";
+import { agenticFeatures } from "../data/site";
 import Button from "./Button.astro";
 import CheckList from "./CheckList.astro";
 import Section from "./Section.astro";
@@ -9,24 +9,11 @@ import Section from "./Section.astro";
   <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">Integración agéntica</span>
   <h2 class="mt-3">Tu agente de programación opera la plataforma</h2>
   <p class="mt-3 max-w-[62ch] text-[1.12rem] text-ink-2">
-    Por la API crea el agente, lanza las llamadas, descarga los resultados y arma el informe. Pedile en español lo que necesitás: tenemos skills para los agentes de programación más usados, para que no tengas que explicarle cómo funciona. O conectá Claude, ChatGPT o Cursor por MCP, con tu usuario.
+    Por la API crea el agente, lanza las llamadas, descarga los resultados y arma el informe. Pedile en español lo que necesitás, o conectá Claude, ChatGPT o Cursor por MCP, con tu usuario.
   </p>
 
   <div class="mt-9 grid items-start gap-7 min-[901px]:grid-cols-2 min-[901px]:gap-12">
     <div class="grid gap-6">
-      <div class="grid gap-2.5">
-        <span class="font-mono text-[.76rem] tracking-[.06em] text-muted uppercase">Skills para</span>
-        <ul class="m-0 flex list-none flex-wrap gap-2 p-0">
-          {
-            skillTools.map((tool) => (
-              <li class="inline-flex items-center gap-2 rounded-full border border-line-2 bg-surface px-3.5 py-1.5 text-[.95rem] font-semibold">
-                <span class="size-1.5 rounded-full bg-ok" aria-hidden="true" />
-                {tool}
-              </li>
-            ))
-          }
-        </ul>
-      </div>
       <div class="flex flex-wrap gap-3">
         <Button href="/registro">Empezar gratis</Button>
         <Button href="/desarrolladores/docs/mcp" variant="ghost">Conectar por MCP</Button>

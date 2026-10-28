@@ -25,7 +25,7 @@ from app.services import demo, tts
 V1 = "/api/v1/demo"
 ORIGIN = "https://atentina.com.ar"
 # Agente de Atentina que no está en DEMO_AGENTS (atentina_comercial sí: es el de la home).
-OTHER_AGENT = "demo_booking_classic"
+OTHER_AGENT = "demo_booking"
 
 
 @pytest.fixture
@@ -86,7 +86,7 @@ def test_seed_only_creates_kept_agents(api, monkeypatch):
         clients = [c.slug for c in s.query(Client)]
         slugs = sorted(a.slug for a in s.query(Agent))
     assert clients == ["atentina"]
-    assert slugs == ["atentina_comercial", "cobranzas", "demo_booking_classic", "reclamos", "turnos"]
+    assert slugs == ["atentina_comercial", "cobranzas", "demo_booking", "reclamos", "turnos"]
 
 
 def test_session_requires_turnstile(landing):

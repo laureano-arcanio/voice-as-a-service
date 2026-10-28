@@ -14,7 +14,7 @@ from app.llm import anthropic_client
 from app.models import ConversationRow, ToolRun, WaAccount, WaAccountStatusLog
 
 from .helpers import BASE, FakeLLM, start_with, turn_and_extract
-from .test_classic_tools import Script, llm_with, setup
+from .test_motor_tools import Script, llm_with, setup
 from .test_api import admin  # noqa: F401  (fixture)
 from .test_whatsapp_service import make_wa, send
 from .tools_mock import mock_api_url, mock_server  # noqa: F401  (fixtures)

@@ -30,11 +30,9 @@ from ._common import IdMixin, TimestampMixin
 
 class TeamMember(IdMixin, TimestampMixin, Base):
     __tablename__ = "team_members"
-    __table_args__ = (UniqueConstraint("client_id", "whatsapp", name="uq_team_members_client_whatsapp"),)
     client_id: Mapped[str] = mapped_column(String(36), ForeignKey("clients.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(120))
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)      # E.164 argentino (services/phones.py)
-    whatsapp: Mapped[str | None] = mapped_column(String(20), nullable=True)   # E.164; unico por cliente (puente)
     user_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)   # softphone web (fase 6)
     active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
@@ -59,8 +57,6 @@ class HandoffArea(IdMixin, TimestampMixin, Base):
     on_person_hangup: Mapped[str] = mapped_column(String(8), default="resume", server_default="resume")
     # Tecla de la persona para devolverle la llamada a la IA. Nunca con *: Anura toma * + digito (plan 11.2).
     return_digits: Mapped[str] = mapped_column(String(4), default="2", server_default="2")
-    # Minutos sin respuesta del vendedor en el puente de WhatsApp antes de reasignar (fase 3).
-    wa_reply_minutes: Mapped[int] = mapped_column(Integer, default=10, server_default="10")
     # Textos que cambian los defaults (services/handoff.DEFAULT_MESSAGES), por clave.
     messages: Mapped[dict] = mapped_column(JSONDoc, default=dict, server_default="{}")
     # Round robin: el ultimo miembro al que se le paso (se rota a partir del siguiente).

@@ -1,7 +1,7 @@
 """Datos del contacto de una campaña de voz o de una llamada suelta en la conversación
 (docs/features/CAMPANAS.md).
 
-`vars` es la copia de los datos del contacto que guarda la campaña (nombre, teléfono, email, id externo).
+`vars` es la copia de los datos del contacto que guarda la campaña (nombre, teléfono, email).
 Llegan a la conversación de tres formas:
 - La apertura acepta `{{variable}}`: se reemplaza con su valor. Una variable que el contacto no tiene queda
   vacía (no se lee "{{deuda}}" en voz alta) y el texto se acomoda: "Hola {{nombre}}, soy..." -> "Hola, soy...".

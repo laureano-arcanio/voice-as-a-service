@@ -306,7 +306,7 @@ def test_create_agent_blank_or_template(api, admin):
 
 def test_prompt_preview_comes_from_definition(api, admin):
     c = make_client(admin)
-    agent = make_agent(admin, c, template="demo_booking_classic")
+    agent = make_agent(admin, c, template="demo_booking")
     d = {**agent["definition"], "objective": {"description": "Objetivo de prueba."}}
     classic = admin.post(f"{V1}/agents/prompt", json={"definition": d}).json()
     assert "Objetivo de prueba." in classic["system"] and set(classic) == {"system"}

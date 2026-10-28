@@ -138,7 +138,7 @@ def inline_script_hashes(index: Path) -> list[str]:
     return hashes
 
 
-# Pago con tarjeta (Card Payment Brick de Mercado Pago): solo en las paginas que lo cargan, que se abren
+# Pago con tarjeta (campos seguros de Mercado Pago): solo en las paginas que lo cargan, que se abren
 # con navegacion completa (la CSP es la del documento). Los campos de la tarjeta son iframes de MP.
 MP_PAGES = ("/plan/pagar",)
 MP_SCRIPTS = "https://sdk.mercadopago.com https://http2.mlstatic.com"

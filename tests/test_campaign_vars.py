@@ -14,8 +14,8 @@ from app.conversation import contact as contact_data
 from app.conversation.engine import ConversationEngine
 from app.conversation.models import ConversationState
 from app.llm.prompt import (
-    build_classic_messages,
-    build_classic_system,
+    build_turn_messages,
+    build_system_prompt,
 )
 from app.models import CallRow, Campaign, CampaignContact
 from app.services import campaign_reports
@@ -115,17 +115,17 @@ def _state(wf, **kw) -> ConversationState:
 
 
 def test_classic_prompt_has_the_contact_data_only_when_there_is():
-    wf = load_reference("eval_cobranza_classic")
-    plain = build_classic_system(wf, "voice", _state(wf))
-    assert plain == build_classic_system(wf) and "DATOS DEL CONTACTO" not in plain
+    wf = load_reference("eval_cobranza")
+    plain = build_system_prompt(wf, "voice", _state(wf))
+    assert plain == build_system_prompt(wf) and "DATOS DEL CONTACTO" not in plain
     state = _state(wf)
     state.progress.contact = {"nombre": "Ana", "deuda": 15000}
     state.progress.preloaded = ["cuotas"]
     state.fields["cuotas"] = 3
-    system = build_classic_system(wf, "voice", state)
+    system = build_system_prompt(wf, "voice", state)
     assert "DATOS DEL CONTACTO" in system and "- nombre: Ana" in system and "- deuda: 15000" in system
     assert "DATOS YA CONOCIDOS" in system and "- cuotas: 3" in system
-    assert build_classic_messages(wf, state, "Hola")[0]["content"] == system
+    assert build_turn_messages(wf, state, "Hola")[0]["content"] == system
 
 
 # ---------- la llamada de una campaña ----------

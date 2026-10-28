@@ -467,9 +467,6 @@ class WhatsAppService:
             return "cliente inactivo"
         if not limits.effective_limits(s, client).whatsapp:
             return "plan sin WhatsApp"
-        last = store.last_thread(s, account.id, wa_id)
-        if last is not None and last.paused:
-            return "conversacion pausada"
         return None
 
     async def _fixed_reply(self, info: AccountInfo, wa_id: str, wamid: str, body: str | None,

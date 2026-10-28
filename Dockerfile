@@ -15,12 +15,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# OCR de archivos del motor assistant (app/apps/attachments.py, docs/APPS_PLAN.md): tesseract con
-# español y pdftoppm para la primera página de un PDF. En la CPU, sin tocar las GPUs.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-spa poppler-utils \
-    && rm -rf /var/lib/apt/lists/*
-
 # Install deps first so this layer is cached unless requirements.txt changes
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

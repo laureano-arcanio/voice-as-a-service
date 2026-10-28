@@ -1,12 +1,10 @@
 """Definiciones de agentes en el repo: la plantilla de la UI y los agentes de referencia.
 
 - Plantilla (app/agents/templates/asistente.json): el asistente basico que ofrece la UI como punto
-  de partida. Sin plantilla, el agente arranca en blanco (blank_definition). El motor se elige al
-  crearlo: la definicion es la misma con los dos.
+  de partida. Sin plantilla, el agente arranca en blanco (blank_definition).
 - Agentes de referencia (app/agents/reference/<id>.json): los que siembra el seed (Atentina, la demo
   de la landing y el del test de capacidad), el eval y los tests, que corren sin base. No se ofrecen
-  en la UI. El sufijo _classic del id se acepta por compatibilidad (demo_booking_classic es
-  demo_booking.json; el motor structured se removio el 26-oct-2026).
+  en la UI.
 """
 import json
 import re
@@ -66,21 +64,13 @@ def blank_definition(client_name: str) -> dict:
 # ---------- agentes de referencia ----------
 
 def reference_ids() -> list[str]:
-    """Los archivos, sin las variantes por motor."""
+    """Los ids de los archivos."""
     return sorted(p.stem for p in REFERENCE_DIR.glob("*.json"))
 
 
 def reference_data(agent_id: str) -> dict:
-    """La definicion de agent_id; con sufijo _classic, la del archivo sin el sufijo y ese motor.
-    id queda en agent_id."""
-    try:
-        data = _read(REFERENCE_DIR, agent_id)
-    except KeyError:
-        base, _, suffix = agent_id.rpartition("_")
-        if suffix != "classic" or not base:
-            raise
-        data = _read(REFERENCE_DIR, base)
-    return {**data, "id": agent_id}
+    """La definicion de agent_id, con id = agent_id."""
+    return {**_read(REFERENCE_DIR, agent_id), "id": agent_id}
 
 
 @cache

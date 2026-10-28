@@ -462,11 +462,13 @@ Pruebas (todas tienen que dar lo esperado antes de dar el corte por bueno):
 ### Vuelta atrás
 
 Mientras el viejo no se borre:
-1. En el nuevo: `docker compose stop asterisk app agent` y `docker compose -f docker-compose.tunnel.yml stop tunnel`.
+1. En el nuevo: `make stop S="asterisk app agent"` y `docker compose -f docker-compose.tunnel.yml stop tunnel`.
 2. Router: reserva y reenvíos de vuelta al viejo (usuario). DNS `sip`, si se había cambiado.
-3. En el viejo: `docker compose start asterisk app agent`,
+3. En el viejo: `make start S="asterisk app agent"`,
    `docker compose -f docker-compose.tunnel.yml start tunnel` y `sudo systemctl enable atentina-stack`.
 4. Las conversaciones creadas en el nuevo se pierden, salvo que se haga un dump y se restaure en el viejo.
+   Si el nuevo corre un código con migraciones que el viejo no tiene, el dump se restaura después de bajar
+   la base del nuevo a la revisión del viejo (`make migrate-down REV=<revisión del viejo>`, en el nuevo).
 
 Dejar el viejo apagado (no borrado) al menos 30 días, con `atentina-stack` deshabilitado.
 

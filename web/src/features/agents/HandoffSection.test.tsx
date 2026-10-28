@@ -25,7 +25,6 @@ const VENTAS: HandoffArea = {
   fallback: 'take_message',
   on_person_hangup: 'resume',
   return_digits: '2',
-  wa_reply_minutes: 10,
   messages: {},
   created_at: '2026-10-20T12:00:00Z',
 };

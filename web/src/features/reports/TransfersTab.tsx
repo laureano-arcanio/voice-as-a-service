@@ -38,7 +38,6 @@ export function TransfersTab({ query }: { query: ReportQuery }) {
     <QueryState query={report}>
       {(r) => {
         const k = r.kpis;
-        const wa = r.whatsapp;
         return (
           <Stack gap="md">
             <KpiGrid
@@ -102,28 +101,6 @@ export function TransfersTab({ query }: { query: ReportQuery }) {
               columns={MEMBER_COLS}
               rowKey={(x) => x.team_member_id}
             />
-            <ReportCard
-              title="WhatsApp"
-              description="Conversaciones derivadas a un vendedor por WhatsApp."
-              csv={{
-                rows: [wa],
-                columns: [
-                  { label: 'Asignadas', value: 'assigned' },
-                  { label: 'Con respuesta', value: 'first_reply' },
-                  { label: 'Primera respuesta (s)', value: 'avg_first_reply_seconds' },
-                  { label: 'Reasignadas', value: 'reassigned' },
-                ],
-              }}
-            >
-              <KpiGrid
-                kpis={[
-                  { label: 'Asignadas', value: formatNumber(wa.assigned, 0) },
-                  { label: 'Con respuesta', value: formatNumber(wa.first_reply, 0) },
-                  { label: 'Primera respuesta', value: formatDuration(wa.avg_first_reply_seconds) },
-                  { label: 'Reasignadas', value: formatNumber(wa.reassigned, 0) },
-                ]}
-              />
-            </ReportCard>
           </Stack>
         );
       }}

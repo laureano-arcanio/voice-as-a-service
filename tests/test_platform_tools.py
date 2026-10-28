@@ -6,7 +6,7 @@ from app.agents.templates import load_reference
 from app.conversation.models import AgentTurn, ConversationState, Message
 from app.llm import platform_tools
 
-from .test_classic_tools import Script, llm_with
+from .test_motor_tools import Script, llm_with
 
 AREAS = [{"id": "1", "name": "Ventas", "when": "Precios y visitas.", "schedule": None, "schedule_text": "siempre"},
          {"id": "2", "name": "Soporte", "when": "", "schedule": None, "schedule_text": ""}]

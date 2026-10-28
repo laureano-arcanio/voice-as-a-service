@@ -951,7 +951,7 @@
    "name": "get_report_transfers",
    "toolset": "reports",
    "title": "Reporte: transferencias",
-   "description": "Las transferencias a personas del equipo: pedidas, atendidas, no atendidas y sin disponibilidad (fuera de horario, ocupado, contestador), % atendidas y tiempo hasta atender, por día, por área y por persona; en WhatsApp, el tiempo hasta la primera respuesta del vendedor y las reasignaciones. Sirve para ver si el equipo responde y si los horarios del área están bien.",
+   "description": "Las transferencias a personas del equipo: pedidas, atendidas, no atendidas y sin disponibilidad (fuera de horario, ocupado, contestador), % atendidas y tiempo hasta atender, por día, por área y por persona. Sirve para ver si el equipo responde y si los horarios del área están bien.",
    "kind": "lectura",
    "features": [
     "advanced_reports"

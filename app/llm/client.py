@@ -14,7 +14,7 @@ from app.conversation.models import (
 )
 
 from . import platform_tools
-from .prompt import build_classic_messages, build_extraction_prompt, extraction_prompt
+from .prompt import build_turn_messages, build_extraction_prompt, extraction_prompt
 
 if TYPE_CHECKING:
     from app.tools.conversation import TurnTools
@@ -132,7 +132,7 @@ class LLMClient:
         plataforma (end_call, transfer_call; app/llm/platform_tools.py) y las del cliente (tools). Las del cliente
         se ejecutan y se le vuelve a preguntar con el resultado, hasta tools.max_rounds vueltas; al llegar, el
         turno termina con tool_settings.limit_message."""
-        messages = build_classic_messages(workflow, state, user_message)
+        messages = build_turn_messages(workflow, state, user_message)
         definitions = platform_tools.tools_for(state) + (tools.openai_tools() if tools else [])
         turn = AgentTurn(assistant_message="")
         said, raw, reasoning = [], [], []

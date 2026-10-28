@@ -302,10 +302,9 @@ _READ: tuple[Tool, ...] = (
          path="/reports/messages", params=_REPORT, features=("advanced_reports",)),
     Tool("get_report_transfers", "reports", "Reporte: transferencias",
          "Las transferencias a personas del equipo: pedidas, atendidas, no atendidas y sin disponibilidad (fuera de "
-         "horario, ocupado, contestador), % atendidas y tiempo hasta atender, por día, por área y por persona; en "
-         "WhatsApp, el tiempo hasta la primera respuesta del vendedor y las reasignaciones. Sirve para ver si el "
-         "equipo responde y si los horarios del área están bien.", path="/reports/transfers", params=_REPORT,
-         features=("advanced_reports",)),
+         "horario, ocupado, contestador), % atendidas y tiempo hasta atender, por día, por área y por persona. Sirve "
+         "para ver si el equipo responde y si los horarios del área están bien.", path="/reports/transfers",
+         params=_REPORT, features=("advanced_reports",)),
     Tool("get_report_campaigns", "reports", "Reporte: campañas",
          "Las campañas que corrieron en el período, comparadas: contactos, intentos, alcanzados, conversión, "
          "objetivo, bajas y minutos; los motivos de no contacto (ocupado, no atiende, contestador, número "

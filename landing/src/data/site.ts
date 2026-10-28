@@ -577,9 +577,6 @@ export const agenticFeatures: Feature[] = [
   { title: "Controlar el consumo", text: "Consulta cuánto se usó en el mes contra el plan, antes de que se agote." },
 ];
 
-/** Agentes de programación con skills. */
-export const skillTools = ["Claude Code", "Cursor", "Codex"];
-
 // ---- Páginas de capacidad (`/plataforma/<slug>`, docs/features/LANDING.md) ----
 
 const API_BASE = "https://app.atentina.com.ar/api/v1/inference";

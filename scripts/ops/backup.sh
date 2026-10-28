@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Backup (cron, docs/INFRA.md.E): base (pg_dump), .env, storage/, certificado SIP y checkpoint
+# Backup (cron, docs/INFRA.md): base (pg_dump), .env, storage/, certificado SIP y checkpoint
 # del TTS servido. Local en BACKUP_DIR (default ~/atentina-backups, en /home: otro disco que el de
 # Docker). Copia externa a S3 si BACKUP_S3_BUCKET está en .env: base, .env, storage/ y certificado
 # cifrados con la llave pública de deploy/backup-key.asc (la privada no está en el server), y el

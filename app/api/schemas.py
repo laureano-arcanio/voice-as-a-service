@@ -1605,8 +1605,8 @@ class SignupIn(BaseModel):
     email: EmailStr
     password: str = Field(min_length=10, max_length=256)
     turnstile_token: str = Field(min_length=1, max_length=2048)
-    # Plan elegido en la landing (nombre del tier). Pago y con Mercado Pago: `card_token_id` (Card Payment
-    # Brick, paso 2 del formulario) y la cuenta se crea solo si MP aprueba la tarjeta.
+    # Plan elegido en la landing (nombre del tier). Pago y con Mercado Pago: `card_token_id` (campos
+    # seguros de Mercado Pago, paso 2 del formulario) y la cuenta se crea solo si MP aprueba la tarjeta.
     plan: str = Field(default="", max_length=64, pattern=r"^[\w .-]*$")
     card_token_id: str | None = Field(default=None, max_length=128)
     # Casilla de las condiciones y las versiones que mostro el formulario (409 terms_outdated si ya no son las
@@ -1674,7 +1674,7 @@ class PublicPlanOut(BaseModel):
 
 class PublicPlansOut(BaseModel):
     """Planes con precio que se contratan en el registro. `mp_public_key`: si viene, los pagos se pagan con
-    tarjeta en el registro (Card Payment Brick)."""
+    tarjeta en el registro (campos seguros de Mercado Pago)."""
     mp_public_key: str | None
     plans: list[PublicPlanOut]
 
@@ -1802,8 +1802,8 @@ class BillingOut(BaseModel):
 
 
 class SubscribeIn(BaseModel):
-    """transfer: queda pedido hasta el pago. mercadopago: sin plan pago, `card_token_id` (Card Payment Brick)
-    crea el debito automatico y cobra el primer mes; con uno activo, cambia el plan (sin tarjeta)."""
+    """transfer: queda pedido hasta el pago. mercadopago: sin plan pago, `card_token_id` (campos seguros de
+    Mercado Pago) crea el debito automatico y cobra el primer mes; con uno activo, cambia el plan (sin tarjeta)."""
     tier_id: str
     method: PaymentMethod = "transfer"
     card_token_id: str | None = Field(default=None, max_length=128)
@@ -2325,7 +2325,6 @@ class ApiRequestPage(BaseModel):
 class TeamMemberIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     phone: str | None = Field(default=None, max_length=32, description="Para transferir llamadas (Argentina)")
-    whatsapp: str | None = Field(default=None, max_length=32, description="Para el puente de WhatsApp; único por cliente")
     user_id: str | None = Field(default=None, description="Usuario del panel (softphone web)")
     active: bool = True
 
@@ -2333,7 +2332,6 @@ class TeamMemberIn(BaseModel):
 class TeamMemberPatch(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
     phone: str | None = Field(default=None, max_length=32)
-    whatsapp: str | None = Field(default=None, max_length=32)
     user_id: str | None = None
     active: bool | None = None
 
@@ -2343,7 +2341,6 @@ class TeamMemberOut(ORM):
     client_id: str
     name: str
     phone: str | None
-    whatsapp: str | None
     user_id: str | None
     active: bool
     created_at: UTCDateTime
@@ -2369,7 +2366,6 @@ class HandoffAreaIn(BaseModel):
     on_person_hangup: Literal["resume", "end"] = Field(
         default="resume", description="Si la persona corta: resume (el agente vuelve) o end (se despide y corta)")
     return_digits: str = Field(default="2", max_length=4, description="Tecla de la persona para volver a la IA (sin *)")
-    wa_reply_minutes: int = Field(default=10, ge=1, le=1440)
     messages: dict[str, str] = Field(default_factory=dict, description="Textos que cambian los de /handoff-areas/defaults")
 
 
@@ -2384,7 +2380,6 @@ class HandoffAreaPatch(BaseModel):
     fallback: Literal["take_message"] | None = None
     on_person_hangup: Literal["resume", "end"] | None = None
     return_digits: str | None = Field(default=None, max_length=4)
-    wa_reply_minutes: int | None = Field(default=None, ge=1, le=1440)
     messages: dict[str, str] | None = None
 
 
@@ -2403,7 +2398,6 @@ class HandoffAreaOut(ORM):
     fallback: str
     on_person_hangup: str
     return_digits: str
-    wa_reply_minutes: int
     messages: dict[str, str] = Field(description="Solo los que cambian el default")
     created_at: UTCDateTime
 
@@ -2784,19 +2778,11 @@ class ReportMemberOut(BaseModel):
     minutes: float
 
 
-class ReportWaHandoffOut(BaseModel):
-    assigned: int
-    first_reply: int
-    avg_first_reply_seconds: float | None
-    reassigned: int
-
-
 class ReportTransfersOut(BaseModel):
     kpis: ReportTransfersKpisOut
     daily: list[ReportTransfersDayOut]
     by_area: list[ReportAreaOut]
     by_member: list[ReportMemberOut]
-    whatsapp: ReportWaHandoffOut
 
 
 class ReportCampaignOut(BaseModel):

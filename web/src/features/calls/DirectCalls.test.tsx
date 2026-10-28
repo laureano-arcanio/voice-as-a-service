@@ -186,7 +186,6 @@ const DETAIL: CallDetail = {
     answered_by: null,
     opted_out_confirmed: true,
   },
-  whatsapp: null,
 };
 
 function renderDetail(detail: CallDetail) {

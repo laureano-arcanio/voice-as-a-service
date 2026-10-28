@@ -293,7 +293,7 @@ agente de IA que usa el MCP (lo dice su descripción). Catálogo en [`../MCP_HER
   `make up-tools` (`tools-runner` y `tools-egress`; no corta llamadas). Recrear `app` y `agent` para que lo lean:
   `make calls-active && make up-agent`.
 - Migraciones: `make migrate-test` antes de `make migrate`.
-- `make test`: `tests/test_tools_http.py`, `test_tools_api.py`, `test_tools_secrets.py`, `test_classic_tools.py`,
+- `make test`: `tests/test_tools_http.py`, `test_tools_api.py`, `test_tools_secrets.py`, `test_motor_tools.py`,
   `test_platform_tools.py`, con LLM falso.
 - `make test-tools-code`: `tests/test_tools_code.py` contra un sandbox de prueba aislado (`scripts/tools/runner_test.sh`,
   lo levanta y lo baja; `make tools-runner-test` lo deja arriba).

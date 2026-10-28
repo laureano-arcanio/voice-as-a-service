@@ -27,7 +27,7 @@ PATH_VAR_RE = re.compile(r"(?<!\{)\{([A-Za-z_][A-Za-z0-9_]*)\}(?!\})")
 HOST_RE = re.compile(r"^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+(:\d{1,5})?$")
 
 # Los nombres de las herramientas de la plataforma: el cliente no los puede usar.
-RESERVED = {"end_call", "transfer_call", "abrir_vista"}
+RESERVED = {"end_call", "transfer_call"}
 CALL_KEYS = {"id", "channel", "mode", "from", "to"}
 AGENT_KEYS = {"slug", "version"}
 NAMESPACES = {"secrets", "call", "agent", "fields", "contact", "vars", "now", "today"}

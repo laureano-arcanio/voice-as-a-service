@@ -527,7 +527,7 @@ def _write_csv(path: Path, rows: list[dict]) -> None:
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--base-url", default="http://app:8011", help="URL del servicio `app` (default: red interna de compose)")
-    default_agent = os.getenv("WORKFLOW_ID") or "demo_booking_classic"
+    default_agent = os.getenv("WORKFLOW_ID") or "demo_booking"
     p.add_argument("--workflow", default=default_agent,
                    help=f"slug del agente a llamar, del cliente de VAAS_API_KEY (default WORKFLOW_ID: {default_agent})")
     p.add_argument("--voice", default=None, help="voz del TTS (default: la del workflow, agent.voice)")

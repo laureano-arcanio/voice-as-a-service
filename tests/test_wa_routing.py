@@ -125,7 +125,7 @@ def second_agent(sessions, client_id, name="Soporte", slug="soporte"):
     with sessions() as s:
         client = s.get(Client, client_id)
         agent = agent_service.create_agent(s, client, name=name, slug=slug, description="",
-                                           definition=reference_data("demo_booking_classic"),
+                                           definition=reference_data("demo_booking"),
                                            template_id=None, user_id=None)
         s.commit()
         return agent.id

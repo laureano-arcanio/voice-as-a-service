@@ -1,5 +1,5 @@
 """El motor: el LLM de conversacion decide la respuesta y el fin; la extraccion saca los
-datos en segundo plano al terminar (classic); la app valida y guarda."""
+datos en segundo plano al terminar; la app valida y guarda."""
 import asyncio
 
 from app.conversation.engine import ConversationEngine

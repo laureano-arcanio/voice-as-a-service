@@ -10,7 +10,7 @@ llamadas, resultados, mensajes, transferencias, campañas y consumo del plan. Es
 |---|---|
 | Consulta | una conversación de cliente: llamada (atendida o no) o conversación de WhatsApp |
 | Con agente (`with_agent`) | base de los porcentajes: las llamadas directas y las entrantes que atiende el equipo cuentan como consultas, llamadas y minutos, pero no entran en conversión, objetivo, % de transferencia, embudo ni turnos |
-| Transferencia | conversación con al menos un evento `handoff.requested` (voz) o `wa.handoff.assigned` (WhatsApp); atendida = `handoff.connected` o `wa.handoff.first_reply` |
+| Transferencia | llamada con al menos un evento `handoff.requested`; atendida = `handoff.connected` |
 | Resultado | `conversations.outcome` (id del `Outcome` del agente) y `goal` (si ese resultado es objetivo) |
 | Conversión | `complete`: completó con un resultado que no es `incompleta` ni `fuera_de_tema`; `partial`: algún dato capturado sin completar; `empty`: ningún dato |
 

@@ -22,6 +22,8 @@ def test_0023_upgrade_downgrade_upgrade(tmp_path):
         diff = compare_metadata(MigrationContext.configure(conn, opts={"compare_type": True}), Base.metadata)
     # handoff_legs (0024) y phone_number_members (0039) referencian a estas tablas: no son parte de la 0023.
     diff = [d for d in diff if "handoff_legs" not in repr(d) and "phone_number_members" not in repr(d)]
+    # La 0042 quita team_members.whatsapp (y su unique) y handoff_areas.wa_reply_minutes.
+    diff = [d for d in diff if not any(c in repr(d) for c in ("'whatsapp'", "wa_reply_minutes", "uq_team_members_client_whatsapp"))]
     assert [d for d in diff if any(t in repr(d) for t in TABLES) or "max_team_members" in repr(d)] == []
 
     _run(engine, command.downgrade, "0022")

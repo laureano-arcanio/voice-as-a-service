@@ -8,7 +8,7 @@ PostgreSQL y SQLite (dias en otra zona, percentiles), se trae solo lo agregado o
 - "Consulta": una conversacion de cliente (llamada, atendida o no, o conversacion de WhatsApp). Sin el
   loadtest nunca; sin las de prueba ni las de la API (sin llamada y canal voice) salvo `include_tests`.
 - "Transferencia": conversacion con un pedido de derivacion (REQUEST_EVENTS: la pedida, la que no se pudo
-  por horario o sin miembros, y la asignacion de WhatsApp); "atendida": con ANSWER_EVENTS.
+  por horario o sin miembros); "atendida": con ANSWER_EVENTS.
 - Conversion: conversations.conversion (complete, partial, empty); NULL (anteriores al backfill) cuenta
   como empty.
 """
@@ -72,8 +72,8 @@ DEFAULT_DAYS = 30
 CALL_MODES = ("entrante", "saliente", "directa", "web", "prueba")
 # Llamadas directas (docs/features/EQUIPO_TELEFONIA.md): sin agente, no entran en conversion ni resultados.
 CALL_TYPES = ("agent", "direct", "team")
-REQUEST_EVENTS = ("handoff.requested", "handoff.unavailable", "wa.handoff.assigned")
-ANSWER_EVENTS = ("handoff.connected", "wa.handoff.first_reply")
+REQUEST_EVENTS = ("handoff.requested", "handoff.unavailable")
+ANSWER_EVENTS = ("handoff.connected",)
 # Rechazos por el plan (services/quota.admit): clientes que no se atendieron.
 LIMIT_REASONS = ("concurrency_limit", "calls_per_hour", "calls_per_day", "calls_per_month", "inbound_minutes",
                  "outbound_minutes")
@@ -609,7 +609,7 @@ def messages(s: Session, flt: ReportFilter) -> dict:
 
 def transfers(s: Session, flt: ReportFilter) -> dict:
     """Derivaciones por conversacion y area (pedidas, atendidas, no atendidas, sin disponibilidad), por dia,
-    por area y por persona; WhatsApp aparte."""
+    por area y por persona."""
     ids = _conv_ids(flt)
     flag = lambda types: func.max(case((Event.type.in_(types), 1), else_=0))
     # Pedidas y atendidas, de un agente (como en el resumen); los tramos por persona incluyen los del equipo.
@@ -659,22 +659,8 @@ def transfers(s: Session, flt: ReportFilter) -> dict:
                                  .where(HandoffLeg.conversation_id.in_(ids))).one()
     kpis |= {"answer_pct": _pct(kpis["answered"], kpis["requested"]), "avg_answer_seconds": _round(avg_wait, 1),
              "minutes": round(_n(billed) / 60, 1)}
-
-    # WhatsApp: de la asignacion a la primera respuesta del vendedor, por conversacion.
-    wa_rows = s.execute(
-        select(Event.conversation_id, func.min(case((Event.type == "wa.handoff.assigned", Event.at))),
-               func.min(case((Event.type == "wa.handoff.first_reply", Event.at))),
-               _count_if(Event.type == "wa.handoff.reassigned"))
-        .where(Event.conversation_id.in_(ids), Event.type.startswith("wa.handoff."))
-        .group_by(Event.conversation_id)).all()
-    waits = [(_as_dt(r) - _as_dt(a)).total_seconds() for _, a, r, _ in wa_rows if a is not None and r is not None]
-    whatsapp = {"assigned": sum(a is not None for _, a, _, _ in wa_rows),
-                "first_reply": sum(r is not None for _, _, r, _ in wa_rows),
-                "avg_first_reply_seconds": round(sum(waits) / len(waits), 1) if waits else None,
-                "reassigned": sum(_n(n) for *_, n in wa_rows)}
     return {"kpis": kpis, "daily": list(daily.values()),
-            "by_area": sorted(areas.values(), key=lambda a: -a["requested"]), "by_member": by_member,
-            "whatsapp": whatsapp}
+            "by_area": sorted(areas.values(), key=lambda a: -a["requested"]), "by_member": by_member}
 
 
 # ---------- campañas ----------

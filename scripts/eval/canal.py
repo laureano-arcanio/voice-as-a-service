@@ -17,8 +17,7 @@ import httpx
 
 from app import config
 
-# Confusiones vistas en llamadas reales (replay_transcripts.py) y en el eval de
-# STT (README, "Eval de STT").
+# Confusiones vistas en llamadas reales y en el eval de STT.
 HOMOFONOS = {
     "gómez": "gomes", "suárez": "suares", "fernández": "fernandes", "pérez": "peres",
     "fibranet": "fibra net", "belgrano": "de grano", "running": "rolling", "calistenia": "calisteña",

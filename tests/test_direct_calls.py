@@ -115,7 +115,7 @@ def test_calls_list_resolves_the_contact_and_filters_by_phone(api, admin):
     juan = add_contact(api, c["id"])
     out = ana.post(f"{V1}/direct-calls", json={"contact_id": juan}).json()["conversation_id"]
     other = ana.post(f"{V1}/direct-calls", json={"phone": "+5493511112222"}).json()["conversation_id"]
-    member(admin, c["id"], name="Ana", user_id=ana_id, whatsapp="3510000000")
+    member(admin, c["id"], name="Ana", user_id=ana_id)
     person = ana.get(f"{V1}/team").json()[0]
     assert ana.patch(f"{V1}/phone-numbers/{n['id']}",
                      json={"answer_mode": "team", "member_ids": [person["id"]]}).status_code == 200
@@ -416,13 +416,12 @@ def test_phone_number_answering_settings(api, admin):
     c, n, ana, ana_id = setup(api, admin)
     agent = make_agent(admin, c)
     juan = member(admin, c["id"], phone="3516775617")
-    panel = member(admin, c["id"], name="Ana", user_id=ana_id, whatsapp="3510000000")
-    wa_only = member(admin, c["id"], name="Solo WA", whatsapp="3519999999")
+    panel = member(admin, c["id"], name="Ana", user_id=ana_id)
     theirs = member(admin, make_client(admin, slug="otro")["id"], phone="3511111111")
     assert n["answer_mode"] == "team" and n["members"] == [] and n["team_fallback"] == "voicemail"
     url = f"{V1}/phone-numbers/{n['id']}"
     bad = [{"answer_mode": "team", "member_ids": []}, {"member_ids": [theirs["id"]]},
-           {"member_ids": [wa_only["id"]]}, {"member_ids": [juan["id"], juan["id"]]},
+           {"member_ids": [juan["id"], juan["id"]]},
            {"member_ids": [juan["id"]], "team_fallback": "agent"}, {"ring_seconds": 4}, {"ring_seconds": 61},
            {"member_ids": [juan["id"]], "schedule": {"week": {"mon": [["18:00", "09:00"]]}}},
            {"answer_mode": "robot"}, {"ring_first": None}]
@@ -466,7 +465,7 @@ def test_inbound_to_team_agent_or_fallback(api, admin):
         assert s.get(CallRow, inbound.conversation_id).answered_by == "agent"
     # Con personas: al equipo, sin agente en la conversacion; solo las que pueden sonar.
     juan = member(admin, c["id"], phone="3516775617")
-    ana = member(admin, c["id"], name="Ana", user_id=ana_id, whatsapp="3510000000")
+    ana = member(admin, c["id"], name="Ana", user_id=ana_id)
     r = admin.patch(url, json={"member_ids": [ana["id"], juan["id"]], "team_fallback": "agent", "ring_seconds": 25})
     assert r.status_code == 200, r.text
     admin.patch(f"{V1}/team/{juan['id']}", json={"active": False})
@@ -493,7 +492,7 @@ def test_inbound_to_team_keeps_blocked_and_quota(api, admin):
     from app.services.errors import Forbidden, QuotaExceeded
 
     c, n, _, ana_id = setup(api, admin, max_concurrent_calls=1)
-    ana = member(admin, c["id"], name="Ana", user_id=ana_id, whatsapp="3510000000")
+    ana = member(admin, c["id"], name="Ana", user_id=ana_id)
     admin.patch(f"{V1}/phone-numbers/{n['id']}", json={"member_ids": [ana["id"]]})
     admin.post(f"{V1}/blocked-numbers", params={"client_id": c["id"]}, json={"phone": "+5493513775197"})
     with api.sessions() as s, pytest.raises(Forbidden):
@@ -535,7 +534,7 @@ def test_team_answering_needs_the_plan(api, admin):
     # Sin llamadas directas en el plan no se elige el equipo; si el plan las pierde, las entrantes van al agente.
     c, n, ana, ana_id = setup(api, admin, direct_calls=False)
     agent = make_agent(admin, c)
-    person = member(admin, c["id"], name="Ana", user_id=ana_id, whatsapp="3510000000")
+    person = member(admin, c["id"], name="Ana", user_id=ana_id)
     url = f"{V1}/phone-numbers/{n['id']}"
     r = ana.patch(url, json={"answer_mode": "team", "member_ids": [person["id"]], "agent_id": agent["id"]})
     assert r.status_code == 429 and r.json()["code"] == "direct_calls_not_in_plan"
@@ -558,7 +557,7 @@ def test_direct_calls_need_the_terms_that_cover_them(api, admin, monkeypatch):
     siempre). Alcanza con que la acepte un usuario del cliente: vale para todos, tambien por API key."""
     c, n, ana, ana_id = setup(api, admin, accept=False)
     agent = make_agent(admin, c)
-    person = member(admin, c["id"], name="Ana", user_id=ana_id, whatsapp="3510000000")
+    person = member(admin, c["id"], name="Ana", user_id=ana_id)
     url = f"{V1}/phone-numbers/{n['id']}"
     msg = "Aceptá las condiciones nuevas para usar el teléfono del equipo"
     r = ana.post(f"{V1}/direct-calls", json={"phone": "+5493511112222"})

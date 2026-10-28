@@ -14,7 +14,7 @@ seed deja lo minimo para operar despues de migrar (todo idempotente: solo crea l
 - sus agentes de SEED_AGENTS (el comercial y el del test de capacidad) y uno por agente de
   referencia landing_* (slug sin el prefijo), los que atiende la demo (/api/v1/demo, DEMO_AGENTS).
   Salen de app/agents/reference/; los demas de ahi (eval, tests) no se siembran;
-- el numero de Anura (ANURA_DID), atendido por el agente WORKFLOW_ID (demo_booking_classic si no esta);
+- el numero de Anura (ANURA_DID), atendido por el agente WORKFLOW_ID (demo_booking si no esta);
 - el admin ADMIN_EMAIL / ADMIN_PASSWORD si no existe.
 """
 import argparse
@@ -44,7 +44,7 @@ INTERNAL_TIER = "Interno"
 INTERNAL_CLIENT = "atentina"
 # Agentes de Atentina que el seed crea si faltan: el comercial (numero y WhatsApp propios) y el
 # del test de capacidad (scripts/capacity/perfiles/_comun.yml, comparable con CAP-001).
-SEED_AGENTS = ("atentina_comercial", "demo_booking_classic")
+SEED_AGENTS = ("atentina_comercial", "demo_booking")
 DEMO_PREFIX = "landing_"
 
 
@@ -96,7 +96,7 @@ def seed(s: Session) -> None:
         e164 = f"+54{did}"
         if s.scalar(select(PhoneNumber).where(PhoneNumber.e164 == e164)) is None:
             inbound = s.scalar(select(Agent).where(Agent.client_id == client.id,
-                                                   Agent.slug == (os.getenv("WORKFLOW_ID") or "demo_booking_classic")))
+                                                   Agent.slug == (os.getenv("WORKFLOW_ID") or "demo_booking")))
             s.add(PhoneNumber(client_id=client.id, e164=e164, label="Anura", assigned_at=utcnow(),
                               agent_id=inbound.id if inbound else None))
             _log(f"numero {e164} asignado a {INTERNAL_CLIENT} ({inbound.slug if inbound else 'sin agente'})")

@@ -191,7 +191,7 @@ def main() -> None:
     rundir.mkdir(parents=True)
     run = {
         "fecha": datetime.datetime.now().isoformat(timespec="seconds"), "git": git_rev(), "notas": args.notas,
-        "agente_llm": ficha_llm, "engine": "classic",
+        "agente_llm": ficha_llm,
         "simulador": {"base_url": args.sim_base_url, "model": args.sim_model, "temperature": args.sim_temperature,
                       "prompt_version": PROMPT_VERSION} if simulador else None,
         "cliente": args.cliente, "canal": args.canal, "seed": args.seed, "reps": args.reps,

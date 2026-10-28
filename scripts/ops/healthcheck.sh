@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Chequeo del servicio (cron cada 2 min, docs/INFRA.md.F). Avisa solo cuando cambia el
+# Chequeo del servicio (cron cada 2 min, docs/INFRA.md). Avisa solo cuando cambia el
 # estado (cae o vuelve), por ntfy (ALERT_NTFY_TOPIC en .env: tema secreto de https://ntfy.sh, se
 # sigue con la app ntfy en el celular). Si HEALTHCHECKS_PING_URL está en .env, le avisa a un
 # vigilante externo (ej. healthchecks.io) que este host está vivo: si el host o internet se caen,

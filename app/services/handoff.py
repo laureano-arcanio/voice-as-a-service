@@ -64,13 +64,8 @@ def normalize_phone(raw: str | None, *, argentina: bool) -> str | None:
 
 def _check_member(s: Session, client_id: str, member: TeamMember) -> None:
     # Solo con usuario del panel tambien: le suenan las entrantes directas ahi (docs/features/EQUIPO_TELEFONIA.md).
-    if not member.phone and not member.whatsapp and not member.user_id:
-        raise Invalid("Cargá un teléfono, un WhatsApp o un usuario del panel")
-    if member.whatsapp:
-        other = s.scalar(select(TeamMember.id).where(
-            TeamMember.client_id == client_id, TeamMember.whatsapp == member.whatsapp, TeamMember.id != member.id))
-        if other is not None:
-            raise Conflict("Ya hay otra persona del equipo con ese WhatsApp", "whatsapp_taken")
+    if not member.phone and not member.user_id:
+        raise Invalid("Cargá un teléfono o un usuario del panel")
     if member.user_id:
         user = s.get(User, member.user_id)
         if user is None or user.client_id != client_id:
@@ -92,7 +87,7 @@ def get_member(s: Session, client_id: str | None, member_id: str) -> TeamMember:
 
 
 def create_member(s: Session, client: Client, *, name: str, phone: str | None = None,
-                  whatsapp: str | None = None, user_id: str | None = None, active: bool = True) -> TeamMember:
+                  user_id: str | None = None, active: bool = True) -> TeamMember:
     cap = limits_service.effective_limits(s, client).max_team_members
     if cap is not None:
         count = s.scalar(select(func.count()).select_from(TeamMember).where(TeamMember.client_id == client.id))
@@ -101,8 +96,7 @@ def create_member(s: Session, client: Client, *, name: str, phone: str | None = 
                        else f"Tu plan incluye {cap} persona{'s' if cap != 1 else ''} en el equipo")
             raise QuotaExceeded(message, "team_members_limit")
     member = TeamMember(client_id=client.id, name=name.strip(), phone=normalize_phone(phone, argentina=True),
-                        whatsapp=normalize_phone(whatsapp, argentina=False), user_id=user_id or None,
-                        active=active)
+                        user_id=user_id or None, active=active)
     _check_member(s, client.id, member)
     s.add(member)
     s.flush()
@@ -116,13 +110,11 @@ def _no_nulls(changes: dict, nullable: set[str]) -> None:
 
 
 def update_member(s: Session, member: TeamMember, **changes) -> TeamMember:
-    _no_nulls(changes, {"phone", "whatsapp", "user_id"})
+    _no_nulls(changes, {"phone", "user_id"})
     if "name" in changes:
         member.name = changes["name"].strip()
     if "phone" in changes:
         member.phone = normalize_phone(changes["phone"], argentina=True)
-    if "whatsapp" in changes:
-        member.whatsapp = normalize_phone(changes["whatsapp"], argentina=False)
     if "user_id" in changes:
         member.user_id = changes["user_id"] or None
     if "active" in changes:
@@ -319,8 +311,6 @@ def _apply(area: HandoffArea, changes: dict) -> None:
             # El 1 es el de aceptar la derivacion; el * lo toma la central de Anura (plan 11.2).
             raise Invalid("La tecla para volver a la IA: 1 a 4 dígitos o #, sin * y distinta de 1")
         area.return_digits = digits
-    if "wa_reply_minutes" in changes:
-        area.wa_reply_minutes = int(changes["wa_reply_minutes"])
     if "messages" in changes:
         area.messages = validate_messages(changes["messages"])
 

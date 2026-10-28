@@ -1,11 +1,11 @@
-# LiveKit propio en este host (desarrollo), en lugar de LiveKit Cloud: rooms,
+# LiveKit propio en este host (produccion), en lugar de LiveKit Cloud: rooms,
 # despacho del agente y SIP para Asterisk. Motivo: en el plan gratuito de Cloud
 # el despacho deja jobs en JS_PENDING con ~20-24 llamadas (EXP-011).
 #
 # Se activa con COMPOSE_FILE=docker-compose.yml:docker-compose.livekit.yml en
 # .env, asi `make up` y el resto de los targets lo incluyen. Las LIVEKIT_* de
 # .env (URL, claves, SIP) son las de este LiveKit: app, agent y asterisk las
-# toman sin pisar nada aca. Ver docs/TELEFONIA_ANURA.md, seccion 7.
+# toman sin pisar nada aca. Ver docs/TELEFONIA_ANURA.md.
 #
 # livekit y livekit-sip van con network_mode: host, como asterisk: SIP y RTP
 # no pasan bien por el NAT de docker. Puertos (no chocan con asterisk, que usa

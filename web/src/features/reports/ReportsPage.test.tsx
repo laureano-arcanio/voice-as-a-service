@@ -305,7 +305,6 @@ const FIXTURES: Record<string, [unknown, string]> = {
           minutes: 3,
         },
       ],
-      whatsapp: { assigned: 0, first_reply: 0, avg_first_reply_seconds: null, reassigned: 0 },
     },
     'Juana',
   ],

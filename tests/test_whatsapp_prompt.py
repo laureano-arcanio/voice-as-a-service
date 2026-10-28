@@ -8,8 +8,8 @@ from app.llm.client import LLMClient
 from app.llm.prompt import (
     CHANNEL,
     VOICE_NOTE_TAG,
-    build_classic_messages,
-    build_classic_system,
+    build_turn_messages,
+    build_system_prompt,
     build_extraction_prompt,
     extraction_prompt,
     render_conversation,
@@ -25,7 +25,7 @@ def on_whatsapp(state: ConversationState) -> ConversationState:
 
 def test_voice_prompt_says_the_channel_and_nothing_else():
     wf = load_reference("berlin_signup")
-    system = build_classic_system(wf)
+    system = build_system_prompt(wf)
     assert CHANNEL["voice"] in system and CHANNEL["whatsapp"] not in system
     assert "APERTURA" not in system
     assert "llamada telefónica" in extraction_prompt() and "OBJETIVO:" in build_extraction_prompt(wf, state_with(wf))
@@ -42,7 +42,7 @@ def test_whatsapp_without_opening_starts_with_the_user():
     wf = load_reference("berlin_signup")
     state = on_whatsapp(state_with(wf))
     assert state.messages == []
-    messages = build_classic_messages(wf, state, "Hola, ¿qué es Berlin Fit Club?")
+    messages = build_turn_messages(wf, state, "Hola, ¿qué es Berlin Fit Club?")
     assert [m["role"] for m in messages] == ["system", "user"]
     system = messages[0]["content"]
     assert CHANNEL["whatsapp"] in system and "telefónica" not in system
@@ -55,7 +55,7 @@ def test_whatsapp_keeps_the_history_as_messages():
     wf = load_reference("berlin_signup")
     state = on_whatsapp(state_with(wf))
     state.messages = [Message(role="user", text="Hola."), Message(role="assistant", text="¡Hola! ¿Qué actividad?")]
-    messages = build_classic_messages(wf, state, "Yoga.")
+    messages = build_turn_messages(wf, state, "Yoga.")
     assert [m["role"] for m in messages] == ["system", "user", "assistant", "user"]
     assert "WhatsApp" in messages[0]["content"]
 
@@ -120,7 +120,7 @@ def test_voice_call_prompts_ignore_voice_notes():
     for m in plain.messages:
         m.voice_note = False
     marked = with_media(history(state_with(wf)), user=True, reply=True)
-    assert build_classic_messages(wf, marked, "Yoga.") == build_classic_messages(wf, plain, "Yoga.")
+    assert build_turn_messages(wf, marked, "Yoga.") == build_turn_messages(wf, plain, "Yoga.")
     assert build_extraction_prompt(wf, marked) == build_extraction_prompt(wf, plain)
     assert "nota de voz" not in render_conversation(marked)
 
@@ -130,7 +130,7 @@ def test_whatsapp_text_turn_is_unchanged():
     wf = load_reference("berlin_signup")
     state = on_whatsapp(state_with(wf))
     state.messages = [Message(role="user", text="Hola."), Message(role="assistant", text="¿Zona?")]
-    messages = build_classic_messages(wf, state, "Centro.")
+    messages = build_turn_messages(wf, state, "Centro.")
     assert messages[1:] == [{"role": "user", "content": "Hola."}, {"role": "assistant", "content": "¿Zona?"},
                             {"role": "user", "content": "Centro."}]
 
@@ -140,10 +140,10 @@ def test_voice_note_marks_only_the_user_audio():
     la plataforma antes del TTS)."""
     wf = load_reference("berlin_signup")
     state = with_media(on_whatsapp(state_with(wf)), user=True, reply=True)
-    assert build_classic_messages(wf, state, "En el centro.")[-1]["content"] == f"{VOICE_NOTE_TAG} En el centro."
-    text_reply = build_classic_messages(wf, with_media(state, user=True), "Centro.")
+    assert build_turn_messages(wf, state, "En el centro.")[-1]["content"] == f"{VOICE_NOTE_TAG} En el centro."
+    text_reply = build_turn_messages(wf, with_media(state, user=True), "Centro.")
     assert text_reply[-1]["content"] == f"{VOICE_NOTE_TAG} Centro."
-    audio_reply = build_classic_messages(wf, with_media(state, reply=True), "Centro.")
+    audio_reply = build_turn_messages(wf, with_media(state, reply=True), "Centro.")
     assert audio_reply[-1]["content"] == "Centro."
 
 
@@ -154,7 +154,7 @@ def test_history_marks_only_the_user_voice_notes():
         "usuario (nota de voz): Hola, quiero yoga.", "agente: ¡Hola! ¿Por qué zona?", "usuario: Centro."]
     # La extraccion ve la marca.
     assert "usuario (nota de voz): Hola, quiero yoga." in build_extraction_prompt(wf, state)
-    messages = build_classic_messages(wf, state, "Sí.")
+    messages = build_turn_messages(wf, state, "Sí.")
     assert [m["content"] for m in messages[1:]] == [
         f"{VOICE_NOTE_TAG} Hola, quiero yoga.", "¡Hola! ¿Por qué zona?", "Centro.", "Sí."]
 

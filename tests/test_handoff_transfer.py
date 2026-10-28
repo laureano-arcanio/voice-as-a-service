@@ -8,7 +8,7 @@ from sqlalchemy import select
 from app.conversation.models import AgentTurn, ConversationState, Message
 from app.db import utcnow
 from app.llm import platform_tools
-from app.llm.prompt import build_classic_messages, build_classic_system
+from app.llm.prompt import build_turn_messages, build_system_prompt
 from app.models import CallMode, CallRow, CallStatus, Event, HandoffArea, HandoffLeg
 from app.services import calls as call_service
 from app.services import handoff, quota
@@ -250,7 +250,7 @@ def test_transfer_call_sets_the_handoff():
 def test_transfer_call_lists_areas_and_history_keeps_the_person(api, admin):
     from app.agents.templates import ReferenceDefinitions
 
-    workflow = ReferenceDefinitions().get("sales_discovery_classic", 1)
+    workflow = ReferenceDefinitions().get("sales_discovery", 1)
     state = ConversationState(conversation_id="x", agent_id="a", fields={}, messages=[
         Message(role="assistant", text="Hola"), Message(role="user", text="Quiero hablar con alguien"),
         Message(role="assistant", text="Te paso con Ventas, un momento por favor."),
@@ -265,8 +265,8 @@ def test_transfer_call_lists_areas_and_history_keeps_the_person(api, admin):
     assert "Ventas (Precios y visitas): todos los días a toda hora, atiende ahora" in transfer["description"]
     assert transfer["parameters"]["properties"]["area"]["enum"] == ["Ventas"]
     # El prompt no lleva las areas: van en la herramienta.
-    assert "Precios y visitas" not in build_classic_system(workflow, "voice", state)
-    history = build_classic_messages(workflow, state, "No, gracias")[1:]
+    assert "Precios y visitas" not in build_system_prompt(workflow, "voice", state)
+    history = build_turn_messages(workflow, state, "No, gracias")[1:]
     assert [m["role"] for m in history] == ["assistant", "user", "assistant", "assistant", "user", "assistant", "user"]
     assert history[3] == {"role": "assistant", "content": "Hola, soy Juan", "name": "Juan"}
     assert "name" not in history[4]
@@ -276,7 +276,7 @@ def test_agent_handoff_areas_are_validated(api, admin):
     c, _, areas = setup_call(api, admin)
     other = make_client(admin, slug="otro")
     other_area = admin.post(f"{V1}/handoff-areas", params={"client_id": other["id"]}, json={"name": "X"}).json()
-    agent = make_agent(admin, c, template="sales_discovery_classic", slug="ventas_classic")
+    agent = make_agent(admin, c, template="sales_discovery", slug="ventas_texto")
     definition = admin.get(f"{V1}/agents/{agent['id']}").json()["definition"]
 
     def save(handoff_cfg):
@@ -297,7 +297,7 @@ def test_agent_handoff_areas_are_validated(api, admin):
 
 def test_area_used_by_an_agent_is_not_deleted(api, admin):
     c, _, areas = setup_call(api, admin)
-    agent = make_agent(admin, c, template="sales_discovery_classic", slug="ventas_classic")
+    agent = make_agent(admin, c, template="sales_discovery", slug="ventas_texto")
     definition = admin.get(f"{V1}/agents/{agent['id']}").json()["definition"]
     admin.put(f"{V1}/agents/{agent['id']}/definition",
               json={"definition": {**definition, "handoff": {"areas": [{"area_id": areas[0]["id"]}]}}})

@@ -104,7 +104,7 @@ def render_variables(text: str) -> str:
             .replace("{{now}}", f"{WEEKDAYS[now.weekday()]} {now:%Y-%m-%d %H:%M}"))
 
 
-def build_classic_system(workflow: Workflow, channel: str = "voice", state: ConversationState | None = None) -> str:
+def build_system_prompt(workflow: Workflow, channel: str = "voice", state: ConversationState | None = None) -> str:
     """El agente en un prompt de sistema, sacado de su definicion: quien es, el canal, el objetivo, los datos,
     sus reglas, la base de conocimiento y los cierres. Con el estado de una llamada de campaña suma los datos del
     contacto y los campos que ya vienen cargados."""
@@ -139,12 +139,12 @@ CIERRES (mensaje de despedida según el resultado):
 {chr(10).join(outcomes)}{greeting}"""
 
 
-def build_classic_messages(workflow: Workflow, state: ConversationState, user_message: str) -> list[dict]:
+def build_turn_messages(workflow: Workflow, state: ConversationState, user_message: str) -> list[dict]:
     """Por WhatsApp, los mensajes del usuario que llegaron como audio llevan VOICE_NOTE_TAG."""
     whatsapp = state.channel == "whatsapp"
     media = state.media if whatsapp else None
-    content = _classic_text(user_message, bool(media and media.user_voice_note))
-    return [{"role": "system", "content": build_classic_system(workflow, state.channel, state)},
+    content = _turn_text(user_message, bool(media and media.user_voice_note))
+    return [{"role": "system", "content": build_system_prompt(workflow, state.channel, state)},
             *classic_history(state.messages, whatsapp), {"role": "user", "content": content}]
 
 
@@ -153,12 +153,12 @@ def classic_history(messages: list[Message], whatsapp: bool) -> list[dict]:
     assistant con su nombre (`name`), y lo que dijo quien llama, como user."""
     out: list[dict] = []
     for m in messages:
-        item = {"role": m.role, "content": _classic_text(m.text, whatsapp and m.role == "user" and m.voice_note)}
+        item = {"role": m.role, "content": _turn_text(m.text, whatsapp and m.role == "user" and m.voice_note)}
         if m.person:
             item["name"] = "".join(c if c.isalnum() else "_" for c in m.person)[:64]
         out.append(item)
     return out
 
 
-def _classic_text(text: str, voice_note: bool) -> str:
+def _turn_text(text: str, voice_note: bool) -> str:
     return f"{VOICE_NOTE_TAG} {text}" if voice_note else text

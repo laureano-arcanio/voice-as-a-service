@@ -84,8 +84,8 @@ work/eval/<voz>/llamada/    <sistema>_s<semilla>/  (28 oraciones de una llamada 
    - Entrenar el 1.7B necesita **17 GB**, así que hay que parar el servicio de esa GPU y
      **confirmarlo con el usuario antes**.
    - En este server (reparto de CAP-001): `vllm-tts` y `stt-parakeet` están en la GPU 1.
-     `docker stop voice-as-a-service-vllm-tts-1` libera ~13 GB de la GPU 1 (quedan el STT, ~1,6 GB,
-     y el escritorio): entrenar en la GPU 1.
+     `make stop S=vllm-tts` libera ~13 GB de la GPU 1 (quedan el STT, ~1,6 GB, y el escritorio):
+     entrenar en la GPU 1. Al terminar, `make start S=vllm-tts` (o `make up-inference` si cambió el checkpoint).
    - **Fijar la GPU antes de los pasos:** `run.sh` usa la GPU 0 por defecto, que es la del LLM en
      vivo. Exportarla una vez en la terminal (`export GPU=1` en este server; el reparto vigente está
      en `AGENTS.md`) y confirmarla con `nvidia-smi`. Los comandos de abajo la heredan; los que dicen
@@ -223,7 +223,7 @@ Y desde la raíz: `make up-inference` (levanta los tres servicios de inferencia,
   (modo remoto). Un nombre que no está da 400 en cada frase.
 - Si solo cambian los pesos y no el nombre del modelo ni la voz, alcanza con `make up-inference`.
 - `make up-agent` construye la imagen con el árbol de trabajo. Si hay cambios de otra sesión en
-  `app/` sin terminar, `docker compose up -d --no-build --no-deps agent` relee el `.env` con la
+  `app/` sin terminar, `make calls-active && make recreate S=agent` relee el `.env` con la
   imagen actual.
 
 Verificación sobre lo servido (sin GPU):

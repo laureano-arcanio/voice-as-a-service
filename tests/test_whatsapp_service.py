@@ -122,7 +122,7 @@ class Wa:
     pass
 
 
-def make_wa(sessions, template="demo_booking_classic", llm=None, graph=None, audio=None,
+def make_wa(sessions, template="demo_booking", llm=None, graph=None, audio=None,
             record_audio=False, wa_session_minutes=None) -> Wa:
     w = Wa()
     with sessions() as s:
@@ -458,16 +458,6 @@ async def test_sweep_respeta_la_ventana_del_agente(sessions):
     assert await w.service.sweep() == 1
     await w.service.drain()
     assert len(w.llm.extract_calls) == 1
-
-
-async def test_paused_thread_is_not_answered(sessions):
-    w = make_wa(sessions, llm=FakeLLM(reply(), reply()))
-    await send(w, text_payload("hola", "wamid.1"))
-    with sessions() as s:
-        s.scalar(select(WaThread)).paused = True
-        s.commit()
-    await send(w, text_payload("hola?", "wamid.2"))
-    assert len(w.graph.sent) == 1 and len(conversations(sessions)) == 1
 
 
 async def test_with_real_graph_client(sessions):

@@ -3,20 +3,14 @@ estado por turno y una sola extraccion al final."""
 from app.agents.templates import load_reference
 from app.conversation.engine import ConversationEngine
 from app.conversation.models import AgentTurn, ConversationState, Message
-from app.llm.prompt import build_classic_messages, build_classic_system
+from app.llm.prompt import build_turn_messages, build_system_prompt
 
 from .helpers import FakeLLM, turn_and_extract
 
 
-def test_the_classic_suffix_is_the_same_agent():
-    base, classic = load_reference("berlin_signup"), load_reference("berlin_signup_classic")
-    assert not hasattr(base, "engine") and base.external is None
-    assert classic.knowledge == base.knowledge and classic.fields == base.fields
-
-
 def test_the_system_prompt_comes_from_the_yaml():
-    wf = load_reference("berlin_signup_classic")
-    system = build_classic_system(wf)
+    wf = load_reference("berlin_signup")
+    system = build_system_prompt(wf)
     assert wf.conversation.rules[0] in system
     assert "Live Running Team" in system                                  # base de conocimiento
     assert "¿Qué actividad te gustaría hacer, o qué estás buscando?" in system
@@ -26,11 +20,11 @@ def test_the_system_prompt_comes_from_the_yaml():
 
 
 def test_the_conversation_goes_as_messages():
-    wf = load_reference("berlin_signup_classic")
+    wf = load_reference("berlin_signup")
     state = ConversationState(conversation_id="c", agent_id=wf.id, fields={},
                               messages=[Message(role="assistant", text="Hola."), Message(role="user", text="Hola."),
                                         Message(role="assistant", text="¿Qué actividad?")])
-    messages = build_classic_messages(wf, state, "Yoga.")
+    messages = build_turn_messages(wf, state, "Yoga.")
     assert [m["role"] for m in messages] == ["system", "assistant", "user", "assistant", "user"]
     assert messages[-1]["content"] == "Yoga."
 
@@ -41,7 +35,7 @@ async def test_no_extraction_until_the_end(store):
                   extractions=[{"wants_pitch": True, "activity": "yoga", "zone": "Centro", "wants_link": True,
                                 "same_number": True, "contact_name": "Ana"}])
     engine = ConversationEngine(llm, store)
-    state, _ = engine.start_conversation("berlin_signup_classic")
+    state, _ = engine.start_conversation("berlin_signup")
     cid = state.conversation_id
     state, _ = await turn_and_extract(engine, cid, "Sí, quiero hacer yoga.")
     assert llm.extract_calls == [] and all(v is None for v in state.fields.values())
@@ -54,7 +48,7 @@ async def test_no_extraction_until_the_end(store):
 async def test_hangup_extracts_without_outcome(store):
     llm = FakeLLM(AgentTurn(assistant_message="¿Por qué zona?"), extractions=[{"activity": "yoga"}])
     engine = ConversationEngine(llm, store)
-    state, _ = engine.start_conversation("berlin_signup_classic")
+    state, _ = engine.start_conversation("berlin_signup")
     cid = state.conversation_id
     await turn_and_extract(engine, cid, "Yoga.")
     await engine.finish(cid)
@@ -74,7 +68,7 @@ async def test_finish_after_completed_does_not_extract_again(store):
 # ---------- telefono (dato tipo phone): sin numero de la llamada, hay que pedirlo ----------
 
 def _with_phone():
-    wf = load_reference("berlin_signup_classic").model_copy(deep=True)   # la de referencia esta en cache
+    wf = load_reference("berlin_signup").model_copy(deep=True)   # la de referencia esta en cache
     from app.conversation.models import FieldSpec
     wf.fields["telefono"] = FieldSpec(priority=1, description="Teléfono de contacto", type="phone", required=True,
                                       question="¿A qué número te llamamos?")
@@ -89,7 +83,7 @@ def _state(wf, **fields):
 def test_phone_is_one_more_field():
     """El telefono es un dato mas: sin recordatorio oculto en el turno del usuario ni reglas propias."""
     wf = _with_phone()
-    messages = build_classic_messages(wf, _state(wf), "Quiero anotarme.")
+    messages = build_turn_messages(wf, _state(wf), "Quiero anotarme.")
     assert messages[-1]["content"] == "Quiero anotarme."
     assert "- telefono (obligatorio): Teléfono de contacto. Pregunta sugerida: ¿A qué número te llamamos?" \
         in messages[0]["content"]

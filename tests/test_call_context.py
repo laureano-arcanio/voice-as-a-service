@@ -2,7 +2,7 @@
 `contact_id` y `context`): el telefono y los datos salen del contacto y el motivo va al prompt."""
 from app.agents.templates import reference_data
 from app.conversation.contact import MAX_CONTEXT_CHARS, prompt_block
-from app.llm.prompt import build_classic_system, build_extraction_prompt
+from app.llm.prompt import build_system_prompt, build_extraction_prompt
 
 from .test_api import V1, admin, make_agent, make_client  # noqa: F401  (admin: fixture)
 
@@ -56,7 +56,7 @@ def test_classic_prompt_has_the_context(api, admin):
     out = admin.post(f"{V1}/calls", json={"agent_id": agent["id"], "phone": "+5491155551234",
                                           "context": MOTIVO}).json()
     state = api.engine.store.get(out["conversation_id"])
-    assert MOTIVO in build_classic_system(api.engine.workflow(state), "voice", state)
+    assert MOTIVO in build_system_prompt(api.engine.workflow(state), "voice", state)
 
 
 def test_without_context_nothing_changes(api, admin):

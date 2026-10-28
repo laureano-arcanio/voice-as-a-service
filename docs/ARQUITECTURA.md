@@ -104,7 +104,7 @@ web/                 SPA React (ver "Frontend")
 crm/                 FastAPI propio: routes (leads, outreach, reminders), services (Resend, GA, envío), migrations
 tools-runner/        server.ts (POST /run) y runner.js (un proceso Deno por ejecución); egress/ (Smokescreen)
 landing/             sitio público Astro ([`features/LANDING.md`](features/LANDING.md))
-migrations/          Alembic, 0001 a 0041
+migrations/          Alembic, 0001 a 0042
 tests/               pytest, solo con LLM falso
 scripts/             ops, capacidad, loadtest, evals, dev_backend.sh
 ```
@@ -119,7 +119,7 @@ usan los mismos servicios (el MCP, por dentro de `/api/v1`).
 `api_requests`, 0023-0024 equipo, derivaciones y eventos, 0025-0026 funciones por plan, 0028-0029 OAuth y uso
 del MCP, 0030 agente propio por plan, 0031 legal, 0032 herramientas, 0033 un solo motor y `tool_versions`, 0034
 marca blanca, 0035 secretos y credenciales del cliente, 0036 reportes, 0037 `tiers.internal`, 0038 app de Meta
-propia, 0039 llamadas directas, 0040-0041 agenda.
+propia, 0039 llamadas directas, 0040-0041 agenda, 0042 limpieza (columnas sin uso y slug `demo_booking`).
 
 ## Modelo de datos
 
@@ -202,7 +202,7 @@ Detalle en [`features/WHATSAPP.md`](features/WHATSAPP.md).
 |---|---|
 | `wa_accounts` | Un número: `phone_number_id` único, `waba_id`, `business_id`, número visible, `client_id`, `agent_id` (RESTRICT), `access_token` (NULL = `WA_ACCESS_TOKEN`; cifrado con `WA_TOKEN_KEY`), `pin_enc`, `active`, `status` (`connected`, `pending`, `disconnected`) con motivo, `quality_rating`, `messaging_limit`, `source` (`manual`, `embedded_signup`, `coexistence`, `own_app`), `connected_by`. Con `own_app` (app de Meta del cliente): `app_secret` y `verify_token` cifrados y `webhook_key` (única: su webhook es `/wa/webhook/<clave>`). Sin borrado: se desactiva. |
 | `wa_routes` | Ruteo por contacto de una cuenta: `(account_id, agent_id)` con la lista `contacts` (wa_id). Un contacto en una sola regla. |
-| `wa_threads` | Una por conversación de WhatsApp: cuenta, `wa_id`, nombre del perfil, `last_user_at`, `paused`, `closed_at`. |
+| `wa_threads` | Una por conversación de WhatsApp: cuenta, `wa_id`, nombre del perfil, `last_user_at`, `closed_at`. |
 | `wa_messages` | Uno por `wamid` (dedupe de reenvíos de Meta), dirección, tipo, estado y error de Meta; sin contenido (el texto va en `conversations.messages`). |
 | `wa_account_status_log` | Cada cambio de estado, calidad o límite de una cuenta (reportes). |
 
@@ -330,10 +330,10 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
 - **WhatsApp:** junta los mensajes seguidos en un turno (`WA_DEBOUNCE_SECONDS`, el equivalente de la ventana de
   continuación).
 - **Agentes de referencia** (`app/agents/reference/*.json`, para seed, evals y tests; no se ofrecen en la UI):
-  `atentina_comercial` (la home, la línea y el WhatsApp de Atentina), `demo_booking` (agenda una demo; el seed lo
-  crea con el slug `demo_booking_classic`, que atiende el número de Anura y usa el test de capacidad),
+  `atentina_comercial` (la home, la línea y el WhatsApp de Atentina), `demo_booking` (agenda una demo; atiende el número
+  de Anura y lo usa el test de capacidad),
   `landing_turnos`, `landing_cobranzas` y `landing_reclamos` (la demo de la landing, sin el prefijo),
-  `sales_discovery` y `berlin_signup` (tests y `eval-llamadas`) y `eval_*` (eval del LLM y de herramientas).
+  `sales_discovery` y `berlin_signup` (tests) y `eval_*` (eval del LLM y de herramientas).
   Editarlos no cambia los agentes ya creados.
 - **Probar por texto:** `POST /api/v1/conversations {"agent_id"}` y `POST /conversations/{id}/turns {"message"}`
   (en la UI, Playground o la pestaña "Probar" del agente); aparecen con origen "API". **Por voz:**
@@ -343,8 +343,6 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
 
 | Comando | Qué mide |
 |---|---|
-| `make eval-motor [N=3] [S=escenario]` | Escenarios armados con llamadas reales (`scripts/replay_calls.py`): resultado y señales de loop. |
-| `make eval-llamadas [N=5] [W=...]` | Llamadas reales de `berlin_signup` repetidas tal cual (`scripts/replay_transcripts.py`): datos finales y resultado contra lo esperado. |
 | `make eval-llm`, `make eval-llm-juez` | Calidad del LLM por tipo de agente y de cliente, con cliente simulado y juez ([`eval/`](eval/README.md)). |
 | `make eval-tools LLM=...` | Llamadas a herramientas con un LLM real ([`features/HERRAMIENTAS.md`](features/HERRAMIENTAS.md)). |
 
