@@ -29,7 +29,7 @@ import {
 import { type ReactNode, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { LiveBadge } from '@/components/Badges';
-import { useUpsertContacts } from '@/features/contacts/api';
+import { useUpsertContact } from '@/features/contacts/api';
 import { formatDuration } from '@/lib/format';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { type CallPhase, type CallResult, DTMF_KEYS, useDirectCall, usePresence } from './context';
@@ -250,10 +250,10 @@ function LiveBar() {
 }
 
 function SaveContactModal({ phone, onClose }: { phone: string; onClose: () => void }) {
-  const save = useUpsertContacts();
+  const save = useUpsertContact();
   const [name, setName] = useState('');
   const submit = () =>
-    save.mutate([{ phone, name: name.trim() || null }], {
+    save.mutate({ phone, name: name.trim() || null }, {
       onSuccess: (r) => {
         notifySuccess(r.created ? 'Contacto guardado.' : 'Ese teléfono ya estaba en la agenda.');
         onClose();

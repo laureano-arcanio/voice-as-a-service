@@ -1,5 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { notifications } from '@mantine/notifications';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Contact } from '@/api/types';
 import { CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
@@ -201,16 +202,37 @@ describe('contactos: alta e importación', () => {
     await waitFor(() =>
       expect(calls.some((c) => c.method === 'POST' && c.path === '/api/v1/contacts')).toBe(true),
     );
-    expect(calls.find((c) => c.method === 'POST')?.body).toEqual([
-      {
-        phone: '351 555-1234',
-        name: 'Ana',
-        email: null,
-        external_id: null,
-        tags: [],
-        attributes: { deuda: 15000 },
-      },
-    ]);
+    // Un objeto solo, no una lista: así un rechazo vuelve como error y no como "ya existía".
+    expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
+      phone: '351 555-1234',
+      name: 'Ana',
+      email: null,
+      external_id: null,
+      tags: [],
+      attributes: { deuda: 15000 },
+    });
+  });
+
+  it('muestra el motivo si el alta se rechaza', async () => {
+    const show = vi.spyOn(notifications, 'show');
+    mockApi({
+      ...routes(),
+      'POST /api/v1/contacts': () =>
+        jsonResponse({ detail: 'Contacto inválido: email inválido', code: 'invalid' }, 400),
+    });
+    renderWithProviders(<ContactsPage />, { me: CLIENT_USER });
+    await userEvent.click(await screen.findByRole('button', { name: /Nuevo contacto/ }));
+    await userEvent.type(await screen.findByLabelText('Teléfono'), '351 555-1234');
+    await userEvent.type(screen.getByLabelText('Email'), 'laureano');
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar contacto' }));
+    await waitFor(() =>
+      expect(show).toHaveBeenCalledWith(
+        expect.objectContaining({ color: 'red', message: expect.stringMatching(/email inválido/) }),
+      ),
+    );
+    expect(show).not.toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringMatching(/ya estaba en la agenda/) }),
+    );
   });
 
   it('importa un CSV con vista previa y muestra creados, archivados e inválidos', async () => {

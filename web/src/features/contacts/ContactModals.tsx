@@ -19,7 +19,7 @@ import { IconFileUpload, IconInfoCircle, IconPlus, IconTrash } from '@tabler/ico
 import { useMemo, useState } from 'react';
 import type { Contact, ContactRejected, ContactsUpsert } from '@/api/types';
 import { notifyError, notifySuccess } from '@/lib/notify';
-import { useImportContacts, useTagSuggestions, useUpdateContact, useUpsertContacts } from './api';
+import { useImportContacts, useTagSuggestions, useUpdateContact, useUpsertContact } from './api';
 import { previewCsv, ROLE_LABEL } from './csv';
 import { parseAttribute } from './labels';
 
@@ -229,7 +229,7 @@ const toRows = (a: Record<string, unknown> | undefined): AttrRow[] =>
 
 /** Alta y edicion de un contacto. El telefono solo se carga al crear: otro telefono es otro contacto. */
 export function ContactModal({ contact, onClose }: { contact: Contact | null; onClose: () => void }) {
-  const create = useUpsertContacts();
+  const create = useUpsertContact();
   const update = useUpdateContact(contact?.id ?? '');
   const suggestions = useTagSuggestions(contact?.client_id);
   const form = useForm({
@@ -272,7 +272,7 @@ export function ContactModal({ contact, onClose }: { contact: Contact | null; on
         onError: (e) => notifyError(e, 'No se pudo guardar'),
       });
     else
-      create.mutate([{ phone: v.phone.trim(), ...common }], {
+      create.mutate({ phone: v.phone.trim(), ...common }, {
         onSuccess: (r) => {
           notifySuccess(
             r.created

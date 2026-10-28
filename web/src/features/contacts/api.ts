@@ -88,10 +88,12 @@ function useInvalidate() {
   };
 }
 
-export function useUpsertContacts(clientId?: string) {
+/** Alta de un contacto (upsert por teléfono). Va solo, no en lista: así una fila rechazada (dato inválido o
+ * tope del plan) vuelve como error con el motivo, en vez de un 200 con `invalid` que parece "ya existía". */
+export function useUpsertContact(clientId?: string) {
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: (body: ContactIn[]) =>
+    mutationFn: (body: ContactIn) =>
       unwrap(api.POST('/api/v1/contacts', { params: { query: { client_id: clientId } }, body })),
     onSuccess: invalidate,
   });
