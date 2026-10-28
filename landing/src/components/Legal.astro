@@ -10,12 +10,13 @@ interface Props {
   description: string;
   path: string;
   updated: string;
+  noindex?: boolean;
 }
 
-const { title, description, path, updated } = Astro.props;
+const { title, description, path, updated, noindex = false } = Astro.props;
 ---
 
-<Base title={`${title} · Atentina`} description={description} path={path}>
+<Base title={`${title} · Atentina`} description={description} path={path} noindex={noindex}>
   <Nav />
   <main class="mx-auto max-w-[760px] px-5 pt-[104px] pb-20 max-[900px]:pt-[136px]">
     <h1>{title}</h1>

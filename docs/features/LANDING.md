@@ -197,10 +197,14 @@ voseo, sin superlativos, categoría "agentes con IA que atienden a tus clientes"
   `WebSite` (home), `Service` con planes como `Offer` en ARS por mes, `FAQPage` con los mismos `items` que `Faq`,
   `BreadcrumbList` (verticales y capacidades). JSON con `<` escapado. Validar con la prueba de resultados
   enriquecidos de Google después de cada deploy.
-- **Sitemap:** `@astrojs/sitemap` en `astro.config.mjs` → `sitemap-index.xml` (`lastmod` = fecha del build, sin
-  `/registro` ni `/404`); `public/robots.txt` apunta ahí.
+- **Sitemap:** `@astrojs/sitemap` en `astro.config.mjs` → `sitemap-index.xml`, sin `lastmod` (con la fecha del
+  build todas las páginas cambiaban en cada deploy), sin `/registro`, `/404` ni las versiones de `/terminos` y
+  `/privacidad`; `public/robots.txt` apunta ahí.
 - **Metas:** `robots` `index, follow, max-image-preview:large` por defecto; prop `noindex` de `Base` (usado en
-  `/registro` y el 404). `og:image:alt` y `twitter:*` salen de los mismos props. Un `h1` por página, todo dentro de
+  `/registro`, el 404 y `/terminos/<versión>` y `/privacidad/<versión>`, que competían con la vigente).
+- **Hosts del panel** (`app.`, `telefono.`, `llamar.` y cualquier otro que llegue al app): `web/public/robots.txt`
+  con `Disallow: /`. Sin él, la SPA devolvía su `index.html` y Google rastreaba las URLs de la API que aparecen en
+  los ejemplos de `/desarrolladores/docs/api` (9 páginas con 401 y 404 en Search Console, oct-2026). `og:image:alt` y `twitter:*` salen de los mismos props. Un `h1` por página, todo dentro de
   `<main>`.
 - **Fuentes propias** (`@fontsource-variable/bricolage-grotesque` con eje opsz, `@fontsource-variable/figtree`,
   `@fontsource/ibm-plex-mono` 400 y 500) importadas en `global.css`, con `preload` de los woff2 latinos de
@@ -256,6 +260,5 @@ cd landing && cp .env.example .env && npm run check && npm run build
   sumarlo a la Redirect Rule hacia `app.atentina.com.ar`).
 - **Redes con UDP bloqueado:** sin TURN sobre TLS (443), el audio cae a TCP 7881; si también está bloqueado, la
   llamada no conecta.
-- **Search Console:** reenviar `https://atentina.com.ar/sitemap-index.xml` (reemplazó a `sitemap.xml`) y pedir la
-  indexación de las páginas de `/plataforma`. Importar la propiedad en Bing Webmaster Tools.
+- **Search Console:** importar la propiedad en Bing Webmaster Tools.
 - **DMARC:** está en `p=none`; endurecer a `p=quarantine` cuando los reportes muestren todo alineado.

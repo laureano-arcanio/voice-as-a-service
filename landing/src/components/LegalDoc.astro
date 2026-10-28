@@ -1,6 +1,7 @@
 ---
 // Una versión de las condiciones o de la política de privacidad (data/legal.ts). La vigente va en /<slug>; cada
 // versión, también la vigente, en /<slug>/<versión> (link permanente: es lo que se acepta en el registro).
+// Las versiones van con noindex y fuera del sitemap: en Google compiten con /<slug> (la vigente es un duplicado).
 import { type LegalSlug, legal, legalContent, versionDate } from "../data/legal";
 import Legal from "./Legal.astro";
 
@@ -24,6 +25,7 @@ const others = [...doc.versions].reverse();
   description={description}
   path={Astro.props.version ? `/${slug}/${version}` : `/${slug}`}
   updated={`${versionDate(version)} · versión ${version}`}
+  noindex={Boolean(Astro.props.version)}
 >
   {
     !current && (
