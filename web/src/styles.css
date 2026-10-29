@@ -456,3 +456,15 @@ details.llm summary {
 .phone-contact[data-active] {
   background: var(--mantine-color-blue-light);
 }
+
+/* Acciones de la fila (Conversaciones): fijas a la derecha aunque la tabla tenga scroll horizontal. */
+.row-actions {
+  position: sticky;
+  right: 0;
+  background: var(--mantine-color-body);
+  box-shadow: -1px 0 0 var(--app-line);
+}
+
+tr:hover > .row-actions {
+  background: var(--table-hover-color, var(--mantine-color-body));
+}

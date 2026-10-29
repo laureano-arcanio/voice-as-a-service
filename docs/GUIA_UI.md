@@ -353,7 +353,9 @@ alcanza. En la navegación, arriba de todo.
 - Se puede filtrar por campaña (también en Reportes): los intentos de una campaña de llamadas y las
   conversaciones que abrió la respuesta de un contacto.
 - Tabla paginada, filtrable además por estado y origen. Las de WhatsApp no tienen estado ni duración y
-  muestran el teléfono del contacto. Cada fila lleva al detalle.
+  muestran el teléfono del contacto. Lo secundario va en una segunda línea de su columna (cliente bajo el agente,
+  teléfono bajo el origen, duración y workflow bajo el estado, datos obtenidos bajo el resultado) y las acciones
+  (ver, ver como el cliente, borrar) son íconos fijos a la derecha, a la vista aunque la tabla tenga scroll.
 - **Llamadas del equipo** (planes con llamadas directas): el origen **Directa** es la que hace una persona desde
   Teléfono, y **Entrante del equipo** la que atendió una persona en un número del equipo. Sin agente, la columna
   del agente dice "Llamó: Ana" o "Atendió: Ana" (o "Atendió: nadie"), y no tienen datos obtenidos ni resultado.

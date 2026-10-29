@@ -95,7 +95,7 @@ describe('conversaciones', () => {
     mockApi(listRoutes([CALL]));
     renderWithProviders(<ConversationsPage />, { me: CLIENT_USER });
 
-    expect(await screen.findByRole('link', { name: 'Ver detalle' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Ver conversación' })).toBeInTheDocument();
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Borrar conversación' })).not.toBeInTheDocument();
   });

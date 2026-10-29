@@ -13,7 +13,7 @@ import {
   Title,
   Tooltip,
 } from '@mantine/core';
-import { IconLogin2, IconTrash } from '@tabler/icons-react';
+import { IconEye, IconLogin2, IconTrash } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import type { CallSummary } from '@/api/types';
@@ -234,7 +234,9 @@ export function CallsTable({
           lanzá una llamada arriba o usá el modo prueba.
         </EmptyState>
       ) : (
-        <Table.ScrollContainer minWidth={1000}>
+        // Lo secundario va debajo de su columna (cliente, workflow, duración, datos) y las acciones quedan fijas
+        // a la derecha: así ver y borrar están a la vista aunque la tabla tenga scroll.
+        <Table.ScrollContainer minWidth={760}>
           <Table style={{ whiteSpace: 'nowrap' }}>
             <Table.Thead>
               <Table.Tr>
@@ -249,16 +251,12 @@ export function CallsTable({
                   </Table.Th>
                 )}
                 <Table.Th>Fecha</Table.Th>
-                {showClient && <Table.Th>Cliente</Table.Th>}
-                <Table.Th>Agente</Table.Th>
+                <Table.Th>{showClient ? 'Agente y cliente' : 'Agente'}</Table.Th>
                 <Table.Th>Contacto</Table.Th>
                 <Table.Th>Origen</Table.Th>
                 <Table.Th>Estado</Table.Th>
-                <Table.Th ta="right">Duración</Table.Th>
-                <Table.Th ta="right">Datos</Table.Th>
-                {showWorkflow && <Table.Th>Workflow</Table.Th>}
                 <Table.Th>Resultado</Table.Th>
-                <Table.Th />
+                <Table.Th className="row-actions" />
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
@@ -274,7 +272,6 @@ export function CallsTable({
                     </Table.Td>
                   )}
                   <Table.Td>{formatDateTime(c.created_at)}</Table.Td>
-                  {showClient && <Table.Td>{c.client_name ?? '–'}</Table.Td>}
                   <Table.Td>
                     {c.agent_id && isAdmin && c.client_id ? (
                       // El editor del agente es del panel del cliente: el admin entra como el cliente.
@@ -299,6 +296,11 @@ export function CallsTable({
                         v{c.agent_version}
                       </Text>
                     )}
+                    {showClient && (
+                      <Text size="xs" c="dimmed">
+                        {c.client_name ?? '–'}
+                      </Text>
+                    )}
                   </Table.Td>
                   <Table.Td>
                     {formatValue(c.contact_name) || <Dash />}
@@ -309,35 +311,49 @@ export function CallsTable({
                     )}
                   </Table.Td>
                   <Table.Td>
-                    <OriginBadge mode={c.mode} phone={c.phone} answeredBy={c.answered_by} />
+                    <OriginBadge mode={c.mode} answeredBy={c.answered_by} />
+                    {c.phone && (
+                      <Text size="xs" c="dimmed" className="mono">
+                        {c.phone}
+                      </Text>
+                    )}
                   </Table.Td>
                   <Table.Td>
                     <CallStatusBadge status={c.status} endedReason={c.ended_reason} />
+                    {(!!c.duration_seconds || (showWorkflow && c.workflow_status)) && (
+                      <Group gap={6} wrap="nowrap" mt={2}>
+                        {!!c.duration_seconds && (
+                          <Text size="xs" c="dimmed" className="mono">
+                            {formatDuration(c.duration_seconds)}
+                          </Text>
+                        )}
+                        {showWorkflow && c.workflow_status && <WorkflowBadge status={c.workflow_status} />}
+                      </Group>
+                    )}
                   </Table.Td>
-                  <Table.Td ta="right" className="mono">
-                    {formatDuration(c.duration_seconds)}
-                  </Table.Td>
-                  <Table.Td ta="right" className="mono">
-                    {c.agent_id || c.required ? `${c.captured}/${c.required}` : '–'}
-                  </Table.Td>
-                  {showWorkflow && (
-                    <Table.Td>
-                      <WorkflowBadge status={c.workflow_status} />
-                    </Table.Td>
-                  )}
                   <Table.Td>
                     <OutcomeBadge label={c.outcome} goal={c.goal} />
+                    {!!(c.agent_id || c.required) && (
+                      <Text size="xs" c="dimmed">
+                        <span className="mono">
+                          {c.captured}/{c.required}
+                        </span>{' '}
+                        datos
+                      </Text>
+                    )}
                   </Table.Td>
-                  <Table.Td ta="right">
+                  <Table.Td ta="right" className="row-actions">
                     <Group gap={4} justify="flex-end" wrap="nowrap">
-                      <Button
-                        component={Link}
-                        to={areaPath(`/calls/${c.id}`)}
-                        variant="subtle"
-                        size="compact-sm"
-                      >
-                        Ver detalle
-                      </Button>
+                      <Tooltip label="Ver conversación">
+                        <ActionIcon
+                          component={Link}
+                          to={areaPath(`/calls/${c.id}`)}
+                          variant="subtle"
+                          aria-label="Ver conversación"
+                        >
+                          <IconEye size={16} />
+                        </ActionIcon>
+                      </Tooltip>
                       {isAdmin && c.client_id && (
                         <Tooltip label="Ver como el cliente">
                           <ActionIcon
