@@ -117,6 +117,7 @@ function NewTemplateModal({ account, onClose }: { account: WaAccount; onClose: (
             <TextInput
               label="Nombre"
               description="Minúsculas, números y _ (ej. recordatorio_turno)."
+              inputWrapperOrder={['label', 'input', 'description', 'error']}
               classNames={{ input: 'mono' }}
               data-autofocus
               {...form.getInputProps('name')}
