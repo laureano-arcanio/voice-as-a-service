@@ -440,7 +440,7 @@ describe('ReportsPage, pestañas con datos', () => {
     expect(screen.queryByText('Por usuario')).not.toBeInTheDocument();
   });
 
-  it('plataforma: tabla de clientes y alertas', async () => {
+  it('plataforma: alertas, sin tabla de clientes', async () => {
     mockApi({
       '/api/v1/clients': [],
       '/api/v1/agents': [],
@@ -474,6 +474,7 @@ describe('ReportsPage, pestañas con datos', () => {
     renderWithProviders(<ReportsPage />, { me: ADMIN, path: '/reports?tab=platform' });
     expect(await screen.findByText('Cerca del cupo')).toBeInTheDocument();
     expect(screen.getAllByText('$ 29.000', { selector: 'p' })).toHaveLength(2);
+    expect(screen.queryByText('Último uso')).not.toBeInTheDocument();
   });
 });
 

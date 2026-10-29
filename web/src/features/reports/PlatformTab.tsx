@@ -1,49 +1,17 @@
 import { BarChart, LineChart } from '@mantine/charts';
 import { Anchor, Badge, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { EmptyState, QueryState } from '@/components/QueryState';
-import { formatArs, formatDateTime, formatDayLabel, formatNumber } from '@/lib/format';
+import { formatArs, formatDayLabel, formatNumber } from '@/lib/format';
 import { useReport } from './api';
-import { pct } from './format';
 import { ALERT_KIND, REJECT_REASON, label } from './labels';
 import { KpiGrid, ReportCard, TableCard, type Column } from './parts';
-import type { PlatformClientRow, PlatformReport, ReportQuery } from './types';
+import type { PlatformReport, ReportQuery } from './types';
 
 type Alert = PlatformReport['alerts'][number];
-
-const signed = (v: number | null) => (v == null ? '–' : `${v >= 0 ? '+' : ''}${formatNumber(v, 0)} %`);
 
 /** Toda la plataforma (admin, cliente "Todos"). `onClient` filtra la pantalla por ese cliente. */
 export function PlatformTab({ query, onClient }: { query: ReportQuery; onClient: (id: string) => void }) {
   const report = useReport('platform', query);
-
-  const clientCols: Column<PlatformClientRow>[] = [
-    {
-      label: 'Cliente',
-      value: 'name',
-      render: (r) => (
-        <Anchor component="button" type="button" size="sm" onClick={() => onClient(r.client_id)}>
-          {r.name}
-        </Anchor>
-      ),
-    },
-    { label: 'Tier', value: 'tier' },
-    { label: 'Conversaciones', value: 'conversations', num: true },
-    { label: 'Minutos', value: 'minutes', num: true },
-    {
-      label: '% del cupo',
-      value: 'quota_pct',
-      num: true,
-      render: (r) => (
-        <Text span inherit c={r.quota_pct != null && r.quota_pct >= 80 ? 'yellow' : undefined}>
-          {pct(r.quota_pct)}
-        </Text>
-      ),
-    },
-    { label: '% completas', value: 'conversion_pct', num: true, render: (r) => pct(r.conversion_pct) },
-    { label: 'Errores', value: 'errors', num: true },
-    { label: 'Último uso', value: 'last_activity_at', render: (r) => formatDateTime(r.last_activity_at) },
-    { label: 'Variación', value: 'delta_pct', num: true, render: (r) => signed(r.delta_pct) },
-  ];
 
   const alertCols: Column<Alert>[] = [
     {
@@ -94,14 +62,6 @@ export function PlatformTab({ query, onClient }: { query: ReportQuery; onClient:
               columns={alertCols}
               empty="Sin alertas."
               rowKey={(x) => `${x.kind}-${x.client_id}`}
-            />
-            <TableCard
-              title="Clientes"
-              description="Click en un encabezado para ordenar; en un cliente, para ver sus reportes."
-              rows={r.clients}
-              columns={clientCols}
-              sortable
-              rowKey={(x) => x.client_id}
             />
             <KpiGrid
               kpis={[
