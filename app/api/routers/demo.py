@@ -97,7 +97,7 @@ async def create_account(body: SignupIn, request: Request, db: DB):
     if body.website:   # trampa para bots: parece que anduvo
         return SignupOut(continue_url=settings.site_url)
     url = await signup.signup(db, signup.SignupData(company=body.company, name=body.name, email=str(body.email),
-                                                    password=body.password, plan=body.plan,
+                                                    password=body.password, phone=body.phone, plan=body.plan,
                                                     card_token_id=body.card_token_id,
                                                     accept_terms=body.accept_terms,
                                                     terms_version=body.terms_version,

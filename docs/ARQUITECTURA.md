@@ -86,7 +86,7 @@ app/
                      llm, oauth, billing, legal, call_links, contact
   conversation/      el motor: engine, models (Workflow = definición), workflow (validación), store, contact
                      (datos de campaña y motivo), opening_audio, recordings
-  agents/            templates/asistente.json (plantilla), reference/*.json (agentes de referencia),
+  agents/            templates/*.json (asistente y una por rubro), reference/*.json (agentes de referencia),
                      definitions.py (DbDefinitions), templates.py (GENERIC_RULES, en blanco, referencia)
   llm/               client.py (OpenAI, tools nativos, streaming), anthropic_client.py, resolver.py (qué LLM por turno),
                      prompt.py, params.py (hiperparámetros), platform_tools.py (end_call, transfer_call), external.py (tu propio agente)
@@ -156,10 +156,10 @@ incluido.
 | Tabla | Claves y reglas |
 |---|---|
 | `tiers` | Límites de llamadas: `max_concurrent_calls`, `max_calls_per_hour`/`_day`/`_month`, `inbound_minutes`, `outbound_minutes`, `max_phone_numbers`. Campañas y agenda: `campaign_channels` (`[]`, `whatsapp`, `voice`), `max_campaigns_per_month`, `max_campaign_contacts`, `max_campaign_concurrency`, `max_contacts`, `campaign_followup`. Inferencia: `api_llm_input_tokens`, `api_llm_output_tokens`, `api_tts_minutes`, `api_stt_minutes`, `api_rate_limit`. Funciones: `max_call_links`, `max_team_members`, `max_tools`, `code_tools`, `whatsapp`, `external_agent`, `white_label`, `advanced_reports`, `direct_calls`. Venta: `price_ars` (NULL = no se vende por el dashboard, 0 = el gratis del registro), `public` (se ofrece en el registro y en Plan), `sort`. `internal`: el tier de Atentina, no se ofrece ni cuenta en las estadísticas. Ver "Funciones por plan". |
-| `clients` | `slug` único, `tier_id` (RESTRICT), `active`, `created_via`, datos fiscales (`legal_name`, `tax_id`, `tax_condition`), resumen por email (`call_emails`, `call_emails_to`), `direct_recording_notice`. |
+| `clients` | `slug` único, `tier_id` (RESTRICT), `active`, `created_via`, datos fiscales (`legal_name`, `tax_id`, `tax_condition`), resumen por email (`call_emails`, `call_emails_to`), `direct_recording_notice`, `industry` y `website` (asistente de primera vez, [`features/PRIMERA_VEZ.md`](features/PRIMERA_VEZ.md)). |
 | `client_limit_adjustments` | Ajuste de un límite numérico del tier para un cliente: `field`, `mode` (`add`/`set`), `value`, `starts_on`/`ends_on` (inclusive, `BILLING_TIMEZONE`), `note`, `created_by`. Ver "Límites por tier". |
 | `client_branding` | 1:1 con el cliente (PK `client_id`): `enabled`, `logo`, `logo_ratio`, `color_primary`, `color_header`, `color_accent`, `powered_by`, `updated_by`. Ver "Marca blanca". |
-| `users` | `email` único; `role` admin o client (CHECK: client ⇔ `client_id`); hash argon2; `session_version`; `welcomed_at`; `last_login_at`. |
+| `users` | `email` único; `role` admin o client (CHECK: client ⇔ `client_id`); hash argon2; `session_version`; `welcomed_at`; `last_login_at`; `phone` y `phone_verified_at` (celular del registro, verificado por WhatsApp para la llamada de prueba). |
 | `api_keys` | SHA-256 (`key_hash` único), `prefix` visible, `revoked_at`, `last_used_at`, `scopes` (ver "Autenticación"). |
 | `api_usage_daily`, `api_requests` | Consumo de la API de inferencia por día y key (pedidos, tokens, segundos de TTS/STT) y un registro por pedido (`kind`, `status`, `http_status`, `duration_ms`, `ttfb_ms`, tokens, segundos, `voice`, `source`: la API o una prueba de voz, que no suma al cupo), sin contenido ([`API_INFERENCIA.md`](API_INFERENCIA.md)). |
 | `subscriptions`, `billing_payments` | Plan pago: `method`, `status` (`pending`, `active`, `past_due`...), `current_period_end`, `grace_until`, `pending_tier_id`, `cancel_at_period_end`, `mp_preapproval_id`; pagos con `amount_ars`, `paid_on`, `period_end`, `mp_payment_id`, `recorded_by` ([`features/COBROS.md`](features/COBROS.md)). |
@@ -173,7 +173,7 @@ incluido.
 | `agents` | `(client_id, slug)` único; `version` y `definition` vigentes (copia de la última versión); `archived_at`. |
 | `agent_versions` | `(agent_id, version)`; inmutables, con `created_by`. |
 | `conversations` | Estado del motor (`fields`, `messages`, `progress`), `client_id`, `agent_id` + `agent_version` (RESTRICT; `agent_id` nulo en las directas), `channel` (`voice` o `whatsapp`, fijo al crearla), `status`. Al terminar: `outcome`, `goal`, `conversion` (`complete`, `partial`, `empty`), `llm_input_tokens`/`llm_output_tokens`. `legacy_workflow_id` para las anteriores a los agentes. |
-| `call_logs` | Una por conversación de voz: `mode` (`saliente`, `entrante`, `prueba`, `web`, `loadtest`, `directa`), `status` (`pendiente`, `sonando`, `en_curso`, `finalizada`, `fallida`, `rechazada`, `cancelada`), `phone`, `phone_number_id`, inicio, fin, `duration_seconds`, `latency`, `ended_reason`, `sip_status`, `room` (para cortar), `campaign_contact_id`, `call_link_id`, `summary_email`, `user_id` y `answered_by` (`agent`/`team`), `opted_out_confirmed`. Base del consumo. |
+| `call_logs` | Una por conversación de voz: `mode` (`saliente`, `entrante`, `prueba`, `web`, `loadtest`, `directa`, `celular`: de prueba al celular verificado, sin minutos), `status` (`pendiente`, `sonando`, `en_curso`, `finalizada`, `fallida`, `rechazada`, `cancelada`), `phone`, `phone_number_id`, inicio, fin, `duration_seconds`, `latency`, `ended_reason`, `sip_status`, `room` (para cortar), `campaign_contact_id`, `call_link_id`, `summary_email`, `user_id` y `answered_by` (`agent`/`team`), `opted_out_confirmed`. Base del consumo. |
 | `phone_numbers` | `e164` único; `client_id` NULL = libre; `agent_id` solo con cliente (CHECK); `label`, `provider`, `assigned_at`, `suspended_at`. Quién atiende: `answer_mode` (`team` o `agent`), `ring_first`, `ring_seconds`, `schedule`, `team_fallback`, `team_fallback_message`; personas en `phone_number_members`. |
 | `call_links` | Un link por agente: `token`, textos de la página, `image`, `max_call_seconds`, `max_concurrent`, `daily_minutes`, `paused`, `revoked_at` ([`features/LINK_LLAMADA.md`](features/LINK_LLAMADA.md)). |
 | `blocked_numbers` | `(client_id, phone)` con `note`: sus entrantes (línea o WhatsApp) se cortan sin atender. API `/blocked-numbers`. |
@@ -290,8 +290,9 @@ La definición es un JSON (`app/conversation/models.py`, clase `Workflow`; JSON 
 - **Versionado:** `PUT /agents/{id}/definition` crea la versión N+1 si cambió algo (con lock del agente). La
   conversación guarda `agent_version` y el motor carga siempre esa (`DbDefinitions`, cacheada por
   `(agent_id, version)`): editar no afecta las llamadas en curso ni el historial.
-- **Alta:** en blanco (un dato y el resultado por defecto) o desde la única plantilla,
-  `app/agents/templates/asistente.json` (`template_id: "asistente"`), con las reglas genéricas de comportamiento
+- **Alta:** en blanco (un dato y el resultado por defecto) o desde una plantilla de `app/agents/templates/`
+  (`asistente` y una por rubro: `salud`, `gimnasio`, `inmobiliaria`, `gastronomia`, `cobranzas`; `[EMPRESA]` y
+  `[AGENTE]` se completan al crear, con la voz opcional de `AgentCreate.voice`), con las reglas genéricas de comportamiento
   (`GENERIC_RULES` en `app/agents/templates.py`: una pregunta por turno, no inventar, cuándo cortar o derivar),
   editables como cualquier regla. La UI la edita por formulario (`web/src/features/agents/DefinitionForm.tsx`,
   `draft.ts`), con el JSON como alternativa.
@@ -653,6 +654,7 @@ configura el admin en la ficha del cliente, pestaña "Marca blanca" (`app/servic
 | `consumer_requests.py` | `/consumer-requests` (arrepentimiento y baja) | [`LEGAL.md`](features/LEGAL.md) |
 | `legal_versions.py` | `/legal/versions` (admin: cada versión de las condiciones y la privacidad) | [`LEGAL.md`](features/LEGAL.md) |
 | `demo.py` | `/demo`: `sessions`, `calls`, `tts`, `contact`, `signup`, `plans`, `legal`, `consumer-requests` | [`LANDING.md`](features/LANDING.md) |
+| `onboarding.py` | `/onboarding` (estado, `industries`, `agent`, `phone/code`, `phone/verify`, `call-me`) | [`PRIMERA_VEZ.md`](features/PRIMERA_VEZ.md) |
 | `system.py` | `/system/now|history|events|peaks` (admin) | [`OBSERVABILIDAD.md`](OBSERVABILIDAD.md) |
 
 Fuera de `/api/v1`: `/wa/webhook` y `/wa/webhook/{key}`, `/mp/billing/webhook`, `POST /mcp`, `/oauth/*` y

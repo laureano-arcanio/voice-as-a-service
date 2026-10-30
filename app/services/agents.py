@@ -6,7 +6,7 @@ from pydantic import ValidationError
 from sqlalchemy import exists, func, select
 from sqlalchemy.orm import Session
 
-from ..agents.templates import blank_definition, template_data
+from ..agents.templates import blank_definition, fill_template, template_data
 from ..conversation.models import Workflow
 from ..db import utcnow
 from ..models import (
@@ -100,13 +100,17 @@ def slugify(name: str) -> str:
 
 
 def create_agent(s: Session, client: Client, name: str, slug: str | None, description: str,
-                 definition: dict | None, template_id: str | None, user_id: str | None) -> Agent:
-    """definition, o template_id (la plantilla de la UI), o ninguno: en blanco."""
+                 definition: dict | None, template_id: str | None, user_id: str | None,
+                 voice: str | None = None) -> Agent:
+    """definition, o template_id (la plantilla de la UI, con la empresa del cliente y la voz `voice` o la de la
+    plantilla), o ninguno: en blanco."""
     if definition is not None and template_id is not None:
         raise Invalid("Pasar definition o template_id, no los dos")
+    if voice is not None and (template_id is None or voice not in voices.catalog()):
+        raise Invalid("voice va con template_id y tiene que ser una voz del catálogo (GET /voices)", "invalid_voice")
     if template_id is not None:
         try:
-            definition = template_data(template_id)
+            definition = fill_template(template_data(template_id), client.name, voice)
         except KeyError:
             raise NotFound(f"Plantilla inexistente: {template_id}") from None
     elif definition is None:

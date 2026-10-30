@@ -14078,6 +14078,251 @@
     }
    }
   },
+  "/api/v1/onboarding": {
+   "get": {
+    "tags": [
+     "onboarding"
+    ],
+    "summary": "Get Status",
+    "operationId": "get_status_api_v1_onboarding_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/OnboardingOut"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/onboarding/industries": {
+   "get": {
+    "tags": [
+     "onboarding"
+    ],
+    "summary": "List Industries",
+    "operationId": "list_industries_api_v1_onboarding_industries_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/IndustryOut"
+         },
+         "type": "array",
+         "title": "Response List Industries Api V1 Onboarding Industries Get"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/onboarding/agent": {
+   "post": {
+    "tags": [
+     "onboarding"
+    ],
+    "summary": "Create Agent",
+    "description": "Crea el agente de la plantilla del rubro con la empresa y la voz, y guarda el rubro y el sitio.",
+    "operationId": "create_agent_api_v1_onboarding_agent_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/OnboardingAgentIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AgentDetail"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/onboarding/phone/code": {
+   "post": {
+    "tags": [
+     "onboarding"
+    ],
+    "summary": "Send Phone Code",
+    "description": "Manda un código por WhatsApp al celular. Devuelve el desafío para verificarlo.",
+    "operationId": "send_phone_code_api_v1_onboarding_phone_code_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PhoneCodeIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PhoneCodeOut"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Sin verificación por WhatsApp configurada"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/onboarding/phone/verify": {
+   "post": {
+    "tags": [
+     "onboarding"
+    ],
+    "summary": "Verify Phone",
+    "operationId": "verify_phone_api_v1_onboarding_phone_verify_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PhoneVerifyIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/OnboardingOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Código incorrecto o vencido (invalid_code)"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/onboarding/call-me": {
+   "post": {
+    "tags": [
+     "onboarding"
+    ],
+    "summary": "Call Me",
+    "description": "El agente llama al celular verificado del usuario (llamada de prueba, no gasta minutos del plan).",
+    "operationId": "call_me_api_v1_onboarding_call_me_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CallMeIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CallStartedOut"
+        }
+       }
+      }
+     },
+     "409": {
+      "description": "Celular sin verificar (phone_not_verified)"
+     },
+     "429": {
+      "description": "Sin llamadas de prueba (trial_calls) o líneas ocupadas"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
   "/api/v1/oauth/authorize": {
    "get": {
     "tags": [
@@ -14358,6 +14603,19 @@
        }
       ],
       "title": "Template Id"
+     },
+     "voice": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 32
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Voice",
+      "description": "Con template_id: la voz del agente (GET /voices); el agente toma su nombre"
      }
     },
     "type": "object",
@@ -16631,6 +16889,19 @@
      "seconds_month"
     ],
     "title": "CallLinkUsageOut"
+   },
+   "CallMeIn": {
+    "properties": {
+     "agent_id": {
+      "type": "string",
+      "title": "Agent Id"
+     }
+    },
+    "type": "object",
+    "required": [
+     "agent_id"
+    ],
+    "title": "CallMeIn"
    },
    "CallPage": {
     "properties": {
@@ -21276,6 +21547,29 @@
     "title": "HoldMusicOut",
     "description": "Temas de musica de espera para workflow.handoff.hold_music.track."
    },
+   "IndustryOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "template_id": {
+      "type": "string",
+      "title": "Template Id"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "label",
+     "template_id"
+    ],
+    "title": "IndustryOut"
+   },
    "InferenceKeyUsageOut": {
     "properties": {
      "key_id": {
@@ -23086,6 +23380,95 @@
     ],
     "title": "OAuthRedirectOut"
    },
+   "OnboardingAgentIn": {
+    "properties": {
+     "industry": {
+      "type": "string",
+      "maxLength": 24,
+      "title": "Industry",
+      "description": "Uno de GET /onboarding/industries"
+     },
+     "voice": {
+      "type": "string",
+      "maxLength": 32,
+      "title": "Voice",
+      "description": "Una de GET /voices"
+     },
+     "website": {
+      "type": "string",
+      "maxLength": 200,
+      "title": "Website",
+      "description": "Sitio de la empresa (opcional)",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "industry",
+     "voice"
+    ],
+    "title": "OnboardingAgentIn"
+   },
+   "OnboardingOut": {
+    "properties": {
+     "has_agents": {
+      "type": "boolean",
+      "title": "Has Agents",
+      "description": "Con agentes sin archivar; sin ninguno, el panel muestra el asistente"
+     },
+     "industry": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Industry",
+      "description": "Rubro elegido (GET /onboarding/industries)"
+     },
+     "website": {
+      "type": "string",
+      "title": "Website"
+     },
+     "phone": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Phone",
+      "description": "Celular del usuario de la sesión, en E.164"
+     },
+     "phone_verified": {
+      "type": "boolean",
+      "title": "Phone Verified"
+     },
+     "verify_available": {
+      "type": "boolean",
+      "title": "Verify Available",
+      "description": "Si se puede verificar el celular por WhatsApp (y llamar al celular)"
+     },
+     "trial": {
+      "$ref": "#/components/schemas/TrialCallsOut"
+     }
+    },
+    "type": "object",
+    "required": [
+     "has_agents",
+     "industry",
+     "website",
+     "phone",
+     "phone_verified",
+     "verify_available",
+     "trial"
+    ],
+    "title": "OnboardingOut"
+   },
    "OutcomeOut": {
     "properties": {
      "label": {
@@ -23380,6 +23763,47 @@
      "invoiced"
     ],
     "title": "PaymentPatch"
+   },
+   "PhoneCodeIn": {
+    "properties": {
+     "phone": {
+      "type": "string",
+      "maxLength": 40,
+      "minLength": 6,
+      "pattern": "^[0-9+()\\- ]{6,40}$",
+      "title": "Phone"
+     }
+    },
+    "type": "object",
+    "required": [
+     "phone"
+    ],
+    "title": "PhoneCodeIn"
+   },
+   "PhoneCodeOut": {
+    "properties": {
+     "challenge": {
+      "type": "string",
+      "title": "Challenge"
+     },
+     "phone": {
+      "type": "string",
+      "title": "Phone"
+     },
+     "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Expires At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "challenge",
+     "phone",
+     "expires_at"
+    ],
+    "title": "PhoneCodeOut",
+    "description": "Desafio del codigo por WhatsApp: se manda de vuelta con el codigo."
    },
    "PhoneNumberBulkIn": {
     "properties": {
@@ -23808,6 +24232,28 @@
     },
     "type": "object",
     "title": "PhoneNumberUpdate"
+   },
+   "PhoneVerifyIn": {
+    "properties": {
+     "challenge": {
+      "type": "string",
+      "maxLength": 4096,
+      "minLength": 1,
+      "title": "Challenge"
+     },
+     "code": {
+      "type": "string",
+      "maxLength": 12,
+      "minLength": 4,
+      "title": "Code"
+     }
+    },
+    "type": "object",
+    "required": [
+     "challenge",
+     "code"
+    ],
+    "title": "PhoneVerifyIn"
    },
    "PlanFeatureOut": {
     "properties": {
@@ -26828,6 +27274,14 @@
       "maxLength": 256,
       "minLength": 10,
       "title": "Password"
+     },
+     "phone": {
+      "type": "string",
+      "maxLength": 40,
+      "pattern": "^$|^[0-9+()\\- ]{6,40}$",
+      "title": "Phone",
+      "description": "Celular (Argentina sin código de país o internacional con +): la llamada de prueba al celular va a este número, después de verificarlo",
+      "default": ""
      },
      "turnstile_token": {
       "type": "string",
@@ -30535,6 +30989,35 @@
      "created_at"
     ],
     "title": "ToolVersionOut"
+   },
+   "TrialCallsOut": {
+    "properties": {
+     "calls_used": {
+      "type": "integer",
+      "title": "Calls Used"
+     },
+     "calls_max": {
+      "type": "integer",
+      "title": "Calls Max"
+     },
+     "seconds_used": {
+      "type": "integer",
+      "title": "Seconds Used"
+     },
+     "seconds_max": {
+      "type": "integer",
+      "title": "Seconds Max"
+     }
+    },
+    "type": "object",
+    "required": [
+     "calls_used",
+     "calls_max",
+     "seconds_used",
+     "seconds_max"
+    ],
+    "title": "TrialCallsOut",
+    "description": "Llamadas de prueba al celular del cliente, en total (no por mes)."
    },
    "TtsPreviewIn": {
     "properties": {

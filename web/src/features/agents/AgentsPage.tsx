@@ -13,7 +13,8 @@ export function AgentsPage() {
   const [params, setParams] = useSearchParams();
   const includeArchived = params.get('archived') === '1';
   const agents = useAgents(undefined, includeArchived);
-  const [creating, create] = useDisclosure(false);
+  // ?nuevo=1 (desde Inicio): abre el alta.
+  const [creating, create] = useDisclosure(params.get('nuevo') === '1');
 
   const set = (k: string, v: string | null) =>
     setParams(

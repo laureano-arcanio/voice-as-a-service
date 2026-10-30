@@ -378,7 +378,8 @@ def number_assigned(*, email: str, name: str, client_name: str, number: str, lab
     return Mail(email, subject, html, "\n".join(lines))
 
 
-CALL_MODES = {"entrante": "Entrante", "saliente": "Saliente", "web": "Por el link para llamar"}
+CALL_MODES = {"entrante": "Entrante", "saliente": "Saliente", "web": "Por el link para llamar",
+              "celular": "Prueba a tu celular"}
 
 
 def _duration(seconds: int) -> str:
@@ -394,8 +395,9 @@ def call_summary(*, to: str, client_name: str, agent_name: str, mode: str, phone
     # phone: el de la llamada o, por el link, el que dio la persona (None si no lo dio).
     who = phone or "número oculto"
     web = f"Llamada por el link de {phone} a {agent_name}" if phone else f"Llamada por el link a {agent_name}"
-    subject = {"saliente": f"Llamada de {agent_name} a {who}", "web": web}.get(mode, f"Llamada de {who} a {agent_name}")
-    label = {"entrante": "Llamó", "saliente": "Destino"}.get(mode, "Teléfono")
+    subject = {"saliente": f"Llamada de {agent_name} a {who}", "celular": f"Llamada de {agent_name} a {who}",
+               "web": web}.get(mode, f"Llamada de {who} a {agent_name}")
+    label = {"entrante": "Llamó", "saliente": "Destino", "celular": "Destino"}.get(mode, "Teléfono")
     rows: list[tuple[str, object]] = [("Agente", agent_name), ("Tipo", CALL_MODES.get(mode, mode)),
                                       (label, phone or ("No lo dio" if mode == "web" else "Número oculto"))]
     if client_number:

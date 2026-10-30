@@ -413,6 +413,7 @@ def calls(s: Session, flt: ReportFilter) -> dict:
     daily = {d: {"date": d, **{m: 0 for m in CALL_MODES}} for d in flt.days()}
     heat: dict[tuple[int, int], int] = defaultdict(int)
     for local, mode, n in _local_hours(flt, rows):
+        mode = "prueba" if mode == "celular" else mode   # la de prueba al celular va con las de prueba
         if mode in CALL_MODES:
             daily[local.date()][mode] += n
         if mode != "directa":   # el mapa es de cuando llaman o se llama: las directas son de una persona

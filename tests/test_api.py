@@ -283,8 +283,11 @@ def test_archived_agent_cannot_call_and_used_agent_cannot_be_deleted(api, admin)
 
 
 def test_templates_and_schema(api, admin):
-    # La UI ofrece una sola plantilla; los agentes de referencia (seed, eval, tests) no.
-    assert [t["id"] for t in admin.get(f"{V1}/agent-templates").json()] == ["asistente"]
+    # La UI ofrece el asistente basico y una por rubro; los agentes de referencia (seed, eval, tests) no.
+    templates = admin.get(f"{V1}/agent-templates").json()
+    assert [t["id"] for t in templates] == ["asistente", "cobranzas", "gastronomia", "gimnasio", "inmobiliaria",
+                                            "salud"]
+    assert all("[AGENTE]" not in t["agent"] for t in templates)   # las marcas se completan
     assert admin.get(f"{V1}/agent-templates/asistente").json()["id"] == "asistente"
     assert admin.get(f"{V1}/agent-templates/demo_booking").status_code == 404
     assert "fields" in admin.get(f"{V1}/agents/schema").json()["properties"]
@@ -302,6 +305,14 @@ def test_create_agent_blank_or_template(api, admin):
     assert template["own_agent"] is False and "engine" not in template["definition"]
     assert admin.post(f"{V1}/agents", json={"client_id": c["id"], "name": "x", "template_id": "asistente",
                                             "definition": template["definition"]}).status_code == 422
+    # La plantilla lleva la empresa del cliente y la voz elegida, que le da el nombre al agente.
+    salud = admin.post(f"{V1}/agents", json={"client_id": c["id"], "name": "Turnos", "template_id": "salud",
+                                             "voice": "tomas"}).json()
+    assert salud["voice"] == "tomas" and salud["definition"]["agent"]["name"] == "Tomás"
+    assert c["name"] in salud["definition"]["conversation"]["opening"] and "[EMPRESA]" not in str(salud["definition"])
+    assert admin.post(f"{V1}/agents", json={"client_id": c["id"], "name": "y", "voice": "tomas"}).status_code == 422
+    assert admin.post(f"{V1}/agents", json={"client_id": c["id"], "name": "z", "template_id": "salud",
+                                            "voice": "nadie"}).status_code == 422
 
 
 def test_prompt_preview_comes_from_definition(api, admin):

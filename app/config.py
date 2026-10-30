@@ -211,6 +211,16 @@ class Settings(BaseSettings):
     account_code_minutes: int = 15
     account_code_sends_per_hour: int = 5
     account_code_attempts_15m: int = 5
+    # Asistente de primera vez (docs/features/PRIMERA_VEZ.md). Codigo por WhatsApp para verificar el celular:
+    # desde el numero de Meta PHONE_VERIFY_WA_NUMBER_ID con la plantilla de autenticacion aprobada
+    # PHONE_VERIFY_WA_TEMPLATE (vacios: no se verifica y no hay llamada de prueba al celular). Usa los topes
+    # y la vigencia de account_code_*.
+    phone_verify_wa_number_id: str = ""
+    phone_verify_wa_template: str = ""
+    phone_verify_wa_language: str = "es_AR"
+    # Llamadas de prueba al celular verificado, por cliente y en total (no por mes): cantidad y segundos.
+    trial_calls: int = 3
+    trial_call_seconds: int = 300
     # Datos para la transferencia, como se muestran al cliente (una linea por dato: titular, CUIT, CBU, alias).
     bank_transfer_info: str = ""
     # A quien avisar de un pedido de plan por transferencia (vacio: SUPPORT_EMAIL).

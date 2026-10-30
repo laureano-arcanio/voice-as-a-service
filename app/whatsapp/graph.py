@@ -158,6 +158,17 @@ class GraphClient:
             "template": template,
         })
 
+    async def send_auth_code(self, phone_number_id: str, to: str, name: str, language: str, code: str) -> dict:
+        """Plantilla de autenticacion (categoria AUTHENTICATION): el codigo va en el cuerpo y en el boton de
+        copiar."""
+        return await self._post(phone_number_id, "messages", {
+            "messaging_product": "whatsapp", "to": to, "type": "template",
+            "template": {"name": name, "language": {"code": language}, "components": [
+                {"type": "body", "parameters": [{"type": "text", "text": code}]},
+                {"type": "button", "sub_type": "url", "index": "0", "parameters": [{"type": "text", "text": code}]},
+            ]},
+        })
+
     async def mark_read(self, phone_number_id: str, wamid: str) -> dict:
         return await self._post(phone_number_id, "messages", {
             "messaging_product": "whatsapp", "status": "read", "message_id": wamid,

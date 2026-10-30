@@ -1,7 +1,9 @@
 """Definiciones de agentes en el repo: la plantilla de la UI y los agentes de referencia.
 
-- Plantilla (app/agents/templates/asistente.json): el asistente basico que ofrece la UI como punto
-  de partida. Sin plantilla, el agente arranca en blanco (blank_definition).
+- Plantillas (app/agents/templates/<id>.json): el asistente basico y una por rubro (salud, gimnasio,
+  inmobiliaria, gastronomia, cobranzas), que ofrece la UI como punto de partida y el asistente de primera vez
+  (docs/features/PRIMERA_VEZ.md). Llevan [EMPRESA] y [AGENTE], que se completan al crear el agente
+  (fill_template). Sin plantilla, el agente arranca en blanco (blank_definition).
 - Agentes de referencia (app/agents/reference/<id>.json): los que siembra el seed (Atentina, la demo
   de la landing y el del test de capacidad), el eval y los tests, que corren sin base. No se ofrecen
   en la UI.
@@ -44,6 +46,29 @@ def template_ids() -> list[str]:
 
 def template_data(template_id: str) -> dict:
     return _read(TEMPLATES_DIR, template_id)
+
+
+COMPANY_MARK, AGENT_MARK = "[EMPRESA]", "[AGENTE]"
+DEFAULT_VOICE = "sofia"
+# El catalogo de voces tiene los nombres sin tildes (como web/src/features/voices/names.ts).
+ACCENTED = {"sofia": "Sofía", "lucia": "Lucía", "veronica": "Verónica", "rocio": "Rocío", "belen": "Belén",
+            "martin": "Martín", "nicolas": "Nicolás", "joaquin": "Joaquín", "tomas": "Tomás"}
+
+
+def voice_name(voice: str) -> str:
+    return ACCENTED.get(voice, voice.capitalize())
+
+
+def fill_template(data: dict, company: str, voice: str | None = None) -> dict:
+    """La plantilla con la empresa y el agente: el agente se llama como la voz (la de la plantilla si no se
+    elige otra)."""
+    voice = voice or data.get("agent", {}).get("voice") or DEFAULT_VOICE
+    text = json.dumps(data, ensure_ascii=False)
+    esc = lambda v: json.dumps(v, ensure_ascii=False)[1:-1]   # el reemplazo va dentro de strings JSON
+    text = text.replace(COMPANY_MARK, esc(company.strip() or "la empresa")).replace(AGENT_MARK, esc(voice_name(voice)))
+    filled = json.loads(text)
+    filled.setdefault("agent", {})["voice"] = voice
+    return filled
 
 
 def blank_definition(client_name: str) -> dict:

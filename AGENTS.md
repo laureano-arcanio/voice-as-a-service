@@ -27,7 +27,8 @@ Docs de features en `docs/features/`: [`WHATSAPP`](docs/features/WHATSAPP.md), [
 directas), [`LINK_LLAMADA`](docs/features/LINK_LLAMADA.md), [`HERRAMIENTAS`](docs/features/HERRAMIENTAS.md),
 [`LLM_CONEXIONES`](docs/features/LLM_CONEXIONES.md) (BYOK y tu propio agente), [`MCP`](docs/features/MCP.md),
 [`REPORTES`](docs/features/REPORTES.md), [`COBROS`](docs/features/COBROS.md), [`LEGAL`](docs/features/LEGAL.md),
-[`LANDING`](docs/features/LANDING.md), [`CRM`](docs/features/CRM.md) y [`CRM_API`](docs/features/CRM_API.md).
+[`LANDING`](docs/features/LANDING.md), [`PRIMERA_VEZ`](docs/features/PRIMERA_VEZ.md) (asistente de primera vez,
+Inicio y llamada de prueba al celular), [`CRM`](docs/features/CRM.md) y [`CRM_API`](docs/features/CRM_API.md).
 
 Cada doc dice su estado y sus pendientes; este archivo no repite estados. Al cambiar una función, se actualiza su
 doc (y ARQUITECTURA si cambia el modelo o la API) en el mismo commit.
@@ -40,7 +41,8 @@ doc (y ARQUITECTURA si cambia el modelo o la API) en el mismo commit.
 | Probar otro modelo o reparto de GPU | Override `docker-compose.<nombre>.yml` ([`docs/INFRA.md`](docs/INFRA.md)); confirmar antes de reiniciar; medir con capacidad y eval. |
 | Evaluar un LLM | [`docs/eval/README.md`](docs/eval/README.md): `make eval-llm`, `make eval-llm-juez`, registrar `docs/eval/EVAL-NNN-<slug>/`. |
 | Entrenar una voz del TTS | Agente [`tts-finetune`](.claude/agents/tts-finetune.md) ([`docs/TTS_FINETUNE.md`](docs/TTS_FINETUNE.md)). El 1.7B necesita parar `vllm-tts`: confirmar antes. |
-| Crear cliente, tier, agente o número | Por la UI o la API (`/api/v1`, OpenAPI en `/api/v1/docs`), nunca a mano en la base. Los agentes de la landing y del número propio son del cliente `atentina`; el admin los edita entrando como el cliente. |
+| Crear cliente, tier, agente o número | Por la UI o la API (`/api/v1`, OpenAPI en `/api/v1/docs`). Los agentes de la landing y del número propio son del cliente `atentina`; el admin los edita entrando como el cliente. |
+| Consultar o editar la base de producción | Permitido: `make psql`, o `docker exec -i voice-as-a-service-db-1 sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'` para scripts. |
 | Admin / "ver como cliente" | [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md), "Soporte del admin": `/admin/*`, header `X-Atentina-Client`, 403 `support_read_only` en cuenta, plan y cobros. |
 | Una función: WhatsApp, campañas, derivaciones, llamadas directas, link para llamar, herramientas, BYOK, MCP, reportes, cobros, términos, landing | Su doc en [`docs/features/`](docs/features/). |
 | Cambiar la UI del dashboard | React + Mantine en `web/` (`make web-check`), [`docs/DESIGN_GUIDELINE_APP.md`](docs/DESIGN_GUIDELINE_APP.md). Lo nuevo se resuelve en `web/src/theme.ts` y `web/src/components/`. |

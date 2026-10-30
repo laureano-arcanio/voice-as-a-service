@@ -71,6 +71,8 @@ class CallRequest:
     # Llamada del loadtest (scripts/loadtest, scripts/capacity): como la de prueba, pero
     # el agente no corta al completar el workflow, asi dura los turnos que pide el caller.
     loadtest: bool = False
+    # Llamada de prueba al celular verificado del usuario (services/onboarding.py): modo celular, sin minutos.
+    trial: bool = False
     max_duration_seconds: int | None = None
     join_timeout_seconds: int | None = None
     # Tope de llamadas activas entre estos agentes, ademas del tier (la demo de la landing:
@@ -152,7 +154,9 @@ def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
         raise Invalid(f"Voz inexistente: {voice}", "invalid_voice")
     if req.call_link_id and (phone or req.loadtest):
         raise Invalid("Una llamada por link no marca teléfonos ni es de loadtest")
-    mode = (CallMode.saliente if phone else CallMode.loadtest if req.loadtest
+    if req.trial and (not phone or req.loadtest or req.call_link_id or req.campaign_contact_id):
+        raise Invalid("La llamada de prueba al celular es solo a un teléfono")
+    mode = (CallMode.celular if req.trial else CallMode.saliente if phone else CallMode.loadtest if req.loadtest
             else CallMode.web if req.call_link_id else CallMode.prueba)
     caller_id = _caller_id(s, agent.client_id, req.from_number_id) if phone else None
     try:
@@ -189,7 +193,7 @@ def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
     metadata = {"conversation_id": state.conversation_id, "phone": phone, "voice": voice, "loadtest": req.loadtest,
                 "max_duration_seconds": max_duration, "from_number": caller_id.e164 if caller_id else None,
                 "join_timeout_seconds": req.join_timeout_seconds, "campaign_contact_id": req.campaign_contact_id,
-                "call_link_id": req.call_link_id,
+                "call_link_id": req.call_link_id, "trial": req.trial,
                 # Derivacion a personas (app/voice/handoff.py): no en el loadtest ni las campañas, y en la demo de
                 # la landing solo con DEMO_HANDOFF (docs/features/EQUIPO_TELEFONIA.md).
                 "handoff": req.handoff and not (req.loadtest or req.campaign_contact_id)}
@@ -210,7 +214,7 @@ async def start_call(s: Session, engine: ConversationEngine, principal: Principa
         logger.exception("despacho de la llamada %s", started.conversation_id)
         await asyncio.to_thread(_mark_failed, s, started.conversation_id, str(e), "dispatch_failed")
         raise Upstream("No se pudo iniciar la llamada") from e
-    if started.mode != CallMode.saliente:
+    if started.mode not in (CallMode.saliente, CallMode.celular):
         started.join_url = livekit.build_test_join_url(started.room)
     return started
 

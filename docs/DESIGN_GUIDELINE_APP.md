@@ -177,6 +177,9 @@ CSP del dashboard solo permite fuentes de `'self'`: no se pueden cargar de Googl
 | Campo de tarjeta (Mercado Pago, `/plan/pagar`) | `.mp-secure` dentro de `Input.Wrapper` | El iframe de MP con el aspecto de un input de Mantine; `data-focused` pinta el borde azul |
 | Exportar lo que se ve | `CsvButton` (`components/CsvButton.tsx`, `lib/csv.ts`) | "Descargar CSV" (`subtle`, `compact-sm`) a la derecha del título de la tarjeta; exporta las filas que muestra la tabla o el gráfico, con los valores crudos (punto decimal). Sin filas, deshabilitado. |
 | Cuándo pasa algo (día × hora) | `HourHeatmap` (`components/HourHeatmap.tsx`) | Tabla 7 × 24 con la intensidad del primario (0 en superficie 2); cada celda con su valor en `aria-label` y tooltip, leyenda "Menos / Más". |
+| Elegir una opción grande (rubro, voz) | `.onb-option` (`styles.css`) | Bloque de 16 px de radio con borde; hover con borde azul claro; elegido con borde azul y acento suave (`data-selected`) y check. La voz lleva su retrato (`web/public/voces/<voz>.svg`, ilustrado, fondo de la paleta) con anillo azul que pulsa mientras suena. Solo en el asistente de primera vez ([`features/PRIMERA_VEZ.md`](features/PRIMERA_VEZ.md)). |
+| Agente en Inicio | `Card.onb-agent` + `Avatar` de 84 px con el retrato | Nombre, voz, objetivo en 3 líneas y acciones: "Hablarle ahora" (principal) y "Llamame" / "Editar" (`default`). El recién creado, con borde azul. "Crear otro agente" es un bloque con borde punteado (`.onb-new-agent`). |
+| Llamada en el panel | `VoiceCallModal` | Retrato de 128 px que pulsa cuando habla el agente, estado en mono, subtítulos como burbujas (`.onb-bubble`) y "Cortar" en rojo relleno (la única excepción: es la convención de un teléfono). |
 | Código y JSON | `pre.code`, `Code`, `JsonEditor` | Mono 12 px sobre superficie 2, borde, radio de 12 px. En el editor, claves en azul y valores en neutro: el rojo queda para los errores. |
 
 Gráficos (`@mantine/charts`):

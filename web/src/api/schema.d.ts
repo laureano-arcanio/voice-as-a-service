@@ -3848,6 +3848,117 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/onboarding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Status */
+        get: operations["get_status_api_v1_onboarding_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/onboarding/industries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Industries */
+        get: operations["list_industries_api_v1_onboarding_industries_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/onboarding/agent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Agent
+         * @description Crea el agente de la plantilla del rubro con la empresa y la voz, y guarda el rubro y el sitio.
+         */
+        post: operations["create_agent_api_v1_onboarding_agent_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/onboarding/phone/code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send Phone Code
+         * @description Manda un código por WhatsApp al celular. Devuelve el desafío para verificarlo.
+         */
+        post: operations["send_phone_code_api_v1_onboarding_phone_code_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/onboarding/phone/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify Phone */
+        post: operations["verify_phone_api_v1_onboarding_phone_verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/onboarding/call-me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Call Me
+         * @description El agente llama al celular verificado del usuario (llamada de prueba, no gasta minutos del plan).
+         */
+        post: operations["call_me_api_v1_onboarding_call_me_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/oauth/authorize": {
         parameters: {
             query?: never;
@@ -3960,6 +4071,11 @@ export interface components {
             } | null;
             /** Template Id */
             template_id?: string | null;
+            /**
+             * Voice
+             * @description Con template_id: la voz del agente (GET /voices); el agente toma su nombre
+             */
+            voice?: string | null;
         };
         /** AgentDetail */
         AgentDetail: {
@@ -4834,6 +4950,11 @@ export interface components {
             seconds_today: number;
             /** Seconds Month */
             seconds_month: number;
+        };
+        /** CallMeIn */
+        CallMeIn: {
+            /** Agent Id */
+            agent_id: string;
         };
         /** CallPage */
         CallPage: {
@@ -6635,6 +6756,15 @@ export interface components {
             /** Tracks */
             tracks: string[];
         };
+        /** IndustryOut */
+        IndustryOut: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Template Id */
+            template_id: string;
+        };
         /** InferenceKeyUsageOut */
         InferenceKeyUsageOut: {
             /** Key Id */
@@ -7348,6 +7478,53 @@ export interface components {
             /** Redirect To */
             redirect_to: string;
         };
+        /** OnboardingAgentIn */
+        OnboardingAgentIn: {
+            /**
+             * Industry
+             * @description Uno de GET /onboarding/industries
+             */
+            industry: string;
+            /**
+             * Voice
+             * @description Una de GET /voices
+             */
+            voice: string;
+            /**
+             * Website
+             * @description Sitio de la empresa (opcional)
+             * @default
+             */
+            website?: string;
+        };
+        /** OnboardingOut */
+        OnboardingOut: {
+            /**
+             * Has Agents
+             * @description Con agentes sin archivar; sin ninguno, el panel muestra el asistente
+             */
+            has_agents: boolean;
+            /**
+             * Industry
+             * @description Rubro elegido (GET /onboarding/industries)
+             */
+            industry: string | null;
+            /** Website */
+            website: string;
+            /**
+             * Phone
+             * @description Celular del usuario de la sesión, en E.164
+             */
+            phone: string | null;
+            /** Phone Verified */
+            phone_verified: boolean;
+            /**
+             * Verify Available
+             * @description Si se puede verificar el celular por WhatsApp (y llamar al celular)
+             */
+            verify_available: boolean;
+            trial: components["schemas"]["TrialCallsOut"];
+        };
         /** OutcomeOut */
         OutcomeOut: {
             /** Label */
@@ -7468,6 +7645,26 @@ export interface components {
         PaymentPatch: {
             /** Invoiced */
             invoiced: boolean;
+        };
+        /** PhoneCodeIn */
+        PhoneCodeIn: {
+            /** Phone */
+            phone: string;
+        };
+        /**
+         * PhoneCodeOut
+         * @description Desafio del codigo por WhatsApp: se manda de vuelta con el codigo.
+         */
+        PhoneCodeOut: {
+            /** Challenge */
+            challenge: string;
+            /** Phone */
+            phone: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
         };
         /**
          * PhoneNumberBulkIn
@@ -7616,6 +7813,13 @@ export interface components {
             team_fallback?: ("agent" | "voicemail" | "hangup") | null;
             /** Team Fallback Message */
             team_fallback_message?: string | null;
+        };
+        /** PhoneVerifyIn */
+        PhoneVerifyIn: {
+            /** Challenge */
+            challenge: string;
+            /** Code */
+            code: string;
         };
         /** PlanFeatureOut */
         PlanFeatureOut: {
@@ -8774,6 +8978,12 @@ export interface components {
             email: string;
             /** Password */
             password: string;
+            /**
+             * Phone
+             * @description Celular (Argentina sin código de país o internacional con +): la llamada de prueba al celular va a este número, después de verificarlo
+             * @default
+             */
+            phone?: string;
             /** Turnstile Token */
             turnstile_token: string;
             /**
@@ -9990,6 +10200,20 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /**
+         * TrialCallsOut
+         * @description Llamadas de prueba al celular del cliente, en total (no por mes).
+         */
+        TrialCallsOut: {
+            /** Calls Used */
+            calls_used: number;
+            /** Calls Max */
+            calls_max: number;
+            /** Seconds Used */
+            seconds_used: number;
+            /** Seconds Max */
+            seconds_max: number;
         };
         /** TtsPreviewIn */
         TtsPreviewIn: {
@@ -18966,6 +19190,197 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    get_status_api_v1_onboarding_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingOut"];
+                };
+            };
+        };
+    };
+    list_industries_api_v1_onboarding_industries_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IndustryOut"][];
+                };
+            };
+        };
+    };
+    create_agent_api_v1_onboarding_agent_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnboardingAgentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_phone_code_api_v1_onboarding_phone_code_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PhoneCodeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhoneCodeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Sin verificación por WhatsApp configurada */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    verify_phone_api_v1_onboarding_phone_verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PhoneVerifyIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingOut"];
+                };
+            };
+            /** @description Código incorrecto o vencido (invalid_code) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    call_me_api_v1_onboarding_call_me_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CallMeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallStartedOut"];
+                };
+            };
+            /** @description Celular sin verificar (phone_not_verified) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Sin llamadas de prueba (trial_calls) o líneas ocupadas */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

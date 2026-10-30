@@ -33,10 +33,18 @@ acciones "solo admin". La pestaña **JSON**, el slug y **Ver prompt** del agente
    desde la IP con cualquier email), el login se bloquea un rato.
 3. Arriba a la derecha: Salir. **Salir cierra todas tus sesiones**, también las de otros navegadores;
    cambiar la clave también.
-4. Un usuario de cliente, la primera vez que entra, ve un pop-up de bienvenida: qué es la plataforma, los
-   pasos para empezar y links a los videos de YouTube ("Qué es Atentina" y "Cómo crear y probar agentes",
-   en `web/src/features/auth/WelcomeModal.tsx`). Al cerrarlo no vuelve a aparecer en ningún dispositivo
-   (`users.welcomed_at`, migración 0027; los que ya habían entrado antes quedan como vistos).
+4. Un usuario de cliente **sin agentes** ve el asistente de primera vez a pantalla completa, sin el menú
+   ([`features/PRIMERA_VEZ.md`](features/PRIMERA_VEZ.md)): elige el rubro (y el sitio, opcional) y una de seis voces
+   con retrato (▶ dice la apertura con el nombre de su empresa), y **Crear mi agente con <voz>** lo deja en
+   **Inicio** con el agente listo. Plan y Mi perfil se abren igual (para pagar el plan elegido en el registro). El
+   admin que entró como el cliente ve el panel.
+5. **Inicio** (`/inicio`) es la pantalla de entrada del cliente: una tarjeta por agente con **Hablarle ahora**
+   (llamada por el navegador, con subtítulos, sin salir del panel), **Llamame** (el agente llama al celular
+   verificado por WhatsApp; 3 llamadas y 5 minutos de prueba en total, que no gastan minutos del plan) y
+   **Editar**; **Crear otro agente**; los próximos pasos y las últimas conversaciones.
+6. El pop-up de bienvenida (`WelcomeModal`: qué es la plataforma y los videos de YouTube) lo ve el usuario de un
+   cliente que ya tiene agentes la primera vez que entra; el asistente lo marca como visto. Al cerrarlo no vuelve
+   a aparecer en ningún dispositivo (`users.welcomed_at`).
 
 ## Entrar como un cliente (soporte)
 
@@ -135,8 +143,9 @@ estas pestañas: Consumo y datos, Números, Agentes, Usuarios, Modelos, API keys
 
 Entrando como el cliente, **Agentes > Nuevo agente**: nombre, slug (opcional), descripción y **punto de partida** (no se
 elige motor: hay uno solo desde el 26-oct-2026): el **asistente básico** (atiende, responde con la
-base de conocimiento y, si no puede, toma nombre y contacto) o **en blanco** (un dato y el resultado
-por defecto). Te lleva a la pestaña **Conversación** para completarlo.
+base de conocimiento y, si no puede, toma nombre y contacto), una **plantilla por rubro** (salud, gimnasio,
+inmobiliaria, gastronomía, cobranzas, con datos de ejemplo en la base de conocimiento) o **en blanco** (un dato y
+el resultado por defecto). Las plantillas ya traen el nombre de la empresa. Te lleva a la pestaña **Conversación** para completarlo.
 
 El detalle del agente tiene pestañas. Cinco de ellas (Conversación, Datos, Herramientas, Voz y canales y
 Modelo) editan la misma definición: comparten el borrador y la barra de arriba (versión, estado de la
@@ -494,8 +503,8 @@ Motivos de fin frecuentes (`ended_reason`):
 El usuario de un cliente (o el admin que entró como él) crea y edita sus propios agentes; no ve ni puede tocar los de
 otro cliente.
 
-1. **Agentes > Nuevo agente:** nombre, descripción (opcional) y punto de partida (asistente básico o
-   en blanco). Te lleva a la pestaña **Conversación**.
+1. **Agentes > Nuevo agente** (o **Crear otro agente** en Inicio): nombre, descripción (opcional) y punto de
+   partida (asistente básico, una plantilla por rubro o en blanco). Te lleva a la pestaña **Conversación**.
 2. **Conversación**, **Datos**, **Herramientas**, **Voz y canales** y **Modelo:** las cinco editan la misma
    definición (agente, objetivo y apertura, reglas, base de conocimiento; datos a obtener y resultados;
    herramientas, secretos y derivación; voz, grabación y resumen por email; modelo). Se valida mientras editás y
@@ -748,7 +757,7 @@ El contestador se detecta por lo que dice (frases como "deje su mensaje"): puede
 
 Registro y cobro por transferencia ([`COBROS.md`](features/COBROS.md)):
 
-- **Registro:** el cliente se da de alta en `atentina.com.ar/registro` (con su clave) y entra directo al
+- **Registro:** el cliente se da de alta en `atentina.com.ar/registro` (con su clave y su celular) y entra directo al
   panel, en el tier Free (el público con precio 0, que tiene que existir en Tiers). Si eligió un plan pago,
   va a pagarlo con tarjeta (`/plan/pagar`).
 - **Tiers que se venden:** en el formulario del tier, "Precio por mes" y "Público". Vacío = no se vende

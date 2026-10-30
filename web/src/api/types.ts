@@ -166,3 +166,7 @@ export type SystemPeak = S['SystemPeakOut'];
 export type LegalVersion = S['LegalVersionAdminOut'];
 export type LegalVersionText = S['LegalVersionTextOut'];
 export type LegalDocument = LegalVersion['document'];
+// Asistente de primera vez (docs/features/PRIMERA_VEZ.md).
+export type Onboarding = S['OnboardingOut'];
+export type Industry = S['IndustryOut'];
+export type PhoneCode = S['PhoneCodeOut'];

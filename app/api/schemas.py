@@ -791,6 +791,8 @@ class AgentCreate(BaseModel):
     # La definicion (workflow JSON), la plantilla de partida (GET /agent-templates) o ninguna: en blanco.
     definition: dict[str, Any] | None = None
     template_id: str | None = None
+    voice: str | None = Field(default=None, max_length=32,
+                              description="Con template_id: la voz del agente (GET /voices); el agente toma su nombre")
 
 
 class AgentUpdate(BaseModel):
@@ -1615,6 +1617,9 @@ class SignupIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     email: EmailStr
     password: str = Field(min_length=10, max_length=256)
+    phone: str = Field(default="", max_length=40, pattern=r"^$|^[0-9+()\- ]{6,40}$",
+                       description="Celular (Argentina sin código de país o internacional con +): la llamada de "
+                                   "prueba al celular va a este número, después de verificarlo")
     turnstile_token: str = Field(min_length=1, max_length=2048)
     # Plan elegido en la landing (nombre del tier). Pago y con Mercado Pago: `card_token_id` (campos
     # seguros de Mercado Pago, paso 2 del formulario) y la cuenta se crea solo si MP aprueba la tarjeta.
@@ -3150,3 +3155,57 @@ class SystemPeakOut(BaseModel):
     llm_kv_cache_max: float | None = None
     calls_active_max: float | None = None
     alerts_critical: float | None = None
+
+
+# ---------- asistente de primera vez (docs/features/PRIMERA_VEZ.md) ----------
+
+class TrialCallsOut(BaseModel):
+    """Llamadas de prueba al celular del cliente, en total (no por mes)."""
+    calls_used: int
+    calls_max: int
+    seconds_used: int
+    seconds_max: int
+
+
+class OnboardingOut(BaseModel):
+    has_agents: bool = Field(description="Con agentes sin archivar; sin ninguno, el panel muestra el asistente")
+    industry: str | None = Field(description="Rubro elegido (GET /onboarding/industries)")
+    website: str
+    phone: str | None = Field(description="Celular del usuario de la sesión, en E.164")
+    phone_verified: bool
+    verify_available: bool = Field(description="Si se puede verificar el celular por WhatsApp (y llamar al celular)")
+    trial: TrialCallsOut
+
+
+class IndustryOut(BaseModel):
+    id: str
+    label: str
+    template_id: str
+
+
+class OnboardingAgentIn(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    industry: str = Field(max_length=24, description="Uno de GET /onboarding/industries")
+    voice: str = Field(max_length=32, description="Una de GET /voices")
+    website: str = Field(default="", max_length=200, description="Sitio de la empresa (opcional)")
+
+
+class PhoneCodeIn(BaseModel):
+    phone: str = Field(min_length=6, max_length=40, pattern=r"^[0-9+()\- ]{6,40}$")
+
+
+class PhoneCodeOut(BaseModel):
+    """Desafio del codigo por WhatsApp: se manda de vuelta con el codigo."""
+    challenge: str
+    phone: str
+    expires_at: datetime.datetime
+
+
+class PhoneVerifyIn(BaseModel):
+    challenge: str = Field(min_length=1, max_length=4096)
+    code: str = Field(min_length=4, max_length=12)
+
+
+class CallMeIn(BaseModel):
+    agent_id: str

@@ -102,7 +102,11 @@ export const routes: RouteObject[] = [
     errorElement: <RouteError />,
     hydrateFallbackElement: <FullPageLoader />,
     children: [
-      { index: true, element: <Navigate to="reports" replace /> },
+      { index: true, element: <Navigate to="inicio" replace /> },
+      {
+        path: 'inicio',
+        ...page(async () => (await import('@/features/onboarding/HomePage')).HomePage),
+      },
       {
         path: 'reports',
         ...page(async () => (await import('@/features/reports/ReportsPage')).ReportsPage),

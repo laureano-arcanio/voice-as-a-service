@@ -28,6 +28,7 @@ import {
   IconUsers,
   IconUsersGroup,
   IconBrandWhatsapp,
+  IconHome,
 } from '@tabler/icons-react';
 import type { ComponentType } from 'react';
 import type { PlanFeatureKey, Role } from '@/api/types';
@@ -53,6 +54,7 @@ export const isGroup = (e: NavEntry): e is NavGroup => 'items' in e;
 
 // Menú del panel del cliente (también el de un admin que entró como el cliente).
 export const CLIENT_NAV: NavEntry[] = [
+  { to: '/inicio', label: 'Inicio', icon: IconHome },
   { to: '/reports', label: 'Reportes', icon: IconChartHistogram },
   { to: '/calls', label: 'Conversaciones', icon: IconMessages },
   {

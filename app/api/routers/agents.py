@@ -1,7 +1,7 @@
 from fastapi import APIRouter, BackgroundTasks
 from sqlalchemy import select
 
-from ...agents.templates import template_data, template_ids
+from ...agents.templates import fill_template, template_data, template_ids
 from ...conversation import opening_audio
 from ...conversation.models import Workflow
 from ...llm.prompt import build_system_prompt
@@ -74,7 +74,7 @@ def preview_prompt(body: PromptIn, _: CurrentPrincipal):
 def list_templates(_: CurrentPrincipal):
     out = []
     for tid in template_ids():
-        w = Workflow.model_validate(template_data(tid))
+        w = Workflow.model_validate(fill_template(template_data(tid), "la empresa"))
         out.append(TemplateOut(id=tid, agent=f"{w.agent.name}, {w.agent.role}", voice=w.agent.voice,
                                objective=w.objective.description.strip()))
     return out
@@ -109,7 +109,7 @@ def create_agent(body: AgentCreate, p: CurrentPrincipal, db: DB, background: Bac
         raise Invalid("Falta client_id")
     client = get_client(db, p, client_id)
     agent = service.create_agent(db, client, body.name, body.slug, body.description, body.definition,
-                                 body.template_id, p.id if p.kind == "user" else None)
+                                 body.template_id, p.id if p.kind == "user" else None, body.voice)
     db.commit()
     _pregenerate_opening(background, agent)
     return _out(agent, detail=True)

@@ -35,6 +35,7 @@ from ..models import Client, ConversationRow, Role, Tier, User
 from . import branding, legal
 from .agents import slugify
 from .demo import DemoUnavailable, verify_turnstile
+from .phones import normalize_phone
 from .errors import Conflict, Forbidden, Invalid, ServiceError
 from .ratelimit import Limit, RateLimiter, client_key
 from .security import create_handoff_token, create_password_setup_token, hash_password
@@ -58,6 +59,7 @@ class SignupData:
     name: str
     email: str
     password: str
+    phone: str = ""     # celular, sin verificar (docs/features/PRIMERA_VEZ.md)
     plan: str = ""      # nombre del tier elegido en la landing
     card_token_id: str | None = None   # tarjeta tokenizada por los campos seguros de Mercado Pago (plan pago con MP)
     # Casilla de las condiciones: las versiones que mostro el formulario (tienen que ser las vigentes).
@@ -131,6 +133,11 @@ def create_account(s: Session, data: SignupData) -> str:
         raise Invalid("Para crear la cuenta tenés que aceptar las condiciones y la política de privacidad.",
                       "terms_required")
     accepted = legal.check_versions(data.terms_version, data.privacy_version)
+    try:
+        phone = normalize_phone(data.phone) if data.phone.strip() else None
+    except ValueError:
+        raise Invalid("El celular no es válido: código de área y número, por ejemplo 11 5555-1234.",
+                      "invalid_phone") from None
     _check_email(s, email)
     tier = paid_tier(s, data.plan)
     pay_now = tier is not None and mp.enabled()
@@ -141,7 +148,7 @@ def create_account(s: Session, data: SignupData) -> str:
     s.add(client)
     s.flush()
     user = User(email=email, name=data.name.strip(), password_hash=hash_password(data.password), role=Role.client,
-                client_id=client.id)
+                client_id=client.id, phone=phone)
     s.add(user)
     try:
         s.flush()

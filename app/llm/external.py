@@ -149,7 +149,7 @@ class ExternalAgents:
                             if call.phone_number_id else None) or ""
                     ctx["mode"] = call.mode
                     # Entrante: llama `phone` a un numero nuestro; saliente: al reves.
-                    ctx["from"], ctx["to"] = ((ours, call.phone or "") if call.mode == "saliente"
+                    ctx["from"], ctx["to"] = ((ours, call.phone or "") if call.mode in ("saliente", "celular")
                                               else (call.phone or "", ours))
         with self._lock:
             self._contexts[state.conversation_id] = ctx

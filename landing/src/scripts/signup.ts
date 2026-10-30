@@ -49,6 +49,7 @@ export function initSignupForm(root: HTMLElement) {
       company: value("company"),
       name: value("name"),
       email: value("email"),
+      phone: value("phone"),
       password: password.value,
       plan,
       website: value("website"),

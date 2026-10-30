@@ -52,7 +52,8 @@ Canónico `https://atentina.com.ar/`. `www.atentina.com.ar` (Render), `atentina.
 - Planes en la landing: Free, Mostrador, Sucursal (con precio) y Red (a medida, la cotiza un asesor, no es un tier).
   Free: API y panel, sin telefonía, 20 minutos por mes de llamadas web. Los precios que se cobran salen de
   `tiers.price_ars` (`GET /api/v1/demo/plans`); son finales, sin "IVA aparte".
-- `/registro`: Free en un paso (empresa, nombre, email, clave, Turnstile) y al panel. Plan pago: paso 1 los datos,
+- `/registro`: Free en un paso (empresa, nombre, email, celular, clave, Turnstile) y al panel (al asistente de
+  primera vez, [`PRIMERA_VEZ.md`](PRIMERA_VEZ.md)). Plan pago: paso 1 los datos,
   paso 2 la tarjeta con los **campos seguros de Mercado Pago** (SDK v2, Core Methods, `src/scripts/mercadopago.ts`);
   el token va como `card_token_id` a `POST /demo/signup` y la cuenta se crea con el pago aprobado. Ver
   [`COBROS.md`](COBROS.md).

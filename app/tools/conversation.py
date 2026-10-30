@@ -70,7 +70,7 @@ class ConversationTools:
                     ours = (s.scalar(select(PhoneNumber.e164).where(PhoneNumber.id == call.phone_number_id))
                             if call.phone_number_id else None)
                     out["mode"] = str(call.mode.value if hasattr(call.mode, "value") else call.mode)
-                    out["from"], out["to"] = ((ours, call.phone) if out["mode"] == "saliente" else (call.phone, ours))
+                    out["from"], out["to"] = ((ours, call.phone) if out["mode"] in ("saliente", "celular") else (call.phone, ours))
         with self._lock:
             self._calls[state.conversation_id] = out
             while len(self._calls) > CONTEXTS_MAX:

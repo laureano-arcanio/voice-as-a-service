@@ -468,3 +468,146 @@ details.llm summary {
 tr:hover > .row-actions {
   background: var(--table-hover-color, var(--mantine-color-body));
 }
+
+/* Asistente de primera vez e Inicio (docs/features/PRIMERA_VEZ.md). */
+.onb-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 420px at 50% -120px, var(--mantine-color-blue-light), transparent 70%),
+    var(--app-canvas);
+}
+
+.onb-top {
+  padding: 16px var(--mantine-spacing-md);
+}
+
+.onb-title {
+  font-size: clamp(1.6rem, 4vw, 2.3rem);
+  text-wrap: balance;
+}
+
+.onb-option {
+  display: flex;
+  flex-direction: column;
+  padding: var(--mantine-spacing-md);
+  border: 1px solid var(--app-line);
+  border-radius: var(--mantine-radius-xl);
+  background: var(--mantine-color-white);
+  cursor: pointer;
+  transition:
+    border-color 150ms,
+    background 150ms;
+}
+
+.onb-option:hover {
+  border-color: var(--mantine-color-blue-3);
+}
+
+.onb-option[data-selected] {
+  border-color: var(--mantine-color-blue-6);
+  background: var(--mantine-color-blue-light);
+}
+
+.onb-voice {
+  align-items: center;
+  gap: 6px;
+  padding-top: var(--mantine-spacing-lg);
+}
+
+.onb-portrait,
+.onb-call-avatar {
+  border-radius: 50%;
+  padding: 4px;
+  border: 2px solid transparent;
+  transition: border-color 150ms;
+}
+
+.onb-portrait-img {
+  width: clamp(84px, 24vw, 112px);
+  height: clamp(84px, 24vw, 112px);
+}
+
+.onb-option[data-selected] .onb-portrait {
+  border-color: var(--mantine-color-blue-6);
+}
+
+@keyframes onb-speaking {
+  50% {
+    box-shadow: 0 0 0 10px var(--mantine-color-blue-light);
+  }
+}
+
+.onb-portrait[data-sounding],
+.onb-call-avatar[data-speaking] {
+  border-color: var(--mantine-color-blue-6);
+  animation: onb-speaking 1.2s ease-in-out infinite;
+}
+
+.onb-call-avatar[data-phase='connecting'] {
+  animation: live-dot 1.4s ease-in-out infinite;
+}
+
+.onb-captions {
+  border: 1px solid var(--app-line);
+  border-radius: var(--mantine-radius-lg);
+}
+
+.onb-bubble {
+  max-width: 85%;
+  padding: 6px 10px;
+  border-radius: var(--mantine-radius-lg);
+  background: var(--app-surface-2);
+}
+
+.onb-bubble[data-user] {
+  align-self: flex-end;
+  background: var(--mantine-color-blue-light);
+}
+
+.onb-hero {
+  padding: var(--mantine-spacing-md) var(--mantine-spacing-lg);
+  border: 1px solid var(--mantine-color-blue-3);
+  border-radius: var(--mantine-radius-xl);
+  background: var(--mantine-color-blue-light);
+}
+
+.onb-agent[data-fresh] {
+  border-color: var(--mantine-color-blue-6);
+}
+
+.onb-agent-avatar {
+  flex: none;
+  background: var(--mantine-color-blue-light);
+}
+
+.onb-new-agent {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  padding: var(--mantine-spacing-md);
+  border: 1px dashed var(--mantine-color-gray-4);
+  border-radius: var(--mantine-radius-xl);
+  transition:
+    border-color 150ms,
+    background 150ms;
+}
+
+.onb-new-agent:hover {
+  border-color: var(--mantine-color-blue-6);
+  background: var(--mantine-color-white);
+}
+
+.onb-call-row {
+  display: block;
+  padding: 8px 0;
+  border-top: 1px solid var(--app-line);
+}
+
+.onb-call-row:first-child {
+  border-top: 0;
+}
+
+.onb-call-row:hover {
+  background: var(--app-surface-2);
+}

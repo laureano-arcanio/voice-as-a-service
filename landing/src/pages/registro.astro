@@ -96,6 +96,11 @@ const onPay = "hidden group-data-[state=pay]/signup:grid group-data-[state=payin
               Email
               <input class={field} name="email" type="email" autocomplete="username" required maxlength="254" placeholder="vos@empresa.com" />
             </label>
+            <label class={label}>
+              Celular
+              <input class={field} name="phone" type="tel" inputmode="tel" autocomplete="tel" required maxlength="40" pattern="[0-9 +\(\)\-]{6,40}" placeholder="11 5555-1234" />
+              <span class="text-[.8rem] font-normal text-muted">Para que tu agente te llame y lo escuches en tu teléfono.</span>
+            </label>
             <div class="grid gap-3 sm:grid-cols-2">
               <label class={label}>
                 Clave

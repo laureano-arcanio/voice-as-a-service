@@ -166,7 +166,7 @@ def handoff_seconds(s: Session, client_id: str, start: datetime.datetime, end: d
 
 
 # Las que van por Anura (las de WhatsApp tambien entran como entrante: se cuentan de mas, del lado seguro).
-ANURA_MODES = (CallMode.entrante, CallMode.saliente, CallMode.directa)
+ANURA_MODES = (CallMode.entrante, CallMode.saliente, CallMode.directa, CallMode.celular)
 
 
 def busy_channels(s: Session, now: datetime.datetime | None = None) -> int:

@@ -517,7 +517,8 @@ async def entrypoint(ctx: JobContext):
                 return
             team_started, team_attempts = team
     else:
-        mode = (CallMode.saliente if metadata.get("phone")
+        mode = (CallMode.celular if metadata.get("trial")
+                else CallMode.saliente if metadata.get("phone")
                 else CallMode.loadtest if metadata.get("loadtest")
                 else CallMode.web if metadata.get("call_link_id") else CallMode.prueba)
     state = engine.store.get(conversation_id)

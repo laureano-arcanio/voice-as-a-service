@@ -32,6 +32,7 @@ class CallMode(enum.StrEnum):
     web = "web"             # navegador, por el link publico de un agente (call_links); consume minutos entrantes
     loadtest = "loadtest"   # scripts/loadtest y scripts/capacity
     directa = "directa"     # saliente de una persona del cliente, sin agente (docs/features/EQUIPO_TELEFONIA.md)
+    celular = "celular"     # de prueba al celular verificado del usuario; no gasta minutos (docs/features/PRIMERA_VEZ.md)
 
 
 class CallRow(Base):

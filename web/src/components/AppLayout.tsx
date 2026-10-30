@@ -21,6 +21,8 @@ import { setPreview, useBranding, useBrandingPreview } from '@/branding/context'
 import { useLogout, useMe } from '@/features/auth/api';
 import { LegalModal } from '@/features/auth/LegalModal';
 import { WelcomeModal } from '@/features/auth/WelcomeModal';
+import { useOnboarding } from '@/features/onboarding/api';
+import { OnboardingWizard } from '@/features/onboarding/OnboardingWizard';
 import { usePlanFeatures } from '@/features/billing/features';
 import { notifyError } from '@/lib/notify';
 import { CallBar } from '@/features/phone/CallBar';
@@ -40,9 +42,22 @@ function isActive(pathname: string, to: string): boolean {
   return pathname === to || pathname.startsWith(`${to}/`);
 }
 
+// Pantallas que se abren aunque el cliente no tenga agentes (sin el asistente de primera vez): pagar el plan
+// elegido en el registro y el perfil.
+const WITHOUT_AGENTS = ['/plan', '/profile'];
+
 export function AppLayout() {
   const { data: me } = useMe();
+  const { pathname } = useLocation();
+  // Asistente de primera vez (docs/features/PRIMERA_VEZ.md): un usuario del cliente sin agentes lo ve en vez del
+  // panel. Un admin que entró como el cliente ve el panel.
+  const firstTime = me?.role === 'client' && !me.support;
+  const onboarding = useOnboarding(firstTime);
   if (!me) return null;
+  if (firstTime && !WITHOUT_AGENTS.some((p) => isActive(pathname, p))) {
+    if (onboarding.isPending) return null;
+    if (onboarding.data && !onboarding.data.has_agents) return <OnboardingWizard />;
+  }
   // El teléfono del panel (llamadas directas, docs/features/EQUIPO_TELEFONIA.md): la llamada vive en el layout
   // del cliente, con la barra fija abajo, para abrir otras pantallas sin cortar.
   return me.role === 'client' ? (

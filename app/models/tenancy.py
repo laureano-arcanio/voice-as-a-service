@@ -134,6 +134,9 @@ class Client(IdMixin, TimestampMixin, Base):
     call_emails_to: Mapped[list] = mapped_column(JSONDoc, default=list, server_default=text("'[]'"))
     # Aviso "Esta llamada está siendo grabada" en las llamadas directas (siempre se graban).
     direct_recording_notice: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # Rubro y sitio que eligio en el asistente de primera vez (docs/features/PRIMERA_VEZ.md); "" = no dijo.
+    industry: Mapped[str] = mapped_column(String(24), default="", server_default="")
+    website: Mapped[str] = mapped_column(String(200), default="", server_default="")
 
     tier: Mapped[Tier] = relationship(lazy="joined", innerjoin=True)
 
@@ -244,6 +247,11 @@ class User(IdMixin, TimestampMixin, Base):
     session_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     # Cuando cerro el pop-up de bienvenida del panel (solo usuarios de cliente); None = mostrarlo.
     welcomed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    # Celular (E.164) del registro y cuando lo verifico con el codigo por WhatsApp: la llamada de prueba
+    # al celular va solo a un numero verificado (docs/features/PRIMERA_VEZ.md).
+    phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    phone_verified_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+
 
 
 class ApiKey(IdMixin, Base):

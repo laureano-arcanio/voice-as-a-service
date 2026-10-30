@@ -57,6 +57,7 @@ export const CALL_MODE: Record<string, Label> = {
   entrante: { label: 'Entrante', color: 'gray' },
   directa: { label: 'Directa', color: 'gray' },
   prueba: { label: 'Prueba', color: 'gray' },
+  celular: { label: 'Prueba al celular', color: 'gray' },
   web: { label: 'Link web', color: 'gray' },
   loadtest: { label: 'Loadtest', color: 'gray' },
   api: { label: 'API (texto)', color: 'gray' },
