@@ -12,9 +12,11 @@ interface Props {
   /** Nombre del archivo en public/videos/, sin extensión (`<src>.mp4` y el poster `<src>.jpg`). */
   src: string;
   title: string;
+  /** Con "Escuchar con sonido" (por defecto). Sin él, un video mudo en loop (sin pista de audio). */
+  sound?: boolean;
 }
 
-const { src, title } = Astro.props;
+const { src, title, sound = true } = Astro.props;
 ---
 
 <div class="grid justify-items-center gap-4" data-autovideo={src}>
@@ -52,12 +54,14 @@ const { src, title } = Astro.props;
       <svg class="hidden size-[18px] group-data-[state=playing]/video:block" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"></path></svg>
     </button>
   </figure>
+  {sound && (
   <Button data-sound>
     <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M11 5 6 9H2v6h4l5 4V5z"></path><path d="M15.5 8.5a5 5 0 0 1 0 7"></path><path d="M19 5a10 10 0 0 1 0 14"></path>
     </svg>
     Escuchar con sonido
   </Button>
+  )}
 </div>
 
 <script>
@@ -67,7 +71,7 @@ const { src, title } = Astro.props;
     const figure = root.querySelector("figure")!;
     const video = root.querySelector("video")!;
     const toggle = root.querySelector<HTMLButtonElement>("[data-toggle]")!;
-    const sound = root.querySelector<HTMLButtonElement>("[data-sound]")!;
+    const sound = root.querySelector<HTMLButtonElement>("[data-sound]");
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
     let paused = reduced; // pausa elegida por la persona: no se reanuda al volver a la pantalla
 
@@ -119,13 +123,13 @@ const { src, title } = Astro.props;
       else play();
     });
 
-    sound.addEventListener("click", () => {
+    sound?.addEventListener("click", () => {
       video.currentTime = 0;
       video.muted = false;
       video.loop = false;
       video.controls = true;
       figure.dataset.sound = "";
-      sound.style.display = "none";
+      sound!.style.display = "none";
       play();
       track("video_sound", { video: root.dataset.autovideo ?? "", page: location.pathname });
     });

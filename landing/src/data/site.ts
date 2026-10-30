@@ -387,15 +387,12 @@ export interface Capability {
 /** Home: las tres capas de la plataforma, con los desarrolladores primero. */
 export const platform: Capability[] = [
   {
-    title: "Motores por API",
-    text: "Reconocimiento de voz, modelo de lenguaje y síntesis con acento argentino, con una API key. Compatible con el SDK de OpenAI y con streaming.",
+    title: "Motores por API o MCP",
+    text: "Usá la voz, la transcripción y la inteligencia artificial desde tu sistema por API, o manejá toda la plataforma desde tu asistente de IA por MCP.",
     status: "available",
-    href: "/desarrolladores#api",
-    link: "Ver la API →",
-    more: [
-      { href: "/plataforma/voces-argentinas", label: "Voces argentinas →" },
-      { href: "/plataforma/transcripcion", label: "Transcripción de audio →" },
-    ],
+    href: "/desarrolladores/docs/api",
+    link: "Documentación API →",
+    more: [{ href: "/desarrolladores/docs/mcp", label: "Documentación MCP →" }],
   },
   {
     title: "Agentes",
