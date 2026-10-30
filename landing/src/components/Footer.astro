@@ -1,4 +1,5 @@
 ---
+import { industries } from "../data/industries";
 import { capabilities, contactEmail, contactPhone, verticals } from "../data/site";
 
 const group = "grid content-start gap-2";
@@ -14,6 +15,7 @@ const link = "hover:text-ink";
         <ul class={`m-0 list-none p-0 ${group}`}>
           <li><a class={link} href="/">Home</a></li>
           <li><a class={link} href="/casos-de-uso">Casos de uso</a></li>
+          {industries.map((i) => <li class="pl-3"><a class={link} href={`/casos-de-uso/${i.slug}`}>{i.name}</a></li>)}
           {verticals.map((v) => <li class="pl-3"><a class={link} href={`/casos-de-uso/${v.slug}`}>{v.title}</a></li>)}
         </ul>
         <ul class={`m-0 list-none p-0 ${group}`}>

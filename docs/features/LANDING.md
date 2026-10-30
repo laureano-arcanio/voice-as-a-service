@@ -19,6 +19,7 @@ Canónico `https://atentina.com.ar/`. `www.atentina.com.ar` (Render), `atentina.
 | `/desarrolladores/docs/api` | API de inferencia, llamadas, contactos, campañas, webhook, llamadas directas, reportes; tabla de planes. | `desarrolladores/docs/api.astro` |
 | `/desarrolladores/docs/tu-propio-agente` | Contrato del agente externo (endpoint compatible con OpenAI del cliente). | `desarrolladores/docs/tu-propio-agente.astro` |
 | `/casos-de-uso` y `/casos-de-uso/<slug>` | Quien tiene un problema de atención. Verticales `turnos` (verde azulado), `cobranzas` (violeta), `municipios` (ámbar), con su `data-theme`. En `/casos-de-uso`, debajo de la portada, el video de atención punta a punta (`#video`, `AutoVideo`): propio en `public/videos/` (v2 de `marketing/videos/proyectos/atencion-punta-a-punta`, recomprimida: 2,7 MB, 1080p, audio 96 kb/s), arranca solo y mudo al entrar en pantalla y se lee por los subtítulos quemados; botón de pausa, sin autoplay con `prefers-reduced-motion`, y "Escuchar con sonido" lo reinicia con audio y controles (evento `video_sound`). En YouTube: `k-Fpnre1rd0`. Planes sin Free. | `casos-de-uso/[vertical].astro` + `verticals` en `site.ts` |
+| `/casos-de-uso/<industria>` | Una página por rubro para posicionar por búsqueda: `automotriz`, `educacion`, `inmobiliario`, `retail`, `salud`, `seguros`, `servicios`. Qué hace el agente en el rubro, cómo funciona, una llamada de ejemplo (`SampleResult`), voces con un saludo del rubro, preguntas frecuentes del rubro (FAQPage), precios y contacto; enlaza las páginas por necesidad que aplican. Solo lo que la plataforma hace hoy. Con la misma plantilla, "Otros usos": `traduccion-en-tiempo-real` (el agente hace de intérprete en la llamada; se ofrece mientras se termina de implementar, sin producción todavía), `creadores-de-contenido` (locuciones con las voces para redes y publicidad, y traducción de guiones) y `transcripcion-de-llamadas` (llamadas del equipo desde el panel, transcriptas en vivo sin agente); sin demo de agente, la portada ofrece pedir una demo y escuchar las voces. Se listan en el menú, en `/casos-de-uso#industrias` y en el footer. | `IndustryPage.astro` (servida por `casos-de-uso/[vertical].astro`) + `src/data/industries.ts` |
 | `/plataforma` y `/plataforma/<slug>` | Una página por capacidad para posicionar por término: `voces-argentinas`, `transcripcion`, `whatsapp`, `telefonia`, `telefono-del-equipo`. Sin nav propio: se llega por el footer, las tarjetas de `Platform` y los `Feature.href` de las verticales. | `plataforma/[slug].astro` + `capabilities` en `site.ts` |
 | `/registro` | Registro (Free o plan pago con `?plan=<nombre>`). `noindex`. | `registro.astro`, `src/scripts/signup.ts` |
 | `/laureano-arcanio` | Perfil del fundador con `Person` en JSON-LD. Fuera del nav, en el sitemap. | `laureano-arcanio.astro` |
@@ -97,6 +98,10 @@ reproductor junta 0,5 s antes de empezar para no cortar entre el primer bloque (
 los ~0,6 s en producción (primer bloque a 168 ms, síntesis completa a 1,7 s; Cloudflare no acumula). La primera vez
 de cada visita, ~2,6 s (incluye Turnstile y sesión). Repetir sale del `AudioBuffer`, sin otro pedido.
 `pcm-player.ts` es copia de `web/src/lib/pcmPlayer.ts`: `pcmPlayer.parity.test.ts` falla si se desvían.
+
+**Menú:** "Casos de uso" es un link a `/casos-de-uso` y, en escritorio, con el mouse encima o el foco adentro despliega
+las industrias y las páginas por necesidad (solo CSS; Tailwind aplica el hover solo con mouse, así que Chrome headless
+no lo abre sin `--blink-settings=primaryHoverType=2,availableHoverTypes=2`). En celular, el link de siempre.
 
 **Sección de voces** (`Voices.astro`, `#voces`; el nav tiene "Voces" y lleva ahí): las 12 destacadas (`voices` en
 `site.ts`) en tarjetas chicas de tres por fila con su retrato, y al lado un reproductor compacto con el retrato de la
@@ -194,6 +199,8 @@ voseo, sin superlativos, categoría "agentes con IA que atienden a tus clientes"
 | Telefonía y SIP | telefonía IP para empresas, 0800 virtual, SIP trunk Argentina, central con IA, llamadas salientes automáticas | `/plataforma/telefonia` |
 | Teléfono del equipo | llamar y atender desde el navegador | `/plataforma/telefono-del-equipo` |
 | Agentes | agente de voz con IA, agente telefónico, automatizar atención al cliente | `/casos-de-uso` y verticales |
+| Industrias | agente de voz con IA para concesionarias, institutos, inmobiliarias, comercios, clínicas, aseguradoras, empresas de servicios | `/casos-de-uso/<industria>` (`metaTitle` de cada una) |
+| Otros usos | traducción de llamadas en tiempo real, voces con IA para publicidad y redes, transcripción de llamadas en vivo | `/casos-de-uso/traduccion-en-tiempo-real`, `/creadores-de-contenido`, `/transcripcion-de-llamadas` |
 | API y LLM | API de voz, API compatible con OpenAI, inferencia en Argentina | `/desarrolladores`, `/desarrolladores/docs` |
 | Empresas | soluciones de IA para empresas, agentes con IA para empresas | `/` |
 

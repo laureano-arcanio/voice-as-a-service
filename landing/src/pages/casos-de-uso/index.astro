@@ -4,6 +4,7 @@ import CheckList from "../../components/CheckList.astro";
 import Cta from "../../components/Cta.astro";
 import Faq from "../../components/Faq.astro";
 import Footer from "../../components/Footer.astro";
+import Industries from "../../components/Industries.astro";
 import Nav from "../../components/Nav.astro";
 import Pricing from "../../components/Pricing.astro";
 import Section from "../../components/Section.astro";
@@ -75,11 +76,10 @@ const steps = [
     <TelDialog />
 
     <Section id="video">
-      <div class="grid gap-6">
-        <h2 class="text-center">Mirá cómo atiende, de punta a punta</h2>
-        <AutoVideo src="atencion-punta-a-punta" title="Cómo atiende un agente de Atentina, de punta a punta" />
-      </div>
+      <AutoVideo src="atencion-punta-a-punta" title="Cómo atiende un agente de Atentina, de punta a punta" />
     </Section>
+
+    <Industries />
 
     <Solutions other />
 

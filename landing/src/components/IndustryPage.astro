@@ -1,0 +1,150 @@
+---
+// Página de una industria (`/casos-de-uso/<slug>`): qué hace el agente en el rubro, cómo funciona, un resultado de
+// ejemplo, voces, preguntas frecuentes del rubro y precios. Los datos, en src/data/industries.ts.
+import { breadcrumb, faqPage, pricingPlans, service } from "../data/schema";
+import type { Industry } from "../data/industries";
+import { agents, verticals } from "../data/site";
+import Base from "../layouts/Base.astro";
+import Button from "./Button.astro";
+import CallWidget from "./CallWidget.astro";
+import Cta from "./Cta.astro";
+import Faq from "./Faq.astro";
+import Footer from "./Footer.astro";
+import Nav from "./Nav.astro";
+import Pricing from "./Pricing.astro";
+import SampleResult from "./SampleResult.astro";
+import Section from "./Section.astro";
+import TelDialog from "./TelDialog.astro";
+import Voices from "./Voices.astro";
+
+interface Props {
+  industry: Industry;
+}
+
+const { industry } = Astro.props;
+const path = `/casos-de-uso/${industry.slug}`;
+const agent = agents.filter((a) => a.slug === industry.agent);
+const eyebrow = industry.eyebrow ?? `Agentes con IA para ${industry.name.toLowerCase()}`;
+const related = verticals.filter((v) => industry.related.includes(v.slug));
+---
+
+<Base
+  title={industry.metaTitle}
+  description={industry.metaDescription}
+  path={path}
+  schema={[
+    service({
+      name: industry.group === "industria" ? `Agentes con IA para ${industry.name.toLowerCase()}` : industry.name,
+      serviceType: industry.group === "industria" ? `Agente de voz con IA: ${industry.who}` : industry.name,
+      description: industry.metaDescription,
+      path,
+      plans: pricingPlans(),
+    }),
+    breadcrumb([
+      { name: "Atentina", path: "/" },
+      { name: "Casos de uso", path: "/casos-de-uso" },
+      { name: industry.name, path },
+    ]),
+    faqPage(industry.faq),
+  ]}
+>
+  <Nav current="sector" />
+
+  <main>
+    <header class="border-b border-line bg-linear-to-b from-accent-soft to-bg pt-10 pb-14 min-[901px]:pt-[72px]">
+      <div class="mx-auto grid max-w-[1120px] items-center gap-9 px-5 min-[901px]:grid-cols-[1fr_380px] min-[901px]:gap-12">
+        <div class="grid gap-[22px]">
+          <a class="w-fit text-[.9rem] font-semibold text-muted no-underline hover:text-ink" href="/casos-de-uso">← Casos de uso</a>
+          <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">{eyebrow}</span>
+          <h1>{industry.headline}</h1>
+          <p class="max-w-[62ch] text-[1.12rem] text-ink-2">{industry.lead}</p>
+          <p class="font-mono text-[.78rem] tracking-[.04em] text-muted uppercase">{industry.who}</p>
+        </div>
+        {
+          agent.length > 0 ? (
+            <CallWidget agents={agent} title="Probá un agente de ejemplo" />
+          ) : (
+            <div class="grid gap-3 rounded-[18px] border border-line bg-surface p-5 shadow-card">
+              <strong class="font-display text-[1.15rem]">Probalo con tu caso</strong>
+              <p class="text-[.95rem] text-ink-2">Contanos qué necesitás y lo armamos con vos. Mientras, escuchá las voces.</p>
+              <Button href="#demo">Pedí una demo</Button>
+              <Button href="#voces" variant="ghost">Escuchar las voces</Button>
+            </div>
+          )
+        }
+      </div>
+    </header>
+
+    <TelDialog />
+
+    <Section id="que-hace">
+      <h2>{industry.group === "industria" ? "Qué hace el agente en tu negocio" : "Para qué sirve"}</h2>
+      {industry.group === "industria" && (
+        <p class="mt-3 max-w-[62ch] text-[1.12rem] text-ink-2">Por teléfono y por WhatsApp, con la información y las reglas de tu empresa.</p>
+      )}
+      <ul class="mt-9 grid list-none gap-4 p-0 min-[641px]:grid-cols-2 min-[961px]:grid-cols-3">
+        {
+          industry.uses.map((u) => (
+            <li class="grid content-start gap-2 rounded-2xl border border-line bg-surface p-6">
+              <h3 class="text-[1.15rem]">{u.title}</h3>
+              <p class="text-[.96rem] text-ink-2">{u.text}</p>
+              {u.href && (
+                <a class="mt-1 text-[.92rem] font-semibold text-accent no-underline hover:text-accent-2" href={u.href}>
+                  {u.link} →
+                </a>
+              )}
+            </li>
+          ))
+        }
+      </ul>
+    </Section>
+
+    <Section id="como" class="border-t border-line bg-bg-2">
+      <div class="grid items-start gap-9 min-[901px]:grid-cols-2 min-[901px]:gap-12">
+        <div class="grid gap-6">
+          <h2>Cómo funciona</h2>
+          <ol class="grid list-none gap-4 p-0">
+            {
+              industry.steps.map((step, i) => (
+                <li class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+                  <span class="row-span-2 grid size-9 place-items-center rounded-full bg-accent font-display font-extrabold text-accent-ink">{i + 1}</span>
+                  <h3 class="text-[1.12rem]">{step.title}</h3>
+                  <p class="text-[.96rem] text-ink-2">{step.text}</p>
+                </li>
+              ))
+            }
+          </ol>
+          {
+            industry.group === "industria" && (
+              <p class="max-w-[62ch] text-[1.02rem] text-ink-2">
+                Cada llamada termina con la transcripción y los datos ordenados, en el panel o en tu sistema por API o webhook.
+              </p>
+            )
+          }
+          {
+            related.length > 0 && (
+              <p class="text-[1.02rem] text-ink-2">
+                También te puede servir:{" "}
+                {related.map((v, i) => (
+                  <>
+                    {i > 0 && " · "}
+                    <a class="font-semibold text-accent no-underline hover:text-accent-2" href={`/casos-de-uso/${v.slug}`}>
+                      {v.title}
+                    </a>
+                  </>
+                ))}
+              </p>
+            )
+          }
+        </div>
+        <SampleResult sample={industry.sample} />
+      </div>
+    </Section>
+
+    <Voices line={industry.voiceLine} selected={industry.defaultVoice} />
+    <Faq items={industry.faq} />
+    <Pricing />
+    <Cta subject={`Quiero una demo de Atentina para ${industry.name.toLowerCase()}`} />
+  </main>
+  <Footer />
+</Base>

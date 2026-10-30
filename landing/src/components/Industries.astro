@@ -1,0 +1,33 @@
+---
+// Tarjetas de las páginas por industria y de otros usos (src/data/industries.ts).
+import { industries } from "../data/industries";
+import Section from "./Section.astro";
+
+const groups = [
+  { title: "Por industria", lead: "Qué hace el agente en cada rubro, con un ejemplo de llamada.", items: industries.filter((i) => i.group === "industria") },
+  { title: "Otros usos", lead: "Traducción, voces y transcripción, con la misma plataforma.", items: industries.filter((i) => i.group === "uso") },
+];
+---
+
+<Section id="industrias">
+  {
+    groups.map((g, n) => (
+      <div class:list={[n > 0 && "mt-14"]}>
+        <h2>{g.title}</h2>
+        <p class="mt-3 max-w-[62ch] text-[1.12rem] text-ink-2">{g.lead}</p>
+        <div class="mt-9 grid gap-3 min-[561px]:grid-cols-2 min-[901px]:grid-cols-4">
+          {g.items.map((i) => (
+            <a
+              class="grid content-start gap-1 rounded-2xl border border-line bg-surface p-5 no-underline transition-[border-color,translate,box-shadow] duration-150 hover:-translate-y-0.5 hover:border-accent hover:shadow-card"
+              href={`/casos-de-uso/${i.slug}`}
+            >
+              <h3 class="text-[1.15rem]">{i.name}</h3>
+              <p class="text-[.92rem] text-ink-2">{i.short}</p>
+              <span class="mt-2 text-[.92rem] font-semibold text-accent">Ver cómo funciona →</span>
+            </a>
+          ))}
+        </div>
+      </div>
+    ))
+  }
+</Section>

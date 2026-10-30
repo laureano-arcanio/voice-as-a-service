@@ -12,19 +12,27 @@ import TelDialog from "../../components/TelDialog.astro";
 import Voices from "../../components/Voices.astro";
 import { breadcrumb, pricingPlans, service } from "../../data/schema";
 import { agents, type Vertical, verticals } from "../../data/site";
+import IndustryPage from "../../components/IndustryPage.astro";
+import { type Industry, industries } from "../../data/industries";
 import Base from "../../layouts/Base.astro";
 
+// Una ruta para las páginas por necesidad (`verticals`) y las de industria (`industries`, con su plantilla).
 export function getStaticPaths() {
-  return verticals.map((vertical) => ({ params: { vertical: vertical.slug }, props: { vertical } }));
+  return [
+    ...verticals.map((vertical) => ({ params: { vertical: vertical.slug }, props: { vertical } })),
+    ...industries.map((industry) => ({ params: { vertical: industry.slug }, props: { industry } })),
+  ];
 }
 
-interface Props {
-  vertical: Vertical;
-}
+type Props = { vertical: Vertical; industry?: undefined } | { industry: Industry; vertical?: undefined };
 
-const { vertical } = Astro.props;
-const agent = agents.filter((a) => a.slug === vertical.agent);
+const { vertical, industry } = Astro.props;
+const agent = vertical ? agents.filter((a) => a.slug === vertical.agent) : [];
 ---
+
+{industry && <IndustryPage industry={industry} />}
+{
+  vertical && (
 
 <Base
   title={vertical.metaTitle}
@@ -99,3 +107,5 @@ const agent = agents.filter((a) => a.slug === vertical.agent);
   </main>
   <Footer />
 </Base>
+  )
+}
