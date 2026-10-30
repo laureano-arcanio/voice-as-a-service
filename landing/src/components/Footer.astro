@@ -1,5 +1,7 @@
 ---
+import { channels } from "../data/channels";
 import { industries } from "../data/industries";
+import Icon from "./Icon.astro";
 import { capabilities, contactEmail, contactPhone, verticals } from "../data/site";
 
 const group = "grid content-start gap-2";
@@ -12,6 +14,14 @@ const link = "hover:text-ink";
     <nav class="grid content-start gap-3" aria-label="Casos de uso">
       <a class={`${heading} ${link}`} href="/casos-de-uso">Casos de uso</a>
       <ul class={`m-0 list-none p-0 ${group}`}>
+        {channels.map((c) => (
+          <li>
+            <a class={`${link} inline-flex items-center gap-1.5`} href={`/canales/${c.slug}`}>
+              <Icon name={c.icon} class="size-3.5 opacity-70" />
+              {c.name}
+            </a>
+          </li>
+        ))}
         {industries.map((i) => <li><a class={link} href={`/casos-de-uso/${i.slug}`}>{i.name}</a></li>)}
         {verticals.map((v) => <li><a class={link} href={`/casos-de-uso/${v.slug}`}>{v.title}</a></li>)}
       </ul>

@@ -1,0 +1,132 @@
+---
+// Página de un canal (`/canales/<slug>`): qué hace el agente por ese canal, cómo funciona, preguntas frecuentes y
+// precios. WhatsApp muestra la conversación animada; teléfono y web, la demo de llamada. Datos en src/data/channels.ts.
+import Button from "../../components/Button.astro";
+import CallWidget from "../../components/CallWidget.astro";
+import Cta from "../../components/Cta.astro";
+import Faq from "../../components/Faq.astro";
+import Footer from "../../components/Footer.astro";
+import Icon from "../../components/Icon.astro";
+import Nav from "../../components/Nav.astro";
+import Pricing from "../../components/Pricing.astro";
+import Section from "../../components/Section.astro";
+import TelDialog from "../../components/TelDialog.astro";
+import WhatsAppDemo from "../../components/WhatsAppDemo.astro";
+import { type Channel, channels } from "../../data/channels";
+import { breadcrumb, faqPage, pricingPlans, service } from "../../data/schema";
+import { atentinaAgent, whatsappUrl } from "../../data/site";
+import Base from "../../layouts/Base.astro";
+
+export function getStaticPaths() {
+  return channels.map((channel) => ({ params: { canal: channel.slug }, props: { channel } }));
+}
+
+interface Props {
+  channel: Channel;
+}
+
+const { channel } = Astro.props;
+const path = `/canales/${channel.slug}`;
+const others = channels.filter((c) => c.slug !== channel.slug);
+---
+
+<Base
+  title={channel.metaTitle}
+  description={channel.metaDescription}
+  path={path}
+  schema={[
+    service({ name: channel.h1, serviceType: channel.h1, description: channel.metaDescription, path, plans: pricingPlans(channel.slug === "llamadas-web") }),
+    breadcrumb([
+      { name: "Atentina", path: "/" },
+      { name: "Canales", path: "/canales" },
+      { name: channel.name, path },
+    ]),
+    faqPage(channel.faq),
+  ]}
+>
+  <Nav current="canal" />
+
+  <main>
+    <header class="border-b border-line bg-linear-to-b from-accent-soft to-bg pt-10 pb-14 min-[901px]:pt-[72px]">
+      <div class="mx-auto grid max-w-[1120px] items-center gap-9 px-5 min-[901px]:grid-cols-[1fr_380px] min-[901px]:gap-12">
+        <div class="grid gap-[22px]">
+          <a class="w-fit text-[.9rem] font-semibold text-muted no-underline hover:text-ink" href="/canales">← Canales</a>
+          <span class="inline-flex items-center gap-2 font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">
+            <Icon name={channel.icon} class="size-4" />
+            {channel.name}
+          </span>
+          <h1>{channel.h1}</h1>
+          <p class="max-w-[30ch] font-display text-[clamp(1.25rem,2.2vw,1.6rem)] leading-[1.2] font-bold tracking-[-0.015em]">{channel.headline}</p>
+          <p class="max-w-[62ch] text-[1.12rem] text-ink-2">{channel.lead}</p>
+          {
+            channel.slug === "whatsapp" && (
+              <div class="flex flex-wrap gap-3">
+                <Button href={whatsappUrl} target="_blank" rel="noopener" variant="whatsapp">
+                  <Icon name="whatsapp" class="size-5" />
+                  Escribile a nuestro agente
+                </Button>
+                <Button href="#precios" variant="ghost">Ver los planes</Button>
+              </div>
+            )
+          }
+        </div>
+        {channel.slug === "whatsapp" ? <WhatsAppDemo /> : <CallWidget agents={[atentinaAgent]} whatsapp={whatsappUrl} />}
+      </div>
+    </header>
+
+    <TelDialog />
+
+    <Section id="que-hace">
+      <h2>Qué hace el agente por {channel.slug === "whatsapp" ? "WhatsApp" : "este canal"}</h2>
+      <ul class="mt-9 grid list-none gap-4 p-0 min-[641px]:grid-cols-2 min-[961px]:grid-cols-4">
+        {
+          channel.features.map((f) => (
+            <li class="grid content-start gap-2 rounded-2xl border border-line bg-surface p-5">
+              <h3 class="text-[1.08rem]">{f.title}</h3>
+              <p class="text-[.94rem] text-ink-2">{f.text}</p>
+              {f.href && (
+                <a class="mt-1 text-[.9rem] font-semibold text-accent no-underline hover:text-accent-2" href={f.href}>
+                  {f.link} →
+                </a>
+              )}
+            </li>
+          ))
+        }
+      </ul>
+    </Section>
+
+    <Section id="como" class="border-t border-line bg-bg-2">
+      <h2>Cómo funciona</h2>
+      <ol class="mt-9 grid list-none gap-4 p-0 min-[801px]:grid-cols-3">
+        {
+          channel.steps.map((step, i) => (
+            <li class="grid content-start gap-3 rounded-2xl border border-line bg-surface p-6">
+              <span class="grid size-9 place-items-center rounded-full bg-accent font-display font-extrabold text-accent-ink">{i + 1}</span>
+              <h3 class="text-[1.15rem]">{step.title}</h3>
+              <p class="text-[.96rem] text-ink-2">{step.text}</p>
+            </li>
+          ))
+        }
+      </ol>
+      <p class="mt-8 text-[1.02rem] text-ink-2">
+        El mismo agente atiende también por{" "}
+        {
+          others.map((c, i) => (
+            <>
+              {i > 0 && " y "}
+              <a class="inline-flex items-center gap-1 font-semibold text-accent no-underline hover:text-accent-2" href={`/canales/${c.slug}`}>
+                <Icon name={c.icon} class="size-4 opacity-70" />
+                {c.slug === "whatsapp" ? c.name : c.name.toLowerCase()}
+              </a>
+            </>
+          ))
+        }.
+      </p>
+    </Section>
+
+    <Faq items={channel.faq} />
+    <Pricing free={channel.slug === "llamadas-web"} />
+    <Cta subject={`Quiero un agente para ${channel.name}`} />
+  </main>
+  <Footer />
+</Base>

@@ -1,0 +1,155 @@
+---
+// Conversación de WhatsApp animada (página /canales/whatsapp): muestra a simple vista que el agente atiende
+// WhatsApp con texto, notas de voz y llamadas, y que pasa la llamada a una persona. HTML y CSS, sin video: los
+// mensajes aparecen de a uno con "escribiendo…" y la conversación vuelve a empezar. Con prefers-reduced-motion,
+// o sin JS, se ve completa y quieta. Nombres y datos de ejemplo.
+
+// Ondas fijas de las notas de voz (alturas en px).
+const wave = [6, 10, 14, 8, 16, 12, 18, 10, 6, 12, 16, 9, 14, 7, 11, 15, 8, 12, 6, 10, 13, 7];
+const tick = '<svg viewBox="0 0 16 11" class="inline size-[14px] fill-[#53bdeb]" aria-hidden="true"><path d="M11.07.65 4.6 7.1 2.1 4.6.7 6l3.9 3.9 7.9-7.9zM15.3.65 8.85 7.1l-.9-.9-1.4 1.4 2.3 2.3 7.9-7.9z"/></svg>';
+---
+
+<figure class="m-0 mx-auto w-full max-w-[360px]" data-wa-demo aria-label="Ejemplo de una conversación de WhatsApp atendida por un agente con IA">
+  <div class="overflow-hidden rounded-[34px] border-[6px] border-[#1f2c34] bg-[#1f2c34] shadow-card">
+    <div class="flex items-center gap-2.5 bg-[#008069] px-3 py-2.5 text-white">
+      <svg viewBox="0 0 24 24" class="size-5 flex-none fill-white" aria-hidden="true"><path d="M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20z"/></svg>
+      <span class="grid size-9 flex-none place-items-center rounded-full bg-white">
+        <svg viewBox="0 0 64 64" class="size-6" aria-hidden="true">
+          <path d="M55.07 38.62A24 24 0 1 1 55.07 25.38" fill="none" stroke="#0b1220" stroke-width="8" stroke-linecap="round" />
+          <rect x="20" y="26" width="6" height="12" rx="3" fill="#2456e6" /><rect x="29" y="21" width="6" height="22" rx="3" fill="#2456e6" /><rect x="38" y="26" width="6" height="12" rx="3" fill="#2456e6" />
+        </svg>
+      </span>
+      <span class="min-w-0 flex-1 leading-tight">
+        <b class="block truncate text-[.98rem] font-semibold">Clínica del Sol</b>
+        <small class="block text-[.75rem] text-white/80" data-wa-status>en línea</small>
+      </span>
+      <svg viewBox="0 0 24 24" class="size-5 flex-none fill-white" aria-hidden="true"><path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11z"/></svg>
+      <svg viewBox="0 0 24 24" class="ml-2 size-5 flex-none fill-white" aria-hidden="true"><path d="M6.6 10.8a15 15 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z"/></svg>
+    </div>
+
+    <div class="flex h-[460px] flex-col justify-end gap-1.5 overflow-hidden bg-[#efeae2] px-2.5 py-3 text-[.86rem] leading-snug text-[#111b21]" data-wa-chat>
+      <div class="wa-msg self-start" data-step="0">
+        <div class="max-w-[80%] rounded-lg rounded-tl-none bg-white px-2.5 py-1.5 shadow-[0_1px_.5px_rgba(11,20,26,.13)]">
+          Hola, ¿tienen turno con pediatría para el jueves?<span class="ml-2 align-bottom text-[.66rem] text-[#667781]">10:41</span>
+        </div>
+      </div>
+      <div class="wa-msg self-end" data-step="1" data-typing>
+        <div class="max-w-[80%] rounded-lg rounded-tr-none bg-[#d9fdd3] px-2.5 py-1.5 shadow-[0_1px_.5px_rgba(11,20,26,.13)]">
+          Hola, sí. El jueves hay a las 10 con la Dra. Paz y a las 16:30 con el Dr. Rossi. ¿Cuál te queda mejor?<span class="ml-2 align-bottom text-[.66rem] text-[#667781]">10:41 <Fragment set:html={tick} /></span>
+        </div>
+      </div>
+      <div class="wa-msg self-start" data-step="2">
+        <div class="w-[78%] rounded-lg rounded-tl-none bg-white px-2.5 py-2 shadow-[0_1px_.5px_rgba(11,20,26,.13)]">
+          <div class="flex items-center gap-2">
+            <svg viewBox="0 0 24 24" class="size-5 flex-none fill-[#667781]" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+            <span class="flex h-5 flex-1 items-center gap-[2px]">{wave.map((h) => <i class="block w-[3px] rounded-full bg-[#8696a0]" style={`height:${h}px`} />)}</span>
+            <span class="text-[.7rem] text-[#667781]">0:06</span>
+          </div>
+          <p class="mt-1.5 border-t border-[#e9edef] pt-1.5 text-[.78rem] text-[#54656f] italic">
+            «A las 10 con la doctora Paz. ¿Tengo que llevar algo?»
+          </p>
+        </div>
+      </div>
+      <div class="wa-msg self-end" data-step="3" data-typing="grabando audio…">
+        <div class="w-[78%] rounded-lg rounded-tr-none bg-[#d9fdd3] px-2.5 py-2 shadow-[0_1px_.5px_rgba(11,20,26,.13)]">
+          <div class="flex items-center gap-2">
+            <svg viewBox="0 0 24 24" class="size-5 flex-none fill-[#667781]" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+            <span class="flex h-5 flex-1 items-center gap-[2px]">{wave.toReversed().map((h) => <i class="block w-[3px] rounded-full bg-[#7fae86]" style={`height:${h}px`} />)}</span>
+            <span class="text-[.7rem] text-[#667781]">0:09</span>
+          </div>
+          <p class="mt-1.5 border-t border-[#c8ecc0] pt-1.5 text-[.78rem] text-[#54656f] italic">
+            «Listo, te reservé el jueves a las 10. Traé el carnet de la obra social y llegá diez minutos antes.»
+          </p>
+        </div>
+      </div>
+      <div class="wa-msg self-start" data-step="4">
+        <div class="flex items-center gap-2.5 rounded-lg rounded-tl-none bg-white px-2.5 py-2 shadow-[0_1px_.5px_rgba(11,20,26,.13)]">
+          <span class="grid size-8 place-items-center rounded-full bg-[#25d366]/15">
+            <svg viewBox="0 0 24 24" class="size-4 fill-[#00a884]" aria-hidden="true"><path d="M6.6 10.8a15 15 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z"/></svg>
+          </span>
+          <span class="leading-tight">
+            <b class="block text-[.82rem] font-semibold">Llamada de voz</b>
+            <small class="text-[.72rem] text-[#667781]">Atendida por el agente · 1:48</small>
+          </span>
+        </div>
+      </div>
+      <div class="wa-msg self-center" data-step="5">
+        <span class="rounded-lg bg-[#fff5c4] px-3 py-1 text-[.72rem] text-[#54656f] shadow-[0_1px_.5px_rgba(11,20,26,.13)]">El agente pasó la llamada a Ana, de recepción</span>
+      </div>
+      <div class="wa-typing self-end hidden" data-typing-bubble>
+        <div class="flex gap-1 rounded-lg rounded-tr-none bg-[#d9fdd3] px-3 py-2.5">
+          <i class="size-1.5 animate-bounce rounded-full bg-[#7fae86]"></i><i class="size-1.5 animate-bounce rounded-full bg-[#7fae86] [animation-delay:.15s]"></i><i class="size-1.5 animate-bounce rounded-full bg-[#7fae86] [animation-delay:.3s]"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2 bg-[#f0f2f5] px-2.5 py-2">
+      <span class="flex-1 rounded-full bg-white px-3.5 py-2 text-[.82rem] text-[#8696a0]">Mensaje</span>
+      <span class="grid size-9 place-items-center rounded-full bg-[#00a884]">
+        <svg viewBox="0 0 24 24" class="size-[18px] fill-white" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-2.1a7 7 0 0 0 6-6.9z"/></svg>
+      </span>
+    </div>
+  </div>
+  <figcaption class="mt-3 text-center text-[.8rem] text-muted">Conversación de ejemplo</figcaption>
+</figure>
+
+<style>
+  /* Sin JS o con menos movimiento: la conversación completa. Con JS, cada mensaje entra cuando le toca. */
+  [data-wa-demo][data-animated] .wa-msg {
+    display: none;
+  }
+  [data-wa-demo][data-animated] .wa-msg[data-shown] {
+    display: block;
+    animation: wa-in 0.25s ease-out;
+  }
+  @keyframes wa-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+</style>
+
+<script>
+  // Tiempos (ms) antes de cada mensaje; los del agente, con "escribiendo…" o "grabando audio…" antes.
+  const DELAYS = [700, 1400, 1600, 1500, 1800, 1500];
+  const TYPING = 1100;
+  const HOLD = 4500;
+
+  document.querySelectorAll<HTMLElement>("[data-wa-demo]").forEach((root) => {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const msgs = [...root.querySelectorAll<HTMLElement>(".wa-msg")];
+    const typing = root.querySelector<HTMLElement>("[data-typing-bubble]")!;
+    const status = root.querySelector<HTMLElement>("[data-wa-status]")!;
+    const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    let visible = false;
+    let running = false;
+
+    async function run() {
+      running = true;
+      root.dataset.animated = "";
+      while (visible) {
+        msgs.forEach((m) => delete m.dataset.shown);
+        for (const [i, m] of msgs.entries()) {
+          await wait(DELAYS[i] ?? 1200);
+          if (!visible) break;
+          if (m.dataset.typing !== undefined) {
+            status.textContent = m.dataset.typing || "escribiendo…";
+            typing.classList.remove("hidden");
+            await wait(TYPING);
+            typing.classList.add("hidden");
+            status.textContent = "en línea";
+          }
+          m.dataset.shown = "";
+        }
+        await wait(HOLD);
+      }
+      running = false;
+    }
+
+    new IntersectionObserver(([entry]) => {
+      visible = entry!.isIntersecting;
+      if (visible && !running) void run();
+    }, { threshold: 0.3 }).observe(root);
+  });
+</script>

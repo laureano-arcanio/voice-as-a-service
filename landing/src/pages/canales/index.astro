@@ -1,0 +1,53 @@
+---
+// Índice de canales: WhatsApp, llamadas telefónicas y llamadas web (src/data/channels.ts).
+import Cta from "../../components/Cta.astro";
+import Footer from "../../components/Footer.astro";
+import Icon from "../../components/Icon.astro";
+import Nav from "../../components/Nav.astro";
+import Section from "../../components/Section.astro";
+import { channels } from "../../data/channels";
+import { breadcrumb } from "../../data/schema";
+import Base from "../../layouts/Base.astro";
+
+const description =
+  "El mismo agente con IA atiende por WhatsApp, por teléfono y desde el navegador: mensajes, notas de voz, llamadas, derivación a tu equipo y todo transcripto.";
+---
+
+<Base
+  title="Canales: WhatsApp, llamadas telefónicas y llamadas web con IA | Atentina"
+  description={description}
+  path="/canales"
+  schema={[breadcrumb([{ name: "Atentina", path: "/" }, { name: "Canales", path: "/canales" }])]}
+>
+  <Nav current="canal" />
+  <main>
+    <header class="border-b border-line bg-linear-to-b from-bg-2 to-bg pt-10 pb-14 min-[901px]:pt-[72px]">
+      <div class="mx-auto grid max-w-[1120px] gap-[22px] px-5">
+        <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">Canales</span>
+        <h1>Un agente con IA en WhatsApp, por teléfono y en tu web</h1>
+        <p class="max-w-[62ch] text-[1.12rem] text-ink-2">{description}</p>
+      </div>
+    </header>
+    <Section>
+      <div class="grid gap-4 min-[801px]:grid-cols-3">
+        {
+          channels.map((c) => (
+            <a
+              class="grid content-start gap-3 rounded-2xl border border-line bg-surface p-6 no-underline transition-[border-color,translate,box-shadow] duration-150 hover:-translate-y-0.5 hover:border-accent hover:shadow-card"
+              href={`/canales/${c.slug}`}
+            >
+              <span class="grid size-10 place-items-center rounded-full bg-accent-soft text-accent">
+                <Icon name={c.icon} class="size-5" />
+              </span>
+              <h2 class="text-[1.3rem]">{c.name}</h2>
+              <p class="text-[.96rem] text-ink-2">{c.headline}</p>
+              <span class="mt-auto text-[.95rem] font-semibold text-accent">Ver cómo funciona →</span>
+            </a>
+          ))
+        }
+      </div>
+    </Section>
+    <Cta subject="Consulta sobre los canales de Atentina" />
+  </main>
+  <Footer />
+</Base>
