@@ -12,7 +12,7 @@ Canónico `https://atentina.com.ar/`. `www.atentina.com.ar` (Render), `atentina.
 
 | Ruta | Para quién / qué es | Archivo |
 |---|---|---|
-| `/` | Quien evalúa: demo de llamada (`CallWidget`), costos, plataforma, voces, precios (Free y planes con telefonía), FAQ, contacto. Sin código. | `src/pages/index.astro` |
+| `/` | Quien evalúa: demo de llamada (`CallWidget`); debajo de la portada, el video de la plataforma (`#video`, `AutoVideo`, v1 de `marketing/videos/proyectos/landing-plataforma`, 46,9 s, 2,3 MB para web); costos, plataforma, voces, precios (Free y planes con telefonía), FAQ, contacto. Sin código. | `src/pages/index.astro` |
 | `/desarrolladores` | Quien integra: hero `AgentTerminal`, API compatible con OpenAI (`CodeTabs`), integración agéntica (`AgenticSection`), voces, precios, FAQ de la API. | `src/pages/desarrolladores/index.astro` |
 | `/desarrolladores/docs` | Portada de la documentación: "MCP o API" y "Cómo funciona". Un script manda los links viejos con ancla a `/docs/api` (y `#mcp` a `/docs/mcp`). | `desarrolladores/docs/index.astro` |
 | `/desarrolladores/docs/mcp` | Conectar Claude, ChatGPT, Cursor u otro agente por MCP; qué incluye cada plan; herramientas por grupo. Datos de `src/data/mcp-tools.json`. | `desarrolladores/docs/mcp.astro` |

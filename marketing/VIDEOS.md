@@ -63,7 +63,10 @@ cargar el equipo y los contactos y llamar desde el panel y desde la aplicación 
 subtítulos y link a `/plataforma/telefono-del-equipo`; paula y gonzalo) y
 [`atencion-punta-a-punta`](../marketing/videos/proyectos/atencion-punta-a-punta/README.md) (16:9, 54,7 s, publicitario:
 el cliente llama, el agente usa el sistema de la empresa, deriva a su equipo y todo queda registrado, en un diagrama
-con los retratos de las voces y un cierre con tildes; paula y gonzalo en partes iguales, con subtítulos).
+con los retratos de las voces y un cierre con tildes; paula y gonzalo en partes iguales, con subtítulos) y
+[`landing-plataforma`](../marketing/videos/proyectos/landing-plataforma/README.md) (16:9, 46,9 s, para la home de la
+landing: la plataforma alrededor del agente, atiende, resuelve, llama, deriva, voces y panel, todo en uno y API y MCP
+para desarrolladores; paula y gonzalo en partes iguales, con subtítulos).
 
 ## Comandos
 

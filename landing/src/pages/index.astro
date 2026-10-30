@@ -1,4 +1,5 @@
 ---
+import AutoVideo from "../components/AutoVideo.astro";
 import Button from "../components/Button.astro";
 import CallWidget from "../components/CallWidget.astro";
 import Costs from "../components/Costs.astro";
@@ -9,6 +10,7 @@ import Nav from "../components/Nav.astro";
 import Platform from "../components/Platform.astro";
 import Pricing from "../components/Pricing.astro";
 import ResultBridge from "../components/ResultBridge.astro";
+import Section from "../components/Section.astro";
 import TelDialog from "../components/TelDialog.astro";
 import Voices from "../components/Voices.astro";
 import { faqPage, pricingPlans, service, webSite } from "../data/schema";
@@ -62,6 +64,10 @@ const facts = ["Telefonía incluida", "Compatible con OpenAI", `${voiceCount} vo
     </header>
 
     <TelDialog />
+
+    <Section id="video">
+      <AutoVideo src="landing-plataforma" title="Qué hace Atentina: agentes con IA que atienden a tus clientes" />
+    </Section>
 
     <Costs />
     <Platform more={{ href: "/plataforma", label: "Ver toda la plataforma →" }} />

@@ -1,0 +1,53 @@
+{
+  "nota": "Video de la home de la landing (unos 45 s, máximo 48): qué hace la plataforma, de forma general y orientada a ventas, sin detalles técnicos, y al final API y MCP para desarrolladores. paula y gonzalo alternados, con el mismo tiempo de voz. Ortografía normal; ápi y M C P según la tabla de grafías.",
+  "musica_segundos": 52,
+  "velocidad": 1.08,
+  "ganancia_db": -1.5,
+  "lineas": [
+    {
+      "id": "l1",
+      "voz": "paula",
+      "texto": "Atentina: la atención de tu empresa, con inteligencia artificial."
+    },
+    {
+      "id": "l2",
+      "voz": "gonzalo",
+      "texto": "Tus clientes llaman, escriben por WhatsApp o desde tu web, y un agente los atiende, a cualquier hora."
+    },
+    {
+      "id": "l3",
+      "voz": "paula",
+      "texto": "Da turnos, responde consultas, toma pedidos, y lo registra en tu sistema."
+    },
+    {
+      "id": "l4",
+      "voz": "gonzalo",
+      "texto": "También llama a tus clientes: confirma turnos, recuerda vencimientos y hace campañas."
+    },
+    {
+      "id": "l5",
+      "voz": "paula",
+      "texto": "Y cuando hace falta una persona, le pasa la llamada a alguien de tu equipo."
+    },
+    {
+      "id": "l6",
+      "voz": "gonzalo",
+      "texto": "Elegís entre cuarenta y una voces argentinas, y cada conversación queda en tu panel, con los datos y el resultado."
+    },
+    {
+      "id": "l7",
+      "voz": "paula",
+      "texto": "Teléfono, WhatsApp e inteligencia artificial, en un solo servicio, con un precio por mes, en pesos."
+    },
+    {
+      "id": "l8",
+      "voz": "gonzalo",
+      "texto": "Y si desarrollás, conectalo por ápi, o manejalo desde tu agente de programación con M C P."
+    },
+    {
+      "id": "l9",
+      "voz": "paula",
+      "texto": "Probalo gratis en atentina punto com punto ar."
+    }
+  ]
+}
