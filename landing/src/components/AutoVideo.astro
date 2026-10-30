@@ -2,6 +2,10 @@
 // Video propio (public/videos/) que se reproduce solo, mudo y en loop, cuando entra en pantalla: se lee por los
 // subtítulos quemados. "Escuchar con sonido" lo reinicia con audio y controles. Sin autoplay con
 // prefers-reduced-motion; siempre con botón de pausa (WCAG 2.2.2).
+// Mientras carga se ve un fondo blanco con las barras del logo y el video entra con un fundido: los videos empiezan en
+// blanco, así no hay salto. El poster (un cuadro del medio) solo se muestra si no hay autoplay; con él, el primer
+// cuadro del video no coincidía y parpadeaba.
+// Los archivos llevan la versión en el nombre (`<proyecto>-vN`): Cloudflare y el navegador guardan el video horas.
 import Button from "./Button.astro";
 
 interface Props {
@@ -14,10 +18,22 @@ const { src, title } = Astro.props;
 ---
 
 <div class="grid justify-items-center gap-4" data-autovideo={src}>
-  <figure class="group/video relative m-0 w-full overflow-hidden rounded-xl border border-line bg-surface-2" data-state="paused">
+  <figure class="group/video relative m-0 w-full overflow-hidden rounded-xl border border-line bg-white" data-state="paused">
+    <div class="absolute inset-0 grid place-items-center group-data-[ready]/video:hidden" aria-hidden="true">
+      <div class="flex h-10 items-center gap-1.5">
+        {
+          [0, 0.15, 0.3].map((d, i) => (
+            <span
+              class:list={["w-2 animate-pulse rounded-full bg-accent/70 motion-reduce:animate-none", i === 1 ? "h-10" : "h-6"]}
+              style={`animation-delay:${d}s`}
+            />
+          ))
+        }
+      </div>
+    </div>
     <video
-      class="block aspect-video h-auto w-full"
-      poster={`/videos/${src}.jpg`}
+      class="relative block aspect-video h-auto w-full opacity-0 transition-opacity duration-500 group-data-[ready]/video:opacity-100 motion-reduce:transition-none"
+      data-poster={`/videos/${src}.jpg`}
       muted
       loop
       playsinline
@@ -27,7 +43,7 @@ const { src, title } = Astro.props;
       <source src={`/videos/${src}.mp4`} type="video/mp4" />
     </video>
     <button
-      class="absolute right-3 bottom-3 grid size-10 cursor-pointer place-items-center rounded-full bg-ink/70 text-white backdrop-blur-sm transition-colors duration-150 hover:bg-ink/90 group-data-[sound]/video:hidden"
+      class="invisible absolute right-3 bottom-3 grid size-10 cursor-pointer place-items-center rounded-full bg-ink/70 text-white backdrop-blur-sm transition-colors duration-150 hover:bg-ink/90 group-data-[ready]/video:visible group-data-[sound]/video:hidden"
       type="button"
       aria-label="Reproducir"
       data-toggle
@@ -55,14 +71,38 @@ const { src, title } = Astro.props;
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
     let paused = reduced; // pausa elegida por la persona: no se reanuda al volver a la pantalla
 
+    const ready = () => (figure.dataset.ready = "");
+    // Sin autoplay (menos movimiento, ahorro de batería): el poster en lugar del video en blanco.
+    const showPoster = () => {
+      if (figure.dataset.ready !== undefined) return;
+      video.poster = video.dataset.poster ?? "";
+      ready();
+    };
     const sync = () => {
       const playing = !video.paused;
       figure.dataset.state = playing ? "playing" : "paused";
       toggle.setAttribute("aria-label", playing ? "Pausar" : "Reproducir");
     };
-    const play = () => void video.play().catch(sync);
+    const play = () =>
+      void video.play().catch(() => {
+        sync();
+        showPoster();
+      });
+    video.addEventListener("playing", ready);
     video.addEventListener("play", sync);
     video.addEventListener("pause", sync);
+    if (reduced) showPoster();
+
+    // Empieza a bajar el video un poco antes de que la sección llegue a la pantalla.
+    const near = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry!.isIntersecting) return;
+        video.preload = "auto";
+        near.disconnect();
+      },
+      { rootMargin: "600px 0px" },
+    );
+    near.observe(video);
 
     new IntersectionObserver(
       ([entry]) => {
