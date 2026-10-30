@@ -7,14 +7,16 @@ import { C, CLAMP, EASE, F } from "../../../src/comun/theme";
  * la cámara recorre. Las medidas son de la ventana (WIN); la cámara la escala y la mueve dentro del cuadro.
  */
 
-export const WIN = { w: 1100, h: 1600 };
+export const WIN = { w: 1100, h: 1400 };
 export const HEADER = 78;
 export const SIDEBAR = 300;
 export const CANVAS = "#f6f8fb";
 // Cuadro vertical 4:5 (1080 x 1350): centro de la cámara abajo del título
 export const CUADRO = { w: 1080, h: 1350 };
 const CAM_X = 540;
-const CAM_Y = 845;
+const CAM_Y = 675;
+// Zoom 1 = la ventana entera en el cuadro, con margen blanco (v5: sin títulos y con poco zoom, pedido del usuario)
+export const BASE = 0.94;
 
 export const useT = () => useCurrentFrame() / useVideoConfig().fps;
 
@@ -43,10 +45,11 @@ const camAt = (keys: Cam[], t: number) => {
   return keys[keys.length - 1];
 };
 
-/** La ventana del panel con la cámara: (x, y) de la ventana queda en el centro de la toma, con zoom s. */
+/** La ventana del panel con la cámara: (x, y) de la ventana queda en el centro del cuadro, con zoom s (1 = la ventana entera). */
 export const Camara: React.FC<{ keys: Cam[]; children: React.ReactNode }> = ({ keys, children }) => {
   const t = useT();
-  const c = camAt(keys, t);
+  const k = camAt(keys, t);
+  const c = { ...k, s: k.s * BASE };
   return (
     <div style={{
       position: "absolute", left: CAM_X - c.x * c.s, top: CAM_Y - c.y * c.s, width: WIN.w, height: WIN.h,
@@ -77,7 +80,7 @@ const NAV: ({ id: NavId; label: string; sub?: boolean } | { grupo: string })[] =
 export const AppFrame: React.FC<{ activo: NavId; children: React.ReactNode }> = ({ activo, children }) => (
   <div style={{
     position: "absolute", inset: 0, background: CANVAS, borderRadius: 26, overflow: "hidden",
-    border: `2px solid ${C.line}`, boxShadow: "0 40px 110px rgba(11,18,32,0.16)", fontFamily: F.body, color: C.ink,
+    border: `2px solid ${C.line}`, fontFamily: F.body, color: C.ink,
   }}>
     <div style={{
       position: "absolute", left: 0, right: 0, top: 0, height: HEADER, background: "#fff", borderBottom: `2px solid ${C.line}`,
@@ -249,24 +252,12 @@ export const Cursor: React.FC<{ ruta: { t: number; x: number; y: number }[]; cli
 /** Presión de un click en el segundo `c` (0 → 1 → 0), para el botón que se aprieta. */
 export const presionDe = (t: number, c: number) => interpolate(t, [c, c + 0.08, c + 0.22], [0, 1, 0], CLAMP);
 
-/**
- * Título del momento, grande (en la landing el video se ve a ~540 px de ancho): una frase en Bricolage 800 con el
- * remate en el acento en la segunda línea, sobre una franja blanca que tapa la ventana.
- */
-export const Titulo: React.FC<{ texto: string; acento: string; t: number }> = ({ texto, acento, t }) => {
-  const p = ein(t, 0.05, 0.55);
-  return (
-    <>
-      <div style={{
-        position: "absolute", left: 0, right: 0, top: 0, height: 345,
-        background: "linear-gradient(#fff 0%, #fff 82%, rgba(255,255,255,0) 100%)", zIndex: 30,
-      }} />
-      <div style={{
-        position: "absolute", left: 70, right: 40, top: 58, zIndex: 31, opacity: p, transform: `translateY(${(1 - p) * 30}px)`,
-        fontFamily: F.display, fontWeight: 800, fontSize: 100, lineHeight: 1.04, letterSpacing: "-0.02em", color: C.ink, whiteSpace: "nowrap",
-      }}>
-        {texto}<br /><span style={{ color: C.accent }}>{acento}</span>
-      </div>
-    </>
-  );
-};
+/** Bordes del cuadro que se funden a blanco: el video va sin borde sobre la página blanca (cuando el zoom saca la ventana del cuadro). */
+export const BordeBlanco: React.FC = () => (
+  <div style={{ position: "absolute", inset: 0, zIndex: 29, pointerEvents: "none" }}>
+    <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 22, background: "linear-gradient(90deg, #fff, rgba(255,255,255,0))" }} />
+    <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 22, background: "linear-gradient(270deg, #fff, rgba(255,255,255,0))" }} />
+    <div style={{ position: "absolute", left: 0, right: 0, top: 0, height: 22, background: "linear-gradient(180deg, #fff, rgba(255,255,255,0))" }} />
+    <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 22, background: "linear-gradient(0deg, #fff, rgba(255,255,255,0))" }} />
+  </div>
+);

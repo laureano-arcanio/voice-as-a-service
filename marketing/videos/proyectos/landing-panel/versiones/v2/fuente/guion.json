@@ -1,0 +1,5 @@
+{
+  "nota": "Sin locución: el video de la landing se reproduce silenciado y en loop. Video.tsx no tiene audio; musica_segundos está solo porque make video genera la música si falta.",
+  "musica_segundos": 21,
+  "lineas": []
+}

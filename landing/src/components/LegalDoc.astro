@@ -3,7 +3,7 @@
 // versión, también la vigente, en /<slug>/<versión> (link permanente: es lo que se acepta en el registro).
 // Las versiones van con noindex, fuera del sitemap y sin lista en la página: se llega por el link de los mails de
 // aceptación; el admin las ve todas en Legales del panel.
-import { type LegalSlug, legal, legalContent, versionDate } from "../data/legal";
+import { type LegalSlug, legal, legalContent } from "../data/legal";
 import Legal from "./Legal.astro";
 
 interface Props {
@@ -24,13 +24,12 @@ const Content = legalContent(slug, version);
   title={doc.title}
   description={description}
   path={Astro.props.version ? `/${slug}/${version}` : `/${slug}`}
-  updated={`${versionDate(version)} · versión ${version}`}
   noindex={Boolean(Astro.props.version)}
 >
   {
     !current && (
       <p class="rounded-xl border border-line bg-bg-2 px-4 py-3">
-        Esta es una versión anterior, que ya no rige. La vigente es la <a href={`/${slug}`}>del {versionDate(doc.current)}</a>.
+        Esta es una versión anterior, que ya no rige. Ver la <a href={`/${slug}`}>versión vigente</a>.
       </p>
     )
   }

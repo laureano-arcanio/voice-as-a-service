@@ -33,6 +33,9 @@ No es asesoramiento legal: los textos los revisa un abogado (la versión `2026-1
 - Landing: `/terminos` y `/privacidad` muestran la vigente; `/terminos/<versión>` y `/privacidad/<versión>`, cada
   una (`LegalDoc.astro`), con `noindex`, fuera del sitemap y sin lista en la página: se llega por el link permanente
   de los mails de aceptación (CCyC 1106-1108), que no se puede romper. Mostrar el historial no es obligatorio.
+- La landing no muestra fechas ni números de versión de los documentos (ni en `/terminos`, `/privacidad`,
+  eliminación de datos, arrepentimiento y baja, ni en el registro ni en la documentación de la API): solo el link. En
+  el registro el link va a la versión exacta que se acepta; la versión y la fecha quedan en el mail de aceptación.
 - Panel del admin: **Legales** (`/admin/legal`, `web/src/features/legal/`) lista cada versión con su huella y sus
   aceptaciones, y abre el texto exacto.
 

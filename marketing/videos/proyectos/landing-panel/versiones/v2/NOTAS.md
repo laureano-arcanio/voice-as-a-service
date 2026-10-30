@@ -1,4 +1,4 @@
-Estado: borrador
+Estado: cerrada (30-10-2026)
 
 # Landing: el panel para configurar tu agente, v2
 

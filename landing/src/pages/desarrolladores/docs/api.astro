@@ -318,7 +318,7 @@ const directErrors = [
   { http: "403", code: "blocked_number", text: "El teléfono está en los números bloqueados" },
   { http: "403", code: "panel_user_required", text: "En /join, /answer, /decline, /me/presence y /me/ringing: piden la sesión de un usuario del panel, no una API key" },
   { http: "403", code: "not_your_call", text: "En /join: la llamada es de otro usuario" },
-  { http: "403", code: "terms_pending", text: "Tu cuenta no aceptó la versión 2026-10-28 (o una posterior) de las condiciones y la política de privacidad, la que cubre las llamadas del equipo (se graban siempre). Alcanza con que la acepte un usuario en el panel. También al poner un número en answer_mode team" },
+  { http: "403", code: "terms_pending", text: "Tu cuenta no aceptó la versión de las condiciones y la política de privacidad que cubre las llamadas del equipo (se graban siempre), o una posterior. Alcanza con que la acepte un usuario en el panel. También al poner un número en answer_mode team" },
   { http: "409", code: "opted_out", text: "El contacto pidió no recibir llamadas: repetí con confirm_opted_out solo si la persona lo confirma" },
   { http: "409", code: "no_phone_number", text: "Tu cuenta no tiene números asignados" },
   { http: "409", code: "call_not_active · already_answered · not_ringing", text: "La llamada ya terminó, ya la tomó otra persona o ya no te suena" },
@@ -785,7 +785,7 @@ const campaignEndpoints = [
           {phoneNumberFields.map((f) => <tr><td><code>{f.field}</code></td><td>{f.text}</td></tr>)}
         </tbody>
       </table></div>
-      <p>La respuesta (y <code>GET /phone-numbers</code>) trae esos campos y <code>members</code>, con <code>id</code>, <code>name</code>, <code>phone</code> y <code>user_id</code> de cada persona. Poner un número en <code>team</code> pide el plan (429 <code>direct_calls_not_in_plan</code>), las condiciones 2026-10-28 o posteriores aceptadas (403 <code>terms_pending</code>) y al menos una persona (422 <code>members_required</code>); con <code>team_fallback</code> <code>agent</code>, un agente en el número (422 <code>agent_required</code>). Si el plan deja de incluir las llamadas directas, o tu cuenta todavía no aceptó esas condiciones, las entrantes de un número del equipo van al agente del número. Una versión posterior de las condiciones no las corta.</p>
+      <p>La respuesta (y <code>GET /phone-numbers</code>) trae esos campos y <code>members</code>, con <code>id</code>, <code>name</code>, <code>phone</code> y <code>user_id</code> de cada persona. Poner un número en <code>team</code> pide el plan (429 <code>direct_calls_not_in_plan</code>), las <a href="/terminos">condiciones</a> que cubren las llamadas del equipo aceptadas (403 <code>terms_pending</code>) y al menos una persona (422 <code>members_required</code>); con <code>team_fallback</code> <code>agent</code>, un agente en el número (422 <code>agent_required</code>). Si el plan deja de incluir las llamadas directas, o tu cuenta todavía no aceptó esas condiciones, las entrantes de un número del equipo van al agente del número. Una versión posterior de las condiciones no las corta.</p>
       <ul>
         <li><strong>En el celular</strong>, la persona escucha de qué línea es la llamada y marca 1 para atender, como en una derivación. Gasta minutos salientes desde que atiende.</li>
         <li><strong>En el panel</strong> suena a quienes están Disponibles y pueden atender o rechazar. No gasta minutos salientes ni una línea extra.</li>

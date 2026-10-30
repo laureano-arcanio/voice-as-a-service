@@ -20,15 +20,18 @@ con su poster.
 
 - **Público:** quien entra a la home (empresas; no técnico).
 - **Mensaje:** todo lo del agente se configura en un solo panel: voz, sistema, equipo, prueba y resultados.
-- **Formato (v2):** 1080 × 1350 (4:5), 30 fps, 20,0 s, sin pista de audio. Composición `landing-panel`. Fondo
-  blanco; el título en dos líneas (Bricolage 800, 100 px: ~50 px a 540 px de ancho) va arriba, sobre una franja
-  blanca, y la ventana del panel (angosta y alta, con el contenido en una columna) ocupa el resto. Cada momento abre
+- **Formato (v5):** 1080 × 1350 (4:5), 30 fps, 22,0 s, sin pista de audio, **sin texto** (desde la v5: arranca en
+  el panel y muestra el recorrido; zoom 1,0–1,08 sobre la ventana entera, ver `versiones/v5/NOTAS.md`). Hasta la v4:
+  20,0 s, con títulos. Composición `landing-panel`. Fondo
+  blanco puro en todo el cuadro (va sin borde sobre la página): la ventana del panel no tiene sombra y los bordes
+  del cuadro se funden a blanco. El título en una línea centrada (Bricolage 800, 62 px: ~31 px a 540 px de ancho)
+  va arriba, y la ventana del panel (angosta y alta, con el contenido en una columna) ocupa el resto. Cada momento abre
   con la ventana entera y la cámara se acerca a 1,34–1,48. Entra con un fundido de 0,35 s sobre el anterior.
   La v1 era 1920 × 1080 con la ventana ancha (quedaba bajita en la columna).
 - **Contexto:** `<video autoplay muted loop playsinline>` de la landing. La integración en la página la hace otra
   sesión; acá solo quedan los archivos en `landing/public/videos/`.
 
-## Guion (v2; la v1 tiene los mismos tiempos y textos, en 16:9)
+## Guion (v1 a v4; la v5 no tiene intro, cierre ni títulos, y los cinco momentos duran 4,2–4,8 s: ver `versiones/v5/NOTAS.md`)
 
 | Tiempo | Pantalla del panel (recreada) | Qué pasa | Título |
 |---|---|---|---|
@@ -69,7 +72,8 @@ el equipo dependen del plan (`custom_tools`, `team`). Sin logos ni pantallas de 
   logo, menú con el ítem activo de cada momento y el lienzo), con la cámara por momento (`Camara`, puntos clave de
   zoom y encuadre).
 - **Título grande arriba, sin rótulo en mono:** a 540 px un rótulo de 24 px se vería a 12 px. La estructura queda en
-  la frase, con el remate en el acento en la segunda línea.
+  la frase, con el remate en el acento. En la v2 iba a 100 px en dos líneas: el usuario lo encontró demasiado grande
+  (v3: 62 px, una línea).
 - **Vertical (v2):** la columna de la home es alta (la lista de funciones mide ~780 px); en 4:5 la pantalla del
   panel ocupa casi todo el cuadro y el zoom deja el texto del panel en ~16–20 px a 540 px.
 - **Sin audio:** `guion.json` sin líneas; `make video` genera `musica.wav` (ignorado por git) pero el video no la usa.
@@ -79,4 +83,7 @@ el equipo dependen del plan (`custom_tools`, `team`). Sin logos ni pantallas de 
 | Versión | Estado | Qué cambió |
 |---|---|---|
 | v1 | cerrada (30-10-2026) | Primera versión: 1920 × 1080, 20,0 s, sin audio, cinco momentos del panel; web en `landing/public/videos/landing-panel-v1.mp4` (2,4 MB) y poster |
-| v2 | borrador | Vertical 4:5 (1080 × 1350), mismos momentos y textos: ventana angosta con el contenido en una columna, cámara más cerca, títulos en dos líneas; web en `landing/public/videos/landing-panel-v2.mp4` (2,3 MB) y poster |
+| v2 | cerrada (30-10-2026) | Vertical 4:5 (1080 × 1350), mismos momentos y textos: ventana angosta con el contenido en una columna, cámara más cerca, títulos en dos líneas; web en `landing/public/videos/landing-panel-v2.mp4` (2,3 MB) y poster |
+| v3 | cerrada (30-10-2026) | Títulos de 100 a 62 px en una línea (intro y cierre igual), más alto para el panel; fondo blanco puro sin sombra de ventana y bordes que se funden a blanco; web en `landing/public/videos/landing-panel-v3.mp4` (2,3 MB) y poster |
+| v4 | cerrada (30-10-2026) | Sin el velo gris de los modales (se veía como un bloque gris en la página): velo blanco suave y modales con borde y sombra suave; web en `landing/public/videos/landing-panel-v4.mp4` (2,2 MB) y poster |
+| v5 | borrador | Sin texto (ni títulos, ni intro, ni cierre): arranca en el panel con un fundido de 9 cuadros desde blanco; zoom 1,0–1,08 sobre la ventana entera; 22,0 s; web en `landing/public/videos/landing-panel-v5.mp4` (1,2 MB) y poster |

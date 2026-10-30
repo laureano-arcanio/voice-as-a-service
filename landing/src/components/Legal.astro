@@ -9,7 +9,8 @@ interface Props {
   title: string;
   description: string;
   path: string;
-  updated: string;
+  /** Fecha de actualización; la landing no la muestra en los documentos legales (solo el link). */
+  updated?: string;
   noindex?: boolean;
 }
 
@@ -20,7 +21,7 @@ const { title, description, path, updated, noindex = false } = Astro.props;
   <Nav />
   <main class="mx-auto max-w-[760px] px-5 pt-[104px] pb-20 max-[900px]:pt-[136px]">
     <h1>{title}</h1>
-    <p class="mt-3 font-mono text-[.78rem] tracking-[.04em] text-muted uppercase">Última actualización: {updated}</p>
+    {updated && <p class="mt-3 font-mono text-[.78rem] tracking-[.04em] text-muted uppercase">Última actualización: {updated}</p>}
     <article class="legal mt-8 grid gap-4 text-ink-2">
       <slot />
     </article>

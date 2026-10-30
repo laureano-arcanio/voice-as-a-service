@@ -16,13 +16,15 @@ interface Props {
   sound?: boolean;
   /** Proporción del video: 16:9 (por defecto) o vertical 4:5. */
   aspect?: "16/9" | "4/5";
+  /** Con borde y esquinas redondeadas (por defecto). Sin él, el video se funde con un fondo blanco. */
+  frame?: boolean;
 }
 
-const { src, title, sound = true, aspect = "16/9" } = Astro.props;
+const { src, title, sound = true, aspect = "16/9", frame = true } = Astro.props;
 ---
 
 <div class="grid justify-items-center gap-4" data-autovideo={src}>
-  <figure class="group/video relative m-0 w-full overflow-hidden rounded-xl border border-line bg-white" data-state="paused">
+  <figure class:list={["group/video relative m-0 w-full overflow-hidden bg-white", frame && "rounded-xl border border-line"]} data-state="paused">
     <div class="absolute inset-0 grid place-items-center group-data-[ready]/video:hidden" aria-hidden="true">
       <div class="flex h-10 items-center gap-1.5">
         {

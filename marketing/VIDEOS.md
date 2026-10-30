@@ -69,7 +69,7 @@ landing: la plataforma alrededor del agente, atiende, resuelve, llama, deriva, v
 para desarrolladores; paula y gonzalo en partes iguales, con subtítulos) y
 [`landing-panel`](../marketing/videos/proyectos/landing-panel/README.md) (vertical 4:5 desde la v2, 20 s, para una columna
 de ~540 px de la home, sin audio y en loop: el panel recreado en cinco momentos, voz, herramienta, derivación, prueba y reportes, con
-zoom de cámara, cursor y títulos grandes).
+cursor y, desde la v5, sin texto y con poco zoom).
 
 ## Comandos
 

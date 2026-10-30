@@ -1,9 +1,8 @@
 ---
 // Home: los tres canales con íconos propios (ilustraciones SVG, no de una librería) y casi sin texto, para que se vea
-// de un vistazo que el agente atiende WhatsApp, teléfono y la web. Debajo, las industrias. Al pasar el mouse, las ondas
-// se mueven (sin movimiento con prefers-reduced-motion).
+// de un vistazo que el agente atiende WhatsApp, teléfono y la web. Al pasar el mouse, las ondas se mueven (sin movimiento
+// con prefers-reduced-motion).
 import { channels } from "../data/channels";
-import { industries } from "../data/industries";
 import Section from "./Section.astro";
 
 const phone =
@@ -106,18 +105,6 @@ const bars = [8, 14, 20, 12, 18, 9, 15, 11];
     }
   </div>
 
-  <p class="mt-8 flex flex-wrap items-center gap-2 text-[.92rem] text-muted">
-    <span class="mr-1">Por industria:</span>
-    {
-      industries
-        .filter((i) => i.group === "industria")
-        .map((i) => (
-          <a class="rounded-full border border-line bg-surface px-3 py-1 font-semibold text-ink-2 no-underline hover:border-accent hover:text-accent" href={`/casos-de-uso/${i.slug}`}>
-            {i.name}
-          </a>
-        ))
-    }
-  </p>
 </Section>
 
 <style>

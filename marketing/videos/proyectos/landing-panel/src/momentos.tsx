@@ -1,9 +1,9 @@
 import React from "react";
-import { AbsoluteFill, Img, interpolate, staticFile, useCurrentFrame } from "remotion";
+import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
 import { C, CLAMP, F } from "../../../src/comun/theme";
 import {
   AppFrame, Badge, Boton, Camara, Campo, Cursor, ein, HEADER, PageTitle, Pestanas, presionDe, Retrato, RetratoId, SIDEBAR,
-  Tarjeta, Titulo, usePopAt, useT, WIN,
+  BordeBlanco, Tarjeta, usePopAt, useT, WIN,
 } from "./panel";
 
 /**
@@ -17,7 +17,6 @@ const OX = SIDEBAR;
 const OY = HEADER;
 const X0 = 36; // margen del contenido
 const CW = WIN.w - SIDEBAR - 2 * X0; // ancho del contenido (728)
-const CX = OX + X0 + CW / 2; // centro del contenido, para la cámara
 const abs = (x: number, y: number, w?: number, extra?: React.CSSProperties): React.CSSProperties => ({
   position: "absolute", left: x, top: y, width: w, boxSizing: "border-box", ...extra,
 });
@@ -26,8 +25,9 @@ const popStyle = (p: number, origen = "50% 50%"): React.CSSProperties => ({
 });
 
 const Fondo: React.FC = () => <AbsoluteFill style={{ background: C.bg }} />;
+// Velo detrás de los modales: blanco suave (v4; el gris oscuro se veía como un bloque contra la página blanca)
 const Velo: React.FC<{ o?: number }> = ({ o = 1 }) => (
-  <div style={{ position: "absolute", left: -OX, top: -OY, width: WIN.w, height: WIN.h, background: "rgba(11,18,32,0.42)", opacity: o }} />
+  <div style={{ position: "absolute", left: -OX, top: -OY, width: WIN.w, height: WIN.h, background: "rgba(255,255,255,0.72)", opacity: o }} />
 );
 
 // ---------------------------------------------------------------- 1. Editor del agente: nombre, objetivo y voz
@@ -74,12 +74,10 @@ export const Momento1: React.FC = () => {
     <AbsoluteFill>
       <Fondo />
       <Camara keys={[
-        { t: 0, s: 1.12, x: 640, y: 560 },
-        { t: 0.9, s: 1.48, x: CX, y: OY + 420 },
-        { t: 1.5, s: 1.45, x: CX, y: OY + 440 },
-        { t: 2.1, s: 1.48, x: CX, y: OY + 560 },
-        { t: 2.9, s: 1.46, x: CX, y: OY + 665 },
-        { t: 4.2, s: 1.48, x: CX, y: OY + 670 },
+        { t: 0, s: 1, x: 550, y: 700 },
+        { t: 1.6, s: 1, x: 550, y: 700 },
+        { t: 2.5, s: 1.08, x: 560, y: 690 },
+        { t: 4.6, s: 1.08, x: 560, y: 690 },
       ]}>
         <AppFrame activo="agentes">
           <div style={abs(X0, 28)}>
@@ -175,7 +173,7 @@ export const Momento1: React.FC = () => {
           clicks={[M1.clickTab, M1.clickVoz, M1.clickPlay]}
         />
       </Camara>
-      <Titulo texto="Creás tu agente y" acento="elegís la voz." t={t} />
+      <BordeBlanco />
     </AbsoluteFill>
   );
 };
@@ -212,11 +210,10 @@ export const Momento2: React.FC = () => {
     <AbsoluteFill>
       <Fondo />
       <Camara keys={[
-        { t: 0, s: 1.12, x: 640, y: 560 },
-        { t: 0.7, s: 1.45, x: CX, y: OY + 420 },
-        { t: 1.2, s: 1.45, x: CX, y: OY + 700 },
-        { t: 2.1, s: 1.45, x: CX, y: OY + 900 },
-        { t: 3.6, s: 1.48, x: CX, y: OY + 915 },
+        { t: 0, s: 1, x: 550, y: 700 },
+        { t: 1.0, s: 1, x: 550, y: 700 },
+        { t: 2.0, s: 1.06, x: 560, y: 715 },
+        { t: 4.2, s: 1.06, x: 560, y: 715 },
       ]}>
         <AppFrame activo="herramientas">
           <div style={abs(X0, 28, CW)}>
@@ -281,7 +278,7 @@ export const Momento2: React.FC = () => {
           hasta={1.7}
         />
       </Camara>
-      <Titulo texto="Lo conectás" acento="a tu sistema." t={t} />
+      <BordeBlanco />
     </AbsoluteFill>
   );
 };
@@ -308,11 +305,10 @@ export const Momento3: React.FC = () => {
     <AbsoluteFill>
       <Fondo />
       <Camara keys={[
-        { t: 0, s: 1.12, x: 640, y: 600 },
-        { t: 0.6, s: 1.36, x: CX, y: OY + 400 },
-        { t: 1.15, s: 1.38, x: CX, y: OY + 540 },
-        { t: 1.9, s: 1.36, x: CX, y: OY + 790 },
-        { t: 3.6, s: 1.38, x: CX, y: OY + 820 },
+        { t: 0, s: 1, x: 550, y: 700 },
+        { t: 1.0, s: 1.06, x: 560, y: 700 },
+        { t: 2.0, s: 1.06, x: 560, y: 730 },
+        { t: 4.2, s: 1.06, x: 560, y: 730 },
       ]}>
         <AppFrame activo="equipo">
           <div style={abs(X0, 28, CW)}>
@@ -326,7 +322,7 @@ export const Momento3: React.FC = () => {
           <Velo />
           <div style={{
             ...abs(MODAL3.x, MODAL3.y, MODAL3.w), background: "#fff", borderRadius: 20, padding: "26px 30px",
-            boxShadow: "0 30px 80px rgba(11,18,32,.3)", ...popStyle(pModal, "50% 10%"),
+            border: `2px solid ${C.line}`, boxShadow: "0 16px 40px rgba(11,18,32,.10)", ...popStyle(pModal, "50% 10%"),
           }}>
             <div style={{ display: "flex", alignItems: "center", marginBottom: 20 }}>
               <div style={{ flex: 1, fontSize: 30, fontWeight: 700 }}>Editar área Ventas</div>
@@ -385,7 +381,7 @@ export const Momento3: React.FC = () => {
           hasta={1.8}
         />
       </Camara>
-      <Titulo texto="Derivás" acento="a tu equipo." t={t} />
+      <BordeBlanco />
     </AbsoluteFill>
   );
 };
@@ -427,10 +423,10 @@ export const Momento4: React.FC = () => {
     <AbsoluteFill>
       <Fondo />
       <Camara keys={[
-        { t: 0, s: 1.12, x: 640, y: 560 },
-        { t: 0.6, s: 1.5, x: CX, y: OY + 360 },
-        { t: 1.2, s: 1.34, x: CX, y: OY + 490 },
-        { t: 3.6, s: 1.37, x: CX, y: OY + 495 },
+        { t: 0, s: 1, x: 550, y: 700 },
+        { t: 1.0, s: 1, x: 550, y: 700 },
+        { t: 1.9, s: 1.08, x: 560, y: 670 },
+        { t: 4.2, s: 1.08, x: 560, y: 670 },
       ]}>
         <AppFrame activo="inicio">
           <div style={abs(X0, 28, CW)}>
@@ -466,7 +462,7 @@ export const Momento4: React.FC = () => {
           <Velo o={dim} />
           <div style={{
             ...abs(MX, 150, MW), background: "#fff", borderRadius: 22, padding: "26px 32px 30px",
-            boxShadow: "0 30px 80px rgba(11,18,32,.3)", ...popStyle(pModal, "50% 30%"), display: t < M4.modal ? "none" : "block",
+            border: `2px solid ${C.line}`, boxShadow: "0 16px 40px rgba(11,18,32,.10)", ...popStyle(pModal, "50% 30%"), display: t < M4.modal ? "none" : "block",
           }}>
             <div style={{ display: "flex", alignItems: "center", marginBottom: 14 }}>
               <div style={{ flex: 1, fontSize: 30, fontWeight: 700 }}>Hablar con Sofía</div>
@@ -506,7 +502,7 @@ export const Momento4: React.FC = () => {
           hasta={0.85}
         />
       </Camara>
-      <Titulo texto="Lo probás" acento="en el momento." t={t} />
+      <BordeBlanco />
     </AbsoluteFill>
   );
 };
@@ -528,7 +524,7 @@ const KPIS = [
   { label: "Objetivo cumplido", valor: 84, fmt: (n: number) => `${n} %`, sub: "991 de 1.180", delta: "↗ 3 pts vs. período anterior" },
   { label: "Transferidas", valor: 66, fmt: (n: number) => String(n), sub: "5 % · 61 atendidas", delta: "↘ 8 % vs. período anterior" },
 ];
-const KPI_Y = 780;
+const KPI_Y = 770;
 
 export const Momento5: React.FC = () => {
   const t = useT();
@@ -544,11 +540,8 @@ export const Momento5: React.FC = () => {
     <AbsoluteFill>
       <Fondo />
       <Camara keys={[
-        { t: 0, s: 1.12, x: 640, y: 560 },
-        { t: 0.6, s: 1.45, x: CX, y: OY + 450 },
-        { t: 1.1, s: 1.45, x: CX, y: OY + 470 },
-        { t: 1.8, s: 1.42, x: CX, y: OY + 1060 },
-        { t: 3.6, s: 1.45, x: CX, y: OY + 1070 },
+        { t: 0, s: 1, x: 550, y: 700 },
+        { t: 4.2, s: 1, x: 550, y: 700 },
       ]}>
         <AppFrame activo="reportes">
           <div style={abs(X0, 28, CW)}>
@@ -590,7 +583,7 @@ export const Momento5: React.FC = () => {
           </Tarjeta>
           {KPIS.map((k, i) => (
             <div key={k.label} style={{
-              ...abs(X0, KPI_Y + i * 196, CW), height: 176, background: "#fff", border: `2px solid ${C.line}`, borderRadius: 18, padding: "22px 28px",
+              ...abs(X0, KPI_Y + i * 176, CW), height: 168, background: "#fff", border: `2px solid ${C.line}`, borderRadius: 18, padding: "18px 28px",
               ...popStyle(kp[i], "50% 0"),
             }}>
               <div style={{ fontFamily: F.mono, fontSize: 20, letterSpacing: "0.08em", textTransform: "uppercase", color: C.muted }}>{k.label}</div>
@@ -603,30 +596,7 @@ export const Momento5: React.FC = () => {
           ))}
         </AppFrame>
       </Camara>
-      <Titulo texto="Ves" acento="los resultados." t={t} />
-    </AbsoluteFill>
-  );
-};
-
-// ---------------------------------------------------------------- Intro y cierre: blanco, logo y frase
-
-export const Marca: React.FC<{ lineas: string[]; acento: string; de: number; hasta: number }> = ({ lineas, acento, de, hasta }) => {
-  const t = useT();
-  const pLogo = usePopAt(de);
-  const pFrase = ein(t, de + 0.25, 0.5);
-  const fuera = interpolate(t, [hasta, hasta + 0.35], [1, 0], CLAMP);
-  return (
-    <AbsoluteFill style={{ background: C.bg, alignItems: "center", justifyContent: "center" }}>
-      <div style={{ opacity: fuera, display: "flex", flexDirection: "column", alignItems: "center", transform: `scale(${1 - (1 - fuera) * 0.04})` }}>
-        <Img src={staticFile("marca/atentina-logo.svg")} style={{ height: 112, opacity: Math.min(1, pLogo * 1.5), transform: `scale(${0.8 + 0.2 * pLogo})` }} />
-        <div style={{
-          marginTop: 70, fontFamily: F.display, fontWeight: 800, fontSize: 100, lineHeight: 1.06, letterSpacing: "-0.02em",
-          color: C.ink, textAlign: "center", opacity: pFrase, transform: `translateY(${(1 - pFrase) * 26}px)`,
-        }}>
-          {lineas.map((l) => <div key={l}>{l}</div>)}
-          <span style={{ color: C.accent }}>{acento}</span>
-        </div>
-      </div>
+      <BordeBlanco />
     </AbsoluteFill>
   );
 };
