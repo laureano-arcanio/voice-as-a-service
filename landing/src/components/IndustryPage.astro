@@ -24,7 +24,6 @@ interface Props {
 const { industry } = Astro.props;
 const path = `/casos-de-uso/${industry.slug}`;
 const agent = agents.filter((a) => a.slug === industry.agent);
-const eyebrow = industry.eyebrow ?? `Agentes con IA para ${industry.name.toLowerCase()}`;
 const related = verticals.filter((v) => industry.related.includes(v.slug));
 ---
 
@@ -55,8 +54,9 @@ const related = verticals.filter((v) => industry.related.includes(v.slug));
       <div class="mx-auto grid max-w-[1120px] items-center gap-9 px-5 min-[901px]:grid-cols-[1fr_380px] min-[901px]:gap-12">
         <div class="grid gap-[22px]">
           <a class="w-fit text-[.9rem] font-semibold text-muted no-underline hover:text-ink" href="/casos-de-uso">← Casos de uso</a>
-          <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">{eyebrow}</span>
-          <h1>{industry.headline}</h1>
+          <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">{industry.name}</span>
+          <h1>{industry.h1}</h1>
+          <p class="max-w-[30ch] font-display text-[clamp(1.25rem,2.2vw,1.6rem)] leading-[1.2] font-bold tracking-[-0.015em]">{industry.headline}</p>
           <p class="max-w-[62ch] text-[1.12rem] text-ink-2">{industry.lead}</p>
           <p class="font-mono text-[.78rem] tracking-[.04em] text-muted uppercase">{industry.who}</p>
         </div>

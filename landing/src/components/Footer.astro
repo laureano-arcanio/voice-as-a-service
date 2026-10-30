@@ -8,21 +8,20 @@ const link = "hover:text-ink";
 ---
 
 <footer class="border-t border-line py-10 text-[.9rem] text-muted">
-  <div class="mx-auto grid max-w-[1120px] gap-8 px-5 min-[801px]:grid-cols-[2fr_1fr_1fr]">
-    <nav class="grid content-start gap-3" aria-label="Producto">
-      <p class={heading}>Producto</p>
-      <div class="grid gap-x-6 gap-y-2 min-[561px]:grid-cols-2">
-        <ul class={`m-0 list-none p-0 ${group}`}>
-          <li><a class={link} href="/">Home</a></li>
-          <li><a class={link} href="/casos-de-uso">Casos de uso</a></li>
-          {industries.map((i) => <li class="pl-3"><a class={link} href={`/casos-de-uso/${i.slug}`}>{i.name}</a></li>)}
-          {verticals.map((v) => <li class="pl-3"><a class={link} href={`/casos-de-uso/${v.slug}`}>{v.title}</a></li>)}
-        </ul>
-        <ul class={`m-0 list-none p-0 ${group}`}>
-          <li><a class={link} href="/plataforma">Plataforma</a></li>
-          {capabilities.map((c) => <li class="pl-3"><a class={link} href={`/plataforma/${c.slug}`}>{c.title}</a></li>)}
-        </ul>
-      </div>
+  <div class="mx-auto grid max-w-[1120px] gap-8 px-5 min-[561px]:grid-cols-2 min-[901px]:grid-cols-4">
+    <nav class="grid content-start gap-3" aria-label="Casos de uso">
+      <a class={`${heading} ${link}`} href="/casos-de-uso">Casos de uso</a>
+      <ul class={`m-0 list-none p-0 ${group}`}>
+        {industries.map((i) => <li><a class={link} href={`/casos-de-uso/${i.slug}`}>{i.name}</a></li>)}
+        {verticals.map((v) => <li><a class={link} href={`/casos-de-uso/${v.slug}`}>{v.title}</a></li>)}
+      </ul>
+    </nav>
+    <nav class="grid content-start gap-3" aria-label="Plataforma">
+      <a class={`${heading} ${link}`} href="/plataforma">Plataforma</a>
+      <ul class={`m-0 list-none p-0 ${group}`}>
+        {capabilities.map((c) => <li><a class={link} href={`/plataforma/${c.slug}`}>{c.title}</a></li>)}
+        <li><a class={link} href="/registro">Registro</a></li>
+      </ul>
     </nav>
     <nav class="grid content-start gap-3" aria-label="Desarrolladores">
       <p class={heading}>Desarrolladores</p>
@@ -31,7 +30,6 @@ const link = "hover:text-ink";
         <li><a class={link} href="/desarrolladores/docs">Documentación</a></li>
         <li><a class={link} href="/desarrolladores/docs/api">Referencia de la API</a></li>
         <li><a class={link} href="/desarrolladores/docs/mcp">MCP para agentes de IA</a></li>
-        <li><a class={link} href="/registro">Registro</a></li>
       </ul>
     </nav>
     <nav class="grid content-start gap-3" aria-label="Legales">

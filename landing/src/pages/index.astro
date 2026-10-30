@@ -14,10 +14,8 @@ import Section from "../components/Section.astro";
 import TelDialog from "../components/TelDialog.astro";
 import Voices from "../components/Voices.astro";
 import { faqPage, pricingPlans, service, webSite } from "../data/schema";
-import { atentinaAgent, faqGeneral, voiceCount, whatsappUrl } from "../data/site";
+import { atentinaAgent, faqGeneral, whatsappUrl } from "../data/site";
 import Base from "../layouts/Base.astro";
-
-const facts = ["Telefonía incluida", "Compatible con OpenAI", `${voiceCount} voces argentinas`, "Servidores en Argentina"];
 ---
 
 <Base
@@ -49,17 +47,14 @@ const facts = ["Telefonía incluida", "Compatible con OpenAI", `${voiceCount} vo
             Telefonía, voz e inteligencia artificial <span class="text-accent">en un solo servicio</span>
           </h1>
           <p class="max-w-[62ch] text-[1.12rem] text-ink-2">
-            Número argentino, llamadas, <a class="text-accent underline decoration-1 underline-offset-4 hover:text-accent-2" href="/plataforma/whatsapp">WhatsApp</a>, reconocimiento de voz, modelo de lenguaje y <a class="text-accent underline decoration-1 underline-offset-4 hover:text-accent-2" href="/plataforma/voces-argentinas">voces con acento argentino</a>, propios y en servidores en Argentina con la menor latencia del mercado. <span class="text-accent">Sin contratar telefonía ni combinar proveedores</span>: un precio por mes, en pesos.
+            Número argentino, llamadas, <a class="text-accent underline decoration-1 underline-offset-4 hover:text-accent-2" href="/plataforma/whatsapp">WhatsApp</a>, reconocimiento de voz, modelo de lenguaje y <a class="text-accent underline decoration-1 underline-offset-4 hover:text-accent-2" href="/plataforma/voces-argentinas">voces con acento argentino</a>, con la menor latencia del mercado. <span class="text-accent">Sin contratar telefonía ni combinar proveedores</span>: un precio por mes, en pesos.
           </p>
           <div class="flex flex-wrap items-center gap-3">
             <Button href="/desarrolladores">Construir con la API</Button>
             <Button href="/casos-de-uso" variant="ghost">Un agente para mi empresa</Button>
           </div>
-          <ul class="m-0 grid list-none grid-cols-2 gap-x-5 gap-y-1.5 p-0 font-mono text-[.76rem] tracking-[.03em] text-muted min-[561px]:flex min-[561px]:flex-wrap">
-            {facts.map((f) => <li>{f}</li>)}
-          </ul>
         </div>
-        <CallWidget agents={[atentinaAgent]} whatsapp={whatsappUrl} others="/casos-de-uso#soluciones" />
+        <CallWidget agents={[atentinaAgent]} whatsapp={whatsappUrl} />
       </div>
     </header>
 

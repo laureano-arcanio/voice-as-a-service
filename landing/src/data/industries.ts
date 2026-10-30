@@ -24,6 +24,9 @@ export interface Industry {
   who: string;
   metaTitle: string;
   metaDescription: string;
+  /** H1: el término de búsqueda de la página (sin "agente de voz", que va solo en `metaTitle`). */
+  h1: string;
+  /** Bajada destacada debajo del H1: el beneficio. */
   headline: string;
   lead: string;
   /** Qué hace el agente en el rubro. */
@@ -32,8 +35,6 @@ export interface Industry {
   sample: { agent: string; outcome: string; duration: string; fields: SampleField[] };
   voiceLine: { f: string; m: string };
   defaultVoice: string;
-  /** Rótulo de la portada; por defecto "Agentes con IA para <rubro>". */
-  eyebrow?: string;
   /** Agente de la demo (`agents` en site.ts); sin él, la portada ofrece pedir una demo y escuchar las voces. */
   agent?: string;
   /** Páginas por necesidad que aplican al rubro. */
@@ -51,6 +52,7 @@ export const industries: Industry[] = [
     metaTitle: "Agente de voz con IA para concesionarias y talleres | Atentina",
     metaDescription:
       "Un agente de voz con IA que atiende las llamadas de tu concesionaria: stock, precios y financiación, test drive y turnos de service. Por teléfono y WhatsApp.",
+    h1: "Agentes con IA para concesionarias y talleres",
     headline: "Tu concesionaria atiende cada llamada, también fuera de horario",
     lead: "El agente responde por modelos, stock y financiación, agenda el test drive o el turno del taller y le pasa al vendedor los interesados listos para cerrar.",
     uses: [
@@ -101,6 +103,7 @@ export const industries: Industry[] = [
     metaTitle: "Agente de voz con IA para institutos y colegios | Atentina",
     metaDescription:
       "Un agente de voz con IA que responde informes de carreras y cursos, toma inscripciones y recuerda cuotas. Para institutos, colegios, universidades y academias.",
+    h1: "Agentes con IA para institutos, colegios y universidades",
     headline: "Cada interesado recibe sus informes en el momento, aunque llame de noche",
     lead: "El agente responde por carreras, cursos, horarios y aranceles, toma los datos del interesado, lo llama para seguir la inscripción y recuerda las cuotas por vencer.",
     uses: [
@@ -150,6 +153,7 @@ export const industries: Industry[] = [
     metaTitle: "Agente de voz con IA para inmobiliarias | Atentina",
     metaDescription:
       "Un agente de voz con IA que atiende a los interesados de tu inmobiliaria: califica por zona y presupuesto, coordina visitas y deriva al corredor. Por teléfono y WhatsApp.",
+    h1: "Agentes con IA para inmobiliarias",
     headline: "Cada interesado en una propiedad recibe respuesta, no un teléfono que suena",
     lead: "El agente responde por las propiedades, califica al interesado por zona, presupuesto y operación, coordina la visita y le pasa al corredor los que están listos.",
     uses: [
@@ -200,6 +204,7 @@ export const industries: Industry[] = [
     metaTitle: "Agente de voz con IA para comercios y tiendas online | Atentina",
     metaDescription:
       "Un agente de voz con IA que atiende a tus clientes: estado del pedido, stock, horarios de sucursales, cambios y devoluciones. Por teléfono y WhatsApp.",
+    h1: "Agentes con IA para comercios y tiendas online",
     headline: "Tus clientes saben dónde está su pedido sin esperar en línea",
     lead: "El agente consulta el estado del pedido en tu sistema, responde por stock, sucursales y horarios, y gestiona cambios y devoluciones con tu política.",
     uses: [
@@ -249,6 +254,7 @@ export const industries: Industry[] = [
     metaTitle: "Agente de voz con IA para clínicas y consultorios | Atentina",
     metaDescription:
       "Un agente de voz con IA que da turnos las 24 horas, confirma el día anterior y responde a los pacientes. Para clínicas, consultorios y centros de diagnóstico.",
+    h1: "Agentes con IA para clínicas y consultorios",
     headline: "Tus pacientes sacan turno a cualquier hora, sin esperar en línea",
     lead: "El agente da turnos con tu agenda, toma los datos y la cobertura, confirma el día anterior y responde cómo prepararse para cada estudio.",
     uses: [
@@ -298,6 +304,7 @@ export const industries: Industry[] = [
     metaTitle: "Agente de voz con IA para productores y aseguradoras | Atentina",
     metaDescription:
       "Un agente de voz con IA que toma los datos para cotizar, recibe el primer aviso de siniestro y responde por pólizas y cuotas. Para productores, brokers y aseguradoras.",
+    h1: "Agentes con IA para productores y aseguradoras",
     headline: "Cada asegurado tiene respuesta, también cuando el siniestro es un sábado",
     lead: "El agente toma los datos para cotizar, recibe el primer aviso de un siniestro, responde por pólizas y cuotas, y le pasa al productor lo que necesita una persona.",
     uses: [
@@ -347,6 +354,7 @@ export const industries: Industry[] = [
     metaTitle: "Agente de voz con IA para empresas de servicios | Atentina",
     metaDescription:
       "Un agente de voz con IA para empresas de servicios: soporte de primer nivel, visitas técnicas, facturación y reclamos. Por teléfono y WhatsApp.",
+    h1: "Agentes con IA para empresas de servicios",
     headline: "Tus clientes resuelven lo de siempre sin esperar a un operador",
     lead: "El agente hace el soporte de primer nivel, agenda visitas técnicas, responde por facturas y planes, y registra cada reclamo con número para tu equipo.",
     uses: [
@@ -393,10 +401,10 @@ export const industries: Industry[] = [
     name: "Traducción en tiempo real",
     short: "Llamadas entre dos idiomas",
     who: "Comercio exterior · Turismo · Soporte internacional",
-    eyebrow: "Traducción en tiempo real",
     metaTitle: "Traducción de llamadas en tiempo real con IA | Atentina",
     metaDescription:
       "Un intérprete con IA en tus llamadas: hablás en español y la otra persona te escucha en su idioma, y su respuesta te llega en español. Por teléfono o desde el navegador.",
+    h1: "Traducción de llamadas en tiempo real con IA",
     headline: "Hablá con clientes y proveedores de otros países, cada uno en su idioma",
     lead: "El agente hace de intérprete: escucha lo que decís, lo dice en el idioma de la otra persona y te devuelve su respuesta en español, frase por frase, en la misma llamada.",
     uses: [
@@ -442,10 +450,10 @@ export const industries: Industry[] = [
     name: "Creadores de contenido",
     short: "Locuciones para redes y publicidad",
     who: "Creadores · Agencias · Marcas · Productoras",
-    eyebrow: "Voces para creadores de contenido",
     metaTitle: "Voces con IA para publicidad, Instagram y redes | Atentina",
     metaDescription:
       "Locuciones con voces argentinas generadas con IA para publicidad, Instagram, TikTok y YouTube. Escribís el texto, elegís la voz y descargás el audio. También por API.",
+    h1: "Voces con IA para publicidad, Instagram y redes",
     headline: "Locuciones con voz argentina para tus videos, en segundos",
     lead: "Escribís el texto, elegís una de las voces con acento argentino y tenés el audio para tu publicidad, tu reel o tu video. Y si el guion está en otro idioma, lo traducimos y lo locutamos en español.",
     uses: [
@@ -491,10 +499,10 @@ export const industries: Industry[] = [
     name: "Transcripción de llamadas",
     short: "En vivo, sin agente",
     who: "Ventas · Soporte · Equipos que atienden por teléfono",
-    eyebrow: "Transcripción de llamadas en vivo",
     metaTitle: "Transcripción de llamadas en vivo con IA | Atentina",
     metaDescription:
       "Tu equipo llama y atiende desde el navegador y cada llamada se transcribe en vivo, sin agente de IA en el medio. Con número argentino y las conversaciones en el panel.",
+    h1: "Transcripción de llamadas en vivo con IA",
     headline: "Cada llamada de tu equipo, transcripta en vivo",
     lead: "Tu equipo llama y atiende desde el navegador, con un número argentino, y ve la transcripción mientras habla. Sin un agente con IA en el medio: solo las personas y el texto.",
     uses: [
