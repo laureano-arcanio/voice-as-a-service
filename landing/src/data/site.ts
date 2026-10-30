@@ -49,23 +49,28 @@ export interface Voice {
   name: string;
   gender: "f" | "m";
   tags: string;
-  more?: boolean;
 }
 
+/** Las voces destacadas, con descripción y retrato (public/voces/<id>.svg). */
 export const voices: Voice[] = [
   { id: "sofia", name: "Sofía", gender: "f", tags: "Cálida, clara y cercana" },
   { id: "martin", name: "Martín", gender: "m", tags: "Grave, sereno y confiable" },
   { id: "valentina", name: "Valentina", gender: "f", tags: "Joven, alegre y ágil" },
   { id: "lucas", name: "Lucas", gender: "m", tags: "Joven, cordial y dinámico" },
   { id: "carolina", name: "Carolina", gender: "f", tags: "Serena, pausada y formal" },
-  { id: "tomas", name: "Tomás", gender: "m", tags: "Claro, formal y atento", more: true },
-  { id: "jimena", name: "Jimena", gender: "f", tags: "Firme, nítida y profesional", more: true },
-  { id: "diego", name: "Diego", gender: "m", tags: "Cálido, pausado y cercano", more: true },
-  { id: "laura", name: "Laura", gender: "f", tags: "Suave, amable y tranquila", more: true },
-  { id: "gabriela", name: "Gabriela", gender: "f", tags: "Madura, segura y cordial", more: true },
+  { id: "tomas", name: "Tomás", gender: "m", tags: "Claro, formal y atento" },
+  { id: "jimena", name: "Jimena", gender: "f", tags: "Firme, nítida y profesional" },
+  { id: "diego", name: "Diego", gender: "m", tags: "Cálido, pausado y cercano" },
+  { id: "paula", name: "Paula", gender: "f", tags: "Clara, segura y cercana" },
+  { id: "gonzalo", name: "Gonzalo", gender: "m", tags: "Serio, maduro y confiable" },
+  { id: "laura", name: "Laura", gender: "f", tags: "Suave, amable y tranquila" },
+  { id: "gabriela", name: "Gabriela", gender: "f", tags: "Madura, segura y cordial" },
 ];
 
-/** Catálogo completo servido por el TTS (`multi41`; fuente: tts/finetune/voces.tsv, sin WER ni car/s). Las 10 de arriba traen descripción; el resto, solo el género. */
+/** Voces con retrato: los mismos SVG que el dashboard (web/public/voces), generados por `make voces-retratos`. */
+export const voicePortraits = new Set(voices.map((v) => v.id));
+
+/** Catálogo completo servido por el TTS (`multi41`; fuente: tts/finetune/voces.tsv, sin WER ni car/s). Las destacadas de arriba traen descripción; el resto, solo el género. */
 const restOfVoices: [id: string, name: string, gender: "f" | "m"][] = [
   ["martina", "Martina", "f"],
   ["camila", "Camila", "f"],
@@ -74,7 +79,6 @@ const restOfVoices: [id: string, name: string, gender: "f" | "m"][] = [
   ["florencia", "Florencia", "f"],
   ["agustina", "Agustina", "f"],
   ["mariana", "Mariana", "f"],
-  ["paula", "Paula", "f"],
   ["romina", "Romina", "f"],
   ["natalia", "Natalia", "f"],
   ["silvina", "Silvina", "f"],
@@ -95,12 +99,11 @@ const restOfVoices: [id: string, name: string, gender: "f" | "m"][] = [
   ["facundo", "Facundo", "m"],
   ["joaquin", "Joaquín", "m"],
   ["federico", "Federico", "m"],
-  ["gonzalo", "Gonzalo", "m"],
   ["pablo", "Pablo", "m"],
   ["emiliano", "Emiliano", "m"],
 ];
 
-/** Las 41 voces: las 10 con descripción primero y después el resto, con el género como descripción. */
+/** Las 41 voces: las destacadas primero y después el resto, con el género como descripción. */
 export const allVoices: Voice[] = [
   ...voices,
   ...restOfVoices.map(([id, name, gender]) => ({ id, name, gender, tags: gender === "f" ? "Voz femenina" : "Voz masculina" })),

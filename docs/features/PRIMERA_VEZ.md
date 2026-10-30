@@ -54,7 +54,8 @@ El código y la llamada son solo para un usuario del cliente (un admin en soport
    registro). Un admin que entró como el cliente ve el panel. Reemplaza al pop-up de bienvenida (lo marca visto).
    - Paso 1: rubro (tarjetas con ícono) y sitio.
    - Paso 2: seis voces (`FEATURED_VOICES`: sofia, paula, valentina, gonzalo, lucas, tomas) con retrato
-     (`web/public/voces/<voz>.svg`) y ▶ que dice la apertura con el nombre de la empresa (`POST /tts/preview`).
+     (`web/public/voces/<voz>.svg`, los mismos de la landing; `make voces-retratos`) y ▶ que dice la apertura con
+     el nombre de la empresa (`POST /tts/preview`).
 3. **Inicio** (`/inicio`, la pantalla de entrada del cliente; antes era Reportes): una tarjeta por agente con
    retrato, "Hablarle ahora", "Llamame" y "Editar"; "Crear otro agente"; próximos pasos (crear, hablarle, cargar la
    información del negocio, compartir el link) y las últimas cinco conversaciones. Con `?nuevo=<id>`, el aviso
@@ -96,4 +97,4 @@ Tests: `tests/test_onboarding.py` y `web/src/features/onboarding/Onboarding.test
 - Mails según lo que haya hecho: sin agente a las 24 h, con agente pero sin hablarle, y uno personal al día 5.
 - Medir la activación (habló por voz con su agente al menos 1 minuto en las primeras 24 h) en Reportes ›
   Plataforma.
-- Retratos para el resto de las voces (hoy, seis).
+- Retratos para el resto de las voces (hoy, 12 de 41: las seis del asistente y las destacadas de la landing).

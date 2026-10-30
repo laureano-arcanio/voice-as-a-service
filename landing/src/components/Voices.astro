@@ -1,5 +1,5 @@
 ---
-import { allVoices, defaultVoiceLine, voiceCount, voiceCountFemale, voiceCountMale, voices } from "../data/site";
+import { allVoices, defaultVoiceLine, voiceCount, voiceCountFemale, voiceCountMale, voicePortraits, voices } from "../data/site";
 import Button from "./Button.astro";
 
 interface Props {
@@ -7,7 +7,7 @@ interface Props {
   selected?: string;
   title?: string;
   lead?: string;
-  /** Lista las 41 voces (con "Ver más voces") en lugar de las 10 con descripción, y no linkea a la página de las voces. */
+  /** Lista las 41 voces (con "Ver más voces") en lugar de las destacadas, y no linkea a la página de las voces. */
   all?: boolean;
 }
 
@@ -15,28 +15,31 @@ const {
   line = defaultVoiceLine,
   selected = "sofia",
   title = "Voces argentinas, con nuestro acento",
-  lead = `${voiceCount} voces con acento argentino, ${voiceCountFemale} femeninas y ${voiceCountMale} masculinas. Estas son algunas: elegí una, escribí lo que quieras y escuchala.`,
+  lead = `${voiceCount} voces con acento argentino, ${voiceCountFemale} femeninas y ${voiceCountMale} masculinas. Elegí una, escribí lo que quieras y escuchala.`,
   all = false,
 } = Astro.props;
 const ordered = [...(all ? allVoices : voices)].sort((a, b) => Number(b.id === selected) - Number(a.id === selected));
-const visible = ordered.map((v, i) => ({ ...v, more: i >= 6 }));
+// Entran 12 (cuatro filas de tres); el resto, con "Ver más voces".
+const visible = ordered.map((v, i) => ({ ...v, more: i >= 12, portrait: voicePortraits.has(v.id) ? `/voces/${v.id}.svg` : "" }));
+const hasMore = visible.some((v) => v.more);
 const first = visible[0]!;
 // TTS_PREVIEW_MAX_CHARS de la API (app/config.py).
 const MAX_CHARS = 200;
+const avatar = "grid flex-none place-items-center overflow-hidden rounded-full bg-surface-2 font-display font-extrabold text-ink";
 ---
 
 <section class="border-b border-line py-12 min-[901px]:py-[76px]" id="voces">
   <div class="mx-auto max-w-[1120px] px-5">
     <h2>{title}</h2>
     <p class="mt-3 max-w-[62ch] text-[1.12rem] text-ink-2">{lead}</p>
-    <div class="mt-9 grid items-start gap-7 min-[901px]:grid-cols-[1.1fr_.9fr]" data-voices data-line-f={line.f} data-line-m={line.m}>
+    <div class="mt-9 grid items-start gap-7 min-[901px]:grid-cols-[1.5fr_1fr]" data-voices data-line-f={line.f} data-line-m={line.m}>
       <div class="grid gap-3">
-        <form class="group/list grid gap-2.5 min-[561px]:grid-cols-2" role="radiogroup" aria-label="Voz" data-voice-form>
+        <form class="group/list grid grid-cols-2 gap-2 min-[561px]:grid-cols-3" role="radiogroup" aria-label="Voz" data-voice-form>
           {
             visible.map((v) => (
               <label
                 class:list={[
-                  "group/voice relative cursor-pointer grid-cols-[auto_1fr] items-center gap-3 rounded-xl border-[1.5px] border-line bg-surface px-3.5 py-3 transition-colors duration-150 hover:border-line-2 has-checked:border-accent has-checked:bg-accent-soft",
+                  "group/voice relative cursor-pointer grid-cols-[auto_1fr] items-center gap-2.5 rounded-xl border-[1.5px] border-line bg-surface p-2 pr-3 transition-colors duration-150 hover:border-line-2 has-checked:border-accent has-checked:bg-accent-soft",
                   v.more ? "hidden group-data-[all]/list:grid" : "grid",
                 ]}
               >
@@ -48,39 +51,50 @@ const MAX_CHARS = 200;
                   data-name={v.name}
                   data-gender={v.gender}
                   data-tags={v.tags}
+                  data-portrait={v.portrait}
                   checked={v.id === first.id}
                 />
-                <span class="grid size-[38px] place-items-center rounded-full bg-surface-2 font-display text-[1.05rem] font-extrabold text-ink group-has-checked/voice:bg-accent group-has-checked/voice:text-accent-ink">
-                  {v.name.charAt(0)}
+                <span class:list={[avatar, "size-10 text-[1rem] ring-2 ring-transparent group-has-checked/voice:ring-accent"]}>
+                  {v.portrait ? <img class="size-full" src={v.portrait} alt="" width="40" height="40" loading="lazy" /> : v.name.charAt(0)}
                 </span>
-                <span>
-                  <b class="block text-[.98rem] font-semibold">{v.name}</b>
-                  <small class="text-[.85rem] text-muted">{v.tags}</small>
+                <span class="min-w-0">
+                  <b class="block truncate text-[.95rem] leading-tight font-semibold">{v.name}</b>
+                  <small class="block truncate text-[.78rem] text-muted">{v.tags}</small>
                 </span>
               </label>
             ))
           }
         </form>
         <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
-          <Button variant="ghost" type="button" class="justify-self-start" data-more aria-expanded="false">Ver más voces</Button>
+          {hasMore && <Button variant="ghost" type="button" class="justify-self-start" data-more aria-expanded="false">Ver más voces</Button>}
           {
             !all && (
               <a class="font-semibold text-accent no-underline hover:text-accent-2" href="/plataforma/voces-argentinas">
-                Ver todas las voces →
+                Ver las {voiceCount} voces →
               </a>
             )
           }
         </div>
       </div>
-      <div class="group/player grid gap-[18px] rounded-[18px] border border-line bg-surface p-[22px] shadow-card" data-player aria-live="polite">
-        <div class="flex flex-wrap items-baseline justify-between gap-3">
-          <span class="font-display text-[1.5rem] font-extrabold tracking-[-0.02em]" data-player-name>{first.name}</span>
-          <span class="text-[.9rem] text-muted" data-player-tags>{first.tags}</span>
+      <div
+        class="group/player grid gap-3.5 rounded-[18px] border border-line bg-surface p-5 shadow-card min-[901px]:sticky min-[901px]:top-24"
+        data-player
+        aria-live="polite"
+      >
+        <div class="flex items-center gap-3">
+          <span class:list={[avatar, "size-14 text-[1.4rem]"]}>
+            <img class:list={["size-full", !first.portrait && "hidden"]} src={first.portrait || undefined} alt="" width="56" height="56" data-player-img />
+            <span class:list={[first.portrait && "hidden"]} data-player-initial>{first.name.charAt(0)}</span>
+          </span>
+          <span class="min-w-0">
+            <span class="block font-display text-[1.3rem] leading-tight font-extrabold tracking-[-0.02em]" data-player-name>{first.name}</span>
+            <span class="block text-[.85rem] text-muted" data-player-tags>{first.tags}</span>
+          </span>
         </div>
         <label class="grid gap-1.5">
           <span class="sr-only">Texto a sintetizar</span>
           <textarea
-            class="field-sizing-content min-h-[4.5lh] w-full resize-none rounded-xl border border-line bg-bg-2 px-3 py-2.5 text-base text-ink-2 italic transition-colors duration-150 hover:border-line-2 focus:border-accent focus:bg-surface focus:outline-none"
+            class="field-sizing-content min-h-[3.5lh] w-full resize-none rounded-xl border border-line bg-bg-2 px-3 py-2.5 text-[.95rem] text-ink-2 italic transition-colors duration-150 hover:border-line-2 focus:border-accent focus:bg-surface focus:outline-none"
             maxlength={MAX_CHARS}
             rows="3"
             data-text>{line[first.gender].replace("{nombre}", first.name)}</textarea
@@ -90,22 +104,24 @@ const MAX_CHARS = 200;
             <span class="font-mono tabular-nums" data-count></span>
           </span>
         </label>
-        <div class="flex h-[72px] items-center justify-center gap-1 px-1" data-bars aria-hidden="true"></div>
         <div class="flex items-center gap-3.5">
           <button
-            class="grid size-[52px] flex-none cursor-pointer place-items-center rounded-full bg-accent text-accent-ink transition-colors duration-150 hover:bg-accent-2 disabled:cursor-wait disabled:opacity-70"
+            class="grid size-12 flex-none cursor-pointer place-items-center rounded-full bg-accent text-accent-ink transition-colors duration-150 hover:bg-accent-2 disabled:cursor-wait disabled:opacity-70"
             type="button"
             aria-label="Reproducir"
             data-play
           >
-            <svg class="size-[22px] group-data-[state=playing]/player:hidden group-data-[state=loading]/player:hidden" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>
-            <svg class="hidden size-[22px] group-data-[state=playing]/player:block" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"></path></svg>
-            <span class="hidden size-[22px] animate-spin rounded-full border-[2.5px] border-white/40 border-t-white group-data-[state=loading]/player:block motion-reduce:animate-none" aria-hidden="true"></span>
+            <svg class="size-5 group-data-[state=playing]/player:hidden group-data-[state=loading]/player:hidden" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>
+            <svg class="hidden size-5 group-data-[state=playing]/player:block" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"></path></svg>
+            <span class="hidden size-5 animate-spin rounded-full border-[2.5px] border-white/40 border-t-white group-data-[state=loading]/player:block motion-reduce:animate-none" aria-hidden="true"></span>
           </button>
-          <div class="h-1 flex-1 overflow-hidden rounded-xs bg-line"><i class="block h-full w-0 bg-ink" data-progress></i></div>
+          <div class="grid min-w-0 flex-1 gap-1.5">
+            <div class="flex h-7 items-center gap-[3px]" data-bars aria-hidden="true"></div>
+            <div class="h-1 overflow-hidden rounded-xs bg-line"><i class="block h-full w-0 bg-ink" data-progress></i></div>
+          </div>
           <span class="font-mono text-[.8rem] whitespace-nowrap text-muted tabular-nums" data-time>0:00 / 0:00</span>
         </div>
-        <p class="min-h-[1.3em] text-[.82rem] font-medium text-warn" data-voice-error></p>
+        <p class="min-h-[1.3em] text-[.82rem] font-medium text-warn empty:hidden" data-voice-error></p>
       </div>
     </div>
   </div>

@@ -21,7 +21,9 @@ export function initVoices(root: HTMLElement) {
   const progress = $("[data-progress]");
   const time = $("[data-time]");
   const error = $("[data-voice-error]");
-  const more = $<HTMLButtonElement>("[data-more]");
+  const more = root.querySelector<HTMLButtonElement>("[data-more]");
+  const portrait = $<HTMLImageElement>("[data-player-img]");
+  const initial = $("[data-player-initial]");
   const lines = { f: root.dataset.lineF ?? "", m: root.dataset.lineM ?? "" };
   let edited = false;
   let context: AudioContext | null = null;
@@ -52,6 +54,12 @@ export function initVoices(root: HTMLElement) {
     const voice = selected();
     $("[data-player-name]").textContent = voice.dataset.name ?? "";
     $("[data-player-tags]").textContent = voice.dataset.tags ?? "";
+    // Retrato de la voz o, si no tiene, su inicial.
+    const src = voice.dataset.portrait ?? "";
+    if (src) portrait.src = src;
+    portrait.classList.toggle("hidden", !src);
+    initial.classList.toggle("hidden", !!src);
+    initial.textContent = (voice.dataset.name ?? "").charAt(0);
     if (!edited) text.value = lines[voice.dataset.gender === "m" ? "m" : "f"].replace("{nombre}", voice.dataset.name ?? "");
     updateCount();
   }
@@ -180,7 +188,7 @@ export function initVoices(root: HTMLElement) {
     error.textContent = "";
     updateCount();
   });
-  more.addEventListener("click", () => {
+  more?.addEventListener("click", () => {
     const open = form.toggleAttribute("data-all");
     more.textContent = open ? "Ver menos" : "Ver más voces";
     more.setAttribute("aria-expanded", String(open));

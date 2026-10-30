@@ -19,8 +19,7 @@ export const FEATURED_VOICES = [
   { id: 'tomas', gender: 'hombre', tagline: 'Relajado y natural' },
 ] as const;
 
-export const portrait = (voice: string | null | undefined) =>
-  FEATURED_VOICES.some((v) => v.id === voice) ? `/voces/${voice}.svg` : null;
+export { portrait } from '@/features/voices/names';
 
 /** Lo que muestra cada rubro (el id y el nombre salen de GET /onboarding/industries). */
 export const INDUSTRY_UI: Record<string, { icon: ComponentType<{ size?: number; stroke?: number }>; detail: string }> = {

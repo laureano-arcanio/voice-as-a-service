@@ -16,3 +16,23 @@ export function voiceName(id: string): string {
 }
 
 export const GENDER_LABEL: Record<string, string> = { mujer: 'Mujer', hombre: 'Hombre' };
+
+// Voces con retrato (web/public/voces/<voz>.svg, los mismos que la landing; los genera `make voces-retratos`). Cada
+// retrato es siempre de la misma voz en toda la aplicación.
+const PORTRAITS = new Set([
+  'sofia',
+  'paula',
+  'valentina',
+  'gonzalo',
+  'lucas',
+  'tomas',
+  'martin',
+  'carolina',
+  'jimena',
+  'diego',
+  'laura',
+  'gabriela',
+]);
+
+export const portrait = (voice: string | null | undefined) =>
+  voice && PORTRAITS.has(voice) ? `/voces/${voice}.svg` : null;

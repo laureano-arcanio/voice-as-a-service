@@ -12,7 +12,7 @@ import {
 } from '@mantine/core';
 import { useState } from 'react';
 import { useVoices } from './api';
-import { GENDER_LABEL, voiceName } from './names';
+import { GENDER_LABEL, portrait, voiceName } from './names';
 import { VoicePreview } from './VoicePreview';
 
 const VISIBLE = 9;
@@ -66,6 +66,7 @@ export function VoiceSelect({
                 <Radio.Card key={v.nombre} value={v.nombre} p="xs">
                   <Group gap="sm" wrap="nowrap">
                     <Avatar
+                      src={portrait(v.nombre)}
                       size={36}
                       radius="xl"
                       color={checked ? 'blue' : 'gray'}

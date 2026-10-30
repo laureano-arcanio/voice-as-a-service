@@ -37,7 +37,7 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
         sh psql health gpu \
         pbx-cli pbx-status livekit-sip livekit-sip-si-local \
         wa-calling-status wa-calling-enable wa-calling-disable wa-sip-password sip-cert \
-        migrate migrate-down migrate-test agent-rules reports-backfill create-admin welcome-reset api-key dev-backend web-dev web-build web-check openapi legal-sync up-tools tools-runner-token tools-runner-test tools-runner-test-down test-tools-code e2e-tools eval-tools mcp-docs mcp-eval mcp-registry-key mcp-registry-publish landing-dev \
+        migrate migrate-down migrate-test agent-rules reports-backfill create-admin welcome-reset api-key dev-backend web-dev web-build web-check voces-retratos openapi legal-sync up-tools tools-runner-token tools-runner-test tools-runner-test-down test-tools-code e2e-tools eval-tools mcp-docs mcp-eval mcp-registry-key mcp-registry-publish landing-dev \
         test e2e-sip e2e-sip-down eval-llm eval-llm-juez eval-llm-report loadtest-audio loadtest loadtest-report capacity capacity-monitor capacity-monitor-stop capacity-analyze gpubench stt-eval stt-corpus \
         video-setup video-studio video-voces video-musica video video-revisar video-cerrar doc doc-cerrar slides slides-abrir \
         backup backup-key backup-s3-setup backup-fetch backup-list cron-install \
@@ -281,6 +281,9 @@ web-build: ## Build de la UI en web/dist (la imagen de app la compila sola en el
 
 web-check: ## Lint, tipos y tests de la UI
 	cd web && npm ci && npm run lint && npm run typecheck && npm test
+
+voces-retratos: ## Regenera los retratos de las voces (web/public/voces y landing/public/voces, los mismos SVG)
+	python3 scripts/brand/voces_retratos.py
 
 landing-dev: ## Landing en modo desarrollo (Astro, :4321; docs/features/LANDING.md). HOST=1 la abre en la red (para verla en el celular)
 	cd landing && npm install && npm run dev $(if $(HOST),-- --host)

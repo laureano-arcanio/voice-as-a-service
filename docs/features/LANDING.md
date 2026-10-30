@@ -98,6 +98,12 @@ los ~0,6 s en producción (primer bloque a 168 ms, síntesis completa a 1,7 s; C
 de cada visita, ~2,6 s (incluye Turnstile y sesión). Repetir sale del `AudioBuffer`, sin otro pedido.
 `pcm-player.ts` es copia de `web/src/lib/pcmPlayer.ts`: `pcmPlayer.parity.test.ts` falla si se desvían.
 
+**Sección de voces** (`Voices.astro`, `#voces`; el nav tiene "Voces" y lleva ahí): las 12 destacadas (`voices` en
+`site.ts`) en tarjetas chicas de tres por fila con su retrato, y al lado un reproductor compacto con el retrato de la
+elegida. Las demás voces muestran la inicial. Los retratos (`public/voces/<voz>.svg`) son los mismos del dashboard y
+de cada voz en toda la aplicación: los genera `make voces-retratos` (`scripts/brand/voces_retratos.py`) en las dos
+carpetas; una voz nueva con retrato va también en `PORTRAITS` de `web/src/features/voices/names.ts`.
+
 ### Formulario de contacto
 
 `Cta` de cada página → `POST /demo/contact` con la sesión de Turnstile (`app/services/contact.py`,
@@ -249,7 +255,7 @@ cd landing && cp .env.example .env && npm run check && npm run build
 | Archivo | Qué es |
 |---|---|
 | `src/styles/global.css` | Tokens (`@theme`) y acento por vertical (`[data-theme]`). |
-| `src/data/site.ts` | Agentes de la demo, voces (`allVoices`, las 41 de `tts/finetune/voces.tsv`), planes, verticales, capacidades, `skillTools`. |
+| `src/data/site.ts` | Agentes de la demo, voces (`voices`, las 12 destacadas con retrato; `allVoices`, las 41 de `tts/finetune/voces.tsv`), planes, verticales, capacidades, `skillTools`. |
 | `src/data/schema.ts` | JSON-LD por página. |
 | `src/data/mcp-tools.json` | Generado por `make mcp-docs`. |
 | `src/data/legal/` | Generado por `make legal-sync`. |

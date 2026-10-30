@@ -10,11 +10,11 @@ interface Props {
 const { current = "other" } = Astro.props;
 // Las anclas que existen en cada pagina; el resto va a la home.
 const local: Record<NonNullable<Props["current"]>, string[]> = {
-  home: ["precios", "demo"],
+  home: ["voces", "precios", "demo"],
   dev: ["precios", "demo"],
   docs: ["demo"],
   casos: ["precios", "demo"],
-  sector: ["precios", "demo"],
+  sector: ["voces", "precios", "demo"],
   platform: ["precios", "demo"],
   other: [],
 };
@@ -22,9 +22,9 @@ const anchor = (id: string) => (local[current].includes(id) ? `#${id}` : `/#${id
 // Las paginas con widget de llamada (id="llamada") ofrecen "Hacé una demo"; el resto, el formulario.
 const hasCall = current === "home" || current === "casos" || current === "sector";
 const links = [
-  { href: "/", label: "Home", short: "Home", active: current === "home" },
   { href: "/desarrolladores", label: "Desarrolladores", short: "Desarrolladores", active: current === "dev" },
   { href: "/casos-de-uso", label: "Casos de uso", short: "Casos", active: current === "casos" || current === "sector" },
+  { href: anchor("voces"), label: "Voces", short: "Voces" },
   { href: anchor("precios"), label: "Precios", short: "Precios" },
   { href: "/desarrolladores/docs", label: "Docs", short: "Docs", active: current === "docs" },
   { href: anchor("demo"), label: "Contacto", short: "Contacto" },
@@ -54,7 +54,7 @@ const ctaHref = hasCall ? "#llamada" : "/registro";
       </Button>
     </div>
   </div>
-  <!-- Mobile: los links en una segunda fila con rótulos cortos. Hasta 900 px los links van en esta fila (los 7 no entran en la de arriba). Entran todos desde ~740 px; más angosto,
+  <!-- Mobile: los links en una segunda fila con rótulos cortos. Hasta 900 px los links van en esta fila (no entran en la de arriba). Entran todos desde ~740 px; más angosto,
   la fila se desliza y el borde derecho se desvanece para que se note. -->
   <div class="flex gap-2 overflow-x-auto px-5 pb-3 max-[440px]:gap-1.5 max-[440px]:px-4 max-[740px]:mask-r-from-85% [scrollbar-width:none] min-[901px]:hidden [&::-webkit-scrollbar]:hidden">
     {
