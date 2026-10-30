@@ -66,7 +66,10 @@ el cliente llama, el agente usa el sistema de la empresa, deriva a su equipo y t
 con los retratos de las voces y un cierre con tildes; paula y gonzalo en partes iguales, con subtítulos) y
 [`landing-plataforma`](../marketing/videos/proyectos/landing-plataforma/README.md) (16:9, 46,9 s, para la home de la
 landing: la plataforma alrededor del agente, atiende, resuelve, llama, deriva, voces y panel, todo en uno y API y MCP
-para desarrolladores; paula y gonzalo en partes iguales, con subtítulos).
+para desarrolladores; paula y gonzalo en partes iguales, con subtítulos) y
+[`landing-panel`](../marketing/videos/proyectos/landing-panel/README.md) (vertical 4:5 desde la v2, 20 s, para una columna
+de ~540 px de la home, sin audio y en loop: el panel recreado en cinco momentos, voz, herramienta, derivación, prueba y reportes, con
+zoom de cámara, cursor y títulos grandes).
 
 ## Comandos
 

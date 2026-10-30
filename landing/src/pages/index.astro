@@ -3,27 +3,26 @@ import AgentIntegration from "../components/AgentIntegration.astro";
 import AutoVideo from "../components/AutoVideo.astro";
 import Button from "../components/Button.astro";
 import CallWidget from "../components/CallWidget.astro";
+import Channels from "../components/Channels.astro";
 import Costs from "../components/Costs.astro";
 import Cta from "../components/Cta.astro";
 import Faq from "../components/Faq.astro";
 import Footer from "../components/Footer.astro";
 import Nav from "../components/Nav.astro";
-import Platform from "../components/Platform.astro";
 import PlatformBuilder from "../components/PlatformBuilder.astro";
 import Pricing from "../components/Pricing.astro";
-import ResultBridge from "../components/ResultBridge.astro";
 import Section from "../components/Section.astro";
 import TelDialog from "../components/TelDialog.astro";
 import Voices from "../components/Voices.astro";
 import { faqPage, pricingPlans, service, webSite } from "../data/schema";
-import { atentinaAgent, faqGeneral, whatsappUrl } from "../data/site";
+import { atentinaAgent, faqHome, whatsappUrl } from "../data/site";
 import Base from "../layouts/Base.astro";
 ---
 
 <Base
-  title="Atentina: agentes con IA, voces argentinas y telefonía"
-  description="Telefonía, reconocimiento de voz, LLM y voces con acento argentino en un solo servicio, con un precio por mes en pesos. Por API o con agentes listos, en servidores en Argentina."
-  ogDescription="Telefonía, voz e IA en un solo servicio, con precio en pesos."
+  title="Atentina: agentes con IA para teléfono y WhatsApp, con voces argentinas"
+  description="Agentes con IA que atienden a tus clientes por teléfono, WhatsApp y la web: consultan tu sistema y le pasan a tu equipo lo importante. Número argentino y voces con acento argentino, con un precio por mes en pesos."
+  ogDescription="Agentes con IA que atienden por teléfono y WhatsApp, con precio en pesos."
   path="/"
   schema={[
     webSite(),
@@ -31,11 +30,11 @@ import Base from "../layouts/Base.astro";
       name: "Atentina",
       serviceType: "Agentes con inteligencia artificial que atienden por teléfono y WhatsApp",
       description:
-        "Telefonía, reconocimiento de voz, LLM y voces con acento argentino en un solo servicio, con un precio por mes en pesos.",
+        "Agentes con IA que atienden a tus clientes por teléfono, WhatsApp y la web, con número argentino y voces con acento argentino, en un solo servicio con un precio por mes en pesos.",
       path: "/",
       plans: pricingPlans(true),
     }),
-    faqPage(faqGeneral),
+    faqPage(faqHome),
   ]}
 >
   <Nav current="home" />
@@ -44,16 +43,16 @@ import Base from "../layouts/Base.astro";
     <header class="border-b border-line bg-linear-to-b from-bg-2 to-bg pt-10 pb-14 min-[901px]:pt-[72px]">
       <div class="mx-auto grid max-w-[1120px] items-start gap-9 px-5 min-[901px]:grid-cols-[1fr_380px] min-[901px]:gap-12">
         <div class="grid gap-[22px]">
-          <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">Plataforma de voz con IA</span>
+          <span class="font-mono text-[.78rem] font-medium tracking-[.08em] text-accent uppercase">Agentes con IA</span>
           <h1>
-            Telefonía, voz e inteligencia artificial <span class="text-accent">en un solo servicio</span>
+            Agentes con IA que atienden a tus clientes <span class="text-accent">por teléfono y WhatsApp</span>
           </h1>
           <p class="max-w-[62ch] text-[1.12rem] text-ink-2">
-            Número argentino, llamadas, <a class="text-accent underline decoration-1 underline-offset-4 hover:text-accent-2" href="/plataforma/whatsapp">WhatsApp</a>, reconocimiento de voz, modelo de lenguaje y <a class="text-accent underline decoration-1 underline-offset-4 hover:text-accent-2" href="/plataforma/voces-argentinas">voces con acento argentino</a>, con la menor latencia del mercado. <span class="text-accent">Sin contratar telefonía ni combinar proveedores</span>: un precio por mes, en pesos.
+            Atienden llamadas y mensajes a cualquier hora, consultan tu sistema y le pasan a tu equipo lo importante. Número argentino, <a class="text-accent underline decoration-1 underline-offset-4 hover:text-accent-2" href="/plataforma/voces-argentinas">voces con acento argentino</a> e inteligencia artificial en un solo servicio, <span class="text-accent">con un precio por mes en pesos.</span>
           </p>
           <div class="flex flex-wrap items-center gap-3">
-            <Button href="/desarrolladores">Construir con la API</Button>
-            <Button href="/casos-de-uso" variant="ghost">Un agente para mi empresa</Button>
+            <Button href="/registro">Empezar gratis</Button>
+            <Button href="/desarrolladores" variant="ghost">Para desarrolladores</Button>
           </div>
         </div>
         <CallWidget agents={[atentinaAgent]} whatsapp={whatsappUrl} />
@@ -66,14 +65,13 @@ import Base from "../layouts/Base.astro";
       <AutoVideo src="landing-plataforma-v1" title="Qué hace Atentina: agentes con IA que atienden a tus clientes" />
     </Section>
 
-    <Costs />
+    <Channels />
     <PlatformBuilder />
-    <Platform more={{ href: "/plataforma", label: "Ver toda la plataforma →" }} />
-    <AgentIntegration />
-    <ResultBridge />
     <Voices />
-    <Pricing free />
-    <Faq items={faqGeneral} />
+    <Costs compact />
+    <Pricing free class="bg-bg-2" />
+    <AgentIntegration />
+    <Faq items={faqHome} />
     <Cta
       eyebrow="Contacto"
       title="Contanos qué querés construir"

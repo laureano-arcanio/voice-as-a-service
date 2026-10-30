@@ -11,7 +11,8 @@ dir="proyectos/$p/versiones/v$v"
 if grep -qi '^Estado: cerrada' "$dir/NOTAS.md"; then echo "v$v ya está cerrada"; exit 0; fi
 rm -rf "$dir/fuente"; mkdir -p "$dir/fuente"
 cp -r "proyectos/$p/src" "proyectos/$p/guion.json" "$dir/fuente/"
-cp -r "public/proyectos/$p/vo" "$dir/fuente/vo"
+# Los videos mudos (landing) no tienen locución; los retratos u otras imágenes del proyecto también se guardan
+for x in vo voces; do if [ -d "public/proyectos/$p/$x" ]; then cp -r "public/proyectos/$p/$x" "$dir/fuente/$x"; fi; done
 sed -i "s/^Estado: .*/Estado: cerrada ($(date +%d-%m-%Y))/" "$dir/NOTAS.md"
 grep -q '^Estado: cerrada' "$dir/NOTAS.md" || { echo "NOTAS.md no tiene la línea 'Estado: ...'" >&2; exit 1; }
 echo "v$v cerrada: $dir/fuente/ ($(du -sh "$dir/fuente" | cut -f1))"

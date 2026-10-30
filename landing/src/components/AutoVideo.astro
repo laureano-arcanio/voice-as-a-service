@@ -14,9 +14,11 @@ interface Props {
   title: string;
   /** Con "Escuchar con sonido" (por defecto). Sin él, un video mudo en loop (sin pista de audio). */
   sound?: boolean;
+  /** Proporción del video: 16:9 (por defecto) o vertical 4:5. */
+  aspect?: "16/9" | "4/5";
 }
 
-const { src, title, sound = true } = Astro.props;
+const { src, title, sound = true, aspect = "16/9" } = Astro.props;
 ---
 
 <div class="grid justify-items-center gap-4" data-autovideo={src}>
@@ -34,7 +36,7 @@ const { src, title, sound = true } = Astro.props;
       </div>
     </div>
     <video
-      class="relative block aspect-video h-auto w-full opacity-0 transition-opacity duration-500 group-data-[ready]/video:opacity-100 motion-reduce:transition-none"
+      class:list={["relative block h-auto w-full opacity-0 transition-opacity duration-500 group-data-[ready]/video:opacity-100 motion-reduce:transition-none", aspect === "4/5" ? "aspect-[4/5]" : "aspect-video"]}
       data-poster={`/videos/${src}.jpg`}
       muted
       loop

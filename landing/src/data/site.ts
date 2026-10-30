@@ -535,6 +535,29 @@ export const faqGeneral: Qa[] = [
 ];
 
 /** `/casos-de-uso`. */
+/** Home: las preguntas de quien compra (las de la API van en /desarrolladores). */
+export const faqHome: Qa[] = [
+  {
+    q: "¿Tengo que contratar telefonía aparte?",
+    a: "No. El número argentino, los minutos, las llamadas a la vez y la inteligencia artificial vienen en el plan. Lo contratás y empieza a atender.",
+  },
+  {
+    q: "¿Atiende WhatsApp?",
+    a: "Sí. El mismo agente responde mensajes, entiende y contesta notas de voz y atiende llamadas de WhatsApp.",
+  },
+  {
+    q: "¿Puede pasarle la llamada a una persona?",
+    a: "Sí. Le pasa la llamada a tu equipo, en el orden o por rotación, dentro del horario que definas. Si nadie atiende, toma el mensaje.",
+  },
+  {
+    q: "¿Se conecta con mi sistema?",
+    a: "Sí. Durante la conversación consulta y registra en tu sistema por API: turnos, pedidos, saldos o reclamos. Y cada resultado te llega por API o webhook.",
+  },
+  faqFree,
+  faqNumbers,
+  faqTerms,
+];
+
 export const faqBusiness: Qa[] = [
   {
     q: "¿Tengo que contratar telefonía aparte?",

@@ -45,6 +45,8 @@ import { TOTAL as LANDING_PLATAFORMA_TOTAL } from "../proyectos/landing-platafor
 import { LandingPlataformaVideo } from "../proyectos/landing-plataforma/src/Video";
 import { T as LANDING_AGENTE_T } from "../proyectos/landing-agente/src/timeline";
 import { LandingAgenteVideo } from "../proyectos/landing-agente/src/Video";
+import { T as LANDING_PANEL_T } from "../proyectos/landing-panel/src/timeline";
+import { LandingPanelVideo } from "../proyectos/landing-panel/src/Video";
 
 // Una composición por proyecto, con el id igual a la carpeta de proyectos/ (lo usa `make video P=<id>`)
 export const RemotionRoot: React.FC = () => (
@@ -70,6 +72,8 @@ export const RemotionRoot: React.FC = () => (
     <Composition id="yoizen-tu-propio-agente" component={YoizenTuPropioAgenteVideo} durationInFrames={f(YOIZEN_TU_PROPIO_AGENTE_TOTAL)} fps={FPS} width={1920} height={1080} />
     {/* Para la landing: sin locución, en loop */}
     <Composition id="landing-agente" component={LandingAgenteVideo} durationInFrames={f(LANDING_AGENTE_T.fin)} fps={FPS} width={1920} height={1080} />
+    {/* Landing, columna de ~540 px: vertical 4:5 desde la v2 */}
+    <Composition id="landing-panel" component={LandingPanelVideo} durationInFrames={f(LANDING_PANEL_T.fin)} fps={FPS} width={1080} height={1350} />
     {/* App Review de Meta: capturas reales, subtítulos en inglés, sin locución */}
     <Composition id="meta-review-management" component={MetaReviewManagementVideo} durationInFrames={META_REVIEW_MANAGEMENT_FRAMES} fps={FPS} width={1920} height={1080} />
     {/* Vertical (9:16), para el celular */}
