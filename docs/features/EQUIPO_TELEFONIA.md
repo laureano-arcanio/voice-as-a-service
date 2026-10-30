@@ -6,7 +6,8 @@ llamada en curso (transferencia atendida) o el número lo **atiende el equipo** 
 transcripción, audio por frase, minutos y eventos.
 
 Estado: en producción (derivación desde el 23-oct-2026; llamadas directas desde el 27-oct-2026; app `telefono.`
-desde el 28-oct-2026), sin prueba con llamadas reales. Plan: `tiers.max_team_members` (`TIER_HAS["team"]`; Free 0,
+desde el 28-oct-2026). La derivación está probada con llamadas reales en producción (30-oct-2026); las llamadas
+directas y la entrante al equipo, todavía no. Plan: `tiers.max_team_members` (`TIER_HAS["team"]`; Free 0,
 Mostrador 1, Sucursal 5, Interno sin tope) y `tiers.direct_calls` (`TIER_HAS["direct_calls"]`; todos menos Free; la
 saliente necesita además `outbound_calls`).
 
@@ -278,9 +279,6 @@ backend de llamadas propio: usa la API y el `CallProvider` de siempre, con las m
 ## Pendientes
 
 - **Llamada real con dos celulares propios**, revisando cada caso en Conversaciones:
-  - derivación desde una entrante, desde la web y desde una llamada de WhatsApp a Anura; no atiende, rechaza
-    (buzón), cuelga cada lado y el `2` en medio de la conversación. Es lo único que prueba la `AgentSession` real
-    (audio apagado en la espera, `say` durante la derivación, permisos de pistas con la pista de RoomIO);
   - saliente directa: atiende, no atiende, ocupado, inválido, corta cada lado, recarga y Volver a entrar, cerrar la
     pestaña, sin minutos, sin canales, baja con y sin confirmar, bloqueado, con y sin aviso;
   - entrante al equipo: celular (marcando 1), no atiende, fuera de horario, los tres respaldos, `phone` y `panel`

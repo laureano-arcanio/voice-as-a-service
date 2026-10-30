@@ -63,8 +63,6 @@ Herramientas que aparecen (todas reales, de `app/mcp/catalog.py`): `whoami`, `ge
   Conviene hacer el recorrido real una vez y comparar los textos con el video.
 - **El badge del consentimiento** ("Identificado por…" o "Registro sin verificar") no se muestra: depende de cómo
   se registre Claude Code.
-- **La transferencia a personas no está probada con llamadas reales** (DERIVACIONES_PLAN 13.4). La locución dice
-  "el agente transfiere ahí cuando hace falta".
 - **Nombres de los planes:** la tabla `tiers` y MCP_HERRAMIENTAS dicen "Central"; `landing/src/data/mcp-tools.json`
   lista "Red". El video solo nombra "Sucursal".
 - **Datos ilustrativos:** Ferretería Ejemplo, el email, IDs, consumo, textos del agente, Laura Gómez y su

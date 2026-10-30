@@ -1,76 +1,74 @@
 # App Review de Meta (app Atentina)
 
-Paquete para enviar la revisión de la app `Atentina` (ID 2192489028351511, portafolio 897731003277295): permisos
-`whatsapp_business_messaging`, `whatsapp_business_management` y `public_profile`. Sin esto (y sin el Tech Provider)
-un cliente no conecta su número con la app de Atentina: ver [WHATSAPP.md](WHATSAPP.md). **Sin enviar**: una vez
+Paquete para enviar la revisión de la app `Atentina` (ID 2192489028351511, portafolio 897731003277295): acceso
+avanzado a `whatsapp_business_messaging` y `whatsapp_business_management`. Sin esto (y sin el Tech Provider) un
+cliente no conecta su número con la app de Atentina: ver [WHATSAPP.md](WHATSAPP.md). **Sin enviar**: una vez
 enviado, Meta no deja editarlo ni cancelarlo, y revisa la app entera (ícono, nombre, URLs de privacidad y de
 eliminación de datos). El envío lo hace el usuario.
 
-Los textos para Meta van en inglés; la UI está en español, así que los videos llevan subtítulos en inglés.
+Los textos para Meta van en inglés; la UI está en español (sin i18n), así que los videos llevan subtítulos en inglés.
+
+Fuentes oficiales: [App Review para WhatsApp](https://developers.facebook.com/documentation/business-messaging/whatsapp/solution-providers/app-review),
+[Tech Providers](https://developers.facebook.com/documentation/business-messaging/whatsapp/solution-providers/get-started-for-tech-providers),
+[guía de envío](https://developers.facebook.com/docs/app-review/submission-guide) y
+[grabaciones de pantalla](https://developers.facebook.com/docs/app-review/submission-guide/screen-recordings).
 
 ## 1. Estado
 
 | Paso | Estado | Qué falta |
 |---|---|---|
 | Verificación del negocio | Verificada (como *Sole Proprietorship*, nombre legal del titular, nombre alternativo "Atentina") | — |
-| Verificación de acceso (Tech Provider) | **En revisión** desde el 1-oct-2026 (Plataforma SaaS, un portafolio, sitio atentina.com.ar). Al 27-oct-2026 seguía en revisión, sin pedidos de Meta y con el portafolio sin restricciones. Plazo de Meta para completarla: 26-dic-2026 (si no, restringe la app) | Nada de nuestro lado. El asistente de la Ayuda para empresas no deriva a personas; hay una [pregunta pública en el foro](https://developers.facebook.com/community/threads/1312250158648768/) |
-| Configuración de la app | Incompleta | **Agregar una plataforma** (bloqueo 1) y revisar ícono, categoría y correo de contacto |
-| Uso permitido | Llamadas de prueba a la API: hechas | Descripción, video y confirmación de cada permiso (secciones 2 a 4) |
+| Verificación de acceso (Tech Provider) | **En revisión** desde el 1-oct-2026. Al 27-oct-2026 seguía en revisión, sin pedidos de Meta. Plazo de Meta para completarla: 26-dic-2026 (si no, restringe la app) | Nada de nuestro lado ([pregunta en el foro](https://developers.facebook.com/community/threads/1312250158648768/)) |
+| Configuración de la app | Sin confirmar | Ícono, política de privacidad, categoría y correo de contacto (Meta los pide antes de la revisión) |
+| Uso permitido | Llamadas de prueba a la API: hechas | Descripción, video y confirmación de cada permiso (secciones 3 y 4) |
 | Tratamiento de datos | Sin responder | Sección 6 |
-| Instrucciones para revisores | Bloqueadas por la plataforma | Sección 5 |
 
 Asistente: developers.facebook.com → Revisar → Revisión de la app → solicitud 2192520205015060.
 
-**Bloqueos antes de enviar:**
+**Lo que tiene la app hoy** (revisado en el código y la base el 29-oct-2026):
 
-1. **Plataforma:** Configuración → Básica → Agregar plataforma → Sitio web, URL `https://app.atentina.com.ar/`. Sin
-   eso no se cargan las instrucciones para revisores.
-2. **Usuario para los revisores** en `app.atentina.com.ar`: un cliente de prueba (por ejemplo "Meta App Review") con
-   un tier que incluya WhatsApp y campañas de WhatsApp, usuario y clave propios, el agente de demo y el número de
-   WhatsApp de Atentina visibles. Lo crea el usuario; la clave va solo en el formulario de Meta.
-3. **Embedded Signup** no se completa hasta que Meta apruebe el Tech Provider (el popup dice "Atentina no puede
-   registrar clientes en este momento"). Además está apagado en producción: el botón "Conectar WhatsApp" solo
-   aparece con `WA_EMBEDDED_SIGNUP=true` (y `WA_APP_ID`, `WA_APP_SECRET`, `WA_CONFIG_ID`, `WA_TOKEN_KEY`): lo decide
-   `GET /api/v1/whatsapp/config` y lo muestra `web/src/features/whatsapp/WhatsAppPage.tsx`. Para grabar el video de
-   `whatsapp_business_management` hay que prenderlo (editar `.env` con diff enmascarado y
-   `make calls-active && make up-agent`) y apagarlo después si Meta todavía no aprobó. Si Meta pide el alta
-   completa, reenviar cuando apruebe el Tech Provider.
+- Un solo número de WhatsApp activo: **+54 9 351 700-2592**, del cliente Atentina (tier Interno, con WhatsApp y
+  campañas de WhatsApp), alta **manual** con el token del portafolio (`WA_ACCESS_TOKEN`), sin token propio.
+- Plantillas, "Releer datos de Meta" y "Reintentar registro" de un número sin token propio dan 403 a un usuario del
+  cliente (`_get_managed` en `app/api/routers/whatsapp.py`); solo los ve un admin o un admin que entró como el
+  cliente. Por eso **los videos se graban como admin entrando como el cliente Atentina** (sección 2).
+- **Embedded Signup apagado** (`WA_EMBEDDED_SIGNUP` sin definir, default `false`): el botón "Conectar WhatsApp" no
+  aparece. Aunque se prenda, el popup no completa el alta hasta que Meta apruebe el Tech Provider. La guía de
+  WhatsApp no lo pide en estos videos: **se graba sin él**.
+- El alta que sí ve un cliente es "Conectar con mi app de Meta" (`own_app`): usa la app y el token de Meta del
+  cliente, no la nuestra, así que no demuestra estos permisos y no va en los videos.
 
-La política de privacidad vigente (`app/legal/texts/privacidad/2026-10-28.md`, publicada en la landing) ya lista a
-Resend y a Amazon Web Services junto con Meta, Cloudflare, Render y Google: coincide con la sección 6.
+## 2. Requisitos de los videos (oficiales)
 
-## 1b. Requisitos de los videos
+**De la página de App Review para WhatsApp:**
 
-Fuentes: [guía de grabaciones de pantalla](https://developers.facebook.com/docs/app-review/submission-guide/screen-recordings/)
-y [App Review para WhatsApp](https://developers.facebook.com/docs/whatsapp/solution-providers/app-review/).
+1. **`whatsapp_business_messaging`**: la app mandando un mensaje a un número de WhatsApp, y el cliente de WhatsApp
+   (web o celular) recibiéndolo y mostrándolo. Alternativa: el script cURL de *WhatsApp → API Setup* mandando a un
+   número de prueba.
+2. **`whatsapp_business_management`**: la app (o WhatsApp Manager) creando una plantilla de mensaje.
+3. **Un video por permiso**: "Do not submit a video that includes multiple permissions supporting different use
+   cases."
+4. **Grabación real**, no capturas. Descripción escrita y video en cada permiso: sin texto, rechazo.
+5. Con solo estos dos permisos, **las instrucciones para revisores no son obligatorias**.
 
-**Obligatorios (si falta uno, rechazo):**
+**De la guía general de grabaciones:** UI en inglés o, si no, subtítulos y tooltips en inglés; arrancar con la
+sesión cerrada y mostrar el login; mostrar qué hace la app con los datos (el resultado de cada acción); 1080p o
+más; ventana de 1440 px de ancho o menos; solo la ventana de la app; mouse en vez de teclado y cursor agrandado;
+anotaciones y zoom donde se usa el permiso; sin audio (no lo escuchan). No fija formato, peso ni duración.
 
-1. **Grabación de pantalla real**: nada de capturas animadas ni cursor simulado.
-2. **Un video por permiso**: mezclar permisos es motivo de rechazo.
-3. **`whatsapp_business_messaging`**: la app mandando un mensaje y el cliente de WhatsApp (web o celular)
-   recibiéndolo y mostrándolo.
-4. **`whatsapp_business_management`**: la app (o WhatsApp Manager) creando una plantilla de mensaje.
-5. **Login completo**, desde la sesión cerrada, con el usuario de revisores.
-6. **Autorización del permiso**: el botón de login de Meta ("Conectar WhatsApp"), el usuario dando el permiso y la
-   función que lo usa (ver bloqueo 3).
-7. **Qué hace la app con los datos**: el resultado de cada acción (mensaje recibido, plantilla creada con su estado).
-8. **Subtítulos en inglés** que expliquen cada paso y los botones no obvios.
+**Nuestros:** sin datos de terceros (ni conversaciones de prospectos ni clientes); solo acciones reales.
 
-**Recomendados:** 1080p o más; ventana de 1440 px de ancho o menos; solo la ventana del navegador; mouse en vez de
-teclado; cursor agrandado; anotaciones donde se usa el permiso; zoom en lo chico; sin audio.
+**Cuenta para grabar:** login de admin → Clientes → Atentina → "Entrar como el cliente". Arriba queda el botón
+"Volver a administración"; subtitularlo como *"Atentina's own business account"*.
 
-**Nuestros:** sin datos de terceros (ni conversaciones de prospectos); grabar con el usuario de revisores (vista de
-cliente, sin el menú de administración); solo acciones reales.
-
-## 2. `whatsapp_business_messaging`
+## 3. `whatsapp_business_messaging`
 
 **Descripción:**
 
 > Atentina (https://atentina.com.ar) is a SaaS platform from Argentina that lets businesses (clinics, gyms,
 > collection agencies, retailers) answer their customers with an AI assistant over phone calls and WhatsApp.
-> Each business connects its own WhatsApp Business number to Atentina through Embedded Signup, and Atentina
-> sends and receives messages on that number on the business's behalf.
+> As a Tech Provider, businesses connect their own WhatsApp Business number to Atentina through Embedded Signup,
+> and Atentina sends and receives messages on that number on the business's behalf.
 >
 > We use whatsapp_business_messaging to:
 > 1. Receive the messages (text and voice notes) that end users send to the business's WhatsApp number,
@@ -78,11 +76,10 @@ cliente, sin el menú de administración); solo acciones reales.
 > 2. Send the assistant's replies to those end users, as text or as a voice note, inside the 24-hour
 >    customer service window. Example: a patient writes "I need an appointment for Tuesday" and the
 >    assistant replies with the available times and books it.
-> 3. Send approved template messages that the business triggers itself: appointment reminders, payment
->    reminders and follow-ups to its own contacts who opted in. End users can reply "BAJA" (stop) to opt out,
->    and we stop messaging them.
-> 4. Register the business's phone number with the Cloud API after Embedded Signup (two-step PIN) and read
->    its business profile.
+> 3. Send approved template messages that the business triggers itself from its dashboard (WhatsApp
+>    campaigns): appointment reminders, payment reminders and follow-ups to its own contacts who opted in.
+>    End users can opt out by replying "stop" or tapping the "No me interesa" button, and we stop messaging them.
+> 4. Register the business's phone number with the Cloud API after Embedded Signup (two-step verification PIN).
 >
 > Every conversation is shown to the business in its Atentina dashboard (Conversations), where it can read
 > the transcript and close the conversation. Without this permission the product cannot answer the
@@ -91,21 +88,22 @@ cliente, sin el menú de administración); solo acciones reales.
 
 **Confirmación:** marcar "Si se aprueba, confirmo que cualquier información…".
 
-**Video (1–2 min):** alternado entre el panel (Chrome, 1440 px) y WhatsApp Web de un número propio.
+**Video (1–2 min):** el panel (Chrome, 1440 px) y WhatsApp Web de un número propio, lado a lado o alternados.
 
 | # | Qué se graba | Subtítulo |
 |---|---|---|
-| 1 | Sesión cerrada → `https://app.atentina.com.ar/login` → usuario de revisores | "A business logs in to its Atentina dashboard." |
-| 2 | WhatsApp: el número conectado y su agente | "The business's WhatsApp number is connected to an AI assistant." |
-| 3 | WhatsApp Web: el número propio escribe al +54 9 351 700-2592 | "A customer writes to the business on WhatsApp." |
-| 4 | WhatsApp Web: llega la respuesta (texto y, si se puede, nota de voz) | "Atentina sends the assistant's reply through the WhatsApp Cloud API; the WhatsApp client receives it." |
-| 5 | Conversaciones → esa conversación | "The business sees the conversation in its dashboard." |
-| 6 | Campañas → Nueva campaña de WhatsApp → plantilla aprobada → el número propio como único contacto → crear e iniciar | "The business sends an approved template to a contact who opted in." |
-| 7 | WhatsApp Web: llega la plantilla | "The WhatsApp client receives and displays the message." |
+| 1 | Sesión cerrada → `https://app.atentina.com.ar/login` → Clientes → Atentina → "Entrar como el cliente" | "A business logs in to its Atentina dashboard." |
+| 2 | Canales → WhatsApp: el número +54 9 351 700-2592, estado "Conectado" y su agente | "The business's WhatsApp number is connected to an AI assistant." |
+| 3 | Canales → Campañas → Nueva campaña → "Por WhatsApp": nombre, número que envía, plantilla aprobada, agente, CSV con el número propio como único contacto → crear | "The business sends an approved template message to a contact who opted in." |
+| 4 | La campaña en borrador → "Iniciar campaña" | "Atentina sends it through the WhatsApp Cloud API." |
+| 5 | WhatsApp Web: llega la plantilla, con la hora y el remitente a la vista | "The WhatsApp client receives and displays the message." |
+| 6 | WhatsApp Web: el contacto contesta; llega la respuesta del asistente | "The customer replies and the assistant answers on the business's behalf." |
+| 7 | Conversaciones → esa conversación | "The business sees the conversation in its dashboard." |
 
-El paso 6 manda un mensaje real (lo cobra Meta) a un número propio: confirmar antes de grabar.
+El paso 3 necesita una plantilla aprobada en la WABA de Atentina y manda un mensaje real (lo cobra Meta) a un
+número propio: confirmar antes de grabar.
 
-## 3. `whatsapp_business_management`
+## 4. `whatsapp_business_management`
 
 **Descripción:**
 
@@ -119,8 +117,8 @@ El paso 6 manda un mensaje real (lo cobra Meta) a un número propio: confirmar a
 > 2. Show the business the status of its number in the dashboard: display name, quality rating, messaging
 >    limit and connection status, refreshed from Meta on demand.
 > 3. Let the business list and create its message templates (Utility and Marketing) from the dashboard,
->    with variables and examples, and see their approval status. These templates are then used for the
->    reminders and campaigns the business sends.
+>    with header, body variables and examples, footer and buttons, and see their approval status. These
+>    templates are then used for the campaigns the business sends.
 > 4. Receive account_update, phone_number_quality_update and message_template_status_update webhooks, so
 >    that a disconnected, disabled or offboarded account stops being used immediately.
 >
@@ -130,54 +128,35 @@ El paso 6 manda un mensaje real (lo cobra Meta) a un número propio: confirmar a
 
 **Confirmación:** marcar la casilla.
 
-**Video (1–2 min)**, con `WA_EMBEDDED_SIGNUP=true` (bloqueo 3):
+**Video (1–2 min):**
 
 | # | Qué se graba | Subtítulo |
 |---|---|---|
-| 1 | Sesión cerrada → login con el usuario de revisores | "A business logs in to its Atentina dashboard." |
-| 2 | WhatsApp → "Conectar WhatsApp" → ventana de Meta → da el permiso, elige cuenta y número → vuelve con el número conectado | "The business connects its own WhatsApp Business Account with Embedded Signup and grants Atentina access." |
-| 3 | Tabla de números: estado, calidad y límite; "Releer de Meta" | "We read the number's status and quality from Meta." |
-| 4 | Plantillas → Nueva plantilla → Utilidad, variables y ejemplos → **Crear** | "The business creates a message template from Atentina." |
-| 5 | La plantilla en la lista, "En revisión" (y "Aprobada" al releer) | "The template is submitted to Meta; its approval status is shown live." |
+| 1 | Sesión cerrada → login → Clientes → Atentina → "Entrar como el cliente" | "A business logs in to its Atentina dashboard." |
+| 2 | Canales → WhatsApp: menú del número → "Releer datos de Meta"; columnas Estado y Calidad | "We read the number's status, quality rating and messaging limit from Meta." |
+| 3 | Menú del número → "Plantillas" → "Nueva plantilla": nombre, idioma, categoría Utilidad, cuerpo con `{{1}}` y su ejemplo → "Crear" | "The business creates a message template from Atentina." |
+| 4 | La plantilla en la lista con estado "En revisión" (y "Aprobada" al releer, si Meta ya la aprobó) | "The template is submitted to Meta; its approval status is shown in the dashboard." |
 
-El paso 2 solo se graba completo con el Tech Provider aprobado. El 4 crea una plantilla real en la WABA del
-número: confirmar nombre y texto antes de grabar.
-
-## 4. `public_profile`
-
-Solo pide la confirmación. Lo usa Facebook Login for Business dentro del Embedded Signup (identifica a la persona
-que conecta la cuenta); no se guardan datos del perfil.
+El paso 3 crea una plantilla real en la WABA de Atentina: confirmar nombre y texto antes de grabar. Alternativa
+oficial si algo falla: grabar la creación en WhatsApp Manager.
 
 ## 5. Instrucciones para revisores
 
-> Atentina is a web dashboard: https://app.atentina.com.ar
->
-> Test account: user `<email del usuario de revisores>`, password `<clave>`. It belongs to a test business
-> with a WhatsApp number already connected.
->
-> 1. Log in. Open "WhatsApp" in the left menu: you will see the connected number (status, quality rating,
->    messaging limit, assigned assistant) and the "Plantillas" (templates) section, where you can create a
->    template. The "Conectar WhatsApp" button starts Embedded Signup.
-> 2. To test messaging, send a WhatsApp message from any phone to +54 9 351 700-2592 (for example
->    "Hello, what does Atentina do?"). The AI assistant replies within a few seconds, by text or voice note.
-> 3. Open "Conversaciones" (Conversations) in the dashboard to see that conversation and its transcript.
-> 4. Open "Campañas" (Campaigns) to see how the business sends an approved template to its own contacts.
->
-> The dashboard is in Spanish; the screen recordings have English captions. No special hardware or
-> geography is needed.
+No son obligatorias con solo estos dos permisos. Un usuario del cliente no puede crear plantillas sobre el número de
+Atentina (403, sección 1), así que no se crea usuario para revisores. Si el formulario las pide:
 
-Menús en `web/src/components/nav.ts`: "Conversaciones" (`/calls`), "WhatsApp" (grupo Canales, `feature: whatsapp`)
-y "Campañas" (según `campaign_channels` del plan). El paso 1 menciona "Conectar WhatsApp": si al revisar
-`WA_EMBEDDED_SIGNUP` está en false, el botón no aparece; ajustar el texto o dejarlo prendido mientras dure la
-revisión.
+> Atentina is a web dashboard (https://app.atentina.com.ar), in Spanish; the screen recordings have English
+> captions. To see messaging working, send a WhatsApp message from any phone to +54 9 351 700-2592 (for example
+> "Hello, what does Atentina do?"): the AI assistant replies within a few seconds, by text or voice note.
 
 ## 6. Tratamiento de datos (respuestas propuestas)
 
-Son respuestas legales: las decide el usuario.
+Son respuestas legales: las decide el usuario. Coinciden con la política de privacidad vigente
+(`app/legal/texts/privacidad/2026-10-28.md`).
 
 | Pregunta | Propuesta |
 |---|---|
-| ¿Encargados con acceso a los Datos de la plataforma? | **Sí**: Cloudflare (red y túnel del webhook), Amazon Web Services (copia de respaldo cifrada en S3), Resend (correos con el resumen de la conversación). Si el cliente lo elige, su proveedor de LLM (OpenAI, Anthropic u OpenRouter); ahí el responsable es el cliente |
+| ¿Encargados con acceso a los Datos de la plataforma? | **Sí**: Cloudflare (red y túnel del webhook), Amazon Web Services (copia de respaldo cifrada), Resend (correos con el resumen de la conversación). Si el cliente lo elige, su proveedor de LLM (OpenAI, Anthropic u OpenRouter); ahí el responsable es el cliente |
 | Responsable de los datos | Laureano Martín Arcanio (CUIT 20-30745718-1), titular de la marca Atentina |
 | País | Argentina |
 | ¿Datos a autoridades por seguridad nacional en 12 meses? | No |
@@ -185,12 +164,10 @@ Son respuestas legales: las decide el usuario.
 
 ## 7. Checklist del envío
 
-- [ ] Plataforma Sitio web agregada (bloqueo 1).
-- [ ] Usuario de revisores creado y probado (bloqueo 2).
-- [x] Privacidad con Resend y AWS publicada (versión `2026-10-28`).
-- [ ] `WA_EMBEDDED_SIGNUP=true` para grabar (bloqueo 3).
-- [ ] Video de `whatsapp_business_messaging` que cumpla 1b.
-- [ ] Video de `whatsapp_business_management` que cumpla 1b (con el Embedded Signup completo).
-- [ ] Textos de las secciones 2, 3 y 5 pegados; casillas de confirmación.
+- [ ] Configuración de la app completa (ícono, privacidad, categoría, contacto).
+- [ ] Plantilla aprobada en la WABA de Atentina para el video de mensajería.
+- [ ] Video de `whatsapp_business_messaging` (sección 3) que cumpla la sección 2.
+- [ ] Video de `whatsapp_business_management` (sección 4) que cumpla la sección 2.
+- [ ] Textos de las secciones 3 y 4 pegados; casillas de confirmación.
 - [ ] Tratamiento de datos respondido (sección 6).
-- [ ] Revisión final con el usuario y **Enviar para revisión** (lo hace el usuario).
+- [ ] Revisión final con el usuario y **Enviar para revisión** (lo hace el usuario; un borrador no se revisa).

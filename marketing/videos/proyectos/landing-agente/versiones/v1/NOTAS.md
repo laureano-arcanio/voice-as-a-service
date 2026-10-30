@@ -54,9 +54,6 @@ Ninguna (pedido para la landing, que reproduce silenciado). No se usó el TTS ni
 
 ## A revisar antes de mostrarlo afuera
 
-- **Derivación de llamadas desplegada pero sin probar con llamadas reales** (DERIVACIONES_PLAN 13.4). El video no
-  dice que esté probada; si se publica antes de la prueba, es una promesa de algo que todavía no se usó con un
-  cliente.
 - **Ilustrativo:** personas, consultas, respuestas, precios, "Lucía" y el contador (8 · 2 cuenta lo que se ve, no
   es un dato medido).
 - **Tamaño de los textos en la landing:** a ~960 px de ancho en pantalla, las consultas (25 px en el original) se

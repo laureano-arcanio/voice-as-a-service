@@ -1,0 +1,58 @@
+{
+  "nota": "Video publicitario de 60 s como máximo: la atención de punta a punta (el cliente llama, el agente consulta y registra en el sistema de la empresa, deriva a uno o más operarios, toma el mensaje si nadie atiende y todo queda registrado) y un resumen con tildes. paula y gonzalo alternados, con el mismo tiempo de voz. Ortografía normal.",
+  "musica_segundos": 62,
+  "velocidad": 1.08,
+  "ganancia_db": -1.5,
+  "lineas": [
+    {
+      "id": "d1",
+      "voz": "paula",
+      "texto": "Así funciona Atentina: atiende a tus clientes de punta a punta."
+    },
+    {
+      "id": "d2",
+      "voz": "gonzalo",
+      "texto": "Tomás llama a tu empresa, y el agente lo atiende, a cualquier hora."
+    },
+    {
+      "id": "d3",
+      "voz": "paula",
+      "texto": "Mientras hablan, consulta tu sistema: encuentra su pedido, y registra lo que necesita."
+    },
+    {
+      "id": "d4",
+      "voz": "gonzalo",
+      "texto": "Tomás pide hablar con Ventas. El agente llama a tu equipo, en el orden y el horario que elegiste."
+    },
+    {
+      "id": "d5",
+      "voz": "paula",
+      "texto": "Tomás escucha música. Suena Valentina; si no atiende, suena Lucas."
+    },
+    {
+      "id": "d6",
+      "voz": "gonzalo",
+      "texto": "A Lucas, el agente le cuenta en pocas palabras de qué se trata, y los conecta."
+    },
+    {
+      "id": "d7",
+      "voz": "paula",
+      "texto": "¿Y si nadie atiende? El agente vuelve con Tomás y le toma el mensaje."
+    },
+    {
+      "id": "d8",
+      "voz": "gonzalo",
+      "texto": "Al final, todo queda registrado en tu panel: la conversación, los datos y el resultado."
+    },
+    {
+      "id": "d9",
+      "voz": "paula",
+      "texto": "Teléfono, WhatsApp y web, con voces argentinas. Tu sistema, tu equipo y tus horarios. Lo configurás vos."
+    },
+    {
+      "id": "d10",
+      "voz": "gonzalo",
+      "texto": "Atentina. Agentes con IA que atienden a tus clientes. Empezá hoy, en atentina punto com punto ar."
+    }
+  ]
+}

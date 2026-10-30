@@ -9,6 +9,7 @@ import Pricing from "../../components/Pricing.astro";
 import Section from "../../components/Section.astro";
 import Solutions from "../../components/Solutions.astro";
 import TelDialog from "../../components/TelDialog.astro";
+import YouTube from "../../components/YouTube.astro";
 import { faqPage, pricingPlans, service } from "../../data/schema";
 import { atentinaAgent, faqBusiness, voiceCount, whatsappUrl, type Feature } from "../../data/site";
 import Base from "../../layouts/Base.astro";
@@ -72,6 +73,19 @@ const steps = [
     </header>
 
     <TelDialog />
+
+    <Section id="video">
+      <div class="mx-auto grid max-w-[880px] gap-6">
+        <div class="grid gap-3 text-center">
+          <span class="font-mono text-[.76rem] tracking-[.04em] text-muted uppercase">Video · 55 segundos</span>
+          <h2>Mirá cómo atiende, de punta a punta</h2>
+          <p class="mx-auto max-w-[62ch] text-[1.12rem] text-ink-2">
+            Tu cliente llama, el agente consulta y registra en tu sistema y, cuando hace falta, le pasa la llamada a tu equipo. Si nadie atiende, toma el mensaje.
+          </p>
+        </div>
+        <YouTube id="k-Fpnre1rd0" title="Cómo atiende un agente de Atentina, de punta a punta" />
+      </div>
+    </Section>
 
     <Solutions other />
 

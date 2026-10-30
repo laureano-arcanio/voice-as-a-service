@@ -60,7 +60,10 @@ diapositivas de la presentación `documentos/proyectos/yoizen-tu-propio-agente` 
 diapositiva alternando paula y gonzalo, subtítulos en la línea del pie y música) y
 [`llamadas-salientes`](../marketing/videos/proyectos/llamadas-salientes/README.md) (16:9, 89 s, tutorial para YouTube: configurar el número,
 cargar el equipo y los contactos y llamar desde el panel y desde la aplicación Teléfono, con capturas reales del panel,
-subtítulos y link a `/plataforma/telefono-del-equipo`; paula y gonzalo).
+subtítulos y link a `/plataforma/telefono-del-equipo`; paula y gonzalo) y
+[`atencion-punta-a-punta`](../marketing/videos/proyectos/atencion-punta-a-punta/README.md) (16:9, 54,7 s, publicitario:
+el cliente llama, el agente usa el sistema de la empresa, deriva a su equipo y todo queda registrado, en un diagrama
+con los retratos de las voces y un cierre con tildes; paula y gonzalo en partes iguales, con subtítulos).
 
 ## Comandos
 

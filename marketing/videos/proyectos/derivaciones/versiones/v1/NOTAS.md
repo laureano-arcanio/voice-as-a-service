@@ -35,9 +35,6 @@ conversación con el tramo de la persona). Guion por escena en el README.
 
 ## A revisar antes de mostrarlo afuera
 
-- **La transferencia no está probada con llamadas reales** (DERIVACIONES_PLAN 13.4): desplegada el 23-oct-2026.
-  El video la presenta como función del panel, sin decir que está probada; conviene mostrarlo afuera después de
-  la prueba con los dos celulares.
 - **La conversación del resultado es ilustrativa** (mock del detalle de la llamada), lo mismo que la empresa,
   las personas, los teléfonos y los horarios.
 - **Mobile:** el panel se usa a 390 px, con detalles: las tablas de Personas y Áreas se cortan a la derecha

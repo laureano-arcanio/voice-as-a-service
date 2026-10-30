@@ -39,6 +39,8 @@ import { TuPropioAgenteVideo } from "../proyectos/tu-propio-agente/src/Video";
 import { TOTAL as YOIZEN_TU_PROPIO_AGENTE_TOTAL } from "../proyectos/yoizen-tu-propio-agente/src/timeline";
 import { YoizenTuPropioAgenteVideo } from "../proyectos/yoizen-tu-propio-agente/src/Video";
 import { DURACION as META_REVIEW_MANAGEMENT_FRAMES, MetaReviewManagementVideo } from "../proyectos/meta-review-management/src/Video";
+import { TOTAL as ATENCION_PUNTA_A_PUNTA_TOTAL } from "../proyectos/atencion-punta-a-punta/src/timeline";
+import { AtencionPuntaAPuntaVideo } from "../proyectos/atencion-punta-a-punta/src/Video";
 import { T as LANDING_AGENTE_T } from "../proyectos/landing-agente/src/timeline";
 import { LandingAgenteVideo } from "../proyectos/landing-agente/src/Video";
 
@@ -57,6 +59,7 @@ export const RemotionRoot: React.FC = () => (
     <Composition id="zennonbi-analisis" component={ZennonbiAnalisisVideo} durationInFrames={f(ZENNONBI_ANALISIS_TOTAL)} fps={FPS} width={1920} height={1080} />
     <Composition id="mcp-claude-code" component={McpClaudeCodeVideo} durationInFrames={f(MCP_CLAUDE_CODE_TOTAL)} fps={FPS} width={1920} height={1080} />
     <Composition id="api-desarrolladores" component={ApiDesarrolladoresVideo} durationInFrames={f(API_DESARROLLADORES_TOTAL)} fps={FPS} width={1920} height={1080} />
+    <Composition id="atencion-punta-a-punta" component={AtencionPuntaAPuntaVideo} durationInFrames={f(ATENCION_PUNTA_A_PUNTA_TOTAL)} fps={FPS} width={1920} height={1080} />
     <Composition id="llamadas-salientes" component={LlamadasSalientesVideo} durationInFrames={f(LLAMADAS_SALIENTES_TOTAL)} fps={FPS} width={1920} height={1080} />
     <Composition id="docs-intro" component={DocsIntroVideo} durationInFrames={f(DOCS_INTRO_TOTAL)} fps={FPS} width={1920} height={1080} />
     <Composition id="tu-propio-agente" component={TuPropioAgenteVideo} durationInFrames={f(TU_PROPIO_AGENTE_TOTAL)} fps={FPS} width={1920} height={1080} />
