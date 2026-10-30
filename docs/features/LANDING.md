@@ -18,7 +18,7 @@ Canónico `https://atentina.com.ar/`. `www.atentina.com.ar` (Render), `atentina.
 | `/desarrolladores/docs/mcp` | Conectar Claude, ChatGPT, Cursor u otro agente por MCP; qué incluye cada plan; herramientas por grupo. Datos de `src/data/mcp-tools.json`. | `desarrolladores/docs/mcp.astro` |
 | `/desarrolladores/docs/api` | API de inferencia, llamadas, contactos, campañas, webhook, llamadas directas, reportes; tabla de planes. | `desarrolladores/docs/api.astro` |
 | `/desarrolladores/docs/tu-propio-agente` | Contrato del agente externo (endpoint compatible con OpenAI del cliente). | `desarrolladores/docs/tu-propio-agente.astro` |
-| `/casos-de-uso` y `/casos-de-uso/<slug>` | Quien tiene un problema de atención. Verticales `turnos` (verde azulado), `cobranzas` (violeta), `municipios` (ámbar), con su `data-theme`. En `/casos-de-uso`, debajo de la portada, el video de YouTube de atención punta a punta (`#video`, `k-Fpnre1rd0`). Planes sin Free. | `casos-de-uso/[vertical].astro` + `verticals` en `site.ts` |
+| `/casos-de-uso` y `/casos-de-uso/<slug>` | Quien tiene un problema de atención. Verticales `turnos` (verde azulado), `cobranzas` (violeta), `municipios` (ámbar), con su `data-theme`. En `/casos-de-uso`, debajo de la portada, el video de atención punta a punta (`#video`, `AutoVideo`): propio en `public/videos/` (v2 de `marketing/videos/proyectos/atencion-punta-a-punta`, recomprimida: 2,7 MB, 1080p, audio 96 kb/s), arranca solo y mudo al entrar en pantalla y se lee por los subtítulos quemados; botón de pausa, sin autoplay con `prefers-reduced-motion`, y "Escuchar con sonido" lo reinicia con audio y controles (evento `video_sound`). En YouTube: `k-Fpnre1rd0`. Planes sin Free. | `casos-de-uso/[vertical].astro` + `verticals` en `site.ts` |
 | `/plataforma` y `/plataforma/<slug>` | Una página por capacidad para posicionar por término: `voces-argentinas`, `transcripcion`, `whatsapp`, `telefonia`, `telefono-del-equipo`. Sin nav propio: se llega por el footer, las tarjetas de `Platform` y los `Feature.href` de las verticales. | `plataforma/[slug].astro` + `capabilities` en `site.ts` |
 | `/registro` | Registro (Free o plan pago con `?plan=<nombre>`). `noindex`. | `registro.astro`, `src/scripts/signup.ts` |
 | `/laureano-arcanio` | Perfil del fundador con `Person` en JSON-LD. Fuera del nav, en el sitemap. | `laureano-arcanio.astro` |
@@ -100,7 +100,7 @@ de cada visita, ~2,6 s (incluye Turnstile y sesión). Repetir sale del `AudioBuf
 
 **Sección de voces** (`Voices.astro`, `#voces`; el nav tiene "Voces" y lleva ahí): las 12 destacadas (`voices` en
 `site.ts`) en tarjetas chicas de tres por fila con su retrato, y al lado un reproductor compacto con el retrato de la
-elegida. Las demás voces muestran la inicial. Los retratos (`public/voces/<voz>.svg`) son los mismos del dashboard y
+elegida. Las 41 voces tienen retrato (`public/voces/<voz>.svg`): son los mismos del dashboard y
 de cada voz en toda la aplicación: los genera `make voces-retratos` (`scripts/brand/voces_retratos.py`) en las dos
 carpetas; una voz nueva con retrato va también en `PORTRAITS` de `web/src/features/voices/names.ts`.
 

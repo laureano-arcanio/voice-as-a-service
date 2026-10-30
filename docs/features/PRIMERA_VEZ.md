@@ -97,4 +97,3 @@ Tests: `tests/test_onboarding.py` y `web/src/features/onboarding/Onboarding.test
 - Mails según lo que haya hecho: sin agente a las 24 h, con agente pero sin hablarle, y uno personal al día 5.
 - Medir la activación (habló por voz con su agente al menos 1 minuto en las primeras 24 h) en Reportes ›
   Plataforma.
-- Retratos para el resto de las voces (hoy, 12 de 41: las seis del asistente y las destacadas de la landing).

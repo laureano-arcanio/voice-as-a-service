@@ -61,6 +61,9 @@ en `marketing/videos/proyectos/<slug>/`.
 - **Comandos para el usuario, con `make`** (los de la tabla de VIDEOS.md). Si falta un paso, proponé el target.
 - **Temporales en `scratch/videos/`**, nunca en `/tmp`. Los MP4 no se commitean; no hacés commits salvo que te lo pidan.
 - **Textos en español rioplatense**, sin signos de exclamación en pantalla, títulos con rótulo + remate en el acento.
+- **Todo video empieza y termina en blanco** (pedido del usuario, 30-oct-2026): intro y cierre con fondo blanco
+  (`C.bg`), logo oscuro (`marca/atentina-logo.svg`), frase en `ink` con el remate en `accent`. Nada de fondo oscuro
+  (`ink`) en la intro ni en el cierre.
 - **El agente de Atentina se representa con el logo** (`AgenteLogo`), nunca con el robot o mascota (`Mascot`, retirada
   el 21-oct-2026).
 - **Locución con la ortografía normal** y pausas con comas y puntos. No fuerces tildes en la sílaba tónica (sonaban mal,

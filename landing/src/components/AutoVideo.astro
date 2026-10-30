@@ -1,0 +1,93 @@
+---
+// Video propio (public/videos/) que se reproduce solo, mudo y en loop, cuando entra en pantalla: se lee por los
+// subtítulos quemados. "Escuchar con sonido" lo reinicia con audio y controles. Sin autoplay con
+// prefers-reduced-motion; siempre con botón de pausa (WCAG 2.2.2).
+import Button from "./Button.astro";
+
+interface Props {
+  /** Nombre del archivo en public/videos/, sin extensión (`<src>.mp4` y el poster `<src>.jpg`). */
+  src: string;
+  title: string;
+}
+
+const { src, title } = Astro.props;
+---
+
+<div class="grid justify-items-center gap-4" data-autovideo={src}>
+  <figure class="group/video relative m-0 w-full overflow-hidden rounded-xl border border-line bg-surface-2" data-state="paused">
+    <video
+      class="block aspect-video h-auto w-full"
+      poster={`/videos/${src}.jpg`}
+      muted
+      loop
+      playsinline
+      preload="none"
+      aria-label={title}
+    >
+      <source src={`/videos/${src}.mp4`} type="video/mp4" />
+    </video>
+    <button
+      class="absolute right-3 bottom-3 grid size-10 cursor-pointer place-items-center rounded-full bg-ink/70 text-white backdrop-blur-sm transition-colors duration-150 hover:bg-ink/90 group-data-[sound]/video:hidden"
+      type="button"
+      aria-label="Reproducir"
+      data-toggle
+    >
+      <svg class="size-[18px] group-data-[state=playing]/video:hidden" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>
+      <svg class="hidden size-[18px] group-data-[state=playing]/video:block" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"></path></svg>
+    </button>
+  </figure>
+  <Button data-sound>
+    <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M11 5 6 9H2v6h4l5 4V5z"></path><path d="M15.5 8.5a5 5 0 0 1 0 7"></path><path d="M19 5a10 10 0 0 1 0 14"></path>
+    </svg>
+    Escuchar con sonido
+  </Button>
+</div>
+
+<script>
+  import { track } from "../scripts/analytics";
+
+  document.querySelectorAll<HTMLElement>("[data-autovideo]").forEach((root) => {
+    const figure = root.querySelector("figure")!;
+    const video = root.querySelector("video")!;
+    const toggle = root.querySelector<HTMLButtonElement>("[data-toggle]")!;
+    const sound = root.querySelector<HTMLButtonElement>("[data-sound]")!;
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let paused = reduced; // pausa elegida por la persona: no se reanuda al volver a la pantalla
+
+    const sync = () => {
+      const playing = !video.paused;
+      figure.dataset.state = playing ? "playing" : "paused";
+      toggle.setAttribute("aria-label", playing ? "Pausar" : "Reproducir");
+    };
+    const play = () => void video.play().catch(sync);
+    video.addEventListener("play", sync);
+    video.addEventListener("pause", sync);
+
+    new IntersectionObserver(
+      ([entry]) => {
+        if (!video.muted) return; // con sonido manda la persona (controles del video)
+        if (entry!.isIntersecting && !paused) play();
+        else video.pause();
+      },
+      { threshold: 0.4 },
+    ).observe(video);
+
+    toggle.addEventListener("click", () => {
+      paused = !video.paused;
+      if (paused) video.pause();
+      else play();
+    });
+
+    sound.addEventListener("click", () => {
+      video.currentTime = 0;
+      video.muted = false;
+      video.loop = false;
+      video.controls = true;
+      figure.dataset.sound = "";
+      sound.style.display = "none";
+      play();
+      track("video_sound", { video: root.dataset.autovideo ?? "", page: location.pathname });
+    });
+  });
+</script>

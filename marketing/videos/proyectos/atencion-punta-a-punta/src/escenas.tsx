@@ -192,22 +192,22 @@ export const Intro: React.FC = () => {
   const a3 = usePop(2.1);
   const l = useIn(1.5, 0.8);
   return (
-    <AbsoluteFill style={{ background: C.ink }}>
+    <AbsoluteFill style={{ background: C.bg }}>
       <div style={{ position: "absolute", left: 0, right: 0, top: 120, display: "flex", justifyContent: "center", transform: `scale(${logo})` }}>
-        <Img src={staticFile("marca/atentina-logo-blanco.svg")} style={{ width: 340 }} />
+        <Img src={staticFile("marca/atentina-logo.svg")} style={{ width: 340 }} />
       </div>
-      <div style={{ position: "absolute", left: 0, right: 0, top: 262, textAlign: "center", fontFamily: F.mono, fontSize: 26, letterSpacing: "0.1em", color: C.accentOnDark, opacity: useIn(0.2, 0.5) }}>
+      <div style={{ position: "absolute", left: 0, right: 0, top: 262, textAlign: "center", fontFamily: F.mono, fontSize: 26, letterSpacing: "0.1em", color: C.accent, opacity: useIn(0.2, 0.5) }}>
         ATENCIÓN DE PUNTA A PUNTA
       </div>
       <div style={{
         position: "absolute", left: 0, right: 0, top: 320, textAlign: "center", fontFamily: F.display, fontWeight: 800, fontSize: 84,
-        lineHeight: 1.08, color: C.ctaInk, opacity: title, transform: `translateY(${(1 - title) * 24}px)`, letterSpacing: "-0.015em",
+        lineHeight: 1.08, color: C.ink, opacity: title, transform: `translateY(${(1 - title) * 24}px)`, letterSpacing: "-0.015em",
       }}>
-        Tu cliente llama, el agente resuelve<br /><span style={{ color: C.accentOnDark }}>y tu equipo suma cuando hace falta.</span>
+        Tu cliente llama, el agente resuelve<br /><span style={{ color: C.accent }}>y tu equipo suma cuando hace falta.</span>
       </div>
       <svg width={1920} height={1080} style={{ position: "absolute", inset: 0 }}>
-        <path d="M 760 700 L 900 700" stroke={C.accentOnDark} strokeWidth={4} strokeDasharray="3 12" strokeLinecap="round" opacity={l} />
-        <path d="M 1020 700 L 1160 700" stroke={C.accentOnDark} strokeWidth={4} strokeDasharray="3 12" strokeLinecap="round" opacity={l} />
+        <path d="M 760 700 L 900 700" stroke={C.accent} strokeWidth={4} strokeDasharray="3 12" strokeLinecap="round" opacity={l} />
+        <path d="M 1020 700 L 1160 700" stroke={C.accent} strokeWidth={4} strokeDasharray="3 12" strokeLinecap="round" opacity={l} />
       </svg>
       <div style={{ position: "absolute", left: 620, top: 630, transform: `scale(${a1})` }}><Avatar id="tomas" size={140} /></div>
       <div style={{ position: "absolute", left: 890, top: 630, transform: `scale(${a2})` }}><AgenteLogo size={140} /></div>
@@ -532,20 +532,20 @@ export const Cierre: React.FC = () => {
   const url = useIn(1.6, 0.6);
   const tel = useIn(2.2, 0.6);
   return (
-    <AbsoluteFill style={{ background: C.ink }}>
+    <AbsoluteFill style={{ background: C.bg }}>
       <div style={{ position: "absolute", left: 0, right: 0, top: 200, display: "flex", justifyContent: "center", transform: `scale(${logo})` }}>
-        <Img src={staticFile("marca/atentina-logo-blanco.svg")} style={{ width: 420 }} />
+        <Img src={staticFile("marca/atentina-logo.svg")} style={{ width: 420 }} />
       </div>
       <div style={{
         position: "absolute", left: 0, right: 0, top: 380, textAlign: "center", fontFamily: F.display, fontWeight: 800, fontSize: 86,
-        lineHeight: 1.08, color: C.ctaInk, opacity: title, transform: `translateY(${(1 - title) * 24}px)`, letterSpacing: "-0.015em",
+        lineHeight: 1.08, color: C.ink, opacity: title, transform: `translateY(${(1 - title) * 24}px)`, letterSpacing: "-0.015em",
       }}>
-        Agentes con IA que atienden<br /><span style={{ color: C.accentOnDark }}>a tus clientes.</span>
+        Agentes con IA que atienden<br /><span style={{ color: C.accent }}>a tus clientes.</span>
       </div>
       <div style={{ position: "absolute", left: 0, right: 0, top: 640, display: "flex", justifyContent: "center", opacity: url, transform: `translateY(${(1 - url) * 14}px)` }}>
         <div style={{ background: C.accent, color: "#fff", borderRadius: 999, padding: "16px 40px", fontFamily: F.mono, fontSize: 40 }}>atentina.com.ar</div>
       </div>
-      <div style={{ position: "absolute", left: 0, right: 0, top: 750, textAlign: "center", fontFamily: F.body, fontWeight: 600, fontSize: 30, color: C.ctaMuted, opacity: tel }}>
+      <div style={{ position: "absolute", left: 0, right: 0, top: 750, textAlign: "center", fontFamily: F.body, fontWeight: 600, fontSize: 30, color: C.muted, opacity: tel }}>
         o llamá al 0800-220-1233 y hablá con nuestro agente
       </div>
     </AbsoluteFill>

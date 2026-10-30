@@ -2,7 +2,8 @@
 
 Cada retrato es siempre de la misma voz (`<voz>.svg`, el id del catálogo `multi41`). Geometría común (cabeza,
 rasgos, luz desde arriba a la izquierda) y por personaje: piel, pelo, ropa, accesorios.
-Uso: make voces-retratos. Al sumar una voz, agregarla también a PORTRAITS en web/src/features/voices/names.ts.
+Uso: make voces-retratos. Hay uno por cada voz de tts/finetune/voces.tsv; al sumar una voz al checkpoint, sumar su
+retrato acá y su id a PORTRAITS en web/src/features/voices/names.ts.
 """
 from pathlib import Path
 
@@ -16,6 +17,7 @@ SKIN = {
     "trigueña": ("#efc6a2", "#d9a179", "#b47a55", "#ac6455"),
     "oliva": ("#e8bc94", "#cc9a6c", "#a3714a", "#a5604f"),
     "morena": ("#c48e69", "#9f6846", "#77492f", "#7f4639"),
+    "oscura": ("#a8714f", "#7d4a2d", "#56301c", "#5e2f25"),
 }
 
 FEM_HEAD = "M120 56C97 56 83 73 83 99C83 124 99 146 120 150C141 146 157 124 157 99C157 73 143 56 120 56Z"
@@ -142,7 +144,7 @@ def svg(n, p):
         p.get("stache", "").replace("HAIR", H),
         '<g transform="translate(0 -7)">' + p["clothes"].replace("CLOTH", f"url(#{n}-cloth)").replace("NECK", f"url(#{n}-neck)") + "</g>",
         (f'<path d="{p["front_shape"]}" fill="{H}"/>' if p.get("front_shape") else "") + front,
-        p.get("acc", ""),
+        p.get("acc", "").replace("HAIR", H),
         "</g></g>",
     ]
     return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">\n' + "\n".join(x for x in parts if x) + "\n</svg>\n"
@@ -389,6 +391,191 @@ P["gabriela"] = dict(
     clothes=blazer("#143c55", "#f4f7fa"),
     acc=earrings("#e3b445", 3),
 )
+
+
+# ---------- peinados para el resto del catálogo ----------
+# Cada uno devuelve back / front_shape / front (y cast); `hl` es el color del brillo de los mechones.
+SOFIA_BACK = '<path d="M78 96C70 54 94 38 122 38C152 38 174 56 164 98C162 136 168 168 178 198C150 210 90 210 62 198C72 168 80 136 78 96Z" fill="HAIR"/>'
+SIDE_FRONT = "M82 104C76 62 98 42 122 42C150 42 168 62 160 106C158 88 150 76 136 70C126 66 114 64 108 62C100 70 90 82 82 104Z"
+MID_FRONT = "M82 106C76 62 98 44 120 44C142 44 164 62 158 106C156 88 150 76 140 70C132 66 124 62 120 58C116 62 108 66 100 70C90 76 84 88 82 106Z"
+BACK_FRONT = "M82 104C78 70 96 52 120 52C144 52 162 70 158 104C156 90 152 80 144 74C134 68 126 66 120 66C112 66 102 68 96 74C88 80 84 90 82 104Z"
+BANGS = "M82 100C76 60 98 42 120 42C142 42 164 60 158 100C158 94 157 90 156 88C146 84 134 83 120 83C106 83 94 84 84 88C83 90 82 94 82 100Z"
+CAP = '<path d="M84 100C80 62 98 48 120 48C142 48 160 62 156 100Z" fill="HAIR"/>'
+
+
+def f_long(hl, mid=False):
+    return dict(back=SOFIA_BACK + strands("#000", ["M72 190C76 160 78 130 78 104", "M168 190C164 160 162 130 162 104"], .22, 2),
+                front_shape=MID_FRONT if mid else SIDE_FRONT,
+                front=strands(hl, ["M118 50C106 56 94 66 88 84", "M122 50C134 56 146 66 152 84"] if mid else
+                              ["M110 50C128 50 146 58 154 74", "M106 56C122 58 140 64 150 78"], .6, 1.6))
+
+
+def f_bangs(hl, back=SOFIA_BACK):
+    return dict(back=back, front_shape=BANGS,
+                front=strands(hl, [f"M{x} {66 if abs(x-120) < 20 else 72}L{x+1} 84" for x in (96, 106, 116, 126, 136, 146)]
+                              + ["M100 52C112 46 130 46 142 52"], .5, 1.4))
+
+
+def f_ponytail(hl):
+    return dict(back=CAP + '<path d="M146 60C178 62 188 110 178 158C174 178 162 182 160 166C168 130 164 92 146 60Z" fill="HAIR"/>'
+                + strands(hl, ["M160 80C172 100 174 130 168 160"], .5, 1.6),
+                front_shape=BACK_FRONT, front=strands(hl, ["M90 80C96 66 108 60 120 60", "M150 80C144 66 132 60 120 60"], .6, 1.5))
+
+
+def f_wavy_mid(hl):
+    return dict(back='<path d="M80 98C72 58 96 40 120 40C144 40 168 58 160 98C160 116 164 130 170 146C174 158 168 168 172 178C152 186 88 186 68 178C72 168 66 158 70 146C76 130 80 116 80 98Z" fill="HAIR"/>'
+                + strands(hl, ["M74 130C70 142 76 152 72 164", "M166 130C170 142 164 152 168 164"], .45, 2),
+                front_shape=SIDE_FRONT, front=strands(hl, ["M110 50C128 50 146 58 154 74", "M100 54C94 60 88 72 86 84"], .6, 1.6))
+
+
+def curls(points, hl, op=.55):
+    return ("".join(f'<circle cx="{x}" cy="{y}" r="{r}" fill="HAIR"/>' for x, y, r in points)
+            + strands(hl, [f"M{x-r*.55} {y-r*.15}C{x-r*.3} {y-r*.6} {x+r*.3} {y-r*.6} {x+r*.5} {y-r*.2}" for x, y, r in points], op, 1.6))
+
+
+def f_curly_long(hl):
+    pts = curls_back + [(72, 172, 16), (168, 172, 16), (82, 192, 14), (158, 192, 14), (66, 150, 15), (174, 150, 15)]
+    return dict(back=curls(pts, hl), front=curls(curls_front, hl, .6), cast=False)
+
+
+def f_curly_short(hl):
+    pts = [(120, 56, 24), (94, 64, 20), (146, 64, 20), (78, 86, 18), (162, 86, 18), (74, 110, 16), (166, 110, 16), (78, 132, 14), (162, 132, 14)]
+    return dict(back=curls(pts, hl), front=curls([(96, 68, 8), (108, 62, 8), (120, 60, 8), (132, 62, 8), (144, 68, 8)], hl, .6), cast=False)
+
+
+def f_afro(hl):
+    dots = [(120 + 46 * __import__("math").cos(a / 7), 84 + 46 * __import__("math").sin(a / 7)) for a in range(0, 44, 3)]
+    return dict(back='<circle cx="120" cy="84" r="58" fill="HAIR"/>'
+                + "".join(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2.2" fill="{hl}" opacity=".35"/>' for x, y in dots),
+                front_shape="M84 100C80 70 98 54 120 54C142 54 160 70 156 100C154 86 148 76 138 72C130 68 124 68 120 68C116 68 108 68 102 72C92 76 86 86 84 100Z",
+                front="", cast=False)
+
+
+def f_braid(hl, tie):
+    knots = [(86, 126), (88, 140), (90, 154), (92, 168), (94, 182), (96, 196)]
+    braid = "".join(f'<ellipse cx="{x}" cy="{y}" rx="8.5" ry="9" fill="HAIR"/><path d="M{x-7} {y-3}C{x-2} {y+4} {x+3} {y+4} {x+7} {y-3}" stroke="#000" stroke-opacity=".25" stroke-width="1.3" fill="none"/>' for x, y in knots)
+    return dict(back=CAP + '<path d="M84 96C80 108 82 118 86 124L94 120C90 112 88 104 88 96Z" fill="HAIR"/>',
+                front_shape=SIDE_FRONT, front=strands(hl, ["M110 50C128 50 146 58 154 74"], .6, 1.6),
+                acc=braid + f'<circle cx="97" cy="206" r="4" fill="{tie}"/>')
+
+
+def f_pixie(hl):
+    return dict(back='<path d="M78 102C74 62 96 44 120 44C144 44 166 62 162 102C164 114 162 124 158 130L82 130C78 124 76 114 78 102Z" fill="HAIR"/>',
+                front_shape="M80 104C76 70 88 46 114 40C136 34 160 46 164 68C166 82 162 94 160 104C156 90 150 80 140 74C128 70 116 72 106 80C98 86 92 88 88 92C84 96 82 100 80 104Z",
+                front=strands(hl, ["M96 60C110 46 134 42 152 52", "M90 72C106 58 128 54 156 64"], .6, 1.8))
+
+
+def f_bun(hl):
+    return dict(back='<circle cx="120" cy="42" r="19" fill="HAIR"/>' + strands(hl, ["M106 38C112 30 128 30 134 38"], .6, 1.6),
+                front_shape=BACK_FRONT, front=strands(hl, ["M90 80C96 66 108 60 120 60", "M150 80C144 66 132 60 120 60"], .6, 1.5))
+
+
+BOB_BACK = '<path d="M80 98C74 58 96 40 120 40C144 40 166 58 160 98C160 120 163 138 168 152C150 160 90 160 72 152C77 138 80 120 80 98Z" fill="HAIR"/>'
+
+MASC_CAP = '<path d="M80 100C76 62 96 46 120 46C144 46 164 62 160 100Z" fill="HAIR"/>'
+
+
+def m_buzz(hl):
+    return dict(front_shape="M84 96C82 66 98 52 120 52C142 52 158 66 156 96C154 84 150 76 144 72C136 68 128 67 120 67C112 67 104 68 96 72C90 76 86 84 84 96Z",
+                front="".join(f'<circle cx="{x}" cy="{y}" r=".9" fill="{hl}" opacity=".5"/>' for x in range(94, 148, 7) for y in (58, 63) if (x - 120) ** 2 < 900),
+                cast=False)
+
+
+def m_bald():
+    return dict(back='<path d="M80 110C78 96 80 86 86 80L90 110Z" fill="HAIR"/><path d="M160 110C162 96 160 86 154 80L150 110Z" fill="HAIR"/>',
+                acc='<ellipse cx="108" cy="66" rx="12" ry="5" fill="#fff" opacity=".22" transform="rotate(-18 108 66)"/>', cast=False)
+
+
+def m_long(hl):
+    return dict(back='<path d="M80 100C74 60 96 44 120 44C144 44 166 60 160 100C160 124 164 146 168 166C150 172 90 172 72 166C76 146 80 124 80 100Z" fill="HAIR"/>',
+                front_shape=MID_FRONT, front=strands(hl, ["M118 50C106 56 94 66 88 84", "M122 50C134 56 146 66 152 84"], .55, 1.6))
+
+
+def m_manbun(hl):
+    return dict(back=MASC_CAP + '<circle cx="120" cy="44" r="14" fill="HAIR"/>',
+                front_shape=BACK_FRONT, front=strands(hl, ["M92 78C98 64 110 58 120 58", "M148 78C142 64 130 58 120 58"], .55, 1.5))
+
+
+def m_slick(hl):
+    return dict(back=MASC_CAP,
+                front_shape="M80 100C78 62 96 40 122 40C148 40 164 60 160 100C158 86 154 76 148 70C140 64 130 62 120 62C110 62 100 64 92 70C86 76 82 86 80 100Z",
+                front=strands(hl, ["M96 60C108 48 130 44 150 54", "M92 70C104 56 128 52 154 62", "M104 50C116 44 132 44 144 48"], .6, 1.7))
+
+
+def m_hightop(hl):
+    return dict(front_shape="M84 100C82 80 84 60 88 42L152 42C156 60 158 80 156 100C154 88 150 80 144 76C134 72 126 72 120 72C114 72 106 72 96 76C90 80 86 88 84 100Z",
+                front="".join(f'<circle cx="{x}" cy="{y}" r="1.4" fill="{hl}" opacity=".45"/>' for x in range(94, 150, 8) for y in range(48, 70, 7)),
+                cast=False)
+
+
+def m_fringe(hl):
+    return dict(back=MASC_CAP,
+                front_shape="M80 100C76 62 96 44 120 44C144 44 164 62 160 100C158 92 156 88 152 86L146 90L140 83L132 90L124 83L116 90L108 83L100 90L92 84C86 88 82 94 80 100Z",
+                front=strands(hl, ["M100 56C112 50 130 50 144 58", "M96 66C108 60 128 60 148 68"], .55, 1.6))
+
+
+def m_side(hl):
+    return dict(back=MASC_CAP,
+                front_shape="M80 100C78 64 98 44 124 44C148 44 164 62 160 100C158 86 154 78 146 72C136 66 124 66 112 66C104 66 100 64 98 60C92 70 84 84 80 100Z",
+                front=strands(hl, ["M100 56C114 48 136 48 152 60", "M104 62C118 56 136 58 150 68"], .6, 1.7))
+
+
+FULL_BEARD = '<path d="M83 108C84 138 100 158 120 159C140 158 156 138 157 108C153 122 148 130 141 134C134 131 128 130 120 130C112 130 106 131 99 134C92 130 87 122 83 108Z" fill="HAIR"/>'
+SHORT_BEARD = '<path d="M83 110C84 136 100 154 120 155C140 154 156 136 157 110C153 122 148 132 140 136C134 133 128 132 120 132C112 132 106 133 100 136C92 132 87 122 83 110Z" fill="HAIR"/>'
+STUBBLE = '<path d="M83 110C84 136 100 154 120 155C140 154 156 136 157 110C153 124 147 134 139 139C132 136 108 136 101 139C93 134 87 124 83 110Z" fill="HAIR" opacity=".3"/>'
+
+
+def stache(n):
+    return f'<path d="M104 131C110 126 118 126.5 120 128C122 126.5 130 126 136 131C130 130.5 124 130 120 131C116 130 110 130.5 104 131Z" fill="url(#{n}-hair)"/>'
+
+
+def hoops(color):
+    return f'<circle cx="81" cy="122" r="4" fill="none" stroke="{color}" stroke-width="1.8"/><circle cx="159" cy="122" r="4" fill="none" stroke="{color}" stroke-width="1.8" opacity=".85"/>'
+
+
+def persona(fem, skin, iris, brow, hair, cloth, bg, clothes, style, **extra):
+    d = dict(fem=fem, skin=skin, iris=iris, brow=brow, hair=hair, cloth=cloth, bg=bg, clothes=clothes)
+    d.update(style)
+    if "acc" in style and "acc" in extra:
+        extra["acc"] = style["acc"] + extra["acc"]
+    d.update(extra)
+    return d
+
+
+# Resto del catálogo (multi41): sin descripción en la landing, cada una con peinado, piel, ropa y fondo propios.
+P["martina"] = persona(True, "clara", "#3b2a20", "#1e1612", ("#2e2420", "#0c0807"), ("#3b3f4a", "#22252d"), ("#f5f6f8", "#cfd4dc"), blazer("#16181d", "#f4f5f7"), f_bangs("#6a5a52"))
+P["camila"] = persona(True, "media", "#5a3a22", "#4a3020", ("#9a6a44", "#4e3220"), ("#e86a92", "#c4466e"), ("#fff4f8", "#f8c6d8"), sweater("#a8345a"), f_ponytail("#d6a47a"), acc=headset())
+P["lucia"] = persona(True, "oscura", "#2a1a10", "#140c08", ("#2a1d16", "#0c0806"), ("#f2c230", "#d49c10"), ("#fffaea", "#f7e2a0"), blouse("#a87808"), f_afro("#5a4434"), acc=hoops("#e3b445"))
+P["julieta"] = persona(True, "clara", "#4d6b3a", "#8a4a2a", ("#c4683a", "#7a3418"), ("#2aa198", "#1a7a72"), ("#effaf8", "#b8e6df"), blouse("#0e5a54"), f_wavy_mid("#f0a070"), blush=.34,
+                       beard="".join(f'<circle cx="{x}" cy="{y}" r=".9" fill="#b0663f" opacity=".45"/>' for x, y in [(99, 116), (103, 118), (96, 119), (141, 116), (137, 118), (144, 119), (120, 112)]))
+P["florencia"] = persona(True, "trigueña", "#4a3020", "#3a2418", ("#a87a4a", "#5a3a1e"), ("#8fae7a", "#6a8a56"), ("#f5faf0", "#d2e6c2"), sweater("#4e6a3c"), f_curly_long("#d8b080"))
+P["agustina"] = persona(True, "oliva", "#3b2414", "#2a1a10", ("#5a3a26", "#24160e"), ("#ffffff", "#e2e8f0"), ("#fdf6ee", "#f2d8bc"), shirt_open("#f6f8fb"), f_braid("#8a6048", "#e05a3a"))
+P["mariana"] = persona(True, "media", "#3b2a20", "#5a3420", ("#8a5230", "#4a2810"), ("#2a3a6e", "#16234a"), ("#f1f4ff", "#c4cff2"), blazer("#101a38", "#eef2fb"), dict(back=BOB_BACK, front_shape=SIDE_FRONT, front=strands("#c08a5a", ["M110 50C128 50 146 58 154 74", "M106 56C122 58 140 64 150 78"], .6, 1.6)), acc=glasses("#8a2a2a"))
+P["romina"] = persona(True, "morena", "#2a1a10", "#140c08", ("#2a1d16", "#0c0806"), ("#d6403a", "#a82824"), ("#fff3f1", "#f6c4bc"), blazer("#7a1a16", "#fbf1f0"), f_bun("#5a4434"), acc=earrings("#e3b445", 2.6))
+P["natalia"] = persona(True, "clara", "#5a3a22", "#4a3020", ("#5e3e28", "#2a1a10"), ("#e0a82e", "#b8841a"), ("#fffaee", "#f5dfa6"), sweater("#8a6210"), f_pixie("#a07850"), acc=hoops("#c9c9c9"))
+P["silvina"] = persona(True, "media", "#4a3a2a", "#8a847e", ("#d8d4ce", "#8e8a84"), ("#7a3e6e", "#58284e"), ("#fbf3fa", "#e6c8e0"), blazer("#3e1a38", "#f8f2f7"), f_wavy_mid("#ffffff"), acc=glasses("#5a2a50"))
+P["andrea"] = persona(True, "trigueña", "#3b2a1e", "#8a6a44", ("#e2b870", "#9a7030"), ("#f07a5e", "#cc5a40"), ("#fff5f1", "#fbd0c2"), blouse("#a83e28"), f_long("#fbe2b0"))
+P["veronica"] = persona(True, "clara", "#4f6a86", "#7a4a2e", ("#a85a34", "#5e2c14"), ("#8a94a6", "#5e6878"), ("#f4f6f9", "#d2d8e2"), blazer("#3c4454", "#fbfbfc"),
+                        dict(back=CAP, front_shape=MID_FRONT, front=strands("#e09a68", ["M118 54C108 58 96 66 90 82", "M122 54C132 58 144 66 150 82"], .6, 1.5)), acc=earrings("#fbf7ee", 3))
+P["lorena"] = persona(True, "morena", "#2e1d12", "#1a110c", ("#3a2a20", "#120c08"), ("#1f8a8a", "#126a6a"), ("#effafa", "#b0dede"), sweater("#0c5252"), f_long("#7a5e4a", mid=True))
+P["daniela"] = persona(True, "trigueña", "#2e1d12", "#1a120e", ("#2e2420", "#0c0807"), ("#7ab0e8", "#4a88cc"), ("#f0f7ff", "#c8def6"), blouse("#2a5e98"), f_ponytail("#5a4a42"), acc=glasses("#2a2c36"))
+P["micaela"] = persona(True, "oliva", "#3b2414", "#2a1a10", ("#4a3326", "#1a100b"), ("#b79ce6", "#9478cc"), ("#f8f4ff", "#e0d2fa"), sweater("#6a4ea8"), f_curly_short("#8a6048"), acc=earrings("#f2c14e", 2))
+P["rocio"] = persona(True, "media", "#4a3020", "#5a3420", ("#8a4a2a", "#4a2410"), ("#4a7ab8", "#2e5a94"), ("#f2f6fc", "#c6d6ee"), shirt_open("#6a94cc"), f_bangs("#d08a5a"))
+P["belen"] = persona(True, "clara", "#4f6a86", "#a8864e", ("#f0d690", "#b89448"), ("#efe4d0", "#d4c4a6"), ("#fbf8f2", "#ece2cc"), sweater("#b8a27a"), f_braid("#fff2c8", "#2a6ad6"), blush=.3)
+P["milagros"] = persona(True, "oscura", "#2a1a10", "#140c08", ("#2a1d16", "#0c0806"), ("#e8b030", "#c48e14"), ("#f6f4ff", "#d2ccf2"), blazer("#8a6408", "#fbf6e8"), f_curly_long("#6a5040"))
+P["antonella"] = persona(True, "oliva", "#2e1d12", "#3a2418", ("#6a4228", "#2a160a"), ("#1a9a6a", "#0e7a50"), ("#effaf4", "#b2e4cc"), blazer("#0a4a30", "#f2faf6"), f_wavy_mid("#b08058"), acc=hoops("#e3b445"))
+P["carla"] = persona(True, "clara", "#3d5a6b", "#a09a90", ("#ece6da", "#b8ae9c"), ("#2a2c32", "#141518"), ("#f4f4f6", "#d6d8de"), sweater("#000000"), dict(back=BOB_BACK, front_shape=SIDE_FRONT,
+                     front=strands("#ffffff", ["M110 50C128 50 146 58 154 74", "M106 56C122 58 140 64 150 78"], .7, 1.6)), acc=glasses("#c84a3a"))
+P["noelia"] = persona(True, "trigueña", "#3b2414", "#6a3418", ("#d0703a", "#8a3a14"), ("#2c3e70", "#18264c"), ("#fff6f0", "#f6d2bc"), blouse("#c84a2a"), f_pixie("#f4a870"))
+
+P["mateo"] = persona(False, "clara", "#5a3d24", "#4a3020", ("#8a6040", "#4a3018"), ("#f08a3a", "#cc6a1e"), ("#fff6ee", "#f8d4b2"), sweater("#9a4a10"), m_fringe("#c49a6a"))
+P["santiago"] = persona(False, "media", "#3b2a1e", "#3a2618", ("#6a4a32", "#2e1e12"), ("#4a6a8a", "#2e4a66"), ("#f2f6fa", "#c8d6e4"), shirt_open("#e8eef6"), m_long("#a0785a"), beard=STUBBLE)
+P["nicolas"] = persona(False, "trigueña", "#2e1d12", "#1a110c", ("#2a1d16", "#0c0806"), ("#3a8a5a", "#246a40"), ("#f0faf4", "#bce4cc"), sweater("#1a5a34"), m_buzz("#6a5040"), acc=glasses("#2a2c36"))
+P["facundo"] = persona(False, "oliva", "#3b2414", "#2b1b12", ("#4a3020", "#1c120a"), ("#6a5a8a", "#4a3e6a"), ("#f6f4fb", "#d6d0ea"), shirt_open("#f6f8fb"), m_manbun("#8a6048"), beard=FULL_BEARD, stache=stache("facundo"))
+P["joaquin"] = persona(False, "clara", "#4f6a86", "#2a1d16", ("#2e2420", "#0c0807"), ("#2a2c32", "#141518"), ("#f3f4f7", "#cdd1da"), suit_tie("#0c0d10", "#ffffff", "#2456e6"), m_slick("#6a5a52"))
+P["federico"] = persona(False, "media", "#4a3526", "#7a746e", ("#9e9a94", "#6e6a64"), ("#8a5a3a", "#6a4024"), ("#fbf6f0", "#ead6c2"), blazer("#4a2e1a", "#f4efe8"), m_bald(), beard=SHORT_BEARD, stache=stache("federico"), brow_y=91)
+P["pablo"] = persona(False, "oscura", "#2a1a10", "#140c08", ("#2a1d16", "#0c0806"), ("#e0e6ee", "#b8c2d0"), ("#eef6ff", "#b8d4f4"), shirt_open("#f4f7fb"), m_hightop("#5a4434"), beard=STUBBLE)
+P["emiliano"] = persona(False, "clara", "#3d5a6b", "#a8864e", ("#e6c27a", "#a88038"), ("#c43a4a", "#9a2434"), ("#fff4f5", "#f6c8ce"), sweater("#7a1424"), m_side("#fff0c8"), stache=stache("emiliano"))
 
 if __name__ == "__main__":
     for n, p in P.items():

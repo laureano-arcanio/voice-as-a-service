@@ -51,7 +51,7 @@ export interface Voice {
   tags: string;
 }
 
-/** Las voces destacadas, con descripción y retrato (public/voces/<id>.svg). */
+/** Las voces destacadas, con descripción. */
 export const voices: Voice[] = [
   { id: "sofia", name: "Sofía", gender: "f", tags: "Cálida, clara y cercana" },
   { id: "martin", name: "Martín", gender: "m", tags: "Grave, sereno y confiable" },
@@ -66,9 +66,6 @@ export const voices: Voice[] = [
   { id: "laura", name: "Laura", gender: "f", tags: "Suave, amable y tranquila" },
   { id: "gabriela", name: "Gabriela", gender: "f", tags: "Madura, segura y cordial" },
 ];
-
-/** Voces con retrato: los mismos SVG que el dashboard (web/public/voces), generados por `make voces-retratos`. */
-export const voicePortraits = new Set(voices.map((v) => v.id));
 
 /** Catálogo completo servido por el TTS (`multi41`; fuente: tts/finetune/voces.tsv, sin WER ni car/s). Las destacadas de arriba traen descripción; el resto, solo el género. */
 const restOfVoices: [id: string, name: string, gender: "f" | "m"][] = [
@@ -108,6 +105,9 @@ export const allVoices: Voice[] = [
   ...voices,
   ...restOfVoices.map(([id, name, gender]) => ({ id, name, gender, tags: gender === "f" ? "Voz femenina" : "Voz masculina" })),
 ];
+
+/** Todas tienen retrato (public/voces/<id>.svg): los mismos SVG que el dashboard, generados por `make voces-retratos`. */
+export const voicePortraits = new Set(allVoices.map((v) => v.id));
 
 export const voiceCount = allVoices.length;
 export const voiceCountFemale = allVoices.filter((v) => v.gender === "f").length;

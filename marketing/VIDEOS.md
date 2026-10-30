@@ -116,7 +116,9 @@ Sigue [`DESIGN_GUIDELINE.md`](../docs/DESIGN_GUIDELINE.md), sección 10:
 - **Tokens y tipografías** de la landing (`src/comun/theme.ts`): fondo claro con grilla de puntos; acento `#2456e6`;
   Bricolage Grotesque 800 en títulos, Figtree en el resto, IBM Plex Mono en rótulos, rutas y cifras. Las fuentes
   se cargan locales (`public/fonts/`).
-- **Fondo oscuro (`ink`)** solo para la intro y el cierre: logo blanco, frase con el remate en `accent-on-dark`.
+- **Todo video empieza y termina en blanco** (desde el 30-oct-2026): intro y cierre con fondo blanco (`C.bg`), logo
+  oscuro (`marca/atentina-logo.svg`), rótulo en `accent` y frase en `ink` con el remate en `accent`. Sin fondo oscuro
+  en la intro ni en el cierre; los videos anteriores lo tienen y se cambia en su próxima versión.
 - **Componentes** (`ui.tsx`, `code.tsx`): `Headline`, `Card`, `Pill`, `Bubble`, `Icon`, `Wave`, `CodeWindow` con
   `Typed` (código que se escribe, coloreado), `Link` (curva punteada que corre).
 - **Personajes** (`characters.tsx`): bustos planos de estilo negocios, con el elenco fijo en `CAST` (cliente,

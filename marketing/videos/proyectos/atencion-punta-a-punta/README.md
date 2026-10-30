@@ -32,7 +32,7 @@ locución, música propia y subtítulos; `paula` y `gonzalo` con el mismo tiempo
 
 | Escena | Voz | Qué se dice | Qué se ve |
 |---|---|---|---|
-| `intro` (4,6 s) | d1 paula | Así funciona Atentina: atiende a tus clientes de punta a punta. | Fondo oscuro, logo, "ATENCIÓN DE PUNTA A PUNTA", "Tu cliente llama, el agente resuelve **y tu equipo suma cuando hace falta.**", Tomás → logo → Valentina y Lucas |
+| `intro` (4,6 s) | d1 paula | Así funciona Atentina: atiende a tus clientes de punta a punta. | Fondo blanco, logo, "ATENCIÓN DE PUNTA A PUNTA", "Tu cliente llama, el agente resuelve **y tu equipo suma cuando hace falta.**", Tomás → logo → Valentina y Lucas |
 | `diagrama` · atiende | d2 gonzalo | Tomás llama a tu empresa, y el agente lo atiende, a cualquier hora. | "1 · Atiende" / "Tu cliente llama y el agente atiende, **a cualquier hora.**" Tomás (Llamando → En llamada), onda que viaja al agente (logo con el aro, "con la voz de Sofía"); globo "¿Cómo viene mi pedido?" |
 | · consulta y registra | d3 paula | Mientras hablan, consulta tu sistema: encuentra su pedido, y registra lo que necesita. | "2 · Consulta y registra" / "Usa tu sistema **durante la llamada.**" Paquetes `{ }` al sistema (agenda · CRM · gestión): Cliente Tomás Ríos y Pedido 4821 (consulta), Suma 10 unidades (registra) |
 | · deriva | d4 gonzalo | Tomás pide hablar con Ventas. El agente llama a tu equipo, en el orden y el horario que elegiste. | "3 · Deriva a tu equipo" / "Llama a tu gente, **en tu orden y tu horario.**" El sistema queda como chip; entra "Tu equipo · Ventas" con "Lun a vie, 9 a 18" y Valentina (1) y Lucas (2); globos "¿Me pasás con Ventas?" y "Te paso con Ventas, un momento." |
@@ -41,7 +41,7 @@ locución, música propia y subtítulos; `paula` y `gonzalo` con el mismo tiempo
 | · si nadie atiende | d7 paula | ¿Y si nadie atiende? El agente vuelve con Tomás y le toma el mensaje. | "SI NADIE ATIENDE" / "El agente vuelve **y toma el mensaje.**" Valentina y Lucas No atiende; globo "No pude comunicarte con Ventas. ¿Te tomo el mensaje?"; Tomás Deja su mensaje |
 | · registro | d8 gonzalo | Al final, todo queda registrado en tu panel: la conversación, los datos y el resultado. | "4 · Queda registrado" / "Cada conversación, **de punta a punta.**" El diagrama queda atrás; tarjeta "Conversación con Tomás Ríos" con Conversación, Datos y Resultado (Derivada a Ventas · atendió Lucas, Resuelta) |
 | `checklist` (8,7 s) | d9 paula | Teléfono, WhatsApp y web, con voces argentinas. Tu sistema, tu equipo y tus horarios. Lo configurás vos. | "LO QUE HACE · LO QUE CONFIGURÁS" / "Todo esto, **a la medida de tu empresa.**" Diez tildes (ver abajo) y el aviso de plan "Telefonía, WhatsApp, herramientas, equipo y llamadas a la vez, según el plan" |
-| `cierre` (6,8 s) | d10 gonzalo | Atentina. Agentes con IA que atienden a tus clientes. Empezá hoy, en atentina punto com punto ar. | Fondo oscuro, logo, "Agentes con IA que atienden **a tus clientes.**", `atentina.com.ar`, "o llamá al 0800-220-1233 y hablá con nuestro agente" |
+| `cierre` (6,8 s) | d10 gonzalo | Atentina. Agentes con IA que atienden a tus clientes. Empezá hoy, en atentina punto com punto ar. | Fondo blanco, logo, "Agentes con IA que atienden **a tus clientes.**", `atentina.com.ar`, "o llamá al 0800-220-1233 y hablá con nuestro agente" |
 
 **Tildes:** Atiende las 24 horas · Por teléfono, WhatsApp y la web · Voces argentinas: elegís la tuya · Consulta y
 registra en tu sistema · Deriva a tu equipo, en tu orden y horario · Música de espera y aviso a quien atiende · Si
