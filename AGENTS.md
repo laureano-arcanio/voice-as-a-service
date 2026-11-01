@@ -26,7 +26,8 @@ Docs de features en `docs/features/`: [`WHATSAPP`](docs/features/WHATSAPP.md), [
 [`CAMPANAS`](docs/features/CAMPANAS.md), [`EQUIPO_TELEFONIA`](docs/features/EQUIPO_TELEFONIA.md) (derivaciones y llamadas
 directas), [`LINK_LLAMADA`](docs/features/LINK_LLAMADA.md), [`HERRAMIENTAS`](docs/features/HERRAMIENTAS.md),
 [`LLM_CONEXIONES`](docs/features/LLM_CONEXIONES.md) (BYOK y tu propio agente), [`MCP`](docs/features/MCP.md),
-[`REPORTES`](docs/features/REPORTES.md), [`COBROS`](docs/features/COBROS.md), [`LEGAL`](docs/features/LEGAL.md),
+[`REPORTES`](docs/features/REPORTES.md), [`LLM_REPLICAS`](docs/features/LLM_REPLICAS.md) (segundo server y
+balanceo del LLM), [`COBROS`](docs/features/COBROS.md), [`LEGAL`](docs/features/LEGAL.md),
 [`LANDING`](docs/features/LANDING.md), [`PRIMERA_VEZ`](docs/features/PRIMERA_VEZ.md) (asistente de primera vez,
 Inicio y llamada de prueba al celular), [`CRM`](docs/features/CRM.md) y [`CRM_API`](docs/features/CRM_API.md).
 
@@ -49,6 +50,8 @@ doc (y ARQUITECTURA si cambia el modelo o la API) en el mismo commit.
 | Cambiar la landing | Astro + Tailwind en `landing/` ([`docs/features/LANDING.md`](docs/features/LANDING.md)), [`docs/DESIGN_GUIDELINE.md`](docs/DESIGN_GUIDELINE.md). |
 | Monitoreo, alertas, "¿por qué hubo un pico?" | [`docs/OBSERVABILIDAD.md`](docs/OBSERVABILIDAD.md): pantalla Sistema del admin, `make monitoring-status`, reglas en `deploy/monitoring/rules.yml` (anotar el porqué de cada umbral). |
 | Server nuevo o migración | [`docs/MIGRACION_SERVER.md`](docs/MIGRACION_SERVER.md), en orden. Nunca dos Asterisk ni dos `cloudflared` a la vez. |
+| Segunda réplica del LLM, balanceador, "¿qué réplica atiende?" | [`docs/features/LLM_REPLICAS.md`](docs/features/LLM_REPLICAS.md): `make llm-lb-status`, `make up-llm-lb`. |
+| Operar el server 2 (192.168.1.98) | Agente [`server2`](.claude/agents/server2.md): SSH por clave como `atentina-ops`, `sudo -n`. Para el usuario, `make server2-ssh CMD='...'`; alta inicial con `make server2-setup`. |
 | Prospectos, mails, seguimiento | Agente [`ventas`](.claude/agents/ventas.md); el registro es el CRM ([`docs/features/CRM_API.md`](docs/features/CRM_API.md), `make crm-up`). Propuesta con PDF y video: skill [`propuesta-prospecto`](.claude/skills/propuesta-prospecto/SKILL.md). |
 | Video o PDF | Agentes [`videos`](.claude/agents/videos.md) ([`marketing/VIDEOS.md`](marketing/VIDEOS.md)) y [`documentos`](.claude/agents/documentos.md) ([`marketing/DOCUMENTOS.md`](marketing/DOCUMENTOS.md)). |
 

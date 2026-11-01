@@ -406,8 +406,11 @@ async def resolve_voice(workflow: Workflow, override: str | None = None) -> str:
     return voice
 
 
-def build_session(voice: str) -> AgentSession:
+def build_session(voice: str, conversation_id: str | None = None) -> AgentSession:
+    """conversation_id: va en X-Atentina-Conversation-Id a vllm-llm, para que el balanceador (llm-lb) mande toda
+    la llamada a la misma replica (app/llm/client.py hace lo mismo con los turnos del motor)."""
     vad = silero.VAD.load(min_silence_duration=0.3, min_speech_duration=0.2)
+    affinity = {"extra_headers": {"X-Atentina-Conversation-Id": conversation_id}} if conversation_id else {}
     # STT y TTS: los mismos clientes que las llamadas directas (app/voice/direct.py).
     return AgentSession(
         vad=vad,
@@ -420,7 +423,8 @@ def build_session(voice: str) -> AgentSession:
                             "max_delay": settings.voice_max_endpointing_delay},
         },
         stt=direct.stt_client(vad),
-        llm=openai.LLM(model=settings.vllm_llm_model, base_url=settings.vllm_llm_base_url, api_key=settings.vllm_api_key),
+        llm=openai.LLM(model=settings.vllm_llm_model, base_url=settings.vllm_llm_base_url, api_key=settings.vllm_api_key,
+                       **affinity),
         tts=direct.tts_client(voice),
     )
 
@@ -547,7 +551,7 @@ async def entrypoint(ctx: JobContext):
             state = engine.store.get(conversation_id)
             state.progress.handoff_areas = areas
             engine.store.save(state)
-    session = build_session(voice)
+    session = build_session(voice, conversation_id)
     latency = TurnLatencyTracker()
     session.on("metrics_collected", lambda ev: latency.on_metrics(ev.metrics))
     started_at: float | None = None

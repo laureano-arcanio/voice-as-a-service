@@ -121,6 +121,14 @@ class LLMClient:
             profile=self.profile, default_headers=self._default_headers,
             timeout=self._timeout, label=self.label, generation=generation, max_tokens=max_tokens)
 
+    def _affinity(self, state: ConversationState) -> dict:
+        """Header con el id de la conversacion para el balanceador del servidor propio (deploy/llm-lb/haproxy.cfg):
+        todos los turnos de una conversacion van a la misma replica, que tiene el historial en su prefix cache.
+        Un proveedor externo no lo necesita."""
+        if self.profile != "vllm":
+            return {}
+        return {"extra_headers": {"X-Atentina-Conversation-Id": state.conversation_id}}
+
     @staticmethod
     def _guided(name: str, schema: dict) -> dict:
         return {"response_format": {"type": "json_schema",
@@ -139,7 +147,7 @@ class LLMClient:
         rounds = 0
         while True:
             request = dict(model=self.model, messages=messages, tools=definitions, tool_choice="auto",
-                           **self._limit(), **self.options)
+                           **self._limit(), **self.options, **self._affinity(state))
             content, thought, calls, (tokens_in, tokens_out) = await self._converse_once(request, on_message)
             turn.input_tokens += tokens_in
             turn.output_tokens += tokens_out
@@ -230,7 +238,8 @@ class LLMClient:
             model=self.model,
             messages=[{"role": "system", "content": extraction_prompt(state.channel)},
                       {"role": "user", "content": build_extraction_prompt(workflow, state)}],
-            **self._guided("extraction", extraction_schema(workflow)), **self._limit(), **self.options)
+            **self._guided("extraction", extraction_schema(workflow)), **self._limit(), **self.options,
+            **self._affinity(state))
         message = response.choices[0].message
         reasoning = getattr(message, "reasoning_content", None) or getattr(message, "reasoning", None)
         content = message.content or ""

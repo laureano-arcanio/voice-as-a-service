@@ -34,7 +34,7 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
 
 .PHONY: help setup env storage build \
         up up-agent up-app up-inference up-stt up-nginx up-pbx down restart stop start recreate ps logs calls-active \
-        sh psql health gpu \
+        sh psql health gpu up-llm-lb llm-lb-status \
         pbx-cli pbx-status livekit-sip livekit-sip-si-local \
         wa-calling-status wa-calling-enable wa-calling-disable wa-sip-password sip-cert \
         migrate migrate-down migrate-test agent-rules reports-backfill create-admin welcome-reset api-key dev-backend web-dev web-build web-check voces-retratos openapi legal-sync up-tools tools-runner-token tools-runner-test tools-runner-test-down test-tools-code e2e-tools eval-tools mcp-docs mcp-eval mcp-registry-key mcp-registry-publish landing-dev \
@@ -42,6 +42,7 @@ INFERENCE_SERVICES := vllm-llm stt-parakeet vllm-tts
         video-setup video-studio video-voces video-musica video video-revisar video-cerrar doc doc-cerrar slides slides-abrir \
         backup backup-key backup-s3-setup backup-fetch backup-list cron-install \
         monitoring-config monitoring-host-install up-monitoring monitoring-down monitoring-status monitoring-test-alert alert-ntfy-setup \
+        server2-ssh server2-setup \
         db-reset clean
 
 help: ## Muestra esta ayuda
@@ -84,6 +85,14 @@ up-app: ## Solo app (API + UI): build, migraciones y recreate, sin tocar agent (
 
 up-inference: ## Solo la inferencia: vllm-llm + stt-parakeet + vllm-tts (espera a que esten healthy)
 	$(COMPOSE) up -d --build --wait $(INFERENCE_SERVICES)
+
+up-llm-lb: ## Levanta el balanceador del LLM (llm-lb, HAProxy; docker-compose.llm-lb.yml en COMPOSE_FILE). app y agent lo toman con VLLM_LLM_BASE_URL=http://llm-lb:8000/v1 y make up-agent
+	$(COMPOSE) up -d --wait --no-deps llm-lb
+	@$(MAKE) --no-print-directory llm-lb-status
+
+llm-lb-status: ## Estado de las replicas del LLM en HAProxy (UP/DOWN, pedidos en curso y totales)
+	@curl -sf -m 3 'http://127.0.0.1:8404/;csv' | awk -F, '$$1=="replicas" && $$2!="BACKEND" {printf "  %-8s %-6s en curso=%-3s total=%s\n", $$2, $$18, $$5, $$8}' \
+		|| echo "llm-lb no responde en :8404 (make up-llm-lb)"
 
 up-stt: ## Solo el STT (stt-parakeet): build y recreate, ~20 s sin transcripcion. Se niega con llamadas en curso (FORCE=1 lo saltea)
 	@[ "$(FORCE)" = 1 ] || $(MAKE) --no-print-directory calls-active
@@ -150,8 +159,24 @@ welcome-reset: ## Vuelve a mostrar el pop-up de bienvenida a un usuario de clien
 psql: ## Cliente psql dentro de db, con las credenciales de .env
 	$(COMPOSE) exec db sh -c 'psql -U "$$POSTGRES_USER" "$$POSTGRES_DB"'
 
+server2-ssh: ## Ejecuta un comando en server2 (192.168.1.98, usuario atentina-ops, clave ~/.ssh/id_ed25519_server2). Ej: make server2-ssh CMD='sudo -n apt update'
+	@[ -n "$(CMD)" ] || { echo "Falta CMD='...'"; exit 1; }
+	@ssh server2 $(CMD)
+
+server2-setup: ## Imprime los comandos a pegar una vez en server2 (como usuario con sudo) para crear atentina-ops con la clave de este server y apagar el login por password
+	@pub=$$(cat ~/.ssh/id_ed25519_server2.pub); printf '%s\n' \
+		'sudo adduser --disabled-password --gecos "" atentina-ops' \
+		'sudo install -d -m 700 -o atentina-ops -g atentina-ops /home/atentina-ops/.ssh' \
+		"echo 'from=\"192.168.1.99\" $$pub' | sudo install -m 600 -o atentina-ops -g atentina-ops /dev/stdin /home/atentina-ops/.ssh/authorized_keys" \
+		"echo 'atentina-ops ALL=(ALL) NOPASSWD: ALL' | sudo install -m 440 /dev/stdin /etc/sudoers.d/atentina-ops" \
+		'sudo visudo -cf /etc/sudoers.d/atentina-ops' \
+		'' \
+		'# Despues de probar desde este server: make server2-ssh CMD="sudo -n hostname"' \
+		"echo 'PasswordAuthentication no' | sudo install -m 644 /dev/stdin /etc/ssh/sshd_config.d/00-atentina.conf" \
+		'sudo sshd -t && sudo systemctl reload ssh'
+
 health: ## Chequea /health de la app (:8011), la inferencia (:8101-8103) y el proxy (:PROXY_PORT)
-	@for p in 8011:app 8101:vllm-llm 8102:stt-parakeet 8103:vllm-tts; do \
+	@for p in 8011:app 8101:vllm-llm 8102:stt-parakeet 8103:vllm-tts 8104:llm-lb; do \
 		curl -sf -o /dev/null -m 3 http://127.0.0.1:$${p%%:*}/health \
 			&& echo "$${p##*:} (:$${p%%:*}): OK" \
 			|| echo "$${p##*:} (:$${p%%:*}): no responde (make logs S=$${p##*:})"; \
