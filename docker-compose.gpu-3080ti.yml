@@ -1,0 +1,56 @@
+# Reparto con una RTX 3080 Ti 12 GB en lugar de la primera 3090 (desde el 31-oct-2026):
+#   GPU_TTS_ID (3080 Ti 12 GB, 04:00.0, hoy indice 0): vllm-tts + stt-parakeet.
+#   GPU_LLM_ID (3090 24 GB,    07:00.0, hoy indice 1): vllm-llm + escritorio (~0,45 GB).
+# Gemma 26B (17,2 GB de pesos) no entra en 12 GB: el LLM va en la 3090.
+# Los ids salen de GPU_TTS_ID / GPU_LLM_ID (.env): siguen el orden del bus PCI.
+# Se activa sumandolo a COMPOSE_FILE en .env, despues del override del LLM.
+# Capacidad con este reparto: sin medir (docs/capacity/README.md).
+services:
+  vllm-tts:
+    command:
+      - "vllm"
+      - "serve"
+      - "/models/ft"
+      - "--served-model-name=${VLLM_TTS_MODEL:-qwen3-tts-ft}"
+      - "--omni"
+      - "--host=0.0.0.0"
+      - "--port=8000"
+      - "--api-key=${VLLM_API_KEY:-not-needed}"
+      # En 12 GB con el STT (~1,6 GB) cada etapa lleva su fraccion: el 0.4 global le da 4,9 GB a
+      # cada una. En la 3090 el talker usaba 9,1 GB, de los que 3,95 GiB eran KV cache (36.992
+      # tokens) y el uso maximo medido de KV fue 10 % con 96 llamadas (~3.700 tokens). Con 0.50 y
+      # los defaults le quedaban 0,35 GiB de KV y no arrancaba (pide 0,44 GiB para 4096 tokens).
+      # Como en la 5060 Ti: largo maximo 2048 (una frase de 15 s son ~200-400 tokens) y batches
+      # de 512, que bajan la reserva de activaciones. Con 0.54 el talker tenia 2,28 GiB de KV
+      # (21.344 tokens) y usaba 7,7 GB reales (los graphs del code predictor van por fuera de la
+      # fraccion): con Code2Wav (3,5 GB) no entraba el STT. Con 0.40 quedan ~0,65 GiB de KV.
+      - "--gpu-memory-utilization=0.40"
+      - "--stage-overrides={\"0\": {\"max_num_seqs\": ${VLLM_TTS_MAX_NUM_SEQS:-128}, \"gpu_memory_utilization\": 0.40, \"max_num_batched_tokens\": 512, \"max_model_len\": 2048}, \"1\": {\"max_num_seqs\": ${VLLM_TTS_MAX_NUM_SEQS:-128}, \"gpu_memory_utilization\": 0.28}}"
+      - "--max-model-len=4096"
+    deploy:
+      resources:
+        reservations:
+          # !override: sin esto compose suma la lista del compose principal.
+          devices: !override
+            - driver: nvidia
+              device_ids: ["${GPU_TTS_ID:-0}"]
+              capabilities: [gpu]
+
+  # Con el TTS en la 3080 Ti; sigue arrancando despues de el (depends_on del compose principal).
+  stt-parakeet:
+    deploy:
+      resources:
+        reservations:
+          devices: !override
+            - driver: nvidia
+              device_ids: ["${GPU_TTS_ID:-0}"]
+              capabilities: [gpu]
+
+  vllm-llm:
+    deploy:
+      resources:
+        reservations:
+          devices: !override
+            - driver: nvidia
+              device_ids: ["${GPU_LLM_ID:-1}"]
+              capabilities: [gpu]

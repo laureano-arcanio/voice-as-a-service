@@ -14,7 +14,7 @@ Docs relacionados: [`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md) (Anura, Asterisk, 
 | Pieza | Valor |
 |---|---|
 | CPU, RAM, placa | Ryzen 7 5700X (8/16), 64 GB, ASRock B550M Pro SE |
-| GPU 0 | RTX 3090 24 GB, `04:00.0`, slot del chipset, PCIe Gen3 x4 |
+| GPU 0 | RTX 3080 Ti 12 GB, `04:00.0`, slot del chipset, PCIe Gen3 x4 (desde el 31-oct-2026; antes una 3090) |
 | GPU 1 | RTX 3090 24 GB, `07:00.0`, slot de la CPU, Gen4 x16; también dibuja el escritorio |
 | Red | IP fija pública `181.104.113.28`; LAN `192.168.1.99` (reserva DHCP) |
 | Discos | NVMe de 465 GB en `/` (Docker) y NVMe de 1,8 TB en `/home` (repo, checkpoint, backups) |
@@ -33,13 +33,13 @@ Docs relacionados: [`TELEFONIA_ANURA.md`](TELEFONIA_ANURA.md) (Anura, Asterisk, 
 - Risers: alimentados por PCIe de 6 pines, nunca por SATA; los de minería por USB fallan en Gen4 (forzar
   Gen3 en la BIOS). Una 5060 Ti por riser x1 tuvo errores de enlace y el TTS se cayó (CAP-004). Verificar
   con `nvidia-smi -q | grep -i -A2 replay` y `sudo dmesg | grep -iE 'aer|xid'`.
-- El orden de las GPUs sigue el bus PCI y el compose fija `device_ids` por índice: el escritorio tiene que
-  quedar en el índice 1 (ver [`MIGRACION_SERVER.md`](MIGRACION_SERVER.md), 2).
+- El orden de las GPUs sigue el bus PCI. El reparto vigente toma los índices de `GPU_LLM_ID` (3090, con el
+  escritorio) y `GPU_TTS_ID` (3080 Ti) en `.env`, por `docker-compose.gpu-3080ti.yml`.
 
 ## Servicios
 
-`COMPOSE_FILE=docker-compose.yml:docker-compose.livekit.yml:docker-compose.gemma4-26b.yml` en `.env`: todos
-los targets de `make` usan el compose principal, LiveKit propio y el LLM Gemma. `make up` levanta todo y
+`COMPOSE_FILE=docker-compose.yml:docker-compose.livekit.yml:docker-compose.gemma4-26b.yml:docker-compose.gpu-3080ti.yml`
+en `.env`: todos los targets de `make` usan el compose principal, LiveKit propio, el LLM Gemma y el reparto de GPU. `make up` levanta todo y
 termina con `make livekit-sip`. Por partes: `make up-agent`, `make up-app`, `make up-inference`, `make up-stt`,
 `make up-nginx`, `make up-pbx`, `make up-tools`, `make up-tunnel`, `make up-monitoring`, `make crm-up`.
 
@@ -76,6 +76,7 @@ termina con `make livekit-sip`. Por partes: `make up-agent`, `make up-app`, `mak
 | `docker-compose.monitoring.yml` | Prometheus, node-exporter, blackbox y Alertmanager (`make up-monitoring`) |
 | `docker-compose.gemma4-e4b.yml` | Prueba: Gemma 4 E4B (Google QAT w4a16) en lugar del LLM vigente |
 | `docker-compose.llm-defaults.yml` | Prueba: defaults de muestreo y sin razonamiento en el servidor (para clientes que no los mandan), con Qwen |
+| `docker-compose.gpu-3080ti.yml` | Reparto vigente: LLM en la 3090 (`GPU_LLM_ID`), TTS + STT en la 3080 Ti (`GPU_TTS_ID`), con una fracción de memoria por etapa del TTS |
 | `docker-compose.gpu-5060.yml` | Reparto con una 5060 Ti 8 GB para el TTS (CAP-002, CAP-004); no vigente |
 | `docker-compose.e2e-sip.yml` | Prueba SIP aislada (`make e2e-sip`): LiveKit, Asterisk y un Anura falso, sin puertos del host |
 
@@ -83,8 +84,12 @@ termina con `make livekit-sip`. Por partes: `make up-agent`, `make up-app`, `mak
 
 | GPU | Servicios | Memoria |
 |---|---|---|
-| 0 | `vllm-llm` solo | 0.90, 32 secuencias, contexto 16384; ~21 GB usados; KV cache de 63.013 tokens para todas las llamadas (medido el 28-oct-2026 por `vllm:cache_config_info`) |
-| 1 | `vllm-tts` + `stt-parakeet` + escritorio | TTS 0.4 (talker ~9,6 GB + Code2Wav ~3,5 GB), 128 por etapa; STT ~1,6 GB; ~15,7 GB usados |
+| 3090 (`GPU_LLM_ID`, hoy 1) | `vllm-llm` + escritorio | 0.90, 32 secuencias, contexto 16384; 20,9 GB el LLM, 21,8 GB la placa (31-oct-2026) |
+| 3080 Ti (`GPU_TTS_ID`, hoy 0) | `vllm-tts` + `stt-parakeet` | talker 0.40 (6,0 GB reales, KV de 6.096 tokens, largo 2048, batches de 512) + Code2Wav 0.28 (3,5 GB), 128 por etapa; STT 1,6 GB; 11,1 de 12,3 GB (31-oct-2026) |
+
+- **Reparto vigente sin medir con carga.** El KV del talker (6.096 tokens) cubre el máximo medido en la 3090
+  (~3.700 con 96 llamadas); queda ~1,1 GB libre en la 3080 Ti para el STT bajo carga. Las fracciones del TTS
+  van escritas en `docker-compose.gpu-3080ti.yml`; `VLLM_TTS_GPU_MEMORY_UTILIZATION` no rige.
 
 - **El override de Gemma fija sus flags:** `--gpu-memory-utilization=0.90`, `--max-num-seqs=32`,
   `--max-cudagraph-capture-size=32` y `--max-model-len=16384` van escritos en
