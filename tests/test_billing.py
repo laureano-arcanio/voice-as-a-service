@@ -237,7 +237,7 @@ def test_subscribe_by_transfer_and_admin_records_payment(rosa, admin):  # noqa: 
     assert b["tier"]["name"] == "Sucursal" and b["subscription"]["status"] == "active"
     assert b["subscription"]["current_period_end"] == str(billing.add_month(today))
     assert b["payments"][0]["amount_ars"] == 99000 and b["payments"][0]["recorded_by_email"] == "admin@example.com"
-    [mail] = rosa.outbox
+    [mail] = [m for m in rosa.outbox if m.to == "rosa@example.com"]
     assert mail.subject == "Recibimos tu pago: plan Sucursal"
 
     # Vista Cobros y marca de facturado.
@@ -376,3 +376,11 @@ def test_other_client_cannot_see_billing(rosa, admin):  # noqa: F811
 ])
 def test_add_month(day, expected):
     assert billing.add_month(day) == expected
+
+
+def test_registered_transfer_notifies_admin_and_marks_client_paying(rosa, admin):  # noqa: F811
+    assert admin.get(f"{V1}/clients/{rosa.rosa_id}").json()["paying"] is False
+    _activate_paid(rosa, admin)
+    [mail] = [m for m in rosa.outbox if m.to == "cobros@atentina.com.ar"]
+    assert mail.subject.startswith("Cliente pagó:") and "Transferencia" in mail.text
+    assert admin.get(f"{V1}/clients/{rosa.rosa_id}").json()["paying"] is True

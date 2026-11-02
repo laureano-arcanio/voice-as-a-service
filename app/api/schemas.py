@@ -316,6 +316,7 @@ class ClientOut(ORM):
     agents_count: int = 0
     numbers_count: int = 0
     adjustments_count: int = Field(default=0, description="Ajustes de limites vigentes hoy")
+    paying: bool = Field(default=False, description="Tiene un plan pago activo o en gracia (suscripcion, no solo el tier)")
 
 
 class CallEmailsIn(BaseModel):

@@ -223,7 +223,7 @@ class Settings(BaseSettings):
     trial_call_seconds: int = 300
     # Datos para la transferencia, como se muestran al cliente (una linea por dato: titular, CUIT, CBU, alias).
     bank_transfer_info: str = ""
-    # A quien avisar de un pedido de plan por transferencia (vacio: SUPPORT_EMAIL).
+    # A quien avisar de un pedido de plan por transferencia y de cada pago aprobado (vacio: SUPPORT_EMAIL).
     billing_notify_to: str = ""
     # Dias con el plan pago despues del vencimiento sin pago, y dias que un numero queda suspendido
     # (asignado, sin atender) despues de bajar a un plan con menos numeros, antes de volver al inventario.

@@ -133,6 +133,21 @@ Solo con `MP_BILLING_ACCESS_TOKEN` y `MP_BILLING_PUBLIC_KEY`; si faltan, Plan of
 - Número suspendido: `calls.start_inbound` rechaza la entrante con `number_suspended`. Si el cliente paga antes de
   los 30 días, se reactivan los que entran en el plan.
 
+### Aviso de pago al admin
+
+Cada pago aprobado (primer cobro, renovación con tarjeta o transferencia registrada) manda una vez, con el pago ya
+guardado, "Cliente pagó: <cliente>, plan <tier>" a `BILLING_NOTIFY_TO`: monto, medio, fecha, vencimiento, id de MP,
+contactos del cliente (nombre, email, celular), razón social, CUIT y link a la ficha. Si Resend falla no se reintenta: el
+pago sigue en Cobros.
+
+### Verificar un pago
+
+- **Plataforma:** Cobros (`/admin/billing`), tabla Pagos con el filtro en "Todos" (el de por defecto oculta los
+  facturados); Clientes, filtro "Pagos"; la ficha del cliente.
+- **Mercado Pago:** en la actividad de la cuenta, buscar la descripción `Atentina - plan <tier>` o el id de pago del
+  aviso. La cuenta también tiene movimientos ajenos a Atentina.
+- **Entregas del webhook:** `notifications_history` del MCP de MP, app `atentina suscripciones` (2008768571289284).
+
 ### Webhook
 
 `app/billing/webhook.py`: valida `x-signature` (HMAC-SHA256 de `id:<data.id>;request-id:<x-request-id>;ts:<ts>;`
@@ -165,7 +180,7 @@ reintentos a los 0, 5 y 30 s (`RETRY_DELAYS`). URL de producción y sandbox:
 | `PASSWORD_RESET_IP_PER_HOUR` / `PASSWORD_RESET_EMAIL_PER_HOUR` | 5 / 3 | topes de "olvidé mi clave" |
 | `PASSWORD_SETUP_HOURS` | 72 | registros sin activar se borran después |
 | `BANK_TRANSFER_INFO` | — | datos bancarios (una línea por dato, `Titular: ...\nCBU: ...`) |
-| `BILLING_NOTIFY_TO` | `SUPPORT_EMAIL` | aviso de pedidos al admin |
+| `BILLING_NOTIFY_TO` | `SUPPORT_EMAIL` | avisos al admin: pedidos de plan y pagos aprobados |
 | `BILLING_GRACE_DAYS` / `BILLING_NUMBER_HOLD_DAYS` / `BILLING_REMINDER_DAYS` | 7 / 30 / 5 | gracia, números suspendidos, recordatorio |
 | `BILLING_TICK_SECONDS` | 900 | período del barrido |
 | `BILLING_TIMEZONE` | America/Argentina/Buenos_Aires | días de facturación |
@@ -197,7 +212,7 @@ Al editar `.env`: diff enmascarado contra el backup antes de recrear `app`.
 
 ## Desplegar y probar
 
-- Tests: `tests/test_billing.py` (registro, handoff, pedido, pago, vencimiento, gracia, Free, números, permisos),
+- Tests: `tests/test_billing.py` (registro, handoff, pedido, pago, aviso al admin, vencimiento, gracia, Free, números, permisos),
   `tests/test_billing_mp.py` (MP con un cliente falso: alta, rechazo, cambio, baja, cuotas una vez, webhook firmado,
   conciliación), `tests/test_migration_0012.py`, `web/src/features/billing/PlanPage.test.tsx`.
 - Credenciales, cuentas de prueba y webhook de MP: con el MCP de Mercado Pago

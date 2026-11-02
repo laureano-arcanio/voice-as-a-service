@@ -15,6 +15,7 @@ from ...models import (
     ConversationRow,
     PhoneNumber,
     Role,
+    Subscription,
     Tier,
     User,
     WaAccount,
@@ -50,8 +51,10 @@ def _out(db, client: Client) -> ClientOut:
     agents = db.scalar(select(func.count()).select_from(Agent).where(
         Agent.client_id == client.id, Agent.archived_at.is_(None))) or 0
     numbers = db.scalar(select(func.count()).select_from(PhoneNumber).where(PhoneNumber.client_id == client.id)) or 0
+    paying = db.scalar(select(func.count()).select_from(Subscription).where(
+        Subscription.client_id == client.id, Subscription.status.in_(("active", "past_due")))) or 0
     return ClientOut.model_validate(client).model_copy(
-        update={"agents_count": agents, "numbers_count": numbers,
+        update={"agents_count": agents, "numbers_count": numbers, "paying": paying > 0,
                 "adjustments_count": limits.active_count(db, client.id)})
 
 

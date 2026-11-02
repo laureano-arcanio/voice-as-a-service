@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 
 from ..config import settings
 from ..legal import Version
-from ..models import Tier
+from ..models import BillingPayment, Client, Tier, User
 from . import layout as L
 from .sender import Mail
 
@@ -284,6 +284,34 @@ def transfer_requested_admin(*, to: str, client_name: str, user_email: str, tier
         paragraphs=[f"{client_name} ({user_email}) pidió el plan {tier.name} por transferencia. "
                     "Cuando llegue el comprobante, registrá el pago desde la ficha del cliente."],
         rows=[("Cliente", client_name), ("Plan", tier.name), ("Monto", money(amount))], rows_title="Pedido",
+        button=(client_url, "Abrir la ficha"),
+        reason="Aviso interno de Atentina.")
+
+
+def payment_received_admin(*, to: str, client: Client, tier: Tier, payment: BillingPayment,
+                           period_end: datetime.date | None, payer_email: str, users: list[User],
+                           client_url: str) -> Mail:
+    """Al admin: un cliente pago. Con los datos para contactarlo."""
+    method = {"mercadopago": "Tarjeta (Mercado Pago)", "transfer": "Transferencia"}.get(payment.method, payment.method)
+    rows: list[tuple[str, object]] = [("Cliente", client.name), ("Plan", tier.name),
+                                      ("Monto", money(payment.amount_ars)), ("Medio", method),
+                                      ("Fecha de pago", day(payment.paid_on))]
+    if period_end:
+        rows.append(("Activo hasta", day(period_end)))
+    if payment.mp_payment_id:
+        rows.append(("Pago en Mercado Pago", payment.mp_payment_id))
+    rows += [("Contacto", " · ".join(x for x in (u.name, u.email, u.phone) if x)) for u in users]
+    if payer_email and payer_email not in {u.email for u in users}:
+        rows.append(("Email del pagador", payer_email))
+    if client.legal_name:
+        rows.append(("Razón social", client.legal_name))
+    if client.tax_id:
+        rows.append(("CUIT", client.tax_id))
+    return _simple(
+        to=to, subject=f"Cliente pagó: {client.name}, plan {tier.name}",
+        preheader=f"{client.name} pagó {money(payment.amount_ars)} del plan {tier.name}.", title="Cliente pagó", name=None,
+        paragraphs=[f"{client.name} pagó el plan {tier.name}."],
+        rows=rows, rows_title="Pago y contacto",
         button=(client_url, "Abrir la ficha"),
         reason="Aviso interno de Atentina.")
 
