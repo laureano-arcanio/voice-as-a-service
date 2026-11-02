@@ -14,6 +14,8 @@ import {
 import { IconArchive, IconArchiveOff, IconArrowLeft, IconPencil } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
+import { RowLink } from '@/components/RowLink';
+import { useRowLink } from '@/components/useRowLink';
 import { ApiError } from '@/api/errors';
 import { CallStatusBadge, Dash } from '@/components/Badges';
 import { confirmAction } from '@/components/confirm';
@@ -44,6 +46,7 @@ function Datum({ label, children }: { label: string; children: React.ReactNode }
 
 function CampaignsCard({ id }: { id: string }) {
   const campaigns = useContactCampaigns(id);
+  const rowLink = useRowLink();
   return (
     <Card>
       <Title order={4} mb="md">
@@ -55,7 +58,7 @@ function CampaignsCard({ id }: { id: string }) {
             <EmptyState>Todavía no está en ninguna campaña.</EmptyState>
           ) : (
             <Table.ScrollContainer minWidth={720}>
-              <Table>
+              <Table highlightOnHover>
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th>Campaña</Table.Th>
@@ -64,7 +67,6 @@ function CampaignsCard({ id }: { id: string }) {
                     <Table.Th>Resultado</Table.Th>
                     <Table.Th style={{ textAlign: 'right' }}>Intentos</Table.Th>
                     <Table.Th>Último intento</Table.Th>
-                    <Table.Th />
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
@@ -74,7 +76,10 @@ function CampaignsCard({ id }: { id: string }) {
                     const cs = CONTACT_STATUS[r.status];
                     const when = r.last_attempt_at ?? r.sent_at;
                     return (
-                      <Table.Tr key={r.campaign_id}>
+                      <Table.Tr
+                        key={r.campaign_id}
+                        {...(r.conversation_id ? rowLink(`/calls/${r.conversation_id}`) : {})}
+                      >
                         <Table.Td>
                           <Anchor component={Link} to={`/campaigns/${r.campaign_id}`} size="sm" fw={600}>
                             {r.campaign_name}
@@ -91,13 +96,14 @@ function CampaignsCard({ id }: { id: string }) {
                           {r.channel === 'voice' ? r.attempts : <Dash />}
                         </Table.Td>
                         <Table.Td style={{ whiteSpace: 'nowrap' }}>
-                          {when ? formatDateTime(when) : <Dash />}
-                        </Table.Td>
-                        <Table.Td>
-                          {r.conversation_id && (
-                            <Anchor component={Link} to={`/calls/${r.conversation_id}`} size="sm">
-                              Ver conversación
-                            </Anchor>
+                          {r.conversation_id ? (
+                            <RowLink to={`/calls/${r.conversation_id}`} label={`Ver conversación de ${r.campaign_name}`}>
+                              {when ? formatDateTime(when) : <Dash />}
+                            </RowLink>
+                          ) : when ? (
+                            formatDateTime(when)
+                          ) : (
+                            <Dash />
                           )}
                         </Table.Td>
                       </Table.Tr>
@@ -118,6 +124,7 @@ const HISTORY_ROWS = 10;
 /** Las llamadas con el contacto (por su teléfono): las del agente y las directas, que dicen quién llamó. */
 function CallsCard({ contactId }: { contactId: string }) {
   const recent = useContactCalls(contactId, HISTORY_ROWS);
+  const rowLink = useRowLink();
   return (
     <Card>
       <Title order={4} mb="md">
@@ -128,7 +135,7 @@ function CallsCard({ contactId }: { contactId: string }) {
           if (rows.length === 0) return <EmptyState>Todavía no hay llamadas con este contacto.</EmptyState>;
           return (
             <Table.ScrollContainer minWidth={640}>
-              <Table>
+              <Table highlightOnHover>
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th>Fecha</Table.Th>
@@ -136,15 +143,18 @@ function CallsCard({ contactId }: { contactId: string }) {
                     <Table.Th>Quién</Table.Th>
                     <Table.Th>Estado</Table.Th>
                     <Table.Th style={{ textAlign: 'right' }}>Duración</Table.Th>
-                    <Table.Th />
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
                   {rows.map((c) => {
                     const who = callPerson(c);
                     return (
-                      <Table.Tr key={c.id}>
-                        <Table.Td style={{ whiteSpace: 'nowrap' }}>{formatDateTime(c.created_at)}</Table.Td>
+                      <Table.Tr key={c.id} {...rowLink(`/calls/${c.id}`)}>
+                        <Table.Td style={{ whiteSpace: 'nowrap' }}>
+                          <RowLink to={`/calls/${c.id}`} label={`Ver conversación del ${formatDateTime(c.created_at)}`}>
+                            {formatDateTime(c.created_at)}
+                          </RowLink>
+                        </Table.Td>
                         <Table.Td>
                           <Badge color="gray">
                             {c.mode === 'entrante' && c.answered_by === 'team'
@@ -165,11 +175,6 @@ function CallsCard({ contactId }: { contactId: string }) {
                         </Table.Td>
                         <Table.Td className="mono" ta="right">
                           {formatDuration(c.duration_seconds)}
-                        </Table.Td>
-                        <Table.Td>
-                          <Anchor component={Link} to={`/calls/${c.id}`} size="sm">
-                            Ver conversación
-                          </Anchor>
                         </Table.Td>
                       </Table.Tr>
                     );

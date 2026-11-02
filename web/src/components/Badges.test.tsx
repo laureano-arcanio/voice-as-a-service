@@ -21,7 +21,7 @@ describe('CallStatusBadge', () => {
 
   it('una finalizada dice quién cortó: el cliente, el equipo, el agente o el sistema', () => {
     const cases = [
-      ['customer_hangup', 'Finalizada por el cliente'],
+      ['customer_hangup', 'Finalizada por el destinatario'],
       ['person_hangup', 'Finalizada por el equipo'],
       ['hangup_by_user', 'Finalizada por el equipo'],
       ['completed', 'Finalizada por el agente'],

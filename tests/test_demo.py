@@ -22,6 +22,8 @@ from app.models import (
 from app.services import agents as agent_service
 from app.services import demo, tts
 
+from .test_api import admin  # noqa: F401  (fixture)
+
 V1 = "/api/v1/demo"
 ORIGIN = "https://atentina.com.ar"
 # Agente de Atentina que no está en DEMO_AGENTS (atentina_comercial sí: es el de la home).
@@ -339,3 +341,24 @@ def test_contact_limit_per_ip(resend, monkeypatch):
         assert resend.client.post(f"{V1}/contact", json=CONTACT, headers=headers).status_code == 204
     r = resend.client.post(f"{V1}/contact", json=CONTACT, headers=headers)
     assert r.status_code == 429 and len(contact_rows(resend)) == 2
+
+
+def test_landing_calls_are_marked_and_filtered(landing, admin):
+    """La llamada de la landing se separa de la prueba del panel del mismo cliente (GET /calls, `landing`)."""
+    from_demo = call(landing, session(landing)).json()["conversation_id"]
+    finish_all(landing)
+    with landing.sessions() as s:
+        agent = s.get(ConversationRow, from_demo).agent_id
+    other = admin.post("/api/v1/calls", json={"agent_id": agent})
+    assert other.status_code == 201, other.text
+    panel = other.json()["conversation_id"]
+
+    def ids(**params):
+        r = admin.get("/api/v1/calls", params=params)
+        assert r.status_code == 200, r.text
+        return {i["id"] for i in r.json()["items"]}
+
+    assert ids(mode=["prueba", "celular"], landing=True) == {from_demo}
+    assert ids(mode=["prueba", "celular"], landing=False) == {panel}
+    assert ids(mode=["prueba"]) == {from_demo, panel}
+    assert ids(mode=["saliente", "whatsapp"]) == set()

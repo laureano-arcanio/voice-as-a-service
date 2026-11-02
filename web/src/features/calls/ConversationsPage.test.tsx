@@ -1,5 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CallSummary } from '@/api/types';
 import { ADMIN, CLIENT_USER, jsonResponse, renderWithProviders } from '@/test/render';
@@ -95,9 +96,60 @@ describe('conversaciones', () => {
     mockApi(listRoutes([CALL]));
     renderWithProviders(<ConversationsPage />, { me: CLIENT_USER });
 
-    expect(await screen.findByRole('link', { name: 'Ver conversación' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: /Ver conversación del/ })).toHaveAttribute('href', '/calls/cv-1');
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Borrar conversación' })).not.toBeInTheDocument();
+  });
+
+  it('admin: cada solapa pide sus orígenes', async () => {
+    const urls: URL[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const req = input instanceof Request ? input : new Request(input);
+        const url = new URL(req.url);
+        if (url.pathname === '/api/v1/calls') urls.push(url);
+        return url.pathname === '/api/v1/calls' ? jsonResponse({ items: [CALL], total: 1 }) : jsonResponse([]);
+      }),
+    );
+    renderWithProviders(<ConversationsPage />, { me: ADMIN });
+
+    const lastCall = () => {
+      const q = urls[urls.length - 1].searchParams;
+      return { mode: q.getAll('mode'), landing: q.get('landing') };
+    };
+    await waitFor(() => expect(lastCall()).toEqual({ mode: ['entrante'], landing: null }));
+    for (const [name, expected] of [
+      ['Salientes', { mode: ['saliente', 'directa'], landing: null }],
+      ['Pruebas de clientes', { mode: ['prueba', 'celular'], landing: 'false' }],
+      ['Link web', { mode: ['web'], landing: null }],
+      ['Landing', { mode: ['prueba'], landing: 'true' }],
+      ['WhatsApp y otras', { mode: ['whatsapp', 'api', 'loadtest'], landing: null }],
+    ] as const) {
+      await userEvent.click(screen.getByRole('tab', { name }));
+      await waitFor(() => expect(lastCall()).toEqual(expected));
+    }
+  });
+
+  it('la fila abre el detalle, salvo los controles', async () => {
+    mockApi(listRoutes([CALL]));
+    renderWithProviders(
+      <Routes>
+        <Route path="/" element={<ConversationsPage />} />
+        <Route path="/admin/calls/:id" element={<div>detalle</div>} />
+      </Routes>,
+      { me: ADMIN },
+    );
+
+    await userEvent.click(await screen.findByRole('checkbox', { name: /Seleccionar conversación/ }));
+    expect(screen.queryByText('detalle')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Borrar conversación' }));
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByText('detalle')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByText('Ana'));
+    expect(await screen.findByText('detalle')).toBeInTheDocument();
   });
 
   it('filtra por campaña: las llamadas que hizo y las que abrió', async () => {

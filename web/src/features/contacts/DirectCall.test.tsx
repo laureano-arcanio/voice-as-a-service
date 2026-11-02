@@ -216,7 +216,7 @@ describe('ficha del contacto', () => {
     expect(await within(history).findByText('Llamó: Ana')).toBeInTheDocument();
     expect(within(history).getByText('Cobranzas')).toBeInTheDocument();
     expect(within(history).getByText('Había pedido no recibir llamadas')).toBeInTheDocument();
-    expect(within(history).getAllByRole('link', { name: 'Ver conversación' })).toHaveLength(2);
+    expect(within(history).getAllByRole('link', { name: /Ver conversación/ })).toHaveLength(2);
     expect(within(history).getByText('Directa')).toBeInTheDocument();
     expect(seen.some((s) => s.path === '/api/v1/calls' && s.search.includes('contact_id=k2'))).toBe(true);
 

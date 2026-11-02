@@ -1,3 +1,4 @@
+import { CALL_END_REASON } from '@/lib/labels';
 import type { Channel } from './types';
 
 export const CHANNEL_LABEL: Record<Channel, string> = {
@@ -8,22 +9,9 @@ export const CHANNEL_LABEL: Record<Channel, string> = {
 
 /** Como terminan las llamadas (GET /reports/calls, `ended`). */
 export const ENDED_REASON: Record<string, string> = {
-  customer_hangup: 'Cortó el cliente',
-  agent_end: 'Terminó el agente',
-  person_hangup: 'Cortó la persona del equipo',
-  off_topic: 'Fuera de tema',
-  hangup_by_user: 'Cortada desde el panel',
-  team_no_answer: 'Nadie del equipo atendió',
-  after_hours: 'Fuera de horario',
-  no_answer: 'No atendió',
-  busy: 'Ocupado',
-  voicemail: 'Contestador',
-  user_not_joined: 'No entró quien llamaba',
-  max_duration: 'Duración máxima',
-  quota_exhausted: 'Sin minutos',
-  blocked_number: 'Número bloqueado',
+  ...CALL_END_REASON,
+  agent_end: CALL_END_REASON.completed,
   rejected: 'Rechazada',
-  worker_error: 'Error del sistema',
   failed: 'Falló',
   other: 'Otro',
 };

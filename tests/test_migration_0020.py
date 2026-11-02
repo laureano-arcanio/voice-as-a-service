@@ -23,7 +23,7 @@ def test_0020_upgrade_downgrade_upgrade(tmp_path):
         diff = compare_metadata(MigrationContext.configure(conn, opts={"compare_type": True}), Base.metadata)
     # call_logs.room es de la 0021; user_id, answered_by, opted_out_confirmed y direct_recording_notice, de la 0039;
     # clients.industry y website, de la 0044.
-    later = ("'room'", "'user_id'", "'answered_by'", "'opted_out_confirmed'", "ix_call_logs_user_id",
+    later = ("'from_landing'", "'room'", "'user_id'", "'answered_by'", "'opted_out_confirmed'", "ix_call_logs_user_id",
              "'direct_recording_notice'", "Column('industry',", "Column('website',")
     assert [d for d in diff if ("'clients'" in repr(d) or "call_logs" in repr(d))
             and not any(c in repr(d) for c in later)] == []

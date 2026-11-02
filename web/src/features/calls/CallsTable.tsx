@@ -13,13 +13,15 @@ import {
   Title,
   Tooltip,
 } from '@mantine/core';
-import { IconEye, IconLogin2, IconTrash } from '@tabler/icons-react';
+import { IconLogin2, IconTrash } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import type { CallSummary } from '@/api/types';
 import { CallStatusBadge, Dash, OriginBadge, OutcomeBadge, WorkflowBadge } from '@/components/Badges';
 import { confirmAction } from '@/components/confirm';
 import { EmptyState, ErrorAlert } from '@/components/QueryState';
+import { RowLink } from '@/components/RowLink';
+import { useRowLink } from '@/components/useRowLink';
 import { useIsAdmin } from '@/features/auth/api';
 import { useFeatureLock } from '@/features/billing/features';
 import { useDeleteConversations } from '@/features/calls/api';
@@ -36,10 +38,13 @@ const STATUS_OPTIONS = [
   { value: '', label: 'Todos los estados' },
   ...Object.entries(CALL_STATUS).map(([value, l]) => ({ value, label: l.label })),
 ];
-const MODE_OPTIONS = [
-  { value: '', label: 'Todos los orígenes' },
-  ...Object.entries(CALL_MODE).map(([value, l]) => ({ value, label: l.label })),
-];
+
+function modeOptions(modes: string[]) {
+  return [
+    { value: '', label: 'Todos los orígenes' },
+    ...modes.map((value) => ({ value, label: CALL_MODE[value]?.label ?? value })),
+  ];
+}
 
 const ANSWERED_OPTIONS = [
   { value: '', label: 'Atendió: todas' },
@@ -53,6 +58,8 @@ function PersonText({ c }: { c: CallSummary }) {
 }
 
 export function CallsTable({
+  title = 'Conversaciones',
+  modes = Object.keys(CALL_MODE),
   items,
   total,
   error,
@@ -72,6 +79,9 @@ export function CallsTable({
   onUser,
   selectable = false,
 }: {
+  title?: string;
+  /** Los orígenes que puede elegir el filtro; con uno solo, el filtro no aparece. */
+  modes?: string[];
   items: CallSummary[];
   total: number;
   error: unknown;
@@ -100,6 +110,7 @@ export function CallsTable({
   const del = useDeleteConversations();
   const isAdmin = useIsAdmin();
   const areaPath = useAreaPath();
+  const rowLink = useRowLink();
   const { enter, pending: entering } = useSupportSwitch();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   // Los filtros de llamadas directas solo tienen sentido si el plan las incluye (el admin ve todo).
@@ -154,7 +165,7 @@ export function CallsTable({
     <Card>
       <Group justify="space-between" mb="sm" wrap="wrap">
         <Group gap="xs">
-          <Title order={4}>Conversaciones</Title>
+          <Title order={4}>{title}</Title>
           <Badge color="gray">{total}</Badge>
         </Group>
         <Group gap="xs">
@@ -167,15 +178,17 @@ export function CallsTable({
             w={170}
             aria-label="Estado"
           />
-          <Select
-            size="xs"
-            data={MODE_OPTIONS}
-            value={mode ?? ''}
-            onChange={(v) => onMode(v || null)}
-            allowDeselect={false}
-            w={170}
-            aria-label="Origen"
-          />
+          {modes.length > 1 && (
+            <Select
+              size="xs"
+              data={modeOptions(modes)}
+              value={mode ?? ''}
+              onChange={(v) => onMode(v || null)}
+              allowDeselect={false}
+              w={170}
+              aria-label="Origen"
+            />
+          )}
           {showAnswered && (
             <Select
               size="xs"
@@ -235,9 +248,9 @@ export function CallsTable({
         </EmptyState>
       ) : (
         // Lo secundario va debajo de su columna (cliente, workflow, duración, datos) y las acciones quedan fijas
-        // a la derecha: así ver y borrar están a la vista aunque la tabla tenga scroll.
+        // a la derecha: así están a la vista aunque la tabla tenga scroll.
         <Table.ScrollContainer minWidth={760}>
-          <Table style={{ whiteSpace: 'nowrap' }}>
+          <Table highlightOnHover style={{ whiteSpace: 'nowrap' }}>
             <Table.Thead>
               <Table.Tr>
                 {selectable && (
@@ -256,14 +269,15 @@ export function CallsTable({
                 <Table.Th>Origen</Table.Th>
                 <Table.Th>Estado</Table.Th>
                 <Table.Th>Resultado</Table.Th>
-                <Table.Th className="row-actions" />
+                {isAdmin && <Table.Th className="row-actions" />}
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
               {items.map((c) => (
-                <Table.Tr key={c.id}>
+                <Table.Tr key={c.id} {...rowLink(areaPath(`/calls/${c.id}`))}>
                   {selectable && (
-                    <Table.Td>
+                    // Un click al lado del checkbox no abre la conversación.
+                    <Table.Td onClick={(e) => e.stopPropagation()}>
                       <Checkbox
                         aria-label={`Seleccionar conversación del ${formatDateTime(c.created_at)}`}
                         checked={selected.has(c.id)}
@@ -271,7 +285,14 @@ export function CallsTable({
                       />
                     </Table.Td>
                   )}
-                  <Table.Td>{formatDateTime(c.created_at)}</Table.Td>
+                  <Table.Td>
+                    <RowLink
+                      to={areaPath(`/calls/${c.id}`)}
+                      label={`Ver conversación del ${formatDateTime(c.created_at)}`}
+                    >
+                      {formatDateTime(c.created_at)}
+                    </RowLink>
+                  </Table.Td>
                   <Table.Td>
                     {c.agent_id && isAdmin && c.client_id ? (
                       // El editor del agente es del panel del cliente: el admin entra como el cliente.
@@ -342,48 +363,40 @@ export function CallsTable({
                       </Text>
                     )}
                   </Table.Td>
-                  <Table.Td ta="right" className="row-actions">
-                    <Group gap={4} justify="flex-end" wrap="nowrap">
-                      <Tooltip label="Ver conversación">
-                        <ActionIcon
-                          component={Link}
-                          to={areaPath(`/calls/${c.id}`)}
-                          variant="subtle"
-                          aria-label="Ver conversación"
-                        >
-                          <IconEye size={16} />
-                        </ActionIcon>
-                      </Tooltip>
-                      {isAdmin && c.client_id && (
-                        <Tooltip label="Ver como el cliente">
-                          <ActionIcon
-                            variant="subtle"
-                            loading={entering}
-                            onClick={() => void enter(c.client_id!, `/calls/${c.id}`)}
-                            aria-label="Ver como el cliente"
+                  {isAdmin && (
+                    <Table.Td ta="right" className="row-actions" onClick={(e) => e.stopPropagation()}>
+                      <Group gap={4} justify="flex-end" wrap="nowrap">
+                        {c.client_id && (
+                          <Tooltip label="Ver como el cliente">
+                            <ActionIcon
+                              variant="subtle"
+                              loading={entering}
+                              onClick={() => void enter(c.client_id!, `/calls/${c.id}`)}
+                              aria-label="Ver como el cliente"
+                            >
+                              <IconLogin2 size={16} />
+                            </ActionIcon>
+                          </Tooltip>
+                        )}
+                        {selectable && (
+                          <Tooltip
+                            label={isLiveStatus(c.status) ? 'La llamada está en curso' : 'Borrar conversación'}
                           >
-                            <IconLogin2 size={16} />
-                          </ActionIcon>
-                        </Tooltip>
-                      )}
-                      {selectable && (
-                        <Tooltip
-                          label={isLiveStatus(c.status) ? 'La llamada está en curso' : 'Borrar conversación'}
-                        >
-                          <ActionIcon
-                            variant="subtle"
-                            color="red"
-                            disabled={isLiveStatus(c.status)}
-                            loading={del.isPending && del.variables?.includes(c.id)}
-                            onClick={() => void remove([c.id])}
-                            aria-label="Borrar conversación"
-                          >
-                            <IconTrash size={16} />
-                          </ActionIcon>
-                        </Tooltip>
-                      )}
-                    </Group>
-                  </Table.Td>
+                            <ActionIcon
+                              variant="subtle"
+                              color="red"
+                              disabled={isLiveStatus(c.status)}
+                              loading={del.isPending && del.variables?.includes(c.id)}
+                              onClick={() => void remove([c.id])}
+                              aria-label="Borrar conversación"
+                            >
+                              <IconTrash size={16} />
+                            </ActionIcon>
+                          </Tooltip>
+                        )}
+                      </Group>
+                    </Table.Td>
+                  )}
                 </Table.Tr>
               ))}
             </Table.Tbody>

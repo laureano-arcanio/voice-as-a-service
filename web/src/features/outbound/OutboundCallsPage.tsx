@@ -15,6 +15,8 @@ import { useDebouncedValue } from '@mantine/hooks';
 import { IconPhoneCall } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
+import { RowLink } from '@/components/RowLink';
+import { useRowLink } from '@/components/useRowLink';
 import { errorMessage } from '@/api/errors';
 import type { Contact } from '@/api/types';
 import { CallStatusBadge, Dash, OutcomeBadge } from '@/components/Badges';
@@ -80,7 +82,8 @@ function ContactPicker({
 }
 
 function RecentCalls() {
-  const calls = useCalls({ mode: 'saliente', limit: RECENT, offset: 0 });
+  const rowLink = useRowLink();
+  const calls = useCalls({ mode: ['saliente'], limit: RECENT, offset: 0 });
   const items = calls.data?.items ?? [];
   return (
     <Card>
@@ -100,7 +103,7 @@ function RecentCalls() {
         </EmptyState>
       ) : (
         <Table.ScrollContainer minWidth={640}>
-          <Table>
+          <Table highlightOnHover>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Fecha</Table.Th>
@@ -109,13 +112,16 @@ function RecentCalls() {
                 <Table.Th>Estado</Table.Th>
                 <Table.Th ta="right">Duración</Table.Th>
                 <Table.Th>Resultado</Table.Th>
-                <Table.Th />
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
               {items.map((c) => (
-                <Table.Tr key={c.id}>
-                  <Table.Td>{formatDateTime(c.created_at)}</Table.Td>
+                <Table.Tr key={c.id} {...rowLink(`/calls/${c.id}`)}>
+                  <Table.Td>
+                    <RowLink to={`/calls/${c.id}`} label={`Ver conversación del ${formatDateTime(c.created_at)}`}>
+                      {formatDateTime(c.created_at)}
+                    </RowLink>
+                  </Table.Td>
                   <Table.Td>
                     {formatValue(c.contact_name) || <Dash />}
                     {c.phone && (
@@ -133,11 +139,6 @@ function RecentCalls() {
                   </Table.Td>
                   <Table.Td>
                     <OutcomeBadge label={c.outcome} goal={c.goal} />
-                  </Table.Td>
-                  <Table.Td ta="right">
-                    <Button component={Link} to={`/calls/${c.id}`} variant="subtle" size="compact-sm">
-                      Ver detalle
-                    </Button>
                   </Table.Td>
                 </Table.Tr>
               ))}

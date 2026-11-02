@@ -173,7 +173,7 @@ incluido.
 | `agents` | `(client_id, slug)` único; `version` y `definition` vigentes (copia de la última versión); `archived_at`. |
 | `agent_versions` | `(agent_id, version)`; inmutables, con `created_by`. |
 | `conversations` | Estado del motor (`fields`, `messages`, `progress`), `client_id`, `agent_id` + `agent_version` (RESTRICT; `agent_id` nulo en las directas), `channel` (`voice` o `whatsapp`, fijo al crearla), `status`. Al terminar: `outcome`, `goal`, `conversion` (`complete`, `partial`, `empty`), `llm_input_tokens`/`llm_output_tokens`. `legacy_workflow_id` para las anteriores a los agentes. |
-| `call_logs` | Una por conversación de voz: `mode` (`saliente`, `entrante`, `prueba`, `web`, `loadtest`, `directa`, `celular`: de prueba al celular verificado, sin minutos), `status` (`pendiente`, `sonando`, `en_curso`, `finalizada`, `fallida`, `rechazada`, `cancelada`), `phone`, `phone_number_id`, inicio, fin, `duration_seconds`, `latency`, `ended_reason`, `sip_status`, `room` (para cortar), `campaign_contact_id`, `call_link_id`, `summary_email`, `user_id` y `answered_by` (`agent`/`team`), `opted_out_confirmed`. Base del consumo. |
+| `call_logs` | Una por conversación de voz: `mode` (`saliente`, `entrante`, `prueba`, `web`, `loadtest`, `directa`, `celular`: de prueba al celular verificado, sin minutos), `status` (`pendiente`, `sonando`, `en_curso`, `finalizada`, `fallida`, `rechazada`, `cancelada`), `phone`, `phone_number_id`, inicio, fin, `duration_seconds`, `latency`, `ended_reason`, `sip_status`, `room` (para cortar), `campaign_contact_id`, `call_link_id`, `from_landing` (prueba de la demo de la landing, no del panel), `summary_email`, `user_id` y `answered_by` (`agent`/`team`), `opted_out_confirmed`. Base del consumo. |
 | `phone_numbers` | `e164` único; `client_id` NULL = libre; `agent_id` solo con cliente (CHECK); `label`, `provider`, `assigned_at`, `suspended_at`. Quién atiende: `answer_mode` (`agent`, el default, o `team`), `ring_first`, `ring_seconds`, `schedule`, `team_fallback`, `team_fallback_message`; personas en `phone_number_members`. |
 | `call_links` | Un link por agente: `token`, textos de la página, `image`, `max_call_seconds`, `max_concurrent`, `daily_minutes`, `paused`, `revoked_at` ([`features/LINK_LLAMADA.md`](features/LINK_LLAMADA.md)). |
 | `blocked_numbers` | `(client_id, phone)` con `note`: sus entrantes (línea o WhatsApp) se cortan sin atender. API `/blocked-numbers`. |
@@ -624,7 +624,7 @@ configura el admin en la ficha del cliente, pestaña "Marca blanca" (`app/servic
   `forbidden`/`support_read_only`/`scope_missing`, 409 `conflict`/`agent_in_use`/..., 422
   `invalid`/`invalid_definition`, 429 límites del plan, 502 `upstream_error` (LiveKit, TTS o LLM caídos), 500
   `internal_error`. Los 422 de pydantic mantienen el formato de FastAPI.
-- **Listas:** `GET /calls` pagina con `limit`/`offset` y devuelve `{items, total}`; el resto, listas simples. Las
+- **Listas:** `GET /calls` pagina con `limit`/`offset` y devuelve `{items, total}`, y filtra por uno o varios `mode` y por `landing`; el resto, listas simples. Las
   fechas de `/calls` y `/reports` toman días locales de `tz` (default `BILLING_TIMEZONE`). Los admins pasan
   `client_id` en las rutas de recursos de un cliente.
 

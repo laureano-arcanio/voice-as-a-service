@@ -364,12 +364,20 @@ alcanza. En la navegación, arriba de todo.
 
 - Todas las conversaciones (llamadas, API y WhatsApp), con filtros por agente y período (en
   `/admin/calls`, también cliente), en la URL.
+- En `/admin/calls`, una tabla por solapa: **Entrantes**; **Salientes** (del agente y directas); **Pruebas de
+  clientes** (del panel y al celular, de cualquier cliente); **Link web**; **Landing** (la demo de la landing, siempre
+  del cliente Atentina); **WhatsApp y otras** (WhatsApp, API y loadtest). El cliente ve todas juntas.
 - Se puede filtrar por campaña (también en Reportes): los intentos de una campaña de llamadas y las
   conversaciones que abrió la respuesta de un contacto.
 - Tabla paginada, filtrable además por estado y origen. Las de WhatsApp no tienen estado ni duración y
   muestran el teléfono del contacto. Lo secundario va en una segunda línea de su columna (cliente bajo el agente,
-  teléfono bajo el origen, duración y workflow bajo el estado, datos obtenidos bajo el resultado) y las acciones
-  (ver, ver como el cliente, borrar) son íconos fijos a la derecha, a la vista aunque la tabla tenga scroll.
+  teléfono bajo el origen, duración y workflow bajo el estado, datos obtenidos bajo el resultado). Un click en la
+  fila abre el detalle; las acciones del admin (ver como el cliente, borrar) son íconos fijos a la derecha, a la vista
+  aunque la tabla tenga scroll.
+- El estado de una finalizada dice quién cortó ("Finalizada por el destinatario", la persona del otro lado de la
+  llamada) y el detalle lo repite en **Fin de llamada** ("Cortó el destinatario"): salen del mismo `ended_reason`.
+- En todas las tablas de llamadas (Teléfono del equipo, Llamadas del agente, ficha del contacto, contactos de una
+  campaña) un click en la fila abre la conversación.
 - **Llamadas del equipo** (planes con llamadas directas): el origen **Directa** es la que hace una persona desde
   Teléfono, y **Entrante del equipo** la que atendió una persona en un número del equipo. Sin agente, la columna
   del agente dice "Llamó: Ana" o "Atendió: Ana" (o "Atendió: nadie"), y no tienen datos obtenidos ni resultado.
@@ -489,7 +497,7 @@ Motivos de fin frecuentes (`ended_reason`):
 | `off_topic` | El agente cortó porque la llamada no tenía que ver con su objetivo (broma, burla, acoso, número equivocado). Resultado "Fuera de tema". |
 | `hangup_by_user` | La cortó alguien desde el panel (**Cortar llamada**) o la API. |
 | `blocked_number` | Rechazada sin atender: el número que llama está bloqueado. |
-| `customer_hangup` | Cortó el cliente. |
+| `customer_hangup` | Cortó el destinatario. |
 | `quota_exhausted` | Se acabaron los minutos del mes durante la llamada. |
 | `concurrency_limit` | Rechazada: el cliente estaba al tope de llamadas simultáneas. |
 | `calls_per_hour`, `calls_per_day`, `calls_per_month` | Rechazada: el cliente llegó al tope de llamadas de la hora, el día o el mes. |
@@ -700,7 +708,7 @@ Hace falta un número conectado con su propia cuenta (el cliente) y una plantill
    **Retomar envío**, **Agregar contactos** (en borrador o pausada) y **Cancelar campaña** (los pendientes
    no se mandan).
 4. **Totales:** enviados, entregados, leídos, respondieron, fallidos (con el motivo por contacto) y bajas.
-   Cada contacto que respondió tiene **Ver conversación**.
+   Un click en un contacto que respondió abre su conversación.
 5. **Pausada automáticamente:** Meta pausó la plantilla, frenó el número o rechazó el token. El motivo
    aparece arriba; resolverlo y **Retomar envío**.
 6. **Bajas:** quien responde "No me interesa" o "Baja" no recibe más campañas del cliente. Se pueden cargar
@@ -731,7 +739,7 @@ recibir mensajes: muchos bloqueos bajan la calidad del número y su límite de e
 4. **Detalle:** barra de avance, ritmo y tiempo estimado; tarjetas por resultado (atendió, no atendió,
    ocupado, contestador, número inválido, rechazó, falló); indicadores (tasa de contacto, objetivo cumplido,
    duración, minutos) y atendidas por hora del día, para elegir el horario; seguimiento; y la tabla de
-   contactos, filtrable, con **Ver conversación**. **Descargar reporte** baja el `report.csv`.
+   contactos, filtrable; un click en la fila abre su conversación. **Descargar reporte** baja el `report.csv`.
 5. **Pausada automáticamente:** sin minutos o tope de llamadas del plan, agente archivado, número de origen
    suspendido o 10 intentos seguidos fallidos (Anura o el trunk caídos). El motivo aparece arriba; resolverlo
    y **Retomar**.

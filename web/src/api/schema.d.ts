@@ -13022,8 +13022,10 @@ export interface operations {
                 tz?: string | null;
                 /** @description Uno o varios (status=a&status=b) */
                 status?: string[] | null;
-                /** @description entrante, saliente, directa, web, prueba, whatsapp o api */
-                mode?: string | null;
+                /** @description Uno o varios: entrante, saliente, directa, web, prueba, celular, loadtest, whatsapp o api */
+                mode?: string[] | null;
+                /** @description true: solo las llamadas de prueba de la landing; false: sin ellas */
+                landing?: boolean | null;
                 /** @description Solo las llamadas y conversaciones de esa campaña */
                 campaign_id?: string | null;
                 /** @description Llamadas directas: las que hizo o atendió ese usuario */

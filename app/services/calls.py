@@ -79,6 +79,8 @@ class CallRequest:
     # sus agentes comparten cliente con el resto de Atentina, que no tiene limites).
     group_agent_ids: tuple[str, ...] = ()
     group_max_concurrent: int | None = None
+    # La demo de la landing: queda marcada en la llamada para separarla de las pruebas del panel.
+    from_landing: bool = False
     # Derivacion a personas (app/voice/handoff.py) si el agente tiene areas. La demo la apaga salvo con
     # DEMO_HANDOFF; el loadtest y las campañas no derivan nunca.
     handoff: bool = True
@@ -181,7 +183,7 @@ def prepare_call(s: Session, engine: ConversationEngine, principal: Principal,
     s.flush()   # la conversacion antes que la llamada (foreign key)
     s.add(CallRow(conversation_id=state.conversation_id, client_id=agent.client_id, mode=mode, phone=phone,
                   phone_number_id=caller_id.id if caller_id else None, campaign_contact_id=req.campaign_contact_id,
-                  call_link_id=req.call_link_id))
+                  call_link_id=req.call_link_id, from_landing=req.from_landing))
     if req.campaign_contact_id:     # el ultimo intento del contacto, en la misma transaccion que su llamada
         s.execute(update(CampaignContact).where(CampaignContact.id == req.campaign_contact_id)
                   .values(conversation_id=state.conversation_id))

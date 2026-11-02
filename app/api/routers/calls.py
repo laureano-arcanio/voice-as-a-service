@@ -31,14 +31,14 @@ CampaignQuery = Annotated[str | None, Query(description="Solo las llamadas y con
 
 
 def _filter(p, client_id, agent_id, date_from, date_to, tz, status=None, mode=None, campaign_id=None,
-            user_id=None, answered_by=None, phones_: list[str] | None = None) -> CallFilter:
+            user_id=None, answered_by=None, phones_: list[str] | None = None, landing=None) -> CallFilter:
     try:
         zone = ZoneInfo(tz or settings.billing_timezone)
     except (ZoneInfoNotFoundError, ValueError):
         raise Invalid(f"Zona horaria inexistente: {tz}") from None
     return CallFilter(client_id=scoped_client_id(p, client_id), agent_id=agent_id, date_from=date_from,
-                      date_to=date_to, status=status or [], mode=mode, campaign_id=campaign_id, user_id=user_id,
-                      answered_by=answered_by, phones=phones_ or [], tz=zone)
+                      date_to=date_to, status=status or [], mode=mode or [], campaign_id=campaign_id, user_id=user_id,
+                      answered_by=answered_by, phones=phones_ or [], landing=landing, tz=zone)
 
 
 def _phones(p, db, phone: str | None, contact_id: str | None) -> list[str]:
@@ -71,8 +71,10 @@ def list_calls(p: CurrentPrincipal, db: DB, definitions: Definitions,
                client_id: str | None = None, agent_id: str | None = None,
                date_from: datetime.date | None = None, date_to: datetime.date | None = None, tz: TzQuery = None,
                status: Annotated[list[str] | None, Query(description="Uno o varios (status=a&status=b)")] = None,
-               mode: Annotated[str | None, Query(description="entrante, saliente, directa, web, prueba, whatsapp "
-                                                             "o api")] = None,
+               mode: Annotated[list[str] | None, Query(description="Uno o varios: entrante, saliente, directa, web, "
+                                                                   "prueba, celular, loadtest, whatsapp o api")] = None,
+               landing: Annotated[bool | None, Query(description="true: solo las llamadas de prueba de la landing; "
+                                                                 "false: sin ellas")] = None,
                campaign_id: CampaignQuery = None,
                user_id: Annotated[str | None, Query(description="Llamadas directas: las que hizo o atendió ese "
                                                                 "usuario")] = None,
@@ -88,7 +90,7 @@ def list_calls(p: CurrentPrincipal, db: DB, definitions: Definitions,
     dos telefonos a la vez (si son distintos, no hay ninguna)."""
     items, total = Reports(db, definitions).page(
         _filter(p, client_id, agent_id, date_from, date_to, tz, status, mode, campaign_id, user_id, answered_by,
-                _phones(p, db, phone, contact_id)),
+                _phones(p, db, phone, contact_id), landing),
         limit, offset)
     return CallPage(items=items, total=total)
 

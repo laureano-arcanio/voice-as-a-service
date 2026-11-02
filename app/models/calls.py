@@ -59,6 +59,8 @@ class CallRow(Base):
     # Si entro por el link publico de un agente (app/models/call_links.py).
     call_link_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("call_links.id", ondelete="SET NULL"), nullable=True, index=True)
+    # Llamada de prueba de la demo de la landing (app/services/demo.py), no del panel.
+    from_landing: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     status: Mapped[str] = mapped_column(String(16), default=CallStatus.pendiente)
     # Codigo SIP con el que termino el intento saliente (486 ocupado, 408 no atiende...), si lo hubo.
     sip_status: Mapped[int | None] = mapped_column(Integer, nullable=True)

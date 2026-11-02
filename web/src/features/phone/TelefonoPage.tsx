@@ -19,6 +19,8 @@ import { useDebouncedValue } from '@mantine/hooks';
 import { IconDeviceMobile, IconPhone, IconSearch } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
+import { RowLink } from '@/components/RowLink';
+import { useRowLink } from '@/components/useRowLink';
 import type { CallSummary, Contact, PhoneNumber } from '@/api/types';
 import { CallStatusBadge, Dash } from '@/components/Badges';
 import { PageHeader } from '@/components/PageHeader';
@@ -94,9 +96,10 @@ function CallButton({
 }
 
 function CallsTable({ items, showContact = true }: { items: CallSummary[]; showContact?: boolean }) {
+  const rowLink = useRowLink();
   return (
     <Table.ScrollContainer minWidth={showContact ? 640 : 460}>
-      <Table>
+      <Table highlightOnHover>
         <Table.Thead>
           <Table.Tr>
             <Table.Th>Fecha</Table.Th>
@@ -104,13 +107,16 @@ function CallsTable({ items, showContact = true }: { items: CallSummary[]; showC
             <Table.Th>Tipo</Table.Th>
             <Table.Th>Estado</Table.Th>
             <Table.Th ta="right">Duración</Table.Th>
-            <Table.Th />
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
           {items.map((c) => (
-            <Table.Tr key={c.id}>
-              <Table.Td style={{ whiteSpace: 'nowrap' }}>{formatDateTime(c.created_at)}</Table.Td>
+            <Table.Tr key={c.id} {...rowLink(`/calls/${c.id}`)}>
+              <Table.Td style={{ whiteSpace: 'nowrap' }}>
+                <RowLink to={`/calls/${c.id}`} label={`Ver conversación del ${formatDateTime(c.created_at)}`}>
+                  {formatDateTime(c.created_at)}
+                </RowLink>
+              </Table.Td>
               {showContact && (
                 <Table.Td>
                   {c.contact_name ? (
@@ -139,17 +145,6 @@ function CallsTable({ items, showContact = true }: { items: CallSummary[]; showC
               </Table.Td>
               <Table.Td ta="right" className="mono">
                 {formatDuration(c.duration_seconds)}
-              </Table.Td>
-              <Table.Td ta="right">
-                <Button
-                  component={Link}
-                  to={`/calls/${c.id}`}
-                  variant="subtle"
-                  size="compact-sm"
-                  aria-label={`Ver detalle de la llamada del ${formatDateTime(c.created_at)}`}
-                >
-                  {showContact ? 'Ver detalle' : 'Ver'}
-                </Button>
               </Table.Td>
             </Table.Tr>
           ))}

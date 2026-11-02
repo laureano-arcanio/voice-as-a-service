@@ -15,7 +15,9 @@ export interface CallFilters {
 
 export interface CallListParams extends CallFilters {
   status?: string[];
-  mode?: string;
+  mode?: string[];
+  /** true: solo las llamadas de prueba de la landing; false: sin ellas. */
+  landing?: boolean;
   /** Llamadas directas: las entrantes que atendió el agente o el equipo, y las de ese usuario. */
   answered_by?: 'agent' | 'team';
   user_id?: string;

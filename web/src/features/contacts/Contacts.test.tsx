@@ -291,7 +291,7 @@ describe('contactos: ficha', () => {
     );
     expect(screen.getByText('Atendió')).toBeInTheDocument();
     expect(screen.getByText('Llamadas')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Ver conversación' })).toHaveAttribute('href', '/calls/conv-1');
+    expect(screen.getByRole('link', { name: /Ver conversación/ })).toHaveAttribute('href', '/calls/conv-1');
     expect(screen.getByRole('button', { name: 'Archivar' })).toBeInTheDocument();
   });
 

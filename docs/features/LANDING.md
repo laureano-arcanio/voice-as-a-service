@@ -69,6 +69,8 @@ Canónico `https://atentina.com.ar/`. `www.atentina.com.ar` (Render), `atentina.
 Código: `app/api/routers/demo.py`, `app/services/demo.py`; en la landing `src/scripts/{api,call,voices,contact}.ts`.
 Sin cuentas: el navegador resuelve Turnstile y canjea el token por una sesión corta. Sin `TURNSTILE_SECRET_KEY`
 la demo responde 503.
+Las llamadas son `mode=prueba` con `call_logs.from_landing`: en `/admin/calls` van en la solapa Landing, aparte de las
+pruebas del panel.
 
 | Endpoint | Auth | Qué hace |
 |---|---|---|

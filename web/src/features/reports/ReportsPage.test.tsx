@@ -213,7 +213,7 @@ const FIXTURES: Record<string, [unknown, string]> = {
         top: [{ phone: '+5491100000001', count: 2, last_at: '2026-10-27T13:00:00Z' }],
       },
     },
-    'Cortó el cliente',
+    'Cortó el destinatario',
   ],
   outcomes: [
     {

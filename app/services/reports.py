@@ -67,7 +67,9 @@ class CallFilter:
     date_from: datetime.date | None = None
     date_to: datetime.date | None = None     # inclusive
     status: list[str] = field(default_factory=list)
-    mode: str | None = None
+    mode: list[str] = field(default_factory=list)
+    # True: solo las llamadas de la demo de la landing; False: sin ellas.
+    landing: bool | None = None
     # Solo lo de una campaña: los intentos de voz (call_logs.campaign_contact_id) y las conversaciones
     # que abrio la respuesta de un contacto de WhatsApp (campaign_contacts.conversation_id).
     campaign_id: str | None = None
@@ -101,13 +103,10 @@ class CallFilter:
                              ConversationRow.id.in_(followups)))
         if self.status:
             conds.append(CallRow.status.in_(self.status))
-        if self.mode == "whatsapp":
-            conds.append(ConversationRow.channel == "whatsapp")
-        elif self.mode == "api":
-            # Conversacion por texto desde la API o la UI: sin llamada y no de WhatsApp.
-            conds.append(CallRow.mode.is_(None) & (ConversationRow.channel == "voice"))
-        elif self.mode:
-            conds.append(CallRow.mode == self.mode)
+        if self.mode:
+            conds.append(or_(*(_mode_cond(m) for m in self.mode)))
+        if self.landing is not None:
+            conds.append(CallRow.from_landing.is_(self.landing))
         if self.user_id:
             conds.append(CallRow.user_id == self.user_id)
         if self.answered_by:
@@ -116,6 +115,15 @@ class CallFilter:
             threads = select(WaThread.conversation_id).where(WaThread.wa_id == phones.wa_id(e164))
             conds.append(or_(CallRow.phone.in_(phone_variants(e164)), ConversationRow.id.in_(threads)))
         return conds
+
+
+def _mode_cond(mode: str):
+    if mode == "whatsapp":
+        return ConversationRow.channel == "whatsapp"
+    if mode == "api":
+        # Conversacion por texto desde la API o la UI: sin llamada y no de WhatsApp.
+        return CallRow.mode.is_(None) & (ConversationRow.channel == "voice")
+    return CallRow.mode == mode
 
 
 def _base_query():

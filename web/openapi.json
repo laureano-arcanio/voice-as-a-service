@@ -3006,16 +3006,37 @@
       "schema": {
        "anyOf": [
         {
-         "type": "string"
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
         },
         {
          "type": "null"
         }
        ],
-       "description": "entrante, saliente, directa, web, prueba, whatsapp o api",
+       "description": "Uno o varios: entrante, saliente, directa, web, prueba, celular, loadtest, whatsapp o api",
        "title": "Mode"
       },
-      "description": "entrante, saliente, directa, web, prueba, whatsapp o api"
+      "description": "Uno o varios: entrante, saliente, directa, web, prueba, celular, loadtest, whatsapp o api"
+     },
+     {
+      "name": "landing",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "boolean"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "true: solo las llamadas de prueba de la landing; false: sin ellas",
+       "title": "Landing"
+      },
+      "description": "true: solo las llamadas de prueba de la landing; false: sin ellas"
      },
      {
       "name": "campaign_id",

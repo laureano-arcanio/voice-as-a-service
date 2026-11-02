@@ -18,6 +18,8 @@ export interface CallFiltersState {
   answered: AnsweredFilter | null;
   /** Usuario del panel que llamó o atendió (llamadas directas). */
   user: string | null;
+  /** Solapa de la administración (ConversationsPage). */
+  tab: string | null;
   page: number;
 }
 
@@ -40,6 +42,7 @@ export function useCallFilters() {
       ? (params.get('answered') as AnsweredFilter)
       : null,
     user: params.get('user'),
+    tab: params.get('tab'),
     page: Math.max(1, Number(params.get('page')) || 1),
   };
 

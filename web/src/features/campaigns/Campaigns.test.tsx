@@ -278,7 +278,7 @@ describe('campañas: detalle de WhatsApp', () => {
     });
     renderDetail('cmp-1');
     expect(await screen.findByText('Hola Ana, probá la demo.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Ver conversación' })).toHaveAttribute('href', '/calls/conv-1');
+    expect(screen.getByRole('link', { name: /Ver conversación/ })).toHaveAttribute('href', '/calls/conv-1');
     expect(
       within(screen.getByRole('row', { name: /5493515551234/ })).getByText('Respondió'),
     ).toBeInTheDocument();
@@ -388,7 +388,7 @@ describe('campañas: detalle de llamadas', () => {
     expect(within(retry).getByText('No atendió')).toBeInTheDocument();
     expect(within(retry).getByText(/Reintenta/)).toBeInTheDocument();
     expect(within(retry).getByText('2 / 3')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Ver conversación' })).toHaveAttribute('href', '/calls/conv-9');
+    expect(screen.getByRole('link', { name: /Ver conversación/ })).toHaveAttribute('href', '/calls/conv-9');
 
     await userEvent.click(screen.getByRole('button', { name: 'Pausar' }));
     await waitFor(() => expect(calls.some((c) => c.path.endsWith('/pause'))).toBe(true));

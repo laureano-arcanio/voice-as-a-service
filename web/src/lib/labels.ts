@@ -24,13 +24,13 @@ export function isUnanswered(c: { status?: string | null; ended_reason?: string 
 }
 
 /**
- * Quién cortó una llamada finalizada, por `ended_reason` (lo deja el worker de voz, nunca el LLM): el cliente que
- * llamó o atendió, el equipo (una persona en la llamada o el botón Cortar llamada del panel), el agente (terminó
+ * Quién cortó una llamada finalizada, por `ended_reason` (lo deja el worker de voz, nunca el LLM): el destinatario, la
+ * persona del otro lado que llamó o atendió; el equipo (una persona en la llamada o el botón Cortar llamada del panel), el agente (terminó
  * la conversación, fuera de tema o contestador) o el sistema (tope de minutos o de duración, el worker se cayó).
  * Sin motivo o con uno que no se conoce (llamadas viejas): null, queda "Finalizada" a secas.
  */
 const ENDED_BY: Record<string, string> = {
-  customer_hangup: 'el cliente',
+  customer_hangup: 'el destinatario',
   person_hangup: 'el equipo',
   hangup_by_user: 'el equipo',
   completed: 'el agente',
@@ -46,10 +46,42 @@ const ENDED_BY: Record<string, string> = {
   'job crashed': 'el sistema',
 };
 
-/** "Finalizada por el cliente / el equipo / el agente / el sistema"; "Finalizada" si no se sabe quién cortó. */
+/** "Finalizada por el destinatario / el equipo / el agente / el sistema"; "Finalizada" si no se sabe quién cortó. */
 export function finishedLabel(endedReason: string | null | undefined): string {
   const by = endedReason ? ENDED_BY[endedReason] : undefined;
   return by ? `${CALL_STATUS.finalizada.label} por ${by}` : CALL_STATUS.finalizada.label;
+}
+
+/** Cómo terminó la llamada, por `ended_reason`: el detalle de la conversación y los reportes usan estos textos. */
+export const CALL_END_REASON: Record<string, string> = {
+  customer_hangup: 'Cortó el destinatario',
+  person_hangup: 'Cortó la persona del equipo',
+  hangup_by_user: 'Cortada desde el panel',
+  completed: 'Terminó el agente',
+  off_topic: 'Fuera de tema',
+  team_no_answer: 'Nadie del equipo atendió',
+  after_hours: 'Fuera de horario',
+  no_answer: 'No atendió',
+  busy: 'Ocupado',
+  voicemail: 'Contestador',
+  user_not_joined: 'No entró quien llamaba',
+  test_mode_timeout: 'Nadie entró a la prueba',
+  sip_call_failed: 'No se pudo marcar',
+  max_duration: 'Duración máxima',
+  quota_exhausted: 'Sin minutos',
+  blocked_number: 'Número bloqueado',
+  external_error: 'Error del agente externo',
+  external_agent_not_in_plan: 'Agente externo fuera del plan',
+  worker_error: 'Error del sistema',
+  worker_stopped: 'Se reinició el sistema',
+  'parent process shutdown': 'Se reinició el sistema',
+  'room disconnected': 'Se cerró la sala de la llamada',
+  'job crashed': 'Error del sistema',
+};
+
+export function endReasonLabel(endedReason: string | null | undefined): string {
+  if (!endedReason) return '–';
+  return CALL_END_REASON[endedReason] ?? QUOTA_TITLES[endedReason] ?? endedReason;
 }
 
 export const CALL_MODE: Record<string, Label> = {

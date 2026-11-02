@@ -41,7 +41,7 @@ import { useBlockNumber } from '@/features/contacts/api';
 import { useSupportSwitch } from '@/features/support/api';
 import { useAreaPath } from '@/features/support/paths';
 import { formatDateTimeLong, formatDuration, formatValue } from '@/lib/format';
-import { callPerson, isPersonCall } from '@/lib/labels';
+import { callPerson, endReasonLabel, isPersonCall } from '@/lib/labels';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { isCallLive, useCallDetail, useCloseWhatsApp, useHangUp } from './api';
 import { ChatView } from './ChatView';
@@ -224,7 +224,7 @@ function CallHeader({ c }: { c: CallDetail }) {
             <Item label="Duración">
               <span className="mono">{formatDuration(call?.duration_seconds)}</span>
             </Item>
-            <Item label="Fin de llamada">{call?.ended_reason || '–'}</Item>
+            <Item label="Fin de llamada">{endReasonLabel(call?.ended_reason)}</Item>
           </>
         )}
         {!agentless && (

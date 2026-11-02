@@ -1,6 +1,5 @@
 import {
   Alert,
-  Anchor,
   Badge,
   Button,
   Card,
@@ -29,6 +28,8 @@ import {
 } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
+import { RowLink } from '@/components/RowLink';
+import { useRowLink } from '@/components/useRowLink';
 import { ApiError } from '@/api/errors';
 import type { Campaign, CampaignContact, CampaignStats } from '@/api/types';
 import { Dash, LiveBadge } from '@/components/Badges';
@@ -360,7 +361,7 @@ function ContactsCard({ campaign }: { campaign: Campaign }) {
           ) : (
             <>
               <Table.ScrollContainer minWidth={voice ? 860 : 820}>
-                <Table>
+                <Table highlightOnHover>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>Teléfono</Table.Th>
@@ -368,7 +369,6 @@ function ContactsCard({ campaign }: { campaign: Campaign }) {
                       <Table.Th>{voice ? 'Intentos' : 'Mensaje'}</Table.Th>
                       <Table.Th>Resultado</Table.Th>
                       <Table.Th>{voice ? 'Último intento' : 'Enviado'}</Table.Th>
-                      <Table.Th />
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
@@ -396,6 +396,7 @@ function ContactsCard({ campaign }: { campaign: Campaign }) {
 }
 
 function ContactRow({ r, campaign }: { r: CampaignContact; campaign: Campaign }) {
+  const rowLink = useRowLink();
   const voice = campaign.channel === 'voice';
   const l = contactLabel(r);
   const error = recipientError(r.error);
@@ -403,7 +404,7 @@ function ContactRow({ r, campaign }: { r: CampaignContact; campaign: Campaign })
   const params = Array.isArray(r.vars?.params) ? (r.vars.params as string[]) : [];
   const when = voice ? r.last_attempt_at : r.sent_at;
   return (
-    <Table.Tr>
+    <Table.Tr {...(r.conversation_id ? rowLink(`/calls/${r.conversation_id}`) : {})}>
       <Table.Td className="mono">{r.phone}</Table.Td>
       <Table.Td>{r.name ?? <Dash />}</Table.Td>
       <Table.Td>
@@ -431,12 +432,15 @@ function ContactRow({ r, campaign }: { r: CampaignContact; campaign: Campaign })
           </Text>
         )}
       </Table.Td>
-      <Table.Td style={{ whiteSpace: 'nowrap' }}>{when ? formatDateTime(when) : <Dash />}</Table.Td>
-      <Table.Td>
-        {r.conversation_id && (
-          <Anchor component={Link} to={`/calls/${r.conversation_id}`} size="sm">
-            Ver conversación
-          </Anchor>
+      <Table.Td style={{ whiteSpace: 'nowrap' }}>
+        {r.conversation_id ? (
+          <RowLink to={`/calls/${r.conversation_id}`} label={`Ver conversación de ${r.phone}`}>
+            {when ? formatDateTime(when) : <Dash />}
+          </RowLink>
+        ) : when ? (
+          formatDateTime(when)
+        ) : (
+          <Dash />
         )}
       </Table.Td>
     </Table.Tr>
