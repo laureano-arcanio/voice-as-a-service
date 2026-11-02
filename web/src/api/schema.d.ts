@@ -7365,7 +7365,10 @@ export interface components {
         };
         /** MinutesUsageOut */
         MinutesUsageOut: {
-            /** Used Seconds */
+            /**
+             * Used Seconds
+             * @description Lo descontado en segundos: cada llamada por minuto iniciado
+             */
             used_seconds: number;
             /** Used Minutes */
             used_minutes: number;

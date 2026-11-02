@@ -413,7 +413,7 @@ def call_remaining_seconds(s: Session, conversation_id: str) -> int | None:
         return None
     if not client.active:
         return 0
-    return quota.remaining_seconds(s, client, call.mode)
+    return quota.remaining_seconds(s, client, call.mode, running_exact=True)
 
 
 # ---------- borrado (solo admin: lo exige el router) ----------

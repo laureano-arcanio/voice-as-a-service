@@ -7,9 +7,10 @@ y minutos por mes. Son los efectivos (tier mas los ajustes del cliente, services
   settings.billing_timezone (se renuevan al empezar la hora, a las 00:00 y el dia 1). Cuentan
   las atendidas o falladas; no las rechazadas por el tier ni las de prueba o loadtest.
 - Minutos: entrantes y salientes por separado, por mes calendario en
-  settings.billing_timezone. Una llamada cuenta en el mes en que empezo; la que esta
-  en curso cuenta lo que lleva. La entrante a un 0800 descuenta el doble y a un 0810, una vez y media
-  (INBOUND_MINUTE_FACTORS, condiciones punto 7). Las de prueba y loadtest no consumen minutos. El tramo a la
+  settings.billing_timezone. Cada llamada se descuenta por minuto iniciado, sin fracciones (12 s = 1 min,
+  61 s = 2 min); call_logs guarda los segundos reales. Una llamada cuenta en el mes en que empezo; la que esta
+  en curso cuenta los minutos iniciados, salvo para cortarla (running_exact: puede usar el minuto ya
+  descontado hasta el final). Las entrantes a un 0800 o 0810 cuentan como cualquier otra. Las de prueba y loadtest no consumen minutos. El tramo a la
   persona de una derivacion (handoff_legs) es saliente, desde que atiende, si se conecto. La saliente
   directa (una persona del equipo, sin agente) cuenta como saliente.
 - Canales de Anura (globales, no por cliente): llamadas por Anura en curso mas tramos de
@@ -20,11 +21,12 @@ cuantos segundos le quedan (tope de duracion). Durante la llamada el worker vuel
 mirar remaining_seconds() y corta al agotarse (app/voice/worker.py).
 """
 import datetime
+import math
 from collections.abc import Collection
 from dataclasses import dataclass
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import and_, case, func, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..config import settings
@@ -37,7 +39,6 @@ from ..models import (
     Client,
     ConversationRow,
     HandoffLeg,
-    PhoneNumber,
 )
 from . import limits as limits_service
 from .errors import QuotaExceeded
@@ -47,9 +48,6 @@ from .limits import Limits
 # directa de una persona del equipo (docs/features/EQUIPO_TELEFONIA.md), una saliente mas.
 MINUTE_MODES = {CallMode.entrante: "inbound", CallMode.web: "inbound", CallMode.saliente: "outbound",
                 CallMode.directa: "outbound"}
-# Entrantes a numeros de cobro revertido: el minuto lo paga el cliente y se descuenta multiplicado (condiciones,
-# punto 7). Prefijo del E.164 del numero marcado -> factor. La saliente con ese numero de caller ID cuenta normal.
-INBOUND_MINUTE_FACTORS = (("+54800", 2), ("+54810", 1.5))
 # Una llamada "activa" mas vieja que esto quedo colgada (se cayo el worker sin
 # cerrarla): no ocupa lugar. Cubre la espera de la de prueba (5 min) + la duracion maxima.
 STALE_MARGIN_SECONDS = 600
@@ -125,44 +123,50 @@ def active_link_calls(s: Session, call_link_id: str | None = None, now: datetime
     return s.scalar(select(func.count()).select_from(CallRow).where(*where)) or 0
 
 
+def minutes_started(seconds):
+    """Columna SQL de segundos -> minutos iniciados: 0 s = 0, 1 a 60 s = 1, 61 s = 2. Se aplica por llamada."""
+    return (seconds + 59) // 60
+
+
+def _started_seconds(seconds: float) -> int:
+    """Los minutos iniciados de una llamada en curso, en segundos."""
+    return math.ceil(seconds / 60) * 60
+
+
 def used_seconds(s: Session, client_id: str, mode: str, start: datetime.datetime, end: datetime.datetime,
-                 now: datetime.datetime | None = None, agent_ids: Collection[str] | None = None) -> int:
-    """Segundos de `mode` (y de las que gastan sus mismos minutos: entrante y web) que empezaron en
-    [start, end): terminadas + lo que llevan las en curso."""
+                 now: datetime.datetime | None = None, agent_ids: Collection[str] | None = None,
+                 running_exact: bool = False) -> int:
+    """Segundos descontados de `mode` (y de las que gastan sus mismos minutos: entrante y web) que empezaron en
+    [start, end): minutos iniciados de las terminadas y de las en curso, o lo que llevan las en curso con
+    `running_exact`. Lo que no gasta minutos del plan (el presupuesto de la demo) va por segundos reales."""
     now = now or utcnow()
+    billed = mode in MINUTE_MODES
+    seconds = minutes_started(CallRow.duration_seconds) * 60 if billed else CallRow.duration_seconds
+    running_seconds = _started_seconds if billed and not running_exact else float
     in_period = (CallRow.client_id == client_id, CallRow.mode.in_(same_minutes(mode)),
                  CallRow.started_at >= start, CallRow.started_at < end, *_agents_filter(agent_ids))
-    factor = _minute_factor()
-    with_number = lambda q: q.outerjoin(PhoneNumber, PhoneNumber.id == CallRow.phone_number_id)
-    done = s.scalar(with_number(select(func.coalesce(func.sum(CallRow.duration_seconds * factor), 0))
-                                .select_from(CallRow))
+    done = s.scalar(select(func.coalesce(func.sum(seconds), 0))
                     .where(*in_period, CallRow.status.notin_(ACTIVE_CALL_STATUSES))) or 0
-    running = s.execute(with_number(select(CallRow.started_at, factor).select_from(CallRow))
-                        .where(*in_period, *_active_filter(client_id, now))).all()
-    total = int(done) + int(sum(max((now - t).total_seconds(), 0) * float(f) for t, f in running))
+    running = s.scalars(select(CallRow.started_at).where(*in_period, *_active_filter(client_id, now))).all()
+    total = int(done) + int(sum(running_seconds(max((now - t).total_seconds(), 0)) for t in running))
     if MINUTE_MODES.get(mode) == "outbound" and agent_ids is None:
-        total += handoff_seconds(s, client_id, start, end, now)
+        total += handoff_seconds(s, client_id, start, end, now, running_exact)
     return total
 
 
-def _minute_factor():
-    """Por cuanto se multiplica cada segundo de la llamada (INBOUND_MINUTE_FACTORS); necesita PhoneNumber unido."""
-    return case(*((and_(CallRow.mode == CallMode.entrante, PhoneNumber.e164.startswith(prefix)), factor)
-                  for prefix, factor in INBOUND_MINUTE_FACTORS), else_=1)
-
-
 def handoff_seconds(s: Session, client_id: str, start: datetime.datetime, end: datetime.datetime,
-                    now: datetime.datetime) -> int:
-    """Salientes de los tramos a personas (derivaciones) que empezaron en [start, end): los cerrados por lo
-    que se les desconto, los conectados en curso desde que atendieron."""
+                    now: datetime.datetime, running_exact: bool = False) -> int:
+    """Salientes de los tramos a personas (derivaciones) que empezaron en [start, end), cada tramo por minuto
+    iniciado: los cerrados por billed_seconds, los conectados en curso desde que atendieron."""
     in_period = (HandoffLeg.client_id == client_id, HandoffLeg.created_at >= start, HandoffLeg.created_at < end)
-    done = s.scalar(select(func.coalesce(func.sum(HandoffLeg.billed_seconds), 0))
+    done = s.scalar(select(func.coalesce(func.sum(minutes_started(HandoffLeg.billed_seconds) * 60), 0))
                     .where(*in_period, HandoffLeg.ended_at.is_not(None))) or 0
     stale = now - datetime.timedelta(seconds=settings.call_max_duration_seconds + STALE_MARGIN_SECONDS)
     running = s.scalars(select(HandoffLeg.answered_at).where(
         *in_period, HandoffLeg.ended_at.is_(None), HandoffLeg.connected_at.is_not(None),
         HandoffLeg.created_at >= stale)).all()
-    return int(done) + sum(max(int((now - t).total_seconds()), 0) for t in running if t)
+    seconds = int if running_exact else _started_seconds
+    return int(done) + sum(seconds(max((now - t).total_seconds(), 0)) for t in running if t)
 
 
 # Las que van por Anura (las de WhatsApp tambien entran como entrante: se cuentan de mas, del lado seguro).
@@ -211,13 +215,15 @@ def limit_seconds(limits: Limits, mode: str) -> int | None:
 
 
 def remaining_seconds(s: Session, client: Client, mode: str, now: datetime.datetime | None = None,
-                      limits: Limits | None = None) -> int | None:
+                      limits: Limits | None = None, running_exact: bool = False) -> int | None:
+    """Lo que queda del tope. Para admitir, las en curso cuentan los minutos iniciados; el corte de una llamada
+    usa `running_exact`, o la ultima se cortaria al empezar el minuto que ya se le desconto."""
     now = now or utcnow()
     limit = limit_seconds(limits or limits_service.effective_limits(s, client, now), mode)
     if limit is None:
         return None
     start, end = month_bounds(now.replace(tzinfo=datetime.UTC))
-    return limit - used_seconds(s, client.id, mode, start, end, now)
+    return limit - used_seconds(s, client.id, mode, start, end, now, running_exact=running_exact)
 
 
 def admit(s: Session, client_id: str, mode: str) -> int | None:

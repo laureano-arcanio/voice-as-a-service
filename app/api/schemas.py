@@ -399,11 +399,11 @@ class ClientCreatedOut(ClientOut):
 
 
 class MinutesUsageOut(BaseModel):
-    used_seconds: int
-    used_minutes: float
+    used_seconds: int = Field(description="Lo descontado en segundos: cada llamada por minuto iniciado")
+    used_minutes: int
     limit_minutes: int | None
-    remaining_minutes: float | None
-    projected_minutes: float | None = Field(default=None, description="A fin de mes, al ritmo del mes en curso; "
+    remaining_minutes: int | None
+    projected_minutes: int | None = Field(default=None, description="A fin de mes, al ritmo del mes en curso; "
                                                                       "None en un mes pasado")
 
 
@@ -2180,7 +2180,7 @@ class CampaignOut(BaseModel):
     progress: CampaignProgress
     results: dict[str, int]
     goal: int | None = Field(default=None, description="Voz: atendidas cuya conversacion llego al objetivo del agente (solo en GET /campaigns/{id}, no en la lista)")
-    minutes_used: float | None = Field(default=None, description="Voz: minutos de llamada")
+    minutes_used: int | None = Field(default=None, description="Voz: minutos de llamada")
     followup: dict[str, int] | None = Field(
         default=None, description="Voz con seguimiento: contactos pending, sent, replied (de los enviados), failed y skipped")
     started_at: UTCDateTime | None = None
@@ -2239,7 +2239,7 @@ class CampaignStatsOut(BaseModel):
     goal: int = Field(description="Conversaciones que llegaron al objetivo del agente")
     goal_rate: float = Field(description="goal / reached, en %")
     avg_duration_seconds: int | None = Field(default=None, description="Voz: duracion media de las atendidas")
-    minutes: float | None = Field(default=None, description="Voz: minutos de llamada, con los intentos que no se atendieron")
+    minutes: int | None = Field(default=None, description="Voz: minutos de llamada, con los intentos que no se atendieron")
     results: dict[str, int] = Field(description="Voz: contactos por resultado. WhatsApp: sent, delivered, read y replied")
     by_hour: list[CampaignHour] = Field(description="Las 24 horas del dia, para elegir el horario")
     timezone: str
@@ -2528,7 +2528,7 @@ class ReportKpisOut(BaseModel):
     transfers: int = Field(description="Conversaciones con un pedido de derivación a una persona")
     transfers_answered: int = Field(description="Derivaciones atendidas por una persona")
     transfer_pct: float | None
-    minutes: float
+    minutes: int
     finished: int = Field(description="Llamadas finalizadas")
     failed: int = Field(description="Llamadas que fallaron (estado fallida)")
     avg_duration: int | None = Field(description="Segundos, de las llamadas finalizadas")
@@ -2572,7 +2572,7 @@ class ReportLineOut(BaseModel):
     phone_number_id: str
     number: str
     calls: int
-    minutes: float
+    minutes: int
     conversion_pct: float | None
 
 
@@ -2580,7 +2580,7 @@ class ReportCallsAgentOut(BaseModel):
     agent_id: str
     agent_name: str
     calls: int
-    minutes: float
+    minutes: int
     avg_duration: int | None
     conversion_pct: float | None
     goal_pct: float | None
@@ -2591,7 +2591,7 @@ class ReportCallTypeOut(BaseModel):
         description="agent: la atiende o la hace el agente; direct: la hace una persona del equipo; team: "
                     "entrante que atiende el equipo")
     calls: int
-    minutes: float
+    minutes: int
     avg_duration: int | None = Field(description="Segundos, de las llamadas finalizadas")
 
 
@@ -2601,7 +2601,7 @@ class ReportCallUserOut(BaseModel):
     direct: int = Field(description="Directas que hizo")
     team: int = Field(description="Entrantes del equipo que atendió")
     calls: int
-    minutes: float
+    minutes: int
     avg_duration: int | None = Field(description="Segundos, de las llamadas finalizadas")
 
 
@@ -2769,7 +2769,7 @@ class ReportTransfersKpisOut(BaseModel):
     unavailable: int = Field(description="Fuera de horario, sin miembros, sin canal o sin minutos")
     answer_pct: float | None
     avg_answer_seconds: float | None = Field(description="Del timbre a que atiende la persona")
-    minutes: float = Field(description="Minutos salientes de los tramos a personas")
+    minutes: int = Field(description="Minutos salientes de los tramos a personas")
 
 
 class ReportTransfersDayOut(BaseModel):
@@ -2794,7 +2794,7 @@ class ReportMemberOut(BaseModel):
     answered: int
     not_answered: int
     avg_answer_seconds: float | None
-    minutes: float
+    minutes: int
 
 
 class ReportTransfersOut(BaseModel):
@@ -2815,7 +2815,7 @@ class ReportCampaignOut(BaseModel):
     complete: int
     goal: int
     optouts: int
-    minutes: float
+    minutes: int
 
 
 class ReportBestHourOut(BaseModel):
@@ -2889,7 +2889,7 @@ class ReportClientRowOut(BaseModel):
     name: str
     tier: str | None
     conversations: int
-    minutes: float
+    minutes: int
     quota_pct: float | None = Field(description="% de los minutos entrantes del mes en curso; None sin límite")
     conversion_pct: float | None
     errors: int

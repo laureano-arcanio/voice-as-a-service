@@ -43,7 +43,7 @@ el `loadtest` nunca entra).
 | `GET /reports/platform` | admin, sin `client_id` | tabla por cliente, alertas (`near_quota` ≥ 80 % de los minutos entrantes; `inactive` 14 días sin conversaciones), negocio (planes, altas, MRR, pagos, morosos, Free → pago), operación (pico de simultáneas, fallas, rechazos) |
 
 Sin el plan: 403 `advanced_reports_not_in_plan` (el admin no tiene el corte). El consumo del plan no está acá:
-`GET /clients/{id}/usage` (con `projected_minutes` a fin de mes).
+`GET /clients/{id}/usage` (con `projected_minutes` a fin de mes). Los minutos de los reportes y del consumo son enteros: cada llamada y cada tramo de derivación, por minuto iniciado; la duración media sigue en segundos reales.
 
 **MCP** (`app/mcp/catalog.py`, grupo `reports`, también con la key `mcp_read`): `get_report_summary` y
 `get_report_calls` en todos los planes; `get_report_outcomes`, `get_report_messages`, `get_report_transfers` y

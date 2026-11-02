@@ -80,7 +80,7 @@ entrantes y salientes, números y clientes; el resto se ve en **Editar**.
 |---|---|---|
 | Llamadas | Simultáneas | Llamadas en curso a la vez, de cualquier modalidad (incluye pruebas y loadtest). |
 | Llamadas | Por hora, por día, por mes | Llamadas (entrantes y salientes juntas) que se pueden empezar en la hora, el día o el mes calendario (hora de Buenos Aires). No cuentan las rechazadas ni las de prueba o loadtest. Son independientes: alcanza con agotar una. |
-| Minutos, números, links y equipo | Minutos entrantes / salientes | Minutos por mes calendario de llamadas recibidas / hechas (las salientes incluyen las derivaciones a personas y las llamadas directas). |
+| Minutos, números, links y equipo | Minutos entrantes / salientes | Minutos por mes calendario de llamadas recibidas / hechas (las salientes incluyen las derivaciones a personas y las llamadas directas). Cada llamada se cuenta por minuto iniciado, sin fracciones: 12 s = 1 min, 61 s = 2 min. |
 | | Números | Números de teléfono asignados al cliente. |
 | | Links (uno por agente) | Links para llamar ([`features/LINK_LLAMADA.md`](features/LINK_LLAMADA.md)). |
 | | Personas del equipo | Personas a las que el agente puede derivar y que atienden el teléfono del equipo. |

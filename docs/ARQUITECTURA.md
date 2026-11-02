@@ -390,8 +390,7 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
 
 - **Turnos:** ver "Motor conversacional".
 - **Corte por minutos:** el worker mira `calls.call_remaining_seconds` cada `QUOTA_CHECK_SECONDS` (15 s): las
-  terminadas del mes más lo que llevan todas las en curso del cliente; las entrantes a un 0800 cuentan ×2 y a un
-  0810, ×1,5 (`quota.INBOUND_MINUTE_FACTORS`). En 0 (o cliente desactivado) dice
+  terminadas del mes, por minuto iniciado, más los segundos que llevan todas las en curso del cliente. En 0 (o cliente desactivado) dice
   `QUOTA_END_MESSAGE`, corta y deja `ended_reason=quota_exhausted`. La saliente además sale con
   `max_call_duration` = minutos que quedan al empezar. Las llamadas sin teléfono cortan en
   `max_duration_seconds` (`ended_reason=max_duration`).
@@ -435,7 +434,7 @@ Uno solo (`app/conversation/engine.py`, `ConversationEngine`), igual para voz, W
 |---|---|---|
 | Simultáneas | `quota.admit` (todas las modalidades) | Llamadas del cliente `pendiente`, `sonando` o `en_curso` creadas hace menos de `CALL_MAX_DURATION_SECONDS` + 10 min (las más viejas se consideran colgadas). |
 | Llamadas por hora, día y mes | `quota.admit` | Entrantes y salientes por `created_at`, sin las `rechazada`. |
-| Minutos entrantes / salientes | `quota.admit` y el watchdog del worker | `duration_seconds` del mes por modalidad más lo que llevan las en curso; prueba y loadtest no consumen. Las salientes suman las directas y los tramos de derivación (`handoff_legs.billed_seconds`). Mes calendario en `BILLING_TIMEZONE`. |
+| Minutos entrantes / salientes | `quota.admit` y el watchdog del worker | Cada llamada por minuto iniciado (12 s = 1, 61 s = 2; `call_logs` guarda los segundos reales), también las en curso; prueba y loadtest no consumen. El corte de una llamada mira los segundos reales de las en curso, para que use entero el minuto ya descontado. Las salientes suman las directas y los tramos de derivación (`handoff_legs.billed_seconds`). Mes calendario en `BILLING_TIMEZONE`. |
 | Canales de Anura | `quota.busy_channels` contra `ANURA_CHANNELS` (10), en la saliente directa y antes de cada derivación | Entrantes, salientes y directas activas más tramos abiertos; sin canal: 429 `no_channel` en la directa, la derivación no se intenta. Las demás llamadas no lo miran. |
 | Números | `phone_numbers.assign`, cambio de tier o de tope | Números asignados; asignar toma el lock del cliente y el del número. |
 | Campañas | `limits.check_campaign_*` | Canal en `campaign_channels`, campañas iniciadas en el mes, contactos por campaña, `concurrency` de voz, seguimiento. Al perder un canal, sus campañas pasan a `paused`. |

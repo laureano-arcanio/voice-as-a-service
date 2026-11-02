@@ -20,7 +20,8 @@ No confundir con verificar los pagos que reciben los clientes (otra cuenta y otr
 | Números que sobran | Suspendidos `BILLING_NUMBER_HOLD_DAYS` (30): asignados, sin atender; después vuelven al inventario |
 | Cambio de plan (transferencia) | Con el próximo pago (`pending_tier_id`); el admin puede registrar una subida antes |
 | Cambio de plan (tarjeta) | Subida inmediata; el monto nuevo rige desde el próximo débito, sin prorrateo. Bajada con el próximo débito |
-| Entrantes a 0800 / 0810 | Descuentan ×2 / ×1,5 de los minutos entrantes (`quota.INBOUND_MINUTE_FACTORS`, por prefijo del número marcado; condiciones punto 7). Las salientes, normal |
+| Conteo de minutos | Cada llamada y cada tramo de derivación, por minuto iniciado, sin fracciones (`quota.minutes_started`) |
+| Entrantes a 0800 / 0810 | Descuentan como cualquier otra llamada, sin multiplicador |
 | Minuto extra | No se vende: la cuota corta al tope. Más minutos para un mes = ajuste de límites del cliente |
 | Red (a medida) | No es un tier: lo cotiza un asesor |
 

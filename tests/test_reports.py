@@ -173,8 +173,8 @@ def test_summary_kpis_daily_and_previous(api, data):
     # Los absolutos de los porcentajes: 2 y 1 de las 5 atendidas por un agente; las 3 llamadas del agente terminaron.
     assert (k["with_agent"], k["conversions"], k["goals"], k["finished"], k["failed"]) == (5, 2, 1, 3, 0)
     assert (k["transfers"], k["transfers_answered"], k["transfer_pct"]) == (2, 1, 40.0)
-    assert (k["minutes"], k["avg_duration"], k["rejected_by_limit"], k["wa_messages"]) == (3.2, 63, 1, 4)
-    assert out["previous"]["conversations"] == 1 and out["previous"]["minutes"] == 0.5
+    assert (k["minutes"], k["avg_duration"], k["rejected_by_limit"], k["wa_messages"]) == (4, 63, 1, 4)
+    assert out["previous"]["conversations"] == 1 and out["previous"]["minutes"] == 1
     assert out["period"] == {"date_from": "2026-10-01", "date_to": "2026-10-10"}
     day = next(d for d in out["daily"] if d["date"] == "2026-10-02")
     assert day == {"date": "2026-10-02", "voice_in": 2, "voice_out": 0, "whatsapp": 0, "web": 0, "transfers": 2, "transfers_answered": 1}
@@ -217,8 +217,8 @@ def test_calls_report(api, data):
     friday = datetime.date(2026, 10, 2).weekday()
     assert {"weekday": friday, "hour": 10, "count": 1} in out["heatmap"]
     assert out["by_line"] == [{"phone_number_id": data["line"], "number": "+541152630861", "calls": 2,
-                               "minutes": 2.2, "conversion_pct": 50.0}]
-    assert out["by_agent"] == [{"agent_id": data["agent_a"], "agent_name": "Ventas", "calls": 4, "minutes": 3.2,
+                               "minutes": 3, "conversion_pct": 50.0}]
+    assert out["by_agent"] == [{"agent_id": data["agent_a"], "agent_name": "Ventas", "calls": 4, "minutes": 4,
                                 "avg_duration": 63, "conversion_pct": 50.0, "goal_pct": 25.0}]
     durations = {d["bucket"]: d["count"] for d in out["durations"]}
     assert durations == {"0-15s": 1, "15-60s": 0, "1-3m": 2, "3-5m": 0, "5-10m": 0, "10m+": 0}
@@ -251,17 +251,17 @@ def test_direct_calls_are_reported_apart(api, data):
     out = report(data["admin"], "calls", client_id=data["acme"])
     day = next(d for d in out["daily"] if d["date"] == "2026-10-07")
     assert (day["directa"], day["entrante"]) == (1, 1)
-    assert out["by_type"] == [{"type": "agent", "calls": 4, "minutes": 3.2, "avg_duration": 63},
-                              {"type": "direct", "calls": 1, "minutes": 5.0, "avg_duration": 300},
-                              {"type": "team", "calls": 1, "minutes": 1.0, "avg_duration": 60}]
+    assert out["by_type"] == [{"type": "agent", "calls": 4, "minutes": 4, "avg_duration": 63},
+                              {"type": "direct", "calls": 1, "minutes": 5, "avg_duration": 300},
+                              {"type": "team", "calls": 1, "minutes": 1, "avg_duration": 60}]
     assert out["by_user"] == [{"user_id": ana_id, "user_name": "ana@acme.com", "direct": 1, "team": 1, "calls": 2,
-                               "minutes": 6.0, "avg_duration": 180}]
+                               "minutes": 6, "avg_duration": 180}]
     # Sin agente no entran en los de agente, ni el mapa de la hora en que llaman las directas.
     assert [a["agent_id"] for a in out["by_agent"]] == [data["agent_a"]] and out["by_agent"][0]["calls"] == 4
     assert {"weekday": datetime.date(2026, 10, 7).weekday(), "hour": 10, "count": 1} not in out["heatmap"]
     # Los demas reportes cuentan las llamadas y los minutos, pero la conversion y el embudo siguen siendo del agente.
     k = report(data["admin"], "summary", client_id=data["acme"])["kpis"]
-    assert k["conversations"] == 7 and (k["by_channel"]["voice_in"], k["by_channel"]["voice_out"]) == (4, 1) and k["minutes"] == 9.2
+    assert k["conversations"] == 7 and (k["by_channel"]["voice_in"], k["by_channel"]["voice_out"]) == (4, 1) and k["minutes"] == 10
     assert (k["conversion_pct"], k["goal_pct"], k["transfer_pct"]) == (40.0, 20.0, 40.0)
     assert (k["transfers"], k["transfers_answered"]) == (2, 1)
     summary = report(data["admin"], "summary", client_id=data["acme"])
@@ -359,7 +359,7 @@ def test_campaigns_report(api, data):
     [c] = out["campaigns"]
     assert {k: c[k] for k in ("name", "channel", "contacts", "attempts", "reached", "complete", "goal", "optouts",
                               "minutes")} == {"name": "Cobranza", "channel": "voice", "contacts": 2, "attempts": 3,
-                                              "reached": 1, "complete": 1, "goal": 1, "optouts": 1, "minutes": 1.5}
+                                              "reached": 1, "complete": 1, "goal": 1, "optouts": 1, "minutes": 2}
     assert {r["reason"]: r["count"] for r in out["no_contact"]}["busy"] == 1
     monday = datetime.date(2026, 10, 5).weekday()
     assert out["best_hours"] == [{"weekday": monday, "hour": 14, "attempts": 1, "reached": 1},

@@ -39,7 +39,7 @@ from ..models import (
 from . import campaign_callbacks as callbacks
 from . import contacts as contacts_service
 from . import limits as limits_service
-from . import phones, voices
+from . import phones, quota, voices
 from .errors import Conflict, Invalid, NotFound
 
 logger = logging.getLogger(__name__)
@@ -608,9 +608,9 @@ def eta_minutes(s: Session, c: Campaign, prog: dict[str, int], now: datetime.dat
     return math.ceil(remaining / (n / span))
 
 
-def minutes_used(s: Session, campaign_id: str) -> float:
-    """Minutos de llamada de la campaña (voz), de todos sus intentos."""
-    seconds = s.scalar(select(func.coalesce(func.sum(CallRow.duration_seconds), 0))
+def minutes_used(s: Session, campaign_id: str) -> int:
+    """Minutos de llamada de la campaña (voz), de todos sus intentos, por minuto iniciado."""
+    minutes = s.scalar(select(func.coalesce(func.sum(quota.minutes_started(CallRow.duration_seconds)), 0))
                        .join(CampaignContact, CampaignContact.id == CallRow.campaign_contact_id)
                        .where(CampaignContact.campaign_id == campaign_id)) or 0
-    return round(seconds / 60, 1)
+    return int(minutes)

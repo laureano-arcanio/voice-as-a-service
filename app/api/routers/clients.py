@@ -1,3 +1,5 @@
+import math
+
 from fastapi import APIRouter, Query
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
@@ -195,9 +197,10 @@ def inference_usage_out(u: api_usage.InferenceUsage) -> InferenceUsageOut:
 
 
 def _minutes(m: quota.MinutesUsage) -> MinutesUsageOut:
-    used = round(m.used_seconds / 60, 1)
-    remaining = None if m.limit_minutes is None else round(max(m.limit_minutes * 60 - m.used_seconds, 0) / 60, 1)
-    projected = None if m.projected_seconds is None else round(m.projected_seconds / 60, 1)
+    # Sin fracciones: cada llamada se descuenta por minuto iniciado.
+    used = math.ceil(m.used_seconds / 60)
+    remaining = None if m.limit_minutes is None else max(m.limit_minutes - used, 0)
+    projected = None if m.projected_seconds is None else math.ceil(m.projected_seconds / 60)
     return MinutesUsageOut(used_seconds=m.used_seconds, used_minutes=used, limit_minutes=m.limit_minutes,
                            remaining_minutes=remaining, projected_minutes=projected)
 

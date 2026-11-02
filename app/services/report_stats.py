@@ -75,6 +75,8 @@ CALL_TYPES = ("agent", "direct", "team")
 REQUEST_EVENTS = ("handoff.requested", "handoff.unavailable")
 ANSWER_EVENTS = ("handoff.connected",)
 # Rechazos por el plan (services/quota.admit): clientes que no se atendieron.
+# Minutos de las llamadas, cada una por minuto iniciado (como la cuota).
+CALL_MINUTES = func.coalesce(func.sum(quota.minutes_started(CallRow.duration_seconds)), 0)
 LIMIT_REASONS = ("concurrency_limit", "calls_per_hour", "calls_per_day", "calls_per_month", "inbound_minutes",
                  "outbound_minutes")
 # Como terminan: los de las llamadas con agente y, desde las llamadas directas, los de una persona del equipo
@@ -289,11 +291,11 @@ def _kpis(s: Session, flt: ReportFilter) -> dict:
         _count_if(KIND == "voice_out"), _count_if(KIND == "whatsapp"), _count_if(KIND == "web"),
         _count_if(ConversationRow.conversion == "complete"), _count_if(ConversationRow.goal.is_(True)),
         _count_if(_transfer(REQUEST_EVENTS)), _count_if(_transfer(ANSWER_EVENTS)),
-        func.coalesce(func.sum(CallRow.duration_seconds), 0),
+        CALL_MINUTES,
         func.coalesce(func.sum(case((finished, CallRow.duration_seconds), else_=0)), 0), _count_if(finished),
         _count_if(and_(CallRow.status == "rechazada", CallRow.ended_reason.in_(LIMIT_REASONS))),
         _count_if(CallRow.status == "fallida"))).one()
-    total, with_agent, voice_in, voice_out, wa, web, complete, goal, transfers, answered, seconds, fin_seconds, fin, rejected, failed = (
+    total, with_agent, voice_in, voice_out, wa, web, complete, goal, transfers, answered, minutes, fin_seconds, fin, rejected, failed = (
         map(_n, row))
     return {
         "conversations": total, "by_channel": {"voice_in": voice_in, "voice_out": voice_out, "whatsapp": wa, "web": web},
@@ -301,7 +303,7 @@ def _kpis(s: Session, flt: ReportFilter) -> dict:
         "with_agent": with_agent, "conversions": complete, "conversion_pct": _pct(complete, with_agent),
         "goals": goal, "goal_pct": _pct(goal, with_agent),
         "transfers": transfers, "transfers_answered": answered, "transfer_pct": _pct(transfers, with_agent),
-        "minutes": round(seconds / 60, 1), "finished": fin, "failed": failed, "avg_duration": _avg(fin_seconds, fin),
+        "minutes": minutes, "finished": fin, "failed": failed, "avg_duration": _avg(fin_seconds, fin),
         "rejected_by_limit": rejected,
         "wa_messages": _n(s.scalar(_wa_messages(flt, func.count()))),
     }
@@ -378,15 +380,14 @@ CALL_TYPE = case((CallRow.mode == "directa", "direct"),
 def _by_type(s: Session, flt: ReportFilter) -> list[dict]:
     """Llamadas, minutos y duracion media por tipo (siempre los tres, aunque no haya llamadas)."""
     finished = CallRow.status == "finalizada"
-    secs = func.coalesce(func.sum(CallRow.duration_seconds), 0)
     rows = {kind: (n, sec, fsec, fin) for kind, n, sec, fsec, fin in s.execute(_calls(
-        flt, CALL_TYPE, func.count(), secs, func.coalesce(func.sum(case((finished, CallRow.duration_seconds),
+        flt, CALL_TYPE, func.count(), CALL_MINUTES, func.coalesce(func.sum(case((finished, CallRow.duration_seconds),
                                                                          else_=0)), 0), _count_if(finished))
         .group_by(CALL_TYPE)).all()}
     out = []
     for kind in CALL_TYPES:
         n, sec, fsec, fin = rows.get(kind, (0, 0, 0, 0))
-        out.append({"type": kind, "calls": _n(n), "minutes": round(_n(sec) / 60, 1),
+        out.append({"type": kind, "calls": _n(n), "minutes": _n(sec),
                     "avg_duration": _avg(_n(fsec), _n(fin))})
     return out
 
@@ -394,15 +395,14 @@ def _by_type(s: Session, flt: ReportFilter) -> list[dict]:
 def _by_user(s: Session, flt: ReportFilter) -> list[dict]:
     """Por usuario del panel: las directas que hizo y las entrantes del equipo que atendio."""
     finished = CallRow.status == "finalizada"
-    secs = func.coalesce(func.sum(CallRow.duration_seconds), 0)
     rows = s.execute(_calls(
         flt, CallRow.user_id, func.coalesce(User.name, ""), User.email, _count_if(CALL_TYPE == "direct"),
-        _count_if(CALL_TYPE == "team"), secs,
+        _count_if(CALL_TYPE == "team"), CALL_MINUTES,
         func.coalesce(func.sum(case((finished, CallRow.duration_seconds), else_=0)), 0), _count_if(finished))
         .join(User, User.id == CallRow.user_id).where(CallRow.user_id.is_not(None), CALL_TYPE != "agent")
         .group_by(CallRow.user_id, User.name, User.email)).all()
     return sorted(({"user_id": uid, "user_name": name or email, "direct": _n(d), "team": _n(tm), "calls": _n(d + tm),
-                    "minutes": round(_n(sec) / 60, 1), "avg_duration": _avg(_n(fsec), _n(fin))}
+                    "minutes": _n(sec), "avg_duration": _avg(_n(fsec), _n(fin))}
                    for uid, name, email, d, tm, sec, fsec, fin in rows), key=lambda r: (-r["calls"], r["user_name"]))
 
 
@@ -421,22 +421,21 @@ def calls(s: Session, flt: ReportFilter) -> dict:
 
     finished = CallRow.status == "finalizada"
     complete = _count_if(ConversationRow.conversion == "complete")
-    secs = func.coalesce(func.sum(CallRow.duration_seconds), 0)
     by_line = [
-        {"phone_number_id": pid, "number": number, "calls": n, "minutes": round(_n(sec) / 60, 1),
+        {"phone_number_id": pid, "number": number, "calls": n, "minutes": _n(sec),
          "conversion_pct": _pct(_n(comp), n)}
         for pid, number, n, sec, comp in s.execute(
-            _calls(flt, CallRow.phone_number_id, PhoneNumber.e164, func.count(), secs, complete)
+            _calls(flt, CallRow.phone_number_id, PhoneNumber.e164, func.count(), CALL_MINUTES, complete)
             .join(PhoneNumber, PhoneNumber.id == CallRow.phone_number_id)
             .group_by(CallRow.phone_number_id, PhoneNumber.e164).order_by(func.count().desc()))]
     agent_rows = s.execute(_calls(
-        flt, ConversationRow.agent_id, func.count(), secs,
+        flt, ConversationRow.agent_id, func.count(), CALL_MINUTES,
         func.coalesce(func.sum(case((finished, CallRow.duration_seconds), else_=0)), 0), _count_if(finished),
         complete, _count_if(ConversationRow.goal.is_(True)))
         .where(ConversationRow.agent_id.is_not(None)).group_by(ConversationRow.agent_id)).all()
     names = _agent_names(s, [r[0] for r in agent_rows])
     by_agent = sorted(({"agent_id": aid, "agent_name": names.get(aid, ""), "calls": n,
-                        "minutes": round(_n(sec) / 60, 1), "avg_duration": _avg(_n(fsec), _n(fin)),
+                        "minutes": _n(sec), "avg_duration": _avg(_n(fsec), _n(fin)),
                         "conversion_pct": _pct(_n(comp), n), "goal_pct": _pct(_n(goal), n)}
                        for aid, n, sec, fsec, fin, comp, goal in agent_rows), key=lambda r: -r["calls"])
 
@@ -648,18 +647,18 @@ def transfers(s: Session, flt: ReportFilter) -> dict:
     leg_rows = s.execute(
         select(HandoffLeg.team_member_id, func.count(), _count_if(answered_leg),
                _count_if(and_(HandoffLeg.result != "dialing", ~answered_leg)),
-               func.avg(case((answered_leg, wait))), func.coalesce(func.sum(HandoffLeg.billed_seconds), 0))
+               func.avg(case((answered_leg, wait))), func.coalesce(func.sum(quota.minutes_started(HandoffLeg.billed_seconds)), 0))
         .where(HandoffLeg.conversation_id.in_(ids)).group_by(HandoffLeg.team_member_id)).all()
     members = dict(s.execute(select(TeamMember.id, TeamMember.name)
                              .where(TeamMember.id.in_([r[0] for r in leg_rows if r[0]]))).all())
     by_member = sorted(({"team_member_id": mid, "name": members.get(mid, ""), "attempts": n, "answered": _n(a),
-                         "not_answered": _n(na), "avg_answer_seconds": _round(w, 1), "minutes": round(_n(b) / 60, 1)}
+                         "not_answered": _n(na), "avg_answer_seconds": _round(w, 1), "minutes": _n(b)}
                         for mid, n, a, na, w, b in leg_rows if mid), key=lambda r: -r["attempts"])
     avg_wait, billed = s.execute(select(func.avg(case((answered_leg, wait))),
-                                        func.coalesce(func.sum(HandoffLeg.billed_seconds), 0))
+                                        func.coalesce(func.sum(quota.minutes_started(HandoffLeg.billed_seconds)), 0))
                                  .where(HandoffLeg.conversation_id.in_(ids))).one()
     kpis |= {"answer_pct": _pct(kpis["answered"], kpis["requested"]), "avg_answer_seconds": _round(avg_wait, 1),
-             "minutes": round(_n(billed) / 60, 1)}
+             "minutes": _n(billed)}
     return {"kpis": kpis, "daily": list(daily.values()),
             "by_area": sorted(areas.values(), key=lambda a: -a["requested"]), "by_member": by_member}
 
@@ -693,7 +692,7 @@ def campaigns(s: Session, flt: ReportFilter) -> dict:
         .outerjoin(conv, conv.id == func.coalesce(cc.followup_conversation_id, cc.conversation_id))
         .where(cc.campaign_id.in_(ids)).group_by(cc.campaign_id))}
     minutes = dict(s.execute(
-        select(cc.campaign_id, func.coalesce(func.sum(CallRow.duration_seconds), 0))
+        select(cc.campaign_id, CALL_MINUTES)
         .join(CallRow, CallRow.campaign_contact_id == cc.id).where(cc.campaign_id.in_(ids))
         .group_by(cc.campaign_id)).all())
     optouts = dict(s.execute(
@@ -709,7 +708,7 @@ def campaigns(s: Session, flt: ReportFilter) -> dict:
         rows.append({"campaign_id": c.id, "name": c.name, "channel": c.channel, "status": c.status, "contacts": n,
                      "attempts": attempts if voice else sent, "reached": answered if voice else replied,
                      "complete": complete, "goal": goal, "optouts": _n(optouts.get(c.id)),
-                     "minutes": round(_n(minutes.get(c.id)) / 60, 1)})
+                     "minutes": _n(minutes.get(c.id))})
 
     reasons: dict[str, int] = defaultdict(int)
     for result, n in s.execute(select(cc.result, func.count()).join(Campaign, Campaign.id == cc.campaign_id)
@@ -839,7 +838,7 @@ def platform(s: Session, flt: ReportFilter) -> dict:
     """Tabla por cliente con alertas, negocio (planes, altas, ingresos) y operacion (concurrencia, fallas)."""
     flt = replace(flt, client_id=None)
     stats = {cid: vals for cid, *vals in s.execute(_convs(
-        flt, ConversationRow.client_id, func.count(), func.coalesce(func.sum(CallRow.duration_seconds), 0),
+        flt, ConversationRow.client_id, func.count(), CALL_MINUTES,
         _count_if(ConversationRow.conversion == "complete"), _count_if(CallRow.status == "fallida"))
         .group_by(ConversationRow.client_id))}
     prev = dict(s.execute(_convs(flt.previous(), ConversationRow.client_id, func.count())
@@ -850,7 +849,7 @@ def platform(s: Session, flt: ReportFilter) -> dict:
     start, end = quota.month_bounds(now.replace(tzinfo=datetime.UTC))
     clients, alerts = [], []
     for c in s.scalars(select(Client).order_by(Client.name)):
-        n, secs, complete, errors = map(_n, stats.get(c.id, [0, 0, 0, 0]))
+        n, minutes, complete, errors = map(_n, stats.get(c.id, [0, 0, 0, 0]))
         lim = limits_service.effective_limits(s, c, now)
         quota_pct = None
         if lim.inbound_minutes:
@@ -859,7 +858,7 @@ def platform(s: Session, flt: ReportFilter) -> dict:
         before = _n(prev.get(c.id))
         last_at = _as_dt(last[c.id]) if last.get(c.id) else None
         clients.append({"client_id": c.id, "name": c.name, "tier": c.tier.name, "conversations": n,
-                        "minutes": round(secs / 60, 1), "quota_pct": quota_pct, "conversion_pct": _pct(complete, n),
+                        "minutes": minutes, "quota_pct": quota_pct, "conversion_pct": _pct(complete, n),
                         "errors": errors, "last_activity_at": last_at,
                         "delta_pct": round(100 * (n - before) / before, 1) if before else None})
         if not c.active or c.tier.internal:

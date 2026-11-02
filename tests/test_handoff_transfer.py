@@ -215,8 +215,8 @@ def test_person_leg_counts_as_outbound_minutes_and_channels(api, admin, monkeypa
                          created_at=now, answered_at=now, ended_at=now))
         s.commit()
         used = quota.used_seconds(s, c["id"], CallMode.saliente, start, end, now)
-        assert 118 <= used <= 122                     # 90 cerrado + ~30 en curso; el contestador no cuenta
-        assert quota.used_seconds(s, c["id"], CallMode.entrante, start, end, now) < 5
+        assert used == 120 + 60                       # 90 s cerrado = 2 min + ~30 s en curso = 1; el contestador no cuenta
+        assert quota.used_seconds(s, c["id"], CallMode.entrante, start, end, now) == 60  # la entrante, recien empezada
         # Canales: la entrante en curso + el tramo abierto.
         assert quota.busy_channels(s, now) == 2
         monkeypatch.setattr(quota.settings, "anura_channels", 2)

@@ -270,7 +270,7 @@ Con datos inventados, sin ningún paciente real. La ficha y la minuta no existen
 
 | Estado | Función |
 |---|---|
-| **Listo** | Número geográfico. 0800 (descuenta minutos ×2). Derivación con rotación round robin: llama de a una persona, 20 s cada una. Whisper hablado a la persona antes de marcar 1 |
+| **Listo** | Número geográfico. 0800 (descuenta como cualquier otra llamada). Derivación con rotación round robin: llama de a una persona, 20 s cada una. Whisper hablado a la persona antes de marcar 1 |
 | **Parcial** | WhatsApp de texto y notas de voz, probado solo con el número de Atentina (número propio sin probar en real, alta simple pendiente de Meta). Agenda de contactos con teléfono, nombre, email y notas. Detección de emergencia configurable en la definición del agente, sin eval que la mida |
 | **No existe** | Fichas con DNI, estado de suscripción y cuidados. Búsqueda por DNI o nombre. Minuta con datos de la ficha. Derivación o aviso al staff desde WhatsApp. Llamadas de WhatsApp en número de un cliente. Timbre simultáneo y prioridad de emergencias. SMS |
 

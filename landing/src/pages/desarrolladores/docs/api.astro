@@ -732,7 +732,7 @@ const campaignEndpoints = [
       <ul>
         <li><strong>Si nadie atiende</strong> (no atiende, da ocupado, salta un contestador o no marca 1), el agente vuelve con el cliente y le toma el mensaje.</li>
         <li><strong>Volver al agente:</strong> la persona marca <code>return_digits</code> (2 por defecto; nunca con <code>*</code>) y el agente retoma la llamada. Si la persona corta, <code>on_person_hangup</code> elige entre que el agente siga (<code>resume</code>) o se despida y corte (<code>end</code>).</li>
-        <li><strong>Minutos:</strong> el tramo con la persona gasta minutos salientes desde que atiende; los intentos sin atender no se cobran. Sin minutos salientes, no se deriva. La llamada transferida ocupa una sola de las llamadas a la vez de tu plan.</li>
+        <li><strong>Minutos:</strong> el tramo con la persona gasta minutos salientes desde que atiende, por minuto iniciado; los intentos sin atender no se cobran. Sin minutos salientes, no se deriva. La llamada transferida ocupa una sola de las llamadas a la vez de tu plan.</li>
         <li><strong>Dónde no hay derivación:</strong> en las campañas y en los mensajes de WhatsApp. Sí en las entrantes por tu línea o por WhatsApp, y en las salientes que lanzás con <code>POST /calls</code>.</li>
       </ul>
       <div class="table-wrap"><table>
@@ -765,7 +765,7 @@ const campaignEndpoints = [
       </table></div>
       <ul>
         <li><strong>Cuándo marca:</strong> el contacto recibe la llamada cuando la persona entra a la llamada. Espera hasta 2 minutos si la creaste por API u OAuth (30 segundos si fue desde el panel); si no entra, la llamada queda <code>fallida</code> con <code>ended_reason</code> <code>user_not_joined</code>.</li>
-        <li><strong>Minutos y líneas:</strong> gasta minutos salientes desde que el contacto atiende y ocupa una de las llamadas a la vez del plan y una línea de salida.</li>
+        <li><strong>Minutos y líneas:</strong> gasta minutos salientes desde que el contacto atiende, por minuto iniciado, y ocupa una de las llamadas a la vez del plan y una línea de salida.</li>
         <li><strong>Contactos que pidieron la baja:</strong> se pueden llamar, pero hay que confirmarlo (<code>confirm_opted_out</code>). Queda registrado en la llamada. Los números bloqueados no se pueden llamar.</li>
         <li><strong>Cómo termina:</strong> corta la persona, corta el contacto, <code>POST /calls/{"{"}id{"}"}/hangup</code> o se acaban los minutos. <code>ended_reason</code> es <code>person_hangup</code>, <code>customer_hangup</code>, <code>hangup_by_user</code>, <code>max_duration</code> o <code>quota_exhausted</code>; sin atender, <code>no_answer</code>, <code>busy</code> o <code>sip_call_failed</code>.</li>
       </ul>

@@ -224,7 +224,9 @@ def test_outbound_minutes_and_channels(api, admin, monkeypatch):
         client = s.get(CallRow, cid).client_id
         assert quota.busy_channels(s) == 1
         from app.models import Client
-        assert 25 <= quota.remaining_seconds(s, s.get(Client, client), CallMode.directa) <= 30
+        # Para cortarla cuenta lo que lleva; para admitir otra, el minuto iniciado.
+        assert 25 <= quota.remaining_seconds(s, s.get(Client, client), CallMode.directa, running_exact=True) <= 30
+        assert quota.remaining_seconds(s, s.get(Client, client), CallMode.directa) == 0
         assert quota.usage(s, s.get(Client, client)).outbound.used_seconds >= 30
     monkeypatch.setattr(quota.settings, "anura_channels", 1)
     admin.patch(f"{V1}/tiers/{c['tier']['id']}", json={"outbound_minutes": None})

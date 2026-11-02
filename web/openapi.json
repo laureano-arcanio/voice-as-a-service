@@ -18260,7 +18260,7 @@
      "minutes_used": {
       "anyOf": [
        {
-        "type": "number"
+        "type": "integer"
        },
        {
         "type": "null"
@@ -18794,7 +18794,7 @@
      "minutes": {
       "anyOf": [
        {
-        "type": "number"
+        "type": "integer"
        },
        {
         "type": "null"
@@ -23048,10 +23048,11 @@
     "properties": {
      "used_seconds": {
       "type": "integer",
-      "title": "Used Seconds"
+      "title": "Used Seconds",
+      "description": "Lo descontado en segundos: cada llamada por minuto iniciado"
      },
      "used_minutes": {
-      "type": "number",
+      "type": "integer",
       "title": "Used Minutes"
      },
      "limit_minutes": {
@@ -23068,7 +23069,7 @@
      "remaining_minutes": {
       "anyOf": [
        {
-        "type": "number"
+        "type": "integer"
        },
        {
         "type": "null"
@@ -23079,7 +23080,7 @@
      "projected_minutes": {
       "anyOf": [
        {
-        "type": "number"
+        "type": "integer"
        },
        {
         "type": "null"
@@ -25094,7 +25095,7 @@
       "title": "Calls"
      },
      "minutes": {
-      "type": "number",
+      "type": "integer",
       "title": "Minutes"
      },
      "avg_duration": {
@@ -25144,7 +25145,7 @@
       "title": "Calls"
      },
      "minutes": {
-      "type": "number",
+      "type": "integer",
       "title": "Minutes"
      },
      "avg_duration": {
@@ -25241,7 +25242,7 @@
       "title": "Calls"
      },
      "minutes": {
-      "type": "number",
+      "type": "integer",
       "title": "Minutes"
      },
      "avg_duration": {
@@ -25478,7 +25479,7 @@
       "title": "Optouts"
      },
      "minutes": {
-      "type": "number",
+      "type": "integer",
       "title": "Minutes"
      }
     },
@@ -25557,7 +25558,7 @@
       "title": "Conversations"
      },
      "minutes": {
-      "type": "number",
+      "type": "integer",
       "title": "Minutes"
      },
      "quota_pct": {
@@ -25962,7 +25963,7 @@
       "title": "Transfer Pct"
      },
      "minutes": {
-      "type": "number",
+      "type": "integer",
       "title": "Minutes"
      },
      "finished": {
@@ -26120,7 +26121,7 @@
       "title": "Calls"
      },
      "minutes": {
-      "type": "number",
+      "type": "integer",
       "title": "Minutes"
      },
      "conversion_pct": {
@@ -26179,7 +26180,7 @@
       "title": "Avg Answer Seconds"
      },
      "minutes": {
-      "type": "number",
+      "type": "integer",
       "title": "Minutes"
      }
     },
@@ -26974,7 +26975,7 @@
       "description": "Del timbre a que atiende la persona"
      },
      "minutes": {
-      "type": "number",
+      "type": "integer",
       "title": "Minutes",
       "description": "Minutos salientes de los tramos a personas"
      }

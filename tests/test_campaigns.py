@@ -290,7 +290,7 @@ def test_voice_results_and_minutes(api, voice):
     d = user.get(f"{V1}/campaigns/{camp['id']}").json()
     assert d["results"]["answered"] == 1 and d["results"]["busy"] == 1 and d["results"]["no_answer"] == 1
     assert d["progress"]["done"] == 2 and d["progress"]["retry"] == 1 and d["percent"] == 66.7
-    assert d["minutes_used"] == 1.5 and d["eta_minutes"] is not None and d["eta_minutes"] >= 1
+    assert d["minutes_used"] == 2 and d["eta_minutes"] is not None and d["eta_minutes"] >= 1
     assert user.get(f"{V1}/campaigns/{camp['id']}/contacts", params={"result": "busy"}).json()["total"] == 1
 
 

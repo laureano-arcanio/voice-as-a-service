@@ -493,7 +493,7 @@ def test_outbound_minutes_limit(api, admin):
     assert admin.post(f"{V1}/calls", json={"agent_id": agent["id"]}).status_code == 201
     usage = admin.get(f"{V1}/clients/{c['id']}/usage").json()
     projected = usage["outbound"].pop("projected_minutes")
-    assert usage["outbound"] == {"used_seconds": 60, "used_minutes": 1.0, "limit_minutes": 1, "remaining_minutes": 0.0}
+    assert usage["outbound"] == {"used_seconds": 60, "used_minutes": 1, "limit_minutes": 1, "remaining_minutes": 0}
     assert projected >= 1.0      # el mes en curso se proyecta a su fin (nunca menos que lo ya usado)
     past = admin.get(f"{V1}/clients/{c['id']}/usage", params={"month": "2020-01"}).json()
     assert past["outbound"]["projected_minutes"] is None
